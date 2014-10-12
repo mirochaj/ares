@@ -19,15 +19,39 @@ import os, sys, copy, types, pickle, time
 from ..simulations import Global21cm as simG21
 from ..analysis.TurningPoints import TurningPoints
 from ..util.ReadData import read_pickled_chain, flatten_chain, flatten_logL, \
-    flatten_blobs
-    
-default_errors = \
-{
- 'B': np.diag([0.5, 5.])**2,
- 'C': np.diag([0.5, 5.])**2,
- 'D': np.diag([0.5, 5.])**2,
-}    
+    flatten_blobs  
 
+try:
+    from scipy.spatial import KDTree
+    from scipy.interpolate import interp1d, NearestNDInterpolator
+except ImportError:
+    pass
+
+try:
+    import emcee
+    from emcee.utils import MPIPool
+except ImportError:
+    pass
+    
+try:
+    have_mathutils = True
+    from mathutils.stats import Gauss1D, GaussND, error_1D, rebin
+except ImportError:
+    have_mathutils = False    
+    
+try:
+    import h5py
+except ImportError:
+    pass
+
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1
+    
 def parse_turning_points(turning_points_model, turning_points_input, use):
     """
     Convert dictionary of turning points to array.
@@ -64,40 +88,7 @@ def parse_turning_points(turning_points_model, turning_points_input, use):
 
     return np.array(arr_TPs)
 
-    
-    
 nearest = lambda x, points: KDTree(points, leafsize=1e7).query(x)
-
-try:
-    from scipy.spatial import KDTree
-    from scipy.interpolate import interp1d, NearestNDInterpolator
-except ImportError:
-    pass
-
-try:
-    import emcee
-    from emcee.utils import MPIPool
-except ImportError:
-    pass
-    
-try:
-    have_mathutils = True
-    from mathutils.stats import Gauss1D, GaussND, error_1D, rebin
-except ImportError:
-    have_mathutils = False    
-    
-try:
-    import h5py
-except ImportError:
-    pass
-
-try:
-    from mpi4py import MPI
-    rank = MPI.COMM_WORLD.rank
-    size = MPI.COMM_WORLD.size
-except ImportError:
-    rank = 0
-    size = 1
     
 turning_points_all = list('BCD')
 
@@ -120,7 +111,21 @@ lt1gt0_pars = ['fstar', 'fesc', 'eta']
 gt0_pars = ['Nlw', 'Tmin']
 
 def_kwargs = {'track_extrema': 1, 'verbose': False, 'progress_bar': False}
-    
+
+default_errors = \
+{
+ 'B': np.diag([0.1, 1.])**2,
+ 'C': np.diag([0.1, 1.])**2,
+ 'D': np.diag([0.1, 1.])**2,
+}
+
+_z_blob = list('BCD')
+_z_blob.extend(list(np.arange(10., 36.)))
+
+default_blobs = \
+    (['dTb', 'z', 'curvature', 'igm_Tk', 'igm_heat', 'cgm_h_2', 'cgm_Gamma', 
+    'Ts', 'Ja'], _z_blob)
+
 class logprior:
     def __init__(self, priors, parameters):
         self.pars = parameters  # just names *in order*

@@ -32,16 +32,23 @@ fit = ModelFit(**base_pars)
 fit.set_input_realization()
 
 # Set axes of parameter space
-fit.set_axes(['fX'], is_log=[True]*1)
+fit.set_axes(['fX', 'fstar'], is_log=[True]*2)
+fit.priors = {'fX': ['uniform', -2., 2.], 'fstar': ['uniform', -3., 0.]}
 
-fit.priors = {'fX': ['uniform', -2., 2.]}
+# Set errors
+fit.set_error(error1d=[0.5, 0.5, 0.5, 5., 5., 5.])
 
-fit.nwalkers = 4
+# Defines order of errors
+fit.measurement_map = \
+    [('B', 0), ('C', 0), ('D', 0),
+     ('B', 1), ('C', 1), ('D', 1)]
+
+fit.nwalkers = 8
 
 # Run it!
 t1 = time.time()
-fit.run(prefix='test_fcoll', steps=10, clobber=True)
+fit.run(prefix='test_fcoll', steps=50, clobber=True)
 t2 = time.time()
 
-print "Run complete in %.4g minutes." % ((t2 - t1) / 60.)
+print "Run complete in %.4g minutes.\n" % ((t2 - t1) / 60.)
 

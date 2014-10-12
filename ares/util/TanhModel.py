@@ -30,11 +30,15 @@ hydr = Hydrogen()
 rc = RateCoefficients(recombination='A')
 alpha_A = rc.RadiativeRecombinationRate(0, 1e4)
 
+def Tgas_adiabatic(z):
+    return hydr.cosm.TCMB(hydr.cosm.zdec) * (1. + z)**2 \
+        / (1. + hydr.cosm.zdec)**2
+
 def tanh_generic(z, zref, dz):
     return 0.5 * (np.tanh((zref - z) / dz) + 1.)
     
 def temperature(z, Tref, zref, dz):
-    return Tref * tanh_generic(z, zref=zref, dz=dz) + hydr.cosm.Tgas(z)
+    return Tref * tanh_generic(z, zref=zref, dz=dz) + Tgas_adiabatic(z)
     
 def ionized_fraction(z, xref, zref, dz):
     return xref * tanh_generic(z, zref=zref, dz=dz)
@@ -118,10 +122,8 @@ def tanh_model_for_emcee(z, theta):
     
     Jref *= J21_num
     
-    try:
-        Tgas = hydr.cosm.Tgas(z)
-    except ValueError:
-        Tgas = np.array(map(hydr.cosm.Tgas, z))
+    # Assumes z < zdec
+    Tgas = Tgas_adiabatic(z)
 
     Ja = Jref * tanh_generic(z, zref=zref_J, dz=dz_J)
     Tk = Tref * tanh_generic(z, zref=zref_T, dz=dz_T) + Tgas
@@ -145,8 +147,8 @@ def tanh_model_for_emcee(z, theta):
      'Ts': Ts,
      'Ja': Ja,
      'cgm_h_2': xi,
-     'igm_heat': np.array(map(lambda z: heating_rate(z, Tref, zref_T, dz_T), z)),
-     'cgm_Gamma': np.array(map(lambda z: ionization_rate(z, xref, zref_x, dz_x), z))
+     'igm_heat': heating_rate(z, Tref, zref_T, dz_T),
+     'cgm_Gamma': ionization_rate(z, xref, zref_x, dz_x),
     }
     
     # Add heating rates, etc.

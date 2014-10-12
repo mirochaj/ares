@@ -90,37 +90,81 @@ class Hydrogen:
         self.E_LL = h * self.nu_LL / erg_per_ev
         self.nu_alpha = self.E_LyA * erg_per_ev / h
         self.nu_beta = self.E_LyB * erg_per_ev / h
-        self.dnu = self.nu_LL - self.nu_alpha #(13.6 - 11.18) * erg_per_ev / h  
+        self.dnu = self.nu_LL - self.nu_alpha
         
-        self.kappa_H_pre = interpolate.interp1d(T_HH, kappa_HH, 
-            kind='cubic', bounds_error=False, fill_value=0.0)
-        self.kappa_e_pre = interpolate.interp1d(T_He, kappa_He, 
-            kind='cubic', bounds_error=False, fill_value=0.0)
-        
-        self.tabulated_coeff = {'kappa_H': np.array(kappa_HH), 
-                                'kappa_e': np.array(kappa_He), 
-                                'T_H': np.array(T_HH), 'T_e': np.array(T_He)}
+        self.tabulated_coeff = \
+            {'kappa_H': kappa_HH, 'kappa_e': kappa_He, 
+             'T_H': T_HH, 'T_e': T_He}
     
-        # High-resolution tables for differentiation of rate coefficients
-        self._Tk_hi_H = np.logspace(np.log10(self.tabulated_coeff['T_H'].min()),
-            np.log10(self.tabulated_coeff['T_H'].max()), 1000)
-        self._kH_hi = np.array(map(self.kappa_H, self._Tk_hi_H))
+    @property
+    def kappa_H_pre(self):
+        if not hasattr(self, '_kappa_H_pre'):                            
+            self._kappa_H_pre = interpolate.interp1d(T_HH, kappa_HH, 
+                kind='cubic', bounds_error=False, fill_value=0.0)
         
-        self._Tk_hi_e = np.logspace(np.log10(self.tabulated_coeff['T_e'].min()),
-            np.log10(self.tabulated_coeff['T_e'].max()), 1000)
-        self._ke_hi = np.array(map(self.kappa_e, self._Tk_hi_e))
-                
-        Tk_p_H, dkHdT = central_difference(self._Tk_hi_H, self._kH_hi)
-        dlogkH_dlogT = dkHdT * Tk_p_H / np.array(map(self.kappa_H, Tk_p_H))
+        return self._kappa_H_pre
+
+    @property
+    def kappa_e_pre(self):
+        if not hasattr(self, '_kappa_e_pre'):                            
+            self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He, 
+                kind='cubic', bounds_error=False, fill_value=0.0)
+    
+        return self._kappa_e_pre
+
+    @property
+    def Tk_hi_H(self):
+        if not hasattr(self, '_Tk_hi_H'):
+            self._Tk_hi_H = \
+                np.logspace(np.log10(self.tabulated_coeff['T_H'].min()),
+                np.log10(self.tabulated_coeff['T_H'].max()), 1000)
+            
+        return self._Tk_hi_H
         
-        _kH_spline = interpolate.interp1d(Tk_p_H, dlogkH_dlogT)
-        self.dlogkH_dlogT = lambda T: _kH_spline(T)
+    @property    
+    def Tk_hi_e(self):
+        if not hasattr(self, '_Tk_hi_e'):       
+            self._Tk_hi_e = \
+                np.logspace(np.log10(self.tabulated_coeff['T_e'].min()),
+                np.log10(self.tabulated_coeff['T_e'].max()), 1000)
+            
+        return self._Tk_hi_e
+
+    @property
+    def kH_hi(self):
+        if not hasattr(self, '_kH_hi'):
+            self._kH_hi = np.array(map(self.kappa_H, self.Tk_hi_H))
+    
+        return self._kH_hi
+
+    @property
+    def ke_hi(self):
+        if not hasattr(self, '_ke_hi'):
+            self._ke_hi = np.array(map(self.kappa_e, self.Tk_hi_e))
+
+        return self._ke_hi
+
+    @property
+    def dlogkH_dlogT(self):  
+        if not hasattr(self, '_dlogkH_dlogT'):
+            Tk_p_H, dkHdT = central_difference(self.Tk_hi_H, self.kH_hi)
+            dlogkH_dlogT = dkHdT * Tk_p_H / np.array(map(self.kappa_H, Tk_p_H))
+            
+            _kH_spline = interpolate.interp1d(Tk_p_H, dlogkH_dlogT)
+            self._dlogkH_dlogT = lambda T: _kH_spline(T)
+            
+        return self._dlogkH_dlogT
         
-        Tk_p_e, dkedT = central_difference(self._Tk_hi_e, self._ke_hi)
-        dlogke_dlogT = dkedT * Tk_p_e / np.array(map(self.kappa_e, Tk_p_e))
-        
-        _ke_spline = interpolate.interp1d(Tk_p_e, dlogke_dlogT)
-        self.dlogke_dlogT = lambda T: _ke_spline(T)
+    @property
+    def dlogke_dlogT(self):
+        if not hasattr(self, '_dlogke_dlogT'):
+            Tk_p_e, dkedT = central_difference(self.Tk_hi_e, self.ke_hi)
+            dlogke_dlogT = dkedT * Tk_p_e / np.array(map(self.kappa_e, Tk_p_e))
+            
+            _ke_spline = interpolate.interp1d(Tk_p_e, dlogke_dlogT)
+            self._dlogke_dlogT = lambda T: _ke_spline(T)
+    
+        return self._dlogke_dlogT
     
     def _kappa(self, Tk, Tarr, spline):
         if Tk < Tarr[0]:

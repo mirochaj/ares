@@ -24,11 +24,11 @@ To clone a copy and install: ::
     python setup.py install
 
 It would be in your best interest to set an environment variable which points
-to the ``ares`` install directory, e.g. (in bash) ::
+to the ARES install directory, e.g. (in bash) ::
 
     export ARES=/users/<yourusername>/ares
 
-``ares`` will look in $ARES/input for lookup tables of various kinds, e.g.,
+ARES will look in ``$ARES/input`` for lookup tables of various kinds, e.g.,
 the halo mass function (in ``$ARES/input/hmf``), IGM optical depth (in
 ``$ARES/input/optical_depth``), spectral energy distributions (in
 ``$ARES/input/seds``), etc.
@@ -38,7 +38,7 @@ automatically:
 
 hmf_PS_logM_240_4-16_z_1521_4-80.pkl
     Lookup table for the halo mass function. To make your own lookup tables, run
-    ``ares/input/generate_hmf_tables.py``. You'll need to install 
+    ``$ARES/input/generate_hmf_tables.py``. You'll need to install 
     `hmf <https://github.com/steven-murray/hmf>`_ for this to work.
 
 initial_conditions.hdf5
@@ -49,7 +49,7 @@ optical_depth_H_400x1884_z_10-40_logE_2-4.7.hdf5
     IGM optical depth from 10 <= z <= 40 and 0.1 < E / keV < 30 in a neutral
     universe. To make your own lookup tables spanning different redshifts,
     energies, or for prescribed ionization histories, run
-    ``ares/input/generate_optical_depth_tables.py``.
+    ``$ARES/input/generate_optical_depth_tables.py``.
     
 Dependencies
 --------------------

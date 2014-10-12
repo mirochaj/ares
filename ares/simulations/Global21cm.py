@@ -84,8 +84,8 @@ class Global21cm:
                     self.pf.update(TanhParameters())
                     self.pf.update(kwargs)
                     
-                    z = np.arange(self.pf['final_redshift'] + 0.05,
-                        self.pf['initial_redshift'], 0.05)[-1::-1]
+                    z = np.arange(self.pf['final_redshift'] + self.pf['tanh_dz'],
+                        self.pf['initial_redshift'], self.pf['tanh_dz'])[-1::-1]
                     self.history = tanh_model(z, **self.pf).data
 
                     if self.pf['inline_analysis'] is not None:

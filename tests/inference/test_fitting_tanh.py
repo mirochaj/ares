@@ -24,6 +24,7 @@ base_pars = \
 {
  'final_redshift': 5.,
  'tanh_model': True,
+ 'tanh_dz': 0.2,
  'inline_analysis': blobs,
 }
 
@@ -34,22 +35,23 @@ fit = ModelFit(**base_pars)
 fit.set_input_realization(tanh_model=True)
 
 # Set axes of parameter space
-is_log = [False]*2
-
-fit.set_axes(['tanh_xz0', 'tanh_xdz'], is_log=is_log)
+fit.set_axes(['tanh_xz0', 'tanh_xdz', 'tanh_Tz0', 'tanh_Tdz'], 
+    is_log=[False]*4)
 
 fit.priors = \
 {
  'tanh_xz0': ['uniform', 5., 20.],
- 'tanh_xdz': ['uniform', 0.1, 10]
+ 'tanh_xdz': ['uniform', 0.1, 10],
+ 'tanh_Tz0': ['uniform', 5., 20.],
+ 'tanh_Tdz': ['uniform', 0.1, 10],
 }
 
-fit.nwalkers = 8
+fit.nwalkers = 32
 
 # Run it!
 t1 = time.time()
-fit.run(prefix='test_tanh_1', steps=200, clobber=True, save_freq=1)
+fit.run(prefix='test_tanh', burn=100, steps=1e3, clobber=True, save_freq=10)
 t2 = time.time()
 
-print "Run complete in %.4g minutes." % ((t2 - t1) / 60.)
+print "Run complete in %.4g minutes.\n" % ((t2 - t1) / 60.)
 
