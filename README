@@ -7,8 +7,9 @@ rapidly generate models for the global 21-cm signal, the 21-cm angular power
 spectrum, and the high redshift galaxy luminosity function.
 
 A few papers on how it works:
-*1-D radiative transfer: `Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_.
-*Uniform backgrounds & global 21-cm signal: `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_.
+
+- 1-D radiative transfer: `Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_.
+- Uniform backgrounds & global 21-cm signal: `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_.
 
 Be warned: this code is still under active development -- use at your own risk! 
 Correctness of results is not guaranteed.
@@ -28,17 +29,18 @@ to the ``ares`` install directory, e.g. (in bash) ::
 
     export ARES=/Users/mirocha/ares
 
-ares will look in $ARES/input for lookup tables of various kinds, 
-e.g., the halo mass function (in ``$ARES/input/hmf``), IGM optical depth 
-(in ``$ARES/input/optical_depth``), spectral energy distributions 
-(in ``$ARES/input/seds``), etc.
+ares will look in $ARES/input for lookup tables of various kinds, e.g., the
+halo mass function (in ``$ARES/input/hmf``), IGM optical depth (in
+``$ARES/input/optical_depth``), spectral energy distributions (in
+``$ARES/input/seds``), etc.
 
-When you first run the setup.py script, a few files will be downloaded automatically:
+When you first run the setup.py script, a few files will be downloaded
+automatically:
 
 hmf_PS_logM_240_4-16_z_1521_4-80.pkl
     Lookup table for the halo mass function. To make your own lookup tables, run
-    ``ares/input/generate_hmf_tables.py``. You'll need to install 
-    `hmf <https://github.com/steven-murray/hmf>`_ for this to work.
+``ares/input/generate_hmf_tables.py``. You'll need to install `hmf
+<https://github.com/steven-murray/hmf>`_ for this to work.
 
 initial_conditions.hdf5
     Evolution of IGM thermal and ionization state computed using the ``CosmoRec``
@@ -46,9 +48,9 @@ initial_conditions.hdf5
 
 optical_depth_H_400x1884_z_10-40_logE_2-4.7.hdf5
     IGM optical depth from 10 <= z <= 40 and 0.1 < E / keV < 30 in a neutral
-    universe. To make your own lookup tables spanning different redshifts,
-    energies, or for prescribed ionization histories, run
-    ``ares/input/generate_optical_depth_tables.py``.
+universe. To make your own lookup tables spanning different redshifts,
+energies, or for prescribed ionization histories, run
+``ares/input/generate_optical_depth_tables.py``.
     
 Dependencies
 ------------
