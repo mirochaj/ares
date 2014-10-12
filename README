@@ -2,14 +2,17 @@
 ares
 ====
 
-The code for Accelerated Reionization Era Simulations (ARES) was designed to rapidly generate models for the global 21-cm signal, the 21-cm angular power spectrum, and the high redshift galaxy luminosity function.
+The code for Accelerated Reionization Era Simulations (ARES) was designed to
+rapidly generate models for the global 21-cm signal, the 21-cm angular power
+spectrum, and the high redshift galaxy luminosity function.
 
 A few papers on how it works:
 
 - 1-D radiative transfer: `Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_.
 - Uniform backgrounds \& global 21-cm signal: `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_.
 
-Be warned: this code is still under active development -- use at your own risk! Correctness of results is not guaranteed.
+Be warned: this code is still under active development -- use at your own
+risk! Correctness of results is not guaranteed.
 
 The `documentation <http://ares.readthedocs.org/en/latest/index.html>`_ is still a work in progress.
 
@@ -26,9 +29,13 @@ to the ``ares`` install directory, e.g. (in bash) ::
 
     export ARES=/users/<yourusername>/ares
 
-ares will look in $ARES/input for lookup tables of various kinds, e.g., the halo mass function (in ``$ARES/input/hmf``), IGM optical depth (in ``$ARES/input/optical_depth``), spectral energy distributions (in ``$ARES/input/seds``), etc.
+``ares`` will look in $ARES/input for lookup tables of various kinds, e.g.,
+the halo mass function (in ``$ARES/input/hmf``), IGM optical depth (in
+``$ARES/input/optical_depth``), spectral energy distributions (in
+``$ARES/input/seds``), etc.
 
-When you first run the setup.py script, a few files will be downloaded automatically:
+When you first run the setup.py script, a few files will be downloaded
+automatically:
 
 hmf_PS_logM_240_4-16_z_1521_4-80.pkl
     Lookup table for the halo mass function. To make your own lookup tables, run
