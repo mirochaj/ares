@@ -1,0 +1,14 @@
+syntax: glob
+
+dist/*
+build/*
+*.pyc
+*~
+*.hdf5
+*.h5
+*.png
+*.pkl
+MANIFEST
+doc/_build
+doc/_templates
+doc/_static

@@ -1,0 +1,49 @@
+If you use any of the global radiation background stuff, you should consider 
+citing: 
+
+    Mirocha, J., 2014, MNRAS, 443, 1211
+
+For BibTex users:
+
+@ARTICLE{2014MNRAS.443.1211M,
+   author = {{Mirocha}, J.},
+    title = "{Decoding the X-ray properties of pre-reionization era sources}",
+  journal = {\mnras},
+archivePrefix = "arXiv",
+   eprint = {1406.4120},
+ keywords = {methods: numerical, dark ages, reionization, first stars, diffuse radiation, X-rays: binaries, X-rays: diffuse background},
+     year = 2014,
+    month = sep,
+   volume = 443,
+    pages = {1211-1223},
+      doi = {10.1093/mnras/stu1193},
+   adsurl = {http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M},
+  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+For the 1-D radiative transfer, consider citing: 
+
+    Mirocha, J., Skory, S., Burns, J.O., Wise, J.W., 2012, ApJ, 756, 94
+
+For BibTex users:
+
+@ARTICLE{2012ApJ...756...94M,
+   author = {{Mirocha}, J. and {Skory}, S. and {Burns}, J.~O. and {Wise}, J.~H.
+	},
+    title = "{Optimized Multi-frequency Spectra for Applications in Radiative Feedback and Cosmological Reionization}",
+  journal = {\apj},
+archivePrefix = "arXiv",
+   eprint = {1204.1944},
+ primaryClass = "astro-ph.CO",
+ keywords = {dark ages, reionization, first stars, methods: numerical, radiative transfer},
+     year = 2012,
+    month = sep,
+   volume = 756,
+      eid = {94},
+    pages = {94},
+      doi = {10.1088/0004-637X/756/1/94},
+   adsurl = {http://adsabs.harvard.edu/abs/2012ApJ...756...94M},
+  adsnote = {Provided by the SAO/NASA Astrophysics Data System}
+}
+
+
