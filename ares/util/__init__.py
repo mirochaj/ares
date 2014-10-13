@@ -7,7 +7,7 @@ from .ProgressBar import ProgressBar
 from .ProblemTypes import ProblemType
 from .RestrictTimestep import RestrictTimestep
 from .SetDefaultParameterValues import SetAllDefaults
-from .Math import rebin, central_difference, take_derivative
+from .Math import central_difference, take_derivative
 from .CheckForParameterConflicts import CheckForParameterConflicts
 
 try:

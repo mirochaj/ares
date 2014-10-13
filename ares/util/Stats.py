@@ -90,3 +90,75 @@ def get_nu(sigma, nu_in, nu_out):
     
     return fmin(to_min, np.sqrt(var), disp=False)[0]
 
+def error_1D(x, y, nu=0.68, discrete=True):
+    """
+    Compute 1D (possibly asymmetric) errorbar.
+
+    If the number of samples in x and y is small, this will not be very
+    accurate.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        bins
+    y : np.ndarray
+        PDF
+    nu : float
+        Integrate out until nu-% of the likelihood has been enclosed.
+
+    Returns
+    -------
+    Errorbar (asymmetric).
+
+    """    
+
+    if discrete:
+        tot = float(np.sum(y))
+    else:
+        tot = np.trapz(y, x)
+
+    # Number of elements in histogram
+    K = len(y)
+
+    # Maximum likelihood point    
+    iML = np.argmax(y)
+
+    # Start just right of the peak
+    k = iML+1
+
+    # Begin
+    area = 0.0
+    while (area < nu) and (k < K):
+
+        Lr = y[k]  # likelihood at right point
+
+        # Determine location of point left of peak with same likelihood
+        if discrete:
+            l = np.argmin(np.abs(y[0:iML-1] - Lr))
+        else:
+            xl = np.interp(Lr, y[0:iML-1], x[0:iML-1])
+            l = int(np.argmin(np.abs(xl - x)))
+
+        if discrete:
+            area = np.sum(y[l:k+1]) / tot
+        else:
+            area = np.trapz(y[l:k+1] / tot, x[l:k+1])
+
+        k += 1
+
+    k -= 1
+
+    return x[iML] - x[l], x[k] - x[iML]    
+
+def rebin(bins):
+    """
+    Take in an array of bin edges and convert them to bin centers.        
+    """
+
+    bins = np.array(bins)
+    result = np.zeros(bins.size - 1)
+    for i, element in enumerate(result):
+        result[i] = (bins[i] + bins[i + 1]) / 2.
+
+    return result
+

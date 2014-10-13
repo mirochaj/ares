@@ -55,18 +55,6 @@ def central_difference(x, y):
     
     return x[1:-1], dydx
 
-def rebin(bins):
-    """
-    Take in an array of bin edges and convert them to bin centers.        
-    """
-
-    bins = np.array(bins)
-    result = np.zeros(bins.size - 1)
-    for i, element in enumerate(result):
-        result[i] = (bins[i] + bins[i + 1]) / 2.
-
-    return result
-
 def take_derivative(z, field, wrt='z'):
     """ Evaluate derivative of `field' with respect to `wrt' at z. """
 

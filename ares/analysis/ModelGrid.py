@@ -15,15 +15,9 @@ import time, copy, os, pickle
 import matplotlib.pyplot as pl
 from ..simple import Interpret21cm
 from ..util import labels, default_errors
+from ..physics.Constants import cm_per_mpc
 from ..run.ModelGrid import ModelGrid as rMG
-
-cm_per_mpc = rt1d.physics.Constants.cm_per_mpc
-
-try:
-    have_mathutils = True
-    from mathutils.stats import Gauss1D, GaussND, error_1D, rebin
-except ImportError:
-    have_mathutils = False
+from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
     
 try:
     import ndspace

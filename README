@@ -46,7 +46,7 @@ initial_conditions.hdf5
     code.
 
 optical_depth_H_400x1884_z_10-40_logE_2-4.7.hdf5
-    IGM optical depth from 10 <= z <= 40 and 0.1 < E / keV < 30 in a neutral
+    IGM optical depth from :math:`10 \leq z \leq 40` and :math:`0.1 \leq h\nu / keV \leq 30` in a neutral
     universe. To make your own lookup tables spanning different redshifts,
     energies, or for prescribed ionization histories, run
     ``$ARES/input/generate_optical_depth_tables.py``.

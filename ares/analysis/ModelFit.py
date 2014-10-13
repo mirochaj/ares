@@ -23,12 +23,7 @@ try:
 except ImportError:
     pass
 
-try:
-    have_mathutils = True
-    from mathutils.stats import rebin, confidence_regions, error_1D
-except ImportError:
-    have_mathutils = False
-    pass
+from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 
 try:
     import emcee
@@ -227,7 +222,7 @@ class ModelFit(object):
     def posterior_pdf(self, pars, z=None, ax=None, fig=1, multiplier=[1.]*2,
         nu=[0.99, 0.95, 0.68], slc=None, overplot_nu=False, density=True, 
         color_by_nu=False, contour=True, filled=True, take_log=[False]*2,
-        bins=20, xscale='linear', yscale='linear', **kwargs):
+        bins=20, xscale='linear', yscale='linear', skip=0, skim=1, **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
     
@@ -256,6 +251,11 @@ class ModelFit(object):
         take_log : list
             Two-element list saying whether to histogram the base-10 log of
             each parameter or not.
+        skip : int
+            Number of steps at beginning of chain to exclude. This is a nice
+            way of doing a burn-in after the fact.
+        skim : int
+            Only take every skim'th step from the chain.
 
         Returns
         -------
@@ -294,7 +294,7 @@ class ModelFit(object):
                 j = self.parameters.index(par)
                 is_log.append(self.is_log[j])
                 
-                val = self.chain[:,j].ravel() * multiplier[k]
+                val = self.chain[skip:,j].ravel()[::skim] * multiplier[k]
                 if take_log[k]:
                     to_hist.append(np.log10(val))
                 else:
@@ -310,7 +310,7 @@ class ModelFit(object):
                 
                 is_log.append(False)
                 
-                val = self.blobs[:,i,j].compressed() * multiplier[k]
+                val = self.blobs[skip:,i,j].compressed()[::skim] * multiplier[k]
                 if take_log[k]:
                     to_hist.append(np.log10(val))
                 else:
@@ -448,7 +448,7 @@ class ModelFit(object):
     def triangle_plot(self, pars, z=None, panel_size=(0.5,0.5), padding=(0,0),
         show_errors=False, take_log=False, multiplier=1,
         fig=1, plot_inputs=False, inputs={}, tighten_up=0.0, 
-        inset_data=None, bins=20, mp=None,
+        inset_data=None, bins=20, mp=None, skip=0, skim=1,
         filled=True, inset=False, inset_pars={}, **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -463,6 +463,11 @@ class ModelFit(object):
             ID number for plot window. 
         bins : int,
             Number of bins in each dimension.
+        skip : int
+            Number of steps at beginning of chain to exclude. This is a nice
+            way of doing a burn-in after the fact.
+        skim : int
+            Only take every skim'th step from the chain.
         
         Returns
         -------
@@ -549,7 +554,7 @@ class ModelFit(object):
                     self.posterior_pdf(p1, ax=mp.grid[k], 
                         take_log=take_log[-1::-1][i], z=z,
                         multiplier=[multiplier[-1::-1][i]], 
-                        bins=bins[-1::-1][i], **kw)
+                        bins=bins[-1::-1][i], skip=skip, skim=skim, **kw)
                     
                     if col != 0:
                         mp.grid[k].set_ylabel('')
