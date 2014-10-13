@@ -19,19 +19,62 @@ from ..physics.Cosmology import Cosmology
 from ..physics.Constants import k_B, cm_per_kpc, s_per_myr, m_H
 from ..physics.CrossSections import PhotoIonizationCrossSection
 
-try:
-    import chianti.core as cc
-    import chianti.util as util
-    have_chianti = True
-except ImportError:
-    from ..util import fake_chianti
-    util = fake_chianti()
-    have_chianti = False
+class ELEMENT:
+    """ Substitute for periodic package, only knows about H and He. """
+    def __init__(self, name):
+        self.name = name
+    
+    @property
+    def mass(self):
+        if not hasattr(self, '_mass'):
+            if self.name == 'h':
+                self._mass = 1.00794
+            elif self.name == 'he':
+                self._mass = 4.002602       
+    
+        return self._mass
+        
+class fake_chianti:
+    def __init__(self):
+        pass
 
-try:
-    from periodic.table import element as ELEMENT
-except ImportError:
-    from ..util import ELEMENT
+    def z2element(self, i):
+        if i == 1:
+            return 'h'
+        elif i == 2:
+            return 'he'
+
+    def element2z(self, name):
+        if name == 'h':
+            return 1
+        elif name == 'he':
+            return 2   
+
+    def zion2name(self, Z, i):
+        if Z == 1:
+            if i == 1:
+                return 'h_1'
+            elif i == 2:
+                return 'h_2'
+        elif Z == 2:
+            if i == 1:
+                return 'he_1'
+            elif i == 2:
+                return 'he_2'
+            elif i == 3:
+                return 'he_3'             
+
+    def convertName(self, species):
+        element, i = species.split('_')
+
+        tmp = {}
+        tmp['Element'] = element
+        tmp['Ion'] = self.zion2name(Z, int(i))
+        tmp['Z'] = self.element2z(element)
+
+        return tmp
+        
+util = fake_chianti()
 
 tiny_number = 1e-8  # A relatively small species fraction
 

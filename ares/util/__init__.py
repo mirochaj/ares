@@ -1,6 +1,5 @@
 import re
 import numpy as np
-from .Math import *
 from .Aesthetics import labels
 from collections import Iterable
 from .WriteData import CheckPoints
@@ -8,12 +7,8 @@ from .ProgressBar import ProgressBar
 from .ProblemTypes import ProblemType
 from .RestrictTimestep import RestrictTimestep
 from .SetDefaultParameterValues import SetAllDefaults
+from .Math import rebin, central_difference, take_derivative
 from .CheckForParameterConflicts import CheckForParameterConflicts
-
-try:
-    from mathutils.differentiate import central_difference
-except ImportError:
-    pass
 
 try:
     import h5py

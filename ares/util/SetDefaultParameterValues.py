@@ -433,17 +433,17 @@ def ControlParameters():
 def TanhParameters():
     pf = \
     {
-     'tanh_model': False,
-     'tanh_J0': 10.0,
-     'tanh_Jz0': 20.0,
-     'tanh_Jdz': 4.,
-     'tanh_T0': 1e3,
-     'tanh_Tz0': 10.,
-     'tanh_Tdz': 4.,
-     'tanh_x0': 1.0,
-     'tanh_xz0': 10.,
-     'tanh_xdz': 2.,
-     'tanh_dz': 0.1,  # Redshift sampling
+    'tanh_model': False,
+    'tanh_J0': 10.0,
+    'tanh_Jz0': 20.0,
+    'tanh_Jdz': 4.,
+    'tanh_T0': 1e3,
+    'tanh_Tz0': 10.,
+    'tanh_Tdz': 4.,
+    'tanh_x0': 1.0,
+    'tanh_xz0': 10.,
+    'tanh_xdz': 2.,
+    'tanh_dz': 0.1,  # Redshift sampling
     }
     
     return pf
