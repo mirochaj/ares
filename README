@@ -13,8 +13,6 @@ A few papers on how it works:
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
 
-The `documentation <http://ares.readthedocs.org/en/latest/index.html>`_ is still a work in progress.
-
 Getting started
 ---------------------
 To clone a copy and install: ::
@@ -65,6 +63,12 @@ and optionally,
 - `hmf <https://github.com/steven-murray/hmf>`_
 - `python-progressbar <https://code.google.com/p/python-progressbar/>`_
 
-Examples
+Documentation
 --------------
-See `documentation <http://ares.readthedocs.org/en/latest/index.html>`_!
+No public documentation yet. To generate the documentation locally, ::
+
+    cd $ARES/doc
+    make html
+    open _build/html/index.html
+    
+This will open the documentation in a browser.

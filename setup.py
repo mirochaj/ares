@@ -20,7 +20,7 @@ setup(name='ares',
      )
           
 # Try to set up $HOME/.ares
-HOME = os.environ.get('HOME')
+HOME = os.getenv('HOME')
 if not os.path.exists('%s/.ares' % HOME):
     try:
         os.mkdir('%s/.ares' % HOME)
@@ -30,13 +30,17 @@ if not os.path.exists('%s/.ares' % HOME):
     except:
         pass
     
+cwd = os.getcwd()    
+    
 # Download some files
 if not os.path.exists('input'):
     os.mkdir('input')
     
 os.chdir('input')
 
-# Grab stuff from glorb for now
+##
+# DOWNLOAD SOME FILES, FROM GLORB FOR NOW
+##
 bitbucket_DL = 'https://bitbucket.org/mirochaj/glorb/downloads'
 fn_hmf = 'hmf_PS_logM_240_4-16_z_1521_4-80.pkl'
 fn_ics_h5 = 'initial_conditions.hdf5'
@@ -77,7 +81,29 @@ if not os.path.exists('optical_depth/%s' % fn_tau):
     os.chdir('optical_depth')
     print "\nDownloading %s/%s..." % (bitbucket_DL, fn_tau)
     urllib.urlretrieve('%s/%s' % (bitbucket_DL, fn_tau), fn_tau)
-    os.chdir('..')    
+    os.chdir('..')
 
-# Setup clean so that it removes input files?
+##
+# TELL PEOPLE TO SET ENVIRONMENT VARIABLE
+##
+if not os.getenv('ARES'):
+    
+    import re
+    
+    shell = os.getenv('SHELL')
+    
+    print "\nIt would be in your best interest to set an environment variable",
+    print "pointing to this directory."
+    
+    print cwd, shell
+    
+    if re.search('bash', shell):
+        print "Looks like you're using bash, so add the following to your .bashrc:"
+        print "\n    export ARES=%s" % cwd
+    elif re.search('csh', shell):
+        print "Looks like you're using csh, so add the following to your .cshrc:"
+        print "\n    setenv ARES %s" % cwd
+    
+    print "\n"
+    
 

@@ -255,14 +255,14 @@ class loglikelihood:
         """
         Compute log-likelihood for model generated via input parameters.
         """
-        
+
         kwargs = {}
         for i, par in enumerate(self.parameters):
             if self.is_log[i]:
                 kwargs[par] = 10**pars[i]
             else:
                 kwargs[par] = pars[i]
-        
+
         # Apply prior
         lp = self.logprior_P(pars)
         if not np.isfinite(lp):
@@ -271,7 +271,7 @@ class loglikelihood:
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
-        
+
         try:
             sim = simG21(**kw)
             sim.run()     
@@ -281,18 +281,18 @@ class loglikelihood:
         except:         # most likely: no (or too few) turning pts
             #self.warning(None, kwargs)
             return -np.inf, self.blank_blob
-            
+
         # Apply measurement priors now that we have the turning points
         for key in self.logprior_M.priors:
-        
+
             mi, ma = self.logprior_M.priors[key]
-        
+
             i = key.rfind('_')
             key_pre = key[0:i]
             pt = key[i+1:]
-            
+
             j = 0 if key_pre == 'z' else 1
-            
+
             if pt not in tps:
                 return -np.inf, self.blank_blob
 
@@ -641,7 +641,7 @@ class ModelFit:
             Number of steps to burn.
         save_freq : int
             Number of steps to take before writing data to disk.
-    
+
         """
         
         assert len(self.error) == len(self.measurement_map)

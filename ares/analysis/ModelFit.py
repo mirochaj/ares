@@ -14,7 +14,7 @@ import numpy as np
 import re, pickle, os
 from ..util import labels
 import matplotlib.pyplot as pl
-from rt1d.physics.Constants import nu_0_mhz
+from ..physics.Constants import nu_0_mhz
 from ..util.ReadData import read_pickled_chain
 from ..util.SetDefaultParameterValues import SetAllDefaults
 
@@ -294,7 +294,13 @@ class ModelFit(object):
                 j = self.parameters.index(par)
                 is_log.append(self.is_log[j])
                 
-                val = self.chain[skip:,j].ravel()[::skim] * multiplier[k]
+                val = self.chain[skip:,j].ravel()[::skim]
+                
+                if self.is_log[j]:
+                    val += np.log10(multiplier[k])
+                else:
+                    val *= multiplier[k]
+                
                 if take_log[k]:
                     to_hist.append(np.log10(val))
                 else:
@@ -310,7 +316,13 @@ class ModelFit(object):
                 
                 is_log.append(False)
                 
-                val = self.blobs[skip:,i,j].compressed()[::skim] * multiplier[k]
+                val = self.blobs[skip:,i,j].compressed()[::skim]
+                
+                if self.is_log[j]:
+                    val += np.log10(multiplier[k])
+                else:
+                    val *= multiplier[k]
+                
                 if take_log[k]:
                     to_hist.append(np.log10(val))
                 else:
@@ -336,7 +348,6 @@ class ModelFit(object):
 
             ax.plot(bc, hist / hist.max(), drawstyle='steps-mid', **tmp)
             ax.set_xscale(xscale)
-            ax.set_ylim(0, 1.05)
             
             if overplot_nu:
                 
@@ -349,6 +360,8 @@ class ModelFit(object):
             
                 ax.plot([mu - sigma[0]]*2, [mi, ma], color='k', ls=':')
                 ax.plot([mu + sigma[1]]*2, [mi, ma], color='k', ls=':')
+            
+            ax.set_ylim(0, 1.05)
             
         else:
     

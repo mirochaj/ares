@@ -46,6 +46,14 @@ fit.priors = \
  'tanh_Tdz': ['uniform', 0.1, 10],
 }
 
+# Set errors
+fit.set_error(error1d=[0.5, 0.5, 0.5, 5., 5., 5.])
+
+# Defines order of errors
+fit.measurement_map = \
+    [('B', 0), ('C', 0), ('D', 0),
+     ('B', 1), ('C', 1), ('D', 1)]
+
 fit.nwalkers = 32
 
 # Run it!
