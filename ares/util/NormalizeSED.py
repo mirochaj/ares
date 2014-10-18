@@ -229,8 +229,8 @@ def norm_sed(pop, grid):
 
             Nx = norm_nrg * quad(lambda E: rs.Spectrum(E) / E, 
                  max(pf['xray_Emin'], Emin[iX]), Emax[iX])[0] \
-                 / erg_per_ev / b_per_g
-                
+                 / erg_per_ev / b_per_g    
+            
             erg_per_X = norm_nrg * quad(rs.Spectrum,
                 pf['xray_Emin'], Emax[iX])[0] / Nx / b_per_g
             

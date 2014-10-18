@@ -32,11 +32,11 @@ Under the hood
 * :doc:`example_stellar_pop`
 * :doc:`example_bh_pop` 
 * :doc:`example_igm`
-* :doc:`example_chemistry`
+* :doc:`example_chem`
  
 Surveying Parameter Space
 -------------------------
 * :doc:`example_grid_I`
 * :doc:`example_grid_II`
 
-  
+

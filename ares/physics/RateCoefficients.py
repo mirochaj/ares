@@ -136,8 +136,8 @@ class RateCoefficients:
                     return 9.94e-11 * T**-0.6687
                 elif species == 2:
                     alpha = 3.36e-10 * T**-0.5 * (T / 1e3)**-0.2 * (1. + (T / 4.e6)**0.7)**-1 # To n >= 1
-                    
-                    if type(T) in [np.float64]:
+                                        
+                    if type(T) in [float, np.float64]:
                         if T < 2.2e4:
                             alpha *= (1.11 - 0.044 * np.log(T))   # To n >= 2
                         else:

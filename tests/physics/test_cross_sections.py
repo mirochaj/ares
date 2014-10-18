@@ -10,9 +10,9 @@ Description:
 
 """
 
-import matplotlib.pyplot as pl
 import numpy as np
-from rt1d.physics.CrossSections import *
+import matplotlib.pyplot as pl
+from ares.physics.CrossSections import *
 
 E = np.logspace(np.log10(13.6), 4)
 

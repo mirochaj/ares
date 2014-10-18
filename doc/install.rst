@@ -13,6 +13,7 @@ and optionally:
 * `python-progressbar <https://code.google.com/p/python-progressbar/>`_
 * `ndspace <https://bitbucket.org/mirochaj/ndspace>`_ (for creation/manipulation of N-D model grids)
 * `hmf <https://github.com/steven-murray/hmf>`_ (halo mass function calculator written by Stephen Murray)
+* `mpi4py <http://mpi4py.scipy.org>`_
 
 To download the code, do::
 

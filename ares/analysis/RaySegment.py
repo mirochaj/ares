@@ -11,22 +11,17 @@ Description: Functions to calculate various quantities from our rt1d datasets.
 
 import os, re
 import numpy as np
-import matplotlib.pyplot as pl
 from math import floor, ceil
-from ..simulations import RaySegment as simRS
+import matplotlib.pyplot as pl
 from ..static.Grid import Grid
 from ..physics.Constants import *
+from .MultiPlot import MultiPanel
+from ..simulations import RaySegment as simRS
 
 try:
     import h5py
 except ImportError:
     pass
-
-try:
-    from multiplot import multipanel
-    multiplot = True
-except ImportError:
-    multiplot = False
 
 linestyles = ['-', '--', ':', '-.']
 

@@ -13,6 +13,7 @@ Description:
 import numpy as np
 import re, scipy, os, pickle
 import matplotlib.pyplot as pl
+from .MultiPlot import MultiPanel
 from scipy.misc import derivative
 from scipy.optimize import fsolve
 from ..physics.Constants import *
@@ -28,11 +29,6 @@ try:
 except ImportError:
     pass
     
-try:
-    from multiplot import multipanel
-except ImportError:
-    pass
-
 turning_points = ['D', 'C', 'B', 'A']
 
 class Global21cm:
@@ -314,6 +310,12 @@ class Global21cm:
         ax : matplotlib.axes.AxesSubplot instance
             Axis on which to add a redshift scale.
         """    
+        
+        fig = ax.xaxis.get_figure()
+        
+        for ax in fig.axes:
+            if ax.get_xlabel() == '$z$':
+                return
     
         z = np.arange(10, 110, 10)[-1::-1]
         z_minor= np.arange(15, 80, 5)[-1::-1]
@@ -550,30 +552,32 @@ class Global21cm:
         elif z_ax:
             twinax = self.add_redshift_axis(ax)
         
+        self.twinax = twinax
+        
         ax.set_xscale(xscale)
         ax.ticklabel_format(style='plain', axis='both')
         
         pl.draw()
         
         return ax
-    
+
     def Derivative(self, mp=None, **kwargs):
         """
         Plot signal and its first derivative (nicely).
-        
+
         Parameters
         ----------
-        mp : multiplot.multipanel instance
-        
+        mp : MultiPlot.MultiPanel instance
+
         Returns
         -------
-        multiplot.multipanel instance
-        
+        MultiPlot.MultiPanel instance
+
         """
-        
+
         new = True
         if mp is None:
-            mp = multipanel(dims=(2, 1), panel_size=(1, 0.6))
+            mp = MultiPanel(dims=(2, 1), panel_size=(1, 0.6))
             ymin, ymax = zip(*[(999999, -999999)] * 3)
         else:
             new = False

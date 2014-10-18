@@ -10,16 +10,53 @@ Description:
 
 """
 
-import pickle
 import numpy as np
+import os, pickle, re
+
+try:
+    import h5py
+    have_h5py = True
+except ImportError:
+    have_h5py = False
 
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
-    size = MPI.COMM_WORLD.size
 except ImportError:
     rank = 0
-    size = 1
+    
+ARES = os.environ.get('ARES')
+    
+def _load_hdf5(fn):    
+    inits = {}
+    f = h5py.File(fn)
+    for key in f.keys():
+        inits[key] = np.array(f[key].value)
+    f.close()
+
+    return inits
+
+def _load_npz(fn):
+    return dict(np.load(fn))
+
+def load_inits(fn=None):
+
+    if fn is None:
+        if have_h5py:
+            fn = '%s/input/inits/initial_conditions.hdf5' % ARES
+            inits = _load_hdf5(fn)
+        else:
+            fn = '%s/input/inits/initial_conditions.npz' % ARES
+            inits = _load_npz(fn)
+
+    else:
+        if re.search('.hdf5', fn):
+            inits = _load_hdf5(fn)
+        else:
+            inits = _load_npz(fn)
+
+    return inits        
+
 
 def read_pickled_blobs(fn):
     """

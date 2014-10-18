@@ -14,16 +14,11 @@ import numpy as np
 import re, pickle, os
 from ..util import labels
 import matplotlib.pyplot as pl
+from .MultiPlot import MultiPanel
 from ..physics.Constants import nu_0_mhz
 from ..util.ReadData import read_pickled_chain
-from ..util.SetDefaultParameterValues import SetAllDefaults
-
-try:
-    from multiplot import multipanel
-except ImportError:
-    pass
-
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
+from ..util.SetDefaultParameterValues import SetAllDefaults
 
 try:
     import emcee
@@ -72,13 +67,12 @@ def logify_str(s):
     
 def err_str(label, mu, err, log):
     l = str(label.replace('$', ''))
-    
+
     if log:
-        s = '\mathrm{log}_{10}' + l 
-        
+        s = '\mathrm{log}_{10}' + l
     else:
-        s = l 
-    
+        s = l
+
     s += '=%.3g^{+%.2g}_{-%.2g}' % (mu, err[0], err[1])
     
     return r'$%s$' % s
@@ -397,8 +391,9 @@ class ModelFit(object):
                 else:
                     ax.contour(bc[0], bc[1], hist / hist.max(), **kw)
 
-            ax.set_xscale(xscale)
-            ax.set_yscale(yscale)
+            if not gotax:
+                ax.set_xscale(xscale)
+                ax.set_yscale(yscale)
             
             if overplot_nu:
                 
@@ -429,7 +424,7 @@ class ModelFit(object):
                         ax.plot([mi, ma], [mu - sigma[0]]*2, color='k', ls=':')
                         ax.plot([mi, ma], [mu + sigma[1]]*2, color='k', ls=':')
 
-        if kw['labels']:
+        if kw['labels'] and (not gotax):
             self.set_axis_labels(ax, pars, is_log, take_log)
 
         pl.draw()
@@ -446,22 +441,25 @@ class ModelFit(object):
         """
         Return parameter values at maximum likelihood point.
         """
-        
+
         iML = np.argmax(self.logL)
-        
+
         p = {}
         for i, par in enumerate(self.parameters):
             if self.is_log[i]:
                 p[par] = 10**self.chain[iML,i]
             else:
                 p[par] = self.chain[iML,i]
-            
+
         return p
+
+    def add_inset(self, inset_pars=None):
+        raise NotImplemented('hey there')
         
     def triangle_plot(self, pars, z=None, panel_size=(0.5,0.5), padding=(0,0),
         show_errors=False, take_log=False, multiplier=1,
         fig=1, plot_inputs=False, inputs={}, tighten_up=0.0, 
-        inset_data=None, bins=20, mp=None, skip=0, skim=1,
+        bins=20, mp=None, skip=0, skim=1, top=None,
         filled=True, inset=False, inset_pars={}, **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -484,9 +482,9 @@ class ModelFit(object):
         
         Returns
         -------
-        multiplot.multipanel instance.
+        MultiPlot.MultiPanel instance.
         
-        If inset=True, returns multiplot.multipanel instance in addition to
+        If inset=True, returns MultiPlot.MultiPanel instance in addition to
         an axes object representing the inset.
             
         """    
@@ -514,8 +512,8 @@ class ModelFit(object):
         had_mp = True
         if mp is None:
             had_mp = False
-            mp = multipanel(dims=[Nd]*2, padding=padding, diagonal='lower',
-                panel_size=panel_size, num=fig, **kw)
+            mp = MultiPanel(dims=[Nd]*2, padding=padding, diagonal='lower',
+                panel_size=panel_size, num=fig, top=top, **kw)
 
         # Loop over parameters
         for i, p1 in enumerate(pars[-1::-1]):

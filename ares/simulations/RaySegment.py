@@ -14,7 +14,7 @@ import numpy as np
 from ..static import Grid
 from ..solvers import RadiationField
 from ..sources import CompositeSource
-from ..util.PrintInfo import print_sim
+from ..util.PrintInfo import print_1d_sim
 from ..physics.Constants import s_per_myr
 from ..util import RestrictTimestep, CheckPoints, parse_kwargs, \
     ProgressBar
@@ -113,7 +113,7 @@ class RaySegment:
             ##
             # PRINT STUFF
             ##        
-            print_sim(self)
+            print_1d_sim(self)
                     
             # To compute timestep
             self.timestep = RestrictTimestep(grid, pf['epsilon_dt'])

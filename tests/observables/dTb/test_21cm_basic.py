@@ -14,8 +14,8 @@ import ares
 
 sim = ares.simulations.Global21cm()
 sim.run()
-                    
+
 anl = ares.analysis.Global21cm(sim)
 ax = anl.GlobalSignature()
 
-anl.turning_points
+

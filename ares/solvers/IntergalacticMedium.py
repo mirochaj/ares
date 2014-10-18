@@ -925,14 +925,14 @@ class IGM(object):
             nHeII = lambda z: 0.0
             sHeII = lambda z: 0.0
         elif self.self_consistent_He:
-            if type(kw['xavg']) is not list:
-                raise TypeError('hey! fix me')
+            #if type(kw['xavg']) is not list:
+            #    raise TypeError('hey! fix me')
                 
-            nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'][0](z))
+            nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
             nHeI = lambda z: self.cosm.nHe(z) \
-                * (1. - kw['xavg'][1](z) - kw['xavg'][2](z))
+                * (1. - kw['xavg'](z) - kw['xavg'](z))
             sHeI = lambda z: self.sigma(Erest(z), species=1)
-            nHeII = lambda z: self.cosm.nHe(z) * kw['xavg'][2](z)
+            nHeII = lambda z: self.cosm.nHe(z) * kw['xavg'](z)
             sHeII = lambda z: self.sigma(Erest(z), species=2)
         else:
             nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))

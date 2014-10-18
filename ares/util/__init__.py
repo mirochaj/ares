@@ -14,6 +14,15 @@ try:
     import h5py
 except ImportError:
     pass
+    
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1
+    
 
 defaults = SetAllDefaults()
 
@@ -31,6 +40,8 @@ def parse_kwargs(**kwargs):
     
     for kwarg in kwargs:
         if kwarg not in defaults.keys():
+            if rank != 0:
+                continue
             print 'WARNING: Unrecognized parameter: %s' % kwarg
     
     pf.update(kwargs)
@@ -87,36 +98,6 @@ def sort(pf, prefix='spectrum', make_list=True, make_array=False):
                 result[par] = np.array(result[par])
 
     return result
-
-def _load_hdf5(fn):    
-    inits = {}
-    f = h5py.File(fn)
-    for key in f.keys():
-        inits[key] = np.array(f[key].value)
-    f.close()
-
-    return inits
-
-def _load_npz(fn):
-    return dict(np.load(fn))
-
-def load_inits(fn=None):
-
-    if fn is None:
-        if have_h5py:
-            fn = '%s/input/inits/initial_conditions.hdf5' % ARES
-            inits = _load_hdf5(fn)
-        else:
-            fn = '%s/input/inits/initial_conditions.npz' % ARES
-            inits = _load_npz(fn)
-
-    else:
-        if re.search('.hdf5', fn):
-            inits = _load_hdf5(fn)
-        else:
-            inits = _load_npz(fn)
-
-    return inits        
 
 def num_freq_bins(Nx, zi=40, zf=10, Emin=2e2, Emax=3e4):
     """

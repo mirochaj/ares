@@ -66,11 +66,13 @@ class DiffuseSource:
         if kwargs['igm']:
             return self.rb.igm.IonizationRateIGM(z, species=species, **kwargs)
         else:
-            return self.rb.igm.IonizationRateHIIRegions(z, species=species, **kwargs)
+            return self.rb.igm.IonizationRateHIIRegions(z, species=species, 
+                **kwargs)
 
     def secondary_ionization_rate(self, z, species=0, **kwargs):
         if kwargs['igm']:
-            return self.rb.igm.SecondaryIonizationRateIGM(z, species=species, **kwargs)
+            return self.rb.igm.SecondaryIonizationRateIGM(z, species=species, 
+                **kwargs)
         else:
             return 0.0
 

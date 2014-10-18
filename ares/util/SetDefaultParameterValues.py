@@ -444,6 +444,7 @@ def TanhParameters():
     'tanh_xz0': 10.,
     'tanh_xdz': 2.,
     'tanh_dz': 0.1,  # Redshift sampling
+    'tanh_nu': None,
     }
     
     return pf

@@ -14,7 +14,7 @@ Description: ChemicalNetwork object just needs to have methods called
 import copy, sys
 import numpy as np
 from ..physics.RateCoefficients import RateCoefficients
-from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h
+from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h  
         
 class ChemicalNetwork:
     def __init__(self, grid, rate_src='fk94', recombination='B'):
@@ -54,7 +54,7 @@ class ChemicalNetwork:
         n_e = q[self.grid.qmap.index('e')] * n_H
         
         return x, n, n_e
-        
+    
     def RateEquations(self, t, q, args):
         """
         Compute right-hand side of rate equation ODEs.

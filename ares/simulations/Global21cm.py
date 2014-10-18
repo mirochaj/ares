@@ -14,16 +14,15 @@ import numpy as np
 from ..static import Grid
 import copy, os, re, pickle
 from ..sources import DiffuseSource
-from ..util.PrintInfo import print_sim
+from ..util.ReadData import load_inits
 from ..util.WriteData import CheckPoints
 from ..util.ManageHistory import WriteData
+from ..util.PrintInfo import print_21cm_sim
 from ..populations import CompositePopulation
 from ..solvers.RadiationField import RadiationField
 from ..solvers.UniformBackground import UniformBackground
-from ..util import parse_kwargs, load_inits, ProgressBar, \
-    RestrictTimestep
-from ..util.SetDefaultParameterValues import SetAllDefaults, \
-    TanhParameters
+from ..util.SetDefaultParameterValues import SetAllDefaults
+from ..util import parse_kwargs, ProgressBar, RestrictTimestep
 from ..physics.Constants import k_B, m_p, G, g_per_msun, c, sigma_T, \
     erg_per_ev, nu_0_mhz
     
@@ -81,13 +80,17 @@ class Global21cm:
                     from ..util.TanhModel import tanh_model
                     
                     self.pf = SetAllDefaults()
-                    self.pf.update(TanhParameters())
                     self.pf.update(kwargs)
                     
-                    z = np.arange(self.pf['final_redshift'] + self.pf['tanh_dz'],
-                        self.pf['initial_redshift'], self.pf['tanh_dz'])[-1::-1]
+                    if self.pf['tanh_nu'] is not None:
+                        nu = self.pf['tanh_nu']
+                        z = nu_0_mhz / nu - 1.
+                    else:
+                        z = np.arange(self.pf['final_redshift'] + self.pf['tanh_dz'],
+                            self.pf['initial_redshift'], self.pf['tanh_dz'])[-1::-1]
+                    
                     self.history = tanh_model(z, **self.pf).data
-
+                    
                     if self.pf['inline_analysis'] is not None:
                         self.run_inline_analysis()
 
@@ -230,7 +233,7 @@ class Global21cm:
         ##
         # PRINT STUFF!
         ##
-        print_sim(self)    
+        print_21cm_sim(self)    
 
         # Initialize radiation sources / populations
         if self.pf["radiative_transfer"]:

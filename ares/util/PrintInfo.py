@@ -142,7 +142,7 @@ def print_warning(s, headerd='WARNING'):
     
     print "#"*width        
 
-def print_sim(sim):
+def print_1d_sim(sim):
 
     if rank > 0:
         return
@@ -444,7 +444,7 @@ def print_rb(rb):
     for warning in warnings:
         print_warning(warning)
 
-def print_sim(sim):
+def print_21cm_sim(sim):
     """
     Print information about 21-cm simulation to screen.
 

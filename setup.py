@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, urllib
+import os, sys, urllib
 from distutils.core import setup
 
 ares_link = 'https://bitbucket.org/mirochaj/ares'

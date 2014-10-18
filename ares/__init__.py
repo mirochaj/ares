@@ -1,2 +1,2 @@
-import static, solvers, physics, simulations, sources, analysis
+import static, solvers, physics, simulations, sources, analysis, inference
 

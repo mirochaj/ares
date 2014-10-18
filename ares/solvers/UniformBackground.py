@@ -27,7 +27,7 @@ try:
     import h5py
 except ImportError:
     pass
-
+     
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
@@ -35,7 +35,7 @@ try:
 except ImportError:
     rank = 0
     size = 1
-        
+            
 log10 = np.log(10.)    # for when we integrate in log-space
 four_pi = 4. * np.pi
 
@@ -55,7 +55,6 @@ defkwargs = \
  'xavg': 0.0,
  'zxavg':0.0,   
 }       
-
 
 class UniformBackground:
     def __init__(self, pop=None, use_tab=True, **kwargs):
@@ -759,7 +758,7 @@ class UniformBackground:
                     + exp_term * ((c / four_pi) * self.igm.xsq[ll+1] \
                     * trapz_base * np.roll(emissivity_over_H[ll+1], -1, axis=-1) \
                     + np.roll(flux, -1) / self.igm.Rsq)
-    
+                
             # No higher energies for photons to redshift from.
             # An alternative would be to extrapolate, and thus mimic a
             # background spectrum that is not truncated at Emax
