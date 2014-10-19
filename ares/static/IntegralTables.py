@@ -596,7 +596,7 @@ class IntegralTable:
         
         if have_h5py:
         
-            f = h5py.File(fn)
+            f = h5py.File(fn, 'w')
             for i, axis in enumerate(self.axes):
                 ds = f.create_dataset(self.axes_names[i], data=axis)
                 ds.attrs.create('axis', data=i)
@@ -679,7 +679,7 @@ class IntegralTable:
         else:
             axes = []
             self.tabs = {}
-            f = h5py.File(fn)
+            f = h5py.File(fn, 'r')
             for element in f.keys():
                 if f[element].attrs.get('axis') is not None:
                     axes.append([int(f[element].attrs.get('axis')), element, 

@@ -554,7 +554,7 @@ class UniformBackground:
                 found = True
                 if re.search('.hdf5', self.pf['spectrum_table']) or \
                    re.search('.h5', self.pf['spectrum_table']):
-                    f = h5py.File(self.pf['spectrum_table'])
+                    f = h5py.File(self.pf['spectrum_table'], 'r')
                     E = f['E'].value
                     LE = f['LE'].value
                     f.close()
@@ -625,7 +625,7 @@ class UniformBackground:
                 self.Inu = Inu
     
             if self.pf['spectrum_table'] is not None and rank == 0:
-                f = h5py.File(self.pf['spectrum_table'])
+                f = h5py.File(self.pf['spectrum_table'], 'w')
                 f.create_dataset('E', data=self.igm.E)
                 f.create_dataset('LE', data=self.Inu)
                 f.close()

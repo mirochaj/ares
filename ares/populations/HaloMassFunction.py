@@ -144,7 +144,7 @@ class HaloDensity:
         """ Load table from HDF5 or binary. """
         
         if re.search('.hdf5', self.fn) or re.search('.h5', self.fn):
-            f = h5py.File(self.fn)
+            f = h5py.File(self.fn, 'r')
             self.z = f['z'].value
             self.logM = f['logM'].value
             self.M = 10**self.logM
@@ -437,7 +437,7 @@ class HaloDensity:
                 
             os.system('rm -f %s' % fn)    
                 
-            f = h5py.File(fn)
+            f = h5py.File(fn, 'w')
             f.create_dataset('z', data=self.z)
             f.create_dataset('logM', data=self.logM)
             f.create_dataset('fcoll', data=self.fcoll_tab)

@@ -29,7 +29,7 @@ ARES = os.environ.get('ARES')
     
 def _load_hdf5(fn):    
     inits = {}
-    f = h5py.File(fn)
+    f = h5py.File(fn, 'r')
     for key in f.keys():
         inits[key] = np.array(f[key].value)
     f.close()

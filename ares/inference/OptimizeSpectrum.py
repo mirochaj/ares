@@ -238,7 +238,7 @@ class SpectrumOptimization:
         if rank > 0:
             return
             
-        f = h5py.File(fn)
+        f = h5py.File(fn, 'w')
         f.create_dataset('chain', data=self.sampler.chain)
         
         if self.mcmc:

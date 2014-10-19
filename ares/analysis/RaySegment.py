@@ -34,7 +34,7 @@ class RaySegment:
         # Load contents of hdf5 file
         if type(checkpoints) is str:
             import pickle
-            f = h5py.File(checkpoints)
+            f = h5py.File(checkpoints, 'r')
             
             self.pf = {}
             for key in f['parameters']:

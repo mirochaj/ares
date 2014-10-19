@@ -99,16 +99,12 @@ if not os.getenv('ARES'):
     
     print "\nIt would be in your best interest to set an environment variable",
     print "pointing to this directory."
-    
-    print cwd, shell
-    
+        
     if re.search('bash', shell):
         print "Looks like you're using bash, so add the following to your .bashrc:"
         print "\n    export ARES=%s" % cwd
     elif re.search('csh', shell):
         print "Looks like you're using csh, so add the following to your .cshrc:"
         print "\n    setenv ARES %s" % cwd
-    
-    print "\n"
-    
+        
 

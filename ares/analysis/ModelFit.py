@@ -79,7 +79,7 @@ def logify_str(s, sub=None):
     else:
         new_s = s_no_dollar
         
-    return r'$\mathrm{log}_{10}' + s_no_dollar + '$'
+    return r'$\mathrm{log}_{10}' + new_s + '$'
         
 def err_str(label, mu, err, log):
     l = str(label.replace('$', ''))
@@ -229,7 +229,7 @@ class ModelFit(object):
 
         return kw
                 
-    def posterior_pdf(self, pars, z=None, ax=None, fig=1, multiplier=[1.]*2,
+    def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=[1.]*2,
         nu=[0.99, 0.95, 0.68], slc=None, overplot_nu=False, density=True, 
         color_by_nu=False, contour=True, filled=True, take_log=[False]*2,
         bins=20, xscale='linear', yscale='linear', skip=0, skim=1, **kwargs):
@@ -440,7 +440,7 @@ class ModelFit(object):
                         ax.plot([mi, ma], [mu - sigma[0]]*2, color='k', ls=':')
                         ax.plot([mi, ma], [mu + sigma[1]]*2, color='k', ls=':')
 
-        if kw['labels'] and (not gotax):
+        if kw['labels']:
             self.set_axis_labels(ax, pars, is_log, take_log)
 
         pl.draw()
@@ -472,7 +472,7 @@ class ModelFit(object):
     def add_inset(self, inset_pars=None):
         raise NotImplemented('hey there')
         
-    def triangle_plot(self, pars, z=None, panel_size=(0.5,0.5), padding=(0,0),
+    def TrianglePlot(self, pars, z=None, panel_size=(0.5,0.5), padding=(0,0),
         show_errors=False, take_log=False, multiplier=1,
         fig=1, plot_inputs=False, inputs={}, tighten_up=0.0, 
         bins=20, mp=None, skip=0, skim=1, top=None,
@@ -578,7 +578,7 @@ class ModelFit(object):
                                         
                 # 1-D PDFs on the diagonal    
                 if k in mp.diag:                    
-                    self.posterior_pdf(p1, ax=mp.grid[k], 
+                    self.PosteriorPDF(p1, ax=mp.grid[k], 
                         take_log=take_log[-1::-1][i], z=z,
                         multiplier=[multiplier[-1::-1][i]], 
                         bins=bins[-1::-1][i], skip=skip, skim=skim, **kw)
@@ -604,7 +604,7 @@ class ModelFit(object):
                     continue
                                         
                 # 2-D PDFs elsewhere
-                self.posterior_pdf([p2, p1], ax=mp.grid[k], z=z,
+                self.PosteriorPDF([p2, p1], ax=mp.grid[k], z=z,
                     take_log=[take_log[j], take_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, **kw)
