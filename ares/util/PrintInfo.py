@@ -344,7 +344,7 @@ def print_pop(pop):
     cols = ['lw', 'uv', 'xray']
     rows = ['is_src', 'approx RTE', 'Eavg / eV', 'erg / g', 'photons / b']
     data = [[bool(pop.pf['is_lya_src']), bool(pop.pf['is_ion_src_cgm']), 
-        bool(pop.pf['is_xray_src'])]]
+        bool(pop.pf['is_heat_src_igm'])]]
     data.append([bool(pop.pf['approx_lya']), 'n/a', bool(pop.pf['approx_xray'])])
     data.append((pop.Elw, pop.Eion, pop.Ex))
     data.append((pop.cLW, pop.cUV, pop.cX))

@@ -92,8 +92,8 @@ class WriteData():
         # Insert initial conditions data into history                
         if hasattr(self.sim, 'inits'):
     
-            i = np.argmin(np.abs(self.sim.inits['z'] - self.sim.pf['initial_redshift']))
-            if self.sim.inits['z'][i] <= self.sim.pf['initial_redshift']:
+            i = np.argmin(np.abs(self.sim.inits['z'] - self.sim.pf['first_light_redshift']))
+            if self.sim.inits['z'][i] <= self.sim.pf['first_light_redshift']:
                 i += 1
     
             for j, red in enumerate(self.sim.inits['z']):    

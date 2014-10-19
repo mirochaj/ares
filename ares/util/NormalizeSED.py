@@ -175,7 +175,7 @@ def norm_sed(pop, grid):
             erg_per_X = norm_num * quad(rs.Spectrum, 
                 pf['xray_Emin'], np.inf)[0] * erg_per_ev / Nx   
             cX = norm_num * erg_per_UV * b_per_g 
-        elif pf['is_xray_src']:
+        elif pf['is_heat_src_igm']:
             pass    
         else:
             cX = erg_per_X = 0.0
@@ -211,7 +211,7 @@ def norm_sed(pop, grid):
             erg_per_X = norm_num * quad(rs.Spectrum, 
                 pf['xray_Emin'], np.inf)[0] * erg_per_ev / Nx
             cX = norm_num * erg_per_UV * b_per_g 
-        elif pf['is_xray_src']:
+        elif pf['is_heat_src_igm']:
             pass
         else:
             cX = erg_per_X = 0.0

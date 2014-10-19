@@ -534,7 +534,7 @@ class IGM(object):
 
         """
                                 
-        if not self.pf['is_xray_src'] or (z >= self.pop.zform):
+        if not self.pf['is_heat_src_igm'] or (z >= self.pop.zform):
             return 0.0
         
         # Grab defaults, do some patches if need be    

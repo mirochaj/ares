@@ -100,7 +100,9 @@ class TurningPoints(object):
             # If changes in temperatures have different signs, we found
             # a turning point. Come back in self.delay steps to compute the 
             # details
-            if len(np.unique(np.sign(dT3pt))) == 2:
+            if len(np.unique(np.sign(dT3pt))) != 2:
+                pass
+            else:   
                 self.found_TP, self.step_TP = True, self.step + self.delay
             
             # Check for zero-crossing too
@@ -118,7 +120,7 @@ class TurningPoints(object):
                     return True
         
         # If we found a turning point, hone in on its position
-        if self.found_TP and self.step == self.step_TP:      
+        if self.found_TP and self.step == self.step_TP:
             
             # Redshift and temperature points bracketing crudely-determined
             # extremum position
@@ -143,8 +145,8 @@ class TurningPoints(object):
                 raise ValueError('Unrecognized turning point, %s.' % TP)
                 
             TTP_guess = np.interp(zTP_guess, z[-1:-1-2*self.delay:-1],
-                dTb[-1:-1-2*self.delay:-1])    
-                            
+                dTb[-1:-1-2*self.delay:-1]) 
+                                            
             # Spline interpolation to get "final" extremum redshift
             Bspl_fit1 = splrep(z[-1:-1-2*self.delay:-1],
                 dTb[-1:-1-2*self.delay:-1], k=5)

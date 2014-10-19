@@ -461,7 +461,7 @@ class RadiationField: # maybe RadiationNearSource
                             src.secondary_ionization_rate(z, species=i, **kwargs)
                 
                 if 'epsilon_X' in kwargs:
-                    if src.pf['is_xray_src']:
+                    if src.pf['is_heat_src_igm']:
                         self.k_H[h] = kwargs['epsilon_X']
                     else:
                         self.k_H[h] = 0.0

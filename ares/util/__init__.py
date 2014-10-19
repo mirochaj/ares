@@ -38,14 +38,56 @@ def parse_kwargs(**kwargs):
     elif 'problem_type' in kwargs:
         pf.update(ProblemType(kwargs['problem_type']))
     
-    for kwarg in kwargs:
+    # Count populations
+    popIDs = [0]
+    for par in kwargs:
+        
+        m = re.search(r"\{([0-9])\}", par)
+        
+        if m is None:
+            continue
+                    
+        num = int(m.group(1))
+
+        if num not in popIDs:
+            popIDs.append(num)
+            
+    Npops = len(popIDs)
+        
+    if Npops == 1:
+        pf.update(kwargs)
+    else:
+        src_kw = [{} for i in range(Npops)]
+        spec_kw = [{} for i in range(Npops)]
+        
+        # Construct parameter file
+        for par in kwargs:
+            
+            m = re.search(r"\{([0-9])\}", par)
+            
+            if m is None:
+                pf[par] = kwargs[par]
+                continue
+            
+            num = int(m.group(1))
+            
+            prefix = par.strip(m.group(0))
+                        
+            if re.search('spectrum', par):
+                spec_kw[num][prefix] = kwargs[par]
+            else:
+                src_kw[num][prefix] = kwargs[par]
+
+        pf.update({'source_kwargs': src_kw})
+        pf.update({'spectrum_kwargs': spec_kw})
+    
+    # Check for unrecognizable parameters and (known) conflicts        
+    for kwarg in pf:
         if kwarg not in defaults.keys():
             if rank != 0:
                 continue
-            print 'WARNING: Unrecognized parameter: %s' % kwarg
-    
-    pf.update(kwargs)
-                
+            print 'WARNING: Unrecognized parameter: %s' % kwarg        
+        
     conflicts = CheckForParameterConflicts(pf)
 
     if conflicts:

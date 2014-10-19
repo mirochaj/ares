@@ -15,31 +15,27 @@ import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics.Constants import rhodot_cgs
 
-src1 = \
-{
- 'Tmin': 1e4,
- 'source_type': 'star',
- 'fstar': 1e-1,
- 'Nion': 4e3,
- 'Nlw': 9690.,
-}
-
-src2 = \
-{
- 'Tmin': 300.,
- 'source_type': 'star',
- 'fstar': 1e-4,
- 'Nion': 3e4,
- 'Nlw': 4800.,
-}
-
 pars = \
 {
- 'source_kwargs': [src1, src2],
+ 'Tmin{0}': 1e4,
+ 'source_type{0}': 'star',
+ 'fstar{0}': 1e-1,
+ 'Nion{0}': 4e3,
+ 'Nlw{0}': 9600.,
+ 'Tmin{1}': 300.,
+ 'source_type{1}': 'star',
+ 'is_lya_src{1}': True,
+ 'is_ion_src_igm{1}': False,
+ 'is_ion_src_cgm{1}': False, 
+ 'is_heat_src_igm{1}': False, 
+ 'fstar{1}': 1e-4,
+ 'Nion{1}': 3e4,
+ 'Nlw{1}': 4800.,
 }
 
 # Dual-population model
 sim = ares.simulations.Global21cm(**pars)
+
 sim.run()
 
 anl = ares.analysis.Global21cm(sim)
@@ -52,16 +48,3 @@ sim2.run()
 anl2 = ares.analysis.Global21cm(sim2)
 ax = anl2.GlobalSignature(ax=ax, color='b', label='single-pop')
 
-z = np.linspace(10, 40)
-fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
-
-pop1, pop2 = sim.pops.pops
-
-ax2.semilogy(z, np.array(map(pop1.SFRD, z)) * rhodot_cgs, color='k', ls='-',    
-    label='PopII')
-ax2.semilogy(z, np.array(map(pop2.SFRD, z)) * rhodot_cgs, color='k', ls='--',
-    label='PopIII')
-ax2.set_xlabel(r'$z$')
-ax2.set_ylabel(r'SFRD')
-ax2.legend(loc='upper right')
-pl.draw()

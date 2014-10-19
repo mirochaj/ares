@@ -30,10 +30,25 @@ from ..physics.Constants import m_H, cm_per_kpc, cm_per_mpc, s_per_myr
 
 defs = SetAllDefaults()
 
+def _ProblemTypeRaySegment(ptype):
+    pass
+
+def _ProblemTypeGlobal21cm(ptype):
+    pass
+
 def ProblemType(ptype):
     """
-    Storage bin for predefined problem types, like those used in the 
-    radiative transfer comparison project ('RT06').
+    Storage bin for predefined problem types.
+    
+    Parameters
+    ----------
+    ptype : int, float
+        Problem type!
+        
+    Returns
+    -------
+    Dictionary of parameters and values for given ptype.
+        
     """
     
     ptype_int = int(ptype)
@@ -97,7 +112,6 @@ def ProblemType(ptype):
               "spectrum_Emax": 100.,
               "spectrum_EminNorm": 0.1,
               "spectrum_EmaxNorm": 100.,
-              "spectrum_smallest_x": 1e-15,  # Unused currently
                            
              }
              
@@ -191,7 +205,7 @@ def ProblemType(ptype):
             pf.update({'spectrum_E': [18.29, 31.46, 49.13, 77.23]})
             pf.update({'spectrum_LE': [0.24, 0.35, 0.23, 0.06]})
              
-    if ptype >= 10:
+    if 10 <= ptype <= 20:
         helium_pars = \
             {
              'Z': [1, 2], 

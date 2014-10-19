@@ -62,9 +62,25 @@ def parse_blobs(name):
         
     return None 
     
-def logify_str(s):
-    return r'$\mathrm{log}_{10}' + str(s.replace('$', '')) + '$'
+def subscriptify_str(s):
+
+    raise NotImplementedError('fix me')
     
+    if re.search("_", par):
+        m = re.search(r"\{([0-9])\}", par)
+
+    # If it already has a subscript, add to it
+
+def logify_str(s, sub=None):
+    s_no_dollar = str(s.replace('$', ''))
+    
+    if sub is not None:
+        new_s = subscriptify_str(s_no_dollar)
+    else:
+        new_s = s_no_dollar
+        
+    return r'$\mathrm{log}_{10}' + s_no_dollar + '$'
+        
 def err_str(label, mu, err, log):
     l = str(label.replace('$', ''))
 
@@ -649,6 +665,22 @@ class ModelFit(object):
         """
         Make nice axis labels.
         """
+        
+        p = []
+        sup = []
+        for par in pars:
+            m = re.search(r"\{([0-9])\}", par)
+            
+            if m is None:
+                sup.append(None)
+                p.append(par)
+                continue
+            
+            p.append(par.strip(m.group(0)))
+            sup.append(int(m.group(1)))
+        
+        del pars
+        pars = p
     
         if type(take_log) == bool:
             take_log = [take_log] * len(pars)
@@ -658,6 +690,7 @@ class ModelFit(object):
                 ax.set_xlabel(logify_str(labels[pars[0]]))
             else:
                 ax.set_xlabel(labels[pars[0]])
+                    
         elif type(pars[0]) == int:
             ax.set_xlabel(def_par_labels(pars[0]))
         else:

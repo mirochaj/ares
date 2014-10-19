@@ -275,7 +275,7 @@ class Global21cm:
         Locate turning points.
         """
         
-        # Use turning_points from simG21 if we've got 'em
+        # Use turning_points from ares.simulations.Global21cm if we've got 'em
         if isinstance(self.sim, simG21):
             if hasattr(self.sim, 'turning_points'):
                 return self.sim.turning_points

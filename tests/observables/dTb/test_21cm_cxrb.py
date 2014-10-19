@@ -11,7 +11,6 @@ Description:
 """
 
 import os, ares
-from ares.physics.Constants import *
 
 src1 = \
 {

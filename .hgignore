@@ -5,6 +5,9 @@ build/*
 *.pyc
 *~
 *.hdf5
+*.hdf5
+*.npz
+*.txt
 *.h5
 *.png
 *.pkl

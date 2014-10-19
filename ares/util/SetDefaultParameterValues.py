@@ -273,7 +273,6 @@ def PopulationParameters():
     "is_ion_src_igm": True,
     "is_heat_src_cgm": False,
     "is_heat_src_igm": True,
-    "is_xray_src": True,  # axe this?
     
     # Sets star formation history
     "Tmin": 1e4, 
@@ -360,7 +359,7 @@ def ControlParameters():
     'logdtDataDump': None,
     'logdzDataDump': None,
     "stop_time": 500,
-    "initial_redshift": 40.,
+    "initial_redshift": 50.,
     "final_redshift": 5,
     "save_rate_coefficients": 1,
     
@@ -376,7 +375,7 @@ def ControlParameters():
     # Initialization
     "load_ics": True,
     "load_sim": False,
-    "first_light_redshift": 40.,
+    "first_light_redshift": 50.,
     
     # Timestepping
     "max_dt": 1.,
