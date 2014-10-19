@@ -41,7 +41,7 @@ os.chdir('input')
 ##
 # DOWNLOAD SOME FILES
 ##
-bitbucket_DL = 'https://bitbucket.org/mirochaj/glorb/ares'
+bitbucket_DL = 'https://bitbucket.org/mirochaj/glorb/downloads'
 fn_hmf = 'hmf_PS_logM_240_4-16_z_1521_4-80.pkl'
 fn_ics_h5 = 'initial_conditions.hdf5'
 fn_ics_np = 'initial_conditions.npz'

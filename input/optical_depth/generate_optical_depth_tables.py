@@ -15,8 +15,8 @@ Note: This can be run in parallel, e.g.,
 """
 
 import numpy as np
-import os, ares, h5py, time
-from ares.physics.Constants import E_LL
+import os, glorb, h5py, time
+from rt1d.physics.Constants import E_LL
 
 try:
     from mpi4py import MPI
@@ -31,7 +31,7 @@ except ImportError:
 zf, zi = (10, 40)
 Emin = 1e2
 Emax = 5e4
-Nz = [400]
+Nz = [400, 600, 800]
 format = 'hdf5'        # 'hdf5' or 'txt'
 approx_helium = 0
 ##
@@ -40,10 +40,10 @@ approx_helium = 0
 # Initialize radiation background
 pars = \
 {
- 'Z': [1,2],
  'spectrum_Emin': Emin,
  'spectrum_Emax': Emax,
  'approx_xray': 0,
+ 'xray_cutoff': Emin,
  'approx_helium': approx_helium,
  'initial_redshift': zi,
  'final_redshift': zf,
@@ -63,7 +63,7 @@ for res in Nz:
     t1 = time.time()
     
     # Create IGM instance
-    igm = ares.solvers.IGM(**pars)
+    igm = glorb.evolve.IGM(**pars)
     
     fn = igm.tau_name(suffix=format)[0]
     
