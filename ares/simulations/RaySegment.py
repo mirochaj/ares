@@ -13,12 +13,12 @@ Description:
 import numpy as np
 from ..static import Grid
 from ..solvers import RadiationField
+from ..util.Misc import parse_kwargs
 from ..sources import CompositeSource
 from ..util.PrintInfo import print_1d_sim
 from ..physics.Constants import s_per_myr
-from ..util import RestrictTimestep, CheckPoints, parse_kwargs, \
-    ProgressBar
-    
+from ..util import RestrictTimestep, CheckPoints, ProgressBar
+
 class RaySegment:
     """
     Propagate radiation along a ray!

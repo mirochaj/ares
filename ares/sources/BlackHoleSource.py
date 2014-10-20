@@ -11,7 +11,7 @@ Description:
 """
 
 import numpy as np
-from scipy.integrate import quad, romberg
+from scipy.integrate import quad
 from ..physics.Constants import *
 from .StellarSource import _Planck
 from ..util.SetDefaultParameterValues import BlackHoleParameters

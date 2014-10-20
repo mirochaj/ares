@@ -13,8 +13,10 @@ import numpy as np
 import pickle, os, re
 from ..physics import Cosmology
 from scipy.misc import derivative
+from ..util.Misc import parse_kwargs
 from scipy import interpolate, integrate
-from ..util import parse_kwargs, ProgressBar
+from ..util.Math import central_difference
+from ..util.ProgressBar import ProgressBar
 from ..physics.Constants import g_per_msun, cm_per_mpc
 
 try:
@@ -37,11 +39,6 @@ except ImportError:
     
 try:
     from hmf import MassFunction
-except ImportError:
-    pass
-    
-try:
-    from mathutils.differentiate import central_difference
 except ImportError:
     pass
     

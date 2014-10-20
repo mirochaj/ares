@@ -12,15 +12,11 @@ Description: Container for hydrogen physics stuff.
 
 import numpy as np
 import scipy.interpolate as interpolate
+from ..util.Math import central_difference
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL
 
 try:
     from scipy.special import gamma
-except ImportError:
-    pass
-
-try:
-    from mathutils.differentiate import central_difference
 except ImportError:
     pass
 

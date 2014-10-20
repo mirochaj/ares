@@ -13,12 +13,8 @@ and analyzing them.
 
 import numpy as np
 import time, copy, os, pickle
-from ..analysis.Extracted21cm import Extracted21cm
-
-try:
-    import ndspace
-except ImportError:
-    pass
+#from ..util import GridND, ProgressBar
+#from ..analysis.Extracted21cm import Extracted21cm
 
 try:
     from mpi4py import MPI
@@ -56,10 +52,10 @@ class ModelGrid(Extracted21cm):
         self.verbose = verbose
         
         if grid is not None:
-            if isinstance(grid, ndspace.ModelGrid):
+            if isinstance(grid, GridND):
                 self.grid = grid
             else: # Assume its a Gridded21cm instance
-                self.grid = ndspace.ModelGrid(grid)
+                self.grid = GridND(grid)
         else:
             self.grid = None
                             
@@ -68,7 +64,7 @@ class ModelGrid(Extracted21cm):
                         
     def setup(self, Lcut=1e-3, **kwargs):
         """
-        Create ndspace.ModelGrid instance, construct N-D parameter space.
+        Create GridND instance, construct N-D parameter space.
         
         Parameters
         ----------
@@ -77,8 +73,8 @@ class ModelGrid(Extracted21cm):
             LML is the maximum likelihood value.
         """
         
-        self.grid = ndspace.ModelGrid()
-        self.bgrid = ndspace.ModelGrid()
+        self.grid = GridND()
+        self.bgrid = GridND()
         
         # If we've run turning point B already, need some more info
         if False:
@@ -190,7 +186,7 @@ class ModelGrid(Extracted21cm):
         fcoll = {}
 
         # Initialize progressbar
-        pb = rt1d.util.ProgressBar(self.grid.size, 'grid')
+        pb = ProgressBar(self.grid.size, 'grid')
         pb.start()
 
         start = time.time()

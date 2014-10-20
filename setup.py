@@ -46,6 +46,7 @@ fn_hmf = 'hmf_PS_logM_240_4-16_z_1521_4-80.pkl'
 fn_ics_h5 = 'initial_conditions.hdf5'
 fn_ics_np = 'initial_conditions.npz'
 fn_tau = 'optical_depth_H_400x1884_z_10-40_logE_2-4.7.hdf5'
+fn_tau2 = 'optical_depth_He_400x1884_z_10-40_logE_2-4.7.hdf5'
 fn_elec = 'secondary_electron_data.hdf5'
 
 if not os.path.exists(fn_elec):
@@ -86,6 +87,12 @@ if not os.path.exists('optical_depth/%s' % fn_tau):
     os.chdir('optical_depth')
     print "\nDownloading %s/%s..." % (bitbucket_DL, fn_tau)
     urllib.urlretrieve('%s/%s' % (bitbucket_DL, fn_tau), fn_tau)
+    os.chdir('..')
+
+if not os.path.exists('optical_depth/%s' % fn_tau2):    
+    os.chdir('optical_depth')
+    print "\nDownloading %s/%s..." % (bitbucket_DL, fn_tau2)
+    urllib.urlretrieve('%s/%s' % (bitbucket_DL, fn_tau2), fn_tau2)
     os.chdir('..')
 
 ##

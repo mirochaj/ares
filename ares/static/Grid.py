@@ -13,8 +13,8 @@ Description:
 import copy, types
 import numpy as np
 from ..util.Stats import rebin
-from ..util import parse_kwargs
 from collections import Iterable
+from ..util.Misc import parse_kwargs
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
 from ..physics.Constants import k_B, cm_per_kpc, s_per_myr, m_H

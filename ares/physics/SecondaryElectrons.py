@@ -7,7 +7,7 @@ Created on 2010-11-07.
 
 Description: Read in Furlanetto & Stoever results, provide functions for 
 interpolation of heating and ionization deposition fractions for fast 
-secondary electrons.  Fits of Shull & vanSteenberg (1985) and Ricotti, 
+secondary electrons. Fits of Shull & vanSteenberg (1985) and Ricotti, 
 Gnedin, & Shull (2002) also available.
 
 """
@@ -15,18 +15,16 @@ Gnedin, & Shull (2002) also available.
 import os
 import numpy as np
 from collections import Iterable
-
-try:
-    from mathutils.interpolate import LinearNDInterpolator
-except ImportError:
-    pass
+from ..util.Math import LinearNDInterpolator
 
 try:
     import h5py
 except ImportError:
     pass
 
-# If anything is identically zero for methods 2 and 3, 
+ARES = os.environ.get("ARES")
+
+# If anything is identically zero for methods 2 and 3,
 # our spline will get screwed up since log(0) = inf
 tiny_number = 1e-20
 
@@ -35,9 +33,9 @@ class SecondaryElectrons:
         self.Method = method
 
         if self.Method == 3:
-            rt1d = os.environ.get("RT1D")
-            if rt1d:
-                self.fn = "%s/input/secondary_electron_data.hdf5" % rt1d
+            
+            if ARES:
+                self.fn = "%s/input/secondary_electron_data.hdf5" % ARES
                 f = h5py.File(self.fn, 'r')
             else:
                 raise Exception('Error loading secondary electron data.')    

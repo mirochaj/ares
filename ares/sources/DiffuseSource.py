@@ -10,7 +10,7 @@ Description:
 
 """
 
-from ..util import evolve
+#from ..util import evolve
 
 #class DiffuseSource(object):
 #    """ Class for prescribed ionizing/heating backgrounds. """

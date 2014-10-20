@@ -20,7 +20,7 @@ Population Parameters
 
     Default: ``True``
     
-``is_xray_src``
+``is_heat_src_igm``
     Sources emit X-rays and heat bulk IGM?
     
     Default: ``True``

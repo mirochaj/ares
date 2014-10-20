@@ -13,7 +13,7 @@ Description:
 import numpy as np
 import matplotlib.pyplot as pl
 from scipy.integrate import trapz
-from rt1d.physics.Constants import *
+from ..physics.Constants import *
 
 class SyntheticCXRB:
     def __init__(self, fit='moretti2012'):

@@ -13,12 +13,12 @@ Description: This will be like glorb.evolve.RadiationBackground.
 import numpy as np
 from math import ceil
 import os, re, types, rt1d, gc
-from rt1d.physics.Constants import *
+from ..physics.Constants import *
 from .IntergalacticMedium import IGM
 from ..util.PrintInfo import print_rb
-from ..util import parse_kwargs, logbx
 from scipy.interpolate import interp1d
 from ..physics import Hydrogen, Cosmology
+from ..util.Misc import parse_kwargs, logbx
 from ..populations import StellarPopulation
 from scipy.integrate import quad, romberg, romb, trapz, simps
 from ..populations import BlackHolePopulation, StellarPopulation

@@ -18,10 +18,10 @@ from .SimpleSource import SimpleSource
 from .StellarSource import StellarSource
 from .DiffuseSource import DiffuseSource
 from .BlackHoleSource import BlackHoleSource
-from .ParameterizedSource import ParameterizedSource
 from ..static.IntegralTables import IntegralTable
+from ..util.Misc import parse_kwargs, sort, evolve
+from .ParameterizedSource import ParameterizedSource
 from ..static.InterpolationTables import LookupTable
-from ..util import parse_kwargs, sort, evolve#, readtab, Gauss1D, boxcar
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
 
 try:
@@ -30,7 +30,7 @@ except ImportError:
     pass
 
 np.seterr(all='ignore')   # exp overflow occurs when integrating BB
-                            # will return 0 as it should for x large
+                          # will return 0 as it should for x large
 
 class RadiationSource(object):
     """ Class for creation and manipulation of radiation sources. """

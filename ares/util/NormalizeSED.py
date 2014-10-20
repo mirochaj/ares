@@ -10,11 +10,10 @@ Description:
 
 """
 
-import rt1d
 import numpy as np
 from scipy.integrate import quad
-from rt1d.physics.Constants import E_LyA, E_LL, erg_per_ev, g_per_msun, \
-    s_per_yr
+from ..sources import RadiationSource
+from ..physics.Constants import E_LyA, E_LL, erg_per_ev, g_per_msun, s_per_yr
 
 all_bands = ['lw', 'ion', 'xray']
 
@@ -60,7 +59,7 @@ def norm_sed(pop, grid):
     Parameters
     ----------
     pop : *Population instance (Stellar, BlackHole, etc.)
-    grid : rt1d.static.Grid instance
+    grid : ares.static.Grid instance
     
     Returns
     -------
@@ -112,7 +111,7 @@ def norm_sed(pop, grid):
     if EmaxNorm is None:
         EmaxNorm = Emax
     
-    # rt1d wants lists for spectrum_* parameters
+    # Need lists for spectrum_* parameters
     if type(alpha) is not list:
         alpha = list([alpha])
     if type(Emin) is not list:
@@ -124,10 +123,10 @@ def norm_sed(pop, grid):
     if type(EmaxNorm) is not list:
         EmaxNorm = list([EmaxNorm])
                               
-    # rt1d tries to take care of normalization. Force it not to.
+    # RadiationSource tries to take care of normalization. Force it not to.
     tmp = pf.copy()
     tmp.update({'spectrum_EminNorm':None, 'spectrum_EmaxNorm':None})
-    rs = rt1d.sources.RadiationSource(grid=grid, init_tabs=False, **tmp)
+    rs = RadiationSource(grid=grid, init_tabs=False, **tmp)
     
     # Number of spectral components
     Nc = rs.N

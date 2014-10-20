@@ -10,7 +10,7 @@ Description:
 
 """
 
-import os, ares
+import ares
 
 src1 = \
 {
@@ -19,7 +19,7 @@ src1 = \
  'fstar': 1e-1,
  'Nion': 4e3,
  'Nlw': 9690.,
- 'is_xray_src': False,
+ 'is_heat_src_igm': False,
  'is_ion_src_cgm': True,
  'is_ion_src_igm': False,
  'norm_by': 'lw',
@@ -37,7 +37,6 @@ src2 = \
  'is_lya_src': False,
  'is_ion_src_cgm': False,
  'is_ion_src_igm': True,
- 'is_xray_src': True,
  'approx_xray': False,
  'load_tau': True,
  'redshift_bins': 400,
@@ -80,8 +79,8 @@ for i, Z in enumerate([[1],[1,2]]):
     
     pars.update({'Z': Z, 'approx_helium': approx[i]})
     pars.update({'abundances': [1.0, 0.08]})
-    sim = ares.simulations.Global21cm(initial_redshift=40, final_redshift=5.,
-        track_extrema=0, **pars)
+    sim = ares.simulations.Global21cm(final_redshift=3., track_extrema=0, 
+        **pars)
     sim.run()
     
     anl = ares.analysis.Global21cm(sim)

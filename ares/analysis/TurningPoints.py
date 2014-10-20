@@ -11,19 +11,15 @@ Description:
 """
 
 import numpy as np
+from ..util.Misc import parse_kwargs
 from ..physics.Constants import nu_0_mhz
-from ..util import parse_kwargs, take_derivative
+from ..util.Math import central_difference, take_derivative
 from ..util.SetDefaultParameterValues import SetAllDefaults
 
 try:
     from scipy.misc import derivative
     from scipy.optimize import minimize
     from scipy.interpolate import splrep, splev
-except ImportError:
-    pass
-
-try:
-    from mathutils.differentiate import central_difference
 except ImportError:
     pass
 

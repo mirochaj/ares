@@ -16,8 +16,9 @@ import os, re, itertools
 import matplotlib as mpl
 from ..simple import Interpret21cm
 from scipy.optimize import fsolve, fmin
+from ..physics.Constants import nu_0_mhz
 from scipy.integrate import quad, dblquad
-from rt1d.physics.Constants import nu_0_mhz
+
 
 try:
     from jmpy.misc import readers

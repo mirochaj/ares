@@ -359,7 +359,7 @@ def ControlParameters():
     'logdtDataDump': None,
     'logdzDataDump': None,
     "stop_time": 500,
-    "initial_redshift": 50.,
+    "initial_redshift": 40.,
     "final_redshift": 5,
     "save_rate_coefficients": 1,
     
@@ -375,7 +375,7 @@ def ControlParameters():
     # Initialization
     "load_ics": True,
     "load_sim": False,
-    "first_light_redshift": 50.,
+    "first_light_redshift": 40.,
     
     # Timestepping
     "max_dt": 1.,

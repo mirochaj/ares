@@ -81,3 +81,197 @@ def take_derivative(z, field, wrt='z'):
         xp, fp = np.array(xp), np.array(fp)        
 
     return z, np.interp(z, xp, fp)    
+
+class LinearNDInterpolator:
+    def __init__(self, axes, data, fill_values=None):
+        """
+        Create linear interpolation object.
+
+        Parameters
+        ----------
+        axes : list
+            Coordinates of sampled points for each axis of data.
+        data : np.ndarray
+            Sampled values.
+        fill_values : float, list
+            Values to return for coordinates outside the table. By default,
+            will return values at the table boundaries.
+
+        Example
+        -------
+        Interpolate in 1D: 
+        >>> x = np.arange(10)
+        >>> y = x**2
+        >>> interp = LinearNDInterpolator(x, y)
+        >>> interp(5.4)
+
+        Interpolate in 2D: 
+        >>> x = y = np.arange(10)
+        >>> xx, yy = np.meshgrid(x, y)
+        >>> z = xx**2 + yy**2
+        >>> interp = LinearNDInterpolator([x, y], z)
+        >>> interp([5.4, 5.9])
+
+        Interpolate in 3D: 
+        >>> x = y = z = np.arange(10)
+        >>> xx, yy, zz = np.meshgrid(x, y, z)
+        >>> w = xx**2 + yy**2 + zz**2
+        >>> interp = LinearNDInterpolator([x, y, z], w)
+        >>> interp([5.4, 5.9, 7.1])
+
+        """
+
+        self.axes = axes
+        self.data = data
+
+        self.dims = self.data.shape
+
+        if len(self.axes) == 1:
+            self.Nd = 1
+        else:
+            self.Nd = len(self.axes)
+
+        if self.Nd == 1:
+            self._init_1d()
+        elif self.Nd >= 2:
+            self._init_Nd()    
+        else:
+            raise NotImplemented('Haven\'t implemented interpolation for N>3')
+
+    def __call__(self, points):
+        """
+        Interpolate!
+
+        Parameters
+        ----------
+        points : float, np.ndarray
+            Can only be a float if we're interpolating in 1D.
+            Otherwise, must be an array with ND elements.
+        """
+
+        if self.Nd == 1:
+            return self._interp_1d(points)
+        elif self.Nd == 2:
+            return self._interp_2d(points)
+        elif self.Nd == 3:
+            return self._interp_3d(points)
+        else:
+            raise NotImplemented('Haven\'t implemented interpolation for N>3')
+
+    def _init_1d(self):
+        """
+        Setup arrays for 1D interpolation.
+
+        Use numpy, but do something numpy doesn't do, which is check to make
+        sure x-values are ascending.
+        """
+        if np.all(np.diff(self.axes) > 0):
+            return
+
+        tmpa = list(self.axes)
+        tmpd = list(self.data)
+        tmpa.reverse()
+        tmpd.reverse()
+        self.axes = np.array(tmpa)
+        self.data = np.array(tmpd)
+
+    def _init_Nd(self):
+        self.daxes = np.array([np.diff(axis) for axis in self.axes])
+        self.axes_min = np.array([np.min(axis) for axis in self.axes])
+
+        tmp = np.zeros(self.Nd)
+        for i in xrange(self.Nd):
+            if not np.allclose(self.daxes[i] - self.daxes[i][0], 
+                np.zeros_like(self.daxes[i])):
+                raise ValueError('Values must be evenly spaced!')
+            tmp[i] = self.daxes[i][0]
+
+        self.daxes = tmp.copy()
+
+    def _interp_1d(self, points):
+        """ Interpolate using numpy for one-dimensional case. """
+
+        return np.interp(points, self.axes, self.data)
+
+    def _interp_2d(self, points):
+        """ Interpolate in 2D. """
+
+        i_n, i_m = map(int, (points - self.axes_min) / self.daxes)
+
+        x1 = self.axes[0][i_n]
+        x2 = self.axes[0][i_n+1]
+        y1 = self.axes[1][i_m]
+        y2 = self.axes[1][i_m+1]
+
+        f11 = self.data[i_n][i_m]
+        f21 = self.data[i_n+1][i_m]
+        f12 = self.data[i_n][i_m+1]
+        f22 = self.data[i_n+1][i_m+1]
+
+        final = (f11 * (x2 - points[0]) * (y2 - points[1]) + \
+            f21 * (points[0] - x1) * (y2 - points[1]) + \
+            f12 * (x2 - points[0]) * (points[1] - y1) + \
+            f22 * (points[0] - x1) * (points[1] - y1)) / (x2 - x1) / (y2 - y1)    
+
+        return final
+
+    def _get_indices_3d(self, points):
+        # Smaller indices
+        i_s, j_s, k_s = map(int, (points - self.axes_min) / self.daxes)
+
+        # Bracketing coordinates
+        if i_s < 0: 
+            i_s = i_b = 0
+        elif i_s >= (self.dims[0] - 1): 
+            i_s = i_b = -1
+        else: 
+            i_b = i_s + 1
+        if j_s < 0: 
+            j_s = j_b = 0
+        elif j_s >= (self.dims[1] - 1): 
+            j_s = j_b = -1
+        else: 
+            j_b = j_s + 1
+        if k_s < 0: 
+            k_s = k_b = 0
+        elif k_s >= (self.dims[2] - 1): 
+            k_s = k_b = -1
+        else: 
+            k_b = k_s + 1        
+
+        # Bracketing values
+        x_s, y_s, z_s = self.axes[0,i_s], self.axes[1,j_s], self.axes[2,k_s]
+        x_b, y_b, z_b = self.axes[0,i_b], self.axes[1,j_b], self.axes[2,k_b]
+
+        # Distance between supplied value and smallest value in table        
+        x_d = (points[0] - x_s) / self.daxes[0]
+        y_d = (points[1] - y_s) / self.daxes[1]
+        z_d = (points[2] - z_s) / self.daxes[2]
+
+        return [i_s, j_s, k_s], [i_b, j_b, k_b], [x_d, y_d, z_d]
+
+    def _interp_3d(self, points):
+        """ Interpolate in 3D. """ 
+
+        ijk_s, ijk_b, xyz_d = self._get_indices_3d(points)
+
+        i_s, j_s, k_s = ijk_s
+        i_b, j_b, k_b = ijk_b
+        x_d, y_d, z_d = xyz_d
+
+        i1 = self.data[i_s,j_s,k_s] * (1. - z_d) + self.data[i_s,j_s,k_b] * z_d
+        i2 = self.data[i_s,j_b,k_s] * (1. - z_d) + self.data[i_s,j_b,k_b] * z_d
+
+        j1 = self.data[i_b,j_s,k_s] * (1. - z_d) + self.data[i_b,j_s,k_b] * z_d
+        j2 = self.data[i_b,j_b,k_s] * (1. - z_d) + self.data[i_b,j_b,k_b] * z_d
+
+        w1 = i1 * (1. - y_d) + i2 * y_d
+        w2 = j1 * (1. - y_d) + j2 * y_d
+
+        final = w1 * (1. - x_d) + w2 * x_d
+
+        return final
+        
+        
+        
+        

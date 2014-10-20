@@ -13,22 +13,14 @@ Description:
 import numpy as np
 import os, copy, time, re
 import matplotlib.pyplot as pl
-from ..simple import Interpret21cm
-from rt1d.physics import Hydrogen, Cosmology
-from rt1d.physics.Constants import cm_per_mpc, J21_num
+from ..util.Stats import rebin
+#from ..simple import Interpret21cm
+from .MultiPlot import MultiPanel
+from ..physics import Hydrogen, Cosmology
+from ..physics.Constants import cm_per_mpc, J21_num
 
 try:
     import h5py
-except ImportError:
-    pass
-
-try:
-    from multiplot import multipanel
-except ImportError:
-    pass
-
-try:
-    from mathutils.stats import rebin
 except ImportError:
     pass
 
@@ -609,7 +601,7 @@ class BoundedSpace(object):
             r'$\epsilon_X (z_{\mathrm{%s}}) \ \left[\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cMpc}^{-3} \right]$' % tp,
             r'$J_{\alpha} (z_{\mathrm{%s}}) / J_{21}$' % tp]
         
-        mp = multipanel(dims=(len(I),len(J)), panel_size=(0.6, 0.6),
+        mp = MultiPanel(dims=(len(I),len(J)), panel_size=(0.6, 0.6),
             num=fignum)
         
         for i in range(len(I)): # row

@@ -33,7 +33,7 @@ pars = \
  'norm_by': 'lw',
  'is_ion_src_cgm': False,
  'is_ion_src_igm': False,
- 'is_xray_src': False,
+ 'is_heat_src_igm': False,
  'initial_redshift': 40,
  'final_redshift': 10,
 }

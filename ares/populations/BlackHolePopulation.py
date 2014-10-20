@@ -12,17 +12,15 @@ Description:
 
 import types
 import numpy as np
-from ..util import parse_kwargs
 from scipy.integrate import quad
 from scipy.misc import derivative
 from ..physics.Constants import *
+from ..util.Misc import parse_kwargs
 from ..util.PrintInfo import print_pop
 from ..util.NormalizeSED import norm_sed
 from .HaloMassFunction import HaloDensity
 from ..physics.Cosmology import Cosmology
 from ..sources.RadiationSource import RadiationSource
-from ..util.SetDefaultParameterValues import *
-from ..util import parse_kwargs, take_derivative
 from ..physics.SecondaryElectrons import SecondaryElectrons
 
 E_th = [13.6, 24.6, 54.4]

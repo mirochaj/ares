@@ -1,6 +1,6 @@
 """
 
-AnalyzeRadio.py
+Global21cm.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -11,18 +11,19 @@ Description:
 """
 
 import numpy as np
+from ..util import labels
 import re, scipy, os, pickle
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
 from scipy.misc import derivative
 from scipy.optimize import fsolve
 from ..physics.Constants import *
-from ..simulations import Global21cm as simG21
 from scipy.interpolate import interp1d
 from .TurningPoints import TurningPoints
 from ..physics import Cosmology, Hydrogen
+from ..util.Math import central_difference
 from ..util.SetDefaultParameterValues import *
-from ..util import central_difference, labels
+from ..simulations import Global21cm as simG21
 
 try:
     import h5py

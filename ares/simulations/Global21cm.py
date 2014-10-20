@@ -14,15 +14,16 @@ import numpy as np
 from ..static import Grid
 import copy, os, re, pickle
 from ..sources import DiffuseSource
+from ..util.Misc import parse_kwargs
 from ..util.ReadData import load_inits
 from ..util.WriteData import CheckPoints
 from ..util.ManageHistory import WriteData
 from ..util.PrintInfo import print_21cm_sim
 from ..populations import CompositePopulation
+from ..util import ProgressBar, RestrictTimestep
 from ..solvers.RadiationField import RadiationField
 from ..solvers.UniformBackground import UniformBackground
 from ..util.SetDefaultParameterValues import SetAllDefaults
-from ..util import parse_kwargs, ProgressBar, RestrictTimestep
 from ..physics.Constants import k_B, m_p, G, g_per_msun, c, sigma_T, \
     erg_per_ev, nu_0_mhz
     
@@ -631,7 +632,7 @@ class Global21cm:
             self.pb.update(t)
 
             # Quit if reionization is ~complete (xavg = 0.9999 by default)
-            if self.history['xavg'][-1] >= self.pf['stop_xavg']:
+            if self.history['xavg'][-1] >= self.pf['stop_xavg']:            
                 break
                 
             self.step += 1
@@ -642,7 +643,7 @@ class Global21cm:
         for key in self.history:
             tmp[key] = np.array(self.history[key])
 
-        self.history = tmp            
+        self.history = tmp
             
         if self.pf['track_extrema']:
             self.turning_points = self.track.turning_points

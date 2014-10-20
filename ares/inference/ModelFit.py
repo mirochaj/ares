@@ -18,6 +18,7 @@ from ..physics.Constants import nu_0_mhz
 import os, sys, copy, types, pickle, time
 from ..simulations import Global21cm as simG21
 from ..analysis.TurningPoints import TurningPoints
+from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.ReadData import read_pickled_chain, flatten_chain, flatten_logL, \
     flatten_blobs  
 
@@ -32,12 +33,6 @@ try:
     from emcee.utils import MPIPool
 except ImportError:
     pass
-    
-try:
-    have_mathutils = True
-    from mathutils.stats import Gauss1D, GaussND, error_1D, rebin
-except ImportError:
-    have_mathutils = False    
     
 try:
     import h5py

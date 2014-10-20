@@ -10,16 +10,16 @@ Description:
 
 """
 
+import types, sys
 import numpy as np
-import rt1d, types, sys
-from ..util import parse_kwargs
 from scipy.integrate import quad
-from rt1d.physics.Constants import *
+from ..physics import Cosmology
+from ..physics.Constants import *
+from ..util.Misc import parse_kwargs
 from ..util.PrintInfo import print_pop
 from ..util.NormalizeSED import norm_sed
 from .HaloMassFunction import HaloDensity
 from ..util.Warnings import negative_SFRD
-from rt1d.util.PrintInfo import line, print_warning
 
 class StellarPopulation:
     def __init__(self, grid=None, init_rs=True, **kwargs):
@@ -28,9 +28,9 @@ class StellarPopulation:
         
         Parameters
         ----------
-        grid : instance of rt1d.static.Grid.Grid class
+        grid : instance of static.Grid.Grid class
         init_rs : bool
-            Initialize an rt1d.sources.RadiationSource object?
+            Initialize an sources.RadiationSource object?
         
         """
         self.pf = parse_kwargs(**kwargs)
@@ -38,7 +38,7 @@ class StellarPopulation:
         self.grid = grid
            
         if grid is None:
-            self.cosm = rt1d.physics.Cosmology(
+            self.cosm = Cosmology(
                 OmegaMatterNow=self.pf['OmegaMatterNow'], 
                 OmegaLambdaNow=self.pf['OmegaLambdaNow'], 
                 OmegaBaryonNow=self.pf['OmegaBaryonNow'],  

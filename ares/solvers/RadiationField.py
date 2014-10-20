@@ -12,8 +12,8 @@ Description:
 
 import copy
 import numpy as np
-from ..util import parse_kwargs
 from .Chemistry import Chemistry
+from ..util.Misc import parse_kwargs
 from ..physics.SecondaryElectrons import SecondaryElectrons
 from ..physics.Constants import erg_per_ev, E_LyA, ev_per_hz
 

@@ -15,7 +15,7 @@ import types, os, re, sys
 from ..util.Warnings import *
 from ..util import ProgressBar
 from ..physics.Constants import *
-from ..util import parse_kwargs, num_freq_bins
+from ..util.Misc import parse_kwargs, num_freq_bins
 from ..physics import Cosmology, SecondaryElectrons
 from ..util.Warnings import tau_tab_z_mismatch, no_tau_table
 from scipy.integrate import dblquad, romb, simps, quad, trapz
