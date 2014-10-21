@@ -17,6 +17,8 @@ from ares.physics.Constants import rhodot_cgs
 
 pars = \
 {
+ 'initial_redshift': 50,
+ 'first_light_redshift': 50,
  'Tmin{0}': 1e4,
  'source_type{0}': 'star',
  'fstar{0}': 1e-1,

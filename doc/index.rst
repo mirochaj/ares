@@ -6,8 +6,9 @@
 ARES
 ==============================
 The Accelerated Reionization Era Simulations (ARES) code was designed to
-rapidly generate models for the global 21-cm signal, the 21-cm angular power
-spectrum, and the high redshift galaxy luminosity function.
+rapidly generate models for the global 21-cm signal. It can also be used as a 
+1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or
+global radiation background calculator.
 
 A few papers on how it works:
 

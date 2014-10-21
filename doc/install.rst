@@ -20,6 +20,6 @@ To download the code, do::
     cd ares
     python setup.py install
     
-A few lookup tables will be downloaded to ares/input automatically.    
+A few lookup tables will be downloaded to ``$ARES/input`` automatically.    
 
 

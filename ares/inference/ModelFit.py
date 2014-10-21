@@ -348,6 +348,8 @@ class loglikelihood:
             except ValueError:
                 return -np.inf, self.blank_blob
 
+            print logL
+
         # Blobs!
         if hasattr(sim, 'blobs'):
             blobs = sim.blobs

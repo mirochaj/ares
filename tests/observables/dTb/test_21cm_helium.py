@@ -55,7 +55,6 @@ sed2 = \
 pars = \
 {
  'Z': [1,2],
- 'abundances': [1.,0.08],
  'approx_helium': False,
  'initial_ionization': [1.2e-3, 1e-8],
  'source_kwargs': [src1, src2],
@@ -78,7 +77,6 @@ for i, Z in enumerate([[1],[1,2]]):
         label = 'H+He'
     
     pars.update({'Z': Z, 'approx_helium': approx[i]})
-    pars.update({'abundances': [1.0, 0.08]})
     sim = ares.simulations.Global21cm(final_redshift=3., track_extrema=0, 
         **pars)
     sim.run()
@@ -102,5 +100,6 @@ for i, Z in enumerate([[1],[1,2]]):
         
     sims.append(sim)
 
+pl.draw()
 
 

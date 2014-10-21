@@ -2,8 +2,9 @@
 ARES
 ====
 The Accelerated Reionization Era Simulations (ARES) code was designed to
-rapidly generate models for the global 21-cm signal, the 21-cm angular power
-spectrum, and the high redshift galaxy luminosity function.
+rapidly generate models for the global 21-cm signal. It can also be used as a 
+1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, or
+global radiation background calculator.
 
 A few papers on how it works:
 
@@ -31,7 +32,7 @@ the halo mass function (in ``$ARES/input/hmf``), IGM optical depth (in
 ``$ARES/input/optical_depth``), spectral energy distributions (in
 ``$ARES/input/seds``), etc.
 
-When you first run the setup.py script, a few files will be downloaded
+When you first run the ``setup.py`` script, a few files will be downloaded
 automatically:
 
 hmf_PS_logM_240_4-16_z_1521_4-80.pkl
@@ -72,4 +73,10 @@ No public documentation yet. To generate the documentation locally, ::
     make html
     open _build/html/index.html
     
-This will open the documentation in a browser.
+This will open the documentation in a browser. For the above to work, you'll 
+need `sphinx <http://sphinx-doc.org/contents.html>`_, which can be installed via
+pip: ::
+
+    pip install sphinx
+
+If that doesn't work, let me know!

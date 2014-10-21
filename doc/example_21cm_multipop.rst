@@ -54,4 +54,39 @@ For comparison, the same simulation with the PopII-like population only:
 Note in the final plot command, we supplied the previous ``ax`` object to overplot
 the results of the single population calculation on the same axes as before.
 
+Alternative Technique
+----------------------
+To avoid use of the ``source_kwargs`` parameter, you can instead add a 
+suffix to parameters to denote the population ID number. For example, 
+the following is equivalent to the approach taken above:
+
+::
+
+    pars = \
+    {
+     'Tmin{0}': 1e4,               # atomic cooling halos
+     'source_type{0}': 'star',
+     'fstar{0}': 1e-1,
+     'Nion{0}': 4e3,
+     'Nlw{0}': 9600.,
+     
+     'Tmin{1}': 300.,              # molecular cooling halos
+     'source_type{1}': 'star',
+     'fstar{1}': 1e-4,
+     'Nion{1}': 30e4,
+     'Nlw{1}': 4800.,
+    }
+    
+    import ares
+        
+    # Dual-population model
+    sim = ares.simulations.Global21cm(**pars)
+    
+    # <run, analyze, etc. just as before>
+
+The integers within curly braces are identification numbers used to keep 
+track of the different populations internally.
+
+
+
     

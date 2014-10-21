@@ -13,7 +13,9 @@ Description: Make sure our extrema-finding routines work.
 import ares
 import matplotlib.pyplot as pl
 
-sim = ares.simulations.Global21cm()
+blobs = (['z', 'dTb', 'igm_Tk', 'Ja'], ['B', 'C', 'D'])
+
+sim = ares.simulations.Global21cm(track_extrema=True, inline_analysis=blobs)
 sim.run()
                     
 anl = ares.analysis.Global21cm(sim)
@@ -31,5 +33,7 @@ for TP in anl.turning_points:
 pl.draw()
 
 
-
+# Print out in-line analysis:
+for tp in list('BCD'):
+    sim.tabulate_blobs(tp)
 

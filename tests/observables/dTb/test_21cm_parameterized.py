@@ -34,7 +34,6 @@ def Tk(z):
     return hydr.cosm.TCMB(hydr.cosm.zdec) * \
         (1. + z)**2 / (1. + hydr.cosm.zdec)**2
 
-
 # Spin temperature (arguments: z, Tk, Ja, xHII, ne)
 Ts = lambda z: hydr.SpinTemperature(z, Tk(z), 0.0, 0.0, 0.0)
 

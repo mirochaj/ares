@@ -35,6 +35,8 @@ src2 = \
 
 pars = \
 {
+ 'initial_redshift': 50,
+ 'first_light_redshift': 50,
  'source_kwargs': [src1, src2],
 }
 
