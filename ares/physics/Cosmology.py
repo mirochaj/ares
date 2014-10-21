@@ -28,7 +28,7 @@ class Cosmology:
         self.omega_m_0 = omega_m_0
         self.omega_b_0 = omega_b_0
         self.omega_l_0 = omega_l_0
-        self.OmegaCDMNow = self.omega_m_0 - self.omega_b_0
+        self.omega_cdm_0 = self.omega_m_0 - self.omega_b_0
         self.hubble_0 = hubble_0 * 100 / km_per_mpc
         self.cmb_temp_0 = cmb_temp_0
         self.approx_highz = approx_highz
@@ -70,8 +70,6 @@ class Cosmology:
          'omega_M':self.omega_m_0,
          'sigma_8':self.sigma8,
          'n': self.primordial_index}
-        
-        
         
     def TimeToRedshiftConverter(self, t_i, t_f, z_i):
         """

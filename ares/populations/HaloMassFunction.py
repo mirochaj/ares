@@ -180,7 +180,7 @@ class HaloDensity:
         """    
         
         cosmology = {'omegav':self.cosm.omega_l_0,
-                     'omegac':self.cosm.OmegaCDMNow,
+                     'omegac':self.cosm.omega_cdm_0,
                      'omegab':self.cosm.omega_b_0,
                      'sigma_8':self.cosm.sigma8,
                      'h':self.cosm.h70,
