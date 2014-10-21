@@ -59,7 +59,7 @@ c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
 c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
 
 class Hydrogen:
-    def __init__(self, cosm=None, approx_Salpha=1, approx_lya=0):
+    def __init__(self, cosm=None, approx_Salpha=1):
         if cosm is None:
             from .Cosmology import Cosmology
             self.cosm = Cosmology()
@@ -67,7 +67,6 @@ class Hydrogen:
             self.cosm = cosm
             
         self.approx_S = approx_Salpha
-        self.approx_lya = approx_lya
         
         self.nmax = 23
         self.fbarII = 0.72

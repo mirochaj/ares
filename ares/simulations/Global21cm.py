@@ -78,10 +78,10 @@ class Global21cm:
                 self.pf = parse_kwargs(**kwargs)
             else:
                 if kwargs['tanh_model']:
-                    from ..util.TanhModel import tanh_model
-                    
-                    self.pf = SetAllDefaults()
-                    self.pf.update(kwargs)
+                    from ..util.TanhModel import TanhModel
+
+                    tanh_model = TanhModel(**kwargs)
+                    self.pf = tanh_model.pf
                     
                     if self.pf['tanh_nu'] is not None:
                         nu = self.pf['tanh_nu']

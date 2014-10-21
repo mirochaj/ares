@@ -12,9 +12,10 @@ Description:
 
 import time
 import numpy as np
-from ..physics import Hydrogen
 from ..analysis import Global21cm
+from ..util.Misc import parse_kwargs
 from ..util.ReadData import load_inits
+from ..physics import Hydrogen, Cosmology
 from ..physics.Constants import k_B, J21_num
 from ..physics.RateCoefficients import RateCoefficients
 from ..util.SetDefaultParameterValues import TanhParameters
@@ -25,142 +26,167 @@ tanh_kwargs = TanhParameters()
 tanh_pars = ['tanh_J0', 'tanh_Jz0', 'tanh_Jdz', 
     'tanh_T0', 'tanh_Tz0', 'tanh_Tdz', 'tanh_x0', 'tanh_xz0', 'tanh_xdz']
 
-# Create instance of Hydrogen class
-hydr = Hydrogen()
 
-CR = load_inits()
-CR_TK = lambda z: np.interp(z, CR['z'], CR['Tk'])
-CR_ne = lambda z: np.interp(100, CR['z'], CR['xe']) * hydr.cosm.nH(z)
+def tanh_generic(z, zref, dz):
+    return 0.5 * (np.tanh((zref - z) / dz) + 1.)
 
 rc = RateCoefficients(recombination='A')
 alpha_A = rc.RadiativeRecombinationRate(0, 1e4)
 
-def Tgas_adiabatic(z, use_CR=True):
-    if use_CR:
-        return CR_TK(z)
+class TanhModel:
+    def __init__(self, **kwargs):
+        self.pf = parse_kwargs(**kwargs)
+
+        # Cosmology class
+        self.cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
+            omega_l_0=self.pf["omega_l_0"], 
+            omega_b_0=self.pf["omega_b_0"], 
+            hubble_0=self.pf["hubble_0"], 
+            helium_by_number=self.pf['helium_by_number'], 
+            cmb_temp_0=self.pf["cmb_temp_0"], 
+            approx_highz=self.pf["approx_highz"])
         
-    return hydr.cosm.TCMB(hydr.cosm.zdec) * (1. + z)**2 \
-        / (1. + hydr.cosm.zdec)**2
+        # Create instance of Hydrogen class
+        self.hydr = Hydrogen(cosm=self.cosm,
+            approx_Salpha=self.pf['approx_Salpha'])
 
-def tanh_generic(z, zref, dz):
-    return 0.5 * (np.tanh((zref - z) / dz) + 1.)
-    
-def temperature(z, Tref, zref, dz):
-    return Tref * tanh_generic(z, zref=zref, dz=dz) + Tgas_adiabatic(z)
-    
-def ionized_fraction(z, xref, zref, dz):
-    return xref * tanh_generic(z, zref=zref, dz=dz)
+        if self.pf['load_ics']:
+            CR = load_inits()
+            self.CR_TK = lambda z: np.interp(z, CR['z'], CR['Tk'])
+            self.CR_ne = lambda z: np.interp(100, CR['z'], CR['xe']) \
+                * self.cosm.nH(z)
 
-def heating_rate(z, Tref, zref, dz, Lambda=None):
-
-    Tk = temperature(z, Tref, zref, dz)
-
-    dtdz = hydr.cosm.dtdz(z)
-
-    dTkdz = 0.5 * Tref * (1. - np.tanh((zref - z) / dz)**2) / dz
-    dTkdt = dTkdz / dtdz
-
-    n = hydr.cosm.nH(z)
-
-    if Lambda is None:
-        cool = 0.0
-    else:
-        cool = Lambda(z)
-
-    return 1.5 * n * k_B * (dTkdt + 2. * hydr.cosm.HubbleParameter(z) * Tk) \
-        + cool / dtdz
-    
-def ionization_rate(z, xref, zref, dz, C=1.):
-    xi = ionized_fraction(z, xref, zref, dz)
-    
-    dtdz = hydr.cosm.dtdz(z)
-    
-    dxdz = 0.5 * xref * (1. - np.tanh((zref - z) / dz)**2) / dz
-    dxdt = dxdz / dtdz
-    
-    n = hydr.cosm.nH(z)
-    
-    return dxdt + alpha_A * C * n * xi
-    
-def tanh_model(z, **kwargs):
-    """
-    Check "tanh_pars" for list of acceptable parameters.
-    
-    Returns
-    -------
-    glorb.analysis.-21cm instance, which contains the entire signal
-    and the turning points conveniently in the "turning_points" 
-    attribute.
-    
-    """
-    kw = tanh_kwargs.copy()
-    
-    for element in kwargs:
-        kw.update({element: kwargs[element]})
+    def Tgas_adiabatic(self, z):
+        if self.pf['load_ics']:
+            return self.CR_TK(z)
+        else:    
+            # Cosmology.Tgas can't handle arrays
+            return self.cosm.TCMB(self.cosm.zdec) * (1. + z)**2 \
+                / (1. + self.cosm.zdec)**2
+                
+    def electron_density(self, z):
+        if self.pf['load_ics']:
+            return self.CR_ne(z)
+        else:
+            return 0.0
         
-    theta = [kw[par] for par in tanh_pars]
-    
-    return tanh_model_for_emcee(z, theta)
-    
-def tanh_model_for_emcee(z, theta):
-    """
-    Compute 21-cm signal given tanh model parameters.
-    
-    Input parameters assumed to be in the following order:
-    
-    Jref, zref_J, dz_J, 
-    Tref, zref_T, dz_T, 
-    xref, xref_J, dz_x
-    
-    where Jref, Tref, and xref are the step heights, zref_? are the step
-    locations, and dz_? are the step-widths.
-    
-    Note that Jref is in units of J21.
-    
-    Returns
-    -------
-    ares.analysis.Global21cm instance, which contains the entire signal
-    and the turning points conveniently in the "turning_points" 
-    attribute.
-    
-    """
+    def temperature(self, z, Tref, zref, dz):
+        return Tref * tanh_generic(z, zref=zref, dz=dz) \
+            + self.Tgas_adiabatic(z)
         
-    # Unpack parameters
-    Jref, zref_J, dz_J, Tref, zref_T, dz_T, xref, zref_x, dz_x = theta
+    def ionized_fraction(self, z, xref, zref, dz):
+        return xref * tanh_generic(z, zref=zref, dz=dz)
     
-    Jref *= J21_num
+    def heating_rate(self, z, Tref, zref, dz, Lambda=None):
     
-    # Assumes z < zdec
-    Tgas = Tgas_adiabatic(z)
-
-    Ja = Jref * tanh_generic(z, zref=zref_J, dz=dz_J)
-    Tk = Tref * tanh_generic(z, zref=zref_T, dz=dz_T) + Tgas
-    xi = xref * tanh_generic(z, zref=zref_x, dz=dz_x)
+        Tk = self.temperature(z, Tref, zref, dz)
     
-    # Compute (proper) electron density assuming xHII = xHeII, xHeIII = 0.
-    # Needed for collisional coupling.
+        dtdz = self.cosm.dtdz(z)
     
-    # Spin temperature
-    Ts = hydr.SpinTemperature(z, Tk, Ja, xi, CR_ne(z))
-
-    # Brightness temperature
-    dTb = hydr.DifferentialBrightnessTemperature(z, xi, Ts)
-
-    # Save some stuff
-    hist = \
-    {
-     'z': z, 
-     'dTb': dTb,
-     'igm_Tk': Tk,
-     'Ts': Ts,
-     'Ja': Ja,
-     'cgm_h_2': xi,
-     'igm_heat': heating_rate(z, Tref, zref_T, dz_T),
-     'cgm_Gamma': ionization_rate(z, xref, zref_x, dz_x),
-    }
+        dTkdz = 0.5 * Tref * (1. - np.tanh((zref - z) / dz)**2) / dz
+        dTkdt = dTkdz / dtdz
     
-    # Add heating rates, etc.
-
-    tmp = Global21cm(history=hist)    
-
-    return tmp
+        n = self.cosm.nH(z)
+    
+        if Lambda is None:
+            cool = 0.0
+        else:
+            cool = Lambda(z)
+    
+        return 1.5 * n * k_B * (dTkdt + 2. * self.cosm.HubbleParameter(z) * Tk) \
+            + cool / dtdz
+        
+    def ionization_rate(self, z, xref, zref, dz, C=1.):
+        xi = self.ionized_fraction(z, xref, zref, dz)
+        
+        dtdz = self.cosm.dtdz(z)
+        
+        dxdz = 0.5 * xref * (1. - np.tanh((zref - z) / dz)**2) / dz
+        dxdt = dxdz / dtdz
+        
+        n = self.cosm.nH(z)
+        
+        return dxdt + alpha_A * C * n * xi
+        
+    def __call__(self, z, **kwargs):
+        """
+        Check "tanh_pars" for list of acceptable parameters.
+        
+        Returns
+        -------
+        glorb.analysis.-21cm instance, which contains the entire signal
+        and the turning points conveniently in the "turning_points" 
+        attribute.
+        
+        """
+        
+        kw = tanh_kwargs.copy()
+        
+        for element in kwargs:
+            kw.update({element: kwargs[element]})
+            
+        theta = [kw[par] for par in tanh_pars]
+        
+        return self.tanh_model_for_emcee(z, theta)
+        
+    def tanh_model_for_emcee(self, z, theta):
+        """
+        Compute 21-cm signal given tanh model parameters.
+        
+        Input parameters assumed to be in the following order:
+        
+        Jref, zref_J, dz_J, 
+        Tref, zref_T, dz_T, 
+        xref, xref_J, dz_x
+        
+        where Jref, Tref, and xref are the step heights, zref_? are the step
+        locations, and dz_? are the step-widths.
+        
+        Note that Jref is in units of J21.
+        
+        Returns
+        -------
+        ares.analysis.Global21cm instance, which contains the entire signal
+        and the turning points conveniently in the "turning_points" 
+        attribute.
+        
+        """
+            
+        # Unpack parameters
+        Jref, zref_J, dz_J, Tref, zref_T, dz_T, xref, zref_x, dz_x = theta
+        
+        Jref *= J21_num
+        
+        # Assumes z < zdec
+        Tgas = self.Tgas_adiabatic(z)
+        ne = self.electron_density(z)
+    
+        Ja = Jref * tanh_generic(z, zref=zref_J, dz=dz_J)
+        Tk = Tref * tanh_generic(z, zref=zref_T, dz=dz_T) + Tgas
+        xi = xref * tanh_generic(z, zref=zref_x, dz=dz_x)
+        
+        # Compute (proper) electron density assuming xHII = xHeII, xHeIII = 0.
+        # Needed for collisional coupling.
+        
+        # Spin temperature
+        Ts = self.hydr.SpinTemperature(z, Tk, Ja, xi, ne)
+    
+        # Brightness temperature
+        dTb = self.hydr.DifferentialBrightnessTemperature(z, xi, Ts)
+    
+        # Save some stuff
+        hist = \
+        {
+         'z': z, 
+         'dTb': dTb,
+         'igm_Tk': Tk,
+         'Ts': Ts,
+         'Ja': Ja,
+         'cgm_h_2': xi,
+         'igm_heat': self.heating_rate(z, Tref, zref_T, dz_T),
+         'cgm_Gamma': self.ionization_rate(z, xref, zref_x, dz_x),
+        }
+            
+        tmp = Global21cm(history=hist)    
+    
+        return tmp
