@@ -22,7 +22,7 @@ grid = ares.static.Grid(dims=dims)
 
 # Set initial conditions
 grid.set_physics(isothermal=True)
-grid.set_chemistry(Z=[1,2], abundances=[1.0, 0.08])
+grid.set_chemistry(Z=[1,2])
 grid.set_density(rho0=ares.physics.Constants.m_H)
 grid.set_temperature(T)
 grid.set_ionization(state='neutral')

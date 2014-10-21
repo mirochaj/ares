@@ -40,7 +40,7 @@ class Cosmology:
         
         self.h70 = hubble_0
         
-        self.y = helium_by_number
+        self.helium_by_number = self.y = helium_by_number
         self.Y = 4. * self.y / (1. + 4. * self.y)
         
         self.X = 1. - self.Y
