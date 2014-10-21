@@ -32,7 +32,8 @@ base_pars = \
 fit = ModelFit(**base_pars)
 
 # Assume default parameters
-fit.set_input_realization(tanh_model=True)
+sim = ares.simulations.Global21cm(tanh_model=True)
+fit.mu = ares.analysis.Global21cm(sim).turning_points
 
 # Set axes of parameter space
 fit.set_axes(['tanh_xz0', 'tanh_xdz', 'tanh_Tz0', 'tanh_Tdz'], 

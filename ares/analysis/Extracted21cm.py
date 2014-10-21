@@ -11,10 +11,10 @@ Description:
 """
 
 import numpy as np
-import matplotlib.pyplot as pl
 import os, re, itertools
 import matplotlib as mpl
-from ..simple import Interpret21cm
+import matplotlib.pyplot as pl
+#from ..simple import Interpret21cm
 from scipy.optimize import fsolve, fmin
 from ..physics.Constants import nu_0_mhz
 from scipy.integrate import quad, dblquad
@@ -63,7 +63,7 @@ default_errors = \
  'Ccorr': 0.,
 }
 
-GLORB = os.environ.get('GLORB')
+ARES = os.environ.get('ARES')
 
 # Not really columns in the files but you get the idea
 cols = {'nu_B': 1, 'T_B': 2, 'nu_C': 3, 'T_C': 4, 'nu_D': 5}
@@ -76,7 +76,7 @@ class Extracted21cm(object):
         
         self.mg = model_grid    
             
-        self.simpl = Interpret21cm(signal=signal)  
+        #self.simpl = Interpret21cm(signal=signal)  
         self.cosm = self.simpl.cosm
         
         print 'WARNING: Need to merge Extracted21cm and ExtractedSignal.'

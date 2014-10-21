@@ -57,12 +57,12 @@ class Global21cm:
             try:
                 self.cosm = sim.grid.cosm
             except AttributeError:
-                self.cosm = Cosmology(OmegaMatterNow=self.pf["OmegaMatterNow"], 
-                OmegaLambdaNow=self.pf["OmegaLambdaNow"], 
-                OmegaBaryonNow=self.pf["OmegaBaryonNow"], 
-                HubbleParameterNow=self.pf["HubbleParameterNow"], 
-                HeliumAbundanceByNumber=self.pf['HeliumAbundanceByNumber'], 
-                CMBTemperatureNow=self.pf["CMBTemperatureNow"], 
+                self.cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
+                omega_l_0=self.pf["omega_l_0"], 
+                omega_b_0=self.pf["omega_b_0"], 
+                hubble_0=self.pf["hubble_0"], 
+                helium_by_number=self.pf['helium_by_number'], 
+                cmb_temp_0=self.pf["cmb_temp_0"], 
                 approx_highz=self.pf["approx_highz"])
             try:
                 self.hydr = sim.grid.hydr
@@ -866,12 +866,12 @@ class Global21cm:
         """    
         
         zreion = self.data['z'].min()
-        tau_postreion = (c / self.cosm.HubbleParameterNow) \
-            * (2. * self.cosm.OmegaBaryonNow / 3. / self.cosm.OmegaMatterNow) \
+        tau_postreion = (c / self.cosm.hubble_0) \
+            * (2. * self.cosm.omega_b_0 / 3. / self.cosm.omega_m_0) \
             * (self.cosm.CriticalDensityNow * (1. - self.cosm.Y) \
             * (1. + self.cosm.y) * sigma_T / m_H) \
-            * (np.sqrt(self.cosm.OmegaMatterNow \
-            * (1. + zreion)**3 + self.cosm.OmegaLambdaNow) - 1.) + \
+            * (np.sqrt(self.cosm.omega_m_0 \
+            * (1. + zreion)**3 + self.cosm.omega_l_0) - 1.) + \
             0.0020  # Last term from HeIII reionization at z ~ 3.
         
         return tau_postreion

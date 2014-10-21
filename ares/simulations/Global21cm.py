@@ -175,26 +175,20 @@ class Global21cm:
                 self.inits_path = inits_path
         else:
             if len(x0) != len(self.pf['Z']):
-                x0 = [self.pf['initial_ionization'][0]] * 2
-                
-        if len(self.pf['Z']) > 1:
-            y = self.pf['abundances'][1]
-        else:
-            y = 0.0        
+                x0 = [self.pf['initial_ionization'][0]] * 2 
                             
         # Set cosmological initial conditions  
         for grid in self.grids:  
             grid.set_cosmology(initial_redshift=self.pf['initial_redshift'], 
-                OmegaMatterNow=self.pf["OmegaMatterNow"], 
-                OmegaLambdaNow=self.pf["OmegaLambdaNow"], 
-                OmegaBaryonNow=self.pf["OmegaBaryonNow"], 
-                HubbleParameterNow=self.pf["HubbleParameterNow"], 
-                HeliumAbundanceByNumber=y, 
-                CMBTemperatureNow=self.pf["CMBTemperatureNow"], 
+                omega_m_0=self.pf["omega_m_0"], 
+                omega_l_0=self.pf["omega_l_0"], 
+                omega_b_0=self.pf["omega_b_0"], 
+                hubble_0=self.pf["hubble_0"], 
+                helium_by_number=self.pf['helium_by_number'], 
+                cmb_temp_0=self.pf["cmb_temp_0"], 
                 approx_highz=self.pf["approx_highz"])
                 
-            grid.set_chemistry(Z=self.pf['Z'], 
-                abundances=self.pf['abundances'])
+            grid.set_chemistry(Z=self.pf['Z'])
             grid.set_density(grid.cosm.rho_b_z0 \
                 * (1. + self.pf['initial_redshift'])**3)
 
@@ -1206,8 +1200,4 @@ class Global21cm:
         if self.pf['approx_xray'] == 0 and self.pf['load_tau'] == 0 \
             and self.pf['tau_table'] is None:
             raise ValueError('Supply tau_table or set load_tau=True when approx_xray=False')
-            
-        if len(self.pf['Z']) > len(self.pf['abundances']):
-            raise ValueError('Must supply abundances for each element!')    
-            
 

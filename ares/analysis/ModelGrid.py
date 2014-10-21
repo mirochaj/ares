@@ -16,13 +16,8 @@ import matplotlib.pyplot as pl
 from ..simple import Interpret21cm
 from ..util import labels, default_errors
 from ..physics.Constants import cm_per_mpc
-from ..run.ModelGrid import ModelGrid as rMG
+from ..inference.ModelGrid import ModelGrid as iMG
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
-    
-try:
-    import ndspace
-except ImportError:
-    pass
 
 try:
     from mpi4py import MPI
@@ -45,13 +40,13 @@ class ModelGrid(object):
         prefix = grid[0:grid.rfind('.')]
 
         # Instance of glorb.search.ModelGrid
-        grid = rMG(grid=grid, **kwargs)
+        grid = iMG(grid=grid, **kwargs)
         
         # Instance of ndspace.ModelGrid
         self.grid = grid.grid
         
         try:
-            self.bgrid = rMG(grid='%s.blobs.hdf5' % prefix, **kwargs)
+            self.bgrid = iMG(grid='%s.blobs.hdf5' % prefix, **kwargs)
         except IOError:
             print "%s.blobs.hdf5 not found" % prefix
         

@@ -375,20 +375,20 @@ class Grid(object):
     def set_recombination_rate(self, in_bubbles=False):
         self._in_bubbles = in_bubbles    
         
-    def set_cosmology(self, initial_redshift=1e3, OmegaMatterNow=0.272, 
-        OmegaLambdaNow=0.728, OmegaBaryonNow=0.044, HubbleParameterNow=0.702, 
-        HeliumAbundanceByNumber=0.08, CMBTemperatureNow=2.725, 
+    def set_cosmology(self, initial_redshift=1e3, omega_m_0=0.272, 
+        omega_l_0=0.728, omega_b_0=0.044, hubble_0=0.702, 
+        helium_by_number=0.08, cmb_temp_0=2.725, 
         approx_highz=False):
         
         self.zi = initial_redshift
-        self._cosm = Cosmology(OmegaMatterNow=OmegaMatterNow, 
-            OmegaLambdaNow=OmegaLambdaNow, OmegaBaryonNow=OmegaBaryonNow,
-            HubbleParameterNow=HubbleParameterNow, 
-            HeliumAbundanceByNumber=HeliumAbundanceByNumber,
-            CMBTemperatureNow=CMBTemperatureNow, 
+        self._cosm = Cosmology(omega_m_0=omega_m_0, 
+            omega_l_0=omega_l_0, omega_b_0=omega_b_0,
+            hubble_0=hubble_0, 
+            helium_by_number=helium_by_number,
+            cmb_temp_0=cmb_temp_0, 
             approx_highz=approx_highz)        
         
-    def set_chemistry(self, Z=1, abundances=1.0, energy=False):
+    def set_chemistry(self, Z=1):
         """
         Initialize chemistry.
         
@@ -399,29 +399,20 @@ class Grid(object):
         ----------
         Z : int, list
             Atomic number(s) of elements to include in calculation.
-        abundances : float, list, str
-            Abundance(s) (relative to hydrogen) of elements.
-            If chiantiPy is installed, can be a string. Some acceptable
-            abundance strings are:
-                'cosmic', 'sun_photospheric', 'sun_coronal'
-        energy : bool
-            Solve for internal energy or temperature? (not sure if this is
-            used anywhere)
 
         Example
         -------
         grid = Grid(dims=32)
-        grid.set_chemistry(Z=[1,2], abundances='cosmic')  
+        grid.set_chemistry(Z=[1,2])  
         
         """                
         
         if type(Z) is not list:
             Z = [Z]
-  
-        if type(abundances) not in [str, list]:
-            abundances = [abundances]   
             
-        self.abundances = abundances
+        self.abundances = [1.]
+        if 2 in Z:
+            self.abundances.append(self.cosm.helium_by_number)
         
         self.Z = np.array(Z)
         self.ions_by_parent = {} # Ions sorted by parent element in dictionary
@@ -447,31 +438,18 @@ class Grid(object):
         self.solve_ge = False      
         self.evolving_fields.append('e')
         if not self.isothermal:
-            if energy:
-                self.solve_ge = True
-                self.evolving_fields.append('ge')
-            else:    
-                self.evolving_fields.append('Tk')
+            self.evolving_fields.append('Tk')
 
         # Create blank data fields    
         if not hasattr(self, 'data'):            
             self.data = {}
             for field in self.tracked_fields:
                 self.data[field] = np.zeros(self.dims)
-            
-        # Read abundances from chianti
-        if type(abundances) is str and have_chianti:
-            self.abundances_by_number = util.abundanceRead(abundance)['abundance']
-            self.element_abundances = []
-            for i, Z in enumerate(self.Z):
-                self.element_abundances.append(self.abundances_by_number[Z-1])
-        elif type(abundances) is str:
-            raise ValueError('If chianti is not installed, must supply abundances by number.')             
-        else:
-            self.abundances_by_number = self.abundances
-            self.element_abundances = []
-            for i, Z in enumerate(self.Z):
-                self.element_abundances.append(self.abundances_by_number[i])
+                    
+        self.abundances_by_number = self.abundances
+        self.element_abundances = []
+        for i, Z in enumerate(self.Z):
+            self.element_abundances.append(self.abundances_by_number[i])
                                
         # Initialize mapping between q-vector and physical quantities (dengo)                
         self._set_qmap()
@@ -628,14 +606,6 @@ class Grid(object):
         if self.solve_ge:
             self.set_gas_energy()
         
-    def set_gas_energy(self):
-        """
-        Store ge.
-        """    
-        
-        self.data['n'] = self.particle_density(self.data)
-        self.data['ge'] = 1.5 * self.data['n'] * k_B * self.data['Tk']
-        
     def set_ics(self, data):
         """
         Simple way of setting all initial conditions at once with a data 
@@ -726,7 +696,7 @@ class Grid(object):
             n += self.n_H
             
             if 2 in self.Z:
-                n += self.n_H * self.abundances[1]
+                n += self.n_H * self.cosm.helium_by_number
              
         return n 
             

@@ -105,15 +105,15 @@ class HaloDensity:
         """
         self.pf = parse_kwargs(**kwargs)
         self.cosm = Cosmology(
-            OmegaMatterNow=self.pf['OmegaMatterNow'], 
-            OmegaLambdaNow=self.pf['OmegaLambdaNow'], 
-            OmegaBaryonNow=self.pf['OmegaBaryonNow'],  
-            HubbleParameterNow=self.pf['HubbleParameterNow'],  
-            HeliumAbundanceByNumber=self.pf['HeliumAbundanceByNumber'], 
-            CMBTemperatureNow=self.pf['CMBTemperatureNow'], 
+            omega_m_0=self.pf['omega_m_0'], 
+            omega_l_0=self.pf['omega_l_0'], 
+            omega_b_0=self.pf['omega_b_0'],  
+            hubble_0=self.pf['hubble_0'],  
+            helium_by_number=self.pf['helium_by_number'], 
+            cmb_temp_0=self.pf['cmb_temp_0'], 
             approx_highz=self.pf['approx_highz'], 
-            SigmaEight=self.pf['SigmaEight'], 
-            PrimordialIndex=self.pf['PrimordialIndex'])
+            sigma_8=self.pf['sigma_8'], 
+            primordial_index=self.pf['primordial_index'])
         
         self.fn = self.pf["hmf_table"]
         self.fitting_function = self.pf['fitting_function']
@@ -179,12 +179,12 @@ class HaloDensity:
         Can be run in parallel.
         """    
         
-        cosmology = {'omegav':self.cosm.OmegaLambdaNow,
+        cosmology = {'omegav':self.cosm.omega_l_0,
                      'omegac':self.cosm.OmegaCDMNow,
-                     'omegab':self.cosm.OmegaBaryonNow,
+                     'omegab':self.cosm.omega_b_0,
                      'sigma_8':self.cosm.sigma8,
                      'h':self.cosm.h70,
-                     'n':self.cosm.PrimordialIndex}
+                     'n':self.cosm.primordial_index}
         
         self.logMmin = self.pf['hmf_logMmin']
         self.logMmax = self.pf['hmf_logMmax']
@@ -354,7 +354,7 @@ class HaloDensity:
         """    
         
         return 1.98e4 * (mu / 0.6) * (M * self.cosm.h70 / 1e8)**(2. / 3.) * \
-            (self.cosm.OmegaMatterNow * self.cosm.CriticalDensityForCollapse(z) /
+            (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) /
             self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(1. / 3.) * \
             ((1. + z) / 10.)
         
@@ -367,7 +367,7 @@ class HaloDensity:
         """         
         
         return (1e8 / self.cosm.h70) * (T / 1.98e4)**1.5 * (mu / 0.6)**-1.5 \
-            * (self.cosm.OmegaMatterNow * self.cosm.CriticalDensityForCollapse(z) \
+            * (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**-0.5 \
             * ((1. + z) / 10.)**-1.5
                 

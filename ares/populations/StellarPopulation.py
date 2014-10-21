@@ -39,15 +39,15 @@ class StellarPopulation:
            
         if grid is None:
             self.cosm = Cosmology(
-                OmegaMatterNow=self.pf['OmegaMatterNow'], 
-                OmegaLambdaNow=self.pf['OmegaLambdaNow'], 
-                OmegaBaryonNow=self.pf['OmegaBaryonNow'],  
-                HubbleParameterNow=self.pf['HubbleParameterNow'],  
-                HeliumAbundanceByNumber=self.pf['HeliumAbundanceByNumber'], 
-                CMBTemperatureNow=self.pf['CMBTemperatureNow'], 
+                omega_m_0=self.pf['omega_m_0'], 
+                omega_l_0=self.pf['omega_l_0'], 
+                omega_b_0=self.pf['omega_b_0'],  
+                hubble_0=self.pf['hubble_0'],  
+                helium_by_number=self.pf['helium_by_number'], 
+                cmb_temp_0=self.pf['cmb_temp_0'], 
                 approx_highz=self.pf['approx_highz'], 
-                SigmaEight=self.pf['SigmaEight'], 
-                PrimordialIndex=self.pf['PrimordialIndex'])
+                sigma_8=self.pf['sigma_8'], 
+                primordial_index=self.pf['primordial_index'])
         else:
             self.cosm = grid.cosm
             

@@ -13,8 +13,8 @@ and analyzing them.
 
 import numpy as np
 import time, copy, os, pickle
-#from ..util import GridND, ProgressBar
-#from ..analysis.Extracted21cm import Extracted21cm
+from ..simulations import Global21cm
+from ..util import GridND, ProgressBar
 
 try:
     from mpi4py import MPI
@@ -29,28 +29,20 @@ try:
 except ImportError:
     pass    
     
-len_history = 19    
-
-class ModelGrid(Extracted21cm):
+class ModelGrid:
     """Create an object for setting up and running model grids."""
     def __init__(self, grid=None, verbose=True, **kwargs):
         """
         Parameters
         ----------
         grid : instance
-        
-        verbose : bool
             
-        
-        Inherits
-        --------
-        Instance of glorb.analysis.Extracted21cm, representing real signal
-        and the errors on its extraction.
+        verbose : bool
         
         """
-        
+
         self.verbose = verbose
-        
+
         if grid is not None:
             if isinstance(grid, GridND):
                 self.grid = grid
@@ -58,21 +50,21 @@ class ModelGrid(Extracted21cm):
                 self.grid = GridND(grid)
         else:
             self.grid = None
-                            
+
     def __getitem__(self, name):
         return self.grid[name]
                         
     def setup(self, Lcut=1e-3, **kwargs):
         """
         Create GridND instance, construct N-D parameter space.
-        
+
         Parameters
         ----------
         Lcut : float
             Likelihood cut (throw away models with L < Lcut * LML), where
             LML is the maximum likelihood value.
         """
-        
+
         self.grid = GridND()
         self.bgrid = GridND()
         
@@ -95,27 +87,27 @@ class ModelGrid(Extracted21cm):
             self.Nbad = len(L[L < Lcut*self.Lmax])
             for key in kwargs:
                 self.Nbad *= len(kwargs[key])
-                
+
             # Augment kwargs with pre-existing turning point B axes
             for axis in self.grid_B.axes:
                 kwargs[axis.name] = axis.values
 
         if rank == 0:
             print "Building parameter space..."
-        
+
         # Build parameter space
         self.grid.build(**kwargs)
         self.bgrid.build(**kwargs)
-        
+
         if rank == 0 and hasattr(self, 'Nbad'):
             print "%i out of %i models are ruled out already (that's %.3g percent)." \
                 % (self.Nbad, self.grid.size, 
                    100 * float(self.Nbad) / float(self.grid.size))    
             print "That leaves %i models." % (self.grid.size - self.Nbad)
-        
+
         # Save for later access
-        self.kwargs = kwargs    
-        
+        self.kwargs = kwargs
+
     @property
     def to_solve(self):
         if not hasattr(self, '_to_solve'):
@@ -123,7 +115,8 @@ class ModelGrid(Extracted21cm):
         
         return self._to_solve
         
-    def run(self, prefix=None, thru=None, save_fields=None, **pars):
+    def run(self, prefix=None, thru=None, save_fields=None, blobs=None, 
+        **pars):
         """
         Run model grid, for each realization thru a given turning point.
         
@@ -134,6 +127,10 @@ class ModelGrid(Extracted21cm):
             extras.hdf5.
         save_fields : list
             Elements in glorb.Simulation.history to save (in their entirety).
+            
+        Returns
+        -------
+        
         """
         
         if prefix is not None:
@@ -153,6 +150,12 @@ class ModelGrid(Extracted21cm):
                 print "Reminder: %.3g percent of these models will be skipped." \
                     % (100. * float(self.Nbad) / float(self.grid.size))
         
+        if blobs is not None:
+            blob_names, blob_redshifts = blobs
+        else:
+            blobs = (['z', 'dTb'], list('BCD'))
+            blob_names, blob_redshifts = blobs
+        
         # To store results
         shape = copy.deepcopy(self.grid.shape)
         
@@ -161,13 +164,13 @@ class ModelGrid(Extracted21cm):
         
         # Container for elements of sim.history
         blob_shape = copy.deepcopy(self.grid.shape)
-        blob_shape.append(len_history)
+        blob_shape.append(len(blob_names))
         
         buffers = []
-        blobs = []   
         extras = {}
-        
-        for option in ['B', 'C', 'trans', 'D']:            
+        blobs = []
+
+        for option in blob_redshifts:
             buffers.append(np.zeros(shape))
             blobs.append(np.zeros(blob_shape))
             
@@ -236,7 +239,7 @@ class ModelGrid(Extracted21cm):
             
             # Create new splines if we haven't hit this Tmin yet in our model grid.
             if i_Tmin not in fcoll.keys():
-                sim = glorb.run.Simulation(**p)
+                sim = Global21cm(**p)
                 hmf_pars = {'Tmin': sim.pops.pops[0].pf['Tmin'],
                     'fcoll': copy.deepcopy(sim.pops.pops[0].fcoll), 
                     'dfcolldz': copy.deepcopy(sim.pops.pops[0].dfcolldz),
@@ -252,7 +255,7 @@ class ModelGrid(Extracted21cm):
                     'dfcolldz': fcoll[i_Tmin]['dfcolldz'],
                     'd2fcolldz2': fcoll[i_Tmin]['d2fcolldz2']}
                 p.update(hmf_pars)
-                sim = glorb.run.Simulation(**p)
+                sim = Global21cm(**p)
 
             kvec = self.grid.locate_entry(kwargs)
 
@@ -296,7 +299,7 @@ class ModelGrid(Extracted21cm):
                 else:
                     
                     try:
-                        buffers[i][kvec] = np.array(sim.turning_points[name])
+                        buffers[i][kvec] = np.array(sim.turning_points[name][0:2])
                     except KeyError:
                         buffers[i][kvec] = np.array([-77777] * 2) # B never happens
                     except IndexError:

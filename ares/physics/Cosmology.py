@@ -15,42 +15,41 @@ from scipy.integrate import quad
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB
 
 class Cosmology:
-    def __init__(self, OmegaMatterNow=0.272, OmegaLambdaNow=0.728,
-        OmegaBaryonNow=0.044, HubbleParameterNow=0.702, 
-        HeliumAbundanceByNumber=0.08,
-        CMBTemperatureNow=2.725, 
-        approx_highz=False, SigmaEight=0.807, PrimordialIndex=0.96):
+    def __init__(self, omega_m_0=0.272, omega_l_0=0.728,
+        omega_b_0=0.044, hubble_0=0.702, 
+        helium_by_number=0.08, cmb_temp_0=2.725, 
+        approx_highz=False, sigma_8=0.807, primordial_index=0.96):
         """Initialize a Cosmology object.
         
-        :param: OmegaMatterNow: Pretty self-explanatory.
+        :param: omega_m_0: Pretty self-explanatory.
         
         """
                 
-        self.OmegaMatterNow = OmegaMatterNow
-        self.OmegaBaryonNow = OmegaBaryonNow
-        self.OmegaLambdaNow = OmegaLambdaNow
-        self.OmegaCDMNow = self.OmegaMatterNow - self.OmegaBaryonNow
-        self.HubbleParameterNow = HubbleParameterNow * 100 / km_per_mpc
-        self.CMBTemperatureNow = CMBTemperatureNow
+        self.omega_m_0 = omega_m_0
+        self.omega_b_0 = omega_b_0
+        self.omega_l_0 = omega_l_0
+        self.OmegaCDMNow = self.omega_m_0 - self.omega_b_0
+        self.hubble_0 = hubble_0 * 100 / km_per_mpc
+        self.cmb_temp_0 = cmb_temp_0
         self.approx_highz = approx_highz
-        self.SigmaEight = self.sigma8 = SigmaEight
-        self.PrimordialIndex = PrimordialIndex
+        self.sigma_8 = self.sigma8 = sigma_8
+        self.primordial_index = primordial_index
         
-        self.CriticalDensityNow = (3 * self.HubbleParameterNow**2) \
+        self.CriticalDensityNow = (3 * self.hubble_0**2) \
             / (8 * np.pi * G)
         
-        self.h70 = HubbleParameterNow
+        self.h70 = hubble_0
         
-        self.y = HeliumAbundanceByNumber
+        self.y = helium_by_number
         self.Y = 4. * self.y / (1. + 4. * self.y)
         
         self.X = 1. - self.Y
         
         self.g_per_baryon = m_H / (1. - self.Y) / (1. + self.y)
                 
-        self.zdec = 150. * (self.OmegaBaryonNow * self.h70**2 / 0.023)**0.4 - 1.
+        self.zdec = 150. * (self.omega_b_0 * self.h70**2 / 0.023)**0.4 - 1.
 
-        self.Omh2 = self.OmegaBaryonNow * self.h70**2
+        self.Omh2 = self.omega_b_0 * self.h70**2
 
         # Hydrogen, helium, electron, and baryon densities today (z = 0)
         self.rho_b_z0 = self.MeanBaryonDensity(0)
@@ -64,13 +63,13 @@ class Cosmology:
         self.nHe = lambda z: self.nHe0 * (1. + z)**3
         
         self.delta_c0 = 1.686
-        self.TcmbNow = self.CMBTemperatureNow
+        self.TcmbNow = self.cmb_temp_0
         
-        self.pars = {'omega_lambda':self.OmegaLambdaNow,
-         'omega_b':self.OmegaBaryonNow,
-         'omega_M':self.OmegaMatterNow,
+        self.pars = {'omega_lambda':self.omega_l_0,
+         'omega_b':self.omega_b_0,
+         'omega_M':self.omega_m_0,
          'sigma_8':self.sigma8,
-         'n': self.PrimordialIndex}
+         'n': self.primordial_index}
         
         
         
@@ -78,18 +77,18 @@ class Cosmology:
         """
         High redshift approximation under effect.
         """
-        return ((1. + z_i)**(-3. / 2.) + (3. * self.HubbleParameterNow * 
-            np.sqrt(self.OmegaMatterNow) * (t_f - t_i) / 2.))**(-2. / 3.) - 1.
+        return ((1. + z_i)**(-3. / 2.) + (3. * self.hubble_0 * 
+            np.sqrt(self.omega_m_0) * (t_f - t_i) / 2.))**(-2. / 3.) - 1.
         
     def LookbackTime(self, z_i, z_f):
         """
         Returns lookback time from z_i to z_f in seconds, where z_i < z_f.
         """
         return 2. * ((1. + z_i)**-1.5 - (1. + z_f)**-1.5) / \
-            np.sqrt(self.OmegaMatterNow) / self.HubbleParameterNow / 3.    
+            np.sqrt(self.omega_m_0) / self.hubble_0 / 3.    
         
     def TCMB(self, z):
-        return self.CMBTemperatureNow * (1. + z)
+        return self.cmb_temp_0 * (1. + z)
         
     def UCMB(self, z):
         """ CMB energy density. """    
@@ -109,13 +108,13 @@ class Cosmology:
         return 1. / (1. + z)
         
     def EvolutionFunction(self, z):
-        return self.OmegaMatterNow * (1.0 + z)**3  + self.OmegaLambdaNow
+        return self.omega_m_0 * (1.0 + z)**3  + self.omega_l_0
         
     def HubbleParameter(self, z):
         if self.approx_highz:
-            return self.HubbleParameterNow * np.sqrt(self.OmegaMatterNow) \
+            return self.hubble_0 * np.sqrt(self.omega_m_0) \
                 * (1. + z)**1.5
-        return self.HubbleParameterNow * np.sqrt(self.EvolutionFunction(z)) 
+        return self.hubble_0 * np.sqrt(self.EvolutionFunction(z)) 
     
     def HubbleLength(self, z):
         return c / self.HubbleParameter(z)
@@ -126,19 +125,19 @@ class Cosmology:
     def OmegaMatter(self, z):
         if self.approx_highz:
             return 1.0
-        return self.OmegaMatterNow * (1. + z)**3 / self.EvolutionFunction(z)
+        return self.omega_m_0 * (1. + z)**3 / self.EvolutionFunction(z)
     
     def OmegaLambda(self, z):
         if self.approx_highz:
             return 0.0
         
-        return self.OmegaLambdaNow / self.EvolutionFunction(z)
+        return self.omega_l_0 / self.EvolutionFunction(z)
     
     def MeanMatterDensity(self, z):
         return self.OmegaMatter(z) * self.CriticalDensity(z)
         
     def MeanBaryonDensity(self, z):
-        return (self.OmegaBaryonNow / self.OmegaMatterNow) \
+        return (self.omega_b_0 / self.omega_m_0) \
             * self.MeanMatterDensity(z)
     
     def MeanHydrogenNumberDensity(self, z):
@@ -171,11 +170,11 @@ class Cosmology:
         
         if self.approx_highz:
             return 2. * c * ((1. + z0)**-0.5 - (1. + z)**-0.5) \
-                / self.HubbleParameterNow / self.sqrtOmegaMatterNow
+                / self.hubble_0 / self.sqrtomega_m_0
                 
         # Otherwise, do the integral - normalize to H0 for numerical reasons
-        integrand = lambda z: self.HubbleParameterNow / self.HubbleParameter(z)
-        return c * quad(integrand, z0, z)[0] / self.HubbleParameterNow        
+        integrand = lambda z: self.hubble_0 / self.HubbleParameter(z)
+        return c * quad(integrand, z0, z)[0] / self.hubble_0        
             
     def ProperRadialDistance(self, z0, z):
         return self.ComovingRadialDistance(z0, z) / (1. + z0)    

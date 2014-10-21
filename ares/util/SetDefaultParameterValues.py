@@ -28,7 +28,6 @@ else:
 tau_prefix = "%s/input/optical_depth" % ARES \
     if (ARES is not None) else '.'
     
-    
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum', 
     'Control', 'HaloMassFunction', 'Tanh']    
 
@@ -44,9 +43,6 @@ def SetAllDefaults():
     for pset in defaults:
         exec('pf.update(%s)' % pset)
         
-    if custom_pf:
-        pf.update(custom_pf)
-        
     return pf
     
 def GridParameters():
@@ -61,7 +57,6 @@ def GridParameters():
     "time_units": s_per_myr,  
     
     "Z": [1],
-    "abundances": [1.],
     "initial_ionization": [1.2e-3],
     "initial_temperature": 1e4,
             
@@ -88,6 +83,9 @@ def GridParameters():
     "tables_dt": s_per_myr,
             
     }
+    
+    if custom_pf:
+        pf.update(custom_pf)
 
     return pf
 
@@ -142,23 +140,29 @@ def PhysicsParameters():
     "feedback_analytic": True,
     
     }
+    
+    if custom_pf:
+        pf.update(custom_pf)
             
     return pf
-    
+
 def CosmologyParameters():
     pf = \
     {
-    "OmegaMatterNow": 0.272,
-    "OmegaBaryonNow": 0.044,
-    "OmegaLambdaNow": 0.728,
-    "HubbleParameterNow": 0.702,
-    "HeliumAbundanceByNumber": 0.08,
-    "CMBTemperatureNow": 2.725,
-    "SigmaEight": 0.807,
-    "PrimordialIndex": 0.96,
+    "omega_m_0": 0.272,
+    "omega_b_0": 0.044,
+    "omega_l_0": 0.728,
+    "hubble_0": 0.702,
+    "helium_by_number": 0.08,
+    "cmb_temp_0": 2.725,
+    "sigma_8": 0.807,
+    "primordial_index": 0.96,
     }
+    
+    if custom_pf:
+        pf.update(custom_pf)
 
-    return pf    
+    return pf      
     
 def SourceParameters():
     pf = \
@@ -187,6 +191,9 @@ def SourceParameters():
     
     }
     
+    if custom_pf:
+        pf.update(custom_pf)
+    
     return pf
     
 def StellarParameters():
@@ -200,6 +207,9 @@ def StellarParameters():
     "spectrum_EminNorm": None,
     "spectrum_EmaxNorm": None,
     }
+    
+    if custom_pf:
+        pf.update(custom_pf)
         
     return pf
 
@@ -216,6 +226,9 @@ def BlackHoleParameters():
     "spectrum_fsc": 0.1,
     "spectrum_uponly": True,
     }
+    
+    if custom_pf:
+        pf.update(custom_pf)
     
     return pf    
         
@@ -254,6 +267,9 @@ def SpectrumParameters():
     "spectrum_kwargs": None,
                     
     }
+    
+    if custom_pf:
+        pf.update(custom_pf)
     
     return pf
     
@@ -315,6 +331,9 @@ def PopulationParameters():
     
     }
     
+    if custom_pf:
+        pf.update(custom_pf)
+    
     return pf      
     
 def HaloMassFunctionParameters():
@@ -345,6 +364,9 @@ def HaloMassFunctionParameters():
     "dfcolldz": None,
     "d2fcolldz2": None,        
     }
+    
+    if custom_pf:
+        pf.update(custom_pf)
 
     return pf
 
@@ -426,18 +448,20 @@ def ControlParameters():
     "verbose": True,
     }
     
+    if custom_pf:
+        pf.update(custom_pf)
+    
     return pf
     
-
 def TanhParameters():
     pf = \
     {
     'tanh_model': False,
     'tanh_J0': 10.0,
     'tanh_Jz0': 20.0,
-    'tanh_Jdz': 4.,
+    'tanh_Jdz': 3.,
     'tanh_T0': 1e3,
-    'tanh_Tz0': 10.,
+    'tanh_Tz0': 8.,
     'tanh_Tdz': 4.,
     'tanh_x0': 1.0,
     'tanh_xz0': 10.,
@@ -445,6 +469,9 @@ def TanhParameters():
     'tanh_dz': 0.1,  # Redshift sampling
     'tanh_nu': None,
     }
+    
+    if custom_pf:
+        pf.update(custom_pf)
     
     return pf
 

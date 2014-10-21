@@ -14,6 +14,7 @@ import time
 import numpy as np
 from ..physics import Hydrogen
 from ..analysis import Global21cm
+from ..util.ReadData import load_inits
 from ..physics.Constants import k_B, J21_num
 from ..physics.RateCoefficients import RateCoefficients
 from ..util.SetDefaultParameterValues import TanhParameters
@@ -27,10 +28,17 @@ tanh_pars = ['tanh_J0', 'tanh_Jz0', 'tanh_Jdz',
 # Create instance of Hydrogen class
 hydr = Hydrogen()
 
+CR = load_inits()
+CR_TK = lambda z: np.interp(z, CR['z'], CR['Tk'])
+CR_ne = lambda z: np.interp(100, CR['z'], CR['xe']) * hydr.cosm.nH(z)
+
 rc = RateCoefficients(recombination='A')
 alpha_A = rc.RadiativeRecombinationRate(0, 1e4)
 
-def Tgas_adiabatic(z):
+def Tgas_adiabatic(z, use_CR=True):
+    if use_CR:
+        return CR_TK(z)
+        
     return hydr.cosm.TCMB(hydr.cosm.zdec) * (1. + z)**2 \
         / (1. + hydr.cosm.zdec)**2
 
@@ -133,7 +141,7 @@ def tanh_model_for_emcee(z, theta):
     # Needed for collisional coupling.
     
     # Spin temperature
-    Ts = hydr.SpinTemperature(z, Tk, Ja, xi, 0.0)
+    Ts = hydr.SpinTemperature(z, Tk, Ja, xi, CR_ne(z))
 
     # Brightness temperature
     dTb = hydr.DifferentialBrightnessTemperature(z, xi, Ts)

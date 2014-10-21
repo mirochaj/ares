@@ -16,6 +16,7 @@ from ..analysis import Global21cm
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
 import os, sys, copy, types, pickle, time
+from ..analysis import Global21cm as anlG21
 from ..simulations import Global21cm as simG21
 from ..analysis.TurningPoints import TurningPoints
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
@@ -24,7 +25,7 @@ from ..util.ReadData import read_pickled_chain, flatten_chain, flatten_logL, \
 
 try:
     from scipy.spatial import KDTree
-    from scipy.interpolate import interp1d, NearestNDInterpolator
+    from scipy.interpolate import interp1d
 except ImportError:
     pass
 
@@ -243,7 +244,7 @@ class loglikelihood:
             self._blank_blob = []
             for i in range(len(self.blob_redshifts)):
                 self._blank_blob.append(tup)
-                 
+
         return np.array(self._blank_blob)
                                         
     def __call__(self, pars):
@@ -318,30 +319,13 @@ class loglikelihood:
                     
         # Convert frequencies to redshift, temperatures to K
         for element in self.errmap:
-            tp = element[0]
+            tp, i = element
             
             # Models without turning point B, C, or D get thrown out.
             if tp not in tps:
                 return -np.inf, self.blank_blob
         
-            # Convert positions to redshift
-            if element[1] == 0:
-                if self.errunits[0] == 'redshift':
-                    xarr.append(tps[tp][0])
-                elif self.errunits[0] in ['mhz', 'MHz']:
-                    xarr.append(nu_0_mhz / (1. + tps[tp][0]))
-                else:
-                    raise ValueError('Unrecognized redshift/time/freq unit %s.' \
-                        % self.errunits[0])
-            # Convert temperatures to milli-Kelvin        
-            elif element[1] == 1:
-                if self.errunits[1] in ['mk', 'mK']:
-                    xarr.append(tps[tp][1])
-                elif self.errunits[1] == 'K':
-                    xarr.append(tps[tp][1] / 1e3)     
-                else:
-                    raise ValueError('Unrecognized temperature unit %s.' \
-                        % self.errunits[1])
+            xarr.append(tps[tp][i])
                    
         # Values of current model that correspond to mu vector
         xarr = np.array(xarr)           
@@ -357,16 +341,10 @@ class loglikelihood:
             try:
                 dist, loc = nearest(xarr, self.chain)
                 
-                Lact = np.sum((xarr - np.array([30.,20.,12.,-5,-100,25]))**2 \
-                    / 2. / np.array([0.5,0.5,0.5,5.,5.,5.])**2)
-                    
-                L1D = np.sum((xarr - self.mu)**2 \
-                    / 2. / self.sigma**2)
-                                
                 if loc >= self.logL_size:
                     logL = -np.inf
                 else:
-                    logL = lp -L1D#+ self.logL[loc]
+                    logL = lp - self.logL[loc]
             except ValueError:
                 return -np.inf, self.blank_blob
 
@@ -399,7 +377,7 @@ class DummySampler:
     def __init__(self):
         pass        
 
-class ModelFit:
+class ModelFit(object):
     def __init__(self, fn=None, **kwargs):
         """
         Initialize an extracted signal.
@@ -430,7 +408,7 @@ class ModelFit:
             for key in list('BCD'):
                 self._error.extend(np.sqrt(np.diag(default_errors[key])))
             self._error = np.array(self._error)
-    
+
         return self._error
         
     @property
@@ -449,6 +427,9 @@ class ModelFit:
                 [('B', 0), ('C', 0), ('D', 0),
                  ('B', 1), ('C', 1), ('D', 1)]
             
+            if hasattr(self, '_mu'):
+                del self._mu
+            
         return self._measurement_map
 
     @measurement_map.setter
@@ -459,6 +440,10 @@ class ModelFit:
     def measurement_units(self):
         """
         A two-element tuple containing units assumed for measurements.
+        
+        By measurements, we mean the units of the mean and 1-D errors 
+        (or chain) supplied. ares.simulations.Global21cm will always return
+        turning points in redshift and mK units.
         
         First element is MHz or redshift, second is mK or K.
         """
@@ -474,21 +459,34 @@ class ModelFit:
     @property
     def mu(self):
         if not hasattr(self, '_mu'):
-            if hasattr(self, 'sim'):
+            if hasattr(self, '_anl'):
                 self._mu = []
                 for tp, i in self.measurement_map:
-                    self._mu.append(self.sim.turning_points[tp][i])
-            else:        
+                    self._mu.append(self._turning_points[tp][i])
+            else:
                 raise ValueError('Must supply mu or reference model!')
             
         return self._mu    
             
     @mu.setter
     def mu(self, value):
-        self._mu = value        
+        """
+        Set turning point positions.
+        
+        Parameters
+        ----------
+        value : np.ndarray, ares.analysis.Global21cm instance
+            Array corresponding to measurement_map or analysis class instance.
             
-    def set_error(self, error1d=None, nu=0.68, chain=None, logL=None, 
-        cols=None):
+        """
+                
+        if type(value) is dict:
+            self._turning_points = value
+        else:    
+            self._mu = value        
+            
+    def set_error(self, error1d=None, nu=0.68, chain=None, logL=None,
+        force_idealized=False):
         """
         Set errors to be used in likelihood calculation.
 
@@ -509,17 +507,40 @@ class ModelFit:
                 err.append(get_nu(val, nu_in=nu, nu_out=0.68))
             
             self._error = np.array(err)
-   
+            
+            # Convert units
+            #for tp, i in self.measurement_map:
+            #    
+            #    # Convert frequencies to redshifts
+            #    if i == 0 and self.measurement_units[i] == 'MHz':
+            #        self._error[i] = 
+            #    
+            #    self._mu.append(self._turning_points[tp][i])
+            
         else:            
             self.chain, self.logL = chain, logL
+            
+            # Convert units
+            for j, (tp, i) in enumerate(self.measurement_map):
+                
+                # Convert frequencies to redshifts
+                if i == 0 and self.measurement_units[i] == 'MHz':
+                    self.chain[:,j] = (nu_0_mhz / self.chain[:,j]) - 1.
+                elif i == 1 and self.measurement_units[i] == 'K':
+                    self.chain[:,j] *= 1e3
+                    
+            if force_idealized:
+                self._mu = np.mean(self.chain, axis=0)
+                self._error = np.std(self.chain, axis=0)   
+                del self.chain, self.logL     
          
     @property
     def priors(self):
         if not hasattr(self, '_priors'):
             raise ValueError('Must set priors (set_priors)!')
-        
+
         return self._priors
-    
+
     @priors.setter
     def priors(self, value):
         self._priors = value
@@ -569,23 +590,6 @@ class ModelFit:
     @guesses.setter
     def guesses(self, value):
         self._guesses = value
-            
-    def set_input_realization(self, **kwargs):
-        """
-        Set realization of the global 21-cm signal to be fitted.
-        
-        Parameters
-        ----------
-
-        """
-            
-        kw = self.base_kwargs.copy()
-        kw.update(kwargs)
-                
-        sim = simG21(**kw)
-        sim.run()
-        
-        self.sim = Global21cm(sim)
                         
     def set_axes(self, parameters, is_log=True):
         """
@@ -639,8 +643,6 @@ class ModelFit:
 
         """
         
-        assert len(self.error) == len(self.measurement_map)
-        
         self.prefix = prefix
         
         if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
@@ -652,11 +654,11 @@ class ModelFit:
         if not hasattr(self, 'chain'):
             self.chain = None
             self.logL = None
+        
+            assert len(self.error) == len(self.measurement_map)
             
-        self.loglikelihood = loglikelihood(steps, self.parameters, self.is_log, 
-            self.mu, self.error, self.base_kwargs,
-            self.nwalkers, self.priors, self.chain, self.logL, 
-            self.measurement_map, self.measurement_units)
+        else:
+            assert self.chain.shape[1] == len(self.measurement_map)
             
         if size > 1:
             self.pool = MPIPool()
@@ -664,16 +666,38 @@ class ModelFit:
                 self.pool.wait()
                 sys.exit(0)
         else:
-            self.pool = None
+            self.pool = None    
+            
+        # Burn-in using stdev from raw chains as error
+        if self.chain is not None:
+        
+            self.loglikelihood_BURN = loglikelihood(steps, self.parameters, self.is_log, 
+                np.mean(self.chain), np.std(self.chain), self.base_kwargs,
+                self.nwalkers, self.priors, None, None, 
+                self.measurement_map, self.measurement_units)
+
+            self.sampler_BURN = emcee.EnsembleSampler(self.nwalkers,
+                self.Nd, self.loglikelihood_BURN, pool=self.pool)
+                
+        self.loglikelihood = loglikelihood(steps, self.parameters, self.is_log, 
+            self.mu, self.error, self.base_kwargs,
+            self.nwalkers, self.priors, self.chain, self.logL, 
+            self.measurement_map, self.measurement_units)
             
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
         
         if burn > 0:
-            pos, prob, state, blobs = self.sampler.run_mcmc(self.guesses, burn)
-            self.sampler.reset()
+            t1 = time.time()
+            if self.chain is not None:
+                pos, prob, state, blobs = self.sampler_BURN.run_mcmc(self.guesses, burn)
+            else:
+                pos, prob, state, blobs = self.sampler.run_mcmc(self.guesses, burn)
+                self.sampler.reset()
+            t2 = time.time()
+            
             if rank == 0:
-                print "Burn-in complete."
+                print "Burn-in complete in %.3g seconds." % (t2 - t1)
         else:
             pos = self.guesses
             state = None

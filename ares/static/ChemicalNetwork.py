@@ -71,14 +71,14 @@ class ChemicalNetwork:
         args : list
             Extra information needed to compute rates. They are, in order:
             [cell #, ionization rate coefficient (IRC), secondary IRC,
-             photo-heating rate coefficient, number density, time]
+             photo-heating rate coefficient, particle density, time]
         """       
     
         self.q = q
     
-        cell, G, g, H, n, time = args
+        cell, G, g, H, ntot, time = args
             
-        to_temp = 1. / (1.5 * n * k_B)
+        to_temp = 1. / (1.5 * ntot * k_B)
     
         if self.grid.expansion:
             z = self.grid.cosm.TimeToRedshiftConverter(0., time, self.grid.zi)
@@ -102,6 +102,17 @@ class ChemicalNetwork:
         
         if self.grid.in_bubbles:
             CF *= (n_H * (1. + y) / n_e)
+            
+        N = len(self.grid.evolving_fields)
+        J = np.zeros([N] * 2)     
+        
+        # Where do the electrons live?
+        if N == 6:
+            e = -1
+        elif N == 7:
+            e = -2
+        else:
+            e = 2
 
         # Initialize dictionaries for results
         k_H = {sp:H[i] for i, sp in enumerate(self.grid.absorbers)}
@@ -253,7 +264,8 @@ class ChemicalNetwork:
                     compton = xe * (Tcmb - q[-1]) / tcomp \
                         / (1. + self.grid.cosm.y + xe)
             
-            dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton - hubcool
+            dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton - hubcool \
+                - q[-1] * n_H * dqdt['e'] / ntot
             
         else:
             dqdt['Tk'] = 0.0 
@@ -266,9 +278,9 @@ class ChemicalNetwork:
         self.q = q
         self.dqdt = np.zeros_like(self.zeros_q)
     
-        cell, G, g, H, n, time = args
+        cell, G, g, H, ntot, time = args
         
-        to_temp = 1. / (1.5 * n * k_B)
+        to_temp = 1. / (1.5 * ntot * k_B)
     
         if self.grid.expansion:
             z = self.grid.cosm.TimeToRedshiftConverter(0., time, self.grid.zi)
@@ -365,9 +377,6 @@ class ChemicalNetwork:
            
         J[e,0] = n_H * (Gamma['h_1'] + gamma_HI + Beta['h_1'][cell] * n_e)
         J[e,1] = -n_H * alpha['h_1'][cell] * n_e * CF
-        
-        #if self.grid.expansion:
-        #    J[e,e] -= 3. * self.grid.cosm.HubbleParameter(z)
             
         ###
         ## HELIUM INCLUDED CASES: N=6 (isothermal), N=7 (thermal evolution)   
@@ -545,7 +554,10 @@ class ChemicalNetwork:
             J[-1,-1] -= n_e * x['he_2'] * n_He * domega[cell]
             
         # So far, everything in units of energy, must convert to temperature    
-        J[-1,:] *= to_temp    
+        J[-1,:] *= to_temp
+        
+        # Energy distributed among particles
+        J[-1,-1] -= n_H * self.dqdt[e] / ntot
 
         # Cosmological effects
         if self.grid.expansion:

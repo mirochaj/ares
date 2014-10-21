@@ -361,8 +361,8 @@ class Hydrogen:
         """
         
         return 27. * (1. - xHII) * \
-            (self.cosm.OmegaBaryonNow * self.cosm.h70**2 / 0.023) * \
-            np.sqrt(0.15 * (1.0 + z) / self.cosm.OmegaMatterNow / self.cosm.h70**2 / 10.) * \
+            (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
+            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
             (1.0 - self.cosm.TCMB(z) / Ts)
             
 

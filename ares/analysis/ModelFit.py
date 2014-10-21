@@ -476,7 +476,7 @@ class ModelFit(object):
         show_errors=False, take_log=False, multiplier=1,
         fig=1, plot_inputs=False, inputs={}, tighten_up=0.0, 
         bins=20, mp=None, skip=0, skim=1, top=None,
-        filled=True, inset=False, inset_pars={}, **kwargs):
+        filled=True, inset=False, inset_pars={}, box=None, **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
         
@@ -661,6 +661,28 @@ class ModelFit(object):
     
         return mp, inset
         
+    def add_boxes(self, ax=None, val=None, width=None, **kwargs):
+        """
+        Add boxes to 2-D PDFs.
+        """
+        
+        if width is None:
+            return
+        
+        iwidth = 1. / width
+            
+        # Vertical lines
+        ax.plot(np.log10([val[0] * iwidth, val[0] * width]), 
+            np.log10([val[1] * width, val[1] * width]), **kwargs)
+        ax.plot(np.log10([val[0] * iwidth, val[0] * width]), 
+            np.log10([val[1] * iwidth, val[1] * iwidth]), **kwargs)
+            
+        # Horizontal lines
+        ax.plot(np.log10([val[0] * iwidth, val[0] * iwidth]), 
+            np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
+        ax.plot(np.log10([val[0] * width, val[0] * width]), 
+            np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
+        
     def set_axis_labels(self, ax, pars, is_log, take_log=False):
         """
         Make nice axis labels.
@@ -669,6 +691,12 @@ class ModelFit(object):
         p = []
         sup = []
         for par in pars:
+            
+            if type(par) is int:
+                sup.append(None)
+                p.append(par)
+                continue
+                
             m = re.search(r"\{([0-9])\}", par)
             
             if m is None:

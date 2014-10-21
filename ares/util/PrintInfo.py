@@ -13,7 +13,7 @@ Description:
 import numpy as np
 import types, os, textwrap
 from .NormalizeSED import emission_bands
-from ..physics.Constants import cm_per_kpc, m_H
+from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz
 
 try:
     from mpi4py import MPI
@@ -199,10 +199,10 @@ def print_1d_sim(sim):
     for i, element in enumerate(sim.pf['Z']):
         if element == 1:
             Z += 'H'
-            A += '%.2g' % (sim.pf['abundances'][i])
+            A += '%.2g' % (1)
         elif element == 2:
             Z += ', He'
-            A += ', %.2g' % (sim.pf['abundances'][i])
+            A += ', %.2g' % (sim.pf['helium_by_number'])
             
     print line("elements    : %s" % Z, just='l')
     print line("abundances  : %s" % A, just='l')
@@ -558,10 +558,10 @@ def print_21cm_sim(sim):
     for i, element in enumerate(sim.pf['Z']):
         if element == 1:
             Z += 'H'
-            A += '%.2g' % (sim.pf['abundances'][i])
+            A += '%.2g' % 1.
         elif element == 2:
             Z += ', He'
-            A += ', %.2g' % (sim.pf['abundances'][i])
+            A += ', %.2g' % (sim.pf['helium_by_number'])
 
     print line("elements    : %s" % Z, just='l')
     print line("abundance   : %s" % A, just='l')
@@ -618,13 +618,27 @@ def print_fit(fit, steps, burn=0):
         if val == 0:
             rows.append('z_%s' % tp)
         else:
-            rows.append('T_%s' % tp)
+            rows.append('T_%s (mK)' % tp)
+
+        unit = fit.measurement_units[val]
 
         if not hasattr(fit, "chain"):
-            data.append([fit.mu[i], fit.error[i]])
+            col1, col2 = fit.mu[i], fit.error[i]
         else:
             iML = np.argmax(fit.logL)
-            data.append([fit.chain[iML,i], np.std(fit.chain[:,i])])
+            col1, col2 = fit.chain[iML,i], np.std(fit.chain[:,i])
+
+        # Convert from freq to redshift (if necessary)
+        #if unit in ['mhz', 'MHz']:            
+        #    col1 = (nu_0_mhz / col1) - 1.
+        #    col2 = col1 * nu_0_mhz * fit.error[i] / fit.mu[i]
+        #    print col1, col2, fit.error[i], fit.mu[i]
+        ## Convert from K to mK (if necessary)
+        #elif unit == 'K':
+        #    col1 *= 1e3
+        #    col2 *= 1e3
+        
+        data.append([col1, col2])
 
     tabulate(data, rows, cols)    
 

@@ -62,9 +62,7 @@ class RaySegment:
                 approx_lya=self.pf['approx_lya'])
                             
             self.grid.set_ics(self.data['dd0000'])
-            self.grid.set_chemistry(Z=self.pf['Z'], 
-                abundance=self.pf['abundances'], 
-                approx_helium=self.pf['approx_helium'])
+            self.grid.set_chemistry(Z=self.pf['Z'])
             self.grid.set_density(self.data['dd0000']['rho'])
         
         # Read contents from CheckPoints class instance            
@@ -204,10 +202,7 @@ class RaySegment:
             mp = mp    
             hadmp = True
         else: 
-            if not multiplot:
-                raise ImportError('multiplot package required by this method.')
-
-            mp = multipanel(dims=(2, 1))
+            mp = MultiPanel(dims=(2, 1))
 
         if anl: 
             mp.grid[1].plot(self.t / self.trec, self.ranl, ls='-', color='k')
@@ -355,7 +350,7 @@ class RaySegment:
         #    self.ax.loglog(r, self.data[dd].Ts, color = color, ls = '--', label = r'$T_S$') 
         #    
         #if self.pf['CosmologicalExpansion']:
-        #    self.ax.loglog([min(r), max(r)], [self.pf['CMBTemperatureNow'] * (1. + self.data[dd].z)] * 2,
+        #    self.ax.loglog([min(r), max(r)], [self.pf['cmb_temp_0'] * (1. + self.data[dd].z)] * 2,
         #        color = 'k', ls = ':', label = r'$T_{\gamma}$')         
         #    
             

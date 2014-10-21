@@ -909,7 +909,7 @@ class IGM(object):
         kw = self._fix_kwargs(functionify=True, **kwargs)
         
         # Compute normalization factor to help numerical integrator
-        norm = self.cosm.HubbleParameterNow / c / self.sigma0
+        norm = self.cosm.hubble_0 / c / self.sigma0
         
         # Temporary function to compute emission energy of observed photon
         Erest = lambda z: self.RestFrameEnergy(z1, E, z)

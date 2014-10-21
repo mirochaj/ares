@@ -66,22 +66,17 @@ class RaySegment:
                     expansion=pf['expansion'], 
                     recombination=pf['recombination'])
                 
-                if len(pf['Z']) > 1:
-                    y = pf['Z'][1]
-                else:
-                    y = 0.0
-                
                 # Set initial conditions
                 if pf['expansion']:
                     grid.set_cosmology(initial_redshift=pf['initial_redshift'],
-                        OmegaMatterNow=pf['OmegaMatterNow'], 
-                        OmegaLambdaNow=pf['OmegaLambdaNow'], 
-                        OmegaBaryonNow=pf['OmegaBaryonNow'],
-                        HubbleParameterNow=pf['HubbleParameterNow'],
-                        HeliumAbundanceByNumber=y, 
-                        CMBTemperatureNow=pf['CMBTemperatureNow'],
+                        omega_m_0=pf['omega_m_0'], 
+                        omega_l_0=pf['omega_l_0'], 
+                        omega_b_0=pf['omega_b_0'],
+                        hubble_0=pf['hubble_0'],
+                        helium_by_number=pf['helium_by_number'], 
+                        cmb_temp_0=pf['cmb_temp_0'],
                         approx_highz=pf['approx_highz'])    
-                    grid.set_chemistry(Z=pf['Z'], abundances=pf['abundances'])
+                    grid.set_chemistry(Z=pf['Z'])
                     grid.set_density(grid.cosm.rho_b_z0 \
                         * (1. + pf['initial_redshift'])**3)
                     grid.set_temperature(grid.cosm.Tgas(pf['initial_redshift']))
@@ -93,7 +88,7 @@ class RaySegment:
                         z=pf['initial_redshift'])
                         
                 else:
-                    grid.set_chemistry(Z=pf['Z'], abundances=pf['abundances'])
+                    grid.set_chemistry(Z=pf['Z'])
                     grid.set_density(pf['density_units'])
                     
                     for i, Z in enumerate(grid.Z):
