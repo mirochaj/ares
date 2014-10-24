@@ -71,7 +71,7 @@ WARNING: Supplied tau_table does not have logarithmically spaced redshift bins!
 hmf_no_tab = \
 """
 No halo mass function table found. Run glorb/examples/generate_hmf_tables.py
-to create a lookup table, then, either set an environment variable $GLORB that 
+to create a lookup table, then, either set an environment variable $ARES that 
 points to your glorb install directory, or supply the path to the resulting
 table by hand via the hmf_table parameter. You may also want to check out 
 https://bitbucket.org/mirochaj/glorb/Downloads for standard HMF tables.
@@ -127,7 +127,7 @@ def no_tau_table(igm):
     elif glorb_dir is not None:
         print line("in          : %s/input/optical_depth" % glorb_dir)
     else:
-        print line("in          : nowhere! set $GLORB or tau_prefix")
+        print line("in          : nowhere! set $ARES or tau_prefix")
 
     print line(separator)
 

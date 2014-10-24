@@ -76,7 +76,7 @@ the following is equivalent to the approach taken above:
      'Nion{1}': 30e4,
      'Nlw{1}': 4800.,
     }
-    
+
     import ares
         
     # Dual-population model

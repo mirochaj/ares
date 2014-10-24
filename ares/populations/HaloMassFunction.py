@@ -42,6 +42,8 @@ try:
 except ImportError:
     pass
     
+ARES = os.getenv("ARES")    
+    
 sqrt2 = np.sqrt(2.)    
     
 interp_error = 'hmf_interp must be cubic or linear.'    
@@ -112,7 +114,7 @@ class HaloDensity:
             helium_by_number=self.pf['helium_by_number'], 
             cmb_temp_0=self.pf['cmb_temp_0'], 
             approx_highz=self.pf['approx_highz'], 
-            sigma_8=self.pf['sigma_8'], 
+            sigma_8=self.pf['sigma_8'],
             primordial_index=self.pf['primordial_index'])
         
         self.fn = self.pf["hmf_table"]
@@ -121,8 +123,8 @@ class HaloDensity:
         self.hmf_analytic = self.pf['hmf_analytic']
         
         # Look for tables in input directory
-        if os.environ.get("GLORB") is not None and self.pf['load_hmf']:
-            fn = '%s/input/hmf/%s' % (os.environ.get("GLORB"), self.table_prefix())
+        if ARES is not None and self.pf['load_hmf']:
+            fn = '%s/input/hmf/%s' % (ARES, self.table_prefix())
             if os.path.exists('%s.pkl' % fn):
                 self.fn = '%s.pkl' % fn
             elif os.path.exists('%s.hdf5' % fn):
@@ -212,9 +214,9 @@ class HaloDensity:
         #    if rank == 0:
         #        print "#"*50
         #        print "# No halo mass function table found."
-        #        print "# Run glorb/examples/generate_hmf_tables.py"
+        #        print "# Run ares/input/hmf/generate_hmf_tables.py"
         #        print "# to create a lookup table, then, set an environment"
-        #        print "# variable $GLORB that points to your glorb install" 
+        #        print "# variable $ARES that points to your ares install" 
         #        print "# directory or set the hmf_table parameter by hand."
         #        print "#"*50
                 
@@ -240,8 +242,10 @@ class HaloDensity:
         pb.start()
 
         for i, z in enumerate(self.z):
+            
             if i > 0:
                 self.MF.update(z=z, **cosmology)
+                
             if i % size != rank:
                 continue
                 
@@ -250,7 +254,9 @@ class HaloDensity:
                 delta_c = self.MF.cosmo.delta_c / self.MF.transfer.growth
                 self.fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
             else:
-                self.dndm[i] = self.MF.dndm.copy()
+                
+                # Has units of h**4 / cMpc**3 / Msun
+                self.dndm[i] = self.MF.dndm.copy() / self.cosm.h70**4
                 self.mgtm[i] = self.MF.mgtm.copy()
                 
                 # Remember that mgtm and mean_dens have factors of h**2

@@ -35,6 +35,8 @@ try:
 except ImportError:
     rank = 0
     size = 1
+    
+ARES = os.getenv('ARES')
             
 log10 = np.log(10.)    # for when we integrate in log-space
 four_pi = 4. * np.pi
@@ -479,12 +481,11 @@ class UniformBackground:
         fn = self.pop.rs.sed_name()
     
         if prefix is None:
-            glorb_dir = os.environ.get('GLORB')
-            if not glorb_dir:
-                print "No GLORB environment variable."
+            if not ARES:
+                print "No $ARES environment variable."
                 return None
     
-            input_dirs = ['%s/input/seds' % glorb_dir]
+            input_dirs = ['%s/input/seds' % ARES]
     
         else:
             if type(prefix) is str:

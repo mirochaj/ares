@@ -38,11 +38,11 @@ class ModelGrid:
         grid : instance
             
         verbose : bool
-        
+
         """
 
         self.verbose = verbose
-
+        
         if grid is not None:
             if isinstance(grid, GridND):
                 self.grid = grid
@@ -54,43 +54,20 @@ class ModelGrid:
     def __getitem__(self, name):
         return self.grid[name]
                         
-    def setup(self, Lcut=1e-3, **kwargs):
+    def set_blobs(self):
+        pass                    
+                        
+    def set_axes(self, **kwargs):
         """
         Create GridND instance, construct N-D parameter space.
 
         Parameters
         ----------
-        Lcut : float
-            Likelihood cut (throw away models with L < Lcut * LML), where
-            LML is the maximum likelihood value.
+        
         """
 
         self.grid = GridND()
         self.bgrid = GridND()
-        
-        # If we've run turning point B already, need some more info
-        if False:
-            
-            if rank == 0:
-                print "Utilizing turning point B data..."
-                print "Computing likelihood for all turning point B models..."
-            
-            # Compute likelihood of B models
-            self.L = L = self.likelihood(self.zB, self.TB, pt='B')  
-            
-            if rank == 0:
-                print "Excluding models with likelihoods less than %g times the maximum likelihood." % Lcut
-            
-            # Compute "volume" of parameter space already ruled out
-            self.Lmax = self.L.max()
-            self.Lcut = Lcut
-            self.Nbad = len(L[L < Lcut*self.Lmax])
-            for key in kwargs:
-                self.Nbad *= len(kwargs[key])
-
-            # Augment kwargs with pre-existing turning point B axes
-            for axis in self.grid_B.axes:
-                kwargs[axis.name] = axis.values
 
         if rank == 0:
             print "Building parameter space..."
@@ -98,13 +75,7 @@ class ModelGrid:
         # Build parameter space
         self.grid.build(**kwargs)
         self.bgrid.build(**kwargs)
-
-        if rank == 0 and hasattr(self, 'Nbad'):
-            print "%i out of %i models are ruled out already (that's %.3g percent)." \
-                % (self.Nbad, self.grid.size, 
-                   100 * float(self.Nbad) / float(self.grid.size))    
-            print "That leaves %i models." % (self.grid.size - self.Nbad)
-
+        
         # Save for later access
         self.kwargs = kwargs
 
@@ -132,48 +103,57 @@ class ModelGrid:
         -------
         
         """
-        
+
         if prefix is not None:
-            
+
             fn = '%s.hdf5' % prefix
-                        
+
             # Create grid, or load in preexisting one
             if os.path.exists(fn):
                 if rank == 0:
                     print "File %s exists! Exiting." % fn
                 return  
-                
+
         if rank == 0:
             print 'Running %i-element model-grid.' % self.grid.size        
         
-            if hasattr(self, 'Nbad'):
-                print "Reminder: %.3g percent of these models will be skipped." \
-                    % (100. * float(self.Nbad) / float(self.grid.size))
+            #if hasattr(self, 'Nbad'):
+            #    print "Reminder: %.3g percent of these models will be skipped." \
+            #        % (100. * float(self.Nbad) / float(self.grid.size))
+            #
+                    
         
+
         if blobs is not None:
-            blob_names, blob_redshifts = blobs
-        else:
-            blobs = (['z', 'dTb'], list('BCD'))
-            blob_names, blob_redshifts = blobs
-        
+            self.blob_names, self.blob_redshifts = blobs
+            
+            self.blob_shape = copy.deepcopy(self.grid.shape)
+            self.blob_shape.append(len(self.blob_names))
+            del blobs
+            
+        #else:
+        #    blobs = (['z', 'dTb'], list('BCD'))
+        #    blob_names, blob_redshifts = blobs
+
+
         # To store results
         shape = copy.deepcopy(self.grid.shape)
         
         # redshift and temperature of each turning pt.
-        shape.append(2)      
+        shape.append(2)
         
         # Container for elements of sim.history
-        blob_shape = copy.deepcopy(self.grid.shape)
-        blob_shape.append(len(blob_names))
-        
+    
         buffers = []
         extras = {}
         blobs = []
 
         for option in blob_redshifts:
             buffers.append(np.zeros(shape))
-            blobs.append(np.zeros(blob_shape))
             
+            if hasattr(self, 'blob_names'):
+                blobs.append(np.zeros(self.blob_shape))
+
             if thru == option:
                 break
             
@@ -182,8 +162,11 @@ class ModelGrid:
             pars.update({'progress_bar': False})
         if 'verbose' not in pars:
             pars.update({'verbose': False})
+        if hasattr(self, 'blob_names'): 
+            pars.update({'inline_analysis': \
+                (self.blob_names, self.blob_redshifts)})
         
-        pars.update({'track_extrema': True})  
+        pars.update({'track_extrema': True})
                                         
         # Dictionary for hmf tables
         fcoll = {}
@@ -202,16 +185,16 @@ class ModelGrid:
             # meaning their values are consistent with our fiducial model.
             # If not, continue. Fill value in buffers should be -99999 or
             # something
-            if thru != 'B' and False:
-                B_loc = self.grid_B.locate_entry(kwargs)
-                if self.L[B_loc] < self.Lcut * self.Lmax:
-                    if self.verbose:
-                        print '############################################'
-                        print '######  Low-Likelihood Model (#%s)  ####' % (str(h).zfill(6))
-                        for kw in kwargs:
-                            print "######  %s = %g" % (kw, kwargs[kw])
-                        print '############################################\n'
-                    continue
+            #if thru != 'B' and False:
+            #    B_loc = self.grid_B.locate_entry(kwargs)
+            #    if self.L[B_loc] < self.Lcut * self.Lmax:
+            #        if self.verbose:
+            #            print '############################################'
+            #            print '######  Low-Likelihood Model (#%s)  ####' % (str(h).zfill(6))
+            #            for kw in kwargs:
+            #                print "######  %s = %g" % (kw, kwargs[kw])
+            #            print '############################################\n'
+            #        continue
 
             # Grab Tmin index
             try:
@@ -230,6 +213,7 @@ class ModelGrid:
             except AttributeError:
                 self.LB = 0
                 i_Tmin = 0
+                
                 if h % size != rank:
                     continue
 
@@ -288,11 +272,11 @@ class ModelGrid:
                     print '###########################################'
 
             # Save turning point position
-            for i, feature in enumerate(list('BCTD')):
-                if feature == 'T':
+            for i, redshift in self.blob_redshifts:
+                if redshift == 'trans':
                     name = 'trans'
                 else:
-                    name = feature
+                    name = redshift
 
                 if fail:
                     buffers[i][kvec] = np.array([-11111] * 2)
@@ -308,16 +292,14 @@ class ModelGrid:
                         buffers[i][kvec] = np.array([-99999] * 2) # track_extrema=False!
                     
                 # Save other stuff    
-                for blob_num, blob in enumerate(sim.history.keys()):    
+                for j, blob in enumerate(sim.history.keys()):    
                     
                     if fail:
-                        blobs[i][kvec][blob_num] = -11111
+                        blobs[i][kvec][j] = -11111
                     else:
                     
                         try:
-                            interp = interp1d(sim.history['z'][-1::-1],
-                                sim.history[blob][-1::-1])
-                            blobs[i][kvec][blob_num] = interp(sim.turning_points[name][0])
+                            blobs[i][kvec][blob_num] = sim.blobs[i,j]                            
                         except KeyError:
                             blobs[i][kvec][blob_num] = -77777
                         except IndexError:
@@ -374,8 +356,8 @@ class ModelGrid:
             collected_blobs = blobs
                         
         if rank == 0:
-            for i, feature in enumerate(list('BCTD')):
-                if feature == 'T':
+            for i, redshift in self.blob_redshifts:
+                if redshift == 'trans':
                     name = 'trans'
                 else:
                     name = feature
@@ -388,14 +370,14 @@ class ModelGrid:
                 
                 if name == thru:
                     break
-              
+
             if prefix is not None:
                 self.grid.to_hdf5(fn)
                 print "Wrote %s." % fn
-                
+
                 self.bgrid.to_hdf5('%s.blobs.hdf5' % prefix)
                 print "Wrote %s.blobs.hdf5" % prefix
-                
+
             if save_fields is not None:
                 self.save_extras(prefix)
 

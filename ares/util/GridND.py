@@ -12,7 +12,7 @@ routines for slicing through it and applying functions to it.
 """
 
 import numpy as np
-import os, h5py, itertools, copy
+import os, itertools, copy
 from collections import defaultdict
 #from .ProgressBar import ProgressBar
 
@@ -23,6 +23,11 @@ try:
 except ImportError:
     rank = 0
     size = 1
+    
+try:
+    import h5py
+except ImportError:
+    pass    
     
 clobber_msg = "Run with clobber=True to overwrite."
 

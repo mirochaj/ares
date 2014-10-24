@@ -1194,9 +1194,6 @@ class Global21cm:
         if self.pf['approx_lya'] == 0 and np.all(self.pf['spectrum_Emin'] > 13.6):
             raise ValueError('Must supply Lyman series spectrum!')
         
-        if self.pf['approx_helium'] and not (2 in self.pf['Z']):
-            raise ValueError('If approx_helium=1, must add 2 to Z, i.e., Z=[1,2].')    
-            
         if self.pf['approx_xray'] == 0 and self.pf['load_tau'] == 0 \
             and self.pf['tau_table'] is None:
             raise ValueError('Supply tau_table or set load_tau=True when approx_xray=False')
