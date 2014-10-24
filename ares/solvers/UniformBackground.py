@@ -12,7 +12,7 @@ Description: This will be like glorb.evolve.RadiationBackground.
 
 import numpy as np
 from math import ceil
-import os, re, types, rt1d, gc
+import os, re, types, gc
 from ..physics.Constants import *
 from .IntergalacticMedium import IGM
 from ..util.PrintInfo import print_rb
