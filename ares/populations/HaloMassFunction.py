@@ -199,26 +199,6 @@ class HaloDensity:
         self.z = np.linspace(self.zmin, self.zmax, self.Nz)
         
         self.Nm = np.logspace(self.logMmin, self.logMmax, self.dlogM).size
-        #self.logM_over_h = np.linspace(self.logMmin, self.logMmax, self.Nm)
-        #self.M = 10**self.logM_over_h * self.cosm.h70
-        #self.logM = np.log10(self.M)
-        
-        # Load if there's a table with the same dimensions, fitting func, etc.
-        fn = '%s.hdf5' % self.table_prefix()
-        
-        if os.path.exists(fn) and self.pf['load_hmf']:
-            self.fn = fn
-            self.load_table()
-            return
-        #elif self.pf['load_hmf']:
-        #    if rank == 0:
-        #        print "#"*50
-        #        print "# No halo mass function table found."
-        #        print "# Run ares/input/hmf/generate_hmf_tables.py"
-        #        print "# to create a lookup table, then, set an environment"
-        #        print "# variable $ARES that points to your ares install" 
-        #        print "# directory or set the hmf_table parameter by hand."
-        #        print "#"*50
                 
         if rank == 0:    
             print "\nComputing %s mass function..." % self.fitting_function    
