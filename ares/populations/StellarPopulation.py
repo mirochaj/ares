@@ -181,7 +181,7 @@ class StellarPopulation:
         
         Returns
         -------
-        Comoving star-formation rate density at redshift z in units of
+        Co-moving star-formation rate density at redshift z in units of
         g s**-1 cm**-3.
 
         """

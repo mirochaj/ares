@@ -445,9 +445,9 @@ class Grid(object):
                 self.data[field] = np.zeros(self.dims)
                     
         self.abundances_by_number = self.abundances
-        self.element_abundances = []
-        for i, Z in enumerate(self.Z):
-            self.element_abundances.append(self.abundances_by_number[i])
+        self.element_abundances = [1.0]
+        if 2 in Z:
+            self.element_abundances.append(self.cosm.helium_by_number)
                                
         # Initialize mapping between q-vector and physical quantities (dengo)                
         self._set_qmap()

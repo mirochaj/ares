@@ -222,7 +222,7 @@ class HaloDensity:
         pb.start()
 
         for i, z in enumerate(self.z):
-            
+
             if i > 0:
                 self.MF.update(z=z, **cosmology)
                 

@@ -11,6 +11,7 @@ Description:
 """
 
 import ares
+import matplotlib.pyplot as pl
 
 src1 = \
 {
@@ -88,15 +89,13 @@ for i, Z in enumerate([[1],[1,2]]):
     ax2 = anl.IonizationHistory(ax=ax2, fig=2, color=colors[i], 
         show_legend=not i, show_xi=not i, show_xibar=not i)
     ax3 = anl.TemperatureHistory(ax=ax3, fig=3, color=colors[i], show_legend=not i)
-    ax4 = anl.OpticalDepthHistory(ax=ax4, fig=4, color=colors[i])
     
     if i == 1:
-        ax5 = anl.IonizationHistory(fig=5, element='he', color=colors[i])
-        ax5 = anl.IonizationHistory(ax=ax5, show_xi=False, show_xibar=False,
+        ax4 = anl.IonizationHistory(fig=4, element='he', color=colors[i])
+        ax4 = anl.IonizationHistory(ax=ax4, show_xi=False, show_xibar=False,
             color='k', ls=':', label=r'$x_{\mathrm{HII}}$')
-        ax5.set_title('(in bulk IGM)')
-        ax5.set_ylim(1e-4, 1.5)
-        
+        ax4.set_title('(in bulk IGM)')
+        ax4.set_ylim(1e-4, 1.5)
         
     sims.append(sim)
 

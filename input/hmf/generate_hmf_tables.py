@@ -33,12 +33,6 @@ hmf_pars = \
 hmf = ares.populations.HaloMassFunction.HaloDensity(hmf_analytic=False, 
     load_hmf=False, **hmf_pars)
 
-# Write to $GLORB/input directory
-if not os.path.exists('../input'):
-    os.mkdir('../input')
-    if not os.path.exists('../input/hmf'):
-        os.mkdir('../input/hmf')
-
-hmf.save(destination='../input/hmf', format=format)
+hmf.save(format=format)
 
 

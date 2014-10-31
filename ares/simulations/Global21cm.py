@@ -700,9 +700,13 @@ class Global21cm:
         redshift = []
         ztps = []
         for element in ztmp:
-            if type(element) is str:
-                redshift.append(self.turning_points[element][0])
-                ztps.append((element, self.turning_points[element][0]))
+            if type(element) is str:                
+                if element not in self.turning_points:
+                    redshift.append(np.inf)
+                    ztps.append(np.inf)
+                else:
+                    redshift.append(self.turning_points[element][0])
+                    ztps.append((element, self.turning_points[element][0]))
             else:
                 redshift.append(element)
             
@@ -716,6 +720,11 @@ class Global21cm:
             elif field == 'curvature':
                 tmp = []
                 for element in ztmp:
+                    
+                    if element not in self.turning_points:
+                        tmp.append(np.inf)
+                        continue
+                    
                     if (type(element)) == str and (element != 'trans'):
                         tmp.append(self.turning_points[element][-1])
                     else:
