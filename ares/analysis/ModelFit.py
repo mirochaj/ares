@@ -22,8 +22,9 @@ from ..util.SetDefaultParameterValues import SetAllDefaults
 
 try:
     import emcee
+    have_emcee = True
 except ImportError:
-    pass
+    have_emcee = False
 
 try:
     from mpi4py import MPI
@@ -115,15 +116,18 @@ class ModelFit(object):
         """
         
         # Read in data from emcee.EmsembleSampler object
-        if isinstance(data, emcee.EnsembleSampler):
-            self.chain = data.flatchain
-            self.Nd = int(self.chain.shape[-1])
-            self.parameters = def_par_names(self.Nd)
-            self.is_log = [False] * self.Nd
-            self.blobs = None
-            self.blob_names = []
+        
+        if have_emcee:
+            if isinstance(data, emcee.EnsembleSampler):
+                self.chain = data.flatchain
+                self.Nd = int(self.chain.shape[-1])
+                self.parameters = def_par_names(self.Nd)
+                self.is_log = [False] * self.Nd
+                self.blobs = None
+                self.blob_names = []
+        
         # Read in data from file (assumed to be pickled)
-        elif type(data) == str:
+        if type(data) == str:
             prefix = data
             
             # Read MCMC chain

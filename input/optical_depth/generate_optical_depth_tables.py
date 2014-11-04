@@ -15,7 +15,12 @@ Note: This can be run in parallel, e.g.,
 """
 
 import numpy as np
-import os, ares, h5py, time
+import os, ares, time
+
+try:
+    import h5py
+except:
+    pass
 
 try:
     from mpi4py import MPI
