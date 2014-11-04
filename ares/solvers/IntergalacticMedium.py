@@ -155,7 +155,7 @@ class IGM(object):
             found = False
             if self.pf['load_tau']:
                 
-                # First, look in CWD or $GLORB (if it exists)
+                # First, look in CWD or $ARES (if it exists)
                 self.tabname = self.load_tau(self.pf['tau_prefix'])
                 
                 if self.tabname is not None:
@@ -383,15 +383,16 @@ class IGM(object):
         """
         Find an optical depth table.
         """
+        
         fn, fn_func = self.tau_name()
     
         if prefix is None:
-            glorb_dir = os.environ.get('GLORB')
-            if not glorb_dir:
-                print "No GLORB environment variable."
+            ares_dir = os.environ.get('ARES')
+            if not ares_dir:
+                print "No ARES environment variable."
                 return None
             
-            input_dirs = ['%s/input/optical_depth' % glorb_dir]
+            input_dirs = ['%s/input/optical_depth' % ares_dir]
     
         else:
             if type(prefix) is str:
@@ -411,19 +412,29 @@ class IGM(object):
         good_tab = None
         for input_dir in input_dirs:
             for fn1 in os.listdir(input_dir):
-            
-                # If number of redshift bins is right...
-                if re.search(pre, fn1):
-                    good_tab = '%s/%s' % (input_dir, fn1)    
-    
+                
+                # What file format do we prefer / need?
+                if re.search('npz', fn1):
+                    if have_h5py and self.pf['preferred_format'] == 'hdf5':
+                        continue
+                    else:
+                        pass
+                elif have_h5py and re.search('hdf5', fn1) \
+                    and self.pf['preferred_format'] == 'hdf5':
+                    pass    
+                else:
+                    continue
+                                        
                 # If number of redshift bins and energy range right...
                 if re.search(pre, fn1) and re.search(post, fn1):
                     good_tab = '%s/%s' % (input_dir, fn1)
-                    
-                    if have_h5py:
-                        break
-                        
-                    # Continue, look for ASCII tab
+                                                            
+                # If number of redshift bins is right...
+                elif re.search(pre, fn1):
+                    good_tab = '%s/%s' % (input_dir, fn1)
+                
+                if good_tab is not None:
+                    break
                 
         return good_tab
     
@@ -945,8 +956,8 @@ class IGM(object):
             nHeII = lambda z: 0.0
             sHeII = lambda z: 0.0
         elif self.self_consistent_He:
-            #if type(kw['xavg']) is not list:
-            #    raise TypeError('hey! fix me')
+            if type(kw['xavg']) is not list:
+                raise TypeError('hey! fix me')
                 
             nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
             nHeI = lambda z: self.cosm.nHe(z) \

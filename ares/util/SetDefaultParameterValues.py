@@ -432,6 +432,8 @@ def ControlParameters():
     "tau_reference": False,
     "tau_slab": False,
     
+    "preferred_format": 'npz',
+    
     # Finding SED tables
     "load_sed": False,
     "sed_prefix": None,

@@ -43,10 +43,9 @@ os.chdir('input')
 ##
 bitbucket_DL = 'https://bitbucket.org/mirochaj/glorb/downloads'
 fn_hmf = 'hmf_PS_logM_240_4-16_z_1521_4-80.pkl'
-fn_ics_h5 = 'initial_conditions.hdf5'
 fn_ics_np = 'initial_conditions.npz'
-fn_tau = 'optical_depth_H_400x1884_z_10-40_logE_2-4.7.hdf5'
-fn_tau2 = 'optical_depth_He_400x1884_z_10-40_logE_2-4.7.hdf5'
+fn_tau = 'optical_depth_H_400x1884_z_10-40_logE_2-4.7.npz'
+fn_tau2 = 'optical_depth_He_400x1884_z_10-40_logE_2-4.7.npz'
 fn_elec = 'secondary_electron_data.hdf5'
 
 if not os.path.exists(fn_elec):
@@ -64,12 +63,6 @@ if not os.path.exists('hmf/%s' % fn_hmf):
 
 if not os.path.exists('inits'):
     os.mkdir('inits')
-
-if not os.path.exists('inits/%s' % fn_ics_h5):
-    os.chdir('inits')
-    print "\nDownloading %s/%s..." % (bitbucket_DL, fn_ics_h5)
-    urllib.urlretrieve('%s/%s' % (bitbucket_DL, fn_ics_h5), fn_ics_h5)
-    os.chdir('..')
 
 if not os.path.exists('inits'):
     os.mkdir('inits')

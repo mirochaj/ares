@@ -32,17 +32,18 @@ Emin = 1e2
 Emax = 5e4
 Nz = [400, 600, 800]
 format = 'npz'        # 'hdf5' or 'txt' or 'npz'
-approx_helium = 0
+helium = 1
 ##
 #
 
 # Initialize radiation background
 pars = \
 {
+ 'Z': [1,2] if helium else [1],
  'spectrum_Emin': Emin,
  'spectrum_Emax': Emax,
  'approx_xray': 0,
- 'approx_helium': approx_helium,
+ 'approx_helium': helium,
  'initial_redshift': zi,
  'final_redshift': zf,
 }
