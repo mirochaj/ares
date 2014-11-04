@@ -299,6 +299,23 @@ class IGM(object):
             self.tau = self._tau = f['tau'].value
             f.close()
             
+        elif re.search('npz', fn):    
+            
+            f = open(fn, 'r')
+            data = dict(np.load(f))
+            
+            self.E0 = data['E'].min()
+            self.E1 = data['E'].max()            
+            self.E = data['E']
+            self.z = data['z']
+            self.x = self.z + 1
+            self.N = self.E.size
+            
+            self.R = self.x[1] / self.x[0]
+            
+            self.tau = self._tau = data['tau']
+            f.close()
+            
         else:
             f = open(self.tabname, 'r')
             hdr = f.readline().split()[1:]
@@ -342,6 +359,9 @@ class IGM(object):
         """
         Return name of table based on its properties.
         """
+        
+        if not have_h5py:
+            suffix == 'npz'
     
         HorHe = 'He' if (2 in self.pf['Z']) else 'H'
     

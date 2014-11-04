@@ -282,7 +282,6 @@ class WriteData():
         elif suffix in ['hdf5', 'h5']:
             f = h5py.File(fn, 'w')
             for key in self.sim.history:
-                print key
                 f.create_dataset(key, data=np.array(self.sim.history[key]))
             f.close()
     

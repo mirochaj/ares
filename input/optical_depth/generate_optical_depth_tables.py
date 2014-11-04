@@ -15,8 +15,7 @@ Note: This can be run in parallel, e.g.,
 """
 
 import numpy as np
-import os, glorb, h5py, time
-from rt1d.physics.Constants import E_LL
+import os, ares, h5py, time
 
 try:
     from mpi4py import MPI
@@ -32,7 +31,7 @@ zf, zi = (10, 40)
 Emin = 1e2
 Emax = 5e4
 Nz = [400, 600, 800]
-format = 'hdf5'        # 'hdf5' or 'txt'
+format = 'npz'        # 'hdf5' or 'txt' or 'npz'
 approx_helium = 0
 ##
 #
@@ -43,7 +42,6 @@ pars = \
  'spectrum_Emin': Emin,
  'spectrum_Emax': Emax,
  'approx_xray': 0,
- 'xray_cutoff': Emin,
  'approx_helium': approx_helium,
  'initial_redshift': zi,
  'final_redshift': zf,
@@ -63,7 +61,7 @@ for res in Nz:
     t1 = time.time()
     
     # Create IGM instance
-    igm = glorb.evolve.IGM(**pars)
+    igm = ares.solvers.IGM(**pars)
     
     fn = igm.tau_name(suffix=format)[0]
     
@@ -87,6 +85,13 @@ for res in Nz:
         f.create_dataset('redshift', data=igm.z)
         f.create_dataset('photon_energy', data=igm.E)
         f.close()
+    elif format == 'npz':
+        to_write = {'tau': tau, 'z': igm.z, 'E': igm.E}
+        
+        f = open(fn, 'w')
+        np.savez(f, **to_write)
+        f.close()
+        
     else:
         f = open(fn, 'w')
         hdr = "zmin=%.4g zmax=%.4g Emin=%.8e Emax=%.8e" % \
