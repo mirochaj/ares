@@ -15,7 +15,7 @@ Note: This can be run in parallel, e.g.,
 """
 
 import numpy as np
-import os, ares, time
+import os, ares, time, pickle
 
 try:
     import h5py
@@ -35,9 +35,9 @@ except ImportError:
 zf, zi = (10, 40)
 Emin = 1e2
 Emax = 5e4
-Nz = [400, 600, 800]
-format = 'npz'        # 'hdf5' or 'txt' or 'npz'
-helium = 1
+Nz = [400]
+format = 'hdf5'        # 'hdf5' or 'pkl' or 'npz'
+helium = 0
 ##
 #
 
@@ -97,6 +97,12 @@ for res in Nz:
         f = open(fn, 'w')
         np.savez(f, **to_write)
         f.close()
+        
+    elif format == 'pkl':
+        
+        f = open(fn, 'wb')
+        pickle.dump({'tau': tau, 'z': igm.z, 'E': igm.E}, f)
+        f.close()    
         
     else:
         f = open(fn, 'w')

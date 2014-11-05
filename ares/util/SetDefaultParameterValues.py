@@ -432,7 +432,7 @@ def ControlParameters():
     "tau_reference": False,
     "tau_slab": False,
     
-    "preferred_format": 'npz',
+    "preferred_format": 'pkl',
     
     # Finding SED tables
     "load_sed": False,

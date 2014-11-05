@@ -11,10 +11,10 @@ Description:
 """
 
 import numpy as np
-import types, os, re, sys
 from ..util.Warnings import *
 from ..util import ProgressBar
 from ..physics.Constants import *
+import types, os, re, sys, pickle
 from ..util.Misc import parse_kwargs, num_freq_bins
 from ..physics import Cosmology, SecondaryElectrons
 from ..util.Warnings import tau_tab_z_mismatch, no_tau_table
@@ -299,10 +299,14 @@ class IGM(object):
             self.tau = self._tau = f['tau'].value
             f.close()
             
-        elif re.search('npz', fn):    
+        elif re.search('npz', fn) or re.search('pkl', fn):    
             
-            f = open(fn, 'r')
-            data = dict(np.load(f))
+            if re.search('pkl', fn):
+                f = open(fn, 'rb')
+                data = pickle.load(f)
+            else:
+                f = open(fn, 'r')
+                data = dict(np.load(f))
             
             self.E0 = data['E'].min()
             self.E1 = data['E'].max()            
@@ -408,36 +412,46 @@ class IGM(object):
         pre = tmp1[0:tmp1.rfind('x')]
         red, tmp3 = fn.split('_logE_')
         post = '_logE_' + tmp3.replace('.hdf5', '')
-
+        
+        ok_matches = []
+        perfect_matches = []
+        
+        # Loop through input directories
         good_tab = None
         for input_dir in input_dirs:
+                            
+            # Loop over files in input_dir, look for best match
             for fn1 in os.listdir(input_dir):
                 
-                # What file format do we prefer / need?
-                if re.search('npz', fn1):
-                    if have_h5py and self.pf['preferred_format'] == 'hdf5':
-                        continue
-                    else:
-                        pass
-                elif have_h5py and re.search('hdf5', fn1) \
-                    and self.pf['preferred_format'] == 'hdf5':
-                    pass    
-                else:
+                if re.search('hdf5', fn1) and (not have_h5py):
                     continue
-                                        
-                # If number of redshift bins and energy range right...
-                if re.search(pre, fn1) and re.search(post, fn1):
-                    good_tab = '%s/%s' % (input_dir, fn1)
-                                                            
-                # If number of redshift bins is right...
-                elif re.search(pre, fn1):
-                    good_tab = '%s/%s' % (input_dir, fn1)
+
+                tab_name = '%s/%s' % (input_dir, fn1)
                 
-                if good_tab is not None:
-                    break
+                for fmt in ['pkl', 'npz', 'hdf5']:
+                    
+                    # If number of redshift bins and energy range right...
+                    if re.search(pre, fn1) and re.search(post, fn1):                        
+                        if re.search(fmt, fn1) and fmt == self.pf['preferred_format']:
+                            perfect_matches.append(tab_name)
+                        else:
+                            ok_matches.append(tab_name)
+                    
+                    # If number of redshift bins is right...
+                    elif re.search(pre, fn1):
+                                                
+                        if re.search(fmt, fn1) and fmt == self.pf['preferred_format']:
+                            perfect_matches.append(tab_name)
+                        else:
+                            ok_matches.append(tab_name)
+        
+        if perfect_matches:
+            return perfect_matches[0]
+        elif ok_matches:
+            return ok_matches[0]
+        else:
+            return None
                 
-        return good_tab
-    
     def tau_shape(self):
         """
         Determine dimensions of optical depth table.
