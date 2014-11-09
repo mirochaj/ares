@@ -19,8 +19,8 @@ figsize = pl.rcParams['figure.figsize']
 wspace = pl.rcParams['figure.subplot.wspace']
 hspace = pl.rcParams['figure.subplot.hspace']
 
-def AxisConstructor(nr, nc, panel): 
-    return pl.subplot(nr, nc, panel)
+def AxisConstructor(fig, nr, nc, panel): 
+    return fig.add_subplot(nr, nc, panel)
     
 defs = \
 {
@@ -33,7 +33,7 @@ defs = \
  'right':None, 
  'bottom':None, 
  'top':None, 
- 'preserve_margins':True
+ 'preserve_margins':True,
 }
 
 class MultiPanel:
@@ -172,7 +172,7 @@ class MultiPanel:
             #if diagonal == 'upper' and j == k and (j, k) != (self.J-1, self.K-1):
             #    continue
 
-            self.grid[i] = AxisConstructor(self.J, self.K, l[i]+1)
+            self.grid[i] = AxisConstructor(self.fig, self.J, self.K, l[i]+1)
             
     def axis_position(self, i):
         """
@@ -410,10 +410,14 @@ class MultiPanel:
         pl.draw()
 
     def fix_ticks(self, noxticks=False, noyticks=False, style=None, N=None,
-        rotate_x=False, xticklabels=None, yticklabels=None):
+        rotate_x=False, xticklabels=None, yticklabels=None, oned=True):
         """
         Call once all plotting is done, will eliminate redundant tick marks 
         and what not.
+        
+        Parameters
+        ----------
+        
         """
         
         pl.draw()
@@ -421,7 +425,7 @@ class MultiPanel:
         self.fix_axes_ticks(axis='x', N=N, rotate_x=rotate_x)
         self.fix_axes_ticks(axis='y', N=N)
         
-        if self.diagonal == 'lower':
+        if self.diagonal == 'lower' and oned:
             self.grid[np.intersect1d(self.left, self.top)[0]].set_yticklabels([])
         
         # Remove ticks alltogether (optionally)            
@@ -439,7 +443,7 @@ class MultiPanel:
                     if i not in self.bottom:
                         self.grid[i].set_xticklabels([])    
         
-                if self.diagonal and (i in self.diag):
+                if self.diagonal and (i in self.diag) and oned:
                     self.grid[i].set_yticks([])
         
                 if noxticks:

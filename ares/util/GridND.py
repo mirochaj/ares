@@ -64,7 +64,7 @@ class GridAxis:
                 else:
                     self.id = ''
                     self.basename = self.name
-                
+
     def locate(self, val):
         """ Return index of axis value closest to supplied value. """
         return np.argmin(np.abs(val - self.values))    
@@ -665,10 +665,10 @@ class GridND(defaultdict):
                     ax = axes[axis.name]
                 else:
                     ax = axes.create_dataset(axis.name, data=axis.values)
-                
+
                 if not ax.attrs.get('num'):
                     ax.attrs.create('num', data = axis.num)
-                
+
                 #if hasattr(self.axis(axis), 'mpdf'):
                 #    ax.attrs.create('mpdf', self.axis(axis).mpdf)
                 

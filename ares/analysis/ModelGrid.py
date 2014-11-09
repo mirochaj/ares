@@ -13,8 +13,8 @@ Description: For analyzing model grids.
 import numpy as np
 import time, copy, os, pickle
 import matplotlib.pyplot as pl
-from ..simple import Interpret21cm
-from ..util import labels, default_errors
+#from ..simple import Interpret21cm
+from ..util import labels#, default_errors
 from ..physics.Constants import cm_per_mpc
 from ..inference.ModelGrid import ModelGrid as iMG
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
@@ -29,21 +29,26 @@ except ImportError:
 
 class ModelGrid(object):
     """Create an object for setting up, running, and analyzing model grids."""
-    def __init__(self, grid, **kwargs):
+    def __init__(self, prefix, **kwargs):
         """
         Parameters
         ----------
         grid : str
-            Name of file containing output of glorb.search.ModelGrid.
+            Name of file containing output of ares.inference.ModelGrid.
         """
 
-        prefix = grid[0:grid.rfind('.')]
-
-        # Instance of glorb.search.ModelGrid
-        grid = iMG(grid=grid, **kwargs)
+        # Instance of ares.inference.ModelGrid
+        grid = iMG(prefix=prefix, **kwargs)
+        
+        if grid.is_restart and rank == 0:
+            print "WARNING: This model grid is incomplete! ",
+            print "This will likely cause problems in the analysis."
         
         # Instance of ndspace.ModelGrid
         self.grid = grid.grid
+        
+        if hasattr(grid, 'extras'):
+            self.extras = grid.extras
         
         try:
             self.bgrid = iMG(grid='%s.blobs.hdf5' % prefix, **kwargs)

@@ -31,24 +31,40 @@ except ImportError:
     
 class ModelGrid:
     """Create an object for setting up and running model grids."""
-    def __init__(self, grid=None, verbose=True, **kwargs):
+    def __init__(self, prefix=None, grid=None, verbose=True, **kwargs):
         """
         Parameters
         ----------
+        
+        prefix : str
+            Will look for a file called <prefix>.grid.hdf5
+        
         grid : instance
-            
+
         verbose : bool
 
         """
 
         self.verbose = verbose
-        
-        if grid is not None:
-            if isinstance(grid, GridND):
-                self.grid = grid
-            else: # Assume its a Gridded21cm instance
-                self.grid = GridND(grid)
-        else:
+            
+        if isinstance(grid, GridND):
+            self.grid = grid
+        elif (prefix is not None):
+            
+            self.is_restart = False
+            if os.path.exists('%s.grid.hdf5' % prefix):
+                self.grid = GridND('%s.grid.hdf5' % prefix)
+            else:
+                try:
+                    self._read_restart('%s.grid.pkl' % prefix)
+                    self.is_restart = True
+                except IOError:
+                    pass
+                    
+            if os.path.exists('%s.extras.pkl' % prefix):
+                self.extras = self.load_extras('%s.extras.pkl' % prefix)
+
+        if not hasattr(self, 'grid'):
             self.grid = None
 
     def __getitem__(self, name):
@@ -56,6 +72,28 @@ class ModelGrid:
                         
     def set_blobs(self):
         pass                    
+        
+    def _read_restart(self, fn):
+        f = open(fn, 'rb')
+
+        self.grid = pickle.load(f)
+
+        indices, buffers, extras = [], [], []
+        while True:
+            try:
+                tmp1, tmp2, tmp3 = pickle.load(f)
+            except EOFError:
+                break
+                
+            indices.append(tmp1)
+            buffers.append(tmp2)
+            extras.append(tmp3)            
+                
+        f.close()    
+        
+        self.indices = indices
+        self.buffers = buffers
+        self.extras = extras
                         
     def set_axes(self, **kwargs):
         """
@@ -86,7 +124,7 @@ class ModelGrid:
         
         return self._to_solve
         
-    def run(self, prefix=None, thru=None, save_fields=None, blobs=None, 
+    def run(self, prefix, thru=None, save_fields=None, blobs=None, 
         **pars):
         """
         Run model grid, for each realization thru a given turning point.
@@ -104,38 +142,37 @@ class ModelGrid:
         
         """
 
-        if prefix is not None:
+        fn = '%s.grid.hdf5' % prefix
+        
+        # Create grid, or load in preexisting one
+        if os.path.exists(fn):
+            if rank == 0:
+                print "File %s exists! Exiting." % fn
+            return  
 
-            fn = '%s.hdf5' % prefix
-
-            # Create grid, or load in preexisting one
-            if os.path.exists(fn):
-                if rank == 0:
-                    print "File %s exists! Exiting." % fn
-                return  
+        self.is_restart = False
+        if os.path.exists('%s.grid.pkl' % prefix):
+            if rank == 0:
+                print "Re-starting from %s.grid.pkl" % prefix
+            self.is_restart = True
 
         if rank == 0:
-            print 'Running %i-element model-grid.' % self.grid.size        
-        
-            #if hasattr(self, 'Nbad'):
-            #    print "Reminder: %.3g percent of these models will be skipped." \
-            #        % (100. * float(self.Nbad) / float(self.grid.size))
-            #
-                    
-        
-
+            if self.is_restart:
+                print "Update: %i models down, %i to go." \
+                    % (len(self.indices), self.grid.size - len(self.indices))
+            else:
+                print 'Running %i-element model-grid.' % self.grid.size
+                
         if blobs is not None:
             self.blob_names, self.blob_redshifts = blobs
             
             self.blob_shape = copy.deepcopy(self.grid.shape)
             self.blob_shape.append(len(self.blob_names))
             del blobs
+        else:
+            self.blob_names = ['z', 'dTb']
+            self.blob_redshifts = list('BCD')
             
-        #else:
-        #    blobs = (['z', 'dTb'], list('BCD'))
-        #    blob_names, blob_redshifts = blobs
-
-
         # To store results
         shape = copy.deepcopy(self.grid.shape)
         
@@ -143,19 +180,24 @@ class ModelGrid:
         shape.append(2)
         
         # Container for elements of sim.history
-    
-        buffers = []
+        buffers = []        
         extras = {}
         blobs = []
 
-        for option in blob_redshifts:
+        for option in self.blob_redshifts:
             buffers.append(np.zeros(shape))
             
-            if hasattr(self, 'blob_names'):
-                blobs.append(np.zeros(self.blob_shape))
-
+            #if hasattr(self, 'blob_names'):
+            #    blobs.append(np.zeros(self.blob_shape))
+        
             if thru == option:
                 break
+                
+        # Load checkpoints 
+        if self.is_restart:
+            for i, loc in enumerate(self.indices):
+                for j in range(len(self.buffers[i])):
+                    buffers[j][loc] = self.buffers[i][j]
             
         # Make sure we track the extrema, be less verbose, etc.
         if 'progress_bar' not in pars:
@@ -176,10 +218,24 @@ class ModelGrid:
         pb.start()
 
         start = time.time()
-
+        
+        # Open checkpoint file
+        f = open('%s.grid.pkl' % prefix, 'ab')
+        if not self.is_restart:
+            pickle.dump(self.grid, f)
+            
         # Loop over models use StellarPopulation.update routine 
         # to speed-up (don't have to re-load HMF spline as many times)
         for h, kwargs in enumerate(self.grid.all_kwargs):
+            
+            # Where does this model live in the grid?
+            kvec = self.grid.locate_entry(kwargs)
+            
+            # Skip if it's a restart and we've already run this model
+            if self.is_restart:
+                if kvec in self.indices:
+                    pb.update(h)
+                    continue
 
             # See if this combination of parameter values are "allowed,"
             # meaning their values are consistent with our fiducial model.
@@ -241,8 +297,6 @@ class ModelGrid:
                 p.update(hmf_pars)
                 sim = Global21cm(**p)
 
-            kvec = self.grid.locate_entry(kwargs)
-
             # Run simulation!
             fail = False
             try:             
@@ -272,7 +326,8 @@ class ModelGrid:
                     print '###########################################'
 
             # Save turning point position
-            for i, redshift in self.blob_redshifts:
+            tmp = []
+            for i, redshift in enumerate(self.blob_redshifts):
                 if redshift == 'trans':
                     name = 'trans'
                 else:
@@ -291,31 +346,34 @@ class ModelGrid:
                     except AttributeError:
                         buffers[i][kvec] = np.array([-99999] * 2) # track_extrema=False!
                     
+                tmp.append(buffers[i][kvec])    
+                    
                 # Save other stuff    
-                for j, blob in enumerate(sim.history.keys()):    
-                    
-                    if fail:
-                        blobs[i][kvec][j] = -11111
-                    else:
-                    
-                        try:
-                            blobs[i][kvec][blob_num] = sim.blobs[i,j]                            
-                        except KeyError:
-                            blobs[i][kvec][blob_num] = -77777
-                        except IndexError:
-                            blobs[i][kvec][blob_num] = -88888
-                        except AttributeError:
-                            blobs[i][kvec][blob_num] = -99999
+                #for j, blob in enumerate(sim.history.keys()):    
+                #    
+                #    if fail:
+                #        blobs[i][kvec][j] = -11111
+                #    else:
+                #    
+                #        try:
+                #            blobs[i][kvec][blob_num] = sim.blobs[i,j]                            
+                #        except KeyError:
+                #            blobs[i][kvec][blob_num] = -77777
+                #        except IndexError:
+                #            blobs[i][kvec][blob_num] = -88888
+                #        except AttributeError:
+                #            blobs[i][kvec][blob_num] = -99999
                 
                 if name == thru:
                     break
-                    
+                
+            extras[kvec] = {}                        
             if save_fields is not None:
-                extras[kvec] = {}
                 extras[kvec]['z'] = sim.history['z']
                 for field in save_fields:
-                    extras[kvec][field] = sim.history[field]        
-                    
+                    extras[kvec][field] = sim.history[field]
+                                        
+            # Figure out blobs if we haven't already
             if not hasattr(self, 'blob_names'):
                 self.blob_names = sim.history.keys()
             else:
@@ -323,16 +381,26 @@ class ModelGrid:
                     self.blob_names = sim.history.keys()
                         
             pb.update(h)
+            
+            # Checkpoint!
+            pickle.dump((kvec, tmp, extras[kvec]), f)
 
-            del p, sim
+            del p, sim, tmp
 
         pb.finish()
+
+        f.close()        
 
         print "Processor %i done." % rank
         
         self.blobs = blobs
+        
+        if hasattr(self, 'extras'):
+            for i, key in enumerate(self.indices):
+                extras[key] = self.extras[i]
+                        
         self.extras = extras
-
+            
         # Collect results
         if size > 1:
             collected_buffs = []
@@ -356,17 +424,17 @@ class ModelGrid:
             collected_blobs = blobs
                         
         if rank == 0:
-            for i, redshift in self.blob_redshifts:
+            for i, redshift in enumerate(self.blob_redshifts):
                 if redshift == 'trans':
                     name = 'trans'
                 else:
-                    name = feature
+                    name = redshift
                     
                 self.grid.add_dataset(name, collected_buffs[i])
                 self.grid.higher_dimensions = ['z', 'dTb']
                 
-                self.bgrid.add_dataset(name, collected_blobs[i])
-                self.bgrid.higher_dimensions = self.blob_names
+                #self.bgrid.add_dataset(name, collected_blobs[i])
+                #self.bgrid.higher_dimensions = self.blob_names
                 
                 if name == thru:
                     break
@@ -375,8 +443,8 @@ class ModelGrid:
                 self.grid.to_hdf5(fn)
                 print "Wrote %s." % fn
 
-                self.bgrid.to_hdf5('%s.blobs.hdf5' % prefix)
-                print "Wrote %s.blobs.hdf5" % prefix
+                #self.bgrid.to_hdf5('%s.blobs.hdf5' % prefix)
+                #print "Wrote %s.blobs.hdf5" % prefix
 
             if save_fields is not None:
                 self.save_extras(prefix)
@@ -386,30 +454,27 @@ class ModelGrid:
         if rank == 0:
             print 'Grid calculation complete in %.4g hours.' % ((stop - start) / 3600.)
 
-    def save_extras(self, fn):
+    def save_extras(self, prefix):
         """
         Write extra fields to disk (npz format).
         
         Use "lock and key" method to avoid overwriting file contents.
         """
-
-        suffix = fn[fn.rfind('.')+1:]
-
-        if suffix != 'npz':
-            raise ValueError('Output file must be .npz (for now).')
-
+        
+        fn = prefix + '.extras.pkl'
+    
         key = np.ones(1)
-
+    
         # Wait for the key
         if rank != 0:
             MPI.COMM_WORLD.Recv(key, source=rank-1, tag=rank-1)
-
+    
         if rank == 0:
-            f = open('%s' % fn, 'w')
+            f = open('%s' % fn, 'wb')
         else:
-            f = open('%s' % fn, 'a')
+            f = open('%s' % fn, 'ab')
         
-        np.savez(f, **self.extras)    
+        pickle.dump(self.extras, f)
         f.close()
         
         print 'Processor #%i: wrote to %s' % (rank, fn)
@@ -425,19 +490,20 @@ class ModelGrid:
         
         output = {}
         
-        f = open('%s' % fn, 'rb')     
+        f = open(fn, 'rb')     
         
         while True:
-            try:
+            try:    
                 output.update(pickle.load(f))
             except EOFError:
                 break
-        f.close()
                 
-        self.extras = output
-        
+        f.close()
+                                
         if rank == 0:
             print 'Read %s' % fn
+            
+        return output
         
     def load_balance(self, method=1):
         """

@@ -329,7 +329,14 @@ class Global21cm:
         ax_z.set_xticks(nu_minor, minor=True)
         
         z_labels = map(str, z)
-    
+        
+        # Add 25, 15 and 12 to redshift labels
+        #z_labels.insert(-1, '15')
+        #z_labels.insert(-1, '12')        
+        #z_labels.insert(-4, '25')
+        #
+        #z = np.array(map(int, z_labels))
+            
         # A bit hack-y
         for i, label in enumerate(z_labels):
             if label in ['50', '60', '70']:

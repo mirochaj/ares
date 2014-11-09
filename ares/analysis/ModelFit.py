@@ -353,8 +353,7 @@ class ModelFit(object):
         if len(pars) == 1:
 
             hist, bin_edges = \
-                np.histogram(to_hist[0], density=density, 
-                    bins=bins)
+                np.histogram(to_hist[0], density=density, bins=bins)
 
             bc = rebin(bin_edges)
         
@@ -479,8 +478,8 @@ class ModelFit(object):
     def TrianglePlot(self, pars, z=None, panel_size=(0.5,0.5), padding=(0,0),
         show_errors=False, take_log=False, multiplier=1,
         fig=1, plot_inputs=False, inputs={}, tighten_up=0.0, 
-        bins=20, mp=None, skip=0, skim=1, top=None,
-        filled=True, inset=False, inset_pars={}, box=None, **kwargs):
+        bins=20, mp=None, skip=0, skim=1, top=None, oned=True,
+        filled=True, box=None, **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
         
@@ -526,12 +525,13 @@ class ModelFit(object):
             elif par in self.blob_names:
                 is_log.append(False)
 
-        Nd = len(pars)
+        if oned:
+            Nd = len(pars)
+        else:
+            Nd = len(pars) - 1
                            
         # Multipanel instance
-        had_mp = True
         if mp is None:
-            had_mp = False
             mp = MultiPanel(dims=[Nd]*2, padding=padding, diagonal='lower',
                 panel_size=panel_size, num=fig, top=top, **kw)
 
@@ -581,7 +581,8 @@ class ModelFit(object):
                 col, row = mp.axis_position(k)    
                                         
                 # 1-D PDFs on the diagonal    
-                if k in mp.diag:                    
+                if k in mp.diag and oned:
+
                     self.PosteriorPDF(p1, ax=mp.grid[k], 
                         take_log=take_log[-1::-1][i], z=z,
                         multiplier=[multiplier[-1::-1][i]], 
@@ -606,7 +607,11 @@ class ModelFit(object):
                             color='k', ls=':', lw=2)    
                             
                     continue
-                                        
+
+                # If not oned, may end up with some x vs. x plots
+                if p1 == p2:
+                    continue
+
                 # 2-D PDFs elsewhere
                 self.PosteriorPDF([p2, p1], ax=mp.grid[k], z=z,
                     take_log=[take_log[j], take_log[-1::-1][i]],
@@ -629,41 +634,13 @@ class ModelFit(object):
                     mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k', 
                         ls=':')
 
-        mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
+        if oned:
+            mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
         
-        mp.fix_ticks()
+        mp.fix_ticks(oned=oned)
         mp.rescale_axes(tighten_up=tighten_up)
-                
-        if not inset:
-            return mp
-        
-        if not inset_pars:
-            inset_pars = def_inset_pars
-        else:
-            tmp = def_inset_pars.copy()
-            tmp.update(inset_pars)
-            inset_pars = tmp
-            
-        l = mp.window['left'] + (inset_pars['align'][0] + 1) \
-            * mp.window['pane'][0] + inset_pars['margin'][0]
-
-        b = mp.window['bottom'] + (inset_pars['align'][1] + 1) \
-            * mp.window['pane'][1] + inset_pars['margin'][1]
-        
-        if inset_pars['size'] is None:
-            w = mp.window['pane'][0] \
-                + (1. - mp.window['right']) - mp.window['left']
-            h = mp.window['pane'][1] \
-                + (1. - mp.window['top']) - mp.window['bottom']
-        else:
-            w, h = inset_pars['size']
-        
-        # Draw signals from distribution
-        inset = mp.fig.add_axes([l, b, w, h])
-
-        pl.draw()
     
-        return mp, inset
+        return mp
         
     def add_boxes(self, ax=None, val=None, width=None, **kwargs):
         """
