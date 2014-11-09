@@ -26,7 +26,6 @@ tanh_kwargs = TanhParameters()
 tanh_pars = ['tanh_J0', 'tanh_Jz0', 'tanh_Jdz', 
     'tanh_T0', 'tanh_Tz0', 'tanh_Tdz', 'tanh_x0', 'tanh_xz0', 'tanh_xdz']
 
-
 def tanh_generic(z, zref, dz):
     return 0.5 * (np.tanh((zref - z) / dz) + 1.)
 

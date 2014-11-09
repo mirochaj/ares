@@ -51,13 +51,14 @@ sed2 = \
 
 pars = \
 {
+ 'initial_redshift': 40,
+ 'final_redshift': 6,
  'source_kwargs': [src1, src2],
  'spectrum_kwargs': [sed1, sed2],
 }
 
 # Multi-pop model, one with real RT
-sim = ares.simulations.Global21cm(initial_redshift=40, final_redshift=10, 
-    track_extrema=0, **pars)
+sim = ares.simulations.Global21cm(**pars)
 sim.run()
 
 anl = ares.analysis.Global21cm(sim)

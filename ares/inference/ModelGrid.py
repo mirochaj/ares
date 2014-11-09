@@ -257,7 +257,7 @@ class ModelGrid:
                 if self.LB > 0:
                     Tminax = self.grid.axes[self.grid.axisnum('Tmin')]
                     i_Tmin = Tminax.locate(kwargs['Tmin'])
-                    
+
                     # Follow load-balancing procedure
                     if self.to_solve[i_Tmin] != rank:
                         continue

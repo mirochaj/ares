@@ -60,7 +60,7 @@ You will need:
 
 and optionally, 
 
-- `hmf <https://github.com/steven-murray/hmf>`_
+- `hmf <https://github.com/steven-murray/hmf>`_ (revision 3194e03923)
 - `h5py <http://www.h5py.org/>`_
 - `mpi4py <http://mpi4py.scipy.org>`_
 - `python-progressbar <https://code.google.com/p/python-progressbar/>`_

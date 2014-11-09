@@ -231,17 +231,17 @@ class HaloDensity:
                 
             # Compute collapsed fraction
             if self.fitting_function == 'PS' and self.hmf_analytic:
-                delta_c = self.MF.cosmo.delta_c / self.MF.transfer.growth
+                delta_c = self.MF.delta_c / self.MF.growth
                 self.fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
             else:
                 
                 # Has units of h**4 / cMpc**3 / Msun
                 self.dndm[i] = self.MF.dndm.copy() / self.cosm.h70**4
-                self.mgtm[i] = self.MF.mgtm.copy()
+                self.mgtm[i] = self.MF.rho_gtm.copy()
                 
                 # Remember that mgtm and mean_dens have factors of h**2
                 # so we're OK here dimensionally
-                self.fcoll_tab[i] = self.mgtm[i] / self.MF.cosmo.mean_dens
+                self.fcoll_tab[i] = self.mgtm[i] / self.MF.mean_dens
        
             pb.update(i)
             
