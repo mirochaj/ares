@@ -100,6 +100,7 @@ class ChemicalNetwork:
         
         xe = n_e / n_H
         
+        # In two-zone model, this phase is assumed to be fully ionized
         if self.grid.in_bubbles:
             CF *= (n_H * (1. + y) / n_e)
             

@@ -525,11 +525,11 @@ class IGM(object):
         Provides units of per atom.
         """
         if species == 0:     
-            weight = 1. / kw['igm_h_1'] / self.cosm.nH(z)
+            weight = 1. / self.cosm.nH(z)
         elif species == 1:
-            weight = 1. / kw['igm_he_1'] / self.cosm.nHe(z)
+            weight = 1. / self.cosm.nHe(z)
         elif species == 2:
-            weight = 1. / kw['igm_he_2'] / self.cosm.nHe(z)
+            weight = 1. / self.cosm.nHe(z)
          
         return weight
         
@@ -616,7 +616,7 @@ class IGM(object):
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
         if self.pf['approx_xray']:
-            weight = 1.0 / self.cosm.nH(z) / kw['igm_h_1']
+            weight = self.rate_to_coefficient(z, species, **kw)
             L = self.pop.XrayLuminosityDensity(z) # erg / s / c-cm**3
 
             if self.pf['xi_X'] is not None:
@@ -741,9 +741,7 @@ class IGM(object):
         kw.update(kwargs) 
            
         if kw['return_rc']:
-            # Need to cancel out multiplicative factor of cgm_h_1 that
-            # will be applied in rt1d
-            weight = 1.0 / self.cosm.nH(z) / kw['cgm_h_1']
+            weight = self.rate_to_coefficient(z, species, **kw)
         else:
             weight = 1.0
 
