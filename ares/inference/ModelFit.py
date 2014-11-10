@@ -738,6 +738,8 @@ class ModelFit(object):
         for pos, prob, state, blobs in self.sampler.sample(pos, 
             iterations=steps, rstate0=state):
             
+            print 'hey there'
+            
             # Only the rank 0 processor ever makes it here
             
             ct += 1

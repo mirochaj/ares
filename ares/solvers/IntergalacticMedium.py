@@ -525,11 +525,11 @@ class IGM(object):
         Provides units of per atom.
         """
         if species == 0:     
-            weight = 1. / self.cosm.nH(z)
+            weight = 1. / self.cosm.nH(z) / kw['igm_h_1']
         elif species == 1:
-            weight = 1. / self.cosm.nHe(z)
+            weight = 1. / self.cosm.nHe(z) / kw['igm_he_1']
         elif species == 2:
-            weight = 1. / self.cosm.nHe(z)
+            weight = 1. / self.cosm.nHe(z) / kw['igm_he_2']
          
         return weight
         
