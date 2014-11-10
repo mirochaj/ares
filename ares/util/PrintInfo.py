@@ -423,16 +423,19 @@ def print_rb(rb):
                 print line('Tabulated IGM Optical Depth')
                 print line('-'*twidth)
 
-                fn = rb.igm.tabname[rb.igm.tabname.rfind('/')+1:]
-                path = rb.igm.tabname[:rb.igm.tabname.rfind('/')+1]
-
-                print line("file              : %s" % fn)
-
-                if ARES in path:
-                    path = path.replace(ARES, '')
-                    print line("path              : $ARES%s" % path)
+                if type(rb.igm.tabname) is dict:
+                    print line("file              : actually, a dictionary via tau_table")
                 else:
-                    print line("path              : %s" % path)
+                    fn = rb.igm.tabname[rb.igm.tabname.rfind('/')+1:]
+                    path = rb.igm.tabname[:rb.igm.tabname.rfind('/')+1]
+                    
+                    print line("file              : %s" % fn)
+                    
+                    if ARES in path:
+                        path = path.replace(ARES, '')
+                        print line("path              : $ARES%s" % path)
+                    else:
+                        print line("path              : %s" % path)
 
     else:
         print line("Emin (eV)         : %.1e" % rb.pf['spectrum_Emin'])

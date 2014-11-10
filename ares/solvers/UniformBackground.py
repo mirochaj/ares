@@ -619,11 +619,7 @@ class UniformBackground:
             for i in range(self.igm.N): 
                 Inu[i] = self.pop.rs.Spectrum(self.igm.E[i])
     
-            if size > 1:
-                self.Inu = np.zeros_like(Inu)
-                nothing = MPI.COMM_WORLD.Allreduce(Inu, self.Inu)
-            else:
-                self.Inu = Inu
+            self.Inu = Inu
     
             if self.pf['spectrum_table'] is not None and rank == 0:
                 f = h5py.File(self.pf['spectrum_table'], 'w')
@@ -695,7 +691,7 @@ class UniformBackground:
     
         if self.pf['redshift_bins'] is None and self.pf['tau_table'] is None:
             raise ValueError('This method only works if redshift_bins != None.')
-    
+        
         if emissivity is None:
             emissivity_over_H = self.TabulateXrayEmissivity()
         else:
@@ -703,7 +699,7 @@ class UniformBackground:
     
         if tau is None:
             tau = self.igm.tau
-    
+            
         optically_thin = False
         if np.all(tau == 0):
             optically_thin = True
@@ -723,7 +719,7 @@ class UniformBackground:
         # Loop over redshift - this is the generator                    
         z = self.igm.z[-1]
         while z >= self.igm.z[0]:
-    
+            
             # First iteration: no time for there to be flux yet
             # (will use argument flux0 if the EoR just started)
             if ll == (self.igm.L - 1):
@@ -731,14 +727,14 @@ class UniformBackground:
     
             # General case
             else:
-    
+                    
                 if otf:
                     exp_term = np.exp(-np.roll(tau, -1))
                 else:   
                     exp_term = np.exp(-np.roll(tau[ll], -1))
     
                 trapz_base = 0.5 * (self.igm.z[ll+1] - self.igm.z[ll])
-    
+
                 # First term in Eq. 25 of Mirocha (2014)
                 #fnm1 = np.roll(emissivity_over_H[ll+1], -1, axis=-1)                
                 #fnm1 *= exp_term     

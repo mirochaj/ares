@@ -267,15 +267,17 @@ class loglikelihood:
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
-
+        
         try:
-            sim = simG21(**kw)
+            
+            sim = simG21(**kw)            
             sim.run()     
                 
-            tps = sim.turning_points            
-            
-        except:         # most likely: no (or too few) turning pts
-            #self.warning(None, kwargs)
+            tps = sim.turning_points      
+        
+        # most likely: no (or too few) turning pts                
+        except:         
+            self.warning(None, kwargs)
             return -np.inf, self.blank_blob
 
         # Apply measurement priors now that we have the turning points
@@ -737,9 +739,7 @@ class ModelFit(object):
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
             iterations=steps, rstate0=state):
-            
-            print 'hey there'
-            
+                        
             # Only the rank 0 processor ever makes it here
             
             ct += 1

@@ -286,24 +286,37 @@ class IGM(object):
         Read optical depth table.
         """
         
-        if re.search('hdf5', fn):
+        if type(fn) is dict:
             
+            self.E0 = fn['E'].min()
+            self.E1 = fn['E'].max()
+            self.E = fn['E']
+            self.z = fn['z']
+            self.x = self.z + 1
+            self.N = self.E.size
+
+            self.R = self.x[1] / self.x[0]
+
+            self.tau = fn['tau']
+
+        elif re.search('hdf5', fn):
+
             f = h5py.File(self.tabname, 'r')
-                
+
             self.E0 = min(f['photon_energy'].value)
             self.E1 = max(f['photon_energy'].value)
             self.E = f['photon_energy'].value
             self.z = f['redshift'].value
             self.x = self.z + 1
             self.N = self.E.size
-            
+
             self.R = self.x[1] / self.x[0]
-            
+
             self.tau = self._tau = f['tau'].value
             f.close()
-            
+
         elif re.search('npz', fn) or re.search('pkl', fn):    
-            
+
             if re.search('pkl', fn):
                 f = open(fn, 'rb')
                 data = pickle.load(f)
@@ -538,7 +551,7 @@ class IGM(object):
         
     def _fix_kwargs(self, functionify=False, **kwargs):
         
-        kw = defkwargs.copy()    
+        kw = defkwargs.copy()
         kw.update(kwargs)
         
         if functionify and type(kw['xavg']) is not types.FunctionType:

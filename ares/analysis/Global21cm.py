@@ -323,19 +323,23 @@ class Global21cm:
         nu = nu_0_mhz / (1. + z)
         nu_minor = nu_0_mhz / (1. + z_minor)
     
+        z_labels = map(str, z)
+        
+        # Add 25, 15 and 12, 8 to redshift labels
+        z_labels.insert(-1, '15')
+        z_labels.insert(-1, '12')
+        z_labels.append('8')                
+        #z_labels.insert(-5, '25')
+        
+        z = np.array(map(int, z_labels))
+        
+        nu = nu_0_mhz / (1. + z)
+        nu_minor = nu_0_mhz / (1. + z_minor)
+        
         ax_z = ax.twiny()
         ax_z.set_xlabel(r'$z$')        
         ax_z.set_xticks(nu)
         ax_z.set_xticks(nu_minor, minor=True)
-        
-        z_labels = map(str, z)
-        
-        # Add 25, 15 and 12 to redshift labels
-        #z_labels.insert(-1, '15')
-        #z_labels.insert(-1, '12')        
-        #z_labels.insert(-4, '25')
-        #
-        #z = np.array(map(int, z_labels))
             
         # A bit hack-y
         for i, label in enumerate(z_labels):

@@ -82,11 +82,17 @@ def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok):
     print line(separator)
     print line('WARNING: optical depth table shape mismatch (in redshift)')    
     print line(separator)        
-    print line("found       : %s" % igm.tabname[igm.tabname.rfind('/')+1:])
+    
+    if type(igm.tabname) is dict:
+        which = 'dict'
+    else:
+        which = 'tab'
+        print line("found       : %s" % igm.tabname[igm.tabname.rfind('/')+1:])
+    
     print line("zmin (pf)   : %g" % igm.pf['final_redshift'])
-    print line("zmin (tab)  : %g" % igm.z.min())
+    print line("zmin (%s)  : %g" % (which, igm.z.min()))
     print line("zmax (pf)   : %g" % igm.pf['first_light_redshift'])
-    print line("zmax (tab)  : %g" % igm.z.max())
+    print line("zmax (%s)  : %g" % (which, igm.z.max()))
 
     if not zmin_ok:
         print line("this is OK  : we'll transition to an on-the-fly tau calculator at z=%.2g" % igm.z.min())
@@ -100,11 +106,17 @@ def tau_tab_E_mismatch(igm, Emin_ok, Emax_ok):
     print line(separator)
     print line('WARNING: optical depth table shape mismatch (in photon energy)')    
     print line(separator)        
-    print line("found       : %s" % igm.tabname[igm.tabname.rfind('/')+1:])
+    
+    if type(igm.tabname) is dict:
+        which = 'dict'
+    else:
+        which = 'tab'
+        print line("found       : %s" % igm.tabname[igm.tabname.rfind('/')+1:])
+    
     print line("Emin (pf)   : %g" % igm.pf['spectrum_Emin'])
-    print line("Emin (tab)  : %g" % igm.E.min())
+    print line("Emin (%s)  : %g" % (which, igm.E.min()))
     print line("Emax (pf)   : %g" % igm.pf['spectrum_Emax'])
-    print line("Emax (tab)  : %g" % igm.E.max()) 
+    print line("Emax (%s)  : %g" % (which, igm.E.max())) 
 
     if igm.E0 < igm.pf['spectrum_Emin']:
         print line("this is OK  : we'll discard E < %.2e eV entries in table" \

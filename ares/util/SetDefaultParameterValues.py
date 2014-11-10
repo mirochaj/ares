@@ -428,9 +428,6 @@ def ControlParameters():
     "tau_table": None,
     "load_tau": False,
     "tau_prefix": tau_prefix,
-    "tau_size": 1., 
-    "tau_reference": False,
-    "tau_slab": False,
     
     "preferred_format": 'pkl',
     

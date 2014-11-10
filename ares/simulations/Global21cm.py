@@ -102,7 +102,7 @@ class Global21cm:
 
         else:
             self.pf = SetAllDefaults()
-        
+                    
         # Check for identical realization
         self.found_sim = False
         if self.pf['load_sim'] and os.path.exists('%s/.ares' % HOME):
@@ -295,7 +295,7 @@ class Global21cm:
 
     def _init_XRB(self, pre_EoR=True, **kwargs):
         """ Setup cosmic X-ray background calculation. """
-        
+                
         if pre_EoR:
             self.pre_EoR = True
             
@@ -317,15 +317,16 @@ class Global21cm:
             # Save X-ray background incrementally
             self.xray_flux = [[] for i in range(self.Nrbs)]
             self.xray_heat = [[] for i in range(self.Nrbs)]
-        
+                
             # Generate fluxes at first two redshifts
             fluxes_lo = []; fluxes_hi = []
             for cxrb in self.cxrb_gen:
+                                
                 if cxrb is None:
                     fluxes_hi.append(0.0)
                     continue
             
-                fluxes_hi.append(cxrb.next())
+                fluxes_hi.append(cxrb.next())  # this line halting parallel calculations
             
             for cxrb in self.cxrb_gen:
                 if cxrb is None:
@@ -333,7 +334,7 @@ class Global21cm:
                     continue
                     
                 fluxes_lo.append(cxrb.next())
-                
+                    
             self.cxrb_flo = fluxes_lo
             self.cxrb_lhi = self.cxrb_shape[0] - 1
             self.cxrb_llo = self.cxrb_shape[0] - 2
@@ -386,7 +387,7 @@ class Global21cm:
         self.cxrb_G2lo = np.zeros([self.Nrbs, self.grid.N_absorbers])
         self.cxrb_hhi = np.zeros([self.Nrbs, self.grid.N_absorbers])
         self.cxrb_G1hi = np.zeros([self.Nrbs, self.grid.N_absorbers])
-        self.cxrb_G2hi = np.zeros([self.Nrbs, self.grid.N_absorbers])        
+        self.cxrb_G2hi = np.zeros([self.Nrbs, self.grid.N_absorbers])
         
         for i, rb in enumerate(self.rbs):
             
@@ -1014,7 +1015,8 @@ class Global21cm:
 
                 self._init_XRB(pre_EoR=False, **kwargs)
                 
-                print ""
+                if self.pf['progress_bar']:
+                    print ""    
 
                 self.pb = ProgressBar(self.tf, '21-cm (EoR)',
                     use=self.pf['progress_bar'])
