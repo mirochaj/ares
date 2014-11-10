@@ -88,5 +88,35 @@ The integers within curly braces are identification numbers used to keep
 track of the different populations internally.
 
 
+Linking Populations
+--------------------
+If you are fitting a realization of the 21-cm signal with a multi-population
+model, you may want to have parameters common to both models that are allowed
+to vary. To link two parameters together, you can do the following:
+
+::
+
+    pars = \
+    {
+     'Tmin{0}': 1e4,               # atomic cooling halos
+     'source_type{0}': 'star',
+     'fstar{0}': 1e-1,
+     'Nion{0}': 4e3,
+     'Nlw{0}': 9600.,
+     
+     'Tmin{1}': 300.,              # molecular cooling halos
+     'source_type{1}': 'star',
+     'fstar{1}': 1e-4,
+     'Nion{1}': 'Nion{0}',         # Linked Nion of population #1 to that of population #0
+     'Nlw{1}': 4800.,
+    }
+
+    import ares
+        
+    # Dual-population model
+    sim = ares.simulations.Global21cm(**pars)
+    
+    # <run, analyze, etc. just as before>
+
 
     

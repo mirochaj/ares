@@ -63,27 +63,69 @@ def parse_kwargs(**kwargs):
         src_kw = [{} for i in range(Npops)]
         spec_kw = [{} for i in range(Npops)]
         
+        linked_pars = []
+        
         # Construct parameter file
         for par in kwargs:
             
+            # Look for populations
             m = re.search(r"\{([0-9])\}", par)
             
             if m is None:
                 pf[par] = kwargs[par]
                 continue
             
+            # Population ID number
             num = int(m.group(1))
             
+            # Pop ID including curly braces
             prefix = par.strip(m.group(0))
-                        
+            
+            # See if this parameter is linked to another population
+            if type(kwargs[par]) is str:
+                mlink = re.search(r"\{([0-9])\}", kwargs[par])
+            else:
+                mlink = None   
+                
+            # If it is linked, we'll handle it in just a sec
+            if mlink is not None:
+                linked_pars.append(par)
+                continue
+                     
+            # Otherwise, save it
             if re.search('spectrum', par):
                 spec_kw[num][prefix] = kwargs[par]
             else:
                 src_kw[num][prefix] = kwargs[par]
+                                
+        # Update linked parameters
+        for par in linked_pars:
+            
+            m = re.search(r"\{([0-9])\}", par)
+            num = int(m.group(1))
+            
+            mlink = re.search(r"\{([0-9])\}", kwargs[par])
+            num_link = int(mlink.group(1))
+            
+            # Pop ID including curly braces
+            prefix_link = kwargs[par].strip(mlink.group(0))
+                        
+            # If we didn't supply this parameter for the linked population,
+            # assume default parameter value
+            if kwargs[par] not in kwargs:
+                val = defaults[prefix_link]
+            else:
+                val = kwargs[kwargs[par]]
+            
+            if re.search('spectrum', par):
+                spec_kw[num][prefix_link] = val
+            else:
+                src_kw[num][prefix_link] = val
 
+        # Update parameter file
         pf.update({'source_kwargs': src_kw})
         pf.update({'spectrum_kwargs': spec_kw})
-    
+            
     # Check for unrecognizable parameters and (known) conflicts        
     for kwarg in pf:
         if kwarg not in defaults.keys():
