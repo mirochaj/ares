@@ -201,7 +201,9 @@ class IGM(object):
                         tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
             
             if not (Emax_ok and Emin_ok):
-                tau_tab_E_mismatch(self, Emin_ok, Emax_ok)
+                if self.pf['verbose']:
+                    tau_tab_E_mismatch(self, Emin_ok, Emax_ok)
+                    
                 if self.E1 < self.pf['spectrum_Emax']:
                     sys.exit(1)
                           

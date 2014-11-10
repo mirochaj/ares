@@ -461,7 +461,7 @@ class ModelFit(object):
     @property
     def mu(self):
         if not hasattr(self, '_mu'):
-            if hasattr(self, '_anl'):
+            if hasattr(self, '_turning_points'):
                 self._mu = []
                 for tp, i in self.measurement_map:
                     self._mu.append(self._turning_points[tp][i])
