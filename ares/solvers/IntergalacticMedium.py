@@ -369,8 +369,8 @@ class IGM(object):
             i_E0 = np.argmin(np.abs(Ediff))
             if Ediff[i_E0] < 0:
                 i_E0 += 1
-        
-            self.tau[:,i_E0+1:] = np.inf    
+
+            self.tau[:,i_E0+1:] = np.inf
 
         self.logx = np.log10(self.x)
         self.logz = np.log10(self.z)
@@ -379,17 +379,17 @@ class IGM(object):
         """
         Return name of table based on its properties.
         """
-        
+
         if not have_h5py:
-            suffix == 'npz'
-    
+            suffix == 'pkl'
+
         HorHe = 'He' if (2 in self.pf['Z']) else 'H'
-    
+
         zf = self.pf['final_redshift']
         zi = self.pf['initial_redshift']
-    
+
         L, N = self.tau_shape()
-    
+
         E0 = self.pf['spectrum_Emin']
         E1 = self.pf['spectrum_Emax']
 

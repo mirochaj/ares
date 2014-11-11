@@ -471,15 +471,12 @@ class ModelFit(object):
                 p[par] = self.chain[iML,i]
 
         return p
-
-    def add_inset(self, inset_pars=None):
-        raise NotImplemented('hey there')
         
-    def TrianglePlot(self, pars, z=None, panel_size=(0.5,0.5), padding=(0,0),
-        show_errors=False, take_log=False, multiplier=1,
-        fig=1, plot_inputs=False, inputs={}, tighten_up=0.0, 
-        bins=20, mp=None, skip=0, skim=1, top=None, oned=True,
-        filled=True, box=None, **kwargs):
+    def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
+        padding=(0,0), show_errors=False, take_log=False, multiplier=1,
+        fig=1, inputs={}, tighten_up=0.0, ticks=3, bins=20, mp=None, skip=0, 
+        skim=1, top=None, oned=True, filled=True, box=None, rotate_x=False, 
+        **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
         
@@ -507,6 +504,9 @@ class ModelFit(object):
         an axes object representing the inset.
             
         """    
+        
+        if pars is None:
+            pars = self.parameters
         
         kw = def_kwargs.copy()
         kw.update(kwargs)
@@ -599,7 +599,7 @@ class ModelFit(object):
                         mp.grid[k].set_title(err_str(labels[p1], mu, err, 
                             self.is_log[i])) 
                      
-                    if not plot_inputs:
+                    if not inputs:
                         continue
                         
                     if xin is not None:
@@ -624,7 +624,7 @@ class ModelFit(object):
                     mp.grid[k].set_ylabel('')
 
                 # Input values
-                if not plot_inputs:
+                if not inputs:
                     continue
 
                 if xin is not None:
@@ -637,7 +637,7 @@ class ModelFit(object):
         if oned:
             mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
         
-        mp.fix_ticks(oned=oned)
+        mp.fix_ticks(oned=oned, N=ticks, rotate_x=rotate_x)
         mp.rescale_axes(tighten_up=tighten_up)
     
         return mp

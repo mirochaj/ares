@@ -363,8 +363,8 @@ class MultiPanel:
             Nticks = len(labels)
             
             if N is not None:
-                mi, ma = round(limits[0], 0), round(limits[1])
-                dt = (ma - mi) / N
+                mi, ma = round(limits[0], 1), round(limits[1], 1)
+                dt = (ma - mi) / float(N)
                 
                 if dt < 1:
                     dt = np.round(dt, abs(int(np.log10(dt))) + 1)
@@ -378,7 +378,7 @@ class MultiPanel:
             if ul is None:
                 eval("self.grid[%i].%s(ticks[0:])" % (i, set_ticks))
                 if rotate_x:
-                    eval("self.grid[%i].%s(labels[0:], rotation=270)" \
+                    eval("self.grid[%i].%s(labels[0:], rotation=90)" \
                         % (i, set_ticklabels))
                 else:
                     eval("self.grid[%i].%s(labels[0:])" % (i, set_ticklabels))
@@ -386,7 +386,7 @@ class MultiPanel:
                 eval("self.grid[%i].%s(ticks[0:%i])" % (i, set_ticks, ul))
                 
                 if rotate_x:
-                    eval("self.grid[%i].%s(labels[0:%i], rotation=270)" \
+                    eval("self.grid[%i].%s(labels[0:%i], rotation=90)" \
                         % (i, set_ticklabels, ul))
                 else:
                     eval("self.grid[%i].%s(labels[0:%i])" % (i, set_ticklabels, ul))

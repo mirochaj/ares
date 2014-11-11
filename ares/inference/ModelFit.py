@@ -630,7 +630,8 @@ class ModelFit(object):
     def priors(self, value):
         self._priors = value
 
-    def run(self, prefix, steps=1e2, burn=0, clobber=False, save_freq=10):
+    def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
+        save_freq=10):
         """
         Run MCMC.
         
@@ -644,14 +645,19 @@ class ModelFit(object):
             Number of steps to burn.
         save_freq : int
             Number of steps to take before writing data to disk.
+        clobber : bool  
+            Overwrite pre-existing files of the same prefix if one exists?
+        restart : bool
+            Append to pre-existing files of the same prefix if one exists?
 
         """
         
         self.prefix = prefix
         
         if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
-            raise IOError('%s exists! Remove manually or set clobber=True.' 
-                % prefix)
+            if not restart:
+                raise IOError('%s exists! Remove manually, set clobber=True, or set restart=True to append.' 
+                    % prefix)
 
         print_fit(self, steps=steps, burn=burn)
 
@@ -705,9 +711,28 @@ class ModelFit(object):
         else:
             pos = self.guesses
             state = None
-            
+
+        # Check to see if things match
+        if restart:
+            f = open('%s.pinfo.pkl' % prefix, 'rb')
+            pars, is_log = pickle.load(f)
+            f.close()
+                                                
+            if pars != self.parameters:
+                if size > 1:
+                    if rank == 0:
+                        print 'parameters from file dont match those supplied!'
+                    MPI.COMM_WORLD.Abort()
+                raise ValueError('parameters from file dont match those supplied!')
+            if is_log != self.is_log:
+                if size > 1:
+                    if rank == 0:
+                        print 'is_log from file dont match those supplied!'
+                    MPI.COMM_WORLD.Abort()
+                raise ValueError('is_log from file dont match those supplied!')
+                        
         # Setup output file
-        if rank == 0:
+        if rank == 0 and (not restart):
 
             # Main output: MCMC chains (flattened)
             f = open('%s.chain.pkl' % prefix, 'wb')
