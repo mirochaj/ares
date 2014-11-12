@@ -42,7 +42,7 @@ os.chdir('input')
 # DOWNLOAD SOME FILES
 ##
 bitbucket_DL = 'https://bitbucket.org/mirochaj/glorb/downloads'
-fn_hmf = 'hmf_PS_logM_240_4-16_z_1521_4-80.pkl'
+fn_hmf = 'hmf_ST_logM_1200_4-16_z_1121_4-60.pkl'
 fn_ics_np = 'initial_conditions.npz'
 fn_tau = 'optical_depth_H_400x1884_z_10-40_logE_2-4.7.npz'
 fn_tau2 = 'optical_depth_He_400x1884_z_10-40_logE_2-4.7.npz'

@@ -328,7 +328,7 @@ class Global21cm:
         # Add 25, 15 and 12, 8 to redshift labels
         z_labels.insert(-1, '15')
         z_labels.insert(-1, '12')
-        z_labels.append('8')                
+        z_labels.extend(['9', '8', '7'])                
         #z_labels.insert(-5, '25')
         
         z = np.array(map(int, z_labels))
@@ -511,7 +511,7 @@ class Global21cm:
             xticks_minor = None
         else:
             xticks = np.arange(20, 180, 20)
-            xticks_minor = np.arange(10, 180, 20)
+            xticks_minor = np.arange(10, 190, 20)
 
         # Set lower y-limit by increments of 50 mK
         for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500]:

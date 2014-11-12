@@ -293,7 +293,7 @@ class StellarPopulation:
     
         """
     
-        return self.Nion * self.b_per_g * self.SFRD(z)    
+        return self.Nion * self.b_per_g * self.SFRD(z)
     
     def XrayLuminosityDensity(self, z):
         """

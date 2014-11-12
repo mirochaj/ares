@@ -342,14 +342,13 @@ def HaloMassFunctionParameters():
     "load_hmf": True,
     "hmf_table": None,
     "hmf_analytic": False,
-    "hmf_interp": 'cubic',
     
     # Table resolution
     "hmf_logMmin": 4,
     "hmf_logMmax": 16,
-    "hmf_dlogM": 0.05,
+    "hmf_dlogM": 0.01,
     "hmf_zmin": 4,
-    "hmf_zmax": 80,
+    "hmf_zmax": 60,
     "hmf_dz": 0.05,
     
     "hmf_dndm": False,
@@ -357,7 +356,7 @@ def HaloMassFunctionParameters():
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     
-    "fitting_function": 'PS',
+    "fitting_function": 'ST',
     
     # Pre-created splines
     "fcoll": None,
@@ -381,14 +380,12 @@ def ControlParameters():
     'logdtDataDump': None,
     'logdzDataDump': None,
     "stop_time": 500,
-    "initial_redshift": 40.,
+    "initial_redshift": 50.,
     "final_redshift": 5,
     "save_rate_coefficients": 1,
     
     "optically_thin": 0,
-    
-    "parallelization": 0,
-    
+        
     # Solvers
     "solver_rtol": 1e-8,
     "solver_atol": 1e-8,
@@ -397,7 +394,7 @@ def ControlParameters():
     # Initialization
     "load_ics": True,
     "load_sim": False,
-    "first_light_redshift": 40.,
+    "first_light_redshift": 50.,
     
     # Timestepping
     "max_dt": 1.,

@@ -23,17 +23,19 @@ base_pars = \
 {
  'final_redshift': 8.,
  'inline_analysis': blobs,
+ 'stop': 'D',
 }
 
 # Initialize fitter
 fit = ModelFit(**base_pars)
 
-# Assume default parameters
-fit.set_input_realization()
+# Input model: all defaults
+sim = ares.simulations.Global21cm()
+fit.mu = ares.analysis.Global21cm(sim).turning_points
 
 # Set axes of parameter space
-fit.set_axes(['fX'], is_log=[True]*1)
-fit.priors = {'fX': ['uniform', -2., 2.]}
+fit.set_axes(['fX', 'Tmin'], is_log=[True]*2)
+fit.priors = {'fX': ['uniform', -3., 3.], 'Tmin': ['uniform', 2.5, 5.]}
 
 # Set errors
 fit.set_error(error1d=[0.5, 0.5, 0.5, 5., 5., 5.])

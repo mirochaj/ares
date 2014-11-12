@@ -16,17 +16,15 @@ parallel, e.g.,
 import os, ares
 
 ## INPUT
+fit = 'ST'
 format = 'pkl'
+##
+
 
 hmf_pars = \
 {
- "fitting_function": 'ST',
- "hmf_logMmin": 4,
- "hmf_logMmax": 16,
- "hmf_dlogM": 0.05,
- "hmf_zmin": 4,
- "hmf_zmax": 80,
- "hmf_dz": 0.05,    
+ "fitting_function": fit,
+ "hmf_dlogM": 0.01
 }
 ##
 

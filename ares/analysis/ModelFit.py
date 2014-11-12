@@ -474,7 +474,7 @@ class ModelFit(object):
         
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
-        fig=1, inputs={}, tighten_up=0.0, ticks=3, bins=20, mp=None, skip=0, 
+        fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
         skim=1, top=None, oned=True, filled=True, box=None, rotate_x=False, 
         **kwargs):
         """

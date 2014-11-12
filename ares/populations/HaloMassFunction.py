@@ -14,10 +14,10 @@ import pickle, os, re
 from ..physics import Cosmology
 from scipy.misc import derivative
 from ..util.Misc import parse_kwargs
-from scipy import interpolate, integrate
 from ..util.Math import central_difference
 from ..util.ProgressBar import ProgressBar
 from ..physics.Constants import g_per_msun, cm_per_mpc
+from scipy.interpolate import UnivariateSpline, RectBivariateSpline
 
 try:
     from scipy.special import erfc
@@ -45,9 +45,15 @@ except ImportError:
 ARES = os.getenv("ARES")    
     
 sqrt2 = np.sqrt(2.)    
-    
-interp_error = 'hmf_interp must be cubic or linear.'    
 
+# Force CAMB to span broader range in wavenumber
+transfer_pars = \
+{
+ 'transfer__kmax': 0.0,
+ 'transfer__kmax': 100.,
+ 'transfer__k_per_logint': 0.,
+}
+    
 class HaloDensity:
     def __init__(self, **kwargs):
         """
@@ -206,7 +212,8 @@ class HaloDensity:
         # Initialize Perturbations class
         self.MF = MassFunction(Mmin=self.logMmin, Mmax=self.logMmax, 
             dlog10m=self.dlogM, z=self.z[0], 
-            mf_fit=self.fitting_function, **cosmology)
+            mf_fit=self.fitting_function, transfer_options=transfer_pars,
+            **cosmology)
             
         # Masses in hmf are in units of Msun / h
         self.M = self.MF.M * self.cosm.h70
@@ -286,18 +293,15 @@ class HaloDensity:
         
         fcoll_spline = None
         
-        #fcoll_spline = interpolate.interp1d(self.z, self.fcoll_Tmin, 
-        #    kind='cubic', bounds_error=False, fill_value=0.0)
-            
-        dfcolldz_spline = interpolate.interp1d(self.ztab, self.dfcolldz_tab,    
-            kind=self.pf['hmf_interp'], bounds_error=False, fill_value=0.0)
+        spline = UnivariateSpline(self.ztab, np.log10(self.dfcolldz_tab), k=3)
+        dfcolldz_spline = lambda z: 10**spline.__call__(z)
 
-        return fcoll_spline, dfcolldz_spline, None#d2fcolldz2_spline
+        return fcoll_spline, dfcolldz_spline, None
         
     def build_2d_spline(self):                            
         """ Setup splines for fcoll. """
         
-        self.fcoll_spline_2d = interpolate.RectBivariateSpline(self.z, 
+        self.fcoll_spline_2d = RectBivariateSpline(self.z, 
             self.logM, self.fcoll_tab, kx=3, ky=3)
  
         #if self.pf['verbose'] and rank == 0:

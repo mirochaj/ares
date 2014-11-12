@@ -12,8 +12,7 @@ Description: Check to make sure there are no conflicts between parameters.
 
 import numpy as np
 
-known_conflicts = [ \
-    (['infinite_c', 0], ['parallelization', 1])]
+known_conflicts = []
     #(['isothermal', 0], ['restricted_timestep', 'energy', 0])]
     
 # Treat warnings separately
