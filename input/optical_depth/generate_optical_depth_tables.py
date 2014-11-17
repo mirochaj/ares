@@ -32,7 +32,7 @@ except ImportError:
 
 #
 ## INPUT
-zf, zi = (10, 40)
+zf, zi = (10, 50)
 Emin = 1e2
 Emax = 5e4
 Nz = [400]

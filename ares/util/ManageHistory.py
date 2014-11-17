@@ -64,9 +64,12 @@ class WriteData():
                 
                 history['%s_%s' % (zone, state)] = [grid.data[state][0]]
 
-            history['%s_gamma' % zone] = [np.zeros([self.sim.grid.N_absorbers]*2)]
-            history['%s_Gamma' % zone] = [np.zeros(self.sim.grid.N_absorbers)]
-            history['%s_heat' % zone] = [np.zeros(self.sim.grid.N_absorbers)]
+                if state in ['e', 'Tk','h_2', 'he_3']:
+                    continue
+                    
+                history['%s_gamma_%s' % (zone, state)] = [0.0]
+                history['%s_Gamma_%s' % (zone, state)] = [0.0]
+                history['%s_heat_%s' % (zone, state)] = [0.0]
     
         # Keep track of mean hydrogen ionization fractions
         history['xavg'] = [self.sim.grid_cgm.data['h_2'][0] \
@@ -149,11 +152,6 @@ class WriteData():
                         val = self.sim.grid.hydr.DifferentialBrightnessTemperature(red,
                             xi, Ts)    
                         history['dTb'].insert(0, val)
-    
-                    elif key in ['igm_gamma', 'cgm_gamma']:
-                        history[key].insert(0, np.zeros([self.sim.grid.N_absorbers]*2))
-                    elif key in ['igm_Gamma', 'cgm_Gamma', 'cgm_heat', 'igm_heat']:
-                        history[key].insert(0, np.zeros([self.sim.grid.N_absorbers]))
                     else:
                         history[key].insert(0, 0.0)
     
@@ -173,7 +171,7 @@ class WriteData():
             + (1. - data_cgm_fl['h_2']) * data_igm_fl['h_2']
         
         ##    
-        # Save data! Could make a separate routine for this.
+        # Save data!
         ##
         grids = [data_igm_fl, data_cgm_fl]
         rts = [self.sim.rt_igm, self.sim.rt_cgm]
@@ -182,23 +180,45 @@ class WriteData():
             rt = rts[j]
             grid = grids[j]
             
+            rates = {}
+            
             # Save ion fractions and electron density
-            for key in states:
-                if (not self.sim.helium) and key in ['he_1', 'he_2', 'he_3']:
+            for state in states:
+                if (not self.sim.helium) and state in ['he_1', 'he_2', 'he_3']:
                     continue
 
-                to_keep.update({'%s_%s' % (zone, key): grid[key]})
-
-            # REMEMBER: these are rate coefficients, not actual rates
-            if self.sim.pf['radiative_transfer'] and (zpre <= self.sim.zfl):
-                to_keep['%s_heat' % zone] = rt.kwargs['Heat'].squeeze()
-                to_keep['%s_Gamma' % zone] = rt.kwargs['Gamma'].squeeze()
-                to_keep['%s_gamma' % zone] = rt.kwargs['gamma'].squeeze()
-            else:
-                to_keep['%s_heat' % zone] = np.zeros(self.sim.grid.N_absorbers)
-                to_keep['%s_Gamma' % zone] = np.zeros(self.sim.grid.N_absorbers)
-                to_keep['%s_gamma' % zone] = np.zeros(self.sim.grid.N_absorbers)
-
+                to_keep.update({'%s_%s' % (zone, state): grid[state]})
+                
+                if state in ['e', 'Tk','h_2', 'he_3']:
+                    continue
+                
+                # Save rate coefficients if sources are on    
+                if not (self.sim.pf['radiative_transfer']):
+                    continue
+                
+                if (zpre > self.sim.zfl):
+                    continue
+                
+                k = self.sim.grid.absorbers.index(state) 
+                                
+                if self.sim.helium:
+                                
+                    # Keep rates separated by absorber
+                    to_keep.update({'%s_gamma_%s' % (zone, state): \
+                        np.sum(rt.kwargs['gamma'].squeeze()[k])})
+                    to_keep.update({'%s_Gamma_%s' % (zone, state): \
+                        rt.kwargs['Gamma'].squeeze()[k]})
+                    to_keep.update({'%s_heat_%s' % (zone, state): \
+                        rt.kwargs['Heat'].squeeze()[k]})
+                        
+                else:
+                    to_keep.update({'%s_gamma_%s' % (zone, state): \
+                        rt.kwargs['gamma']})
+                    to_keep.update({'%s_Gamma_%s' % (zone, state): \
+                        rt.kwargs['Gamma']})
+                    to_keep.update({'%s_heat_%s' % (zone, state): \
+                        rt.kwargs['Heat']})
+                        
         # Store to_keep items in history
         for key in to_keep:
             self.sim.history[key].append(to_keep[key])

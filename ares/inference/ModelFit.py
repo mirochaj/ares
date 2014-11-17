@@ -658,6 +658,9 @@ class ModelFit(object):
             if not restart:
                 raise IOError('%s exists! Remove manually, set clobber=True, or set restart=True to append.' 
                     % prefix)
+        
+        if not os.path.exists('%s.chain.pkl' % prefix) and restart:
+            raise IOError("This can't be a restart, %s*.pkl not found." % prefix)
 
         print_fit(self, steps=steps, burn=burn)
 

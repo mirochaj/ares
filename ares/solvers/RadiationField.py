@@ -120,6 +120,7 @@ class RadiationField: # maybe RadiationNearSource
                     if not self.pf['approx_lya']:
                         self.kwargs.update({'Ja_%i' % i: Ja_src[i]})
     
+            # Sum over sources
             Gamma = np.sum(Gamma_src, axis=0)
             gamma = np.sum(gamma_src, axis=0)
             Heat = np.sum(Heat_src, axis=0)
@@ -132,9 +133,9 @@ class RadiationField: # maybe RadiationNearSource
             #kdiss = np.sum(kdiss_src, axis=0)
     
             # Each is grid x absorbers, or grid x [absorbers, absorbers] for gamma
-            # For Ja, just has len(grid)
             self.kwargs.update({'Gamma': Gamma, 'Heat': Heat, 'gamma': gamma})
-    
+            
+            # Ja just has len(grid)                
             if not self.pf['approx_lya']:
                 self.kwargs.update({'Ja': Ja})
     

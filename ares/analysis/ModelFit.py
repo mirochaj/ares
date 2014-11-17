@@ -233,9 +233,9 @@ class ModelFit(object):
 
         return kw
                 
-    def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=[1.]*2,
+    def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=1.,
         nu=[0.99, 0.95, 0.68], slc=None, overplot_nu=False, density=True, 
-        color_by_nu=False, contour=True, filled=True, take_log=[False]*2,
+        color_by_nu=False, contour=True, filled=True, take_log=False,
         bins=20, xscale='linear', yscale='linear', skip=0, skim=1, **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
@@ -332,7 +332,7 @@ class ModelFit(object):
                 
                 val = self.blobs[skip:,i,j].compressed()[::skim]
                 
-                if self.is_log[j]:
+                if take_log[k]:
                     val += np.log10(multiplier[k])
                 else:
                     val *= multiplier[k]

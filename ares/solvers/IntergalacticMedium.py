@@ -424,16 +424,22 @@ class IGM(object):
         if os.path.exists(guess):
             return guess
     
-        tmp1, tmp2 = fn.split('_z_')
-        pre = tmp1[0:tmp1.rfind('x')]
-        red, tmp3 = fn.split('_logE_')
-        post = '_logE_' + tmp3.replace('.hdf5', '')
+        #tmp1, tmp2 = fn.split('_z_')
+        #pre = tmp1[0:tmp1.rfind('x')]
+        #red, tmp3 = fn.split('_logE_')
+        #post = '_logE_' + tmp3.replace('.hdf5', '')
+        #Nz = int(pre[pre.rfind('_')+1:])
+        #
+        ## Find exactly what table should be
+        #zmin, zmax = map(float, red[red.rfind('z')+2:].partition('-')[0::2])
+        #logEmin, logEmax = map(float, tmp3[tmp3.rfind('E')+1:tmp3.rfind('.')].partition('-')[0::2])
+        
+        zmin, zmax, Nz, lEmin, lEmax, chem, pre, post = self._parse_tab(fn)
         
         ok_matches = []
         perfect_matches = []
         
         # Loop through input directories
-        good_tab = None
         for input_dir in input_dirs:
                             
             # Loop over files in input_dir, look for best match
@@ -444,8 +450,33 @@ class IGM(object):
 
                 tab_name = '%s/%s' % (input_dir, fn1)
                 
+                try:
+                    zmin_f, zmax_f, Nz_f, lEmin_f, lEmax_f, chem_f, p1, p2 = \
+                        self._parse_tab(fn1)
+                except:
+                    continue
+                    
+                # Dealbreakers
+                if Nz_f != Nz:
+                    continue
+                if zmax_f < zmax:
+                    continue
+                if chem_f != chem:
+                    continue
+                if zmin_f != zmin:
+                    continue
+                
+                # Continue with possible matches
                 for fmt in ['pkl', 'npz', 'hdf5']:
                     
+                    if fn1 == fn and fmt == self.pf['preferred_format']:
+                        perfect_matches.append(tab_name)
+                        continue
+                    
+                    if c and fmt == self.pf['preferred_format']:
+                        perfect_matches.append(tab_name)
+                        continue
+                                        
                     # If number of redshift bins and energy range right...
                     if re.search(pre, fn1) and re.search(post, fn1):                        
                         if re.search(fmt, fn1) and fmt == self.pf['preferred_format']:
@@ -467,6 +498,23 @@ class IGM(object):
             return ok_matches[0]
         else:
             return None
+            
+    def _parse_tab(self, fn):
+                
+        tmp1, tmp2 = fn.split('_z_')
+        pre = tmp1[0:tmp1.rfind('x')]
+        red, tmp3 = fn.split('_logE_')
+        post = '_logE_' + tmp3.replace('.hdf5', '')
+        
+        # Find exactly what table should be
+        zmin, zmax = map(float, red[red.rfind('z')+2:].partition('-')[0::2])
+        logEmin, logEmax = map(float, tmp3[tmp3.rfind('E')+1:tmp3.rfind('.')].partition('-')[0::2])
+        
+        Nz = pre[pre.rfind('_')+1:]
+        
+        chem = pre.strip(Nz).strip('optical_depth_')
+        
+        return zmin, zmax, int(Nz), logEmin, logEmax, chem, pre, post
                 
     def tau_shape(self):
         """

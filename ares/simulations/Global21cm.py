@@ -711,11 +711,11 @@ class Global21cm:
             else:
                 redshift.append(element)
             
-        # Redshift x blobs
+        # Redshift x blobs (x species)
         output = []
         for j, field in enumerate(fields):
             
-            if field in self.history:
+            if field in self.history:                
                 interp = interp1d(self.history['z'][-1::-1],
                     self.history[field][-1::-1])
             elif field == 'curvature':
@@ -1016,7 +1016,7 @@ class Global21cm:
                 self._init_XRB(pre_EoR=False, **kwargs)
                 
                 if self.pf['progress_bar']:
-                    print ""    
+                    print ""
 
                 self.pb = ProgressBar(self.tf, '21-cm (EoR)',
                     use=self.pf['progress_bar'])

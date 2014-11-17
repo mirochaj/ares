@@ -486,6 +486,11 @@ class Global21cm:
         
         """
         
+        if xaxis == 'nu' and freq_ax:
+            freq_ax = False
+        if xaxis == 'z' and z_ax:
+            z_ax = False
+        
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -507,8 +512,8 @@ class Global21cm:
         
         # x-ticks
         if xaxis == 'z' and hasattr(self, 'pf'):
-            xticks = list(np.arange(5, zmax, 1))
-            xticks_minor = None
+            xticks = list(np.arange(5, zmax, 5))
+            xticks_minor = list(np.arange(5, zmax, 1))
         else:
             xticks = np.arange(20, 180, 20)
             xticks_minor = np.arange(10, 190, 20)
@@ -563,6 +568,8 @@ class Global21cm:
             twinax = self.add_time_axis(ax)
         elif z_ax:
             twinax = self.add_redshift_axis(ax)
+        else:
+            twinax = None
         
         self.twinax = twinax
         
@@ -630,9 +637,9 @@ class Global21cm:
         
         return mp
                 
-    def TemperatureHistory(self, ax=None, fig=1, show_Tcmb=True,
-        show_Ts=True, show_Tk=True, scatter=False, mask=5, 
-        show_legend=True, **kwargs):
+    def TemperatureHistory(self, ax=None, fig=1, show_Tcmb=False,
+        show_Ts=False, show_Tk=True, scatter=False, mask=5, 
+        show_legend=False, **kwargs):
         """
         Plot kinetic, CMB, and spin temperatures vs. redshift. 
         
@@ -656,15 +663,15 @@ class Global21cm:
         if not scatter:
             if show_Tcmb:
                 ax.semilogy(self.data['z'], self.cosm.TCMB(self.data['z']), 
-                    ls = ':', label=labels[0], **kwargs)
+                    label=labels[0], **kwargs)
             
             if show_Tk:
                 ax.semilogy(self.data['z'], self.data['igm_Tk'], 
-                    ls = '-', label=labels[1], **kwargs)
+                    label=labels[1], **kwargs)
             
             if show_Ts:
                 ax.semilogy(self.data['z'], self.data['Ts'], 
-                    ls='--', label=labels[2], **kwargs)
+                    label=labels[2], **kwargs)
         else:
             if show_Tcmb:
                 ax.scatter(self.data['z'][-1::-mask], self.cosm.TCMB(self.data['z'][-1::-mask]), 
