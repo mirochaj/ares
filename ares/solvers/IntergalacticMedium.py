@@ -455,7 +455,7 @@ class IGM(object):
                         self._parse_tab(fn1)
                 except:
                     continue
-                    
+
                 # Dealbreakers
                 if Nz_f != Nz:
                     continue
@@ -465,18 +465,18 @@ class IGM(object):
                     continue
                 if zmin_f != zmin:
                     continue
-                
+
                 # Continue with possible matches
                 for fmt in ['pkl', 'npz', 'hdf5']:
-                    
+
                     if fn1 == fn and fmt == self.pf['preferred_format']:
                         perfect_matches.append(tab_name)
                         continue
-                    
+
                     if c and fmt == self.pf['preferred_format']:
                         perfect_matches.append(tab_name)
                         continue
-                                        
+
                     # If number of redshift bins and energy range right...
                     if re.search(pre, fn1) and re.search(post, fn1):                        
                         if re.search(fmt, fn1) and fmt == self.pf['preferred_format']:

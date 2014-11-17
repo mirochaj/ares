@@ -37,10 +37,10 @@ labels = \
   'spectrum_alpha': r'$\alpha$',
  'z': r'$z$',
  'igm_heat': r'$\epsilon_X \ (\mathrm{erg} \ \mathrm{cm}^{-3} \ \mathrm{s}^{-1})$',
- 'cgm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}} \ (\mathrm{s}^{-1})$',
- 'igm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}} \ (\mathrm{s}^{-1})$',
- 'igm_Gamma_he_1': r'$\Gamma_{\mathrm{HeI}} \ (\mathrm{s}^{-1})$',
- 'igm_Gamma_he_2': r'$\Gamma_{\mathrm{HeII}} \ (\mathrm{s}^{-1})$',
+ 'cgm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
+ 'igm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
+ 'igm_Gamma_he_1': r'$\Gamma_{\mathrm{HeI}}$',
+ 'igm_Gamma_he_2': r'$\Gamma_{\mathrm{HeII}}$',
  'Tk': r'$T_K \ (\mathrm{K})$',
 }    
 ##
@@ -61,7 +61,6 @@ history_elements = \
  'dTb': label_dTb,
  'z': r'$z$',
  'Ja': r'$J_{\alpha}$', 
- 
 }
 
 tanh_parameters = \

@@ -255,7 +255,7 @@ def print_pop(pop):
 
     Parameters
     ----------
-    pop : glorb.populations.*Population instance
+    pop : ares.populations.*Population instance
 
     """
 
@@ -318,6 +318,12 @@ def print_pop(pop):
                 print line("SF          : in halos w/ M >= 10**%g Msun" \
                     % (round(np.log10(pop.pf['Mmin']), 2)))
             print line("HMF         : %s" % pop.pf['fitting_function'])
+            
+            # Print out location of HMF table
+            #j = pop.halos.fn.rfind('/')
+            #print line("HMF prefix  : %s" % pop.halos.fn[0:j])
+            #print line("HMF file    : %s" % pop.halos.fn[j+1:])
+            
             print line("fstar       : %g" % pop.pf['fstar'])
         print line("model       : %i" % pop.model)
 
@@ -576,11 +582,6 @@ def print_21cm_sim(sim):
         just='l')
 
     print "#"*width
-
-    #if not ARES:
-    #    warnings.append(hmf_no_tab)
-    #elif not os.path.exists('%s/input/hmf' % ARES):
-    #    warnings.append(hmf_no_tab)
 
     for warning in warnings:
         print_warning(warning)       
