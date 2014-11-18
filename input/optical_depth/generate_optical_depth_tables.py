@@ -36,8 +36,8 @@ zf, zi = (10, 50)
 Emin = 1e2
 Emax = 5e4
 Nz = [400]
-format = 'hdf5'        # 'hdf5' or 'pkl' or 'npz'
-helium = 0
+format = 'pkl'        # 'hdf5' or 'pkl' or 'npz'
+helium = 1
 ##
 #
 
@@ -54,10 +54,10 @@ pars = \
 }
 
 # Track how long it takes, output result to file
-if rank == 0 and not os.path.exists('tau_tab_timing.txt'):
-    t = open('tau_tab_timing.txt', 'w')
-    print >> t, "#                fn            time (s)    # of cores"
-    t.close()
+#if rank == 0 and not os.path.exists('tau_tab_timing.txt'):
+#    t = open('tau_tab_timing.txt', 'w')
+#    print >> t, "#                fn            time (s)    # of cores"
+#    t.close()
 
 for res in Nz:
 
@@ -111,8 +111,8 @@ for res in Nz:
         np.savetxt(fn, tau, header=hdr, fmt='%.8e')
 
     print 'Wrote %s.' % fn
-    t = open('tau_tab_timing.txt', 'a')
-    print >> t, "%s %g %i" % (fn, (t2-t1), size)
-    t.close()
+    #t = open('tau_tab_timing.txt', 'a')
+    #print >> t, "%s %g %i" % (fn, (t2-t1), size)
+    #t.close()
     
     

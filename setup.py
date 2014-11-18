@@ -44,8 +44,8 @@ os.chdir('input')
 bitbucket_DL = 'https://bitbucket.org/mirochaj/glorb/downloads'
 fn_hmf = 'hmf_ST_logM_1200_4-16_z_1121_4-60.pkl'
 fn_ics_np = 'initial_conditions.npz'
-fn_tau = 'optical_depth_H_400x1884_z_10-40_logE_2-4.7.pkl'
-fn_tau2 = 'optical_depth_He_400x1884_z_10-40_logE_2-4.7.pkl'
+fn_tau = 'optical_depth_H_400x1616_z_10-50_logE_2-4.7.pkl'
+fn_tau2 = 'optical_depth_He_400x1616_z_10-50_logE_2-4.7.pkl'
 fn_elec = 'secondary_electron_data.hdf5'
 
 if not os.path.exists(fn_elec):

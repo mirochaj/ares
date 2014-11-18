@@ -138,7 +138,8 @@ class TurningPoints(object):
             elif TP == 'E':
                 return False
             else:
-                raise ValueError('Unrecognized turning point, %s.' % TP)
+                # Maybe just ignore? Happens when there are notches in the spectrum
+                raise ValueError('Unrecognized turning point!')
                 
             TTP_guess = np.interp(zTP_guess, z[-1:-1-2*self.delay:-1],
                 dTb[-1:-1-2*self.delay:-1]) 

@@ -433,9 +433,9 @@ class IGM(object):
         ## Find exactly what table should be
         #zmin, zmax = map(float, red[red.rfind('z')+2:].partition('-')[0::2])
         #logEmin, logEmax = map(float, tmp3[tmp3.rfind('E')+1:tmp3.rfind('.')].partition('-')[0::2])
-        
+
         zmin, zmax, Nz, lEmin, lEmax, chem, pre, post = self._parse_tab(fn)
-        
+
         ok_matches = []
         perfect_matches = []
         
@@ -463,8 +463,6 @@ class IGM(object):
                     continue
                 if chem_f != chem:
                     continue
-                if zmin_f != zmin:
-                    continue
 
                 # Continue with possible matches
                 for fmt in ['pkl', 'npz', 'hdf5']:
@@ -478,7 +476,7 @@ class IGM(object):
                         continue
 
                     # If number of redshift bins and energy range right...
-                    if re.search(pre, fn1) and re.search(post, fn1):                        
+                    if re.search(pre, fn1) and re.search(post, fn1):
                         if re.search(fmt, fn1) and fmt == self.pf['preferred_format']:
                             perfect_matches.append(tab_name)
                         else:
@@ -512,7 +510,8 @@ class IGM(object):
         
         Nz = pre[pre.rfind('_')+1:]
         
-        chem = pre.strip(Nz).strip('optical_depth_')
+        # Hack off Nz string and optical_depth_
+        chem = pre.strip(Nz)[14:-1]#.strip('optical_depth_')
         
         return zmin, zmax, int(Nz), logEmin, logEmax, chem, pre, post
                 

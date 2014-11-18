@@ -15,7 +15,11 @@ import matplotlib.pyplot as pl
 
 pars = \
 {
- 'initial_redshift': 40.,
+ 'Z': [1],
+ 'approx_helium': False,
+ 'track_extrema': False,
+
+ 'initial_redshift': 50.,
  'final_redshift': 6.,
  
  'source_type{0}': 'star',
@@ -46,9 +50,9 @@ pars = \
  'spectrum_Emax{1}': 3e4,
 }
 
-ax1 = pl.subplot(311)
-ax2 = pl.subplot(312)
-ax3 = pl.subplot(313)
+mp = ares.analysis.MultiPanel(dims=(3,1))
+
+sims = []
 
 ls = '-', '--', ':', '-.'
 for i, xswitch in enumerate([1e-3, 0.01, 0.1, 1.0]):
@@ -58,16 +62,21 @@ for i, xswitch in enumerate([1e-3, 0.01, 0.1, 1.0]):
     sim = ares.simulations.Global21cm(**pars)
     sim.run()
     
-    ax1.semilogy(sim.history['z'], sim.history['igm_Tk'], color='k', ls=ls[i])
-    ax2.semilogy(sim.history['z'], sim.history['igm_h_2'], color='k', ls=ls[i])
-    ax3.plot(sim.history['z'], sim.history['dTb'], color='k', ls=ls[i])
+    mp.grid[0].semilogy(sim.history['z'], sim.history['igm_Tk'], color='k', 
+        ls=ls[i])
+    mp.grid[1].semilogy(sim.history['z'], sim.history['igm_h_2'], color='k', 
+        ls=ls[i])
+    mp.grid[2].plot(sim.history['z'], sim.history['dTb'], color='k', 
+        ls=ls[i])
+        
+    sims.append(sim)
     
-    #anl = ares.analysis.Global21cm(sim)
-
-ax1.set_xlim(5, 40)
-ax2.set_xlim(5, 40)
-ax3.set_xlim(5, 40)
-ax1.set_xlabel(r'$z$')
-ax1.set_ylabel(r'$T_k$')
-ax2.set_ylabel(r'$x_e$')
+mp.grid[0].set_xlim(5, 40)
+mp.grid[1].set_xlim(5, 40)
+mp.grid[2].set_xlim(5, 40)
+mp.grid[0].set_xlabel(r'$z$')
+mp.grid[0].set_ylabel(r'$T_k$')
+mp.grid[1].set_ylabel(r'$x_e$')
+mp.grid[2].set_ylabel(r'$\delta T_b$')
+mp.fix_ticks()
 pl.draw()

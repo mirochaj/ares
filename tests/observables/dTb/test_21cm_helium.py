@@ -57,10 +57,12 @@ pars = \
 {
  'Z': [1,2],
  'approx_helium': False,
+ 'track_extrema': False,
+ 'final_redshift': 8,
  'initial_ionization': [1.2e-3, 1e-8],
  'source_kwargs': [src1, src2],
  'spectrum_kwargs': [sed1, sed2],
- 'EoR_xavg': 1e-2,
+ 'EoR_xavg': 1e-3,
  'EoR_dlogx': 1e-3,
  'secondary_ionization': 3,
 }
@@ -68,18 +70,18 @@ pars = \
 ax1, ax2, ax3, ax4 = None, None, None, None
 
 sims = []
-approx = [False, False]
+approx = [True, False]
 colors = ['k', 'r']
-for i, Z in enumerate([[1],[1,2]]):
+for i, Z in enumerate([[1], [1,2]]):
     
+    #label = None
     if i == 0:
         label = 'H-only'
     else:
         label = 'H+He'
     
     pars.update({'Z': Z, 'approx_helium': approx[i]})
-    sim = ares.simulations.Global21cm(final_redshift=3., track_extrema=0, 
-        **pars)
+    sim = ares.simulations.Global21cm(**pars)
     sim.run()
     
     anl = ares.analysis.Global21cm(sim)

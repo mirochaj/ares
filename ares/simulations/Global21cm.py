@@ -1161,7 +1161,7 @@ class Global21cm:
             nf.extend([rb.igm.cosm.nHe]*2)
         elif self.pf['approx_helium']:
             xx.extend([xHI_avg, np.zeros_like(xHI_avg)])
-            nf.append([rb.igm.cosm.nHe]*2)
+            nf.extend([rb.igm.cosm.nHe]*2)
 
         tau = np.zeros_like(rb.igm.E)
         for k in range(3):  # absorbers
