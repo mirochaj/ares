@@ -65,6 +65,24 @@ and optionally,
 - `mpi4py <http://mpi4py.scipy.org>`_
 - `python-progressbar <https://code.google.com/p/python-progressbar/>`_
 
+Quick Example
+--------------
+To generate a global 21-cm signal, simply type: ::
+
+    import ares
+    
+    sim = ares.simulations.Global21cm()
+    sim.run()
+    
+You can examine the contents of ``sim.history``, which contains the redshift
+evolution of all IGM physical quantities, or use some built-in analysis 
+routines: ::
+
+    anl = ares.analysis.Global21cm(sim)
+    anl.GlobalSignature()
+    
+See the documentation for more examples.    
+
 Documentation
 --------------
 No public documentation yet. To generate the documentation locally, ::

@@ -358,9 +358,9 @@ class WriteData():
         
             f.close()
 
-        if os.path.exists('%s.pars.pkl' % prefix):
+        if os.path.exists('%s.parameters.pkl' % prefix):
             if clobber:
-                os.remove('%s.pars.pkl' % prefix)
+                os.remove('%s.parameters.pkl' % prefix)
             else: 
                 raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
     

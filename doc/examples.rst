@@ -6,7 +6,6 @@ Quick-start
 ------------
     
 * Reionization & Global 21-cm Signal
-    * :doc:`example_21cm_1zone`
     * :doc:`example_21cm_simple`
     * :doc:`example_21cm_multipop`
     * :doc:`example_21cm_parameterized`

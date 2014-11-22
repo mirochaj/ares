@@ -298,20 +298,22 @@ def PopulationParameters():
     # Scales X-ray emission
     "cX": 3.4e40, # Furlanetto (2006) extrapolation
     "fX": 0.2,    # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
-    "xi_X": None,
     'fXh': None,
     
     # Scales Lyman-Werner emission
     "Nlw": 9690.,
-    'flw': 1.,
-    "xi_alpha": 1.,
     
     # Scales ionizing emission
     "fion": 1.0,                
     "Nion": 4e3,
     "fesc": 0.1,
-    "xi_ion": 1.,
     
+    # Acknowledge degeneracy between fstar, etc.
+    "xi_XR": None,     # product of fstar and fX
+    "xi_LW": None,     # product of fstar and Nlw
+    "xi_UV": None,     # product of fstar, Nion, and fesc
+    
+    # Controls IGM ionization for approximate CXB treatments
     "xray_Eavg": 500.,
     "uv_Eavg": 30.,
     

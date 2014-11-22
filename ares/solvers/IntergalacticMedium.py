@@ -679,9 +679,6 @@ class IGM(object):
             weight = self.rate_to_coefficient(z, species, **kw)
             L = self.pop.XrayLuminosityDensity(z) # erg / s / c-cm**3
 
-            if self.pf['xi_X'] is not None:
-                L *= self.pf['xi_X'](z)
-                        
             return weight * fheat * L * (1. + z)**3
             
         # Otherwise, do the full calculation
@@ -808,7 +805,7 @@ class IGM(object):
         else:
             weight = 1.0
 
-        return weight * self.pf['fesc'] \
+        return weight \
             * self.pop.IonizingPhotonLuminosityDensity(z) * (1. + z)**3
     
     def IonizationRateIGM(self, z, species=0, **kwargs):

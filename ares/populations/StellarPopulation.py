@@ -222,8 +222,13 @@ class StellarPopulation:
         erg s**-1 (comoving cm)**-3.
         
         """
+                   
+        
+        if self.pf['xi_LW'] is not None:
+            return self.cLW * self.pf['xi_LW'] * self.SFRD(z) \
+                / self.pf['fstar'] / self.pf['Nlw']
                     
-        return self.cLW * self.pf['flw'] * self.SFRD(z)
+        return self.cLW * self.SFRD(z)
     
     def LymanWernerPhotonLuminosityDensity(self, z):
         """
@@ -259,23 +264,23 @@ class StellarPopulation:
 
         return self._LymanWernerEmissivity(z, E) / E / erg_per_ev
     
-    def IonizingLuminosityDensity(self, z):
-        """
-        Compute comoving ionizing luminosity density.
-    
-        Parameters
-        ----------
-        z : float
-            redshift
-    
-        Returns
-        -------
-        Comoving luminosity density at redshift z in units of
-        erg s**-1 (comoving cm)**-3.
-    
-        """
-    
-        return self.cUV * self.pf['fion'] * self.SFRD(z)
+    #def IonizingLuminosityDensity(self, z):
+    #    """
+    #    Compute comoving ionizing luminosity density.
+    #
+    #    Parameters
+    #    ----------
+    #    z : float
+    #        redshift
+    #
+    #    Returns
+    #    -------
+    #    Comoving luminosity density at redshift z in units of
+    #    erg s**-1 (comoving cm)**-3.
+    #
+    #    """
+    #
+    #    return self.cUV * self.pf['fion'] * self.SFRD(z)
     
     def IonizingPhotonLuminosityDensity(self, z):
         """
@@ -292,8 +297,12 @@ class StellarPopulation:
         photons s**-1 (comoving cm)**-3.
     
         """
-    
-        return self.Nion * self.b_per_g * self.SFRD(z)
+        
+        if self.pf['xi_UV'] is not None:
+            return self.b_per_g * self.pf['xi_UV'] * self.SFRD(z) \
+                / self.pf['fstar']
+                
+        return self.Nion * self.pf['fesc'] * self.b_per_g * self.SFRD(z)
     
     def XrayLuminosityDensity(self, z):
         """
@@ -312,6 +321,10 @@ class StellarPopulation:
         
         if self.pf['emissivity'] is not None:
             return self.pf['emissivity'](z)
+        
+        if self.pf['xi_XR'] is not None:
+            return self.cX * self.pf['xi_XR'] * self.SFRD(z) \
+                / self.pf['fstar']
         
         return self.cX * self.pf['fX'] * self.SFRD(z)
         

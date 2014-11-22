@@ -110,7 +110,7 @@ class TurningPoints(object):
                 
                 slope = np.interp(zTP, zz, dTbdnu)
                 
-                self.turning_points['trans'] = (zTP, slope)
+                self.turning_points['trans'] = (zTP, slope, None)
                 
                 if self.pf['stop'] == 'trans':
                     return True

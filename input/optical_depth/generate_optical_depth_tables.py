@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Fri Jun 14 09:20:22 2013
 
-Description: 
+Description: Generate optical depth lookup table.
 
 Note: This can be run in parallel, e.g.,
 
@@ -37,7 +37,7 @@ Emin = 1e2
 Emax = 5e4
 Nz = [400]
 format = 'pkl'        # 'hdf5' or 'pkl' or 'npz'
-helium = 1
+helium = 0
 ##
 #
 

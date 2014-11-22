@@ -474,7 +474,7 @@ class UniformBackground:
     
         # Flat spectrum, no injected photons, instantaneous emission only
         elif self.pf['approx_lya'] == 1:
-            norm = self.pf['xi_alpha'] * c * self.cosm.dtdz(z) / four_pi
+            norm = c * self.cosm.dtdz(z) / four_pi
             return norm * (1. + z)**3 * \
                 self.pop.LymanWernerPhotonLuminosityDensity(z) / dnu
         else:
