@@ -637,7 +637,7 @@ class IGM(object):
         
         Returns
         -------
-        Heating rate density in units of in erg s**-1 cm**-3 at redshift z,
+        Proper heating rate density in units of in erg s**-1 cm**-3 at redshift z,
         due to electrons previously bound to input species.
 
         """
@@ -649,8 +649,8 @@ class IGM(object):
         kw = self._fix_kwargs(**kwargs)
                 
         # Return right away if heating rate density is parameterized
-        if self.pf['epsilon_X'] is not None:
-            return self.pf['epsilon_X'](z)
+        if self.pf['heat_igm'] is not None:
+            return self.pf['heat_igm'](z) 
 
         # Compute fraction of photo-electron energy deposited as heat
         if self.pf['fXh'] is None:
@@ -796,10 +796,13 @@ class IGM(object):
         # Need some guidance from 1-D calculations to do this
         if species > 0:
             return 0.0
-            
+        
         kw = defkwargs.copy()
-        kw.update(kwargs) 
-           
+        kw.update(kwargs)
+
+        if self.pf['Gamma_cgm'] is not None:
+            return self.pf['Gamma_cgm'](z)
+                
         if kw['return_rc']:
             weight = self.rate_to_coefficient(z, species, **kw)
         else:
@@ -833,10 +836,10 @@ class IGM(object):
                 
         # Grab defaults, do some patches if need be            
         kw = self._fix_kwargs(**kwargs)
-        
-        if self.pf['Gamma'] is not None:
-            return self.pf['Gamma'](z)
-        
+                        
+        if self.pf['Gamma_igm'] is not None:
+            return self.pf['Gamma_igm'](z, species, **kw)
+
         if self.pf['approx_xray']:
             weight = self.rate_to_coefficient(z, species, **kw)
             primary = weight * self.pop.XrayLuminosityDensity(z) \
@@ -883,7 +886,7 @@ class IGM(object):
     def SecondaryIonizationRateIGM(self, z, species=0, **kwargs):
         """
         Compute volume averaged secondary ionization rate.
-        
+
         Parameters
         ----------
         z : float
@@ -891,7 +894,7 @@ class IGM(object):
         species : int
             Ionization rate of what atom?
             Can be 0, 1, or 2 (HI, HeI, and HeII, respectively)
-            
+
         ===============
         relevant kwargs
         ===============
@@ -901,46 +904,46 @@ class IGM(object):
             Return actual heating rate, or rate coefficient for heating?
             Former has units of erg s**-1 cm**-3, latter has units of 
             erg s**-1 cm**-3 atom**-1.    
-        
+
         Returns
         -------
         Volume averaged ionization rate due to secondary electrons, 
         in units of ionizations per second.
-        
+
         """               
-        
+
         if self.pf['secondary_ionization'] == 0:
             return 0.0
-            
+
         # Computed in IonizationRateIGM in this case
         if self.pf['approx_xray']:
             return 0.0
-            
+
         if not self.rb.pf['is_ion_src_igm']:
             return 0.0 
 
-        # Grab defaults, do some patches if need be            
+        # Grab defaults, do some patches if need be
         kw = self._fix_kwargs(**kwargs)
-        
-        if self.pf['gamma'] is not None:
-            return self.pf['gamma'](z)
-        
+
+        if self.pf['gamma_igm'] is not None:
+            return self.pf['gamma_igm'](z)
+
         if self.esec.Method > 1:
             if kw['igm_h_2'] == 0:
                 fion = self.fion_HI[:,0]
             else:
                 if kw['igm_h_2'] > self.esec.x[self.i_x + 1]:
                     self.i_x += 1
-                
+
                 j = self.i_x + 1
-                
+
                 fion = self.fion_HI[:,self.i_x] \
                     + (self.fion_HI[:,j] - self.fion_HI[:,self.i_x]) \
                     * (kw['igm_h_2'] - self.esec.x[self.i_x]) \
                     / (self.esec.x[j] - self.esec.x[self.i_x])                
         else:
             fion = self.esec.DepositionFraction(kw['igm_h_2'], channel='h_1')[0]
-        
+
         norm = J21_num * self.sigma0
 
         fion = self.esec.DepositionFraction(kw['igm_h_2'], channel='h_1')[0]

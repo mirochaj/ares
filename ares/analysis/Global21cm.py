@@ -509,11 +509,13 @@ class Global21cm:
                 **kwargs)        
         
         zmax = self.pf["first_light_redshift"]
+        zmin = self.pf["final_redshift"] if self.pf["final_redshift"] >= 10 \
+            else 5
         
         # x-ticks
         if xaxis == 'z' and hasattr(self, 'pf'):
-            xticks = list(np.arange(5, zmax, 5))
-            xticks_minor = list(np.arange(5, zmax, 1))
+            xticks = list(np.arange(zmin, zmax, zmin))
+            xticks_minor = list(np.arange(zmin, zmax, 1))
         else:
             xticks = np.arange(20, 180, 20)
             xticks_minor = np.arange(10, 190, 20)
@@ -549,9 +551,9 @@ class Global21cm:
         
         if ax.get_xlabel() == '':  
             if xaxis == 'z':  
-                ax.set_xlabel(r'$z$', fontsize='x-large')
+                ax.set_xlabel(labels['z'], fontsize='x-large')
             else:
-                ax.set_xlabel(r'$\nu \ (\mathrm{MHz})$')
+                ax.set_xlabel(labels['nu_mhz'])
         
         if ax.get_ylabel() == '':    
             ax.set_ylabel(labels['dTb'], 
@@ -689,6 +691,8 @@ class Global21cm:
                 ax.set_xlim(int(self.pf["final_redshift"]), 
                     self.pf["initial_redshift"])
             ax.set_xlabel(r'$z$')
+            
+        if not ax.get_ylabel():    
             ax.set_ylabel(r'Temperature $(\mathrm{K})$') 
         
         if show_legend:
@@ -701,7 +705,7 @@ class Global21cm:
     def IonizationHistory(self, ax=None, zone=None, element='h', 
         fig=1, scatter=False, 
         mask=5, show_xi=True, show_xe=True, show_xibar=True, 
-        show_legend=True, **kwargs):
+        show_legend=False, **kwargs):
         """
         Plot ionized fraction evolution. 
         

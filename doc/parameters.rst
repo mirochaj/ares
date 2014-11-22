@@ -15,8 +15,10 @@ Here, we'll provide a brief description of each parameter.
  * :doc:`params_control`
  * :doc:`params_cosmology`
  
-To adapt these defaults to your liking *without* modifying ``ares.util.SetDefaultParameterValues.py``,
-open the file::
+Custom Defaults
+--------------- 
+To adapt the defaults to your liking *without* modifying the source code (all
+defaults set in ``ares.util.SetDefaultParameterValues.py``), open the file::
 
     $HOME/.ares/defaults.py
 
@@ -30,8 +32,30 @@ than 10%, open ``$HOME/.ares/defaults.py`` and do::
 
     pf = {'fstar': 0.05}
     
-That's it! Elements of ``pf`` will override the defaults listed in     
+That's it! Elements of ``pf`` will override the defaults listed in
 ``ares.util.SetDefaultParameterValues.py`` at run-time.
+
+
+Custom Axis-Labels
+-------------------
+You can do the analogous thing for axis labels (all
+defaults set in ``ares.util.Aesthetics.py``). Open the file::
+
+    $HOME/.ares/labels.py
+
+which by default contains nothing::
+
+    pf = {}
+    
+If you wanted to change the default axis label for the 21-cm brightness
+temperature, from :math:`\delta T_b \ (\mathrm{mK})` to :math:`T_b`, you would
+do::
+
+    pf = {'dTb': r'$T_b$'}
+    
+This change will automatically propagate to all built-in analysis routines.
+
+
 
     
 

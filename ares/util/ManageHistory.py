@@ -48,6 +48,8 @@ class WriteData():
         """
 
         history = {}
+        
+        zinit = self.sim.pf['initial_redshift']
 
         n_H = self.sim.grid.cosm.nH(self.sim.pf['initial_redshift'])
         history['z'] = [self.sim.pf['initial_redshift']]
@@ -61,22 +63,40 @@ class WriteData():
                 
                 if (not self.sim.helium) and state in ['he_1', 'he_2', 'he_3']:
                     continue
-                
+
                 history['%s_%s' % (zone, state)] = [grid.data[state][0]]
 
                 if state in ['e', 'Tk','h_2', 'he_3']:
                     continue
-                    
+
                 history['%s_gamma_%s' % (zone, state)] = [0.0]
-                history['%s_Gamma_%s' % (zone, state)] = [0.0]
-                history['%s_heat_%s' % (zone, state)] = [0.0]
+
+                # Initial rates may be non-zero if first_light coincident
+                # with start redshift
+                if self.sim.pf['Gamma_%s' % zone] is not None:
+                    history['%s_Gamma_%s' % (zone, state)] = \
+                        [self.sim.pf['Gamma_%s' % zone](zinit, 0, igm_h_1=1.0)]
+                else:
+                    history['%s_Gamma_%s' % (zone, state)] = [0.0]
+
+                if zone != 'igm':
+                    continue
+                                     
+                if self.sim.pf['heat_%s' % zone] is not None:    
+                    history['%s_heat_%s' % (zone, state)] = \
+                        [self.sim.pf['heat_%s' % zone](zinit)]
+                else:
+                    history['%s_heat_%s' % (zone, state)] = [0.0]
     
         # Keep track of mean hydrogen ionization fractions
         history['xavg'] = [self.sim.grid_cgm.data['h_2'][0] \
                 + (1. - self.sim.grid_cgm.data['h_2'][0]) \
                 * self.sim.grid_igm.data['h_2'][0]]
     
-        history['Ja'] = [0.0]
+        if self.sim.pf['Ja'] is None:    
+            history['Ja'] = [0.0]
+        else:
+            history['Ja'] = [self.sim.pf['Ja'](zinit)]
     
         history['tau_e'] = [0.0]
     
@@ -208,16 +228,20 @@ class WriteData():
                         np.sum(rt.kwargs['gamma'].squeeze()[k])})
                     to_keep.update({'%s_Gamma_%s' % (zone, state): \
                         rt.kwargs['Gamma'].squeeze()[k]})
-                    to_keep.update({'%s_heat_%s' % (zone, state): \
-                        rt.kwargs['Heat'].squeeze()[k]})
+                    
+                    if zone == 'igm':
+                        to_keep.update({'%s_heat_%s' % (zone, state): \
+                            rt.kwargs['Heat'].squeeze()[k]})
                         
                 else:
                     to_keep.update({'%s_gamma_%s' % (zone, state): \
                         rt.kwargs['gamma']})
                     to_keep.update({'%s_Gamma_%s' % (zone, state): \
                         rt.kwargs['Gamma']})
-                    to_keep.update({'%s_heat_%s' % (zone, state): \
-                        rt.kwargs['Heat']})
+                    
+                    if zone == 'igm':
+                        to_keep.update({'%s_heat_%s' % (zone, state): \
+                            rt.kwargs['Heat']})
                         
         # Store to_keep items in history
         for key in to_keep:

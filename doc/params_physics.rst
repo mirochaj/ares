@@ -79,4 +79,12 @@ Physics Parameters
     Include photons redshifting into the blue-wing of the Lyman-:math:`\alpha` line?
     
     Default: ``True``
+    
+``recombination``
+    Which recombination method to use? Can be ``"A"``, ``"B"``, or ``0``, the 
+    first two options being standard case-A or case-B recombination, whereas
+    the last option artificially turns off recombinations (useful for analytic
+    tests).
+    
+    Default: ``B``
         

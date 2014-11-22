@@ -128,8 +128,6 @@ class Global21cm:
             return 
             
         self._check_for_conflicts()
-
-        self.fullcalc = (self.pf['approx_xray'] + self.pf['approx_lya']) < 2
             
         # Initialize two grid patches   
         self.grid_igm = Grid(dims=1, approx_Salpha=self.pf['approx_Salpha'])
@@ -146,11 +144,10 @@ class Global21cm:
             secondary_ionization=0, expansion=1, recombination='A',
             clumping_factor=self.pf['clumping_factor'])        
             
-        # Read in initial conditions (if they exist)  
-        if self.pf['initial_temperature'] is None:  
-            T0 = self.grid.cosm.TCMB(self.pf['initial_redshift'])
-        else:
-            T0 = self.pf['initial_temperature']
+        # Artificially turn off recombination (perhaps unnecessary)
+        if self.pf['recombination'] == 0:
+            self.grid_igm._recombination = 0
+            self.grid_cgm._recombination = 0
             
         x0 = self.pf['initial_ionization']
         if ARES and self.pf['load_ics']:
@@ -176,6 +173,9 @@ class Global21cm:
         else:
             if len(x0) != len(self.pf['Z']):
                 x0 = [self.pf['initial_ionization'][0]] * 2 
+                
+            # Set to adiabatic temperature if no inits supplied
+            T0 = self.grid.cosm.Tgas(self.pf['initial_redshift'])
                             
         # Set cosmological initial conditions  
         for grid in self.grids:  
@@ -492,18 +492,18 @@ class Global21cm:
             xtmp = self.history['xavg'][-1::-1]
 
             # Need to pass ionization state to both grids
-            to_rt1d = {}
+            to_solver = {}
 
             # Add all hydrogen (and possibly helium) fractions
             for field in fields:
-                to_rt1d['cgm_%s' % field] = self.history['cgm_%s' % field][-1]
-                to_rt1d['igm_%s' % field] = self.history['igm_%s' % field][-1]
+                to_solver['cgm_%s' % field] = self.history['cgm_%s' % field][-1]
+                to_solver['igm_%s' % field] = self.history['igm_%s' % field][-1]
 
             # Compute X-ray background flux
-            flux_x = self.ComputeXRB(z, ztmp, xtmp, **to_rt1d)
-            
-            to_rt1d.update({'xray_flux': flux_x})
-            kwargs.update(to_rt1d)
+            flux_x = self.ComputeXRB(z, ztmp, xtmp, **to_solver)
+                        
+            to_solver.update({'xray_flux': flux_x})
+            kwargs.update(to_solver)
             
             # Grab ionization/heating rates from full X-ray background calculation
             if not self.approx_all_xray:
@@ -529,17 +529,18 @@ class Global21cm:
                     
                 else:
                     G2 = [0.0] * self.grid.N_absorbers
-                                                                              
-                kwargs.update({'epsilon_X': np.array(H), 
-                  'Gamma': np.array(G1), 
-                  'gamma': np.array(G2)})
 
+                # This stuff goes to RadiationField (diffuse sources only)
+                kwargs.update({'epsilon_X': np.array(H), 
+                    'Gamma': np.array(G1), 
+                    'gamma': np.array(G2)})
+                                  
             # Solve for xe and Tk in the bulk IGM
             data_igm = self.rt_igm.Evolve(data_igm, t=t, dt=dt, z=z, **kwargs)
 
             # Next up: bubbles
             kwargs.update({'igm': False})
-
+            
             # Gamma etc. are only for the bulk IGM - lose them for bubbles!
             if 'Gamma' in kwargs:
                 kwargs.pop('Gamma')
@@ -865,24 +866,7 @@ class Global21cm:
             pop._set_fcoll(Tmin[p], mu)
                 
         self.feedback_last_z = z
-                
-    def JeansMass(self, z, Tigm, mu=0.6):
-        rhob = self.grid.cosm.MeanBaryonDensity(z)
-        
-        # Cosmological Jeans mass
-        return (5. * k_B * Tigm / G / mu / m_p)**1.5 \
-            * (3. / 4. / np.pi / rhob)**0.5 / g_per_msun
-            
-    def FilteringMass(self):
-        """ Eq. 6 in Gnedin (2000). """
-        
-        a_all = 1. / (1. + np.array(self.history['z']))
-        a_now = a_all[-1]
-        M_J = np.array(self.history['M_J'])
-        integrand = M_J**(2./3.) * (1. - np.sqrt(a_all / a_now))
-        
-        return ((3. / a_now) * np.trapz(integrand, x=a_all))**1.5
-        
+                        
     def tabulate_blobs(self, z):
         """
         Print blobs at a particular redshift (nicely).
@@ -920,7 +904,7 @@ class Global21cm:
             
         if z > self.pf['first_light_redshift']:
             return None
-        
+                    
         switch = False
                 
         # Check to make sure optical depth tables are still valid. 
@@ -1196,6 +1180,20 @@ class Global21cm:
         return tau
                       
     def save(self, prefix, suffix='pkl', clobber=False):
+        """
+        Save results of calculation to file.
+        
+        Parameters
+        ----------
+        prefix : str
+            Prefix of file.
+        suffix : str
+            Suffix of file, valid options include 'hdf5', 'pkl', and 'npz'.
+        clobber : bool
+            Overwrite file with same name if one exists?
+            
+        """
+        
         self.write.save(prefix, suffix, clobber)
         
     def _check_for_conflicts(self):

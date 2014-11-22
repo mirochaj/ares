@@ -14,9 +14,10 @@ import os, ares
 
 pars = \
 {
+ 'Tmin{0}': 1e4,
  'source_type{0}': 'star',
  'source_temperature{0}': 1e4,
- 'fstar{0}': 1e-1,
+ 'fstar{0}': 5e-2,
  'Nion{0}': 4e3,
  'Nlw{0}': 9690.,
  'is_heat_src_igm{0}': False,
@@ -24,9 +25,10 @@ pars = \
  'is_ion_src_igm{0}': False,
  'norm_by{0}': 'lw',
  'approx_lya{0}': True,
-
+ 
+ 'Tmin{1}': 'Tmin{0}',
  'source_type{1}': 'bh',
- 'fstar{1}': 1e-1,
+ 'fstar{1}': 'fstar{0}',
  'fX{1}': 1.,
  'norm_by{1}': 'xray',
  'is_lya_src{1}': False,
@@ -43,8 +45,7 @@ pars = \
 }
 
 # Multi-pop model, one with real RT
-sim = ares.simulations.Global21cm(initial_redshift=40, final_redshift=10, 
-    track_extrema=0, **pars)
+sim = ares.simulations.Global21cm(**pars)
 sim.run()
 
 anl = ares.analysis.Global21cm(sim)

@@ -16,6 +16,8 @@ import numpy as np
 from ..physics.RateCoefficients import RateCoefficients
 from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h  
         
+rad_const = (8. * sigma_T / 3. / m_e / c)        
+        
 class ChemicalNetwork:
     def __init__(self, grid, rate_src='fk94', recombination='B'):
         """
@@ -32,6 +34,7 @@ class ChemicalNetwork:
 
         self.isothermal = self.grid.isothermal
         self.secondary_ionization = self.grid.secondary_ionization
+        #self.collisional_ionization = self.grid.collisional_ionization
         
         # For convenience 
         self.zeros_q = np.zeros(len(self.grid.evolving_fields))
@@ -142,9 +145,6 @@ class ChemicalNetwork:
                 elem = self.grid.parents_by_ion[donor]
                 
                 term = gamma['h_1'][j] * x[donor] / x['h_1']
-                dqdt['h_1'] -= term
-                dqdt['h_2'] += term
-
                 gamma_HI += term
 
         ##
@@ -154,7 +154,7 @@ class ChemicalNetwork:
                       * x['h_1'] \
                       + alpha['h_1'][cell] * n_e * x['h_2'] * CF
         dqdt['h_2'] = -dqdt['h_1']    
-
+        
         ##
         # Heating & cooling
         ##
@@ -177,7 +177,7 @@ class ChemicalNetwork:
                 elem = self.grid.parents_by_ion[sp]
                 
                 cool += eta[sp][cell] * x[sp] * n[elem]   # recombination
-                                            
+                                                            
         ##
         # Helium processes
         ##
@@ -192,15 +192,9 @@ class ChemicalNetwork:
                     elem = self.grid.parents_by_ion[donor]
                 
                     term1 = gamma['he_1'][j] * x[donor] / x['he_1']
-                    dqdt['he_1'] -= term1
-                    dqdt['he_2'] += term1
-                    
                     gamma_HeI += term1
                     
                     term2 = gamma['he_2'][j] * x[donor] / x['he_2']
-                    dqdt['he_2'] -= term2
-                    dqdt['he_3'] += term2
-                    
                     gamma_HeII += term2
             
             ##
@@ -261,16 +255,16 @@ class ChemicalNetwork:
                 if self.grid.compton_scattering:
                     Tcmb = self.grid.cosm.TCMB(z)
                     ucmb = self.grid.cosm.UCMB(z)
-                    tcomp = 3. * m_e * c / (8. * sigma_T * ucmb)
-                    compton = xe * (Tcmb - q[-1]) / tcomp \
-                        / (1. + self.grid.cosm.y + xe)
-            
+
+                    # Seager, Sasselov, & Scott (2000) Equation 54
+                    compton = rad_const * ucmb * n_e * (Tcmb - q[-1]) / ntot
+                    
             dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton - hubcool \
                 - q[-1] * n_H * dqdt['e'] / ntot
-            
+                
         else:
-            dqdt['Tk'] = 0.0 
-            
+            dqdt['Tk'] = 0.0
+
         self.dqdt = np.array([dqdt[sp] for sp in self.grid.qmap])
 
         return self.dqdt
@@ -280,7 +274,7 @@ class ChemicalNetwork:
         self.dqdt = np.zeros_like(self.zeros_q)
     
         cell, G, g, H, ntot, time = args
-        
+                
         to_temp = 1. / (1.5 * ntot * k_B)
     
         if self.grid.expansion:
@@ -602,6 +596,7 @@ class ChemicalNetwork:
             self.dpsi = np.zeros_like(self.grid.zeros_grid_x_absorbers)
         
         for i, absorber in enumerate(self.grid.absorbers):
+            
             self.Beta[...,i] = self.coeff.CollisionalIonizationRate(i, T)
             self.alpha[...,i] = self.coeff.RadiativeRecombinationRate(i, T)
             

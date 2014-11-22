@@ -110,11 +110,11 @@ class UniformBackground:
         """
     
         # For integration over redshift / frequency
-        self.integrator = self.pf["unsampled_integrator"]
-        self.sampled_integrator = self.pf["sampled_integrator"]
-        self.rtol = self.pf["integrator_rtol"]
-        self.atol = self.pf["integrator_atol"]
-        self.divmax = int(self.pf["integrator_divmax"])
+        self._integrator = self.pf["unsampled_integrator"]
+        self._sampled_integrator = self.pf["sampled_integrator"]
+        self._rtol = self.pf["integrator_rtol"]
+        self._atol = self.pf["integrator_atol"]
+        self._divmax = int(self.pf["integrator_divmax"])
     
     def AngleAveragedFlux(self, z, E, **kwargs):
         """
@@ -226,21 +226,21 @@ class UniformBackground:
             if self.pop.burst:
                 raise ValueError('Burst needs correctness-check.')
                 #flux = integrand(self.pop.zform)
-            elif self.integrator == 'quad':
+            elif self._integrator == 'quad':
                 flux = quad(integrand, zi, zf,
-                    epsrel=self.rtol, epsabs=self.atol, limit=self.divmax)[0]
-            elif self.integrator == 'romb':
+                    epsrel=self._rtol, epsabs=self._atol, limit=self._divmax)[0]
+            elif self._integrator == 'romb':
                 flux = romberg(integrand, zi, zf,
-                    tol=self.atol, divmax=self.divmax)
+                    tol=self._atol, divmax=self._divmax)
             else:
                 raise ValueError('Uncrecognized integrator \'%s\'' \
-                    % self.integrator)
+                    % self._integrator)
         else:
-            if self.sampled_integrator == 'simps':
+            if self._sampled_integrator == 'simps':
                 flux = simps(integrand, x=kw['zxavg'], even='first')
-            elif self.sampled_integrator == 'trapz':
+            elif self._sampled_integrator == 'trapz':
                 flux = trapz(integrand, x=kw['zxavg'])
-            elif self.sampled_integrator == 'romb':
+            elif self._sampled_integrator == 'romb':
     
                 assert logbx(2, len(kw['zxavg']) - 1) % 1 == 0, \
                     "If sampled_integrator == 'romb', redshift_bins must be a power of 2 plus one."
@@ -248,7 +248,7 @@ class UniformBackground:
                 flux = romb(integrand, dx=np.diff(kw['zxavg'])[0])   
             else:
                 raise ValueError('Uncrecognized integrator \'%s\'' \
-                    % self.sampled_integrator)
+                    % self._sampled_integrator)
     
         # Flux in units of photons s^-1 cm^-2 Hz^-1 sr^-1                                        
         flux *= Jc
@@ -428,7 +428,7 @@ class UniformBackground:
             tau=0.0) / Jc
     
         flux = quad(integrand, z, zmax,
-            epsrel=self.rtol, epsabs=self.atol, limit=self.divmax)[0]    
+            epsrel=self._rtol, epsabs=self._atol, limit=self._divmax)[0]    
     
         # Flux in units of photons s^-1 cm^-2 Hz^-1 sr^-1                                        
         flux *= Jc
@@ -447,6 +447,9 @@ class UniformBackground:
     
         if not self.pf['is_lya_src'] or (z > self.pop.zform):
             return 0.0
+            
+        if self.pf['Ja'] is not None:
+            return self.pf['Ja'](z)    
     
         # Full calculation
         if self.pf['approx_lya'] == 0:

@@ -24,12 +24,19 @@ HOME = os.getenv('HOME')
 if not os.path.exists('%s/.ares' % HOME):
     try:
         os.mkdir('%s/.ares' % HOME)
-        f = open('%s/.ares/defaults.py' % HOME, 'w')
-        print >> f, "pf = {}"
-        f.close()
     except:
         pass
-    
+ 
+if not os.path.exists('%s/.ares/defaults.py' % HOME):   
+    f = open('%s/.ares/defaults.py' % HOME, 'w')
+    print >> f, "pf = {}"
+    f.close()
+
+if not os.path.exists('%s/.ares/labels.py' % HOME):   
+    f = open('%s/.ares/labels.py' % HOME, 'w')
+    print >> f, "pf = {}"
+    f.close()
+
 cwd = os.getcwd()    
     
 # Download some files

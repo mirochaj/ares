@@ -100,7 +100,7 @@ class Chemistry(object):
                 q[i] = data[species][cell]
                                     
             kwargs_cell = kwargs_by_cell[cell]
-              
+                            
             if self.rtON:
                 args = (cell, kwargs_cell['Gamma'], kwargs_cell['gamma'],
                     kwargs_cell['Heat'], data['n'][cell], t)
@@ -108,7 +108,7 @@ class Chemistry(object):
                 args = (cell, self.grid.zeros_absorbers, 
                     self.grid.zeros_absorbers2, self.grid.zeros_absorbers, 
                     data['n'][cell], t)
-                                                        
+
             self.solver.set_initial_value(q, 0.0).set_f_params(args).set_jac_params(args)
             self.solver.integrate(dt)
                                                 

@@ -1,5 +1,5 @@
-RT06 Test #2
-============================================
+RT06 Test #2 (Strömgren Sphere, thermal evolution allowed)
+==========================================================
 Test #2 from the Radiative Transfer Comparison Project (`Iliev et al. 2006
 <http://adsabs.harvard.edu/abs/2006MNRAS.371.1057I>`_).
 

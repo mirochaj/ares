@@ -10,6 +10,17 @@ Description:
 
 """
 
+import os, imp
+
+# Load custom defaults    
+HOME = os.environ.get('HOME')
+if os.path.exists('%s/.ares/labels.py' % HOME):
+    #f = open('%s/.ares/labels.py' % HOME, 'r')
+    f, filename, data = imp.find_module('labels', ['%s/.ares/' % HOME])
+    custom_labels = imp.load_module('labels.py', f, filename, data).pf
+else:
+    custom_labels = {}
+    
 #
 ## Common axis labels
 label_flux_nrg = r'$J_{\nu} \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1})$'
@@ -21,6 +32,7 @@ label_dTbdnu = r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$'
 
 labels = \
 {
+ 'nu_mhz': r'$\nu \ (\mathrm{MHz})$',
  'flux': label_flux_phot, 
  'flux_E': label_flux_nrg, 
  'E': label_nrg,  
@@ -78,3 +90,5 @@ tanh_parameters = \
 
 labels.update(history_elements)
 labels.update(tanh_parameters)
+
+labels.update(custom_labels)

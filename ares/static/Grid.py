@@ -682,7 +682,6 @@ class Grid(object):
         
         if self.expansion:
             n *= self.cosm.nH(z)
-            
             n += self.cosm.nH(z)
             
             if 2 in self.Z:

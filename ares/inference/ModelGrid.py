@@ -31,11 +31,12 @@ except ImportError:
     
 class ModelGrid:
     """Create an object for setting up and running model grids."""
-    def __init__(self, prefix=None, grid=None, verbose=True, **kwargs):
+    def __init__(self, prefix=None, restart=False, grid=None, verbose=True, 
+        **kwargs):
         """
         Parameters
         ----------
-        
+
         prefix : str
             Will look for a file called <prefix>.grid.hdf5
         
@@ -46,7 +47,7 @@ class ModelGrid:
         """
 
         self.verbose = verbose
-            
+
         if isinstance(grid, GridND):
             self.grid = grid
         elif (prefix is not None):
@@ -54,19 +55,20 @@ class ModelGrid:
             self.is_restart = False
             if os.path.exists('%s.grid.hdf5' % prefix):
                 self.grid = GridND('%s.grid.hdf5' % prefix)
-            else:
-                try:
-                    self._read_restart('%s.grid.pkl' % prefix)
-                    self.is_restart = True
-                except IOError:
-                    pass
+            elif restart:
+                if os.path.exists('%s.grid.pkl' % prefix):
+                    try:
+                        self._read_restart('%s.grid.pkl' % prefix)
+                        self.is_restart = True
+                    except IOError:
+                        pass
                     
             if os.path.exists('%s.extras.pkl' % prefix):
                 self.extras = self.load_extras('%s.extras.pkl' % prefix)
 
         if not hasattr(self, 'grid'):
             self.grid = None
-
+            
     def __getitem__(self, name):
         return self.grid[name]
                         
@@ -150,11 +152,9 @@ class ModelGrid:
                 print "File %s exists! Exiting." % fn
             return  
 
-        self.is_restart = False
         if os.path.exists('%s.grid.pkl' % prefix):
-            if rank == 0:
+            if rank == 0 and self.is_restart:
                 print "Re-starting from %s.grid.pkl" % prefix
-            self.is_restart = True
 
         if rank == 0:
             if self.is_restart:

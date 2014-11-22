@@ -121,6 +121,9 @@ class RateCoefficients:
         refers to HII, HeII, and HeIII.
         """
         
+        if self.rec == 0:
+            return 0.0
+        
         if self.rate_src == 'fk94':
             if self.rec == 'A':
                 if species == 0:
@@ -233,6 +236,9 @@ class RateCoefficients:
         
             units: erg cm^3 / s
         """
+        
+        if self.rec == 0:
+            return 0.0
         
         if self.rate_src == 'fk94':
             if species == 0: 

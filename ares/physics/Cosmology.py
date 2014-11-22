@@ -76,7 +76,7 @@ class Cosmology:
         """
         High redshift approximation under effect.
         """
-        return ((1. + z_i)**(-3. / 2.) + (3. * self.hubble_0 * 
+        return ((1. + z_i)**-1.5 + (3. * self.hubble_0 * 
             np.sqrt(self.omega_m_0) * (t_f - t_i) / 2.))**(-2. / 3.) - 1.
         
     def LookbackTime(self, z_i, z_f):

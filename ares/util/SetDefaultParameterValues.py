@@ -19,7 +19,7 @@ ARES = os.environ.get('ARES')
 # Load custom defaults    
 HOME = os.environ.get('HOME')
 if os.path.exists('%s/.ares/defaults.py' % HOME):
-    f = open('%s/.ares/defaults.py' % HOME, 'r')
+    #f = open('%s/.ares/defaults.py' % HOME, 'r')
     f, filename, data = imp.find_module('defaults', ['%s/.ares/' % HOME])
     custom_pf = imp.load_module('defaults.py', f, filename, data).pf
 else:
@@ -318,9 +318,11 @@ def PopulationParameters():
     # Bypass fcoll prescriptions, use parameterizations
     "sfrd": None,
     "emissivity": None,
-    "epsilon_X": None,
-    "Gamma": None,
-    "gamma": None,
+    "heat_igm": None,
+    "Gamma_igm": None,
+    "Gamma_cgm": None,
+    "gamma_igm": None,
+    'Ja': None,
     
     # Black hole models
     "rhoi": 1e2,
@@ -385,7 +387,7 @@ def ControlParameters():
     "save_rate_coefficients": 1,
     
     "optically_thin": 0,
-        
+
     # Solvers
     "solver_rtol": 1e-8,
     "solver_atol": 1e-8,
@@ -421,7 +423,6 @@ def ControlParameters():
     
     # Discretizing integration
     "redshift_bins": None,
-    "frequency_bins": None,
     "tau_table": None,
     "load_tau": False,
     "tau_prefix": tau_prefix,

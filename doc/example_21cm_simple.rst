@@ -1,5 +1,5 @@
-Fiducial Two-Zone IGM Model
-================================
+Two-Zone IGM Model
+===================
 To begin, first import ares:
 
 :: 

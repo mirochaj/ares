@@ -109,8 +109,8 @@ class RadiationField: # maybe RadiationNearSource
             else:    
                 Gamma_src, gamma_src, Heat_src, Ja_src = \
                     self.SourceDependentCoefficients(data, t, z, 
-                        **kwargs)    
-    
+                        **kwargs)  
+                        
             if len(self.srcs) > 1:
                 for i, src in enumerate(self.srcs):
                     self.kwargs.update({'Gamma_%i' % i: Gamma_src[i], 
@@ -129,9 +129,6 @@ class RadiationField: # maybe RadiationNearSource
             if not self.pf['approx_lya']:
                 Ja = np.sum(Ja_src, axis=0)
     
-            # Molecule destruction
-            #kdiss = np.sum(kdiss_src, axis=0)
-    
             # Each is grid x absorbers, or grid x [absorbers, absorbers] for gamma
             self.kwargs.update({'Gamma': Gamma, 'Heat': Heat, 'gamma': gamma})
             
@@ -145,7 +142,7 @@ class RadiationField: # maybe RadiationNearSource
     
         # SOLVE
         newdata = self.chem.Evolve(data, t, dt, **self.kwargs)
-    
+            
         return newdata
     
     def EvolvePhotonsAtFiniteSpeed(self, newdata, t, dt, h):
@@ -686,8 +683,8 @@ class RadiationField: # maybe RadiationNearSource
             # Photo-ionization by *this* energy group
             Gamma_E[...,j] = \
                 self.PhotoIonizationRateMultiFreq(self.src.Qdot[j], n,
-                self.tau_r[j], tau_c)            
-                          
+                self.tau_r[j], tau_c)     
+                                          
             # Heating
             if self.grid.isothermal:
                 continue
@@ -736,7 +733,7 @@ class RadiationField: # maybe RadiationNearSource
         q0 = qdot * np.exp(-tau_r_E)             # number of photons entering cell per sec
         dq = q0 * (1. - np.exp(-tau_c))          # number of photons absorbed in cell per sec
         IonizationRate = dq / n / self.grid.Vsh  # ionizations / sec / atom        
-                          
+                                  
         if self.pf['plane_parallel']:
             IonizationRate *= self.pp_corr
         

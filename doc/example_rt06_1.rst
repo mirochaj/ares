@@ -1,4 +1,4 @@
-RT06 Test #1
+RT06 Test #1 (Strömgren Sphere, isothermal)
 ============================================
 Test #1 from the Radiative Transfer Comparison Project (`Iliev et al. 2006 <http://adsabs.harvard.edu/abs/2006MNRAS.371.1057I>`_).
 

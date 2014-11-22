@@ -21,6 +21,7 @@ src1 = \
  'Nlw': 9690.,
  'is_ion_src_cgm': True,
  'is_ion_src_igm': False,
+ 'is_heat_src_igm': False,
  'norm_by': 'lw',
  'approx_lya': True,
 }

@@ -24,4 +24,5 @@ Contents
    install
    examples
    parameters
+   fields
    problem_types
