@@ -1134,11 +1134,11 @@ class Global21cm:
         
         if self.helium:
             xHeI_igm = np.array(self.history['igm_he_1'][-1:-4:-1])
-            xHeI_cgm = np.array(self.history['cgm_he_1'][-1:-4:-1])
+            xHeI_cgm = np.array(self.history['cgm_h_1'][-1:-4:-1])
             xHeI_avg = xHeI_cgm * xHeI_igm
                                                                  
             xHeII_igm = np.array(self.history['igm_he_2'][-1:-4:-1])
-            xHeII_cgm = np.array(self.history['cgm_he_2'][-1:-4:-1])
+            xHeII_cgm = np.array(self.history['cgm_h_2'][-1:-4:-1])
             xHeII_avg = xHeII_cgm * xHeII_igm
 
             xx.extend([xHeI_avg, xHeII_avg])

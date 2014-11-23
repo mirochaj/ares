@@ -1,6 +1,6 @@
 """
 
-test_21cm_cxrb.py
+test_21cm_helium.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -20,9 +20,9 @@ src1 = \
  'fstar': 1e-1,
  'Nion': 4e3,
  'Nlw': 9690.,
- 'is_heat_src_igm': False,
  'is_ion_src_cgm': True,
  'is_ion_src_igm': False,
+ 'is_heat_src_igm': False,
  'norm_by': 'lw',
  'approx_lya': True,
 }
@@ -47,24 +47,20 @@ sed2 = \
 {
  'spectrum_type': 'pl',
  'spectrum_alpha': -1.5,
- 'spectrum_Emin': 1e2,
+ 'spectrum_Emin': 2e2,
  'spectrum_Emax': 3e4,
- 'spectrum_EminNorm': 1e2,
- 'spectrum_EmaxNorm': 3e4,
+ #'spectrum_EminNorm': 2e2,
+ #'spectrum_EmaxNorm': 3e4,
 }
 
 pars = \
 {
  'Z': [1,2],
  'approx_helium': False,
- 'track_extrema': False,
- 'final_redshift': 8,
- 'initial_ionization': [1.2e-3, 1e-8],
  'source_kwargs': [src1, src2],
  'spectrum_kwargs': [sed1, sed2],
- 'EoR_xavg': 1e-3,
- 'EoR_dlogx': 1e-3,
- 'secondary_ionization': 3,
+ 'EoR_xavg': 1e-2,
+ #'secondary_ionization': 3,
 }
 
 ax1, ax2, ax3, ax4 = None, None, None, None

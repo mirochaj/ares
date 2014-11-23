@@ -223,7 +223,6 @@ class StellarPopulation:
         
         """
                    
-        
         if self.pf['xi_LW'] is not None:
             return self.cLW * self.pf['xi_LW'] * self.SFRD(z) \
                 / self.pf['fstar'] / self.pf['Nlw']

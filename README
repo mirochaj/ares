@@ -35,16 +35,16 @@ the halo mass function (in ``$ARES/input/hmf``), IGM optical depth (in
 When you first run the ``setup.py`` script, a few files will be downloaded
 automatically:
 
-hmf_PS_logM_240_4-16_z_1521_4-80.pkl
+hmf_ST_logM_1200_4-16_z_1121_4-60.pkl
     Lookup table for the halo mass function. To make your own lookup tables, run
     ``$ARES/input/generate_hmf_tables.py``. You'll need to install 
     `hmf <https://github.com/steven-murray/hmf>`_ for this to work.
 
-initial_conditions.hdf5
+initial_conditions.npz
     Evolution of IGM thermal and ionization state computed using the ``CosmoRec``
     code.
 
-optical_depth_H_400x1884_z_10-40_logE_2-4.7.hdf5
+optical_depth_H_400x1616_z_10-50_logE_2-4.7.pkl
     IGM optical depth from :math:`10 \leq z \leq 40` and :math:`0.1 \leq h\nu / keV \leq 30` in a neutral
     universe. To make your own lookup tables spanning different redshifts,
     energies, or for prescribed ionization histories, run
@@ -74,14 +74,14 @@ To generate a global 21-cm signal, simply type: ::
     sim = ares.simulations.Global21cm()
     sim.run()
     
-You can examine the contents of ``sim.history``, which contains the redshift
-evolution of all IGM physical quantities, or use some built-in analysis 
-routines: ::
+You can examine the contents of ``sim.history``, a dictionary which contains 
+the redshift evolution of all IGM physical quantities, or use some built-in 
+analysis routines: ::
 
     anl = ares.analysis.Global21cm(sim)
     anl.GlobalSignature()
     
-See the documentation for more examples.    
+See the documentation for more examples.
 
 Documentation
 --------------

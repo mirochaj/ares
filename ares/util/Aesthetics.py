@@ -33,6 +33,7 @@ label_dTbdnu = r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$'
 labels = \
 {
  'nu_mhz': r'$\nu \ (\mathrm{MHz})$',
+ 't_myr': r'$t \ (\mathrm{Myr})$',
  'flux': label_flux_phot, 
  'flux_E': label_flux_nrg, 
  'E': label_nrg,  

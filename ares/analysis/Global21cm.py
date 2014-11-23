@@ -337,7 +337,7 @@ class Global21cm:
         nu_minor = nu_0_mhz / (1. + z_minor)
         
         ax_z = ax.twiny()
-        ax_z.set_xlabel(r'$z$')        
+        ax_z.set_xlabel(labels['z'])        
         ax_z.set_xticks(nu)
         ax_z.set_xticks(nu_minor, minor=True)
             
@@ -372,7 +372,7 @@ class Global21cm:
         znu_minor = nu_0_mhz / np.array(nu_minor) - 1.
         
         ax_freq = ax.twiny()
-        ax_freq.set_xlabel(r'$\nu \ (\mathrm{MHz})$')        
+        ax_freq.set_xlabel(labels['nu_mhz'])        
         ax_freq.set_xticks(znu)
         ax_freq.set_xticks(znu_minor, minor=True)
         ax_freq.set_xlim(ax.get_xlim())
@@ -417,7 +417,7 @@ class Global21cm:
             np.inf), t_minor)
         
         ax_time = ax.twiny()
-        ax_time.set_xlabel(r'$t \ (\mathrm{Myr})$')        
+        ax_time.set_xlabel(labels['t_myr'])        
         ax_time.set_xticks(zt)
         ax_time.set_xticks(zt_minor, minor=True)
         ax_time.set_xlim(ax.get_xlim())
@@ -625,8 +625,8 @@ class Global21cm:
         for y in np.linspace(-250, 50, 7):
             yticks.remove(y)
                         
-        mp.grid[0].set_xlabel(r'$z$')
-        mp.grid[0].set_ylabel(r'$\delta \mathrm{T_b} \ (\mathrm{mK})$')
+        mp.grid[0].set_xlabel(labels['z'])
+        mp.grid[0].set_ylabel(labels['dTb'])
         mp.grid[1].set_ylabel(r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$')
         
         for i in xrange(2):                
@@ -844,7 +844,7 @@ class Global21cm:
         
         ax.set_xlim(0, 15)
 
-        ax.set_xlabel(r'$z$')
+        ax.set_xlabel(labels['z'])
         ax.set_ylabel(r'$\tau_e$')
 
         # Contribution from post-EoR

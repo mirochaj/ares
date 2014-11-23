@@ -52,8 +52,8 @@ sed2 = \
 
 pars = \
 {
- 'initial_redshift': 50,
  'final_redshift': 6,
+ 'EoR_xavg': 1e-2,
  'source_kwargs': [src1, src2],
  'spectrum_kwargs': [sed1, sed2],
 }

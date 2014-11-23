@@ -16,3 +16,4 @@ doc/_templates
 doc/_static
 gprof2dot.py
 *.ipynb
+*.pstats
