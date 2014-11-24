@@ -85,7 +85,7 @@ def ProblemType(ptype):
               "problem_type": 0,
               "plane_parallel": 1,
               "isothermal": 0,
-              "density_units": m_H,
+              "density_units": 1.0,
               "length_units": 1e-4 * cm_per_kpc, # 100 milliparsecs 
               "time_units": s_per_myr,
               "start_radius": 0.99,   # cell = 1 milliparsec across
@@ -120,12 +120,11 @@ def ProblemType(ptype):
     if ptype_int == 1:
         pf = {
               "problem_type": 1,
-              "density_units": 1e-3 * m_H,
+              "density_units": 1e-3,
               "length_units": 6.6 * cm_per_kpc,
               "stop_time": 500.0,
               "isothermal": 1,
               "secondary_ionization": 0,
-              "Z": [1],
               "initial_temperature": 1e4,
               "initial_ionization": [1.2e-3],
               "source_type": 'toy',
@@ -139,12 +138,11 @@ def ProblemType(ptype):
     if ptype_int == 2:
         pf = {
               "problem_type": 2, 
-              "density_units": 1e-3 * m_H,
+              "density_units": 1e-3,
               "length_units": 6.6 * cm_per_kpc,
               "stop_time": 100.0,
               "isothermal": 0,
               "restricted_timestep": ['ions', 'temperature'],
-              "Z": [1],
               "initial_temperature": 1e2,
               "initial_ionization": [1.2e-3],
               "source_type": 'star', 
@@ -161,7 +159,7 @@ def ProblemType(ptype):
         pf = {
               "problem_type": 3,  
               "plane_parallel": 1,
-              "density_units": 2e-4 * m_H,
+              "density_units": 2e-4,
               "length_units": 6.6 * cm_per_kpc,
 
               "stop_time": 15.0, 
@@ -208,7 +206,7 @@ def ProblemType(ptype):
     if 10 <= ptype <= 20:
         helium_pars = \
             {
-             'Z': [1, 2], 
+             'include_He': True,
              'initial_ionization': [pf['initial_ionization'][0]]*2,
              'tables_dlogN': defs['tables_dlogN']*3,
              'tables_xmin': defs["tables_xmin"]*3,

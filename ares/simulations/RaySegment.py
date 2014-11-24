@@ -75,19 +75,18 @@ class RaySegment:
                         helium_by_number=pf['helium_by_number'], 
                         cmb_temp_0=pf['cmb_temp_0'],
                         approx_highz=pf['approx_highz'])    
-                    grid.set_chemistry(Z=pf['Z'])
-                    grid.set_density(grid.cosm.rho_b_z0 \
-                        * (1. + pf['initial_redshift'])**3)
+                    grid.set_chemistry(pf['include_He'])
+                    grid.set_density(grid.cosm.nH(pf['initial_redshift']))
                     grid.set_temperature(grid.cosm.Tgas(pf['initial_redshift']))
                     
-                    for i, Z in enumerate(pf['Z']):
+                    for i, Z in enumerate(grid.Z):
                         grid.set_ionization(Z=Z, x=pf['initial_ionization'][i])
                     
                     grid.data['n'] = grid.particle_density(grid.data, 
                         z=pf['initial_redshift'])
                         
                 else:
-                    grid.set_chemistry(Z=pf['Z'])
+                    grid.set_chemistry(pf['include_He'])
                     grid.set_density(pf['density_units'])
                     
                     for i, Z in enumerate(grid.Z):

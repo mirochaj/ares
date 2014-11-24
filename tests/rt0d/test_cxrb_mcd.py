@@ -33,7 +33,7 @@ plpars = \
  'spectrum_EmaxNorm': 8e3,
  'spectrum_logN': 21,
  'approx_xray': 0,
- 'approx_helium': 0,
+ 'approx_He': 0,
  'norm_by': 'xray',
 }
 

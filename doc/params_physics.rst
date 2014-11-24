@@ -35,11 +35,17 @@ Physics Parameters
     
     Default: 1
 
-``approx_helium``
-    0) If ``Z=[1]``, neglect helium entirely. If ``Z[1,2]``, treat helium self-consistently.
-    1) (Only applies if ``Z=[1,2]``) Include opacity of intergalactic helium, assuming singly-ionized helium fraction is equal to the hydrogen ionized fraction.
+``approx_He``
+    See following table for possible behaviors depending on value of ``include_He``.
+    Default: False
     
-    Default: 0
+===============  ==============  =============== 
+``include_He``   ``approx_He``    description
+===============  ==============  =============== 
+False                False          Neglects helium entirely
+True                 True           Set :math:`x_{\text{HeII}} = x_{\text{HII}}`, and set :math:`x_{\text{HeIII}} = 0`
+True                 False          Solve for helium self-consistently
+===============  ==============  =============== 
     
 ``approx_sigma``
     0) Compute bound-free absorption cross sections via fits of Verner et al. (1996).
@@ -48,7 +54,7 @@ Physics Parameters
     Default: 0
 
 ``approx_lya``
-    0) Solves RTE (i.e., full ``sawtooth'' background).
+    0) Solves RTE (i.e., full "sawtooth" background).
     1) Assume flat spectrum between Lyman-:math:`\alpha` and the Lyman limit.
     
     Default: 1

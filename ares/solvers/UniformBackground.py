@@ -609,7 +609,7 @@ class UniformBackground:
             if np.isfinite(self.pf['spectrum_logN']):
                 print "Applying power-law cutoff to input SED."
                 cutoff = lambda nrg: np.exp(-10.**self.pf['spectrum_logN'] \
-                    * (self.igm.sigma(nrg, 0) + self.pf['approx_helium'] \
+                    * (self.igm.sigma(nrg, 0) + self.pf['approx_He'] \
                     * self.cosm.y * self.igm.sigma(nrg, 1)))
     
                 self.Inu *= np.array(map(cutoff, self.igm.E))

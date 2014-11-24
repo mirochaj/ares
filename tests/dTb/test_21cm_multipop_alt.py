@@ -30,7 +30,7 @@ pars = \
  'is_ion_src_igm{1}': False,
  'is_ion_src_cgm{1}': False, 
  'is_heat_src_igm{1}': False, 
- 'fstar{1}': 1e-4,
+ 'fstar{1}': 1e-3,
  'Nion{1}': 3e4,
  'Nlw{1}': 4800.,
 }

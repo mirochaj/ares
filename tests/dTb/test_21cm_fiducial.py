@@ -14,7 +14,7 @@ import ares
 
 pars = \
 {
- 'fitting_function': 'PS',
+ 'fitting_function': 'ST',
  'Tmin': 1e4,
  'first_light_redshift': 40,
  'initial_redshift': 40,

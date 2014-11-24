@@ -36,11 +36,10 @@ except ImportError:
     size = 1
     
 class SpectrumOptimization:
-    def __init__(self, logN=None, Z=[1], nfreq=1, rs=None, fn=None, 
+    def __init__(self, logN=None, helium=False, nfreq=1, rs=None, fn=None, 
         thinlimit=False, isothermal=False, secondary_ionization=0, mcmc=False,
         loglikelihood=None):
         self.logN = logN
-        self.Z = Z
         self.nfreq = nfreq
         self.rs = rs
         self.fn = fn
@@ -53,7 +52,9 @@ class SpectrumOptimization:
         self.grid = Grid()
         self.grid.set_physics(isothermal=self.isothermal, 
             secondary_ionization=self.secondary_ionization)
-        self.grid.set_chemistry(Z=self.Z)
+        self.grid.set_chemistry(helium)
+        
+        self.Z = self.grid.Z
         
         # Initialize radiation source
         if self.rs is None:

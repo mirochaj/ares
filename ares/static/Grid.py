@@ -20,6 +20,9 @@ from ..physics.Cosmology import Cosmology
 from ..physics.Constants import k_B, cm_per_kpc, s_per_myr, m_H
 from ..physics.CrossSections import PhotoIonizationCrossSection
 
+mH_amu = 1.00794
+mHe_amu = 4.002602
+
 class ELEMENT:
     """ Substitute for periodic package, only knows about H and He. """
     def __init__(self, name):
@@ -386,7 +389,7 @@ class Grid(object):
             cmb_temp_0=cmb_temp_0, 
             approx_highz=approx_highz)        
         
-    def set_chemistry(self, Z=1):
+    def set_chemistry(self, include_He=False):
         """
         Initialize chemistry.
         
@@ -395,29 +398,27 @@ class Grid(object):
         
         Parameters
         ----------
-        Z : int, list
-            Atomic number(s) of elements to include in calculation.
+        include_He : bool
+            Solve for helium?
 
         Example
         -------
         grid = Grid(dims=32)
-        grid.set_chemistry(Z=[1,2])  
+        grid.set_chemistry()   # H-only
         
         """                
         
-        if type(Z) is not list:
-            Z = [Z]
-            
+        self.Z = [1]    
         self.abundances = [1.]
-        if 2 in Z:
+        if include_He:
+            self.Z.append(2)
             self.abundances.append(self.cosm.helium_by_number)
-        
-        self.Z = np.array(Z)
+                
+        self.Z = np.array(self.Z)
         self.ions_by_parent = {} # Ions sorted by parent element in dictionary
         self.parents_by_ion = {} # From ion name, determine parent element
         self.elements = []       # Just a list of element names
         self.all_ions = []       # All ion species          
-        self.tracked_fields = [] # Anything we're keeping track of
         self.evolving_fields = []# Anything with an ODE we'll later solve
           
         for i, element in enumerate(self.Z):
@@ -430,7 +431,6 @@ class Grid(object):
                 self.all_ions.append(name)
                 self.ions_by_parent[element_name].append(name)
                 self.parents_by_ion[name] = element_name
-                self.tracked_fields.append(name)
                 self.evolving_fields.append(name)
 
         self.solve_ge = False      
@@ -441,20 +441,20 @@ class Grid(object):
         # Create blank data fields    
         if not hasattr(self, 'data'):            
             self.data = {}
-            for field in self.tracked_fields:
+            for field in self.evolving_fields:
                 self.data[field] = np.zeros(self.dims)
-                    
+                                        
         self.abundances_by_number = self.abundances
         self.element_abundances = [1.0]
-        if 2 in Z:
+        if include_He:
             self.element_abundances.append(self.cosm.helium_by_number)
                                
         # Initialize mapping between q-vector and physical quantities (dengo)                
         self._set_qmap()
 
-    def set_density(self, rho0=None):
+    def set_density(self, nH=None):
         """
-        Initialize gas density, and from that, the hydrogen number density.
+        Initialize hydrogen number density.
         
         Setting the gas density is necessary for computing the hydrogen 
         number density, which normalizes fractional abundances of elements
@@ -467,57 +467,21 @@ class Grid(object):
             or an array of values the same size as the grid itself.
             
         """
-        
-        if isinstance(rho0, Iterable):
-            self.data['rho'] = rho0
+          
+        if isinstance(nH, Iterable):    
+            self.n_H = nH
         else:
-            self.data['rho'] = rho0 * np.ones(self.dims)  
+            self.n_H = nH * np.ones(self.dims)    
             
-        if len(self.Z) == 1:
-            self.n_H = self.data['rho'] / m_H
-            self.n_He = 0.0 
-        elif len(self.Z) == 2:
-            if 2 not in self.Z:
-                raise ValueError('Only know how to do H+He gas.')
-                
-            self.n_H = (1. - self.cosm.Y) * self.data['rho'] / m_H
-            self.n_He = self.cosm.Y * self.data['rho'] / 4. / m_H
+        if 2 in self.Z:
+            self.n_He = self.n_H * self.abundances[1]
+        else:
+            self.n_He = 0.0     
+                        
+        self.n_ref = self.n_H    
         
-        self.n_ref = self.n_H
-                    
-        #if len(self.Z) == 1:
-        #    if self.Z == np.ones(1):
-        #        self.abundances_by_number = self.element_abundances = np.ones(1)
-        #        if self.expansion:
-        #            self.n_H = \
-        #                (1. - self.cosm.Y) * self.data['rho'] / m_H
-        #        else:
-        #            self.n_H = self.data['rho'] / m_H
-        #    else:
-        #        self.n_H = self.data['rho'] / m_H \
-        #            / ELEMENT(self.elements[0]).mass
-        #            
-        #    self.n_ref = copy.deepcopy(self.n_H)
-        #    return
-        #    
-        #    
-        #                    
-        ## Set hydrogen number density (which normalizes all other species)
-        #X = 0.0
-        #for i in xrange(len(self.abundances_by_number) - 1):
-        #    name = util.z2element(i + 1)
-        #    if not name.strip():
-        #        continue
-        #            
-        #    X += self.abundances_by_number[i] * ELEMENT(name).mass
-        #             
-        ## Set reference number density
-        #if 'h' in self.elements:
-        #    self.n_H = self.n_ref = self.data['rho'] / m_H / X
-        #else:
-        #    self.n_H = self.n_ref = self.data['rho'] / m_H \
-        #        / ELEMENT(self.elements[0]).mass
-
+        self.data['rho'] = m_H * (self.n_H * mH_amu + self.n_He * mHe_amu)
+                            
     def set_temperature(self, T0):
         """
         Set initial temperature in grid.  

@@ -10,10 +10,10 @@ Description: Reproduce Figures 2-3 in Furlanetto & Stoever (2010).
 
 """
 
-import rt1d
-import matplotlib.pyplot as pl
+import ares
 import numpy as np
-from multiplot import multipanel
+import matplotlib.pyplot as pl
+from ares.analysis import MultiPanel
 
 # First, compare at fixed ionized fraction
 xe = [1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.9]
@@ -23,11 +23,11 @@ channels.reverse()
 
 colors = ['k', 'b', 'r', 'g', 'm', 'c', 'y']
 
-mp = multipanel(dims=(2, 2), padding=(0.2, 0.))
+mp = MultiPanel(dims=(2, 2), padding=(0.2, 0.))
 
-esec1 = rt1d.physics.SecondaryElectrons(method=1)
-esec2 = rt1d.physics.SecondaryElectrons(method=2)
-esec3 = rt1d.physics.SecondaryElectrons(method=3)
+esec1 = ares.physics.SecondaryElectrons(method=1)
+esec2 = ares.physics.SecondaryElectrons(method=2)
+esec3 = ares.physics.SecondaryElectrons(method=3)
 
 for j, channel in enumerate(channels):
     

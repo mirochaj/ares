@@ -22,8 +22,8 @@ grid = ares.static.Grid(dims=dims)
 
 # Set initial conditions
 grid.set_physics(isothermal=True)
-grid.set_chemistry(Z=1)
-grid.set_density(rho0=ares.physics.Constants.m_H)
+grid.set_chemistry(include_He=True)
+grid.set_density(nH=1.)
 grid.set_ionization(state='neutral')  
 grid.set_temperature(T)
 

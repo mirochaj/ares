@@ -28,15 +28,13 @@ src2 = \
 {
  'Tmin': 300.,
  'source_type': 'star',
- 'fstar': 1e-4,
+ 'fstar': 1e-3,
  'Nion': 3e4,
  'Nlw': 4800.,
 }
 
 pars = \
 {
- 'initial_redshift': 50,
- 'first_light_redshift': 50,
  'source_kwargs': [src1, src2],
 }
 

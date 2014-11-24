@@ -439,7 +439,7 @@ class RadiationField: # maybe RadiationNearSource
                         self.Gamma[h] = 0.0
                 else:
                     for i, absorber in enumerate(self.grid.absorbers):
-                        if self.pf['approx_helium'] and i > 0:
+                        if self.pf['approx_He'] and i > 0:
                             continue
                         
                         self.Gamma[h,:,i] = \
@@ -452,7 +452,7 @@ class RadiationField: # maybe RadiationNearSource
                         self.gamma[h] = 0.0
                 else:
                     for i, absorber in enumerate(self.grid.absorbers):
-                        if self.pf['approx_helium'] and i > 0:
+                        if self.pf['approx_He'] and i > 0:
                             continue
                             
                         self.gamma[h,:,i] = \
@@ -465,7 +465,7 @@ class RadiationField: # maybe RadiationNearSource
                         self.k_H[h] = 0.0
                 else:
                     for i, absorber in enumerate(self.grid.absorbers):
-                        if self.pf['approx_helium'] and i > 0:
+                        if self.pf['approx_He'] and i > 0:
                             continue
                             
                         self.k_H[h,:,i] = src.heating_rate(z, species=i, **kwargs)

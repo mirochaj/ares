@@ -26,7 +26,7 @@ pars = \
  'spectrum_Emax': E_LL,
  'spectrum_EminNorm': 0.01,
  'spectrum_EmaxNorm': 5e2,
- 'approx_helium': 0,
+ 'approx_He': 0,
  'approx_xray': 0,
  'approx_lya': 0,
  'Nlw': 9690.,

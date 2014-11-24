@@ -315,7 +315,7 @@ class IntegralTable:
             tau += self.OpticalDepth(N[self.grid.absorbers.index(absorber)], 
                 absorber)
                 
-            #if self.grid.approx_helium:
+            #if self.grid.approx_He:
             #    Nhe = self.grid.abundances[1] \
             #        * N[self.grid.absorbers.index('h_1')]
             #    tau += self.OpticalDepth(Nhe, 'he_1')  

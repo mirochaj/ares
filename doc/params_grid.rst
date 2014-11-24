@@ -16,8 +16,8 @@ Grid Parameters
     Must be done in order to avoid divergence in flux as :math:`r\rightarrow 0`
 
 ``density_units``
-    Default: :math:`10^{-3} m_H \ \text{cm}{-3}` 
-    (i.e., equivalent of :math:`10^{-3}` hydrogen atoms per :math:`\text{cm}^{3}`)
+    Hydrogen number density in units of :math:`\text{cm}{-3}` 
+    Default: :math:`1 \ \text{cm}{-3}` 
     
 ``length_units``
     Default: :math:`6.6 \times 3.08568 \times 10^{21} \ \text{cm}` (i.e., 6.6 kilo-parsec) [centimeters]

@@ -15,8 +15,6 @@ import matplotlib.pyplot as pl
 
 pars = \
 {
- 'Z': [1],
- 'approx_helium': False,
  'track_extrema': False,
 
  'initial_redshift': 50.,

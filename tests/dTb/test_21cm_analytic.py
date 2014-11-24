@@ -69,7 +69,7 @@ def Ja_func(z, **kwargs):
 sim = ares.simulations.Global21cm(initial_ionization=[xi0],
     final_redshift=zarr.min(), load_ics=False, initial_redshift=zarr.max(),
     Gamma_cgm=Gamma_cgm_func, recombination=0, secondary_ionization=0, 
-    heat_igm=eheat_func, Ja=Ja_func, is_ion_src_igm=False, approx_helium=0)
+    heat_igm=eheat_func, Ja=Ja_func, is_ion_src_igm=False, approx_He=0)
 sim.run()
 
 anl = ares.analysis.Global21cm(sim)

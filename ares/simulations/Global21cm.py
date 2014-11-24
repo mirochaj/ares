@@ -164,19 +164,21 @@ class Global21cm:
                 xe = np.interp(self.pf['initial_redshift'], inits['z'],
                     inits['xe'])
                    
-                if len(self.pf['Z']) > 1:
+                if self.pf['include_He']:
                     x0 = [xe, 0.0]
                 else:
                     x0 = [min(xe, 1.0)]
 
                 self.inits_path = inits_path
         else:
-            if len(x0) != len(self.pf['Z']):
+            if self.pf['include_He']:
                 x0 = [self.pf['initial_ionization'][0]] * 2 
+            else:
+                x0 = [self.pf['initial_ionization'][0]]
                 
             # Set to adiabatic temperature if no inits supplied
             T0 = self.grid.cosm.Tgas(self.pf['initial_redshift'])
-                            
+                                                 
         # Set cosmological initial conditions  
         for grid in self.grids:  
             grid.set_cosmology(initial_redshift=self.pf['initial_redshift'], 
@@ -188,20 +190,19 @@ class Global21cm:
                 cmb_temp_0=self.pf["cmb_temp_0"], 
                 approx_highz=self.pf["approx_highz"])
                 
-            grid.set_chemistry(Z=self.pf['Z'])
-            grid.set_density(grid.cosm.rho_b_z0 \
-                * (1. + self.pf['initial_redshift'])**3)
+            grid.set_chemistry(include_He=self.pf['include_He'])
+            grid.set_density(grid.cosm.nH(self.pf['initial_redshift']))
 
-        self.helium = 2 in self.pf['Z']
+        self.helium = self.pf['include_He']
 
         self.grid_igm.set_temperature(T0)
         self.grid_cgm.set_temperature(1.e4)
         self.grid_cgm.set_recombination_rate(in_bubbles=True)
 
-        for i, Z in enumerate(self.pf['Z']):
+        for i, Z in enumerate(self.grid.Z):
             self.grid_igm.set_ionization(Z=Z, x=x0[i])
             self.grid_cgm.set_ionization(Z=Z, x=1e-8)
-                        
+                                                
         self.grid_igm.data['n'] = \
             self.grid_igm.particle_density(self.grid_igm.data, 
             z=self.pf['initial_redshift'])
@@ -764,7 +765,7 @@ class Global21cm:
         n_e = nH * hist['%s_h_2' % zone][-1]           
               
         if self.helium:
-            if self.pf['approx_helium']:
+            if self.pf['approx_He']:
                 n_e += nHe * hist['%s_h_2' % zone][-1]
             else:
                 n_e += nHe * hist['%s_he_2' % zone][-1]
@@ -1062,7 +1063,7 @@ class Global21cm:
                 
                 for j, absorber in enumerate(self.grid.absorbers):
                     
-                    if j > 0 and self.pf['approx_helium']:
+                    if j > 0 and self.pf['approx_He']:
                         continue
                                         
                     if rb.pop.pf['approx_xray']:
@@ -1132,28 +1133,36 @@ class Global21cm:
         xx = [xHI_avg]
         nf = [rb.igm.cosm.nH]
         
-        if self.helium:
-            xHeI_igm = np.array(self.history['igm_he_1'][-1:-4:-1])
-            xHeI_cgm = np.array(self.history['cgm_h_1'][-1:-4:-1])
-            xHeI_avg = xHeI_cgm * xHeI_igm
-                                                                 
-            xHeII_igm = np.array(self.history['igm_he_2'][-1:-4:-1])
-            xHeII_cgm = np.array(self.history['cgm_h_2'][-1:-4:-1])
-            xHeII_avg = xHeII_cgm * xHeII_igm
-
-            xx.extend([xHeI_avg, xHeII_avg])
-            nf.extend([rb.igm.cosm.nHe]*2)
-        elif self.pf['approx_helium']:
-            xx.extend([xHI_avg, np.zeros_like(xHI_avg)])
-            nf.extend([rb.igm.cosm.nHe]*2)
+        # Account for helium opacity
+        if self.pf['include_He']:
+            
+            if self.pf['approx_He']:
+                xx.extend([xHI_avg, np.zeros_like(xHI_avg)])
+                nf.extend([rb.igm.cosm.nHe]*2)
+                
+            else:    
+                xHeI_igm = np.array(self.history['igm_he_1'][-1:-4:-1])
+                xHeI_cgm = np.array(self.history['cgm_h_1'][-1:-4:-1])
+                xHeI_avg = xHeI_cgm * xHeI_igm
+                                                                     
+                xHeII_igm = np.array(self.history['igm_he_2'][-1:-4:-1])
+                xHeII_cgm = np.array(self.history['cgm_h_2'][-1:-4:-1])
+                xHeII_avg = xHeII_cgm * xHeII_igm
+                
+                xx.extend([xHeI_avg, xHeII_avg])
+                nf.extend([rb.igm.cosm.nHe]*2)
+        #else:
+        #    xx.extend([xHI_avg, np.zeros_like(xHI_avg)])
+        #    nf.extend([rb.igm.cosm.nHe]*2)
 
         tau = np.zeros_like(rb.igm.E)
         for k in range(3):  # absorbers
 
-            if k > 0 and (not self.helium) and (not self.pf['approx_helium']):
+            if k > 0 and (not self.pf['include_He']):
                 continue
                 
-            if self.pf['approx_helium'] and k == 2:
+            # If approximating He opacity, we're neglecting HeII 
+            if self.pf['approx_He'] and k == 2:
                 continue
 
             # Interpolate to get current neutral fraction

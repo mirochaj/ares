@@ -188,7 +188,7 @@ def print_1d_sim(sim):
         just='l')
     print line("size        : %.3g (kpc)" \
         % (sim.pf['length_units'] / cm_per_kpc), just='l')
-    print line("density     : %.2e (g cm**-3 / m_H)" % (sim.pf['density_units'] / m_H))
+    print line("density     : %.2e (H atoms cm**-3)" % (sim.pf['density_units']))
     
     print line('-'*twidth)       
     print line('Chemical Network')     
@@ -196,7 +196,7 @@ def print_1d_sim(sim):
     
     Z = ''
     A = ''
-    for i, element in enumerate(sim.pf['Z']):
+    for i, element in enumerate(sim.grid.Z):
         if element == 1:
             Z += 'H'
             A += '%.2g' % (1)
@@ -564,7 +564,7 @@ def print_21cm_sim(sim):
 
     Z = ''
     A = ''
-    for i, element in enumerate(sim.pf['Z']):
+    for i, element in enumerate(sim.grid.Z):
         if element == 1:
             Z += 'H'
             A += '%.2g' % 1.
@@ -574,7 +574,7 @@ def print_21cm_sim(sim):
 
     print line("elements    : %s" % Z, just='l')
     print line("abundance   : %s" % A, just='l')
-    print line("approx He   : %i" % sim.pf['approx_helium'])
+    print line("approx He   : %i" % sim.pf['approx_He'])
     print line("rates       : %s" % rate_srcs[sim.pf['rate_source']], 
         just='l')
 

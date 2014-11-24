@@ -52,11 +52,13 @@ def GridParameters():
     "start_radius": 0.01,
     "logarithmic_grid": False,
     
-    "density_units": 1e-3 * m_H,
+    "density_units": 1e-3,            # H number density
     "length_units": 10. * cm_per_kpc,  
     "time_units": s_per_myr,  
     
-    "Z": [1],
+    "include_He": False,
+    "include_H2": False,
+
     "initial_ionization": [1.2e-3],
     "initial_temperature": 1e4,
             
@@ -123,7 +125,7 @@ def PhysicsParameters():
     "lya_injected": True,
     'lya_continuum': True,        
     
-    "approx_helium": 0,
+    "approx_He": 0,
                      
     "rate_source": 'fk94', # fk94, option for development here
     

@@ -62,7 +62,7 @@ class RaySegment:
                 approx_lya=self.pf['approx_lya'])
                             
             self.grid.set_ics(self.data['dd0000'])
-            self.grid.set_chemistry(Z=self.pf['Z'])
+            self.grid.set_chemistry(self.pf['include_He'])
             self.grid.set_density(self.data['dd0000']['rho'])
         
         # Read contents from CheckPoints class instance            

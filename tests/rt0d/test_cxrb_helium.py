@@ -34,7 +34,7 @@ pars = \
  'redshift_bins': 400,
 }
 
-pars2 = pars.copy(); pars2.update({'approx_helium': 1, 'Z':[1,2]})
+pars2 = pars.copy(); pars2.update({'approx_He': 1, 'include_He': 1})
 
 rad_h = ares.solvers.UniformBackground(**pars)
 rad_he = ares.solvers.UniformBackground(**pars2)

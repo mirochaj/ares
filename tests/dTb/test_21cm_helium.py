@@ -13,6 +13,8 @@ Description:
 import ares
 import matplotlib.pyplot as pl
 
+pl.rcParams['legend.fontsize'] = 12
+
 src1 = \
 {
  'source_type': 'star',
@@ -47,36 +49,37 @@ sed2 = \
 {
  'spectrum_type': 'pl',
  'spectrum_alpha': -1.5,
+ 'spectrum_logN': 20.,
  'spectrum_Emin': 2e2,
  'spectrum_Emax': 3e4,
- #'spectrum_EminNorm': 2e2,
- #'spectrum_EmaxNorm': 3e4,
 }
 
 pars = \
 {
- 'Z': [1,2],
- 'approx_helium': False,
+ 'include_He': False,
+ 'approx_He': False,
  'source_kwargs': [src1, src2],
  'spectrum_kwargs': [sed1, sed2],
- 'EoR_xavg': 1e-2,
- #'secondary_ionization': 3,
 }
 
 ax1, ax2, ax3, ax4 = None, None, None, None
 
 sims = []
 approx = [True, False]
-colors = ['k', 'r']
-for i, Z in enumerate([[1], [1,2]]):
+colors = ['k', 'b', 'r']
+for i, approx in enumerate(range(-1, 2)):
     
-    #label = None
-    if i == 0:
-        label = 'H-only'
+    if approx == -1:
+        label = 'H-only'    
+        pars.update({'include_He': False})
     else:
-        label = 'H+He'
-    
-    pars.update({'Z': Z, 'approx_helium': approx[i]})
+        pars.update({'include_He': True, 'approx_He': approx})
+        if approx == 0:
+            label = 'H+He (self-consistent)'
+        
+        elif approx == 1:
+            label = 'H+He (approx)'
+                  
     sim = ares.simulations.Global21cm(**pars)
     sim.run()
     
@@ -85,18 +88,19 @@ for i, Z in enumerate([[1], [1,2]]):
     ax1 = anl.GlobalSignature(ax=ax1, fig=1, color=colors[i],
         label=label)
     ax2 = anl.IonizationHistory(ax=ax2, fig=2, color=colors[i], 
-        show_legend=not i, show_xi=not i, show_xibar=not i)
-    ax3 = anl.TemperatureHistory(ax=ax3, fig=3, color=colors[i], show_legend=not i)
+        show_legend=False, show_xi=False, show_xibar=False)
+    ax3 = anl.TemperatureHistory(ax=ax3, fig=3, color=colors[i], 
+        show_legend=False)
     
-    if i == 1:
+    if approx == 0:
         ax4 = anl.IonizationHistory(fig=4, element='he', color=colors[i])
         ax4 = anl.IonizationHistory(ax=ax4, show_xi=False, show_xibar=False,
             color='k', ls=':', label=r'$x_{\mathrm{HII}}$')
         ax4.set_title('(in bulk IGM)')
-        ax4.set_ylim(1e-4, 1.5)
+        ax4.set_ylim(1e-5, 1.5)
         
     sims.append(sim)
 
-pl.draw()
+pl.show()
 
 

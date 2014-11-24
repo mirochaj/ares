@@ -10,7 +10,7 @@ Description:
 
 """
 
-import rt1d, sys
+import ares, sys
 import numpy as np
 import matplotlib.pyplot as pl
 
@@ -34,16 +34,16 @@ colors = list('kb')
 for i, src in enumerate(['fk94']):
 
     # Initialize grid object
-    grid = rt1d.static.Grid(dims=dims)
+    grid = ares.static.Grid(dims=dims)
     
     # Set initial conditions
     grid.set_physics(isothermal=True)
-    grid.set_chemistry(Z=[1], abundances=[1.])
-    grid.set_density(rho0=rt1d.physics.Constants.m_H)
-    grid.set_ionization()
+    grid.set_chemistry()
+    grid.set_density(1)
+    grid.set_ionization(Z=1, x=1e-1)
     grid.set_temperature(T)
 
-    coeff = rt1d.physics.RateCoefficients(grid=grid, rate_src=src, T=T)
+    coeff = ares.physics.RateCoefficients(grid=grid, rate_src=src, T=T)
     
     # First: collisional ionization, recombination
     CI = map(lambda TT: coeff.CollisionalIonizationRate(species, TT), T)
@@ -78,5 +78,5 @@ ax1.set_xlabel(r'Temperature $(\mathrm{K})$')
 ax1.set_ylabel(r'Rate $(\mathrm{cm}^{3} \ \mathrm{s}^{-1})$')
 ax2.set_xlabel(r'Temperature $(\mathrm{K})$')
 ax2.set_ylabel(r'Rate $(\mathrm{erg} \ \mathrm{cm}^{3} \ \mathrm{s}^{-1})$')
-pl.draw()
+pl.show()
         

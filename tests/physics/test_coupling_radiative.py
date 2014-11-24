@@ -10,7 +10,7 @@ Description:
 
 """
 
-import rt1d
+import ares
 import numpy as np
 import matplotlib.pyplot as pl
 
@@ -22,9 +22,9 @@ zarr = np.linspace(20, 40)
 ##
 #
 
-hydr1 = rt1d.physics.Hydrogen(approx_Salpha=1)
-hydr2 = rt1d.physics.Hydrogen(approx_Salpha=2)
-hydr3 = rt1d.physics.Hydrogen(approx_Salpha=3)
+hydr1 = ares.physics.Hydrogen(approx_Salpha=1)
+hydr2 = ares.physics.Hydrogen(approx_Salpha=2)
+hydr3 = ares.physics.Hydrogen(approx_Salpha=3)
 
 pl.plot(zarr, map(lambda z: hydr1.Sa(z, hydr1.cosm.Tgas(z)), zarr), 
     color='k', ls='-')
@@ -36,5 +36,5 @@ pl.plot(zarr, map(lambda z: hydr3.Sa(z, hydr3.cosm.Tgas(z)), zarr),
 pl.ylim(0, 1.1)
 pl.xlabel(r'$z$')
 pl.ylabel(r'$S_{\alpha}$')
-pl.legend(loc='lower right', frameon=False)
+pl.legend(loc='lower right', frameon=False, fontsize=14)
 pl.annotate(r'assuming $T_k \propto (1+z)^2$', (0.1, 0.4), xycoords='axes fraction')

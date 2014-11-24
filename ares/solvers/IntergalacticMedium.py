@@ -87,11 +87,11 @@ class IGM(object):
             self.pop = None
         
         # Include helium opacities approximately?
-        self.approx_He = self.pf['approx_helium'] and (2 in self.pf['Z'])
+        self.approx_He = self.pf['include_He'] and self.pf['approx_He']
         
         # Include helium opacities self-consistently? ("sc")
-        self.self_consistent_He = (not self.pf['approx_helium']) \
-            and (2 in self.pf['Z'])
+        self.self_consistent_He = self.pf['include_He'] \
+            and (not self.pf['approx_He'])
         
         self.cosm = Cosmology()
         self.esec = \
@@ -383,7 +383,7 @@ class IGM(object):
         if not have_h5py:
             suffix == 'pkl'
 
-        HorHe = 'He' if (2 in self.pf['Z']) else 'H'
+        HorHe = 'He' if self.pf['include_He'] else 'H'
 
         zf = self.pf['final_redshift']
         zi = self.pf['initial_redshift']
@@ -946,7 +946,7 @@ class IGM(object):
         fion = self.esec.DepositionFraction(kw['igm_h_2'], channel='h_1')[0]
                 
         if kw['xray_flux'] is None:        
-            if self.pf['approx_helium']: # assumes lower integration limit > 4 Ryd
+            if self.pf['approx_He']: # assumes lower integration limit > 4 Ryd
                 integrand = lambda E, zz: \
                     self.rb.AngleAveragedFluxSlice(z, E, zz, xavg=kw['xavg'], 
                     zxavg=kw['zxavg']) * (self.sigma(E) * (E - E_th[0]) \
@@ -959,7 +959,7 @@ class IGM(object):
                     / E_th[0] / norm / ev_per_hz
         else:
             integrand = self.sigma_E[0] * (self.E - E_th[0])
-            if self.pf['approx_helium']:
+            if self.pf['approx_He']:
                 integrand += self.cosm.y * self.sigma_E[1] \
                     * (self.E - E_th[1])
             
