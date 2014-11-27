@@ -17,3 +17,7 @@ doc/_static
 gprof2dot.py
 *.ipynb
 *.pstats
+*.c
+*.h
+*.tar.gz
+*.dat

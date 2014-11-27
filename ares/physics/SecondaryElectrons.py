@@ -12,17 +12,19 @@ Gnedin, & Shull (2002) also available.
 
 """
 
-import os
+import os, pickle
 import numpy as np
 from collections import Iterable
 from ..util.Math import LinearNDInterpolator
 
 try:
     import h5py
+    have_h5py = True
 except ImportError:
-    pass
+    have_h5py = False
 
 ARES = os.environ.get("ARES")
+prefix = 'input/secondary_electrons'
 
 # If anything is identically zero for methods 2 and 3,
 # our spline will get screwed up since log(0) = inf
@@ -33,17 +35,24 @@ class SecondaryElectrons:
         self.Method = method
 
         if self.Method == 3:
+            self._load_data()
             
-            if ARES:
-                self.fn = "%s/input/secondary_electron_data.hdf5" % ARES
-                f = h5py.File(self.fn, 'r')
-            else:
-                raise Exception('Error loading secondary electron data.')    
-                
+    def _load_data(self):   
+        
+        if not ARES:
+            raise IOError('Must set $ARES environment variable!')    
+        
+        if os.path.exists("%s/input/secondary_electron_data.hdf5" % ARES):
+            self.fn = "%s/%s/secondary_electron_data.hdf5" % (ARES, prefix)
+        else:
+            self.fn = "%s/%s/secondary_electron_data.pkl" % (ARES, prefix)
+        
+        if have_h5py:
+            f = h5py.File(self.fn, 'r')
+
             # Read in Furlanetto & Stoever lookup tables
             self.E = f["electron_energy"].value
             self._x = f["ionized_fraction"].value
-            self._logx = np.log10(self.x)
             
             self.fh_tab = f["f_heat"].value
             self.fionHI_tab = f["fion_HI"].value
@@ -51,17 +60,37 @@ class SecondaryElectrons:
             self.fionHeII_tab = f["fion_HeII"].value
             self.fexc_tab = f["fexc"].value
             self.flya_tab = f['f_Lya'].value
-            
-            from scipy.interpolate import RectBivariateSpline, interp2d
-            
-            self.fh = RectBivariateSpline(self.E, self.x, f["f_heat"].value)
-            self.fHI = RectBivariateSpline(self.E, self.x, f["fion_HI"].value)
-            self.fHeI = RectBivariateSpline(self.E, self.x, f["fion_HeI"].value)
-            self.fHeII = RectBivariateSpline(self.E, self.x, f["fion_HeII"].value)
-            self.fexc = interp2d(self.E, self.x, f["fexc"].value, kind='linear')
-            self.flya = RectBivariateSpline(self.E, self.x, f['f_Lya'].value)
+            self.fion_tab = f['fion'].value
             
             f.close()
+                    
+        else:
+            f = open(self.fn, 'rb')
+            
+            self.E = pickle.load(f)
+            self._x = pickle.load(f)
+            
+            self.fh_tab = pickle.load(f)
+            self.fexc_tab = pickle.load(f)
+            self.flya_tab = pickle.load(f)
+            self.fionHI_tab = pickle.load(f)
+            self.fionHeI_tab = pickle.load(f)
+            self.fionHeII_tab = pickle.load(f)
+            self.fion_tab = pickle.load(f)
+            
+            f.close()
+            
+        self._logx = np.log10(self.x)    
+         
+        # Now, setup splines
+        from scipy.interpolate import RectBivariateSpline, interp2d
+        
+        self.fh = RectBivariateSpline(self.E, self.x, self.fh_tab)
+        self.fHI = RectBivariateSpline(self.E, self.x, self.fionHI_tab)
+        self.fHeI = RectBivariateSpline(self.E, self.x, self.fionHeI_tab)
+        self.fHeII = RectBivariateSpline(self.E, self.x, self.fionHeII_tab)
+        self.fexc = interp2d(self.E, self.x, self.fexc_tab, kind='linear')
+        self.flya = RectBivariateSpline(self.E, self.x, self.flya_tab) 
             
     @property
     def logx(self):
@@ -135,7 +164,7 @@ class SecondaryElectrons:
                         (1. - (1. - pow(xHII[xHII > 1e-4] , 0.2663))**1.3163)
                 else:
                     tmp[xHII > 1e-4] = (1. - tiny_number) \
-                        * np.ones_like(tmp[xHII <= 1e-4]) 
+                        * np.ones_like(tmp[xHII > 1e-4]) 
                     
                 return tmp
                     

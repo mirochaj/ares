@@ -165,7 +165,7 @@ class Global21cm:
                     inits['xe'])
                    
                 if self.pf['include_He']:
-                    x0 = [xe, 0.0]
+                    x0 = [xe, 1e-8]
                 else:
                     x0 = [min(xe, 1.0)]
 
@@ -385,10 +385,12 @@ class Global21cm:
         # Store rate coefficients by (source, absorber)
         self.cxrb_hlo = np.zeros([self.Nrbs, self.grid.N_absorbers])
         self.cxrb_G1lo = np.zeros([self.Nrbs, self.grid.N_absorbers])
-        self.cxrb_G2lo = np.zeros([self.Nrbs, self.grid.N_absorbers])
+        self.cxrb_G2lo = np.zeros([self.Nrbs, self.grid.N_absorbers,
+            self.grid.N_absorbers])
         self.cxrb_hhi = np.zeros([self.Nrbs, self.grid.N_absorbers])
         self.cxrb_G1hi = np.zeros([self.Nrbs, self.grid.N_absorbers])
-        self.cxrb_G2hi = np.zeros([self.Nrbs, self.grid.N_absorbers])
+        self.cxrb_G2hi = np.zeros([self.Nrbs, self.grid.N_absorbers,
+            self.grid.N_absorbers])
         
         for i, rb in enumerate(self.rbs):
             
@@ -405,10 +407,14 @@ class Global21cm:
                         rb.igm.IonizationRateIGM(self.cxrb_zlo, return_rc=True, **kwargs)
                     self.cxrb_G1hi[i,j] = \
                         rb.igm.IonizationRateIGM(self.cxrb_zhi, return_rc=True, **kwargs)
-                    self.cxrb_G2lo[i,j] = \
-                        rb.igm.SecondaryIonizationRateIGM(self.cxrb_zlo, return_rc=True, **kwargs)
-                    self.cxrb_G2hi[i,j] = \
-                        rb.igm.SecondaryIonizationRateIGM(self.cxrb_zhi, return_rc=True, **kwargs)
+                    
+                    for k, donor in enumerate(self.grid.absorbers):
+                        self.cxrb_G2lo[i,j,k] = \
+                            rb.igm.SecondaryIonizationRateIGM(self.cxrb_zlo, 
+                                species=j, donor=k, return_rc=True, **kwargs)
+                        self.cxrb_G2hi[i,j,k] = \
+                            rb.igm.SecondaryIonizationRateIGM(self.cxrb_zhi, 
+                                species=j, donor=k, return_rc=True, **kwargs)
                     
                     continue
                     
@@ -429,12 +435,15 @@ class Global21cm:
                     xray_flux=self.cxrb_fhi[i], return_rc=True, **kwargs)
                                 
                 if self.pf['secondary_ionization'] > 0:
-                    self.cxrb_G2lo[i,j] = \
-                        rb.igm.SecondaryIonizationRateIGM(self.cxrb_zlo,
-                        xray_flux=self.cxrb_flo[i], return_rc=True, **kwargs)
-                    self.cxrb_G2hi[i,j] = \
-                        rb.igm.SecondaryIonizationRateIGM(self.cxrb_zhi,
-                        xray_flux=self.cxrb_fhi[i], return_rc=True, **kwargs)
+                    for k, donor in enumerate(self.grid.absorbers):
+                        self.cxrb_G2lo[i,j,k] = \
+                            rb.igm.SecondaryIonizationRateIGM(self.cxrb_zlo,
+                            species=j, donor=k,
+                            xray_flux=self.cxrb_flo[i], return_rc=True, **kwargs)
+                        self.cxrb_G2hi[i,j,k] = \
+                            rb.igm.SecondaryIonizationRateIGM(self.cxrb_zhi,
+                            species=j, donor=k,
+                            xray_flux=self.cxrb_fhi[i], return_rc=True, **kwargs)
                 
     def run(self):
         """Just another pathway to our __call__ method. Runs simulation."""
@@ -500,37 +509,37 @@ class Global21cm:
                 to_solver['cgm_%s' % field] = self.history['cgm_%s' % field][-1]
                 to_solver['igm_%s' % field] = self.history['igm_%s' % field][-1]
 
-            # Compute X-ray background flux
-            flux_x = self.ComputeXRB(z, ztmp, xtmp, **to_solver)
-                        
-            to_solver.update({'xray_flux': flux_x})
             kwargs.update(to_solver)
-            
+
+            # Compute X-ray background flux
+            self.ComputeXRB(z, ztmp, xtmp, **to_solver)
+                                    
             # Grab ionization/heating rates from full X-ray background calculation
             if not self.approx_all_xray:
                 
-                # Sum over sources, but keep sorted by absorbing species
+                # Sum over sources, but keep sorted by absorbing/donor species
                 hlo = np.sum(self.cxrb_hlo, axis=0)
                 hhi = np.sum(self.cxrb_hhi, axis=0)
                 G1lo = np.sum(self.cxrb_G1lo, axis=0)
                 G1hi = np.sum(self.cxrb_G1hi, axis=0)
                                 
-                # Interpolate to current time
+                # Interpolate to current time                
                 H = [np.interp(z, [self.cxrb_zlo, self.cxrb_zhi], 
                     [hlo[i], hhi[i]]) for i in range(self.grid.N_absorbers)]
                 G1 = [np.interp(z, [self.cxrb_zlo, self.cxrb_zhi], 
                     [G1lo[i], G1hi[i]]) for i in range(self.grid.N_absorbers)]
                 
-                if self.pf['secondary_ionization'] > 0:
+                G2 = np.zeros([self.grid.N_absorbers]*2)
+                if self.pf['secondary_ionization'] > 0:                    
                     G2lo = np.sum(self.cxrb_G2lo, axis=0)
                     G2hi = np.sum(self.cxrb_G2hi, axis=0)
-                    
-                    G2 = [np.interp(z, [self.cxrb_zlo, self.cxrb_zhi], 
-                        [G2lo[i], G2hi[i]]) for i in range(self.grid.N_absorbers)]
-                    
-                else:
-                    G2 = [0.0] * self.grid.N_absorbers
-
+                                        
+                    for ii in range(self.grid.N_absorbers):
+                        for jj in range(self.grid.N_absorbers):
+                            G2[ii,jj] = np.interp(z, 
+                                [self.cxrb_zlo, self.cxrb_zhi],
+                                [G2lo[ii,jj], G2hi[ii,jj]])
+                  
                 # This stuff goes to RadiationField (diffuse sources only)
                 kwargs.update({'epsilon_X': np.array(H), 
                     'Gamma': np.array(G1), 
@@ -898,19 +907,19 @@ class Global21cm:
         """
         
         if self.approx_all_xray:
-            return None
+            return
 
         if not self.pf['radiative_transfer']:
-            return None
+            return
             
         if z > self.pf['first_light_redshift']:
-            return None
+            return
                     
         switch = False
                 
         # Check to make sure optical depth tables are still valid. 
         # If not, re-initialize UniformBackground instance(s) and
-        # prepare to compute the IGM optical depth on-the-fly.        
+        # prepare to compute the IGM optical depth on-the-fly.
         if self.pre_EoR:
             
             # Keep using optical depth table? If not, proceed to indented block
@@ -1057,8 +1066,9 @@ class Global21cm:
                         
             self.cxrb_hlo = np.zeros([self.Nrbs, self.grid.N_absorbers])
             self.cxrb_G1lo = np.zeros([self.Nrbs, self.grid.N_absorbers])
-            self.cxrb_G2lo = np.zeros([self.Nrbs, self.grid.N_absorbers])
-            
+            self.cxrb_G2lo = np.zeros([self.Nrbs, self.grid.N_absorbers, \
+                self.grid.N_absorbers])
+                            
             for i, rb in enumerate(self.rbs):
                 
                 for j, absorber in enumerate(self.grid.absorbers):
@@ -1101,12 +1111,13 @@ class Global21cm:
                         **kwargs)
                     
                     if self.pf['secondary_ionization'] > 0:
-                        self.cxrb_G2lo[i,j] = rb.igm.SecondaryIonizationRateIGM(self.cxrb_zlo, 
-                            species=j, xray_flux=self.cxrb_flo[i], 
-                            return_rc=True, **kwargs)
-
-        return None    
-              
+                        
+                        for k, donor in enumerate(self.grid.absorbers):
+                            self.cxrb_G2lo[i,j,k] = \
+                                rb.igm.SecondaryIonizationRateIGM(self.cxrb_zlo, 
+                                species=j, donor=k, xray_flux=self.cxrb_flo[i], 
+                                return_rc=True, **kwargs)
+                                    
     def ComputeTauOTF(self, rb):
         """
         Compute IGM optical depth on-the-fly (OTF).

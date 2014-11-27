@@ -27,7 +27,7 @@ defs = \
  'dims':(2,2), 
  'padding':(0,0), 
  'panel_size':(1,1), 
- 'num':1,
+ 'fig':1,
  'diagonal':None,
  'left':None, 
  'right':None, 
@@ -49,7 +49,7 @@ class MultiPanel:
             separation of subplots in inches, (wspace, hspace)
         panel_size : tuple
             fraction of default plot-area in each dimension for a single pane
-        num : int
+        fig : int
             identification number for figure in case you plan on making a
             bunch simultaneously
         diagonal : bool
@@ -100,7 +100,7 @@ class MultiPanel:
         self.share_all = self.share_x and self.share_y
             
         # Create figure        
-        self.fig = pl.figure(num, self.panel_size)
+        self.fig = pl.figure(fig, self.panel_size)
 
         # Adjust padding
         if preserve_margins:

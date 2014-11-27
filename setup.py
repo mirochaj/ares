@@ -48,17 +48,42 @@ os.chdir('input')
 ##
 # DOWNLOAD SOME FILES
 ##
+
+# Link prefixes we need
 bitbucket_DL = 'https://bitbucket.org/mirochaj/glorb/downloads'
+sfurlane_xray = 'http://www.astro.ucla.edu/~sfurlane/docs'
+
+# Filenames
 fn_hmf = 'hmf_ST_logM_1200_4-16_z_1121_4-60.pkl'
 fn_ics_np = 'initial_conditions.npz'
 fn_tau = 'optical_depth_H_400x1616_z_10-50_logE_2-4.7.pkl'
 fn_tau2 = 'optical_depth_He_400x1616_z_10-50_logE_2-4.7.pkl'
-fn_elec = 'secondary_electron_data.hdf5'
+fn_elec = 'elec_interp.tar.gz'
 
-if not os.path.exists(fn_elec):
-    print "\nDownloading %s/%s..." % (bitbucket_DL, fn_elec)
-    urllib.urlretrieve('%s/%s' % (bitbucket_DL, fn_elec), fn_elec)
 
+# First, secondary electron data from Furlanetto & Stoever (2010)
+if not os.path.exists('secondary_electrons'):
+    os.mkdir('secondary_electrons')
+    
+if not os.path.exists('secondary_electrons/%s' % fn_elec):
+    os.chdir('secondary_electrons')
+    print "\nDownloading %s/%s..." % (sfurlane_xray, fn_elec)
+    urllib.urlretrieve('%s/%s' % (sfurlane_xray, fn_elec), fn_elec)
+    os.chdir('..')
+
+if not os.path.exists('secondary_electrons/secondary_electron_data.pkl'):
+    os.chdir('secondary_electrons')
+    import tarfile
+    tar = tarfile.open(fn_elec)
+    tar.extractall()
+    tar.close()
+    
+    # Convert data to more convenient format
+    execfile('read_FJS10.py')
+    
+    os.chdir('..')
+
+# Now, files from bitbucket (HMF, optical depth, etc.)
 if not os.path.exists('hmf'):
     os.mkdir('hmf')
         

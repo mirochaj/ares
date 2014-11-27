@@ -475,7 +475,7 @@ class ModelFit(object):
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
-        skim=1, top=None, oned=True, filled=True, box=None, rotate_x=False, 
+        skim=1, top=None, oned=True, filled=True, box=None, rotate_x=True, 
         **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -485,24 +485,51 @@ class ModelFit(object):
         pars : list
             Parameters to include in triangle plot.
             1-D PDFs along diagonal will follow provided order of parameters
-            from left to right.
+            from left to right. This list can contain the names of parameters,
+            so long as the file prefix.pinfo.pkl exists, otherwise it should
+            be the indices where the desired parameters live in the second
+            dimension of the MCMC chain.
+            
+            NOTE: These can alternatively be the names of arbitrary meta-data
+            blobs.
+            
         fig : int
             ID number for plot window. 
         bins : int,
             Number of bins in each dimension.
+        z : int, float, str
+            If plotting arbitrary meta-data blobs, must choose a redshift.
+            Can be 'B', 'C', or 'D' to extract blobs at 21-cm turning points,
+            or simply a number.
+        input : dict
+            Dictionary of parameter:value pairs representing the input
+            values for all model parameters being fit. If supplied, lines
+            will be drawn on each panel denoting these values.
+        panel_size : list, tuple (2 elements)
+            Multiplicative factor in (x, y) to be applied to the default 
+            window size as defined in your matplotlibrc file. 
         skip : int
             Number of steps at beginning of chain to exclude. This is a nice
             way of doing a burn-in after the fact.
         skim : int
             Only take every skim'th step from the chain.
+        oned : bool    
+            Include the 1-D marginalized PDFs?
+        filled : bool
+            Use filled contours? If False, will use open contours instead.
+        color_by_nu : bool
+            If True, set contour levels by confidence regions enclosing nu-%
+            of the likelihood. Set parameter `nu` to modify these levels.
+        nu : list
+            List of levels, default is 1,2, and 3 sigma contours (i.e., 
+            nu=[0.68, 0.95, 0.99])
+        rotate_x : bool
+            Rotate xtick labels 90 degrees.
         
         Returns
         -------
-        MultiPlot.MultiPanel instance.
+        ares.analysis.MultiPlot.MultiPanel instance.
         
-        If inset=True, returns MultiPlot.MultiPanel instance in addition to
-        an axes object representing the inset.
-            
         """    
         
         if pars is None:
@@ -645,6 +672,16 @@ class ModelFit(object):
     def add_boxes(self, ax=None, val=None, width=None, **kwargs):
         """
         Add boxes to 2-D PDFs.
+        
+        Parameters
+        ----------
+        ax : matplotlib.axes._subplots.AxesSubplot instance
+        
+        val : int, float
+            Center of box (probably maximum likelihood value)
+        width : int, float
+            Size of box (above/below maximum likelihood value)
+        
         """
         
         if width is None:

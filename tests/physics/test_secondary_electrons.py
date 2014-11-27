@@ -6,11 +6,11 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Thu Apr  3 16:58:43 MDT 2014
 
-Description: Reproduce Figures 2-3 in Furlanetto & Stoever (2010).
+Description: Reproduce Figures 1-3 in Furlanetto & Stoever (2010).
 
 """
 
-import ares
+import ares, sys
 import numpy as np
 import matplotlib.pyplot as pl
 from ares.analysis import MultiPanel
@@ -23,11 +23,27 @@ channels.reverse()
 
 colors = ['k', 'b', 'r', 'g', 'm', 'c', 'y']
 
-mp = MultiPanel(dims=(2, 2), padding=(0.2, 0.))
-
 esec1 = ares.physics.SecondaryElectrons(method=1)
 esec2 = ares.physics.SecondaryElectrons(method=2)
 esec3 = ares.physics.SecondaryElectrons(method=3)
+
+# Re-make Figure 1 from FJS10
+fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
+
+for channel in ['heat', 'h_1', 'he_1', 'lya', 'exc']:
+    func = lambda EE: esec3.DepositionFraction(E=EE, channel=channel, xHII=0.01)
+    ax1.semilogx(E, map(func, E), label=channel)
+
+ax1.set_xlabel(r'$E \ (\mathrm{eV})$')
+ax1.set_ylabel('Fraction')
+ax1.legend(loc='upper right', frameon=False, fontsize=14)    
+    
+pl.draw()
+
+sys.exit()
+
+# Now, Figures 2 and 3 
+mp = MultiPanel(fig=2, dims=(2, 2), padding=(0.2, 0.2))
 
 for j, channel in enumerate(channels):
     
@@ -57,13 +73,13 @@ for j, channel in enumerate(channels):
     mp.grid[j].set_ylabel(r'$f_{\mathrm{%s}}$' % channel)
     mp.grid[j].set_yscale('linear')
     mp.grid[j].set_ylim(0, 1.05)
+    mp.grid[j].set_xlim(10, 1e4)
     
     if j == 2:
-        mp.grid[1].legend(loc='upper right', ncol=2)
+        mp.grid[1].legend(loc='upper right', ncol=2, fontsize=14)
 
 for i in range(2):
     mp.grid[i].set_xlabel(r'Electron Energy (eV)')
 
-#mp.fix_ticks()
+mp.fix_ticks()
 
-#pl.draw()

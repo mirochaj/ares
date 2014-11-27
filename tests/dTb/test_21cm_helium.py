@@ -49,7 +49,7 @@ sed2 = \
 {
  'spectrum_type': 'pl',
  'spectrum_alpha': -1.5,
- 'spectrum_logN': 20.,
+ 'spectrum_logN': 18.,
  'spectrum_Emin': 2e2,
  'spectrum_Emax': 3e4,
 }
@@ -60,6 +60,7 @@ pars = \
  'approx_He': False,
  'source_kwargs': [src1, src2],
  'spectrum_kwargs': [sed1, sed2],
+ 'secondary_ionization': 3,
 }
 
 ax1, ax2, ax3, ax4 = None, None, None, None

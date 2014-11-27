@@ -785,6 +785,53 @@ class Global21cm:
         
         return ax
         
+    def IonizationRateHistory(self, fig=1, ax=None, species='h_1', show_legend=False,
+        **kwargs):
+        """
+        Plot ionization rates as a function of redshift.
+        """    
+        
+        hasax = True
+        if ax is None:
+            hasax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        
+        n1 = map(self.cosm.nH, self.data['z']) if species == 'h_1' \
+        else map(self.cosm.nHe, self.data['z'])
+        
+        n1 = np.array(n1) * np.array(self.data['igm_%s' % species])
+        
+        ratePrimary = np.array(self.data['igm_Gamma_%s' % species]) #* n1
+        
+        ax.semilogy(self.data['z'], ratePrimary, ls='-', **kwargs)
+        
+        rateSecondary = np.zeros_like(self.data['z'])
+        
+        for donor in ['h_1', 'he_1', 'he_2']: 
+            
+            field = 'igm_gamma_%s_%s' % (species, donor)
+            
+            if field not in self.data:
+                continue
+               
+            n2 = map(self.cosm.nH, self.data['z']) if donor == 'h_1' \
+            else map(self.cosm.nHe, self.data['z'])
+        
+            n2 = np.array(n2) * np.array(self.data['igm_%s' % donor])
+        
+            rateSecondary += \
+                np.array(self.data['igm_gamma_%s_%s' % (species, donor)]) * n2 / n1
+        
+        ax.semilogy(self.data['z'], rateSecondary, ls='--')
+        
+        ax.set_xlim(self.pf['final_redshift'], self.pf['first_light_redshift'])
+        
+        pl.draw()
+        
+        return ax
+        
+        
     def OverplotDAREWindow(self, ax, color='r', alpha=0.5):        
         ax.fill_between(np.arange(11, 36), -150, 50, 
             facecolor = color, alpha = alpha)    

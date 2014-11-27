@@ -58,7 +58,10 @@ defkwargs = \
  'cgm_h_2': 0.0,
  'cgm_he_2': 0.0,
  'cgm_he_3': 0.0,
+ 'igm_e': 0.0,
 }
+
+species_i_to_str = {0:'h_1', 1:'he_1', 2:'he_2'}
 
 tiny_dlogx = 1e-8
 
@@ -89,7 +92,7 @@ class IGM(object):
         # Include helium opacities approximately?
         self.approx_He = self.pf['include_He'] and self.pf['approx_He']
         
-        # Include helium opacities self-consistently? ("sc")
+        # Include helium opacities self-consistently?
         self.self_consistent_He = self.pf['include_He'] \
             and (not self.pf['approx_He'])
         
@@ -265,14 +268,35 @@ class IGM(object):
             
             self.i_x = 0
             self.fheat = np.ones([self.N, len(self.esec.x)])
-            self.fion_HI = np.ones([self.N, len(self.esec.x)])
+            
+            self.fion = {}
+            
+            self.fion['h_1'] = np.ones([self.N, len(self.esec.x)])
             
             # Must evaluate at ELECTRON energy, not photon energy
             for i, E in enumerate(self.E - E_th[0]):
                 self.fheat[i,:] = self.esec.DepositionFraction(self.esec.x, 
                     E=E, channel='heat')
-                self.fion_HI[i,:] = self.esec.DepositionFraction(self.esec.x, 
-                    E=E, channel='h_1')
+                self.fion['h_1'][i,:] = \
+                    self.esec.DepositionFraction(self.esec.x, 
+                        E=E, channel='h_1')
+                    
+            # Helium
+            if self.pf['include_He'] and not self.pf['approx_He']:
+                
+                self.fion['he_1'] = np.ones([self.N, len(self.esec.x)])
+                self.fion['he_2'] = np.ones([self.N, len(self.esec.x)])
+                
+                for i, E in enumerate(self.E - E_th[1]):
+                    self.fion['he_1'][i,:] = \
+                        self.esec.DepositionFraction(self.esec.x, 
+                        E=E, channel='he_1')
+                
+                for i, E in enumerate(self.E - E_th[2]):
+                    self.fion['he_2'][i,:] = \
+                        self.esec.DepositionFraction(self.esec.x, 
+                        E=E, channel='he_2')            
+                        
             
     def _set_integrator(self):
         self.integrator = self.pf["unsampled_integrator"]
@@ -424,16 +448,7 @@ class IGM(object):
         if os.path.exists(guess):
             return guess
     
-        #tmp1, tmp2 = fn.split('_z_')
-        #pre = tmp1[0:tmp1.rfind('x')]
-        #red, tmp3 = fn.split('_logE_')
-        #post = '_logE_' + tmp3.replace('.hdf5', '')
-        #Nz = int(pre[pre.rfind('_')+1:])
-        #
         ## Find exactly what table should be
-        #zmin, zmax = map(float, red[red.rfind('z')+2:].partition('-')[0::2])
-        #logEmin, logEmax = map(float, tmp3[tmp3.rfind('E')+1:tmp3.rfind('.')].partition('-')[0::2])
-
         zmin, zmax, Nz, lEmin, lEmax, chem, pre, post = self._parse_tab(fn)
 
         ok_matches = []
@@ -880,7 +895,7 @@ class IGM(object):
         
         return ion
                 
-    def SecondaryIonizationRateIGM(self, z, species=0, **kwargs):
+    def SecondaryIonizationRateIGM(self, z, species=0, donor=0, **kwargs):
         """
         Compute volume averaged secondary ionization rate.
 
@@ -891,6 +906,9 @@ class IGM(object):
         species : int
             Ionization rate of what atom?
             Can be 0, 1, or 2 (HI, HeI, and HeII, respectively)
+        donor : int
+            Which atom gave the electron?
+            Can be 0, 1, or 2 (HI, HeI, and HeII, respectively)        
 
         ===============
         relevant kwargs
@@ -924,27 +942,31 @@ class IGM(object):
 
         if self.pf['gamma_igm'] is not None:
             return self.pf['gamma_igm'](z)
+            
+        species_str = species_i_to_str[species]
+        donor_str = species_i_to_str[donor]
 
         if self.esec.Method > 1:
-            if kw['igm_h_2'] == 0:
-                fion = self.fion_HI[:,0]
+            fion_const = 1.
+            if kw['igm_e'] == 0:
+                fion = self.fion[species_str][:,0]
             else:
-                if kw['igm_h_2'] > self.esec.x[self.i_x + 1]:
+                if kw['igm_e'] > self.esec.x[self.i_x + 1]:
                     self.i_x += 1
 
                 j = self.i_x + 1
 
-                fion = self.fion_HI[:,self.i_x] \
-                    + (self.fion_HI[:,j] - self.fion_HI[:,self.i_x]) \
-                    * (kw['igm_h_2'] - self.esec.x[self.i_x]) \
-                    / (self.esec.x[j] - self.esec.x[self.i_x])                
+                fion = self.fion[species_str][:,self.i_x] \
+                    + (self.fion[species_str][:,j] - self.fion[species_str][:,self.i_x]) \
+                    * (kw['igm_e'] - self.esec.x[self.i_x]) \
+                    / (self.esec.x[j] - self.esec.x[self.i_x])
         else:
-            fion = self.esec.DepositionFraction(kw['igm_h_2'], channel='h_1')[0]
+            fion = 1.0
+            fion_const = self.esec.DepositionFraction(kw['igm_e'], 
+                channel=species_str)[0]
 
         norm = J21_num * self.sigma0
-
-        fion = self.esec.DepositionFraction(kw['igm_h_2'], channel='h_1')[0]
-                
+                                
         if kw['xray_flux'] is None:        
             if self.pf['approx_He']: # assumes lower integration limit > 4 Ryd
                 integrand = lambda E, zz: \
@@ -958,13 +980,14 @@ class IGM(object):
                     zxavg=kw['zxavg']) * self.sigma(E) * (E - E_th[0]) \
                     / E_th[0] / norm / ev_per_hz
         else:
-            integrand = self.sigma_E[0] * (self.E - E_th[0])
+            integrand = fion * self.sigma_E[donor] * (self.E - E_th[donor])
+            
             if self.pf['approx_He']:
                 integrand += self.cosm.y * self.sigma_E[1] \
                     * (self.E - E_th[1])
             
             integrand = integrand
-            integrand *= kw['xray_flux'] / E_th[0] / norm / ev_per_hz
+            integrand *= kw['xray_flux'] / E_th[species] / norm / ev_per_hz
         
         if type(integrand) == types.FunctionType:
             ion, err = dblquad(integrand, z, kw['zf'], lambda a: self.E0, 
@@ -976,8 +999,8 @@ class IGM(object):
                 ion = simps(integrand * self.E, x=self.logE) * log10    
                 
         # Re-normalize
-        ion *= 4. * np.pi * norm * fion
-        
+        ion *= 4. * np.pi * norm * fion_const
+                
         # Currently a rate coefficient, returned value depends on return_rc
         if kw['return_rc']:
             pass

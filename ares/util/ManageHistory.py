@@ -69,7 +69,8 @@ class WriteData():
                 if state in ['e', 'Tk','h_2', 'he_3']:
                     continue
 
-                history['%s_gamma_%s' % (zone, state)] = [0.0]
+                for l, donor in enumerate(self.sim.grid.absorbers):
+                    history['%s_gamma_%s_%s' % (zone, state, donor)] = [0.0]
 
                 # Initial rates may be non-zero if first_light coincident
                 # with start redshift
@@ -222,22 +223,26 @@ class WriteData():
                 k = self.sim.grid.absorbers.index(state) 
                                 
                 if self.sim.helium:
-                                
+                                                                
                     # Keep rates separated by absorber
-                    to_keep.update({'%s_gamma_%s' % (zone, state): \
-                        np.sum(rt.kwargs['gamma'].squeeze()[k])})
                     to_keep.update({'%s_Gamma_%s' % (zone, state): \
                         rt.kwargs['Gamma'].squeeze()[k]})
+                        
+                    for l, donor in enumerate(self.sim.grid.absorbers):
+                        to_keep.update({'%s_gamma_%s_%s' % (zone, state, donor): \
+                            rt.kwargs['gamma'].squeeze()[k,l]})
                     
                     if zone == 'igm':
                         to_keep.update({'%s_heat_%s' % (zone, state): \
                             rt.kwargs['Heat'].squeeze()[k]})
                         
                 else:
-                    to_keep.update({'%s_gamma_%s' % (zone, state): \
-                        rt.kwargs['gamma']})
+                    
                     to_keep.update({'%s_Gamma_%s' % (zone, state): \
                         rt.kwargs['Gamma']})
+                    
+                    to_keep.update({'%s_gamma_%s_%s' % (zone, state, state): \
+                        rt.kwargs['gamma'].squeeze()[k,k]})
                     
                     if zone == 'igm':
                         to_keep.update({'%s_heat_%s' % (zone, state): \

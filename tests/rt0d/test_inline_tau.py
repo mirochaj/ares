@@ -10,11 +10,13 @@ Description:
 
 """
 
-import os, ares
+import os, ares, time
 import matplotlib.pyplot as pl
 
 pars = \
 {
+ 'include_He': True,
+ 'approx_He': False,
  'track_extrema': False,
 
  'initial_redshift': 50.,
@@ -51,14 +53,19 @@ pars = \
 mp = ares.analysis.MultiPanel(dims=(3,1))
 
 sims = []
+t = []
 
 ls = '-', '--', ':', '-.'
 for i, xswitch in enumerate([1e-3, 0.01, 0.1, 1.0]):
     pars.update({'EoR_xavg': xswitch})
 
     # Multi-pop model, one with real RT
+    t1 = time.time()
     sim = ares.simulations.Global21cm(**pars)
     sim.run()
+    t2 = time.time()
+    
+    t.append(t2-t1)
     
     mp.grid[0].semilogy(sim.history['z'], sim.history['igm_Tk'], color='k', 
         ls=ls[i])
@@ -68,6 +75,8 @@ for i, xswitch in enumerate([1e-3, 0.01, 0.1, 1.0]):
         ls=ls[i])
         
     sims.append(sim)
+    
+print np.array(t) / t[-1]
     
 mp.grid[0].set_xlim(5, 40)
 mp.grid[1].set_xlim(5, 40)
