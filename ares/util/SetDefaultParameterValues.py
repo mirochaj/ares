@@ -102,11 +102,13 @@ def PhysicsParameters():
     "secondary_ionization": 1,  # 0 = Deposit all energy as heat
                                 # 1 = Shull & vanSteenberg (1985)
                                 # 2 = Ricotti, Gnedin, & Shull (2002)
-                                # 3 = Furlanetto & Stoever (2010)        
+                                # 3 = Furlanetto & Stoever (2010)     
+                                
+    "secondary_lya": 0,         # Collisionally excited Lyman alpha?                               
     
     "isothermal": 1,  
     "expansion": 0,  
-    "compton_scattering": 0,
+    "compton_scattering": 1,
     "recombination": 'B', 
             
     "clumping_factor": 1,
@@ -119,6 +121,7 @@ def PhysicsParameters():
     
     "approx_lya": 0, # 0 = calculate it!
                      # 1 = Ts -> Tk
+                     
     
     # Only matters if approx_lya == 0
     "nmax": 23,

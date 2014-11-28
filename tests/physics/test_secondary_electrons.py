@@ -1,16 +1,16 @@
 """
 
-test_physics_secondary_ionization_coeff.py
+test_secondary_electrons.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Thu Apr  3 16:58:43 MDT 2014
 
-Description: Reproduce Figures 1-3 in Furlanetto & Stoever (2010).
+Description: Reproduce Figures 1-3 (kind of) in Furlanetto & Stoever (2010).
 
 """
 
-import ares, sys
+import ares
 import numpy as np
 import matplotlib.pyplot as pl
 from ares.analysis import MultiPanel
@@ -18,7 +18,7 @@ from ares.analysis import MultiPanel
 # First, compare at fixed ionized fraction
 xe = [1e-4, 1e-3, 1e-2, 1e-1, 0.5, 0.9]
 E = np.logspace(1, 4, 400)
-channels = ['heat', 'h_1', 'lya']
+channels = ['heat', 'h_1', 'exc', 'lya']
 channels.reverse()
 
 colors = ['k', 'b', 'r', 'g', 'm', 'c', 'y']
@@ -40,10 +40,8 @@ ax1.legend(loc='upper right', frameon=False, fontsize=14)
     
 pl.draw()
 
-sys.exit()
-
 # Now, Figures 2 and 3 
-mp = MultiPanel(fig=2, dims=(2, 2), padding=(0.2, 0.2))
+mp = MultiPanel(fig=2, dims=(2, 2), padding=(0.2, 0))
 
 for j, channel in enumerate(channels):
     

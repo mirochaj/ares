@@ -221,7 +221,7 @@ class WriteData():
                     continue
                 
                 k = self.sim.grid.absorbers.index(state) 
-                                
+                                                
                 if self.sim.helium:
                                                                 
                     # Keep rates separated by absorber
@@ -241,8 +241,11 @@ class WriteData():
                     to_keep.update({'%s_Gamma_%s' % (zone, state): \
                         rt.kwargs['Gamma']})
                     
-                    to_keep.update({'%s_gamma_%s_%s' % (zone, state, state): \
-                        rt.kwargs['gamma'].squeeze()[k,k]})
+                    if self.sim.approx_all_xray:
+                        to_keep.update({'%s_gamma_%s_%s' % (zone, state, state): 0})
+                    else:
+                        to_keep.update({'%s_gamma_%s_%s' % (zone, state, state): \
+                            rt.kwargs['gamma'].squeeze()[k,k]})
                     
                     if zone == 'igm':
                         to_keep.update({'%s_heat_%s' % (zone, state): \

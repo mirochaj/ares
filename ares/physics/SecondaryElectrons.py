@@ -89,7 +89,7 @@ class SecondaryElectrons:
         self.fHI = RectBivariateSpline(self.E, self.x, self.fionHI_tab)
         self.fHeI = RectBivariateSpline(self.E, self.x, self.fionHeI_tab)
         self.fHeII = RectBivariateSpline(self.E, self.x, self.fionHeII_tab)
-        self.fexc = interp2d(self.E, self.x, self.fexc_tab, kind='linear')
+        self.fexc = RectBivariateSpline(self.E, self.x, self.fexc_tab)
         self.flya = RectBivariateSpline(self.E, self.x, self.flya_tab) 
             
     @property
@@ -140,7 +140,7 @@ class SecondaryElectrons:
             if channel == 'heat': 
                 tmp = tiny_number * np.zeros_like(xHII)
                 tmp[xHII <= 1e-4] = 0.15 * np.ones(len(tmp[xHII <= 1e-4]))
-                tmp[xHII > 1e-4] = 0.9971 * (1. - pow(1 - 
+                tmp[xHII > 1e-4] = 0.9971 * (1. - pow(1. - 
                     pow(xHII[xHII > 1e-4], 0.2663), 1.3163))
                 return tmp
             if channel == 'h_1': 
