@@ -14,16 +14,15 @@ import numpy as np
 from ..static import Grid
 import copy, os, re, pickle
 from ..sources import DiffuseSource
-from ..util.Misc import parse_kwargs
 from ..util.ReadData import load_inits
 from ..util.WriteData import CheckPoints
 from ..util.ManageHistory import WriteData
 from ..util.PrintInfo import print_21cm_sim
 from ..populations import CompositePopulation
-from ..util import ProgressBar, RestrictTimestep
 from ..solvers.RadiationField import RadiationField
 from ..solvers.UniformBackground import UniformBackground
 from ..util.SetDefaultParameterValues import SetAllDefaults
+from ..util import ProgressBar, RestrictTimestep, ParameterFile
 from ..physics.Constants import k_B, m_p, G, g_per_msun, c, sigma_T, \
     erg_per_ev, nu_0_mhz
     
@@ -75,7 +74,7 @@ class Global21cm:
         if kwargs:
             
             if 'tanh_model' not in kwargs:
-                self.pf = parse_kwargs(**kwargs)
+                self.pf = ParameterFile(**kwargs)
             else:
                 if kwargs['tanh_model']:
                     from ..util.TanhModel import TanhModel
@@ -98,10 +97,10 @@ class Global21cm:
                     return
                     
                 else:
-                    self.pf = parse_kwargs(**kwargs)
+                    self.pf = ParameterFile(**kwargs)
 
         else:
-            self.pf = SetAllDefaults()
+            self.pf = ParameterFile()
                     
         # Check for identical realization
         self.found_sim = False
@@ -392,6 +391,10 @@ class Global21cm:
         self.cxrb_G2hi = np.zeros([self.Nrbs, self.grid.N_absorbers,
             self.grid.N_absorbers])
         
+        if self.pf['secondary_lya']:
+            self.cxrb_JXlo = np.zeros([self.Nrbs, self.grid.N_absorbers])
+            self.cxrb_JXhi = np.zeros([self.Nrbs, self.grid.N_absorbers])
+        
         for i, rb in enumerate(self.rbs):
             
             self.xray_heat[i].extend([self.cxrb_hhi[i], self.cxrb_hlo[i]])
@@ -417,6 +420,14 @@ class Global21cm:
                                 species=j, donor=k, return_rc=True, **kwargs)
                     
                     continue
+                    
+                if self.pf['secondary_lya']:
+                    self.cxrb_JXlo[i,j] = \
+                        rb.igm.DiffuseLymanAlphaFlux(self.cxrb_zlo, species=j,
+                        xray_flux=self.cxrb_flo[i], return_rc=True, **kwargs)
+                    self.cxrb_JXhi[i,j] = \
+                        rb.igm.DiffuseLymanAlphaFlux(self.cxrb_zhi, species=j,
+                        xray_flux=self.cxrb_fhi[i], return_rc=True, **kwargs)
                     
                 # Otherwise, compute heating etc. from background intensity    
                 self.cxrb_hlo[i,j] = \
@@ -539,11 +550,21 @@ class Global21cm:
                             G2[ii,jj] = np.interp(z, 
                                 [self.cxrb_zlo, self.cxrb_zhi],
                                 [G2lo[ii,jj], G2hi[ii,jj]])
-                  
+                                
+                if self.pf['secondary_lya']:
+                    JXlo = np.sum(self.cxrb_JXlo, axis=0)
+                    JXhi = np.sum(self.cxrb_JXhi, axis=0)
+                    
+                    JX = [np.interp(z, [self.cxrb_zlo, self.cxrb_zhi], 
+                        [JXlo[i], JXhi[i]]) for i in range(self.grid.N_absorbers)]          
+                else:
+                    JX = 0.0
+                                      
                 # This stuff goes to RadiationField (diffuse sources only)
                 kwargs.update({'epsilon_X': np.array(H), 
                     'Gamma': np.array(G1), 
-                    'gamma': np.array(G2)})
+                    'gamma': np.array(G2),
+                    'Ja_X': np.array(JX)})
                                   
             # Solve for xe and Tk in the bulk IGM
             data_igm = self.rt_igm.Evolve(data_igm, t=t, dt=dt, z=z, **kwargs)
@@ -558,7 +579,9 @@ class Global21cm:
                 kwargs.pop('gamma')
             if 'epsilon_X' in kwargs:
                 kwargs.pop('epsilon_X')
-                
+            if 'Ja_X' in kwargs:
+                kwargs.pop('Ja_X')    
+                                
             # Solve for the volume filling factor of HII regions
             if self.pf['radiative_transfer'] and (z <= zfl):
                 data_cgm = self.rt_cgm.Evolve(data_cgm, t=t, dt=dt, z=z, **kwargs)

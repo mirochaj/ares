@@ -13,9 +13,9 @@ Description:
 import types
 import numpy as np
 from scipy.integrate import quad
+from ..util import ParameterFile
 from scipy.misc import derivative
 from ..physics.Constants import *
-from ..util.Misc import parse_kwargs
 from ..util.PrintInfo import print_pop
 from ..util.NormalizeSED import norm_sed
 from .HaloMassFunction import HaloDensity
@@ -31,7 +31,7 @@ class BlackHolePopulation:
         Initialize black hole population.          
         """
                 
-        self.pf = parse_kwargs(**kwargs)
+        self.pf = ParameterFile(**kwargs)
         self.kwargs = kwargs
         
         self.grid = grid

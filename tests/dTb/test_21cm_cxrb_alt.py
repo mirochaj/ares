@@ -43,8 +43,7 @@ pars = \
 }
 
 # Multi-pop model, one with real RT
-sim = ares.simulations.Global21cm(initial_redshift=40, final_redshift=10, 
-    track_extrema=0, **pars)
+sim = ares.simulations.Global21cm(**pars)
 sim.run()
 
 anl = ares.analysis.Global21cm(sim)

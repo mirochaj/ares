@@ -13,13 +13,14 @@ Description: Initialize a radiation source.
 import re, os
 import numpy as np
 from scipy.integrate import quad
+from ..util import ParameterFile
 from ..physics.Constants import *
+from ..util.Misc import  sort, evolve
 from .SimpleSource import SimpleSource
 from .StellarSource import StellarSource
 from .DiffuseSource import DiffuseSource
 from .BlackHoleSource import BlackHoleSource
 from ..static.IntegralTables import IntegralTable
-from ..util.Misc import parse_kwargs, sort, evolve
 from .ParameterizedSource import ParameterizedSource
 from ..static.InterpolationTables import LookupTable
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
@@ -46,7 +47,7 @@ class RadiationSource(object):
             Tabulate integral quantities? Can wait until later.
     
         """    
-        self.pf = parse_kwargs(**kwargs)
+        self.pf = ParameterFile(**kwargs)
         self.grid = grid
                 
         # Modify parameter file if spectrum_file provided

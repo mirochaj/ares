@@ -23,5 +23,3 @@ anl.PlotIonizationFrontEvolution()
 
 anl.IonizationProfile(t=[10, 100, 500], annotate=True, ax=ax2)
 
-
-

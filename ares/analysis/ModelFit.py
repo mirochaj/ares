@@ -560,7 +560,7 @@ class ModelFit(object):
         # Multipanel instance
         if mp is None:
             mp = MultiPanel(dims=[Nd]*2, padding=padding, diagonal='lower',
-                panel_size=panel_size, num=fig, top=top, **kw)
+                panel_size=panel_size, fig=fig, top=top, **kw)
 
         # Loop over parameters
         for i, p1 in enumerate(pars[-1::-1]):

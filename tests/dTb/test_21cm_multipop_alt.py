@@ -19,17 +19,15 @@ pars = \
 {
  'initial_redshift': 50,
  'first_light_redshift': 50,
+
  'Tmin{0}': 1e4,
  'source_type{0}': 'star',
  'fstar{0}': 1e-1,
  'Nion{0}': 4e3,
  'Nlw{0}': 9600.,
+
  'Tmin{1}': 300.,
  'source_type{1}': 'star',
- 'is_lya_src{1}': True,
- 'is_ion_src_igm{1}': False,
- 'is_ion_src_cgm{1}': False, 
- 'is_heat_src_igm{1}': False, 
  'fstar{1}': 1e-3,
  'Nion{1}': 3e4,
  'Nlw{1}': 4800.,

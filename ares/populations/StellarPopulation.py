@@ -12,10 +12,10 @@ Description:
 
 import types, sys
 import numpy as np
-from scipy.integrate import quad
 from ..physics import Cosmology
+from scipy.integrate import quad
+from ..util import ParameterFile
 from ..physics.Constants import *
-from ..util.Misc import parse_kwargs
 from ..util.PrintInfo import print_pop
 from ..util.NormalizeSED import norm_sed
 from .HaloMassFunction import HaloDensity
@@ -33,7 +33,7 @@ class StellarPopulation:
             Initialize an sources.RadiationSource object?
         
         """
-        self.pf = parse_kwargs(**kwargs)
+        self.pf = ParameterFile(**kwargs)
                 
         self.grid = grid
            

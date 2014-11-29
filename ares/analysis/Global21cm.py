@@ -563,6 +563,8 @@ class Global21cm:
             if kwargs['label'] is not None:
                 ax.legend(loc='best')
                 
+        ax.ticklabel_format(style='plain', axis='both')        
+                
         # Twin axes along the top
         if freq_ax:
             twinax = self.add_frequency_axis(ax)        
@@ -576,8 +578,7 @@ class Global21cm:
         self.twinax = twinax
         
         ax.set_xscale(xscale)
-        ax.ticklabel_format(style='plain', axis='both')
-        
+                    
         pl.draw()
         
         return ax

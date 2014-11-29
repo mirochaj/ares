@@ -12,8 +12,8 @@ Description:
 
 import time
 import numpy as np
+from ..util import ParameterFile
 from ..analysis import Global21cm
-from ..util.Misc import parse_kwargs
 from ..util.ReadData import load_inits
 from ..physics import Hydrogen, Cosmology
 from ..physics.Constants import k_B, J21_num
@@ -34,7 +34,7 @@ alpha_A = rc.RadiativeRecombinationRate(0, 1e4)
 
 class TanhModel:
     def __init__(self, **kwargs):
-        self.pf = parse_kwargs(**kwargs)
+        self.pf = ParameterFile(**kwargs)
 
         # Cosmology class
         self.cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
@@ -150,23 +150,23 @@ class TanhModel:
         attribute.
         
         """
-            
+
         # Unpack parameters
         Jref, zref_J, dz_J, Tref, zref_T, dz_T, xref, zref_x, dz_x = theta
-        
+
         Jref *= J21_num
-        
+
         # Assumes z < zdec
         Tgas = self.Tgas_adiabatic(z)
         ne = self.electron_density(z)
-    
+
         Ja = Jref * tanh_generic(z, zref=zref_J, dz=dz_J)
         Tk = Tref * tanh_generic(z, zref=zref_T, dz=dz_T) + Tgas
         xi = xref * tanh_generic(z, zref=zref_x, dz=dz_x)
-        
+
         # Compute (proper) electron density assuming xHII = xHeII, xHeIII = 0.
         # Needed for collisional coupling.
-        
+
         # Spin temperature
         Ts = self.hydr.SpinTemperature(z, Tk, Ja, xi, ne)
     
@@ -182,8 +182,8 @@ class TanhModel:
          'Ts': Ts,
          'Ja': Ja,
          'cgm_h_2': xi,
-         'igm_heat': self.heating_rate(z, Tref, zref_T, dz_T),
-         'cgm_Gamma': self.ionization_rate(z, xref, zref_x, dz_x),
+         'igm_heat_h_1': self.heating_rate(z, Tref, zref_T, dz_T),
+         'cgm_Gamma_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
         }
             
         tmp = Global21cm(history=hist)    

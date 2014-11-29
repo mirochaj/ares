@@ -13,9 +13,10 @@ Description:
 import numpy as np
 from ..util.Warnings import *
 from ..util import ProgressBar
+from ..util import ParameterFile
 from ..physics.Constants import *
 import types, os, re, sys, pickle
-from ..util.Misc import parse_kwargs, num_freq_bins
+from ..util.Misc import num_freq_bins
 from ..physics import Cosmology, SecondaryElectrons
 from ..util.Warnings import tau_tab_z_mismatch, no_tau_table
 from scipy.integrate import dblquad, romb, simps, quad, trapz
@@ -86,7 +87,7 @@ class IGM(object):
             self.pf = rb.pf
             self.pop = rb.pop
         else:
-            self.pf = parse_kwargs(**kwargs)
+            self.pf = ParameterFile(**kwargs)
             self.pop = None
         
         # Include helium opacities approximately?
@@ -268,11 +269,12 @@ class IGM(object):
             
             self.i_x = 0
             self.fheat = np.ones([self.N, len(self.esec.x)])
+            self.flya = np.ones([self.N, len(self.esec.x)])
             
             self.fion = {}
             
             self.fion['h_1'] = np.ones([self.N, len(self.esec.x)])
-            
+                        
             # Must evaluate at ELECTRON energy, not photon energy
             for i, E in enumerate(self.E - E_th[0]):
                 self.fheat[i,:] = self.esec.DepositionFraction(self.esec.x, 
@@ -280,6 +282,10 @@ class IGM(object):
                 self.fion['h_1'][i,:] = \
                     self.esec.DepositionFraction(self.esec.x, 
                         E=E, channel='h_1')
+                        
+                if self.pf['secondary_lya']:
+                    self.flya[i,:] = self.esec.DepositionFraction(self.esec.x, 
+                        E=E, channel='lya') 
                     
             # Helium
             if self.pf['include_He'] and not self.pf['approx_He']:
@@ -936,6 +942,9 @@ class IGM(object):
 
         if not self.rb.pf['is_ion_src_igm']:
             return 0.0 
+            
+        if ((donor or species) in [1,2]) and self.pf['approx_He']:
+            return 0.0
 
         # Grab defaults, do some patches if need be
         kw = self._fix_kwargs(**kwargs)
@@ -1008,6 +1017,83 @@ class IGM(object):
             ion *= self.coefficient_to_rate(z, species, **kw) 
         
         return ion
+        
+    def DiffuseLymanAlphaFlux(self, z, **kwargs):
+        """
+        Flux of Lyman-alpha photons induced by photo-electron collisions.
+        
+        
+        
+        """
+            
+        if not self.pf['secondary_lya']:
+            return 0.0
+        
+        return 1e-25
+        
+        # Grab defaults, do some patches if need be    
+        kw = self._fix_kwargs(**kwargs)
+                
+        # Compute fraction of photo-electron energy deposited as Lya excitation
+        if self.esec.Method > 1 and (not self.pf['approx_xray']) \
+            and (kw['xray_flux'] is not None):
+            if kw['igm_h_2'] == 0:
+                flya = self.flya[:,0]
+            else:
+                if kw['igm_h_2'] > self.esec.x[self.i_x + 1]:
+                    self.i_x += 1
+                
+                j = self.i_x + 1
+                
+                flya = self.flya[:,self.i_x] \
+                    + (self.flya[:,j] - self.flya[:,self.i_x]) \
+                    * (kw['igm_h_2'] - self.esec.x[self.i_x]) \
+                    / (self.esec.x[j] - self.esec.x[self.i_x])                
+        else:
+            return 0.0
+                
+        # Re-normalize to help integrator
+        norm = J21_num * self.sigma0
+                
+        # Compute integrand
+        integrand = self.sigma_E[species] * (self.E - E_th[species])
+       
+        integrand *= kw['xray_flux'] * flya / norm / ev_per_hz
+                         
+        if kw['Emax'] is not None:
+            imax = np.argmin(np.abs(self.E - kw['Emax']))
+            if imax == 0:
+                return 0.0
+                
+            if self.sampled_integrator == 'romb':
+                raise ValueError("Romberg's method cannot be used for integrating subintervals.")
+                heat = romb(integrand[0:imax] * self.E[0:imax], dx=self.dlogE[0:imax])[0] * log10
+            else:
+                heat = simps(integrand[0:imax] * self.E[0:imax], x=self.logE[0:imax]) * log10
+        
+        else:
+            imin = np.argmin(np.abs(self.E - self.pop.pf['spectrum_Emin']))
+            
+            if self.sampled_integrator == 'romb':
+                heat = romb(integrand[imin:] * self.E[imin:], 
+                    dx=self.dlogE[imin:])[0] * log10
+            elif self.sampled_integrator == 'trapz':
+                heat = np.trapz(integrand[imin:] * self.E[imin:], 
+                    x=self.logE[imin:]) * log10
+            else:
+                heat = simps(integrand[imin:] * self.E[imin:], 
+                    x=self.logE[imin:]) * log10
+          
+        # Re-normalize, get rid of per steradian units
+        heat *= 4. * np.pi * norm * erg_per_ev
+
+        # Currently a rate coefficient, returned value depends on return_rc                                      
+        if kw['return_rc']:
+            pass
+        else:
+            heat *= self.coefficient_to_rate(z, species, **kw)
+
+        return heat
         
     def OpticalDepth(self, z1, z2, E, **kwargs):
         """

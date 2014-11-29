@@ -13,11 +13,10 @@ Description:
 import numpy as np
 from ..static import Grid
 from ..solvers import RadiationField
-from ..util.Misc import parse_kwargs
 from ..sources import CompositeSource
 from ..util.PrintInfo import print_1d_sim
 from ..physics.Constants import s_per_myr
-from ..util import RestrictTimestep, CheckPoints, ProgressBar
+from ..util import RestrictTimestep, CheckPoints, ProgressBar, ParameterFile
 
 class RaySegment:
     """
@@ -31,20 +30,10 @@ class RaySegment:
         Parameters
         ----------
         
-        
-        
         """
-        if pf is not None:
-            pf = parse_kwargs(**pf)
-        else:
-            pf = {}
-            if kwargs:
-                pf.update(parse_kwargs(**kwargs))
-            else:
-                pf.update(parse_kwargs(**{'problem_type': 1}))
-                        
-        self.pf = pf
         
+        self.pf = pf = ParameterFile(pf=pf, **kwargs)
+                
         # Initialize grid object
         if init_grid:
             if grid is not None:
@@ -102,6 +91,8 @@ class RaySegment:
                             overdensity=pf['clump_overdensity'],
                             ionization=pf['clump_ionization'], 
                             profile=pf['clump_profile'])
+            
+            self.grid = grid
                     
             ##
             # PRINT STUFF
@@ -122,8 +113,6 @@ class RaySegment:
                 initial_timestep=pf['initial_timestep'],
                 logdtDataDump=pf['logdtDataDump'], 
                 source_lifetime=pf['source_lifetime'])
-            
-            self.grid = grid
             
         # Initialize radiation source and radiative transfer solver    
         if init_rs:     

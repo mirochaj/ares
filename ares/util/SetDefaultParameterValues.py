@@ -12,24 +12,16 @@ into groups.
 
 import os, imp
 from numpy import inf
+from ares import rcParams
 from ..physics.Constants import m_H, cm_per_kpc, s_per_myr
 
 ARES = os.environ.get('ARES')
-
-# Load custom defaults    
-HOME = os.environ.get('HOME')
-if os.path.exists('%s/.ares/defaults.py' % HOME):
-    #f = open('%s/.ares/defaults.py' % HOME, 'r')
-    f, filename, data = imp.find_module('defaults', ['%s/.ares/' % HOME])
-    custom_pf = imp.load_module('defaults.py', f, filename, data).pf
-else:
-    custom_pf = {}
     
 tau_prefix = "%s/input/optical_depth" % ARES \
     if (ARES is not None) else '.'
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum', 
-    'Control', 'HaloMassFunction', 'Tanh']    
+    'Control', 'HaloMassFunction', 'Tanh']
 
 # Start setting up list of parameters to be set
 defaults = []
@@ -86,8 +78,7 @@ def GridParameters():
             
     }
     
-    if custom_pf:
-        pf.update(custom_pf)
+    pf.update(rcParams)
 
     return pf
 
@@ -146,8 +137,7 @@ def PhysicsParameters():
     
     }
     
-    if custom_pf:
-        pf.update(custom_pf)
+    pf.update(rcParams)
             
     return pf
 
@@ -164,8 +154,7 @@ def CosmologyParameters():
     "primordial_index": 0.96,
     }
     
-    if custom_pf:
-        pf.update(custom_pf)
+    pf.update(rcParams)
 
     return pf      
     
@@ -196,8 +185,7 @@ def SourceParameters():
     
     }
     
-    if custom_pf:
-        pf.update(custom_pf)
+    pf.update(rcParams)
     
     return pf
     
@@ -213,8 +201,7 @@ def StellarParameters():
     "spectrum_EmaxNorm": None,
     }
     
-    if custom_pf:
-        pf.update(custom_pf)
+    pf.update(rcParams)
         
     return pf
 
@@ -232,8 +219,7 @@ def BlackHoleParameters():
     "spectrum_uponly": True,
     }
     
-    if custom_pf:
-        pf.update(custom_pf)
+    pf.update(rcParams)
     
     return pf    
         
@@ -273,8 +259,7 @@ def SpectrumParameters():
                     
     }
     
-    if custom_pf:
-        pf.update(custom_pf)
+    pf.update(rcParams)
     
     return pf
     
@@ -340,8 +325,7 @@ def PopulationParameters():
     
     }
     
-    if custom_pf:
-        pf.update(custom_pf)
+    pf.update(rcParams)
     
     return pf      
     
@@ -373,8 +357,7 @@ def HaloMassFunctionParameters():
     "d2fcolldz2": None,        
     }
     
-    if custom_pf:
-        pf.update(custom_pf)
+    pf.update(rcParams)
 
     return pf
 
@@ -452,8 +435,7 @@ def ControlParameters():
     "verbose": True,
     }
     
-    if custom_pf:
-        pf.update(custom_pf)
+    pf.update(rcParams)
     
     return pf
     
@@ -474,8 +456,7 @@ def TanhParameters():
     'tanh_nu': None,
     }
     
-    if custom_pf:
-        pf.update(custom_pf)
+    pf.update(rcParams)
     
     return pf
 

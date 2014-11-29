@@ -12,7 +12,6 @@ class instances.
 
 import re
 import numpy as np
-from ..util.Misc import parse_kwargs
 from .StellarPopulation import StellarPopulation
 from .BlackHolePopulation import BlackHolePopulation
             

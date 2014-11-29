@@ -13,13 +13,13 @@ Description:
 import copy
 import numpy as np
 from .Chemistry import Chemistry
-from ..util.Misc import parse_kwargs
+from ..util import ParameterFile
 from ..physics.SecondaryElectrons import SecondaryElectrons
 from ..physics.Constants import erg_per_ev, E_LyA, ev_per_hz
 
 class RadiationField: # maybe RadiationNearSource
     def __init__(self, grid, sources, **kwargs):
-        self.pf = parse_kwargs(**kwargs)
+        self.pf = ParameterFile(**kwargs)
         self.grid = grid
         self.srcs = sources
         self.esec = SecondaryElectrons(method=self.pf['secondary_ionization'])
@@ -120,6 +120,9 @@ class RadiationField: # maybe RadiationNearSource
                     if not self.pf['approx_lya']:
                         self.kwargs.update({'Ja_%i' % i: Ja_src[i]})
     
+                        #if self.pf['secondary_lya']:
+                        #    self.kwargs.update({'Ja_X_%i' % i: Ja_src[i]})
+    
             # Sum over sources
             Gamma = np.sum(Gamma_src, axis=0)
             gamma = np.sum(gamma_src, axis=0)
@@ -128,6 +131,9 @@ class RadiationField: # maybe RadiationNearSource
             # Compute Lyman-Alpha emission
             if not self.pf['approx_lya']:
                 Ja = np.sum(Ja_src, axis=0)
+
+            #if self.pf['secondary_lya']:
+            #    Ja_X = np.sum(Ja_src, axis=0)
     
             # Each is grid x absorbers, or grid x [absorbers, absorbers] for gamma
             self.kwargs.update({'Gamma': Gamma, 'Heat': Heat, 'gamma': gamma})

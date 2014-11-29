@@ -11,7 +11,7 @@ Description:
 """
 
 import numpy as np
-from ..util.Misc import parse_kwargs
+from ..util import ParameterFile
 from ..physics.Constants import nu_0_mhz
 from ..util.Math import central_difference, take_derivative
 from ..util.SetDefaultParameterValues import SetAllDefaults
@@ -27,10 +27,7 @@ turning_points = list('ABCDE')
 
 class TurningPoints(object):
     def __init__(self, inline=False, **kwargs):
-        if kwargs:
-            self.pf = parse_kwargs(**kwargs)
-        else:
-            self.pf = SetAllDefaults()
+        self.pf = ParameterFile(**kwargs)
             
         self.delay = self.pf['stop_delay']    
             

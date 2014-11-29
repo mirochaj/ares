@@ -98,6 +98,9 @@ class WriteData():
             history['Ja'] = [0.0]
         else:
             history['Ja'] = [self.sim.pf['Ja'](zinit)]
+            
+        if self.sim.pf['secondary_lya'] and not self.sim.approx_all_xray:
+            history['Ja_X'] = [0.0]    
     
         history['tau_e'] = [0.0]
     
@@ -241,8 +244,8 @@ class WriteData():
                     to_keep.update({'%s_Gamma_%s' % (zone, state): \
                         rt.kwargs['Gamma']})
                     
-                    if self.sim.approx_all_xray:
-                        to_keep.update({'%s_gamma_%s_%s' % (zone, state, state): 0})
+                    if rt.pf['approx_xray']:
+                        to_keep.update({'%s_gamma_%s_%s' % (zone, state, state): 0.0})
                     else:
                         to_keep.update({'%s_gamma_%s_%s' % (zone, state, state): \
                             rt.kwargs['gamma'].squeeze()[k,k]})
@@ -260,13 +263,19 @@ class WriteData():
         ##
 
         # Compute Lyman-alpha background for WF coupling
+
         if self.sim.pf['radiative_transfer'] and z < self.sim.zfl:
             Ja = np.sum([rb.LymanAlphaFlux(z) for rb in self.sim.rbs])
         else:
-            Ja = 0.0
+            Ja = 0.0    
 
+        Ja_X = 0.0
+        #if self.sim.pf['radiative_transfer'] and z < self.sim.zfl:
+        #    if self.sim.pf['secondary_lya'] and not self.sim.approx_all_xray:
+        #        Ja_X = self.sim.rt_igm.kwargs['Ja_X']
+                                
         # z, Tk, Ja, nH, ne
-        Ts = self.sim.grid.hydr.SpinTemperature(z, to_keep['igm_Tk'], Ja,
+        Ts = self.sim.grid.hydr.SpinTemperature(z, to_keep['igm_Tk'], Ja + Ja_X,
             to_keep['igm_h_2'], to_keep['igm_e'] * self.sim.grid_igm.cosm.nH(z))
         dTb = self.sim.grid.hydr.DifferentialBrightnessTemperature(z,
             to_keep['xavg'], Ts)
@@ -279,6 +288,10 @@ class WriteData():
 
         # Store derived fields
         self.sim.history['Ja'].append(Ja)
+        
+        if self.sim.pf['secondary_lya'] and not self.sim.approx_all_xray:
+            self.sim.history['Ja_X'].append(Ja)
+        
         self.sim.history['Ts'].append(Ts)
         self.sim.history['dTb'].append(dTb)
 

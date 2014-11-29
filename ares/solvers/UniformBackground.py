@@ -13,12 +13,13 @@ Description: This will be like glorb.evolve.RadiationBackground.
 import numpy as np
 from math import ceil
 import os, re, types, gc
+from ..util.Misc import logbx
+from ..util import ParameterFile
 from ..physics.Constants import *
 from .IntergalacticMedium import IGM
 from ..util.PrintInfo import print_rb
 from scipy.interpolate import interp1d
 from ..physics import Hydrogen, Cosmology
-from ..util.Misc import parse_kwargs, logbx
 from ..populations import StellarPopulation
 from scipy.integrate import quad, romberg, romb, trapz, simps
 from ..populations import BlackHolePopulation, StellarPopulation
@@ -79,7 +80,7 @@ class UniformBackground:
             self.pop = pop
             self.pf = self.pop.pf
         else:
-            self.pf = parse_kwargs(**kwargs)
+            self.pf = ParameterFile(**kwargs)
             
             if self.pf['source_type'] == 'star':
                 self.pop = StellarPopulation(**kwargs)

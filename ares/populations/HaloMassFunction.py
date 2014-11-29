@@ -12,8 +12,8 @@ Description:
 import numpy as np
 import pickle, os, re
 from ..physics import Cosmology
+from ..util import ParameterFile
 from scipy.misc import derivative
-from ..util.Misc import parse_kwargs
 from ..util.Math import central_difference
 from ..util.ProgressBar import ProgressBar
 from ..physics.Constants import g_per_msun, cm_per_mpc
@@ -111,7 +111,7 @@ class HaloDensity:
         (which accepts arguments z and logM), in that order.
         
         """
-        self.pf = parse_kwargs(**kwargs)
+        self.pf = ParameterFile(**kwargs)
         self.cosm = Cosmology(
             omega_m_0=self.pf['omega_m_0'], 
             omega_l_0=self.pf['omega_l_0'], 
