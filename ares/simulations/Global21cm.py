@@ -125,9 +125,7 @@ class Global21cm:
                 print "\nFound identical realization! Loaded %s/.ares/%s.npz" \
                     % (HOME, prefix)
             return 
-            
-        self._check_for_conflicts()
-            
+                        
         # Initialize two grid patches   
         self.grid_igm = Grid(dims=1, approx_Salpha=self.pf['approx_Salpha'])
         self.grid_cgm = Grid(dims=1)
@@ -1239,14 +1237,14 @@ class Global21cm:
         
         self.write.save(prefix, suffix, clobber)
         
-    def _check_for_conflicts(self):
-        if not self.pf['radiative_transfer']:
-            return
-            
-        if self.pf['approx_lya'] == 0 and np.all(self.pf['spectrum_Emin'] > 13.6):
-            raise ValueError('Must supply Lyman series spectrum!')
-        
-        if self.pf['approx_xray'] == 0 and self.pf['load_tau'] == 0 \
-            and self.pf['tau_table'] is None:
-            raise ValueError('Supply tau_table or set load_tau=True when approx_xray=False')
+    #def _check_for_conflicts(self):
+    #    if not self.pf['radiative_transfer']:
+    #        return
+    #        
+    #    if self.pf['approx_lya'] == 0 and np.all(self.pf['spectrum_Emin'] > 13.6):
+    #        raise ValueError('Must supply Lyman series spectrum!')
+    #    
+    #    if self.pf['approx_xray'] == 0 and self.pf['load_tau'] == 0 \
+    #        and self.pf['tau_table'] is None:
+    #        raise ValueError('Supply tau_table or set load_tau=True when approx_xray=False')
 

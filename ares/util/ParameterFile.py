@@ -16,13 +16,13 @@ from .ProblemTypes import ProblemType
 from .SetDefaultParameterValues import SetAllDefaults
 from .CheckForParameterConflicts import CheckForParameterConflicts
 
-defaults = SetAllDefaults()
-
 class ParameterFile(dict):
     def __init__(self, pf=None, **kwargs):
         """
         Build parameter file instance.
         """
+        
+        self.defaults = SetAllDefaults()
         
         if pf is not None:
             self._kwargs = pf._kwargs
@@ -44,8 +44,8 @@ class ParameterFile(dict):
             ...
               
         """    
-    
-        pf = defaults.copy()
+                
+        pf = self.defaults.copy()
     
         if 'problem_type' in kwargs:
             pf.update(ProblemType(kwargs['problem_type']))
@@ -122,7 +122,7 @@ class ParameterFile(dict):
                 # If we didn't supply this parameter for the linked population,
                 # assume default parameter value
                 if kwargs[par] not in kwargs:
-                    val = defaults[prefix_link]
+                    val = self.defaults[prefix_link]
                 else:
                     val = kwargs[kwargs[par]]
 
@@ -143,7 +143,7 @@ class ParameterFile(dict):
                 for pop_pars in thing:
                     for key in all_varying_keys:
                         if key not in pop_pars:
-                            pop_pars[key] = defaults[key]
+                            pop_pars[key] = self.defaults[key]
 
             # Update parameter file
             pf.update({'source_kwargs': src_kw})
@@ -181,7 +181,7 @@ class ParameterFile(dict):
         Run through parsed parameter file looking for conflicts.
         """
         for kwarg in pf:
-            if kwarg in defaults.keys():
+            if kwarg in self.defaults.keys():
                 continue
             
             print 'WARNING: Unrecognized parameter: %s' % kwarg        

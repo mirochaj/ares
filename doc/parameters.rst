@@ -35,6 +35,13 @@ than 10%, open ``$HOME/.ares/defaults.py`` and do::
 That's it! Elements of ``pf`` will override the defaults listed in
 ``ares.util.SetDefaultParameterValues.py`` at run-time.
 
+Alternatively, within a python script you can modify defaults by doing ::
+
+    import ares
+    ares.rcParams['fstar'] = 0.05
+    
+This is similar to how things work in matplotlib (with the ``matplotlibrc`` 
+file and ``matplotlib.rcParams`` variable).
 
 Custom Axis-Labels
 -------------------

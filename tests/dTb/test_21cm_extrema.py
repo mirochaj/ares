@@ -34,6 +34,13 @@ pl.draw()
 
 
 # Print out in-line analysis:
+things = ['redshift', 'amplitude', 'curvature']
 for tp in list('BCD'):
-    sim.tabulate_blobs(tp)
+    for i, element in enumerate(sim.turning_points[tp]):
+        
+        if -500 <= element <= 100:
+            continue
+            
+        raise ValueError('Absurd turning point! %s of %s' \
+            % (things[i], element))
 

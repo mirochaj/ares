@@ -72,7 +72,7 @@ Ts = lambda z: hydr.SpinTemperature(z, Tk(z), 0.0, 0.0, 0.0)
 dTb = lambda z: hydr.DifferentialBrightnessTemperature(z, 0.0, Ts(z))
 
 mp.grid[0].semilogx(z, map(dTb, z), color='b', label='CosmoRec')
-mp.grid[1].legend(loc='lower right')
+mp.grid[0].legend(loc='lower right')
 
 # Labels
 mp.grid[0].set_xlabel(r'$z$')
