@@ -167,7 +167,7 @@ class logprior:
 class loglikelihood:
     def __init__(self, steps, parameters, is_log, mu, errors,
         base_kwargs, nwalkers, priors={}, chain=None, logL=None, 
-        errmap=None, errunits=None, blobs=None):
+        errmap=None, errunits=None, prefix=None):
         """
         Computes log-likelihood at given step in MCMC chain.
         
@@ -181,8 +181,8 @@ class loglikelihood:
 
         self.base_kwargs = base_kwargs
         self.nwalkers = nwalkers
-        
-        self.blobs = blobs
+
+        self.prefix = prefix        
         
         if 'inline_analysis' in self.base_kwargs:
             self.blob_names, self.blob_redshifts = \
@@ -250,6 +250,15 @@ class loglikelihood:
     def __call__(self, pars):
         """
         Compute log-likelihood for model generated via input parameters.
+        
+        Returns
+        -------
+        Tuple: (log likelihood, blobs, SUCCESS flag)
+        
+        SUCCESS is only set to False if we enter the except block when 
+        calling ares.simulations.Global21cm (indicating either a bug, or 
+        a model without three turning points).
+        
         """
 
         kwargs = {}
@@ -269,7 +278,7 @@ class loglikelihood:
         kw.update(kwargs)
         
         try:
-            
+                        
             sim = simG21(**kw)            
             sim.run()     
                 
@@ -278,6 +287,12 @@ class loglikelihood:
         # most likely: no (or too few) turning pts                
         except:         
             self.warning(None, kwargs)
+            
+            # Write to "fail" file - this might cause problems in parallel
+            f = open('%s.fail.pkl' % self.prefix, 'ab')
+            pickle.dump(kwargs, f)
+            f.close()
+            
             return -np.inf, self.blank_blob
 
         # Apply measurement priors now that we have the turning points
@@ -695,7 +710,7 @@ class ModelFit(object):
         self.loglikelihood = loglikelihood(steps, self.parameters, self.is_log, 
             self.mu, self.error, self.base_kwargs,
             self.nwalkers, self.priors, self.chain, self.logL, 
-            self.measurement_map, self.measurement_units)
+            self.measurement_map, self.measurement_units, prefix=self.prefix)
             
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
@@ -734,6 +749,17 @@ class ModelFit(object):
                     MPI.COMM_WORLD.Abort()
                 raise ValueError('is_log from file dont match those supplied!')
                         
+            f = open('%s.setup.pkl' % prefix, 'rb')
+            base_kwargs = pickle.load(f)
+            f.close()  
+            
+            if base_kwargs != self.base_kwargs:
+                if size > 1:
+                    if rank == 0:
+                        print 'base_kwargs from file dont match those supplied!'
+                    MPI.COMM_WORLD.Abort()
+                raise ValueError('base_kwargs from file dont match those supplied!')
+                        
         # Setup output file
         if rank == 0 and (not restart):
 
@@ -745,9 +771,17 @@ class ModelFit(object):
             f = open('%s.logL.pkl' % prefix, 'wb')
             f.close()
             
+            f = open('%s.fail.pkl' % prefix, 'wb')
+            f.close()
+            
             # Parameter names and list saying whether they are log10 or not
             f = open('%s.pinfo.pkl' % prefix, 'wb')
             pickle.dump((self.parameters, self.is_log), f)
+            f.close()
+            
+            # Constant parameters being passed to ares.simulations.Global21cm
+            f = open('%s.setup.pkl' % prefix, 'wb')
+            pickle.dump(self.base_kwargs, f)
             f.close()
             
             # Outputs for arbitrary meta-data blos
@@ -792,8 +826,9 @@ class ModelFit(object):
                 # Skip blobs if there are none being tracked
                 if not os.path.exists(fn):
                     continue
-                    
-                pickle.dump(data[i], open(fn, 'ab'))
+                
+                f = open(fn, 'ab')    
+                pickle.dump(data[i], f)
                 f.close()
                         
             pos_all = []; prob_all = []; blobs_all = []

@@ -16,9 +16,9 @@ from ..util import labels
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
 from ..physics.Constants import nu_0_mhz
-from ..util.ReadData import read_pickled_chain
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.SetDefaultParameterValues import SetAllDefaults
+from ..util.ReadData import read_pickled_chain, read_pickled_dict
 
 try:
     import emcee
@@ -172,8 +172,23 @@ class ModelFit(object):
                 
             else:
                 self.blobs = self.blob_names = self.blob_redshifts = None
+                
+            if os.path.exists('%s.fail.pkl' % prefix):
+                self.fails = read_pickled_dict('%s.fail.pkl' % prefix)
+            else:
+                self.fails = None
+                
+            if os.path.exists('%s.setup.pkl' % prefix):
+                self.base_kwargs = read_pickled_dict('%s.setup.pkl' % prefix)
+            else:
+                self.base_kwargs = None    
+                
         else:
             raise TypeError('Argument must be emcee.EnsembleSampler instance or filename prefix')
+                            
+                            
+        if not self.chain:
+            print "WARNING: This chain has yet to write to disk!"                    
                             
     @property
     def ref_pars(self):
@@ -492,6 +507,8 @@ class ModelFit(object):
             
             NOTE: These can alternatively be the names of arbitrary meta-data
             blobs.
+            
+            If None, this will plot *all* parameters, so be careful!
             
         fig : int
             ID number for plot window. 

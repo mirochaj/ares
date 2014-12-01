@@ -124,7 +124,23 @@ def flatten_logL(data):
 
     return new
     
-def read_pickled_chain(fn, logL=None):
+def read_pickled_dict(fn):
+    f = open(fn, 'rb')
+    
+    results = []
+    
+    while True:
+        try:
+            # This array should be (nsteps, ndims)
+            results.append(pickle.load(f))
+        except EOFError:
+            break
+    
+    f.close()
+    
+    return results
+    
+def read_pickled_chain(fn, logL=None, arrayify=True):
     """
     Reads MCMC chain from emcee that has been pickled.
     

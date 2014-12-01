@@ -458,6 +458,10 @@ class Global21cm:
         """Just another pathway to our __call__ method. Runs simulation."""
         self.__call__()
      
+    def rerun(self):
+        del self.history
+        self.run() 
+     
     def __call__(self):
         """ Evolve chemistry and radiation background. """
         
