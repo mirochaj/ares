@@ -644,7 +644,7 @@ def print_fit(fit, steps, burn=0):
         
         data.append([col1, col2])
 
-    tabulate(data, rows, cols)    
+    tabulate(data, rows, cols, cwidth=18)    
 
     print line('-'*twidth)       
     print line('Parameter Space')     
@@ -663,7 +663,7 @@ def print_fit(fit, steps, burn=0):
 
         data.append(tmp)
 
-    tabulate(data, rows, cols, fmt='%.2g')
+    tabulate(data, rows, cols, fmt='%.2g', cwidth=18)
 
     print line('-'*twidth)       
     print line('Exploration')     

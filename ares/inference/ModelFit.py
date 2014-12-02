@@ -10,6 +10,7 @@ Description:
 
 """
 
+import gc
 import numpy as np
 from ..util.Stats import get_nu
 from ..analysis import Global21cm
@@ -22,6 +23,15 @@ from ..analysis.TurningPoints import TurningPoints
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.ReadData import read_pickled_chain, flatten_chain, flatten_logL, \
     flatten_blobs  
+
+try:
+    from memory_profiler import profile
+except ImportError:
+    class profile(object):
+        def __init__(self, f):
+            pass
+        def __call__(self):
+            pass
 
 try:
     from scipy.spatial import KDTree
@@ -47,7 +57,7 @@ try:
 except ImportError:
     rank = 0
     size = 1
-    
+        
 def parse_turning_points(turning_points_model, turning_points_input, use):
     """
     Convert dictionary of turning points to array.
@@ -246,18 +256,15 @@ class loglikelihood:
                 self._blank_blob.append(tup)
 
         return np.array(self._blank_blob)
-                                        
+    
+    @profile                                    
     def __call__(self, pars):
         """
         Compute log-likelihood for model generated via input parameters.
         
         Returns
         -------
-        Tuple: (log likelihood, blobs, SUCCESS flag)
-        
-        SUCCESS is only set to False if we enter the except block when 
-        calling ares.simulations.Global21cm (indicating either a bug, or 
-        a model without three turning points).
+        Tuple: (log likelihood, blobs)
         
         """
 
@@ -293,6 +300,9 @@ class loglikelihood:
             pickle.dump(kwargs, f)
             f.close()
             
+            del sim, kw, f
+            gc.collect()
+            
             return -np.inf, self.blank_blob
 
         # Apply measurement priors now that we have the turning points
@@ -307,11 +317,17 @@ class loglikelihood:
             j = 0 if key_pre == 'z' else 1
 
             if pt not in tps:
+                del sim, kw
+                gc.collect()
+                
                 return -np.inf, self.blank_blob
 
             if mi <= tps[pt][j] <= ma:
                 continue
             else:
+                del sim, kw
+                gc.collect()
+                
                 return -np.inf, self.blank_blob
                         
         # Apply priors on derived fields (e.g., CMB optical depth)
@@ -340,6 +356,9 @@ class loglikelihood:
             
             # Models without turning point B, C, or D get thrown out.
             if tp not in tps:
+                del sim, kw
+                gc.collect()
+                
                 return -np.inf, self.blank_blob
         
             xarr.append(tps[tp][i])
@@ -363,9 +382,10 @@ class loglikelihood:
                 else:
                     logL = lp - self.logL[loc]
             except ValueError:
+                del sim, kw
+                gc.collect()
+                
                 return -np.inf, self.blank_blob
-
-            print logL
 
         # Blobs!
         if hasattr(sim, 'blobs'):
@@ -375,6 +395,9 @@ class loglikelihood:
                         
         if blobs.shape != self.blank_blob.shape:
             raise ValueError('help')    
+            
+        del sim, kw
+        gc.collect()    
             
         return logL, blobs
         
@@ -645,6 +668,7 @@ class ModelFit(object):
     def priors(self, value):
         self._priors = value
 
+    @profile
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=10):
         """
@@ -795,12 +819,12 @@ class ModelFit(object):
                 f = open('%s.binfo.pkl' % prefix, 'wb')
                 pickle.dump((self.blob_names, self.blob_redshifts), f)
                 f.close()
-                    
+                        
         # Take steps, append to pickle file every save_freq steps
         ct = 0
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
-            iterations=steps, rstate0=state):
+            iterations=steps, rstate0=state, storechain=False):
                         
             # Only the rank 0 processor ever makes it here
             
@@ -827,12 +851,16 @@ class ModelFit(object):
                 if not os.path.exists(fn):
                     continue
                 
-                f = open(fn, 'ab')    
+                f = open(fn, 'ab')
                 pickle.dump(data[i], f)
                 f.close()
-                        
+             
+            del data, f, pos_all, prob_all, blobs_all
+            gc.collect()
+            self.sampler.reset()
+
             pos_all = []; prob_all = []; blobs_all = []
-                        
+
         if self.pool is not None:
             self.pool.close()
     

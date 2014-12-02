@@ -175,20 +175,22 @@ class ModelFit(object):
                 
             if os.path.exists('%s.fail.pkl' % prefix):
                 self.fails = read_pickled_dict('%s.fail.pkl' % prefix)
+                
+                if rank == 0:
+                    print "Loaded %s.fail.pkl." % prefix
             else:
                 self.fails = None
                 
             if os.path.exists('%s.setup.pkl' % prefix):
                 self.base_kwargs = read_pickled_dict('%s.setup.pkl' % prefix)
+                
+                if rank == 0:
+                    print "Loaded %s.setup.pkl." % prefix
             else:
                 self.base_kwargs = None    
                 
         else:
-            raise TypeError('Argument must be emcee.EnsembleSampler instance or filename prefix')
-                            
-                            
-        if not self.chain:
-            print "WARNING: This chain has yet to write to disk!"                    
+            raise TypeError('Argument must be emcee.EnsembleSampler instance or filename prefix')              
                             
     @property
     def ref_pars(self):
