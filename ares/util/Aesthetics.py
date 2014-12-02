@@ -52,15 +52,15 @@ labels = \
  'igm_heat_h_1': r'$\epsilon_{X, \mathrm{HI}}$',
  'igm_heat_he_1': r'$\epsilon_{X, \mathrm{HI}}$',
  'igm_heat_he_2': r'$\epsilon_{X, \mathrm{HI}}$', 
- 'rate_igm_heat': r'$\epsilon_X \ (\mathrm{erg} \ \mathrm{cm}^{-3} \ \mathrm{s}^{-1})$', 
+ 'igm_heat': r'$\epsilon_X \ (\mathrm{erg} \ \mathrm{cm}^{-3} \ \mathrm{s}^{-1})$', 
  'cgm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
  'igm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
  'igm_Gamma_he_1': r'$\Gamma_{\mathrm{HeI}}$',
  'igm_Gamma_he_2': r'$\Gamma_{\mathrm{HeII}}$',
- 'rate_cgm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
- 'rate_igm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
- 'rate_igm_Gamma_he_1': r'$\Gamma_{\mathrm{HeI}}$',
- 'rate_igm_Gamma_he_2': r'$\Gamma_{\mathrm{HeII}}$',
+
+ 'igm_gamma_h_1': r'$\gamma_{\mathrm{HI}}$',
+ 'igm_gamma_he_1': r'$\gamma_{\mathrm{HeI}}$',
+ 'igm_gamma_he_2': r'$\gamma_{\mathrm{HeII}}$',
  'Tk': r'$T_K \ (\mathrm{K})$',
 }    
 ##
@@ -68,13 +68,12 @@ labels = \
 
 history_elements = \
 {
- 'igm_h_1': r'$x_{\mathrm{HI}}',
- 'igm_h_2': r'$x_{\mathrm{HII}}',
- 'igm_he_1': r'$x_{\mathrm{HeI}}',
- 'igm_he_2': r'$x_{\mathrm{HeII}}',
- 'igm_he_3': r'$x_{\mathrm{HeIII}}',
+ 'igm_h_1': r'$x_{\mathrm{HI}}$',
+ 'igm_h_2': r'$x_{\mathrm{HII}}$',
+ 'igm_he_1': r'$x_{\mathrm{HeI}}$',
+ 'igm_he_2': r'$x_{\mathrm{HeII}}$',
+ 'igm_he_3': r'$x_{\mathrm{HeIII}}$',
  'igm_Tk': r'$T_K$',
- 'igm_heat': r'$\epsilon_X$',
  'cgm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
  'cgm_h_2': r'$x_{\mathrm{HII}}$',
  'Ts': r'$T_S$',

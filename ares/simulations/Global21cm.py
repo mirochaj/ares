@@ -737,7 +737,7 @@ class Global21cm:
         redshift = []
         ztps = []
         for element in ztmp:
-            if type(element) is str:                
+            if type(element) is str:
                 if element not in self.turning_points:
                     redshift.append(np.inf)
                     ztps.append(np.inf)

@@ -14,6 +14,7 @@ import numpy as np
 import re, pickle, os
 from ..util import labels
 import matplotlib.pyplot as pl
+from ..physics import Cosmology
 from .MultiPlot import MultiPanel
 from ..physics.Constants import nu_0_mhz
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
@@ -193,6 +194,13 @@ class ModelFit(object):
             raise TypeError('Argument must be emcee.EnsembleSampler instance or filename prefix')              
                             
     @property
+    def cosm(self):
+        if not hasattr(self, '_cosm'):
+            self._cosm = Cosmology()
+        
+        return self._cosm                        
+                            
+    @property
     def ref_pars(self):
         if not hasattr(self, '_ref_pars'):
             self._ref_pars = SetAllDefaults()
@@ -200,24 +208,123 @@ class ModelFit(object):
         return self._ref_pars
         
     @property
-    def derived_field_names(self):
-        if not hasattr(self, '_derived_field_names'):
+    def derived_blob_names(self):
+        if not hasattr(self, '_derived_blob_names'):
             # Things we know how to calculate
-            for species in ['h_1', 'he_1', 'he_2']:
-                self._derived_field_names.append('rate_igm_Gamma_%s' % sp)
-                self._derived_field_names.append('rate_igm_gamma_%s' % sp)
-                self._derived_field_names.append('rate_igm_heat' % sp)
-        
-        return self._derived_field_names
-        
+            self._derived_blob_names = []
+            for sp in ['h_1', 'he_1', 'he_2']:
+                #self._derived_blob_names.append('rate_igm_Gamma_%s' % sp)
+                #self._derived_blob_names.append('rate_igm_gamma_%s' % sp)
+                self._derived_blob_names.append('igm_gamma_%s' % sp)
+            
+            self._derived_blob_names.append('igm_heat')
+
+        return self._derived_blob_names
+
     @property
-    def derived_fields(self):
+    def derived_blobs(self):
         """
         Total rates, convert to rate coefficients.
         """
+
+        if hasattr(self, '_derived_blobs'):
+            return self._derived_blobs
+
+        gamma = self._compute_gamma_tot()
+        heat = self._compute_heat_tot()
+
+        shape = list(self.blobs.shape[:-1])
+        shape.append(len(self.derived_blob_names))
+
+        self._derived_blobs = np.zeros(shape)
+        for k, key in enumerate(self.derived_blob_names):
+
+            if re.search('igm_gamma', key):
+                self._derived_blobs[:,:,k] = gamma[key]
+            elif re.search('igm_heat', key):
+                self._derived_blobs[:,:,k] = heat
+            else:
+                raise ValueError('dont know derived blob %s!' % key)    
+                
+        mask = np.zeros_like(self._derived_blobs)    
+        mask[np.argwhere(np.isinf(self._derived_blobs))] = 1
         
-        pass
+        self._derived_blobs = np.ma.masked_array(self._derived_blobs, mask=mask)
+
+        return self._derived_blobs
         
+    def _compute_heat_tot(self):
+        
+        heat = np.zeros(self.blobs.shape[:-1])
+        
+        for i, sp1 in enumerate(['h_1', 'he_1', 'he_2']):  
+
+            x_ion = 'igm_%s' % sp1
+            h = self.blob_names.index(x_ion)
+            
+            heat_index = self.blob_names.index('igm_heat_%s' % sp1)
+
+            if sp1 == 'h_1':
+                n = lambda z: self.cosm.nH(z)
+            else:
+                n = lambda z: self.cosm.nHe(z)
+
+            for j, redshift in enumerate(self.blob_redshifts):
+                if type(redshift) is str:
+                    zindex = self.blob_names.index('z')
+                    ztmp = self.blobs[:,j,zindex]
+                else:
+                    ztmp = redshift
+
+                heat[:,j] += self.blobs[:,j,heat_index] * n(ztmp) \
+                    * self.blobs[:,j,h]
+                    
+        return heat
+
+    def _compute_gamma_tot(self):
+        # Total rate coefficient
+
+        # Each has shape (Nsteps, Nredshifts)
+        gamma = {'igm_gamma_%s' % sp: np.zeros(self.blobs.shape[:-1]) \
+            for sp in ['h_1', 'he_1', 'he_2']}
+                   
+        for i, sp1 in enumerate(['h_1', 'he_1', 'he_2']):  
+            
+            x_subject = 'igm_%s' % sp1
+            mm = self.blob_names.index(x_subject)
+            
+            if sp1 == 'h_1':
+                n1 = lambda z: self.cosm.nH(z)
+            else:
+                n1 = lambda z: self.cosm.nHe(z)    
+                  
+            for sp2 in ['h_1', 'he_1', 'he_2']:
+            
+                if sp2 == 'h_1':
+                    n2 = lambda z: self.cosm.nH(z)
+                else:
+                    n2 = lambda z: self.cosm.nHe(z)
+                
+                blob = 'igm_gamma_%s_%s' % (sp1, sp2)
+                k = self.blob_names.index(blob)
+                
+                x_donor = 'igm_%s' % sp2
+                h = self.blob_names.index(x_donor)
+                
+                for j, redshift in enumerate(self.blob_redshifts):
+                    
+                    if type(redshift) is str:
+                        zindex = self.blob_names.index('z')
+                        ztmp = self.blobs[:,j,zindex]
+                    else:
+                        ztmp = redshift
+                                        
+                    gamma['igm_gamma_%s' % sp1][:,j] += self.blobs[:,j,k] \
+                        * self.blobs[:,j,h] * n2(ztmp) / n1(ztmp) \
+                        / self.blobs[:,j,mm]
+                        
+        return gamma
+                        
     def get_levels(self, L, nu=[0.99, 0.95, 0.68]):
         """
         Return levels corresponding to input nu-values, and assign
@@ -336,7 +443,7 @@ class ModelFit(object):
             pars = [pars]
 
         binvec = []
-        to_hist = []        
+        to_hist = []
         is_log = []
         for k, par in enumerate(pars):
 
@@ -356,17 +463,24 @@ class ModelFit(object):
                 else:
                     to_hist.append(val)
                 
-            elif par in self.blob_names:
+            elif (par in self.blob_names) or (par in self.derived_blob_names):
                 
                 if z is None:
                     raise ValueError('Must supply redshift!')
                     
                 i = self.blob_redshifts.index(z)
-                j = list(self.blob_names).index(par)
+                
+                if par in self.blob_names:
+                    j = list(self.blob_names).index(par)
+                else:
+                    j = list(self.derived_blob_names).index(par)
                 
                 is_log.append(False)
                 
-                val = self.blobs[skip:,i,j].compressed()[::skim]
+                if par in self.blob_names:
+                    val = self.blobs[skip:,i,j].compressed()[::skim]
+                else:
+                    val = self.derived_blobs[skip:,i,j].compressed()[::skim]
                 
                 if take_log[k]:
                     val += np.log10(multiplier[k])
@@ -413,6 +527,8 @@ class ModelFit(object):
             ax.set_ylim(0, 1.05)
             
         else:
+            
+            print len(to_hist[0]), len(to_hist[1])
     
             # Compute 2-D histogram
             hist, xedges, yedges = \

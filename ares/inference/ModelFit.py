@@ -16,8 +16,8 @@ from ..analysis import Global21cm
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
 from ..analysis import Global21cm as anlG21
-import gc, os, sys, copy, types, pickle, time
 from ..simulations import Global21cm as simG21
+import gc, os, sys, copy, types, pickle, time, re
 from ..analysis.TurningPoints import TurningPoints
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.ReadData import read_pickled_chain, flatten_chain, flatten_logL, \
@@ -465,7 +465,15 @@ class ModelFit(object):
 
     @measurement_map.setter
     def measurement_map(self, value):
-         self._measurement_map = value     
+         self._measurement_map = value 
+         
+    def _check_for_conflicts(self):
+        
+        for i, element in enumerate(self.parameters):
+            if re.search('spectrum_logN', element):
+                if self.is_log[i]:
+                    raise ValueError('spectrum_logN is already logarithmic!')
+                    
             
     @property
     def measurement_units(self):
@@ -679,6 +687,8 @@ class ModelFit(object):
 
         """
         
+        self._check_for_conflicts()
+        
         self.prefix = prefix
         
         if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
@@ -794,8 +804,12 @@ class ModelFit(object):
             # Constant parameters being passed to ares.simulations.Global21cm
             f = open('%s.setup.pkl' % prefix, 'wb')
             tmp = self.base_kwargs.copy()
-            if 'tau_table' in tmp: # this might be big, get rid of it
-                del tmp['tau_table']
+            to_axe = []
+            for key in tmp:
+                if re.search(key, 'tau_table'):
+                    to_axe.append(key)
+            for key in to_axe:
+                del tmp[key] # this might be big, get rid of it
             pickle.dump(tmp, f)
             del tmp
             f.close()
@@ -847,7 +861,7 @@ class ModelFit(object):
                 pickle.dump(data[i], f)
                 f.close()
                 
-            print "Checkpoint at %s" % (time.ctime())
+            print "Checkpoint: %s" % (time.ctime())
              
             del data, f, pos_all, prob_all, blobs_all
             gc.collect()
