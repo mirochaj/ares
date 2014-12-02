@@ -10,14 +10,13 @@ Description:
 
 """
 
-import gc
 import numpy as np
 from ..util.Stats import get_nu
 from ..analysis import Global21cm
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
-import os, sys, copy, types, pickle, time
 from ..analysis import Global21cm as anlG21
+import gc, os, sys, copy, types, pickle, time
 from ..simulations import Global21cm as simG21
 from ..analysis.TurningPoints import TurningPoints
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
@@ -268,7 +267,7 @@ class loglikelihood:
         # Apply prior
         lp = self.logprior_P(pars)
         if not np.isfinite(lp):
-            return -np.inf, []
+            return -np.inf, self.blank_blob
 
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
@@ -278,7 +277,7 @@ class loglikelihood:
                         
             sim = simG21(**kw)            
             sim.run()     
-                
+                            
             tps = sim.turning_points      
         
         # most likely: no (or too few) turning pts                
@@ -343,7 +342,7 @@ class loglikelihood:
         # Convert frequencies to redshift, temperatures to K
         for element in self.errmap:
             tp, i = element
-            
+                        
             # Models without turning point B, C, or D get thrown out.
             if tp not in tps:
                 del sim, kw
@@ -382,13 +381,13 @@ class loglikelihood:
             blobs = sim.blobs
         else:
             blobs = self.blank_blob
-                        
+                                                
         if blobs.shape != self.blank_blob.shape:
             raise ValueError('help')    
             
         del sim, kw
         gc.collect()    
-            
+                    
         return logL, blobs
         
     def warning(self, tps, kwargs):
@@ -794,7 +793,11 @@ class ModelFit(object):
             
             # Constant parameters being passed to ares.simulations.Global21cm
             f = open('%s.setup.pkl' % prefix, 'wb')
-            pickle.dump(self.base_kwargs, f)
+            tmp = self.base_kwargs.copy()
+            if 'tau_table' in tmp: # this might be big, get rid of it
+                del tmp['tau_table']
+            pickle.dump(tmp, f)
+            del tmp
             f.close()
             
             # Outputs for arbitrary meta-data blos
@@ -843,6 +846,8 @@ class ModelFit(object):
                 f = open(fn, 'ab')
                 pickle.dump(data[i], f)
                 f.close()
+                
+            print "Checkpoint at %s" % (time.ctime())
              
             del data, f, pos_all, prob_all, blobs_all
             gc.collect()

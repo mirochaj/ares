@@ -199,6 +199,25 @@ class ModelFit(object):
         
         return self._ref_pars
         
+    @property
+    def derived_field_names(self):
+        if not hasattr(self, '_derived_field_names'):
+            # Things we know how to calculate
+            for species in ['h_1', 'he_1', 'he_2']:
+                self._derived_field_names.append('rate_igm_Gamma_%s' % sp)
+                self._derived_field_names.append('rate_igm_gamma_%s' % sp)
+                self._derived_field_names.append('rate_igm_heat' % sp)
+        
+        return self._derived_field_names
+        
+    @property
+    def derived_fields(self):
+        """
+        Total rates, convert to rate coefficients.
+        """
+        
+        pass
+        
     def get_levels(self, L, nu=[0.99, 0.95, 0.68]):
         """
         Return levels corresponding to input nu-values, and assign
@@ -303,7 +322,7 @@ class ModelFit(object):
             pars = [pars]
         if type(take_log) == bool:
             take_log = [take_log] * len(pars)
-        if type(multiplier) == bool:
+        if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)            
     
         if ax is None:
