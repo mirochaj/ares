@@ -23,16 +23,7 @@ from ..analysis.TurningPoints import TurningPoints
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.ReadData import read_pickled_chain, flatten_chain, flatten_logL, \
     flatten_blobs  
-
-try:
-    from memory_profiler import profile
-except ImportError:
-    class profile(object):
-        def __init__(self, f):
-            pass
-        def __call__(self):
-            pass
-
+    
 try:
     from scipy.spatial import KDTree
     from scipy.interpolate import interp1d
@@ -257,7 +248,6 @@ class loglikelihood:
 
         return np.array(self._blank_blob)
     
-    @profile                                    
     def __call__(self, pars):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -668,7 +658,6 @@ class ModelFit(object):
     def priors(self, value):
         self._priors = value
 
-    @profile
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=10):
         """
