@@ -738,7 +738,17 @@ class Global21cm:
         ztps = []
         for element in ztmp:
             if type(element) is str:
-                if element not in self.turning_points:
+                if element == 'zrei':
+                    
+                    ihigh = np.argmin(np.abs(self.history['z'] - self.pf['first_light_redshift']))
+                    interp = interp1d(self.history['xavg'][ihigh:],
+                        self.history['z'][ihigh:])
+                    
+                    zrei = interp(0.5)
+                    
+                    redshift.append(zrei)
+                    ztps.append((element, zrei))
+                elif element not in self.turning_points:
                     redshift.append(np.inf)
                     ztps.append(np.inf)
                 else:
@@ -747,7 +757,7 @@ class Global21cm:
             else:
                 redshift.append(element)
             
-        # Redshift x blobs (x species)
+        # Redshift x blobs
         output = []
         for j, field in enumerate(fields):
             

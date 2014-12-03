@@ -152,13 +152,13 @@ class ModelFit(object):
             
             if os.path.exists('%s.blobs.pkl' % prefix):
                 try:
-                    blobs = read_pickled_chain('%s.blobs.pkl' \
+                    blobs = self.blobs = read_pickled_chain('%s.blobs.pkl' \
                         % prefix)
                                     
-                    mask = np.zeros_like(blobs)    
-                    mask[np.argwhere(np.isinf(blobs))] = 1
-                    
-                    self.blobs = np.ma.masked_array(blobs, mask=mask)
+                    self.mask = np.zeros_like(blobs)    
+                    self.mask[np.argwhere(np.isinf(blobs))] = 1
+                    #self.blobs = np.ma.masked_array(blobs, mask=self.mask,
+                    #    fill_value=np.inf)
                 except:
                     if rank == 0:
                         print "WARNING: Error loading blobs."    
@@ -215,8 +215,9 @@ class ModelFit(object):
             for sp in ['h_1', 'he_1', 'he_2']:
                 #self._derived_blob_names.append('rate_igm_Gamma_%s' % sp)
                 #self._derived_blob_names.append('rate_igm_gamma_%s' % sp)
-                self._derived_blob_names.append('igm_gamma_%s' % sp)
-            
+                #self._derived_blob_names.append('igm_gamma_%s' % sp)
+                pass
+                
             self._derived_blob_names.append('igm_heat')
 
         return self._derived_blob_names
@@ -230,18 +231,18 @@ class ModelFit(object):
         if hasattr(self, '_derived_blobs'):
             return self._derived_blobs
 
-        gamma = self._compute_gamma_tot()
-        heat = self._compute_heat_tot()
+        #gamma = self._compute_gamma_tot()
+        heat = self.heat = self._compute_heat_tot()
 
         shape = list(self.blobs.shape[:-1])
         shape.append(len(self.derived_blob_names))
 
-        self._derived_blobs = np.zeros(shape)
+        self._derived_blobs = np.ones(shape) * np.inf
         for k, key in enumerate(self.derived_blob_names):
 
-            if re.search('igm_gamma', key):
-                self._derived_blobs[:,:,k] = gamma[key]
-            elif re.search('igm_heat', key):
+            #if re.search('igm_gamma', key):
+            #    self._derived_blobs[:,:,k] = gamma[key]
+            if re.search('igm_heat', key):
                 self._derived_blobs[:,:,k] = heat
             else:
                 raise ValueError('dont know derived blob %s!' % key)    
@@ -249,42 +250,47 @@ class ModelFit(object):
         mask = np.zeros_like(self._derived_blobs)    
         mask[np.argwhere(np.isinf(self._derived_blobs))] = 1
         
-        self._derived_blobs = np.ma.masked_array(self._derived_blobs, mask=mask)
+        self.dmask = mask
+        
+        self._derived_blobs = np.ma.masked_array(self._derived_blobs, 
+            mask=mask, fill_value=np.inf)
 
         return self._derived_blobs
         
     def _compute_heat_tot(self):
         
+        # (Nsamples, Nredshifts)
         heat = np.zeros(self.blobs.shape[:-1])
         
-        for i, sp1 in enumerate(['h_1', 'he_1', 'he_2']):  
-
-            x_ion = 'igm_%s' % sp1
-            h = self.blob_names.index(x_ion)
+        for i, sp in enumerate(['h_1', 'he_1', 'he_2']):  
             
-            heat_index = self.blob_names.index('igm_heat_%s' % sp1)
+            # For slicing
+            i_x = self.blob_names.index('igm_%s' % sp)
+            i_heat = self.blob_names.index('igm_heat_%s' % sp)
 
-            if sp1 == 'h_1':
+            if sp == 'h_1':
                 n = lambda z: self.cosm.nH(z)
             else:
                 n = lambda z: self.cosm.nHe(z)
 
             for j, redshift in enumerate(self.blob_redshifts):
                 if type(redshift) is str:
-                    zindex = self.blob_names.index('z')
-                    ztmp = self.blobs[:,j,zindex]
+                    zdim = self.blob_names.index('z')
+                    ztmp = self.blobs[:,j,zdim]
                 else:
                     ztmp = redshift
 
-                heat[:,j] += self.blobs[:,j,heat_index] * n(ztmp) \
-                    * self.blobs[:,j,h]
+                # Multiply by number density of absorbers
+                
+                heat[:,j] = self.blobs[:,j,i_heat] #\
+                    #* n(ztmp) * self.blobs[:,j,i_x]
                     
         return heat
 
     def _compute_gamma_tot(self):
         # Total rate coefficient
 
-        # Each has shape (Nsteps, Nredshifts)
+        # Each has shape (Nsamples, Nredshifts)
         gamma = {'igm_gamma_%s' % sp: np.zeros(self.blobs.shape[:-1]) \
             for sp in ['h_1', 'he_1', 'he_2']}
                    
@@ -603,11 +609,18 @@ class ModelFit(object):
         return ax
         
     def extract_blob(self, name, z):
+        """
+        Extract a 1-D array of values for a given quantity at a given redshift.
+        """
         i = self.blob_redshifts.index(z)
-        j = list(self.blob_names).index(name)
         
-        return self.blobs[:,i,j].compressed()
-        
+        if name in self.blob_names:    
+            j = self.blob_names.index(name)
+            return self.blobs[:,i,j]#.compressed()            
+        else:
+            j = self.derived_blob_names.index(name)
+            return self.derived_blobs[:,i,j]#.compressed()
+            
     def max_likelihood_parameters(self):
         """
         Return parameter values at maximum likelihood point.
