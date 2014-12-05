@@ -47,6 +47,10 @@ def_kwargs = \
  'labels': True,
 }
 
+# Have big axis labels much of the time
+pl.rcParams['figure.subplot.left'] = 0.25
+pl.rcParams['figure.subplot.bottom'] = 0.25
+
 suffixes = ['chain', 'pinfo', 'logL', 'blobs', 'binfo']
 
 def parse_blobs(name):
@@ -117,7 +121,7 @@ class ModelFit(object):
         """
         
         # Read in data from emcee.EmsembleSampler object
-        
+
         if have_emcee:
             if isinstance(data, emcee.EnsembleSampler):
                 self.chain = data.flatchain
@@ -126,24 +130,24 @@ class ModelFit(object):
                 self.is_log = [False] * self.Nd
                 self.blobs = None
                 self.blob_names = []
-        
+
         # Read in data from file (assumed to be pickled)
         if type(data) == str:
             prefix = data
-            
+
             # Read MCMC chain
             self.chain, self.logL = \
                 read_pickled_chain('%s.chain.pkl' % prefix, 
                     logL='%s.logL.pkl' % prefix)
-            
+
             self.Nd = int(self.chain.shape[-1])
-            
+
             # Read parameter names and info
             if os.path.exists('%s.pinfo.pkl' % prefix):
                 f = open('%s.pinfo.pkl' % prefix, 'rb')
                 self.parameters, self.is_log = pickle.load(f)
                 f.close()
-            
+
                 if rank == 0:
                     print "Loaded %s.pinfo.pkl." % prefix
             else:
@@ -152,13 +156,11 @@ class ModelFit(object):
             
             if os.path.exists('%s.blobs.pkl' % prefix):
                 try:
-                    blobs = self.blobs = read_pickled_chain('%s.blobs.pkl' \
-                        % prefix)
-                                    
+                    blobs = read_pickled_chain('%s.blobs.pkl' % prefix)
+                                                                    
                     self.mask = np.zeros_like(blobs)    
-                    self.mask[np.argwhere(np.isinf(blobs))] = 1
-                    #self.blobs = np.ma.masked_array(blobs, mask=self.mask,
-                    #    fill_value=np.inf)
+                    self.mask[np.isinf(blobs)] = 1
+                    self.blobs = np.ma.masked_array(blobs, mask=self.mask)
                 except:
                     if rank == 0:
                         print "WARNING: Error loading blobs."    
@@ -167,13 +169,13 @@ class ModelFit(object):
                 self.blob_names, self.blob_redshifts = \
                     map(list, pickle.load(f))
                 f.close()
-                
+
                 if rank == 0:
                     print "Loaded %s.binfo.pkl." % prefix
-                
+
             else:
                 self.blobs = self.blob_names = self.blob_redshifts = None
-                
+
             if os.path.exists('%s.fail.pkl' % prefix):
                 self.fails = read_pickled_dict('%s.fail.pkl' % prefix)
                 
@@ -213,13 +215,17 @@ class ModelFit(object):
             # Things we know how to calculate
             self._derived_blob_names = []
             for sp in ['h_1', 'he_1', 'he_2']:
-                #self._derived_blob_names.append('rate_igm_Gamma_%s' % sp)
-                #self._derived_blob_names.append('rate_igm_gamma_%s' % sp)
-                #self._derived_blob_names.append('igm_gamma_%s' % sp)
-                pass
+                self._derived_blob_names.append('igm_gamma_%s' % sp)
                 
             self._derived_blob_names.append('igm_heat')
-
+            
+            if ('igm_h_1' in self.blob_names) and \
+                'igm_h_2' not in self.blob_names:
+                self._derived_blob_names.append('igm_h_2')
+            if ('igm_he_1' and 'igm_he_2' in self.blob_names) and \
+                'igm_he_3' not in self.blob_names:
+                self._derived_blob_names.append('igm_he_3')    
+                
         return self._derived_blob_names
 
     @property
@@ -231,7 +237,7 @@ class ModelFit(object):
         if hasattr(self, '_derived_blobs'):
             return self._derived_blobs
 
-        #gamma = self._compute_gamma_tot()
+        gamma = self._compute_gamma_tot()
         heat = self.heat = self._compute_heat_tot()
 
         shape = list(self.blobs.shape[:-1])
@@ -240,20 +246,29 @@ class ModelFit(object):
         self._derived_blobs = np.ones(shape) * np.inf
         for k, key in enumerate(self.derived_blob_names):
 
-            #if re.search('igm_gamma', key):
-            #    self._derived_blobs[:,:,k] = gamma[key]
-            if re.search('igm_heat', key):
+            if re.search('igm_gamma', key):
+                self._derived_blobs[:,:,k] = gamma[key]
+            elif re.search('igm_heat', key):
                 self._derived_blobs[:,:,k] = heat
+            elif key == 'igm_he_3':
+                i_he_1 = self.blob_names.index('igm_he_1')
+                i_he_2 = self.blob_names.index('igm_he_2')
+                self._derived_blobs[:,:,k] = \
+                    1. - self.blobs[:,:,i_he_1] - self.blobs[:,:,i_he_2]
+            elif key == 'igm_h_2':
+                i_h_1 = self.blob_names.index('igm_h_1')
+                self._derived_blobs[:,:,k] = \
+                    1. - self.blobs[:,:,i_h_1]
             else:
                 raise ValueError('dont know derived blob %s!' % key)    
                 
         mask = np.zeros_like(self._derived_blobs)    
-        mask[np.argwhere(np.isinf(self._derived_blobs))] = 1
+        mask[np.isinf(self._derived_blobs)] = 1
         
         self.dmask = mask
         
         self._derived_blobs = np.ma.masked_array(self._derived_blobs, 
-            mask=mask, fill_value=np.inf)
+            mask=mask)
 
         return self._derived_blobs
         
@@ -381,6 +396,21 @@ class ModelFit(object):
                 kw.pop(key)
 
         return kw
+        
+    def rerun(self, pars=None, **kwargs):
+        """
+        Re-run a particular model.
+        
+        Returns
+        -------
+        ares.simulations.Global21cm instance.
+        
+        """    
+        
+        pass
+        
+    def add_blob(self):
+        pass    
                 
     def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=1.,
         nu=[0.99, 0.95, 0.68], slc=None, overplot_nu=False, density=True, 
@@ -458,13 +488,14 @@ class ModelFit(object):
                 is_log.append(self.is_log[j])
                 
                 val = self.chain[skip:,j].ravel()[::skim]
-                
+                                
                 if self.is_log[j]:
                     val += np.log10(multiplier[k])
                 else:
                     val *= multiplier[k]
-                
+                                
                 if take_log[k]:
+                    print "WARNING: Maybe don't take log10 of %s." % par
                     to_hist.append(np.log10(val))
                 else:
                     to_hist.append(val)
@@ -497,19 +528,20 @@ class ModelFit(object):
                     to_hist.append(np.log10(val))
                 else:
                     to_hist.append(val)
-                
+
             else:
                 raise ValueError('Unrecognized parameter %s' % str(par))
 
             if type(bins) == int:
-                binvec.append(bins)
+                valc = to_hist[k]
+                binvec.append(np.linspace(valc.min(), valc.max(), bins))
             else:
                 binvec.append(bins[k])
 
         if len(pars) == 1:
-
+            
             hist, bin_edges = \
-                np.histogram(to_hist[0], density=density, bins=bins)
+                np.histogram(to_hist[0], density=density, bins=binvec[0])
 
             bc = rebin(bin_edges)
         
@@ -533,8 +565,6 @@ class ModelFit(object):
             ax.set_ylim(0, 1.05)
             
         else:
-            
-            print len(to_hist[0]), len(to_hist[1])
     
             # Compute 2-D histogram
             hist, xedges, yedges = \
@@ -586,14 +616,13 @@ class ModelFit(object):
                     try:
                         sigma = error_1D(bc, hist, nu=nu)
                     except ValueError:
-                        
                         sigma = error_1D(bc, hist, nu=nu[0])
-                    
+
                     if i == 0:
                         mi, ma = ax.get_ylim()
                     else:
                         mi, ma = ax.get_xlim()
-                                        
+
                     if i == 0:
                         ax.plot([mu - sigma[0]]*2, [mi, ma], color='k', ls=':')
                         ax.plot([mu + sigma[1]]*2, [mi, ma], color='k', ls=':')
@@ -607,19 +636,20 @@ class ModelFit(object):
         pl.draw()
 
         return ax
-        
+
     def extract_blob(self, name, z):
         """
         Extract a 1-D array of values for a given quantity at a given redshift.
         """
+
         i = self.blob_redshifts.index(z)
-        
-        if name in self.blob_names:    
+
+        if name in self.blob_names:
             j = self.blob_names.index(name)
-            return self.blobs[:,i,j]#.compressed()            
+            return self.blobs[:,i,j]
         else:
             j = self.derived_blob_names.index(name)
-            return self.derived_blobs[:,i,j]#.compressed()
+            return self.derived_blobs[:,i,j]
             
     def max_likelihood_parameters(self):
         """
@@ -773,19 +803,19 @@ class ModelFit(object):
                     xin = None
 
                 col, row = mp.axis_position(k)    
-                                        
+                                                                                
                 # 1-D PDFs on the diagonal    
                 if k in mp.diag and oned:
 
                     self.PosteriorPDF(p1, ax=mp.grid[k], 
                         take_log=take_log[-1::-1][i], z=z,
                         multiplier=[multiplier[-1::-1][i]], 
-                        bins=bins[-1::-1][i], skip=skip, skim=skim, **kw)
-                    
+                        bins=[bins[-1::-1][i]], skip=skip, skim=skim, **kw)
+
                     if col != 0:
                         mp.grid[k].set_ylabel('')
                     if row != 0:
-                        mp.grid[k].set_xlabel('')    
+                        mp.grid[k].set_xlabel('')
                     
                     if show_errors:
                         mu, err = self.get_1d_error(p1)

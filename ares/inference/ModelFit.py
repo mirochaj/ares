@@ -282,7 +282,7 @@ class loglikelihood:
         
         # most likely: no (or too few) turning pts                
         except:         
-            self.warning(None, kwargs)
+            #self.warning(None, kwargs)
             
             # Write to "fail" file - this might cause problems in parallel
             f = open('%s.fail.pkl' % self.prefix, 'ab')
@@ -387,15 +387,19 @@ class loglikelihood:
             
         del sim, kw
         gc.collect()    
-                    
+
         return logL, blobs
         
     def warning(self, tps, kwargs):
         print "\n----------------------------------"
         print "WARNING: Error w/ following model:"
         print "----------------------------------"
+        print "kw = \\"
+        print "{"
         for kw in kwargs:
-            print '%s = %.4g' % (kw, kwargs[kw])
+            print ' \'%s\': %.4g,' % (kw, kwargs[kw])
+        print "}"
+        
         print "----------------------------------"
         
         if tps is not None:
@@ -860,6 +864,8 @@ class ModelFit(object):
                 f = open(fn, 'ab')
                 pickle.dump(data[i], f)
                 f.close()
+                
+                print data[i]
                 
             print "Checkpoint: %s" % (time.ctime())
              

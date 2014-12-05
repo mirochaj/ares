@@ -917,15 +917,15 @@ class Global21cm:
         Print blobs at a particular redshift (nicely).
         """
         
-        print "-" * 25
-        print "par        value "
-        print "-" * 25
+        print "-" * 50
+        print "par                       value "
+        print "-" * 50
         
         for k, par in enumerate(self.blob_names):
             i = self.blob_redshifts.index(z)
             j = list(self.blob_names).index(par)
                         
-            print "%-10s %-8.4g" % (par, self.blobs[i,j])
+            print "%-25s %-8.4g" % (par, self.blobs[i,j])
         
     def ComputeXRB(self, z, ztmp, xtmp, **kwargs):
         """

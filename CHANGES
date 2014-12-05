@@ -1,0 +1,10 @@
+Important Changes
+-----------------
+A lot of updates to the code-base may not affect the typical user, as they
+tend to influence internals rather than call sequences and such.
+
+Some changes, however, *will require users to update custom scripts and calls
+to ares from within other packages.* Below is a history of such changes:
+
+Fri Dec  5 09:58:33 2014 (416e44f)
+    Changed the name of a parameter.

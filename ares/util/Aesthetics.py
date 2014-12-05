@@ -52,7 +52,7 @@ labels = \
  'igm_heat_h_1': r'$\epsilon_{X, \mathrm{HI}}$',
  'igm_heat_he_1': r'$\epsilon_{X, \mathrm{HI}}$',
  'igm_heat_he_2': r'$\epsilon_{X, \mathrm{HI}}$', 
- 'igm_heat': r'$\epsilon_X \ (\mathrm{erg} \ \mathrm{cm}^{-3} \ \mathrm{s}^{-1})$', 
+ 'igm_heat': r'$\epsilon_X$', 
  'cgm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
  'igm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
  'igm_Gamma_he_1': r'$\Gamma_{\mathrm{HeI}}$',
@@ -61,6 +61,11 @@ labels = \
  'igm_gamma_h_1': r'$\gamma_{\mathrm{HI}}$',
  'igm_gamma_he_1': r'$\gamma_{\mathrm{HeI}}$',
  'igm_gamma_he_2': r'$\gamma_{\mathrm{HeII}}$',
+ 
+ # Partial secondary ionizations
+ 'igm_gamma_h_1_h_1': r'$\gamma_{\mathrm{HI},\mathrm{HI}}$',
+ 'igm_gamma_h_1_he_1': r'$\gamma_{\mathrm{HI}, \mathrm{HeI}}$',
+ 'igm_gamma_h_1_he_2': r'$\gamma_{\mathrm{HI}, \mathrm{HeII}}$',
  'Tk': r'$T_K \ (\mathrm{K})$',
 }    
 ##
@@ -75,7 +80,7 @@ history_elements = \
  'igm_he_3': r'$x_{\mathrm{HeIII}}$',
  'igm_Tk': r'$T_K$',
  'cgm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
- 'cgm_h_2': r'$x_{\mathrm{HII}}$',
+ 'cgm_h_2': r'$Q_{\mathrm{HII}}$',
  'Ts': r'$T_S$',
  'dTb': label_dTb,
  'z': r'$z$',

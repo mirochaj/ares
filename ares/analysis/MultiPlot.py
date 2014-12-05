@@ -364,8 +364,14 @@ class MultiPanel:
             
             if N is not None:
                 mi, ma = round(limits[0], 1), round(limits[1], 1)
-                dt = (ma - mi) / float(N)
                 
+                prec = 2
+                while mi == ma:
+                    mi, ma = round(limits[0], prec), round(limits[1], prec)
+                    prec += 1
+
+                dt = (ma - mi) / float(N)
+
                 if dt < 1:
                     dt = np.round(dt, abs(int(np.log10(dt))) + 1)
                     ticks = np.arange(mi, mi + (N+1)*dt, dt)
