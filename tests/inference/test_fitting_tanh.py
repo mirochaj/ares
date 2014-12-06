@@ -10,11 +10,9 @@ Description: Can run this in parallel.
 
 """
 
-import time
+import time, ares
 import numpy as np
 import matplotlib.pyplot as pl
-from ares.util.TanhModel import *
-from ares.inference import ModelFit
 
 blobs = (['igm_Tk', 'igm_heat', 'cgm_Gamma', 'cgm_h_2', 'Ts', 'Ja', 'dTb'], 
         ['B', 'C', 'D'])
@@ -29,7 +27,7 @@ base_pars = \
 }
 
 # Initialize fitter
-fit = ModelFit(**base_pars)
+fit = ares.inference.ModelFit(**base_pars)
 
 # Assume default parameters
 sim = ares.simulations.Global21cm(tanh_model=True)

@@ -143,24 +143,18 @@ class logprior:
             val = pars[i]
             
             ptype = self.priors[self.pars[i]][0]
-            p1, p2 = self.priors[self.pars[i]][1:]
-            
-            if self.prior_len[i] == 3:
-            
-                # Uninformative priors
-                if ptype == 'uniform':
-                    logL -= np.log(uninformative(val, p1, p2))
-                elif ptype == 'gaussian':
-                    logL -= np.log(gauss1d(val, p1, p2))
-                else:
-                    raise ValueError('Unrecognized prior type: %s' % ptype)
-            
-            elif self.prior_len[i] == 4:
-                z = self.priors[self.pars[i]][-1]
-                                
+            if ptype == 'uniform':
+                p1, p2 = self.priors[self.pars[i]][1:]
             else:
-                raise ValueError('Unsupported prior information.')
-                
+                p1, p2, red = self.priors[self.pars[i]][1:]                
+            
+            # Uninformative priors
+            if ptype == 'uniform':
+                logL -= np.log(uninformative(val, p1, p2))
+            elif ptype == 'gaussian':
+                logL -= np.log(gauss1d(val, p1, p2))
+            else:
+                raise ValueError('Unrecognized prior type: %s' % ptype)
 
         return logL
         
@@ -188,36 +182,27 @@ class loglikelihood:
             self.blob_names, self.blob_redshifts = \
                 self.base_kwargs['inline_analysis']
                         
-        # Sort through priors
-        
+        # Sort through priors        
         priors_P = {}   # parameters
-        priors_M = {}   # measurements - same as blobs
-        priors_DQ = {}  # derived quantities - maybe same as blobs
         priors_B = {}   # blobs
         
+        p_pars = []
+        b_pars = []
         for key in priors:
             # Priors on model parameters
             if key in self.parameters:
+                p_pars.append(key)
                 priors_P[key] = priors[key]
                 continue
 
-            # Otherwise, split by _
-            i = key.rfind('_')
-            key_pre = key[0:i]
-            pt = key[i+1:]
-
-            if key_pre in ['z', 'dTb']:
-                priors_M[key] = priors[key]
+            if key == 'tau_e':
+                b_pars.append('tau_e')
+                priors_B[key] = priors[key]
                 continue
 
-            # Must be a prior on a derived quantity
-            priors_DQ[key] = priors[key]
-
-        self.logprior_P = logprior(priors_P, parameters)
-        self.logprior_M = logprior(priors_M, parameters)
-        self.logprior_DQ = logprior(priors_DQ, parameters)
-        self.logprior_B = logprior(priors_B, parameters)
-
+        self.logprior_P = logprior(priors_P, p_pars)
+        self.logprior_B = logprior(priors_B, b_pars)
+        
         self.errors = errors
         self.errmap = errmap
         self.errunits = errunits
@@ -247,7 +232,7 @@ class loglikelihood:
 
         return np.array(self._blank_blob)
     
-    def __call__(self, pars):
+    def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
         
@@ -264,7 +249,7 @@ class loglikelihood:
             else:
                 kwargs[par] = pars[i]
 
-        # Apply prior
+        # Apply prior on model parameters first (dont need to generate signal)
         lp = self.logprior_P(pars)
         if not np.isfinite(lp):
             return -np.inf, self.blank_blob
@@ -274,12 +259,11 @@ class loglikelihood:
         kw.update(kwargs)
         
         try:
-                        
-            sim = simG21(**kw)            
-            sim.run()     
-                            
+            sim = simG21(**kw)
+            sim.run()  
+           
             tps = sim.turning_points      
-        
+                       
         # most likely: no (or too few) turning pts                
         except:         
             #self.warning(None, kwargs)
@@ -294,47 +278,24 @@ class loglikelihood:
             
             return -np.inf, self.blank_blob
 
-        # Apply measurement priors now that we have the turning points
-        for key in self.logprior_M.priors:
-
-            mi, ma = self.logprior_M.priors[key]
-
-            i = key.rfind('_')
-            key_pre = key[0:i]
-            pt = key[i+1:]
-
-            j = 0 if key_pre == 'z' else 1
-
-            if pt not in tps:
-                del sim, kw
-                gc.collect()
+        # Apply priors to blobs
+        blob_vals = []
+        for key in self.logprior_B.priors:
+            
+            if not hasattr(sim, 'blobs'):
+                break
                 
-                return -np.inf, self.blank_blob
-
-            if mi <= tps[pt][j] <= ma:
-                continue
-            else:
-                del sim, kw
-                gc.collect()
+            z = self.logprior_B.priors[key][-1]
+            
+            i = self.blob_names.index(key) 
+            j = self.blob_redshifts.index(z)
+            
+            val = sim.blobs[j,i]
                 
-                return -np.inf, self.blank_blob
-                        
-        # Apply priors on derived fields (e.g., CMB optical depth)
-        # (not yet implemented)
-        #for key in self.logprior_DQ.priors:
-        #
-        #    mi, ma = self.logprior_DQ.priors[key]
-        #
-        #    i = key.rfind('_')
-        #    key_pre = key[0:i]
-        #    pt = key[i+1:]
-        #    
-        #    j = 0 if key_pre == 'z' else 1
-        #    
-        #    if mi <= tps[pt][j] <= ma:
-        #        continue
-        #    else:
-        #        return -np.inf, self.blank_blob
+            blob_vals.append(val)    
+                
+        if blob_vals:
+            lp -= self.logprior_B(blob_vals)
                         
         # Compute the likelihood if we've made it this far
         xarr = []
@@ -864,9 +825,7 @@ class ModelFit(object):
                 f = open(fn, 'ab')
                 pickle.dump(data[i], f)
                 f.close()
-                
-                print data[i]
-                
+                                
             print "Checkpoint: %s" % (time.ctime())
              
             del data, f, pos_all, prob_all, blobs_all

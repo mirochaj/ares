@@ -67,6 +67,9 @@ labels = \
  'igm_gamma_h_1_he_1': r'$\gamma_{\mathrm{HI}, \mathrm{HeI}}$',
  'igm_gamma_h_1_he_2': r'$\gamma_{\mathrm{HI}, \mathrm{HeII}}$',
  'Tk': r'$T_K \ (\mathrm{K})$',
+ 
+ 'tau_e': r'$\tau_e$',
+ 'curvature': r'$\delta^{\prime \prime} T_b$',
 }    
 ##
 #

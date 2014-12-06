@@ -32,7 +32,7 @@ zones = ['igm', 'cgm']
 
 # Each zone knows about this stuff - they are just numbers
 states = ['h_1', 'h_2', 'he_1', 'he_2', 'he_3', 'e', 'Tk']
-derived = ['xavg', 'Ja', 'tau_e', 'dTb', 'Ts']
+derived = ['xavg', 'Ja', 'dTb', 'Ts']
 
 # Each zone knows about this stuff too - but the dimensions are different
 rates = ['Gamma', 'gamma', 'heat']
@@ -101,9 +101,7 @@ class WriteData():
             
         if self.sim.pf['secondary_lya'] and not self.sim.approx_all_xray:
             history['Ja_X'] = [0.0]    
-    
-        history['tau_e'] = [0.0]
-    
+        
         if self.sim.feedback_ON:
             history['M_J'] = [self.sim.JeansMass(self.sim.pf['initial_redshift'], self.sim.grid_igm.data['Tk'][0])]
             history['M_F'] = [history['M_J'][0]]
@@ -280,12 +278,6 @@ class WriteData():
         dTb = self.sim.grid.hydr.DifferentialBrightnessTemperature(z,
             to_keep['xavg'], Ts)
 
-        # CMB optical depth
-        if self.sim.step > 1:
-            tau_e = self.sim.history['tau_e'][-1] + self.sim.tau_CMB(self.sim.history)
-        else:
-            tau_e = 0.0
-
         # Store derived fields
         self.sim.history['Ja'].append(Ja)
         
@@ -294,9 +286,7 @@ class WriteData():
         
         self.sim.history['Ts'].append(Ts)
         self.sim.history['dTb'].append(dTb)
-
-        self.sim.history['tau_e'].append(tau_e)
-
+        
         if self.sim.feedback_ON:
             self.sim.history['M_J'].append(self.JeansMass(z, data_igm_fl['igm_Tk']))
             self.sim.history['M_F'].append(self.FilteringMass())

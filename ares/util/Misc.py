@@ -13,7 +13,9 @@ Description:
 import re
 import numpy as np
 from collections import Iterable
+from scipy.integrate import cumtrapz
 from .ProblemTypes import ProblemType
+from ..physics.Constants import sigma_T
 from .SetDefaultParameterValues import SetAllDefaults
 from .CheckForParameterConflicts import CheckForParameterConflicts
 
@@ -99,4 +101,71 @@ def num_freq_bins(Nx, zi=40, zf=10, Emin=2e2, Emax=3e4):
 
     return n-2
 
+def tau_post_EoR(sim):
+    zmin = sim.history['z'].min()
+    ztmp = np.arange(0, zmin+0.001, 0.001)
+
+    QHII = 1.0
+    nH = sim.grid.cosm.nH(ztmp)
+    dldz = sim.grid.cosm.dldz(ztmp)
+
+    integrand = QHII * nH
+
+    if 'igm_he_1' in sim.history:
+        QHeII = 1.0
+        xHeIII = 1.0
+        nHe = sim.grid.cosm.nHe(ztmp)
+        integrand += (QHeII + 2. * xHeIII) * nHe 
+
+    integrand *= sigma_T * dldz
+
+    tau = cumtrapz(integrand, ztmp, initial=0)
+    
+    return ztmp, tau
+
+def tau_CMB(sim):
+    """
+    Compute CMB optical depth history.
+    """
+    
+    zall = sim.history['z'][-1::-1]
+    
+    zmin = zall.min()
+    ztmp = np.arange(0, zmin+0.001, 0.001)
+    
+    QHII = sim.history['cgm_h_2'][-1::-1]
+    
+    if 'igm_h_2' in sim.history:
+        xHII = sim.history['igm_h_2'][-1::-1]
+    else:
+        xHII = 0.0
+        
+    nH = sim.grid.cosm.nH(zall)
+    dldz = sim.grid.cosm.dldz(zall)
+
+    integrand = (QHII + (1. - QHII) * xHII) * nH
+
+    if 'igm_he_1' in sim.history:
+        QHeII = sim.history['cgm_h_2'][-1::-1]
+        xHeII = sim.history['igm_he_2'][-1::-1]
+        xHeIII = sim.history['igm_he_3'][-1::-1]
+        nHe = sim.grid.cosm.nHe(zall)
+        integrand += (QHeII + (1. - QHeII) * xHeII + 2. * xHeIII) \
+            * nHe 
+
+    integrand *= sigma_T * dldz
+
+    tau = cumtrapz(integrand, zall, initial=0)
+        
+    tau[zall > 100] = 0.0    
+    
+    # Make no arrays that go to z=0
+    zlo, tlo = tau_post_EoR(sim)
+            
+    tau_tot = tlo[-1] + tau
+
+    zarr = np.concatenate((zlo, zall))
+    tau_all_z = np.concatenate((tlo, tau_tot))
+    
+    return zarr, tau_all_z
 

@@ -18,6 +18,7 @@ from .MultiPlot import MultiPanel
 from scipy.misc import derivative
 from scipy.optimize import fsolve
 from ..physics.Constants import *
+from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d
 from .TurningPoints import TurningPoints
 from ..physics import Cosmology, Hydrogen
@@ -269,6 +270,48 @@ class Global21cm:
         xz = self.data['cgm_h_2'][self.data['z'] < 40]
         
         return np.interp(0.5, xz, zz)
+        
+    def tau_CMB(self):
+        """
+        Compute CMB optical depth history.
+        """
+        
+        QHII = self.data_asc['cgm_h_2'] 
+        xHII = self.data_asc['igm_h_2'] 
+        nH = self.cosm.nH(self.data_asc['z'])
+        dldz = self.cosm.dldz(self.data_asc['z'])
+        
+        integrand = (QHII + (1. - QHII) * xHII) * nH
+        
+        if 'igm_he_1' in self.data_asc:
+            QHeII = self.data_asc['cgm_h_2'] 
+            xHeII = self.data_asc['igm_he_2'] 
+            xHeIII = self.data_asc['igm_he_3'] 
+            nHe = self.cosm.nHe(self.data_asc['z'])
+            integrand += (QHeII + (1. - QHeII) * xHeII + 2. * xHeIII) \
+                * nHe 
+                
+        integrand *= sigma_T * dldz
+        
+        tau = cumtrapz(integrand, self.data_asc['z'], initial=0)
+            
+        tau[self.data_asc['z'] > 100] = 0.0    
+            
+        self.data_asc['tau_CMB'] = tau
+        self.data['tau_CMB'] = tau[-1::-1]
+        
+        # Make no arrays that go to z=0
+        zlo, tlo = self.tau_post_EoR()
+                
+        tau_tot = tlo[-1] + tau
+        
+        self.data_asc['z_CMB'] = np.concatenate((zlo, self.data_asc['z']))
+        self.data['z_CMB'] = self.data['z_CMB'][-1::-1]
+        
+        
+        
+        self.data_asc['tau_CMB_tot'] = np.concatenate((tlo, tau_tot))
+        self.data['tau_CMB_tot'] = tau_tot[-1::-1]
                 
     @property            
     def turning_points(self):
@@ -882,37 +925,32 @@ class Global21cm:
             hasax = False
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
-        
-        tau = self.data['tau_e']
                 
-        if scatter:
-            ax.scatter(self.data['z'][-1::-mask], tau[-1::-mask], **kwargs)
-        else:
-            ax.plot(self.data['z'], tau, **kwargs)
+        if 'tau_CMB' not in self.data:
+            self.tau_CMB()
         
+        ax.plot(self.data_asc['z_CMB'], self.data_asc['tau_CMB_tot'], **kwargs)
+
         ax.set_xlim(0, 15)
 
         ax.set_xlabel(labels['z'])
         ax.set_ylabel(r'$\tau_e$')
 
-        # Contribution from post-EoR
-        tau_post = self.tau_post_EoR()
-
-        ax.plot([0, self.data['z'].min()], [tau.max() + tau_post]*2, **kwargs)
-
-        if show_obs:
-            if obs_mu is not None:
-                ax.fill_between(ax.get_xlim(), [obs_mu-obs_sigma]*2, 
-                    [obs_mu+obs_sigma]*2, color='red', alpha=0.5)
-            
-            if annotate_obs:    
-                #ax.annotate(r'$1-\sigma$ constraint', 
-                #    [self.data['z'].min(), obs_mu], ha='left',
-                #    va='center')  
-                ax.annotate(r'plus post-EoR $\tau_e$', 
-                    [5, tau.max() + tau_post + 0.002], ha='left',
-                    va='bottom')          
-                ax.set_title('dashed lines are upper limits')
+        #ax.plot([0, self.data['z'].min()], [tau.max() + tau_post]*2, **kwargs)
+        #
+        #if show_obs:
+        #    if obs_mu is not None:
+        #        ax.fill_between(ax.get_xlim(), [obs_mu-obs_sigma]*2, 
+        #            [obs_mu+obs_sigma]*2, color='red', alpha=0.5)
+        #    
+        #    if annotate_obs:    
+        #        #ax.annotate(r'$1-\sigma$ constraint', 
+        #        #    [self.data['z'].min(), obs_mu], ha='left',
+        #        #    va='center')  
+        #        ax.annotate(r'plus post-EoR $\tau_e$', 
+        #            [5, tau.max() + tau_post + 0.002], ha='left',
+        #            va='bottom')          
+        #        ax.set_title('dashed lines are upper limits')
 
         ax.ticklabel_format(style='plain', axis='both')
 
@@ -934,17 +972,27 @@ class Global21cm:
         -------
         Post-EoR (as far as our data is concerned) optical depth.
         """    
+
+        zmin = self.data['z'].min()
+        ztmp = np.linspace(0, zmin, 1000)
+
+        QHII = 1.0
+        nH = self.cosm.nH(ztmp)
+        dldz = self.cosm.dldz(ztmp)
+
+        integrand = QHII * nH
+
+        if 'igm_he_1' in self.data_asc:
+            QHeII = 1.0
+            xHeIII = 1.0
+            nHe = self.cosm.nHe(ztmp)
+            integrand += (QHeII + 2. * xHeIII) * nHe 
+
+        integrand *= sigma_T * dldz
+
+        tau = cumtrapz(integrand, ztmp, initial=0)
         
-        zreion = self.data['z'].min()
-        tau_postreion = (c / self.cosm.hubble_0) \
-            * (2. * self.cosm.omega_b_0 / 3. / self.cosm.omega_m_0) \
-            * (self.cosm.CriticalDensityNow * (1. - self.cosm.Y) \
-            * (1. + self.cosm.y) * sigma_T / m_H) \
-            * (np.sqrt(self.cosm.omega_m_0 \
-            * (1. + zreion)**3 + self.cosm.omega_l_0) - 1.) + \
-            0.0020  # Last term from HeIII reionization at z ~ 3.
-        
-        return tau_postreion
+        return ztmp, tau
     
     def blob_analysis(self, fields, redshifts):    
         """

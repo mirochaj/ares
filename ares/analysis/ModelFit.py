@@ -48,8 +48,8 @@ def_kwargs = \
 }
 
 # Have big axis labels much of the time
-pl.rcParams['figure.subplot.left'] = 0.25
-pl.rcParams['figure.subplot.bottom'] = 0.25
+#pl.rcParams['figure.subplot.left'] = 0.25
+#pl.rcParams['figure.subplot.bottom'] = 0.25
 
 suffixes = ['chain', 'pinfo', 'logL', 'blobs', 'binfo']
 
@@ -358,7 +358,7 @@ class ModelFit(object):
                                                                       
         return nu, levels
     
-    def get_1d_error(self, par, bins=20, nu=0.68):
+    def get_1d_error(self, par, z=None, bins=20, nu=0.68, take_log=False):
         """
         Compute 1-D error bar for input parameter.
         
@@ -377,10 +377,26 @@ class ModelFit(object):
         
         """
         
-        j = self.parameters.index(par)
-        
+        if par in self.parameters:
+            j = self.parameters.index(par)
+            to_hist = self.chain[:,j]
+        elif (par in self.blob_names) or (par in self.derived_blob_names):
+            if z is None:
+                raise ValueError('Must supply redshift!')
+            
+            i = self.blob_redshifts.index(z)
+            
+            if par in self.blob_names:
+                j = list(self.blob_names).index(par)
+                to_hist = self.blobs[:,i,j].compressed()
+            else:
+                j = list(self.derived_blob_names).index(par)
+                to_hist = self.derived_blobs[:,i,j].compressed()
+            if take_log:
+                to_hist = np.log10(to_hist)
+                        
         hist, bin_edges = \
-            np.histogram(self.chain[:,j], density=True, bins=bins)
+            np.histogram(to_hist, density=True, bins=bins)
 
         bc = rebin(bin_edges)
 
@@ -865,6 +881,47 @@ class ModelFit(object):
         mp.rescale_axes(tighten_up=tighten_up)
     
         return mp
+        
+    def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
+        nu=0.68, take_log=False, **kwargs):
+        """
+        Plot constraints on the redshift evolution of given quantity.
+        
+        Parameters
+        ----------
+        blob : str
+            
+        """    
+        
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+        
+        if redshifts is None:
+            redshifts = self.blob_redshifts
+            
+        for z in redshifts:
+            value, (blob_err1, blob_err2) = \
+                self.get_1d_error(blob, z=z, nu=nu, take_log=take_log)
+            
+            mu_z, (z_err1, z_err2) = \
+                self.get_1d_error('z', z=z, nu=nu)
+            
+            ax.errorbar(mu_z, value, 
+                xerr=np.array(z_err1, z_err2).T, 
+                yerr=np.array(blob_err1, blob_err2).T, 
+                lw=4, elinewidth=4, capsize=6, capthick=3,
+                **kwargs)        
+        
+        ax.set_xlabel(r'$z$')
+        ax.set_ylabel(labels[blob])
+        pl.draw()
+        
+        
+        return ax
         
     def add_boxes(self, ax=None, val=None, width=None, **kwargs):
         """

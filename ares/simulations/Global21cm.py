@@ -13,6 +13,7 @@ Description:
 import numpy as np
 from ..static import Grid
 import copy, os, re, pickle
+from ..util.Misc import tau_CMB
 from ..sources import DiffuseSource
 from ..util.ReadData import load_inits
 from ..util.WriteData import CheckPoints
@@ -90,9 +91,16 @@ class Global21cm:
                             self.pf['initial_redshift'], self.pf['tanh_dz'])[-1::-1]
                     
                     self.history = tanh_model(z, **self.pf).data
-                    
-                    if self.pf['inline_analysis'] is not None:
-                        self.run_inline_analysis()
+
+                    self.grid = Grid(dims=1)
+                    self.grid.set_cosmology(initial_redshift=self.pf['initial_redshift'], 
+                        omega_m_0=self.pf["omega_m_0"], 
+                        omega_l_0=self.pf["omega_l_0"], 
+                        omega_b_0=self.pf["omega_b_0"], 
+                        hubble_0=self.pf["hubble_0"], 
+                        helium_by_number=self.pf['helium_by_number'], 
+                        cmb_temp_0=self.pf["cmb_temp_0"], 
+                        approx_highz=self.pf["approx_highz"])
 
                     return
                     
@@ -466,6 +474,9 @@ class Global21cm:
         """ Evolve chemistry and radiation background. """
         
         if hasattr(self, 'history'):
+            if self.pf['inline_analysis'] is not None:
+                self.run_inline_analysis()
+                
             return
         
         t = 0.0
@@ -743,9 +754,9 @@ class Global21cm:
                     ihigh = np.argmin(np.abs(self.history['z'] - self.pf['first_light_redshift']))
                     interp = interp1d(self.history['xavg'][ihigh:],
                         self.history['z'][ihigh:])
-                    
+
                     zrei = interp(0.5)
-                    
+
                     redshift.append(zrei)
                     ztps.append((element, zrei))
                 elif element not in self.turning_points:
@@ -756,14 +767,18 @@ class Global21cm:
                     ztps.append((element, self.turning_points[element][0]))
             else:
                 redshift.append(element)
-            
-        # Redshift x blobs
+
+        # Recover quantities of interest at specified redshifts
         output = []
         for j, field in enumerate(fields):
-            
+
             if field in self.history:                
                 interp = interp1d(self.history['z'][-1::-1],
                     self.history[field][-1::-1])
+            elif field == 'tau_e':
+                tmp, tau_tmp = tau_CMB(self)
+                interp = interp1d(tmp, tau_tmp)
+
             elif field == 'curvature':
                 tmp = []
                 for element in ztmp:
@@ -771,7 +786,7 @@ class Global21cm:
                     if element not in self.turning_points:
                         tmp.append(np.inf)
                         continue
-                    
+
                     if (type(element)) == str and (element != 'trans'):
                         tmp.append(self.turning_points[element][-1])
                     else:
@@ -817,32 +832,6 @@ class Global21cm:
                          
         return n_e
                          
-    def tau_CMB(self, hist):
-        """
-        Compute electron-scattering optical depth between last two steps.
-        """
-    
-        integrand = lambda z, de: de * sigma_T * self.grid.cosm.dldz(z)
-        
-        # Integrate via trapezoidal rule
-        dz = hist['z'][-2] - hist['z'][-1]
-        
-        n_H = self.grid.cosm.nH(np.array(hist['z'][-2:]))
-        
-        tau = 0.0
-        for zone in ['igm', 'cgm']:
-            de = np.array(hist['%s_e' % zone])[-3:-1] * n_H
-            
-            if zone == 'igm':
-                de *= (1. - np.array(hist['cgm_h_2'])[-3:-1])
-            else:
-                de *= np.array(hist['cgm_h_2'])[-3:-1]
-            
-            tau += 0.5 * dz * (integrand(hist['z'][-1], de[-1]) 
-                + integrand(hist['z'][-2], de[-2]))
-        
-        return tau
-        
     def Feedback(self, z, Tigm, Jlw=0.0, mu=0.6):
         """
         Modify the minimum virial temperature of star-forming haloes based
