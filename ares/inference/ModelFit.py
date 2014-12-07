@@ -147,10 +147,11 @@ class logprior:
                 p1, p2 = self.priors[self.pars[i]][1:]
             else:
                 p1, p2, red = self.priors[self.pars[i]][1:]                
-            
+                                          
             # Uninformative priors
             if ptype == 'uniform':
                 logL -= np.log(uninformative(val, p1, p2))
+            # Gaussian priors
             elif ptype == 'gaussian':
                 logL -= np.log(gauss1d(val, p1, p2))
             else:
@@ -200,7 +201,7 @@ class loglikelihood:
                 priors_B[key] = priors[key]
                 continue
 
-        self.logprior_P = logprior(priors_P, p_pars)
+        self.logprior_P = logprior(priors_P, self.parameters)
         self.logprior_B = logprior(priors_B, b_pars)
         
         self.errors = errors
@@ -701,7 +702,7 @@ class ModelFit(object):
             
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
-        
+                
         if burn > 0:
             t1 = time.time()
             if self.chain is not None:

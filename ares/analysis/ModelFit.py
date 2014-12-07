@@ -562,7 +562,7 @@ class ModelFit(object):
             bc = rebin(bin_edges)
         
             tmp = self._get_1d_kwargs(**kw)
-
+            
             ax.plot(bc, hist / hist.max(), drawstyle='steps-mid', **tmp)
             ax.set_xscale(xscale)
             
