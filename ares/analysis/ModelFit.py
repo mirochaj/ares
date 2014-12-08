@@ -652,36 +652,76 @@ class ModelFit(object):
         pl.draw()
 
         return ax
-
-    def extract_blob(self, name, z):
+        
+    def Plot3D(self, pars, zaxis, z=None, Nscat=1e3, take_log=False, 
+        cmap='jet', **kwargs):
         """
-        Extract a 1-D array of values for a given quantity at a given redshift.
+        Show contour plot in 2-D plane, and add colored points for color-scale.
+        
+        Parameters
+        ----------
+        pars : list
+            Plot 2-D posterior PDF for these two parameters
+        zaxis : str
+            Name of parameter to represent with colored points.
+        z : int, float, str
+            Redshift (if investigating blobs)
+        Nscat : int
+            Number of samples plot.
         """
-
-        i = self.blob_redshifts.index(z)
-
-        if name in self.blob_names:
-            j = self.blob_names.index(name)
-            return self.blobs[:,i,j]
-        else:
-            j = self.derived_blob_names.index(name)
-            return self.derived_blobs[:,i,j]
+        
+        if type(take_log) == bool:
+            take_log = [take_log] * 3
+        
+        axes = []
+        for par in pars:
+            if par in self.parameters:
+                axes.append(self.chain[:,self.parameters.index(par)])
+            elif par in self.blob_names:
+                axes.append(self.blobs[:,self.blob_redshifts.index(z),
+                    self.blob_names.index(par)])
+            elif par in self.derived_blob_names:
+                axes.append(self.derived_blobs[:,self.blob_redshifts.index(z),
+                    self.derived_blob_names.index(par)])        
+                
+        for i in range(2):
+            if take_log[i]:
+                axes[i] = np.log10(axes[i])
+                        
+        xax, yax = axes
+        
+        if zaxis in self.parameters:        
+            zax = self.chain[:,self.parameters.index(zaxis)].ravel()
+        elif zaxis in self.blob_names:   
+            zax = self.blobs[:,self.blob_redshifts.index(z),
+                self.blob_names.index(zaxis)]
+        elif zaxis in self.derived_blob_names:   
+            zax = self.derived_blobs[:,self.blob_redshifts.index(z),
+                self.derived_blob_names.index(zaxis)]
+                
+        if take_log[2]:
+            zax = np.log10(zax)    
             
-    def max_likelihood_parameters(self):
-        """
-        Return parameter values at maximum likelihood point.
-        """
-
-        iML = np.argmax(self.logL)
-
-        p = {}
-        for i, par in enumerate(self.parameters):
-            if self.is_log[i]:
-                p[par] = 10**self.chain[iML,i]
-            else:
-                p[par] = self.chain[iML,i]
-
-        return p
+        ax = self.PosteriorPDF(pars, z=z, take_log=take_log, filled=False, 
+            **kwargs)
+        
+        # Pick out Nscat random points to plot
+        mask = np.zeros_like(xax, dtype=bool)
+        rand = np.arange(len(xax))
+        np.random.shuffle(rand)
+        
+        mask[rand < Nscat] = True
+                
+        scat = ax.scatter(xax[mask==1], yax[mask], c=zax[mask], cmap='jet', 
+            zorder=1, edgecolors='none')
+        cb = pl.colorbar(scat)
+        
+        if zaxis in labels:
+            cb.set_label(labels[zaxis])
+        else:
+            cb.set_label(labels[zaxis[0:zaxis.find('{')]])
+            
+        pl.draw()
         
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
@@ -954,6 +994,36 @@ class ModelFit(object):
             np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
         ax.plot(np.log10([val[0] * width, val[0] * width]), 
             np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
+
+    def extract_blob(self, name, z):
+        """
+        Extract a 1-D array of values for a given quantity at a given redshift.
+        """
+    
+        i = self.blob_redshifts.index(z)
+    
+        if name in self.blob_names:
+            j = self.blob_names.index(name)
+            return self.blobs[:,i,j]
+        else:
+            j = self.derived_blob_names.index(name)
+            return self.derived_blobs[:,i,j]
+    
+    def max_likelihood_parameters(self):
+        """
+        Return parameter values at maximum likelihood point.
+        """
+    
+        iML = np.argmax(self.logL)
+    
+        p = {}
+        for i, par in enumerate(self.parameters):
+            if self.is_log[i]:
+                p[par] = 10**self.chain[iML,i]
+            else:
+                p[par] = self.chain[iML,i]
+    
+        return p
         
     def set_axis_labels(self, ax, pars, is_log, take_log=False):
         """

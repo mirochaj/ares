@@ -749,16 +749,20 @@ class Global21cm:
         ztps = []
         for element in ztmp:
             if type(element) is str:
-                if element == 'zrei':
+                if element in ['eor_midpt', 'eor_overlap']:
                     
                     ihigh = np.argmin(np.abs(self.history['z'] - self.pf['first_light_redshift']))
-                    interp = interp1d(self.history['xavg'][ihigh:],
+                    interp = interp1d(self.history['cgm_h_2'][ihigh:],
                         self.history['z'][ihigh:])
 
-                    zrei = interp(0.5)
-
+                    if element == 'eor_midpt':
+                        zrei = interp(0.5)
+                    else:
+                        zrei = interp(0.99)
+                        
                     redshift.append(zrei)
                     ztps.append((element, zrei))
+  
                 elif element not in self.turning_points:
                     redshift.append(np.inf)
                     ztps.append(np.inf)

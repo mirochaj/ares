@@ -297,7 +297,7 @@ class loglikelihood:
                 
         if blob_vals:
             lp -= self.logprior_B(blob_vals)
-                        
+
         # Compute the likelihood if we've made it this far
         xarr = []
                     

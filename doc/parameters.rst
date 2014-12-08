@@ -11,6 +11,7 @@ Here, we'll provide a brief description of each parameter.
  * :doc:`params_sources`
  * :doc:`params_populations`
  * :doc:`params_spectrum`
+ * :doc:`params_inference`
  * :doc:`params_hmf`
  * :doc:`params_control`
  * :doc:`params_cosmology`
