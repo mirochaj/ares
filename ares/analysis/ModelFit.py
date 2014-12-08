@@ -653,10 +653,10 @@ class ModelFit(object):
 
         return ax
         
-    def Plot3D(self, pars, zaxis, z=None, Nscat=1e3, take_log=False, 
-        cmap='jet', **kwargs):
+    def ContourScatter(self, pars, zaxis, z=None, Nscat=1e3, take_log=False, 
+        cmap='jet', alpha=1.0, **kwargs):
         """
-        Show contour plot in 2-D plane, and add colored points for color-scale.
+        Show contour plot in 2-D plane, and add colored points for third axis.
         
         Parameters
         ----------
@@ -712,14 +712,16 @@ class ModelFit(object):
         
         mask[rand < Nscat] = True
                 
-        scat = ax.scatter(xax[mask==1], yax[mask], c=zax[mask], cmap='jet', 
-            zorder=1, edgecolors='none')
+        scat = ax.scatter(xax[mask==1], yax[mask], c=zax[mask], cmap=cmap,
+            zorder=1, edgecolors='none', alpha=alpha)
         cb = pl.colorbar(scat)
         
         if zaxis in labels:
             cb.set_label(labels[zaxis])
-        else:
+        elif '{' in zaxis:
             cb.set_label(labels[zaxis[0:zaxis.find('{')]])
+        else:
+            cb.set_label(zaxis)    
             
         pl.draw()
         
