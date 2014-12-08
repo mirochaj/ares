@@ -162,7 +162,8 @@ class logprior:
 class loglikelihood:
     def __init__(self, steps, parameters, is_log, mu, errors,
         base_kwargs, nwalkers, priors={}, chain=None, logL=None, 
-        errmap=None, errunits=None, prefix=None, fit_turning_points=True):
+        errmap=None, errunits=None, prefix=None, fit_turning_points=True,
+        burn=False):
         """
         Computes log-likelihood at given step in MCMC chain.
         
@@ -177,6 +178,7 @@ class loglikelihood:
         self.base_kwargs = base_kwargs
         self.nwalkers = nwalkers
 
+        self.burn = burn
         self.prefix = prefix   
         self.fit_turning_points = fit_turning_points     
         
@@ -273,9 +275,10 @@ class loglikelihood:
             #self.warning(None, kwargs)
             
             # Write to "fail" file - this might cause problems in parallel
-            f = open('%s.fail.pkl' % self.prefix, 'ab')
-            pickle.dump(kwargs, f)
-            f.close()
+            if not self.burn:
+                f = open('%s.fail.pkl' % self.prefix, 'ab')
+                pickle.dump(kwargs, f)
+                f.close()
             
             del sim, kw, f
             gc.collect()
@@ -703,7 +706,8 @@ class ModelFit(object):
             self.loglikelihood_BURN = loglikelihood(steps, self.parameters, self.is_log, 
                 np.mean(self.chain), np.std(self.chain), self.base_kwargs,
                 self.nwalkers, self.priors, None, None, 
-                self.measurement_map, self.measurement_units)
+                self.measurement_map, self.measurement_units,
+                fit_turning_points=fit_turning_points, burn=True)
 
             self.sampler_BURN = emcee.EnsembleSampler(self.nwalkers,
                 self.Nd, self.loglikelihood_BURN, pool=self.pool)
