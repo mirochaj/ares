@@ -143,7 +143,7 @@ class logprior:
             val = pars[i]
             
             ptype = self.priors[self.pars[i]][0]
-            if ptype == 'uniform':
+            if self.prior_len[i] == 3:
                 p1, p2 = self.priors[self.pars[i]][1:]
             else:
                 p1, p2, red = self.priors[self.pars[i]][1:]                
@@ -162,7 +162,7 @@ class logprior:
 class loglikelihood:
     def __init__(self, steps, parameters, is_log, mu, errors,
         base_kwargs, nwalkers, priors={}, chain=None, logL=None, 
-        errmap=None, errunits=None, prefix=None):
+        errmap=None, errunits=None, prefix=None, fit_turning_points=True):
         """
         Computes log-likelihood at given step in MCMC chain.
         
@@ -177,7 +177,8 @@ class loglikelihood:
         self.base_kwargs = base_kwargs
         self.nwalkers = nwalkers
 
-        self.prefix = prefix        
+        self.prefix = prefix   
+        self.fit_turning_points = fit_turning_points     
         
         if 'inline_analysis' in self.base_kwargs:
             self.blob_names, self.blob_redshifts = \
@@ -191,13 +192,15 @@ class loglikelihood:
         b_pars = []
         for key in priors:
             # Priors on model parameters
-            if key in self.parameters:
+            if len(priors[key]) == 3:
+            #if key in self.parameters:
                 p_pars.append(key)
                 priors_P[key] = priors[key]
                 continue
-
-            if key == 'tau_e':
-                b_pars.append('tau_e')
+            
+            if len(priors[key]) == 4:
+            #if key in ['tau_e', 'cgm_h_2']:
+                b_pars.append(key)
                 priors_B[key] = priors[key]
                 continue
 
@@ -218,25 +221,25 @@ class loglikelihood:
             self.sigma = np.std(self.chain, axis=0)
         else:
             self.mu = mu
-                
+
         self.error_type = 'non-ideal' if self.chain is not None \
             else 'idealized'
-            
+
     @property
     def blank_blob(self):
         if not hasattr(self, '_blank_blob'):
-            
+
             tup = tuple(np.ones(len(self.blob_names)) * np.inf)
             self._blank_blob = []
             for i in range(len(self.blob_redshifts)):
                 self._blank_blob.append(tup)
 
         return np.array(self._blank_blob)
-    
+
     def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
-        
+
         Returns
         -------
         Tuple: (log likelihood, blobs)
@@ -262,10 +265,10 @@ class loglikelihood:
         try:
             sim = simG21(**kw)
             sim.run()  
-           
+
             tps = sim.turning_points      
-                       
-        # most likely: no (or too few) turning pts                
+
+        # most likely: no (or too few) turning pts
         except:         
             #self.warning(None, kwargs)
             
@@ -292,11 +295,19 @@ class loglikelihood:
             j = self.blob_redshifts.index(z)
             
             val = sim.blobs[j,i]
-                
+                                
             blob_vals.append(val)    
                 
         if blob_vals:
             lp -= self.logprior_B(blob_vals)
+            
+        if hasattr(sim, 'blobs'):
+            blobs = sim.blobs
+        else:
+            blobs = self.blank_blob    
+            
+        if not self.fit_turning_points:
+            return lp, blobs
 
         # Compute the likelihood if we've made it this far
         xarr = []
@@ -469,7 +480,7 @@ class ModelFit(object):
                 for tp, i in self.measurement_map:
                     self._mu.append(self._turning_points[tp][i])
             else:
-                raise ValueError('Must supply mu or reference model!')
+                self._mu = None
             
         return self._mu    
             
@@ -632,7 +643,7 @@ class ModelFit(object):
         self._priors = value
 
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        save_freq=10):
+        save_freq=10, fit_turning_points=True):
         """
         Run MCMC.
         
@@ -650,6 +661,8 @@ class ModelFit(object):
             Overwrite pre-existing files of the same prefix if one exists?
         restart : bool
             Append to pre-existing files of the same prefix if one exists?
+        fit_turning_points : bool
+            If False, merely explore prior space.
 
         """
         
@@ -665,7 +678,7 @@ class ModelFit(object):
         if not os.path.exists('%s.chain.pkl' % prefix) and restart:
             raise IOError("This can't be a restart, %s*.pkl not found." % prefix)
 
-        print_fit(self, steps=steps, burn=burn)
+        print_fit(self, steps=steps, burn=burn, fit_TP=fit_turning_points)
 
         if not hasattr(self, 'chain'):
             self.chain = None
@@ -698,7 +711,8 @@ class ModelFit(object):
         self.loglikelihood = loglikelihood(steps, self.parameters, self.is_log, 
             self.mu, self.error, self.base_kwargs,
             self.nwalkers, self.priors, self.chain, self.logL, 
-            self.measurement_map, self.measurement_units, prefix=self.prefix)
+            self.measurement_map, self.measurement_units, prefix=self.prefix,
+            fit_turning_points=fit_turning_points)
             
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)

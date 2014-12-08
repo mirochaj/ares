@@ -586,7 +586,7 @@ def print_21cm_sim(sim):
     for warning in warnings:
         print_warning(warning)       
 
-def print_fit(fit, steps, burn=0):         
+def print_fit(fit, steps, burn=0, fit_TP=True):         
 
     if rank > 0:
         return
@@ -598,10 +598,6 @@ def print_fit(fit, steps, burn=0):
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
 
-    print line('-'*twidth)       
-    print line('Measurement to be Fit')     
-    print line('-'*twidth)
-
     if not hasattr(fit, "chain"):
         cols = ['position', 'error']
     else:
@@ -609,42 +605,38 @@ def print_fit(fit, steps, burn=0):
         print line('Using supplied MCMC chain rather than input model.')
         print line('-'*twidth)
 
-    i = 0
-    rows = []
-    data = []
-    for i, element in enumerate(fit.measurement_map):
-
-        tp, val = element
-
-        if tp == 'trans':
-            continue
-
-        if val == 0:
-            rows.append('z_%s' % tp)
-        else:
-            rows.append('T_%s (mK)' % tp)
-
-        unit = fit.measurement_units[val]
-
-        if not hasattr(fit, "chain"):
-            col1, col2 = fit.mu[i], fit.error[i]
-        else:
-            iML = np.argmax(fit.logL)
-            col1, col2 = fit.chain[iML,i], np.std(fit.chain[:,i])
-
-        # Convert from freq to redshift (if necessary)
-        #if unit in ['mhz', 'MHz']:            
-        #    col1 = (nu_0_mhz / col1) - 1.
-        #    col2 = col1 * nu_0_mhz * fit.error[i] / fit.mu[i]
-        #    print col1, col2, fit.error[i], fit.mu[i]
-        ## Convert from K to mK (if necessary)
-        #elif unit == 'K':
-        #    col1 *= 1e3
-        #    col2 *= 1e3
+    if fit_TP:
         
-        data.append([col1, col2])
+        print line('-'*twidth)       
+        print line('Measurement to be Fit')     
+        print line('-'*twidth)
+        
+        i = 0
+        rows = []
+        data = []
+        for i, element in enumerate(fit.measurement_map):
+        
+            tp, val = element
+        
+            if tp == 'trans':
+                continue
+        
+            if val == 0:
+                rows.append('z_%s' % tp)
+            else:
+                rows.append('T_%s (mK)' % tp)
+        
+            unit = fit.measurement_units[val]
+        
+            if not hasattr(fit, "chain"):
+                col1, col2 = fit.mu[i], fit.error[i]
+            else:
+                iML = np.argmax(fit.logL)
+                col1, col2 = fit.chain[iML,i], np.std(fit.chain[:,i])
 
-    tabulate(data, rows, cols, cwidth=18)    
+            data.append([col1, col2])
+
+        tabulate(data, rows, cols, cwidth=18)    
 
     print line('-'*twidth)       
     print line('Parameter Space')     

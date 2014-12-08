@@ -482,7 +482,7 @@ class ModelFit(object):
         if type(take_log) == bool:
             take_log = [take_log] * len(pars)
         if type(multiplier) in [int, float]:
-            multiplier = [multiplier] * len(pars)            
+            multiplier = [multiplier] * len(pars)    
     
         if ax is None:
             gotax = False
@@ -653,7 +653,7 @@ class ModelFit(object):
 
         return ax
         
-    def ContourScatter(self, pars, zaxis, z=None, Nscat=1e3, take_log=False, 
+    def ContourScatter(self, pars, zaxis, z=None, Nscat=5e3, take_log=False, 
         cmap='jet', alpha=1.0, **kwargs):
         """
         Show contour plot in 2-D plane, and add colored points for third axis.
