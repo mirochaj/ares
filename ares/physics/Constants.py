@@ -47,6 +47,9 @@ sigma_T = 6.65e-25			    # Cross section for Thomson scattering - [sigma_T] = cm
 alpha_FS = 1 / 137.035999070    # Fine structure constant - unitless
 Ryd = 2.1798719e-11             # Rydberg in erg
 
+mH_amu = 1.00794
+mHe_amu = 4.002602
+
 # Convert between ergs and electron volts
 erg_per_ev = e / erg_per_j
 erg_per_kev = 1e3 * erg_per_ev

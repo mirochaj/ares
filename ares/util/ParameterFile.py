@@ -16,6 +16,24 @@ from .ProblemTypes import ProblemType
 from .SetDefaultParameterValues import SetAllDefaults
 from .CheckForParameterConflicts import CheckForParameterConflicts
 
+def count_populations(**kwargs):
+    
+    # Count populations
+    popIDs = [0]
+    for par in kwargs:
+
+        m = re.search(r"\{([0-9])\}", par)
+
+        if m is None:
+            continue
+
+        num = int(m.group(1))
+
+        if num not in popIDs:
+            popIDs.append(num)
+
+    return len(popIDs)
+
 class ParameterFile(dict):
     def __init__(self, pf=None, **kwargs):
         """
@@ -51,21 +69,9 @@ class ParameterFile(dict):
             pf.update(ProblemType(kwargs['problem_type']))
     
         # Count populations
-        popIDs = [0]
-        for par in kwargs:
+        Npops = self.Npops = count_populations(**kwargs)
     
-            m = re.search(r"\{([0-9])\}", par)
-    
-            if m is None:
-                continue
-    
-            num = int(m.group(1))
-    
-            if num not in popIDs:
-                popIDs.append(num)
-    
-        Npops = len(popIDs)
-    
+        # Update parameter file
         if Npops == 1:
             pf.update(kwargs)
         else:

@@ -16,6 +16,7 @@ from ..analysis import Global21cm
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
 from ..analysis import Global21cm as anlG21
+from ..analysis.GalacticForeground import GSM
 from ..simulations import Global21cm as simG21
 import gc, os, sys, copy, types, pickle, time, re
 from ..analysis.TurningPoints import TurningPoints
@@ -47,43 +48,7 @@ try:
 except ImportError:
     rank = 0
     size = 1
-        
-def parse_turning_points(turning_points_model, turning_points_input, use):
-    """
-    Convert dictionary of turning points to array.
-
-    Parameters
-    ----------
-    turning_points_input : list
-        Turning points that appeared in the reference model.
-    turning_points_model : dict
-        Turning points for some model we just calculated in our parameter
-        space exploration. Same format as turning_points_input.
-    use : dict
-        For example, 
-            use={'B': [1, 0]} 
-        means use the redshift of turning point B in the fit, but not the 
-        brightness temperature.
-
-    """
-
-    arr_TPs = []
-    for tp in turning_points_input:
-
-        if tp not in turning_points_model:
-            arr_TPs.extend([0.0] * 2)
-            continue
-
-        if tp not in use:
-            continue    
-
-        if use[tp][0]:    
-            arr_TPs.append(float(turning_points_model[tp][0]))
-        if use[tp][1]:    
-            arr_TPs.append(float(turning_points_model[tp][1]))
-
-    return np.array(arr_TPs)
-
+    
 nearest = lambda x, points: KDTree(points, leafsize=1e7).query(x)
     
 turning_points_all = list('BCD')
@@ -116,11 +81,11 @@ default_errors = \
 }
 
 _z_blob = list('BCD')
-_z_blob.extend(list(np.arange(10., 36.)))
+_z_blob.extend([6, 8, 10, 12, 15, 20, 30, 40])
 
 default_blobs = \
-    (['dTb', 'z', 'curvature', 'igm_Tk', 'igm_heat', 'cgm_h_2', 'cgm_Gamma', 
-    'Ts', 'Ja'], _z_blob)
+    (['z', 'dTb', 'curvature', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 'eor_midpt',
+     'igm_heat_h_1', 'cgm_Gamma_h_1', 'Ts', 'Ja', 'tau_e'], _z_blob)
 
 class logprior:
     def __init__(self, priors, parameters):
@@ -134,7 +99,7 @@ class logprior:
         """
         Compute log-likelihood of given model.
         """
-        
+
         if not self.priors:
             return -np.inf
 
@@ -158,20 +123,20 @@ class logprior:
                 raise ValueError('Unrecognized prior type: %s' % ptype)
 
         return logL
-        
+
 class loglikelihood:
     def __init__(self, steps, parameters, is_log, mu, errors,
-        base_kwargs, nwalkers, priors={}, chain=None, logL=None, 
+        base_kwargs, nwalkers, priors={}, chain=None, logL=None,
         errmap=None, errunits=None, prefix=None, fit_turning_points=True,
-        burn=False):
+        burn=False, raw_data=None):
         """
         Computes log-likelihood at given step in MCMC chain.
-        
+
         Parameters
         ----------
-        
+
         """
-        
+
         self.parameters = parameters # important that they are in order?
         self.is_log = is_log
 
@@ -181,43 +146,47 @@ class loglikelihood:
         self.burn = burn
         self.prefix = prefix   
         self.fit_turning_points = fit_turning_points     
-        
+
         if 'inline_analysis' in self.base_kwargs:
             self.blob_names, self.blob_redshifts = \
                 self.base_kwargs['inline_analysis']
-                        
+
         # Sort through priors        
         priors_P = {}   # parameters
         priors_B = {}   # blobs
-        
+
         p_pars = []
         b_pars = []
         for key in priors:
             # Priors on model parameters
             if len(priors[key]) == 3:
-            #if key in self.parameters:
                 p_pars.append(key)
                 priors_P[key] = priors[key]
                 continue
-            
+
             if len(priors[key]) == 4:
-            #if key in ['tau_e', 'cgm_h_2']:
                 b_pars.append(key)
                 priors_B[key] = priors[key]
                 continue
 
         self.logprior_P = logprior(priors_P, self.parameters)
         self.logprior_B = logprior(priors_B, b_pars)
-        
+
         self.errors = errors
         self.errmap = errmap
         self.errunits = errunits
         self.chain = chain
         self.logL = logL
         
+        self.raw_data = raw_data
+        self.fit_raw_data = raw_data is not None
+        
+        if self.fit_raw_data:
+            self.gsm = GSM()
+
         if self.logL is not None:
             self.logL_size = logL.size
-        
+
         if self.chain is not None:
             self.mu = self.chain[np.argmax(self.logL)]
             self.sigma = np.std(self.chain, axis=0)
@@ -237,7 +206,7 @@ class loglikelihood:
                 self._blank_blob.append(tup)
 
         return np.array(self._blank_blob)
-
+        
     def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -245,15 +214,22 @@ class loglikelihood:
         Returns
         -------
         Tuple: (log likelihood, blobs)
-        
+
         """
 
         kwargs = {}
+        fg_kwargs = {}
         for i, par in enumerate(self.parameters):
-            if self.is_log[i]:
-                kwargs[par] = 10**pars[i]
+            
+            if par[0:2] == 'fg':
+                save = fg_kwargs
             else:
-                kwargs[par] = pars[i]
+                save = kwargs
+            
+            if self.is_log[i]:
+                save[par] = 10**pars[i]
+            else:
+                save[par] = pars[i]
 
         # Apply prior on model parameters first (dont need to generate signal)
         lp = self.logprior_P(pars)
@@ -266,9 +242,9 @@ class loglikelihood:
         
         try:
             sim = simG21(**kw)
-            sim.run()  
+            sim.run()
 
-            tps = sim.turning_points      
+            tps = sim.turning_points
 
         # most likely: no (or too few) turning pts
         except:         
@@ -302,55 +278,71 @@ class loglikelihood:
             blob_vals.append(val)    
                 
         if blob_vals:
-            lp -= self.logprior_B(blob_vals)
+            lp -= self.logprior_B(blob_vals)            
             
         if hasattr(sim, 'blobs'):
             blobs = sim.blobs
         else:
             blobs = self.blank_blob    
             
-        if not self.fit_turning_points:
+        if not (self.fit_turning_points or self.fit_raw_data):
+            del sim, kw
+            gc.collect()
             return lp, blobs
 
         # Compute the likelihood if we've made it this far
-        xarr = []
-                    
-        # Convert frequencies to redshift, temperatures to K
-        for element in self.errmap:
-            tp, i = element
-                        
-            # Models without turning point B, C, or D get thrown out.
-            if tp not in tps:
-                del sim, kw
-                gc.collect()
-                
-                return -np.inf, self.blank_blob
-        
-            xarr.append(tps[tp][i])
-                   
-        # Values of current model that correspond to mu vector
-        xarr = np.array(xarr)           
-                   
-        # Compute log-likelihood, including prior knowledge
-
-        if self.error_type == 'idealized':
-            logL = lp \
-                - np.sum((xarr - self.mu)**2 / 2. / self.errors**2)
-
-        else:
+        if self.fit_raw_data:
             
-            try:
-                dist, loc = nearest(xarr, self.chain)
+            coeff = np.array([fg_kwargs['fg_%i' % i] \
+                for i in range(len(fg_kwargs))])
+            Tfg = self.gsm.logpoly(sim.history['nu'], coeff)
+            T21 = sim.history['dTb']
+            Tsky = (T21 + Tfg * 1e3)
+            
+            logL = lp - np.sum((Tsky - self.raw_data)**2 \
+                / 2. / self.errors**2)
+
+        # Fit turning points   
+        else:
                 
-                if loc >= self.logL_size:
-                    logL = -np.inf
-                else:
-                    logL = lp - self.logL[loc]
-            except ValueError:
-                del sim, kw
-                gc.collect()
+            xarr = []
+                        
+            # Convert frequencies to redshift, temperatures to K
+            for element in self.errmap:
+                tp, i = element
+                            
+                # Models without turning point B, C, or D get thrown out.
+                if tp not in tps:
+                    del sim, kw
+                    gc.collect()
+
+                    return -np.inf, self.blank_blob
+            
+                xarr.append(tps[tp][i])
+                       
+            # Values of current model that correspond to mu vector
+            xarr = np.array(xarr)           
+                       
+            # Compute log-likelihood, including prior knowledge
+            
+            if self.error_type == 'idealized':
+                logL = lp \
+                    - np.sum((xarr - self.mu)**2 / 2. / self.errors**2)
+                            
+            else:
                 
-                return -np.inf, self.blank_blob
+                try:
+                    dist, loc = nearest(xarr, self.chain)
+                    
+                    if loc >= self.logL_size:
+                        logL = -np.inf
+                    else:
+                        logL = lp - self.logL[loc]
+                except ValueError:
+                    del sim, kw
+                    gc.collect()
+                    
+                    return -np.inf, self.blank_blob
 
         # Blobs!
         if hasattr(sim, 'blobs'):
@@ -505,7 +497,7 @@ class ModelFit(object):
             self._mu = value        
             
     def set_error(self, error1d=None, nu=0.68, chain=None, logL=None,
-        force_idealized=False):
+        force_idealized=False, noise=None):
         """
         Set errors to be used in likelihood calculation.
 
@@ -535,6 +527,8 @@ class ModelFit(object):
             #        self._error[i] = 
             #    
             #    self._mu.append(self._turning_points[tp][i])
+        elif noise is not None:
+            self._error = noise   
             
         else:            
             self.chain, self.logL = chain, logL
@@ -550,7 +544,7 @@ class ModelFit(object):
                     
             if force_idealized:
                 self._mu = np.mean(self.chain, axis=0)
-                self._error = np.std(self.chain, axis=0)   
+                self._error = np.std(self.chain, axis=0)
                 del self.chain, self.logL     
          
     @property
@@ -635,25 +629,25 @@ class ModelFit(object):
         self.cov = np.diag(cov)
         
     @property
-    def priors(self):
-        if not hasattr(self, '_priors'):
-            self._priors = {}
-        
-        return self._priors    
-
-    @priors.setter
-    def priors(self, value):
-        self._priors = value
+    def data(self):
+        if not hasattr(self, '_data'):
+            self._data = None
+    
+        return self._data
+    
+    @data.setter
+    def data(self, value):
+        self._data = value    
 
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=10, fit_turning_points=True):
         """
         Run MCMC.
-        
+
         Parameters
         ----------
         prefix : str
-            Prefix for all output files
+            Prefix for all output files.
         steps : int
             Number of steps to take.
         burn : int
@@ -683,15 +677,24 @@ class ModelFit(object):
 
         print_fit(self, steps=steps, burn=burn, fit_TP=fit_turning_points)
 
-        if not hasattr(self, 'chain'):
+        if self.data is not None:
             self.chain = None
             self.logL = None
-        
+
+            if type(self.error) in [float, np.float64]:
+                pass
+            else:
+                assert len(self.error) == len(self.data)
+
+        elif not hasattr(self, 'chain'):
+            self.chain = None
+            self.logL = None
+
             assert len(self.error) == len(self.measurement_map)
-            
+
         else:
             assert self.chain.shape[1] == len(self.measurement_map)
-            
+
         if size > 1:
             self.pool = MPIPool()
             if not self.pool.is_master():
@@ -707,7 +710,7 @@ class ModelFit(object):
                 np.mean(self.chain), np.std(self.chain), self.base_kwargs,
                 self.nwalkers, self.priors, None, None, 
                 self.measurement_map, self.measurement_units,
-                fit_turning_points=fit_turning_points, burn=True)
+                fit_turning_points=fit_turning_points, burn=True, raw_data=self.data)
 
             self.sampler_BURN = emcee.EnsembleSampler(self.nwalkers,
                 self.Nd, self.loglikelihood_BURN, pool=self.pool)
@@ -716,7 +719,7 @@ class ModelFit(object):
             self.mu, self.error, self.base_kwargs,
             self.nwalkers, self.priors, self.chain, self.logL, 
             self.measurement_map, self.measurement_units, prefix=self.prefix,
-            fit_turning_points=fit_turning_points)
+            fit_turning_points=fit_turning_points, raw_data=self.data)
             
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)

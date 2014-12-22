@@ -65,6 +65,8 @@ class Cosmology:
         self.delta_c0 = 1.686
         self.TcmbNow = self.cmb_temp_0
         
+        self.fbaryon = self.omega_b_0 / self.omega_cdm_0
+        
         # Used in hmf
         self.pars = {'omega_lambda':self.omega_l_0,
          'omega_b':self.omega_b_0,

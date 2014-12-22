@@ -72,14 +72,14 @@ class TanhModel:
     def temperature(self, z, Tref, zref, dz):
         return Tref * tanh_generic(z, zref=zref, dz=dz) \
             + self.Tgas_adiabatic(z)
-        
+
     def ionized_fraction(self, z, xref, zref, dz):
         return xref * tanh_generic(z, zref=zref, dz=dz)
-    
+
     def heating_rate(self, z, Tref, zref, dz, Lambda=None):
-    
+
         Tk = self.temperature(z, Tref, zref, dz)
-    
+
         dtdz = self.cosm.dtdz(z)
     
         dTkdz = 0.5 * Tref * (1. - np.tanh((zref - z) / dz)**2) / dz
@@ -169,19 +169,20 @@ class TanhModel:
 
         # Spin temperature
         Ts = self.hydr.SpinTemperature(z, Tk, Ja, xi, ne)
-    
+
         # Brightness temperature
         dTb = self.hydr.DifferentialBrightnessTemperature(z, xi, Ts)
-    
+
         # Save some stuff
         hist = \
         {
-         'z': z, 
+         'z': z,
          'dTb': dTb,
          'igm_Tk': Tk,
          'Ts': Ts,
          'Ja': Ja,
          'cgm_h_2': xi,
+         'igm_h_1': np.ones_like(z),
          'igm_heat_h_1': self.heating_rate(z, Tref, zref_T, dz_T),
          'cgm_Gamma_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
         }

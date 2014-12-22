@@ -10,12 +10,11 @@ Description: Can run this in parallel.
 
 """
 
-import time
+import time, ares
 import numpy as np
 import matplotlib.pyplot as pl
-from ares.inference import ModelFit
 
-blobs = (['igm_Tk', 'igm_heat', 'cgm_Gamma', 'cgm_h_2', 'Ts', 'Ja', 'dTb'], 
+blobs = (['igm_Tk', 'igm_heat_h_1', 'cgm_Gamma_h_1', 'cgm_h_2', 'Ts', 'Ja', 'dTb'], 
         ['B', 'C', 'D'])
 
 # These go to every calculation
@@ -27,10 +26,12 @@ base_pars = \
 }
 
 # Initialize fitter
-fit = ModelFit(**base_pars)
+fit = ares.inference.ModelFit(**base_pars)
 
 # Input model: all defaults
 sim = ares.simulations.Global21cm()
+sim.run()
+
 fit.mu = ares.analysis.Global21cm(sim).turning_points
 
 # Set axes of parameter space

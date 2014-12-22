@@ -14,8 +14,9 @@ import time, ares
 import numpy as np
 import matplotlib.pyplot as pl
 
-blobs = (['igm_Tk', 'igm_heat', 'cgm_Gamma', 'cgm_h_2', 'Ts', 'Ja', 'dTb'], 
-        ['B', 'C', 'D'])
+blobs = (['igm_Tk', 'igm_heat_h_1', 'cgm_Gamma_h_1', 'cgm_h_2', 
+          'Ts', 'Ja', 'z', 'dTb', 'tau_e'], 
+        ['B', 'C', 'D', 40])
 
 # These go to every calculation
 base_pars = \
@@ -26,11 +27,19 @@ base_pars = \
  'inline_analysis': blobs,
 }
 
+ref_pars = \
+{
+'tanh_Tz0': 8.,
+'tanh_Tdz': 4.,
+'tanh_xz0': 10.,
+'tanh_xdz': 2.,
+}
+
 # Initialize fitter
 fit = ares.inference.ModelFit(**base_pars)
 
 # Assume default parameters
-sim = ares.simulations.Global21cm(tanh_model=True)
+sim = ares.simulations.Global21cm(tanh_model=True, **ref_pars)
 fit.mu = ares.analysis.Global21cm(sim).turning_points
 
 # Set axes of parameter space
@@ -43,6 +52,7 @@ fit.priors = \
  'tanh_xdz': ['uniform', 0.1, 10],
  'tanh_Tz0': ['uniform', 5., 20.],
  'tanh_Tdz': ['uniform', 0.1, 10],
+ 'tau_e': ['gaussian', 0.08, 0.01, 40]
 }
 
 # Set errors

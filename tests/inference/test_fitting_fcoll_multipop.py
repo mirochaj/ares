@@ -10,10 +10,9 @@ Description: Can run this in parallel.
 
 """
 
-import time
+import time, ares
 import numpy as np
 import matplotlib.pyplot as pl
-from ares.inference import ModelFit
 
 blobs = (['igm_Tk', 'igm_heat', 'cgm_Gamma', 'cgm_h_2', 'Ts', 'Ja', 'dTb'], 
         ['B', 'C', 'D'])
@@ -40,15 +39,23 @@ base_pars = \
 }
 
 # Initialize fitter
-fit = ModelFit(**base_pars)
+fit = ares.inference.ModelFit(**base_pars)
 
-# Assume default parameters
-fit.set_input_realization(**base_pars)
+# Input model: all defaults
+sim = ares.simulations.Global21cm()
+sim.run()
+
+fit.mu = ares.analysis.Global21cm(sim).turning_points
 
 # Set axes of parameter space
-fit.set_axes(['fstar{0}', 'fstar{1}'], is_log=[True]*2)
-fit.priors = {'fstar{0}': ['uniform', -3., 0.],
-              'fstar{1}': ['uniform', -6., 0.]}
+fit.set_axes(['fstar{0}', 'fstar{1}', 'Tmin{0}', 'Tmin{1}'], is_log=[True]*4)
+fit.priors = \
+{
+ 'fstar{0}': ['uniform', -3., 0.],
+ 'fstar{1}': ['uniform', -6., 0.],
+ 'Tmin{0}': ['uniform', 2.4, 5.4],
+ 'Tmin{1}': ['uniform', 2.4, 5.4],
+}
 
 # Set errors
 fit.set_error(error1d=[0.5, 0.5, 0.5, 5., 5., 5.])

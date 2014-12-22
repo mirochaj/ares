@@ -21,7 +21,7 @@ tau_prefix = "%s/input/optical_depth" % ARES \
     if (ARES is not None) else '.'
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum', 
-    'Control', 'HaloMassFunction', 'Tanh']
+    'Control', 'HaloMassFunction', 'Tanh', 'Halo']
 
 # Start setting up list of parameters to be set
 defaults = []
@@ -153,7 +153,7 @@ def CosmologyParameters():
     "sigma_8": 0.807,
     "primordial_index": 0.96,
     }
-    
+
     pf.update(rcParams)
 
     return pf      
@@ -361,6 +361,15 @@ def HaloMassFunctionParameters():
 
     return pf
 
+def HaloParameters():
+    pf = \
+    {
+    'halo_M': 1e10,
+    'halo_c': 15.,
+    'halo_profile': 'nfw',
+    }
+    
+    return pf
     
 def ControlParameters():
     pf = \
@@ -453,11 +462,21 @@ def TanhParameters():
     'tanh_xz0': 10.,
     'tanh_xdz': 2.,
     'tanh_dz': 0.1,  # Redshift sampling
-    'tanh_nu': None,
+    'tanh_nu': None, # Array of frequencies in MHz
     }
     
     pf.update(rcParams)
     
     return pf
+    
+def ForegroundParameters():
+    pf = \
+    {
+     'fg_pivot': 80.,
+     'fg_order': 4,
+    }
+    
+    return pf
+    
 
 

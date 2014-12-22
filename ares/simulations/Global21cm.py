@@ -99,7 +99,7 @@ class Global21cm:
                         omega_b_0=self.pf["omega_b_0"], 
                         hubble_0=self.pf["hubble_0"], 
                         helium_by_number=self.pf['helium_by_number'], 
-                        cmb_temp_0=self.pf["cmb_temp_0"], 
+                        cmb_temp_0=self.pf["cmb_temp_0"],
                         approx_highz=self.pf["approx_highz"])
 
                     return
@@ -673,15 +673,16 @@ class Global21cm:
             
             self.pb.update(t)
 
-            # Quit if reionization is ~complete (xavg = 0.9999 by default)
-            if self.history['xavg'][-1] >= self.pf['stop_xavg']:            
-                break
+            # Quit if reionization is ~complete (xavg = 0.99999 by default)
+            if self.history['xavg'][-1] >= self.pf['stop_xavg']:      
+                if 'ions' in self.pf['restricted_timestep']:
+                    self.pf['restricted_timestep'].remove('ions')   
                 
             self.step += 1
 
         self.pb.finish()
 
-        tmp = {}    
+        tmp = {}
         for key in self.history:
             tmp[key] = np.array(self.history[key])
 
@@ -720,20 +721,20 @@ class Global21cm:
         """
         
         if not hasattr(self, 'turning_points'):
-            
+
             from ..analysis.TurningPoints import TurningPoints
             self._track = TurningPoints(inline=True, **self.pf)
-            
+
             # Otherwise, find them. Not the most efficient, but it gets the job done
             if self.history['z'].max() < 70 and 'A' not in self._track.TPs:
                 self._track.TPs.append('A')
-            
+
             delay = self.pf['stop_delay']
-            
+
             for i in range(len(self.history['z'])):
                 if i < (delay + 2):
                     continue
-                    
+
                 stop = self._track.is_stopping_point(self.history['z'][i-delay-1:i],
                     self.history['dTb'][i-delay-1:i])
                                     
@@ -755,14 +756,17 @@ class Global21cm:
                     interp = interp1d(self.history['cgm_h_2'][ihigh:],
                         self.history['z'][ihigh:])
 
-                    if element == 'eor_midpt':
-                        zrei = interp(0.5)
-                    else:
-                        zrei = interp(0.99)
-                        
+                    try:
+                        if element == 'eor_midpt':
+                            zrei = interp(0.5)
+                        else:
+                            zrei = interp(0.99)
+                    except ValueError:
+                        zrei = np.inf
+                    
                     redshift.append(zrei)
                     ztps.append((element, zrei))
-  
+                        
                 elif element not in self.turning_points:
                     redshift.append(np.inf)
                     ztps.append(np.inf)

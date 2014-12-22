@@ -497,7 +497,7 @@ class Global21cm:
         
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=5, scatter=False, xaxis='nu', 
-        ymin=None, zmax=None, xscale='linear', **kwargs):
+        ymin=None, ymax=50, zmax=None, xscale='linear', **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
         
@@ -540,11 +540,7 @@ class Global21cm:
             ax = fig.add_subplot(111)
         else:
             gotax = True
-
-        if ymin is None:
-            ymin = max(min(min(self.data['dTb']), ax.get_ylim()[0]), -500)
-        ymax = max(max(self.data['dTb']), ax.get_ylim()[1])
-                                
+        
         if scatter is False:        
             ax.plot(self.data[xaxis], self.data['dTb'], **kwargs)
         else:
@@ -563,13 +559,19 @@ class Global21cm:
             xticks = np.arange(20, 180, 20)
             xticks_minor = np.arange(10, 190, 20)
 
-        # Set lower y-limit by increments of 50 mK
-        for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500]:
-            if val <= ymin:
-                ymin = int(val)
-                break
-                
-        ax.set_yticks(np.linspace(ymin, 50., int((50 - ymin) / 50. + 1)))
+        if ymin is None:
+            ymin = max(min(min(self.data['dTb']), ax.get_ylim()[0]), -500)
+    
+            # Set lower y-limit by increments of 50 mK
+            for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500]:
+                if val <= ymin:
+                    ymin = int(val)
+                    break
+    
+        if ymax is None:
+            ymax = max(max(self.data['dTb']), ax.get_ylim()[1])
+        
+        ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))
                 
         # Minor y-ticks - 10 mK increments
         yticks = np.linspace(ymin, 50, int((50 - ymin) / 10. + 1))
@@ -577,14 +579,15 @@ class Global21cm:
         
         # Remove major ticks from minor tick list
         for y in np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)):
-            yticks.remove(y) 
+            if y in yticks:
+                yticks.remove(y) 
         
         if xaxis == 'z' and hasattr(self, 'pf'):
             ax.set_xlim(5, self.pf["initial_redshift"])
         else:
             ax.set_xlim(10, 150)
             
-        ax.set_ylim(ymin, 50)    
+        ax.set_ylim(ymin, ymax)    
         
         if xscale == 'linear':
             ax.set_xticks(xticks, minor=False)
@@ -618,7 +621,6 @@ class Global21cm:
         
         self.twinax = twinax
         
-        ax.set_yscale('linear')
         ax.ticklabel_format(style='plain', axis='both')
         ax.set_xscale(xscale)
                     

@@ -16,11 +16,8 @@ from ..util.Stats import rebin
 from collections import Iterable
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
-from ..physics.Constants import k_B, cm_per_kpc, s_per_myr, m_H
+from ..physics.Constants import k_B, cm_per_kpc, s_per_myr, m_H, mH_amu, mHe_amu
 from ..physics.CrossSections import PhotoIonizationCrossSection
-
-mH_amu = 1.00794
-mHe_amu = 4.002602
 
 class ELEMENT:
     """ Substitute for periodic package, only knows about H and He. """
@@ -31,9 +28,9 @@ class ELEMENT:
     def mass(self):
         if not hasattr(self, '_mass'):
             if self.name == 'h':
-                self._mass = 1.00794
+                self._mass = mH_amu
             elif self.name == 'he':
-                self._mass = 4.002602       
+                self._mass = mHe_amu
     
         return self._mass
         

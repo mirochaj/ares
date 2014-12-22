@@ -17,9 +17,12 @@ import matplotlib.pyplot as pl
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
 from ..physics.Constants import nu_0_mhz
+from ..util.ParameterFile import count_populations
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
-from ..util.SetDefaultParameterValues import SetAllDefaults
 from ..util.ReadData import read_pickled_chain, read_pickled_dict
+from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
+
+tanh_pars = TanhParameters()
 
 try:
     import emcee
@@ -46,10 +49,6 @@ def_kwargs = \
 {
  'labels': True,
 }
-
-# Have big axis labels much of the time
-#pl.rcParams['figure.subplot.left'] = 0.25
-#pl.rcParams['figure.subplot.bottom'] = 0.25
 
 suffixes = ['chain', 'pinfo', 'logL', 'blobs', 'binfo']
 
@@ -194,7 +193,89 @@ class ModelFit(object):
                 
         else:
             raise TypeError('Argument must be emcee.EnsembleSampler instance or filename prefix')              
-                            
+    
+    def sort_by_Tmin(self):
+        """
+        If doing a multi-pop fit, re-assign population ID numbers in 
+        order of increasing Tmin.
+        
+        Doesn't return anything. Replaces attribute 'chain' with new array.
+        """
+
+        # Determine number of populations
+        tmp_pf = {key : None for key in self.parameters}
+        Npops = count_populations(**tmp_pf)
+
+        if Npops == 1:
+            return
+        
+        # Check to see if Tmin is common among all populations or not    
+    
+    
+        # Determine which indices correspond to Tmin, and population #
+    
+        i_Tmin = []
+        
+        # Determine which indices 
+        pops = [[] for i in range(Npops)]
+        for i, par in enumerate(self.parameters):
+
+            # which pop?
+            m = re.search(r"\{([0-9])\}", par)
+
+            if m is None:
+                continue
+
+            num = int(m.group(1))
+            prefix = par.strip(m.group(0))
+            
+            if prefix == 'Tmin':
+                i_Tmin.append(i)
+
+        self._unsorted_chain = self.chain.copy()
+
+        # Otherwise, proceed to re-sort data
+        tmp_chain = np.zeros_like(self.chain)
+        for i in range(self.chain.shape[0]):
+
+            # Pull out values of Tmin
+            Tmin = [self.chain[i,j] for j in i_Tmin]
+            
+            # If ordering is OK, move on to next link in the chain
+            if np.all(np.diff(Tmin) > 0):
+                tmp_chain[i,:] = self.chain[i,:].copy()
+                continue
+            
+            # Otherwise, we need to fix some stuff
+            
+            # Determine proper ordering of Tmin indices
+            i_Tasc = np.argsort(Tmin)
+            
+            # Loop over populations, and correct parameter values
+            tmp_pars = np.zeros(len(self.parameters))
+            for k, par in enumerate(self.parameters):
+                
+                # which pop?
+                m = re.search(r"\{([0-9])\}", par)
+
+                if m is None:
+                    tmp_pars.append()
+                    continue
+
+                pop_num = int(m.group(1))
+                prefix = par.strip(m.group(0))
+                
+                new_pop_num = i_Tasc[pop_num]
+                
+                new_loc = self.parameters.index('%s{%i}' % (prefix, new_pop_num))
+                
+                tmp_pars[new_loc] = self.chain[i,k]
+
+            tmp_chain[i,:] = tmp_pars.copy()
+                        
+        del self.chain
+        self.chain = tmp_chain
+
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
@@ -213,11 +294,19 @@ class ModelFit(object):
     def derived_blob_names(self):
         if not hasattr(self, '_derived_blob_names'):
             # Things we know how to calculate
-            self._derived_blob_names = []
-            for sp in ['h_1', 'he_1', 'he_2']:
-                self._derived_blob_names.append('igm_gamma_%s' % sp)
-                
-            self._derived_blob_names.append('igm_heat')
+            self._derived_blob_names = ['nu_mhz']
+            
+            tanh_fit = False
+            for par in self.parameters:
+                if par in tanh_pars:
+                    tanh_fit = True
+
+            if not tanh_fit:
+                for sp in ['h_1', 'he_1', 'he_2']:
+                    self._derived_blob_names.append('igm_gamma_%s' % sp)
+            
+            if not tanh_fit:    
+                self._derived_blob_names.append('igm_heat')
             
             if ('igm_h_1' in self.blob_names) and \
                 'igm_h_2' not in self.blob_names:
@@ -237,8 +326,14 @@ class ModelFit(object):
         if hasattr(self, '_derived_blobs'):
             return self._derived_blobs
 
-        gamma = self._compute_gamma_tot()
-        heat = self.heat = self._compute_heat_tot()
+        try:
+            gamma = self._compute_gamma_tot()        
+        except:
+            pass
+        try:
+            heat = self.heat = self._compute_heat_tot()
+        except:
+            pass
 
         shape = list(self.blobs.shape[:-1])
         shape.append(len(self.derived_blob_names))
@@ -259,6 +354,10 @@ class ModelFit(object):
                 i_h_1 = self.blob_names.index('igm_h_1')
                 self._derived_blobs[:,:,k] = \
                     1. - self.blobs[:,:,i_h_1]
+            elif key == 'nu_mhz':
+                i_z = self.blob_names.index('z')
+                self._derived_blobs[:,:,k] = \
+                    nu_0_mhz / (1. + self.blobs[:,:,i_z])
             else:
                 raise ValueError('dont know derived blob %s!' % key)    
                 
@@ -311,8 +410,9 @@ class ModelFit(object):
                    
         for i, sp1 in enumerate(['h_1', 'he_1', 'he_2']):  
             
+
             x_subject = 'igm_%s' % sp1
-            mm = self.blob_names.index(x_subject)
+            mm = self.blob_names.index(x_subject)    
             
             if sp1 == 'h_1':
                 n1 = lambda z: self.cosm.nH(z)
@@ -346,7 +446,7 @@ class ModelFit(object):
                         
         return gamma
                         
-    def get_levels(self, L, nu=[0.99, 0.95, 0.68]):
+    def get_levels(self, L, nu=[0.95, 0.68]):
         """
         Return levels corresponding to input nu-values, and assign
         colors to each element of the likelihood.
@@ -429,7 +529,7 @@ class ModelFit(object):
         pass    
                 
     def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=1.,
-        nu=[0.99, 0.95, 0.68], slc=None, overplot_nu=False, density=True, 
+        nu=[0.95, 0.68], slc=None, overplot_nu=False, density=True, 
         color_by_nu=False, contour=True, filled=True, take_log=False,
         bins=20, xscale='linear', yscale='linear', skip=0, skim=1, **kwargs):
         """
@@ -531,9 +631,9 @@ class ModelFit(object):
                 is_log.append(False)
                 
                 if par in self.blob_names:
-                    val = self.blobs[skip:,i,j].compressed()[::skim]
+                    val = self.blobs[skip:,i,j][::skim]
                 else:
-                    val = self.derived_blobs[skip:,i,j].compressed()[::skim]
+                    val = self.derived_blobs[skip:,i,j][::skim]
                 
                 if take_log[k]:
                     val += np.log10(multiplier[k])
@@ -551,6 +651,9 @@ class ModelFit(object):
             if type(bins) == int:
                 valc = to_hist[k]
                 binvec.append(np.linspace(valc.min(), valc.max(), bins))
+            elif type(bins[k]) == int:
+                valc = to_hist[k]
+                binvec.append(np.linspace(valc.min(), valc.max(), bins[k]))
             else:
                 binvec.append(bins[k])
 
@@ -654,7 +757,7 @@ class ModelFit(object):
         return ax
         
     def ContourScatter(self, pars, zaxis, z=None, Nscat=5e3, take_log=False, 
-        cmap='jet', alpha=1.0, **kwargs):
+        cmap='jet', alpha=1.0, bins=20, **kwargs):
         """
         Show contour plot in 2-D plane, and add colored points for third axis.
         
@@ -669,10 +772,10 @@ class ModelFit(object):
         Nscat : int
             Number of samples plot.
         """
-        
+
         if type(take_log) == bool:
             take_log = [take_log] * 3
-        
+
         axes = []
         for par in pars:
             if par in self.parameters:
@@ -683,13 +786,13 @@ class ModelFit(object):
             elif par in self.derived_blob_names:
                 axes.append(self.derived_blobs[:,self.blob_redshifts.index(z),
                     self.derived_blob_names.index(par)])        
-                
+
         for i in range(2):
             if take_log[i]:
                 axes[i] = np.log10(axes[i])
-                        
+
         xax, yax = axes
-        
+
         if zaxis in self.parameters:        
             zax = self.chain[:,self.parameters.index(zaxis)].ravel()
         elif zaxis in self.blob_names:   
@@ -703,7 +806,7 @@ class ModelFit(object):
             zax = np.log10(zax)    
             
         ax = self.PosteriorPDF(pars, z=z, take_log=take_log, filled=False, 
-            **kwargs)
+            bins=bins, **kwargs)
         
         # Pick out Nscat random points to plot
         mask = np.zeros_like(xax, dtype=bool)
@@ -715,7 +818,7 @@ class ModelFit(object):
         scat = ax.scatter(xax[mask==1], yax[mask], c=zax[mask], cmap=cmap,
             zorder=1, edgecolors='none', alpha=alpha)
         cb = pl.colorbar(scat)
-        
+
         if zaxis in labels:
             cb.set_label(labels[zaxis])
         elif '{' in zaxis:
@@ -725,6 +828,8 @@ class ModelFit(object):
             
         pl.draw()
         
+        return ax
+        
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
@@ -732,7 +837,7 @@ class ModelFit(object):
         **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
-        
+
         Parameters
         ----------
         pars : list
@@ -742,14 +847,14 @@ class ModelFit(object):
             so long as the file prefix.pinfo.pkl exists, otherwise it should
             be the indices where the desired parameters live in the second
             dimension of the MCMC chain.
-            
+
             NOTE: These can alternatively be the names of arbitrary meta-data
             blobs.
-            
+
             If None, this will plot *all* parameters, so be careful!
-            
+
         fig : int
-            ID number for plot window. 
+            ID number for plot window.
         bins : int,
             Number of bins in each dimension.
         z : int, float, str
@@ -777,7 +882,7 @@ class ModelFit(object):
             of the likelihood. Set parameter `nu` to modify these levels.
         nu : list
             List of levels, default is 1,2, and 3 sigma contours (i.e., 
-            nu=[0.68, 0.95, 0.99])
+            nu=[0.68, 0.95])
         rotate_x : bool
             Rotate xtick labels 90 degrees.
         
@@ -804,9 +909,9 @@ class ModelFit(object):
         for par in pars[-1::-1]:
             if par in self.parameters:
                 is_log.append(self.is_log[self.parameters.index(par)])
-            elif par in self.blob_names:
+            elif par in self.blob_names or self.derived_blob_names:
                 is_log.append(False)
-
+                
         if oned:
             Nd = len(pars)
         else:
@@ -1084,9 +1189,9 @@ class ModelFit(object):
         else:
             ax.set_ylabel(pars[1])
     
-        pl.draw()        
+        pl.draw()
         
-    def confidence_regions(self, L, nu=[0.99, 0.95, 0.68]):
+    def confidence_regions(self, L, nu=[0.95, 0.68]):
         """
         Integrate outward at "constant water level" to determine proper
         2-D marginalized confidence regions.
