@@ -81,7 +81,7 @@ default_errors = \
 }
 
 _z_blob = list('BCD')
-_z_blob.extend([6, 8, 10, 12, 15, 20, 30, 40])
+_z_blob.extend([3, 6, 8, 10, 12, 15, 20, 30, 40])
 
 default_blobs = \
     (['z', 'dTb', 'curvature', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 'eor_midpt',

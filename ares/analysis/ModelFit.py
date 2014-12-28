@@ -12,6 +12,7 @@ Description: For analysis of MCMC fitting.
 
 import numpy as np
 import re, pickle, os
+import matplotlib as mpl
 from ..util import labels
 import matplotlib.pyplot as pl
 from ..physics import Cosmology
@@ -247,7 +248,7 @@ class ModelFit(object):
                 continue
             
             # Otherwise, we need to fix some stuff
-            
+
             # Determine proper ordering of Tmin indices
             i_Tasc = np.argsort(Tmin)
             
@@ -684,7 +685,17 @@ class ModelFit(object):
             ax.set_ylim(0, 1.05)
             
         else:
-    
+            
+            if to_hist[0].size != to_hist[1].size:
+                print 'Looks like calculation was terminated after chain',
+                print 'was written to disk, but before blobs. How unlucky!'
+                print 'Applying cludge to ensure shape match...'
+                
+                if to_hist[0].size > to_hist[1].size:
+                    to_hist[0] = to_hist[0][0:to_hist[1].size]
+                else:
+                    to_hist[1] = to_hist[1][0:to_hist[0].size]
+                    
             # Compute 2-D histogram
             hist, xedges, yedges = \
                 np.histogram2d(to_hist[0], to_hist[1], 
@@ -756,8 +767,9 @@ class ModelFit(object):
 
         return ax
         
-    def ContourScatter(self, pars, zaxis, z=None, Nscat=5e3, take_log=False, 
-        cmap='jet', alpha=1.0, bins=20, **kwargs):
+    def ContourScatter(self, pars, zaxis, z=None, Nscat=1e4, take_log=False, 
+        cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
+        **kwargs):
         """
         Show contour plot in 2-D plane, and add colored points for third axis.
         
@@ -771,6 +783,12 @@ class ModelFit(object):
             Redshift (if investigating blobs)
         Nscat : int
             Number of samples plot.
+            
+        Returns
+        -------
+        Three objects: the main Axis instance, the scatter plot instance,
+        and the colorbar object.
+        
         """
 
         if type(take_log) == bool:
@@ -802,6 +820,16 @@ class ModelFit(object):
             zax = self.derived_blobs[:,self.blob_redshifts.index(z),
                 self.derived_blob_names.index(zaxis)]
                 
+        if zax.shape[0] != self.chain.shape[0]:
+            if self.chain.shape[0] > zax.shape[0]:
+                xax = xax[0:self.blobs.shape[0]]
+                yax = yax[0:self.blobs.shape[0]]
+                print 'Looks like calculation was terminated after chain',
+                print 'was written to disk, but before blobs. How unlucky!'
+                print 'Applying cludge to ensure shape match...'
+            else:                
+                raise ValueError('Shape mismatch between blobs and chain!')    
+                
         if take_log[2]:
             zax = np.log10(zax)    
             
@@ -812,12 +840,21 @@ class ModelFit(object):
         mask = np.zeros_like(xax, dtype=bool)
         rand = np.arange(len(xax))
         np.random.shuffle(rand)
-        
         mask[rand < Nscat] = True
-                
-        scat = ax.scatter(xax[mask==1], yax[mask], c=zax[mask], cmap=cmap,
-            zorder=1, edgecolors='none', alpha=alpha)
+        
+        if zbins is not None:
+            cmap_obj = eval('mpl.colorbar.cm.%s' % cmap)
+            norm = mpl.colors.BoundaryNorm(zbins, cmap_obj.N)
+        else:
+            norm = None
+        
+        scat = ax.scatter(xax[mask], yax[mask], c=zax[mask], cmap=cmap,
+            zorder=1, edgecolors='none', alpha=alpha, vmin=vmin, vmax=vmax,
+            norm=norm)
         cb = pl.colorbar(scat)
+        
+        cb.set_alpha(1)
+        cb.draw_all()
 
         if zaxis in labels:
             cb.set_label(labels[zaxis])
@@ -826,9 +863,11 @@ class ModelFit(object):
         else:
             cb.set_label(zaxis)    
             
+        cb.update_ticks()
+            
         pl.draw()
         
-        return ax
+        return ax, scat, cb
         
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,

@@ -996,64 +996,35 @@ class Global21cm:
         
         return ztmp, tau
     
-    def blob_analysis(self, fields, redshifts):    
+    def blob_analysis(self, field, z):    
         """
-        Compute value of given fields at given redshifts.
+        Compute value of given field at given redshift.
         
         Parameters
         ----------
-        fields : list
-            List of fields to calculate
-        redshifts : list
-            List of redshifts at which to compute value of input fields.
+        fields : str
+            Fields to extract
+        z : list
+            Redshift at which to compute value of input fields.
             'B', 'C', 'D', as well as numerical values are acceptable.
         
         Returns
         -------
-        Nothing. Sets attributes blobs, blob_names, blob_z.
+        Value of field at input redshift, z.
         
         """
 
-        ztmp = redshifts
-        
-        zmin = self.data['z'].min()
-        zmax = self.data['z'].max()        
-        
         # Convert turning points to actual redshifts
-        redshift = []
-        ztps = []
-        for element in ztmp:
-            if type(element) is str:
-                redshift.append(self.turning_points[element][0])
-                ztps.append((element, self.turning_points[element][0]))
-            else:
-                redshift.append(element)
+        if type(z) is str:
+            z = self.turning_points[z][0]
             
         # Redshift x blobs
-        output = []
-        for j, field in enumerate(fields):
-            
-            if field in self.data_asc:
-                interp = interp1d(self.data_asc['z'],
-                    self.data_asc[field])
-            
-            tmp = []
-            for i, z in enumerate(redshift):
-                
-                if z is None:
-                    tmp.append(np.inf)
-                    continue
-                    
-                if zmin <= z <= zmax:
-                    tmp.append(float(interp(z)))
-                else:
-                    tmp.append(np.inf)
-            
-            output.append(tmp)
+        if field in self.data_asc:
+            interp = interp1d(self.data_asc['z'],
+                self.data_asc[field])
+        else:
+            raise NotImplemented('help!')
+        return float(interp(z))
         
-        # Reshape output so it's (redshift x blobs)
-        self.blobs = np.array(zip(*output))
-        self.blob_names, self.blob_z = fields, redshifts
-        self.ztps = ztps
-            
+
         
