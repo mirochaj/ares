@@ -61,7 +61,7 @@ class StellarPopulation:
         self.zdead = min(self.pf["formation_epoch"])
         self.zfl = self.pf['first_light_redshift']
                 
-        self.approx_src = (self.pf['approx_lya'] and self.pf['approx_xray'])
+        self.approx_src = (self.pf['approx_lwb'] and self.pf['approx_xrb'])
 
         # Re-normalize bolometric output
         self._init_rs()

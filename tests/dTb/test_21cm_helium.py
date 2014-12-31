@@ -26,7 +26,7 @@ src1 = \
  'is_ion_src_igm': False,
  'is_heat_src_igm': False,
  'norm_by': 'lw',
- 'approx_lya': True,
+ 'approx_lwb': True,
 }
 
 sed1 = {}
@@ -40,7 +40,7 @@ src2 = \
  'is_lya_src': False,
  'is_ion_src_cgm': False,
  'is_ion_src_igm': True,
- 'approx_xray': False,
+ 'approx_xrb': False,
  'load_tau': True,
  'redshift_bins': 400,
 }

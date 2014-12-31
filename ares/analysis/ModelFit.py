@@ -526,6 +526,21 @@ class ModelFit(object):
         
         pass
         
+    def slice(self, z=None, **kwargs):
+        """
+        Return revised ("sliced") dataset given set of criteria.
+        
+        By default, all PDFs will be marginalized over all higher dimensions.
+        This will apply an additional filter, e.g.,
+        
+        slc = self.slice('Tmin': [1e4, 1e5])
+        
+        will return only samples that have 1e4 <= Tmin <= 1e5
+        
+        """
+        
+        pass
+        
     def add_blob(self):
         pass    
                 

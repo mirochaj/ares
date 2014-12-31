@@ -66,7 +66,7 @@ stars whose SED is a blackbody:
       "spectrum_type": 'bb', 
       "spectrum_Emin": 1., 
       "spectrum_Emax": 1e2,
-      "approx_lya": False, 
+      "approx_lwb": False, 
       "norm_by": 'lw', 
       "Nlw": 1e4,
      }
@@ -74,7 +74,7 @@ stars whose SED is a blackbody:
     # Create Population instance
     pop = glorb.populations.StellarPopulation(**params)
                                  
-The ``approx_lya`` keyword argument tells StellarPopulation that we'll be treating
+The ``approx_lwb`` keyword argument tells StellarPopulation that we'll be treating
 the UV spectrum of this population in detail. To verify this, access the rs attribute
 (which is short for ``radiation source'' to indicate that it is an rt1d.sources.RadiationSource instance):
 

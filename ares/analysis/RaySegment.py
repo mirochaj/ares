@@ -59,7 +59,7 @@ class RaySegment:
                 length_units=self.pf['length_units'], 
                 start_radius=self.pf['start_radius'],
                 approx_Salpha=self.pf['approx_Salpha'],
-                approx_lya=self.pf['approx_lya'])
+                approx_lwb=self.pf['approx_lwb'])
                             
             self.grid.set_ics(self.data['dd0000'])
             self.grid.set_chemistry(self.pf['include_He'])

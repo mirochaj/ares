@@ -52,14 +52,14 @@ T_He = np.array(T_He)
 
 l_LyA = h * c / E_LyA / erg_per_ev
 
-g23 = gamma(2./3.)
-g13 = gamma(1./3.)
+g23 = gamma(2. / 3.)
+g13 = gamma(1. / 3.)
 
 c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
 c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
 
 class Hydrogen:
-    def __init__(self, cosm=None, approx_Salpha=1):
+    def __init__(self, cosm=None, approx_Salpha=1, nmax=23):
         if cosm is None:
             from .Cosmology import Cosmology
             self.cosm = Cosmology()
@@ -68,7 +68,7 @@ class Hydrogen:
             
         self.approx_S = approx_Salpha
         
-        self.nmax = 23
+        self.nmax = nmax
         self.fbarII = 0.72
         self.fbarIII = 0.63
         self.A10 = 2.85e-15 			

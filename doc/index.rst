@@ -26,3 +26,4 @@ Contents
    parameters
    fields
    problem_types
+   contributing

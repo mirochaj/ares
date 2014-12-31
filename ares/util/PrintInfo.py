@@ -351,14 +351,14 @@ def print_pop(pop):
     rows = ['is_src', 'approx RTE', 'Eavg / eV', 'erg / g', 'photons / b']
     data = [[bool(pop.pf['is_lya_src']), bool(pop.pf['is_ion_src_cgm']), 
         bool(pop.pf['is_heat_src_igm'])]]
-    data.append([bool(pop.pf['approx_lya']), 'n/a', bool(pop.pf['approx_xray'])])
+    data.append([bool(pop.pf['approx_lwb']), 'n/a', bool(pop.pf['approx_xrb'])])
     data.append((pop.Elw, pop.Eion, pop.Ex))
     data.append((pop.cLW, pop.cUV, pop.cX))
     data.append((pop.Nlw, pop.Nion, pop.Nx))
 
     tabulate(data, rows, cols)
 
-    if not (pop.pf['approx_lya'] and pop.pf['approx_xray']):
+    if not (pop.pf['approx_lwb'] and pop.pf['approx_xrb']):
         print line("sed         :  %s " % pop.pf['spectrum_type'])
         print line("sed         :  normalized by %s emission" % norm_by)
 
@@ -398,7 +398,7 @@ def print_rb(rb):
     if rank > 0 or not rb.pf['verbose']:
         return
 
-    if rb.pf['approx_xray']:
+    if rb.pf['approx_xrb']:
         return
 
     warnings = []        
@@ -446,7 +446,10 @@ def print_rb(rb):
     else:
         print line("Emin (eV)         : %.1e" % rb.pf['spectrum_Emin'])
         print line("Emax (eV)         : %.1e" % rb.pf['spectrum_Emax'])
-        print line("NOTE              : this is a continuous radiation field!")
+        if not rb.pf['discrete_lwb']:
+            print line("NOTE              : this is a continuous radiation field!")
+        else:
+            print line("NOTE              : discretized over first %i Ly-n bands" % rb.pf['lya_nmax'])
 
     print "#"*width
 

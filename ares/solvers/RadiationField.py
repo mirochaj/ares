@@ -117,7 +117,7 @@ class RadiationField: # maybe RadiationNearSource
                         'gamma_%i' % i: gamma_src[i],
                         'Heat_%i' % i: Heat_src[i]})
                         
-                    if not self.pf['approx_lya']:
+                    if not self.pf['approx_lwb']:
                         self.kwargs.update({'Ja_%i' % i: Ja_src[i]})
     
                         #if self.pf['secondary_lya']:
@@ -129,7 +129,7 @@ class RadiationField: # maybe RadiationNearSource
             Heat = np.sum(Heat_src, axis=0)
                 
             # Compute Lyman-Alpha emission
-            if not self.pf['approx_lya']:
+            if not self.pf['approx_lwb']:
                 Ja = np.sum(Ja_src, axis=0)
 
             #if self.pf['secondary_lya']:
@@ -139,7 +139,7 @@ class RadiationField: # maybe RadiationNearSource
             self.kwargs.update({'Gamma': Gamma, 'Heat': Heat, 'gamma': gamma})
             
             # Ja just has len(grid)                
-            if not self.pf['approx_lya']:
+            if not self.pf['approx_lwb']:
                 self.kwargs.update({'Ja': Ja})
     
         # Compute source independent rate coefficients
@@ -384,7 +384,7 @@ class RadiationField: # maybe RadiationNearSource
         self.Gamma = np.array(self.Ns*[np.zeros_like(self.grid.zeros_grid_x_absorbers)])
         self.gamma = np.array(self.Ns*[np.zeros_like(self.grid.zeros_grid_x_absorbers2)])
 
-        if self.pf['approx_lya']:
+        if self.pf['approx_lwb']:
             self.Ja = [None] * self.Ns
         else:
             self.Ja = np.array(self.Ns * [np.zeros(self.grid.dims)])
@@ -528,7 +528,7 @@ class RadiationField: # maybe RadiationNearSource
             
             # This could be post-processed, but eventually may be more
             # sophisticated
-            if self.pf['approx_lya']:
+            if self.pf['approx_lwb']:
                 self.Ja = None
             else:
                 self.Ja[h] = src.Spectrum(E_LyA) * ev_per_hz \

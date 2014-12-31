@@ -16,7 +16,7 @@ redshift. Here, we'll compute the X-ray background evolution over time, and fast
      'Tmin': 1e4,
      'spectrum_type': 'mcd',
      'source_mass': 10.,
-     'approx_xray': False,      # Solve the RTE!
+     'approx_xrb': False,      # Solve the RTE!
      'load_tau': True,          # Look in $GLORB/input/optical_depth for lookup table
      'redshift_bins': 400,      # Sample redshift interval with this many points
     }

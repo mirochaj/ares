@@ -68,7 +68,7 @@ def norm_sed(pop, grid):
     """
     
     pf = pop.pf
-    approx_src = pf['approx_lya'] and pf['approx_xray']
+    approx_src = pf['approx_lwb'] and pf['approx_xrb']
     
     cosm = pop.cosm
     b_per_g = 1. / cosm.g_per_baryon

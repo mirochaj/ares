@@ -55,7 +55,7 @@ X-ray background
 ----------------
 ``cX``
     Normalization of the X-ray luminosity to star formation rate (:math:`L_X`-SFR) relation in 
-    band given by ``spectrum_EminNorm`` and ``spectrum_EmaxNorm``. If ``approx_xray=1``, this
+    band given by ``spectrum_EminNorm`` and ``spectrum_EmaxNorm``. If ``approx_xrb=1``, this
     represents the X-ray luminosity density per unit star formation, such that the heating
     rate density will be equal to :math:`\epsilon_X = f_{X,h} c_X f_X \times \text{SFR}`.
 

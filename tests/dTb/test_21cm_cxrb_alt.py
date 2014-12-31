@@ -23,7 +23,7 @@ pars = \
  'is_ion_src_cgm{0}': True,
  'is_ion_src_igm{0}': False,
  'norm_by{0}': 'lw',
- 'approx_lya{0}': True,
+ 'approx_lwb{0}': True,
 
  'source_type{1}': 'bh',
  'fstar{1}': 1e-1,
@@ -33,7 +33,7 @@ pars = \
  'is_ion_src_cgm{1}': False,
  'is_ion_src_igm{1}': True,
  'is_heat_src_igm{1}': True,
- 'approx_xray{1}': False,
+ 'approx_xrb{1}': False,
  'load_tau{1}': True,
  'redshift_bins{1}': 400,
  'spectrum_type{1}': 'pl',

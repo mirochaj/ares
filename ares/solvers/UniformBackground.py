@@ -18,6 +18,7 @@ from ..util import ParameterFile
 from ..physics.Constants import *
 from .IntergalacticMedium import IGM
 from ..util.PrintInfo import print_rb
+from ..util.Misc import num_freq_bins
 from scipy.interpolate import interp1d
 from ..physics import Hydrogen, Cosmology
 from ..populations import StellarPopulation
@@ -102,7 +103,7 @@ class UniformBackground:
         self._set_integrator()
         
         if self.pf['verbose'] and \
-            (not self.pf['approx_lya'] or not self.pf['approx_xray']):
+            (not self.pf['approx_lwb'] or not self.pf['approx_xrb']):
              print_rb(self)
              
     def _set_integrator(self):    
@@ -338,7 +339,7 @@ class UniformBackground:
     
         return c * (1. + z)**2 * epsilonhat_over_H * np.exp(-tau) / four_pi
     
-    def LWBackground(self, zmin, zmax):
+    def LWBackground(self):
         """
         Compute LW Background over all redshifts.
     
@@ -346,21 +347,23 @@ class UniformBackground:
         -------
         Redshifts, photon energies, and CXB fluxes, (z, E, flux).
         The flux array has shape (# redshift points, # frequency points).
+        Each of these are lists, one element per Lyman-n band.
     
         """
-    
-        raise NotImplemented('still thinking about this!')
-    
+        
         # Now, compute background flux
-        cxrb = self.XrayFluxGenerator(self.igm.tau)
+        cxrb = self.LWFluxGenerator()
     
-        fluxes = np.zeros([self.igm.L, self.igm.N])
-    
+        Nn = len(self.igm.lwb_En)
+        fluxes = [np.zeros_like(self.igm.lwb_emiss[i]) for i in range(Nn)]
+        
         for i, flux in enumerate(cxrb):
-            j = self.igm.L - i - 1  # since we're going from high-z to low-z
-            fluxes[j,:] = flux.copy()
+            j = len(self.igm.lwb_zl) - i - 1  # since we're going from high-z to low-z
+            
+            for n in range(Nn):
+                fluxes[n][j] = flux[n]
     
-        return self.igm.z, self.igm.E, fluxes
+        return self.igm.lwb_zl, self.igm.lwb_En, fluxes    
     
     def LymanWernerFlux(self, z, E, **kwargs):
         """
@@ -406,7 +409,7 @@ class UniformBackground:
         # Closest Lyman line (from above)
         n = ceil(np.sqrt(E_LL / (E_LL - E)))
     
-        if n > self.pf['nmax']:
+        if n > self.pf['lya_nmax']:
             return 0.0
     
         En =  E_LL * (1. - 1. / n**2)
@@ -439,11 +442,33 @@ class UniformBackground:
             flux *= E * erg_per_ev
     
         return flux
+        
+    @property
+    def frec(self):
+        if not hasattr(self, '_frec'):
+            n = np.arange(2, self.pf['lya_nmax'])
+            self._frec = np.array(map(self.hydr.frec, n)) 
     
-    def LymanAlphaFlux(self, z, **kwargs):
+        return self._frec
+        
+    def LymanAlphaFlux(self, z=None, fluxes=None, **kwargs):
         """
         Compute background flux at Lyman-alpha resonance. Includes products
-        of Ly-n cascades if approx_lya=0.
+        of Ly-n cascades if approx_lwb=0.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest
+        fluxes : np.ndarray
+            Results of LWBackground. List of 2-D arrays, one per Ly-n band
+            (from n=2 to n=lya_nmax). 
+            
+        Returns
+        -------
+        Lyman alpha flux at given redshift, or, if fluxes are supplied, returns
+        flux at all redshifts.
+            
         """
     
         if not self.pf['is_lya_src'] or (z > self.pop.zform):
@@ -453,10 +478,14 @@ class UniformBackground:
             return self.pf['Ja'](z)    
     
         # Full calculation
-        if self.pf['approx_lya'] == 0:
+        if self.pf['approx_lwb'] == 0:
     
-            J = 0.0
-            for n in np.arange(2, self.pf['nmax']): 
+            if self.pf['discrete_lwb']:
+                J = np.zeros(fluxes[0].shape[0])
+            else:
+                J = 0.0
+            
+            for i, n in enumerate(np.arange(2, self.pf['lya_nmax'])):
     
                 if n == 2 and not self.pf['lya_continuum']:
                     continue
@@ -464,23 +493,25 @@ class UniformBackground:
                     continue
     
                 En = self.hydr.ELyn(n)
-                Enp1 = self.hydr.ELyn(n+1)
-                Eeval = En + 0.01 * (Enp1 - En)
-                Jn = self.hydr.frec(n) * self.LymanWernerFlux(z, Eeval, 
-                    **kwargs)
+                Enp1 = self.hydr.ELyn(n + 1)
+                
+                if self.pf['discrete_lwb']:
+                    Jn = self.hydr.frec(n) * fluxes[i][:,0]
+                else:
+                    Eeval = En + 0.01 * (Enp1 - En)
+                    Jn = self.hydr.frec(n) * self.LymanWernerFlux(z, Eeval, 
+                        **kwargs)    
     
                 J += Jn
     
-            return J
+            return J    
     
         # Flat spectrum, no injected photons, instantaneous emission only
-        elif self.pf['approx_lya'] == 1:
+        else:
             norm = c * self.cosm.dtdz(z) / four_pi
             return norm * (1. + z)**3 * \
                 self.pop.LymanWernerPhotonLuminosityDensity(z) / dnu
-        else:
-            raise NotImplementedError('Haven\'t implemented approx_lya > 1!')
-    
+        
     def load_sed(self, prefix=None):
         fn = self.pop.rs.sed_name()
     
@@ -644,7 +675,48 @@ class UniformBackground:
     
         self._xray_emissivity = epsilon
         return epsilon
-    
+            
+    def TabulateEmissivity(self, z, E):
+        """
+        Tabulate emissivity over photon energy and redshift.
+        
+        Parameters
+        ----------
+        E : np.ndarray
+            Array of photon energies [eV]
+        z : np.ndarray
+            Array of redshifts 
+            
+        Returns
+        -------
+        A 2-D array, first axis corresponding to redshift, second axis for
+        redshift.
+            
+        """      
+        
+        if np.all(E < E_th[0]):
+            L_func = self.pop.LymanWernerLuminosityDensity
+        else:
+            L_func = self.pop.XrayLuminosityDensity
+        
+        Nz, Nf = len(z), len(E)
+        
+        Inu = np.zeros(Nf)
+        for i in xrange(Nf): 
+            Inu[i] = self.pop.rs.Spectrum(E[i])
+
+        # Convert to photon energy (well, something proportional to it)
+        Inu_hat = Inu / E
+        
+        # Now, redshift dependent parts    
+        epsilon = np.zeros([Nz, Nf])                     
+        for ll in xrange(Nz):
+            H = self.cosm.HubbleParameter(z[ll])                 
+            Lbol = L_func(z[ll])  
+            epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H / erg_per_ev                
+        
+        return epsilon
+            
     def XrayBackground(self):
         """
         Compute Cosmic X-ray Background over all redshifts.
@@ -664,7 +736,7 @@ class UniformBackground:
             j = self.igm.L - i - 1  # since we're going from high-z to low-z
             fluxes[j,:] = flux.copy()
     
-        return self.igm.z, self.igm.E, fluxes
+        return self.igm.z, self.igm.E, fluxes    
     
     def XrayFluxGenerator(self, tau=None, emissivity=None, flux0=None):
         """ 
@@ -774,31 +846,65 @@ class UniformBackground:
             if ll == -1:
                 break
     
-    def TabulateLWFlux(self, z, zarr):
+    def LWFluxGenerator(self):
         """
-        Compute Lyman-series background flux as a function of energy.
-    
-        Parameters
-        ----------
-        z : float
-            observer redshift
-    
-        ===============
-        relevant kwargs
-        ===============
-    
+        Evolute Lyman-Werner background in time.
+        
         Returns
         -------
-        Flux (in units of photon number) as function of observed photon energy,
-        integrated over emission from all redshifts z' > z.
-    
+        Generator for the flux, each in units of s**-1 cm**-2 Hz**-1 sr**-1.
+        Unlike XrayFluxGenerator, this is a list, with each element 
+        corresponding to the flux between n and n+1 resonances.
         """
+        
+        Nn = len(self.igm.lwb_En)
+        
+        flux = [np.zeros_like(self.igm.lwb_En[i]) for i in range(Nn)]
+        
+        L = len(self.igm.lwb_zl)
+        ll = L - 1
+        
+        # Loop over redshift - this is the generator                    
+        z = self.igm.lwb_zl[-1]
+        while z >= self.igm.lwb_zl[0]:
+            
+            # Loop over Lyman-n bands
+            for i, n in enumerate(self.igm.lwb_n):
+                
+                # Emissivity in this band, at this redshift, for all energies
+                emissivity_over_H = self.igm.lwb_emiss[i]
+            
+                # First iteration: no time for there to be flux yet
+                # (will use argument flux0 if the EoR just started)
+                if ll == (L - 1):
+                    pass
+                
+                # General case
+                else:
+                        
+                    trapz_base = 0.5 * \
+                        (self.igm.lwb_zl[ll+1] - self.igm.lwb_zl[ll])
+
+                    # Equivalent to Eq. 25 in Mirocha (2014) but tau = 0
+                    flux[i] = (c / four_pi) \
+                        * ((self.igm.lwb_xsq[ll+1] * trapz_base) \
+                        * emissivity_over_H[ll]) \
+                        + ((c / four_pi) * self.igm.lwb_xsq[ll+1] \
+                        * trapz_base * np.roll(emissivity_over_H[ll+1], -1, axis=-1) \
+                        + np.roll(flux[i], -1) / self.igm.lwb_Rsq)
+                    
+                # No higher energies for photons to redshift from.
+                # An alternative would be to extrapolate, and thus mimic a
+                # background spectrum that is not truncated at Emax
+                flux[i][-1] = 0.0
+        
+            yield flux
     
-        emiss = self.tabulate_lw_emissivity(z, zarr)    
+            # Increment redshift
+            ll -= 1
+            z = self.igm.lwb_zl[ll]
     
-        flux = map(lambda i: self.AngleAveragedFlux(z, self.E[i], zxavg=zarr, 
-            xavg=xarr, tau=tau[i], emissivity=emiss[i], **kwargs), self.Ei)
+            if ll == -1:
+                break
     
-        self._xray_flux = np.array(flux)            
-        return self._xray_flux.copy()
              

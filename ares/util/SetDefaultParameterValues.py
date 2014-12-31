@@ -95,36 +95,41 @@ def PhysicsParameters():
                                 # 2 = Ricotti, Gnedin, & Shull (2002)
                                 # 3 = Furlanetto & Stoever (2010)     
                                 
-    "secondary_lya": 0,         # Collisionally excited Lyman alpha?                               
+    "secondary_lya": False,     # Collisionally excited Lyman alpha?
     
     "isothermal": 1,  
     "expansion": 0,  
     "compton_scattering": 1,
     "recombination": 'B', 
-            
+    
     "clumping_factor": 1,
     
+    "approx_He": 0,
     "approx_sigma": 0,
     "approx_highz": 0,
     "approx_Salpha": 1, # 1 = Salpha = 1
                         # 2 = Chuzhoy, Alvarez, & Shapiro (2005),
                         # 3 = Furlanetto & Pritchard (2006)
     
-    "approx_lya": 0, # 0 = calculate it!
-                     # 1 = Ts -> Tk
-                     
+    # Approximations to radiation fields
+    "approx_lwb": True,
+    'approx_xrb': True,
+    "approx_uvb": True,
     
-    # Only matters if approx_lya == 0
-    "nmax": 23,
+    # If doing "full" calculation, discretize in redshift and energy?
+    "discrete_lwb": True,
+    'discrete_xrb': True,
+    "discrete_uvb": True,
+
+    # Lyman alpha sources
+    "lya_nmax": 23,
     "lya_injected": True,
-    'lya_continuum': True,        
-    
-    "approx_He": 0,
+    'lya_continuum': True,
                      
     "rate_source": 'fk94', # fk94, option for development here
     
     # Approximations to radiation field                   
-    "approx_lya": 1,
+    "approx_lwb": 1,
     "approx_xray": 1,
     "norm_by": 'xray',
     "xray_Emin": 2e2,
@@ -425,6 +430,8 @@ def ControlParameters():
     "tau_table": None,
     "load_tau": False,
     "tau_prefix": tau_prefix,
+    
+    "discrete_lwb": False,
     
     "preferred_format": 'pkl',
     

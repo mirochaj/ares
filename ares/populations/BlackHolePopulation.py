@@ -70,7 +70,7 @@ class BlackHolePopulation:
         # Last redshift we'll consider (for anything)
         self.zoff = self.pf['zoff']
                       
-        self.approx_src = self.pf['approx_lya'] and self.pf['approx_xray']
+        self.approx_src = self.pf['approx_lwb'] and self.pf['approx_xrb']
 
         # Re-normalize bolometric output
         self._init_rs()

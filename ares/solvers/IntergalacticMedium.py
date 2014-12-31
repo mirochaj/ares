@@ -17,9 +17,9 @@ from ..util import ParameterFile
 from ..physics.Constants import *
 import types, os, re, sys, pickle
 from ..util.Misc import num_freq_bins
-from ..physics import Cosmology, SecondaryElectrons
 from ..util.Warnings import tau_tab_z_mismatch, no_tau_table
 from scipy.integrate import dblquad, romb, simps, quad, trapz
+from ..physics import Cosmology, SecondaryElectrons, Hydrogen
 
 try:
     import h5py
@@ -97,9 +97,20 @@ class IGM(object):
         self.self_consistent_He = self.pf['include_He'] \
             and (not self.pf['approx_He'])
         
-        self.cosm = Cosmology()
+        self.cosm = Cosmology(
+                omega_m_0=self.pf['omega_m_0'], 
+                omega_l_0=self.pf['omega_l_0'], 
+                omega_b_0=self.pf['omega_b_0'],
+                hubble_0=self.pf['hubble_0'],
+                helium_by_number=self.pf['helium_by_number'], 
+                cmb_temp_0=self.pf['cmb_temp_0'],
+                approx_highz=self.pf['approx_highz'])
+                
         self.esec = \
             SecondaryElectrons(method=self.pf["secondary_ionization"])  
+            
+        self.hydr = Hydrogen(cosm=self.cosm, 
+            approx_Salpha=self.pf['approx_Salpha'])
             
         # Choose function for computing bound-free absorption cross-sections                
         if self.pf['approx_sigma']:
@@ -112,12 +123,58 @@ class IGM(object):
         self.sigma = sigma
         self.sigma0 = sigma(E_th[0])    # Hydrogen ionization threshold
         
-        if not self.pf['approx_xray']:
-            self._set_discrete_quantities(use_tab=use_tab)
+        if not self.pf['approx_xrb']:
+            self._init_xrb(use_tab=use_tab)
+        if self.pf['discrete_lwb']:
+            self._init_lwb()
         
         self._set_integrator()
         
-    def _set_discrete_quantities(self, use_tab=True):
+    def _init_lwb(self):
+        """
+        Initialize grids for discrete integration of LW Background.
+        """
+        
+        zi = self.pf['initial_redshift']
+        zf = self.pf['final_redshift']
+        nmax = self.pf['lya_nmax']
+        
+        Nz = 1e4
+        x = np.logspace(np.log10(1 + zf), np.log10(1 + zi), Nz)
+        
+        self.lwb_zl = z = x - 1.
+        
+        logx = np.log10(x)
+        logz = np.log10(z)
+
+        # Constant ratio between elements in x-grid
+        R = x[1] / x[0]
+        logR = np.log10(R)
+        
+        self.lwb_Rsq = R**2
+        self.lwb_xsq = x**2
+        
+        n_horizon = lambda n: (1. - (n + 1.)**-2.) / (1. - n**-2.)
+
+        self.lwb_n = np.arange(2, nmax)
+        self.lwb_En = []
+        self.lwb_emiss = []     
+        for n in self.lwb_n:
+            E1 = self.hydr.ELyn(n)
+            E2 = self.hydr.ELyn(n + 1)
+
+            Nf = num_freq_bins(Nz, zi=zi, zf=zf, Emin=E1, Emax=E2)
+
+            # Create energy arrays
+            E = E1 * R**np.arange(Nf)
+            
+            # Tabulate emissivity
+            ehat = self.rb.TabulateEmissivity(z, E)
+
+            self.lwb_En.append(E)
+            self.lwb_emiss.append(ehat)
+            
+    def _init_xrb(self, use_tab=True):
         """
         From parameter file, initialize grids in redshift and frequency.
         
@@ -150,14 +207,14 @@ class IGM(object):
 
         # Use Haardt & Madau (1996) Appendix C technique for z, nu grids
         if not ((self.pf['redshift_bins'] is not None or \
-            self.pf['tau_table'] is not None) and (not self.pf['approx_xray'])):
+            self.pf['tau_table'] is not None) and (not self.pf['approx_xrb'])):
               
             raise NotImplemented('whats going on here')
 
-        if use_tab and (self.pf['tau_table'] is not None or self.pf['load_tau']):
+        if use_tab and (self.pf['tau_table'] is not None or self.pf['discrete_xrb']):
                             
             found = False
-            if self.pf['load_tau']:
+            if self.pf['discrete_xrb']:
                 
                 # First, look in CWD or $ARES (if it exists)
                 self.tabname = self.load_tau(self.pf['tau_prefix'])
@@ -541,7 +598,7 @@ class IGM(object):
         Determine dimensions of optical depth table.
         
         Unfortunately, this is a bit redundant with the procedure in
-        self._set_discrete_quantities, but that's the way it goes.
+        self._init_xrb, but that's the way it goes.
         """
         
         # Set up log-grid in parameter x = 1 + z
@@ -629,7 +686,7 @@ class IGM(object):
         if kw['zf'] is None and self.pop is not None:
             kw['zf'] = self.pop.zform
         
-        if kw['Emax'] is None and (not self.pf['approx_xray']):
+        if kw['Emax'] is None and (not self.pf['approx_xrb']):
             kw['Emax'] = self.E1    
             
         return kw
@@ -675,7 +732,7 @@ class IGM(object):
 
         # Compute fraction of photo-electron energy deposited as heat
         if self.pf['fXh'] is None:
-            if self.esec.Method > 1 and (not self.pf['approx_xray']) \
+            if self.esec.Method > 1 and (not self.pf['approx_xrb']) \
                 and (kw['xray_flux'] is not None):
                 if kw['igm_h_2'] == 0:
                     fheat = self.fheat[:,0]
@@ -696,7 +753,7 @@ class IGM(object):
             
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
-        if self.pf['approx_xray']:
+        if self.pf['approx_xrb']:
             weight = self.rate_to_coefficient(z, species, **kw)
             L = self.pop.XrayLuminosityDensity(z) # erg / s / c-cm**3
 
@@ -858,7 +915,7 @@ class IGM(object):
         if self.pf['Gamma_igm'] is not None:
             return self.pf['Gamma_igm'](z, species, **kw)
 
-        if self.pf['approx_xray']:
+        if self.pf['approx_xrb']:
             weight = self.rate_to_coefficient(z, species, **kw)
             primary = weight * self.pop.XrayLuminosityDensity(z) \
                 * (1. + z)**3 / self.pop.pf['xray_Eavg'] / erg_per_ev
@@ -937,7 +994,7 @@ class IGM(object):
             return 0.0
 
         # Computed in IonizationRateIGM in this case
-        if self.pf['approx_xray']:
+        if self.pf['approx_xrb']:
             return 0.0
 
         if not self.rb.pf['is_ion_src_igm']:
@@ -1022,8 +1079,6 @@ class IGM(object):
         """
         Flux of Lyman-alpha photons induced by photo-electron collisions.
         
-        
-        
         """
             
         if not self.pf['secondary_lya']:
@@ -1035,7 +1090,7 @@ class IGM(object):
         kw = self._fix_kwargs(**kwargs)
                 
         # Compute fraction of photo-electron energy deposited as Lya excitation
-        if self.esec.Method > 1 and (not self.pf['approx_xray']) \
+        if self.esec.Method > 1 and (not self.pf['approx_xrb']) \
             and (kw['xray_flux'] is not None):
             if kw['igm_h_2'] == 0:
                 flya = self.flya[:,0]
@@ -1174,7 +1229,7 @@ class IGM(object):
         Notes
         -----
         Assumes logarithmic grid in variable x = 1 + z. Corresponding 
-        grid in photon energy determined in _set_discrete_quantities.    
+        grid in photon energy determined in _init_xrb.    
             
         Returns
         -------

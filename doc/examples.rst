@@ -40,4 +40,9 @@ Surveying Parameter Space
 * :doc:`example_grid_I`
 * :doc:`example_grid_II`
 
+Post-Processing Cosmological Simulations
+----------------------------------------
+* :doc:`example_sims_diffuse`
+* :doc:`example_sims_ptsrc`
+
 

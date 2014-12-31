@@ -37,7 +37,7 @@ object first -- we can instead pass keyword arguments directly to the
      "spectrum_type": 'bb', 
      "spectrum_Emin": 1., 
      "spectrum_Emax": 1e2,
-     "approx_lya": False,        # this tells glorb we'll need to solve the RTE
+     "approx_lwb": False,        # this tells glorb we'll need to solve the RTE
      "norm_by": 'lw', 
      "Nlw": 1e4,
     }

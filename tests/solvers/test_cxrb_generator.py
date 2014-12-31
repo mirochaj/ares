@@ -27,7 +27,7 @@ src_pars = \
  'spectrum_Emax': 3e4,
  'spectrum_EminNorm': 2e2,
  'spectrum_EmaxNorm': 5e4,
- 'approx_xray': 0,
+ 'approx_xrb': False,
  'redshift_bins': 400,
  'initial_redshift': zi,
  'final_redshift': zf,

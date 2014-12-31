@@ -242,7 +242,7 @@ class WriteData():
                     to_keep.update({'%s_Gamma_%s' % (zone, state): \
                         rt.kwargs['Gamma']})
                     
-                    if rt.pf['approx_xray']:
+                    if rt.pf['approx_xrb']:
                         to_keep.update({'%s_gamma_%s_%s' % (zone, state, state): 0.0})
                     else:
                         to_keep.update({'%s_gamma_%s_%s' % (zone, state, state): \
@@ -261,11 +261,12 @@ class WriteData():
         ##
 
         # Compute Lyman-alpha background for WF coupling
-
-        if self.sim.pf['radiative_transfer'] and z < self.sim.zfl:
-            Ja = np.sum([rb.LymanAlphaFlux(z) for rb in self.sim.rbs])
-        else:
-            Ja = 0.0    
+        Ja = data_igm_fl['Ja']
+        
+        #if self.sim.pf['radiative_transfer'] and z < self.sim.zfl:
+        #    Ja = np.sum([rb.LymanAlphaFlux(z) for rb in self.sim.rbs])
+        #else:
+        #    Ja = 0.0    
 
         Ja_X = 0.0
         #if self.sim.pf['radiative_transfer'] and z < self.sim.zfl:

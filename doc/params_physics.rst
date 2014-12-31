@@ -53,13 +53,13 @@ True                 False          Solve for helium self-consistently
     
     Default: 0
 
-``approx_lya``
+``approx_lwb``
     0) Solves RTE (i.e., full "sawtooth" background).
     1) Assume flat spectrum between Lyman-:math:`\alpha` and the Lyman limit.
     
     Default: 1
     
-``approx_xray``
+``approx_xrb``
     0) Solves RTE.
     1) Heating due to instantaneous X-ray luminosity.
 

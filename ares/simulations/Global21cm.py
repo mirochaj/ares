@@ -26,13 +26,13 @@ from ..util.SetDefaultParameterValues import SetAllDefaults
 from ..util import ProgressBar, RestrictTimestep, ParameterFile
 from ..physics.Constants import k_B, m_p, G, g_per_msun, c, sigma_T, \
     erg_per_ev, nu_0_mhz
-    
+
 try:
     import h5py
     have_h5py = True
 except ImportError:
     have_h5py = False
-    
+
 try:
     from scipy.interpolate import interp1d
 except ImportError:
@@ -58,17 +58,6 @@ class Global21cm:
         --------
         Set of all acceptable kwargs in:
             ares/util/SetDefaultParameterValues.py
-        
-        If you'd prefer not to run from recombination each time, make high-z
-        initial conditions once and read-in from then on:
-            ares/input/generate_initial_conditions.py
-        
-        If you'd prefer to generate lookup tables for the halo mass function,
-        rather than re-calculating each time, run:
-            ares/input/generate_hmf_tables.py
-            
-        Same deal for IGM optical depth:
-            ares/input/generate_optical_depth_tables.py
             
         """
         
@@ -240,6 +229,7 @@ class Global21cm:
         if self.pf["radiative_transfer"]:
             self._init_RT(self.pf)
         else:
+            self.approx_all_lw = 1
             self.approx_all_xray = 1  # will be updated in _init_RT
             self.srcs = None
             
@@ -268,6 +258,9 @@ class Global21cm:
             else:
                 self._init_XRB()
             
+        if not self.approx_all_lw:
+            self._init_LWB()    
+            
         if self.pf['track_extrema']:
             from ..analysis.TurningPoints import TurningPoints
             self.track = TurningPoints(inline=True, **self.pf)    
@@ -292,12 +285,37 @@ class Global21cm:
         self.Nrbs = len(self.rbs)
         
         self.approx_all_xray = 1
+        self.approx_all_lw  = 1
         
         for rb in self.rbs:
-            self.approx_all_xray *= rb.pf['approx_xray']
+            self.approx_all_xray *= rb.pf['approx_xrb']
+            self.approx_all_lw *= rb.pf['approx_lwb']
         
         # Don't have to do this...could just stick necessary attributes in RB
         self.srcs = [DiffuseSource(rb) for rb in self.rbs]
+
+    def _init_LWB(self):
+        """ Setup cosmic Lyman-Werner background calculation. """
+        
+        self._Jrb = []
+        for rb in self.rbs:
+            if (not rb.pf['is_lya_src']) or (not rb.pf['discrete_lwb'])\
+                or rb.pf['approx_lwb']:
+                self._Jrb.append(None)
+                continue
+            
+            lwb_z, lwb_En, lwb_J = rb.LWBackground()
+            self._Jrb.append((lwb_z, lwb_En, lwb_J))
+        
+        # Sum up Lyman-alpha flux
+        self.lwb_z, self.lwb_En = lwb_z, lwb_En
+        
+        self.lwb_Ja = np.zeros_like(self.lwb_z)
+        for i, rb in enumerate(self.rbs):
+            if self._Jrb[i] is None:
+                continue
+            
+            self.lwb_Ja += rb.LymanAlphaFlux(fluxes=self._Jrb[i][-1])
 
     def _init_XRB(self, pre_EoR=True, **kwargs):
         """ Setup cosmic X-ray background calculation. """
@@ -308,7 +326,7 @@ class Global21cm:
             # Store XrayFluxGenerators
             self.cxrb_gen = [None for i in range(self.Nrbs)]
             for i, rb in enumerate(self.rbs):
-                if rb.pf['approx_xray']:
+                if rb.pf['approx_xrb']:
                     continue
 
                 self.cxrb_gen[i] = rb.XrayFluxGenerator(rb.igm.tau)
@@ -349,7 +367,7 @@ class Global21cm:
             
             # Figure out first two redshifts
             for i, rb in enumerate(self.rbs):
-                if rb.pop.pf['approx_xray']:
+                if rb.pop.pf['approx_xrb']:
                     continue
 
                 self.cxrb_zhi = rb.igm.z[-1]
@@ -362,7 +380,7 @@ class Global21cm:
                 self.xray_flux[i].extend([fluxes_hi[i], fluxes_lo[i]])
         else:
             for i, rb in enumerate(self.rbs):
-                if rb.pf['approx_xray']:
+                if rb.pf['approx_xrb']:
                     continue
                     
                 self.cxrb_shape = (rb.igm.L, rb.igm.N)     
@@ -407,7 +425,7 @@ class Global21cm:
             
             for j, absorber in enumerate(self.grid.absorbers):
             
-                if rb.pop.pf['approx_xray']:
+                if rb.pop.pf['approx_xrb']:
                     self.cxrb_hlo[i,j] = \
                         rb.igm.HeatingRate(self.cxrb_zlo, return_rc=True, **kwargs)
                     self.cxrb_hhi[i,j] = \
@@ -598,6 +616,21 @@ class Global21cm:
             # Solve for the volume filling factor of HII regions
             if self.pf['radiative_transfer'] and (z <= zfl):
                 data_cgm = self.rt_cgm.Evolve(data_cgm, t=t, dt=dt, z=z, **kwargs)
+
+            # Evolve LW background and compute Lyman-alpha flux
+            if self.pf['radiative_transfer'] and z < self.zfl:
+                if self.pf['approx_lwb']:
+                    Ja = np.sum([rb.LymanAlphaFlux(z) for rb in self.rbs])
+                else:
+                    Ja = np.interp(z, self.lwb_z, self.lwb_Ja)
+                    
+                    if self.feedback_ON:
+                        raise NotImplemented('feedback and full sawtooth incompatible right now! help.')
+            else:
+                Ja = 0.0
+                
+            # Add Ja to history even though it didn't come out of solver
+            data_igm['Ja'] = np.array([Ja])
 
             # Increment time and redshift
             zpre = z
@@ -1108,7 +1141,7 @@ class Global21cm:
                     if j > 0 and self.pf['approx_He']:
                         continue
                                         
-                    if rb.pop.pf['approx_xray']:
+                    if rb.pop.pf['approx_xrb']:
                         
                         heat_rb = rb.igm.HeatingRate(self.cxrb_zlo, 
                             species=j, return_rc=True, **kwargs)
@@ -1248,14 +1281,4 @@ class Global21cm:
         
         self.write.save(prefix, suffix, clobber)
         
-    #def _check_for_conflicts(self):
-    #    if not self.pf['radiative_transfer']:
-    #        return
-    #        
-    #    if self.pf['approx_lya'] == 0 and np.all(self.pf['spectrum_Emin'] > 13.6):
-    #        raise ValueError('Must supply Lyman series spectrum!')
-    #    
-    #    if self.pf['approx_xray'] == 0 and self.pf['load_tau'] == 0 \
-    #        and self.pf['tau_table'] is None:
-    #        raise ValueError('Supply tau_table or set load_tau=True when approx_xray=False')
 
