@@ -79,7 +79,7 @@ the redshift evolution of all IGM physical quantities, or use some built-in
 analysis routines: ::
 
     anl = ares.analysis.Global21cm(sim)
-    anl.GlobalSignature()
+    ax = anl.GlobalSignature()                     # Plot global 21-cm signal and return axes object
     
 See the documentation for more examples.
 
