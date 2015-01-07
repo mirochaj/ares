@@ -14,8 +14,6 @@ A few papers on how it works:
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
 
-The `documentation <http://ares.readthedocs.org/en/latest/>`_ is still a work in progress.
-
 Getting started
 ---------------------
 To clone a copy and install: ::
@@ -87,7 +85,7 @@ See the documentation for more examples.
 
 Documentation
 --------------
-No public documentation yet. To generate the documentation locally, ::
+To generate the documentation locally, ::
 
     cd $ARES/doc
     make html
@@ -100,3 +98,5 @@ pip: ::
     pip install sphinx
 
 If that doesn't work, let me know!
+
+You can view the latest build `here <http://ares.readthedocs.org/en/latest/>`_.
