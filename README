@@ -71,21 +71,26 @@ To generate a global 21-cm signal, simply type: ::
 
     import ares
     
-    sim = ares.simulations.Global21cm()
-    sim.run()
+    sim = ares.simulations.Global21cm()      # Initialize a simulation object
+    sim.run()                                                  
     
 You can examine the contents of ``sim.history``, a dictionary which contains 
 the redshift evolution of all IGM physical quantities, or use some built-in 
 analysis routines: ::
 
-    anl = ares.analysis.Global21cm(sim)
-    anl.GlobalSignature()
+    anl = ares.analysis.Global21cm(sim)     # Initialize the analysis class
+    ax = anl.GlobalSignature()                     
     
+If the plot doesn't appear automatically, set ``interactive: True`` in your matplotlibrc file or type: ::
+
+    import matplotlib.pyplot as pl
+    pl.show()
+
 See the documentation for more examples.
 
 Documentation
 --------------
-No public documentation yet. To generate the documentation locally, ::
+To generate the documentation locally, ::
 
     cd $ARES/doc
     make html
@@ -97,4 +102,4 @@ pip: ::
 
     pip install sphinx
 
-If that doesn't work, let me know!
+You can also just view the latest build `here <http://ares.readthedocs.org/en/latest/>`_.
