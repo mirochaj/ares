@@ -123,9 +123,10 @@ class IGM(object):
         self.sigma = sigma
         self.sigma0 = sigma(E_th[0])    # Hydrogen ionization threshold
         
-        if not self.pf['approx_xrb']:
+        if not self.pf['approx_xrb'] and self.pf['is_heat_src_igm']:
             self._init_xrb(use_tab=use_tab)
-        if self.pf['discrete_lwb']:
+        if self.pf['discrete_lwb'] and self.pf['is_lya_src'] \
+            and (not self.pf['approx_lwb']): 
             self._init_lwb()
         
         self._set_integrator()

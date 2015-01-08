@@ -27,7 +27,7 @@ plpars = \
  'spectrum_EminNorm': 2e2,
  'spectrum_EmaxNorm': 3e4,
  'spectrum_logN': -np.inf,
- 'approx_xray': 0,
+ 'approx_xrb': 0,
  'redshift_bins': 400,
  'load_tau': True,
  'norm_by': 'xray',

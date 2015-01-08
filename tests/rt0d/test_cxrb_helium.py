@@ -28,7 +28,7 @@ pars = \
  'spectrum_Emax': 3e4,
  'spectrum_EminNorm': 2e2,
  'spectrum_EmaxNorm': 3e4,
- 'approx_xray': False,
+ 'approx_xrb': False,
  'initial_redshift': zi,
  'final_redshift': zf,
  'redshift_bins': 400,

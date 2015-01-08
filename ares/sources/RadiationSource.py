@@ -12,6 +12,7 @@ Description: Initialize a radiation source.
 
 import re, os
 import numpy as np
+from ..physics import Hydrogen
 from scipy.integrate import quad
 from ..util import ParameterFile
 from ..physics.Constants import *
@@ -123,6 +124,27 @@ class RadiationSource(object):
         # Create lookup tables for integral quantities
         if init_tabs and grid is not None:
             self._create_integral_table(logN=logN) 
+        
+    @property
+    def hydr(self):
+        if not hasattr(self, '_hydr'):
+            self._hydr = Hydrogen(approx_Salpha=self.pf['approx_Salpha'], 
+                nmax=self.pf['lya_nmax'])
+                
+        return self._hydr
+                
+    @property
+    def frec(self):
+        """
+        Compute average recycling fraction (i.e., spectrum-weighted frec).
+        """    
+        
+        n = np.arange(2, self.hydr.nmax)
+        En = np.array(map(self.hydr.ELyn, n))
+        In = np.array(map(self.Spectrum, En)) / En
+        fr = np.array(map(self.hydr.frec, n))
+        
+        return np.sum(fr * In) / np.sum(In)
         
     @property
     def _normL(self):

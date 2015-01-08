@@ -29,7 +29,7 @@ pars = \
  'approx_He': False,
  'approx_xrb': False,
  'approx_lwb': False,
- 'lya_nmax': 8, 
+ 'lya_nmax': 8,
  'Nlw': 9690.,
  'norm_by': 'lw',
  'is_ion_src_cgm': False,

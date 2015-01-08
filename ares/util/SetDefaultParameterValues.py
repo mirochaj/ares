@@ -125,12 +125,11 @@ def PhysicsParameters():
     "lya_nmax": 23,
     "lya_injected": True,
     'lya_continuum': True,
+    'lya_frec_bar': 0.34,   # Mean recycling fraction for flat LW spectrum
                      
     "rate_source": 'fk94', # fk94, option for development here
     
     # Approximations to radiation field                   
-    "approx_lwb": 1,
-    "approx_xray": 1,
     "norm_by": 'xray',
     "xray_Emin": 2e2,
     
@@ -430,9 +429,7 @@ def ControlParameters():
     "tau_table": None,
     "load_tau": False,
     "tau_prefix": tau_prefix,
-    
-    "discrete_lwb": False,
-    
+        
     "preferred_format": 'pkl',
     
     # Finding SED tables

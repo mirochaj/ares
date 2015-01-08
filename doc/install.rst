@@ -14,11 +14,16 @@ and optionally:
 * `mpi4py <http://mpi4py.scipy.org>`_
 * `h5py <http://www.h5py.org/>`_
 
-To download the code, do::
+To download the code, type::
 
     hg clone https://bitbucket.org/mirochaj/ares ares
     cd ares
     python setup.py install
+    
+It would be in your best interest to set an environment variable which points
+to the ARES install directory, e.g. (in bash) ::
+
+    export ARES=/users/<yourusername>/ares    
     
 A few lookup tables will be downloaded to ``$ARES/input`` automatically.    
 

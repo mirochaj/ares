@@ -1024,6 +1024,7 @@ class Global21cm:
                 self.data_asc[field])
         else:
             raise NotImplemented('help!')
+            
         return float(interp(z))
         
 

@@ -95,7 +95,7 @@ class UniformBackground:
         # Some useful physics modules
         self.cosm = self.pop.cosm
         self.hydr = Hydrogen(self.pop.cosm, 
-            approx_Salpha=self.pf['approx_Salpha'])
+            approx_Salpha=self.pf['approx_Salpha'], nmax=self.pf['lya_nmax'])
         
         # IGM instance
         self.igm = IGM(rb=self, use_tab=use_tab, **kwargs)
@@ -463,23 +463,23 @@ class UniformBackground:
         fluxes : np.ndarray
             Results of LWBackground. List of 2-D arrays, one per Ly-n band
             (from n=2 to n=lya_nmax). 
-            
+
         Returns
         -------
         Lyman alpha flux at given redshift, or, if fluxes are supplied, returns
         flux at all redshifts.
             
         """
-    
+
         if not self.pf['is_lya_src'] or (z > self.pop.zform):
             return 0.0
-            
+
         if self.pf['Ja'] is not None:
             return self.pf['Ja'](z)    
-    
+
         # Full calculation
         if self.pf['approx_lwb'] == 0:
-    
+
             if self.pf['discrete_lwb']:
                 J = np.zeros(fluxes[0].shape[0])
             else:
@@ -504,12 +504,12 @@ class UniformBackground:
     
                 J += Jn
     
-            return J    
+            return J
     
         # Flat spectrum, no injected photons, instantaneous emission only
         else:
             norm = c * self.cosm.dtdz(z) / four_pi
-            return norm * (1. + z)**3 * \
+            return norm * (1. + z)**3 * (1. + self.pf['lya_frec_bar']) * \
                 self.pop.LymanWernerPhotonLuminosityDensity(z) / dnu
         
     def load_sed(self, prefix=None):
@@ -893,9 +893,9 @@ class UniformBackground:
                         * trapz_base * np.roll(emissivity_over_H[ll+1], -1, axis=-1) \
                         + np.roll(flux[i], -1) / self.igm.lwb_Rsq)
                     
-                # No higher energies for photons to redshift from.
-                # An alternative would be to extrapolate, and thus mimic a
-                # background spectrum that is not truncated at Emax
+                # This must be corrected: this bin cannot contain photons
+                # that originated @ z_{ll+1} because those photons would be 
+                # absorbed at the Ly-n+1 resonance, not Ly-n.
                 flux[i][-1] = 0.0
         
             yield flux

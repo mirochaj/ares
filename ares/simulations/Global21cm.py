@@ -619,13 +619,16 @@ class Global21cm:
 
             # Evolve LW background and compute Lyman-alpha flux
             if self.pf['radiative_transfer'] and z < self.zfl:
-                if self.pf['approx_lwb']:
-                    Ja = np.sum([rb.LymanAlphaFlux(z) for rb in self.rbs])
-                else:
-                    Ja = np.interp(z, self.lwb_z, self.lwb_Ja)
+                
+                Ja = 0.0
+                for rb in self.rbs:
+                    if not rb.pf['approx_lwb']:
+                        continue
+                    Ja += rb.LymanAlphaFlux(z)
+                
+                if hasattr(self, 'lwb_Ja'):
+                    Ja += np.interp(z, self.lwb_z, self.lwb_Ja)
                     
-                    if self.feedback_ON:
-                        raise NotImplemented('feedback and full sawtooth incompatible right now! help.')
             else:
                 Ja = 0.0
                 

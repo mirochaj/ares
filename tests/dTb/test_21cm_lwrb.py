@@ -33,23 +33,23 @@ pars = \
   
 }
 
-# Multi-pop model, one with real RT
-sim = ares.simulations.Global21cm()
+# Fiducial model, approximate Lyman-alpha background
+sim = ares.simulations.Global21cm(Nlw=9690)
 sim.run()
 
 anl = ares.analysis.Global21cm(sim)
 ax = anl.GlobalSignature()
 
-fig2 = pl.figure(2)
-ax2 = fig2.add_subplot(111)
-ax2.semilogy(sim.history['z'], sim.history['Ja'], color='k')
-
+#fig2 = pl.figure(2)
+#ax2 = fig2.add_subplot(111)
+#ax2.semilogy(sim.history['z'], sim.history['Ja'], color='k')
+#
 ls = '-', '--'
 colors = 'b', 'g', 'm'
 for j, injected in enumerate([True, False]):
     tpB = []
 
-    for i, logT in enumerate([4, 4.5, 5]):
+    for i, logT in enumerate([4, 4.7, 5]):
         pars.update({'source_temperature': 10**logT, 'lya_injected': injected})
         sim2 = ares.simulations.Global21cm(**pars)
         sim2.run()
@@ -62,12 +62,13 @@ for j, injected in enumerate([True, False]):
         anl2 = ares.analysis.Global21cm(sim2)
         anl2.GlobalSignature(ax=ax, color=colors[i], label=label, ls=ls[j])
 
-        ax2.semilogy(sim2.history['z'], sim2.history['Ja'], color=colors[i])
+        #ax2.semilogy(sim2.history['z'], sim2.history['Ja'], color=colors[i])
 
         #tpB.append(anl2.turning_points['B'])
-    
-ax2.set_xlim(5, 50)
-pl.show()
 
-for element in tpB:
-    print element
+pl.draw()    
+#ax2.set_xlim(5, 50)
+#pl.show()
+#
+#for element in tpB:
+#    print element

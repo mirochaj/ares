@@ -47,7 +47,7 @@ pars = \
  'include_He': helium,
  'spectrum_Emin': Emin,
  'spectrum_Emax': Emax,
- 'approx_xray': 0,
+ 'approx_xrb': 0,
  'approx_He': helium,
  'initial_redshift': zi,
  'final_redshift': zf,

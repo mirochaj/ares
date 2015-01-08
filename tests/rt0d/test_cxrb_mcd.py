@@ -32,7 +32,7 @@ plpars = \
  'spectrum_EminNorm': 5e2,
  'spectrum_EmaxNorm': 8e3,
  'spectrum_logN': 21,
- 'approx_xray': 0,
+ 'approx_xrb': 0,
  'approx_He': 0,
  'norm_by': 'xray',
 }
@@ -51,8 +51,8 @@ mcdpars = \
  'spectrum_EminNorm': 0,
  'spectrum_EmaxNorm': np.inf,
  'norm_by': 'xray',
- 'approx_xray': 0,
- 'approx_lya': 0,
+ 'approx_xrb': 0,
+ 'approx_lwb': 0,
 }
 
 mcdsrc = ares.solvers.UniformBackground(**mcdpars)
