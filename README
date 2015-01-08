@@ -97,6 +97,4 @@ pip: ::
 
     pip install sphinx
 
-If that doesn't work, let me know!
-
-You can view the latest build `here <http://ares.readthedocs.org/en/latest/>`_.
+You can also just view the latest build `here <http://ares.readthedocs.org/en/latest/>`_.
