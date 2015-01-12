@@ -187,10 +187,23 @@ class ParameterFile(dict):
         Run through parsed parameter file looking for conflicts.
         """
         for kwarg in pf:
-            if kwarg in self.defaults.keys():
+            
+            m = re.search(r"\{([0-9])\}", kwarg)
+
+            if m is None:
+                par = kwarg
+
+            else:
+                # Population ID number
+                num = int(m.group(1))
+                
+                # Pop ID including curly braces
+                par = kwarg.strip(m.group(0))
+            
+            if par in self.defaults.keys():
                 continue
             
-            print 'WARNING: Unrecognized parameter: %s' % kwarg        
+            print 'WARNING: Unrecognized parameter: %s' % par        
     
         conflicts = CheckForParameterConflicts(pf)
     

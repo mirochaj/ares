@@ -125,7 +125,8 @@ def PhysicsParameters():
     "lya_nmax": 23,
     "lya_injected": True,
     'lya_continuum': True,
-    'lya_frec_bar': 0.34,   # Mean recycling fraction for flat LW spectrum
+    'lya_frec_bar': 0.0,   # Neglect injected photons by default if we're
+                           # treating background in approximate way
                      
     "rate_source": 'fk94', # fk94, option for development here
     

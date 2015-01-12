@@ -345,7 +345,7 @@ class UniformBackground:
     
         Returns
         -------
-        Redshifts, photon energies, and CXB fluxes, (z, E, flux).
+        Redshifts, photon energies, and fluxes, (z, E, flux).
         The flux array has shape (# redshift points, # frequency points).
         Each of these are lists, one element per Lyman-n band.
     

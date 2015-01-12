@@ -82,7 +82,8 @@ class Global21cm:
                     self.history = tanh_model(z, **self.pf).data
 
                     self.grid = Grid(dims=1)
-                    self.grid.set_cosmology(initial_redshift=self.pf['initial_redshift'], 
+                    self.grid.set_cosmology(
+                        initial_redshift=self.pf['initial_redshift'], 
                         omega_m_0=self.pf["omega_m_0"], 
                         omega_l_0=self.pf["omega_l_0"], 
                         omega_b_0=self.pf["omega_b_0"], 
@@ -341,17 +342,17 @@ class Global21cm:
             # Save X-ray background incrementally
             self.xray_flux = [[] for i in range(self.Nrbs)]
             self.xray_heat = [[] for i in range(self.Nrbs)]
-                
+
             # Generate fluxes at first two redshifts
             fluxes_lo = []; fluxes_hi = []
             for cxrb in self.cxrb_gen:
-                                
+
                 if cxrb is None:
                     fluxes_hi.append(0.0)
                     continue
-            
-                fluxes_hi.append(cxrb.next())  # this line halting parallel calculations
-            
+
+                fluxes_hi.append(cxrb.next())
+
             for cxrb in self.cxrb_gen:
                 if cxrb is None:
                     fluxes_lo.append(0.0)
@@ -617,6 +618,12 @@ class Global21cm:
             if self.pf['radiative_transfer'] and (z <= zfl):
                 data_cgm = self.rt_cgm.Evolve(data_cgm, t=t, dt=dt, z=z, **kwargs)
 
+            # Increment time and redshift
+            zpre = z
+            
+            t += dt
+            z -= dt / self.grid.cosm.dtdz(z)
+            
             # Evolve LW background and compute Lyman-alpha flux
             if self.pf['radiative_transfer'] and z < self.zfl:
                 
@@ -634,16 +641,10 @@ class Global21cm:
                 
             # Add Ja to history even though it didn't come out of solver
             data_igm['Ja'] = np.array([Ja])
-
-            # Increment time and redshift
-            zpre = z
-            
-            t += dt
-            z -= dt / self.grid.cosm.dtdz(z)
             
             # SAVE RESULTS
             self.write._update_history(z, zpre, data_igm, data_cgm)
-                        
+                                      
             if z <= zf:
                 break
 

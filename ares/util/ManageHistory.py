@@ -40,7 +40,7 @@ rates = ['Gamma', 'gamma', 'heat']
 class WriteData():
     def __init__(self, sim):
         self.sim = sim
-
+        
     def _initialize_history(self):
         """
         Store initial conditions in 'history' dictionary which will store
@@ -98,7 +98,7 @@ class WriteData():
             history['Ja'] = [0.0]
         else:
             history['Ja'] = [self.sim.pf['Ja'](zinit)]
-            
+                        
         if self.sim.pf['secondary_lya'] and not self.sim.approx_all_xray:
             history['Ja_X'] = [0.0]    
         
@@ -263,11 +263,6 @@ class WriteData():
         # Compute Lyman-alpha background for WF coupling
         Ja = data_igm_fl['Ja']
         
-        #if self.sim.pf['radiative_transfer'] and z < self.sim.zfl:
-        #    Ja = np.sum([rb.LymanAlphaFlux(z) for rb in self.sim.rbs])
-        #else:
-        #    Ja = 0.0    
-
         Ja_X = 0.0
         #if self.sim.pf['radiative_transfer'] and z < self.sim.zfl:
         #    if self.sim.pf['secondary_lya'] and not self.sim.approx_all_xray:
@@ -283,7 +278,7 @@ class WriteData():
         self.sim.history['Ja'].append(Ja)
         
         if self.sim.pf['secondary_lya'] and not self.sim.approx_all_xray:
-            self.sim.history['Ja_X'].append(Ja)
+            self.sim.history['Ja_X'].append(Ja_X)
         
         self.sim.history['Ts'].append(Ts)
         self.sim.history['dTb'].append(dTb)

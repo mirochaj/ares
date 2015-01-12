@@ -91,10 +91,10 @@ class logprior:
     def __init__(self, priors, parameters):
         self.pars = parameters  # just names *in order*
         self.priors = priors
-        
+
         if priors:
             self.prior_len = [len(self.priors[par]) for par in self.pars]
-        
+
     def __call__(self, pars):
         """
         Compute log-likelihood of given model.
