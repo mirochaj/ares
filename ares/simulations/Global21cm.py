@@ -13,7 +13,6 @@ Description:
 import numpy as np
 from ..static import Grid
 import copy, os, re, pickle
-from ..util.Misc import tau_CMB
 from ..sources import DiffuseSource
 from ..util.ReadData import load_inits
 from ..util.WriteData import CheckPoints
@@ -297,25 +296,25 @@ class Global21cm:
 
     def _init_LWB(self):
         """ Setup cosmic Lyman-Werner background calculation. """
-        
+
         self._Jrb = []
         for rb in self.rbs:
             if (not rb.pf['is_lya_src']) or (not rb.pf['discrete_lwb'])\
                 or rb.pf['approx_lwb']:
                 self._Jrb.append(None)
                 continue
-            
+
             lwb_z, lwb_En, lwb_J = rb.LWBackground()
             self._Jrb.append((lwb_z, lwb_En, lwb_J))
-        
+
         # Sum up Lyman-alpha flux
         self.lwb_z, self.lwb_En = lwb_z, lwb_En
-        
+
         self.lwb_Ja = np.zeros_like(self.lwb_z)
         for i, rb in enumerate(self.rbs):
             if self._Jrb[i] is None:
                 continue
-            
+
             self.lwb_Ja += rb.LymanAlphaFlux(fluxes=self._Jrb[i][-1])
 
     def _init_XRB(self, pre_EoR=True, **kwargs):
@@ -524,9 +523,6 @@ class Global21cm:
             use=self.pf['progress_bar'])
         self.pb.start()
 
-        # Feedback
-        self.feedback_last_z = z
-
         self.step = 0
 
         fields = ['h_1', 'h_2', 'e']
@@ -620,38 +616,38 @@ class Global21cm:
 
             # Increment time and redshift
             zpre = z
-            
+
             t += dt
             z -= dt / self.grid.cosm.dtdz(z)
-            
+
             # Evolve LW background and compute Lyman-alpha flux
             if self.pf['radiative_transfer'] and z < self.zfl:
-                
+
                 Ja = 0.0
                 for rb in self.rbs:
                     if not rb.pf['approx_lwb']:
                         continue
                     Ja += rb.LymanAlphaFlux(z)
-                
+
                 if hasattr(self, 'lwb_Ja'):
                     Ja += np.interp(z, self.lwb_z, self.lwb_Ja)
-                    
+
             else:
                 Ja = 0.0
-                
+
             # Add Ja to history even though it didn't come out of solver
             data_igm['Ja'] = np.array([Ja])
-            
+
             # SAVE RESULTS
             self.write._update_history(z, zpre, data_igm, data_cgm)
-                                      
+
             if z <= zf:
                 break
 
             ##
             # FEEDBACK: Modify Tmin depending on IGM temperature and/or LW flux
             ##
-            #self.Feedback(zpre, data_igm_fl['Tk'], Jlw=Ja)
+            # Someday!
             
             # Inline analysis: possibly kill calculation if we've passed
             # a turning point, zero-crossing, or critical ionization fraction.
@@ -729,8 +725,14 @@ class Global21cm:
             self.turning_points = self.track.turning_points
         
         if self.pf['inline_analysis'] is not None:
-            self.run_inline_analysis()
+            from ..analysis.InlineAnalysis import InlineAnalysis
+            anl = InlineAnalysis(self)
+            anl.run_inline_analysis()
             
+            self.blobs = anl.blobs
+            self.blob_names, self.blob_redshifts = \
+                anl.blob_names, anl.blob_redshifts
+
     @property
     def blob_shape(self):
         if not hasattr(self, '_blob_shape'):
@@ -740,211 +742,6 @@ class Global21cm:
                 self._blob_shape = None
                 
         return self._blob_shape
-        
-    def run_inline_analysis(self):
-        """
-        Compute some quantities of interest.
-        
-        Example
-        -------
-        sim = ares.simulations.Global21cm(track_extrema=True, 
-            inline_analysis=(['dTb'], list('BCD'))
-        
-        sim.run()
-        
-        zip(*sim.blobs)[0]  # are the brightness temperatures of B, C, and D
-        sim.ztps            # redshifts
-        
-        """
-        
-        if not hasattr(self, 'turning_points'):
-
-            from ..analysis.TurningPoints import TurningPoints
-            self._track = TurningPoints(inline=True, **self.pf)
-
-            # Otherwise, find them. Not the most efficient, but it gets the job done
-            if self.history['z'].max() < 70 and 'A' not in self._track.TPs:
-                self._track.TPs.append('A')
-
-            delay = self.pf['stop_delay']
-
-            for i in range(len(self.history['z'])):
-                if i < (delay + 2):
-                    continue
-
-                stop = self._track.is_stopping_point(self.history['z'][i-delay-1:i],
-                    self.history['dTb'][i-delay-1:i])
-                                    
-            self.turning_points = self._track.turning_points
-                
-        fields, ztmp = self.pf['inline_analysis']
-        
-        zmin = self.history['z'].min()
-        zmax = self.history['z'].max()        
-        
-        # Convert turning points to actual redshifts
-        redshift = []
-        ztps = []
-        for element in ztmp:
-            if type(element) is str:
-                if element in ['eor_midpt', 'eor_overlap']:
-                    
-                    ihigh = np.argmin(np.abs(self.history['z'] - self.pf['first_light_redshift']))
-                    interp = interp1d(self.history['cgm_h_2'][ihigh:],
-                        self.history['z'][ihigh:])
-
-                    try:
-                        if element == 'eor_midpt':
-                            zrei = interp(0.5)
-                        else:
-                            zrei = interp(0.99)
-                    except ValueError:
-                        zrei = np.inf
-                    
-                    redshift.append(zrei)
-                    ztps.append((element, zrei))
-                        
-                elif element not in self.turning_points:
-                    redshift.append(np.inf)
-                    ztps.append(np.inf)
-                else:
-                    redshift.append(self.turning_points[element][0])
-                    ztps.append((element, self.turning_points[element][0]))
-            else:
-                redshift.append(element)
-
-        # Recover quantities of interest at specified redshifts
-        output = []
-        for j, field in enumerate(fields):
-
-            if field in self.history:                
-                interp = interp1d(self.history['z'][-1::-1],
-                    self.history[field][-1::-1])
-            elif field == 'tau_e':
-                tmp, tau_tmp = tau_CMB(self)
-                interp = interp1d(tmp, tau_tmp)
-
-            elif field == 'curvature':
-                tmp = []
-                for element in ztmp:
-                    
-                    if element not in self.turning_points:
-                        tmp.append(np.inf)
-                        continue
-
-                    if (type(element)) == str and (element != 'trans'):
-                        tmp.append(self.turning_points[element][-1])
-                    else:
-                        tmp.append(np.inf)
-
-                output.append(tmp)
-                continue
-            
-            tmp = []
-            for i, z in enumerate(redshift):
-
-                if z is None:
-                    tmp.append(np.inf)
-                    continue
-
-                if zmin <= z <= zmax:
-                    tmp.append(float(interp(z)))
-                else:
-                    tmp.append(np.inf)
-            
-            output.append(tmp)
-        
-        # Reshape output so it's (redshift x blobs)
-        self.blobs = np.array(zip(*output))
-        self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
-        self.ztps = ztps
-        
-    def electron_density(self, hist, zone='igm'):            
-        """ Compute electron density given simulation history. """
-                
-        # First, compute electron density
-        nH = self.grid.cosm.nH(hist['z'][-1])
-        nHe = self.grid.cosm.nHe(hist['z'][-1])
-           
-        n_e = nH * hist['%s_h_2' % zone][-1]           
-              
-        if self.helium:
-            if self.pf['approx_He']:
-                n_e += nHe * hist['%s_h_2' % zone][-1]
-            else:
-                n_e += nHe * hist['%s_he_2' % zone][-1]
-                n_e += 2 * nHe * hist['%s_he_3' % zone][-1]
-                         
-        return n_e
-                         
-    def Feedback(self, z, Tigm, Jlw=0.0, mu=0.6):
-        """
-        Modify the minimum virial temperature of star-forming haloes based
-        on IGM temperature and/or strength of LW background.
-
-        Parameters
-        ----------
-        z : float
-            Current redshift.
-
-        """
-        
-        if sum(self.feedback) == 0:
-            return
-        
-        if (self.feedback_last_z - z < self.pf['feedback_dz']):
-            return
-
-        M_J = self.history['M_J'][-1]
-        M_F = self.history['M_F'][-1]
-        
-        Tmin = [pop.Tmin for pop in self.pops.pops]
-        for p, pop in enumerate(self.pops.pops):
-            if not self.feedback[p]:
-                continue
-                
-            if 'jeans_mass' in self.pf['feedback_method']:
-                Tmin[p] = max(pop.halos.VirialTemperature(M_J, z, mu=mu),
-                    Tmin[p])
-                
-            if 'filtering_mass' in self.pf['feedback_method']:        
-                Tmin[p] = max(pop.halos.VirialTemperature(M_F, z, mu=mu), 
-                    Tmin[p])
-                
-            if self.pf['feedback_Tmin_of_T'] is not None:
-                Tmin = max(self.pf['feedback_Tmin_of_T'](Tigm, z), 
-                    Tmin[p])
-                
-            if 'critical_Jlw' in self.pf['feedback_method']:
-                #if self.pf['feedback_Tmin_of_T'] is None:
-                #    Tmin_J = 
-                #else:
-                
-                #Tmin_J = self.pf['feedback_Tmin_of_J'](Jlw, z)
-                
-                flux = Jlw * 10.2 * erg_per_ev / 1e-21
-                
-                # Machacek et al. (2001) Equation 25
-                if self.pf['feedback_analytic']:
-                    Tmin_J = 1e3 * 0.36 \
-                        * ((4. * np.pi * flux) \
-                        * ((1. + z) / 20.)**1.5 / self.grid.cosm.Omh2)**0.22
-                        
-                    Tmin[p] = max(Tmin_J, Tmin[p])
-                
-                else:
-                    
-                    Mcrit = 2.5e5 * ((1. + z) / 26.)**-1.5 \
-                        * (1. + 6.96 * ((4. * np.pi * flux))**0.47)
-                        
-                    Tcrit = pop.halos.VirialTemperature(Mcrit, z)
-                    
-                    Tmin[p] = max(Tcrit, Tmin[p])
-                
-        for p, pop in enumerate(self.pops.pops):   
-            pop._set_fcoll(Tmin[p], mu)
-                
-        self.feedback_last_z = z
                         
     def tabulate_blobs(self, z):
         """

@@ -16,7 +16,7 @@ important, and will be used when secondary_ionization = 3.
 """
 
 import numpy as np
-import h5py, pickle, os, urllib
+import pickle, os, urllib
 
 try:
     import h5py

@@ -19,7 +19,7 @@ setup(name='ares',
       packages=ares_packages,
      )
           
-# Try to set up $HOME/.ares
+# Try to set up $HOME/.ares: this won't work on WINDOWS at the moment
 HOME = os.getenv('HOME')
 if not os.path.exists('%s/.ares' % HOME):
     try:
@@ -27,19 +27,23 @@ if not os.path.exists('%s/.ares' % HOME):
     except:
         pass
  
-if not os.path.exists('%s/.ares/defaults.py' % HOME):   
-    f = open('%s/.ares/defaults.py' % HOME, 'w')
-    print >> f, "pf = {}"
-    f.close()
+if not os.path.exists('%s/.ares/defaults.py' % HOME):
+    try:
+        f = open('%s/.ares/defaults.py' % HOME, 'w')
+        print >> f, "pf = {}"
+        f.close()
+    except:
+        pass
 
 if not os.path.exists('%s/.ares/labels.py' % HOME):   
-    f = open('%s/.ares/labels.py' % HOME, 'w')
-    print >> f, "pf = {}"
-    f.close()
-
-cwd = os.getcwd()    
+    try:
+        f = open('%s/.ares/labels.py' % HOME, 'w')
+        print >> f, "pf = {}"
+        f.close()
+    except:
+        pass
     
-# Download some files
+# Setup input directory, in preparation for file download
 if not os.path.exists('input'):
     os.mkdir('input')
     
@@ -126,6 +130,7 @@ if not os.getenv('ARES'):
     
     import re
     
+    cwd = os.getcwd()
     shell = os.getenv('SHELL')
     
     print "\nIt would be in your best interest to set an environment variable",

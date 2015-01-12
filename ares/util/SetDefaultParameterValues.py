@@ -428,7 +428,6 @@ def ControlParameters():
     # Discretizing integration
     "redshift_bins": None,
     "tau_table": None,
-    "load_tau": False,
     "tau_prefix": tau_prefix,
         
     "preferred_format": 'pkl',

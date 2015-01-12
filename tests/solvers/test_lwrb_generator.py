@@ -69,11 +69,11 @@ z, E_n, flux_n = rad2.LWBackground()
 for i, nrg in enumerate(E_n):
     t3 = time.time()
     pl.scatter(nrg, flux_n[i][np.argmin(np.abs(z-15.)),:] / J21_num,
-        facecolors='none', color='k', marker='|', s=100, alpha=0.15)
+        facecolors='none', color='k', marker='|', s=100, alpha=0.05)
     t4 = time.time()
     
     pl.scatter(nrg, flux_n[i][np.argmin(np.abs(z-30.)),:] / J21_num,
-        facecolors='none', color='b', marker='|', s=100, alpha=0.15)
+        facecolors='none', color='b', marker='|', s=100, alpha=0.05)
 
 print "Generator provides %ix speed-up." % ((t2 - t1) / (t4 - t3))
 

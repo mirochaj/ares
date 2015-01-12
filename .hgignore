@@ -21,3 +21,5 @@ gprof2dot.py
 *.h
 *.tar.gz
 *.dat
+*.f
+*.DS_Store
