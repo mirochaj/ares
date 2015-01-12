@@ -50,7 +50,7 @@ os.chdir('input')
 ##
 
 # Link prefixes we need
-bitbucket_DL = 'https://bitbucket.org/mirochaj/glorb/downloads'
+bitbucket_DL = 'https://bitbucket.org/mirochaj/ares/downloads'
 sfurlane_xray = 'http://www.astro.ucla.edu/~sfurlane/docs'
 
 # Filenames
@@ -59,7 +59,6 @@ fn_ics_np = 'initial_conditions.npz'
 fn_tau = 'optical_depth_H_400x1616_z_10-50_logE_2-4.7.pkl'
 fn_tau2 = 'optical_depth_He_400x1616_z_10-50_logE_2-4.7.pkl'
 fn_elec = 'elec_interp.tar.gz'
-
 
 # First, secondary electron data from Furlanetto & Stoever (2010)
 if not os.path.exists('secondary_electrons'):

@@ -48,6 +48,7 @@ labels = \
  'fbh': r'$f_{\bullet}$',
  'spectrum_logN': r'$\log_{10} N_{\mathrm{H}}$',
  'spectrum_alpha': r'$\alpha$',
+ 'source_temperature': r'$T_{\ast}$',
  'z': r'$z$',
  'igm_heat_h_1': r'$\epsilon_{X, \mathrm{HI}}$',
  'igm_heat_he_1': r'$\epsilon_{X, \mathrm{HI}}$',
