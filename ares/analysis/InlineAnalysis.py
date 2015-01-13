@@ -10,11 +10,12 @@ Description:
 
 """
 
+import re
 import numpy as np
 from ..util.Misc import tau_CMB
 from scipy.interpolate import interp1d
 from .TurningPoints import TurningPoints
-from ..physics.Constants import ev_per_hz
+from ..physics.Constants import ev_per_hz, rhodot_cgs
 
 class InlineAnalysis:
     def __init__(self, sim):
@@ -119,6 +120,21 @@ class InlineAnalysis:
         # Recover quantities of interest at specified redshifts
         output = []
         for j, field in enumerate(self.blob_names):
+            
+            m = re.search(r"\{([0-9])\}", field)
+
+            if m is None:
+                pop_specific = False
+                pop_prefix = None
+
+            else:
+                pop_specific = True
+                
+                # Population ID number
+                pop_num = int(m.group(1))
+                
+                # Pop ID including curly braces
+                pop_prefix = field.strip(m.group(0))
 
             # Setup a spline interpolant
             if field in self.history:
@@ -149,8 +165,20 @@ class InlineAnalysis:
                 output.append(Jlw)
                 continue
             
-            elif field == 'sfrd':
-                raise NotImplemented('help!')
+            elif (field == 'sfrd'):
+                tmp = []
+                for redshift in self.blob_redshifts:
+                    sfrd = self.get_sfrd(redshift)
+                    tmp.append(sfrd)
+                output.append(tmp)
+                continue
+            elif (pop_prefix == 'sfrd'):
+                tmp = []
+                for redshift in self.blob_redshifts:
+                    sfrd = self.get_sfrd(redshift, num=pop_num)
+                    tmp.append(sfrd)
+                output.append(tmp)
+                continue
 
             # Go back and actually interpolate, save the result (for each z)
             tmp = []
@@ -210,14 +238,32 @@ class InlineAnalysis:
                 for j, band in enumerate(En):
                     Jlo += np.trapz(flux[j][ilo], x=band) / ev_per_hz
                     Jhi += np.trapz(flux[j][ihi], x=band) / ev_per_hz
+
+                # Subtract of 10.2-11.2 eV flux
+                Earr = En[0]
+                icut = np.argmin(np.abs(Earr - 11.18))
+                Jlo -= np.trapz(flux[0][ilo][0:icut], x=En[0][0:icut]) / ev_per_hz
+                Jhi -= np.trapz(flux[0][ihi][0:icut], x=En[0][0:icut]) / ev_per_hz
                 
             Jz = np.interp(z, [zlo, zhi], [Jlo, Jhi])
             tmp.append(Jz)
 
         return tmp
 
-    def population_data(self):
-        pass
+    def get_sfrd(self, z, num=None):
+        
+        # Single-pop model
+        if num is None:
+            return self.sim.pops.pops[0].SFRD(z) * rhodot_cgs
+            
+            
+        # Multi-pop model
+        for i, pop in enumerate(self.sim.pops.pops):
+            if i != num:
+                continue
+                
+            return pop.SFRD(z) * rhodot_cgs
+                
         
         
         

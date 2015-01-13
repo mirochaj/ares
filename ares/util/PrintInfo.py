@@ -446,10 +446,14 @@ def print_rb(rb):
     else:
         print line("Emin (eV)         : %.1e" % rb.pf['spectrum_Emin'])
         print line("Emax (eV)         : %.1e" % rb.pf['spectrum_Emax'])
-        if not rb.pf['discrete_lwb']:
-            print line("NOTE              : this is a continuous radiation field!")
+        
+        if rb.pf['spectrum_Emin'] < 13.6:
+            if not rb.pf['discrete_lwb']:
+                print line("NOTE              : this is a continuous radiation field!")
+            else:
+                print line("NOTE              : discretized over first %i Ly-n bands" % rb.pf['lya_nmax'])
         else:
-            print line("NOTE              : discretized over first %i Ly-n bands" % rb.pf['lya_nmax'])
+            print line("NOTE              : this is a continuous radiation field!")
 
     print "#"*width
 

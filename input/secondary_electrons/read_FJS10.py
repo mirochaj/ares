@@ -6,7 +6,7 @@ Affiliation: University of Colorado at Boulder
 Created on 2010-09-20.
 
 Description: Read in the Furlanetto & Stoever 2010 results, and make new tables 
-that will be more suitable for Enzo and rt1d.
+that will be more suitable for ARES.
 
 Notes: Run this script inside of whatever directory you download the Furlanetto 
 & Stoever 2010 results in.  It will produce files called secondary_electron*.dat, 

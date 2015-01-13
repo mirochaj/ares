@@ -306,10 +306,8 @@ class Global21cm:
         tau_tot = tlo[-1] + tau
         
         self.data_asc['z_CMB'] = np.concatenate((zlo, self.data_asc['z']))
-        self.data['z_CMB'] = self.data['z_CMB'][-1::-1]
-        
-        
-        
+        self.data['z_CMB'] = self.data_asc['z_CMB'][-1::-1]
+                
         self.data_asc['tau_CMB_tot'] = np.concatenate((tlo, tau_tot))
         self.data['tau_CMB_tot'] = tau_tot[-1::-1]
                 
@@ -681,7 +679,7 @@ class Global21cm:
         mp.grid[0].set_ylim(min(1.05 * self.data['dTb'].min(), ymin[0]), max(1.2 * self.data['dTb'].max(), ymax[0]))
         mp.grid[1].set_ylim(min(1.05 * self.dTbdnu.min(), ymin[1]), max(1.2 * self.dTbdnu[:-1].max(), ymax[1]))
                      
-        mp.fix_ticks()             
+        mp.fix_ticks()
         
         return mp
                 
@@ -958,6 +956,59 @@ class Global21cm:
 
         pl.draw()
 
+        return ax
+        
+    def RadiationBackground(self, z, ax=None, fig=1, band='lw', **kwargs):
+        """
+        Plot radiation background at supplied redshift and band.
+        """
+        
+        if band != 'lw':
+            raise NotImplemented('Only know LW background so far...')
+            
+        if not hasattr(self.sim, '_Jrb'):
+            raise ValueError('This simulation didnt evolve JLw...')
+            
+        hasax = True
+        if ax is None:
+            hasax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)    
+        
+        for i, element in enumerate(self.sim._Jrb):
+            
+            if element is None:
+                continue
+            
+            # Read data for this radiation background
+            zlw, Elw, Jlw = element 
+            
+            # Determine redshift
+            ilo = np.argmin(np.abs(zlw - z))
+            if zlw[ilo] > z:
+                ilo -= 1
+            ihi = ilo + 1
+
+            zlo, zhi = zlw[ilo], zlw[ihi]
+            
+            for j, band in enumerate(Elw):
+                
+                # Interpolate: flux is (Nbands x Nz x NE)
+                Jlo = Jlw[j][zlo]
+                Jhi = Jlw[j][zhi]
+                
+                J = np.zeros_like(Jlw[j][zlo])
+                for k, nrg in enumerate(band):
+                    J[k] = np.interp(z, [zlo, zhi], [Jlo[k], Jhi[k]])
+                
+                ax.plot(band, J, **kwargs)
+        
+                # Fill in sawtooth
+                if j > 0:
+                    ax.semilogy([band[0]]*2, [J[0] / 1e4, J[0]], **kwargs)
+        
+        pl.draw()
+        
         return ax
 
     def tau_post_EoR(self):

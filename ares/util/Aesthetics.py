@@ -89,12 +89,13 @@ history_elements = \
  'dTb': label_dTb,
  'z': r'$z$',
  'Ja': r'$J_{\alpha}$', 
+ 'Jlw': r'$J_{\mathrm{LW}}$', 
 }
 
 tanh_parameters = \
 {
  'tanh_J0': r'$\left(J_0 / J_{21}\right)$', 
- 'tanh_Jz0': r'$z_J$', 
+ 'tanh_Jz0': r'$z_J$',
  'tanh_Jdz': r'$\Delta z_J$', 
  'tanh_T0': r'$T_0$', 
  'tanh_Tz0': r'$z_T$',

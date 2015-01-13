@@ -254,7 +254,7 @@ class RateCoefficients:
         if self.rate_src == 'fk94':
             return derivative(lambda T: self.RecombinationCoolingRate(species, T), T)
         else:
-            raise NotImplementedError()
+            raise NotImplemented('Cannot do cooling for rate_source != fk94 (yet).')
             
     def DielectricRecombinationCoolingRate(self, T):
         """
@@ -273,3 +273,5 @@ class RateCoefficients:
             return derivative(self.DielectricRecombinationCoolingRate, T)
         else:
             raise NotImplementedError()
+            
+            

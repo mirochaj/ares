@@ -65,6 +65,18 @@ True                 False          Solve for helium self-consistently
 
     Default: 1
     
+``discrete_lwb``
+    0) Performs integrals numerically using continuous functions for integrands (very slow)
+    1) Integrates transfer equation over discrete set of points.
+
+    Default: 1
+
+``discrete_xrb``
+    0) Performs integrals numerically using continuous functions for integrands (very slow)
+    1) Integrates transfer equation over discrete set of points.
+
+    Default: 1    
+    
 ``approx_Salpha``
     0) Not implemented
     1) Assume :math:`S_{\alpha} = 1`
@@ -73,7 +85,7 @@ True                 False          Solve for helium self-consistently
     
     Default: 1    
     
-``nmax``
+``lya_nmax``
     Default: 23
     
 ``lya_injected``
