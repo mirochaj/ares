@@ -327,7 +327,6 @@ def PopulationParameters():
     "fedd": 0.1,
     "eta": 0.1,
     "Mi": 100.,
-    
     }
     
     pf.update(rcParams)

@@ -8,8 +8,8 @@ To begin, import glorb and initialize an instance of the BlackHolePopulation cla
 
 :: 
 
-    import glorb
-    pop = glorb.populations.BlackHolePopulation(Tmin=1e4, fstar=0.1)
+    import ares
+    pop = ares.populations.BlackHolePopulation(Tmin=1e4, fstar=0.1)
     
 Once initialized, there are several class methods available to compute the star-formation rate density (SFRD) and emissivity (in the UV and X-ray):
     
@@ -26,7 +26,7 @@ To convert to more recognizable units, use conversion factors from ``rt1d``:
 
 ::
 
-    from rt1d.physics.Constants import rhodot_cgs
+    from ares.physics.Constants import rhodot_cgs
     pop.SFRD(z) * rhodot_cgs                              # [Msun / cMpc**3 / yr]
     pop.XrayLuminosityDensity(z) * cm_per_mpc**3          # [erg / cMpc**3 / s]
     

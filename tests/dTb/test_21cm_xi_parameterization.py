@@ -18,8 +18,7 @@ sim.run()
 anl = ares.analysis.Global21cm(sim)
 ax = anl.GlobalSignature()
 
-sim2 = ares.simulations.Global21cm(xi_XR=0.02, xi_LW=969.,
-    xi_UV=40.)
+sim2 = ares.simulations.Global21cm(xi_XR=0.02, xi_LW=969., xi_UV=40.)
 sim2.run()    
 
 anl2 = ares.analysis.Global21cm(sim2)

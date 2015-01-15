@@ -8,7 +8,6 @@ Quick-start
 * Reionization & Global 21-cm Signal
     * :doc:`example_21cm_simple`
     * :doc:`example_21cm_multipop`
-    * :doc:`example_21cm_parameterized`
     
 * 1-D Radiative Transfer    
     * :doc:`example_rt06_1`
@@ -20,13 +19,7 @@ Quick-start
 
 Advanced
 --------
-
-* Global 21-cm Signal
-    * :doc:`example_multi_sed`
-
-* 1-D Radiative Transfer    
-    * :doc:`example_multi_src`
-    * :doc:`example_multi_component`
+Under construction.
 
 Under the hood
 --------------
@@ -42,7 +35,5 @@ Surveying Parameter Space
 
 Post-Processing Cosmological Simulations
 ----------------------------------------
-* :doc:`example_sims_diffuse`
-* :doc:`example_sims_ptsrc`
-
+Under construction.
 

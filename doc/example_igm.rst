@@ -6,28 +6,21 @@ radiation backgrounds independently, i.e., without doing a full blown
 the radiation background will in general modify the 
 properties of the intergalactic medium, which will then influence the subsequent
 evolution of the radiation background (and so on). Coupling radiation from
-stars and BHs to the IGM requires use of the ``glorb.evolve.IntergalacticMedium`` 
+stars and BHs to the IGM requires use of the ``ares.solvers.IntergalacticMedium`` 
 module:
 
 ::
 
-    import glorb
+    import ares
     
-    igm = glorb.evolve.IGM()
+    igm = ares.solvers.IGM()
     
+    # Optical depth between 10 <= z <= 12 at 500 eV. 
     # By default, assumes IGM is neutral
     tau_neutral = igm.OpticalDepth(10, 12, 500)
 
     # Can supply ionized fraction as constant
     tau_xconst = igm.OpticalDepth(10, 12, 500, xavg=0.5)
     
-    # Or, supply ionized fraction as function of redshift - how about a tanh model?
-    from glorb.util import xHII_tanh
-    
-    xavg = lambda z: xHII_tanh(z, zr=10, dz=2)
-    
-    tau_xtanh = igm.OpticalDepth(10, 12, 500, xavg=xavg)
 
-In order to compute the ionization and heating rate in the IGM with time, we 
-need to know something about the radiation background.
 

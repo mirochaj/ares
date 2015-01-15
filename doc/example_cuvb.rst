@@ -22,11 +22,11 @@ illustrated by `Haiman et al. (1997) <http://adsabs.harvard.edu/abs/1997ApJ...47
 ::
     
     # Initialize a radiation background
-    rad = ares.solvers.RadiationBackground(pop=pop)
+    rad = ares.solvers.UniformBackground(pop=pop)
     
-Note that we need not initialize a :class:`StellarPopulation<glorb.populations.StellarPopulation>` 
+Note that we need not initialize a :class:`StellarPopulation<ares.populations.StellarPopulation>` 
 object first -- we can instead pass keyword arguments directly to the 
-:class:`StellarPopulation<glorb.evolve.RadiationBackground>` class, e.g.:
+:class:`StellarPopulation<ares.evolve.UniformBackground>` class, e.g.:
 
 :: 
 
@@ -36,13 +36,14 @@ object first -- we can instead pass keyword arguments directly to the
      "source_temperature": 3e4,
      "spectrum_type": 'bb', 
      "spectrum_Emin": 1., 
-     "spectrum_Emax": 1e2,
-     "approx_lwb": False,        # this tells glorb we'll need to solve the RTE
+     "spectrum_Emax": 13.6,
+     "approx_lwb": False,        # this tells ares we'll need to solve the RTE
+     "discrete_lwb": False,
      "norm_by": 'lw', 
      "Nlw": 1e4,
     }
     
-    rad = glorb.evolve.RadiationBackground(**params)
+    rad = ares.solvers.UniformBackground(**params)
     
 Then, to calculate the background flux: ::    
 
@@ -58,8 +59,8 @@ Then, to calculate the background flux: ::
     pl.semilogy(E, map(flux, E))
     
     # Make some nice axes labels
-    pl.xlabel(glorb.util.labels['E'])
-    pl.ylabel(glorb.util.labels['flux_E'])
+    pl.xlabel(ares.util.labels['E'])
+    pl.ylabel(ares.util.labels['flux_E'])
         
 .. figure::  http://casa.colorado.edu/~mirochaj/docs/glorb/basic_star.png
    :align:   center
@@ -67,7 +68,7 @@ Then, to calculate the background flux: ::
 
    The Lyman-Werner (and below) background at :math:`z=30` that arises from a population
    of O stars. The dashed line shows the solution obtained if Lyman series absorption
-   is neglected. See glorb/tests/test_sawtooth.py for a more complete example.
+   is neglected. See ares/tests/solvers/test_lwrb_generator.py for a more complete example.
         
 The keyword argument ``energy_units`` converts the fluxes to units of 
 :math:`\text{erg} \ \text{s}^{-1} \ \text{cm}^{-2} \ \text{Hz}^{-1} \ \text{sr}^{-1}`.
@@ -79,8 +80,7 @@ the optional keyword argument ``tau``:
 
 ::
 
-    flux = lambda EE: rad.AngleAveragedFlux(z=30, E=EE, energy_units=True,
-        tau=0.0)
+    flux = lambda EE: rad.AngleAveragedFlux(z=30, E=EE, energy_units=True, tau=0.0)
     
     pl.semilogy(E, map(flux, E), ls='--')    
     

@@ -5,7 +5,7 @@ redshift. Here, we'll compute the X-ray background evolution over time, and fast
 
 ::
 
-    import glorb
+    import ares
     import numpy as np
     import matplotlib.pyplot as pl
 
@@ -22,7 +22,7 @@ redshift. Here, we'll compute the X-ray background evolution over time, and fast
     }
 
     # Initialize RadiationBackground instance
-    rad = glorb.evolve.RadiationBackground(**params)
+    rad = ares.solvers.UniformBackground(**params)
     
     # Compute X-ray flux at all redshifts and photon energies
     z, E, fluxes = rad.XrayBackground()
@@ -38,8 +38,8 @@ redshifts we could do:
         pl.loglog(E, fluxes[i], label=r'$z=%.3g$' % z[i])
     
     pl.legend()
-    pl.xlabel(glorb.util.labels['E']) 
-    pl.ylabel(glorb.util.labels['flux'])
+    pl.xlabel(ares.util.labels['E']) 
+    pl.ylabel(ares.util.labels['flux'])
 
 =============================================
 Computing the Heating/Ionization Rate Density
@@ -74,7 +74,7 @@ rate density.
 Tabulating the Optical Depth    
 ============================    
 The above example relied on a pre-existing table of the IGM optical depth over
-redshift and photon energy, hence the parameter ``load_tau``, which tells glorb
+redshift and photon energy, hence the parameter ``load_tau``, which tells ares
 to go looking in ``$GLORB/input/optical_depth`` for lookup tables. This technique
 was outlined originally in Appendix C of `Haardt & Madau (1996) <http://adsabs.harvard.edu/abs/1996ApJ...461...20H>`_.
 
@@ -85,7 +85,7 @@ interval, ``redshift_bins``, the minimum and maximum photon energies (0.2 and
 from the redshift and energy intervals and the value of ``redshift_bins``).
 
 To make optical depth tables of your own, see ``$GLORB/examples/generate_optical_depth_tables.py``.
-By default, glorb generates tables assuming the IGM is fully neutral, but that
+By default, ares generates tables assuming the IGM is fully neutral, but that
 is not required. See Section 3 of `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_
 for more discussion of this technique.
 
@@ -122,7 +122,7 @@ Let's compare this to an IGM with evolving ionized fraction: ::
     
     # Here's a function describing the ionization evolution for a scenario
     # in which reionization is halfway done at z=10 and somewhat extended.
-    xofz2 = lambda z: glorb.util.xHII_tanh(z, zr=10., dz=4.)
+    xofz2 = lambda z: ares.util.xHII_tanh(z, zr=10., dz=4.)
     
     # Compute fluxes
     F2 = [rad.AngleAveragedFlux(10., nrg, zf=20., xavg=xofz2) for nrg in E]
@@ -131,8 +131,8 @@ Let's compare this to an IGM with evolving ionized fraction: ::
     pl.loglog(E, F2)
     
     # Add some nice axes labels
-    pl.xlabel(glorb.util.labels['E'])
-    pl.ylabel(glorb.util.labels['flux'])    
+    pl.xlabel(ares.util.labels['E'])
+    pl.ylabel(ares.util.labels['flux'])    
     
 Notice how the plot of ``F2`` has been hardened by neutral absorption in the IGM!
     

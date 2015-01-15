@@ -8,8 +8,8 @@ To begin, import glorb and initialize an instance of the :class:`StellarPopulati
 
 :: 
 
-    import glorb
-    pop = glorb.populations.StellarPopulation(Tmin=1e4, fstar=0.1)
+    import ares
+    pop = ares.populations.StellarPopulation(Tmin=1e4, fstar=0.1)
     
 Once initialized, there are several class methods available to compute the star-formation rate density (SFRD) and emissivity (in the UV and X-ray):
     
@@ -39,11 +39,11 @@ To convert to more recognizable units, use conversion factors from rt1d:
 
 ::
 
-    from rt1d.physics.Constants import rhodot_cgs, cm_per_mpc
+    from ares.physics.Constants import rhodot_cgs, cm_per_mpc
     pop.SFRD(z) * rhodot_cgs                              # [Msun / cMpc**3 / yr]
     pop.XrayLuminosityDensity(z) * cm_per_mpc**3          # [erg / cMpc**3 / s]
     
-where Msun is solar masses, and cMpc is used to denote co-moving Megaparsecs.
+where ``Msun`` is solar masses, and ``cMpc`` is used to denote co-moving Megaparsecs.
 
 
 ============
@@ -56,7 +56,7 @@ stars whose SED is a blackbody:
 
 :: 
 
-    import glorb
+    import ares
 
     # Parameters defining (roughly) an O/B type star
     params = \
@@ -72,7 +72,7 @@ stars whose SED is a blackbody:
      }
 
     # Create Population instance
-    pop = glorb.populations.StellarPopulation(**params)
+    pop = ares.populations.StellarPopulation(**params)
                                  
 The ``approx_lwb`` keyword argument tells StellarPopulation that we'll be treating
 the UV spectrum of this population in detail. To verify this, access the rs attribute

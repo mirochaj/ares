@@ -4,22 +4,19 @@ Often we want to study how the 21-cm signal changes over a range of parameters.
 We can do so using the :class:`ModelGrid<glorb.search.ModelGrid>` class, 
 and use numpy arrays to represent the range of values we're interested in.
 
-Note: you will need to download `ndspace <https://bitbucket.org/mirochaj/ndspace>`_ 
-for this to work. It handles the creation and manipulation of N-D model grids.
-
-To begin, import glorb and initialize an instance of the ``ModelGrid`` class:
+To begin, import ares and initialize an instance of the ``ModelGrid`` class:
 
 :: 
 
-    import glorb
-    mg = glorb.search.ModelGrid()
+    import ares
+    mg = ares.inference.ModelGrid()
     
 Let's survey a small 2-D swath of parameter space, varying the X-ray 
 normalization parameter and star formation efficiency:
 
 ::
 
-    mg.setup(fX=np.linspace(0.1, 0.5, 5), fstar=np.array([0.05, 0.1]))
+    mg.set_axes(fX=np.linspace(0.1, 0.5, 5), fstar=np.array([0.05, 0.1]))
     
 Load-balancing can be very advantageous -- there are a few built-in methods for doing this, 
 but more on that later. For this example we'll turn off load balancing since 
@@ -29,13 +26,13 @@ we're running in an interactive Python session in serial:
 
     mg.load_balance(method=0)
     
-Finally, to run the thing:
+Finally, to run the thing (saving results to files with 'test_model_grid' prefix):
 
 ::
 
-    mg.run(verbose=False)
+    mg.run(prefix='test_model_grid')
 
-The main results are stored in an ``ndspace.ModelGrid`` instance, which contains
+The main results are stored in an ``ares.util.GridND.GridND`` instance, which contains
 information about the grid axes:
 
 ::
@@ -54,10 +51,9 @@ And the results:
     
     mg.grid.shape
 
-In this case, the grid shape is (5, 2, 2). 5 is the number of ``fX`` values surveyed, 
-the middle dimension corresponds to the ``fstar axis``, and the last dimension 
-represents the :math:`(z, \delta T_b)` pair for each turning point, 
-which can be accessed by name:
+In this case, the grid shape is (5, 2). 5 is the number of ``fX`` values surveyed, 
+and the second dimension corresponds to the ``fstar axis``. The :math:`(z, \delta T_b)` 
+pair for each turning point can be accessed by name:
 
 ::
 
@@ -87,11 +83,11 @@ could be highly advantageous, see :doc:`example_grid_II`.
 
 To save a model grid calculation, do: ::
 
-    mg.grid.to_hdf5('glorb_modelgrid.hdf5')
+    mg.grid.to_hdf5('ares_modelgrid.hdf5')
     
 To access it later (and analyze it as we did above), do: ::
 
-    mg = glorb.analysis.ModelGrid('glorb_modelgrid.hdf5')
+    mg = ares.analysis.ModelGrid('glorb_modelgrid.hdf5')
     
     
 

@@ -16,23 +16,14 @@ Grid Parameters
     Must be done in order to avoid divergence in flux as :math:`r\rightarrow 0`
 
 ``density_units``
-    Hydrogen number density in units of :math:`\text{cm}{-3}` 
-    Default: :math:`1 \ \text{cm}{-3}` 
+    Hydrogen number density in units of :math:`\text{cm}^{-3}` 
+    Default: :math:`1 \ \text{cm}^{-3}` 
     
 ``length_units``
     Default: :math:`6.6 \times 3.08568 \times 10^{21} \ \text{cm}` (i.e., 6.6 kilo-parsec) [centimeters]
     
 ``time_units``
     Default: :math:`3.15576 \times 10^{13} \ \text{s}` (i.e., 1 Myr) [seconds]    
-
-``Z``
-    List of atomic numbers of elements to be included in calculation.
-    
-    Default: [1] (hydrogen only)
-
-``abundances``
-    List of elemental abundances relative to hydrogen, corresponding to elements
-    of Z.
 
 ``initial_ionization``
     

@@ -47,6 +47,7 @@ class ModelGrid:
         """
 
         self.verbose = verbose
+        self.is_restart = False
 
         if isinstance(grid, GridND):
             self.grid = grid
