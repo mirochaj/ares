@@ -992,26 +992,31 @@ class ModelFit(object):
                     continue
 
                 # Input values (optional)
-                if p1 in self.ref_pars or inputs:
+                if p1 in (self.ref_pars or inputs):
                     if not inputs:
                         val = self.ref_pars[p1]
                     else:
                         val = inputs[p1]
                         
-                    if is_log[i]:
+                    if val is None:
+                        yin = None
+                    elif is_log[i]:
                         yin = np.log10(val)    
                     else:
                         yin = val                        
                 else:
                     yin = None
                 
-                if p2 in self.ref_pars or inputs:     
+                if p2 in (self.ref_pars or inputs):
+                    
                     if not inputs:
                         val = self.ref_pars[p2]
                     else:
                         val = inputs[p2]
                         
-                    if is_log[Nd-j-1]:
+                    if val is None:
+                        xin = None  
+                    elif is_log[Nd-j-1]:
                         xin = np.log10(val)
                     else:
                         xin = val

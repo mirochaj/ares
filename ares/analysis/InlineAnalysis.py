@@ -167,15 +167,21 @@ class InlineAnalysis:
             
             elif (field == 'sfrd'):
                 tmp = []
-                for redshift in self.blob_redshifts:
-                    sfrd = self.get_sfrd(redshift)
+                for redshift in self.redshifts_fl:
+                    if self.zmin <= z <= self.zmax:
+                        sfrd = self.get_sfrd(redshift)
+                    else:
+                        sfrd = np.inf
                     tmp.append(sfrd)
                 output.append(tmp)
                 continue
             elif (pop_prefix == 'sfrd'):
                 tmp = []
-                for redshift in self.blob_redshifts:
-                    sfrd = self.get_sfrd(redshift, num=pop_num)
+                for redshift in self.redshifts_fl:
+                    if self.zmin <= z <= self.zmax:
+                        sfrd = self.get_sfrd(redshift, num=pop_num)
+                    else:
+                        sfrd = np.inf
                     tmp.append(sfrd)
                 output.append(tmp)
                 continue

@@ -48,7 +48,7 @@ try:
 except ImportError:
     rank = 0
     size = 1
-    
+
 nearest = lambda x, points: KDTree(points, leafsize=1e7).query(x)
     
 turning_points_all = list('BCD')
@@ -318,7 +318,10 @@ class loglikelihood:
 
                     return -np.inf, self.blank_blob
             
-                xarr.append(tps[tp][i])
+                if i == 0 and self.errunits[0] == 'MHz':
+                    xarr.append(nu_0_mhz / (1. + tps[tp][i]))
+                else:
+                    xarr.append(tps[tp][i])
                        
             # Values of current model that correspond to mu vector
             xarr = np.array(xarr)           
@@ -513,6 +516,7 @@ class ModelFit(object):
 
         if error1d is not None:
             
+            # Convert to 1-sigma errors
             err = []
             for val in error1d:
                 err.append(get_nu(val, nu_in=nu, nu_out=0.68))
