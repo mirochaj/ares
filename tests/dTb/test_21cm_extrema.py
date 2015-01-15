@@ -13,9 +13,7 @@ Description: Make sure our extrema-finding routines work.
 import ares
 import matplotlib.pyplot as pl
 
-blobs = (['z', 'dTb', 'igm_Tk', 'Ja'], ['B', 'C', 'D'])
-
-sim = ares.simulations.Global21cm(track_extrema=True, inline_analysis=blobs)
+sim = ares.simulations.Global21cm()
 sim.run()
                     
 anl = ares.analysis.Global21cm(sim)
@@ -36,11 +34,13 @@ pl.draw()
 # Print out in-line analysis:
 things = ['redshift', 'amplitude', 'curvature']
 for tp in list('BCD'):
-    for i, element in enumerate(sim.turning_points[tp]):
+    for i, element in enumerate(anl.turning_points[tp]):
         
         if -500 <= element <= 100:
             continue
             
         raise ValueError('Absurd turning point! %s of %s' \
             % (things[i], element))
+
+
 

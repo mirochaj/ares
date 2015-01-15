@@ -415,7 +415,7 @@ def ControlParameters():
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     "stop_xavg": 0.99999,   # stop at given ionized fraction
     "track_extrema": False,
-    "stop_delay": 10,
+    "stop_delay": 0.5,      # differential redshift step
     "inline_analysis": None,
     
     # Real-time optical depth calculation once EoR begins
@@ -429,27 +429,27 @@ def ControlParameters():
     "redshift_bins": None,
     "tau_table": None,
     "tau_prefix": tau_prefix,
-        
+
     "preferred_format": 'pkl',
-    
+
     # Finding SED tables
     "load_sed": False,
     "sed_prefix": None,
-                    
+
     "unsampled_integrator": 'quad',
     "sampled_integrator": 'simps',
     "integrator_rtol": 1e-6,
     "integrator_atol": 1e-4,
     "integrator_divmax": 1e2,
-    
+
     "interpolator": 'spline',
-    
+
     "progress_bar": True,
     "verbose": True,
     }
-    
+
     pf.update(rcParams)
-    
+
     return pf
     
 def TanhParameters():

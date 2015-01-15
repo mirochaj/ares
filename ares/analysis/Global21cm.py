@@ -326,17 +326,13 @@ class Global21cm:
             return self._turning_points
             
         # Otherwise, find them. Not the most efficient, but it gets the job done
-        if self.data['z'].max() < 70 and 'A' not in self._track.TPs:
-            self._track.TPs.append('A')
-        
-        delay = self.pf['stop_delay']
-        
+        # Redshifts in descending order
         for i in range(len(self.data['z'])):
-            if i < (delay + 2):
+            if i < 10:
                 continue
-                
-            stop = self._track.is_stopping_point(self.data['z'][i-delay-1:i],
-                self.data['dTb'][i-delay-1:i])
+            
+            stop = self._track.is_stopping_point(self.data['z'][0:i], 
+                self.data['dTb'][0:i])
                                 
         self._turning_points = self._track.turning_points
         
@@ -974,15 +970,15 @@ class Global21cm:
             hasax = False
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)    
-        
+
         for i, element in enumerate(self.sim._Jrb):
-            
+
             if element is None:
                 continue
-            
+
             # Read data for this radiation background
             zlw, Elw, Jlw = element 
-            
+
             # Determine redshift
             ilo = np.argmin(np.abs(zlw - z))
             if zlw[ilo] > z:
@@ -990,19 +986,19 @@ class Global21cm:
             ihi = ilo + 1
 
             zlo, zhi = zlw[ilo], zlw[ihi]
-            
+
             for j, band in enumerate(Elw):
-                
+
                 # Interpolate: flux is (Nbands x Nz x NE)
                 Jlo = Jlw[j][zlo]
                 Jhi = Jlw[j][zhi]
-                
+
                 J = np.zeros_like(Jlw[j][zlo])
                 for k, nrg in enumerate(band):
                     J[k] = np.interp(z, [zlo, zhi], [Jlo[k], Jhi[k]])
-                
+
                 ax.plot(band, J, **kwargs)
-        
+
                 # Fill in sawtooth
                 if j > 0:
                     ax.semilogy([band[0]]*2, [J[0] / 1e4, J[0]], **kwargs)

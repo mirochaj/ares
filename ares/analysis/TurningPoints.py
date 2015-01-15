@@ -29,7 +29,7 @@ class TurningPoints(object):
     def __init__(self, inline=False, **kwargs):
         self.pf = ParameterFile(**kwargs)
             
-        self.delay = self.pf['stop_delay']    
+        self.z_delay = self.pf['stop_delay']   
             
         # Keep track of turning points we've passed
         self.TPs = []
@@ -37,7 +37,8 @@ class TurningPoints(object):
             self.TPs.append('A')
             
         self.turning_points = {}
-        self.found_TP, self.step_TP = False, None
+        self.found_TP, self.z_TP = False, -99999
+        self.Npts = 0    
             
     @property
     def step(self):
@@ -77,34 +78,35 @@ class TurningPoints(object):
             
         """
         
-        # The 2 * self.delay makes sense, the 0.1 is a hack
-        if self.step < (2 * self.delay) or (z[-1] > 1e3): 
+        # Hack: don't check for turning points right at beginning
+        if self.step < 10 or (z[-1] > 1e3): 
             self._step += 1
             return False
-                        
+ 
         self._step += 1
-            
+
         if not self.found_TP: 
-            
+
             # Grab last three redshift and temperature points
             dz3pt = np.diff(z[-1:-4:-1])
             dT3pt = np.diff(dTb[-1:-4:-1])
-                            
+
             # If changes in temperatures have different signs, we found
-            # a turning point. Come back in self.delay steps to compute the 
+            # a turning point. Come back in dz = self.z_delay to compute the 
             # details
             if len(np.unique(np.sign(dT3pt))) != 2:
                 pass
-            else:   
-                self.found_TP, self.step_TP = True, self.step + self.delay
-            
+            else:
+                self.found_TP = True
+                self.z_TP = z[-1] - self.z_delay
+                
             # Check for zero-crossing too
             if not np.all(np.sign(dTb[-1:-3:-1]) < 0) and \
                 'trans' not in self.turning_points:
                 zTP = np.interp(0.0, dTb[-1:-3:-1], z[-1:-3:-1])
-                zz, dTbdnu = take_derivative(np.array(z[-1:-1-self.delay:-1]),
-                    np.array(dTb[-1:-1-self.delay:-1]), wrt='nu')
-                
+                zz, dTbdnu = take_derivative(np.array(z[-1:-10:-1]),
+                    np.array(dTb[-1:-10:-1]), wrt='nu')
+
                 slope = np.interp(zTP, zz, dTbdnu)
                 
                 self.turning_points['trans'] = (zTP, slope, None)
@@ -113,37 +115,30 @@ class TurningPoints(object):
                     return True
         
         # If we found a turning point, hone in on its position
-        if self.found_TP and self.step == self.step_TP:
+        if self.found_TP and (z[-1] < self.z_TP) and (self.Npts > 5): 
             
             # Redshift and temperature points bracketing crudely-determined
             # extremum position
-            zbracketed = np.array(z[-1:-1-2*self.delay:-1])
-            Tbracketed = np.array(dTb[-1:-1-2*self.delay:-1])
-        
+            k = np.argmin(np.abs(z - self.z_TP - 2 * self.z_delay))
+            zbracketed = np.array(z[k:-1])
+            Tbracketed = np.array(dTb[k:-1])
+                        
             # Interpolate derivative to find extremum more precisely
             zz, dT = central_difference(zbracketed, Tbracketed)
             # In order of increasing redshift
-            
+                        
             TP = self.which_extremum(zbracketed, Tbracketed, zz, dT)
             self.TPs.append(TP)
-                                    
-            # Linear interpolation to get guess at turning pt. position                      
-            if TP in ['B', 'D']:
-                zTP_guess = np.interp(0, dT[-1::-1], zz[-1::-1])
-            elif TP in ['A', 'C']:
-                zTP_guess = np.interp(0, dT, zz)
-            elif TP == 'E':
-                return False
-            else:
-                # Maybe just ignore? Happens when there are notches in the spectrum
+            
+            if TP not in list('ABCD'):
                 raise ValueError('Unrecognized turning point!')
-                
-            TTP_guess = np.interp(zTP_guess, z[-1:-1-2*self.delay:-1],
-                dTb[-1:-1-2*self.delay:-1]) 
-                                            
+             
+            # Crude guess at turning pt. position
+            zTP_guess = zz[np.argmin(np.abs(dT))]    
+            TTP_guess = np.interp(zTP_guess, z[k:-1], dTb[k:-1]) 
+                                                                   
             # Spline interpolation to get "final" extremum redshift
-            Bspl_fit1 = splrep(z[-1:-1-2*self.delay:-1],
-                dTb[-1:-1-2*self.delay:-1], k=5)
+            Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=5)
                 
             if TP in ['B', 'D']:
                 dTb_fit = lambda zz: -splev(zz, Bspl_fit1)
@@ -155,7 +150,7 @@ class TurningPoints(object):
                             
             if TP in ['B', 'D']:
                 TTP *= -1.
-                
+                            
             # Compute curvature at turning point (mK**2 / MHz**2)
             nuTP = nu_0_mhz / (1. + zTP)
             d2 = derivative(lambda zz: splev(zz, Bspl_fit1), x0=float(zTP), 
@@ -164,10 +159,16 @@ class TurningPoints(object):
             self.turning_points[TP] = (float(zTP), float(TTP), float(d2))
                       
             self.found_TP = False
-            self.step_TP = None                  
+            self.z_TP = -99999
+            
+            self.Npts = 0
                               
             if self.pf['stop'] in self.TPs:
                 return True
+        
+        elif self.found_TP:
+            self.Npts += 1
+            
             
         return False
     
