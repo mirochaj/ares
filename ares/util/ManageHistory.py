@@ -330,7 +330,7 @@ class WriteData():
         ##
 
         # Compute Lyman-alpha background for WF coupling
-        Ja = data_igm_fl['Ja']
+        Ja = data_igm['Ja']
         Ja_tot = np.sum(Ja)
         
         if self.sim.pf.Npops > 1:

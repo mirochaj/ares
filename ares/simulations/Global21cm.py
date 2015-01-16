@@ -624,19 +624,18 @@ class Global21cm:
 
                 Ja = []
                 for i, rb in enumerate(self.rbs):
-                    if not rb.pf['approx_lwb']:
+                    if rb is None:
                         Ja.append(0.0)
-                        continue
-                    Ja.append(rb.LymanAlphaFlux(z))
-
-                if hasattr(self, 'lwb_Ja'):
-                    Ja.append(np.interp(z, self.lwb_z, self.lwb_Ja[i]))
+                    elif hasattr(self, 'lwb_Ja'):
+                        Ja.append(np.interp(z, self.lwb_z, self.lwb_Ja[i]))
+                    else:
+                        Ja.append(rb.LymanAlphaFlux(z))
 
             else:
                 Ja = [0.0]
 
             # Add Ja to history even though it didn't come out of solver
-            data_igm['Ja'] = np.array([Ja])
+            data_igm['Ja'] = np.array(Ja)
 
             # SAVE RESULTS
             self.write._update_history(z, zpre, data_igm, data_cgm)
