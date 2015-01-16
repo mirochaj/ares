@@ -18,6 +18,14 @@ from .CheckForParameterConflicts import CheckForParameterConflicts
 
 def count_populations(**kwargs):
     
+    if 'source_kwargs' in kwargs:
+        if kwargs['source_kwargs'] is not None:
+            return len(kwargs['source_kwargs'])
+    
+    if 'spectrum_kwargs' in kwargs:
+        if kwargs['spectrum_kwargs'] is not None:
+            return len(kwargs['spectrum_kwargs'])
+    
     # Count populations
     popIDs = [0]
     for par in kwargs:

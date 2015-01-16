@@ -310,12 +310,13 @@ class Global21cm:
         # Sum up Lyman-alpha flux
         self.lwb_z, self.lwb_En = lwb_z, lwb_En
 
-        self.lwb_Ja = np.zeros_like(self.lwb_z)
+        self.lwb_Ja = []
         for i, rb in enumerate(self.rbs):
             if self._Jrb[i] is None:
+                self.lwb_Ja.append(np.zeros_like(self.lwb_z))
                 continue
 
-            self.lwb_Ja += rb.LymanAlphaFlux(fluxes=self._Jrb[i][-1])
+            self.lwb_Ja.append(rb.LymanAlphaFlux(fluxes=self._Jrb[i][-1]))
 
     def _init_XRB(self, pre_EoR=True, **kwargs):
         """ Setup cosmic X-ray background calculation. """
@@ -621,17 +622,18 @@ class Global21cm:
             # Evolve LW background and compute Lyman-alpha flux
             if self.pf['radiative_transfer'] and z < self.zfl:
 
-                Ja = 0.0
-                for rb in self.rbs:
+                Ja = []
+                for i, rb in enumerate(self.rbs):
                     if not rb.pf['approx_lwb']:
+                        Ja.append(0.0)
                         continue
-                    Ja += rb.LymanAlphaFlux(z)
+                    Ja.append(rb.LymanAlphaFlux(z))
 
                 if hasattr(self, 'lwb_Ja'):
-                    Ja += np.interp(z, self.lwb_z, self.lwb_Ja)
+                    Ja.append(np.interp(z, self.lwb_z, self.lwb_Ja[i]))
 
             else:
-                Ja = 0.0
+                Ja = [0.0]
 
             # Add Ja to history even though it didn't come out of solver
             data_igm['Ja'] = np.array([Ja])

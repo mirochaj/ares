@@ -79,16 +79,42 @@ class WriteData():
                         [self.sim.pf['Gamma_%s' % zone](zinit, 0, igm_h_1=1.0)]
                 else:
                     history['%s_Gamma_%s' % (zone, state)] = [0.0]
+      
+                if zone == 'igm':
+                    if self.sim.pf['heat_%s' % zone] is not None:    
+                        history['%s_heat_%s' % (zone, state)] = \
+                            [self.sim.pf['heat_%s' % zone](zinit)]
+                    else:
+                        history['%s_heat_%s' % (zone, state)] = [0.0]
+                    
+                if self.sim.pf.Npops > 1:
+                    for popid in range(self.sim.pf.Npops):
+                        for l, donor in enumerate(self.sim.grid.absorbers):
+                            history['%s_gamma_%s_%s{%i}' % (zone, state, donor, popid)] = [0.0]
 
-                if zone != 'igm':
-                    continue
-                                     
-                if self.sim.pf['heat_%s' % zone] is not None:    
-                    history['%s_heat_%s' % (zone, state)] = \
-                        [self.sim.pf['heat_%s' % zone](zinit)]
-                else:
-                    history['%s_heat_%s' % (zone, state)] = [0.0]
-    
+                        # Initial rates may be non-zero if first_light coincident
+                        # with start redshift
+                        if 'Gamma_%s{%i}' % (zone, popid) in self.sim.pf:
+                            if self.sim.pf['Gamma_%s{%i}' % (zone, popid)] is not None:
+                                history['%s_Gamma_%s{%i}' % (zone, state, popid)] = \
+                                    [self.sim.pf['Gamma_%s{%i}' % (zone, popid)](zinit, 0, igm_h_1=1.0)]
+                            else:
+                                history['%s_Gamma_%s{%i}' % (zone, state, popid)] = [0.0]
+                        else:
+                            history['%s_Gamma_%s{%i}' % (zone, state, popid)] = [0.0]            
+
+                        if zone != 'igm':
+                            continue
+
+                        if 'heat_%s{%i}' % (zone, popid) in self.sim.pf:
+                            if self.sim.pf['heat_%s{%i}' % (zone, popid)] is not None:
+                                history['%s_heat_%s{%i}' % (zone, state, popid)] = \
+                                    [self.sim.pf['heat_%s{%i}' % (zone, popid)](zinit)]
+                            else:
+                                history['%s_heat_%s{%i}' % (zone, state, popid)] = [0.0]    
+                        else:
+                            history['%s_heat_%s{%i}' % (zone, state, popid)] = [0.0]        
+
         # Keep track of mean hydrogen ionization fractions
         history['xavg'] = [self.sim.grid_cgm.data['h_2'][0] \
                 + (1. - self.sim.grid_cgm.data['h_2'][0]) \
@@ -98,6 +124,16 @@ class WriteData():
             history['Ja'] = [0.0]
         else:
             history['Ja'] = [self.sim.pf['Ja'](zinit)]
+            
+        if self.sim.pf.Npops > 1:
+            for popid in range(self.sim.pf.Npops):
+                if 'Ja{%i}' % popid in self.sim.pf:
+                    if self.sim.pf['Ja{%i}' % popid] is None:    
+                        history['Ja{%i}' % popid] = [0.0]
+                    else:
+                        history['Ja{%i}' % popid] = [self.sim.pf['Ja'](zinit)]
+                else:
+                    history['Ja{%i}' % popid] = [0.0]        
                         
         if self.sim.pf['secondary_lya'] and not self.sim.approx_all_xray:
             history['Ja_X'] = [0.0]    
@@ -210,25 +246,25 @@ class WriteData():
                     continue
 
                 to_keep.update({'%s_%s' % (zone, state): grid[state]})
-                
+
                 if state in ['e', 'Tk','h_2', 'he_3']:
                     continue
-                
+
                 # Save rate coefficients if sources are on    
                 if not (self.sim.pf['radiative_transfer']):
                     continue
-                
+
                 if (zpre > self.sim.zfl):
                     continue
-                
+
                 k = self.sim.grid.absorbers.index(state) 
-                                                
+
                 if self.sim.helium:
-                                                                
+
                     # Keep rates separated by absorber
                     to_keep.update({'%s_Gamma_%s' % (zone, state): \
                         rt.kwargs['Gamma'].squeeze()[k]})
-                        
+
                     for l, donor in enumerate(self.sim.grid.absorbers):
                         to_keep.update({'%s_gamma_%s_%s' % (zone, state, donor): \
                             rt.kwargs['gamma'].squeeze()[k,l]})
@@ -251,6 +287,39 @@ class WriteData():
                     if zone == 'igm':
                         to_keep.update({'%s_heat_%s' % (zone, state): \
                             rt.kwargs['Heat']})
+                            
+                if self.sim.pf.Npops > 1:
+                    for i in range(self.sim.pf.Npops):
+                        
+                        if self.sim.helium:
+
+                            # Keep rates separated by absorber
+                            to_keep.update({'%s_Gamma_%s{%i}' % (zone, state, i): \
+                                rt.kwargs['Gamma_%i' % i].squeeze()[k]})
+
+                            for l, donor in enumerate(self.sim.grid.absorbers):
+                                to_keep.update({'%s_gamma_%s_%s{%i}' % (zone, state, donor, i): \
+                                    rt.kwargs['gamma_%i' % i].squeeze()[k,l]})
+
+                            if zone == 'igm':
+                                to_keep.update({'%s_heat_%s{%i}' % (zone, state, i): \
+                                    rt.kwargs['Heat_%i' % i].squeeze()[k]})
+
+                        else:
+
+                            to_keep.update({'%s_Gamma_%s{%i}' % (zone, state, i): \
+                                rt.kwargs['Gamma_%i' % i]})
+
+                            if rt.pf['approx_xrb']:
+                                to_keep.update({'%s_gamma_%s_%s{%i}' % (zone, state, state, i): 0.0})
+                            else:
+                                to_keep.update({'%s_gamma_%s_%s{%i}' % (zone, state, state, i): \
+                                    rt.kwargs['gamma_%i' % i].squeeze()[k,k]})
+
+                            if zone == 'igm':
+                                to_keep.update({'%s_heat_%s{%i}' % (zone, state, i): \
+                                    rt.kwargs['Heat_%i' % i]})
+                                
                         
         # Store to_keep items in history
         for key in to_keep:
@@ -262,20 +331,25 @@ class WriteData():
 
         # Compute Lyman-alpha background for WF coupling
         Ja = data_igm_fl['Ja']
+        Ja_tot = np.sum(Ja)
         
+        if self.sim.pf.Npops > 1:
+            for i in range(self.sim.pf.Npops):
+                self.sim.history['Ja{%i}' % i].append(Ja[i])
+
         Ja_X = 0.0
         #if self.sim.pf['radiative_transfer'] and z < self.sim.zfl:
         #    if self.sim.pf['secondary_lya'] and not self.sim.approx_all_xray:
         #        Ja_X = self.sim.rt_igm.kwargs['Ja_X']
                                 
         # z, Tk, Ja, nH, ne
-        Ts = self.sim.grid.hydr.SpinTemperature(z, to_keep['igm_Tk'], Ja + Ja_X,
+        Ts = self.sim.grid.hydr.SpinTemperature(z, to_keep['igm_Tk'], Ja_tot + Ja_X,
             to_keep['igm_h_2'], to_keep['igm_e'] * self.sim.grid_igm.cosm.nH(z))
         dTb = self.sim.grid.hydr.DifferentialBrightnessTemperature(z,
             to_keep['xavg'], Ts)
 
         # Store derived fields
-        self.sim.history['Ja'].append(Ja)
+        self.sim.history['Ja'].append(Ja_tot)
         
         if self.sim.pf['secondary_lya'] and not self.sim.approx_all_xray:
             self.sim.history['Ja_X'].append(Ja_X)
