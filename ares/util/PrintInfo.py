@@ -613,11 +613,11 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
         print line('-'*twidth)
 
     if fit_TP:
-        
+
         print line('-'*twidth)       
         print line('Measurement to be Fit')     
         print line('-'*twidth)
-        
+
         i = 0
         rows = []
         data = []
@@ -629,10 +629,13 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
                 continue
         
             if val == 0:
-                rows.append('z_%s' % tp)
+                if fit.measurement_units[0] == 'MHz':
+                    rows.append('nu_%s' % tp)
+                else:
+                    rows.append('z_%s' % tp)
             else:
                 rows.append('T_%s (mK)' % tp)
-        
+
             unit = fit.measurement_units[val]
         
             if not hasattr(fit, "chain"):

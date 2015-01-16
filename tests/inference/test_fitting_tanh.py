@@ -24,6 +24,7 @@ base_pars = \
  'final_redshift': 5.,
  'tanh_model': True,
  'tanh_dz': 0.2,
+ 'track_extrema': True,
  'inline_analysis': blobs,
 }
 
@@ -39,24 +40,27 @@ ref_pars = \
 fit = ares.inference.ModelFit(**base_pars)
 
 # Assume default parameters
-sim = ares.simulations.Global21cm(tanh_model=True, **ref_pars)
-fit.mu = ares.analysis.Global21cm(sim).turning_points
+#sim = ares.simulations.Global21cm(tanh_model=True, **ref_pars)
+#fit.mu = ares.analysis.Global21cm(sim).turning_points
+fit.mu = np.array([48.807, 71.462, 109.105, -3.838, -105.978, 15.742])
 
 # Set axes of parameter space
-fit.set_axes(['tanh_xz0', 'tanh_xdz', 'tanh_Tz0', 'tanh_Tdz'], 
+fit.set_axes(['tanh_xz0', 'tanh_xdz', 'tanh_Tz0', 'tanh_Tdz'],
     is_log=[False]*4)
 
 fit.priors = \
 {
  'tanh_xz0': ['uniform', 5., 20.],
- 'tanh_xdz': ['uniform', 0.1, 10],
+ 'tanh_xdz': ['uniform', 0.1, 20],
  'tanh_Tz0': ['uniform', 5., 20.],
- 'tanh_Tdz': ['uniform', 0.1, 10],
+ 'tanh_Tdz': ['uniform', 0.1, 20],
  'tau_e': ['gaussian', 0.08, 0.01, 40]
 }
 
 # Set errors
 fit.set_error(error1d=[0.5, 0.5, 0.5, 5., 5., 5.])
+
+fit.measurement_units = ('MHz', 'mK')
 
 # Defines order of errors
 fit.measurement_map = \

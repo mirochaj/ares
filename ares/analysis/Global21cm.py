@@ -924,7 +924,7 @@ class Global21cm:
                 
         if 'tau_CMB' not in self.data:
             self.tau_CMB()
-        
+
         ax.plot(self.data_asc['z_CMB'], self.data_asc['tau_CMB_tot'], **kwargs)
 
         ax.set_xlim(0, 15)
@@ -945,8 +945,8 @@ class Global21cm:
         #        #    va='center')  
         #        ax.annotate(r'plus post-EoR $\tau_e$', 
         #            [5, tau.max() + tau_post + 0.002], ha='left',
-        #            va='bottom')          
-        #        ax.set_title('dashed lines are upper limits')
+        #            va='bottom')
+        #        ax.set_title('daeshed lines are upper limits')
 
         ax.ticklabel_format(style='plain', axis='both')
 

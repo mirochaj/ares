@@ -243,9 +243,9 @@ class loglikelihood:
         try:
             sim = simG21(**kw)
             sim.run()
-
+            
             tps = sim.turning_points
-
+            
         # most likely: no (or too few) turning pts
         except:         
             #self.warning(None, kwargs)
@@ -258,28 +258,28 @@ class loglikelihood:
             
             del sim, kw, f
             gc.collect()
-            
+        
             return -np.inf, self.blank_blob
 
         # Apply priors to blobs
         blob_vals = []
         for key in self.logprior_B.priors:
-            
+
             if not hasattr(sim, 'blobs'):
                 break
-                
+
             z = self.logprior_B.priors[key][-1]
-            
+
             i = self.blob_names.index(key) 
             j = self.blob_redshifts.index(z)
-            
+
             val = sim.blobs[j,i]
-                                
+
             blob_vals.append(val)    
-                
+
         if blob_vals:
             lp -= self.logprior_B(blob_vals)            
-            
+
         if hasattr(sim, 'blobs'):
             blobs = sim.blobs
         else:
@@ -324,8 +324,8 @@ class loglikelihood:
                     xarr.append(tps[tp][i])
                        
             # Values of current model that correspond to mu vector
-            xarr = np.array(xarr)           
-                       
+            xarr = np.array(xarr) 
+                                   
             # Compute log-likelihood, including prior knowledge
             
             if self.error_type == 'idealized':

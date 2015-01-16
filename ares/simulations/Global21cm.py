@@ -492,9 +492,7 @@ class Global21cm:
         """ Evolve chemistry and radiation background. """
         
         if hasattr(self, 'history'):
-            if self.pf['inline_analysis'] is not None:
-                self.run_inline_analysis()
-                
+            self.run_inline_analysis()
             return
         
         t = 0.0
@@ -723,15 +721,23 @@ class Global21cm:
             
         if self.pf['track_extrema']:
             self.turning_points = self.track.turning_points
+    
+        self.run_inline_analysis()
+    
+    def run_inline_analysis(self):    
         
-        if self.pf['inline_analysis'] is not None:
-            from ..analysis.InlineAnalysis import InlineAnalysis
-            anl = InlineAnalysis(self)
-            anl.run_inline_analysis()
+        if self.pf['inline_analysis'] is None:
+            return
             
-            self.blobs = anl.blobs
-            self.blob_names, self.blob_redshifts = \
-                anl.blob_names, anl.blob_redshifts
+        from ..analysis.InlineAnalysis import InlineAnalysis
+        anl = InlineAnalysis(self)
+        anl.run_inline_analysis()
+        
+        self.turning_points = anl.turning_points
+        
+        self.blobs = anl.blobs
+        self.blob_names, self.blob_redshifts = \
+            anl.blob_names, anl.blob_redshifts
 
     @property
     def blob_shape(self):

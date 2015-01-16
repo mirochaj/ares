@@ -45,13 +45,13 @@ class InlineAnalysis:
                 self._track.TPs.append('A')
 
             delay = self.pf['stop_delay']
-
+            
             for i in range(len(self.history['z'])):
-                if i < (delay + 2):
+                if i < 10:
                     continue
 
-                stop = self._track.is_stopping_point(self.history['z'][i-delay-1:i],
-                    self.history['dTb'][i-delay-1:i])
+                stop = self._track.is_stopping_point(self.history['z'][0:i], 
+                    self.history['dTb'][0:i])
 
             self._turning_points = self._track.turning_points
 
@@ -233,6 +233,10 @@ class InlineAnalysis:
 
             # Loop over radiation backgrounds
             for k, element in enumerate(self.sim._Jrb):
+                
+                if element is None:
+                    continue
+                
                 junk_z, En, flux = self.sim._Jrb[k]
 
                 # flux is (Nbands x Nz x NE)

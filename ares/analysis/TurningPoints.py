@@ -33,7 +33,7 @@ class TurningPoints(object):
             
         # Keep track of turning points we've passed
         self.TPs = []
-        if inline and self.pf['initial_redshift'] < 70:
+        if self.pf['initial_redshift'] < 70:
             self.TPs.append('A')
             
         self.turning_points = {}
@@ -79,10 +79,10 @@ class TurningPoints(object):
         """
         
         # Hack: don't check for turning points right at beginning
-        if self.step < 10 or (z[-1] > 1e3): 
+        if self.step < 10 or (z[-1] > 1e3):
             self._step += 1
             return False
- 
+
         self._step += 1
 
         if not self.found_TP: 
