@@ -34,7 +34,7 @@ except ImportError:
 turning_points = ['D', 'C', 'B', 'A']
 
 class Global21cm:
-    def __init__(self, sim=None, history=None, pf=None, **kwargs):
+    def __init__(self, sim=None, prefix=None, history=None, pf=None, **kwargs):
         """
         Initialize analysis object.
         
@@ -69,6 +69,8 @@ class Global21cm:
                 self.hydr = sim.grid.hydr
             except AttributeError:
                 self.hydr = Hydrogen(cosm=self.cosm)
+        elif prefix is not None:
+            pass
         else:
             self.sim = None
             if type(history) is dict:
@@ -295,7 +297,7 @@ class Global21cm:
         
         tau = cumtrapz(integrand, self.data_asc['z'], initial=0)
             
-        tau[self.data_asc['z'] > 100] = 0.0    
+        tau[self.data_asc['z'] > 100] = 0.0 
             
         self.data_asc['tau_CMB'] = tau
         self.data['tau_CMB'] = tau[-1::-1]
@@ -305,11 +307,24 @@ class Global21cm:
                 
         tau_tot = tlo[-1] + tau
         
+        tau_tot[self.data_asc['z'] > 100] = 0.0 
+        
         self.data_asc['z_CMB'] = np.concatenate((zlo, self.data_asc['z']))
         self.data['z_CMB'] = self.data_asc['z_CMB'][-1::-1]
                 
         self.data_asc['tau_CMB_tot'] = np.concatenate((tlo, tau_tot))
         self.data['tau_CMB_tot'] = tau_tot[-1::-1]
+                
+    @property
+    def tau_e(self):
+        if not hasattr(self, '_tau_e'):
+            if 'tau_CMB_tot' not in self.data:
+                self.tau_CMB()
+                
+            z50 = np.argmin(np.abs(self.data['z_CMB'] - 50))
+            self._tau_e = self.data['tau_CMB_tot'][z50]
+        
+        return self._tau_e       
                 
     @property            
     def turning_points(self):
@@ -927,7 +942,7 @@ class Global21cm:
 
         ax.plot(self.data_asc['z_CMB'], self.data_asc['tau_CMB_tot'], **kwargs)
 
-        ax.set_xlim(0, 15)
+        ax.set_xlim(0, 20)
 
         ax.set_xlabel(labels['z'])
         ax.set_ylabel(r'$\tau_e$')

@@ -1122,8 +1122,20 @@ class ModelFit(object):
                 lw=4, elinewidth=4, capsize=6, capthick=3,
                 **kwargs)        
         
+        # Look for populations
+        m = re.search(r"\{([0-9])\}", blob)
+        
+        if m is None:
+            prefix = blob
+        else:
+            # Population ID number
+            num = int(m.group(1))
+            
+            # Pop ID including curly braces
+            prefix = blob.strip(m.group(0))
+        
         ax.set_xlabel(r'$z$')
-        ax.set_ylabel(labels[blob])
+        ax.set_ylabel(labels[prefix])
         pl.draw()
         
         

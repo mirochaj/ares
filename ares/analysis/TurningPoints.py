@@ -51,16 +51,20 @@ class TurningPoints(object):
         # Compute second derivative
         zpp, dTb2dz2 = central_difference(zp, dTbdz)   
         
+        negative = np.all(dTb < 0)
+        positive = not negative
+        concave_up = np.all(dTb2dz2 > 0)
+        concave_down = not concave_up
+                
         # Based on sign of brightness temperature and concavity,
         # determine which turning point we've found.
-        if np.all(dTb < 0) and np.all(dTb2dz2 > 0) \
-            and ('A' not in self.TPs):
+        if negative and concave_up and ('A' not in self.TPs):
             return 'A'
-        elif np.all(dTb < 0) and np.all(dTb2dz2 < 0):
+        elif negative and concave_down:
             return 'B'
-        elif np.all(dTb < 0) and np.all(dTb2dz2 > 0):
+        elif negative and concave_up:
             return 'C'
-        elif np.all(dTb > 0) and np.all(dTb2dz2 < 0):
+        elif positive and concave_down:
             return 'D'
         else:
             return 'unknown'

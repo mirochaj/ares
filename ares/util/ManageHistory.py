@@ -332,7 +332,7 @@ class WriteData():
         # Compute Lyman-alpha background for WF coupling
         Ja = data_igm['Ja']
         Ja_tot = np.sum(Ja)
-        
+
         if self.sim.pf.Npops > 1:
             for i in range(self.sim.pf.Npops):
                 self.sim.history['Ja{%i}' % i].append(Ja[i])
@@ -350,24 +350,24 @@ class WriteData():
 
         # Store derived fields
         self.sim.history['Ja'].append(Ja_tot)
-        
+
         if self.sim.pf['secondary_lya'] and not self.sim.approx_all_xray:
             self.sim.history['Ja_X'].append(Ja_X)
-        
+
         self.sim.history['Ts'].append(Ts)
         self.sim.history['dTb'].append(dTb)
-        
+
         if self.sim.feedback_ON:
             self.sim.history['M_J'].append(self.JeansMass(z, data_igm_fl['igm_Tk']))
             self.sim.history['M_F'].append(self.FilteringMass())
 
     def _strip(self, data):
         """ Convert single element arrays to floats in all entries. """
-    
+
         new = {}
         for key in data:
             new[key] = data[key][0]
-    
+
         return new
     
     def save(self, prefix, suffix='pkl', clobber=False):
