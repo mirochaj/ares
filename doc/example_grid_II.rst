@@ -1,8 +1,10 @@
 Advanced Parameter Study
 ========================
-In this example, we'll follow the same procedure as in the `Simple Parameter
-Study' example, but add a few dimensions, and take advantage of some advanced
-features. First, import ares and initialize a ModelGrid instance:
+In this example, we'll follow the same procedure as in the :doc:`example_grid_I` 
+example, but add a few dimensions and take advantage of some advanced
+features. It'll be advantageous to write the following as a script (i.e., not
+in an interactive Python session) so that we can execute it in parallel. Call 
+it ``ares_2d_grid.py``:
 
 :: 
 
@@ -27,7 +29,7 @@ the ``Tmin`` dimension of a model grid makes lots of sense:
 ::
 
     mg.load_balance(method=1)
-    
+
 Finally, to run the thing:
 
 ::
@@ -41,8 +43,13 @@ turning point D (roughly indicates start of EoR), but other options are
 ``'B'``, ``'C'``, and ``'trans'``. This is useful if we're only interested in
 the pre-reionization era (e.g., ``thru='C'``) or the the first stars feature
 (e.g., ``thru='B'``) for example, in which case we don't want to compute the
-entire reionization history for some reason.
+entire reionization history.
 
-Note: you can pass additional keyword arguments to ``mg.run``, which will be
-used for each individual model in the grid.
+.. note :: You can pass additional keyword arguments to to ``mg.run``, which will be supplied as-is to each model in the grid (i.e., they will remain constant).
+		
+
+To run this as a script, back in the terminal invoke the script with ``mpirun`` ::
+
+    mpirun -np 4 python ares_2d_grid.py
+
 

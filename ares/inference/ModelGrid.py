@@ -104,7 +104,7 @@ class ModelGrid:
 
         Parameters
         ----------
-        
+
         """
 
         self.grid = GridND()
@@ -116,7 +116,7 @@ class ModelGrid:
         # Build parameter space
         self.grid.build(**kwargs)
         self.bgrid.build(**kwargs)
-        
+
         # Save for later access
         self.kwargs = kwargs
 
@@ -124,8 +124,57 @@ class ModelGrid:
     def to_solve(self):
         if not hasattr(self, '_to_solve'):
             self._to_solve = self.load_balance()
-        
+
         return self._to_solve
+
+    def prep_output_files(self, prefix):
+        """
+        Stick this in utilities folder?
+        """
+        
+        # Setup output file
+        if rank == 0 and (not restart):
+
+            # Main output: MCMC chains (flattened)
+            f = open('%s.chain.pkl' % prefix, 'wb')
+            f.close()
+            
+            # Main output: log-likelihood
+            f = open('%s.logL.pkl' % prefix, 'wb')
+            f.close()
+            
+            f = open('%s.fail.pkl' % prefix, 'wb')
+            f.close()
+            
+            # Parameter names and list saying whether they are log10 or not
+            f = open('%s.pinfo.pkl' % prefix, 'wb')
+            pickle.dump((self.parameters, self.is_log), f)
+            f.close()
+            
+            # Constant parameters being passed to ares.simulations.Global21cm
+            f = open('%s.setup.pkl' % prefix, 'wb')
+            tmp = self.base_kwargs.copy()
+            to_axe = []
+            for key in tmp:
+                if re.search(key, 'tau_table'):
+                    to_axe.append(key)
+            for key in to_axe:
+                del tmp[key] # this might be big, get rid of it
+            pickle.dump(tmp, f)
+            del tmp
+            f.close()
+            
+            # Outputs for arbitrary meta-data blos
+            if hasattr(self, 'blob_names'):
+                
+                # File for blobs themselves
+                f = open('%s.blobs.pkl' % prefix, 'wb')
+                f.close()
+                
+                # Blob names and list of redshifts at which to track them
+                f = open('%s.binfo.pkl' % prefix, 'wb')
+                pickle.dump((self.blob_names, self.blob_redshifts), f)
+                f.close()
         
     def run(self, prefix, thru=None, save_fields=None, blobs=None, 
         **pars):
@@ -205,12 +254,12 @@ class ModelGrid:
             pars.update({'progress_bar': False})
         if 'verbose' not in pars:
             pars.update({'verbose': False})
-        if hasattr(self, 'blob_names'): 
+        if hasattr(self, 'blob_names'):
             pars.update({'inline_analysis': \
                 (self.blob_names, self.blob_redshifts)})
-        
+
         pars.update({'track_extrema': True})
-                                        
+
         # Dictionary for hmf tables
         fcoll = {}
 
@@ -237,21 +286,6 @@ class ModelGrid:
                 if kvec in self.indices:
                     pb.update(h)
                     continue
-
-            # See if this combination of parameter values are "allowed,"
-            # meaning their values are consistent with our fiducial model.
-            # If not, continue. Fill value in buffers should be -99999 or
-            # something
-            #if thru != 'B' and False:
-            #    B_loc = self.grid_B.locate_entry(kwargs)
-            #    if self.L[B_loc] < self.Lcut * self.Lmax:
-            #        if self.verbose:
-            #            print '############################################'
-            #            print '######  Low-Likelihood Model (#%s)  ####' % (str(h).zfill(6))
-            #            for kw in kwargs:
-            #                print "######  %s = %g" % (kw, kwargs[kw])
-            #            print '############################################\n'
-            #        continue
 
             # Grab Tmin index
             try:

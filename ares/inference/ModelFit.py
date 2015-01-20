@@ -386,13 +386,9 @@ class DummySampler:
 class ModelFit(object):
     def __init__(self, fn=None, **kwargs):
         """
-        Initialize an extracted signal.
-        
-        Parameters
-        ----------
-        fn : str
-            Output filename of previous MCMC run.
-        
+        Initialize a class for fitting the turning points in the global
+        21-cm signal.
+
         Optional Keyword Arguments
         --------------------------
         Anything you want based to each ares.simulations.Global21cm call.

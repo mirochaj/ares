@@ -1,5 +1,5 @@
-Two-Zone IGM Model
-===================
+Two-Zone IGM Model for the Global 21-cm Signal
+==============================================
 To begin, first import ares:
 
 :: 
@@ -63,6 +63,10 @@ If you'd like to save the results to disk, do something like:
 which saves the contents of ``sim.history`` at all time snapshots. The 
 suffixes ``.npz`` and ``.hdf5`` are also supported.
 
+.. note :: You can pass a filename to ``ares.analysis.Global21cm`` rather than a ``ares.simulations.Global21cm`` instance if you'd like, e.g., :: anl = ares.analysis.Global21cm(history='test_21cm.txt')
+
+DIY Parameter Study
+-------------------
 To do simple parameter study, you could do something like:
 
 ::
@@ -92,12 +96,9 @@ To do simple parameter study, you could do something like:
    the :math:`L_X`-SFR relation and the star formation efficiency.
                 
 See :doc:`analysis` and :doc:`example_grid_I` for more on available analysis 
-routines and exploring parameter space. Note that you can pass a filename to
-ares.analysis.Global21cm rather than a Simulation instance if you'd like, e.g.,
+routines and exploring parameter space. 
 
-::
 
-    anl = ares.analysis.Global21cm(history='test_21cm.txt')
             
             
 

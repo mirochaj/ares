@@ -67,7 +67,7 @@ def parse_blobs(name):
         pass
         
     return None 
-    
+
 def subscriptify_str(s):
 
     raise NotImplementedError('fix me')
