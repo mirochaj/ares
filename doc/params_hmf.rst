@@ -23,7 +23,7 @@ The halo mass function is at the core of many calculations related to the high-z
     Default: ``False``
     
 ``load_hmf``
-    Search ``$GLORB/input/hmf`` for halo mass function lookup table?
+    Search ``$ARES/input/hmf`` for halo mass function lookup table?
     
     Default: ``True``
     

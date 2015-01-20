@@ -1,20 +1,22 @@
 Advanced Parameter Study
 ========================
-In this example, we'll follow the same procedure as in the `Simple Parameter Study' example, but add a few dimensions, and take advantage of some advanced features. First, as always, import glorb and initialize a Gridded21cm instance:
+In this example, we'll follow the same procedure as in the `Simple Parameter
+Study' example, but add a few dimensions, and take advantage of some advanced
+features. First, import ares and initialize a ModelGrid instance:
 
 :: 
 
-    import glorb
+    import ares
     import numpy as np
     
-    mg = glorb.search.ModelGrid()
+    mg = ares.inference.ModelGrid()
     
 Let's survey a 2-D swath of parameter space, varying the X-ray normalization 
 parameter and ``Tmin``, the minimum virial temperature of star-forming halos:
 
 ::
 
-    mg.setup(fX=np.linspace(0.1, 0.5, 3), Tmin=np.logspace(3, 4, 3))
+    mg.set_axes(fX=np.linspace(0.1, 0.5, 3), Tmin=np.logspace(3, 4, 3))
     
 This is a case where load-balancing is very helpful. The ``Tmin`` dimension of 
 this parameter space requires some significant overhead at the outset of each 
@@ -30,15 +32,16 @@ Finally, to run the thing:
 
 ::
 
-    mg.run(fn='advanced_param_study.hdf5', thru='D')
+    mg.run('advanced_param_study', thru='D')
 
-The ``fn`` keyword argument is a filename that our results will automatically be
-saved to (in HDF5), and the ``thru`` keyword argument indicates the end-point of
-each simulation. In this case, its set to turning point D (roughly indicates 
-start of EoR), but other options are ``'B'``, ``'C'``, and ``'trans'``. This is useful if 
-we're only interested in the pre-reionization era (e.g., ``thru='C'``) or the 
-the first stars feature (e.g., ``thru='B'``) for example, in which case we don't 
-want to waste time computing the entire reionization history.
+The first (and only) positional argument is the prefix of a filename that our
+results will automatically be saved to (in HDF5), and the ``thru`` keyword
+argument indicates the end-point of each simulation. In this case, its set to
+turning point D (roughly indicates start of EoR), but other options are
+``'B'``, ``'C'``, and ``'trans'``. This is useful if we're only interested in
+the pre-reionization era (e.g., ``thru='C'``) or the the first stars feature
+(e.g., ``thru='B'``) for example, in which case we don't want to compute the
+entire reionization history for some reason.
 
 Note: you can pass additional keyword arguments to ``mg.run``, which will be
 used for each individual model in the grid.

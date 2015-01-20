@@ -48,7 +48,7 @@ contains convenience routines for common plots of interest:
     ax = anl.GlobalSignature()
     
     
-.. figure::  http://casa.colorado.edu/~mirochaj/docs/glorb/basic_21cm.png
+.. figure::  http://casa.colorado.edu/~mirochaj/docs/ares/basic_21cm.png
    :align:   center
    :width:   600
    
@@ -81,7 +81,10 @@ To do simple parameter study, you could do something like:
                 label=r'$f_X=%.2g, f_{\ast}=%.2g$' % (fX, fstar))
                 
                 
-.. figure::  http://casa.colorado.edu/~mirochaj/docs/glorb/glorb_simple_param_study.png
+    ax.legend(loc='lower right', fontsize=14) 
+    pl.draw()           
+                
+.. figure::  http://casa.colorado.edu/~mirochaj/docs/ares/ares_simple_param_study.png
    :align:   center
    :width:   600
 

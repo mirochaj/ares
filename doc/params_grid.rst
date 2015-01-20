@@ -4,7 +4,7 @@ Grid Parameters
 
 ``grid_cells``
     Number of resolution elements in the grid (i.e., number of concentric
-    spherical shells to consider in calculation).
+    spherical shells to consider in 1-D calculation).
 
 ``logarithmic_grid``
     If True, discretize space logarithmically, rather than linearly.
@@ -20,7 +20,7 @@ Grid Parameters
     Default: :math:`1 \ \text{cm}^{-3}` 
     
 ``length_units``
-    Default: :math:`6.6 \times 3.08568 \times 10^{21} \ \text{cm}` (i.e., 6.6 kilo-parsec) [centimeters]
+    Default: :math:`10 \times 3.08568 \times 10^{21} \ \text{cm}` (i.e., 10 kilo-parsec) [centimeters]
     
 ``time_units``
     Default: :math:`3.15576 \times 10^{13} \ \text{s}` (i.e., 1 Myr) [seconds]    

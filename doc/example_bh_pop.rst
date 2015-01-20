@@ -4,7 +4,7 @@ In these examples, we will initialize a stellar population object, defined
 by the minimum virial temperature of halos in which stars form, ``Tmin``, 
 the star formation efficiency, ``fstar``, and other optional keyword arguments.
 
-To begin, import glorb and initialize an instance of the BlackHolePopulation class:
+To begin, import ares and initialize an instance of the BlackHolePopulation class:
 
 :: 
 
@@ -22,7 +22,7 @@ Once initialized, there are several class methods available to compute the star-
     
 Class methods always return values in cgs units, and when applicable, volume densities are assumed to be in comoving units (in the comments above, ccm stands for co-moving centimeters).
 
-To convert to more recognizable units, use conversion factors from ``rt1d``:
+To convert to more recognizable units, use conversion factors from ``ares``:
 
 ::
 

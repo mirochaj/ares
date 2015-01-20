@@ -23,10 +23,10 @@ some physical properties, we'll call several setter routines:
 
     # Set initial conditions
     grid.set_physics(isothermal=True)
-    grid.set_chemistry(Z=1)
-    grid.set_density(rho0=ares.physics.Constants.m_H)
+    grid.set_chemistry(include_He=False)
+    grid.set_density(nH=1.)
     grid.set_ionization(state='neutral')  
-    grid.set_temperature(T=np.logspace(3, 5, grid.dims))
+    grid.set_temperature(T)
     
 The above commands initialize the grid to be isothermal, composed of hydrogen
 only, with a density of 1 hydrogen atom per cubic centimeter, initialized to 

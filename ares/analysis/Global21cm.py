@@ -82,14 +82,19 @@ class Global21cm:
                     self.data[key] = f[key].value[-1::-1]
                 f.close()
             else:
-                f = open(history, 'r')
-                cols = f.readline().split()[1:]
-                data = np.loadtxt(f)
-                
-                self.data = {}
-                for i, col in enumerate(cols):
-                    self.data[col] = data[:,i]
-                f.close()
+                if re.search('pkl', history):
+                    f = open(history, 'rb')
+                    self.data = pickle.load(f)
+                    f.close()
+                else:    
+                    f = open(history, 'r')
+                    cols = f.readline().split()[1:]
+                    data = np.loadtxt(f)
+                    
+                    self.data = {}
+                    for i, col in enumerate(cols):
+                        self.data[col] = data[:,i]
+                    f.close()
                               
             if pf is None:
                 self.pf = SetAllDefaults()
@@ -968,7 +973,7 @@ class Global21cm:
         pl.draw()
 
         return ax
-        
+
     def RadiationBackground(self, z, ax=None, fig=1, band='lw', **kwargs):
         """
         Plot radiation background at supplied redshift and band.

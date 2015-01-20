@@ -11,12 +11,15 @@ Population Parameters
     Default: ``True``
 
 ``is_ion_src_cgm`` 
-    Sources contribute growth of HII regions?
+    Sources contribute to growth of HII regions?
 
     Default: ``True``
 
 ``is_ion_src_igm`` 
     Sources contribute ionization in bulk IGM?
+    
+    If ``approx_xrb=True``, this ionization rate a mean X-ray photon energy
+    of ``xray_Eavg``, which is 500 eV by default.
 
     Default: ``True``
     
@@ -64,7 +67,7 @@ X-ray background
 ``fX``
     Constant multiplicative factor applied to ``cX``, which is typically chosen to match observations of nearby star-forming galaxies, i.e., ``fX`` parameterizes ignorance in redshift evolution of ``cX``.
     
-    Default: 1
+    Default: 0.2
 
 Radiation at energies below the Lyman Limit
 -------------------------------------------

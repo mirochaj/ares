@@ -19,7 +19,8 @@ Quick-start
 
 Advanced
 --------
-Under construction.
+Coming soon. For now, peruse ``ares/tests/dTb`` for lots of different 21-cm examples and
+``ares/tests/rt1d`` for a few extra 1-D radiative transfer problems.
 
 Under the hood
 --------------
@@ -35,5 +36,5 @@ Surveying Parameter Space
 
 Post-Processing Cosmological Simulations
 ----------------------------------------
-Under construction.
+Stay tuned.
 

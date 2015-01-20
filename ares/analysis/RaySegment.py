@@ -189,7 +189,7 @@ class RaySegment:
         self.r1_IF = np.array(self.r1_IF)[order]
         self.r2_IF = np.array(self.r2_IF)[order]
                 
-    def PlotIonizationFrontEvolution(self, mp=None, anl=True, T0=None, 
+    def PlotIonizationFrontEvolution(self, fig=1, mp=None, anl=True, T0=1e4, 
         color='k', ls='--', label=None, plot_error=True, plot_solution=True):
         """
         Compute analytic and numerical I-front radii vs. time and plot.
@@ -202,7 +202,7 @@ class RaySegment:
             mp = mp    
             hadmp = True
         else: 
-            mp = MultiPanel(dims=(2, 1))
+            mp = MultiPanel(fig=fig, dims=(2, 1))
 
         if anl: 
             mp.grid[1].plot(self.t / self.trec, self.ranl, ls='-', color='k')
@@ -214,20 +214,22 @@ class RaySegment:
             mp.grid[1].set_ylim(0, 1.1 * max(max(self.rIF), max(self.ranl)))
             mp.grid[1].set_ylabel(r'$r \ (\mathrm{kpc})$') 
         
+        maxt = max(self.t / self.trec)
+        
         if plot_error:
             mp.grid[0].plot(self.t / self.trec, self.rIF / self.ranl, 
                 color=color, ls=ls, label=label)
-            mp.grid[0].set_xlim(0, max(self.t / self.trec))
-            mp.grid[0].set_ylim(0.94, 1.05)
+            mp.grid[0].set_xlim(0, maxt)
+            mp.grid[0].set_ylim(0.8, 1.04)
             
             if not hadmp:
-                mp.grid[0].set_yticks(np.arange(0.94, 1.04, 0.02))
+                #mp.grid[0].set_yticks(np.arange(0.94, 1.04, 0.02))
                 mp.grid[0].set_xlabel(r'$t / t_{\mathrm{rec}}$')
                 mp.grid[0].set_ylabel(r'$r_{\mathrm{num}} / r_{\mathrm{anl}}$') 
-                mp.grid[1].set_xticks(np.linspace(0, 4, 5))
-                mp.grid[0].set_xticks(np.linspace(0, 4, 5))
-                mp.grid[1].set_xticklabels(np.linspace(0, 4, 5))
-                mp.grid[0].set_xticklabels(np.linspace(0, 4, 5))
+                mp.grid[1].set_xticks(np.arange(0, round(maxt), 0.25))
+                mp.grid[0].set_xticks(np.arange(0, round(maxt), 0.25))
+                mp.grid[1].set_xticklabels(np.arange(0, round(maxt), 0.25))
+                mp.grid[0].set_xticklabels(np.arange(0, round(maxt), 0.25))
         
                 mp.fix_ticks()
         
@@ -238,13 +240,17 @@ class RaySegment:
     def IonizationProfile(self, species='h', t=[1, 10, 100], color='k', 
         annotate=False, xscale='linear', yscale='log', ax=None,
         normx=False, marker=None, s=50, facecolors=None,
-        iononly=False, ls=None, label=None):
+        iononly=False, ls=None, label=None, fig=1):
         """
         Plot radial profiles of species fraction (for H or He) at times t (Myr).
         """      
         
         if ax is None:
-            ax = pl.subplot(111)
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
 
         ax.set_xscale('log')
         ax.set_yscale('log')
@@ -308,14 +314,18 @@ class RaySegment:
         return ax     
             
     def TemperatureProfile(self, t=[10,30,100], color='k', ls=None, 
-        xscale='linear', yscale='log', ax = None, normx=False, 
-        marker=None, s=50, facecolors='none', label=None):
+        xscale='linear', yscale='log', ax=None, normx=False, 
+        marker=None, s=50, facecolors='none', label=None, fig=1):
         """
         Plot radial profiles of temperature at times t (Myr).
         """  
         
         if ax is None:
-            ax = pl.subplot(111)
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
         
         if ls is None:
             ls = linestyles

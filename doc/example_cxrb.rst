@@ -17,8 +17,8 @@ redshift. Here, we'll compute the X-ray background evolution over time, and fast
      'spectrum_type': 'mcd',
      'source_mass': 10.,
      'approx_xrb': False,      # Solve the RTE!
-     'load_tau': True,          # Look in $GLORB/input/optical_depth for lookup table
-     'redshift_bins': 400,      # Sample redshift interval with this many points
+     'discrete_xrb': True,     # Look in $ARES/input/optical_depth for lookup table
+     'redshift_bins': 400,     # Sample redshift interval with this many points
     }
 
     # Initialize RadiationBackground instance
@@ -74,8 +74,8 @@ rate density.
 Tabulating the Optical Depth    
 ============================    
 The above example relied on a pre-existing table of the IGM optical depth over
-redshift and photon energy, hence the parameter ``load_tau``, which tells ares
-to go looking in ``$GLORB/input/optical_depth`` for lookup tables. This technique
+redshift and photon energy, hence the parameter ``discrete_xrb``, which tells ares
+to go looking in ``$ARES/input/optical_depth`` for lookup tables. This technique
 was outlined originally in Appendix C of `Haardt & Madau (1996) <http://adsabs.harvard.edu/abs/1996ApJ...461...20H>`_.
 
 The shape of the lookup table is defined by the minimum and maximum redshift
@@ -84,12 +84,12 @@ interval, ``redshift_bins``, the minimum and maximum photon energies (0.2 and
 30 keV by default), and the number of photon energies (determined iteratively
 from the redshift and energy intervals and the value of ``redshift_bins``).
 
-To make optical depth tables of your own, see ``$GLORB/examples/generate_optical_depth_tables.py``.
+To make optical depth tables of your own, see ``$ARES/examples/generate_optical_depth_tables.py``.
 By default, ares generates tables assuming the IGM is fully neutral, but that
 is not required. See Section 3 of `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_
 for more discussion of this technique.
 
-A more complete example can be found in ``$GLORB/tests/test_cxrb_generator.py``.
+A more complete example can be found in ``$ARES/tests/test_cxrb_generator.py``.
 
 ===================
 Alternative Methods

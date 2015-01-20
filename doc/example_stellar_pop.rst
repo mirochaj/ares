@@ -4,7 +4,7 @@ In these examples, we will initialize a stellar population object, defined
 by the minimum virial temperature of halos in which stars form, :math:`T_{\text{min}}`, 
 the star formation efficiency, :math:`f_{\ast}`, and perhaps other things.
 
-To begin, import glorb and initialize an instance of the :class:`StellarPopulation<glorb.populations.StellarPopulation>` class:
+To begin, import ares and initialize an instance of the :class:`StellarPopulation<ares.populations.StellarPopulation>` class:
 
 :: 
 
@@ -75,8 +75,8 @@ stars whose SED is a blackbody:
     pop = ares.populations.StellarPopulation(**params)
                                  
 The ``approx_lwb`` keyword argument tells StellarPopulation that we'll be treating
-the UV spectrum of this population in detail. To verify this, access the rs attribute
-(which is short for ``radiation source'' to indicate that it is an rt1d.sources.RadiationSource instance):
+the UV spectrum of this population in detail. To verify this, access the ``rs`` attribute
+(which is short for ``radiation source'' to indicate that it is an ares.sources.RadiationSource instance):
 
 ::
 
