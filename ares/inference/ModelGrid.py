@@ -12,9 +12,10 @@ and analyzing them.
 """
 
 import numpy as np
-import time, copy, os, pickle
+import copy, os, pickle, gc, re
 from ..simulations import Global21cm
 from ..util import GridND, ProgressBar
+from ..util.ReadData import read_pickled_dataset, read_pickled_dict
 
 try:
     from mpi4py import MPI
@@ -23,17 +24,15 @@ try:
 except ImportError:
     rank = 0
     size = 1
-    
-try:
-    from scipy.interpolate import interp1d
-except ImportError:
-    pass    
+
+def_kwargs = {'track_extrema': True, 'verbose': False, 'progress_bar': False}    
     
 class ModelGrid:
     """Create an object for setting up and running model grids."""
-    def __init__(self, prefix=None, restart=False, grid=None, verbose=True, 
-        **kwargs):
+    def __init__(self, **kwargs):
         """
+        Initialize a model grid.
+        
         Parameters
         ----------
 
@@ -45,30 +44,36 @@ class ModelGrid:
         verbose : bool
 
         """
+        
+        self.base_kwargs = def_kwargs.copy()
+        self.base_kwargs.update(kwargs)
+        
+        # Prepare for blobs (optional)
+        if 'inline_analysis' in self.base_kwargs:
+            self.blob_names, self.blob_redshifts = \
+                self.base_kwargs['inline_analysis']
 
-        self.verbose = verbose
-        self.is_restart = False
 
-        if isinstance(grid, GridND):
-            self.grid = grid
-        elif (prefix is not None):
-            
-            self.is_restart = False
-            if os.path.exists('%s.grid.hdf5' % prefix):
-                self.grid = GridND('%s.grid.hdf5' % prefix)
-            elif restart:
-                if os.path.exists('%s.grid.pkl' % prefix):
-                    try:
-                        self._read_restart('%s.grid.pkl' % prefix)
-                        self.is_restart = True
-                    except IOError:
-                        pass
-                    
-            if os.path.exists('%s.extras.pkl' % prefix):
-                self.extras = self.load_extras('%s.extras.pkl' % prefix)
-
-        if not hasattr(self, 'grid'):
-            self.grid = None
+        #if isinstance(grid, GridND):
+        #    self.grid = grid
+        #elif (prefix is not None):
+        #    
+        #    self.is_restart = False
+        #    if os.path.exists('%s.grid.hdf5' % prefix):
+        #        self.grid = GridND('%s.grid.hdf5' % prefix)
+        #    elif restart:
+        #        if os.path.exists('%s.grid.pkl' % prefix):
+        #            try:
+        #                self._read_restart('%s.grid.pkl' % prefix)
+        #                self.is_restart = True
+        #            except IOError:
+        #                pass
+        #            
+        #    if os.path.exists('%s.extras.pkl' % prefix):
+        #        self.extras = self.load_extras('%s.extras.pkl' % prefix)
+        #
+        #if not hasattr(self, 'grid'):
+        #    self.grid = None
             
     def __getitem__(self, name):
         return self.grid[name]
@@ -76,28 +81,43 @@ class ModelGrid:
     def set_blobs(self):
         pass                    
         
-    def _read_restart(self, fn):
-        f = open(fn, 'rb')
+    def _read_restart(self, prefix):
+        """
+        Figure out which models have already been run.
+        """
 
-        self.grid = pickle.load(f)
-
-        indices, buffers, extras = [], [], []
-        while True:
-            try:
-                tmp1, tmp2, tmp3 = pickle.load(f)
-            except EOFError:
-                break
-                
-            indices.append(tmp1)
-            buffers.append(tmp2)
-            extras.append(tmp3)            
-                
-        f.close()    
+        fails = read_pickled_dict('%s.fail.pkl' % prefix)
+        chain = read_pickled_dataset('%s.chain.pkl' % prefix)
         
-        self.indices = indices
-        self.buffers = buffers
-        self.extras = extras
-                        
+        f = open('%s.grid.pkl' % prefix, 'rb')
+        axes = pickle.load(f)
+        self.base_kwargs = pickle.load(f)
+        f.close()
+        
+        # Prepare for blobs (optional)
+        if 'inline_analysis' in self.base_kwargs:
+            self.blob_names, self.blob_redshifts = \
+                self.base_kwargs['inline_analysis']
+        
+        self.set_axes(**axes)
+
+        # Array of ones/zeros: has this model already been done?
+        self.done = np.zeros(self.grid.shape)
+
+        for link in chain:
+            kw = {par : link[i] \
+                for i, par in enumerate(self.grid.axes_names)}
+            
+            kvec = self.grid.locate_entry(kw)
+            
+            self.done[kvec] = 1
+            
+        for fail in fails:
+            
+            kvec = self.grid.locate_entry(fail)
+            
+            self.done[kvec] = 1
+
     def set_axes(self, **kwargs):
         """
         Create GridND instance, construct N-D parameter space.
@@ -108,17 +128,18 @@ class ModelGrid:
         """
 
         self.grid = GridND()
-        self.bgrid = GridND()
 
         if rank == 0:
             print "Building parameter space..."
 
         # Build parameter space
         self.grid.build(**kwargs)
-        self.bgrid.build(**kwargs)
 
         # Save for later access
         self.kwargs = kwargs
+
+        # Shortcut to parameter names
+        self.parameters = self.grid.axes_names
 
     @property
     def to_solve(self):
@@ -127,139 +148,126 @@ class ModelGrid:
 
         return self._to_solve
 
-    def prep_output_files(self, prefix):
+    @property
+    def is_log(self):
+        if not hasattr(self, '_is_log'):
+            self._is_log = [False] * self.grid.Nd
+        
+        return self._is_log
+        
+    def prep_output_files(self, prefix, restart):
         """
         Stick this in utilities folder?
         """
         
-        # Setup output file
-        if rank == 0 and (not restart):
-
-            # Main output: MCMC chains (flattened)
-            f = open('%s.chain.pkl' % prefix, 'wb')
-            f.close()
-            
-            # Main output: log-likelihood
-            f = open('%s.logL.pkl' % prefix, 'wb')
-            f.close()
-            
-            f = open('%s.fail.pkl' % prefix, 'wb')
-            f.close()
-            
-            # Parameter names and list saying whether they are log10 or not
-            f = open('%s.pinfo.pkl' % prefix, 'wb')
-            pickle.dump((self.parameters, self.is_log), f)
-            f.close()
-            
-            # Constant parameters being passed to ares.simulations.Global21cm
-            f = open('%s.setup.pkl' % prefix, 'wb')
-            tmp = self.base_kwargs.copy()
-            to_axe = []
-            for key in tmp:
-                if re.search(key, 'tau_table'):
-                    to_axe.append(key)
-            for key in to_axe:
-                del tmp[key] # this might be big, get rid of it
-            pickle.dump(tmp, f)
-            del tmp
-            f.close()
-            
-            # Outputs for arbitrary meta-data blos
-            if hasattr(self, 'blob_names'):
-                
-                # File for blobs themselves
-                f = open('%s.blobs.pkl' % prefix, 'wb')
-                f.close()
-                
-                # Blob names and list of redshifts at which to track them
-                f = open('%s.binfo.pkl' % prefix, 'wb')
-                pickle.dump((self.blob_names, self.blob_redshifts), f)
-                f.close()
+        if rank != 0:
+            return
         
-    def run(self, prefix, thru=None, save_fields=None, blobs=None, 
-        **pars):
+        if restart:
+            return
+    
+        # Main output: MCMC chains (flattened)
+        f = open('%s.grid.pkl' % prefix, 'wb')
+        pickle.dump(self.kwargs, f)
+        pickle.dump(self.base_kwargs, f)
+        f.close()
+    
+        # Main output: MCMC chains (flattened)
+        f = open('%s.chain.pkl' % prefix, 'wb')
+        f.close()
+        
+        # Failed models
+        f = open('%s.fail.pkl' % prefix, 'wb')
+        f.close()
+        
+        # Parameter names and list saying whether they are log10 or not
+        f = open('%s.pinfo.pkl' % prefix, 'wb')
+        pickle.dump((self.grid.axes_names, self.is_log), f)
+        f.close()
+        
+        # Constant parameters being passed to ares.simulations.Global21cm
+        f = open('%s.setup.pkl' % prefix, 'wb')
+        tmp = self.base_kwargs.copy()
+        to_axe = []
+        for key in tmp:
+            if re.search(key, 'tau_table'):
+                to_axe.append(key)
+        for key in to_axe:
+            del tmp[key] # this might be big, get rid of it
+        pickle.dump(tmp, f)
+        del tmp
+        f.close()
+
+        if 'Tmin' in self.grid.axes_names:
+            f = open('%s.fcoll.pkl' % prefix, 'wb')
+            f.close()
+        
+        # Outputs for arbitrary meta-data blobs
+        if hasattr(self, 'blob_names'):
+
+            # File for blobs themselves
+            f = open('%s.blobs.pkl' % prefix, 'wb')
+            f.close()
+            
+            # Blob names and list of redshifts at which to track them
+            f = open('%s.binfo.pkl' % prefix, 'wb')
+            pickle.dump((self.blob_names, self.blob_redshifts), f)
+            f.close()
+
+    def run(self, prefix, clobber=False, restart=False, save_freq=10):
         """
         Run model grid, for each realization thru a given turning point.
         
         Parameters
         ----------
         prefix : str
-            Prefix for output files. Suffixes will be .hdf5, blobs.hdf5, 
-            extras.hdf5.
-        save_fields : list
-            Elements in glorb.Simulation.history to save (in their entirety).
-            
+            Prefix for all output files.
+        save_freq : int
+            Number of steps to take before writing data to disk.
+        clobber : bool
+            Overwrite pre-existing files of the same prefix if one exists?
+        restart : bool
+            Append to pre-existing files of the same prefix if one exists?
+
         Returns
         -------
         
         """
-
-        fn = '%s.grid.hdf5' % prefix
         
-        # Create grid, or load in preexisting one
-        if os.path.exists(fn):
-            if rank == 0:
-                print "File %s exists! Exiting." % fn
-            return  
+        if not hasattr(self, 'blob_names'):
+            raise IOError('If you dont save anything this will be a useless exercise!')
 
-        if os.path.exists('%s.grid.pkl' % prefix):
-            if rank == 0 and self.is_restart:
-                print "Re-starting from %s.grid.pkl" % prefix
+        self.prefix = prefix
 
+        if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
+            if not restart:
+                raise IOError('%s exists! Remove manually, set clobber=True, or set restart=True to append.' 
+                    % prefix)
+
+        if not os.path.exists('%s.chain.pkl' % prefix) and restart:
+            raise IOError("This can't be a restart, %s*.pkl not found." % prefix)
+        
+        # Load previous results if this is a restart
+        if restart:
+            if rank != 0:
+                MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
+                
+            self._read_restart(prefix)
+            
+            if rank != (size-1):
+                MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
+        
+        # Print out how many models we have (left) to compute
         if rank == 0:
-            if self.is_restart:
+            if restart:
                 print "Update: %i models down, %i to go." \
-                    % (len(self.indices), self.grid.size - len(self.indices))
+                    % (self.done.sum(), self.grid.size - self.done.sum())
             else:
                 print 'Running %i-element model-grid.' % self.grid.size
-                
-        if blobs is not None:
-            self.blob_names, self.blob_redshifts = blobs
-            
-            self.blob_shape = copy.deepcopy(self.grid.shape)
-            self.blob_shape.append(len(self.blob_names))
-            del blobs
-        else:
-            self.blob_names = ['z', 'dTb']
-            self.blob_redshifts = list('BCD')
-            
-        # To store results
-        shape = copy.deepcopy(self.grid.shape)
-        
-        # redshift and temperature of each turning pt.
-        shape.append(2)
-        
-        # Container for elements of sim.history
-        buffers = []        
-        extras = {}
-        blobs = []
-
-        for option in self.blob_redshifts:
-            buffers.append(np.zeros(shape))
-            
-            #if hasattr(self, 'blob_names'):
-            #    blobs.append(np.zeros(self.blob_shape))
-        
-            if thru == option:
-                break
-                
-        # Load checkpoints 
-        if self.is_restart:
-            for i, loc in enumerate(self.indices):
-                for j in range(len(self.buffers[i])):
-                    buffers[j][loc] = self.buffers[i][j]
-            
-        # Make sure we track the extrema, be less verbose, etc.
-        if 'progress_bar' not in pars:
-            pars.update({'progress_bar': False})
-        if 'verbose' not in pars:
-            pars.update({'verbose': False})
-        if hasattr(self, 'blob_names'):
-            pars.update({'inline_analysis': \
-                (self.blob_names, self.blob_redshifts)})
-
-        pars.update({'track_extrema': True})
-
+                         
+        # Make some blank files for data output                 
+        self.prep_output_files(prefix, restart)                 
+                            
         # Dictionary for hmf tables
         fcoll = {}
 
@@ -267,23 +275,19 @@ class ModelGrid:
         pb = ProgressBar(self.grid.size, 'grid')
         pb.start()
 
-        start = time.time()
-        
-        # Open checkpoint file
-        f = open('%s.grid.pkl' % prefix, 'ab')
-        if not self.is_restart:
-            pickle.dump(self.grid, f)
-            
-        # Loop over models use StellarPopulation.update routine 
+        ct = 0    
+        chain_all = []; blobs_all = []
+
+        # Loop over models, use StellarPopulation.update routine 
         # to speed-up (don't have to re-load HMF spline as many times)
         for h, kwargs in enumerate(self.grid.all_kwargs):
-            
+
             # Where does this model live in the grid?
             kvec = self.grid.locate_entry(kwargs)
-            
+
             # Skip if it's a restart and we've already run this model
-            if self.is_restart:
-                if kvec in self.indices:
+            if restart:
+                if self.done[kvec]:
                     pb.update(h)
                     continue
 
@@ -300,16 +304,16 @@ class ModelGrid:
                     i_Tmin = 0
                     if h % size != rank:
                         continue
-                        
+
             except AttributeError:
                 self.LB = 0
                 i_Tmin = 0
-                
+
                 if h % size != rank:
                     continue
 
             # Copy kwargs - may need updating with pre-existing lookup tables
-            p = pars.copy()
+            p = self.base_kwargs.copy()
             p.update(kwargs)
             
             # Create new splines if we haven't hit this Tmin yet in our model grid.
@@ -333,162 +337,67 @@ class ModelGrid:
                 sim = Global21cm(**p)
 
             # Run simulation!
-            fail = False
             try:             
                 sim.run()
-            except:
-                fail = True
-                
-                if self.verbose:
-                    print '###########################################'
-                    print '######  Simulation failed (#%s)  ####' % (str(h).zfill(8))
-                    for kw in kwargs:
-                        print "######  %s = %g" % (kw, kwargs[kw])
-                    
-                    print '###########################################'
-                    
-                    if hasattr(sim, 'turning_points'):
-                        if sim.turning_points:
-                            last = 1e3
-                            TP = None
-                            for feature in sim.turning_points:
-                                if sim.turning_points[feature][0] < last:
-                                    TP = feature
-                            print '######  Failed at %s' % TP
-                    else:
-                        print '######  Failed prior to first extremum. ' 
-                    
-                    print '###########################################'
 
-            # Save turning point position
-            tmp = []
-            for i, redshift in enumerate(self.blob_redshifts):
-                if redshift == 'trans':
-                    name = 'trans'
-                else:
-                    name = redshift
+                tps = sim.turning_points
 
-                if fail:
-                    buffers[i][kvec] = np.array([-11111] * 2)
-                else:
-                    
-                    try:
-                        buffers[i][kvec] = np.array(sim.turning_points[name][0:2])
-                    except KeyError:
-                        buffers[i][kvec] = np.array([-77777] * 2) # B never happens
-                    except IndexError:
-                        buffers[i][kvec] = np.array([-88888] * 2) # B happens @z=zfl, i.e. zfl too small
-                    except AttributeError:
-                        buffers[i][kvec] = np.array([-99999] * 2) # track_extrema=False!
-                    
-                tmp.append(buffers[i][kvec])    
-                    
-                # Save other stuff    
-                #for j, blob in enumerate(sim.history.keys()):    
-                #    
-                #    if fail:
-                #        blobs[i][kvec][j] = -11111
-                #    else:
-                #    
-                #        try:
-                #            blobs[i][kvec][blob_num] = sim.blobs[i,j]                            
-                #        except KeyError:
-                #            blobs[i][kvec][blob_num] = -77777
-                #        except IndexError:
-                #            blobs[i][kvec][blob_num] = -88888
-                #        except AttributeError:
-                #            blobs[i][kvec][blob_num] = -99999
-                
-                if name == thru:
-                    break
-                
-            extras[kvec] = {}                        
-            if save_fields is not None:
-                extras[kvec]['z'] = sim.history['z']
-                for field in save_fields:
-                    extras[kvec][field] = sim.history[field]
-                                        
-            # Figure out blobs if we haven't already
-            if not hasattr(self, 'blob_names'):
-                self.blob_names = sim.history.keys()
-            else:
-                if len(sim.history.keys()) > len(self.blob_names):
-                    self.blob_names = sim.history.keys()
-                        
-            pb.update(h)
+            except:         
+                # Write to "fail" file - this might cause problems in parallel
+                f = open('%s.fail.pkl' % self.prefix, 'ab')
+                pickle.dump(kwargs, f)
+                f.close()
+
+                del p, sim
+                gc.collect()
+
+                pb.update(h)
+                continue
+
+            ct += 1
             
-            # Checkpoint!
-            pickle.dump((kvec, tmp, extras[kvec]), f)
+            chain = np.array([kwargs[key] for key in self.parameters])
+            
+            chain_all.append(chain)
+            blobs_all.append(sim.blobs)
 
-            del p, sim, tmp
+            ##
+            # File I/O from here on out
+            ##
+
+            # Only record results every save_freq steps
+            if ct % save_freq != 0:
+                continue
+
+            # Here we wait until we get the key
+            if rank != 0:
+                MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
+
+            f = open('%s.chain.pkl' % self.prefix, 'ab')
+            pickle.dump(chain_all, f)
+            f.close()
+            
+            f = open('%s.blobs.pkl' % self.prefix, 'ab')
+            pickle.dump(blobs_all, f)
+            f.close()
+            
+            # Send the key to the next processor
+            if rank != (size-1):
+                MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
+            
+            del chain_all, blobs_all
+            gc.collect()
+
+            chain_all = []; blobs_all = []
+
+            pb.update(h)
+
+            del p, sim
 
         pb.finish()
 
-        f.close()        
-
         print "Processor %i done." % rank
-        
-        self.blobs = blobs
-        
-        if hasattr(self, 'extras'):
-            for i, key in enumerate(self.indices):
-                extras[key] = self.extras[i]
-                        
-        self.extras = extras
-            
-        # Collect results
-        if size > 1:
-            collected_buffs = []
-            for buff in buffers:
-                tmp = np.zeros_like(buff)
-                nothing = MPI.COMM_WORLD.Allreduce(buff, tmp)
-            
-                if rank == 0:
-                    collected_buffs.append(tmp)
-            
-            collected_blobs = []
-            for blob in blobs:
-                tmp = np.zeros_like(blob)
-                nothing = MPI.COMM_WORLD.Allreduce(blob, tmp)
-            
-                if rank == 0:
-                    collected_blobs.append(tmp)        
-        
-        else:
-            collected_buffs = buffers
-            collected_blobs = blobs
-                        
-        if rank == 0:
-            for i, redshift in enumerate(self.blob_redshifts):
-                if redshift == 'trans':
-                    name = 'trans'
-                else:
-                    name = redshift
                     
-                self.grid.add_dataset(name, collected_buffs[i])
-                self.grid.higher_dimensions = ['z', 'dTb']
-                
-                #self.bgrid.add_dataset(name, collected_blobs[i])
-                #self.bgrid.higher_dimensions = self.blob_names
-                
-                if name == thru:
-                    break
-
-            if prefix is not None:
-                self.grid.to_hdf5(fn)
-                print "Wrote %s." % fn
-
-                #self.bgrid.to_hdf5('%s.blobs.hdf5' % prefix)
-                #print "Wrote %s.blobs.hdf5" % prefix
-
-            if save_fields is not None:
-                self.save_extras(prefix)
-
-        stop = time.time()
-
-        if rank == 0:
-            print 'Grid calculation complete in %.4g hours.' % ((stop - start) / 3600.)
-
     def save_extras(self, prefix):
         """
         Write extra fields to disk (npz format).

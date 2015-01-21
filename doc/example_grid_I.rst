@@ -4,14 +4,46 @@ Often we want to study how the 21-cm signal changes over a range of parameters.
 We can do so using the :class:`ModelGrid<glorb.search.ModelGrid>` class, 
 and use numpy arrays to represent the range of values we're interested in.
 
-To begin, import ares and initialize an instance of the ``ModelGrid`` class:
+To begin,
 
 :: 
 
     import ares
-    mg = ares.inference.ModelGrid()
     
-Let's survey a small 2-D swath of parameter space, varying the X-ray 
+Before we run a set of models, we need to decide what quantities we'd like
+to save for each model. Anything stored the ``history`` attribute of an
+``ares.simulations.Global21cm`` instance is fair game: see :doc:`fields` for
+more information. We also must supply a series of redshifts
+at which to save the quantities of interest.
+
+Let's just save the redshift, 21-cm brightness temperature, and spin 
+temperature at the redshifts corresponding to extrema in the global signal (which
+we refer to as turning points B, C, and D):
+    
+::
+
+    fields = ['z', 'dTb', 'Ts']
+    redshifts = ['B', 'C', 'D']
+    
+.. note :: The list of redshifts can include numerical values as well.    
+    
+and now, initialize a ``ModelGrid``` instance: 
+
+::
+
+    base_kwargs = \
+    {
+     'final_redshift': 6
+     'inline_analysis': [fields, redshifts], 
+    }
+
+    mg = ares.inference.ModelGrid(**base_kwargs)
+    
+``base_kwargs`` will be passed to every model in the grid. Note the ``inline_analysis``
+key: this tells ares to automatically record the values of our fields of interest
+at the specified redshifts.    
+    
+Now, let's survey a small 2-D swath of parameter space, varying the X-ray 
 normalization parameter and star formation efficiency:
 
 ::
@@ -26,14 +58,8 @@ we're running in an interactive Python session in serial:
 
     mg.load_balance(method=0)
     
-Finally, to run the thing (saving results to files with 'test_model_grid' prefix):
-
-::
-
-    mg.run(prefix='test_model_grid')
-
-The main results are stored in an ``ares.util.GridND.GridND`` instance, which contains
-information about the grid axes:
+To verify the properties of the model grid, we can access the names and values
+of its axes:
 
 ::
 
@@ -44,51 +70,40 @@ information about the grid axes:
     ax0.values
     
     # etc.
-
-And the results:
-
-::
     
-    mg.grid.shape
-
-In this case, the grid shape is (5, 2). 5 is the number of ``fX`` values surveyed, 
-and the second dimension corresponds to the ``fstar axis``. The :math:`(z, \delta T_b)` 
-pair for each turning point can be accessed by name:
+Finally, to run the thing
 
 ::
 
-    mg['B']
+    mg.run(prefix='test_model_grid')
+
+The main results are stored in a series of files with the prefix ``test_model_grid``.
+
+.. note :: If the model grid doesn't finish running, that's OK! Simply re-execute the above command and supply ``restart=True`` as an additional keyword argument, and it will pick up where it left off.
+
+It's easiest to analyze the results using a built-in analysis module, which 
+will automatically retrieve the data in all files:
     
-There are some convenience functions for picking out the results for individual models. 
-For example, say you were particularly interested in the case of ``fX=0.2``, 
-``fstar=0.1``:
+::
+    
+    anl = ares.analysis.ModelSet('test_model_grid')
+
+To see where the absorption trough occurs, you could make a simple scatter-plot:
+
+::
+    
+    ax = anl.ScatterTurningPoints(include='C', color='b')
+
+To see the where the emission signal occurs on the same axes, 
 
 ::
 
-    loc = mg.grid.locate_entry({'fX':0.2, 'fstar':0.1})
-    mg.grid['B'][loc]
-    mg.grid['C'][loc]
+    ax = anl.ScatterTurningPoints(include='D', color='r')
 
-To see where the turning points happen, you could make a simple scatter-plot:
-
-::
     
-    import matplotlib.pyplot as pl
-    
-    for pt in ['B', 'C', 'D']:
-        pl.scatter(mg.grid[pt][...,0], mg.grid[pt][...,1])
     
 If you're interested in variations in ``Tmin``, in which case load-balancing
 could be highly advantageous, see :doc:`example_grid_II`.
 
-To save a model grid calculation, do: ::
-
-    mg.grid.to_hdf5('ares_modelgrid.hdf5')
-    
-To access it later (and analyze it as we did above), do: ::
-
-    mg = ares.analysis.ModelGrid('glorb_modelgrid.hdf5')
-    
-    
 
     

@@ -140,7 +140,7 @@ def read_pickled_dict(fn):
     
     return results
     
-def read_pickled_chain(fn, logL=None, arrayify=True):
+def read_pickled_chain(fn, logL=None):
     """
     Reads MCMC chain from emcee that has been pickled.
     
@@ -196,6 +196,20 @@ def read_pickled_chain(fn, logL=None, arrayify=True):
         return fc
 
     
+def read_pickled_dataset(fn):
+    f = open(fn, 'rb')
     
+    results = []
+    
+    while True:
+        try:
+            # This array should be (nsteps, ndims)
+            results.extend(pickle.load(f))
+        except EOFError:
+            break
+            
+    f.close()
+    
+    return np.array(results)
     
     

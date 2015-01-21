@@ -10,11 +10,30 @@ it ``ares_2d_grid.py``:
 
     import ares
     import numpy as np
+
+As in :doc:`example_grid_I`, we'll save the redshift, 21-cm brightness temperature, and spin 
+temperature at the redshifts corresponding to extrema in the global signal (which
+we refer to as turning points B, C, and D):
+
+::
+
+    fields = ['z', 'dTb', 'Ts']
+    redshifts = ['B', 'C', 'D']
+
+and now, initialize a ``ModelGrid``` instance: 
+
+::
+
+    base_kwargs = \
+    {
+     'final_redshift': 6
+     'inline_analysis': [fields, redshifts], 
+    }
+
+    mg = ares.inference.ModelGrid(**base_kwargs)    
     
-    mg = ares.inference.ModelGrid()
-    
-Let's survey a 2-D swath of parameter space, varying the X-ray normalization 
-parameter and ``Tmin``, the minimum virial temperature of star-forming halos:
+Let's again survey a 2-D swath of parameter space, varying the X-ray normalization 
+parameter and now ``Tmin``, the minimum virial temperature of star-forming halos:
 
 ::
 
@@ -34,22 +53,11 @@ Finally, to run the thing:
 
 ::
 
-    mg.run('advanced_param_study', thru='D')
-
-The first (and only) positional argument is the prefix of a filename that our
-results will automatically be saved to (in HDF5), and the ``thru`` keyword
-argument indicates the end-point of each simulation. In this case, its set to
-turning point D (roughly indicates start of EoR), but other options are
-``'B'``, ``'C'``, and ``'trans'``. This is useful if we're only interested in
-the pre-reionization era (e.g., ``thru='C'``) or the the first stars feature
-(e.g., ``thru='B'``) for example, in which case we don't want to compute the
-entire reionization history.
-
-.. note :: You can pass additional keyword arguments to to ``mg.run``, which will be supplied as-is to each model in the grid (i.e., they will remain constant).
-		
+    mg.run('advanced_param_study')		
 
 To run this as a script, back in the terminal invoke the script with ``mpirun`` ::
 
     mpirun -np 4 python ares_2d_grid.py
 
+All the usual analysis routines still apply.
 

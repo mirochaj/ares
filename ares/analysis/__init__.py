@@ -1,5 +1,4 @@
-from .ModelFit import ModelFit
-from .ModelGrid import ModelGrid
+from .ModelSet import ModelSet
 from .MultiPlot import MultiPanel
 from .RaySegment import RaySegment
 from .AnalyzeSources import Source

@@ -20,7 +20,7 @@ from .MultiPlot import MultiPanel
 from ..physics.Constants import nu_0_mhz
 from ..util.ParameterFile import count_populations
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
-from ..util.ReadData import read_pickled_chain, read_pickled_dict
+from ..util.ReadData import read_pickled_dataset, read_pickled_dict
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 
 tanh_pars = TanhParameters()
@@ -109,7 +109,7 @@ class DummySampler:
     def __init__(self):
         pass        
 
-class ModelFit(object):
+class ModelSet(object):
     def __init__(self, data):
         """
         Parameters
@@ -136,10 +136,15 @@ class ModelFit(object):
             prefix = data
 
             # Read MCMC chain
-            self.chain, self.logL = \
-                read_pickled_chain('%s.chain.pkl' % prefix, 
-                    logL='%s.logL.pkl' % prefix)
-
+            self.chain = read_pickled_dataset('%s.chain.pkl' % prefix)
+            
+            # Figure out if this is an MCMC run or a model grid
+            try:
+                self.logL = read_pickled_dataset('%s.logL.pkl' % prefix)
+                self.is_mcmc = True
+            except IOError:
+                self.is_mcmc = False
+                
             self.Nd = int(self.chain.shape[-1])
 
             # Read parameter names and info
@@ -156,7 +161,7 @@ class ModelFit(object):
             
             if os.path.exists('%s.blobs.pkl' % prefix):
                 try:
-                    blobs = read_pickled_chain('%s.blobs.pkl' % prefix)
+                    blobs = read_pickled_dataset('%s.blobs.pkl' % prefix)
                                                                     
                     self.mask = np.zeros_like(blobs)    
                     self.mask[np.isinf(blobs)] = 1
@@ -246,7 +251,7 @@ class ModelFit(object):
             if np.all(np.diff(Tmin) > 0):
                 tmp_chain[i,:] = self.chain[i,:].copy()
                 continue
-            
+
             # Otherwise, we need to fix some stuff
 
             # Determine proper ordering of Tmin indices
@@ -446,7 +451,107 @@ class ModelFit(object):
                         / self.blobs[:,j,mm]
                         
         return gamma
-                        
+    
+    def set_logL(self, **constraints):
+        """
+        For ModelGrid calculations, the likelihood must be supplied 
+        after-the-fact.
+        
+        Parameters
+        ----------
+        constraints : dict
+            Constraints to use in calculating logL
+            
+        Example
+        -------
+        data = {'z': ['D', mean, 1-sigma error]}
+        self.set_logL(data)
+            
+        Returns
+        -------
+        Sets "logL" attribute, which is used by several routines.    
+            
+        """    
+            
+        if not hasattr(self, 'logL'):
+            self.logL = np.zeros(self.chain.shape[0])
+
+        for i in range(self.chain.shape[0]):
+            logL = 0.0
+            
+            for element in constraints:
+                z, mu, sigma = constraints[element]
+                
+                j = self.blob_redshifts.index(z)
+                k = self.blob_names.index(element)
+                
+                data = self.blobs[i,j,k]
+                
+                logL += (data - mu)**2 / 2. / sigma**2
+                
+            self.logL[i] -= logL
+            
+        mask = np.isnan(self.logL)
+        self.logL[mask] = -np.inf 
+            
+    def ScatterTurningPoints(self, ax=None, fig=1, 
+        slc=None, box=False, track=False, include='BCD', **kwargs):
+        """
+        Show occurrences of turning points B, C, and D for all models in
+        (z, dTb) space, with points color-coded to likelihood.
+    
+        Parameters
+        ----------
+        err : dict
+            Errors on each turning point, sorted in (z, dTb) pairs.
+            Example: {'B': [0.3, 10], 'C': [0.2, 10], 'D': [0.2, 10]}
+        Lscale : bool
+            Color-code points by likelihood?
+    
+        """
+    
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+    
+        for tp in list(include): 
+            
+            j = self.blob_redshifts.index(tp)
+            
+            z = self.blobs[:,j,self.blob_names.index('z')]
+            dTb = self.blobs[:,j,self.blob_names.index('dTb')]
+            
+            if hasattr(self, 'weights'):
+                ax.scatter(z, dTb, c=self.weights, edgecolor='none', **kwargs)
+            else:
+                ax.scatter(z, dTb, edgecolor='none', **kwargs)
+                
+            
+            
+        pl.draw()
+    
+        return ax
+    
+    
+    @property
+    def weights(self):        
+        if (not self.is_mcmc) and hasattr(self, 'logL') \
+            and (not hasattr(self, '_weights')):
+            self._weights = 10**np.array(self.logL) 
+            self.new_logL = False
+
+        return self._weights
+            
+    def clear_logL(self):
+        if hasattr(self, 'logL'):
+            del self.logL
+        
+        if hasattr(self, '_weights'):
+            del self._weights                
+                    
     def get_levels(self, L, nu=[0.95, 0.68]):
         """
         Return levels corresponding to input nu-values, and assign
@@ -676,7 +781,8 @@ class ModelFit(object):
         if len(pars) == 1:
             
             hist, bin_edges = \
-                np.histogram(to_hist[0], density=density, bins=binvec[0])
+                np.histogram(to_hist[0], density=density, bins=binvec[0], 
+                    weights=self.weights)
 
             bc = rebin(bin_edges)
         
@@ -714,7 +820,7 @@ class ModelFit(object):
             # Compute 2-D histogram
             hist, xedges, yedges = \
                 np.histogram2d(to_hist[0], to_hist[1], 
-                    bins=[binvec[0], binvec[1]])
+                    bins=[binvec[0], binvec[1]], weights=self.weights)
 
             hist = hist.T
 

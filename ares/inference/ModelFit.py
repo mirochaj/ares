@@ -247,9 +247,7 @@ class loglikelihood:
             tps = sim.turning_points
             
         # most likely: no (or too few) turning pts
-        except:         
-            #self.warning(None, kwargs)
-            
+        except:                     
             # Write to "fail" file - this might cause problems in parallel
             if not self.burn:
                 f = open('%s.fail.pkl' % self.prefix, 'ab')
@@ -801,7 +799,7 @@ class ModelFit(object):
             del tmp
             f.close()
             
-            # Outputs for arbitrary meta-data blos
+            # Outputs for arbitrary meta-data blobs
             if hasattr(self, 'blob_names'):
                 
                 # File for blobs themselves
@@ -843,15 +841,17 @@ class ModelFit(object):
                 # Skip blobs if there are none being tracked
                 if not os.path.exists(fn):
                     continue
-                
+
                 f = open(fn, 'ab')
                 pickle.dump(data[i], f)
                 f.close()
-                                
+
             print "Checkpoint: %s" % (time.ctime())
-             
+
             del data, f, pos_all, prob_all, blobs_all
             gc.collect()
+            
+            # Delete chain, logL, etc., to be conscious of memory
             self.sampler.reset()
 
             pos_all = []; prob_all = []; blobs_all = []
