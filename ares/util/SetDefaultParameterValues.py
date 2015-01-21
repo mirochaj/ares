@@ -386,7 +386,7 @@ def ControlParameters():
     'logdzDataDump': None,
     "stop_time": 500,
     "initial_redshift": 50.,
-    "final_redshift": 5,
+    "final_redshift": 6,
     "save_rate_coefficients": 1,
     
     "optically_thin": 0,

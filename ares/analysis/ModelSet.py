@@ -144,6 +144,9 @@ class ModelSet(object):
                 self.is_mcmc = True
             except IOError:
                 self.is_mcmc = False
+                f = open('%s.grid.pkl' % prefix, 'rb')
+                self.axes = pickle.load(f)
+                f.close()
                 
             self.Nd = int(self.chain.shape[-1])
 
@@ -494,20 +497,24 @@ class ModelSet(object):
         mask = np.isnan(self.logL)
         self.logL[mask] = -np.inf 
             
-    def ScatterTurningPoints(self, ax=None, fig=1, 
-        slc=None, box=False, track=False, include='BCD', **kwargs):
+    def Scatter(self, x, y, z, ax=None, fig=1, slc=None, **kwargs):
         """
         Show occurrences of turning points B, C, and D for all models in
         (z, dTb) space, with points color-coded to likelihood.
     
         Parameters
         ----------
-        err : dict
-            Errors on each turning point, sorted in (z, dTb) pairs.
-            Example: {'B': [0.3, 10], 'C': [0.2, 10], 'D': [0.2, 10]}
-        Lscale : bool
-            Color-code points by likelihood?
-    
+        x : str
+            Field for the x-axis
+        y : str
+            Field for the y-axis
+        z : str, float
+            Redshift at which to plot x vs. y.
+            
+        Returns
+        -------
+        matplotlib.axes._subplots.AxesSubplot instance.
+            
         """
     
         if ax is None:
@@ -516,25 +523,27 @@ class ModelSet(object):
             ax = fig.add_subplot(111)
         else:
             gotax = True
-    
-        for tp in list(include): 
             
-            j = self.blob_redshifts.index(tp)
+        if type(z) is not list:
+            z = [z]    
+
+        for redshift in z:
+            j = self.blob_redshifts.index(redshift)
             
-            z = self.blobs[:,j,self.blob_names.index('z')]
-            dTb = self.blobs[:,j,self.blob_names.index('dTb')]
+            xdat = self.blobs[:,j,self.blob_names.index(x)]
+            ydat = self.blobs[:,j,self.blob_names.index(y)]
             
             if hasattr(self, 'weights'):
-                ax.scatter(z, dTb, c=self.weights, edgecolor='none', **kwargs)
+                ax.scatter(xdat, ydat, c=self.weights, edgecolor='none', **kwargs)
             else:
-                ax.scatter(z, dTb, edgecolor='none', **kwargs)
-                
-            
-            
+                ax.scatter(xdat, ydat, edgecolor='none', **kwargs)
+                            
+        ax.set_xlabel(labels[x])
+        ax.set_ylabel(labels[y])                    
+                            
         pl.draw()
     
         return ax
-    
     
     @property
     def weights(self):        
@@ -769,14 +778,20 @@ class ModelSet(object):
             else:
                 raise ValueError('Unrecognized parameter %s' % str(par))
 
-            if type(bins) == int:
-                valc = to_hist[k]
-                binvec.append(np.linspace(valc.min(), valc.max(), bins))
-            elif type(bins[k]) == int:
-                valc = to_hist[k]
-                binvec.append(np.linspace(valc.min(), valc.max(), bins[k]))
+            if self.is_mcmc:
+                if type(bins) == int:
+                    valc = to_hist[k]
+                    binvec.append(np.linspace(valc.min(), valc.max(), bins))
+                elif type(bins[k]) == int:
+                    valc = to_hist[k]
+                    binvec.append(np.linspace(valc.min(), valc.max(), bins[k]))
+                else:
+                    binvec.append(bins[k])
             else:
-                binvec.append(bins[k])
+                if take_log[k]:
+                    binvec.append(np.log10(self.axes[par]))
+                else:
+                    binvec.append(self.axes[par])
 
         if len(pars) == 1:
             

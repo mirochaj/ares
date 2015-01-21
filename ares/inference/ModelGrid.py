@@ -341,7 +341,13 @@ class ModelGrid:
                 sim.run()
 
                 tps = sim.turning_points
-
+            
+            # Timestep error
+            except SystemExit:
+ 
+                sim.run_inline_analysis()
+                tps = sim.turning_points
+                
             except:         
                 # Write to "fail" file - this might cause problems in parallel
                 f = open('%s.fail.pkl' % self.prefix, 'ab')

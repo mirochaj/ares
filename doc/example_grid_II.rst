@@ -20,13 +20,12 @@ we refer to as turning points B, C, and D):
     fields = ['z', 'dTb', 'Ts']
     redshifts = ['B', 'C', 'D']
 
-and now, initialize a ``ModelGrid``` instance: 
+and now, initialize a ``ModelGrid`` instance: 
 
 ::
 
     base_kwargs = \
     {
-     'final_redshift': 6
      'inline_analysis': [fields, redshifts], 
     }
 
@@ -55,7 +54,8 @@ Finally, to run the thing:
 
     mg.run('advanced_param_study')		
 
-To run this as a script, back in the terminal invoke the script with ``mpirun`` ::
+To run this as a script, back in the terminal invoke the script with ``mpirun`` 
+(here, with 4 cores) ::
 
     mpirun -np 4 python ares_2d_grid.py
 

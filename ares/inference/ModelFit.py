@@ -246,6 +246,11 @@ class loglikelihood:
             
             tps = sim.turning_points
             
+        except SystemExit:
+            
+            sim.run_inline_analysis()
+            tps = sim.turning_points    
+            
         # most likely: no (or too few) turning pts
         except:                     
             # Write to "fail" file - this might cause problems in parallel

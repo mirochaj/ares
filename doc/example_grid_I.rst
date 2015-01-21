@@ -27,13 +27,12 @@ we refer to as turning points B, C, and D):
     
 .. note :: The list of redshifts can include numerical values as well.    
     
-and now, initialize a ``ModelGrid``` instance: 
+and now, initialize a ``ModelGrid`` instance: 
 
 ::
 
     base_kwargs = \
     {
-     'final_redshift': 6
      'inline_analysis': [fields, redshifts], 
     }
 
@@ -88,19 +87,18 @@ will automatically retrieve the data in all files:
     
     anl = ares.analysis.ModelSet('test_model_grid')
 
-To see where the absorption trough occurs, you could make a simple scatter-plot:
+To see where the absorption trough occurs (turning point C), you could make a simple scatter-plot
+showing the redshift and brightness temperature for each model at that point:
 
 ::
     
-    ax = anl.ScatterTurningPoints(include='C', color='b')
+    ax = anl.Scatter(x='z', y='dTb', z='C')
 
 To see the where the emission signal occurs on the same axes, 
 
 ::
 
-    ax = anl.ScatterTurningPoints(include='D', color='r')
-
-    
+    ax = anl.Scatter(x='z', y='dTb', z='D', color='r')
     
 If you're interested in variations in ``Tmin``, in which case load-balancing
 could be highly advantageous, see :doc:`example_grid_II`.

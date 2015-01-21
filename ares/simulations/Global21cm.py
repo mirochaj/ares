@@ -730,6 +730,15 @@ class Global21cm:
         if self.pf['inline_analysis'] is None:
             return
             
+        tmp = {}
+        for key in self.history:
+            if type(self.history[key]) is list:
+                tmp[key] = np.array(self.history[key])
+            else:
+                tmp[key] = self.history[key]
+            
+        self.history = tmp
+            
         from ..analysis.InlineAnalysis import InlineAnalysis
         anl = InlineAnalysis(self)
         anl.run_inline_analysis()

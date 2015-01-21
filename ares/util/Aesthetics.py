@@ -49,7 +49,7 @@ labels = \
  'xi_XR': r'$\xi_{X}$',
  'xi_LW': r'$\xi_{\mathrm{LW}}$',
  'xi_UV': r'$\xi_{\mathrm{ion}}$',
- 'sfrd': r'$\dot{\rho}_{\ast}$',
+ 'sfrd': r'$\dot{\rho}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}]$',
  
  'spectrum_logN': r'$\log_{10} N_{\mathrm{H}}$',
  'spectrum_alpha': r'$\alpha$',
@@ -75,7 +75,7 @@ labels = \
  'Tk': r'$T_K \ (\mathrm{K})$',
  
  'tau_e': r'$\tau_e$',
- 'curvature': r'$\delta^{\prime \prime} T_b$',
+ 'curvature': r'$\delta^{\prime \prime} T_b \ [\mathrm{mK}^2 \ \mathrm{MHz}^{-2}]$',
 }    
 ##
 #
