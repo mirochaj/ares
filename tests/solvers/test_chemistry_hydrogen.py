@@ -25,7 +25,7 @@ grid.set_physics(isothermal=True)
 grid.set_chemistry(include_He=True)
 grid.set_density(nH=1.)
 grid.set_ionization(state='neutral')  
-grid.set_temperature(T=np.logspace(3, 5, dims))
+grid.set_temperature(T)
 
 # Initialize chemistry network / solver
 chem = ares.solvers.Chemistry(grid, rt=False)

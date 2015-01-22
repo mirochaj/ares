@@ -190,9 +190,7 @@ class RaySegment:
 
             # Compute spin-temperature            
             if 'Ja' not in data:
-                data['Ts'] = self.grid.hydr.SpinTemperature(z,
-                    data['Tk'], 0.0, 
-                    data['h_2'], data['e'] * n_H)
+                data['Ts'] = data['Tk']
             else:    
                 data['Ts'] = self.grid.hydr.SpinTemperature(z, 
                     data['Tk'], data['Ja'], 

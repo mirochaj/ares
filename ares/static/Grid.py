@@ -16,24 +16,10 @@ from ..util.Stats import rebin
 from collections import Iterable
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
-from ..physics.Constants import k_B, cm_per_kpc, s_per_myr, m_H, mH_amu, mHe_amu
 from ..physics.CrossSections import PhotoIonizationCrossSection
+from ..physics.Constants import k_B, cm_per_kpc, s_per_myr, m_H, mH_amu, \
+    mHe_amu
 
-class ELEMENT:
-    """ Substitute for periodic package, only knows about H and He. """
-    def __init__(self, name):
-        self.name = name
-    
-    @property
-    def mass(self):
-        if not hasattr(self, '_mass'):
-            if self.name == 'h':
-                self._mass = mH_amu
-            elif self.name == 'he':
-                self._mass = mHe_amu
-    
-        return self._mass
-        
 class fake_chianti:
     def __init__(self):
         pass
@@ -177,7 +163,7 @@ class Grid(object):
             self._absorbing_species = copy.copy(self.neutrals)
             for parent in self.ions_by_parent:
                 self._absorbing_species.extend(self.ions_by_parent[parent][1:-1])
-            
+
         return self._absorbing_species
         
     @property
