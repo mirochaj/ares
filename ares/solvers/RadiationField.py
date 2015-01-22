@@ -383,7 +383,7 @@ class RadiationField: # maybe RadiationNearSource
         self.k_H = np.array(self.Ns*[np.zeros_like(self.grid.zeros_grid_x_absorbers)])
         self.Gamma = np.array(self.Ns*[np.zeros_like(self.grid.zeros_grid_x_absorbers)])
         self.gamma = np.array(self.Ns*[np.zeros_like(self.grid.zeros_grid_x_absorbers2)])
-
+                
         if self.pf['approx_lwb']:
             self.Ja = [None] * self.Ns
         else:
