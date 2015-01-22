@@ -210,6 +210,8 @@ def read_pickled_dataset(fn):
             
     f.close()
     
+    print "Loaded %s." % fn
+    
     return np.array(results)
     
     

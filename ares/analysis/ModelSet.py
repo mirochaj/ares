@@ -18,7 +18,9 @@ import matplotlib.pyplot as pl
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
 from ..physics.Constants import nu_0_mhz
+from .Global21cm import Global21cm as aG21
 from ..util.ParameterFile import count_populations
+from ..simulations.Global21cm import Global21cm as sG21
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.ReadData import read_pickled_dataset, read_pickled_dict
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
@@ -193,7 +195,9 @@ class ModelSet(object):
                 self.fails = None
                 
             if os.path.exists('%s.setup.pkl' % prefix):
-                self.base_kwargs = read_pickled_dict('%s.setup.pkl' % prefix)
+                f = open('%s.setup.pkl' % prefix, 'rb')
+                self.base_kwargs = pickle.load(f)
+                f.close()
                 
                 if rank == 0:
                     print "Loaded %s.setup.pkl." % prefix
@@ -657,7 +661,47 @@ class ModelSet(object):
         
     def add_blob(self):
         pass    
+        
+    def ExamineFailures(self, N=1):
+        """
+        Try to figure out what went wrong with failed models.
+        
+        Picks a random subset of failed models, plots them, and returns
+        the analysis instances associated with each.
+        
+        Parameters
+        ----------
+        N : int
+            Number of failed models to plot.
+            
+        """    
+        
+        kw = self.base_kwargs.copy()
                 
+        Nf = len(self.fails)
+        
+        r = np.arange(Nf)
+        np.random.shuffle(r)
+        
+        ax = None
+        objects = {}
+        for i in range(N):
+            
+            idnum = r[i]
+            
+            p = self.base_kwargs.copy()
+            p.update(self.fails[idnum])
+            
+            sim = sG21(**p)
+            sim.run()
+            
+            anl = aG21(sim)
+            ax = anl.GlobalSignature(label='fail i=%i' % idnum)
+            
+            objects[idnum] = anl
+            
+        return ax, objects
+               
     def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=1.,
         nu=[0.95, 0.68], slc=None, overplot_nu=False, density=True, 
         color_by_nu=False, contour=True, filled=True, take_log=False,
@@ -793,11 +837,16 @@ class ModelSet(object):
                 else:
                     binvec.append(self.axes[par])
 
+        if not hasattr(self, 'weights'):
+            weights = None
+        else:
+            weights = self.weights
+
         if len(pars) == 1:
             
             hist, bin_edges = \
                 np.histogram(to_hist[0], density=density, bins=binvec[0], 
-                    weights=self.weights)
+                    weights=weights)
 
             bc = rebin(bin_edges)
         
@@ -835,7 +884,7 @@ class ModelSet(object):
             # Compute 2-D histogram
             hist, xedges, yedges = \
                 np.histogram2d(to_hist[0], to_hist[1], 
-                    bins=[binvec[0], binvec[1]], weights=self.weights)
+                    bins=[binvec[0], binvec[1]], weights=weights)
 
             hist = hist.T
 

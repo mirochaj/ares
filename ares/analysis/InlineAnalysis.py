@@ -225,6 +225,11 @@ class InlineAnalysis:
                 ilo -= 1
             ihi = ilo + 1
 
+            # Fudge
+            if ihi > (len(self.sim.lwb_z) - 1):
+                ilo -= 1
+                ihi -= 1
+
             zlo, zhi = self.sim.lwb_z[ilo], self.sim.lwb_z[ihi]
 
             # Might have to worry about multiple POPS    

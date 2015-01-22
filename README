@@ -102,4 +102,9 @@ pip: ::
 
     pip install sphinx
 
+This depends on `numpydoc <https://github.com/numpy/numpydoc>`_, which can also
+be installed via pip: ::
+
+    pip install numpydoc
+
 You can also just view the latest build `here <http://ares.readthedocs.org/en/latest/>`_.

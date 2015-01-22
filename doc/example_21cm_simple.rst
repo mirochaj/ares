@@ -39,14 +39,13 @@ you can access these quantities directly:
     
     pl.plot(sim.history['z'], sim.history['dTb'])
 
-Or, you can pass the Simulation instance to our main analysis class, which
+Or, you can pass the ``Global21cm`` instance to an analysis class, which
 contains convenience routines for common plots of interest:
     
 ::
    
     anl = ares.analysis.Global21cm(sim)
     ax = anl.GlobalSignature()
-    
     
 .. figure::  http://casa.colorado.edu/~mirochaj/docs/ares/basic_21cm.png
    :align:   center
@@ -58,12 +57,19 @@ If you'd like to save the results to disk, do something like:
 
 ::
 
-    sim.save('test_21cm.txt')
+    sim.save('test_21cm')
     
-which saves the contents of ``sim.history`` at all time snapshots. The 
-suffixes ``.npz`` and ``.hdf5`` are also supported.
+which saves the contents of ``sim.history`` at all time snapshots. 
 
-.. note :: You can pass a filename to ``ares.analysis.Global21cm`` rather than a ``ares.simulations.Global21cm`` instance if you'd like, e.g., :: anl = ares.analysis.Global21cm(history='test_21cm.txt')
+.. note :: The default format for output files is ``pkl``, though ASCII (e.g., ``.txt``), ``.npz``, and ``.hdf5`` are also supported. Use the optional keyword argument ``suffix``.
+
+To read results from disk, you can supply a filename to ``ares.analysis.Global21cm`` 
+rather than a ``ares.simulations.Global21cm`` instance if you'd like, e.g., :: 
+
+    anl = ares.analysis.Global21cm(history='test_21cm.pkl')    
+
+See :doc:`analysis` for more information about readily available analysis 
+routines.
 
 DIY Parameter Study
 -------------------
@@ -95,8 +101,8 @@ To do simple parameter study, you could do something like:
    Four realizations of the global 21-cm signal, varying the normalization of
    the :math:`L_X`-SFR relation and the star formation efficiency.
                 
-See :doc:`analysis` and :doc:`example_grid_I` for more on available analysis 
-routines and exploring parameter space. 
+See :doc:`example_grid_I` for examples of how to run and analyze large grids
+of models more easily.
 
 
             

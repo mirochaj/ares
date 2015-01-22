@@ -1,7 +1,6 @@
 Installation
 ============
-
-ARES depends on:
+*ares* depends on:
 
 * `numpy <http://numpy.scipy.org/>`_
 * `scipy <http://www.scipy.org/>`_ 
@@ -21,7 +20,7 @@ To download the code, type::
     python setup.py install
     
 It would be in your best interest to set an environment variable which points
-to the ARES install directory, e.g. (in bash) ::
+to the *ares* install directory, e.g. (in bash) ::
 
     export ARES=/users/<yourusername>/ares    
     

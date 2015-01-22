@@ -2,7 +2,7 @@ Simple Parameter Study
 ======================
 Often we want to study how the 21-cm signal changes over a range of parameters. 
 We can do so using the :class:`ModelGrid<glorb.search.ModelGrid>` class, 
-and use numpy arrays to represent the range of values we're interested in.
+and use *numpy* arrays to represent the range of values we're interested in.
 
 To begin,
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# glorb documentation build configuration file, created by
+# ares documentation build configuration file, created by
 # sphinx-quickstart on Mon Jul  8 08:48:22 2013.
 #
 # This file is execfile()d with the current directory set to its containing dir.
@@ -25,7 +25,8 @@ import sys, os
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax', 'sphinx.ext.viewcode']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax',
+    'sphinx.ext.viewcode', 'numpydoc']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -164,7 +165,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'glorbdoc'
+htmlhelp_basename = 'aresdoc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -183,7 +184,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'glorb.tex', u'glorb Documentation',
+  ('index', 'ares.tex', u'ares Documentation',
    u'Jordan Mirocha', 'manual'),
 ]
 
@@ -213,7 +214,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'glorb', u'glorb Documentation',
+    ('index', 'ares', u'ares Documentation',
      [u'Jordan Mirocha'], 1)
 ]
 
@@ -227,8 +228,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'glorb', u'glorb Documentation',
-   u'Jordan Mirocha', 'glorb', 'One line description of project.',
+  ('index', 'ares', u'ares Documentation',
+   u'Jordan Mirocha', 'ares', 'One line description of project.',
    'Miscellaneous'),
 ]
 
