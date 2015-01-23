@@ -219,6 +219,7 @@ class ModelSet(object):
             self.blob_redshifts = data.blob_redshifts
             self.parameters = data.parameters
             self.is_mcmc = data.is_mcmc
+            self.axes = data.axes
             
             self.Nd = int(self.chain.shape[-1])       
                 
@@ -332,6 +333,7 @@ class ModelSet(object):
         model_set.is_log = self.is_log
         model_set.parameters = self.parameters
         model_set.is_mcmc = self.is_mcmc
+        model_set.axes = self.axes
         
         self.model_set = model_set
         
