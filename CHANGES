@@ -6,5 +6,17 @@ tend to influence internals rather than call sequences and such.
 Some changes, however, *will require users to update custom scripts and calls
 to ares from within other packages.* Below is a history of such changes:
 
+2015-01-21
+    Model grids and MCMC fits are now analyzed using the same class, 
+    called ``ModelSet`` in ``ares.analysis``. This was formerly called
+    ``ModelFit`` -- a class that is now deprecated.
+
+2015-01-08
+    Changed some naming conventions. The parameters ``approx_xray`` and 
+    ``approx_lya`` are now ``approx_xrb`` and ``approx_lwb``. Also introduced
+    related parameters ``discrete_xrb`` and ``discrete_lwb`` to determine 
+    whether to integrate the transfer equation by brute force, or to 
+    discretize in redshift and frequency.
+
 Fri Dec  5 09:58:33 2014 (tip)
     Created this file.

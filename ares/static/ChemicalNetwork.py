@@ -278,7 +278,9 @@ class ChemicalNetwork:
         else:
             dqdt['Tk'] = 0.0
 
-        self.dqdt = np.array([dqdt[sp] for sp in self.grid.qmap])
+        self.dqdt = self.zeros_q.copy()
+        for i, sp in enumerate(self.grid.qmap):
+            self.dqdt[i] = dqdt[sp]
 
         return self.dqdt
                           

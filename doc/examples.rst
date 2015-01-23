@@ -2,8 +2,8 @@ Examples
 ========
 See below.
 
-Quick-start
-------------
+Basics
+------
     
 * Reionization & Global 21-cm Signal
     * :doc:`example_21cm_simple`
