@@ -17,6 +17,7 @@ from ..util import labels
 import matplotlib.pyplot as pl
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
+from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .Global21cm import Global21cm as aG21
 from ..util.ParameterFile import count_populations
@@ -100,16 +101,20 @@ def err_str(label, mu, err, log):
     s += '=%.3g^{+%.2g}_{-%.2g}' % (mu, err[0], err[1])
     
     return r'$%s$' % s
-    
+
 def def_par_names(N):
     return [i for i in np.arange(N)]
 
 def def_par_labels(i):
     return 'parameter # %i' % i
-    
+
 class DummySampler:
     def __init__(self):
-        pass        
+        pass
+        
+class ModelSubSet(object):
+    def __init__(self):
+        pass
 
 class ModelSet(object):
     def __init__(self, data):
@@ -121,7 +126,7 @@ class ModelSet(object):
             a bunch of files ending in .chain.pkl, .pinfo.pkl, etc.
 
         """
-        
+
         # Read in data from emcee.EmsembleSampler object
 
         if have_emcee:
@@ -139,7 +144,7 @@ class ModelSet(object):
 
             # Read MCMC chain
             self.chain = read_pickled_dataset('%s.chain.pkl' % prefix)
-            
+
             # Figure out if this is an MCMC run or a model grid
             try:
                 self.logL = read_pickled_dataset('%s.logL.pkl' % prefix)
@@ -149,7 +154,7 @@ class ModelSet(object):
                 f = open('%s.grid.pkl' % prefix, 'rb')
                 self.axes = pickle.load(f)
                 f.close()
-                
+
             self.Nd = int(self.chain.shape[-1])
 
             # Read parameter names and info
@@ -167,7 +172,7 @@ class ModelSet(object):
             if os.path.exists('%s.blobs.pkl' % prefix):
                 try:
                     blobs = read_pickled_dataset('%s.blobs.pkl' % prefix)
-                                                                    
+
                     self.mask = np.zeros_like(blobs)    
                     self.mask[np.isinf(blobs)] = 1
                     self.blobs = np.ma.masked_array(blobs, mask=self.mask)
@@ -204,9 +209,171 @@ class ModelSet(object):
             else:
                 self.base_kwargs = None    
                 
+        elif isinstance(data, ModelSubSet):
+            self.chain = data.chain
+            self.is_log = data.is_log
+            self.base_kwargs = data.base_kwargs
+            self.fails = data.fails
+            self.blobs = data.blobs
+            self.blob_names = data.blob_names
+            self.blob_redshifts = data.blob_redshifts
+            self.parameters = data.parameters
+            self.is_mcmc = data.is_mcmc
+            
+            self.Nd = int(self.chain.shape[-1])       
+                
         else:
             raise TypeError('Argument must be emcee.EnsembleSampler instance or filename prefix')              
     
+    def SelectModels(self):
+        """
+        Draw a rectangle on supplied matplotlib.axes.Axes instance, return
+        information about those models.
+        """
+                
+        if not hasattr(self, '_ax'):
+            raise AttributeError('No axis found.')        
+                
+        self._op = self._ax.figure.canvas.mpl_connect('button_press_event', 
+            self._on_press)
+        self._or = self._ax.figure.canvas.mpl_connect('button_release_event', 
+            self._on_release)
+                
+    def _on_press(self, event):
+        self.x0 = event.xdata
+        self.y0 = event.ydata
+        
+    def _on_release(self, event):
+        self.x1 = event.xdata
+        self.y1 = event.ydata
+        
+        self._ax.figure.canvas.mpl_disconnect(self._op)
+        self._ax.figure.canvas.mpl_disconnect(self._or)
+        
+        # Width and height of rectangle
+        dx = abs(self.x1 - self.x0)
+        dy = abs(self.y1 - self.y0)
+        
+        # Find lower left corner of rectangle
+        lx = self.x0 if self.x0 < self.x1 else self.x1
+        ly = self.y0 if self.y0 < self.y1 else self.y1
+        
+        # Lower-left
+        ll = (lx, ly)
+        
+        # Upper right
+        ur = (lx + dx, ly + dy)
+    
+        origin = (self.x0, self.y0)
+        rect = Rectangle(ll, dx, dy, fc='none', ec='k')
+        
+        self._ax.add_patch(rect)
+        self._ax.figure.canvas.draw()
+        
+        # Figure out what these values translate to.
+        
+        # Get basic info about plot
+        x = self.plot_info['x']
+        y = self.plot_info['y']
+        z = self.plot_info['z']
+        take_log = self.plot_info['log']
+        multiplier = self.plot_info['multiplier']
+        
+        # Index corresponding to this redshift
+        iz = self.blob_redshifts.index(z)
+        
+        # Container for results
+        chain = []
+        blobs = []
+        
+        # Loop over all models and isolate those selected
+        for i, pars in enumerate(self.chain):
+                
+            xy_link = []
+            for j, element in enumerate([x, y]):
+                
+                if element in self.parameters:
+                    k = self.parameters.index(element)
+                    val = pars[k]
+                elif element in self.blob_names:
+                    k = self.blob_names.index(element)
+                    val = self.blobs[i,iz,k]
+                else:
+                    k = self.derived_blob_names.index(element)
+                    val = self.derived_blobs[i,iz,k]
+            
+                # Undo any log-10 or multiplication operations
+                val /= multiplier[j]
+                
+                if take_log[j]:
+                    val = np.log10(val)
+
+                if (j == 0) and not (ll[0] <= val <= ur[0]):
+                    break
+                
+                if (j == 1) and not (ll[1] <= val <= ur[1]):
+                    break
+                
+                xy_link.append(val)    
+            
+            if len(xy_link) != 2:
+                continue
+            
+            chain.append(pars)
+            blobs.append(self.blobs[i])
+                            
+        model_set = ModelSubSet()
+        model_set.chain = np.array(chain)
+        model_set.base_kwargs = self.base_kwargs.copy()
+        model_set.fails = []
+        model_set.blobs = np.array(blobs)
+        model_set.blob_names = self.blob_names
+        model_set.blob_redshifts = self.blob_redshifts
+        model_set.is_log = self.is_log
+        model_set.parameters = self.parameters
+        model_set.is_mcmc = self.is_mcmc
+        
+        self.model_set = model_set
+        
+        print "Selected %i models. Saved to model_set attribute." % len(chain)
+        print "Supply model_set attribute as argument to new ModelSet instance."
+        
+    def Dump(self, prefix, modelset):
+        pass
+        
+        
+    def ReRunModels(self, models, **kwargs):
+        """
+        Take list of dictionaries and re-run each as Global21cm model.s
+        """
+        
+        ax = None
+        anl_inst = []
+        for model in models:
+            p = self.base_kwargs.copy()
+            p.update(model)
+            
+            sim = sG21(**p)
+            sim.run()
+            
+            anl = aG21(sim)
+            ax = anl.GlobalSignature(ax=ax, **kwargs)
+            
+            anl_inst.append(anl)
+            
+        return ax, anl_inst
+        
+    @property
+    def plot_info(self):
+        if not hasattr(self, '_plot_info'):
+            self._plot_info = None
+        
+        return self._plot_info
+        
+    @plot_info.setter
+    def plot_info(self, value):
+        self._plot_info = value
+
     def sort_by_Tmin(self):
         """
         If doing a multi-pop fit, re-assign population ID numbers in 
@@ -354,25 +521,30 @@ class ModelSet(object):
         self._derived_blobs = np.ones(shape) * np.inf
         for k, key in enumerate(self.derived_blob_names):
 
-            if re.search('igm_gamma', key):
-                self._derived_blobs[:,:,k] = gamma[key]
-            elif re.search('igm_heat', key):
-                self._derived_blobs[:,:,k] = heat
-            elif key == 'igm_he_3':
-                i_he_1 = self.blob_names.index('igm_he_1')
-                i_he_2 = self.blob_names.index('igm_he_2')
-                self._derived_blobs[:,:,k] = \
-                    1. - self.blobs[:,:,i_he_1] - self.blobs[:,:,i_he_2]
-            elif key == 'igm_h_2':
-                i_h_1 = self.blob_names.index('igm_h_1')
-                self._derived_blobs[:,:,k] = \
-                    1. - self.blobs[:,:,i_h_1]
-            elif key == 'nu_mhz':
-                i_z = self.blob_names.index('z')
-                self._derived_blobs[:,:,k] = \
-                    nu_0_mhz / (1. + self.blobs[:,:,i_z])
-            else:
-                raise ValueError('dont know derived blob %s!' % key)    
+            try:
+
+                if re.search('igm_gamma', key):
+                    self._derived_blobs[:,:,k] = gamma[key]
+                elif re.search('igm_heat', key):
+                    self._derived_blobs[:,:,k] = heat
+                elif key == 'igm_he_3':
+                    i_he_1 = self.blob_names.index('igm_he_1')
+                    i_he_2 = self.blob_names.index('igm_he_2')
+                    self._derived_blobs[:,:,k] = \
+                        1. - self.blobs[:,:,i_he_1] - self.blobs[:,:,i_he_2]
+                elif key == 'igm_h_2':
+                    i_h_1 = self.blob_names.index('igm_h_1')
+                    self._derived_blobs[:,:,k] = \
+                        1. - self.blobs[:,:,i_h_1]
+                elif key == 'nu_mhz':
+                    i_z = self.blob_names.index('z')
+                    self._derived_blobs[:,:,k] = \
+                        nu_0_mhz / (1. + self.blobs[:,:,i_z])
+                else:
+                    raise ValueError('dont know derived blob %s!' % key)    
+                
+            except UnboundLocalError:
+                pass
                 
         mask = np.zeros_like(self._derived_blobs)    
         mask[np.isinf(self._derived_blobs)] = 1
@@ -501,7 +673,8 @@ class ModelSet(object):
         mask = np.isnan(self.logL)
         self.logL[mask] = -np.inf 
             
-    def Scatter(self, x, y, z, ax=None, fig=1, slc=None, **kwargs):
+    def Scatter(self, x, y, z, ax=None, fig=1, slc=None, take_log=False, 
+        multiplier=1., **kwargs):
         """
         Show occurrences of turning points B, C, and D for all models in
         (z, dTb) space, with points color-coded to likelihood.
@@ -520,32 +693,62 @@ class ModelSet(object):
         matplotlib.axes._subplots.AxesSubplot instance.
             
         """
-    
+
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
         else:
             gotax = True
-            
-        if type(z) is not list:
-            z = [z]    
 
-        for redshift in z:
-            j = self.blob_redshifts.index(redshift)
-            
-            xdat = self.blobs[:,j,self.blob_names.index(x)]
-            ydat = self.blobs[:,j,self.blob_names.index(y)]
-            
-            if hasattr(self, 'weights'):
-                ax.scatter(xdat, ydat, c=self.weights, edgecolor='none', **kwargs)
+        if type(take_log) == bool:
+            take_log = [take_log] * 2
+        if type(multiplier) in [int, float]:
+            multiplier = [multiplier] * 2
+
+        j = self.blob_redshifts.index(z)
+
+        if x in self.parameters:
+            xdat = self.chain[:,self.parameters.index(x)]
+        else:
+            if x in self.blob_names:
+                xdat = self.blobs[:,j,self.blob_names.index(x)]
             else:
-                ax.scatter(xdat, ydat, edgecolor='none', **kwargs)
+                xdat = self.derived_blobs[:,j,self.derived_blob_names.index(x)]
+        
+        if y in self.parameters:
+            ydat = self.chain[:,self.parameters.index(y)]
+        else:
+            if y in self.blob_names:
+                ydat = self.blobs[:,j,self.blob_names.index(y)]
+            else:
+                ydat = self.derived_blobs[:,j,self.derived_blob_names.index(y)]
+        
+        if take_log[0]:
+            xdat = np.log10(xdat)
+        if take_log[1]:
+            ydat = np.log10(ydat)
+            
+        if hasattr(self, 'weights'):
+            ax.scatter(xdat, ydat, c=self.weights, edgecolor='none', **kwargs)
+        else:
+            ax.scatter(xdat, ydat, edgecolor='none', **kwargs)
                             
-        ax.set_xlabel(labels[x])
-        ax.set_ylabel(labels[y])                    
+        if take_log[0]:                    
+            ax.set_xlabel(logify_str(labels[x]))
+        else:    
+            ax.set_xlabel(labels[x])
+        
+        if take_log[0]:                    
+            ax.set_ylabel(logify_str(labels[y]))
+        else:
+            ax.set_ylabel(labels[y])
                             
         pl.draw()
+        
+        self._ax = ax
+        self.plot_info = {'x': x, 'y': y, 'log': take_log, 
+            'multiplier': multiplier, 'z': z}
     
         return ax
     
@@ -822,7 +1025,7 @@ class ModelSet(object):
             else:
                 raise ValueError('Unrecognized parameter %s' % str(par))
 
-            if self.is_mcmc:
+            if self.is_mcmc or (par not in self.parameters):
                 if type(bins) == int:
                     valc = to_hist[k]
                     binvec.append(np.linspace(valc.min(), valc.max(), bins))

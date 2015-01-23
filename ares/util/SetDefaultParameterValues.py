@@ -388,19 +388,19 @@ def ControlParameters():
     "initial_redshift": 50.,
     "final_redshift": 6,
     "save_rate_coefficients": 1,
-    
+
     "optically_thin": 0,
 
     # Solvers
     "solver_rtol": 1e-8,
     "solver_atol": 1e-8,
     "interp_method": 'cubic',
-            
+
     # Initialization
     "load_ics": True,
     "load_sim": False,
     "first_light_redshift": 50.,
-    
+
     # Timestepping
     "max_dt": 1.,
     "max_dz": None,

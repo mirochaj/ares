@@ -790,7 +790,7 @@ class ModelFit(object):
             f = open('%s.pinfo.pkl' % prefix, 'wb')
             pickle.dump((self.parameters, self.is_log), f)
             f.close()
-            
+
             # Constant parameters being passed to ares.simulations.Global21cm
             f = open('%s.setup.pkl' % prefix, 'wb')
             tmp = self.base_kwargs.copy()
@@ -803,19 +803,19 @@ class ModelFit(object):
             pickle.dump(tmp, f)
             del tmp
             f.close()
-            
+
             # Outputs for arbitrary meta-data blobs
             if hasattr(self, 'blob_names'):
-                
+
                 # File for blobs themselves
                 f = open('%s.blobs.pkl' % prefix, 'wb')
                 f.close()
-                
+
                 # Blob names and list of redshifts at which to track them
                 f = open('%s.binfo.pkl' % prefix, 'wb')
                 pickle.dump((self.blob_names, self.blob_redshifts), f)
                 f.close()
-                        
+
         # Take steps, append to pickle file every save_freq steps
         ct = 0
         pos_all = []; prob_all = []; blobs_all = []
@@ -839,10 +839,10 @@ class ModelFit(object):
             data = [flatten_chain(np.array(pos_all)),
                     flatten_logL(np.array(prob_all)),
                     flatten_blobs(np.array(blobs_all))]
-            
+
             for i, suffix in enumerate(['chain', 'logL', 'blobs']):
                 fn = '%s.%s.pkl' % (prefix, suffix)
-                
+
                 # Skip blobs if there are none being tracked
                 if not os.path.exists(fn):
                     continue

@@ -12,8 +12,8 @@ and analyzing them.
 """
 
 import numpy as np
-import copy, os, pickle, gc, re
 from ..simulations import Global21cm
+import copy, os, pickle, gc, re, time
 from ..util import GridND, ProgressBar
 from ..util.ReadData import read_pickled_dataset, read_pickled_dict
 
@@ -378,6 +378,8 @@ class ModelGrid:
             # Here we wait until we get the key
             if rank != 0:
                 MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
+
+            #print "Checkpoint (processor #%i): %s" % (rank, time.ctime())
 
             f = open('%s.chain.pkl' % self.prefix, 'ab')
             pickle.dump(chain_all, f)
