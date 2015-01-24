@@ -737,14 +737,14 @@ class ModelSet(object):
             ax.scatter(xdat, ydat, edgecolor='none', **kwargs)
                             
         if take_log[0]:                    
-            ax.set_xlabel(logify_str(labels[x]))
+            ax.set_xlabel(logify_str(labels[self.get_par_prefix(x)]))
         else:    
-            ax.set_xlabel(labels[x])
+            ax.set_xlabel(labels[self.get_par_prefix(x)])
         
         if take_log[0]:                    
-            ax.set_ylabel(logify_str(labels[y]))
+            ax.set_ylabel(logify_str(labels[self.get_par_prefix(y)]))
         else:
-            ax.set_ylabel(labels[y])
+            ax.set_ylabel(labels[self.get_par_prefix(y)])
                             
         pl.draw()
         
@@ -753,6 +753,20 @@ class ModelSet(object):
             'multiplier': multiplier, 'z': z}
     
         return ax
+    
+    def get_par_prefix(self, par):
+        m = re.search(r"\{([0-9])\}", par)
+
+        if m is None:
+            return par
+
+        # Population ID number
+        num = int(m.group(1))
+
+        # Pop ID including curly braces
+        prefix = par.strip(m.group(0))
+    
+        return prefix
     
     @property
     def weights(self):        
@@ -1447,7 +1461,7 @@ class ModelSet(object):
                 # Input values
                 if not inputs:
                     continue
-
+                    
                 if xin is not None:
                     mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k', 
                         ls=':')

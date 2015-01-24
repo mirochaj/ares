@@ -294,8 +294,8 @@ class ModelGrid:
             # Grab Tmin index
             try:
                 if self.LB > 0:
-                    Tminax = self.grid.axes[self.grid.axisnum('Tmin')]
-                    i_Tmin = Tminax.locate(kwargs['Tmin'])
+                    Tminax = self.grid.axes[self.grid.axisnum(self.Tmin_ax_name)]
+                    i_Tmin = Tminax.locate(kwargs[self.Tmin_ax_name])
 
                     # Follow load-balancing procedure
                     if self.to_solve[i_Tmin] != rank:
@@ -319,17 +319,23 @@ class ModelGrid:
             # Create new splines if we haven't hit this Tmin yet in our model grid.
             if i_Tmin not in fcoll.keys():
                 sim = Global21cm(**p)
-                hmf_pars = {'Tmin': sim.pops.pops[0].pf['Tmin'],
-                    'fcoll': copy.deepcopy(sim.pops.pops[0].fcoll), 
-                    'dfcolldz': copy.deepcopy(sim.pops.pops[0].dfcolldz),
-                    'd2fcolldz2': copy.deepcopy(sim.pops.pops[0].d2fcolldz2)}
+                
+                if hasattr(self, 'Tmin_ax_popid'):
+                    loc = self.Tmin_ax_popid
+                else:
+                    loc = 0
+                
+                hmf_pars = {'Tmin': kwargs[self.Tmin_ax_name],
+                    'fcoll': copy.deepcopy(sim.pops.pops[loc].fcoll), 
+                    'dfcolldz': copy.deepcopy(sim.pops.pops[loc].dfcolldz),
+                    'd2fcolldz2': copy.deepcopy(sim.pops.pops[loc].d2fcolldz2)}
 
                 # Save for future iterations
                 fcoll[i_Tmin] = hmf_pars.copy()
 
             # If we already have matching fcoll splines, use them!
             else:
-                hmf_pars = {'Tmin': fcoll[i_Tmin]['Tmin'],
+                hmf_pars = {self.Tmin_ax_name: fcoll[i_Tmin]['Tmin'],
                     'fcoll': fcoll[i_Tmin]['fcoll'],
                     'dfcolldz': fcoll[i_Tmin]['dfcolldz'],
                     'd2fcolldz2': fcoll[i_Tmin]['d2fcolldz2']}
@@ -367,6 +373,9 @@ class ModelGrid:
             chain_all.append(chain)
             blobs_all.append(sim.blobs)
 
+            del p, sim
+            gc.collect()
+
             ##
             # File I/O from here on out
             ##
@@ -399,8 +408,6 @@ class ModelGrid:
             chain_all = []; blobs_all = []
 
             pb.update(h)
-
-            del p, sim
 
         pb.finish()
 
@@ -474,15 +481,42 @@ class ModelGrid:
 
         """
         
-        if 'Tmin' not in self.grid.axes_names:
+        have_Tmin = False
+        for par in self.grid.axes_names:
+            
+            if par == 'Tmin':
+                have_Tmin = True
+                break
+            
+            # Look for populations
+            m = re.search(r"\{([0-9])\}", par)
+
+            if m is None:
+                continue
+
+            # Population ID number
+            num = int(m.group(1))
+            self.Tmin_ax_popid = num
+
+            # Pop ID including curly braces
+            prefix = par.strip(m.group(0))
+            
+            if prefix == 'Tmin':
+                have_Tmin = True
+                break    
+                
+        self.Tmin_ax_name = par   
+        
+                
+        if not have_Tmin:
             if rank == 0:
                 print "Tmin not in grid axes. Load balancing OFF."
             
             method = 0
             to_solve = np.arange(size)
         else:
-            # "expensive axis" over which to load balance
-            exp_ax = self.grid.axis('Tmin')
+            # Tmin = "expensive axis" over which to load balance
+            exp_ax = self.grid.axis(self.Tmin_ax_name)
             
         if method == 1:
             Tmods = exp_ax.size
