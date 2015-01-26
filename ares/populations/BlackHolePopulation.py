@@ -224,6 +224,10 @@ class BlackHolePopulation:
             return self.pf['emissivity'](z)    
         
         if self.model < 0:
+            if self.pf['xi_XR'] is not None:
+                return self.cX * self.pf['xi_XR'] * self.SFRD(z) \
+                    / self.pf['fstar']
+                    
             return self.cX * self.pf['fX'] * self.SFRD(z)
             
         elif self.model == 1:

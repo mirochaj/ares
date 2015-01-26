@@ -429,7 +429,7 @@ class Global21cm:
         znu_minor = nu_0_mhz / np.array(nu_minor) - 1.
         
         ax_freq = ax.twiny()
-        ax_freq.set_xlabel(labels['nu_mhz'])        
+        ax_freq.set_xlabel(labels['nu'])        
         ax_freq.set_xticks(znu)
         ax_freq.set_xticks(znu_minor, minor=True)
         ax_freq.set_xlim(ax.get_xlim())
@@ -613,7 +613,7 @@ class Global21cm:
             if xaxis == 'z':  
                 ax.set_xlabel(labels['z'], fontsize='x-large')
             else:
-                ax.set_xlabel(labels['nu_mhz'])
+                ax.set_xlabel(labels['nu'])
         
         if ax.get_ylabel() == '':    
             ax.set_ylabel(labels['dTb'], 

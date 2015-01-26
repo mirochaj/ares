@@ -292,8 +292,7 @@ class ModelGrid:
                 
                 hmf_pars = {'Tmin': kwargs[self.Tmin_ax_name],
                     'fcoll': copy.deepcopy(sim.pops.pops[loc].fcoll), 
-                    'dfcolldz': copy.deepcopy(sim.pops.pops[loc].dfcolldz),
-                    'd2fcolldz2': copy.deepcopy(sim.pops.pops[loc].d2fcolldz2)}
+                    'dfcolldz': copy.deepcopy(sim.pops.pops[loc].dfcolldz)}
 
                 # Save for future iterations
                 fcoll[i_Tmin] = hmf_pars.copy()
@@ -302,8 +301,7 @@ class ModelGrid:
             else:
                 hmf_pars = {self.Tmin_ax_name: fcoll[i_Tmin]['Tmin'],
                     'fcoll': fcoll[i_Tmin]['fcoll'],
-                    'dfcolldz': fcoll[i_Tmin]['dfcolldz'],
-                    'd2fcolldz2': fcoll[i_Tmin]['d2fcolldz2']}
+                    'dfcolldz': fcoll[i_Tmin]['dfcolldz']}
                 p.update(hmf_pars)
                 sim = Global21cm(**p)
 

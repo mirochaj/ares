@@ -271,7 +271,11 @@ class loglikelihood:
             blob_vals.append(val)    
 
         if blob_vals:
-            lp -= self.logprior_B(blob_vals)            
+            lp -= self.logprior_B(blob_vals)         
+
+            # emcee will crash if this returns NaN
+            if np.isnan(lp):
+                return -np.inf, self.blank_blob
 
         if hasattr(sim, 'blobs'):
             blobs = sim.blobs
@@ -317,10 +321,9 @@ class loglikelihood:
                     xarr.append(tps[tp][i])
                        
             # Values of current model that correspond to mu vector
-            xarr = np.array(xarr) 
-                                   
+            xarr = np.array(xarr)
+
             # Compute log-likelihood, including prior knowledge
-            
             if self.error_type == 'idealized':
                 logL = lp \
                     - np.sum((xarr - self.mu)**2 / 2. / self.errors**2)
@@ -820,8 +823,6 @@ class ModelFit(object):
             prob_all.append(prob)
             blobs_all.append(blobs)
             
-            print pos
-
             if ct % save_freq != 0:
                 continue
 

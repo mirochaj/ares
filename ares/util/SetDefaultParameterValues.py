@@ -358,7 +358,6 @@ def HaloMassFunctionParameters():
     # Pre-created splines
     "fcoll": None,
     "dfcolldz": None,
-    "d2fcolldz2": None,        
     }
     
     pf.update(rcParams)
