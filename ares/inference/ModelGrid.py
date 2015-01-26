@@ -271,13 +271,16 @@ class ModelGrid:
                 continue
                 
             # Grab Tmin index
-            Tminax = self.grid.axes[self.grid.axisnum(self.Tmin_ax_name)]
-            i_Tmin = Tminax.locate(kwargs[self.Tmin_ax_name])
+            if self.Tmin_in_grid:
+                Tmin_ax = self.grid.axes[self.grid.axisnum(self.Tmin_ax_name)]
+                i_Tmin = Tmin_ax.locate(kwargs[self.Tmin_ax_name])
+            else:
+                i_Tmin = 0
 
             # Copy kwargs - may need updating with pre-existing lookup tables
             p = self.base_kwargs.copy()
             p.update(kwargs)
-            
+
             # Create new splines if we haven't hit this Tmin yet in our model grid.
             if i_Tmin not in fcoll.keys():
                 sim = Global21cm(**p)
@@ -343,8 +346,7 @@ class ModelGrid:
             ##
 
             # Only record results every save_freq steps
-            # Or if this is the last iteration
-            if (ct % save_freq != 0):
+            if ct % save_freq != 0:
                 continue
 
             # Here we wait until we get the key
@@ -374,7 +376,6 @@ class ModelGrid:
 
         # Need to make sure we write results to disk if we didn't 
         # hit the last checkpoint
-        # Here we wait until we get the key
         if rank != 0:
             MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
     

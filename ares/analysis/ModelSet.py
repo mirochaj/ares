@@ -175,6 +175,7 @@ class ModelSet(object):
 
                     self.mask = np.zeros_like(blobs)    
                     self.mask[np.isinf(blobs)] = 1
+                    self.mask[np.isnan(blobs)] = 1
                     self.blobs = np.ma.masked_array(blobs, mask=self.mask)
                 except:
                     if rank == 0:
@@ -214,7 +215,12 @@ class ModelSet(object):
             self.is_log = data.is_log
             self.base_kwargs = data.base_kwargs
             self.fails = data.fails
-            self.blobs = data.blobs
+            
+            self.mask = np.zeros_like(data.blobs)    
+            self.mask[np.isinf(blobs)] = 1
+            self.mask[np.isnan(blobs)] = 1
+            self.blobs = np.ma.masked_array(data.blobs, mask=self.mask)
+
             self.blob_names = data.blob_names
             self.blob_redshifts = data.blob_redshifts
             self.parameters = data.parameters
@@ -327,7 +333,9 @@ class ModelSet(object):
             
             chain.append(pars)
             blobs.append(self.blobs[i])
-            logL.append(self.logL[i])
+            
+            if self.is_mcmc:
+                logL.append(self.logL[i])
                             
         model_set = ModelSubSet()
         model_set.chain = np.array(chain)
@@ -353,7 +361,6 @@ class ModelSet(object):
         
     def Dump(self, prefix, modelset):
         pass
-        
         
     def ReRunModels(self, models, **kwargs):
         """

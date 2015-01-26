@@ -148,12 +148,16 @@ class loglikelihood:
             if len(priors[key]) == 3:
                 p_pars.append(key)
                 priors_P[key] = priors[key]
-                continue
 
-            if len(priors[key]) == 4:
+            elif len(priors[key]) == 4:
                 b_pars.append(key)
                 priors_B[key] = priors[key]
-                continue
+            
+            # Should set up a proper Warnings module for this sort of thing
+            if key == 'tau_e' and len(priors[key]) != 4:
+                if rank == 0:
+                    print 'Must supply redshift for prior on %s!' % key
+                MPI.COMM_WORLD.Abort()
 
         self.logprior_P = logprior(priors_P, self.parameters)
         self.logprior_B = logprior(priors_B, b_pars)
@@ -249,15 +253,15 @@ class loglikelihood:
             gc.collect()
         
             return -np.inf, self.blank_blob
-
+        
         # Apply priors to blobs
         blob_vals = []
         for key in self.logprior_B.priors:
 
             if not hasattr(sim, 'blobs'):
                 break
-
-            z = self.logprior_B.priors[key][-1]
+            
+            z = self.logprior_B.priors[key][3]
 
             i = self.blob_names.index(key) 
             j = self.blob_redshifts.index(z)
