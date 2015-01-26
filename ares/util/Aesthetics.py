@@ -111,7 +111,13 @@ tanh_parameters = \
  'tanh_xdz': r'$\Delta z_x$', 
 }
 
+other = \
+{
+ 'load': 'processor #',
+}
+
 labels.update(history_elements)
 labels.update(tanh_parameters)
+labels.update(other)
 
 labels.update(custom_labels)

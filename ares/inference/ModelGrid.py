@@ -142,6 +142,11 @@ class ModelGrid:
         pickle.dump(self.kwargs, f)
         pickle.dump(self.base_kwargs, f)
         f.close()
+        
+        if size > 1:
+            f = open('%s.load.pkl' % prefix, 'wb')
+            pickle.dump(self.assignments, f)
+            f.close()
     
         # Main output: MCMC chains (flattened)
         f = open('%s.chain.pkl' % prefix, 'wb')
@@ -276,7 +281,7 @@ class ModelGrid:
                 i_Tmin = Tmin_ax.locate(kwargs[self.Tmin_ax_name])
             else:
                 i_Tmin = 0
-
+                
             # Copy kwargs - may need updating with pre-existing lookup tables
             p = self.base_kwargs.copy()
             p.update(kwargs)
@@ -287,21 +292,24 @@ class ModelGrid:
                 
                 if hasattr(self, 'Tmin_ax_popid'):
                     loc = self.Tmin_ax_popid
+                    suffix = '{%i}' % loc
                 else:
                     loc = 0
-                
-                hmf_pars = {'Tmin': kwargs[self.Tmin_ax_name],
-                    'fcoll': copy.deepcopy(sim.pops.pops[loc].fcoll), 
-                    'dfcolldz': copy.deepcopy(sim.pops.pops[loc].dfcolldz)}
+                    suffix = ''
+                                    
+                hmf_pars = {'Tmin%s' % suffix: kwargs[self.Tmin_ax_name],
+                    'fcoll%s' % suffix: copy.deepcopy(sim.pops.pops[loc].fcoll), 
+                    'dfcolldz%s' % suffix: copy.deepcopy(sim.pops.pops[loc].dfcolldz)}
 
                 # Save for future iterations
                 fcoll[i_Tmin] = hmf_pars.copy()
 
             # If we already have matching fcoll splines, use them!
-            else:
-                hmf_pars = {self.Tmin_ax_name: fcoll[i_Tmin]['Tmin'],
-                    'fcoll': fcoll[i_Tmin]['fcoll'],
-                    'dfcolldz': fcoll[i_Tmin]['dfcolldz']}
+            else:        
+                                        
+                hmf_pars = {self.Tmin_ax_name: fcoll[i_Tmin]['Tmin%s' % suffix],
+                    'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
+                    'dfcolldz%s' % suffix: fcoll[i_Tmin]['dfcolldz%s' % suffix]}
                 p.update(hmf_pars)
                 sim = Global21cm(**p)
 
@@ -401,13 +409,19 @@ class ModelGrid:
         
         if not hasattr(self, '_Tmin_in_grid'):
         
+            ct = 0
             self._Tmin_in_grid = False
             for par in self.grid.axes_names:
                 
                 if par == 'Tmin':
+                    ct += 1
                     self._Tmin_in_grid = True
-                    break
+                    name = par
+                    continue
                 
+                if not re.search(par, 'Tmin'):
+                    continue
+                                
                 # Look for populations
                 m = re.search(r"\{([0-9])\}", par)
             
@@ -422,11 +436,16 @@ class ModelGrid:
                 prefix = par.strip(m.group(0))
                 
                 if prefix == 'Tmin':
+                    ct += 1
                     self._Tmin_in_grid = True
-                    break    
+                    name = par
+                    continue
                     
-            self.Tmin_ax_name = par
-        
+            self.Tmin_ax_name = name
+            
+            if ct > 1:
+                raise NotImplemented('Trouble w/ multiple Tmin axes!')
+                
         return self._Tmin_in_grid
             
     def LoadBalance(self, method=0):
@@ -509,7 +528,7 @@ class ModelGrid:
                     * np.ones_like(self.assignments[slc])
             
                 k += 1
-                if k == len(sequence):
+                if k == (len(sequence) / 2):
                     k = 0
 
         else:

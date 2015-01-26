@@ -107,7 +107,7 @@ class StellarPopulation:
         if self.pf['fcoll'] is None:
             self.halos = HaloDensity(**self.pf)
             self._set_fcoll(self.pf['Tmin'], self.pf['mu'])
-        else:
+        else:            
             self._fcoll, self._dfcolldz, self._d2fcolldz2 = \
                 self.pf['fcoll'], self.pf['dfcolldz'], self.pf['d2fcolldz2']
 

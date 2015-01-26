@@ -17,6 +17,7 @@ from ..util import labels
 import matplotlib.pyplot as pl
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
+from ..inference import ModelGrid
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .Global21cm import Global21cm as aG21
@@ -210,6 +211,23 @@ class ModelSet(object):
             else:
                 self.base_kwargs = None    
                 
+            if not self.is_mcmc:
+                f = open('%s.grid.pkl' % prefix, 'rb')
+                self.axes = pickle.load(f)
+                f.close()
+                
+                if rank == 0:
+                    print "Loaded %s.grid.pkl." % prefix
+                    
+                self.grid = ModelGrid(**self.base_kwargs)
+                self.grid.set_axes(**self.axes)
+                f = open('%s.load.pkl' % prefix, 'rb')
+                self.load = pickle.load(f)
+                f.close()
+                
+                if rank == 0:
+                    print "Loaded %s.load.pkl." % prefix
+                
         elif isinstance(data, ModelSubSet):
             self.chain = data.chain
             self.is_log = data.is_log
@@ -217,8 +235,8 @@ class ModelSet(object):
             self.fails = data.fails
             
             self.mask = np.zeros_like(data.blobs)    
-            self.mask[np.isinf(blobs)] = 1
-            self.mask[np.isnan(blobs)] = 1
+            self.mask[np.isinf(data.blobs)] = 1
+            self.mask[np.isnan(data.blobs)] = 1
             self.blobs = np.ma.masked_array(data.blobs, mask=self.mask)
 
             self.blob_names = data.blob_names
@@ -229,8 +247,10 @@ class ModelSet(object):
             if self.is_mcmc:
                 self.logL = data.logL
             else:
+                self.load = data.load
                 self.axes = data.axes
-            
+                self.grid = data.grid
+                
             self.Nd = int(self.chain.shape[-1])       
                 
         else:
@@ -352,6 +372,8 @@ class ModelSet(object):
         if self.is_mcmc:
             model_set.logL = logL
         else:
+            model_set.load = self.load
+            model_set.grid = self.grid
             model_set.axes = self.axes
         
         self.model_set = model_set
@@ -593,11 +615,19 @@ class ModelSet(object):
         return self._derived_blobs
         
     def _compute_heat_tot(self):
+        """
+        Convert heating rate coefficients to a total heating rate using
+        number densities of relevant ion species
+        """
         
         # (Nsamples, Nredshifts)
         heat = np.zeros(self.blobs.shape[:-1])
         
         for i, sp in enumerate(['h_1', 'he_1', 'he_2']):  
+            
+            if i > 0 and 'igm_%s' % sp not in self.blob_names:
+                print "Total heating rate may be underestimated: no igm_%s in blobs" % sp
+                continue
             
             # For slicing
             i_x = self.blob_names.index('igm_%s' % sp)
@@ -616,9 +646,8 @@ class ModelSet(object):
                     ztmp = redshift
 
                 # Multiply by number density of absorbers
-                
-                heat[:,j] = self.blobs[:,j,i_heat] #\
-                    #* n(ztmp) * self.blobs[:,j,i_x]
+                heat[:,j] = self.blobs[:,j,i_heat] \
+                    * n(ztmp) * self.blobs[:,j,i_x]
                     
         return heat
 
@@ -712,8 +741,8 @@ class ModelSet(object):
         mask = np.isnan(self.logL)
         self.logL[mask] = -np.inf 
             
-    def Scatter(self, x, y, z, ax=None, fig=1, slc=None, take_log=False, 
-        multiplier=1., **kwargs):
+    def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, slc=None, 
+        take_log=False, multiplier=1., **kwargs):
         """
         Show occurrences of turning points B, C, and D for all models in
         (z, dTb) space, with points color-coded to likelihood.
@@ -721,11 +750,13 @@ class ModelSet(object):
         Parameters
         ----------
         x : str
-            Field for the x-axis
+            Field for the x-axis.
         y : str
-            Field for the y-axis
+            Field for the y-axis.
         z : str, float
             Redshift at which to plot x vs. y.
+        c : str
+            Field for (optional) color axis.
             
         Returns
         -------
@@ -745,11 +776,14 @@ class ModelSet(object):
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * 2
 
-        j = self.blob_redshifts.index(z)
+        if z is not None:
+            j = self.blob_redshifts.index(z)
 
         if x in self.parameters:
             xdat = self.chain[:,self.parameters.index(x)]
         else:
+            if z is None:
+                raise ValueError('Must supply redshift!')
             if x in self.blob_names:
                 xdat = self.blobs[:,j,self.blob_names.index(x)]
             else:
@@ -758,10 +792,30 @@ class ModelSet(object):
         if y in self.parameters:
             ydat = self.chain[:,self.parameters.index(y)]
         else:
+            if z is None:
+                raise ValueError('Must supply redshift!')
             if y in self.blob_names:
                 ydat = self.blobs[:,j,self.blob_names.index(y)]
             else:
                 ydat = self.derived_blobs[:,j,self.derived_blob_names.index(y)]
+        
+        if c in self.parameters:
+            cdat = self.chain[:,self.parameters.index(c)]
+        elif c == 'load':
+            cdat = np.zeros(self.chain.shape[0])
+            for i in range(self.chain.shape[0]):
+                kw = self.link_to_dict(self.chain[i])
+                kvec = self.grid.grid.locate_entry(kw)
+                cdat[i] = self.load[kvec]
+        elif c is None:
+            pass
+        else:
+            if z is None:
+                raise ValueError('Must supply redshift!')
+            if c in self.blob_names:
+                cdat = self.blobs[:,j,self.blob_names.index(c)]
+            else:
+                cdat = self.derived_blobs[:,j,self.derived_blob_names.index(c)]
         
         if take_log[0]:
             xdat = np.log10(xdat)
@@ -770,6 +824,8 @@ class ModelSet(object):
             
         if hasattr(self, 'weights'):
             ax.scatter(xdat, ydat, c=self.weights, edgecolor='none', **kwargs)
+        elif c is not None:
+            scat = ax.scatter(xdat, ydat, c=cdat, edgecolor='none', **kwargs)
         else:
             ax.scatter(xdat, ydat, edgecolor='none', **kwargs)
                             
@@ -778,11 +834,23 @@ class ModelSet(object):
         else:    
             ax.set_xlabel(labels[self.get_par_prefix(x)])
         
-        if take_log[1]:                    
+        if take_log[1]: 
             ax.set_ylabel(logify_str(labels[self.get_par_prefix(y)]))
         else:
             ax.set_ylabel(labels[self.get_par_prefix(y)])
                             
+        if c is not None:
+            cb = pl.colorbar(scat)
+            try:
+                if take_log[2]: 
+                    cb.set_label(logify_str(labels[self.get_par_prefix(c)]))
+                else:
+                    cb.set_label(labels[self.get_par_prefix(c)])
+            except IndexError:
+                cb.set_label(labels[self.get_par_prefix(c)])
+        
+            self._cb = cb
+        
         pl.draw()
         
         self._ax = ax
@@ -884,7 +952,7 @@ class ModelSet(object):
             np.histogram(to_hist, density=True, bins=bins)
 
         bc = rebin(bin_edges)
-
+        
         mu, sigma = float(bc[hist == hist.max()]), error_1D(bc, hist, nu=nu)   
         
         return mu, np.array(sigma)
@@ -1578,6 +1646,11 @@ class ModelSet(object):
         ----------
         blob : str
             
+        Note
+        ----
+        If you get a "ValueError: attempt to get argmin of an empty sequence"
+        you might consider setting take_log=True.    
+            
         """    
         
         if ax is None:
@@ -1591,14 +1664,22 @@ class ModelSet(object):
             redshifts = self.blob_redshifts
             
         for z in redshifts:
+            
+            # Error on blob
             value, (blob_err1, blob_err2) = \
                 self.get_1d_error(blob, z=z, nu=nu, take_log=take_log)
             
-            mu_z, (z_err1, z_err2) = \
-                self.get_1d_error('z', z=z, nu=nu)
+            # Error on redshift
+            if type(z) == str:
+                mu_z, (z_err1, z_err2) = \
+                    self.get_1d_error('z', z=z, nu=nu)
+                xerr = np.array(z_err1, z_err2).T
+            else:
+                mu_z = z
+                xerr = None
             
             ax.errorbar(mu_z, value, 
-                xerr=np.array(z_err1, z_err2).T, 
+                xerr=xerr, 
                 yerr=np.array(blob_err1, blob_err2).T, 
                 lw=4, elinewidth=4, capsize=6, capthick=3,
                 **kwargs)        
@@ -1618,7 +1699,6 @@ class ModelSet(object):
         ax.set_xlabel(r'$z$')
         ax.set_ylabel(labels[prefix])
         pl.draw()
-        
         
         return ax
         
