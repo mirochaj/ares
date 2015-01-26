@@ -269,15 +269,22 @@ class InlineAnalysis:
         
         # Single-pop model
         if num is None:
-            return self.sim.pops.pops[0].SFRD(z) * rhodot_cgs
-            
+            try:
+                return self.sim.pops.pops[0].SFRD(z) * rhodot_cgs
+            except SystemExit:
+                return np.inf
             
         # Multi-pop model
         for i, pop in enumerate(self.sim.pops.pops):
             if i != num:
                 continue
                 
-            return pop.SFRD(z) * rhodot_cgs
+            try:
+                sfrd = pop.SFRD(z) * rhodot_cgs
+            except SystemExit:
+                sfrd = np.inf    
+            
+            return sfrd
                 
         
         

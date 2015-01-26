@@ -51,25 +51,11 @@ except ImportError:
 
 nearest = lambda x, points: KDTree(points, leafsize=1e7).query(x)
     
-turning_points_all = list('BCD')
-
-# Prior for parameters that cannot have values exceeding 1
-lt1gt0 = lambda x: 1.0 if x <= 1.0 else 0.0
-
-# Priors that must be positive
-gt0 = lambda x: 1.0 if x > 0 else 0.0
-
 # Uninformative prior
 uninformative = lambda x, mi, ma: 1.0 if (mi <= x <= ma) else 0.0
 
 # Gaussian prior
 gauss1d = lambda x, mu, sigma: np.exp(-0.5 * (x - mu)**2 / sigma**2)
-
-# Other priors
-other_priors = {'Tmin': lambda x: 1.0 if x > 300. else 0.0}
-
-lt1gt0_pars = ['fstar', 'fesc', 'eta']
-gt0_pars = ['Nlw', 'Tmin']
 
 def_kwargs = {'track_extrema': 1, 'verbose': False, 'progress_bar': False}
 
@@ -81,10 +67,10 @@ default_errors = \
 }
 
 _z_blob = list('BCD')
-_z_blob.extend([3, 6, 8, 10, 12, 15, 20, 30, 40])
+_z_blob.extend(['eor_midpt', 6, 8, 10, 12, 15, 20, 30, 40])
 
 default_blobs = \
-    (['z', 'dTb', 'curvature', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 'eor_midpt',
+    (['z', 'dTb', 'curvature', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 
      'igm_heat_h_1', 'cgm_Gamma_h_1', 'Ts', 'Ja', 'tau_e'], _z_blob)
 
 class logprior:
@@ -829,6 +815,8 @@ class ModelFit(object):
             pos_all.append(pos)
             prob_all.append(prob)
             blobs_all.append(blobs)
+            
+            print pos
 
             if ct % save_freq != 0:
                 continue

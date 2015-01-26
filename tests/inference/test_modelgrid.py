@@ -22,14 +22,7 @@ grid_axes = {'fstar': fstar, 'fX': fX}
 ##
 #
 
-blob_names = \
-    ['igm_Tk', 'cgm_Gamma_h_1', 'cgm_h_2', 'Ts', 'Ja', 'curvature',
-     'z', 'dTb', 'tau_e', 'sfrd']
-
-blob_z = ['B', 'C', 'D', 'trans', 'eor_midpt', 'eor_overlap',
-    6, 7, 8, 10, 12, 15, 20, 30]
-
-blobs = (blob_names, blob_z)
+blobs = ares.inference.default_blobs
 
 base_kwargs = {'inline_analysis': blobs, 'final_redshift': 6}
 

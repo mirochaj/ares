@@ -53,28 +53,6 @@ class ModelGrid:
             self.blob_names, self.blob_redshifts = \
                 self.base_kwargs['inline_analysis']
 
-
-        #if isinstance(grid, GridND):
-        #    self.grid = grid
-        #elif (prefix is not None):
-        #    
-        #    self.is_restart = False
-        #    if os.path.exists('%s.grid.hdf5' % prefix):
-        #        self.grid = GridND('%s.grid.hdf5' % prefix)
-        #    elif restart:
-        #        if os.path.exists('%s.grid.pkl' % prefix):
-        #            try:
-        #                self._read_restart('%s.grid.pkl' % prefix)
-        #                self.is_restart = True
-        #            except IOError:
-        #                pass
-        #            
-        #    if os.path.exists('%s.extras.pkl' % prefix):
-        #        self.extras = self.load_extras('%s.extras.pkl' % prefix)
-        #
-        #if not hasattr(self, 'grid'):
-        #    self.grid = None
-            
     def __getitem__(self, name):
         return self.grid[name]
                         
@@ -140,13 +118,6 @@ class ModelGrid:
 
         # Shortcut to parameter names
         self.parameters = self.grid.axes_names
-
-    @property
-    def to_solve(self):
-        if not hasattr(self, '_to_solve'):
-            self._to_solve = self.load_balance()
-
-        return self._to_solve
 
     @property
     def is_log(self):
@@ -267,6 +238,9 @@ class ModelGrid:
                          
         # Make some blank files for data output                 
         self.prep_output_files(prefix, restart)                 
+
+        if not hasattr(self, 'LB'):
+            self.LoadBalance(0)                    
                             
         # Dictionary for hmf tables
         fcoll = {}
@@ -290,27 +264,15 @@ class ModelGrid:
                 if self.done[kvec]:
                     pb.update(h)
                     continue
-
+                    
+            # Skip if this processor isn't assigned to this model        
+            if self.assignments[kvec] != rank:
+                pb.update(h)
+                continue
+                
             # Grab Tmin index
-            try:
-                if self.LB > 0:
-                    Tminax = self.grid.axes[self.grid.axisnum(self.Tmin_ax_name)]
-                    i_Tmin = Tminax.locate(kwargs[self.Tmin_ax_name])
-
-                    # Follow load-balancing procedure
-                    if self.to_solve[i_Tmin] != rank:
-                        continue
-                else:
-                    i_Tmin = 0
-                    if h % size != rank:
-                        continue
-
-            except AttributeError:
-                self.LB = 0
-                i_Tmin = 0
-
-                if h % size != rank:
-                    continue
+            Tminax = self.grid.axes[self.grid.axisnum(self.Tmin_ax_name)]
+            i_Tmin = Tminax.locate(kwargs[self.Tmin_ax_name])
 
             # Copy kwargs - may need updating with pre-existing lookup tables
             p = self.base_kwargs.copy()
@@ -381,14 +343,13 @@ class ModelGrid:
             ##
 
             # Only record results every save_freq steps
-            if ct % save_freq != 0:
+            # Or if this is the last iteration
+            if (ct % save_freq != 0):
                 continue
 
             # Here we wait until we get the key
             if rank != 0:
                 MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
-
-            #print "Checkpoint (processor #%i): %s" % (rank, time.ctime())
 
             f = open('%s.chain.pkl' % self.prefix, 'ab')
             pickle.dump(chain_all, f)
@@ -411,150 +372,147 @@ class ModelGrid:
 
         pb.finish()
 
-        print "Processor %i done." % rank
-                    
-    def save_extras(self, prefix):
-        """
-        Write extra fields to disk (npz format).
-        
-        Use "lock and key" method to avoid overwriting file contents.
-        """
-        
-        fn = prefix + '.extras.pkl'
-    
-        key = np.ones(1)
-    
-        # Wait for the key
+        # Need to make sure we write results to disk if we didn't 
+        # hit the last checkpoint
+        # Here we wait until we get the key
         if rank != 0:
-            MPI.COMM_WORLD.Recv(key, source=rank-1, tag=rank-1)
+            MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
     
-        if rank == 0:
-            f = open('%s' % fn, 'wb')
-        else:
-            f = open('%s' % fn, 'ab')
+        if chain_all:
+            f = open('%s.chain.pkl' % self.prefix, 'ab')
+            pickle.dump(chain_all, f)
+            f.close()
         
-        pickle.dump(self.extras, f)
-        f.close()
+        if blobs_all:
+            f = open('%s.blobs.pkl' % self.prefix, 'ab')
+            pickle.dump(blobs_all, f)
+            f.close()
         
-        print 'Processor #%i: wrote to %s' % (rank, fn)
-            
-        # Pass the key to the next processor
+        # Send the key to the next processor
         if rank != (size-1):
-            MPI.COMM_WORLD.Send(key, dest=rank+1, tag=rank)
-
-    def load_extras(self, fn):
+            MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
+        
+        print "Processor %i done." % rank
+        
+    @property        
+    def Tmin_in_grid(self):
         """
-        If "extras" were saved in model-grid search, load them back in.
+        Determine if Tmin is an axis in our model grid.
         """
         
-        output = {}
+        if not hasattr(self, '_Tmin_in_grid'):
         
-        f = open(fn, 'rb')     
-        
-        while True:
-            try:    
-                output.update(pickle.load(f))
-            except EOFError:
-                break
+            self._Tmin_in_grid = False
+            for par in self.grid.axes_names:
                 
-        f.close()
-                                
-        if rank == 0:
-            print 'Read %s' % fn
+                if par == 'Tmin':
+                    self._Tmin_in_grid = True
+                    break
+                
+                # Look for populations
+                m = re.search(r"\{([0-9])\}", par)
             
-        return output
+                if m is None:
+                    continue
+            
+                # Population ID number
+                num = int(m.group(1))
+                self.Tmin_ax_popid = num
+            
+                # Pop ID including curly braces
+                prefix = par.strip(m.group(0))
+                
+                if prefix == 'Tmin':
+                    self._Tmin_in_grid = True
+                    break    
+                    
+            self.Tmin_ax_name = par
         
-    def load_balance(self, method=1):
+        return self._Tmin_in_grid
+            
+    def LoadBalance(self, method=0):
         """
-        Load balance model grid run.
+        Determine which processors are to run which models.
         
         Parameters
         ----------
         method : int
             0 : OFF
             1 : By Tmin, cleverly
-            2 : By Tmin, randomly
-            3 : By Tmin, in ascending order
             
         Returns
         -------
-
+        Nothing. Creates "assignments" attribute, which has the same shape
+        as the grid, with each element the rank of the processor assigned to
+        that particular model.
+        
         """
         
-        have_Tmin = False
-        for par in self.grid.axes_names:
-            
-            if par == 'Tmin':
-                have_Tmin = True
-                break
-            
-            # Look for populations
-            m = re.search(r"\{([0-9])\}", par)
-
-            if m is None:
-                continue
-
-            # Population ID number
-            num = int(m.group(1))
-            self.Tmin_ax_popid = num
-
-            # Pop ID including curly braces
-            prefix = par.strip(m.group(0))
-            
-            if prefix == 'Tmin':
-                have_Tmin = True
-                break    
-                
-        self.Tmin_ax_name = par   
+        self.LB = True
         
+        if size == 1:
+            self.assignments = np.zeros(self.grid.shape)
+            return
+            
+        have_Tmin = self.Tmin_in_grid  
+        Tmin_i = self.grid.axes_names.index(self.Tmin_ax_name)
+        Tmin_ax = self.grid.axes[Tmin_i]
+        Tmin_N = Tmin_ax.size  
+        
+        # No load balancing. Equal # of models per processor
+        if method == 0 or (not have_Tmin) or (Tmin_N < size):
+            
+            k = 0
+            tmp_assignments = np.zeros(self.grid.shape)
+            for loc, value in np.ndenumerate(tmp_assignments):
                 
-        if not have_Tmin:
-            if rank == 0:
-                print "Tmin not in grid axes. Load balancing OFF."
+                if k % size != rank:
+                    k += 1
+                    continue
+                    
+                tmp_assignments[loc] = rank    
             
-            method = 0
-            to_solve = np.arange(size)
-        else:
-            # Tmin = "expensive axis" over which to load balance
-            exp_ax = self.grid.axis(self.Tmin_ax_name)
+                k += 1
             
-        if method == 1:
-            Tmods = exp_ax.size
-            procs = np.arange(size)
+            # Communicate results
+            self.assignments = np.zeros(self.grid.shape)
+            MPI.COMM_WORLD.Allreduce(tmp_assignments, self.assignments)
 
+            self.LB = False        
+            
+        # Load balance over Tmin axis    
+        elif method == 1:
+            
+            Tmin_slc = []
+            
+            for i in range(self.grid.Nd):
+                if i == Tmin_i:
+                    Tmin_slc.append(i)
+                else:
+                    Tmin_slc.append(Ellipsis)
+            
+            Tmin_slc = tuple(Tmin_slc)
+            
+            procs = np.arange(size)
+                
+            self.assignments = np.zeros(self.grid.shape)
+            
             sequence = np.concatenate((procs, procs[-1::-1]))
-
-            i = 0
-            j = 0
-            to_solve = np.zeros(exp_ax.size)
-            while i < exp_ax.size:
-                to_solve[i] = sequence[j]
-
-                j += 1
-                if j == len(sequence):
-                    j = 0
-
-                i += 1
+            
+            slc = [Ellipsis for i in range(self.grid.Nd)]
+            
+            k = 0
+            for i in range(Tmin_N):
                 
-            if Tmods % size != 0 and rank == 0:
-                print "\nWARNING: If load-balancing over N Tmin points,"
-                print "it is advantageous to run with M processors, where N is", 
-                print "divisible by M."
+                slc[Tmin_i] = i
                 
-        elif method == 2:
-            if (Tmods / size) % 1 != 0:
-                raise ValueError('Tast_pts must be divisible by Nprocs.')
-            to_solve = list(np.arange(size)) * Tmods / size
-            np.random.shuffle(to_solve)
-        elif method == 3:
-            Tmods = np.arange(exp_ax.size)
-            procs = np.arange(size)
-            to_solve = Tmods % size
-        
-        self.LB = method
-        
-        return to_solve
-    
-        
+                self.assignments[slc] = k \
+                    * np.ones_like(self.assignments[slc])
+            
+                k += 1
+                if k == len(sequence):
+                    k = 0
 
+        else:
+            raise ValueError('No method=%i!' % method)
 

@@ -219,7 +219,11 @@ class ModelSet(object):
             self.blob_redshifts = data.blob_redshifts
             self.parameters = data.parameters
             self.is_mcmc = data.is_mcmc
-            self.axes = data.axes
+            
+            if self.is_mcmc:
+                self.logL = data.logL
+            else:
+                self.axes = data.axes
             
             self.Nd = int(self.chain.shape[-1])       
                 
@@ -286,6 +290,7 @@ class ModelSet(object):
         # Container for results
         chain = []
         blobs = []
+        logL = []
         
         # Loop over all models and isolate those selected
         for i, pars in enumerate(self.chain):
@@ -322,6 +327,7 @@ class ModelSet(object):
             
             chain.append(pars)
             blobs.append(self.blobs[i])
+            logL.append(self.logL[i])
                             
         model_set = ModelSubSet()
         model_set.chain = np.array(chain)
@@ -332,8 +338,13 @@ class ModelSet(object):
         model_set.blob_redshifts = self.blob_redshifts
         model_set.is_log = self.is_log
         model_set.parameters = self.parameters
+        
         model_set.is_mcmc = self.is_mcmc
-        model_set.axes = self.axes
+        
+        if self.is_mcmc:
+            model_set.logL = logL
+        else:
+            model_set.axes = self.axes
         
         self.model_set = model_set
         
@@ -346,17 +357,25 @@ class ModelSet(object):
         
     def ReRunModels(self, models, **kwargs):
         """
-        Take list of dictionaries and re-run each as Global21cm model.s
+        Take list of dictionaries and re-run each as a Global21cm model.
         """
         
         ax = None
         anl_inst = []
         for model in models:
             p = self.base_kwargs.copy()
-            p.update(model)
             
-            sim = sG21(**p)
-            sim.run()
+            if type(model) is dict:
+                p.update(model)
+            else:
+                new = self.link_to_dict(model)
+                p.update(new)    
+            
+            try:
+                sim = sG21(**p)
+                sim.run()
+            except SystemExit:
+                pass
             
             anl = aG21(sim)
             ax = anl.GlobalSignature(ax=ax, **kwargs)
@@ -476,7 +495,7 @@ class ModelSet(object):
     def derived_blob_names(self):
         if not hasattr(self, '_derived_blob_names'):
             # Things we know how to calculate
-            self._derived_blob_names = ['nu_mhz']
+            self._derived_blob_names = ['nu']
             
             tanh_fit = False
             for par in self.parameters:
@@ -496,6 +515,9 @@ class ModelSet(object):
             if ('igm_he_1' and 'igm_he_2' in self.blob_names) and \
                 'igm_he_3' not in self.blob_names:
                 self._derived_blob_names.append('igm_he_3')    
+                
+            if 'tau_e' in self.blob_names:
+                self._derived_blob_names.append('tau_tot')    
                 
         return self._derived_blob_names
 
@@ -529,6 +551,11 @@ class ModelSet(object):
                     self._derived_blobs[:,:,k] = gamma[key]
                 elif re.search('igm_heat', key):
                     self._derived_blobs[:,:,k] = heat
+                elif key == 'tau_tot':
+                    fill = self.blobs[:,-1,self.blob_names.index('tau_e')]
+                    for i in range(self._derived_blobs.shape[1]):
+                        self._derived_blobs[:,i,k] = fill
+                            
                 elif key == 'igm_he_3':
                     i_he_1 = self.blob_names.index('igm_he_1')
                     i_he_2 = self.blob_names.index('igm_he_2')
@@ -538,7 +565,7 @@ class ModelSet(object):
                     i_h_1 = self.blob_names.index('igm_h_1')
                     self._derived_blobs[:,:,k] = \
                         1. - self.blobs[:,:,i_h_1]
-                elif key == 'nu_mhz':
+                elif key == 'nu':
                     i_z = self.blob_names.index('z')
                     self._derived_blobs[:,:,k] = \
                         nu_0_mhz / (1. + self.blobs[:,:,i_z])
@@ -660,6 +687,9 @@ class ModelSet(object):
         for i in range(self.chain.shape[0]):
             logL = 0.0
             
+            if i >= self.blobs.shape[0]:
+                break
+            
             for element in constraints:
                 z, mu, sigma = constraints[element]
                 
@@ -741,7 +771,7 @@ class ModelSet(object):
         else:    
             ax.set_xlabel(labels[self.get_par_prefix(x)])
         
-        if take_log[0]:                    
+        if take_log[1]:                    
             ax.set_ylabel(logify_str(labels[self.get_par_prefix(y)]))
         else:
             ax.set_ylabel(labels[self.get_par_prefix(y)])
@@ -795,6 +825,16 @@ class ModelSet(object):
         tmp = L.ravel() / L.max()
                                                                       
         return nu, levels
+    
+    def link_to_dict(self, link):
+        pf = {}
+        for i, par in enumerate(self.parameters):
+            if self.is_log[i]:
+                pf[par] = 10**link[i]
+            else:
+                pf[par] = link[i]
+        
+        return pf
     
     def get_1d_error(self, par, z=None, bins=20, nu=0.68, take_log=False):
         """
@@ -851,35 +891,80 @@ class ModelSet(object):
 
         return kw
         
-    def rerun(self, pars=None, **kwargs):
-        """
-        Re-run a particular model.
-        
-        Returns
-        -------
-        ares.simulations.Global21cm instance.
-        
-        """    
-        
-        pass
-        
-    def slice(self, z=None, **kwargs):
+    def slice(self, x, y, z):
         """
         Return revised ("sliced") dataset given set of criteria.
         
-        By default, all PDFs will be marginalized over all higher dimensions.
-        This will apply an additional filter, e.g.,
-        
-        slc = self.slice('Tmin': [1e4, 1e5])
-        
-        will return only samples that have 1e4 <= Tmin <= 1e5
+        This currently only works in planes.
         
         """
         
-        pass
+        # Index corresponding to this redshift
+        iz = self.blob_redshifts.index(z)
         
-    def add_blob(self):
-        pass    
+        # Container for results
+        chain = []
+        blobs = []
+        logL = []
+        
+        # Loop over all models and isolate those selected
+        for i, pars in enumerate(self.chain):
+                
+            xy_link = []
+            for j, element in enumerate([x, y]):
+                
+                if element in self.parameters:
+                    k = self.parameters.index(element)
+                    val = pars[k]
+                elif element in self.blob_names:
+                    k = self.blob_names.index(element)
+                    val = self.blobs[i,iz,k]
+                else:
+                    k = self.derived_blob_names.index(element)
+                    val = self.derived_blobs[i,iz,k]
+            
+                # Undo any log-10 or multiplication operations
+                val /= multiplier[j]
+                
+                if take_log[j]:
+                    val = np.log10(val)
+
+                if (j == 0) and not (ll[0] <= val <= ur[0]):
+                    break
+                
+                if (j == 1) and not (ll[1] <= val <= ur[1]):
+                    break
+                
+                xy_link.append(val)    
+            
+            if len(xy_link) != 2:
+                continue
+            
+            chain.append(pars)
+            blobs.append(self.blobs[i])
+            logL.append(self.logL[i])
+                            
+        model_set = ModelSubSet()
+        model_set.chain = np.array(chain)
+        model_set.base_kwargs = self.base_kwargs.copy()
+        model_set.fails = []
+        model_set.blobs = np.array(blobs)
+        model_set.blob_names = self.blob_names
+        model_set.blob_redshifts = self.blob_redshifts
+        model_set.is_log = self.is_log
+        model_set.parameters = self.parameters
+        
+        model_set.is_mcmc = self.is_mcmc
+        
+        if self.is_mcmc:
+            model_set.logL = logL
+        else:
+            model_set.axes = self.axes
+        
+        self.model_set = model_set
+        
+        print "Selected %i models. Saved to model_set attribute." % len(chain)
+        print "Supply model_set attribute as argument to new ModelSet instance."
         
     def ExamineFailures(self, N=1):
         """

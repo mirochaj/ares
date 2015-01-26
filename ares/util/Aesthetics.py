@@ -32,7 +32,7 @@ label_dTbdnu = r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$'
 
 labels = \
 {
- 'nu_mhz': r'$\nu \ (\mathrm{MHz})$',
+ 'nu': r'$\nu \ (\mathrm{MHz})$',
  't_myr': r'$t \ (\mathrm{Myr})$',
  'flux': label_flux_phot, 
  'flux_E': label_flux_nrg, 
@@ -75,6 +75,7 @@ labels = \
  'Tk': r'$T_K \ (\mathrm{K})$',
  
  'tau_e': r'$\tau_e$',
+ 'tau_tot': r'$\tau_e$', 
  'curvature': r'$\delta^{\prime \prime} T_b \ [\mathrm{mK}^2 \ \mathrm{MHz}^{-2}]$',
 }    
 ##
