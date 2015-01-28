@@ -296,8 +296,8 @@ class ModelGrid:
                 else:
                     loc = 0
                     suffix = ''
-                                    
-                hmf_pars = {'Tmin%s' % suffix: kwargs[self.Tmin_ax_name],
+                                
+                hmf_pars = {'Tmin%s' % suffix: sim.pf['Tmin%s' % suffix],
                     'fcoll%s' % suffix: copy.deepcopy(sim.pops.pops[loc].fcoll), 
                     'dfcolldz%s' % suffix: copy.deepcopy(sim.pops.pops[loc].dfcolldz)}
 
@@ -307,14 +307,14 @@ class ModelGrid:
             # If we already have matching fcoll splines, use them!
             else:        
                                         
-                hmf_pars = {self.Tmin_ax_name: fcoll[i_Tmin]['Tmin%s' % suffix],
+                hmf_pars = {'Tmin%s' % suffix: fcoll[i_Tmin]['Tmin%s' % suffix],
                     'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
                     'dfcolldz%s' % suffix: fcoll[i_Tmin]['dfcolldz%s' % suffix]}
                 p.update(hmf_pars)
                 sim = Global21cm(**p)
 
             # Run simulation!
-            try:             
+            try:
                 sim.run()
 
                 tps = sim.turning_points
@@ -350,7 +350,9 @@ class ModelGrid:
             ##
             # File I/O from here on out
             ##
-
+            
+            pb.update(h)
+            
             # Only record results every save_freq steps
             if ct % save_freq != 0:
                 continue
@@ -375,8 +377,6 @@ class ModelGrid:
             gc.collect()
 
             chain_all = []; blobs_all = []
-
-            pb.update(h)
 
         pb.finish()
 
@@ -410,6 +410,7 @@ class ModelGrid:
         if not hasattr(self, '_Tmin_in_grid'):
         
             ct = 0
+            name = None
             self._Tmin_in_grid = False
             for par in self.grid.axes_names:
                 
@@ -473,9 +474,11 @@ class ModelGrid:
             return
             
         have_Tmin = self.Tmin_in_grid  
-        Tmin_i = self.grid.axes_names.index(self.Tmin_ax_name)
-        Tmin_ax = self.grid.axes[Tmin_i]
-        Tmin_N = Tmin_ax.size  
+        
+        if have_Tmin:
+            Tmin_i = self.grid.axes_names.index(self.Tmin_ax_name)
+            Tmin_ax = self.grid.axes[Tmin_i]
+            Tmin_N = Tmin_ax.size  
         
         # No load balancing. Equal # of models per processor
         if method == 0 or (not have_Tmin) or (Tmin_N < size):

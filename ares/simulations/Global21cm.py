@@ -516,8 +516,6 @@ class Global21cm:
 
         # Initialize progressbar
         self.tf = self.grid.cosm.LookbackTime(zf, z)
-        if self.pf['progress_bar']:
-            print ""
         self.pb = ProgressBar(self.tf, '21-cm (pre-EoR)',
             use=self.pf['progress_bar'])
         self.pb.start()
@@ -890,10 +888,7 @@ class Global21cm:
                 self.cxrb_flo = self.cxrb_flo_EoR
 
                 self._init_XRB(pre_EoR=False, **kwargs)
-                
-                if self.pf['progress_bar']:
-                    print ""
-
+            
                 self.pb = ProgressBar(self.tf, '21-cm (EoR)',
                     use=self.pf['progress_bar'])
                 self.pb.start()

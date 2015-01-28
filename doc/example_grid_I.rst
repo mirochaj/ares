@@ -9,25 +9,36 @@ To begin,
 :: 
 
     import ares
+    import numpy as np
     
 Before we run a set of models, we need to decide what quantities we'd like
-to save for each model. Anything stored the ``history`` attribute of an
+to save for each model. Anything stored in the ``history`` attribute of an
 ``ares.simulations.Global21cm`` instance is fair game: see :doc:`fields` for
 more information. We also must supply a series of redshifts
 at which to save the quantities of interest.
 
-Let's just save the redshift, 21-cm brightness temperature, and spin 
-temperature at the redshifts corresponding to extrema in the global signal (which
-we refer to as turning points B, C, and D):
+Let's save the following quantities:
+
+* 21-cm brightness temperature, ``dTb``.
+* Spin temperature, ``Ts``.
+* Kinetic temperature, ``igm_Tk``.
+* HII region volume filling factor, ``cgm_h_2``.
+* Neutral fraction in the bulk IGM, ``igm_h_1``.
+* Heating rate in the IGM, ``igm_heat_h_1``.
+* Volume-averaged ionization rate, or rate of change in ``cgm_h_2``, ``cgm_Gamma_h_1``.
+
+i.e., ::
+
+    fields = ['z', 'dTb', 'Ts', 'igm_Tk', 'igm_heat_h_1', 'cgm_Gamma_h_1']
+
+We'll save each of these quantities at the three extrema in the global 21-cm
+signal (turning points B, C, and D), and a few other redshifts of interest.
     
 ::
-
-    fields = ['z', 'dTb', 'Ts']
-    redshifts = ['B', 'C', 'D']
     
-.. note :: The list of redshifts can include numerical values as well.    
-    
-and now, initialize a ``ModelGrid`` instance: 
+    redshifts = ['B', 'C', 'D', 6, 8, 10, 12]
+        
+Now, initialize a ``ModelGrid`` instance: 
 
 ::
 
@@ -46,7 +57,7 @@ Now, let's survey a small 2-D swath of parameter space, varying the X-ray
 normalization parameter and star formation efficiency:
 
 ::
-
+    
     mg.set_axes(fX=np.linspace(0.1, 0.5, 5), fstar=np.array([0.05, 0.1]))
     
 Load-balancing can be very advantageous -- there are a few built-in methods for doing this, 
@@ -80,8 +91,10 @@ The main results are stored in a series of files with the prefix ``test_model_gr
 
 .. note :: If the model grid doesn't finish running, that's OK! Simply re-execute the above command and supply ``restart=True`` as an additional keyword argument, and it will pick up where it left off.
 
+.. note :: The above can be run in parallel as a Python script, so long as you have `MPI <http://www.open-mpi.org/>`_ and `mpi4py <http://mpi4py.scipy.org>`_ installed.
+
 It's easiest to analyze the results using a built-in analysis module, which 
-will automatically retrieve the data in all files:
+will automatically retrieve the data in all files with the given prefix:
     
 ::
     
@@ -101,7 +114,8 @@ To see the where the emission signal occurs on the same axes,
     ax = anl.Scatter(x='z', y='dTb', z='D', color='r')
     
 If you're interested in variations in ``Tmin``, in which case load-balancing
-could be highly advantageous, see :doc:`example_grid_II`.
+could be highly advantageous, see :doc:`example_grid_II`. For more examples
+of the built-in analysis routines, check out :doc:`example_grid_analysis`.
 
 
     

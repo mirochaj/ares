@@ -29,6 +29,7 @@ base_kwargs = {'inline_analysis': blobs, 'final_redshift': 6}
 mg = ares.inference.ModelGrid(**base_kwargs)
 
 mg.set_axes(**grid_axes)
+mg.LoadBalance(0)
 
 t1 = time.time()
 mg.run('test_grid', clobber=True)

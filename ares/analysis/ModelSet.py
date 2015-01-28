@@ -221,9 +221,12 @@ class ModelSet(object):
                     
                 self.grid = ModelGrid(**self.base_kwargs)
                 self.grid.set_axes(**self.axes)
-                f = open('%s.load.pkl' % prefix, 'rb')
-                self.load = pickle.load(f)
-                f.close()
+                
+                # Only exists for parallel runs
+                if os.path.exists('%s.load.pkl' % prefix):
+                    f = open('%s.load.pkl' % prefix, 'rb')
+                    self.load = pickle.load(f)
+                    f.close()
                 
                 if rank == 0:
                     print "Loaded %s.load.pkl." % prefix
@@ -247,7 +250,11 @@ class ModelSet(object):
             if self.is_mcmc:
                 self.logL = data.logL
             else:
-                self.load = data.load
+                try:
+                    self.load = data.load
+                except AttributeError:
+                    pass
+                    
                 self.axes = data.axes
                 self.grid = data.grid
                 
@@ -525,7 +532,7 @@ class ModelSet(object):
         if not hasattr(self, '_derived_blob_names'):
             # Things we know how to calculate
             self._derived_blob_names = ['nu']
-            
+
             tanh_fit = False
             for par in self.parameters:
                 if par in tanh_pars:
@@ -534,9 +541,12 @@ class ModelSet(object):
             if not tanh_fit:
                 for sp in ['h_1', 'he_1', 'he_2']:
                     self._derived_blob_names.append('igm_gamma_%s' % sp)
-            
+
             if not tanh_fit:    
                 self._derived_blob_names.append('igm_heat')
+
+            if 'Ts' in self.blob_names:
+                self._derived_blob_names.append('contrast')
             
             if ('igm_h_1' in self.blob_names) and \
                 'igm_h_2' not in self.blob_names:
@@ -598,6 +608,17 @@ class ModelSet(object):
                     i_z = self.blob_names.index('z')
                     self._derived_blobs[:,:,k] = \
                         nu_0_mhz / (1. + self.blobs[:,:,i_z])
+                elif key == 'contrast':
+                    i_Ts = self.blob_names.index('Ts')
+                    for j, redshift in enumerate(self.blob_redshifts):
+                        if type(redshift) is str:
+                            zindex = self.blob_names.index('z')
+                            ztmp = self.blobs[:,j,zindex]
+                        else:
+                            ztmp = redshift
+                        self._derived_blobs[:,j,k] = 1. - \
+                            self.cosm.TCMB(ztmp) / self.blobs[:,j,i_Ts]
+                            
                 else:
                     raise ValueError('dont know derived blob %s!' % key)    
                 
@@ -754,14 +775,14 @@ class ModelSet(object):
         y : str
             Field for the y-axis.
         z : str, float
-            Redshift at which to plot x vs. y.
+            Redshift at which to plot x vs. y, if applicable.
         c : str
             Field for (optional) color axis.
-            
+
         Returns
         -------
         matplotlib.axes._subplots.AxesSubplot instance.
-            
+
         """
 
         if ax is None:
@@ -1539,9 +1560,9 @@ class ModelSet(object):
                 
                 if mp.grid[k] is None:
                     continue
-
+                    
                 # Input values (optional)
-                if p1 in (self.ref_pars or inputs):
+                if (p1 in self.ref_pars) or (p1 in inputs):
                     if not inputs:
                         val = self.ref_pars[p1]
                     else:
@@ -1556,7 +1577,7 @@ class ModelSet(object):
                 else:
                     yin = None
                 
-                if p2 in (self.ref_pars or inputs):
+                if (p2 in self.ref_pars) or (p2 in inputs):
                     
                     if not inputs:
                         val = self.ref_pars[p2]

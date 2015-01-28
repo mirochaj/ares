@@ -33,6 +33,7 @@ Surveying Parameter Space
 -------------------------
 * :doc:`example_grid_I`
 * :doc:`example_grid_II`
+* :doc:`example_grid_analysis`
 
 Post-Processing Cosmological Simulations
 ----------------------------------------

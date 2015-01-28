@@ -114,6 +114,7 @@ tanh_parameters = \
 other = \
 {
  'load': 'processor #',
+ 'contrast': r'$1 - T_{\gamma} / T_S$',
 }
 
 labels.update(history_elements)
