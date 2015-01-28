@@ -717,11 +717,11 @@ class ModelSet(object):
                         
         return gamma
     
-    def set_logL(self, **constraints):
+    def set_constraint(self, **constraints):
         """
         For ModelGrid calculations, the likelihood must be supplied 
         after-the-fact.
-        
+
         Parameters
         ----------
         constraints : dict
@@ -737,9 +737,11 @@ class ModelSet(object):
         Sets "logL" attribute, which is used by several routines.    
             
         """    
-            
+
         if not hasattr(self, 'logL'):
             self.logL = np.zeros(self.chain.shape[0])
+        else:
+            del self.logL
 
         for i in range(self.chain.shape[0]):
             logL = 0.0
@@ -748,20 +750,24 @@ class ModelSet(object):
                 break
             
             for element in constraints:
-                z, mu, sigma = constraints[element]
-                
+                z, func = constraints[element]
+
                 j = self.blob_redshifts.index(z)
-                k = self.blob_names.index(element)
-                
-                data = self.blobs[i,j,k]
-                
-                logL += (data - mu)**2 / 2. / sigma**2
-                
+                if element in self.blob_names:
+                    k = self.blob_names.index(element)
+                    data = self.blobs[i,j,k]
+                else:
+                    k = self.derived_blob_names.index(element)
+                    data = self.derived_blobs[i,j,k]                
+
+                logL -= np.log(func(data))
+
             self.logL[i] -= logL
-            
+
         mask = np.isnan(self.logL)
+
         self.logL[mask] = -np.inf 
-            
+
     def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, slc=None, 
         take_log=False, multiplier=1., **kwargs):
         """
@@ -898,8 +904,7 @@ class ModelSet(object):
     def weights(self):        
         if (not self.is_mcmc) and hasattr(self, 'logL') \
             and (not hasattr(self, '_weights')):
-            self._weights = 10**np.array(self.logL) 
-            self.new_logL = False
+            self._weights = np.exp(self.logL)
 
         return self._weights
             
@@ -1104,7 +1109,7 @@ class ModelSet(object):
                
     def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=1.,
         nu=[0.95, 0.68], slc=None, overplot_nu=False, density=True, 
-        color_by_nu=False, contour=True, filled=True, take_log=False,
+        color_by_like=False, contour=True, filled=True, take_log=False,
         bins=20, xscale='linear', yscale='linear', skip=0, skim=1, **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
@@ -1122,8 +1127,8 @@ class ModelSet(object):
             Plot PDF?
         nu : float, list
             If plot == False, return the nu-sigma error-bar.
-            If color_by_nu == True, list of confidence contours to plot.
-        color_by_nu : bool
+            If color_by_like == True, list of confidence contours to plot.
+        color_by_like : bool
             If True, color points based on what confidence contour they lie
             within.
         contour : bool
@@ -1184,8 +1189,7 @@ class ModelSet(object):
                 else:
                     val *= multiplier[k]
                                 
-                if take_log[k]:
-                    print "WARNING: Maybe don't take log10 of %s." % par
+                if take_log[k] and not self.is_log[j]:
                     to_hist.append(np.log10(val))
                 else:
                     to_hist.append(val)
@@ -1209,7 +1213,7 @@ class ModelSet(object):
                 else:
                     val = self.derived_blobs[skip:,i,j][::skim]
                 
-                if take_log[k]:
+                if take_log[k] and not self.is_log[j]:
                     val += np.log10(multiplier[k])
                 else:
                     val *= multiplier[k]
@@ -1294,7 +1298,7 @@ class ModelSet(object):
                 bc.append(rebin(edges))
                     
             # Determine mapping between likelihood and confidence contours
-            if color_by_nu:
+            if color_by_like:
     
                 # Get likelihood contours (relative to peak) that enclose
                 # nu-% of the area
@@ -1501,7 +1505,7 @@ class ModelSet(object):
             Include the 1-D marginalized PDFs?
         filled : bool
             Use filled contours? If False, will use open contours instead.
-        color_by_nu : bool
+        color_by_like : bool
             If True, set contour levels by confidence regions enclosing nu-%
             of the likelihood. Set parameter `nu` to modify these levels.
         nu : list

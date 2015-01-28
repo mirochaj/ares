@@ -29,7 +29,7 @@ Let's save the following quantities:
 
 i.e., ::
 
-    fields = ['z', 'dTb', 'Ts', 'igm_Tk', 'igm_heat_h_1', 'cgm_Gamma_h_1']
+    fields = ['z', 'dTb', 'Ts', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 'igm_heat_h_1', 'cgm_Gamma_h_1']
 
 We'll save each of these quantities at the three extrema in the global 21-cm
 signal (turning points B, C, and D), and a few other redshifts of interest.
@@ -105,13 +105,13 @@ showing the redshift and brightness temperature for each model at that point:
 
 ::
     
-    ax = anl.Scatter(x='z', y='dTb', z='C')
+    ax = anl.Scatter(x='nu', y='dTb', z='C')
 
 To see the where the emission signal occurs on the same axes, 
 
 ::
 
-    ax = anl.Scatter(x='z', y='dTb', z='D', color='r')
+    ax = anl.Scatter(x='nu', y='dTb', z='D', color='r')
     
 If you're interested in variations in ``Tmin``, in which case load-balancing
 could be highly advantageous, see :doc:`example_grid_II`. For more examples

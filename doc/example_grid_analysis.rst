@@ -68,15 +68,70 @@ global 21-cm signal change as a function of the model parameters:
     anl_sim = ares.analysis.Global21cm(sim)
     anl_sim.GlobalSignature(ax=ax)
     
+If you forget what fields are available for analysis (and at what redshifts),
+see:
+
+::
+
+    print anl.blob_names, anl.blob_redshifts
+    
+.. note :: Calling quantities of interest `blobs` was inspired by the arbitrary meta-data blobs in `emcee <http://dan.iel.fm/emcee/current/>`_. 
 
 Confidence Contours
 -------------------
 Notice that we have yet to assume anything about a measurement, meaning we have
 made no attempt to quantify the likelihood that any model in our grid is 
-correct. Let's say that somebody hands us a measurement of the IGM temperature
-at :math:`z=10`: it is :math:`T_k(z=10) = 400 \pm 20` Kelvin.
+correct. Let's say that somebody hands us a measurement of the position of the
+absorption trough in the global 21-cm signal: it's at :math:`\nu=80 \pm 2`: MHz and
+:math:`\delta T_b = -100 \pm 20` mK, where the errors provided are assumed to 
+be :math:`1−\sigma` (independent) Gaussian errors.
 
 .. note :: For this example, it will be advantageous to have a more well-sampled parameter space. Consider re-running the :doc:`example_grid_I` with more points in each dimension before proceeding.
 
-Under construction sorry!
+To compute the likelihood for each model in our grid, we can define functions
+representing the Gaussian errors on the measurement, and pass them to the
+``set_constraint`` function: 
+
+::
+
+    TC = lambda x: np.exp(-(x - -100.)**2 / 2. / 20.**2)
+    nuC = lambda x: np.exp(-(x - 80)**2 / 2. / 2.**2)
+    anl.set_constraint(nu=['C', nuC], dTb=['C', TC])
+    
+Each argument passed to ``set_constraint`` is a two-element list: the redshift
+    
+    
+Now, to look at the probability distribution function for our parameters of 
+interest, 
+
+::
+
+    ax = anl.PosteriorPDF(['fX', 'fstar'], take_log=True)
+
+.. note :: It may often be advantageous to supply ``take_log=True`` in order to view posterior PDFs of quantities in log-log space.
+
+To convert the color-scale from one proportional to the likelihood of a given
+model to one that denotes, e.g., the 1 and 2 :math:`\sigma` bounds on the 
+likelihood, do something like: 
+
+::
+
+    ax = anl.PosteriorPDF(['fX', 'fstar'], take_log=True, color_by_like=True,
+        colors=['g', 'b'])
+        
+By default, this includes the 68 and 95 percent confidence intervals, but you
+can pick any contour(s) you like (no matter how unconventional it might be):
+
+::
+
+    ax = anl.PosteriorPDF(['fX', 'fstar'], take_log=True, color_by_like=True,
+        colors=['g', 'b'], nu=[0.5, 0.8])
+        
+.. note :: To view the confidence regions as open contours, set ``filled=False``. You can control the color and linestyle of each contour by the ``colors`` and ``linestyles`` keyword arguments.
+
+Highly Dimensional Grids
+------------------------
+For parameter studies with :math:`\gtrsim 3` dimensions, you might want to use 
+MCMC. See :doc:`example_mcmc_I` for an example.
+
 
