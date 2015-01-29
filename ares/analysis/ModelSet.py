@@ -1213,7 +1213,7 @@ class ModelSet(object):
                 else:
                     val = self.derived_blobs[skip:,i,j][::skim]
                 
-                if take_log[k] and not self.is_log[j]:
+                if take_log[k]:
                     val += np.log10(multiplier[k])
                 else:
                     val *= multiplier[k]

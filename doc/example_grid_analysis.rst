@@ -82,7 +82,7 @@ Confidence Contours
 Notice that we have yet to assume anything about a measurement, meaning we have
 made no attempt to quantify the likelihood that any model in our grid is 
 correct. Let's say that somebody hands us a measurement of the position of the
-absorption trough in the global 21-cm signal: it's at :math:`\nu=80 \pm 2`: MHz and
+absorption trough in the global 21-cm signal: it's at :math:`\nu=80 \pm 2` MHz and
 :math:`\delta T_b = -100 \pm 20` mK, where the errors provided are assumed to 
 be :math:`1−\sigma` (independent) Gaussian errors.
 
