@@ -46,7 +46,7 @@ the ``Tmin`` dimension of a model grid makes lots of sense:
 
 ::
 
-    mg.load_balance(method=1)
+    mg.LoadBalance(method=1)
 
 Finally, to run the thing:
 

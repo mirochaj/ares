@@ -556,8 +556,14 @@ class ModelSet(object):
                 self._derived_blob_names.append('igm_he_3')    
                 
             if 'tau_e' in self.blob_names:
-                self._derived_blob_names.append('tau_tot')    
+                self._derived_blob_names.append('tau_tot') 
                 
+            #if 'cgm_h_2' in self.blob_names:
+            #    if ('igm_h_1' in self.blob_names) \
+            #        or ('igm_h_2' in self.blob_names):
+            #
+            #        self._derived_blob_names.append('xavg')       
+            
         return self._derived_blob_names
 
     @property
@@ -608,6 +614,11 @@ class ModelSet(object):
                     i_z = self.blob_names.index('z')
                     self._derived_blobs[:,:,k] = \
                         nu_0_mhz / (1. + self.blobs[:,:,i_z])
+                #elif key == 'xvag':
+                #    Q = self.blob_names.index('cgm_h_2')
+                #    x = self.blob_names.index('igm_h_2')
+                #    self._derived_blobs[:,:,k] = \
+                #        1. - self.blobs[:,:,i_he_1] - self.blobs[:,:,i_he_2]        
                 elif key == 'contrast':
                     i_Ts = self.blob_names.index('Ts')
                     for j, redshift in enumerate(self.blob_redshifts):
@@ -649,7 +660,7 @@ class ModelSet(object):
             if i > 0 and 'igm_%s' % sp not in self.blob_names:
                 print "Total heating rate may be underestimated: no igm_%s in blobs" % sp
                 continue
-            
+
             # For slicing
             i_x = self.blob_names.index('igm_%s' % sp)
             i_heat = self.blob_names.index('igm_heat_%s' % sp)
@@ -667,9 +678,9 @@ class ModelSet(object):
                     ztmp = redshift
 
                 # Multiply by number density of absorbers
-                heat[:,j] = self.blobs[:,j,i_heat] \
+                heat[:,j] += self.blobs[:,j,i_heat] \
                     * n(ztmp) * self.blobs[:,j,i_x]
-                    
+
         return heat
 
     def _compute_gamma_tot(self):
@@ -717,13 +728,17 @@ class ModelSet(object):
                         
         return gamma
     
-    def set_constraint(self, **constraints):
+    def set_constraint(self, add_constraint=False, **constraints):
         """
         For ModelGrid calculations, the likelihood must be supplied 
         after-the-fact.
 
         Parameters
         ----------
+        add_constraint: bool
+            If True, operate with logical and when constructing likelihood.
+            That is, this constraint will be applied in conjunction with
+            previous constraints supplied.
         constraints : dict
             Constraints to use in calculating logL
             
@@ -738,10 +753,13 @@ class ModelSet(object):
             
         """    
 
-        if not hasattr(self, 'logL'):
+        if add_constraint and hasattr(self, 'logL'):
+            pass
+        else:    
             self.logL = np.zeros(self.chain.shape[0])
-        else:
-            del self.logL
+
+        if hasattr(self, '_weights'):
+            del self._weights
 
         for i in range(self.chain.shape[0]):
             logL = 0.0
@@ -768,7 +786,7 @@ class ModelSet(object):
 
         self.logL[mask] = -np.inf 
 
-    def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, slc=None, 
+    def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, slc=None,
         take_log=False, multiplier=1., **kwargs):
         """
         Show occurrences of turning points B, C, and D for all models in
@@ -907,14 +925,7 @@ class ModelSet(object):
             self._weights = np.exp(self.logL)
 
         return self._weights
-            
-    def clear_logL(self):
-        if hasattr(self, 'logL'):
-            del self.logL
-        
-        if hasattr(self, '_weights'):
-            del self._weights                
-                    
+
     def get_levels(self, L, nu=[0.95, 0.68]):
         """
         Return levels corresponding to input nu-values, and assign
@@ -992,27 +1003,42 @@ class ModelSet(object):
 
         return kw
         
-    def slice(self, x, y, z):
+    def Slice(self, **constraints):
         """
         Return revised ("sliced") dataset given set of criteria.
         
         This currently only works in planes.
         
-        """
+        Parameters
+        ----------
+        constraints : dict
+            
+            
+        Examples
+        --------
         
-        # Index corresponding to this redshift
-        iz = self.blob_redshifts.index(z)
+        
+        Returns
+        -------
+        Object to be used to initialize a new ModelSet instance.
+        
+        """
         
         # Container for results
         chain = []
         blobs = []
         logL = []
         
-        # Loop over all models and isolate those selected
-        for i, pars in enumerate(self.chain):
+        # Loop over all models and isolate those that satisfy criteria
+        for i, pars in enumerate(self.chain):    
                 
             xy_link = []
-            for j, element in enumerate([x, y]):
+            for constraint in constraints:
+                
+                z, func = constraints[constraint]
+                
+                # Index corresponding to this redshift
+                iz = self.blob_redshifts.index(z)
                 
                 if element in self.parameters:
                     k = self.parameters.index(element)
@@ -1162,6 +1188,12 @@ class ModelSet(object):
             take_log = [take_log] * len(pars)
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)    
+        
+        if type(z) is list:
+            if len(z) != len(pars):
+                raise ValueError('Length of z must be = length of pars!')
+        else:
+            z = [z] * len(pars)
     
         if ax is None:
             gotax = False
@@ -1199,7 +1231,7 @@ class ModelSet(object):
                 if z is None:
                     raise ValueError('Must supply redshift!')
                     
-                i = self.blob_redshifts.index(z)
+                i = self.blob_redshifts.index(z[k])
                 
                 if par in self.blob_names:
                     j = list(self.blob_names).index(par)
@@ -1226,6 +1258,7 @@ class ModelSet(object):
             else:
                 raise ValueError('Unrecognized parameter %s' % str(par))
 
+            # Set bins
             if self.is_mcmc or (par not in self.parameters):
                 if type(bins) == int:
                     valc = to_hist[k]
@@ -1234,7 +1267,10 @@ class ModelSet(object):
                     valc = to_hist[k]
                     binvec.append(np.linspace(valc.min(), valc.max(), bins[k]))
                 else:
-                    binvec.append(bins[k])
+                    if take_log[k]:
+                        binvec.append(np.log10(bins[k]))
+                    else:
+                        binvec.append(bins[k])
             else:
                 if take_log[k]:
                     binvec.append(np.log10(self.axes[par]))
@@ -1433,7 +1469,13 @@ class ModelSet(object):
         
         if zbins is not None:
             cmap_obj = eval('mpl.colorbar.cm.%s' % cmap)
-            norm = mpl.colors.BoundaryNorm(zbins, cmap_obj.N)
+            #if take_log[2]:
+            #    norm = mpl.colors.LogNorm(zbins, cmap_obj.N)
+            #else:    
+            if take_log[2]:
+                norm = mpl.colors.BoundaryNorm(np.log10(zbins), cmap_obj.N)
+            else:    
+                norm = mpl.colors.BoundaryNorm(zbins, cmap_obj.N)
         else:
             norm = None
         
@@ -1446,11 +1488,13 @@ class ModelSet(object):
         cb.draw_all()
 
         if zaxis in labels:
-            cb.set_label(labels[zaxis])
+            cblab = labels[zaxis]
         elif '{' in zaxis:
-            cb.set_label(labels[zaxis[0:zaxis.find('{')]])
+            cblab = labels[zaxis[0:zaxis.find('{')]]
         else:
-            cb.set_label(zaxis)    
+            cblab = zaxis 
+            
+        cb.set_label(logify_str(cblab))    
             
         cb.update_ticks()
             
@@ -1485,10 +1529,12 @@ class ModelSet(object):
             ID number for plot window.
         bins : int,
             Number of bins in each dimension.
-        z : int, float, str
+        z : int, float, str, list
             If plotting arbitrary meta-data blobs, must choose a redshift.
             Can be 'B', 'C', or 'D' to extract blobs at 21-cm turning points,
-            or simply a number.
+            or simply a number. If it's a list, it must have the same
+            length as pars. This is how one can make a triangle plot 
+            comparing the same quantities at different redshifts.
         input : dict
             Dictionary of parameter:value pairs representing the input
             values for all model parameters being fit. If supplied, lines
@@ -1532,6 +1578,11 @@ class ModelSet(object):
             multiplier = [multiplier] * len(pars)        
         if type(bins) == int:
             bins = [bins] * len(pars)
+        if type(z) is list:
+            if len(z) != len(pars):
+                raise ValueError('Length of z must be = length of pars!')
+        else:
+            z = [z] * len(pars)
         
         is_log = []
         for par in pars[-1::-1]:
@@ -1604,7 +1655,7 @@ class ModelSet(object):
                 if k in mp.diag and oned:
 
                     self.PosteriorPDF(p1, ax=mp.grid[k], 
-                        take_log=take_log[-1::-1][i], z=z,
+                        take_log=take_log[-1::-1][i], z=z[-1::-1][i],
                         multiplier=[multiplier[-1::-1][i]], 
                         bins=[bins[-1::-1][i]], skip=skip, skim=skim, **kw)
 
@@ -1624,16 +1675,18 @@ class ModelSet(object):
                         
                     if xin is not None:
                         mp.grid[k].plot([xin]*2, [0, 1.05], 
-                            color='k', ls=':', lw=2)    
+                            color='k', ls=':', lw=2)
                             
                     continue
 
+                red = [z[j], z[-1::-1][i]]
+
                 # If not oned, may end up with some x vs. x plots
-                if p1 == p2:
+                if p1 == p2 and (red[0] == red[1]):
                     continue
 
                 # 2-D PDFs elsewhere
-                self.PosteriorPDF([p2, p1], ax=mp.grid[k], z=z,
+                self.PosteriorPDF([p2, p1], ax=mp.grid[k], z=red,
                     take_log=[take_log[j], take_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, **kw)

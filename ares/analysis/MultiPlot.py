@@ -490,17 +490,17 @@ class MultiPanel:
         labels : list
             List of axes labels in order of ascending panel in x. i.e., from
             leftmost to rightmost plots.
-            
+
         """
         for i, axis in enumerate(self.bottom):
             self.grid[axis].set_xlabel(labels[i])
-                
+
         for i, axis in enumerate(np.array(self.left)[-1::-1]):
             if axis == self.upperleft:
                 continue
-                
+
             self.grid[axis].set_ylabel(labels[i])        
-        
+
         pl.draw()          
     
     def global_xlabel(self, label, xy=(0.5, 0.025), size='x-large'):

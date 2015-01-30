@@ -130,6 +130,7 @@ class ChemicalNetwork:
         xe = n_e / n_H
         
         # In two-zone model, this phase is assumed to be fully ionized
+        # CF = clumping factor
         if self.in_bubbles:
             CF *= (n_H * (1. + y) / n_e)
                     

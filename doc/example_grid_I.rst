@@ -66,7 +66,7 @@ we're running in an interactive Python session in serial:
     
 ::
 
-    mg.load_balance(method=0)
+    mg.LoadBalance(method=0)
     
 To verify the properties of the model grid, we can access the names and values
 of its axes:

@@ -59,8 +59,8 @@ labels = \
  'igm_heat_he_1': r'$\epsilon_{X, \mathrm{HI}}$',
  'igm_heat_he_2': r'$\epsilon_{X, \mathrm{HI}}$', 
  'igm_heat': r'$\epsilon_X$', 
- 'cgm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
- 'igm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
+ 'cgm_Gamma_h_1': r'$\Gamma_{\mathrm{HI},\mathrm{cgm}}}$',
+ 'igm_Gamma_h_1': r'$\Gamma_{\mathrm{HI},\mathrm{igm}}}$',
  'igm_Gamma_he_1': r'$\Gamma_{\mathrm{HeI}}$',
  'igm_Gamma_he_2': r'$\Gamma_{\mathrm{HeII}}$',
 
@@ -89,7 +89,6 @@ history_elements = \
  'igm_he_2': r'$x_{\mathrm{HeII}}$',
  'igm_he_3': r'$x_{\mathrm{HeIII}}$',
  'igm_Tk': r'$T_K$',
- 'cgm_Gamma_h_1': r'$\Gamma_{\mathrm{HI}}$',
  'cgm_h_2': r'$Q_{\mathrm{HII}}$',
  'Ts': r'$T_S$',
  'dTb': label_dTb,
