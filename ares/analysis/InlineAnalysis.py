@@ -16,6 +16,7 @@ from ..util.Misc import tau_CMB
 from scipy.interpolate import interp1d
 from .TurningPoints import TurningPoints
 from ..physics.Constants import ev_per_hz, rhodot_cgs
+from ..inference.ModelFit import _blob_names, _blob_redshifts
 
 class InlineAnalysis:
     def __init__(self, sim):
@@ -26,12 +27,94 @@ class InlineAnalysis:
         self.zmin = self.history['z'].min()
         self.zmax = self.history['z'].max()
         
-        self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
+        if self.pf['inline_analysis'] is not None and \
+           (not self.pf['auto_generate_blobs']):
+            self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
+        elif self.pf['auto_generate_blobs']:
+            self.blob_names, self.blob_redshifts = self.generate_blobs()
     
         self.need_extrema = 0
         for tp in list('BCD'):
             if tp in self.blob_redshifts:
                 self.need_extrema += 1
+                
+    def generate_blobs(self):
+        """
+        Auto-generate blobs for inline analysis.
+        
+        Returns
+        -------
+        Names and redshifts of blobs.
+        
+        """
+        
+        # First, figure out which rate coefficients to save
+        # Automatically figure out which populations need
+        
+        blob_names = []
+        for i, pop in enumerate(range(self.pf.Npops)):
+            
+            if hasattr(self.sim, 'pops'):
+                pop = self.sim.pops.pops[i]
+            else:
+                pop = self.sim
+            
+            if self.pf.Npops > 1:
+                suffix = '{%i}' % i
+            else:
+                suffix = ''
+                
+            # Lyman-alpha emission
+            if pop.pf['is_lya_src']:
+                blob_names.append('Ja%s' % suffix)
+                
+            # SFRD
+            if not pop.pf['tanh_model']:
+                blob_names.append('sfrd%s' % suffix)
+                
+            species = ['h_1', 'he_1', 'he_2']
+            for j, sp1 in enumerate(species):
+                
+                if j > 0 and (not self.pf['include_He']):
+                    break
+            
+                blob_names.append('igm_%s' % sp1)
+                
+                if pop.pf['is_ion_src_cgm'] and j == 0:
+                    blob_names.append('cgm_Gamma_%s%s' % (sp1, suffix))
+                    
+                if pop.pf['is_heat_src_igm']:
+                    blob_names.append('igm_heat_%s%s' % (sp1, suffix))
+                
+                if pop.pf['is_ion_src_igm'] and (not pop.pf['tanh_model']):
+                    blob_names.append('igm_Gamma_%s%s' % (sp1, suffix))
+                else:
+                    continue
+            
+                if not pop.pf['secondary_ionization']:
+                    continue
+                    
+                if pop.pf['tanh_model']:
+                    continue
+                                        
+                for k, sp2 in enumerate(species):
+                    if k > 0 and (not self.pf['include_He']):
+                        break
+                        
+                    blob_names.append('igm_gamma_%s_%s%s' % (sp1, sp2, suffix))
+            
+        tmp1 = _blob_names
+        tmp1.extend(blob_names)
+        
+        tmp2 = _blob_redshifts
+        for z in tmp2:
+            if type(z) is str:
+                continue
+                
+            if z < self.sim.pf['final_redshift']:
+                tmp2.remove(z)
+       
+        return list(np.unique(tmp1)), tmp2
                 
     @property
     def turning_points(self):            

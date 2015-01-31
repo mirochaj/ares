@@ -725,7 +725,8 @@ class Global21cm:
     
     def run_inline_analysis(self):    
         
-        if self.pf['inline_analysis'] is None:
+        if (self.pf['inline_analysis'] is None) and \
+           (self.pf['auto_generate_blobs'] == False):
             return
             
         tmp = {}
@@ -751,7 +752,8 @@ class Global21cm:
     def blob_shape(self):
         if not hasattr(self, '_blob_shape'):
             if self.pf['inline_analysis']:
-                self._blob_shape = map(len, self.pf['inline_analysis'])[-1::-1]
+                self._blob_shape = \
+                    map(len, self.pf['inline_analysis'])[-1::-1]
             else:
                 self._blob_shape = None
                 

@@ -98,7 +98,8 @@ def PhysicsParameters():
     "secondary_lya": False,     # Collisionally excited Lyman alpha?
     
     "isothermal": 1,  
-    "expansion": 0,  
+    "expansion": 0,             # Referring to cosmology  
+    "collapse": 0,              # Referring to single-zone collapse
     "compton_scattering": 1,
     "recombination": 'B', 
     
@@ -415,6 +416,7 @@ def ControlParameters():
     "track_extrema": False,
     "stop_delay": 0.5,      # differential redshift step
     "inline_analysis": None,
+    "auto_generate_blobs": False,
     
     # Real-time optical depth calculation once EoR begins
     "EoR_xavg": 1.0,        # ionized fraction indicating start of EoR (OFF by default)
@@ -449,7 +451,7 @@ def ControlParameters():
     pf.update(rcParams)
 
     return pf
-    
+
 def TanhParameters():
     pf = \
     {

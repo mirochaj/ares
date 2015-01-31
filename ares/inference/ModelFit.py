@@ -66,12 +66,14 @@ default_errors = \
  'D': np.diag([0.1, 1.])**2,
 }
 
-_z_blob = list('BCD')
-_z_blob.extend(['eor_midpt', 6, 8, 10, 12, 15, 20, 30, 40])
+_blob_redshifts = list('BCD')
+_blob_redshifts.extend(['eor_midpt', 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40])
 
-default_blobs = \
-    (['z', 'dTb', 'curvature', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 
-     'igm_heat_h_1', 'cgm_Gamma_h_1', 'Ts', 'Ja', 'tau_e'], _z_blob)
+# Nothing population specific
+_blob_names = ['z', 'dTb', 'curvature', 'igm_Tk', 'Ts', 'cgm_h_2', 'igm_h_1', 
+ 'tau_e']
+
+default_blobs = (_blob_names, _blob_names)
 
 class logprior:
     def __init__(self, priors, parameters):

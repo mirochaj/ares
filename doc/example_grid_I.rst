@@ -37,6 +37,8 @@ signal (turning points B, C, and D), and a few other redshifts of interest.
 ::
     
     redshifts = ['B', 'C', 'D', 6, 8, 10, 12]
+    
+.. note :: You can also pass ``auto_generate_blobs=True`` as a keyword argument, which will (try to) figure out all relevant quantities of interest and save them at a default series of redshifts.
         
 Now, initialize a ``ModelGrid`` instance: 
 
