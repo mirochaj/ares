@@ -15,6 +15,7 @@ import re, pickle, os
 import matplotlib as mpl
 from ..util import labels
 import matplotlib.pyplot as pl
+from ..util import ProgressBar
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
 from ..inference import ModelGrid
@@ -108,10 +109,6 @@ def def_par_names(N):
 
 def def_par_labels(i):
     return 'parameter # %i' % i
-
-class DummySampler:
-    def __init__(self):
-        pass
         
 class ModelSubSet(object):
     def __init__(self):
@@ -149,13 +146,14 @@ class ModelSet(object):
             # Figure out if this is an MCMC run or a model grid
             try:
                 self.logL = read_pickled_dataset('%s.logL.pkl' % prefix)
-                self.is_mcmc = True
+                self._is_mcmc = True
             except IOError:
-                self.is_mcmc = False
-                f = open('%s.grid.pkl' % prefix, 'rb')
-                self.axes = pickle.load(f)
-                f.close()
-
+                self._is_mcmc = False
+                if os.path.exists('%s.grid.pkl' % prefix):
+                    f = open('%s.grid.pkl' % prefix, 'rb')
+                    self.axes = pickle.load(f)
+                    f.close()
+                    
             self.Nd = int(self.chain.shape[-1])
 
             # Read parameter names and info
@@ -212,15 +210,19 @@ class ModelSet(object):
                 self.base_kwargs = None    
                 
             if not self.is_mcmc:
-                f = open('%s.grid.pkl' % prefix, 'rb')
-                self.axes = pickle.load(f)
-                f.close()
+                try:
+                    f = open('%s.grid.pkl' % prefix, 'rb')
+                    self.axes = pickle.load(f)
+                    f.close()
                 
-                if rank == 0:
-                    print "Loaded %s.grid.pkl." % prefix
-                    
-                self.grid = ModelGrid(**self.base_kwargs)
-                self.grid.set_axes(**self.axes)
+                
+                    if rank == 0:
+                        print "Loaded %s.grid.pkl." % prefix
+                        
+                    self.grid = ModelGrid(**self.base_kwargs)
+                    self.grid.set_axes(**self.axes)
+                except:
+                    pass
                 
                 # Only exists for parallel runs
                 if os.path.exists('%s.load.pkl' % prefix):
@@ -262,6 +264,17 @@ class ModelSet(object):
                 
         else:
             raise TypeError('Argument must be emcee.EnsembleSampler instance or filename prefix')              
+    
+    @property
+    def is_mcmc(self):
+        if not hasattr(self, '_is_mcmc'):
+            self._is_mcmc = False
+        
+        return self._is_mcmc
+    
+    @is_mcmc.setter
+    def is_mcmc(self, value):
+        self._is_mcmc = value
     
     def SelectModels(self):
         """
@@ -391,34 +404,98 @@ class ModelSet(object):
     def Dump(self, prefix, modelset):
         pass
         
-    def ReRunModels(self, models, **kwargs):
+    def ReRunModels(self, prefix=None, N=None, models=None, plot=False, 
+        **kwargs):
         """
         Take list of dictionaries and re-run each as a Global21cm model.
+        
+        Parameters
+        ----------
+        N : int
+            Draw N random samples from chain, and re-run those models.
+        
+        prefix : str
+            Prefix of files to be saved. There will be two:
+                i) prefix.chain.pkl
+                ii) prefix.blobs.pkl
+        
+        
+        Returns
+        -------
+        
+        
         """
         
-        ax = None
-        anl_inst = []
-        for model in models:
-            p = self.base_kwargs.copy()
+        if N is not None:
+            model_num = np.arange(N)
+            np.random.shuffle(model_num)
+            
+            models = []
+            for i in model_num:
+                models.append(self.chain[i,:])
+        
+        f = open('%s.pinfo.pkl' % prefix, 'wb')
+        pickle.dump((self.parameters, self.is_log), f)
+        f.close()
+        
+        pb = ProgressBar(len(models))
+        pb.start()
+        
+        logL = []
+        chain = []
+        blobs = []
+        for i, model in enumerate(models):
+            if self.base_kwargs is not None:
+                p = self.base_kwargs.copy()
+            else:
+                p = {}
+                
+            p.update(kwargs)
             
             if type(model) is dict:
                 p.update(model)
             else:
-                new = self.link_to_dict(model)
-                p.update(new)    
+                p.update(self.link_to_dict(model))    
             
             try:
                 sim = sG21(**p)
                 sim.run()
             except SystemExit:
                 pass
+                
+            if i == 0:
+                f = open('%s.binfo.pkl' % prefix, 'wb')
+                pickle.dump((sim.blob_names, sim.blob_redshifts), f)
+                f.close()
             
-            anl = aG21(sim)
-            ax = anl.GlobalSignature(ax=ax, **kwargs)
+            pb.update(i)
             
-            anl_inst.append(anl)
+            blobs.append(sim.blobs)
+            chain.append(self.chain[model_num[i],:])
+            #logL.append(self.logL[model_num[i],:])
             
-        return ax, anl_inst
+            #anl = aG21(sim)
+            #
+            #if plot:
+            #    ax = anl.GlobalSignature(ax=ax, **kwargs)
+            #
+            #anl_inst.append(anl)
+        
+        pb.finish()       
+                
+        f = open('%s.blobs.pkl' % prefix, 'wb')
+        pickle.dump(blobs, f)
+        f.close()
+        
+        f = open('%s.chain.pkl' % prefix, 'wb')
+        pickle.dump(chain, f)
+        f.close()
+        
+        #f = open('%s.logL.pkl' % prefix, 'wb')
+        #pickle.dump(logL, f)
+        #f.close()            
+            
+        #return ax, anl_inst
         
     @property
     def plot_info(self):
@@ -1881,7 +1958,7 @@ class ModelSet(object):
         elif type(pars[0]) == int:
             ax.set_xlabel(def_par_labels(pars[0]))
         else:
-            ax.set_xlabel(pars[0])
+            ax.set_xlabel(self.mathify_str(pars[0]))
     
         if len(pars) == 1:
             ax.set_ylabel('PDF')
@@ -1897,9 +1974,12 @@ class ModelSet(object):
         elif type(pars[1]) == int:
             ax.set_ylabel(def_par_labels(pars[1]))
         else:
-            ax.set_ylabel(pars[1])
+            ax.set_ylabel(self.mathify_str(pars[1]))
     
         pl.draw()
+        
+    def mathify_str(self, s):
+        return r'$%s$' % s    
         
     def confidence_regions(self, L, nu=[0.95, 0.68]):
         """

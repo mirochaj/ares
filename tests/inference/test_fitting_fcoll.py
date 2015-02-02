@@ -14,14 +14,10 @@ import time, ares
 import numpy as np
 import matplotlib.pyplot as pl
 
-blobs = (['igm_Tk', 'igm_heat_h_1', 'cgm_Gamma_h_1', 'cgm_h_2', 'Ts', 'Ja', 'dTb'], 
-        ['B', 'C', 'D'])
-
 # These go to every calculation
 base_pars = \
 {
- 'final_redshift': 8.,
- 'inline_analysis': blobs,
+ 'auto_generate_blobs': True,
  'stop': 'D',
 }
 

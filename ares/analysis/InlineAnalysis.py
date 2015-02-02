@@ -16,7 +16,7 @@ from ..util.Misc import tau_CMB
 from scipy.interpolate import interp1d
 from .TurningPoints import TurningPoints
 from ..physics.Constants import ev_per_hz, rhodot_cgs
-from ..inference.ModelFit import _blob_names, _blob_redshifts
+from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
 class InlineAnalysis:
     def __init__(self, sim):
@@ -24,8 +24,9 @@ class InlineAnalysis:
         self.pf = self.sim.pf
         self.history = self.sim.history
         
-        self.zmin = self.history['z'].min()
-        self.zmax = self.history['z'].max()
+        z = np.array(self.history['z'])
+        self.zmin = z.min()
+        self.zmax = z.max()
         
         if self.pf['inline_analysis'] is not None and \
            (not self.pf['auto_generate_blobs']):
@@ -106,13 +107,15 @@ class InlineAnalysis:
         tmp1 = _blob_names
         tmp1.extend(blob_names)
         
-        tmp2 = _blob_redshifts
-        for z in tmp2:
+        tmp2 = []
+        for i, z in enumerate(_blob_redshifts):
             if type(z) is str:
+                tmp2.append(_blob_redshifts[i])
                 continue
                 
-            if z < self.sim.pf['final_redshift']:
-                tmp2.remove(z)
+            if z >= self.sim.pf['final_redshift']:
+                tmp2.append(_blob_redshifts[i])
+                continue
        
         return list(np.unique(tmp1)), tmp2
                 
@@ -124,7 +127,7 @@ class InlineAnalysis:
             self._track = TurningPoints(inline=True, **self.pf)
 
             # Otherwise, find them. Not the most efficient, but it gets the job done
-            if self.history['z'].max() < 70 and 'A' not in self._track.TPs:
+            if self.zmax < 70 and 'A' not in self._track.TPs:
                 self._track.TPs.append('A')
 
             delay = self.pf['stop_delay']

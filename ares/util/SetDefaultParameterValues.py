@@ -23,6 +23,16 @@ tau_prefix = "%s/input/optical_depth" % ARES \
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum', 
     'Control', 'HaloMassFunction', 'Tanh', 'Halo']
 
+# Blob stuff
+_blob_redshifts = list('BCD')
+_blob_redshifts.extend(['eor_midpt', 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40])
+
+# Nothing population specific
+_blob_names = ['z', 'dTb', 'curvature', 'igm_Tk', 'Ts', 'cgm_h_2', 'igm_h_1',
+ 'tau_e']
+
+default_blobs = (_blob_names, _blob_names)
+
 # Start setting up list of parameters to be set
 defaults = []
 

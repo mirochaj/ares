@@ -268,6 +268,9 @@ class Global21cm:
         # should raise error if different tau tables passed to each source.    
     
         self.write = WriteData(self)
+        
+        # Create dictionary for output - store initial conditions
+        self.history = self.write._initialize_history()
     
     def _init_RT(self, pf, use_tab=True):
         """
@@ -492,7 +495,7 @@ class Global21cm:
     def __call__(self):
         """ Evolve chemistry and radiation background. """
         
-        if hasattr(self, 'history'):
+        if self.pf['tanh_model']:
             self.run_inline_analysis()
             return
         
@@ -506,9 +509,6 @@ class Global21cm:
             dz = self.pf["dzDataDump"]
         else:
             dz = dt / self.grid.cosm.dtdz(z)
-        
-        # Create dictionary for output - store initial conditions
-        self.history = self.write._initialize_history()
         
         # Read initial conditions
         data_igm = self.grid_igm.data.copy()
@@ -750,15 +750,18 @@ class Global21cm:
 
     @property
     def blob_shape(self):
+        """
+        Only accessible *after* the inline analysis has been run.
+        """
         if not hasattr(self, '_blob_shape'):
-            if self.pf['inline_analysis']:
+            if hasattr(self, 'blob_names'):
                 self._blob_shape = \
-                    map(len, self.pf['inline_analysis'])[-1::-1]
+                    np.zeros([len(self.blob_redshifts), len(self.blob_names)])
             else:
                 self._blob_shape = None
-                
+
         return self._blob_shape
-                        
+
     def tabulate_blobs(self, z):
         """
         Print blobs at a particular redshift (nicely).

@@ -194,6 +194,12 @@ class ParameterFile(dict):
         """
         Run through parsed parameter file looking for conflicts.
         """
+        
+        try:
+            verbose = pf['verbose']
+        except KeyError:
+            verbose = defaults['verbose']
+        
         for kwarg in pf:
             
             m = re.search(r"\{([0-9])\}", kwarg)
@@ -211,7 +217,8 @@ class ParameterFile(dict):
             if par in self.defaults.keys():
                 continue
             
-            print 'WARNING: Unrecognized parameter: %s' % par        
+            if verbose:
+                print 'WARNING: Unrecognized parameter: %s' % par        
     
         conflicts = CheckForParameterConflicts(pf)
     

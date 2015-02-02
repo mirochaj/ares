@@ -20,9 +20,12 @@ from ..analysis.GalacticForeground import GSM
 from ..simulations import Global21cm as simG21
 import gc, os, sys, copy, types, pickle, time, re
 from ..analysis.TurningPoints import TurningPoints
+from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
+from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import read_pickled_chain, flatten_chain, flatten_logL, \
     flatten_blobs  
+
     
 try:
     from scipy.spatial import KDTree
@@ -65,15 +68,6 @@ default_errors = \
  'C': np.diag([0.1, 1.])**2,
  'D': np.diag([0.1, 1.])**2,
 }
-
-_blob_redshifts = list('BCD')
-_blob_redshifts.extend(['eor_midpt', 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40])
-
-# Nothing population specific
-_blob_names = ['z', 'dTb', 'curvature', 'igm_Tk', 'Ts', 'cgm_h_2', 'igm_h_1', 
- 'tau_e']
-
-default_blobs = (_blob_names, _blob_names)
 
 class logprior:
     def __init__(self, priors, parameters):
@@ -135,9 +129,30 @@ class loglikelihood:
         self.prefix = prefix   
         self.fit_turning_points = fit_turning_points     
 
-        if 'inline_analysis' in self.base_kwargs:
+        if 'auto_generate_blobs' in self.base_kwargs:
+            kw = self.base_kwargs.copy()
+            
+            #for par in self.parameters
+            
+            sim = simG21(**kw)
+            anl = InlineAnalysis(sim)
+            
+            self.blob_names, self.blob_redshifts = \
+                anl.generate_blobs()
+            
+            del sim, anl
+            
+        elif 'inline_analysis' in self.base_kwargs:
             self.blob_names, self.blob_redshifts = \
                 self.base_kwargs['inline_analysis']
+
+        else:
+            self.blob_names = _blob_names
+            self.blob_redshifts = _blob_redshifts
+            
+        
+        # Setup binfo pkl file
+        self._prep_binfo()
 
         # Sort through priors        
         priors_P = {}   # parameters
@@ -198,6 +213,17 @@ class loglikelihood:
                 self._blank_blob.append(tup)
 
         return np.array(self._blank_blob)
+        
+    def _prep_binfo(self):
+        if rank > 0:
+            return
+        
+        # Outputs for arbitrary meta-data blobs
+        
+        # Blob names and list of redshifts at which to track them
+        f = open('%s.binfo.pkl' % self.prefix, 'wb')
+        pickle.dump((self.blob_names, self.blob_redshifts), f)
+        f.close()    
         
     def __call__(self, pars, blobs=None):
         """
@@ -358,31 +384,9 @@ class loglikelihood:
         gc.collect()    
 
         return logL, blobs
-        
-    def warning(self, tps, kwargs):
-        print "\n----------------------------------"
-        print "WARNING: Error w/ following model:"
-        print "----------------------------------"
-        print "kw = \\"
-        print "{"
-        for kw in kwargs:
-            print ' \'%s\': %.4g,' % (kw, kwargs[kw])
-        print "}"
-        
-        print "----------------------------------"
-        
-        if tps is not None:
-            print "# of turning points: %i" % len(tps)    
-            print "----------------------------------\n"    
-        else:
-            print ""
-        
-class DummySampler:
-    def __init__(self):
-        pass        
 
 class ModelFit(object):
-    def __init__(self, fn=None, **kwargs):
+    def __init__(self, **kwargs):
         """
         Initialize a class for fitting the turning points in the global
         21-cm signal.
@@ -392,15 +396,10 @@ class ModelFit(object):
         Anything you want based to each ares.simulations.Global21cm call.
         
         """
-                
+
         self.base_kwargs = def_kwargs.copy()
         self.base_kwargs.update(kwargs)
-        
-        # Prepare for blobs (optional)
-        if 'inline_analysis' in self.base_kwargs:
-            self.blob_names, self.blob_redshifts = \
-                self.base_kwargs['inline_analysis']
-        
+
     @property
     def error(self):
         if not hasattr(self, '_error'):
@@ -429,21 +428,13 @@ class ModelFit(object):
             
             if hasattr(self, '_mu'):
                 del self._mu
-            
+
         return self._measurement_map
 
     @measurement_map.setter
     def measurement_map(self, value):
          self._measurement_map = value 
-         
-    def _check_for_conflicts(self):
-        
-        for i, element in enumerate(self.parameters):
-            if re.search('spectrum_logN', element):
-                if self.is_log[i]:
-                    raise ValueError('spectrum_logN is already logarithmic!')
-                    
-            
+
     @property
     def measurement_units(self):
         """
@@ -555,7 +546,17 @@ class ModelFit(object):
     @priors.setter
     def priors(self, value):
         self._priors = value
-                
+    
+    def _check_for_conflicts(self):
+        """
+        Hacky at the moment. Preventative measure against is_log=True for
+        spectrum_logN. Could generalize.
+        """
+        for i, element in enumerate(self.parameters):
+            if re.search('spectrum_logN', element):
+                if self.is_log[i]:
+                    raise ValueError('spectrum_logN is already logarithmic!')
+    
     @property
     def nwalkers(self):
         if not hasattr(self, '_nw'):
@@ -572,6 +573,9 @@ class ModelFit(object):
     
     @property
     def guesses(self):
+        """
+        Generate initial position vectors for all walkers.
+        """
         if not hasattr(self, '_guesses'):
             
             self._guesses = []
@@ -781,6 +785,12 @@ class ModelFit(object):
             f = open('%s.fail.pkl' % prefix, 'wb')
             f.close()
             
+            # File for blobs themselves
+            f = open('%s.blobs.pkl' % prefix, 'wb')
+            f.close()
+            
+            # Blob-info "binfo" file will be written by likelihood
+            
             # Parameter names and list saying whether they are log10 or not
             f = open('%s.pinfo.pkl' % prefix, 'wb')
             pickle.dump((self.parameters, self.is_log), f)
@@ -798,18 +808,6 @@ class ModelFit(object):
             pickle.dump(tmp, f)
             del tmp
             f.close()
-
-            # Outputs for arbitrary meta-data blobs
-            if hasattr(self, 'blob_names'):
-
-                # File for blobs themselves
-                f = open('%s.blobs.pkl' % prefix, 'wb')
-                f.close()
-
-                # Blob names and list of redshifts at which to track them
-                f = open('%s.binfo.pkl' % prefix, 'wb')
-                pickle.dump((self.blob_names, self.blob_redshifts), f)
-                f.close()
 
         # Take steps, append to pickle file every save_freq steps
         ct = 0
