@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 
-import os, sys, urllib
-from distutils.core import setup
+import os, urllib
+
+try:
+    from setuptools import setup
+except ImportError:
+    from distutils.core import setup
 
 ares_link = 'https://bitbucket.org/mirochaj/ares'
 

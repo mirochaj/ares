@@ -90,6 +90,7 @@ history_elements = \
  'igm_he_3': r'$x_{\mathrm{HeIII}}$',
  'igm_Tk': r'$T_K$',
  'cgm_h_2': r'$Q_{\mathrm{HII}}$',
+ 'xavg': r'$\overline{x}_i$',
  'Ts': r'$T_S$',
  'dTb': label_dTb,
  'z': r'$z$',

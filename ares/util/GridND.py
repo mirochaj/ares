@@ -67,7 +67,11 @@ class GridAxis:
 
     def locate(self, val):
         """ Return index of axis value closest to supplied value. """
-        return np.argmin(np.abs(val - self.values))    
+        
+        if val in self.values:
+            return np.argmin(np.abs(val - self.values))    
+        else:
+            return None
 
 class GridND(defaultdict):
     def __init__(self, fn=None, verbose=False):

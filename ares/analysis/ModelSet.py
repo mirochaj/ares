@@ -31,12 +31,6 @@ from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 tanh_pars = TanhParameters()
 
 try:
-    import emcee
-    have_emcee = True
-except ImportError:
-    have_emcee = False
-
-try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
     size = MPI.COMM_WORLD.size
@@ -120,21 +114,10 @@ class ModelSet(object):
         Parameters
         ----------
         data : instance, str
-            Either an emcee.EnsembleSampler instance or the prefix for
-            a bunch of files ending in .chain.pkl, .pinfo.pkl, etc.
+            prefix for a bunch of files ending in .chain.pkl, .pinfo.pkl, etc.,
+            or a ModelSubSet instance.
 
         """
-
-        # Read in data from emcee.EmsembleSampler object
-
-        if have_emcee:
-            if isinstance(data, emcee.EnsembleSampler):
-                self.chain = data.flatchain
-                self.Nd = int(self.chain.shape[-1])
-                self.parameters = def_par_names(self.Nd)
-                self.is_log = [False] * self.Nd
-                self.blobs = None
-                self.blob_names = []
 
         # Read in data from file (assumed to be pickled)
         if type(data) == str:
@@ -149,11 +132,7 @@ class ModelSet(object):
                 self._is_mcmc = True
             except IOError:
                 self._is_mcmc = False
-                if os.path.exists('%s.grid.pkl' % prefix):
-                    f = open('%s.grid.pkl' % prefix, 'rb')
-                    self.axes = pickle.load(f)
-                    f.close()
-                    
+
             self.Nd = int(self.chain.shape[-1])
 
             # Read parameter names and info
@@ -210,28 +189,21 @@ class ModelSet(object):
                 self.base_kwargs = None    
                 
             if not self.is_mcmc:
-                try:
-                    f = open('%s.grid.pkl' % prefix, 'rb')
-                    self.axes = pickle.load(f)
-                    f.close()
                 
+                self.grid = ModelGrid(**self.base_kwargs)
                 
-                    if rank == 0:
-                        print "Loaded %s.grid.pkl." % prefix
-                        
-                    self.grid = ModelGrid(**self.base_kwargs)
-                    self.grid.set_axes(**self.axes)
-                except:
-                    pass
+                self.axes = {}
+                for i in range(self.chain.shape[1]):
+                    self.axes[self.parameters[i]] = np.unique(self.chain[:,i])
                 
+                self.grid.set_axes(**self.axes)
+
                 # Only exists for parallel runs
                 if os.path.exists('%s.load.pkl' % prefix):
-                    f = open('%s.load.pkl' % prefix, 'rb')
-                    self.load = pickle.load(f)
-                    f.close()
+                    self.load = read_pickled_dataset('%s.load.pkl' % prefix)
                 
-                if rank == 0:
-                    print "Loaded %s.load.pkl." % prefix
+                    if rank == 0:
+                        print "Loaded %s.load.pkl." % prefix
                 
         elif isinstance(data, ModelSubSet):
             self.chain = data.chain
@@ -263,7 +235,7 @@ class ModelSet(object):
             self.Nd = int(self.chain.shape[-1])       
                 
         else:
-            raise TypeError('Argument must be emcee.EnsembleSampler instance or filename prefix')              
+            raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
     
     @property
     def is_mcmc(self):
@@ -618,10 +590,7 @@ class ModelSet(object):
             if not tanh_fit:
                 for sp in ['h_1', 'he_1', 'he_2']:
                     self._derived_blob_names.append('igm_gamma_%s' % sp)
-
-            if not tanh_fit:    
-                self._derived_blob_names.append('igm_heat')
-
+            
             if 'Ts' in self.blob_names:
                 self._derived_blob_names.append('contrast')
             
@@ -635,11 +604,13 @@ class ModelSet(object):
             if 'tau_e' in self.blob_names:
                 self._derived_blob_names.append('tau_tot') 
                 
-            #if 'cgm_h_2' in self.blob_names:
-            #    if ('igm_h_1' in self.blob_names) \
-            #        or ('igm_h_2' in self.blob_names):
-            #
-            #        self._derived_blob_names.append('xavg')       
+            if 'cgm_h_2' in self.blob_names:
+                if ('igm_h_1' in self.blob_names) \
+                    or ('igm_h_2' in self.blob_names):
+            
+                    self._derived_blob_names.append('xavg')
+                    
+            self._derived_blob_names.append('igm_heat')       
             
         return self._derived_blob_names
 
@@ -691,11 +662,17 @@ class ModelSet(object):
                     i_z = self.blob_names.index('z')
                     self._derived_blobs[:,:,k] = \
                         nu_0_mhz / (1. + self.blobs[:,:,i_z])
-                #elif key == 'xvag':
-                #    Q = self.blob_names.index('cgm_h_2')
-                #    x = self.blob_names.index('igm_h_2')
-                #    self._derived_blobs[:,:,k] = \
-                #        1. - self.blobs[:,:,i_he_1] - self.blobs[:,:,i_he_2]        
+                elif key == 'xavg':
+                    Q = self.blob_names.index('cgm_h_2')
+                    try:
+                        arr = self.blobs
+                        x = self.blob_names.index('igm_h_2')
+                    except ValueError:
+                        arr = self.derived_blobs
+                        x = self.derived_blob_names.index('igm_h_2')
+                    self._derived_blobs[:,:,k] = \
+                        self.blobs[:,:,Q] + (1. - self.blobs[:,:,Q]) \
+                            * arr[:,:,x]        
                 elif key == 'contrast':
                     i_Ts = self.blob_names.index('Ts')
                     for j, redshift in enumerate(self.blob_redshifts):
@@ -821,8 +798,9 @@ class ModelSet(object):
             
         Example
         -------
-        data = {'z': ['D', mean, 1-sigma error]}
-        self.set_logL(data)
+        # Assume redshift of turning pt. D is 15 +/- 2 (1-sigma Gaussian)
+        data = {'z': ['D', lambda x: np.exp(-(x - 15)**2 / 2. / 2.**2)]}
+        self.set_constraint(**data)
             
         Returns
         -------
@@ -924,11 +902,7 @@ class ModelSet(object):
         if c in self.parameters:
             cdat = self.chain[:,self.parameters.index(c)]
         elif c == 'load':
-            cdat = np.zeros(self.chain.shape[0])
-            for i in range(self.chain.shape[0]):
-                kw = self.link_to_dict(self.chain[i])
-                kvec = self.grid.grid.locate_entry(kw)
-                cdat[i] = self.load[kvec]
+            cdat = self.load
         elif c is None:
             pass
         else:
@@ -938,24 +912,27 @@ class ModelSet(object):
                 cdat = self.blobs[:,j,self.blob_names.index(c)]
             else:
                 cdat = self.derived_blobs[:,j,self.derived_blob_names.index(c)]
-        
+
         if take_log[0]:
             xdat = np.log10(xdat)
         if take_log[1]:
             ydat = np.log10(ydat)
-            
+        if len(take_log) == 3:
+            if take_log[2]:
+                cdat = np.log10(cdat)    
+
         if hasattr(self, 'weights'):
             ax.scatter(xdat, ydat, c=self.weights, edgecolor='none', **kwargs)
         elif c is not None:
             scat = ax.scatter(xdat, ydat, c=cdat, edgecolor='none', **kwargs)
         else:
             ax.scatter(xdat, ydat, edgecolor='none', **kwargs)
-                            
-        if take_log[0]:                    
+
+        if take_log[0]:
             ax.set_xlabel(logify_str(labels[self.get_par_prefix(x)]))
-        else:    
+        else:
             ax.set_xlabel(labels[self.get_par_prefix(x)])
-        
+
         if take_log[1]: 
             ax.set_ylabel(logify_str(labels[self.get_par_prefix(y)]))
         else:

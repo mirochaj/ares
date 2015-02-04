@@ -131,9 +131,7 @@ class loglikelihood:
 
         if 'auto_generate_blobs' in self.base_kwargs:
             kw = self.base_kwargs.copy()
-            
-            #for par in self.parameters
-            
+                        
             sim = simG21(**kw)
             anl = InlineAnalysis(sim)
             

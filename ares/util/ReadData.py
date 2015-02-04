@@ -172,9 +172,6 @@ def read_pickled_chain(fn, logL=None):
     
     fc = np.array(results)
     
-    if rank == 0:
-        print "Loaded %s." % fn
-    
     if logL is not None:
         
         f = open(logL)
@@ -187,9 +184,6 @@ def read_pickled_chain(fn, logL=None):
                 break
 
         f.close()
-        
-        if rank == 0:
-            print "Loaded %s." % logL
         
         return fc, np.array(lnL)
     else:
@@ -209,9 +203,7 @@ def read_pickled_dataset(fn):
             break
             
     f.close()
-    
-    print "Loaded %s." % fn
-    
+        
     return np.array(results)
     
     
