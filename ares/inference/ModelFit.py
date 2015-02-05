@@ -15,17 +15,20 @@ from ..util.Stats import get_nu
 from ..analysis import Global21cm
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
+import gc, os, sys, copy, types, time, re
 from ..analysis import Global21cm as anlG21
 from ..analysis.GalacticForeground import GSM
 from ..simulations import Global21cm as simG21
-import gc, os, sys, copy, types, pickle, time, re
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
+from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs  
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
-from ..util.ReadData import read_pickled_chain, flatten_chain, flatten_logL, \
-    flatten_blobs  
 
+try:
+    import cPickle as pickle
+except:
+    import pickle
     
 try:
     from scipy.spatial import KDTree
@@ -574,6 +577,7 @@ class ModelFit(object):
         """
         Generate initial position vectors for all walkers.
         """
+        
         if not hasattr(self, '_guesses'):
             
             self._guesses = []
@@ -732,9 +736,43 @@ class ModelFit(object):
                 pos, prob, state, blobs = self.sampler.run_mcmc(self.guesses, burn)
                 self.sampler.reset()
             t2 = time.time()
-            
+
             if rank == 0:
                 print "Burn-in complete in %.3g seconds." % (t2 - t1)
+
+            # Set new initial position to region of high likelihood
+            imaxL = np.argsort(prob)[-1::-1]
+                        
+            pvec = []
+            for i in range(self.nwalkers / 4):
+                pvec.append(pos[imaxL[i]])
+            
+            pvec = np.array(pvec)
+                        
+            ball_prior = {}
+            for j, par in enumerate(self.parameters):
+                ball_prior[par] = \
+                    ['gaussian', pvec[:,j].mean(), pvec[:,j].std()]
+
+            guesses = []
+            for i in range(self.nwalkers):
+
+                p0 = []
+                for j, par in enumerate(self.parameters):
+
+                    dist, lo, hi = ball_prior[par]
+
+                    if dist == 'uniform':
+                        val = np.random.rand() * (hi - lo) + lo
+                    else:
+                        val = np.random.normal(lo, scale=hi)
+
+                    p0.append(val)
+
+                guesses.append(p0)
+
+            pos = np.array(guesses)
+
         else:
             pos = self.guesses
             state = None
@@ -783,6 +821,10 @@ class ModelFit(object):
             f = open('%s.fail.pkl' % prefix, 'wb')
             f.close()
             
+            # Store acceptance fraction
+            f = open('%s.facc.pkl' % prefix, 'wb')
+            f.close()
+            
             # File for blobs themselves
             f = open('%s.blobs.pkl' % prefix, 'wb')
             f.close()
@@ -814,7 +856,7 @@ class ModelFit(object):
             iterations=steps, rstate0=state, storechain=False):
                         
             # Only the rank 0 processor ever makes it here
-            
+                        
             ct += 1
             
             pos_all.append(pos)
@@ -841,6 +883,12 @@ class ModelFit(object):
                 f = open(fn, 'ab')
                 pickle.dump(data[i], f)
                 f.close()
+
+            # This is a running total already so just save the end result 
+            # for this set of steps    
+            f = open('%s.facc.pkl' % prefix, 'ab')
+            pickle.dump(self.sampler.acceptance_fraction, f)
+            f.close()    
 
             print "Checkpoint: %s" % (time.ctime())
 

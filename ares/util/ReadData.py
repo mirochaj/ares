@@ -139,68 +139,27 @@ def read_pickled_dict(fn):
     f.close()
     
     return results
-    
-def read_pickled_chain(fn, logL=None):
-    """
-    Reads MCMC chain from emcee that has been pickled.
-    
-    Parameters
-    ----------
-    fn : str
-        Name of file containing flattened chain.
-    logL : str
-        Name of file containing likelihoods.
-
-    Returns
-    -------
-    All the stuff.
-    
-    """
-    
+        
+def read_pickled_dataset(fn, append=False):
     f = open(fn, 'rb')
     
     results = []
-    
+
     while True:
         try:
             # This array should be (nsteps, ndims)
-            results.extend(pickle.load(f))
+            if append:
+                results.append(pickle.load(f))
+            else:
+                results.extend(pickle.load(f))
         except EOFError:
             break
-            
-    f.close()
-    
-    fc = np.array(results)
-    
-    if logL is not None:
-        
-        f = open(logL)
-        
-        lnL = []
-        while True:
-            try:
-                lnL.extend(pickle.load(f))
-            except EOFError:
-                break
-
-        f.close()
-        
-        return fc, np.array(lnL)
-    else:
-        return fc
-
-    
-def read_pickled_dataset(fn):
-    f = open(fn, 'rb')
-    
-    results = []
-    
-    while True:
-        try:
-            # This array should be (nsteps, ndims)
-            results.extend(pickle.load(f))
-        except EOFError:
-            break
+        except ValueError:
+            pass
+        except IndexError:
+            pass
+        except:
+            pass
             
     f.close()
         

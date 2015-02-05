@@ -12,12 +12,17 @@ and analyzing them.
 """
 
 import numpy as np
+import copy, os, gc, re, time
 from ..simulations import Global21cm
-import copy, os, pickle, gc, re, time
 from ..util import GridND, ProgressBar
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.ReadData import read_pickled_dataset, read_pickled_dict
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
+
+try:
+    import cPickle as pickle
+except:
+    import pickle
 
 try:
     from mpi4py import MPI
@@ -31,13 +36,16 @@ def_kwargs = {'track_extrema': True, 'verbose': False, 'progress_bar': False}
     
 class ModelGrid:
     """Create an object for setting up and running model grids."""
-    def __init__(self, **kwargs):
+    def __init__(self, tol=1e-5, **kwargs):
         """
         Initialize a model grid.
         
         Parameters
         ----------
-
+        tol : float
+            Absolute tolerance that determines whether parameters of a 
+            pre-existing grid are different than those in a new grid.
+            Only applied on restarts.
         prefix : str
             Will look for a file called <prefix>.grid.hdf5
         
@@ -47,8 +55,14 @@ class ModelGrid:
 
         """
         
+        self.tol = tol
         self.base_kwargs = def_kwargs.copy()
         self.base_kwargs.update(kwargs)
+        
+        self.tanh = False
+        if 'tanh_model' in self.base_kwargs:
+            if self.base_kwargs['tanh_model']:
+                self.tanh = True
         
     @property
     def blob_names(self):
@@ -132,20 +146,19 @@ class ModelGrid:
         for i in range(chain.shape[1]):
             axes[axes_names[i]] = np.unique(chain[:,i])
 
-        if axes != self.grid.axes and rank == 0:
-            print "WARNING: axes have changed!"
-
         # Array of ones/zeros: has this model already been done?
         self.done = np.zeros(self.grid.shape)
-
+        
+        # Loop over chain read-in from disk and compare to grid.
+        # Which models have already been computed?
         for link in chain:
             
             # Parameter set from pre-existing chain
             kw = {par:link[i] \
                 for i, par in enumerate(self.grid.axes_names)}
 
-            # It's location in *new* grid
-            kvec = self.grid.locate_entry(kw)
+            # Its location in *new* grid
+            kvec = self.grid.locate_entry(kw, tol=self.tol)
             
             if None in kvec:
                 continue
@@ -154,7 +167,10 @@ class ModelGrid:
             
         for fail in fails:
             
-            kvec = self.grid.locate_entry(fail)
+            kvec = self.grid.locate_entry(fail, tol=self.tol)
+            
+            if None in kvec:
+                continue
             
             self.done[kvec] = 1
                 
@@ -282,20 +298,32 @@ class ModelGrid:
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
                 
             # Re-run load-balancing
-            self.LoadBalance(self.LB)  
-            
-            ct = self.done.sum()
+            self.LoadBalance(self.LB)
+
+            ct0 = self.done.sum() 
+
         else:
-            ct = 0  
+            ct0 = 0
+
+        ct = 0
+        
+        if restart:
+            Nleft = self.grid.size - ct0
+        else:
+            Nleft = self.grid.size
+                        
+        if Nleft == 0:
+            if rank == 0:
+                print 'This model grid is complete.'
+            return
         
         # Print out how many models we have (left) to compute
         if rank == 0:
             if restart:
-                print "Update: %i models down, %i to go." \
-                    % (self.done.sum(), self.grid.size - self.done.sum())
+                print "Update: %i models down, %i to go." % (ct0, Nleft)
             else:
                 print 'Running %i-element model-grid.' % self.grid.size
-                         
+                
         # Make some blank files for data output                 
         self.prep_output_files(prefix, restart)                 
 
@@ -306,7 +334,7 @@ class ModelGrid:
         fcoll = {}
 
         # Initialize progressbar
-        pb = ProgressBar(self.grid.size, 'grid')
+        pb = ProgressBar(Nleft, 'grid')
         pb.start()
 
         chain_all = []; blobs_all = []; load_all = []
@@ -318,15 +346,20 @@ class ModelGrid:
             # Where does this model live in the grid?
             kvec = self.grid.locate_entry(kwargs)
 
+            if restart:
+                pb_i = min(ct * size, Nleft - 1)
+            else:
+                pb_i = h
+            
             # Skip if it's a restart and we've already run this model
             if restart:
                 if self.done[kvec]:
-                    pb.update(ct)
+                    pb.update(pb_i)
                     continue
 
             # Skip if this processor isn't assigned to this model        
             if self.assignments[kvec] != rank:
-                pb.update(ct)
+                pb.update(pb_i)
                 continue
 
             # Grab Tmin index
@@ -340,8 +373,8 @@ class ModelGrid:
             p = self.base_kwargs.copy()
             p.update(kwargs)
 
-            # Create new splines if we haven't hit this Tmin yet in our model grid.
-            if i_Tmin not in fcoll.keys():
+            # Create new splines if we haven't hit this Tmin yet in our model grid.    
+            if i_Tmin not in fcoll.keys() and (not self.tanh):
                 sim = Global21cm(**p)
                 
                 if hasattr(self, 'Tmin_ax_popid'):
@@ -359,12 +392,15 @@ class ModelGrid:
                 fcoll[i_Tmin] = hmf_pars.copy()
 
             # If we already have matching fcoll splines, use them!
-            else:        
+            elif not self.tanh:        
                                         
                 hmf_pars = {'Tmin%s' % suffix: fcoll[i_Tmin]['Tmin%s' % suffix],
                     'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
                     'dfcolldz%s' % suffix: fcoll[i_Tmin]['dfcolldz%s' % suffix]}
                 p.update(hmf_pars)
+                sim = Global21cm(**p)
+                
+            else:
                 sim = Global21cm(**p)
 
             # Run simulation!
@@ -388,7 +424,7 @@ class ModelGrid:
                 del p, sim
                 gc.collect()
 
-                pb.update(ct)
+                pb.update(pb_i)
                 ct += 1
                 continue
 
@@ -428,7 +464,7 @@ class ModelGrid:
             f = open('%s.load.pkl' % self.prefix, 'ab')
             pickle.dump(load_all, f)
             f.close()
-            
+
             # Send the key to the next processor
             if rank != (size-1):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
@@ -454,6 +490,11 @@ class ModelGrid:
             f = open('%s.blobs.pkl' % self.prefix, 'ab')
             pickle.dump(blobs_all, f)
             f.close()
+        
+        if load_all:
+            f = open('%s.load.pkl' % self.prefix, 'ab')
+            pickle.dump(load_all, f)
+            f.close()            
         
         # Send the key to the next processor
         if rank != (size-1):
@@ -546,19 +587,19 @@ class ModelGrid:
             k = 0
             tmp_assignments = np.zeros(self.grid.shape)
             for loc, value in np.ndenumerate(tmp_assignments):
-                
+
                 if hasattr(self, 'done'):
                     if self.done[loc]:
                         continue
-                
+
                 if k % size != rank:
                     k += 1
                     continue
-                    
+
                 tmp_assignments[loc] = rank    
-            
+
                 k += 1
-            
+
             # Communicate results
             self.assignments = np.zeros(self.grid.shape)
             MPI.COMM_WORLD.Allreduce(tmp_assignments, self.assignments)

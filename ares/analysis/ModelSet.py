@@ -10,8 +10,8 @@ Description: For analysis of MCMC fitting.
 
 """
 
+import re, os
 import numpy as np
-import re, pickle, os
 import matplotlib as mpl
 from ..util import labels
 import matplotlib.pyplot as pl
@@ -28,8 +28,11 @@ from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.ReadData import read_pickled_dataset, read_pickled_dict
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 
-tanh_pars = TanhParameters()
-
+try:
+    import cPickle as pickle
+except:
+    import pickle
+    
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
@@ -37,6 +40,8 @@ try:
 except ImportError:
     rank = 0
     size = 1
+
+tanh_pars = TanhParameters()
 
 def_inset_pars = \
 {
@@ -134,7 +139,11 @@ class ModelSet(object):
                 self._is_mcmc = False
 
             self.Nd = int(self.chain.shape[-1])
-
+            
+            if self._is_mcmc and os.path.exists('%s.facc.pkl' % prefix):
+                self.facc = read_pickled_dataset('%s.facc.pkl' % prefix, 
+                    append=True)
+                        
             # Read parameter names and info
             if os.path.exists('%s.pinfo.pkl' % prefix):
                 f = open('%s.pinfo.pkl' % prefix, 'rb')
@@ -150,7 +159,10 @@ class ModelSet(object):
             if os.path.exists('%s.blobs.pkl' % prefix):
                 try:
                     blobs = read_pickled_dataset('%s.blobs.pkl' % prefix)
-
+                    
+                    if rank == 0:
+                        print "Loaded %s.blobs.pkl." % prefix
+                        
                     self.mask = np.zeros_like(blobs)    
                     self.mask[np.isinf(blobs)] = 1
                     self.mask[np.isnan(blobs)] = 1
@@ -236,6 +248,33 @@ class ModelSet(object):
                 
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
+    
+        self._fix_up()
+        
+    #@property
+    #def chain(self):
+    #    if not hasattr(self, '_chain'):
+    #        if os.path.exists('%s.chain.pkl' % self.prefix):
+                
+    
+    def _fix_up(self):
+        if self.blobs.shape[0] == self.chain.shape[0]:
+            return
+            
+        # Force them to be the same shape. The shapes might mismatch if
+        # one processor fails to write to disk (or just hasn't quite yet),
+        # or for more pathological reasons I haven't thought of yet.
+                        
+        if self.blobs.shape[0] > self.chain.shape[0]:
+            tmp = self.blobs[0:self.chain.shape[0]]
+            self.blobs = tmp
+        else:
+            tmp = self.chain[0:self.blobs.shape[0]]
+            self.chain = tmp
+    
+    def _load(self, fn):
+        if os.path.exists(fn):
+            return read_pickled_dataset(fn)
     
     @property
     def is_mcmc(self):
@@ -631,6 +670,9 @@ class ModelSet(object):
             heat = self.heat = self._compute_heat_tot()
         except:
             pass
+            
+        if not hasattr(self, 'blobs'):
+            return
 
         shape = list(self.blobs.shape[:-1])
         shape.append(len(self.derived_blob_names))
@@ -746,42 +788,41 @@ class ModelSet(object):
                    
         for i, sp1 in enumerate(['h_1', 'he_1', 'he_2']):  
             
-
             x_subject = 'igm_%s' % sp1
             mm = self.blob_names.index(x_subject)    
-            
+
             if sp1 == 'h_1':
                 n1 = lambda z: self.cosm.nH(z)
             else:
                 n1 = lambda z: self.cosm.nHe(z)    
-                  
+
             for sp2 in ['h_1', 'he_1', 'he_2']:
-            
+
                 if sp2 == 'h_1':
                     n2 = lambda z: self.cosm.nH(z)
                 else:
                     n2 = lambda z: self.cosm.nHe(z)
-                
+
                 blob = 'igm_gamma_%s_%s' % (sp1, sp2)
                 k = self.blob_names.index(blob)
-                
+
                 x_donor = 'igm_%s' % sp2
                 h = self.blob_names.index(x_donor)
-                
+
                 for j, redshift in enumerate(self.blob_redshifts):
-                    
+
                     if type(redshift) is str:
                         zindex = self.blob_names.index('z')
                         ztmp = self.blobs[:,j,zindex]
                     else:
                         ztmp = redshift
-                                        
+
                     gamma['igm_gamma_%s' % sp1][:,j] += self.blobs[:,j,k] \
                         * self.blobs[:,j,h] * n2(ztmp) / n1(ztmp) \
                         / self.blobs[:,j,mm]
-                        
+
         return gamma
-    
+
     def set_constraint(self, add_constraint=False, **constraints):
         """
         For ModelGrid calculations, the likelihood must be supplied 
@@ -899,6 +940,7 @@ class ModelSet(object):
             else:
                 ydat = self.derived_blobs[:,j,self.derived_blob_names.index(y)]
         
+        cdat = None
         if c in self.parameters:
             cdat = self.chain[:,self.parameters.index(c)]
         elif c == 'load':
@@ -917,16 +959,16 @@ class ModelSet(object):
             xdat = np.log10(xdat)
         if take_log[1]:
             ydat = np.log10(ydat)
-        if len(take_log) == 3:
+        if len(take_log) == 3 and cdat is not None:
             if take_log[2]:
-                cdat = np.log10(cdat)    
+                cdat = np.log10(cdat)  
 
         if hasattr(self, 'weights'):
-            ax.scatter(xdat, ydat, c=self.weights, edgecolor='none', **kwargs)
+            scat = ax.scatter(xdat, ydat, c=self.weights, edgecolor='none', **kwargs)
         elif c is not None:
             scat = ax.scatter(xdat, ydat, c=cdat, edgecolor='none', **kwargs)
         else:
-            ax.scatter(xdat, ydat, edgecolor='none', **kwargs)
+            scat = ax.scatter(xdat, ydat, edgecolor='none', **kwargs)
 
         if take_log[0]:
             ax.set_xlabel(logify_str(labels[self.get_par_prefix(x)]))

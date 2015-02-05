@@ -65,13 +65,23 @@ class GridAxis:
                     self.id = ''
                     self.basename = self.name
 
-    def locate(self, val):
+    def locate(self, val, tol=0.0):
         """ Return index of axis value closest to supplied value. """
         
-        if val in self.values:
-            return np.argmin(np.abs(val - self.values))    
+        if tol == 0:
+            if val in self.values:
+                return np.argmin(np.abs(val - self.values))    
+            else:
+                return None
         else:
-            return None
+            diff = np.abs(val - self.values)
+            amin = np.argmin(diff)
+
+            if diff[amin] <= tol:
+                return amin
+            else:
+                return None
+            
 
 class GridND(defaultdict):
     def __init__(self, fn=None, verbose=False):
@@ -208,7 +218,7 @@ class GridND(defaultdict):
         """
         return self[ax].num
 
-    def locate_entry(self, model):
+    def locate_entry(self, model, tol=0):
         """
         Find location (tuple of indices) of given model (dictionary) in an array
         of shape self.data.shape.
@@ -216,7 +226,7 @@ class GridND(defaultdict):
 
         ijkl = [Ellipsis] * self.Nd
         for axis in self.axes:
-            ijkl[axis.num] = axis.locate(model[axis.name])
+            ijkl[axis.num] = axis.locate(model[axis.name], tol=tol)
 
         return tuple(ijkl)
 
