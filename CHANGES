@@ -22,5 +22,5 @@ to ares from within other packages.* Below is a history of such changes:
     whether to integrate the transfer equation by brute force, or to 
     discretize in redshift and frequency.
 
-Fri Dec  5 09:58:33 2014 (tip)
+2014-12-05
     Created this file.

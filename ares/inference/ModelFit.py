@@ -858,9 +858,9 @@ class ModelFit(object):
             # Only the rank 0 processor ever makes it here
                         
             ct += 1
-            
-            pos_all.append(pos)
-            prob_all.append(prob)
+                        
+            pos_all.append(pos.copy())
+            prob_all.append(prob.copy())
             blobs_all.append(blobs)
             
             if ct % save_freq != 0:
@@ -885,7 +885,7 @@ class ModelFit(object):
                 f.close()
 
             # This is a running total already so just save the end result 
-            # for this set of steps    
+            # for this set of steps
             f = open('%s.facc.pkl' % prefix, 'ab')
             pickle.dump(self.sampler.acceptance_fraction, f)
             f.close()    

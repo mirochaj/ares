@@ -25,7 +25,7 @@ base_pars = \
 fit = ares.inference.ModelFit(**base_pars)
 
 # Assume default parameters
-fit.mu = np.array([45, 70, 108, -4, -100, 15])
+fit.mu = np.array([45, 70, 105, -5, -100, 20])
 
 # Set axes of parameter space
 fit.set_axes(['tanh_xz0', 'tanh_xdz', 'tanh_Tz0', 'tanh_Tdz'],
