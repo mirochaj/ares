@@ -62,9 +62,6 @@ class StellarSource(object):
         if self.N != 1:
             raise ValueError('No support for multi-component stellar SEDs.')
 
-        if self.spec_pars['type'] != 'bb':
-            raise ValueError('Stellar sources must have BB spectra!')
-
     def SourceOn(self, t):
         if t < self.tau:
             return True    

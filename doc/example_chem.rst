@@ -83,11 +83,13 @@ Now, to actually run the thing:
 
     pb.finish()   
     
+All of this work is done for you each time you call ``ares.simulations.Global21cm``
+and ``ares.simulations.RaySegment``.    
+    
 To visualize the results:
 
 ::     
 
-    # Plot the results!  
     ax = pl.subplot(111)        
     ax.loglog(T, data['h_1'], color='k', ls='-')
     ax.loglog(T, data['h_2'], color='k', ls='--')
@@ -98,8 +100,7 @@ To visualize the results:
     ax.set_ylim(1e-4, 2)
     pl.draw()    
 
-All of this work is done for you each time you call ``ares.simulations.Global21cm``
-and ``ares.simulations.RaySegment``.
+
 
 
 
