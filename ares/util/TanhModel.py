@@ -16,7 +16,7 @@ from ..util import ParameterFile
 from ..analysis import Global21cm
 from ..util.ReadData import load_inits
 from ..physics import Hydrogen, Cosmology
-from ..physics.Constants import k_B, J21_num
+from ..physics.Constants import k_B, J21_num, nu_0_mhz
 from ..physics.RateCoefficients import RateCoefficients
 from ..util.SetDefaultParameterValues import TanhParameters
 
@@ -24,13 +24,23 @@ from ..util.SetDefaultParameterValues import TanhParameters
 tanh_kwargs = TanhParameters()
 
 tanh_pars = ['tanh_J0', 'tanh_Jz0', 'tanh_Jdz', 
-    'tanh_T0', 'tanh_Tz0', 'tanh_Tdz', 'tanh_x0', 'tanh_xz0', 'tanh_xdz']
+    'tanh_T0', 'tanh_Tz0', 'tanh_Tdz', 'tanh_x0', 'tanh_xz0', 'tanh_xdz',
+    'tanh_bias_temp', 'tanh_bias_freq']
 
 def tanh_generic(z, zref, dz):
     return 0.5 * (np.tanh((zref - z) / dz) + 1.)
 
 rc = RateCoefficients(recombination='A')
 alpha_A = rc.RadiativeRecombinationRate(0, 1e4)
+
+z_to_mhz = lambda z: nu_0_mhz / (1. + z)
+freq_to_z = lambda nu: nu_0_mhz / nu - 1.
+
+def shift_z(z, nu_bias):
+    nu = np.array(map(z_to_mhz, z))
+    nu += nu_bias
+
+    return freq_to_z(nu)
 
 class TanhModel:
     def __init__(self, **kwargs):
@@ -152,7 +162,8 @@ class TanhModel:
         """
 
         # Unpack parameters
-        Jref, zref_J, dz_J, Tref, zref_T, dz_T, xref, zref_x, dz_x = theta
+        Jref, zref_J, dz_J, Tref, zref_T, dz_T, xref, zref_x, dz_x, \
+            bias_T, bias_freq = theta
 
         Jref *= J21_num
 
@@ -172,6 +183,11 @@ class TanhModel:
 
         # Brightness temperature
         dTb = self.hydr.DifferentialBrightnessTemperature(z, xi, Ts)
+
+        if bias_T != 0:
+            dTb += bias_T
+        if bias_freq != 0:
+            z = shift_z(z, bias_freq)
 
         # Save some stuff
         hist = \
