@@ -10,8 +10,8 @@ Description: For analysis of MCMC fitting.
 
 """
 
-import re, os
 import numpy as np
+import re, os, pickle
 import matplotlib as mpl
 from ..util import labels
 import matplotlib.pyplot as pl
@@ -27,11 +27,6 @@ from ..simulations.Global21cm import Global21cm as sG21
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.ReadData import read_pickled_dataset, read_pickled_dict
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
-
-try:
-    import cPickle as pickle
-except:
-    import pickle
     
 try:
     from mpi4py import MPI
@@ -130,6 +125,8 @@ class ModelSet(object):
 
             # Read MCMC chain
             self.chain = read_pickled_dataset('%s.chain.pkl' % prefix)
+            if rank == 0:
+                print "Loaded %s.chain.pkl." % prefix
 
             # Figure out if this is an MCMC run or a model grid
             try:
@@ -249,8 +246,10 @@ class ModelSet(object):
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
     
-        self._fix_up()
-        
+        try:
+            self._fix_up()
+        except AttributeError:
+            pass
     #@property
     #def chain(self):
     #    if not hasattr(self, '_chain'):
@@ -258,6 +257,13 @@ class ModelSet(object):
                 
     
     def _fix_up(self):
+        
+        if not hasattr(self, 'blobs'):
+            return
+        
+        if not hasattr(self, 'chain'):
+            return
+        
         if self.blobs.shape[0] == self.chain.shape[0]:
             return
             
@@ -608,13 +614,6 @@ class ModelSet(object):
         
         return self._cosm                        
                             
-    @property
-    def ref_pars(self):
-        if not hasattr(self, '_ref_pars'):
-            self._ref_pars = SetAllDefaults()
-        
-        return self._ref_pars
-        
     @property
     def derived_blob_names(self):
         if not hasattr(self, '_derived_blob_names'):
@@ -1673,7 +1672,7 @@ class ModelSet(object):
         if multiplier == 1:
             multiplier = [multiplier] * len(pars)        
         if type(bins) == int:
-            bins = [bins] * len(pars)
+            bins = [bins] * len(pars)    
         if type(z) is list:
             if len(z) != len(pars):
                 raise ValueError('Length of z must be = length of pars!')
@@ -1713,11 +1712,14 @@ class ModelSet(object):
                     continue
                     
                 # Input values (optional)
-                if (p1 in self.ref_pars) or (p1 in inputs):
-                    if not inputs:
-                        val = self.ref_pars[p1]
-                    else:
+                if inputs:
+                        
+                    if type(inputs) is list:
+                        val = inputs[-1::-1][i]
+                    elif p1 in inputs:
                         val = inputs[p1]
+                    else:
+                        val = None
                         
                     if val is None:
                         yin = None
@@ -1728,13 +1730,15 @@ class ModelSet(object):
                 else:
                     yin = None
                 
-                if (p2 in self.ref_pars) or (p2 in inputs):
+                if inputs:
                     
-                    if not inputs:
-                        val = self.ref_pars[p2]
-                    else:
+                    if type(inputs) is list:
+                        val = inputs[j]        
+                    elif p2 in inputs:
                         val = inputs[p2]
-                        
+                    else:
+                        val = None
+                    
                     if val is None:
                         xin = None  
                     elif is_log[Nd-j-1]:

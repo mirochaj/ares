@@ -18,6 +18,9 @@ import matplotlib.pyplot as pl
 base_pars = \
 {
  'auto_generate_blobs': True,
+ #'stop_xavg': 0.99,
+ #'stop': 'D',
+ #'final_redshift': 10,
 }
 
 # Initialize fitter
@@ -31,7 +34,7 @@ fit.mu = ares.analysis.Global21cm(sim).turning_points
 
 # Set axes of parameter space
 fit.set_axes(['fX', 'Tmin'], is_log=[True]*2)
-fit.priors = {'fX': ['uniform', -3., 3.], 'Tmin': ['uniform', 2.5, 5.]}
+fit.priors = {'fX': ['uniform', -2., 2.], 'Tmin': ['uniform', 3., 5.]}
 
 # Set errors
 fit.set_error(error1d=[0.5, 0.5, 0.5, 5., 5., 5.])
@@ -50,3 +53,4 @@ t2 = time.time()
 
 print "Run complete in %.4g minutes.\n" % ((t2 - t1) / 60.)
 
+#

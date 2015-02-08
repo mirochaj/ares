@@ -12,17 +12,12 @@ and analyzing them.
 """
 
 import numpy as np
-import copy, os, gc, re, time
 from ..simulations import Global21cm
+import copy, os, gc, re, time, pickle
 from ..util import GridND, ProgressBar
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.ReadData import read_pickled_dataset, read_pickled_dict
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
-
-try:
-    import cPickle as pickle
-except:
-    import pickle
 
 try:
     from mpi4py import MPI

@@ -100,7 +100,8 @@ class RaySegment:
             print_1d_sim(self)
                     
             # To compute timestep
-            self.timestep = RestrictTimestep(grid, pf['epsilon_dt'])
+            self.timestep = RestrictTimestep(grid, pf['epsilon_dt'], 
+                self.pf['verbose'])
             
             # For storing data
             self.checkpoints = CheckPoints(pf=pf, grid=grid,

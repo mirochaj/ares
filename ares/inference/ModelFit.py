@@ -10,6 +10,7 @@ Description:
 
 """
 
+import pickle
 import numpy as np
 from ..util.Stats import get_nu
 from ..analysis import Global21cm
@@ -25,11 +26,6 @@ from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs  
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
-try:
-    import cPickle as pickle
-except:
-    import pickle
-    
 try:
     from scipy.spatial import KDTree
     from scipy.interpolate import interp1d
@@ -264,12 +260,13 @@ class loglikelihood:
             sim.run()
             
             tps = sim.turning_points
-            
+        
+        # Timestep weird (happens when xi ~ 1)
         except SystemExit:
             
             sim.run_inline_analysis()
-            tps = sim.turning_points    
-            
+            tps = sim.turning_points
+                 
         # most likely: no (or too few) turning pts
         except:                     
             # Write to "fail" file - this might cause problems in parallel
@@ -277,12 +274,12 @@ class loglikelihood:
                 f = open('%s.fail.pkl' % self.prefix, 'ab')
                 pickle.dump(kwargs, f)
                 f.close()
-            
+                            
             del sim, kw, f
             gc.collect()
         
             return -np.inf, self.blank_blob
-        
+                
         # Apply priors to blobs
         blob_vals = []
         for key in self.logprior_B.priors:
@@ -315,7 +312,7 @@ class loglikelihood:
             del sim, kw
             gc.collect()
             return lp, blobs
-
+            
         # Compute the likelihood if we've made it this far
         if self.fit_raw_data:
             
@@ -332,10 +329,10 @@ class loglikelihood:
         else:
                 
             xarr = []
-                        
+
             # Convert frequencies to redshift, temperatures to K
             for element in self.errmap:
-                tp, i = element
+                tp, i = element            
                             
                 # Models without turning point B, C, or D get thrown out.
                 if tp not in tps:
@@ -351,6 +348,9 @@ class loglikelihood:
                        
             # Values of current model that correspond to mu vector
             xarr = np.array(xarr)
+                        
+            if np.any(np.isnan(xarr)):
+                return -np.inf, self.blank_blob
 
             # Compute log-likelihood, including prior knowledge
             if self.error_type == 'idealized':
@@ -371,13 +371,7 @@ class loglikelihood:
                     gc.collect()
                     
                     return -np.inf, self.blank_blob
-
-        # Blobs!
-        if hasattr(sim, 'blobs'):
-            blobs = sim.blobs
-        else:
-            blobs = self.blank_blob
-                                                
+                        
         if blobs.shape != self.blank_blob.shape:
             raise ValueError('help')    
             
@@ -745,6 +739,9 @@ class ModelFit(object):
                         
             pvec = []
             for i in range(self.nwalkers / 4):
+                if np.isinf(imaxL[i]):
+                    break
+                    
                 pvec.append(pos[imaxL[i]])
             
             pvec = np.array(pvec)
@@ -858,7 +855,7 @@ class ModelFit(object):
             # Only the rank 0 processor ever makes it here
                         
             ct += 1
-                        
+                                                
             pos_all.append(pos.copy())
             prob_all.append(prob.copy())
             blobs_all.append(blobs)

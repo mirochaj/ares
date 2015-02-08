@@ -16,13 +16,13 @@ from scipy.misc import derivative
 from scipy.interpolate import interp1d
 from ..util.Math import central_difference
 
-try:
-    import chianti.core as cc
-    have_chianti = True        
-    T = np.logspace(2, 6, 500)
-except ImportError:
-    T = None
-    have_chianti = False
+#try:
+#    import chianti.core as cc
+#    have_chianti = True        
+#    T = np.logspace(2, 6, 500)
+#except ImportError:
+T = None
+have_chianti = False
 
 rate_sources = ['fk94', 'chianti']
 

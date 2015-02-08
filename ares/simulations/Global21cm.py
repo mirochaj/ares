@@ -206,9 +206,9 @@ class Global21cm:
 
         # To compute timestep
         self.timestep_igm = RestrictTimestep(self.grid_igm, 
-            self.pf['epsilon_dt'])
+            self.pf['epsilon_dt'], self.pf['verbose'])
         self.timestep_cgm = RestrictTimestep(self.grid_cgm, 
-            self.pf['epsilon_dt'])    
+            self.pf['epsilon_dt'], self.pf['verbose'])
             
         # For regulating time/redshift steps
         self.checkpoints = CheckPoints(pf=self.pf, 

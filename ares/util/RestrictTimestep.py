@@ -16,9 +16,10 @@ from ..util.Warnings import dt_error
 huge_dt = 1e30  # seconds
 
 class RestrictTimestep:
-    def __init__(self, grid, epsilon=0.1):
+    def __init__(self, grid, epsilon=0.1, verbose=True):
         self.grid = grid
         self.epsilon = epsilon
+        self.verbose = verbose
         self.grid_indices = np.arange(self.grid.dims)
     
     def Limit(self, q, dqdt, z=None, tau=None, tau_ifront=0.5, 
@@ -75,8 +76,9 @@ class RestrictTimestep:
                         which_cell = int(which_cell)
                     else:
                         which_cell = 0
-                                                                
-                dt_error(self.grid, z, q, dqdt, min_dt, which_cell, mth)
+                
+                if self.verbose:                                                
+                    dt_error(self.grid, z, q, dqdt, min_dt, which_cell, mth)
 
             # Update the time-step
             new_dt = min(new_dt, min_dt)

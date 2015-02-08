@@ -46,7 +46,7 @@ class Chemistry(object):
         
         self.solver = ode(self.chemnet.RateEquations, 
             jac=self.chemnet.Jacobian).set_integrator('vode',
-            method='bdf', nsteps=1e4, with_jacobian=True,
+            with_jacobian=True, method='bdf', nsteps=1e4, 
             atol=atol, rtol=rtol)
             
         self.zeros_gridxq = np.zeros([self.grid.dims, len(self.grid.evolving_fields)])

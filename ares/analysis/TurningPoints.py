@@ -33,8 +33,8 @@ class TurningPoints(object):
             
         # Keep track of turning points we've passed
         self.TPs = []
-        if self.pf['initial_redshift'] < 70:
-            self.TPs.append('A')
+        #if self.pf['initial_redshift'] < 70:
+        #    self.TPs.append('A')
             
         self.turning_points = {}
         self.found_TP, self.z_TP = False, -99999
@@ -55,16 +55,17 @@ class TurningPoints(object):
         positive = not negative
         concave_up = np.all(dTb2dz2 > 0)
         concave_down = not concave_up
-                
+                                                            
         # Based on sign of brightness temperature and concavity,
         # determine which turning point we've found.
-        if negative and concave_up and ('A' not in self.TPs):
+        if negative and concave_up and ('B' not in self.TPs):
             return 'A'
-        elif negative and concave_down:
+        elif negative and concave_down and ('B' not in self.TPs):
             return 'B'
-        elif negative and concave_up:
+        elif negative and concave_up and ('C' not in self.TPs) \
+            and ('B' in self.TPs):
             return 'C'
-        elif positive and concave_down:
+        elif positive and concave_down and ('D' not in self.TPs):
             return 'D'
         else:
             return 'unknown'
@@ -134,8 +135,8 @@ class TurningPoints(object):
             TP = self.which_extremum(zbracketed, Tbracketed, zz, dT)
             self.TPs.append(TP)
             
-            if TP not in list('ABCD'):
-                raise ValueError('Unrecognized turning point!')
+            #if TP not in list('ABCDE'):
+            #    raise ValueError('Unrecognized turning point!')
              
             # Crude guess at turning pt. position
             zTP_guess = zz[np.argmin(np.abs(dT))]    

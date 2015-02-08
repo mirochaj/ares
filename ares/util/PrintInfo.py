@@ -627,7 +627,7 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
         
             if tp == 'trans':
                 continue
-        
+
             if val == 0:
                 if fit.measurement_units[0] == 'MHz':
                     rows.append('nu_%s' % tp)
