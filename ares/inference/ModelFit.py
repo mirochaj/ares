@@ -109,7 +109,7 @@ class loglikelihood:
     def __init__(self, steps, parameters, is_log, mu, errors,
         base_kwargs, nwalkers, priors={}, chain=None, logL=None,
         errmap=None, errunits=None, prefix=None, fit_turning_points=True,
-        burn=False, raw_data=None):
+        burn=False, raw_data=None, blob_names=None, blob_redshifts=None):
         """
         Computes log-likelihood at given step in MCMC chain.
 
@@ -128,26 +128,9 @@ class loglikelihood:
         self.prefix = prefix   
         self.fit_turning_points = fit_turning_points     
 
-        if 'auto_generate_blobs' in self.base_kwargs:
-            kw = self.base_kwargs.copy()
-                        
-            sim = simG21(**kw)
-            anl = InlineAnalysis(sim)
-            
-            self.blob_names, self.blob_redshifts = \
-                anl.generate_blobs()
-            
-            del sim, anl
-            
-        elif 'inline_analysis' in self.base_kwargs:
-            self.blob_names, self.blob_redshifts = \
-                self.base_kwargs['inline_analysis']
-
-        else:
-            self.blob_names = _blob_names
-            self.blob_redshifts = _blob_redshifts
-            
-        
+        self.blob_names = blob_names
+        self.blob_redshifts = blob_redshifts
+                                        
         # Setup binfo pkl file
         self._prep_binfo()
 
@@ -181,7 +164,7 @@ class loglikelihood:
         self.errunits = errunits
         self.chain = chain
         self.logL = logL
-        
+
         self.raw_data = raw_data
         self.fit_raw_data = raw_data is not None
         
@@ -371,13 +354,13 @@ class loglikelihood:
                     gc.collect()
                     
                     return -np.inf, self.blank_blob
-                        
+        
         if blobs.shape != self.blank_blob.shape:
-            raise ValueError('help')    
+            raise ValueError('Shape mismatch between requested blobs and actual blobs!')    
             
         del sim, kw
-        gc.collect()    
-
+        gc.collect()
+        
         return logL, blobs
 
 class ModelFit(object):
@@ -395,6 +378,36 @@ class ModelFit(object):
         self.base_kwargs = def_kwargs.copy()
         self.base_kwargs.update(kwargs)
 
+        if 'auto_generate_blobs' in self.base_kwargs:            
+            if self.base_kwargs['auto_generate_blobs']:
+                kw = self.base_kwargs.copy()
+                            
+                sim = simG21(**kw)
+                anl = InlineAnalysis(sim)
+                
+                self.blob_names, self.blob_redshifts = \
+                    anl.generate_blobs()
+                
+                del sim, anl
+                gc.collect()
+                
+                self.base_kwargs['inline_analysis'] = \
+                    (self.blob_names, self.blob_redshifts)
+                self.base_kwargs['auto_generate_blobs'] = False
+        else:
+                
+            if 'inline_analysis' in self.base_kwargs and \
+                (not hasattr(self, 'blob_names')):
+                self.blob_names, self.blob_redshifts = \
+                    self.base_kwargs['inline_analysis']
+            
+            elif (not hasattr(self, 'blob_names')):
+                self.blob_names = _blob_names
+                self.blob_redshifts = _blob_redshifts
+            
+            self.base_kwargs['inline_analysis'] = \
+                (self.blob_names, self.blob_redshifts)
+            
     @property
     def error(self):
         if not hasattr(self, '_error'):
@@ -708,7 +721,9 @@ class ModelFit(object):
                 np.mean(self.chain), np.std(self.chain), self.base_kwargs,
                 self.nwalkers, self.priors, None, None, 
                 self.measurement_map, self.measurement_units,
-                fit_turning_points=fit_turning_points, burn=True, raw_data=self.data)
+                fit_turning_points=fit_turning_points, burn=True, 
+                raw_data=self.data, blob_names=self.blob_names,
+                blob_redshifts=self.blob_redshifts)
 
             self.sampler_BURN = emcee.EnsembleSampler(self.nwalkers,
                 self.Nd, self.loglikelihood_BURN, pool=self.pool)
@@ -717,7 +732,9 @@ class ModelFit(object):
             self.mu, self.error, self.base_kwargs,
             self.nwalkers, self.priors, self.chain, self.logL, 
             self.measurement_map, self.measurement_units, prefix=self.prefix,
-            fit_turning_points=fit_turning_points, raw_data=self.data)
+            fit_turning_points=fit_turning_points, raw_data=self.data,
+            blob_names=self.blob_names,
+            blob_redshifts=self.blob_redshifts)
             
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)

@@ -42,15 +42,15 @@ class InlineAnalysis:
     def generate_blobs(self):
         """
         Auto-generate blobs for inline analysis.
-        
+
         Returns
         -------
         Names and redshifts of blobs.
-        
+
         """
         
         # First, figure out which rate coefficients to save
-        # Automatically figure out which populations need
+        # Automatically figure out which populations need what
         
         blob_names = []
         for i, pop in enumerate(range(self.pf.Npops)):
@@ -72,7 +72,7 @@ class InlineAnalysis:
             # SFRD
             if not pop.pf['tanh_model']:
                 blob_names.append('sfrd%s' % suffix)
-                
+                            
             species = ['h_1', 'he_1', 'he_2']
             for j, sp1 in enumerate(species):
                 
@@ -107,6 +107,9 @@ class InlineAnalysis:
         tmp1 = _blob_names
         tmp1.extend(blob_names)
         
+        tmp11 = list(np.unique(tmp1))
+        names = map(str, tmp11)
+        
         tmp2 = []
         for i, z in enumerate(_blob_redshifts):
             if type(z) is str:
@@ -116,9 +119,9 @@ class InlineAnalysis:
             if z >= self.sim.pf['final_redshift']:
                 tmp2.append(_blob_redshifts[i])
                 continue
-       
-        return list(np.unique(tmp1)), tmp2
                 
+        return names, tmp2
+
     @property
     def turning_points(self):            
         if hasattr(self.sim, "turning_points"):
@@ -152,9 +155,11 @@ class InlineAnalysis:
         redshift = []
         for element in self.blob_redshifts:
             
-            # Some "special" redshift -- handle separately
+            # Some "special" redshifts -- handle separately
             if type(element) is str:
                 if element in ['eor_midpt', 'eor_overlap']:
+        
+                    raise ValueError('For some reason, eor_midpt etc. are causing problems for emcee / pickling.')
         
                     ihigh = np.argmin(np.abs(self.history['z'] \
                           - self.pf['first_light_redshift']))
@@ -166,6 +171,10 @@ class InlineAnalysis:
                             zrei = interp(0.5)
                         else:
                             zrei = interp(0.99)
+
+                        if type(zrei) != float:
+                            zrei = float(zrei)
+                        
                     except ValueError:
                         zrei = np.inf
         
@@ -181,7 +190,7 @@ class InlineAnalysis:
             
             # Just a number, append and move on
             else:
-                redshift.append(element)
+                redshift.append(float(element))
                 
         return redshift
 
@@ -246,10 +255,10 @@ class InlineAnalysis:
                 output.append(tmp)
                 continue
             
-            elif field == 'Jlw':
-                Jlw = self.integrated_fluxes()
-                output.append(Jlw)
-                continue
+            #elif field == 'Jlw':
+            #    Jlw = self.integrated_fluxes()
+            #    output.append(Jlw)
+            #    continue
             
             elif (field == 'sfrd'):
                 tmp = []
@@ -289,7 +298,7 @@ class InlineAnalysis:
 
         # Reshape output so it's (redshift x blobs)
         self.blobs = np.array(zip(*output))
-
+        
     def get_igm_quantity(self):
         pass    
 

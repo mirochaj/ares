@@ -52,7 +52,9 @@ class fake_chianti:
 
     def convertName(self, species):
         element, i = species.split('_')
-
+        
+        Z = self.element2z(element)
+        
         tmp = {}
         tmp['Element'] = element
         tmp['Ion'] = self.zion2name(Z, int(i))
@@ -482,50 +484,24 @@ class Grid(object):
             
     def set_ionization(self, Z=None, x=None, state=None, perturb=0):
         """
-        Set initial ionization state.  If Z is None, assume constant ion fraction 
-        of 1 / (1 + Z) for all elements.  Can be overridden by 'state', which can be
-        'equilibrium', and maybe eventually other options (e.g. perturbed out of
-        equilibrium slightly, perhaps).
+        Set initial ionization state.  
+        
+        If Z is None, assume constant ion fraction of 1 / (1 + Z) for all Z.
+        
+        Parameters
+        ----------
+        Z : int, list
+        x : int, list
+          
         """       
         
         if x is not None:
             self.data[util.zion2name(Z, 1)].fill(1. - x)
             self.data[util.zion2name(Z, 2)].fill(x)
             
-        elif state == 'equilibrium':
-            np.seterr(all = 'ignore')   # This tends to produce divide by zero errors
-            for Z in self.Z:
-                eq = cc.ioneq(Z, self.data['Tk'])
-                
-                for i in xrange(1 + Z):
-                    mask = np.isnan(eq.Ioneq[i])
-                    name = util.zion2name(Z, i + 1)
-                    self.data[name][:] = eq.Ioneq[i]
-                    self.data[name][mask] = np.ones_like(mask[mask == True])
-                    # For some reason chianti sometimes gives nans where
-                    # the neutral fraction (in oxygen at least) should be 1.
-                    # It only happens when cc.ioneq is given an array of temps,
-                    # i.e. everything is fine if you loop over T but that's 
-                    # way slower.
-                    if perturb > 0:
-                        tmp = self.data[name] * np.random.normal(loc=1.0, 
-                            scale=perturb, size=self.dims)
-                        tmp[tmp < tiny_number] = tiny_number
-                        self.data[name] = copy.copy(tmp)
-                                   
-                # Renormalize                                
-                if perturb > 0:
-                    C = 0
-                    for i in xrange(1 + Z):
-                        name = util.zion2name(Z, i + 1)
-                        C += self.data[name]    
-                            
-                    for i in xrange(1 + Z):
-                        name = util.zion2name(Z, i + 1)        
-                        self.data[name] /= C
-                                        
-            np.seterr(all=None)
-            
+            if Z == 2:
+                self.data[util.zion2name(Z, 3)].fill(x)
+                        
         elif state == 'neutral':
             for Z in self.Z:
 

@@ -18,6 +18,8 @@ import matplotlib.pyplot as pl
 base_pars = \
 {
  'auto_generate_blobs': True,
+ 'stop_xavg': 0.99,
+ 'stop': 'D',
 }
 
 # Initialize fitter

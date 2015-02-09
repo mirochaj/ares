@@ -21,7 +21,9 @@ pars = \
 {
  'problem_type': 0,
  'grid_cells': 1, 
- 'isothermal': True,
+ 'initial_ionization': [1e-8],
+ #'initial_temperature': 1e2,
+ 'isothermal': False,
  'source_type': 'toy',
  'stop_time': 10.0,
  'plane_parallel': True,
@@ -41,7 +43,7 @@ anl = ares.analysis.RaySegment(sim.checkpoints)
 
 t, xHI = anl.CellEvolution(field='h_1')
 
-pl.loglog(t / s_per_yr, 1. - xHI, color='k')
+pl.loglog(t / s_per_yr, 1. - xHI, color='k', label='numerical')
 pl.ylim(1e-8, 1.5)
 pl.xlabel(r'$t / \mathrm{yr}$')
 pl.ylabel(r'Ionized Fraction')
@@ -56,4 +58,8 @@ C = 1. - xi0
 def xi(t, Gamma=Gamma):
     return 1. - C * np.exp(-Gamma * t)
 
-pl.scatter(t / s_per_yr, map(xi, t), color='b', facecolors='none', s=100)
+pars.update({'source_type': 'diffuse', 'Gamma': Gamma})
+
+pl.scatter(t / s_per_yr, map(xi, t), color='b', facecolors='none', s=100,
+    label='analytic')
+pl.legend(loc='lower right')
