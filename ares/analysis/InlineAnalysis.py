@@ -119,8 +119,16 @@ class InlineAnalysis:
             if z >= self.sim.pf['final_redshift']:
                 tmp2.append(_blob_redshifts[i])
                 continue
-                
-        return names, tmp2
+        
+        blob_names = names
+        blob_redshifts = tmp2
+         
+        if self.pf['override_blob_names'] is not None:
+            blob_names = self.pf['override_blob_names']
+        if self.pf['override_blob_redshifts'] is not None:
+            blob_redshifts = self.pf['override_blob_redshifts'] 
+         
+        return blob_names, blob_redshifts
 
     @property
     def turning_points(self):            
@@ -151,7 +159,6 @@ class InlineAnalysis:
         Convert all redshifts to floats (e.g., turning points B, C, & D).
         """
         
-        ztps = []
         redshift = []
         for element in self.blob_redshifts:
             
@@ -174,19 +181,16 @@ class InlineAnalysis:
 
                         if type(zrei) != float:
                             zrei = float(zrei)
-                        
+
                     except ValueError:
                         zrei = np.inf
-        
+
                     redshift.append(zrei)
-                    ztps.append((element, zrei))
         
                 elif element not in self.turning_points:
                     redshift.append(np.inf)
-                    ztps.append(np.inf)
                 else:
                     redshift.append(self.turning_points[element][0])
-                    ztps.append((element, self.turning_points[element][0]))
             
             # Just a number, append and move on
             else:
@@ -293,9 +297,9 @@ class InlineAnalysis:
                     tmp.append(float(interp(z)))
                 else:
                     tmp.append(np.inf)
-
+                    
             output.append(tmp)
-
+            
         # Reshape output so it's (redshift x blobs)
         self.blobs = np.array(zip(*output))
         

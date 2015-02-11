@@ -10,7 +10,6 @@ Description:
 
 """
 
-import pickle
 import numpy as np
 from ..util.Stats import get_nu
 from ..analysis import Global21cm
@@ -31,6 +30,11 @@ try:
     from scipy.interpolate import interp1d
 except ImportError:
     pass
+    
+try:
+   import cPickle as pickle
+except:
+   import pickle    
 
 try:
     import emcee
@@ -252,9 +256,9 @@ class loglikelihood:
                  
         # most likely: no (or too few) turning pts
         except:                     
-            # Write to "fail" file - this might cause problems in parallel
+            # Write to "fail" file
             if not self.burn:
-                f = open('%s.fail.pkl' % self.prefix, 'ab')
+                f = open('%s.fail.%i.pkl' % (self.prefix, rank), 'ab')
                 pickle.dump(kwargs, f)
                 f.close()
                             
@@ -819,10 +823,15 @@ class ModelFit(object):
                     if rank == 0:
                         print 'base_kwargs from file dont match those supplied!'
                     MPI.COMM_WORLD.Abort()
-                raise ValueError('base_kwargs from file dont match those supplied!')
+                raise ValueError('base_kwargs from file dont match those supplied!')            
                         
         # Setup output file
-        if rank == 0 and (not restart):
+        else:
+            
+            # Each processor gets its own fail file
+            for i in range(size):
+                f = open('%s.fail.%i.pkl' % (prefix, i), 'wb')
+                f.close()  
 
             # Main output: MCMC chains (flattened)
             f = open('%s.chain.pkl' % prefix, 'wb')
@@ -830,9 +839,6 @@ class ModelFit(object):
             
             # Main output: log-likelihood
             f = open('%s.logL.pkl' % prefix, 'wb')
-            f.close()
-            
-            f = open('%s.fail.pkl' % prefix, 'wb')
             f.close()
             
             # Store acceptance fraction
@@ -902,7 +908,7 @@ class ModelFit(object):
             # for this set of steps
             f = open('%s.facc.pkl' % prefix, 'ab')
             pickle.dump(self.sampler.acceptance_fraction, f)
-            f.close()    
+            f.close()
 
             print "Checkpoint: %s" % (time.ctime())
 

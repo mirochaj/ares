@@ -102,7 +102,7 @@ class ParameterFile(dict):
                 num = int(m.group(1))
     
                 # Pop ID including curly braces
-                prefix = par.strip(m.group(0))
+                prefix = par.split(m.group(0))[0]
     
                 # See if this parameter is linked to another population
                 if type(kwargs[par]) is str:
@@ -131,7 +131,7 @@ class ParameterFile(dict):
                 num_link = int(mlink.group(1))
     
                 # Pop ID including curly braces
-                prefix_link = kwargs[par].strip(mlink.group(0))
+                prefix_link = kwargs[par].split(mlink.group(0))[0]
     
                 # If we didn't supply this parameter for the linked population,
                 # assume default parameter value
@@ -212,7 +212,7 @@ class ParameterFile(dict):
                 num = int(m.group(1))
                 
                 # Pop ID including curly braces
-                par = kwarg.strip(m.group(0))
+                par = kwarg.split(m.group(0))[0]
             
             if par in self.defaults.keys():
                 continue

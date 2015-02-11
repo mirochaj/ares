@@ -25,7 +25,7 @@ pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum',
 
 # Blob stuff
 _blob_redshifts = list('BCD')
-_blob_redshifts.extend([3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 30, 40])
+_blob_redshifts.extend([6, 10, 20, 30, 40])
 
 # Nothing population specific
 _blob_names = ['z', 'dTb', 'curvature', 'igm_Tk', 'Ts', 'cgm_h_2', 'igm_h_1',
@@ -428,6 +428,8 @@ def ControlParameters():
     "stop_delay": 0.5,      # differential redshift step
     "inline_analysis": None,
     "auto_generate_blobs": False,
+    "override_blob_names": None, 
+    "override_blob_redshifts": None,
     
     # Real-time optical depth calculation once EoR begins
     "EoR_xavg": 1.0,        # ionized fraction indicating start of EoR (OFF by default)

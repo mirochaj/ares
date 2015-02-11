@@ -10,8 +10,8 @@ Description: For analysis of MCMC fitting.
 
 """
 
+import re, os
 import numpy as np
-import re, os, pickle
 import matplotlib as mpl
 from ..util import labels
 import matplotlib.pyplot as pl
@@ -27,6 +27,11 @@ from ..simulations.Global21cm import Global21cm as sG21
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.ReadData import read_pickled_dataset, read_pickled_dict
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
+    
+try:
+   import cPickle as pickle
+except:
+   import pickle    
     
 try:
     from mpi4py import MPI
@@ -179,13 +184,15 @@ class ModelSet(object):
             else:
                 self.blobs = self.blob_names = self.blob_redshifts = None
 
-            if os.path.exists('%s.fail.pkl' % prefix):
-                self.fails = read_pickled_dict('%s.fail.pkl' % prefix)
+            i = 0
+            self.fails = []
+            while os.path.exists('%s.fail_%i.pkl' % (prefix, i)):
+            
+                data = read_pickled_dict('%s.fail_%i.pkl' % (prefix, i))
+                self.fails.extend(data)
                 
-                if rank == 0:
-                    print "Loaded %s.fail.pkl." % prefix
-            else:
-                self.fails = None
+                print "Loaded %s.fail_%i.pkl." % (prefix, i)
+                i += 1
                 
             if os.path.exists('%s.setup.pkl' % prefix):
                 f = open('%s.setup.pkl' % prefix, 'rb')
@@ -255,6 +262,12 @@ class ModelSet(object):
     #    if not hasattr(self, '_chain'):
     #        if os.path.exists('%s.chain.pkl' % self.prefix):
                 
+    @property
+    def Npops(self):
+        if not hasattr(self, '_Npops'):
+            self._Npops = count_populations(**self.base_kwargs)
+    
+        return self._Npops
     
     def _fix_up(self):
         
@@ -558,7 +571,7 @@ class ModelSet(object):
                 continue
 
             num = int(m.group(1))
-            prefix = par.strip(m.group(0))
+            prefix = par.split(m.group(0))[0]
             
             if prefix == 'Tmin':
                 i_Tmin.append(i)
@@ -594,7 +607,7 @@ class ModelSet(object):
                     continue
 
                 pop_num = int(m.group(1))
-                prefix = par.strip(m.group(0))
+                prefix = par.split(m.group(0))[0]
                 
                 new_pop_num = i_Tasc[pop_num]
                 
@@ -753,28 +766,39 @@ class ModelSet(object):
         for i, sp in enumerate(['h_1', 'he_1', 'he_2']):  
             
             if i > 0 and 'igm_%s' % sp not in self.blob_names:
-                print "Total heating rate may be underestimated: no igm_%s in blobs" % sp
                 continue
 
-            # For slicing
-            i_x = self.blob_names.index('igm_%s' % sp)
-            i_heat = self.blob_names.index('igm_heat_%s' % sp)
-
-            if sp == 'h_1':
-                n = lambda z: self.cosm.nH(z)
-            else:
-                n = lambda z: self.cosm.nHe(z)
-
-            for j, redshift in enumerate(self.blob_redshifts):
-                if type(redshift) is str:
-                    zdim = self.blob_names.index('z')
-                    ztmp = self.blobs[:,j,zdim]
+            for k in range(self.Npops):
+                
+                if self.Npops == 1:
+                    suffix = ''
                 else:
-                    ztmp = redshift
-
-                # Multiply by number density of absorbers
-                heat[:,j] += self.blobs[:,j,i_heat] \
-                    * n(ztmp) * self.blobs[:,j,i_x]
+                    suffix = '{%i}' % k
+                
+                heat_by_pop = 'igm_heat_%s%s' % (sp, suffix)
+                
+                if heat_by_pop not in self.blob_names:
+                    continue
+                
+                # For slicing
+                i_x = self.blob_names.index('igm_%s' % sp)
+                i_heat = self.blob_names.index(heat_by_pop)
+                
+                if sp == 'h_1':
+                    n = lambda z: self.cosm.nH(z)
+                else:
+                    n = lambda z: self.cosm.nHe(z)
+                
+                for j, redshift in enumerate(self.blob_redshifts):
+                    if type(redshift) is str:
+                        zdim = self.blob_names.index('z')
+                        ztmp = self.blobs[:,j,zdim]
+                    else:
+                        ztmp = redshift
+                
+                    # Multiply by number density of absorbers
+                    heat[:,j] += self.blobs[:,j,i_heat] \
+                        * n(ztmp) * self.blobs[:,j,i_x]
 
         return heat
 
@@ -1009,7 +1033,7 @@ class ModelSet(object):
         num = int(m.group(1))
 
         # Pop ID including curly braces
-        prefix = par.strip(m.group(0))
+        prefix = par.split(m.group(0))[0]
     
         return prefix
     
@@ -1871,8 +1895,8 @@ class ModelSet(object):
             # Population ID number
             num = int(m.group(1))
             
-            # Pop ID including curly braces
-            prefix = blob.strip(m.group(0))
+            # Pop ID excluding curly braces
+            prefix = blob.split(m.group(0))[0]
         
         ax.set_xlabel(r'$z$')
         ax.set_ylabel(labels[prefix])
@@ -1963,7 +1987,8 @@ class ModelSet(object):
                 p.append(par)
                 continue
             
-            p.append(par.strip(m.group(0)))
+            # Split parameter prefix from population ID in braces
+            p.append(par.split(m.group(0))[0])
             sup.append(int(m.group(1)))
         
         del pars
@@ -1998,7 +2023,7 @@ class ModelSet(object):
             ax.set_ylabel(def_par_labels(pars[1]))
         else:
             ax.set_ylabel(self.mathify_str(pars[1]))
-    
+        
         pl.draw()
         
     def mathify_str(self, s):

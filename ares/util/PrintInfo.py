@@ -677,7 +677,21 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line("burn-in     : %i" % burn)
     print line("steps       : %i" % steps)
     print line("outputs     : %s*.pkl" % fit.prefix)
-
+    
+    print line('-'*twidth)       
+    print line('Inline Analysis')     
+    print line('-'*twidth)
+    
+    Nb = len(fit.blob_names)
+    Nz = len(fit.blob_redshifts)
+    perwalkerperstep = Nb * Nz * 8 
+    MB = perwalkerperstep * fit.nwalkers * steps / 1e6
+    
+    print line("N blobs     : %i" % Nb)
+    print line("N redshifts : %i" % Nz)
+    print line("data rate   : %i bytes / walker / step" % perwalkerperstep)
+    print line("data size   : %i MB (total)" % MB)
+    
     print "#"*width
     print ""
 
