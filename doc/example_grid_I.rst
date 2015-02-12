@@ -38,7 +38,9 @@ signal (turning points B, C, and D), and a few other redshifts of interest.
     
     redshifts = ['B', 'C', 'D', 6, 8, 10, 12]
     
-.. note :: You can also pass ``auto_generate_blobs=True`` as a keyword argument, which will (try to) figure out all relevant quantities of interest and save them at a default series of redshifts.
+.. note :: You can also pass ``auto_generate_blobs=True`` as a keyword 
+    argument, which will (try to) figure out all relevant quantities of 
+    interest and save them at a default series of redshifts.
         
 Now, initialize a ``ModelGrid`` instance: 
 
@@ -54,6 +56,15 @@ Now, initialize a ``ModelGrid`` instance:
 ``base_kwargs`` will be passed to every model in the grid. Note the ``inline_analysis``
 key: this tells ares to automatically record the values of our fields of interest
 at the specified redshifts.    
+
+.. note :: You can also pass ``auto_generate_blobs`` or ``inline_analysis`` 
+    as keyword arguments to the :class:`Global21cm<ares.simulations.Global21cm>` 
+    class, which will then automatically run the requested analysis upon 
+    completion of a simulation and save the results to the ``blobs`` attribute.
+    To conveniently recover a particular quantity, see the ``extract_blob`` 
+    method in :class:`Global21cm<ares.simulations.Global21cm>`. If you forget
+    what quantities and redshifts are available, see the ``blob_names`` and
+    ``blob_redshifts`` attributes of the same class. 
     
 Now, let's survey a small 2-D swath of parameter space, varying the X-ray 
 normalization parameter and star formation efficiency:

@@ -776,6 +776,32 @@ class Global21cm:
             j = list(self.blob_names).index(par)
                         
             print "%-25s %-8.4g" % (par, self.blobs[i,j])
+            
+    def extract_blob(self, name, z):
+        """
+        Extract individual result of automatic analysis.
+        
+        Parameters
+        ----------
+        name : str
+            Name of quantity you'd like returned.
+        z : int, float, str
+            Redshift of interest. Can pass 'B', 'C', or 'D' to return the 
+            quantity of interest at given extrema in global 21-cm signal.
+            
+        Returns
+        -------
+        Value of quantity `name` at redshift `z`.
+        
+        See Also
+        --------
+        Keyword arguments ``inline_analysis`` and ``auto_generate_blobs``.
+        
+        """
+        i = self.blob_redshifts.index(z)
+        j = list(self.blob_names).index(name)
+        
+        return self.blobs[i,j]
         
     def ComputeXRB(self, z, ztmp, xtmp, **kwargs):
         """
