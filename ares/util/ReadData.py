@@ -57,7 +57,6 @@ def load_inits(fn=None):
 
     return inits        
 
-
 def read_pickled_blobs(fn):
     """
     Reads arbitrary meta-data blobs from emcee that have been pickled.
@@ -139,30 +138,68 @@ def read_pickled_dict(fn):
     f.close()
     
     return results
-        
-def read_pickled_dataset(fn, append=False):
+            
+def read_pickle_file(fn):
     f = open(fn, 'rb')
-    
-    results = []
 
+    results = []
     while True:
         try:
-            # This array should be (nsteps, ndims)
-            if append:
-                results.append(pickle.load(f))
-            else:
-                results.extend(pickle.load(f))
+            results.extend(pickle.load(f))
         except EOFError:
             break
-        except ValueError:
-            pass
-        except IndexError:
-            pass
-        except:
-            pass
-            
+
     f.close()
-        
+    
     return np.array(results)
+
+def read_pickled_blobs(fn):
+    return read_pickle_file(fn)    
+    
+def read_pickled_logL(fn):    
+    # Removes chunks dimension
+    data = read_pickle_file(fn)
+    
+    Nd = len(data.shape)
+    
+    # A flattened logL should have dimension (iterations)
+    if Nd == 1:
+        return data
+        
+    # (walkers, iterations)
+    elif Nd == 2:
+        new_data = []
+        for element in data:
+            new_data.extend(element)
+        return np.array(new_data)
+        
+    else:
+        raise ValueError('unrecognized logL shape')
+    
+def read_pickled_chain(fn):
+    
+    # Removes chunks dimension
+    data = read_pickle_file(fn)
+    
+    Nd = len(data.shape)
+
+    # Flattened chain
+    if Nd == 2:
+        return np.array(data)
+    
+    # Unflattnened chain
+    elif Nd == 3:
+        new_data = []
+        for element in data:
+            new_data.extend(element)
+            
+        return np.array(new_data)
+        
+    else:
+        raise ValueError('unrecognized chain shape')
+            
+    
+    
+        
     
     

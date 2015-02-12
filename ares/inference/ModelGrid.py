@@ -16,7 +16,7 @@ import copy, os, gc, re, time
 from ..simulations import Global21cm
 from ..util import GridND, ProgressBar
 from ..analysis.InlineAnalysis import InlineAnalysis
-from ..util.ReadData import read_pickled_dataset, read_pickled_dict
+from ..util.ReadData import read_pickle_file, read_pickled_dict
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
 try:
@@ -119,7 +119,7 @@ class ModelGrid:
         
         # Read in current status of model grid
         fails = read_pickled_dict('%s.fail.pkl' % prefix)
-        chain = read_pickled_dataset('%s.chain.pkl' % prefix)
+        chain = read_pickle_file('%s.chain.pkl' % prefix)
 
         # Read parameter info
         f = open('%s.pinfo.pkl' % prefix, 'rb')

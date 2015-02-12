@@ -13,7 +13,6 @@ Description: For analysis of MCMC fitting.
 import re, os
 import numpy as np
 import matplotlib as mpl
-from ..util import labels
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
 from ..physics import Cosmology
@@ -22,12 +21,14 @@ from ..inference import ModelGrid
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .Global21cm import Global21cm as aG21
+from ..util import labels as default_labels
 from ..util.ParameterFile import count_populations
 from ..simulations.Global21cm import Global21cm as sG21
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
-from ..util.ReadData import read_pickled_dataset, read_pickled_dict
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
-    
+from ..util.ReadData import read_pickled_dict, read_pickle_file, \
+    read_pickled_chain, read_pickled_logL
+
 try:
    import cPickle as pickle
 except:
@@ -50,10 +51,12 @@ def_inset_pars = \
  'align':(0,1),
 }
 
-def_kwargs = \
-{
- 'labels': True,
-}
+#def_kwargs = \
+#{
+# 'labels': True,
+#}
+
+def_kwargs = {}
 
 suffixes = ['chain', 'pinfo', 'logL', 'blobs', 'binfo']
 
@@ -67,7 +70,7 @@ def parse_blobs(name):
     
         pre = pre + mid
     
-    if pre in labels:
+    if pre in default_labels:
         pass
         
     return None 
@@ -129,13 +132,15 @@ class ModelSet(object):
             prefix = data
 
             # Read MCMC chain
-            self.chain = read_pickled_dataset('%s.chain.pkl' % prefix)
+            self.chain = read_pickled_chain('%s.chain.pkl' % prefix)
             if rank == 0:
                 print "Loaded %s.chain.pkl." % prefix
 
             # Figure out if this is an MCMC run or a model grid
             try:
-                self.logL = read_pickled_dataset('%s.logL.pkl' % prefix)
+                self.logL = read_pickled_logL('%s.logL.pkl' % prefix)
+                if rank == 0:
+                    print "Loaded %s.logL.pkl." % prefix
                 self._is_mcmc = True
             except IOError:
                 self._is_mcmc = False
@@ -143,8 +148,15 @@ class ModelSet(object):
             self.Nd = int(self.chain.shape[-1])
             
             if self._is_mcmc and os.path.exists('%s.facc.pkl' % prefix):
-                self.facc = read_pickled_dataset('%s.facc.pkl' % prefix, 
-                    append=True)
+                f = open('%s.facc.pkl' % prefix, 'rb')
+                self.facc = []
+                while True:
+                    try:
+                        self.facc.append(pickle.load(f))
+                    except EOFError:
+                        break
+                f.close()
+                self.facc = np.array(self.facc)
                         
             # Read parameter names and info
             if os.path.exists('%s.pinfo.pkl' % prefix):
@@ -160,7 +172,7 @@ class ModelSet(object):
             
             if os.path.exists('%s.blobs.pkl' % prefix):
                 try:
-                    blobs = read_pickled_dataset('%s.blobs.pkl' % prefix)
+                    blobs = read_pickle_file('%s.blobs.pkl' % prefix)
                     
                     if rank == 0:
                         print "Loaded %s.blobs.pkl." % prefix
@@ -216,7 +228,7 @@ class ModelSet(object):
 
                 # Only exists for parallel runs
                 if os.path.exists('%s.load.pkl' % prefix):
-                    self.load = read_pickled_dataset('%s.load.pkl' % prefix)
+                    self.load = read_pickle_file('%s.load.pkl' % prefix)
                 
                     if rank == 0:
                         print "Loaded %s.load.pkl." % prefix
@@ -293,7 +305,7 @@ class ModelSet(object):
     
     def _load(self, fn):
         if os.path.exists(fn):
-            return read_pickled_dataset(fn)
+            return read_pickle_file(fn)
     
     @property
     def is_mcmc(self):
@@ -906,7 +918,7 @@ class ModelSet(object):
         self.logL[mask] = -np.inf 
 
     def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, slc=None,
-        take_log=False, multiplier=1., **kwargs):
+        take_log=False, multiplier=1., labels=None, **kwargs):
         """
         Show occurrences of turning points B, C, and D for all models in
         (z, dTb) space, with points color-coded to likelihood.
@@ -934,6 +946,13 @@ class ModelSet(object):
             ax = fig.add_subplot(111)
         else:
             gotax = True
+
+        if labels is None:
+            labels = default_labels
+        else:
+            labels_tmp = default_labels.copy()
+            labels_tmp.update(labels)
+            labels = labels_tmp
 
         if type(take_log) == bool:
             take_log = [take_log] * 2
@@ -1255,7 +1274,8 @@ class ModelSet(object):
     def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=1.,
         nu=[0.95, 0.68], slc=None, overplot_nu=False, density=True, 
         color_by_like=False, contour=True, filled=True, take_log=False,
-        bins=20, xscale='linear', yscale='linear', skip=0, skim=1, **kwargs):
+        bins=20, xscale='linear', yscale='linear', skip=0, skim=1, 
+        labels=None, **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
     
@@ -1300,6 +1320,13 @@ class ModelSet(object):
     
         kw = def_kwargs.copy()
         kw.update(kwargs)
+        
+        if labels is None:
+            labels = default_labels
+        else:
+            labels_tmp = default_labels.copy()
+            labels_tmp.update(labels)
+            labels = labels_tmp
         
         if type(pars) != list:
             pars = [pars]
@@ -1504,8 +1531,7 @@ class ModelSet(object):
                         ax.plot([mi, ma], [mu - sigma[0]]*2, color='k', ls=':')
                         ax.plot([mi, ma], [mu + sigma[1]]*2, color='k', ls=':')
 
-        if kw['labels']:
-            self.set_axis_labels(ax, pars, is_log, take_log)
+        self.set_axis_labels(ax, pars, is_log, take_log, labels)
 
         pl.draw()
 
@@ -1513,7 +1539,7 @@ class ModelSet(object):
         
     def ContourScatter(self, pars, zaxis, z=None, Nscat=1e4, take_log=False, 
         cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
-        **kwargs):
+        labels=None, **kwargs):
         """
         Show contour plot in 2-D plane, and add colored points for third axis.
         
@@ -1537,6 +1563,13 @@ class ModelSet(object):
 
         if type(take_log) == bool:
             take_log = [take_log] * 3
+
+        if labels is None:
+            labels = default_labels
+        else:
+            labels_tmp = default_labels.copy()
+            labels_tmp.update(labels)
+            labels = labels_tmp
 
         axes = []
         for par in pars:
@@ -1625,7 +1658,7 @@ class ModelSet(object):
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
         skim=1, top=None, oned=True, filled=True, box=None, rotate_x=True, 
-        **kwargs):
+        labels=None, **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
 
@@ -1690,6 +1723,13 @@ class ModelSet(object):
         
         kw = def_kwargs.copy()
         kw.update(kwargs)
+        
+        if labels is None:
+            labels = default_labels
+        else:
+            labels_tmp = default_labels.copy()
+            labels_tmp.update(labels)
+            labels = labels_tmp
         
         if type(take_log) == bool:
             take_log = [take_log] * len(pars)
@@ -1781,7 +1821,8 @@ class ModelSet(object):
                     self.PosteriorPDF(p1, ax=mp.grid[k], 
                         take_log=take_log[-1::-1][i], z=z[-1::-1][i],
                         multiplier=[multiplier[-1::-1][i]], 
-                        bins=[bins[-1::-1][i]], skip=skip, skim=skim, **kw)
+                        bins=[bins[-1::-1][i]], skip=skip, skim=skim, 
+                        labels=labels, **kw)
 
                     if col != 0:
                         mp.grid[k].set_ylabel('')
@@ -1813,7 +1854,8 @@ class ModelSet(object):
                 self.PosteriorPDF([p2, p1], ax=mp.grid[k], z=red,
                     take_log=[take_log[j], take_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
-                    bins=[bins[j], bins[-1::-1][i]], filled=filled, **kw)
+                    bins=[bins[j], bins[-1::-1][i]], filled=filled, 
+                    labels=labels, **kw)
                 
                 if row != 0:
                     mp.grid[k].set_xlabel('')
@@ -1966,10 +2008,17 @@ class ModelSet(object):
     
         return p
         
-    def set_axis_labels(self, ax, pars, is_log, take_log=False):
+    def set_axis_labels(self, ax, pars, is_log, take_log=False, labels=None):
         """
         Make nice axis labels.
         """
+        
+        if labels is None:
+            labels = default_labels
+        else:
+            labels_tmp = default_labels.copy()
+            labels_tmp.update(labels)
+            labels = labels_tmp
         
         p = []
         sup = []
@@ -1979,6 +2028,12 @@ class ModelSet(object):
                 sup.append(None)
                 p.append(par)
                 continue
+                
+            # If we want special labels for population specific parameters
+            if par in labels:
+                sup.append(None)
+                p.append(par)
+                continue    
                 
             m = re.search(r"\{([0-9])\}", par)
             
