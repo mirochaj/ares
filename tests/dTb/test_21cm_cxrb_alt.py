@@ -34,7 +34,7 @@ pars = \
  'is_ion_src_igm{1}': True,
  'is_heat_src_igm{1}': True,
  'approx_xrb{1}': False,
- 'load_tau{1}': True,
+ 'discrete_xrb{1}': True,
  'redshift_bins{1}': 400,
  'spectrum_type{1}': 'pl',
  'spectrum_alpha{1}': -1.5,

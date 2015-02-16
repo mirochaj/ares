@@ -11,7 +11,6 @@ Description:
 """
 
 import re
-from collections import defaultdict
 from .ProblemTypes import ProblemType
 from .SetDefaultParameterValues import SetAllDefaults
 from .CheckForParameterConflicts import CheckForParameterConflicts

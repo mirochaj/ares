@@ -108,7 +108,7 @@ class ChemicalNetwork:
         cell, G, g, H, ntot, time = args
             
         to_temp = 1. / (1.5 * ntot * k_B)
-    
+            
         if self.expansion:
             z = self.cosm.TimeToRedshiftConverter(0., time, self.grid.zi)
             n_H = self.cosm.nH(z)

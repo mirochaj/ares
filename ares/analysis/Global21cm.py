@@ -25,6 +25,7 @@ from ..physics import Cosmology, Hydrogen
 from ..util.Math import central_difference
 from ..util.SetDefaultParameterValues import *
 from ..simulations import Global21cm as simG21
+from .DerivedQuantities import DerivedQuantities as DQ
 
 try:
     import h5py
@@ -113,13 +114,12 @@ class Global21cm:
 
         self.kwargs = kwargs    
         
+        # Derived quantities
+        self._dq = DQ(self.data, self.pf)
+        self.data = self._dq.data.copy()
+        
         # For convenience - quantities in ascending order (in redshift)
         if self.data:
-            
-            self.data['t'] = 2. / 3. \
-                / np.array(map(self.cosm.HubbleParameter, self.data['z']))
-            
-            self.data['logt'] = np.log10(self.data['t'])
             
             data_reorder = {}
             for key in self.data.keys():
@@ -132,30 +132,12 @@ class Global21cm:
             else:
                 self.data_asc = data_reorder
                 
-            # Derived fields
-            try:
-                self.data['n_e'] = np.zeros_like(self.data['z'])
-                for i, redshift in enumerate(self.data['z']):
-                    self.data['n_e'][i] = self.ElectronDensity(redshift)    
-                
-                self.data_asc['n_e'] = list(self.data['n_e'])
-                self.data_asc['n_e'].reverse()
-                self.data_asc['n_e'] = np.array(self.data_asc['n_e'])
-            except KeyError:
-                pass    
-            
-            try:
-                self.data_asc['nu'] = nu_0 / (1. + self.data_asc['z']) / 1e6 # Mhz
-                self.data['nu'] = self.data_asc['nu'][-1::-1]
-            except KeyError:
-                pass
-        
         self.interp = {}
         
         if hasattr(self, 'pf'):
             self._track = TurningPoints(**self.pf)
         else:
-            self._track = TurningPoints()        
+            self._track = TurningPoints()     
                 
     @property
     def dTbdz(self):
@@ -897,24 +879,6 @@ class Global21cm:
             facecolor = color, alpha = alpha)    
             
         pl.draw()        
-        
-    def ElectronDensity(self, z):
-        """
-        Return mean electron density at redshift z.  Assumes xHeII = xHII.
-        """    
-        
-        nH = self.cosm.nH(z)
-        nHe = self.cosm.nHe(z)
-        
-        # Add general calculation in case where helium is solved for
-        # self consistently
-                
-        xi = np.interp(z, self.data_asc['z'], self.data_asc['xi'])
-        xe = np.interp(z, self.data_asc['z'], self.data_asc['xe'])
-        
-        xavg = xi + (1. - xi) * xe
-        
-        return xavg * nH * (1. + self.cosm.y)    
         
     def OpticalDepthHistory(self, ax=None, fig=1, 
         scatter=False, show_xi=True, show_xe=True, show_xibar=True, 

@@ -56,6 +56,7 @@ sed2 = \
 
 pars = \
 {
+ 'final_redshift': 10,
  'include_He': False,
  'approx_He': False,
  'source_kwargs': [src1, src2],

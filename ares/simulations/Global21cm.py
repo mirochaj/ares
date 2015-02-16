@@ -557,14 +557,14 @@ class Global21cm:
                 hlo = np.sum(self.cxrb_hlo, axis=0)
                 hhi = np.sum(self.cxrb_hhi, axis=0)
                 G1lo = np.sum(self.cxrb_G1lo, axis=0)
-                G1hi = np.sum(self.cxrb_G1hi, axis=0)
+                G1hi = np.sum(self.cxrb_G1hi, axis=0)                
                                 
                 # Interpolate to current time                
                 H = [np.interp(z, [self.cxrb_zlo, self.cxrb_zhi], 
                     [hlo[i], hhi[i]]) for i in range(self.grid.N_absorbers)]
                 G1 = [np.interp(z, [self.cxrb_zlo, self.cxrb_zhi], 
                     [G1lo[i], G1hi[i]]) for i in range(self.grid.N_absorbers)]
-                
+                                
                 G2 = np.zeros([self.grid.N_absorbers]*2)
                 if self.pf['secondary_ionization'] > 0:                    
                     G2lo = np.sum(self.cxrb_G2lo, axis=0)
@@ -575,7 +575,7 @@ class Global21cm:
                             G2[ii,jj] = np.interp(z, 
                                 [self.cxrb_zlo, self.cxrb_zhi],
                                 [G2lo[ii,jj], G2hi[ii,jj]])
-                                
+                                                                
                 if self.pf['secondary_lya']:
                     JXlo = np.sum(self.cxrb_JXlo, axis=0)
                     JXhi = np.sum(self.cxrb_JXhi, axis=0)
@@ -747,6 +747,20 @@ class Global21cm:
         self.blobs = anl.blobs
         self.blob_names, self.blob_redshifts = \
             anl.blob_names, anl.blob_redshifts
+
+    @property
+    def binfo(self):
+        if hasattr(self, 'blob_names'):
+            bn = self.blob_names
+        else:
+            bn = None
+        
+        if hasattr(self, 'blob_redshifts'):
+            bz = self.blob_redshifts
+        else:
+            bz = None    
+        
+        return (bn, bz)
 
     @property
     def blob_shape(self):

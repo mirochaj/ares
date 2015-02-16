@@ -23,6 +23,7 @@ from ..physics.Constants import nu_0_mhz
 from .Global21cm import Global21cm as aG21
 from ..util import labels as default_labels
 from ..util.ParameterFile import count_populations
+from .DerivedQuantities import DerivedQuantities as DQ
 from ..simulations.Global21cm import Global21cm as sG21
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
@@ -111,7 +112,7 @@ def def_par_names(N):
 
 def def_par_labels(i):
     return 'parameter # %i' % i
-        
+                
 class ModelSubSet(object):
     def __init__(self):
         pass
@@ -256,10 +257,15 @@ class ModelSet(object):
                     self.load = data.load
                 except AttributeError:
                     pass
-                    
-                self.axes = data.axes
-                self.grid = data.grid
-                
+                try:            
+                    self.axes = data.axes
+                except AttributeError:
+                    pass
+                try:
+                    self.grid = data.grid
+                except AttributeError:
+                    pass
+
             self.Nd = int(self.chain.shape[-1])       
                 
         else:
@@ -331,7 +337,7 @@ class ModelSet(object):
             self._on_press)
         self._or = self._ax.figure.canvas.mpl_connect('button_release_event', 
             self._on_release)
-                
+                            
     def _on_press(self, event):
         self.x0 = event.xdata
         self.y0 = event.ydata
@@ -372,76 +378,28 @@ class ModelSet(object):
         take_log = self.plot_info['log']
         multiplier = self.plot_info['multiplier']
         
+        pars = [x, y]
+        
         # Index corresponding to this redshift
         iz = self.blob_redshifts.index(z)
         
-        # Container for results
-        chain = []
-        blobs = []
-        logL = []
+        # Use slice routine!
+        constraints = \
+        {
+         x: [z, lambda xx: 1 if lx <= xx <= (lx + dx) else 0],
+         y: [z, lambda yy: 1 if ly <= yy <= (ly + dy) else 0],
+        }
         
-        # Loop over all models and isolate those selected
-        for i, pars in enumerate(self.chain):
-                
-            xy_link = []
-            for j, element in enumerate([x, y]):
-                
-                if element in self.parameters:
-                    k = self.parameters.index(element)
-                    val = pars[k]
-                elif element in self.blob_names:
-                    k = self.blob_names.index(element)
-                    val = self.blobs[i,iz,k]
-                else:
-                    k = self.derived_blob_names.index(element)
-                    val = self.derived_blobs[i,iz,k]
-            
-                # Undo any log-10 or multiplication operations
-                val /= multiplier[j]
-                
-                if take_log[j]:
-                    val = np.log10(val)
-
-                if (j == 0) and not (ll[0] <= val <= ur[0]):
-                    break
-                
-                if (j == 1) and not (ll[1] <= val <= ur[1]):
-                    break
-                
-                xy_link.append(val)    
-            
-            if len(xy_link) != 2:
-                continue
-            
-            chain.append(pars)
-            blobs.append(self.blobs[i])
-            
-            if self.is_mcmc:
-                logL.append(self.logL[i])
-                            
-        model_set = ModelSubSet()
-        model_set.chain = np.array(chain)
-        model_set.base_kwargs = self.base_kwargs.copy()
-        model_set.fails = []
-        model_set.blobs = np.array(blobs)
-        model_set.blob_names = self.blob_names
-        model_set.blob_redshifts = self.blob_redshifts
-        model_set.is_log = self.is_log
-        model_set.parameters = self.parameters
+        i = 0
+        while hasattr(self, 'slice_%i' % i):
+            i += 1
         
-        model_set.is_mcmc = self.is_mcmc
+        tmp = self._slice_by_nu(pars=pars, z=z, like=0.95, 
+            take_log=take_log, **constraints)
         
-        if self.is_mcmc:
-            model_set.logL = logL
-        else:
-            model_set.load = self.load
-            model_set.grid = self.grid
-            model_set.axes = self.axes
+        setattr(self, 'slice_%i' % i, tmp)        
         
-        self.model_set = model_set
-        
-        print "Selected %i models. Saved to model_set attribute." % len(chain)
-        print "Supply model_set attribute as argument to new ModelSet instance."
+        print "Saved result to slice_%i attribute." % i
         
     def Dump(self, prefix, modelset):
         pass
@@ -536,9 +494,9 @@ class ModelSet(object):
         #f = open('%s.logL.pkl' % prefix, 'wb')
         #pickle.dump(logL, f)
         #f.close()            
-            
+
         #return ax, anl_inst
-        
+
     @property
     def plot_info(self):
         if not hasattr(self, '_plot_info'):
@@ -637,44 +595,15 @@ class ModelSet(object):
         if not hasattr(self, '_cosm'):
             self._cosm = Cosmology()
         
-        return self._cosm                        
-                            
+        return self._cosm
+
     @property
     def derived_blob_names(self):
-        if not hasattr(self, '_derived_blob_names'):
-            # Things we know how to calculate
-            self._derived_blob_names = ['nu']
-
-            tanh_fit = False
-            for par in self.parameters:
-                if par in tanh_pars:
-                    tanh_fit = True
-
-            if not tanh_fit:
-                for sp in ['h_1', 'he_1', 'he_2']:
-                    self._derived_blob_names.append('igm_gamma_%s' % sp)
+        if hasattr(self, '_derived_blob_names'):
+            return self._derived_blob_names
             
-            if 'Ts' in self.blob_names:
-                self._derived_blob_names.append('contrast')
-            
-            if ('igm_h_1' in self.blob_names) and \
-                'igm_h_2' not in self.blob_names:
-                self._derived_blob_names.append('igm_h_2')
-            if ('igm_he_1' and 'igm_he_2' in self.blob_names) and \
-                'igm_he_3' not in self.blob_names:
-                self._derived_blob_names.append('igm_he_3')    
-                
-            if 'tau_e' in self.blob_names:
-                self._derived_blob_names.append('tau_tot') 
-                
-            if 'cgm_h_2' in self.blob_names:
-                if ('igm_h_1' in self.blob_names) \
-                    or ('igm_h_2' in self.blob_names):
-            
-                    self._derived_blob_names.append('xavg')
-                    
-            self._derived_blob_names.append('igm_heat')       
-            
+        dbs = self.derived_blobs
+        
         return self._derived_blob_names
 
     @property
@@ -686,75 +615,52 @@ class ModelSet(object):
         if hasattr(self, '_derived_blobs'):
             return self._derived_blobs
 
-        try:
-            gamma = self._compute_gamma_tot()        
-        except:
-            pass
-        try:
-            heat = self.heat = self._compute_heat_tot()
-        except:
-            pass
-            
         if not hasattr(self, 'blobs'):
-            return
+            return   
 
+        # Just a dummy class
+        pf = ModelSubSet()
+        pf.Npops = self.Npops
+
+        # Create data container to mimic that of a single run,
+        dqs = []
+        self._derived_blob_names = []
+        for i, redshift in enumerate(self.blob_redshifts):
+
+            if type(redshift) is str:
+                z = self.extract_blob('z', redshift)[i] 
+            else:
+                z = redshift
+                
+            data = {}
+            data['z'] = np.array([z])
+            
+            for j, key in enumerate(self.blob_names):
+                data[key] = self.blobs[:,i,j]
+                            
+            _dq = DQ(data, pf)
+            
+            dqs.append(_dq.derived_quantities.copy())
+
+            for key in _dq.derived_quantities:
+                if key in self._derived_blob_names:
+                    continue
+                
+                self._derived_blob_names.append(key)
+
+        # (Nlinks, Nz, Nblobs)
         shape = list(self.blobs.shape[:-1])
-        shape.append(len(self.derived_blob_names))
+        shape.append(len(self._derived_blob_names))
 
         self._derived_blobs = np.ones(shape) * np.inf
-        for k, key in enumerate(self.derived_blob_names):
+        
+        for i, redshift in enumerate(self.blob_redshifts):
+            
+            data = dqs[i]
+            for key in data:
+                j = self._derived_blob_names.index(key)
+                self._derived_blobs[:,i,j] = data[key]
 
-            try:
-
-                if re.search('igm_gamma', key):
-                    self._derived_blobs[:,:,k] = gamma[key]
-                elif re.search('igm_heat', key):
-                    self._derived_blobs[:,:,k] = heat
-                elif key == 'tau_tot':
-                    fill = self.blobs[:,-1,self.blob_names.index('tau_e')]
-                    for i in range(self._derived_blobs.shape[1]):
-                        self._derived_blobs[:,i,k] = fill
-                            
-                elif key == 'igm_he_3':
-                    i_he_1 = self.blob_names.index('igm_he_1')
-                    i_he_2 = self.blob_names.index('igm_he_2')
-                    self._derived_blobs[:,:,k] = \
-                        1. - self.blobs[:,:,i_he_1] - self.blobs[:,:,i_he_2]
-                elif key == 'igm_h_2':
-                    i_h_1 = self.blob_names.index('igm_h_1')
-                    self._derived_blobs[:,:,k] = \
-                        1. - self.blobs[:,:,i_h_1]
-                elif key == 'nu':
-                    i_z = self.blob_names.index('z')
-                    self._derived_blobs[:,:,k] = \
-                        nu_0_mhz / (1. + self.blobs[:,:,i_z])
-                elif key == 'xavg':
-                    Q = self.blob_names.index('cgm_h_2')
-                    try:
-                        arr = self.blobs
-                        x = self.blob_names.index('igm_h_2')
-                    except ValueError:
-                        arr = self.derived_blobs
-                        x = self.derived_blob_names.index('igm_h_2')
-                    self._derived_blobs[:,:,k] = \
-                        self.blobs[:,:,Q] + (1. - self.blobs[:,:,Q]) \
-                            * arr[:,:,x]        
-                elif key == 'contrast':
-                    i_Ts = self.blob_names.index('Ts')
-                    for j, redshift in enumerate(self.blob_redshifts):
-                        if type(redshift) is str:
-                            zindex = self.blob_names.index('z')
-                            ztmp = self.blobs[:,j,zindex]
-                        else:
-                            ztmp = redshift
-                        self._derived_blobs[:,j,k] = 1. - \
-                            self.cosm.TCMB(ztmp) / self.blobs[:,j,i_Ts]
-                            
-                else:
-                    raise ValueError('dont know derived blob %s!' % key)    
-                
-            except UnboundLocalError:
-                pass
                 
         mask = np.zeros_like(self._derived_blobs)    
         mask[np.isinf(self._derived_blobs)] = 1
@@ -765,98 +671,6 @@ class ModelSet(object):
             mask=mask)
 
         return self._derived_blobs
-        
-    def _compute_heat_tot(self):
-        """
-        Convert heating rate coefficients to a total heating rate using
-        number densities of relevant ion species
-        """
-        
-        # (Nsamples, Nredshifts)
-        heat = np.zeros(self.blobs.shape[:-1])
-        
-        for i, sp in enumerate(['h_1', 'he_1', 'he_2']):  
-            
-            if i > 0 and 'igm_%s' % sp not in self.blob_names:
-                continue
-
-            for k in range(self.Npops):
-                
-                if self.Npops == 1:
-                    suffix = ''
-                else:
-                    suffix = '{%i}' % k
-                
-                heat_by_pop = 'igm_heat_%s%s' % (sp, suffix)
-                
-                if heat_by_pop not in self.blob_names:
-                    continue
-                
-                # For slicing
-                i_x = self.blob_names.index('igm_%s' % sp)
-                i_heat = self.blob_names.index(heat_by_pop)
-                
-                if sp == 'h_1':
-                    n = lambda z: self.cosm.nH(z)
-                else:
-                    n = lambda z: self.cosm.nHe(z)
-                
-                for j, redshift in enumerate(self.blob_redshifts):
-                    if type(redshift) is str:
-                        zdim = self.blob_names.index('z')
-                        ztmp = self.blobs[:,j,zdim]
-                    else:
-                        ztmp = redshift
-                
-                    # Multiply by number density of absorbers
-                    heat[:,j] += self.blobs[:,j,i_heat] \
-                        * n(ztmp) * self.blobs[:,j,i_x]
-
-        return heat
-
-    def _compute_gamma_tot(self):
-        # Total rate coefficient
-
-        # Each has shape (Nsamples, Nredshifts)
-        gamma = {'igm_gamma_%s' % sp: np.zeros(self.blobs.shape[:-1]) \
-            for sp in ['h_1', 'he_1', 'he_2']}
-                   
-        for i, sp1 in enumerate(['h_1', 'he_1', 'he_2']):  
-            
-            x_subject = 'igm_%s' % sp1
-            mm = self.blob_names.index(x_subject)    
-
-            if sp1 == 'h_1':
-                n1 = lambda z: self.cosm.nH(z)
-            else:
-                n1 = lambda z: self.cosm.nHe(z)    
-
-            for sp2 in ['h_1', 'he_1', 'he_2']:
-
-                if sp2 == 'h_1':
-                    n2 = lambda z: self.cosm.nH(z)
-                else:
-                    n2 = lambda z: self.cosm.nHe(z)
-
-                blob = 'igm_gamma_%s_%s' % (sp1, sp2)
-                k = self.blob_names.index(blob)
-
-                x_donor = 'igm_%s' % sp2
-                h = self.blob_names.index(x_donor)
-
-                for j, redshift in enumerate(self.blob_redshifts):
-
-                    if type(redshift) is str:
-                        zindex = self.blob_names.index('z')
-                        ztmp = self.blobs[:,j,zindex]
-                    else:
-                        ztmp = redshift
-
-                    gamma['igm_gamma_%s' % sp1][:,j] += self.blobs[:,j,k] \
-                        * self.blobs[:,j,h] * n2(ztmp) / n1(ztmp) \
-                        / self.blobs[:,j,mm]
-
-        return gamma
 
     def set_constraint(self, add_constraint=False, **constraints):
         """
@@ -899,6 +713,7 @@ class ModelSet(object):
                 break
             
             for element in constraints:
+
                 z, func = constraints[element]
 
                 j = self.blob_redshifts.index(z)
@@ -917,7 +732,7 @@ class ModelSet(object):
 
         self.logL[mask] = -np.inf 
 
-    def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, slc=None,
+    def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, 
         take_log=False, multiplier=1., labels=None, **kwargs):
         """
         Show occurrences of turning points B, C, and D for all models in
@@ -926,9 +741,9 @@ class ModelSet(object):
         Parameters
         ----------
         x : str
-            Field for the x-axis.
+            Fields for the x-axis.
         y : str
-            Field for the y-axis.
+            Fields for the y-axis.        
         z : str, float
             Redshift at which to plot x vs. y, if applicable.
         c : str
@@ -1005,12 +820,12 @@ class ModelSet(object):
             if take_log[2]:
                 cdat = np.log10(cdat)  
 
-        if hasattr(self, 'weights'):
-            scat = ax.scatter(xdat, ydat, c=self.weights, edgecolor='none', **kwargs)
-        elif c is not None:
-            scat = ax.scatter(xdat, ydat, c=cdat, edgecolor='none', **kwargs)
+        if hasattr(self, 'weights') and cdat is None:
+            scat = ax.scatter(xdat, ydat, c=self.weights, **kwargs)
+        elif cdat is not None:
+            scat = ax.scatter(xdat, ydat, c=cdat, **kwargs)
         else:
-            scat = ax.scatter(xdat, ydat, edgecolor='none', **kwargs)
+            scat = ax.scatter(xdat, ydat, **kwargs)
 
         if take_log[0]:
             ax.set_xlabel(logify_str(labels[self.get_par_prefix(x)]))
@@ -1071,8 +886,6 @@ class ModelSet(object):
         """
     
         nu, levels = self.confidence_regions(L, nu=nu)
-    
-        tmp = L.ravel() / L.max()
                                                                       
         return nu, levels
     
@@ -1141,15 +954,91 @@ class ModelSet(object):
 
         return kw
         
-    def Slice(self, **constraints):
+    def _slice_by_nu(self, pars, z=None, take_log=False, bins=20, like=0.68,
+        **constraints):
+        """
+        Return points in dataset satisfying given confidence contour.
+        """
+        
+        binvec, to_hist, is_log = self._prep_plot(pars, z=z, bins=bins, 
+            take_log=take_log)
+        
+        if not self.is_mcmc:
+            self.set_constraint(**constraints)
+        
+        if not hasattr(self, 'weights'):
+            weights = None
+        else:
+            weights = self.weights
+        
+        hist, xedges, yedges = \
+            np.histogram2d(to_hist[0], to_hist[1], bins=binvec, 
+            weights=weights)
+
+        # Recover bin centers
+        bc = []
+        for i, edges in enumerate([xedges, yedges]):
+            bc.append(rebin(edges))
+                
+        # Determine mapping between likelihood and confidence contours
+
+        # Get likelihood contours (relative to peak) that enclose
+        # nu-% of the area
+        like, levels = self.get_levels(hist, nu=like)
+        
+        # Grab data within this contour.
+        to_keep = np.zeros(to_hist[0].size)
+        
+        for i in range(hist.shape[0]):
+            for j in range(hist.shape[1]):
+                if hist[i,j] < levels[0]:
+                    continue
+                    
+                # This point is good
+                iok = np.logical_and(xedges[i] <= to_hist[0], 
+                    to_hist[0] <= xedges[i+1])
+                jok = np.logical_and(yedges[j] <= to_hist[1], 
+                    to_hist[1] <= yedges[j+1])
+                                    
+                ok = iok * jok                    
+                                                            
+                to_keep[ok == 1] = 1
+                
+        model_set = ModelSubSet()
+        model_set.chain = np.array(self.chain[to_keep == 1])
+        model_set.base_kwargs = self.base_kwargs.copy()
+        model_set.fails = []
+        model_set.blobs = np.array(self.blobs[to_keep == 1,:,:])
+        model_set.blob_names = self.blob_names
+        model_set.blob_redshifts = self.blob_redshifts
+        model_set.is_log = self.is_log
+        model_set.parameters = self.parameters
+        
+        model_set.is_mcmc = self.is_mcmc
+        
+        if self.is_mcmc:
+            model_set.logL = logL[to_keep == 1]
+        else:
+            model_set.axes = self.axes
+        
+        return ModelSet(model_set)
+        
+    def Slice(self, pars=None, z=None, like=0.68, take_log=False, bins=20, 
+        **constraints):
         """
         Return revised ("sliced") dataset given set of criteria.
-        
-        This currently only works in planes.
-        
+                
         Parameters
         ----------
+        like : float
+            If supplied, return a new ModelSet instance containing only the
+            models with likelihood's exceeding this value.
         constraints : dict
+            Dictionary of constraints to use to calculate likelihood.
+            Each entry should be a two-element list, with the first
+            element being the redshift at which to apply the constraint,
+            and second, a function for the posterior PDF for that quantity.s
+    
             
             
         Examples
@@ -1161,75 +1050,9 @@ class ModelSet(object):
         Object to be used to initialize a new ModelSet instance.
         
         """
-        
-        # Container for results
-        chain = []
-        blobs = []
-        logL = []
-        
-        # Loop over all models and isolate those that satisfy criteria
-        for i, pars in enumerate(self.chain):    
-                
-            xy_link = []
-            for constraint in constraints:
-                
-                z, func = constraints[constraint]
-                
-                # Index corresponding to this redshift
-                iz = self.blob_redshifts.index(z)
-                
-                if element in self.parameters:
-                    k = self.parameters.index(element)
-                    val = pars[k]
-                elif element in self.blob_names:
-                    k = self.blob_names.index(element)
-                    val = self.blobs[i,iz,k]
-                else:
-                    k = self.derived_blob_names.index(element)
-                    val = self.derived_blobs[i,iz,k]
-            
-                # Undo any log-10 or multiplication operations
-                val /= multiplier[j]
-                
-                if take_log[j]:
-                    val = np.log10(val)
 
-                if (j == 0) and not (ll[0] <= val <= ur[0]):
-                    break
-                
-                if (j == 1) and not (ll[1] <= val <= ur[1]):
-                    break
-                
-                xy_link.append(val)    
-            
-            if len(xy_link) != 2:
-                continue
-            
-            chain.append(pars)
-            blobs.append(self.blobs[i])
-            logL.append(self.logL[i])
-                            
-        model_set = ModelSubSet()
-        model_set.chain = np.array(chain)
-        model_set.base_kwargs = self.base_kwargs.copy()
-        model_set.fails = []
-        model_set.blobs = np.array(blobs)
-        model_set.blob_names = self.blob_names
-        model_set.blob_redshifts = self.blob_redshifts
-        model_set.is_log = self.is_log
-        model_set.parameters = self.parameters
-        
-        model_set.is_mcmc = self.is_mcmc
-        
-        if self.is_mcmc:
-            model_set.logL = logL
-        else:
-            model_set.axes = self.axes
-        
-        self.model_set = model_set
-        
-        print "Selected %i models. Saved to model_set attribute." % len(chain)
-        print "Supply model_set attribute as argument to new ModelSet instance."
+        return self._slice_by_nu(pars, z=z, take_log=take_log, bins=bins, 
+            like=like, **constraints)
         
     def ExamineFailures(self, N=1):
         """
@@ -1270,10 +1093,107 @@ class ModelSet(object):
             objects[idnum] = anl
             
         return ax, objects
+        
+    def _prep_plot(self, pars, z=None, take_log=False, multiplier=1.,
+        skip=0, skim=1, bins=20):
+        """
+        Given parameter names as strings, return data, bins, and log info.
+        
+        Returns
+        -------
+        Tuple : (bin vectors, data to histogram, is_log)
+        """
+        
+        if type(pars) not in [list, tuple]:
+            pars = [pars]
+        if type(take_log) == bool:
+            take_log = [take_log] * len(pars)
+        if type(multiplier) in [int, float]:
+            multiplier = [multiplier] * len(pars)    
+        
+        if type(z) is list:
+            if len(z) != len(pars):
+                raise ValueError('Length of z must be = length of pars!')
+        else:
+            z = [z] * len(pars)
+        
+        binvec = []
+        to_hist = []
+        is_log = []
+        for k, par in enumerate(pars):
+
+            if par in self.parameters:        
+                j = self.parameters.index(par)
+                is_log.append(self.is_log[j])
+                
+                val = self.chain[skip:,j].ravel()[::skim]
+                                
+                if self.is_log[j]:
+                    val += np.log10(multiplier[k])
+                else:
+                    val *= multiplier[k]
+                                
+                if take_log[k] and not self.is_log[j]:
+                    to_hist.append(np.log10(val))
+                else:
+                    to_hist.append(val)
+                
+            elif (par in self.blob_names) or (par in self.derived_blob_names):
+                
+                if z is None:
+                    raise ValueError('Must supply redshift!')
+                    
+                i = self.blob_redshifts.index(z[k])
+                
+                if par in self.blob_names:
+                    j = list(self.blob_names).index(par)
+                else:
+                    j = list(self.derived_blob_names).index(par)
+                
+                is_log.append(False)
+                
+                if par in self.blob_names:
+                    val = self.blobs[skip:,i,j][::skim]
+                else:
+                    val = self.derived_blobs[skip:,i,j][::skim]
+                
+                if take_log[k]:
+                    val += np.log10(multiplier[k])
+                else:
+                    val *= multiplier[k]
+                
+                if take_log[k]:
+                    to_hist.append(np.log10(val))
+                else:
+                    to_hist.append(val)
+
+            else:
+                raise ValueError('Unrecognized parameter %s' % str(par))
+
+            # Set bins
+            if self.is_mcmc or (par not in self.parameters):
+                if type(bins) == int:
+                    valc = to_hist[k]
+                    binvec.append(np.linspace(valc.min(), valc.max(), bins))
+                elif type(bins[k]) == int:
+                    valc = to_hist[k]
+                    binvec.append(np.linspace(valc.min(), valc.max(), bins[k]))
+                else:
+                    if take_log[k]:
+                        binvec.append(np.log10(bins[k]))
+                    else:
+                        binvec.append(bins[k])
+            else:
+                if take_log[k]:
+                    binvec.append(np.log10(self.axes[par]))
+                else:
+                    binvec.append(self.axes[par])
+        
+        return binvec, to_hist, is_log
                
     def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=1.,
-        nu=[0.95, 0.68], slc=None, overplot_nu=False, density=True, 
-        color_by_like=False, contour=True, filled=True, take_log=False,
+        nu=[0.95, 0.68], overplot_nu=False, density=True, 
+        color_by_like=False, filled=True, take_log=False,
         bins=20, xscale='linear', yscale='linear', skip=0, skim=1, 
         labels=None, **kwargs):
         """
@@ -1296,8 +1216,6 @@ class ModelSet(object):
         color_by_like : bool
             If True, color points based on what confidence contour they lie
             within.
-        contour : bool
-            Use contours rather than discrete points?
         multiplier : list
             Two-element list of multiplicative factors to apply to elements of
             pars.
@@ -1328,7 +1246,7 @@ class ModelSet(object):
             labels_tmp.update(labels)
             labels = labels_tmp
         
-        if type(pars) != list:
+        if type(pars) not in [list, tuple]:
             pars = [pars]
         if type(take_log) == bool:
             take_log = [take_log] * len(pars)
@@ -1348,9 +1266,6 @@ class ModelSet(object):
         else:
             gotax = True
     
-        if type(pars) not in [list, tuple]:
-            pars = [pars]
-
         binvec = []
         to_hist = []
         is_log = []
@@ -1537,7 +1452,7 @@ class ModelSet(object):
 
         return ax
         
-    def ContourScatter(self, pars, zaxis, z=None, Nscat=1e4, take_log=False, 
+    def ContourScatter(self, x, y, c, z=None, Nscat=1e4, take_log=False, 
         cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
         labels=None, **kwargs):
         """
@@ -1545,9 +1460,11 @@ class ModelSet(object):
         
         Parameters
         ----------
-        pars : list
-            Plot 2-D posterior PDF for these two parameters
-        zaxis : str
+        x : str
+            Fields for the x-axis.
+        y : str
+            Fields for the y-axis.
+        c : str
             Name of parameter to represent with colored points.
         z : int, float, str
             Redshift (if investigating blobs)
@@ -1571,6 +1488,8 @@ class ModelSet(object):
             labels_tmp.update(labels)
             labels = labels_tmp
 
+        pars = [x, y]
+
         axes = []
         for par in pars:
             if par in self.parameters:
@@ -1588,14 +1507,14 @@ class ModelSet(object):
 
         xax, yax = axes
 
-        if zaxis in self.parameters:        
-            zax = self.chain[:,self.parameters.index(zaxis)].ravel()
-        elif zaxis in self.blob_names:   
+        if c in self.parameters:        
+            zax = self.chain[:,self.parameters.index(c)].ravel()
+        elif c in self.blob_names:   
             zax = self.blobs[:,self.blob_redshifts.index(z),
-                self.blob_names.index(zaxis)]
-        elif zaxis in self.derived_blob_names:   
+                self.blob_names.index(c)]
+        elif c in self.derived_blob_names:   
             zax = self.derived_blobs[:,self.blob_redshifts.index(z),
-                self.derived_blob_names.index(zaxis)]
+                self.derived_blob_names.index(c)]
                 
         if zax.shape[0] != self.chain.shape[0]:
             if self.chain.shape[0] > zax.shape[0]:
@@ -1639,12 +1558,12 @@ class ModelSet(object):
         cb.set_alpha(1)
         cb.draw_all()
 
-        if zaxis in labels:
-            cblab = labels[zaxis]
-        elif '{' in zaxis:
-            cblab = labels[zaxis[0:zaxis.find('{')]]
+        if c in labels:
+            cblab = labels[c]
+        elif '{' in c:
+            cblab = labels[c[0:c.find('{')]]
         else:
-            cblab = zaxis 
+            cblab = c 
             
         cb.set_label(logify_str(cblab))    
             
