@@ -12,8 +12,6 @@ Description:
 
 import numpy as np
 from ..physics import Cosmology
-#from .Global21cm import Global21cm as a21
-#from ..simulations import Global21cm as s21
 from ..physics.Constants import nu_0_mhz
 
 def total_heat(data):
@@ -156,5 +154,4 @@ class DerivedQuantities:
                 self.derived_quantities[item] = self.data[item]
             except:
                 pass
-    
     

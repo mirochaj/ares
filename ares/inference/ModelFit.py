@@ -111,9 +111,9 @@ class logprior:
 
 class loglikelihood:
     def __init__(self, steps, parameters, is_log, mu, errors,
-        base_kwargs, nwalkers, priors={}, chain=None, logL=None,
+        base_kwargs, nwalkers, priors={}, 
         errmap=None, errunits=None, prefix=None, fit_turning_points=True,
-        burn=False, raw_data=None, blob_names=None, blob_redshifts=None):
+        burn=False, blob_names=None, blob_redshifts=None):
         """
         Computes log-likelihood at given step in MCMC chain.
 
@@ -163,29 +163,17 @@ class loglikelihood:
         self.logprior_P = logprior(priors_P, self.parameters)
         self.logprior_B = logprior(priors_B, b_pars)
 
+        self.mu = mu
         self.errors = errors
+
+        self.is_cov = False        
+        if len(self.errors.shape) > 1:
+            self.is_cov = True
+            self.Dcov = np.linalg.det(self.errors)
+            self.icov = np.linalg.inv(self.errors)
+            
         self.errmap = errmap
         self.errunits = errunits
-        self.chain = chain
-        self.logL = logL
-
-        self.raw_data = raw_data
-        self.fit_raw_data = raw_data is not None
-        
-        if self.fit_raw_data:
-            self.gsm = GSM()
-
-        if self.logL is not None:
-            self.logL_size = logL.size
-
-        if self.chain is not None:
-            self.mu = self.chain[np.argmax(self.logL)]
-            self.sigma = np.std(self.chain, axis=0)
-        else:
-            self.mu = mu
-
-        self.error_type = 'non-ideal' if self.chain is not None \
-            else 'idealized'
 
     @property
     def blank_blob(self):
@@ -294,71 +282,50 @@ class loglikelihood:
             blobs = sim.blobs
         else:
             blobs = self.blank_blob    
-            
+
         if not (self.fit_turning_points or self.fit_raw_data):
             del sim, kw
             gc.collect()
             return lp, blobs
-            
+
         # Compute the likelihood if we've made it this far
-        if self.fit_raw_data:
-            
-            coeff = np.array([fg_kwargs['fg_%i' % i] \
-                for i in range(len(fg_kwargs))])
-            Tfg = self.gsm.logpoly(sim.history['nu'], coeff)
-            T21 = sim.history['dTb']
-            Tsky = (T21 + Tfg * 1e3)
-            
-            logL = lp - np.sum((Tsky - self.raw_data)**2 \
-                / 2. / self.errors**2)
 
-        # Fit turning points   
-        else:
-                
-            xarr = []
+        # Fit turning points    
+        xarr = []
 
-            # Convert frequencies to redshift, temperatures to K
-            for element in self.errmap:
-                tp, i = element            
-                            
-                # Models without turning point B, C, or D get thrown out.
-                if tp not in tps:
-                    del sim, kw
-                    gc.collect()
+        # Convert frequencies to redshift, temperatures to K
+        for element in self.errmap:
+            tp, i = element            
 
-                    return -np.inf, self.blank_blob
-            
-                if i == 0 and self.errunits[0] == 'MHz':
-                    xarr.append(nu_0_mhz / (1. + tps[tp][i]))
-                else:
-                    xarr.append(tps[tp][i])
-                       
-            # Values of current model that correspond to mu vector
-            xarr = np.array(xarr)
-                        
-            if np.any(np.isnan(xarr)):
+            # Models without turning point B, C, or D get thrown out.
+            if tp not in tps:
+                del sim, kw
+                gc.collect()
+
                 return -np.inf, self.blank_blob
-
-            # Compute log-likelihood, including prior knowledge
-            if self.error_type == 'idealized':
-                logL = lp \
-                    - np.sum((xarr - self.mu)**2 / 2. / self.errors**2)
-                            
-            else:
-                
-                try:
-                    dist, loc = nearest(xarr, self.chain)
-                    
-                    if loc >= self.logL_size:
-                        logL = -np.inf
-                    else:
-                        logL = lp - self.logL[loc]
-                except ValueError:
-                    del sim, kw
-                    gc.collect()
-                    
-                    return -np.inf, self.blank_blob
         
+            if i == 0 and self.errunits[0] == 'MHz':
+                xarr.append(nu_0_mhz / (1. + tps[tp][i]))
+            else:
+                xarr.append(tps[tp][i])
+                   
+        # Values of current model that correspond to mu vector
+        xarr = np.array(xarr)
+                    
+        if np.any(np.isnan(xarr)):
+            return -np.inf, self.blank_blob
+        
+        # Compute log-likelihood, including prior knowledge
+        if self.is_cov:
+            a = (xarr - self.mu).T
+            b = np.dot(self.icov, xarr - self.mu)
+            
+            logL = lp - 0.5 * np.dot(a, b)
+
+        else:
+            logL = lp \
+                - np.sum((xarr - self.mu)**2 / 2. / self.errors**2)
+                        
         if blobs.shape != self.blank_blob.shape:
             raise ValueError('Shape mismatch between requested blobs and actual blobs!')    
             
@@ -496,18 +463,22 @@ class ModelFit(object):
         else:    
             self._mu = value        
             
-    def set_error(self, error1d=None, nu=0.68, chain=None, logL=None,
-        force_idealized=False, noise=None):
+    def set_error(self, error1d=None, cov=None, nu=0.68):
         """
         Set errors to be used in likelihood calculation.
 
         Parameters
         ----------
-        value : 2 options here
+        error1d : np.ndarray
+            Array of nu-sigma error bars on turnings points
+        cov : np.ndarray
+            Covariance matrix
+        nu : float
+            Confidence contour the errors correspond to.
 
         Sets
         ----
-        Attribute "errors"
+        Attribute "errors".
 
         """
 
@@ -519,35 +490,10 @@ class ModelFit(object):
                 err.append(get_nu(val, nu_in=nu, nu_out=0.68))
             
             self._error = np.array(err)
-            
-            # Convert units
-            #for tp, i in self.measurement_map:
-            #    
-            #    # Convert frequencies to redshifts
-            #    if i == 0 and self.measurement_units[i] == 'MHz':
-            #        self._error[i] = 
-            #    
-            #    self._mu.append(self._turning_points[tp][i])
-        elif noise is not None:
-            self._error = noise   
-            
-        else:            
-            self.chain, self.logL = chain, logL
-            
-            # Convert units
-            for j, (tp, i) in enumerate(self.measurement_map):
-                
-                # Convert frequencies to redshifts
-                if i == 0 and self.measurement_units[i] == 'MHz':
-                    self.chain[:,j] = (nu_0_mhz / self.chain[:,j]) - 1.
-                elif i == 1 and self.measurement_units[i] == 'K':
-                    self.chain[:,j] *= 1e3
-                    
-            if force_idealized:
-                self._mu = np.mean(self.chain, axis=0)
-                self._error = np.std(self.chain, axis=0)
-                del self.chain, self.logL     
-         
+        
+        elif cov is not None:    
+            self._error = cov
+        
     @property
     def priors(self):
         if not hasattr(self, '_priors'):
@@ -692,23 +638,10 @@ class ModelFit(object):
 
         print_fit(self, steps=steps, burn=burn, fit_TP=fit_turning_points)
 
-        if self.data is not None:
-            self.chain = None
-            self.logL = None
-
-            if type(self.error) in [float, np.float64]:
-                pass
-            else:
-                assert len(self.error) == len(self.data)
-
-        elif not hasattr(self, 'chain'):
-            self.chain = None
-            self.logL = None
-
+        if len(self.error.shape) == 1:
             assert len(self.error) == len(self.measurement_map)
-
         else:
-            assert self.chain.shape[1] == len(self.measurement_map)
+            assert len(np.diag(self.error)) == len(self.measurement_map)
 
         if size > 1:
             self.pool = MPIPool()
@@ -717,26 +650,12 @@ class ModelFit(object):
                 sys.exit(0)
         else:
             self.pool = None    
-            
-        # Burn-in using stdev from raw chains as error
-        if self.chain is not None:
-        
-            self.loglikelihood_BURN = loglikelihood(steps, self.parameters, self.is_log, 
-                np.mean(self.chain), np.std(self.chain), self.base_kwargs,
-                self.nwalkers, self.priors, None, None, 
-                self.measurement_map, self.measurement_units,
-                fit_turning_points=fit_turning_points, burn=True, 
-                raw_data=self.data, blob_names=self.blob_names,
-                blob_redshifts=self.blob_redshifts)
 
-            self.sampler_BURN = emcee.EnsembleSampler(self.nwalkers,
-                self.Nd, self.loglikelihood_BURN, pool=self.pool)
-                
         self.loglikelihood = loglikelihood(steps, self.parameters, self.is_log, 
             self.mu, self.error, self.base_kwargs,
-            self.nwalkers, self.priors, self.chain, self.logL, 
+            self.nwalkers, self.priors,
             self.measurement_map, self.measurement_units, prefix=self.prefix,
-            fit_turning_points=fit_turning_points, raw_data=self.data,
+            fit_turning_points=fit_turning_points,
             blob_names=self.blob_names,
             blob_redshifts=self.blob_redshifts)
             
@@ -745,11 +664,8 @@ class ModelFit(object):
                 
         if burn > 0:
             t1 = time.time()
-            if self.chain is not None:
-                pos, prob, state, blobs = self.sampler_BURN.run_mcmc(self.guesses, burn)
-            else:
-                pos, prob, state, blobs = self.sampler.run_mcmc(self.guesses, burn)
-                self.sampler.reset()
+            pos, prob, state, blobs = self.sampler.run_mcmc(self.guesses, burn)
+            self.sampler.reset()
             t2 = time.time()
 
             if rank == 0:

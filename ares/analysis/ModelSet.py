@@ -45,21 +45,7 @@ except ImportError:
 
 tanh_pars = TanhParameters()
 
-def_inset_pars = \
-{
- 'size':None,
- 'margin':(0,0), 
- 'align':(0,1),
-}
-
-#def_kwargs = \
-#{
-# 'labels': True,
-#}
-
 def_kwargs = {}
-
-suffixes = ['chain', 'pinfo', 'logL', 'blobs', 'binfo']
 
 def parse_blobs(name):
     nsplit = name.split('_')
@@ -145,6 +131,8 @@ class ModelSet(object):
                 self._is_mcmc = True
             except IOError:
                 self._is_mcmc = False
+            except ValueError:
+                self.logL = None
 
             self.Nd = int(self.chain.shape[-1])
             
@@ -282,8 +270,10 @@ class ModelSet(object):
                 
     @property
     def Npops(self):
-        if not hasattr(self, '_Npops'):
+        if not hasattr(self, '_Npops') and self.base_kwargs is not None:
             self._Npops = count_populations(**self.base_kwargs)
+        elif self.base_kwargs is None:
+            self._Npops = 1
     
         return self._Npops
     

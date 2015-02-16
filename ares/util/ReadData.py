@@ -167,12 +167,16 @@ def read_pickled_logL(fn):
         return data
         
     # (walkers, iterations)
-    elif Nd == 2:
+    elif Nd >= 2:
         new_data = []
         for element in data:
-            new_data.extend(element)
+            if Nd == 2:
+                new_data.extend(element)
+            else:
+                new_data.extend(element[0,:])
         return np.array(new_data)
-        
+    
+   
     else:
         raise ValueError('unrecognized logL shape')
     
