@@ -86,7 +86,10 @@ absorption trough in the global 21-cm signal: it's at :math:`\nu=80 \pm 2` MHz a
 :math:`\delta T_b = -100 \pm 20` mK, where the errors provided are assumed to 
 be :math:`1−\sigma` (independent) Gaussian errors.
 
-.. note :: For this example, it will be advantageous to have a more well-sampled parameter space. Consider re-running the :doc:`example_grid_I` with more points in each dimension before proceeding.
+.. note :: For this example, it will be advantageous to have a more 
+    well-sampled parameter space. Consider re-running the :doc:`example_grid_I` 
+    with more points in each dimension before proceeding. Or, just download 
+    one `here <https://bitbucket.org/mirochaj/ares/downloads/ares_example_grid.tar.gz>`_.
 
 To compute the likelihood for each model in our grid, we can define functions
 representing the Gaussian errors on the measurement, and pass them to the
@@ -94,8 +97,8 @@ representing the Gaussian errors on the measurement, and pass them to the
 
 ::
 
-    TC = lambda x: np.exp(-(x - -100.)**2 / 2. / 20.**2)
-    nuC = lambda x: np.exp(-(x - 80)**2 / 2. / 2.**2)
+    nuC = lambda x: np.exp(-(x - 80.)**2 / 2 / 2.**2) 
+    TC = lambda x: np.exp(-(x + 100.)**2 / 2. / 10.**2)
     anl.set_constraint(nu=['C', nuC], dTb=['C', TC])
     
 Each argument passed to ``set_constraint`` is a two-element list: the redshift
@@ -108,7 +111,8 @@ interest,
 
     ax = anl.PosteriorPDF(['fX', 'fstar'], take_log=True)
 
-.. note :: It may often be advantageous to supply ``take_log=True`` in order to view posterior PDFs of quantities in log-log space.
+.. note :: It may often be advantageous to supply ``take_log=True`` in order 
+    to view posterior PDFs of quantities in log-log space.
 
 To convert the color-scale from one proportional to the likelihood of a given
 model to one that denotes, e.g., the 1 and 2 :math:`\sigma` bounds on the 
@@ -127,7 +131,85 @@ can pick any contour(s) you like (no matter how unconventional it might be):
     ax = anl.PosteriorPDF(['fX', 'fstar'], take_log=True, color_by_like=True,
         colors=['g', 'b'], nu=[0.5, 0.8])
         
-.. note :: To view the confidence regions as open contours, set ``filled=False``. You can control the color and linestyle of each contour by the ``colors`` and ``linestyles`` keyword arguments.
+.. note :: To view the confidence regions as open contours, set 
+    ``filled=False``. You can control the color and linestyle of each contour 
+    by the ``colors`` and ``linestyles`` keyword arguments.
+
+Extracting Subsets of Models
+----------------------------
+Often you may want to focus on some subset of models within a grid. There
+are a few different ways of doing this in `ares`. The model grid from above 
+(in section on confidence contours) will make for a nice test dataset.
+
+To read in that dataset, 
+
+::
+
+    anl = ares.analysis.ModelSet('test_grid_30x80')
+
+Then, set the constraints as we did before:
+
+::
+
+    constraints = \
+    {
+     'nu': ['C', lambda x: np.exp(-(x - 80.)**2 / 2 / 2.**2)], 
+     'dTb': ['C', lambda x: np.exp(-(x + 100.)**2 / 2. / 10.**2)],
+    }
+
+    # Set constraints
+    anl.set_constraint(**constraints)
+
+        
+and visualize
+    
+::
+
+    ax = anl.PosteriorPDF(['fX', 'fstar'], take_log=[True, True], 
+        color_by_like=True)
+        
+Now, to select only the models within the :math:`2-\sigma` confidence contour 
+in the :math:`f_X-f_{\ast}` plane, for example, we can take a *slice* through the model 
+grid:
+
+::
+
+    new_anl = anl.Slice(['fX', 'fstar'], like=0.95, take_log=True, 
+        **constraints)
+
+The returned value is a new instance of `ModelSet`. To convince yourself that
+you've retrieved the correct data, overplot the ``new`` dataset as points 
+on the previous axes (with the posterior PDF):
+        
+::
+        
+    new_anl.Scatter('fX', 'fstar', take_log=[True, True], 
+        ax=ax, color='r', label=r'$\mathcal{L} > 0.95$')
+    
+You can also extract a subset of models that have some desired set of 
+properties, independent of likelihood. For example, to extract all models 
+with absorption troughs located at :math:`72 \leq \nu / \text{MHz} \leq 88` 
+and :math:`-120 \leq \delta T_b / \text{mK} \leq -80`, you would do:
+
+::
+    
+    new_constraints = \
+    {
+     'nu': ['C', lambda x: 1 if 72 <= x <= 88 else 0],
+     'dTb': ['C', lambda x: 1 if -120 <= x <= -80 else 0],
+    }
+    
+    # Take slice and return new ModelSet instance
+    new_anl = anl.Slice(['fX', 'fstar'], bins=100, 
+        take_log=True, **new_constraints)
+        
+    # Overplot new points on previous axis    
+    new_anl.Scatter('fX', 'fstar', take_log=[True, True], 
+        ax=ax, color='c', facecolors='none', label='crude slice')
+    
+    ax.legend(fontsize=14)
+    pl.draw()
+    
 
 Highly Dimensional Grids
 ------------------------
