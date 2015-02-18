@@ -24,7 +24,7 @@ except ImportError:
     have_h5py = False
 
 ARES = os.environ.get("ARES")
-prefix = 'input/secondary_electrons'
+prefix = os.path.join('input','secondary_electrons')
 
 # If anything is identically zero for methods 2 and 3,
 # our spline will get screwed up since log(0) = inf
@@ -42,11 +42,11 @@ class SecondaryElectrons:
         if not ARES:
             raise IOError('Must set $ARES environment variable!')    
         
-        if os.path.exists("%s/input/secondary_electron_data.hdf5" % ARES):
-            self.fn = "%s/%s/secondary_electron_data.hdf5" % (ARES, prefix)
+        if os.path.exists(os.path.join(ARES,prefix,'secondary_electron_data.hdf5')):
+            self.fn = os.path.join(ARES,prefix,'secondary_electron_data.hdf5')
         else:
-            self.fn = "%s/%s/secondary_electron_data.pkl" % (ARES, prefix)
-        
+            self.fn = os.path.join(ARES,prefix,'secondary_electron_data.pkl')
+
         if have_h5py:
             f = h5py.File(self.fn, 'r')
 

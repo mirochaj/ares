@@ -146,9 +146,9 @@ class Global21cm:
         x0 = self.pf['initial_ionization']
         if ARES and self.pf['load_ics']:
             if have_h5py:
-                inits_path = '%s/input/inits/initial_conditions.hdf5' % ARES
+                inits_path = os.path.join(ARES,'input','inits','initial_conditions.hdf5')
             else:
-                inits_path = '%s/input/inits/initial_conditions.npz' % ARES
+                inits_path = os.path.join(ARES,'input','inits','initial_conditions.npz')
                 
             if os.path.exists(inits_path):
                 inits = self.inits = load_inits(inits_path)
@@ -164,6 +164,8 @@ class Global21cm:
                     x0 = [min(xe, 1.0)]
 
                 self.inits_path = inits_path
+            else:
+                raise NotImplementedError('Something going on.')
         else:
             if self.pf['include_He']:
                 x0 = [self.pf['initial_ionization'][0]] * 2 
