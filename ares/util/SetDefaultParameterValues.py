@@ -409,6 +409,7 @@ def ControlParameters():
 
     # Initialization
     "load_ics": True,
+    "cosmological_ics": False,
     "load_sim": False,
     "first_light_redshift": 50.,
 
@@ -437,7 +438,7 @@ def ControlParameters():
     "EoR_approx_tau": False, # 0 = trapezoidal integration,
                              # 1 = mean ionized fraction, approx cross sections
                              # 2 = neutral approx, approx cross sections
-    
+
     # Discretizing integration
     "redshift_bins": None,
     "tau_table": None,

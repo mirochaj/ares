@@ -14,25 +14,21 @@ import numpy as np
 from ..static import Grid
 from ..solvers import RadiationField
 from ..sources import CompositeSource
-from ..util.PrintInfo import print_1d_sim
-from ..physics.Constants import s_per_myr
-from ..util import RestrictTimestep, CheckPoints, ProgressBar, ParameterFile
 
 class RaySegment:
     """
     Propagate radiation along a ray!
     """
-    def __init__(self, pf=None, ics=None, grid=None, 
-        init_grid=True, init_rs=True, init_tabs=True, **kwargs):
+    def __init__(self, **kwargs):
         """
         Write a real docstring here.
-        
+
         Parameters
         ----------
-        
+
         """
         
-        self.pf = pf = ParameterFile(pf=pf, **kwargs)
+        self.pf = ParameterFile(**kwargs)
                 
         # Initialize grid object
         if init_grid:

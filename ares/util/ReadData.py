@@ -26,6 +26,26 @@ except ImportError:
     rank = 0
     
 ARES = os.environ.get('ARES')
+
+def _sort_data(all_data):
+    """
+    Take list of dictionaries and re-sort into 2-D arrays.
+    """
+
+    data = {key:[] for key in all_data[0]}
+
+    # Loop over time snapshots
+    for element in all_data:
+        
+        # Loop over fields
+        for key in element:
+            data[key].append(element[key])
+        
+    # Cast everything to arrays
+    for key in data:
+        data[key] = np.array(data[key])    
+        
+    return data
     
 def _load_hdf5(fn):    
     inits = {}

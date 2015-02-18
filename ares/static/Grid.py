@@ -317,7 +317,6 @@ class Grid(object):
             self.set_physics()
         return self._clumping_factor
         
-        
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
@@ -330,8 +329,33 @@ class Grid(object):
             self._cosm = Cosmology()
         return self._cosm            
                 
-    def initialize(self, data):
-        self.set_chemistry()            
+    def set_properties(self, **kwargs):
+        """
+        Initialize grid properties all in one go.
+        """    
+        
+        self.set_physics(
+            isothermal=kwargs['isothermal'], 
+            compton_scattering=kwargs['compton_scattering'],
+            secondary_ionization=kwargs['secondary_ionization'], 
+            expansion=kwargs['expansion'],
+            recombination=kwargs['recombination'],
+            clumping_factor=kwargs['clumping_factor'],
+        )
+        
+        self.set_chemistry(kwargs['include_He'])
+        self.set_density(kwargs['density_units'])
+        self.set_ionization(kwargs['initial_ionization'])
+        self.set_temperature(kwargs['initial_temperature'])
+        self.set_cosmology(
+            initial_redshift=kwargs['initial_redshift'], 
+            omega_m_0=kwargs["omega_m_0"], 
+            omega_l_0=kwargs["omega_l_0"], 
+            omega_b_0=kwargs["omega_b_0"], 
+            hubble_0=kwargs["hubble_0"], 
+            helium_by_number=kwargs['helium_by_number'], 
+            cmb_temp_0=kwargs["cmb_temp_0"],
+            approx_highz=kwargs["approx_highz"])
                 
     def set_physics(self, isothermal=False, compton_scattering=False,
         secondary_ionization=0, expansion=False, recombination='B',
@@ -482,43 +506,36 @@ class Grid(object):
         else:
             self.data['Tk'] = T0 * np.ones(self.dims)
             
-    def set_ionization(self, Z=None, x=None, state=None, perturb=0):
+    def set_ionization(self, x=None):
         """
         Set initial ionization state.  
-        
-        If Z is None, assume constant ion fraction of 1 / (1 + Z) for all Z.
-        
+                
         Parameters
         ----------
-        Z : int, list
-        x : int, list
+        x : float, list
+            Initial ionization state for all species. Must be a 1:1 mapping
+            between values in this list and values in self.species.
           
         """       
         
         if x is not None:
-            self.data[util.zion2name(Z, 1)].fill(1. - x)
-            self.data[util.zion2name(Z, 2)].fill(x)
-            
-            if Z == 2:
-                self.data[util.zion2name(Z, 3)].fill(x)
-                        
-        elif state == 'neutral':
-            for Z in self.Z:
 
-                N = len(self.ions_by_parent[util.z2element(Z)]) - 1
-                            
-                for i in xrange(1 + Z):
-                    name = util.zion2name(Z, i + 1)
-                    
-                    if i == 0:
-                        self.data[name] = np.ones(self.dims) - N * tiny_number
-                    else:
-                        self.data[name] = tiny_number * np.ones(self.dims)
-        
+            assert(len(x) == len(self.species))
+               
+            for j, species in enumerate(self.species):
+                element, state = species.split('_')
+                Z = util.element2z(element)
+                i = int(state)
+                         
+                name = util.zion2name(Z, i)
+                self.data[name].fill(x[j])
+                  
+        # Otherwise assume neutral
         else:
-            for species in self.all_ions:
-                self.data[species].fill(1. \
-                    / (1. + util.convertName(species)['Z']))
+            for sp in self.ions:
+                self.data[sp].fill(1e-8)
+            for sp in self.neutrals:
+                self.data[sp].fill(1.0 - 1e-8)
         
         # Set electron density
         self._set_electron_fraction()

@@ -148,10 +148,16 @@ def tau_CMB(sim):
     if 'igm_he_1' in sim.history:
         QHeII = sim.history['cgm_h_2'][-1::-1]
         xHeII = sim.history['igm_he_2'][-1::-1]
-        xHeIII = sim.history['igm_he_3'][-1::-1]
-        nHe = sim.grid.cosm.nHe(zall)
-        integrand += (QHeII + (1. - QHeII) * xHeII + 2. * xHeIII) \
-            * nHe 
+        xHeIII = sim.history['igm_he_3'][-1::-1]        
+    else:
+        QHeII = sim.history['cgm_h_2'][-1::-1]
+        xHeII = 0.0
+        xHeIII = 0.0
+        
+    nHe = sim.grid.cosm.nHe(zall)    
+        
+    integrand += (QHeII + (1. - QHeII) * xHeII + 2. * xHeIII) \
+        * nHe
 
     integrand *= sigma_T * dldz
 

@@ -44,6 +44,13 @@ class Chemistry(object):
         self.chemnet = ChemicalNetwork(grid, rate_src=rate_src,
             recombination=recombination)
         
+        # Only need to compute rate coefficients once for isothermal gas
+        if self.grid.isothermal:
+            self.rcs = \
+                self.chemnet.SourceIndependentCoefficients(grid.data['Tk'])
+        else:
+            self.rcs = {}
+            
         self.solver = ode(self.chemnet.RateEquations, 
             jac=self.chemnet.Jacobian).set_integrator('vode',
             with_jacobian=True, method='bdf', nsteps=1e4, 
@@ -85,9 +92,12 @@ class Chemistry(object):
         newdata = {}
         for field in data:
             newdata[field] = data[field].copy()
+        
+        if not kwargs:
+            kwargs = self.rcs.copy()
                     
         kwargs_by_cell = self.sort_kwargs_by_cell(kwargs)
-                               
+        
         self.q_grid = np.zeros_like(self.zeros_gridxq)
         self.dqdt_grid = np.zeros_like(self.zeros_gridxq)
                               

@@ -205,7 +205,7 @@ class ChemicalNetwork:
                 for j, donor in enumerate(self.absorbers):
                     elem = self.grid.parents_by_ion[donor]
                 
-                    term1 = gamma[1,j] * x[donor] / x['he_1']
+                    term1 = g[1,j] * x[donor] / x['he_1']
                     gamma_HeI += term1
                     
                     term2 = g[2,j] * x[donor] / x['he_2']
@@ -385,10 +385,10 @@ class ChemicalNetwork:
                 for j, donor in enumerate(self.absorbers):
                     elem = self.grid.parents_by_ion[donor]
                 
-                    term1 = gamma['he_1'][j] * x[donor] / x['he_1']
+                    term1 = g[1,j] * x[donor] / x['he_1']
                     gamma_HeI += term1
                     
-                    term2 = gamma['he_2'][j] * x[donor] / x['he_2']
+                    term2 = g[2,j] * x[donor] / x['he_2']
                     gamma_HeII += term2
             
             # HeI by HeI
@@ -576,7 +576,7 @@ class ChemicalNetwork:
         Compute values of rate coefficients which depend only on 
         temperature and/or number densities of electrons/ions.
         """    
-        
+                
         self.T = T
         self.Beta = np.zeros_like(self.grid.zeros_grid_x_absorbers)
         self.alpha = np.zeros_like(self.grid.zeros_grid_x_absorbers)
