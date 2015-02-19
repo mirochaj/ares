@@ -143,13 +143,13 @@ class RadiationField: # maybe RadiationNearSource
                 self.kwargs.update({'Ja': Ja})
     
         # Compute source independent rate coefficients
-        if (not self.grid.isothermal) or (t == 0):
-            self.kwargs.update(self.chem.chemnet.SourceIndependentCoefficients(data['Tk']))
+        #if (not self.grid.isothermal) or (t == 0):
+        #    self.kwargs.update(self.chem.chemnet.SourceIndependentCoefficients(data['Tk']))
     
         # SOLVE
-        newdata = self.chem.Evolve(data, t, dt, **self.kwargs)
+        #newdata = self.chem.Evolve(data, t, dt, **self.kwargs)
             
-        return newdata
+        return self.kwargs
     
     def EvolvePhotonsAtFiniteSpeed(self, newdata, t, dt, h):
         """

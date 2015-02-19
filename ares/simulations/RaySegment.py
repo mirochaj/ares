@@ -11,9 +11,10 @@ Description:
 """
 
 import numpy as np
-from ..static import Grid
+from .GasParcel import GasParcel
 from ..solvers import RadiationField
 from ..sources import CompositeSource
+from ..util.ReadData import _sort_data
 
 class RaySegment:
     """
@@ -21,190 +22,76 @@ class RaySegment:
     """
     def __init__(self, **kwargs):
         """
-        Write a real docstring here.
+        Initialize a RaySegment object.
+        """
+                
+        self.parcel = GasParcel(**kwargs)
+        
+        self.grid = self.parcel.grid
+        self.pf = self.parcel.pf
+        
+        self._set_sources()
+        
+        # Initialize generator for gas parcel
+        self.gen = self.parcel.step()
+        
+    def _set_sources(self):            
+        """
+        Initialize radiation source and radiative transfer solver.
+        """
+    
+        if self.pf['radiative_transfer']:
+            self.rs = CompositeSource(self.grid, **self.pf)
+            allsrcs = self.rs.all_sources
+        else:
+            allsrcs = None
+    
+        self.rt = RadiationField(self.grid, allsrcs, **self.pf)        
 
-        Parameters
-        ----------
-
+    def evolve(self):
+        """
+        Run simulation from start to finish.
         """
         
-        self.pf = ParameterFile(**kwargs)
-                
-        # Initialize grid object
-        if init_grid:
-            if grid is not None:
-                if ics is None:
-                    raise ValueError('If grid is supplied, must also supply ics!')
-                grid.set_ics(ics)
-                print "WARNING: Need to check for conflicts between new and old grids."
-            else:    
-                grid = Grid(dims=pf['grid_cells'], 
-                    length_units=pf['length_units'], 
-                    start_radius=pf['start_radius'],
-                    approx_Salpha=pf['approx_Salpha'],
-                    logarithmic_grid=pf['logarithmic_grid'])
-                
-                grid.set_physics(isothermal=pf['isothermal'], 
-                    compton_scattering=pf['compton_scattering'],
-                    secondary_ionization=pf['secondary_ionization'], 
-                    expansion=pf['expansion'], 
-                    recombination=pf['recombination'])
-                
-                # Set initial conditions
-                if pf['expansion']:
-                    grid.set_cosmology(initial_redshift=pf['initial_redshift'],
-                        omega_m_0=pf['omega_m_0'], 
-                        omega_l_0=pf['omega_l_0'], 
-                        omega_b_0=pf['omega_b_0'],
-                        hubble_0=pf['hubble_0'],
-                        helium_by_number=pf['helium_by_number'], 
-                        cmb_temp_0=pf['cmb_temp_0'],
-                        approx_highz=pf['approx_highz'])    
-                    grid.set_chemistry(pf['include_He'])
-                    grid.set_density(grid.cosm.nH(pf['initial_redshift']))
-                    grid.set_temperature(grid.cosm.Tgas(pf['initial_redshift']))
-                    
-                    for i, Z in enumerate(grid.Z):
-                        grid.set_ionization(Z=Z, x=pf['initial_ionization'][i])
-                    
-                    grid.data['n'] = grid.particle_density(grid.data, 
-                        z=pf['initial_redshift'])
-                        
-                else:
-                    grid.set_chemistry(pf['include_He'])
-                    grid.set_density(pf['density_units'])
-                    
-                    for i, Z in enumerate(grid.Z):
-                        grid.set_ionization(Z=Z, x=pf['initial_ionization'][i])
-                    
-                    grid.set_temperature(pf['initial_temperature'])
-                    grid.data['n'] = grid.particle_density(grid.data)
-                    
-                    if pf['clump']:
-                        grid.make_clump(position=pf['clump_position'], 
-                            radius=pf['clump_radius'], 
-                            temperature=pf['clump_temperature'], 
-                            overdensity=pf['clump_overdensity'],
-                            ionization=pf['clump_ionization'], 
-                            profile=pf['clump_profile'])
-            
-            self.grid = grid
-                    
-            ##
-            # PRINT STUFF
-            ##        
-            print_1d_sim(self)
-                    
-            # To compute timestep
-            self.timestep = RestrictTimestep(grid, pf['epsilon_dt'], 
-                self.pf['verbose'])
-            
-            # For storing data
-            self.checkpoints = CheckPoints(pf=pf, grid=grid,
-                dtDataDump=pf['dtDataDump'], 
-                dzDataDump=pf['dzDataDump'], 
-                time_units=pf['time_units'],
-                stop_time=pf['stop_time'], 
-                final_redshift=pf['final_redshift'],
-                initial_redshift=pf['initial_redshift'],
-                initial_timestep=pf['initial_timestep'],
-                logdtDataDump=pf['logdtDataDump'], 
-                source_lifetime=pf['source_lifetime'])
-            
-        # Initialize radiation source and radiative transfer solver    
-        if init_rs:     
-            if self.pf['radiative_transfer']:
-                self.rs = CompositeSource(grid, init_tabs=init_tabs, **pf)
-                allsrcs = self.rs.all_sources    
-            else:
-                allsrcs = None
-            
-            self.rt = RadiationField(self.grid, allsrcs, **self.pf)
-
-    def run(self):
-        self.__call__() 
-     
-    def __call__(self):
-        """ Evolve chemistry and radiative transfer. """
-        
-        data = self.grid.data.copy()
-        t = 0.0
-        dt = self.pf['time_units'] * self.pf['initial_timestep']
-        tf = self.pf['stop_time'] * self.pf['time_units']
-        z = self.pf['initial_redshift']
-        dz = self.pf['dzDataDump']
-        zf = self.pf['final_redshift']
-        
-        # Modify tf if expansion is ON, i.e., use final_redshift to 
-        # decide when simulation ends.
-        if self.pf['expansion'] and self.pf['final_redshift'] is not None:
-            print "WARNING: cosm.LookbackTime uses high-z approximation."
-            tf = self.grid.cosm.LookbackTime(zf, z)
-                
-        max_timestep = self.pf['time_units'] * self.pf['max_timestep']
-        
-        if self.pf['radiative_transfer']:
-            print '\nEvolving radiative transfer...'
-        else:
-            print '\nEvolving ion densities...'
-                    
-        dt_history = []
-        pb = ProgressBar(tf)
+        pb = ProgressBar(self.pf['stop_time'] * self.pf['time_units'], 
+            use=self.pf['progress_bar'])
         pb.start()
-        while t < tf:
-                                         
-            # Evolve by dt
-            data = self.rt.Evolve(data, t=t, dt=dt, z=z)
-            t += dt 
+        
+        # Rate coefficients for initial conditions
+        self.parcel.set_rate_coefficients(self.grid.data)
+        self.parcel.set_radiation_field()
+
+        all_t = []
+        all_data = []
+        for t, dt, data in self.gen:
             
-            if self.grid.expansion:
-                n_H = self.grid.cosm.nH(z)
-                z -= dt / self.grid.cosm.dtdz(z)
-            else:
-                n_H = self.grid.n_H
-                
-            tau_tot = None
-            if hasattr(self.rt, 'rfield'):
-                tau_tot = self.rt.tau_tot
-                            
-            # Figure out next dt based on max allowed change in evolving fields
-            new_dt = self.timestep.Limit(self.rt.chem.q_grid, 
-                self.rt.chem.dqdt_grid, z=z, tau=tau_tot, 
-                tau_ifront=self.pf['tau_ifront'],
-                method=self.pf['restricted_timestep'])
-
-            # Limit timestep further based on next DD and max allowed increase
-            dt = min(new_dt, 2 * dt)
-            dt = min(dt, self.checkpoints.next_dt(t, dt))
-            dt = min(dt, max_timestep)
-
-            # Limit timestep based on next RD
-            if self.checkpoints.redshift_dumps:
-                dz = self.checkpoints.next_dz(z, dz)
-
-                if dz is not None:
-                    dt = min(dt, dz*self.grid.cosm.dtdz(z))
-
-            # Compute spin-temperature            
-            if 'Ja' not in data:
-                data['Ts'] = data['Tk']
-            else:    
-                data['Ts'] = self.grid.hydr.SpinTemperature(z, 
-                    data['Tk'], data['Ja'], 
-                    data['h_2'], data['e'] * n_H)
-
-            self.checkpoints.update(data, t, z)
-
-            # Save timestep history
-            dt_history.append((t, dt))
+            # Re-compute rate coefficients
+            self.parcel.set_rate_coefficients(data)
             
-            if self.pf['save_rate_coefficients']:
-                self.checkpoints.store_kwargs(t, z, self.rt.kwargs)    
-                
-            pb.update(t)
+            # Compute ionization / heating rate coefficient
+            kw = self.rt.Evolve(data, t, dt)
                         
-            if z <= self.pf['final_redshift']:
-                break
-                
-        pb.finish()
-            
+            # Update rate coefficients accordingly
+            self.parcel.rate_coefficients.update(kw)
+
+            pb.update(t)
+
+            # Save data
+            all_t.append(t)
+            all_data.append(data.copy())            
+
+        to_return = _sort_data(all_data)
+        to_return['t'] = np.array(all_t)
+        
+        self.history = to_return
+
+        return to_return
+
+    def step(self, t, dt, data):
+        """
+        Evolve properties of gas parcel in time.
+        """
+        
+        return self.gen.next()
+
+

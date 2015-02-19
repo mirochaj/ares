@@ -54,8 +54,44 @@ class TwoZoneIGM:
         
         # Initialize radiation backgrounds?
         
-    def evolve(self, t, dt):
-        pass
+    def evolve(self):
+        """
+        Run simulation from start to finish.
+        """
+        
+        pb = ProgressBar(self.pf['stop_time'] * self.pf['time_units'], 
+            use=self.pf['progress_bar'])
+        pb.start()
+        
+        # Rate coefficients for initial conditions
+        self.parcel.set_rate_coefficients(self.grid.data)
+        self.parcel.set_radiation_field()
+
+        all_t = []
+        all_data = []
+        for t, dt, data in self.gen:
+            
+            # Re-compute rate coefficients
+            self.parcel.set_rate_coefficients(data)
+            
+            # Compute ionization / heating rate coefficient
+            kw = self.rt.Evolve(data, t, dt)
+                        
+            # Update rate coefficients accordingly
+            self.parcel.rate_coefficients.update(kw)
+
+            pb.update(t)
+
+            # Save data
+            all_t.append(t)
+            all_data.append(data.copy())            
+
+        to_return = _sort_data(all_data)
+        to_return['t'] = np.array(all_t)
+        
+        self.history = to_return
+
+        return to_return
         
     def step(self, t, dt):
         pass    

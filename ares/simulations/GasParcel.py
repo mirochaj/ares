@@ -56,6 +56,13 @@ class GasParcel:
     def _set_chemistry(self):
         self.chem = Chemistry(self.grid, rt=self.pf['radiative_transfer'])
         
+    @property
+    def rate_coefficients(self):
+        if not hasattr(self, '_rate_coefficients'):
+            self._rate_coefficients = self.chem.rcs.copy()
+            
+        return self._rate_coefficients
+        
     def set_rate_coefficients(self, data):
         """
         Compute rate coefficients for next time-step based on current data.
@@ -77,16 +84,11 @@ class GasParcel:
 
         # First, get coefficients that only depend on kinetic temperature
         if self.grid.isothermal:
-            rcs.update(self.chem.rcs)
+            self.rate_coefficients.update(self.chem.rcs)
         else:
             C = self.chem.chemnet.SourceIndependentCoefficients(data['Tk'])
-            rcs.update(C)
+            self.rate_coefficients.update(C)
 
-        self.rate_coefficients = rcs
-        
-        # Update - add radiative quantities
-        self.set_radiation_field()
-        
     def set_radiation_field(self):
         """
         Compute rate coefficients for next time-step based on current data.
@@ -120,7 +122,9 @@ class GasParcel:
         
         # Rate coefficients for initial conditions
         self.set_rate_coefficients(self.grid.data)
+        self.set_radiation_field()
 
+        all_t = []
         all_data = []
         for t, dt, data in self.step():
 
@@ -130,11 +134,17 @@ class GasParcel:
             pb.update(t)
 
             # Save data
+            all_t.append(t)
             all_data.append(data.copy())
 
         pb.finish()
+        
+        to_return = _sort_data(all_data)
+        to_return['t'] = np.array(all_t)
+        
+        self.history = to_return
 
-        return _sort_data(all_data)        
+        return to_return     
 
     def step(self, t=0., dt=None, tf=None, data=None):
         """
@@ -165,12 +175,14 @@ class GasParcel:
             tf = self.pf['stop_time'] * self.pf['time_units']
             
         max_timestep = self.pf['time_units'] * self.pf['max_timestep']
+            
+        self.data = data    
                 
         # Evolve in time!
         while t < tf:
                         
             # Evolve by dt
-            data = self.chem.Evolve(data, t=t, dt=dt, 
+            self.data = self.chem.Evolve(self.data, t=t, dt=dt, 
                 **self.rate_coefficients)
             
             t += dt 
@@ -184,7 +196,7 @@ class GasParcel:
             dt = min(dt, self.checkpoints.next_dt(t, dt))
             dt = min(dt, max_timestep)
             
-            yield t, dt, data
+            yield t, dt, self.data
 
             if t >= tf:
                 break
