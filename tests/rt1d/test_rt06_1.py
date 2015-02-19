@@ -6,7 +6,8 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Wed Dec 26 18:37:48 2012
 
-Description: 
+Description: This is Test problem #1 from the Radiative Transfer
+Comparison Project (Iliev et al. 2006; RT06).
 
 """
 
@@ -16,6 +17,7 @@ sim = ares.simulations.RaySegment(problem_type=1)
 sim.run()
 
 anl = ares.analysis.RaySegment(sim)
+
 ax1 = anl.PlotIonizationFrontEvolution()
 
 ax2 = anl.RadialProfile('h_1', t=[10, 100, 500], fig=2)

@@ -1,4 +1,3 @@
 from .Chemistry import Chemistry
-from .IntergalacticMedium import IGM
-from .RadiationField import RadiationField
+from .RadialField import RadialField
 from .UniformBackground import UniformBackground

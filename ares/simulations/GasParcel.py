@@ -64,7 +64,7 @@ class GasParcel:
             
         return self._rate_coefficients
         
-    def set_rate_coefficients(self, data):
+    def update_rate_coefficients(self, data, **kwargs):
         """
         Compute rate coefficients for next time-step based on current data.
         
@@ -89,6 +89,8 @@ class GasParcel:
         else:
             C = self.chem.chemnet.SourceIndependentCoefficients(data['Tk'])
             self.rate_coefficients.update(C)
+            
+        self.rate_coefficients.update(kwargs)
 
     def set_radiation_field(self):
         """
@@ -127,7 +129,7 @@ class GasParcel:
         pb.start()
         
         # Rate coefficients for initial conditions
-        self.set_rate_coefficients(self.grid.data)
+        self.update_rate_coefficients(self.grid.data)
         self.set_radiation_field()
 
         all_t = []
@@ -135,7 +137,7 @@ class GasParcel:
         for t, dt, data in self.step():
 
             # Re-compute rate coefficients
-            self.set_rate_coefficients(data)
+            self.update_rate_coefficients(data)
 
             pb.update(t)
 
@@ -160,25 +162,25 @@ class GasParcel:
             Step-size
         tf : float
             Final time, i.e., time to stop the calculation.
-            
+
         Returns
         -------
         Generator for the evolution of this gas parcel. Each iteration yields
         the current time, current time-step, and a dictionary containing all
         grid quantities at this snapshot.
-        
+
         """    
-        
+
         if data is None:
             data = self.grid.data.copy()
         if t == 0:
             dt = self.pf['time_units'] * self.pf['initial_timestep']            
         if tf is None:    
             tf = self.pf['stop_time'] * self.pf['time_units']
-            
+
         max_timestep = self.pf['time_units'] * self.pf['max_timestep']
-            
-        self.data = data    
+
+        self.data = data
                 
         # Evolve in time!
         while t < tf:

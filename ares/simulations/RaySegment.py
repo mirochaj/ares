@@ -13,7 +13,7 @@ Description:
 import numpy as np
 from ..util import ProgressBar
 from .GasParcel import GasParcel
-from ..solvers import RadiationField
+from ..solvers import RadialField
 from ..sources import CompositeSource
 from ..util.ReadData import _sort_data
 
@@ -32,6 +32,7 @@ class RaySegment:
         self.grid = self.parcel.grid
         
         self._set_sources()
+        self._set_radiation_field()
         
         # Initialize generator for gas parcel
         self.gen = self.parcel.step()
@@ -41,13 +42,13 @@ class RaySegment:
         Initialize radiation source and radiative transfer solver.
         """
     
-        if self.pf['radiative_transfer']:
-            self.rs = CompositeSource(self.grid, **self.pf)
-            allsrcs = self.rs.all_sources
-        else:
-            allsrcs = None
+        if not self.pf['radiative_transfer']:
+            return
+            
+        self.sources = CompositeSource(self.grid, **self.pf).all_sources
     
-        self.rt = RadiationField(self.grid, allsrcs, **self.pf)        
+    def _set_radiation_field(self):
+        self.field = RadialField(self.grid, self.sources, **self.pf)        
 
     def run(self):
         """
@@ -58,28 +59,25 @@ class RaySegment:
         Nothing: sets `history` attribute.
         
         """
-        
+
         tf = self.pf['stop_time'] * self.pf['time_units']
-        
+
         pb = ProgressBar(tf, use=self.pf['progress_bar'])
         pb.start()
         
         # Rate coefficients for initial conditions
-        self.parcel.set_rate_coefficients(self.grid.data)
+        self.parcel.update_rate_coefficients(self.grid.data)
         self.parcel.set_radiation_field()
 
         all_t = []
         all_data = []
         for t, dt, data in self.gen:
+
+            # Compute ionization / heating rate coefficient
+            RCs = self.field.update_rate_coefficients(data, t)
             
             # Re-compute rate coefficients
-            self.parcel.set_rate_coefficients(data)
-            
-            # Compute ionization / heating rate coefficient
-            kw = self.rt.Evolve(data, t, dt)
-                        
-            # Update rate coefficients accordingly
-            self.parcel.rate_coefficients.update(kw)
+            self.parcel.update_rate_coefficients(data, **RCs)
             
             # Save data
             all_t.append(t)

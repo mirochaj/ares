@@ -15,7 +15,7 @@ from .GasParcel import GasParcel
 from ..util.ReadData import _sort_data
 from ..util import ParameterFile, ProgressBar
 from ..populations import CompositePopulation
-#from .MetaGalacticBackground import MetaGalacticBackground
+from .MetaGalacticBackground import MetaGalacticBackground
 
 igm_pars = \
 {

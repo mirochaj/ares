@@ -12,6 +12,7 @@ Description:
 
 import numpy as np
 from ..util import ParameterFile
+from ..static import GlobalVolume
 from ..solvers import UniformBackground
 from ..populations import CompositePopulation
 
@@ -35,24 +36,23 @@ class MetaGalacticBackground:
         self.pf.update(igm_pars)
                 
         self._set_sources()
+        self._set_radiation_field()
         
     def _set_sources(self):            
         """
         Initialize radiation sources and radiative transfer solver.
         """
     
-        self.pops = CompositePopulation(**self.pf)
+        self.sources = CompositePopulation(**self.pf)
     
         # Determine if backgrounds are approximate or not
         self.approx_all_xrb = 1
         self.approx_all_lwb = 1
-        for pop in self.pops.pops:
+        for pop in self.sources.pops:
             self.approx_all_xrb *= pop.pf['approx_xrb']
             self.approx_all_lwb *= pop.pf['approx_lwb']
-    
-        self._set_backgrounds()
-    
-    def _set_backgrounds(self):
+        
+    def _set_radiation_field(self):
         """
         Loop over populations, make separate RB and RS instances for each.
         """
@@ -60,19 +60,16 @@ class MetaGalacticBackground:
         if self.approx_all_xrb * self.approx_all_lwb:
             return
         
-        self.Nrbs = self.pops.Npops
-        self.rbs = [UniformBackground(pop) for pop in self.pops.pops]
+        self.Nrbs = self.sources.Npops
+        self.field = [UniformBackground(pop) for pop in self.sources.pops]
         
         self.all_discrete_lwb = 1
         self.all_discrete_xrb = 1
-        for rb in self.rbs:
-            self.all_discrete_lwb *= rb.pf['is_lya_src']
-            self.all_discrete_xrb *= rb.pf['is_heat_src_igm']
-    
-    def update_optical_depth(self):
-        pass
-
-    def evolve(self, t, dt):
+        for field in self.field:
+            self.all_discrete_lwb *= field.pf['is_lya_src']
+            self.all_discrete_xrb *= field.pf['is_heat_src_igm']
+        
+    def run(self, t, dt):
         """
         Evolve radiation background in time.
         

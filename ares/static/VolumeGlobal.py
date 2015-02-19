@@ -66,7 +66,7 @@ species_i_to_str = {0:'h_1', 1:'he_1', 2:'he_2'}
 
 tiny_dlogx = 1e-8
 
-class IGM(object):
+class GlobalVolume(object):
     def __init__(self, rb=None, use_tab=True, **kwargs):
         """
         Initialize an inter-galactic medium (IGM) object.

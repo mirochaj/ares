@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Wed Sep 24 15:15:36 MDT 2014
 
-Description: This will be like glorb.evolve.RadiationBackground.
+Description: 
 
 """
 
@@ -16,10 +16,11 @@ import os, re, types, gc
 from ..util.Misc import logbx
 from ..util import ParameterFile
 from ..physics.Constants import *
-from .IntergalacticMedium import IGM
+from ..static import GlobalVolume
 from ..util.PrintInfo import print_rb
 from ..util.Misc import num_freq_bins
 from scipy.interpolate import interp1d
+
 from ..physics import Hydrogen, Cosmology
 from ..populations import StellarPopulation
 from scipy.integrate import quad, romberg, romb, trapz, simps
@@ -98,7 +99,7 @@ class UniformBackground:
             approx_Salpha=self.pf['approx_Salpha'], nmax=self.pf['lya_nmax'])
         
         # IGM instance
-        self.igm = IGM(rb=self, use_tab=use_tab, **kwargs)
+        self.igm = GlobalVolume(rb=self, use_tab=use_tab, **kwargs)
         
         self._set_integrator()
         
