@@ -56,7 +56,7 @@ while t < 1e15:
         gp.rate_coefficients.update({'Gamma': G})
 
         all_data.append(data)
-        
+
 data1, data2 = all_data
         
 pl.loglog(data1['Tk'], data1['h_1'], color='k')

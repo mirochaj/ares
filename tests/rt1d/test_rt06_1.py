@@ -11,15 +11,12 @@ Description:
 """
 
 import ares
-import matplotlib.pyplot as pl
 
 sim = ares.simulations.RaySegment(problem_type=1)
 sim.run()
 
-fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
+anl = ares.analysis.RaySegment(sim)
+ax1 = anl.PlotIonizationFrontEvolution()
 
-anl = ares.analysis.RaySegment(sim.checkpoints)
-anl.PlotIonizationFrontEvolution()
-
-anl.IonizationProfile(t=[10, 100, 500], annotate=True, ax=ax2)
-
+ax2 = anl.RadialProfile('h_1', t=[10, 100, 500], fig=2)
+ax2 = anl.RadialProfile('h_2', t=[10, 100, 500], ax=ax2, ls='--')

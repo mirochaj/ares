@@ -36,7 +36,12 @@ class Global21cm:
             
         # If a physical model, proceed with initialization
         self.igm = TwoZoneIGM(**self.pf)
-
+        
+        # Inline tracking of turning points
+        if self.pf['track_extrema']:
+            from ..analysis.TurningPoints import TurningPoints
+            self.track = TurningPoints(inline=True, **self.pf)    
+        
     def _check_if_tanh(self, kwargs):
         if not kwargs:
             return False
@@ -73,5 +78,16 @@ class Global21cm:
             approx_highz=self.pf["approx_highz"])
     
         return True
+        
+    def run(self):
+        pass
+        
+        # do stuff here
+        
+        #if self.pf['track_extrema']:
+        #    stop = self.track.is_stopping_point(self.history['z'],
+        #        self.history['dTb'])
+        #    if stop:
+        #        break
     
         

@@ -363,7 +363,10 @@ class UniformBackground:
             for n in range(Nn):
                 fluxes[n][j] = flux[n]
     
-        return self.igm.lwb_zl, self.igm.lwb_En, fluxes    
+        return self.igm.lwb_zl, self.igm.lwb_E, fluxes
+    
+    def _flatten_flux(self):
+        pass
     
     def LymanWernerFlux(self, z, E, **kwargs):
         """

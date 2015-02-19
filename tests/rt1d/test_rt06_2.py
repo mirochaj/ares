@@ -11,18 +11,15 @@ Comparison Project (Iliev et al. 2006; RT06).
 
 """
 
-import rt1d
-import matplotlib.pyplot as pl
+import ares
 
-sim = rt1d.run.Simulation(problem_type=2)
+sim = ares.simulations.RaySegment(problem_type=2)
 sim.run()
 
-anl = rt1d.analyze.Simulation(sim.checkpoints)
+anl = ares.analysis.RaySegment(sim)
 
-fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
-fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
+ax2 = anl.RadialProfile('Tk', t=[10, 30, 100])
 
-anl.TemperatureProfile(t=[10, 30, 100], ax=ax1)
-anl.IonizationProfile(t=[10, 30, 100], ax=ax2)
-
+ax2 = anl.RadialProfile('h_1', t=[10, 30, 100], fig=2)
+ax2 = anl.RadialProfile('h_2', t=[10, 30, 100], ax=ax2, ls='--')
 

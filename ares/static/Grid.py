@@ -68,7 +68,7 @@ tiny_number = 1e-8  # A relatively small species fraction
 
 class Grid(object):
     def __init__(self, dims=64, length_units=cm_per_kpc, start_radius=0.01,
-        approx_Salpha=1, logarithmic_grid=False):
+        approx_Salpha=1, logarithmic_grid=False, cosmological_ics=False):
         """
         Initialize grid object.
         
@@ -104,6 +104,9 @@ class Grid(object):
         self.r_mid = rebin(self.r_edg)
         
         self.zi = 0
+        
+        # Override, to set ICs by cosmology
+        self.cosmological_ics = cosmological_ics
                 
     @property
     def zeros_absorbers(self):
@@ -343,10 +346,6 @@ class Grid(object):
             clumping_factor=kwargs['clumping_factor'],
         )
         
-        self.set_chemistry(kwargs['include_He'])
-        self.set_density(kwargs['density_units'])
-        self.set_ionization(kwargs['initial_ionization'])
-        self.set_temperature(kwargs['initial_temperature'])
         self.set_cosmology(
             initial_redshift=kwargs['initial_redshift'], 
             omega_m_0=kwargs["omega_m_0"], 
@@ -356,6 +355,11 @@ class Grid(object):
             helium_by_number=kwargs['helium_by_number'], 
             cmb_temp_0=kwargs["cmb_temp_0"],
             approx_highz=kwargs["approx_highz"])
+        
+        self.set_chemistry(kwargs['include_He'])
+        self.set_density(kwargs['density_units'])
+        self.set_ionization(kwargs['initial_ionization'])
+        self.set_temperature(kwargs['initial_temperature'])
                 
     def set_physics(self, isothermal=False, compton_scattering=False,
         secondary_ionization=0, expansion=False, recombination='B',
@@ -475,8 +479,10 @@ class Grid(object):
             or an array of values the same size as the grid itself.
             
         """
-          
-        if isinstance(nH, Iterable):    
+        
+        if self.cosmological_ics:
+            self.n_H = self.cosm.nH(self.zi) 
+        elif isinstance(nH, Iterable):    
             self.n_H = nH
         else:
             self.n_H = nH * np.ones(self.dims)    
@@ -501,7 +507,13 @@ class Grid(object):
             to uniform medium), or an array of values like the grid.
         """
         
-        if isinstance(T0, Iterable):
+        if self.cosmological_ics:
+            Tgas = self.cosm.Tgas(self.zi)
+            if isinstance(T0, Iterable):
+                self.data['Tk'] = Tgas 
+            else:
+                self.data['Tk'] = Tgas * np.ones(self.dims)
+        elif isinstance(T0, Iterable):
             self.data['Tk'] = T0
         else:
             self.data['Tk'] = T0 * np.ones(self.dims)
@@ -516,7 +528,7 @@ class Grid(object):
             Initial ionization state for all species. Must be a 1:1 mapping
             between values in this list and values in self.species.
           
-        """       
+        """    
         
         if x is not None:
 

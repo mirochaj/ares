@@ -10,3 +10,19 @@ Description:
 
 """
 
+import numpy as np
+from ..util.ReadData import _sort_data
+from ..util import ProgressBar, ParameterFile
+
+class Collapse:
+    def __init__(self, **kwargs):
+        self.pf = ParameterFile(**kwargs)
+        
+    def run(self):
+        pass    
+        
+    def step(self):
+        pass    
+        
+    def update_density(self):
+        pass    

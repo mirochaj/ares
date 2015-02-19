@@ -12,16 +12,17 @@ Description:
 
 import numpy as np
 from .GasParcel import GasParcel
-from ..util import ParameterFile
-from .MetaGalacticBackground import MetaGalacticBackground
+from ..util.ReadData import _sort_data
+from ..util import ParameterFile, ProgressBar
+from ..populations import CompositePopulation
+#from .MetaGalacticBackground import MetaGalacticBackground
 
 igm_pars = \
 {
  'grid_cells': 1,
  'isothermal': False,
- 'initial_ionization': [1. - 1.2e-3, 1.2e-3],
- 'initial_temperature': 1e2,
  'expansion': True,
+ 'initial_ionization': [1.-1.2e-3, 1.2e-3],
  'cosmological_ics': True,
 }
 
@@ -29,76 +30,117 @@ cgm_pars = \
 {
  'grid_cells': 1,
  'isothermal': True,
- 'initial_ionization': [1e-8, 1. - 1e-8],
- 'intial_temperature': 1e4,
+ 'initial_ionization': [1. - 1e-8, 1e-8, ],
+ 'initial_temperature': 1e4,
  'expansion': True,
- 'cosmological_ics': False,
+ 'cosmological_ics': True,
 }
 
 class TwoZoneIGM:
     def __init__(self, **kwargs):
+        self.pf = ParameterFile(**kwargs)
         
         # Initialize two GasParcels
-        kw_igm = kwargs.copy()
-        kw_igm.update(igm_pars)
+        self.kw_igm = self.pf.copy()
+        self.kw_igm.update(igm_pars)
         
-        kw_cgm = kwargs.copy()
-        kw_cgm.update(cgm_pars)        
+        self.kw_cgm = self.pf.copy()
+        self.kw_cgm.update(cgm_pars)        
         
-        self.grid_igm = GasParcel(**kw_igm)
-        self.grid_cgm = GasParcel(**kw_cgm)
-    
+        self.parcel_igm = GasParcel(**self.kw_igm)
+        self.parcel_cgm = GasParcel(**self.kw_cgm)
+        
+        # Fix CGM parcel to have negligible volume filling factor
+        self.parcel_cgm.grid.data['Tk'] = 1e4
+
         # Initialize generators
-        self.gen_igm = self.grid_igm.step()
-        self.gen_cgm = self.grid_cgm.step()
+        self.gen_igm = self.parcel_igm.step()
+        self.gen_cgm = self.parcel_cgm.step()
         
         # Initialize radiation backgrounds?
-        
-    def evolve(self):
+        self.mgb = MetaGalacticBackground(**self.pf)
+            
+    def run(self):
         """
         Run simulation from start to finish.
+        
+        Returns
+        -------
+        Nothing: sets `history` attribute.
+        
         """
         
-        pb = ProgressBar(self.pf['stop_time'] * self.pf['time_units'], 
-            use=self.pf['progress_bar'])
+        t = 0.0
+        dt = self.pf['initial_timestep'] * self.pf['time_units']
+        
+        z = self.pf['initial_redshift']
+        zf = self.pf['final_redshift']
+        zfl = self.pf['first_light_redshift']
+        tf = self.parcel_igm.grid.cosm.LookbackTime(zf, z)
+        
+        dz = dt / self.parcel_igm.grid.cosm.dtdz(z)
+        
+        pb = ProgressBar(tf, use=self.pf['progress_bar'])
         pb.start()
         
         # Rate coefficients for initial conditions
-        self.parcel.set_rate_coefficients(self.grid.data)
-        self.parcel.set_radiation_field()
+        self.parcel_igm.set_rate_coefficients(self.parcel_igm.grid.data)
+        #self.parcel._set_backgrounds()
 
         all_t = []
+        all_z = []
         all_data = []
-        for t, dt, data in self.gen:
+        for t, dt, data_igm in self.gen_igm:
+            
+            dtdz = self.parcel_igm.grid.cosm.dtdz(z)
+            z -= dt / dtdz
             
             # Re-compute rate coefficients
-            self.parcel.set_rate_coefficients(data)
-            
-            # Compute ionization / heating rate coefficient
-            kw = self.rt.Evolve(data, t, dt)
+            self.parcel_igm.set_rate_coefficients(data_igm)
                         
-            # Update rate coefficients accordingly
-            self.parcel.rate_coefficients.update(kw)
+            self.update_backgrounds()            
+                        
+            # Now, update CGM parcel
+            t2, dt2, data_cgm = self.gen_cgm.next() 
+            
+            if t >= tf:
+                break
 
             pb.update(t)
 
             # Save data
+            all_z.append(z)
             all_t.append(t)
-            all_data.append(data.copy())            
+            all_data.append(data.copy())  
+            
+        pb.finish()          
 
-        to_return = _sort_data(all_data)
-        to_return['t'] = np.array(all_t)
-        
-        self.history = to_return
-
-        return to_return
+        self.history = _sort_data(all_data)
+        self.history['t'] = np.array(all_t)
+        self.history['z'] = np.array(all_z)    
         
     def step(self, t, dt):
         pass    
     
-    def tau(self):
-        pass
+    def update_backgrounds(self):
+        """
+        Compute ionization and heating rates.
+        """
         
+        return
         
+        # If doing fancy backgrounds, compute them now
+        if self.mgb.approx_all_xrb:
+            pass
+        else:
+            raise NotImplemented('no fancy backgrounds yet!')
+        
+        if self.mgb.approx_all_lwb:
+            pass
+        else:
+            raise NotImplemented('no fancy backgrounds yet!')
+            
+        
+
 
         

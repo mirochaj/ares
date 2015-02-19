@@ -81,6 +81,15 @@ labels = \
 ##
 #
 
+more_elements = \
+{
+ 'h_1': r'$x_{\mathrm{HI}}$',
+ 'h_2': r'$x_{\mathrm{HII}}$',
+ 'he_1': r'$x_{\mathrm{HeI}}$',
+ 'he_2': r'$x_{\mathrm{HeII}}$',
+ 'he_3': r'$x_{\mathrm{HeIII}}$',
+}
+
 history_elements = \
 {
  'igm_h_1': r'$x_{\mathrm{HI}}$',
@@ -117,6 +126,7 @@ other = \
  'contrast': r'$1 - T_{\gamma} / T_S$',
 }
 
+labels.update(more_elements)
 labels.update(history_elements)
 labels.update(tanh_parameters)
 labels.update(other)

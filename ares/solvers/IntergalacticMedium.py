@@ -158,6 +158,7 @@ class IGM(object):
         n_horizon = lambda n: (1. - (n + 1.)**-2.) / (1. - n**-2.)
 
         self.lwb_n = np.arange(2, nmax)
+        self.lwb_E = []
         self.lwb_En = []
         self.lwb_emiss = []     
         for n in self.lwb_n:
@@ -171,9 +172,12 @@ class IGM(object):
             
             # Tabulate emissivity
             ehat = self.rb.TabulateEmissivity(z, E)
-
+            
+            self.lwb_E.extend(E)
             self.lwb_En.append(E)
             self.lwb_emiss.append(ehat)
+        
+        self.lwb_E = np.array(self.lwb_E)    
             
     def _init_xrb(self, use_tab=True):
         """
@@ -1226,7 +1230,7 @@ class IGM(object):
         ----------
         xavg : function
             Mean ionized fraction as a function of redshift.
-            
+
         Notes
         -----
         Assumes logarithmic grid in variable x = 1 + z. Corresponding 

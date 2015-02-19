@@ -31,6 +31,7 @@ class GasParcel:
             start_radius=self.pf['start_radius'],
             approx_Salpha=self.pf['approx_Salpha'], 
             logarithmic_grid=self.pf['logarithmic_grid'],
+            cosmological_ics=self.pf['cosmological_ics'],
             )
             
         # Set all properties in one go
@@ -111,9 +112,14 @@ class GasParcel:
             'Heat': self.grid.zeros_grid_x_absorbers}
         )
 
-    def evolve(self):
+    def run(self):
         """
         Run simulation from start to finish.
+        
+        Returns
+        -------
+        Nothing: sets `history` attribute.
+        
         """
 
         pb = ProgressBar(self.pf['stop_time'] * self.pf['time_units'], 
@@ -138,14 +144,10 @@ class GasParcel:
             all_data.append(data.copy())
 
         pb.finish()
-        
-        to_return = _sort_data(all_data)
-        to_return['t'] = np.array(all_t)
-        
-        self.history = to_return
 
-        return to_return     
-
+        self.history = _sort_data(all_data)
+        self.history['t'] = np.array(all_t)
+        
     def step(self, t=0., dt=None, tf=None, data=None):
         """
         Evolve properties of gas parcel in time.

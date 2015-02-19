@@ -11,6 +11,7 @@ Description: Functions to calculate various quantities from our rt1d datasets.
 
 import os, re
 import numpy as np
+from ..util import labels
 from math import floor, ceil
 import matplotlib.pyplot as pl
 from ..static.Grid import Grid
@@ -26,15 +27,28 @@ except ImportError:
 linestyles = ['-', '--', ':', '-.']
 
 class RaySegment:
-    def __init__(self, checkpoints, rs=None):
+    def __init__(self, data):
+        """
+        Initialize analysis object for RaySegment calculations.
         
-        if isinstance(checkpoints, simRS):
-            checkpoints = checkpoints.checkpoints
+        Parameters
+        ----------
+        data : instance, np.ndarray
+            Dataset to analyze.
+            
+        """
+
+        # Read in
+        if isinstance(data, simRS):
+            self.sim = data
+            self.pf = data.pf
+            self.data = data.history
+            self.grid = data.parcel.grid
         
         # Load contents of hdf5 file
-        if type(checkpoints) is str:
+        elif type(data) is str:
             import pickle
-            f = h5py.File(checkpoints, 'r')
+            f = h5py.File(data, 'r')
             
             self.pf = {}
             for key in f['parameters']:
@@ -71,9 +85,64 @@ class RaySegment:
             self.grid = checkpoints.grid
             self.pf = checkpoints.pf
             self.data = checkpoints.data
-            
-        self.rs = rs
+                
+    @property
+    def tcode(self):
+        if not hasattr(self, '_tcode'):
+            self._tcode = self.data['t'] / self.pf['time_units']  
         
+        return self._tcode
+                    
+    def get_snapshot(self, t):
+        """
+        Grab dataset associated with time `t`.
+        
+        Parameters
+        ----------
+        t : int, float
+            Time corresponding to dataset you want, in code units.
+            
+        Returns
+        -------
+        Dictionary containing data for this snapshot only.
+            
+        """                
+
+        loc = np.argmin(np.abs(t - self.tcode))
+        
+        to_return = {}
+        for key in self.data:
+            if len(self.data[key].shape) == 1:
+                continue
+                
+            to_return[key] = self.data[key][loc,:]
+        
+        return to_return
+
+    def get_evolution(self, cell):
+        """
+        Grab time-series data for a particular cell.
+    
+        Parameters
+        ----------
+        cell : int
+            Grid `cell` you're interested in.
+    
+        Returns
+        -------
+        Dictionary containing data for this cell.
+    
+        """                
+        
+        to_return = {}
+        for key in self.data:
+            if len(self.data[key].shape) == 1:
+                continue
+    
+            to_return[key] = self.data[key][:,cell]
+
+        return to_return        
+                            
     def EmergentSpectrum(self, t, cell=-1, norm=False, logE=False):
         """
         Compute emergent spectrum at time t (Myr) and given cell in grid. By
@@ -131,29 +200,35 @@ class RaySegment:
             if T0 is not None: 
                 T = T0
             else: 
-                T = self.data['dd0000']['Tk'][0]
+                T = self.data['Tk'][0,0]
                 
             n_H = self.grid.n_H[0]
             self.Qdot = self.pf['source_qdot']
             self.alpha_HII = 2.6e-13 * (T / 1.e4)**-0.85
-            self.trec = 1. / self.alpha_HII / self.data['dd0000']['h_1'][0] / n_H # s
+            self.trec = 1. / self.alpha_HII / self.data['h_1'][0,0] / n_H # s
             self.rstrom = (3. * self.Qdot \
                     / 4. / np.pi / self.alpha_HII / n_H**2)**(1. / 3.)  # cm
         else:
-            raise NotImplementedError('')
+            raise NotImplementedError('help')
         
         return self.rstrom * (1. - np.exp(-t / self.trec))**(1. / 3.) \
             + self.pf['start_radius']
         
-    def LocateIonizationFront(self, dd, species = 0):
+    def LocateIonizationFront(self, t, species='h_1'):
         """
-        Find the position of the ionization front in data dump 'dd'.
+        Find the position of the ionization front.
+        
+        Parameters
+        ----------
+        t : int, float
+            Time in code units.
+        species : str
+            For example, h_1, he_1, he_2.
+            
         """
         
-        if species == 0:
-            return np.interp(0.5, self.data[dd]['h_1'], self.grid.r_mid)
-        else:
-            return np.interp(0.5, self.data[dd]['he_1'], self.grid.r_mid)
+        data = self.get_snapshot(t)
+        return np.interp(0.5, data[species], self.grid.r_mid)
         
     def ComputeIonizationFrontEvolution(self, T0=None, xmin=0.1, xmax=0.9):
         """
@@ -166,28 +241,32 @@ class RaySegment:
         self.rIF = []
         self.drIF, self.r1_IF, self.r2_IF = [], [], []        
         self.ranl = []
-        for i, dd in enumerate(self.data.keys()):
-            if dd == 'dd0000':
+        for i, t in enumerate(self.data['t']):
+            if t == 0:
                 continue
+                
+            tcode = t / self.pf['time_units']    
+                
+            data = self.get_snapshot(tcode)    
                  
-            self.t.append(self.data[dd]['time'])
-            self.rIF.append(self.LocateIonizationFront(dd) / cm_per_kpc)
-            self.ranl.append(self.StromgrenSphere(self.data[dd]['time'], 
-                T0=T0) / cm_per_kpc)
+                 
+                 
+            self.t.append(t)
+            self.rIF.append(self.LocateIonizationFront(tcode) / cm_per_kpc)
+            self.ranl.append(self.StromgrenSphere(t, T0=T0) / cm_per_kpc)
             
-            x1 = np.interp(1.-xmax, self.data[dd]['h_1'], self.grid.r_mid)
-            x2 = np.interp(1.-xmin, self.data[dd]['h_1'], self.grid.r_mid)
+            x1 = np.interp(1.-xmax, data['h_1'], self.grid.r_mid)
+            x2 = np.interp(1.-xmin, data['h_1'], self.grid.r_mid)
             self.drIF.append(x2-x1)
             self.r1_IF.append(x1)
             self.r2_IF.append(x2)
                 
-        order = np.argsort(self.t)
-        self.t = np.array(self.t)[order]
-        self.rIF = np.array(self.rIF)[order]
-        self.ranl = np.array(self.ranl)[order]
-        self.drIF = np.array(self.drIF)[order]        
-        self.r1_IF = np.array(self.r1_IF)[order]
-        self.r2_IF = np.array(self.r2_IF)[order]
+        self.t = np.array(self.t)
+        self.rIF = np.array(self.rIF)
+        self.ranl = np.array(self.ranl)
+        self.drIF = np.array(self.drIF)
+        self.r1_IF = np.array(self.r1_IF)
+        self.r2_IF = np.array(self.r2_IF)
                 
     def PlotIonizationFrontEvolution(self, fig=1, mp=None, anl=True, T0=1e4, 
         color='k', ls='--', label=None, plot_error=True, plot_solution=True):
@@ -237,12 +316,16 @@ class RaySegment:
             
         return mp
             
-    def IonizationProfile(self, species='h', t=[1, 10, 100], color='k', 
-        annotate=False, xscale='linear', yscale='log', ax=None,
-        normx=False, marker=None, s=50, facecolors=None,
-        iononly=False, ls=None, label=None, fig=1):
+    def RadialProfile(self, field, t=[1, 10, 100], ax=None, fig=1, **kwargs):
         """
-        Plot radial profiles of species fraction (for H or He) at times t (Myr).
+        Plot radial profile of given field.
+        
+        Parameters
+        ----------
+        field : str
+            Field you'd like to plot a radial profile of, e.g., `h_1`.
+        t : int, float, list
+            Time(s) at which to plot radial profile.
         """      
         
         if ax is None:
@@ -252,178 +335,25 @@ class RaySegment:
         else:
             gotax = True
 
-        ax.set_xscale('log')
-        ax.set_yscale('log')
-        
-        fields = self.grid.ions_by_parent[species]
-        if species == 'h':
-            labels = [r'$x_{\mathrm{HI}}$', r'$x_{\mathrm{HII}}$']
-        elif species == 'he':
-            labels = [r'$x_{\mathrm{HeI}}$', r'$x_{\mathrm{HeII}}$', 
-                r'$x_{\mathrm{HeIII}}$']
-                
-        if label is not None:
-            labels = [label] + [None] * (len(labels) - 1)
-        
-        for dd in self.data.keys():
-            t_time_units = self.data[dd]['time'] / self.pf['time_units']
-            if t_time_units not in t: 
-                continue
-                
-            line_num = t.index(t_time_units)
-            if line_num > 0:
-                lab = [None] * len(labels)
-            else:
-                lab = labels
+        for tcode in t:
+            data = self.get_snapshot(tcode)
+            ax.plot(self.grid.r_mid / cm_per_kpc, data[field], **kwargs)
+    
+        # Don't add more labels
+        if gotax:
+            pl.draw()
+            return ax
             
-            for i, field in enumerate(fields):
-                
-                if iononly and field in self.grid.ions:
-                    continue
-                
-                if ls is None:
-                    lss = linestyles[i]
-                else:
-                    lss = ls
-                
-                if marker is None:
-                    ax.plot(self.grid.r_mid / cm_per_kpc,
-                        self.data[dd][field], ls=lss, 
-                        color=color, label=lab[i])
-                else:
-                    ax.scatter(self.grid.r_mid / cm_per_kpc,
-                        self.data[dd][field], marker=marker, s=s, 
-                        color=color, label=lab[i], facecolors=facecolors)
-                    
-        ax.set_xscale(xscale)
-        ax.set_yscale(yscale)    
+        # Label stuff!    
         ax.set_xlabel(r'$r \ (\mathrm{kpc})$')
         
-        if iononly:
-            ax.set_ylabel(r'Ionized Fraction$')
-        else:    
-            ax.set_ylabel(r'Species Fraction')
-        ax.set_ylim(1e-5, 1.5)
+        if field in labels:
+            ax.set_ylabel(labels[field])
+        else:
+            ax.set_ylabel(field)
         
-        if annotate:
-            ax.legend(loc='best', ncol=len(fields), 
-                frameon=False)
-
-        pl.draw()   
-        
+        pl.draw()
         return ax     
-            
-    def TemperatureProfile(self, t=[10,30,100], color='k', ls=None, 
-        xscale='linear', yscale='log', ax=None, normx=False, 
-        marker=None, s=50, facecolors='none', label=None, fig=1):
-        """
-        Plot radial profiles of temperature at times t (Myr).
-        """  
-        
-        if ax is None:
-            gotax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)
-        else:
-            gotax = True
-        
-        if ls is None:
-            ls = linestyles
-        else:
-            ls = [ls] * len(t)
-        
-        ax.set_xscale('log')
-        ax.set_yscale('log')
-        
-        for dd in self.data.keys():
-            t_time_units = self.data[dd]['time'] / self.pf['time_units']
-            if t_time_units not in t: 
-                continue
-                
-            line_num = t.index(t_time_units)
-            if line_num > 0:
-                lab = None
-            else:
-                lab = label
-            
-            if marker is None:
-                ax.plot(self.grid.r_mid / cm_per_kpc,
-                    self.data[dd]['Tk'], ls=ls[line_num], color=color, 
-                    label=lab)
-            else:
-                ax.scatter(self.grid.r_mid / cm_per_kpc,
-                    self.data[dd]['Tk'], color=color, 
-                    label=lab, marker=marker, s=s,
-                    facecolors=facecolors)
-                                        
-        #if self.pf['LymanAlphaContinuum'] or self.pf['LymanAlphaInjection']:
-        #    self.ax.loglog(r, self.data[dd].Ts, color = color, ls = '--', label = r'$T_S$') 
-        #    
-        #if self.pf['CosmologicalExpansion']:
-        #    self.ax.loglog([min(r), max(r)], [self.pf['cmb_temp_0'] * (1. + self.data[dd].z)] * 2,
-        #        color = 'k', ls = ':', label = r'$T_{\gamma}$')         
-        #    
-            
-        ax.set_xscale(xscale)
-        ax.set_yscale(yscale)
-        ax.set_xlabel(r'$r \ (\mathrm{kpc})$')
-        ax.set_ylabel(r'Temperature $(K)$')
-        pl.draw()
-        
-        return ax       
-        
-    def BrightnessTemperatureProfile(self, t=[10, 20, 30], z=None, 
-        color = 'k', ls=None, 
-        xscale='linear', yscale='linear', ax = None, normx = False, 
-        marker=None, s=50, facecolors='none', label=None):
-        """
-        Plot radial profiles of temperature at times t (Myr).
-        """
-        
-        hadax = False if ax is None else True
-        
-        if ax is None:
-            ax = pl.subplot(111)
-        
-        if ls is None:
-            ls = linestyles
-        else:
-            ls = [ls] * len(t)
-        
-        for dd in self.data.keys():
-            t_time_units = self.data[dd]['time'] / self.pf['time_units']
-            if t_time_units not in t: 
-                continue
-                
-            line_num = t.index(t_time_units)
-            if line_num > 0:
-                lab = None
-            else:
-                lab = label
-                
-            z = self.data[dd]['redshift']
-            xHII = self.data[dd]['h_2']
-            Ts = self.data[dd]['Ts']#self.grid.hydr.Ts(self.data[dd], z)
-            dTb = self.grid.hydr.DifferentialBrightnessTemperature(z, xHII, Ts)
-            
-            if marker is None:
-                ax.plot(self.grid.r_mid / cm_per_kpc, dTb,
-                    ls=ls[line_num], color=color, label=lab)
-            else:
-                ax.scatter(self.grid.r_mid / cm_per_kpc, dTb,
-                    color=color, label=lab, marker=marker, s=s,
-                    facecolors=facecolors)
-        
-        if not hadax:
-            ax.set_xscale(xscale)
-            ax.set_yscale(yscale)
-            ax.set_xlabel(r'$r \ (\mathrm{kpc})$')
-            ax.set_ylabel(r'$\delta T_b \ (\mathrm{mK})$')
-            ax.set_ylim(dTb.min() - (dTb.min() % 5), dTb.max() + (5 - dTb.max() % 5))
-        
-        pl.draw()
-        
-        return ax
         
     def CellEvolution(self, cell=0, field='x_HI', redshift=False):
         """
@@ -641,18 +571,4 @@ class RaySegment:
     
         return ax
 
-    def snapshot(self, t):
-        """
-        Return data for snapshot at given time (in time_units).
-        """
-        
-        if hasattr(self, 'pf'):
-            t_time_units = t / self.pf['time_units']
-        
-        for dd in self.data.keys():
-            t_time_units = self.data[dd]['time'] / self.pf['time_units']
-            if t_time_units != t: 
-                continue
-                
-            return self.data[dd]
                 

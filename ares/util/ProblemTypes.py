@@ -72,7 +72,7 @@ def ProblemType(ptype):
               "dtDataDump": 1., 
               "dzDataDump": 0.1,
               "initial_redshift": 1e3,
-              "initial_ionization": [0.049],
+              "initial_ionization": [1.-0.049, 0.049],
               "final_redshift": 10,
               "stop_time": 500.,
               "restricted_timestep": ['electrons', 'ions', 'temperature',
@@ -99,7 +99,7 @@ def ProblemType(ptype):
               "restricted_timestep": ['ions', 'electrons', 'temperature'],
                            
               "initial_temperature": 1e2,
-              "initial_ionization": [1e-8],
+              "initial_ionization": [1. - 1e-8, 1e-8],
               
               "source_type": 'star',
               "source_qdot": 1e12,
@@ -126,7 +126,7 @@ def ProblemType(ptype):
               "isothermal": 1,
               "secondary_ionization": 0,
               "initial_temperature": 1e4,
-              "initial_ionization": [1.2e-3],
+              "initial_ionization": [1.-1.2e-3, 1.2e-3],
               "source_type": 'toy',
               "source_qdot": 5e48, 
               "spectrum_E": [13.6],
@@ -144,7 +144,7 @@ def ProblemType(ptype):
               "isothermal": 0,
               "restricted_timestep": ['ions', 'temperature'],
               "initial_temperature": 1e2,
-              "initial_ionization": [1.2e-3],
+              "initial_ionization": [1.-1.2e-3, 1.2e-3],
               "source_type": 'star', 
               "source_temperature": 1e5,
               "spectrum_type": 'bb',
@@ -166,7 +166,7 @@ def ProblemType(ptype):
               "dtDataDump": 1.0,
               "isothermal": 0,  
               "initial_temperature": 8e3,
-              "initial_ionization": [1e-6],
+              "initial_ionization": [1.-1e-6, 1e-6],
               "source_type": 'star', 
               "source_qdot": 1e6,
               "spectrum_type": 'bb',
@@ -212,6 +212,7 @@ def ProblemType(ptype):
              'tables_xmin': defs["tables_xmin"]*3,
              'tables_logNmin': defs['tables_logNmin']*3,
              'tables_logNmax': defs['tables_logNmax']*3,
+             'initial_ionization': [1.-1e-8, 1e-8, 1.-2e-8, 1e-8, 1e-8]
             }
             
         pf.update(helium_pars)

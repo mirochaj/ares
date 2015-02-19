@@ -38,7 +38,7 @@ class CompositePopulation:
             if type(self.kwargs[par]) is list:    
                 N = max(N, len(self.kwargs[par]))                    
                 
-        self.N = N        
+        self.N = self.Npops = N        
         self.pfs = [self.other_kw.copy() for i in xrange(N)]    
         
         # If source_kwargs/spectrum_kwargs supplied, make list of parameter files 

@@ -27,8 +27,10 @@ pf = \
  'initial_ionization': [1. - 1e-8, 1e-8],        # neutral
 }
 
-gp = ares.simulations.GasParcel(**pf)
-data = gp.evolve()
+sim = ares.simulations.GasParcel(**pf)
+sim.run()
+
+data = sim.history
 
 # Plot last time snapshot
 pl.loglog(data['Tk'][0], data['h_1'][-1,:], color='k')

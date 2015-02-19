@@ -61,7 +61,7 @@ def GridParameters():
     "include_He": False,
     "include_H2": False,
 
-    "initial_ionization": [1.2e-3],
+    "initial_ionization": [1. - 1e-8, 1e-8],
     "initial_temperature": 1e4,
             
     "clump": 0,

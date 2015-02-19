@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from ..util import ProgressBar
 from .GasParcel import GasParcel
 from ..solvers import RadiationField
 from ..sources import CompositeSource
@@ -27,8 +28,8 @@ class RaySegment:
                 
         self.parcel = GasParcel(**kwargs)
         
-        self.grid = self.parcel.grid
         self.pf = self.parcel.pf
+        self.grid = self.parcel.grid
         
         self._set_sources()
         
@@ -48,13 +49,19 @@ class RaySegment:
     
         self.rt = RadiationField(self.grid, allsrcs, **self.pf)        
 
-    def evolve(self):
+    def run(self):
         """
         Run simulation from start to finish.
+        
+        Returns
+        -------
+        Nothing: sets `history` attribute.
+        
         """
         
-        pb = ProgressBar(self.pf['stop_time'] * self.pf['time_units'], 
-            use=self.pf['progress_bar'])
+        tf = self.pf['stop_time'] * self.pf['time_units']
+        
+        pb = ProgressBar(tf, use=self.pf['progress_bar'])
         pb.start()
         
         # Rate coefficients for initial conditions
@@ -73,12 +80,17 @@ class RaySegment:
                         
             # Update rate coefficients accordingly
             self.parcel.rate_coefficients.update(kw)
+            
+            # Save data
+            all_t.append(t)
+            all_data.append(data.copy())
+            
+            if t >= tf:
+                break
 
             pb.update(t)
 
-            # Save data
-            all_t.append(t)
-            all_data.append(data.copy())            
+        pb.finish()
 
         to_return = _sort_data(all_data)
         to_return['t'] = np.array(all_t)
