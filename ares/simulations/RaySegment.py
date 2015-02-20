@@ -14,7 +14,6 @@ import numpy as np
 from ..util import ProgressBar
 from .GasParcel import GasParcel
 from ..solvers import RadialField
-from ..sources import CompositeSource
 from ..util.ReadData import _sort_data
 
 class RaySegment:
@@ -30,30 +29,23 @@ class RaySegment:
         
         self.pf = self.parcel.pf
         self.grid = self.parcel.grid
-        
-        self._set_sources()
+
         self._set_radiation_field()
-        
+
         # Initialize generator for gas parcel
         self.gen = self.parcel.step()
+
+    def _set_radiation_field(self):
         
-    def _set_sources(self):            
-        """
-        Initialize radiation source and radiative transfer solver.
-        """
-    
         if not self.pf['radiative_transfer']:
             return
-            
-        self.sources = CompositeSource(self.grid, **self.pf).all_sources
-    
-    def _set_radiation_field(self):
-        self.field = RadialField(self.grid, self.sources, **self.pf)        
+
+        self.field = RadialField(self.grid, **self.pf)
 
     def run(self):
         """
         Run simulation from start to finish.
-        
+
         Returns
         -------
         Nothing: sets `history` attribute.
@@ -75,7 +67,7 @@ class RaySegment:
 
             # Compute ionization / heating rate coefficient
             RCs = self.field.update_rate_coefficients(data, t)
-            
+
             # Re-compute rate coefficients
             self.parcel.update_rate_coefficients(data, **RCs)
             

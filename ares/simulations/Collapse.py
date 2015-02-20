@@ -25,4 +25,4 @@ class Collapse:
         pass    
         
     def update_density(self):
-        pass    
+        pass

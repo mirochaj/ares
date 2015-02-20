@@ -42,9 +42,9 @@ class CompositeSource:
         
         sources = []
         for i in xrange(self.Ns):
-                        
+
             sf = self.pf.copy()
-            
+
             # Construct spectrum_pars
             if self.pf['spectrum_pars'] is not None:
                 try:

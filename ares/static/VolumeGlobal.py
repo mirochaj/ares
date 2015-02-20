@@ -17,9 +17,9 @@ from ..util import ParameterFile
 from ..physics.Constants import *
 import types, os, re, sys, pickle
 from ..util.Misc import num_freq_bins
+from ..physics import SecondaryElectrons
 from ..util.Warnings import tau_tab_z_mismatch, no_tau_table
 from scipy.integrate import dblquad, romb, simps, quad, trapz
-from ..physics import Cosmology, SecondaryElectrons, Hydrogen
 
 try:
     import h5py
@@ -67,14 +67,13 @@ species_i_to_str = {0:'h_1', 1:'he_1', 2:'he_2'}
 tiny_dlogx = 1e-8
 
 class GlobalVolume(object):
-    def __init__(self, rb=None, use_tab=True, **kwargs):
+    def __init__(self, background, use_tab=True):
         """
         Initialize an inter-galactic medium (IGM) object.
         
         Parameters
         ----------
-        rb : glorb.evolve.RadiationBackground instance
-            This is optional. If not supplied, one will be created.
+        background : ares.solvers.UniformBackground instance.
         use_tab : bool
             Use optical depth table? Simulation class will set use_tab=False
             once the EoR begins, at which time the optical depth will be
@@ -82,13 +81,11 @@ class GlobalVolume(object):
         
         """
         
-        self.rb = rb
-        if self.rb is not None:
-            self.pf = rb.pf
-            self.pop = rb.pop
-        else:
-            self.pf = ParameterFile(**kwargs)
-            self.pop = None
+        self.background = background
+        self.pf = background.pf
+        self.cosm = background.cosm
+        self.hydr = background.hydr
+        self.sources = background.sources
         
         # Include helium opacities approximately?
         self.approx_He = self.pf['include_He'] and self.pf['approx_He']
@@ -96,22 +93,10 @@ class GlobalVolume(object):
         # Include helium opacities self-consistently?
         self.self_consistent_He = self.pf['include_He'] \
             and (not self.pf['approx_He'])
-        
-        self.cosm = Cosmology(
-                omega_m_0=self.pf['omega_m_0'], 
-                omega_l_0=self.pf['omega_l_0'], 
-                omega_b_0=self.pf['omega_b_0'],
-                hubble_0=self.pf['hubble_0'],
-                helium_by_number=self.pf['helium_by_number'], 
-                cmb_temp_0=self.pf['cmb_temp_0'],
-                approx_highz=self.pf['approx_highz'])
-                
+
         self.esec = \
             SecondaryElectrons(method=self.pf["secondary_ionization"])  
-            
-        self.hydr = Hydrogen(cosm=self.cosm, 
-            approx_Salpha=self.pf['approx_Salpha'])
-            
+
         # Choose function for computing bound-free absorption cross-sections                
         if self.pf['approx_sigma']:
             from ..physics.CrossSections import \
@@ -119,30 +104,30 @@ class GlobalVolume(object):
         else:
             from ..physics.CrossSections import \
                 PhotoIonizationCrossSection as sigma
-                
+
         self.sigma = sigma
         self.sigma0 = sigma(E_th[0])    # Hydrogen ionization threshold
-        
-        if not self.pf['approx_xrb'] and self.pf['is_heat_src_igm']:
-            self._init_xrb(use_tab=use_tab)
-        if self.pf['discrete_lwb'] and self.pf['is_lya_src'] \
-            and (not self.pf['approx_lwb']): 
-            self._init_lwb()
-        
+
+        self._set_lwb()
+        self._set_xrb(use_tab=use_tab)
+
         self._set_integrator()
-        
-    def _init_lwb(self):
+
+    def _set_lwb(self):
         """
         Initialize grids for discrete integration of LW Background.
         """
         
+        if self.background.approx_all_lwb:
+            return
+            
         zi = self.pf['initial_redshift']
         zf = self.pf['final_redshift']
         nmax = self.pf['lya_nmax']
         
         Nz = 1e4
         x = np.logspace(np.log10(1 + zf), np.log10(1 + zi), Nz)
-        
+
         self.lwb_zl = z = x - 1.
         
         logx = np.log10(x)
@@ -170,8 +155,10 @@ class GlobalVolume(object):
             # Create energy arrays
             E = E1 * R**np.arange(Nf)
             
-            # Tabulate emissivity
-            ehat = self.rb.TabulateEmissivity(z, E)
+            # Tabulate emissivity for each source
+            
+            ehat = [self.background.TabulateEmissivity(z, E, i) \
+                for i in range(self.background.Ns)]
             
             self.lwb_E.extend(E)
             self.lwb_En.append(E)
@@ -179,7 +166,7 @@ class GlobalVolume(object):
         
         self.lwb_E = np.array(self.lwb_E)    
             
-    def _init_xrb(self, use_tab=True):
+    def _set_xrb(self, use_tab=True):
         """
         From parameter file, initialize grids in redshift and frequency.
         
@@ -199,6 +186,9 @@ class GlobalVolume(object):
         Haardt, F. & Madau, P. 1996, ApJ, 461, 20
         
         """
+        
+        if self.background.approx_all_xrb:
+            return
         
         if self.pf['redshift_bins'] is None and self.pf['tau_table'] is None:
             
@@ -696,7 +686,7 @@ class GlobalVolume(object):
             
         return kw
         
-    def HeatingRate(self, z, species=0, **kwargs):
+    def HeatingRate(self, z, species=0, pop=0, **kwargs):
         """
         Compute heating rate density due to emission from this population. 
         

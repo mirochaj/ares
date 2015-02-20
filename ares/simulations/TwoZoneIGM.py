@@ -13,9 +13,9 @@ Description:
 import numpy as np
 from .GasParcel import GasParcel
 from ..util.ReadData import _sort_data
+from ..solvers import UniformBackground
 from ..util import ParameterFile, ProgressBar
 from ..populations import CompositePopulation
-from .MetaGalacticBackground import MetaGalacticBackground
 
 igm_pars = \
 {
@@ -56,18 +56,24 @@ class TwoZoneIGM:
         # Initialize generators
         self.gen_igm = self.parcel_igm.step()
         self.gen_cgm = self.parcel_cgm.step()
-        
-        # Initialize radiation backgrounds?
-        self.mgb = MetaGalacticBackground(**self.pf)
-            
+    
+        self._set_radiation_field()
+    
+    def _set_radiation_field(self):
+        """
+        Loop over populations, make separate RB and RS instances for each.
+        """
+
+        self.field = UniformBackground(self.parcel_igm.grid, **self.pf)
+
     def run(self):
         """
         Run simulation from start to finish.
-        
+
         Returns
         -------
         Nothing: sets `history` attribute.
-        
+
         """
         
         t = 0.0
@@ -95,13 +101,14 @@ class TwoZoneIGM:
             dtdz = self.parcel_igm.grid.cosm.dtdz(z)
             z -= dt / dtdz
             
+            # Compute ionization / heating rate coefficients
+            RCs = self.field.update_rate_coefficients(data_igm, t)
+
             # Re-compute rate coefficients
             self.parcel_igm.set_rate_coefficients(data_igm)
-                        
-            self.update_backgrounds()            
-                        
+
             # Now, update CGM parcel
-            t2, dt2, data_cgm = self.gen_cgm.next() 
+            t2, dt2, data_cgm = self.gen_cgm.next()
             
             if t >= tf:
                 break

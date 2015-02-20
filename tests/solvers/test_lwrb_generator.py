@@ -49,6 +49,7 @@ for zf in [15, 30]:
         energy_units=False), E)
     t2 = time.time()
     
+    # Compute optically thin solution for comparison
     Fthin = map(lambda EE: rad.AngleAveragedFlux(zf, EE, tau=0.0,
         energy_units=False), E)
 
@@ -64,23 +65,23 @@ pl.ylim(1e-3, 1e2)
 
 # Solve using generator
 rad2 = ares.solvers.UniformBackground(discrete_lwb=True, **pars)
-z, E_n, flux_n = rad2.LWBackground()
 
-for i, nrg in enumerate(E_n):
-    t3 = time.time()
-    pl.scatter(nrg, flux_n[i][np.argmin(np.abs(z-15.)),:] / J21_num,
-        facecolors='none', color='k', marker='|', s=100, alpha=0.05)
-    t4 = time.time()
+t3 = time.time()
+z, E, flux = rad2.LWBackground()
+t4 = time.time()    
     
-    pl.scatter(nrg, flux_n[i][np.argmin(np.abs(z-30.)),:] / J21_num,
-        facecolors='none', color='b', marker='|', s=100, alpha=0.05)
+pl.scatter(E, flux[np.argmin(np.abs(z-15.)),:] / J21_num,
+    facecolors='none', color='k', marker='|', s=100, alpha=0.05)
+
+pl.scatter(E, flux[np.argmin(np.abs(z-30.)),:] / J21_num,
+    facecolors='none', color='b', marker='|', s=100, alpha=0.05)
 
 print "Generator provides %ix speed-up." % ((t2 - t1) / (t4 - t3))
 
 # Compute Lyman-alpha flux
 zarr = np.arange(10, 40)
 Ja_1 = np.array(map(rad.LymanAlphaFlux, zarr))
-Ja_2 = rad2.LymanAlphaFlux(z=None, fluxes=flux_n)
+Ja_2 = rad2.LymanAlphaFlux(z=None, fluxes=rad2.flux_En)
     
 fig = pl.figure(2)
 ax = fig.add_subplot(111)

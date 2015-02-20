@@ -42,9 +42,9 @@ class MetaGalacticBackground:
         """
         Initialize radiation sources and radiative transfer solver.
         """
-    
+
         self.sources = CompositePopulation(**self.pf)
-    
+
         # Determine if backgrounds are approximate or not
         self.approx_all_xrb = 1
         self.approx_all_lwb = 1
@@ -62,17 +62,17 @@ class MetaGalacticBackground:
         
         self.Nrbs = self.sources.Npops
         self.field = [UniformBackground(pop) for pop in self.sources.pops]
-        
+
         self.all_discrete_lwb = 1
         self.all_discrete_xrb = 1
         for field in self.field:
             self.all_discrete_lwb *= field.pf['is_lya_src']
             self.all_discrete_xrb *= field.pf['is_heat_src_igm']
-        
+
     def run(self, t, dt):
         """
         Evolve radiation background in time.
-        
+
         .. note:: Assumes we're using the generator, otherwise the time 
             evolution must be controlled manually.
             

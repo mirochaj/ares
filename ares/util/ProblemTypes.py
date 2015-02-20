@@ -128,7 +128,7 @@ def ProblemType(ptype):
               "initial_temperature": 1e4,
               "initial_ionization": [1.-1.2e-3, 1.2e-3],
               "source_type": 'toy',
-              "source_qdot": 5e48, 
+              "source_qdot": 5e48,
               "spectrum_E": [13.6],
               "spectrum_LE": [1.0],
              }

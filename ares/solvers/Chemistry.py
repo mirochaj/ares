@@ -127,16 +127,16 @@ class Chemistry(object):
 
             for i, value in enumerate(self.solver.y):
                 newdata[self.grid.evolving_fields[i]][cell] = self.solver.y[i]
-                                                         
+
         # Compute particle density
         newdata['n'] = self.grid.particle_density(newdata, z - dz)
-                        
+
         return newdata  
-    
+
     def sort_kwargs_by_cell(self, kwargs):
         """
         Convert kwargs dictionary to list.
-        
+
         Entries correspond to cells, a dictionary of values for each.
         """    
         
