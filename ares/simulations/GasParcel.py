@@ -109,9 +109,9 @@ class GasParcel:
         """
         
         self.rate_coefficients.update(
-            {'Gamma': self.grid.zeros_grid_x_absorbers, 
-            'gamma': self.grid.zeros_grid_x_absorbers2,
-            'Heat': self.grid.zeros_grid_x_absorbers}
+            {'k_ion': self.grid.zeros_grid_x_absorbers, 
+             'k_ion2': self.grid.zeros_grid_x_absorbers2,
+             'k_heat': self.grid.zeros_grid_x_absorbers},
         )
 
     def run(self):
@@ -180,6 +180,7 @@ class GasParcel:
 
         max_timestep = self.pf['time_units'] * self.pf['max_timestep']
 
+        self.dt = dt
         self.data = data
                 
         # Evolve in time!
@@ -189,7 +190,7 @@ class GasParcel:
             self.data = self.chem.Evolve(self.data, t=t, dt=dt, 
                 **self.rate_coefficients)
             
-            t += dt 
+            t += self.dt 
 
             # Figure out next dt based on max allowed change in evolving fields
             new_dt = self.timestep.Limit(self.chem.q_grid, 
@@ -200,12 +201,7 @@ class GasParcel:
             dt = min(dt, self.checkpoints.next_dt(t, dt))
             dt = min(dt, max_timestep)
             
-            yield t, dt, self.data
-
-            if t >= tf:
-                break
+            self.dt = dt
             
-    
-
-        
+            yield t, dt, self.data
         

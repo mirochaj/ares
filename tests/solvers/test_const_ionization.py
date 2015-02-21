@@ -19,50 +19,42 @@ pf = \
  'grid_cells': 64,
  'isothermal': True,
  'stop_time': 1e2,
- 'radiative_transfer': True,
  'secondary_ionization': False,
  'density_units': 1.0,
  'initial_timestep': 1,
  'max_timestep': 1e2,
  'initial_temperature': np.logspace(3, 5, 64),
- 'initial_ionization': [1. - 1e-8, 1e-8],         # neutral
+ 'initial_ionization': [1. - 1e-4, 1e-4],         # neutral
 }
 
-gp1 = ares.simulations.GasParcel(**pf)
-gp2 = ares.simulations.GasParcel(**pf)
+sim = ares.simulations.GasParcel(radiative_transfer=True, **pf)
 
-gp1.set_rate_coefficients(gp1.grid.data)
-gp2.set_rate_coefficients(gp2.grid.data)
+# Set constant ionization rate (coefficient) by hand
+k_ion = np.ones([sim.grid.dims,1]) * 1e-14
 
-gen1 = gp1.step()
-gen2 = gp2.step()
+# Initialize all rate coefficients
+sim.update_rate_coefficients(sim.grid.data)
+sim.set_radiation_field()
 
-Gamma = [1e-14, 1e-15]
-gps = [gp1, gp2]
-
+# Evolve in time
 all_data = []
+for t, dt, data in sim.step():
 
-t = 0
-while t < 1e15:
-    all_data = []
-    for i, gen in enumerate([gen1, gen2]):
+    sim.update_rate_coefficients(sim.grid.data, k_ion=k_ion)
 
-        gp = gps[i]
-        t, dt, data = gen.next()
+    all_data.append(data)
 
-        gp.set_rate_coefficients(gp.grid.data)
+# Plot ionization state vs. temperature
+pl.loglog(data['Tk'], data['h_1'], color='k', 
+    label=r'$\kappa_{\mathrm{ion}} = 10^{-14} \ \mathrm{s}^{-1}$')
+pl.loglog(data['Tk'], data['h_2'], color='k', ls='--')
 
-        G = np.ones([gp.grid.dims,1]) * Gamma[i]
-        gp.rate_coefficients.update({'Gamma': G})
+# Re-run without radiative transfer for comparison
+sim2 = ares.simulations.GasParcel(radiative_transfer=False, **pf)
+sim2.run()
 
-        all_data.append(data)
+pl.loglog(sim2.history['Tk'][-1], sim2.history['h_1'][-1], color='b', 
+    label=r'$\kappa_{\mathrm{ion}} = 0$')
+pl.loglog(sim2.history['Tk'][-1], sim2.history['h_2'][-1], color='b', ls='--')
 
-data1, data2 = all_data
-        
-pl.loglog(data1['Tk'], data1['h_1'], color='k')
-pl.loglog(data1['Tk'], data1['h_2'], color='k', ls='--')
-
-pl.loglog(data2['Tk'], data2['h_1'], color='b')
-pl.loglog(data2['Tk'], data2['h_2'], color='b', ls='--')
-    
-    
+pl.legend(fontsize=14, loc='lower right')

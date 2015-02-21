@@ -510,11 +510,11 @@ class Grid(object):
         if self.cosmological_ics:
             Tgas = self.cosm.Tgas(self.zi)
             if isinstance(T0, Iterable):
-                self.data['Tk'] = Tgas 
+                self.data['Tk'] = np.array(Tgas)
             else:
                 self.data['Tk'] = Tgas * np.ones(self.dims)
         elif isinstance(T0, Iterable):
-            self.data['Tk'] = T0
+            self.data['Tk'] = np.array(T0)
         else:
             self.data['Tk'] = T0 * np.ones(self.dims)
             

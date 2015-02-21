@@ -31,44 +31,23 @@ class MetaGalacticBackground:
     def __init__(self, **kwargs):
         """
         Initialize a MetaGalacticBackground object.
+        
+        .. note:: This class assumes an optically thin Universe at all 
+            photon energies. For self-consistent solutions including an 
+            evolving IGM opacity, check out the MultiPhaseIGM class.
+            
         """
         self.pf = ParameterFile(**kwargs)
-        self.pf.update(igm_pars)
-                
-        self._set_sources()
+
         self._set_radiation_field()
-        
-    def _set_sources(self):            
-        """
-        Initialize radiation sources and radiative transfer solver.
-        """
-
-        self.sources = CompositePopulation(**self.pf)
-
-        # Determine if backgrounds are approximate or not
-        self.approx_all_xrb = 1
-        self.approx_all_lwb = 1
-        for pop in self.sources.pops:
-            self.approx_all_xrb *= pop.pf['approx_xrb']
-            self.approx_all_lwb *= pop.pf['approx_lwb']
         
     def _set_radiation_field(self):
         """
         Loop over populations, make separate RB and RS instances for each.
         """
-        
-        if self.approx_all_xrb * self.approx_all_lwb:
-            return
-        
-        self.Nrbs = self.sources.Npops
-        self.field = [UniformBackground(pop) for pop in self.sources.pops]
-
-        self.all_discrete_lwb = 1
-        self.all_discrete_xrb = 1
-        for field in self.field:
-            self.all_discrete_lwb *= field.pf['is_lya_src']
-            self.all_discrete_xrb *= field.pf['is_heat_src_igm']
-
+    
+        self.field = UniformBackground(grid=None, **self.pf)
+   
     def run(self, t, dt):
         """
         Evolve radiation background in time.

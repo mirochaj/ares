@@ -60,11 +60,11 @@ class LocalVolume:
     def rates_no_RT(self):
         if not hasattr(self, '_rates_no_RT'):
             self._rates_no_RT = \
-                {'Gamma': np.zeros((self.Ns, self.grid.dims, 
+                {'k_ion': np.zeros((self.Ns, self.grid.dims, 
                     self.grid.N_absorbers)),
-                 'Heat': np.zeros((self.Ns, self.grid.dims, 
+                 'k_heat': np.zeros((self.Ns, self.grid.dims, 
                     self.grid.N_absorbers)),
-                 'gamma': np.zeros((self.Ns, self.grid.dims, 
+                 'k_ion2': np.zeros((self.Ns, self.grid.dims, 
                     self.grid.N_absorbers, self.grid.N_absorbers)),
                 }
         
@@ -96,15 +96,15 @@ class LocalVolume:
         self.data = data.copy()
 
         # Compute source dependent rate coefficients
-        Gamma_src, gamma_src, Heat_src, Ja_src = \
+        k_ion_src, k_ion2_src, k_heat_src, Ja_src = \
             self._get_coefficients(data, t)
                     
         # Unpack source-specific rates if necessary            
         if len(self.srcs) > 1:
             for i, src in enumerate(self.srcs):
-                self.kwargs.update({'Gamma_%i' % i: Gamma_src[i], 
-                    'gamma_%i' % i: gamma_src[i],
-                    'Heat_%i' % i: Heat_src[i]})
+                self.kwargs.update({'k_ion_%i' % i: k_ion_src[i], 
+                    'k_ion2_%i' % i: k_ion2_src[i],
+                    'k_heat_%i' % i: k_heat_src[i]})
                     
                 if not self.pf['approx_lwb']:
                     self.kwargs.update({'Ja_%i' % i: Ja_src[i]})
@@ -113,9 +113,9 @@ class LocalVolume:
                     #    self.kwargs.update({'Ja_X_%i' % i: Ja_src[i]})
         
         # Sum over sources
-        Gamma = np.sum(Gamma_src, axis=0)
-        gamma = np.sum(gamma_src, axis=0)
-        Heat = np.sum(Heat_src, axis=0)
+        k_ion = np.sum(k_ion_src, axis=0)
+        k_ion2 = np.sum(k_ion2_src, axis=0)
+        k_heat = np.sum(k_heat_src, axis=0)
             
         # Compute Lyman-Alpha emission
         if not self.pf['approx_lwb']:
@@ -125,9 +125,9 @@ class LocalVolume:
         #    Ja_X = np.sum(Ja_src, axis=0)
         
         # Each is grid x absorbers, or grid x [absorbers, absorbers] for gamma
-        self.kwargs.update({'Gamma': Gamma, 'Heat': Heat, 'gamma': gamma})
+        self.kwargs.update({'k_ion': k_ion, 'k_heat': k_heat, 'k_ion2': k_ion2})
         
-        # Ja just has len(grid)                
+        # Ja just has len(grid) 
         if not self.pf['approx_lwb']:
             self.kwargs.update({'Ja': Ja})
         
@@ -146,9 +146,9 @@ class LocalVolume:
         
         """
         
-        self.Gamma = np.zeros((self.Ns, self.grid.dims, self.grid.N_absorbers))
-        self.k_H = np.zeros((self.Ns, self.grid.dims, self.grid.N_absorbers))
-        self.gamma = np.zeros((self.Ns, self.grid.dims, self.grid.N_absorbers, 
+        self.k_ion = np.zeros((self.Ns, self.grid.dims, self.grid.N_absorbers))
+        self.k_heat = np.zeros((self.Ns, self.grid.dims, self.grid.N_absorbers))
+        self.k_ion2 = np.zeros((self.Ns, self.grid.dims, self.grid.N_absorbers, 
             self.grid.N_absorbers))
         
         if self.pf['approx_lwb']:
@@ -169,9 +169,9 @@ class LocalVolume:
             # return pre-computed source-dependent values.    
             if self.pf['optically_thin']:
                 self.tau_tot = np.zeros(self.grid.dims) # by definition
-                self.Gamma[h] = src.Gamma_bar * self.pp_corr
-                self.k_H[h] = src.Heat_bar * self.pp_corr
-                self.gamma[h] = src.gamma_bar * self.pp_corr
+                self.k_ion[h] = src.k_ion_bar * self.pp_corr
+                self.k_heat[h] = src.k_heat_bar * self.pp_corr
+                self.k_ion2[h] = src.k_ion2_bar * self.pp_corr
                 continue
 
             # Normalizations
@@ -198,7 +198,7 @@ class LocalVolume:
                                     
                     # Discrete spectrum (multi-freq approach)
                     if self.src.multi_freq:
-                        self.Gamma[h,:,i], self.gamma[h,:,i], self.k_H[h,:,i] = \
+                        self.k_ion[h,:,i], self.k_ion2[h,:,i], self.k_heat[h,:,i] = \
                             self.MultiFreqCoefficients(data, absorber)
                     
                     # Discrete spectrum (multi-grp approach)
@@ -324,17 +324,17 @@ class LocalVolume:
 
             # Now, go ahead and calculate the rate coefficients
             for k, absorber in enumerate(self.grid.absorbers):
-                self.Gamma[h][...,k] = self.PhotoIonizationRate(absorber)
-                self.k_H[h][...,k] = self.PhotoHeatingRate(absorber)
+                self.k_ion[h][...,k] = self.PhotoIonizationRate(absorber)
+                self.k_heat[h][...,k] = self.PhotoHeatingRate(absorber)
 
                 for j, donor in enumerate(self.grid.absorbers):
-                    self.gamma[h][...,k,j] = \
+                    self.k_ion2[h][...,k,j] = \
                         self.SecondaryIonizationRate(absorber, donor)
                        
             # Compute total optical depth too
             self.tau_tot = 10**self.src.tables["logTau"](self.logN_by_cell)
             
-        return self.Gamma, self.gamma, self.k_H, self.Ja
+        return self.k_ion, self.k_ion2, self.k_heat, self.Ja
         
     def MultiFreqCoefficients(self, data, absorber):
         """
@@ -342,13 +342,13 @@ class LocalVolume:
         multi-frequency SED.
         """
         
-        #k_H = np.zeros_like(self.grid.zeros_grid_x_absorbers)
-        #Gamma = np.zeros_like(self.grid.zeros_grid_x_absorbers)
-        #gamma = np.zeros_like(self.grid.zeros_grid_x_absorbers2)
+        #k_heat = np.zeros_like(self.grid.zeros_grid_x_absorbers)
+        #k_ion = np.zeros_like(self.grid.zeros_grid_x_absorbers)
+        #k_ion2 = np.zeros_like(self.grid.zeros_grid_x_absorbers2)
         
-        k_H = np.zeros(self.grid.dims)
-        #Gamma = np.zeros(self.grid.dims)
-        gamma = np.zeros_like(self.grid.zeros_grid_x_absorbers)
+        k_heat = np.zeros(self.grid.dims)
+        #k_ion = np.zeros(self.grid.dims)
+        k_ion2 = np.zeros_like(self.grid.zeros_grid_x_absorbers)
         
         i = self.grid.absorbers.index(absorber)
         n = self.n[absorber]
@@ -361,7 +361,7 @@ class LocalVolume:
         self.tau_tot = np.sum(self.tau_r, axis = 1)
                         
         # Loop over energy groups
-        Gamma_E = np.zeros([self.grid.dims, self.src.Nfreq])
+        k_ion_E = np.zeros([self.grid.dims, self.src.Nfreq])
         for j, E in enumerate(self.src.E):
             
             if E < self.E_th[absorber]:
@@ -371,7 +371,7 @@ class LocalVolume:
             tau_c = self.Nc[absorber] * self.src.sigma[j]
                                                             
             # Photo-ionization by *this* energy group
-            Gamma_E[...,j] = \
+            k_ion_E[...,j] = \
                 self.PhotoIonizationRateMultiFreq(self.src.Qdot[j], n,
                 self.tau_r[j], tau_c)     
                                           
@@ -384,10 +384,10 @@ class LocalVolume:
             
             # Total energy deposition rate per atom i via photo-electrons 
             # due to ionizations by *this* energy group. 
-            ee = Gamma_E[...,j] * (E - self.E_th[absorber]) \
+            ee = k_ion_E[...,j] * (E - self.E_th[absorber]) \
                * erg_per_ev
             
-            k_H += ee * fheat
+            k_heat += ee * fheat
                 
             if not self.pf['secondary_ionization']:
                 continue
@@ -406,13 +406,13 @@ class LocalVolume:
                     E=E, channel=absorber)
 
                 # (This k) = i from paper, and (this i) = j from paper
-                gamma[...,k,i] += ee * fion \
+                k_ion2[...,k,i] += ee * fion \
                     / (self.E_th[otherabsorber] * erg_per_ev)
                                                                            
         # Total photo-ionization tally
-        Gamma = np.sum(Gamma_E, axis=1)
+        k_ion = np.sum(k_ion_E, axis=1)
         
-        return Gamma, gamma, k_H
+        return k_ion, k_ion2, k_heat
     
     def PhotoIonizationRateMultiFreq(self, qdot, n, tau_r_E, tau_c):
         """

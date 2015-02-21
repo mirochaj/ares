@@ -55,23 +55,23 @@ labels = \
  'spectrum_alpha': r'$\alpha$',
  'source_temperature': r'$T_{\ast}$',
  'z': r'$z$',
- 'igm_heat_h_1': r'$\epsilon_{X, \mathrm{HI}}$',
- 'igm_heat_he_1': r'$\epsilon_{X, \mathrm{HI}}$',
- 'igm_heat_he_2': r'$\epsilon_{X, \mathrm{HI}}$', 
- 'igm_heat': r'$\epsilon_X$', 
- 'cgm_Gamma_h_1': r'$\Gamma_{\mathrm{HI},\mathrm{cgm}}}$',
- 'igm_Gamma_h_1': r'$\Gamma_{\mathrm{HI},\mathrm{igm}}}$',
- 'igm_Gamma_he_1': r'$\Gamma_{\mathrm{HeI}}$',
- 'igm_Gamma_he_2': r'$\Gamma_{\mathrm{HeII}}$',
+ 'igm_k_heat_h_1': r'$\epsilon_{X, \mathrm{HI}}$',
+ 'igm_k_heat_he_1': r'$\epsilon_{X, \mathrm{HI}}$',
+ 'igm_k_heat_he_2': r'$\epsilon_{X, \mathrm{HI}}$', 
+ 'igm_k_heat': r'$\epsilon_X$', 
+ 'cgm_k_ion_h_1': r'$\Gamma_{\mathrm{HI},\mathrm{cgm}}}$',
+ 'igm_k_ion_h_1': r'$\Gamma_{\mathrm{HI},\mathrm{igm}}}$',
+ 'igm_k_ion_he_1': r'$\Gamma_{\mathrm{HeI}}$',
+ 'igm_k_ion_he_2': r'$\Gamma_{\mathrm{HeII}}$',
 
- 'igm_gamma_h_1': r'$\gamma_{\mathrm{HI}}$',
- 'igm_gamma_he_1': r'$\gamma_{\mathrm{HeI}}$',
- 'igm_gamma_he_2': r'$\gamma_{\mathrm{HeII}}$',
+ 'igm_k_ion2_h_1': r'$\gamma_{\mathrm{HI}}$',
+ 'igm_k_ion2_he_1': r'$\gamma_{\mathrm{HeI}}$',
+ 'igm_k_ion2_he_2': r'$\gamma_{\mathrm{HeII}}$',
  
  # Partial secondary ionizations
- 'igm_gamma_h_1_h_1': r'$\gamma_{\mathrm{HI},\mathrm{HI}}$',
- 'igm_gamma_h_1_he_1': r'$\gamma_{\mathrm{HI}, \mathrm{HeI}}$',
- 'igm_gamma_h_1_he_2': r'$\gamma_{\mathrm{HI}, \mathrm{HeII}}$',
+ 'igm_k_ion2_h_1_h_1': r'$\gamma_{\mathrm{HI},\mathrm{HI}}$',
+ 'igm_k_ion2_h_1_he_1': r'$\gamma_{\mathrm{HI}, \mathrm{HeI}}$',
+ 'igm_k_ion2_h_1_he_2': r'$\gamma_{\mathrm{HI}, \mathrm{HeII}}$',
  'Tk': r'$T_K \ (\mathrm{K})$',
  
  'tau_e': r'$\tau_e$',
@@ -88,6 +88,10 @@ more_elements = \
  'he_1': r'$x_{\mathrm{HeI}}$',
  'he_2': r'$x_{\mathrm{HeII}}$',
  'he_3': r'$x_{\mathrm{HeIII}}$',
+ 'k_ion': r'$\kappa_{\mathrm{ion}}$',
+ 'k_ion2': r'$\kappa_{\mathrm{ion, sec}}$',
+ 'k_heat': r'$\kappa_{\mathrm{heat}}$',
+ 'k_diss': r'$\kappa_{\mathrm{diss}}$',  
 }
 
 history_elements = \

@@ -56,7 +56,9 @@ class Chemistry(object):
             with_jacobian=True, method='bdf', nsteps=1e4, 
             atol=atol, rtol=rtol)
             
-        self.zeros_gridxq = np.zeros([self.grid.dims, len(self.grid.evolving_fields)])
+        # Empty arrays in the shapes we often need
+        self.zeros_gridxq = np.zeros([self.grid.dims, 
+            len(self.grid.evolving_fields)])
         self.zeros_grid_x_abs = np.zeros_like(self.grid.zeros_grid_x_absorbers)
         self.zeros_grid_x_abs2 = np.zeros_like(self.grid.zeros_grid_x_absorbers2)
     
@@ -87,7 +89,7 @@ class Chemistry(object):
                 
         # Make sure we've got number densities
         if 'n' not in data.keys():
-            data['n'] = self.grid.particle_density(data, z)        
+            data['n'] = self.grid.particle_density(data, z)
                 
         newdata = {}
         for field in data:
@@ -112,8 +114,8 @@ class Chemistry(object):
             kwargs_cell = kwargs_by_cell[cell]
                             
             if self.rtON:
-                args = (cell, kwargs_cell['Gamma'], kwargs_cell['gamma'],
-                    kwargs_cell['Heat'], data['n'][cell], t)
+                args = (cell, kwargs_cell['k_ion'], kwargs_cell['k_ion2'],
+                    kwargs_cell['k_heat'], data['n'][cell], t)
             else:
                 args = (cell, self.grid.zeros_absorbers, 
                     self.grid.zeros_absorbers2, self.grid.zeros_absorbers, 

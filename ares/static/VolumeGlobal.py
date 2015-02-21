@@ -83,9 +83,11 @@ class GlobalVolume(object):
         
         self.background = background
         self.pf = background.pf
+        self.grid = background.grid
         self.cosm = background.cosm
         self.hydr = background.hydr
         self.sources = background.sources
+        self.Ns = len(self.sources)
         
         # Include helium opacities approximately?
         self.approx_He = self.pf['include_He'] and self.pf['approx_He']
@@ -112,6 +114,20 @@ class GlobalVolume(object):
         self._set_xrb(use_tab=use_tab)
 
         self._set_integrator()
+
+    @property
+    def rates_no_RT(self):
+        if not hasattr(self, '_rates_no_RT'):
+            self._rates_no_RT = \
+                {'k_ion': np.zeros((self.Ns, self.grid.dims, 
+                    self.grid.N_absorbers)),
+                 'k_heat': np.zeros((self.Ns, self.grid.dims, 
+                    self.grid.N_absorbers)),
+                 'k_ion2': np.zeros((self.Ns, self.grid.dims, 
+                    self.grid.N_absorbers, self.grid.N_absorbers)),
+                }
+    
+        return self._rates_no_RT
 
     def _set_lwb(self):
         """
@@ -156,9 +172,16 @@ class GlobalVolume(object):
             E = E1 * R**np.arange(Nf)
             
             # Tabulate emissivity for each source
-            
-            ehat = [self.background.TabulateEmissivity(z, E, i) \
-                for i in range(self.background.Ns)]
+            ehat = []
+            for i, source in enumerate(self.background.sources):
+                if not source.pf['is_lya_src']:
+                    ehat.append(None)
+                    continue
+                if source.pf['spectrum_Emin'] > 13.6:
+                    ehat.append(None)
+                    continue
+                
+                ehat.append(self.background.TabulateEmissivity(z, E, i))    
             
             self.lwb_E.extend(E)
             self.lwb_En.append(E)
@@ -669,24 +692,26 @@ class GlobalVolume(object):
     def coefficient_to_rate(self, z, species=0, **kw):
         return 1. / self.rate_to_coefficient(z, species, **kw)
         
-    def _fix_kwargs(self, functionify=False, **kwargs):
+    def _fix_kwargs(self, functionify=False, popid=0, **kwargs):
         
         kw = defkwargs.copy()
         kw.update(kwargs)
+        
+        pop = self.sources[popid]
         
         if functionify and type(kw['xavg']) is not types.FunctionType:
             tmp = kw['xavg']
             kw['xavg'] = lambda z: tmp
         
-        if kw['zf'] is None and self.pop is not None:
-            kw['zf'] = self.pop.zform
+        if kw['zf'] is None and pop is not None:
+            kw['zf'] = pop.zform
         
         if kw['Emax'] is None and (not self.pf['approx_xrb']):
             kw['Emax'] = self.E1    
             
         return kw
         
-    def HeatingRate(self, z, species=0, pop=0, **kwargs):
+    def HeatingRate(self, z, species=0, popid=0, **kwargs):
         """
         Compute heating rate density due to emission from this population. 
         
@@ -714,13 +739,15 @@ class GlobalVolume(object):
         due to electrons previously bound to input species.
 
         """
+                
+        pop = self.sources[popid]        
                                 
-        if not self.pf['is_heat_src_igm'] or (z >= self.pop.zform):
+        if not self.pf['is_heat_src_igm'] or (z >= pop.zform):
             return 0.0
         
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
-                
+                        
         # Return right away if heating rate density is parameterized
         if self.pf['heat_igm'] is not None:
             return self.pf['heat_igm'](z) 
@@ -750,7 +777,7 @@ class GlobalVolume(object):
         # from sources at redshift z
         if self.pf['approx_xrb']:
             weight = self.rate_to_coefficient(z, species, **kw)
-            L = self.pop.XrayLuminosityDensity(z) # erg / s / c-cm**3
+            L = pop.XrayLuminosityDensity(z) # erg / s / c-cm**3
 
             return weight * fheat * L * (1. + z)**3
             
@@ -808,7 +835,7 @@ class GlobalVolume(object):
                     heat = simps(integrand[0:imax] * self.E[0:imax], x=self.logE[0:imax]) * log10
             
             else:
-                imin = np.argmin(np.abs(self.E - self.pop.pf['spectrum_Emin']))
+                imin = np.argmin(np.abs(self.E - pop.pf['spectrum_Emin']))
                 
                 if self.sampled_integrator == 'romb':
                     heat = romb(integrand[imin:] * self.E[imin:], 
@@ -831,7 +858,7 @@ class GlobalVolume(object):
 
         return heat    
         
-    def IonizationRateHIIRegions(self, z, species=0, **kwargs):
+    def IonizationRateCGM(self, z, species=0, popid=0, **kwargs):
         """
         Compute volume averaged hydrogen ionization rate.
 
@@ -860,7 +887,9 @@ class GlobalVolume(object):
 
         """
         
-        if (not self.pf['is_ion_src_cgm']) or (z > self.pop.zform):
+        pop = self.sources[popid]
+        
+        if (not self.pf['is_ion_src_cgm']) or (z > pop.zform):
             return 0.0
             
         # Need some guidance from 1-D calculations to do this
@@ -879,9 +908,9 @@ class GlobalVolume(object):
             weight = 1.0
 
         return weight \
-            * self.pop.IonizingPhotonLuminosityDensity(z) * (1. + z)**3
+            * pop.IonizingPhotonLuminosityDensity(z) * (1. + z)**3
     
-    def IonizationRateIGM(self, z, species=0, **kwargs):
+    def IonizationRateIGM(self, z, species=0, popid=0, **kwargs):
         """
         Compute volume averaged hydrogen ionization rate.
         
@@ -899,9 +928,11 @@ class GlobalVolume(object):
         second per atom.
         
         """
+        
+        pop = self.sources[popid]                     
                                 
         # z between zform, zdead? must be careful for BHs
-        if (not self.pf['is_ion_src_igm']) or (z > self.pop.zform):
+        if (not self.pf['is_ion_src_igm']) or (z > pop.zform):
             return 0.0
                 
         # Grab defaults, do some patches if need be            
@@ -912,11 +943,11 @@ class GlobalVolume(object):
 
         if self.pf['approx_xrb']:
             weight = self.rate_to_coefficient(z, species, **kw)
-            primary = weight * self.pop.XrayLuminosityDensity(z) \
-                * (1. + z)**3 / self.pop.pf['xray_Eavg'] / erg_per_ev
+            primary = weight * pop.XrayLuminosityDensity(z) \
+                * (1. + z)**3 / pop.pf['xray_Eavg'] / erg_per_ev
             fion = self.esec.DepositionFraction(kw['igm_h_2'], channel='h_1')[0]
 
-            return primary * (1. + fion) * (self.pop.pf['xray_Eavg'] - E_th[0]) \
+            return primary * (1. + fion) * (pop.pf['xray_Eavg'] - E_th[0]) \
                 / E_th[0]
 
         # Full calculation - much like computing integrated flux
@@ -1247,7 +1278,7 @@ class GlobalVolume(object):
                 if m % size != rank:
                     continue
 
-                # Compute optical depth    
+                # Compute optical depth
                 if l == (self.L - 1):
                     tau_proc[l,n] = 0.0
                 else:

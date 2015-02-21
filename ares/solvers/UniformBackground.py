@@ -80,8 +80,10 @@ class UniformBackground:
 
         # Some useful physics modules
         if grid is not None:
+            self.grid = grid
             self.cosm = grid.cosm
         else:
+            self.grid = None
             self.cosm = Cosmology()
 
         self.hydr = Hydrogen(self.cosm, 
@@ -142,17 +144,63 @@ class UniformBackground:
         self._atol = self.pf["integrator_atol"]
         self._divmax = int(self.pf["integrator_divmax"])
     
-    def update_rate_coefficients(self, data, t):
+    def update_optical_depth(self):
+        pass
+
+    def update_background_fluxes(self):
+        pass
+         
+    def update_rate_coefficients(self, data, z, **kwargs):
         """
         Compute ionization and heating rate coefficients.
+
+        Returns
+        -------
+        Dictionary containing ionization and heating rate coefficients.
+
         """
 
-        # update optical depth first
+        self.update_optical_depth()
+        self.update_background_fluxes()
 
-        return rcs
+        # Setup arrays for results - sorted by sources and absorbers
+        self.k_ion  = np.zeros([self.Ns, self.grid.N_absorbers])
+        self.k_ion2 = np.zeros([self.Ns, self.grid.N_absorbers, 
+            self.grid.N_absorbers])
+        self.k_heat = np.zeros([self.Ns, self.grid.N_absorbers])
+        
+        # Loop over sources
+        for i, source in enumerate(self.sources):
 
-    def BroadBandFlux(self):
-        pass
+            # Loop over absorbing species
+            for j, species in enumerate(self.grid.absorbers):
+
+                if kwargs['zone'] == 'igm':
+                    self.k_ion[i,j] = \
+                        self.volume.IonizationRateIGM(z, species=j, popid=i,
+                        **kwargs)
+                    self.k_heat[i,j] = \
+                        self.volume.HeatingRate(z, species=j, popid=i,
+                        **kwargs)
+
+                    for k, donor in enumerate(self.grid.absorbers):
+                        self.k_ion2[i,j,k] = \
+                            self.volume.SecondaryIonizationRateIGM(z, 
+                            species=j, donor=k, popid=i, **kwargs)
+
+                else:
+                    self.k_ion[i,j] = \
+                        self.volume.IonizationRateCGM(z, species=j, popid=i,
+                        **kwargs)
+
+        to_return = \
+        {
+         'k_ion': self.k_ion,
+         'k_ion2': self.k_ion2,
+         'k_heat': self.k_heat,
+        }
+                                                
+        return to_return
 
     def AngleAveragedFlux(self, z, E, popid=0, **kwargs):
         """
@@ -405,7 +453,7 @@ class UniformBackground:
             
             for n in range(Nn):
                 fluxes[n][j] = flux[n]
-    
+
         self.flux_En = fluxes
 
         return self.volume.lwb_zl, self.volume.lwb_E, \
@@ -797,7 +845,7 @@ class UniformBackground:
     
     def LWFluxGenerator(self, popid=0):
         """
-        Evolute Lyman-Werner background in time.
+        Evolve Lyman-Werner background in time.
         
         Returns
         -------

@@ -50,7 +50,7 @@ flux_num = np.array(map(lambda EE: rad.AngleAveragedFlux(zf, EE, zf=zi,
     
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)    
 ax1.semilogx(Enum, flux_num, color='k')
-ax1.scatter(rad.igm.E, fluxes[0], color='b', marker='o', facecolors='none')
+ax1.scatter(rad.volume.E, fluxes[0], color='b', marker='o', facecolors='none')
 ax1.set_xlabel(ares.util.labels['E'])
 ax1.set_ylabel(ares.util.labels['flux_E'])
 ax1.set_ylim(0.5 * flux_num[flux_num > 0].min(), 1.1 * flux_num.max())
@@ -66,9 +66,9 @@ heat = []
 ioniz_rate = []
 ioniz_rate2 = []
 for i, redshift in enumerate(z):
-    heat.append(rad.igm.HeatingRate(z[i], xray_flux=fluxes[i,:]))    
-    ioniz_rate.append(rad.igm.IonizationRateIGM(z[i], xray_flux=fluxes[i,:]))
-    ioniz_rate2.append(rad.igm.SecondaryIonizationRateIGM(z[i], xray_flux=fluxes[i,:]))
+    heat.append(rad.volume.HeatingRate(z[i], xray_flux=fluxes[i,:]))    
+    ioniz_rate.append(rad.volume.IonizationRateIGM(z[i], xray_flux=fluxes[i,:]))
+    ioniz_rate2.append(rad.volume.SecondaryIonizationRateIGM(z[i], xray_flux=fluxes[i,:]))
 
 ax2.plot(z, heat)
 ax3.plot(z, ioniz_rate, label=r'$\Gamma_{\mathrm{HI}}$')

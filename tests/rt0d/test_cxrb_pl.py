@@ -28,8 +28,8 @@ plpars = \
  'spectrum_EmaxNorm': 3e4,
  'spectrum_logN': -np.inf,
  'approx_xrb': 0,
+ 'discrete_xrb': True,
  'redshift_bins': 400,
- 'load_tau': True,
  'norm_by': 'xray',
 }
 
@@ -63,8 +63,8 @@ for i, rad in enumerate([plsrc, aplsrc]):
     heat = np.zeros_like(z)
     ioniz = np.zeros_like(z)
     for j, redshift in enumerate(z):
-        heat[j] = rad.igm.HeatingRate(redshift, xray_flux=fluxes[j])
-        ioniz[j] = rad.igm.IonizationRateIGM(redshift, xray_flux=fluxes[j])
+        heat[j] = rad.volume.HeatingRate(redshift, xray_flux=fluxes[j])
+        ioniz[j] = rad.volume.IonizationRateIGM(redshift, xray_flux=fluxes[j])
     
     ax2.semilogy(z, heat, color=colors[i], ls='-', label=label)
     ax3.semilogy(z, ioniz, color=colors[i], ls='-', label=label)

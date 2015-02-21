@@ -27,24 +27,36 @@ except ImportError:
     
 ARES = os.environ.get('ARES')
 
-def _sort_data(all_data):
+def _sort_data(all_data, prefix=''):
     """
     Take list of dictionaries and re-sort into 2-D arrays.
+    
+    Parameters
+    ----------
+    all_data : list
+        Each element is a dictionary corresponding to data at a particular 
+        snapshot.
+    prefix : str
+        Will prepended to all dictionary keys in output dictionary.
+        
+    Returns
+    -------
+    Dictionary, sorted by gas properties, with entire history for each one.
     """
 
-    data = {key:[] for key in all_data[0]}
+    data = {'%s%s' % (prefix, key):[] for key in all_data[0]}
 
     # Loop over time snapshots
     for element in all_data:
-        
+
         # Loop over fields
         for key in element:
-            data[key].append(element[key])
-        
+            data['%s%s' % (prefix, key)].append(element[key])
+
     # Cast everything to arrays
     for key in data:
         data[key] = np.array(data[key])    
-        
+
     return data
     
 def _load_hdf5(fn):    
