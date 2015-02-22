@@ -91,7 +91,7 @@ class Cosmology:
             np.sqrt(self.omega_m_0) / self.hubble_0 / 3.    
         
         integrand = lambda z: 1. / (1. + z) / self.EvolutionFunction(z)
-        return quad(integrand, z_i, z_f)[0] * self.hubble_0
+        return quad(integrand, z_i, z_f)[0] / self.HubbleParameter(z_i)
         
     def TCMB(self, z):
         return self.cmb_temp_0 * (1. + z)
@@ -126,8 +126,7 @@ class Cosmology:
         return c / self.HubbleParameter(z)
     
     def HubbleTime(self, z):
-        if self.approx_highz:
-            return 2. / 3. / self.HubbleParameter(z)
+        return 1. / self.HubbleParameter(z)
         
     def OmegaMatter(self, z):
         if self.approx_highz:

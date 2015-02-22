@@ -14,7 +14,7 @@ import numpy as np
 from ..util import ProgressBar
 from .GasParcel import GasParcel
 from ..solvers import RadialField
-from ..util.ReadData import _sort_data
+from ..util.ReadData import _sort_history
 
 class RaySegment:
     """
@@ -82,7 +82,7 @@ class RaySegment:
 
         pb.finish()
 
-        to_return = _sort_data(all_data)
+        to_return = _sort_history(all_data)
         to_return['t'] = np.array(all_t)
         
         self.history = to_return

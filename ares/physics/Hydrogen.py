@@ -308,6 +308,12 @@ class Hydrogen:
         """ Return energy of Lyman-n photon in eV. """
         return E_LL * (1. - 1. / n**2)
         
+    def Ts(self, z, Tk, Ja, xHII, ne):
+        """
+        Short-hand for calling `SpinTemperature`.
+        """
+        return self.SpinTemperature(z, Tk, Ja, xHII, ne)
+        
     def SpinTemperature(self, z, Tk, Ja, xHII, ne):
         """
         Returns spin temperature of intergalactic hydrogen.
@@ -338,6 +344,12 @@ class Hydrogen:
         return (1.0 + x_c + x_a) / \
             (self.cosm.TCMB(z)**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
     
+    def dTb(self, z, xHII, Ts):
+        """
+        Short-hand for calling `DifferentialBrightnessTemperature`.
+        """
+        return self.DifferentialBrightnessTemperature(z, xHII, Ts)
+        
     def DifferentialBrightnessTemperature(self, z, xHII, Ts):
         """
         Global 21-cm signature relative to cosmic microwave background in mK.

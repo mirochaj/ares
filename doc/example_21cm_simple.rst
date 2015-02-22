@@ -44,7 +44,7 @@ contains convenience routines for common plots of interest:
     
 ::
    
-    anl = ares.analysis.Global21cm(sim)
+    anl = ares.analysis.MultiPhaseMedium(sim)
     ax = anl.GlobalSignature()
     
 .. figure::  http://casa.colorado.edu/~mirochaj/docs/ares/basic_21cm.png
@@ -66,7 +66,7 @@ which saves the contents of ``sim.history`` at all time snapshots.
 To read results from disk, you can supply a filename to ``ares.analysis.Global21cm`` 
 rather than a ``ares.simulations.Global21cm`` instance if you'd like, e.g., :: 
 
-    anl = ares.analysis.Global21cm(history='test_21cm.pkl')    
+    anl = ares.analysis.MultiPhaseMedium(history='test_21cm.pkl')    
 
 See :doc:`analysis` for more information about readily available analysis 
 routines.
@@ -84,7 +84,7 @@ To do simple parameter study, you could do something like:
             sim.run()
 
             # Object for common analysis routines
-            anl = ares.analysis.Global21cm(sim)
+            anl = ares.analysis.MultiPhaseMedium(sim)
             
             # Plot the global signal
             ax = anl.GlobalSignature(ax=ax, 

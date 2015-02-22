@@ -1,6 +1,6 @@
 """
 
-MultiPhaseIGM.py
+MultiPhaseMedium.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -12,11 +12,12 @@ Description:
 
 import numpy as np
 from .GasParcel import GasParcel
-from ..util.ReadData import _sort_data
 from ..solvers import UniformBackground
+from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from ..populations import CompositePopulation
 
+# These should go in ProblemTypes?
 igm_pars = \
 {
  'grid_cells': 1,
@@ -36,8 +37,11 @@ cgm_pars = \
  'cosmological_ics': True,
 }
 
-class MultiPhaseIGM:
+class MultiPhaseMedium:
     def __init__(self, **kwargs):
+        """
+        Initialize a MultiPhaseMedium object.
+        """
         self.pf = ParameterFile(**kwargs)
 
         # Initialize two GasParcels
@@ -49,24 +53,39 @@ class MultiPhaseIGM:
 
         self.parcel_igm = GasParcel(**self.kw_igm)
         self.parcel_cgm = GasParcel(**self.kw_cgm)
-
-        # Fix CGM parcel to have negligible volume filling factor
-        self.parcel_cgm.grid.data['Tk'] = np.array([1e4])
-        self.parcel_cgm.grid.set_recombination_rate(in_bubbles=True)
-
+        
+        self._model_specific_patches()
+        
         # Initialize generators
         self.gen_igm = self.parcel_igm.step()
         self.gen_cgm = self.parcel_cgm.step()
     
-        self._set_radiation_field()
-    
-    def _set_radiation_field(self):
-        """
-        Loop over populations, make separate RB and RS instances for each.
-        """
-
+        # Intialize radiation background
         self.field = UniformBackground(grid=self.parcel_igm.grid, **self.pf)
-
+        
+        # Set initial values for rate coefficients
+        self.parcel_igm.update_rate_coefficients(self.parcel_igm.grid.data, 
+            **self.field.volume.rates_no_RT)
+        self.parcel_cgm.update_rate_coefficients(self.parcel_cgm.grid.data, 
+            **self.field.volume.rates_no_RT)        
+    
+    def _model_specific_patches(self):
+        """
+        A few modifications to parameter file required by this formalism.
+        """
+        
+        # Reset stop time based on final redshift.
+        z = self.pf['initial_redshift']
+        zf = self.pf['final_redshift']
+        self.tf = self.parcel_igm.grid.cosm.LookbackTime(zf, z)
+        self.pf['stop_time'] = self.tf / self.pf['time_units']
+        self.parcel_igm.pf['stop_time'] = self.pf['stop_time']
+        self.parcel_cgm.pf['stop_time'] = self.pf['stop_time']
+        
+        # Fix CGM parcel 
+        self.parcel_cgm.grid.data['Tk'] = np.array([1e4])
+        self.parcel_cgm.grid.set_recombination_rate(in_bubbles=True)
+        
     def run(self):
         """
         Run simulation from start to finish.
@@ -76,27 +95,16 @@ class MultiPhaseIGM:
         Nothing: sets `history` attribute.
 
         """
-                
-        z = self.pf['initial_redshift']
-        zf = self.pf['final_redshift']
-        tf = self.parcel_igm.grid.cosm.LookbackTime(zf, z)
-                
-        pb = ProgressBar(tf, use=self.pf['progress_bar'])
+
+        pb = ProgressBar(self.tf, use=self.pf['progress_bar'])
         pb.start()
-        
-        # Rate coefficients for initial conditions
-        self.parcel_igm.update_rate_coefficients(self.parcel_igm.grid.data, 
-            **self.field.volume.rates_no_RT)
             
         all_t = []; all_z = []
         all_data_igm = []; all_data_cgm = []
         for t, z, data_igm, data_cgm in self.step():
             
-            try:
-                pb.update(t)
-            except AssertionError:
-                pass
-
+            pb.update(t)
+            
             # Save data
             all_z.append(z)
             all_t.append(t)
@@ -105,8 +113,10 @@ class MultiPhaseIGM:
                         
         pb.finish()          
 
-        self.history_igm = _sort_data(all_data_igm, prefix='igm_')
-        self.history_cgm = _sort_data(all_data_cgm, prefix='cgm_')
+        self.history_igm = \
+            _sort_history(all_data_igm, prefix='igm_', squeeze=True)
+        self.history_cgm = \
+            _sort_history(all_data_cgm, prefix='cgm_', squeeze=True)
         
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
@@ -151,9 +161,14 @@ class MultiPhaseIGM:
             # Re-compute rate coefficients
             self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
 
+            tmp = data_cgm.copy()
+            tmp['igm_h_1'] = data_igm['h_1']
+
             # CGM rate coefficients
-            RC_cgm = self.field.update_rate_coefficients(data_cgm, z, 
+            RC_cgm = self.field.update_rate_coefficients(tmp, z, 
                 zone='cgm', return_rc=True)
+                        
+            del tmp
 
             # Re-compute rate coefficients
             self.parcel_cgm.update_rate_coefficients(data_cgm, **RC_cgm)

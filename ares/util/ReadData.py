@@ -27,7 +27,7 @@ except ImportError:
     
 ARES = os.environ.get('ARES')
 
-def _sort_data(all_data, prefix=''):
+def _sort_history(all_data, prefix='', squeeze=False):
     """
     Take list of dictionaries and re-sort into 2-D arrays.
     
@@ -55,7 +55,10 @@ def _sort_data(all_data, prefix=''):
 
     # Cast everything to arrays
     for key in data:
-        data[key] = np.array(data[key])    
+        if squeeze:
+            data[key] = np.array(data[key]).squeeze()
+        else:
+            data[key] = np.array(data[key])    
 
     return data
     

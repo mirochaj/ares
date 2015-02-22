@@ -14,7 +14,7 @@ which handles grid initialization, time-stepping, data storage, etc.
 import numpy as np
 from ..static import Grid
 from ..solvers import Chemistry
-from ..util.ReadData import _sort_data
+from ..util.ReadData import _sort_history
 from ..util import RestrictTimestep, CheckPoints, ProgressBar, ParameterFile
 
 class GasParcel:
@@ -147,7 +147,7 @@ class GasParcel:
 
         pb.finish()
 
-        self.history = _sort_data(all_data)
+        self.history = _sort_history(all_data)
         self.history['t'] = np.array(all_t)
         
     def step(self, t=0., dt=None, tf=None, data=None):

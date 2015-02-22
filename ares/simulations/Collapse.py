@@ -11,7 +11,7 @@ Description:
 """
 
 import numpy as np
-from ..util.ReadData import _sort_data
+from ..util.ReadData import _sort_history
 from ..util import ProgressBar, ParameterFile
 
 class Collapse:

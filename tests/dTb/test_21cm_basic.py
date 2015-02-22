@@ -15,5 +15,5 @@ import ares
 sim = ares.simulations.Global21cm()
 sim.run()
 
-anl = ares.analysis.Global21cm(sim)
+anl = ares.analysis.MultiPhaseMedium(sim)
 ax = anl.GlobalSignature()

@@ -15,11 +15,12 @@ import os, imp
 # Load custom defaults    
 HOME = os.environ.get('HOME')
 if os.path.exists('%s/.ares/labels.py' % HOME):
-    #f = open('%s/.ares/labels.py' % HOME, 'r')
     f, filename, data = imp.find_module('labels', ['%s/.ares/' % HOME])
     custom_labels = imp.load_module('labels.py', f, filename, data).pf
 else:
     custom_labels = {}
+    
+prefixes = ['igm_', 'cgm_']    
     
 #
 ## Common axis labels
@@ -27,10 +28,46 @@ label_flux_nrg = r'$J_{\nu} \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-2}
 label_flux_phot = r'$J_{\nu} \ (\mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1})$'    
 label_nrg = r'$h\nu \ (\mathrm{eV})$'
 label_heat_mpc = r'$\epsilon_{\mathrm{heat}} \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cMpc}^{-3})$'
-label_dTb = r'$\delta T_b \ (\mathrm{mK})$'
 label_dTbdnu = r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$'
 
-labels = \
+states = \
+{
+'h_1': r'$x_{\mathrm{HI}}$',
+'h_2': r'$x_{\mathrm{HII}}$',
+'he_1': r'$x_{\mathrm{HeI}}$',
+'he_2': r'$x_{\mathrm{HeII}}$',
+'he_3': r'$x_{\mathrm{HeIII}}$',
+'Tk': r'$T_K$',
+}
+
+rates = \
+{
+ 'k_ion': r'$\kappa_{\mathrm{ion}}$',
+ 'k_ion2': r'$\kappa_{\mathrm{ion, sec}}$',
+ 'k_heat': r'$\kappa_{\mathrm{heat}}$',
+ 'k_diss': r'$\kappa_{\mathrm{diss}}$',
+}
+
+derived = \
+{
+ 'Ts': r'$T_S$',
+ 'dTb': r'$\delta T_b \ (\mathrm{mK})$',
+}
+
+labels = {}
+labels.update(states)
+labels.update(rates)
+labels.update(derived)
+
+# Also account for prefixes
+labels_w_prefix = {}
+for prefix in prefixes:
+    for key in labels:
+        labels_w_prefix['%s%s' % (prefix, key)] = labels[key]
+        
+labels.update(labels_w_prefix)
+
+common = \
 {
  'nu': r'$\nu \ (\mathrm{MHz})$',
  't_myr': r'$t \ (\mathrm{Myr})$',
@@ -38,7 +75,6 @@ labels = \
  'flux_E': label_flux_nrg, 
  'E': label_nrg,  
  'heat_mpc': label_heat_mpc,  
- 'dTb': label_dTb,
  'dTbdnu': label_dTbdnu,
  'fX': r'$f_X$',
  'fstar': r'$f_{\ast}$',
@@ -81,18 +117,6 @@ labels = \
 ##
 #
 
-more_elements = \
-{
- 'h_1': r'$x_{\mathrm{HI}}$',
- 'h_2': r'$x_{\mathrm{HII}}$',
- 'he_1': r'$x_{\mathrm{HeI}}$',
- 'he_2': r'$x_{\mathrm{HeII}}$',
- 'he_3': r'$x_{\mathrm{HeIII}}$',
- 'k_ion': r'$\kappa_{\mathrm{ion}}$',
- 'k_ion2': r'$\kappa_{\mathrm{ion, sec}}$',
- 'k_heat': r'$\kappa_{\mathrm{heat}}$',
- 'k_diss': r'$\kappa_{\mathrm{diss}}$',  
-}
 
 history_elements = \
 {
@@ -105,7 +129,6 @@ history_elements = \
  'cgm_h_2': r'$Q_{\mathrm{HII}}$',
  'xavg': r'$\overline{x}_i$',
  'Ts': r'$T_S$',
- 'dTb': label_dTb,
  'z': r'$z$',
  'Ja': r'$J_{\alpha}$', 
  'Jlw': r'$J_{\mathrm{LW}}$', 
@@ -130,9 +153,10 @@ other = \
  'contrast': r'$1 - T_{\gamma} / T_S$',
 }
 
-labels.update(more_elements)
 labels.update(history_elements)
 labels.update(tanh_parameters)
 labels.update(other)
+labels.update(common)
 
+# Add custom labels
 labels.update(custom_labels)

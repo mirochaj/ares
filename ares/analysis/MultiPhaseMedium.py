@@ -1,6 +1,6 @@
 """
 
-Global21cm.py
+MultiPhaseMedium.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -25,6 +25,7 @@ from ..physics import Cosmology, Hydrogen
 from ..util.Math import central_difference
 from ..util.SetDefaultParameterValues import *
 from ..simulations import Global21cm as simG21
+from ..simulations import MultiPhaseMedium as simMPM
 from .DerivedQuantities import DerivedQuantities as DQ
 
 try:
@@ -34,8 +35,8 @@ except ImportError:
     
 turning_points = ['D', 'C', 'B', 'A']
 
-class Global21cm:
-    def __init__(self, sim=None, prefix=None, history=None, pf=None, **kwargs):
+class MultiPhaseMedium:
+    def __init__(self, sim=None, prefix=None, **kwargs):
         """
         Initialize analysis object.
         
@@ -52,10 +53,11 @@ class Global21cm:
                 
         """
         
-        if isinstance(sim, simG21):
-            self.sim = sim    # simG21 instance
+        if isinstance(sim, simG21) or isinstance(sim, simMPM):
+            self.sim = sim
             self.pf = sim.pf
             self.data = sim.history.copy()
+            
             try:
                 self.cosm = sim.grid.cosm
             except AttributeError:
@@ -66,52 +68,53 @@ class Global21cm:
                 helium_by_number=self.pf['helium_by_number'], 
                 cmb_temp_0=self.pf["cmb_temp_0"], 
                 approx_highz=self.pf["approx_highz"])
+            
             try:
                 self.hydr = sim.grid.hydr
             except AttributeError:
                 self.hydr = Hydrogen(cosm=self.cosm)
         elif prefix is not None:
             pass
-        else:
-            self.sim = None
-            if type(history) is dict:
-                self.data = history
-            elif re.search('hdf5', history):
-                f = h5py.File(history, 'r')
-                self.data = {}
-                for key in f.keys():
-                    self.data[key] = f[key].value[-1::-1]
-                f.close()
-            else:
-                if re.search('pkl', history):
-                    f = open(history, 'rb')
-                    self.data = pickle.load(f)
-                    f.close()
-                else:    
-                    f = open(history, 'r')
-                    cols = f.readline().split()[1:]
-                    data = np.loadtxt(f)
-                    
-                    self.data = {}
-                    for i, col in enumerate(cols):
-                        self.data[col] = data[:,i]
-                    f.close()
-                              
-            if pf is None:
-                self.pf = SetAllDefaults()
-            elif type(pf) is dict:
-                self.pf = pf
-            elif os.path.exists(pf):
-                f = open(pf, 'rb')
-                try:
-                    self.pf = pickle.load(f)
-                except:
-                    self.pf = SetAllDefaults()
-                f.close()
-            
-            self.cosm = Cosmology()
-            self.hydr = Hydrogen()
-
+        #else:
+        #    self.sim = None
+        #    if type(history) is dict:
+        #        self.data = history
+        #    elif re.search('hdf5', history):
+        #        f = h5py.File(history, 'r')
+        #        self.data = {}
+        #        for key in f.keys():
+        #            self.data[key] = f[key].value[-1::-1]
+        #        f.close()
+        #    else:
+        #        if re.search('pkl', history):
+        #            f = open(history, 'rb')
+        #            self.data = pickle.load(f)
+        #            f.close()
+        #        else:    
+        #            f = open(history, 'r')
+        #            cols = f.readline().split()[1:]
+        #            data = np.loadtxt(f)
+        #            
+        #            self.data = {}
+        #            for i, col in enumerate(cols):
+        #                self.data[col] = data[:,i]
+        #            f.close()
+        #                      
+        #    if pf is None:
+        #        self.pf = SetAllDefaults()
+        #    elif type(pf) is dict:
+        #        self.pf = pf
+        #    elif os.path.exists(pf):
+        #        f = open(pf, 'rb')
+        #        try:
+        #            self.pf = pickle.load(f)
+        #        except:
+        #            self.pf = SetAllDefaults()
+        #        f.close()
+        #    
+        #    self.cosm = Cosmology()
+        #    self.hydr = Hydrogen()
+        #
         self.kwargs = kwargs    
         
         # Derived quantities
@@ -143,14 +146,14 @@ class Global21cm:
     def dTbdz(self):
         if not hasattr(self, '_dTbdz'):
             self._z_p, self._dTbdz = \
-                central_difference(self.data_asc['z'], self.data_asc['dTb'])
+                central_difference(self.data_asc['z'], self.data_asc['igm_dTb'])
         return self._dTbdz
     
     @property
     def dTbdnu(self):
         if not hasattr(self, '_dTbdnu'):
             self._nu_p, self._dTbdnu = \
-                central_difference(self.data_asc['nu'], self.data_asc['dTb'])               
+                central_difference(self.data_asc['nu'], self.data_asc['igm_dTb'])               
         return self._dTbdnu
         
     @property
@@ -164,7 +167,7 @@ class Global21cm:
     def dTb2dnu2(self):
         if not hasattr(self, '_dTbdnu'):
             self._nu_pp, self._dTbdnu = \
-                central_difference(self.data_asc['nu'], self.data_asc['dTb'])               
+                central_difference(self.data_asc['nu'], self.data_asc['igm_dTb'])               
         return self._dTbdnu        
     
     @property
@@ -239,7 +242,7 @@ class Global21cm:
         self.interp[field] = scipy.interpolate.interp1d(self.data_asc['z'], 
             self.data_asc[field], kind='cubic')
                        
-    def field(self, z, field='dTb'):  
+    def field(self, z, field='igm_dTb'):  
         """ Interpolate value of any field in self.data to redshift z. """ 
                 
         if field not in self.interp:
@@ -334,7 +337,7 @@ class Global21cm:
                 continue
             
             stop = self._track.is_stopping_point(self.data['z'][0:i], 
-                self.data['dTb'][0:i])
+                self.data['igm_dTb'][0:i])
                                 
         self._turning_points = self._track.turning_points
         
@@ -538,9 +541,9 @@ class Global21cm:
             gotax = True
         
         if scatter is False:        
-            ax.plot(self.data[xaxis], self.data['dTb'], **kwargs)
+            ax.plot(self.data[xaxis], self.data['igm_dTb'], **kwargs)
         else:
-            ax.scatter(self.data[xaxis][-1::-mask], self.data['dTb'][-1::-mask], 
+            ax.scatter(self.data[xaxis][-1::-mask], self.data['igm_dTb'][-1::-mask], 
                 **kwargs)        
         
         zmax = self.pf["first_light_redshift"]
@@ -552,11 +555,11 @@ class Global21cm:
             xticks = list(np.arange(zmin, zmax, zmin))
             xticks_minor = list(np.arange(zmin, zmax, 1))
         else:
-            xticks = np.arange(20, 180, 20)
+            xticks = np.arange(20, 200, 20)
             xticks_minor = np.arange(10, 190, 20)
 
         if ymin is None:
-            ymin = max(min(min(self.data['dTb']), ax.get_ylim()[0]), -500)
+            ymin = max(min(min(self.data['igm_dTb']), ax.get_ylim()[0]), -500)
     
             # Set lower y-limit by increments of 50 mK
             for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500]:
@@ -565,7 +568,7 @@ class Global21cm:
                     break
     
         if ymax is None:
-            ymax = max(max(self.data['dTb']), ax.get_ylim()[1])
+            ymax = max(max(self.data['igm_dTb']), ax.get_ylim()[1])
         
         ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))
                 
@@ -598,7 +601,7 @@ class Global21cm:
                 ax.set_xlabel(labels['nu'])
         
         if ax.get_ylabel() == '':    
-            ax.set_ylabel(labels['dTb'], 
+            ax.set_ylabel(labels['igm_dTb'], 
                 fontsize='x-large')    
         
         if 'label' in kwargs:
@@ -649,7 +652,7 @@ class Global21cm:
             for i in xrange(2):
                 ymin[i], ymax[i]= mp.grid[i].get_ylim()        
                 
-        mp.grid[0].plot(self.data_asc['z'], self.data_asc['dTb'], **kwargs)        
+        mp.grid[0].plot(self.data_asc['z'], self.data_asc['igm_dTb'], **kwargs)        
         mp.grid[1].plot(self.z_p, self.dTbdnu, **kwargs)
         
         zf = int(np.min(self.data['z']))
@@ -668,13 +671,13 @@ class Global21cm:
             yticks.remove(y)
                         
         mp.grid[0].set_xlabel(labels['z'])
-        mp.grid[0].set_ylabel(labels['dTb'])
+        mp.grid[0].set_ylabel(labels['igm_dTb'])
         mp.grid[1].set_ylabel(r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$')
         
         for i in xrange(2):                
             mp.grid[i].set_xlim(5, 35)   
             
-        mp.grid[0].set_ylim(min(1.05 * self.data['dTb'].min(), ymin[0]), max(1.2 * self.data['dTb'].max(), ymax[0]))
+        mp.grid[0].set_ylim(min(1.05 * self.data['igm_dTb'].min(), ymin[0]), max(1.2 * self.data['igm_dTb'].max(), ymax[0]))
         mp.grid[1].set_ylim(min(1.05 * self.dTbdnu.min(), ymin[1]), max(1.2 * self.dTbdnu[:-1].max(), ymax[1]))
                      
         mp.fix_ticks()
