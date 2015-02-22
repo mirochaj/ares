@@ -26,17 +26,13 @@ pars = \
  'spectrum_Emax': E_LL,
  'spectrum_EminNorm': 0.01,
  'spectrum_EmaxNorm': 5e2,
- 'approx_He': False,
- 'approx_xrb': False,
  'approx_lwb': False,
  'lya_nmax': 8,
  'Nlw': 9690.,
  'norm_by': 'lw',
- 'is_ion_src_cgm': False,
- 'is_ion_src_igm': False,
- 'is_heat_src_igm': False,
  'initial_redshift': 50,
  'final_redshift': 10,
+ 'redshifts_lwb': 1e4,
 }
     
 rad = ares.solvers.UniformBackground(discrete_lwb=False, **pars)
@@ -64,11 +60,16 @@ pl.legend(loc='center left', frameon=False)
 pl.ylim(1e-3, 1e2)
 
 # Solve using generator
-rad2 = ares.solvers.UniformBackground(discrete_lwb=True, **pars)
+rad2 = ares.simulations.MetaGalacticBackground(discrete_lwb=True, **pars)
 
 t3 = time.time()
-z, E, flux = rad2.LWBackground()
+rad2.run()
 t4 = time.time()    
+
+# Grab info about radiation background
+z = rad2.field.redshifts[0][-1::-1]
+E = np.concatenate(rad2.field.energies[0])
+flux = rad2.history['lw']
     
 pl.scatter(E, flux[np.argmin(np.abs(z-15.)),:] / J21_num,
     facecolors='none', color='k', marker='|', s=100, alpha=0.05)
@@ -76,23 +77,24 @@ pl.scatter(E, flux[np.argmin(np.abs(z-15.)),:] / J21_num,
 pl.scatter(E, flux[np.argmin(np.abs(z-30.)),:] / J21_num,
     facecolors='none', color='b', marker='|', s=100, alpha=0.05)
 
-print "Generator provides %ix speed-up." % ((t2 - t1) / (t4 - t3))
+print "Generator provides %.2gx speed-up (per redshift point)." \
+    % ((t2 - t1) / ((t4 - t3) / z.size))
 
 # Compute Lyman-alpha flux
-zarr = np.arange(10, 40)
-Ja_1 = np.array(map(rad.LymanAlphaFlux, zarr))
-Ja_2 = rad2.LymanAlphaFlux(z=None, fluxes=rad2.flux_En)
-    
-fig = pl.figure(2)
-ax = fig.add_subplot(111)
-
-ax.scatter(zarr, Ja_1 / J21_num, color='k', facecolors='none', s=50,
-    label='numerical')
-ax.semilogy(z, Ja_2 / J21_num, color='b', label='generator')
-ax.set_xlabel(r'$z$')
-ax.set_ylabel(r'$J_{\alpha} / J_{21}$')
-ax.set_ylim(1e-4, 1e2)
-ax.legend(loc='lower left')
-pl.draw()
+#zarr = np.arange(10, 40)
+#Ja_1 = np.array(map(rad.LymanAlphaFlux, zarr))
+#Ja_2 = rad2.field.LymanAlphaFlux(z=None, fluxes=rad2.flux_En)
+#    
+#fig = pl.figure(2)
+#ax = fig.add_subplot(111)
+#
+#ax.scatter(zarr, Ja_1 / J21_num, color='k', facecolors='none', s=50,
+#    label='numerical')
+#ax.semilogy(z, Ja_2 / J21_num, color='b', label='generator')
+#ax.set_xlabel(r'$z$')
+#ax.set_ylabel(r'$J_{\alpha} / J_{21}$')
+#ax.set_ylim(1e-4, 1e2)
+#ax.legend(loc='lower left')
+#pl.draw()
 
 

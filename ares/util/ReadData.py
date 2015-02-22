@@ -27,6 +27,18 @@ except ImportError:
     
 ARES = os.environ.get('ARES')
 
+def _flatten_flux(flux):
+    """
+    Take fluxes sorted by Lyman-n band and flatten to single energy
+    dimension.
+    """
+    
+    to_return = []
+    for i, flux_seg in enumerate(flux):
+        to_return.extend(flux_seg)
+
+    return np.array(to_return)
+
 def _sort_history(all_data, prefix='', squeeze=False):
     """
     Take list of dictionaries and re-sort into 2-D arrays.

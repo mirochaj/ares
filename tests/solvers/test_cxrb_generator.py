@@ -34,26 +34,29 @@ src_pars = \
  'load_tau': True,
 }
 
-rad = ares.solvers.UniformBackground(**src_pars)
+rad = ares.simulations.MetaGalacticBackground(**src_pars)
 
 """
 First, look at background flux itself.
 """
 
 # Compute background flux w/ generator
-z, E, fluxes = rad.XrayBackground()
+rad.run()
+z = rad.field.redshifts[0][-1::-1]
+E = rad.field.energies[0]
+flux = rad.history['xr']
 
 # Compute background flux using more sophisticated (and expensive!) integrator
-Enum = np.logspace(np.log10(2e2), 4.5, 100)
-flux_num = np.array(map(lambda EE: rad.AngleAveragedFlux(zf, EE, zf=zi, 
-    h_2=lambda z: 0.0), Enum))
+#Enum = np.logspace(np.log10(2e2), 4.5, 100)
+#flux_num = np.array(map(lambda EE: rad.AngleAveragedFlux(zf, EE, zf=zi, 
+#    h_2=lambda z: 0.0), Enum))
     
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)    
-ax1.semilogx(Enum, flux_num, color='k')
-ax1.scatter(rad.volume.E, fluxes[0], color='b', marker='o', facecolors='none')
+#ax1.semilogx(Enum, flux_num, color='k')
+ax1.scatter(E, flux[-1], color='b', marker='o', facecolors='none')
 ax1.set_xlabel(ares.util.labels['E'])
 ax1.set_ylabel(ares.util.labels['flux_E'])
-ax1.set_ylim(0.5 * flux_num[flux_num > 0].min(), 1.1 * flux_num.max())
+#ax1.set_ylim(0.5 * flux_num[flux_num > 0].min(), 1.1 * flux_num.max())
   
 """
 Next, look at ionization and heating rates.

@@ -124,16 +124,25 @@ def PhysicsParameters():
                         # 3 = Furlanetto & Pritchard (2006)
     
     # Approximations to radiation fields
+    "approx_irb": True,
     "approx_lwb": True,
     'approx_xrb': True,
     "approx_uvb": True,
     
     # If doing "full" calculation, discretize in redshift and energy?
+    "discrete_irb": True,
     "discrete_lwb": True,
     'discrete_xrb': True,
     "discrete_uvb": True,
+    
+    # How many redshift bins
+    "redshifts_irb": 400,
+    "redshifts_lwb": 400,
+    "redshifts_uvb": 400,
+    "redshifts_xrb": 400,
 
     # Lyman alpha sources
+    "lwb_nmax": 23,
     "lya_nmax": 23,
     "lya_injected": True,
     'lya_continuum': True,
@@ -296,12 +305,17 @@ def PopulationParameters():
     "is_ion_src_igm": True,
     "is_heat_src_cgm": False,
     "is_heat_src_igm": True,
-    
+
+    "is_src_irb": False,
+    "is_src_lwb": True,
+    "is_src_uvb": False,
+    "is_src_xrb": True,
+
     # Sets star formation history
     "Tmin": 1e4, 
     "Mmin": None,
     "fstar": 0.1,
-    
+
     # Scales X-ray emission
     "cX": 3.4e40, # Furlanetto (2006) extrapolation
     "fX": 0.2,    # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)

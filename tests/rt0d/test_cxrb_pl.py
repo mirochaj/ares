@@ -49,7 +49,7 @@ fig3 = pl.figure(3); ax3 = fig3.add_subplot(111)
 colors = ['k', 'b']
 for i, rad in enumerate([plsrc, aplsrc]):
     
-    z, E, fluxes = rad.XrayBackground()
+    rad.run()
     
     if np.isfinite(rad.pf['spectrum_logN']):
         label = r'$N = 10^{%i} \ \mathrm{cm}^{-2}$' % (rad.pf['spectrum_logN'])

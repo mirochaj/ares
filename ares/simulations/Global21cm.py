@@ -73,6 +73,11 @@ class Global21cm:
     def run(self):
         """
         Run a 21-cm simulation.
+        
+        Returns
+        -------
+        Nothing: sets `history` attribute.
+        
         """
         
         # If this was a tanh model, we're already dones.
@@ -105,25 +110,26 @@ class Global21cm:
             if self.pf['track_extrema']:
                 if self.track.is_stopping_point(all_z, all_dTb):
                     break
-            
+
         pb.finish()
 
         self.history_igm = _sort_history(all_data_igm, prefix='igm_',
             squeeze=True)
         self.history_cgm = _sort_history(all_data_cgm, prefix='cgm_',
             squeeze=True)
-        
+
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
         self.history['t'] = np.array(all_t)
         self.history['z'] = np.array(all_z)
-        
+
     def step(self):
         """
         Generator for the 21-cm signal.
         
         .. note:: Basically just calling MultiPhaseMedium here, except we
-            compute the spin temperature and brightness temperature.
+            compute the spin temperature and brightness temperature on
+            each step.
         
         Returns
         -------
@@ -138,7 +144,6 @@ class Global21cm:
                         
             # Grab Lyman alpha flux
             Ja = self.medium.field.LymanAlphaFlux(z)
-            #fluxes = 
             
             # Compute spin temperature
             n_H = self.medium.parcel_igm.grid.cosm.nH(z)
@@ -147,10 +152,11 @@ class Global21cm:
                     z, data_igm['Tk'], Ja, data_igm['h_2'], 
                     data_igm['e'] * n_H)
 
+            # Compute volume-averaged ionized fraction
+            xavg = data_cgm['h_2'] + (1. - data_cgm['h_2']) * data_igm['h_2']        
+
             # Derive brightness temperature
-            dTb = \
-                self.medium.parcel_igm.grid.hydr.dTb(
-                    z, data_cgm['h_2'], Ts)
+            dTb = self.medium.parcel_igm.grid.hydr.dTb(z, xavg, Ts)
             
             # Add derived fields to data
             data_igm.update({'Ts': Ts, 'dTb': dTb})

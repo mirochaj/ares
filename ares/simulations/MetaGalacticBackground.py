@@ -12,56 +12,72 @@ Description:
 
 import numpy as np
 from ..util import ParameterFile
-from ..static import GlobalVolume
 from ..solvers import UniformBackground
-from ..populations import CompositePopulation
-
-igm_pars = \
-{
- 'grid_cells': 1,
- 'isothermal': False,
- 'expansion': True,
- 'initial_ionization': [1.-1.2e-3, 1.2e-3],
- 'cosmological_ics': True,
-}
-
-bands = ['lw', 'uv', 'xr']
+from ..util.ReadData import _sort_history, _flatten_flux
 
 class MetaGalacticBackground:
     def __init__(self, **kwargs):
         """
-        Initialize a MetaGalacticBackground object.
-        
-        .. note:: This class assumes an optically thin Universe at all 
-            photon energies. For self-consistent solutions including an 
-            evolving IGM opacity, check out the MultiPhaseIGM class.
-            
+        Initialize a MetaGalacticBackground object.    
         """
+        
         self.pf = ParameterFile(**kwargs)
+        self.field = UniformBackground(**self.pf)
 
-        self._set_radiation_field()
+    def update_tau(self):
+        pass
+
+    def update_fluxes(self):
+        """
+        Loop over flux generators.
+        """
         
-    def _set_radiation_field(self):
-        """
-        Loop over populations, make separate RB and RS instances for each.
-        """
-    
-        self.field = UniformBackground(grid=None, **self.pf)
-   
-    def run(self, t, dt):
+        fluxes = {}
+        for i, generator in enumerate(self.field.generators):
+            fluxes[self.field.bands[i]] = generator.next()
+                
+        return fluxes    
+            
+    def run(self):
         """
         Evolve radiation background in time.
 
         .. note:: Assumes we're using the generator, otherwise the time 
             evolution must be controlled manually.
-            
+
         """
+
+        all_fluxes = []
+        for fluxes in self.step():
+            all_fluxes.append(fluxes)
         
-        pass
+        self.all_fluxes = all_fluxes
+        self.history = _sort_history(all_fluxes)
         
     def step(self):
-        pass
+        """
+        Initialize generator for the meta-galactic radiation background.
         
+        Returns
+        -------
+        Generator for the background radiation field. Yields the flux for 
+        each population.
+        
+        """
+        
+        t = 0.0
+        z = self.pf['initial_redshift']
+        zf = self.pf['final_redshift']
+                
+        while z > zf:
+            
+            #tau = self.field.update_optical_depth()
+            
+            fluxes = self.update_fluxes()
+            
+                        
+                
+            yield fluxes    
         
         
 

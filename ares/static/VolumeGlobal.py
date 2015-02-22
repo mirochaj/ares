@@ -110,8 +110,8 @@ class GlobalVolume(object):
         self.sigma = sigma
         self.sigma0 = sigma(E_th[0])    # Hydrogen ionization threshold
 
-        self._set_lwb()
-        self._set_xrb(use_tab=use_tab)
+        #self._set_lwb()
+        #self._set_xrb(use_tab=use_tab)
 
         self._set_integrator()
 
@@ -161,7 +161,7 @@ class GlobalVolume(object):
         self.lwb_n = np.arange(2, nmax)
         self.lwb_E = []
         self.lwb_En = []
-        self.lwb_emiss = []     
+        self.lwb_emiss = []
         for n in self.lwb_n:
             E1 = self.hydr.ELyn(n)
             E2 = self.hydr.ELyn(n + 1)
@@ -230,13 +230,13 @@ class GlobalVolume(object):
             raise NotImplemented('whats going on here')
 
         if use_tab and (self.pf['tau_table'] is not None or self.pf['discrete_xrb']):
-                            
+
             found = False
             if self.pf['discrete_xrb']:
-                
+
                 # First, look in CWD or $ARES (if it exists)
                 self.tabname = self.load_tau(self.pf['tau_prefix'])
-                
+
                 if self.tabname is not None:
                     found = True
             
@@ -378,7 +378,6 @@ class GlobalVolume(object):
                         self.esec.DepositionFraction(self.esec.x, 
                         E=E, channel='he_2')            
                         
-            
     def _set_integrator(self):
         self.integrator = self.pf["unsampled_integrator"]
         self.sampled_integrator = self.pf["sampled_integrator"]

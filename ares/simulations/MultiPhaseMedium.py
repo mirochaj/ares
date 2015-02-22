@@ -86,6 +86,9 @@ class MultiPhaseMedium:
         self.parcel_cgm.grid.data['Tk'] = np.array([1e4])
         self.parcel_cgm.grid.set_recombination_rate(in_bubbles=True)
         
+    def update_background(self):
+        pass    
+        
     def run(self):
         """
         Run simulation from start to finish.
