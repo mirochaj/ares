@@ -110,10 +110,9 @@ class GlobalVolume(object):
         self.sigma = sigma
         self.sigma0 = sigma(E_th[0])    # Hydrogen ionization threshold
 
-        #self._set_lwb()
         #self._set_xrb(use_tab=use_tab)
 
-        self._set_integrator()
+        #self._set_integrator()
 
     @property
     def rates_no_RT(self):
@@ -129,110 +128,123 @@ class GlobalVolume(object):
     
         return self._rates_no_RT
 
-    def _set_lwb(self):
+    def _fetch_tau(self, popid=0, zpf=None, Epf=None):
         """
-        Initialize grids for discrete integration of LW Background.
-        """
+        Look for optical depth tables. Supply corrected energy and redshift
+        arrays if there is a mistmatch between those generated from information
+        in the parameter file and those found in the optical depth table.
         
-        if self.background.approx_all_lwb:
-            return
-            
-        zi = self.pf['initial_redshift']
-        zf = self.pf['final_redshift']
-        nmax = self.pf['lya_nmax']
-        
-        Nz = 1e4
-        x = np.logspace(np.log10(1 + zf), np.log10(1 + zi), Nz)
-
-        self.lwb_zl = z = x - 1.
-        
-        logx = np.log10(x)
-        logz = np.log10(z)
-
-        # Constant ratio between elements in x-grid
-        R = x[1] / x[0]
-        logR = np.log10(R)
-        
-        self.lwb_Rsq = R**2
-        self.lwb_xsq = x**2
-        
-        n_horizon = lambda n: (1. - (n + 1.)**-2.) / (1. - n**-2.)
-
-        self.lwb_n = np.arange(2, nmax)
-        self.lwb_E = []
-        self.lwb_En = []
-        self.lwb_emiss = []
-        for n in self.lwb_n:
-            E1 = self.hydr.ELyn(n)
-            E2 = self.hydr.ELyn(n + 1)
-
-            Nf = num_freq_bins(Nz, zi=zi, zf=zf, Emin=E1, Emax=E2)
-
-            # Create energy arrays
-            E = E1 * R**np.arange(Nf)
-            
-            # Tabulate emissivity for each source
-            ehat = []
-            for i, source in enumerate(self.background.sources):
-                if not source.pf['is_lya_src']:
-                    ehat.append(None)
-                    continue
-                if source.pf['spectrum_Emin'] > 13.6:
-                    ehat.append(None)
-                    continue
-                
-                ehat.append(self.background.TabulateEmissivity(z, E, i))    
-            
-            self.lwb_E.extend(E)
-            self.lwb_En.append(E)
-            self.lwb_emiss.append(ehat)
-        
-        self.lwb_E = np.array(self.lwb_E)    
-            
-    def _set_xrb(self, use_tab=True):
-        """
-        From parameter file, initialize grids in redshift and frequency.
+        .. note:: This will only be called from UniformBackground, and on
+            populations which are using the generator framework.
         
         Parameters
         ----------
-        Only depends on contents of self.pf.
+        popid : int
+            ID # for population of interest.
+        zpf : np.ndarray
+            What the redshifts should be according to the parameter file.    
+        Epf : np.ndarray
+            What the energies should be according to the parameter file.
         
-        Notes
-        -----
-        If redshift_bins != None, will setup logarithmic grid in new parameter
-        x = 1 + z. Then, given that R = x_{j+1} / x_j = const. for j < J, we can 
-        create a logarithmic photon frequency / energy grid. This technique
-        is outlined in Haardt & Madau (1996) Appendix C.
-        
-        References
-        ----------
-        Haardt, F. & Madau, P. 1996, ApJ, 461, 20
+        Returns
+        -------
+        Energies and redshifts, potentially revised from Epf and zpf.
         
         """
         
-        if self.background.approx_all_xrb:
-            return
+        pop = self.sources[popid]
+        band = self.background.bands[popid]
         
-        if self.pf['redshift_bins'] is None and self.pf['tau_table'] is None:
-            
-            # Set bounds in frequency/energy space
-            self.E0 = self.pf['spectrum_Emin']
-            self.E1 = self.pf['spectrum_Emax']    
-            
-            return
+        #if pop.pf['redshifts_%sb' % band] is None and \
+        #    self.pf['tau_table'] is None:
+        #    
+        #    # Set bounds in frequency/energy space
+        #    self.E0 = self.pf['spectrum_Emin']
+        #    self.E1 = self.pf['spectrum_Emax']    
+        #    
+        #    return
         
-        self.tabname = None
+        #self.tabname = None
+        
+        # First, look in CWD or $ARES (if it exists)
+        self.tabname = self.load_tau(self.pf['tau_prefix'])
+        
+        # If we made it this far, we found a table that may be suitable
+        ztab, Etab, tau = self.read_tau(self.tabname)
+        
+        # Return right away if there's no potential for conflict
+        if (zpf is None) and (Epf is None):
+            return ztab, Etab, tau
+            
+        # Figure out if the tables need fixing    
+        zmax_ok = \
+            (ztab.max() >= zpf.max()) or \
+            np.allclose(ztab.max(), zpf.max())
+        zmin_ok = \
+            (ztab.min() <= zpf.min()) or \
+            np.allclose(ztab.min(), zpf.min())
+                                
+        Emin_ok = \
+            (Etab.min() <= Epf.min()) or \
+            np.allclose(Etab.min(), Epf.min())
+        
+        # Results insensitive to Emax (so long as its relatively large)
+        # so be lenient with this condition (100 eV or 1% difference
+        # between parameter file and lookup table)
+        Emax_ok = np.allclose(Etab.max(), Epf.max(), atol=100., rtol=1e-2)
+                
+        # Check redshift bounds
+        if not (zmax_ok and zmin_ok):
+            if not zmax_ok:
+                tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
+                sys.exit(1)
+            else:
+                pass
+                #if self.pf['verbose']:
+                #    tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
+        
+        if not (Emax_ok and Emin_ok):
+            #if self.pf['verbose']:
+            #    tau_tab_E_mismatch(self, Emin_ok, Emax_ok)
+                
+            if Etab.max() < Epf.max():
+                sys.exit(1)
+                                            
+        # Correct for inconsistencies between parameter file and table
+        # By effectively masking out those elements with tau -> inf
+        if Epf.min() > Etab.min():
+            Ediff = Etab - Epf.min()
+            i_E0 = np.argmin(np.abs(Ediff))
+            if Ediff[i_E0] < 0:
+                i_E0 += 1
+        
+            tau[:,0:i_E0+1] = np.inf
+        else:
+            i_E1
+        
+        if Epf.max() < Etab.max():
+            Ediff = Etab - Epf.max()
+            i_E1 = np.argmin(np.abs(Ediff))
+            if Ediff[i_E0] < 0:
+                i_E1 += 1
+        
+            tau[:,i_E1+1:] = np.inf
+
+        # We're done!
+        return ztab, Etab, tau
+
+        
 
         # Use Haardt & Madau (1996) Appendix C technique for z, nu grids
-        if not ((self.pf['redshift_bins'] is not None or \
-            self.pf['tau_table'] is not None) and (not self.pf['approx_xrb'])):
-              
-            raise NotImplemented('whats going on here')
+        #if not ((self.pf['redshifts_%sb' % band] is not None or \
+        #    self.pf['tau_table'] is not None) and (not self.pf['approx_xrb'])):
+        #      
+        #    raise NotImplemented('whats going on here')
 
-        if use_tab and (self.pf['tau_table'] is not None or self.pf['discrete_xrb']):
+        if (self.pf['discrete_%sb' % band] or self.pf['tau_table'] is not None):
 
             found = False
-            if self.pf['discrete_xrb']:
+            if self.pf['discrete_%sb' % band]:
 
                 # First, look in CWD or $ARES (if it exists)
                 self.tabname = self.load_tau(self.pf['tau_prefix'])
@@ -251,8 +263,8 @@ class GlobalVolume(object):
                 sys.exit(1)
 
             # If we made it this far, we found a table that may be suitable
-            self.read_tau(self.tabname)
-        
+            ztab, Etab, tau = self.read_tau(self.tabname)
+                
             zmax_ok = (self.z.max() >= self.pf['initial_redshift']) or \
                 np.allclose(self.z.max(), self.pf['initial_redshift']) or \
                 (self.z.max() >= self.pf['first_light_redshift']) or \
@@ -290,50 +302,30 @@ class GlobalVolume(object):
             if not np.all(np.abs(dlogx - np.roll(dlogx, -1)) <= tiny_dlogx):
                 raise ValueError(wrong_tab_type)
 
-        else:
+
+
+
+            # Correct for inconsistencies between parameter file and table
+            if self.pf['spectrum_Emin'] > self.E0:
+                Ediff = self.E - self.pf['spectrum_Emin']
+                i_E0 = np.argmin(np.abs(Ediff))
+                if Ediff[i_E0] < 0:
+                    i_E0 += 1
             
-            # Set bounds in frequency/energy space
-            self.E0 = self.pf['spectrum_Emin']
-            self.E1 = self.pf['spectrum_Emax']
+                self.tau[:,0:i_E0] = np.inf
             
-            # Set up log-grid in parameter x = 1 + z
-            self.x = np.logspace(np.log10(1+self.pf['final_redshift']),
-                np.log10(1+self.pf['initial_redshift']),
-                int(self.pf['redshift_bins']))
-                    
-            self.z = self.x - 1.
-            self.logx = np.log10(self.x)
-            self.logz = np.log10(self.z)
-        
-            # Constant ratio between elements in x-grid
-            self.R = self.x[1] / self.x[0]
-            self.logR = np.log10(self.R)
+            if self.pf['spectrum_Emax'] < self.E1:
+                Ediff = self.E - self.pf['spectrum_Emax']
+                i_E0 = np.argmin(np.abs(Ediff))
+                if Ediff[i_E0] < 0:
+                    i_E0 += 1
             
-            # Create mapping to frequency space
-            self.N = num_freq_bins(self.x.size, 
-                zi=self.pf['initial_redshift'], zf=self.pf['final_redshift'], 
-                Emin=self.E0, Emax=self.E1)
-            
-            # Create energy arrays
-            self.E = self.E0 * self.R**np.arange(self.N)
-        
-        # Frequency grid must be index-1-based.
-        self.nn = np.arange(1, self.N+1)
-        
-        # R-squared and x-squared (crop up in CXRB calculation)
-        self.Rsq = self.R**2
-        self.xsq = self.x**2
-        
-        # Set attributes for z-dimensions of optical depth grid
-        self.L = self.M = len(self.x)
-        self.ll = self.mm = np.arange(self.L)
-                    
-        self.logE = np.log10(self.E)
-        
-        self.n0 = min(self.nn)
-        self.dE = np.diff(self.E)
-        self.dlogE = np.diff(self.logE)
-                        
+                self.tau[:,i_E0+1:] = np.inf
+    
+
+
+
+
         # Pre-compute cross-sections
         self.sigma_E = np.array([np.array(map(lambda E: self.sigma(E, i), 
             self.E)) for i in xrange(3)])
@@ -386,37 +378,35 @@ class GlobalVolume(object):
         self.divmax = int(self.pf["integrator_divmax"])
     
     def read_tau(self, fn):
-        """
-        Read optical depth table.
-        """
+        """ Read optical depth table. """
         
         if type(fn) is dict:
             
-            self.E0 = fn['E'].min()
-            self.E1 = fn['E'].max()
-            self.E = fn['E']
-            self.z = fn['z']
-            self.x = self.z + 1
-            self.N = self.E.size
-
-            self.R = self.x[1] / self.x[0]
-
-            self.tau = fn['tau']
+            E0 = fn['E'].min()
+            E1 = fn['E'].max()
+            E = fn['E']
+            z = fn['z']
+            x = z + 1
+            N = E.size
+                
+            R = x[1] / self.x[0]
+            
+            tau = fn['tau']
 
         elif re.search('hdf5', fn):
 
             f = h5py.File(self.tabname, 'r')
 
-            self.E0 = min(f['photon_energy'].value)
-            self.E1 = max(f['photon_energy'].value)
-            self.E = f['photon_energy'].value
-            self.z = f['redshift'].value
-            self.x = self.z + 1
-            self.N = self.E.size
-
-            self.R = self.x[1] / self.x[0]
-
-            self.tau = self._tau = f['tau'].value
+            E0 = min(f['photon_energy'].value)
+            E1 = max(f['photon_energy'].value)
+            E = f['photon_energy'].value
+            z = f['redshift'].value
+            x = z + 1
+            N = E.size
+                
+            R = x[1] / x[0]
+            
+            tau = f['tau'].value
             f.close()
 
         elif re.search('npz', fn) or re.search('pkl', fn):    
@@ -428,16 +418,16 @@ class GlobalVolume(object):
                 f = open(fn, 'r')
                 data = dict(np.load(f))
             
-            self.E0 = data['E'].min()
-            self.E1 = data['E'].max()            
-            self.E = data['E']
-            self.z = data['z']
-            self.x = self.z + 1
-            self.N = self.E.size
+            E0 = data['E'].min()
+            E1 = data['E'].max()            
+            E = data['E']
+            z = data['z']
+            x = z + 1
+            N = E.size
             
-            self.R = self.x[1] / self.x[0]
+            R = x[1] / x[0]
             
-            self.tau = self._tau = data['tau']
+            tau = tau = data['tau']
             f.close()
             
         else:
@@ -459,25 +449,9 @@ class GlobalVolume(object):
             self.z = self.x - 1.
             self.E = np.logspace(np.log10(self.E0), np.log10(self.E1), self.N)
                         
-        # Correct for inconsistencies between parameter file and table
-        if self.pf['spectrum_Emin'] > self.E0:
-            Ediff = self.E - self.pf['spectrum_Emin']
-            i_E0 = np.argmin(np.abs(Ediff))
-            if Ediff[i_E0] < 0:
-                i_E0 += 1
-
-            self.tau[:,0:i_E0] = np.inf
-        
-        if self.pf['spectrum_Emax'] < self.E1:
-            Ediff = self.E - self.pf['spectrum_Emax']
-            i_E0 = np.argmin(np.abs(Ediff))
-            if Ediff[i_E0] < 0:
-                i_E0 += 1
-
-            self.tau[:,i_E0+1:] = np.inf
-
-        self.logx = np.log10(self.x)
-        self.logz = np.log10(self.z)
+        #self.logx = np.log10(self.x)
+        #self.logz = np.log10(self.z)
+        return z, E, tau
     
     def tau_name(self, suffix='hdf5'):
         """

@@ -135,6 +135,8 @@ def PhysicsParameters():
     'discrete_xrb': True,
     "discrete_uvb": True,
     
+    "tau_xrb": True,
+    
     # How many redshift bins
     "redshifts_irb": 400,
     "redshifts_lwb": 400,

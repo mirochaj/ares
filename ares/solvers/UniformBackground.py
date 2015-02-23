@@ -20,7 +20,7 @@ from ..static import GlobalVolume
 from ..util.PrintInfo import print_rb
 from ..util.Misc import num_freq_bins
 from scipy.interpolate import interp1d
-from ..util.ReadData import _flatten_flux
+from ..util.ReadData import flatten_flux
 from ..physics import Hydrogen, Cosmology
 from ..populations import CompositePopulation
 from scipy.integrate import quad, romberg, romb, trapz, simps
@@ -93,7 +93,7 @@ class UniformBackground:
         self._set_sources()
         self._set_generators()
         self._set_integrator()
-
+        
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
@@ -149,13 +149,24 @@ class UniformBackground:
         if not self.bands:
             return
         
+        self.tau = []
         self.energies = []; self.redshifts = []; self.emissivities = []
         for i, source in enumerate(self.sources):
-            if self.bands[i] is None:
-                z = nrg = ehat = None
+            if self.bands[i] is not None:
+                z, nrg = self._set_grid(popid=i)
+                    
+                # Try to load in optical depth - fix energies and such if found.
+                if source.pf['tau_%sb' % self.bands[i]]:
+                    z, nrg, tau = self.volume._fetch_tau(i, zpf=z, Epf=nrg)
+                else:
+                    tau = np.zeros([len(z), len(nrg)])
+                
+                ehat = self.TabulateEmissivity(z, nrg, i)
             else:
-                z, nrg, ehat = self._set_grid(popid=i)
-            
+                z = nrg = ehat = None
+                tau = np.zeros([len(z), len(nrg)])
+                
+            self.tau.append(tau)
             self.energies.append(nrg)
             self.redshifts.append(z)
             self.emissivities.append(ehat)
@@ -172,6 +183,10 @@ class UniformBackground:
         Returns
         -------
         Tuple of redshifts and energies for this particular population.
+        
+        References
+        ----------
+        Haardt, F. & Madau, P. 1996, ApJ, 461, 20
         
         """
         
@@ -195,8 +210,8 @@ class UniformBackground:
         R = x[1] / x[0]          
         
         # Special treatment if LWB or UVB - can concatenate sub-arrays later
-        if band in ['lw', 'uv']:
-            ehats = []; energies = []
+        if band in ['lw']:
+            energies = []
             narr = np.arange(2, self.pf['lwb_nmax'])
             for n in narr:
                 E0 = self.hydr.ELyn(n)
@@ -208,15 +223,12 @@ class UniformBackground:
                 E = E0 * R**np.arange(N)
                 
                 energies.append(E)
-                
-                ehats.append(self.TabulateEmissivity(z, E, popid))
-                                
+                                                
         else:
             N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
             E = energies = E0 * R**np.arange(N)
-            ehats = self.TabulateEmissivity(z, E, popid)
 
-        return z, energies, ehats
+        return z, energies
 
     def _set_generators(self):
         """
@@ -235,7 +247,7 @@ class UniformBackground:
             else:
                 gen = self.FluxGenerator(popid=i)
             
-            self.generators.append(gen)
+            self.generators.append(gen)    
             
     def _set_integrator(self):
         """
@@ -525,39 +537,7 @@ class UniformBackground:
             tau = self.volume.OpticalDepth(z, zp, E, xavg=kw['xavg'])
     
         return c * (1. + z)**2 * epsilonhat_over_H * np.exp(-tau) / four_pi
-    
-    def LWBackground(self, popid=0):
-        """
-        Compute LW Background over all redshifts.
-    
-        Returns
-        -------
-        Redshifts, photon energies, and fluxes, (z, E, flux).
-        The flux array has shape (# redshift points, # frequency points).
-        Each of these are lists, one element per Lyman-n band.
-    
-        """
         
-        # Now, compute background flux
-        lwrb = self.LWFluxGenerator()
-    
-        Nn = len(self.volume.lwb_En)
-        fluxes = [np.zeros_like(self.volume.lwb_emiss[i][popid]) \
-            for i in range(Nn)]
-        
-        for i, flux in enumerate(lwrb):
-            
-            # Since we're going from high-z to low-z
-            j = len(self.volume.lwb_zl) - i - 1
-            
-            for n in range(Nn):
-                fluxes[n][j] = flux[n]
-
-        self.flux_En = fluxes
-
-        return self.volume.lwb_zl, self.volume.lwb_E, \
-            _flatten_flux(fluxes)
-    
     def LymanWernerFlux(self, z, E, popid=0, **kwargs):
         """
         Compute flux at observed redshift z and energy E (eV).
@@ -656,8 +636,7 @@ class UniformBackground:
         z : int, float
             Redshift of interest
         fluxes : np.ndarray
-            Results of LWBackground. List of 2-D arrays, one per Ly-n band
-            (from n=2 to n=lya_nmax). 
+            Fluxes grouped by LW band.
 
         Returns
         -------
@@ -681,7 +660,7 @@ class UniformBackground:
                 J = np.zeros(fluxes[0].shape[0])
             else:
                 J = 0.0
-            
+                        
             for i, n in enumerate(np.arange(2, self.pf['lya_nmax'])):
     
                 if n == 2 and not self.pf['lya_continuum']:
@@ -794,7 +773,6 @@ class UniformBackground:
         
         return epsilon
             
-    
     def XrayFluxGenerator(self, tau=None, emissivity=None, flux0=None, popid=0):
         """ 
         Compute X-ray background flux in a memory efficient way.
@@ -834,10 +812,6 @@ class UniformBackground:
         if tau is None:
             tau = self.volume.tau
 
-        optically_thin = False
-        if np.all(tau == 0):
-            optically_thin = True
-    
         otf = False
         if tau.shape == self.volume.E.shape:
             otf = True
@@ -906,7 +880,8 @@ class UniformBackground:
         ehat : np.ndarray
             2-D array of tabulate emissivities.
         tau : np.ndarray
-            2-D array of optical depths.
+            2-D array of optical depths, or reference to an array that will
+            be modified with time.
         flux0 : np.ndarray  
             1-D array of initial flux values.
             
@@ -977,7 +952,7 @@ class UniformBackground:
         """
         Create generators for the flux between all Lyman-n bands.
         """
-        
+
         gens = []
         for i, nrg in enumerate(E):
             gens.append(self._flux_generator_generic(nrg, z, ehat[i]))
@@ -988,7 +963,7 @@ class UniformBackground:
             for gen in gens:
                 flux.append(gen.next())
             
-            yield _flatten_flux(flux)
+            yield flatten_flux(flux)
         
     def FluxGenerator(self, popid):
         """
@@ -1020,7 +995,8 @@ class UniformBackground:
             
         elif band == 'xr':
             return self._flux_generator_generic(self.energies[popid],
-                self.redshifts[popid], self.emissivities[popid])
+                self.redshifts[popid], self.emissivities[popid],
+                tau=self.tau[popid])
                 
         
     

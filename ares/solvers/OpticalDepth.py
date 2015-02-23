@@ -144,4 +144,471 @@ class OpticalDepth:
             tau = tau_proc
     
         return tau
+        
+    def RestFrameEnergy(self, z, E, zp):
+        """
+        Return energy of a photon observed at (z, E) and emitted at zp.
+        """
+    
+        return E * (1. + zp) / (1. + z)
+    
+    def ObserverFrameEnergy(self, z, Ep, zp):
+        """
+        What is the energy of a photon observed at redshift z and emitted 
+        at redshift zp and energy Ep?
+        """
+    
+        return Ep * (1. + z) / (1. + zp)
+    
+    def _set_xrb(self, use_tab=True):
+        """
+        From parameter file, initialize grids in redshift and frequency.
+    
+        Parameters
+        ----------
+        Only depends on contents of self.pf.
+    
+        Notes
+        -----
+        If redshift_bins != None, will setup logarithmic grid in new parameter
+        x = 1 + z. Then, given that R = x_{j+1} / x_j = const. for j < J, we can 
+        create a logarithmic photon frequency / energy grid. This technique
+        is outlined in Haardt & Madau (1996) Appendix C.
+    
+        References
+        ----------
+        Haardt, F. & Madau, P. 1996, ApJ, 461, 20
+    
+        """
+    
+        if self.pf['redshift_bins'] is None and self.pf['tau_table'] is None:
+    
+            # Set bounds in frequency/energy space
+            self.E0 = self.pf['spectrum_Emin']
+            self.E1 = self.pf['spectrum_Emax']    
+    
+            return
+    
+        self.tabname = None
+    
+        # Use Haardt & Madau (1996) Appendix C technique for z, nu grids
+        if not ((self.pf['redshift_bins'] is not None or \
+            self.pf['tau_table'] is not None) and (not self.pf['approx_xrb'])):
+    
+            raise NotImplemented('whats going on here')
+    
+        if use_tab and (self.pf['tau_table'] is not None or self.pf['discrete_xrb']):
+    
+            found = False
+            if self.pf['discrete_xrb']:
+    
+                # First, look in CWD or $ARES (if it exists)
+                self.tabname = self.load_tau(self.pf['tau_prefix'])
+    
+                if self.tabname is not None:
+                    found = True
+    
+            # tau_table will override any tables found automatically    
+            if self.pf['tau_table'] is not None:
+                self.tabname = self.pf['tau_table']
+            elif found:
+                pass
+            else:
+                # Raise an error if we haven't found anything
+                no_tau_table(self)
+                sys.exit(1)
+    
+            # If we made it this far, we found a table that may be suitable
+            self.read_tau(self.tabname)
+    
+            zmax_ok = (self.z.max() >= self.pf['initial_redshift']) or \
+                np.allclose(self.z.max(), self.pf['initial_redshift']) or \
+                (self.z.max() >= self.pf['first_light_redshift']) or \
+                np.allclose(self.z.max(), self.pf['first_light_redshift'])
+    
+            zmin_ok = (self.z.min() <= self.pf['final_redshift']) or \
+                np.allclose(self.z.min(), self.pf['final_redshift'])
+    
+            Emin_ok = (self.E0 <= self.pf['spectrum_Emin']) or \
+                np.allclose(self.E0, self.pf['spectrum_Emin'])
+    
+            # Results insensitive to Emax (so long as its relatively large)
+            # so be lenient with this condition (100 eV or 1% difference
+            # between parameter file and lookup table)
+            Emax_ok = np.allclose(self.E1, self.pf['spectrum_Emax'],
+                atol=100., rtol=1e-2)
+    
+            # Check redshift bounds
+            if not (zmax_ok and zmin_ok):
+                if not zmax_ok:
+                    tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
+                    sys.exit(1)
+                else:
+                    if self.pf['verbose']:
+                        tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
+    
+            if not (Emax_ok and Emin_ok):
+                if self.pf['verbose']:
+                    tau_tab_E_mismatch(self, Emin_ok, Emax_ok)
+    
+                if self.E1 < self.pf['spectrum_Emax']:
+                    sys.exit(1)
+    
+            dlogx = np.diff(self.logx)
+            if not np.all(np.abs(dlogx - np.roll(dlogx, -1)) <= tiny_dlogx):
+                raise ValueError(wrong_tab_type)
+    
+        else:
+    
+            # Set bounds in frequency/energy space
+            self.E0 = self.pf['spectrum_Emin']
+            self.E1 = self.pf['spectrum_Emax']
+    
+            # Set up log-grid in parameter x = 1 + z
+            self.x = np.logspace(np.log10(1+self.pf['final_redshift']),
+                np.log10(1+self.pf['initial_redshift']),
+                int(self.pf['redshift_bins']))
+    
+            self.z = self.x - 1.
+            self.logx = np.log10(self.x)
+            self.logz = np.log10(self.z)
+    
+            # Constant ratio between elements in x-grid
+            self.R = self.x[1] / self.x[0]
+            self.logR = np.log10(self.R)
+    
+            # Create mapping to frequency space
+            self.N = num_freq_bins(self.x.size, 
+                zi=self.pf['initial_redshift'], zf=self.pf['final_redshift'], 
+                Emin=self.E0, Emax=self.E1)
+    
+            # Create energy arrays
+            self.E = self.E0 * self.R**np.arange(self.N)
+    
+        # Frequency grid must be index-1-based.
+        self.nn = np.arange(1, self.N+1)
+    
+        # R-squared and x-squared (crop up in CXRB calculation)
+        self.Rsq = self.R**2
+        self.xsq = self.x**2
+    
+        # Set attributes for z-dimensions of optical depth grid
+        self.L = self.M = len(self.x)
+        self.ll = self.mm = np.arange(self.L)
+    
+        self.logE = np.log10(self.E)
+    
+        self.n0 = min(self.nn)
+        self.dE = np.diff(self.E)
+        self.dlogE = np.diff(self.logE)
+    
+        # Pre-compute cross-sections
+        self.sigma_E = np.array([np.array(map(lambda E: self.sigma(E, i), 
+            self.E)) for i in xrange(3)])
+        self.log_sigma_E = np.log10(self.sigma_E)
+    
+        # Pre-compute secondary ionization and heating factors
+        if self.esec.Method > 1:
+    
+            self.i_x = 0
+            self.fheat = np.ones([self.N, len(self.esec.x)])
+            self.flya = np.ones([self.N, len(self.esec.x)])
+    
+            self.fion = {}
+    
+            self.fion['h_1'] = np.ones([self.N, len(self.esec.x)])
+    
+            # Must evaluate at ELECTRON energy, not photon energy
+            for i, E in enumerate(self.E - E_th[0]):
+                self.fheat[i,:] = self.esec.DepositionFraction(self.esec.x, 
+                    E=E, channel='heat')
+                self.fion['h_1'][i,:] = \
+                    self.esec.DepositionFraction(self.esec.x, 
+                        E=E, channel='h_1')
+    
+                if self.pf['secondary_lya']:
+                    self.flya[i,:] = self.esec.DepositionFraction(self.esec.x, 
+                        E=E, channel='lya') 
+    
+            # Helium
+            if self.pf['include_He'] and not self.pf['approx_He']:
+    
+                self.fion['he_1'] = np.ones([self.N, len(self.esec.x)])
+                self.fion['he_2'] = np.ones([self.N, len(self.esec.x)])
+    
+                for i, E in enumerate(self.E - E_th[1]):
+                    self.fion['he_1'][i,:] = \
+                        self.esec.DepositionFraction(self.esec.x, 
+                        E=E, channel='he_1')
+    
+                for i, E in enumerate(self.E - E_th[2]):
+                    self.fion['he_2'][i,:] = \
+                        self.esec.DepositionFraction(self.esec.x, 
+                        E=E, channel='he_2')            
+    
+    def read_tau(self, fn):
+        """
+        Read optical depth table.
+        """
+    
+        if type(fn) is dict:
+    
+            self.E0 = fn['E'].min()
+            self.E1 = fn['E'].max()
+            self.E = fn['E']
+            self.z = fn['z']
+            self.x = self.z + 1
+            self.N = self.E.size
+    
+            self.R = self.x[1] / self.x[0]
+    
+            self.tau = fn['tau']
+    
+        elif re.search('hdf5', fn):
+    
+            f = h5py.File(self.tabname, 'r')
+    
+            self.E0 = min(f['photon_energy'].value)
+            self.E1 = max(f['photon_energy'].value)
+            self.E = f['photon_energy'].value
+            self.z = f['redshift'].value
+            self.x = self.z + 1
+            self.N = self.E.size
+    
+            self.R = self.x[1] / self.x[0]
+    
+            self.tau = self._tau = f['tau'].value
+            f.close()
+    
+        elif re.search('npz', fn) or re.search('pkl', fn):    
+    
+            if re.search('pkl', fn):
+                f = open(fn, 'rb')
+                data = pickle.load(f)
+            else:
+                f = open(fn, 'r')
+                data = dict(np.load(f))
+    
+            self.E0 = data['E'].min()
+            self.E1 = data['E'].max()            
+            self.E = data['E']
+            self.z = data['z']
+            self.x = self.z + 1
+            self.N = self.E.size
+    
+            self.R = self.x[1] / self.x[0]
+    
+            self.tau = self._tau = data['tau']
+            f.close()
+    
+        else:
+            f = open(self.tabname, 'r')
+            hdr = f.readline().split()[1:]
+    
+            tmp = []
+            for element in hdr:
+                tmp.append(float(element[element.rfind('=')+1:]))
+    
+            zmin, zmax, self.E0, self.E1 = tmp
+    
+            self.tau = self._tau = np.loadtxt(self.tabname)
+            self.N = self.tau.shape[1]
+    
+            self.x = np.logspace(np.log10(1+zmin), np.log10(1.+zmax),
+                int(self.tau.shape[0]))
+    
+            self.z = self.x - 1.
+            self.E = np.logspace(np.log10(self.E0), np.log10(self.E1), self.N)
+    
+        # Correct for inconsistencies between parameter file and table
+        if self.pf['spectrum_Emin'] > self.E0:
+            Ediff = self.E - self.pf['spectrum_Emin']
+            i_E0 = np.argmin(np.abs(Ediff))
+            if Ediff[i_E0] < 0:
+                i_E0 += 1
+    
+            self.tau[:,0:i_E0] = np.inf
+    
+        if self.pf['spectrum_Emax'] < self.E1:
+            Ediff = self.E - self.pf['spectrum_Emax']
+            i_E0 = np.argmin(np.abs(Ediff))
+            if Ediff[i_E0] < 0:
+                i_E0 += 1
+    
+            self.tau[:,i_E0+1:] = np.inf
+    
+        self.logx = np.log10(self.x)
+        self.logz = np.log10(self.z)
+    
+    def tau_name(self, suffix='hdf5'):
+        """
+        Return name of table based on its properties.
+        """
+    
+        if not have_h5py:
+            suffix == 'pkl'
+    
+        HorHe = 'He' if self.pf['include_He'] else 'H'
+    
+        zf = self.pf['final_redshift']
+        zi = self.pf['initial_redshift']
+    
+        L, N = self.tau_shape()
+    
+        E0 = self.pf['spectrum_Emin']
+        E1 = self.pf['spectrum_Emax']
+    
+        fn = lambda z1, z2, E1, E2: \
+            'optical_depth_%s_%ix%i_z_%i-%i_logE_%.2g-%.2g.%s' \
+            % (HorHe, L, N, z1, z2, E1, E2, suffix)
+    
+        return fn(zf, zi, np.log10(E0), np.log10(E1)), fn
+    
+    def load_tau(self, prefix=None):
+        """
+        Find an optical depth table.
+        """
+    
+        fn, fn_func = self.tau_name()
+    
+        if prefix is None:
+            ares_dir = os.environ.get('ARES')
+            if not ares_dir:
+                print "No ARES environment variable."
+                return None
+    
+            input_dirs = ['%s/input/optical_depth' % ares_dir]
+    
+        else:
+            if type(prefix) is str:
+                input_dirs = [prefix]
+            else:
+                input_dirs = prefix
+    
+        guess = '%s/%s' % (input_dirs[0], fn)
+        if os.path.exists(guess):
+            return guess
+    
+        ## Find exactly what table should be
+        zmin, zmax, Nz, lEmin, lEmax, chem, pre, post = self._parse_tab(fn)
+    
+        ok_matches = []
+        perfect_matches = []
+    
+        # Loop through input directories
+        for input_dir in input_dirs:
+    
+            # Loop over files in input_dir, look for best match
+            for fn1 in os.listdir(input_dir):
+    
+                if re.search('hdf5', fn1) and (not have_h5py):
+                    continue
+    
+                tab_name = '%s/%s' % (input_dir, fn1)
+    
+                try:
+                    zmin_f, zmax_f, Nz_f, lEmin_f, lEmax_f, chem_f, p1, p2 = \
+                        self._parse_tab(fn1)
+                except:
+                    continue
+    
+                # Dealbreakers
+                if Nz_f != Nz:
+                    continue
+                if zmax_f < zmax:
+                    continue
+                if chem_f != chem:
+                    continue
+    
+                # Continue with possible matches
+                for fmt in ['pkl', 'npz', 'hdf5']:
+    
+                    if fn1 == fn and fmt == self.pf['preferred_format']:
+                        perfect_matches.append(tab_name)
+                        continue
+    
+                    if c and fmt == self.pf['preferred_format']:
+                        perfect_matches.append(tab_name)
+                        continue
+    
+                    # If number of redshift bins and energy range right...
+                    if re.search(pre, fn1) and re.search(post, fn1):
+                        if re.search(fmt, fn1) and fmt == self.pf['preferred_format']:
+                            perfect_matches.append(tab_name)
+                        else:
+                            ok_matches.append(tab_name)
+    
+                    # If number of redshift bins is right...
+                    elif re.search(pre, fn1):
+    
+                        if re.search(fmt, fn1) and fmt == self.pf['preferred_format']:
+                            perfect_matches.append(tab_name)
+                        else:
+                            ok_matches.append(tab_name)
+    
+        if perfect_matches:
+            return perfect_matches[0]
+        elif ok_matches:
+            return ok_matches[0]
+        else:
+            return None
+    
+    def _parse_tab(self, fn):
+    
+        tmp1, tmp2 = fn.split('_z_')
+        pre = tmp1[0:tmp1.rfind('x')]
+        red, tmp3 = fn.split('_logE_')
+        post = '_logE_' + tmp3.replace('.hdf5', '')
+    
+        # Find exactly what table should be
+        zmin, zmax = map(float, red[red.rfind('z')+2:].partition('-')[0::2])
+        logEmin, logEmax = map(float, tmp3[tmp3.rfind('E')+1:tmp3.rfind('.')].partition('-')[0::2])
+    
+        Nz = pre[pre.rfind('_')+1:]
+    
+        # Hack off Nz string and optical_depth_
+        chem = pre.strip(Nz)[14:-1]#.strip('optical_depth_')
+    
+        return zmin, zmax, int(Nz), logEmin, logEmax, chem, pre, post
+    
+    def tau_shape(self):
+        """
+        Determine dimensions of optical depth table.
+    
+        Unfortunately, this is a bit redundant with the procedure in
+        self._init_xrb, but that's the way it goes.
+        """
+    
+        # Set up log-grid in parameter x = 1 + z
+        x = np.logspace(np.log10(1+self.pf['final_redshift']),
+            np.log10(1+self.pf['initial_redshift']),
+            int(self.pf['redshift_bins']))
+        z = x - 1.
+        logx = np.log10(x)
+        logz = np.log10(z)
+    
+        # Constant ratio between elements in x-grid
+        R = x[1] / x[0]
+        logR = np.log10(R)
+    
+        E0 = self.pf['spectrum_Emin']
+    
+        # Create mapping to frequency space
+        E = 1. * E0
+        n = 1
+        while E < self.pf['spectrum_Emax']:
+            E = E0 * R**(n - 1)
+            n += 1    
+    
+        # Set attributes for dimensions of optical depth grid
+        L = len(x)
+    
+        # Frequency grid must be index 1-based.
+        N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
+            zf=self.pf['final_redshift'], Emin=E0, 
+            Emax=self.pf['spectrum_Emax'])
+        N -= 1
+    
+        return L, N
+    
     

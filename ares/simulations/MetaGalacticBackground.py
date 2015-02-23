@@ -13,7 +13,7 @@ Description:
 import numpy as np
 from ..util import ParameterFile
 from ..solvers import UniformBackground
-from ..util.ReadData import _sort_history, _flatten_flux
+from ..util.ReadData import _sort_history, flatten_flux
 
 class MetaGalacticBackground:
     def __init__(self, **kwargs):
@@ -24,26 +24,17 @@ class MetaGalacticBackground:
         self.pf = ParameterFile(**kwargs)
         self.field = UniformBackground(**self.pf)
 
-    def update_tau(self):
-        pass
-
-    def update_fluxes(self):
-        """
-        Loop over flux generators.
-        """
-        
-        fluxes = {}
-        for i, generator in enumerate(self.field.generators):
-            fluxes[self.field.bands[i]] = generator.next()
-                
-        return fluxes    
-            
     def run(self):
         """
         Evolve radiation background in time.
 
         .. note:: Assumes we're using the generator, otherwise the time 
             evolution must be controlled manually.
+            
+        Returns
+        -------
+        Nothing: sets `history` attribute containing the entire evolution
+        of the background for each population.
 
         """
 
@@ -70,14 +61,36 @@ class MetaGalacticBackground:
         zf = self.pf['final_redshift']
                 
         while z > zf:
-            
-            #tau = self.field.update_optical_depth()
-            
             fluxes = self.update_fluxes()
-            
-                        
                 
-            yield fluxes    
+            yield fluxes
         
+    def update_fluxes(self):
+        """
+        Loop over flux generators.
+        """
         
+        fluxes = {}
+        for i, generator in enumerate(self.field.generators):
+            if generator is None:
+                fluxes[i] = None
+                continue
+                
+            fluxes[i] = generator.next()
+            
+        return fluxes    
+            
+    def get_history(self, popid=0):
+        """
+        Grab data associated with a single population.
+        
+        Returns
+        -------
+        Tuple containing the redshifts, energies, and fluxes for the given
+        population.
+        
+        """
+        return self.field.redshifts[popid][-1::-1], self.field.energies[popid], \
+            self.history[popid]
 
+        

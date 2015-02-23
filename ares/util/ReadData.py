@@ -27,7 +27,7 @@ except ImportError:
     
 ARES = os.environ.get('ARES')
 
-def _flatten_flux(flux):
+def flatten_flux(flux):
     """
     Take fluxes sorted by Lyman-n band and flatten to single energy
     dimension.
@@ -38,6 +38,16 @@ def _flatten_flux(flux):
         to_return.extend(flux_seg)
 
     return np.array(to_return)
+
+def split_flux(energies, fluxes):
+    """
+    Take flattened fluxes and re-sort into band-grouped fluxes.
+    """
+    
+    i_E = np.cumsum(map(len, energies))
+    fluxes_split = np.hsplit(fluxes, i_E)
+
+    return fluxes_split
 
 def _sort_history(all_data, prefix='', squeeze=False):
     """
@@ -56,14 +66,26 @@ def _sort_history(all_data, prefix='', squeeze=False):
     Dictionary, sorted by gas properties, with entire history for each one.
     """
 
-    data = {'%s%s' % (prefix, key):[] for key in all_data[0]}
-
+    data = {}
+    for key in all_data[0]:
+        if type(key) is int and not prefix.strip():
+            name = int(key)
+        else:
+            name = '%s%s' % (prefix, key)
+        
+        data[name] = []
+        
     # Loop over time snapshots
     for element in all_data:
 
         # Loop over fields
         for key in element:
-            data['%s%s' % (prefix, key)].append(element[key])
+            if type(key) is int and not prefix.strip():
+                name = int(key)
+            else:
+                name = '%s%s' % (prefix, key)
+                
+            data[name].append(element[key])
 
     # Cast everything to arrays
     for key in data:
