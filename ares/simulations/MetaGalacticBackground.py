@@ -69,7 +69,7 @@ class MetaGalacticBackground:
         """
         Loop over flux generators.
         """
-        
+
         fluxes = {}
         for i, generator in enumerate(self.field.generators):
             if generator is None:

@@ -199,7 +199,7 @@ class UniformBackground:
         if zf is None:    
             zf = source.pf['final_redshift']
         if nz is None:
-            nz = source.pf['redshifts_%sb' % band]
+            nz = source.pf['tau_redshifts_%sb' % band]
         if Emin is None:
             Emin = E0 = source.pf['spectrum_Emin']
         if Emax is None:

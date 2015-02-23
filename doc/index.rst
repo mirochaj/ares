@@ -43,6 +43,7 @@ Contents
    examples
    parameters
    fields
+   structure
    contributing
 
 Indices and tables

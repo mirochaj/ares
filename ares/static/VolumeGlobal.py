@@ -13,7 +13,6 @@ Description:
 import numpy as np
 from ..util.Warnings import *
 from ..util import ProgressBar
-from ..util import ParameterFile
 from ..physics.Constants import *
 import types, os, re, sys, pickle
 from ..util.Misc import num_freq_bins
@@ -64,23 +63,17 @@ defkwargs = \
 
 species_i_to_str = {0:'h_1', 1:'he_1', 2:'he_2'}
 
-tiny_dlogx = 1e-8
-
 class GlobalVolume(object):
-    def __init__(self, background, use_tab=True):
+    def __init__(self, background):
         """
-        Initialize an inter-galactic medium (IGM) object.
+        Initialize a GlobalVolume.
         
         Parameters
         ----------
         background : ares.solvers.UniformBackground instance.
-        use_tab : bool
-            Use optical depth table? Simulation class will set use_tab=False
-            once the EoR begins, at which time the optical depth will be
-            computed on-the-fly.
         
         """
-        
+
         self.background = background
         self.pf = background.pf
         self.grid = background.grid
@@ -110,9 +103,7 @@ class GlobalVolume(object):
         self.sigma = sigma
         self.sigma0 = sigma(E_th[0])    # Hydrogen ionization threshold
 
-        #self._set_xrb(use_tab=use_tab)
-
-        #self._set_integrator()
+        self._set_integrator()
 
     @property
     def rates_no_RT(self):
@@ -155,22 +146,14 @@ class GlobalVolume(object):
         pop = self.sources[popid]
         band = self.background.bands[popid]
         
-        #if pop.pf['redshifts_%sb' % band] is None and \
-        #    self.pf['tau_table'] is None:
-        #    
-        #    # Set bounds in frequency/energy space
-        #    self.E0 = self.pf['spectrum_Emin']
-        #    self.E1 = self.pf['spectrum_Emax']    
-        #    
-        #    return
-        
-        #self.tabname = None
-        
         # First, look in CWD or $ARES (if it exists)
-        self.tabname = self.load_tau(self.pf['tau_prefix'])
+        self.tabname = self._load_tau(self.pf['tau_prefix'])
+        
+        if not self.tabname:
+            return zpf, Epf, None
         
         # If we made it this far, we found a table that may be suitable
-        ztab, Etab, tau = self.read_tau(self.tabname)
+        ztab, Etab, tau = self._read_tau(self.tabname)
         
         # Return right away if there's no potential for conflict
         if (zpf is None) and (Epf is None):
@@ -233,142 +216,53 @@ class GlobalVolume(object):
         # We're done!
         return ztab, Etab, tau
 
+    def _tabulate_atomic_data(self, E):
         
-
-        # Use Haardt & Madau (1996) Appendix C technique for z, nu grids
-        #if not ((self.pf['redshifts_%sb' % band] is not None or \
-        #    self.pf['tau_table'] is not None) and (not self.pf['approx_xrb'])):
-        #      
-        #    raise NotImplemented('whats going on here')
-
-        if (self.pf['discrete_%sb' % band] or self.pf['tau_table'] is not None):
-
-            found = False
-            if self.pf['discrete_%sb' % band]:
-
-                # First, look in CWD or $ARES (if it exists)
-                self.tabname = self.load_tau(self.pf['tau_prefix'])
-
-                if self.tabname is not None:
-                    found = True
-            
-            # tau_table will override any tables found automatically    
-            if self.pf['tau_table'] is not None:
-                self.tabname = self.pf['tau_table']
-            elif found:
-                pass
-            else:
-                # Raise an error if we haven't found anything
-                no_tau_table(self)
-                sys.exit(1)
-
-            # If we made it this far, we found a table that may be suitable
-            ztab, Etab, tau = self.read_tau(self.tabname)
-                
-            zmax_ok = (self.z.max() >= self.pf['initial_redshift']) or \
-                np.allclose(self.z.max(), self.pf['initial_redshift']) or \
-                (self.z.max() >= self.pf['first_light_redshift']) or \
-                np.allclose(self.z.max(), self.pf['first_light_redshift'])
-                
-            zmin_ok = (self.z.min() <= self.pf['final_redshift']) or \
-                np.allclose(self.z.min(), self.pf['final_redshift'])
-                                    
-            Emin_ok = (self.E0 <= self.pf['spectrum_Emin']) or \
-                np.allclose(self.E0, self.pf['spectrum_Emin'])
-            
-            # Results insensitive to Emax (so long as its relatively large)
-            # so be lenient with this condition (100 eV or 1% difference
-            # between parameter file and lookup table)
-            Emax_ok = np.allclose(self.E1, self.pf['spectrum_Emax'],
-                atol=100., rtol=1e-2)
-                
-            # Check redshift bounds
-            if not (zmax_ok and zmin_ok):
-                if not zmax_ok:
-                    tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
-                    sys.exit(1)
-                else:
-                    if self.pf['verbose']:
-                        tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
-            
-            if not (Emax_ok and Emin_ok):
-                if self.pf['verbose']:
-                    tau_tab_E_mismatch(self, Emin_ok, Emax_ok)
-                    
-                if self.E1 < self.pf['spectrum_Emax']:
-                    sys.exit(1)
-                          
-            dlogx = np.diff(self.logx)
-            if not np.all(np.abs(dlogx - np.roll(dlogx, -1)) <= tiny_dlogx):
-                raise ValueError(wrong_tab_type)
-
-
-
-
-            # Correct for inconsistencies between parameter file and table
-            if self.pf['spectrum_Emin'] > self.E0:
-                Ediff = self.E - self.pf['spectrum_Emin']
-                i_E0 = np.argmin(np.abs(Ediff))
-                if Ediff[i_E0] < 0:
-                    i_E0 += 1
-            
-                self.tau[:,0:i_E0] = np.inf
-            
-            if self.pf['spectrum_Emax'] < self.E1:
-                Ediff = self.E - self.pf['spectrum_Emax']
-                i_E0 = np.argmin(np.abs(Ediff))
-                if Ediff[i_E0] < 0:
-                    i_E0 += 1
-            
-                self.tau[:,i_E0+1:] = np.inf
-    
-
-
-
-
+        N = E.size
+        
         # Pre-compute cross-sections
-        self.sigma_E = np.array([np.array(map(lambda E: self.sigma(E, i), 
-            self.E)) for i in xrange(3)])
+        self.sigma_E = np.array([np.array(map(lambda E: self.sigma(E, i), E)) \
+            for i in xrange(3)])
         self.log_sigma_E = np.log10(self.sigma_E)
         
         # Pre-compute secondary ionization and heating factors
         if self.esec.Method > 1:
             
             self.i_x = 0
-            self.fheat = np.ones([self.N, len(self.esec.x)])
-            self.flya = np.ones([self.N, len(self.esec.x)])
+            self.fheat = np.ones([N, len(self.esec.x)])
+            self.flya = np.ones([N, len(self.esec.x)])
             
             self.fion = {}
             
-            self.fion['h_1'] = np.ones([self.N, len(self.esec.x)])
+            self.fion['h_1'] = np.ones([N, len(self.esec.x)])
                         
             # Must evaluate at ELECTRON energy, not photon energy
-            for i, E in enumerate(self.E - E_th[0]):
+            for i, nrg in enumerate(E - E_th[0]):
                 self.fheat[i,:] = self.esec.DepositionFraction(self.esec.x, 
-                    E=E, channel='heat')
+                    E=nrg, channel='heat')
                 self.fion['h_1'][i,:] = \
                     self.esec.DepositionFraction(self.esec.x, 
-                        E=E, channel='h_1')
+                        E=nrg, channel='h_1')
                         
                 if self.pf['secondary_lya']:
                     self.flya[i,:] = self.esec.DepositionFraction(self.esec.x, 
-                        E=E, channel='lya') 
+                        E=nrg, channel='lya') 
                     
             # Helium
             if self.pf['include_He'] and not self.pf['approx_He']:
                 
-                self.fion['he_1'] = np.ones([self.N, len(self.esec.x)])
-                self.fion['he_2'] = np.ones([self.N, len(self.esec.x)])
+                self.fion['he_1'] = np.ones([N, len(self.esec.x)])
+                self.fion['he_2'] = np.ones([N, len(self.esec.x)])
                 
-                for i, E in enumerate(self.E - E_th[1]):
+                for i, nrg in enumerate(E - E_th[1]):
                     self.fion['he_1'][i,:] = \
                         self.esec.DepositionFraction(self.esec.x, 
-                        E=E, channel='he_1')
+                        E=nrg, channel='he_1')
                 
-                for i, E in enumerate(self.E - E_th[2]):
+                for i, nrg in enumerate(E - E_th[2]):
                     self.fion['he_2'][i,:] = \
                         self.esec.DepositionFraction(self.esec.x, 
-                        E=E, channel='he_2')            
+                        E=nrg, channel='he_2')            
                         
     def _set_integrator(self):
         self.integrator = self.pf["unsampled_integrator"]
@@ -377,7 +271,7 @@ class GlobalVolume(object):
         self.atol = self.pf["integrator_atol"]
         self.divmax = int(self.pf["integrator_divmax"])
     
-    def read_tau(self, fn):
+    def _read_tau(self, fn):
         """ Read optical depth table. """
         
         if type(fn) is dict:
@@ -429,31 +323,12 @@ class GlobalVolume(object):
             
             tau = tau = data['tau']
             f.close()
-            
         else:
-            f = open(self.tabname, 'r')
-            hdr = f.readline().split()[1:]
-            
-            tmp = []
-            for element in hdr:
-                tmp.append(float(element[element.rfind('=')+1:]))
+            raise NotImplemented('Don\'t know how to read %s.' % fn)
 
-            zmin, zmax, self.E0, self.E1 = tmp
-
-            self.tau = self._tau = np.loadtxt(self.tabname)
-            self.N = self.tau.shape[1]
-            
-            self.x = np.logspace(np.log10(1+zmin), np.log10(1.+zmax),
-                int(self.tau.shape[0]))
-
-            self.z = self.x - 1.
-            self.E = np.logspace(np.log10(self.E0), np.log10(self.E1), self.N)
-                        
-        #self.logx = np.log10(self.x)
-        #self.logz = np.log10(self.z)
         return z, E, tau
     
-    def tau_name(self, suffix='hdf5'):
+    def _tau_name(self, suffix='hdf5'):
         """
         Return name of table based on its properties.
         """
@@ -466,7 +341,7 @@ class GlobalVolume(object):
         zf = self.pf['final_redshift']
         zi = self.pf['initial_redshift']
 
-        L, N = self.tau_shape()
+        L, N = self._tau_shape()
 
         E0 = self.pf['spectrum_Emin']
         E1 = self.pf['spectrum_Emax']
@@ -477,12 +352,12 @@ class GlobalVolume(object):
 
         return fn(zf, zi, np.log10(E0), np.log10(E1)), fn
     
-    def load_tau(self, prefix=None):
+    def _load_tau(self, prefix=None):
         """
         Find an optical depth table.
         """
         
-        fn, fn_func = self.tau_name()
+        fn, fn_func = self._tau_name()
     
         if prefix is None:
             ares_dir = os.environ.get('ARES')
@@ -584,7 +459,7 @@ class GlobalVolume(object):
         
         return zmin, zmax, int(Nz), logEmin, logEmax, chem, pre, post
                 
-    def tau_shape(self):
+    def _tau_shape(self):
         """
         Determine dimensions of optical depth table.
         

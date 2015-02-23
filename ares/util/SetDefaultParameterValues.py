@@ -135,13 +135,14 @@ def PhysicsParameters():
     'discrete_xrb': True,
     "discrete_uvb": True,
     
-    "tau_xrb": True,
+    "tau_xrb": False,
+    "tau_dynamic": False,
     
-    # How many redshift bins
-    "redshifts_irb": 400,
-    "redshifts_lwb": 400,
-    "redshifts_uvb": 400,
-    "redshifts_xrb": 400,
+    # How many redshift bins for static optical depth tables
+    "tau_redshifts_irb": 400,
+    "tau_redshifts_lwb": 400,
+    "tau_redshifts_uvb": 400,
+    "tau_redshifts_xrb": 400,
 
     # Lyman alpha sources
     "lwb_nmax": 23,
