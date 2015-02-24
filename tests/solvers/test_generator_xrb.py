@@ -28,7 +28,7 @@ src_pars = \
  'spectrum_EminNorm': 2e2,
  'spectrum_EmaxNorm': 5e4,
  'approx_xrb': False,
- 'redshift_bins': 400,
+ 'redshifts_xrb': 400,
  'initial_redshift': zi,
  'final_redshift': zf,
 }
@@ -51,7 +51,7 @@ z2, E2, flux2 = rad2.get_history()
 #Enum = np.logspace(np.log10(2e2), 4.5, 100)
 #flux_num = np.array(map(lambda EE: rad.AngleAveragedFlux(zf, EE, zf=zi, 
 #    h_2=lambda z: 0.0), Enum))
-    
+
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)    
 #ax1.semilogx(Enum, flux_num, color='k')
 ax1.loglog(E1, flux1[-1], color='k', ls='-')

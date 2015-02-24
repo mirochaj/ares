@@ -19,44 +19,48 @@ The background spectrum between the Lyman-:math:`\alpha` line and the Lyman-limi
 exhibits a series of absorption features due to Lyman series absorption, first
 illustrated by `Haiman et al. (1997) <http://adsabs.harvard.edu/abs/1997ApJ...476..458H>`_.
 
-::
-    
-    # Initialize a radiation background
-    rad = ares.solvers.UniformBackground(pop=pop)
-    
-Note that we need not initialize a :class:`StellarPopulation<ares.populations.StellarPopulation>` 
-object first -- we can instead pass keyword arguments directly to the 
-:class:`StellarPopulation<ares.evolve.UniformBackground>` class, e.g.:
-
 :: 
 
-    params = \
+    pars = \
     {
      "source_type": 'star', 
-     "source_temperature": 3e4,
+     "source_temperature": 3e4,  # ballpark O-type star
      "spectrum_type": 'bb', 
-     "spectrum_Emin": 1., 
+     "spectrum_Emin": 10.2,
      "spectrum_Emax": 13.6,
-     "approx_lwb": False,        # this tells ares we'll need to solve the RTE
+     "approx_lwb": False,        # this tells ares to solve the RTE
      "discrete_lwb": False,
-     "norm_by": 'lw', 
+     "norm_by": 'lw',
      "Nlw": 1e4,
     }
-    
-    rad = ares.solvers.UniformBackground(**params)
-    
+
+    sim = ares.simulations.MetaGalacticBackground(**pars)
+
 Then, to calculate the background flux: ::    
 
-    import numpy as np
+    sim.run()
 
-    # Setup function to compute background intensity at redshift 30  
-    flux = lambda EE: rad.AngleAveragedFlux(z=30, E=EE, energy_units=True)
+In general, these kinds of calculations could have multiple populations emitting
+in different bands. To extract the flux history for a single population (in 
+this case the 0th population, by default):
 
-    # Focus on Lyman-Werner-ish band
-    E = np.linspace(8., 13.6, 500)  # energies in eV
+::
 
-    # Compute background and plot it
-    pl.semilogy(E, map(flux, E))
+    z, E, flux = sim.get_history()
+    
+This returns three things: first, the redshift points sampled in the history,
+second, the photon energies at which the flux was computed, and lastly, the
+fluxes themselves. The flux array has shape `(z, E)`, while the energies are
+sorted (for numerical reasons) by Lyman-n band. To stitch the energies
+into a single array, simply concatenate:
+
+::
+
+    Eflat = np.concatenate(E)      # Energies split by Ly-n bands, stitch together first
+
+Finally, plot up the background spectrum (at the final redshift)
+
+    pl.semilogy(Eflat, flux[-1])
     
     # Make some nice axes labels
     pl.xlabel(ares.util.labels['E'])

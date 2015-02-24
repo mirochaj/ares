@@ -511,17 +511,17 @@ class GlobalVolume(object):
         What is the energy of a photon observed at redshift z and emitted 
         at redshift zp and energy Ep?
         """
-        
+
         return Ep * (1. + z) / (1. + zp)
-        
+
     def Jc(self, z, E):
         """
         Flux corresponding to one photon per hydrogen atom at redshift z.
         """
-        
+
         return c * self.cosm.nH0 * (1. + z)**3 / 4. / np.pi \
             / (E * erg_per_ev / h)
-         
+
     def rate_to_coefficient(self, z, species=0, **kw):
         """
         Convert an ionization/heating rate to a rate coefficient.
@@ -534,23 +534,23 @@ class GlobalVolume(object):
             weight = 1. / self.cosm.nHe(z) / kw['igm_he_1']
         elif species == 2:
             weight = 1. / self.cosm.nHe(z) / kw['igm_he_2']
-         
+
         return weight
-        
+
     def coefficient_to_rate(self, z, species=0, **kw):
         return 1. / self.rate_to_coefficient(z, species, **kw)
-        
+
     def _fix_kwargs(self, functionify=False, popid=0, **kwargs):
-        
+
         kw = defkwargs.copy()
         kw.update(kwargs)
-        
+
         pop = self.sources[popid]
-        
+
         if functionify and type(kw['xavg']) is not types.FunctionType:
             tmp = kw['xavg']
             kw['xavg'] = lambda z: tmp
-        
+
         if kw['zf'] is None and pop is not None:
             kw['zf'] = pop.zform
         

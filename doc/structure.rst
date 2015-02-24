@@ -6,6 +6,3 @@ whose behavior can be easily adapted during run-time.
 
 The top level submodule of `ares` is the :py:mod:`ares.simulations` submodule.
 
-
-
-   

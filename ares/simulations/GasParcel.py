@@ -61,6 +61,7 @@ class GasParcel:
     def rate_coefficients(self):
         if not hasattr(self, '_rate_coefficients'):
             self._rate_coefficients = self.chem.rcs.copy()
+            self.set_radiation_field()
             
         return self._rate_coefficients
         
@@ -74,6 +75,9 @@ class GasParcel:
         ----------
         data : dict
             Dictionary containing gas properties of each cell.
+        kwargs : optional keyword arguments
+            ACCEPTS: k_ion, k_ion2, k_heat
+            Must be: shape (`grid_cells`, number of absorbing species)
             
         Returns
         -------
@@ -124,8 +128,8 @@ class GasParcel:
         
         """
 
-        pb = ProgressBar(self.pf['stop_time'] * self.pf['time_units'], 
-            use=self.pf['progress_bar'])
+        tf = self.pf['stop_time'] * self.pf['time_units']
+        pb = ProgressBar(tf, use=self.pf['progress_bar'])
         pb.start()
         
         # Rate coefficients for initial conditions
@@ -139,11 +143,14 @@ class GasParcel:
             # Re-compute rate coefficients
             self.update_rate_coefficients(data)
 
-            pb.update(t)
-
             # Save data
             all_t.append(t)
             all_data.append(data.copy())
+
+            if t >= tf:
+                break
+            
+            pb.update(t)
 
         pb.finish()
 

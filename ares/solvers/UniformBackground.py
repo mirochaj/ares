@@ -161,10 +161,10 @@ class UniformBackground:
                 else:
                     tau = np.zeros([len(z), len(nrg)])
                 
-                ehat = self.TabulateEmissivity(z, nrg, i)
+                ehat = [self.TabulateEmissivity(z, Earr, i) for Earr in nrg]
             else:
                 z = nrg = ehat = None
-                tau = np.zeros([len(z), len(nrg)])
+                tau = None
                 
             self.tau.append(tau)
             self.energies.append(nrg)
@@ -199,7 +199,7 @@ class UniformBackground:
         if zf is None:    
             zf = source.pf['final_redshift']
         if nz is None:
-            nz = source.pf['tau_redshifts_%sb' % band]
+            nz = source.pf['redshifts_%sb' % band]
         if Emin is None:
             Emin = E0 = source.pf['spectrum_Emin']
         if Emax is None:
@@ -270,9 +270,6 @@ class UniformBackground:
         Dictionary containing ionization and heating rate coefficients.
 
         """
-
-        self.update_optical_depth()
-        self.update_background_fluxes()
 
         # Setup arrays for results - sorted by sources and absorbers
         self.k_ion  = np.zeros([self.Ns, self.grid.N_absorbers])

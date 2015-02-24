@@ -126,23 +126,27 @@ def PhysicsParameters():
     # Approximations to radiation fields
     "approx_irb": True,
     "approx_lwb": True,
-    'approx_xrb': True,
     "approx_uvb": True,
-    
+    'approx_xrb': True,
+        
     # If doing "full" calculation, discretize in redshift and energy?
     "discrete_irb": True,
     "discrete_lwb": True,
-    'discrete_xrb': True,
     "discrete_uvb": True,
+    'discrete_xrb': True,
     
+    "tau_irb": False,
+    "tau_lwb": False,
+    "tau_uvb": False,
     "tau_xrb": False,
+
     "tau_dynamic": False,
     
     # How many redshift bins for static optical depth tables
-    "tau_redshifts_irb": 400,
-    "tau_redshifts_lwb": 400,
-    "tau_redshifts_uvb": 400,
-    "tau_redshifts_xrb": 400,
+    "redshifts_irb": 400,
+    "redshifts_lwb": 1e4,
+    "redshifts_uvb": 400,
+    "redshifts_xrb": 400,
 
     # Lyman alpha sources
     "lwb_nmax": 23,

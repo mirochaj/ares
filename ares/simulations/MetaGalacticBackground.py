@@ -20,7 +20,7 @@ class MetaGalacticBackground:
         """
         Initialize a MetaGalacticBackground object.    
         """
-        
+
         self.pf = ParameterFile(**kwargs)
         self.field = UniformBackground(**self.pf)
 
@@ -30,7 +30,7 @@ class MetaGalacticBackground:
 
         .. note:: Assumes we're using the generator, otherwise the time 
             evolution must be controlled manually.
-            
+
         Returns
         -------
         Nothing: sets `history` attribute containing the entire evolution
@@ -41,33 +41,33 @@ class MetaGalacticBackground:
         all_fluxes = []
         for fluxes in self.step():
             all_fluxes.append(fluxes)
-        
+
         self.all_fluxes = all_fluxes
         self.history = _sort_history(all_fluxes)
-        
+
     def step(self):
         """
         Initialize generator for the meta-galactic radiation background.
-        
+
         Returns
         -------
         Generator for the background radiation field. Yields the flux for 
         each population.
-        
+
         """
-        
+
         t = 0.0
         z = self.pf['initial_redshift']
         zf = self.pf['final_redshift']
-                
+
         while z > zf:
             fluxes = self.update_fluxes()
-                
+
             yield fluxes
-        
+
     def update_fluxes(self):
         """
-        Loop over flux generators.
+        Loop over flux generators and retrieve the next values.
         """
 
         fluxes = {}
@@ -75,14 +75,19 @@ class MetaGalacticBackground:
             if generator is None:
                 fluxes[i] = None
                 continue
-                
+
             fluxes[i] = generator.next()
-            
+
         return fluxes    
             
     def get_history(self, popid=0):
         """
         Grab data associated with a single population.
+        
+        Parameters
+        ----------
+        popid : int
+            ID number for population of interest.
         
         Returns
         -------
