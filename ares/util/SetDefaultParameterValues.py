@@ -17,7 +17,7 @@ from ..physics.Constants import m_H, cm_per_kpc, s_per_myr
 
 ARES = os.environ.get('ARES')
     
-tau_prefix = "%s/input/optical_depth" % ARES \
+tau_prefix = os.path.join(ARES,'input','optical_depth') \
     if (ARES is not None) else '.'
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum', 
