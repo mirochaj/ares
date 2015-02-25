@@ -202,7 +202,7 @@ class TanhModel:
          'igm_heat_h_1': self.heating_rate(z, Tref, zref_T, dz_T),
          'cgm_Gamma_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
         }
-            
+
         tmp = Global21cm(history=hist)    
-    
+
         return tmp

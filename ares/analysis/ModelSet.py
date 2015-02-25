@@ -314,6 +314,20 @@ class ModelSet(object):
     def is_mcmc(self, value):
         self._is_mcmc = value
     
+    @property    
+    def blob_redshifts_float(self):
+        if not hasattr(self, '_blob_redshifts_float'):
+            self._blob_redshifts_float = []
+            for i, redshift in enumerate(self.blob_redshifts):
+                if type(redshift) is str:
+                    z = None
+                else:
+                    z = redshift
+                    
+                self._blob_redshifts_float.append(z)
+            
+        return self._blob_redshifts_float
+    
     def SelectModels(self):
         """
         Draw a rectangle on supplied matplotlib.axes.Axes instance, return
@@ -905,7 +919,7 @@ class ModelSet(object):
         Returns
         -------
         Tuple, (maximum likelihood value, negative error, positive error).
-        
+
         """
         
         if par in self.parameters:
@@ -915,24 +929,24 @@ class ModelSet(object):
             if z is None:
                 raise ValueError('Must supply redshift!')
             
-            i = self.blob_redshifts.index(z)
-            
-            if par in self.blob_names:
-                j = list(self.blob_names).index(par)
-                to_hist = self.blobs[:,i,j].compressed()
-            else:
-                j = list(self.derived_blob_names).index(par)
-                to_hist = self.derived_blobs[:,i,j].compressed()
+            to_hist = self.extract_blob(par, z=z).compressed()
+
             if take_log:
                 to_hist = np.log10(to_hist)
-                        
+
         hist, bin_edges = \
             np.histogram(to_hist, density=True, bins=bins)
 
         bc = rebin(bin_edges)
-        
-        mu, sigma = float(bc[hist == hist.max()]), error_1D(bc, hist, nu=nu)   
-        
+
+        if to_hist is []:
+            return None, (None, None)    
+
+        try:
+            mu, sigma = float(bc[hist == hist.max()]), error_1D(bc, hist, nu=nu)
+        except ValueError:
+            return None, (None, None)
+
         return mu, np.array(sigma)
         
     def _get_1d_kwargs(self, **kw):
@@ -1260,54 +1274,76 @@ class ModelSet(object):
         to_hist = []
         is_log = []
         for k, par in enumerate(pars):
-
-            if par in self.parameters:        
+            
+            # If one of our free parameters, return right away
+            if par in self.parameters:
                 j = self.parameters.index(par)
                 is_log.append(self.is_log[j])
+                val = self.chain[:,j]
                 
-                val = self.chain[skip:,j].ravel()[::skim]
-                                
                 if self.is_log[j]:
                     val += np.log10(multiplier[k])
                 else:
                     val *= multiplier[k]
-                                
+
                 if take_log[k] and not self.is_log[j]:
                     to_hist.append(np.log10(val))
                 else:
                     to_hist.append(val)
+            
+            else:
+                val = self.extract_blob(par, z[k])
                 
-            elif (par in self.blob_names) or (par in self.derived_blob_names):
-                
-                if z is None:
-                    raise ValueError('Must supply redshift!')
-                    
-                i = self.blob_redshifts.index(z[k])
-                
-                if par in self.blob_names:
-                    j = list(self.blob_names).index(par)
-                else:
-                    j = list(self.derived_blob_names).index(par)
-                
-                is_log.append(False)
-                
-                if par in self.blob_names:
-                    val = self.blobs[skip:,i,j][::skim]
-                else:
-                    val = self.derived_blobs[skip:,i,j][::skim]
-                
+                val *= multiplier[k]
+
                 if take_log[k]:
-                    val += np.log10(multiplier[k])
-                else:
-                    val *= multiplier[k]
-                
-                if take_log[k]:
+                    is_log.append(True)
                     to_hist.append(np.log10(val))
                 else:
+                    is_log.append(False)
                     to_hist.append(val)
 
-            else:
-                raise ValueError('Unrecognized parameter %s' % str(par))
+            #if par in self.parameters:        
+            #    j = self.parameters.index(par)
+            #    is_log.append(self.is_log[j])
+            #    
+            #    val = self.chain[skip:,j].ravel()[::skim]
+                                
+            
+                
+            #elif (par in self.blob_names) or (par in self.derived_blob_names):
+            #    
+            #    if z is None:
+            #        raise ValueError('Must supply redshift!')
+            #        
+            #    val = 
+            #        
+            #    #i = self.blob_redshifts.index(z[k])
+            #    #
+            #    #if par in self.blob_names:
+            #    #    j = list(self.blob_names).index(par)
+            #    #else:
+            #    #    j = list(self.derived_blob_names).index(par)
+            #    
+            #    is_log.append(False)
+            #    
+            #    #if par in self.blob_names:
+            #    #    val = self.blobs[skip:,i,j][::skim]
+            #    #else:
+            #    #    val = self.derived_blobs[skip:,i,j][::skim]
+            #    #
+            #    if take_log[k]:
+            #        val += np.log10(multiplier[k])
+            #    else:
+            #        val *= multiplier[k]
+            #    
+            #    if take_log[k]:
+            #        to_hist.append(np.log10(val))
+            #    else:
+            #        to_hist.append(val)
+            #
+            #else:
+            #    raise ValueError('Unrecognized parameter %s' % str(par))
 
             # Set bins
             if self.is_mcmc or (par not in self.parameters):
@@ -1653,11 +1689,20 @@ class ModelSet(object):
             z = [z] * len(pars)
         
         is_log = []
-        for par in pars[-1::-1]:
+        for i, par in enumerate(pars[-1::-1]):
             if par in self.parameters:
-                is_log.append(self.is_log[self.parameters.index(par)])
+                if take_log[-1::-1][i] == self.is_log[self.parameters.index(par)]:
+                    is_log.append(take_log[-1::-1][i])
+                elif self.is_log[self.parameters.index(par)] > take_log[-1::-1][i]:
+                    is_log.append(True)
+                else:
+                    is_log.append(False)
+                
             elif par in self.blob_names or self.derived_blob_names:
-                is_log.append(False)
+                if take_log[-1::-1][i]:
+                    is_log.append(True)
+                else:    
+                    is_log.append(False)
                 
         if oned:
             Nd = len(pars)
@@ -1693,11 +1738,11 @@ class ModelSet(object):
                         val = inputs[p1]
                     else:
                         val = None
-                        
+                                                
                     if val is None:
                         yin = None
                     elif is_log[i]:
-                        yin = np.log10(val)    
+                        yin = np.log10(val)                            
                     else:
                         yin = val                        
                 else:
@@ -1791,7 +1836,8 @@ class ModelSet(object):
         return mp
         
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
-        nu=0.68, take_log=False, **kwargs):
+        nu=0.68, take_log=False, bins=20, label=None, plot_bands=False,
+        **kwargs):
         """
         Plot constraints on the redshift evolution of given quantity.
         
@@ -1812,30 +1858,64 @@ class ModelSet(object):
             ax = fig.add_subplot(111)
         else:
             gotax = True
+
+        try:
+            ylabel = default_labels[blob]
+        except KeyError:
+            ylabel = blob
         
         if redshifts is None:
             redshifts = self.blob_redshifts
             
-        for z in redshifts:
+        if plot_bands:
+            x = []; ymin = []; ymax = []
             
-            # Error on blob
-            value, (blob_err1, blob_err2) = \
-                self.get_1d_error(blob, z=z, nu=nu, take_log=take_log)
+        for i, z in enumerate(redshifts):
+            
+            if i == 0:
+                l = label
+            else:
+                l = None
+            
+            try:
+                value, (blob_err1, blob_err2) = \
+                    self.get_1d_error(blob, z=z, nu=nu, take_log=take_log,
+                    bins=bins)
+            except TypeError:
+                continue
+            
+            if value is None:
+                continue    
             
             # Error on redshift
             if type(z) == str:
-                mu_z, (z_err1, z_err2) = \
-                    self.get_1d_error('z', z=z, nu=nu)
+                if blob == 'dTb':
+                    mu_z, (z_err1, z_err2) = \
+                        self.get_1d_error('nu', z=z, nu=nu, bins=bins)
+                else:
+                    mu_z, (z_err1, z_err2) = \
+                        self.get_1d_error('z', z=z, nu=nu, bins=bins)
                 xerr = np.array(z_err1, z_err2).T
             else:
                 mu_z = z
                 xerr = None
             
-            ax.errorbar(mu_z, value, 
-                xerr=xerr, 
-                yerr=np.array(blob_err1, blob_err2).T, 
-                lw=4, elinewidth=4, capsize=6, capthick=3,
-                **kwargs)        
+            if plot_bands:
+                if blob == 'dTb':
+                    x.append(nu_0_mhz / (1. + z))
+                else:
+                    x.append(z)
+                ymin.append(value - blob_err1)
+                ymax.append(value + blob_err2)
+            else:                                    
+                ax.errorbar(mu_z, value, 
+                    xerr=xerr, 
+                    yerr=np.array(blob_err1, blob_err2).T, 
+                    lw=2, elinewidth=2, capsize=3, capthick=1, label=l,
+                    **kwargs)        
+        
+        if plot_bands:
+            ax.fill_between(x, ymin, ymax, **kwargs)
         
         # Look for populations
         m = re.search(r"\{([0-9])\}", blob)
@@ -1850,7 +1930,7 @@ class ModelSet(object):
             prefix = blob.split(m.group(0))[0]
         
         ax.set_xlabel(r'$z$')
-        ax.set_ylabel(labels[prefix])
+        ax.set_ylabel(ylabel)
         pl.draw()
         
         return ax
@@ -1891,11 +1971,23 @@ class ModelSet(object):
         """
         Extract a 1-D array of values for a given quantity at a given redshift.
         """
-    
-        i = self.blob_redshifts.index(z)
+
+        # Otherwise, we've got a meta-data blob
+        try:
+            i = self.blob_redshifts.index(z)
+        except ValueError:
+            
+            ztmp = []
+            for redshift in self.blob_redshifts_float:
+                if redshift is None:
+                    ztmp.append(None)
+                else:
+                    ztmp.append(round(redshift, 1))    
+                
+            i = ztmp.index(round(z, 1))
     
         if name in self.blob_names:
-            j = self.blob_names.index(name)
+            j = self.blob_names.index(name)            
             return self.blobs[:,i,j]
         else:
             j = self.derived_blob_names.index(name)

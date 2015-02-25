@@ -70,7 +70,7 @@ def get_nu(sigma, nu_in, nu_out):
         
     # Integral (relative to total) from -sigma to sigma
     # Allows us to convert input sigma to 1-D error-bar
-    integral = lambda var: quad(lambda x: pdf(x, var=var), -sigma, sigma)[0] \
+    integral = lambda vr: quad(lambda x: pdf(x, var=var), -sigma, sigma)[0] \
         / (np.sqrt(abs(var)) * np.sqrt(2 * np.pi))
     
     # Minimize difference between integral (as function of variance) and
@@ -90,7 +90,21 @@ def get_nu(sigma, nu_in, nu_out):
     
     return fmin(to_min, np.sqrt(var), disp=False)[0]
 
-def error_1D(x, y, nu=0.68, discrete=True):
+def error_1D(x, y, nu=0.68, discrete=True, two_tailed=True):
+    tot = np.sum(y)
+    
+    cdf = np.cumsum(y) / float(tot)
+    
+    percent = (1. - nu) / 2
+    p1, p2 = percent, 1. - percent
+    
+    x1 = np.interp(p1, cdf, x)
+    x2 = np.interp(p2, cdf, x)
+    xML = x[np.argmax(y)]
+    
+    return xML - x1, x2 - xML
+    
+def error_1D_OLD(x, y, nu=0.68, discrete=True):
     """
     Compute 1D (possibly asymmetric) errorbar.
 

@@ -367,7 +367,7 @@ class Global21cm:
         # Add 25, 15 and 12, 8 to redshift labels
         z_labels.insert(-1, '15')
         z_labels.insert(-1, '12')
-        z_labels.extend(['9', '8', '7'])                
+        z_labels.extend(['9', '8', '7', '6'])                
         #z_labels.insert(-5, '25')
         
         z = np.array(map(int, z_labels))
@@ -552,8 +552,8 @@ class Global21cm:
             xticks = list(np.arange(zmin, zmax, zmin))
             xticks_minor = list(np.arange(zmin, zmax, 1))
         else:
-            xticks = np.arange(20, 180, 20)
-            xticks_minor = np.arange(10, 190, 20)
+            xticks = np.arange(20, 220, 20)
+            xticks_minor = np.arange(10, 210, 20)
 
         if ymin is None:
             ymin = max(min(min(self.data['dTb']), ax.get_ylim()[0]), -500)

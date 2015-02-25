@@ -38,9 +38,16 @@ except:
 
 try:
     import emcee
-    from emcee.utils import MPIPool
 except ImportError:
     pass
+
+#try:
+#    import emcee
+#    from emcee.utils import MPIPool
+#except ImportError:
+#    pass
+     
+from mpi_pool import MPIPool
     
 try:
     import h5py
@@ -229,7 +236,7 @@ class loglikelihood:
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
-        
+
         try:
             sim = simG21(**kw)
             sim.run()
@@ -283,7 +290,7 @@ class loglikelihood:
         else:
             blobs = self.blank_blob    
 
-        if not (self.fit_turning_points or self.fit_raw_data):
+        if not self.fit_turning_points:
             del sim, kw
             gc.collect()
             return lp, blobs
@@ -378,6 +385,13 @@ class ModelFit(object):
             
             self.base_kwargs['inline_analysis'] = \
                 (self.blob_names, self.blob_redshifts)
+                
+        TPs = 0
+        for z in self.blob_redshifts:
+            if z in list('BCD'):
+                TPs += 1
+                
+        assert TPs > 0, 'Fitting won\'t work if no turning points are provided.'
             
     @property
     def error(self):
@@ -645,11 +659,16 @@ class ModelFit(object):
 
         if size > 1:
             self.pool = MPIPool()
+            self.pool.start()
+            
+            # Non-root processors wait for instructions until job is done,
+            # at which point, they don't need to do anything below here.
             if not self.pool.is_master():
-                self.pool.wait()
+                #self.pool.wait()
                 sys.exit(0)
+
         else:
-            self.pool = None    
+            self.pool = None
 
         self.loglikelihood = loglikelihood(steps, self.parameters, self.is_log, 
             self.mu, self.error, self.base_kwargs,
@@ -792,7 +811,6 @@ class ModelFit(object):
             iterations=steps, rstate0=state, storechain=False):
                         
             # Only the rank 0 processor ever makes it here
-                        
             ct += 1
                                                 
             pos_all.append(pos.copy())
