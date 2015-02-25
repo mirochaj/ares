@@ -41,13 +41,16 @@ try:
 except ImportError:
     pass
 
+emcee_mpipool = False
 try:
-    import emcee
+    from mpi_pool import MPIPool
+except ImportError:
     from emcee.utils import MPIPool
+    emcee_mpipool = True    
 except ImportError:
     pass
      
-#from mpi_pool import MPIPool
+
     
 try:
     import h5py
@@ -659,12 +662,17 @@ class ModelFit(object):
 
         if size > 1:
             self.pool = MPIPool()
-            self.pool.start()
+            
+            if not emcee_mpipool:
+                self.pool.start()
             
             # Non-root processors wait for instructions until job is done,
             # at which point, they don't need to do anything below here.
             if not self.pool.is_master():
-                #self.pool.wait()
+                
+                if emcee_mpipool:
+                    self.pool.wait()
+                    
                 sys.exit(0)
 
         else:

@@ -606,22 +606,22 @@ class Global21cm:
                 ax.legend(loc='best')
                 
         # Twin axes along the top
+        twinax = None
         if freq_ax:
             twinax = self.add_frequency_axis(ax)        
         elif time_ax:
             twinax = self.add_time_axis(ax)
         elif z_ax:
             twinax = self.add_redshift_axis(ax)
-        else:
-            twinax = None
         
-        self.twinax = twinax
+        if twinax is not None:
+            self.twinax = twinax
         
         ax.ticklabel_format(style='plain', axis='both')
         ax.set_xscale(xscale)
                     
         pl.draw()
-        
+
         return ax
 
     def Derivative(self, mp=None, **kwargs):
