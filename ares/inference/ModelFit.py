@@ -41,13 +41,13 @@ try:
 except ImportError:
     pass
 
-#try:
-#    import emcee
-#    from emcee.utils import MPIPool
-#except ImportError:
-#    pass
+try:
+    import emcee
+    from emcee.utils import MPIPool
+except ImportError:
+    pass
      
-from mpi_pool import MPIPool
+#from mpi_pool import MPIPool
     
 try:
     import h5py
@@ -275,7 +275,7 @@ class loglikelihood:
             j = self.blob_redshifts.index(z)
 
             val = sim.blobs[j,i]
-
+            
             blob_vals.append(val)    
 
         if blob_vals:
