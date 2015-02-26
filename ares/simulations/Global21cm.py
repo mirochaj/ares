@@ -15,6 +15,11 @@ from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from .MultiPhaseMedium import MultiPhaseMedium
 
+defaults = \
+{
+ 'load_ics': True,
+}
+
 class Global21cm:
     def __init__(self, **kwargs):
         """
@@ -32,6 +37,7 @@ class Global21cm:
         is_tanh = self._check_if_tanh(**kwargs)
 
         if not is_tanh:
+            kwargs.update(defaults)
             self.pf = ParameterFile(**kwargs)
         else:
             return
@@ -43,6 +49,31 @@ class Global21cm:
         if self.pf['track_extrema']:
             from ..analysis.TurningPoints import TurningPoints
             self.track = TurningPoints(inline=True, **self.pf)    
+        
+    def _init_dTb(self):
+        
+        z = self.all_z
+        
+        dTb = []
+        for i, data_igm in enumerate(self.all_data_igm):
+            
+            n_H = self.medium.parcel_igm.grid.cosm.nH(z[i])
+            Ts = \
+                self.medium.parcel_igm.grid.hydr.Ts(
+                    z[i], data_igm['Tk'], 0.0, data_igm['h_2'], 
+                    data_igm['e'] * n_H)
+            
+            # Compute volume-averaged ionized fraction
+            QHII = self.all_data_cgm[i]['h_2']
+            xavg = QHII + (1. - QHII) * data_igm['h_2']        
+            
+            # Derive brightness temperature
+            Tb = self.medium.parcel_igm.grid.hydr.dTb(z[i], xavg, Ts)
+            self.all_data_igm[i]['dTb'] = Tb
+            self.all_data_igm[i]['Ts'] = Ts
+            dTb.append(Tb)
+            
+        return dTb
         
     def _check_if_tanh(self, **kwargs):
         if not kwargs:
@@ -80,7 +111,7 @@ class Global21cm:
         
         """
         
-        # If this was a tanh model, we're already dones.
+        # If this was a tanh model, we're already done.
         if hasattr(self, 'history'):
             return
         
@@ -89,39 +120,41 @@ class Global21cm:
         pb = ProgressBar(tf, use=self.pf['progress_bar'])
         pb.start()
         
-        # List for extrema-finding    
-        all_dTb = []
-        
         # Lists for data in general
-        all_t = []; all_z = []
-        all_data_igm = []; all_data_cgm = []
+        self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm = \
+            self.medium.all_t, self.medium.all_z, self.medium.all_data_igm, \
+            self.medium.all_data_cgm
+        
+        # List for extrema-finding    
+        self.all_dTb = self._init_dTb()
+            
         for t, z, data_igm, data_cgm in self.step():
             
             pb.update(t)
             
             # Save data
-            all_z.append(z)
-            all_t.append(t)
-            all_dTb.append(data_igm['dTb'][0])
-            all_data_igm.append(data_igm.copy()) 
-            all_data_cgm.append(data_cgm.copy())
+            self.all_z.append(z)
+            self.all_t.append(t)
+            self.all_dTb.append(data_igm['dTb'][0])
+            self.all_data_igm.append(data_igm.copy()) 
+            self.all_data_cgm.append(data_cgm.copy())
             
             # Automatically find turning points
             if self.pf['track_extrema']:
-                if self.track.is_stopping_point(all_z, all_dTb):
+                if self.track.is_stopping_point(self.all_z, self.all_dTb):
                     break
 
         pb.finish()
 
-        self.history_igm = _sort_history(all_data_igm, prefix='igm_',
+        self.history_igm = _sort_history(self.all_data_igm, prefix='igm_',
             squeeze=True)
-        self.history_cgm = _sort_history(all_data_cgm, prefix='cgm_',
+        self.history_cgm = _sort_history(self.all_data_cgm, prefix='cgm_',
             squeeze=True)
 
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
-        self.history['t'] = np.array(all_t)
-        self.history['z'] = np.array(all_z)
+        self.history['t'] = np.array(self.all_t)
+        self.history['z'] = np.array(self.all_z)
 
     def step(self):
         """

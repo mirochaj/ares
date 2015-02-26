@@ -108,7 +108,7 @@ def _load_hdf5(fn):
 def _load_npz(fn):
     return dict(np.load(fn))
 
-def load_inits(fn=None):
+def _load_inits(fn=None):
 
     if fn is None:
         if have_h5py:

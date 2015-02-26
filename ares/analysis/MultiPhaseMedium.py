@@ -370,7 +370,7 @@ class MultiPhaseMedium:
         # Add 25, 15 and 12, 8 to redshift labels
         z_labels.insert(-1, '15')
         z_labels.insert(-1, '12')
-        z_labels.extend(['9', '8', '7'])                
+        z_labels.extend(['9', '8', '7', '6'])                
         #z_labels.insert(-5, '25')
         
         z = np.array(map(int, z_labels))
@@ -584,7 +584,7 @@ class MultiPhaseMedium:
         if xaxis == 'z' and hasattr(self, 'pf'):
             ax.set_xlim(5, self.pf["initial_redshift"])
         else:
-            ax.set_xlim(10, 150)
+            ax.set_xlim(10, 210)
             
         ax.set_ylim(ymin, ymax)    
         

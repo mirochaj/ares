@@ -18,6 +18,8 @@ The "sawtooth" UV Background
 The background spectrum between the Lyman-:math:`\alpha` line and the Lyman-limit
 exhibits a series of absorption features due to Lyman series absorption, first
 illustrated by `Haiman et al. (1997) <http://adsabs.harvard.edu/abs/1997ApJ...476..458H>`_.
+To evolve this kind of radiation background in time, we'll use the 
+:class:`ares.simulations.MetaGalacticBackground` class:
 
 :: 
 
@@ -29,12 +31,13 @@ illustrated by `Haiman et al. (1997) <http://adsabs.harvard.edu/abs/1997ApJ...47
      "spectrum_Emin": 10.2,
      "spectrum_Emax": 13.6,
      "approx_lwb": False,        # this tells ares to solve the RTE
-     "discrete_lwb": False,
-     "norm_by": 'lw',
-     "Nlw": 1e4,
+     "norm_by": 'lw',            
+     "Nlw": 1e4,                 # number of LW photons / baryon in star formation
     }
 
     sim = ares.simulations.MetaGalacticBackground(**pars)
+    
+This may take a few seconds to initialize.
 
 Then, to calculate the background flux: ::    
 

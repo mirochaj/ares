@@ -13,9 +13,14 @@ Description:
 import numpy as np
 from .GasParcel import GasParcel
 from ..solvers import UniformBackground
-from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from ..populations import CompositePopulation
+from ..util.ReadData import _sort_history, _load_inits
+
+defaults = \
+{
+ 'load_ics': True,
+}
 
 # These should go in ProblemTypes?
 igm_pars = \
@@ -24,7 +29,7 @@ igm_pars = \
  'isothermal': False,
  'expansion': True,
  'initial_ionization': [1.-1.2e-3, 1.2e-3],
- 'cosmological_ics': True,
+ 'cosmological_ics': False,
 }
 
 cgm_pars = \
@@ -42,7 +47,23 @@ class MultiPhaseMedium:
         """
         Initialize a MultiPhaseMedium object.
         """
+
+        kwargs.update(defaults)
         self.pf = ParameterFile(**kwargs)
+        
+        # Load in initial conditions, interpolate to initial_redshift
+        if self.pf['load_ics']:
+            inits = self.inits = _load_inits()
+            
+            zi = self.pf['initial_redshift']
+            if not np.all(np.diff(inits['z']) > 0):
+                raise ValueError('Redshifts in ICs must be in ascending order!')
+            Ti = np.interp(zi, inits['z'], inits['Tk'])
+            xi = np.interp(zi, inits['z'], inits['xe'])
+            new_pars = {'cosmological_ics': False,
+                        'initial_temperature': Ti,
+                        'initial_ionization': [1. - xi, xi]}
+            igm_pars.update(new_pars)
 
         # Initialize two GasParcels
         self.kw_igm = self.pf.copy()
@@ -50,11 +71,13 @@ class MultiPhaseMedium:
 
         self.kw_cgm = self.pf.copy()
         self.kw_cgm.update(cgm_pars)
-
+                    
         self.parcel_igm = GasParcel(**self.kw_igm)
         self.parcel_cgm = GasParcel(**self.kw_cgm)
         
         self._model_specific_patches()
+        
+        self._insert_inits()
         
         # Initialize generators
         self.gen_igm = self.parcel_igm.step()
@@ -101,30 +124,29 @@ class MultiPhaseMedium:
 
         pb = ProgressBar(self.tf, use=self.pf['progress_bar'])
         pb.start()
-            
-        all_t = []; all_z = []
-        all_data_igm = []; all_data_cgm = []
+                        
+        # Evolve in time
         for t, z, data_igm, data_cgm in self.step():
             
             pb.update(t)
             
             # Save data
-            all_z.append(z)
-            all_t.append(t)
-            all_data_igm.append(data_igm.copy())  
-            all_data_cgm.append(data_cgm.copy())
+            self.all_z.append(z)
+            self.all_t.append(t)
+            self.all_data_igm.append(data_igm.copy())  
+            self.all_data_cgm.append(data_cgm.copy())
                         
         pb.finish()          
 
         self.history_igm = \
-            _sort_history(all_data_igm, prefix='igm_', squeeze=True)
+            _sort_history(self.all_data_igm, prefix='igm_', squeeze=True)
         self.history_cgm = \
-            _sort_history(all_data_cgm, prefix='cgm_', squeeze=True)
+            _sort_history(self.all_data_cgm, prefix='cgm_', squeeze=True)
         
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
-        self.history['t'] = np.array(all_t)
-        self.history['z'] = np.array(all_z)    
+        self.history['t'] = np.array(self.all_t)
+        self.history['z'] = np.array(self.all_z)    
         
     def step(self):
         """
@@ -185,5 +207,67 @@ class MultiPhaseMedium:
             self.parcel_cgm.dt = dt
             
             yield t, z, data_igm, data_cgm
+
+    def _insert_inits(self):
+        """
+        Prepend provided initial conditions to the data storage lists.
+        """
+        
+        if not self.pf['load_ics']:
+            self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm = \
+                [], [], [], []
+            return
+            
+        # Flip to descending order (in redshift)
+        z_inits = self.inits['z'][-1::-1]
+        Tk_inits = self.inits['Tk'][-1::-1]
+        xe_inits = self.inits['xe'][-1::-1]
+        inits_all = {'z': z_inits, 'Tk': Tk_inits, 'xe': xe_inits}
+        
+        # Stop pre-pending once we hit the first light redshift
+        i_trunc = np.argmin(np.abs(z_inits - self.pf['first_light_redshift']))    
+        if z_inits[i_trunc] <= self.pf['first_light_redshift']:
+            i_trunc += 1
+
+        self.all_t = []
+        self.all_data_igm = []
+        self.all_z = list(z_inits[0:i_trunc])
+        
+        # Don't mess with the CGM (much)
+        tmp = self.parcel_cgm.grid.data.copy()
+        self.all_data_cgm = [tmp] * len(self.all_z)
+        for i, cgm_data in enumerate(self.all_data_cgm):
+            cgm_data['rho'] = \
+                self.parcel_igm.grid.cosm.MeanBaryonDensity(self.all_z[i])
+            cgm_data['n'] = self.parcel_cgm.grid.particle_density(cgm_data)
+        
+        # Loop over redshift and derive things for the IGM
+        for i, red in enumerate(self.all_z): 
+
+            snapshot = {}
+            for key in self.parcel_igm.grid.data.keys():
+                if key in self.inits.keys():
+                    snapshot[key] = inits_all[key][i]
+                    continue
+            
+            # Electron fraction
+            snapshot['e'] = inits_all['xe'][i]
+  
+            # Hydrogen neutral fraction
+            xe = inits_all['xe'][i]
+            
+            if 2 not in self.parcel_igm.grid.Z:
+                xe = min(xe, 1.0)
+                
+            xi = xe / (1. + self.parcel_igm.grid.cosm.y)
+
+            snapshot['h_1'] = 1. - xi
+            snapshot['h_2'] = xi
+            snapshot['rho'] = self.parcel_igm.grid.cosm.MeanBaryonDensity(red)
+            snapshot['n'] = self.parcel_igm.grid.particle_density(snapshot)
+
+            self.all_t.append(np.zeros_like(self.all_z))
+            self.all_data_igm.append(snapshot)
+
 
             

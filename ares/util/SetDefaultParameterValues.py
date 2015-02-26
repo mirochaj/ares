@@ -429,7 +429,7 @@ def ControlParameters():
     "interp_method": 'cubic',
 
     # Initialization
-    "load_ics": True,
+    "load_ics": False,
     "cosmological_ics": False,
     "load_sim": False,
     "first_light_redshift": 50.,

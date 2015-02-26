@@ -5,7 +5,7 @@ features you'd like to make use of, adapting it to suit your purpose should
 (in principle) be fairly straightforward. The following section shows
 how you might go about doing this. 
 
-If you end up developing something you think might be useful for others and
+If you end up developing something that might be useful for others and
 are willing to share, you should absolutely `fork ares on bitbucket <https://bitbucket.org/mirochaj/ares/fork>`_.
 Feel free to shoot me an email if you need help getting started!
 
@@ -93,13 +93,14 @@ Then plot it
 
         
 Notice how crudely the earliest stages of the evolution are captured. This is 
-because by default, the initial time-step is rather small. To fix this,
+because by default, the initial time-step is rather large. To fix this,
     
 ::  
 
     pf.update({'initial_timestep': 1e-8})
     
-and re-run. 
+and re-run. The earliest stages of the evolution should be well resolved given 
+:math:`\Delta t = 10^{-8}`.
 
 Summary
 -------
