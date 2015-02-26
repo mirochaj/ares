@@ -121,14 +121,15 @@ class Global21cm:
         pb.start()
         
         # Lists for data in general
-        self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm = \
+        self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm, \
+            self.all_RC_igm, self.all_RC_cgm = \
             self.medium.all_t, self.medium.all_z, self.medium.all_data_igm, \
-            self.medium.all_data_cgm
+            self.medium.all_data_cgm, self.medium.RC_igm, self.medium.RC_cgm
         
         # List for extrema-finding    
         self.all_dTb = self._init_dTb()
             
-        for t, z, data_igm, data_cgm in self.step():
+        for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():
             
             pb.update(t)
             
@@ -138,6 +139,8 @@ class Global21cm:
             self.all_dTb.append(data_igm['dTb'][0])
             self.all_data_igm.append(data_igm.copy()) 
             self.all_data_cgm.append(data_cgm.copy())
+            self.all_RC_igm.append(rc_igm.copy()) 
+            self.all_RC_cgm.append(rc_cgm.copy())
             
             # Automatically find turning points
             if self.pf['track_extrema']:
@@ -153,6 +156,17 @@ class Global21cm:
 
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
+        
+        # Save rate coefficients [optional]
+        if self.pf['save_rate_coefficients']:
+            self.rates_igm = \
+                _sort_history(self.all_RC_igm, prefix='igm_', squeeze=True)
+            self.rates_cgm = \
+                _sort_history(self.all_RC_cgm, prefix='cgm_', squeeze=True)
+        
+            self.history.update(self.rates_igm)
+            self.history.update(self.rates_cgm)
+
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
 
@@ -166,14 +180,14 @@ class Global21cm:
         
         Returns
         -------
-        Generator for MultiPhaseIGM object, with notable addition that
+        Generator for MultiPhaseMedium object, with notable addition that
         the spin temperature and 21-cm brightness temperature are now 
         tracked.
 
         """
 
         
-        for t, z, data_igm, data_cgm in self.medium.step():            
+        for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
                         
             # Grab Lyman alpha flux
             Ja = self.medium.field.LymanAlphaFlux(z)
@@ -195,7 +209,7 @@ class Global21cm:
             data_igm.update({'Ts': Ts, 'dTb': dTb})
                         
             # Yield!            
-            yield t, z, data_igm, data_cgm
+            yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
             
         
         

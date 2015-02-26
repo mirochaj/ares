@@ -40,6 +40,7 @@ cgm_pars = \
  'initial_temperature': [1e4],
  'expansion': True,
  'cosmological_ics': True,
+ 'recombination': 'A',
 }
 
 class MultiPhaseMedium:
@@ -77,7 +78,9 @@ class MultiPhaseMedium:
         
         self._model_specific_patches()
         
-        self._insert_inits()
+        # Reset!
+        self.parcel_cgm._set_chemistry()
+        #del self.parcel_cgm._rate_coefficients
         
         # Initialize generators
         self.gen_igm = self.parcel_igm.step()
@@ -91,6 +94,8 @@ class MultiPhaseMedium:
             **self.field.volume.rates_no_RT)
         self.parcel_cgm.update_rate_coefficients(self.parcel_cgm.grid.data, 
             **self.field.volume.rates_no_RT)        
+    
+        self._insert_inits()
     
     def _model_specific_patches(self):
         """
@@ -126,7 +131,7 @@ class MultiPhaseMedium:
         pb.start()
                         
         # Evolve in time
-        for t, z, data_igm, data_cgm in self.step():
+        for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.step():
             
             pb.update(t)
             
@@ -135,16 +140,32 @@ class MultiPhaseMedium:
             self.all_t.append(t)
             self.all_data_igm.append(data_igm.copy())  
             self.all_data_cgm.append(data_cgm.copy())
+            
+            if self.pf['save_rate_coefficients']:
+                self.all_RCs_igm.append(RC_igm.copy())  
+                self.all_RCs_cgm.append(RC_cgm.copy())
                         
         pb.finish()          
 
+        # Sort everything by time
         self.history_igm = \
             _sort_history(self.all_data_igm, prefix='igm_', squeeze=True)
         self.history_cgm = \
-            _sort_history(self.all_data_cgm, prefix='cgm_', squeeze=True)
+            _sort_history(self.all_data_cgm, prefix='cgm_', squeeze=True)        
         
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
+        
+        # Save rate coefficients [optional]
+        if self.pf['save_rate_coefficients']:
+            self.rates_igm = \
+                _sort_history(self.all_RCs_igm, prefix='igm_', squeeze=True)
+            self.rates_cgm = \
+                _sort_history(self.all_RCs_cgm, prefix='cgm_', squeeze=True)
+                
+            self.history.update(self.rates_igm)
+            self.history.update(self.rates_cgm)
+
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)    
         
@@ -177,8 +198,8 @@ class MultiPhaseMedium:
             z -= dt / dtdz
             
             # IGM rate coefficients
-            RC_igm = self.field.update_rate_coefficients(data_igm, z, 
-                zone='igm', return_rc=True)
+            RC_igm = self.field.update_rate_coefficients(z, 
+                zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
             
             # Now, update IGM parcel
             t1, dt1, data_igm = self.gen_igm.next()
@@ -186,18 +207,13 @@ class MultiPhaseMedium:
             # Re-compute rate coefficients
             self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
 
-            tmp = data_cgm.copy()
-            tmp['igm_h_1'] = data_igm['h_1']
-
             # CGM rate coefficients
-            RC_cgm = self.field.update_rate_coefficients(tmp, z, 
-                zone='cgm', return_rc=True)
+            RC_cgm = self.field.update_rate_coefficients(z, 
+                zone='cgm', return_rc=True, igm_h_1=data_igm['h_1'])
                         
-            del tmp
-
             # Re-compute rate coefficients
             self.parcel_cgm.update_rate_coefficients(data_cgm, **RC_cgm)
-
+            
             # Now, update CGM parcel
             t2, dt2, data_cgm = self.gen_cgm.next()
             
@@ -206,7 +222,7 @@ class MultiPhaseMedium:
             self.parcel_igm.dt = dt
             self.parcel_cgm.dt = dt
             
-            yield t, z, data_igm, data_cgm
+            yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
 
     def _insert_inits(self):
         """
@@ -216,6 +232,8 @@ class MultiPhaseMedium:
         if not self.pf['load_ics']:
             self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm = \
                 [], [], [], []
+            if self.pf['save_rate_coefficients']:    
+                self.RC_igm, self.RC_cgm = [], []
             return
             
         # Flip to descending order (in redshift)
@@ -232,14 +250,17 @@ class MultiPhaseMedium:
         self.all_t = []
         self.all_data_igm = []
         self.all_z = list(z_inits[0:i_trunc])
+        self.RC_igm = [self.field.volume.rates_no_RT] * len(self.all_z)
+        self.RC_cgm = [self.field.volume.rates_no_RT] * len(self.all_z)
         
         # Don't mess with the CGM (much)
-        tmp = self.parcel_cgm.grid.data.copy()
-        self.all_data_cgm = [tmp] * len(self.all_z)
+        tmp = self.parcel_cgm.grid.data
+        self.all_data_cgm = [tmp.copy() for i in range(len(self.all_z))]
         for i, cgm_data in enumerate(self.all_data_cgm):
-            cgm_data['rho'] = \
+            self.all_data_cgm[i]['rho'] = \
                 self.parcel_igm.grid.cosm.MeanBaryonDensity(self.all_z[i])
-            cgm_data['n'] = self.parcel_cgm.grid.particle_density(cgm_data)
+            self.all_data_cgm[i]['n'] = \
+                self.parcel_cgm.grid.particle_density(cgm_data, self.all_z[i])
         
         # Loop over redshift and derive things for the IGM
         for i, red in enumerate(self.all_z): 
@@ -264,10 +285,11 @@ class MultiPhaseMedium:
             snapshot['h_1'] = 1. - xi
             snapshot['h_2'] = xi
             snapshot['rho'] = self.parcel_igm.grid.cosm.MeanBaryonDensity(red)
-            snapshot['n'] = self.parcel_igm.grid.particle_density(snapshot)
+            snapshot['n'] = \
+                self.parcel_igm.grid.particle_density(snapshot.copy(), red)
 
             self.all_t.append(np.zeros_like(self.all_z))
-            self.all_data_igm.append(snapshot)
+            self.all_data_igm.append(snapshot.copy())
 
 
             

@@ -47,7 +47,7 @@ class ChemicalNetwork:
         self.expansion = self.grid.expansion
         self.in_bubbles = self.grid.in_bubbles
         self.isothermal = self.grid.isothermal
-        
+                
         self.Nev = len(self.grid.evolving_fields)
         
         self.include_He = 2 in self.grid.Z
@@ -105,7 +105,6 @@ class ChemicalNetwork:
     
         self.q = q
     
-        #cell, G, g, H, ntot, time = args
         cell, k_ion, k_ion2, k_heat, ntot, time = args
             
         to_temp = 1. / (1.5 * ntot * k_B)
@@ -132,7 +131,7 @@ class ChemicalNetwork:
         
         # In two-zone model, this phase is assumed to be fully ionized
         # CF = clumping factor
-        if self.in_bubbles:
+        if self.in_bubbles:            
             CF *= (n_H * (1. + y) / n_e)
                     
         # Where do the electrons live?

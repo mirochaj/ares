@@ -261,7 +261,7 @@ class UniformBackground:
         self._atol = self.pf["integrator_atol"]
         self._divmax = int(self.pf["integrator_divmax"])
     
-    def update_rate_coefficients(self, data, z, **kwargs):
+    def update_rate_coefficients(self, z, **kwargs):
         """
         Compute ionization and heating rate coefficients.
 

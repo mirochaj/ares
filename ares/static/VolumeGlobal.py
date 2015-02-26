@@ -754,7 +754,7 @@ class GlobalVolume(object):
             weight = self.rate_to_coefficient(z, species, **kw)
         else:
             weight = 1.0
-
+            
         return weight \
             * pop.IonizingPhotonLuminosityDensity(z) * (1. + z)**3
     
