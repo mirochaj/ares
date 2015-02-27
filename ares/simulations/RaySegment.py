@@ -30,9 +30,15 @@ class RaySegment:
         self.pf = self.parcel.pf
         self.grid = self.parcel.grid
 
-        self._set_radiation_field()
-
         # Initialize generator for gas parcel
+        self.gen = self.parcel.step()
+        
+        # Rate coefficients for initial conditions
+        self.parcel.update_rate_coefficients(self.grid.data)
+        self._set_radiation_field()
+        
+    def reset(self):
+        del self.gen
         self.gen = self.parcel.step()
 
     def _set_radiation_field(self):
@@ -41,6 +47,9 @@ class RaySegment:
             return
 
         self.field = RadialField(self.grid, **self.pf)
+
+    def update_rate_coefficients(self, data, **RCs):
+        self.parcel.update_rate_coefficients(data, **RCs)
 
     def run(self):
         """
@@ -56,20 +65,16 @@ class RaySegment:
 
         pb = ProgressBar(tf, use=self.pf['progress_bar'])
         pb.start()
-        
-        # Rate coefficients for initial conditions
-        self.parcel.update_rate_coefficients(self.grid.data)
-        self.parcel.set_radiation_field()
 
         all_t = []
         all_data = []
-        for t, dt, data in self.gen:
+        for t, dt, data in self.step():
 
             # Compute ionization / heating rate coefficient
             RCs = self.field.update_rate_coefficients(data, t)
 
             # Re-compute rate coefficients
-            self.parcel.update_rate_coefficients(data, **RCs)
+            self.update_rate_coefficients(data, **RCs)
             
             # Save data
             all_t.append(t)
@@ -89,11 +94,23 @@ class RaySegment:
 
         return to_return
 
-    def step(self, t, dt, data):
+    def step(self):
         """
         Evolve properties of gas parcel in time.
         """
         
-        return self.gen.next()
+        #if data is None:
+        #    data = self.grid.data.copy()
+        #if t == 0:
+        #    dt = self.pf['time_units'] * self.pf['initial_timestep']            
+        #if tf is None:    
+        
+        t = 0
+        tf = self.pf['stop_time'] * self.pf['time_units']
+        
+
+        while t < tf:
+            yield self.gen.next()
+            
 
 

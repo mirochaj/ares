@@ -30,7 +30,7 @@ try:
     import h5py
 except ImportError:
     pass
-     
+
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
@@ -38,9 +38,9 @@ try:
 except ImportError:
     rank = 0
     size = 1
-    
+
 ARES = os.getenv('ARES')
-            
+
 log10 = np.log(10.)    # for when we integrate in log-space
 four_pi = 4. * np.pi
 
@@ -996,8 +996,4 @@ class UniformBackground:
                 tau=self.tau[popid])
                 
         
-    
-        
-    
-    
     

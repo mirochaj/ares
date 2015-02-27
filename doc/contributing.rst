@@ -102,13 +102,91 @@ because by default, the initial time-step is rather large. To fix this,
 and re-run. The earliest stages of the evolution should be well resolved given 
 :math:`\Delta t = 10^{-8}`.
 
-Summary
--------
-The procedure of repeatedly calling the generator, updating rate coefficients,
-and storing data is what is happening ``under the hood'' each time you call the
-`run` method of a class in the :py:mod:`ares.simulations` module. 
-
-.. note :: Had we exected `sim.run()` for this example, nothing interesting would
+.. note :: Had we executed `sim.run()` for this example, nothing interesting would
     have happened because the gas is neutral to begin with (by default), the
     ionization and heating rate coefficients are zero (also by default), and
     the gas is too cold to be collisionally ionized.
+
+Medium-Advanced Hacking
+-----------------------
+Here's another example where we initialize a grid of 64 cells near a point 
+source of ultraviolet photons, and add ionization and heating from a 
+meta-galactic background.
+
+First, setup a dictionary of important parameters. We'll take a short-cut and
+adopt the default parameters for Problem #2 from the Radiative Transfer 
+Comparison Project (`Iliev et al. 2006
+<http://adsabs.harvard.edu/abs/2006MNRAS.371.1057I>`_):
+
+::
+
+    pars = \
+    {
+     'problem_type': 2,
+    }
+    
+To actually initialize the calculation, now for
+a set of gas parcels rather than just one, we use a new class specifically 
+designed for evolving radiation fields near point sources:
+
+::
+
+    import ares
+    
+    sim = ares.simulations.RaySegment(**pars)
+
+Now, we'll call `sim.step`, a generator for the
+evolution of this entire set of gas parcels, which 
+(as in :class:`ares.simulations.GasParcel`)
+will yield the current time, time-step, and data on each iteration. 
+
+
+::
+
+    all_t = []
+    all_data = []
+    for t, dt, data in sim.step():
+
+        # Save current time and data
+        all_t.append(t)
+        all_data.append(data)
+        
+        # Ionization/heating rate coefficients due to presence of UV source
+        RCs = sim.field.update_rate_coefficients(data, t)
+
+        # Add a constant ionizing background (shape ``grid_cells`` by absorbing species)
+        RCs['k_ion'] += 1e-16 * np.ones([64, 1])
+
+        # Re-computes rate coefficients using gas properties in 'data', 
+        # and [optionally] those pertaining to radiation field
+        sim.update_rate_coefficients(data, **RCs)
+        
+To plot up a radial profile of the neutral fraction at the last time snapshot, 
+you could do:
+
+::
+
+    import matplotlib.pyplot as pl
+    
+    pl.plot(sim.grid.r_mid, all_data[-1]['h_1'])
+    
+.. note:: The variable `sim.grid` is an instance of the :class:`ares.static.Grid.Grid`
+    class, which (among other things) holds information about the physical
+    size of grid cells and the domain. The attribute `r_mid` refers to the
+    cell midpoints. The edges are accessible also (via `r` or `r_edg`), but
+    have one more element, thus causing a ``ValueError`` if used in attempts
+    to plot radial profiles.
+
+Advanced Hacking
+----------------
+Stay tuned.
+
+Summary
+-------
+The procedure of repeatedly calling the generator, updating rate coefficients,
+and storing data is what is happening ''under the hood'' each time you call the
+`run` method of a class in the :py:mod:`ares.simulations` module. If you come
+up with some new type of calculation and are tired of calling the `step` 
+function explicitly, perhaps it's time to create a new submodule in 
+:py:mod:`ares.simulations` module! 
+
