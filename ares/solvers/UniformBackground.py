@@ -148,7 +148,7 @@ class UniformBackground:
         
         if not self.bands:
             return
-        
+                    
         self.tau = []
         self.energies = []; self.redshifts = []; self.emissivities = []
         for i, source in enumerate(self.sources):
@@ -161,7 +161,10 @@ class UniformBackground:
                 else:
                     tau = np.zeros([len(z), len(nrg)])
                 
-                ehat = [self.TabulateEmissivity(z, Earr, i) for Earr in nrg]
+                if self.bands[i] == 'lw':    
+                    ehat = [self.TabulateEmissivity(z, Earr, i) for Earr in nrg]
+                else:        
+                    ehat = self.TabulateEmissivity(z, nrg, i)
             else:
                 z = nrg = ehat = None
                 tau = None

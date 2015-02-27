@@ -22,11 +22,7 @@ grid_axes = {'fstar': fstar, 'fX': fX}
 ##
 #
 
-blobs = ares.inference.default_blobs
-
-base_kwargs = {'inline_analysis': blobs, 'final_redshift': 6}
-
-mg = ares.inference.ModelGrid(**base_kwargs)
+mg = ares.inference.ModelGrid(auto_generate_blobs=True)
 
 mg.set_axes(**grid_axes)
 mg.LoadBalance(0)

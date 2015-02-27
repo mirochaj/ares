@@ -57,6 +57,10 @@ class GasParcel:
     def _set_chemistry(self):
         self.chem = Chemistry(self.grid, rt=self.pf['radiative_transfer'])
         
+    def reset(self):
+        del self.gen
+        self.gen = self.parcel.step()
+        
     @property
     def rate_coefficients(self):
         if not hasattr(self, '_rate_coefficients'):

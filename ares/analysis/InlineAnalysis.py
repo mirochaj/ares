@@ -66,12 +66,12 @@ class InlineAnalysis:
                 suffix = ''
                 
             # Lyman-alpha emission
-            if pop.pf['is_lya_src']:
-                blob_names.append('Ja%s' % suffix)
+            #if pop.pf['is_lya_src']:
+            #    blob_names.append('Ja%s' % suffix)
                 
             # SFRD
-            if not pop.pf['tanh_model']:
-                blob_names.append('sfrd%s' % suffix)
+            #if not pop.pf['tanh_model']:
+            #    blob_names.append('sfrd%s' % suffix)
                             
             species = ['h_1', 'he_1', 'he_2']
             for j, sp1 in enumerate(species):
@@ -82,13 +82,13 @@ class InlineAnalysis:
                 blob_names.append('igm_%s' % sp1)
                 
                 if pop.pf['is_ion_src_cgm'] and j == 0:
-                    blob_names.append('cgm_Gamma_%s%s' % (sp1, suffix))
+                    blob_names.append('cgm_k_ion_%s%s' % (sp1, suffix))
                     
                 if pop.pf['is_heat_src_igm']:
-                    blob_names.append('igm_heat_%s%s' % (sp1, suffix))
+                    blob_names.append('igm_k_heat_%s%s' % (sp1, suffix))
                 
                 if pop.pf['is_ion_src_igm'] and (not pop.pf['tanh_model']):
-                    blob_names.append('igm_Gamma_%s%s' % (sp1, suffix))
+                    blob_names.append('igm_k_ion_%s%s' % (sp1, suffix))
                 else:
                     continue
             
@@ -102,7 +102,7 @@ class InlineAnalysis:
                     if k > 0 and (not self.pf['include_He']):
                         break
                         
-                    blob_names.append('igm_gamma_%s_%s%s' % (sp1, sp2, suffix))
+                    blob_names.append('igm_k_ion2_%s_%s%s' % (sp1, sp2, suffix))
             
         tmp1 = _blob_names
         tmp1.extend(blob_names)
@@ -148,7 +148,7 @@ class InlineAnalysis:
                     continue
 
                 stop = self._track.is_stopping_point(self.history['z'][0:i], 
-                    self.history['dTb'][0:i])
+                    self.history['igm_dTb'][0:i])
 
             self._turning_points = self._track.turning_points
 

@@ -100,7 +100,7 @@ class Global21cm:
         self.history = tanh_model(z, **self.pf).data
     
         return True
-            
+        
     def run(self):
         """
         Run a 21-cm simulation.
@@ -169,6 +169,11 @@ class Global21cm:
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
+        
+        if self.pf['track_extrema']:
+            self.turning_points = self.track.turning_points
+    
+        self.run_inline_analysis()
 
     def step(self):
         """
@@ -211,5 +216,28 @@ class Global21cm:
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
             
-        
-        
+    def run_inline_analysis(self):    
+    
+        if (self.pf['inline_analysis'] is None) and \
+           (self.pf['auto_generate_blobs'] == False):
+            return
+    
+        tmp = {}
+        for key in self.history:
+            if type(self.history[key]) is list:
+                tmp[key] = np.array(self.history[key])
+            else:
+                tmp[key] = self.history[key]
+    
+        self.history = tmp
+    
+        from ..analysis.InlineAnalysis import InlineAnalysis
+        anl = InlineAnalysis(self)
+        anl.run_inline_analysis()
+    
+        self.turning_points = anl.turning_points
+    
+        self.blobs = anl.blobs
+        self.blob_names, self.blob_redshifts = \
+            anl.blob_names, anl.blob_redshifts
+       

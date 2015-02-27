@@ -470,7 +470,7 @@ class GlobalVolume(object):
         # Set up log-grid in parameter x = 1 + z
         x = np.logspace(np.log10(1+self.pf['final_redshift']),
             np.log10(1+self.pf['initial_redshift']),
-            int(self.pf['redshift_bins']))
+            int(self.pf['redshifts_xrb']))
         z = x - 1.
         logx = np.log10(x)
         logz = np.log10(z)

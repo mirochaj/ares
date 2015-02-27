@@ -28,8 +28,8 @@ _blob_redshifts = list('BCD')
 _blob_redshifts.extend([6, 10, 20, 30, 40])
 
 # Nothing population specific
-_blob_names = ['z', 'dTb', 'curvature', 'igm_Tk', 'Ts', 'cgm_h_2', 'igm_h_1',
- 'tau_e']
+_blob_names = ['z', 'igm_dTb', 'curvature', 'igm_Tk', 'igm_Ts', 'cgm_h_2', 
+    'igm_h_1']
 
 default_blobs = (_blob_names, _blob_names)
 

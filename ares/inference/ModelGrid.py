@@ -377,6 +377,8 @@ class ModelGrid:
             if i_Tmin not in fcoll.keys() and (not self.tanh):
                 sim = Global21cm(**p)
                 
+                pops = sim.medium.field.sources
+                
                 if hasattr(self, 'Tmin_ax_popid'):
                     loc = self.Tmin_ax_popid
                     suffix = '{%i}' % loc
@@ -385,8 +387,8 @@ class ModelGrid:
                     suffix = ''
                                 
                 hmf_pars = {'Tmin%s' % suffix: sim.pf['Tmin%s' % suffix],
-                    'fcoll%s' % suffix: copy.deepcopy(sim.pops.pops[loc].fcoll), 
-                    'dfcolldz%s' % suffix: copy.deepcopy(sim.pops.pops[loc].dfcolldz)}
+                    'fcoll%s' % suffix: copy.deepcopy(pops[loc].fcoll), 
+                    'dfcolldz%s' % suffix: copy.deepcopy(pops[loc].dfcolldz)}
 
                 # Save for future iterations
                 fcoll[i_Tmin] = hmf_pars.copy()
@@ -402,12 +404,16 @@ class ModelGrid:
                 
             else:
                 sim = Global21cm(**p)
-
+                                
             # Run simulation!
             try:
                 sim.run()
 
                 tps = sim.turning_points
+                
+                if not hasattr(self, 'blob_names'):
+                    self.blob_names = sim.blob_names
+                    self.blob_redshifts = sim.blob_redshifts
             
             # Timestep error
             except SystemExit:
@@ -431,13 +437,10 @@ class ModelGrid:
             ct += 1
             
             chain = np.array([kwargs[key] for key in self.parameters])
-            
+
             chain_all.append(chain)
             blobs_all.append(sim.blobs)
             load_all.append(rank)
-
-            del p, sim
-            gc.collect()
 
             ##
             # File I/O from here on out
@@ -447,6 +450,8 @@ class ModelGrid:
             
             # Only record results every save_freq steps
             if ct % save_freq != 0:
+                del p, sim
+                gc.collect()
                 continue
 
             # Here we wait until we get the key
@@ -464,11 +469,19 @@ class ModelGrid:
             f = open('%s.load.pkl' % self.prefix, 'ab')
             pickle.dump(load_all, f)
             f.close()
+            
+            if hasattr(self, 'blob_names') and rank == 0:
+                print self.blob_names
+                print self.blob_redshifts
+                f = open('%s.binfo.pkl' % self.prefix, 'wb')
+                pickle.dump((self.blob_names, self.blob_redshifts), f)
+                f.close()
 
             # Send the key to the next processor
             if rank != (size-1):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
             
+            del p, sim
             del chain_all, blobs_all, load_all
             gc.collect()
 

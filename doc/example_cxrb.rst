@@ -1,45 +1,82 @@
 The Metagalactic X-ray Background
 =================================
-In previous example we've calculated the UV background spectrum at a single
-redshift. Here, we'll compute the X-ray background evolution over time, and fast!
+In this example, we'll compute the Meta-Galactic X-ray background over a
+series of redshifts at high redshifts (:math:`10 \leq z \leq 40):
 
 ::
 
-    import ares
-    import numpy as np
-    import matplotlib.pyplot as pl
-
-    # Parameters for population of stellar mass BHs
-    params = \
+    zi, zf = (40, 10)
+    
+    # Initialize radiation background
+    pars = \
     {
      'source_type': 'bh',
-     'Tmin': 1e4,
-     'spectrum_type': 'mcd',
-     'source_mass': 10.,
-     'approx_xrb': False,      # Solve the RTE!
-     'discrete_xrb': True,     # Look in $ARES/input/optical_depth for lookup table
-     'redshift_bins': 400,     # Sample redshift interval with this many points
+     'sfrd': lambda z: 0.01 / (1. + z)**3.,
+     'spectrum_type': 'pl',
+     'spectrum_alpha': -1.5,
+     'spectrum_Emin': 2e2,
+     'spectrum_Emax': 3e4,
+     'spectrum_EminNorm': 2e2,
+     'spectrum_EmaxNorm': 5e4,
+     'approx_xrb': False,
+     'redshifts_xrb': 400,
+     'initial_redshift': zi,
+     'final_redshift': zf,
     }
+    
+Now, to initialize a calculation:
 
-    # Initialize RadiationBackground instance
-    rad = ares.solvers.UniformBackground(**params)
+::    
+
+    import ares
+
+    sim1 = ares.simulations.MetaGalacticBackground(tau_xrb=True, **pars)
+    sim1.run()
     
-    # Compute X-ray flux at all redshifts and photon energies
-    z, E, fluxes = rad.XrayBackground()
+    z1, E1, flux1 = sim1.get_history()
     
-Now, we have the cosmic X-ray background flux at all redshifts, ``z``, and photon
-energies, ``E``. So, the variable ``fluxes`` above is a 2-D array with dimensions
-``(len(z), len(E))``. If we wanted to plot the background spectrum at a few
-redshifts we could do:
+and plot it up at the last snapshot:
+
+::
+
+    import matplotlib.pyplot as pl
+    
+    pl.loglog(E1, flux1[-1])
+    
+For comparison, force the intergalactic medium to optically thin at all 
+redshifts:
+
+::
+    
+    sim2 = ares.simulations.MetaGalacticBackground(tau_xrb=False, **pars)
+    sim2.run()
+    
+    z2, E2, flux2 = sim2.get_history()
+    pl.loglog(E2, flux2[-1])
+        
+It's worth emphasizing that we have the cosmic X-ray background flux at all 
+redshifts, ``z``, and photon energies, ``E``. So, the ``flux``variables above 
+are 2-D arrays with dimensions ``(len(z), len(E))``. If we wanted to plot 
+the background spectrum at a few redshifts we could do:
 
 ::
 
     for i in range(0, 400, 100):
-        pl.loglog(E, fluxes[i], label=r'$z=%.3g$' % z[i])
+        pl.loglog(E1, flux1[i], label=r'$z=%.3g$' % z1[i])
     
-    pl.legend()
     pl.xlabel(ares.util.labels['E']) 
     pl.ylabel(ares.util.labels['flux'])
+    
+The behavior at low photon energies (:math:`h\nu \lesssim 0.5 \ \mathrm{keV}`)
+is due to poor redshift resolution, which leads to overestimates of the 
+flux. This is a trade made for speed in solving the cosmological
+radiative transfer equation, discussed in detail in Section 3 of 
+`Mirocha (2014) <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_. For more
+accurate calculations, increase the value of `redshifts_xrb`, just know that 
+you'll need to create new lookup tables for the optical depth, or compute
+it on-the-fly via the `dynamic_tau` parameter (not yet implemented!), as the 
+optical depth lookup tables that ship with *ares* use `redshifts_xrb=400`
+as a default.
 
 =============================================
 Computing the Heating/Ionization Rate Density
