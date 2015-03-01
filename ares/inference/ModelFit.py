@@ -19,9 +19,9 @@ import gc, os, sys, copy, types, time, re
 from ..analysis import Global21cm as anlG21
 from ..analysis.GalacticForeground import GSM
 from ..simulations import Global21cm as simG21
+from ..util.Stats import Gauss1D, GaussND, rebin
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
-from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs  
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 

@@ -57,7 +57,7 @@ Then, to calculate the background flux: ::
 
     # Compute background and plot it
     pl.semilogy(E, map(flux, E))
-    
+
     # Make some nice axes labels
     pl.xlabel(ares.util.labels['E'])
     pl.ylabel(ares.util.labels['flux_E'])

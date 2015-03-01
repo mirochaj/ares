@@ -90,27 +90,10 @@ def get_nu(sigma, nu_in, nu_out):
     
     return fmin(to_min, np.sqrt(var), disp=False)[0]
 
-def error_1D(x, y, nu=0.68, discrete=True, two_tailed=True):
-    tot = np.sum(y)
-    
-    cdf = np.cumsum(y) / float(tot)
-    
-    percent = (1. - nu) / 2
-    p1, p2 = percent, 1. - percent
-    
-    x1 = np.interp(p1, cdf, x)
-    x2 = np.interp(p2, cdf, x)
-    xML = x[np.argmax(y)]
-    
-    return xML - x1, x2 - xML
-    
-def error_1D_OLD(x, y, nu=0.68, discrete=True):
+def error_1D(x, y, nu=0.68, two_tailed=True):
     """
-    Compute 1D (possibly asymmetric) errorbar.
-
-    If the number of samples in x and y is small, this will not be very
-    accurate.
-
+    Compute 1-D (possibly asymmetric) errorbar for input PDF.
+    
     Parameters
     ----------
     x : np.ndarray
@@ -122,48 +105,44 @@ def error_1D_OLD(x, y, nu=0.68, discrete=True):
 
     Returns
     -------
-    Errorbar (asymmetric).
+    Tuple containing (maximum likelihood value, (lower errorbar, upper errorbar)).
+    
+    """
+    
+    tot = np.sum(y)
+    
+    cdf = np.cumsum(y) / float(tot)
+    
+    percent = (1. - nu) / 2
+    p1, p2 = percent, 1. - percent
+    
+    x1 = np.interp(p1, cdf, x)
+    x2 = np.interp(p2, cdf, x)
+    xML = x[np.argmax(y)]
+    
+    return mu, (xML - x1, x2 - xML)
+    
+def correlation_matrix(cov):
+    """
+    Compute correlation matrix.
 
-    """    
+    Parameters
+    ----------
+    x : list
+        Each element is an array of data for that dimension.
+    mu : list
+        List of mean values in each dimension.
 
-    if discrete:
-        tot = float(np.sum(y))
-    else:
-        tot = np.trapz(y, x)
+    """
 
-    # Number of elements in histogram
-    K = len(y)
+    rho = np.zeros_like(cov)
+    N = rho.shape[0]
+    for i in xrange(N):
+        for j in xrange(N):
+            rho[i,j] = cov[i,j] / np.sqrt(cov[i,i] * cov[j,j])
 
-    # Maximum likelihood point    
-    iML = np.argmax(y)
-
-    # Start just right of the peak
-    k = iML+1
-
-    # Begin
-    area = 0.0
-    while (area < nu) and (k < K):
-
-        Lr = y[k]  # likelihood at right point
-
-        # Determine location of point left of peak with same likelihood
-        if discrete:
-            l = np.argmin(np.abs(y[0:iML-1] - Lr))
-        else:
-            xl = np.interp(Lr, y[0:iML-1], x[0:iML-1])
-            l = int(np.argmin(np.abs(xl - x)))
-
-        if discrete:
-            area = np.sum(y[l:k+1]) / tot
-        else:
-            area = np.trapz(y[l:k+1] / tot, x[l:k+1])
-
-        k += 1
-
-    k -= 1
-
-    return x[iML] - x[l], x[k] - x[iML]    
-
+    return rho
+    
 def rebin(bins):
     """
     Take in an array of bin edges and convert them to bin centers.        

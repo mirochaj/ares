@@ -604,11 +604,11 @@ class Global21cm:
         if 'label' in kwargs:
             if kwargs['label'] is not None:
                 ax.legend(loc='best')
-                
+
         # Twin axes along the top
         twinax = None
         if freq_ax:
-            twinax = self.add_frequency_axis(ax)        
+            twinax = self.add_frequency_axis(ax)
         elif time_ax:
             twinax = self.add_time_axis(ax)
         elif z_ax:

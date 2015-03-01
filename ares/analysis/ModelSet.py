@@ -25,14 +25,20 @@ from ..util import labels as default_labels
 from ..util.ParameterFile import count_populations
 from .DerivedQuantities import DerivedQuantities as DQ
 from ..simulations.Global21cm import Global21cm as sG21
-from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
+from ..util.Stats import Gauss1D, GaussND, error_1D, rebin, correlation_matrix
 from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL
 
 try:
+    from scipy.optimize import fmin
+    from scipy.integrate import dblquad
+except ImportError:
+    pass
+
+try:
    import cPickle as pickle
-except:
+except ImportError:
    import pickle    
     
 try:
@@ -943,7 +949,7 @@ class ModelSet(object):
             return None, (None, None)    
 
         try:
-            mu, sigma = float(bc[hist == hist.max()]), error_1D(bc, hist, nu=nu)
+            mu, sigma = error_1D(bc, hist, nu=nu)
         except ValueError:
             return None, (None, None)
 
@@ -1042,9 +1048,7 @@ class ModelSet(object):
             Each entry should be a two-element list, with the first
             element being the redshift at which to apply the constraint,
             and second, a function for the posterior PDF for that quantity.s
-    
-            
-            
+                
         Examples
         --------
         
@@ -1302,48 +1306,6 @@ class ModelSet(object):
                 else:
                     is_log.append(False)
                     to_hist.append(val)
-
-            #if par in self.parameters:        
-            #    j = self.parameters.index(par)
-            #    is_log.append(self.is_log[j])
-            #    
-            #    val = self.chain[skip:,j].ravel()[::skim]
-                                
-            
-                
-            #elif (par in self.blob_names) or (par in self.derived_blob_names):
-            #    
-            #    if z is None:
-            #        raise ValueError('Must supply redshift!')
-            #        
-            #    val = 
-            #        
-            #    #i = self.blob_redshifts.index(z[k])
-            #    #
-            #    #if par in self.blob_names:
-            #    #    j = list(self.blob_names).index(par)
-            #    #else:
-            #    #    j = list(self.derived_blob_names).index(par)
-            #    
-            #    is_log.append(False)
-            #    
-            #    #if par in self.blob_names:
-            #    #    val = self.blobs[skip:,i,j][::skim]
-            #    #else:
-            #    #    val = self.derived_blobs[skip:,i,j][::skim]
-            #    #
-            #    if take_log[k]:
-            #        val += np.log10(multiplier[k])
-            #    else:
-            #        val *= multiplier[k]
-            #    
-            #    if take_log[k]:
-            #        to_hist.append(np.log10(val))
-            #    else:
-            #        to_hist.append(val)
-            #
-            #else:
-            #    raise ValueError('Unrecognized parameter %s' % str(par))
 
             # Set bins
             if self.is_mcmc or (par not in self.parameters):
@@ -1603,7 +1565,7 @@ class ModelSet(object):
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
         skim=1, top=None, oned=True, filled=True, box=None, rotate_x=True, 
-        labels=None, **kwargs):
+        labels=None, add_cov=False, **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
 
@@ -1656,6 +1618,9 @@ class ModelSet(object):
             nu=[0.68, 0.95])
         rotate_x : bool
             Rotate xtick labels 90 degrees.
+        add_cov : bool
+            Do not access MCMC chains, just use estimate of covariance
+            matrix to draw contours.
         
         Returns
         -------
@@ -1778,6 +1743,10 @@ class ModelSet(object):
                         bins=[bins[-1::-1][i]], skip=skip, skim=skim, 
                         labels=labels, **kw)
 
+                    if add_cov:
+                        self._PosteriorIdealized(p1, ax=mp.grid[k], 
+                            z=z[-1::-1][i])
+
                     if col != 0:
                         mp.grid[k].set_ylabel('')
                     if row != 0:
@@ -1810,6 +1779,9 @@ class ModelSet(object):
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, 
                     labels=labels, **kw)
+                
+                if add_cov:
+                    self._PosteriorIdealized([p2, p1], ax=mp.grid[k], z=red)
                 
                 if row != 0:
                     mp.grid[k].set_xlabel('')
@@ -1934,6 +1906,153 @@ class ModelSet(object):
         pl.draw()
         
         return ax
+        
+    def CovarianceMatrix(self, pars, z=None):
+        """
+        Compute covariance matrix for input parameters.
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        Returns vector of mean, and the covariance matrix itself.
+        
+        """
+        
+        if z is None:
+            z = [None] * len(pars)
+        elif type(z) is not list:
+            z = [z]
+        
+        blob_vec = np.array([self.extract_blob(pars[i], z=z[i]) \
+            for i in range(len(pars))])
+
+        mu = np.mean(blob_vec, axis=1)
+        cov = np.cov(blob_vec)
+
+        return mu, cov     
+
+    def _PosteriorIdealized(self, pars, ax, z=None, nu=[0.68, 0.95]):
+        """
+        Draw posterior distribution using covariance matrix.
+        """
+
+        if type(pars) is str:
+            mi, ma = ax.get_xlim()
+            x = np.linspace(mi, ma, 100)
+           
+            blob = self.extract_blob(pars, z=z)
+            mu = np.mean(blob)
+            cov = np.std(blob)**2
+            
+            ax.plot(x, np.exp(-(x - mu)**2 / 2. / cov), color='k', ls='-')
+
+            pl.draw()
+            return
+
+        if len(pars) > 2: 
+            raise ValueError('Only meant for 2x2 chunks of covariance.')
+
+        mu, cov = self.CovarianceMatrix(pars, z)
+        var = np.sqrt(np.diag(cov))
+
+        # In order to guarantee that we're integrating over lines of constant
+        # likelihood, must keep eccentricity constant
+        eccen = np.sqrt(1. - (min(var) / max(var))**2)    
+
+        if var[1] > var[0]:
+            new_mu = mu[-1::-1]
+
+            diag = np.diag(cov)[-1::-1]
+            new_cov = np.zeros([len(diag)] * 2)
+            new_cov[0,0] = diag[0]
+            new_cov[1,1] = diag[1]
+        else:
+            new_mu = mu
+            
+            diag = np.diag(cov)
+            new_cov = np.zeros([len(diag)] * 2)
+            new_cov[0,0] = diag[0]
+            new_cov[1,1] = diag[1]
+            
+        new_var = diag
+        
+        # Likelihood functions                      
+        likelihood = lambda yy, xx: GaussND(np.array([xx, yy]), mu, cov) 
+            
+        # If computing area, consider 2-D Gaussian centered at zero
+        _like = lambda yy, xx: GaussND(np.array([xx, yy]), 
+            np.array([0.]*2), new_cov)    
+            
+        xmin, xmax = np.array(ax.get_xlim())
+        ymin, ymax = np.array(ax.get_ylim())
+        
+        x = np.linspace(xmin, xmax, 100)                    
+        y = np.linspace(ymin, ymax, 100)   
+                     
+        # Construct likelihood surface                        
+        surf = np.zeros([x.size, y.size])
+        for j, xx in enumerate(x):
+            for k, yy in enumerate(y):
+                surf[j,k] = likelihood(yy, xx)
+            
+        # Find levels corresponding to 1 and 2 sigma
+        levels = []
+        for k, level in enumerate([0.68, 0.95]):
+
+            # Minimize difference between area(DX) and requested level
+            to_min = lambda DX: \
+                np.abs(self._elliptical_integral(DX, eccen, _like) - level)
+        
+            guess = np.array([np.sqrt(new_var[0])])
+        
+            # Solve for the standard deviation in each dimension
+            dx = fmin(to_min, guess, disp=False, ftol=1e-2)[0]
+            dy = dx * np.sqrt(1. - eccen**2)
+                            
+            contour = _like(dy, dx)
+                    
+            # Save and move on
+            levels.append(contour)
+        
+        ax.contour(x, y, surf.T, levels=levels, linestyles=['-', '--'], 
+            colors='k')
+            
+        pl.draw()
+            
+    def CorrelationMatrix(self, pars, z=None, fig=1, ax=None):
+        """
+        Plot correlation matrix.
+        """
+        
+        mu, cov = self.CovarianceMatrix(pars, z=z)
+        
+        corr = correlation_matrix(cov)
+
+        if ax is None:
+            fig = pl.figure(fig); ax = fig.add_subplot(111)
+
+        cax = ax.imshow(corr, interpolation='none', cmap='RdBu_r', 
+            vmin=-1, vmax=1)
+        cb = pl.colorbar(cax)
+        
+        return corr
+            
+    def _elliptical_integral(self, dx, ecc, like):
+    
+        # Integration is over an ellipse!
+        x1 = - dx
+        x2 = + dx
+    
+        # Figure out elliptical surface
+        dy = dx * np.sqrt(1. - ecc**2)
+    
+        # Arcs in +/- y
+        y1 = lambda x: - np.sqrt(1. - (x / dx)**2) * dy
+        y2 = lambda x: + np.sqrt(1. - (x / dx)**2) * dy
+    
+        return dblquad(like, x1, x2, y1, y2, epsrel=1e-2, epsabs=1e-4)[0]            
         
     def add_boxes(self, ax=None, val=None, width=None, **kwargs):
         """
