@@ -36,7 +36,8 @@ class RestrictTimestep:
         dt[np.logical_and(q == 0, self.grid.types >= 0)] = huge_dt
                         
         # Don't let dt -> 0 when quantities are in equilibrium
-        dt[dqdt == 0] = huge_dt                
+        dt[dqdt == 0] = huge_dt
+        dt[np.isnan(dqdt)] = huge_dt                
                         
         # Isolate cells beyond I-front
         if tau is not None:

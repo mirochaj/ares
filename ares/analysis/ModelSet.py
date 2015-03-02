@@ -22,6 +22,7 @@ from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .Global21cm import Global21cm as aG21
 from ..util import labels as default_labels
+from ..util.TanhModel import tanh_gjah_to_ares
 from ..util.ParameterFile import count_populations
 from .DerivedQuantities import DerivedQuantities as DQ
 from ..simulations.Global21cm import Global21cm as sG21
@@ -36,10 +37,10 @@ try:
 except ImportError:
     pass
 
-try:
-   import cPickle as pickle
-except ImportError:
-   import pickle    
+#try:
+#    import cPickle as pickle
+#except ImportError:
+import pickle    
     
 try:
     from mpi4py import MPI
@@ -53,6 +54,17 @@ tanh_pars = TanhParameters()
 
 def_kwargs = {}
 
+def patch_pinfo(pars):
+    new_pars = []
+    for par in pars:
+
+        if par in tanh_gjah_to_ares:
+            new_pars.append(tanh_gjah_to_ares[par])
+        else:
+            new_pars.append(par)
+    
+    return new_pars
+
 def parse_blobs(name):
     nsplit = name.split('_')
     
@@ -60,7 +72,7 @@ def parse_blobs(name):
         pre, post = nsplit
     elif len(nsplit) == 3:
         pre, mid, post = nsplit
-    
+
         pre = pre + mid
     
     if pre in default_labels:
@@ -158,6 +170,8 @@ class ModelSet(object):
                 f = open('%s.pinfo.pkl' % prefix, 'rb')
                 self.parameters, self.is_log = pickle.load(f)
                 f.close()
+                
+                self.parameters = patch_pinfo(self.parameters)
 
                 if rank == 0:
                     print "Loaded %s.pinfo.pkl." % prefix
@@ -166,6 +180,7 @@ class ModelSet(object):
                 self.is_log = [False] * self.Nd
             
             if os.path.exists('%s.blobs.pkl' % prefix):
+                
                 try:
                     blobs = read_pickle_file('%s.blobs.pkl' % prefix)
                     
@@ -215,12 +230,12 @@ class ModelSet(object):
                 
                 self.grid = ModelGrid(**self.base_kwargs)
                 
-                self.axes = {}
-                for i in range(self.chain.shape[1]):
-                    self.axes[self.parameters[i]] = np.unique(self.chain[:,i])
-                
-                self.grid.set_axes(**self.axes)
-
+                #self.axes = {}
+                #for i in range(self.chain.shape[1]):
+                #    self.axes[self.parameters[i]] = np.unique(self.chain[:,i])
+                #
+                #self.grid.set_axes(**self.axes)
+                #
                 # Only exists for parallel runs
                 if os.path.exists('%s.load.pkl' % prefix):
                     self.load = read_pickle_file('%s.load.pkl' % prefix)
@@ -413,99 +428,57 @@ class ModelSet(object):
         
     def Dump(self, prefix, modelset):
         pass
-        
+
     def ReRunModels(self, prefix=None, N=None, models=None, plot=False, 
-        **kwargs):
+        clobber=False, **kwargs):
         """
         Take list of dictionaries and re-run each as a Global21cm model.
-        
+
         Parameters
         ----------
         N : int
             Draw N random samples from chain, and re-run those models.
-        
+            If None, will re-run all models.
+
         prefix : str
-            Prefix of files to be saved. There will be two:
+            Prefix of files to be saved. There will be three:
                 i) prefix.chain.pkl
                 ii) prefix.blobs.pkl
-        
-        
+                iii) prefix.pinfo.pkl
+
         Returns
         -------
-        
+        Nothing, just saves stuff to disk.
         
         """
+                
+        had_N = True
+        if N is None:
+            had_N = False
+            N = self.chain.shape[0]
+                    
+        model_num = np.arange(N)
         
-        if N is not None:
-            model_num = np.arange(N)
+        if had_N:
             np.random.shuffle(model_num)
+            model_ids = model_num[0:N]            
+        else:
+            model_ids = model_num    
             
-            models = []
-            for i in model_num:
-                models.append(self.chain[i,:])
-        
-        f = open('%s.pinfo.pkl' % prefix, 'wb')
-        pickle.dump((self.parameters, self.is_log), f)
-        f.close()
-        
-        pb = ProgressBar(len(models))
-        pb.start()
-        
-        logL = []
-        chain = []
-        blobs = []
-        for i, model in enumerate(models):
-            if self.base_kwargs is not None:
-                p = self.base_kwargs.copy()
-            else:
-                p = {}
-                
-            p.update(kwargs)
+        # Create list of models to run
+        models = []
+        for i, model in enumerate(model_ids):
+            tmp = {}
+            for j, par in enumerate(self.parameters):
+                tmp[par] = self.chain[i,j]
             
-            if type(model) is dict:
-                p.update(model)
-            else:
-                p.update(self.link_to_dict(model))    
-            
-            try:
-                sim = sG21(**p)
-                sim.run()
-            except SystemExit:
-                pass
-                
-            if i == 0:
-                f = open('%s.binfo.pkl' % prefix, 'wb')
-                pickle.dump((sim.blob_names, sim.blob_redshifts), f)
-                f.close()
-            
-            pb.update(i)
-            
-            blobs.append(sim.blobs)
-            chain.append(self.chain[model_num[i],:])
-            #logL.append(self.logL[model_num[i],:])
-            
-            #anl = aG21(sim)
-            #
-            #if plot:
-            #    ax = anl.GlobalSignature(ax=ax, **kwargs)
-            #
-            #anl_inst.append(anl)
-        
-        pb.finish()       
-                
-        f = open('%s.blobs.pkl' % prefix, 'wb')
-        pickle.dump(blobs, f)
-        f.close()
-        
-        f = open('%s.chain.pkl' % prefix, 'wb')
-        pickle.dump(chain, f)
-        f.close()
-        
-        #f = open('%s.logL.pkl' % prefix, 'wb')
-        #pickle.dump(logL, f)
-        #f.close()            
-
-        #return ax, anl_inst
+            models.append(tmp.copy())
+                    
+        # Take advantage of pre-existing machinery to run them
+        mg = self.mg = ModelGrid(**kwargs)
+        mg.set_models(models)
+        mg.LoadBalance(0)
+        mg.run(prefix, clobber=clobber)
 
     @property
     def plot_info(self):
@@ -1938,14 +1911,19 @@ class ModelSet(object):
         Draw posterior distribution using covariance matrix.
         """
 
+        # Handle 1-D PDFs separately
         if type(pars) is str:
+            
+            # Set bounds using current axes limits
             mi, ma = ax.get_xlim()
             x = np.linspace(mi, ma, 100)
            
+            # Extract the data, and calculate the mean and variance
             blob = self.extract_blob(pars, z=z)
             mu = np.mean(blob)
             cov = np.std(blob)**2
             
+            # Plot the PDF!
             ax.plot(x, np.exp(-(x - mu)**2 / 2. / cov), color='k', ls='-')
 
             pl.draw()
@@ -1954,13 +1932,16 @@ class ModelSet(object):
         if len(pars) > 2: 
             raise ValueError('Only meant for 2x2 chunks of covariance.')
 
+        # Compute the covariance matrix
         mu, cov = self.CovarianceMatrix(pars, z)
         var = np.sqrt(np.diag(cov))
 
-        # In order to guarantee that we're integrating over lines of constant
-        # likelihood, must keep eccentricity constant
+        # When integrating over constant likelihood contours, must hold
+        # the eccentricity constant
         eccen = np.sqrt(1. - (min(var) / max(var))**2)    
 
+        # For elliptical integration paths, must make sure the semi-major
+        # axis is longer than the semi-minor axis
         if var[1] > var[0]:
             new_mu = mu[-1::-1]
 
@@ -1976,21 +1957,22 @@ class ModelSet(object):
             new_cov[0,0] = diag[0]
             new_cov[1,1] = diag[1]
             
+        # Convenience variable for variances    
         new_var = diag
         
         # Likelihood functions                      
         likelihood = lambda yy, xx: GaussND(np.array([xx, yy]), mu, cov) 
             
-        # If computing area, consider 2-D Gaussian centered at zero
+        # For integration, consider 2-D Gaussian centered at zero for simplicity
         _like = lambda yy, xx: GaussND(np.array([xx, yy]), 
-            np.array([0.]*2), new_cov)    
+            np.array([0.]*2), new_cov)
             
         xmin, xmax = np.array(ax.get_xlim())
         ymin, ymax = np.array(ax.get_ylim())
         
         x = np.linspace(xmin, xmax, 100)                    
         y = np.linspace(ymin, ymax, 100)   
-                     
+
         # Construct likelihood surface                        
         surf = np.zeros([x.size, y.size])
         for j, xx in enumerate(x):
@@ -1999,7 +1981,7 @@ class ModelSet(object):
             
         # Find levels corresponding to 1 and 2 sigma
         levels = []
-        for k, level in enumerate([0.68, 0.95]):
+        for k, level in enumerate(nu):
 
             # Minimize difference between area(DX) and requested level
             to_min = lambda DX: \
@@ -2008,52 +1990,75 @@ class ModelSet(object):
             guess = np.array([np.sqrt(new_var[0])])
         
             # Solve for the standard deviation in each dimension
-            dx = fmin(to_min, guess, disp=False, ftol=1e-2)[0]
-            dy = dx * np.sqrt(1. - eccen**2)
+            #dx = fmin(to_min, guess, disp=False, ftol=1e-4)[0]
+            #dy = dx * np.sqrt(1. - eccen**2)
                             
-            contour = _like(dy, dx)
+            #contour = _like(dy, dx) 
+            contour_1s = _like(np.sqrt(new_var[1]), np.sqrt(new_var[0]))
+                        
+            #contour_1s_2 = self._elliptical_integral(np.sqrt(new_var[0]),
+            #    eccen, _like)  
+            
+            #print level, eccen, np.sqrt(new_var[0]), contour_1s_2
+                        
+            #print level, dx, dy, np.sqrt(new_var), self._elliptical_integral(dx, eccen, _like)
                     
             # Save and move on
-            levels.append(contour)
-        
+            levels.append(contour_1s)
+
         ax.contour(x, y, surf.T, levels=levels, linestyles=['-', '--'], 
             colors='k')
-            
+
         pl.draw()
-            
-    def CorrelationMatrix(self, pars, z=None, fig=1, ax=None):
-        """
-        Plot correlation matrix.
-        """
-        
-        mu, cov = self.CovarianceMatrix(pars, z=z)
-        
-        corr = correlation_matrix(cov)
 
-        if ax is None:
-            fig = pl.figure(fig); ax = fig.add_subplot(111)
-
-        cax = ax.imshow(corr, interpolation='none', cmap='RdBu_r', 
-            vmin=-1, vmax=1)
-        cb = pl.colorbar(cax)
-        
-        return corr
-            
     def _elliptical_integral(self, dx, ecc, like):
     
         # Integration is over an ellipse!
         x1 = - dx
         x2 = + dx
-    
+
         # Figure out elliptical surface
         dy = dx * np.sqrt(1. - ecc**2)
-    
+
         # Arcs in +/- y
-        y1 = lambda x: - np.sqrt(1. - (x / dx)**2) * dy
-        y2 = lambda x: + np.sqrt(1. - (x / dx)**2) * dy
-    
+        y1 = lambda x: - dy * np.sqrt(1. - (x / dx)**2)
+        y2 = lambda x: + dy * np.sqrt(1. - (x / dx)**2)
+
+        fig = pl.figure(10); ax = fig.add_subplot(111)
+
+        xm = np.linspace(x1, x2)
+        xp = np.linspace(x1, x2)
+
+        ym = map(y1, xm)
+        yp = map(y2, xp)
+
+        pl.plot(xm, ym, color='b')
+        pl.plot(xp, yp, color='r')
+        
+        raw_input('<enter>')
+        
+        pl.close()
+        
         return dblquad(like, x1, x2, y1, y2, epsrel=1e-2, epsabs=1e-4)[0]            
         
+    def CorrelationMatrix(self, pars, z=None, fig=1, ax=None):
+        """
+        Plot correlation matrix.
+        """
+    
+        mu, cov = self.CovarianceMatrix(pars, z=z)
+    
+        corr = correlation_matrix(cov)
+    
+        if ax is None:
+            fig = pl.figure(fig); ax = fig.add_subplot(111)
+    
+        cax = ax.imshow(corr, interpolation='none', cmap='RdBu_r', 
+            vmin=-1, vmax=1)
+        cb = pl.colorbar(cax)
+    
+        return corr
+    
     def add_boxes(self, ax=None, val=None, width=None, **kwargs):
         """
         Add boxes to 2-D PDFs.

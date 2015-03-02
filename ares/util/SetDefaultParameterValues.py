@@ -423,13 +423,14 @@ def ControlParameters():
     
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
-    "stop_xavg": 0.99999,   # stop at given ionized fraction
+    "stop_xavg": 0.999,   # stop at given ionized fraction
     "track_extrema": False,
     "stop_delay": 0.5,      # differential redshift step
     "inline_analysis": None,
     "auto_generate_blobs": False,
     "override_blob_names": None,
     "override_blob_redshifts": None,
+    ""
     
     # Real-time optical depth calculation once EoR begins
     "EoR_xavg": 1.0,        # ionized fraction indicating start of EoR (OFF by default)

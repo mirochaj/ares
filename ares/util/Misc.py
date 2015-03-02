@@ -102,6 +102,22 @@ def num_freq_bins(Nx, zi=40, zf=10, Emin=2e2, Emax=3e4):
     return n-2
 
 def tau_post_EoR(sim):
+    """
+    Compute Thomson optical depth from z=0 to the lowest redshift contained
+    in an ares.simulations.MultiPhaseMedium calculation.
+    
+    .. note:: Assumes ___ about helium EoR?
+    
+    Parameters
+    ----------
+    sim : instance of ares.simulations.MultiPhaseMedium or Global21cm
+    
+    Returns
+    -------
+    Array of redshifts and (cumulative) optical depth out to those redshifts.
+    
+    """
+    
     zmin = sim.history['z'].min()
     ztmp = np.arange(0, zmin+0.001, 0.001)
 
@@ -126,11 +142,21 @@ def tau_post_EoR(sim):
 def tau_CMB(sim):
     """
     Compute CMB optical depth history.
+    
+    Parameters
+    ----------
+    sim : instance of ares.simulations.MultiPhaseMedium or Global21cm
+    
+    
+    
     """
     
+    # Sort in ascending order
     zall = sim.history['z'][-1::-1]
     
     zmin = zall.min()
+    
+    # Create array of redshifts from z=0 up to final snapshot
     ztmp = np.arange(0, zmin+0.001, 0.001)
     
     QHII = sim.history['cgm_h_2'][-1::-1]
@@ -145,6 +171,7 @@ def tau_CMB(sim):
 
     integrand = (QHII + (1. - QHII) * xHII) * nH
 
+    # Add helium optical depth
     if 'igm_he_1' in sim.history:
         QHeII = sim.history['cgm_h_2'][-1::-1]
         xHeII = sim.history['igm_he_2'][-1::-1]

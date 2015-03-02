@@ -19,10 +19,10 @@ from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.ReadData import read_pickle_file, read_pickled_dict
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
-try:
-   import cPickle as pickle
-except:
-   import pickle
+#try:
+#    import cPickle as pickle
+#except:
+import pickle
    
 try:
     from mpi4py import MPI
@@ -189,7 +189,30 @@ class ModelGrid:
 
         # Shortcut to parameter names
         self.parameters = self.grid.axes_names
+        
+    def set_models(self, models):
+        """
+        Set all models by hand. 
+        
+        Parameters
+        ----------
+        models : list
+            List of models to run. Each entry in the list should be a 
+            dictionary of parameters that define that model. The
+            base_kwargs will be updated with those values at run-time.
+            
+        """ 
+        
+        self.grid = GridND()
 
+        # Build parameter space
+        self.grid.all_kwargs = models
+        self.grid.axes_names = models[0].keys()
+        self.grid.Nd = len(self.grid.axes_names)
+
+        # Shortcut to parameter names
+        self.parameters = self.grid.axes_names
+        
     @property
     def is_log(self):
         if not hasattr(self, '_is_log'):
@@ -344,7 +367,10 @@ class ModelGrid:
         for h, kwargs in enumerate(self.grid.all_kwargs):
 
             # Where does this model live in the grid?
-            kvec = self.grid.locate_entry(kwargs)
+            if self.grid.structured:
+                kvec = self.grid.locate_entry(kwargs)
+            else:
+                kvec = h
 
             if restart:
                 pb_i = min(ct * size, Nleft - 1)
@@ -551,6 +577,38 @@ class ModelGrid:
         return self._Tmin_in_grid
             
     def LoadBalance(self, method=0):
+        
+        if self.grid.structured:
+            self._structured_balance(method=method)       
+        else: 
+            self._unstructured_balance(method=method)       
+            
+    def _unstructured_balance(self, method=0):
+        
+        if rank == 0:
+
+            order = list(np.arange(size))
+            self.assignments = []
+            while len(self.assignments) < self.grid.size:
+                self.assignments.extend(order)
+                
+            self.assignments = np.array(self.assignments[0:self.grid.size])
+            
+            if size == 1:
+                return
+            
+            # Communicate assignments to workers
+            for i in range(1, size):    
+                MPI.COMM_WORLD.Send(self.assignments, dest=i, tag=10*i)    
+
+        else:
+            self.assignments = np.empty(self.grid.size, dtype=np.int)    
+            MPI.COMM_WORLD.Recv(self.assignments, source=0,  
+                tag=10*rank)
+                   
+        self.LB = 0                
+                        
+    def _structured_balance(self, method=0):
         """
         Determine which processors are to run which models.
         

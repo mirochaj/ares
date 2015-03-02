@@ -31,10 +31,10 @@ try:
 except ImportError:
     pass
     
-try:
-   import cPickle as pickle
-except:
-   import pickle    
+#try:
+#    import cPickle as pickle
+#except:
+import pickle    
 
 try:
     import emcee

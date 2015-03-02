@@ -705,10 +705,23 @@ class Global21cm:
             
             self.pb.update(t)
 
-            # Quit if reionization is ~complete (xavg = 0.99999 by default)
-            if self.history['xavg'][-1] >= self.pf['stop_xavg']:      
-                if 'ions' in self.pf['restricted_timestep']:
-                    self.pf['restricted_timestep'].remove('ions')   
+            # If reionization is ~complete (xavg = 0.99999 by default),
+            # just quit, but fill in history down to final_redshift
+            if self.history['xavg'][-1] >= self.pf['stop_xavg']:
+                
+                zrest = np.arange(self.pf['final_redshift'], z, 0.05)[-1::-1]
+                self.history['z'].extend(list(zrest))
+                
+                for key in self.history:
+                    if key == 'z':
+                        continue
+
+                    v_current = self.history[key][-1]
+
+                    for j, redshift in enumerate(zrest):
+                        self.history[key].append(v_current)
+
+                break
                 
             self.step += 1
 

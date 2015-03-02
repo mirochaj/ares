@@ -13,7 +13,7 @@ Description:
 import time
 import numpy as np
 from ..util import ParameterFile
-from ..analysis import Global21cm
+from ..analysis.Global21cm import Global21cm
 from ..util.ReadData import load_inits
 from ..physics import Hydrogen, Cosmology
 from ..physics.Constants import k_B, J21_num, nu_0_mhz
@@ -41,6 +41,19 @@ def shift_z(z, nu_bias):
     nu += nu_bias
 
     return freq_to_z(nu)
+    
+tanh_gjah_to_ares = \
+{
+ 'J_0/J_21': 'tanh_J0',
+ 'dz_J': 'tanh_Jdz',
+ 'z_{0,j}': 'tanh_Jz0',
+ 'T_0': 'tanh_T0',
+ 'dz_T': 'tanh_Tdz',
+ 'z_{0,T}': 'tanh_Tz0',
+ 'x_0': 'tanh_x0',
+ 'dz_x': 'tanh_xdz',
+ 'z_{0,x}': 'tanh_xz0',
+}    
 
 class TanhModel:
     def __init__(self, **kwargs):
