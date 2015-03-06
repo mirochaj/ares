@@ -145,7 +145,7 @@ class Global21cm:
             
         x0 = self.pf['initial_ionization']
         if ARES and self.pf['load_ics']:
-            if have_h5py:
+            if have_h5py and self.pf['preferred_format'] == 'hdf5':
                 inits_path = os.path.join(ARES,'input','inits','initial_conditions.hdf5')
             else:
                 inits_path = os.path.join(ARES,'input','inits','initial_conditions.npz')

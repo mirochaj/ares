@@ -88,7 +88,11 @@ for fn in os.listdir('outputs'):
 # Convert it to ares format   
 data = np.loadtxt('outputs/%s' % fn) 
 
-new_data = {'z': data[:,0], 'xe': data[:,1], 'Tk': data[:,2]}
+new_data = \
+ {'z': data[:,0][-1::-1], 
+  'xe': data[:,1][-1::-1], 
+  'Tk': data[:,2][-1::-1],
+ }
 
 np.savez('initial_conditions.npz', **new_data)
 print "Wrote initial_conditions.npz."
