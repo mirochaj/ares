@@ -159,16 +159,18 @@ def PhysicsParameters():
     return pf
 
 def CosmologyParameters():
+    # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
     pf = \
     {
-    "omega_m_0": 0.272,
-    "omega_b_0": 0.044,
-    "omega_l_0": 0.728,
-    "hubble_0": 0.702,
-    "helium_by_number": 0.08,
-    "cmb_temp_0": 2.725,
-    "sigma_8": 0.807,
-    "primordial_index": 0.96,
+    "omega_m_0": 0.3089,
+    "omega_b_0": round(0.0223 / 0.6774**2, 5),  # O_b / h**2
+    "omega_l_0": 1. - 0.3089,
+    "hubble_0": 0.6774,
+    "helium_by_number": 0.0813,
+    "helium_by_mass": 0.2453,   # predicted by BBN
+    "cmb_temp_0": 2.7255,
+    "sigma_8": 0.8159,
+    "primordial_index": 0.9667,
     }
 
     pf.update(rcParams)

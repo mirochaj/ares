@@ -362,14 +362,14 @@ class Grid(object):
         
     def set_cosmology(self, initial_redshift=1e3, omega_m_0=0.272, 
         omega_l_0=0.728, omega_b_0=0.044, hubble_0=0.702, 
-        helium_by_number=0.08, cmb_temp_0=2.725, 
+        helium_by_number=None, helium_by_mass=0.2454, cmb_temp_0=2.725, 
         approx_highz=False):
         
         self.zi = initial_redshift
         self._cosm = Cosmology(omega_m_0=omega_m_0, 
             omega_l_0=omega_l_0, omega_b_0=omega_b_0,
             hubble_0=hubble_0, 
-            helium_by_number=helium_by_number,
+            helium_by_mass=helium_by_mass,
             cmb_temp_0=cmb_temp_0, 
             approx_highz=approx_highz)        
         

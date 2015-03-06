@@ -920,7 +920,12 @@ class IGM(object):
             weight = self.rate_to_coefficient(z, species, **kw)
             primary = weight * self.pop.XrayLuminosityDensity(z) \
                 * (1. + z)**3 / self.pop.pf['xray_Eavg'] / erg_per_ev
-            fion = self.esec.DepositionFraction(kw['igm_h_2'], channel='h_1')[0]
+            
+            if self.pf['fXh'] is not None:
+                fion = 1. - self.pf['fXh']
+            else:        
+                fion = \
+                self.esec.DepositionFraction(kw['igm_h_2'], channel='h_1')[0]
 
             return primary * (1. + fion) * (self.pop.pf['xray_Eavg'] - E_th[0]) \
                 / E_th[0]
