@@ -209,12 +209,12 @@ class ModelSet(object):
 
             i = 0
             self.fails = []
-            while os.path.exists('%s.fail_%i.pkl' % (prefix, i)):
+            while os.path.exists('%s.fail_%s.pkl' % (prefix, str(i).zfill(3))):
             
-                data = read_pickled_dict('%s.fail_%i.pkl' % (prefix, i))
+                data = read_pickled_dict('%s.fail_%s.pkl' % (prefix, str(i).zfill(3)))
                 self.fails.extend(data)
                 
-                print "Loaded %s.fail_%i.pkl." % (prefix, i)
+                print "Loaded %s.fail_%s.pkl." % (prefix, str(i).zfill(3))
                 i += 1
                 
             if os.path.exists('%s.setup.pkl' % prefix):

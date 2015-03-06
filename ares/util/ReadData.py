@@ -43,12 +43,8 @@ def _load_npz(fn):
 def load_inits(fn=None):
 
     if fn is None:
-        if have_h5py:
-            fn = '%s/input/inits/initial_conditions.hdf5' % ARES
-            inits = _load_hdf5(fn)
-        else:
-            fn = '%s/input/inits/initial_conditions.npz' % ARES
-            inits = _load_npz(fn)
+        fn = '%s/input/inits/initial_conditions.npz' % ARES
+        inits = _load_npz(fn)
 
     else:
         if re.search('.hdf5', fn):

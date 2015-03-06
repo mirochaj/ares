@@ -256,7 +256,7 @@ class loglikelihood:
         except:                     
             # Write to "fail" file
             if not self.burn:
-                f = open('%s.fail.%i.pkl' % (self.prefix, rank), 'ab')
+                f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
                 pickle.dump(kwargs, f)
                 f.close()
                             
@@ -773,7 +773,7 @@ class ModelFit(object):
             
             # Each processor gets its own fail file
             for i in range(size):
-                f = open('%s.fail.%i.pkl' % (prefix, i), 'wb')
+                f = open('%s.fail.%s.pkl' % (prefix, str(i).zfill(3)), 'wb')
                 f.close()  
 
             # Main output: MCMC chains (flattened)
