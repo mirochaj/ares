@@ -12,6 +12,7 @@ Description:
 
 import numpy as np
 import os, pickle, re
+from pickle import UnpicklingError
 
 try:
     import h5py
@@ -145,7 +146,8 @@ def read_pickle_file(fn):
     results = []
     while True:
         try:
-            results.extend(pickle.load(f))
+            data = pickle.load(f)
+            results.extend(data)
         except EOFError:
             break
 

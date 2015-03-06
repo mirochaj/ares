@@ -161,7 +161,7 @@ class GridND(defaultdict):
     @property
     def shape(self):
         """ Equivalent to self.dims. """
-        return self.dims    
+        return self.dims
         
     @property
     def size(self):    

@@ -23,7 +23,7 @@ from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 #    import cPickle as pickle
 #except:
 import pickle
-   
+
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
@@ -33,7 +33,7 @@ except ImportError:
     size = 1
 
 def_kwargs = {'track_extrema': True, 'verbose': False, 'progress_bar': False}    
-    
+
 class ModelGrid:
     """Create an object for setting up and running model grids."""
     def __init__(self, tol=1e-5, **kwargs):

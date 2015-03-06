@@ -25,7 +25,7 @@ pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum',
 
 # Blob stuff
 _blob_redshifts = list('BCD')
-_blob_redshifts.extend([6, 10, 20, 30, 40])
+_blob_redshifts.extend([6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40])
 
 # Nothing population specific
 _blob_names = ['z', 'dTb', 'curvature', 'igm_Tk', 'Ts', 'cgm_h_2', 'igm_h_1',

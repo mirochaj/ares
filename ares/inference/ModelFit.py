@@ -862,6 +862,6 @@ class ModelFit(object):
 
             pos_all = []; prob_all = []; blobs_all = []
 
-        if self.pool is not None:
+        if self.pool is not None and emcee_mpipool:
             self.pool.close()
     

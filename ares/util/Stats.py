@@ -108,20 +108,20 @@ def error_1D(x, y, nu=0.68, two_tailed=True):
     Tuple containing (maximum likelihood value, (lower errorbar, upper errorbar)).
     
     """
-    
+
     tot = np.sum(y)
-    
+
     cdf = np.cumsum(y) / float(tot)
-    
+
     percent = (1. - nu) / 2
     p1, p2 = percent, 1. - percent
-    
+
     x1 = np.interp(p1, cdf, x)
     x2 = np.interp(p2, cdf, x)
     xML = x[np.argmax(y)]
-    
-    return mu, (xML - x1, x2 - xML)
-    
+
+    return xML, (xML - x1, x2 - xML)
+
 def correlation_matrix(cov):
     """
     Compute correlation matrix.

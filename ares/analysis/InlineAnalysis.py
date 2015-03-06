@@ -49,63 +49,65 @@ class InlineAnalysis:
 
         """
         
+        tmp1 = _blob_names
+        
         # First, figure out which rate coefficients to save
         # Automatically figure out which populations need what
         
-        blob_names = []
-        for i, pop in enumerate(range(self.pf.Npops)):
-            
-            if hasattr(self.sim, 'pops'):
-                pop = self.sim.pops.pops[i]
-            else:
-                pop = self.sim
-            
-            if self.pf.Npops > 1:
-                suffix = '{%i}' % i
-            else:
-                suffix = ''
+        if not self.pf['tanh_model']:
+            blob_names = []
+            for i, pop in enumerate(range(self.pf.Npops)):
                 
-            # Lyman-alpha emission
-            if pop.pf['is_lya_src']:
-                blob_names.append('Ja%s' % suffix)
-                
-            # SFRD
-            if not pop.pf['tanh_model']:
-                blob_names.append('sfrd%s' % suffix)
-                            
-            species = ['h_1', 'he_1', 'he_2']
-            for j, sp1 in enumerate(species):
-                
-                if j > 0 and (not self.pf['include_He']):
-                    break
-            
-                blob_names.append('igm_%s' % sp1)
-                
-                if pop.pf['is_ion_src_cgm'] and j == 0:
-                    blob_names.append('cgm_Gamma_%s%s' % (sp1, suffix))
-                    
-                if pop.pf['is_heat_src_igm']:
-                    blob_names.append('igm_heat_%s%s' % (sp1, suffix))
-                
-                if pop.pf['is_ion_src_igm'] and (not pop.pf['tanh_model']):
-                    blob_names.append('igm_Gamma_%s%s' % (sp1, suffix))
+                if hasattr(self.sim, 'pops'):
+                    pop = self.sim.pops.pops[i]
                 else:
-                    continue
-            
-                if not pop.pf['secondary_ionization']:
-                    continue
+                    pop = self.sim
+                
+                if self.pf.Npops > 1:
+                    suffix = '{%i}' % i
+                else:
+                    suffix = ''
                     
-                if pop.pf['tanh_model']:
-                    continue
-                                        
-                for k, sp2 in enumerate(species):
-                    if k > 0 and (not self.pf['include_He']):
+                # Lyman-alpha emission
+                if pop.pf['is_lya_src']:
+                    blob_names.append('Ja%s' % suffix)
+                    
+                # SFRD
+                if not pop.pf['tanh_model']:
+                    blob_names.append('sfrd%s' % suffix)
+                                
+                species = ['h_1', 'he_1', 'he_2']
+                for j, sp1 in enumerate(species):
+                    
+                    if j > 0 and (not self.pf['include_He']):
                         break
+                
+                    blob_names.append('igm_%s' % sp1)
+                    
+                    if pop.pf['is_ion_src_cgm'] and j == 0:
+                        blob_names.append('cgm_Gamma_%s%s' % (sp1, suffix))
                         
-                    blob_names.append('igm_gamma_%s_%s%s' % (sp1, sp2, suffix))
+                    if pop.pf['is_heat_src_igm']:
+                        blob_names.append('igm_heat_%s%s' % (sp1, suffix))
+                    
+                    if pop.pf['is_ion_src_igm'] and (not pop.pf['tanh_model']):
+                        blob_names.append('igm_Gamma_%s%s' % (sp1, suffix))
+                    else:
+                        continue
+                
+                    if not pop.pf['secondary_ionization']:
+                        continue
+                        
+                    if pop.pf['tanh_model']:
+                        continue
+                                            
+                    for k, sp2 in enumerate(species):
+                        if k > 0 and (not self.pf['include_He']):
+                            break
+                            
+                        blob_names.append('igm_gamma_%s_%s%s' % (sp1, sp2, suffix))
             
-        tmp1 = _blob_names
-        tmp1.extend(blob_names)
+            tmp1.extend(blob_names)
         
         tmp11 = list(np.unique(tmp1))
         names = map(str, tmp11)

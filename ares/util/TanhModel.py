@@ -53,6 +53,8 @@ tanh_gjah_to_ares = \
  'x_0': 'tanh_x0',
  'dz_x': 'tanh_xdz',
  'z_{0,x}': 'tanh_xz0',
+ 'b_\\nu': 'tanh_bias_freq',
+ 'b_T': 'tanh_bias_temp',
 }    
 
 class TanhModel:
@@ -107,7 +109,7 @@ class TanhModel:
     
         dTkdz = 0.5 * Tref * (1. - np.tanh((zref - z) / dz)**2) / dz
         dTkdt = dTkdz / dtdz
-    
+
         n = self.cosm.nH(z)
     
         if Lambda is None:

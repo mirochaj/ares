@@ -181,6 +181,7 @@ class ModelSet(object):
             
             if os.path.exists('%s.blobs.pkl' % prefix):
                 
+                blobs = read_pickle_file('%s.blobs.pkl' % prefix)
                 try:
                     blobs = read_pickle_file('%s.blobs.pkl' % prefix)
                     
@@ -430,15 +431,17 @@ class ModelSet(object):
         pass
 
     def ReRunModels(self, prefix=None, N=None, models=None, plot=False, 
-        clobber=False, **kwargs):
+        clobber=False, save_freq=10, random=True, last=False, **kwargs):
         """
         Take list of dictionaries and re-run each as a Global21cm model.
 
         Parameters
         ----------
         N : int
-            Draw N random samples from chain, and re-run those models.
+            Draw N samples from chain, and re-run those models.
             If None, will re-run all models.
+        random : bool
+            If True, draw N *random* samples, rather than just the first N.
 
         prefix : str
             Prefix of files to be saved. There will be three:
@@ -460,8 +463,14 @@ class ModelSet(object):
         model_num = np.arange(N)
         
         if had_N:
-            np.random.shuffle(model_num)
-            model_ids = model_num[0:N]            
+            if random:
+                if size > 1:
+                    raise ValueError('This will cause each processor to run different models!')
+                np.random.shuffle(model_num)
+            elif last:
+                model_ids = model_num[-N:]
+            else:    
+                model_ids = model_num[0:N]            
         else:
             model_ids = model_num    
             
@@ -478,7 +487,7 @@ class ModelSet(object):
         mg = self.mg = ModelGrid(**kwargs)
         mg.set_models(models)
         mg.LoadBalance(0)
-        mg.run(prefix, clobber=clobber)
+        mg.run(prefix, clobber=clobber, save_freq=save_freq)
 
     @property
     def plot_info(self):
@@ -1281,7 +1290,7 @@ class ModelSet(object):
                     to_hist.append(val)
 
             # Set bins
-            if self.is_mcmc or (par not in self.parameters):
+            if self.is_mcmc or (par not in self.parameters) or not hasattr(self, 'axes'):
                 if type(bins) == int:
                     valc = to_hist[k]
                     binvec.append(np.linspace(valc.min(), valc.max(), bins))
@@ -1515,7 +1524,7 @@ class ModelSet(object):
             zorder=1, edgecolors='none', alpha=alpha, vmin=vmin, vmax=vmax,
             norm=norm)
         cb = pl.colorbar(scat)
-        
+
         cb.set_alpha(1)
         cb.draw_all()
 
@@ -1537,7 +1546,7 @@ class ModelSet(object):
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
-        skim=1, top=None, oned=True, filled=True, box=None, rotate_x=True, 
+        skim=1, top=None, oned=True, filled=True, box=None, rotate_x=False, 
         labels=None, add_cov=False, **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -1781,8 +1790,8 @@ class ModelSet(object):
         return mp
         
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
-        nu=0.68, take_log=False, bins=20, label=None, plot_bands=False,
-        **kwargs):
+        nu=0.68, take_log=False, bins=20, label=None,
+        plot_bands=False, **kwargs):
         """
         Plot constraints on the redshift evolution of given quantity.
         
@@ -1802,8 +1811,8 @@ class ModelSet(object):
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
         else:
-            gotax = True
-
+            gotax = True      
+        
         try:
             ylabel = default_labels[blob]
         except KeyError:
@@ -1817,6 +1826,10 @@ class ModelSet(object):
             
         for i, z in enumerate(redshifts):
             
+            if type(z) == str and plot_bands:
+                continue
+            
+            # Only plot label once
             if i == 0:
                 l = label
             else:
@@ -1833,7 +1846,7 @@ class ModelSet(object):
                 continue    
             
             # Error on redshift
-            if type(z) == str:
+            if type(z) == str and not plot_bands:
                 if blob == 'dTb':
                     mu_z, (z_err1, z_err2) = \
                         self.get_1d_error('nu', z=z, nu=nu, bins=bins)
@@ -1847,7 +1860,7 @@ class ModelSet(object):
             
             if plot_bands:
                 if blob == 'dTb':
-                    x.append(nu_0_mhz / (1. + z))
+                    x.append(nu_0_mhz / (1. + mu_z))
                 else:
                     x.append(z)
                 ymin.append(value - blob_err1)
@@ -1874,7 +1887,10 @@ class ModelSet(object):
             # Pop ID excluding curly braces
             prefix = blob.split(m.group(0))[0]
         
-        ax.set_xlabel(r'$z$')
+        if blob == 'dTb':
+            ax.set_xlabel(r'$\nu \ (\mathrm{MHz})$')
+        else:
+            ax.set_xlabel(r'$z$')
         ax.set_ylabel(ylabel)
         pl.draw()
         
@@ -1906,34 +1922,39 @@ class ModelSet(object):
 
         return mu, cov     
 
-    def _PosteriorIdealized(self, pars, ax, z=None, nu=[0.68, 0.95]):
+    def _PosteriorIdealized(self, ax, pars=None, mu=None, cov=None, z=None, 
+        nu=[0.68, 0.95]):
         """
         Draw posterior distribution using covariance matrix.
         """
 
         # Handle 1-D PDFs separately
-        if type(pars) is str:
+        if pars is not None:
+            if type(pars) is str:
             
-            # Set bounds using current axes limits
-            mi, ma = ax.get_xlim()
-            x = np.linspace(mi, ma, 100)
-           
-            # Extract the data, and calculate the mean and variance
-            blob = self.extract_blob(pars, z=z)
-            mu = np.mean(blob)
-            cov = np.std(blob)**2
-            
-            # Plot the PDF!
-            ax.plot(x, np.exp(-(x - mu)**2 / 2. / cov), color='k', ls='-')
+                # Set bounds using current axes limits
+                mi, ma = ax.get_xlim()
+                x = np.linspace(mi, ma, 100)
+                
+                # Extract the data, and calculate the mean and variance
+                blob = self.extract_blob(pars, z=z)
+                mu = np.mean(blob)
+                cov = np.std(blob)**2
+                
+                # Plot the PDF!
+                ax.plot(x, np.exp(-(x - mu)**2 / 2. / cov), color='k', ls='-')
+                
+                pl.draw()
+                return
 
-            pl.draw()
-            return
-
-        if len(pars) > 2: 
-            raise ValueError('Only meant for 2x2 chunks of covariance.')
+        if pars is not None:
+            if len(pars) > 2: 
+                raise ValueError('Only meant for 2x2 chunks of covariance.')
 
         # Compute the covariance matrix
-        mu, cov = self.CovarianceMatrix(pars, z)
+        if cov is None:
+            mu, cov = self.CovarianceMatrix(pars, z)
+        
         var = np.sqrt(np.diag(cov))
 
         # When integrating over constant likelihood contours, must hold
@@ -1984,10 +2005,10 @@ class ModelSet(object):
         for k, level in enumerate(nu):
 
             # Minimize difference between area(DX) and requested level
-            to_min = lambda DX: \
-                np.abs(self._elliptical_integral(DX, eccen, _like) - level)
-        
-            guess = np.array([np.sqrt(new_var[0])])
+            #to_min = lambda DX: \
+            #    np.abs(self._elliptical_integral(DX, eccen, _like) - level)
+            #
+            #guess = np.array([np.sqrt(new_var[0])])
         
             # Solve for the standard deviation in each dimension
             #dx = fmin(to_min, guess, disp=False, ftol=1e-4)[0]

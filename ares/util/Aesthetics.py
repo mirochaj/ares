@@ -109,6 +109,8 @@ tanh_parameters = \
  'tanh_x0': r'$\overline{x}_{i,0}$', 
  'tanh_xz0': r'$z_x$', 
  'tanh_xdz': r'$\Delta z_x$', 
+ 'tanh_bias_freq': r'$b_{\nu}$',
+ 'tanh_bias_temp': r'$b_{\mathrm{T}}$',
 }
 
 other = \
