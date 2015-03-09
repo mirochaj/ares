@@ -35,8 +35,8 @@ except ImportError:
 zf, zi = (10, 50)
 Emin = 1e2
 Emax = 5e4
-Nz = [1e3]
-format = 'hdf5'        # 'hdf5' or 'pkl' or 'npz'
+Nz = [400]
+format = 'pkl'        # 'hdf5' or 'pkl' or 'npz'
 helium = 1
 ##
 #
@@ -67,7 +67,7 @@ for res in Nz:
     t1 = time.time()
     
     # Create IGM instance
-    igm = ares.solvers.IGM(**pars)
+    igm = ares.solvers.IGM(use_tab=False, **pars)
     
     fn = igm.tau_name(suffix=format)[0]
     

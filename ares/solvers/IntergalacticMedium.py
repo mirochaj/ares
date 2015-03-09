@@ -923,7 +923,7 @@ class IGM(object):
             
             if self.pf['fXh'] is not None:
                 fion = 1. - self.pf['fXh']
-            else:        
+            else:
                 fion = \
                 self.esec.DepositionFraction(kw['igm_h_2'], channel='h_1')[0]
 

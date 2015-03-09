@@ -82,6 +82,40 @@ default_errors = \
  'D': np.diag([0.1, 1.])**2,
 }
 
+def _str_to_val(p, par, pvals, pars):
+    """
+    Convert string to parameter value.
+    
+    Parameters
+    ----------
+    p : str
+        Name of parameter that the prior for this paramemeter is linked to.
+    par : str
+        Name of parameter who's prior is linked.
+    pars : list
+        List of values for each parameter on this step.
+        
+    Returns
+    -------
+    Numerical value corresponding to this linker-linkee relationship.    
+    
+    """
+    
+    # Look for populations
+    m = re.search(r"\{([0-9])\}", p)
+
+    # Single-pop model? I guess.
+    if m is None:
+        raise NotImplemented('This should never happen.')
+
+    # Population ID number
+    num = int(m.group(1))
+
+    # Pop ID including curly braces
+    prefix = p.split(m.group(0))[0]
+
+    return pvals[pars.index('%s{%i}' % (prefix, num))]
+
 class logprior:
     def __init__(self, priors, parameters):
         self.pars = parameters  # just names *in order*
@@ -101,13 +135,19 @@ class logprior:
         logL = 0.0
         for i, par in enumerate(self.pars):
             val = pars[i]
-            
+
             ptype = self.priors[self.pars[i]][0]
             if self.prior_len[i] == 3:
                 p1, p2 = self.priors[self.pars[i]][1:]
             else:
                 p1, p2, red = self.priors[self.pars[i]][1:]                
-                                          
+
+            # Figure out if this prior is linked to others
+            if type(p1) is str:
+                p1 = _str_to_val(p1, par, pars, self.pars)
+            elif type(p2) is str:
+                p2 = _str_to_val(p2, par, pars, self.pars)
+                
             # Uninformative priors
             if ptype == 'uniform':
                 logL -= np.log(uninformative(val, p1, p2))
@@ -118,7 +158,7 @@ class logprior:
                 raise ValueError('Unrecognized prior type: %s' % ptype)
 
         return logL
-
+        
 class loglikelihood:
     def __init__(self, steps, parameters, is_log, mu, errors,
         base_kwargs, nwalkers, priors={}, 
@@ -144,7 +184,7 @@ class loglikelihood:
 
         self.blob_names = blob_names
         self.blob_redshifts = blob_redshifts
-                                        
+
         # Setup binfo pkl file
         self._prep_binfo()
 
@@ -558,11 +598,19 @@ class ModelFit(object):
             for i in range(self.nwalkers):
                 
                 p0 = []
+                to_fix = []
                 for j, par in enumerate(self.parameters):
 
                     if par in self.priors:
+                        
                         dist, lo, hi = self.priors[par]
                         
+                        # Fix if tied to other parameter
+                        if (type(lo) is str) or (type(hi) is str):                            
+                            to_fix.append(par)
+                            p0.append(None)
+                            continue
+                            
                         if dist == 'uniform':
                             val = np.random.rand() * (hi - lo) + lo
                         else:
@@ -570,13 +618,35 @@ class ModelFit(object):
                     else:
                         raise ValueError('No prior for %s' % par)
 
+                    # Save
                     p0.append(val)
+                    
+                # If some priors are linked, correct for that
+                for par in to_fix:
+                    
+                    dist, lo, hi = self.priors[par]
+                    
+                    if type(lo) is str:
+                        lo = p0[self.parameters.index(lo)]
+                    else:    
+                        hi = p0[self.parameters.index(hi)]
+                    
+                    if dist == 'uniform':
+                        val = np.random.rand() * (hi - lo) + lo
+                    else:
+                        val = np.random.normal(lo, scale=hi)
+                    
+                    k = self.parameters.index(par)
+                    p0[k] = val
                 
                 self._guesses.append(p0)
         
             self._guesses = np.array(self._guesses)
         
         return self._guesses
+        
+    def _fix_guesses(self):
+        pass    
         
     @guesses.setter
     def guesses(self, value):

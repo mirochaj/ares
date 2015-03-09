@@ -672,7 +672,6 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line('Exploration')     
     print line('-'*twidth)
 
-
     print line("nprocs      : %i" % size)
     print line("nwalkers    : %i" % fit.nwalkers)
     print line("burn-in     : %i" % burn)
@@ -691,7 +690,7 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line("N blobs     : %i" % Nb)
     print line("N redshifts : %i" % Nz)
     print line("blob rate   : %i bytes / walker / step" % perwalkerperstep)
-    print line("blob size   : %i MB (total)" % MB)
+    print line("blob size   : %.2g MB (total)" % MB)
 
     print "#"*width
     print ""
