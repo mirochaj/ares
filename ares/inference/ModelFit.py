@@ -184,6 +184,8 @@ class loglikelihood:
 
         self.blob_names = blob_names
         self.blob_redshifts = blob_redshifts
+        
+        print blob_names
 
         # Setup binfo pkl file
         self._prep_binfo()
@@ -688,7 +690,7 @@ class ModelFit(object):
         self._data = value    
 
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        save_freq=10, fit_turning_points=True):
+        save_freq=500, fit_turning_points=True):
         """
         Run MCMC.
 

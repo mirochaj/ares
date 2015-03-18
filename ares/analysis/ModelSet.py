@@ -181,7 +181,6 @@ class ModelSet(object):
             
             if os.path.exists('%s.blobs.pkl' % prefix):
                 
-                blobs = read_pickle_file('%s.blobs.pkl' % prefix)
                 try:
                     blobs = read_pickle_file('%s.blobs.pkl' % prefix)
                     
@@ -623,7 +622,7 @@ class ModelSet(object):
                 z = self.extract_blob('z', redshift)[i] 
             else:
                 z = redshift
-                
+
             data = {}
             data['z'] = np.array([z])
             
@@ -723,6 +722,7 @@ class ModelSet(object):
         mask = np.isnan(self.logL)
 
         self.logL[mask] = -np.inf 
+        weights = self.weights
 
     def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, 
         take_log=False, multiplier=1., labels=None, **kwargs):
@@ -917,13 +917,25 @@ class ModelSet(object):
             if z is None:
                 raise ValueError('Must supply redshift!')
             
-            to_hist = self.extract_blob(par, z=z).compressed()
+            tmp = self.extract_blob(par, z=z)
+            mask = tmp.mask
+            to_hist = tmp.compressed()
 
             if take_log:
                 to_hist = np.log10(to_hist)
 
+        # Need to weight results of non-MCMC runs explicitly
+        if not hasattr(self, 'weights'):
+            weights = None
+        else:
+            weights = self.weights
+        
+        # Apply mask to weights
+        if weights is not None and to_hist.shape != weights.shape:
+            weights = weights[np.logical_not(mask)]
+            
         hist, bin_edges = \
-            np.histogram(to_hist, density=True, bins=bins)
+            np.histogram(to_hist, density=True, bins=bins, weights=weights)
 
         bc = rebin(bin_edges)
 
@@ -1265,7 +1277,7 @@ class ModelSet(object):
             if par in self.parameters:
                 j = self.parameters.index(par)
                 is_log.append(self.is_log[j])
-                val = self.chain[:,j]
+                val = self.chain[skip:,j]
                 
                 if self.is_log[j]:
                     val += np.log10(multiplier[k])
@@ -1278,7 +1290,7 @@ class ModelSet(object):
                     to_hist.append(val)
             
             else:
-                val = self.extract_blob(par, z[k])
+                val = self.extract_blob(par, z[k])[skip:]
                 
                 val *= multiplier[k]
 
@@ -1601,8 +1613,7 @@ class ModelSet(object):
         rotate_x : bool
             Rotate xtick labels 90 degrees.
         add_cov : bool
-            Do not access MCMC chains, just use estimate of covariance
-            matrix to draw contours.
+            Overplot 1-sigma contours, computed using the covariance matrix.
         
         Returns
         -------
@@ -1657,7 +1668,9 @@ class ModelSet(object):
             Nd = len(pars) - 1
                            
         # Multipanel instance
+        had_mp = True
         if mp is None:
+            had_mp = False
             mp = MultiPanel(dims=[Nd]*2, padding=padding, diagonal='lower',
                 panel_size=panel_size, fig=fig, top=top, **kw)
 
@@ -1726,7 +1739,7 @@ class ModelSet(object):
                         labels=labels, **kw)
 
                     if add_cov:
-                        self._PosteriorIdealized(p1, ax=mp.grid[k], 
+                        self._PosteriorIdealized(pars=p1, ax=mp.grid[k], 
                             z=z[-1::-1][i])
 
                     if col != 0:
@@ -1763,7 +1776,7 @@ class ModelSet(object):
                     labels=labels, **kw)
                 
                 if add_cov:
-                    self._PosteriorIdealized([p2, p1], ax=mp.grid[k], z=red)
+                    self._PosteriorIdealized(pars=[p2, p1], ax=mp.grid[k], z=red)
                 
                 if row != 0:
                     mp.grid[k].set_xlabel('')
@@ -1785,7 +1798,9 @@ class ModelSet(object):
             mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
         
         mp.fix_ticks(oned=oned, N=ticks, rotate_x=rotate_x)
-        mp.rescale_axes(tighten_up=tighten_up)
+
+        if not had_mp:
+            mp.rescale_axes(tighten_up=tighten_up)
     
         return mp
         
@@ -1826,6 +1841,7 @@ class ModelSet(object):
             
         for i, z in enumerate(redshifts):
             
+            # Skip turning points for banded plots
             if type(z) == str and plot_bands:
                 continue
             
@@ -1899,10 +1915,12 @@ class ModelSet(object):
     def CovarianceMatrix(self, pars, z=None):
         """
         Compute covariance matrix for input parameters.
-        
+
         Parameters
         ----------
-        
+        pars : list
+            List of parameter names to include in covariance estimate.
+
         Returns
         -------
         Returns vector of mean, and the covariance matrix itself.
@@ -1914,15 +1932,30 @@ class ModelSet(object):
         elif type(z) is not list:
             z = [z]
         
-        blob_vec = np.array([self.extract_blob(pars[i], z=z[i]) \
-            for i in range(len(pars))])
+        masks = []
+        blob_vec = []
+        for i in range(len(pars)):
+            blob = self.extract_blob(pars[i], z=z[i])
+            masks.append(blob.mask)
+            blob_vec.append(blob)    
+        
+        master_mask = np.zeros_like(masks[0])
+        for mask in masks:
+            master_mask += mask
+        
+        master_mask[master_mask > 0] = 1
+            
+        blob_vec_mast = self.blob_vec_mast = np.ma.array(blob_vec, 
+            mask=[master_mask] * len(blob_vec))
+        
+        blobs_compr = np.array([vec.compressed() for vec in blob_vec_mast])
 
-        mu = np.mean(blob_vec, axis=1)
-        cov = np.cov(blob_vec)
+        mu = np.mean(blobs_compr, axis=1)
+        cov = np.cov(blobs_compr)
 
         return mu, cov     
 
-    def _PosteriorIdealized(self, ax, pars=None, mu=None, cov=None, z=None, 
+    def _PosteriorIdealized(self, ax=None, pars=None, mu=None, cov=None, z=None, 
         nu=[0.68, 0.95]):
         """
         Draw posterior distribution using covariance matrix.

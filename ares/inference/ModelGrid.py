@@ -278,7 +278,7 @@ class ModelGrid:
             pickle.dump((self.blob_names, self.blob_redshifts), f)
             f.close()
 
-    def run(self, prefix, clobber=False, restart=False, save_freq=10):
+    def run(self, prefix, clobber=False, restart=False, save_freq=500):
         """
         Run model grid, for each realization thru a given turning point.
 

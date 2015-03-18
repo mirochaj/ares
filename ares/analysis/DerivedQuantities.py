@@ -18,35 +18,35 @@ def total_heat(data):
     """
     Convert heating rate coefficients to a total heating rate using
     number densities of relevant ion species.
-    
+
     Returns
     -------
     Total heating in units of [erg / s / cMpc**3]
     """
-    
+
     pf = data['pf']
     names = data.keys()
-    
+
     heat = np.zeros_like(data['z'])
     for i, sp in enumerate(['h_1', 'he_1', 'he_2']):
-        
+
         if i > 0 and 'igm_%s' % sp not in names:
             continue
 
         for k in range(pf.Npops):
-            
+
             if pf.Npops == 1:
                 suffix = ''
             else:
                 suffix = '{%i}' % k
-            
+
             heat_by_pop = 'igm_heat_%s%s' % (sp, suffix)
-            
+
             if heat_by_pop not in names:
                 continue
-            
+
             n = data['igm_n_%s' % sp]
-            
+
             # Multiply by number density of absorbers
             heat += n * data[heat_by_pop]
 
@@ -84,7 +84,7 @@ def total_gamma(data, sp):
 # State quantities
 registry_state_Q = \
 {
- 'nu': lambda data: nu_0_mhz / (1. + data['z']),
+ #'nu': lambda data: nu_0_mhz / (1. + data['z']),
  'contrast': lambda data: 1. - data['Tcmb'] / data['Ts'],
  'igm_h_2': lambda data: 1. - data['igm_h_1'],
  'igm_he_3': lambda data: 1. - data['igm_he_1'] - data['igm_he_2'],
@@ -114,14 +114,14 @@ registry_special_Q = \
 
 class DerivedQuantities:
     def __init__(self, data, pf):
-        
+
         self.data = data
 
         try:
             self.cosm = data.cosm
         except AttributeError:
             self.cosm = Cosmology()
-        
+
         # Stuff we might need (cosmology)
         self.data['Tcmb'] = self.cosm.TCMB(self.data['z'])
         self.data['nH'] = self.cosm.nH(self.data['z'])
@@ -133,6 +133,12 @@ class DerivedQuantities:
         self.data['pf'] = pf
         
         self.derived_quantities = {}
+        
+        # Create frequency array -- be careful about preserving the mask
+        self.derived_quantities['nu'] = nu_0_mhz / (1. + self.data['z'])
+        
+        mask = np.logical_not(np.isfinite(self.data['z']))
+        self.derived_quantities['nu'][mask] = np.inf
 
         self.build(**registry_state_Q)
         self.build(**registry_rate_Q)

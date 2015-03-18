@@ -38,7 +38,10 @@ def _load_hdf5(fn):
     return inits
 
 def _load_npz(fn):
-    return dict(np.load(fn))
+    data = np.load(fn)
+    new = {'z': data['z'].copy(), 'Tk': data['Tk'].copy(), 'xe': data['xe'].copy()}
+    data.close()
+    return new
 
 def load_inits(fn=None):
 
@@ -139,13 +142,17 @@ def read_pickled_dict(fn):
 def read_pickle_file(fn):
     f = open(fn, 'rb')
 
+    ct = 0
     results = []
     while True:
         try:
             data = pickle.load(f)
             results.extend(data)
+            ct +=1
         except EOFError:
             break
+
+    print "Read %i chunks from %s." % (ct, fn)
 
     f.close()
     

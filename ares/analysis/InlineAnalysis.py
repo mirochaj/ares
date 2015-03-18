@@ -129,7 +129,7 @@ class InlineAnalysis:
             blob_names = self.pf['override_blob_names']
         if self.pf['override_blob_redshifts'] is not None:
             blob_redshifts = self.pf['override_blob_redshifts'] 
-         
+                  
         return blob_names, blob_redshifts
 
     @property
