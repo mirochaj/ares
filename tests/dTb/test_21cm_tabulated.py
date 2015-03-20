@@ -19,7 +19,7 @@ from ares.analysis.MultiPlot import MultiPanel
 hydr = ares.physics.Hydrogen()
 
 # Load CosmoRec solution
-CR = ares.util.ReadData.load_inits()
+CR = ares.util.ReadData._load_inits()
 z, Tk, xe = CR['z'], CR['Tk'], CR['xe']
 
 # Compute hydrogen and electron densities

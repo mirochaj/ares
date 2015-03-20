@@ -73,6 +73,11 @@ class MultiPhaseMedium:
                 self.hydr = sim.grid.hydr
             except AttributeError:
                 self.hydr = Hydrogen(cosm=self.cosm)
+        
+        elif type(sim) == dict:
+            self.data = sim.copy()
+            self.pf = SetAllDefaults()
+            
         elif prefix is not None:
             pass
         #else:
@@ -717,7 +722,7 @@ class MultiPhaseMedium:
                     label=labels[1], **kwargs)
             
             if show_Ts:
-                ax.semilogy(self.data['z'], self.data['Ts'], 
+                ax.semilogy(self.data['z'], self.data['igm_Ts'], 
                     label=labels[2], **kwargs)
         else:
             if show_Tcmb:
@@ -728,7 +733,7 @@ class MultiPhaseMedium:
                 label=labels[1], **kwargs)
             
             if show_Ts:
-                ax.semilogy(self.data['z'][-1::-mask], self.data['Ts'][-1::-mask], 
+                ax.semilogy(self.data['z'][-1::-mask], self.data['igm_Ts'][-1::-mask], 
                     label=labels[2], **kwargs)            
                 
         if not hasax:

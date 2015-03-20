@@ -15,14 +15,15 @@ from ..util import ParameterFile
 from ..solvers import UniformBackground
 from ..util.ReadData import _sort_history, flatten_flux
 
-class MetaGalacticBackground:
-    def __init__(self, **kwargs):
+class MetaGalacticBackground(UniformBackground):
+    def __init__(self, grid=None, **kwargs):
         """
         Initialize a MetaGalacticBackground object.    
         """
 
         self.pf = ParameterFile(**kwargs)
-        self.field = UniformBackground(**self.pf)
+        UniformBackground.__init__(self, grid=grid, **self.pf)
+        print self.approx_all_sources
 
     def run(self):
         """
@@ -80,6 +81,21 @@ class MetaGalacticBackground:
 
         return fluxes    
             
+    def update_rate_coefficients(self, z, **kwargs):
+        """
+        Compute ionization and heating rate coefficients.
+        """
+                
+        if not self.approx_all_sources:
+            
+            fluxes = {}
+            # Need to grab fluxes!
+            kwargs.update(fluxes)
+                
+        # Do it already!
+        return super(MetaGalacticBackground, self).update_rate_coefficients(z, 
+            **kwargs)
+                                                                           
     def get_history(self, popid=0):
         """
         Grab data associated with a single population.

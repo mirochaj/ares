@@ -15,13 +15,13 @@ import ares
 sim = ares.simulations.Global21cm(tanh_model=True)
 sim.run()
 
-anl = ares.analysis.Global21cm(sim)
+anl = ares.analysis.MultiPhaseMedium(sim)
 ax = anl.GlobalSignature(color='b', label='tanh')
 
 sim2 = ares.simulations.Global21cm()
 sim2.run()
 
-anl2 = ares.analysis.Global21cm(sim2)
+anl2 = ares.analysis.MultiPhaseMedium(sim2)
 
 anl2.GlobalSignature(ax=ax, color='k', label=r'$f_{\mathrm{coll}}$')
 

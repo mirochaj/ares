@@ -13,8 +13,8 @@ Description:
 import time
 import numpy as np
 from ..util import ParameterFile
-from ..analysis import Global21cm
-from ..util.ReadData import load_inits
+from ..analysis import MultiPhaseMedium
+from ..util.ReadData import _load_inits
 from ..physics import Hydrogen, Cosmology
 from ..physics.Constants import k_B, J21_num, nu_0_mhz
 from ..physics.RateCoefficients import RateCoefficients
@@ -60,7 +60,7 @@ class TanhModel:
             approx_Salpha=self.pf['approx_Salpha'])
 
         if self.pf['load_ics']:
-            CR = load_inits()
+            CR = _load_inits()
             self.CR_TK = lambda z: np.interp(z, CR['z'], CR['Tk'])
             self.CR_ne = lambda z: np.interp(100, CR['z'], CR['xe']) \
                 * self.cosm.nH(z)
@@ -193,9 +193,9 @@ class TanhModel:
         hist = \
         {
          'z': z,
-         'dTb': dTb,
+         'igm_dTb': dTb,
          'igm_Tk': Tk,
-         'Ts': Ts,
+         'igm_Ts': Ts,
          'Ja': Ja,
          'cgm_h_2': xi,
          'igm_h_1': np.ones_like(z),
@@ -203,6 +203,6 @@ class TanhModel:
          'cgm_Gamma_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
         }
             
-        tmp = Global21cm(history=hist)    
+        tmp = MultiPhaseMedium(hist)
     
         return tmp

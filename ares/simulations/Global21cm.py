@@ -124,7 +124,7 @@ class Global21cm:
         self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm, \
             self.all_RC_igm, self.all_RC_cgm = \
             self.medium.all_t, self.medium.all_z, self.medium.all_data_igm, \
-            self.medium.all_data_cgm, self.medium.RC_igm, self.medium.RC_cgm
+            self.medium.all_data_cgm, self.medium.all_RCs_igm, self.medium.all_RCs_cgm
         
         # List for extrema-finding    
         self.all_dTb = self._init_dTb()
@@ -190,7 +190,6 @@ class Global21cm:
         tracked.
 
         """
-
         
         for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
                         
@@ -199,10 +198,8 @@ class Global21cm:
             
             # Compute spin temperature
             n_H = self.medium.parcel_igm.grid.cosm.nH(z)
-            Ts = \
-                self.medium.parcel_igm.grid.hydr.Ts(
-                    z, data_igm['Tk'], Ja, data_igm['h_2'], 
-                    data_igm['e'] * n_H)
+            Ts = self.medium.parcel_igm.grid.hydr.Ts(z, 
+                data_igm['Tk'], Ja, data_igm['h_2'], data_igm['e'] * n_H)
 
             # Compute volume-averaged ionized fraction
             xavg = data_cgm['h_2'] + (1. - data_cgm['h_2']) * data_igm['h_2']        

@@ -40,7 +40,7 @@ for i, src in enumerate(['fk94']):
     grid.set_physics(isothermal=True)
     grid.set_chemistry()
     grid.set_density(1)
-    grid.set_ionization(Z=1, x=1e-1)
+    grid.set_ionization(x=[1. - 1e-8, 1e-8])
     grid.set_temperature(T)
 
     coeff = ares.physics.RateCoefficients(grid=grid, rate_src=src, T=T)

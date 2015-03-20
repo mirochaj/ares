@@ -24,7 +24,6 @@ from ..util.ReadData import flatten_flux
 from ..physics import Hydrogen, Cosmology
 from ..populations import CompositePopulation
 from scipy.integrate import quad, romberg, romb, trapz, simps
-from ..populations import BlackHolePopulation, StellarPopulation
 
 try:
     import h5py
@@ -63,7 +62,7 @@ defkwargs = \
 
 bands = ['ir', 'lw', 'uv', 'xr']
 
-class UniformBackground:
+class UniformBackground(object):
     def __init__(self, grid=None, use_tab=True, **kwargs):
         """
         Initialize a UniformBackground object.
@@ -126,6 +125,10 @@ class UniformBackground:
 
         self.sources = CompositePopulation(**self.pf).pops
         self.Ns = self.Nsources = len(self.sources)
+        
+        self.approx_all_sources = True
+        for src in self.sources:
+            self.approx_all_sources *= src.approx_src
 
         # Figure out which band each population emits in
         self.bands = []
@@ -145,9 +148,6 @@ class UniformBackground:
                 raise ValueError('Cannot have source emit in more than 1 band!')
             
             self.bands.append(source_band[0])
-        
-        if not self.bands:
-            return
                     
         self.tau = []
         self.energies = []; self.redshifts = []; self.emissivities = []
@@ -773,99 +773,6 @@ class UniformBackground:
         
         return epsilon
             
-    def XrayFluxGenerator(self, tau=None, emissivity=None, flux0=None, popid=0):
-        """ 
-        Compute X-ray background flux in a memory efficient way.
-    
-        Parameters
-        ----------
-        tau : np.ndarray
-            2-D optical depth, dimensions (self.L, self.N)
-        emissivity : np.ndarray
-            2-D, dimensions (self.L, self.N)
-        flux0 : np.ndarray
-            1-D array of fluxes, size is self.N
-    
-        Notes
-        -----
-        1. We only tabulate the emissivity in log-x formalism. 
-        2. This cannot be parallelized.
-          -I suppose we could parallelize over frequency but not redshift,
-           but then fluxes would have to be communicated on every redshift
-           step. Probably not worth it.
-    
-        Returns
-        -------
-        Generator for the flux, each in units of s**-1 cm**-2 Hz**-1 sr**-1
-    
-        """
-    
-        if self.pf['redshift_bins'] is None and self.pf['tau_table'] is None:
-            raise ValueError('This method only works if redshift_bins != None.')
-
-        if emissivity is None:
-            emissivity_over_H = self.TabulateEmissivity(self.volume.z, 
-                self.volume.E, popid=popid)
-        else:
-            emissivity_over_H = emissivity
-
-        if tau is None:
-            tau = self.volume.tau
-
-        otf = False
-        if tau.shape == self.volume.E.shape:
-            otf = True
-
-        if flux0 is None:    
-            flux = np.zeros_like(self.volume.E)
-        else:
-            flux = flux0.copy()
-
-        ll = self.volume.L - 1
-        self.tau = tau
-
-        # Loop over redshift - this is the generator                    
-        z = self.volume.z[-1]
-        while z >= self.volume.z[0]:
-            
-            # First iteration: no time for there to be flux yet
-            # (will use argument flux0 if the EoR just started)
-            if ll == (self.volume.L - 1):
-                pass
-    
-            # General case
-            else:
-                    
-                if otf:
-                    exp_term = np.exp(-np.roll(tau, -1))
-                else:   
-                    exp_term = np.exp(-np.roll(tau[ll], -1))
-    
-                trapz_base = 0.5 * (self.volume.z[ll+1] - self.volume.z[ll])
-
-                # Less readable version, but faster!
-                # Equivalent to Eq. 25 in Mirocha (2014)
-                flux = (c / four_pi) \
-                    * ((self.volume.xsq[ll+1] * trapz_base) \
-                    * emissivity_over_H[ll]) \
-                    + exp_term * ((c / four_pi) * self.volume.xsq[ll+1] \
-                    * trapz_base * np.roll(emissivity_over_H[ll+1], -1, axis=-1) \
-                    + np.roll(flux, -1) / self.volume.Rsq)
-                
-            # No higher energies for photons to redshift from.
-            # An alternative would be to extrapolate, and thus mimic a
-            # background spectrum that is not truncated at Emax
-            flux[-1] = 0.0
-    
-            yield flux
-    
-            # Increment redshift
-            ll -= 1
-            z = self.volume.z[ll]
-
-            if ll == -1:
-                break
-
     def _flux_generator_generic(self, energies, redshifts, ehat, tau=None,
         flux0=None):
         """

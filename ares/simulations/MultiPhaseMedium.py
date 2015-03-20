@@ -12,10 +12,9 @@ Description:
 
 import numpy as np
 from .GasParcel import GasParcel
-from ..solvers import UniformBackground
 from ..util import ParameterFile, ProgressBar
-from ..populations import CompositePopulation
 from ..util.ReadData import _sort_history, _load_inits
+from .MetaGalacticBackground import MetaGalacticBackground
 
 defaults = \
 {
@@ -36,7 +35,7 @@ cgm_pars = \
 {
  'grid_cells': 1,
  'isothermal': True,
- 'initial_ionization': [1. - 1e-8, 1e-8, ],
+ 'initial_ionization': [1. - 1e-8, 1e-8],
  'initial_temperature': [1e4],
  'expansion': True,
  'cosmological_ics': True,
@@ -77,7 +76,7 @@ class MultiPhaseMedium:
         self.parcel_cgm = GasParcel(**self.kw_cgm)
         
         self._model_specific_patches()
-        
+
         # Reset!
         self.parcel_cgm._set_chemistry()
         #del self.parcel_cgm._rate_coefficients
@@ -87,7 +86,8 @@ class MultiPhaseMedium:
         self.gen_cgm = self.parcel_cgm.step()
     
         # Intialize radiation background
-        self.field = UniformBackground(grid=self.parcel_igm.grid, **self.pf)
+        self.field = MetaGalacticBackground(grid=self.parcel_igm.grid, 
+            **self.pf)
         
         # Set initial values for rate coefficients
         self.parcel_igm.update_rate_coefficients(self.parcel_igm.grid.data, 
@@ -96,12 +96,12 @@ class MultiPhaseMedium:
             **self.field.volume.rates_no_RT)        
     
         self._insert_inits()
-    
+
     def _model_specific_patches(self):
         """
         A few modifications to parameter file required by this formalism.
         """
-        
+
         # Reset stop time based on final redshift.
         z = self.pf['initial_redshift']
         zf = self.pf['final_redshift']
@@ -109,13 +109,13 @@ class MultiPhaseMedium:
         self.pf['stop_time'] = self.tf / self.pf['time_units']
         self.parcel_igm.pf['stop_time'] = self.pf['stop_time']
         self.parcel_cgm.pf['stop_time'] = self.pf['stop_time']
-        
+
         # Fix CGM parcel 
         self.parcel_cgm.grid.data['Tk'] = np.array([1e4])
         self.parcel_cgm.grid.set_recombination_rate(in_bubbles=True)
-        
+
     def update_background(self):
-        pass    
+        pass
         
     def run(self):
         """
@@ -144,7 +144,7 @@ class MultiPhaseMedium:
             if self.pf['save_rate_coefficients']:
                 self.all_RCs_igm.append(RC_igm.copy())  
                 self.all_RCs_cgm.append(RC_cgm.copy())
-                        
+
         pb.finish()          
 
         # Sort everything by time
@@ -184,11 +184,11 @@ class MultiPhaseMedium:
         z = self.pf['initial_redshift']
         dt = self.pf['time_units'] * self.pf['initial_timestep']
         zf = self.pf['final_redshift']
-        
+
         # Read initial conditions
         data_igm = self.parcel_igm.grid.data.copy()
         data_cgm = self.parcel_cgm.grid.data.copy()
-                
+
         # Evolve in time!        
         while z > zf:
 
@@ -196,11 +196,11 @@ class MultiPhaseMedium:
             dtdz = self.parcel_igm.grid.cosm.dtdz(z)
             t += dt
             z -= dt / dtdz
-            
+
             # IGM rate coefficients
             RC_igm = self.field.update_rate_coefficients(z, 
                 zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
-            
+
             # Now, update IGM parcel
             t1, dt1, data_igm = self.gen_igm.next()
 
@@ -210,18 +210,18 @@ class MultiPhaseMedium:
             # CGM rate coefficients
             RC_cgm = self.field.update_rate_coefficients(z, 
                 zone='cgm', return_rc=True, igm_h_1=data_igm['h_1'])
-                        
+
             # Re-compute rate coefficients
             self.parcel_cgm.update_rate_coefficients(data_cgm, **RC_cgm)
-            
+
             # Now, update CGM parcel
             t2, dt2, data_cgm = self.gen_cgm.next()
-            
+
             # Must update timesteps in unison
             dt = min(dt1, dt2)
             self.parcel_igm.dt = dt
             self.parcel_cgm.dt = dt
-            
+
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
 
     def _insert_inits(self):
@@ -233,7 +233,7 @@ class MultiPhaseMedium:
             self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm = \
                 [], [], [], []
             if self.pf['save_rate_coefficients']:    
-                self.RC_igm, self.RC_cgm = [], []
+                self.all_RCs_igm, self.all_RCs_cgm = [], []
             return
             
         # Flip to descending order (in redshift)
@@ -250,8 +250,8 @@ class MultiPhaseMedium:
         self.all_t = []
         self.all_data_igm = []
         self.all_z = list(z_inits[0:i_trunc])
-        self.RC_igm = [self.field.volume.rates_no_RT] * len(self.all_z)
-        self.RC_cgm = [self.field.volume.rates_no_RT] * len(self.all_z)
+        self.all_RCs_igm = [self.field.volume.rates_no_RT] * len(self.all_z)
+        self.all_RCs_cgm = [self.field.volume.rates_no_RT] * len(self.all_z)
         
         # Don't mess with the CGM (much)
         tmp = self.parcel_cgm.grid.data
