@@ -97,7 +97,7 @@ class GasParcel:
         else:
             C = self.chem.chemnet.SourceIndependentCoefficients(data['Tk'])
             self.rate_coefficients.update(C)
-            
+                        
         self.rate_coefficients.update(kwargs)
 
     def set_radiation_field(self):

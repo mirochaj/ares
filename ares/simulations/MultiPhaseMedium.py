@@ -64,6 +64,12 @@ class MultiPhaseMedium:
                         'initial_temperature': Ti,
                         'initial_ionization': [1. - xi, xi]}
             igm_pars.update(new_pars)
+            
+            if self.pf['include_He']:
+                self.pf['include_He'] = False
+                
+                igm_pars.update({'include_He': True, 
+                    'initial_ionization': [1. - xi, xi, 1.-xi, xi, 1e-10]})         
 
         # Initialize two GasParcels
         self.kw_igm = self.pf.copy()
@@ -84,7 +90,7 @@ class MultiPhaseMedium:
         # Initialize generators
         self.gen_igm = self.parcel_igm.step()
         self.gen_cgm = self.parcel_cgm.step()
-    
+        
         # Intialize radiation background
         self.field = MetaGalacticBackground(grid=self.parcel_igm.grid, 
             **self.pf)
@@ -94,7 +100,7 @@ class MultiPhaseMedium:
             **self.field.volume.rates_no_RT)
         self.parcel_cgm.update_rate_coefficients(self.parcel_cgm.grid.data, 
             **self.field.volume.rates_no_RT)        
-    
+        
         self._insert_inits()
 
     def _model_specific_patches(self):
@@ -114,9 +120,6 @@ class MultiPhaseMedium:
         self.parcel_cgm.grid.data['Tk'] = np.array([1e4])
         self.parcel_cgm.grid.set_recombination_rate(in_bubbles=True)
 
-    def update_background(self):
-        pass
-        
     def run(self):
         """
         Run simulation from start to finish.
@@ -152,22 +155,22 @@ class MultiPhaseMedium:
             _sort_history(self.all_data_igm, prefix='igm_', squeeze=True)
         self.history_cgm = \
             _sort_history(self.all_data_cgm, prefix='cgm_', squeeze=True)        
-        
+
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
-        
+
         # Save rate coefficients [optional]
         if self.pf['save_rate_coefficients']:
             self.rates_igm = \
                 _sort_history(self.all_RCs_igm, prefix='igm_', squeeze=True)
             self.rates_cgm = \
                 _sort_history(self.all_RCs_cgm, prefix='cgm_', squeeze=True)
-                
+
             self.history.update(self.rates_igm)
             self.history.update(self.rates_cgm)
 
         self.history['t'] = np.array(self.all_t)
-        self.history['z'] = np.array(self.all_z)    
+        self.history['z'] = np.array(self.all_z)
         
     def step(self):
         """
@@ -184,18 +187,21 @@ class MultiPhaseMedium:
         z = self.pf['initial_redshift']
         dt = self.pf['time_units'] * self.pf['initial_timestep']
         zf = self.pf['final_redshift']
-
+        
         # Read initial conditions
         data_igm = self.parcel_igm.grid.data.copy()
         data_cgm = self.parcel_cgm.grid.data.copy()
 
-        # Evolve in time!        
+        # Evolve in time!
         while z > zf:
 
             # Increment time / redshift
             dtdz = self.parcel_igm.grid.cosm.dtdz(z)
             t += dt
             z -= dt / dtdz
+            
+            # The (potential) generators need this
+            self.field.update_redshift(z)
 
             # IGM rate coefficients
             RC_igm = self.field.update_rate_coefficients(z, 
@@ -204,14 +210,14 @@ class MultiPhaseMedium:
             # Now, update IGM parcel
             t1, dt1, data_igm = self.gen_igm.next()
 
-            # Re-compute rate coefficients
+            # Pass rate coefficients off to the IGM parcel
             self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
 
             # CGM rate coefficients
-            RC_cgm = self.field.update_rate_coefficients(z, 
+            RC_cgm = self.field.update_rate_coefficients(z,
                 zone='cgm', return_rc=True, igm_h_1=data_igm['h_1'])
 
-            # Re-compute rate coefficients
+            # Pass rate coefficients off to the CGM parcel
             self.parcel_cgm.update_rate_coefficients(data_cgm, **RC_cgm)
 
             # Now, update CGM parcel
@@ -284,6 +290,13 @@ class MultiPhaseMedium:
 
             snapshot['h_1'] = 1. - xi
             snapshot['h_2'] = xi
+            
+            # Add helium, assuming xHeII = xHII, and xHeIII << 1
+            if self.parcel_igm.pf['include_He']:
+                snapshot['he_1'] = 1. - xi
+                snapshot['he_2'] = xi
+                snapshot['he_3'] = 1e-10
+                
             snapshot['rho'] = self.parcel_igm.grid.cosm.MeanBaryonDensity(red)
             snapshot['n'] = \
                 self.parcel_igm.grid.particle_density(snapshot.copy(), red)

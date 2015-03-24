@@ -454,7 +454,7 @@ def ControlParameters():
     "auto_generate_blobs": False,
     "override_blob_names": None,
     "override_blob_redshifts": None,
-    
+
     # Real-time optical depth calculation once EoR begins
     "EoR_xavg": 1.0,        # ionized fraction indicating start of EoR (OFF by default)
     "EoR_dlogx": 0.001,

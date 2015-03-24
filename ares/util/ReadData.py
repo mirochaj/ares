@@ -48,6 +48,9 @@ def split_flux(energies, fluxes):
     fluxes_split = np.hsplit(fluxes, i_E)
 
     return fluxes_split
+    
+def _sort_flux_history(all_fluxes):
+    pass    
 
 def _sort_history(all_data, prefix='', squeeze=False):
     """

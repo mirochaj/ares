@@ -109,14 +109,14 @@ class GlobalVolume(object):
     def rates_no_RT(self):
         if not hasattr(self, '_rates_no_RT'):
             self._rates_no_RT = \
-                {'k_ion': np.zeros((self.Ns, self.grid.dims, 
+                {'k_ion': np.zeros((self.grid.dims,
                     self.grid.N_absorbers)),
-                 'k_heat': np.zeros((self.Ns, self.grid.dims, 
+                 'k_heat': np.zeros((self.grid.dims,
                     self.grid.N_absorbers)),
-                 'k_ion2': np.zeros((self.Ns, self.grid.dims, 
+                 'k_ion2': np.zeros((self.grid.dims,
                     self.grid.N_absorbers, self.grid.N_absorbers)),
                 }
-    
+
         return self._rates_no_RT
 
     def _fetch_tau(self, popid=0, zpf=None, Epf=None):
@@ -154,7 +154,7 @@ class GlobalVolume(object):
         
         # If we made it this far, we found a table that may be suitable
         ztab, Etab, tau = self._read_tau(self.tabname)
-        
+                
         # Return right away if there's no potential for conflict
         if (zpf is None) and (Epf is None):
             return ztab, Etab, tau
@@ -179,16 +179,15 @@ class GlobalVolume(object):
         # Check redshift bounds
         if not (zmax_ok and zmin_ok):
             if not zmax_ok:
-                tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
+                tau_tab_z_mismatch(self, zmin_ok, zmax_ok, ztab)
                 sys.exit(1)
             else:
-                pass
-                #if self.pf['verbose']:
-                #    tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
+                if self.pf['verbose']:
+                    tau_tab_z_mismatch(self, zmin_ok, zmax_ok, ztab)
         
         if not (Emax_ok and Emin_ok):
-            #if self.pf['verbose']:
-            #    tau_tab_E_mismatch(self, Emin_ok, Emax_ok)
+            if self.pf['verbose']:
+                tau_tab_E_mismatch(self, Emin_ok, Emax_ok, Etab)
                 
             if Etab.max() < Epf.max():
                 sys.exit(1)
@@ -216,54 +215,95 @@ class GlobalVolume(object):
         # We're done!
         return ztab, Etab, tau
 
-    def _tabulate_atomic_data(self, E):
+    @property
+    def E(self):
+        if not hasattr(self, '_E'):
+            self._tabulate_atomic_data()
+    
+        return self._E
+
+    @property
+    def sigma_E(self):
+        if not hasattr(self, '_sigma_E'):
+            self._tabulate_atomic_data()
         
-        N = E.size
+        return self._sigma_E
         
-        # Pre-compute cross-sections
-        self.sigma_E = np.array([np.array(map(lambda E: self.sigma(E, i), E)) \
-            for i in xrange(3)])
-        self.log_sigma_E = np.log10(self.sigma_E)
+    def _tabulate_atomic_data(self):
+        """
+        Pre-compute cross sections and such for each source population.
         
-        # Pre-compute secondary ionization and heating factors
-        if self.esec.Method > 1:
+        Returns
+        -------
+        Nothing. Sets the following attributes:
+        
+        sigma_E
+        log_sigma_E
+        fheat, flya, fion
+        
+        """
+
+        self._E = self.background.energies
+        self.logE = [np.log10(nrg) for nrg in self._E]
+        self.dlogE = [np.diff(nrgs) for nrgs in self.logE]
+        self._sigma_E = [None for i in range(len(self.sources))]
+        self.fheat = [None for i in range(len(self.sources))]
+        self.fion = [None for i in range(len(self.sources))]
+        self.flya = [None for i in range(len(self.sources))]
+
+        # Loop over source populations
+        for popid, src in enumerate(self.sources):
+
+            if src.approx_src:
+                continue
+
+            E = self._E[popid]
+            N = E.size
             
-            self.i_x = 0
-            self.fheat = np.ones([N, len(self.esec.x)])
-            self.flya = np.ones([N, len(self.esec.x)])
-            
-            self.fion = {}
-            
-            self.fion['h_1'] = np.ones([N, len(self.esec.x)])
+            # Pre-compute cross-sections
+            self._sigma_E[popid] = \
+                np.array([np.array(map(lambda E: self.sigma(E, i), E)) \
+                for i in xrange(3)])
+                            
+            # Pre-compute secondary ionization and heating factors
+            if self.esec.Method > 1:
+                
+                self.fheat[popid] = np.ones([N, len(self.esec.x)])
+                self.flya[popid] = np.ones([N, len(self.esec.x)])
+                     
+                self.fion[popid] = {}
+                self.fion[popid]['h_1'] = np.ones([N, len(self.esec.x)])
+                            
+                # Must evaluate at ELECTRON energy, not photon energy
+                for i, nrg in enumerate(E - E_th[0]):
+                    self.fheat[popid][i,:] = \
+                        self.esec.DepositionFraction(self.esec.x, E=nrg, 
+                        channel='heat')
+                    self.fion[popid]['h_1'][i,:] = \
+                        self.esec.DepositionFraction(self.esec.x, E=nrg, 
+                        channel='h_1')
+                            
+                    if self.pf['secondary_lya']:
+                        self.flya[popid][i,:] = \
+                            self.esec.DepositionFraction(self.esec.x, E=nrg, 
+                            channel='lya') 
                         
-            # Must evaluate at ELECTRON energy, not photon energy
-            for i, nrg in enumerate(E - E_th[0]):
-                self.fheat[i,:] = self.esec.DepositionFraction(self.esec.x, 
-                    E=nrg, channel='heat')
-                self.fion['h_1'][i,:] = \
-                    self.esec.DepositionFraction(self.esec.x, 
-                        E=nrg, channel='h_1')
-                        
-                if self.pf['secondary_lya']:
-                    self.flya[i,:] = self.esec.DepositionFraction(self.esec.x, 
-                        E=nrg, channel='lya') 
+                # Helium
+                if self.pf['include_He'] and not self.pf['approx_He']:
                     
-            # Helium
-            if self.pf['include_He'] and not self.pf['approx_He']:
-                
-                self.fion['he_1'] = np.ones([N, len(self.esec.x)])
-                self.fion['he_2'] = np.ones([N, len(self.esec.x)])
-                
-                for i, nrg in enumerate(E - E_th[1]):
-                    self.fion['he_1'][i,:] = \
-                        self.esec.DepositionFraction(self.esec.x, 
-                        E=nrg, channel='he_1')
-                
-                for i, nrg in enumerate(E - E_th[2]):
-                    self.fion['he_2'][i,:] = \
-                        self.esec.DepositionFraction(self.esec.x, 
-                        E=nrg, channel='he_2')            
-                        
+                    self.fion[popid]['he_1'] = np.ones([N, len(self.esec.x)])
+                    self.fion[popid]['he_2'] = np.ones([N, len(self.esec.x)])
+                    
+                    for i, nrg in enumerate(E - E_th[1]):
+                        self.fion[popid]['he_1'][i,:] = \
+                            self.esec.DepositionFraction(self.esec.x, 
+                            E=nrg, channel='he_1')
+                    
+                    for i, nrg in enumerate(E - E_th[2]):
+                        self.fion[popid]['he_2'][i,:] = \
+                            self.esec.DepositionFraction(self.esec.x, 
+                            E=nrg, channel='he_2')            
+                            
     def _set_integrator(self):
         self.integrator = self.pf["unsampled_integrator"]
         self.sampled_integrator = self.pf["sampled_integrator"]
@@ -555,7 +595,7 @@ class GlobalVolume(object):
             kw['zf'] = pop.zform
         
         if kw['Emax'] is None and (not self.pf['approx_xrb']):
-            kw['Emax'] = self.E1    
+            kw['Emax'] = self.background.energies[popid][-1]    
             
         return kw
         
@@ -590,7 +630,7 @@ class GlobalVolume(object):
                 
         pop = self.sources[popid]        
                                 
-        if not self.pf['is_heat_src_igm'] or (z >= pop.zform):
+        if not pop.pf['is_heat_src_igm'] or (z >= pop.zform):
             return 0.0
         
         # Grab defaults, do some patches if need be    
@@ -602,22 +642,25 @@ class GlobalVolume(object):
 
         # Compute fraction of photo-electron energy deposited as heat
         if self.pf['fXh'] is None:
-            if self.esec.Method > 1 and (not self.pf['approx_xrb']) \
-                and (kw['xray_flux'] is not None):
-                if kw['igm_h_2'] == 0:
-                    fheat = self.fheat[:,0]
+            
+            # Interpolate in energy and ionized fraction
+            if self.esec.Method > 1 and (kw['fluxes'][popid] is not None):
+                if kw['igm_e'] <= self.esec.x[0]:
+                    fheat = self.fheat[popid][:,0]
                 else:
-                    if kw['igm_h_2'] > self.esec.x[self.i_x + 1]:
-                        self.i_x += 1
+
+                    i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
+                    if self.esec.x[i_x] > kw['igm_e']:
+                        i_x -= 1
+                        
+                    j = i_x + 1    
                     
-                    j = self.i_x + 1
-                    
-                    fheat = self.fheat[:,self.i_x] \
-                        + (self.fheat[:,j] - self.fheat[:,self.i_x]) \
-                        * (kw['igm_h_2'] - self.esec.x[self.i_x]) \
-                        / (self.esec.x[j] - self.esec.x[self.i_x])                
+                    fheat = self.fheat[popid][:,i_x] \
+                        + (self.fheat[popid][:,j] - self.fheat[popid][:,i_x]) \
+                        * (kw['igm_e'] - self.esec.x[i_x]) \
+                        / (self.esec.x[j] - self.esec.x[i_x])                
             else:
-                fheat = self.esec.DepositionFraction(kw['igm_h_2'])[0]
+                fheat = self.esec.DepositionFraction(kw['igm_e'])[0]
         else:
             fheat = self.pf['fXh']
             
@@ -628,15 +671,15 @@ class GlobalVolume(object):
             L = pop.XrayLuminosityDensity(z) # erg / s / c-cm**3
 
             return weight * fheat * L * (1. + z)**3
-            
+
         # Otherwise, do the full calculation
-                
+
         # Re-normalize to help integrator
         norm = J21_num * self.sigma0
                 
         # Computes excess photo-electron energy due to ionizations by
         # photons with energy E (normalized by sigma0 * Jhat)
-        if kw['xray_flux'] is None:
+        if kw['fluxes'][popid] is None:
 
             # If we're approximating helium, must add contributions now
             # since we'll never explicitly call this method w/ species=1.
@@ -658,13 +701,14 @@ class GlobalVolume(object):
         # over discrete set of points
         else:
 
-            integrand = self.sigma_E[species] * (self.E - E_th[species])
+            integrand = self.sigma_E[popid][species] \
+                * (self.E[popid] - E_th[species])
 
             if self.approx_He:
-                integrand += self.cosm.y * self.sigma_E[1] \
-                    * (self.E - E_th[1])
+                integrand += self.cosm.y * self.sigma_E[popid][1] \
+                    * (self.E[popid] - E_th[1])
 
-            integrand *= kw['xray_flux'] * fheat / norm / ev_per_hz
+            integrand *= kw['fluxes'][popid] * fheat / norm / ev_per_hz
                          
         # Compute integral over energy
         if type(integrand) == types.FunctionType:
@@ -680,7 +724,7 @@ class GlobalVolume(object):
                     raise ValueError("Romberg's method cannot be used for integrating subintervals.")
                     heat = romb(integrand[0:imax] * self.E[0:imax], dx=self.dlogE[0:imax])[0] * log10
                 else:
-                    heat = simps(integrand[0:imax] * self.E[0:imax], x=self.logE[0:imax]) * log10
+                    heat = simps(integrand[0:imax] * self.E[popid][0:imax], x=self.logE[popid][0:imax]) * log10
             
             else:
                 imin = np.argmin(np.abs(self.E - pop.pf['spectrum_Emin']))
@@ -721,7 +765,7 @@ class GlobalVolume(object):
         ===============
         relevant kwargs
         ===============
-        xray_flux : np.ndarray
+        fluxes : np.ndarray
             Array of fluxes corresponding to photon energies in self.igm.E.
         return_rc : bool
             Return actual heating rate, or rate coefficient for heating?
@@ -737,7 +781,7 @@ class GlobalVolume(object):
         
         pop = self.sources[popid]
         
-        if (not self.pf['is_ion_src_cgm']) or (z > pop.zform):
+        if (not pop.pf['is_ion_src_cgm']) or (z > pop.zform):
             return 0.0
             
         # Need some guidance from 1-D calculations to do this
@@ -780,7 +824,7 @@ class GlobalVolume(object):
         pop = self.sources[popid]                     
                                 
         # z between zform, zdead? must be careful for BHs
-        if (not self.pf['is_ion_src_igm']) or (z > pop.zform):
+        if (not pop.pf['is_ion_src_igm']) or (z > pop.zform):
             return 0.0
                 
         # Grab defaults, do some patches if need be            
@@ -789,11 +833,11 @@ class GlobalVolume(object):
         if self.pf['Gamma_igm'] is not None:
             return self.pf['Gamma_igm'](z, species, **kw)
 
-        if self.pf['approx_xrb']:
+        if pop.pf['approx_xrb']:
             weight = self.rate_to_coefficient(z, species, **kw)
             primary = weight * pop.XrayLuminosityDensity(z) \
                 * (1. + z)**3 / pop.pf['xray_Eavg'] / erg_per_ev
-            fion = self.esec.DepositionFraction(kw['igm_h_2'], channel='h_1')[0]
+            fion = self.esec.DepositionFraction(kw['igm_e'], channel='h_1')[0]
 
             return primary * (1. + fion) * (pop.pf['xray_Eavg'] - E_th[0]) \
                 / E_th[0]
@@ -802,7 +846,7 @@ class GlobalVolume(object):
         norm = J21_num * self.sigma0
         
         # Integrate over function
-        if kw['xray_flux'] is None:
+        if kw['fluxes'][popid] is None:
             integrand = lambda E, zz: \
                 self.rb.AngleAveragedFluxSlice(z, E, zz, xavg=kw['xavg'], 
                 zxavg=kw['zxavg']) * self.sigma(E, species=species) \
@@ -813,13 +857,13 @@ class GlobalVolume(object):
         
         # Integrate over set of discrete points
         else:  
-            integrand = self.sigma_E[species] \
-                * kw['xray_flux'] / norm / ev_per_hz
+            integrand = self.sigma_E[popid][species] \
+                * kw['fluxes'][popid] / norm / ev_per_hz
         
             if self.sampled_integrator == 'romb':
-                ion = romb(integrand * self.E, dx=self.dlogE)[0] * log10
+                ion = romb(integrand * self.E[popid], dx=self.dlogE[popid])[0] * log10
             else:
-                ion = simps(integrand * self.E, x=self.logE) * log10
+                ion = simps(integrand * self.E[popid], x=self.logE[popid]) * log10
                 
         # Re-normalize
         ion *= 4. * np.pi * norm
@@ -832,7 +876,8 @@ class GlobalVolume(object):
         
         return ion
                 
-    def SecondaryIonizationRateIGM(self, z, species=0, donor=0, **kwargs):
+    def SecondaryIonizationRateIGM(self, z, species=0, donor=0, popid=0, 
+        **kwargs):
         """
         Compute volume averaged secondary ionization rate.
 
@@ -850,7 +895,7 @@ class GlobalVolume(object):
         ===============
         relevant kwargs
         ===============
-        xray_flux : np.ndarray
+        fluxes : np.ndarray
             Array of fluxes corresponding to photon energies in self.igm.E.
         return_rc : bool
             Return actual heating rate, or rate coefficient for heating?
@@ -862,16 +907,18 @@ class GlobalVolume(object):
         Volume averaged ionization rate due to secondary electrons, 
         in units of ionizations per second.
 
-        """               
-
+        """    
+        
+        pop = self.sources[popid]
+        
         if self.pf['secondary_ionization'] == 0:
             return 0.0
 
         # Computed in IonizationRateIGM in this case
-        if self.pf['approx_xrb']:
+        if pop.pf['approx_xrb']:
             return 0.0
 
-        if not self.rb.pf['is_ion_src_igm']:
+        if not pop.pf['is_ion_src_igm']:
             return 0.0 
             
         if ((donor or species) in [1,2]) and self.pf['approx_He']:
@@ -889,17 +936,18 @@ class GlobalVolume(object):
         if self.esec.Method > 1:
             fion_const = 1.
             if kw['igm_e'] == 0:
-                fion = self.fion[species_str][:,0]
+                fion = self.fion[popid][species_str][:,0]
             else:
-                if kw['igm_e'] > self.esec.x[self.i_x + 1]:
-                    self.i_x += 1
+                i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
+                if self.esec.x[i_x] > kw['igm_e']:
+                    i_x -= 1
+                    
+                j = i_x + 1    
 
-                j = self.i_x + 1
-
-                fion = self.fion[species_str][:,self.i_x] \
-                    + (self.fion[species_str][:,j] - self.fion[species_str][:,self.i_x]) \
-                    * (kw['igm_e'] - self.esec.x[self.i_x]) \
-                    / (self.esec.x[j] - self.esec.x[self.i_x])
+                fion = self.fion[popid][species_str][:,i_x] \
+                    + (self.fion[popid][species_str][:,j] - self.fion[popid][species_str][:,i_x]) \
+                    * (kw['igm_e'] - self.esec.x[i_x]) \
+                    / (self.esec.x[j] - self.esec.x[i_x])
         else:
             fion = 1.0
             fion_const = self.esec.DepositionFraction(kw['igm_e'], 
@@ -907,7 +955,7 @@ class GlobalVolume(object):
 
         norm = J21_num * self.sigma0
                                 
-        if kw['xray_flux'] is None:        
+        if kw['fluxes'][popid] is None:        
             if self.pf['approx_He']: # assumes lower integration limit > 4 Ryd
                 integrand = lambda E, zz: \
                     self.rb.AngleAveragedFluxSlice(z, E, zz, xavg=kw['xavg'], 
@@ -920,23 +968,23 @@ class GlobalVolume(object):
                     zxavg=kw['zxavg']) * self.sigma(E) * (E - E_th[0]) \
                     / E_th[0] / norm / ev_per_hz
         else:
-            integrand = fion * self.sigma_E[donor] * (self.E - E_th[donor])
+            integrand = fion * self.sigma_E[popid][donor] * (self.E[popid] - E_th[donor])
             
             if self.pf['approx_He']:
-                integrand += self.cosm.y * self.sigma_E[1] \
-                    * (self.E - E_th[1])
+                integrand += self.cosm.y * self.sigma_E[popid][1] \
+                    * (self.E[popid] - E_th[1])
             
             integrand = integrand
-            integrand *= kw['xray_flux'] / E_th[species] / norm / ev_per_hz
+            integrand *= kw['fluxes'][popid] / E_th[species] / norm / ev_per_hz
         
         if type(integrand) == types.FunctionType:
             ion, err = dblquad(integrand, z, kw['zf'], lambda a: self.E0, 
                 lambda b: kw['Emax'], epsrel=self.rtol, epsabs=self.atol)
         else:
             if self.sampled_integrator == 'romb':
-                ion = romb(integrand * self.E, dx=self.dlogE)[0] * log10
+                ion = romb(integrand * self.E[popid], dx=self.dlogE[popid])[0] * log10
             else:
-                ion = simps(integrand * self.E, x=self.logE) * log10    
+                ion = simps(integrand * self.E[popid], x=self.logE[popid]) * log10    
                 
         # Re-normalize
         ion *= 4. * np.pi * norm * fion_const
@@ -954,6 +1002,8 @@ class GlobalVolume(object):
         Flux of Lyman-alpha photons induced by photo-electron collisions.
         
         """
+        
+        raise NotImplemented('hey fix me')
             
         if not self.pf['secondary_lya']:
             return 0.0
@@ -964,20 +1014,20 @@ class GlobalVolume(object):
         kw = self._fix_kwargs(**kwargs)
                 
         # Compute fraction of photo-electron energy deposited as Lya excitation
-        if self.esec.Method > 1 and (not self.pf['approx_xrb']) \
-            and (kw['xray_flux'] is not None):
-            if kw['igm_h_2'] == 0:
+        if self.esec.Method > 1 and (kw['fluxes'][popid] is not None):
+            if kw['igm_e'] == 0:
                 flya = self.flya[:,0]
             else:
-                if kw['igm_h_2'] > self.esec.x[self.i_x + 1]:
-                    self.i_x += 1
+                i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
+                if self.esec.x[i_x] > kw['igm_e']:
+                    i_x -= 1
+                    
+                j = i_x + 1    
                 
-                j = self.i_x + 1
-                
-                flya = self.flya[:,self.i_x] \
-                    + (self.flya[:,j] - self.flya[:,self.i_x]) \
-                    * (kw['igm_h_2'] - self.esec.x[self.i_x]) \
-                    / (self.esec.x[j] - self.esec.x[self.i_x])                
+                flya = self.flya[:,i_x] \
+                    + (self.flya[:,j] - self.flya[:,i_x]) \
+                    * (kw['igm_e'] - self.esec.x[i_x]) \
+                    / (self.esec.x[j] - self.esec.x[i_x])                
         else:
             return 0.0
                 

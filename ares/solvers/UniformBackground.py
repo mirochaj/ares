@@ -63,7 +63,7 @@ defkwargs = \
 bands = ['ir', 'lw', 'uv', 'xr']
 
 class UniformBackground(object):
-    def __init__(self, grid=None, use_tab=True, **kwargs):
+    def __init__(self, grid=None, **kwargs):
         """
         Initialize a UniformBackground object.
         
@@ -275,10 +275,11 @@ class UniformBackground(object):
         """
 
         # Setup arrays for results - sorted by sources and absorbers
-        self.k_ion  = np.zeros([self.Ns, self.grid.N_absorbers])
-        self.k_ion2 = np.zeros([self.Ns, self.grid.N_absorbers, 
+        # The middle dimension of length 1 is the number of cells
+        self.k_ion  = np.zeros([self.Ns, 1, self.grid.N_absorbers])
+        self.k_ion2 = np.zeros([self.Ns, 1, self.grid.N_absorbers, 
             self.grid.N_absorbers])
-        self.k_heat = np.zeros([self.Ns, self.grid.N_absorbers])
+        self.k_heat = np.zeros([self.Ns, 1, self.grid.N_absorbers])
         
         # Loop over sources
         for i, source in enumerate(self.sources):
@@ -287,30 +288,35 @@ class UniformBackground(object):
             for j, species in enumerate(self.grid.absorbers):
 
                 if kwargs['zone'] == 'igm':
-                    self.k_ion[i,j] = \
+                    self.k_ion[i,0,j] = \
                         self.volume.IonizationRateIGM(z, species=j, popid=i,
                         **kwargs)
-                    self.k_heat[i,j] = \
+                    self.k_heat[i,0,j] = \
                         self.volume.HeatingRate(z, species=j, popid=i,
                         **kwargs)
 
                     for k, donor in enumerate(self.grid.absorbers):
-                        self.k_ion2[i,j,k] = \
+                        self.k_ion2[i,0,j,k] = \
                             self.volume.SecondaryIonizationRateIGM(z, 
                             species=j, donor=k, popid=i, **kwargs)
 
                 else:
-                    self.k_ion[i,j] = \
+                    self.k_ion[i,0,j] = \
                         self.volume.IonizationRateCGM(z, species=j, popid=i,
                         **kwargs)
 
+        # Sum over sources
+        self.k_ion_tot = np.sum(self.k_ion, axis=0)
+        self.k_ion2_tot = np.sum(self.k_ion2, axis=0)
+        self.k_heat_tot = np.sum(self.k_heat, axis=0)
+
         to_return = \
         {
-         'k_ion': self.k_ion,
-         'k_ion2': self.k_ion2,
-         'k_heat': self.k_heat,
+         'k_ion': self.k_ion_tot,
+         'k_ion2': self.k_ion2_tot,
+         'k_heat': self.k_heat_tot,
         }
-                                                
+
         return to_return
 
     def AngleAveragedFlux(self, z, E, popid=0, **kwargs):
@@ -846,7 +852,7 @@ class UniformBackground(object):
             # background spectrum that is not truncated at Emax
             flux[-1] = 0.0
     
-            yield flux
+            yield redshifts[ll], flux
     
             # Increment redshift
             ll -= 1

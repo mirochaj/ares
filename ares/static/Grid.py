@@ -529,7 +529,7 @@ class Grid(object):
             between values in this list and values in self.species.
           
         """    
-        
+                
         if x is not None:
 
             assert(len(x) == len(self.species))

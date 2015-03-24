@@ -77,7 +77,7 @@ table by hand via the hmf_table parameter. You may also want to check out
 https://bitbucket.org/mirochaj/glorb/Downloads for standard HMF tables.
 """
 
-def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok):    
+def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok, ztab):    
     print ""    
     print line(separator)
     print line('WARNING: optical depth table shape mismatch (in redshift)')    
@@ -90,18 +90,19 @@ def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok):
         print line("found       : %s" % igm.tabname[igm.tabname.rfind('/')+1:])
     
     print line("zmin (pf)   : %g" % igm.pf['final_redshift'])
-    print line("zmin (%s)  : %g" % (which, igm.z.min()))
-    print line("zmax (pf)   : %g" % igm.pf['first_light_redshift'])
-    print line("zmax (%s)  : %g" % (which, igm.z.max()))
+    print line("zmin (%s)  : %g" % (which, ztab.min()))
+    print line("zmax (pf)   : %g" % \
+        (min(igm.pf['first_light_redshift'], igm.pf['initial_redshift'])))
+    print line("zmax (%s)  : %g" % (which, ztab.max()))
 
     if not zmin_ok:
-        print line("this is OK  : we'll transition to an on-the-fly tau calculator at z=%.2g" % igm.z.min())
+        print line("this is OK  : we'll transition to an on-the-fly tau calculator at z=%.2g" % ztab.min())
         if (0 < igm.pf['EoR_xavg'] < 1):
             print line("            : or whenever x > %.1e, whichever comes first" % igm.pf['EoR_xavg'])
 
     print line(separator)
 
-def tau_tab_E_mismatch(igm, Emin_ok, Emax_ok):    
+def tau_tab_E_mismatch(igm, Emin_ok, Emax_ok, Etab):    
     print ""    
     print line(separator)
     print line('WARNING: optical depth table shape mismatch (in photon energy)')    
@@ -114,15 +115,15 @@ def tau_tab_E_mismatch(igm, Emin_ok, Emax_ok):
         print line("found       : %s" % igm.tabname[igm.tabname.rfind('/')+1:])
     
     print line("Emin (pf)   : %g" % igm.pf['spectrum_Emin'])
-    print line("Emin (%s)  : %g" % (which, igm.E.min()))
+    print line("Emin (%s)  : %g" % (which, Etab.min()))
     print line("Emax (pf)   : %g" % igm.pf['spectrum_Emax'])
-    print line("Emax (%s)  : %g" % (which, igm.E.max())) 
+    print line("Emax (%s)  : %g" % (which, Etab.max())) 
 
-    if igm.E0 < igm.pf['spectrum_Emin']:
+    if Etab.min() < igm.pf['spectrum_Emin']:
         print line("this is OK  : we'll discard E < %.2e eV entries in table" \
             % igm.pf['spectrum_Emin'])
 
-    if igm.E1 > igm.pf['spectrum_Emax']:
+    if Etab.max() > igm.pf['spectrum_Emax']:
         print line("this is OK  : we'll discard E > %.2e eV entries in table" \
             % igm.pf['spectrum_Emax']) 
 

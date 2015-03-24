@@ -108,7 +108,7 @@ class ChemicalNetwork:
         cell, k_ion, k_ion2, k_heat, ntot, time = args
             
         to_temp = 1. / (1.5 * ntot * k_B)
-            
+                    
         if self.expansion:
             z = self.cosm.TimeToRedshiftConverter(0., time, self.grid.zi)
             n_H = self.cosm.nH(z)
@@ -286,6 +286,9 @@ class ChemicalNetwork:
         return self.dqdt
                           
     def Jacobian(self, t, q, args):
+        """
+        Compute the Jacobian for the system of equations.
+        """
         self.q = q
         self.dqdt = self.zeros_q.copy()
     

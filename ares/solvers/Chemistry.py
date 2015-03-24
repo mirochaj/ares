@@ -98,7 +98,7 @@ class Chemistry(object):
         if not kwargs:
             kwargs = self.rcs.copy()
                     
-        kwargs_by_cell = self.sort_kwargs_by_cell(kwargs)
+        kwargs_by_cell = self._sort_kwargs_by_cell(kwargs)
         
         self.q_grid = np.zeros_like(self.zeros_gridxq)
         self.dqdt_grid = np.zeros_like(self.zeros_gridxq)
@@ -112,7 +112,7 @@ class Chemistry(object):
                 q[i] = data[species][cell]
                                     
             kwargs_cell = kwargs_by_cell[cell]
-                            
+                                        
             if self.rtON:
                 args = (cell, kwargs_cell['k_ion'], kwargs_cell['k_ion2'],
                     kwargs_cell['k_heat'], data['n'][cell], t)
@@ -135,7 +135,7 @@ class Chemistry(object):
 
         return newdata  
 
-    def sort_kwargs_by_cell(self, kwargs):
+    def _sort_kwargs_by_cell(self, kwargs):
         """
         Convert kwargs dictionary to list.
 

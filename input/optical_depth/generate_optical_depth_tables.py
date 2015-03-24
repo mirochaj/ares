@@ -36,7 +36,7 @@ zf, zi = (10, 50)
 Emin = 1e2
 Emax = 5e4
 Nz = [1e3]
-format = 'hdf5'        # 'hdf5' or 'pkl' or 'npz'
+format = 'pkl'        # 'hdf5' or 'pkl' or 'npz'
 helium = 1
 ##
 #
