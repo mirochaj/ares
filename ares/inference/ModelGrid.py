@@ -200,9 +200,9 @@ class ModelGrid:
             List of models to run. Each entry in the list should be a 
             dictionary of parameters that define that model. The
             base_kwargs will be updated with those values at run-time.
-            
+
         """ 
-        
+
         self.grid = GridND()
 
         # Build parameter space
@@ -212,13 +212,18 @@ class ModelGrid:
 
         # Shortcut to parameter names
         self.parameters = self.grid.axes_names
-        
+            
     @property
     def is_log(self):
         if not hasattr(self, '_is_log'):
             self._is_log = [False] * self.grid.Nd
         
         return self._is_log
+        
+    @is_log.setter
+    def is_log(self, value):
+        assert(len(value) == len(self.parameters))
+        self._is_log = value    
         
     def prep_output_files(self, prefix, restart):
         """
@@ -397,7 +402,16 @@ class ModelGrid:
 
             # Copy kwargs - may need updating with pre-existing lookup tables
             p = self.base_kwargs.copy()
-            p.update(kwargs)
+            
+            # Log-ify stuff if necessary
+            kw = {}
+            for i, par in enumerate(self.parameters):
+                if self.is_log[i]:
+                    kw[par] = 10**kwargs[par]
+                else:
+                    kw[par] = kwargs[par]
+            
+            p.update(kw)
 
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
             if i_Tmin not in fcoll.keys() and (not self.tanh):

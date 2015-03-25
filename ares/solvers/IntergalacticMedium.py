@@ -751,7 +751,7 @@ class IGM(object):
                 fheat = self.esec.DepositionFraction(kw['igm_h_2'])[0]
         else:
             fheat = self.pf['fXh']
-            
+
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
         if self.pf['approx_xrb']:

@@ -101,7 +101,7 @@ class TanhModel:
     def ionized_fraction(self, z, xref, zref, dz):
         return xref * tanh_generic(z, zref=zref, dz=dz)
 
-    def heating_rate(self, z, Tref, zref, dz, Lambda=None):
+    def heating_rate(self, z, Tref, zref, dz):
 
         Tk = self.temperature(z, Tref, zref, dz)
 
@@ -110,16 +110,10 @@ class TanhModel:
         dTkdz = 0.5 * Tref * (1. - np.tanh((zref - z) / dz)**2) / dz
         dTkdt = dTkdz / dtdz
 
-        n = self.cosm.nH(z)
-    
-        if Lambda is None:
-            cool = 0.0
-        else:
-            cool = Lambda(z)
-    
-        return 1.5 * n * k_B * (dTkdt + 2. * self.cosm.HubbleParameter(z) * Tk) \
-            + cool / dtdz
+        n = 1#self.cosm.nH(z)
         
+        return 1.5 * n * k_B * (dTkdt + 2. * self.cosm.HubbleParameter(z) * Tk)
+
     def ionization_rate(self, z, xref, zref, dz, C=1.):
         xi = self.ionized_fraction(z, xref, zref, dz)
         

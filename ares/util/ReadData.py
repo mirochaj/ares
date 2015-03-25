@@ -152,7 +152,7 @@ def read_pickle_file(fn):
         except EOFError:
             break
 
-    print "Read %i chunks from %s." % (ct, fn)
+    #print "Read %i chunks from %s." % (ct, fn)
 
     f.close()
     

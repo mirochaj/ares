@@ -131,18 +131,20 @@ class DerivedQuantities:
         self.data['logt'] = np.log10(self.data['t'])
         
         self.data['pf'] = pf
-        
+
         self.derived_quantities = {}
-        
+
         # Create frequency array -- be careful about preserving the mask
-        self.derived_quantities['nu'] = nu_0_mhz / (1. + self.data['z'])
-        
+        self.derived_quantities['nu'] = self.data['nu'] = \
+            nu_0_mhz / (1. + self.data['z'])
+
         mask = np.logical_not(np.isfinite(self.data['z']))
+        self.data['nu'][mask] = np.inf
         self.derived_quantities['nu'][mask] = np.inf
 
         self.build(**registry_state_Q)
         self.build(**registry_rate_Q)
-        
+
         del self.data['pf']
 
     def build(self, **registry):

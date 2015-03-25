@@ -1237,37 +1237,37 @@ class ModelSet(object):
         1-D marginalized posterior PDF (latter).
     
         """
-    
+
         kw = def_kwargs.copy()
         kw.update(kwargs)
-        
+
         if labels is None:
             labels = default_labels
         else:
             labels_tmp = default_labels.copy()
             labels_tmp.update(labels)
             labels = labels_tmp
-        
+
         if type(pars) not in [list, tuple]:
             pars = [pars]
         if type(take_log) == bool:
             take_log = [take_log] * len(pars)
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)    
-        
+
         if type(z) is list:
             if len(z) != len(pars):
                 raise ValueError('Length of z must be = length of pars!')
         else:
             z = [z] * len(pars)
-    
+
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
         else:
             gotax = True
-    
+
         binvec = []
         to_hist = []
         is_log = []
@@ -1773,7 +1773,7 @@ class ModelSet(object):
                     take_log=[take_log[j], take_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, 
-                    labels=labels, **kw)
+                    labels=labels, skip=skip, **kw)
                 
                 if add_cov:
                     self._PosteriorIdealized(pars=[p2, p1], ax=mp.grid[k], z=red)

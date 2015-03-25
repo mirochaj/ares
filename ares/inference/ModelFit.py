@@ -50,8 +50,6 @@ except ImportError:
 except ImportError:
     pass
      
-
-    
 try:
     import h5py
 except ImportError:
@@ -161,9 +159,10 @@ class logprior:
         
 class loglikelihood:
     def __init__(self, steps, parameters, is_log, mu, errors,
-        base_kwargs, nwalkers, priors={}, 
-        errmap=None, errunits=None, prefix=None, fit_turning_points=True,
-        burn=False, blob_names=None, blob_redshifts=None):
+        base_kwargs, nwalkers, priors={}, errmap=None, errunits=None, 
+        prefix=None, fit_signal=False, fit_turning_points=True,
+        burn=False, blob_names=None, blob_redshifts=None, 
+        frequency_channels=None):
         """
         Computes log-likelihood at given step in MCMC chain.
 
@@ -180,13 +179,13 @@ class loglikelihood:
 
         self.burn = burn
         self.prefix = prefix   
+        self.fit_signal = fit_signal
+        self.signal_z = nu_0_mhz / frequency_channels - 1.
         self.fit_turning_points = fit_turning_points     
 
         self.blob_names = blob_names
         self.blob_redshifts = blob_redshifts
         
-        print blob_names
-
         # Setup binfo pkl file
         self._prep_binfo()
 
@@ -335,34 +334,40 @@ class loglikelihood:
         else:
             blobs = self.blank_blob    
 
-        if not self.fit_turning_points:
+        if (not self.fit_turning_points) and (not self.fit_signal):
             del sim, kw
             gc.collect()
             return lp, blobs
 
         # Compute the likelihood if we've made it this far
-
-        # Fit turning points    
-        xarr = []
-
-        # Convert frequencies to redshift, temperatures to K
-        for element in self.errmap:
-            tp, i = element            
-
-            # Models without turning point B, C, or D get thrown out.
-            if tp not in tps:
-                del sim, kw
-                gc.collect()
-
-                return -np.inf, self.blank_blob
         
-            if i == 0 and self.errunits[0] == 'MHz':
-                xarr.append(nu_0_mhz / (1. + tps[tp][i]))
-            else:
-                xarr.append(tps[tp][i])
-                   
-        # Values of current model that correspond to mu vector
-        xarr = np.array(xarr)
+        if self.fit_signal:
+            
+            xarr = np.interp(self.signal_z, sim.history['z'][-1::-1],
+                sim.history['dTb'][-1::-1])
+                
+        elif self.fit_turning_points: 
+            # Fit turning points    
+            xarr = []
+            
+            # Convert frequencies to redshift, temperatures to K
+            for element in self.errmap:
+                tp, i = element            
+            
+                # Models without turning point B, C, or D get thrown out.
+                if tp not in tps:
+                    del sim, kw
+                    gc.collect()
+            
+                    return -np.inf, self.blank_blob
+            
+                if i == 0 and self.errunits[0] == 'MHz':
+                    xarr.append(nu_0_mhz / (1. + tps[tp][i]))
+                else:
+                    xarr.append(tps[tp][i])
+                       
+            # Values of current model that correspond to mu vector
+            xarr = np.array(xarr)
                     
         if np.any(np.isnan(xarr)):
             return -np.inf, self.blank_blob
@@ -690,7 +695,8 @@ class ModelFit(object):
         self._data = value    
 
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        save_freq=500, fit_turning_points=True):
+        save_freq=500, fit_signal=False, fit_turning_points=True,
+        frequency_channels=None):
         """
         Run MCMC.
 
@@ -710,6 +716,8 @@ class ModelFit(object):
             Append to pre-existing files of the same prefix if one exists?
         fit_turning_points : bool
             If False, merely explore prior space.
+        frequency_channels : np.ndarray
+            Frequencies corresponding to 'mu' values if fit_signal=True.
 
         """
         
@@ -727,7 +735,9 @@ class ModelFit(object):
 
         print_fit(self, steps=steps, burn=burn, fit_TP=fit_turning_points)
 
-        if len(self.error.shape) == 1:
+        if fit_signal:
+            pass
+        elif len(self.error.shape) == 1:
             assert len(self.error) == len(self.measurement_map)
         else:
             assert len(np.diag(self.error)) == len(self.measurement_map)
@@ -754,8 +764,10 @@ class ModelFit(object):
             self.mu, self.error, self.base_kwargs,
             self.nwalkers, self.priors,
             self.measurement_map, self.measurement_units, prefix=self.prefix,
+            fit_signal=fit_signal,
             fit_turning_points=fit_turning_points,
             blob_names=self.blob_names,
+            frequency_channels=frequency_channels,
             blob_redshifts=self.blob_redshifts)
             
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
@@ -936,4 +948,8 @@ class ModelFit(object):
 
         if self.pool is not None and emcee_mpipool:
             self.pool.close()
+    
+        if size > 1:
+            MPI.Finalize()
+            
     

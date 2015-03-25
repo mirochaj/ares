@@ -121,7 +121,7 @@ class InlineAnalysis:
             if z >= self.sim.pf['final_redshift']:
                 tmp2.append(_blob_redshifts[i])
                 continue
-        
+
         blob_names = names
         blob_redshifts = tmp2
          
