@@ -180,7 +180,8 @@ class loglikelihood:
         self.burn = burn
         self.prefix = prefix   
         self.fit_signal = fit_signal
-        self.signal_z = nu_0_mhz / frequency_channels - 1.
+        if frequency_channels is not None:
+            self.signal_z = nu_0_mhz / frequency_channels - 1.
         self.fit_turning_points = fit_turning_points     
 
         self.blob_names = blob_names
@@ -940,7 +941,7 @@ class ModelFit(object):
 
             del data, f, pos_all, prob_all, blobs_all
             gc.collect()
-            
+
             # Delete chain, logL, etc., to be conscious of memory
             self.sampler.reset()
 
@@ -948,8 +949,13 @@ class ModelFit(object):
 
         if self.pool is not None and emcee_mpipool:
             self.pool.close()
+        elif self.pool is not None:
+            self.pool.stop()
+
+        if rank == 0:
+            print "Finished on %s" % (time.ctime())
     
-        if size > 1:
-            MPI.Finalize()
+        #if size > 1:
+        #    MPI.Finalize()
             
     
