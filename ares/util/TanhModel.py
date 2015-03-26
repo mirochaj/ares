@@ -102,7 +102,9 @@ class TanhModel:
         return xref * tanh_generic(z, zref=zref, dz=dz)
 
     def heating_rate(self, z, Tref, zref, dz):
-
+        """
+        Compute heating rate coefficient.
+        """
         Tk = self.temperature(z, Tref, zref, dz)
 
         dtdz = self.cosm.dtdz(z)
@@ -110,11 +112,15 @@ class TanhModel:
         dTkdz = 0.5 * Tref * (1. - np.tanh((zref - z) / dz)**2) / dz
         dTkdt = dTkdz / dtdz
 
-        n = 1#self.cosm.nH(z)
+        n = 1.#self.cosm.nH(z)
         
         return 1.5 * n * k_B * (dTkdt + 2. * self.cosm.HubbleParameter(z) * Tk)
 
     def ionization_rate(self, z, xref, zref, dz, C=1.):
+        """
+        Compute ionization rate coefficient.
+        """
+        
         xi = self.ionized_fraction(z, xref, zref, dz)
         
         dtdz = self.cosm.dtdz(z)
@@ -124,7 +130,8 @@ class TanhModel:
         
         n = self.cosm.nH(z)
         
-        return dxdt + alpha_A * C * n * xi
+        # Assumes ne = nH (bubbles assumed fully ionized)
+        return (dxdt + alpha_A * C * n * xi) / (1. - xi)
         
     def __call__(self, z, **kwargs):
         """
