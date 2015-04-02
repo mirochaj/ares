@@ -29,6 +29,7 @@ class ProgressBar:
         self.maxval = maxval            
         self.use = use
         
+        self.has_pb = False
         if pb and rank == 0 and use:
             self.widget = ["%s: " % name, progressbar.Percentage(), ' ', \
               progressbar.Bar(marker = progressbar.RotatingMarker()), ' ', \
@@ -38,13 +39,15 @@ class ProgressBar:
         if pb and rank == 0 and self.use:
             self.pbar = progressbar.ProgressBar(widgets=self.widget, 
                 maxval=self.maxval).start()
+                
+            self.has_pb = True    
         
     def update(self, value):
-        if hasattr(self, 'pbar'):
+        if self.has_pb:
             self.pbar.update(value)
         
     def finish(self):
-        if hasattr(self, 'pbar'):
+        if self.has_pb:
             self.pbar.finish()
             
             

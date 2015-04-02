@@ -35,6 +35,7 @@ pars = \
  'redshifts_lwb': 1e4,
 }
     
+# Solve using brute-force integration
 rad = ares.solvers.UniformBackground(discrete_lwb=False, **pars)
 E = np.linspace(5.0, E_LL-0.01, 500)
 
@@ -45,11 +46,13 @@ for zf in [15, 30]:
         energy_units=False), E)
     t2 = time.time()
     
+    pl.semilogy(E, np.array(F) / J21_num, color=color, label=r'$z=%i$' % zf)
+    
     # Compute optically thin solution for comparison
     Fthin = map(lambda EE: rad.AngleAveragedFlux(zf, EE, tau=0.0,
         energy_units=False), E)
-
-    pl.semilogy(E, np.array(F) / J21_num, color=color, label=r'$z=%i$' % zf)
+    
+    
     pl.semilogy(E, np.array(Fthin) / J21_num, color=color, ls='--')
     
     color = 'b'
@@ -84,8 +87,8 @@ zarr = np.arange(10, 40)
 Ja_1 = np.array(map(rad.LymanAlphaFlux, zarr))
 
 from ares.util.ReadData import split_flux
-fluxes = split_flux(rad2.field.energies[0], flux)
-Ja_2 = rad2.field.LymanAlphaFlux(z=None, fluxes=fluxes)
+fluxes = split_flux(rad2.energies[0], flux)
+Ja_2 = rad2.LymanAlphaFlux(z=None, fluxes=fluxes)
     
 fig = pl.figure(2)
 ax = fig.add_subplot(111)

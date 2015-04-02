@@ -25,9 +25,6 @@ class MetaGalacticBackground(UniformBackground):
         UniformBackground.__init__(self, grid=grid, **kwargs)
 
         self._is_thru_run = False
-        
-        if not self.approx_all_sources:
-            self._init_stepping()
 
     def run(self):
         """
@@ -56,6 +53,8 @@ class MetaGalacticBackground(UniformBackground):
     def _init_stepping(self):
         """
         Initialize lists which bracket radiation background fluxes.
+        
+        This is a little tricky for the LWB.
         """
         
         if not self._is_thru_run:
@@ -98,7 +97,7 @@ class MetaGalacticBackground(UniformBackground):
         t = 0.0
         z = self.pf['initial_redshift']
         zf = self.pf['final_redshift']
-
+        
         # Start the generator
         while z > zf:     
             z, fluxes = self.update_fluxes()
@@ -114,7 +113,15 @@ class MetaGalacticBackground(UniformBackground):
         
         ..note:: Populations need not have identical redshift sampling.
         
+        Returns
+        -------
+        Current redshift and array of fluxes.
+        
         """
+        
+        if (not self._is_thru_run) and (not self.approx_all_sources) and \
+            not hasattr(self, '_fhi'):
+            self._init_stepping()
         
         fluxes = {}
         for i, generator in enumerate(self.generators):
@@ -125,7 +132,8 @@ class MetaGalacticBackground(UniformBackground):
                 continue
                 
             # If not being run as part of another simulation, there are no 
-            # external time-stepping constraints
+            # external time-stepping constraints, so just poke the generator
+            # and move on
             if self._is_thru_run: 
                 z, fluxes[i] = generator.next()
                 continue   

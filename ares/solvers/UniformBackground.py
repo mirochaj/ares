@@ -874,9 +874,10 @@ class UniformBackground(object):
         for i in range(z.size):  
             flux = []      
             for gen in gens:
-                flux.append(gen.next())
-            
-            yield flatten_flux(flux)
+                z, new_flux = gen.next()
+                flux.append(new_flux)
+                        
+            yield z, flatten_flux(flux)
         
     def FluxGenerator(self, popid):
         """

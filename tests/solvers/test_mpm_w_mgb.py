@@ -38,9 +38,8 @@ sim.run()
 anl = ares.analysis.MultiPhaseMedium(sim)
 ax1 = anl.TemperatureHistory()
 
-ax2 = anl.IonizationHistory(element='h', color='k', fig=2)
-ax2 = anl.IonizationHistory(element='he', color='b', ax=ax2)
-
+ax2 = anl.IonizationHistory(zone='igm', element='h', color='k', fig=2)
+ax2 = anl.IonizationHistory(zone='igm', element='he', color='b', ax=ax2)
 
 
 

@@ -754,7 +754,7 @@ class MultiPhaseMedium:
         
     def IonizationHistory(self, ax=None, zone=None, element='h', 
         fig=1, scatter=False, 
-        mask=5, show_xi=True, show_xe=True, show_xibar=True, 
+        mask=5, show_xi=True, show_xe=True, show_xibar=False, 
         show_legend=False, **kwargs):
         """
         Plot ionized fraction evolution. 
@@ -774,12 +774,16 @@ class MultiPhaseMedium:
             ax = fig.add_subplot(111)
         
         if element == 'h':
-            xe = self.data['igm_%s_2' % element]
-            xi = self.data['cgm_%s_2' % element]
-            xavg = xi + (1. - xi) * xe
-
-            to_plot = [xavg, xi, xe]
-            show = [show_xibar, show_xi, show_xe]
+            if zone is None:
+                xe = self.data['igm_%s_2' % element]
+                xi = self.data['cgm_%s_2' % element]
+                xavg = xi + (1. - xi) * xe
+                
+                to_plot = [xavg, xi, xe]
+                show = [show_xibar, show_xi, show_xe]
+            else:
+                to_plot = [self.data['%s_%s_2' % (zone, element)]]
+                show = [True] * 2           
 
         else:
             to_plot = [self.data['igm_he_%i' % sp] for sp in [2,3]]
