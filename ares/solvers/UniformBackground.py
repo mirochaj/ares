@@ -20,9 +20,9 @@ from ..static import GlobalVolume
 from ..util.PrintInfo import print_rb
 from ..util.Misc import num_freq_bins
 from scipy.interpolate import interp1d
-from ..util.ReadData import flatten_flux
 from ..physics import Hydrogen, Cosmology
 from ..populations import CompositePopulation
+from ..util.ReadData import flatten_flux, split_flux
 from scipy.integrate import quad, romberg, romb, trapz, simps
 
 try:
@@ -80,7 +80,7 @@ class UniformBackground(object):
         """
                 
         self.pf = ParameterFile(**kwargs)
-
+        
         # Some useful physics modules
         if grid is not None:
             self.grid = grid
@@ -632,66 +632,71 @@ class UniformBackground(object):
     
         return self._frec
         
+    @property
+    def narr(self):
+        if not hasattr(self, '_narr'):
+            self._narr = np.arange(2, self.pf['lya_nmax'])    
+        
+        return self._narr
+        
     def LymanAlphaFlux(self, z=None, fluxes=None, popid=0, **kwargs):
         """
-        Compute background flux at Lyman-alpha resonance. Includes products
-        of Ly-n cascades if approx_lwb=0.
+        Compute background flux at Lyman-alpha resonance. 
+        
+        ..note:: Optionally includes products of Ly-n cascades if approx_lwb=0.
         
         Parameters
         ----------
         z : int, float
             Redshift of interest
         fluxes : np.ndarray
-            Fluxes grouped by LW band.
+            Fluxes grouped by LW band at a single redshift.
 
         Returns
         -------
-        Lyman alpha flux at given redshift, or, if fluxes are supplied, returns
-        flux at all redshifts.
+        Lyman alpha flux at given redshift.
             
         """
         
         pop = self.sources[popid]
 
-        if not self.pf['is_lya_src'] or (z > pop.zform):
+        if not pop.pf['is_lya_src'] or (z > pop.zform):
             return 0.0
 
-        if self.pf['Ja'] is not None:
-            return self.pf['Ja'](z)    
+        if pop.pf['Ja'] is not None:
+            return pop.pf['Ja'](z)    
 
         # Full calculation
-        if self.pf['approx_lwb'] == 0:
+        if pop.pf['approx_lwb'] == 0:
 
-            if self.pf['discrete_lwb']:
-                J = np.zeros(fluxes[0].shape[0])
-            else:
-                J = 0.0
-                        
-            for i, n in enumerate(np.arange(2, self.pf['lya_nmax'])):
+            J = 0.0
+
+            for i, n in enumerate(self.narr):
     
-                if n == 2 and not self.pf['lya_continuum']:
+                if n == 2 and not pop.pf['lya_continuum']:
                     continue
-                if n > 2 and not self.pf['lya_injected']:
+                if n > 2 and not pop.pf['lya_injected']:
                     continue
-    
-                En = self.hydr.ELyn(n)
-                Enp1 = self.hydr.ELyn(n + 1)
                 
                 if self.pf['discrete_lwb']:
-                    Jn = self.hydr.frec(n) * fluxes[i][:,0]
+                    Jn = self.hydr.frec(n) * fluxes[i][0] * 0.2
                 else:
+
+                    En = self.hydr.ELyn(n)
+                    Enp1 = self.hydr.ELyn(n + 1)
+                    
                     Eeval = En + 0.01 * (Enp1 - En)
                     Jn = self.hydr.frec(n) * self.LymanWernerFlux(z, Eeval, 
-                        **kwargs)    
-    
+                        **kwargs)
+
                 J += Jn
-    
+
             return J
     
         # Flat spectrum, no injected photons, instantaneous emission only
         else:
             norm = c * self.cosm.dtdz(z) / four_pi
-            return norm * (1. + z)**3 * (1. + self.pf['lya_frec_bar']) * \
+            return norm * (1. + z)**3 * (1. + pop.pf['lya_frec_bar']) * \
                 pop.LymanWernerPhotonLuminosityDensity(z) / dnu
         
     def load_sed(self, prefix=None):
@@ -786,9 +791,9 @@ class UniformBackground(object):
         
         Parameters
         ----------
-        E : np.ndarray
+        energies : np.ndarray
             1-D array of photon energies
-        z : np.ndarray
+        redshifts : np.ndarray
             1-D array of redshifts
         ehat : np.ndarray
             2-D array of tabulate emissivities.
@@ -851,7 +856,7 @@ class UniformBackground(object):
             # An alternative would be to extrapolate, and thus mimic a
             # background spectrum that is not truncated at Emax
             flux[-1] = 0.0
-    
+                
             yield redshifts[ll], flux
     
             # Increment redshift
@@ -861,6 +866,25 @@ class UniformBackground(object):
             if ll == -1:
                 break
                 
+    def _compute_line_flux(self, fluxes):  
+        """
+        Compute emission in lines.
+        
+        ..note:: Includes Ly-a emission only at this point.
+        
+        Parameters
+        ----------
+        List of fluxes, 
+        """          
+        
+        line_flux = [np.zeros_like(fluxes[i]) for i in range(len(fluxes))]
+        
+        # Compute Lyman-alpha flux
+        if self.pf['include_H_Lya']:
+            line_flux[0][0] += self.LymanAlphaFlux(z=None, fluxes=fluxes)
+        
+        return line_flux 
+        
     def _flux_generator_sawtooth(self, E, z, ehat):
         """
         Create generators for the flux between all Lyman-n bands.
@@ -874,10 +898,13 @@ class UniformBackground(object):
         for i in range(z.size):  
             flux = []      
             for gen in gens:
-                z, new_flux = gen.next()
+                z, new_flux = gen.next()                
                 flux.append(new_flux)
-                        
-            yield z, flatten_flux(flux)
+
+            # Increment fluxes
+            line_flux = self._compute_line_flux(flux)
+
+            yield z, flatten_flux(flux), flatten_flux(line_flux)
         
     def FluxGenerator(self, popid):
         """

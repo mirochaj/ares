@@ -83,6 +83,7 @@ class Hydrogen:
         self.E_LyA = h * c / (1216. * 1e2 / 1e10) / erg_per_ev
         self.E_LyB = h * c / (1026. * 1e2 / 1e10) / erg_per_ev
         self.E_LL = h * self.nu_LL / erg_per_ev
+        
         self.nu_alpha = self.E_LyA * erg_per_ev / h
         self.nu_beta = self.E_LyB * erg_per_ev / h
         self.dnu = self.nu_LL - self.nu_alpha

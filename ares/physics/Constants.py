@@ -80,9 +80,10 @@ nu_alpha = 2.47e15              # Rest frequency of Lyman-alpha - [nu_alpha] = H
 T_star = 0.068 				    # Corresponding temperature difference between HI hyperfine states - [T_star] = K
 a_0 = 5.292e-9 				    # Bohr radius - [a_0] = cm
 f12 = 0.4162                    # Lyman-alpha oscillator strength
-E_LyA = h * c / (1216. * 1e2 / 1e10) / erg_per_ev
-E_LyB = h * c / (1026. * 1e2 / 1e10) / erg_per_ev
+
 E_LL = Ryd / erg_per_ev
+E_LyA = E_LL * (1. - 1. / 2**2)
+E_LyB = E_LL * (1. - 1. / 3**2)
 nu_alpha = E_LyA * erg_per_ev / h
 nu_beta = E_LyB * erg_per_ev / h
 nu_LL = E_LL * erg_per_ev / h

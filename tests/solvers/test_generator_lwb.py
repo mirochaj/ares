@@ -13,7 +13,7 @@ Description: This is very similar to Haiman, Abel, & Rees (1997) Fig. 1.
 import ares, time
 import numpy as np
 import matplotlib.pyplot as pl
-from ares.physics.Constants import E_LL, J21_num
+from ares.physics.Constants import E_LL, E_LyA, J21_num
 
 pars = \
 {
@@ -22,7 +22,7 @@ pars = \
  'Tmin': 1e3,
  'fstar': 1e-2,
  'spectrum_type': 'bb',
- 'spectrum_Emin': 5.,
+ 'spectrum_Emin': E_LyA,
  'spectrum_Emax': E_LL,
  'spectrum_EminNorm': 0.01,
  'spectrum_EmaxNorm': 5e2,
@@ -33,11 +33,15 @@ pars = \
  'initial_redshift': 50,
  'final_redshift': 10,
  'redshifts_lwb': 1e4,
+ 'include_H_Lya': True,
 }
     
 # Solve using brute-force integration
 rad = ares.solvers.UniformBackground(discrete_lwb=False, **pars)
 E = np.linspace(5.0, E_LL-0.01, 500)
+
+fig1 = pl.figure(1)
+ax1 = fig1.add_subplot(111)
 
 color = 'k'
 for zf in [15, 30]:
@@ -46,21 +50,22 @@ for zf in [15, 30]:
         energy_units=False), E)
     t2 = time.time()
     
-    pl.semilogy(E, np.array(F) / J21_num, color=color, label=r'$z=%i$' % zf)
+    ax1.semilogy(E, np.array(F) / J21_num, color=color, label=r'$z=%i$' % zf)
     
     # Compute optically thin solution for comparison
     Fthin = map(lambda EE: rad.AngleAveragedFlux(zf, EE, tau=0.0,
         energy_units=False), E)
     
     
-    pl.semilogy(E, np.array(Fthin) / J21_num, color=color, ls='--')
+    ax1.semilogy(E, np.array(Fthin) / J21_num, color=color, ls='--')
     
     color = 'b'
 
-pl.xlabel(r'$h\nu \ (\mathrm{eV})$')
-pl.ylabel(r'$J_{\nu} / J_{21}$')
-pl.legend(loc='center left', frameon=False)
-pl.ylim(1e-3, 1e2)
+ax1.set_xlabel(r'$h\nu \ (\mathrm{eV})$')
+ax1.set_ylabel(r'$J_{\nu} / J_{21}$')
+ax1.legend(loc='lower left', frameon=False, fontsize=16)
+ax1.set_ylim(1e-3, 1e2)
+pl.draw()
 
 # Solve using generator
 rad2 = ares.simulations.MetaGalacticBackground(discrete_lwb=True, **pars)
@@ -73,12 +78,25 @@ t4 = time.time()
 z, E, flux = rad2.get_history()
 Eflat = np.concatenate(E)
 
-pl.scatter(Eflat, flux[np.argmin(np.abs(z-15.)),:] / J21_num,
+# Get line emission
+z, E, flux_l = rad2.get_history(continuum=False)
+
+ax1.scatter(Eflat, flux[np.argmin(np.abs(z-15.)),:] / J21_num,
     facecolors='none', color='k', marker='|', s=100, alpha=0.05)
 
-pl.scatter(Eflat, flux[np.argmin(np.abs(z-30.)),:] / J21_num,
+ax1.scatter(Eflat, flux[np.argmin(np.abs(z-30.)),:] / J21_num,
     facecolors='none', color='b', marker='|', s=100, alpha=0.05)
 
+# Emphasize Ja
+totz15 = flux[np.argmin(np.abs(z-15.)),:] + flux_l[np.argmin(np.abs(z-15.)),:]
+totz30 = flux[np.argmin(np.abs(z-30.)),:] + flux_l[np.argmin(np.abs(z-30.)),:]
+ax1.scatter(Eflat[0], totz15[0] / J21_num,
+    facecolors='none', color='k', marker='o', s=100)
+ax1.scatter(Eflat[0], totz30[0] / J21_num,
+    facecolors='none', color='b', marker='o', s=100)
+
+
+pl.draw()
 print "Generator provides %.2gx speed-up (per redshift point)." \
     % ((t2 - t1) / ((t4 - t3) / z.size))
 
@@ -86,20 +104,19 @@ print "Generator provides %.2gx speed-up (per redshift point)." \
 zarr = np.arange(10, 40)
 Ja_1 = np.array(map(rad.LymanAlphaFlux, zarr))
 
-from ares.util.ReadData import split_flux
-fluxes = split_flux(rad2.energies[0], flux)
-Ja_2 = rad2.LymanAlphaFlux(z=None, fluxes=fluxes)
-    
-fig = pl.figure(2)
-ax = fig.add_subplot(111)
+# Read it in from discrete LWB calculation
+Ja_2 = flux[:,0] + flux_l[:,0]
+ 
+fig2 = pl.figure(2)
+ax2 = fig2.add_subplot(111)
 
-ax.scatter(zarr, Ja_1 / J21_num, color='k', facecolors='none', s=50,
+ax2.scatter(zarr, Ja_1 / J21_num, color='k', facecolors='none', s=50,
     label='numerical')
-ax.semilogy(z, Ja_2 / J21_num, color='b', label='generator')
-ax.set_xlabel(r'$z$')
-ax.set_ylabel(r'$J_{\alpha} / J_{21}$')
-ax.set_ylim(1e-4, 1e2)
-ax.legend(loc='lower left')
+ax2.semilogy(z, Ja_2 / J21_num, color='b', label='generator')
+ax2.set_xlabel(r'$z$')
+ax2.set_ylabel(r'$J_{\alpha} / J_{21}$')
+ax2.set_ylim(1e-4, 1e2)
+ax2.legend(loc='lower left')
 pl.draw()
 
 

@@ -60,6 +60,9 @@ def GridParameters():
     
     "include_He": False,
     "include_H2": False,
+    
+    # Line photons
+    "include_H_Lya": True,
 
     "initial_ionization": [1. - 1e-8, 1e-8],
     "initial_temperature": 1e4,
