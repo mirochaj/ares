@@ -61,6 +61,8 @@ def GridParameters():
     "include_He": False,
     "include_H2": False,
     
+    "include_cgm": True,
+    
     # Line photons
     "include_H_Lya": True,
 
@@ -117,7 +119,7 @@ def PhysicsParameters():
     "recombination": 'B', 
     
     "clumping_factor": 1,
-    
+
     "approx_H": False,
     "approx_He": False,
     "approx_sigma": False,
@@ -125,7 +127,7 @@ def PhysicsParameters():
     "approx_Salpha": 1, # 1 = Salpha = 1
                         # 2 = Chuzhoy, Alvarez, & Shapiro (2005),
                         # 3 = Furlanetto & Pritchard (2006)
-    
+
     # Approximations to radiation fields
     "approx_irb": True,
     "approx_lwb": True,

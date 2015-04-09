@@ -857,7 +857,7 @@ class UniformBackground(object):
             # background spectrum that is not truncated at Emax
             flux[-1] = 0.0
                 
-            yield redshifts[ll], flux
+            yield redshifts[ll], flux, None
     
             # Increment redshift
             ll -= 1
