@@ -10,9 +10,9 @@ Description: For analysis of MCMC fitting.
 
 """
 
-import re, os
 import numpy as np
 import matplotlib as mpl
+import re, os, string, time
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
 from ..physics import Cosmology
@@ -22,14 +22,15 @@ from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .Global21cm import Global21cm as aG21
 from ..util import labels as default_labels
-from ..util.TanhModel import tanh_gjah_to_ares
+from ..util.PrintInfo import print_model_set
 from ..util.ParameterFile import count_populations
 from .DerivedQuantities import DerivedQuantities as DQ
 from ..simulations.Global21cm import Global21cm as sG21
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin, correlation_matrix
 from ..util.ReadData import read_pickled_dict, read_pickle_file, \
-    read_pickled_chain, read_pickled_logL
+    read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
+    tanh_gjah_to_ares
 
 try:
     from scipy.optimize import fmin
@@ -60,6 +61,8 @@ def patch_pinfo(pars):
 
         if par in tanh_gjah_to_ares:
             new_pars.append(tanh_gjah_to_ares[par])
+        elif par in fcoll_gjah_to_ares:
+            new_pars.append(fcoll_gjah_to_ares[par])
         else:
             new_pars.append(par)
     
@@ -79,33 +82,50 @@ def parse_blobs(name):
         pass
         
     return None 
-
-def subscriptify_str(s):
-
-    raise NotImplementedError('fix me')
-    
-    if re.search("_", par):
-        m = re.search(r"\{([0-9])\}", par)
-
-    # If it already has a subscript, add to it
-
-def logify_str(s, sub=None):
+        
+def logify_str(s, sup=None):
     s_no_dollar = str(s.replace('$', ''))
     
-    if sub is not None:
-        new_s = subscriptify_str(s_no_dollar)
-    else:
-        new_s = s_no_dollar
+    new_s = s_no_dollar
+    
+    if sup is not None:
+        new_s += sup_scriptify_str(s)
         
     return r'$\mathrm{log}_{10}' + new_s + '$'
-        
-def err_str(label, mu, err, log):
-    l = str(label.replace('$', ''))
-
-    if log:
-        s = '\mathrm{log}_{10}' + l
+    
+def undo_mathify(s):
+    return str(s.replace('$', ''))
+    
+def mathify_str(s):
+    return r'$%s$' % s    
+    
+def make_label(name, take_log=False, labels=None):
+    """
+    Take a string and make it a nice (LaTeX compatible) axis label. 
+    """
+    
+    if labels is None:
+        labels = default_labels
+    
+    # Check to see if it has a population ID # tagged on the end
+    m = re.search(r"\{([0-9])\}", name)
+    
+    if m is None:
+        num = None
+        prefix = name
+        label = labels[prefix]
     else:
-        s = l
+        num = int(m.group(1))
+        prefix = name.split(m.group(0))[0]
+        label = undo_mathify(labels[prefix].split(m.group(0))[0]) + '^{%i}' % num
+
+    if take_log:        
+        return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+    else:
+        return label
+        
+def err_str(label, mu, err, log, labels=None):
+    s = undo_mathify(make_label(label, log, labels))
 
     s += '=%.3g^{+%.2g}_{-%.2g}' % (mu, err[0], err[1])
     
@@ -134,99 +154,13 @@ class ModelSet(object):
 
         # Read in data from file (assumed to be pickled)
         if type(data) == str:
-            prefix = data
+            self.prefix = prefix = data
 
-            # Read MCMC chain
-            self.chain = read_pickled_chain('%s.chain.pkl' % prefix)
-            if rank == 0:
-                print "Loaded %s.chain.pkl." % prefix
-
-            # Figure out if this is an MCMC run or a model grid
-            try:
-                self.logL = read_pickled_logL('%s.logL.pkl' % prefix)
-                if rank == 0:
-                    print "Loaded %s.logL.pkl." % prefix
-                self._is_mcmc = True
-            except IOError:
-                self._is_mcmc = False
-            except ValueError:
-                self.logL = None
-
-            self.Nd = int(self.chain.shape[-1])
+            print_model_set(self)
+        
+            self._is_mcmc = True
             
-            if self._is_mcmc and os.path.exists('%s.facc.pkl' % prefix):
-                f = open('%s.facc.pkl' % prefix, 'rb')
-                self.facc = []
-                while True:
-                    try:
-                        self.facc.append(pickle.load(f))
-                    except EOFError:
-                        break
-                f.close()
-                self.facc = np.array(self.facc)
-                        
-            # Read parameter names and info
-            if os.path.exists('%s.pinfo.pkl' % prefix):
-                f = open('%s.pinfo.pkl' % prefix, 'rb')
-                self.parameters, self.is_log = pickle.load(f)
-                f.close()
-                
-                self.parameters = patch_pinfo(self.parameters)
-
-                if rank == 0:
-                    print "Loaded %s.pinfo.pkl." % prefix
-            else:
-                self.parameters = range(self.Nd)
-                self.is_log = [False] * self.Nd
-            
-            if os.path.exists('%s.blobs.pkl' % prefix):
-                
-                try:
-                    blobs = read_pickle_file('%s.blobs.pkl' % prefix)
-                    
-                    if rank == 0:
-                        print "Loaded %s.blobs.pkl." % prefix
-                        
-                    self.mask = np.zeros_like(blobs)    
-                    self.mask[np.isinf(blobs)] = 1
-                    self.mask[np.isnan(blobs)] = 1
-                    self.blobs = np.ma.masked_array(blobs, mask=self.mask)
-                except:
-                    if rank == 0:
-                        print "WARNING: Error loading blobs."    
-                    
-                f = open('%s.binfo.pkl' % prefix, 'rb')
-                self.blob_names, self.blob_redshifts = \
-                    map(list, pickle.load(f))
-                f.close()
-
-                if rank == 0:
-                    print "Loaded %s.binfo.pkl." % prefix
-
-            else:
-                self.blobs = self.blob_names = self.blob_redshifts = None
-
-            i = 0
-            self.fails = []
-            while os.path.exists('%s.fail_%s.pkl' % (prefix, str(i).zfill(3))):
-            
-                data = read_pickled_dict('%s.fail_%s.pkl' % (prefix, str(i).zfill(3)))
-                self.fails.extend(data)
-                
-                print "Loaded %s.fail_%s.pkl." % (prefix, str(i).zfill(3))
-                i += 1
-                
-            if os.path.exists('%s.setup.pkl' % prefix):
-                f = open('%s.setup.pkl' % prefix, 'rb')
-                self.base_kwargs = pickle.load(f)
-                f.close()
-                
-                if rank == 0:
-                    print "Loaded %s.setup.pkl." % prefix
-            else:
-                self.base_kwargs = None    
-                
-            if not self.is_mcmc:
+            if not self._is_mcmc:
                 
                 self.grid = ModelGrid(**self.base_kwargs)
                 
@@ -236,28 +170,23 @@ class ModelSet(object):
                 #
                 #self.grid.set_axes(**self.axes)
                 #
-                # Only exists for parallel runs
-                if os.path.exists('%s.load.pkl' % prefix):
-                    self.load = read_pickle_file('%s.load.pkl' % prefix)
                 
-                    if rank == 0:
-                        print "Loaded %s.load.pkl." % prefix
                 
         elif isinstance(data, ModelSubSet):
-            self.chain = data.chain
-            self.is_log = data.is_log
-            self.base_kwargs = data.base_kwargs
-            self.fails = data.fails
+            self._chain = data.chain
+            self._is_log = data.is_log
+            self._base_kwargs = data.base_kwargs
+            self._fails = data.fails
             
             self.mask = np.zeros_like(data.blobs)    
             self.mask[np.isinf(data.blobs)] = 1
             self.mask[np.isnan(data.blobs)] = 1
-            self.blobs = np.ma.masked_array(data.blobs, mask=self.mask)
+            self._blobs = np.ma.masked_array(data.blobs, mask=self.mask)
 
-            self.blob_names = data.blob_names
-            self.blob_redshifts = data.blob_redshifts
-            self.parameters = data.parameters
-            self.is_mcmc = data.is_mcmc
+            self._blob_names = data.blob_names
+            self._blob_redshifts = data.blob_redshifts
+            self._parameters = data.parameters
+            self._is_mcmc = data.is_mcmc
             
             if self.is_mcmc:
                 self.logL = data.logL
@@ -280,14 +209,188 @@ class ModelSet(object):
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
     
-        try:
-            self._fix_up()
-        except AttributeError:
-            pass
-    #@property
-    #def chain(self):
-    #    if not hasattr(self, '_chain'):
-    #        if os.path.exists('%s.chain.pkl' % self.prefix):
+        #try:
+        #    self._fix_up()
+        #except AttributeError:
+        #    pass
+        
+    @property
+    def load(self):
+        if not hasattr(self, '_load'):
+            if os.path.exists('%s.load.pkl' % self.prefix):
+                self._load = read_pickle_file('%s.load.pkl' % self.prefix)
+            else:
+                self._load = None
+        
+        return self._load
+            
+    @property
+    def base_kwargs(self):
+        if not hasattr(self, '_base_kwargs'):
+            if os.path.exists('%s.setup.pkl' % self.prefix):
+                f = open('%s.setup.pkl' % self.prefix, 'rb')
+                self._base_kwargs = pickle.load(f)
+                f.close()
+                
+                if rank == 0:
+                    print "Loaded %s.setup.pkl." % self.prefix
+            else:
+                self._base_kwargs = None    
+            
+        return self._base_kwargs    
+
+    @property
+    def parameters(self):
+        # Read parameter names and info
+        if not hasattr(self, '_parameters'):
+            if os.path.exists('%s.pinfo.pkl' % self.prefix):
+                f = open('%s.pinfo.pkl' % self.prefix, 'rb')
+                self._parameters, self._is_log = pickle.load(f)
+                f.close()
+                
+                self._parameters = patch_pinfo(self._parameters)
+                    
+            #else:
+            #    self._parameters = range(self.Nd)
+            #    self._is_log = [False] * self.Nd
+        
+        return self._parameters
+        
+    @property
+    def is_log(self):
+        if not hasattr(self, '_is_log'):
+            pars = self.parameters
+        
+        return self._is_log
+        
+    @property
+    def facc(self):
+        if not hasattr(self, '_facc'):
+            if os.path.exists('%s.facc.pkl' % self.prefix):
+                f = open('%s.facc.pkl' % self.prefix, 'rb')
+                self._facc = []
+                while True:
+                    try:
+                        self._facc.append(pickle.load(f))
+                    except EOFError:
+                        break
+                f.close()
+                self._facc = np.array(self._facc)
+            else:
+                self._facc = None
+        
+        return self._facc
+            
+    @property
+    def blob_names(self):
+        if not hasattr(self, '_blob_names'):
+            if os.path.exists('%s.binfo.pkl' % self.prefix):
+                f = open('%s.binfo.pkl' % self.prefix, 'rb')
+                self._blob_names, self._blob_redshifts = \
+                    map(list, pickle.load(f))
+                f.close()
+                
+        return self._blob_names
+    
+    @property
+    def blob_redshifts(self):
+        if not hasattr(self, '_blob_redshifts'):
+            names = self.blob_names
+        
+        return self._blob_redshifts
+
+    @property
+    def blobs(self):
+        if not hasattr(self, '_blobs'):
+            if os.path.exists('%s.blobs.pkl' % self.prefix):
+                
+                try:
+                    if rank == 0:
+                        print "Loading %s.blobs.pkl..." % self.prefix
+                    
+                    blobs = read_pickle_file('%s.blobs.pkl' % self.prefix)
+                        
+                    self._mask = np.zeros_like(blobs)    
+                    self._mask[np.isinf(blobs)] = 1
+                    self._mask[np.isnan(blobs)] = 1
+                    self._blobs = np.ma.masked_array(blobs, mask=self._mask)
+                except:
+                    if rank == 0:
+                        print "WARNING: Error loading blobs."    
+            
+            else:
+                self._blobs = None            
+                
+        return self._blobs        
+           
+    @property
+    def Nd(self):
+        if not hasattr(self, '_Nd'):
+            try:
+                self._Nd = int(self.chain.shape[-1])       
+            except TypeError:
+                self._Nd = None
+        
+        return self._Nd
+                
+    @property
+    def chain(self):
+        # Read MCMC chain
+        if not hasattr(self, '_chain'):
+            if os.path.exists('%s.chain.pkl' % self.prefix):
+                if rank == 0:
+                    print "Loading %s.chain.pkl..." % self.prefix
+                    
+                t1 = time.time()
+                self._chain = read_pickled_chain('%s.chain.pkl' % self.prefix)
+                t2 = time.time()
+                
+                if rank == 0:
+                    print "Loaded %s.chain.pkl in %.2g seconds." \
+                        % (self.prefix, t2-t1)
+            else:
+                self._chain = None
+            
+            # Figure out if this is an MCMC run or a model grid
+            self._is_mcmc = True              
+                
+        return self._chain        
+    
+    @property
+    def logL(self):
+        if not hasattr(self, '_logL'):            
+            if os.path.exists('%s.logL.pkl' % prefix):
+                self._logL = read_pickled_logL('%s.logL.pkl' % prefix)        
+            else:
+                self._logL = None
+        
+        return self._logL
+    @property
+    def betas(self):
+        if not hasattr(self, '_betas'):
+            if os.path.exists('%s.betas.pkl' % self.prefix):
+                self._betas = read_pickled_logL('%s.betas.pkl' % self.prefix)
+            else:
+                self._betas = None
+        
+        return self._betas
+                
+    @property
+    def fails(self):
+        if not hasattr(self, '_fails'):
+            if os.path.exists('%s.fails.pkl' % self.prefix):
+                i = 0
+                self._fails = []
+                while os.path.exists('%s.fail_%s.pkl' % (self.prefix, str(i).zfill(3))):
+                
+                    data = read_pickled_dict('%s.fail_%s.pkl' % (prefix, str(i).zfill(3)))
+                    self._fails.extend(data)                    
+                    i += 1
+                    
+            else:
+                self._fails = None
+            
+        return self._fails
                 
     @property
     def Npops(self):
@@ -606,8 +709,8 @@ class ModelSet(object):
         if hasattr(self, '_derived_blobs'):
             return self._derived_blobs
 
-        if not hasattr(self, 'blobs'):
-            return   
+        #if self.blobs is None:
+        #    return   
 
         # Just a dummy class
         pf = ModelSubSet()
@@ -819,15 +922,17 @@ class ModelSet(object):
         else:
             scat = ax.scatter(xdat, ydat, **kwargs)
 
-        if take_log[0]:
-            ax.set_xlabel(logify_str(labels[self.get_par_prefix(x)]))
-        else:
-            ax.set_xlabel(labels[self.get_par_prefix(x)])
+        ax.set_xlabel(make_label(x, take_log=take_log[0]))
+        ax.set_ylabel(make_label(y, take_log=take_log[1]))
+        #if take_log[0]:
+        #    ax.set_xlabel(logify_str(labels[self.get_par_prefix(x)]))
+        #else:
+        #    ax.set_xlabel(labels[self.get_par_prefix(x)])
 
-        if take_log[1]: 
-            ax.set_ylabel(logify_str(labels[self.get_par_prefix(y)]))
-        else:
-            ax.set_ylabel(labels[self.get_par_prefix(y)])
+        #if take_log[1]: 
+        #    ax.set_ylabel(logify_str(labels[self.get_par_prefix(y)]))
+        #else:
+        #    ax.set_ylabel(labels[self.get_par_prefix(y)])
                             
         if c is not None:
             cb = pl.colorbar(scat)
@@ -1277,7 +1382,7 @@ class ModelSet(object):
             if par in self.parameters:
                 j = self.parameters.index(par)
                 is_log.append(self.is_log[j])
-                val = self.chain[skip:,j]
+                val = self.chain[skip:,j].copy()
                 
                 if self.is_log[j]:
                     val += np.log10(multiplier[k])
@@ -1290,7 +1395,7 @@ class ModelSet(object):
                     to_hist.append(val)
             
             else:
-                val = self.extract_blob(par, z[k])[skip:]
+                val = self.extract_blob(par, z[k])[skip:].copy()
                 
                 val *= multiplier[k]
 
@@ -1547,7 +1652,7 @@ class ModelSet(object):
         else:
             cblab = c 
             
-        cb.set_label(logify_str(cblab))    
+        cb.set_label(logify_str(cblab))
             
         cb.update_ticks()
             
@@ -1559,7 +1664,7 @@ class ModelSet(object):
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
         skim=1, top=None, oned=True, filled=True, box=None, rotate_x=False, 
-        labels=None, add_cov=False, **kwargs):
+        labels=None, add_cov=False, label_panels='upper right', **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
 
@@ -1612,8 +1717,10 @@ class ModelSet(object):
             nu=[0.68, 0.95])
         rotate_x : bool
             Rotate xtick labels 90 degrees.
-        add_cov : bool
+        add_cov : bool, list
             Overplot 1-sigma contours, computed using the covariance matrix.
+            If it's a list, will assume it has [mu, cov] (i.e., not necessarily
+            the extracted covariance matrix but the one used in the fit).
         
         Returns
         -------
@@ -1671,8 +1778,20 @@ class ModelSet(object):
         had_mp = True
         if mp is None:
             had_mp = False
-            mp = MultiPanel(dims=[Nd]*2, padding=padding, diagonal='lower',
+            
+            if 'diagonal' not in kwargs:
+                kw['diagonal'] = 'lower'
+            if 'dims' not in kwargs:    
+                kw['dims'] = [Nd] * 2
+            if 'keep_diagonal' not in kwargs:    
+                kw['keep_diagonal'] = True
+            else:
+                oned = False
+
+            mp = MultiPanel(padding=padding,
                 panel_size=panel_size, fig=fig, top=top, **kw)
+
+            del kw['diagonal'], kw['dims'], kw['keep_diagonal']
 
         # Loop over parameters
         for i, p1 in enumerate(pars[-1::-1]):
@@ -1681,24 +1800,27 @@ class ModelSet(object):
                 # Row number is i
                 # Column number is self.Nd-j-1
 
-                k = mp.axis_number(i, j)
+                if mp.diagonal == 'upper':
+                    k = mp.axis_number(mp.N - i, mp.N - j)
+                else:    
+                    k = mp.axis_number(i, j)
 
                 if k is None:
                     continue
-                
+
                 if mp.grid[k] is None:
                     continue
-                    
+
                 # Input values (optional)
                 if inputs:
-                        
+
                     if type(inputs) is list:
                         val = inputs[-1::-1][i]
                     elif p1 in inputs:
                         val = inputs[p1]
                     else:
                         val = None
-                                                
+
                     if val is None:
                         yin = None
                     elif is_log[i]:
@@ -1728,7 +1850,7 @@ class ModelSet(object):
                     xin = None
 
                 col, row = mp.axis_position(k)    
-                                                                                
+    
                 # 1-D PDFs on the diagonal    
                 if k in mp.diag and oned:
 
@@ -1739,19 +1861,23 @@ class ModelSet(object):
                         labels=labels, **kw)
 
                     if add_cov:
-                        self._PosteriorIdealized(pars=p1, ax=mp.grid[k], 
-                            z=z[-1::-1][i])
+                        if type(add_cov) is list:
+                            self._PosteriorIdealized(ax=mp.grid[k], 
+                                mu=add_cov[k], cov=add_cov[k])                            
+                        else:    
+                            self._PosteriorIdealized(pars=p1, ax=mp.grid[k], 
+                                z=z[-1::-1][i])
 
                     if col != 0:
                         mp.grid[k].set_ylabel('')
                     if row != 0:
                         mp.grid[k].set_xlabel('')
-                    
+
                     if show_errors:
                         mu, err = self.get_1d_error(p1)
                                                  
-                        mp.grid[k].set_title(err_str(labels[p1], mu, err, 
-                            self.is_log[i])) 
+                        mp.grid[k].set_title(err_str(p1, mu, err, 
+                            self.is_log[i], labels), va='bottom') 
                      
                     if not inputs:
                         continue
@@ -1774,10 +1900,16 @@ class ModelSet(object):
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, 
                     labels=labels, skip=skip, **kw)
-                
+
                 if add_cov:
-                    self._PosteriorIdealized(pars=[p2, p1], ax=mp.grid[k], z=red)
-                
+                    if type(add_cov) is list:
+                        pass
+                        self._PosteriorIdealized(ax=mp.grid[k], 
+                            mu=add_cov[k], cov=add_cov[k])
+                    else:
+                        self._PosteriorIdealized(pars=[p2, p1], 
+                            ax=mp.grid[k], z=red)
+
                 if row != 0:
                     mp.grid[k].set_xlabel('')
                 if col != 0:
@@ -1786,22 +1918,51 @@ class ModelSet(object):
                 # Input values
                 if not inputs:
                     continue
-                    
+
                 if xin is not None:
-                    mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k', 
+                    mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k',
                         ls=':')
                 if yin is not None:
-                    mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k', 
+                    mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k',
                         ls=':')
 
         if oned:
             mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
         
         mp.fix_ticks(oned=oned, N=ticks, rotate_x=rotate_x)
-
+        
         if not had_mp:
             mp.rescale_axes(tighten_up=tighten_up)
     
+        if label_panels is not None and (not had_mp):
+            letters = list(string.ascii_lowercase)
+            letters.extend([let*2 for let in list(string.ascii_lowercase)])
+
+            ct = 0
+            for ax in mp.grid:
+                if ax is None:
+                    continue
+
+                if label_panels == 'upper left':
+                    ax.annotate('(%s)' % letters[ct], (0.05, 0.95),
+                        xycoords='axes fraction', ha='left', va='top')
+                elif label_panels == 'upper right':
+                    ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
+                        xycoords='axes fraction', ha='right', va='top')
+                elif label_panels == 'upper center':
+                    ax.annotate('(%s)' % letters[ct], (0.5, 0.95),
+                        xycoords='axes fraction', ha='center', va='top')
+                elif label_panels == 'lower right':
+                    ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
+                        xycoords='axes fraction', ha='right', va='top')                
+                else:
+                    print "WARNING: Uncrecognized label_panels option."
+                    break
+
+                ct += 1    
+
+            pl.draw()
+
         return mp
         
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
@@ -1907,6 +2068,7 @@ class ModelSet(object):
             ax.set_xlabel(r'$\nu \ (\mathrm{MHz})$')
         else:
             ax.set_xlabel(r'$z$')
+            
         ax.set_ylabel(ylabel)
         pl.draw()
         
@@ -2192,55 +2354,60 @@ class ModelSet(object):
         Make nice axis labels.
         """
         
+        if type(take_log) == bool:
+            take_log = [take_log] * len(pars)
+
+        # [optionally] modify default labels
         if labels is None:
             labels = default_labels
         else:
             labels_tmp = default_labels.copy()
             labels_tmp.update(labels)
             labels = labels_tmp
-        
+
         p = []
         sup = []
         for par in pars:
-            
+
             if type(par) is int:
                 sup.append(None)
                 p.append(par)
                 continue
-                
+
             # If we want special labels for population specific parameters
-            if par in labels:
-                sup.append(None)
-                p.append(par)
-                continue    
-                
-            m = re.search(r"\{([0-9])\}", par)
-            
-            if m is None:
-                sup.append(None)
-                p.append(par)
-                continue
-            
-            # Split parameter prefix from population ID in braces
-            p.append(par.split(m.group(0))[0])
-            sup.append(int(m.group(1)))
+            #if par in labels:
+            sup.append(None)
+            p.append(par)
+            continue    
+
+            #p.append(par)
+            #
+            #m = re.search(r"\{([0-9])\}", par)
+            #
+            #if m is None:
+            #    sup.append(None)
+            #    p.append(par)
+            #    continue
+            #
+            ## Split parameter prefix from population ID in braces
+            #p.append(par.split(m.group(0))[0])
+            #sup.append(int(m.group(1)))
         
         del pars
         pars = p
     
-        if type(take_log) == bool:
-            take_log = [take_log] * len(pars)
-    
-        if pars[0] in labels:
-            if is_log[0] or take_log[0]:
-                ax.set_xlabel(logify_str(labels[pars[0]]))
-            else:
-                ax.set_xlabel(labels[pars[0]])
+        #if pars[0] in labels:
+        log_it = is_log[0] or take_log[0]
+        ax.set_xlabel(make_label(pars[0], log_it, labels))
+            #if is_log[0] or take_log[0]:
+            #    ax.set_xlabel(logify_str(labels[pars[0]]))
+            #else:
+            #    ax.set_xlabel(labels[pars[0]])
                     
-        elif type(pars[0]) == int:
-            ax.set_xlabel(def_par_labels(pars[0]))
-        else:
-            ax.set_xlabel(self.mathify_str(pars[0]))
+        #elif type(pars[0]) == int:
+        #    ax.set_xlabel(def_par_labels(pars[0]))
+        #else:
+        #    ax.set_xlabel(make_label(pars[0]))
     
         if len(pars) == 1:
             ax.set_ylabel('PDF')
@@ -2248,20 +2415,19 @@ class ModelSet(object):
             pl.draw()
             return
     
-        if pars[1] in labels:
-            if is_log[1] or take_log[1]:
-                ax.set_ylabel(logify_str(labels[pars[1]]))
-            else:
-                ax.set_ylabel(labels[pars[1]])
-        elif type(pars[1]) == int:
-            ax.set_ylabel(def_par_labels(pars[1]))
-        else:
-            ax.set_ylabel(self.mathify_str(pars[1]))
+        #if pars[1] in labels:
+        log_it = is_log[1] or take_log[1]
+        ax.set_ylabel(make_label(pars[1], log_it, labels))
+            #if is_log[1] or take_log[1]:
+            #    ax.set_ylabel(logify_str(labels[pars[1]]))
+            #else:
+            #    ax.set_ylabel(labels[pars[1]])
+        #elif type(pars[1]) == int:
+        #    ax.set_ylabel(def_par_labels(pars[1]))
+        #else:
+        #    ax.set_ylabel(mathify_str(pars[1]))
         
         pl.draw()
-        
-    def mathify_str(self, s):
-        return r'$%s$' % s    
         
     def confidence_regions(self, L, nu=[0.95, 0.68]):
         """

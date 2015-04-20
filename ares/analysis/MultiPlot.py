@@ -34,6 +34,9 @@ defs = \
  'bottom':None, 
  'top':None, 
  'preserve_margins':True,
+ 'keep_diagonal': True,
+ 'shift_x': 0.0,
+ 'shift_y': 0.0,
 }
 
 class MultiPanel:
@@ -75,46 +78,66 @@ class MultiPanel:
             bottom = pl.rcParams['figure.subplot.bottom']
         if top is None:
             top = pl.rcParams['figure.subplot.top']
-
+            
         self.square = dims[0] == dims[1]
         
         if (diagonal is not None) and not self.square:
             raise ValueError('Must have square matrix to use diagonal=True')
-        
+
         self.dims = dims
         self.J, self.K = dims
         self.padding = padding
         
+        # Size of an individual panel (in inches)
         self.pane_size = np.array(figsize) * np.array([right-left, top-bottom])
         self.pane_size *= np.array(panel_size)
-        
+
+        # Now, figure out the size of the entire figure (in inches)
         self.panel_size = np.zeros(2)
+        
+        # After these two lines, self.panel_size is equal to the size of the
+        # panel-filled area of the window (in inches)
         self.panel_size[0] = self.pane_size[0] * self.K + padding[0] * (self.K - 1)
         self.panel_size[1] = self.pane_size[1] * self.J + padding[1] * (self.J - 1)     
+
+        # Add empty area above/below and left/right of panel-filled area
         self.panel_size[0] += figsize[0] * (left + (1. - right))
-        self.panel_size[1] += figsize[1] * (bottom + (1. - top))   
-                                                                
+        self.panel_size[1] += figsize[1] * (bottom + (1. - top))
+
+        self.panel_size_rel = self.pane_size / self.panel_size
+
         self.diagonal = diagonal
+        self.keep_diagonal = keep_diagonal
         self.share_x = self.padding[1] == 0
         self.share_y = self.padding[0] == 0        
         self.share_all = self.share_x and self.share_y
-            
-        # Create figure        
-        self.fig = pl.figure(fig, self.panel_size)
 
-        # Adjust padding
-        if preserve_margins:
-            l = left * figsize[0] / self.panel_size[0]
-            r = (left * figsize[0] + self.K * self.pane_size[0]) \
-                / self.panel_size[0]
-            b = bottom * figsize[1] / self.panel_size[1]
-            t = (bottom * figsize[1] + self.J * self.pane_size[1]) \
-                / self.panel_size[1]
+        self.dx = shift_x
+        self.dy = shift_y
+
+        # Create figure
+        if type(fig) is not int:
+            self.fig = fig
+            new_fig = False
+            l, r = fig.subplotpars.left, fig.subplotpars.right
+            b, t = fig.subplotpars.bottom, fig.subplotpars.top
         else:
-            l, r, b, t = left, right, bottom, top
-        
-        self.fig.subplots_adjust(left=l, right=r, bottom=b, top=t, 
-            wspace=self.padding[0], hspace=self.padding[1])
+            self.fig = pl.figure(fig, self.panel_size)
+            new_fig = True
+
+            # Adjust padding
+            if preserve_margins:
+                l = left * figsize[0] / self.panel_size[0]
+                r = (left * figsize[0] + self.K * self.pane_size[0]) \
+                    / self.panel_size[0]
+                b = bottom * figsize[1] / self.panel_size[1]
+                t = (bottom * figsize[1] + self.J * self.pane_size[1]) \
+                    / self.panel_size[1]
+            else:
+                l, r, b, t = left, right, bottom, top
+            
+            self.fig.subplots_adjust(left=l, right=r, bottom=b, top=t, 
+                wspace=self.padding[0], hspace=self.padding[1])
         
         # Important attributes for identifying individual panels
         self.N = int(np.prod(self.dims))
@@ -123,8 +146,8 @@ class MultiPanel:
         self.elements = np.array(self.elements)
         
         # Dimensions of everything (in fractional units)
-        self.window = {'left': l, 'right': r, 'top': t, 
-            'bottom': b, 'pane': ((r-l) / float(dims[0]), (t-b) / float(dims[1]))}
+        #self.window = {'left': l, 'right': r, 'top': t, 
+        #    'bottom': b, 'pane': ((r-l) / float(dims[0]), (t-b) / float(dims[1]))}
         
         self.xaxes = self.elements[-1]
         self.yaxes = zip(*self.elements)[0]                  
@@ -155,7 +178,7 @@ class MultiPanel:
                 self.right.append(i)       
 
         # Create subplots
-        l = self.elements.flatten()
+        e_fl = self.elements.flatten()
         self.grid = [None for i in xrange(self.N)]
         for i in xrange(self.N):                
             j, k = self.axis_position(i)
@@ -171,8 +194,25 @@ class MultiPanel:
             #    continue
             #if diagonal == 'upper' and j == k and (j, k) != (self.J-1, self.K-1):
             #    continue
+            
+            if self.square:
+                if i in self.diag and not keep_diagonal:
+                    continue
+            
+            if new_fig:
+                self.grid[i] = AxisConstructor(self.fig, self.J, self.K, e_fl[i]+1)
+            else:
 
-            self.grid[i] = AxisConstructor(self.fig, self.J, self.K, l[i]+1)
+                # col, row = j, k
+
+                lef = l + j * self.panel_size_rel[0] \
+                    + self.padding[0] + self.dx
+                bot = b + k * self.panel_size_rel[1] \
+                    + self.padding[1] + self.dy
+
+                rect = [lef, bot, self.panel_size_rel[0], self.panel_size_rel[1]]
+
+                self.grid[i] = self.fig.add_axes(rect)
             
     def axis_position(self, i):
         """
@@ -337,6 +377,9 @@ class MultiPanel:
                     
             if self.axis_position(i)[j] == self.dims[j]:
                 pass
+            
+            if self.grid[i] is None:
+                continue
             
             # Retrieve current ticks, tick-spacings, and axis limits
             ticks = eval("list(self.grid[%i].%s())" % (i, get_ticks))

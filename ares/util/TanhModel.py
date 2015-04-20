@@ -13,6 +13,7 @@ Description:
 import time
 import numpy as np
 from ..util import ParameterFile
+from scipy.misc import derivative
 from ..analysis.Global21cm import Global21cm
 from ..util.ReadData import load_inits
 from ..physics import Hydrogen, Cosmology
@@ -42,21 +43,6 @@ def shift_z(z, nu_bias):
 
     return freq_to_z(nu)
     
-tanh_gjah_to_ares = \
-{
- 'J_0/J_21': 'tanh_J0',
- 'dz_J': 'tanh_Jdz',
- 'z_{0,j}': 'tanh_Jz0',
- 'T_0': 'tanh_T0',
- 'dz_T': 'tanh_Tdz',
- 'z_{0,T}': 'tanh_Tz0',
- 'x_0': 'tanh_x0',
- 'dz_x': 'tanh_xdz',
- 'z_{0,x}': 'tanh_xz0',
- 'b_\\nu': 'tanh_bias_freq',
- 'b_T': 'tanh_bias_temp',
-}    
-
 class TanhModel:
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -88,6 +74,9 @@ class TanhModel:
             return self.cosm.TCMB(self.cosm.zdec) * (1. + z)**2 \
                 / (1. + self.cosm.zdec)**2
                 
+    def dTgas_dz(self, z):
+        return derivative(self.Tgas_adiabatic, x0=z)
+                
     def electron_density(self, z):
         if self.pf['load_ics']:
             return self.CR_ne(z)
@@ -105,16 +94,17 @@ class TanhModel:
         """
         Compute heating rate coefficient.
         """
+        
         Tk = self.temperature(z, Tref, zref, dz)
 
         dtdz = self.cosm.dtdz(z)
     
         dTkdz = 0.5 * Tref * (1. - np.tanh((zref - z) / dz)**2) / dz
         dTkdt = dTkdz / dtdz
-
-        n = 1.#self.cosm.nH(z)
         
-        return 1.5 * n * k_B * (dTkdt + 2. * self.cosm.HubbleParameter(z) * Tk)
+        #dTgas_dt = self.dTgas_dz(z) / dtdz
+        
+        return 1.5 * k_B * dTkdt
 
     def ionization_rate(self, z, xref, zref, dz, C=1.):
         """

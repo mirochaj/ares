@@ -73,13 +73,6 @@ gauss1d = lambda x, mu, sigma: np.exp(-0.5 * (x - mu)**2 / sigma**2)
 
 def_kwargs = {'track_extrema': 1, 'verbose': False, 'progress_bar': False}
 
-default_errors = \
-{
- 'B': np.diag([0.1, 1.])**2,
- 'C': np.diag([0.1, 1.])**2,
- 'D': np.diag([0.1, 1.])**2,
-}
-
 def _str_to_val(p, par, pvals, pars):
     """
     Convert string to parameter value.
@@ -447,11 +440,8 @@ class ModelFit(object):
     @property
     def error(self):
         if not hasattr(self, '_error'):
-            self._error = []
-            for key in list('BCD'):
-                self._error.extend(np.sqrt(np.diag(default_errors[key])))
-            self._error = np.array(self._error)
-
+            raise AttributeError('Must run `set_error`!')
+        
         return self._error
         
     @property
@@ -543,7 +533,7 @@ class ModelFit(object):
 
         Sets
         ----
-        Attribute "errors".
+        Attribute `_error`.
 
         """
 
@@ -553,10 +543,10 @@ class ModelFit(object):
             err = []
             for val in error1d:
                 err.append(get_nu(val, nu_in=nu, nu_out=0.68))
-            
+
             self._error = np.array(err)
-        
-        elif cov is not None:    
+
+        elif cov is not None:
             self._error = cov
         
     @property
@@ -721,16 +711,16 @@ class ModelFit(object):
             Frequencies corresponding to 'mu' values if fit_signal=True.
 
         """
-        
+
         self._check_for_conflicts()
-        
+
         self.prefix = prefix
-        
+
         if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
             if not restart:
                 raise IOError('%s exists! Remove manually, set clobber=True, or set restart=True to append.' 
                     % prefix)
-        
+
         if not os.path.exists('%s.chain.pkl' % prefix) and restart:
             raise IOError("This can't be a restart, %s*.pkl not found." % prefix)
 

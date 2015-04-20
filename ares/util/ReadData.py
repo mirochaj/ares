@@ -11,7 +11,7 @@ Description:
 """
 
 import numpy as np
-import os, pickle, re
+import os, pickle, cPickle, re
 from pickle import UnpicklingError
 
 try:
@@ -27,6 +27,30 @@ except ImportError:
     rank = 0
     
 ARES = os.environ.get('ARES')
+
+tanh_gjah_to_ares = \
+{
+ 'J_0/J_21': 'tanh_J0',
+ 'dz_J': 'tanh_Jdz',
+ 'z_{0,j}': 'tanh_Jz0',
+ 'T_0': 'tanh_T0',
+ 'dz_T': 'tanh_Tdz',
+ 'z_{0,T}': 'tanh_Tz0',
+ 'x_0': 'tanh_x0',
+ 'dz_x': 'tanh_xdz',
+ 'z_{0,x}': 'tanh_xz0',
+ 'b_\\nu': 'tanh_bias_freq',
+ 'b_T': 'tanh_bias_temp',
+}    
+
+fcoll_gjah_to_ares = \
+{
+'\\log_{10}\\xi_\\mathrm{LW}': 'xi_LW',
+'\\log_{10}\\xi_\\mathrm{XR}': 'xi_XR',
+'\\log_{10}xi_\\mathrm{UV}': 'xi_UV',
+'\\log_{10}T_\\mathrm{min}': 'Tmin',
+}
+
     
 def _load_hdf5(fn):    
     inits = {}

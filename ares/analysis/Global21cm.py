@@ -96,7 +96,7 @@ class Global21cm:
                     for i, col in enumerate(cols):
                         self.data[col] = data[:,i]
                     f.close()
-                              
+
             if pf is None:
                 self.pf = SetAllDefaults()
             elif type(pf) is dict:
@@ -108,36 +108,36 @@ class Global21cm:
                 except:
                     self.pf = SetAllDefaults()
                 f.close()
-            
+
             self.cosm = Cosmology()
             self.hydr = Hydrogen()
 
         self.kwargs = kwargs    
-        
+
         # Derived quantities
         self._dq = DQ(self.data, self.pf)
         self.data = self._dq.data.copy()
-        
+
         # For convenience - quantities in ascending order (in redshift)
         if self.data:
-            
+
             data_reorder = {}
             for key in self.data.keys():
-                data_reorder[key] = np.array(self.data[key])[-1::-1]   
-                
+                data_reorder[key] = np.array(self.data[key])[-1::-1]
+
             # Re-order
             if np.all(np.diff(self.data['z']) > 0):
                 self.data_asc = self.data.copy()
                 self.data = data_reorder
             else:
                 self.data_asc = data_reorder
-                
+
         self.interp = {}
-        
+
         if hasattr(self, 'pf'):
             self._track = TurningPoints(**self.pf)
         else:
-            self._track = TurningPoints()     
+            self._track = TurningPoints()
                 
     @property
     def dTbdz(self):

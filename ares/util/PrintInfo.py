@@ -11,7 +11,7 @@ Description:
 """
 
 import numpy as np
-import types, os, textwrap
+import types, os, textwrap, glob, re
 from .NormalizeSED import emission_bands
 from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz
 
@@ -676,7 +676,7 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line("nwalkers    : %i" % fit.nwalkers)
     print line("burn-in     : %i" % burn)
     print line("steps       : %i" % steps)
-    print line("outputs     : %s*.pkl" % fit.prefix)
+    print line("outputs     : %s.*.pkl" % fit.prefix)
     
     print line('-'*twidth)       
     print line('Inline Analysis')     
@@ -706,10 +706,52 @@ def print_model_grid():
     print line('Input Model')     
     print line('-'*twidth)
 
-def print_constraint():
-    pass
+def print_model_set(mset):
+    header = 'Analysis: Model Set'
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, header.center(twidth), post)
+    print "#"*width
 
+    print line('-'*twidth)
+    print line('Basic Information')     
+    print line('-'*twidth)
 
+    path = mset.prefix.split('/')
+
+    print line("path        : %s" % path[0])
+    if len(path) == 2:
+        print line("prefix      : %s" % path[1])
+    else:    
+        print line("prefix      : */%s" % path[-1])
+
+    print line("N-d         : %i" % len(mset.parameters))
+    print line('-'*twidth)
+    for i, par in enumerate(mset.parameters):
+        print line("param    #%s: %s" % (str(i).zfill(2), par))
+
+    print line('-'*twidth)
+    print line('Data Available (filename = prefix + .suffix*.pkl)')     
+    print line('-'*twidth)
+
+    suffixes = []
+    for fn in glob.glob('%s*' % mset.prefix):
+
+        if not re.search('.pkl', fn):
+            continue
+
+        suffix = fn.split('.')[1]
+
+        if suffix not in suffixes:
+            suffixes.append(suffix)
+
+    for i, suffix in enumerate(suffixes):
+        print line("suffix   #%s: %s" % (str(i).zfill(2), suffix))
+        
+    print line('-'*twidth)
+
+    print "#"*width
+    print ""
+    
 
 
 

@@ -750,9 +750,9 @@ class Global21cm:
                 tmp[key] = np.array(self.history[key])
             else:
                 tmp[key] = self.history[key]
-            
+
         self.history = tmp
-            
+
         from ..analysis.InlineAnalysis import InlineAnalysis
         anl = InlineAnalysis(self)
         anl.run_inline_analysis()
