@@ -632,7 +632,7 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
 
             if val == 0:
                 if fit.measurement_units[0] == 'MHz':
-                    rows.append('nu_%s' % tp)
+                    rows.append('nu_%s (MHz)' % tp)
                 else:
                     rows.append('z_%s' % tp)
             else:
@@ -747,8 +747,6 @@ def print_model_set(mset):
     for i, suffix in enumerate(suffixes):
         print line("suffix   #%s: %s" % (str(i).zfill(2), suffix))
         
-    print line('-'*twidth)
-
     print "#"*width
     print ""
     

@@ -212,7 +212,7 @@ class Global21cmSet(ModelSet):
         return prefix, num
         
     def ParameterConstraints(self, pars=None, mp=None, fig=1, bins=20, 
-        ares_only=True, color='k'):
+        ares_only=True, color='k', **kwargs):
         """
         Make a triangle plot of constraints on model parameters.
     
@@ -243,7 +243,7 @@ class Global21cmSet(ModelSet):
                 
         mp = self.TrianglePlot(pars, color_by_like=True, inputs=self.inputs, 
             bins=bins, linestyles=['--', '-'], filled=False, color=c, colors=c, 
-            mp=mp)
+            mp=mp, **kwargs)
             
         return mp
             

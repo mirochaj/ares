@@ -280,7 +280,7 @@ class loglikelihood:
             sim.run()
             
             tps = sim.turning_points
-        
+                    
         # Timestep weird (happens when xi ~ 1)
         except SystemExit:
             
@@ -288,7 +288,7 @@ class loglikelihood:
             tps = sim.turning_points
                  
         # most likely: no (or too few) turning pts
-        except:                     
+        except ValueError:                     
             # Write to "fail" file
             if not self.burn:
                 f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')

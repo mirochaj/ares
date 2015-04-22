@@ -301,7 +301,9 @@ def PopulationParameters():
     
     # Sets star formation history
     "Tmin": 1e4, 
+    "Tmax": None,
     "Mmin": None,
+    "Mmax": None,
     "fstar": 0.1,
     
     # Scales X-ray emission

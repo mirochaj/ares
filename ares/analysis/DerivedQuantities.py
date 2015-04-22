@@ -10,6 +10,7 @@ Description:
 
 """
 
+import re
 import numpy as np
 from ..physics import Cosmology
 from ..physics.Constants import nu_0_mhz
@@ -80,6 +81,17 @@ def total_gamma(data, sp):
     
     return gamma
     
+def total_sfrd(data):
+    
+    if 'sfrd' in data:
+        return data['sfrd']
+    
+    tot = 0.0
+    for key in data:
+        if re.search('sfrd', key):
+            tot += data[key]
+    
+    return tot
     
 # State quantities
 registry_state_Q = \
@@ -110,6 +122,7 @@ registry_special_Q = \
 {
  'Jx': lambda data: 0.0,
  'Jlw': lambda data: 0.0,
+ 'sfrd': lambda data: total_sfrd(data),
 }
 
 class DerivedQuantities:

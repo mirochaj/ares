@@ -25,6 +25,7 @@ from ..util import labels as default_labels
 from ..util.PrintInfo import print_model_set
 from ..util.ParameterFile import count_populations
 from .DerivedQuantities import DerivedQuantities as DQ
+from .DerivedQuantities import registry_special_Q
 from ..simulations.Global21cm import Global21cm as sG21
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_1D, rebin, correlation_matrix
@@ -157,10 +158,8 @@ class ModelSet(object):
             self.prefix = prefix = data
 
             print_model_set(self)
-        
-            self._is_mcmc = True
-            
-            if not self._is_mcmc:
+                    
+            if not self.is_mcmc:
                 
                 self.grid = ModelGrid(**self.base_kwargs)
                 
@@ -232,8 +231,6 @@ class ModelSet(object):
                 self._base_kwargs = pickle.load(f)
                 f.close()
                 
-                if rank == 0:
-                    print "Loaded %s.setup.pkl." % self.prefix
             else:
                 self._base_kwargs = None    
             
@@ -247,12 +244,9 @@ class ModelSet(object):
                 f = open('%s.pinfo.pkl' % self.prefix, 'rb')
                 self._parameters, self._is_log = pickle.load(f)
                 f.close()
-                
                 self._parameters = patch_pinfo(self._parameters)
-                    
-            #else:
-            #    self._parameters = range(self.Nd)
-            #    self._is_log = [False] * self.Nd
+            else:
+                self._parameters = self._is_log = None
         
         return self._parameters
         
@@ -262,6 +256,16 @@ class ModelSet(object):
             pars = self.parameters
         
         return self._is_log
+        
+    @property
+    def is_mcmc(self):
+        if not hasattr(self, '_is_mcmc'):
+            if os.path.exists('%s.logL.pkl' % self.prefix):
+                self._is_mcmc = True
+            else:
+                self._is_mcmc = False
+        
+        return self._is_mcmc
         
     @property
     def facc(self):
@@ -308,7 +312,13 @@ class ModelSet(object):
                     if rank == 0:
                         print "Loading %s.blobs.pkl..." % self.prefix
                     
+                    t1 = time.time()
                     blobs = read_pickle_file('%s.blobs.pkl' % self.prefix)
+                    t2 = time.time()    
+                        
+                    if rank == 0:
+                        print "Loaded %s.blobs.pkl in %.2g seconds.\n" \
+                         % (self.prefix, t2 - t1)
                         
                     self._mask = np.zeros_like(blobs)    
                     self._mask[np.isinf(blobs)] = 1
@@ -321,8 +331,8 @@ class ModelSet(object):
             else:
                 self._blobs = None            
                 
-        return self._blobs        
-           
+        return self._blobs
+        
     @property
     def Nd(self):
         if not hasattr(self, '_Nd'):
@@ -332,7 +342,7 @@ class ModelSet(object):
                 self._Nd = None
         
         return self._Nd
-                
+
     @property
     def chain(self):
         # Read MCMC chain
@@ -340,20 +350,21 @@ class ModelSet(object):
             if os.path.exists('%s.chain.pkl' % self.prefix):
                 if rank == 0:
                     print "Loading %s.chain.pkl..." % self.prefix
-                    
+
                 t1 = time.time()
                 self._chain = read_pickled_chain('%s.chain.pkl' % self.prefix)
                 t2 = time.time()
-                
+
                 if rank == 0:
-                    print "Loaded %s.chain.pkl in %.2g seconds." \
+                    print "Loaded %s.chain.pkl in %.2g seconds.\n" \
                         % (self.prefix, t2-t1)
             else:
                 self._chain = None
-            
-            # Figure out if this is an MCMC run or a model grid
-            self._is_mcmc = True              
-                
+
+            if not hasattr(self, '_parameters'):
+                self._parameters = np.arange(self.Nd)
+                self._is_log = [False] * self.Nd
+                       
         return self._chain        
     
     @property
@@ -365,6 +376,11 @@ class ModelSet(object):
                 self._logL = None
         
         return self._logL
+    
+    @logL.setter
+    def logL(self, value):
+        self._logL = value
+        
     @property
     def betas(self):
         if not hasattr(self, '_betas'):
@@ -426,17 +442,6 @@ class ModelSet(object):
     def _load(self, fn):
         if os.path.exists(fn):
             return read_pickle_file(fn)
-    
-    @property
-    def is_mcmc(self):
-        if not hasattr(self, '_is_mcmc'):
-            self._is_mcmc = False
-        
-        return self._is_mcmc
-    
-    @is_mcmc.setter
-    def is_mcmc(self, value):
-        self._is_mcmc = value
     
     @property    
     def blob_redshifts_float(self):
@@ -734,6 +739,9 @@ class ModelSet(object):
                             
             _dq = DQ(data, pf)
             
+            # SFRD
+            _dq.build(**registry_special_Q)
+            
             dqs.append(_dq.derived_quantities.copy())
 
             for key in _dq.derived_quantities:
@@ -824,8 +832,7 @@ class ModelSet(object):
 
         mask = np.isnan(self.logL)
 
-        self.logL[mask] = -np.inf 
-        weights = self.weights
+        self.logL[mask] = -np.inf
 
     def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, 
         take_log=False, multiplier=1., labels=None, **kwargs):
@@ -985,16 +992,6 @@ class ModelSet(object):
         nu, levels = self.confidence_regions(L, nu=nu)
                                                                       
         return nu, levels
-    
-    def link_to_dict(self, link):
-        pf = {}
-        for i, par in enumerate(self.parameters):
-            if self.is_log[i]:
-                pf[par] = 10**link[i]
-            else:
-                pf[par] = link[i]
-        
-        return pf
     
     def get_1d_error(self, par, z=None, bins=20, nu=0.68, take_log=False):
         """

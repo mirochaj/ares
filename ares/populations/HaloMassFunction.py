@@ -128,6 +128,9 @@ class HaloDensity:
         
         self.hmf_analytic = self.pf['hmf_analytic']
         
+        if self.pf['Tmax'] is not None:
+            assert self.pf['Tmax'] > self.pf['Tmin'], "Tmax must exceed Tmin!"
+        
         # Look for tables in input directory
         if ARES is not None and self.pf['load_hmf']:
             fn = '%s/input/hmf/%s' % (ARES, self.table_prefix())
@@ -157,9 +160,6 @@ class HaloDensity:
             self.dndm = f['dndm'].value
             f.close()
             
-            #if rank == 0 and self.pf['verbose']:
-            #    print 'Loaded %s.' % self.fn
-        
             self.build_2d_spline()
             
         elif re.search('.pkl', self.fn):
@@ -170,10 +170,7 @@ class HaloDensity:
             self.fcoll_spline_2d = pickle.load(f)
             self.dndm = pickle.load(f)
             f.close()
-            
-            #if rank == 0 and self.pf['verbose']:
-            #    print 'Loaded %s.' % self.fn
-            
+
         else:
             raise IOError('Unrecognized format for hmf_table.')    
                 
@@ -240,6 +237,7 @@ class HaloDensity:
             if self.fitting_function == 'PS' and self.hmf_analytic:
                 delta_c = self.MF.delta_c / self.MF.growth
                 self.fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
+                
             else:
                 
                 # Has units of h**4 / cMpc**3 / Msun
@@ -249,7 +247,7 @@ class HaloDensity:
                 # Remember that mgtm and mean_dens have factors of h**2
                 # so we're OK here dimensionally
                 self.fcoll_tab[i] = self.mgtm[i] / self.MF.mean_dens
-       
+                        
             pb.update(i)
             
         pb.finish()
@@ -303,16 +301,22 @@ class HaloDensity:
         
         self.fcoll_spline_2d = RectBivariateSpline(self.z, 
             self.logM, self.fcoll_tab, kx=3, ky=3)
- 
-        #if self.pf['verbose'] and rank == 0:
-        #    print "fcoll(z, logM) 2D spline constructed successfully."
-        
+
     def fcoll(self, z, logMmin):
         """
         Return fraction of mass in halos more massive than 10**logMmin.
         Interpolation in 2D, x = redshift = z, y = logMass.
         """ 
-
+        
+        if self.pf['Mmax'] is not None:
+            return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
+                 - np.squeeze(self.fcoll_spline_2d(z, np.log10(Mmax)))
+        elif self.pf['Tmax'] is not None:
+            logMmax = np.log10(self.VirialMass(self.pf['Tmax'], z, 
+                mu=self.pf['mu']))
+            return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
+                 - np.squeeze(self.fcoll_spline_2d(z, logMmax))             
+         
         return np.squeeze(self.fcoll_spline_2d(z, logMmin))
                  
     def dfcolldz(self, z, logMmin):
@@ -362,7 +366,19 @@ class HaloDensity:
             * ((1. + z) / 10.)**-1.5
                 
     def table_prefix(self):
+        """
+        What should we name this table?
         
+        Convention:
+        hmt_FIT_logM_nM_logMmin_logMmax_z_nz_
+        
+        Read:
+        halo mass function using FIT form of the mass function
+        using nM mass points between logMmin and logMmax
+        using nz redshift points between zmin and zmax
+        
+        
+        """
         try:
             M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
             prefix = 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.fitting_function, 
@@ -374,7 +390,7 @@ class HaloDensity:
                 / self.pf['hmf_dlogM']
             zsize = (self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
                 / self.pf['hmf_dz'] + 1    
-            return 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.fitting_function, 
+            prefix = 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.fitting_function, 
                 logMsize, M1, M2, zsize, z1, z2) 
                 
         return prefix           
