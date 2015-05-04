@@ -353,10 +353,10 @@ class Global21cm:
         
         fig = ax.xaxis.get_figure()
         
-        for ax in fig.axes:
-            if ax.get_xlabel() == '$z$':
-                return
-    
+        #for ax in fig.axes:
+        #    if ax.get_xlabel() == '$z$':
+        #        return
+        
         z = np.arange(10, 110, 10)[-1::-1]
         z_minor= np.arange(15, 80, 5)[-1::-1]
         nu = nu_0_mhz / (1. + z)
@@ -367,7 +367,7 @@ class Global21cm:
         # Add 25, 15 and 12, 8 to redshift labels
         z_labels.insert(-1, '15')
         z_labels.insert(-1, '12')
-        z_labels.extend(['9', '8', '7', '6'])                
+        z_labels.extend(['8', '7', '6'])                
         #z_labels.insert(-5, '25')
         
         z = np.array(map(int, z_labels))
@@ -382,7 +382,7 @@ class Global21cm:
             
         # A bit hack-y
         for i, label in enumerate(z_labels):
-            if label in ['50', '60', '70']:
+            if label in ['40','50', '60', '70']:
                 z_labels[i] = ''
         
             if float(label) > 80:
@@ -531,13 +531,10 @@ class Global21cm:
             z_ax = False
         
         if ax is None:
-            gotax = False
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
-        else:
-            gotax = True
-        
-        if scatter is False:        
+
+        if scatter is False:    
             ax.plot(self.data[xaxis], self.data['dTb'], **kwargs)
         else:
             ax.scatter(self.data[xaxis][-1::-mask], self.data['dTb'][-1::-mask], 

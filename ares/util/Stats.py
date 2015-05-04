@@ -90,7 +90,7 @@ def get_nu(sigma, nu_in, nu_out):
     
     return fmin(to_min, np.sqrt(var), disp=False)[0]
 
-def error_1D(x, y, nu=0.68, two_tailed=True):
+def error_1D(x, y, nu=0.68, limit=None):
     """
     Compute 1-D (possibly asymmetric) errorbar for input PDF.
     
@@ -105,6 +105,7 @@ def error_1D(x, y, nu=0.68, two_tailed=True):
 
     Returns
     -------
+    If tailed is None:
     Tuple containing (maximum likelihood value, (lower errorbar, upper errorbar)).
     
     """
@@ -113,14 +114,21 @@ def error_1D(x, y, nu=0.68, two_tailed=True):
 
     cdf = np.cumsum(y) / float(tot)
 
-    percent = (1. - nu) / 2
-    p1, p2 = percent, 1. - percent
-
-    x1 = np.interp(p1, cdf, x)
-    x2 = np.interp(p2, cdf, x)
-    xML = x[np.argmax(y)]
-
-    return xML, (xML - x1, x2 - xML)
+    if limit is None:
+        percent = (1. - nu) / 2
+        p1, p2 = percent, 1. - percent
+        
+        x1 = np.interp(p1, cdf, x)
+        x2 = np.interp(p2, cdf, x)
+        xML = x[np.argmax(y)]
+        
+        return xML, (xML - x1, x2 - xML)
+    elif limit is 'lower':
+        return np.interp(1. - nu, cdf, x), (None, None)
+    elif limit is 'upper':
+        return np.interp(nu, cdf, x), (None, None)
+    else:
+        raise ValueError('Invalid input value for limit.')
 
 def correlation_matrix(cov):
     """

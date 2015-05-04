@@ -314,6 +314,10 @@ def print_pop(pop):
             if pop.pf['Mmin'] is None:
                 print line("SF          : in halos w/ Tvir >= 10**%g K" \
                     % (round(np.log10(pop.pf['Tmin']), 2)))
+                if pop.pf['Tmax'] is not None:
+                    print line("SF          : in halos w/ Tvir < 10**%g K" \
+                        % (round(np.log10(pop.pf['Tmax']), 2)))
+                        
             else:
                 print line("SF          : in halos w/ M >= 10**%g Msun" \
                     % (round(np.log10(pop.pf['Mmin']), 2)))
@@ -324,7 +328,8 @@ def print_pop(pop):
             #print line("HMF prefix  : %s" % pop.halos.fn[0:j])
             #print line("HMF file    : %s" % pop.halos.fn[j+1:])
             
-            print line("fstar       : %g" % pop.pf['fstar'])
+            if pop.pf['fstar'] is not None:
+                print line("fstar       : %g" % pop.pf['fstar'])
         print line("model       : %i" % pop.model)
 
         if pop.model >= 0:

@@ -160,7 +160,13 @@ class StellarPopulation:
             self._init_pop()
         if rs:
             self._init_rs()       
-        
+    
+    def fcoll_dot(self, z):
+        return self.dfcolldz(z) / self.cosm.dtdz(z)
+    
+    def rho_b_dot(self, z):   
+        return self.cosm.rho_b_z0 * self.fcoll_dot(z)
+
     def SFRD(self, z):
         """
         Compute the comoving star formation rate density (SFRD).
@@ -173,6 +179,8 @@ class StellarPopulation:
         (Tmin) and a star formation efficiency (fstar).
         
         If supplied as a function, the units should be Msun yr**-1 cMpc**-3.
+        
+        If fstar is None, will just return the rate of baryonic collapse.
         
         Parameters
         ----------
@@ -192,10 +200,12 @@ class StellarPopulation:
         # SFRD approximated by some analytic function    
         if self.pf['sfrd'] is not None:
             return self.pf['sfrd'](z) / rhodot_cgs
+               
+        if self.pf['fstar'] is None:
+            return self.rho_b_dot(z)
                            
         # SFRD computed via fcoll parameterization
-        sfrd = self.pf['fstar'] * self.cosm.rho_b_z0 * self.dfcolldz(z) \
-            / self.cosm.dtdz(z)
+        sfrd = self.pf['fstar'] * self.rho_b_dot(z)
                                                
         if sfrd < 0:
             negative_SFRD(z, self.pf['Tmin'], self.pf['fstar'], 
@@ -225,8 +235,8 @@ class StellarPopulation:
                    
         if self.pf['xi_LW'] is not None:
             return self.cLW * self.pf['xi_LW'] * self.SFRD(z) \
-                / self.pf['fstar'] / self.pf['Nlw']
-                    
+                / self.pf['Nlw']
+
         return self.cLW * self.SFRD(z)
     
     def LymanWernerPhotonLuminosityDensity(self, z):
@@ -298,8 +308,7 @@ class StellarPopulation:
         """
         
         if self.pf['xi_UV'] is not None:
-            return self.b_per_g * self.pf['xi_UV'] * self.SFRD(z) \
-                / self.pf['fstar']
+            return self.b_per_g * self.pf['xi_UV'] * self.SFRD(z)
                 
         return self.Nion * self.pf['fesc'] * self.b_per_g * self.SFRD(z)
     
@@ -322,9 +331,8 @@ class StellarPopulation:
             return self.pf['emissivity'](z)
         
         if self.pf['xi_XR'] is not None:
-            return self.cX * self.pf['xi_XR'] * self.SFRD(z) \
-                / self.pf['fstar']
-        
+            return self.cX * self.pf['xi_XR'] * self.SFRD(z)
+
         return self.cX * self.pf['fX'] * self.SFRD(z)
         
     def _XrayEmissivity(self, z, E):

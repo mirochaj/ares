@@ -1,5 +1,12 @@
 Population Parameters
 =====================
+Most often what we're interested in is producing a model for the ionization
+and/or thermal history of the Universe, which requires a model 
+
+
+
+Basic Properties
+----------------
 ``formation_epoch``
     Redshift interval over which sources are "on."
 
@@ -18,7 +25,7 @@ Population Parameters
 ``is_ion_src_igm`` 
     Sources contribute ionization in bulk IGM?
     
-    If ``approx_xrb=True``, this ionization rate a mean X-ray photon energy
+    If ``approx_xrb=True``, this ionization rate assumes a mean X-ray photon energy
     of ``xray_Eavg``, which is 500 eV by default.
 
     Default: ``True``
@@ -48,6 +55,10 @@ Star formation history
     gas that turns into stars.
     
     Default: 0.1
+    
+    .. note :: If you set ``fstar`` to ``None``, the strength of radiation 
+        backgrounds will be determined by the :math:`\xi` parameters, 
+        ``xi_LW``, ``xi_XR``, and ``xi_UV``.
 
 ``sfrd``
     The star formation rate density (SFRD) as a function of redshift. If provided, will override ``Tmin`` and ``Mmin``. For example, a constant (co-moving) SFRD of :math:`1 \ M_{\odot} \ \text{yr}^{-1} \ \text{cMpc}^{-3}` would be ``sfrd=lambda z: 1.0``.
@@ -65,7 +76,9 @@ X-ray background
     Default: :math:`3.4 \times 10^{40}` [:math:`\text{erg} \ \text{s}^{-1} \ (M_{\odot} \ \mathrm{yr}^{-1})^{-1}`]
     
 ``fX``
-    Constant multiplicative factor applied to ``cX``, which is typically chosen to match observations of nearby star-forming galaxies, i.e., ``fX`` parameterizes ignorance in redshift evolution of ``cX``.
+    Constant multiplicative factor applied to ``cX``, which is typically 
+    chosen to match observations of nearby star-forming galaxies, i.e., 
+    ``fX`` parameterizes ignorance in redshift evolution of ``cX``.
     
     Default: 0.2
 
@@ -75,7 +88,12 @@ Radiation at energies below the Lyman Limit
 ``Nlw``
     Number of photons emitted in the Lyman-Werner band per baryon of star formation.
     
+    If ``fstar`` is *not* ``None``, the co-moving LW luminosity density is given by :math:`f_{\ast} N_{\mathrm{LW}} \text{SFRD}`.
+    
     Default: 9690
+    
+``xi_LW``
+    Alternative to using ``Nlw`` -- which is multiplied by the SFRD and thus ``fstar`` -- which 
     
 Ultraviolet emission
 --------------------
@@ -89,26 +107,7 @@ Ultraviolet emission
     
     Default: 0.1
 
-Not done yet
-------------
 
-::
-
-    "source_type": 'star',
-    "source_kwargs": None,
-    
-    "model": -1, # Only BHs use this at this point
-    
-    "zoff": 5.0,
-    
-    # Bypass fcoll prescriptions, use parameterizations
-    "emissivity": None,
-    "epsilon_X": None,
-    "Gamma_HI": None,
-    "gamma_HI": None,
-    
-    "xray_Eavg": 500.,
-    "uv_Eavg": 30.,
                 
 
     

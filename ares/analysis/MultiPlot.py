@@ -458,6 +458,20 @@ class MultiPanel:
                 
         pl.draw()
 
+    def fix_axes_labels(self):
+        for i in xrange(self.N):
+            
+            if self.grid[i] is None:
+                continue
+            
+            # (column, row)
+            j, k = self.axis_position(i)
+
+            if j > 0:
+                self.grid[i].set_ylabel('')
+            if k > 0:
+                self.grid[i].set_xlabel('')
+
     def fix_ticks(self, noxticks=False, noyticks=False, style=None, N=None,
         rotate_x=False, xticklabels=None, yticklabels=None, oned=True):
         """
@@ -470,6 +484,8 @@ class MultiPanel:
         """
         
         pl.draw()
+        
+        self.fix_axes_labels()
         
         self.fix_axes_ticks(axis='x', N=N, rotate_x=rotate_x)
         self.fix_axes_ticks(axis='y', N=N)

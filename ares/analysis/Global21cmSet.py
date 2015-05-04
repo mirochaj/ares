@@ -42,6 +42,29 @@ class Global21cmSet(ModelSet):
 
             self._inputs.update(tmp)
     
+    def _patch_kwargs(self, **kwargs):
+                
+        # Patch up kwargs
+        if 'colors' not in kwargs:
+            if 'filled' not in kwargs:
+                kwargs['colors'] = ['g', 'b']
+            else:
+                if kwargs['filled']:
+                    kwargs['colors'] = ['g', 'b']
+                else:
+                    if 'colors' not in kwargs:
+                        kwargs['colors'] = 'k'
+        
+        if 'color' not in kwargs:
+            kwargs['color'] = kwargs['colors'][0]
+                        
+        if 'linestyles' not in kwargs:
+            if 'filled' in kwargs:
+                if not kwargs['filled']:
+                    kwargs['linestyles'] = ['--', '-']
+                                                
+        return kwargs
+    
     def TurningPoint(self, pt='C', **kwargs):
         """
         Make a triangle plot of constraints on the turning points.
@@ -59,9 +82,9 @@ class Global21cmSet(ModelSet):
         elif pt == 'D':
             return self._AnalyzeTurningPointD(**kwargs)
 
-    def _AnalyzeTurningPointC(self, mp=None, fig=1, nu=[0.68,0.95], bins=20, 
-        color='k', show_analytic=False, annotate=False, multiplier=None,
-        inset=False):   
+    def _AnalyzeTurningPointC(self, mp=None, fig=1, nu=[0.68,0.95], 
+        show_analytic=False, annotate=False, multiplier=None,
+        inset=False, **kwargs):   
         """
         Plot the three main quantities probed by turning point C.
         
@@ -78,7 +101,8 @@ class Global21cmSet(ModelSet):
         
         """
 
-        colors = color        
+        kwargs = self._patch_kwargs(**kwargs)
+
         pars = ['igm_Tk', 'igm_heat', 'Ja']
 
         if multiplier is None:
@@ -93,12 +117,12 @@ class Global21cmSet(ModelSet):
          'igm_heat': r'$\epsilon_X$',
          'Ja': r'$J_{\alpha} / J_{21}$'
         }
+        
+        kwargs['labels'] = labels
 
-        mp = self.TrianglePlot(pars,    
-            z='C', color_by_like=True, filled=False, nu=nu,
-            inputs=self.inputs, linestyles=['--', '-'], bins=bins, fig=fig, 
-            take_log=[False, True, False], mp=mp, color=color, colors=colors,
-            multiplier=mult, labels=labels)
+        mp = self.TrianglePlot(pars, z='C', color_by_like=True, nu=nu,
+            inputs=self.inputs, fig=fig, take_log=[False, True, False], mp=mp, 
+            multiplier=mult, **kwargs)
 
         # Add panels for constraints on the turning point itself?
         if inset:
@@ -108,7 +132,7 @@ class Global21cmSet(ModelSet):
                 dims=(3, 3), keep_diagonal=False)
         else:
             mp_inset = None
-            
+
         if show_analytic:
 
             # 2-D constraint on Tk and igm_heat
@@ -133,20 +157,20 @@ class Global21cmSet(ModelSet):
             # Convert contours on z and dTb to Tk igm_heat contours            
             mp.grid[3].contour(bc[0], bc[1], hist / hist.max())
 
-        return mp, mp_inset
+        return mp
             
-    def _AnalyzeTurningPointD(self, mp=None, fig=1, nu=[0.68,0.95], bins=20, 
-        color='k', show_analytic=False, multiplier=None):
+    def _AnalyzeTurningPointD(self, mp=None, fig=1, nu=[0.68,0.95], 
+        show_analytic=False, multiplier=None, **kwargs):
         """
         Plot the four main quantities probed by turning point D.
         """
         
-        c = colors = color
-        
+        kwargs = self._patch_kwargs(**kwargs)
+                
         pars = ['igm_Tk', 'cgm_h_2', 'igm_heat', 'cgm_Gamma_h_1']
 
         if multiplier is None:
-            mult = [1., cm_per_mpc**3, 1. / J21_num, 1e16]
+            mult = [1., 1., cm_per_mpc**3, 1e15]
         else:
             mult = multiplier
         
@@ -156,17 +180,15 @@ class Global21cmSet(ModelSet):
          'igm_Tk': r'$T_{\mathrm{K}} / \mathrm{K}$',
          'cgm_h_2': r'$Q_{\mathrm{HII}}$',
          'igm_heat': r'$\epsilon_X$',
-         'cgm_Gamma_h_1': r'$\Gamma_{16}$',
+         'cgm_Gamma_h_1': r'$\Gamma_{%i}$' % np.log10(multiplier[-1]),
         }
         
         mp_inset = None
-        mp = self.TrianglePlot(pars, 
-            z='D', color_by_like=True, filled=False, nu=nu, 
-            take_log=[False, False, True, False], labels=labels,
-            color=c, colors=c, bins=bins, mp=mp, fig=fig,
-            linestyles=['--', '-'])
+        mp = self.TrianglePlot(pars, z='D', color_by_like=True, nu=nu, 
+            take_log=[False, False, True, True], labels=labels,
+            mp=mp, fig=fig, multiplier=mult, **kwargs)
       
-        return mp, mp_inset
+        return mp
       
     def ThermalHistory(self):
         pass  
@@ -211,21 +233,27 @@ class Global21cmSet(ModelSet):
             
         return prefix, num
         
-    def ParameterConstraints(self, pars=None, mp=None, fig=1, bins=20, 
-        ares_only=True, color='k', **kwargs):
+    def ParameterConstraints(self, pars=None, mp=None, ax=None, fig=1, bins=20, 
+        ares_only=True, pop=None, triangle=True, **kwargs):
         """
         Make a triangle plot of constraints on model parameters.
+        
+        Basically a wrapper around ares.analysis.ModelSet.
     
         Parameters
         ----------
+        pars : list
+            Parameters to include in 
+        
         ares_only : bool
             If True, only includes ares parameters in the triangle plot, i.e.,
             exclude foreground / instrument parameters.
             
         """
         
-        c = colors = color
-        
+        kwargs = self._patch_kwargs(**kwargs)
+                
+        # Set the parameters automatically
         if pars is None:
             if ares_only:
                 pars = []
@@ -237,13 +265,55 @@ class Global21cmSet(ModelSet):
                     if prefix not in defs:
                         continue
                         
-                    pars.append(par)                    
+                    pars.append(par)
             else:
                 pars = self.parameters
+        
+        # Show constraints for just a single population
+        if pop is not None and self.Npops > 1:
+            tmp = []
+            for par in pars:
                 
+                prefix, num = self._split_pop_param(par)
+                
+                if num is None:
+                    continue
+                
+                if num != pop:
+                    continue
+                
+                tmp.append(par)
+                
+            del pars
+            pars = tmp
+                
+        if not triangle and len(pars) == 2:
+            ax = self.PosteriorPDF(pars, color_by_like=True, fig=fig,
+                bins=bins, filled=False, ax=ax, **kwargs)
+            
+            if self.inputs is not None:
+                
+                p1, p2 = pars
+                
+                if self.is_log[self.parameters.index(p1)]:
+                    v1 = np.log10(self.inputs[p1])
+                else:
+                    v1 = self.inputs[p1]
+                
+                if self.is_log[self.parameters.index(p2)]:
+                    v2 = np.log10(self.inputs[p2])
+                else:
+                    v2 = self.inputs[p2]   
+                
+                ax.plot([v1]*2, ax.get_ylim(), color='k', ls=':')
+                ax.plot(ax.get_xlim(), [v2]*2, color='k', ls=':')
+                pl.draw()
+                
+            return ax
+                                
+        # Make the triangle plot already
         mp = self.TrianglePlot(pars, color_by_like=True, inputs=self.inputs, 
-            bins=bins, linestyles=['--', '-'], filled=False, color=c, colors=c, 
-            mp=mp, **kwargs)
+            bins=bins, mp=mp, fig=fig, **kwargs)
             
         return mp
             

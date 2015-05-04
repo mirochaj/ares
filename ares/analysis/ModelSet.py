@@ -370,8 +370,8 @@ class ModelSet(object):
     @property
     def logL(self):
         if not hasattr(self, '_logL'):            
-            if os.path.exists('%s.logL.pkl' % prefix):
-                self._logL = read_pickled_logL('%s.logL.pkl' % prefix)        
+            if os.path.exists('%s.logL.pkl' % self.prefix):
+                self._logL = read_pickled_logL('%s.logL.pkl' % self.prefix)
             else:
                 self._logL = None
         
@@ -835,7 +835,7 @@ class ModelSet(object):
         self.logL[mask] = -np.inf
 
     def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, 
-        take_log=False, multiplier=1., labels=None, **kwargs):
+        take_log=False, multiplier=1., **kwargs):
         """
         Show occurrences of turning points B, C, and D for all models in
         (z, dTb) space, with points color-coded to likelihood.
@@ -864,12 +864,12 @@ class ModelSet(object):
         else:
             gotax = True
 
-        if labels is None:
-            labels = default_labels
-        else:
+        if 'labels' in kwargs:
             labels_tmp = default_labels.copy()
-            labels_tmp.update(labels)
+            labels_tmp.update(kwargs['labels'])
             labels = labels_tmp
+        else:
+            labels = default_labels
 
         if type(take_log) == bool:
             take_log = [take_log] * 2
@@ -993,7 +993,8 @@ class ModelSet(object):
                                                                       
         return nu, levels
     
-    def get_1d_error(self, par, z=None, bins=20, nu=0.68, take_log=False):
+    def get_1d_error(self, par, z=None, bins=500, nu=0.68, take_log=False,
+        limit=None):
         """
         Compute 1-D error bar for input parameter.
         
@@ -1005,7 +1006,8 @@ class ModelSet(object):
             Number of bins to use in histogram
         nu : float
             Percent likelihood enclosed by this 1-D error
-        
+        limit : str
+            Valid options: 'lower' and 'upper', if not None.
         Returns
         -------
         Tuple, (maximum likelihood value, negative error, positive error).
@@ -1045,7 +1047,7 @@ class ModelSet(object):
             return None, (None, None)    
 
         try:
-            mu, sigma = error_1D(bc, hist, nu=nu)
+            mu, sigma = error_1D(bc, hist, nu=nu, limit=limit)
         except ValueError:
             return None, (None, None)
 
@@ -1299,7 +1301,7 @@ class ModelSet(object):
         nu=[0.95, 0.68], overplot_nu=False, density=True, 
         color_by_like=False, filled=True, take_log=False,
         bins=20, xscale='linear', yscale='linear', skip=0, skim=1, 
-        labels=None, **kwargs):
+        **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
     
@@ -1342,20 +1344,21 @@ class ModelSet(object):
 
         kw = def_kwargs.copy()
         kw.update(kwargs)
-
-        if labels is None:
-            labels = default_labels
-        else:
+        
+        if 'labels' in kw:
             labels_tmp = default_labels.copy()
-            labels_tmp.update(labels)
+            labels_tmp.update(kwargs['labels'])
             labels = labels_tmp
+
+        else:
+            labels = default_labels
 
         if type(pars) not in [list, tuple]:
             pars = [pars]
         if type(take_log) == bool:
             take_log = [take_log] * len(pars)
         if type(multiplier) in [int, float]:
-            multiplier = [multiplier] * len(pars)    
+            multiplier = [multiplier] * len(pars)
 
         if type(z) is list:
             if len(z) != len(pars):
@@ -1661,7 +1664,7 @@ class ModelSet(object):
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
         skim=1, top=None, oned=True, filled=True, box=None, rotate_x=False, 
-        labels=None, add_cov=False, label_panels='upper right', **kwargs):
+        add_cov=False, label_panels='upper right', **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
 
@@ -1730,13 +1733,14 @@ class ModelSet(object):
         
         kw = def_kwargs.copy()
         kw.update(kwargs)
-        
-        if labels is None:
-            labels = default_labels
-        else:
+                        
+        if 'labels' in kwargs:
             labels_tmp = default_labels.copy()
-            labels_tmp.update(labels)
-            labels = labels_tmp
+            labels_tmp.update(kwargs['labels'])
+            labels = kwargs['labels']
+            kw['labels'] = kwargs['labels']
+        else:
+            labels = default_labels
         
         if type(take_log) == bool:
             take_log = [take_log] * len(pars)
@@ -1855,7 +1859,7 @@ class ModelSet(object):
                         take_log=take_log[-1::-1][i], z=z[-1::-1][i],
                         multiplier=[multiplier[-1::-1][i]], 
                         bins=[bins[-1::-1][i]], skip=skip, skim=skim, 
-                        labels=labels, **kw)
+                        **kw)
 
                     if add_cov:
                         if type(add_cov) is list:
@@ -1896,7 +1900,7 @@ class ModelSet(object):
                     take_log=[take_log[j], take_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, 
-                    labels=labels, skip=skip, **kw)
+                    skip=skip, **kw)
 
                 if add_cov:
                     if type(add_cov) is list:
@@ -1964,7 +1968,7 @@ class ModelSet(object):
         
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
         nu=0.68, take_log=False, bins=20, label=None,
-        plot_bands=False, **kwargs):
+        plot_bands=False, limit=None, **kwargs):
         """
         Plot constraints on the redshift evolution of given quantity.
         
@@ -1978,6 +1982,9 @@ class ModelSet(object):
         you might consider setting take_log=True.    
             
         """    
+        
+        if plot_bands and (limit is not None):
+            raise ValueError('Choose bands or a limit, not both!')
         
         if ax is None:
             gotax = False
@@ -1994,7 +2001,7 @@ class ModelSet(object):
         if redshifts is None:
             redshifts = self.blob_redshifts
             
-        if plot_bands:
+        if plot_bands or (limit is not None):
             x = []; ymin = []; ymax = []
             
         for i, z in enumerate(redshifts):
@@ -2012,7 +2019,7 @@ class ModelSet(object):
             try:
                 value, (blob_err1, blob_err2) = \
                     self.get_1d_error(blob, z=z, nu=nu, take_log=take_log,
-                    bins=bins)
+                    bins=bins, limit=limit)
             except TypeError:
                 continue
             
@@ -2039,6 +2046,12 @@ class ModelSet(object):
                     x.append(z)
                 ymin.append(value - blob_err1)
                 ymax.append(value + blob_err2)
+            elif limit is not None:
+                if blob == 'dTb':
+                    x.append(nu_0_mhz / (1. + mu_z))
+                else:
+                    x.append(z)
+                ymin.append(value)
             else:                                    
                 ax.errorbar(mu_z, value, 
                     xerr=xerr, 
@@ -2048,6 +2061,10 @@ class ModelSet(object):
         
         if plot_bands:
             ax.fill_between(x, ymin, ymax, **kwargs)
+        elif limit is not None:
+            ax.plot(x, ymin, **kwargs)
+            print x
+            print ymin
         
         # Look for populations
         m = re.search(r"\{([0-9])\}", blob)
@@ -2431,7 +2448,8 @@ class ModelSet(object):
         Integrate outward at "constant water level" to determine proper
         2-D marginalized confidence regions.
     
-        Note: this is fairly crude.
+        ..note:: This is fairly crude -- the "coarse-ness" of the resulting
+            PDFs will depend a lot on the binning.
     
         Parameters
         ----------

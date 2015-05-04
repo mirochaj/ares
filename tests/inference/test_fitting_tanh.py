@@ -54,7 +54,7 @@ fit.nwalkers = 128
 
 # Run it!
 t1 = time.time()
-fit.run(prefix='test_tanh', burn=10, steps=1e3, clobber=True, save_freq=10)
+fit.run(prefix='test_tanh', burn=10, steps=1e2, clobber=True, save_freq=25)
 t2 = time.time()
 
 print "Run complete in %.4g minutes.\n" % ((t2 - t1) / 60.)

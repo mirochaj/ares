@@ -135,8 +135,9 @@ class logprior:
 
             # Figure out if this prior is linked to others
             if type(p1) is str:
+                tmp = p1
                 p1 = _str_to_val(p1, par, pars, self.pars)
-            elif type(p2) is str:
+            if type(p2) is str:
                 p2 = _str_to_val(p2, par, pars, self.pars)
                 
             # Uninformative priors
