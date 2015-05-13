@@ -51,7 +51,9 @@ class Global21cm:
             self.track = TurningPoints(inline=True, **self.pf)    
         
     def _init_dTb(self):
-        
+        """
+        Compute differential brightness temperature for initial conditions.
+        """
         z = self.all_z
         
         dTb = []

@@ -166,17 +166,18 @@ def ProblemType(ptype):
               "dtDataDump": 1.0,
               "isothermal": 0,  
               "initial_temperature": 8e3,
-              "initial_ionization": [1.-1e-6, 1e-6],
+              "initial_ionization": [1e-4,1.-1e-4],
               "source_type": 'star', 
               "source_qdot": 1e6,
               "spectrum_type": 'bb',
+              "source_temperature": 1e5,  
               
-              "restricted_timestep": ['ions', 'electrons', 'temperature'],
+              "restricted_timestep": ['ions', 'neutrals', 'electrons', 'temperature'],
               
               "spectrum_Emin": 13.6,
               "spectrum_Emax": 100.,
-              "spectrum_EminNorm": 0.1,
-              "spectrum_EmaxNorm": 100.,
+              "spectrum_EminNorm": 1e-1,
+              "spectrum_EmaxNorm": 5e2,
               
               "slab": 1,
               "slab_position": 5.0 / 6.6,
@@ -184,7 +185,7 @@ def ProblemType(ptype):
               "slab_radius": 0.8 / 6.6,
               "slab_temperature": 40.,
               "slab_profile": 0,
-              "slab_ionization": [1.-1e-6, 1e-6],
+              "slab_ionization": [1.-1e-4, 1e-4],
               
               "interp_method": 'linear',
 

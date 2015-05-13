@@ -585,19 +585,10 @@ class Grid(object):
         # First, modify density and temperature
         if kwargs['slab_profile'] == 0:
             self.data['rho'][isslab] *= kwargs['slab_overdensity']
-            #self.data['n'][isslab] *= kwargs['slab_overdensity']
             self.n_H[isslab] *= kwargs['slab_overdensity']
-            self.n_ref[isslab] *= kwargs['slab_overdensity']
             self.data['Tk'][isslab] = kwargs['slab_temperature']
-        #if profile == 1:
-        #    self.data['rho'] += self.data['rho'] * overdensity \
-        #        * np.exp(-(gridarr - position)**2 / 2. / radius**2)
-        #    self.n_H += self.n_H * overdensity \
-        #        * np.exp(-(gridarr - position)**2 / 2. / radius**2)
-        #    self.data['T'] -= self.data['T'] * overdensity \
-        #        * np.exp(-(gridarr - position)**2 / 2. / radius**2)
-           
-        # Need to think more about Gaussian clump T, x.   
+        else:
+            raise NotImplemented('only know uniform slabs')
                 
         # Ionization state - could generalize this more
         for j, species in enumerate(self.species):
@@ -606,8 +597,9 @@ class Grid(object):
             i = int(state)
                      
             name = util.zion2name(Z, i)
-            self.data[name].fill(kwargs['slab_ionization'][j])
-        
+            self.data[name][isslab] = np.ones(isslab.sum()) \
+                * kwargs['slab_ionization'][j]
+                
         # Reset electron density, particle density, and gas energy
         self._set_electron_fraction()
                 

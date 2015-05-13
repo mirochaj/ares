@@ -22,8 +22,7 @@ class RestrictTimestep:
         self.verbose = verbose
         self.grid_indices = np.arange(self.grid.dims)
     
-    def Limit(self, q, dqdt, z=None, tau=None, tau_ifront=0.5, 
-        method=['ions']):
+    def Limit(self, q, dqdt, z=None, tau=None, tau_ifront=0.5, method=['ions']):
         """
         Limit timestep based on maximum allowed change in fields.  Which 
         fields determined by method parameter.
@@ -43,6 +42,7 @@ class RestrictTimestep:
             dt[tau <= tau_ifront, ...] = huge_dt
                 
         new_dt = huge_dt
+        min_dt = huge_dt
         for mth in method:
         
             # Determine index correspond to element(s) of q to use to limit dt

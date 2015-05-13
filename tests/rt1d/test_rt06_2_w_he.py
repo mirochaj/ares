@@ -13,8 +13,9 @@ Comparison Project (Iliev et al. 2006; RT06).
 
 import ares
 
-sim = ares.simulations.RaySegment(problem_type=12, tables_dlogN=[0.2]*3,
-    tables_discrete_gen=True)
+sim = ares.simulations.RaySegment(problem_type=12, tables_dlogN=[0.1]*3,
+    tables_discrete_gen=True, tables_energy_bins=250, epsilon_dt=0.005,
+    initial_timestep=1e-6)
 
 sim.run()
 

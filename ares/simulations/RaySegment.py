@@ -41,6 +41,15 @@ class RaySegment:
         pass
     
     def save_tables(self, prefix=None):
+        """
+        Save tables of rate coefficients (functions of column density).
+        
+        Parameters
+        ----------
+        prefix : str
+            Prefix of output files.
+            
+        """
         
         Ns = len(self.field.sources)
         if Ns > 1:
@@ -50,9 +59,9 @@ class RaySegment:
             
         for i, src in enumerate(self.field.sources):
             src.tab.save(prefix=p[i])
-        
-    def reset(self):
-        del self.gen
+
+    def reset(self, **kwargs):
+        del sel.gen
         self.gen = self.parcel.step()
 
     def _set_radiation_field(self):
@@ -89,7 +98,7 @@ class RaySegment:
 
             # Re-compute rate coefficients
             self.update_rate_coefficients(data, **RCs)
-            
+                        
             # Save data
             all_t.append(t)
             all_data.append(data.copy())

@@ -43,7 +43,7 @@ class LocalVolume:
             self.sigma.append((np.ones([self.grid.dims, src.Nfreq]) \
                    * src.sigma).T)
     
-        # Calculate correction to normalization factor if plane_parallel
+        # Calculate correction to normalization factor if plane_parallel    
         if self.pf['optically_thin']:
             if self.pf['plane_parallel']:
                 self.pp_corr = 4. * np.pi * self.grid.r_mid**2
