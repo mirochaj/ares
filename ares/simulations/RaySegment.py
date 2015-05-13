@@ -37,6 +37,20 @@ class RaySegment:
         self.parcel.update_rate_coefficients(self.grid.data)
         self._set_radiation_field()
         
+    def save(self):
+        pass
+    
+    def save_tables(self, prefix=None):
+        
+        Ns = len(self.field.sources)
+        if Ns > 1:
+            p = ['%s_src_%i' % (prefix, str(i).zfill(2)) for i in range(Ns)]
+        else:
+            p = [prefix]
+            
+        for i, src in enumerate(self.field.sources):
+            src.tab.save(prefix=p[i])
+        
     def reset(self):
         del self.gen
         self.gen = self.parcel.step()

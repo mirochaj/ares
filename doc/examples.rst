@@ -19,8 +19,7 @@ Basics
 
 Advanced
 --------
-Coming soon. For now, peruse ``ares/tests/dTb`` for lots of different 21-cm examples and
-``ares/tests/rt1d`` for a few more 1-D radiative transfer problems.
+* :doc:`example_adv_RT_w_He`
 
 Under the hood
 --------------

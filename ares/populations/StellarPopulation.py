@@ -303,6 +303,18 @@ class StellarPopulation:
                 
         return self.Nion * self.pf['fesc'] * self.b_per_g * self.SFRD(z)
     
+    def Ndot(self, z):
+        """
+        Short-cut for computing ionizing photon luminosity density.
+        
+        Returns
+        -------
+        Comoving ionizing photon product rate, in units of s**-1 cMpc**-3.
+        
+        """
+        
+        return self.IonizingPhotonLuminosityDensity(z) * cm_per_mpc**3
+    
     def XrayLuminosityDensity(self, z):
         """
         Compute (bolometric) comoving luminosity density.

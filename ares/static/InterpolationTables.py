@@ -144,7 +144,4 @@ class LookupTable:
             if self.Ed:
                 raise NotImplemented('Haven\'t implemented time and secondary ionization option yet.')
             
-            if not mathutils:
-                raise ImportError('mathutils package required for N > 2')
-            
             self.interp = LinearNDInterpolator(self.logN, self.table)

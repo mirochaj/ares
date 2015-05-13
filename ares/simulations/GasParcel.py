@@ -36,6 +36,7 @@ class GasParcel:
             
         # Set all properties in one go
         self.grid.set_properties(**self.pf)
+        self.grid.create_slab(**self.pf)
         
         # Set (optional) additional stuff like radiation field, chemistry, etc.
         self._set_chemistry()

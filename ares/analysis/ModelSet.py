@@ -20,7 +20,7 @@ from .MultiPlot import MultiPanel
 from ..inference import ModelGrid
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
-from .Global21cm import Global21cm as aG21
+from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
 from ..util.ParameterFile import count_populations
 from .DerivedQuantities import DerivedQuantities as DQ
@@ -1404,7 +1404,7 @@ class ModelSet(object):
                 # Get likelihood contours (relative to peak) that enclose
                 # nu-% of the area
                 nu, levels = self.get_levels(hist, nu=nu)
-    
+        
                 if filled:
                     ax.contourf(bc[0], bc[1], hist / hist.max(), 
                         levels, **kwargs)

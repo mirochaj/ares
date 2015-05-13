@@ -249,6 +249,36 @@ def print_1d_sim(sim):
     print "#"*width
     print ""
 
+def print_rate_int(tab):
+    """
+    Print information about a population to the screen.
+
+    Parameters
+    ----------
+    pop : ares.populations.*Population instance
+
+    """
+    
+    if rank > 0 or not pop.pf['verbose']:
+        return
+
+    warnings = []
+
+    header  = 'Initializer: Tabulated Rate Coefficient Integrals'
+    
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, header.center(twidth), post)
+    print "#"*width
+
+    #print line('-'*twidth)
+    #print line('Redshift Evolution')
+    #print line('-'*twidth)    
+    #
+    print "#"*width
+
+    for warning in warnings:
+        print_warning(warning)
+
 def print_pop(pop):
     """
     Print information about a population to the screen.

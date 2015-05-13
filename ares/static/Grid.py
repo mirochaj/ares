@@ -569,22 +569,24 @@ class Grid(object):
                 
             self.data[key] = data[key].copy()
     
-    def make_clump(self, position = None, radius = None, overdensity = None,
-        temperature = None, ionization = None, profile = None):
-        """ Create a clump! """
+    def create_slab(self, **kwargs):
+        """ Create a slab. """
+                
+        if not kwargs['slab']:
+            return        
                 
         # Figure out where the clump is
         gridarr = np.linspace(0, 1, self.dims)
-        isclump = (gridarr >= (position - radius)) \
-                & (gridarr <= (position + radius))
+        isslab = (gridarr >= (kwargs['slab_position'] - kwargs['slab_radius'])) \
+                & (gridarr <= (kwargs['slab_position'] + kwargs['slab_radius']))
                 
         # First, modify density and temperature
-        if profile == 0:
-            self.data['rho'][isclump] *= overdensity
-            self.data['n'][isclump] *= overdensity
-            self.n_H[isclump] *= overdensity
-            self.n_ref[isclump] *= overdensity
-            self.data['Tk'][isclump] = temperature
+        if kwargs['slab_profile'] == 0:
+            self.data['rho'][isslab] *= kwargs['slab_overdensity']
+            #self.data['n'][isslab] *= kwargs['slab_overdensity']
+            self.n_H[isslab] *= kwargs['slab_overdensity']
+            self.n_ref[isslab] *= kwargs['slab_overdensity']
+            self.data['Tk'][isslab] = kwargs['slab_temperature']
         #if profile == 1:
         #    self.data['rho'] += self.data['rho'] * overdensity \
         #        * np.exp(-(gridarr - position)**2 / 2. / radius**2)
@@ -596,10 +598,13 @@ class Grid(object):
         # Need to think more about Gaussian clump T, x.   
                 
         # Ionization state - could generalize this more
-        for neutral in self.neutrals:
-            self.data[neutral][isclump] = 1. - ionization
-        for ion in self.ions:
-            self.data[ion][isclump] = ionization    
+        for j, species in enumerate(self.species):
+            element, state = species.split('_')
+            Z = util.element2z(element)
+            i = int(state)
+                     
+            name = util.zion2name(Z, i)
+            self.data[name].fill(kwargs['slab_ionization'][j])
         
         # Reset electron density, particle density, and gas energy
         self._set_electron_fraction()

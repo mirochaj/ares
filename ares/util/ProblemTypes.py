@@ -178,13 +178,13 @@ def ProblemType(ptype):
               "spectrum_EminNorm": 0.1,
               "spectrum_EmaxNorm": 100.,
               
-              "clump": 1,
-              "clump_position": 5.0 / 6.6,
-              "clump_overdensity": 200.,
-              "clump_radius": 0.8 / 6.6,
-              "clump_temperature": 40.,
-              "clump_profile": 0,
-              "clump_ionization": 1e-6,
+              "slab": 1,
+              "slab_position": 5.0 / 6.6,
+              "slab_overdensity": 200.,
+              "slab_radius": 0.8 / 6.6,
+              "slab_temperature": 40.,
+              "slab_profile": 0,
+              "slab_ionization": [1.-1e-6, 1e-6],
               
               "interp_method": 'linear',
 

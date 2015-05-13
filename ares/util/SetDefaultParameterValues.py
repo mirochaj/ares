@@ -21,7 +21,7 @@ tau_prefix = "%s/input/optical_depth" % ARES \
     if (ARES is not None) else '.'
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum', 
-    'Control', 'HaloMassFunction', 'Tanh', 'Halo']
+    'Control', 'HaloMassFunction', 'Tanh', 'Halo', 'Slab']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -69,20 +69,18 @@ def GridParameters():
     "initial_ionization": [1. - 1e-8, 1e-8],
     "initial_temperature": 1e4,
             
-    "clump": 0,
-    "clump_position": 0.1,
-    "clump_radius": 0.05,
-    "clump_overdensity": 100,
-    "clump_temperature": 100,
-    "clump_ionization": 1e-6,
-    "clump_profile": 0,
-    
     # These have shape len(absorbers)
     "tables_logNmin": [None],
     "tables_logNmax": [None],
     "tables_dlogN": [0.1],        
     "tables_xmin": [1e-8],
     #
+    
+    "tables_discrete_gen": False,
+    "tables_energy_bins": 100,
+    "tables_prefix": None,
+    
+    ""
     
     "tables_logxmin": -4,
     "tables_dlogx": 0.1,
@@ -95,6 +93,37 @@ def GridParameters():
     
     pf.update(rcParams)
 
+    return pf
+    
+def SlabParameters():
+    
+    pf = \
+    {
+    "slab": 0,
+    "slab_position": 0.1,
+    "slab_radius": 0.05,
+    "slab_overdensity": 100,
+    "slab_temperature": 100,
+    "slab_ionization": [1. - 1e-8, 1e-8],
+    "slab_profile": 0,
+    }
+    
+    pf.update(rcParams)
+    
+    return pf
+
+def AbsorberParameters():
+    pf = \
+    {
+    'cddf_C': 0.25,
+    'cddf_beta': 1.4,
+    'cddf_gamma': 1.5,
+    'cdff_zlow': 1.5,
+    'cddf_gamma_low': 0.2,
+    }
+    
+    pf.update(rcParams)
+    
     return pf
 
 def PhysicsParameters():
@@ -472,6 +501,7 @@ def ControlParameters():
     "tau_table": None,
     "tau_prefix": tau_prefix,
 
+    # File format
     "preferred_format": 'pkl',
 
     # Finding SED tables
