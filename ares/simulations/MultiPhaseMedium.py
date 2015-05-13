@@ -74,11 +74,12 @@ class MultiPhaseMedium:
 
         # Initialize two GasParcels
         self.kw_igm = self.pf.copy()
-        for key in igm_pars:
-            if key in kwargs:
-                continue
-            
-            self.kw_igm[key] = igm_pars[key]
+        self.kw_igm.update(igm_pars)
+        #for key in igm_pars:
+        #    if key in kwargs:
+        #        continue
+        #    
+        #    self.kw_igm[key] = igm_pars[key]
 
         self.parcel_igm = GasParcel(**self.kw_igm)
         

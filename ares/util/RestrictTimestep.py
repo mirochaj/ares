@@ -56,13 +56,13 @@ class RestrictTimestep:
                 if 'Tk' in self.grid.evolving_fields:
                     j = self.grid.evolving_fields.index('Tk')
                 else:
-                    min_dt = huge_dt
+                    continue
             elif mth == 'hubble' and self.grid.expansion:
                 min_dt = self.epsilon * self.grid.cosm.HubbleTime(z)
             else:
                 raise ValueError('Unrecognized dt restriction method: %s' % mth)
 
-            if mth != 'hubble' and min_dt != huge_dt:
+            if mth != 'hubble':
                 min_dt = np.min(dt[..., j])
 
             not_ok = ((min_dt <= 0) or np.isnan(min_dt) or np.isinf(min_dt))            

@@ -160,7 +160,11 @@ def ProblemType(ptype):
               "problem_type": 3,  
               "plane_parallel": 1,
               "density_units": 2e-4,
+              "grid_cells": 128,
               "length_units": 6.6 * cm_per_kpc,
+              
+              "initial_timestep": 1e-8,
+              "tables_dlogN": [0.01],
 
               "stop_time": 15.0, 
               "dtDataDump": 1.0,
@@ -172,7 +176,7 @@ def ProblemType(ptype):
               "spectrum_type": 'bb',
               "source_temperature": 1e5,  
               
-              "restricted_timestep": ['ions', 'neutrals', 'electrons', 'temperature'],
+              "restricted_timestep": ['ions', 'electrons', 'temperature'],
               
               "spectrum_Emin": 13.6,
               "spectrum_Emax": 100.,
