@@ -212,7 +212,7 @@ class IntegralTable:
         """
         
         if rank == 0:
-            print '\nTabulating integral quantities...'   
+            print 'Tabulating integral quantities...'   
             
         if self.pf['tables_discrete_gen'] and size > 1:
             self._tabulate_tau_E_N()
@@ -316,24 +316,25 @@ class IntegralTable:
         """
         
         self._tau_E_N = {}
-                
+
         # This is just because each absorber will have different limits
         # of integration, at least in general.
         for i, absorber in enumerate(self.grid.absorbers):
-            
+
             if i > 0:
-                abs_prev = self.absorbers[i-1]
+                abs_prev = self.grid.absorbers[i-1]
                 if np.all(self.E[absorber] == self.E[abs_prev]):
+                    self._tau_E_N[absorber] = self._tau_E_N[abs_prev]
                     continue
-            
+
             buff = np.zeros([len(self.E[absorber]), self.Nall.shape[0]])
-            
+
             for j, actual_absorber in enumerate(self.grid.absorbers):
-                
+
                 pb = ProgressBar(self.elements_per_table, 
                     'tau(E, N; %s, %s)' % (absorber, actual_absorber))
                 pb.start()
-                
+
                 sigma = self.sigma_E[actual_absorber]
                 
                 for k in range(self.Nall.shape[0]):

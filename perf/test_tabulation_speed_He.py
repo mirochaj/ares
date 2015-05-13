@@ -12,10 +12,6 @@ Description: How fast can we make look-up tables for Phi and Psi?
 
 import ares
 import time
-from mpi4py import MPI
-
-rank = MPI.COMM_WORLD.rank
-size = MPI.COMM_WORLD.size
 
 sim = ares.simulations.RaySegment(problem_type=12, tables_discrete_gen=True,
     source_table='bb_He.npz')
@@ -25,9 +21,12 @@ sim.run()
 
 anl = ares.analysis.RaySegment(sim)
 
-anl.RadialProfile('h_2', color='k', ls='-')
-anl.RadialProfile('he_2', color='b', ls='-')
-anl.RadialProfile('he_3', color='b', ls='--')
+ax1 = anl.RadialProfile('h_1', color='k', ls='-', fig=1)
+anl.RadialProfile('h_2', color='k', ls='--', ax=ax1)
 
-anl.RadialProfile('Tk', color='b', ls='--', fig=2)
+ax2 = anl.RadialProfile('he_1', color='b', ls='-', fig=2)
+anl.RadialProfile('he_2', color='b', ls='--', ax=ax2)
+anl.RadialProfile('he_3', color='b', ls=':', ax=ax2)
+
+anl.RadialProfile('Tk', color='b', ls='-', fig=3)
 

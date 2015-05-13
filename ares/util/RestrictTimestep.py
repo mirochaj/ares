@@ -47,9 +47,9 @@ class RestrictTimestep:
         
             # Determine index correspond to element(s) of q to use to limit dt
             if mth == 'ions':
-                j = self.grid.types == 1
+                j = np.argwhere(self.grid.types == 1).squeeze()
             elif mth == 'neutrals':
-                j = self.grid.types == 0
+                j = np.argwhere(self.grid.types == 0).squeeze()
             elif mth == 'electrons':
                 j = self.grid.evolving_fields.index('e')
             elif mth == 'temperature':
@@ -62,28 +62,30 @@ class RestrictTimestep:
             else:
                 raise ValueError('Unrecognized dt restriction method: %s' % mth)
 
-            min_dt = np.min(dt[..., j])
+            if mth != 'hubble' and min_dt != huge_dt:
+                min_dt = np.min(dt[..., j])
 
             not_ok = ((min_dt <= 0) or np.isnan(min_dt) or np.isinf(min_dt))            
 
-            # Determine which cell is behaving badly (if any)
+            # Determine which cell is behaving badly (if any)8
             if not_ok:
                 if self.grid.dims == 1:
                     which_cell = 0
                 else:
                     if j is not None:
-                        which_cell = self.grid_indices[np.argwhere(dt[...,j] == min_dt)].squeeze()
+                        cond = np.argwhere(dt[...,j] == min_dt)
+                        which_cell = self.grid_indices[cond].squeeze()
                         which_cell = int(which_cell)
                     else:
                         which_cell = 0
-                
+
                 if self.verbose:                                                
                     dt_error(self.grid, z, q, dqdt, min_dt, which_cell, mth)
 
             # Update the time-step
             new_dt = min(new_dt, min_dt)
 
-        return new_dt    
+        return new_dt
 
         
     

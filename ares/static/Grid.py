@@ -224,6 +224,8 @@ class Grid(object):
                     self._species_types.append(1)
                 else:
                     self._species_types.append(-1) 
+                    
+            self._species_types = np.array(self._species_types)        
         
         return self._species_types       
         

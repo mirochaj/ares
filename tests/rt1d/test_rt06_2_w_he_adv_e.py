@@ -13,8 +13,15 @@ Comparison Project (Iliev et al. 2006; RT06).
 
 import ares
 
-sim = ares.simulations.RaySegment(problem_type=12, tables_dlogN=[0.2]*3,
-    tables_discrete_gen=True)
+pars = \
+{
+ 'problem_type': 12, 
+ 'tables_dlogN': [0.2]*3,
+ 'tables_discrete_gen': True,
+ 'secondary_ionization': 3,
+}
+
+sim = ares.simulations.RaySegment(**pars)
 
 sim.run()
 
@@ -26,7 +33,5 @@ ax2 = anl.RadialProfile('h_1', t=[10, 30, 100], fig=2)
 anl.RadialProfile('h_2', t=[10, 30, 100], ax=ax2, ls='--')
 
 ax3 = anl.RadialProfile('he_1', t=[10, 30, 100], fig=3)
-anl.RadialProfile('he_2', t=[10, 30, 100], ax=ax3, ls='--')
-anl.RadialProfile('he_3', t=[10, 30, 100], ax=ax3, ls=':')
-
-
+anl.RadialProfile('he_2', t=[10, 30, 100], ax=ax2, ls='--')
+anl.RadialProfile('he_3', t=[10, 30, 100], ax=ax2, ls=':')
