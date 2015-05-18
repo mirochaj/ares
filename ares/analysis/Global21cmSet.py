@@ -14,6 +14,7 @@ import re
 import numpy as np
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
+from ..simulations import Global21cm as sG21
 from ..physics.Constants import J21_num, cm_per_mpc
 from ..util.SetDefaultParameterValues import SetAllDefaults
 
@@ -65,7 +66,7 @@ class Global21cmSet(ModelSet):
                                                 
         return kwargs
     
-    def TurningPoint(self, pt='C', **kwargs):
+    def IGMConstraints(self, pt='C', **kwargs):
         """
         Make a triangle plot of constraints on the turning points.
         
@@ -124,15 +125,6 @@ class Global21cmSet(ModelSet):
             inputs=self.inputs, fig=fig, take_log=[False, True, False], mp=mp, 
             multiplier=mult, **kwargs)
 
-        # Add panels for constraints on the turning point itself?
-        if inset:
-            mp_inset = self.TrianglePlot(['nu', 'dTb'], fig=mp.fig, z='C', 
-                color_by_like=True, diagonal='upper', 
-                shift_x=0.05, shift_y=0.05, label_panels=None,
-                dims=(3, 3), keep_diagonal=False)
-        else:
-            mp_inset = None
-
         if show_analytic:
 
             # 2-D constraint on Tk and igm_heat
@@ -180,13 +172,13 @@ class Global21cmSet(ModelSet):
          'igm_Tk': r'$T_{\mathrm{K}} / \mathrm{K}$',
          'cgm_h_2': r'$Q_{\mathrm{HII}}$',
          'igm_heat': r'$\epsilon_X$',
-         'cgm_Gamma_h_1': r'$\Gamma_{%i}$' % np.log10(multiplier[-1]),
+         'cgm_Gamma_h_1': r'$\Gamma_{-%i}$' % np.log10(mult[-1]),
         }
         
         mp_inset = None
         mp = self.TrianglePlot(pars, z='D', color_by_like=True, nu=nu, 
             take_log=[False, False, True, True], labels=labels,
-            mp=mp, fig=fig, multiplier=mult, **kwargs)
+            mp=mp, fig=fig, multiplier=mult, inputs=self.inputs, **kwargs)
       
         return mp
       
@@ -232,6 +224,29 @@ class Global21cmSet(ModelSet):
             prefix = name.split(m.group(0))[0]    
             
         return prefix, num
+        
+    def TurningPointConstraints(self, mp=None, fig=1, **kwargs):        
+        
+        z = ['B'] * 2 + ['C'] * 2 + ['D'] * 2
+        mp = self.TrianglePlot(['nu', 'dTb'] * 3, z=z, 
+            inputs=self.inputs, **kwargs)
+
+        for i in mp.diag:
+            row, col = mp.axis_position(i)
+            mp.grid[i].set_title(z[-1::-1][col])
+
+        # Draw the 120 MHz cutoff for DARE
+        mp.grid[4].plot([120]*2, mp.grid[4].get_ylim(), color='k', ls='--')
+        mp.grid[10].plot([120]*2, mp.grid[10].get_ylim(), color='k', ls='--')
+
+        # Plot saturated limit
+        no_ion = sG21(tanh_model=True, tanh_x0=0., tanh_Tz0=15)
+        nu_gt_100 = no_ion.history['nu'] > 100.0
+        x = no_ion.history['nu'][nu_gt_100]
+        y = no_ion.history['dTb'][nu_gt_100]
+        mp.grid[4].plot(x, y, color='k', ls='--')
+            
+        return mp    
         
     def ParameterConstraints(self, pars=None, mp=None, ax=None, fig=1, bins=20, 
         ares_only=True, pop=None, triangle=True, **kwargs):

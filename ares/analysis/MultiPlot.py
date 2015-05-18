@@ -427,16 +427,24 @@ class MultiPanel:
             if ul is None:
                 eval("self.grid[%i].%s(ticks[0:])" % (i, set_ticks))
                 if rotate_x:
-                    eval("self.grid[%i].%s(labels[0:], rotation=90)" \
-                        % (i, set_ticklabels))
+                    if type(rotate_x) == bool:
+                        eval("self.grid[%i].%s(labels[0:], rotation=90)" \
+                            % (i, set_ticklabels))
+                    else:
+                        eval("self.grid[%i].%s(labels[0:], rotation=%g)" \
+                                % (i, set_ticklabels, rotate_x))        
                 else:
                     eval("self.grid[%i].%s(labels[0:])" % (i, set_ticklabels))
             else:
                 eval("self.grid[%i].%s(ticks[0:%i])" % (i, set_ticks, ul))
                 
                 if rotate_x:
-                    eval("self.grid[%i].%s(labels[0:%i], rotation=90)" \
-                        % (i, set_ticklabels, ul))
+                    if type(rotate_x) == bool:
+                        eval("self.grid[%i].%s(labels[0:%i], rotation=90)" \
+                            % (i, set_ticklabels, ul))
+                    else:
+                        eval("self.grid[%i].%s(labels[0:%i], rotation=%g)" \
+                            % (i, set_ticklabels, ul, rotate_x))        
                 else:
                     eval("self.grid[%i].%s(labels[0:%i])" % (i, set_ticklabels, ul))
     

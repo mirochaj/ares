@@ -39,10 +39,13 @@ try:
 except ImportError:
     pass
 
-#try:
-#    import cPickle as pickle
-#except ImportError:
 import pickle    
+
+try:
+    import h5py
+    have_h5py = True
+except ImportError:
+    have_h5py = False
     
 try:
     from mpi4py import MPI
@@ -306,7 +309,19 @@ class ModelSet(object):
     @property
     def blobs(self):
         if not hasattr(self, '_blobs'):
-            if os.path.exists('%s.blobs.pkl' % self.prefix):
+            if os.path.exists('%s.blobs.hdf5' % self.prefix) and have_h5py:
+                t1 = time.time()
+                f = h5py.File('%s.blobs.hdf5' % self.prefix, 'r')
+                bs = f['blobs'].value
+                self._blobs = np.ma.masked_array(bs, mask=f['mask'].value)
+                f.close()
+                t2 = time.time()    
+                
+                if rank == 0:
+                    print "Loaded %s.blobs.hdf5 in %.2g seconds.\n" \
+                     % (self.prefix, t2 - t1)
+            
+            elif os.path.exists('%s.blobs.pkl' % self.prefix):
                 
                 try:
                     if rank == 0:
@@ -324,9 +339,19 @@ class ModelSet(object):
                     self._mask[np.isinf(blobs)] = 1
                     self._mask[np.isnan(blobs)] = 1
                     self._blobs = np.ma.masked_array(blobs, mask=self._mask)
+                    
                 except:
                     if rank == 0:
                         print "WARNING: Error loading blobs."    
+                        
+                if have_h5py:
+                    f = h5py.File('%s.blobs.hdf5' % self.prefix, 'w')
+                    f.create_dataset('blobs', data=self._blobs)
+                    f.create_dataset('mask', data=self._mask)
+                    f.close()
+                    
+                    if rank == 0:
+                        print 'Saved %s.blobs.hdf5' % self.prefix            
             
             else:
                 self._blobs = None            
@@ -713,6 +738,14 @@ class ModelSet(object):
 
         if hasattr(self, '_derived_blobs'):
             return self._derived_blobs
+            
+        if os.path.exists('%s.dblobs.hdf5' % self.prefix) and have_h5py:
+            f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'r')
+            dbs = f['derived_blobs'].value
+            self._derived_blobs = np.ma.masked_array(dbs, mask=f['mask'].value)
+            self._derived_blob_names = list(f['derived_blob_names'].value)
+            f.close()
+            return self._derived_blobs
 
         #if self.blobs is None:
         #    return   
@@ -771,6 +804,17 @@ class ModelSet(object):
         
         self._derived_blobs = np.ma.masked_array(self._derived_blobs, 
             mask=mask)
+            
+        # Save to disk!
+        if not os.path.exists('%s.dblobs.hdf5') and have_h5py:
+            f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'w')
+            f.create_dataset('mask', data=mask)
+            f.create_dataset('derived_blobs', data=self._derived_blobs)
+            f.create_dataset('derived_blob_names', data=self._derived_blob_names)
+            f.close()
+            
+            if rank == 0:
+                print 'Saved %s.dblobs.hdf5' % self.prefix
 
         return self._derived_blobs
 
@@ -1407,7 +1451,8 @@ class ModelSet(object):
                     to_hist.append(val)
 
             # Set bins
-            if self.is_mcmc or (par not in self.parameters) or not hasattr(self, 'axes'):
+            if self.is_mcmc or (par not in self.parameters) or \
+             not hasattr(self, 'axes'):
                 if type(bins) == int:
                     valc = to_hist[k]
                     binvec.append(np.linspace(valc.min(), valc.max(), bins))
@@ -1415,10 +1460,11 @@ class ModelSet(object):
                     valc = to_hist[k]
                     binvec.append(np.linspace(valc.min(), valc.max(), bins[k]))
                 else:
-                    if take_log[k]:
-                        binvec.append(np.log10(bins[k]))
-                    else:
-                        binvec.append(bins[k])
+                    binvec.append(bins[k])
+                    #if take_log[k]:
+                    #    binvec.append(np.log10(bins[k]))
+                    #else:
+                    #    binvec.append(bins[k])
             else:
                 if take_log[k]:
                     binvec.append(np.log10(self.axes[par]))
@@ -1663,7 +1709,7 @@ class ModelSet(object):
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
-        skim=1, top=None, oned=True, filled=True, box=None, rotate_x=False, 
+        skim=1, top=None, oned=True, filled=True, box=None, rotate_x=45, 
         add_cov=False, label_panels='upper right', **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -1685,8 +1731,13 @@ class ModelSet(object):
 
         fig : int
             ID number for plot window.
-        bins : int,
-            Number of bins in each dimension.
+        bins : int, np.ndarray
+            Number of bins in each dimension. Or, array of bins to use
+            for each parameter. If the latter, the bins should be in the 
+            *final* units of the quantities of interest. For example, if
+            you apply a multiplier or take_log, the bins should be in the
+            native units times the multiplier or in the log10 of the native
+            units (or both).
         z : int, float, str, list
             If plotting arbitrary meta-data blobs, must choose a redshift.
             Can be 'B', 'C', or 'D' to extract blobs at 21-cm turning points,
@@ -1793,6 +1844,11 @@ class ModelSet(object):
                 panel_size=panel_size, fig=fig, top=top, **kw)
 
             del kw['diagonal'], kw['dims'], kw['keep_diagonal']
+            
+            for key in ['bottom', 'top', 'left', 'right']:
+                if key in kw:
+                    del kw[key]
+
 
         # Loop over parameters
         for i, p1 in enumerate(pars[-1::-1]):
@@ -1815,24 +1871,27 @@ class ModelSet(object):
                 # Input values (optional)
                 if inputs:
 
+                    # Get input value
                     if type(inputs) is list:
                         val = inputs[-1::-1][i]
                     elif p1 in inputs:
                         val = inputs[p1]
                     else:
                         val = None
-
+                        
+                    # Take log [optional]    
                     if val is None:
                         yin = None
                     elif is_log[i]:
-                        yin = np.log10(val)                            
+                        yin = np.log10(val * multiplier[-1::-1][i])                            
                     else:
-                        yin = val                        
+                        yin = val * multiplier[-1::-1][i]                        
                 else:
                     yin = None
                 
                 if inputs:
                     
+                    # Get input value
                     if type(inputs) is list:
                         val = inputs[j]        
                     elif p2 in inputs:
@@ -1840,12 +1899,13 @@ class ModelSet(object):
                     else:
                         val = None
                     
+                    # Take log [optional]
                     if val is None:
                         xin = None  
                     elif is_log[Nd-j-1]:
-                        xin = np.log10(val)
+                        xin = np.log10(val * multiplier[-1::-1][Nd-j-1])
                     else:
-                        xin = val
+                        xin = val * multiplier[-1::-1][Nd-j-1]
 
                 else:
                     xin = None
@@ -2362,6 +2422,10 @@ class ModelSet(object):
                 p[par] = self.chain[iML,i]
     
         return p
+        
+    def save(self):
+        pass
+        
         
     def set_axis_labels(self, ax, pars, is_log, take_log=False, labels=None):
         """

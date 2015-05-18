@@ -159,7 +159,7 @@ class DerivedQuantities:
         self.build(**registry_rate_Q)
 
         del self.data['pf']
-
+           
     def build(self, **registry):
         """
         Go through the registry and calculate everything we can.
