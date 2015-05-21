@@ -270,6 +270,19 @@ class MultiPanel:
         else:
             return False
             
+    def align_labels(self, padding=0.5):
+        """
+        Re-draw labels so they are a constant distance away from the *axis*,
+        not the axis *labels*.
+        """
+        
+        for i in self.bottom:
+            self.grid[i].xaxis.set_label_coords(0.5, -padding)
+        for i in self.left:
+            self.grid[i].yaxis.set_label_coords(-padding, 0.5)
+            
+        pl.draw()    
+            
     def rescale_axes(self, x=True, y=True, xlim=None, ylim=None,    
         tighten_up=0):
         """ 
@@ -341,7 +354,7 @@ class MultiPanel:
         pl.draw()         
     
     def fix_axes_ticks(self, axis='x', style=None, dtype=float, N=None, 
-        rotate_x=False):
+        rotate_x=False, rotate_y=False):
         """
         Remove overlapping tick labels between neighboring panels.
         """
@@ -423,28 +436,35 @@ class MultiPanel:
                 
                 labels = ['%g' % val for val in ticks]
                                               
-            
+            if (axis == 'x' and rotate_x):
+                rotate = rotate_x
+            elif (axis == 'y' and rotate_y):
+                rotate = rotate_y
+            else:
+                rotate = False
+                        
             if ul is None:
                 eval("self.grid[%i].%s(ticks[0:])" % (i, set_ticks))
-                if rotate_x:
-                    if type(rotate_x) == bool:
+                                
+                if rotate:
+                    if type(rotate) == bool:
                         eval("self.grid[%i].%s(labels[0:], rotation=90)" \
                             % (i, set_ticklabels))
                     else:
                         eval("self.grid[%i].%s(labels[0:], rotation=%g)" \
-                                % (i, set_ticklabels, rotate_x))        
+                                % (i, set_ticklabels, rotate))        
                 else:
                     eval("self.grid[%i].%s(labels[0:])" % (i, set_ticklabels))
             else:
                 eval("self.grid[%i].%s(ticks[0:%i])" % (i, set_ticks, ul))
                 
-                if rotate_x:
-                    if type(rotate_x) == bool:
+                if rotate:
+                    if type(rotate) == bool:
                         eval("self.grid[%i].%s(labels[0:%i], rotation=90)" \
                             % (i, set_ticklabels, ul))
                     else:
                         eval("self.grid[%i].%s(labels[0:%i], rotation=%g)" \
-                            % (i, set_ticklabels, ul, rotate_x))        
+                            % (i, set_ticklabels, ul, rotate))      
                 else:
                     eval("self.grid[%i].%s(labels[0:%i])" % (i, set_ticklabels, ul))
     
@@ -481,7 +501,8 @@ class MultiPanel:
                 self.grid[i].set_xlabel('')
 
     def fix_ticks(self, noxticks=False, noyticks=False, style=None, N=None,
-        rotate_x=False, xticklabels=None, yticklabels=None, oned=True):
+        rotate_x=False, rotate_y=False, xticklabels=None, yticklabels=None, 
+        oned=True):
         """
         Call once all plotting is done, will eliminate redundant tick marks 
         and what not.
@@ -496,7 +517,7 @@ class MultiPanel:
         self.fix_axes_labels()
         
         self.fix_axes_ticks(axis='x', N=N, rotate_x=rotate_x)
-        self.fix_axes_ticks(axis='y', N=N)
+        self.fix_axes_ticks(axis='y', N=N, rotate_y=rotate_y)
         
         if self.diagonal == 'lower' and oned:
             self.grid[np.intersect1d(self.left, self.top)[0]].set_yticklabels([])
@@ -588,5 +609,8 @@ class MultiPanel:
 
     def draw(self):
         pl.draw()
+        
+    def save(self, fn):
+        pl.savefig(fn)    
         
         

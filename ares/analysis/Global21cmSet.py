@@ -162,7 +162,7 @@ class Global21cmSet(ModelSet):
         pars = ['igm_Tk', 'cgm_h_2', 'igm_heat', 'cgm_Gamma_h_1']
 
         if multiplier is None:
-            mult = [1., 1., cm_per_mpc**3, 1e15]
+            mult = [1., 1., cm_per_mpc**3, 1e16]
         else:
             mult = multiplier
         
@@ -225,15 +225,39 @@ class Global21cmSet(ModelSet):
             
         return prefix, num
         
-    def TurningPointConstraints(self, mp=None, fig=1, **kwargs):        
+    def TurningPointConstraints(self, pts=None, mp=None, fig=1, **kwargs):        
+        """
+        Plot constraints on the turning points positions.
         
-        z = ['B'] * 2 + ['C'] * 2 + ['D'] * 2
-        mp = self.TrianglePlot(['nu', 'dTb'] * 3, z=z, 
+        Parameters
+        ----------
+        pts : list
+            Points to include. If None, will do B, C, and D.
+            
+        """
+        
+        had_mp = False
+        if mp is not None:
+            had_mp = True
+        
+        if pts is None:
+            pts = list('BCD')
+            z = ['B'] * 2 + ['C'] * 2 + ['D'] * 2
+        else:
+            z = []
+            for pt in pts:
+                z.extend([pt]*2)
+                        
+        mp = self.TrianglePlot(['nu', 'dTb'] * len(pts), z=z, 
             inputs=self.inputs, **kwargs)
 
         for i in mp.diag:
             row, col = mp.axis_position(i)
             mp.grid[i].set_title(z[-1::-1][col])
+            
+        if had_mp:
+            pl.draw()
+            return mp    
 
         # Draw the 120 MHz cutoff for DARE
         mp.grid[4].plot([120]*2, mp.grid[4].get_ylim(), color='k', ls='--')
@@ -245,6 +269,8 @@ class Global21cmSet(ModelSet):
         x = no_ion.history['nu'][nu_gt_100]
         y = no_ion.history['dTb'][nu_gt_100]
         mp.grid[4].plot(x, y, color='k', ls='--')
+        
+        pl.draw()
             
         return mp    
         

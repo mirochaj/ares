@@ -17,9 +17,11 @@ from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz
 
 try:
     from mpi4py import MPI
-    rank = MPI.COMM_WORLD.rank; size = MPI.COMM_WORLD.size
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
 except ImportError:
-    rank = 0; size = 1
+    rank = 0
+    size = 1
  
 # FORMATTING   
 width = 84
@@ -701,7 +703,9 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print ""
 
 def print_model_grid():
-
+    if rank > 0:
+        return
+        
     header = 'Model Grid'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
@@ -712,6 +716,9 @@ def print_model_grid():
     print line('-'*twidth)
 
 def print_model_set(mset):
+    if rank > 0:
+        return
+        
     header = 'Analysis: Model Set'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
@@ -721,13 +728,11 @@ def print_model_set(mset):
     print line('Basic Information')     
     print line('-'*twidth)
 
-    path = mset.prefix.split('/')
+    i = mset.prefix.rfind('/') # forward slash index
+    path = mset.prefix[0:i]
 
-    print line("path        : %s" % path[0])
-    if len(path) == 2:
-        print line("prefix      : %s" % path[1])
-    else:    
-        print line("prefix      : */%s" % path[-1])
+    print line("path        : %s" % mset.prefix[0:i])
+    print line("prefix      : %s" % mset.prefix[i:])
 
     print line("N-d         : %i" % len(mset.parameters))
     print line('-'*twidth)

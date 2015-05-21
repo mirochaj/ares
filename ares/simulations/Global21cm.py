@@ -105,23 +105,23 @@ class Global21cm:
             for fn in os.listdir('%s/.ares' % HOME):
                 if not re.search('.pkl', fn):
                     continue
-                
+                                                
                 f = open('%s/.ares/%s' % (HOME, fn), 'rb')
                 pf = pickle.load(f)
                 f.close()
                 
                 if pf == self.pf:
+                    self.found_sim = True
                     break
             
-            self.found_sim = True
-            
-            prefix = fn.partition('.')[0]
-            self.history = dict(np.load('%s/.ares/%s.npz' % (HOME, prefix)))
-            
-            if rank == 0:
-                print "\nFound identical realization! Loaded %s/.ares/%s.npz" \
-                    % (HOME, prefix)
-            return 
+            if self.found_sim:
+                prefix = fn.partition('.')[0]
+                self.history = dict(np.load('%s/.ares/%s.npz' % (HOME, prefix)))
+                
+                if rank == 0:
+                    print "\nFound identical realization! Loaded %s/.ares/%s.npz" \
+                        % (HOME, prefix)
+                return 
                         
         # Initialize two grid patches   
         self.grid_igm = Grid(dims=1, approx_Salpha=self.pf['approx_Salpha'])

@@ -797,8 +797,10 @@ class ModelSet(object):
                 self._derived_blobs[:,i,j] = data[key]
 
                 
-        mask = np.zeros_like(self._derived_blobs)    
-        mask[np.isinf(self._derived_blobs)] = 1
+        mask = np.ones_like(self._derived_blobs)    
+        #mask[np.isinf(self._derived_blobs)] = 1
+        #mask[np.isnan(self._derived_blobs)] = 1
+        mask[np.isfinite(self._derived_blobs)] = 0
         
         self.dmask = mask
         
@@ -1067,10 +1069,15 @@ class ModelSet(object):
             
             tmp = self.extract_blob(par, z=z)
             mask = tmp.mask
-            to_hist = tmp.compressed()
+            to_hist = tmp
 
             if take_log:
                 to_hist = np.log10(to_hist)
+                
+            to_hist = to_hist.compressed()
+        else:
+            print "WARNING: %s not in blobs or parameters!" % par
+            return np.nan, (np.nan, np.nan)
 
         # Need to weight results of non-MCMC runs explicitly
         if not hasattr(self, 'weights'):
@@ -1086,10 +1093,12 @@ class ModelSet(object):
             np.histogram(to_hist, density=True, bins=bins, weights=weights)
 
         bc = rebin(bin_edges)
-
+        
         if to_hist is []:
             return None, (None, None)    
 
+        mu, sigma = error_1D(bc, hist, nu=nu, limit=limit)
+                
         try:
             mu, sigma = error_1D(bc, hist, nu=nu, limit=limit)
         except ValueError:
@@ -1710,7 +1719,8 @@ class ModelSet(object):
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
         skim=1, top=None, oned=True, filled=True, box=None, rotate_x=45, 
-        add_cov=False, label_panels='upper right', **kwargs):
+        rotate_y=45, add_cov=False, label_panels='upper right', fix=True,
+        **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
 
@@ -1842,13 +1852,10 @@ class ModelSet(object):
 
             mp = MultiPanel(padding=padding,
                 panel_size=panel_size, fig=fig, top=top, **kw)
-
-            del kw['diagonal'], kw['dims'], kw['keep_diagonal']
-            
-            for key in ['bottom', 'top', 'left', 'right']:
-                if key in kw:
-                    del kw[key]
-
+        
+        for key in ['bottom', 'top', 'left', 'right', 'figsize', 'diagonal', 'dims', 'keep_diagonal']:
+            if key in kw:
+                del kw[key]
 
         # Loop over parameters
         for i, p1 in enumerate(pars[-1::-1]):
@@ -1990,7 +1997,8 @@ class ModelSet(object):
         if oned:
             mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
         
-        mp.fix_ticks(oned=oned, N=ticks, rotate_x=rotate_x)
+        if fix:
+            mp.fix_ticks(oned=oned, N=ticks, rotate_x=rotate_x, rotate_y=rotate_y)
         
         if not had_mp:
             mp.rescale_axes(tighten_up=tighten_up)
@@ -2474,18 +2482,8 @@ class ModelSet(object):
         del pars
         pars = p
     
-        #if pars[0] in labels:
         log_it = is_log[0] or take_log[0]
         ax.set_xlabel(make_label(pars[0], log_it, labels))
-            #if is_log[0] or take_log[0]:
-            #    ax.set_xlabel(logify_str(labels[pars[0]]))
-            #else:
-            #    ax.set_xlabel(labels[pars[0]])
-                    
-        #elif type(pars[0]) == int:
-        #    ax.set_xlabel(def_par_labels(pars[0]))
-        #else:
-        #    ax.set_xlabel(make_label(pars[0]))
     
         if len(pars) == 1:
             ax.set_ylabel('PDF')
@@ -2493,19 +2491,12 @@ class ModelSet(object):
             pl.draw()
             return
     
-        #if pars[1] in labels:
         log_it = is_log[1] or take_log[1]
         ax.set_ylabel(make_label(pars[1], log_it, labels))
-            #if is_log[1] or take_log[1]:
-            #    ax.set_ylabel(logify_str(labels[pars[1]]))
-            #else:
-            #    ax.set_ylabel(labels[pars[1]])
-        #elif type(pars[1]) == int:
-        #    ax.set_ylabel(def_par_labels(pars[1]))
-        #else:
-        #    ax.set_ylabel(mathify_str(pars[1]))
-        
+
         pl.draw()
+        
+        
         
     def confidence_regions(self, L, nu=[0.95, 0.68]):
         """
