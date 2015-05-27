@@ -389,10 +389,6 @@ class ModelSet(object):
             else:
                 self._chain = None
 
-            if not hasattr(self, '_parameters'):
-                self._parameters = np.arange(self.Nd)
-                self._is_log = [False] * self.Nd
-                       
         return self._chain        
     
     @property
@@ -608,7 +604,7 @@ class ModelSet(object):
                 model_ids = model_num[0:N]            
         else:
             model_ids = model_num    
-            
+                        
         # Create list of models to run
         models = []
         for i, model in enumerate(model_ids):
@@ -623,7 +619,7 @@ class ModelSet(object):
         mg.set_models(models)
         mg.is_log = self.is_log
         mg.LoadBalance(0)
-        
+
         mg.run(prefix, clobber=clobber, save_freq=save_freq)
 
     @property
