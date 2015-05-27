@@ -212,7 +212,7 @@ class ModelGrid:
 
         # Shortcut to parameter names
         self.parameters = self.grid.axes_names
-            
+
     @property
     def is_log(self):
         if not hasattr(self, '_is_log'):
@@ -394,7 +394,7 @@ class ModelGrid:
                 continue
 
             # Grab Tmin index
-            if self.Tmin_in_grid:
+            if self.Tmin_in_grid and self.LB > 0:
                 Tmin_ax = self.grid.axes[self.grid.axisnum(self.Tmin_ax_name)]
                 i_Tmin = Tmin_ax.locate(kwargs[self.Tmin_ax_name])
             else:
@@ -591,14 +591,13 @@ class ModelGrid:
         return self._Tmin_in_grid
             
     def LoadBalance(self, method=0):
-        
         if self.grid.structured:
             self._structured_balance(method=method)       
         else: 
             self._unstructured_balance(method=method)       
             
     def _unstructured_balance(self, method=0):
-        
+                
         if rank == 0:
 
             order = list(np.arange(size))
@@ -609,6 +608,7 @@ class ModelGrid:
             self.assignments = np.array(self.assignments[0:self.grid.size])
             
             if size == 1:
+                self.LB = 0
                 return
             
             # Communicate assignments to workers
@@ -620,7 +620,7 @@ class ModelGrid:
             MPI.COMM_WORLD.Recv(self.assignments, source=0,  
                 tag=10*rank)
                    
-        self.LB = 0                
+        self.LB = 0
                         
     def _structured_balance(self, method=0):
         """

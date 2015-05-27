@@ -21,7 +21,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     if (ARES is not None) else '.'
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum', 
-    'Control', 'HaloMassFunction', 'Tanh', 'Halo']
+    'Control', 'HaloMassFunction', 'Tanh', 'Halo', 'LuminosityFunction']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -389,6 +389,25 @@ def HaloParameters():
     }
     
     return pf
+    
+def LuminosityFunctionParameters():
+    pf = \
+    {
+     "lf": None,
+     "lf_norm": 1.0,
+     "lf_Lmin": 1e38,
+     "lf_Lstar": 1e42,
+     "lf_Emin": 2e3,
+     "lf_Emax": 8e3,
+     "lf_slope": -1.,
+     "lf_gamma1": None,
+     "lf_gamma2": None,
+     "lf_func": 'schecter', # or "dpl" for double power-law,
+     "lf_zfunc": None,      # governs redshift evolution
+    }
+
+    return pf
+
     
 def ControlParameters():
     pf = \

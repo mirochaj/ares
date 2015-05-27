@@ -58,6 +58,9 @@ class StellarSource(object):
         self.N = len(self.spec_pars['type'])
 
         self.tau = self.src_pars['lifetime'] * self.pf['time_units']
+        
+        if self.spec_pars['type'] != 'bb':
+            raise ValueError("StellarSource not built for non-BB SED!")
 
         if self.N != 1:
             raise ValueError('No support for multi-component stellar SEDs.')

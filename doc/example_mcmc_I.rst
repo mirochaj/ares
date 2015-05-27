@@ -69,6 +69,6 @@ To finally run it,
     
     fit.run(prefix='test_tanh', burn=10, steps=50, save_freq=10)
 
-This will result in a series of files named ``test_tanh*.pkl''. 
+This will result in a series of files named ``test_tanh*.pkl``. 
 
 

@@ -117,7 +117,10 @@ def make_label(name, take_log=False, labels=None):
     if m is None:
         num = None
         prefix = name
-        label = labels[prefix]
+        if prefix in labels:
+            label = labels[prefix]
+        else:
+            label = r'$%s$' % prefix
     else:
         num = int(m.group(1))
         prefix = name.split(m.group(0))[0]
@@ -562,7 +565,7 @@ class ModelSet(object):
     def Dump(self, prefix, modelset):
         pass
 
-    def ReRunModels(self, prefix=None, N=None, models=None, plot=False, 
+    def ReRunModels(self, prefix=None, N=None, models=None, 
         clobber=False, save_freq=10, random=True, last=False, **kwargs):
         """
         Take list of dictionaries and re-run each as a Global21cm model.
@@ -614,11 +617,13 @@ class ModelSet(object):
                 tmp[par] = self.chain[i,j]
             
             models.append(tmp.copy())
-                    
+                                
         # Take advantage of pre-existing machinery to run them
         mg = self.mg = ModelGrid(**kwargs)
         mg.set_models(models)
+        mg.is_log = self.is_log
         mg.LoadBalance(0)
+        
         mg.run(prefix, clobber=clobber, save_freq=save_freq)
 
     @property
@@ -1040,7 +1045,7 @@ class ModelSet(object):
         return nu, levels
     
     def get_1d_error(self, par, z=None, bins=500, nu=0.68, take_log=False,
-        limit=None):
+        limit=None, multiplier=1.):
         """
         Compute 1-D error bar for input parameter.
         
@@ -1069,10 +1074,12 @@ class ModelSet(object):
             
             tmp = self.extract_blob(par, z=z)
             mask = tmp.mask
-            to_hist = tmp
+            to_hist = tmp.copy()
 
             if take_log:
                 to_hist = np.log10(to_hist)
+                
+            to_hist *= multiplier    
                 
             to_hist = to_hist.compressed()
         else:

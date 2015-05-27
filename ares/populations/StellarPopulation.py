@@ -115,7 +115,6 @@ class StellarPopulation:
         """
         Initialize RadiationSource (rt1d) instance - normalize LW, UV, and
         X-ray luminosities appropriately.
-        
         """
         
         sed = norm_sed(self, self.grid)
