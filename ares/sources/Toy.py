@@ -11,9 +11,10 @@ Description:
 """
 
 import numpy as np
+from .Source import Source
 from ..physics.Constants import erg_per_ev
 
-class SimpleSource(object):
+class Toy(Source):
     """ Class for creation and manipulation of toy-model radiation sources. """
     def __init__(self, pf, src_pars, spec_pars):
         """ 
@@ -33,9 +34,7 @@ class SimpleSource(object):
         self.pf = pf
         self.src_pars = src_pars
         self.spec_pars = spec_pars
-        
-        self._name = "SimpleSource"
-        
+                
         self.Q = self.src_pars['qdot']
         self.E = np.array(self.spec_pars['E'])
         self.LE = np.array(self.spec_pars['LE'])

@@ -14,7 +14,6 @@ routines for slicing through it and applying functions to it.
 import numpy as np
 import os, itertools, copy
 from collections import defaultdict
-#from .ProgressBar import ProgressBar
 
 try: 
     from mpi4py import MPI
@@ -436,37 +435,7 @@ class GridND(defaultdict):
         loc = self.locate_entry(kwargs)
         pars = np.array([kwargs[ax] for ax in self.axes_names])        
         self[name][loc] = func(pars)
-        
-    def compute_all(self, func, name):
-        """
-        Apply given function to all_kwargs.  Store result in self[name].
-        func must accept **kwargs only (try to make this more general).
-        """    
-        
-        pb = ProgressBar(self.size, name = 'grid')
-
-        pb.start()
-        tmp = np.zeros(self.dims)
-        for i, kwargs in enumerate(self.all_kwargs):
-            
-            if i % size != rank:
-                continue
-            
-            loc = self.locate_entry(kwargs)
-            
-            pars = np.array([kwargs[ax] for ax in self.axes_names])
-            tmp[loc] = func(**kwargs)
-            pb.update(i)
-            
-        pb.finish()    
-        
-        # Communicate result
-        self.new_field(name)
-        if size > 1:
-            nothing = MPI.COMM_WORLD.Allreduce(tmp, self[name])
-        else:
-            self[name] = tmp
-            
+                    
     def update(self, name, loc, value):
         """
         Update dataset in self.

@@ -51,7 +51,7 @@ class Source:
     def SpectrumMean(self):
         """
         Mean emission energy.
-        """        
+        """
         
         integrand = lambda E: self.rs.Spectrum(E) * E
         
@@ -89,7 +89,7 @@ class Source:
         return np.exp(-10.**logN \
             * (sigma_E(E, 0) + y * sigma_E(E, 1)))
                     
-    def PlotSpectrum(self, color='k', components=True, t=0, normalized=True,
+    def PlotSpectrum(self, color='k', t=0, normalized=True,
         bins=100, ax=None, label=None, ls='-', xunit='eV', marker=None,
         normalize_to=None):
         """
@@ -111,19 +111,6 @@ class Source:
         
         for energy in E:
             F.append(self.rs.Spectrum(energy, t = t))
-        
-        if components and self.rs.N > 1:
-            EE = []
-            FF = []
-            for i, component in enumerate(self.rs.SpectrumPars['type']):
-                tmpE = np.logspace(np.log10(self.rs.SpectrumPars['Emin'][i]), 
-                    np.log10(self.rs.SpectrumPars['Emax'][i]), bins)
-                tmpF = []
-                for energy in tmpE:
-                    tmpF.append(self.rs.Spectrum(energy, t=t, i=i))
-                
-                EE.append(tmpE)
-                FF.append(tmpF)
         
         if ax is None:
             ax = pl.subplot(111)
@@ -147,11 +134,6 @@ class Source:
         else:
             ax.scatter(E, F * Lbol * norm, color=color, marker=marker, 
                 label=label)
-        
-        if components and self.rs.N > 1:
-            for i in xrange(self.rs.N):
-                ax.loglog(EE[i], np.array(FF[i]) * Lbol, color=color, 
-                    ls=allls[i+1])
         
         if xunit == 'keV':
             ax.set_xlabel(r'$h\nu \ (\mathrm{keV})$')

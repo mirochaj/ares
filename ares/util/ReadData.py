@@ -11,7 +11,9 @@ Description:
 """
 
 import numpy as np
+import imp as _imp
 import os, pickle, re
+
 
 try:
     import h5py
@@ -27,12 +29,24 @@ except ImportError:
     
 ARES = os.environ.get('ARES')
 
+def read_lit(prefix):
+    
+    # Load custom defaults    
+    if os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix)):
+        _f, _filename, _data = _imp.find_module(prefix, 
+            ['%s/input/litdata/' % ARES])
+        mod = _imp.load_module('%s' % prefix, _f, _filename, _data)
+    else:
+        mod = None
+    
+    return mod
+
 def flatten_flux(flux):
     """
     Take fluxes sorted by Lyman-n band and flatten to single energy
     dimension.
     """
-    
+
     to_return = []
     for i, flux_seg in enumerate(flux):
         to_return.extend(flux_seg)
@@ -48,7 +62,7 @@ def split_flux(energies, fluxes):
     fluxes_split = np.hsplit(fluxes, i_E)
 
     return fluxes_split
-    
+
 def _sort_flux_history(all_fluxes):
     pass    
 

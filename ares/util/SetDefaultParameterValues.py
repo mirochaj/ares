@@ -21,7 +21,8 @@ tau_prefix = "%s/input/optical_depth" % ARES \
     if (ARES is not None) else '.'
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum', 
-    'Control', 'HaloMassFunction', 'Tanh', 'Halo', 'Slab']
+    'Control', 'HaloMassFunction', 'Tanh', 'Halo', 'Slab', 
+    'LuminosityFunction']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -226,52 +227,119 @@ def CosmologyParameters():
     pf.update(rcParams)
 
     return pf
+    
+def PopulationParameters():
+    pf = \
+    {
+    
+    "pop_rhoL": None,
+    
+    "source_type": 'star',
+    "source_kwargs": None,
 
+    "model": -1, # Only BHs use this at this point
+
+    "formation_epoch": (50., 0.),
+    "zoff": 0.0,
+
+    "is_lya_src": True,
+    "is_ion_src_cgm": True,
+    "is_ion_src_igm": True,
+    "is_heat_src_cgm": False,
+    "is_heat_src_igm": True,
+
+    "is_src_irb": False,
+    "is_src_lwb": True,
+    "is_src_uvb": False,
+    "is_src_xrb": True,
+
+    # Sets star formation history
+    "Tmin": 1e4, 
+    "Mmin": None,
+    "fstar": 0.1,
+
+    # Scales X-ray emission
+    "cX": 3.4e40, # Furlanetto (2006) extrapolation
+    "fX": 0.2,    # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
+    'fXh': None,
+
+    # Scales Lyman-Werner emission
+    "Nlw": 9690.,
+
+    # Scales ionizing emission
+    "fion": 1.0,                
+    "Nion": 4e3,
+    "fesc": 0.1,
+
+    # Acknowledge degeneracy between fstar, etc.
+    "xi_XR": None,     # product of fstar and fX
+    "xi_LW": None,     # product of fstar and Nlw
+    "xi_UV": None,     # product of fstar, Nion, and fesc
+
+    # Controls IGM ionization for approximate CXB treatments
+    "xray_Eavg": 500.,
+    "uv_Eavg": 30.,
+
+    # Bypass fcoll prescriptions, use parameterizations
+    "sfrd": None,
+    "emissivity": None,
+    "heat_igm": None,
+    "Gamma_igm": None,
+    "Gamma_cgm": None,
+    "gamma_igm": None,
+    'Ja': None,
+
+    # Black hole models
+    "rhoi": 1e2,
+    "fbh": 1e-5,
+    "fedd": 0.1,
+    "eta": 0.1,
+    "Mi": 100.,
+    }
+
+    pf.update(rcParams)
+
+    return pf      
+    
 def SourceParameters():
     pf = \
     {
     "source_type": 'star',  
+    "source_sed": 'bb',
     
-    "source_temperature": 1e5,  
-    "source_qdot": 5e48,
-    "source_Lbol": None,
-    "source_mass": 10,  
-    "source_fduty": 1,
     "source_tbirth": 0,
-    "source_lifetime": 1e10,  
-    "source_eta": 0.1,
-    "source_isco": 6,  
-    "source_rmax": 1e3,
-    "source_cX": 1.0,
+    "source_lifetime": 1e10,
     
-    "source_ion": 0,
-    "source_ion2": 0,
-    "source_heat": 0,
-    "source_lya": 0,
-    
+    "source_dlogN": [0.1],
+    "source_logNmin": [None],
+    "source_logNmax": [None],
     "source_table": None,
-    "source_normalized": False,
+    
+    "source_E": None,
+    "source_LE": None,
+    "source_Emin": 13.6,  
+    "source_Emax": 1e2,  
+    "source_EminNorm": None,
+    "source_EmaxNorm": None,
     
     }
     
     pf.update(rcParams)
     
     return pf
-    
+
 def StellarParameters():
     pf = \
     {        
+    
     "source_temperature": 1e5,  
-    "source_qdot": 5e48,
-    
-    "spectrum_Emin": 13.6,  
-    "spectrum_Emax": 1e2,  
-    "spectrum_EminNorm": None,
-    "spectrum_EmaxNorm": None,
+    "source_lifetime": 1e10,  # [Myr]
+    "source_qdot": 5e48,    
     }
-    
+
+    pf.update(SourceParameters())
     pf.update(rcParams)
-        
+
     return pf
 
 def BlackHoleParameters():
@@ -279,15 +347,24 @@ def BlackHoleParameters():
     {
     "source_mass": 1e5,
     "source_rmax": 1e3,
-    "spectrum_alpha": -1.5,
-    "spectrum_Emin": 2e2,  
-    "spectrum_Emax": 3e4,  
-    "spectrum_EminNorm": None,
-    "spectrum_EmaxNorm": None,
-    "spectrum_fsc": 0.1,
-    "spectrum_uponly": True,
+    "source_alpha": -1.5,
+    
+    "source_fsc": 0.1,
+    "source_uponly": True,
+    
+    "source_Lbol": None,
+    "source_mass": 10,  
+    "source_fduty": 1,
+    
+    "source_eta": 0.1,
+    "source_logN": -inf,
+    "source_isco": 6,  
+    "source_rmax": 1e3,
+    
+    
     }
     
+    pf.update(SourceParameters())
     pf.update(rcParams)
     
     return pf    
@@ -331,77 +408,7 @@ def SpectrumParameters():
     pf.update(rcParams)
     
     return pf
-    
-def PopulationParameters():
-    pf = \
-    {
-    "source_type": 'star',
-    "source_kwargs": None,
-    
-    "model": -1, # Only BHs use this at this point
-    
-    "formation_epoch": (50., 0.),
-    "zoff": 0.0,
-    
-    "is_lya_src": True,
-    "is_ion_src_cgm": True,
-    "is_ion_src_igm": True,
-    "is_heat_src_cgm": False,
-    "is_heat_src_igm": True,
-
-    "is_src_irb": False,
-    "is_src_lwb": True,
-    "is_src_uvb": False,
-    "is_src_xrb": True,
-
-    # Sets star formation history
-    "Tmin": 1e4, 
-    "Mmin": None,
-    "fstar": 0.1,
-
-    # Scales X-ray emission
-    "cX": 3.4e40, # Furlanetto (2006) extrapolation
-    "fX": 0.2,    # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
-    'fXh': None,
-    
-    # Scales Lyman-Werner emission
-    "Nlw": 9690.,
-    
-    # Scales ionizing emission
-    "fion": 1.0,                
-    "Nion": 4e3,
-    "fesc": 0.1,
-    
-    # Acknowledge degeneracy between fstar, etc.
-    "xi_XR": None,     # product of fstar and fX
-    "xi_LW": None,     # product of fstar and Nlw
-    "xi_UV": None,     # product of fstar, Nion, and fesc
-    
-    # Controls IGM ionization for approximate CXB treatments
-    "xray_Eavg": 500.,
-    "uv_Eavg": 30.,
-    
-    # Bypass fcoll prescriptions, use parameterizations
-    "sfrd": None,
-    "emissivity": None,
-    "heat_igm": None,
-    "Gamma_igm": None,
-    "Gamma_cgm": None,
-    "gamma_igm": None,
-    'Ja': None,
-    
-    # Black hole models
-    "rhoi": 1e2,
-    "fbh": 1e-5,
-    "fedd": 0.1,
-    "eta": 0.1,
-    "Mi": 100.,
-    }
-    
-    pf.update(rcParams)
-    
-    return pf      
-    
+        
 def HaloMassFunctionParameters():
     pf = \
     {
@@ -430,6 +437,27 @@ def HaloMassFunctionParameters():
     }
     
     pf.update(rcParams)
+
+    return pf
+    
+def LuminosityFunctionParameters():
+    pf = \
+    {
+     "lf": None,
+     "lf_norm": 1.0,
+     "lf_Lmin": 1e38,
+     "lf_Lstar": 1e42,
+     "lf_Emin": 2e3,
+     "lf_Emax": 8e3,
+     "lf_slope": -1.,
+     "lf_gamma1": None,
+     "lf_gamma2": None,
+     "lf_func": 'schecter', # or "dpl" for double power-law,
+     "lf_zfunc": None,      # governs redshift evolution
+     "lf_ldde": None,
+     "lf_lade": None,
+     "lf_lide": None,
+    }
 
     return pf
 
@@ -547,14 +575,7 @@ def TanhParameters():
 
     return pf
     
-def ForegroundParameters():
-    pf = \
-    {
-     'fg_pivot': 80.,
-     'fg_order': 4,
-    }
-    
-    return pf
+
     
 
 

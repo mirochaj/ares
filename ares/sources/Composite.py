@@ -12,9 +12,9 @@ over said instances in ionization and heating rate calculations.
 """
 
 import re
-from .RadiationSource import RadiationSource
+#from .RadiationSource import RadiationSource
 
-class CompositeSource:
+class Composite(object):
     """ Class for stitching together several radiation sources. """
     def __init__(self, grid=None, logN=None, init_tabs=True, **kwargs):
         """

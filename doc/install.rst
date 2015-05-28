@@ -26,4 +26,3 @@ to the *ares* install directory, e.g. (in bash) ::
     
 A few lookup tables will be downloaded to ``$ARES/input`` automatically.    
 
-

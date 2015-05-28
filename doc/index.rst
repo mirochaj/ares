@@ -41,10 +41,12 @@ Contents
    Home <self>
    install
    examples
-   parameters
+   params
    fields
+   uth
    structure
    contributing
+   acknowledgements
 
 Indices and tables
 ==================

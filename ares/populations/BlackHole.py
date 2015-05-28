@@ -14,11 +14,11 @@ import types
 import numpy as np
 from scipy.integrate import quad
 from ..util import ParameterFile
+from .Halo import HaloPopulation
 from scipy.misc import derivative
 from ..physics.Constants import *
 from ..util.PrintInfo import print_pop
 from ..util.NormalizeSED import norm_sed
-from .HaloMassFunction import HaloDensity
 from ..physics.Cosmology import Cosmology
 from ..sources.RadiationSource import RadiationSource
 from ..physics.SecondaryElectrons import SecondaryElectrons

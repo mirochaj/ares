@@ -33,6 +33,9 @@ The ionization and heating rates are computed treating the source's spectral
 energy distribution in full. A lengthy discussion of this can be found in
 `Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_.
 
+Including helium for pre-existing problem types is as simple as adding 10 to
+the ``problem_type``, i.e., 
+
 :: 
 
     import ares
@@ -40,13 +43,32 @@ energy distribution in full. A lengthy discussion of this can be found in
     sim = ares.simulations.RaySegment(problem_type=12)
     sim.run()
     
-    anl = ares.analysis.RaySegment(sim.checkpoints)
-    
-    anl.PlotIonizationFrontEvolution(fig=1)
+Now, we initialize an instance of the appropriate analysis class:
 
-    # Snapshots at 10 and 50 Myr
-    anl.IonizationProfile(fig=2, t=[10, 50])
-    anl.TemperatureProfile(fig=3, t=[10, 50])
+::
     
+    anl = ares.analysis.RaySegment(sim.checkpoints)
+
+and have a look at the temperature profile at 10, 30, and 100 Myr,
+
+::
     
+    ax1 = anl.RadialProfile('Tk', t=[10, 30, 100])
+
+radial profiles of the hydrogen species fractions,
+
+::
+
+    ax2 = anl.RadialProfile('h_1', t=[10, 30, 100], fig=2)
+    anl.RadialProfile('h_2', t=[10, 30, 100], ax=ax2, ls='--')
+
+and the species fractions for helium:
+
+::
+
+    ax3 = anl.RadialProfile('he_1', t=[10, 30, 100], fig=3)
+    anl.RadialProfile('he_2', t=[10, 30, 100], ax=ax3, ls='--')
+    anl.RadialProfile('he_3', t=[10, 30, 100], ax=ax3, ls=':')
+    
+
     

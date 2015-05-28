@@ -16,18 +16,17 @@ import matplotlib.pyplot as pl
 
 pars = \
 {
- 'source_type': 'star', 
  'source_temperature': 1e4,
- 'spectrum_type': 'bb',
- 'spectrum_Emin': 1.,
- 'spectrum_Emax': 1e2,
+ 'source_Emin': 1.,
+ 'source_Emax': 1e2,
+ 'source_qdot': 1e50,
 }
 
 ls = [':', '--', '-']
 for i, logT in enumerate([4, 4.5, 5]):
     pars.update({'source_temperature': 10**logT})
 
-    src = ares.sources.RadiationSource(init_tabs=False, **pars)
+    src = ares.sources.Star(init_tabs=False, **pars)
     bh = ares.analysis.Source(src)
     
     ax = bh.PlotSpectrum(ls=ls[i], 

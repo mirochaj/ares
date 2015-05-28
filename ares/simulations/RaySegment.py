@@ -16,7 +16,7 @@ from .GasParcel import GasParcel
 from ..solvers import RadialField
 from ..util.ReadData import _sort_history
 
-class RaySegment:
+class RaySegment(object):
     """
     Propagate radiation along a ray!
     """

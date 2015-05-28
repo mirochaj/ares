@@ -20,13 +20,7 @@ Basics
 Advanced
 --------
 * :doc:`example_adv_RT_w_He`
-
-Under the hood
---------------
-* :doc:`example_stellar_pop`
-* :doc:`example_bh_pop` 
-* :doc:`example_igm`
-* :doc:`example_chem`
+* :doc:`example_user_defined`
  
 Surveying Parameter Space
 -------------------------

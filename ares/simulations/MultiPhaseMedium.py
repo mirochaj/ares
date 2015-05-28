@@ -38,15 +38,15 @@ cgm_pars = \
  'include_He': False,
 }
 
-class MultiPhaseMedium:
+class MultiPhaseMedium(object):
     def __init__(self, **kwargs):
         """
         Initialize a MultiPhaseMedium object.
         
         By default, this is a two-zone model, consisting of a  "bulk IGM"
-        grid patch and a "HII regions" grid, dubbed "igm" and "cgm", 
-        respectively. However, to perform a single-zone calculation, 
-        simply set ``include_cgm=False``.
+        grid patch and an "HII regions" grid patch, dubbed "igm" and "cgm", 
+        respectively. To perform a single-zone calculation, simply set 
+        ``include_cgm=False``.
         """
 
         if 'load_ics' not in kwargs:

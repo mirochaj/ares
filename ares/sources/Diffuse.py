@@ -10,15 +10,17 @@ Description:
 
 """
 
-class DiffuseSource:
+class Diffuse:
     def __init__(self, rb):
         """
         Needs to know if IGM or HII region grid patch.
         """
         self.rb = rb # RadiationBackground instance
-        self.SourcePars = {}
-        self.SourcePars['type'] = 'diffuse'
+        #self.SourcePars = {}
+        #self.SourcePars['type'] = 'diffuse'
         self.pf = self.rb.pf
+
+        self._name = 'diffuse'
 
     def SourceOn(self, t):
         return True

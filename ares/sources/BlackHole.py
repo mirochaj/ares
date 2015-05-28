@@ -11,19 +11,20 @@ Description:
 """
 
 import numpy as np
+from .Source import Source
+from types import FunctionType
 from scipy.integrate import quad
-from ..physics.Constants import *
 from .StellarSource import _Planck
+from ..util.ReadData import read_lit
 from ..util.SetDefaultParameterValues import BlackHoleParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
+from ..physics.Constants import s_per_myr, G, g_per_msun, c, t_edd, m_p, \
+    sigma_T, sigma_SB
 
-sptypes = {'pl':0, 'mcd':1, 'qso':2, 'simpl':3, 'zebra':4}
+sptypes = {'pl':0, 'mcd':1, 'simpl':2, 'zebra':3}
 
-tiny_number = 1e-12
-
-class BlackHoleSource(object):
-    """ Class for creation and manipulation of compact object sources. """
-    def __init__(self, pf, src_pars, spec_pars):
+class BlackHole(Source):
+    def __init__(self, **kwargs):
         """ 
         Initialize a black hole object. 
     
@@ -38,79 +39,70 @@ class BlackHoleSource(object):
     
         """  
         
-        self.pf = pf
-        self.src_pars = src_pars
-        self.spec_pars = spec_pars
+        self.pf = BlackHoleParameters()
+        self.pf.update(kwargs)
         
-        self._name = 'BlackHoleSource'
+        Source.__init__(self)
         
-        self.M0 = self.src_pars['mass']
-        self.epsilon = self.src_pars['eta']
+        self._name = 'bh'
+        
+        self.M0 = self.pf['source_mass']
+        self.epsilon = self.pf['source_eta']
         
         # Duty cycle parameters
-        self.tau = self.src_pars['lifetime'] * self.pf['time_units']
-        self.fduty = self.src_pars['fduty'] 
+        self.tau = self.pf['source_lifetime'] * s_per_myr
+        self.fduty = self.pf['source_fduty'] 
         self.variable = self.fduty < 1
-        if self.src_pars['fduty'] == 1:
-            self.variable = self.tau < self.pf['stop_time']
+        #if self.src_pars['fduty'] == 1:
+        #    self.variable = self.tau < self.pf['stop_time']
         
         self.toff = self.tau * (self.fduty**-1. - 1.)
         
         # Disk properties
         self.last_renormalized = 0.0
         self.r_in = self._DiskInnermostRadius(self.M0)
-        self.r_out = self.src_pars['rmax'] * self._GravitationalRadius(self.M0)
+        self.r_out = self.pf['source_rmax'] * self._GravitationalRadius(self.M0)
         self.T_in = self._DiskInnermostTemperature(self.M0)
         self.T_out = self._DiskTemperature(self.M0, self.r_out)
         self.Lbol = self.Luminosity(0.0)
-        
+
         self.disk_history = {}
-        
+
         #if 'mcd' in self.spec_pars['type']:
         #    self.fcol = self.spec_pars['fcol'][self.spec_pars['type'].index('mcd')]
         #if 'simpl' in self.spec_pars['type']:
         #    self.fcol = self.spec_pars['fcol'][self.spec_pars['type'].index('simpl')]    
-        if 'zebra' in self.spec_pars['type']:
-            self.T = self.src_pars['temperature']#[self.spec_pars['type'].index('zebra')]
-        
-        # Parameters for the Sazonov & Ostriker AGN template
-        self.Alpha = 0.24
-        self.Beta = 1.60
-        self.Gamma = 1.06
-        self.E_1 = 83e3
-        self.K = 0.0041
-        self.E_0 = (self.Beta - self.Alpha) * self.E_1
-        self.A = np.exp(2e3 / self.E_1) * 2e3**self.Alpha
-        self.B = ((self.E_0**(self.Beta - self.Alpha)) \
-            * np.exp(-(self.Beta - self.Alpha))) / \
-            (1.0 + (self.K * self.E_0**(self.Beta - self.Gamma)))
-            
-        # Normalization constants to make the SOS04 spectrum continuous.
-        self.SX_Normalization = 1.0
-        self.UV_Normalization = self.SX_Normalization \
-            * ((self.A * 2e3**-self.Alpha) * \
-            np.exp(-2e3 / self.E_1)) \
-            / ((1.2 * 2e3**-1.7) * np.exp(2000.0 / 2000.))
-        self.IR_Normalization = self.UV_Normalization * ((1.2 * 10**-1.7) \
-            * np.exp(10.0 / 2e3)) / (1.2 * 159 * 10**-0.6)
-        self.HX_Normalization = self.SX_Normalization \
-            * (self.A * self.E_0**-self.Alpha * \
-            np.exp(-self.E_0 / self.E_1)) / (self.A * self.B \
-            * (1.0 + self.K * self.E_0**(self.Beta - self.Gamma)) * \
-            self.E_0**-self.Beta)
+        #if 'zebra' in self.pf['source_sed']:
+        #    self.T = self.src_pars['temperature']#[self.spec_pars['type'].index('zebra')]
+
+        if self.pf['source_sed'] in sptypes:
+            pass
+        elif type(self.pf['source_sed']) is FunctionType:
+            self._UserDefined = self.pf['source_sed']
+        else:
+            from_lit = read_lit(self.pf['source_sed'])
+            self._UserDefined = from_lit.Spectrum
             
         # Convert spectral types to strings
-        self.N = len(self.spec_pars['type'])
-        self.type_by_num = []
-        self.type_by_name = []
-        for i, sptype in enumerate(self.spec_pars['type']):
-            if type(sptype) != int:
-                self.type_by_name.append(sptype)                
-                self.type_by_num.append(sptypes[sptype])
-                continue
-            
-            self.type_by_num.append(sptype)
-            self.type_by_name.append(sptypes.keys()[sptypes.values().index(sptype)])                
+        #self.N = len(self.spec_pars['type'])
+        #self.type_by_num = []
+        #self.type_by_name = []
+        #for i, sptype in enumerate(self.spec_pars['type']):
+        #    if type(sptype) != int:
+        #        
+        #        if sptype in sptypes:
+        #            self.type_by_name.append(sptype)                
+        #            self.type_by_num.append(sptypes[sptype])
+        #        elif type(sptype) is FunctionType:
+        #            self._UserDefined = sptype
+        #        else:
+        #            from_lit = read_lit(sptype)
+        #            self._UserDefined = from_lit.Spectrum
+        #        
+        #        continue
+        #    
+        #    self.type_by_num.append(sptype)
+        #    self.type_by_name.append(sptypes.keys()[sptypes.values().index(sptype)])                
                 
     def _SchwartzchildRadius(self, M):
         return 2. * self._GravitationalRadius(M)
@@ -127,7 +119,7 @@ class BlackHoleSource(object):
         Inner radius of disk.  Unless SourceISCO > 0, will be set to the 
         inner-most stable circular orbit for a BH of mass M.
         """
-        return self.src_pars['isco'] * self._GravitationalRadius(M)
+        return self.pf['source_isco'] * self._GravitationalRadius(M)
             
     def _DiskInnermostTemperature(self, M):
         """
@@ -141,16 +133,16 @@ class BlackHoleSource(object):
             8. / np.pi / r**3 / sigma_SB) * \
             (1. - (self._DiskInnermostRadius(M) / r)**0.5))**0.25
             
-    def _PowerLaw(self, E, i, t=0.0):    
+    def _PowerLaw(self, E, t=0.0):    
         """
         A simple power law X-ray spectrum - this is proportional to the 
         *energy* emitted at E, not the number of photons.  
         """
 
-        return E**self.spec_pars['alpha'][i]
+        return E**self.pf['source_alpha']
         
-    def _SIMPL(self, E, i, t):
-        '''
+    def _SIMPL(self, E, t):
+        """
         Purpose:
         --------
         Convolve an input spectrum with a Comptonization kernel.
@@ -176,27 +168,27 @@ class BlackHoleSource(object):
         References
         ----------
         Steiner et al. (2009). Thanks Greg Salvesen for the code!
-        '''
+        """
 
         # Input photon distribution
-        if self.type_by_name[i] == 'zebra':
+        if self.pf['source_sed'] == 'zebra':
             nin = lambda E0: _Planck(E0, self.T) / E0
         else:
             nin = lambda E0: self._MultiColorDisk(E0, i, t) / E0
     
-        fsc = self.spec_pars['fsc'][i]
+        fsc = self.pf['source_fsc']
 
         # Output photon distribution - integrate in log-space         
         integrand = lambda E0: nin(10**E0) * self._GreensFunctionSIMPL(10**E0, E, i) * 10**E0
 
         nout = (1.0 - fsc) * nin(E) + fsc \
-            * quad(integrand, np.log10(self.spec_pars['Emin'][i]),
-                np.log10(self.spec_pars['Emax'][i]))[0] * np.log(10.)
+            * quad(integrand, np.log10(self.Emin),
+                np.log10(self.Emax))[0] * np.log(10.)
                                 
         # Output spectrum
         return nout * E
     
-    def _GreensFunctionSIMPL(self, Ein, Eout, i):
+    def _GreensFunctionSIMPL(self, Ein, Eout):
         """
         Must perform integral transform to compute output photon distribution.
         """
@@ -204,9 +196,9 @@ class BlackHoleSource(object):
         # Careful with Gamma...
         # In Steiner et al. 2009, Gamma is n(E) ~ E**(-Gamma),
         # but n(E) and L(E) are different by a factor of E (see below)
-        Gamma = -self.spec_pars['alpha'][i] + 1.0
+        Gamma = -self.pf['source_alpha'] + 1.0
         
-        if self.spec_pars['uponly'][i]:
+        if self.pf['source_uponly']:
             if Eout >= Ein:
                 return (Gamma - 1.0) * (Eout / Ein)**(-1.0 * Gamma) / Ein
             else:
@@ -219,21 +211,22 @@ class BlackHoleSource(object):
                 return (Gamma - 1.0) * (Gamma + 2.0) / (1.0 + 2.0 * Gamma) * \
                     (Eout / Ein)**(Gamma + 1.0) / Ein
     
-    def _MultiColorDisk(self, E, i, Type, t=0.0):
+    def _MultiColorDisk(self, E, t=0.0):
         """
-        Soft component of accretion disk spectra. 
-        
+        Soft component of accretion disk spectra.
+
         References
         ----------
         Mitsuda et al. 1984, PASJ, 36, 741.
-        
+
         """         
-        
+
         # If t > 0, re-compute mass, inner radius, and inner temperature
-        if t > 0 and self.spec_pars['evolving'] and t != self.last_renormalized:
+        if t > 0 and self.pf['source_evolving'] \
+            and t != self.last_renormalized:
             self.M = self.Mass(t)
             self.r_in = self._DiskInnermostRadius(self.M)
-            self.r_out = self.src_pars['rmax'] * self._GravitationalRadius(self.M)
+            self.r_out = self.pf['source_rmax'] * self._GravitationalRadius(self.M)
             self.T_in = self._DiskInnermostTemperature(self.M)
             self.T_out = self._DiskTemperature(self.M, self.r_out)
                     
@@ -241,44 +234,7 @@ class BlackHoleSource(object):
             * _Planck(E, T) / self.T_in
             
         return quad(integrand, self.T_out, self.T_in)[0]
-        
-    def _QuasarTemplate(self, E, i, Type, t=0):
-        """
-        Broadband quasar template spectrum.
-        
-        References
-        ----------
-        Sazonov, S., Ostriker, J.P., & Sunyaev, R.A. 2004, MNRAS, 347, 144.
-        """
-        
-        op = (E < 10)
-        uv = (E >= 10) & (E < 2e3) 
-        xs = (E >= 2e3) & (E < self.E_0)
-        xh = (E >= self.E_0) & (E < 4e5)        
-        
-        if type(E) in [int, float]:
-            if op:
-                F = self.IR_Normalization * 1.2 * 159 * E**-0.6
-            elif uv:
-                F = int(uv) * self.UV_Normalization * 1.2 * E**-1.7 * np.exp(E / 2000.0)
-            elif xs:
-                F = self.SX_Normalization * self.A * E**-self.Alpha * np.exp(-E / self.E_1)
-            elif xh:
-                F = self.HX_Normalization * self.A * self.B * (1.0 + self.K * \
-                    E**(self.Beta - self.Gamma)) * E**-self.Beta
-            else: 
-                F = 0
-                
-        else:
-            F = np.zeros_like(E)
-            F += op * self.IR_Normalization * 1.2 * 159 * E**-0.6
-            F += uv * self.UV_Normalization * 1.2 * E**-1.7 * np.exp(E / 2000.0)
-            F += xs * self.SX_Normalization * self.A * E**-self.Alpha * np.exp(-E / self.E_1)
-            F += xh * self.HX_Normalization * self.A * self.B * (1.0 + self.K * \
-                    E**(self.Beta - self.Gamma)) * E**-self.Beta
-        
-        return E * F
-    
+
     def SourceOn(self, t):
         """ See if source is on. Provide t in code units. """        
         
@@ -297,46 +253,42 @@ class BlackHoleSource(object):
         else:
             return False
             
-    def _Intensity(self, E, i=0, t=0, absorb=True):
+    def _Intensity(self, E, t=0, absorb=True):
         """
         Return quantity *proportional* to fraction of bolometric luminosity 
         emitted at photon energy E.  Normalization handled separately.
         """
                         
-        if self.type_by_name[i] == 'pl': 
-            Lnu = self._PowerLaw(E, i, t)    
-        elif self.type_by_name[i] == 'mcd':
-            Lnu = self._MultiColorDisk(E, i, t)
-        elif self.type_by_name[i] == 'qso':
-            Lnu = self._QuasarTemplate(E, i, t)
-        elif self.type_by_name[i] == 'simpl':
-            Lnu = self._SIMPL(E, i, t)
-        elif self.type_by_name[i] == 'zebra':
-            Lnu = self._SIMPL(E, i, t)            
+        if self.pf['source_sed'] == 'pl': 
+            Lnu = self._PowerLaw(E, t)    
+        elif self.pf['source_sed'] == 'mcd':
+            Lnu = self._MultiColorDisk(E, t)
+        elif self.pf['source_sed'] == 'sazonov2004':
+            Lnu = self._UserDefined(E, t)            
+        elif self.pf['source_sed'] == 'simpl':
+            Lnu = self._SIMPL(E, t)
+        elif self.pf['source_sed'] == 'zebra':
+            Lnu = self._SIMPL(E, t)            
         else:
             Lnu = 0.0
             
-        if self.spec_pars['logN'][i] > 0 and absorb:
-            Lnu *= np.exp(-10.**self.spec_pars['logN'][i] \
+        if self.pf['source_logN'] > 0 and absorb:
+            Lnu *= np.exp(-10.**self.pf['source_logN'] \
                 * (sigma_E(E, 0) + y * sigma_E(E, 1)))  
         
         return Lnu          
             
     def _NormalizeSpectrum(self, t=0.):
-        norms = np.zeros(self.N)
         Lbol = self.Luminosity()
-        for i in xrange(self.N):
-            # Treat simPL spectrum special
-            if self.type_by_name[i] == 'simpl':
-                integral, err = quad(self._MultiColorDisk,
-                    self.spec_pars['EminNorm'][i], self.spec_pars['EmaxNorm'][i], 
-                    args=(i, t, False))
-            else:
-                integral, err = quad(self._Intensity,
-                    self.spec_pars['EminNorm'][i], self.spec_pars['EmaxNorm'][i], 
-                    args=(i, t, False))
-                
-            norms[i] = self.spec_pars['fraction'][i] * Lbol / integral
+        # Treat simPL spectrum special
+        if self.pf['source_sed'] == 'simpl':
+            integral, err = quad(self._MultiColorDisk,
+                self.EminNorm, self.EmaxNorm, args=(t, False))
+        else:
+            integral, err = quad(self._Intensity,
+                self.EminNorm, self.EmaxNorm, args=(t, False))
+            
+        norms = Lbol / integral
             
         return norms
             

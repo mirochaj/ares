@@ -13,12 +13,12 @@ Description:
 import types, sys
 import numpy as np
 from ..physics import Cosmology
+from .Halo import HaloPopulation
 from scipy.integrate import quad
 from ..util import ParameterFile
 from ..physics.Constants import *
 from ..util.PrintInfo import print_pop
 from ..util.NormalizeSED import norm_sed
-from .HaloMassFunction import HaloDensity
 from ..util.Warnings import negative_SFRD
 
 class StellarPopulation:
@@ -105,7 +105,7 @@ class StellarPopulation:
         
         # Halo stuff            
         if self.pf['fcoll'] is None:
-            self.halos = HaloDensity(**self.pf)
+            self.halos = HaloPopulation(**self.pf)
             self._set_fcoll(self.pf['Tmin'], self.pf['mu'])
         else:            
             self._fcoll, self._dfcolldz, self._d2fcolldz2 = \
@@ -302,7 +302,7 @@ class StellarPopulation:
                 / self.pf['fstar']
                 
         return self.Nion * self.pf['fesc'] * self.b_per_g * self.SFRD(z)
-    
+
     def Ndot(self, z):
         """
         Short-cut for computing ionizing photon luminosity density.
@@ -312,9 +312,9 @@ class StellarPopulation:
         Comoving ionizing photon product rate, in units of s**-1 cMpc**-3.
         
         """
-        
+
         return self.IonizingPhotonLuminosityDensity(z) * cm_per_mpc**3
-    
+
     def XrayLuminosityDensity(self, z):
         """
         Compute (bolometric) comoving luminosity density.
@@ -327,29 +327,29 @@ class StellarPopulation:
         Returns
         -------
         Luminosity density in units of erg s**-1 (comoving cm)**-3.
-        
+
         """
-        
+
         if self.pf['emissivity'] is not None:
             return self.pf['emissivity'](z)
-        
+
         if self.pf['xi_XR'] is not None:
             return self.cX * self.pf['xi_XR'] * self.SFRD(z) \
                 / self.pf['fstar']
-        
+
         return self.cX * self.pf['fX'] * self.SFRD(z)
         
     def _XrayEmissivity(self, z, E):
         """
         Compute comoving volume emissivity of population.
-        
+
         Parameters
         ----------
         z : float
             redshift
         E : float
             emission energy (eV)
-        
+
         Returns
         -------    
         Emissivity in units of erg s**-1 Hz**-1 cm**-3.

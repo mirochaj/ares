@@ -85,9 +85,9 @@ To do simple parameter study, you could do something like:
 
             # Object for common analysis routines
             anl = ares.analysis.MultiPhaseMedium(sim)
-            
+
             # Plot the global signal
-            ax = anl.GlobalSignature(ax=ax, 
+            ax = anl.GlobalSignature(ax=ax,
                 label=r'$f_X=%.2g, f_{\ast}=%.2g$' % (fX, fstar))
                 
                 

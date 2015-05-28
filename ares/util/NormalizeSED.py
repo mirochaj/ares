@@ -12,7 +12,7 @@ Description:
 
 import numpy as np
 from scipy.integrate import quad
-from ..sources import RadiationSource
+from ..sources import Star, BlackHole
 from ..physics.Constants import E_LyA, E_LL, erg_per_ev, g_per_msun, s_per_yr
 
 all_bands = ['lw', 'ion', 'xray']
@@ -53,9 +53,7 @@ def emission_bands(Emin, Emax, Ex):
 def norm_sed(pop, grid):
     """
     Return normalizations for SED in LW, UV, and X-ray bands.
-    
-    Only works for single-component SEDs at the moment.
-    
+        
     Parameters
     ----------
     pop : *Population instance (Stellar, BlackHole, etc.)
@@ -126,14 +124,11 @@ def norm_sed(pop, grid):
     # RadiationSource tries to take care of normalization. Force it not to.
     tmp = pf.copy()
     tmp.update({'spectrum_EminNorm':None, 'spectrum_EmaxNorm':None})
-    rs = RadiationSource(grid=grid, init_tabs=False, **tmp)
     
-    # Number of spectral components
-    Nc = rs.N
-    
-    if Nc > 1:
-        print 'WARNING: SED normalization only has support for single-component SEDs.'
-        return 
+    if pf['source_type'] == 'star':
+        rs = Star(grid=grid, init_tabs=False, **tmp)
+    elif pf['source_type'] == 'bh':
+        rs = BlackHole(grid=grid, init_tabs=False, **tmp)
                 
     # Determine which bands contain emission
     bands = emission_bands(Emin, Emax, pf['xray_Emin'])

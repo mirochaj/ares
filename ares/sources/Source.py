@@ -1,6 +1,6 @@
 """
 
-RadiationSource.py
+Source.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -15,15 +15,15 @@ import numpy as np
 from ..physics import Hydrogen
 from scipy.integrate import quad
 from ..util import ParameterFile
-from ..physics.Constants import *
-from ..util.Misc import  sort, evolve
-from .SimpleSource import SimpleSource
-from .StellarSource import StellarSource
-from .DiffuseSource import DiffuseSource
-from .BlackHoleSource import BlackHoleSource
+#from ..physics.Constants import *
+from ..util.Misc import sort, evolve
+#from .SimpleSource import SimpleSource
+#from .StellarSource import StellarSource
+#from .DiffuseSource import DiffuseSource
+#from .BlackHoleSource import BlackHoleSource
 from ..static.IntegralTables import IntegralTable
-from .ParameterizedSource import ParameterizedSource
 from ..static.InterpolationTables import LookupTable
+from ..util.SetDefaultParameterValues import SourceParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
 
 try:
@@ -34,110 +34,129 @@ except ImportError:
 np.seterr(all='ignore')   # exp overflow occurs when integrating BB
                           # will return 0 as it should for x large
 
-class RadiationSource(object):
-    """ Class for creation and manipulation of radiation sources. """
-    def __init__(self, grid=None, logN=None, init_tabs=True, **kwargs):
+class Source(object):
+    def __init__(self, grid=None, logN=None, init_tabs=True):
         """ 
         Initialize a radiation source object. 
+        
+        ..note:: This is inherited by all other ares.sources classes.
     
         Parameters
         ----------
         grid: rt1d.static.Grid.Grid instance
         logN: column densities over which to tabulate integral quantities
-        init_tabs: bool
-            Tabulate integral quantities? Can wait until later.
-    
+        
         """    
-        self.pf = ParameterFile(**kwargs)
-        self.grid = grid
+        
+        #self.pf = SourceParameters()#ParameterFile(**kwargs)
+        #self.pf.update(kwargs)
                 
         # Modify parameter file if spectrum_file provided
         #self._load_spectrum()        
             
         # Create Source/SpectrumPars attributes
-        self.SourcePars = self.src_pars = sort(self.pf, prefix='source', make_list=False)        
-        self.SpectrumPars = self.spec_pars = sort(self.pf, prefix='spectrum')
+        #self.SourcePars = self.src_pars = sort(self.pf, prefix='source', make_list=False)        
+        #self.SpectrumPars = self.spec_pars = sort(self.pf, prefix='spectrum')
         
         # Correct emission limits if none were provided
-        self.Emin = min(self.SpectrumPars['Emin'])
-        self.Emax = max(self.SpectrumPars['Emax'])
+        self.Emin = self.pf['source_Emin']
+        self.Emax = self.pf['source_Emax']
         self.logEmin = np.log10(self.Emin)
         self.logEmax = np.log10(self.Emax)
                 
-        for i, comp in enumerate(self.SpectrumPars['type']):
-            if self.SpectrumPars['EminNorm'][i] == None:
-                self.SpectrumPars['EminNorm'][i] = self.SpectrumPars['Emin'][i]
-            if self.SpectrumPars['EmaxNorm'][i] == None:
-                self.SpectrumPars['EmaxNorm'][i] = self.SpectrumPars['Emax'][i]    
-        
-        self.EminNorm = self.SpectrumPars['EminNorm']
-        self.EmaxNorm = self.SpectrumPars['EmaxNorm']    
-        
-        # Source-specific initialization
-        if self.SourcePars['type'] == 'toy':
-            self.src = SimpleSource(self.pf, self.SourcePars, 
-                self.SpectrumPars)
-        elif self.SourcePars['type'] == 'star':
-            self.src = StellarSource(self.pf, self.SourcePars, 
-                self.SpectrumPars)
-        elif self.SourcePars['type'] == 'bh':
-            self.src = BlackHoleSource(self.pf, self.SourcePars, 
-                self.SpectrumPars)
-        elif self.SourcePars['type'] == 'diffuse':
-            self.src = DiffuseSource(self.pf, self.SourcePars, 
-                self.SpectrumPars)
-        elif self.SourcePars['type'] == 'parameterized':
-            self.src = ParameterizedSource(self.pf, self.SourcePars, 
-                self.SpectrumPars)        
-        else:
-            raise NotImplementedError('Unrecognized source_type')
-                              
-        # Number of spectral components
-        self.N = len(self.SpectrumPars['type'])                  
-                          
-        self.discrete = (self.SpectrumPars['E'][0] != None) \
-                      or self.pf['optically_thin']
-        self.continuous = not self.discrete
-        
+        if self.pf['source_EminNorm'] == None:
+            self.pf['source_EminNorm'] = self.pf['source_Emin']
+        if self.pf['source_EmaxNorm'] == None:
+            self.pf['source_EmaxNorm'] = self.pf['source_Emax']
+            
+        self.EminNorm = self.pf['source_EminNorm']
+        self.EmaxNorm = self.pf['source_EmaxNorm']    
+               
         # Number of frequencies
         if self.discrete:
-            self.E = np.array(self.SpectrumPars['E'])
-            self.LE = np.array(self.SpectrumPars['LE'])
+            self.E = np.array(self.pf['source_E'])
+            self.LE = np.array(self.SpectrumPars['source_LE'])
             self.Nfreq = len(self.E)
             
-        if self.src._name == 'DiffuseSource':
-            self.ionization_rate = self.src.ionization_rate
-            self.secondary_ionization_rate = self.src.secondary_ionization_rate
-            self.heating_rate = self.src.heating_rate
-                
-        # We don't allow multi-component discrete spectra...for now
-        # would we ever want/need this? lines on top of continuous spectrum perhaps...
-        self.multi_group = self.discrete and self.SpectrumPars['multigroup'][0] 
-        self.multi_freq = self.discrete and not self.SpectrumPars['multigroup'][0] 
-
-        # See if source emits ionizing photons (component by component)
-        self.ionizing = np.array(self.SpectrumPars['Emax']) > E_LL
-        # Should also be function of absorbers
-        
-        self.Lbol = self.Lbol0 = self.BolometricLuminosity(0.0)
+        #if self.src._name == 'DiffuseSource':
+        #    self.ionization_rate = self.src.ionization_rate
+        #    self.secondary_ionization_rate = self.src.secondary_ionization_rate
+        #    self.heating_rate = self.src.heating_rate
+        #        
+        #self.Lbol = self.Lbol0 = self.BolometricLuminosity(0.0)
 
         # Create lookup tables for integral quantities
         if init_tabs and grid is not None:
-            self._create_integral_table(logN=logN) 
+            self._create_integral_table(logN=logN)
+    
+    @property
+    def multifreq(self):
+        if not hasattr(self, '_multifreq'):
+            self._multifreq = self.discrete and not self.pf['source_multigroup']
+            
+        return self._multifreq    
+    
+    @property        
+    def multigroup(self):        
+        if not hasattr(self, '_multigroup'):
+            self._multigroup = self.discrete and self.pf['source_multigroup']
+        
+        return self._multigroup
+            
+    @property
+    def ionizing(self):
+        # See if source emits ionizing photons (component by component)
+        # Should also be function of absorbers
+        if not hasattr(self, '_ionizing'):
+            self._ionizing = self.pf['source_Emax'] > E_LL
+        
+        return self._ionizing
+    
+    @property
+    def grid(self):
+        if not hasattr(self, '_grid'):
+            self._grid = None
+        
+        return self._grid
+            
+    @grid.setter
+    def grid(self, value):
+        self._grid = value
+    
+    @property 
+    def discrete(self):
+        if not hasattr(self, '_discrete'):
+            self._discrete = (self.pf['source_E'] != None) #\
+                  #or self.pf['optically_thin']
+        
+        return self._discrete
+        
+    @property
+    def continuous(self):
+        if not hasattr(self, '_continuous'):
+            self._continuous = not self.discrete
+            
+        return self._continuous
         
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
-            self._hydr = Hydrogen(approx_Salpha=self.pf['approx_Salpha'], 
-                nmax=self.pf['lya_nmax'])
+            self._hydr = None
                 
         return self._hydr
-                
+
+    @hydr.setter
+    def hydr(self, value):
+        self._hydr = value
+
     @property
     def frec(self):
         """
         Compute average recycling fraction (i.e., spectrum-weighted frec).
         """    
+        
+        if self.hydr is None:
+            return None
         
         n = np.arange(2, self.hydr.nmax)
         En = np.array(map(self.hydr.ELyn, n))
@@ -149,47 +168,57 @@ class RadiationSource(object):
     @property
     def _normL(self):
         if not hasattr(self, '_normL_'):
-            self._normL_ = self.src._NormalizeSpectrum()
-        return self._normL_
+            self._normL_ = 1. / quad(self._Intensity,
+                self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
+                
+        return self._normL_          
               
-    def _load_spectrum(self):
-        """ Modify a few parameters if spectrum_file provided. """
-        
-        fn = self.pf['spectrum_file']
-        
-        if fn is None:
-            return
-            
-        # Read spectrum - expect hdf5 with (at least) E, LE, and t datasets.    
-        if re.search('.hdf5', fn):    
-            f = h5py.File(fn)
-            try:
-                self.pf['tables_times'] = f['t'].value
-            except:
-                self.pf['tables_times'] = None
-                self.pf['spectrum_evolving'] = False
+    #def _load_spectrum(self):
+    #    """ Modify a few parameters if spectrum_file provided. """
+    #    
+    #    fn = self.pf['spectrum_file']
+    #    
+    #    if fn is None:
+    #        return
+    #        
+    #    # Read spectrum - expect hdf5 with (at least) E, LE, and t datasets.    
+    #    if re.search('.hdf5', fn):    
+    #        f = h5py.File(fn)
+    #        try:
+    #            self.pf['tables_times'] = f['t'].value
+    #        except:
+    #            self.pf['tables_times'] = None
+    #            self.pf['spectrum_evolving'] = False
+    #                
+    #        self.pf['spectrum_E'] = f['E'].value
+    #        self.pf['spectrum_LE'] = f['LE'].value
+    #        f.close()
+    #        
+    #        if len(self.pf['spectrum_LE'].shape) > 1 \
+    #            and not self.pf['spectrum_evolving']:
+    #            self.pf['spectrum_LE'] = self.pf['spectrum_LE'][0]
+    #    else: 
+    #        spec = readtab(fn)
+    #        if len(spec) == 2:
+    #            self.pf['spectrum_E'], self.pf['spectrum_LE'] = spec
+    #        else:
+    #            self.pf['spectrum_E'], self.pf['spectrum_LE'], \
+    #                self.pf['spectrum_t'] = spec
                     
-            self.pf['spectrum_E'] = f['E'].value
-            self.pf['spectrum_LE'] = f['LE'].value
-            f.close()
-            
-            if len(self.pf['spectrum_LE'].shape) > 1 \
-                and not self.pf['spectrum_evolving']:
-                self.pf['spectrum_LE'] = self.pf['spectrum_LE'][0]
-        else: 
-            spec = readtab(fn)
-            if len(spec) == 2:
-                self.pf['spectrum_E'], self.pf['spectrum_LE'] = spec
-            else:
-                self.pf['spectrum_E'], self.pf['spectrum_LE'], \
-                    self.pf['spectrum_t'] = spec
+    @property
+    def tables(self):
+        if not hasattr(self, '_tables'):
+            pass                
                     
     def _create_integral_table(self, logN=None):
         """
         Take tables and create interpolation functions.
         """
         
-        if self.discrete or self.SourcePars['type'] == 'diffuse':
+        if self.discrete:
+            return
+            
+        if self._name == 'diffuse':
             return
         
         if self.SourcePars['table'] is None:
@@ -372,25 +401,22 @@ class RadiationSource(object):
             # Currently only BHs have a time-varying bolometric luminosity
             return self.BolometricLuminosity(t) * self.LE[bin] / self.E[bin] / erg_per_ev          
               
-    def _Intensity(self, E, i, Type, t=0, absorb=True):
-        """
-        Return quantity *proportional* to fraction of bolometric luminosity emitted
-        at photon energy E.  Normalization handled separately.
-        """
-        
-        Lnu = self.src._Intensity(E, i, Type, t=t)
-        
-        # Apply absorbing column
-        if self.SpectrumPars['logN'][i] > 0 and absorb:
-            return Lnu * np.exp(-10.**self.SpectrumPars['logN'][i] \
-                * (sigma_E(E, 0) + y * sigma_E(E, 1)))   
-        else:
-            return Lnu     
-            
-    def SourceOn(self, t):
-        return self.src.SourceOn(t)        
-                
-    def Spectrum(self, E, t=0.0, i=None):
+    #def _Intensity(self, E, i, Type, t=0, absorb=True):
+    #    """
+    #    Return quantity *proportional* to fraction of bolometric luminosity emitted
+    #    at photon energy E.  Normalization handled separately.
+    #    """
+    #    
+    #    Lnu = self.src._Intensity(E, i, Type, t=t)
+    #    
+    #    # Apply absorbing column
+    #    if self.SpectrumPars['logN'][i] > 0 and absorb:
+    #        return Lnu * np.exp(-10.**self.SpectrumPars['logN'][i] \
+    #            * (sigma_E(E, 0) + y * sigma_E(E, 1)))   
+    #    else:
+    #        return Lnu     
+    #            
+    def Spectrum(self, E, t=0.0):
         r"""
         Return fraction of bolometric luminosity emitted at energy E.
         
@@ -411,25 +437,10 @@ class RadiationSource(object):
         -------
         Fraction of bolometric luminosity emitted at E in units of 
         eV\ :sup:`-1`\.
-                
+
         """   
-               
-        emission = 0.0
-        
-        # Loop over spectral components
-        for j in xrange(self.N):
-            if i is not None:
-                if j != i:
-                    continue
-                    
-            if not (self.SpectrumPars['Emin'][j] <= E <= \
-                    self.SpectrumPars['Emax'][j]):
-                continue        
-            
-            emission += self._normL[j] * \
-                self.src._Intensity(E, i=j, t=t) / self.Lbol0
-                        
-        return emission
+                
+        return self._normL * self._Intensity(E, t=t)
         
     def BolometricLuminosity(self, t=0.0, M=None):
         """
@@ -438,10 +449,10 @@ class RadiationSource(object):
         with time, hence the optional 't' and 'M' arguments.
         """        
         
-        if self.src._name == 'BlackHoleSource':
-            return self.src.Luminosity(t, M)
+        if self._name == 'bh':
+            return self.Luminosity(t, M)
         else:
-            return self.src.Luminosity(t)
+            return self.Luminosity(t)
                 
     def _FrequencyAveragedBin(self, absorber='h_1', Emin=None, Emax=None,
         energy_weighted=False):

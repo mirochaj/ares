@@ -1,5 +1,5 @@
 """ 
-HaloMassFunction.py
+HaloPopulation.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -54,7 +54,7 @@ transfer_pars = \
  'transfer__k_per_logint': 0.,
 }
     
-class HaloDensity:
+class HaloPopulation:
     def __init__(self, **kwargs):
         """
         Initialize HaloDensity object.
