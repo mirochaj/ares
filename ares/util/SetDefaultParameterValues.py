@@ -306,6 +306,7 @@ def SourceParameters():
     {
     "source_type": 'star',  
     "source_sed": 'bb',
+    "source_position": 0.0,
     
     "source_tbirth": 0,
     "source_lifetime": 1e10,
@@ -317,6 +318,8 @@ def SourceParameters():
     
     "source_E": None,
     "source_LE": None,
+    "source_multigroup": False,
+
     "source_Emin": 13.6,  
     "source_Emax": 1e2,  
     "source_EminNorm": None,
@@ -331,9 +334,7 @@ def SourceParameters():
 def StellarParameters():
     pf = \
     {        
-    
     "source_temperature": 1e5,  
-    "source_lifetime": 1e10,  # [Myr]
     "source_qdot": 5e48,    
     }
 
@@ -358,9 +359,9 @@ def BlackHoleParameters():
     
     "source_eta": 0.1,
     "source_logN": -inf,
+    "source_hardening": 'extrinsic',
     "source_isco": 6,  
     "source_rmax": 1e3,
-    
     
     }
     

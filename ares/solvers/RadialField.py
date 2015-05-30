@@ -12,18 +12,18 @@ Description:
 
 import copy
 import numpy as np
+from ..sources import Composite
 from ..util import ParameterFile
 from ..static import LocalVolume
-from ..sources import CompositeSource
 from ..physics.Constants import erg_per_ev, E_LyA, ev_per_hz
 
 class RadialField:
     def __init__(self, grid, **kwargs):
         self.grid = grid
         self.pf = ParameterFile(**kwargs)
-        
+                
         # Just so we can access more easily from within RaySegment
-        self.sources = CompositeSource(self.grid, **self.pf).all_sources
+        self.sources = Composite(self.grid, **self.pf).all_sources
         
         # Create instance to compute rate coefficients
         self.volume = LocalVolume(grid, self.sources, **kwargs)

@@ -87,8 +87,8 @@ common = \
  'xi_UV': r'$\xi_{\mathrm{ion}}$',
  'sfrd': r'$\dot{\rho}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}]$',
  
- 'spectrum_logN': r'$\log_{10} N_{\mathrm{H}}$',
- 'spectrum_alpha': r'$\alpha$',
+ 'source_logN': r'$\log_{10} N_{\mathrm{H}}$',
+ 'source_alpha': r'$\alpha$',
  'source_temperature': r'$T_{\ast}$',
  'z': r'$z$',
  'igm_k_heat_h_1': r'$\epsilon_{X, \mathrm{HI}}$',

@@ -198,7 +198,9 @@ class LocalVolume:
                                     
                     # Discrete spectrum (multi-freq approach)
                     if self.src.multi_freq:
-                        self.k_ion[h,:,i], self.k_ion2[h,:,i], self.k_heat[h,:,i] = \
+                        r1, r2, r3 = self.MultiFreqCoefficients(data, absorber)
+                        self.k_ion[h,:,i], self.k_ion2[h,:,i,:], \
+                        self.k_heat[h,:,i] = \
                             self.MultiFreqCoefficients(data, absorber)
                     
                     # Discrete spectrum (multi-grp approach)
@@ -338,16 +340,13 @@ class LocalVolume:
         
     def MultiFreqCoefficients(self, data, absorber):
         """
-        Compute all source-dependent rates for given absorber assuming a
-        multi-frequency SED.
+        Compute all source-dependent rates.
+        
+        (For given absorber assuming a multi-frequency SED)
+        
         """
         
-        #k_heat = np.zeros_like(self.grid.zeros_grid_x_absorbers)
-        #k_ion = np.zeros_like(self.grid.zeros_grid_x_absorbers)
-        #k_ion2 = np.zeros_like(self.grid.zeros_grid_x_absorbers2)
-        
         k_heat = np.zeros(self.grid.dims)
-        #k_ion = np.zeros(self.grid.dims)
         k_ion2 = np.zeros_like(self.grid.zeros_grid_x_absorbers)
         
         i = self.grid.absorbers.index(absorber)
@@ -378,17 +377,17 @@ class LocalVolume:
             # Heating
             if self.grid.isothermal:
                 continue
-                 
+
             fheat = self.esec.DepositionFraction(xHII=data['h_2'], 
                 E=E, channel='heat')
-            
+
             # Total energy deposition rate per atom i via photo-electrons 
             # due to ionizations by *this* energy group. 
             ee = k_ion_E[...,j] * (E - self.E_th[absorber]) \
                * erg_per_ev
-            
+
             k_heat += ee * fheat
-                
+
             if not self.pf['secondary_ionization']:
                 continue
                                         
@@ -406,12 +405,12 @@ class LocalVolume:
                     E=E, channel=absorber)
 
                 # (This k) = i from paper, and (this i) = j from paper
-                k_ion2[...,k,i] += ee * fion \
+                k_ion2[...,k] += ee * fion \
                     / (self.E_th[otherabsorber] * erg_per_ev)
                                                                            
         # Total photo-ionization tally
         k_ion = np.sum(k_ion_E, axis=1)
-        
+                
         return k_ion, k_ion2, k_heat
     
     def PhotoIonizationRateMultiFreq(self, qdot, n, tau_r_E, tau_c):

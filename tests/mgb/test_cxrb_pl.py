@@ -20,26 +20,26 @@ plpars = \
 {
  'source_type': 'bh',
  'model': -1,
- 'spectrum_type': 'pl',
- 'spectrum_alpha': -1.5,
- 'spectrum_Emin': 2e2,
- 'spectrum_Emax': 3e4,
- 'spectrum_EminNorm': 2e2,
- 'spectrum_EmaxNorm': 3e4,
- 'spectrum_logN': -np.inf,
+ 'source_sed': 'pl',
+ 'source_alpha': -1.5,
+ 'source_Emin': 2e2,
+ 'source_Emax': 3e4,
+ 'source_EminNorm': 2e2,
+ 'source_EmaxNorm': 3e4,
+ 'source_logN': -np.inf,
  'approx_xrb': 0,
  'discrete_xrb': True,
  'redshift_bins': 400,
  'norm_by': 'xray',
 }
 
-plsrc = ares.solvers.UniformBackground(**plpars)
+plsrc = ares.simulations.MetaGalacticBackground(**plpars)
 
 # Absorbed power-law
 aplpars = plpars.copy()
-aplpars.update({'spectrum_logN': 21.})
+aplpars.update({'source_logN': 21., 'source_hardening': 'extrinsic'})
 
-aplsrc = ares.solvers.UniformBackground(**aplpars)
+aplsrc = ares.simulations.MetaGalacticBackground(**aplpars)
 
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
@@ -51,20 +51,23 @@ for i, rad in enumerate([plsrc, aplsrc]):
     
     rad.run()
     
-    if np.isfinite(rad.pf['spectrum_logN']):
-        label = r'$N = 10^{%i} \ \mathrm{cm}^{-2}$' % (rad.pf['spectrum_logN'])
+    if np.isfinite(rad.pf['source_logN']):
+        label = r'$N = 10^{%i} \ \mathrm{cm}^{-2}$' % (rad.pf['source_logN'])
     else:
         label = r'$N = 0 \ \mathrm{cm}^{-2}$'
+        
+    z, E, flux = rad.get_history()
+        
 
     # Plot up background flux
-    ax1.loglog(E, fluxes[0], color=colors[i], ls='-', label=label)
+    ax1.loglog(E, flux[-1], color=colors[i], ls='-', label=label)
     
     # Plot up heating rate evolution
     heat = np.zeros_like(z)
     ioniz = np.zeros_like(z)
     for j, redshift in enumerate(z):
-        heat[j] = rad.volume.HeatingRate(redshift, xray_flux=fluxes[j])
-        ioniz[j] = rad.volume.IonizationRateIGM(redshift, xray_flux=fluxes[j])
+        heat[j] = rad.volume.HeatingRate(redshift, xray_flux=flux[j])
+        ioniz[j] = rad.volume.IonizationRateIGM(redshift, xray_flux=flux[j])
     
     ax2.semilogy(z, heat, color=colors[i], ls='-', label=label)
     ax3.semilogy(z, ioniz, color=colors[i], ls='-', label=label)

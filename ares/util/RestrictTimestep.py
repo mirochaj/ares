@@ -67,7 +67,7 @@ class RestrictTimestep:
 
             not_ok = ((min_dt <= 0) or np.isnan(min_dt) or np.isinf(min_dt))            
 
-            # Determine which cell is behaving badly (if any)8
+            # Determine which cell is behaving badly (if any)
             if not_ok:
                 if self.grid.dims == 1:
                     which_cell = 0

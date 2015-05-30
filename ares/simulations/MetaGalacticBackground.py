@@ -212,7 +212,7 @@ class MetaGalacticBackground(UniformBackground):
         return super(MetaGalacticBackground, self).update_rate_coefficients(z, 
             **kwargs)
                                                                            
-    def get_history(self, continuum=1, popid=0):
+    def get_history(self, continuum=True, popid=0):
         """
         Grab data associated with a single population.
 
@@ -221,14 +221,13 @@ class MetaGalacticBackground(UniformBackground):
         continuum : bool
             Get history of continuum emission? If False, retrieves line
             emission history instead.
-            
         popid : int
             ID number for population of interest.
 
         Returns
         -------
         Tuple containing the redshifts, energies, and fluxes for the given
-        population.
+        population, in that order.
         
         """
         

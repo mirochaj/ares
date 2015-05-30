@@ -11,10 +11,10 @@ Description:
 """
 
 import numpy as np
+from .Star import _Planck
 from .Source import Source
 from types import FunctionType
 from scipy.integrate import quad
-from .StellarSource import _Planck
 from ..util.ReadData import read_lit
 from ..util.SetDefaultParameterValues import BlackHoleParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
@@ -104,6 +104,13 @@ class BlackHole(Source):
         #    self.type_by_num.append(sptype)
         #    self.type_by_name.append(sptypes.keys()[sptypes.values().index(sptype)])                
                 
+    @property
+    def intrinsic_hardening(self):
+        if not hasattr(self, '_intrinsic_hardening'):            
+            self._intrinsic_hardening = self.pf['source_hardening'] == 'intrinsic'
+            
+        return self._intrinsic_hardening
+        
     def _SchwartzchildRadius(self, M):
         return 2. * self._GravitationalRadius(M)
 
@@ -273,24 +280,27 @@ class BlackHole(Source):
             Lnu = 0.0
             
         if self.pf['source_logN'] > 0 and absorb:
-            Lnu *= np.exp(-10.**self.pf['source_logN'] \
-                * (sigma_E(E, 0) + y * sigma_E(E, 1)))  
+            Lnu *= self._hardening_factor(E)
         
         return Lnu          
             
-    def _NormalizeSpectrum(self, t=0.):
-        Lbol = self.Luminosity()
-        # Treat simPL spectrum special
-        if self.pf['source_sed'] == 'simpl':
-            integral, err = quad(self._MultiColorDisk,
-                self.EminNorm, self.EmaxNorm, args=(t, False))
-        else:
-            integral, err = quad(self._Intensity,
-                self.EminNorm, self.EmaxNorm, args=(t, False))
+    def _hardening_factor(self, E):
+        return np.exp(-10.**self.pf['source_logN'] \
+            * (sigma_E(E, 0) + self.cosm.y * sigma_E(E, 1)))
             
-        norms = Lbol / integral
-            
-        return norms
+    #def _NormalizeSpectrum(self, t=0.):
+    #    Lbol = self.Luminosity()
+    #    # Treat simPL spectrum special
+    #    if self.pf['source_sed'] == 'simpl':
+    #        integral, err = quad(self._MultiColorDisk,
+    #            self.EminNorm, self.EmaxNorm, args=(t, False))
+    #    else:
+    #        integral, err = quad(self._Intensity,
+    #            self.EminNorm, self.EmaxNorm, args=(t, False))
+    #        
+    #    norms = Lbol / integral
+    #        
+    #    return norms
             
     def Luminosity(self, t=0.0, M=None):
         """

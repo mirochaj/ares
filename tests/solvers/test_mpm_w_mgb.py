@@ -18,12 +18,12 @@ import matplotlib.pyplot as pl
 pars = \
 {
  'source_type': 'bh',
- 'spectrum_type': 'pl',
- 'spectrum_alpha': -1.5,
- 'spectrum_Emin': 2e2,
- 'spectrum_Emax': 3e4,
- 'spectrum_EminNorm': 2e2,
- 'spectrum_EmaxNorm': 5e4,
+ 'source_sed': 'pl',
+ 'source_alpha': -1.5,
+ 'source_Emin': 2e2,
+ 'source_Emax': 3e4,
+ 'source_EminNorm': 2e2,
+ 'source_EmaxNorm': 5e4,
  'approx_xrb': False,
  'redshifts_xrb': 400,
  'initial_redshift': 40.,

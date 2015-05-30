@@ -15,7 +15,6 @@ from math import ceil
 import os, re, types, gc
 from ..util.Misc import logbx
 from ..util import ParameterFile
-from ..physics.Constants import *
 from ..static import GlobalVolume
 from ..util.PrintInfo import print_rb
 from ..util.Misc import num_freq_bins
@@ -24,6 +23,7 @@ from ..physics import Hydrogen, Cosmology
 from ..populations import CompositePopulation
 from ..util.ReadData import flatten_flux, split_flux
 from scipy.integrate import quad, romberg, romb, trapz, simps
+from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL
 
 try:
     import h5py
@@ -106,7 +106,7 @@ class UniformBackground(object):
     def volume(self):
         if not hasattr(self, '_volume'):
             self._volume = GlobalVolume(self)
-        
+
         return self._volume        
 
     def _set_sources(self):
@@ -133,20 +133,20 @@ class UniformBackground(object):
         # Figure out which band each population emits in
         self.bands = []
         for source in self.sources:
-            
+
             source_band = []
             for band in bands:
                 if source.pf['approx_%sb' % band]:
                     continue
-                    
+
                 if source.pf['is_src_%sb' % band]:
                     source_band.append(band)
-            
+
             if len(source_band) == 0:
                 source_band.append(None)
             if len(source_band) > 1:
                 raise ValueError('Cannot have source emit in more than 1 band!')
-            
+
             self.bands.append(source_band[0])
                     
         self.tau = []
@@ -204,9 +204,9 @@ class UniformBackground(object):
         if nz is None:
             nz = source.pf['redshifts_%sb' % band]
         if Emin is None:
-            Emin = E0 = source.pf['spectrum_Emin']
+            Emin = E0 = source.pf['source_Emin']
         if Emax is None:
-            Emax = E1 = source.pf['spectrum_Emax']   
+            Emax = E1 = source.pf['source_Emax']   
             
         x = np.logspace(np.log10(1 + zf), np.log10(1 + zi), nz)
         z = x - 1.   
@@ -898,7 +898,7 @@ class UniformBackground(object):
         for i in range(z.size):  
             flux = []      
             for gen in gens:
-                z, new_flux = gen.next()                
+                z, new_flux, garbage = gen.next()                
                 flux.append(new_flux)
 
             # Increment fluxes

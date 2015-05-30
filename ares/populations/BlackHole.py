@@ -12,15 +12,15 @@ Description:
 
 import types
 import numpy as np
+from ..sources import BlackHole
 from scipy.integrate import quad
 from ..util import ParameterFile
 from .Halo import HaloPopulation
 from scipy.misc import derivative
-from ..physics.Constants import *
 from ..util.PrintInfo import print_pop
 from ..util.NormalizeSED import norm_sed
 from ..physics.Cosmology import Cosmology
-from ..sources.RadiationSource import RadiationSource
+from ..physics.Constants import rhodot_cgs
 from ..physics.SecondaryElectrons import SecondaryElectrons
 
 E_th = [13.6, 24.6, 54.4]
@@ -51,12 +51,11 @@ class BlackHolePopulation:
             self.cosm = grid.cosm
             
         self.switch = False
-        if self.pf['spectrum_type'] == 'simpl':
-            self.pf.update({'spectrum_type': 'mcd'})
+        if self.pf['source_sed'] == 'simpl':
+            self.pf.update({'source_sed': 'mcd'})
             self.switch = True
             
-        self.spectrum = RadiationSource(grid=grid, 
-            init_tabs=False, **self.pf)
+        self.spectrum = BlackHole(**self.pf)
         
         self.esec = SecondaryElectrons(method=self.pf["secondary_ionization"])
                                         
@@ -107,9 +106,9 @@ class BlackHolePopulation:
         sed = norm_sed(self, self.grid)
         
         if self.switch:
-            self.pf.update({'spectrum_type': 'simpl'})
+            self.pf.update({'source_sed': 'simpl'})
         
-        self.spectrum = RadiationSource(grid=self.grid, 
+        self.spectrum = BlackHole(grid=self.grid, 
             init_tabs=False, **self.pf)
         
         self.rs = self.spectrum#sed['rs']
@@ -132,7 +131,7 @@ class BlackHolePopulation:
             return
         
         if self.pf['fcoll'] is None and self.model != 3:
-            self.halos = HaloDensity(**self.pf)
+            self.halos = HaloPopulation(**self.pf)
             self._set_fcoll(self.pf['Tmin'], self.pf['mu'])
         else:
             self._fcoll, self._dfcolldz, self._d2fcolldz2 = \

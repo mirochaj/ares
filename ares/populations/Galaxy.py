@@ -337,16 +337,10 @@ class GalaxyPopulation:
             
         # Piecewise redshift evolution model from Ueda et al. 2003    
         elif self.pf['lf_zdep'] == 'ueda':
+            pass
             
-            raise NotImplemented('needs finishing')
             
-            x = np.piecewise(Lx, [Lx <= logLa, Lx > logLa], 
-                [lambda Lx: zstar*(Lx / logLa)**alpha, lambda Lx: zstar])
             
-            y = (np.piecewise(z, [z <= x, z > x], 
-                [lambda z: (1+z)**p1, 
-                 lambda z: (1+zstar)**p1*((1+z)/(1+zstar))**p2])) * logA * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1
-    
     def CompositeSED(self, E):
         pass
     

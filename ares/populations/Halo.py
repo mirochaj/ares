@@ -1,5 +1,5 @@
 """ 
-HaloPopulation.py
+Halo.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -36,14 +36,14 @@ try:
 except ImportError:
     rank = 0
     size = 1
-    
+
 try:
     from hmf import MassFunction
 except ImportError:
     pass
-    
+
 ARES = os.getenv("ARES")    
-    
+
 sqrt2 = np.sqrt(2.)    
 
 # Force CAMB to span broader range in wavenumber
@@ -53,8 +53,8 @@ transfer_pars = \
  'transfer__kmax': 100.,
  'transfer__k_per_logint': 0.,
 }
-    
-class HaloPopulation:
+
+class HaloPopulation(object):
     def __init__(self, **kwargs):
         """
         Initialize HaloDensity object.

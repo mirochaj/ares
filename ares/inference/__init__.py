@@ -1,3 +1,3 @@
 from ModelFit import ModelFit
 from ModelGrid import ModelGrid
-from OptimizeSpectrum import SpectrumOptimization
+#from OptimizeSpectrum import SpectrumOptimization

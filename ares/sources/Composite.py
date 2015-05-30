@@ -12,63 +12,54 @@ over said instances in ionization and heating rate calculations.
 """
 
 import re
-#from .RadiationSource import RadiationSource
+from .Toy import Toy
+from .Star import Star
+from .BlackHole import BlackHole
 
 class Composite(object):
     """ Class for stitching together several radiation sources. """
-    def __init__(self, grid=None, logN=None, init_tabs=True, **kwargs):
+    def __init__(self, grid=None, **kwargs):
         """
         Initialize composite radiation source object.        
+        
+        Parameters
+        ----------
+        grid : ares.static.Grid.Grid instance
+        
         """
         
         self.pf = kwargs.copy()
         self.grid = grid
         
         if type(self.pf['source_type']) is not list:
-            self.pf['source_type'] = [self.pf['source_type']]
-            
-        try:    
-            self.Ns = len(self.pf['source_type'])
-        except TypeError:
-            self.Ns = 1
+            self.pf['source_type'] = [self.pf['source_type']]    
+
+        self.Ns = len(self.pf['source_type'])
         
-        if type(init_tabs) is bool:
-            init_tabs = [init_tabs] * self.Ns
+        self.all_sources = self.src = self.initialize_sources()
         
-        self.all_sources = self.src = self.initialize_sources(init_tabs)
-        
-    def initialize_sources(self, init_tabs=True):
+    def initialize_sources(self):
         """ Construct list of RadiationSource class instances. """    
         
         sources = []
         for i in xrange(self.Ns):
 
             sf = self.pf.copy()
-
-            # Construct spectrum_pars
-            if self.pf['spectrum_pars'] is not None:
-                try:
-                    spars = self.pf['spectrum_pars'][i]
-                except IndexError:
-                    spars = self.pf['spectrum_pars']
-                
-                if spars is not None:
-                    for par in spars:
-                        sf.update({'spectrum_%s' % par: spars[par]})            
-                    del sf['spectrum_pars']
-                        
-            # Add source pars
-            for key in sf:
-                if not re.search('source', key):
-                    continue
-                if type(sf[key]) is not list:
-                    sf.update({key:sf[key]})
-                    continue
-                
-                sf.update({key:sf[key][i]})                       
+                                                
+            # Look for {0}, {1}, etc. here
                                                                         
             # Create RadiationSource class instance
-            rs = RadiationSource(grid=self.grid, init_tabs=init_tabs[i], **sf)
+            if sf['source_type'][i] == 'star':
+                rs = Star(**sf)
+            elif sf['source_type'][i] == 'bh':
+                rs = BlackHole(**sf)
+            elif sf['source_type'][i] == 'toy':
+                rs = Toy(**sf)
+            else:
+                msg = 'Unrecognized source_type: %s' % sf['source_type'][i]
+                raise ValueError(msg)
+            
+            rs.grid = self.grid
             
             sources.append(rs)
                 

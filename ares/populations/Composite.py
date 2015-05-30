@@ -12,32 +12,32 @@ class instances.
 
 import re
 import numpy as np
-from .StellarPopulation import StellarPopulation
-from .BlackHolePopulation import BlackHolePopulation
+from .Stellar import StellarPopulation
+from .BlackHole import BlackHolePopulation
             
 class CompositePopulation:
-    """
-    Initialize a CompositePopulation object, i.e., a list of *Population
-    instances.
-    """
     def __init__(self, **kwargs):
+        """
+        Initialize a CompositePopulation object, i.e., a list of *Population instances.
+        """
+        
         self.kwargs = kwargs.copy()
         self.other_kw = self.kwargs.copy()
         
         N = 1
         # Determine number of populations
-        for par in ['source_kwargs', 'spectrum_kwargs']:
-            if par in self.other_kw:
-                self.other_kw.pop(par)
-            
-            if par not in self.kwargs:
-                continue
-            if self.kwargs[par] is None:
-                continue    
-            
-            if type(self.kwargs[par]) is list:    
-                N = max(N, len(self.kwargs[par]))                    
-                
+        #for par in ['source_kwargs', 'spectrum_kwargs']:
+        #    if par in self.other_kw:
+        #        self.other_kw.pop(par)
+        #    
+        #    if par not in self.kwargs:
+        #        continue
+        #    if self.kwargs[par] is None:
+        #        continue
+        #
+        #    if type(self.kwargs[par]) is list:    
+        #        N = max(N, len(self.kwargs[par]))                    
+
         self.N = self.Npops = N        
         self.pfs = [self.other_kw.copy() for i in xrange(N)]    
         

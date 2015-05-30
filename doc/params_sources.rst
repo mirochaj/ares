@@ -29,6 +29,12 @@ Source Parameters
 
     Default: :math:`10^{10}` [``time_units``]
     
+``source_hardening``
+    For non-zero absorbing columns, this parameter determines whether or not the 
+    column is applied before or after normalizing the source's luminosity. 
+    
+    Default: ``extrinsic``
+    
  
 ::
     

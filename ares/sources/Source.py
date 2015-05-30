@@ -13,14 +13,11 @@ Description: Initialize a radiation source.
 import re, os
 import numpy as np
 from ..physics import Hydrogen
+from ..physics import Cosmology
 from scipy.integrate import quad
 from ..util import ParameterFile
-#from ..physics.Constants import *
 from ..util.Misc import sort, evolve
-#from .SimpleSource import SimpleSource
-#from .StellarSource import StellarSource
-#from .DiffuseSource import DiffuseSource
-#from .BlackHoleSource import BlackHoleSource
+from ..physics.Constants import erg_per_ev, E_LL
 from ..static.IntegralTables import IntegralTable
 from ..static.InterpolationTables import LookupTable
 from ..util.SetDefaultParameterValues import SourceParameters
@@ -73,11 +70,11 @@ class Source(object):
         self.EmaxNorm = self.pf['source_EmaxNorm']    
                
         # Number of frequencies
-        if self.discrete:
-            self.E = np.array(self.pf['source_E'])
-            self.LE = np.array(self.SpectrumPars['source_LE'])
-            self.Nfreq = len(self.E)
-            
+        #if self.discrete:
+        #    self.E = np.array(self.pf['source_E'])
+        #    self.LE = np.array(self.pf['source_LE'])
+        #    self.Nfreq = len(self.E)
+        #    
         #if self.src._name == 'DiffuseSource':
         #    self.ionization_rate = self.src.ionization_rate
         #    self.secondary_ionization_rate = self.src.secondary_ionization_rate
@@ -90,18 +87,37 @@ class Source(object):
             self._create_integral_table(logN=logN)
     
     @property
-    def multifreq(self):
-        if not hasattr(self, '_multifreq'):
-            self._multifreq = self.discrete and not self.pf['source_multigroup']
+    def cosm(self):
+        if not hasattr(self, '_cosm'):
+            if self.grid is None:
+                self._cosm = Cosmology(
+                    omega_m_0=self.pf['omega_m_0'], 
+                    omega_l_0=self.pf['omega_l_0'], 
+                    omega_b_0=self.pf['omega_b_0'],  
+                    hubble_0=self.pf['hubble_0'],  
+                    helium_by_number=self.pf['helium_by_number'], 
+                    cmb_temp_0=self.pf['cmb_temp_0'], 
+                    approx_highz=self.pf['approx_highz'], 
+                    sigma_8=self.pf['sigma_8'], 
+                    primordial_index=self.pf['primordial_index'])
+            else:
+                self._cosm = self.grid.cosm
+        
+        return self._cosm
+    
+    @property
+    def multi_freq(self):
+        if not hasattr(self, '_multi_freq'):
+            self._multi_freq = self.discrete and not self.pf['source_multigroup']
             
-        return self._multifreq    
+        return self._multi_freq    
     
     @property        
-    def multigroup(self):        
-        if not hasattr(self, '_multigroup'):
-            self._multigroup = self.discrete and self.pf['source_multigroup']
+    def multi_group(self):        
+        if not hasattr(self, '_multi_group'):
+            self._multi_group = self.discrete and self.pf['source_multigroup']
         
-        return self._multigroup
+        return self._multi_group
             
     @property
     def ionizing(self):
@@ -168,8 +184,13 @@ class Source(object):
     @property
     def _normL(self):
         if not hasattr(self, '_normL_'):
-            self._normL_ = 1. / quad(self._Intensity,
-                self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
+            if self.intrinsic_hardening:
+                self._normL_ = 1. / quad(self._Intensity,
+                    self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
+            else:    
+                integrand = lambda EE: self._Intensity(EE) / self._hardening_factor(EE)
+                self._normL_ = 1. / quad(integrand,
+                    self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
                 
         return self._normL_          
               
@@ -208,8 +229,9 @@ class Source(object):
     @property
     def tables(self):
         if not hasattr(self, '_tables'):
-            pass                
+            self._create_integral_table()
                     
+        return self._tables            
     def _create_integral_table(self, logN=None):
         """
         Take tables and create interpolation functions.
@@ -221,7 +243,7 @@ class Source(object):
         if self._name == 'diffuse':
             return
         
-        if self.SourcePars['table'] is None:
+        if self.pf['source_table'] is None:
             # Overide defaults if supplied - this is dangerous
             if logN is not None:
                 self.pf.update({'tables_dlogN': [np.diff(tmp) for tmp in logN]})
@@ -233,14 +255,14 @@ class Source(object):
             self.tabs = self.tab.TabulateRateIntegrals()
         else:
             self.tab = IntegralTable(self.pf, self, self.grid, logN)
-            self.tabs = self.tab.load(self.SourcePars['table'])
+            self.tabs = self.tab.load(self.pf['source_table'])
         
         self._setup_interp()
         
     def _setup_interp(self):            
-        self.tables = {}
+        self._tables = {}
         for tab in self.tabs:
-            self.tables[tab] = \
+            self._tables[tab] = \
                 LookupTable(self.pf, tab, self.tab.logN, self.tabs[tab], 
                     self.tab.logx, self.tab.t)                 
     
@@ -464,7 +486,7 @@ class Source(object):
         
         if Emin is None:
             Emin = max(self.grid.ioniz_thresholds[absorber], 
-                np.array(self.SpectrumPars['Emin'])[self.ionizing])
+                np.array(self.Emin)[self.ionizing])
         if Emax is None:
             Emax = self.Emax
             

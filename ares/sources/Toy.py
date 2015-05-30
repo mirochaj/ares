@@ -13,10 +13,11 @@ Description:
 import numpy as np
 from .Source import Source
 from ..physics.Constants import erg_per_ev
+from ..util.SetDefaultParameterValues import SourceParameters
 
 class Toy(Source):
     """ Class for creation and manipulation of toy-model radiation sources. """
-    def __init__(self, pf, src_pars, spec_pars):
+    def __init__(self, **kwargs):
         """ 
         Create toy-model radiation source object.
         
@@ -31,13 +32,14 @@ class Toy(Source):
             
         """  
         
-        self.pf = pf
-        self.src_pars = src_pars
-        self.spec_pars = spec_pars
-                
-        self.Q = self.src_pars['qdot']
-        self.E = np.array(self.spec_pars['E'])
-        self.LE = np.array(self.spec_pars['LE'])
+        self.pf = SourceParameters()
+        self.pf.update(kwargs)
+        
+        Source.__init__(self)
+
+        self.Q = self.pf['source_qdot']
+        self.E = np.array(self.pf['source_E'])
+        self.LE = np.array(self.pf['source_LE'])
         self.Lbol = self.Q / (np.sum(self.LE / self.E / erg_per_ev))
         self.Nfreq = len(self.E)
 
@@ -52,9 +54,9 @@ class Toy(Source):
         Return quantity *proportional* to fraction of bolometric luminosity emitted
         at photon energy E.  Normalization handled separately.
         """
-        
+
         return self.LE
-        
+
     def _NormalizeSpectrum(self):
         return np.ones_like(self.E) * self.Lbol
         

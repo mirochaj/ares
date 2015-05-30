@@ -23,9 +23,9 @@ dz = 0.05
 ##
 #
 
-hmf_a = ares.populations.HaloDensity(fitting_function='PS', hmf_analytic=True,
+hmf_a = ares.populations.HaloPopulation(fitting_function='PS', hmf_analytic=True,
     hmf_dlogM=dlogM, hmf_zmin=10, hmf_zmax=50, hmf_dz=10)
-hmf_n = ares.populations.HaloDensity(fitting_function='PS', hmf_analytic=False,
+hmf_n = ares.populations.HaloPopulation(fitting_function='PS', hmf_analytic=False,
     hmf_dlogM=dlogM, hmf_zmin=10, hmf_zmax=50, hmf_dz=10, load_hmf=False)
 
 """

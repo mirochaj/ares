@@ -191,7 +191,7 @@ class GlobalVolume(object):
                 
             if Etab.max() < Epf.max():
                 sys.exit(1)
-                                            
+                                                            
         # Correct for inconsistencies between parameter file and table
         # By effectively masking out those elements with tau -> inf
         if Epf.min() > Etab.min():
@@ -200,20 +200,22 @@ class GlobalVolume(object):
             if Ediff[i_E0] < 0:
                 i_E0 += 1
         
-            tau[:,0:i_E0+1] = np.inf
+            #tau[:,0:i_E0+1] = np.inf
         else:
-            i_E1
+            i_E0 = 0
         
         if Epf.max() < Etab.max():
             Ediff = Etab - Epf.max()
             i_E1 = np.argmin(np.abs(Ediff))
-            if Ediff[i_E0] < 0:
+            if Ediff[i_E1] < 0:
                 i_E1 += 1
         
-            tau[:,i_E1+1:] = np.inf
-
+            #tau[:,i_E1+1:] = np.inf
+        else:
+            i_E1 = None
+            
         # We're done!
-        return ztab, Etab, tau
+        return ztab, Etab[i_E0:i_E1], tau[:,i_E0:i_E1]
 
     @property
     def E(self):
@@ -383,8 +385,8 @@ class GlobalVolume(object):
 
         L, N = self._tau_shape()
 
-        E0 = self.pf['spectrum_Emin']
-        E1 = self.pf['spectrum_Emax']
+        E0 = self.pf['source_Emin']
+        E1 = self.pf['source_Emax']
 
         fn = lambda z1, z2, E1, E2: \
             'optical_depth_%s_%ix%i_z_%i-%i_logE_%.2g-%.2g.%s' \
@@ -519,12 +521,12 @@ class GlobalVolume(object):
         R = x[1] / x[0]
         logR = np.log10(R)
         
-        E0 = self.pf['spectrum_Emin']
+        E0 = self.pf['source_Emin']
         
         # Create mapping to frequency space
         E = 1. * E0
         n = 1
-        while E < self.pf['spectrum_Emax']:
+        while E < self.pf['source_Emax']:
             E = E0 * R**(n - 1)
             n += 1    
         
@@ -534,7 +536,7 @@ class GlobalVolume(object):
         # Frequency grid must be index 1-based.
         N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
             zf=self.pf['final_redshift'], Emin=E0, 
-            Emax=self.pf['spectrum_Emax'])
+            Emax=self.pf['source_Emax'])
         N -= 1
         
         return L, N
@@ -727,7 +729,7 @@ class GlobalVolume(object):
                     heat = simps(integrand[0:imax] * self.E[popid][0:imax], x=self.logE[popid][0:imax]) * log10
             
             else:
-                imin = np.argmin(np.abs(self.E - pop.pf['spectrum_Emin']))
+                imin = np.argmin(np.abs(self.E - pop.pf['source_Emin']))
                 
                 if self.sampled_integrator == 'romb':
                     heat = romb(integrand[imin:] * self.E[imin:], 
@@ -1051,7 +1053,7 @@ class GlobalVolume(object):
                 heat = simps(integrand[0:imax] * self.E[0:imax], x=self.logE[0:imax]) * log10
         
         else:
-            imin = np.argmin(np.abs(self.E - self.pop.pf['spectrum_Emin']))
+            imin = np.argmin(np.abs(self.E - self.pop.pf['source_Emin']))
             
             if self.sampled_integrator == 'romb':
                 heat = romb(integrand[imin:] * self.E[imin:], 

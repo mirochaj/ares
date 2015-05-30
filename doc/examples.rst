@@ -20,7 +20,7 @@ Basics
 Advanced
 --------
 * :doc:`example_adv_RT_w_He`
-* :doc:`example_user_defined`
+* :doc:`example_customization`
  
 Surveying Parameter Space
 -------------------------

@@ -30,12 +30,6 @@ from ..physics.Constants import m_H, cm_per_kpc, cm_per_mpc, s_per_myr
 
 defs = SetAllDefaults()
 
-def _ProblemTypeRaySegment(ptype):
-    pass
-
-def _ProblemTypeGlobal21cm(ptype):
-    pass
-
 def ProblemType(ptype):
     """
     Storage bin for predefined problem types.
@@ -129,8 +123,8 @@ def ProblemType(ptype):
               "initial_ionization": [1.-1.2e-3, 1.2e-3],
               "source_type": 'toy',
               "source_qdot": 5e48,
-              "spectrum_E": [13.6],
-              "spectrum_LE": [1.0],
+              "source_E": [13.6],
+              "source_LE": [1.0],
              }
             
     # RT06-2: Pure hydrogen, HII region expansion, temperature evolution 
@@ -196,17 +190,16 @@ def ProblemType(ptype):
              }
                           
     if ptype_mod1 != 0:
-        pf.update({'photon_conserving': 1})
         pf.update({'source_type': 'toy'})
                 
         # Change discrete spectrum: 0.1 = Mirocha et al. 2012
         #                           0.2 = Wise & Abel 2011
         if ptype_mod1 == 0.1:
-            pf.update({'spectrum_E': [17.98, 31.15, 49.09, 76.98]})
-            pf.update({'spectrum_LE': [0.23, 0.36, 0.24, 0.06]})
+            pf.update({'source_E': [17.98, 31.15, 49.09, 76.98]})
+            pf.update({'source_LE': [0.23, 0.36, 0.24, 0.06]})
         if ptype_mod1 == 0.2:
-            pf.update({'spectrum_E': [18.29, 31.46, 49.13, 77.23]})
-            pf.update({'spectrum_LE': [0.24, 0.35, 0.23, 0.06]})
+            pf.update({'source_E': [18.29, 31.46, 49.13, 77.23]})
+            pf.update({'source_LE': [0.24, 0.35, 0.23, 0.06]})
              
     if 10 <= ptype <= 20:
         helium_pars = \
