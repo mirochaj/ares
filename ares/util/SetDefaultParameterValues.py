@@ -290,8 +290,9 @@ def PopulationParameters():
     
     "model": -1, # Only BHs use this at this point
     
-    "formation_epoch": (50., 0.),
     "zoff": 0.0,
+    "formation_redshift": 50.,
+    "extinction_redshift": 0.0,
     
     "is_lya_src": True,
     "is_ion_src_cgm": True,

@@ -62,9 +62,8 @@ class BlackHolePopulation:
                                         
         self.model = self.pf['model']
 
-        self.burst = np.equal(*self.pf["formation_epoch"])
-        self.zform = max(self.pf['formation_epoch'])
-        self.zdead = min(self.pf['formation_epoch'])
+        self.zform = self.pf["formation_redshift"]
+        self.zdead = self.pf["extinction_redshift"]
         self.zfl = self.pf['first_light_redshift']
         
         # Last redshift we'll consider (for anything)

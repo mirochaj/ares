@@ -56,9 +56,8 @@ class StellarPopulation:
         # Baryons per gram - use this for LyA emissivity (assumes mu=1.22)
         self.b_per_g = 1. / self.cosm.g_per_baryon
 
-        self.burst = np.equal(*self.pf["formation_epoch"])
-        self.zform = max(self.pf["formation_epoch"])
-        self.zdead = min(self.pf["formation_epoch"])
+        self.zform = self.pf["formation_redshift"]
+        self.zdead = self.pf["extinction_redshift"]
         self.zfl = self.pf['first_light_redshift']
                 
         self.approx_src = (self.pf['approx_lwb'] and self.pf['approx_xrb'])

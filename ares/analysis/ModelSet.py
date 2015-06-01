@@ -134,7 +134,7 @@ def make_label(name, take_log=False, labels=None):
 def err_str(label, mu, err, log, labels=None):
     s = undo_mathify(make_label(label, log, labels))
 
-    s += '=%.3g^{+%.2g}_{-%.2g}' % (mu, err[0], err[1])
+    s += '=%.3g^{+%.2g}_{-%.2g}' % (mu, err[1], err[0])
     
     return r'$%s$' % s
 
