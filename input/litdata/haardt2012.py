@@ -22,7 +22,7 @@ pars_err = \
  'd': 0.19,
 }
 
-def sfrd(z):
+def SFRD(z):
     return (6.9e-3 + 0.14 * (z / 2.2)**1.5) / (1. + (z / 2.7)**4.1)
 
 def _qso_sed_uv():

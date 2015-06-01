@@ -28,7 +28,8 @@ ax = pl.subplot(111)
 for i in range(int(models.shape[1])):
     ax.semilogy(z, models[:,i], color='b', alpha=0.05)
 
-ax.semilogy(z, r15.sfrd(z))    
+# Plot best-fit
+ax.semilogy(z, r15.SFRD(z))    
 ax.set_xlabel(r'$z$')
 ax.set_ylabel(ares.util.labels['sfrd'])
     

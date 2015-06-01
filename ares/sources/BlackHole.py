@@ -21,7 +21,7 @@ from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
 from ..physics.Constants import s_per_myr, G, g_per_msun, c, t_edd, m_p, \
     sigma_T, sigma_SB
 
-sptypes = {'pl':0, 'mcd':1, 'simpl':2, 'zebra':3}
+sptypes = ['pl', 'mcd', 'simpl']
 
 class BlackHole(Source):
     def __init__(self, **kwargs):

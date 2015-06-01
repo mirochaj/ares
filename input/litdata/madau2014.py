@@ -18,11 +18,11 @@ pars_ml = \
 # 'd': 0.19,
 #}
 
-def _sfrd(z, a=None, b=None, c=None, d=None):
+def _SFRD(z, a=None, b=None, c=None, d=None):
     return a * (1. + z)**b / (1 + ((1 + z) / c)**d)
 
-def sfrd(z):
-    return _sfrd(z, **pars_ml)
+def SFRD(z):
+    return _SFRD(z, **pars_ml)
     
 info = \
 {

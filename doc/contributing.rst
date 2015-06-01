@@ -138,7 +138,7 @@ designed for evolving radiation fields near point sources:
 Now, we'll call `sim.step`, a generator for the
 evolution of this entire set of gas parcels, which 
 (as in :class:`ares.simulations.GasParcel`)
-will yield the current time, time-step, and data on each iteration. 
+will yield the current time, time-step, and data on each iteration.
 
 
 ::
@@ -189,4 +189,5 @@ and storing data is what is happening ''under the hood'' each time you call the
 up with some new type of calculation and are tired of calling the `step` 
 function explicitly, perhaps it's time to create a new submodule in 
 :py:mod:`ares.simulations` module! 
+
 

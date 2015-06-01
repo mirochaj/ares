@@ -11,11 +11,13 @@ Description:
 """
 
 import numpy as np
+from ..util import read_lit
 import matplotlib.pyplot as pl
 from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
+from .Population import Population
 from ..util.PrintInfo import print_pop
 from ..util.NormalizeSED import norm_sed
 
@@ -36,9 +38,11 @@ try:
     from hmf import MassFunction
 except ImportError:
     pass
+    
+sptypes = ['pl', 'mcd', 'simpl']    
+lftypes = ['schecter', 'dpl']
 
-
-class GalaxyPopulation:
+class GalaxyPopulation(Population):
     def __init__(self, **kwargs):
         """
         Initializes a GalaxyPopulation object (duh).
@@ -48,33 +52,31 @@ class GalaxyPopulation:
         you know the 2-10 keV LF but want 0.5-2 keV), you'll need to specify
         the SED.
         """
-
-        self.pf = ParameterFile(**kwargs)
         
-        self.grid = None
-        self.cosm = Cosmology(
-            omega_m_0=self.pf['omega_m_0'], 
-            omega_l_0=self.pf['omega_l_0'], 
-            omega_b_0=self.pf['omega_b_0'],  
-            hubble_0=self.pf['hubble_0'],  
-            helium_by_number=self.pf['helium_by_number'], 
-            cmb_temp_0=self.pf['cmb_temp_0'], 
-            approx_highz=self.pf['approx_highz'],
-            sigma_8=self.pf['sigma_8'],
-            primordial_index=self.pf['primordial_index'])
+        Population.__init__(self, **kwargs)
 
+        # 
+        if self.pf['pop_sed'] in sptypes:
+            pass
+        elif type(self.pf['pop_sed']) is FunctionType:
+            self._UserDefinedSpectrum = self.pf['pop_sed']
+        else:
+            from_lit = read_lit(self.pf['pop_sed'])
+            self.pf['pop_sed'] = from_lit.Spectrum
+        
+        if self.pf['pop_lf'] in lftypes:
+            pass
+        elif type(self.pf['pop_lf']) is FunctionType:
+            self._UserDefinedLF = self.pf['pop_lf']
+        else:
+            from_lit = read_lit(self.pf['pop_lf'])
+            self._UserDefinedLF = from_lit.LuminosityFunction
+          
         # Re-normalize bolometric output
         self._init_rs()
         
-        self._conversion_factors = {}
-        
-    def __call__(self, L, z=None):
-        """
-        Compute luminosity function.
-        """
-    
-        return self.LuminosityFunction(LM, z=z)    
-
+        self._conversion_factors = {}  
+            
     def _init_rs(self):
         """
         Initialize RadiationSource instance - normalize LW, UV, and
@@ -121,10 +123,10 @@ class GalaxyPopulation:
     @property
     def lf_type(self):    
         if not hasattr(self, '_lf_type'):
-            if type(self.pf['lf_func']) == FunctionType:
-                self._lf_type = 'user'
+            if type(self.pf['pop_lf']) in lftypes:
+                self._lf_type = 'pre-defined'
             else:
-                self._lf_type = self.pf['lf_func']
+                self._lf_type = 'user'
     
         return self._lf_type
 
@@ -205,8 +207,10 @@ class GalaxyPopulation:
 
         """
 
+        L *= self._convert_band(Emin, Emax)
+
         if self.lf_type == 'user':
-            phi = self.self.pf['lf_func'](L)
+            phi = self._UserDefinedLF(L, z)
         elif self.lf_type == 'schecter':
             phi = self._SchecterFunction(L)
         elif self.lf_type == 'dpl':
@@ -214,9 +218,9 @@ class GalaxyPopulation:
         else:
             raise NotImplemented('Function type %s not supported' % self.lf_type)
 
-        return phi * self._RedshiftEvolution(z) * self._convert_band(Emin, Emax)
+        return phi
     
-    def _convert_band(self, Emin, Emax):
+    def _convert_band(self, Emin, Emax, Emin_from=None, Emax_from=None):
         """
         Convert from luminosity function in reference band to given bounds.
         
@@ -285,8 +289,8 @@ class GalaxyPopulation:
         if Lmax is None:
             Lmax = 1e45
         
-        integrand = lambda LL: LL * self.LuminosityFunction(LL, z=z,
-            Emin=Emin, Emax=Emax)
+        integrand = \
+            lambda LL: LL * self.LuminosityFunction(LL, z=z, Emin=Emin, Emax=Emax)
         
         LphiL = quad(integrand, Lmin, Lmax)[0]
         
@@ -296,7 +300,7 @@ class GalaxyPopulation:
         """
         Compute space density of this population of objects.
     
-        ..note:: This is just integrating the LF in some band.
+        ..note:: This is just integrating the LF.
     
         Parameters
         ----------
@@ -314,33 +318,8 @@ class GalaxyPopulation:
     
         phiL = quad(integrand, Lmin, Lmax)[0]
     
-        return phiL        
-    
-    def _RedshiftEvolution(self, z):
-        """
-        Multiplicative redshift evolution factor for luminosity function.
+        return phiL
         
-        Parameters
-        ----------
-        z : int, float
-            Redshift of interest.
-            
-            
-        """
-        
-        if (not self.pf['lf_zfunc']) or (z is None):
-            return 1.
-        
-        # User-defined redshift evolution
-        if self.lf_zfunc_type == 'user':
-            return self.pf['lf_zfunc'](z)
-            
-        # Piecewise redshift evolution model from Ueda et al. 2003    
-        elif self.pf['lf_zdep'] == 'ueda':
-            pass
-            
-            
-            
     def CompositeSED(self, E):
         pass
     

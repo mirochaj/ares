@@ -23,7 +23,7 @@ from ..physics import Hydrogen, Cosmology
 from ..populations import CompositePopulation
 from ..util.ReadData import flatten_flux, split_flux
 from scipy.integrate import quad, romberg, romb, trapz, simps
-from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL
+from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
 
 try:
     import h5py

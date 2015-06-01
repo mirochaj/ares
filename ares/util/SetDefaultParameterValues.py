@@ -232,8 +232,36 @@ def PopulationParameters():
     pf = \
     {
     
-    "pop_rhoL": None,
+    "pop_lf": 'schecter',
+    "pop_lf_Lmin": 1e38,
+    "pop_lf_Lstar": 1e42,
+    "pop_lf_Emin": 2e3,
+    "pop_lf_Emax": 1e4,
+    "pop_lf_EminNorm": 2e3,
+    "pop_lf_EmaxNorm": 1e4,
     
+    
+    "pop_lf_zdep": None,
+    
+    "pop_sed": 'pl',
+    
+    #"pop_lf_norm": 1.0,
+    
+    
+    
+    
+    #"pop_lf_slope": -1.,
+    #"pop_lf_gamma1": None,
+    #"pop_lf_gamma2": None,
+    #"pop_lf_func": 'schecter', # or "dpl" for double power-law,
+    #"pop_lf_zfunc": None,      # governs redshift evolution
+    
+    "pop_lf_ldde": None,
+    "pop_lf_lade": None,
+    "pop_lf_lide": None,
+
+    "pop_rhoL": None,
+
     "source_type": 'star',
     "source_kwargs": None,
 

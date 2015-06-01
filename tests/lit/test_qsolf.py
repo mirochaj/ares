@@ -46,9 +46,8 @@ fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
 
 pop = ares.analysis.Population(u03)
 
-to_sample = lambda LL, **kwargs: u03.LuminosityFunction(LL, z=0.0, **kwargs)
-models = pop.SamplePosterior(L, to_sample, 
-    u03.qsolf_pde_pars, u03.qsolf_pde_err)
+LFz0 = lambda LL, **kwargs: u03.LuminosityFunction(LL, z=0.0, **kwargs)
+models = pop.SamplePosterior(L, LFz0, u03.qsolf_pde_pars, u03.qsolf_pde_err)
 
 for i in range(int(models.shape[1])):
     ax2.loglog(L, models[:,i], color='b', alpha=0.05)
@@ -58,5 +57,25 @@ ax2.set_xlabel(r'$L_X$')
 ax2.set_ylabel(r'$\phi(L_X)$')
     
 pl.draw()
+
+"""
+Convert to another band assuming some SED.
+"""
+
+fig3 = pl.figure(3); ax3 = fig3.add_subplot(111)
+pop = ares.populations.GalaxyPopulation(source_type='bh', approx_xrb=False, 
+    source_sed='sazonov2004', pop_lf='ueda2003')
+
+pl.loglog(L, map(lambda LL: pop.LuminosityFunction(LL, z=0, Emin=2e3, Emax=1e4), L), 
+    color='k', label=r'$2-10 \ \mathrm{keV}$')
+pl.loglog(L, map(lambda LL: pop.LuminosityFunction(LL, z=0, Emin=5e2, Emax=2e3), L), 
+    color='b', label=r'$0.5-2 \ \mathrm{keV}$')
+    
+ax3.set_xlabel(r'$L_X$')          
+ax3.set_ylabel(r'$\phi(L_X)$')
+    
+pl.legend(loc='best')
+    
+
 
 

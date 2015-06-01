@@ -66,7 +66,7 @@ qsolf_pde_err = \
  'zc': 0.145,            # should be +0.13/-0.16
 }
 
-kwargs_by_model = {'ple': qsolf_ple_pars, 'pde': qsolf_pde_pars} 
+kwargs_by_evolution = {'ple': qsolf_ple_pars, 'pde': qsolf_pde_pars} 
 
 _eofz_f1 = lambda z, p1: (1. + z)**p1
 _eofz_f2 = lambda z, p1, p2, zc: _eofz_f1(zc, p1) * ((1. + z) / (1. + zc))**p2
@@ -84,7 +84,7 @@ def _evolution_factor_pde(z, p1=4.2, p2=0.0, zc=1.14, **kwargs):
 #def _zc(L, zcst=1.9, La=_La):
 #    pass
 
-def DoublePowerLaw(L, A=2.64, logLstar=44.11, gamma1=0.93, gamma2=2.23, **kwargs):
+def _LuminosityFunction(L, A=2.64, logLstar=44.11, gamma1=0.93, gamma2=2.23, **kwargs):
     # Defaults from PDE model
     Lstar = 10**logLstar
     return A / ((L / Lstar)**gamma1 + (L / Lstar)**gamma2)
@@ -98,17 +98,18 @@ def LuminosityFunction(L, z=0., evolution='pde', **kwargs):
     L : int, float
     
     evolution : str
-        
+        "ple": Pure Luminosity Evolution (Eq. 11)
+        "pde": Pure Density Evolution (Eq. 12)
     """
     
     if not kwargs:
-        kwargs = kwargs_by_model[evolution]
+        kwargs = kwargs_by_evolution[evolution]
         
     if evolution == 'ple':
         Lprime = L / _evolution_factor_pde(z, **kwargs)
-        NofL = DoublePowerLaw(Lprime, **kwargs)
+        NofL = _LuminosityFunction(Lprime, **kwargs)
     elif evolution == 'pde':
-        NofL = DoublePowerLaw(L, **kwargs)
+        NofL = _LuminosityFunction(L, **kwargs)
         NofL *= _evolution_factor_pde(z, **kwargs)
     elif evolution == 'ldde':
         raise NotImplemented('ldde help!')
