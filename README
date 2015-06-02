@@ -110,3 +110,16 @@ be installed via pip: ::
     pip install numpydoc
 
 You can also just view the latest build `here <http://ares.readthedocs.org/en/latest/>`_.
+
+Contributors
+------------
+Primary author: `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_ (CU-Boulder) 
+
+Additional contributions / corrections / suggestions from:
+    
+- `Geraint Harker <http://zuserver2.star.ucl.ac.uk/~harkerg/>`_ (UCL)
+- Jacob Jost (CU-Boulder)
+- `Greg Salvesen <http://jila.colorado.edu/~salvesen/>`_ (CU-Boulder)
+
+
+
