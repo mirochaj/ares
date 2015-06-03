@@ -15,6 +15,7 @@ import matplotlib as mpl
 import re, os, string, time
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
+import matplotlib._cntr as cntr
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
 from ..inference import ModelGrid
@@ -28,7 +29,8 @@ from .DerivedQuantities import DerivedQuantities as DQ
 from .DerivedQuantities import registry_special_Q
 from ..simulations.Global21cm import Global21cm as sG21
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
-from ..util.Stats import Gauss1D, GaussND, error_1D, rebin, correlation_matrix
+from ..util.Stats import Gauss1D, GaussND, error_1D, error_2D, _error_2D_crude, \
+    rebin, correlation_matrix
 from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
     tanh_gjah_to_ares
@@ -110,7 +112,7 @@ def make_label(name, take_log=False, labels=None):
     
     if labels is None:
         labels = default_labels
-    
+        
     # Check to see if it has a population ID # tagged on the end
     m = re.search(r"\{([0-9])\}", name)
     
@@ -124,8 +126,11 @@ def make_label(name, take_log=False, labels=None):
     else:
         num = int(m.group(1))
         prefix = name.split(m.group(0))[0]
-        label = undo_mathify(labels[prefix].split(m.group(0))[0]) + '^{%i}' % num
-
+        if prefix in labels:
+            label = r'$%s$' % (undo_mathify(labels[prefix].split(m.group(0))[0]) + '^{%i}' % num)
+        else:
+            label = r'$%s$' % prefix
+        
     if take_log:        
         return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
     else:
@@ -404,6 +409,13 @@ class ModelSet(object):
     @logL.setter
     def logL(self, value):
         self._logL = value
+        
+    @property
+    def L(self):
+        if not hasattr(self, '_L'):
+            self._L = np.exp(self.logL)
+        
+        return self._L    
         
     @property
     def betas(self):
@@ -1036,7 +1048,7 @@ class ModelSet(object):
         colors to each element of the likelihood.
         """
     
-        nu, levels = self.confidence_regions(L, nu=nu)
+        nu, levels = _error_2D_crude(L, nu=nu)
                                                                       
         return nu, levels
     
@@ -1352,12 +1364,15 @@ class ModelSet(object):
                     binvec.append(self.axes[par])
         
         return binvec, to_hist, is_log
+      
+    def PosteriorCDF(self, pars, **kwargs):
+        return self.PosteriorPDF(pars, cdf=True, **kwargs)  
                
     def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=1.,
-        nu=[0.95, 0.68], overplot_nu=False, density=True, 
+        nu=[0.95, 0.68], overplot_nu=False, density=True, cdf=False,
         color_by_like=False, filled=True, take_log=False,
         bins=20, xscale='linear', yscale='linear', skip=0, skim=1, 
-        **kwargs):
+        contour_method='raw', **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
     
@@ -1398,6 +1413,8 @@ class ModelSet(object):
     
         """
 
+        cs = None
+        
         kw = def_kwargs.copy()
         kw.update(kwargs)
         
@@ -1495,7 +1512,11 @@ class ModelSet(object):
                     weights=weights)
 
             bc = rebin(bin_edges)
-        
+            
+            # Take CDF
+            if cdf:
+                hist = np.cumsum(hist)
+                        
             tmp = self._get_1d_kwargs(**kw)
             
             ax.plot(bc, hist / hist.max(), drawstyle='steps-mid', **tmp)
@@ -1517,15 +1538,15 @@ class ModelSet(object):
             
         else:
             
-            if to_hist[0].size != to_hist[1].size:
-                print 'Looks like calculation was terminated after chain',
-                print 'was written to disk, but before blobs. How unlucky!'
-                print 'Applying cludge to ensure shape match...'
-                
-                if to_hist[0].size > to_hist[1].size:
-                    to_hist[0] = to_hist[0][0:to_hist[1].size]
-                else:
-                    to_hist[1] = to_hist[1][0:to_hist[0].size]
+            #if to_hist[0].size != to_hist[1].size:
+            #    print 'Looks like calculation was terminated after chain',
+            #    print 'was written to disk, but before blobs. How unlucky!'
+            #    print 'Applying cludge to ensure shape match...'
+            #    
+            #    if to_hist[0].size > to_hist[1].size:
+            #        to_hist[0] = to_hist[0][0:to_hist[1].size]
+            #    else:
+            #        to_hist[1] = to_hist[1][0:to_hist[0].size]
                     
             # Compute 2-D histogram
             hist, xedges, yedges = \
@@ -1544,20 +1565,41 @@ class ModelSet(object):
     
                 # Get likelihood contours (relative to peak) that enclose
                 # nu-% of the area
-                nu, levels = self.get_levels(hist, nu=nu)
-    
+                #nu, levels = self.get_levels(hist, nu=nu)
+                #
+                #print nu, levels
+                
+                if contour_method == 'raw':
+                    nu, levels = error_2D(None, None, hist, None, nu=nu, 
+                        method='raw')
+                else:
+                    nu, levels = error_2D(to_hist[0], to_hist[1], self.L / self.L.max(), 
+                        bins=[binvec[0], binvec[1]], nu=nu, method=contour_method)
+        
                 if filled:
                     ax.contourf(bc[0], bc[1], hist / hist.max(), 
                         levels, **kwargs)
+                    
                 else:
                     ax.contour(bc[0], bc[1], hist / hist.max(),
                         levels, **kwargs)
+
+                # Grab contours
+                #c = cntr.Cntr(bc[0], bc[1], hist / hist.max())     
+                #
+                #all_contours = []
+                #for level in levels:
+                #    nlist = c.trace(level, level, 0)
+                #    segs = nlist[:len(nlist)//2]
+                #    all_contours.append(segs)   
+                #    
+                #cs = all_contours             
                 
             else:
                 if filled:
-                    ax.contourf(bc[0], bc[1], hist / hist.max(), **kw)
+                    cs = ax.contourf(bc[0], bc[1], hist / hist.max(), **kw)
                 else:
-                    ax.contour(bc[0], bc[1], hist / hist.max(), **kw)
+                    cs = ax.contour(bc[0], bc[1], hist / hist.max(), **kw)
 
             if not gotax:
                 ax.set_xscale(xscale)
@@ -1594,8 +1636,14 @@ class ModelSet(object):
         self.set_axis_labels(ax, pars, is_log, take_log, labels)
 
         pl.draw()
-
-        return ax
+        
+        return ax, cs
+      
+    def FindContour(self, plane, nu=0.68):
+        pass 
+        
+    def get_2d_error(self, plane, nu=0.68):
+        pass
         
     def ContourScatter(self, x, y, c, z=None, Nscat=1e4, take_log=False, 
         cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
@@ -1674,7 +1722,7 @@ class ModelSet(object):
         if take_log[2]:
             zax = np.log10(zax)    
             
-        ax = self.PosteriorPDF(pars, z=z, take_log=take_log, filled=False, 
+        ax, cs = self.PosteriorPDF(pars, z=z, take_log=take_log, filled=False, 
             bins=bins, **kwargs)
         
         # Pick out Nscat random points to plot
@@ -1721,9 +1769,9 @@ class ModelSet(object):
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
-        skim=1, top=None, oned=True, filled=True, box=None, rotate_x=45, 
+        skim=1, top=None, oned=True, twod=True, filled=True, box=None, rotate_x=45, 
         rotate_y=45, add_cov=False, label_panels='upper right', fix=True,
-        **kwargs):
+        skip_panels=[], **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
 
@@ -1785,13 +1833,15 @@ class ModelSet(object):
             Overplot 1-sigma contours, computed using the covariance matrix.
             If it's a list, will assume it has [mu, cov] (i.e., not necessarily
             the extracted covariance matrix but the one used in the fit).
+        skip_panels : list
+            List of panel numbers to skip over.
         
         Returns
         -------
         ares.analysis.MultiPlot.MultiPanel instance.
         
         """    
-        
+                
         if pars is None:
             pars = self.parameters
         
@@ -1859,6 +1909,9 @@ class ModelSet(object):
         for key in ['bottom', 'top', 'left', 'right', 'figsize', 'diagonal', 'dims', 'keep_diagonal']:
             if key in kw:
                 del kw[key]
+                
+        # Save contour set
+        self.cs = {}      
 
         # Loop over parameters
         for i, p1 in enumerate(pars[-1::-1]):
@@ -1873,6 +1926,9 @@ class ModelSet(object):
                     k = mp.axis_number(i, j)
 
                 if k is None:
+                    continue
+                    
+                if k in skip_panels:
                     continue
 
                 if mp.grid[k] is None:
@@ -1925,7 +1981,7 @@ class ModelSet(object):
                 # 1-D PDFs on the diagonal    
                 if k in mp.diag and oned:
 
-                    self.PosteriorPDF(p1, ax=mp.grid[k], 
+                    ax, cs = self.PosteriorPDF(p1, ax=mp.grid[k], 
                         take_log=take_log[-1::-1][i], z=z[-1::-1][i],
                         multiplier=[multiplier[-1::-1][i]], 
                         bins=[bins[-1::-1][i]], skip=skip, skim=skim, 
@@ -1948,7 +2004,7 @@ class ModelSet(object):
                         mu, err = self.get_1d_error(p1)
                                                  
                         mp.grid[k].set_title(err_str(p1, mu, err, 
-                            self.is_log[i], labels), va='bottom') 
+                            self.is_log[i], labels), va='bottom', fontsize=18) 
                      
                     if not inputs:
                         continue
@@ -1966,11 +2022,13 @@ class ModelSet(object):
                     continue
 
                 # 2-D PDFs elsewhere
-                self.PosteriorPDF([p2, p1], ax=mp.grid[k], z=red,
+                ax, cs = self.PosteriorPDF([p2, p1], ax=mp.grid[k], z=red,
                     take_log=[take_log[j], take_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, 
                     skip=skip, **kw)
+                
+                self.cs[k] = cs
 
                 if add_cov:
                     if type(add_cov) is list:

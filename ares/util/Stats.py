@@ -13,6 +13,7 @@ Description:
 import numpy as np
 from scipy.optimize import fmin
 from scipy.integrate import quad
+from scipy.interpolate import griddata
 
 def Gauss1D(x, pars):
     """
@@ -123,12 +124,130 @@ def error_1D(x, y, nu=0.68, limit=None):
         xML = x[np.argmax(y)]
         
         return xML, (xML - x1, x2 - xML)
-    elif limit is 'lower':
+    elif limit == 'lower':
         return np.interp(1. - nu, cdf, x), (None, None)
-    elif limit is 'upper':
+    elif limit == 'upper':
         return np.interp(nu, cdf, x), (None, None)
     else:
         raise ValueError('Invalid input value for limit.')
+
+def error_2D(x, y, z, bins, nu=[0.95, 0.68], weights=None, method='nearest'):
+    """
+    Find 2-D contour given discrete samples of posterior distribution.
+    
+    Parameters
+    ----------
+    x : np.ndarray
+        Array of samples in x.
+    y : np.ndarray
+        Array of samples in y.
+    bins : np.ndarray, (2, Nsamples)
+    
+    method : str
+        'raw', 'nearest', 'linear', 'cubic'
+        
+    
+    """   
+    
+    if method == 'raw':
+        nu, levels = _error_2D_crude(z, nu=nu)        
+    else:    
+    
+        # Interpolate onto new grid
+        grid_x, grid_y = np.meshgrid(bins[0], bins[1])
+        points = np.array([x, y]).T
+        values = z
+        
+        grid = griddata(points, z, (grid_x, grid_y), method=method)
+        
+        # Mask out garbage points
+        mask = np.zeros_like(grid, dtype='bool')
+        mask[np.isinf(grid)] = 1
+        mask[np.isnan(grid)] = 1
+        grid[mask] = 0
+        
+        nu, levels = _error_2D_crude(grid, nu=nu)
+    
+    return nu, levels
+    
+def _error_2D_crude(L, nu=[0.95, 0.68]):
+    """
+    Integrate outward at "constant water level" to determine proper
+    2-D marginalized confidence regions.
+
+    ..note:: This is fairly crude -- the "coarse-ness" of the resulting
+        PDFs will depend a lot on the binning.
+
+    Parameters
+    ----------
+    L : np.ndarray
+        Grid of likelihoods.
+    nu : float, list
+        Confidence intervals of interest.
+
+    Returns
+    -------
+    List of contour values (relative to maximum likelihood) corresponding 
+    to the confidence region bounds specified in the "nu" parameter, 
+    in order of decreasing nu.
+    """
+
+    if type(nu) in [int, float]:
+        nu = np.array([nu])
+
+    # Put nu-values in ascending order
+    if not np.all(np.diff(nu) > 0):
+        nu = nu[-1::-1]
+
+    peak = float(L.max())
+    tot = float(L.sum())
+    
+    # Counts per bin in descending order
+    Ldesc = np.sort(L.ravel())[-1::-1]
+    
+    Lencl_prev = 0.0
+
+    # Will correspond to whatever contour we're on
+    j = 0  
+
+    # Some preliminaries
+    contours = [1.0]    
+    Lencl_running = []
+        
+    # Iterate from high likelihood to low
+    for i in range(1, Ldesc.size):
+
+        # How much area (fractional) is contained in bins at or above the current level?
+        Lencl_now = L[L >= Ldesc[i]].sum() / tot
+        
+        # Keep running list of enclosed (integrated) likelihoods
+        Lencl_running.append(Lencl_now)
+
+        # What contour are we on?
+        Lnow = Ldesc[i]
+                
+        # Haven't hit next contour yet
+        if Lencl_now < nu[j]:
+            pass
+        # Just passed a contour
+        else:
+                        
+            # Interpolate to find contour more precisely
+            Linterp = np.interp(nu[j], [Lencl_prev, Lencl_now],
+                [Ldesc[i-1], Ldesc[i]])
+            
+            # Save relative to peak
+            contours.append(Linterp / peak)
+
+            j += 1
+
+            if j == len(nu):
+                break
+
+        Lencl_prev = Lencl_now
+        
+    # Return values that match up to inputs    
+    return nu[-1::-1], np.array(contours[-1::-1])
 
 def correlation_matrix(cov):
     """

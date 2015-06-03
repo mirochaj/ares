@@ -158,9 +158,12 @@ class MultiPanel:
                 
         if self.square:
             self.diag = np.diag(self.elements)        
+            self.interior = list(self.elements.ravel())
+            for element in self.diag:
+                self.interior.remove(element)
         else:
             self.diag = None        
-                
+            
         self.left = []
         self.right = []
         self.bottom = []
@@ -270,16 +273,19 @@ class MultiPanel:
         else:
             return False
             
-    def align_labels(self, padding=0.5):
+    def align_labels(self, xpadding=0.5, ypadding=None):
         """
         Re-draw labels so they are a constant distance away from the *axis*,
         not the axis *labels*.
         """
         
+        if ypadding is None:
+            ypadding = xpadding
+        
         for i in self.bottom:
-            self.grid[i].xaxis.set_label_coords(0.5, -padding)
+            self.grid[i].xaxis.set_label_coords(0.5, -xpadding)
         for i in self.left:
-            self.grid[i].yaxis.set_label_coords(-padding, 0.5)
+            self.grid[i].yaxis.set_label_coords(-ypadding, 0.5)
             
         pl.draw()    
             
@@ -366,7 +372,17 @@ class MultiPanel:
         set_ticks = "set_%sticks" % axis
         set_ticklabels = "set_%sticklabels" % axis
         shared = eval("self.share_%s" % axis)
-                
+        
+        if axis is 'x':
+            ticks_by_col = []
+            for i in range(self.dims[1]):
+                ticks_by_col.append(self.grid[i].get_xticks())
+        
+        if axis is 'y':
+            ticks_by_row = []
+            for i in range(self.dims[0]):
+                ticks_by_row.append(self.grid[self.left[i]].get_xticks())
+            
         if axis == 'x':
             j = 0
             if shared:
@@ -384,15 +400,19 @@ class MultiPanel:
         
         # Loop over axes and make corrections
         for i in axes:
+            
+            # Skip non-existent elements
             if self.diagonal:
                 if self.above_diagonal(i):
                     continue
-                    
-            if self.axis_position(i)[j] == self.dims[j]:
-                pass
             
             if self.grid[i] is None:
                 continue
+            
+            # If this panel doesn't share its x/y axes with anyone else,
+            # don't bother with its ticks.        
+            if self.axis_position(i)[j] == self.dims[j]:
+                pass
             
             # Retrieve current ticks, tick-spacings, and axis limits
             ticks = eval("list(self.grid[%i].%s())" % (i, get_ticks))

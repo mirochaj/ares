@@ -291,7 +291,7 @@ class Global21cmSet(ModelSet):
             exclude foreground / instrument parameters.
             
         """
-        
+                
         kwargs = self._patch_kwargs(**kwargs)
                 
         # Set the parameters automatically
