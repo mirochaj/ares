@@ -217,6 +217,52 @@ class MultiPanel:
 
                 self.grid[i] = self.fig.add_axes(rect)
             
+    @property
+    def active_elements(self):
+        if not hasattr(self, '_active_elements'):
+            self._active_elements = []
+            for i in range(self.N):
+                if self.grid[i] is None:
+                    continue
+                
+                self._active_elements.append(i)
+                
+        return self._active_elements
+            
+    @property
+    def elements_by_column(self):
+        """
+        Create a list of panel ID numbers sorted by column number. 
+        
+        Each element of the list is a sublist of ID numbers in order of increasing
+        row, from bottom to top.
+        """
+        if not hasattr(self, '_columns'):
+            self._columns = [[] for i in range(self.dims[1])]
+            for element in self.active_elements:
+                col, row = self.axis_position(element)        
+                
+                self._columns[col].append(element)
+                
+        return self._columns
+        
+    @property
+    def elements_by_row(self):
+        """
+        Create a list of panel ID numbers sorted by column number. 
+    
+        Each element of the list is a sublist of ID numbers in order of increasing
+        row, from bottom to top.
+        """
+        if not hasattr(self, '_rows'):
+            self._rows = [[] for i in range(self.dims[0])]
+            for element in self.active_elements:
+                col, row = self.axis_position(element)
+    
+                self._rows[row].append(element)
+    
+        return self._rows        
+        
     def axis_position(self, i):
         """
         Given axis ID number, return indices describing its (x, y) position.
@@ -373,16 +419,19 @@ class MultiPanel:
         set_ticklabels = "set_%sticklabels" % axis
         shared = eval("self.share_%s" % axis)
         
+        # Get locations of ticks on bottom row
         if axis is 'x':
             ticks_by_col = []
             for i in range(self.dims[1]):
                 ticks_by_col.append(self.grid[i].get_xticks())
         
+        # Get locations of ticks on left column
         if axis is 'y':
             ticks_by_row = []
             for i in range(self.dims[0]):
                 ticks_by_row.append(self.grid[self.left[i]].get_xticks())
             
+        # Figure out if axes are shared or not    
         if axis == 'x':
             j = 0
             if shared:
@@ -398,6 +447,9 @@ class MultiPanel:
         else:
             raise ValueError('axis must be set to \'x\' or \'y\'')
         
+        if not shared:
+            return
+        
         # Loop over axes and make corrections
         for i in axes:
             
@@ -408,11 +460,6 @@ class MultiPanel:
             
             if self.grid[i] is None:
                 continue
-            
-            # If this panel doesn't share its x/y axes with anyone else,
-            # don't bother with its ticks.        
-            if self.axis_position(i)[j] == self.dims[j]:
-                pass
             
             # Retrieve current ticks, tick-spacings, and axis limits
             ticks = eval("list(self.grid[%i].%s())" % (i, get_ticks))
@@ -490,7 +537,39 @@ class MultiPanel:
     
             if style is not None: 
                 self.grid[i].ticklabel_format(style=style)
-        
+                
+        # Loop over columns, force those not in row 0 to share ticks with 
+        # whatever tick marks there are in row #0
+        if axis == 'x':
+            
+            for k in range(len(self.elements_by_column)):
+                loc = self.axis_number(0, k)
+                xticks = self.grid[loc].get_xticks()
+                xlim = self.grid[loc].get_xlim()
+                
+                for h, element in enumerate(self.elements_by_column[k]):
+                    if element in self.bottom:
+                        continue        
+                        
+                    self.grid[element].set_xticks(xticks)
+                    self.grid[element].set_xlim(xlim)
+            
+        # Same deal for y ticks
+        if axis == 'y':
+            for k in range(len(self.elements_by_row)):
+                loc = self.axis_number(k, 0)
+                yticks = self.grid[loc].get_yticks()
+                ylim = self.grid[loc].get_ylim()
+                
+                for h, element in enumerate(self.elements_by_row[k]):
+                    if element in self.left:
+                        continue  
+                    if element in self.diag:
+                        continue              
+                        
+                    self.grid[element].set_yticks(yticks)
+                    self.grid[element].set_ylim(ylim)
+                                  
         # Remove ticklabels of interior panels completely
         if shared:
             for i in xrange(self.N):

@@ -1344,6 +1344,9 @@ class ModelSet(object):
             else:
                 raise ValueError('Unrecognized parameter %s' % str(par))
 
+            if not bins:
+                continue
+            
             # Set bins
             if self.is_mcmc or (par not in self.parameters):
                 if type(bins) == int:
@@ -1363,15 +1366,191 @@ class ModelSet(object):
                 else:
                     binvec.append(self.axes[par])
         
-        return binvec, to_hist, is_log
+        return pars, to_hist, is_log, binvec
       
+    def ExtractData(self, pars, z=None, take_log=False, multiplier=1., bins=None):
+        """
+        Extract data for subsequent analysis.
+        
+        This means a few things:
+         (1) Go retrieve data from native format without having to worry about
+          all the indexing yourself.
+         (2) [optionally] take the logarithm.
+         (3) [optionally] apply multiplicative factors.
+         (4) If bins are s
+         
+        Parameters
+        ----------
+        pars : list
+            List of quantities to return. These can be parameters or the names
+            of meta-data blobs.
+         
+        Returns
+        -------
+        Tuple with three entries:
+         (i) Dictionary containing 1-D arrays of samples for each quantity.
+         (ii) 
+         
+         
+        """
+        if type(pars) not in [list, tuple]:
+            pars = [pars]
+        if type(take_log) == bool:
+            take_log = [take_log] * len(pars)
+        if type(multiplier) in [int, float]:
+            multiplier = [multiplier] * len(pars)
+
+        if type(z) is list:
+            if len(z) != len(pars):
+                raise ValueError('Length of z must be = length of pars!')
+        else:
+            z = [z] * len(pars)  
+            
+        to_hist = []
+        is_log = []
+        for k, par in enumerate(pars):
+        
+            # If one of our free parameters, return right away
+            if par in self.parameters:
+                j = self.parameters.index(par)
+                is_log.append(self.is_log[j])
+                val = self.chain[:,j].copy()
+        
+                if self.is_log[j]:
+                    val += np.log10(multiplier[k])
+                else:
+                    val *= multiplier[k]
+        
+                if take_log[k] and not self.is_log[j]:
+                    to_hist.append(np.log10(val))
+                else:
+                    to_hist.append(val)
+        
+            else:
+                val = self.extract_blob(par, z[k]).copy()
+        
+                val *= multiplier[k]
+        
+                if take_log[k]:
+                    is_log.append(True)
+                    to_hist.append(np.log10(val))
+                else:
+                    is_log.append(False)
+                    to_hist.append(val)
+        
+        # Re-organize
+        data = {par:to_hist[i] for i, par in enumerate(pars)}
+        is_log = {par:is_log[i] for i, par in enumerate(pars)}
+                    
+        return data, is_log
+
+    def _set_bins(self, pars, to_hist, take_log=False, bins=20):
+        """
+        Create a vector of bins to be used when plotting PDFs.
+        """
+        
+        binvec = {}
+        for k, par in enumerate(pars):
+        
+            if self.is_mcmc or (par not in self.parameters) or \
+                not hasattr(self, 'axes'):
+                if type(bins) == int:
+                    valc = to_hist[k]
+                    binvec[par] = np.linspace(valc.min(), valc.max(), bins)
+                elif type(bins[k]) == int:
+                    valc = to_hist[k]
+                    binvec[par] = np.linspace(valc.min(), valc.max(), bins[k])
+                else:
+                    binvec[par] = bins[k]
+                    #if take_log[k]:
+                    #    binvec.append(np.log10(bins[k]))
+                    #else:
+                    #    binvec.append(bins[k])
+            else:
+                if take_log[k]:
+                    binvec[par] = np.log10(self.axes[par])
+                else:
+                    binvec[par] = self.axes[par]
+        
+        return binvec
+        
+        
+    def _set_inputs(self, pars, inputs, is_log, multiplier):
+        
+        if not inputs:
+            return None, None
+            
+        if type(is_log) is dict:
+            tmp = [is_log[par] for par in pars]    
+            is_log = tmp
+        
+        if type(multiplier) in [int, float]:
+            multiplier = [multiplier] * len(pars)    
+            
+        input_dict = {}
+        
+        # Loop over parameters
+        for i, p1 in enumerate(pars[-1::-1]):
+            for j, p2 in enumerate(pars):
+                
+                # y-values first
+                if type(inputs) is list:
+                    val = inputs[-1::-1][i]
+                elif p1 in inputs:
+                    val = inputs[p1]
+                else:
+                    val = None
+                    
+                # Take log [optional]    
+                if val is None:
+                    yin = None
+                elif is_log[i]:
+                    yin = np.log10(val * multiplier[-1::-1][i])                            
+                else:
+                    yin = val * multiplier[-1::-1][i]                        
+                                            
+                # x-values next
+                if type(inputs) is list:
+                    val = inputs[j]        
+                elif p2 in inputs:
+                    val = inputs[p2]
+                else:
+                    val = None
+                
+                # Take log [optional]
+                if val is None:
+                    xin = None  
+                elif is_log[self.Nd-j-1]:
+                    xin = np.log10(val * multiplier[-1::-1][self.Nd-j-1])
+                else:
+                    xin = val * multiplier[-1::-1][self.Nd-j-1]
+                
+                input_dict[(i, j)] = (xin, yin)      
+
+        return input_dict
+        
+    def _listify_common_inputs(self, pars, take_log, multiplier, z):
+        if type(pars) not in [list, tuple]:
+            pars = [pars]
+        if type(take_log) == bool:
+            take_log = [take_log] * len(pars)
+        if type(multiplier) in [int, float]:
+            multiplier = [multiplier] * len(pars)
+
+        if type(z) is list:
+            if len(z) != len(pars):
+                raise ValueError('Length of z must be = length of pars!')
+        else:
+            z = [z] * len(pars)
+            
+        return pars, take_log, multiplier, z
+
     def PosteriorCDF(self, pars, **kwargs):
-        return self.PosteriorPDF(pars, cdf=True, **kwargs)  
+        return self.PosteriorPDF(pars, cdf=True, **kwargs)
                
-    def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=1.,
-        nu=[0.95, 0.68], overplot_nu=False, density=True, cdf=False,
-        color_by_like=False, filled=True, take_log=False,
-        bins=20, xscale='linear', yscale='linear', skip=0, skim=1, 
+    def PosteriorPDF(self, pars, to_hist=None, is_log=None, z=None, ax=None, fig=1, 
+        multiplier=1., nu=[0.95, 0.68], overplot_nu=False, density=True, cdf=False,
+        color_by_like=False, filled=True, take_log=False, bins=20, skip=0, skim=1, 
         contour_method='raw', **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
@@ -1417,7 +1596,7 @@ class ModelSet(object):
         
         kw = def_kwargs.copy()
         kw.update(kwargs)
-        
+
         if 'labels' in kw:
             labels_tmp = default_labels.copy()
             labels_tmp.update(kwargs['labels'])
@@ -1425,20 +1604,11 @@ class ModelSet(object):
 
         else:
             labels = default_labels
+            
+        pars, take_log, multiplier, z = \
+            self._listify_common_inputs(pars, take_log, multiplier, z)
 
-        if type(pars) not in [list, tuple]:
-            pars = [pars]
-        if type(take_log) == bool:
-            take_log = [take_log] * len(pars)
-        if type(multiplier) in [int, float]:
-            multiplier = [multiplier] * len(pars)
-
-        if type(z) is list:
-            if len(z) != len(pars):
-                raise ValueError('Length of z must be = length of pars!')
-        else:
-            z = [z] * len(pars)
-
+        # Only make a new plot window if there isn't already one
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -1446,70 +1616,30 @@ class ModelSet(object):
         else:
             gotax = True
 
-        binvec = []
-        to_hist = []
-        is_log = []
-        for k, par in enumerate(pars):
-            
-            # If one of our free parameters, return right away
-            if par in self.parameters:
-                j = self.parameters.index(par)
-                is_log.append(self.is_log[j])
-                val = self.chain[skip:,j].copy()
-                
-                if self.is_log[j]:
-                    val += np.log10(multiplier[k])
-                else:
-                    val *= multiplier[k]
+        # Grab all the data we need
+        if (to_hist is None) or (is_log is None):
+            to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log, 
+                multiplier=multiplier)
 
-                if take_log[k] and not self.is_log[j]:
-                    to_hist.append(np.log10(val))
-                else:
-                    to_hist.append(val)
-            
-            else:
-                val = self.extract_blob(par, z[k])[skip:].copy()
-                
-                val *= multiplier[k]
+        # Modify bins to account for log-taking, multipliers, etc.
+        binvec = self._set_bins(pars, to_hist, take_log, bins)
 
-                if take_log[k]:
-                    is_log.append(True)
-                    to_hist.append(np.log10(val))
-                else:
-                    is_log.append(False)
-                    to_hist.append(val)
-
-            # Set bins
-            if self.is_mcmc or (par not in self.parameters) or \
-             not hasattr(self, 'axes'):
-                if type(bins) == int:
-                    valc = to_hist[k]
-                    binvec.append(np.linspace(valc.min(), valc.max(), bins))
-                elif type(bins[k]) == int:
-                    valc = to_hist[k]
-                    binvec.append(np.linspace(valc.min(), valc.max(), bins[k]))
-                else:
-                    binvec.append(bins[k])
-                    #if take_log[k]:
-                    #    binvec.append(np.log10(bins[k]))
-                    #else:
-                    #    binvec.append(bins[k])
-            else:
-                if take_log[k]:
-                    binvec.append(np.log10(self.axes[par]))
-                else:
-                    binvec.append(self.axes[par])
-
+        # We might supply weights by-hand for ModelGrid calculations
         if not hasattr(self, 'weights'):
             weights = None
         else:
             weights = self.weights
 
+        ##
+        ### Histogramming and plotting starts here
+        ##
+        
+        # Marginalized 1-D PDFs 
         if len(pars) == 1:
             
             hist, bin_edges = \
-                np.histogram(to_hist[0], density=density, bins=binvec[0], 
-                    weights=weights)
+                np.histogram(to_hist[pars[0]], density=density, 
+                    bins=binvec[pars[0]], weights=weights)
 
             bc = rebin(bin_edges)
             
@@ -1520,22 +1650,10 @@ class ModelSet(object):
             tmp = self._get_1d_kwargs(**kw)
             
             ax.plot(bc, hist / hist.max(), drawstyle='steps-mid', **tmp)
-            ax.set_xscale(xscale)
-            
-            if overplot_nu:
-                
-                try:
-                    mu, sigma = bc[hist == hist.max()], error_1D(bc, hist, nu=nu)
-                except ValueError:
-                    mu, sigma = bc[hist == hist.max()], error_1D(bc, hist, nu=nu[0])
-                
-                mi, ma = ax.get_ylim()
-            
-                ax.plot([mu - sigma[0]]*2, [mi, ma], color='k', ls=':')
-                ax.plot([mu + sigma[1]]*2, [mi, ma], color='k', ls=':')
             
             ax.set_ylim(0, 1.05)
             
+        # Marginalized 2-D PDFs
         else:
             
             #if to_hist[0].size != to_hist[1].size:
@@ -1547,11 +1665,11 @@ class ModelSet(object):
             #        to_hist[0] = to_hist[0][0:to_hist[1].size]
             #    else:
             #        to_hist[1] = to_hist[1][0:to_hist[0].size]
-                    
+
             # Compute 2-D histogram
             hist, xedges, yedges = \
-                np.histogram2d(to_hist[0], to_hist[1], 
-                    bins=[binvec[0], binvec[1]], weights=weights)
+                np.histogram2d(to_hist[pars[0]], to_hist[pars[1]], 
+                    bins=[binvec[pars[0]], binvec[pars[1]]], weights=weights)
 
             hist = hist.T
 
@@ -1601,38 +1719,12 @@ class ModelSet(object):
                 else:
                     cs = ax.contour(bc[0], bc[1], hist / hist.max(), **kw)
 
+            # Force linear
             if not gotax:
-                ax.set_xscale(xscale)
-                ax.set_yscale(yscale)
+                ax.set_xscale('linear')
+                ax.set_yscale('linear')
             
-            if overplot_nu:
-                
-                for i in range(2):
-                    
-                    hist, bin_edges = \
-                        np.histogram(to_hist[i], density=density, bins=bins)
-                    
-                    bc = rebin(bin_edges)
-                    
-                    mu = bc[hist == hist.max()]
-                    
-                    try:
-                        sigma = error_1D(bc, hist, nu=nu)
-                    except ValueError:
-                        sigma = error_1D(bc, hist, nu=nu[0])
-
-                    if i == 0:
-                        mi, ma = ax.get_ylim()
-                    else:
-                        mi, ma = ax.get_xlim()
-
-                    if i == 0:
-                        ax.plot([mu - sigma[0]]*2, [mi, ma], color='k', ls=':')
-                        ax.plot([mu + sigma[1]]*2, [mi, ma], color='k', ls=':')
-                    else:
-                        ax.plot([mi, ma], [mu - sigma[0]]*2, color='k', ls=':')
-                        ax.plot([mi, ma], [mu + sigma[1]]*2, color='k', ls=':')
-
+        # Add nice labels (or try to)
         self.set_axis_labels(ax, pars, is_log, take_log, labels)
 
         pl.draw()
@@ -1764,7 +1856,7 @@ class ModelSet(object):
             
         pl.draw()
         
-        return ax, scat, cb
+        return ax, scat, cb    
         
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
@@ -1842,8 +1934,8 @@ class ModelSet(object):
         
         """    
                 
-        if pars is None:
-            pars = self.parameters
+        pars, take_log, multiplier, z = \
+            self._listify_common_inputs(pars, take_log, multiplier, z)
         
         kw = def_kwargs.copy()
         kw.update(kwargs)
@@ -1856,33 +1948,8 @@ class ModelSet(object):
         else:
             labels = default_labels
         
-        if type(take_log) == bool:
-            take_log = [take_log] * len(pars)
-        if multiplier == 1:
-            multiplier = [multiplier] * len(pars)        
-        if type(bins) == int:
-            bins = [bins] * len(pars)    
-        if type(z) is list:
-            if len(z) != len(pars):
-                raise ValueError('Length of z must be = length of pars!')
-        else:
-            z = [z] * len(pars)
-        
-        is_log = []
-        for i, par in enumerate(pars[-1::-1]):
-            if par in self.parameters:
-                if take_log[-1::-1][i] == self.is_log[self.parameters.index(par)]:
-                    is_log.append(take_log[-1::-1][i])
-                elif self.is_log[self.parameters.index(par)] > take_log[-1::-1][i]:
-                    is_log.append(True)
-                else:
-                    is_log.append(False)
-                
-            elif par in self.blob_names or self.derived_blob_names:
-                if take_log[-1::-1][i]:
-                    is_log.append(True)
-                else:    
-                    is_log.append(False)
+        to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log, 
+            multiplier=multiplier)
                 
         if oned:
             Nd = len(pars)
@@ -1912,6 +1979,9 @@ class ModelSet(object):
                 
         # Save contour set
         self.cs = {}      
+        
+        # Record (xin, yin) pairs for all (i, j) combos
+        inputs = self._set_inputs(pars, inputs, is_log, multiplier)
 
         # Loop over parameters
         for i, p1 in enumerate(pars[-1::-1]):
@@ -1934,55 +2004,16 @@ class ModelSet(object):
                 if mp.grid[k] is None:
                     continue
 
-                # Input values (optional)
-                if inputs:
-
-                    # Get input value
-                    if type(inputs) is list:
-                        val = inputs[-1::-1][i]
-                    elif p1 in inputs:
-                        val = inputs[p1]
-                    else:
-                        val = None
-                        
-                    # Take log [optional]    
-                    if val is None:
-                        yin = None
-                    elif is_log[i]:
-                        yin = np.log10(val * multiplier[-1::-1][i])                            
-                    else:
-                        yin = val * multiplier[-1::-1][i]                        
-                else:
-                    yin = None
+                col, row = mp.axis_position(k)   
                 
-                if inputs:
-                    
-                    # Get input value
-                    if type(inputs) is list:
-                        val = inputs[j]        
-                    elif p2 in inputs:
-                        val = inputs[p2]
-                    else:
-                        val = None
-                    
-                    # Take log [optional]
-                    if val is None:
-                        xin = None  
-                    elif is_log[Nd-j-1]:
-                        xin = np.log10(val * multiplier[-1::-1][Nd-j-1])
-                    else:
-                        xin = val * multiplier[-1::-1][Nd-j-1]
-
-                else:
-                    xin = None
-
-                col, row = mp.axis_position(k)    
+                # Read-in inputs values
+                xin, yin = inputs[(i,j)] 
     
                 # 1-D PDFs on the diagonal    
                 if k in mp.diag and oned:
 
-                    ax, cs = self.PosteriorPDF(p1, ax=mp.grid[k], 
-                        take_log=take_log[-1::-1][i], z=z[-1::-1][i],
+                    ax, cs = self.PosteriorPDF(p1, to_hist=to_hist, is_log=is_log,
+                        ax=mp.grid[k], take_log=take_log[-1::-1][i], z=z[-1::-1][i],
                         multiplier=[multiplier[-1::-1][i]], 
                         bins=[bins[-1::-1][i]], skip=skip, skim=skim, 
                         **kw)
@@ -1995,6 +2026,7 @@ class ModelSet(object):
                             self._PosteriorIdealized(pars=p1, ax=mp.grid[k], 
                                 z=z[-1::-1][i])
 
+                    # Stick this stuff in fix_ticks?
                     if col != 0:
                         mp.grid[k].set_ylabel('')
                     if row != 0:
@@ -2017,13 +2049,13 @@ class ModelSet(object):
 
                 red = [z[j], z[-1::-1][i]]
 
-                # If not oned, may end up with some x vs. x plots
+                # If not oned, may end up with some x vs. x plots if we're not careful
                 if p1 == p2 and (red[0] == red[1]):
                     continue
 
                 # 2-D PDFs elsewhere
-                ax, cs = self.PosteriorPDF([p2, p1], ax=mp.grid[k], z=red,
-                    take_log=[take_log[j], take_log[-1::-1][i]],
+                ax, cs = self.PosteriorPDF([p2, p1], to_hist=to_hist, is_log=is_log,
+                    ax=mp.grid[k], z=red, take_log=[take_log[j], take_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, 
                     skip=skip, **kw)
@@ -2047,7 +2079,8 @@ class ModelSet(object):
                 # Input values
                 if not inputs:
                     continue
-
+                    
+                # Plot as dotted lines
                 if xin is not None:
                     mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k',
                         ls=':')
@@ -2192,8 +2225,6 @@ class ModelSet(object):
             ax.fill_between(x, ymin, ymax, **kwargs)
         elif limit is not None:
             ax.plot(x, ymin, **kwargs)
-            print x
-            print ymin
         
         # Look for populations
         m = re.search(r"\{([0-9])\}", blob)
@@ -2502,7 +2533,7 @@ class ModelSet(object):
         """
         
         if type(take_log) == bool:
-            take_log = [take_log] * len(pars)
+            take_log = {key: take_log for key in pars}
 
         # [optionally] modify default labels
         if labels is None:
@@ -2543,7 +2574,7 @@ class ModelSet(object):
         del pars
         pars = p
     
-        log_it = is_log[0] or take_log[0]
+        log_it = is_log[pars[0]] or take_log[pars[0]]
         ax.set_xlabel(make_label(pars[0], log_it, labels))
     
         if len(pars) == 1:
@@ -2552,13 +2583,11 @@ class ModelSet(object):
             pl.draw()
             return
     
-        log_it = is_log[1] or take_log[1]
+        log_it = is_log[pars[1]] or take_log[pars[1]]
         ax.set_ylabel(make_label(pars[1], log_it, labels))
 
         pl.draw()
-        
-        
-        
+                
     def confidence_regions(self, L, nu=[0.95, 0.68]):
         """
         Integrate outward at "constant water level" to determine proper

@@ -131,7 +131,7 @@ def error_1D(x, y, nu=0.68, limit=None):
     else:
         raise ValueError('Invalid input value for limit.')
 
-def error_2D(x, y, z, bins, nu=[0.95, 0.68], weights=None, method='nearest'):
+def error_2D(x, y, z, bins, nu=[0.95, 0.68], weights=None, method='raw'):
     """
     Find 2-D contour given discrete samples of posterior distribution.
     
