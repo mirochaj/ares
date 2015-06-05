@@ -22,7 +22,7 @@ z = np.arange(0, 8, 0.05)
 
 # Plot 1,000 samples drawn from the Robertson et al. posteriors
 pop = ares.analysis.Population(r15)
-models = pop.SamplePosterior(z, r15._sfrd, r15.sfrd_pars, r15.sfrd_err)
+models = pop.SamplePosterior(z, r15._SFRD, r15.sfrd_pars, r15.sfrd_err)
 
 ax = pl.subplot(111)
 for i in range(int(models.shape[1])):

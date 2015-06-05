@@ -44,9 +44,9 @@ See ``$ARES/tests/lit`` for more examples.
 
 Using models from the literature in RT calculations
 ---------------------------------------------------
-The motivation for a generalized interface to data from the literature is to (1) enable
-apples-to-apples comparisons and the development of a common set of analysis routines, and
-(2) to ease the implementation of these models in radiative transfer calculations.
+The motivation for developing a generalized interface to data from the literature is to (1) enable development of a common set of analysis routines to facilitate
+apples-to-apples comparisons between various results and the literature, and
+(2) to ease the integration of these models with radiative transfer calculations.
 
 For example, to initialize an *ares* object for simple inspection, you could do something like: 
 

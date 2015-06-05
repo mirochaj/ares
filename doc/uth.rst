@@ -47,3 +47,7 @@ Solvers
 Simulation Drivers
 ------------------
 NotImplemented
+
+Analysis Routines
+----------------- 
+* :doc:`uth_anl_multiplot`
