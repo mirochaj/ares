@@ -59,7 +59,7 @@ class StellarSource(object):
 
         self.tau = self.src_pars['lifetime'] * self.pf['time_units']
         
-        if self.spec_pars['type'] != 'bb':
+        if self.spec_pars['type'] != ['bb']:
             raise ValueError("StellarSource not built for non-BB SED!")
 
         if self.N != 1:

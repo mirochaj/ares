@@ -1455,10 +1455,10 @@ class ModelSet(object):
             if self.is_mcmc or (par not in self.parameters) or \
                 not hasattr(self, 'axes'):
                 if type(bins) == int:
-                    valc = to_hist[k]
+                    valc = to_hist[par]
                     binvec[par] = np.linspace(valc.min(), valc.max(), bins)
                 elif type(bins[k]) == int:
-                    valc = to_hist[k]
+                    valc = to_hist[par]
                     binvec[par] = np.linspace(valc.min(), valc.max(), bins[k])
                 else:
                     binvec[par] = bins[k]
@@ -1478,7 +1478,7 @@ class ModelSet(object):
     def _set_inputs(self, pars, inputs, is_log, multiplier):
         
         if not inputs:
-            return None, None
+            return None
             
         if type(is_log) is dict:
             tmp = [is_log[par] for par in pars]    
@@ -1701,17 +1701,6 @@ class ModelSet(object):
                 else:
                     ax.contour(bc[0], bc[1], hist / hist.max(),
                         levels, **kwargs)
-
-                # Grab contours
-                #c = cntr.Cntr(bc[0], bc[1], hist / hist.max())     
-                #
-                #all_contours = []
-                #for level in levels:
-                #    nlist = c.trace(level, level, 0)
-                #    segs = nlist[:len(nlist)//2]
-                #    all_contours.append(segs)   
-                #    
-                #cs = all_contours             
                 
             else:
                 if filled:
@@ -1731,8 +1720,58 @@ class ModelSet(object):
         
         return ax, cs
       
-    def FindContour(self, plane, nu=0.68):
-        pass 
+    def FindContour(self, pars, z=None, take_log=False, multiplier=1., bins=20, 
+        nu=0.68, contour_method='raw', weights=None):
+        """
+        Find a contour in the plane defined by `pars`, and return its x-y trajectory.
+        
+        Parameters
+        ----------
+        pars : list
+            2-element list of parameters that defined plane of interest.
+        
+        """
+        
+        pars, z, take_log, multiplier = \
+            self._listify_common_inputs(pars, z, take_log, multiplier)
+        
+        if type(nu) not in [list]:
+            nu = [nu]
+        
+        to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log,
+            multiplier=multiplier)
+        
+        binvec = self._set_bins(pars, to_hist, take_log, bins)
+        
+        # Compute 2-D histogram
+        hist, xedges, yedges = \
+            np.histogram2d(to_hist[pars[0]], to_hist[pars[1]], 
+                bins=[binvec[pars[0]], binvec[pars[1]]], weights=weights)
+        
+        # Recover bin centers
+        bc = []
+        for i, edges in enumerate([xedges, yedges]):
+            bc.append(rebin(edges))
+        
+        # ContourSet needs 2-D arrays
+        x, y = np.meshgrid(bc[0], bc[1])
+        
+        # Create contour object
+        c = cntr.Cntr(x, y, hist.T / hist.max())     
+                
+        # Find levels corresponding to nu-sigma inputs
+        nu, levels = error_2D(to_hist[pars[0]], to_hist[pars[1]], 
+            self.L / self.L.max(), bins=[binvec[pars[0]], binvec[pars[1]]], 
+            nu=nu, method=contour_method)
+        
+        # Find x-y trajectory of contour
+        all_contours = []
+        for level in levels:
+            nlist = c.trace(level, level, 0)
+            segs = nlist[:len(nlist)/2]
+            all_contours.append(segs) 
+            
+        return all_contours
         
     def get_2d_error(self, plane, nu=0.68):
         pass
@@ -1950,6 +1989,11 @@ class ModelSet(object):
         
         to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log, 
             multiplier=multiplier)
+            
+        # Modify bins to account for log-taking, multipliers, etc.
+        binvec = self._set_bins(pars, to_hist, take_log, bins)    
+              
+        bins = [binvec[par] for par in pars]      
                 
         if oned:
             Nd = len(pars)
@@ -2007,7 +2051,10 @@ class ModelSet(object):
                 col, row = mp.axis_position(k)   
                 
                 # Read-in inputs values
-                xin, yin = inputs[(i,j)] 
+                if inputs is not None:
+                    xin, yin = inputs[(i,j)] 
+                else:
+                    xin = yin = None
     
                 # 1-D PDFs on the diagonal    
                 if k in mp.diag and oned:

@@ -22,8 +22,9 @@ from ..simulations import Global21cm as simG21
 from ..util.Stats import Gauss1D, GaussND, rebin
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
-from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs  
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
+from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
+    read_pickled_chain
 
 try:
     from scipy.spatial import KDTree
@@ -685,6 +686,45 @@ class ModelFit(object):
     @data.setter
     def data(self, value):
         self._data = value    
+        
+    def tight_ball(self, pos, prob):
+        # emcee has something like this already, should probably just use that
+        
+        # Set new initial position to region of high likelihood
+        imaxL = np.argsort(prob)[-1::-1]
+                    
+        pvec = []
+        for i in range(self.nwalkers / 4):
+            if np.isinf(imaxL[i]):
+                break
+                
+            pvec.append(pos[imaxL[i]])
+        
+        pvec = np.array(pvec)
+                    
+        ball_prior = {}
+        for j, par in enumerate(self.parameters):
+            ball_prior[par] = \
+                ['gaussian', pvec[:,j].mean(), pvec[:,j].std()]
+
+        guesses = []
+        for i in range(self.nwalkers):
+
+            p0 = []
+            for j, par in enumerate(self.parameters):
+
+                dist, lo, hi = ball_prior[par]
+
+                if dist == 'uniform':
+                    val = np.random.rand() * (hi - lo) + lo
+                else:
+                    val = np.random.normal(lo, scale=hi)
+
+                p0.append(val)
+
+            guesses.append(p0)
+
+        return np.array(guesses)    
 
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=500, fit_signal=False, fit_turning_points=True,
@@ -765,7 +805,7 @@ class ModelFit(object):
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
                 
-        if burn > 0:
+        if burn > 0 and not restart:
             t1 = time.time()
             pos, prob, state, blobs = self.sampler.run_mcmc(self.guesses, burn)
             self.sampler.reset()
@@ -774,42 +814,7 @@ class ModelFit(object):
             if rank == 0:
                 print "Burn-in complete in %.3g seconds." % (t2 - t1)
 
-            # Set new initial position to region of high likelihood
-            imaxL = np.argsort(prob)[-1::-1]
-                        
-            pvec = []
-            for i in range(self.nwalkers / 4):
-                if np.isinf(imaxL[i]):
-                    break
-                    
-                pvec.append(pos[imaxL[i]])
-            
-            pvec = np.array(pvec)
-                        
-            ball_prior = {}
-            for j, par in enumerate(self.parameters):
-                ball_prior[par] = \
-                    ['gaussian', pvec[:,j].mean(), pvec[:,j].std()]
-
-            guesses = []
-            for i in range(self.nwalkers):
-
-                p0 = []
-                for j, par in enumerate(self.parameters):
-
-                    dist, lo, hi = ball_prior[par]
-
-                    if dist == 'uniform':
-                        val = np.random.rand() * (hi - lo) + lo
-                    else:
-                        val = np.random.normal(lo, scale=hi)
-
-                    p0.append(val)
-
-                guesses.append(p0)
-
-            pos = np.array(guesses)
-
+            pos = self.tight_ball(pos, prob)
         else:
             pos = self.guesses
             state = None
@@ -843,6 +848,11 @@ class ModelFit(object):
                         print 'base_kwargs from file dont match those supplied!'
                     MPI.COMM_WORLD.Abort()
                 raise ValueError('base_kwargs from file dont match those supplied!')            
+                        
+            # Start from last step in pre-restart calculation
+            chain = read_pickled_chain('%s.chain.pkl' % prefix)
+            
+            pos = chain[-self.nwalkers:,:]
                         
         # Setup output file
         else:
