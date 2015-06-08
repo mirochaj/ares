@@ -73,6 +73,8 @@ common = \
  't_myr': r'$t \ (\mathrm{Myr})$',
  'flux': label_flux_phot, 
  'flux_E': label_flux_nrg, 
+ 'intensity_AA': r'$\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{\AA}^{-1}$', 
+ 'lambda_AA': r'$\lambda \ (\AA)$', 
  'E': label_nrg,  
  'heat_mpc': label_heat_mpc,  
  'dTbdnu': label_dTbdnu,

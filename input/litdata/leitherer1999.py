@@ -10,7 +10,9 @@ Notes
 
 import re, os
 import numpy as np
-from ares.physics.Constants import h_p, c, erg_per_ev
+from ares.physics import Cosmology
+from scipy.integrate import cumtrapz
+from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, s_per_myr
 
 _input = os.getenv('ARES') + '/input/starburst99'
 
@@ -39,7 +41,7 @@ pars = \
  'Z': 0.04,
  'imf': 2.35,
  'nebular': True,
- 'continuous_sf': True,
+ 'continuous_sf': False,
 }
 
 def _reader(fn, skip=3, dtype=float):
@@ -85,7 +87,7 @@ def _fignum_to_figname():
     
 fig_num, fig_prefix = _fignum_to_figname()
     
-def _figure_name(Z=0.04, imf=2.35, nebular=True, continuous_sf=True):
+def _figure_name(Z=0.04, imf=2.35, nebular=True, continuous_sf=False):
     """
     Only built for figures 1-12 right now.
     
@@ -160,6 +162,13 @@ class StellarPopulation:
         self.data = 10**self._raw_data[:,1:]
     
     @property
+    def cosm(self):
+        if not hasattr(self, '_cosm'):
+            self._cosm = Cosmology()
+            
+        return self._cosm
+    
+    @property
     def wavelengths(self):
         if not hasattr(self, '_wavelengths'):
             self._wavelengths = self._raw_data[:,0]
@@ -176,7 +185,7 @@ class StellarPopulation:
     @property
     def weights(self):
         if not hasattr(self, '_weights'):
-            self._weights = np.array([1] * 20 + [10] * 8 + [100] * 8)
+            self._weights = np.array([1.] * 20 + [10.] * 8 + [100.] * 8)
     
         return self._weights    
         
@@ -193,7 +202,74 @@ class StellarPopulation:
             self._tavg_sed = np.dot(self.data, self.weights) / self.times.max()
         
         return self._tavg_sed
+        
+    @property
+    def NperB(self):
+        """
+        Number of photons emitted per stellar baryon of star formation.
+        
+        Returns
+        -------
+        Two-dimensional array containing photon yield per unit stellar baryon per
+        second per angstrom. First axis corresponds to photon wavelength (or energy), 
+        and second axis to time.
+        
+        """
+        if not hasattr(self, '_NperB'):
+            self._NperB = np.zeros_like(self.data)
+            for i in range(self.times.size):
+                self._NperB[:,i] = self.data[:,i] / (self.energies * erg_per_ev) 
+                
+            # Introduce "per baryon" units assuming 1 Msun in stars
+            self._NperB /= (g_per_msun / self.cosm.g_per_baryon)
+            
+            if self.pf['continuous_sf']:
+                pass
+            else:
+                self._NperB /= 1e6
 
+        return self._NperB
+                
+    def PhotonsPerBaryon(self, Emin, Emax):    
+        """
+        Compute the cumulative number of photons emitted per unit stellar baryon.
+        
+        ..note:: This integrand over the provided band, and cumulatively over time.
+        
+        Parameters
+        ----------
+        Emin : int, float
+            Minimum rest-frame photon energy to consider [eV].
+        Emax : int, float
+            Maximum rest-frame photon energy to consider [eV].
+        
+        Returns
+        -------
+        An array with the same dimensions as ``self.times``, representing the 
+        cumulative number of photons emitted per stellar baryon of star formation
+        as a function of time.
+    
+        """
+        
+        # Find band of interest -- should be more precise and interpolate
+        i0 = np.argmin(np.abs(self.energies - Emin))
+        i1 = np.argmin(np.abs(self.energies - Emax))
+              
+        # Current units: photons / sec / baryon / Angstrom      
+                                     
+        # Count up the photons in each spectral bin for all times
+        photons_per_b_t = np.zeros_like(self.times)
+        for i in range(self.times.size):
+            photons_per_b_t[i] = np.trapz(self.NperB[i1:i0,i], 
+                x=self.wavelengths[i1:i0])
+            
+        # Current units: photons / sec / baryon
+                
+        t = self.times * s_per_myr
+        
+        # Integrate (cumulatively) over time
+        return cumtrapz(photons_per_b_t, x=t, initial=0.0)
+        
 class Spectrum:
     def __init__(self):
         pass
