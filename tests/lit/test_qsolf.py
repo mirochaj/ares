@@ -36,7 +36,7 @@ for i, redshift in enumerate(z):
 ax1.set_xlabel(r'$L_X$')    
 ax1.set_ylabel(r'$\phi(L_X)$')
 ax1.legend(loc='best')
-pl.draw()
+pl.show()
 
 """
 Plot z=0 PDE best-fit QSO-LF w/ blue semi-transparent lines as random samples from
@@ -56,7 +56,7 @@ ax2.loglog(L, u03.LuminosityFunction(L, 0.0, evolution='pde'))
 ax2.set_xlabel(r'$L_X$')    
 ax2.set_ylabel(r'$\phi(L_X)$')
     
-pl.draw()
+pl.show()
 
 """
 Convert to another band assuming some SED.
@@ -76,6 +76,5 @@ ax3.set_ylabel(r'$\phi(L_X)$')
     
 pl.legend(loc='best')
     
-
 
 

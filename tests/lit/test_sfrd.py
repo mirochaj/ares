@@ -33,4 +33,4 @@ ax.semilogy(z, r15.SFRD(z))
 ax.set_xlabel(r'$z$')
 ax.set_ylabel(ares.util.labels['sfrd'])
     
-pl.draw()
+pl.show()
