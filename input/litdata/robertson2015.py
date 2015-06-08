@@ -24,9 +24,7 @@ sfrd_err = \
 }
     
 def _SFRD(z, a=None, b=None, c=None, d=None):
-    return a * (1. + z)**b / (1 + ((1 + z) / c)**d) * 4.0e39 
+    return a * (1. + z)**b / (1 + ((1 + z) / c)**d) 
     
-#Cx should be hashed out if needed    
-
 def SFRD(z):
     return _SFRD(z, **sfrd_pars) 

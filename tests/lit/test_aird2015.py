@@ -33,7 +33,7 @@ for p, Lx in enumerate(L):
 models = np.array(models)
 
 
-pl.loglog(L, models, color = 'k', label = r'$LDDE1-Hard Band$')
+pl.loglog(L, models, color = 'k', label = r'LDDE1-Hard Band')
 #pl.title('2-7 KeV LDDE1 at z ~ %.1f' % (z))
 pl.ylim(10**-9.1, 10**-2)
 
@@ -54,7 +54,7 @@ for p, Lx in enumerate(L):
     models.append(model)
 models = np.array(models)
 
-pl.loglog(L, models, color = 'g', label = r'$LDDE2-Hard Band$')
+pl.loglog(L, models, color = 'g', label = r'LDDE2-Hard Band')
 #pl.title('2-7 KeV LDDE2 at z ~ %.1f' % (z))
 pl.ylim(10**-9.1, 10**-2)
 
@@ -77,7 +77,7 @@ for p, Lx in enumerate(L):
 models = np.array(models)
 
 
-pl.loglog(L, models, color = 'r', label = r'$LDDE1-Soft Band$')
+pl.loglog(L, models, color = 'r', label = r'LDDE1-Soft Band')
 #pl.title('0.5-2 KeV LDDE1 at z ~ %.1f' % (z))
 pl.ylim(10**-9.1, 10**-2)
 ax1.set_xlabel(r'$L_X$')    
@@ -98,8 +98,8 @@ for p, Lx in enumerate(L):
 models = np.array(models)
 
 
-pl.loglog(L, models, color = 'b', label = r'$LDDE2-Soft Band$')
-pl.title(r'$Different$ $models$ $for$ $Lx$ $for$ $soft$ $and$ $hard$ $bands$ $at$ $z$ ~ $%.1f$' % (z))
+pl.loglog(L, models, color = 'b', label = r'LDDE2-Soft Band')
+pl.title(r'Different models for $L_X$ for soft and hard bands at $z$ ~ $%.1f$' % (z))
 pl.ylim(10**-9.1, 10**-2) 
 
 ax1.set_xlabel(r'$L_X$')    

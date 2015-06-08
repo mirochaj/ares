@@ -35,7 +35,7 @@ r = np.array(r)
 
 for i, j in enumerate(models):
     pl.loglog(L, models[i], alpha = 0.25)
-    pl.title(r'$The$ $2-10$ $KeV$ $at$ $z$ ~ $%.1f - %.1f$' % (r[0], r[-1]))
+    pl.title(r'The 2-10 KeV Band at $z$ ~ $%.1f - %.1f$' % (r[0], r[-1]))
     pl.ylim(10**-12, 10**-2)
     pl.xlim(L[0], L[-23])
 
