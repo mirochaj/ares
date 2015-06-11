@@ -13,14 +13,16 @@ and optionally:
 * `mpi4py <http://mpi4py.scipy.org>`_
 * `h5py <http://www.h5py.org/>`_
 
-To download the code, type::
+If you have mercurial installed, you can clone *ares* and its entire revision history via: ::
 
     hg clone https://bitbucket.org/mirochaj/ares ares
     cd ares
     python setup.py install
     
-It would be in your best interest to set an environment variable which points
-to the *ares* install directory, e.g. (in bash) ::
+If you do not have mercurial installed, and would rather just grab a tarball of the most recent version, select the `Download repository <https://bitbucket.org/mirochaj/ares/downloads>`_ option on bitbucket.
+    
+Once you've got the code, you'll need to set an environment variable which
+points to the *ares* install directory, e.g. (in bash) ::
 
     export ARES=/users/<yourusername>/ares    
     

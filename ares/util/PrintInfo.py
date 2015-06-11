@@ -733,8 +733,8 @@ def print_model_set(mset):
 
     print line("path        : %s" % mset.prefix[0:i])
     print line("prefix      : %s" % mset.prefix[i:])
-
     print line("N-d         : %i" % len(mset.parameters))
+
     print line('-'*twidth)
     for i, par in enumerate(mset.parameters):
         print line("param    #%s: %s" % (str(i).zfill(2), par))

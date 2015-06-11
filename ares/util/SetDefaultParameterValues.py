@@ -287,9 +287,9 @@ def PopulationParameters():
     {
     "source_type": 'star',
     "source_kwargs": None,
-    
+
     "model": -1, # Only BHs use this at this point
-    
+
     "zoff": 0.0,
     "formation_redshift": 50.,
     "extinction_redshift": 0.0,

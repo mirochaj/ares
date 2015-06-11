@@ -536,12 +536,13 @@ class ModelGrid:
             pickle.dump(load_all, f)
             f.close()            
         
+        print "Processor %i: Wrote %s.chain.pkl, %s.blobs.pkl, and %s.load.pkl" \
+            % (rank, prefix, prefix, prefix)
+        
         # Send the key to the next processor
         if rank != (size-1):
             MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
-        
-        print "Processor %i done." % rank
-        
+                
     @property        
     def Tmin_in_grid(self):
         """

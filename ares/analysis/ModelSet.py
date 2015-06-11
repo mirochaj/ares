@@ -573,8 +573,8 @@ class ModelSet(object):
     def Dump(self, prefix, modelset):
         pass
 
-    def ReRunModels(self, prefix=None, N=None, models=None, 
-        clobber=False, save_freq=10, random=True, last=False, **kwargs):
+    def ReRunModels(self, prefix=None, N=None, random=False, last=False, 
+        clobber=False, save_freq=10, **kwargs):
         """
         Take list of dictionaries and re-run each as a Global21cm model.
 
@@ -585,7 +585,9 @@ class ModelSet(object):
             If None, will re-run all models.
         random : bool
             If True, draw N *random* samples, rather than just the first N.
-
+        last : bool
+            If True, take last ``N`` samples from chain, rather than first.
+            
         prefix : str
             Prefix of files to be saved. There will be three:
                 i) prefix.chain.pkl
@@ -610,7 +612,8 @@ class ModelSet(object):
                 if size > 1:
                     raise ValueError('This will cause each processor to run different models!')
                 np.random.shuffle(model_num)
-            elif last:
+            
+            if last:
                 model_ids = model_num[-N:]
             else:    
                 model_ids = model_num[0:N]            
@@ -1072,45 +1075,34 @@ class ModelSet(object):
         Tuple, (maximum likelihood value, negative error, positive error).
 
         """
-        
-        if par in self.parameters:
-            j = self.parameters.index(par)
-            to_hist = self.chain[:,j]
-        elif (par in self.blob_names) or (par in self.derived_blob_names):
-            if z is None:
-                raise ValueError('Must supply redshift!')
-            
-            tmp = self.extract_blob(par, z=z)
-            mask = tmp.mask
-            to_hist = tmp.copy()
 
-            if take_log:
-                to_hist = np.log10(to_hist)
-                
-            to_hist *= multiplier    
-                
-            to_hist = to_hist.compressed()
-        else:
-            print "WARNING: %s not in blobs or parameters!" % par
-            return np.nan, (np.nan, np.nan)
+        pars, take_log, multiplier, z = \
+            self._listify_common_inputs([par], take_log, multiplier, z)
+
+        to_hist, is_log = self.ExtractData(par, z=z, take_log=take_log, 
+            multiplier=multiplier)
 
         # Need to weight results of non-MCMC runs explicitly
         if not hasattr(self, 'weights'):
             weights = None
         else:
             weights = self.weights
-        
+
         # Apply mask to weights
         if weights is not None and to_hist.shape != weights.shape:
             weights = weights[np.logical_not(mask)]
-            
+        
+        if hasattr(to_hist[par], 'compressed'):
+            to_hist[par] = to_hist[par].compressed()
+        
         hist, bin_edges = \
-            np.histogram(to_hist, density=True, bins=bins, weights=weights)
+            np.histogram(to_hist[par], density=True, bins=bins, 
+            weights=weights)
 
         bc = rebin(bin_edges)
-        
+
         if to_hist is []:
-            return None, (None, None)    
+            return None, (None, None)
 
         mu, sigma = error_1D(bc, hist, nu=nu, limit=limit)
                 
@@ -1393,18 +1385,9 @@ class ModelSet(object):
          
          
         """
-        if type(pars) not in [list, tuple]:
-            pars = [pars]
-        if type(take_log) == bool:
-            take_log = [take_log] * len(pars)
-        if type(multiplier) in [int, float]:
-            multiplier = [multiplier] * len(pars)
-
-        if type(z) is list:
-            if len(z) != len(pars):
-                raise ValueError('Length of z must be = length of pars!')
-        else:
-            z = [z] * len(pars)  
+        
+        pars, take_log, multiplier, z = \
+            self._listify_common_inputs(pars, take_log, multiplier, z)        
             
         to_hist = []
         is_log = []
@@ -1475,8 +1458,14 @@ class ModelSet(object):
         return binvec
         
         
-    def _set_inputs(self, pars, inputs, is_log, multiplier):
+    def _set_inputs(self, pars, inputs, is_log, take_log, multiplier):
+        """
+        Figure out input values for x and y parameters for each panel.
         
+        Returns
+        -------
+        Dictionary, elements sorted by 
+        """
         if not inputs:
             return None
             
@@ -1489,43 +1478,63 @@ class ModelSet(object):
             
         input_dict = {}
         
+        Nd = len(pars)
+        
+        for i, par in enumerate(pars):
+            if type(inputs) is list:
+                val = inputs[i]
+            elif par in inputs:
+                val = inputs[par]
+            else:
+                val = None
+            
+            # Take log [optional]    
+            if val is None:
+                vin = None
+            elif is_log[i] or take_log[i]:
+                vin = np.log10(val * multiplier[i])                            
+            else:
+                vin = val * multiplier[i]    
+                
+            input_dict[par] = vin
+        
         # Loop over parameters
-        for i, p1 in enumerate(pars[-1::-1]):
-            for j, p2 in enumerate(pars):
+        #for i, p1 in enumerate(pars[-1::-1]):
+        #    for j, p2 in enumerate(pars):
+        #        
+        #        # y-values first
+        #        if type(inputs) is list:
+        #            val = inputs[-1::-1][i]
+        #        elif p1 in inputs:
+        #            val = inputs[p1]
+        #        else:
+        #            val = None
+        #            
+        #        # Take log [optional]    
+        #        if val is None:
+        #            yin = None
+        #        elif is_log[i] or take_log[i]:
+        #            yin = np.log10(val * multiplier[-1::-1][i])                            
+        #        else:
+        #            yin = val * multiplier[-1::-1][i]                        
+        #                                    
+        #        # x-values next
+        #        if type(inputs) is list:
+        #            val = inputs[j]        
+        #        elif p2 in inputs:
+        #            val = inputs[p2]
+        #        else:
+        #            val = None
+        #                        
+        #        # Take log [optional]
+        #        if val is None:
+        #            xin = None  
+        #        elif is_log[Nd-j-1] or take_log[Nd-j-1]:
+        #            xin = np.log10(val * multiplier[-1::-1][Nd-j-1])
+        #        else:
+        #            xin = val * multiplier[-1::-1][Nd-j-1]
                 
-                # y-values first
-                if type(inputs) is list:
-                    val = inputs[-1::-1][i]
-                elif p1 in inputs:
-                    val = inputs[p1]
-                else:
-                    val = None
-                    
-                # Take log [optional]    
-                if val is None:
-                    yin = None
-                elif is_log[i]:
-                    yin = np.log10(val * multiplier[-1::-1][i])                            
-                else:
-                    yin = val * multiplier[-1::-1][i]                        
-                                            
-                # x-values next
-                if type(inputs) is list:
-                    val = inputs[j]        
-                elif p2 in inputs:
-                    val = inputs[p2]
-                else:
-                    val = None
                 
-                # Take log [optional]
-                if val is None:
-                    xin = None  
-                elif is_log[self.Nd-j-1]:
-                    xin = np.log10(val * multiplier[-1::-1][self.Nd-j-1])
-                else:
-                    xin = val * multiplier[-1::-1][self.Nd-j-1]
-                
-                input_dict[(i, j)] = (xin, yin)      
 
         return input_dict
         
@@ -1551,7 +1560,7 @@ class ModelSet(object):
     def PosteriorPDF(self, pars, to_hist=None, is_log=None, z=None, ax=None, fig=1, 
         multiplier=1., nu=[0.95, 0.68], overplot_nu=False, density=True, cdf=False,
         color_by_like=False, filled=True, take_log=False, bins=20, skip=0, skim=1, 
-        contour_method='raw', **kwargs):
+        contour_method='raw', excluded=False, **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
     
@@ -1583,6 +1592,9 @@ class ModelSet(object):
             way of doing a burn-in after the fact.
         skim : int
             Only take every skim'th step from the chain.
+        excluded : bool
+            If True, and filled == True, fill the area *beyond* the given contour with
+            cross-hatching, rather than the area interior to it.
 
         Returns
         -------
@@ -1629,7 +1641,7 @@ class ModelSet(object):
             weights = None
         else:
             weights = self.weights
-
+            
         ##
         ### Histogramming and plotting starts here
         ##
@@ -1638,7 +1650,7 @@ class ModelSet(object):
         if len(pars) == 1:
             
             hist, bin_edges = \
-                np.histogram(to_hist[pars[0]], density=density, 
+                np.histogram(to_hist[pars[0]][skip:], density=density, 
                     bins=binvec[pars[0]], weights=weights)
 
             bc = rebin(bin_edges)
@@ -1668,7 +1680,7 @@ class ModelSet(object):
 
             # Compute 2-D histogram
             hist, xedges, yedges = \
-                np.histogram2d(to_hist[pars[0]], to_hist[pars[1]], 
+                np.histogram2d(to_hist[pars[0]][skip:], to_hist[pars[1]][skip:], 
                     bins=[binvec[pars[0]], binvec[pars[1]]], weights=weights)
 
             hist = hist.T
@@ -1695,18 +1707,41 @@ class ModelSet(object):
                         bins=[binvec[0], binvec[1]], nu=nu, method=contour_method)
         
                 if filled:
-                    ax.contourf(bc[0], bc[1], hist / hist.max(), 
-                        levels, **kwargs)
+                    if excluded and len(nu) == 1:
+                        # Fill the entire window with cross-hatching
+                        x1, x2 = ax.get_xlim()
+                        y1, y2 = ax.get_ylim()
+
+                        x_polygon = [x1, x2, x2, x1]
+                        y_polygon = [y1, y1, y2, y2]
+
+                        ax.fill(x_polygon, y_polygon, color="none", hatch='X', 
+                            edgecolor=kwargs['color'])
+                            
+                        # Now, fill the enclosed area with white
+                        ax.contourf(bc[0], bc[1], hist / hist.max(), 
+                            levels, color='w', colors='w', zorder=2)
+                        # Draw an outline too   
+                        ax.contour(bc[0], bc[1], hist / hist.max(), 
+                            levels, colors=kwargs['color'], linewidths=1, 
+                            zorder=2)
+                            
+                        
+                    else:
+                        ax.contourf(bc[0], bc[1], hist / hist.max(), 
+                            levels, zorder=3, **kwargs)
                     
                 else:
                     ax.contour(bc[0], bc[1], hist / hist.max(),
-                        levels, **kwargs)
+                        levels, zorder=4, **kwargs)
                 
             else:
                 if filled:
-                    cs = ax.contourf(bc[0], bc[1], hist / hist.max(), **kw)
+                    cs = ax.contourf(bc[0], bc[1], hist / hist.max(), 
+                        zorder=3, **kw)
                 else:
-                    cs = ax.contour(bc[0], bc[1], hist / hist.max(), **kw)
+                    cs = ax.contour(bc[0], bc[1], hist / hist.max(), 
+                        zorder=4, **kw)
 
             # Force linear
             if not gotax:
@@ -1716,9 +1751,11 @@ class ModelSet(object):
         # Add nice labels (or try to)
         self.set_axis_labels(ax, pars, is_log, take_log, labels)
 
+        # Rotate ticks?
+
         pl.draw()
         
-        return ax, cs
+        return ax
       
     def FindContour(self, pars, z=None, take_log=False, multiplier=1., bins=20, 
         nu=0.68, contour_method='raw', weights=None):
@@ -1853,7 +1890,7 @@ class ModelSet(object):
         if take_log[2]:
             zax = np.log10(zax)    
             
-        ax, cs = self.PosteriorPDF(pars, z=z, take_log=take_log, filled=False, 
+        ax = self.PosteriorPDF(pars, z=z, take_log=take_log, filled=False, 
             bins=bins, **kwargs)
         
         # Pick out Nscat random points to plot
@@ -1991,8 +2028,8 @@ class ModelSet(object):
             multiplier=multiplier)
             
         # Modify bins to account for log-taking, multipliers, etc.
-        binvec = self._set_bins(pars, to_hist, take_log, bins)    
-              
+        binvec = self._set_bins(pars, to_hist, take_log, bins)      
+                            
         bins = [binvec[par] for par in pars]      
                 
         if oned:
@@ -2020,12 +2057,9 @@ class ModelSet(object):
         for key in ['bottom', 'top', 'left', 'right', 'figsize', 'diagonal', 'dims', 'keep_diagonal']:
             if key in kw:
                 del kw[key]
-                
-        # Save contour set
-        self.cs = {}      
         
-        # Record (xin, yin) pairs for all (i, j) combos
-        inputs = self._set_inputs(pars, inputs, is_log, multiplier)
+        # Apply multipliers etc. to inputs
+        inputs = self._set_inputs(pars, inputs, is_log, take_log, multiplier)
 
         # Loop over parameters
         for i, p1 in enumerate(pars[-1::-1]):
@@ -2052,14 +2086,15 @@ class ModelSet(object):
                 
                 # Read-in inputs values
                 if inputs is not None:
-                    xin, yin = inputs[(i,j)] 
+                    xin = inputs[p2]
+                    yin = inputs[p1]
                 else:
                     xin = yin = None
-    
+
                 # 1-D PDFs on the diagonal    
                 if k in mp.diag and oned:
 
-                    ax, cs = self.PosteriorPDF(p1, to_hist=to_hist, is_log=is_log,
+                    ax = self.PosteriorPDF(p1, to_hist=to_hist, is_log=is_log,
                         ax=mp.grid[k], take_log=take_log[-1::-1][i], z=z[-1::-1][i],
                         multiplier=[multiplier[-1::-1][i]], 
                         bins=[bins[-1::-1][i]], skip=skip, skim=skim, 
@@ -2069,7 +2104,7 @@ class ModelSet(object):
                         if type(add_cov) is list:
                             self._PosteriorIdealized(ax=mp.grid[k], 
                                 mu=add_cov[k], cov=add_cov[k])                            
-                        else:    
+                        else:
                             self._PosteriorIdealized(pars=p1, ax=mp.grid[k], 
                                 z=z[-1::-1][i])
 
@@ -2090,7 +2125,7 @@ class ModelSet(object):
                         
                     if xin is not None:
                         mp.grid[k].plot([xin]*2, [0, 1.05], 
-                            color='k', ls=':', lw=2)
+                            color='k', ls=':', lw=2, zorder=20)
                             
                     continue
 
@@ -2101,14 +2136,12 @@ class ModelSet(object):
                     continue
 
                 # 2-D PDFs elsewhere
-                ax, cs = self.PosteriorPDF([p2, p1], to_hist=to_hist, is_log=is_log,
+                ax = self.PosteriorPDF([p2, p1], to_hist=to_hist, is_log=is_log,
                     ax=mp.grid[k], z=red, take_log=[take_log[j], take_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, 
                     skip=skip, **kw)
                 
-                self.cs[k] = cs
-
                 if add_cov:
                     if type(add_cov) is list:
                         pass
@@ -2126,14 +2159,14 @@ class ModelSet(object):
                 # Input values
                 if not inputs:
                     continue
-                    
+                                                                    
                 # Plot as dotted lines
                 if xin is not None:
                     mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k',
-                        ls=':')
+                        ls=':', zorder=20)
                 if yin is not None:
                     mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k',
-                        ls=':')
+                        ls=':', zorder=20)
 
         if oned:
             mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
@@ -2579,9 +2612,16 @@ class ModelSet(object):
         Make nice axis labels.
         """
         
-        if type(take_log) == bool:
-            take_log = {key: take_log for key in pars}
-
+        pars, take_log, multiplier, z = \
+            self._listify_common_inputs(pars, take_log, 1.0, z=None)
+        
+        if type(is_log) != dict:
+            tmp = {par:is_log[i] for i, par in enumerate(pars)}
+            is_log = tmp
+        if type(take_log) != dict:
+            tmp = {par:take_log[i] for i, par in enumerate(pars)}
+            take_log = tmp        
+            
         # [optionally] modify default labels
         if labels is None:
             labels = default_labels
@@ -2622,6 +2662,7 @@ class ModelSet(object):
         pars = p
     
         log_it = is_log[pars[0]] or take_log[pars[0]]
+            
         ax.set_xlabel(make_label(pars[0], log_it, labels))
     
         if len(pars) == 1:

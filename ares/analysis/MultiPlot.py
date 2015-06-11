@@ -37,6 +37,7 @@ defs = \
  'keep_diagonal': True,
  'shift_x': 0.0,
  'shift_y': 0.0,
+ 'active_panels': None,
 }
 
 class MultiPanel:
@@ -61,6 +62,15 @@ class MultiPanel:
         preserve_margins : bool
             Keep proper size of left, right, bottom, top fixed? If False, 
             will be fraction of figsize, as usual in matplotlib.
+        active_panels : tuple
+            If, for example, dims = (4, 4) but active = (3, 3), then only
+            the 9 panels anchored to the origin will be created.
+            
+        Example
+        -------
+        >>> from ares.analysis import MultiPanel
+        >>> mp = MultiPanel(dims=(2,2))
+        >>> # axes stored in mp.grid    
 
         """
 

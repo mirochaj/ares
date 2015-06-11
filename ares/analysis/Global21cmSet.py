@@ -104,25 +104,25 @@ class Global21cmSet(ModelSet):
 
         kwargs = self._patch_kwargs(**kwargs)
 
-        pars = ['igm_Tk', 'igm_heat', 'Ja']
+        pars = ['Ja', 'igm_Tk', 'igm_heat']
 
         if multiplier is None:
-            mult = [1., cm_per_mpc**3, 1. / J21_num]
+            mult = [1. / J21_num, 1., cm_per_mpc**3]
         else:
             mult = multiplier
 
         # New labels
         labels = \
         { 
+         'Ja': r'$J_{\alpha} / J_{21}$',
          'igm_Tk': r'$T_{\mathrm{K}} / \mathrm{K}$',
          'igm_heat': r'$\epsilon_X$',
-         'Ja': r'$J_{\alpha} / J_{21}$'
         }
         
         kwargs['labels'] = labels
 
         mp = self.TrianglePlot(pars, z='C', color_by_like=True, nu=nu,
-            inputs=self.inputs, fig=fig, take_log=[False, True, False], mp=mp, 
+            inputs=self.inputs, fig=fig, take_log=[False, False, True], mp=mp, 
             multiplier=mult, **kwargs)
 
         if show_analytic:
@@ -159,10 +159,10 @@ class Global21cmSet(ModelSet):
         
         kwargs = self._patch_kwargs(**kwargs)
                 
-        pars = ['igm_Tk', 'cgm_h_2', 'igm_heat', 'cgm_Gamma_h_1']
+        pars = [ 'cgm_h_2', 'cgm_Gamma_h_1', 'igm_Tk', 'igm_heat']
 
         if multiplier is None:
-            mult = [1., 1., cm_per_mpc**3, 1e16]
+            mult = [1., 1e17, 1., cm_per_mpc**3]
         else:
             mult = multiplier
         
@@ -172,12 +172,12 @@ class Global21cmSet(ModelSet):
          'igm_Tk': r'$T_{\mathrm{K}} / \mathrm{K}$',
          'cgm_h_2': r'$Q_{\mathrm{HII}}$',
          'igm_heat': r'$\epsilon_X$',
-         'cgm_Gamma_h_1': r'$\Gamma_{-%i}$' % np.log10(mult[-1]),
+         'cgm_Gamma_h_1': r'$\Gamma_{-%i}$' % np.log10(mult[1]),
         }
         
         mp_inset = None
         mp = self.TrianglePlot(pars, z='D', color_by_like=True, nu=nu, 
-            take_log=[False, False, True, True], labels=labels,
+            take_log=[False, True, False, True], labels=labels,
             mp=mp, fig=fig, multiplier=mult, inputs=self.inputs, **kwargs)
       
         return mp
