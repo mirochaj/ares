@@ -215,7 +215,8 @@ alpha = None, alpha2 = None):
     elif z > zc2:
         ex = (1+zc1)**p1*((1+zc2)/(1+zc1))**p2*((1+z)/(1+zc2))**p3
 
-    
+    p = (K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex)
+    print p
     return  K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex
     
 #-------------------------------------------------    
