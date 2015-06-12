@@ -1,6 +1,6 @@
 """
 
-BlackHoleSource.py
+BlackHole.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -40,10 +40,9 @@ class BlackHole(Source):
         """  
         
         self.pf = BlackHoleParameters()
-        self.pf.update(kwargs)
-        
+        self.pf.update(kwargs)    
         Source.__init__(self)
-        
+                
         self._name = 'bh'
         
         self.M0 = self.pf['source_mass']
@@ -104,13 +103,6 @@ class BlackHole(Source):
         #    self.type_by_num.append(sptype)
         #    self.type_by_name.append(sptypes.keys()[sptypes.values().index(sptype)])                
                 
-    @property
-    def intrinsic_hardening(self):
-        if not hasattr(self, '_intrinsic_hardening'):            
-            self._intrinsic_hardening = self.pf['source_hardening'] == 'intrinsic'
-            
-        return self._intrinsic_hardening
-        
     def _SchwartzchildRadius(self, M):
         return 2. * self._GravitationalRadius(M)
 
@@ -283,10 +275,6 @@ class BlackHole(Source):
             Lnu *= self._hardening_factor(E)
         
         return Lnu          
-            
-    def _hardening_factor(self, E):
-        return np.exp(-10.**self.pf['source_logN'] \
-            * (sigma_E(E, 0) + self.cosm.y * sigma_E(E, 1)))
             
     #def _NormalizeSpectrum(self, t=0.):
     #    Lbol = self.Luminosity()

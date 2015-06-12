@@ -152,7 +152,6 @@ def PhysicsParameters():
     "approx_H": False,
     "approx_He": False,
     "approx_sigma": False,
-    "approx_highz": False,
     "approx_Salpha": 1, # 1 = Salpha = 1
                         # 2 = Chuzhoy, Alvarez, & Shapiro (2005),
                         # 3 = Furlanetto & Pritchard (2006)
@@ -345,7 +344,7 @@ def StellarParameters():
     pf = \
     {        
     "source_temperature": 1e5,  
-    "source_qdot": 5e48,    
+    "source_qdot": 5e48,
     }
 
     pf.update(SourceParameters())
@@ -466,6 +465,7 @@ def CosmologyParameters():
     "cmb_temp_0": 2.7255,
     "sigma_8": 0.8159,
     "primordial_index": 0.9667,
+    "approx_highz": False,    
     }
 
     pf.update(rcParams)

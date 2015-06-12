@@ -19,13 +19,13 @@ bh_pars = \
  'source_type': 'bh', 
  'source_mass': 10.,
  'source_rmax': 1e3,
- 'spectrum_type': 'mcd',
- 'spectrum_Emin': 10.,
- 'spectrum_Emax': 1e4,
- 'spectrum_logN': 18.,
+ 'source_sed': 'mcd',
+ 'source_Emin': 10.,
+ 'source_Emax': 1e4,
+ 'source_logN': 18.,
 }
 
-src = ares.sources.RadiationSource(init_tabs=False, **bh_pars)
+src = ares.sources.BlackHole(init_tabs=False, **bh_pars)
 bh = ares.analysis.Source(src)
 
 ax = bh.PlotSpectrum()

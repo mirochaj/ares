@@ -17,16 +17,16 @@ import matplotlib.pyplot as pl
 pars = \
 {
  'source_type': 'bh', 
- 'spectrum_type': 'pl',
- 'spectrum_Emin': 2e2,
- 'spectrum_Emax': 3e4,
+ 'source_sed': 'pl',
+ 'source_Emin': 2e2,
+ 'source_Emax': 3e4,
 }
 
 ls = [':', '--', '-']
 for i, alpha in enumerate([-0.5, -1.5, -2.5]):
-    pars.update({'spectrum_alpha': alpha})
+    pars.update({'source_alpha': alpha})
 
-    src = ares.sources.RadiationSource(init_tabs=False, **pars)
+    src = ares.sources.BlackHole(init_tabs=False, **pars)
     bh = ares.analysis.Source(src)
     
     ax = bh.PlotSpectrum(ls=ls[i], 

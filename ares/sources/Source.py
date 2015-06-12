@@ -20,7 +20,8 @@ from ..util.Misc import sort, evolve
 from ..physics.Constants import erg_per_ev, E_LL
 from ..static.IntegralTables import IntegralTable
 from ..static.InterpolationTables import LookupTable
-from ..util.SetDefaultParameterValues import SourceParameters
+from ..util.SetDefaultParameterValues import SourceParameters, \
+    CosmologyParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
 
 try:
@@ -30,6 +31,8 @@ except ImportError:
 
 np.seterr(all='ignore')   # exp overflow occurs when integrating BB
                           # will return 0 as it should for x large
+
+cosmo_pars = CosmologyParameters()
 
 class Source(object):
     def __init__(self, grid=None, logN=None, init_tabs=True):
@@ -45,16 +48,15 @@ class Source(object):
         
         """    
         
-        #self.pf = SourceParameters()#ParameterFile(**kwargs)
-        #self.pf.update(kwargs)
+        for par in cosmo_pars:
+            if par in self.pf:
+                continue
+        
+            self.pf[par] = cosmo_pars[par]
                 
         # Modify parameter file if spectrum_file provided
         #self._load_spectrum()        
             
-        # Create Source/SpectrumPars attributes
-        #self.SourcePars = self.src_pars = sort(self.pf, prefix='source', make_list=False)        
-        #self.SpectrumPars = self.spec_pars = sort(self.pf, prefix='spectrum')
-        
         # Correct emission limits if none were provided
         self.Emin = self.pf['source_Emin']
         self.Emax = self.pf['source_Emax']
@@ -180,6 +182,31 @@ class Source(object):
         fr = np.array(map(self.hydr.frec, n))
         
         return np.sum(fr * In) / np.sum(In)
+
+    @property
+    def intrinsic_hardening(self):
+        if not hasattr(self, '_intrinsic_hardening'): 
+            if 'source_hardening' in self.pf:           
+                self._intrinsic_hardening = \
+                    self.pf['source_hardening'] == 'intrinsic'
+            else:
+                self._intrinsic_hardening = False
+    
+        return self._intrinsic_hardening    
+        
+    def _hardening_factor(self, E):
+        return np.exp(-10.**self.logN \
+            * (sigma_E(E, 0) + self.cosm.y * sigma_E(E, 1)))
+    
+    @property
+    def logN(self):
+        if not hasattr(self, '_logN'):
+            if 'source_logN' in self.pf:
+                self._logN = self.pf['source_logN']
+            else:
+                self._logN = -np.inf
+                
+        return self._logN
         
     @property
     def _normL(self):
