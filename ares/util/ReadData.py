@@ -29,7 +29,22 @@ except ImportError:
     
 ARES = os.environ.get('ARES')
 
-def read_lit(prefix):
+def read_lit(prefix, path=None):
+    """
+    Read data from the literature.
+    
+    Parameters
+    ----------
+    prefix : str
+        Everything preceeding the '.py' in the name of the module.
+    path : str
+        If you want to look somewhere besides $ARES/input/litdata, provide
+        that path here.
+        
+    """
+    
+    if path is not None:
+        prefix = '%s/%s' % (path, prefix)
     
     # Load custom defaults    
     if os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix)):

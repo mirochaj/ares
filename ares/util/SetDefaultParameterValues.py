@@ -20,9 +20,8 @@ ARES = os.environ.get('ARES')
 tau_prefix = "%s/input/optical_depth" % ARES \
     if (ARES is not None) else '.'
     
-pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum', 
-    'Control', 'HaloMassFunction', 'Tanh', 'Halo', 'Slab', 
-    'LuminosityFunction']
+pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
+    'Control', 'HaloMassFunction', 'Tanh', 'Slab']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -208,59 +207,42 @@ def PhysicsParameters():
     pf.update(rcParams)
             
     return pf
-
-def CosmologyParameters():
-    # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
-    pf = \
-    {
-    "omega_m_0": 0.3089,
-    "omega_b_0": round(0.0223 / 0.6774**2, 5),  # O_b / h**2
-    "omega_l_0": 1. - 0.3089,
-    "hubble_0": 0.6774,
-    "helium_by_number": 0.0813,
-    "helium_by_mass": 0.2453,   # predicted by BBN
-    "cmb_temp_0": 2.7255,
-    "sigma_8": 0.8159,
-    "primordial_index": 0.9667,
-    }
-
-    pf.update(rcParams)
-
-    return pf
     
 def PopulationParameters():
     pf = \
     {
     
+    "pop_type": 'halo',
+    
     "pop_lf": 'schecter',
-    "pop_lf_Lmin": 1e38,
-    "pop_lf_Lstar": 1e42,
+    "pop_lf_zdep": None,
+
     "pop_lf_Emin": 2e3,
     "pop_lf_Emax": 1e4,
     "pop_lf_EminNorm": 2e3,
     "pop_lf_EmaxNorm": 1e4,
     
-    
-    "pop_lf_zdep": None,
+    "pop_lf_Lmin": 1e38,
+    "pop_lf_Lstar": 1e42,
     
     "pop_sed": 'pl',
     
-    #"pop_lf_norm": 1.0,
-    
-    
-    
-    
-    #"pop_lf_slope": -1.,
-    #"pop_lf_gamma1": None,
-    #"pop_lf_gamma2": None,
-    #"pop_lf_func": 'schecter', # or "dpl" for double power-law,
-    #"pop_lf_zfunc": None,      # governs redshift evolution
-    
-    "pop_lf_ldde": None,
-    "pop_lf_lade": None,
-    "pop_lf_lide": None,
-
     "pop_rhoL": None,
+    
+    # Main parameters in our typical global 21-cm models
+    "pop_Tmin": 1e4,
+    "pop_Mmin": None,
+
+    "pop_xi_XR": None,     # product of fstar and fX
+    "pop_xi_LW": None,     # product of fstar and Nlw
+    "pop_xi_UV": None,     # product of fstar, Nion, and fesc
+    
+    # For multi-frequency calculations
+    "pop_E": None,
+    "pop_LE": None,
+    
+    
+    
 
     "source_type": 'star',
     "source_kwargs": None,
@@ -398,49 +380,51 @@ def BlackHoleParameters():
     
     return pf    
         
-def SpectrumParameters():
-    pf = \
-    {        
-    "spectrum_type": 0,
-    "spectrum_evolving": False,
-    
-    "spectrum_fraction": 1,
-    
-    "spectrum_alpha": -1.5,
-    "spectrum_Emin": 13.6,  
-    "spectrum_Emax": 1e2,  
-    "spectrum_EminNorm": None,
-    "spectrum_EmaxNorm": None,
-    
-     
-    "spectrum_logN": -inf,
-    "spectrum_fcol": 1.7,
-    "spectrum_fsc": 0.1,
-    "spectrum_uponly": True,
-            
-    "spectrum_file": None,
-    "spectrum_pars": None,
-    
-    "spectrum_multigroup": 0,
-    "spectrum_bands": None,
-      
-    "spectrum_t": None,
-    "spectrum_E": None,
-    "spectrum_LE": None,
-            
-    "spectrum_table": None,
-    "spectrum_function": None,
-    "spectrum_kwargs": None,
-                    
-    }
-    
-    pf.update(rcParams)
-    
-    return pf
+#def SpectrumParameters():
+#    pf = \
+#    {        
+#    "spectrum_type": 0,
+#    "spectrum_evolving": False,
+#    
+#    "spectrum_fraction": 1,
+#    
+#    "spectrum_alpha": -1.5,
+#    "spectrum_Emin": 13.6,  
+#    "spectrum_Emax": 1e2,  
+#    "spectrum_EminNorm": None,
+#    "spectrum_EmaxNorm": None,
+#    
+#     
+#    "spectrum_logN": -inf,
+#    "spectrum_fcol": 1.7,
+#    "spectrum_fsc": 0.1,
+#    "spectrum_uponly": True,
+#            
+#    "spectrum_file": None,
+#    "spectrum_pars": None,
+#    
+#    "spectrum_multigroup": 0,
+#    "spectrum_bands": None,
+#      
+#    "spectrum_t": None,
+#    "spectrum_E": None,
+#    "spectrum_LE": None,
+#            
+#    "spectrum_table": None,
+#    "spectrum_function": None,
+#    "spectrum_kwargs": None,
+#                    
+#    }
+#    
+#    pf.update(rcParams)
+#    
+#    return pf
         
 def HaloMassFunctionParameters():
     pf = \
     {
+    "hmf_func": 'ST',
+    
     "load_hmf": True,
     "hmf_table": None,
     "hmf_analytic": False,
@@ -453,53 +437,41 @@ def HaloMassFunctionParameters():
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
     
-    "hmf_dndm": False,
-    
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     
-    "fitting_function": 'ST',
+    # Compute the full mass function? 
+    "hmf_dndm": False,
     
     # Pre-created splines
     "fcoll": None,
     "dfcolldz": None,
+    
     }
     
     pf.update(rcParams)
 
     return pf
-    
-def LuminosityFunctionParameters():
+
+def CosmologyParameters():
+    # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
     pf = \
     {
-     "lf": None,
-     "lf_norm": 1.0,
-     "lf_Lmin": 1e38,
-     "lf_Lstar": 1e42,
-     "lf_Emin": 2e3,
-     "lf_Emax": 8e3,
-     "lf_slope": -1.,
-     "lf_gamma1": None,
-     "lf_gamma2": None,
-     "lf_func": 'schecter', # or "dpl" for double power-law,
-     "lf_zfunc": None,      # governs redshift evolution
-     "lf_ldde": None,
-     "lf_lade": None,
-     "lf_lide": None,
+    "omega_m_0": 0.3089,
+    "omega_b_0": round(0.0223 / 0.6774**2, 5),  # O_b / h**2
+    "omega_l_0": 1. - 0.3089,
+    "hubble_0": 0.6774,
+    "helium_by_number": 0.0813,
+    "helium_by_mass": 0.2453,   # predicted by BBN
+    "cmb_temp_0": 2.7255,
+    "sigma_8": 0.8159,
+    "primordial_index": 0.9667,
     }
+
+    pf.update(rcParams)
 
     return pf
 
-def HaloParameters():
-    pf = \
-    {
-    'halo_M': 1e10,
-    'halo_c': 15.,
-    'halo_profile': 'nfw',
-    }
-    
-    return pf
-    
 def ControlParameters():
     pf = \
     {

@@ -13,13 +13,13 @@ Description:
 import types, sys
 import numpy as np
 from ..physics import Cosmology
-from .Halo import HaloPopulation
 from scipy.integrate import quad
 from ..util import ParameterFile
 from ..physics.Constants import *
 from ..util.PrintInfo import print_pop
 from ..util.NormalizeSED import norm_sed
 from ..util.Warnings import negative_SFRD
+from ..physics.HaloMassFunction import HaloMassFunction
 
 class StellarPopulation:
     def __init__(self, grid=None, init_rs=True, **kwargs):
@@ -105,7 +105,7 @@ class StellarPopulation:
         
         # Halo stuff            
         if self.pf['fcoll'] is None:
-            self.halos = HaloPopulation(**self.pf)
+            self.halos = HaloMassFunction(**self.pf)
             self._set_fcoll(self.pf['Tmin'], self.pf['mu'])
         else:            
             self._fcoll, self._dfcolldz, self._d2fcolldz2 = \

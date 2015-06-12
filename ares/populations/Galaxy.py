@@ -34,11 +34,6 @@ except ImportError:
     rank = 0
     size = 1
     
-try:
-    from hmf import MassFunction
-except ImportError:
-    pass
-    
 sptypes = ['pl', 'mcd', 'simpl']    
 lftypes = ['schecter', 'dpl']
 
@@ -53,6 +48,8 @@ class GalaxyPopulation(Population):
         the SED.
         """
         
+        # This is basically just initializing an instance of the cosmology
+        # class. Also creates the parameter file attribute ``pf``.
         Population.__init__(self, **kwargs)
 
         # 

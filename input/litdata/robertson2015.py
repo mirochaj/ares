@@ -26,5 +26,8 @@ sfrd_err = \
 def _SFRD(z, a=None, b=None, c=None, d=None):
     return a * (1. + z)**b / (1 + ((1 + z) / c)**d) 
     
-def SFRD(z):
-    return _SFRD(z, **sfrd_pars) 
+def SFRD(z, **kwargs):
+    if not kwargs:
+        kwargs = sfrd_pars
+        
+    return _SFRD(z, **kwargs)

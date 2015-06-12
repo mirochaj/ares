@@ -347,7 +347,7 @@ def print_pop(pop):
             else:
                 print line("SF          : in halos w/ M >= 10**%g Msun" \
                     % (round(np.log10(pop.pf['Mmin']), 2)))
-            print line("HMF         : %s" % pop.pf['fitting_function'])
+            print line("HMF         : %s" % pop.pf['hmf_func'])
             
             # Print out location of HMF table
             #j = pop.halos.fn.rfind('/')
@@ -362,7 +362,7 @@ def print_pop(pop):
     else:
         print "#### PopIII      : in halos w/ Tvir >= 10**%g K" \
             % (round(np.log10(pop.pf['Tmin'], 2)))
-        print "#### HMF         : %s" % pop.pf['fitting_function']                    
+        print "#### HMF         : %s" % pop.pf['hmf_func']                    
         print "#### fstar       : %g" % pop.pf['fstar']
         print "####"            
         print "#### fbh         : %g" % pop.pf['fbh']
