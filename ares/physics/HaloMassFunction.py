@@ -12,11 +12,11 @@ Description:
 import numpy as np
 import pickle, os, re
 from . import Cosmology
-from ..util import ParameterFile
 from scipy.misc import derivative
 from ..util.Math import central_difference
 from ..util.ProgressBar import ProgressBar
 from .Constants import g_per_msun, cm_per_mpc
+from ..util.ParameterFile import ParameterFile
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline
 
 try:
@@ -129,7 +129,7 @@ class HaloMassFunction(object):
         self.hmf_analytic = self.pf['hmf_analytic']
         
         # Look for tables in input directory
-        if ARES is not None and self.pf['load_hmf']:
+        if ARES is not None and self.pf['hmf_load']:
             fn = '%s/input/hmf/%s' % (ARES, self.table_prefix())
             if os.path.exists('%s.pkl' % fn):
                 self.fn = '%s.pkl' % fn
@@ -280,10 +280,10 @@ class HaloMassFunction(object):
         self.logM_min = np.zeros_like(self.z)        
         self.fcoll_Tmin = np.zeros_like(self.z)
         for i, z in enumerate(self.z):
-            if self.pf['Mmin'] is None:
+            if self.pf['pop_Mmin'] is None:
                 self.logM_min[i] = np.log10(self.VirialMass(Tmin, z, mu=mu))
             else:
-                self.logM_min[i] = np.log10(self.pf['Mmin'])
+                self.logM_min[i] = np.log10(self.pf['pop_Mmin'])
                     
             self.fcoll_Tmin[i] = self.fcoll(z, self.logM_min[i])
         

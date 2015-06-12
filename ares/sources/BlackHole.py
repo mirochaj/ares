@@ -140,7 +140,7 @@ class BlackHole(Source):
 
         return E**self.pf['source_alpha']
         
-    def _SIMPL(self, E, t):
+    def _SIMPL(self, E, t=0.0):
         """
         Purpose:
         --------
@@ -173,12 +173,13 @@ class BlackHole(Source):
         if self.pf['source_sed'] == 'zebra':
             nin = lambda E0: _Planck(E0, self.T) / E0
         else:
-            nin = lambda E0: self._MultiColorDisk(E0, i, t) / E0
+            nin = lambda E0: self._MultiColorDisk(E0, t) / E0
     
         fsc = self.pf['source_fsc']
 
         # Output photon distribution - integrate in log-space         
-        integrand = lambda E0: nin(10**E0) * self._GreensFunctionSIMPL(10**E0, E, i) * 10**E0
+        integrand = lambda E0: nin(10**E0) \
+            * self._GreensFunctionSIMPL(10**E0, E) * 10**E0
 
         nout = (1.0 - fsc) * nin(E) + fsc \
             * quad(integrand, np.log10(self.Emin),

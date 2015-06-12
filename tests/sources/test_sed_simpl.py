@@ -18,43 +18,47 @@ rmax = 1e2
 mass = 10.
 f_scatter = [0.1, 0.5]
 gamma = [-2.5]
-Emin = 10
+Emin = 10.
 
 simpl = \
 {
  'source_type': 'bh', 
  'source_mass': mass,
  'source_rmax': rmax,
- 'spectrum_type': 'simpl',
- 'spectrum_Emin':Emin,
- 'spectrum_Emax':5e4,
- 'spectrum_alpha': -0.5,
- 'spectrum_fsc': 1.0,
- 'spectrum_logN': 22.,
+ 'source_sed': 'simpl',
+ 'source_Emin': Emin,
+ 'source_Emax': 5e4,
+ 'source_EminNorm': 500.,
+ 'source_EmaxNorm': 8e3,
+ 'source_alpha': -0.5,
+ 'source_fsc': 1.0,
+ 'source_logN': 22.,
 }
 
 mcd = \
 {
  'source_type': 'bh', 
+ 'source_sed': 'mcd',
  'source_mass': mass,
  'source_rmax': rmax,
- 'spectrum_type': 'mcd',
- 'spectrum_Emin': Emin,
- 'spectrum_Emax': 5e4,
+ 'source_Emin': Emin,
+ 'source_Emax': 5e4,
+ 'source_EminNorm': 500.,
+ 'source_EmaxNorm': 8e3,
 }
 
-bh_mcd = ares.sources.RadiationSource(init_tabs=False, **mcd)
+bh_mcd = ares.sources.BlackHole(init_tabs=False, **mcd)
 bh1 = ares.analysis.Source(bh_mcd)
 ax = bh1.PlotSpectrum(color='k')
     
 ls = ['-', '--', ':']
 colors = ['b', 'g', 'r', 'm']
 for i, fsc in enumerate(f_scatter):
-    simpl.update({'spectrum_fsc': fsc})
+    simpl.update({'source_fsc': fsc})
     for j, alpha in enumerate(gamma):
-        simpl.update({'spectrum_alpha': alpha})
+        simpl.update({'source_alpha': alpha})
         
-        bh_simpl = ares.sources.RadiationSource(init_tabs=False, **simpl)
+        bh_simpl = ares.sources.BlackHole(init_tabs=False, **simpl)
         bh2 = ares.analysis.Source(bh_simpl)
         
         if j == 0:

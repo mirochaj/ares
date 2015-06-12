@@ -211,27 +211,42 @@ def PopulationParameters():
     pf = \
     {
     
-    "pop_type": 'halo',
-    
-    "pop_lf": 'schecter',
-    "pop_lf_zdep": None,
-
-    "pop_lf_Emin": 2e3,
-    "pop_lf_Emax": 1e4,
-    "pop_lf_EminNorm": 2e3,
-    "pop_lf_EmaxNorm": 1e4,
-    
-    "pop_lf_Lmin": 1e38,
-    "pop_lf_Lstar": 1e42,
+    "pop_type": 'galaxy',
     
     "pop_sed": 'pl',
+    "pop_solve_rte": False,
+    "pop_Emin": 2e3,
+    "pop_Emax": 1e4,
+    "pop_EminNorm": 2e3,
+    "pop_EmaxNorm": 1e4,
+    
+    "pop_lf": None,
+    "pop_emissivity": None,
+    
+    "pop_lf_Lstar": 1e42,
+    "pop_lf_slope": -1.5,
+    
+    "pop_lf_zdep": None,
+    
+    "pop_lf_Lmin": 1e38,
+    "pop_lf_Lmax": 1e42,
+    "pop_lf_LminNorm": 1e38,
+    "pop_lf_LmaxNorm": 1e42,    
     
     "pop_rhoL": None,
     
+    "pop_zform": 50.,
+    "pop_zdead": 0.0,
+    
+    "pop_focc": None,
+    
     # Main parameters in our typical global 21-cm models
+    "pop_fstar": 0.1,
     "pop_Tmin": 1e4,
     "pop_Mmin": None,
-
+    "pop_sfrd": None,
+    
+    # Parameters that sweep fstar under the rug
     "pop_xi_XR": None,     # product of fstar and fX
     "pop_xi_LW": None,     # product of fstar and Nlw
     "pop_xi_UV": None,     # product of fstar, Nion, and fesc
@@ -239,71 +254,52 @@ def PopulationParameters():
     # For multi-frequency calculations
     "pop_E": None,
     "pop_LE": None,
-    
-    
-    
 
-    "source_type": 'star',
-    "source_kwargs": None,
+    # What radiation does this population emit?
+    "pop_lya_src": True,
+    "pop_ion_src_cgm": True,
+    "pop_ion_src_igm": True,
+    "pop_heat_src_cgm": False,
+    "pop_heat_src_igm": True,
 
-    "model": -1, # Only BHs use this at this point
+    "pop_src_irb": False,
+    "pop_src_lwb": True,
+    "pop_src_uvb": False,
+    "pop_src_xrb": True,
 
-    "formation_epoch": (50., 0.),
-    "zoff": 0.0,
-
-    "is_lya_src": True,
-    "is_ion_src_cgm": True,
-    "is_ion_src_igm": True,
-    "is_heat_src_cgm": False,
-    "is_heat_src_igm": True,
-
-    "is_src_irb": False,
-    "is_src_lwb": True,
-    "is_src_uvb": False,
-    "is_src_xrb": True,
-
-    # Sets star formation history
-    "Tmin": 1e4, 
-    "Mmin": None,
-    "fstar": 0.1,
+    # Generalized normalization
+    "pop_yield": 2.6e39,
+    "pop_yield_units": 'erg/s/SFR', # alternatively, 'photons / baryon'
 
     # Scales X-ray emission
-    "cX": 3.4e40, # Furlanetto (2006) extrapolation
-    "fX": 0.2,    # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
-    'fXh': None,
+    "pop_cX": 3.4e40, # Furlanetto (2006) extrapolation
+    "pop_fX": 0.2,    # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
+    'pop_fXh': None,
 
     # Scales Lyman-Werner emission
-    "Nlw": 9690.,
+    "pop_Nlw": 9690.,
 
     # Scales ionizing emission
-    "fion": 1.0,                
-    "Nion": 4e3,
-    "fesc": 0.1,
-
-    # Acknowledge degeneracy between fstar, etc.
-    "xi_XR": None,     # product of fstar and fX
-    "xi_LW": None,     # product of fstar and Nlw
-    "xi_UV": None,     # product of fstar, Nion, and fesc
+    "pop_fion": 1.0,                
+    "pop_Nion": 4e3,
+    "pop_fesc": 0.1,
 
     # Controls IGM ionization for approximate CXB treatments
-    "xray_Eavg": 500.,
-    "uv_Eavg": 30.,
+    "pop_Ex": 500.,
+    "pop_Euv": 30.,
 
     # Bypass fcoll prescriptions, use parameterizations
-    "sfrd": None,
-    "emissivity": None,
     "heat_igm": None,
     "Gamma_igm": None,
     "Gamma_cgm": None,
     "gamma_igm": None,
     'Ja': None,
+    
+    # Pre-created splines
+    "pop_fcoll": None,
+    "pop_dfcolldz": None,
+    
 
-    # Black hole models
-    "rhoi": 1e2,
-    "fbh": 1e-5,
-    "fedd": 0.1,
-    "eta": 0.1,
-    "Mi": 100.,
     }
 
     pf.update(rcParams)
@@ -333,6 +329,9 @@ def SourceParameters():
     "source_Emax": 1e2,  
     "source_EminNorm": None,
     "source_EmaxNorm": None,
+    
+    "source_logN": -inf,
+    "source_hardening": 'extrinsic',
     
     }
     
@@ -364,11 +363,9 @@ def BlackHoleParameters():
     
     "source_Lbol": None,
     "source_mass": 10,  
-    "source_fduty": 1,
+    "source_fduty": 1.,
     
     "source_eta": 0.1,
-    "source_logN": -inf,
-    "source_hardening": 'extrinsic',
     "source_isco": 6,  
     "source_rmax": 1e3,
     
@@ -377,54 +374,14 @@ def BlackHoleParameters():
     pf.update(SourceParameters())
     pf.update(rcParams)
     
-    return pf    
-        
-#def SpectrumParameters():
-#    pf = \
-#    {        
-#    "spectrum_type": 0,
-#    "spectrum_evolving": False,
-#    
-#    "spectrum_fraction": 1,
-#    
-#    "spectrum_alpha": -1.5,
-#    "spectrum_Emin": 13.6,  
-#    "spectrum_Emax": 1e2,  
-#    "spectrum_EminNorm": None,
-#    "spectrum_EmaxNorm": None,
-#    
-#     
-#    "spectrum_logN": -inf,
-#    "spectrum_fcol": 1.7,
-#    "spectrum_fsc": 0.1,
-#    "spectrum_uponly": True,
-#            
-#    "spectrum_file": None,
-#    "spectrum_pars": None,
-#    
-#    "spectrum_multigroup": 0,
-#    "spectrum_bands": None,
-#      
-#    "spectrum_t": None,
-#    "spectrum_E": None,
-#    "spectrum_LE": None,
-#            
-#    "spectrum_table": None,
-#    "spectrum_function": None,
-#    "spectrum_kwargs": None,
-#                    
-#    }
-#    
-#    pf.update(rcParams)
-#    
-#    return pf
+    return pf
         
 def HaloMassFunctionParameters():
     pf = \
     {
     "hmf_func": 'ST',
     
-    "load_hmf": True,
+    "hmf_load": True,
     "hmf_table": None,
     "hmf_analytic": False,
     
@@ -441,10 +398,6 @@ def HaloMassFunctionParameters():
     
     # Compute the full mass function? 
     "hmf_dndm": False,
-    
-    # Pre-created splines
-    "fcoll": None,
-    "dfcolldz": None,
     
     }
     
@@ -497,7 +450,7 @@ def ControlParameters():
     "load_ics": False,
     "cosmological_ics": False,
     "load_sim": False,
-    "first_light_redshift": 50.,
+    #"first_light_redshift": 50.,
 
     # Timestepping
     "max_dt": 1.,

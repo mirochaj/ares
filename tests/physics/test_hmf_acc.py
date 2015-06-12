@@ -11,8 +11,8 @@ Description:
 """
 
 import numpy as np
-import matplotlib.pyplot as pl
 from hmf import MassFunction
+import matplotlib.pyplot as pl
 
 ax1 = pl.subplot(211)
 ax2 = pl.subplot(212)

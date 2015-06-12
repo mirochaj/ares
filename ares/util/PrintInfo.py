@@ -20,7 +20,39 @@ try:
     rank = MPI.COMM_WORLD.rank; size = MPI.COMM_WORLD.size
 except ImportError:
     rank = 0; size = 1
+    
+def ExpHandler():
+    """exception handling decorator"""
+    def wrapper(f):
+        t = tuple(item for item in posargs[0]
+            if issubclass(item,Exception)) or (Exception,)
+        def newfunc(*pargs, **kwargs):
+            try:
+                f(*pargs, **kwargs)
+            except t, e:
+                # Only inform the user that the exception occured
+                print e.__class__.__name__,':',e
+        return newfunc
+    return wrapper    
  
+class ErrorIgnore(object):
+   def __init__(self, errors, errorreturn = None, errorcall = None):
+      self.errors = errors
+      self.errorreturn = errorreturn
+      self.errorcall = errorcall
+
+   def __call__(self, function):
+      def returnfunction(*args, **kwargs):
+         try:
+            return function(*args, **kwargs)
+         except Exception as E:
+            if type(E) not in self.errors:
+               raise E
+            if self.errorcall is not None:
+               self.errorcall(E, *args, **kwargs)
+            return self.errorreturn
+      return returnfunction 
+
 # FORMATTING   
 width = 84
 pre = post = '#'*4    
@@ -279,6 +311,7 @@ def print_rate_int(tab):
     for warning in warnings:
         print_warning(warning)
 
+@ErrorIgnore(errors=[KeyError])
 def print_pop(pop):
     """
     Print information about a population to the screen.
@@ -294,11 +327,11 @@ def print_pop(pop):
 
     warnings = []
 
-    alpha = pop.pf['spectrum_alpha']
-    Emin = pop.pf['spectrum_Emin']
-    Emax = pop.pf['spectrum_Emax']
-    EminNorm = pop.pf['spectrum_EminNorm']
-    EmaxNorm = pop.pf['spectrum_EmaxNorm']
+    alpha = pop.pf['source_alpha']
+    Emin = pop.pf['source_Emin']
+    Emax = pop.pf['source_Emax']
+    EminNorm = pop.pf['source_EminNorm']
+    EmaxNorm = pop.pf['source_EmaxNorm']
 
     if EminNorm is None:
         EminNorm = Emin

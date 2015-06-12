@@ -54,6 +54,20 @@ Star formation history
     
     Default: ``None`` [:math:`M_{\odot} \ \text{yr}^{-1} \ \text{cMpc}^{-3}`]
         
+Radiation Fields
+----------------
+``pop_yield``
+    How many photons are emitted per unit star formation?
+    
+    Default: :math:`2.6 \times 10^{39}`
+    
+``pop_yield_units``
+    How to normalize the yield? 
+    
+    Options = 'erg/s/SFR', 'photons/baryon', 'photons/Msun'
+        
+    Default: 'erg/s/SFR'    
+        
 X-ray background
 ----------------
 ``cX``

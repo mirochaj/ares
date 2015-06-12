@@ -48,6 +48,7 @@ class Source(object):
         
         """    
         
+        # Update cosmological parameters
         for par in cosmo_pars:
             if par in self.pf:
                 continue
@@ -123,7 +124,7 @@ class Source(object):
             
     @property
     def ionizing(self):
-        # See if source emits ionizing photons (component by component)
+        # See if source emits ionizing photons
         # Should also be function of absorbers
         if not hasattr(self, '_ionizing'):
             self._ionizing = self.pf['source_Emax'] > E_LL
@@ -155,7 +156,7 @@ class Source(object):
             self._continuous = not self.discrete
             
         return self._continuous
-        
+
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
@@ -329,6 +330,15 @@ class Source(object):
             
         return self._hnu_bar_all
     
+    def AveragePhotonEnergy(self, Emin, Emax):
+        """
+        Return average photon energy in supplied band.
+        """
+        
+        integrand = lambda EE: self.Spectrum(EE) * EE
+        
+        return quad(integrand, Emin, Emax)[0]
+        
     @property
     def qdot_bar(self):
         """

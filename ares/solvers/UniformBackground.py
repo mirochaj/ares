@@ -761,6 +761,8 @@ class UniformBackground(object):
         
         pop = self.sources[popid]
              
+        # Should just use pop.Emissivity 
+             
         if np.all(E < E_th[0]):
             L_func = pop.LymanWernerLuminosityDensity
         else:
