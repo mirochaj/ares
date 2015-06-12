@@ -26,7 +26,7 @@ models = pop.SamplePosterior(z, r15._SFRD, r15.sfrd_pars, r15.sfrd_err)
 
 ax = pl.subplot(111)
 for i in range(int(models.shape[1])):
-    ax.semilogy(z, models[:,i], color='r', alpha=0.05) #&&& COLOR BACK TO BLUE
+    ax.semilogy(z, models[:,i], color='b', alpha=0.05)
 
 # Plot best-fit
 ax.semilogy(z, r15.SFRD(z))    
