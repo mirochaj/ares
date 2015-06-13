@@ -19,14 +19,14 @@ zi, zf = (40., 10.)
 # Initialize radiation background
 src_pars = \
 {
- 'source_type': 'bh',
- 'sfrd': lambda z: 0.01 / (1. + z)**3.,
- 'source_sed': 'pl',
- 'source_alpha': -1.5,
- 'source_Emin': 2e2,
- 'source_Emax': 3e4,
- 'source_EminNorm': 2e2,
- 'source_EmaxNorm': 3e4,
+ 'pop_type': 'galaxy',
+ 'pop_sfrd': lambda z: 0.01 / (1. + z)**3.,
+ 'pop_sed': 'pl',
+ 'pop_alpha': -1.5,
+ 'pop_Emin': 2e2,
+ 'pop_Emax': 3e4,
+ 'pop_EminNorm': 2e2,
+ 'pop_EmaxNorm': 3e4,
  'approx_xrb': False,
  'redshifts_xrb': 400,
  'initial_redshift': zi,

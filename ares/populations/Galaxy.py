@@ -316,7 +316,7 @@ class GalaxyPopulation(HaloPopulation):
             different_band = True
         else:
             Emin = self.pf['pop_Emin']
-        
+
         # Upper bound
         if (Emax is not None) and (self.src is not None):
             different_band = True
@@ -331,8 +331,8 @@ class GalaxyPopulation(HaloPopulation):
             
             if Emin < self.pf['pop_Emin']:
                 print "WARNING: Emin < pop_Emin"
-            if Emax < self.pf['pop_Emax']:
-                print "WARNING: Emin < pop_Emin"    
+            if Emax > self.pf['pop_Emax']:
+                print "WARNING: Emax > pop_Emax"    
             
             factor = quad(self.src.Spectrum, Emin, Emax)[0]
             

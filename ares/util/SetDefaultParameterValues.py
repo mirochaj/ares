@@ -208,17 +208,24 @@ def PhysicsParameters():
     return pf
     
 def PopulationParameters():
-    pf = \
+    
+    pf = {}
+    srcpars = SourceParameters()
+    for par in srcpars:
+        pf[par.replace('source', 'pop')] = srcpars[par]
+    
+    
+    tmp = \
     {
     
     "pop_type": 'galaxy',
     
     "pop_sed": 'pl',
     "pop_solve_rte": False,
-    "pop_Emin": 2e3,
-    "pop_Emax": 1e4,
-    "pop_EminNorm": 2e3,
-    "pop_EmaxNorm": 1e4,
+    "pop_Emin": 2e2,
+    "pop_Emax": 3e4,
+    "pop_EminNorm": 5e2,
+    "pop_EmaxNorm": 8e3,
     
     "pop_lf": None,
     "pop_emissivity": None,
@@ -298,10 +305,10 @@ def PopulationParameters():
     # Pre-created splines
     "pop_fcoll": None,
     "pop_dfcolldz": None,
-    
 
     }
 
+    pf.update(tmp)
     pf.update(rcParams)
 
     return pf      
@@ -332,6 +339,26 @@ def SourceParameters():
     
     "source_logN": -inf,
     "source_hardening": 'extrinsic',
+    
+    # Stellar
+    "source_temperature": 1e5,  
+    "source_qdot": 5e48,
+    
+    # BH
+    "source_mass": 1e5,
+    "source_rmax": 1e3,
+    "source_alpha": -1.5,
+    
+    "source_fsc": 0.1,
+    "source_uponly": True,
+    
+    "source_Lbol": None,
+    "source_mass": 10,  
+    "source_fduty": 1.,
+    
+    "source_eta": 0.1,
+    "source_isco": 6,  
+    "source_rmax": 1e3,
     
     }
     

@@ -74,8 +74,7 @@ class ParameterFile(dict):
         if Npops == 1:
             pf.update(kwargs)
         else:
-            src_kw = [{} for i in range(Npops)]
-            spec_kw = [{} for i in range(Npops)]
+            pfs_by_pop = [{} for i in range(Npops)]
     
             linked_pars = []
     
@@ -88,11 +87,14 @@ class ParameterFile(dict):
                 if m is None:
                     pf[par] = kwargs[par]
                     continue
+                    
+                # If we're here, it means this parameter has a population 
+                # or source tag    
     
                 # Population ID number
                 num = int(m.group(1))
     
-                # Pop ID including curly braces
+                # ID including curly braces
                 prefix = par.split(m.group(0))[0]
     
                 # See if this parameter is linked to another population
@@ -107,10 +109,7 @@ class ParameterFile(dict):
                     continue
     
                 # Otherwise, save it
-                if re.search('spectrum', par):
-                    spec_kw[num][prefix] = kwargs[par]
-                else:
-                    src_kw[num][prefix] = kwargs[par]
+                pfs_by_pop[num][prefix] = kwargs[par]
     
             # Update linked parameters
             for par in linked_pars:
@@ -131,52 +130,35 @@ class ParameterFile(dict):
                 else:
                     val = kwargs[kwargs[par]]
 
-                if re.search('spectrum', par):
-                    spec_kw[num][prefix_link] = val
-                else:
-                    src_kw[num][prefix_link] = val
-
-            # Insert defaults so all populations have the same size dictionaries
-            for thing in [src_kw, spec_kw]:        
-                all_varying_keys = []
-                for pop_pars in thing:
-                    for key in pop_pars:
-
-                        if key not in all_varying_keys:
-                            all_varying_keys.append(key)
-
-                for pop_pars in thing:
-                    for key in all_varying_keys:
-                        if key not in pop_pars:
-                            pop_pars[key] = self.defaults[key]
-
-            # Update parameter file
-            pf.update({'source_kwargs': src_kw})
-            pf.update({'spectrum_kwargs': spec_kw})
+                pfs_by_pop[num][prefix] = val
 
             # Make sure versions of source/spectrum parameters don't exist
-            # in main parameter file if they are conflicting
-            for thing in ['source_kwargs', 'spectrum_kwargs']:
-
-                tmp = {}
-
-                # Loop through dicts, one per population
-                for i, pop_pars in enumerate(pf[thing]):
-
-                    # For each parameter...
-                    for element in pop_pars:
+            # in main parameter file if they are conflicting           
+            tmp = {}
+            
+            # Loop through dicts, one per population
+            for i in range(Npops):
+            
+                pop_pars = pfs_by_pop[i]
+            
+                # For each parameter...
+                for element in pop_pars:
+                    
+                    if element not in tmp:
+                        tmp[element] = [pop_pars[element]]
+                        continue
                         
-                        if element not in tmp:
-                            tmp[element] = [pop_pars[element]]
-                            continue
-                            
-                        if pop_pars[element] not in tmp[element]:
-                            tmp[element].append(pop_pars[element])
-                
-                # Delete elements that differ between populations
-                for key in tmp:    
-                    if len(tmp[key]) != 1 and key in pf:
-                        del pf[key]
+                    if pop_pars[element] not in tmp[element]:
+                        tmp[element].append(pop_pars[element])
+            
+            # Delete elements that differ between populations
+            for key in tmp:    
+                if len(tmp[key]) != 1 and key in pf:
+                    del pf[key]
+            
+            self.pfs = [SetAllDefaults() for i in range(Npops)]
+            for i in range(Npops):
+                self.pfs[i].update(pfs_by_pop[i])
             
         for key in pf:
             self[key] = pf[key]

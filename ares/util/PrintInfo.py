@@ -13,7 +13,7 @@ Description:
 import numpy as np
 import types, os, textwrap
 from .NormalizeSED import emission_bands
-from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz
+from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz, g_per_msun, s_per_yr
 
 try:
     from mpi4py import MPI
@@ -311,7 +311,7 @@ def print_rate_int(tab):
     for warning in warnings:
         print_warning(warning)
 
-@ErrorIgnore(errors=[KeyError])
+#@ErrorIgnore(errors=[KeyError])
 def print_pop(pop):
     """
     Print information about a population to the screen.
@@ -327,11 +327,11 @@ def print_pop(pop):
 
     warnings = []
 
-    alpha = pop.pf['source_alpha']
-    Emin = pop.pf['source_Emin']
-    Emax = pop.pf['source_Emax']
-    EminNorm = pop.pf['source_EminNorm']
-    EmaxNorm = pop.pf['source_EmaxNorm']
+    alpha = pop.pf['pop_alpha']
+    Emin = pop.pf['pop_Emin']
+    Emax = pop.pf['pop_Emax']
+    EminNorm = pop.pf['pop_EminNorm']
+    EmaxNorm = pop.pf['pop_EmaxNorm']
 
     if EminNorm is None:
         EminNorm = Emin
@@ -356,10 +356,12 @@ def print_pop(pop):
     if len(bands) == 1:
         norm_by == bands[0]   
 
-    if pop.pf['source_type'] == 'bh':
+    if pop.pf['pop_type'] == 'bh':
         header  = 'Initializer: BH Population'
-    elif pop.pf['source_type'] == 'star':
+    elif pop.pf['pop_type'] == 'star':
         header  = 'Initializer: Stellar Population'
+    elif pop.pf['pop_type'] == 'galaxy':
+        header  = 'Initializer: Galaxy Population'        
 
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
@@ -370,74 +372,47 @@ def print_pop(pop):
     print line('-'*twidth)
 
     # Redshift evolution stuff
-    if pop.model <= 2:
-        if pop.pf['sfrd'] is not None:
-            print line("SF          : parameterized")
-        else:
-            if pop.pf['Mmin'] is None:
-                print line("SF          : in halos w/ Tvir >= 10**%g K" \
-                    % (round(np.log10(pop.pf['Tmin']), 2)))
-            else:
-                print line("SF          : in halos w/ M >= 10**%g Msun" \
-                    % (round(np.log10(pop.pf['Mmin']), 2)))
-            print line("HMF         : %s" % pop.pf['hmf_func'])
-            
-            # Print out location of HMF table
-            #j = pop.halos.fn.rfind('/')
-            #print line("HMF prefix  : %s" % pop.halos.fn[0:j])
-            #print line("HMF file    : %s" % pop.halos.fn[j+1:])
-            
-            print line("fstar       : %g" % pop.pf['fstar'])
-
-        if pop.model >= 0:
-            print line("fbh         : 10**%g" % np.log10(pop.pf['fbh']))
-
+    if pop.pf['pop_sfrd'] is not None:
+        print line("SF          : parameterized")
     else:
-        print "#### PopIII      : in halos w/ Tvir >= 10**%g K" \
-            % (round(np.log10(pop.pf['Tmin'], 2)))
-        print "#### HMF         : %s" % pop.pf['hmf_func']                    
-        print "#### fstar       : %g" % pop.pf['fstar']
-        print "####"            
-        print "#### fbh         : %g" % pop.pf['fbh']
-        print "#### fedd        : %g" % pop.pf['fedd']
-        print "#### eta         : %g" % pop.pf['eta']
+        if pop.pf['pop_Mmin'] is None:
+            print line("SF          : in halos w/ Tvir >= 10**%g K" \
+                % (round(np.log10(pop.pf['pop_Tmin']), 2)))
+        else:
+            print line("SF          : in halos w/ M >= 10**%g Msun" \
+                % (round(np.log10(pop.pf['pop_Mmin']), 2)))
+        print line("HMF         : %s" % pop.pf['hmf_func'])
+        print line("fstar       : %g" % pop.pf['pop_fstar'])
+    
+    
+    print line('-'*twidth)
+    print line('Radiative Output')
+    print line('-'*twidth)
+    
+    print line("yield (erg / s / SFR) : %g" % (pop.yield_per_sfr * g_per_msun / s_per_yr))
+    print line("EminNorm (eV)         : %g" % (pop.pf['pop_EminNorm']))
+    print line("EmaxNorm (eV)         : %g" % (pop.pf['pop_EmaxNorm']))
 
+    if not pop.solve_rte:
+        print "#"*width
+        return
+    
     ##
     # SPECTRUM STUFF
     ##
     print line('-'*twidth)
     print line('Spectrum')
     print line('-'*twidth)
+    
+    print line("Emin (eV)         : %g" % (pop.pf['pop_Emin']))
+    print line("Emax (eV)         : %g" % (pop.pf['pop_Emax']))
 
-    cols = ['lw', 'uv', 'xray']
-    rows = ['is_src', 'approx RTE', 'Eavg / eV', 'erg / g', 'photons / b']
-    data = [[bool(pop.pf['is_lya_src']), bool(pop.pf['is_ion_src_cgm']), 
-        bool(pop.pf['is_heat_src_igm'])]]
-    data.append([bool(pop.pf['approx_lwb']), bool(pop.pf['approx_uvb']),
-        bool(pop.pf['approx_xrb'])])
-    data.append((pop.Elw, pop.Eion, pop.Ex))
-    data.append((pop.cLW, pop.cUV, pop.cX))
-    data.append((pop.Nlw, pop.Nion, pop.Nx))
-
-    tabulate(data, rows, cols)
-
-    if not (pop.pf['approx_lwb'] and pop.pf['approx_xrb']):
-        print line("sed         :  %s " % pop.pf['spectrum_type'])
-        print line("sed         :  normalized by %s emission" % norm_by)
-
-    if pop.pf['spectrum_type'] == 'bb':    
-        print line("sed         :  T = 10**%.3g K" \
-            % np.log10(pop.pf['source_temperature']))
-
-    if pop.pf['spectrum_type'] in ['mcd', 'simpl']:
-        print line("Mbh         :  %g " % pop.pf['source_mass'])
-
-    if pop.pf['spectrum_type'] == 'simpl':
-        print line("Gamma       :  %g " % pop.pf['spectrum_alpha'])
-        print line("fsc         :  %g " % pop.pf['spectrum_fsc'])
-
-    if np.isfinite(pop.pf['spectrum_logN']):
-        print line("logN        :  %g " % pop.pf['spectrum_logN'])
+    if pop.pf['pop_sed'] == 'pl':
+        print line("alpha             : %g" % pop.pf['pop_alpha'])
+        print line("logN              : %g" % pop.pf['pop_logN'])
+    elif pop.pf['pop_sed'] == 'mcd':
+        print line("mass (Msun)       : %g" % pop.pf['pop_mass'])
+        print line("rmax (Rg)         : %g" % pop.pf['pop_rmax'])
 
     print "#"*width
 
