@@ -14,7 +14,6 @@ import re
 import numpy as np
 from ..util import ParameterFile
 from .Galaxy import GalaxyPopulation
-from ..util.SetDefaultParameterValues import SetAllDefaults, SourceParameters
             
 class CompositePopulation:
     def __init__(self, **kwargs):

@@ -157,32 +157,34 @@ def PhysicsParameters():
                         # 3 = Furlanetto & Pritchard (2006)
 
     # Approximations to radiation fields
-    "approx_irb": True,
-    "approx_lwb": True,
-    "approx_uvb": True,
-    'approx_xrb': True,
+    #"approx_irb": True,
+    #"approx_lwb": True,
+    #"approx_uvb": True,
+    #'approx_xrb': True,
         
     # If doing "full" calculation, discretize in redshift and energy?
-    "discrete_irb": True,
-    "discrete_lwb": True,
-    "discrete_uvb": True,
-    'discrete_xrb': True,
-    
-    "tau_irb": False,
-    "tau_lwb": False,
-    "tau_uvb": False,
-    "tau_xrb": False,
+    #"discrete_irb": True,
+    #"discrete_lwb": True,
+    #"discrete_uvb": True,
+    #'discrete_xrb': True,
+    #
+    #"tau_irb": False,
+    #"tau_lwb": False,
+    #"tau_uvb": False,
+    #"tau_xrb": False,
 
     "tau_dynamic": False,
     
     # How many redshift bins for static optical depth tables
-    "redshifts_irb": 400,
-    "redshifts_lwb": 1e4,
-    "redshifts_uvb": 400,
-    "redshifts_xrb": 400,
+    #"redshifts_irb": 400,
+    #"redshifts_lwb": 1e4,
+    #"redshifts_uvb": 400,
+    #"redshifts_xrb": 400,
+
+    "sawtooth_nmax": 23,
 
     # Lyman alpha sources
-    "lwb_nmax": 23,
+
     "lya_nmax": 23,
     "lya_injected": True,
     'lya_continuum': True,
@@ -222,6 +224,8 @@ def PopulationParameters():
     
     "pop_sed": 'pl',
     "pop_solve_rte": False,
+    "pop_tau_Nz": 400,
+    
     "pop_Emin": 2e2,
     "pop_Emax": 3e4,
     "pop_EminNorm": 5e2,

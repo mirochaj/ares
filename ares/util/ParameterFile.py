@@ -73,6 +73,7 @@ class ParameterFile(dict):
         # Update parameter file
         if Npops == 1:
             pf.update(kwargs)
+            self.pfs = [pf]
         else:
             pfs_by_pop = [{} for i in range(Npops)]
     

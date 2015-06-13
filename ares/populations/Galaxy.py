@@ -21,7 +21,8 @@ from .Halo import HaloPopulation
 from .Population import Population
 from ..sources import Star, BlackHole
 from ..util.PrintInfo import print_pop
-from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev
+from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
+    E_LyA
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters
 
@@ -95,6 +96,14 @@ class GalaxyPopulation(HaloPopulation):
     @property
     def solve_rte(self):
         return self.pf['pop_solve_rte']
+        
+    @property
+    def is_lya_src(self):
+        if not hasattr(self, '_is_lya_src'):
+            self._is_lya_src = \
+                self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']    
+        
+        return self._is_lya_src
     
     @property
     def _Source(self):
@@ -460,8 +469,8 @@ class GalaxyPopulation(HaloPopulation):
             
         # Convert from reference band to arbitrary band
         emiss *= self._convert_band(Emin, Emax)
-            
-        if self.solve_rte:
+                        
+        if E is not None:
             return emiss * self.src.Spectrum(E)
         else:
             return emiss    
