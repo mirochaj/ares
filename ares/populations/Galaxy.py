@@ -96,6 +96,10 @@ class GalaxyPopulation(HaloPopulation):
     @property
     def solve_rte(self):
         return self.pf['pop_solve_rte']
+
+    @property
+    def sawtooth(self):
+        return self.pf['pop_sawtooth']        
         
     @property
     def is_lya_src(self):

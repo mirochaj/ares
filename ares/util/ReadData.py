@@ -63,8 +63,12 @@ def flatten_flux(flux):
     """
 
     to_return = []
-    for i, flux_seg in enumerate(flux):
-        to_return.extend(flux_seg)
+    for i, band in enumerate(flux):
+        if type(band) is list:
+            for j, flux_seg in enumerate(band):
+                to_return.extend(flux_seg)
+        else:
+            to_return.extend(band)
 
     return np.array(to_return)
 

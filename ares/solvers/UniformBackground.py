@@ -124,7 +124,7 @@ class UniformBackground(object):
         Emin, Emax = pop.pf['pop_Emin'], pop.pf['pop_Emax']
         
         # Pure X-ray
-        if (Emin > E_LL) and (Emin > 4 * E_LL):
+        if (Emin > E_LL) and (Emin > 4 * E_LL) or (not pop.sawtooth):
             return [(Emin, Emax)]
         
         bands = []
@@ -250,7 +250,7 @@ class UniformBackground(object):
                     N = num_freq_bins(nz, zi=zi, zf=zf, Emin=Emi, Emax=Ema)
                     
                     # Create energy arrays
-                    E = E0 * R**np.arange(N)
+                    E = Emi * R**np.arange(N)
                     
                     energies.append(E)
                     
@@ -706,7 +706,7 @@ class UniformBackground(object):
             return pop.pf['Ja'](z)    
 
         # Full calculation
-        if pop.pf['approx_lwb'] == 0:
+        if pop.solve_rte:
 
             J = 0.0
 
@@ -717,16 +717,16 @@ class UniformBackground(object):
                 if n > 2 and not pop.pf['lya_injected']:
                     continue
                 
-                if self.pf['discrete_lwb']:
-                    Jn = self.hydr.frec(n) * fluxes[i][0] * 0.2
-                else:
-
-                    En = self.hydr.ELyn(n)
-                    Enp1 = self.hydr.ELyn(n + 1)
-                    
-                    Eeval = En + 0.01 * (Enp1 - En)
-                    Jn = self.hydr.frec(n) * self.LymanWernerFlux(z, Eeval, 
-                        **kwargs)
+                #if self.pf['discrete_lwb']:
+                Jn = self.hydr.frec(n) * fluxes[i][0] * 0.2
+                #else:
+                #
+                #    En = self.hydr.ELyn(n)
+                #    Enp1 = self.hydr.ELyn(n + 1)
+                #    
+                #    Eeval = En + 0.01 * (Enp1 - En)
+                #    Jn = self.hydr.frec(n) * self.LymanWernerFlux(z, Eeval, 
+                #        **kwargs)
 
                 J += Jn
 
@@ -846,8 +846,12 @@ class UniformBackground(object):
         # Shorthand
         zarr = redshifts
 
-        if tau is None:
-            tau = np.zeros([redshifts.size, energies.size])
+        #if tau is None:
+        #    if type(energies) is list:
+        #        tau = [np.zeros([redshifts.size, Earr.size]) \
+        #            for Earr in energies]
+        #    else:
+        #        tau = np.zeros([redshifts.size, energies.size])
 
         if flux0 is None:
             flux = np.zeros_like(energies)
@@ -917,14 +921,14 @@ class UniformBackground(object):
         
         return line_flux 
         
-    def _flux_generator_sawtooth(self, E, z, ehat):
+    def _flux_generator_sawtooth(self, E, z, ehat, tau):
         """
         Create generators for the flux between all Lyman-n bands.
         """
 
         gens = []
         for i, nrg in enumerate(E):
-            gens.append(self._flux_generator_generic(nrg, z, ehat[i]))
+            gens.append(self._flux_generator_generic(nrg, z, ehat[i], tau[i]))
         
         # Generator over redshift
         for i in range(z.size):  
@@ -955,30 +959,24 @@ class UniformBackground(object):
         
         """
 
-        # Is this a sawtooth?
-        band = self.bands_by_pop[popid]
+        # List of all intervals in rest-frame photon energy
+        bands = self.bands_by_pop[popid]
         
-        if type(band) is list:
-            return self._flux_generator_sawtooth(E=self.energies[popid],
-                z=self.redshifts[popid], ehat=self.emissivities[popid])
-        else:
-            self._flux_generator_generic(self.energies[popid],
-                self.redshifts[popid], self.emissivities[popid],
-                tau=self.tau[popid])
+        
+        generators_by_band = []
+        for i, band in enumerate(bands):
+            
+            if type(self.energies[popid][i]) is list:            
+                gen = self._flux_generator_sawtooth(E=self.energies[popid][i],
+                    z=self.redshifts[popid], ehat=self.emissivities[popid][i],
+                    tau=self.tau[popid][i])
+            else:        
+                gen = self._flux_generator_generic(self.energies[popid][i],
+                    self.redshifts[popid], self.emissivities[popid][i],
+                    tau=self.tau[popid][i])
 
-        #if band == 'ir':
-        #    raise NotImplemented('no metagalactic IR background yet.')
-        #
-        #elif band == 'lw':
-        #    return self._flux_generator_sawtooth(E=self.energies[popid],
-        #        z=self.redshifts[popid], ehat=self.emissivities[popid])
-        #elif band == 'uv':
-        #    raise NotImplemented('no metagalactic UV background yet.')    
-        #    
-        #elif band == 'xr':
-        #    return self._flux_generator_generic(self.energies[popid],
-        #        self.redshifts[popid], self.emissivities[popid],
-        #        tau=self.tau[popid])
-        #        
+            generators_by_band.append(gen)
+
+        return generators_by_band
         
     
