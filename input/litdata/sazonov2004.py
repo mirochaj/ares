@@ -25,7 +25,7 @@ _IR_Normalization = _UV_Normalization * ((1.2 * 10**-1.7) \
 _HX_Normalization = _SX_Normalization * (_A * _E_0**-_Alpha * \
     np.exp(-_E_0 / _E_1)) / (_A * _B * (1.0 + _K * _E_0**(_Beta - _Gamma)) * \
     _E_0**-_Beta)
-
+    
 def Spectrum(E, t=0.0):
     """
     Broadband quasar template spectrum.

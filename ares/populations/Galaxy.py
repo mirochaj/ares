@@ -19,6 +19,7 @@ from ..util import ParameterFile
 from scipy.integrate import quad
 from .Halo import HaloPopulation
 from .Population import Population
+from collections import namedtuple
 from ..sources import Star, BlackHole
 from ..util.PrintInfo import print_pop
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
@@ -38,6 +39,14 @@ try:
 except ImportError:
     rank = 0
     size = 1
+    
+class LiteratureSource(object):
+    def __init__(self, **kwargs):
+        self.pf = kwargs
+        _src = read_lit(self.pf['pop_sed'])
+        
+        if hasattr(_src, 'Spectrum'):
+            self.Spectrum = _src.Spectrum
     
 lftypes = ['schecter', 'dpl']
 
@@ -117,8 +126,7 @@ class GalaxyPopulation(HaloPopulation):
             elif self.pf['pop_sed'] in ['pl', 'mcd', 'simpl']:
                 self.__Source = BlackHole
             else: 
-                from_lit = read_lit(self.pf['pop_sed'])
-                self.__Source = from_lit.Source
+                self.__Source = LiteratureSource
         
         return self.__Source
         
@@ -152,14 +160,14 @@ class GalaxyPopulation(HaloPopulation):
                     else:
                         self._src_kwargs[par] = bpars[par]
             else:
-                self._src_kwargs = self.pf['source_kwargs']
+                self._src_kwargs = self.pf.copy()
         
         return self._src_kwargs
-            
+
     @property
     def src(self):
         if not hasattr(self, '_src'):
-            self._src = self._Source(**self.src_kwargs)        
+            self._src = self._Source(**self.src_kwargs)
                     
         return self._src            
 

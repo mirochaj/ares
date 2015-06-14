@@ -14,7 +14,7 @@ import numpy as np
 from ..util import ParameterFile
 from scipy.interpolate import interp1d
 from ..solvers import UniformBackground
-from ..util.ReadData import _sort_history, flatten_flux
+from ..util.ReadData import _sort_history, flatten_energies
 
 class MetaGalacticBackground(UniformBackground):
     def __init__(self, grid=None, **kwargs):
@@ -247,8 +247,8 @@ class MetaGalacticBackground(UniformBackground):
         population, in that order.
         
         if flatten == True:
-            The energy array is 1-D. 
-            The flux array will have shape (400)
+            The energy array is 1-D.
+            The flux array will have shape (z, E)
         else:
             The energies are stored as a list. The number of elements will
             be determined by how many sub-bands there are. Each element will
@@ -263,7 +263,7 @@ class MetaGalacticBackground(UniformBackground):
             hist = self.history_l
         
         if flatten:
-            E = flatten_flux(self.energies[popid])
+            E = flatten_energies(self.energies[popid])
             f = np.zeros([len(self.redshifts[popid]), E.size])
             for i, flux in enumerate(hist[popid]):
                 fzflat = []

@@ -254,16 +254,22 @@ class UniformBackground(object):
                     
                     energies.append(E)
                     
-                tau = [np.zeros([len(z), len(Earr)]) for Earr in energies]    
+                if band == (E_LyA, E_LL):
+                    tau = [np.zeros([len(z), len(Earr)]) for Earr in energies]    
+                else:
+                    tau = [self._set_tau(z, Earr) for Earr in energies]
+                    
                 ehat = [self.TabulateEmissivity(z, Earr, pop) for Earr in energies]
                                   
             else:
                 N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
                 E = energies = E0 * R**np.arange(N)
                 
-                # Tabulate some stuff
-                tau = np.zeros([len(z), len(energies)])
+                # Tabulate emissivity
                 ehat = self.TabulateEmissivity(z, E, pop)
+                
+                # Tabulate optical depth
+                tau = self._set_tau(z, energies)
 
             # Store stuff for this band
             tau_by_band.append(tau)
@@ -271,6 +277,52 @@ class UniformBackground(object):
             emissivity_by_band.append(ehat)
 
         return z, energies_by_band, tau_by_band, emissivity_by_band
+
+    def _set_tau(self, z, E):
+        """
+        Tabulate the optical depth.
+        
+        The results of this function depend on a few global parameters.
+        
+        If approx_tau is None, then the optical depth will be assumed to be
+        zero for all redshifts and energies.
+        
+        If approx_tau == True, then the optical depth will be computed 
+        assuming a neutral medium for all times. 
+        
+        If approx_tau is a function, it is assumed to describe the ionized 
+        hydrogen fraction as a function of redshift.
+        
+        If approx_tau is 
+        
+        Parameters
+        ----------
+        z : np.ndarray
+            Array of redshifts.
+        energies : np.ndarray
+            Array of rest-frame photon energies.    
+        
+        Returns
+        -------
+        A 2-D array of optical depths, of shape (len(z), len(E)).    
+            
+        """
+        
+        # Default to optically thin if nothing is supplied
+        if self.pf['approx_tau'] is None:
+            return np.zeros([len(z), len(E)])
+            
+        # Not necessarily true in the future if we include H2 opacity    
+        if E.max() <= E_LL:
+            return np.zeros([len(z), len(E)])
+
+        # Otherwise, compute optical depth assuming constant ion fractions
+        if self.pf['approx_tau'] == True:
+            tau = self.volume.TabulateOpticalDepth(z, E)
+        elif self.pf['approx_tau'] is 'post_EoR':            
+            tau = self.volume.TabulateOpticalDepth(z, E, species=2)
+        
+        return tau
 
     def _set_generators(self):
         """

@@ -80,7 +80,8 @@ class BlackHole(Source):
             self._UserDefined = self.pf['source_sed']
         else:
             from_lit = read_lit(self.pf['source_sed'])
-            self._UserDefined = from_lit.Spectrum
+            src = from_lit.Source()
+            self._UserDefined = src.Spectrum
             
         # Convert spectral types to strings
         #self.N = len(self.spec_pars['type'])

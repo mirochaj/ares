@@ -309,6 +309,9 @@ def PopulationParameters():
     # Pre-created splines
     "pop_fcoll": None,
     "pop_dfcolldz": None,
+    
+    # Get passed on to litdata instances
+    "source_kwargs": {},
 
     }
 

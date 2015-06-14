@@ -56,14 +56,14 @@ def read_lit(prefix, path=None):
     
     return mod
 
-def flatten_flux(flux):
+def flatten_energies(E):
     """
     Take fluxes sorted by Lyman-n band and flatten to single energy
     dimension.
     """
 
     to_return = []
-    for i, band in enumerate(flux):
+    for i, band in enumerate(E):
         if type(band) is list:
             for j, flux_seg in enumerate(band):
                 to_return.extend(flux_seg)
@@ -71,6 +71,9 @@ def flatten_flux(flux):
             to_return.extend(band)
 
     return np.array(to_return)
+
+def flatten_flux(flux):
+    return flatten_energies(flux)
 
 def split_flux(energies, fluxes):
     """

@@ -16,6 +16,7 @@ Note: This can be run in parallel, e.g.,
 
 import numpy as np
 import os, ares, time, pickle
+from ares.physics.Constants import E_LL, E_LyA
 
 try:
     import h5py
@@ -33,11 +34,11 @@ except ImportError:
 #
 ## INPUT
 zf, zi = (10, 50)
-Emin = 1e2
-Emax = 5e4
-Nz = [1e3]
+Emin = E_LL
+Emax = 4 * E_LyA
+Nz = [400]
 format = 'pkl'        # 'hdf5' or 'pkl' or 'npz'
-helium = 1
+helium = 0
 ##
 #
 
@@ -45,8 +46,8 @@ helium = 1
 pars = \
 {
  'include_He': helium,
- 'spectrum_Emin': Emin,
- 'spectrum_Emax': Emax,
+ 'source_Emin': Emin,
+ 'source_Emax': Emax,
  'approx_xrb': 0,
  'approx_He': helium,
  'initial_redshift': zi,

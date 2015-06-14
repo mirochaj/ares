@@ -79,8 +79,8 @@ class GlobalVolume(object):
         self.grid = background.grid
         self.cosm = background.cosm
         self.hydr = background.hydr
-        self.sources = background.sources
-        self.Ns = len(self.sources)
+        self.pops = background.pops
+        self.Npops = len(self.pops)
         
         # Include helium opacities approximately?
         self.approx_He = self.pf['include_He'] and self.pf['approx_He']
@@ -143,7 +143,7 @@ class GlobalVolume(object):
         
         """
         
-        pop = self.sources[popid]
+        pop = self.pops[popid]
         band = self.background.bands[popid]
         
         # First, look in CWD or $ARES (if it exists)
@@ -217,12 +217,12 @@ class GlobalVolume(object):
         # We're done!
         return ztab, Etab[i_E0:i_E1], tau[:,i_E0:i_E1]
 
-    @property
-    def E(self):
-        if not hasattr(self, '_E'):
-            self._tabulate_atomic_data()
-    
-        return self._E
+    #@property
+    #def E(self):
+    #    if not hasattr(self, '_E'):
+    #        self._tabulate_atomic_data()
+    #
+    #    return self._E
 
     @property
     def sigma_E(self):
@@ -248,15 +248,15 @@ class GlobalVolume(object):
         self._E = self.background.energies
         self.logE = [np.log10(nrg) for nrg in self._E]
         self.dlogE = [np.diff(nrgs) for nrgs in self.logE]
-        self._sigma_E = [None for i in range(len(self.sources))]
-        self.fheat = [None for i in range(len(self.sources))]
-        self.fion = [None for i in range(len(self.sources))]
-        self.flya = [None for i in range(len(self.sources))]
+        self._sigma_E = [None for i in range(self.Npops)]
+        self.fheat = [None for i in range(self.Npops)]
+        self.fion = [None for i in range(self.Npops)]
+        self.flya = [None for i in range(self.Npops)]
 
         # Loop over source populations
-        for popid, src in enumerate(self.sources):
+        for popid, src in enumerate(self.Npops):
 
-            if src.approx_src:
+            if not src.solve_rte:
                 continue
 
             E = self._E[popid]
@@ -1102,7 +1102,8 @@ class GlobalVolume(object):
         
         """
         
-        kw = self._fix_kwargs(functionify=True, **kwargs)
+        #kw = self._fix_kwargs(functionify=True, **kwargs)
+        kw = kwargs
         
         # Compute normalization factor to help numerical integrator
         norm = self.cosm.hubble_0 / c / self.sigma0
@@ -1142,8 +1143,83 @@ class GlobalVolume(object):
             epsabs=self.atol, limit=self.divmax)[0] / norm
                                                     
         return tau
-                            
-    def TabulateOpticalDepth(self, xavg=lambda z: 0.0):
+
+    def Tau(self, z1, z2, E, species=0, sfrac=lambda z: 1.0):
+        """
+        Compute the optical depth between two redshifts.
+    
+        If no keyword arguments are supplied, assumes the IGM is neutral.
+    
+        Parameters
+        ----------
+        z1 : float
+            observer redshift
+        z2 : float
+            emission redshift
+        E : float
+            observed photon energy (eV)  
+        species : int
+            Can be 0, 1, or 2 for HI, HeI, HeII
+    
+        Notes
+        -----
+        If keyword argument 'xavg' is supplied, it must be a function of 
+        redshift.
+    
+        Returns
+        -------
+        Optical depth between z1 and z2 at observed energy E.
+    
+        """
+    
+        # Compute normalization factor to help numerical integrator
+        norm = self.cosm.hubble_0 / c / self.sigma0
+    
+        # Temporary function to compute emission energy of observed photon
+        Erest = lambda z: self.RestFrameEnergy(z1, E, z)
+    
+        # Cross-section
+        s = lambda z: self.sigma(Erest(z), species=species)
+        
+        if species == 0:
+            n = lambda z: self.cosm.nH(z) * sfrac(z)
+        else:    
+            n = lambda z: self.cosm.nHe(z) * sfrac(z)
+        
+        tau_integrand = lambda z: norm * self.cosm.dldz(z) * n(z) * s(z)
+        
+    
+        # Figure out number densities and cross sections of everything
+        #if self.approx_He:
+        #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
+        #    nHeI = lambda z: nHI(z) * self.cosm.y
+        #    sHeI = lambda z: self.sigma(Erest(z), species=1)
+        #    nHeII = lambda z: 0.0
+        #    sHeII = lambda z: 0.0
+        #elif self.self_consistent_He:
+        #    if type(kw['xavg']) is not list:
+        #        raise TypeError('hey! fix me')
+        #
+        #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
+        #    nHeI = lambda z: self.cosm.nHe(z) \
+        #        * (1. - kw['xavg'](z) - kw['xavg'](z))
+        #    sHeI = lambda z: self.sigma(Erest(z), species=1)
+        #    nHeII = lambda z: self.cosm.nHe(z) * kw['xavg'](z)
+        #    sHeII = lambda z: self.sigma(Erest(z), species=2)
+        #else:
+        #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
+        #    nHeI = sHeI = nHeII = sHeII = lambda z: 0.0
+    
+        #tau_integrand = lambda z: norm * self.cosm.dldz(z) \
+        #    * (nHI(z) * sHI(z) + nHeI(z) * sHeI(z) + nHeII(z) * sHeII(z))
+    
+        # Integrate using adaptive Gaussian quadrature
+        tau = quad(tau_integrand, z1, z2, epsrel=self.rtol, 
+            epsabs=self.atol, limit=self.divmax)[0] / norm
+    
+        return tau
+                        
+    def TabulateOpticalDepth(self, z, E, species=0, sfrac=lambda z: 1.0):
         """
         Compute optical depth as a function of (redshift, photon energy).
         
@@ -1162,6 +1238,11 @@ class GlobalVolume(object):
         Optical depth table.
         
         """
+        
+        self.z = z
+        self.E = E
+        self.L = len(z)
+        self.N = len(E)
         
         # Create array for each processor
         tau_proc = np.zeros([self.L, self.N])
@@ -1182,9 +1263,12 @@ class GlobalVolume(object):
                 if l == (self.L - 1):
                     tau_proc[l,n] = 0.0
                 else:
-                    tau_proc[l,n] = self.OpticalDepth(self.z[l], 
-                        self.z[l+1], self.E[n], xavg=xavg)
-
+                    #tau_proc[l,n] = self.OpticalDepth(self.z[l], 
+                    #    self.z[l+1], self.E[n], xavg=xavg)
+                    tau_proc[l,n] = self.Tau(self.z[l],
+                        self.z[l+1], self.E[n], species=species, 
+                        sfrac=sfrac)
+                        
                 pb.update(m)
                     
         pb.finish()
