@@ -413,6 +413,19 @@ class GalaxyPopulation(HaloPopulation):
     #    phiL = quad(integrand, Lmin, Lmax)[0]
     #
     #    return phiL
+    
+    @property
+    def _sfrd(self):
+        if not hasattr(self, '__sfrd'):
+            if self.pf['pop_sfrd'] is None:
+                self.__sfrd = None
+            elif type(self.pf['pop_sfrd']) is FunctionType:
+                self.__sfrd = self.pf['pop_sfrd']
+            else:
+                tmp = read_lit(self.pf['pop_sfrd'])
+                self.__sfrd = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
+        
+        return self.__sfrd
         
     def SFRD(self, z):
         """
@@ -443,8 +456,8 @@ class GalaxyPopulation(HaloPopulation):
             return 0.0
     
         # SFRD approximated by some analytic function    
-        if self.pf['pop_sfrd'] is not None:
-            return self.pf['pop_sfrd'](z) / rhodot_cgs
+        if self._sfrd is not None:
+            return self.__sfrd(z) / rhodot_cgs
     
         # Most often: use fcoll model
         if self.is_fcoll_model:
@@ -477,7 +490,7 @@ class GalaxyPopulation(HaloPopulation):
         if self.is_fcoll_model or self.pf['pop_sfrd'] is not None:            
             emiss = self.SFRD(z) * self.yield_per_sfr
         else:
-            raise ValueError('help')    
+            raise NotImplemented('help')    
             
         # Convert from reference band to arbitrary band
         emiss *= self._convert_band(Emin, Emax)

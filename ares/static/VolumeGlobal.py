@@ -1247,7 +1247,8 @@ class GlobalVolume(object):
         # Create array for each processor
         tau_proc = np.zeros([self.L, self.N])
 
-        pb = ProgressBar(self.L * self.N, 'tau')
+        pb = ProgressBar(self.L * self.N, 
+            'tau(z, %.3g/eV, %.3g/eV)' % (E.min(), E.max()))
         pb.start()     
 
         # Loop over redshift, photon energy

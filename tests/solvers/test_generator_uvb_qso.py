@@ -22,7 +22,7 @@ src_pars = \
 {
  # Source properties
  'pop_type': 'galaxy',
- 'pop_sfrd': lambda z: 0.01 / (1. + z)**3., # Use R15 or HM12
+ 'pop_sfrd': 'robertson2015',#lambda z: 0.01 / (1. + z)**3., # Use R15 or HM12
  'pop_sed': 'sazonov2004',
  'pop_alpha': 1.0,
  'pop_Emin': 1.0,
@@ -49,24 +49,24 @@ rad2 = ares.simulations.MetaGalacticBackground(pop_sawtooth=False,
     approx_tau=None, **src_pars)
 rad3 = ares.simulations.MetaGalacticBackground(pop_sawtooth=True,
     approx_tau=True, **src_pars)
-rad4 = ares.simulations.MetaGalacticBackground(pop_sawtooth=True,
-    approx_tau='post_EoR', **src_pars)
+#rad4 = ares.simulations.MetaGalacticBackground(pop_sawtooth=True,
+#    approx_tau='post_EoR', **src_pars)
 
 # Compute background flux
 rad1.run()
 rad2.run()
-rad3.run()
-rad4.run()
+#rad3.run()
+#rad4.run()
 
 z1, E1, flux1 = rad1.get_history(flatten=True)
 z2, E2, flux2 = rad2.get_history(flatten=True)
-z3, E3, flux3 = rad3.get_history(flatten=True)
-z4, E4, flux4 = rad4.get_history(flatten=True)
+#z3, E3, flux3 = rad3.get_history(flatten=True)
+#z4, E4, flux4 = rad4.get_history(flatten=True)
 
 pl.loglog(E1, E1 * flux1[-1] * erg_per_ev, color='k')
 pl.loglog(E2, E2 * flux2[-1] * erg_per_ev, color='b', ls='--', lw=3)
-pl.loglog(E3, E3 * flux3[-1] * erg_per_ev, color='r', ls=':')
-pl.loglog(E4, E4 * flux4[-1] * erg_per_ev, color='g', ls='--')
+#pl.loglog(E3, E3 * flux3[-1] * erg_per_ev, color='r', ls=':')
+#pl.loglog(E4, E4 * flux4[-1] * erg_per_ev, color='g', ls='--')
 pl.xlabel(ares.util.labels['E'])
 pl.ylabel(ares.util.labels['flux_E'])
 

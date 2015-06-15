@@ -312,6 +312,7 @@ def PopulationParameters():
     
     # Get passed on to litdata instances
     "source_kwargs": {},
+    "pop_kwargs": {},
 
     }
 
