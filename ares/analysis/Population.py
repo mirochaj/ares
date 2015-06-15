@@ -34,7 +34,7 @@ class Population(object):
             Dictionary of 1-sigma errors on the best-fit parameters
         Ns : int
             Number of samples to draw
-        
+
         Examples
         --------
         >>> import ares
@@ -48,16 +48,18 @@ class Population(object):
         >>>
         >>> for i in range(int(models.shape[1])):
         >>>     pl.plot(z, models[:,i], color='b', alpha=0.05)
-       
+
         Returns
         -------
         Array with dimensions `(len(x), Ns)`.
-        
+
         """
 
         # Generate arrays of random values. Keep in dictionary
-        kw = {key:np.random.normal(pars[key], errors[key], Ns) for key in pars}
-        
+        kw = {key:np.random.normal(pars[key], errors[key], Ns) \
+            for key in errors}
+
+        # Handle non-vectorized case
         try:
             return np.array(map(lambda xx: func(xx, **kw), x))
         except ValueError:
@@ -65,12 +67,9 @@ class Population(object):
             for i in range(int(Ns)):
                 new_kw = {key:kw[key][i] for key in kw}
                 arr[:,i] = map(lambda xx: func(xx, **new_kw), x)
-    
+
             return arr
-            
-    def GetBand(self):
-        pass
-    
+
     def PlotLF(self, z):
         """
         Plot the luminosity function.

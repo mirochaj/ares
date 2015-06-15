@@ -62,3 +62,4 @@ def Spectrum(E, t=0.0):
                 E**(_Beta - _Gamma)) * E**-_Beta
     
     return E * F
+        

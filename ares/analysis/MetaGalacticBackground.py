@@ -11,16 +11,17 @@ Description:
 """
 
 import numpy as np
+from ..util import labels
 import matplotlib.pyplot as pl
 from scipy.integrate import trapz
 from ..simulations import MetaGalacticBackground as MGB
+from ..physics.Constants import erg_per_ev, J21_num, h_P, c, E_LL, E_LyA
 
 class MetaGalacticBackground:
     def __init__(self, data=None):
         
-        
         if isinstance(data, MGB):
-            self.data = data.history
+            self.mgb = data
         else:
             raise NotImplemented('Dunno how to handle anything but an MGB instance.')
     
@@ -162,5 +163,143 @@ class MetaGalacticBackground:
         self.ax.set_xscale('log')
         self.ax.set_yscale('log')        
         pl.draw()
-   
+    
+    @property
+    def history(self):
+        if not hasattr(self, '_history'):
+            self._history = self.mgb.get_history(flatten=True)
+        
+        return self._history
+        
+    def PlotBackground(self, z=None, ax=None, fig=1, xaxis='energy', 
+        overplot_edges=True, **kwargs):
+        """
+        Plot meta-galactic background intensity at a single redshift.
+        
+        """
+        
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+            
+        # Read in the history
+        zarr, Earr, flux = self.history
+        
+        if z is None:
+            i_z = -1
+        else:
+            i_z = np.argmin(np.abs(z - zarr))
+            
+        f = flux[i_z] * Earr * erg_per_ev / 1e-21
+            
+        if xaxis == 'energy':
+            x = Earr
+        else:
+            x = h_P * c * 1e8 / (Earr * erg_per_ev)
+            
+        ax.loglog(x, f, **kwargs)
+        
+        if xaxis == 'energy' and not gotax:
+            ax.set_xlabel(labels['E'])
+        elif not gotax:
+            ax.set_xlabel(labels['lambda_AA'])
+        
+        # Add HI and HeII Lyman-alpha and Lyman-limit
+        if overplot_edges and not gotax:
+            if xaxis == 'energy':
+                for nrg in [E_LyA, E_LL, 4*E_LyA, 4*E_LL]:
+                    ax.plot([nrg]*2, ax.get_ylim(), color='k', ls=':')
+            else:                                      
+                for nrg in [E_LyA, E_LL, 4*E_LyA, 4*E_LL]:
+                    ax.plot([h_P * c / (nrg * erg_per_ev)]*2, ax.get_ylim(), 
+                        color='k', ls=':')
+                    
+        ax.set_ylabel(r'$J_{\nu} / J_{21}$')
+        pl.draw()
+        
+        if xaxis == 'energy' and not gotax:
+            self.twinax = self.add_wavelength_axis(ax)
+        elif not gotax:
+            self.twinax = self.add_energy_axis(ax)
+        
+        return ax    
+            
+    def add_wavelength_axis(self, ax):
+        """
+        Take plot with redshift on x-axis and add top axis with corresponding 
+        (observed) 21-cm frequency.
+    
+        Parameters
+        ----------
+        ax : matplotlib.axes.AxesSubplot instance
+        """    
+        
+        return
+    
+        l = np.arange(10, 4000, 20)
+        l_minor = np.arange(30, 230, 20)
+        znu = nu_0_mhz / np.array(nu) - 1.
+        znu_minor = nu_0_mhz / np.array(nu_minor) - 1.
+    
+        ax_freq = ax.twiny()
+        ax_freq.set_xlabel(labels['nu'])        
+        ax_freq.set_xticks(znu)
+        ax_freq.set_xticks(znu_minor, minor=True)
+        ax_freq.set_xlim(ax.get_xlim())
+    
+        freq_labels = map(str, nu)
+    
+        # A bit hack-y
+        for i, label in enumerate(freq_labels):
+            if label in ['140', '180']:
+                freq_labels[i] = ''
+    
+            if float(label) >= 200:
+                freq_labels[i] = ''
+    
+        ax_freq.set_xticklabels(freq_labels)
+    
+        pl.draw()
+    
+        return ax_freq
+        
+    def add_energy_axis(self, ax):
+        """
+        Add rest-frame photon energies on top of plot, assumed to be in 
+        wavelength units on the bottom x-axis.
+    
+        Parameters
+        ----------
+        ax : matplotlib.axes.AxesSubplot instance
+        
+        """    
+        
+        return
 
+        E = 10**np.arange(0., 5.)[-1::-1]
+        #Eminor = np.array([25, 75, 250, 750])[-1::-1]
+        wave = 1e8 * h_P * c / (E * erg_per_ev)
+        #wave_minor = 1e8 * h_P * c / (Eminor * erg_per_ev)
+
+        #wave = ax.get_xticks()
+
+        ax_nrg = ax.twiny()
+        ax_nrg.set_xticks(wave)
+        #ax_nrg.set_xscale('log')
+        #ax_nrg.xaxis.tick_top()
+        ax_nrg.set_xlabel(labels['E']) 
+               
+        #ax_nrg.set_xticks(wave_minor, minor=True)
+        
+        #ax_nrg.set_xticklabels(map(str, E))
+        ax_nrg.set_xlim(ax.get_xlim())
+        ax_nrg.set_xscale('log')
+        
+        pl.draw()
+    
+        return ax_nrg    
+    
+    

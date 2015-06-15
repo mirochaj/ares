@@ -20,6 +20,7 @@ from scipy.integrate import quad
 from .Halo import HaloPopulation
 from .Population import Population
 from collections import namedtuple
+from ..sources.Source import Source
 from ..sources import Star, BlackHole
 from ..util.PrintInfo import print_pop
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
@@ -39,17 +40,19 @@ try:
 except ImportError:
     rank = 0
     size = 1
+
+lftypes = ['schecter', 'dpl']    
     
-class LiteratureSource(object):
+class LiteratureSource(Source):
     def __init__(self, **kwargs):
         self.pf = kwargs
+        Source.__init__(self)
+        
         _src = read_lit(self.pf['pop_sed'])
         
         if hasattr(_src, 'Spectrum'):
-            self.Spectrum = _src.Spectrum
-    
-lftypes = ['schecter', 'dpl']
-
+            self._Intensity = _src.Spectrum
+            
 def normalize_sed(pop):
     """
     Convert yield to erg / g.
@@ -137,6 +140,7 @@ class GalaxyPopulation(HaloPopulation):
         
         This is basically just converting pop_* parameters to source_* 
         parameters.
+        
         """
         if not hasattr(self, '_src_kwargs'):
             self._src_kwargs = {}
@@ -181,55 +185,63 @@ class GalaxyPopulation(HaloPopulation):
     @property
     def is_fcoll_model(self):
         if not hasattr(self, '_is_fcoll_model'):
-            self._is_fcoll_model = (self.pf['pop_lf'] is None) and \
+            self._is_fcoll_model = (self.pf['pop_rhoL'] is None) and \
                 (self.pf['pop_emissivity'] is None)
         return self._is_fcoll_model
-    
-    @property
-    def Lmin(self):
-        if not hasattr(self, '_Lmin'):
-            self._Lmin = self.pf['lf_Lmin']
-    
-        return self._Lmin
-    
-    @property
-    def Lstar(self):
-        if not hasattr(self, '_Lstar'):
-            self._Lstar = self.pf['lf_Lstar']
-    
-        return self._Lstar
         
     @property
-    def phi0(self):    
-        if not hasattr(self, '_phi0'):
-            self._phi0 = self.pf['lf_norm']
+    def rhoL_from_sfrd(self):
+        if not hasattr(self, '_rhoL_from_sfrd'):
+            self._rhoL_from_sfrd = self.is_fcoll_model \
+                or self.pf['pop_sfrd'] is not None
+                
+        return self._rhoL_from_sfrd
     
-        return self._phi0
+    #@property
+    #def Lmin(self):
+    #    if not hasattr(self, '_Lmin'):
+    #        self._Lmin = self.pf['lf_Lmin']
+    #
+    #    return self._Lmin
     
-    @property
-    def lf_type(self):    
-        if not hasattr(self, '_lf_type'):
-            if type(self.pf['pop_lf']) in lftypes:
-                self._lf_type = 'pre-defined'
-            else:
-                self._lf_type = 'user'
+    #@property
+    #def Lstar(self):
+    #    if not hasattr(self, '_Lstar'):
+    #        self._Lstar = self.pf['lf_Lstar']
+    #
+    #    return self._Lstar
+        
+    #@property
+    #def phi0(self):    
+    #    if not hasattr(self, '_phi0'):
+    #        self._phi0 = self.pf['lf_norm']
+    #
+    #    return self._phi0
     
-        return self._lf_type
+    #@property
+    #def lf_type(self):    
+    #    if not hasattr(self, '_lf_type'):
+    #        if type(self.pf['pop_lf']) in lftypes:
+    #            self._lf_type = 'pre-defined'
+    #        else:
+    #            self._lf_type = 'user'
+    #
+    #    return self._lf_type
 
-    @property
-    def lf_zfunc_type(self):    
-        if not hasattr(self, '_lf_zfunc_type'):
-            if type(self.pf['lf_zfunc']) == FunctionType:
-                self._lf_zfunc_type = 'user'
-            elif self.pf['lf_zfunc'] == 'ueda':
-                self._lf_zfunc_type = self._Ueda
-            else:
-                raise NotImplemented('%s not implemented!' % self.pf['lf_zfunc'])
+    #@property
+    #def lf_zfunc_type(self):    
+    #    if not hasattr(self, '_lf_zfunc_type'):
+    #        if type(self.pf['lf_zfunc']) == FunctionType:
+    #            self._lf_zfunc_type = 'user'
+    #        elif self.pf['lf_zfunc'] == 'ueda':
+    #            self._lf_zfunc_type = self._Ueda
+    #        else:
+    #            raise NotImplemented('%s not implemented!' % self.pf['lf_zfunc'])
+    #
+    #    return self._lf_zfunc_type      
     
-        return self._lf_zfunc_type      
-    
-    def norm(self):
-        return quad(lambda x: self.__call__(x), self.Lmin, 1e50)[0]
+    #def norm(self):
+    #    return quad(lambda x: self.__call__(x), self.Lmin, 1e50)[0]
     
     def _SchecterFunction(self, L):
         """
@@ -278,6 +290,8 @@ class GalaxyPopulation(HaloPopulation):
     
         else:
             raise NotImplemented('have not hadded support for anything but schecter yet.')
+    
+    
     
     def LuminosityFunction(self, L, z=None, Emin=None, Emax=None):
         """
@@ -362,58 +376,7 @@ class GalaxyPopulation(HaloPopulation):
             return factor
         
         return 1.0
-    
-    #def LuminosityDensity(self, z, Emin=None, Emax=None, Lmin=None, Lmax=None):
-    #    """
-    #    Compute luminosity density of this population of objects.
-    #            
-    #    Parameters
-    #    ----------
-    #    z : int, float
-    #        Redshift of interest
-    #    
-    #    Returns
-    #    -------
-    #    
-    #    
-    #    """
-    #    
-    #    if Lmin is None:
-    #        Lmin = self.Lmin
-    #    if Lmax is None:
-    #        Lmax = 1e45
-    #    
-    #    integrand = \
-    #        lambda LL: LL * self.LuminosityFunction(LL, z=z, Emin=Emin, Emax=Emax)
-    #    
-    #    LphiL = quad(integrand, Lmin, Lmax)[0]
-    #    
-    #    return LphiL
-    #    
-    #def SpaceDensity(self, z, Lmin=None, Lmax=None):
-    #    """
-    #    Compute space density of this population of objects.
-    #
-    #    ..note:: This is just integrating the LF.
-    #
-    #    Parameters
-    #    ----------
-    #
-    #
-    #
-    #    """
-    #
-    #    if Lmin is None:
-    #        Lmin = self.Lmin
-    #    if Lmax is None:
-    #        Lmax = 1e45
-    #
-    #    integrand = lambda LL: self.LuminosityFunction(LL, z=z)
-    #
-    #    phiL = quad(integrand, Lmin, Lmax)[0]
-    #
-    #    return phiL
-    
+
     @property
     def _sfrd(self):
         if not hasattr(self, '__sfrd'):
@@ -426,7 +389,29 @@ class GalaxyPopulation(HaloPopulation):
                 self.__sfrd = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
         
         return self.__sfrd
-        
+    
+    @property
+    def _lf(self):
+        if not hasattr(self, '__lf'):
+            if self.pf['pop_rhoL'] is None and self.pf['pop_lf'] is None:
+                self.__lf = None
+            elif type(self.pf['pop_rhoL']) is FunctionType:
+                self.__lf = self.pf['pop_rhoL']
+            elif type(self.pf['pop_lf']) is FunctionType:
+                self.__lf = self.pf['pop_lf']  
+            else:
+                for key in ['pop_rhoL', 'pop_lf']:
+                    if self.pf[key] is None:
+                        continue
+                        
+                    tmp = read_lit(self.pf[key])
+                    self.__lf = lambda L, z: tmp.LuminosityFunction(L, z=z,
+                        **self.pf['pop_kwargs'])
+
+                    break
+
+        return self.__lf        
+
     def SFRD(self, z):
         """
         Compute the comoving star formation rate density (SFRD).
@@ -500,19 +485,20 @@ class GalaxyPopulation(HaloPopulation):
         else:
             return emiss    
     
-    def LuminosityDensity(self, z, Emin=None, Emax=None):
-        """
-        Return the luminosity density in the given band.
-        
-        ..note:: By default, returns luminosity density in the reference band 
-            defined by ``pop_lf_EminNorm`` and ``pop_lf_EmaxNorm``
-            
-        Returns
-        -------
-            
-        """
-        
-        return self.Emissivity(z, Emin=Emin, Emax=Emax)
+    
+    #def LuminosityDensity(self, z, Emin=None, Emax=None):
+    #    """
+    #    Return the luminosity density in the given band.
+    #    
+    #    ..note:: By default, returns luminosity density in the reference band 
+    #        defined by ``pop_lf_EminNorm`` and ``pop_lf_EmaxNorm``
+    #        
+    #    Returns
+    #    -------
+    #        
+    #    """
+    #    
+    #    return self.Emissivity(z, Emin=Emin, Emax=Emax)
         
 
         

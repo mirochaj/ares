@@ -288,12 +288,14 @@ class UniformBackground(object):
         zero for all redshifts and energies.
         
         If approx_tau == True, then the optical depth will be computed 
-        assuming a neutral medium for all times. 
+        assuming a neutral medium for all times (including HeI).
         
         If approx_tau is a function, it is assumed to describe the ionized 
         hydrogen fraction as a function of redshift.
         
-        If approx_tau is 
+        If approx_tau is 'post_EoR', we assume the only species left that
+        isn't fully ionized is helium, with 100% of helium having been
+        ionized once. That is, xHI = xHeI = 0, xHeII = 1.
         
         Parameters
         ----------
@@ -319,6 +321,7 @@ class UniformBackground(object):
         # Otherwise, compute optical depth assuming constant ion fractions
         if self.pf['approx_tau'] == True:
             tau = self.volume.TabulateOpticalDepth(z, E)
+            tau += self.volume.TabulateOpticalDepth(z, E, species=1)
         elif self.pf['approx_tau'] is 'post_EoR':            
             tau = self.volume.TabulateOpticalDepth(z, E, species=2)
         

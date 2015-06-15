@@ -64,7 +64,7 @@ def GridParameters():
     "include_cgm": True,
     
     # Line photons
-    "include_H_Lya": True,
+    "include_H_Lya": False,
 
     "initial_ionization": [1. - 1e-8, 1e-8],
     "initial_temperature": 1e4,
@@ -181,7 +181,7 @@ def PhysicsParameters():
     #"redshifts_uvb": 400,
     #"redshifts_xrb": 400,
 
-    "sawtooth_nmax": 23,
+    "sawtooth_nmax": 8,
 
     # Lyman alpha sources
 
@@ -222,7 +222,11 @@ def PopulationParameters():
     
     "pop_type": 'galaxy',
     
+    "pop_rhoL": None,
+    
     "pop_sed": 'pl',
+    
+    "pop_sawtooth": False,
     "pop_solve_rte": False,
     "pop_tau_Nz": 400,
     
@@ -244,7 +248,7 @@ def PopulationParameters():
     "pop_lf_LminNorm": 1e38,
     "pop_lf_LmaxNorm": 1e42,    
     
-    "pop_rhoL": None,
+    
     
     "pop_zform": 50.,
     "pop_zdead": 0.0,
@@ -517,6 +521,8 @@ def ControlParameters():
     "redshift_bins": None,
     "tau_table": None,
     "tau_prefix": tau_prefix,
+
+    "approx_tau": None,
 
     # File format
     "preferred_format": 'pkl',

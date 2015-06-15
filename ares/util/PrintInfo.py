@@ -12,6 +12,7 @@ Description:
 
 import numpy as np
 import types, os, textwrap
+from types import FunctionType
 from .NormalizeSED import emission_bands
 from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz, g_per_msun, s_per_yr
 
@@ -374,6 +375,11 @@ def print_pop(pop):
     # Redshift evolution stuff
     if pop.pf['pop_sfrd'] is not None:
         print line("SF          : parameterized")
+    elif pop.pf['pop_rhoL'] is not None:
+        if type(pop.pf['pop_rhoL']) is FunctionType:
+            print line("rho_L(z)    : parameterized")
+        else:
+            print line("rho_L(z)    : %s" % pop.pf['pop_rhoL'])
     else:
         if pop.pf['pop_Mmin'] is None:
             print line("SF          : in halos w/ Tvir >= 10**%g K" \
@@ -413,6 +419,9 @@ def print_pop(pop):
     elif pop.pf['pop_sed'] == 'mcd':
         print line("mass (Msun)       : %g" % pop.pf['pop_mass'])
         print line("rmax (Rg)         : %g" % pop.pf['pop_rmax'])
+    else:
+        print line("from source       : %s" % pop.pf['pop_sed'])
+        
 
     print "#"*width
 

@@ -24,18 +24,19 @@ qsolf_info = \
 
 qsolf_ple_pars = \
 {
- 'A': 14.1,
+ 'A': 14.1e-6,
  'logLstar': 43.66,
  'gamma1': 0.82,
  'gamma2': 2.37,
  'p1': 2.7,     
  'p2': 0.0,
  'zc': 1.15,
+ 'evolution': 'ple',
 }
 
 qsolf_ple_err = \
 {
- 'A': 1.0,
+ 'A': 1.0e-6,
  'logLstar': 0.17,
  'gamma1': 0.13,
  'gamma2': 0.16,
@@ -46,18 +47,19 @@ qsolf_ple_err = \
 
 qsolf_pde_pars = \
 {
- 'A': 2.64,
+ 'A': 2.64e-6,
  'logLstar': 44.11,
  'gamma1': 0.93,
  'gamma2': 2.23,
  'p1': 4.2,     
  'p2': 0.0,
  'zc': 1.14,    
+ 'evolution': 'pde',
 }
 
 qsolf_pde_err = \
 {
- 'A': 0.18,
+ 'A': 0.18e-6,
  'logLstar': 0.23,
  'gamma1': 0.13,
  'gamma2': 0.15,
@@ -81,40 +83,47 @@ def _evolution_factor_pde(z, p1=4.2, p2=0.0, zc=1.14, **kwargs):
     else:
         return _eofz_f2(z, p1, p2, zc)
 
-#def _zc(L, zcst=1.9, La=_La):
-#    pass
-
 def _LuminosityFunction(L, A=2.64, logLstar=44.11, gamma1=0.93, gamma2=2.23, **kwargs):
     # Defaults from PDE model
     Lstar = 10**logLstar
     return A / ((L / Lstar)**gamma1 + (L / Lstar)**gamma2)
 
-def LuminosityFunction(L, z=0., evolution='pde', **kwargs):
+def LuminosityFunction(L, z=0., **kwargs):
     """
     Compute the 2-10 keV quasar luminosity function.
     
     Parameters
     ----------
     L : int, float
-    
-    evolution : str
+        Luminosity of interest [erg / s]
+    z : int, float
+        Redshift of interest
+        
+    kwags['evolution'] : str
         "ple": Pure Luminosity Evolution (Eq. 11)
         "pde": Pure Density Evolution (Eq. 12)
     """
     
     if not kwargs:
-        kwargs = kwargs_by_evolution[evolution]
+        kwargs = kwargs_by_evolution['pde']
+    elif 'evolution' in kwargs:
+        kw = kwargs_by_evolution[kwargs['evolution']]
+        kw.update(kwargs)
+        kwargs = kw  
+    elif 'evolution' not in kwargs:
+        kwargs['evolution'] = 'pde'
         
-    if evolution == 'ple':
+    if kwargs['evolution'] == 'ple':
         Lprime = L / _evolution_factor_pde(z, **kwargs)
         NofL = _LuminosityFunction(Lprime, **kwargs)
-    elif evolution == 'pde':
+    elif kwargs['evolution'] == 'pde':
         NofL = _LuminosityFunction(L, **kwargs)
         NofL *= _evolution_factor_pde(z, **kwargs)
-    elif evolution == 'ldde':
+    elif kwargs['evolution'] == 'ldde':
         raise NotImplemented('ldde help!')
     else:
-        raise ValueError('Unrecognized evolution model: %s' % evolution)
+        raise ValueError('Unrecognized evolution model: %s' \
+            % kwargs['evolution'])
     
     return NofL
     
