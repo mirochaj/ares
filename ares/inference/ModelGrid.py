@@ -536,8 +536,7 @@ class ModelGrid:
             pickle.dump(load_all, f)
             f.close()            
         
-        print "Processor %i: Wrote %s.chain.pkl, %s.blobs.pkl, and %s.load.pkl" \
-            % (rank, prefix, prefix, prefix)
+        print "Processor %i: Wrote %s.*.pkl" % (rank, prefix)
         
         # Send the key to the next processor
         if rank != (size-1):

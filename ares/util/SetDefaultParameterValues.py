@@ -503,7 +503,7 @@ def TanhParameters():
     'tanh_x0': 1.0,
     'tanh_xz0': 10.,
     'tanh_xdz': 2.,
-    'tanh_dz': 0.1,  # Redshift sampling
+    'tanh_dz': 0.025,  # Redshift sampling
     'tanh_bias_temp': 0.0,   # in mK
     'tanh_bias_freq': 0.0,   # in MHz
     'tanh_nu': None, # Array of frequencies in MHz

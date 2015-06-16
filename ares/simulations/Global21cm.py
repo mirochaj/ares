@@ -77,7 +77,7 @@ class Global21cm:
                     else:
                         z = np.arange(self.pf['final_redshift'] + self.pf['tanh_dz'],
                             self.pf['initial_redshift'], self.pf['tanh_dz'])[-1::-1]
-                    
+                                        
                     self.history = tanh_model(z, **self.pf).data
 
                     self.grid = Grid(dims=1)

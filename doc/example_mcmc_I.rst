@@ -6,7 +6,7 @@ and perform a fit to the turning points in the global 21-cm signal.
 
 .. note :: Development of a generalized fitter is currently underway.
 
-The fastest model to fit is that of a tanh, as in Harker et al. (2015).
+The fastest model to fit is one treating the Lyman-:math:`\alpha`, ionization, and thermal histories as a tanh function:
 
 ::
 

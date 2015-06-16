@@ -90,7 +90,7 @@ class Hydrogen:
         self.tabulated_coeff = \
             {'kappa_H': kappa_HH, 'kappa_e': kappa_He, 
              'T_H': T_HH, 'T_e': T_He}
-    
+
     @property
     def kappa_H_pre(self):
         if not hasattr(self, '_kappa_H_pre'):                            
@@ -101,8 +101,8 @@ class Hydrogen:
 
     @property
     def kappa_e_pre(self):
-        if not hasattr(self, '_kappa_e_pre'):                            
-            self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He, 
+        if not hasattr(self, '_kappa_e_pre'):     
+            self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He,
                 kind='cubic', bounds_error=False, fill_value=0.0)
 
         return self._kappa_e_pre

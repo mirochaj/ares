@@ -1388,7 +1388,7 @@ class ModelSet(object):
         
         pars, take_log, multiplier, z = \
             self._listify_common_inputs(pars, take_log, multiplier, z)        
-            
+                        
         to_hist = []
         is_log = []
         for k, par in enumerate(pars):
@@ -1422,8 +1422,11 @@ class ModelSet(object):
                     to_hist.append(val)
         
         # Re-organize
-        data = {par:to_hist[i] for i, par in enumerate(pars)}
-        is_log = {par:is_log[i] for i, par in enumerate(pars)}
+        if len(np.unique(pars)) < len(pars):
+            data = to_hist
+        else:    
+            data = {par:to_hist[i] for i, par in enumerate(pars)}
+            is_log = {par:is_log[i] for i, par in enumerate(pars)}
                     
         return data, is_log
 
@@ -1432,31 +1435,44 @@ class ModelSet(object):
         Create a vector of bins to be used when plotting PDFs.
         """
         
-        binvec = {}
+        if type(to_hist) is dict:
+            binvec = {}
+        else:
+            binvec = []
+            
         for k, par in enumerate(pars):
+            
+            if type(to_hist) is dict:
+                tohist = to_hist[par]
+            else:
+                tohist = to_hist[k]
         
             if self.is_mcmc or (par not in self.parameters) or \
                 not hasattr(self, 'axes'):
                 if type(bins) == int:
-                    valc = to_hist[par]
-                    binvec[par] = np.linspace(valc.min(), valc.max(), bins)
+                    valc = tohist
+                    bvp = np.linspace(valc.min(), valc.max(), bins)
                 elif type(bins[k]) == int:
-                    valc = to_hist[par]
-                    binvec[par] = np.linspace(valc.min(), valc.max(), bins[k])
+                    valc = tohist
+                    bvp = np.linspace(valc.min(), valc.max(), bins[k])
                 else:
-                    binvec[par] = bins[k]
+                    bvp = bins[k]
                     #if take_log[k]:
                     #    binvec.append(np.log10(bins[k]))
                     #else:
                     #    binvec.append(bins[k])
             else:
                 if take_log[k]:
-                    binvec[par] = np.log10(self.axes[par])
+                    bvp = np.log10(self.axes[par])
                 else:
-                    binvec[par] = self.axes[par]
+                    bvp = self.axes[par]
+        
+            if type(to_hist) is dict:
+                binvec[par] = bvp
+            else:
+                binvec.append(bvp)
         
         return binvec
-        
         
     def _set_inputs(self, pars, inputs, is_log, take_log, multiplier):
         """
@@ -1476,7 +1492,10 @@ class ModelSet(object):
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)    
             
-        input_dict = {}
+        if len(np.unique(pars)) < len(pars):
+            input_output = []
+        else:
+            input_output = {}
         
         Nd = len(pars)
         
@@ -1496,7 +1515,10 @@ class ModelSet(object):
             else:
                 vin = val * multiplier[i]    
                 
-            input_dict[par] = vin
+            if type(input_output) is dict:
+                input_output[par] = vin
+            else:
+                input_output.append(vin)
         
         # Loop over parameters
         #for i, p1 in enumerate(pars[-1::-1]):
@@ -1534,9 +1556,8 @@ class ModelSet(object):
         #        else:
         #            xin = val * multiplier[-1::-1][Nd-j-1]
                 
-                
-
-        return input_dict
+            
+        return input_output
         
     def _listify_common_inputs(self, pars, take_log, multiplier, z):
         if type(pars) not in [list, tuple]:
@@ -1554,8 +1575,8 @@ class ModelSet(object):
             
         return pars, take_log, multiplier, z
 
-    def PosteriorCDF(self, pars, **kwargs):
-        return self.PosteriorPDF(pars, cdf=True, **kwargs)
+    def PosteriorCDF(self, pars, bins=500, **kwargs):
+        return self.PosteriorPDF(pars, bins=bins, cdf=True, **kwargs)
                
     def PosteriorPDF(self, pars, to_hist=None, is_log=None, z=None, ax=None, fig=1, 
         multiplier=1., nu=[0.95, 0.68], overplot_nu=False, density=True, cdf=False,
@@ -1648,10 +1669,20 @@ class ModelSet(object):
         
         # Marginalized 1-D PDFs 
         if len(pars) == 1:
+                        
+            if type(to_hist) is dict:
+                tohist = to_hist[pars[0]][skip:]
+                b = binvec[pars[0]]
+            elif type(to_hist) is list:
+                tohist = to_hist[0][skip:]
+                b = binvec[0]
+            else:
+                tohist = to_hist
+                b = bins
             
             hist, bin_edges = \
-                np.histogram(to_hist[pars[0]][skip:], density=density, 
-                    bins=binvec[pars[0]], weights=weights)
+                np.histogram(tohist, density=density, 
+                    bins=b, weights=weights)
 
             bc = rebin(bin_edges)
             
@@ -1678,10 +1709,18 @@ class ModelSet(object):
             #    else:
             #        to_hist[1] = to_hist[1][0:to_hist[0].size]
 
+            if type(to_hist) is dict:
+                tohist1 = to_hist[pars[0]][skip:]
+                tohist2 = to_hist[pars[1]][skip:]
+                b = [binvec[pars[0]], binvec[pars[1]]]
+            else:
+                tohist1 = to_hist[0][skip:]
+                tohist2 = to_hist[1][skip:]
+                b = [binvec[0], binvec[1]]
+
             # Compute 2-D histogram
             hist, xedges, yedges = \
-                np.histogram2d(to_hist[pars[0]][skip:], to_hist[pars[1]][skip:], 
-                    bins=[binvec[pars[0]], binvec[pars[1]]], weights=weights)
+                np.histogram2d(tohist1, tohist2, bins=b, weights=weights)
 
             hist = hist.T
 
@@ -2012,7 +2051,7 @@ class ModelSet(object):
                 
         pars, take_log, multiplier, z = \
             self._listify_common_inputs(pars, take_log, multiplier, z)
-        
+                
         kw = def_kwargs.copy()
         kw.update(kwargs)
                         
@@ -2030,8 +2069,11 @@ class ModelSet(object):
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)      
                             
-        bins = [binvec[par] for par in pars]      
-                
+        if type(binvec) is not list:
+            bins = [binvec[par] for par in pars]      
+        else:
+            bins = binvec    
+                                
         if oned:
             Nd = len(pars)
         else:
@@ -2062,6 +2104,7 @@ class ModelSet(object):
         inputs = self._set_inputs(pars, inputs, is_log, take_log, multiplier)
 
         # Loop over parameters
+        # p1 is the y-value, p2 is the x-value
         for i, p1 in enumerate(pars[-1::-1]):
             for j, p2 in enumerate(pars):
 
@@ -2086,15 +2129,23 @@ class ModelSet(object):
                 
                 # Read-in inputs values
                 if inputs is not None:
-                    xin = inputs[p2]
-                    yin = inputs[p1]
+                    if type(inputs) is dict:
+                        xin = inputs[p2]
+                        yin = inputs[p1]
+                    else:
+                        xin = inputs[j]
+                        yin = inputs[-1::-1][i]
                 else:
                     xin = yin = None
 
                 # 1-D PDFs on the diagonal    
                 if k in mp.diag and oned:
 
-                    ax = self.PosteriorPDF(p1, to_hist=to_hist, is_log=is_log,
+                    # Grab array to be histogrammed
+                    tohist = [to_hist[j]]
+
+                    # Plot the PDF
+                    ax = self.PosteriorPDF(p1, to_hist=tohist, is_log=is_log,
                         ax=mp.grid[k], take_log=take_log[-1::-1][i], z=z[-1::-1][i],
                         multiplier=[multiplier[-1::-1][i]], 
                         bins=[bins[-1::-1][i]], skip=skip, skim=skim, 
@@ -2134,9 +2185,11 @@ class ModelSet(object):
                 # If not oned, may end up with some x vs. x plots if we're not careful
                 if p1 == p2 and (red[0] == red[1]):
                     continue
-
+                                
+                tohist = [to_hist[j], to_hist[-1::-1][i]]
+                
                 # 2-D PDFs elsewhere
-                ax = self.PosteriorPDF([p2, p1], to_hist=to_hist, is_log=is_log,
+                ax = self.PosteriorPDF([p2, p1], to_hist=tohist, is_log=is_log,
                     ax=mp.grid[k], z=red, take_log=[take_log[j], take_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, 

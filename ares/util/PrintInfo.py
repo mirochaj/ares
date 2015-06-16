@@ -729,10 +729,17 @@ def print_model_set(mset):
     print line('-'*twidth)
 
     i = mset.prefix.rfind('/') # forward slash index
-    path = mset.prefix[0:i]
+    
+    # This means we're sitting in the right directory already
+    if i == - 1:
+        path = './'
+        prefix = mset.prefix
+    else:
+        path = mset.prefix[0:i+1]
+        prefix = mset.prefix[i+1:]
 
-    print line("path        : %s" % mset.prefix[0:i])
-    print line("prefix      : %s" % mset.prefix[i:])
+    print line("path        : %s" % path)    
+    print line("prefix      : %s" % prefix)
     print line("N-d         : %i" % len(mset.parameters))
 
     print line('-'*twidth)
@@ -740,13 +747,31 @@ def print_model_set(mset):
         print line("param    #%s: %s" % (str(i).zfill(2), par))
 
     print line('-'*twidth)
-    print line('Data Available (filename = prefix + .suffix*.pkl)')     
+    print line('Data Available (filename = prefix + .suffix*.pkl)')
     print line('-'*twidth)
 
     suffixes = []
-    for fn in glob.glob('%s*' % mset.prefix):
+    for fn in glob.glob('%s%s*' % (path, prefix)):
 
         if not re.search('.pkl', fn):
+            continue
+
+        suffix = fn.split('.')[1]
+
+        if suffix not in suffixes:
+            suffixes.append(suffix)
+
+    for i, suffix in enumerate(suffixes):
+        print line("suffix   #%s: %s" % (str(i).zfill(2), suffix))
+        
+    print line('-'*twidth)
+    print line('Data Products (filename = prefix + .suffix*.hdf5)')
+    print line('-'*twidth)    
+    
+    suffixes = []
+    for fn in glob.glob('%s%s*' % (path, prefix)):
+
+        if not re.search('.hdf5', fn):
             continue
 
         suffix = fn.split('.')[1]

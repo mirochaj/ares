@@ -116,7 +116,7 @@ def error_1D(x, y, nu=0.68, limit=None):
     cdf = np.cumsum(y) / float(tot)
 
     if limit is None:
-        percent = (1. - nu) / 2
+        percent = (1. - nu) / 2.
         p1, p2 = percent, 1. - percent
         
         x1 = np.interp(p1, cdf, x)
@@ -125,7 +125,7 @@ def error_1D(x, y, nu=0.68, limit=None):
         
         return xML, (xML - x1, x2 - xML)
     elif limit == 'lower':
-        return np.interp(1. - nu, cdf, x), (None, None)
+        return np.interp((1. - nu), cdf, x), (None, None)
     elif limit == 'upper':
         return np.interp(nu, cdf, x), (None, None)
     else:
