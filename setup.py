@@ -127,6 +127,10 @@ if not os.path.exists('optical_depth/%s' % fn_tau2):
     urllib.urlretrieve('%s/%s' % (bitbucket_DL, fn_tau2), fn_tau2)
     os.chdir('..')
 
+# Go back down to the root level, otherwise the user will get slightly 
+# incorrect instructions for how to set the ARES environment variable
+os.chdir('..')    
+
 ##
 # TELL PEOPLE TO SET ENVIRONMENT VARIABLE
 ##
@@ -137,7 +141,9 @@ if not os.getenv('ARES'):
     cwd = os.getcwd()
     shell = os.getenv('SHELL')
     
-    print "\nIt would be in your best interest to set an environment variable",
+    print "\n"
+    print "#"*92
+    print "It would be in your best interest to set an environment variable",
     print "pointing to this directory."
         
     if shell:    
@@ -148,5 +154,6 @@ if not os.getenv('ARES'):
         elif re.search('csh', shell):
             print "Looks like you're using csh, so add the following to your .cshrc:"
             print "\n    setenv ARES %s" % cwd
-        
 
+    print "#"*92        
+    print "\n"
