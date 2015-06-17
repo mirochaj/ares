@@ -184,10 +184,10 @@ Stay tuned.
 Summary
 -------
 The procedure of repeatedly calling the generator, updating rate coefficients,
-and storing data is what is happening ''under the hood'' each time you call the
-`run` method of a class in the :py:mod:`ares.simulations` module. If you come
-up with some new type of calculation and are tired of calling the `step` 
-function explicitly, perhaps it's time to create a new submodule in 
-:py:mod:`ares.simulations` module! 
+and storing data is what is happening ''under the hood'' each time you call
+the `run` method of a class in the :py:mod:`ares.simulations` module. If you
+come up with some new type of calculation and are tired of calling the `step`
+function explicitly, perhaps it's time to create a new submodule in
+:py:mod:`ares.simulations` module!
 
 

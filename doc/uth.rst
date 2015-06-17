@@ -1,7 +1,9 @@
 Under the Hood
 ==============
-These subsections are all sub-modules within *ares*. They can be used 
-on their own, or, 
+These subsections are all sub-modules within *ares*. Most of them are used in calculations run using ares.simulations modules, though they can also be used 
+on their own. 
+
+A lot of these are just placeholders right now. Sorry!
 
 Radiation Sources
 -----------------
@@ -47,3 +49,7 @@ Solvers
 Simulation Drivers
 ------------------
 NotImplemented
+
+Analysis Routines
+----------------- 
+* :doc:`uth_anl_multiplot`

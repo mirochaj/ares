@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, urllib
+import os, urllib, shutil
 
 try:
     from setuptools import setup
@@ -60,6 +60,7 @@ os.chdir('input')
 # Link prefixes we need
 bitbucket_DL = 'https://bitbucket.org/mirochaj/ares/downloads'
 sfurlane_xray = 'http://www.astro.ucla.edu/~sfurlane/docs'
+s99_seds = 'http://www.stsci.edu/science/starburst99/data'
 
 # Filenames
 fn_hmf = 'hmf_ST_logM_1200_4-16_z_1121_4-60.pkl'
@@ -87,6 +88,30 @@ if not os.path.exists('secondary_electrons/secondary_electron_data.pkl'):
     
     # Convert data to more convenient format
     execfile('read_FJS10.py')
+    
+    os.chdir('..')
+
+# Next, starburst 99 dataset from Leitherer et al. 1999 (original paper)
+if not os.path.exists('starburst99'):
+    os.mkdir('starburst99')
+
+if not os.path.exists('starburst99/data.tar.gz'):
+    os.chdir('starburst99')
+    print "\nDownloading %s/data.tar.gz..." % s99_seds
+    urllib.urlretrieve('%s/data.tar.gz' % s99_seds, 'data.tar.gz')
+    os.chdir('..')
+    
+if not os.path.exists('starburst99/fig1a.dat'):
+    os.chdir('starburst99')
+    
+    import tarfile
+    tar = tarfile.open('data.tar.gz')
+    tar.extractall()
+    tar.close()
+    
+    for fn in os.listdir('data'):
+        shutil.move('data/%s' % fn, '.')
+    os.rmdir('data')
     
     os.chdir('..')
 

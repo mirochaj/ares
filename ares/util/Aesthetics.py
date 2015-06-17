@@ -73,6 +73,8 @@ common = \
  't_myr': r'$t \ (\mathrm{Myr})$',
  'flux': label_flux_phot, 
  'flux_E': label_flux_nrg, 
+ 'intensity_AA': r'$\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{\AA}^{-1}$', 
+ 'lambda_AA': r'$\lambda \ (\AA)$', 
  'E': label_nrg,  
  'heat_mpc': label_heat_mpc,  
  'dTbdnu': label_dTbdnu,
@@ -86,6 +88,7 @@ common = \
  'xi_LW': r'$\xi_{\mathrm{LW}}$',
  'xi_UV': r'$\xi_{\mathrm{ion}}$',
  'sfrd': r'$\dot{\rho}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ 'extinction_redshift': r'$z_{\mathrm{ext}}$',
  
  'source_logN': r'$\log_{10} N_{\mathrm{H}}$',
  'source_alpha': r'$\alpha$',

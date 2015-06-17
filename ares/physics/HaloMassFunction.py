@@ -11,12 +11,12 @@ Description:
 
 import numpy as np
 import pickle, os, re
-from ..physics import Cosmology
-from ..util import ParameterFile
+from . import Cosmology
 from scipy.misc import derivative
 from ..util.Math import central_difference
 from ..util.ProgressBar import ProgressBar
-from ..physics.Constants import g_per_msun, cm_per_mpc
+from .Constants import g_per_msun, cm_per_mpc
+from ..util.ParameterFile import ParameterFile
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline
 
 try:
@@ -54,7 +54,7 @@ transfer_pars = \
  'transfer__k_per_logint': 0.,
 }
 
-class HaloPopulation(object):
+class HaloMassFunction(object):
     def __init__(self, **kwargs):
         """
         Initialize HaloDensity object.
@@ -79,7 +79,7 @@ class HaloPopulation(object):
             Maximum redshift in mass function table.
         dz : float
             Redshift resolution in mass function table.
-        fitting_function : str
+        hmf_func : str
             Halo mass function fitting function. Options are:
                 PS
                 ST
@@ -97,7 +97,7 @@ class HaloPopulation(object):
         hmf_table : str
             HDF5 or binary file containing fcoll table.  
         hmf_analytic : bool
-            If fitting_function == 'PS', will compute fcoll analytically.
+            If hmf_func == 'PS', will compute fcoll analytically.
             Used as a check of numerical calculation.
         compute_dndM : bool
         compute_MgtM : bool
@@ -124,19 +124,19 @@ class HaloPopulation(object):
             primordial_index=self.pf['primordial_index'])
         
         self.fn = self.pf["hmf_table"]
-        self.fitting_function = self.pf['fitting_function']
+        self.hmf_func = self.pf['hmf_func']
         
         self.hmf_analytic = self.pf['hmf_analytic']
         
         # Look for tables in input directory
-        if ARES is not None and self.pf['load_hmf']:
+        if ARES is not None and self.pf['hmf_load']:
             fn = '%s/input/hmf/%s' % (ARES, self.table_prefix())
             if os.path.exists('%s.pkl' % fn):
                 self.fn = '%s.pkl' % fn
             elif os.path.exists('%s.hdf5' % fn):
                 self.fn = '%s.hdf5' % fn    
                 
-        if self.fitting_function == 'PS' and self.hmf_analytic:
+        if self.hmf_func == 'PS' and self.hmf_analytic:
             self.fn = None        
         
         # Either create table from scratch or load one if we found a match
@@ -207,12 +207,12 @@ class HaloPopulation(object):
         self.Nm = np.logspace(self.logMmin, self.logMmax, self.dlogM).size
                 
         if rank == 0:    
-            print "\nComputing %s mass function..." % self.fitting_function    
+            print "\nComputing %s mass function..." % self.hmf_func    
                 
         # Initialize Perturbations class
         self.MF = MassFunction(Mmin=self.logMmin, Mmax=self.logMmax, 
             dlog10m=self.dlogM, z=self.z[0], 
-            mf_fit=self.fitting_function, transfer_options=transfer_pars,
+            mf_fit=self.hmf_func, transfer_options=transfer_pars,
             **cosmology)
             
         # Masses in hmf are in units of Msun / h
@@ -237,7 +237,7 @@ class HaloPopulation(object):
                 continue
                 
             # Compute collapsed fraction
-            if self.fitting_function == 'PS' and self.hmf_analytic:
+            if self.hmf_func == 'PS' and self.hmf_analytic:
                 delta_c = self.MF.delta_c / self.MF.growth
                 self.fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
             else:
@@ -280,10 +280,10 @@ class HaloPopulation(object):
         self.logM_min = np.zeros_like(self.z)        
         self.fcoll_Tmin = np.zeros_like(self.z)
         for i, z in enumerate(self.z):
-            if self.pf['Mmin'] is None:
+            if self.pf['pop_Mmin'] is None:
                 self.logM_min[i] = np.log10(self.VirialMass(Tmin, z, mu=mu))
             else:
-                self.logM_min[i] = np.log10(self.pf['Mmin'])
+                self.logM_min[i] = np.log10(self.pf['pop_Mmin'])
                     
             self.fcoll_Tmin[i] = self.fcoll(z, self.logM_min[i])
         
@@ -365,7 +365,7 @@ class HaloPopulation(object):
         
         try:
             M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
-            prefix = 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.fitting_function, 
+            prefix = 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.hmf_func, 
                 self.logM.size, M1, M2, self.z.size, self.zmin, self.zmax)           
         except AttributeError:
             M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
@@ -374,7 +374,7 @@ class HaloPopulation(object):
                 / self.pf['hmf_dlogM']
             zsize = (self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
                 / self.pf['hmf_dz'] + 1    
-            return 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.fitting_function, 
+            return 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.hmf_func, 
                 logMsize, M1, M2, zsize, z1, z2) 
                 
         return prefix           

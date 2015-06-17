@@ -29,7 +29,22 @@ except ImportError:
     
 ARES = os.environ.get('ARES')
 
-def read_lit(prefix):
+def read_lit(prefix, path=None):
+    """
+    Read data from the literature.
+    
+    Parameters
+    ----------
+    prefix : str
+        Everything preceeding the '.py' in the name of the module.
+    path : str
+        If you want to look somewhere besides $ARES/input/litdata, provide
+        that path here.
+        
+    """
+    
+    if path is not None:
+        prefix = '%s/%s' % (path, prefix)
     
     # Load custom defaults    
     if os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix)):
@@ -41,17 +56,24 @@ def read_lit(prefix):
     
     return mod
 
-def flatten_flux(flux):
+def flatten_energies(E):
     """
     Take fluxes sorted by Lyman-n band and flatten to single energy
     dimension.
     """
 
     to_return = []
-    for i, flux_seg in enumerate(flux):
-        to_return.extend(flux_seg)
+    for i, band in enumerate(E):
+        if type(band) is list:
+            for j, flux_seg in enumerate(band):
+                to_return.extend(flux_seg)
+        else:
+            to_return.extend(band)
 
     return np.array(to_return)
+
+def flatten_flux(flux):
+    return flatten_energies(flux)
 
 def split_flux(energies, fluxes):
     """

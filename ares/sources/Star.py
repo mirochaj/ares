@@ -52,7 +52,6 @@ class Star(Source):
         
         self.pf = StellarParameters()
         self.pf.update(kwargs)
-        
         Source.__init__(self)
         
         self._name = 'star'
@@ -63,7 +62,7 @@ class Star(Source):
         # temperature self.T. Use to solve for stellar radius (which we need 
         # to get Lbol).  The factor of pi gets rid of the / sr units
         QNorm = np.pi * 2. * (k_B * self.T)**3 * \
-                quad(lambda x: x**2 / (np.exp(x) - 1.), 
+                quad(lambda x: x**2 / (np.exp(x) - 1.),
                 13.6 * erg_per_ev / k_B / self.T, np.inf)[0] \
                 / h**3 / c**2 
 

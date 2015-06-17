@@ -12,8 +12,7 @@ Description:
 
 import types, sys
 import numpy as np
-from ..physics import Cosmology
-from .Halo import HaloPopulation
+from . import HaloPopulation
 from scipy.integrate import quad
 from ..util import ParameterFile
 from ..physics.Constants import *
@@ -21,7 +20,7 @@ from ..util.PrintInfo import print_pop
 from ..util.NormalizeSED import norm_sed
 from ..util.Warnings import negative_SFRD
 
-class StellarPopulation:
+class StellarPopulation(HaloPopulation):
     def __init__(self, grid=None, init_rs=True, **kwargs):
         """
         Initialize a stellar-population object.
@@ -33,23 +32,8 @@ class StellarPopulation:
             Initialize an sources.RadiationSource object?
         
         """
-        self.pf = ParameterFile(**kwargs)
-                
-        self.grid = grid
-           
-        if grid is None:
-            self.cosm = Cosmology(
-                omega_m_0=self.pf['omega_m_0'], 
-                omega_l_0=self.pf['omega_l_0'], 
-                omega_b_0=self.pf['omega_b_0'],  
-                hubble_0=self.pf['hubble_0'],  
-                helium_by_number=self.pf['helium_by_number'], 
-                cmb_temp_0=self.pf['cmb_temp_0'], 
-                approx_highz=self.pf['approx_highz'], 
-                sigma_8=self.pf['sigma_8'], 
-                primordial_index=self.pf['primordial_index'])
-        else:
-            self.cosm = grid.cosm
+        
+        HaloPopulation.__init__(self, **kwargs)
             
         self.model = -1   
             
@@ -69,48 +53,6 @@ class StellarPopulation:
         # Print info to screen
         print_pop(self)
         
-    @property
-    def fcoll(self):
-        if not hasattr(self, '_fcoll'):
-            self._init_pop()
-        
-        return self._fcoll
-    
-    @property
-    def dfcolldz(self):
-        if not hasattr(self, '_dfcolldz'):
-            self._init_pop()
-    
-        return self._dfcolldz
-        
-    @property
-    def d2fcolldz2(self):
-        if not hasattr(self, '_d2fcolldz2'):
-            self._init_pop()
-    
-        return self._d2fcolldz2
-
-    def _set_fcoll(self, Tmin, mu):
-        self.Tmin = Tmin
-        self.pf.update({'Tmin': Tmin})
-        self._fcoll, self._dfcolldz, self._d2fcolldz2 = \
-            self.halos.build_1d_splines(Tmin, mu)
-
-    def _init_pop(self):
-        
-        if self.pf['emissivity'] is not None:
-            return
-        if self.pf['sfrd'] is not None:
-            return
-        
-        # Halo stuff            
-        if self.pf['fcoll'] is None:
-            self.halos = HaloPopulation(**self.pf)
-            self._set_fcoll(self.pf['Tmin'], self.pf['mu'])
-        else:            
-            self._fcoll, self._dfcolldz, self._d2fcolldz2 = \
-                self.pf['fcoll'], self.pf['dfcolldz'], self.pf['d2fcolldz2']
-
     def _init_rs(self):
         """
         Initialize RadiationSource (rt1d) instance - normalize LW, UV, and

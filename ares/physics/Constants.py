@@ -41,7 +41,7 @@ s_per_gyr = s_per_myr*1e3
 sqdeg_per_std = 180.0**2 / pi**2
 
 # General constants
-h = 6.626068e-27     			# Planck's constant - [h] = erg*s
+h = h_p = h_P = 6.626068e-27    # Planck's constant - [h] = erg*s
 h_bar = h / 2 / pi   			# H-bar - [h_bar] = erg*s
 c = 29979245800.0 				# Speed of light - [c] = cm/s
 k_B = 1.3806503e-16			    # Boltzmann's constant - [k_B] = erg/K

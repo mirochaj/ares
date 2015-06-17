@@ -49,6 +49,7 @@ Contents
    fields
    uth
    structure
+   troubleshooting
    contributing
    acknowledgements
 

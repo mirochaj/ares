@@ -1,6 +1,6 @@
 """
 
-BlackHoleSource.py
+BlackHole.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -40,10 +40,9 @@ class BlackHole(Source):
         """  
         
         self.pf = BlackHoleParameters()
-        self.pf.update(kwargs)
-        
+        self.pf.update(kwargs)    
         Source.__init__(self)
-        
+                
         self._name = 'bh'
         
         self.M0 = self.pf['source_mass']
@@ -81,7 +80,8 @@ class BlackHole(Source):
             self._UserDefined = self.pf['source_sed']
         else:
             from_lit = read_lit(self.pf['source_sed'])
-            self._UserDefined = from_lit.Spectrum
+            src = from_lit.Source()
+            self._UserDefined = src.Spectrum
             
         # Convert spectral types to strings
         #self.N = len(self.spec_pars['type'])
@@ -104,13 +104,6 @@ class BlackHole(Source):
         #    self.type_by_num.append(sptype)
         #    self.type_by_name.append(sptypes.keys()[sptypes.values().index(sptype)])                
                 
-    @property
-    def intrinsic_hardening(self):
-        if not hasattr(self, '_intrinsic_hardening'):            
-            self._intrinsic_hardening = self.pf['source_hardening'] == 'intrinsic'
-            
-        return self._intrinsic_hardening
-        
     def _SchwartzchildRadius(self, M):
         return 2. * self._GravitationalRadius(M)
 
@@ -148,7 +141,7 @@ class BlackHole(Source):
 
         return E**self.pf['source_alpha']
         
-    def _SIMPL(self, E, t):
+    def _SIMPL(self, E, t=0.0):
         """
         Purpose:
         --------
@@ -181,12 +174,13 @@ class BlackHole(Source):
         if self.pf['source_sed'] == 'zebra':
             nin = lambda E0: _Planck(E0, self.T) / E0
         else:
-            nin = lambda E0: self._MultiColorDisk(E0, i, t) / E0
+            nin = lambda E0: self._MultiColorDisk(E0, t) / E0
     
         fsc = self.pf['source_fsc']
 
         # Output photon distribution - integrate in log-space         
-        integrand = lambda E0: nin(10**E0) * self._GreensFunctionSIMPL(10**E0, E, i) * 10**E0
+        integrand = lambda E0: nin(10**E0) \
+            * self._GreensFunctionSIMPL(10**E0, E) * 10**E0
 
         nout = (1.0 - fsc) * nin(E) + fsc \
             * quad(integrand, np.log10(self.Emin),
@@ -283,10 +277,6 @@ class BlackHole(Source):
             Lnu *= self._hardening_factor(E)
         
         return Lnu          
-            
-    def _hardening_factor(self, E):
-        return np.exp(-10.**self.pf['source_logN'] \
-            * (sigma_E(E, 0) + self.cosm.y * sigma_E(E, 1)))
             
     #def _NormalizeSpectrum(self, t=0.):
     #    Lbol = self.Luminosity()

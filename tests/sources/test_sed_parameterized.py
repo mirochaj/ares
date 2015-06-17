@@ -10,10 +10,10 @@ Description: See if passing spectrum_function parameter works.
 
 """
 
-import rt1d
+import ares
 import matplotlib.pyplot as pl
 
-BBfunc = rt1d.sources.StellarSource._Planck
+BBfunc = rt1d.sources.Star._Planck
 
 # First, use StellarSource class
 sim = rt1d.run.Simulation(problem_type=2, stop_time=30)

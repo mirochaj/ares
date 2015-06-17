@@ -12,8 +12,8 @@ class instances.
 
 import re
 import numpy as np
-from .Stellar import StellarPopulation
-from .BlackHole import BlackHolePopulation
+from ..util import ParameterFile
+from .Galaxy import GalaxyPopulation
             
 class CompositePopulation:
     def __init__(self, **kwargs):
@@ -21,41 +21,11 @@ class CompositePopulation:
         Initialize a CompositePopulation object, i.e., a list of *Population instances.
         """
         
-        self.kwargs = kwargs.copy()
-        self.other_kw = self.kwargs.copy()
+        self.pf = ParameterFile(**kwargs)
         
-        N = 1
-        # Determine number of populations
-        #for par in ['source_kwargs', 'spectrum_kwargs']:
-        #    if par in self.other_kw:
-        #        self.other_kw.pop(par)
-        #    
-        #    if par not in self.kwargs:
-        #        continue
-        #    if self.kwargs[par] is None:
-        #        continue
-        #
-        #    if type(self.kwargs[par]) is list:    
-        #        N = max(N, len(self.kwargs[par]))                    
-
-        self.N = self.Npops = N        
-        self.pfs = [self.other_kw.copy() for i in xrange(N)]    
-        
-        # If source_kwargs/spectrum_kwargs supplied, make list of parameter files 
-        for i, par in enumerate(['source_kwargs', 'spectrum_kwargs']):
-            if par not in kwargs:
-                continue
-                
-            kw = kwargs[par] # source_kwargs or spectrum_kwargs
+        N = self.Npops = self.pf.Npops        
+        self.pfs = self.pf.pfs
             
-            # Add components to each population's pf
-            if type(kw) is list and N > 1:
-                for j in xrange(N):
-                    self.pfs[j].update(kw[j])
-            elif type(kw) is dict:
-                for j in xrange(N):
-                    self.pfs[j].update(kw)
-                        
         self.BuildPopulationInstances()
         
     def BuildPopulationInstances(self):
@@ -65,11 +35,9 @@ class CompositePopulation:
         
         self.pops = []
         for pf in self.pfs:  # List of dictionaries, one for each pop
-            if pf['source_type'] == 'star':
-                self.pops.append(StellarPopulation(**pf))
-            elif pf['source_type'] == 'bh':
-                self.pops.append(BlackHolePopulation(**pf))    
+            if pf['pop_type'] == 'galaxy':
+                self.pops.append(GalaxyPopulation(**pf))
             else:
-                raise ValueError('Unrecognized source_type %s.' % pf['source_type'])  
+                raise ValueError('Unrecognized pop_type %s.' % pf['pop_type'])  
 
 
