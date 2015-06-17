@@ -30,4 +30,5 @@ def SFRD(z, **kwargs):
     if not kwargs:
         kwargs = sfrd_pars
         
-    return _SFRD(z, **kwargs)f
+    return _SFRD(z, **kwargs)
+    
