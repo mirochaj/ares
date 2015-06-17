@@ -93,7 +93,7 @@ alpha2_err = None, **kwargs):
 
 #-------------------------------------------------
 
-def _LuminosityFunction_LDDE(Lx, z, loglstar = None, A = None, gamma1 = None, gamma2 = None, p1 = None, p2  = None,\
+def LuminosityFunction_LDDE(Lx, z, loglstar = None, A = None, gamma1 = None, gamma2 = None, p1 = None, p2  = None,\
 p3  = None, beta1 = None, zstar = None, zstarc2  = None, logLa = None, logLa2 = None, alpha = None, alpha2 = None, **kwargs):
 
     

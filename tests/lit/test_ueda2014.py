@@ -28,7 +28,7 @@ for i, redshift in enumerate(z):
     models.append(model1)
     r.append(redshift)
     for p, Lx in enumerate(L):
-        model = u14.LuminosityFunction_LDDE(Lx, redshift)
+        model = u14.LuminosityFunction_LDDE(Lx, redshift, **u14.qsolf_LDDE2_hardpars)
         model1.append(model)
 models = np.array(models) 
 r = np.array(r)
@@ -81,7 +81,7 @@ for i in range(models):
     r = []
     integrand.append(integrand1)
     for j in range(len(z)):
-        x = lambda Lx: u14._LuminosityFunction_LDDE(Lx, z[j],\
+        x = lambda Lx: u14.LuminosityFunction_LDDE(Lx, z[j],\
         **hardsamples[i])
         p, err = integrate.quad(x, 10**41, 10**46)
         r.append(z[j])
@@ -127,7 +127,7 @@ for i, redshift in enumerate(z):
     results.append(model1)
     r.append(redshift)
     for p, Lx in enumerate(L):
-        model = u14._LuminosityFunction_LDDE(Lx, redshift,\
+        model = u14.LuminosityFunction_LDDE(Lx, redshift,\
         **hardsamples[i])
         model1.append(model)
 

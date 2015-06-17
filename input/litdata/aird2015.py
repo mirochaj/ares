@@ -193,185 +193,58 @@ alpha2_err = None, **kwargs):
   
 #-------------------------------------------------    
 
-def _LuminosityFunction_LDDE1(Lx, z, K = None, loglstar=None, A=None, gamma1=None, gamma2=None, p1=None, \
-p2 = None, beta1=None, zstar=None, logLa=None, alpha=None, **kwargs):
-
-    """This equation is from Ueda et al. (2003) and is used by Aird et al. (2015)"""
-
-        
-    if Lx < logLa:
-        zc1 = zstar*(Lx / logLa)**alpha
-    elif Lx >= logLa:
-        zc1 = zstar
-    
-##################################################   
-
-    if z <= zc1:
-        ex = (1+z)**p1
-    elif z > zc1:
-        ex = (1+zc1)**p1*((1+z)/(1+zc1))**p2
-           
-    return  K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex
-
-#-------------------------------------------------
-
-def _LuminosityFunction_LDDE2(Lx, z, K= None, loglstar = None, gamma1 = None, gamma2 = None, p1 = None, \
+def LuminosityFunction(Lx, z, LDDE1 = None, LDDE2 = None, K= None, loglstar = None, gamma1 = None, gamma2 = None, p1 = None, \
 p2 = None, p3 = None, beta1 = None, zstar = None, zstarc2 = None, logLa = None, logLa2 = None, \
 alpha = None, alpha2 = None):
-    
-    """This equation is taken from Aird et al. (2015) and is based off of Ueda et al. (2014) LDDE equation. 
-    This equation stands from the Luminosity Dependent Desnity Equation (LDDE) used to describe the 
-    evolutoion of X-ray luminosity from AGNs on the basis of X-ray surveys. The X-ray luminosity Function 
-    (XLF) is best described using the LDDE model. The LDDE Model is a function of redshift and X-ray 
-    Luminosity best fitting within the range of 0-5 and 10**42-10**48, respectively. This model is the 
-    modified version of Ueda et al. (2003) LDDE model. This model accounts for the decay in the comoving 
-    numebr density of luminous AGN.""" 
-    
-    #e1 = p1 + beta1*(Lx - 10**44.48) 
-    #I need to include this for the LDDE2 model but even when I add
-    #a simple version the code crashes... Jordan? This can be found in Arid et al. (2015), pg. 14
+
+    """This function is the Luminosity Density Dependent Equation (LDDE). There are two different models to choose from, LDDE1 and LDDE2.
+    LDDE2 is more complicated but seems to be the model of choice for authors. ***More to come""" 
+
+    if LDDE1 == True:
         
-    if Lx < logLa:
-        zc1 = zstar*(Lx / logLa)**alpha
-    elif Lx >= logLa:
-        zc1 = zstar
+        if Lx < logLa:
+            zc1 = zstar*(Lx / logLa)**alpha
+        elif Lx >= logLa:
+            zc1 = zstar
     
 ##################################################   
-    
-    if Lx < logLa2:
-        zc2 = zstarc2*(Lx / logLa2)**alpha2
-    elif Lx >= logLa2:
-        zc2 = zstarc2 
-    
-##################################################  
-      
-    if z < zc1:
-        ex = (1+z)**p1
-    elif zc1 < z < zc2:
-        ex = (1+zc1)**p1*((1+z)/(1+zc1))**p2
-    elif z > zc2:
-        ex = (1+zc1)**p1*((1+zc2)/(1+zc1))**p2*((1+z)/(1+zc2))**p3
 
-    p = (K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex)
-
-    return  K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex
-    
-#-------------------------------------------------    
- 
-def LuminosityFunction_LDDE1_hardband(Lx, z, **kwargs):
-
-    return _LuminosityFunction_LDDE1(Lx, z, **qsolf_LDDE1_hardpars)
-    
-def LuminosityFunction_LDDE2_hardband(Lx, z, **kwargs):
-
-    return _LuminosityFunction_LDDE2(Lx, z, **qsolf_LDDE2_hardpars)
-    
-def LuminosityFunction_LDDE1_softband(Lx, z, **kwargs):
-
-    return _LuminosityFunction_LDDE1(Lx, z, **qsolf_LDDE1_softpars)
-    
-def LuminosityFunction_LDDE2_softband(Lx, z, **kwargs):
-
-    return _LuminosityFunction_LDDE2(Lx, z, **qsolf_LDDE2_softpars)
-       
-#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-
-"""
-J. Aird1, A. L. Coil, A. Georgakakis, K. Nandra, G. Barro, P. G. P´erez-Gonz´alez, 2015, ???, ???, ???
-
-There are two different models with two different sets of Data each:
-
-Model 1: LDDE1
-    -Simple model of Ueda 2003 (I Believe*** will check and fix**)
-    
-Model 2: LDDE2:
-    -Complex model of UEDA 2014 (I  Believe** will check and fix**)
-    
-Data set 1:
-    -Soft band (0.5-2 KeV) parameters for both models 
-    
-Data set 2:
-    -Hard band (2-7 KeV) parameters for both models 
-    
-NOTE: 
-    
-    These models produce Lx(z) and does integrate and give the Lx density for either model.
-    
-    --- = spacing between different sections of code
-    
-    ### = spacing within a section of code to denote a different section within that particular code
-
-    I have the errors included in each dictionary. 
-"""
-
-#-------------------------------------------------
-
-#K is not using the random samples
-def _LuminosityFunction_LDDE1_integrate(Lx, z, K = None, loglstar = None, gamma1 = None, \
-gamma2 = None, p1 = None, p2 = None, zstar = None, logLa = None, alpha = None, **kawargs):
-    
-        
-    if Lx < logLa:
-        zc1 = zstar*(Lx / logLa)**alpha
-    elif Lx >= logLa:
-        zc1 = zstar
-    
-    #print zc1
-##################################################   
-
-    if z <= zc1:
-        ex = (1+z)**p1
-    elif z > zc1:
-        ex = (1+zc1)**p1*((1+z)/(1+zc1))**p2
-        
-##################################################  
+        if z <= zc1:
+            ex = (1+z)**p1
+        elif z > zc1:
+            ex = (1+zc1)**p1*((1+z)/(1+zc1))**p2
            
-    p = K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex     
-    return p
-   
-
-#-------------------------------------------------
-
-#K is not using the random samples
-def _LuminosityFunction_LDDE2_integrate(Lx, z, K = None, loglstar = None, gamma1 = None, gamma2 = None,\
-p1 = None, p2 = None, p3 = None, beta1 = None, zstar = None, zstarc2 = None, logLa = None, \
-logLa2 = None, alpha = None, alpha2 = None, **kwargs):
-    
-    """This equation is taken from Aird et al. (2015) and is based off of Ueda et al. (2014) LDDE equation. 
-    This equation stands from the Luminosity Dependent Desnity Equation (LDDE) used to describe the 
-    evolutoion of X-ray luminosity from AGNs on the basis of X-ray surveys. The X-ray luminosity Function 
-    (XLF) is best described using the LDDE model. The LDDE Model is a function of redshift and X-ray 
-    Luminosity best fitting within the range of 0-5 and 10**42-10**48, respectively. This model is the 
-    modified version of Ueda et al. (2003) LDDE model. This model accounts for the decay in the comoving 
-    numebr density of luminous AGN. """
-       
-    
-            
-    if Lx < logLa:
-        zc1 = zstar*(Lx / logLa)**alpha
-    elif Lx >= logLa:
-        zc1 = zstar
+        return  K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex
+        
+        
+    elif LDDE2 == True:    
+        
+        if Lx < logLa:
+            zc1 = zstar*(Lx / logLa)**alpha
+        elif Lx >= logLa:
+            zc1 = zstar
     
 ##################################################   
     
-    if Lx < logLa2:
-        zc2 = zstarc2*(Lx / logLa2)**alpha2
-    elif Lx >= logLa2:
-        zc2 = zstarc2 
+        if Lx < logLa2:
+            zc2 = zstarc2*(Lx / logLa2)**alpha2
+        elif Lx >= logLa2:
+            zc2 = zstarc2 
     
 ##################################################  
       
-    if z < zc1:
-        ex = (1+z)**p1
-    elif zc1 < z < zc2:
-        ex = (1+zc1)**p1*((1+z)/(1+zc1))**p2
-    elif z > zc2:
-        ex = (1+zc1)**p1*((1+zc2)/(1+zc1))**p2*((1+z)/(1+zc2))**p3
+        if z < zc1:
+            ex = (1+z)**p1
+        elif zc1 < z < zc2:
+            ex = (1+zc1)**p1*((1+z)/(1+zc1))**p2
+        elif z > zc2:
+            ex = (1+zc1)**p1*((1+zc2)/(1+zc1))**p2*((1+z)/(1+zc2))**p3
+
+
+        return  K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex
         
-##################################################  
-    
-    p = K * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex
-  
-    return p
-    
-#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    else:
+        
+        raise TypeError('Pick a Luminosity Dependent Density Evolution')
+
+#-------------------------------------------------  

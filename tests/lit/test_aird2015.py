@@ -30,7 +30,7 @@ fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 
 models = []
 for p, Lx in enumerate(L):
-    model = a15.LuminosityFunction_LDDE1_hardband(Lx, z)
+    model = a15.LuminosityFunction(Lx, z, LDDE1 = True, **a15.qsolf_LDDE1_hardpars)
     models.append(model)
 models = np.array(models)
 
@@ -52,7 +52,7 @@ fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 
 models = []
 for p, Lx in enumerate(L):
-    model = a15.LuminosityFunction_LDDE2_hardband(Lx, z)
+    model = a15.LuminosityFunction(Lx, z, LDDE2 = True, **a15.qsolf_LDDE2_hardpars)
     models.append(model)
 models = np.array(models)
 
@@ -73,7 +73,7 @@ fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 
 models = []
 for p, Lx in enumerate(L):
-    model = a15.LuminosityFunction_LDDE1_softband(Lx, z)
+    model = a15.LuminosityFunction(Lx, z, LDDE1 = True, **a15.qsolf_LDDE1_softpars)
     models.append(model)
 models = np.array(models)
 
@@ -95,7 +95,7 @@ fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 
 models = []
 for p, Lx in enumerate(L):
-    model = a15.LuminosityFunction_LDDE2_softband(Lx, z)
+    model = a15.LuminosityFunction(Lx, z, LDDE2 = True, **a15.qsolf_LDDE2_softpars)
     models.append(model)
 models = np.array(models)
 
@@ -173,7 +173,7 @@ for i in range(models):
     integrand = [] 
     for j in range(len(z)):
        
-        x = lambda Lx: a15._LuminosityFunction_LDDE1_integrate(Lx, z[j],\
+        x = lambda Lx: a15.LuminosityFunction(Lx, z[j], LDDE1 = True,\
         **hardsamples[i])
         p, err = integrate.quad(x, 10**41, 10**46)
         integrand.append(p)
@@ -212,7 +212,7 @@ for i in range(models):
     
     integrand = [] 
     for j in range(len(z)):
-        x = lambda Lx: a15._LuminosityFunction_LDDE1_integrate(Lx, z[j],\
+        x = lambda Lx: a15.LuminosityFunction(Lx, z[j], LDDE1 = True,\
         **softsamples[i])
         p, err = integrate.quad(x, 10**41, 10**46)
         integrand.append(p)
@@ -250,7 +250,7 @@ for i in range(models):
     
     integrand = [] 
     for j in range(len(z)):
-        x = lambda Lx: a15._LuminosityFunction_LDDE2_integrate(Lx, z[j],\
+        x = lambda Lx: a15.LuminosityFunction(Lx, z[j], LDDE2 = True,\
         **hardsamples[i])
         p, err = integrate.quad(x, 10**41, 10**46)
         integrand.append(p)
@@ -288,7 +288,7 @@ for i in range(models):
     
     integrand = [] 
     for j in range(len(z)):
-        x = lambda Lx: a15._LuminosityFunction_LDDE2_integrate(Lx, z[j],\
+        x = lambda Lx: a15.LuminosityFunction(Lx, z[j], LDDE2 = True,\
         **softsamples[i])
         p, err = integrate.quad(x, 10**41, 10**46)
         integrand.append(p)
@@ -392,7 +392,7 @@ for t in range(m):
     model = []
     models.append(model)
     for Lx in L:
-        model1 = a15._LuminosityFunction_LDDE1(Lx, z, **hardsamples[t])
+        model1 = a15.LuminosityFunction(Lx, z, LDDE1 = True, **hardsamples[t])
         model.append(model1)
 
 for i, j in enumerate(models):
@@ -425,7 +425,7 @@ for t in range(m):
     model = []
     models.append(model)
     for Lx in L:
-        model1 = a15._LuminosityFunction_LDDE1(Lx, z, **softsamples[t])
+        model1 = a15.LuminosityFunction(Lx, z, LDDE1 = True, **softsamples[t])
         model.append(model1)
 
 for i, j in enumerate(models):
@@ -457,7 +457,7 @@ for t in range(m):
     model = []
     models.append(model)
     for Lx in L:
-        model1 = a15._LuminosityFunction_LDDE2(Lx, z, **hardsamples[t])
+        model1 = a15.LuminosityFunction(Lx, z, LDDE2 = True, **hardsamples[t])
         model.append(model1)
 
 
@@ -476,7 +476,7 @@ for i, j in enumerate(models):
 #z = 5.0
 #L = np.logspace(41, 47, 100)
 #m = 100
-#Legend4 = ['Green = LDDE1 softband']
+#Legend4 = ['Blue = LDDE2 softband']
 #fig3 = pl.figure(3); ax3 = fig3.add_subplot(111)
 
 softpars = a15.qsolf_LDDE2_softpars
@@ -490,7 +490,7 @@ for t in range(m):
     model = []
     models.append(model)
     for Lx in L:
-        model1 = a15._LuminosityFunction_LDDE2(Lx, z, **softsamples[t])
+        model1 = a15.LuminosityFunction(Lx, z, LDDE2 = True, **softsamples[t])
         model.append(model1)
 
 for i, j in enumerate(models):
