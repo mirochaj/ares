@@ -131,14 +131,15 @@ if not os.path.exists('optical_depth/%s' % fn_tau2):
 # incorrect instructions for how to set the ARES environment variable
 os.chdir('..')    
 
+ARES_env = os.getenv('ARES')
+cwd = os.getcwd()
+
 ##
 # TELL PEOPLE TO SET ENVIRONMENT VARIABLE
 ##
-if not os.getenv('ARES'):
+if not ARES_env:
     
-    import re
-    
-    cwd = os.getcwd()
+    import re    
     shell = os.getenv('SHELL')
     
     print "\n"
@@ -155,5 +156,26 @@ if not os.getenv('ARES'):
             print "Looks like you're using csh, so add the following to your .cshrc:"
             print "\n    setenv ARES %s" % cwd
 
+    print "\nGood luck!"
+    print "#"*92        
+    print "\n"
+
+# Print a warning if there's already an environment variable but it's pointing
+# somewhere other than the current directory
+elif ARES_env != cwd:
+    
+    print "\n"
+    print "#"*92
+    print "It looks like you've already got an ARES environment variable set",
+    print "but it's pointing to"
+    print "a different directory. Currently, it looks like:"
+    print "\n    ARES=%s" % ARES_env
+    
+    print "\nHowever, we're currently in %s.\n" % cwd
+    
+    print "Is this a different ares install (might not cause problems),",
+    print "or perhaps just a typo in "
+    print "your environment variable?"
+    
     print "#"*92        
     print "\n"

@@ -99,9 +99,9 @@ To generate the documentation locally, ::
     make html
     open _build/html/index.html
     
-This will open the documentation in a browser. For the above to work, you'll 
-need `sphinx <http://sphinx-doc.org/contents.html>`_, which can be installed via
-pip: ::
+This will open the documentation in a browser. For the above to work, you'll
+need `sphinx <http://sphinx-doc.org/contents.html>`_, which can be installed
+via pip: ::
 
     pip install sphinx
 
@@ -122,3 +122,5 @@ Additional contributions / corrections / suggestions from:
 - `Geraint Harker <http://zuserver2.star.ucl.ac.uk/~harkerg/>`_ (UCL)
 - Jacob Jost (CU-Boulder)
 - `Greg Salvesen <http://jila.colorado.edu/~salvesen/>`_ (CU-Boulder)
+- `Adrian Liu <http://w.astro.berkeley.edu/~acliu/>`_ (UC-Berkeley)
+
