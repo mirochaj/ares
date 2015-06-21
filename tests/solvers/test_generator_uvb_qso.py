@@ -45,22 +45,23 @@ src_pars = \
 
 rad1 = ares.simulations.MetaGalacticBackground(pop_sawtooth=True, 
     approx_tau=None, **src_pars)
-rad2 = ares.simulations.MetaGalacticBackground(pop_sawtooth=True,
-    approx_tau=True, **src_pars)
-rad3 = ares.simulations.MetaGalacticBackground(pop_sawtooth=True,
-    approx_tau='post_EoR', **src_pars)
 
 # Compute background flux
 rad1.run()
-rad2.run()
-rad3.run()
+
+# Grab background flux from Haardt & Madau (2012)
+hm12 = ares.util.read_lit('haardt2012')
+z, E, flux = hm12.MetaGalacticBackground()
 
 # Plot it at z=3
 ax = None
 colors = 'k', 'b', 'r'
-for i, rad in enumerate([rad1, rad2, rad3]):
+for i, rad in enumerate([rad1]):
     anl = ares.analysis.MetaGalacticBackground(rad)
     ax = anl.PlotBackground(z=3, ax=ax, color=colors[i])
+    
+    j = np.argmin(np.abs(z - 3.))
+    ax.plot(E, flux[j] / 1e-21, color='c')
 
 ax.set_xlim(1, 4e3)
 pl.draw()

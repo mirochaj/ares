@@ -61,6 +61,7 @@ os.chdir('input')
 bitbucket_DL = 'https://bitbucket.org/mirochaj/ares/downloads'
 sfurlane_xray = 'http://www.astro.ucla.edu/~sfurlane/docs'
 s99_seds = 'http://www.stsci.edu/science/starburst99/data'
+hm12_cuvb = 'http://www.ucolick.org/~pmadau/CUBA/Media'
 
 # Filenames
 fn_hmf = 'hmf_ST_logM_1200_4-16_z_1121_4-60.pkl'
@@ -68,6 +69,8 @@ fn_ics_np = 'initial_conditions.npz'
 fn_tau = 'optical_depth_H_400x1616_z_10-50_logE_2-4.7.pkl'
 fn_tau2 = 'optical_depth_He_400x1616_z_10-50_logE_2-4.7.pkl'
 fn_elec = 'elec_interp.tar.gz'
+fn_cuvb = 'UVB.out'
+fn_emiss = 'emissivity.out'
 
 # First, secondary electron data from Furlanetto & Stoever (2010)
 if not os.path.exists('secondary_electrons'):
@@ -113,6 +116,22 @@ if not os.path.exists('starburst99/fig1a.dat'):
         shutil.move('data/%s' % fn, '.')
     os.rmdir('data')
     
+    os.chdir('..')
+    
+# Next, Haardt & Madau (2012) data
+if not os.path.exists('hm12'):
+    os.mkdir('hm12')    
+
+if not os.path.exists('hm12/%s' % fn_cuvb):
+    os.chdir('hm12')
+    print "\nDownloading %s/%s..." % (hm12_cuvb, fn_cuvb)
+    urllib.urlretrieve('%s/%s' % (hm12_cuvb, fn_cuvb), fn_cuvb)
+    os.chdir('..')
+    
+if not os.path.exists('hm12/%s' % fn_emiss):
+    os.chdir('hm12')
+    print "\nDownloading %s/%s..." % (hm12_cuvb, fn_emiss)
+    urllib.urlretrieve('%s/%s' % (hm12_cuvb, fn_emiss), fn_emiss)
     os.chdir('..')
 
 # Now, files from bitbucket (HMF, optical depth, etc.)
