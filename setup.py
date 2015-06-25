@@ -168,7 +168,7 @@ elif ARES_env != cwd:
     print "#"*92
     print "It looks like you've already got an ARES environment variable set",
     print "but it's pointing to"
-    print "a different directory. Currently, it looks like:"
+    print "a different directory:"
     print "\n    ARES=%s" % ARES_env
     
     print "\nHowever, we're currently in %s.\n" % cwd

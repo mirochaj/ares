@@ -146,7 +146,7 @@ def flatten_logL(data):
         new.extend(data[:,i])
 
     return new
-    
+
 def read_pickled_dict(fn):
     f = open(fn, 'rb')
     

@@ -531,14 +531,21 @@ class Global21cm:
             z_ax = False
         
         if ax is None:
+            gotax = False
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
+        else:
+            gotax = True
+            
+            blank_ax = False
+            if np.all(ax.get_xticks() == np.linspace(0, 1, 6)):
+                blank_ax = True
 
         if scatter is False:    
             ax.plot(self.data[xaxis], self.data['dTb'], **kwargs)
         else:
             ax.scatter(self.data[xaxis][-1::-mask], self.data['dTb'][-1::-mask], 
-                **kwargs)        
+                **kwargs)   
         
         zmax = self.pf["first_light_redshift"]
         zmin = self.pf["final_redshift"] if self.pf["final_redshift"] >= 10 \
@@ -582,40 +589,42 @@ class Global21cm:
             
         ax.set_ylim(ymin, ymax)    
         
-        if xscale == 'linear':
-            ax.set_xticks(xticks, minor=False)
-            ax.set_xticks(xticks_minor, minor=True)
+        # Ticks
+        if (not gotax) or blank_ax:
+            if xscale == 'linear':
+                ax.set_xticks(xticks, minor=False)
+                ax.set_xticks(xticks_minor, minor=True)
             
-        ax.set_yticks(yticks, minor=True)
-        
-        if ax.get_xlabel() == '':  
-            if xaxis == 'z':  
-                ax.set_xlabel(labels['z'], fontsize='x-large')
-            else:
-                ax.set_xlabel(labels['nu'])
-        
-        if ax.get_ylabel() == '':    
-            ax.set_ylabel(labels['dTb'], 
-                fontsize='x-large')    
-        
-        if 'label' in kwargs:
-            if kwargs['label'] is not None:
-                ax.legend(loc='best')
+            ax.set_yticks(yticks, minor=True)
+            
+            if ax.get_xlabel() == '':  
+                if xaxis == 'z':  
+                    ax.set_xlabel(labels['z'], fontsize='x-large')
+                else:
+                    ax.set_xlabel(labels['nu'])
+            
+            if ax.get_ylabel() == '':    
+                ax.set_ylabel(labels['dTb'], 
+                    fontsize='x-large')    
+            
+            if 'label' in kwargs:
+                if kwargs['label'] is not None:
+                    ax.legend(loc='best')
 
-        # Twin axes along the top
-        twinax = None
-        if freq_ax:
-            twinax = self.add_frequency_axis(ax)
-        elif time_ax:
-            twinax = self.add_time_axis(ax)
-        elif z_ax:
-            twinax = self.add_redshift_axis(ax)
-        
-        if twinax is not None:
-            self.twinax = twinax
-        
-        ax.ticklabel_format(style='plain', axis='both')
-        ax.set_xscale(xscale)
+            # Twin axes along the top
+            twinax = None
+            if freq_ax:
+                twinax = self.add_frequency_axis(ax)
+            elif time_ax:
+                twinax = self.add_time_axis(ax)
+            elif z_ax:
+                twinax = self.add_redshift_axis(ax)
+            
+            if twinax is not None:
+                self.twinax = twinax
+            
+            ax.ticklabel_format(style='plain', axis='both')
+            ax.set_xscale(xscale)
                     
         pl.draw()
 

@@ -2142,7 +2142,10 @@ class ModelSet(object):
                 if k in mp.diag and oned:
 
                     # Grab array to be histogrammed
-                    tohist = [to_hist[j]]
+                    try:
+                        tohist = [to_hist[j]]
+                    except KeyError:
+                        tohist = [to_hist[p2]]
 
                     # Plot the PDF
                     ax = self.PosteriorPDF(p1, to_hist=tohist, is_log=is_log,
@@ -2185,8 +2188,11 @@ class ModelSet(object):
                 # If not oned, may end up with some x vs. x plots if we're not careful
                 if p1 == p2 and (red[0] == red[1]):
                     continue
-                                
-                tohist = [to_hist[j], to_hist[-1::-1][i]]
+
+                try:
+                    tohist = [to_hist[j], to_hist[-1::-1][i]]
+                except KeyError:
+                    tohist = [to_hist[p2], to_hist[p1]]
                 
                 # 2-D PDFs elsewhere
                 ax = self.PosteriorPDF([p2, p1], to_hist=tohist, is_log=is_log,
