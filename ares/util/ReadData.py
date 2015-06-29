@@ -12,8 +12,7 @@ Description:
 
 import numpy as np
 import imp as _imp
-import os, pickle, re
-
+import os, pickle, re, sys
 
 try:
     import h5py
@@ -28,6 +27,7 @@ except ImportError:
     rank = 0
     
 ARES = os.environ.get('ARES')
+sys.path.insert(1, '%s/input/litdata' % ARES)
 
 def read_lit(prefix, path=None):
     """

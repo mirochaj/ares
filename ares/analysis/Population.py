@@ -41,10 +41,10 @@ class Population(object):
         >>> import numpy as np
         >>> import matplotlib.pyplot as pl
         >>>
-        >>> r15 = ares.util.ReadData.read_lit('robertson2015')
+        >>> r15 = ares.util.read_lit('robertson2015')
         >>> z = np.arange(0, 8, 0.05)
         >>> pop = ares.analysis.Population(r15)
-        >>> models = pop.SamplePosterior(z, r15._sfrd, r15.sfrd_pars, r15.sfrd_err)
+        >>> models = pop.SamplePosterior(z, r15.SFRD, r15.sfrd_pars, r15.sfrd_err)
         >>>
         >>> for i in range(int(models.shape[1])):
         >>>     pl.plot(z, models[:,i], color='b', alpha=0.05)
@@ -54,7 +54,7 @@ class Population(object):
         Array with dimensions `(len(x), Ns)`.
 
         """
-
+        
         # Generate arrays of random values. Keep in dictionary
         kw = {key:np.random.normal(pars[key], errors[key], Ns) \
             for key in errors}

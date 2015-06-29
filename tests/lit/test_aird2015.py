@@ -2,7 +2,7 @@
 test_Lx(z)
 
 Author: Jacob Jost
-Affiliation: University of Colorado at Boulder (Undergraduate)
+Affiliation: University of Colorado at Boulder
 Created on: Thu June 4 09:00:00 MDT 2015
 
 --- = spacing between different sections of a code
@@ -20,6 +20,26 @@ from scipy import integrate
 
 a15 = ares.util.read_lit('aird2015')
 
+z = np.arange(0, 3)
+L = np.logspace(41, 46)
+
+fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
+
+colors = 'k', 'b', 'g'
+for i, redshift in enumerate(z):
+    lf_ldde1 = a15.LuminosityFunction(L, redshift)
+    
+    ax1.loglog(L, lf_ldde1, color=colors[i], ls='-', 
+        label=r'$z=%i$' % redshift)
+    
+ax1.set_xlabel(r'$L_X$')    
+ax1.set_ylabel(r'$\phi(L_X)$')
+ax1.legend(loc='best')
+pl.show()
+
+import sys
+sys.exit()
+
 z = 1.0
 #------------------------------------------------------------
 
@@ -30,7 +50,7 @@ fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 
 models = []
 for p, Lx in enumerate(L):
-    model = a15.LuminosityFunction(Lx, z, LDDE1 = True, **a15.qsolf_LDDE1_hardpars)
+    model = a15.LuminosityFunction(Lx, z)
     models.append(model)
 models = np.array(models)
 
@@ -46,13 +66,9 @@ pl.loglog(L, models, color = 'k', label = r'LDDE1-Hard Band')
 #------------------------------------------------------------
 
 #z = 5.0
-L = np.logspace(41, 47, 100)
 
-fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
-
-models = []
 for p, Lx in enumerate(L):
-    model = a15.LuminosityFunction(Lx, z, LDDE2 = True, **a15.qsolf_LDDE2_hardpars)
+    model = a15.LuminosityFunction(Lx, z)
     models.append(model)
 models = np.array(models)
 
@@ -63,6 +79,11 @@ pl.loglog(L, models, color = 'g', label = r'LDDE2-Hard Band')
 #ax1.set_ylabel(r'$\phi(L_X)$')
 #ax1.legend(loc='best')
 #pl.show()
+
+
+import sys
+sys.exit()
+
 
 #------------------------------------------------------------
 
@@ -107,6 +128,10 @@ ax1.set_xlabel(r'$L_X$')
 ax1.set_ylabel(r'$\phi(L_X)$')
 ax1.legend(loc='best')
 pl.show()
+
+
+import sys
+sys.exit()
 
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 """

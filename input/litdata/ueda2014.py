@@ -1,20 +1,16 @@
 # -*- coding: utf-8 -*-
-import numpy as np
-
 """
 YOSHIHIRO UEDA, MASAYUKI AKIYAMA, GÜNTHER HASINGER, TAKAMITSU MIYAJI,
 MICHAEL G. WATSON, 2015, ???, ???, ???
 
-This model is the more complicated version of Ueda et al. (2003) double power law
-  
-  
-NOTE: 
-    
-    --- = spacing between different sections of code
-    
-    ### = spacing within a section of code to denote a different section within that particular code
-
+This model is the more complicated version of the Ueda et al. (2003) 
+double power law and piecewise redshift evolution in the QSO X-ray 
+luminosity function.
 """
+
+import numpy as np
+from ueda2003 import _evolution_factor_pde, _evolution_factor_ldde, \
+    _DoublePowerLaw
 
 #-------------------------------------------------
 
@@ -31,9 +27,9 @@ qsolf_LDDE2_hardpars = \
  'beta1': 0.84,
  'zstar': 1.86,
  'zstarc2': 3.0,
- 'logLa': 10**44.61,
+ 'logLa1': 10**44.61,
  'logLa2': 10**45.67,#???
- 'alpha': 0.29,
+ 'alpha1': 0.29,
  'alpha2': -0.1
 }
 
@@ -54,6 +50,53 @@ qsolf_LDDE2_harderr = \
  'alpha_err': 0.02,
  'alpha2_err': 0
 }
+
+def _zc_of_L(L, **kwargs):
+    """
+    Compute cutoff redshift for luminosity-dependent density evolution.
+    """
+        
+    La = 10**kwargs['logLa']
+
+    if L < La:
+        zc_ast = kwargs['zc'] * (L / La)**kwargs['alpha']
+    elif L >= La:
+        zc_ast = kwargs['zc']
+        
+    return zc_ast
+
+def _evolution_factor(z, **kwargs):
+    
+    if z < kwargs['zc1']:
+        eofz = (1. + z)**p1
+    elif kwargs['zc1'] < z < kwargs['zc2']:
+        eofz = (1. + kwargs['zc1'])**kwargs['p1'] \
+            * ((1. + z) / (1. + kwargs['zc1']))**p2
+    else:
+        eofz = (1. + kwargs['zc1'])**kwargs['p1'] \
+            * ((1. + kwargs['zc2']) / (1+kwargs['zc1']))**kwargs['p2'] \
+            * ((1. + z) / (1. + kwargs['zc2']))**kwargs['p3']
+
+    return eofz
+
+def _evolution_factor_ldde(z, L, **kwargs):
+
+    try:
+        
+        kw = kwargs.copy()
+        for i in range(1, 2):
+            kw['zc' % i] = kwargs['zc%i']
+            kwargs['zc%i' % i] = _zc_of_L(z, L, **kw)
+        
+        eofz = _evolution_factor(z, **kwargs)
+    except ValueError:
+        eofz = np.zeros_like(L)        
+        zcarr = np.array(map(lambda LL: _zc_of_L(LL, **kwargs), L))
+        for i, zcval in enumerate(zcarr):
+            kwargs['zc'] = zcval
+            eofz[i] = _evolution_factor_pde(z, **kwargs)
+            
+    return eofz
 
 #-------------------------------------------------  
 
@@ -115,3 +158,7 @@ p3  = None, beta1 = None, zstar = None, zstarc2  = None, logLa = None, logLa2 = 
         ex = (1+zc1)**p1*((1+zc2)/(1+zc1))**p2*((1+z)/(1+zc2))**p3
    
     return  A * ((Lx / loglstar)**gamma1 + (Lx / loglstar)**gamma2)**-1 * ex
+    
+    
+    
+    
