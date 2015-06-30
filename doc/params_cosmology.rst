@@ -1,6 +1,12 @@
 Cosmology Parameters
 ====================
-The default cosmological parameters in *ares* are from *Planck*. Specifically, we take values from the last column of Table 4 in `Planck XIII <http://adsabs.harvard.edu/abs/2015arXiv150201589P>`_.
+The default cosmological parameters in *ares* are from *Planck*. Specifically, we take values from the last column of Table 4 in `Planck XIII <http://adsabs.harvard.edu/abs/2015arXiv150201589P>`_. 
+
+.. note :: Several input files (e.g., lookup tables for the halo mass           
+    function, initial conditions, etc.) depend on these vales. There currently 
+    is not a system in place to make sure there is a match between the      
+    parameters you pass at run-time and the lookup tables read-in from disk. 
+    Beware!
 
 ``omega_m_0``
     Matter density, relative to the critical density.
@@ -33,7 +39,9 @@ The default cosmological parameters in *ares* are from *Planck*. Specifically, w
     Default: 2.7255 :math:`[\text{K}]`
     
 ``sigma_8``    
-    Default: 0.8159,
+    Default: 0.8159
 
 ``primordial_index``
     Default: 0.9667
+    
+    

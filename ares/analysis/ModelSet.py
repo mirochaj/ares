@@ -167,6 +167,16 @@ class ModelSet(object):
         # Read in data from file (assumed to be pickled)
         if type(data) == str:
             self.prefix = prefix = data
+            
+            i = prefix.rfind('/') # forward slash index
+
+            # This means we're sitting in the right directory already
+            if i == - 1:
+                self.path = './'
+                self.fn = prefix
+            else:
+                self.path = prefix[0:i+1]
+                self.fn = prefix[i+1:]
 
             print_model_set(self)
                     
@@ -351,21 +361,34 @@ class ModelSet(object):
                 except:
                     if rank == 0:
                         print "WARNING: Error loading blobs."    
-                        
+
                 if have_h5py:
                     f = h5py.File('%s.blobs.hdf5' % self.prefix, 'w')
                     f.create_dataset('blobs', data=self._blobs)
                     f.create_dataset('mask', data=self._mask)
                     f.close()
-                    
+
                     if rank == 0:
                         print 'Saved %s.blobs.hdf5' % self.prefix            
-            
+
             else:
                 self._blobs = None            
-                
+
         return self._blobs
         
+    #def _load_blob(self, blob):
+    #    
+    #    fn = '%s'
+    #    
+    #    f = h5py.File(fn, 'r')
+    #    
+    #    results = {}
+    #    for key in f:
+    #        mask = f[key].attrs.get('mask')
+    #        results[key] = np.ma.array(f[key].value, mask=mask)
+            
+        
+
     @property
     def Nd(self):
         if not hasattr(self, '_Nd'):
@@ -570,9 +593,6 @@ class ModelSet(object):
         
         print "Saved result to slice_%i attribute." % i
         
-    def Dump(self, prefix, modelset):
-        pass
-
     def ReRunModels(self, prefix=None, N=None, random=False, last=False, 
         clobber=False, save_freq=10, **kwargs):
         """
@@ -1360,7 +1380,7 @@ class ModelSet(object):
         
         return pars, to_hist, is_log, binvec
       
-    def ExtractData(self, pars, z=None, take_log=False, multiplier=1., bins=None):
+    def ExtractData(self, pars, z=None, take_log=False, multiplier=1.):
         """
         Extract data for subsequent analysis.
         
@@ -2662,9 +2682,80 @@ class ModelSet(object):
     
         return p
         
-    def save(self):
-        pass
+    def save(self, pars, z=None, fmt='hdf5', clobber=False):
+        """
+        Output a particular quantity to its own file.
         
+        Parameters
+        ----------
+        pars : str, list, tuple
+            Name of parameter (or list of parameters) or blob(s) to extract.
+        fmt : str
+            Options: 'hdf5' or 'pkl'
+
+        .. note :: Cannot handle multiple fields of the same name (but 
+            different redshifts) yet.
+            
+        .. note :: Will write to current working directory.
+        
+        """
+        
+        if len(np.unique(pars)) < len(pars):
+            raise NotImplemented('Cannot handle multiple parameters of same name!')
+        
+        if type(pars) not in [list, tuple]:
+            pars = [pars]
+        if type(z) not in [list, tuple]:
+            z = [z] * len(pars)
+
+        # Output to HDF5
+        if fmt == 'hdf5':
+
+            # Loop over parameters and save to disk
+            for i, par in enumerate(pars):
+                fn = '%s.%s.%s' % (self.fn, par, fmt)
+
+                # If the file exists, see if it already contains data for the
+                # redshifts of interest. If not append. If so, raise error.
+                if os.path.exists(fn) and (not clobber):
+
+                    if z[i] is None:
+                        raise IOError('%s exists!' % fn)
+
+                    # Check for redshift data    
+                    f = h5py.File(fn, 'r')
+                    ids, redshifts = zip(*f.attrs.items())
+                    f.close()
+
+                    ids_ints = map(int, ids)
+                    id_start = max(ids_ints) + 1
+
+                    if z[i] in redshifts:
+                        raise IOError('%s exists! As does this dataset.' % fn)
+                else:
+                    id_start = 0
+                    
+                idnum = str(id_start).zfill(5)
+                
+                if z is None:
+                    attr = -99999
+                else:
+                    attr = z[i]
+            
+                # Stick requested fields in a dictionary
+                data, is_log = self.ExtractData(par, z=z[i])
+            
+                f = h5py.File(fn, 'a')
+                f.attrs.create(idnum, attr)
+
+                ds = f.create_dataset(idnum, data=data[par])
+                ds.attrs.create('mask', data[par].mask)
+                    
+                f.close()
+                print "Wrote %s." % fn    
+                
+        else:
+            raise NotImplemented('Only support for hdf5 so far. Sorry!')
         
     def set_axis_labels(self, ax, pars, is_log, take_log=False, labels=None):
         """
