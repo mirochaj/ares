@@ -58,21 +58,23 @@ def normalize_sed(pop):
     Convert yield to erg / g.
     """
     
-    if pop.pf['pop_yield_units'] == 'erg/s/SFR':
+    # Remove whitespace and convert everything to lower-case
+    units = pop.pf['pop_yield_units'].replace(' ', '').lower()
+    
+    if units == 'erg/s/sfr':
         energy_per_sfr = pop.pf['pop_yield'] * s_per_yr / g_per_msun
     else:
         E1 = pop.pf['pop_EminNorm']
-        E2 = pop.pf['pop_EmaxNorm']        
+        E2 = pop.pf['pop_EmaxNorm']
         erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
-        energy_per_sfr = pop.pf['pop_yield'] * erg_per_phot / g_per_msun
+        energy_per_sfr = pop.pf['pop_yield'] * erg_per_phot / g_per_msun        
         
-        if pop.pf['pop_yield_units'] == 'photons/baryon':
+        if units == 'photons/baryon':
             energy_per_sfr *= pop.cosm.g_per_baryon
-        elif pop.pf['pop_yield_units'] == 'photons/Msun':
+        elif units == 'photons/msun':
             pass
         else:
-            u = pop.pf['pop_yield_units']
-            raise ValueError('Unrecognized yield units: %s' % u)
+            raise ValueError('Unrecognized yield units: %s' % units)
 
     return energy_per_sfr
 
@@ -469,6 +471,10 @@ class GalaxyPopulation(HaloPopulation):
         Parameters
         ----------
         z : int, float
+        
+        Returns
+        -------
+        Emissivity in units of erg / s / cm**3 / Hz / sr
         
         """
         

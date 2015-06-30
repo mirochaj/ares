@@ -14,13 +14,17 @@ Basics
     * :doc:`example_rt06_2`
     
 * Uniform Radiation Backgrounds
-    * :doc:`example_cuvb`
-    * :doc:`example_cxrb`
+    * :doc:`example_crb_lw`
+    * :doc:`example_crb_uv`    
+    * :doc:`example_crb_xr`
+    * :doc:`example_crb_br`
 
 Advanced
 --------
 * :doc:`example_adv_RT_w_He`
 * :doc:`example_customization`
+
+Requests...?
  
 Surveying Parameter Space
 -------------------------

@@ -910,6 +910,8 @@ class UniformBackground(object):
 
         if flux0 is None:
             flux = np.zeros_like(energies)
+        else:
+            flux = flux0
 
         L = redshifts.size
         ll = L - 1
@@ -1017,10 +1019,8 @@ class UniformBackground(object):
         # List of all intervals in rest-frame photon energy
         bands = self.bands_by_pop[popid]
         
-        
         generators_by_band = []
         for i, band in enumerate(bands):
-            
             if type(self.energies[popid][i]) is list:            
                 gen = self._flux_generator_sawtooth(E=self.energies[popid][i],
                     z=self.redshifts[popid], ehat=self.emissivities[popid][i],

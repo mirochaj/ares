@@ -2,7 +2,7 @@ Halo Mass Function Parameters
 =============================
 The halo mass function is at the core of many calculations related to the high-z universe. glorb uses `hmf <https://github.com/steven-murray/hmf>`_, a halo mass function calculator written by Stephen Murray.
 
-``fitting_function``
+``hmf_func``
     Which fit to the halo mass function should be used?
     
     Options:
@@ -11,6 +11,11 @@ The halo mass function is at the core of many calculations related to the high-z
     + ``'ST'``: `Sheth & Tormen (1999) <http://adsabs.harvard.edu/abs/1999MNRAS.308..119S>`_
 
     Default: ``'PS'``
+    
+    .. note :: You can actually supply any of the options allowed by the *hmf*            
+        code here (for the parameter ``mf_fit``). Just be aware that not every 
+        fit to the halo mass function in the literature is meant to work at 
+        high redshifts!
 
 ``hmf_table``
     Path to a halo mass function lookup table.
@@ -22,7 +27,7 @@ The halo mass function is at the core of many calculations related to the high-z
     
     Default: ``False``
     
-``load_hmf``
+``hmf_load``
     Search ``$ARES/input/hmf`` for halo mass function lookup table?
     
     Default: ``True``
@@ -56,3 +61,4 @@ The halo mass function is at the core of many calculations related to the high-z
     Redshift resolution in lookup table.
     
     Default: 0.05
+    

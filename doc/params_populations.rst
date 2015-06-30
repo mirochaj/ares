@@ -64,9 +64,9 @@ Radiation Fields
 ``pop_yield_units``
     How to normalize the yield? 
     
-    Options = 'erg/s/SFR', 'photons/baryon', 'photons/Msun'
+    Options: ``erg/s/SFR`` [i.e., :math:`\mathrm{erg} \ \mathrm{s}^{-1} \ (M_{\odot} \ \mathrm{yr}^{-1})^{-1}`], ``photons/baryon``, ``photons/Msun``
         
-    Default: 'erg/s/SFR'    
+    Default: ``erg/s/SFR``
         
 X-ray background
 ----------------
@@ -103,26 +103,3 @@ Ultraviolet emission
     
     Default: 0.1
 
-Not done yet
-------------
-
-::
-
-    "source_type": 'star',
-    "source_kwargs": None,
-    
-    "model": -1, # Only BHs use this at this point
-    
-    "zoff": 5.0,
-    
-    # Bypass fcoll prescriptions, use parameterizations
-    "emissivity": None,
-    "epsilon_X": None,
-    "Gamma_HI": None,
-    "gamma_HI": None,
-    
-    "xray_Eavg": 500.,
-    "uv_Eavg": 30.,
-                
-
-    

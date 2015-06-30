@@ -51,7 +51,6 @@ Contents
    structure
    troubleshooting
    contributing
-   acknowledgements
 
 Indices and tables
 ==================

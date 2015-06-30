@@ -55,7 +55,7 @@ class ErrorIgnore(object):
       return returnfunction 
 
 # FORMATTING   
-width = 84
+width = 74
 pre = post = '#'*4    
 twidth = width - len(pre) - len(post) - 2
 #
@@ -374,7 +374,7 @@ def print_pop(pop):
 
     # Redshift evolution stuff
     if pop.pf['pop_sfrd'] is not None:
-        print line("SF          : parameterized")
+        print line("SFRD        : parameterized")
     elif pop.pf['pop_rhoL'] is not None:
         if type(pop.pf['pop_rhoL']) is FunctionType:
             print line("rho_L(z)    : parameterized")
@@ -397,7 +397,7 @@ def print_pop(pop):
     
     print line("yield (erg / s / SFR) : %g" % (pop.yield_per_sfr * g_per_msun / s_per_yr))
     print line("EminNorm (eV)         : %g" % (pop.pf['pop_EminNorm']))
-    print line("EmaxNorm (eV)         : %g" % (pop.pf['pop_EmaxNorm']))
+    print line("EmaxNorm (eV)         : %g" % (pop.pf['pop_EmaxNorm']))    
 
     if not pop.solve_rte:
         print "#"*width
@@ -410,6 +410,7 @@ def print_pop(pop):
     print line('Spectrum')
     print line('-'*twidth)
     
+    print line("SED               : %s" % (pop.pf['pop_sed']))
     print line("Emin (eV)         : %g" % (pop.pf['pop_Emin']))
     print line("Emax (eV)         : %g" % (pop.pf['pop_Emax']))
 
