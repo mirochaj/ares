@@ -21,6 +21,9 @@ setup(name='ares',
       author_email='mirochaj@gmail.com',
       url=ares_link,
       packages=ares_packages,
+      #entry_points={'console_scripts': [
+      #'ares = ares.util.CommandLine:run_main',
+      #]},
      )
           
 # Try to set up $HOME/.ares: this won't work on WINDOWS at the moment

@@ -2682,7 +2682,7 @@ class ModelSet(object):
     
         return p
         
-    def save(self, pars, z=None, fmt='hdf5', clobber=False):
+    def save(self, pars, z=None, path='.', fmt='hdf5', clobber=False):
         """
         Output a particular quantity to its own file.
         
@@ -2690,18 +2690,14 @@ class ModelSet(object):
         ----------
         pars : str, list, tuple
             Name of parameter (or list of parameters) or blob(s) to extract.
+        z : int, float, str, list, tuple
+            Redshift(s) of interest.
         fmt : str
             Options: 'hdf5' or 'pkl'
-
-        .. note :: Cannot handle multiple fields of the same name (but 
-            different redshifts) yet.
-            
-        .. note :: Will write to current working directory.
-        
+        path : str
+            By default, will save files to CWD. Can modify this if you'd like.
+                
         """
-        
-        if len(np.unique(pars)) < len(pars):
-            raise NotImplemented('Cannot handle multiple parameters of same name!')
         
         if type(pars) not in [list, tuple]:
             pars = [pars]
@@ -2713,7 +2709,7 @@ class ModelSet(object):
 
             # Loop over parameters and save to disk
             for i, par in enumerate(pars):
-                fn = '%s.%s.%s' % (self.fn, par, fmt)
+                fn = '%s/%s.subset.%s.%s' % (path,self.fn, par, fmt)
 
                 # If the file exists, see if it already contains data for the
                 # redshifts of interest. If not append. If so, raise error.
