@@ -12,7 +12,7 @@ Description: For analysis of MCMC fitting.
 
 import numpy as np
 import matplotlib as mpl
-import re, os, string, time
+import re, os, string, time, glob
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
 import matplotlib._cntr as cntr
@@ -148,22 +148,24 @@ def def_par_names(N):
 
 def def_par_labels(i):
     return 'parameter # %i' % i
-                
+
 class ModelSubSet(object):
     def __init__(self):
         pass
 
 class ModelSet(object):
-    def __init__(self, data):
+    def __init__(self, data, subset=None):
         """
         Parameters
         ----------
         data : instance, str
             prefix for a bunch of files ending in .chain.pkl, .pinfo.pkl, etc.,
             or a ModelSubSet instance.
+        
+        subset : list
 
         """
-
+        
         # Read in data from file (assumed to be pickled)
         if type(data) == str:
             self.prefix = prefix = data
@@ -190,8 +192,57 @@ class ModelSet(object):
                 #
                 #self.grid.set_axes(**self.axes)
                 #
-                
-                
+            
+            # Read-in subset
+            if subset is not None:
+            
+                if type(subset) not in [list, tuple]:
+                    subset = [subset]
+            
+                self._blob_names = subset
+                                    
+                Nz = None
+                for i, par in enumerate(subset):
+                    
+                    for path in ['.', self.path]:
+                        
+                    
+                        try:
+                            fn = '%s/%s.subset.%s.hdf5' % (path, self.fn, par)
+                            
+                            f = h5py.File(fn, 'r')
+                            ids, redshifts = zip(*f.attrs.items())
+                            
+                            if Nz is None:
+                                Nz = len(redshifts)
+                                shape = [self.chain.shape[0], Nz, len(subset)]
+                                blobs = np.zeros(shape)
+                                mask = np.zeros_like(blobs)
+                            else:
+                                if Nz != len(redshifts):
+                                    f.close()
+                                    raise ValueError('all subsets must have same redshift points!')
+                            
+                            if not hasattr(self, '_blob_redshifts'):
+                                self._blob_redshifts = redshifts
+                            
+                            # Add data
+                            for j, redshift in enumerate(self._blob_redshifts):                                
+                                idnum = ids[j]
+                                mask[:,j,i] = f[idnum].attrs.get('mask')
+                                blobs[:,j,i] = f[idnum].value
+                            
+                            f.close()
+                            
+                            break
+                        except IOError:
+                            print "WARNING: Couldn't find %s." % par
+                    
+                self.mask = np.zeros_like(blobs)
+                self.mask[np.isinf(blobs)] = 1
+                self.mask[np.isnan(blobs)] = 1
+                self._blobs = np.ma.array(blobs, mask=self.mask)
+
         elif isinstance(data, ModelSubSet):
             self._chain = data.chain
             self._is_log = data.is_log
@@ -2658,7 +2709,7 @@ class ModelSet(object):
                     ztmp.append(round(redshift, 1))    
                 
             i = ztmp.index(round(z, 1))
-    
+
         if name in self.blob_names:
             j = self.blob_names.index(name)            
             return self.blobs[:,i,j]
@@ -2684,7 +2735,7 @@ class ModelSet(object):
         
     def save(self, pars, z=None, path='.', fmt='hdf5', clobber=False):
         """
-        Output a particular quantity to its own file.
+        Extract data from chain or blobs and output to separate file(s).
         
         Parameters
         ----------
