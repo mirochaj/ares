@@ -451,6 +451,7 @@ def ControlParameters():
     "track_extrema": False,
     "stop_delay": 0.5,      # differential redshift step
     "inline_analysis": None,
+    "one_file_per_blob": False,
     "auto_generate_blobs": False,
     "override_blob_names": None,
     "override_blob_redshifts": None,

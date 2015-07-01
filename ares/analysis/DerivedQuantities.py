@@ -134,7 +134,7 @@ class DerivedQuantities:
             self.cosm = data.cosm
         except AttributeError:
             self.cosm = Cosmology()
-
+            
         # Stuff we might need (cosmology)
         self.data['Tcmb'] = self.cosm.TCMB(self.data['z'])
         self.data['nH'] = self.cosm.nH(self.data['z'])

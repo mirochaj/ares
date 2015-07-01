@@ -72,7 +72,8 @@ uninformative = lambda x, mi, ma: 1.0 if (mi <= x <= ma) else 0.0
 # Gaussian prior
 gauss1d = lambda x, mu, sigma: np.exp(-0.5 * (x - mu)**2 / sigma**2)
 
-def_kwargs = {'track_extrema': 1, 'verbose': False, 'progress_bar': False}
+def_kwargs = {'track_extrema': 1, 'verbose': False, 'progress_bar': False,
+    'one_file_per_blob': True}
 
 def _str_to_val(p, par, pvals, pars):
     """
@@ -438,6 +439,8 @@ class ModelFit(object):
                 TPs += 1
                 
         assert TPs > 0, 'Fitting won\'t work if no turning points are provided.'
+            
+        self.one_file_per_blob = self.base_kwargs['one_file_per_blob']        
             
     @property
     def error(self):
@@ -875,8 +878,13 @@ class ModelFit(object):
             f.close()
             
             # File for blobs themselves
-            f = open('%s.blobs.pkl' % prefix, 'wb')
-            f.close()
+            if self.one_file_per_blob:
+                for blob in self.blob_names:
+                    f = open('%s.subset.%s.pkl' % (prefix, blob), 'wb')
+                    f.close()
+            else:
+                f = open('%s.blobs.pkl' % prefix, 'wb')
+                f.close()
             
             # Blob-info "binfo" file will be written by likelihood
             
@@ -925,7 +933,20 @@ class ModelFit(object):
                 fn = '%s.%s.pkl' % (prefix, suffix)
 
                 # Skip blobs if there are none being tracked
-                if not os.path.exists(fn):
+                if blobs_all == [{}] * len(blobs_all):
+                    continue
+                
+                if suffix == 'blobs':
+                    if self.one_file_per_blob:
+                        for j, blob in enumerate(self.blob_names):
+                            barr = np.array(data[i])[:,:,j]
+                            bfn = '%s.subset.%s.pkl' % (self.prefix, blob)
+                            with open(bfn, 'ab') as f:
+                                pickle.dump(barr, f)                        
+                    else:
+                        with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
+                            pickle.dump(data[i], f)
+                    
                     continue
 
                 f = open(fn, 'ab')

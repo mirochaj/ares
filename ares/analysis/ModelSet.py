@@ -12,13 +12,13 @@ Description: For analysis of MCMC fitting.
 
 import numpy as np
 import matplotlib as mpl
-import re, os, string, time, glob
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
 import matplotlib._cntr as cntr
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
 from ..inference import ModelGrid
+import re, os, string, time, glob
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .Global21cm import Global21cm as aG21
@@ -154,7 +154,7 @@ class ModelSubSet(object):
         pass
 
 class ModelSet(object):
-    def __init__(self, data, subset=None):
+    def __init__(self, data, subset='all'):
         """
         Parameters
         ----------
@@ -162,7 +162,10 @@ class ModelSet(object):
             prefix for a bunch of files ending in .chain.pkl, .pinfo.pkl, etc.,
             or a ModelSubSet instance.
         
-        subset : list
+        subset : list, str
+            List of parameters / blobs to recover from individual files. Can
+            also set subset='all', and we'll try to automatically track down
+            all that are available.
 
         """
         
@@ -194,50 +197,27 @@ class ModelSet(object):
                 #
             
             # Read-in subset
-            if subset is not None:
+            have_all_blobs = os.path.exists('%s.blobs.pkl' % self.prefix)
+                                                
+            # Read in individual blob files
+            if (subset is not None) or (not have_all_blobs):
+            
+                if subset == 'all' or (not have_all_blobs):
+                    subset = []
+                    for path in ['.', self.path]:
+                        to_search = '%s/%s.subset.*' % (path, self.fn)
+                        for fn in glob.glob(to_search):
+                            blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
+            
+                            if blob not in subset:
+                                subset.append(blob)
             
                 if type(subset) not in [list, tuple]:
                     subset = [subset]
             
-                self._blob_names = subset
-                                    
-                Nz = None
-                for i, par in enumerate(subset):
-                    
-                    for path in ['.', self.path]:
-                        
-                    
-                        try:
-                            fn = '%s/%s.subset.%s.hdf5' % (path, self.fn, par)
-                            
-                            f = h5py.File(fn, 'r')
-                            ids, redshifts = zip(*f.attrs.items())
-                            
-                            if Nz is None:
-                                Nz = len(redshifts)
-                                shape = [self.chain.shape[0], Nz, len(subset)]
-                                blobs = np.zeros(shape)
-                                mask = np.zeros_like(blobs)
-                            else:
-                                if Nz != len(redshifts):
-                                    f.close()
-                                    raise ValueError('all subsets must have same redshift points!')
-                            
-                            if not hasattr(self, '_blob_redshifts'):
-                                self._blob_redshifts = redshifts
-                            
-                            # Add data
-                            for j, redshift in enumerate(self._blob_redshifts):                                
-                                idnum = ids[j]
-                                mask[:,j,i] = f[idnum].attrs.get('mask')
-                                blobs[:,j,i] = f[idnum].value
-                            
-                            f.close()
-                            
-                            break
-                        except IOError:
-                            print "WARNING: Couldn't find %s." % par
-                    
+                self._blob_names = subset                        
+                mask, blobs = self._load_subset()
+
                 self.mask = np.zeros_like(blobs)
                 self.mask[np.isinf(blobs)] = 1
                 self.mask[np.isnan(blobs)] = 1
@@ -285,6 +265,57 @@ class ModelSet(object):
         #except AttributeError:
         #    pass
         
+    def _load_subset(self):
+        """
+        Read in data from a file specific to a single blob/parameter.
+        """
+                
+        Nz = None
+        for i, par in enumerate(self.blob_names):
+            
+            for path in ['.', self.path]:
+        
+                fn = '%s/%s.subset.%s.hdf5' % (path, self.fn, par)
+                
+                
+                if os.path.exists(fn):
+                    f = h5py.File(fn, 'r')
+                    ids, redshifts = zip(*f.attrs.items())
+                    
+                    if Nz is None:
+                        Nz = len(redshifts)
+                        shape = [self.chain.shape[0], Nz, len(self.blob_names)]
+                        blobs = np.zeros(shape)
+                        mask = np.zeros_like(blobs)
+                    
+                    # Add data
+                    for j, redshift in enumerate(self._blob_redshifts):                                
+                        idnum = ids[j]
+                        mask[:,j,i] = f[idnum].attrs.get('mask')
+                        blobs[:,j,i] = f[idnum].value
+                
+                    f.close()
+                    
+                else:                            
+         
+                    # If these are pickle files, the redshifts will match up with 
+                    # those listed in the binfo file.                    
+                    if Nz is None:
+                        redshifts = self.blob_redshifts
+                        Nz = len(redshifts)
+                        shape = [self.chain.shape[0], Nz, len(self.blob_names)]
+                        blobs = np.zeros(shape)
+                        mask = np.zeros_like(blobs)
+
+                    fn = '%s/%s.subset.%s.pkl' % (path, self.fn, par)            
+                    blobs[:,:,i] = read_pickle_file(fn)
+                    mask = None
+
+        if not hasattr(self, '_blob_redshifts'):
+            self._blob_redshifts = redshifts
+
+        return mask, blobs
+
     @property
     def load(self):
         if not hasattr(self, '_load'):
@@ -371,7 +402,11 @@ class ModelSet(object):
     @property
     def blob_redshifts(self):
         if not hasattr(self, '_blob_redshifts'):
-            names = self.blob_names
+            if os.path.exists('%s.binfo.pkl' % self.prefix):
+                f = open('%s.binfo.pkl' % self.prefix, 'rb')
+                junk, self._blob_redshifts = \
+                    map(list, pickle.load(f))
+                f.close()
         
         return self._blob_redshifts
 
@@ -412,16 +447,7 @@ class ModelSet(object):
                 except:
                     if rank == 0:
                         print "WARNING: Error loading blobs."    
-
-                if have_h5py:
-                    f = h5py.File('%s.blobs.hdf5' % self.prefix, 'w')
-                    f.create_dataset('blobs', data=self._blobs)
-                    f.create_dataset('mask', data=self._mask)
-                    f.close()
-
-                    if rank == 0:
-                        print 'Saved %s.blobs.hdf5' % self.prefix            
-
+        
             else:
                 self._blobs = None            
 
@@ -438,7 +464,30 @@ class ModelSet(object):
     #        mask = f[key].attrs.get('mask')
     #        results[key] = np.ma.array(f[key].value, mask=mask)
             
+    def save_hdf5(self):
+        if not have_h5py:
+            return
         
+        if rank > 0:
+            return
+            
+        f = h5py.File('%s.blobs.hdf5' % self.prefix, 'w')
+        f.create_dataset('blobs', data=self._blobs)
+        f.create_dataset('mask', data=self._mask)
+        f.close()
+        
+        print 'Saved %s.blobs.hdf5' % self.prefix
+        
+        # Save to disk!
+        if not os.path.exists('%s.dblobs.hdf5') and have_h5py:
+            f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'w')
+            f.create_dataset('mask', data=mask)
+            f.create_dataset('derived_blobs', data=self._derived_blobs)
+            f.create_dataset('derived_blob_names', data=self._derived_blob_names)
+            f.close()
+        
+            if rank == 0:
+                print 'Saved %s.dblobs.hdf5' % self.prefix
 
     @property
     def Nd(self):
@@ -893,17 +942,6 @@ class ModelSet(object):
         
         self._derived_blobs = np.ma.masked_array(self._derived_blobs, 
             mask=mask)
-            
-        # Save to disk!
-        if not os.path.exists('%s.dblobs.hdf5') and have_h5py:
-            f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'w')
-            f.create_dataset('mask', data=mask)
-            f.create_dataset('derived_blobs', data=self._derived_blobs)
-            f.create_dataset('derived_blob_names', data=self._derived_blob_names)
-            f.close()
-            
-            if rank == 0:
-                print 'Saved %s.dblobs.hdf5' % self.prefix
 
         return self._derived_blobs
 
@@ -1727,7 +1765,7 @@ class ModelSet(object):
 
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)
-
+        
         # We might supply weights by-hand for ModelGrid calculations
         if not hasattr(self, 'weights'):
             weights = None
@@ -1799,16 +1837,16 @@ class ModelSet(object):
             bc = []
             for i, edges in enumerate([xedges, yedges]):
                 bc.append(rebin(edges))
-                    
+
             # Determine mapping between likelihood and confidence contours
             if color_by_like:
-    
+
                 # Get likelihood contours (relative to peak) that enclose
                 # nu-% of the area
                 #nu, levels = self.get_levels(hist, nu=nu)
                 #
                 #print nu, levels
-                
+
                 if contour_method == 'raw':
                     nu, levels = error_2D(None, None, hist, None, nu=nu, 
                         method='raw')

@@ -32,7 +32,8 @@ except ImportError:
     rank = 0
     size = 1
 
-def_kwargs = {'track_extrema': True, 'verbose': False, 'progress_bar': False}    
+def_kwargs = {'track_extrema': True, 'verbose': False, 'progress_bar': False,
+    'one_file_per_blob': True}    
 
 class ModelGrid:
     """Create an object for setting up and running model grids."""
@@ -50,6 +51,10 @@ class ModelGrid:
             Will look for a file called <prefix>.grid.hdf5
         
         grid : instance
+        
+        one_file_per_blob : bool    
+            Give each blobs its own file? Helps analysis and data transfer for
+            very large datasets.
 
         verbose : bool
 
@@ -63,6 +68,8 @@ class ModelGrid:
         if 'tanh_model' in self.base_kwargs:
             if self.base_kwargs['tanh_model']:
                 self.tanh = True
+                
+        self.one_file_per_blob = self.base_kwargs['one_file_per_blob']
         
     @property
     def blob_names(self):
@@ -275,8 +282,13 @@ class ModelGrid:
         if hasattr(self, 'blob_names'):
 
             # File for blobs themselves
-            f = open('%s.blobs.pkl' % prefix, 'wb')
-            f.close()
+            if self.one_file_per_blob:
+                for blob in self.blob_names:
+                    f = open('%s.subset.%s.pkl' % (prefix, blob), 'wb')
+                    f.close()
+            else:
+                f = open('%s.blobs.pkl' % prefix, 'wb')
+                f.close()
             
             # Blob names and list of redshifts at which to track them
             f = open('%s.binfo.pkl' % prefix, 'wb')
@@ -497,9 +509,14 @@ class ModelGrid:
             pickle.dump(chain_all, f)
             f.close()
             
-            f = open('%s.blobs.pkl' % self.prefix, 'ab')
-            pickle.dump(blobs_all, f)
-            f.close()
+            if self.one_file_per_blob:
+                for i, blob in enumerate(self.blob_names):
+                    barr = np.array(blobs_all)[:,:,i]
+                    with open('%s.subset.%s.pkl' % (self.prefix, blob), 'ab') as f:
+                        pickle.dump(barr, f)                        
+            else:
+                with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
+                    pickle.dump(blobs_all, f)
             
             f = open('%s.load.pkl' % self.prefix, 'ab')
             pickle.dump(load_all, f)
@@ -522,19 +539,22 @@ class ModelGrid:
             MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
     
         if chain_all:
-            f = open('%s.chain.pkl' % self.prefix, 'ab')
-            pickle.dump(chain_all, f)
-            f.close()
+            with open('%s.chain.pkl' % self.prefix, 'ab') as f:
+                pickle.dump(chain_all, f)
         
         if blobs_all:
-            f = open('%s.blobs.pkl' % self.prefix, 'ab')
-            pickle.dump(blobs_all, f)
-            f.close()
+            if self.one_file_per_blob:
+                for i, blob in enumerate(self.blob_names):
+                    barr = np.array(blobs_all)[:,:,i]
+                    with open('%s.subset.%s.pkl' % (self.prefix, blob), 'ab') as f:
+                        pickle.dump(barr, f)
+            else:
+                with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
+                    pickle.dump(blobs_all, f)
         
         if load_all:
-            f = open('%s.load.pkl' % self.prefix, 'ab')
-            pickle.dump(load_all, f)
-            f.close()            
+            with open('%s.load.pkl' % self.prefix, 'ab') as f:
+                pickle.dump(load_all, f)
         
         print "Processor %i: Wrote %s.*.pkl" % (rank, prefix)
         
