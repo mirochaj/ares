@@ -3,7 +3,7 @@ The Metagalactic Lyman-Werner Background
 One of the main motivations for *ares* was to be able to easily generate
 models for the metagalactic background. In this example, we'll focus on the
 background near the Lyman-Werner band, which is noteworthy given the
-``sawtooth'' modulation (e.g., `Haiman et al. (1997)
+''sawtooth'' modulation (e.g., `Haiman et al. (1997)
 <http://adsabs.harvard.edu/abs/1997ApJ...476..458H>`_) caused by intergalactic hydrogen atoms.
 
 In order to model this background, we need to decide on a few main ingredients:
@@ -87,7 +87,7 @@ So long as ``verbose=True`` (which it is by default), you should see the followi
     #### logN              : -inf                                         ####
     ##########################################################################
     
-The only real difference you may notice is that the units of the yield have been converted to :math:`\mathrm{erg} \ \mathrm{s}^{-1} \ (M_{\odot} \ \mathrm{yr}^{-1})^{-1}`.    
+This is really just to provide a sanity check. The only real difference you may notice is that the units of the yield have been converted to :math:`\mathrm{erg} \ \mathrm{s}^{-1} \ (M_{\odot} \ \mathrm{yr}^{-1})^{-1}`.    
     
 To run the thing:
 
@@ -100,12 +100,18 @@ The results of the calculation, as in any ``ares.simulations`` class, are stored
 ::
 
     z, E, flux = mgb.get_history(flatten=True)
-
-and plot the flux at the final redshift (:math:`z=10`):
+    
+Internally, fluxes are computed in units of :math:`\mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1}`, but often it can be useful to look at the background flux in terms of its energy. So, let's import some useful constants:
 
 ::
 
-    pl.semilogy(E, flux[-1], color='k', ls=':')
+    from ares.physics.Constants import *
+
+and plot the flux at the final redshift (:math:`z=10`) in units of :math:`\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1}`:
+
+::
+
+    pl.semilogy(E, flux[-1] * E * erg_per_ev, color='k', ls=':')
     
 You should see...    
     
@@ -120,11 +126,11 @@ By default, *ares* will not do any sort of detailed radiative transfer that acco
     mgb2.run()
     
     z2, E2, flux2 = mgb2.get_history(flatten=True)
-    pl.semilogy(E2, flux2[-1], color='k', ls='--')
+    pl.semilogy(E2, flux2[-1] * E2 * erg_per_ev, color='k', ls='--')
     
 Compare to the analytic solution, given by Equation A1 in `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_ (the *cosmologically-limited* solution to the radiative transfer equation)
 
-.. math::
+.. math ::
     
     J_{\nu}(z) = \frac{c}{4\pi} \frac{\epsilon_{\nu}(z)}{H(z)} \frac{(1 + z)^{9/2-(\alpha + \beta)}}{\alpha+\beta-3/2} \times \left[(1 + z_i)^{\alpha+\beta-3/2} - (1 + z)^{\alpha+\beta-3/2}\right]
 

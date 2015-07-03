@@ -45,23 +45,6 @@ or the quasar luminosity function:
     
 See ``$ARES/tests/lit`` for more examples.
 
-Using models from the literature in RT calculations
----------------------------------------------------
-The motivation for developing a generalized interface to data from the literature is to (1) enable development of a common set of analysis routines to facilitate
-apples-to-apples comparisons between various results and the literature, and
-(2) to ease the integration of these models with radiative transfer calculations.
-
-For example, to initialize an *ares* object for simple inspection, you could do something like: 
-
-::
-        
-    pop = ares.populations.GalaxyPopulation(source_type='bh', approx_xrb=False, 
-        source_sed='sazonov2004', pop_lf='ueda2003')
-    
-If the value of ``pop_lf`` is not ``'schecter'`` or a Python function, it will assume you are trying to use a model from the literature. 
-
-.. note :: These parameter names are subject to change / deprecation.        
-    
 Expanding the Database
 ----------------------
 If you'd like to add your favorite empirical formulae from the literature to *ares*, here are a few conventions to follow:
