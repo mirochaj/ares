@@ -112,6 +112,10 @@ be installed via pip: ::
 
 You can also just view the latest build `here <http://ares.readthedocs.org/en/latest/>`_.
 
+Help
+----
+If you encounter problems with installation or running simple scripts, first check the Troubleshooting page in the documentation to see if you're dealing with a common problem. If you don't find your problem listed there, please let me know!
+
 Contributors
 ------------
 

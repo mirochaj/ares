@@ -2,6 +2,16 @@ Troubleshooting
 ===============
 This page is an attempt to keep track of common errors and instructions for how to fix them. 
 
+Plots not showing up
+--------------------
+If, when running some *ares* script (e.g., those in ``$ARES/tests``) the program runs to completion without errors but does not produce a figure, it may be due to your matplotlib settings. Most test scripts use ``draw`` to ultimately produce the figure because it is non-blocking and thus allows you to continue tinkering with the output if you'd like. One of two things is going on:
+
+* You invoked the script with the standard Python interpreter (i.e., **not** iPython). Try running it with iPython, which will spit you back into an interactive session once the script is done, and thus keep the plot window open.
+* Alternatively, your default ``matplotlib`` settings may have caused this. Check out your ``matplotlibrc`` file (in ``$HOME/.matplotlibrc``) and make sure ``interactive : True``. 
+
+Future versions of *ares* may use blocking commands to ensure that plot windows don't disappear immediately. Email me if you have strong opinions about this.
+
+
 ``IOError: No such file or directory``
 --------------------------------------
 There are a few different places in the code that will attempt to read-in lookup tables of various sorts. If you get any error that suggests a required input file has not been found, you should:
