@@ -146,7 +146,7 @@ if not ARES_env:
     shell = os.getenv('SHELL')
     
     print "\n"
-    print "#"*92
+    print "#"*78
     print "It would be in your best interest to set an environment variable",
     print "pointing to this directory."
         
@@ -160,7 +160,7 @@ if not ARES_env:
             print "\n    setenv ARES %s" % cwd
 
     print "\nGood luck!"
-    print "#"*92        
+    print "#"*78        
     print "\n"
 
 # Print a warning if there's already an environment variable but it's pointing
@@ -168,17 +168,17 @@ if not ARES_env:
 elif ARES_env != cwd:
     
     print "\n"
-    print "#"*92
+    print "#"*78
     print "It looks like you've already got an ARES environment variable set",
-    print "but it's pointing to"
-    print "a different directory:"
+    print "but it's \npointing to a different directory:"
     print "\n    ARES=%s" % ARES_env
     
     print "\nHowever, we're currently in %s.\n" % cwd
     
     print "Is this a different ares install (might not cause problems),",
-    print "or perhaps just a typo in "
-    print "your environment variable?"
+    print "or perhaps just"
+    print "a typo in your environment variable?"
     
-    print "#"*92        
+    print "#"*78        
     print "\n"
+    

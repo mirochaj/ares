@@ -1,6 +1,6 @@
 Parameters
 ==========
-We use keyword arguments to pass parameters around to various ARES routines. 
+We use keyword arguments to pass parameters around to various *ares* routines. 
 A complete listing of parameters and their default values can be found in 
 ``ares.util.SetDefaultParameterValues.py``. 
 

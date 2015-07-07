@@ -25,11 +25,11 @@ To clone a copy and install: ::
     python setup.py install
 
 It would be in your best interest to set an environment variable which points
-to the ARES install directory, e.g. (in bash) ::
+to the *ares* install directory, e.g. (in bash) ::
 
     export ARES=/users/<yourusername>/ares
 
-ARES will look in ``$ARES/input`` for lookup tables of various kinds, e.g.,
+*ares* will look in ``$ARES/input`` for lookup tables of various kinds, e.g.,
 the halo mass function (in ``$ARES/input/hmf``), IGM optical depth (in
 ``$ARES/input/optical_depth``), spectral energy distributions (in
 ``$ARES/input/seds``), etc.

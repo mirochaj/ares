@@ -46,10 +46,11 @@ emcee_mpipool = False
 try:
     from mpi_pool import MPIPool
 except ImportError:
-    from emcee.utils import MPIPool
-    emcee_mpipool = True    
-except ImportError:
-    pass
+    try:
+        from emcee.utils import MPIPool
+        emcee_mpipool = True    
+    except ImportError:
+        pass
      
 try:
     import h5py

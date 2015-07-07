@@ -212,16 +212,18 @@ class ModelSet(object):
                             if blob not in subset:
                                 subset.append(blob)
             
-                if type(subset) not in [list, tuple]:
-                    subset = [subset]
+                if (subset is not None) and (subset != []):
             
-                self._blob_names = subset                        
-                mask, blobs = self._load_subset()
-
-                self.mask = np.zeros_like(blobs)
-                self.mask[np.isinf(blobs)] = 1
-                self.mask[np.isnan(blobs)] = 1
-                self._blobs = np.ma.array(blobs, mask=self.mask)
+                    if type(subset) not in [list, tuple]:
+                        subset = [subset]
+                    
+                    self._blob_names = subset                        
+                    mask, blobs = self._load_subset()
+                    
+                    self.mask = np.zeros_like(blobs)
+                    self.mask[np.isinf(blobs)] = 1
+                    self.mask[np.isnan(blobs)] = 1
+                    self._blobs = np.ma.array(blobs, mask=self.mask)
 
         elif isinstance(data, ModelSubSet):
             self._chain = data.chain
@@ -276,7 +278,7 @@ class ModelSet(object):
             for path in ['.', self.path]:
         
                 fn = '%s/%s.subset.%s.hdf5' % (path, self.fn, par)
-                
+                fn_pkl = '%s/%s.subset.%s.pkl' % (path, self.fn, par)
                 
                 if os.path.exists(fn):
                     f = h5py.File(fn, 'r')
@@ -296,8 +298,8 @@ class ModelSet(object):
                 
                     f.close()
                     
-                else:                            
-         
+                elif os.path.exists(fn_pkl):
+                        
                     # If these are pickle files, the redshifts will match up with 
                     # those listed in the binfo file.                    
                     if Nz is None:
@@ -311,6 +313,9 @@ class ModelSet(object):
                     blobs[:,:,i] = read_pickle_file(fn)
                     mask = None
 
+                else:
+                    continue
+
         if not hasattr(self, '_blob_redshifts'):
             self._blob_redshifts = redshifts
 
@@ -323,9 +328,9 @@ class ModelSet(object):
                 self._load = read_pickle_file('%s.load.pkl' % self.prefix)
             else:
                 self._load = None
-        
+
         return self._load
-            
+
     @property
     def base_kwargs(self):
         if not hasattr(self, '_base_kwargs'):
