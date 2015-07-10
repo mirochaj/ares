@@ -91,8 +91,6 @@ class GasParcel:
             
         """
 
-        rcs = {}
-
         # First, get coefficients that only depend on kinetic temperature
         if self.grid.isothermal:
             self.rate_coefficients.update(self.chem.rcs)

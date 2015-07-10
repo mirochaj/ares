@@ -268,6 +268,34 @@ class MultiPhaseMedium:
         
         return np.interp(0.5, xz, zz)
         
+    def excluded_regions(self, ax):
+        """
+        Overplot
+        """
+        
+        ax.get_xlim()
+        
+        # Adiabatic cooling limit
+        sim = simG21(tanh_model=True, tanh_T0=0.0, 
+            tanh_x0=0.0, tanh_J0=1e5, tanh_Jz0=120, initial_redshift=120)
+        
+        ax.fill_between(sim.history['nu'], sim.history['igm_dTb'], 
+            -500 * np.ones_like(sim.history['nu']), hatch='x', color='none', 
+            edgecolor='gray')
+
+        # Saturated
+        sim = simG21(tanh_model=True, tanh_x0=0.0,    
+            tanh_J0=1e5, tanh_Jz0=120, tanh_Tz0=120, tanh_T0=1e4, 
+            initial_redshift=120)
+
+        ax.fill_between(sim.history['nu'], sim.history['igm_dTb'], 
+            80 * np.ones_like(sim.history['nu']), hatch='x', color='none', 
+            edgecolor='gray')
+        
+        ax.set_xlim()
+        
+        pl.draw()
+        
     def tau_CMB(self):
         """
         Compute CMB optical depth history.

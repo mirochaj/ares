@@ -400,7 +400,6 @@ def print_pop(pop):
     print line("yield (erg / s / SFR) : %g" % (pop.yield_per_sfr * g_per_msun / s_per_yr))
     print line("EminNorm (eV)         : %g" % (pop.pf['pop_EminNorm']))
     print line("EmaxNorm (eV)         : %g" % (pop.pf['pop_EmaxNorm']))    
-    print line("f_esc                 : %g" % (pop.pf['pop_fesc']))    
 
     ##
     # SPECTRUM STUFF

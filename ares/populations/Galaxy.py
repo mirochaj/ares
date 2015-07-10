@@ -458,13 +458,13 @@ class GalaxyPopulation(HaloPopulation):
             rhoL = self.SFRD(z) * self.yield_per_sfr
         else:
             raise NotImplemented('help')    
-            
+                    
         # Convert from reference band to arbitrary band
         rhoL *= self._convert_band(Emin, Emax)
         
         if Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
             rhoL *= self.pf['pop_fesc']
-                        
+
         if E is not None:
             return rhoL * self.src.Spectrum(E)
         else:

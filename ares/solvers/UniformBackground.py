@@ -19,6 +19,7 @@ from ..static import GlobalVolume
 from ..util.PrintInfo import print_rb
 from ..util.Misc import num_freq_bins
 from scipy.interpolate import interp1d
+from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
 from ..populations import CompositePopulation
 from ..util.ReadData import flatten_flux, split_flux
@@ -286,9 +287,9 @@ class UniformBackground(object):
             # Special treatment if LWB or UVB
             if band in [(E_LyA, E_LL), (4 * E_LyA, 4 * E_LL)]:
                                 
-                HeII = band[0] > E_LL                
-                                
-                energies = []
+                HeII = band[0] > E_LL
+                                                
+                E = []
                 narr = np.arange(2, self.pf['sawtooth_nmax'])
                 for n in narr:
                     Emi = self.hydr.ELyn(n)
@@ -301,35 +302,35 @@ class UniformBackground(object):
                     N = num_freq_bins(nz, zi=zi, zf=zf, Emin=Emi, Emax=Ema)
                     
                     # Create energy arrays
-                    E = Emi * R**np.arange(N)
+                    EofN = Emi * R**np.arange(N)
                     
-                    energies.append(E)
-                    
-                if band == (E_LyA, E_LL):
-                    tau = [np.zeros([len(z), len(Earr)]) for Earr in energies]    
+                    E.append(EofN)
+                                        
+                if band == (E_LyA, E_LL) or (4 * E_LyA, 4 * E_LL):
+                    tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
                 else:
-                    tau = [self._set_tau(z, Earr) for Earr in energies]
+                    tau = [self._set_tau(z, Earr, pop) for Earr in E]
                     
-                ehat = [self.TabulateEmissivity(z, Earr, pop) for Earr in energies]
+                ehat = [self.TabulateEmissivity(z, Earr, pop) for Earr in E]
                                   
             else:
                 N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
-                E = energies = E0 * R**np.arange(N)
-                
+                E = E0 * R**np.arange(N)
+                                
+                # Tabulate optical depth
+                z, E, tau = self._set_tau(z, E, pop)
+
                 # Tabulate emissivity
                 ehat = self.TabulateEmissivity(z, E, pop)
-                
-                # Tabulate optical depth
-                tau = self._set_tau(z, energies)
 
             # Store stuff for this band
             tau_by_band.append(tau)
-            energies_by_band.append(energies)
+            energies_by_band.append(E)
             emissivity_by_band.append(ehat)
 
         return z, energies_by_band, tau_by_band, emissivity_by_band
 
-    def _set_tau(self, z, E):
+    def _set_tau(self, z, E, pop):
         """
         Tabulate the optical depth.
         
@@ -363,20 +364,29 @@ class UniformBackground(object):
         
         # Default to optically thin if nothing is supplied
         if self.pf['approx_tau'] is None:
-            return np.zeros([len(z), len(E)])
+            return z, E, np.zeros([len(z), len(E)])
             
         # Not necessarily true in the future if we include H2 opacity    
         if E.max() <= E_LL:
-            return np.zeros([len(z), len(E)])
-
+            return z, E, np.zeros([len(z), len(E)])
+            
         # Otherwise, compute optical depth assuming constant ion fractions
-        if self.pf['approx_tau'] == True:
-            tau = self.volume.TabulateOpticalDepth(z, E)
-            tau += self.volume.TabulateOpticalDepth(z, E, species=1)
+        if self.pf['approx_tau'] == 'neutral':
+            
+            # Try to load file from disk.
+            z, E, tau = self.volume._fetch_tau(pop, z, E)
+            
+            # Generate it now if no file was found.
+            if tau is None:    
+                no_tau_table(self)
+                tau = self.volume.TabulateOpticalDepth(z, E)
+                if self.pf['include_He']:
+                    tau += self.volume.TabulateOpticalDepth(z, E, species=1)
+                        
         elif self.pf['approx_tau'] is 'post_EoR':            
             tau = self.volume.TabulateOpticalDepth(z, E, species=2)
         
-        return tau
+        return z, E, tau
 
     def _set_generators(self):
         """
@@ -439,7 +449,7 @@ class UniformBackground(object):
                     self.k_heat[i,0,j] = \
                         self.volume.HeatingRate(z, species=j, popid=i,
                         **kwargs)
-
+                        
                     for k, donor in enumerate(self.grid.absorbers):
                         self.k_ion2[i,0,j,k] = \
                             self.volume.SecondaryIonizationRateIGM(z, 

@@ -276,7 +276,7 @@ class MultiPhaseMedium(object):
             # IGM rate coefficients
             if self.pf['include_igm']:
                 RC_igm = self.field.update_rate_coefficients(z, 
-                    zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
+                    zone='igm', return_rc=True, igm_e=data_igm['e'])
                 
                 # Now, update IGM parcel
                 t1, dt1, data_igm = self.gen_igm.next()
@@ -286,7 +286,7 @@ class MultiPhaseMedium(object):
             else:
                 dt1 = 1e50
                 RC_igm = data_igm = None
-                data_igm = {'h_1': 1.0}
+                data_igm = {'e': 0.0}
 
             if self.pf['include_cgm']:
                 # CGM rate coefficients

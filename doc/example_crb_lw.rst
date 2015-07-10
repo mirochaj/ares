@@ -115,7 +115,7 @@ and plot the flux at the final redshift (:math:`z=10`) in units of :math:`\mathr
     
 You should see...    
     
-By default, *ares* will not do any sort of detailed radiative transfer that accounts for neutral absorption, which is why the background spectrum  To turn that on,
+By default, *ares* will not do any sort of detailed radiative transfer that accounts for neutral absorption, which is why the background spectrum...  To turn that on,
 
 ::
 

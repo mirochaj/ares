@@ -160,7 +160,7 @@ class ChemicalNetwork:
 
                 term = k_ion2[0,j] * x[donor] / x['h_1']
                 gamma_HI += term
-                
+      
         ##
         # Hydrogen rate equations
         ##

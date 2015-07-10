@@ -10,9 +10,11 @@ Description:
 
 """
 
-import sys
+import sys, os
 import numpy as np
 from .PrintInfo import twidth, line, tabulate
+
+ARES = os.getenv('ARES')
 
 separator = '|'*twidth
 separator2 = '-'*twidth
@@ -113,33 +115,36 @@ def tau_tab_E_mismatch(igm, Emin_ok, Emax_ok, Etab):
         which = 'tab'
         print line("found       : %s" % igm.tabname[igm.tabname.rfind('/')+1:])
     
-    print line("Emin (pf)   : %g" % igm.pf['spectrum_Emin'])
+    print line("Emin (pf)   : %g" % igm.pf['pop_Emin'])
     print line("Emin (%s)  : %g" % (which, Etab.min()))
-    print line("Emax (pf)   : %g" % igm.pf['spectrum_Emax'])
+    print line("Emax (pf)   : %g" % igm.pf['pop_Emax'])
     print line("Emax (%s)  : %g" % (which, Etab.max())) 
 
-    if Etab.min() < igm.pf['spectrum_Emin']:
+    if Etab.min() < igm.pf['pop_Emin']:
         print line("this is OK  : we'll discard E < %.2e eV entries in table" \
-            % igm.pf['spectrum_Emin'])
+            % igm.pf['pop_Emin'])
 
-    if Etab.max() > igm.pf['spectrum_Emax']:
+    if Etab.max() > igm.pf['pop_Emax']:
         print line("this is OK  : we'll discard E > %.2e eV entries in table" \
-            % igm.pf['spectrum_Emax']) 
+            % igm.pf['pop_Emax']) 
 
     print line(separator)
 
-def no_tau_table(igm):
+def no_tau_table(urb):
     print ""    
     print line(separator)
-    print line('ERROR (no optical depth table)')    
+    print line('WARNING: no optical depth table found')    
     print line(separator)        
-    print line("looking for : %s" % igm.tau_name()[0])
-    if igm.pf['tau_prefix'] is not None:
-        print line("in          : %s" % igm.pf['tau_prefix'])
-    elif glorb_dir is not None:
-        print line("in          : %s/input/optical_depth" % glorb_dir)
+    print line("looking for : %s" % urb.volume.tabname)
+    if urb.pf['tau_prefix'] is not None:
+        print line("in          : %s" % urb.pf['tau_prefix'])
+    elif ARES is not None:
+        print line("in          : %s/input/optical_depth" % ARES)
     else:
         print line("in          : nowhere! set $ARES or tau_prefix")
+
+    print line(separator)
+    print line("Generating a new table will take 5-10 minutes...")
 
     print line(separator)
 

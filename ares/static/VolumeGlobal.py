@@ -17,8 +17,8 @@ from ..physics.Constants import *
 import types, os, re, sys, pickle
 from ..util.Misc import num_freq_bins
 from ..physics import SecondaryElectrons
-from ..util.Warnings import tau_tab_z_mismatch, no_tau_table
 from scipy.integrate import dblquad, romb, simps, quad, trapz
+from ..util.Warnings import tau_tab_z_mismatch, tau_tab_E_mismatch
 
 try:
     import h5py
@@ -119,7 +119,7 @@ class GlobalVolume(object):
 
         return self._rates_no_RT
 
-    def _fetch_tau(self, popid=0, zpf=None, Epf=None):
+    def _fetch_tau(self, pop, zpf, Epf):
         """
         Look for optical depth tables. Supply corrected energy and redshift
         arrays if there is a mistmatch between those generated from information
@@ -143,12 +143,14 @@ class GlobalVolume(object):
         
         """
         
-        pop = self.pops[popid]
-        band = self.background.bands[popid]
-        
+        for i in range(self.Npops):
+            if pop == self.pops[i]:
+                band = self.background.bands_by_pop[i]
+                break
+            
         # First, look in CWD or $ARES (if it exists)
         self.tabname = self._load_tau(self.pf['tau_prefix'])
-        
+                
         if not self.tabname:
             return zpf, Epf, None
         
@@ -512,7 +514,7 @@ class GlobalVolume(object):
         # Set up log-grid in parameter x = 1 + z
         x = np.logspace(np.log10(1+self.pf['final_redshift']),
             np.log10(1+self.pf['initial_redshift']),
-            int(self.pf['redshifts_xrb']))
+            int(self.pf['pop_tau_Nz']))
         z = x - 1.
         logx = np.log10(x)
         logz = np.log10(z)
@@ -639,10 +641,6 @@ class GlobalVolume(object):
         
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
-                        
-        # Return right away if heating rate density is parameterized
-        #if self.pf['heat_igm'] is not None:
-        #    return self.pf['heat_igm'](z) 
 
         # Compute fraction of photo-electron energy deposited as heat
         if pop.pf['pop_fXh'] is None:
@@ -665,9 +663,10 @@ class GlobalVolume(object):
                         / (self.esec.x[j] - self.esec.x[i_x])                
             else:
                 fheat = self.esec.DepositionFraction(kw['igm_e'])[0]
+                
         else:
             fheat = self.pf['fXh']
-            
+                        
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
         if self.background.solve_rte[popid] is None:
@@ -675,7 +674,7 @@ class GlobalVolume(object):
             
             Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 
                 Emax=pop.pf['pop_Emax'])
-
+                
             return weight * fheat * Lx * (1. + z)**3
 
         # Otherwise, do the full calculation

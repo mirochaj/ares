@@ -214,6 +214,7 @@ def ReionizationProblem(ptype):
     
     ptype_int = int(ptype)
     
+    # If 110-120, include helium
     if abs(ptype_int) > 10:
         ptype_int -= 10 * np.sign(ptype_int)
         ptype_mod1 = round(ptype - 10 - ptype_int, 1)
@@ -227,21 +228,21 @@ def ReionizationProblem(ptype):
         
         'problem_type': 100,
         
-        # Emits LW/UV photons
+        # Emits LW
         'pop_type{0}': 'galaxy',
         "pop_lya_src{0}": True,
-        "pop_ion_src_cgm{0}": True,
+        "pop_ion_src_cgm{0}": False,
         "pop_ion_src_igm{0}": False,
         "pop_heat_src_cgm{0}": False,
         "pop_heat_src_igm{0}": False,
 
-        "pop_fesc{0}": 0.1,
+        "pop_fesc{0}": 1.0,
         
-        "pop_Emin{0}": 10.18,
-        "pop_Emax{0}": 24.4,
-        "pop_EminNorm{0}": 13.6,
-        "pop_EmaxNorm{0}": 1e2,        
-        "pop_yield{0}": 4000., 
+        "pop_Emin{0}": 10.2,
+        "pop_Emax{0}": 13.6,
+        "pop_EminNorm{0}": 10.2,
+        "pop_EmaxNorm{0}": 13.6,        
+        "pop_yield{0}": 9690., 
         "pop_yield_units{0}": 'photons/baryon',
         "pop_solve_rte{0}": False,
         
@@ -252,7 +253,7 @@ def ReionizationProblem(ptype):
         "pop_ion_src_igm{1}": True,
         "pop_heat_src_cgm{1}": False,
         "pop_heat_src_igm{1}": True,
-        
+
         "pop_sed{1}": 'pl',
         "pop_alpha{1}": -1.5,
 
@@ -260,14 +261,32 @@ def ReionizationProblem(ptype):
         "pop_Emax{1}": 3e4,
         "pop_EminNorm{1}": 5e2,
         "pop_EmaxNorm{1}": 8e3,
-        
+
         "pop_Ex": 500.,
         "pop_yield{1}": 2.6e39, 
         "pop_yield_units{1}": 'erg/s/SFR',
         "pop_solve_rte{1}": False,
+        
+        # Emits ionizing photons
+        'pop_type{2}': 'galaxy',
+        "pop_lya_src{2}": False,
+        "pop_ion_src_cgm{2}": True,
+        "pop_ion_src_igm{2}": False,
+        "pop_heat_src_cgm{2}": False,
+        "pop_heat_src_igm{2}": False,
+
+        "pop_fesc{2}": 0.1,
+        
+        "pop_Emin{2}": 13.6,
+        "pop_Emax{2}": 1e2,
+        "pop_EminNorm{2}": 13.6,
+        "pop_EmaxNorm{2}": 1e2,        
+        "pop_yield{2}": 4000., 
+        "pop_yield_units{2}": 'photons/baryon',
+        "pop_solve_rte{2}": False,
 
         }
-        
+
     # Global 21-cm problem w/ meta-galactic backgrounds
     if ptype_int == 1:
         raise NotImplemented('Have not implemented problem_type = 101 yet.')
