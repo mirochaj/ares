@@ -28,6 +28,10 @@ class HaloPopulation(Population):
 
         # Setup splines for interpolation of dfcoll/dt
         self._init_pop()
+        
+    @property
+    def info(self):
+        print_pop(self)    
 
     @property
     def fcoll(self):

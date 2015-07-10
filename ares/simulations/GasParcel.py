@@ -56,7 +56,8 @@ class GasParcel:
             self.pf['verbose'])
         
     def _set_chemistry(self):
-        self.chem = Chemistry(self.grid, rt=self.pf['radiative_transfer'])
+        self.chem = Chemistry(self.grid, rt=self.pf['radiative_transfer'],
+            recombination=self.pf['recombination'])
         
     def reset(self):
         del self.gen

@@ -21,7 +21,7 @@ tau_prefix = "%s/input/optical_depth" % ARES \
     if (ARES is not None) else '.'
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
-    'Control', 'HaloMassFunction', 'Tanh', 'Slab']
+    'Control', 'HaloMassFunction', 'Tanh', 'Slab', 'Fudge', 'MultiPhase']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -62,6 +62,7 @@ def GridParameters():
     "include_H2": False,
     
     "include_cgm": True,
+    "include_igm": True,
     
     # Line photons
     "include_H_Lya": False,
@@ -79,9 +80,7 @@ def GridParameters():
     "tables_discrete_gen": False,
     "tables_energy_bins": 100,
     "tables_prefix": None,
-    
-    ""
-    
+        
     "tables_logxmin": -4,
     "tables_dlogx": 0.1,
     "tables_dE": 5.,
@@ -93,6 +92,20 @@ def GridParameters():
     
     pf.update(rcParams)
 
+    return pf
+    
+def MultiPhaseParameters():
+    pf = \
+    {
+     "cgm_Tk": 1e4,
+     "cgm_h_2": 0.0,
+     'igm_h_2': None,
+     "cgm_recombination": 'A',
+     "igm_recombination": 'B',
+    }    
+    
+    pf.update(rcParams)
+    
     return pf
     
 def SlabParameters():
@@ -112,13 +125,24 @@ def SlabParameters():
     
     return pf
 
+# BoundaryConditionParameters?
+def FudgeParameters():
+    pf = \
+    {
+    "z_heII_EoR": 3.,
+    }
+    
+    pf.update(rcParams)
+    
+    return pf
+
 def AbsorberParameters():
     pf = \
     {
     'cddf_C': 0.25,
     'cddf_beta': 1.4,
     'cddf_gamma': 1.5,
-    'cdff_zlow': 1.5,
+    'cddf_zlow': 1.5,
     'cddf_gamma_low': 0.2,
     }
     
@@ -194,8 +218,8 @@ def PhysicsParameters():
     "rate_source": 'fk94', # fk94, option for development here
     
     # Approximations to radiation field                   
-    "norm_by": 'xray',
-    "xray_Emin": 2e2,
+    #"norm_by": 'xray',
+    #"xray_Emin": 2e2,
     
     # Feedback!
     "feedback": False,
@@ -210,8 +234,14 @@ def PhysicsParameters():
     return pf
     
 def PopulationParameters():
+    """
+    Parameters associated with populations of objects, which give rise to
+    meta-galactic radiation backgrounds.
+    """
     
     pf = {}
+    
+    # Grab all SourceParameters and replace "source_" with "pop_"
     srcpars = SourceParameters()
     for par in srcpars:
         pf[par.replace('source', 'pop')] = srcpars[par]
@@ -222,44 +252,41 @@ def PopulationParameters():
     
     "pop_type": 'galaxy',
     
-    "pop_rhoL": None,
-    
+    # Set the emission interval and SED
     "pop_sed": 'pl',
-    
-    "pop_sawtooth": False,
-    "pop_solve_rte": False,
-    "pop_tau_Nz": 400,
     
     "pop_Emin": 2e2,
     "pop_Emax": 3e4,
     "pop_EminNorm": 5e2,
     "pop_EmaxNorm": 8e3,
+
+    "pop_Emin_xray": 2e2,
+    
+    # Controls IGM ionization for approximate CXB treatments
+    "pop_Ex": 500.,
+    "pop_EminX": 2e2,
+    "pop_Euv": 30.,
     
     "pop_lf": None,
     "pop_emissivity": None,
     
-    "pop_lf_Lstar": 1e42,
-    "pop_lf_slope": -1.5,
-    
-    "pop_lf_zdep": None,
-    
-    "pop_lf_Lmin": 1e38,
-    "pop_lf_Lmax": 1e42,
-    "pop_lf_LminNorm": 1e38,
-    "pop_lf_LmaxNorm": 1e42,    
-    
-    
-    
+    # Set time interval over which emission occurs
     "pop_zform": 50.,
     "pop_zdead": 0.0,
-    
-    "pop_focc": None,
-    
+        
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
     "pop_Tmin": 1e4,
     "pop_Mmin": None,
     "pop_sfrd": None,
+    
+    # Override luminosity density
+    "pop_rhoL": None,
+    
+    # Scales SFRD
+    "pop_Nlw": 9690.,
+    "pop_Nion": 4e3,
+    "pop_fesc": 0.1,
     
     # Parameters that sweep fstar under the rug
     "pop_xi_XR": None,     # product of fstar and fX
@@ -271,6 +298,7 @@ def PopulationParameters():
     "pop_LE": None,
 
     # What radiation does this population emit?
+    # Should these be deprecated?
     "pop_lya_src": True,
     "pop_ion_src_cgm": True,
     "pop_ion_src_igm": True,
@@ -282,33 +310,16 @@ def PopulationParameters():
     "pop_src_uvb": False,
     "pop_src_xrb": True,
 
-    # Generalized normalization
-    "pop_yield": 2.6e39,
-    "pop_yield_units": 'erg/s/SFR', # alternatively, 'photons / baryon'
+    # Generalized normalization    
+    # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
+    "pop_yield": 2.6e39, 
+    "pop_yield_units": 'erg/s/SFR',
 
-    # Scales X-ray emission
-    "pop_cX": 3.4e40, # Furlanetto (2006) extrapolation
-    "pop_fX": 0.2,    # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
     'pop_fXh': None,
 
-    # Scales Lyman-Werner emission
-    "pop_Nlw": 9690.,
-
-    # Scales ionizing emission
-    "pop_fion": 1.0,                
-    "pop_Nion": 4e3,
-    "pop_fesc": 0.1,
-
-    # Controls IGM ionization for approximate CXB treatments
-    "pop_Ex": 500.,
-    "pop_Euv": 30.,
-
-    # Bypass fcoll prescriptions, use parameterizations
-    "heat_igm": None,
-    "Gamma_igm": None,
-    "Gamma_cgm": None,
-    "gamma_igm": None,
-    'Ja': None,
+    "pop_sawtooth": False,
+    "pop_solve_rte": False,
+    "pop_tau_Nz": 400,
     
     # Pre-created splines
     "pop_fcoll": None,
@@ -371,7 +382,7 @@ def SourceParameters():
     "source_eta": 0.1,
     "source_isco": 6,  
     "source_rmax": 1e3,
-    
+
     }
     
     pf.update(rcParams)
@@ -414,7 +425,7 @@ def BlackHoleParameters():
     pf.update(rcParams)
     
     return pf
-        
+
 def HaloMassFunctionParameters():
     pf = \
     {
@@ -489,7 +500,7 @@ def ControlParameters():
     "load_ics": False,
     "cosmological_ics": False,
     "load_sim": False,
-    #"first_light_redshift": 50.,
+    "first_light_redshift": 50.,
 
     # Timestepping
     "max_dt": 1.,
@@ -565,7 +576,7 @@ def TanhParameters():
     'tanh_bias_freq': 0.0,   # in MHz
     'tanh_nu': None, # Array of frequencies in MHz
     }
-    
+
     pf.update(rcParams)
 
     return pf

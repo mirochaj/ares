@@ -106,7 +106,7 @@ class LocalVolume:
                     'k_ion2_%i' % i: k_ion2_src[i],
                     'k_heat_%i' % i: k_heat_src[i]})
                     
-                if not self.pf['approx_lwb']:
+                if False:
                     self.kwargs.update({'Ja_%i' % i: Ja_src[i]})
         
                     #if self.pf['secondary_lya']:
@@ -118,7 +118,7 @@ class LocalVolume:
         k_heat = np.sum(k_heat_src, axis=0)
             
         # Compute Lyman-Alpha emission
-        if not self.pf['approx_lwb']:
+        if False:
             Ja = np.sum(Ja_src, axis=0)
         
         #if self.pf['secondary_lya']:
@@ -128,7 +128,7 @@ class LocalVolume:
         self.kwargs.update({'k_ion': k_ion, 'k_heat': k_heat, 'k_ion2': k_ion2})
         
         # Ja just has len(grid) 
-        if not self.pf['approx_lwb']:
+        if False:
             self.kwargs.update({'Ja': Ja})
         
         return self.kwargs
@@ -151,7 +151,7 @@ class LocalVolume:
         self.k_ion2 = np.zeros((self.Ns, self.grid.dims, self.grid.N_absorbers, 
             self.grid.N_absorbers))
         
-        if self.pf['approx_lwb']:
+        if True:
             self.Ja = [None] * self.Ns
         else:
             self.Ja = np.array(self.Ns * [np.zeros(self.grid.dims)])
@@ -215,7 +215,7 @@ class LocalVolume:
             
             # This could be post-processed, but eventually may be more
             # sophisticated
-            if self.pf['approx_lwb']:
+            if True:
                 self.Ja = None
             else:
                 self.Ja[h] = src.Spectrum(E_LyA) * ev_per_hz \

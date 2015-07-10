@@ -122,7 +122,7 @@ class MetaGalacticBackground(UniformBackground):
         
         """
         
-        if (not self._is_thru_run) and (not self.approx_all_sources) and \
+        if (not self._is_thru_run) and (not self.approx_all_pops) and \
             not hasattr(self, '_fhi'):
             self._init_stepping()
         
@@ -219,8 +219,8 @@ class MetaGalacticBackground(UniformBackground):
         """
 
         # Must compute rate coefficients from fluxes     
-        if self.approx_all_sources:
-            kwargs['fluxes'] = [None] * self.Ns
+        if self.approx_all_pops:
+            kwargs['fluxes'] = [None] * self.Npops
         else:
             z, fluxes_c, fluxes_i = self.update_fluxes()
             kwargs['fluxes'] = fluxes_c    

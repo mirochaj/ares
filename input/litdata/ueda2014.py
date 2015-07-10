@@ -85,7 +85,7 @@ def _evolution_factor_ldde(z, L, **kwargs):
         
         kw = kwargs.copy()
         for i in range(1, 2):
-            kw['zc' % i] = kwargs['zc%i']
+            kw['zc'] = kwargs['zc%i' % i]
             kwargs['zc%i' % i] = _zc_of_L(z, L, **kw)
         
         eofz = _evolution_factor(z, **kwargs)

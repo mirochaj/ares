@@ -19,8 +19,8 @@ at which to save the quantities of interest.
 
 Let's save the following quantities:
 
-* 21-cm brightness temperature, ``dTb``.
-* Spin temperature, ``Ts``.
+* 21-cm brightness temperature, ``igm_dTb``.
+* Spin temperature, ``igm_Ts``.
 * Kinetic temperature, ``igm_Tk``.
 * HII region volume filling factor, ``cgm_h_2``.
 * Neutral fraction in the bulk IGM, ``igm_h_1``.

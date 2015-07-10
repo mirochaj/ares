@@ -182,7 +182,7 @@ def print_1d_sim(sim):
 
     warnings = []
 
-    header = 'Initializer: Radiative Transfer Simulation'
+    header = 'Radiative Transfer Simulation'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
@@ -297,7 +297,7 @@ def print_rate_int(tab):
 
     warnings = []
 
-    header  = 'Initializer: Tabulated Rate Coefficient Integrals'
+    header  = 'Tabulated Rate Coefficient Integrals'
     
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
@@ -351,18 +351,18 @@ def print_pop(pop):
     if type(EmaxNorm) is not list:
         EmaxNorm = list([EmaxNorm])
 
-    norm_by = pop.pf['norm_by']
-    bands = emission_bands(Emin, Emax, pop.pf['xray_Emin']) 
-
-    if len(bands) == 1:
-        norm_by == bands[0]   
+    #norm_by = pop.pf['norm_by']
+    #bands = emission_bands(Emin, Emax, pop.pf['xray_Emin']) 
+    #
+    #if len(bands) == 1:
+    #    norm_by == bands[0]   
 
     if pop.pf['pop_type'] == 'bh':
-        header  = 'Initializer: BH Population'
+        header  = 'BH Population'
     elif pop.pf['pop_type'] == 'star':
-        header  = 'Initializer: Stellar Population'
+        header  = 'Stellar Population'
     elif pop.pf['pop_type'] == 'galaxy':
-        header  = 'Initializer: Galaxy Population'        
+        header  = 'Galaxy Population'        
 
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
@@ -374,7 +374,10 @@ def print_pop(pop):
 
     # Redshift evolution stuff
     if pop.pf['pop_sfrd'] is not None:
-        print line("SFRD        : parameterized")
+        if type(pop.pf['pop_sfrd']) is str:
+            print line("SFRD        : %s" % pop.pf['pop_sfrd'])
+        else:
+            print line("SFRD        : parameterized")
     elif pop.pf['pop_rhoL'] is not None:
         if type(pop.pf['pop_rhoL']) is FunctionType:
             print line("rho_L(z)    : parameterized")
@@ -390,7 +393,6 @@ def print_pop(pop):
         print line("HMF         : %s" % pop.pf['hmf_func'])
         print line("fstar       : %g" % pop.pf['pop_fstar'])
     
-    
     print line('-'*twidth)
     print line('Radiative Output')
     print line('-'*twidth)
@@ -398,11 +400,8 @@ def print_pop(pop):
     print line("yield (erg / s / SFR) : %g" % (pop.yield_per_sfr * g_per_msun / s_per_yr))
     print line("EminNorm (eV)         : %g" % (pop.pf['pop_EminNorm']))
     print line("EmaxNorm (eV)         : %g" % (pop.pf['pop_EmaxNorm']))    
+    print line("f_esc                 : %g" % (pop.pf['pop_fesc']))    
 
-    if not pop.solve_rte:
-        print "#"*width
-        return
-    
     ##
     # SPECTRUM STUFF
     ##
@@ -423,7 +422,6 @@ def print_pop(pop):
     else:
         print line("from source       : %s" % pop.pf['pop_sed'])
         
-
     print "#"*width
 
     for warning in warnings:
@@ -451,7 +449,7 @@ def print_rb(rb):
 
     warnings = []        
 
-    header = 'Initializer: Radiation Background'
+    header = 'Radiation Background'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
@@ -523,7 +521,7 @@ def print_21cm_sim(sim):
 
     warnings = []
 
-    header = 'Initializer: 21-cm Simulation'
+    header = '21-cm Simulation'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
@@ -652,7 +650,7 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     if len(fit.error.shape) == 1:
         is_cov = False
 
-    header = 'Initializer: Parameter Estimation'
+    header = 'Parameter Estimation'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width

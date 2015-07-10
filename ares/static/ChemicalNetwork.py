@@ -45,8 +45,8 @@ class ChemicalNetwork:
         self.ions = self.grid.ions
         self.neutrals = self.grid.neutrals
         self.expansion = self.grid.expansion
-        self.in_bubbles = self.grid.in_bubbles
         self.isothermal = self.grid.isothermal
+        self.is_cgm_patch = self.grid.is_cgm_patch        
                 
         self.Nev = len(self.grid.evolving_fields)
         
@@ -131,7 +131,7 @@ class ChemicalNetwork:
         
         # In two-zone model, this phase is assumed to be fully ionized
         # CF = clumping factor
-        if self.in_bubbles:            
+        if self.is_cgm_patch:            
             CF *= (n_H * (1. + y) / n_e)
                     
         # Where do the electrons live?
@@ -317,7 +317,7 @@ class ChemicalNetwork:
         
         xe = n_e / n_H
 
-        if self.in_bubbles:
+        if self.is_cgm_patch:
             CF *= (n_H * (1. + y) / n_e)
 
         xi = self.xi

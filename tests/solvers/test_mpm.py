@@ -14,11 +14,26 @@ import ares
 import numpy as np
 import matplotlib.pyplot as pl
 
-sim = ares.simulations.MultiPhaseMedium()
+pars = \
+{
+ 'pop_type': 'galaxy',
+ 'pop_sfrd': 'robertson2015',
+ 'pop_sed': 'pl',
+ 'pop_alpha': 1.0,
+ 'pop_Emin': 13.6,
+ 'pop_Emax': 24.6,
+ 'pop_EminNorm': 13.6,
+ 'pop_EmaxNorm': 24.6,
+ 'pop_yield': 1e57,
+ 'pop_yield_units': 'photons/msun',
+ 'pop_heat_src_igm': False,
+ 'pop_ion_src_igm': False,
+ 'initial_redshift': 30.,
+ 'final_redshift': 7.,
+}
+
+sim = ares.simulations.MultiPhaseMedium(**pars)
 sim.run()
 
-mp = ares.analysis.MultiPanel(dims=(2, 1), panel_size=(1, 0.5))
-mp.grid[0].loglog(sim.history['z'], sim.history['igm_Tk'])
-mp.grid[1].loglog(sim.history['z'], sim.history['igm_h_2'])
-mp.fix_ticks()
+pl.semilogy(sim.history['z'], sim.history['cgm_h_2'])
 

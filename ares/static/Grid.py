@@ -381,14 +381,14 @@ class Grid(object):
             self.set_cosmology()
         
     @property
-    def in_bubbles(self):    
-        if not hasattr(self, '_in_bubbles'):
+    def is_cgm_patch(self):    
+        if not hasattr(self, '_is_cgm_patch'):
             self.set_recombination_rate()
             
-        return self._in_bubbles
+        return self._is_cgm_patch
         
-    def set_recombination_rate(self, in_bubbles=False):
-        self._in_bubbles = in_bubbles    
+    def set_recombination_rate(self, is_cgm_patch=False):
+        self._is_cgm_patch = is_cgm_patch    
         
     def set_cosmology(self, initial_redshift=1e3, omega_m_0=0.272, 
         omega_l_0=0.728, omega_b_0=0.044, hubble_0=0.702, 

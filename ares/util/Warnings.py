@@ -43,9 +43,8 @@ def dt_error(grid, z, q, dqdt, new_dt, cell, method):
     data = []
     for i in range(len(grid.qmap)):
         name = grid.qmap[i]
-        rows.append(name)
-                
-        data.append([q[i], dqdt[i]])
+        rows.append(name)                
+        data.append([q[cell][i], dqdt[cell][i]])
             
     # Print quantities and their rates of change
     tabulate(data, rows, cols, cwidth=12)  

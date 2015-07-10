@@ -15,6 +15,61 @@ from .ProblemTypes import ProblemType
 from .SetDefaultParameterValues import SetAllDefaults
 from .CheckForParameterConflicts import CheckForParameterConflicts
 
+def backwards_compatibility(ptype, **kwargs):
+    """
+    Handle some conventions used in the pre "pop_*" parameter days.
+    
+    .. note :: Only applies to simple global 21-cm models right now, i.e., 
+        problem_type=100.
+        
+    Parameters
+    ----------
+    ptype : int, float
+        Problem type.
+    
+    Returns
+    -------
+    Dictionary of parameters to subsequently be updated.
+    
+    """
+    
+    if ptype == 100:
+        pf = {}
+        
+        # LW/UV
+        if 'fstar' in kwargs:
+            pf['pop_fstar{0}'] = kwargs['fstar']
+            pf['pop_fstar{1}'] = kwargs['fstar']
+        
+        if 'fesc' in kwargs:
+            pf['pop_fesc{0}'] = kwargs['fesc']
+        
+        if 'Nion' in kwargs:
+            pf['pop_yield{0}'] = kwargs['Nion']
+            pf['pop_yield_units{0}'] = 'photons/baryon'
+        
+        # Lx-SFR
+        if 'cX' in kwargs:
+            yield_X = kwargs['cX']
+            if 'fX' in kwargs:
+                yield_X *= kwargs['fX']
+            
+            pf['pop_yield{1}'] = yield_X
+            
+        elif 'fX' in kwargs:        
+            pf['pop_yield{1}'] *= yield_X    
+            
+        if 'cX' or 'fX' in kwargs:
+            pf["pop_Emin{1}"] = 2e2
+            pf["pop_Emax{1}"] = 3e4
+            pf["pop_EminNorm{1}"] = 2e2
+            pf["pop_EmaxNorm{1}"] = 3e4
+        
+    else:
+        pf = {}
+        
+    return pf
+
 def count_populations(**kwargs):
     
     # Count populations
@@ -38,7 +93,7 @@ class ParameterFile(dict):
         """
         Build parameter file instance.
         """
-        
+
         self.defaults = SetAllDefaults()
 
         if pf is not None:
@@ -49,7 +104,7 @@ class ParameterFile(dict):
             self._kwargs = kwargs
             self._parse(**kwargs)
             self._check_for_conflicts(self)
-          
+
     def _parse(self, **kwargs):
         """
         Parse kwargs dictionary.
@@ -90,7 +145,7 @@ class ParameterFile(dict):
                     continue
                     
                 # If we're here, it means this parameter has a population 
-                # or source tag    
+                # or source tag (i.e., an ID number in {}'s)   
     
                 # Population ID number
                 num = int(m.group(1))
@@ -145,21 +200,24 @@ class ParameterFile(dict):
                 # For each parameter...
                 for element in pop_pars:
                     
+                    # Only copy over new parameters
                     if element not in tmp:
                         tmp[element] = [pop_pars[element]]
                         continue
                         
-                    if pop_pars[element] not in tmp[element]:
-                        tmp[element].append(pop_pars[element])
+                    #if pop_pars[element] not in tmp[element]:
+                    #    tmp[element].append(pop_pars[element])
             
             # Delete elements that differ between populations
-            for key in tmp:    
-                if len(tmp[key]) != 1 and key in pf:
-                    del pf[key]
+            #for key in tmp:    
+            #    if len(tmp[key]) != 1 and key in pf:
+            #        del pf[key]
             
-            self.pfs = [SetAllDefaults() for i in range(Npops)]
+            self.pfs = [pf.copy() for i in range(Npops)]
             for i in range(Npops):
                 self.pfs[i].update(pfs_by_pop[i])
+            
+        pf.update(backwards_compatibility(pf['problem_type'], **pf))    
             
         for key in pf:
             self[key] = pf[key]

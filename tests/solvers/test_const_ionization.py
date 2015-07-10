@@ -57,4 +57,4 @@ pl.loglog(sim2.history['Tk'][-1], sim2.history['h_1'][-1], color='b',
     label=r'$\kappa_{\mathrm{ion}} = 0$')
 pl.loglog(sim2.history['Tk'][-1], sim2.history['h_2'][-1], color='b', ls='--')
 
-pl.legend(fontsize=14, loc='lower right')
+pl.legend(fontsize=14, loc='best')

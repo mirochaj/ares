@@ -19,11 +19,6 @@ try:
 except IndexError:
     species = 0
 
-try:
-    species = int(sys.argv[1])
-except IndexError:
-    species = 0
-
 dims = 32
 T = np.logspace(3.5, 6, 500)
 
@@ -43,19 +38,24 @@ for i, src in enumerate(['fk94']):
     grid.set_ionization(x=[1. - 1e-8, 1e-8])
     grid.set_temperature(T)
 
-    coeff = ares.physics.RateCoefficients(grid=grid, rate_src=src, T=T)
+    coeff = coeffB = ares.physics.RateCoefficients(grid=grid, rate_src=src, T=T)
+    coeffA = ares.physics.RateCoefficients(grid=grid, rate_src=src, T=T,
+        recombination='A')
     
     # First: collisional ionization, recombination
     CI = map(lambda TT: coeff.CollisionalIonizationRate(species, TT), T)
-    RR = map(lambda TT: coeff.RadiativeRecombinationRate(species, TT), T)    
+    RRB = map(lambda TT: coeff.RadiativeRecombinationRate(species, TT), T)    
+    RRA = map(lambda TT: coeffA.RadiativeRecombinationRate(species, TT), T)    
     
     if i == 0:
-        labels = [r'$\beta$', r'$\alpha$']
+        labels = [r'$\beta$', r'$\alpha_{\mathrm{B}}$', 
+            r'$\alpha_{\mathrm{A}}$']
     else:
         labels = [None] * 2
     
     ax1.loglog(T, CI, color=colors[i], ls='-', label=labels[0])
-    ax1.loglog(T, RR, color=colors[i], ls='--', label=labels[1])
+    ax1.loglog(T, RRB, color=colors[i], ls='--', label=labels[1])
+    ax1.loglog(T, RRA, color=colors[i], ls=':', label=labels[2])
     
     # Second: Cooling processes
     CIC = map(lambda TT: coeff.CollisionalIonizationCoolingRate(species, TT), T)

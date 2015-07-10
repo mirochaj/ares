@@ -13,6 +13,7 @@ Description:
 import numpy as np
 from ..util.Warnings import dt_error
 
+eq_dqdt = 1e-10
 huge_dt = 1e30  # seconds
 
 class RestrictTimestep:
@@ -21,22 +22,26 @@ class RestrictTimestep:
         self.epsilon = epsilon
         self.verbose = verbose
         self.grid_indices = np.arange(self.grid.dims)
-    
+        
     def Limit(self, q, dqdt, z=None, tau=None, tau_ifront=0.5, method=['ions']):
         """
         Limit timestep based on maximum allowed change in fields.  Which 
         fields determined by method parameter.
         """
-        
+                
+        if method is None:
+            return huge_dt        
+                
         # Projected timestep for each cell and field (dt.shape = grid x species)
         dt = self.epsilon * q / np.abs(dqdt)
-        
+                                 
         # Don't let dt -> 0 where species fraction is zero
-        dt[np.logical_and(q == 0, self.grid.types >= 0)] = huge_dt
-                        
-        # Don't let dt -> 0 when quantities are in equilibrium
-        dt[dqdt == 0] = huge_dt                
-                        
+        dt[np.logical_and(q == 0, self.grid.types >= 0)] = huge_dt                 
+                                                
+        # Don't let dt -> 0 when quantities are in/near equilibrium
+        dt[dqdt == 0] = huge_dt
+        dt[np.isnan(dqdt)] = huge_dt
+                                         
         # Isolate cells beyond I-front
         if tau is not None:
             dt[tau <= tau_ifront, ...] = huge_dt
@@ -79,7 +84,7 @@ class RestrictTimestep:
                     else:
                         which_cell = 0
 
-                if self.verbose:                                                
+                if self.verbose:    
                     dt_error(self.grid, z, q, dqdt, min_dt, which_cell, mth)
 
             # Update the time-step

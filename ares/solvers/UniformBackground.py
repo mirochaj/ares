@@ -109,6 +109,46 @@ class UniformBackground(object):
 
         return self._volume      
         
+    @property
+    def solve_rte(self):
+        """
+        By population and band, are we solving the RTE in detail?
+        """
+                
+        if not hasattr(self, '_solve_rte'):
+    
+            self._solve_rte = []
+            for i, pop in enumerate(self.pops):
+                                
+                if self.bands_by_pop[i] is None:
+                    self._solve_rte.append(None)
+                    continue
+                
+                this_pop = []
+                for j, band in enumerate(self.bands_by_pop[i]):
+                    
+                    if band is None:
+                        to_append = None
+                    elif type(pop.pf['pop_solve_rte']) is bool:
+                        to_append = pop.pf['pop_solve_rte']
+                    else:
+                        Eavg = np.mean(band)
+                        
+                        if E_LyA <= Eavg <= E_LL:
+                            to_append = 'lwb'
+                        elif E_LL <= Eavg <= (4 * E_LL):
+                            to_append = 'uvb'
+                        elif Eavg >= (4 * E_LL):
+                            to_append = 'xrb'
+                        else:
+                            raise NotImplemented('IRB?')
+                            
+                    this_pop.append(to_append)
+                                        
+                self._solve_rte.append(this_pop)
+                                
+        return self._solve_rte
+        
     def _get_bands(self, pop):
         """
         Break radiation field into chunks we know how to deal with.
@@ -166,30 +206,41 @@ class UniformBackground(object):
 
         self.pops = CompositePopulation(**self.pf).pops
         self.Npops = len(self.pops)
-        
+
         self.approx_all_pops = True
-        for pop in self.pops:
-            self.approx_all_pops *= pop.solve_rte
+        for i, pop in enumerate(self.pops):
+
+            # Can't use self.approx_rte in this case... :(
+
+            if pop.pf['pop_solve_rte'] == False:
+                continue
+            else:
+                self.approx_all_pops = False
+                break
+
+        if self.approx_all_pops:
+            self.bands_by_pop = [None for i in range(self.Npops)]
+            return
 
         # Figure out which band each population emits in
-        
+
         # Really just need to know if it emits ionizing photons, or has any
         # sawtooths we need to care about
         bands_by_pop = self.bands_by_pop = []
         for pop in self.pops:
             bands_by_pop.append(self._get_bands(pop))
-            
+
         self.tau = []
         self.energies = []; self.redshifts = []; self.emissivities = []
         for i, pop in enumerate(self.pops):
-            
+
             bands = bands_by_pop[i]
-                        
-            if not pop.solve_rte:
+
+            if self.solve_rte[i] is None:
                 z = nrg = ehat = tau = None
             else:
                 z, nrg, tau, ehat = self._set_grid(pop, bands)
-                        
+
             self.tau.append(tau)
             self.energies.append(nrg)
             self.redshifts.append(z)
@@ -370,13 +421,13 @@ class UniformBackground(object):
 
         # Setup arrays for results - sorted by sources and absorbers
         # The middle dimension of length 1 is the number of cells
-        self.k_ion  = np.zeros([self.Ns, 1, self.grid.N_absorbers])
-        self.k_ion2 = np.zeros([self.Ns, 1, self.grid.N_absorbers, 
+        self.k_ion  = np.zeros([self.Npops, 1, self.grid.N_absorbers])
+        self.k_ion2 = np.zeros([self.Npops, 1, self.grid.N_absorbers, 
             self.grid.N_absorbers])
-        self.k_heat = np.zeros([self.Ns, 1, self.grid.N_absorbers])
+        self.k_heat = np.zeros([self.Npops, 1, self.grid.N_absorbers])
         
         # Loop over sources
-        for i, source in enumerate(self.sources):
+        for i, source in enumerate(self.pops):
 
             # Loop over absorbing species
             for j, species in enumerate(self.grid.absorbers):
@@ -461,7 +512,7 @@ class UniformBackground(object):
     
         """
         
-        pop = self.sources[popid]
+        pop = self.pops[popid]
     
         if E < E_LyA:
             thin = False
@@ -604,7 +655,7 @@ class UniformBackground(object):
     
         """
     
-        pop = self.sources[popid]
+        pop = self.pops[popid]
     
         kw = defkwargs.copy()
         kw.update(kwargs)
@@ -676,7 +727,7 @@ class UniformBackground(object):
     
         """
         
-        pop = self.sources[popid]
+        pop = self.pops[popid]
     
         kw = defkwargs.copy()
         kw.update(kwargs)
@@ -757,11 +808,17 @@ class UniformBackground(object):
         if not pop.is_lya_src or (z > pop.zform):
             return 0.0
 
-        if pop.pf['Ja'] is not None:
-            return pop.pf['Ja'](z)    
-
+        # Flat spectrum, no injected photons, instantaneous emission only
+        if self.solve_rte[popid] is None:
+            norm = c * self.cosm.dtdz(z) / four_pi
+            
+            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6)
+            
+            return norm * (1. + z)**3 * (1. + pop.pf['lya_frec_bar']) * \
+                rhoLW / dnu
+        
         # Full calculation
-        if pop.solve_rte:
+        elif 'lwb' in self.solve_rte[popid]:
 
             J = 0.0
 
@@ -785,13 +842,7 @@ class UniformBackground(object):
 
                 J += Jn
 
-            return J
-    
-        # Flat spectrum, no injected photons, instantaneous emission only
-        else:
-            norm = c * self.cosm.dtdz(z) / four_pi
-            return norm * (1. + z)**3 * (1. + pop.pf['lya_frec_bar']) * \
-                pop.LymanWernerPhotonLuminosityDensity(z) / dnu
+            return J        
         
     def load_sed(self, prefix=None):
         fn = pop.rs.sed_name()

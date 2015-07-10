@@ -587,7 +587,7 @@ class GlobalVolume(object):
         kw = defkwargs.copy()
         kw.update(kwargs)
 
-        pop = self.sources[popid]
+        pop = self.pops[popid]
 
         if functionify and type(kw['xavg']) is not types.FunctionType:
             tmp = kw['xavg']
@@ -596,7 +596,9 @@ class GlobalVolume(object):
         if kw['zf'] is None and pop is not None:
             kw['zf'] = pop.zform
         
-        if kw['Emax'] is None and (not self.pf['approx_xrb']):
+        if self.background.solve_rte[popid] is None:
+            pass
+        elif kw['Emax'] is None and ('xrb' in self.background.solve_rte[popid]):
             kw['Emax'] = self.background.energies[popid][-1]    
             
         return kw
@@ -630,20 +632,20 @@ class GlobalVolume(object):
 
         """
                 
-        pop = self.sources[popid]        
+        pop = self.pops[popid]        
                                 
-        if not pop.pf['is_heat_src_igm'] or (z >= pop.zform):
+        if not pop.pf['pop_heat_src_igm'] or (z >= pop.zform):
             return 0.0
         
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
                         
         # Return right away if heating rate density is parameterized
-        if self.pf['heat_igm'] is not None:
-            return self.pf['heat_igm'](z) 
+        #if self.pf['heat_igm'] is not None:
+        #    return self.pf['heat_igm'](z) 
 
         # Compute fraction of photo-electron energy deposited as heat
-        if self.pf['fXh'] is None:
+        if pop.pf['pop_fXh'] is None:
             
             # Interpolate in energy and ionized fraction
             if self.esec.Method > 1 and (kw['fluxes'][popid] is not None):
@@ -668,11 +670,13 @@ class GlobalVolume(object):
             
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
-        if self.pf['approx_xrb']:
+        if self.background.solve_rte[popid] is None:
             weight = self.rate_to_coefficient(z, species, **kw)
-            L = pop.XrayLuminosityDensity(z) # erg / s / c-cm**3
+            
+            Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 
+                Emax=pop.pf['pop_Emax'])
 
-            return weight * fheat * L * (1. + z)**3
+            return weight * fheat * Lx * (1. + z)**3
 
         # Otherwise, do the full calculation
 
@@ -754,7 +758,7 @@ class GlobalVolume(object):
         
     def IonizationRateCGM(self, z, species=0, popid=0, **kwargs):
         """
-        Compute volume averaged hydrogen ionization rate.
+        Compute growth rate of HII regions.
 
         Parameters
         ----------
@@ -781,9 +785,9 @@ class GlobalVolume(object):
 
         """
         
-        pop = self.sources[popid]
+        pop = self.pops[popid]
         
-        if (not pop.pf['is_ion_src_cgm']) or (z > pop.zform):
+        if (not pop.pf['pop_ion_src_cgm']) or (z > pop.zform):
             return 0.0
             
         # Need some guidance from 1-D calculations to do this
@@ -793,17 +797,18 @@ class GlobalVolume(object):
         kw = defkwargs.copy()
         kw.update(kwargs)
 
-        if self.pf['Gamma_cgm'] is not None:
-            return self.pf['Gamma_cgm'](z)
+        #if self.pf['Gamma_cgm'] is not None:
+        #    return self.pf['Gamma_cgm'](z)
                 
         if kw['return_rc']:
             weight = self.rate_to_coefficient(z, species, **kw)
         else:
             weight = 1.0
+          
+        Qdot = pop.PhotonLuminosityDensity(z, Emin=13.6, Emax=24.6)
+                
+        return weight * Qdot * (1. + z)**3  
             
-        return weight \
-            * pop.IonizingPhotonLuminosityDensity(z) * (1. + z)**3
-    
     def IonizationRateIGM(self, z, species=0, popid=0, **kwargs):
         """
         Compute volume averaged hydrogen ionization rate.
@@ -823,25 +828,30 @@ class GlobalVolume(object):
         
         """
         
-        pop = self.sources[popid]                     
+        pop = self.pops[popid]                     
                                 
         # z between zform, zdead? must be careful for BHs
-        if (not pop.pf['is_ion_src_igm']) or (z > pop.zform):
+        if (not pop.pf['pop_ion_src_igm']) or (z > pop.zform):
             return 0.0
                 
         # Grab defaults, do some patches if need be            
         kw = self._fix_kwargs(**kwargs)
                         
-        if self.pf['Gamma_igm'] is not None:
-            return self.pf['Gamma_igm'](z, species, **kw)
+        #if self.pf['Gamma_igm'] is not None:
+        #    return self.pf['Gamma_igm'](z, species, **kw)
 
-        if pop.pf['approx_xrb']:
+        if (self.background.solve_rte[popid] is None) or \
+            'xrb' not in self.background.solve_rte[popid]:
+            
+            Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 
+                Emax=pop.pf['pop_Emax'])
+            
             weight = self.rate_to_coefficient(z, species, **kw)
-            primary = weight * pop.XrayLuminosityDensity(z) \
-                * (1. + z)**3 / pop.pf['xray_Eavg'] / erg_per_ev
+            primary = weight * Lx \
+                * (1. + z)**3 / pop.pf['pop_Ex'] / erg_per_ev
             fion = self.esec.DepositionFraction(kw['igm_e'], channel='h_1')[0]
 
-            return primary * (1. + fion) * (pop.pf['xray_Eavg'] - E_th[0]) \
+            return primary * (1. + fion) * (pop.pf['pop_Ex'] - E_th[0]) \
                 / E_th[0]
 
         # Full calculation - much like computing integrated flux
@@ -911,17 +921,20 @@ class GlobalVolume(object):
 
         """    
         
-        pop = self.sources[popid]
+        pop = self.pops[popid]
         
         if self.pf['secondary_ionization'] == 0:
             return 0.0
 
-        # Computed in IonizationRateIGM in this case
-        if pop.pf['approx_xrb']:
-            return 0.0
-
-        if not pop.pf['is_ion_src_igm']:
+        if not pop.pf['pop_ion_src_igm']:
             return 0.0 
+
+        # Computed in IonizationRateIGM in this case
+        if (self.background.solve_rte[popid] is None) or \
+            'xrb' not in self.background.solve_rte[popid]:
+        #if pop.pf['approx_xrb']:
+            #raise NotImplemented('hey')
+            return 0.0
             
         if ((donor or species) in [1,2]) and self.pf['approx_He']:
             return 0.0
@@ -929,9 +942,9 @@ class GlobalVolume(object):
         # Grab defaults, do some patches if need be
         kw = self._fix_kwargs(**kwargs)
 
-        if self.pf['gamma_igm'] is not None:
-            return self.pf['gamma_igm'](z)
-            
+        #if self.pf['gamma_igm'] is not None:
+        #    return self.pf['gamma_igm'](z)
+
         species_str = species_i_to_str[species]
         donor_str = species_i_to_str[donor]
 

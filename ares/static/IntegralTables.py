@@ -97,7 +97,7 @@ class IntegralTable:
         self.x = 10**self.logx
             
         # Times
-        if self.pf['spectrum_evolving']:
+        if False:#self.pf['spectrum_evolving']:
             if self.pf['tables_times'] is None:
                 stop = self.pf['stop_time'] * self.pf['time_units']
                 self.t = np.linspace(0, stop, 1 + stop / self.pf['tables_dt'])
@@ -188,7 +188,7 @@ class IntegralTable:
             self.Nd += 1
             self.axes.append(self.logx)
             self.axes_names.append('x')
-        if self.pf['spectrum_evolving']:
+        if False:#self.pf['spectrum_evolving']:
             self.Nd += 1
             self.axes.append(self.t)
             self.axes_names.append('t')

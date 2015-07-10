@@ -67,12 +67,14 @@ def normalize_sed(pop):
         E1 = pop.pf['pop_EminNorm']
         E2 = pop.pf['pop_EmaxNorm']
         erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
-        energy_per_sfr = pop.pf['pop_yield'] * erg_per_phot / g_per_msun        
+        energy_per_sfr = pop.pf['pop_yield'] * erg_per_phot
         
         if units == 'photons/baryon':
-            energy_per_sfr *= pop.cosm.g_per_baryon
+            energy_per_sfr /= pop.cosm.g_per_baryon
         elif units == 'photons/msun':
-            pass
+            energy_per_sfr /= g_per_msun
+        elif units == 'photons/s/sfr':
+            energy_per_sfr *= s_per_yr / g_per_msun
         else:
             raise ValueError('Unrecognized yield units: %s' % units)
 
@@ -82,34 +84,26 @@ class GalaxyPopulation(HaloPopulation):
     def __init__(self, **kwargs):
         """
         Initializes a GalaxyPopulation object (duh).
-        
-        Requires Schecter function parameters as well as the specification
-        of a bandpass. If you'd like to convert to some other band (e.g., 
-        you know the 2-10 keV LF but want 0.5-2 keV), you'll need to specify
-        the SED.
         """
-        
+
         # This is basically just initializing an instance of the cosmology
         # class. Also creates the parameter file attribute ``pf``.
         HaloPopulation.__init__(self, **kwargs)
         self.pf.update(**kwargs)
 
         # Initialize the LF
-        if self.pf['pop_lf'] is None:
-            pass
-        elif self.pf['pop_lf'] in lftypes:
-            pass
-        elif type(self.pf['pop_lf']) is FunctionType:
-            self._UserDefinedLF = self.pf['pop_lf']
-        else:
-            from_lit = read_lit(self.pf['pop_lf'])
-            self._UserDefinedLF = from_lit.LuminosityFunction
-
+        #if self.pf['pop_lf'] is None:
+        #    pass
+        #elif self.pf['pop_lf'] in lftypes:
+        #    pass
+        #elif type(self.pf['pop_lf']) is FunctionType:
+        #    self._UserDefinedLF = self.pf['pop_lf']
+        #else:
+        #    from_lit = read_lit(self.pf['pop_lf'])
+        #    self._UserDefinedLF = from_lit.LuminosityFunction
+        #
+        self._eV_per_phot = {}
         self._conversion_factors = {}
-
-    @property
-    def solve_rte(self):
-        return self.pf['pop_solve_rte']
 
     @property
     def sawtooth(self):
@@ -199,52 +193,6 @@ class GalaxyPopulation(HaloPopulation):
                 
         return self._rhoL_from_sfrd
     
-    #@property
-    #def Lmin(self):
-    #    if not hasattr(self, '_Lmin'):
-    #        self._Lmin = self.pf['lf_Lmin']
-    #
-    #    return self._Lmin
-    
-    #@property
-    #def Lstar(self):
-    #    if not hasattr(self, '_Lstar'):
-    #        self._Lstar = self.pf['lf_Lstar']
-    #
-    #    return self._Lstar
-        
-    #@property
-    #def phi0(self):    
-    #    if not hasattr(self, '_phi0'):
-    #        self._phi0 = self.pf['lf_norm']
-    #
-    #    return self._phi0
-    
-    #@property
-    #def lf_type(self):    
-    #    if not hasattr(self, '_lf_type'):
-    #        if type(self.pf['pop_lf']) in lftypes:
-    #            self._lf_type = 'pre-defined'
-    #        else:
-    #            self._lf_type = 'user'
-    #
-    #    return self._lf_type
-
-    #@property
-    #def lf_zfunc_type(self):    
-    #    if not hasattr(self, '_lf_zfunc_type'):
-    #        if type(self.pf['lf_zfunc']) == FunctionType:
-    #            self._lf_zfunc_type = 'user'
-    #        elif self.pf['lf_zfunc'] == 'ueda':
-    #            self._lf_zfunc_type = self._Ueda
-    #        else:
-    #            raise NotImplemented('%s not implemented!' % self.pf['lf_zfunc'])
-    #
-    #    return self._lf_zfunc_type      
-    
-    #def norm(self):
-    #    return quad(lambda x: self.__call__(x), self.Lmin, 1e50)[0]
-    
     def _SchecterFunction(self, L):
         """
         Schecter function for, e.g., the galaxy luminosity function.
@@ -292,8 +240,6 @@ class GalaxyPopulation(HaloPopulation):
     
         else:
             raise NotImplemented('have not hadded support for anything but schecter yet.')
-    
-    
     
     def LuminosityFunction(self, L, z=None, Emin=None, Emax=None):
         """
@@ -378,6 +324,36 @@ class GalaxyPopulation(HaloPopulation):
             return factor
         
         return 1.0
+
+    def _get_energy_per_photon(self, Emin, Emax):
+        different_band = False
+
+        # Lower bound
+        if (Emin is not None) and (self.src is not None):
+            different_band = True
+        else:
+            Emin = self.pf['pop_Emin']
+
+        # Upper bound
+        if (Emax is not None) and (self.src is not None):
+            different_band = True
+        else:
+            Emax = self.pf['pop_Emax']
+            
+        if (Emin, Emax) in self._eV_per_phot:
+            return self._eV_per_phot[(Emin, Emax)]
+        
+        if Emin < self.pf['pop_Emin']:
+            print "WARNING: Emin < pop_Emin"
+        if Emax > self.pf['pop_Emax']:
+            print "WARNING: Emax > pop_Emax"    
+        
+        integrand = lambda E: self.src.Spectrum(E) * E
+        Eavg = quad(integrand, Emin, Emax)[0]
+        
+        self._eV_per_phot[(Emin, Emax)] = Eavg 
+        
+        return Eavg 
 
     @property
     def _sfrd(self):
@@ -474,38 +450,29 @@ class GalaxyPopulation(HaloPopulation):
         
         Returns
         -------
-        Emissivity in units of erg / s / cm**3 / Hz / sr
+        Emissivity in units of erg / s / c-cm**3 [/ eV]
         
         """
         
         if self.is_fcoll_model or self.pf['pop_sfrd'] is not None:            
-            emiss = self.SFRD(z) * self.yield_per_sfr
+            rhoL = self.SFRD(z) * self.yield_per_sfr
         else:
             raise NotImplemented('help')    
             
         # Convert from reference band to arbitrary band
-        emiss *= self._convert_band(Emin, Emax)
+        rhoL *= self._convert_band(Emin, Emax)
+        
+        if Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
+            rhoL *= self.pf['pop_fesc']
                         
         if E is not None:
-            return emiss * self.src.Spectrum(E)
+            return rhoL * self.src.Spectrum(E)
         else:
-            return emiss    
+            return rhoL    
     
-    
-    #def LuminosityDensity(self, z, Emin=None, Emax=None):
-    #    """
-    #    Return the luminosity density in the given band.
-    #    
-    #    ..note:: By default, returns luminosity density in the reference band 
-    #        defined by ``pop_lf_EminNorm`` and ``pop_lf_EmaxNorm``
-    #        
-    #    Returns
-    #    -------
-    #        
-    #    """
-    #    
-    #    return self.Emissivity(z, Emin=Emin, Emax=Emax)
-        
+    def NumberEmissivity(self, z, E=None, Emin=None, Emax=None):
+        return self.Emissivity(z, E, Emin, Emax) / (E * erg_per_ev)
+
 
         
 

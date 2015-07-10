@@ -17,15 +17,14 @@ from ares.physics.Constants import E_LL, E_LyA, J21_num
 
 pars = \
 {
- 'source_type': 'star',
- 'source_temperature': 1e5,
- 'Tmin': 1e3,
- 'fstar': 1e-2,
- 'source_sed': 'bb',
- 'source_Emin': E_LyA,
- 'source_Emax': E_LL,
- 'source_EminNorm': 0.01,
- 'source_EmaxNorm': 5e2,
+ 'pop_Tmin': 1e3,
+ 'pop_fstar': 1e-2,
+ 'pop_temperature': 1e5,
+ 'pop_sed': 'bb',
+ 'pop_Emin': E_LyA,
+ 'pop_Emax': E_LL,
+ 'pop_EminNorm': 0.01,
+ 'pop_EmaxNorm': 5e2,
  'approx_lwb': False,
  'lya_nmax': 8,
  'Nlw': 9690.,

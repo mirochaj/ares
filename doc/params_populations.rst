@@ -28,6 +28,12 @@ Population Parameters
     
     Default: ``True``
     
+``solve_rte``
+    Solve the cosmological radiative transfer equation (RTE) in detail?
+    
+    Options: bool, list, tuple
+    
+    Default: ``False``
     
 Star formation history
 ----------------------    

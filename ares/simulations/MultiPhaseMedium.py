@@ -73,20 +73,26 @@ class MultiPhaseMedium(object):
                     'initial_ionization': [1. - xi, xi, 1.-xi, xi, 1e-10]})         
 
         # Initialize two GasParcels
-        self.kw_igm = self.pf.copy()
-        self.kw_igm.update(igm_pars)
-        #for key in igm_pars:
-        #    if key in kwargs:
-        #        continue
-        #    
-        #    self.kw_igm[key] = igm_pars[key]
+        if self.pf['include_igm']:
+            self.kw_igm = self.pf.copy()
+            self.kw_igm.update(igm_pars)
+            #for key in igm_pars:
+            #    if key in kwargs:
+            #        continue
+            #
+            #    self.kw_igm[key] = igm_pars[key]
+            self.kw_igm['recombination'] = \
+                self.pf['igm_recombination']
 
-        self.parcel_igm = GasParcel(**self.kw_igm)
+            self.parcel_igm = GasParcel(**self.kw_igm)
         
         if self.pf['include_cgm']:
             self.kw_cgm = self.pf.copy()
             self.kw_cgm.update(cgm_pars)
                 
+            self.kw_cgm['recombination'] = \
+                self.pf['cgm_recombination']
+        
             self.parcel_cgm = GasParcel(**self.kw_cgm)
         
         self._model_specific_patches()
@@ -95,32 +101,60 @@ class MultiPhaseMedium(object):
         if self.pf['include_cgm']:
             self.parcel_cgm._set_chemistry()
 
-        # Initialize generators
-        self.gen_igm = self.parcel_igm.step()
-
         if self.pf['include_cgm']:
             self.gen_cgm = self.parcel_cgm.step()
 
         # Intialize radiation background
-        self.field = MetaGalacticBackground(grid=self.parcel_igm.grid, 
-            **self.pf)
-
-        # Set initial values for rate coefficients
-        self.parcel_igm.update_rate_coefficients(self.parcel_igm.grid.data, 
-            **self.field.volume.rates_no_RT)
-
-        if self.pf['include_cgm']:
-            self.parcel_cgm.update_rate_coefficients(self.parcel_cgm.grid.data, 
+        if self.pf['include_igm']:
+            self.gen_igm = self.parcel_igm.step()
+        
+            self.field = MetaGalacticBackground(grid=self.parcel_igm.grid, 
+                **self.pf)
+            
+            # Set initial values for rate coefficients
+            self.parcel_igm.update_rate_coefficients(self.parcel_igm.grid.data, 
                 **self.field.volume.rates_no_RT)
 
+        if self.pf['include_cgm']:
+            
+            if not hasattr(self, 'field'):
+                self.field = MetaGalacticBackground(grid=self.parcel_cgm.grid, 
+                    **self.pf)
+            
+            self.parcel_cgm.update_rate_coefficients(self.parcel_cgm.grid.data, 
+                **self.field.volume.rates_no_RT)
+                
         self._insert_inits()
+
+    @property
+    def rates_no_RT(self):
+        if not hasattr(self, '_rates_no_RT'):
+            self._rates_no_RT = \
+                {'k_ion': np.zeros((self.grid.dims,
+                    self.grid.N_absorbers)),
+                 'k_heat': np.zeros((self.grid.dims,
+                    self.grid.N_absorbers)),
+                 'k_ion2': np.zeros((self.grid.dims,
+                    self.grid.N_absorbers, self.grid.N_absorbers)),
+                }
+    
+        return self._rates_no_RT
 
     @property
     def zones(self):
         if not hasattr(self, '_zones'):
-            self._zones = 1 + int(self.pf['include_cgm'])
+            self._zones = int(self.pf['include_igm']) \
+                + int(self.pf['include_cgm'])
         
         return self._zones
+
+    @property
+    def default_parcel(self):
+        if not hasattr(self, '_default_parcel'):
+            self._default_parcel = self.parcel_igm if self.pf['include_igm'] \
+                else self.parcel_cgm
+                
+        return self._default_parcel
 
     def _model_specific_patches(self):
         """
@@ -130,15 +164,16 @@ class MultiPhaseMedium(object):
         # Reset stop time based on final redshift.
         z = self.pf['initial_redshift']
         zf = self.pf['final_redshift']
-        self.tf = self.parcel_igm.grid.cosm.LookbackTime(zf, z)
+        
+        self.tf = self.default_parcel.grid.cosm.LookbackTime(zf, z)
         self.pf['stop_time'] = self.tf / self.pf['time_units']
-        self.parcel_igm.pf['stop_time'] = self.pf['stop_time']
+        self.default_parcel.pf['stop_time'] = self.pf['stop_time']
         
         # Fix CGM parcel 
         if self.pf['include_cgm']:    
             self.parcel_cgm.pf['stop_time'] = self.pf['stop_time']
-            self.parcel_cgm.grid.data['Tk'] = np.array([1e4])
-            self.parcel_cgm.grid.set_recombination_rate(in_bubbles=True)
+            self.parcel_cgm.grid.data['Tk'] = np.array(self.pf['cgm_Tk'])
+            self.parcel_cgm.grid.set_recombination_rate(is_cgm_patch=True)
 
     def run(self):
         """
@@ -161,22 +196,28 @@ class MultiPhaseMedium(object):
             # Save data
             self.all_z.append(z)
             self.all_t.append(t)
-            self.all_data_igm.append(data_igm.copy())  
             
             if self.pf['include_cgm']:    
                 self.all_data_cgm.append(data_cgm.copy())
             
+            if self.pf['include_igm']:
+                self.all_data_igm.append(data_igm.copy())  
+                
             if self.pf['save_rate_coefficients']:
-                self.all_RCs_igm.append(RC_igm.copy()) 
                 if self.pf['include_cgm']:     
                     self.all_RCs_cgm.append(RC_cgm.copy())
+                if self.pf['include_igm']:
+                    self.all_RCs_igm.append(RC_igm.copy())
 
         pb.finish()          
 
         # Sort everything by time
-        self.history_igm = \
-            _sort_history(self.all_data_igm, prefix='igm_', squeeze=True)
-        self.history = self.history_igm.copy()
+        if self.pf['include_igm']:
+            self.history_igm = \
+                _sort_history(self.all_data_igm, prefix='igm_', squeeze=True)
+            self.history = self.history_igm.copy()
+        else:
+            self.history = {}
             
         if self.pf['include_cgm']:    
             self.history_cgm = \
@@ -185,9 +226,10 @@ class MultiPhaseMedium(object):
 
         # Save rate coefficients [optional]
         if self.pf['save_rate_coefficients']:
-            self.rates_igm = \
-                _sort_history(self.all_RCs_igm, prefix='igm_', squeeze=True)
-            self.history.update(self.rates_igm)
+            if self.pf['include_igm']:
+                self.rates_igm = \
+                    _sort_history(self.all_RCs_igm, prefix='igm_', squeeze=True)
+                self.history.update(self.rates_igm)
             
             if self.pf['include_cgm']:    
                 self.rates_cgm = \
@@ -214,7 +256,8 @@ class MultiPhaseMedium(object):
         zf = self.pf['final_redshift']
         
         # Read initial conditions
-        data_igm = self.parcel_igm.grid.data.copy()
+        if self.pf['include_igm']:  
+            data_igm = self.parcel_igm.grid.data.copy()
         
         if self.pf['include_cgm']:
             data_cgm = self.parcel_cgm.grid.data.copy()
@@ -223,7 +266,7 @@ class MultiPhaseMedium(object):
         while z > zf:
 
             # Increment time / redshift
-            dtdz = self.parcel_igm.grid.cosm.dtdz(z)
+            dtdz = self.default_parcel.grid.cosm.dtdz(z)
             t += dt
             z -= dt / dtdz
             
@@ -231,14 +274,19 @@ class MultiPhaseMedium(object):
             self.field.update_redshift(z)
 
             # IGM rate coefficients
-            RC_igm = self.field.update_rate_coefficients(z, 
-                zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
-
-            # Now, update IGM parcel
-            t1, dt1, data_igm = self.gen_igm.next()
-
-            # Pass rate coefficients off to the IGM parcel
-            self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
+            if self.pf['include_igm']:
+                RC_igm = self.field.update_rate_coefficients(z, 
+                    zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
+                
+                # Now, update IGM parcel
+                t1, dt1, data_igm = self.gen_igm.next()
+                
+                # Pass rate coefficients off to the IGM parcel
+                self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
+            else:
+                dt1 = 1e50
+                RC_igm = data_igm = None
+                data_igm = {'h_1': 1.0}
 
             if self.pf['include_cgm']:
                 # CGM rate coefficients
@@ -256,7 +304,9 @@ class MultiPhaseMedium(object):
 
             # Must update timesteps in unison
             dt = min(dt1, dt2)
-            self.parcel_igm.dt = dt
+            
+            if self.pf['include_igm']:
+                self.parcel_igm.dt = dt
             
             if self.pf['include_cgm']:
                 self.parcel_cgm.dt = dt
@@ -301,11 +351,13 @@ class MultiPhaseMedium(object):
             self.all_data_cgm = [tmp.copy() for i in range(len(self.all_z))]
             for i, cgm_data in enumerate(self.all_data_cgm):
                 self.all_data_cgm[i]['rho'] = \
-                    self.parcel_igm.grid.cosm.MeanBaryonDensity(self.all_z[i])
+                    self.parcel_cgm.grid.cosm.MeanBaryonDensity(self.all_z[i])
                 
-            
                 self.all_data_cgm[i]['n'] = \
                     self.parcel_cgm.grid.particle_density(cgm_data, self.all_z[i])
+        
+        if not self.pf['include_igm']:
+            return
         
         # Loop over redshift and derive things for the IGM
         for i, red in enumerate(self.all_z): 

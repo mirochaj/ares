@@ -14,7 +14,7 @@ import numpy as np
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
-from ..physics.Constants import cm_per_mpc
+from ..physics.Constants import cm_per_mpc, erg_per_ev
 
 log10 = np.log(10.)    # for when we integrate in log-space    
 
@@ -47,7 +47,7 @@ class Population(object):
 
     def LuminosityDensity(self, z, Emin=None, Emax=None, Lmin=None, Lmax=None):
         """
-        Return the luminosity density in the EminNorm-EmaxNorm band.
+        Return the luminosity density in the (Emin, Emax) band.
         
         Parameters
         ----------
@@ -76,9 +76,30 @@ class Population(object):
                         
         return quad(integrand, np.log10(Lmin), np.log10(Lmax))[0] * mult
         
+    def PhotonLuminosityDensity(self, z, Emin=None, Emax=None, Lmin=None, 
+        Lmax=None):
+        """
+        Return the photon luminosity density in the (Emin, Emax) band.
+        
+        Parameters
+        ----------
+        z : int, flot
+            Redshift of interest.
+    
+        Returns
+        -------
+        Photon luminosity density in erg / s / c-cm**3.
+        
+        """
+        
+        rhoL = self.LuminosityDensity(z, Emin, Emax, Lmin, Lmax)
+        eV_per_phot = self._get_energy_per_photon(Emin, Emax)
+        
+        return rhoL / (eV_per_phot * erg_per_ev)
+        
     def SpaceDensity(self, z, Emin=None, Emax=None, Lmin=None, Lmax=None):
         """
-        Return the luminosity density in the EminNorm-EmaxNorm band.
+        Return the space density of objects.
     
         Parameters
         ----------

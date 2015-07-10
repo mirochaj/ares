@@ -17,7 +17,7 @@ from scipy.integrate import quad as integrate
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
 
 allls = ['-', '--', '-.', ':']
-small_number = 1e-5
+small_number = 50.
 
 class Source:
     def __init__(self, rs):
