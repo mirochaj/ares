@@ -4,7 +4,7 @@ Installation
 
 * `numpy <http://numpy.scipy.org/>`_
 * `scipy <http://www.scipy.org/>`_ 
-* `matplotlib <http://matplotlib.sourceforge.net>`_ (for built-in analysis routines)
+* `matplotlib <http://matplotlib.sourceforge.net>`_
 
 and optionally:
 
@@ -28,4 +28,6 @@ points to the *ares* install directory, e.g. (in bash) ::
     
 A few lookup tables will be downloaded to ``$ARES/input`` automatically.    
 
-
+Help
+----
+If you encounter problems with installation or running simple scripts, first check the :doc:`troubleshooting` page in the documentation to see if you're dealing with a common problem. If you don't find your problem listed there, please let me know!

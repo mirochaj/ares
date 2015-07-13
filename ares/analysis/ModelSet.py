@@ -1695,7 +1695,7 @@ class ModelSet(object):
     def PosteriorPDF(self, pars, to_hist=None, is_log=None, z=None, ax=None, fig=1, 
         multiplier=1., nu=[0.95, 0.68], overplot_nu=False, density=True, cdf=False,
         color_by_like=False, filled=True, take_log=False, bins=20, skip=0, skim=1, 
-        contour_method='raw', excluded=False, **kwargs):
+        contour_method='raw', excluded=False, stop=None, **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
     
@@ -1824,12 +1824,12 @@ class ModelSet(object):
             #        to_hist[1] = to_hist[1][0:to_hist[0].size]
 
             if type(to_hist) is dict:
-                tohist1 = to_hist[pars[0]][skip:]
-                tohist2 = to_hist[pars[1]][skip:]
+                tohist1 = to_hist[pars[0]][skip:stop]
+                tohist2 = to_hist[pars[1]][skip:stop]
                 b = [binvec[pars[0]], binvec[pars[1]]]
             else:
-                tohist1 = to_hist[0][skip:]
-                tohist2 = to_hist[1][skip:]
+                tohist1 = to_hist[0][skip:stop]
+                tohist2 = to_hist[1][skip:stop]
                 b = [binvec[0], binvec[1]]
 
             # Compute 2-D histogram
@@ -2092,7 +2092,7 @@ class ModelSet(object):
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
         skim=1, top=None, oned=True, twod=True, filled=True, box=None, rotate_x=45, 
         rotate_y=45, add_cov=False, label_panels='upper right', fix=True,
-        skip_panels=[], **kwargs):
+        skip_panels=[], stop=None, **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
 
@@ -2134,8 +2134,9 @@ class ModelSet(object):
             Multiplicative factor in (x, y) to be applied to the default 
             window size as defined in your matplotlibrc file. 
         skip : int
-            Number of steps at beginning of chain to exclude. This is a nice
-            way of doing a burn-in after the fact.
+            Number of steps at beginning of chain to exclude.
+        stop: int
+            Number of steps to exclude from the end of the chain.
         skim : int
             Only take every skim'th step from the chain.
         oned : bool    
@@ -2213,7 +2214,7 @@ class ModelSet(object):
         for key in ['bottom', 'top', 'left', 'right', 'figsize', 'diagonal', 'dims', 'keep_diagonal']:
             if key in kw:
                 del kw[key]
-        
+                        
         # Apply multipliers etc. to inputs
         inputs = self._set_inputs(pars, inputs, is_log, take_log, multiplier)
 
@@ -2251,7 +2252,7 @@ class ModelSet(object):
                         yin = inputs[-1::-1][i]
                 else:
                     xin = yin = None
-
+                    
                 # 1-D PDFs on the diagonal    
                 if k in mp.diag and oned:
 
@@ -2265,7 +2266,7 @@ class ModelSet(object):
                     ax = self.PosteriorPDF(p1, to_hist=tohist, is_log=is_log,
                         ax=mp.grid[k], take_log=take_log[-1::-1][i], z=z[-1::-1][i],
                         multiplier=[multiplier[-1::-1][i]], 
-                        bins=[bins[-1::-1][i]], skip=skip, skim=skim, 
+                        bins=[bins[-1::-1][i]], skip=skip, skim=skim, stop=stop, 
                         **kw)
 
                     if add_cov:
@@ -2302,7 +2303,7 @@ class ModelSet(object):
                 # If not oned, may end up with some x vs. x plots if we're not careful
                 if p1 == p2 and (red[0] == red[1]):
                     continue
-
+                    
                 try:
                     tohist = [to_hist[j], to_hist[-1::-1][i]]
                 except KeyError:
@@ -2313,7 +2314,7 @@ class ModelSet(object):
                     ax=mp.grid[k], z=red, take_log=[take_log[j], take_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, 
-                    skip=skip, **kw)
+                    skip=skip, stop=stop, **kw)
                 
                 if add_cov:
                     if type(add_cov) is list:

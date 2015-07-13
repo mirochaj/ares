@@ -130,7 +130,7 @@ def tabulate(data, rows, cols, cwidth=12, fmt='%.4e'):
     
         print d_s
         
-def print_warning(s, headerd='WARNING'):
+def print_warning(s, header='WARNING'):
     dedented_s = textwrap.dedent(s).strip()
     snew = textwrap.fill(dedented_s, width=twidth)
     snew_by_line = snew.split('\n')

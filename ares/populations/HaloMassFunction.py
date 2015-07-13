@@ -10,10 +10,11 @@ Description:
 """
 
 import numpy as np
-import pickle, os, re
+import pickle, os, re, sys
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.misc import derivative
+from ..util.Warnings import no_hmf
 from ..util.Math import central_difference
 from ..util.ProgressBar import ProgressBar
 from ..physics.Constants import g_per_msun, cm_per_mpc
@@ -39,9 +40,16 @@ except ImportError:
     
 try:
     from hmf import MassFunction
+    have_hmf = True
 except ImportError:
-    pass
+    have_hmf = False
     
+try:
+    import pycamb
+    have_pycamb = True
+except ImportError:
+    have_pycamb = False    
+
 ARES = os.getenv("ARES")    
     
 sqrt2 = np.sqrt(2.)    
@@ -144,7 +152,11 @@ class HaloDensity:
         
         # Either create table from scratch or load one if we found a match
         if self.fn is None:
-            self.build_fcoll_tab()
+            if have_hmf and have_pycamb:
+                self.build_fcoll_tab()
+            else:
+                no_hmf(self)
+                sys.exit()
         else:
             self.load_table()
             

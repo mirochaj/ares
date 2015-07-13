@@ -301,6 +301,11 @@ class MultiPanel:
         
         """
         
+        if j >= self.dims[0]:
+            return None
+        if k >= self.dims[1]:
+            return None
+        
         i = j * self.dims[1] + k
         if self.above_diagonal(i):
             return None
