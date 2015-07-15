@@ -58,8 +58,7 @@ def read_lit(prefix, path=None):
 
 def flatten_energies(E):
     """
-    Take fluxes sorted by Lyman-n band and flatten to single energy
-    dimension.
+    Take fluxes sorted by band and flatten to single energy dimension.
     """
 
     to_return = []

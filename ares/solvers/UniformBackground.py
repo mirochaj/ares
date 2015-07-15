@@ -61,8 +61,6 @@ defkwargs = \
  'zxavg':0.0,   
 }       
 
-bands = ['ir', 'lw', 'uv', 'xr']
-
 class UniformBackground(object):
     def __init__(self, grid=None, **kwargs):
         """
@@ -220,6 +218,7 @@ class UniformBackground(object):
                 break
 
         if self.approx_all_pops:
+            self.energies = [[None] for i in range(self.Npops)]
             self.bands_by_pop = [None for i in range(self.Npops)]
             return
 
@@ -336,10 +335,10 @@ class UniformBackground(object):
         
         The results of this function depend on a few global parameters.
         
-        If approx_tau is None, then the optical depth will be assumed to be
+        If approx_tau is True, then the optical depth will be assumed to be
         zero for all redshifts and energies.
         
-        If approx_tau == True, then the optical depth will be computed 
+        If approx_tau == 'neutral', then the optical depth will be computed 
         assuming a neutral medium for all times (including HeI).
         
         If approx_tau is a function, it is assumed to describe the ionized 
@@ -361,9 +360,9 @@ class UniformBackground(object):
         A 2-D array of optical depths, of shape (len(z), len(E)).    
             
         """
-        
+                
         # Default to optically thin if nothing is supplied
-        if self.pf['approx_tau'] is None:
+        if self.pf['approx_tau'] == True:
             return z, E, np.zeros([len(z), len(E)])
             
         # Not necessarily true in the future if we include H2 opacity    
@@ -438,27 +437,30 @@ class UniformBackground(object):
         
         # Loop over sources
         for i, source in enumerate(self.pops):
+            
+            # Sum over bands
+            for k, band in enumerate(self.energies[i]):
 
-            # Loop over absorbing species
-            for j, species in enumerate(self.grid.absorbers):
+                # Loop over absorbing species
+                for j, species in enumerate(self.grid.absorbers):
 
-                if kwargs['zone'] == 'igm':
-                    self.k_ion[i,0,j] = \
-                        self.volume.IonizationRateIGM(z, species=j, popid=i,
-                        **kwargs)
-                    self.k_heat[i,0,j] = \
-                        self.volume.HeatingRate(z, species=j, popid=i,
-                        **kwargs)
-                        
-                    for k, donor in enumerate(self.grid.absorbers):
-                        self.k_ion2[i,0,j,k] = \
-                            self.volume.SecondaryIonizationRateIGM(z, 
-                            species=j, donor=k, popid=i, **kwargs)
+                    if kwargs['zone'] == 'igm':
+                        self.k_ion[i,0,j] += \
+                            self.volume.IonizationRateIGM(z, species=j, popid=i,
+                            band=k, **kwargs)
+                        self.k_heat[i,0,j] += \
+                            self.volume.HeatingRate(z, species=j, popid=i,
+                            band=k, **kwargs)
 
-                else:
-                    self.k_ion[i,0,j] = \
-                        self.volume.IonizationRateCGM(z, species=j, popid=i,
-                        **kwargs)
+                        for k, donor in enumerate(self.grid.absorbers):
+                            self.k_ion2[i,0,j,k] += \
+                                self.volume.SecondaryIonizationRateIGM(z, 
+                                species=j, donor=k, popid=i, band=k, **kwargs)
+
+                    else:
+                        self.k_ion[i,0,j] = \
+                            self.volume.IonizationRateCGM(z, species=j, popid=i,
+                            band=k, **kwargs)
 
         # Sum over sources
         self.k_ion_tot = np.sum(self.k_ion, axis=0)
@@ -676,7 +678,7 @@ class UniformBackground(object):
             epsilonhat = pop.NumberEmissivity(zp, E0)
             epsilonhat_over_H = epsilonhat / H
     
-            if (E0 > pop.rs.Emax) or (E0 < pop.rs.Emin):
+            if (E0 > pop.src.Emax) or (E0 < pop.src.Emin):
                 return 0.0
     
         else:
@@ -855,7 +857,7 @@ class UniformBackground(object):
             return J        
         
     def load_sed(self, prefix=None):
-        fn = pop.rs.sed_name()
+        fn = pop.src.sed_name()
     
         if prefix is None:
             if not ARES:
@@ -975,7 +977,7 @@ class UniformBackground(object):
             flux = flux0
 
         L = redshifts.size
-        ll = L - 1
+        ll = self._ll = L - 1
         
         otf = False
 

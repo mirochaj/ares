@@ -397,7 +397,8 @@ def print_pop(pop):
     print line('Radiative Output')
     print line('-'*twidth)
     
-    print line("yield (erg / s / SFR) : %g" % (pop.yield_per_sfr * g_per_msun / s_per_yr))
+    print line("yield (erg / s / SFR) : %g" \
+        % (pop.yield_per_sfr * g_per_msun / s_per_yr))
     print line("EminNorm (eV)         : %g" % (pop.pf['pop_EminNorm']))
     print line("EmaxNorm (eV)         : %g" % (pop.pf['pop_EmaxNorm']))    
 

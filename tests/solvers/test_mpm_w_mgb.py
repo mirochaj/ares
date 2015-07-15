@@ -17,29 +17,43 @@ import matplotlib.pyplot as pl
 
 pars = \
 {
- 'source_type': 'bh',
- 'source_sed': 'pl',
- 'source_alpha': -1.5,
- 'source_Emin': 2e2,
- 'source_Emax': 3e4,
- 'source_EminNorm': 2e2,
- 'source_EmaxNorm': 5e4,
- 'approx_xrb': False,
- 'redshifts_xrb': 400,
+ 'pop_type': 'galaxy',
+ 'pop_sed': 'pl',
+ 'pop_alpha': -1.5,
+ 'pop_Emin': 2e2,
+ 'pop_Emax': 3e4,
+ 'pop_EminNorm': 5e2,
+ 'pop_EmaxNorm': 8e3,
+ 'pop_yield': 2.6e39,
+ 'pop_yield_units': 'erg/s/sfr',
+
+ 'pop_solve_rte': True,
+ 'pop_tau_Nz': 400,
+ 
+ 'include_cgm': False,
  'initial_redshift': 40.,
  'final_redshift': 10.,
- 'is_ion_src_cgm': False,
- 'include_He': True,
+ 'secondary_ionization': 1,
+
+ #'is_ion_src_cgm': False,
+ #'include_He': False,
 }
 
-sim = ares.simulations.MultiPhaseMedium(**pars)
-sim.run()
+ax1 = None; ax2 = None
+labels = ['optically thin', 'neutral IGM']
+for i, tau_approx in enumerate([True, 'neutral']):
+    
+    pars['approx_tau'] = tau_approx
 
-anl = ares.analysis.MultiPhaseMedium(sim)
-ax1 = anl.TemperatureHistory()
+    sim = ares.simulations.MultiPhaseMedium(**pars)
+    sim.run()
+    
+    anl = ares.analysis.MultiPhaseMedium(sim)
+    ax1 = anl.TemperatureHistory(ax=ax1, label=labels[i])
+    
+    ax2 = anl.IonizationHistory(zone='igm', element='h', fig=2,
+        label=labels[i], ax=ax2)
 
-ax2 = anl.IonizationHistory(zone='igm', element='h', color='k', fig=2)
-ax2 = anl.IonizationHistory(zone='igm', element='he', color='b', ax=ax2)
-
-
-
+pl.legend()
+pl.show()    
+    

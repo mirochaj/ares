@@ -39,47 +39,82 @@ class MetaGalacticBackground(UniformBackground):
         of the background for each population.
 
         """
-        
+
         self._is_thru_run = True
 
+        all_z = []         # sometimes not deterministic
         all_fluxes_c = []
         all_fluxes_l = []
         for (z, fluxes_c, fluxes_l) in self.step():
             self.update_redshift(z)
+            all_z.append(z)
             all_fluxes_c.append(fluxes_c)
             all_fluxes_l.append(fluxes_l)
 
+        self.all_z = all_z
         self.all_fluxes_c = all_fluxes_c
         self.all_fluxes_l = all_fluxes_l
-        self.history_c = _sort_history(all_fluxes_c)
-        self.history_l = _sort_history(all_fluxes_l)
-
+        
+        self._history_c = _sort_history(all_fluxes_c)
+        self._history_l = _sort_history(all_fluxes_l)
+        
     def _init_stepping(self):
         """
         Initialize lists which bracket radiation background fluxes.
         
-        This is a little tricky for the LWB.
+        Sets
+        ----
+        Several attributes:
+        (1) _zhi, _zlo
+        (2) _fhi, _flo
+        
         """
         
         # For "smart" time-stepping
         self._zhi = []; self._zlo = []
         self._fhi = []; self._flo = []
         for i, generator in enumerate(self.generators):
-            if generator is None:
+            
+            # Recall that each generator may actually be a list of generators,
+            # one for each (sub-)band.
+            
+            if generator is [None]:
                 self._fhi.append(None)
                 self._flo.append(None)
                 continue
-                
-            z, cflux, lflux = generator.next()    
-                
-            self._zhi.append(z)    
-            self._fhi.append(cflux)
             
-            z, cflux, lflux = generator.next()
+            # Loop over bands
+            _fhi = [None for k in range(len(generator))]
+            _flo = [None for k in range(len(generator))]
+            for j, gen in enumerate(generator):
+                
+                if gen is None:
+                    continue
+                    
+                if i == 0:
+                    _fhi[j] = np.zeros_like(self.energies[i][j])
+                    _flo[j] = np.zeros_like(self.energies[i][j])
+                
+                # Tap generator, grab fluxes
+                zhi, cflux, lflux = gen.next()
+                
+                # Increment the flux
+                _fhi[j] += cflux.copy()
+                
+                # Tap generator, grab fluxes (again)
+                zlo, cflux, lflux = gen.next()
+                                                                    
+                # Increment the flux
+                _flo[j] += cflux.copy()
+                
+                                
+            self._zhi.append(zhi)
+            self._zlo.append(zlo)
             
-            self._zlo.append(z)
-            self._flo.append(cflux)
+            self._fhi.append(_fhi)
+            self._flo.append(_flo)
 
+        # Is this OK?
         self.update_redshift(self._zlo[0])
 
     def step(self):
@@ -101,22 +136,44 @@ class MetaGalacticBackground(UniformBackground):
         
         # Start the generator
         while z > zf:     
-            z, fluxes_c, fluxes_l = self.update_fluxes()
+            z, fluxes_c, fluxes_l = self.update_fluxes()            
             
             yield z, fluxes_c, fluxes_l
             
     def update_redshift(self, z):
         self.z = z        
+
+    @property
+    def history_c(self):
+        if hasattr(self, '_history_c'):
+            pass
+        elif hasattr(self, 'all_fluxes_c'):
+            self._history_c = _sort_history(self.all_fluxes_c)
+        else:
+            raise NotImplemented('help!')    
+    
+        return self._history_c
+    
+    @property
+    def history_l(self):
+        if hasattr(self, '_history_l'):
+            pass
+        elif hasattr(self, 'all_fluxes_l'):
+            self._history_l = _sort_history(self.all_fluxes_l)
+        else:
+            raise NotImplemented('help!')    
+    
+        return self._history_l
         
     def update_fluxes(self):
         """
         Loop over flux generators and retrieve the next values.
         
         ..note:: Populations need not have identical redshift sampling.
-        
+
         Returns
         -------
-        Current redshift and diciontary of fluxes. Each element of the flux
+        Current redshift and dictionary of fluxes. Each element of the flux
         dictionary corresponds to a single population, and within that, there
         are separate lists for each sub-band over which we solve the RTE.
         
@@ -124,12 +181,19 @@ class MetaGalacticBackground(UniformBackground):
         
         if (not self._is_thru_run) and (not self.approx_all_pops) and \
             not hasattr(self, '_fhi'):
+            
             self._init_stepping()
+            
+            # Save fluxes by pop as simulations run
+            self.all_z = []
+            self.all_fluxes_c = []
+            self.all_fluxes_l = []
         
+        z_by_pop = [None for i in range(self.Npops)]
         fluxes_c = {}  # continuum
         fluxes_l = {}  # line
         for i, pop_generator in enumerate(self.generators):
-            
+
             # Skip approximate (or non-contributing) backgrounds
             if pop_generator is None:
                 fluxes_c[i] = None
@@ -138,34 +202,36 @@ class MetaGalacticBackground(UniformBackground):
             
             fluxes_c_by_band = []
             fluxes_l_by_band = []
-            # Band is broken up for each population            
-            for generator in pop_generator:
-            
+
+            # For each population, the band is broken up into pieces
+            for j, generator in enumerate(pop_generator):
+                                            
                 # If not being run as part of another simulation, there are 
                 # no external time-stepping constraints, so just poke the 
                 # generator and move on
-                if self._is_thru_run: 
+                if self._is_thru_run:
                     z, fc, fl = generator.next()
                     fluxes_c_by_band.append(fc)
                     fluxes_l_by_band.append(fl)
-                    continue   
-                
+                    continue
+                    
                 # Otherwise, we potentially need to sub-cycle the background
-                
+
                 # For redshifts before this background turns on...
+                # (this should only happen once)
                 if self.z > self._zhi[i]:
                     z, fc, fl = \
-                        self.z, np.zeros_like(self.energies[i]), 0.0
+                        self.z, np.zeros_like(self.energies[i][j]), 0.0
                     fluxes_c_by_band.append(fc)
                     fluxes_l_by_band.append(fl)
                     continue
-                
+
                 # If we've surpassed the lower redshift bound, poke the 
                 # generator
-                elif self.z <= self._zlo[i]: 
-                    
+                elif self.z <= self._zlo[i]:
+
                     self._zhi[i] = self._zlo[i]
-                    self._fhi[i] = self._flo[i]
+                    self._fhi[i][j] = self._flo[i][j]
                     z, fc, fl = generator.next()
                     
                     # Sometimes the generator's redshift sampling will be finer
@@ -173,49 +239,57 @@ class MetaGalacticBackground(UniformBackground):
                     # multiple times before exiting.
                     while z > self.z:
                         self._zhi[i] = self._zlo[i]
-                        self._fhi[i] = self._flo[i]
+                        self._fhi[i][j] = self._flo[i][j]
                 
                         z, fc, fl = generator.next()
-                
+                        
                     self._zlo[i] = z
-                    self._flo[i] = fc
+                    self._flo[i][j] = fc
                 else:
-                    z = self.z    
-                
+                    z = self.z
+
                 # If we're between redshift steps, interpolate to find the 
                 # background flux
                 if self.z != self._zlo[i]:
-                
+
                     z = self.z
-                
+
                     # Interpolate to find flux
                     interp = interp1d([self._zlo[i], self._zhi[i]], 
-                        [self._flo[i], self._fhi[i]], 
+                        [self._flo[i][j], self._fhi[i][j]], 
                          axis=0, assume_sorted=True, kind='linear')        
-                
+
                     fc = interp(z)
-                    
+
+                fl = 0.0    
+
                 fluxes_c_by_band.append(fc)
                 fluxes_l_by_band.append(fl)    
 
+            z_by_pop[i] = z    
             fluxes_c[i] = fluxes_c_by_band
             fluxes_l[i] = fluxes_l_by_band
 
-        return z, fluxes_c, fluxes_l 
+        if not self._is_thru_run:
+            self.all_z.append(z_by_pop)
+            self.all_fluxes_c.append(fluxes_c)
+            self.all_fluxes_l.append(fluxes_l)
+
+        return z, fluxes_c, fluxes_l
 
     def update_rate_coefficients(self, z, **kwargs):
         """
         Compute ionization and heating rate coefficients.
-        
+
         Parameters
         ----------
         z : float
             Current redshift.
-            
+
         Returns
         -------
         Dictionary of rate coefficients.
-        
+
         """
 
         # Must compute rate coefficients from fluxes     
@@ -224,11 +298,11 @@ class MetaGalacticBackground(UniformBackground):
         else:
             z, fluxes_c, fluxes_i = self.update_fluxes()
             kwargs['fluxes'] = fluxes_c    
-                    
+
         # Run update_rate_coefficients within MultiPhaseMedium
         return super(MetaGalacticBackground, self).update_rate_coefficients(z, 
             **kwargs)
-                                                                           
+
     def get_history(self, continuum=True, popid=0, flatten=False):
         """
         Grab data associated with a single population.
@@ -261,20 +335,26 @@ class MetaGalacticBackground(UniformBackground):
             hist = self.history_c
         else:
             hist = self.history_l
+            
+        if self._is_thru_run:
+            z = self.redshifts[popid]
+        else:
+            # This may change on the fly due to sub-cycling and such
+            z = np.array(self.all_z).T[popid][-1::-1]
         
         if flatten:
             E = flatten_energies(self.energies[popid])
-            f = np.zeros([len(self.redshifts[popid]), E.size])
+            
+            f = np.zeros([len(z), E.size])
             for i, flux in enumerate(hist[popid]):
                 fzflat = []
                 for j in range(len(self.energies[popid])):
                     fzflat.extend(flux[j])
                 
                 f[i] = np.array(fzflat)
-                    
-            return self.redshifts[popid][-1::-1], E, np.array(f)
+
+            return z[-1::-1], E, np.array(f)
         else:
-            return self.redshifts[popid][-1::-1], self.energies[popid], \
-                hist[popid]
+            return z[-1::-1], self.energies[popid], hist[popid]
 
         

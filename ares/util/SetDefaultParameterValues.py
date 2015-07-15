@@ -169,8 +169,8 @@ def PhysicsParameters():
     "expansion": 0,             # Referring to cosmology  
     "collapse": 0,              # Referring to single-zone collapse
     "compton_scattering": 1,
-    "recombination": 'B', 
-    
+    "recombination": 'B',
+
     "clumping_factor": 1,
 
     "approx_H": False,
@@ -320,11 +320,11 @@ def PopulationParameters():
     "pop_sawtooth": False,
     "pop_solve_rte": False,
     "pop_tau_Nz": 400,
-    
+
     # Pre-created splines
     "pop_fcoll": None,
     "pop_dfcolldz": None,
-    
+
     # Get passed on to litdata instances
     "source_kwargs": {},
     "pop_kwargs": {},
@@ -335,11 +335,11 @@ def PopulationParameters():
     pf.update(rcParams)
 
     return pf      
-    
+
 def SourceParameters():
     pf = \
     {
-    "source_type": 'star',  
+    "source_type": 'star',
     "source_sed": 'bb',
     "source_position": 0.0,
     
@@ -533,7 +533,7 @@ def ControlParameters():
     "tau_table": None,
     "tau_prefix": tau_prefix,
 
-    "approx_tau": None,
+    "approx_tau": True,
 
     # File format
     "preferred_format": 'pkl',

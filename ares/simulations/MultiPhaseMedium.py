@@ -175,6 +175,44 @@ class MultiPhaseMedium(object):
             self.parcel_cgm.grid.data['Tk'] = np.array(self.pf['cgm_Tk'])
             self.parcel_cgm.grid.set_recombination_rate(is_cgm_patch=True)
 
+    @property
+    def dynamic_tau(self):
+        return self.pf['tau_dynamic']
+
+    def update_optical_depth(self):
+        """
+        Dynamically update optical depth as simulation runs.
+        """
+        
+        # Recall that self.field.tau is a list with as many elements as there
+        # are distinct populations
+        
+        
+        tau = []
+        for i in range(self.field.Npops):
+            pass
+            
+        
+        self.field.tau = tau
+        
+
+    def subcycle(self):
+        """
+        See if we need to re-do the previous timestep.
+        
+        This mean:
+            (1) Re-compute the IGM optical depth.
+            (2)
+        """
+
+        return False
+
+        # Check IGM ionization state between last two steps. 
+        # Converged to desired tolerance?
+        
+        #self.
+        
+        
     def run(self):
         """
         Run simulation from start to finish.
@@ -276,7 +314,7 @@ class MultiPhaseMedium(object):
             # IGM rate coefficients
             if self.pf['include_igm']:
                 RC_igm = self.field.update_rate_coefficients(z, 
-                    zone='igm', return_rc=True, igm_e=data_igm['e'])
+                    zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
                 
                 # Now, update IGM parcel
                 t1, dt1, data_igm = self.gen_igm.next()
@@ -286,7 +324,7 @@ class MultiPhaseMedium(object):
             else:
                 dt1 = 1e50
                 RC_igm = data_igm = None
-                data_igm = {'e': 0.0}
+                data_igm = {'h_1': 1.0}
 
             if self.pf['include_cgm']:
                 # CGM rate coefficients
@@ -303,15 +341,38 @@ class MultiPhaseMedium(object):
                 RC_cgm = data_cgm = None
 
             # Must update timesteps in unison
+            dt_pre = dt * 1.
             dt = min(dt1, dt2)
-            
-            if self.pf['include_igm']:
-                self.parcel_igm.dt = dt
-            
-            if self.pf['include_cgm']:
-                self.parcel_cgm.dt = dt
 
-            yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
+            # Might need these...
+            if self.pf['include_igm']:
+                data_igm_pre = data_igm.copy()
+            if self.pf['include_cgm']:    
+                data_cgm_pre = data_cgm.copy()
+
+            # If we're computing the IGM optical depth dynamically, we may
+            # need to "re-do" this step to ensure convergence.
+
+            redo = self.subcycle()
+
+            if not redo:    
+                if self.pf['include_igm']:
+                    self.parcel_igm.dt = dt
+
+                if self.pf['include_cgm']:
+                    self.parcel_cgm.dt = dt
+
+                yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
+
+                continue
+
+            # If we've made it here, we need to trick our generators a bit
+
+            # "undo" this time-step
+            t -= dt_pre
+            z += dt_pre / dtdz
+
+            self.update_optical_depth()
 
     def _insert_inits(self):
         """

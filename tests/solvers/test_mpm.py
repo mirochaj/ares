@@ -26,8 +26,8 @@ pars = \
  'pop_EmaxNorm': 24.6,
  'pop_yield': 1e57,
  'pop_yield_units': 'photons/msun',
- 'pop_heat_src_igm': False,
- 'pop_ion_src_igm': False,
+ 
+ 'include_igm': False,
  'initial_redshift': 30.,
  'final_redshift': 7.,
 }
@@ -36,4 +36,4 @@ sim = ares.simulations.MultiPhaseMedium(**pars)
 sim.run()
 
 pl.semilogy(sim.history['z'], sim.history['cgm_h_2'])
-
+pl.xlim(5, 50)

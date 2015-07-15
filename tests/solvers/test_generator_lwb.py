@@ -10,112 +10,63 @@ Description: This is very similar to Haiman, Abel, & Rees (1997) Fig. 1.
 
 """
 
-import ares, time
+import ares
 import numpy as np
 import matplotlib.pyplot as pl
-from ares.physics.Constants import E_LL, E_LyA, J21_num
+from ares.physics.Constants import erg_per_ev, c, ev_per_hz
 
 pars = \
 {
- 'pop_Tmin': 1e3,
- 'pop_fstar': 1e-2,
- 'pop_temperature': 1e5,
- 'pop_sed': 'bb',
- 'pop_Emin': E_LyA,
- 'pop_Emax': E_LL,
- 'pop_EminNorm': 0.01,
- 'pop_EmaxNorm': 5e2,
- 'approx_lwb': False,
- 'lya_nmax': 8,
- 'Nlw': 9690.,
- 'norm_by': 'lw',
- 'initial_redshift': 50,
- 'final_redshift': 10,
- 'redshifts_lwb': 1e4,
- 'include_H_Lya': True,
+ 'pop_type': 'galaxy',
+ 'pop_sfrd': lambda z: 0.1,
+ 'pop_sed': 'pl',
+ 'pop_alpha': 0.0, 
+ 'pop_Emin': 1.,
+ 'pop_Emax': 41.8,
+ 'pop_EminNorm': 13.6,
+ 'pop_EmaxNorm': 1e2,
+ 'pop_yield': 1e57,
+ 'pop_yield_units': 'photons/msun',
+
+ # Solution method
+ 'pop_solve_rte': True,
+ 'pop_tau_Nz': 400,
+ 'include_H_Lya': False,
+
+ 'initial_redshift': 40.,
+ 'final_redshift': 10.,
 }
-    
-# Solve using brute-force integration
-rad = ares.solvers.UniformBackground(discrete_lwb=False, **pars)
-E = np.linspace(5.0, E_LL-0.01, 500)
 
-fig1 = pl.figure(1)
-ax1 = fig1.add_subplot(111)
+# First calculation: no sawtooth
+mgb = ares.simulations.MetaGalacticBackground(**pars)
+mgb.run()
 
-color = 'k'
-for zf in [15, 30]:
-    t1 = time.time()
-    F = map(lambda EE: rad.AngleAveragedFlux(zf, EE, xavg=lambda z: 0.0, 
-        energy_units=False), E)
-    t2 = time.time()
-    
-    ax1.semilogy(E, np.array(F) / J21_num, color=color, label=r'$z=%i$' % zf)
-    
-    # Compute optically thin solution for comparison
-    Fthin = map(lambda EE: rad.AngleAveragedFlux(zf, EE, tau=0.0,
-        energy_units=False), E)
-    
-    
-    ax1.semilogy(E, np.array(Fthin) / J21_num, color=color, ls='--')
-    
-    color = 'b'
+z, E, flux = mgb.get_history(flatten=True)
+pl.semilogy(E, flux[-1] * E * erg_per_ev, color='k', ls=':')
 
-ax1.set_xlabel(r'$h\nu \ (\mathrm{eV})$')
-ax1.set_ylabel(r'$J_{\nu} / J_{21}$')
-ax1.legend(loc='lower left', frameon=False, fontsize=16)
-ax1.set_ylim(1e-3, 1e2)
-pl.draw()
+# Now, turn on sawtooth
+pars2 = pars.copy()
+pars2['pop_sawtooth'] = True
 
-# Solve using generator
-rad2 = ares.simulations.MetaGalacticBackground(discrete_lwb=True, **pars)
+mgb2 = ares.simulations.MetaGalacticBackground(**pars2)
+mgb2.run()
 
-t3 = time.time()
-rad2.run()
-t4 = time.time()    
+z2, E2, flux2 = mgb2.get_history(flatten=True)
+pl.semilogy(E2, flux2[-1] * E2 * erg_per_ev, color='k', ls='--')
 
-# Grab info about radiation background
-z, E, flux = rad2.get_history()
-Eflat = np.concatenate(E)
+# Grab GalaxyPopulation
+pop = mgb.pops[0]
 
-# Get line emission
-z, E, flux_l = rad2.get_history(continuum=False)
+# Cosmologically-limited solution to the RTE
+# [Equation A1 in Mirocha (2014)]
+zi, zf = 40., 10.
+e_nu = np.array(map(lambda E: pop.Emissivity(zf, E), E))
+e_nu *= (1. + zf)**4.5 / 4. / np.pi / pop.cosm.HubbleParameter(zf) / -1.5
+e_nu *= ((1. + zi)**-1.5 - (1. + zf)**-1.5)
+e_nu *= c * ev_per_hz
 
-ax1.scatter(Eflat, flux[np.argmin(np.abs(z-15.)),:] / J21_num,
-    facecolors='none', color='k', marker='|', s=100, alpha=0.05)
-
-ax1.scatter(Eflat, flux[np.argmin(np.abs(z-30.)),:] / J21_num,
-    facecolors='none', color='b', marker='|', s=100, alpha=0.05)
-
-# Emphasize Ja
-totz15 = flux[np.argmin(np.abs(z-15.)),:] + flux_l[np.argmin(np.abs(z-15.)),:]
-totz30 = flux[np.argmin(np.abs(z-30.)),:] + flux_l[np.argmin(np.abs(z-30.)),:]
-ax1.scatter(Eflat[0], totz15[0] / J21_num,
-    facecolors='none', color='k', marker='o', s=100)
-ax1.scatter(Eflat[0], totz30[0] / J21_num,
-    facecolors='none', color='b', marker='o', s=100)
-
-
-pl.draw()
-print "Generator provides %.2gx speed-up (per redshift point)." \
-    % ((t2 - t1) / ((t4 - t3) / z.size))
-
-# Compute Lyman-alpha flux
-zarr = np.arange(10, 40)
-Ja_1 = np.array(map(rad.LymanAlphaFlux, zarr))
-
-# Read it in from discrete LWB calculation
-Ja_2 = flux[:,0] + flux_l[:,0]
- 
-fig2 = pl.figure(2)
-ax2 = fig2.add_subplot(111)
-
-ax2.scatter(zarr, Ja_1 / J21_num, color='k', facecolors='none', s=50,
-    label='numerical')
-ax2.semilogy(z, Ja_2 / J21_num, color='b', label='generator')
-ax2.set_xlabel(r'$z$')
-ax2.set_ylabel(r'$J_{\alpha} / J_{21}$')
-ax2.set_ylim(1e-4, 1e2)
-ax2.legend(loc='lower left')
-pl.draw()
-
-
+# Plot it
+pl.semilogy(E, e_nu, color='k', ls='-')
+pl.xlabel(ares.util.labels['E'])
+pl.ylabel(ares.util.labels['flux_E'])
+pl.savefig('example_crb_lw.png')

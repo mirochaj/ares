@@ -44,7 +44,7 @@ src_pars = \
 }
 
 rad1 = ares.simulations.MetaGalacticBackground(pop_sawtooth=True, 
-    approx_tau=None, **src_pars)
+    approx_tau=True, **src_pars)
 
 # Compute background flux
 rad1.run()
@@ -64,5 +64,7 @@ for i, rad in enumerate([rad1]):
     ax.plot(E, flux[j] / 1e-21, color='c')
 
 ax.set_xlim(1, 4e3)
+ax.set_ylim(1e-5, 2e2)
+ax.set_title(r'$z=3$')
 pl.draw()
 
