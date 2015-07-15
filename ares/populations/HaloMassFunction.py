@@ -14,9 +14,9 @@ import pickle, os, re, sys
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.misc import derivative
-from ..util.Warnings import no_hmf
 from ..util.Math import central_difference
 from ..util.ProgressBar import ProgressBar
+from ..util.Warnings import no_hmf, missing_hmf_tab
 from ..physics.Constants import g_per_msun, cm_per_mpc
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline
 
@@ -140,7 +140,12 @@ class HaloDensity:
             assert self.pf['Tmax'] > self.pf['Tmin'], "Tmax must exceed Tmin!"
         
         # Look for tables in input directory
-        if ARES is not None and self.pf['load_hmf']:
+        if self.fn is not None:
+            if not os.path.exists(self.fn):
+                missing_hmf_tab(self)
+                self.fn = None
+                
+        if (self.fn is None) and (ARES is not None) and (self.pf['load_hmf']):
             fn = '%s/input/hmf/%s' % (ARES, self.table_prefix())
             if os.path.exists('%s.pkl' % fn):
                 self.fn = '%s.pkl' % fn

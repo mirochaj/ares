@@ -182,6 +182,24 @@ def tau_quad(igm):
     print line("SFRD        : %.3e" % sfrd)    
     print line(separator)
     
+def missing_hmf_tab(hmf):
+    print ""
+    print line(separator)
+    print line('WARNING: Could not find supplied hmf table.')    
+    print line(separator)    
+    
+    print line('Was looking for:')
+    print line('')
+    print line('    %s' % hmf.pf['hmf_table'])
+    
+
+    print line('')
+    print line('Will search for a suitable replacement in:')
+    print line('')
+    print line('    %s/input/hmf' % ARES)
+    print line('')
+    print line(separator)
+            
 def no_hmf(hmf):
     print ""
     print line(separator)
@@ -218,7 +236,7 @@ def no_hmf(hmf):
     
     for l in snew_by_line:
         print line(l)
-    
+
         
     if not (have_pycamb and have_hmf):
         print line('')
