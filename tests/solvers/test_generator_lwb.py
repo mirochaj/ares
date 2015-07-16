@@ -69,4 +69,3 @@ e_nu *= c * ev_per_hz
 pl.semilogy(E, e_nu, color='k', ls='-')
 pl.xlabel(ares.util.labels['E'])
 pl.ylabel(ares.util.labels['flux_E'])
-pl.savefig('example_crb_lw.png')

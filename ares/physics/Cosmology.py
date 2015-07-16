@@ -98,7 +98,7 @@ class Cosmology:
         return self.cmb_temp_0 * (1. + z)
         
     def UCMB(self, z):
-        """ CMB energy density. """    
+        """ CMB energy density. """
         return 4.0 * sigma_SB * self.TCMB(z)**4 / c
     
     def Tgas(self, z):
@@ -144,8 +144,7 @@ class Cosmology:
         return self.OmegaMatter(z) * self.CriticalDensity(z)
         
     def MeanBaryonDensity(self, z):
-        return (self.omega_b_0 / self.omega_m_0) \
-            * self.MeanMatterDensity(z)
+        return (self.omega_b_0 / self.omega_m_0) * self.MeanMatterDensity(z)
     
     def MeanHydrogenNumberDensity(self, z):
         return (1. - self.Y) * self.MeanBaryonDensity(z) / m_H

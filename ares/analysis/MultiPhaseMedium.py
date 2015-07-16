@@ -296,13 +296,17 @@ class MultiPhaseMedium:
         
         pl.draw()
         
-    def tau_CMB(self):
+    def tau_CMB(self, include_He=True, z_HeII_EoR=3.):
         """
         Compute CMB optical depth history.
         """
         
         QHII = self.data_asc['cgm_h_2'] 
-        xHII = self.data_asc['igm_h_2'] 
+        if 'igm_h_2' in self.data_asc:
+            xHII = self.data_asc['igm_h_2'] 
+        else:
+            xHII = 0.0
+            
         nH = self.cosm.nH(self.data_asc['z'])
         dldz = self.cosm.dldz(self.data_asc['z'])
         
@@ -315,9 +319,11 @@ class MultiPhaseMedium:
             nHe = self.cosm.nHe(self.data_asc['z'])
             integrand += (QHeII + (1. - QHeII) * xHeII + 2. * xHeIII) \
                 * nHe 
-                
+        elif include_He:
+            integrand *= (1. + self.cosm.y)
+                    
         integrand *= sigma_T * dldz
-        
+                
         tau = cumtrapz(integrand, self.data_asc['z'], initial=0)
             
         tau[self.data_asc['z'] > 100] = 0.0 
@@ -325,8 +331,12 @@ class MultiPhaseMedium:
         self.data_asc['tau_CMB'] = tau
         self.data['tau_CMB'] = tau[-1::-1]
         
+        if self.data_asc['z'][0] < z_HeII_EoR:
+            raise ValueError('Simulation ran past assumed HeII EoR! See z_HeII_EoR parameter.')
+        
         # Make no arrays that go to z=0
-        zlo, tlo = self.tau_post_EoR()
+        zlo, tlo = self.tau_post_EoR(include_He=include_He, 
+            z_HeII_EoR=z_HeII_EoR)
                 
         tau_tot = tlo[-1] + tau
         
@@ -923,7 +933,7 @@ class MultiPhaseMedium:
     def OpticalDepthHistory(self, ax=None, fig=1, 
         scatter=False, show_xi=True, show_xe=True, show_xibar=True, 
         obs_mu=0.081, obs_sigma=0.012, show_obs=False, annotate_obs=False,
-        **kwargs): 
+        include_He=True, z_HeII_EoR=3., **kwargs): 
         """
         Plot (cumulative) optical depth to CMB evolution. 
         
@@ -947,7 +957,7 @@ class MultiPhaseMedium:
             ax = fig.add_subplot(111)
                 
         if 'tau_CMB' not in self.data:
-            self.tau_CMB()
+            self.tau_CMB(include_He=include_He, z_HeII_EoR=z_HeII_EoR)
 
         ax.plot(self.data_asc['z_CMB'], self.data_asc['tau_CMB_tot'], **kwargs)
 
@@ -1031,7 +1041,7 @@ class MultiPhaseMedium:
         
         return ax
 
-    def tau_post_EoR(self):
+    def tau_post_EoR(self, include_He=True, z_HeII_EoR=3.):
         """
         Compute optical depth to electron scattering of the CMB.
         Equation 2 of Shull & Venkatesan 2008.
@@ -1060,6 +1070,8 @@ class MultiPhaseMedium:
             xHeIII = 1.0
             nHe = self.cosm.nHe(ztmp)
             integrand += (QHeII + 2. * xHeIII) * nHe 
+        elif include_He:
+            integrand *= (1. + self.cosm.y)
 
         integrand *= sigma_T * dldz
 

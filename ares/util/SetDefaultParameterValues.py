@@ -61,6 +61,7 @@ def GridParameters():
     "include_He": False,
     "include_H2": False,
     
+    # For MultiPhaseMedium calculations
     "include_cgm": True,
     "include_igm": True,
     
@@ -95,13 +96,32 @@ def GridParameters():
     return pf
     
 def MultiPhaseParameters():
+    """
+    These are grid parameters -- we'll strip off the prefix in 
+    MultiPhaseMedium calculations.
+    """
     pf = \
     {
-     "cgm_Tk": 1e4,
-     "cgm_h_2": 0.0,
-     'igm_h_2': None,
+     "cgm_grid_cells": 1,
+     "cgm_expansion": True,
+     "cgm_initial_temperature": [1e4],
+     "cgm_initial_ionization": [1.-1e-8, 1e-8],
+     "cgm_isothermal": True,
      "cgm_recombination": 'A',
+     "cgm_collisional_ionization": False,
+     "photon_counting": True,
+
+     "igm_grid_cells": 1,     
+     "igm_expansion": True,
+     "igm_initial_temperature": None,         
+     'igm_initial_ionization': None,
+     "igm_isothermal": False,
      "igm_recombination": 'B',
+     "igm_compton_scattering": True,
+     "igm_collisional_ionization": True,
+     
+     "monotonic_EoR": 1e-8,
+     
     }    
     
     pf.update(rcParams)
@@ -180,31 +200,6 @@ def PhysicsParameters():
                         # 2 = Chuzhoy, Alvarez, & Shapiro (2005),
                         # 3 = Furlanetto & Pritchard (2006)
 
-    # Approximations to radiation fields
-    #"approx_irb": True,
-    #"approx_lwb": True,
-    #"approx_uvb": True,
-    #'approx_xrb': True,
-        
-    # If doing "full" calculation, discretize in redshift and energy?
-    #"discrete_irb": True,
-    #"discrete_lwb": True,
-    #"discrete_uvb": True,
-    #'discrete_xrb': True,
-    #
-    #"tau_irb": False,
-    #"tau_lwb": False,
-    #"tau_uvb": False,
-    #"tau_xrb": False,
-
-    "tau_dynamic": False,
-    
-    # How many redshift bins for static optical depth tables
-    #"redshifts_irb": 400,
-    #"redshifts_lwb": 1e4,
-    #"redshifts_uvb": 400,
-    #"redshifts_xrb": 400,
-
     "sawtooth_nmax": 8,
 
     # Lyman alpha sources
@@ -216,16 +211,6 @@ def PhysicsParameters():
                            # treating background in approximate way
                      
     "rate_source": 'fk94', # fk94, option for development here
-    
-    # Approximations to radiation field                   
-    #"norm_by": 'xray',
-    #"xray_Emin": 2e2,
-    
-    # Feedback!
-    "feedback": False,
-    "feedback_dz": 0.5,
-    "feedback_method": ['jeans_mass', 'filtering_mass', 'critical_Jlw'],
-    "feedback_analytic": True,
     
     }
     
@@ -270,6 +255,13 @@ def PopulationParameters():
     "pop_lf": None,
     "pop_emissivity": None,
     
+    # By-hand parameterizations
+    "pop_Ja": None,
+    "pop_k_ion_cgm": None,
+    "pop_k_ion_igm": None,
+    "pop_k_heat_igm": None,
+    
+    
     # Set time interval over which emission occurs
     "pop_zform": 50.,
     "pop_zdead": 0.0,
@@ -304,11 +296,6 @@ def PopulationParameters():
     "pop_ion_src_igm": True,
     "pop_heat_src_cgm": False,
     "pop_heat_src_igm": True,
-
-    "pop_src_irb": False,
-    "pop_src_lwb": True,
-    "pop_src_uvb": False,
-    "pop_src_xrb": True,
 
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)

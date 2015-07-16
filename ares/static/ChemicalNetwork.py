@@ -47,6 +47,7 @@ class ChemicalNetwork:
         self.expansion = self.grid.expansion
         self.isothermal = self.grid.isothermal
         self.is_cgm_patch = self.grid.is_cgm_patch        
+        self.collisional_ionization = self.grid.collisional_ionization
                 
         self.Nev = len(self.grid.evolving_fields)
         
@@ -83,6 +84,17 @@ class ChemicalNetwork:
                 ({'h_1': q[0], 'h_2': q[1], 'he_1': q[2], 'he_2': q[3], \
                     'he_3': q[4]}, {'h': n_H, 'he': self.y * n_H}, \
                     q[-2] * n_H)
+    
+    @property
+    def monotonic_EoR(self):
+        if not hasattr(self, '_monotonic_EoR'):
+            self._monotonic_EoR = False
+        
+        return self._monotonic_EoR
+    
+    @monotonic_EoR.setter
+    def monotonic_EoR(self, value):
+        self._monotonic_EoR = value
     
     def RateEquations(self, t, q, args):
         """
@@ -145,7 +157,7 @@ class ChemicalNetwork:
         if self.include_He:
             xi = self.xi
             omega = self.omega
-
+ 
         # Store results here
         dqdt = {field:0.0 for field in self.grid.evolving_fields}
 
@@ -160,7 +172,7 @@ class ChemicalNetwork:
 
                 term = k_ion2[0,j] * x[donor] / x['h_1']
                 gamma_HI += term
-      
+              
         ##
         # Hydrogen rate equations
         ##
@@ -278,7 +290,18 @@ class ChemicalNetwork:
                 
         else:
             dqdt['Tk'] = 0.0
-
+            
+        # Can effectively turn off solution to hydrogen ionization once EoR
+        # is over.
+        if self.monotonic_EoR:
+            if x['h_1'] <= self.monotonic_EoR:
+                dqdt['h_1'] = dqdt['h_2'] = 0.0
+            if self.include_He:
+                if x['he_1'] <= self.monotonic_EoR:
+                    dqdt['he_1'] = 0.0
+                if x['he_2'] <= self.monotonic_EoR:
+                    dqdt['he_2'] = 0.0
+            
         self.dqdt = self.zeros_q.copy()
         for i, sp in enumerate(self.grid.qmap):
             self.dqdt[i] = dqdt[sp]
@@ -601,19 +624,24 @@ class ChemicalNetwork:
         
         for i, absorber in enumerate(self.absorbers):
             
-            self.Beta[...,i] = self.coeff.CollisionalIonizationRate(i, T)
+            if self.collisional_ionization:
+                self.Beta[...,i] = self.coeff.CollisionalIonizationRate(i, T)
+                    
             self.alpha[...,i] = self.coeff.RadiativeRecombinationRate(i, T)
             
             if self.isothermal:
                 continue
+            
+            self.dalpha[...,i] = self.coeff.dRadiativeRecombinationRate(i, T)
                 
-            self.zeta[...,i] = self.coeff.CollisionalIonizationCoolingRate(i, T)
+            if self.collisional_ionization:
+                self.zeta[...,i] = self.coeff.CollisionalIonizationCoolingRate(i, T)
+                self.dzeta[...,i] = self.coeff.dCollisionalIonizationCoolingRate(i, T)
+                self.dBeta[...,i] = self.coeff.dCollisionalIonizationRate(i, T)
+                
             self.eta[...,i] = self.coeff.RecombinationCoolingRate(i, T)
             self.psi[...,i] = self.coeff.CollisionalExcitationCoolingRate(i, T)
-            
-            self.dBeta[...,i] = self.coeff.dCollisionalIonizationRate(i, T)
-            self.dalpha[...,i] = self.coeff.dRadiativeRecombinationRate(i, T)
-            self.dzeta[...,i] = self.coeff.dCollisionalIonizationCoolingRate(i, T)
+                        
             self.deta[...,i] = self.coeff.dRecombinationCoolingRate(i, T)
             self.dpsi[...,i] = self.coeff.dCollisionalExcitationCoolingRate(i, T)
 

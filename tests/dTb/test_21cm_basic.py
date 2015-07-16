@@ -12,7 +12,7 @@ Description: Make sure the global 21-cm signal calculator works.
 
 import ares
 
-sim = ares.simulations.Global21cm(problem_type=100)
+sim = ares.simulations.Global21cm(problem_type=101, fX=5.)
 sim.run()
 
 anl = ares.analysis.MultiPhaseMedium(sim)

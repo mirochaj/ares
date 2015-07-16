@@ -24,14 +24,25 @@ class HaloPopulation(Population):
 
         # Print info to screen
         if self.pf['verbose']:
-            print_pop(self)    
+            self.info
 
         # Setup splines for interpolation of dfcoll/dt
         self._init_pop()
-        
+
+    @property
+    def parameterized(self):
+        if not hasattr(self, '_parameterized'):
+            not_parameterized = (self.pf['pop_k_ion_igm']) is None
+            not_parameterized &= (self.pf['pop_k_ion_cgm']) is None
+            not_parameterized &= (self.pf['pop_k_heat_igm']) is None
+            self._parameterized = not not_parameterized
+
+        return self._parameterized
+
     @property
     def info(self):
-        print_pop(self)    
+        if not self.parameterized:
+            print_pop(self)
 
     @property
     def fcoll(self):

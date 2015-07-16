@@ -29,7 +29,7 @@ pars = \
  'initial_redshift': 30.,
  'final_redshift': 4.,
  'include_igm': False,
- 'cgm_Tk': 1e4,
+ 'cgm_initial_temperature': 2e4,
  'clumping_factor': 3.,
 }
 

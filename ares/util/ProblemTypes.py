@@ -220,9 +220,34 @@ def ReionizationProblem(ptype):
         ptype_mod1 = round(ptype - 10 - ptype_int, 1)
     else:    
         ptype_mod1 = round(ptype - ptype_int, 1)
+                
+    # Single-zone reionization problem
+    if ptype_int == 0:
+        pf = \
+        {
+         'pop_type': 'galaxy',
+         'pop_sfrd': 'robertson2015',
+         'pop_sed': 'pl',
+         'pop_alpha': 1.0,
+         'pop_Emin': 13.6,
+         'pop_Emax': 24.6,
+         'pop_EminNorm': 13.6,
+         'pop_EmaxNorm': 24.6,
+         'pop_yield': 10**53.14,
+         'pop_yield_units': 'photons/s/sfr',
+         'initial_redshift': 30.,
+         'final_redshift': 4.,
+         'include_igm': False,                   # single-zone model
+         'cgm_initial_temperature': 2e4,         # should be 20,000 K
+         'clumping_factor': 3.,
+         'pop_fesc': 0.2,
+         'cgm_recombination': 'B',
+         'cgm_collisional_ionization': False,
+        }
+            
         
     # Simple global 21-cm problem
-    if ptype_int == 0:
+    if ptype_int == 1:
         pf = \
         {
         
@@ -288,12 +313,12 @@ def ReionizationProblem(ptype):
         }
 
     # Global 21-cm problem w/ meta-galactic backgrounds
-    if ptype_int == 1:
-        raise NotImplemented('Have not implemented problem_type = 101 yet.')
-        
-    # HeII reionization
     if ptype_int == 2:
         raise NotImplemented('Have not implemented problem_type = 102 yet.')
+        
+    # HeII reionization
+    if ptype_int == 3:
+        raise NotImplemented('Have not implemented problem_type = 103 yet.')
 
     return pf  
 

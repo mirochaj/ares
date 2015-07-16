@@ -36,11 +36,12 @@ ax1.set_xlabel(r'$z$')
 ax1.set_ylabel(ares.util.labels['sfrd'])
       
 #
-## compute reionization history: compare to Figure 3
+## compute reionization history: compare to their Figure 3
 #
       
 pars = \
 {
+ 'problem_type': 100,
  'pop_type': 'galaxy',
  'pop_sfrd': 'robertson2015',
  'pop_sed': 'pl',
@@ -52,27 +53,42 @@ pars = \
  'pop_yield': 10**53.14,
  'pop_yield_units': 'photons/s/sfr',
  'initial_redshift': 30.,
- 'final_redshift': 4.,
- 'include_igm': False,  # single-zone model
- 'cgm_Tk': 2e4,         # should be 20,000 K
+ 'final_redshift': 4.1,
+ 'include_igm': False,                   # single-zone model
+ 'cgm_initial_temperature': 2e4,         # should be 20,000 K
  'clumping_factor': 3.,
  'pop_fesc': 0.2,
  'cgm_recombination': 'B',
+ 'cgm_collisional_ionization': False,
 }
 
-fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
-for T in np.arange(1, 2.1, 0.1):
-    pars['cgm_Tk'] = T * 1e4
-    
-    sim = ares.simulations.MultiPhaseMedium(**pars)
-    
-    sim.run()
+fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)    
+sim = ares.simulations.MultiPhaseMedium(**pars)
+sim.run()
 
-    ax2.plot(sim.history['z'], 1. - sim.history['cgm_h_2'])
+ax2.plot(sim.history['z'], 1. - sim.history['cgm_h_2'])
+
+# By eye, where does EoR start and begin from R15
+ax2.plot([6.2]*2, [0, 0.1], color='k', ls='--')    
+ax2.plot([10,12], [0.93]*2, color='k', ls='--')    
     
 ax2.set_xlim(4.5, 12)
 ax2.set_ylim(0, 1.0)
 ax2.set_xlabel(r'$z$')
 ax2.set_ylabel(r'$1 - Q_{\mathrm{HII}}$')
       
+anl = ares.analysis.MultiPhaseMedium(sim)
+ax3 = anl.OpticalDepthHistory(fig=3, include_He=True, z_HeII_EoR=4., 
+    label='ARES')
+
+ax3.plot([0, 20], [0.066 - 0.012]*2, color='k', ls='--')
+ax3.plot([0, 20], [0.066 + 0.012]*2, color='k', ls='--', 
+    label=r'Planck $1-\sigma$')
+ax3.plot([0, 20], [0.088 - 0.014]*2, color='k', ls=':')
+ax3.plot([0, 20], [0.088 + 0.014]*2, color='k', ls=':', 
+    label=r'WMAP $1-\sigma$')    
+ax3.fill_between([0, 20], [0.066 - 0.012]*2, [0.066 + 0.012]*2, color='gray')
+ax3.plot([16, 20], [0.06]*2, color='b', ls='-', label=r'R15')
+ax3.legend(loc='lower right', fontsize=14)     
+ax3.set_ylim(0, 0.11)
 pl.show()

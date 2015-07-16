@@ -661,18 +661,24 @@ class GlobalVolume(object):
         return c * self.cosm.nH0 * (1. + z)**3 / 4. / np.pi \
             / (E * erg_per_ev / h)
 
-    def rate_to_coefficient(self, z, species=0, **kw):
+    def rate_to_coefficient(self, z, species=0, zone='igm', **kw):
         """
         Convert an ionization/heating rate to a rate coefficient.
         
         Provides units of per atom.
         """
+        
+        if self.pf['photon_counting']:
+            prefix = zone
+        else:
+            prefix = 'igm'
+        
         if species == 0:     
-            weight = 1. / self.cosm.nH(z) / kw['igm_h_1']
+            weight = 1. / self.cosm.nH(z) / kw['%s_h_1' % prefix]
         elif species == 1:
-            weight = 1. / self.cosm.nHe(z) / kw['igm_he_1']
+            weight = 1. / self.cosm.nHe(z) / kw['%s_he_1' % prefix]
         elif species == 2:
-            weight = 1. / self.cosm.nHe(z) / kw['igm_he_2']
+            weight = 1. / self.cosm.nHe(z) / kw['%s_he_2' % prefix]
 
         return weight
 
@@ -736,6 +742,9 @@ class GlobalVolume(object):
         
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
+
+        if pop.pf['pop_k_heat_igm'] is not None:
+            return pop.pf['pop_k_heat_igm'](z)
 
         # Compute fraction of photo-electron energy deposited as heat
         if pop.pf['pop_fXh'] is None:
@@ -891,8 +900,8 @@ class GlobalVolume(object):
         kw = defkwargs.copy()
         kw.update(kwargs)
 
-        #if self.pf['Gamma_cgm'] is not None:
-        #    return self.pf['Gamma_cgm'](z)
+        if self.pf['pop_k_ion_cgm'] is not None:
+            return self.pf['pop_k_ion_cgm'](z)
                 
         if kw['return_rc']:
             weight = self.rate_to_coefficient(z, species, **kw)
@@ -900,7 +909,7 @@ class GlobalVolume(object):
             weight = 1.0
           
         Qdot = pop.PhotonLuminosityDensity(z, Emin=13.6, Emax=24.6)
-                
+                        
         return weight * Qdot * (1. + z)**3  
             
     def IonizationRateIGM(self, z, species=0, popid=0, **kwargs):
@@ -931,8 +940,8 @@ class GlobalVolume(object):
         # Grab defaults, do some patches if need be            
         kw = self._fix_kwargs(**kwargs)
                         
-        #if self.pf['Gamma_igm'] is not None:
-        #    return self.pf['Gamma_igm'](z, species, **kw)
+        if pop.pf['pop_k_ion_igm'] is not None:
+            return pop.pf['pop_k_ion_igm'](z)
 
         if (self.background.solve_rte[popid] is None) or \
             'xrb' not in self.background.solve_rte[popid]:

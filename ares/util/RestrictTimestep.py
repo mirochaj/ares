@@ -13,6 +13,7 @@ Description:
 import numpy as np
 from ..util.Warnings import dt_error
 
+tiny_frac = 1e-8
 eq_dqdt = 1e-10
 huge_dt = 1e30  # seconds
 
@@ -35,13 +36,14 @@ class RestrictTimestep:
         # Projected timestep for each cell and field (dt.shape = grid x species)
         dt = self.epsilon * q / np.abs(dqdt)
                                  
-        # Don't let dt -> 0 where species fraction is zero
-        dt[np.logical_and(q == 0, self.grid.types >= 0)] = huge_dt                 
+        # Don't let dt -> 0 where species fraction is zero or one
+        dt[np.logical_and(q == tiny_frac, self.grid.types >= 0)] = huge_dt
+        dt[np.logical_and(q == 1.-tiny_frac, self.grid.types >= 0)] = huge_dt
                                                 
         # Don't let dt -> 0 when quantities are in/near equilibrium
         dt[dqdt == 0] = huge_dt
         dt[np.isnan(dqdt)] = huge_dt
-                                         
+                                                 
         # Isolate cells beyond I-front
         if tau is not None:
             dt[tau <= tau_ifront, ...] = huge_dt

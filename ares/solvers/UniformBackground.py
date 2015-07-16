@@ -16,7 +16,6 @@ import os, re, types, gc
 from ..util.Misc import logbx
 from ..util import ParameterFile
 from ..static import GlobalVolume
-from ..util.PrintInfo import print_rb
 from ..util.Misc import num_freq_bins
 from scipy.interpolate import interp1d
 from ..util.Warnings import no_tau_table
@@ -819,6 +818,9 @@ class UniformBackground(object):
 
         if not pop.is_lya_src or (z > pop.zform):
             return 0.0
+            
+        if pop.pf['pop_Ja'] is not None:
+            return pop.pf['pop_Ja'](z)
 
         # Flat spectrum, no injected photons, instantaneous emission only
         if self.solve_rte[popid] is None:

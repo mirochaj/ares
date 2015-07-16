@@ -15,6 +15,7 @@ from .GasParcel import GasParcel
 from ..util import ParameterFile, ProgressBar
 from ..util.ReadData import _sort_history, _load_inits
 from .MetaGalacticBackground import MetaGalacticBackground
+from ..util.SetDefaultParameterValues import MultiPhaseParameters
 
 # These should go in ProblemTypes?
 igm_pars = \
@@ -37,6 +38,8 @@ cgm_pars = \
  'recombination': 'A',
  'include_He': False,
 }
+
+_mpm_defs = MultiPhaseParameters()
 
 class MultiPhaseMedium(object):
     def __init__(self, **kwargs):
@@ -61,71 +64,90 @@ class MultiPhaseMedium(object):
             zi = self.pf['initial_redshift']
             if not np.all(np.diff(inits['z']) > 0):
                 raise ValueError('Redshifts in ICs must be in ascending order!')
+                
             Ti = np.interp(zi, inits['z'], inits['Tk'])
             xi = np.interp(zi, inits['z'], inits['xe'])
             new_pars = {'cosmological_ics': False,
-                        'initial_temperature': Ti,
-                        'initial_ionization': [1. - xi, xi]}
-            igm_pars.update(new_pars)
+                        'igm_initial_temperature': Ti,
+                        'igm_initial_ionization': [1. - xi, xi]}
+            kwargs.update(new_pars)
 
             if self.pf['include_He']:
                 igm_pars.update({'include_He': True,
                     'initial_ionization': [1. - xi, xi, 1.-xi, xi, 1e-10]})         
 
-        # Initialize two GasParcels
-        if self.pf['include_igm']:
-            self.kw_igm = self.pf.copy()
-            self.kw_igm.update(igm_pars)
-            #for key in igm_pars:
-            #    if key in kwargs:
-            #        continue
-            #
-            #    self.kw_igm[key] = igm_pars[key]
-            self.kw_igm['recombination'] = \
-                self.pf['igm_recombination']
-
-            self.parcel_igm = GasParcel(**self.kw_igm)
-        
-        if self.pf['include_cgm']:
-            self.kw_cgm = self.pf.copy()
-            self.kw_cgm.update(cgm_pars)
-                
-            self.kw_cgm['recombination'] = \
-                self.pf['cgm_recombination']
-        
-            self.parcel_cgm = GasParcel(**self.kw_cgm)
-        
-        self._model_specific_patches()
-
-        # Reset!
-        if self.pf['include_cgm']:
-            self.parcel_cgm._set_chemistry()
-
-        if self.pf['include_cgm']:
-            self.gen_cgm = self.parcel_cgm.step()
-
-        # Intialize radiation background
-        if self.pf['include_igm']:
-            self.gen_igm = self.parcel_igm.step()
-        
-            self.field = MetaGalacticBackground(grid=self.parcel_igm.grid, 
-                **self.pf)
-            
-            # Set initial values for rate coefficients
-            self.parcel_igm.update_rate_coefficients(self.parcel_igm.grid.data, 
-                **self.field.volume.rates_no_RT)
-
-        if self.pf['include_cgm']:
-            
-            if not hasattr(self, 'field'):
-                self.field = MetaGalacticBackground(grid=self.parcel_cgm.grid, 
-                    **self.pf)
-            
-            self.parcel_cgm.update_rate_coefficients(self.parcel_cgm.grid.data, 
-                **self.field.volume.rates_no_RT)
-                
+        self._initialize_zones(**kwargs)
         self._insert_inits()
 
+    def _initialize_zones(self, **kwargs):
+        """
+        Initialize (up to two) GasParcels.
+        """
+        
+        # Reset stop time based on final redshift.
+        z = self.pf['initial_redshift']
+        zf = self.pf['final_redshift']
+                
+        self.parcels = []
+        for zone in ['igm', 'cgm']:
+            if not self.pf['include_%s' % zone]:
+                continue
+                
+            kw = self.pf.copy()
+            
+            # Loop over defaults, pull out the ones for this zone                
+            for key in _mpm_defs:
+                if key[0:4] != '%s_' % zone:
+                    continue
+
+                # Have to rename variables so Grid class will know them
+                grid_key = key.replace('%s_' % zone, '')
+                
+                if key in kwargs:
+                    kw[grid_key] = kwargs[key]
+                else:
+                    kw[grid_key] = _mpm_defs[key]
+                            
+            if zone == 'igm':
+                self.kw_igm = kw.copy()
+                self.parcel_igm = GasParcel(**self.kw_igm)
+                
+                self.gen_igm = self.parcel_igm.step()
+
+                self.field = MetaGalacticBackground(grid=self.parcel_igm.grid, 
+                    **self.pf)
+
+                # Set initial values for rate coefficients
+                self.parcel_igm.update_rate_coefficients(self.parcel_igm.grid.data, 
+                    **self.field.volume.rates_no_RT)
+                    
+                self.parcels.append(self.parcel_igm)
+                    
+            else:
+                self.kw_cgm = kw.copy()
+                self.parcel_cgm = GasParcel(**self.kw_cgm)
+                self.parcel_cgm.grid.set_recombination_rate(True)
+                self.parcel_cgm._set_chemistry()
+                self.gen_cgm = self.parcel_cgm.step()
+                
+                self.parcel_cgm.chem.chemnet.monotonic_EoR = \
+                    self.pf['monotonic_EoR']
+                
+                if not hasattr(self, 'field'):
+                    self.field = MetaGalacticBackground(grid=self.parcel_cgm.grid, 
+                        **self.pf)
+
+                self.parcel_cgm.update_rate_coefficients(self.parcel_cgm.grid.data, 
+                    **self.field.volume.rates_no_RT)
+                
+                self.parcels.append(self.parcel_cgm)
+                        
+            if not hasattr(self, 'tf'):
+                self.tf = self.default_parcel.grid.cosm.LookbackTime(zf, z)
+                self.pf['stop_time'] = self.tf / self.pf['time_units']    
+
+            self.parcels[-1].pf['stop_time'] = self.pf['stop_time']
+             
     @property
     def rates_no_RT(self):
         if not hasattr(self, '_rates_no_RT'):
@@ -155,25 +177,6 @@ class MultiPhaseMedium(object):
                 else self.parcel_cgm
                 
         return self._default_parcel
-
-    def _model_specific_patches(self):
-        """
-        A few modifications to parameter file required by this formalism.
-        """
-
-        # Reset stop time based on final redshift.
-        z = self.pf['initial_redshift']
-        zf = self.pf['final_redshift']
-        
-        self.tf = self.default_parcel.grid.cosm.LookbackTime(zf, z)
-        self.pf['stop_time'] = self.tf / self.pf['time_units']
-        self.default_parcel.pf['stop_time'] = self.pf['stop_time']
-        
-        # Fix CGM parcel 
-        if self.pf['include_cgm']:    
-            self.parcel_cgm.pf['stop_time'] = self.pf['stop_time']
-            self.parcel_cgm.grid.data['Tk'] = np.array(self.pf['cgm_Tk'])
-            self.parcel_cgm.grid.set_recombination_rate(is_cgm_patch=True)
 
     @property
     def dynamic_tau(self):
@@ -329,7 +332,7 @@ class MultiPhaseMedium(object):
             if self.pf['include_cgm']:
                 # CGM rate coefficients
                 RC_cgm = self.field.update_rate_coefficients(z,
-                    zone='cgm', return_rc=True, igm_h_1=data_igm['h_1'])
+                    zone='cgm', return_rc=True, cgm_h_1=data_cgm['h_1'])
                 
                 # Pass rate coefficients off to the CGM parcel
                 self.parcel_cgm.update_rate_coefficients(data_cgm, **RC_cgm)

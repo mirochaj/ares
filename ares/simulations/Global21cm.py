@@ -41,6 +41,9 @@ class Global21cm:
             self.pf = ParameterFile(**kwargs)
         else:
             return
+            
+        if not (self.pf['include_igm'] and self.pf['include_cgm']):
+            raise ValueError('Can only compute 21-cm signal in two-phase medium!')
 
         # If a physical model, proceed with initialization
         self.medium = MultiPhaseMedium(**self.pf)

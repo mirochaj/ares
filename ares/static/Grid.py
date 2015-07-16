@@ -317,6 +317,12 @@ class Grid(object):
         return self._recombination
         
     @property
+    def collisional_ionization(self):
+        if not hasattr(self, '_collisional_ionization'):
+            self.set_physics()
+        return self._collisional_ionization   
+        
+    @property
     def clumping_factor(self):
         if not hasattr(self, '_clumping_factor'):
             self.set_physics()
@@ -346,6 +352,7 @@ class Grid(object):
             expansion=kwargs['expansion'],
             recombination=kwargs['recombination'],
             clumping_factor=kwargs['clumping_factor'],
+            collisional_ionization=kwargs['collisional_ionization']
         )
         
         self.set_cosmology(
@@ -365,12 +372,13 @@ class Grid(object):
                 
     def set_physics(self, isothermal=False, compton_scattering=False,
         secondary_ionization=0, expansion=False, recombination='B',
-        clumping_factor=1.0):
+        clumping_factor=1.0, collisional_ionization=True):
         self._isothermal = isothermal
         self._compton_scattering = compton_scattering
         self._secondary_ionization = secondary_ionization
         self._expansion = expansion
         self._recombination = recombination
+        self._collisional_ionization = collisional_ionization
         
         if type(clumping_factor) is not types.FunctionType:
             self._clumping_factor = lambda z: clumping_factor

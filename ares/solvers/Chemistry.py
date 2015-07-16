@@ -61,7 +61,7 @@ class Chemistry(object):
             len(self.grid.evolving_fields)])
         self.zeros_grid_x_abs = np.zeros_like(self.grid.zeros_grid_x_absorbers)
         self.zeros_grid_x_abs2 = np.zeros_like(self.grid.zeros_grid_x_absorbers2)
-    
+        
     def Evolve(self, data, t, dt, **kwargs):
         """
         Evolve all cells by dt.
