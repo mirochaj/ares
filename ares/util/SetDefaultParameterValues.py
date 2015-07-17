@@ -109,7 +109,10 @@ def MultiPhaseParameters():
      "cgm_isothermal": True,
      "cgm_recombination": 'A',
      "cgm_collisional_ionization": False,
+     "cgm_cosmological_ics": False,
+     
      "photon_counting": True,
+     "monotonic_EoR": 1e-6,
 
      "igm_grid_cells": 1,     
      "igm_expansion": True,
@@ -119,8 +122,7 @@ def MultiPhaseParameters():
      "igm_recombination": 'B',
      "igm_compton_scattering": True,
      "igm_collisional_ionization": True,
-     
-     "monotonic_EoR": 1e-8,
+     "igm_cosmological_ics": False,
      
     }    
     
@@ -177,6 +179,8 @@ def PhysicsParameters():
     "photon_conserving": 1, 
     "plane_parallel": 0,   
     "infinite_c": 1,  
+    
+    "collisional_ionization": 1,
     
     "secondary_ionization": 1,  # 0 = Deposit all energy as heat
                                 # 1 = Shull & vanSteenberg (1985)
@@ -472,8 +476,11 @@ def ControlParameters():
     'logdtDataDump': None,
     'logdzDataDump': None,
     "stop_time": 500,
+    
     "initial_redshift": 50.,
     "final_redshift": 6,
+    "first_light_redshift": 50.,
+    
     "save_rate_coefficients": 1,
 
     "optically_thin": 0,
@@ -484,10 +491,10 @@ def ControlParameters():
     "interp_method": 'cubic',
 
     # Initialization
-    "load_ics": False,
+    "load_ics": True,
     "cosmological_ics": False,
     "load_sim": False,
-    "first_light_redshift": 50.,
+    
 
     # Timestepping
     "max_dt": 1.,

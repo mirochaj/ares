@@ -225,6 +225,8 @@ def ReionizationProblem(ptype):
     if ptype_int == 0:
         pf = \
         {
+         'problem_type': 100,
+         
          'pop_type': 'galaxy',
          'pop_sfrd': 'robertson2015',
          'pop_sed': 'pl',
@@ -251,7 +253,7 @@ def ReionizationProblem(ptype):
         pf = \
         {
         
-        'problem_type': 100,
+        'problem_type': 101,
         
         # Emits LW
         'pop_type{0}': 'galaxy',

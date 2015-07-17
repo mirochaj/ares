@@ -30,7 +30,7 @@ pars = \
  'pop_ion_src_igm': True,
  
  'initial_redshift': 40.,
- 'final_redshift': 4.,
+ 'final_redshift': 6.,
  'include_cgm': False,
 }
 

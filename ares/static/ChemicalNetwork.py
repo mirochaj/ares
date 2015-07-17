@@ -284,15 +284,14 @@ class ChemicalNetwork:
 
                     # Seager, Sasselov, & Scott (2000) Equation 54
                     compton = rad_const * ucmb * n_e * (Tcmb - q[-1]) / ntot
-                    
+            
             dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton - hubcool \
                 - q[-1] * n_H * dqdt['e'] / ntot
                 
         else:
             dqdt['Tk'] = 0.0
             
-        # Can effectively turn off solution to hydrogen ionization once EoR
-        # is over.
+        # Can effectively turn off ionization equations once EoR is over.
         if self.monotonic_EoR:
             if x['h_1'] <= self.monotonic_EoR:
                 dqdt['h_1'] = dqdt['h_2'] = 0.0
@@ -315,7 +314,6 @@ class ChemicalNetwork:
         self.q = q
         self.dqdt = self.zeros_q.copy()
     
-        #cell, G, g, H, ntot, time = args
         cell, k_ion, k_ion2, k_heat, ntot, time = args
                 
         to_temp = 1. / (1.5 * ntot * k_B)
@@ -621,14 +619,14 @@ class ChemicalNetwork:
             self.dzeta = np.zeros_like(self.grid.zeros_grid_x_absorbers)
             self.deta = np.zeros_like(self.grid.zeros_grid_x_absorbers)
             self.dpsi = np.zeros_like(self.grid.zeros_grid_x_absorbers)
-        
+
         for i, absorber in enumerate(self.absorbers):
-            
+
             if self.collisional_ionization:
                 self.Beta[...,i] = self.coeff.CollisionalIonizationRate(i, T)
-                    
+
             self.alpha[...,i] = self.coeff.RadiativeRecombinationRate(i, T)
-            
+
             if self.isothermal:
                 continue
             
@@ -641,7 +639,7 @@ class ChemicalNetwork:
                 
             self.eta[...,i] = self.coeff.RecombinationCoolingRate(i, T)
             self.psi[...,i] = self.coeff.CollisionalExcitationCoolingRate(i, T)
-                        
+
             self.deta[...,i] = self.coeff.dRecombinationCoolingRate(i, T)
             self.dpsi[...,i] = self.coeff.dCollisionalExcitationCoolingRate(i, T)
 

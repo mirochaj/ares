@@ -123,7 +123,7 @@ class Chemistry(object):
 
             self.solver.set_initial_value(q, 0.0).set_f_params(args).set_jac_params(args)
             self.solver.integrate(dt)
-                                                
+
             self.q_grid[cell] = q.copy()
             self.dqdt_grid[cell] = self.chemnet.dqdt.copy()
 
@@ -132,7 +132,7 @@ class Chemistry(object):
 
         # Compute particle density
         newdata['n'] = self.grid.particle_density(newdata, z - dz)
-
+        
         return newdata  
 
     def _sort_kwargs_by_cell(self, kwargs):

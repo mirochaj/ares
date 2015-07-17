@@ -37,8 +37,7 @@ class RestrictTimestep:
         dt = self.epsilon * q / np.abs(dqdt)
                                  
         # Don't let dt -> 0 where species fraction is zero or one
-        dt[np.logical_and(q == tiny_frac, self.grid.types >= 0)] = huge_dt
-        dt[np.logical_and(q == 1.-tiny_frac, self.grid.types >= 0)] = huge_dt
+        dt[np.logical_and(q == 0.0, self.grid.types >= 0)] = huge_dt
                                                 
         # Don't let dt -> 0 when quantities are in/near equilibrium
         dt[dqdt == 0] = huge_dt

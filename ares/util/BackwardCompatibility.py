@@ -15,7 +15,7 @@ def backward_compatibility(ptype, **kwargs):
     Handle some conventions used in the pre "pop_*" parameter days.
     
     .. note :: Only applies to simple global 21-cm models right now, i.e., 
-        problem_type=100.
+        problem_type=101.
         
     Parameters
     ----------

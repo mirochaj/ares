@@ -778,7 +778,7 @@ class GlobalVolume(object):
             
             Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 
                 Emax=pop.pf['pop_Emax'])
-                
+                                                
             return weight * fheat * Lx * (1. + z)**3
 
         # Otherwise, do the full calculation

@@ -442,7 +442,7 @@ class UniformBackground(object):
 
                 # Loop over absorbing species
                 for j, species in enumerate(self.grid.absorbers):
-
+                        
                     if kwargs['zone'] == 'igm':
                         self.k_ion[i,0,j] += \
                             self.volume.IonizationRateIGM(z, species=j, popid=i,
@@ -457,7 +457,7 @@ class UniformBackground(object):
                                 species=j, donor=k, popid=i, band=k, **kwargs)
 
                     else:
-                        self.k_ion[i,0,j] = \
+                        self.k_ion[i,0,j] += \
                             self.volume.IonizationRateCGM(z, species=j, popid=i,
                             band=k, **kwargs)
 
@@ -472,7 +472,7 @@ class UniformBackground(object):
          'k_ion2': self.k_ion2_tot,
          'k_heat': self.k_heat_tot,
         }
-
+        
         return to_return
 
     def AngleAveragedFlux(self, z, E, popid=0, **kwargs):

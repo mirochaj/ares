@@ -203,7 +203,7 @@ class Global21cm:
             
             # Compute spin temperature
             n_H = self.medium.parcel_igm.grid.cosm.nH(z)
-            Ts = self.medium.parcel_igm.grid.hydr.Ts(z, 
+            Ts = self.medium.parcel_igm.grid.hydr.Ts(z,
                 data_igm['Tk'], Ja, data_igm['h_2'], data_igm['e'] * n_H)
 
             # Compute volume-averaged ionized fraction
@@ -219,11 +219,11 @@ class Global21cm:
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
             
     def run_inline_analysis(self):    
-    
+
         if (self.pf['inline_analysis'] is None) and \
            (self.pf['auto_generate_blobs'] == False):
             return
-    
+
         tmp = {}
         for key in self.history:
             if type(self.history[key]) is list:

@@ -11,8 +11,9 @@ Description: Make sure the global 21-cm signal calculator works.
 """
 
 import ares
+import matplotlib.pyplot as pl
 
-sim = ares.simulations.Global21cm(problem_type=101, fX=5.)
+sim = ares.simulations.Global21cm(problem_type=101, photon_counting=False)
 sim.run()
 
 anl = ares.analysis.MultiPhaseMedium(sim)

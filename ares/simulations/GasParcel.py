@@ -198,7 +198,7 @@ class GasParcel:
         while t < tf:
                         
             # Evolve by dt
-            self.data = self.chem.Evolve(self.data, t=t, dt=dt, 
+            self.data = self.chem.Evolve(self.data, t=t, dt=self.dt, 
                 **self.rate_coefficients)
             
             t += self.dt 
@@ -208,7 +208,7 @@ class GasParcel:
                 self.chem.dqdt_grid, method=self.pf['restricted_timestep'])
 
             # Limit timestep further based on next DD and max allowed increase
-            dt = min(new_dt, 2 * dt)
+            dt = min(new_dt, 2 * self.dt)
             dt = min(dt, self.checkpoints.next_dt(t, dt))
             dt = min(dt, max_timestep)
             

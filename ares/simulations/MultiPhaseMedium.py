@@ -59,6 +59,7 @@ class MultiPhaseMedium(object):
 
         # Load in initial conditions, interpolate to initial_redshift
         if self.pf['load_ics']:
+            
             inits = self.inits = _load_inits()
 
             zi = self.pf['initial_redshift']
@@ -72,9 +73,9 @@ class MultiPhaseMedium(object):
                         'igm_initial_ionization': [1. - xi, xi]}
             kwargs.update(new_pars)
 
-            if self.pf['include_He']:
-                igm_pars.update({'include_He': True,
-                    'initial_ionization': [1. - xi, xi, 1.-xi, xi, 1e-10]})         
+            #if self.pf['include_He']:
+            #    igm_pars.update({'include_He': True,
+            #        'initial_ionization': [1. - xi, xi, 1.-xi, xi, 1e-10]})         
 
         self._initialize_zones(**kwargs)
         self._insert_inits()
@@ -359,9 +360,11 @@ class MultiPhaseMedium(object):
             redo = self.subcycle()
 
             if not redo:    
+                
+                # Changing attribute! A little scary, but we must make sure
+                # these parcels are evolved in unison
                 if self.pf['include_igm']:
                     self.parcel_igm.dt = dt
-
                 if self.pf['include_cgm']:
                     self.parcel_cgm.dt = dt
 
@@ -370,7 +373,7 @@ class MultiPhaseMedium(object):
                 continue
 
             # If we've made it here, we need to trick our generators a bit
-
+            
             # "undo" this time-step
             t -= dt_pre
             z += dt_pre / dtdz
@@ -399,8 +402,8 @@ class MultiPhaseMedium(object):
         inits_all = {'z': z_inits, 'Tk': Tk_inits, 'xe': xe_inits}
 
         # Stop pre-pending once we hit the first light redshift
-        i_trunc = np.argmin(np.abs(z_inits - self.pf['first_light_redshift']))    
-        if z_inits[i_trunc] <= self.pf['first_light_redshift']:
+        i_trunc = np.argmin(np.abs(z_inits - self.pf['initial_redshift']))    
+        if z_inits[i_trunc] <= self.pf['initial_redshift']:
             i_trunc += 1
 
         self.all_t = []
