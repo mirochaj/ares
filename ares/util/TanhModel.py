@@ -14,9 +14,9 @@ import time
 import numpy as np
 from ..util import ParameterFile
 from scipy.misc import derivative
-from ..analysis.Global21cm import Global21cm
 from ..util.ReadData import load_inits
 from ..physics import Hydrogen, Cosmology
+from ..analysis.Global21cm import Global21cm
 from ..physics.Constants import k_B, J21_num, nu_0_mhz
 from ..physics.RateCoefficients import RateCoefficients
 from ..util.SetDefaultParameterValues import TanhParameters

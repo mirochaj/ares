@@ -62,10 +62,21 @@ class Global21cm:
         
         if kwargs:
             
-            if 'tanh_model' not in kwargs:
+            is_tanh = 'tanh_model' in kwargs
+            if is_tanh:
+                is_tanh &= kwargs['tanh_model']
+                
+            is_gauss = 'gaussian_model' in kwargs
+            if is_gauss:
+                is_gauss &= kwargs['gaussian_model']
+            
+            if is_tanh and is_gauss:
+                raise ValueError('Cannot do tanh and Gaussian model together!')
+            elif not (is_tanh or is_gauss):
                 self.pf = ParameterFile(**kwargs)
             else:
-                if kwargs['tanh_model']:
+                                
+                if is_tanh:
                     from ..util.TanhModel import TanhModel
 
                     tanh_model = TanhModel(**kwargs)
@@ -92,10 +103,24 @@ class Global21cm:
                         approx_highz=self.pf["approx_highz"])
 
                     return
+                
+                elif is_gauss:    
+                    from ..util.GaussianSignal import GaussianModel
                     
-                else:
-                    self.pf = ParameterFile(**kwargs)
-
+                    gauss_model = GaussianModel(**kwargs)
+                    self.pf = gauss_model.pf
+                    
+                    if self.pf['gauss_nu'] is not None:
+                        nu = self.pf['gauss_nu']
+                    else:
+                        z = np.arange(self.pf['final_redshift'] + self.pf['gauss_dz'],
+                            self.pf['initial_redshift'], self.pf['gauss_dz'])[-1::-1]
+                        nu = nu_0_mhz / (1. + z)
+                        
+                    self.history = gauss_model(nu, **self.pf).data
+                    
+                    return
+                    
         else:
             self.pf = ParameterFile()
                     
@@ -497,7 +522,7 @@ class Global21cm:
     def __call__(self):
         """ Evolve chemistry and radiation background. """
         
-        if self.pf['tanh_model']:
+        if self.pf['tanh_model'] or self.pf['gaussian_model']:
             self.run_inline_analysis()
             return
         

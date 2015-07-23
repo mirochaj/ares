@@ -21,7 +21,8 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     if (ARES is not None) else '.'
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 'Spectrum', 
-    'Control', 'HaloMassFunction', 'Tanh', 'Halo', 'LuminosityFunction']
+    'Control', 'HaloMassFunction', 'Tanh', 'Halo', 'LuminosityFunction',
+    'Gaussian']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -514,14 +515,17 @@ def TanhParameters():
 
     return pf
     
-def ForegroundParameters():
+def GaussianParameters():
     pf = \
     {
-     'fg_pivot': 80.,
-     'fg_order': 4,
+     'gaussian_model': False,
+     'gaussian_A': -100., 
+     'gaussian_nu': 70.,
+     'gaussian_sigma': 10.,
+     'gauss_nu': None,
+     'gauss_dz': 0.025,  # Redshift sampling
     }
     
     return pf
-    
 
 

@@ -455,17 +455,15 @@ class ModelGrid:
             else:
                 sim = Global21cm(**p)
 
+
             # Run simulation!
             try:
                 sim.run()
-
-                tps = sim.turning_points
-            
+                sim.run_inline_analysis()            
+                            
             # Timestep error
             except SystemExit:
- 
                 sim.run_inline_analysis()
-                tps = sim.turning_points
                 
             except:         
                 # Write to "fail" file - this might cause problems in parallel

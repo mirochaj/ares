@@ -260,7 +260,7 @@ class Global21cmSet(ModelSet):
             return mp    
 
         # Draw the 120 MHz cutoff for DARE
-        if pts == 'D':
+        if pts == 'D' or list('BCD'):
             mp.grid[4].plot([120]*2, mp.grid[4].get_ylim(), color='k', ls='--')
             mp.grid[10].plot([120]*2, mp.grid[10].get_ylim(), color='k', ls='--')
             

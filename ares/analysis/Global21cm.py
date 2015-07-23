@@ -604,8 +604,7 @@ class Global21cm:
                     ax.set_xlabel(labels['nu'])
             
             if ax.get_ylabel() == '':    
-                ax.set_ylabel(labels['dTb'], 
-                    fontsize='x-large')    
+                ax.set_ylabel(labels['dTb'], fontsize='x-large')    
             
             if 'label' in kwargs:
                 if kwargs['label'] is not None:

@@ -613,11 +613,9 @@ class ModelSet(object):
             self._blob_redshifts_float = []
             for i, redshift in enumerate(self.blob_redshifts):
                 if type(redshift) is str:
-                    z = None
+                    self._blob_redshifts_float.append(None)
                 else:
-                    z = redshift
-                    
-                self._blob_redshifts_float.append(z)
+                    self._blob_redshifts_float.append(round(redshift, 3))
             
         return self._blob_redshifts_float
     
@@ -953,7 +951,7 @@ class ModelSet(object):
     def set_constraint(self, add_constraint=False, **constraints):
         """
         For ModelGrid calculations, the likelihood must be supplied 
-        after-the-fact.
+        after the fact.
 
         Parameters
         ----------
@@ -993,8 +991,19 @@ class ModelSet(object):
             for element in constraints:
 
                 z, func = constraints[element]
+                
+                try:
+                    j = self.blob_redshifts.index(z)
+                except ValueError:
+                    ztmp = []
+                    for redshift in self.blob_redshifts_float:
+                        if redshift is None:
+                            ztmp.append(None)
+                        else:
+                            ztmp.append(round(redshift, 1))    
 
-                j = self.blob_redshifts.index(z)
+                    j = ztmp.index(round(z, 1))
+                
                 if element in self.blob_names:
                     k = self.blob_names.index(element)
                     data = self.blobs[i,j,k]
@@ -1203,12 +1212,18 @@ class ModelSet(object):
             weights = self.weights
 
         # Apply mask to weights
-        if weights is not None and to_hist.shape != weights.shape:
+        if weights is not None and to_hist[par].shape != weights.shape:
             weights = weights[np.logical_not(mask)]
         
         if hasattr(to_hist[par], 'compressed'):
             to_hist[par] = to_hist[par].compressed()
-        
+                
+                
+        if to_hist[par] == []:
+            print "WARNING: error w/ %s" % par
+            print "@ z=" % z
+            return
+                
         hist, bin_edges = \
             np.histogram(to_hist[par], density=True, bins=bins, 
             weights=weights)
