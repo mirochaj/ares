@@ -241,6 +241,11 @@ def PopulationParameters():
     
     "pop_type": 'galaxy',
     
+    "pop_halo_model": None, # clf or hod (not yet implemented)
+    
+    # Parameters for a HOD model
+    "pop_duty_cycle": 1.0,
+        
     # Set the emission interval and SED
     "pop_sed": 'pl',
     
@@ -275,6 +280,9 @@ def PopulationParameters():
     "pop_Tmin": 1e4,
     "pop_Mmin": None,
     "pop_sfrd": None,
+    
+    # HOD parameters
+    "pop_tSF": 1.,  # Myr
     
     # Override luminosity density
     "pop_rhoL": None,

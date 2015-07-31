@@ -16,15 +16,15 @@ import matplotlib.pyplot as pl
 from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
-from scipy.integrate import quad
 from .Halo import HaloPopulation
 from .Population import Population
 from collections import namedtuple
 from ..sources.Source import Source
 from ..sources import Star, BlackHole
 from ..util.PrintInfo import print_pop
+from scipy.integrate import quad, simps
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
-    E_LyA
+    E_LyA, rho_cgs, s_per_myr
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters
 
@@ -182,8 +182,26 @@ class GalaxyPopulation(HaloPopulation):
     def is_fcoll_model(self):
         if not hasattr(self, '_is_fcoll_model'):
             self._is_fcoll_model = (self.pf['pop_rhoL'] is None) and \
-                (self.pf['pop_emissivity'] is None)
+                (self.pf['pop_emissivity'] is None) and \
+                (self.pf['pop_halo_model'] is None)
+                
         return self._is_fcoll_model
+        
+    @property
+    def halo_model(self):
+        if not hasattr(self, '_halo_model'):
+            if self.pf['pop_halo_model'] is None:
+                self._halo_model = None
+            else:
+                self._halo_model = self.pf['pop_halo_model'].lower()
+                
+        return self._halo_model
+    
+    @property
+    def is_halo_model(self):
+        if not hasattr(self, '_is_halo_model'):
+            self._is_halo_model = self.halo_model is not None
+        return self._is_halo_model
         
     @property
     def rhoL_from_sfrd(self):
@@ -260,6 +278,24 @@ class GalaxyPopulation(HaloPopulation):
         
         if self.is_fcoll_model:
             raise TypeError('this is an fcoll model!')
+
+        if self.is_halos_model:
+            if self.halo_model == 'hod':
+            
+            
+                self.halos.MF.update(z=z)
+                dndm = self._dndm = self.halos.MF.dndm.copy() / self.cosm.h70**4
+                fstar_of_m = self.fstar(M=self.halos.M)
+            
+                integrand = dndm * fstar_of_m * self.halos.M
+            
+                # Msun / cMpc**3
+                integral = simps(dndm, x=self.halos.M)
+            
+                tdyn = s_per_yr * 1e6
+
+            else:
+                raise NotImplemented('only know hod model (barely)')
 
         L *= self._convert_band(Emin, Emax)
 
@@ -433,12 +469,49 @@ class GalaxyPopulation(HaloPopulation):
                 negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'], 
                     self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
                 sys.exit(1)
+        elif self.is_halo_model:
+            if self.halo_model == 'hod':
+
                 
+                self.halos.MF.update(z=z)
+                dndm = self._dndm = self.halos.MF.dndm.copy() / self.cosm.h70**4
+                fstar_of_m = self.fstar(M=self.halos.M)
+                 
+                integrand = dndm * fstar_of_m * self.halos.M
+                
+                # Apply mass cut
+                if self.pf['pop_Mmin'] is not None:
+                    iM = np.argmin(np.abs(self.halos.M - self.pf['pop_Mmin']))
+                else:
+                    iM = 0
+
+                # Msun / cMpc**3
+                integral = simps(dndm[iM:], x=self.halos.M[iM:])
+                
+                tdyn = s_per_myr * self.pf['pop_tSF']
+
+                return self.cosm.fbaryon * integral / rho_cgs / tdyn
+                
+            elif self.halo_model == 'clf':
+                raise NotImplemented('havent implemented CLF yet')    
+                    
         else:
             raise NotImplemented('dunno how to model the SFRD!')
     
         return sfrd                           
 
+    @property
+    def _mdep_fstar(self):
+        if not hasattr(self, '__mdep_fstar'):
+            self.__mdep_fstar = type(self.pf['pop_fstar']) is FunctionType
+        return self.__mdep_fstar
+
+    def fstar(self, M=None, z=None):
+        if self.is_fcoll_model or (not self._mdep_fstar):
+            return self.pf['pop_fstar']
+
+        return self.pf['pop_fstar'](M, z)
+            
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift

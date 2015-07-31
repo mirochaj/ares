@@ -40,9 +40,9 @@ def read_lit(prefix, path=None):
     path : str
         If you want to look somewhere besides $ARES/input/litdata, provide
         that path here.
-        
+
     """
-    
+
     if path is not None:
         prefix = '%s/%s' % (path, prefix)
     

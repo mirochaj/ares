@@ -18,3 +18,5 @@ sim.run()
 
 anl = ares.analysis.MultiPhaseMedium(sim)
 ax = anl.GlobalSignature()
+
+

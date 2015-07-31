@@ -179,6 +179,38 @@ class HaloMassFunction(object):
                 
         self.Nz = self.z.size
         self.Nm = self.M.size
+        
+    @property
+    def MF(self):
+        if not hasattr(self, '_MF'):
+            cosmology = {'omegav':self.cosm.omega_l_0,
+                         'omegac':self.cosm.omega_cdm_0,
+                         'omegab':self.cosm.omega_b_0,
+                         'sigma_8':self.cosm.sigma8,
+                         'h':self.cosm.h70,
+                         'n':self.cosm.primordial_index}
+                         
+            self.logMmin = self.pf['hmf_logMmin']
+            self.logMmax = self.pf['hmf_logMmax']
+            self.zmin = self.pf['hmf_zmin']
+            self.zmax = self.pf['hmf_zmax']
+            self.dlogM = self.pf['hmf_dlogM']
+            self.dz = self.pf['hmf_dz']
+            
+            self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
+            self.z = np.linspace(self.zmin, self.zmax, self.Nz)             
+                         
+            # Initialize Perturbations class
+            self._MF = MassFunction(Mmin=self.logMmin, Mmax=self.logMmax, 
+                dlog10m=self.dlogM, z=self.z[0], 
+                mf_fit=self.hmf_func, transfer_options=transfer_pars,
+                **cosmology)    
+                
+        return self._MF   
+        
+    @MF.setter
+    def MF(self, value):
+        self._MF = value     
                 
     def build_fcoll_tab(self):
         """

@@ -65,13 +65,18 @@ class HaloPopulation(Population):
         self._fcoll, self._dfcolldz, self._d2fcolldz2 = \
             self.halos.build_1d_splines(Tmin, mu)
 
+    @property
+    def halos(self):
+        if not hasattr(self, '_halos'):
+            self._halos = HaloMassFunction(**self.pf)
+        return self._halos
+
     def _init_pop(self):
         # Halo stuff
         if self.pf['pop_sfrd'] is not None:
             return
 
         if self.pf['pop_fcoll'] is None:
-            self.halos = HaloMassFunction(**self.pf)
             self._set_fcoll(self.pf['pop_Tmin'], self.pf['mu'])
         else:
             self._fcoll, self._dfcolldz = \
