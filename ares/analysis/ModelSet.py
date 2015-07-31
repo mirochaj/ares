@@ -154,7 +154,7 @@ class ModelSubSet(object):
         pass
 
 class ModelSet(object):
-    def __init__(self, data, subset='all'):
+    def __init__(self, data, subset=None):
         """
         Parameters
         ----------
@@ -169,6 +169,8 @@ class ModelSet(object):
 
         """
         
+        self.subset = subset
+                
         # Read in data from file (assumed to be pickled)
         if type(data) == str:
             self.prefix = prefix = data
@@ -196,35 +198,6 @@ class ModelSet(object):
                 #self.grid.set_axes(**self.axes)
                 #
             
-            # Read-in subset
-            have_all_blobs = os.path.exists('%s.blobs.pkl' % self.prefix)
-                                                
-            # Read in individual blob files
-            if (subset is not None) or (not have_all_blobs):
-            
-                if subset == 'all' or (not have_all_blobs):
-                    subset = []
-                    for path in ['.', self.path]:
-                        to_search = '%s/%s.subset.*' % (path, self.fn)
-                        for fn in glob.glob(to_search):
-                            blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
-            
-                            if blob not in subset:
-                                subset.append(blob)
-            
-                if (subset is not None) and (subset != []):
-            
-                    if type(subset) not in [list, tuple]:
-                        subset = [subset]
-                    
-                    self._blob_names = subset                        
-                    mask, blobs = self._load_subset()
-                    
-                    self.mask = np.zeros_like(blobs)
-                    self.mask[np.isinf(blobs)] = 1
-                    self.mask[np.isnan(blobs)] = 1
-                    self._blobs = np.ma.array(blobs, mask=self.mask)
-
         elif isinstance(data, ModelSubSet):
             self._chain = data.chain
             self._is_log = data.is_log
@@ -261,6 +234,8 @@ class ModelSet(object):
                 
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
+    
+        self.have_all_blobs = os.path.exists('%s.blobs.pkl' % self.prefix)
     
         #try:
         #    self._fix_up()
@@ -418,7 +393,33 @@ class ModelSet(object):
     @property
     def blobs(self):
         if not hasattr(self, '_blobs'):
-            if os.path.exists('%s.blobs.hdf5' % self.prefix) and have_h5py:
+            # Read in individual blob files
+            if (self.subset is not None) or (not self.have_all_blobs):
+            
+                if self.subset == 'all' or (not self.have_all_blobs):
+                    subset = []
+                    for path in ['.', self.path]:
+                        to_search = '%s/%s.subset.*' % (path, self.fn)
+                        for fn in glob.glob(to_search):
+                            blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
+            
+                            if blob not in subset:
+                                subset.append(blob)
+            
+                if (subset is not None) and (subset != []):
+            
+                    if type(subset) not in [list, tuple]:
+                        subset = [subset]
+                    
+                    self._blob_names = subset                        
+                    mask, blobs = self._load_subset()
+                    
+                    self.mask = np.zeros_like(blobs)
+                    self.mask[np.isinf(blobs)] = 1
+                    self.mask[np.isnan(blobs)] = 1
+                    self._blobs = np.ma.array(blobs, mask=self.mask)
+                    
+            elif os.path.exists('%s.blobs.hdf5' % self.prefix) and have_h5py:
                 t1 = time.time()
                 f = h5py.File('%s.blobs.hdf5' % self.prefix, 'r')
                 bs = f['blobs'].value

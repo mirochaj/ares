@@ -522,8 +522,8 @@ def GaussianParameters():
      'gaussian_A': -100., 
      'gaussian_nu': 70.,
      'gaussian_sigma': 10.,
-     'gauss_nu': None,
-     'gauss_dz': 0.025,  # Redshift sampling
+     'gaussian_freq': None,
+     'gaussian_dz': 0.025,  # Redshift sampling
     }
     
     return pf

@@ -114,6 +114,13 @@ tanh_parameters = \
  'tanh_bias_temp': r'$b_{\mathrm{T}}$',
 }
 
+gauss_parameters = \
+{
+ 'gaussian_A': r'$A_0 \ (\mathrm{mK})$',
+ 'gaussian_nu': r'$\nu_0 \ (\mathrm{MHz})$',
+ 'gaussian_sigma': r'$\sigma_0 \ (\mathrm{MHz})$',
+}
+
 other = \
 {
  'load': 'processor #',
@@ -122,6 +129,7 @@ other = \
 
 labels.update(history_elements)
 labels.update(tanh_parameters)
+labels.update(gauss_parameters)
 labels.update(other)
 
 labels.update(custom_labels)

@@ -10,7 +10,8 @@ Description:
 
 """
 
-import re
+import re, os
+import subprocess
 import numpy as np
 from collections import Iterable
 from scipy.integrate import cumtrapz
@@ -27,9 +28,15 @@ except ImportError:
     rank = 0
     size = 1
 
+ARES = os.getenv('ARES')
+
 defaults = SetAllDefaults()
 
 logbx = lambda b, x: np.log10(x) / np.log10(b)
+
+def get_hg_rev():
+    pipe = subprocess.Popen(["hg", "id", "-i", ARES], stdout=subprocess.PIPE)
+    return pipe.stdout.read().strip()
     
 class evolve:
     """ Make things that may or may not evolve with time callable. """

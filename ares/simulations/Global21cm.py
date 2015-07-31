@@ -110,11 +110,11 @@ class Global21cm:
                     gauss_model = GaussianModel(**kwargs)
                     self.pf = gauss_model.pf
                     
-                    if self.pf['gauss_nu'] is not None:
-                        nu = self.pf['gauss_nu']
+                    if self.pf['gaussian_freq'] is not None:
+                        nu = self.pf['gaussian_freq']
                     else:
-                        z = np.arange(self.pf['final_redshift'] + self.pf['gauss_dz'],
-                            self.pf['initial_redshift'], self.pf['gauss_dz'])[-1::-1]
+                        z = np.arange(self.pf['final_redshift'] + self.pf['gaussian_dz'],
+                            self.pf['initial_redshift'], self.pf['gaussian_dz'])[-1::-1]
                         nu = nu_0_mhz / (1. + z)
                         
                     self.history = gauss_model(nu, **self.pf).data
