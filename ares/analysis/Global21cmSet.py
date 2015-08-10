@@ -253,11 +253,7 @@ class Global21cmSet(ModelSet):
                 z.extend([pt]*2)
                 
         to_plot = ['B', 'dTb'] * len(pts)
-                        
-        if exclude is not None:
-            tp, x = exclude
-                        
-        mp = self.TrianglePlot(, z=z, inputs=self.inputs, **kwargs)
+        mp = self.TrianglePlot(to_plot, z=z, inputs=self.inputs, **kwargs)
 
         for i in mp.diag:
             row, col = mp.axis_position(i)
