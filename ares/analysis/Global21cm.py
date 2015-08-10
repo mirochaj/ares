@@ -150,7 +150,7 @@ class Global21cm:
     def dTbdnu(self):
         if not hasattr(self, '_dTbdnu'):
             self._nu_p, self._dTbdnu = \
-                central_difference(self.data_asc['nu'], self.data_asc['dTb'])               
+                central_difference(self.data['nu'], self.data['dTb'])               
         return self._dTbdnu
         
     @property
@@ -163,8 +163,9 @@ class Global21cm:
     @property
     def dTb2dnu2(self):
         if not hasattr(self, '_dTbdnu'):
-            self._nu_pp, self._dTbdnu = \
-                central_difference(self.data_asc['nu'], self.data_asc['dTb'])               
+            _dTbdnu = self.dTbdnu
+            _nu = self._nu_p
+            self._nu_pp, self._dTbdnu = central_difference(_nu, _dTbdnu)
         return self._dTbdnu        
     
     @property
@@ -654,8 +655,8 @@ class Global21cm:
             for i in xrange(2):
                 ymin[i], ymax[i]= mp.grid[i].get_ylim()        
                 
-        mp.grid[0].plot(self.data_asc['z'], self.data_asc['dTb'], **kwargs)        
-        mp.grid[1].plot(self.z_p, self.dTbdnu, **kwargs)
+        mp.grid[0].plot(self.data['nu'], self.data['dTb'], **kwargs)        
+        mp.grid[1].plot(self._nu_p, self.dTbdnu, **kwargs)
         
         zf = int(np.min(self.data['z']))
         zfl = int(np.max(self.data['z']))

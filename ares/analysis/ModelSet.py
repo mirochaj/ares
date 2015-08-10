@@ -405,6 +405,10 @@ class ModelSet(object):
             
                             if blob not in subset:
                                 subset.append(blob)
+                elif self.subset is not None:
+                    subset = self.subset
+                else:
+                    subset = None
             
                 if (subset is not None) and (subset != []):
             
@@ -2838,7 +2842,8 @@ class ModelSet(object):
                     id_start = max(ids_ints) + 1
 
                     if z[i] in redshifts:
-                        raise IOError('%s exists! As does this dataset.' % fn)
+                        print '%s exists! As does this dataset. Continuing...' % fn
+                        continue
                 else:
                     id_start = 0
                     

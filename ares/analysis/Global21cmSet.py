@@ -225,7 +225,8 @@ class Global21cmSet(ModelSet):
             
         return prefix, num
         
-    def TurningPointConstraints(self, pts=None, mp=None, fig=1, **kwargs):        
+    def TurningPointConstraints(self, pts=None, mp=None, fig=1,
+        exclude=None, **kwargs):        
         """
         Plot constraints on the turning points positions.
         
@@ -233,6 +234,9 @@ class Global21cmSet(ModelSet):
         ----------
         pts : list
             Points to include. If None, will do B, C, and D.
+        exclude : list
+            For example, to exclude the temperature of turning point B, set
+            exclude=('dTb', 'B')
             
         """
         
@@ -247,9 +251,13 @@ class Global21cmSet(ModelSet):
             z = []
             for pt in pts:
                 z.extend([pt]*2)
+                
+        to_plot = ['B', 'dTb'] * len(pts)
                         
-        mp = self.TrianglePlot(['nu', 'dTb'] * len(pts), z=z, 
-            inputs=self.inputs, **kwargs)
+        if exclude is not None:
+            tp, x = exclude
+                        
+        mp = self.TrianglePlot(, z=z, inputs=self.inputs, **kwargs)
 
         for i in mp.diag:
             row, col = mp.axis_position(i)
