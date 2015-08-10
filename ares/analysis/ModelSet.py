@@ -237,6 +237,11 @@ class ModelSet(object):
     
         self.have_all_blobs = os.path.exists('%s.blobs.pkl' % self.prefix)
     
+        self._pf = ModelSubSet()
+        self._pf.Npops = self.Npops
+        
+        self.derived_blobs = DQ(self)
+    
         #try:
         #    self._fix_up()
         #except AttributeError:
@@ -371,24 +376,72 @@ class ModelSet(object):
     @property
     def blob_names(self):
         if not hasattr(self, '_blob_names'):
-            if os.path.exists('%s.binfo.pkl' % self.prefix):
-                f = open('%s.binfo.pkl' % self.prefix, 'rb')
-                self._blob_names, self._blob_redshifts = \
-                    map(list, pickle.load(f))
-                f.close()
+            self._blob_names, self._blob_redshifts = \
+                self._determine_blob_properties()
+            #if os.path.exists('%s.binfo.pkl' % self.prefix):
+            #    f = open('%s.binfo.pkl' % self.prefix, 'rb')
+            #    self._blob_names, self._blob_redshifts = \
+            #        map(list, pickle.load(f))
+            #    f.close()
                 
         return self._blob_names
     
     @property
     def blob_redshifts(self):
         if not hasattr(self, '_blob_redshifts'):
-            if os.path.exists('%s.binfo.pkl' % self.prefix):
-                f = open('%s.binfo.pkl' % self.prefix, 'rb')
-                junk, self._blob_redshifts = \
-                    map(list, pickle.load(f))
-                f.close()
+            self._blob_names, self._blob_redshifts = \
+                self._determine_blob_properties()
+            #if os.path.exists('%s.binfo.pkl' % self.prefix):
+            #    f = open('%s.binfo.pkl' % self.prefix, 'rb')
+            #    junk, self._blob_redshifts = \
+            #        map(list, pickle.load(f))
+            #    f.close()
         
         return self._blob_redshifts
+
+    def _determine_blob_properties(self):
+        """
+        Figure out blob names and redshifts.
+        """
+        
+        subset = None
+        
+        # Read in only a subset of all (in principle) available blobs
+        if (self.subset is not None) or (not self.have_all_blobs):
+        
+            # Search file system for subset.*.pkl files
+            if self.subset == 'all' or (not self.have_all_blobs):
+                subset = []
+                for path in ['.', self.path]:
+                    to_search = '%s/%s.subset.*' % (path, self.fn)
+                    for fn in glob.glob(to_search):
+                        blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
+        
+                        if blob not in subset:
+                            subset.append(blob)
+                            
+            elif self.subset is not None:
+                subset = self.subset
+            else:
+                subset = None
+                
+            if (subset is not None) and (subset != []):
+            
+                if type(subset) not in [list, tuple]:
+                    subset = [subset]
+                
+        if os.path.exists('%s.binfo.pkl' % self.prefix):
+            f = open('%s.binfo.pkl' % self.prefix, 'rb')
+            all_blob_names, self._blob_redshifts = \
+                map(list, pickle.load(f))
+            f.close()
+                
+        if (subset) is None or (subset == []):
+            self._blob_names = all_blob_names
+        else:
+            self._blob_names = subset
+                
+        return self._blob_names, self._blob_redshifts
 
     @property
     def blobs(self):
@@ -874,84 +927,84 @@ class ModelSet(object):
         
         return self._derived_blob_names
 
-    @property
-    def derived_blobs(self):
-        """
-        Total rates, convert to rate coefficients.
-        """
-
-        if hasattr(self, '_derived_blobs'):
-            return self._derived_blobs
-            
-        if os.path.exists('%s.dblobs.hdf5' % self.prefix) and have_h5py:
-            f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'r')
-            dbs = f['derived_blobs'].value
-            self._derived_blobs = np.ma.masked_array(dbs, mask=f['mask'].value)
-            self._derived_blob_names = list(f['derived_blob_names'].value)
-            f.close()
-            return self._derived_blobs
-
-        #if self.blobs is None:
-        #    return   
-
-        # Just a dummy class
-        pf = ModelSubSet()
-        pf.Npops = self.Npops
-
-        # Create data container to mimic that of a single run,
-        dqs = []
-        self._derived_blob_names = []
-        for i, redshift in enumerate(self.blob_redshifts):
-
-            if type(redshift) is str:
-                z = self.extract_blob('z', redshift)[i] 
-            else:
-                z = redshift
-
-            data = {}
-            data['z'] = np.array([z])
-            
-            for j, key in enumerate(self.blob_names):
-                data[key] = self.blobs[:,i,j]
-                            
-            _dq = DQ(data, pf)
-            
-            # SFRD
-            _dq.build(**registry_special_Q)
-            
-            dqs.append(_dq.derived_quantities.copy())
-
-            for key in _dq.derived_quantities:
-                if key in self._derived_blob_names:
-                    continue
-                
-                self._derived_blob_names.append(key)
-
-        # (Nlinks, Nz, Nblobs)
-        shape = list(self.blobs.shape[:-1])
-        shape.append(len(self._derived_blob_names))
-
-        self._derived_blobs = np.ones(shape) * np.inf
+    #@property
+    #def derived_blobs(self):
+    #    """
+    #    Total rates, convert to rate coefficients.
+    #    """
+    #
+    #    if hasattr(self, '_derived_blobs'):
+    #        return self._derived_blobs
+    #        
+    #    if os.path.exists('%s.dblobs.hdf5' % self.prefix) and have_h5py:
+    #        f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'r')
+    #        dbs = f['derived_blobs'].value
+    #        self._derived_blobs = np.ma.masked_array(dbs, mask=f['mask'].value)
+    #        self._derived_blob_names = list(f['derived_blob_names'].value)
+    #        f.close()
+    #        return self._derived_blobs
+    #
+    #    #if self.blobs is None:
+    #    #    return   
+    #
+    #    # Just a dummy class
+    #    pf = ModelSubSet()
+    #    pf.Npops = self.Npops
+    #
+    #    # Create data container to mimic that of a single run,
+    #    dqs = []
+    #    self._derived_blob_names = []
+    #    for i, redshift in enumerate(self.blob_redshifts):
+    #
+    #        if type(redshift) is str:
+    #            z = self.extract_blob('z', redshift)[i] 
+    #        else:
+    #            z = redshift
+    #
+    #        data = {}
+    #        data['z'] = np.array([z])
+    #        
+    #        for j, key in enumerate(self.blob_names):
+    #            data[key] = self.blobs[:,i,j]
+    #                        
+    #        _dq = DQ(data, pf)
+    #        
+    #        # SFRD
+    #        _dq.build(**registry_special_Q)
+    #        
+    #        dqs.append(_dq.derived_quantities.copy())
+    #
+    #        for key in _dq.derived_quantities:
+    #            if key in self._derived_blob_names:
+    #                continue
+    #            
+    #            self._derived_blob_names.append(key)
+    #
+    #    # (Nlinks, Nz, Nblobs)
+    #    shape = list(self.blobs.shape[:-1])
+    #    shape.append(len(self._derived_blob_names))
+    #
+    #    self._derived_blobs = np.ones(shape) * np.inf
         
-        for i, redshift in enumerate(self.blob_redshifts):
-            
-            data = dqs[i]
-            for key in data:
-                j = self._derived_blob_names.index(key)
-                self._derived_blobs[:,i,j] = data[key]
-
-                
-        mask = np.ones_like(self._derived_blobs)    
-        #mask[np.isinf(self._derived_blobs)] = 1
-        #mask[np.isnan(self._derived_blobs)] = 1
-        mask[np.isfinite(self._derived_blobs)] = 0
-        
-        self.dmask = mask
-        
-        self._derived_blobs = np.ma.masked_array(self._derived_blobs, 
-            mask=mask)
-
-        return self._derived_blobs
+    #    for i, redshift in enumerate(self.blob_redshifts):
+    #        
+    #        data = dqs[i]
+    #        for key in data:
+    #            j = self._derived_blob_names.index(key)
+    #            self._derived_blobs[:,i,j] = data[key]
+    #
+    #            
+    #    mask = np.ones_like(self._derived_blobs)    
+    #    #mask[np.isinf(self._derived_blobs)] = 1
+    #    #mask[np.isnan(self._derived_blobs)] = 1
+    #    mask[np.isfinite(self._derived_blobs)] = 0
+    #    
+    #    self.dmask = mask
+    #    
+    #    self._derived_blobs = np.ma.masked_array(self._derived_blobs, 
+    #        mask=mask)
+    #
+    #    return self._derived_blobs
 
     def set_constraint(self, add_constraint=False, **constraints):
         """
@@ -2778,8 +2831,7 @@ class ModelSet(object):
             j = self.blob_names.index(name)            
             return self.blobs[:,i,j]
         else:
-            j = self.derived_blob_names.index(name)
-            return self.derived_blobs[:,i,j]
+            return self.derived_blobs[name][:,i]
     
     def max_likelihood_parameters(self):
         """
