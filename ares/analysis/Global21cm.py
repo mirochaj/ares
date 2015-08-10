@@ -115,9 +115,11 @@ class Global21cm:
         self.kwargs = kwargs    
 
         # Derived quantities
-        self._dq = DQ(self.data, self.pf)
-        self.data = self._dq.data.copy()
+        #self._dq = DQ(self.data, self.pf)
 
+        if 'z' in self.data:
+            self.data['nu'] = nu_0_mhz / (1. + self.data['z'])
+        
         # For convenience - quantities in ascending order (in redshift)
         if self.data:
 

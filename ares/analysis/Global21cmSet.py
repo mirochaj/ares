@@ -252,9 +252,25 @@ class Global21cmSet(ModelSet):
             for pt in pts:
                 z.extend([pt]*2)
                 
-        to_plot = ['B', 'dTb'] * len(pts)
+        to_plot = ['nu', 'dTb'] * len(pts)
+        
+        # May want to exclude, e.g., temperature of turning point B
+        if exclude is not None:
+            q_ex, z_ex = exclude
+            
+            not_ok = np.ones(len(z))
+            for i, redshift in enumerate(z):
+                not_ok[i] *= (redshift == z_ex) and (to_plot[i] == q_ex)
+                
+            mask = np.array(np.logical_not(not_ok), dtype=bool)
+                
+            to_plot = list(np.array(to_plot)[mask])
+            z = list(np.array(z)[mask])
+        
+        # Make the plot!
         mp = self.TrianglePlot(to_plot, z=z, inputs=self.inputs, **kwargs)
 
+        # Add annotations along the diagonal (which column is which pt)
         for i in mp.diag:
             row, col = mp.axis_position(i)
             mp.grid[i].set_title(z[-1::-1][col])

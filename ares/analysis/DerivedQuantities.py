@@ -137,9 +137,13 @@ registry_special_Q = \
 }
 
 class DerivedQuantities(object):
-    def __init__(self, ModelSet):
+    def __init__(self, ModelSet, pf=None):
         self._ms = ModelSet
-        self.pf = ModelSet._pf
+        
+        if pf is None:
+            self.pf = ModelSet._pf
+        else:
+            self.pf = pf
         
         try:
             self.cosm = self._ms.cosm
