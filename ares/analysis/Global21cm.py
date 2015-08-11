@@ -32,6 +32,40 @@ try:
 except ImportError:
     pass
     
+    
+class DummyDQ(object):
+    """
+    A wrapper around DerivedQuantities.
+    """
+    def __init__(self, pf={}):
+        self._data = {}
+        self._dq = DQ(ModelSet=None, pf=pf)
+        
+    def add_data(self, data):
+        self._dq._add_data(data)
+        for key in data:
+            self._data[key] = data[key]
+            
+    def keys(self):
+        return self._data.keys()    
+            
+    def __iter__(self):
+        for key in self._data.keys():
+            yield key        
+            
+    def __contains__(self, name):
+        return name in self._data.keys()
+            
+    def __getitem__(self, name):
+        if name in self._data:
+            return self._data[name]
+            
+        self._data[name] = self._dq[name]
+        return self._data[name]    
+            
+    def __setitem__(self, name, value):
+        self._data[name] = value
+    
 turning_points = ['D', 'C', 'B', 'A']
 
 class Global21cm:
@@ -52,10 +86,13 @@ class Global21cm:
                 
         """
         
+        # Analyze an ares.simulations.Global21cm object
         if isinstance(sim, simG21):
             self.sim = sim    # simG21 instance
             self.pf = sim.pf
-            self.data = sim.history.copy()
+            self.data = DummyDQ(pf=self.pf)
+            self.data.add_data(sim.history.copy())
+            #self.data = sim.history.copy()
             try:
                 self.cosm = sim.grid.cosm
             except AttributeError:
@@ -70,32 +107,46 @@ class Global21cm:
                 self.hydr = sim.grid.hydr
             except AttributeError:
                 self.hydr = Hydrogen(cosm=self.cosm)
+        # Read output of a simulation from disk
         elif prefix is not None:
-            pass
+            f = open('%s.parameters.pkl' % prefix, 'rb')
+            self.pf = pickle.load(f)
+            f.close()
+            
+            f = open('%s.history.pkl' % prefix, 'rb')
+            history = pickle.load(f)
+            f.close()
         else:
+            self.pf = {}
+                    
+        # Read simulation output from dictionary    
+        if (history is not None) or (prefix is not None):
             self.sim = None
+            self.data = DummyDQ(pf=self.pf)
             if type(history) is dict:
-                self.data = history
+                self.data.add_data(history)
             elif re.search('hdf5', history):
                 f = h5py.File(history, 'r')
-                self.data = {}
+                tmp = {}
                 for key in f.keys():
-                    self.data[key] = f[key].value[-1::-1]
+                    tmp = f[key].value[-1::-1]
                 f.close()
+                self.data.add_data(tmp)
             else:
                 if re.search('pkl', history):
                     f = open(history, 'rb')
-                    self.data = pickle.load(f)
+                    self.data.add_data(pickle.load(f))
                     f.close()
                 else:    
                     f = open(history, 'r')
                     cols = f.readline().split()[1:]
                     data = np.loadtxt(f)
                     
-                    self.data = {}
+                    tmp = {}
                     for i, col in enumerate(cols):
-                        self.data[col] = data[:,i]
+                        tmp[col] = data[:,i]
                     f.close()
+                    self.data.add_data(tmp)
 
             if pf is None:
                 self.pf = SetAllDefaults()
@@ -112,27 +163,29 @@ class Global21cm:
             self.cosm = Cosmology()
             self.hydr = Hydrogen()
 
+        if not hasattr(self, 'data'):
+            raise ValueError('Must supply simulation instance, dict, or file prefix!')
+
         self.kwargs = kwargs    
 
-        # Derived quantities
-        #self._dq = DQ(self.data, self.pf)
-
+        # Add frequencies
         if 'z' in self.data:
             self.data['nu'] = nu_0_mhz / (1. + self.data['z'])
-        
+                                                     
         # For convenience - quantities in ascending order (in redshift)
-        if self.data:
-
-            data_reorder = {}
-            for key in self.data.keys():
-                data_reorder[key] = np.array(self.data[key])[-1::-1]
-
-            # Re-order
-            if np.all(np.diff(self.data['z']) > 0):
-                self.data_asc = self.data.copy()
-                self.data = data_reorder
-            else:
-                self.data_asc = data_reorder
+        data_reorder = {}
+        for key in self.data.keys():
+            data_reorder[key] = np.array(self.data[key])[-1::-1]
+        
+        # Re-order
+        if np.all(np.diff(self.data['z']) > 0):
+            self.data_asc = DummyDQ(pf=self.pf)
+            self.data_asc.add_data(self.data.copy())
+            self.data = DummyDQ(pf=self.pf)
+            self.data.add_data(data_reorder)
+        else:
+            self.data_asc = DummyDQ(pf=self.pf)
+            self.data_asc.add_data(data_reorder)
 
         self.interp = {}
 

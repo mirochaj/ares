@@ -2599,7 +2599,11 @@ class ModelSet(object):
         blob_vec = []
         for i in range(len(pars)):
             blob = self.extract_blob(pars[i], z=z[i])
-            masks.append(blob.mask)
+            if hasattr(blob, 'mask'):
+                masks.append(blob.mask)
+            else:
+                masks.append(np.zeros_like(blob))
+                
             blob_vec.append(blob)    
         
         master_mask = np.zeros_like(masks[0])
@@ -2724,7 +2728,7 @@ class ModelSet(object):
             levels.append(contour_1s)
 
         ax.contour(x, y, surf.T, levels=levels, linestyles=['-', '--'], 
-            colors='k')
+            colors='k', zorder=10)
 
         pl.draw()
 

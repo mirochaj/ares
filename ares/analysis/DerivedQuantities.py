@@ -159,10 +159,36 @@ class DerivedQuantities(object):
             self.__shape = list(self._ms.blobs.shape[:-1])
         return self.__shape
         
+    def _add_data(self, data):
+        self._data.update(data)    
+        
+    def __name__(self):
+        return 'DerivedQuantities'  
+        
     def __getitem__(self, name):
         if name in self._data:
             return self._data[name]
+            
+        if self._ms is None:
+            return self._get_item(name)
+        else:
+            return self._get_mset_item(name)
 
+    def _get_item(self, name):
+        if name in registry_cosm_Q:
+            self._data[name] = registry_cosm_Q[name](self, self.cosm)
+        elif name in registry_state_Q:
+            self._data[name] = registry_state_Q[name](self)
+        elif name in registry_rate_Q:
+            self._data[name] = registry_rate_Q[name](self)
+        elif name in registry_special_Q:
+            raise NotImplemented('havent done registry_special_Q yet.')
+        else:
+            raise ValueError('Unrecognized derived quantity: %s' % name)
+        
+        return self._data[name]
+        
+    def _get_mset_item(self, name):
         # Why is this so expensive!?
         if name == 'z': 
             z = np.zeros(self._shape)
@@ -198,4 +224,5 @@ class DerivedQuantities(object):
             raise ValueError('Unrecognized derived quantity: %s' % name)    
             
         return self._data[name]
+                
             
