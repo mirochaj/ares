@@ -535,7 +535,7 @@ class ModelSet(object):
             return
             
         f = h5py.File('%s.blobs.hdf5' % self.prefix, 'w')
-        f.create_dataset('blobs', data=self._blobs)
+        f.create_dataset('blobs', data=self.blobs)
         f.create_dataset('mask', data=self._mask)
         f.close()
         
@@ -544,7 +544,7 @@ class ModelSet(object):
         # Save to disk!
         if not os.path.exists('%s.dblobs.hdf5') and have_h5py:
             f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'w')
-            f.create_dataset('mask', data=mask)
+            f.create_dataset('mask', data=self._mask)
             f.create_dataset('derived_blobs', data=self._derived_blobs)
             f.create_dataset('derived_blob_names', data=self._derived_blob_names)
             f.close()
@@ -1869,22 +1869,24 @@ class ModelSet(object):
         ### Histogramming and plotting starts here
         ##
         
+        if stop is not None:
+            stop = -int(stop)
+                    
         # Marginalized 1-D PDFs 
         if len(pars) == 1:
                         
             if type(to_hist) is dict:
-                tohist = to_hist[pars[0]][skip:]
+                tohist = to_hist[pars[0]][skip:stop]
                 b = binvec[pars[0]]
             elif type(to_hist) is list:
-                tohist = to_hist[0][skip:]
+                tohist = to_hist[0][skip:stop]
                 b = binvec[0]
             else:
-                tohist = to_hist
+                tohist = to_hist[skip:stop]
                 b = bins
             
             hist, bin_edges = \
-                np.histogram(tohist, density=density, 
-                    bins=b, weights=weights)
+                np.histogram(tohist, density=density, bins=b, weights=weights)
 
             bc = rebin(bin_edges)
             
@@ -2175,6 +2177,49 @@ class ModelSet(object):
         
         return ax, scat, cb    
         
+    def extract_panel(self, panel, mp, fig=99):
+        """
+        Save panel of a triangle plot as separate file.
+        
+        
+        """    
+        
+        letters = list(string.ascii_lowercase)
+        letters.extend([let*2 for let in list(string.ascii_lowercase)])
+        
+        
+        if type(panel) is str:
+            panel = letters.index(panel)
+        
+        info = self.plot_info[panel]
+        kw = self.plot_info['kwargs']
+        
+        ax = self.PosteriorPDF(info['axes'], z=info['z'], bins=info['bins'],
+            multiplier=info['multiplier'], take_log=info['take_log'],
+            fig=fig, **kw)
+        
+        ax.set_xticks(mp.grid[panel].get_xticks())
+        ax.set_yticks(mp.grid[panel].get_yticks())
+        
+        xt = []
+        for i, x in enumerate(mp.grid[panel].get_xticklabels()):
+            xt.append(x.get_text())
+        
+        ax.set_xticklabels(xt)
+        
+        yt = []
+        for i, x in enumerate(mp.grid[panel].get_yticklabels()):
+            yt.append(x.get_text())
+            
+        ax.set_yticklabels(yt)
+        
+        ax.set_xlim(mp.grid[panel].get_xlim())
+        ax.set_ylim(mp.grid[panel].get_ylim())
+        
+        pl.draw()
+        
+        return ax
+                
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
@@ -2306,8 +2351,9 @@ class ModelSet(object):
         # Apply multipliers etc. to inputs
         inputs = self._set_inputs(pars, inputs, is_log, take_log, multiplier)
 
-        print inputs
-
+        self.plot_info = {}
+        self.plot_info['kwargs'] = kwargs
+        
         # Loop over parameters
         # p1 is the y-value, p2 is the x-value
         for i, p1 in enumerate(pars[-1::-1]):
@@ -2379,8 +2425,18 @@ class ModelSet(object):
                         mp.grid[k].set_title(err_str(p1, mu, err, 
                             self.is_log[i], labels), va='bottom', fontsize=18) 
                      
+                    self.plot_info[k] = {}
+                    self.plot_info[k]['axes'] = [p1]
+                    self.plot_info[k]['data'] = tohist
+                    self.plot_info[k]['z'] = z[-1::-1][i]
+                    self.plot_info[k]['bins'] = [bins[-1::-1][i]]
+                    self.plot_info[k]['multplier'] = [multiplier[-1::-1][i]]
+                    self.plot_info[k]['take_log'] = take_log[-1::-1][i]
+                                          
                     if not inputs:
                         continue
+                        
+                    self.plot_info[k]['input'] = xin
                         
                     if xin is not None:
                         mp.grid[k].plot([xin]*2, [0, 1.05], 
@@ -2419,10 +2475,20 @@ class ModelSet(object):
                     mp.grid[k].set_xlabel('')
                 if col != 0:
                     mp.grid[k].set_ylabel('')
-
+                    
+                self.plot_info[k] = {}
+                self.plot_info[k]['axes'] = [p2, p1]
+                self.plot_info[k]['data'] = tohist
+                self.plot_info[k]['z'] = red
+                self.plot_info[k]['bins'] = [bins[j], bins[-1::-1][i]]
+                self.plot_info[k]['multiplier'] = [multiplier[j], multiplier[-1::-1][i]]
+                self.plot_info[k]['take_log'] = [take_log[j], take_log[-1::-1][i]] 
+                
                 # Input values
                 if not inputs:
                     continue
+                                
+                self.plot_info[k]['input'] = (xin, yin)
                                                                     
                 # Plot as dotted lines
                 if xin is not None:
