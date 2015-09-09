@@ -1669,9 +1669,20 @@ class ModelSet(object):
         -------
         Dictionary, elements sorted by 
         """
-        if not inputs:
+        
+        if inputs is None:
             return None
-            
+        
+        if type(inputs) is list:
+            if inputs == []:
+                return None
+        
+        if type(inputs) is dict:
+            if not inputs:
+                return None
+        else:
+            inputs = list(inputs)
+                        
         if type(is_log) is dict:
             tmp = [is_log[par] for par in pars]    
             is_log = tmp
@@ -1685,15 +1696,19 @@ class ModelSet(object):
             input_output = {}
         
         Nd = len(pars)
-        
+                                
         for i, par in enumerate(pars):
             if type(inputs) is list:
                 val = inputs[i]
             elif par in inputs:
                 val = inputs[par]
             else:
-                val = None
-            
+                dq = DQ(data=inputs)
+                try:
+                    val = dq[par]
+                except:
+                    val = None
+                    
             # Take log [optional]    
             if val is None:
                 vin = None
@@ -1706,7 +1721,7 @@ class ModelSet(object):
                 input_output[par] = vin
             else:
                 input_output.append(vin)
-        
+                    
         # Loop over parameters
         #for i, p1 in enumerate(pars[-1::-1]):
         #    for j, p2 in enumerate(pars):
@@ -2290,6 +2305,8 @@ class ModelSet(object):
                         
         # Apply multipliers etc. to inputs
         inputs = self._set_inputs(pars, inputs, is_log, take_log, multiplier)
+
+        print inputs
 
         # Loop over parameters
         # p1 is the y-value, p2 is the x-value

@@ -13,6 +13,7 @@ Description:
 import re, time
 import numpy as np
 from ..physics import Cosmology
+from collections import namedtuple
 from ..physics.Constants import nu_0_mhz
 
 def total_heat(data):
@@ -26,12 +27,11 @@ def total_heat(data):
     """
 
     pf = data.pf
-    names = data._data.keys()
 
     heat = np.zeros_like(data['z'])
     for i, sp in enumerate(['h_1', 'he_1', 'he_2']):
 
-        if i > 0 and 'igm_%s' % sp not in names:
+        if i > 0 and (data['igm_%s' % sp] is None):
             continue
 
         for k in range(pf.Npops):
@@ -43,7 +43,7 @@ def total_heat(data):
 
             heat_by_pop = 'igm_heat_%s%s' % (sp, suffix)
 
-            if heat_by_pop not in names:
+            if data[heat_by_pop] is None:
                 continue
 
             n = data['igm_n_%s' % sp]
@@ -61,7 +61,7 @@ def total_gamma(data, sp):
     gamma = np.zeros_like(data['z'])
     for donor in ['h_1', 'he_1', 'he_2']:
         
-        if 'igm_n_%s' % donor not in data:
+        if data['igm_n_%s' % donor] is None:
             continue
             
         for k in range(pf.Npops):
@@ -73,7 +73,7 @@ def total_gamma(data, sp):
         
             gamma_by_donor_by_pop = 'igm_gamma_%s_%s%s' % (sp, donor, suffix)
             
-            if gamma_by_donor_by_pop not in data:
+            if data[gamma_by_donor_by_pop] is None:
                 continue
                 
             n2 = data['igm_n_%s' % donor] 
@@ -137,11 +137,15 @@ registry_special_Q = \
 }
 
 class DerivedQuantities(object):
-    def __init__(self, ModelSet, pf=None):
+    def __init__(self, ModelSet=None, pf=None, data=None):
         self._ms = ModelSet
         
         if pf is None:
-            self.pf = ModelSet._pf
+            if ModelSet is not None:
+                self.pf = ModelSet._pf
+            else:
+                self.pf = namedtuple
+                self.pf.Npops = 1
         else:
             self.pf = pf
         
@@ -152,6 +156,9 @@ class DerivedQuantities(object):
         
         self._data = {}
         
+        if data is not None:
+            self._data.update(data)
+                
     @property
     def _shape(self):        
         if not hasattr(self, '__shape'):
@@ -184,11 +191,13 @@ class DerivedQuantities(object):
         elif name in registry_special_Q:
             raise NotImplemented('havent done registry_special_Q yet.')
         else:
-            raise ValueError('Unrecognized derived quantity: %s' % name)
+            return None
+            #raise ValueError('Unrecognized derived quantity: %s' % name)
         
         return self._data[name]
         
     def _get_mset_item(self, name):
+
         # Why is this so expensive!?
         if name == 'z': 
             z = np.zeros(self._shape)
@@ -217,11 +226,14 @@ class DerivedQuantities(object):
         elif name in registry_state_Q:
             self._data[name] = registry_state_Q[name](self)
         elif name in registry_rate_Q:
+            
             self._data[name] = registry_rate_Q[name](self)
         elif name in registry_special_Q:
             raise NotImplemented('havent done registry_special_Q yet.')
         else:
-            raise ValueError('Unrecognized derived quantity: %s' % name)    
+            return None
+        #else:
+        #    raise ValueError('Unrecognized derived quantity: %s' % name)    
             
         return self._data[name]
                 

@@ -91,7 +91,7 @@ class Global21cm:
             self.sim = sim    # simG21 instance
             self.pf = sim.pf
             self.data = DummyDQ(pf=self.pf)
-            self.data.add_data(sim.history.copy())
+            self.data.add_data(sim.history)
             #self.data = sim.history.copy()
             try:
                 self.cosm = sim.grid.cosm
@@ -180,7 +180,7 @@ class Global21cm:
         # Re-order
         if np.all(np.diff(self.data['z']) > 0):
             self.data_asc = DummyDQ(pf=self.pf)
-            self.data_asc.add_data(self.data.copy())
+            self.data_asc.add_data(self.data)
             self.data = DummyDQ(pf=self.pf)
             self.data.add_data(data_reorder)
         else:
@@ -423,7 +423,7 @@ class Global21cm:
         # Add 25, 15 and 12, 8 to redshift labels
         z_labels.insert(-1, '15')
         z_labels.insert(-1, '12')
-        z_labels.extend(['8', '7', '6'])                
+        z_labels.extend(['8', '7', '6', '5'])                
         #z_labels.insert(-5, '25')
         
         z = np.array(map(int, z_labels))

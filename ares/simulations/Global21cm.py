@@ -82,8 +82,8 @@ class Global21cm:
                     tanh_model = TanhModel(**kwargs)
                     self.pf = tanh_model.pf
                     
-                    if self.pf['tanh_nu'] is not None:
-                        nu = self.pf['tanh_nu']
+                    if self.pf['output_frequencies'] is not None:
+                        nu = self.pf['output_frequencies']
                         z = nu_0_mhz / nu - 1.
                     else:
                         z = np.arange(self.pf['final_redshift'] + self.pf['tanh_dz'],
@@ -110,8 +110,8 @@ class Global21cm:
                     gauss_model = GaussianModel(**kwargs)
                     self.pf = gauss_model.pf
                     
-                    if self.pf['gaussian_freq'] is not None:
-                        nu = self.pf['gaussian_freq']
+                    if self.pf['output_frequencies'] is not None:
+                        nu = self.pf['output_frequencies']
                     else:
                         z = np.arange(self.pf['final_redshift'] + self.pf['gaussian_dz'],
                             self.pf['initial_redshift'], self.pf['gaussian_dz'])[-1::-1]
