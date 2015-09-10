@@ -48,8 +48,9 @@ def total_heat(data):
 
             n = data['igm_n_%s' % sp]
 
-            # Multiply by number density of absorbers
-            heat += n * data[heat_by_pop]
+            # Multiply by number density of absorbers, convert to 
+            # co-moving units
+            heat += n * data[heat_by_pop] / (1. + data['z'])**3
 
     return heat
     

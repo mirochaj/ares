@@ -2177,10 +2177,17 @@ class ModelSet(object):
         
         return ax, scat, cb    
         
-    def extract_panel(self, panel, mp, fig=99):
+    def extract_panel(self, panel, mp, rotate_x=45, rotate_y=45, ax=None, 
+        fig=99):
         """
         Save panel of a triangle plot as separate file.
         
+        panel : int, str
+            Integer or letter corresponding to plot panel you want.
+        mp : MultiPlot instance
+            Object representation of the triangle plot
+        fig : int
+            Figure number.
         
         """    
         
@@ -2196,7 +2203,7 @@ class ModelSet(object):
         
         ax = self.PosteriorPDF(info['axes'], z=info['z'], bins=info['bins'],
             multiplier=info['multiplier'], take_log=info['take_log'],
-            fig=fig, **kw)
+            fig=fig, ax=ax, **kw)
         
         ax.set_xticks(mp.grid[panel].get_xticks())
         ax.set_yticks(mp.grid[panel].get_yticks())
@@ -2205,13 +2212,13 @@ class ModelSet(object):
         for i, x in enumerate(mp.grid[panel].get_xticklabels()):
             xt.append(x.get_text())
         
-        ax.set_xticklabels(xt)
+        ax.set_xticklabels(xt, rotation=rotate_x)
         
         yt = []
         for i, x in enumerate(mp.grid[panel].get_yticklabels()):
             yt.append(x.get_text())
             
-        ax.set_yticklabels(yt)
+        ax.set_yticklabels(yt, rotation=rotate_y)
         
         ax.set_xlim(mp.grid[panel].get_xlim())
         ax.set_ylim(mp.grid[panel].get_ylim())
@@ -2223,9 +2230,9 @@ class ModelSet(object):
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
-        skim=1, top=None, oned=True, twod=True, filled=True, box=None, rotate_x=45, 
-        rotate_y=45, add_cov=False, label_panels='upper right', fix=True,
-        skip_panels=[], stop=None, **kwargs):
+        skim=1, top=None, oned=True, twod=True, filled=True, box=None, 
+        rotate_x=45, rotate_y=45, add_cov=False, label_panels='upper right', 
+        fix=True, skip_panels=[], stop=None, **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
 
