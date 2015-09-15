@@ -173,7 +173,15 @@ class ModelSet(object):
                 
         # Read in data from file (assumed to be pickled)
         if type(data) == str:
-            self.prefix = prefix = data
+            
+            # Check to see if perhaps this is just the chain
+            if re.search('pkl', data):
+                self._prefix_is_chain = True
+                pre_pkl = data[0:data.rfind('.pkl')]
+                self.prefix = prefix = pre_pkl
+            else:
+                self._prefix_is_chain = False
+                self.prefix = prefix = data
             
             i = prefix.rfind('/') # forward slash index
 
@@ -185,11 +193,14 @@ class ModelSet(object):
                 self.path = prefix[0:i+1]
                 self.fn = prefix[i+1:]
 
-            print_model_set(self)
+            try:
+                print_model_set(self)
+            except:
+                pass
                     
-            if not self.is_mcmc:
-                
-                self.grid = ModelGrid(**self.base_kwargs)
+            #if not self.is_mcmc:
+            #    
+            #    self.grid = ModelGrid(**self.base_kwargs)
                 
                 #self.axes = {}
                 #for i in range(self.chain.shape[1]):
@@ -334,7 +345,9 @@ class ModelSet(object):
                 f.close()
                 self._parameters = patch_pinfo(self._parameters)
             else:
-                self._parameters = self._is_log = None
+                self._is_log = [False] * self.chain.shape[-1]
+                self._parameters = ['p%i' % i \
+                    for i in range(self.chain.shape[-1])]
         
         return self._parameters
         
@@ -566,17 +579,25 @@ class ModelSet(object):
     def chain(self):
         # Read MCMC chain
         if not hasattr(self, '_chain'):
-            if os.path.exists('%s.chain.pkl' % self.prefix):
+            have_chain_f = os.path.exists('%s.chain.pkl' % self.prefix)
+            have_f = os.path.exists('%s.pkl' % self.prefix)
+            
+            if have_chain_f or have_f:
+                if have_chain_f:
+                    fn = '%s.chain.pkl' % self.prefix
+                else:
+                    fn = '%s.pkl' % self.prefix
+                
                 if rank == 0:
-                    print "Loading %s.chain.pkl..." % self.prefix
+                    print "Loading %s..." % fn
 
                 t1 = time.time()
-                self._chain = read_pickled_chain('%s.chain.pkl' % self.prefix)
+                self._chain = read_pickled_chain(fn)
                 t2 = time.time()
 
                 if rank == 0:
-                    print "Loaded %s.chain.pkl in %.2g seconds.\n" \
-                        % (self.prefix, t2-t1)
+                    print "Loaded %s in %.2g seconds.\n" % (fn, t2-t1)
+
             else:
                 self._chain = None
 
