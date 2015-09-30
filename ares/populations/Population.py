@@ -16,16 +16,20 @@ from ..util import ParameterFile
 from scipy.integrate import quad
 from ..physics.Constants import cm_per_mpc, erg_per_ev
 
-log10 = np.log(10.)    # for when we integrate in log-space    
+log10 = np.log(10.)    # for when we integrate in log-space
 
 class Population(object):
     def __init__(self, grid=None, **kwargs):
+        
+        if 'problem_type' in kwargs:
+            del kwargs['problem_type']
+        
         self.pf = ParameterFile(**kwargs)
         self.grid = grid
-        
+                
         self.zform = self.pf['pop_zform']
         self.zdead = self.pf['pop_zdead']
-                
+
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):    

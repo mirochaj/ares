@@ -226,6 +226,7 @@ def ReionizationProblem(ptype):
         pf = \
         {
          'problem_type': 100,
+         "grid_cells": 1,
          
          'pop_type': 'galaxy',
          'pop_sfrd': 'robertson2015',
@@ -254,6 +255,7 @@ def ReionizationProblem(ptype):
         {
         
         'problem_type': 101,
+        "grid_cells": 1,
         
         # Emits LW
         'pop_type{0}': 'galaxy',

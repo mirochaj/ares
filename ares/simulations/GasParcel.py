@@ -22,6 +22,7 @@ class GasParcel:
         """
         Initialize a GasParcel object.
         """
+        
         self.pf = ParameterFile(**kwargs)
         
         self.grid = \

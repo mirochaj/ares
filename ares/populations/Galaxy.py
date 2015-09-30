@@ -89,19 +89,8 @@ class GalaxyPopulation(HaloPopulation):
         # This is basically just initializing an instance of the cosmology
         # class. Also creates the parameter file attribute ``pf``.
         HaloPopulation.__init__(self, **kwargs)
-        self.pf.update(**kwargs)
+        #self.pf.update(**kwargs)
 
-        # Initialize the LF
-        #if self.pf['pop_lf'] is None:
-        #    pass
-        #elif self.pf['pop_lf'] in lftypes:
-        #    pass
-        #elif type(self.pf['pop_lf']) is FunctionType:
-        #    self._UserDefinedLF = self.pf['pop_lf']
-        #else:
-        #    from_lit = read_lit(self.pf['pop_lf'])
-        #    self._UserDefinedLF = from_lit.LuminosityFunction
-        #
         self._eV_per_phot = {}
         self._conversion_factors = {}
 

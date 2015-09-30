@@ -23,18 +23,18 @@ class CompositePopulation:
         
         self.pf = ParameterFile(**kwargs)
         
-        N = self.Npops = self.pf.Npops        
+        N = self.Npops = self.pf.Npops
         self.pfs = self.pf.pfs
-            
+                    
         self.BuildPopulationInstances()
         
     def BuildPopulationInstances(self):
         """
-        Construct list of ____Population class instances.
+        Construct list of *Population class instances.
         """
         
         self.pops = []
-        for pf in self.pfs:  # List of dictionaries, one for each pop
+        for i, pf in enumerate(self.pfs):
             if pf['pop_type'] == 'galaxy':
                 self.pops.append(GalaxyPopulation(**pf))
             else:
