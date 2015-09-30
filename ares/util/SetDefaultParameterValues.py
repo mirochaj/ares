@@ -241,8 +241,14 @@ def PopulationParameters():
     
     "pop_type": 'galaxy',
     
+    "pop_model": 'fcoll', # fcoll, hod, clf, ham, user
+    
     "pop_halo_model": None, # clf or hod (not yet implemented)
     
+    # HAM model
+    "pop_constraints": None, # if ham model
+    "pop_Macc": None,
+        
     # Parameters for a HOD model
     "pop_duty_cycle": 1.0,
         
@@ -270,7 +276,6 @@ def PopulationParameters():
     "pop_k_ion_igm": None,
     "pop_k_heat_igm": None,
     
-    
     # Set time interval over which emission occurs
     "pop_zform": 50.,
     "pop_zdead": 0.0,
@@ -281,12 +286,6 @@ def PopulationParameters():
     "pop_Mmin": None,
     "pop_sfrd": None,
     
-    # HOD parameters
-    "pop_tSF": 1.,  # Myr
-    
-    # Override luminosity density
-    "pop_rhoL": None,
-    
     # Scales SFRD
     "pop_Nlw": 9690.,
     "pop_Nion": 4e3,
@@ -296,6 +295,12 @@ def PopulationParameters():
     "pop_xi_XR": None,     # product of fstar and fX
     "pop_xi_LW": None,     # product of fstar and Nlw
     "pop_xi_UV": None,     # product of fstar, Nion, and fesc
+    
+    # HOD parameters
+    "pop_tSF": 1.,  # Myr
+    
+    # Override luminosity density
+    "pop_rhoL": None,
     
     # For multi-frequency calculations
     "pop_E": None,

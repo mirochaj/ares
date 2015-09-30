@@ -169,6 +169,11 @@ class HaloMassFunction(object):
             self.M = 10**self.logM
             self.fcoll_spline_2d = pickle.load(f)
             self.dndm = pickle.load(f)
+            try:
+                self.ngtm = pickle.load(f)
+                self.mgtm = pickle.load(f)
+            except EOFError:
+                pass
             f.close()
             
             #if rank == 0 and self.pf['verbose']:
@@ -255,6 +260,7 @@ class HaloMassFunction(object):
         
         self.dndm = np.zeros([len(self.z), len(self.logM_over_h)])
         self.mgtm = np.zeros_like(self.dndm)
+        self.ngtm = np.zeros_like(self.dndm)
         self.fcoll_tab = np.zeros_like(self.dndm)
         
         pb = ProgressBar(len(self.z), 'fcoll')
@@ -277,6 +283,7 @@ class HaloMassFunction(object):
                 # Has units of h**4 / cMpc**3 / Msun
                 self.dndm[i] = self.MF.dndm.copy() / self.cosm.h70**4
                 self.mgtm[i] = self.MF.rho_gtm.copy()
+                self.ngtm[i] = self.MF.ngtm.copy() / self.cosm.h70**4
                 
                 # Remember that mgtm and mean_dens have factors of h**2
                 # so we're OK here dimensionally
@@ -461,7 +468,8 @@ class HaloMassFunction(object):
             f.create_dataset('logM', data=self.logM)
             f.create_dataset('fcoll', data=self.fcoll_tab)
             f.create_dataset('dndm', data=self.dndm)
-            
+            f.create_dataset('ngtm', data=self.ngtm)
+            f.create_dataset('mgtm', data=self.mgtm)            
             f.close()
             
             print 'Wrote %s.' % fn
@@ -493,6 +501,8 @@ class HaloMassFunction(object):
             pickle.dump(self.logM, f)
             pickle.dump(self.fcoll_spline_2d, f)
             pickle.dump(self.dndm, f)
+            pickle.dump(self.ngtm, f)
+            pickle.dump(self.mgtm, f)
             f.close()
             
             print 'Wrote %s.' % fn

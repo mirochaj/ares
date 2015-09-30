@@ -27,7 +27,7 @@ class HaloPopulation(Population):
             self.info
 
         # Setup splines for interpolation of dfcoll/dt
-        self._init_pop()
+        #self._init_fcoll()
 
     @property
     def parameterized(self):
@@ -42,19 +42,29 @@ class HaloPopulation(Population):
     @property
     def info(self):
         if not self.parameterized:
-            print_pop(self)
+            try:
+                print_pop(self)
+            except AttributeError:
+                pass
+
+    @property
+    def dndm(self):
+        if not hasattr(self, '_fcoll'):
+            self._init_fcoll()
+    
+        return self._dndm
 
     @property
     def fcoll(self):
         if not hasattr(self, '_fcoll'):
-            self._init_pop()
+            self._init_fcoll()
     
         return self._fcoll
     
     @property
     def dfcolldz(self):
         if not hasattr(self, '_dfcolldz'):
-            self._init_pop()
+            self._init_fcoll()
     
         return self._dfcolldz
         
@@ -71,7 +81,7 @@ class HaloPopulation(Population):
             self._halos = HaloMassFunction(**self.pf)
         return self._halos
 
-    def _init_pop(self):
+    def _init_fcoll(self):
         # Halo stuff
         if self.pf['pop_sfrd'] is not None:
             return

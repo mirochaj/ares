@@ -383,6 +383,8 @@ class UniformBackground(object):
                         
         elif self.pf['approx_tau'] is 'post_EoR':            
             tau = self.volume.TabulateOpticalDepth(z, E, species=2)
+        else:
+            raise NotImplemented('Unrecognized approx_tau option.')
         
         return z, E, tau
 

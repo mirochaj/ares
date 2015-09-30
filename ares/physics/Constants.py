@@ -47,6 +47,7 @@ c = 29979245800.0 				# Speed of light - [c] = cm/s
 k_B = 1.3806503e-16			    # Boltzmann's constant - [k_B] = erg/K
 G = 6.673e-8     				# Gravitational constant - [G] = cm^3/g/s^2
 e = 1.60217646e-19   			# Electron charge - [e] = C
+e_cgs = 4.803204e-10            # Electron charge - [e] = statC
 m_e = 9.10938188e-28     		# Electron mass - [m_e] = g
 m_p = 1.67262158e-24    		# Proton mass - [m_p] = g
 m_n = 1.67492729e-24            # Neutron mass - [m_n] = g

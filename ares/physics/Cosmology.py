@@ -18,7 +18,7 @@ class Cosmology:
     def __init__(self, omega_m_0=0.272, omega_l_0=0.728,
         omega_b_0=0.044, hubble_0=0.702, 
         helium_by_number=0.08, cmb_temp_0=2.725, 
-        approx_highz=False, sigma_8=0.807, primordial_index=0.96):
+        approx_highz=False, sigma_8=0.807, primordial_index=0.96, **kwargs):
         """Initialize a Cosmology object.
         
         :param: omega_m_0: Pretty self-explanatory.
@@ -164,10 +164,13 @@ class Cosmology:
     
     def LuminosityDistance(self, z):
         """
-        Returns luminosity distance in Mpc.  Assumes we mean distance from us (z = 0).
+        Returns luminosity distance in cm.  Assumes we mean distance from us (z = 0).
         """
         
-        return (1. + z) * self.ComovingRadialDistance(0., z)
+        integr = quad(lambda z: self.hubble_0 / self.HubbleParameter(z), 
+            0.0, z)[0]
+        
+        return integr * c * (1. + z) / self.hubble_0
         
     def ComovingRadialDistance(self, z0, z):
         """
