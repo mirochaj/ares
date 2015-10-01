@@ -56,7 +56,7 @@ class MultiPhaseMedium(object):
             kwargs['load_ics'] = True
 
         self.pf = ParameterFile(**kwargs)
-
+                
         # Load in initial conditions, interpolate to initial_redshift
         if self.pf['load_ics']:
             

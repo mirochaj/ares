@@ -25,7 +25,7 @@ class MetaGalacticBackground(UniformBackground):
         self._is_thru_run = False
         
         UniformBackground.__init__(self, grid=grid, **kwargs)
-
+        
     def run(self):
         """
         Evolve radiation background in time.

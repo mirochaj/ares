@@ -900,7 +900,7 @@ class GlobalVolume(object):
         kw = defkwargs.copy()
         kw.update(kwargs)
 
-        if self.pf['pop_k_ion_cgm'] is not None:
+        if pop.pf['pop_k_ion_cgm'] is not None:
             return self.pf['pop_k_ion_cgm'](z)
                 
         if kw['return_rc']:

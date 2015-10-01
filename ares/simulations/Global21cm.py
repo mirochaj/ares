@@ -36,15 +36,15 @@ class Global21cm:
         # See if this is a tanh model calculation
         is_tanh = self._check_if_tanh(**kwargs)
 
-        if not is_tanh:
-            kwargs.update(defaults)
-            self.pf = ParameterFile(**kwargs)
-        else:
+        if is_tanh:
             return
+        
+        kwargs.update(defaults)
+        self.pf = ParameterFile(**kwargs)
             
         if not (self.pf['include_igm'] and self.pf['include_cgm']):
             raise ValueError('Can only compute 21-cm signal in two-phase medium!')
-
+            
         # If a physical model, proceed with initialization
         self.medium = MultiPhaseMedium(**self.pf)
 

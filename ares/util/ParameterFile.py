@@ -18,18 +18,50 @@ from .CheckForParameterConflicts import CheckForParameterConflicts
 
 old_pars = ['fX', 'cX', 'fstar', 'fesc', 'Nion', 'Nlw']
 
+def bracketify(**kwargs):
+    kw = {}
+    for par in kwargs:
+        m = re.search(r"\_([0-9])\_", par)
+        
+        if m is None:
+            kw[par] = kwargs[par]
+            continue
+            
+        prefix = par.split(m.group(0))[0]
+        
+        kw['%s{%i}' % (prefix, int(m.group(1)))] = kwargs[par]
+    
+    return kw
+
+def pop_id_num(par):
+    """
+    Split apart parameter prefix and ID number.
+    """
+        
+    # Look for integers within curly braces
+    m = re.search(r"\{([0-9])\}", par)
+
+    if m is None:
+        
+        # Look for integers within underscores
+        m = re.search(r"\_([0-9])\_", par)
+        
+        if m is None:
+            return None, None
+    
+    prefix = par.split(m.group(0))[0]
+    
+    return prefix, int(m.group(1))
+
 def count_populations(**kwargs):
     
     # Count populations
     popIDs = [0]
     for par in kwargs:
 
-        m = re.search(r"\{([0-9])\}", par)
-
-        if m is None:
+        prefix, num = pop_id_num(par)
+        if num is None:
             continue
-
-        num = int(m.group(1))
 
         if num not in popIDs:
             popIDs.append(num)
@@ -37,78 +69,130 @@ def count_populations(**kwargs):
     return len(popIDs)
 
 class ParameterFile(dict):
-    def __init__(self, pf=None, **kwargs):
+    def __init__(self, **kwargs):
         """
         Build parameter file instance.
         """
 
         self.defaults = SetAllDefaults()
+        
+        # Defaults w/o all parameters that are population-specific
+        self.defaults_pop_dep = {}
+        self.defaults_pop_indep = {}
+        for key in self.defaults:
+            if re.search('pop_', key) or re.search('source_', key):
+                self.defaults_pop_dep[key] = self.defaults[key]
+                continue
+            
+            self.defaults_pop_indep[key] = self.defaults[key]        
+        
+        # Keep user-supplied kwargs as attribute  
+        self._kwargs = kwargs.copy()
+        
+        # Fix up everything
+        self._parse(**kwargs)
+        
+        # Check for stuff that'll break...stuff
+        self._check_for_conflicts(self)
+    
+    @property
+    def Npops(self):
+        if not hasattr(self, '_Npops'):
+            tmp = self._kwargs.copy()
+            if 'problem_type' in self._kwargs:
+                tmp.update(ProblemType(self._kwargs['problem_type']))
+                
+            self._Npops = count_populations(**tmp)
 
-        if pf is not None:
-            self._kwargs = pf._kwargs
-            for key in pf:
-                self[key] = pf[key]
-        else:
-            self._kwargs = kwargs
-            self._parse(**kwargs)
-            self._check_for_conflicts(self)
+        return self._Npops
 
-    def _parse(self, **kwargs):
+    def _parse(self, **kw):
         """
         Parse kwargs dictionary.
         
-        This means:
-            1) Set all parameters to default values.
-            2) Determine if there are multiple populations.
-              i) If so, separate them apart.
-            ...
+        There has to be a better way...
+        
+        If Npops == 1, the master dictionary should *not* have any parameters
+        with curly braces.
+        If Npops > 1, all population-specific parameters *must* be associated
+        with a population, i.e., have curly braces in the name.
               
         """    
                 
-        pf = self.defaults.copy()
-    
-        if 'problem_type' in kwargs:
-            pf.update(ProblemType(kwargs['problem_type']))
-    
-        # Count populations
-        Npops = self.Npops = count_populations(**kwargs)
-    
-        # Update parameter file
-        if Npops == 1:
-            pf.update(kwargs)
-            self.pfs = [pf]
+        # Start w/ problem specific parameters (always)
+        if 'problem_type' not in kw:
+            kw['problem_type'] = self.defaults['problem_type']    
+            
+        # Change names of parameters to ensure backward compatibility        
+        kw.update(backward_compatibility(kw['problem_type'], **kw))
+        kw = bracketify(**kw)
+            
+        kwargs = ProblemType(kw['problem_type'])
+        kwargs.update(kw)
+                        
+        ##    
+        # Up until this point, just problem_type-specific kwargs and any
+        # modifications passed in by the user.
+        ##
+            
+        pf_base = {}  # Temporary master parameter file   
+                      # Should have no {}'s
+                    
+        pf_base.update(self.defaults)            
+                    
+        # For single-population calculations, we're done for the moment
+        if self.Npops == 1:
+            pf_base.update(kwargs)
+            
+            self.pfs = [pf_base]
+            
+        # Otherwise, we need to go through and make separate dictionaries
+        # for each population
         else:
-            pfs_by_pop = [{} for i in range(Npops)]
-    
-            linked_pars = []
-    
-            # Construct parameter file
-            for par in kwargs:
-    
-                # Look for populations
-                m = re.search(r"\{([0-9])\}", par)
-    
-                if m is None:
-                    pf[par] = kwargs[par]
+            
+            # Can't add kwargs yet (all full of curly braces)
+            
+            # Only add non-pop-specific parameters from ProblemType defaults
+            prb = ProblemType(kwargs['problem_type'])
+            for par in self.defaults_pop_indep:
+                if par not in prb:
                     continue
                     
-                # If we're here, it means this parameter has a population 
-                # or source tag (i.e., an ID number in {}'s)   
+                pf_base[par] = prb[par]
+            
+            # and kwargs
+            for par in kwargs:
+                if par in self.defaults_pop_indep:
+                    pf_base[par] = kwargs[par]
+            
+            # Sort parameter files by population
+            # This has all parameters that *don't* vary from one
+            # population to the next, and as such is the basis for all
+            # population-specific dictionaries
+            pfs_by_pop = [pf_base.copy() for i in range(self.Npops)]
+            
+            linked_pars = []
     
-                # Population ID number
-                num = int(m.group(1))
-    
-                # ID including curly braces
-                prefix = par.split(m.group(0))[0]
-    
+            # Add population-specific changes
+            for par in kwargs:
+                    
+                # See if this parameter belongs to a particular population
+                prefix, num = pop_id_num(par)
+                if num is None:
+                    # We already handled non-pop-specific parameters
+                    continue
+                    
+                # If we're here, it means this parameter has a population
+                # or source tag (i.e., an ID number in {}'s or _'s)
+
                 # See if this parameter is linked to another population
                 if type(kwargs[par]) is str:
-                    mlink = re.search(r"\{([0-9])\}", kwargs[par])
+                    prefix_link, num_link = pop_id_num(kwargs[par])
                 else:
-                    mlink = None   
-    
+                    prefix_link, num_link = None, None
+                
                 # If it is linked, we'll handle it in just a sec
-                if mlink is not None:
+                if num_link is not None:
                     linked_pars.append(par)
                     continue
     
@@ -117,82 +201,80 @@ class ParameterFile(dict):
     
             # Update linked parameters
             for par in linked_pars:
-    
-                m = re.search(r"\{([0-9])\}", par)
-                num = int(m.group(1))
-    
-                mlink = re.search(r"\{([0-9])\}", kwargs[par])
-                num_link = int(mlink.group(1))
-    
-                # Pop ID including curly braces
-                prefix_link = kwargs[par].split(mlink.group(0))[0]
-    
+            
+                prefix, num = pop_id_num(par)
+                prefix_link, num_link = pop_id_num(kwargs[par])
+            
                 # If we didn't supply this parameter for the linked population,
                 # assume default parameter value
-                if kwargs[par] not in kwargs:
+                if pf[par] not in pf:
                     val = self.defaults[prefix_link]
                 else:
-                    val = kwargs[kwargs[par]]
-
+                    val = pf[pf[par]]
+            
                 pfs_by_pop[num][prefix] = val
 
-            # Make sure versions of source/spectrum parameters don't exist
-            # in main parameter file if they are conflicting           
-            tmp = {}
-            
-            # Loop through dicts, one per population
-            for i in range(Npops):
-            
-                pop_pars = pfs_by_pop[i]
-            
-                # For each parameter...
-                for element in pop_pars:
+            # Save as attribute
+            self.pfs = pfs_by_pop
+                                    
+        # Master parameter file    
+        # Only tag ID number to pop or source parameters
+        for i, poppf in enumerate(self.pfs):
+
+            for key in poppf:
+                
+                if self.Npops > 1 and key in self.defaults_pop_dep:
+                    self['%s{%i}' % (key, i)] = poppf[key]
+                else:
+                    self[key] = poppf[key]
                     
-                    # Only copy over new parameters
-                    if element not in tmp:
-                        tmp[element] = [pop_pars[element]]
+    @property
+    def unique(self):
+        """
+        Show the parameters that are not defaults.
+        """                    
+        if not hasattr(self, '_unique'):
+            self._unique = {}
+            
+            ptype = ProblemType(self['problem_type'])
+            
+            for key in self:
+                if key in self.defaults_pop_indep:
+                    if self[key] != self.defaults_pop_indep[key]:
+                        self._unique[key] = self[key]
+                
+                elif key in ptype:
+                    if self[key] != ptype[key]:
+                        self._unique[key] = self[key]
+                
+                # Additional population?
+                else:
+                    prefix, num = pop_id_num(key)
+                    
+                    if num is None:
                         continue
-                        
-                    #if pop_pars[element] not in tmp[element]:
-                    #    tmp[element].append(pop_pars[element])
-            
-            # Delete elements that differ between populations
-            #for key in tmp:    
-            #    if len(tmp[key]) != 1 and key in pf:
-            #        del pf[key]
-            
-            self.pfs = [pf.copy() for i in range(Npops)]
-            for i in range(Npops):
-                self.pfs[i].update(pfs_by_pop[i])
-            
-        pf.update(backward_compatibility(pf['problem_type'], **pf))    
-            
-        for key in pf:
-            self[key] = pf[key]
-    
+                    
+                    if prefix in self.defaults and (num >= self.Npops):
+                        if self[key] != self.defaults[prefix]:
+                            self._unique[key] = self[key]
+                
+        return self._unique
+
     def _check_for_conflicts(self, pf):
         """
         Run through parsed parameter file looking for conflicts.
         """
-        
+
         try:
             verbose = pf['verbose']
         except KeyError:
-            verbose = defaults['verbose']
+            verbose = self.defaults['verbose']
         
         for kwarg in pf:
             
-            m = re.search(r"\{([0-9])\}", kwarg)
-
-            if m is None:
+            par, num = pop_id_num(kwarg)
+            if num is None:
                 par = kwarg
-
-            else:
-                # Population ID number
-                num = int(m.group(1))
-                
-                # Pop ID including curly braces
-                par = kwarg.split(m.group(0))[0]
             
             if par in self.defaults.keys():
                 continue

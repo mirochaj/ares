@@ -444,7 +444,7 @@ class UniformBackground(object):
 
                 # Loop over absorbing species
                 for j, species in enumerate(self.grid.absorbers):
-                        
+
                     if kwargs['zone'] == 'igm':
                         self.k_ion[i,0,j] += \
                             self.volume.IonizationRateIGM(z, species=j, popid=i,
