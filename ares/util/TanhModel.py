@@ -209,6 +209,6 @@ class TanhModel:
          'cgm_Gamma_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
         }
 
-        tmp = Global21cm(history=hist)    
+        tmp = Global21cm(data=hist)    
 
         return tmp

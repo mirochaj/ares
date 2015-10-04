@@ -577,10 +577,10 @@ def TanhParameters():
     'tanh_x0': 1.0,
     'tanh_xz0': 10.,
     'tanh_xdz': 2.,
-    'tanh_dz': 0.025,  # Redshift sampling
     'tanh_bias_temp': 0.0,   # in mK
     'tanh_bias_freq': 0.0,   # in MHz
     'output_frequencies': None,
+    'output_dz': 0.025,  # Redshift sampling
     }
 
     pf.update(rcParams)
@@ -594,8 +594,8 @@ def GaussianParameters():
      'gaussian_A': -100., 
      'gaussian_nu': 70.,
      'gaussian_sigma': 10.,
-     'gaussian_dz': 0.025,  # Redshift sampling
      'output_frequencies': None,
+     'output_dz': 0.025,  # Redshift sampling
     }
     
     return pf

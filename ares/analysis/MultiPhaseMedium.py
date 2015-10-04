@@ -86,7 +86,7 @@ class MultiPhaseMedium:
             of the (binary/pickled) file containing the parameters.
                 
         """
-        
+                
         if isinstance(data, simG21) or isinstance(data, simMPM):
             self.sim = data
             self.pf = self.sim.pf
@@ -109,7 +109,7 @@ class MultiPhaseMedium:
                 self.hydr = Hydrogen(cosm=self.cosm)
         
         elif type(data) == dict:
-            self.data = data.copy()
+            history = data.copy()
             
         # Read output of a simulation from disk
         elif type(data) is str:
@@ -158,6 +158,14 @@ class MultiPhaseMedium:
         # Add frequencies
         if 'z' in self.data:
             self.data['nu'] = nu_0_mhz / (1. + self.data['z'])
+        
+        # For backward compatibility
+        if 'dTb' in self.data:
+            if 'igm_dTb' not in self.data:
+                self.data['igm_dTb'] = self.data['dTb']
+        elif 'igm_dTb' in self.data:
+            if 'dTb' not in self.data:
+                self.data['dTb'] = self.data['igm_dTb']
                                                      
         # For convenience - quantities in ascending order (in redshift)
         data_reorder = {}

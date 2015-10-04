@@ -79,10 +79,10 @@ class GaussianModel:
         hist = \
         {
          'z': nu_0_mhz / nu - 1.,
-         'dTb': dTb,
+         'igm_dTb': dTb,
         }
     
-        tmp = Global21cm(history=hist)
+        tmp = Global21cm(data=hist)
         
         return tmp
     
