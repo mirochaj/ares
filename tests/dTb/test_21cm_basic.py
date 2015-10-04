@@ -16,7 +16,7 @@ import matplotlib.pyplot as pl
 sim = ares.simulations.Global21cm()
 sim.run()
 
-anl = ares.analysis.MultiPhaseMedium(sim)
+anl = ares.analysis.Global21cm(sim)
 ax = anl.GlobalSignature()
 
 

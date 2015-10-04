@@ -136,8 +136,9 @@ class HaloMassFunction(object):
         
         self.hmf_analytic = self.pf['hmf_analytic']
         
-        if self.pf['Tmax'] is not None:
-            assert self.pf['Tmax'] > self.pf['Tmin'], "Tmax must exceed Tmin!"
+        if self.pf['pop_Tmax'] is not None:
+            assert self.pf['pop_Tmax'] > self.pf['pop_Tmin'], \
+                "Tmax must exceed Tmin!"
         
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load']:
@@ -352,11 +353,11 @@ class HaloMassFunction(object):
         Interpolation in 2D, x = redshift = z, y = logMass.
         """ 
         
-        if self.pf['Mmax'] is not None:
+        if self.pf['pop_Mmax'] is not None:
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
-                 - np.squeeze(self.fcoll_spline_2d(z, np.log10(Mmax)))
-        elif self.pf['Tmax'] is not None:
-            logMmax = np.log10(self.VirialMass(self.pf['Tmax'], z, 
+                 - np.squeeze(self.fcoll_spline_2d(z, np.log10(self.pf['pop_Mmax'])))
+        elif self.pf['pop_Tmax'] is not None:
+            logMmax = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, 
                 mu=self.pf['mu']))
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
                  - np.squeeze(self.fcoll_spline_2d(z, logMmax))             

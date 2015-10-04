@@ -21,7 +21,8 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     if (ARES is not None) else '.'
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
-    'Control', 'HaloMassFunction', 'Tanh', 'Gaussian']
+    'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
+    'MultiPhase']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -278,7 +279,9 @@ def PopulationParameters():
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
     "pop_Tmin": 1e4,
+    "pop_Tmax": None,
     "pop_Mmin": None,
+    "pop_Mmax": None,
     "pop_sfrd": None,
     
     # HOD parameters

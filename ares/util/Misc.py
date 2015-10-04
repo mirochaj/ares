@@ -15,7 +15,6 @@ import subprocess
 import numpy as np
 from collections import Iterable
 from scipy.integrate import cumtrapz
-from .ProblemTypes import ProblemType
 from ..physics.Constants import sigma_T
 from .SetDefaultParameterValues import SetAllDefaults
 from .CheckForParameterConflicts import CheckForParameterConflicts
