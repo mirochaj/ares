@@ -1,10 +1,8 @@
 Population Parameters
 =====================
 
-
-
-Timing etc.
------------
+Basic Properties
+----------------
 ``formation_epoch``
     Redshift interval over which sources are "on."
 
@@ -23,7 +21,7 @@ Timing etc.
 ``is_ion_src_igm`` 
     Sources contribute ionization in bulk IGM?
     
-    If ``approx_xrb=True``, this ionization rate a mean X-ray photon energy
+    If ``approx_xrb=True``, this ionization rate assumes a mean X-ray photon energy
     of ``xray_Eavg``, which is 500 eV by default.
 
     Default: ``True``
@@ -59,6 +57,10 @@ Star formation history
     gas that turns into stars.
     
     Default: 0.1
+    
+    .. note :: If you set ``fstar`` to ``None``, the strength of radiation 
+        backgrounds will be determined by the :math:`\xi` parameters, 
+        ``xi_LW``, ``xi_XR``, and ``xi_UV``.
 
 ``pop_sfrd``
     The star formation rate density (SFRD) as a function of redshift. If provided, will override ``Tmin`` and ``Mmin``. For example, a constant (co-moving) SFRD of :math:`1 \ M_{\odot} \ \text{yr}^{-1} \ \text{cMpc}^{-3}` would be ``sfrd=lambda z: 1.0``.
@@ -138,12 +140,16 @@ There are many parameters that do *not* have the ``pop_`` prefix attached to the
     Default: :math:`3.4 \times 10^{40}` [:math:`\text{erg} \ \text{s}^{-1} \ (M_{\odot} \ \mathrm{yr}^{-1})^{-1}`]
     
 ``fX``
-    Constant multiplicative factor applied to ``cX``, which is typically chosen to match observations of nearby star-forming galaxies, i.e., ``fX`` parameterizes ignorance in redshift evolution of ``cX``.
+    Constant multiplicative factor applied to ``cX``, which is typically 
+    chosen to match observations of nearby star-forming galaxies, i.e., 
+    ``fX`` parameterizes ignorance in redshift evolution of ``cX``.
     
     Default: 0.2
 
 ``Nlw``
     Number of photons emitted in the Lyman-Werner band per baryon of star formation.
+    
+    If ``fstar`` is *not* ``None``, the co-moving LW luminosity density is given by :math:`f_{\ast} N_{\mathrm{LW}} \text{SFRD}`.
     
     Default: 9690
     

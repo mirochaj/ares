@@ -10,30 +10,44 @@ Description: For analysis of MCMC fitting.
 
 """
 
-import re, os
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
+import matplotlib._cntr as cntr
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
 from ..inference import ModelGrid
+import re, os, string, time, glob
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
+from ..util.PrintInfo import print_model_set
 from ..util.ParameterFile import count_populations
 from .DerivedQuantities import DerivedQuantities as DQ
+from .DerivedQuantities import registry_special_Q
 from ..simulations.Global21cm import Global21cm as sG21
-from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
+from ..util.Stats import Gauss1D, GaussND, error_1D, error_2D, _error_2D_crude, \
+    rebin, correlation_matrix
 from ..util.ReadData import read_pickled_dict, read_pickle_file, \
-    read_pickled_chain, read_pickled_logL
+    read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
+    tanh_gjah_to_ares
 
 try:
-   import cPickle as pickle
-except:
-   import pickle    
+    from scipy.optimize import fmin
+    from scipy.integrate import dblquad
+except ImportError:
+    pass
+
+import pickle    
+
+try:
+    import h5py
+    have_h5py = True
+except ImportError:
+    have_h5py = False
     
 try:
     from mpi4py import MPI
@@ -47,6 +61,19 @@ tanh_pars = TanhParameters()
 
 def_kwargs = {}
 
+def patch_pinfo(pars):
+    new_pars = []
+    for par in pars:
+
+        if par in tanh_gjah_to_ares:
+            new_pars.append(tanh_gjah_to_ares[par])
+        elif par in fcoll_gjah_to_ares:
+            new_pars.append(fcoll_gjah_to_ares[par])
+        else:
+            new_pars.append(par)
+    
+    return new_pars
+
 def parse_blobs(name):
     nsplit = name.split('_')
     
@@ -54,42 +81,65 @@ def parse_blobs(name):
         pre, post = nsplit
     elif len(nsplit) == 3:
         pre, mid, post = nsplit
-    
+
         pre = pre + mid
     
     if pre in default_labels:
         pass
         
     return None 
-
-def subscriptify_str(s):
-
-    raise NotImplementedError('fix me')
-    
-    if re.search("_", par):
-        m = re.search(r"\{([0-9])\}", par)
-
-    # If it already has a subscript, add to it
-
-def logify_str(s, sub=None):
+        
+def logify_str(s, sup=None):
     s_no_dollar = str(s.replace('$', ''))
     
-    if sub is not None:
-        new_s = subscriptify_str(s_no_dollar)
-    else:
-        new_s = s_no_dollar
+    new_s = s_no_dollar
+    
+    if sup is not None:
+        new_s += sup_scriptify_str(s)
         
     return r'$\mathrm{log}_{10}' + new_s + '$'
+    
+def undo_mathify(s):
+    return str(s.replace('$', ''))
+    
+def mathify_str(s):
+    return r'$%s$' % s    
+    
+def make_label(name, take_log=False, labels=None):
+    """
+    Take a string and make it a nice (LaTeX compatible) axis label. 
+    """
+    
+    if labels is None:
+        labels = default_labels
         
-def err_str(label, mu, err, log):
-    l = str(label.replace('$', ''))
-
-    if log:
-        s = '\mathrm{log}_{10}' + l
+    # Check to see if it has a population ID # tagged on the end
+    m = re.search(r"\{([0-9])\}", name)
+    
+    if m is None:
+        num = None
+        prefix = name
+        if prefix in labels:
+            label = labels[prefix]
+        else:
+            label = r'$%s$' % prefix
     else:
-        s = l
+        num = int(m.group(1))
+        prefix = name.split(m.group(0))[0]
+        if prefix in labels:
+            label = r'$%s$' % (undo_mathify(labels[prefix].split(m.group(0))[0]) + '^{%i}' % num)
+        else:
+            label = r'$%s$' % prefix
+        
+    if take_log:        
+        return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+    else:
+        return label
+        
+def err_str(label, mu, err, log, labels=None):
+    s = undo_mathify(make_label(label, log, labels))
 
-    s += '=%.3g^{+%.2g}_{-%.2g}' % (mu, err[0], err[1])
+    s += '=%.3g^{+%.2g}_{-%.2g}' % (mu, err[1], err[0])
     
     return r'$%s$' % s
 
@@ -98,145 +148,82 @@ def def_par_names(N):
 
 def def_par_labels(i):
     return 'parameter # %i' % i
-                
+
 class ModelSubSet(object):
     def __init__(self):
         pass
 
 class ModelSet(object):
-    def __init__(self, data):
+    def __init__(self, data, subset=None):
         """
         Parameters
         ----------
         data : instance, str
             prefix for a bunch of files ending in .chain.pkl, .pinfo.pkl, etc.,
             or a ModelSubSet instance.
+        
+        subset : list, str
+            List of parameters / blobs to recover from individual files. Can
+            also set subset='all', and we'll try to automatically track down
+            all that are available.
 
         """
-
+        
+        self.subset = subset
+                
         # Read in data from file (assumed to be pickled)
         if type(data) == str:
-            prefix = data
+            
+            # Check to see if perhaps this is just the chain
+            if re.search('pkl', data):
+                self._prefix_is_chain = True
+                pre_pkl = data[0:data.rfind('.pkl')]
+                self.prefix = prefix = pre_pkl
+            else:
+                self._prefix_is_chain = False
+                self.prefix = prefix = data
+            
+            i = prefix.rfind('/') # forward slash index
 
-            # Read MCMC chain
-            self.chain = read_pickled_chain('%s.chain.pkl' % prefix)
-            if rank == 0:
-                print "Loaded %s.chain.pkl." % prefix
+            # This means we're sitting in the right directory already
+            if i == - 1:
+                self.path = './'
+                self.fn = prefix
+            else:
+                self.path = prefix[0:i+1]
+                self.fn = prefix[i+1:]
 
-            # Figure out if this is an MCMC run or a model grid
             try:
-                self.logL = read_pickled_logL('%s.logL.pkl' % prefix)
-                if rank == 0:
-                    print "Loaded %s.logL.pkl." % prefix
-                self._is_mcmc = True
-            except IOError:
-                self._is_mcmc = False
-            except ValueError:
-                self.logL = None
-
-            self.Nd = int(self.chain.shape[-1])
-            
-            if self._is_mcmc and os.path.exists('%s.facc.pkl' % prefix):
-                f = open('%s.facc.pkl' % prefix, 'rb')
-                self.facc = []
-                while True:
-                    try:
-                        self.facc.append(pickle.load(f))
-                    except EOFError:
-                        break
-                f.close()
-                self.facc = np.array(self.facc)
-                        
-            # Read parameter names and info
-            if os.path.exists('%s.pinfo.pkl' % prefix):
-                f = open('%s.pinfo.pkl' % prefix, 'rb')
-                self.parameters, self.is_log = pickle.load(f)
-                f.close()
-
-                if rank == 0:
-                    print "Loaded %s.pinfo.pkl." % prefix
-            else:
-                self.parameters = range(self.Nd)
-                self.is_log = [False] * self.Nd
-            
-            if os.path.exists('%s.blobs.pkl' % prefix):
-                try:
-                    blobs = read_pickle_file('%s.blobs.pkl' % prefix)
+                print_model_set(self)
+            except:
+                pass
                     
-                    if rank == 0:
-                        print "Loaded %s.blobs.pkl." % prefix
-                        
-                    self.mask = np.zeros_like(blobs)    
-                    self.mask[np.isinf(blobs)] = 1
-                    self.mask[np.isnan(blobs)] = 1
-                    self.blobs = np.ma.masked_array(blobs, mask=self.mask)
-                except:
-                    if rank == 0:
-                        print "WARNING: Error loading blobs."    
-                    
-                f = open('%s.binfo.pkl' % prefix, 'rb')
-                self.blob_names, self.blob_redshifts = \
-                    map(list, pickle.load(f))
-                f.close()
-
-                if rank == 0:
-                    print "Loaded %s.binfo.pkl." % prefix
-
-            else:
-                self.blobs = self.blob_names = self.blob_redshifts = None
-
-            i = 0
-            self.fails = []
-            while os.path.exists('%s.fail_%i.pkl' % (prefix, i)):
+            #if not self.is_mcmc:
+            #    
+            #    self.grid = ModelGrid(**self.base_kwargs)
+                
+                #self.axes = {}
+                #for i in range(self.chain.shape[1]):
+                #    self.axes[self.parameters[i]] = np.unique(self.chain[:,i])
+                #
+                #self.grid.set_axes(**self.axes)
+                #
             
-                data = read_pickled_dict('%s.fail_%i.pkl' % (prefix, i))
-                self.fails.extend(data)
-                
-                print "Loaded %s.fail_%i.pkl." % (prefix, i)
-                i += 1
-                
-            if os.path.exists('%s.setup.pkl' % prefix):
-                f = open('%s.setup.pkl' % prefix, 'rb')
-                self.base_kwargs = pickle.load(f)
-                f.close()
-                
-                if rank == 0:
-                    print "Loaded %s.setup.pkl." % prefix
-            else:
-                self.base_kwargs = None    
-                
-            if not self.is_mcmc:
-                
-                self.grid = ModelGrid(**self.base_kwargs)
-                
-                self.axes = {}
-                for i in range(self.chain.shape[1]):
-                    self.axes[self.parameters[i]] = np.unique(self.chain[:,i])
-                
-                self.grid.set_axes(**self.axes)
-
-                # Only exists for parallel runs
-                if os.path.exists('%s.load.pkl' % prefix):
-                    self.load = read_pickle_file('%s.load.pkl' % prefix)
-                
-                    if rank == 0:
-                        print "Loaded %s.load.pkl." % prefix
-                
         elif isinstance(data, ModelSubSet):
-            self.chain = data.chain
-            self.is_log = data.is_log
-            self.base_kwargs = data.base_kwargs
-            self.fails = data.fails
+            self._chain = data.chain
+            self._is_log = data.is_log
+            self._base_kwargs = data.base_kwargs
+            self._fails = data.fails
             
             self.mask = np.zeros_like(data.blobs)    
             self.mask[np.isinf(data.blobs)] = 1
             self.mask[np.isnan(data.blobs)] = 1
-            self.blobs = np.ma.masked_array(data.blobs, mask=self.mask)
+            self._blobs = np.ma.masked_array(data.blobs, mask=self.mask)
 
-            self.blob_names = data.blob_names
-            self.blob_redshifts = data.blob_redshifts
-            self.parameters = data.parameters
-            self.is_mcmc = data.is_mcmc
+            self._blob_names = data.blob_names
+            self._blob_redshifts = data.blob_redshifts
+            self._parameters = data.parameters
+            self._is_mcmc = data.is_mcmc
             
             if self.is_mcmc:
                 self.logL = data.logL
@@ -259,14 +246,410 @@ class ModelSet(object):
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
     
-        try:
-            self._fix_up()
-        except AttributeError:
-            pass
-    #@property
-    #def chain(self):
-    #    if not hasattr(self, '_chain'):
-    #        if os.path.exists('%s.chain.pkl' % self.prefix):
+        self.have_all_blobs = os.path.exists('%s.blobs.pkl' % self.prefix)
+    
+        self._pf = ModelSubSet()
+        self._pf.Npops = self.Npops
+        
+        self.derived_blobs = DQ(self)
+    
+        #try:
+        #    self._fix_up()
+        #except AttributeError:
+        #    pass
+        
+    def _load_subset(self):
+        """
+        Read in data from a file specific to a single blob/parameter.
+        """
+                
+        Nz = None
+        for i, par in enumerate(self.blob_names):
+            
+            for path in ['.', self.path]:
+        
+                fn = '%s/%s.subset.%s.hdf5' % (path, self.fn, par)
+                fn_pkl = '%s/%s.subset.%s.pkl' % (path, self.fn, par)
+                
+                if os.path.exists(fn):
+                    f = h5py.File(fn, 'r')
+                    ids, redshifts = zip(*f.attrs.items())
+                    
+                    if Nz is None:
+                        Nz = len(redshifts)
+                        shape = [self.chain.shape[0], Nz, len(self.blob_names)]
+                        blobs = np.zeros(shape)
+                        mask = np.zeros_like(blobs)
+                    
+                    # Add data
+                    for j, redshift in enumerate(self._blob_redshifts):                                
+                        idnum = ids[j]
+                        mask[:,j,i] = f[idnum].attrs.get('mask')
+                        blobs[:,j,i] = f[idnum].value
+                
+                    f.close()
+                    
+                elif os.path.exists(fn_pkl):
+                        
+                    # If these are pickle files, the redshifts will match up with 
+                    # those listed in the binfo file.                    
+                    if Nz is None:
+                        redshifts = self.blob_redshifts
+                        Nz = len(redshifts)
+                        shape = [self.chain.shape[0], Nz, len(self.blob_names)]
+                        blobs = np.zeros(shape)
+                        mask = np.zeros_like(blobs)
+
+                    fn = '%s/%s.subset.%s.pkl' % (path, self.fn, par)            
+                    blobs[:,:,i] = read_pickle_file(fn)
+                    mask = None
+
+                else:
+                    continue
+
+        if not hasattr(self, '_blob_redshifts'):
+            self._blob_redshifts = redshifts
+
+        return mask, blobs
+
+    @property
+    def load(self):
+        if not hasattr(self, '_load'):
+            if os.path.exists('%s.load.pkl' % self.prefix):
+                self._load = read_pickle_file('%s.load.pkl' % self.prefix)
+            else:
+                self._load = None
+
+        return self._load
+
+    @property
+    def base_kwargs(self):
+        if not hasattr(self, '_base_kwargs'):
+            if os.path.exists('%s.setup.pkl' % self.prefix):
+                f = open('%s.setup.pkl' % self.prefix, 'rb')
+                self._base_kwargs = pickle.load(f)
+                f.close()
+                
+            else:
+                self._base_kwargs = None    
+            
+        return self._base_kwargs    
+
+    @property
+    def parameters(self):
+        # Read parameter names and info
+        if not hasattr(self, '_parameters'):
+            if os.path.exists('%s.pinfo.pkl' % self.prefix):
+                f = open('%s.pinfo.pkl' % self.prefix, 'rb')
+                self._parameters, self._is_log = pickle.load(f)
+                f.close()
+                self._parameters = patch_pinfo(self._parameters)
+            else:
+                self._is_log = [False] * self.chain.shape[-1]
+                self._parameters = ['p%i' % i \
+                    for i in range(self.chain.shape[-1])]
+        
+        return self._parameters
+        
+    @property
+    def is_log(self):
+        if not hasattr(self, '_is_log'):
+            pars = self.parameters
+        
+        return self._is_log
+        
+    @property
+    def is_mcmc(self):
+        if not hasattr(self, '_is_mcmc'):
+            if os.path.exists('%s.logL.pkl' % self.prefix):
+                self._is_mcmc = True
+            else:
+                self._is_mcmc = False
+        
+        return self._is_mcmc
+        
+    @property
+    def facc(self):
+        if not hasattr(self, '_facc'):
+            if os.path.exists('%s.facc.pkl' % self.prefix):
+                f = open('%s.facc.pkl' % self.prefix, 'rb')
+                self._facc = []
+                while True:
+                    try:
+                        self._facc.append(pickle.load(f))
+                    except EOFError:
+                        break
+                f.close()
+                self._facc = np.array(self._facc)
+            else:
+                self._facc = None
+        
+        return self._facc
+            
+    @property
+    def blob_names(self):
+        if not hasattr(self, '_blob_names'):
+            self._blob_names, self._blob_redshifts = \
+                self._determine_blob_properties()
+            #if os.path.exists('%s.binfo.pkl' % self.prefix):
+            #    f = open('%s.binfo.pkl' % self.prefix, 'rb')
+            #    self._blob_names, self._blob_redshifts = \
+            #        map(list, pickle.load(f))
+            #    f.close()
+                
+        return self._blob_names
+    
+    @property
+    def blob_redshifts(self):
+        if not hasattr(self, '_blob_redshifts'):
+            self._blob_names, self._blob_redshifts = \
+                self._determine_blob_properties()
+            #if os.path.exists('%s.binfo.pkl' % self.prefix):
+            #    f = open('%s.binfo.pkl' % self.prefix, 'rb')
+            #    junk, self._blob_redshifts = \
+            #        map(list, pickle.load(f))
+            #    f.close()
+        
+        return self._blob_redshifts
+
+    def _determine_blob_properties(self):
+        """
+        Figure out blob names and redshifts.
+        """
+        
+        subset = None
+        
+        # Read in only a subset of all (in principle) available blobs
+        if (self.subset is not None) or (not self.have_all_blobs):
+        
+            # Search file system for subset.*.pkl files
+            if self.subset == 'all' or (not self.have_all_blobs):
+                subset = []
+                for path in ['.', self.path]:
+                    to_search = '%s/%s.subset.*' % (path, self.fn)
+                    for fn in glob.glob(to_search):
+                        blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
+        
+                        if blob not in subset:
+                            subset.append(blob)
+                            
+            elif self.subset is not None:
+                subset = self.subset
+            else:
+                subset = None
+                
+            if (subset is not None) and (subset != []):
+            
+                if type(subset) not in [list, tuple]:
+                    subset = [subset]
+                
+        if os.path.exists('%s.binfo.pkl' % self.prefix):
+            f = open('%s.binfo.pkl' % self.prefix, 'rb')
+            all_blob_names, self._blob_redshifts = \
+                map(list, pickle.load(f))
+            f.close()
+                
+        if (subset) is None or (subset == []):
+            self._blob_names = all_blob_names
+        else:
+            self._blob_names = subset
+                
+        return self._blob_names, self._blob_redshifts
+
+    @property
+    def blobs(self):
+        if not hasattr(self, '_blobs'):
+            # Read in individual blob files
+            if (self.subset is not None) or (not self.have_all_blobs):
+            
+                if self.subset == 'all' or (not self.have_all_blobs):
+                    subset = []
+                    for path in ['.', self.path]:
+                        to_search = '%s/%s.subset.*' % (path, self.fn)
+                        for fn in glob.glob(to_search):
+                            blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
+            
+                            if blob not in subset:
+                                subset.append(blob)
+                elif self.subset is not None:
+                    subset = self.subset
+                else:
+                    subset = None
+            
+                if (subset is not None) and (subset != []):
+            
+                    if type(subset) not in [list, tuple]:
+                        subset = [subset]
+                    
+                    self._blob_names = subset                        
+                    mask, blobs = self._load_subset()
+                    
+                    self.mask = np.zeros_like(blobs)
+                    self.mask[np.isinf(blobs)] = 1
+                    self.mask[np.isnan(blobs)] = 1
+                    self._blobs = np.ma.array(blobs, mask=self.mask)
+                    
+            elif os.path.exists('%s.blobs.hdf5' % self.prefix) and have_h5py:
+                t1 = time.time()
+                f = h5py.File('%s.blobs.hdf5' % self.prefix, 'r')
+                bs = f['blobs'].value
+                self._blobs = np.ma.masked_array(bs, mask=f['mask'].value)
+                f.close()
+                t2 = time.time()    
+                
+                if rank == 0:
+                    print "Loaded %s.blobs.hdf5 in %.2g seconds.\n" \
+                     % (self.prefix, t2 - t1)
+            
+            elif os.path.exists('%s.blobs.pkl' % self.prefix):
+                
+                try:
+                    if rank == 0:
+                        print "Loading %s.blobs.pkl..." % self.prefix
+                    
+                    t1 = time.time()
+                    blobs = read_pickle_file('%s.blobs.pkl' % self.prefix)
+                    t2 = time.time()    
+                        
+                    if rank == 0:
+                        print "Loaded %s.blobs.pkl in %.2g seconds.\n" \
+                         % (self.prefix, t2 - t1)
+                        
+                    self._mask = np.zeros_like(blobs)    
+                    self._mask[np.isinf(blobs)] = 1
+                    self._mask[np.isnan(blobs)] = 1
+                    self._blobs = np.ma.masked_array(blobs, mask=self._mask)
+                    
+                except:
+                    if rank == 0:
+                        print "WARNING: Error loading blobs."    
+        
+            else:
+                self._blobs = None            
+
+        return self._blobs
+        
+    #def _load_blob(self, blob):
+    #    
+    #    fn = '%s'
+    #    
+    #    f = h5py.File(fn, 'r')
+    #    
+    #    results = {}
+    #    for key in f:
+    #        mask = f[key].attrs.get('mask')
+    #        results[key] = np.ma.array(f[key].value, mask=mask)
+            
+    def save_hdf5(self):
+        if not have_h5py:
+            return
+        
+        if rank > 0:
+            return
+            
+        f = h5py.File('%s.blobs.hdf5' % self.prefix, 'w')
+        f.create_dataset('blobs', data=self.blobs)
+        f.create_dataset('mask', data=self._mask)
+        f.close()
+        
+        print 'Saved %s.blobs.hdf5' % self.prefix
+        
+        # Save to disk!
+        if not os.path.exists('%s.dblobs.hdf5') and have_h5py:
+            f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'w')
+            f.create_dataset('mask', data=self._mask)
+            f.create_dataset('derived_blobs', data=self._derived_blobs)
+            f.create_dataset('derived_blob_names', data=self._derived_blob_names)
+            f.close()
+        
+            if rank == 0:
+                print 'Saved %s.dblobs.hdf5' % self.prefix
+
+    @property
+    def Nd(self):
+        if not hasattr(self, '_Nd'):
+            try:
+                self._Nd = int(self.chain.shape[-1])       
+            except TypeError:
+                self._Nd = None
+        
+        return self._Nd
+
+    @property
+    def chain(self):
+        # Read MCMC chain
+        if not hasattr(self, '_chain'):
+            have_chain_f = os.path.exists('%s.chain.pkl' % self.prefix)
+            have_f = os.path.exists('%s.pkl' % self.prefix)
+            
+            if have_chain_f or have_f:
+                if have_chain_f:
+                    fn = '%s.chain.pkl' % self.prefix
+                else:
+                    fn = '%s.pkl' % self.prefix
+                
+                if rank == 0:
+                    print "Loading %s..." % fn
+
+                t1 = time.time()
+                self._chain = read_pickled_chain(fn)
+                t2 = time.time()
+
+                if rank == 0:
+                    print "Loaded %s in %.2g seconds.\n" % (fn, t2-t1)
+
+            else:
+                self._chain = None
+
+        return self._chain        
+    
+    @property
+    def logL(self):
+        if not hasattr(self, '_logL'):            
+            if os.path.exists('%s.logL.pkl' % self.prefix):
+                self._logL = read_pickled_logL('%s.logL.pkl' % self.prefix)
+            else:
+                self._logL = None
+        
+        return self._logL
+    
+    @logL.setter
+    def logL(self, value):
+        self._logL = value
+        
+    @property
+    def L(self):
+        if not hasattr(self, '_L'):
+            self._L = np.exp(self.logL)
+        
+        return self._L    
+        
+    @property
+    def betas(self):
+        if not hasattr(self, '_betas'):
+            if os.path.exists('%s.betas.pkl' % self.prefix):
+                self._betas = read_pickled_logL('%s.betas.pkl' % self.prefix)
+            else:
+                self._betas = None
+        
+        return self._betas
+                
+    @property
+    def fails(self):
+        if not hasattr(self, '_fails'):
+            if os.path.exists('%s.fails.pkl' % self.prefix):
+                i = 0
+                self._fails = []
+                while os.path.exists('%s.fail_%s.pkl' % (self.prefix, str(i).zfill(3))):
+                
+                    data = read_pickled_dict('%s.fail_%s.pkl' % (prefix, str(i).zfill(3)))
+                    self._fails.extend(data)                    
+                    i += 1
+                    
+            else:
+                self._fails = None
+            
+        return self._fails
                 
     @property
     def Npops(self):
@@ -303,16 +686,17 @@ class ModelSet(object):
         if os.path.exists(fn):
             return read_pickle_file(fn)
     
-    @property
-    def is_mcmc(self):
-        if not hasattr(self, '_is_mcmc'):
-            self._is_mcmc = False
-        
-        return self._is_mcmc
-    
-    @is_mcmc.setter
-    def is_mcmc(self, value):
-        self._is_mcmc = value
+    @property    
+    def blob_redshifts_float(self):
+        if not hasattr(self, '_blob_redshifts_float'):
+            self._blob_redshifts_float = []
+            for i, redshift in enumerate(self.blob_redshifts):
+                if type(redshift) is str:
+                    self._blob_redshifts_float.append(None)
+                else:
+                    self._blob_redshifts_float.append(round(redshift, 3))
+            
+        return self._blob_redshifts_float
     
     @property    
     def blob_redshifts_float(self):
@@ -405,101 +789,69 @@ class ModelSet(object):
         
         print "Saved result to slice_%i attribute." % i
         
-    def Dump(self, prefix, modelset):
-        pass
-        
-    def ReRunModels(self, prefix=None, N=None, models=None, plot=False, 
-        **kwargs):
+    def ReRunModels(self, prefix=None, N=None, random=False, last=False, 
+        clobber=False, save_freq=10, **kwargs):
         """
         Take list of dictionaries and re-run each as a Global21cm model.
-        
+
         Parameters
         ----------
         N : int
-            Draw N random samples from chain, and re-run those models.
-        
+            Draw N samples from chain, and re-run those models.
+            If None, will re-run all models.
+        random : bool
+            If True, draw N *random* samples, rather than just the first N.
+        last : bool
+            If True, take last ``N`` samples from chain, rather than first.
+            
         prefix : str
-            Prefix of files to be saved. There will be two:
+            Prefix of files to be saved. There will be three:
                 i) prefix.chain.pkl
                 ii) prefix.blobs.pkl
-        
-        
+                iii) prefix.pinfo.pkl
+
         Returns
         -------
-        
+        Nothing, just saves stuff to disk.
         
         """
-        
-        if N is not None:
-            model_num = np.arange(N)
-            np.random.shuffle(model_num)
-            
-            models = []
-            for i in model_num:
-                models.append(self.chain[i,:])
-        
-        f = open('%s.pinfo.pkl' % prefix, 'wb')
-        pickle.dump((self.parameters, self.is_log), f)
-        f.close()
-        
-        pb = ProgressBar(len(models))
-        pb.start()
-        
-        logL = []
-        chain = []
-        blobs = []
-        for i, model in enumerate(models):
-            if self.base_kwargs is not None:
-                p = self.base_kwargs.copy()
-            else:
-                p = {}
                 
-            p.update(kwargs)
-            
-            if type(model) is dict:
-                p.update(model)
-            else:
-                p.update(self.link_to_dict(model))    
-            
-            try:
-                sim = sG21(**p)
-                sim.run()
-            except SystemExit:
-                pass
-                
-            if i == 0:
-                f = open('%s.binfo.pkl' % prefix, 'wb')
-                pickle.dump((sim.blob_names, sim.blob_redshifts), f)
-                f.close()
-            
-            pb.update(i)
-            
-            blobs.append(sim.blobs)
-            chain.append(self.chain[model_num[i],:])
-            #logL.append(self.logL[model_num[i],:])
-            
-            #anl = aG21(sim)
-            #
-            #if plot:
-            #    ax = anl.GlobalSignature(ax=ax, **kwargs)
-            #
-            #anl_inst.append(anl)
+        had_N = True
+        if N is None:
+            had_N = False
+            N = self.chain.shape[0]
+                    
+        model_num = np.arange(N)
         
-        pb.finish()       
-                
-        f = open('%s.blobs.pkl' % prefix, 'wb')
-        pickle.dump(blobs, f)
-        f.close()
-        
-        f = open('%s.chain.pkl' % prefix, 'wb')
-        pickle.dump(chain, f)
-        f.close()
-        
-        #f = open('%s.logL.pkl' % prefix, 'wb')
-        #pickle.dump(logL, f)
-        #f.close()            
+        if had_N:
+            if random:
+                if size > 1:
+                    raise ValueError('This will cause each processor to run different models!')
+                np.random.shuffle(model_num)
+            
+            if last:
+                model_ids = model_num[-N:]
+            else:    
+                model_ids = model_num[0:N]            
+        else:
+            model_ids = model_num    
+                        
+        # Create list of models to run
+        models = []
+        for i, model in enumerate(model_ids):
+            tmp = {}
+            for j, par in enumerate(self.parameters):
+                tmp[par] = self.chain[i,j]
+            
+            models.append(tmp.copy())
+                                
+        # Take advantage of pre-existing machinery to run them
+        mg = self.mg = ModelGrid(**kwargs)
+        mg.set_models(models)
+        mg.is_log = self.is_log
+        mg.LoadBalance(0)
 
-        #return ax, anl_inst
+        mg.run(prefix, clobber=clobber, save_freq=save_freq)
 
     @property
     def plot_info(self):
@@ -610,76 +962,89 @@ class ModelSet(object):
         
         return self._derived_blob_names
 
-    @property
-    def derived_blobs(self):
-        """
-        Total rates, convert to rate coefficients.
-        """
-
-        if hasattr(self, '_derived_blobs'):
-            return self._derived_blobs
-
-        if not hasattr(self, 'blobs'):
-            return   
-
-        # Just a dummy class
-        pf = ModelSubSet()
-        pf.Npops = self.Npops
-
-        # Create data container to mimic that of a single run,
-        dqs = []
-        self._derived_blob_names = []
-        for i, redshift in enumerate(self.blob_redshifts):
-
-            if type(redshift) is str:
-                z = self.extract_blob('z', redshift)[i] 
-            else:
-                z = redshift
-                
-            data = {}
-            data['z'] = np.array([z])
-            
-            for j, key in enumerate(self.blob_names):
-                data[key] = self.blobs[:,i,j]
-                            
-            _dq = DQ(data, pf)
-            
-            dqs.append(_dq.derived_quantities.copy())
-
-            for key in _dq.derived_quantities:
-                if key in self._derived_blob_names:
-                    continue
-                
-                self._derived_blob_names.append(key)
-
-        # (Nlinks, Nz, Nblobs)
-        shape = list(self.blobs.shape[:-1])
-        shape.append(len(self._derived_blob_names))
-
-        self._derived_blobs = np.ones(shape) * np.inf
+    #@property
+    #def derived_blobs(self):
+    #    """
+    #    Total rates, convert to rate coefficients.
+    #    """
+    #
+    #    if hasattr(self, '_derived_blobs'):
+    #        return self._derived_blobs
+    #        
+    #    if os.path.exists('%s.dblobs.hdf5' % self.prefix) and have_h5py:
+    #        f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'r')
+    #        dbs = f['derived_blobs'].value
+    #        self._derived_blobs = np.ma.masked_array(dbs, mask=f['mask'].value)
+    #        self._derived_blob_names = list(f['derived_blob_names'].value)
+    #        f.close()
+    #        return self._derived_blobs
+    #
+    #    #if self.blobs is None:
+    #    #    return   
+    #
+    #    # Just a dummy class
+    #    pf = ModelSubSet()
+    #    pf.Npops = self.Npops
+    #
+    #    # Create data container to mimic that of a single run,
+    #    dqs = []
+    #    self._derived_blob_names = []
+    #    for i, redshift in enumerate(self.blob_redshifts):
+    #
+    #        if type(redshift) is str:
+    #            z = self.extract_blob('z', redshift)[i] 
+    #        else:
+    #            z = redshift
+    #
+    #        data = {}
+    #        data['z'] = np.array([z])
+    #        
+    #        for j, key in enumerate(self.blob_names):
+    #            data[key] = self.blobs[:,i,j]
+    #                        
+    #        _dq = DQ(data, pf)
+    #        
+    #        # SFRD
+    #        _dq.build(**registry_special_Q)
+    #        
+    #        dqs.append(_dq.derived_quantities.copy())
+    #
+    #        for key in _dq.derived_quantities:
+    #            if key in self._derived_blob_names:
+    #                continue
+    #            
+    #            self._derived_blob_names.append(key)
+    #
+    #    # (Nlinks, Nz, Nblobs)
+    #    shape = list(self.blobs.shape[:-1])
+    #    shape.append(len(self._derived_blob_names))
+    #
+    #    self._derived_blobs = np.ones(shape) * np.inf
         
-        for i, redshift in enumerate(self.blob_redshifts):
-            
-            data = dqs[i]
-            for key in data:
-                j = self._derived_blob_names.index(key)
-                self._derived_blobs[:,i,j] = data[key]
-
-                
-        mask = np.zeros_like(self._derived_blobs)    
-        mask[np.isinf(self._derived_blobs)] = 1
-        
-        self.dmask = mask
-        
-        self._derived_blobs = np.ma.masked_array(self._derived_blobs, 
-            mask=mask)
-
-        return self._derived_blobs
+    #    for i, redshift in enumerate(self.blob_redshifts):
+    #        
+    #        data = dqs[i]
+    #        for key in data:
+    #            j = self._derived_blob_names.index(key)
+    #            self._derived_blobs[:,i,j] = data[key]
+    #
+    #            
+    #    mask = np.ones_like(self._derived_blobs)    
+    #    #mask[np.isinf(self._derived_blobs)] = 1
+    #    #mask[np.isnan(self._derived_blobs)] = 1
+    #    mask[np.isfinite(self._derived_blobs)] = 0
+    #    
+    #    self.dmask = mask
+    #    
+    #    self._derived_blobs = np.ma.masked_array(self._derived_blobs, 
+    #        mask=mask)
+    #
+    #    return self._derived_blobs
 
     def set_constraint(self, add_constraint=False, **constraints):
         """
         For ModelGrid calculations, the likelihood must be supplied 
-        after-the-fact.
+        after the fact.
 
         Parameters
         ----------
@@ -719,8 +1084,19 @@ class ModelSet(object):
             for element in constraints:
 
                 z, func = constraints[element]
+                
+                try:
+                    j = self.blob_redshifts.index(z)
+                except ValueError:
+                    ztmp = []
+                    for redshift in self.blob_redshifts_float:
+                        if redshift is None:
+                            ztmp.append(None)
+                        else:
+                            ztmp.append(round(redshift, 1))    
 
-                j = self.blob_redshifts.index(z)
+                    j = ztmp.index(round(z, 1))
+                
                 if element in self.blob_names:
                     k = self.blob_names.index(element)
                     data = self.blobs[i,j,k]
@@ -734,10 +1110,10 @@ class ModelSet(object):
 
         mask = np.isnan(self.logL)
 
-        self.logL[mask] = -np.inf 
+        self.logL[mask] = -np.inf
 
     def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, 
-        take_log=False, multiplier=1., labels=None, **kwargs):
+        take_log=False, multiplier=1., **kwargs):
         """
         Show occurrences of turning points B, C, and D for all models in
         (z, dTb) space, with points color-coded to likelihood.
@@ -766,12 +1142,12 @@ class ModelSet(object):
         else:
             gotax = True
 
-        if labels is None:
-            labels = default_labels
-        else:
+        if 'labels' in kwargs:
             labels_tmp = default_labels.copy()
-            labels_tmp.update(labels)
+            labels_tmp.update(kwargs['labels'])
             labels = labels_tmp
+        else:
+            labels = default_labels
 
         if type(take_log) == bool:
             take_log = [take_log] * 2
@@ -831,15 +1207,17 @@ class ModelSet(object):
         else:
             scat = ax.scatter(xdat, ydat, **kwargs)
 
-        if take_log[0]:
-            ax.set_xlabel(logify_str(labels[self.get_par_prefix(x)]))
-        else:
-            ax.set_xlabel(labels[self.get_par_prefix(x)])
+        ax.set_xlabel(make_label(x, take_log=take_log[0]))
+        ax.set_ylabel(make_label(y, take_log=take_log[1]))
+        #if take_log[0]:
+        #    ax.set_xlabel(logify_str(labels[self.get_par_prefix(x)]))
+        #else:
+        #    ax.set_xlabel(labels[self.get_par_prefix(x)])
 
-        if take_log[1]: 
-            ax.set_ylabel(logify_str(labels[self.get_par_prefix(y)]))
-        else:
-            ax.set_ylabel(labels[self.get_par_prefix(y)])
+        #if take_log[1]: 
+        #    ax.set_ylabel(logify_str(labels[self.get_par_prefix(y)]))
+        #else:
+        #    ax.set_ylabel(labels[self.get_par_prefix(y)])
                             
         if c is not None:
             cb = pl.colorbar(scat)
@@ -889,21 +1267,12 @@ class ModelSet(object):
         colors to each element of the likelihood.
         """
     
-        nu, levels = self.confidence_regions(L, nu=nu)
+        nu, levels = _error_2D_crude(L, nu=nu)
                                                                       
         return nu, levels
     
-    def link_to_dict(self, link):
-        pf = {}
-        for i, par in enumerate(self.parameters):
-            if self.is_log[i]:
-                pf[par] = 10**link[i]
-            else:
-                pf[par] = link[i]
-        
-        return pf
-    
-    def get_1d_error(self, par, z=None, bins=20, nu=0.68, take_log=False):
+    def get_1d_error(self, par, z=None, bins=500, nu=0.68, take_log=False,
+        limit=None, multiplier=1.):
         """
         Compute 1-D error bar for input parameter.
         
@@ -915,35 +1284,51 @@ class ModelSet(object):
             Number of bins to use in histogram
         nu : float
             Percent likelihood enclosed by this 1-D error
-        
+        limit : str
+            Valid options: 'lower' and 'upper', if not None.
         Returns
         -------
         Tuple, (maximum likelihood value, negative error, positive error).
-
         """
+
+        pars, take_log, multiplier, z = \
+            self._listify_common_inputs([par], take_log, multiplier, z)
+
+        to_hist, is_log = self.ExtractData(par, z=z, take_log=take_log, 
+            multiplier=multiplier)
+
+        # Need to weight results of non-MCMC runs explicitly
+        if not hasattr(self, 'weights'):
+            weights = None
+        else:
+            weights = self.weights
+
+        # Apply mask to weights
+        if weights is not None and to_hist[par].shape != weights.shape:
+            weights = weights[np.logical_not(mask)]
         
-        if par in self.parameters:
-            j = self.parameters.index(par)
-            to_hist = self.chain[:,j]
-        elif (par in self.blob_names) or (par in self.derived_blob_names):
-            if z is None:
-                raise ValueError('Must supply redshift!')
-            
-            to_hist = self.extract_blob(par, z=z).compressed()
-
-            if take_log:
-                to_hist = np.log10(to_hist)
-
+        if hasattr(to_hist[par], 'compressed'):
+            to_hist[par] = to_hist[par].compressed()
+                
+                
+        if to_hist[par] == []:
+            print "WARNING: error w/ %s" % par
+            print "@ z=" % z
+            return
+                
         hist, bin_edges = \
-            np.histogram(to_hist, density=True, bins=bins)
+            np.histogram(to_hist[par], density=True, bins=bins, 
+            weights=weights)
 
         bc = rebin(bin_edges)
 
         if to_hist is []:
-            return None, (None, None)    
+            return None, (None, None)
 
+        mu, sigma = error_1D(bc, hist, nu=nu, limit=limit)
+                
         try:
-            mu, sigma = float(bc[hist == hist.max()]), error_1D(bc, hist, nu=nu)
+            mu, sigma = error_1D(bc, hist, nu=nu, limit=limit)
         except ValueError:
             return None, (None, None)
 
@@ -1042,9 +1427,7 @@ class ModelSet(object):
             Each entry should be a two-element list, with the first
             element being the redshift at which to apply the constraint,
             and second, a function for the posterior PDF for that quantity.s
-    
-            
-            
+                
         Examples
         --------
         
@@ -1174,6 +1557,9 @@ class ModelSet(object):
             else:
                 raise ValueError('Unrecognized parameter %s' % str(par))
 
+            if not bins:
+                continue
+            
             # Set bins
             if self.is_mcmc or (par not in self.parameters):
                 if type(bins) == int:
@@ -1193,13 +1579,245 @@ class ModelSet(object):
                 else:
                     binvec.append(self.axes[par])
         
-        return binvec, to_hist, is_log
+        return pars, to_hist, is_log, binvec
+      
+    def ExtractData(self, pars, z=None, take_log=False, multiplier=1.):
+        """
+        Extract data for subsequent analysis.
+        
+        This means a few things:
+         (1) Go retrieve data from native format without having to worry about
+          all the indexing yourself.
+         (2) [optionally] take the logarithm.
+         (3) [optionally] apply multiplicative factors.
+         (4) If bins are s
+         
+        Parameters
+        ----------
+        pars : list
+            List of quantities to return. These can be parameters or the names
+            of meta-data blobs.
+         
+        Returns
+        -------
+        Tuple with three entries:
+         (i) Dictionary containing 1-D arrays of samples for each quantity.
+         (ii) 
+         
+         
+        """
+        
+        pars, take_log, multiplier, z = \
+            self._listify_common_inputs(pars, take_log, multiplier, z)        
+                        
+        to_hist = []
+        is_log = []
+        for k, par in enumerate(pars):
+        
+            # If one of our free parameters, return right away
+            if par in self.parameters:
+                j = self.parameters.index(par)
+                is_log.append(self.is_log[j])
+                val = self.chain[:,j].copy()
+        
+                if self.is_log[j]:
+                    val += np.log10(multiplier[k])
+                else:
+                    val *= multiplier[k]
+        
+                if take_log[k] and not self.is_log[j]:
+                    to_hist.append(np.log10(val))
+                else:
+                    to_hist.append(val)
+        
+            else:
+                val = self.extract_blob(par, z[k]).copy()
+        
+                val *= multiplier[k]
+        
+                if take_log[k]:
+                    is_log.append(True)
+                    to_hist.append(np.log10(val))
+                else:
+                    is_log.append(False)
+                    to_hist.append(val)
+        
+        # Re-organize
+        if len(np.unique(pars)) < len(pars):
+            data = to_hist
+        else:    
+            data = {par:to_hist[i] for i, par in enumerate(pars)}
+            is_log = {par:is_log[i] for i, par in enumerate(pars)}
+                    
+        return data, is_log
+
+    def _set_bins(self, pars, to_hist, take_log=False, bins=20):
+        """
+        Create a vector of bins to be used when plotting PDFs.
+        """
+        
+        if type(to_hist) is dict:
+            binvec = {}
+        else:
+            binvec = []
+            
+        for k, par in enumerate(pars):
+            
+            if type(to_hist) is dict:
+                tohist = to_hist[par]
+            else:
+                tohist = to_hist[k]
+        
+            if self.is_mcmc or (par not in self.parameters) or \
+                not hasattr(self, 'axes'):
+                if type(bins) == int:
+                    valc = tohist
+                    bvp = np.linspace(valc.min(), valc.max(), bins)
+                elif type(bins[k]) == int:
+                    valc = tohist
+                    bvp = np.linspace(valc.min(), valc.max(), bins[k])
+                else:
+                    bvp = bins[k]
+                    #if take_log[k]:
+                    #    binvec.append(np.log10(bins[k]))
+                    #else:
+                    #    binvec.append(bins[k])
+            else:
+                if take_log[k]:
+                    bvp = np.log10(self.axes[par])
+                else:
+                    bvp = self.axes[par]
+        
+            if type(to_hist) is dict:
+                binvec[par] = bvp
+            else:
+                binvec.append(bvp)
+        
+        return binvec
+        
+    def _set_inputs(self, pars, inputs, is_log, take_log, multiplier):
+        """
+        Figure out input values for x and y parameters for each panel.
+        
+        Returns
+        -------
+        Dictionary, elements sorted by 
+        """
+        
+        if inputs is None:
+            return None
+        
+        if type(inputs) is list:
+            if inputs == []:
+                return None
+        
+        if type(inputs) is dict:
+            if not inputs:
+                return None
+        else:
+            inputs = list(inputs)
+                        
+        if type(is_log) is dict:
+            tmp = [is_log[par] for par in pars]    
+            is_log = tmp
+        
+        if type(multiplier) in [int, float]:
+            multiplier = [multiplier] * len(pars)    
+            
+        if len(np.unique(pars)) < len(pars):
+            input_output = []
+        else:
+            input_output = {}
+        
+        Nd = len(pars)
+                                
+        for i, par in enumerate(pars):
+            if type(inputs) is list:
+                val = inputs[i]
+            elif par in inputs:
+                val = inputs[par]
+            else:
+                dq = DQ(data=inputs)
+                try:
+                    val = dq[par]
+                except:
+                    val = None
+                    
+            # Take log [optional]    
+            if val is None:
+                vin = None
+            elif is_log[i] or take_log[i]:
+                vin = np.log10(val * multiplier[i])                            
+            else:
+                vin = val * multiplier[i]    
+                
+            if type(input_output) is dict:
+                input_output[par] = vin
+            else:
+                input_output.append(vin)
+                    
+        # Loop over parameters
+        #for i, p1 in enumerate(pars[-1::-1]):
+        #    for j, p2 in enumerate(pars):
+        #        
+        #        # y-values first
+        #        if type(inputs) is list:
+        #            val = inputs[-1::-1][i]
+        #        elif p1 in inputs:
+        #            val = inputs[p1]
+        #        else:
+        #            val = None
+        #            
+        #        # Take log [optional]    
+        #        if val is None:
+        #            yin = None
+        #        elif is_log[i] or take_log[i]:
+        #            yin = np.log10(val * multiplier[-1::-1][i])                            
+        #        else:
+        #            yin = val * multiplier[-1::-1][i]                        
+        #                                    
+        #        # x-values next
+        #        if type(inputs) is list:
+        #            val = inputs[j]        
+        #        elif p2 in inputs:
+        #            val = inputs[p2]
+        #        else:
+        #            val = None
+        #                        
+        #        # Take log [optional]
+        #        if val is None:
+        #            xin = None  
+        #        elif is_log[Nd-j-1] or take_log[Nd-j-1]:
+        #            xin = np.log10(val * multiplier[-1::-1][Nd-j-1])
+        #        else:
+        #            xin = val * multiplier[-1::-1][Nd-j-1]
+                
+            
+        return input_output
+        
+    def _listify_common_inputs(self, pars, take_log, multiplier, z):
+        if type(pars) not in [list, tuple]:
+            pars = [pars]
+        if type(take_log) == bool:
+            take_log = [take_log] * len(pars)
+        if type(multiplier) in [int, float]:
+            multiplier = [multiplier] * len(pars)
+
+        if type(z) is list:
+            if len(z) != len(pars):
+                raise ValueError('Length of z must be = length of pars!')
+        else:
+            z = [z] * len(pars)
+            
+        return pars, take_log, multiplier, z
+
+    def PosteriorCDF(self, pars, bins=500, **kwargs):
+        return self.PosteriorPDF(pars, bins=bins, cdf=True, **kwargs)
                
-    def PosteriorPDF(self, pars, z=None, ax=None, fig=1, multiplier=1.,
-        nu=[0.95, 0.68], overplot_nu=False, density=True, 
-        color_by_like=False, filled=True, take_log=False,
-        bins=20, xscale='linear', yscale='linear', skip=0, skim=1, 
-        labels=None, **kwargs):
+    def PosteriorPDF(self, pars, to_hist=None, is_log=None, z=None, ax=None, fig=1, 
+        multiplier=1., nu=[0.95, 0.68], overplot_nu=False, density=True, cdf=False,
+        color_by_like=False, filled=True, take_log=False, bins=20, skip=0, skim=1, 
+        contour_method='raw', excluded=False, stop=None, **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
     
@@ -1231,6 +1849,9 @@ class ModelSet(object):
             way of doing a burn-in after the fact.
         skim : int
             Only take every skim'th step from the chain.
+        excluded : bool
+            If True, and filled == True, fill the area *beyond* the given contour with
+            cross-hatching, rather than the area interior to it.
 
         Returns
         -------
@@ -1239,157 +1860,105 @@ class ModelSet(object):
         1-D marginalized posterior PDF (latter).
     
         """
-    
+
+        cs = None
+        
         kw = def_kwargs.copy()
         kw.update(kwargs)
-        
-        if labels is None:
-            labels = default_labels
-        else:
+
+        if 'labels' in kw:
             labels_tmp = default_labels.copy()
-            labels_tmp.update(labels)
+            labels_tmp.update(kwargs['labels'])
             labels = labels_tmp
-        
-        if type(pars) not in [list, tuple]:
-            pars = [pars]
-        if type(take_log) == bool:
-            take_log = [take_log] * len(pars)
-        if type(multiplier) in [int, float]:
-            multiplier = [multiplier] * len(pars)    
-        
-        if type(z) is list:
-            if len(z) != len(pars):
-                raise ValueError('Length of z must be = length of pars!')
+
         else:
-            z = [z] * len(pars)
-    
+            labels = default_labels
+            
+        pars, take_log, multiplier, z = \
+            self._listify_common_inputs(pars, take_log, multiplier, z)
+
+        # Only make a new plot window if there isn't already one
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
         else:
             gotax = True
-    
-        binvec = []
-        to_hist = []
-        is_log = []
-        for k, par in enumerate(pars):
 
-            if par in self.parameters:        
-                j = self.parameters.index(par)
-                is_log.append(self.is_log[j])
-                
-                val = self.chain[skip:,j].ravel()[::skim]
-                                
-                if self.is_log[j]:
-                    val += np.log10(multiplier[k])
-                else:
-                    val *= multiplier[k]
-                                
-                if take_log[k] and not self.is_log[j]:
-                    to_hist.append(np.log10(val))
-                else:
-                    to_hist.append(val)
-                
-            elif (par in self.blob_names) or (par in self.derived_blob_names):
-                
-                if z is None:
-                    raise ValueError('Must supply redshift!')
-                    
-                i = self.blob_redshifts.index(z[k])
-                
-                if par in self.blob_names:
-                    j = list(self.blob_names).index(par)
-                else:
-                    j = list(self.derived_blob_names).index(par)
-                
-                is_log.append(False)
-                
-                if par in self.blob_names:
-                    val = self.blobs[skip:,i,j][::skim]
-                else:
-                    val = self.derived_blobs[skip:,i,j][::skim]
-                
-                if take_log[k]:
-                    val += np.log10(multiplier[k])
-                else:
-                    val *= multiplier[k]
-                
-                if take_log[k]:
-                    to_hist.append(np.log10(val))
-                else:
-                    to_hist.append(val)
+        # Grab all the data we need
+        if (to_hist is None) or (is_log is None):
+            to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log, 
+                multiplier=multiplier)
 
-            else:
-                raise ValueError('Unrecognized parameter %s' % str(par))
-
-            # Set bins
-            if self.is_mcmc or (par not in self.parameters):
-                if type(bins) == int:
-                    valc = to_hist[k]
-                    binvec.append(np.linspace(valc.min(), valc.max(), bins))
-                elif type(bins[k]) == int:
-                    valc = to_hist[k]
-                    binvec.append(np.linspace(valc.min(), valc.max(), bins[k]))
-                else:
-                    if take_log[k]:
-                        binvec.append(np.log10(bins[k]))
-                    else:
-                        binvec.append(bins[k])
-            else:
-                if take_log[k]:
-                    binvec.append(np.log10(self.axes[par]))
-                else:
-                    binvec.append(self.axes[par])
-
+        # Modify bins to account for log-taking, multipliers, etc.
+        binvec = self._set_bins(pars, to_hist, take_log, bins)
+        
+        # We might supply weights by-hand for ModelGrid calculations
         if not hasattr(self, 'weights'):
             weights = None
         else:
             weights = self.weights
-
+            
+        ##
+        ### Histogramming and plotting starts here
+        ##
+        
+        if stop is not None:
+            stop = -int(stop)
+                    
+        # Marginalized 1-D PDFs 
         if len(pars) == 1:
+                        
+            if type(to_hist) is dict:
+                tohist = to_hist[pars[0]][skip:stop]
+                b = binvec[pars[0]]
+            elif type(to_hist) is list:
+                tohist = to_hist[0][skip:stop]
+                b = binvec[0]
+            else:
+                tohist = to_hist[skip:stop]
+                b = bins
             
             hist, bin_edges = \
-                np.histogram(to_hist[0], density=density, bins=binvec[0], 
-                    weights=weights)
+                np.histogram(tohist, density=density, bins=b, weights=weights)
 
             bc = rebin(bin_edges)
-        
+            
+            # Take CDF
+            if cdf:
+                hist = np.cumsum(hist)
+                        
             tmp = self._get_1d_kwargs(**kw)
             
             ax.plot(bc, hist / hist.max(), drawstyle='steps-mid', **tmp)
-            ax.set_xscale(xscale)
-            
-            if overplot_nu:
-                
-                try:
-                    mu, sigma = bc[hist == hist.max()], error_1D(bc, hist, nu=nu)
-                except ValueError:
-                    mu, sigma = bc[hist == hist.max()], error_1D(bc, hist, nu=nu[0])
-                
-                mi, ma = ax.get_ylim()
-            
-                ax.plot([mu - sigma[0]]*2, [mi, ma], color='k', ls=':')
-                ax.plot([mu + sigma[1]]*2, [mi, ma], color='k', ls=':')
             
             ax.set_ylim(0, 1.05)
             
+        # Marginalized 2-D PDFs
         else:
             
-            if to_hist[0].size != to_hist[1].size:
-                print 'Looks like calculation was terminated after chain',
-                print 'was written to disk, but before blobs. How unlucky!'
-                print 'Applying cludge to ensure shape match...'
-                
-                if to_hist[0].size > to_hist[1].size:
-                    to_hist[0] = to_hist[0][0:to_hist[1].size]
-                else:
-                    to_hist[1] = to_hist[1][0:to_hist[0].size]
-                    
+            #if to_hist[0].size != to_hist[1].size:
+            #    print 'Looks like calculation was terminated after chain',
+            #    print 'was written to disk, but before blobs. How unlucky!'
+            #    print 'Applying cludge to ensure shape match...'
+            #    
+            #    if to_hist[0].size > to_hist[1].size:
+            #        to_hist[0] = to_hist[0][0:to_hist[1].size]
+            #    else:
+            #        to_hist[1] = to_hist[1][0:to_hist[0].size]
+
+            if type(to_hist) is dict:
+                tohist1 = to_hist[pars[0]][skip:stop]
+                tohist2 = to_hist[pars[1]][skip:stop]
+                b = [binvec[pars[0]], binvec[pars[1]]]
+            else:
+                tohist1 = to_hist[0][skip:stop]
+                tohist2 = to_hist[1][skip:stop]
+                b = [binvec[0], binvec[1]]
+
             # Compute 2-D histogram
             hist, xedges, yedges = \
-                np.histogram2d(to_hist[0], to_hist[1], 
-                    bins=[binvec[0], binvec[1]], weights=weights)
+                np.histogram2d(tohist1, tohist2, bins=b, weights=weights)
 
             hist = hist.T
 
@@ -1397,64 +1966,126 @@ class ModelSet(object):
             bc = []
             for i, edges in enumerate([xedges, yedges]):
                 bc.append(rebin(edges))
-                    
+
             # Determine mapping between likelihood and confidence contours
             if color_by_like:
-    
+
                 # Get likelihood contours (relative to peak) that enclose
                 # nu-% of the area
-                nu, levels = self.get_levels(hist, nu=nu)
+
+                if contour_method == 'raw':
+                    nu, levels = error_2D(None, None, hist, None, nu=nu, 
+                        method='raw')
+                else:
+                    nu, levels = error_2D(to_hist[0], to_hist[1], self.L / self.L.max(), 
+                        bins=[binvec[0], binvec[1]], nu=nu, method=contour_method)
         
                 if filled:
-                    ax.contourf(bc[0], bc[1], hist / hist.max(), 
-                        levels, **kwargs)
+                    if excluded and len(nu) == 1:
+                        # Fill the entire window with cross-hatching
+                        x1, x2 = ax.get_xlim()
+                        y1, y2 = ax.get_ylim()
+
+                        x_polygon = [x1, x2, x2, x1]
+                        y_polygon = [y1, y1, y2, y2]
+
+                        ax.fill(x_polygon, y_polygon, color="none", hatch='X', 
+                            edgecolor=kwargs['color'])
+                            
+                        # Now, fill the enclosed area with white
+                        ax.contourf(bc[0], bc[1], hist / hist.max(), 
+                            levels, color='w', colors='w', zorder=2)
+                        # Draw an outline too   
+                        ax.contour(bc[0], bc[1], hist / hist.max(), 
+                            levels, colors=kwargs['color'], linewidths=1, 
+                            zorder=2)
+                            
+                        
+                    else:
+                        ax.contourf(bc[0], bc[1], hist / hist.max(), 
+                            levels, zorder=3, **kwargs)
+                    
                 else:
                     ax.contour(bc[0], bc[1], hist / hist.max(),
-                        levels, **kwargs)
+                        levels, zorder=4, **kwargs)
                 
             else:
                 if filled:
-                    ax.contourf(bc[0], bc[1], hist / hist.max(), **kw)
+                    cs = ax.contourf(bc[0], bc[1], hist / hist.max(), 
+                        zorder=3, **kw)
                 else:
-                    ax.contour(bc[0], bc[1], hist / hist.max(), **kw)
+                    cs = ax.contour(bc[0], bc[1], hist / hist.max(), 
+                        zorder=4, **kw)
 
+            # Force linear
             if not gotax:
-                ax.set_xscale(xscale)
-                ax.set_yscale(yscale)
+                ax.set_xscale('linear')
+                ax.set_yscale('linear')
             
-            if overplot_nu:
-                
-                for i in range(2):
-                    
-                    hist, bin_edges = \
-                        np.histogram(to_hist[i], density=density, bins=bins)
-                    
-                    bc = rebin(bin_edges)
-                    
-                    mu = bc[hist == hist.max()]
-                    
-                    try:
-                        sigma = error_1D(bc, hist, nu=nu)
-                    except ValueError:
-                        sigma = error_1D(bc, hist, nu=nu[0])
-
-                    if i == 0:
-                        mi, ma = ax.get_ylim()
-                    else:
-                        mi, ma = ax.get_xlim()
-
-                    if i == 0:
-                        ax.plot([mu - sigma[0]]*2, [mi, ma], color='k', ls=':')
-                        ax.plot([mu + sigma[1]]*2, [mi, ma], color='k', ls=':')
-                    else:
-                        ax.plot([mi, ma], [mu - sigma[0]]*2, color='k', ls=':')
-                        ax.plot([mi, ma], [mu + sigma[1]]*2, color='k', ls=':')
-
+        # Add nice labels (or try to)
         self.set_axis_labels(ax, pars, is_log, take_log, labels)
 
-        pl.draw()
+        # Rotate ticks?
 
+        pl.draw()
+        
         return ax
+      
+    def FindContour(self, pars, z=None, take_log=False, multiplier=1., bins=20, 
+        nu=0.68, contour_method='raw', weights=None):
+        """
+        Find a contour in the plane defined by `pars`, and return its x-y trajectory.
+        
+        Parameters
+        ----------
+        pars : list
+            2-element list of parameters that defined plane of interest.
+        
+        """
+        
+        pars, z, take_log, multiplier = \
+            self._listify_common_inputs(pars, z, take_log, multiplier)
+        
+        if type(nu) not in [list]:
+            nu = [nu]
+        
+        to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log,
+            multiplier=multiplier)
+        
+        binvec = self._set_bins(pars, to_hist, take_log, bins)
+        
+        # Compute 2-D histogram
+        hist, xedges, yedges = \
+            np.histogram2d(to_hist[pars[0]], to_hist[pars[1]], 
+                bins=[binvec[pars[0]], binvec[pars[1]]], weights=weights)
+        
+        # Recover bin centers
+        bc = []
+        for i, edges in enumerate([xedges, yedges]):
+            bc.append(rebin(edges))
+        
+        # ContourSet needs 2-D arrays
+        x, y = np.meshgrid(bc[0], bc[1])
+        
+        # Create contour object
+        c = cntr.Cntr(x, y, hist.T / hist.max())     
+                
+        # Find levels corresponding to nu-sigma inputs
+        nu, levels = error_2D(to_hist[pars[0]], to_hist[pars[1]], 
+            self.L / self.L.max(), bins=[binvec[pars[0]], binvec[pars[1]]], 
+            nu=nu, method=contour_method)
+        
+        # Find x-y trajectory of contour
+        all_contours = []
+        for level in levels:
+            nlist = c.trace(level, level, 0)
+            segs = nlist[:len(nlist)/2]
+            all_contours.append(segs) 
+            
+        return all_contours
+        
+    def get_2d_error(self, plane, nu=0.68):
+        pass
         
     def ContourScatter(self, x, y, c, z=None, Nscat=1e4, take_log=False, 
         cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
@@ -1558,7 +2189,7 @@ class ModelSet(object):
             zorder=1, edgecolors='none', alpha=alpha, vmin=vmin, vmax=vmax,
             norm=norm)
         cb = pl.colorbar(scat)
-        
+
         cb.set_alpha(1)
         cb.draw_all()
 
@@ -1569,19 +2200,70 @@ class ModelSet(object):
         else:
             cblab = c 
             
-        cb.set_label(logify_str(cblab))    
+        cb.set_label(logify_str(cblab))
             
         cb.update_ticks()
             
         pl.draw()
         
-        return ax, scat, cb
+        return ax, scat, cb    
         
+    def extract_panel(self, panel, mp, rotate_x=45, rotate_y=45, ax=None, 
+        fig=99):
+        """
+        Save panel of a triangle plot as separate file.
+        
+        panel : int, str
+            Integer or letter corresponding to plot panel you want.
+        mp : MultiPlot instance
+            Object representation of the triangle plot
+        fig : int
+            Figure number.
+        
+        """    
+        
+        letters = list(string.ascii_lowercase)
+        letters.extend([let*2 for let in list(string.ascii_lowercase)])
+        
+        
+        if type(panel) is str:
+            panel = letters.index(panel)
+        
+        info = self.plot_info[panel]
+        kw = self.plot_info['kwargs']
+        
+        ax = self.PosteriorPDF(info['axes'], z=info['z'], bins=info['bins'],
+            multiplier=info['multiplier'], take_log=info['take_log'],
+            fig=fig, ax=ax, **kw)
+        
+        ax.set_xticks(mp.grid[panel].get_xticks())
+        ax.set_yticks(mp.grid[panel].get_yticks())
+        
+        xt = []
+        for i, x in enumerate(mp.grid[panel].get_xticklabels()):
+            xt.append(x.get_text())
+        
+        ax.set_xticklabels(xt, rotation=rotate_x)
+        
+        yt = []
+        for i, x in enumerate(mp.grid[panel].get_yticklabels()):
+            yt.append(x.get_text())
+            
+        ax.set_yticklabels(yt, rotation=rotate_y)
+        
+        ax.set_xlim(mp.grid[panel].get_xlim())
+        ax.set_ylim(mp.grid[panel].get_ylim())
+        
+        pl.draw()
+        
+        return ax
+                
     def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
         padding=(0,0), show_errors=False, take_log=False, multiplier=1,
         fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
-        skim=1, top=None, oned=True, filled=True, box=None, rotate_x=True, 
-        labels=None, **kwargs):
+        skim=1, top=None, oned=True, twod=True, filled=True, box=None, 
+        rotate_x=45, rotate_y=45, add_cov=False, label_panels='upper right', 
+        fix=True, skip_panels=[], stop=None, **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
 
@@ -1602,8 +2284,13 @@ class ModelSet(object):
 
         fig : int
             ID number for plot window.
-        bins : int,
-            Number of bins in each dimension.
+        bins : int, np.ndarray
+            Number of bins in each dimension. Or, array of bins to use
+            for each parameter. If the latter, the bins should be in the 
+            *final* units of the quantities of interest. For example, if
+            you apply a multiplier or take_log, the bins should be in the
+            native units times the multiplier or in the log10 of the native
+            units (or both).
         z : int, float, str, list
             If plotting arbitrary meta-data blobs, must choose a redshift.
             Can be 'B', 'C', or 'D' to extract blobs at 21-cm turning points,
@@ -1618,8 +2305,9 @@ class ModelSet(object):
             Multiplicative factor in (x, y) to be applied to the default 
             window size as defined in your matplotlibrc file. 
         skip : int
-            Number of steps at beginning of chain to exclude. This is a nice
-            way of doing a burn-in after the fact.
+            Number of steps at beginning of chain to exclude.
+        stop: int
+            Number of steps to exclude from the end of the chain.
         skim : int
             Only take every skim'th step from the chain.
         oned : bool    
@@ -1634,181 +2322,263 @@ class ModelSet(object):
             nu=[0.68, 0.95])
         rotate_x : bool
             Rotate xtick labels 90 degrees.
+        add_cov : bool, list
+            Overplot 1-sigma contours, computed using the covariance matrix.
+            If it's a list, will assume it has [mu, cov] (i.e., not necessarily
+            the extracted covariance matrix but the one used in the fit).
+        skip_panels : list
+            List of panel numbers to skip over.
         
         Returns
         -------
         ares.analysis.MultiPlot.MultiPanel instance.
         
         """    
-        
-        if pars is None:
-            pars = self.parameters
-        
+                
+        pars, take_log, multiplier, z = \
+            self._listify_common_inputs(pars, take_log, multiplier, z)
+                
         kw = def_kwargs.copy()
         kw.update(kwargs)
-        
-        if labels is None:
-            labels = default_labels
-        else:
+                        
+        if 'labels' in kwargs:
             labels_tmp = default_labels.copy()
-            labels_tmp.update(labels)
-            labels = labels_tmp
-        
-        if type(take_log) == bool:
-            take_log = [take_log] * len(pars)
-        if multiplier == 1:
-            multiplier = [multiplier] * len(pars)        
-        if type(bins) == int:
-            bins = [bins] * len(pars)    
-        if type(z) is list:
-            if len(z) != len(pars):
-                raise ValueError('Length of z must be = length of pars!')
+            labels_tmp.update(kwargs['labels'])
+            labels = kwargs['labels']
+            kw['labels'] = kwargs['labels']
         else:
-            z = [z] * len(pars)
+            labels = default_labels
         
-        is_log = []
-        for i, par in enumerate(pars[-1::-1]):
-            if par in self.parameters:
-                is_log.append(self.is_log[self.parameters.index(par)])
-            elif par in self.blob_names or self.derived_blob_names:
-                if take_log[-1::-1][i]:
-                    is_log.append(True)
-                else:    
-                    is_log.append(False)
-                
+        to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log, 
+            multiplier=multiplier)
+            
+        # Modify bins to account for log-taking, multipliers, etc.
+        binvec = self._set_bins(pars, to_hist, take_log, bins)      
+                            
+        if type(binvec) is not list:
+            bins = [binvec[par] for par in pars]      
+        else:
+            bins = binvec    
+                                
         if oned:
             Nd = len(pars)
         else:
             Nd = len(pars) - 1
                            
         # Multipanel instance
+        had_mp = True
         if mp is None:
-            mp = MultiPanel(dims=[Nd]*2, padding=padding, diagonal='lower',
-                panel_size=panel_size, fig=fig, top=top, **kw)
+            had_mp = False
+            
+            if 'diagonal' not in kwargs:
+                kw['diagonal'] = 'lower'
+            if 'dims' not in kwargs:    
+                kw['dims'] = [Nd] * 2
+            if 'keep_diagonal' not in kwargs:    
+                kw['keep_diagonal'] = True
+            else:
+                oned = False
 
+            mp = MultiPanel(padding=padding,
+                panel_size=panel_size, fig=fig, top=top, **kw)
+        
+        for key in ['bottom', 'top', 'left', 'right', 'figsize', 'diagonal', 'dims', 'keep_diagonal']:
+            if key in kw:
+                del kw[key]
+                        
+        # Apply multipliers etc. to inputs
+        inputs = self._set_inputs(pars, inputs, is_log, take_log, multiplier)
+
+        self.plot_info = {}
+        self.plot_info['kwargs'] = kwargs
+        
         # Loop over parameters
+        # p1 is the y-value, p2 is the x-value
         for i, p1 in enumerate(pars[-1::-1]):
             for j, p2 in enumerate(pars):
 
                 # Row number is i
                 # Column number is self.Nd-j-1
 
-                k = mp.axis_number(i, j)
+                if mp.diagonal == 'upper':
+                    k = mp.axis_number(mp.N - i, mp.N - j)
+                else:    
+                    k = mp.axis_number(i, j)
 
                 if k is None:
                     continue
-                
+                    
+                if k in skip_panels:
+                    continue
+
                 if mp.grid[k] is None:
                     continue
-                    
-                # Input values (optional)
-                if inputs:
-                        
-                    if type(inputs) is list:
-                        val = inputs[-1::-1][i]
-                    elif p1 in inputs:
-                        val = inputs[p1]
-                    else:
-                        val = None
-                                                
-                    if val is None:
-                        yin = None
-                    elif is_log[i]:
-                        yin = np.log10(val)                            
-                    else:
-                        yin = val                        
-                else:
-                    yin = None
+
+                col, row = mp.axis_position(k)   
                 
-                if inputs:
-                    
-                    if type(inputs) is list:
-                        val = inputs[j]        
-                    elif p2 in inputs:
-                        val = inputs[p2]
+                # Read-in inputs values
+                if inputs is not None:
+                    if type(inputs) is dict:
+                        xin = inputs[p2]
+                        yin = inputs[p1]
                     else:
-                        val = None
-                    
-                    if val is None:
-                        xin = None  
-                    elif is_log[Nd-j-1]:
-                        xin = np.log10(val)
-                    else:
-                        xin = val
-
+                        xin = inputs[j]
+                        yin = inputs[-1::-1][i]
                 else:
-                    xin = None
-
-                col, row = mp.axis_position(k)    
-                                                                                
+                    xin = yin = None
+                    
                 # 1-D PDFs on the diagonal    
                 if k in mp.diag and oned:
 
-                    self.PosteriorPDF(p1, ax=mp.grid[k], 
-                        take_log=take_log[-1::-1][i], z=z[-1::-1][i],
-                        multiplier=[multiplier[-1::-1][i]], 
-                        bins=[bins[-1::-1][i]], skip=skip, skim=skim, 
-                        labels=labels, **kw)
+                    # Grab array to be histogrammed
+                    try:
+                        tohist = [to_hist[j]]
+                    except KeyError:
+                        tohist = [to_hist[p2]]
 
+                    # Plot the PDF
+                    ax = self.PosteriorPDF(p1, to_hist=tohist, is_log=is_log,
+                        ax=mp.grid[k], take_log=take_log[-1::-1][i], z=z[-1::-1][i],
+                        multiplier=[multiplier[-1::-1][i]], 
+                        bins=[bins[-1::-1][i]], skip=skip, skim=skim, stop=stop, 
+                        **kw)
+
+                    if add_cov:
+                        if type(add_cov) is list:
+                            self._PosteriorIdealized(ax=mp.grid[k], 
+                                mu=add_cov[k], cov=add_cov[k])                            
+                        else:
+                            self._PosteriorIdealized(pars=p1, ax=mp.grid[k], 
+                                z=z[-1::-1][i])
+
+                    # Stick this stuff in fix_ticks?
                     if col != 0:
                         mp.grid[k].set_ylabel('')
                     if row != 0:
                         mp.grid[k].set_xlabel('')
-                    
+
                     if show_errors:
                         mu, err = self.get_1d_error(p1)
                                                  
-                        mp.grid[k].set_title(err_str(labels[p1], mu, err, 
-                            self.is_log[i])) 
+                        mp.grid[k].set_title(err_str(p1, mu, err, 
+                            self.is_log[i], labels), va='bottom', fontsize=18) 
                      
+                    self.plot_info[k] = {}
+                    self.plot_info[k]['axes'] = [p1]
+                    self.plot_info[k]['data'] = tohist
+                    self.plot_info[k]['z'] = z[-1::-1][i]
+                    self.plot_info[k]['bins'] = [bins[-1::-1][i]]
+                    self.plot_info[k]['multplier'] = [multiplier[-1::-1][i]]
+                    self.plot_info[k]['take_log'] = take_log[-1::-1][i]
+                                          
                     if not inputs:
                         continue
                         
+                    self.plot_info[k]['input'] = xin
+                        
                     if xin is not None:
                         mp.grid[k].plot([xin]*2, [0, 1.05], 
-                            color='k', ls=':', lw=2)
+                            color='k', ls=':', lw=2, zorder=20)
                             
                     continue
 
                 red = [z[j], z[-1::-1][i]]
 
-                # If not oned, may end up with some x vs. x plots
+                # If not oned, may end up with some x vs. x plots if we're not careful
                 if p1 == p2 and (red[0] == red[1]):
                     continue
-
+                    
+                try:
+                    tohist = [to_hist[j], to_hist[-1::-1][i]]
+                except KeyError:
+                    tohist = [to_hist[p2], to_hist[p1]]
+                
                 # 2-D PDFs elsewhere
-                self.PosteriorPDF([p2, p1], ax=mp.grid[k], z=red,
-                    take_log=[take_log[j], take_log[-1::-1][i]],
+                ax = self.PosteriorPDF([p2, p1], to_hist=tohist, is_log=is_log,
+                    ax=mp.grid[k], z=red, take_log=[take_log[j], take_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, 
-                    labels=labels, **kw)
+                    skip=skip, stop=stop, **kw)
                 
+                if add_cov:
+                    if type(add_cov) is list:
+                        pass
+                        self._PosteriorIdealized(ax=mp.grid[k], 
+                            mu=add_cov[k], cov=add_cov[k])
+                    else:
+                        self._PosteriorIdealized(pars=[p2, p1], 
+                            ax=mp.grid[k], z=red)
+
                 if row != 0:
                     mp.grid[k].set_xlabel('')
                 if col != 0:
                     mp.grid[k].set_ylabel('')
-
+                    
+                self.plot_info[k] = {}
+                self.plot_info[k]['axes'] = [p2, p1]
+                self.plot_info[k]['data'] = tohist
+                self.plot_info[k]['z'] = red
+                self.plot_info[k]['bins'] = [bins[j], bins[-1::-1][i]]
+                self.plot_info[k]['multiplier'] = [multiplier[j], multiplier[-1::-1][i]]
+                self.plot_info[k]['take_log'] = [take_log[j], take_log[-1::-1][i]] 
+                
                 # Input values
                 if not inputs:
                     continue
-                    
+                                
+                self.plot_info[k]['input'] = (xin, yin)
+                                                                    
+                # Plot as dotted lines
                 if xin is not None:
-                    mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k', 
-                        ls=':')
+                    mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k',
+                        ls=':', zorder=20)
                 if yin is not None:
-                    mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k', 
-                        ls=':')
+                    mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k',
+                        ls=':', zorder=20)
 
         if oned:
             mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
         
-        mp.fix_ticks(oned=oned, N=ticks, rotate_x=rotate_x)
-        mp.rescale_axes(tighten_up=tighten_up)
+        if fix:
+            mp.fix_ticks(oned=oned, N=ticks, rotate_x=rotate_x, rotate_y=rotate_y)
+        
+        if not had_mp:
+            mp.rescale_axes(tighten_up=tighten_up)
     
+        if label_panels is not None and (not had_mp):
+            letters = list(string.ascii_lowercase)
+            letters.extend([let*2 for let in list(string.ascii_lowercase)])
+
+            ct = 0
+            for ax in mp.grid:
+                if ax is None:
+                    continue
+
+                if label_panels == 'upper left':
+                    ax.annotate('(%s)' % letters[ct], (0.05, 0.95),
+                        xycoords='axes fraction', ha='left', va='top')
+                elif label_panels == 'upper right':
+                    ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
+                        xycoords='axes fraction', ha='right', va='top')
+                elif label_panels == 'upper center':
+                    ax.annotate('(%s)' % letters[ct], (0.5, 0.95),
+                        xycoords='axes fraction', ha='center', va='top')
+                elif label_panels == 'lower right':
+                    ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
+                        xycoords='axes fraction', ha='right', va='top')                
+                else:
+                    print "WARNING: Uncrecognized label_panels option."
+                    break
+
+                ct += 1    
+
+            pl.draw()
+
         return mp
         
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
-        nu=0.68, take_log=False, bins=20, label=None, **kwargs):
+        nu=0.68, take_log=False, bins=20, label=None,
+        plot_bands=False, limit=None, **kwargs):
         """
         Plot constraints on the redshift evolution of given quantity.
         
@@ -1823,13 +2593,16 @@ class ModelSet(object):
             
         """    
         
+        if plot_bands and (limit is not None):
+            raise ValueError('Choose bands or a limit, not both!')
+        
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
         else:
-            gotax = True
-
+            gotax = True      
+        
         try:
             ylabel = default_labels[blob]
         except KeyError:
@@ -1838,8 +2611,16 @@ class ModelSet(object):
         if redshifts is None:
             redshifts = self.blob_redshifts
             
+        if plot_bands or (limit is not None):
+            x = []; ymin = []; ymax = []
+            
         for i, z in enumerate(redshifts):
             
+            # Skip turning points for banded plots
+            if type(z) == str and plot_bands:
+                continue
+            
+            # Only plot label once
             if i == 0:
                 l = label
             else:
@@ -1848,7 +2629,7 @@ class ModelSet(object):
             try:
                 value, (blob_err1, blob_err2) = \
                     self.get_1d_error(blob, z=z, nu=nu, take_log=take_log,
-                    bins=bins)
+                    bins=bins, limit=limit)
             except TypeError:
                 continue
             
@@ -1856,19 +2637,43 @@ class ModelSet(object):
                 continue    
             
             # Error on redshift
-            if type(z) == str:
-                mu_z, (z_err1, z_err2) = \
-                    self.get_1d_error('z', z=z, nu=nu, bins=bins)
+            if type(z) == str and not plot_bands:
+                if blob == 'dTb':
+                    mu_z, (z_err1, z_err2) = \
+                        self.get_1d_error('nu', z=z, nu=nu, bins=bins)
+                else:
+                    mu_z, (z_err1, z_err2) = \
+                        self.get_1d_error('z', z=z, nu=nu, bins=bins)
+
                 xerr = np.array(z_err1, z_err2).T
             else:
                 mu_z = z
                 xerr = None
             
-            ax.errorbar(mu_z, value, 
-                xerr=xerr, 
-                yerr=np.array(blob_err1, blob_err2).T, 
-                lw=2, elinewidth=2, capsize=3, capthick=1, label=l,
-                **kwargs)        
+            if plot_bands:
+                if blob == 'dTb':
+                    x.append(nu_0_mhz / (1. + mu_z))
+                else:
+                    x.append(z)
+                ymin.append(value - blob_err1)
+                ymax.append(value + blob_err2)
+            elif limit is not None:
+                if blob == 'dTb':
+                    x.append(nu_0_mhz / (1. + mu_z))
+                else:
+                    x.append(z)
+                ymin.append(value)
+            else:                                    
+                ax.errorbar(mu_z, value, 
+                    xerr=xerr, 
+                    yerr=np.array(blob_err1, blob_err2).T, 
+                    lw=2, elinewidth=2, capsize=3, capthick=1, label=l,
+                    **kwargs)        
+        
+        if plot_bands:
+            ax.fill_between(x, ymin, ymax, **kwargs)
+        elif limit is not None:
+            ax.plot(x, ymin, **kwargs)
         
         # Look for populations
         m = re.search(r"\{([0-9])\}", blob)
@@ -1882,12 +2687,222 @@ class ModelSet(object):
             # Pop ID excluding curly braces
             prefix = blob.split(m.group(0))[0]
         
-        ax.set_xlabel(r'$z$')
+        if blob == 'dTb':
+            ax.set_xlabel(r'$\nu \ (\mathrm{MHz})$')
+        else:
+            ax.set_xlabel(r'$z$')
+            
         ax.set_ylabel(ylabel)
+
         pl.draw()
         
         return ax
         
+    def CovarianceMatrix(self, pars, z=None):
+        """
+        Compute covariance matrix for input parameters.
+
+        Parameters
+        ----------
+        pars : list
+            List of parameter names to include in covariance estimate.
+
+        Returns
+        -------
+        Returns vector of mean, and the covariance matrix itself.
+        
+        """
+        
+        if z is None:
+            z = [None] * len(pars)
+        elif type(z) is not list:
+            z = [z]
+        
+        masks = []
+        blob_vec = []
+        for i in range(len(pars)):
+            blob = self.extract_blob(pars[i], z=z[i])
+            if hasattr(blob, 'mask'):
+                masks.append(blob.mask)
+            else:
+                masks.append(np.zeros_like(blob))
+                
+            blob_vec.append(blob)    
+        
+        master_mask = np.zeros_like(masks[0])
+        for mask in masks:
+            master_mask += mask
+        
+        master_mask[master_mask > 0] = 1
+            
+        blob_vec_mast = self.blob_vec_mast = np.ma.array(blob_vec, 
+            mask=[master_mask] * len(blob_vec))
+        
+        blobs_compr = np.array([vec.compressed() for vec in blob_vec_mast])
+
+        mu = np.mean(blobs_compr, axis=1)
+        cov = np.cov(blobs_compr)
+
+        return mu, cov     
+
+    def _PosteriorIdealized(self, ax=None, pars=None, mu=None, cov=None, z=None, 
+        nu=[0.68, 0.95]):
+        """
+        Draw posterior distribution using covariance matrix.
+        """
+
+        # Handle 1-D PDFs separately
+        if pars is not None:
+            if type(pars) is str:
+            
+                # Set bounds using current axes limits
+                mi, ma = ax.get_xlim()
+                x = np.linspace(mi, ma, 100)
+                
+                # Extract the data, and calculate the mean and variance
+                blob = self.extract_blob(pars, z=z)
+                mu = np.mean(blob)
+                cov = np.std(blob)**2
+                
+                # Plot the PDF!
+                ax.plot(x, np.exp(-(x - mu)**2 / 2. / cov), color='k', ls='-')
+                
+                pl.draw()
+                return
+
+        if pars is not None:
+            if len(pars) > 2: 
+                raise ValueError('Only meant for 2x2 chunks of covariance.')
+
+        # Compute the covariance matrix
+        if cov is None:
+            mu, cov = self.CovarianceMatrix(pars, z)
+        
+        var = np.sqrt(np.diag(cov))
+
+        # When integrating over constant likelihood contours, must hold
+        # the eccentricity constant
+        eccen = np.sqrt(1. - (min(var) / max(var))**2)    
+
+        # For elliptical integration paths, must make sure the semi-major
+        # axis is longer than the semi-minor axis
+        if var[1] > var[0]:
+            new_mu = mu[-1::-1]
+
+            diag = np.diag(cov)[-1::-1]
+            new_cov = np.zeros([len(diag)] * 2)
+            new_cov[0,0] = diag[0]
+            new_cov[1,1] = diag[1]
+        else:
+            new_mu = mu
+            
+            diag = np.diag(cov)
+            new_cov = np.zeros([len(diag)] * 2)
+            new_cov[0,0] = diag[0]
+            new_cov[1,1] = diag[1]
+            
+        # Convenience variable for variances    
+        new_var = diag
+        
+        # Likelihood functions                      
+        likelihood = lambda yy, xx: GaussND(np.array([xx, yy]), mu, cov) 
+            
+        # For integration, consider 2-D Gaussian centered at zero for simplicity
+        _like = lambda yy, xx: GaussND(np.array([xx, yy]), 
+            np.array([0.]*2), new_cov)
+            
+        xmin, xmax = np.array(ax.get_xlim())
+        ymin, ymax = np.array(ax.get_ylim())
+        
+        x = np.linspace(xmin, xmax, 100)                    
+        y = np.linspace(ymin, ymax, 100)   
+
+        # Construct likelihood surface                        
+        surf = np.zeros([x.size, y.size])
+        for j, xx in enumerate(x):
+            for k, yy in enumerate(y):
+                surf[j,k] = likelihood(yy, xx)
+            
+        # Find levels corresponding to 1 and 2 sigma
+        levels = []
+        for k, level in enumerate(nu):
+
+            # Minimize difference between area(DX) and requested level
+            #to_min = lambda DX: \
+            #    np.abs(self._elliptical_integral(DX, eccen, _like) - level)
+            #
+            #guess = np.array([np.sqrt(new_var[0])])
+        
+            # Solve for the standard deviation in each dimension
+            #dx = fmin(to_min, guess, disp=False, ftol=1e-4)[0]
+            #dy = dx * np.sqrt(1. - eccen**2)
+                            
+            #contour = _like(dy, dx) 
+            contour_1s = _like(np.sqrt(new_var[1]), np.sqrt(new_var[0]))
+                        
+            #contour_1s_2 = self._elliptical_integral(np.sqrt(new_var[0]),
+            #    eccen, _like)  
+            
+            #print level, eccen, np.sqrt(new_var[0]), contour_1s_2
+                        
+            #print level, dx, dy, np.sqrt(new_var), self._elliptical_integral(dx, eccen, _like)
+                    
+            # Save and move on
+            levels.append(contour_1s)
+
+        ax.contour(x, y, surf.T, levels=levels, linestyles=['-', '--'], 
+            colors='k', zorder=10)
+
+        pl.draw()
+
+    def _elliptical_integral(self, dx, ecc, like):
+    
+        # Integration is over an ellipse!
+        x1 = - dx
+        x2 = + dx
+
+        # Figure out elliptical surface
+        dy = dx * np.sqrt(1. - ecc**2)
+
+        # Arcs in +/- y
+        y1 = lambda x: - dy * np.sqrt(1. - (x / dx)**2)
+        y2 = lambda x: + dy * np.sqrt(1. - (x / dx)**2)
+
+        fig = pl.figure(10); ax = fig.add_subplot(111)
+
+        xm = np.linspace(x1, x2)
+        xp = np.linspace(x1, x2)
+
+        ym = map(y1, xm)
+        yp = map(y2, xp)
+
+        pl.plot(xm, ym, color='b')
+        pl.plot(xp, yp, color='r')
+        
+        raw_input('<enter>')
+        
+        pl.close()
+        
+        return dblquad(like, x1, x2, y1, y2, epsrel=1e-2, epsabs=1e-4)[0]            
+        
+    def CorrelationMatrix(self, pars, z=None, fig=1, ax=None):
+        """
+        Plot correlation matrix.
+        """
+    
+        mu, cov = self.CovarianceMatrix(pars, z=z)
+    
+        corr = correlation_matrix(cov)
+    
+        if ax is None:
+            fig = pl.figure(fig); ax = fig.add_subplot(111)
+    
+        cax = ax.imshow(corr, interpolation='none', cmap='RdBu_r', 
+            vmin=-1, vmax=1)
+        cb = pl.colorbar(cax)
+    
+        return ax
+    
     def add_boxes(self, ax=None, val=None, width=None, **kwargs):
         """
         Add boxes to 2-D PDFs.
@@ -1924,7 +2939,8 @@ class ModelSet(object):
         """
         Extract a 1-D array of values for a given quantity at a given redshift.
         """
-    
+
+        # Otherwise, we've got a meta-data blob
         try:
             i = self.blob_redshifts.index(z)
         except ValueError:
@@ -1937,13 +2953,12 @@ class ModelSet(object):
                     ztmp.append(round(redshift, 1))    
                 
             i = ztmp.index(round(z, 1))
-    
+
         if name in self.blob_names:
             j = self.blob_names.index(name)            
             return self.blobs[:,i,j]
         else:
-            j = self.derived_blob_names.index(name)
-            return self.derived_blobs[:,i,j]
+            return self.derived_blobs[name][:,i]
     
     def max_likelihood_parameters(self):
         """
@@ -1961,60 +2976,135 @@ class ModelSet(object):
     
         return p
         
+    def save(self, pars, z=None, path='.', fmt='hdf5', clobber=False):
+        """
+        Extract data from chain or blobs and output to separate file(s).
+        
+        Parameters
+        ----------
+        pars : str, list, tuple
+            Name of parameter (or list of parameters) or blob(s) to extract.
+        z : int, float, str, list, tuple
+            Redshift(s) of interest.
+        fmt : str
+            Options: 'hdf5' or 'pkl'
+        path : str
+            By default, will save files to CWD. Can modify this if you'd like.
+                
+        """
+        
+        if type(pars) not in [list, tuple]:
+            pars = [pars]
+        if type(z) not in [list, tuple]:
+            z = [z] * len(pars)
+
+        # Output to HDF5
+        if fmt == 'hdf5':
+
+            # Loop over parameters and save to disk
+            for i, par in enumerate(pars):
+                fn = '%s/%s.subset.%s.%s' % (path,self.fn, par, fmt)
+
+                # If the file exists, see if it already contains data for the
+                # redshifts of interest. If not append. If so, raise error.
+                if os.path.exists(fn) and (not clobber):
+
+                    if z[i] is None:
+                        raise IOError('%s exists!' % fn)
+
+                    # Check for redshift data    
+                    f = h5py.File(fn, 'r')
+                    ids, redshifts = zip(*f.attrs.items())
+                    f.close()
+
+                    ids_ints = map(int, ids)
+                    id_start = max(ids_ints) + 1
+
+                    if z[i] in redshifts:
+                        print '%s exists! As does this dataset. Continuing...' % fn
+                        continue
+                else:
+                    id_start = 0
+                    
+                idnum = str(id_start).zfill(5)
+                
+                if z is None:
+                    attr = -99999
+                else:
+                    attr = z[i]
+            
+                # Stick requested fields in a dictionary
+                data, is_log = self.ExtractData(par, z=z[i])
+            
+                f = h5py.File(fn, 'a')
+                f.attrs.create(idnum, attr)
+
+                ds = f.create_dataset(idnum, data=data[par])
+                ds.attrs.create('mask', data[par].mask)
+                    
+                f.close()
+                print "Wrote %s." % fn    
+                
+        else:
+            raise NotImplemented('Only support for hdf5 so far. Sorry!')
+        
     def set_axis_labels(self, ax, pars, is_log, take_log=False, labels=None):
         """
         Make nice axis labels.
         """
         
+        pars, take_log, multiplier, z = \
+            self._listify_common_inputs(pars, take_log, 1.0, z=None)
+        
+        if type(is_log) != dict:
+            tmp = {par:is_log[i] for i, par in enumerate(pars)}
+            is_log = tmp
+        if type(take_log) != dict:
+            tmp = {par:take_log[i] for i, par in enumerate(pars)}
+            take_log = tmp        
+            
+        # [optionally] modify default labels
         if labels is None:
             labels = default_labels
         else:
             labels_tmp = default_labels.copy()
             labels_tmp.update(labels)
             labels = labels_tmp
-        
+
         p = []
         sup = []
         for par in pars:
-            
+
             if type(par) is int:
                 sup.append(None)
                 p.append(par)
                 continue
-                
+
             # If we want special labels for population specific parameters
-            if par in labels:
-                sup.append(None)
-                p.append(par)
-                continue    
-                
-            m = re.search(r"\{([0-9])\}", par)
-            
-            if m is None:
-                sup.append(None)
-                p.append(par)
-                continue
-            
-            # Split parameter prefix from population ID in braces
-            p.append(par.split(m.group(0))[0])
-            sup.append(int(m.group(1)))
+            #if par in labels:
+            sup.append(None)
+            p.append(par)
+            continue    
+
+            #p.append(par)
+            #
+            #m = re.search(r"\{([0-9])\}", par)
+            #
+            #if m is None:
+            #    sup.append(None)
+            #    p.append(par)
+            #    continue
+            #
+            ## Split parameter prefix from population ID in braces
+            #p.append(par.split(m.group(0))[0])
+            #sup.append(int(m.group(1)))
         
         del pars
         pars = p
     
-        if type(take_log) == bool:
-            take_log = [take_log] * len(pars)
-    
-        if pars[0] in labels:
-            if is_log[0] or take_log[0]:
-                ax.set_xlabel(logify_str(labels[pars[0]]))
-            else:
-                ax.set_xlabel(labels[pars[0]])
-                    
-        elif type(pars[0]) == int:
-            ax.set_xlabel(def_par_labels(pars[0]))
-        else:
-            ax.set_xlabel(self.mathify_str(pars[0]))
+        log_it = is_log[pars[0]] or take_log[pars[0]]
+            
+        ax.set_xlabel(make_label(pars[0], log_it, labels))
     
         if len(pars) == 1:
             ax.set_ylabel('PDF')
@@ -2022,27 +3112,18 @@ class ModelSet(object):
             pl.draw()
             return
     
-        if pars[1] in labels:
-            if is_log[1] or take_log[1]:
-                ax.set_ylabel(logify_str(labels[pars[1]]))
-            else:
-                ax.set_ylabel(labels[pars[1]])
-        elif type(pars[1]) == int:
-            ax.set_ylabel(def_par_labels(pars[1]))
-        else:
-            ax.set_ylabel(self.mathify_str(pars[1]))
-        
+        log_it = is_log[pars[1]] or take_log[pars[1]]
+        ax.set_ylabel(make_label(pars[1], log_it, labels))
+
         pl.draw()
-        
-    def mathify_str(self, s):
-        return r'$%s$' % s    
-        
+                
     def confidence_regions(self, L, nu=[0.95, 0.68]):
         """
         Integrate outward at "constant water level" to determine proper
         2-D marginalized confidence regions.
     
-        Note: this is fairly crude.
+        ..note:: This is fairly crude -- the "coarse-ness" of the resulting
+            PDFs will depend a lot on the binning.
     
         Parameters
         ----------

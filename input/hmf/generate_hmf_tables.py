@@ -16,7 +16,7 @@ parallel, e.g.,
 import os, ares
 
 ## INPUT
-fit = 'ST'
+fit = 'PS'
 format = 'pkl'
 ##
 

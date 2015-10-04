@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from ..physics.Constants import nu_0_mhz
 from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from .MultiPhaseMedium import MultiPhaseMedium
@@ -18,7 +19,7 @@ from .MultiPhaseMedium import MultiPhaseMedium
 defaults = \
 {
  'load_ics': True,
- 'problem_type': 101, 
+ 'problem_type': 101,
 }
 
 class Global21cm:
@@ -35,9 +36,9 @@ class Global21cm:
         """
 
         # See if this is a tanh model calculation
-        is_tanh = self._check_if_tanh(**kwargs)
+        is_phenom = self._check_if_phenom(**kwargs)
 
-        if is_tanh:
+        if is_phenom:
             return
         
         kwargs.update(defaults)
@@ -81,30 +82,42 @@ class Global21cm:
             
         return dTb
         
-    def _check_if_tanh(self, **kwargs):
+    def _check_if_phenom(self, **kwargs):
         if not kwargs:
             return False
     
-        if 'tanh_model' not in kwargs:
+        if ('tanh_model' not in kwargs) and ('gaussian_model' not in kwargs):
             return False
+            
+        is_tanh = False
+        is_gauss = False    
 
-        if not kwargs['tanh_model']:
-            return False
-
-        from ..util.TanhModel import TanhModel
-
-        tanh_model = TanhModel(**kwargs)
-        self.pf = tanh_model.pf
-
-        if self.pf['tanh_nu'] is not None:
-            nu = self.pf['tanh_nu']
+        if 'tanh_model' in kwargs:
+            if kwargs['tanh_model']:
+                from ..util.TanhModel import TanhModel as PhenomModel
+                is_tanh = True
+                
+        elif 'gaussian_model' in kwargs:
+            if kwargs['gaussian_model']:
+                from ..util.GaussianSignal import GaussianModel as PhenomModel            
+                is_gauss = True
+                
+        model = PhenomModel(**kwargs)                
+        self.pf = model.pf
+            
+        if self.pf['output_frequencies'] is not None:
+            nu = self.pf['output_frequencies']
             z = nu_0_mhz / nu - 1.
         else:
-            z = np.arange(self.pf['final_redshift'] + self.pf['tanh_dz'],
-                self.pf['initial_redshift'], self.pf['tanh_dz'])[-1::-1]
+            z = np.arange(self.pf['final_redshift'] + self.pf['output_dz'],
+                self.pf['initial_redshift'], self.pf['output_dz'])[-1::-1]
+            nu =  nu_0_mhz / (1. + z)   
+        
+        if is_gauss:
+            self.history = model(nu, **self.pf).data    
+        else:
+            self.history = model(z, **self.pf).data    
 
-        self.history = tanh_model(z, **self.pf).data
-    
         return True
         
     def run(self):
@@ -177,9 +190,7 @@ class Global21cm:
         self.history['z'] = np.array(self.all_z)
         
         if self.pf['track_extrema']:
-            self.turning_points = self.track.turning_points
-    
-        self.run_inline_analysis()
+            self.run_inline_analysis()
 
     def step(self):
         """
@@ -231,7 +242,7 @@ class Global21cm:
                 tmp[key] = np.array(self.history[key])
             else:
                 tmp[key] = self.history[key]
-    
+
         self.history = tmp
     
         from ..analysis.InlineAnalysis import InlineAnalysis

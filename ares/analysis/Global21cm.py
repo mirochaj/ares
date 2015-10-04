@@ -68,6 +68,10 @@ class Global21cm(MultiPhaseMedium):
             ax.scatter(self.data[xaxis][-1::-mask], self.data['igm_dTb'][-1::-mask], 
                 **kwargs)        
         
+        if gotax:
+            pl.draw()
+            return ax
+        
         zmax = self.pf["first_light_redshift"]
         zmin = self.pf["final_redshift"] if self.pf["final_redshift"] >= 10 \
             else 5
@@ -205,4 +209,3 @@ class Global21cm(MultiPhaseMedium):
         mp.fix_ticks()
         
         return mp
-    

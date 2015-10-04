@@ -337,8 +337,8 @@ def ProblemType(ptype):
 
     Problem Types
     -------------
-    - 0-10 (1-D radiative transfer)
-    - 10-20 (Global 21-cm)
+    - 0-100 (1-D radiative transfer)
+    - 100+  (Global 21-cm)
 
     Returns
     -------

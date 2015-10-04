@@ -60,6 +60,7 @@ pars = \
  'pop_fesc': 0.2,
  'cgm_recombination': 'B',
  'cgm_collisional_ionization': False,
+ 'photon_counting': True,
 }
 
 fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)    

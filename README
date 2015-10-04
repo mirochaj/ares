@@ -25,11 +25,11 @@ To clone a copy and install: ::
     python setup.py install
 
 It would be in your best interest to set an environment variable which points
-to the ARES install directory, e.g. (in bash) ::
+to the *ares* install directory, e.g. (in bash) ::
 
     export ARES=/users/<yourusername>/ares
 
-ARES will look in ``$ARES/input`` for lookup tables of various kinds, e.g.,
+*ares* will look in ``$ARES/input`` for lookup tables of various kinds, e.g.,
 the halo mass function (in ``$ARES/input/hmf``), IGM optical depth (in
 ``$ARES/input/optical_depth``), spectral energy distributions (in
 ``$ARES/input/seds``), etc.
@@ -66,10 +66,11 @@ and optionally,
 - `h5py <http://www.h5py.org/>`_
 - `mpi4py <http://mpi4py.scipy.org>`_
 - `python-progressbar <https://code.google.com/p/python-progressbar/>`_
+- `setuptools <https://pypi.python.org/pypi/setuptools>`_
 
 Quick Example
 --------------
-To generate a global 21-cm signal, simply type: ::
+To generate a model for the global 21-cm signal, simply type: ::
 
     import ares
     
@@ -98,9 +99,9 @@ To generate the documentation locally, ::
     make html
     open _build/html/index.html
     
-This will open the documentation in a browser. For the above to work, you'll 
-need `sphinx <http://sphinx-doc.org/contents.html>`_, which can be installed via
-pip: ::
+This will open the documentation in a browser. For the above to work, you'll
+need `sphinx <http://sphinx-doc.org/contents.html>`_, which can be installed
+via pip: ::
 
     pip install sphinx
 
@@ -111,8 +112,13 @@ be installed via pip: ::
 
 You can also just view the latest build `here <http://ares.readthedocs.org/en/latest/>`_.
 
+Help
+----
+If you encounter problems with installation or running simple scripts, first check the Troubleshooting page in the documentation to see if you're dealing with a common problem. If you don't find your problem listed there, please let me know!
+
 Contributors
 ------------
+
 Primary author: `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_ (CU-Boulder) 
 
 Additional contributions / corrections / suggestions from:
@@ -120,6 +126,5 @@ Additional contributions / corrections / suggestions from:
 - `Geraint Harker <http://zuserver2.star.ucl.ac.uk/~harkerg/>`_ (UCL)
 - Jacob Jost (CU-Boulder)
 - `Greg Salvesen <http://jila.colorado.edu/~salvesen/>`_ (CU-Boulder)
-
-
+- `Adrian Liu <http://w.astro.berkeley.edu/~acliu/>`_ (UC-Berkeley)
 
