@@ -35,9 +35,9 @@ class Global21cm:
         """
 
         # See if this is a tanh model calculation
-        is_tanh = self._check_if_tanh(**kwargs)
+        is_phenom = self._check_if_phenom(**kwargs)
 
-        if is_tanh:
+        if is_phenom:
             return
         
         kwargs.update(defaults)
@@ -81,30 +81,33 @@ class Global21cm:
             
         return dTb
         
-    def _check_if_tanh(self, **kwargs):
+    def _check_if_phenom(self, **kwargs):
         if not kwargs:
             return False
     
-        if 'tanh_model' not in kwargs:
+        if ('tanh_model' not in kwargs) and ('gaussian_model' not in kwargs):
             return False
 
-        if not kwargs['tanh_model']:
-            return False
+        if 'tanh_model' in kwargs:
+            if kwargs['tanh_model']:
 
-        from ..util.TanhModel import TanhModel
+                from ..util.TanhModel import TanhModel
+                
+                tanh_model = TanhModel(**kwargs)
+                self.pf = tanh_model.pf
+                
+                if self.pf['tanh_nu'] is not None:
+                    nu = self.pf['tanh_nu']
+                    z = nu_0_mhz / nu - 1.
+                else:
+                    z = np.arange(self.pf['final_redshift'] + self.pf['tanh_dz'],
+                        self.pf['initial_redshift'], self.pf['tanh_dz'])[-1::-1]
+                
+                self.history = tanh_model(z, **self.pf).data
+        elif 'gaussian_model' in kwargs:
+            raise NotImplemented('come back to Gaussian model!')
+            
 
-        tanh_model = TanhModel(**kwargs)
-        self.pf = tanh_model.pf
-
-        if self.pf['tanh_nu'] is not None:
-            nu = self.pf['tanh_nu']
-            z = nu_0_mhz / nu - 1.
-        else:
-            z = np.arange(self.pf['final_redshift'] + self.pf['tanh_dz'],
-                self.pf['initial_redshift'], self.pf['tanh_dz'])[-1::-1]
-
-        self.history = tanh_model(z, **self.pf).data
-    
         return True
         
     def run(self):
@@ -177,9 +180,7 @@ class Global21cm:
         self.history['z'] = np.array(self.all_z)
         
         if self.pf['track_extrema']:
-            self.turning_points = self.track.turning_points
-    
-        self.run_inline_analysis()
+            self.run_inline_analysis()
 
     def step(self):
         """
@@ -231,7 +232,7 @@ class Global21cm:
                 tmp[key] = np.array(self.history[key])
             else:
                 tmp[key] = self.history[key]
-    
+
         self.history = tmp
     
         from ..analysis.InlineAnalysis import InlineAnalysis

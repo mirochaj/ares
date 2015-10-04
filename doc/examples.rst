@@ -31,6 +31,8 @@ Surveying Parameter Space
 * :doc:`example_grid_I`
 * :doc:`example_grid_II`
 * :doc:`example_grid_analysis`
+* :doc:`example_mcmc_I`
+* :doc:`example_mcmc_analysis`
 
 Post-Processing Cosmological Simulations
 ----------------------------------------

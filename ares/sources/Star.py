@@ -69,7 +69,6 @@ class Star(Source):
         # "Analytic" solution has poly-logarithm function - not in scipy (yet)
         self.R = np.sqrt(self.Q / 4. / np.pi / QNorm)
         self.Lbol = self.Lbol0 = 4. * np.pi * self.R**2 * sigma_SB * self.T**4
-
         self.tau = self.pf['source_lifetime'] * s_per_myr
 
     def SourceOn(self, t):

@@ -17,20 +17,20 @@ from ..physics.Constants import m_H, cm_per_kpc, s_per_myr
 
 ARES = os.environ.get('ARES')
     
-tau_prefix = "%s/input/optical_depth" % ARES \
+tau_prefix = os.path.join(ARES,'input','optical_depth') \
     if (ARES is not None) else '.'
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
-    'Control', 'HaloMassFunction', 'Tanh', 'Slab', 'Fudge', 'MultiPhase']
+    'Control', 'HaloMassFunction', 'Tanh', 'Gaussian']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
-_blob_redshifts.extend([6, 10, 20, 30, 40])
+_blob_redshifts.extend([6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40])
 
 # Nothing population specific
 _blob_names = ['z', 'igm_dTb', 'curvature', 'igm_Tk', 'igm_Ts', 'cgm_h_2', 
-    'igm_h_1']
-
+    'igm_h_1', 'cgm_Gamma_h_1', 'igm_heat_h_1', 'Ja']
+    
 default_blobs = (_blob_names, _blob_names)
 
 # Start setting up list of parameters to be set
@@ -423,8 +423,8 @@ def BlackHoleParameters():
     pf.update(SourceParameters())
     pf.update(rcParams)
     
-    return pf
-
+    return pf    
+    
 def HaloMassFunctionParameters():
     pf = \
     {
@@ -473,7 +473,7 @@ def CosmologyParameters():
     pf.update(rcParams)
 
     return pf
-
+    
 def ControlParameters():
     pf = \
     {
@@ -515,10 +515,11 @@ def ControlParameters():
     
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
-    "stop_xavg": 0.99999,   # stop at given ionized fraction
+    "stop_xavg": 0.999,   # stop at given ionized fraction
     "track_extrema": False,
     "stop_delay": 0.5,      # differential redshift step
     "inline_analysis": None,
+    "one_file_per_blob": False,
     "auto_generate_blobs": False,
     "override_blob_names": None,
     "override_blob_redshifts": None,
@@ -573,17 +574,26 @@ def TanhParameters():
     'tanh_x0': 1.0,
     'tanh_xz0': 10.,
     'tanh_xdz': 2.,
-    'tanh_dz': 0.1,  # Redshift sampling
+    'tanh_dz': 0.025,  # Redshift sampling
     'tanh_bias_temp': 0.0,   # in mK
     'tanh_bias_freq': 0.0,   # in MHz
-    'tanh_nu': None, # Array of frequencies in MHz
+    'output_frequencies': None,
     }
 
     pf.update(rcParams)
 
     return pf
     
-
+def GaussianParameters():
+    pf = \
+    {
+     'gaussian_model': False,
+     'gaussian_A': -100., 
+     'gaussian_nu': 70.,
+     'gaussian_sigma': 10.,
+     'gaussian_dz': 0.025,  # Redshift sampling
+     'output_frequencies': None,
+    }
     
-
+    return pf
 

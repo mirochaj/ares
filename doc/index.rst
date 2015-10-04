@@ -15,9 +15,7 @@ A few papers on how it works:
 - 1-D radiative transfer: `Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_.
 - Meta-galactic backgrounds \& global 21-cm signal: `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_.
 
-
-
-
+This documentation is very much a work in progress. Feel free to email me if you find gaps or errors.
 
 Quick-Start
 -----------

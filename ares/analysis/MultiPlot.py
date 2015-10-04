@@ -34,6 +34,10 @@ defs = \
  'bottom':None, 
  'top':None, 
  'preserve_margins':True,
+ 'keep_diagonal': True,
+ 'shift_x': 0.0,
+ 'shift_y': 0.0,
+ 'active_panels': None,
 }
 
 class MultiPanel:
@@ -58,6 +62,15 @@ class MultiPanel:
         preserve_margins : bool
             Keep proper size of left, right, bottom, top fixed? If False, 
             will be fraction of figsize, as usual in matplotlib.
+        active_panels : tuple
+            If, for example, dims = (4, 4) but active = (3, 3), then only
+            the 9 panels anchored to the origin will be created.
+            
+        Example
+        -------
+        >>> from ares.analysis import MultiPanel
+        >>> mp = MultiPanel(dims=(2,2))
+        >>> # axes stored in mp.grid    
 
         """
 
@@ -75,46 +88,66 @@ class MultiPanel:
             bottom = pl.rcParams['figure.subplot.bottom']
         if top is None:
             top = pl.rcParams['figure.subplot.top']
-
+            
         self.square = dims[0] == dims[1]
         
         if (diagonal is not None) and not self.square:
             raise ValueError('Must have square matrix to use diagonal=True')
-        
+
         self.dims = dims
         self.J, self.K = dims
         self.padding = padding
         
+        # Size of an individual panel (in inches)
         self.pane_size = np.array(figsize) * np.array([right-left, top-bottom])
         self.pane_size *= np.array(panel_size)
-        
+
+        # Now, figure out the size of the entire figure (in inches)
         self.panel_size = np.zeros(2)
+        
+        # After these two lines, self.panel_size is equal to the size of the
+        # panel-filled area of the window (in inches)
         self.panel_size[0] = self.pane_size[0] * self.K + padding[0] * (self.K - 1)
         self.panel_size[1] = self.pane_size[1] * self.J + padding[1] * (self.J - 1)     
+
+        # Add empty area above/below and left/right of panel-filled area
         self.panel_size[0] += figsize[0] * (left + (1. - right))
-        self.panel_size[1] += figsize[1] * (bottom + (1. - top))   
-                                                                
+        self.panel_size[1] += figsize[1] * (bottom + (1. - top))
+
+        self.panel_size_rel = self.pane_size / self.panel_size
+
         self.diagonal = diagonal
+        self.keep_diagonal = keep_diagonal
         self.share_x = self.padding[1] == 0
         self.share_y = self.padding[0] == 0        
         self.share_all = self.share_x and self.share_y
-            
-        # Create figure        
-        self.fig = pl.figure(fig, self.panel_size)
 
-        # Adjust padding
-        if preserve_margins:
-            l = left * figsize[0] / self.panel_size[0]
-            r = (left * figsize[0] + self.K * self.pane_size[0]) \
-                / self.panel_size[0]
-            b = bottom * figsize[1] / self.panel_size[1]
-            t = (bottom * figsize[1] + self.J * self.pane_size[1]) \
-                / self.panel_size[1]
+        self.dx = shift_x
+        self.dy = shift_y
+
+        # Create figure
+        if type(fig) is not int:
+            self.fig = fig
+            new_fig = False
+            l, r = fig.subplotpars.left, fig.subplotpars.right
+            b, t = fig.subplotpars.bottom, fig.subplotpars.top
         else:
-            l, r, b, t = left, right, bottom, top
-        
-        self.fig.subplots_adjust(left=l, right=r, bottom=b, top=t, 
-            wspace=self.padding[0], hspace=self.padding[1])
+            self.fig = pl.figure(fig, self.panel_size)
+            new_fig = True
+
+            # Adjust padding
+            if preserve_margins:
+                l = left * figsize[0] / self.panel_size[0]
+                r = (left * figsize[0] + self.K * self.pane_size[0]) \
+                    / self.panel_size[0]
+                b = bottom * figsize[1] / self.panel_size[1]
+                t = (bottom * figsize[1] + self.J * self.pane_size[1]) \
+                    / self.panel_size[1]
+            else:
+                l, r, b, t = left, right, bottom, top
+            
+            self.fig.subplots_adjust(left=l, right=r, bottom=b, top=t, 
+                wspace=self.padding[0], hspace=self.padding[1])
         
         # Important attributes for identifying individual panels
         self.N = int(np.prod(self.dims))
@@ -123,8 +156,8 @@ class MultiPanel:
         self.elements = np.array(self.elements)
         
         # Dimensions of everything (in fractional units)
-        self.window = {'left': l, 'right': r, 'top': t, 
-            'bottom': b, 'pane': ((r-l) / float(dims[0]), (t-b) / float(dims[1]))}
+        #self.window = {'left': l, 'right': r, 'top': t, 
+        #    'bottom': b, 'pane': ((r-l) / float(dims[0]), (t-b) / float(dims[1]))}
         
         self.xaxes = self.elements[-1]
         self.yaxes = zip(*self.elements)[0]                  
@@ -135,9 +168,12 @@ class MultiPanel:
                 
         if self.square:
             self.diag = np.diag(self.elements)        
+            self.interior = list(self.elements.ravel())
+            for element in self.diag:
+                self.interior.remove(element)
         else:
             self.diag = None        
-                
+            
         self.left = []
         self.right = []
         self.bottom = []
@@ -155,7 +191,7 @@ class MultiPanel:
                 self.right.append(i)       
 
         # Create subplots
-        l = self.elements.flatten()
+        e_fl = self.elements.flatten()
         self.grid = [None for i in xrange(self.N)]
         for i in xrange(self.N):                
             j, k = self.axis_position(i)
@@ -171,9 +207,72 @@ class MultiPanel:
             #    continue
             #if diagonal == 'upper' and j == k and (j, k) != (self.J-1, self.K-1):
             #    continue
-
-            self.grid[i] = AxisConstructor(self.fig, self.J, self.K, l[i]+1)
             
+            if self.square:
+                if i in self.diag and not keep_diagonal:
+                    continue
+            
+            if new_fig:
+                self.grid[i] = AxisConstructor(self.fig, self.J, self.K, e_fl[i]+1)
+            else:
+
+                # col, row = j, k
+
+                lef = l + j * self.panel_size_rel[0] \
+                    + self.padding[0] + self.dx
+                bot = b + k * self.panel_size_rel[1] \
+                    + self.padding[1] + self.dy
+
+                rect = [lef, bot, self.panel_size_rel[0], self.panel_size_rel[1]]
+
+                self.grid[i] = self.fig.add_axes(rect)
+            
+    @property
+    def active_elements(self):
+        if not hasattr(self, '_active_elements'):
+            self._active_elements = []
+            for i in range(self.N):
+                if self.grid[i] is None:
+                    continue
+                
+                self._active_elements.append(i)
+                
+        return self._active_elements
+            
+    @property
+    def elements_by_column(self):
+        """
+        Create a list of panel ID numbers sorted by column number. 
+        
+        Each element of the list is a sublist of ID numbers in order of increasing
+        row, from bottom to top.
+        """
+        if not hasattr(self, '_columns'):
+            self._columns = [[] for i in range(self.dims[1])]
+            for element in self.active_elements:
+                col, row = self.axis_position(element)        
+                
+                self._columns[col].append(element)
+                
+        return self._columns
+        
+    @property
+    def elements_by_row(self):
+        """
+        Create a list of panel ID numbers sorted by column number. 
+    
+        Each element of the list is a sublist of ID numbers in order of increasing
+        row, from bottom to top.
+        """
+        if not hasattr(self, '_rows'):
+            self._rows = [[] for i in range(self.dims[0])]
+            for element in self.active_elements:
+                col, row = self.axis_position(element)
+    
+                self._rows[row].append(element)
+    
+        return self._rows        
+        
     def axis_position(self, i):
         """
         Given axis ID number, return indices describing its (x, y) position.
@@ -202,13 +301,18 @@ class MultiPanel:
         
         """
         
+        if j >= self.dims[0]:
+            return None
+        if k >= self.dims[1]:
+            return None
+        
         i = j * self.dims[1] + k
         if self.above_diagonal(i):
             return None
         if i >= self.N:
             return None
         return i
-    
+                    
     def above_diagonal(self, i):
         """ Is the given element above the diagonal? """
         
@@ -229,6 +333,22 @@ class MultiPanel:
             return True
         else:
             return False
+            
+    def align_labels(self, xpadding=0.5, ypadding=None):
+        """
+        Re-draw labels so they are a constant distance away from the *axis*,
+        not the axis *labels*.
+        """
+        
+        if ypadding is None:
+            ypadding = xpadding
+        
+        for i in self.bottom:
+            self.grid[i].xaxis.set_label_coords(0.5, -xpadding)
+        for i in self.left:
+            self.grid[i].yaxis.set_label_coords(-ypadding, 0.5)
+            
+        pl.draw()    
             
     def rescale_axes(self, x=True, y=True, xlim=None, ylim=None,    
         tighten_up=0):
@@ -301,7 +421,7 @@ class MultiPanel:
         pl.draw()         
     
     def fix_axes_ticks(self, axis='x', style=None, dtype=float, N=None, 
-        rotate_x=False):
+        rotate_x=False, rotate_y=False):
         """
         Remove overlapping tick labels between neighboring panels.
         """
@@ -313,7 +433,20 @@ class MultiPanel:
         set_ticks = "set_%sticks" % axis
         set_ticklabels = "set_%sticklabels" % axis
         shared = eval("self.share_%s" % axis)
-                
+        
+        # Get locations of ticks on bottom row
+        if axis is 'x':
+            ticks_by_col = []
+            for i in range(self.dims[1]):
+                ticks_by_col.append(self.grid[i].get_xticks())
+        
+        # Get locations of ticks on left column
+        if axis is 'y':
+            ticks_by_row = []
+            for i in range(self.dims[0]):
+                ticks_by_row.append(self.grid[self.left[i]].get_xticks())
+            
+        # Figure out if axes are shared or not    
         if axis == 'x':
             j = 0
             if shared:
@@ -329,14 +462,19 @@ class MultiPanel:
         else:
             raise ValueError('axis must be set to \'x\' or \'y\'')
         
+        if not shared:
+            return
+        
         # Loop over axes and make corrections
         for i in axes:
+            
+            # Skip non-existent elements
             if self.diagonal:
                 if self.above_diagonal(i):
                     continue
-                    
-            if self.axis_position(i)[j] == self.dims[j]:
-                pass
+            
+            if self.grid[i] is None:
+                continue
             
             # Retrieve current ticks, tick-spacings, and axis limits
             ticks = eval("list(self.grid[%i].%s())" % (i, get_ticks))
@@ -380,26 +518,73 @@ class MultiPanel:
                 
                 labels = ['%g' % val for val in ticks]
                                               
-            
+            if (axis == 'x' and rotate_x):
+                rotate = rotate_x
+            elif (axis == 'y' and rotate_y):
+                rotate = rotate_y
+            else:
+                rotate = False
+                        
             if ul is None:
                 eval("self.grid[%i].%s(ticks[0:])" % (i, set_ticks))
-                if rotate_x:
-                    eval("self.grid[%i].%s(labels[0:], rotation=90)" \
-                        % (i, set_ticklabels))
+                                
+                if rotate:
+                    if type(rotate) == bool:
+                        eval("self.grid[%i].%s(labels[0:], rotation=90)" \
+                            % (i, set_ticklabels))
+                    else:
+                        eval("self.grid[%i].%s(labels[0:], rotation=%g)" \
+                                % (i, set_ticklabels, rotate))        
                 else:
                     eval("self.grid[%i].%s(labels[0:])" % (i, set_ticklabels))
             else:
                 eval("self.grid[%i].%s(ticks[0:%i])" % (i, set_ticks, ul))
                 
-                if rotate_x:
-                    eval("self.grid[%i].%s(labels[0:%i], rotation=90)" \
-                        % (i, set_ticklabels, ul))
+                if rotate:
+                    if type(rotate) == bool:
+                        eval("self.grid[%i].%s(labels[0:%i], rotation=90)" \
+                            % (i, set_ticklabels, ul))
+                    else:
+                        eval("self.grid[%i].%s(labels[0:%i], rotation=%g)" \
+                            % (i, set_ticklabels, ul, rotate))      
                 else:
                     eval("self.grid[%i].%s(labels[0:%i])" % (i, set_ticklabels, ul))
     
             if style is not None: 
                 self.grid[i].ticklabel_format(style=style)
-        
+                
+        # Loop over columns, force those not in row 0 to share ticks with 
+        # whatever tick marks there are in row #0
+        if axis == 'x':
+            
+            for k in range(len(self.elements_by_column)):
+                loc = self.axis_number(0, k)
+                xticks = self.grid[loc].get_xticks()
+                xlim = self.grid[loc].get_xlim()
+                
+                for h, element in enumerate(self.elements_by_column[k]):
+                    if element in self.bottom:
+                        continue        
+                        
+                    self.grid[element].set_xticks(xticks)
+                    self.grid[element].set_xlim(xlim)
+            
+        # Same deal for y ticks
+        if axis == 'y':
+            for k in range(len(self.elements_by_row)):
+                loc = self.axis_number(k, 0)
+                yticks = self.grid[loc].get_yticks()
+                ylim = self.grid[loc].get_ylim()
+                
+                for h, element in enumerate(self.elements_by_row[k]):
+                    if element in self.left:
+                        continue  
+                    if element in self.diag:
+                        continue              
+                        
+                    self.grid[element].set_yticks(yticks)
+                    self.grid[element].set_ylim(ylim)
+                                  
         # Remove ticklabels of interior panels completely
         if shared:
             for i in xrange(self.N):
@@ -415,8 +600,23 @@ class MultiPanel:
                 
         pl.draw()
 
+    def fix_axes_labels(self):
+        for i in xrange(self.N):
+            
+            if self.grid[i] is None:
+                continue
+            
+            # (column, row)
+            j, k = self.axis_position(i)
+
+            if j > 0:
+                self.grid[i].set_ylabel('')
+            if k > 0:
+                self.grid[i].set_xlabel('')
+
     def fix_ticks(self, noxticks=False, noyticks=False, style=None, N=None,
-        rotate_x=False, xticklabels=None, yticklabels=None, oned=True):
+        rotate_x=False, rotate_y=False, xticklabels=None, yticklabels=None, 
+        oned=True):
         """
         Call once all plotting is done, will eliminate redundant tick marks 
         and what not.
@@ -428,8 +628,10 @@ class MultiPanel:
         
         pl.draw()
         
+        self.fix_axes_labels()
+        
         self.fix_axes_ticks(axis='x', N=N, rotate_x=rotate_x)
-        self.fix_axes_ticks(axis='y', N=N)
+        self.fix_axes_ticks(axis='y', N=N, rotate_y=rotate_y)
         
         if self.diagonal == 'lower' and oned:
             self.grid[np.intersect1d(self.left, self.top)[0]].set_yticklabels([])
@@ -521,5 +723,8 @@ class MultiPanel:
 
     def draw(self):
         pl.draw()
+        
+    def save(self, fn):
+        pl.savefig(fn)    
         
         

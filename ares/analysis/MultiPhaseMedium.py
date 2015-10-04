@@ -33,6 +33,40 @@ try:
 except ImportError:
     pass
     
+    
+class DummyDQ(object):
+    """
+    A wrapper around DerivedQuantities.
+    """
+    def __init__(self, pf={}):
+        self._data = {}
+        self._dq = DQ(ModelSet=None, pf=pf)
+        
+    def add_data(self, data):
+        self._dq._add_data(data)
+        for key in data:
+            self._data[key] = data[key]
+            
+    def keys(self):
+        return self._data.keys()    
+            
+    def __iter__(self):
+        for key in self._data.keys():
+            yield key        
+            
+    def __contains__(self, name):
+        return name in self._data.keys()
+            
+    def __getitem__(self, name):
+        if name in self._data:
+            return self._data[name]
+            
+        self._data[name] = self._dq[name]
+        return self._data[name]    
+            
+    def __setitem__(self, name, value):
+        self._data[name] = value
+    
 turning_points = ['D', 'C', 'B', 'A']
 
 class MultiPhaseMedium:
@@ -56,8 +90,9 @@ class MultiPhaseMedium:
         if isinstance(sim, simG21) or isinstance(sim, simMPM):
             self.sim = sim
             self.pf = sim.pf
-            self.data = sim.history.copy()
-            
+            self.data = DummyDQ(pf=self.pf)
+            self.data.add_data(sim.history)
+
             try:
                 self.cosm = sim.grid.cosm
             except AttributeError:
@@ -78,74 +113,92 @@ class MultiPhaseMedium:
             self.data = sim.copy()
             self.pf = SetAllDefaults()
             
+        # Read output of a simulation from disk
         elif prefix is not None:
-            pass
-        #else:
-        #    self.sim = None
-        #    if type(history) is dict:
-        #        self.data = history
-        #    elif re.search('hdf5', history):
-        #        f = h5py.File(history, 'r')
-        #        self.data = {}
-        #        for key in f.keys():
-        #            self.data[key] = f[key].value[-1::-1]
-        #        f.close()
-        #    else:
-        #        if re.search('pkl', history):
-        #            f = open(history, 'rb')
-        #            self.data = pickle.load(f)
-        #            f.close()
-        #        else:    
-        #            f = open(history, 'r')
-        #            cols = f.readline().split()[1:]
-        #            data = np.loadtxt(f)
-        #            
-        #            self.data = {}
-        #            for i, col in enumerate(cols):
-        #                self.data[col] = data[:,i]
-        #            f.close()
-        #                      
-        #    if pf is None:
-        #        self.pf = SetAllDefaults()
-        #    elif type(pf) is dict:
-        #        self.pf = pf
-        #    elif os.path.exists(pf):
-        #        f = open(pf, 'rb')
-        #        try:
-        #            self.pf = pickle.load(f)
-        #        except:
-        #            self.pf = SetAllDefaults()
-        #        f.close()
-        #    
-        #    self.cosm = Cosmology()
-        #    self.hydr = Hydrogen()
-        #
-        self.kwargs = kwargs    
-        
-        # Derived quantities
-        self._dq = DQ(self.data, self.pf)
-        self.data = self._dq.data.copy()
-        
-        # For convenience - quantities in ascending order (in redshift)
-        if self.data:
+            f = open('%s.parameters.pkl' % prefix, 'rb')
+            self.pf = pickle.load(f)
+            f.close()
             
-            data_reorder = {}
-            for key in self.data.keys():
-                data_reorder[key] = np.array(self.data[key])[-1::-1]   
-                
-            # Re-order
-            if np.all(np.diff(self.data['z']) > 0):
-                self.data_asc = self.data.copy()
-                self.data = data_reorder
+            f = open('%s.history.pkl' % prefix, 'rb')
+            history = pickle.load(f)
+            f.close()
+        else:
+            self.pf = {}
+                    
+        # Read simulation output from dictionary    
+        if (history is not None) or (prefix is not None):
+            self.sim = None
+            self.data = DummyDQ(pf=self.pf)
+            if type(history) is dict:
+                self.data.add_data(history)
+            elif re.search('hdf5', history):
+                f = h5py.File(history, 'r')
+                tmp = {}
+                for key in f.keys():
+                    tmp = f[key].value[-1::-1]
+                f.close()
+                self.data.add_data(tmp)
             else:
-                self.data_asc = data_reorder
-                
-        self.interp = {}
+                if re.search('pkl', history):
+                    f = open(history, 'rb')
+                    self.data.add_data(pickle.load(f))
+                    f.close()
+                else:    
+                    f = open(history, 'r')
+                    cols = f.readline().split()[1:]
+                    data = np.loadtxt(f)
+                    
+                    tmp = {}
+                    for i, col in enumerate(cols):
+                        tmp[col] = data[:,i]
+                    f.close()
+                    self.data.add_data(tmp)
+
+            if pf is None:
+                self.pf = SetAllDefaults()
+            elif type(pf) is dict:
+                self.pf = pf
+            elif os.path.exists(pf):
+                f = open(pf, 'rb')
+                try:
+                    self.pf = pickle.load(f)
+                except:
+                    self.pf = SetAllDefaults()
+                f.close()
+
+            self.cosm = Cosmology()
+            self.hydr = Hydrogen()
+
+        if not hasattr(self, 'data'):
+            raise ValueError('Must supply simulation instance, dict, or file prefix!')
+
+        self.kwargs = kwargs    
+
+        # Add frequencies
+        if 'z' in self.data:
+            self.data['nu'] = nu_0_mhz / (1. + self.data['z'])
+                                                     
+        # For convenience - quantities in ascending order (in redshift)
+        data_reorder = {}
+        for key in self.data.keys():
+            data_reorder[key] = np.array(self.data[key])[-1::-1]
         
+        # Re-order
+        if np.all(np.diff(self.data['z']) > 0):
+            self.data_asc = DummyDQ(pf=self.pf)
+            self.data_asc.add_data(self.data)
+            self.data = DummyDQ(pf=self.pf)
+            self.data.add_data(data_reorder)
+        else:
+            self.data_asc = DummyDQ(pf=self.pf)
+            self.data_asc.add_data(data_reorder)
+
+        self.interp = {}
+
         if hasattr(self, 'pf'):
             self._track = TurningPoints(**self.pf)
         else:
-            self._track = TurningPoints()     
+            self._track = TurningPoints()
                 
     @property
     def dTbdz(self):
@@ -158,7 +211,7 @@ class MultiPhaseMedium:
     def dTbdnu(self):
         if not hasattr(self, '_dTbdnu'):
             self._nu_p, self._dTbdnu = \
-                central_difference(self.data_asc['nu'], self.data_asc['igm_dTb'])               
+                central_difference(self.data['nu'], self.data['dTb'])
         return self._dTbdnu
         
     @property
@@ -171,8 +224,9 @@ class MultiPhaseMedium:
     @property
     def dTb2dnu2(self):
         if not hasattr(self, '_dTbdnu'):
-            self._nu_pp, self._dTbdnu = \
-                central_difference(self.data_asc['nu'], self.data_asc['igm_dTb'])               
+            _dTbdnu = self.dTbdnu
+            _nu = self._nu_p
+            self._nu_pp, self._dTbdnu = central_difference(_nu, _dTbdnu)
         return self._dTbdnu        
     
     @property
@@ -399,10 +453,10 @@ class MultiPhaseMedium:
         
         fig = ax.xaxis.get_figure()
         
-        for ax in fig.axes:
-            if ax.get_xlabel() == '$z$':
-                return
-    
+        #for ax in fig.axes:
+        #    if ax.get_xlabel() == '$z$':
+        #        return
+        
         z = np.arange(10, 110, 10)[-1::-1]
         z_minor= np.arange(15, 80, 5)[-1::-1]
         nu = nu_0_mhz / (1. + z)
@@ -413,7 +467,7 @@ class MultiPhaseMedium:
         # Add 25, 15 and 12, 8 to redshift labels
         z_labels.insert(-1, '15')
         z_labels.insert(-1, '12')
-        z_labels.extend(['9', '8', '7', '6'])                
+        z_labels.extend(['8', '7', '6', '5'])
         #z_labels.insert(-5, '25')
         
         z = np.array(map(int, z_labels))
@@ -428,7 +482,7 @@ class MultiPhaseMedium:
             
         # A bit hack-y
         for i, label in enumerate(z_labels):
-            if label in ['50', '60', '70']:
+            if label in ['40','50', '60', '70']:
                 z_labels[i] = ''
         
             if float(label) > 80:
@@ -582,9 +636,14 @@ class MultiPhaseMedium:
             ax = fig.add_subplot(111)
         else:
             gotax = True
-        
-        if scatter is False:        
-            ax.plot(self.data[xaxis], self.data['igm_dTb'], **kwargs)
+
+            blank_ax = False
+            if np.all(ax.get_xticks() == np.linspace(0, 1, 6)):
+                blank_ax = True
+
+        if scatter is False:    
+            ax.plot(self.data[xaxis], self.data['dTb'], **kwargs)
+
         else:
             ax.scatter(self.data[xaxis][-1::-mask], self.data['igm_dTb'][-1::-mask], 
                 **kwargs)        
@@ -631,9 +690,11 @@ class MultiPhaseMedium:
             
         ax.set_ylim(ymin, ymax)    
         
-        if xscale == 'linear':
-            ax.set_xticks(xticks, minor=False)
-            ax.set_xticks(xticks_minor, minor=True)
+        # Ticks
+        if (not gotax) or blank_ax:
+            if xscale == 'linear':
+                ax.set_xticks(xticks, minor=False)
+                ax.set_xticks(xticks_minor, minor=True)
             
         ax.set_yticks(yticks, minor=True)
         
@@ -660,14 +721,15 @@ class MultiPhaseMedium:
             twinax = self.add_redshift_axis(ax)
         else:
             twinax = None
-        
-        self.twinax = twinax
+            
+        if twinax is not None:
+            self.twinax = twinax
         
         ax.ticklabel_format(style='plain', axis='both')
         ax.set_xscale(xscale)
                     
         pl.draw()
-        
+
         return ax
 
     def Derivative(self, mp=None, **kwargs):

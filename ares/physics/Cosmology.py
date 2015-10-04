@@ -12,13 +12,13 @@ Description:
 
 import numpy as np
 from scipy.integrate import quad
-from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB
+from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun
 
 class Cosmology:
-    def __init__(self, omega_m_0=0.272, omega_l_0=0.728,
-        omega_b_0=0.044, hubble_0=0.702, 
-        helium_by_number=0.08, cmb_temp_0=2.725, 
-        approx_highz=False, sigma_8=0.807, primordial_index=0.96):
+    def __init__(self, omega_m_0=0.3089, omega_l_0=0.6911,
+        omega_b_0=0.0486, hubble_0=0.6774, 
+        helium_by_number=None, helium_by_mass=0.2453, cmb_temp_0=2.7255, 
+        approx_highz=False, sigma_8=0.8159, primordial_index=0.9667):
         """Initialize a Cosmology object.
         
         :param: omega_m_0: Pretty self-explanatory.
@@ -40,13 +40,18 @@ class Cosmology:
         
         self.h70 = hubble_0
         
-        self.helium_by_number = self.y = helium_by_number
-        self.Y = 4. * self.y / (1. + 4. * self.y)
+        if helium_by_number is None:
+            self.helium_by_mass = self.Y = helium_by_mass
+            self.helium_by_number = self.y = 1. / (1. / self.Y - 1.) / 4.
+        else:
+            self.helium_by_number = self.y = helium_by_number
+            self.Y = self.helium_by_mass = 4. * self.y / (1. + 4. * self.y)
         
         self.X = 1. - self.Y
         
         self.g_per_baryon = m_H / (1. - self.Y) / (1. + self.y)
         self.b_per_g = 1. / self.g_per_baryon
+        self.baryon_per_Msun = g_per_msun / self.g_per_baryon
                 
         self.zdec = 150. * (self.omega_b_0 * self.h70**2 / 0.023)**0.4 - 1.
 

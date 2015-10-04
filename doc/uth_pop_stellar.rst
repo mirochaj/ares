@@ -35,7 +35,7 @@ Note: class methods always return values in cgs units, and when applicable,
 volume densities are assumed to be in co-moving units (in the comments above, 
 "ccm" stands for "co-moving centimeters").
 
-To convert to more recognizable units, use conversion factors from rt1d:
+To convert to more recognizable units, use conversion factors from the ``ares.physics.Constants`` module
 
 ::
 

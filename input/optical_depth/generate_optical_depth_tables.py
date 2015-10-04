@@ -68,7 +68,7 @@ for res in Nz:
     t1 = time.time()
     
     # Create IGM instance
-    igm = ares.solvers.IGM(**pars)
+    igm = ares.solvers.IGM(use_tab=False, **pars)
     
     fn = igm.tau_name(suffix=format)[0]
     

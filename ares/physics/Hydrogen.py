@@ -91,21 +91,21 @@ class Hydrogen:
         self.tabulated_coeff = \
             {'kappa_H': kappa_HH, 'kappa_e': kappa_He, 
              'T_H': T_HH, 'T_e': T_He}
-    
+
     @property
     def kappa_H_pre(self):
         if not hasattr(self, '_kappa_H_pre'):                            
             self._kappa_H_pre = interpolate.interp1d(T_HH, kappa_HH, 
                 kind='cubic', bounds_error=False, fill_value=0.0)
-        
+
         return self._kappa_H_pre
 
     @property
     def kappa_e_pre(self):
-        if not hasattr(self, '_kappa_e_pre'):                            
-            self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He, 
+        if not hasattr(self, '_kappa_e_pre'):     
+            self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He,
                 kind='cubic', bounds_error=False, fill_value=0.0)
-    
+
         return self._kappa_e_pre
 
     @property
@@ -247,7 +247,7 @@ class Hydrogen:
         elif n == 29: return 0.3589
         elif n == 30: return 0.3590
         else:
-            raise ValueError('Only know frec for 2 <= 2 <= 30!')
+            raise ValueError('Only know frec for 2 <= n <= 30!')
     
     # Look at line 905 in astrophysics.cc of Jonathan's code
     

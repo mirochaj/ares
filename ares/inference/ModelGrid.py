@@ -19,11 +19,11 @@ from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.ReadData import read_pickle_file, read_pickled_dict
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
-try:
-   import cPickle as pickle
-except:
-   import pickle
-   
+#try:
+#    import cPickle as pickle
+#except:
+import pickle
+
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
@@ -32,8 +32,9 @@ except ImportError:
     rank = 0
     size = 1
 
-def_kwargs = {'track_extrema': True, 'verbose': False, 'progress_bar': False}    
-    
+def_kwargs = {'track_extrema': True, 'verbose': False, 'progress_bar': False,
+    'one_file_per_blob': True}    
+
 class ModelGrid:
     """Create an object for setting up and running model grids."""
     def __init__(self, tol=1e-5, **kwargs):
@@ -50,6 +51,10 @@ class ModelGrid:
             Will look for a file called <prefix>.grid.hdf5
         
         grid : instance
+        
+        one_file_per_blob : bool    
+            Give each blobs its own file? Helps analysis and data transfer for
+            very large datasets.
 
         verbose : bool
 
@@ -63,6 +68,8 @@ class ModelGrid:
         if 'tanh_model' in self.base_kwargs:
             if self.base_kwargs['tanh_model']:
                 self.tanh = True
+                
+        self.one_file_per_blob = self.base_kwargs['one_file_per_blob']
         
     @property
     def blob_names(self):
@@ -189,6 +196,29 @@ class ModelGrid:
 
         # Shortcut to parameter names
         self.parameters = self.grid.axes_names
+        
+    def set_models(self, models):
+        """
+        Set all models by hand. 
+        
+        Parameters
+        ----------
+        models : list
+            List of models to run. Each entry in the list should be a 
+            dictionary of parameters that define that model. The
+            base_kwargs will be updated with those values at run-time.
+
+        """ 
+
+        self.grid = GridND()
+
+        # Build parameter space
+        self.grid.all_kwargs = models
+        self.grid.axes_names = models[0].keys()
+        self.grid.Nd = len(self.grid.axes_names)
+
+        # Shortcut to parameter names
+        self.parameters = self.grid.axes_names
 
     @property
     def is_log(self):
@@ -196,6 +226,11 @@ class ModelGrid:
             self._is_log = [False] * self.grid.Nd
         
         return self._is_log
+        
+    @is_log.setter
+    def is_log(self, value):
+        assert(len(value) == len(self.parameters))
+        self._is_log = value    
         
     def prep_output_files(self, prefix, restart):
         """
@@ -247,15 +282,20 @@ class ModelGrid:
         if hasattr(self, 'blob_names'):
 
             # File for blobs themselves
-            f = open('%s.blobs.pkl' % prefix, 'wb')
-            f.close()
+            if self.one_file_per_blob:
+                for blob in self.blob_names:
+                    f = open('%s.subset.%s.pkl' % (prefix, blob), 'wb')
+                    f.close()
+            else:
+                f = open('%s.blobs.pkl' % prefix, 'wb')
+                f.close()
             
             # Blob names and list of redshifts at which to track them
             f = open('%s.binfo.pkl' % prefix, 'wb')
             pickle.dump((self.blob_names, self.blob_redshifts), f)
             f.close()
 
-    def run(self, prefix, clobber=False, restart=False, save_freq=10):
+    def run(self, prefix, clobber=False, restart=False, save_freq=500):
         """
         Run model grid, for each realization thru a given turning point.
 
@@ -344,7 +384,10 @@ class ModelGrid:
         for h, kwargs in enumerate(self.grid.all_kwargs):
 
             # Where does this model live in the grid?
-            kvec = self.grid.locate_entry(kwargs)
+            if self.grid.structured:
+                kvec = self.grid.locate_entry(kwargs)
+            else:
+                kvec = h
 
             if restart:
                 pb_i = min(ct * size, Nleft - 1)
@@ -363,7 +406,7 @@ class ModelGrid:
                 continue
 
             # Grab Tmin index
-            if self.Tmin_in_grid:
+            if self.Tmin_in_grid and self.LB > 0:
                 Tmin_ax = self.grid.axes[self.grid.axisnum(self.Tmin_ax_name)]
                 i_Tmin = Tmin_ax.locate(kwargs[self.Tmin_ax_name])
             else:
@@ -371,7 +414,16 @@ class ModelGrid:
 
             # Copy kwargs - may need updating with pre-existing lookup tables
             p = self.base_kwargs.copy()
-            p.update(kwargs)
+            
+            # Log-ify stuff if necessary
+            kw = {}
+            for i, par in enumerate(self.parameters):
+                if self.is_log[i]:
+                    kw[par] = 10**kwargs[par]
+                else:
+                    kw[par] = kwargs[par]
+            
+            p.update(kw)
 
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
             if i_Tmin not in fcoll.keys() and (not self.tanh):
@@ -404,22 +456,15 @@ class ModelGrid:
                 
             else:
                 sim = Global21cm(**p)
-                                
+
             # Run simulation!
             try:
                 sim.run()
-
-                tps = sim.turning_points
-                
-                if not hasattr(self, 'blob_names'):
-                    self.blob_names = sim.blob_names
-                    self.blob_redshifts = sim.blob_redshifts
-            
+                sim.run_inline_analysis()            
+                            
             # Timestep error
             except SystemExit:
- 
                 sim.run_inline_analysis()
-                tps = sim.turning_points
                 
             except:         
                 # Write to "fail" file - this might cause problems in parallel
@@ -447,7 +492,7 @@ class ModelGrid:
             ##
             
             pb.update(ct)
-            
+
             # Only record results every save_freq steps
             if ct % save_freq != 0:
                 del p, sim
@@ -462,9 +507,14 @@ class ModelGrid:
             pickle.dump(chain_all, f)
             f.close()
             
-            f = open('%s.blobs.pkl' % self.prefix, 'ab')
-            pickle.dump(blobs_all, f)
-            f.close()
+            if self.one_file_per_blob:
+                for i, blob in enumerate(self.blob_names):
+                    barr = np.array(blobs_all)[:,:,i]
+                    with open('%s.subset.%s.pkl' % (self.prefix, blob), 'ab') as f:
+                        pickle.dump(barr, f)                        
+            else:
+                with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
+                    pickle.dump(blobs_all, f)
             
             f = open('%s.load.pkl' % self.prefix, 'ab')
             pickle.dump(load_all, f)
@@ -495,26 +545,29 @@ class ModelGrid:
             MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
     
         if chain_all:
-            f = open('%s.chain.pkl' % self.prefix, 'ab')
-            pickle.dump(chain_all, f)
-            f.close()
+            with open('%s.chain.pkl' % self.prefix, 'ab') as f:
+                pickle.dump(chain_all, f)
         
         if blobs_all:
-            f = open('%s.blobs.pkl' % self.prefix, 'ab')
-            pickle.dump(blobs_all, f)
-            f.close()
+            if self.one_file_per_blob:
+                for i, blob in enumerate(self.blob_names):
+                    barr = np.array(blobs_all)[:,:,i]
+                    with open('%s.subset.%s.pkl' % (self.prefix, blob), 'ab') as f:
+                        pickle.dump(barr, f)
+            else:
+                with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
+                    pickle.dump(blobs_all, f)
         
         if load_all:
-            f = open('%s.load.pkl' % self.prefix, 'ab')
-            pickle.dump(load_all, f)
-            f.close()            
+            with open('%s.load.pkl' % self.prefix, 'ab') as f:
+                pickle.dump(load_all, f)
+        
+        print "Processor %i: Wrote %s.*.pkl" % (rank, prefix)
         
         # Send the key to the next processor
         if rank != (size-1):
             MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
-        
-        print "Processor %i done." % rank
-        
+                
     @property        
     def Tmin_in_grid(self):
         """
@@ -564,6 +617,38 @@ class ModelGrid:
         return self._Tmin_in_grid
             
     def LoadBalance(self, method=0):
+        if self.grid.structured:
+            self._structured_balance(method=method)       
+        else: 
+            self._unstructured_balance(method=method)       
+            
+    def _unstructured_balance(self, method=0):
+                
+        if rank == 0:
+
+            order = list(np.arange(size))
+            self.assignments = []
+            while len(self.assignments) < self.grid.size:
+                self.assignments.extend(order)
+                
+            self.assignments = np.array(self.assignments[0:self.grid.size])
+            
+            if size == 1:
+                self.LB = 0
+                return
+            
+            # Communicate assignments to workers
+            for i in range(1, size):    
+                MPI.COMM_WORLD.Send(self.assignments, dest=i, tag=10*i)    
+
+        else:
+            self.assignments = np.empty(self.grid.size, dtype=np.int)    
+            MPI.COMM_WORLD.Recv(self.assignments, source=0,  
+                tag=10*rank)
+                   
+        self.LB = 0
+                        
+    def _structured_balance(self, method=0):
         """
         Determine which processors are to run which models.
         

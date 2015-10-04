@@ -504,7 +504,7 @@ class GlobalVolume(object):
                 print "No ARES environment variable."
                 return None
             
-            input_dirs = ['%s/input/optical_depth' % ares_dir]
+            input_dirs = [os.path.join(ares_dir,'input','optical_depth')]
     
         else:
             if type(prefix) is str:
@@ -512,7 +512,7 @@ class GlobalVolume(object):
             else:
                 input_dirs = prefix
     
-        guess = '%s/%s' % (input_dirs[0], fn)
+        guess = os.path.join(input_dirs[0], fn)
         if os.path.exists(guess):
             return guess
     
@@ -531,7 +531,7 @@ class GlobalVolume(object):
                 if re.search('hdf5', fn1) and (not have_h5py):
                     continue
 
-                tab_name = '%s/%s' % (input_dir, fn1)
+                tab_name = os.path.join(input_dir, fn1)
                 
                 try:
                     zmin_f, zmax_f, Nz_f, lEmin_f, lEmax_f, chem_f, p1, p2 = \
@@ -770,7 +770,7 @@ class GlobalVolume(object):
                 
         else:
             fheat = self.pf['fXh']
-                        
+
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
         if self.background.solve_rte[popid] is None:

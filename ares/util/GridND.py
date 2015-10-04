@@ -103,7 +103,24 @@ class GridND(defaultdict):
     
     def __missing__(self, key):
         return None        
-
+        
+    @property
+    def structured(self):
+        if not hasattr(self, '_structured'):
+            if hasattr(self, '_axes'):
+                if self._axes:
+                    self._structured = True
+                else:
+                    self._structured = False
+            else:
+                self._structured = False
+                
+        return self._structured
+    
+    @structured.setter
+    def structured(self, value):
+        self._structured = value
+    
     @property
     def axes(self):
         """ List of all GridAxis instances. """
@@ -127,6 +144,10 @@ class GridND(defaultdict):
         
         return self._axes_names
         
+    @axes_names.setter
+    def axes_names(self, value):
+        self._axes_names = value    
+        
     @property
     def dims(self):
         """ Dimensions of grid. """
@@ -140,13 +161,16 @@ class GridND(defaultdict):
     @property
     def shape(self):
         """ Equivalent to self.dims. """
-        return self.dims    
+        return self.dims
         
     @property
     def size(self):    
         """ Total number of elements in grid. """
-        if not hasattr(self, '_size'):
+        
+        if self.structured and not hasattr(self, '_size'):
             self._size = int(np.prod(self.dims))
+        elif not self.structured:
+            self._size = len(self.all_kwargs)
         
         return self._size
         
@@ -160,6 +184,10 @@ class GridND(defaultdict):
                     self._Nd += 1
 
         return self._Nd
+        
+    @Nd.setter
+    def Nd(self, value):
+        self._Nd = value
         
     @property
     def coords(self):
@@ -462,6 +490,8 @@ class GridND(defaultdict):
         """
         Build N-dimensional parameter space via inner-product.
         """
+        
+        self.structured = True
         
         names = []
         self._Nd = 0

@@ -13,9 +13,10 @@ Description:
 import time
 import numpy as np
 from ..util import ParameterFile
-from ..analysis import MultiPhaseMedium
+from scipy.misc import derivative
 from ..util.ReadData import _load_inits
 from ..physics import Hydrogen, Cosmology
+from ..analysis.Global21cm import Global21cm
 from ..physics.Constants import k_B, J21_num, nu_0_mhz
 from ..physics.RateCoefficients import RateCoefficients
 from ..util.SetDefaultParameterValues import TanhParameters
@@ -41,7 +42,7 @@ def shift_z(z, nu_bias):
     nu += nu_bias
 
     return freq_to_z(nu)
-
+    
 class TanhModel:
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -73,6 +74,9 @@ class TanhModel:
             return self.cosm.TCMB(self.cosm.zdec) * (1. + z)**2 \
                 / (1. + self.cosm.zdec)**2
                 
+    def dTgas_dz(self, z):
+        return derivative(self.Tgas_adiabatic, x0=z)
+                
     def electron_density(self, z):
         if self.pf['load_ics']:
             return self.CR_ne(z)
@@ -86,26 +90,27 @@ class TanhModel:
     def ionized_fraction(self, z, xref, zref, dz):
         return xref * tanh_generic(z, zref=zref, dz=dz)
 
-    def heating_rate(self, z, Tref, zref, dz, Lambda=None):
-
+    def heating_rate(self, z, Tref, zref, dz):
+        """
+        Compute heating rate coefficient.
+        """
+        
         Tk = self.temperature(z, Tref, zref, dz)
 
         dtdz = self.cosm.dtdz(z)
     
         dTkdz = 0.5 * Tref * (1. - np.tanh((zref - z) / dz)**2) / dz
         dTkdt = dTkdz / dtdz
-    
-        n = self.cosm.nH(z)
-    
-        if Lambda is None:
-            cool = 0.0
-        else:
-            cool = Lambda(z)
-    
-        return 1.5 * n * k_B * (dTkdt + 2. * self.cosm.HubbleParameter(z) * Tk) \
-            + cool / dtdz
         
+        #dTgas_dt = self.dTgas_dz(z) / dtdz
+        
+        return 1.5 * k_B * dTkdt
+
     def ionization_rate(self, z, xref, zref, dz, C=1.):
+        """
+        Compute ionization rate coefficient.
+        """
+        
         xi = self.ionized_fraction(z, xref, zref, dz)
         
         dtdz = self.cosm.dtdz(z)
@@ -115,7 +120,8 @@ class TanhModel:
         
         n = self.cosm.nH(z)
         
-        return dxdt + alpha_A * C * n * xi
+        # Assumes ne = nH (bubbles assumed fully ionized)
+        return (dxdt + alpha_A * C * n * xi) / (1. - xi)
         
     def __call__(self, z, **kwargs):
         """
@@ -202,7 +208,7 @@ class TanhModel:
          'igm_heat_h_1': self.heating_rate(z, Tref, zref_T, dz_T),
          'cgm_Gamma_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
         }
-            
-        tmp = MultiPhaseMedium(hist)
-    
+
+        tmp = Global21cm(history=hist)    
+
         return tmp
