@@ -2889,7 +2889,7 @@ class ModelSet(object):
             vmin=-1, vmax=1)
         cb = pl.colorbar(cax)
     
-        return corr
+        return ax
     
     def add_boxes(self, ax=None, val=None, width=None, **kwargs):
         """

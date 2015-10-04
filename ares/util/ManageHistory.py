@@ -423,7 +423,7 @@ class WriteData():
             for key in self.sim.history:
                 print >> f, '%-18s' % key,
         
-            print >> f, '\n'
+            print >> f, ''
         
             # Now, the data
             for i in range(len(self.sim.history[key])):

@@ -137,6 +137,8 @@ class Global21cm:
                     f = open(history, 'rb')
                     self.data.add_data(pickle.load(f))
                     f.close()
+                elif re.search('npz', history):
+                    self.data.add_data(np.load(history))
                 else:    
                     f = open(history, 'r')
                     cols = f.readline().split()[1:]
