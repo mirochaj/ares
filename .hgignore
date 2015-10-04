@@ -27,3 +27,4 @@ ares.egg-info/PKG-INFO
 *.out
 input/starburst99/README
 *OLD*
+.cache

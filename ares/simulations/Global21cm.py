@@ -18,6 +18,7 @@ from .MultiPhaseMedium import MultiPhaseMedium
 defaults = \
 {
  'load_ics': True,
+ 'problem_type': 101, 
 }
 
 class Global21cm:

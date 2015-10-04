@@ -14,7 +14,7 @@ import os, ares
 
 pars = \
 {
- 'source_type{0}': 'star',
+ 'source_sed{0}': 'bb',
  'source_temperature{0}': 1e4,
  'fstar{0}': 1e-1,
  'Nion{0}': 4e3,
@@ -25,7 +25,6 @@ pars = \
  'norm_by{0}': 'lw',
  'approx_lwb{0}': True,
 
- 'source_type{1}': 'bh',
  'fstar{1}': 1e-1,
  'fX{1}': 1.,
  'norm_by{1}': 'xray',
@@ -36,14 +35,14 @@ pars = \
  'approx_xrb{1}': False,
  'discrete_xrb{1}': True,
  'redshift_bins{1}': 400,
- 'spectrum_type{1}': 'pl',
- 'spectrum_alpha{1}': -1.5,
- 'spectrum_Emin{1}': 2e2,
- 'spectrum_Emax{1}': 3e4,
+ 'source_sed{1}': 'pl',
+ 'source_alpha{1}': -1.5,
+ 'source_Emin{1}': 2e2,
+ 'source_Emax{1}': 3e4,
 }
 
 # Multi-pop model, one with real RT
-sim = ares.simulations.Global21cm(**pars)
+sim = ares.simulations.Global21cm(problem_type=101, **pars)
 sim.run()
 
 anl = ares.analysis.Global21cm(sim)
