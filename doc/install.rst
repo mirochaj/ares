@@ -30,6 +30,10 @@ to the *ares* install directory, e.g. (in bash) ::
     
 A few lookup tables will be downloaded to ``$ARES/input`` automatically.    
 
+Don't have Python already?
+--------------------------
+If you do *not* already have Python installed, you might consider downloading `yt <http://yt-project.org/>`_, which has a convenient installation script that will download and install a lot of common Python packages for you (everything but *hmf* listed above).
+
 Help
 ----
 If you encounter problems with installation or running simple scripts, first check the :doc:`troubleshooting` page in the documentation to see if you're dealing with a common problem. If you don't find your problem listed there, please let me know!
