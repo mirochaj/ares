@@ -28,4 +28,4 @@ ares.egg-info/PKG-INFO
 input/starburst99/README
 *OLD*
 *.orig
-
+.cache/*

@@ -147,11 +147,11 @@ class Global21cm:
         
         # List for extrema-finding    
         self.all_dTb = self._init_dTb()
-            
+                                
         for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():
-            
+                        
             pb.update(t)
-            
+                    
             # Save data
             self.all_z.append(z)
             self.all_t.append(t)
@@ -207,9 +207,9 @@ class Global21cm:
         tracked.
 
         """
-        
-        for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
                         
+        for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
+                                                                                       
             # Grab Lyman alpha flux
             Ja = self.medium.field.LymanAlphaFlux(z)
             

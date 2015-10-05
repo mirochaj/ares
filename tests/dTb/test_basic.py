@@ -11,13 +11,17 @@ Description: Make sure the global 21-cm signal calculator works.
 """
 
 import ares
-import matplotlib.pyplot as pl
 
-sim = ares.simulations.Global21cm()
-sim.run()
+def test():
 
-anl = ares.analysis.Global21cm(sim)
-ax = anl.GlobalSignature()
-
-assert True
+    sim = ares.simulations.Global21cm()
+    sim.run()
+    
+    anl = ares.analysis.Global21cm(sim)
+    ax = anl.GlobalSignature()
+        
+    assert True
+    
+if __name__ == '__main__':
+    test()    
 

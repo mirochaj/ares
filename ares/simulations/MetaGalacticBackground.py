@@ -62,6 +62,17 @@ class MetaGalacticBackground(UniformBackground):
         """
         Initialize lists which bracket radiation background fluxes.
         
+        The structure of these lists is as follows:
+        (1) Each list contains one element per source population.
+        (2) If that population will approximate the RTE, this entry will be 
+            None.
+        (3) The redshift lists, _zlo and _zhi, will just be a sequences of 
+            floats. 
+        (4) The flux entires, if not None, will be lists, since in general an
+            emission band can be broken up into several pieces. In this case,
+            the number of entries (for each source population) will be equal
+            to the number of bands, which you can find in self.bands_by_pop.
+        
         Sets
         ----
         Several attributes:
@@ -69,7 +80,7 @@ class MetaGalacticBackground(UniformBackground):
         (2) _fhi, _flo
         
         """
-        
+                
         # For "smart" time-stepping
         self._zhi = []; self._zlo = []
         self._fhi = []; self._flo = []
@@ -78,26 +89,30 @@ class MetaGalacticBackground(UniformBackground):
             # Recall that each generator may actually be a list of generators,
             # one for each (sub-)band.
             
-            if generator is [None]:
+            if (generator == [None]) or (generator is None):
+                self._zhi.append(None)
+                self._zlo.append(None)
                 self._fhi.append(None)
                 self._flo.append(None)
                 continue
+                
+            # Only make it here when real RT is happenin'    
+              
+            _fhi = []
+            _flo = []    
+            for j in range(len(generator)):
+                _fhi.append(np.zeros_like(self.energies[i][j]))
+                _flo.append(np.zeros_like(self.energies[i][j]))
             
-            # Loop over bands
-            _fhi = [None for k in range(len(generator))]
-            _flo = [None for k in range(len(generator))]
+            # Loop over sub-bands and retrieve fluxes
             for j, gen in enumerate(generator):
                 
                 if gen is None:
-                    continue
-                    
-                if i == 0:
-                    _fhi[j] = np.zeros_like(self.energies[i][j])
-                    _flo[j] = np.zeros_like(self.energies[i][j])
-                
+                    raise ValueError('this should never happen')
+                                                        
                 # Tap generator, grab fluxes
                 zhi, cflux, lflux = gen.next()
-                
+                                
                 # Increment the flux
                 _fhi[j] += cflux.copy()
                 
@@ -107,16 +122,17 @@ class MetaGalacticBackground(UniformBackground):
                 # Increment the flux
                 _flo[j] += cflux.copy()
                 
-                                
+            # Save fluxes for this population
             self._zhi.append(zhi)
             self._zlo.append(zlo)
             
             self._fhi.append(_fhi)
             self._flo.append(_flo)
-
-        # Is this OK?
-        self.update_redshift(self._zlo[0])
-
+            
+        # Set the redshift based on whichever population took the smallest
+        # step. Other populations will interpolate to find flux.
+        self.update_redshift(max(self._zlo))
+        
     def step(self):
         """
         Initialize generator for the meta-galactic radiation background.
@@ -137,7 +153,7 @@ class MetaGalacticBackground(UniformBackground):
         # Start the generator
         while z > zf:     
             z, fluxes_c, fluxes_l = self.update_fluxes()            
-            
+                        
             yield z, fluxes_c, fluxes_l
             
     def update_redshift(self, z):
@@ -178,12 +194,12 @@ class MetaGalacticBackground(UniformBackground):
         are separate lists for each sub-band over which we solve the RTE.
         
         """
-        
+                        
         if (not self._is_thru_run) and (not self.approx_all_pops) and \
             not hasattr(self, '_fhi'):
             
             self._init_stepping()
-            
+                        
             # Save fluxes by pop as simulations run
             self.all_z = []
             self.all_fluxes_c = []
@@ -193,19 +209,19 @@ class MetaGalacticBackground(UniformBackground):
         fluxes_c = {}  # continuum
         fluxes_l = {}  # line
         for i, pop_generator in enumerate(self.generators):
-
+            
             # Skip approximate (or non-contributing) backgrounds
             if pop_generator is None:
                 fluxes_c[i] = None
                 fluxes_l[i] = None
                 continue
-            
+                                    
             fluxes_c_by_band = []
             fluxes_l_by_band = []
 
             # For each population, the band is broken up into pieces
             for j, generator in enumerate(pop_generator):
-                                            
+                                                            
                 # If not being run as part of another simulation, there are 
                 # no external time-stepping constraints, so just poke the 
                 # generator and move on
@@ -215,7 +231,14 @@ class MetaGalacticBackground(UniformBackground):
                     fluxes_l_by_band.append(fl)
                     continue
                     
-                # Otherwise, we potentially need to sub-cycle the background
+                # Otherwise, we potentially need to sub-cycle the background.
+                # This may happen if (1) the time-step is being regulated
+                # from the simulation in which this background is embedded 
+                # (i.e., epsilon_dt requires smaller timestep than redshift
+                # step allowed by this population) or (2) if other populations
+                # have a different requirement for the redshift sampling, 
+                # such that this population must interpolate between its
+                # (larger) redshift steps while other populations churn away.
 
                 # For redshifts before this background turns on...
                 # (this should only happen once)
@@ -275,7 +298,7 @@ class MetaGalacticBackground(UniformBackground):
             self.all_fluxes_c.append(fluxes_c)
             self.all_fluxes_l.append(fluxes_l)
 
-        return z, fluxes_c, fluxes_l
+        return max(z_by_pop), fluxes_c, fluxes_l
 
     def update_rate_coefficients(self, z, **kwargs):
         """
@@ -291,14 +314,14 @@ class MetaGalacticBackground(UniformBackground):
         Dictionary of rate coefficients.
 
         """
-
+                
         # Must compute rate coefficients from fluxes     
         if self.approx_all_pops:
             kwargs['fluxes'] = [None] * self.Npops
-        else:
+        else:    
             z, fluxes_c, fluxes_i = self.update_fluxes()
             kwargs['fluxes'] = fluxes_c    
-
+        
         # Run update_rate_coefficients within MultiPhaseMedium
         return super(MetaGalacticBackground, self).update_rate_coefficients(z, 
             **kwargs)

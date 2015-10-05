@@ -26,10 +26,10 @@ src_pars = \
  'pop_alpha': 1.0,
  'pop_Emin': 1.,
  'pop_Emax': 500.,
- 'pop_EminNorm': 5e2,
- 'pop_EmaxNorm': 8e3,
- 'pop_yield': 2.6e39,
- 'pop_yield_units': 'erg/s/SFR',
+ 'pop_EminNorm': 10.2,
+ 'pop_EmaxNorm': 13.6,
+ 'pop_yield': 9690,
+ 'pop_yield_units': 'photons/baryon',
  
  # Solution method
  'pop_solve_rte': True,

@@ -15,38 +15,25 @@ import matplotlib.pyplot as pl
 
 pars = \
 {
- 'norm_by': 'lw',
- 'source_type': 'star',
- 'source_temperature': 3e4,
- 
- 'approx_lwb': False, 
- 'discrete_lwb': True,
- 
- 'spectrum_type': 'bb',
- 'spectrum_Emin': 10.2,
- 'spectrum_Emax': 13.6,
- 'spectrum_EminNorm': 0.01,
- 'spectrum_EmaxNorm': 5e2,
- 'lya_nmax': 15, 
- 
- 'lya_injected': False,
-  
+ 'pop_sed{0}': 'bb',
+ 'pop_Emin{0}': 10.18,
+ 'pop_Emax{0}': 15.,
+ 'pop_EminNorm{0}': 10.2,
+ 'pop_EmaxNorm{0}': 13.6,
+ 'pop_yield{0}': 9690.,
+ 'pop_yield_units{0}': 'photons/baryon',
+ 'pop_solve_rte{0}': True,
 }
 
-# Fiducial model, approximate Lyman-alpha background
-sim = ares.simulations.Global21cm(Nlw=9690)
-sim.run()
-
-anl = ares.analysis.Global21cm(sim)
-ax = anl.GlobalSignature()
-
+ax = None
 ls = '-', '--'
 colors = 'b', 'g', 'm'
 for j, injected in enumerate([True, False]):
     tpB = []
 
     for i, logT in enumerate([4, 4.7, 5]):
-        pars.update({'source_temperature': 10**logT, 'lya_injected': injected})
+        pars.update({'source_temperature{0}': 10**logT, 
+            'lya_injected{0}': injected})
         sim2 = ares.simulations.Global21cm(**pars)
         sim2.run()
 
@@ -56,6 +43,14 @@ for j, injected in enumerate([True, False]):
             label = None
 
         anl2 = ares.analysis.Global21cm(sim2)
-        anl2.GlobalSignature(ax=ax, color=colors[i], label=label, ls=ls[j])
+        ax = anl2.GlobalSignature(ax=ax, color=colors[i], label=label,  
+            ls=ls[j])
+
+# Fiducial model, approximate Lyman-alpha background
+sim = ares.simulations.Global21cm()
+sim.run()
+
+anl = ares.analysis.Global21cm(sim)
+ax = anl.GlobalSignature(ax=ax, color='k', ls='-')
 
 pl.draw()
