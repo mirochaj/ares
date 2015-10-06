@@ -20,8 +20,8 @@ hydr = Hydrogen()
 # Relevant temperature range
 T = np.logspace(0, 4, 500)
 
-fig1 = pl.figure(1); fig2 = pl.figure(2)
-ax1 = fig1.add_subplot(111); ax2 = fig2.add_subplot(111)
+fig1 = pl.figure(1)#; fig2 = pl.figure(2)
+ax1 = fig1.add_subplot(111)#; ax2 = fig2.add_subplot(111)
 
 # Plot coupling coefficients vs. temperature (tabulated)
 ax1.scatter(hydr.tabulated_coeff['T_H'], 
@@ -45,16 +45,16 @@ ax1.annotate('Lines are spline fit to points', (1.5, 5e-9), ha='left')
 pl.show()
 
 # Derivatives!
-Tk = np.logspace(1, 3, 500)
-
-ax2.semilogx(Tk, map(hydr.dlogkH_dlogT, Tk), color='k', ls='-',
-    label=r'$\kappa_{10}^{\mathrm{HH}}$')
-ax2.semilogx(Tk, map(hydr.dlogke_dlogT, Tk), color='k', ls='--',
-    label=r'$\kappa_{10}^{\mathrm{eH}}$')
-
-ax2.set_xlabel(r'$T \ (\mathrm{K})$')
-ax2.set_ylabel(r'$\frac{d\log \kappa}{d\log T_K}$')
-ax2.legend(loc='upper right', frameon=False)
-   
-pl.show()   
-   
+#Tk = np.logspace(1, 3, 500)
+#
+#ax2.semilogx(Tk, map(hydr.dlogkH_dlogT, Tk), color='k', ls='-',
+#    label=r'$\kappa_{10}^{\mathrm{HH}}$')
+#ax2.semilogx(Tk, map(hydr.dlogke_dlogT, Tk), color='k', ls='--',
+#    label=r'$\kappa_{10}^{\mathrm{eH}}$')
+#
+#ax2.set_xlabel(r'$T \ (\mathrm{K})$')
+#ax2.set_ylabel(r'$\frac{d\log \kappa}{d\log T_K}$')
+#ax2.legend(loc='upper right', frameon=False)
+#   
+#pl.show()   
+  

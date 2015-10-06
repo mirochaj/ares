@@ -219,12 +219,12 @@ class GlobalVolume(object):
         # We're done!
         return ztab, Etab[i_E0:i_E1], tau[:,i_E0:i_E1]
 
-    #@property
-    #def E(self):
-    #    if not hasattr(self, '_E'):
-    #        self._tabulate_atomic_data()
-    #
-    #    return self._E
+    @property
+    def E(self):
+        if not hasattr(self, '_E'):
+            self._tabulate_atomic_data()
+    
+        return self._E
 
     @property
     def sigma_E(self):
@@ -261,9 +261,9 @@ class GlobalVolume(object):
         
         # Loop over populations
         for i, pop in enumerate(self.pops):
-            
+                        
             # This means the population is completely approximate
-            if not self.background.solve_rte[i]:
+            if (not self.background.solve_rte[i]) or (self.background.solve_rte[i] == [False]):
                 self.logE[i] = [None]
                 self.dlogE[i] = [None]
                 self._sigma_E[i] = [None]
@@ -504,7 +504,7 @@ class GlobalVolume(object):
                 print "No ARES environment variable."
                 return None
             
-            input_dirs = ['%s/input/optical_depth' % ares_dir]
+            input_dirs = [os.path.join(ares_dir,'input','optical_depth')]
     
         else:
             if type(prefix) is str:
@@ -512,7 +512,7 @@ class GlobalVolume(object):
             else:
                 input_dirs = prefix
     
-        guess = '%s/%s' % (input_dirs[0], fn)
+        guess = os.path.join(input_dirs[0], fn)
         if os.path.exists(guess):
             return guess
     
@@ -531,7 +531,7 @@ class GlobalVolume(object):
                 if re.search('hdf5', fn1) and (not have_h5py):
                     continue
 
-                tab_name = '%s/%s' % (input_dir, fn1)
+                tab_name = os.path.join(input_dir, fn1)
                 
                 try:
                     zmin_f, zmax_f, Nz_f, lEmin_f, lEmax_f, chem_f, p1, p2 = \
@@ -701,9 +701,10 @@ class GlobalVolume(object):
         
         if self.background.solve_rte[popid] is None:
             pass
-        elif kw['Emax'] is None and ('xrb' in self.background.solve_rte[popid]):
-            kw['Emax'] = self.background.energies[popid][-1]    
-            
+        elif (kw['Emax'] is None) and self.background.solve_rte[popid] and \
+            np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
+            kw['Emax'] = self.background.energies[popid][-1]
+                        
         return kw
         
     def HeatingRate(self, z, species=0, popid=0, band=0, **kwargs):
@@ -770,7 +771,7 @@ class GlobalVolume(object):
                 
         else:
             fheat = self.pf['fXh']
-                        
+
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
         if self.background.solve_rte[popid] is None:
@@ -900,7 +901,7 @@ class GlobalVolume(object):
         kw = defkwargs.copy()
         kw.update(kwargs)
 
-        if self.pf['pop_k_ion_cgm'] is not None:
+        if pop.pf['pop_k_ion_cgm'] is not None:
             return self.pf['pop_k_ion_cgm'](z)
                 
         if kw['return_rc']:
@@ -912,7 +913,7 @@ class GlobalVolume(object):
                         
         return weight * Qdot * (1. + z)**3  
             
-    def IonizationRateIGM(self, z, species=0, popid=0, **kwargs):
+    def IonizationRateIGM(self, z, species=0, popid=0, band=0, **kwargs):
         """
         Compute volume averaged hydrogen ionization rate.
         
@@ -930,21 +931,21 @@ class GlobalVolume(object):
         second per atom.
         
         """
-        
-        pop = self.pops[popid]                     
-                                
+
+        pop = self.pops[popid]
+
         # z between zform, zdead? must be careful for BHs
         if (not pop.pf['pop_ion_src_igm']) or (z > pop.zform):
             return 0.0
-                
-        # Grab defaults, do some patches if need be            
+
+        # Grab defaults, do some patches if need be
         kw = self._fix_kwargs(**kwargs)
-                        
+
         if pop.pf['pop_k_ion_igm'] is not None:
             return pop.pf['pop_k_ion_igm'](z)
 
-        if (self.background.solve_rte[popid] is None) or \
-            'xrb' not in self.background.solve_rte[popid]:
+        if (not self.background.solve_rte[popid]) or \
+            (not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX'])):
             
             Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 
                 Emax=pop.pf['pop_Emax'])
@@ -972,13 +973,15 @@ class GlobalVolume(object):
         
         # Integrate over set of discrete points
         else:  
-            integrand = self.sigma_E[popid][species] \
-                * kw['fluxes'][popid] / norm / ev_per_hz
+            integrand = self.sigma_E[popid][band][species] \
+                * kw['fluxes'][popid][band] / norm / ev_per_hz
         
             if self.sampled_integrator == 'romb':
-                ion = romb(integrand * self.E[popid], dx=self.dlogE[popid])[0] * log10
+                ion = romb(integrand * self.E[popid][band], 
+                    dx=self.dlogE[popid][band])[0] * log10
             else:
-                ion = simps(integrand * self.E[popid], x=self.logE[popid]) * log10
+                ion = simps(integrand * self.E[popid][band], 
+                    x=self.logE[popid][band]) * log10
                 
         # Re-normalize
         ion *= 4. * np.pi * norm
@@ -992,7 +995,7 @@ class GlobalVolume(object):
         return ion
                 
     def SecondaryIonizationRateIGM(self, z, species=0, donor=0, popid=0, 
-        **kwargs):
+        band=0, **kwargs):
         """
         Compute volume averaged secondary ionization rate.
 
@@ -1033,12 +1036,12 @@ class GlobalVolume(object):
             return 0.0 
 
         # Computed in IonizationRateIGM in this case
-        if (self.background.solve_rte[popid] is None) or \
-            'xrb' not in self.background.solve_rte[popid]:
-        #if pop.pf['approx_xrb']:
-            #raise NotImplemented('hey')
+        if not self.background.solve_rte[popid]:
             return 0.0
-            
+
+        if not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
+            return 0.0
+        
         if ((donor or species) in [1,2]) and self.pf['approx_He']:
             return 0.0
 
@@ -1086,23 +1089,27 @@ class GlobalVolume(object):
                     zxavg=kw['zxavg']) * self.sigma(E) * (E - E_th[0]) \
                     / E_th[0] / norm / ev_per_hz
         else:
-            integrand = fion * self.sigma_E[popid][donor] * (self.E[popid] - E_th[donor])
+            integrand = fion * self.sigma_E[popid][band][donor] \
+                * (self.E[popid][band] - E_th[donor])
             
             if self.pf['approx_He']:
-                integrand += self.cosm.y * self.sigma_E[popid][1] \
-                    * (self.E[popid] - E_th[1])
+                integrand += self.cosm.y * self.sigma_E[popid][band][1] \
+                    * (self.E[popid][band] - E_th[1])
             
             integrand = integrand
-            integrand *= kw['fluxes'][popid] / E_th[species] / norm / ev_per_hz
+            integrand *= kw['fluxes'][popid][band] / E_th[species] / norm \
+                / ev_per_hz
         
         if type(integrand) == types.FunctionType:
             ion, err = dblquad(integrand, z, kw['zf'], lambda a: self.E0, 
                 lambda b: kw['Emax'], epsrel=self.rtol, epsabs=self.atol)
         else:
             if self.sampled_integrator == 'romb':
-                ion = romb(integrand * self.E[popid], dx=self.dlogE[popid])[0] * log10
+                ion = romb(integrand * self.E[popid][band], 
+                    dx=self.dlogE[popid][band])[0] * log10
             else:
-                ion = simps(integrand * self.E[popid], x=self.logE[popid]) * log10    
+                ion = simps(integrand * self.E[popid][band], 
+                    x=self.logE[popid][band]) * log10    
                 
         # Re-normalize
         ion *= 4. * np.pi * norm * fion_const

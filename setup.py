@@ -21,6 +21,9 @@ setup(name='ares',
       author_email='mirochaj@gmail.com',
       url=ares_link,
       packages=ares_packages,
+      #entry_points={'console_scripts': [
+      #'ares = ares.util.CommandLine:run_main',
+      #]},
      )
           
 # Try to set up $HOME/.ares: this won't work on WINDOWS at the moment
@@ -178,6 +181,13 @@ os.chdir('..')
 ARES_env = os.getenv('ARES')
 cwd = os.getcwd()
 
+# Go back down to the root level, otherwise the user will get slightly 
+# incorrect instructions for how to set the ARES environment variable
+os.chdir('..')    
+
+ARES_env = os.getenv('ARES')
+cwd = os.getcwd()
+
 ##
 # TELL PEOPLE TO SET ENVIRONMENT VARIABLE
 ##
@@ -201,26 +211,25 @@ if not ARES_env:
             print "\n    setenv ARES %s" % cwd
 
     print "\nGood luck!"
-    print "#"*78
+    print "#"*78        
     print "\n"
 
 # Print a warning if there's already an environment variable but it's pointing
 # somewhere other than the current directory
 elif ARES_env != cwd:
-
+    
     print "\n"
     print "#"*78
     print "It looks like you've already got an ARES environment variable set",
     print "but it's \npointing to a different directory:"
     print "\n    ARES=%s" % ARES_env
-
+    
     print "\nHowever, we're currently in %s.\n" % cwd
-
+    
     print "Is this a different ares install (might not cause problems),",
     print "or perhaps just"
     print "a typo in your environment variable?"
-
+    
     print "#"*78        
     print "\n"
-    
-    
+

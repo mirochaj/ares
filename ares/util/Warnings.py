@@ -12,9 +12,23 @@ Description:
 
 import sys, os
 import numpy as np
+import sys, textwrap, os
 from .PrintInfo import twidth, line, tabulate
 
+try:
+    from hmf import MassFunction
+    have_hmf = True
+except ImportError:
+    have_hmf = False
+    
+try:
+    import pycamb
+    have_pycamb = True
+except ImportError:
+    have_pycamb = False
+    
 ARES = os.getenv('ARES')
+have_ARES_env = ARES is not None
 
 separator = '|'*twidth
 separator2 = '-'*twidth
@@ -170,6 +184,74 @@ def tau_quad(igm):
     print line("fstar       : %.3e" % fstar)
     print line("dfcoll / dt : %.3e" % dfcolldt)    
     print line("SFRD        : %.3e" % sfrd)    
+    print line(separator)
+    
+def missing_hmf_tab(hmf):
+    print ""
+    print line(separator)
+    print line('WARNING: Could not find supplied hmf table.')    
+    print line(separator)    
+    
+    print line('Was looking for:')
+    print line('')
+    print line('    %s' % hmf.pf['hmf_table'])
+    
+
+    print line('')
+    print line('Will search for a suitable replacement in:')
+    print line('')
+    print line('    %s/input/hmf' % ARES)
+    print line('')
+    print line(separator)
+            
+def no_hmf(hmf):
+    print ""
+    print line(separator)
+    print line('ERROR: Cannot generate halo mass function')    
+    print line(separator)        
+    
+    if not have_ARES_env:
+        s = \
+        """
+        It looks like you have not yet set the ARES environment variable, 
+        which is needed to locate various input files. Make sure to source 
+        your .bashrc or .cshrc (or equivalent) when finished! 
+        """
+    else:
+        s = \
+        """
+        It looks like you have set the ARES environment variable. Is it 
+        correct? Have you sourced your .bashrc or .cshrc (or equivalent) to 
+        ensure that it is defined? 
+        """
+
+    if not (have_pycamb and have_hmf):
+        s = \
+        """
+        If you'd like to generate halo mass function lookup tables of your
+        own, e.g., using fits other than the Sheth-Tormen form, or with 
+        non-default cosmological parameters, you'll need to install hmf and
+        pycamb.
+        """
+    
+    dedented_s = textwrap.dedent(s).strip()
+    snew = textwrap.fill(dedented_s, width=twidth)
+    snew_by_line = snew.split('\n')
+    
+    for l in snew_by_line:
+        print line(l)
+
+        
+    if not (have_pycamb and have_hmf):
+        print line('')
+        print line('It looks like you\'re missing both hmf and pycamb.')
+    elif not have_pycamb:
+        print line('')
+        print line('It looks like you\'re missing pycamb.')
+    elif not have_hmf:
+        print line('')
+        print line('It looks like you\'re missing hmf.')
+       
     print line(separator)
 
 

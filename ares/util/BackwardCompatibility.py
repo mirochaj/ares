@@ -38,12 +38,14 @@ def backward_compatibility(ptype, **kwargs):
         if 'fesc' in kwargs:
             pf['pop_fesc{2}'] = kwargs['fesc']
         
-        if 'Nlw' in kwargs:
-            pf['pop_yield{0}'] = kwargs['Nlw']
+        if ('Nlw' in kwargs) or ('xi_LW' in kwargs):
+            y = kwargs['Nlw'] if ('Nlw' in kwargs) else kwargs['xi_LW']
+            pf['pop_yield{0}'] = y
             pf['pop_yield_units{0}'] = 'photons/baryon'
         
-        if 'Nion' in kwargs:
-            pf['pop_yield{2}'] = kwargs['Nion']
+        if ('Nion' in kwargs) or ('xi_UV' in kwargs):
+            y = kwargs['Nion'] if ('Nion' in kwargs) else kwargs['xi_UV']
+            pf['pop_yield{2}'] = y
             pf['pop_yield_units{2}'] = 'photons/baryon'    
         
         # Lx-SFR
@@ -57,6 +59,8 @@ def backward_compatibility(ptype, **kwargs):
         elif 'fX' in kwargs:        
             pf['pop_yield{1}'] = kwargs['fX'] * kwargs['pop_yield{1}']    
             
+        elif 'xi_XR' in kwargs:
+            pf['pop_yield{1}'] = kwargs['xi_XR'] * kwargs['pop_yield{1}']    
         
     else:
         pf = {}

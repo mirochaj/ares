@@ -24,12 +24,14 @@ pars = \
  'pop_Emax': 24.6,
  'pop_EminNorm': 13.6,
  'pop_EmaxNorm': 24.6,
+ 'pop_fesc': 0.2,
  'pop_yield': 1e57,
  'pop_yield_units': 'photons/msun',
+ 'photon_counting': True,
  
  'include_igm': False,
- 'initial_redshift': 30.,
- 'final_redshift': 7.,
+ 'initial_redshift': 40.,
+ 'final_redshift': 5.,
 }
 
 sim = ares.simulations.MultiPhaseMedium(**pars)

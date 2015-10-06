@@ -119,31 +119,20 @@ class UniformBackground(object):
             for i, pop in enumerate(self.pops):
                                 
                 if self.bands_by_pop[i] is None:
-                    self._solve_rte.append(None)
+                    self._solve_rte.append(False)
                     continue
                 
                 this_pop = []
                 for j, band in enumerate(self.bands_by_pop[i]):
                     
                     if band is None:
-                        to_append = None
+                        self._solve_rte.append(False)
+                        break
                     elif type(pop.pf['pop_solve_rte']) is bool:
-                        to_append = pop.pf['pop_solve_rte']
-                    else:
-                        Eavg = np.mean(band)
+                        self._solve_rte.append(pop.pf['pop_solve_rte'])
+                        break
                         
-                        if E_LyA <= Eavg <= E_LL:
-                            to_append = 'lwb'
-                        elif E_LL <= Eavg <= (4 * E_LL):
-                            to_append = 'uvb'
-                        elif Eavg >= (4 * E_LL):
-                            to_append = 'xrb'
-                        else:
-                            raise NotImplemented('IRB?')
-                            
-                    this_pop.append(to_append)
-                                        
-                self._solve_rte.append(this_pop)
+        assert len(self._solve_rte) == len(self.pops)                
                                 
         return self._solve_rte
         
@@ -233,13 +222,12 @@ class UniformBackground(object):
         self.energies = []; self.redshifts = []; self.emissivities = []
         for i, pop in enumerate(self.pops):
 
-            bands = bands_by_pop[i]
-
-            if self.solve_rte[i] is None:
-                z = nrg = ehat = tau = None
-            else:
+            if self.solve_rte[i]:
+                bands = bands_by_pop[i]
                 z, nrg, tau, ehat = self._set_grid(pop, bands)
-
+            else:
+                z = nrg = ehat = tau = None
+                
             self.tau.append(tau)
             self.energies.append(nrg)
             self.redshifts.append(z)
@@ -282,11 +270,14 @@ class UniformBackground(object):
             
             E0, E1 = band
                                 
+            has_sawtooth = (E0 <= E_LyA <= E1) or (E0 <= E_LL <= E1)
+            has_sawtooth |= (E0 <= 4*E_LyA <= E1) or (E0 <= 4*E_LL <= E1)
+
             # Special treatment if LWB or UVB
-            if band in [(E_LyA, E_LL), (4 * E_LyA, 4 * E_LL)]:
-                                
+            if has_sawtooth:
+
                 HeII = band[0] > E_LL
-                                                
+
                 E = []
                 narr = np.arange(2, self.pf['sawtooth_nmax'])
                 for n in narr:
@@ -400,7 +391,7 @@ class UniformBackground(object):
         
         self.generators = []
         for i, pop in enumerate(self.pops):
-            if self.bands_by_pop[i] is None:
+            if not self.solve_rte[i]:
                 gen = None
             else:
                 gen = self.FluxGenerator(popid=i)
@@ -431,6 +422,7 @@ class UniformBackground(object):
 
         # Setup arrays for results - sorted by sources and absorbers
         # The middle dimension of length 1 is the number of cells
+        # which is always 1 for these kinds of calculations
         self.k_ion  = np.zeros([self.Npops, 1, self.grid.N_absorbers])
         self.k_ion2 = np.zeros([self.Npops, 1, self.grid.N_absorbers, 
             self.grid.N_absorbers])
@@ -438,31 +430,22 @@ class UniformBackground(object):
         
         # Loop over sources
         for i, source in enumerate(self.pops):
+
+            ##
+            ## What to do for approximate RTE populations?
+            ##
             
-            # Sum over bands
-            for k, band in enumerate(self.energies[i]):
-
-                # Loop over absorbing species
-                for j, species in enumerate(self.grid.absorbers):
-                        
-                    if kwargs['zone'] == 'igm':
-                        self.k_ion[i,0,j] += \
-                            self.volume.IonizationRateIGM(z, species=j, popid=i,
-                            band=k, **kwargs)
-                        self.k_heat[i,0,j] += \
-                            self.volume.HeatingRate(z, species=j, popid=i,
-                            band=k, **kwargs)
-
-                        for k, donor in enumerate(self.grid.absorbers):
-                            self.k_ion2[i,0,j,k] += \
-                                self.volume.SecondaryIonizationRateIGM(z, 
-                                species=j, donor=k, popid=i, band=k, **kwargs)
-
-                    else:
-                        self.k_ion[i,0,j] += \
-                            self.volume.IonizationRateCGM(z, species=j, popid=i,
-                            band=k, **kwargs)
-
+            # Loop over absorbing species
+            for j, species in enumerate(self.grid.absorbers):
+                
+                if not self.solve_rte[i]:
+                    self._update_by_band_and_species(z, i, j, None, **kwargs)
+                    continue
+                
+                # Sum over bands
+                for k, band in enumerate(self.energies[i]):
+                    self._update_by_band_and_species(z, i, j, k, **kwargs)
+            
         # Sum over sources
         self.k_ion_tot = np.sum(self.k_ion, axis=0)
         self.k_ion2_tot = np.sum(self.k_ion2, axis=0)
@@ -476,7 +459,26 @@ class UniformBackground(object):
         }
         
         return to_return
-
+        
+    def _update_by_band_and_species(self, z, i, j, k, **kwargs):
+        if kwargs['zone'] == 'igm':
+            self.k_ion[i,0,j] += \
+                self.volume.IonizationRateIGM(z, species=j, popid=i,
+                band=k, **kwargs)
+            self.k_heat[i,0,j] += \
+                self.volume.HeatingRate(z, species=j, popid=i,
+                band=k, **kwargs)
+    
+            for k, donor in enumerate(self.grid.absorbers):
+                self.k_ion2[i,0,j,k] += \
+                    self.volume.SecondaryIonizationRateIGM(z, 
+                    species=j, donor=k, popid=i, band=k, **kwargs)
+    
+        else:
+            self.k_ion[i,0,j] += \
+                self.volume.IonizationRateCGM(z, species=j, popid=i,
+                band=k, **kwargs)
+        
     def AngleAveragedFlux(self, z, E, popid=0, **kwargs):
         """
         Compute flux at observed redshift z and energy E (eV).
@@ -796,7 +798,7 @@ class UniformBackground(object):
             self._narr = np.arange(2, self.pf['lya_nmax'])    
         
         return self._narr
-        
+
     def LymanAlphaFlux(self, z=None, fluxes=None, popid=0, **kwargs):
         """
         Compute background flux at Lyman-alpha resonance. 
@@ -825,7 +827,7 @@ class UniformBackground(object):
             return pop.pf['pop_Ja'](z)
 
         # Flat spectrum, no injected photons, instantaneous emission only
-        if self.solve_rte[popid] is None:
+        if not self.solve_rte[popid]:
             norm = c * self.cosm.dtdz(z) / four_pi
             
             rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6)
@@ -834,31 +836,29 @@ class UniformBackground(object):
                 rhoLW / dnu
         
         # Full calculation
-        elif 'lwb' in self.solve_rte[popid]:
-
-            J = 0.0
-
-            for i, n in enumerate(self.narr):
-    
-                if n == 2 and not pop.pf['lya_continuum']:
-                    continue
-                if n > 2 and not pop.pf['lya_injected']:
-                    continue
-                
-                #if self.pf['discrete_lwb']:
-                Jn = self.hydr.frec(n) * fluxes[i][0] * 0.2
-                #else:
-                #
-                #    En = self.hydr.ELyn(n)
-                #    Enp1 = self.hydr.ELyn(n + 1)
-                #    
-                #    Eeval = En + 0.01 * (Enp1 - En)
-                #    Jn = self.hydr.frec(n) * self.LymanWernerFlux(z, Eeval, 
-                #        **kwargs)
-
-                J += Jn
-
-            return J        
+        J = 0.0
+        
+        for i, n in enumerate(self.narr):
+        
+            if n == 2 and not pop.pf['lya_continuum']:
+                continue
+            if n > 2 and not pop.pf['lya_injected']:
+                continue
+            
+            #if self.pf['discrete_lwb']:
+            Jn = self.hydr.frec(n) * fluxes[i][0] * 0.2
+            #else:
+            #
+            #    En = self.hydr.ELyn(n)
+            #    Enp1 = self.hydr.ELyn(n + 1)
+            #    
+            #    Eeval = En + 0.01 * (Enp1 - En)
+            #    Jn = self.hydr.frec(n) * self.LymanWernerFlux(z, Eeval, 
+            #        **kwargs)
+        
+            J += Jn
+        
+        return J        
         
     def load_sed(self, prefix=None):
         fn = pop.src.sed_name()
@@ -988,7 +988,7 @@ class UniformBackground(object):
         # Loop over redshift - this is the generator                    
         z = redshifts[-1]
         while z >= redshifts[0]:
-            
+                        
             # First iteration: no time for there to be flux yet
             # (will use argument flux0 if the EoR just started)
             if ll == (L - 1):
@@ -1011,7 +1011,7 @@ class UniformBackground(object):
                     + exp_term * ((c / four_pi) * xsq[ll+1] \
                     * trapz_base * np.roll(ehat[ll+1], -1, axis=-1) \
                     + np.roll(flux, -1) / Rsq)
-                
+                                    
             # No higher energies for photons to redshift from.
             # An alternative would be to extrapolate, and thus mimic a
             # background spectrum that is not truncated at Emax

@@ -56,7 +56,7 @@ class MultiPhaseMedium(object):
             kwargs['load_ics'] = True
 
         self.pf = ParameterFile(**kwargs)
-
+                
         # Load in initial conditions, interpolate to initial_redshift
         if self.pf['load_ics']:
             
@@ -229,12 +229,12 @@ class MultiPhaseMedium(object):
 
         pb = ProgressBar(self.tf, use=self.pf['progress_bar'])
         pb.start()
-                        
+                                    
         # Evolve in time
         for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.step():
             
             pb.update(t)
-            
+                        
             # Save data
             self.all_z.append(z)
             self.all_t.append(t)
@@ -311,25 +311,25 @@ class MultiPhaseMedium(object):
             dtdz = self.default_parcel.grid.cosm.dtdz(z)
             t += dt
             z -= dt / dtdz
-            
+                        
             # The (potential) generators need this
             self.field.update_redshift(z)
-
+                        
             # IGM rate coefficients
             if self.pf['include_igm']:
                 RC_igm = self.field.update_rate_coefficients(z, 
                     zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
-                
+                                                                
                 # Now, update IGM parcel
                 t1, dt1, data_igm = self.gen_igm.next()
-                
+                                
                 # Pass rate coefficients off to the IGM parcel
                 self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
             else:
                 dt1 = 1e50
                 RC_igm = data_igm = None
                 data_igm = {'h_1': 1.0}
-
+                
             if self.pf['include_cgm']:
                 # CGM rate coefficients
                 RC_cgm = self.field.update_rate_coefficients(z,
@@ -358,7 +358,7 @@ class MultiPhaseMedium(object):
             # need to "re-do" this step to ensure convergence.
 
             redo = self.subcycle()
-
+            
             if not redo:    
                 
                 # Changing attribute! A little scary, but we must make sure
@@ -369,7 +369,7 @@ class MultiPhaseMedium(object):
                     self.parcel_cgm.dt = dt
 
                 yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
-
+                
                 continue
 
             # If we've made it here, we need to trick our generators a bit

@@ -4,7 +4,7 @@ Installation
 
 * `numpy <http://numpy.scipy.org/>`_
 * `scipy <http://www.scipy.org/>`_ 
-* `matplotlib <http://matplotlib.sourceforge.net>`_ (for built-in analysis routines)
+* `matplotlib <http://matplotlib.sourceforge.net>`_
 
 and optionally:
 
@@ -13,7 +13,7 @@ and optionally:
 * `mpi4py <http://mpi4py.scipy.org>`_
 * `h5py <http://www.h5py.org/>`_
 
-To download the code, type::
+If you have mercurial installed, you can clone *ares* and its entire revision history via: ::
 
     hg clone https://bitbucket.org/mirochaj/ares ares
     cd ares
@@ -30,3 +30,10 @@ to the *ares* install directory, e.g. (in bash) ::
     
 A few lookup tables will be downloaded to ``$ARES/input`` automatically.    
 
+Don't have Python already?
+--------------------------
+If you do *not* already have Python installed, you might consider downloading `yt <http://yt-project.org/>`_, which has a convenient installation script that will download and install a lot of common Python packages for you (everything but *hmf* listed above).
+
+Help
+----
+If you encounter problems with installation or running simple scripts, first check the :doc:`troubleshooting` page in the documentation to see if you're dealing with a common problem. If you don't find your problem listed there, please let me know!

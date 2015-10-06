@@ -10,5 +10,6 @@ if _os.path.exists('%s/.ares/defaults.py' % _HOME):
 else:
     rcParams = {}
 
-import static, solvers, physics, simulations, sources, analysis, inference
+import static, solvers, physics, simulations, sources, analysis, inference, \
+    util
 

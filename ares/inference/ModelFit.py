@@ -15,13 +15,14 @@ from ..util.Stats import get_nu
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
 import gc, os, sys, copy, types, time, re
-from ..analysis import MultiPhaseMedium as anlG21
+from ..analysis import Global21cm as anlG21
 from ..simulations import Global21cm as simG21
+from ..util.Stats import Gauss1D, GaussND, rebin
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
-from ..util.Stats import Gauss1D, GaussND, error_1D, rebin
-from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs  
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
+from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
+    read_pickled_chain
 
 try:
     from scipy.spatial import KDTree
@@ -29,17 +30,26 @@ try:
 except ImportError:
     pass
     
-try:
-   import cPickle as pickle
-except:
-   import pickle    
+#try:
+#    import cPickle as pickle
+#except:
+import pickle    
 
 try:
     import emcee
-    from emcee.utils import MPIPool
 except ImportError:
     pass
-    
+
+emcee_mpipool = False
+try:
+    from mpi_pool import MPIPool
+except ImportError:
+    try:
+        from emcee.utils import MPIPool
+        emcee_mpipool = True    
+    except ImportError:
+        pass
+     
 try:
     import h5py
 except ImportError:
@@ -61,14 +71,42 @@ uninformative = lambda x, mi, ma: 1.0 if (mi <= x <= ma) else 0.0
 # Gaussian prior
 gauss1d = lambda x, mu, sigma: np.exp(-0.5 * (x - mu)**2 / sigma**2)
 
-def_kwargs = {'track_extrema': 1, 'verbose': False, 'progress_bar': False}
+def_kwargs = {'track_extrema': 1, 'verbose': False, 'progress_bar': False,
+    'one_file_per_blob': True}
 
-default_errors = \
-{
- 'B': np.diag([0.1, 1.])**2,
- 'C': np.diag([0.1, 1.])**2,
- 'D': np.diag([0.1, 1.])**2,
-}
+def _str_to_val(p, par, pvals, pars):
+    """
+    Convert string to parameter value.
+    
+    Parameters
+    ----------
+    p : str
+        Name of parameter that the prior for this paramemeter is linked to.
+    par : str
+        Name of parameter who's prior is linked.
+    pars : list
+        List of values for each parameter on this step.
+        
+    Returns
+    -------
+    Numerical value corresponding to this linker-linkee relationship.    
+    
+    """
+    
+    # Look for populations
+    m = re.search(r"\{([0-9])\}", p)
+
+    # Single-pop model? I guess.
+    if m is None:
+        raise NotImplemented('This should never happen.')
+
+    # Population ID number
+    num = int(m.group(1))
+
+    # Pop ID including curly braces
+    prefix = p.split(m.group(0))[0]
+
+    return pvals[pars.index('%s{%i}' % (prefix, num))]
 
 class logprior:
     def __init__(self, priors, parameters):
@@ -89,13 +127,20 @@ class logprior:
         logL = 0.0
         for i, par in enumerate(self.pars):
             val = pars[i]
-            
+
             ptype = self.priors[self.pars[i]][0]
             if self.prior_len[i] == 3:
                 p1, p2 = self.priors[self.pars[i]][1:]
             else:
                 p1, p2, red = self.priors[self.pars[i]][1:]                
-                                          
+
+            # Figure out if this prior is linked to others
+            if type(p1) is str:
+                tmp = p1
+                p1 = _str_to_val(p1, par, pars, self.pars)
+            if type(p2) is str:
+                p2 = _str_to_val(p2, par, pars, self.pars)
+                
             # Uninformative priors
             if ptype == 'uniform':
                 logL -= np.log(uninformative(val, p1, p2))
@@ -106,12 +151,13 @@ class logprior:
                 raise ValueError('Unrecognized prior type: %s' % ptype)
 
         return logL
-
+        
 class loglikelihood:
     def __init__(self, steps, parameters, is_log, mu, errors,
-        base_kwargs, nwalkers, priors={}, 
-        errmap=None, errunits=None, prefix=None, fit_turning_points=True,
-        burn=False, blob_names=None, blob_redshifts=None):
+        base_kwargs, nwalkers, priors={}, errmap=None, errunits=None, 
+        prefix=None, fit_signal=False, fit_turning_points=True,
+        burn=False, blob_names=None, blob_redshifts=None, 
+        frequency_channels=None):
         """
         Computes log-likelihood at given step in MCMC chain.
 
@@ -128,11 +174,14 @@ class loglikelihood:
 
         self.burn = burn
         self.prefix = prefix   
+        self.fit_signal = fit_signal
+        if frequency_channels is not None:
+            self.signal_z = nu_0_mhz / frequency_channels - 1.
         self.fit_turning_points = fit_turning_points     
 
         self.blob_names = blob_names
         self.blob_redshifts = blob_redshifts
-                                        
+        
         # Setup binfo pkl file
         self._prep_binfo()
 
@@ -227,13 +276,13 @@ class loglikelihood:
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
-        
+
         try:
             sim = simG21(**kw)
             sim.run()
             
             tps = sim.turning_points
-        
+                    
         # Timestep weird (happens when xi ~ 1)
         except SystemExit:
             
@@ -241,10 +290,10 @@ class loglikelihood:
             tps = sim.turning_points
                  
         # most likely: no (or too few) turning pts
-        except:                     
+        except ValueError:                     
             # Write to "fail" file
             if not self.burn:
-                f = open('%s.fail.%i.pkl' % (self.prefix, rank), 'ab')
+                f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
                 pickle.dump(kwargs, f)
                 f.close()
                             
@@ -266,7 +315,7 @@ class loglikelihood:
             j = self.blob_redshifts.index(z)
 
             val = sim.blobs[j,i]
-
+            
             blob_vals.append(val)    
 
         if blob_vals:
@@ -281,34 +330,40 @@ class loglikelihood:
         else:
             blobs = self.blank_blob    
 
-        if not (self.fit_turning_points or self.fit_raw_data):
+        if (not self.fit_turning_points) and (not self.fit_signal):
             del sim, kw
             gc.collect()
             return lp, blobs
 
         # Compute the likelihood if we've made it this far
-
-        # Fit turning points    
-        xarr = []
-
-        # Convert frequencies to redshift, temperatures to K
-        for element in self.errmap:
-            tp, i = element            
-
-            # Models without turning point B, C, or D get thrown out.
-            if tp not in tps:
-                del sim, kw
-                gc.collect()
-
-                return -np.inf, self.blank_blob
         
-            if i == 0 and self.errunits[0] == 'MHz':
-                xarr.append(nu_0_mhz / (1. + tps[tp][i]))
-            else:
-                xarr.append(tps[tp][i])
-                   
-        # Values of current model that correspond to mu vector
-        xarr = np.array(xarr)
+        if self.fit_signal:
+            
+            xarr = np.interp(self.signal_z, sim.history['z'][-1::-1],
+                sim.history['dTb'][-1::-1])
+                
+        elif self.fit_turning_points: 
+            # Fit turning points    
+            xarr = []
+            
+            # Convert frequencies to redshift, temperatures to K
+            for element in self.errmap:
+                tp, i = element            
+            
+                # Models without turning point B, C, or D get thrown out.
+                if tp not in tps:
+                    del sim, kw
+                    gc.collect()
+            
+                    return -np.inf, self.blank_blob
+            
+                if i == 0 and self.errunits[0] == 'MHz':
+                    xarr.append(nu_0_mhz / (1. + tps[tp][i]))
+                else:
+                    xarr.append(tps[tp][i])
+                       
+            # Values of current model that correspond to mu vector
+            xarr = np.array(xarr)
                     
         if np.any(np.isnan(xarr)):
             return -np.inf, self.blank_blob
@@ -376,15 +431,21 @@ class ModelFit(object):
             
             self.base_kwargs['inline_analysis'] = \
                 (self.blob_names, self.blob_redshifts)
+                
+        TPs = 0
+        for z in self.blob_redshifts:
+            if z in list('BCD'):
+                TPs += 1
+                
+        assert TPs > 0, 'Fitting won\'t work if no turning points are provided.'
+            
+        self.one_file_per_blob = self.base_kwargs['one_file_per_blob']        
             
     @property
     def error(self):
         if not hasattr(self, '_error'):
-            self._error = []
-            for key in list('BCD'):
-                self._error.extend(np.sqrt(np.diag(default_errors[key])))
-            self._error = np.array(self._error)
-
+            raise AttributeError('Must run `set_error`!')
+        
         return self._error
         
     @property
@@ -476,7 +537,7 @@ class ModelFit(object):
 
         Sets
         ----
-        Attribute "errors".
+        Attribute `_error`.
 
         """
 
@@ -486,10 +547,10 @@ class ModelFit(object):
             err = []
             for val in error1d:
                 err.append(get_nu(val, nu_in=nu, nu_out=0.68))
-            
+
             self._error = np.array(err)
-        
-        elif cov is not None:    
+
+        elif cov is not None:
             self._error = cov
         
     @property
@@ -539,11 +600,19 @@ class ModelFit(object):
             for i in range(self.nwalkers):
                 
                 p0 = []
+                to_fix = []
                 for j, par in enumerate(self.parameters):
 
                     if par in self.priors:
+                        
                         dist, lo, hi = self.priors[par]
                         
+                        # Fix if tied to other parameter
+                        if (type(lo) is str) or (type(hi) is str):                            
+                            to_fix.append(par)
+                            p0.append(None)
+                            continue
+                            
                         if dist == 'uniform':
                             val = np.random.rand() * (hi - lo) + lo
                         else:
@@ -551,13 +620,35 @@ class ModelFit(object):
                     else:
                         raise ValueError('No prior for %s' % par)
 
+                    # Save
                     p0.append(val)
+                    
+                # If some priors are linked, correct for that
+                for par in to_fix:
+                    
+                    dist, lo, hi = self.priors[par]
+                    
+                    if type(lo) is str:
+                        lo = p0[self.parameters.index(lo)]
+                    else:    
+                        hi = p0[self.parameters.index(hi)]
+                    
+                    if dist == 'uniform':
+                        val = np.random.rand() * (hi - lo) + lo
+                    else:
+                        val = np.random.normal(lo, scale=hi)
+                    
+                    k = self.parameters.index(par)
+                    p0[k] = val
                 
                 self._guesses.append(p0)
         
             self._guesses = np.array(self._guesses)
         
         return self._guesses
+        
+    def _fix_guesses(self):
+        pass    
         
     @guesses.setter
     def guesses(self, value):
@@ -597,9 +688,49 @@ class ModelFit(object):
     @data.setter
     def data(self, value):
         self._data = value    
+        
+    def tight_ball(self, pos, prob):
+        # emcee has something like this already, should probably just use that
+        
+        # Set new initial position to region of high likelihood
+        imaxL = np.argsort(prob)[-1::-1]
+                    
+        pvec = []
+        for i in range(self.nwalkers / 4):
+            if np.isinf(imaxL[i]):
+                break
+                
+            pvec.append(pos[imaxL[i]])
+        
+        pvec = np.array(pvec)
+                    
+        ball_prior = {}
+        for j, par in enumerate(self.parameters):
+            ball_prior[par] = \
+                ['gaussian', pvec[:,j].mean(), pvec[:,j].std()]
+
+        guesses = []
+        for i in range(self.nwalkers):
+
+            p0 = []
+            for j, par in enumerate(self.parameters):
+
+                dist, lo, hi = ball_prior[par]
+
+                if dist == 'uniform':
+                    val = np.random.rand() * (hi - lo) + lo
+                else:
+                    val = np.random.normal(lo, scale=hi)
+
+                p0.append(val)
+
+            guesses.append(p0)
+
+        return np.array(guesses)    
 
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        save_freq=10, fit_turning_points=True):
+        save_freq=500, fit_signal=False, fit_turning_points=True,
+        frequency_channels=None):
         """
         Run MCMC.
 
@@ -619,48 +750,64 @@ class ModelFit(object):
             Append to pre-existing files of the same prefix if one exists?
         fit_turning_points : bool
             If False, merely explore prior space.
+        frequency_channels : np.ndarray
+            Frequencies corresponding to 'mu' values if fit_signal=True.
 
         """
-        
+
         self._check_for_conflicts()
-        
+
         self.prefix = prefix
-        
+
         if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
             if not restart:
                 raise IOError('%s exists! Remove manually, set clobber=True, or set restart=True to append.' 
                     % prefix)
-        
+
         if not os.path.exists('%s.chain.pkl' % prefix) and restart:
             raise IOError("This can't be a restart, %s*.pkl not found." % prefix)
 
         print_fit(self, steps=steps, burn=burn, fit_TP=fit_turning_points)
 
-        if len(self.error.shape) == 1:
+        if fit_signal:
+            pass
+        elif len(self.error.shape) == 1:
             assert len(self.error) == len(self.measurement_map)
         else:
             assert len(np.diag(self.error)) == len(self.measurement_map)
 
         if size > 1:
             self.pool = MPIPool()
+            
+            if not emcee_mpipool:
+                self.pool.start()
+            
+            # Non-root processors wait for instructions until job is done,
+            # at which point, they don't need to do anything below here.
             if not self.pool.is_master():
-                self.pool.wait()
+                
+                if emcee_mpipool:
+                    self.pool.wait()
+                    
                 sys.exit(0)
+
         else:
-            self.pool = None    
+            self.pool = None
 
         self.loglikelihood = loglikelihood(steps, self.parameters, self.is_log, 
             self.mu, self.error, self.base_kwargs,
             self.nwalkers, self.priors,
             self.measurement_map, self.measurement_units, prefix=self.prefix,
+            fit_signal=fit_signal,
             fit_turning_points=fit_turning_points,
             blob_names=self.blob_names,
+            frequency_channels=frequency_channels,
             blob_redshifts=self.blob_redshifts)
             
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
                 
-        if burn > 0:
+        if burn > 0 and not restart:
             t1 = time.time()
             pos, prob, state, blobs = self.sampler.run_mcmc(self.guesses, burn)
             self.sampler.reset()
@@ -669,42 +816,7 @@ class ModelFit(object):
             if rank == 0:
                 print "Burn-in complete in %.3g seconds." % (t2 - t1)
 
-            # Set new initial position to region of high likelihood
-            imaxL = np.argsort(prob)[-1::-1]
-                        
-            pvec = []
-            for i in range(self.nwalkers / 4):
-                if np.isinf(imaxL[i]):
-                    break
-                    
-                pvec.append(pos[imaxL[i]])
-            
-            pvec = np.array(pvec)
-                        
-            ball_prior = {}
-            for j, par in enumerate(self.parameters):
-                ball_prior[par] = \
-                    ['gaussian', pvec[:,j].mean(), pvec[:,j].std()]
-
-            guesses = []
-            for i in range(self.nwalkers):
-
-                p0 = []
-                for j, par in enumerate(self.parameters):
-
-                    dist, lo, hi = ball_prior[par]
-
-                    if dist == 'uniform':
-                        val = np.random.rand() * (hi - lo) + lo
-                    else:
-                        val = np.random.normal(lo, scale=hi)
-
-                    p0.append(val)
-
-                guesses.append(p0)
-
-            pos = np.array(guesses)
-
+            pos = self.tight_ball(pos, prob)
         else:
             pos = self.guesses
             state = None
@@ -739,12 +851,17 @@ class ModelFit(object):
                     MPI.COMM_WORLD.Abort()
                 raise ValueError('base_kwargs from file dont match those supplied!')            
                         
+            # Start from last step in pre-restart calculation
+            chain = read_pickled_chain('%s.chain.pkl' % prefix)
+            
+            pos = chain[-self.nwalkers:,:]
+                        
         # Setup output file
         else:
             
             # Each processor gets its own fail file
             for i in range(size):
-                f = open('%s.fail.%i.pkl' % (prefix, i), 'wb')
+                f = open('%s.fail.%s.pkl' % (prefix, str(i).zfill(3)), 'wb')
                 f.close()  
 
             # Main output: MCMC chains (flattened)
@@ -760,8 +877,13 @@ class ModelFit(object):
             f.close()
             
             # File for blobs themselves
-            f = open('%s.blobs.pkl' % prefix, 'wb')
-            f.close()
+            if self.one_file_per_blob:
+                for blob in self.blob_names:
+                    f = open('%s.subset.%s.pkl' % (prefix, blob), 'wb')
+                    f.close()
+            else:
+                f = open('%s.blobs.pkl' % prefix, 'wb')
+                f.close()
             
             # Blob-info "binfo" file will be written by likelihood
             
@@ -790,7 +912,6 @@ class ModelFit(object):
             iterations=steps, rstate0=state, storechain=False):
                         
             # Only the rank 0 processor ever makes it here
-                        
             ct += 1
                                                 
             pos_all.append(pos.copy())
@@ -811,7 +932,20 @@ class ModelFit(object):
                 fn = '%s.%s.pkl' % (prefix, suffix)
 
                 # Skip blobs if there are none being tracked
-                if not os.path.exists(fn):
+                if blobs_all == [{}] * len(blobs_all):
+                    continue
+                
+                if suffix == 'blobs':
+                    if self.one_file_per_blob:
+                        for j, blob in enumerate(self.blob_names):
+                            barr = np.array(data[i])[:,:,j]
+                            bfn = '%s.subset.%s.pkl' % (self.prefix, blob)
+                            with open(bfn, 'ab') as f:
+                                pickle.dump(barr, f)                        
+                    else:
+                        with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
+                            pickle.dump(data[i], f)
+                    
                     continue
 
                 f = open(fn, 'ab')
@@ -828,12 +962,21 @@ class ModelFit(object):
 
             del data, f, pos_all, prob_all, blobs_all
             gc.collect()
-            
+
             # Delete chain, logL, etc., to be conscious of memory
             self.sampler.reset()
 
             pos_all = []; prob_all = []; blobs_all = []
 
-        if self.pool is not None:
+        if self.pool is not None and emcee_mpipool:
             self.pool.close()
+        elif self.pool is not None:
+            self.pool.stop()
+
+        if rank == 0:
+            print "Finished on %s" % (time.ctime())
+    
+        #if size > 1:
+        #    MPI.Finalize()
+            
     

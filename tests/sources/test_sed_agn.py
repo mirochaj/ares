@@ -1,12 +1,12 @@
 """
 
-test_sed_mcd.py
+test_sed_agn.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Thu May  2 10:46:44 2013
 
-Description: Plot a simple power-law spectrum.
+Description: Plot Sazonov et al. (2004) AGN template SED.
 
 """
 
@@ -29,5 +29,3 @@ ax = bh.PlotSpectrum()
 
 ax.set_ylim(1e-8, 1)
 pl.draw()
-
-

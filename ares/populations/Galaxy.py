@@ -100,7 +100,7 @@ class GalaxyPopulation(HaloPopulation):
         # This is basically just initializing an instance of the cosmology
         # class. Also creates the parameter file attribute ``pf``.
         HaloPopulation.__init__(self, **kwargs)
-        self.pf.update(**kwargs)
+        #self.pf.update(**kwargs)
 
         self._eV_per_phot = {}
         self._conversion_factors = {}

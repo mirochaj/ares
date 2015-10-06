@@ -11,30 +11,18 @@ Description:
 """
 
 import numpy as np
-import types, os, textwrap
 from types import FunctionType
+import types, os, textwrap, glob, re
 from .NormalizeSED import emission_bands
 from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz, g_per_msun, s_per_yr
 
 try:
     from mpi4py import MPI
-    rank = MPI.COMM_WORLD.rank; size = MPI.COMM_WORLD.size
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
 except ImportError:
-    rank = 0; size = 1
-    
-def ExpHandler():
-    """exception handling decorator"""
-    def wrapper(f):
-        t = tuple(item for item in posargs[0]
-            if issubclass(item,Exception)) or (Exception,)
-        def newfunc(*pargs, **kwargs):
-            try:
-                f(*pargs, **kwargs)
-            except t, e:
-                # Only inform the user that the exception occured
-                print e.__class__.__name__,':',e
-        return newfunc
-    return wrapper    
+    rank = 0
+    size = 1
  
 class ErrorIgnore(object):
    def __init__(self, errors, errorreturn = None, errorcall = None):
@@ -161,7 +149,7 @@ def tabulate(data, rows, cols, cwidth=12, fmt='%.4e'):
     
         print d_s
         
-def print_warning(s, headerd='WARNING'):
+def print_warning(s, header='WARNING'):
     dedented_s = textwrap.dedent(s).strip()
     snew = textwrap.fill(dedented_s, width=twidth)
     snew_by_line = snew.split('\n')
@@ -678,7 +666,7 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
 
             if val == 0:
                 if fit.measurement_units[0] == 'MHz':
-                    rows.append('nu_%s' % tp)
+                    rows.append('nu_%s (MHz)' % tp)
                 else:
                     rows.append('z_%s' % tp)
             else:
@@ -718,12 +706,11 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line('Exploration')     
     print line('-'*twidth)
 
-
     print line("nprocs      : %i" % size)
     print line("nwalkers    : %i" % fit.nwalkers)
     print line("burn-in     : %i" % burn)
     print line("steps       : %i" % steps)
-    print line("outputs     : %s*.pkl" % fit.prefix)
+    print line("outputs     : %s.*.pkl" % fit.prefix)
     
     print line('-'*twidth)       
     print line('Inline Analysis')     
@@ -737,13 +724,15 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line("N blobs     : %i" % Nb)
     print line("N redshifts : %i" % Nz)
     print line("blob rate   : %i bytes / walker / step" % perwalkerperstep)
-    print line("blob size   : %i MB (total)" % MB)
+    print line("blob size   : %.2g MB (total)" % MB)
 
     print "#"*width
     print ""
 
 def print_model_grid():
-
+    if rank > 0:
+        return
+        
     header = 'Model Grid'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
@@ -753,10 +742,76 @@ def print_model_grid():
     print line('Input Model')     
     print line('-'*twidth)
 
-def print_constraint():
-    pass
+def print_model_set(mset):
+    if rank > 0:
+        return
+        
+    header = 'Analysis: Model Set'
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, header.center(twidth), post)
+    print "#"*width
 
+    print line('-'*twidth)
+    print line('Basic Information')     
+    print line('-'*twidth)
 
+    i = mset.prefix.rfind('/') # forward slash index
+    
+    # This means we're sitting in the right directory already
+    if i == - 1:
+        path = './'
+        prefix = mset.prefix
+    else:
+        path = mset.prefix[0:i+1]
+        prefix = mset.prefix[i+1:]
+
+    print line("path        : %s" % path)    
+    print line("prefix      : %s" % prefix)
+    print line("N-d         : %i" % len(mset.parameters))
+
+    print line('-'*twidth)
+    for i, par in enumerate(mset.parameters):
+        print line("param    #%s: %s" % (str(i).zfill(2), par))
+
+    print line('-'*twidth)
+    print line('Data Available (filename = prefix + .suffix*.pkl)')
+    print line('-'*twidth)
+
+    suffixes = []
+    for fn in glob.glob('%s%s*' % (path, prefix)):
+
+        if not re.search('.pkl', fn):
+            continue
+
+        suffix = fn.split('.')[1]
+
+        if suffix not in suffixes:
+            suffixes.append(suffix)
+
+    for i, suffix in enumerate(suffixes):
+        print line("suffix   #%s: %s" % (str(i).zfill(2), suffix))
+        
+    print line('-'*twidth)
+    print line('Data Products (filename = prefix + .suffix*.hdf5)')
+    print line('-'*twidth)    
+    
+    suffixes = []
+    for fn in glob.glob('%s%s*' % (path, prefix)):
+
+        if not re.search('.hdf5', fn):
+            continue
+
+        suffix = fn.split('.')[1]
+
+        if suffix not in suffixes:
+            suffixes.append(suffix)
+
+    for i, suffix in enumerate(suffixes):
+        print line("suffix   #%s: %s" % (str(i).zfill(2), suffix))
+        
+    print "#"*width
+    print ""
+    
 
 
 

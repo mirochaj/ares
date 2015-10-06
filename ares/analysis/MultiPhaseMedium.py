@@ -33,10 +33,44 @@ try:
 except ImportError:
     pass
     
+    
+class DummyDQ(object):
+    """
+    A wrapper around DerivedQuantities.
+    """
+    def __init__(self, pf={}):
+        self._data = {}
+        self._dq = DQ(ModelSet=None, pf=pf)
+        
+    def add_data(self, data):
+        self._dq._add_data(data)
+        for key in data:
+            self._data[key] = data[key]
+            
+    def keys(self):
+        return self._data.keys()    
+            
+    def __iter__(self):
+        for key in self._data.keys():
+            yield key        
+            
+    def __contains__(self, name):
+        return name in self._data.keys()
+            
+    def __getitem__(self, name):
+        if name in self._data:
+            return self._data[name]
+            
+        self._data[name] = self._dq[name]
+        return self._data[name]    
+            
+    def __setitem__(self, name, value):
+        self._data[name] = value
+    
 turning_points = ['D', 'C', 'B', 'A']
 
 class MultiPhaseMedium:
-    def __init__(self, sim=None, prefix=None, **kwargs):
+    def __init__(self, data=None, **kwargs):
         """
         Initialize analysis object.
         
@@ -52,14 +86,14 @@ class MultiPhaseMedium:
             of the (binary/pickled) file containing the parameters.
                 
         """
-        
-        if isinstance(sim, simG21) or isinstance(sim, simMPM):
-            self.sim = sim
-            self.pf = sim.pf
-            self.data = sim.history.copy()
-            
+                
+        if isinstance(data, simG21) or isinstance(data, simMPM):
+            self.sim = data
+            self.pf = self.sim.pf
+            history = self.sim.history
+
             try:
-                self.cosm = sim.grid.cosm
+                self.cosm = self.sim.grid.cosm
             except AttributeError:
                 self.cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
                 omega_l_0=self.pf["omega_l_0"], 
@@ -70,82 +104,90 @@ class MultiPhaseMedium:
                 approx_highz=self.pf["approx_highz"])
             
             try:
-                self.hydr = sim.grid.hydr
+                self.hydr = self.sim.grid.hydr
             except AttributeError:
                 self.hydr = Hydrogen(cosm=self.cosm)
         
-        elif type(sim) == dict:
-            self.data = sim.copy()
+        elif type(data) == dict:
+            history = data.copy()
+            
+        # Read output of a simulation from disk
+        elif type(data) is str:
+            
+            try:
+                f = open('%s.history.pkl' % data, 'rb')
+                history = pickle.load(f)
+                f.close()
+                
+                f = open('%s.parameters.pkl' % data, 'rb')
+                self.pf = pickle.load(f)
+                f.close()
+                
+            except IOError: 
+                if re.search('pkl', data):
+                    f = open(data, 'rb')
+                    history = pickle.load(f)
+                    f.close()
+                else:
+                    f = open(data, 'r')
+                    cols = f.readline().split()[1:]
+                    data = np.loadtxt(f)
+                    
+                    history = {}
+                    for i, col in enumerate(cols):
+                        history[col] = data[:,i]
+                    f.close()
+                    
+        # If missing parameter file
+        if not hasattr(self, 'pf'):  
+            print "No parameter file found...setting all to default values."      
             self.pf = SetAllDefaults()
+            self.cosm = Cosmology()
+            self.hydr = Hydrogen()
             
-        elif prefix is not None:
-            pass
-        #else:
-        #    self.sim = None
-        #    if type(history) is dict:
-        #        self.data = history
-        #    elif re.search('hdf5', history):
-        #        f = h5py.File(history, 'r')
-        #        self.data = {}
-        #        for key in f.keys():
-        #            self.data[key] = f[key].value[-1::-1]
-        #        f.close()
-        #    else:
-        #        if re.search('pkl', history):
-        #            f = open(history, 'rb')
-        #            self.data = pickle.load(f)
-        #            f.close()
-        #        else:    
-        #            f = open(history, 'r')
-        #            cols = f.readline().split()[1:]
-        #            data = np.loadtxt(f)
-        #            
-        #            self.data = {}
-        #            for i, col in enumerate(cols):
-        #                self.data[col] = data[:,i]
-        #            f.close()
-        #                      
-        #    if pf is None:
-        #        self.pf = SetAllDefaults()
-        #    elif type(pf) is dict:
-        #        self.pf = pf
-        #    elif os.path.exists(pf):
-        #        f = open(pf, 'rb')
-        #        try:
-        #            self.pf = pickle.load(f)
-        #        except:
-        #            self.pf = SetAllDefaults()
-        #        f.close()
-        #    
-        #    self.cosm = Cosmology()
-        #    self.hydr = Hydrogen()
-        #
+        self.data = DummyDQ(pf=self.pf)
+
+        # Add history to data
+        self.data.add_data(history)
+
+        if not hasattr(self, 'data'):
+            raise ValueError('Must supply simulation instance, dict, or file prefix!')
+
         self.kwargs = kwargs    
+
+        # Add frequencies
+        if 'z' in self.data:
+            self.data['nu'] = nu_0_mhz / (1. + self.data['z'])
         
-        # Derived quantities
-        self._dq = DQ(self.data, self.pf)
-        self.data = self._dq.data.copy()
-        
+        # For backward compatibility
+        if 'dTb' in self.data:
+            if 'igm_dTb' not in self.data:
+                self.data['igm_dTb'] = self.data['dTb']
+        elif 'igm_dTb' in self.data:
+            if 'dTb' not in self.data:
+                self.data['dTb'] = self.data['igm_dTb']
+                                                     
         # For convenience - quantities in ascending order (in redshift)
-        if self.data:
-            
-            data_reorder = {}
-            for key in self.data.keys():
-                data_reorder[key] = np.array(self.data[key])[-1::-1]   
-                
-            # Re-order
-            if np.all(np.diff(self.data['z']) > 0):
-                self.data_asc = self.data.copy()
-                self.data = data_reorder
-            else:
-                self.data_asc = data_reorder
-                
-        self.interp = {}
+        data_reorder = {}
+        for key in self.data.keys():
+            data_reorder[key] = np.array(self.data[key])[-1::-1]
         
+        # Re-order
+        if np.all(np.diff(self.data['z']) > 0):
+            self.data_asc = DummyDQ(pf=self.pf)
+            self.data_asc.add_data(self.data)
+            self.data = DummyDQ(pf=self.pf)
+            self.data.add_data(data_reorder)
+        else:
+            self.data_asc = DummyDQ(pf=self.pf)
+            self.data_asc.add_data(data_reorder)
+
+        self.interp = {}
+
         if hasattr(self, 'pf'):
             self._track = TurningPoints(**self.pf)
         else:
-            self._track = TurningPoints()     
+            self._track = TurningPoints()
                 
     @property
     def dTbdz(self):
@@ -158,7 +200,7 @@ class MultiPhaseMedium:
     def dTbdnu(self):
         if not hasattr(self, '_dTbdnu'):
             self._nu_p, self._dTbdnu = \
-                central_difference(self.data_asc['nu'], self.data_asc['igm_dTb'])               
+                central_difference(self.data['nu'], self.data['dTb'])
         return self._dTbdnu
         
     @property
@@ -171,8 +213,9 @@ class MultiPhaseMedium:
     @property
     def dTb2dnu2(self):
         if not hasattr(self, '_dTbdnu'):
-            self._nu_pp, self._dTbdnu = \
-                central_difference(self.data_asc['nu'], self.data_asc['igm_dTb'])               
+            _dTbdnu = self.dTbdnu
+            _nu = self._nu_p
+            self._nu_pp, self._dTbdnu = central_difference(_nu, _dTbdnu)
         return self._dTbdnu        
     
     @property
@@ -399,10 +442,10 @@ class MultiPhaseMedium:
         
         fig = ax.xaxis.get_figure()
         
-        for ax in fig.axes:
-            if ax.get_xlabel() == '$z$':
-                return
-    
+        #for ax in fig.axes:
+        #    if ax.get_xlabel() == '$z$':
+        #        return
+        
         z = np.arange(10, 110, 10)[-1::-1]
         z_minor= np.arange(15, 80, 5)[-1::-1]
         nu = nu_0_mhz / (1. + z)
@@ -413,7 +456,7 @@ class MultiPhaseMedium:
         # Add 25, 15 and 12, 8 to redshift labels
         z_labels.insert(-1, '15')
         z_labels.insert(-1, '12')
-        z_labels.extend(['9', '8', '7', '6'])                
+        z_labels.extend(['8', '7', '6', '5'])
         #z_labels.insert(-5, '25')
         
         z = np.array(map(int, z_labels))
@@ -428,7 +471,7 @@ class MultiPhaseMedium:
             
         # A bit hack-y
         for i, label in enumerate(z_labels):
-            if label in ['50', '60', '70']:
+            if label in ['40','50', '60', '70']:
                 z_labels[i] = ''
         
             if float(label) > 80:
@@ -536,197 +579,7 @@ class MultiPhaseMedium:
             twinax.invert_xaxis()
         
         pl.draw()
-        
-    def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
-        time_ax=False, z_ax=True, mask=5, scatter=False, xaxis='nu', 
-        ymin=None, ymax=50, zmax=None, xscale='linear', **kwargs):
-        """
-        Plot differential brightness temperature vs. redshift (nicely).
-        
-        Parameters
-        ----------
-        ax : matplotlib.axes.AxesSubplot instance
-            Axis on which to plot signal.
-        fig : int
-            Figure number.
-        freq_ax : bool
-            Add top axis denoting corresponding (observed) 21-cm frequency?
-        time_ax : bool
-            Add top axis denoting corresponding time since Big Bang?
-        z_ax : bool
-            Add top axis denoting corresponding redshift? Only applicable
-            if xaxis='nu' (see below).
-        scatter : bool
-            Plot signal as scatter-plot?
-        mask : int
-            If scatter==True, this defines the sampling "rate" of the data,
-            i.e., only every mask'th element is included in the plot.
-        xaxis : str
-            Determines whether x-axis is redshift or frequency. 
-            Options: 'z' or 'nu'
-        
-        Returns
-        -------
-        matplotlib.axes.AxesSubplot instance.
-        
-        """
-        
-        if xaxis == 'nu' and freq_ax:
-            freq_ax = False
-        if xaxis == 'z' and z_ax:
-            z_ax = False
-        
-        if ax is None:
-            gotax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)
-        else:
-            gotax = True
-        
-        if scatter is False:        
-            ax.plot(self.data[xaxis], self.data['igm_dTb'], **kwargs)
-        else:
-            ax.scatter(self.data[xaxis][-1::-mask], self.data['igm_dTb'][-1::-mask], 
-                **kwargs)        
-        
-        zmax = self.pf["first_light_redshift"]
-        zmin = self.pf["final_redshift"] if self.pf["final_redshift"] >= 10 \
-            else 5
-        
-        # x-ticks
-        if xaxis == 'z' and hasattr(self, 'pf'):
-            xticks = list(np.arange(zmin, zmax, zmin))
-            xticks_minor = list(np.arange(zmin, zmax, 1))
-        else:
-            xticks = np.arange(20, 200, 20)
-            xticks_minor = np.arange(10, 190, 20)
 
-        if ymin is None:
-            ymin = max(min(min(self.data['igm_dTb']), ax.get_ylim()[0]), -500)
-    
-            # Set lower y-limit by increments of 50 mK
-            for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500]:
-                if val <= ymin:
-                    ymin = int(val)
-                    break
-    
-        if ymax is None:
-            ymax = max(max(self.data['igm_dTb']), ax.get_ylim()[1])
-        
-        ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))
-                
-        # Minor y-ticks - 10 mK increments
-        yticks = np.linspace(ymin, 50, int((50 - ymin) / 10. + 1))
-        yticks = list(yticks)      
-        
-        # Remove major ticks from minor tick list
-        for y in np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)):
-            if y in yticks:
-                yticks.remove(y) 
-        
-        if xaxis == 'z' and hasattr(self, 'pf'):
-            ax.set_xlim(5, self.pf["initial_redshift"])
-        else:
-            ax.set_xlim(10, 210)
-            
-        ax.set_ylim(ymin, ymax)    
-        
-        if xscale == 'linear':
-            ax.set_xticks(xticks, minor=False)
-            ax.set_xticks(xticks_minor, minor=True)
-            
-        ax.set_yticks(yticks, minor=True)
-        
-        if ax.get_xlabel() == '':  
-            if xaxis == 'z':  
-                ax.set_xlabel(labels['z'], fontsize='x-large')
-            else:
-                ax.set_xlabel(labels['nu'])
-        
-        if ax.get_ylabel() == '':    
-            ax.set_ylabel(labels['igm_dTb'], 
-                fontsize='x-large')    
-        
-        if 'label' in kwargs:
-            if kwargs['label'] is not None:
-                ax.legend(loc='best')
-                
-        # Twin axes along the top
-        if freq_ax:
-            twinax = self.add_frequency_axis(ax)        
-        elif time_ax:
-            twinax = self.add_time_axis(ax)
-        elif z_ax:
-            twinax = self.add_redshift_axis(ax)
-        else:
-            twinax = None
-        
-        self.twinax = twinax
-        
-        ax.ticklabel_format(style='plain', axis='both')
-        ax.set_xscale(xscale)
-                    
-        pl.draw()
-        
-        return ax
-
-    def Derivative(self, mp=None, **kwargs):
-        """
-        Plot signal and its first derivative (nicely).
-
-        Parameters
-        ----------
-        mp : MultiPlot.MultiPanel instance
-
-        Returns
-        -------
-        MultiPlot.MultiPanel instance
-
-        """
-
-        new = True
-        if mp is None:
-            mp = MultiPanel(dims=(2, 1), panel_size=(1, 0.6))
-            ymin, ymax = zip(*[(999999, -999999)] * 3)
-        else:
-            new = False
-            ymin = [0, 0, 0]
-            ymax = [0, 0, 0]
-            for i in xrange(2):
-                ymin[i], ymax[i]= mp.grid[i].get_ylim()        
-                
-        mp.grid[0].plot(self.data_asc['z'], self.data_asc['igm_dTb'], **kwargs)        
-        mp.grid[1].plot(self.z_p, self.dTbdnu, **kwargs)
-        
-        zf = int(np.min(self.data['z']))
-        zfl = int(np.max(self.data['z']))
-            
-        # Set up axes
-        xticks = np.linspace(zf, zfl, 1 + (zfl - zf))
-        xticks = list(xticks)
-        for x in np.arange(int(zf), int(zfl)):
-            if x % 5 == 0:
-                xticks.remove(x)
-        
-        yticks = np.linspace(-250, 50, 31)
-        yticks = list(yticks)
-        for y in np.linspace(-250, 50, 7):
-            yticks.remove(y)
-                        
-        mp.grid[0].set_xlabel(labels['z'])
-        mp.grid[0].set_ylabel(labels['igm_dTb'])
-        mp.grid[1].set_ylabel(r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$')
-        
-        for i in xrange(2):                
-            mp.grid[i].set_xlim(5, 35)   
-            
-        mp.grid[0].set_ylim(min(1.05 * self.data['igm_dTb'].min(), ymin[0]), max(1.2 * self.data['igm_dTb'].max(), ymax[0]))
-        mp.grid[1].set_ylim(min(1.05 * self.dTbdnu.min(), ymin[1]), max(1.2 * self.dTbdnu[:-1].max(), ymax[1]))
-                     
-        mp.fix_ticks()
-        
-        return mp
-                
     def TemperatureHistory(self, ax=None, fig=1, show_Tcmb=False,
         show_Ts=False, show_Tk=True, scatter=False, mask=5, 
         show_legend=False, **kwargs):
