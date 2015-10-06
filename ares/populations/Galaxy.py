@@ -23,7 +23,7 @@ from ..sources.Source import Source
 from ..sources import Star, BlackHole
 from ..util.PrintInfo import print_pop
 from scipy.integrate import quad, simps
-from scipy.optimize import fsolve, fmin
+from scipy.optimize import fsolve, fmin, fmin_powell
 from scipy.interpolate import RectBivariateSpline
 from scipy.special import gamma, gammainc, gammaincc
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
@@ -371,7 +371,7 @@ class GalaxyPopulation(HaloPopulation):
 
                     return abs(int_phiL - int_nMh)
                   
-                fast = fsolve(to_min, 0.1, factor=0.1, maxfev=30)[0]
+                fast = fsolve(to_min, 0.001, factor=0.0001, maxfev=1000)[0]
                         
                 self._fstar[i,j] = fast
                 
