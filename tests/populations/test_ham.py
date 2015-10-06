@@ -26,6 +26,8 @@ pars = \
  'pop_constraints': lf_pars,
  'pop_yield': 1. / 1.15e-28,
  'pop_yield_units': 'erg/s/Hz/sfr',
+ 'pop_logM': np.arange(8, 14., 0.5), # Masses for AM
+ 'hmf_func': 'ST',
 }
 
 pop = ares.populations.GalaxyPopulation(**pars)

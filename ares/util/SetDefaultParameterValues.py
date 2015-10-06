@@ -11,10 +11,11 @@ into groups.
 """
 
 import os, imp
-from numpy import inf
+import numpy as np
 from ares import rcParams
 from ..physics.Constants import m_H, cm_per_kpc, s_per_myr
 
+inf = np.inf
 ARES = os.environ.get('ARES')
     
 tau_prefix = os.path.join(ARES,'input','optical_depth') \
@@ -301,6 +302,9 @@ def PopulationParameters():
     
     # HOD parameters
     "pop_tSF": 1.,  # Myr
+    
+    # HAM parameters
+    "pop_logM": np.arange(8, 13.5, 0.5), # Masses for AM
     
     # Override luminosity density
     "pop_rhoL": None,

@@ -10,6 +10,7 @@ Description:
 
 """
 
+import os, pickle
 import numpy as np
 from ..util import read_lit
 import matplotlib.pyplot as pl
@@ -23,8 +24,9 @@ from ..sources import Star, BlackHole
 from ..util.PrintInfo import print_pop
 from scipy.integrate import quad, simps
 from scipy.optimize import fsolve, fmin
+from scipy.interpolate import RectBivariateSpline
 from scipy.special import gamma, gammainc, gammaincc
-from ..util import ParameterFile, MagnitudeSystem
+from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc
 from ..util.SetDefaultParameterValues import StellarParameters, \
@@ -47,7 +49,8 @@ try:
 except ImportError:
     rank = 0
     size = 1
-    
+
+ARES = os.getenv('ARES')    
 log10 = np.log(10.)
 
 lftypes = ['schecter', 'dpl']    
@@ -69,7 +72,7 @@ def normalize_sed(pop):
     
     # Remove whitespace and convert everything to lower-case
     units = pop.pf['pop_yield_units'].replace(' ', '').lower()
-        
+                
     if units == 'erg/s/sfr':
         energy_per_sfr = pop.pf['pop_yield'] * s_per_yr / g_per_msun
     elif units == 'erg/s/hz/sfr':
@@ -255,30 +258,55 @@ class GalaxyPopulation(HaloPopulation):
     def eta(self):
         """
         Correction factor for Macc.
+        
+        \eta(z) \int_{M_{\min}}^{\infty} \dot{M}_{\mathrm{acc}}(z,M) n(z,M) dM
+            = \bar{\rho}_m^0 \frac{df_{\mathrm{coll}}}{dt}|_{M_{\min}}
+        
         """
         
         if not self.is_ham_model:
             raise AttributeError('eta is a HAM thing!')
-                
-        # Prepare to compute eta
-        self._eta = np.zeros_like(self.halos.z)
         
-        for i, z in enumerate(self.halos.z):
-            
-            # eta = rhs / lhs
-            
-            logMmin = np.log10(self.Mmin[i])
-            
-            rhs = self.cosm.rho_b_z0 * cm_per_mpc**3
-            rhs *= self.dfcolldt(z)
-            
-            Macc = self.Macc(z, self.halos.M) * g_per_msun / s_per_yr
-            
-            j = np.argmin(np.abs(self.Mmin[i] - self.halos.M))
-            
-            lhs = np.trapz(Macc[j:] * self.halos.dndm[i,j:])
-            
-            self._eta[i] = rhs / lhs                
+        # Prepare to compute eta
+        if not hasattr(self, '_eta'):        
+
+            self._eta = np.zeros_like(self.halos.z)
+
+            for i, z in enumerate(self.halos.z):
+                
+                # eta = rhs / lhs
+
+                Mmin = self.Mmin[i]
+                logMmin = np.log10(self.Mmin[i])
+                
+                rhs = self.cosm.rho_m_z0 * self.dfcolldt(z)
+                rhs *= (s_per_yr / g_per_msun) * cm_per_mpc**3
+                
+                # Accretion onto all halos (of mass M) at this redshift
+                Macc = self.Macc(z, self.halos.M)
+                
+                j1 = np.argmin(np.abs(self.Mmin[i] - self.halos.M))
+                
+                if Macc[j1] > self.halos.M[j1]:
+                    j1 -= 1
+                
+                j2 = j1 + 1
+                
+                lhs = simps(Macc[j2:] * self.halos.dndm[i,j2:],
+                    x=self.halos.logM[j2:]) * log10
+                
+                # Add extra trapezoid
+                Macc1 = np.interp(Mmin, self.halos.M[j1:j2+1],
+                    [Macc[j1] * self.halos.dndm[i,j1],
+                     Macc[j2] * self.halos.dndm[i,j2]])
+                Macc2 = Macc[j2]
+                
+                extra = 0.5 * (self.halos.logM[j2] - logMmin) \
+                    * (Macc1 + Macc2) * log10
+                                    
+                lhs += extra
+                
+                self._eta[i] = rhs / lhs
                 
         return self._eta
         
@@ -287,60 +315,72 @@ class GalaxyPopulation(HaloPopulation):
         """
         Compute the mass- and redshift-dependent star-formation efficiency.
         """
+        
         if not self.is_ham_model:
             return self.pf['pop_fstar']
+        
+        if hasattr(self, '_fstar'):
+            return self._fstar      
             
         # Otherwise, we're doing an abundance match!
+        kappa_UV = 1. / self.yield_per_sfr
         
-        if not hasattr(self, '_fstar'):
-            kappa_UV = 1. / self.yield_per_sfr
+        Marr = self._Marr = 10**self.pf['pop_logM']
+        
+        Nz, Nm = len(self.constraints['z']), len(Marr)
+        
+        self._fstar = np.zeros([Nz, Nm])
+        
+        pb = ProgressBar(self._fstar.size, name='ham', 
+            use=self.pf['progress_bar'])
+        pb.start()
+        
+        # Do it already    
+        for i, z in enumerate(self.constraints['z']):
             
-            Marr = self._Marr = np.logspace(8, 13, 12)
-            
-            self._fstar = np.zeros([len(self.constraints['z']), len(Marr)])
-                
-            for i, z in enumerate(self.constraints['z']):
-                
-                alpha = self.constraints['alpha'][i]
-                L_star = self.constraints['L_star'][i]
-                phi_star = self.constraints['phi_star'][i]            
-                
-                self.halos.MF.update(z=z)
-                
-                for j, M in enumerate(Marr):
-                    
-                    if M < self.Mmin[i]: 
-                        continue
-                    
-                    Macc = self.Macc(z, M)
-                    
-                    # Minimum luminosity as a function of minimum mass
-                    LofM = lambda fstar: fstar * Macc * self.eta[i] / kappa_UV    
-                    
-                    # Number of halos at masses > M
-                    int_nMh = np.interp(M, self.halos.M, self.halos.MF.ngtm)
-                    
-                    def to_min(fstar):
-                        Lmin = LofM(fstar[0])
+            alpha = self.constraints['alpha'][i]
+            L_star = self.constraints['L_star'][i]
+            phi_star = self.constraints['phi_star'][i]  
 
-                        if Lmin < 0:
-                            return np.inf
-                        
-                        #integr = lambda x: x**alpha * np.exp(-x)
-                        #int_phiL = quad(integr, Lmin / L_star, np.inf)[0]
-                        int_phiL = self._schecter_integral_inf(Lmin / L_star, 
-                            alpha)
-                             
-                        int_phiL *= phi_star
-                                
-                        return abs(int_phiL - int_nMh)
-                    
-                    fast = fsolve(to_min, 0.1, factor=0.1, maxfev=30)[0]
+            self.halos.MF.update(z=z)
 
-                    self._fstar[i,j] = fast
-                    
-        return self._fstar  
+            for j, M in enumerate(Marr):
+                
+                if M < self.Mmin[i]: 
+                    continue
+
+                # Read in variables
+                Macc = self.Macc(z, M)
+                eta = self.eta[i]
+
+                # Minimum luminosity as a function of minimum mass
+                LofM = lambda fstar: fstar * Macc * eta / kappa_UV
+
+                # Number of halos at masses > M
+                int_nMh = np.interp(M, self.halos.M, self.halos.MF.ngtm)
+
+                def to_min(fstar):
+                    Lmin = LofM(fstar[0])
+
+                    if Lmin < 0:
+                        return np.inf
+
+                    xmin = Lmin / L_star    
+                    int_phiL = self._schecter_integral_inf(xmin, alpha)                                                      
+                    int_phiL *= phi_star
+
+                    return abs(int_phiL - int_nMh)
                   
+                fast = fsolve(to_min, 0.1, factor=0.1, maxfev=30)[0]
+                        
+                self._fstar[i,j] = fast
+                
+                pb.update(i * Nm + j + 1)
+        
+        pb.finish()        
+                
+        return self._fstar  
+        
     def _schecter_integral_inf(self, xmin, alpha):
         """
         Integral of the luminosity function over some interval (in luminosity).
@@ -353,7 +393,7 @@ class GalaxyPopulation(HaloPopulation):
             Faint-end slope
         """
     
-        return mpmath.gammainc(alpha + 1., xmin, np.inf)
+        return mpmath.gammainc(alpha + 1., xmin)
         
     #def _SchecterFunction(self, L):
     #    """
@@ -587,13 +627,13 @@ class GalaxyPopulation(HaloPopulation):
         if self.is_fcoll_model:
            
             # SFRD computed via fcoll parameterization
-            sfrd = self.pf['pop_fstar'] * self.cosm.rho_b_z0 \
-                * self.dfcolldz(z) / self.cosm.dtdz(z)
+            sfrd = self.pf['pop_fstar'] * self.cosm.rho_b_z0 * self.dfcolldt(z)
             
             if sfrd < 0:
                 negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'], 
                     self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
                 sys.exit(1)
+                
         elif self.is_halo_model:
             if self.halo_model == 'hod':
 
