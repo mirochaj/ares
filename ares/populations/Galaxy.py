@@ -23,8 +23,7 @@ from ..sources.Source import Source
 from ..sources import Star, BlackHole
 from ..util.PrintInfo import print_pop
 from scipy.integrate import quad, simps
-from scipy.optimize import fsolve, fmin, fmin_powell
-from scipy.interpolate import RectBivariateSpline
+from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
@@ -122,15 +121,15 @@ class GalaxyPopulation(HaloPopulation):
     
     @property
     def _Source(self):
-        if not hasattr(self, '__Source'):
+        if not hasattr(self, '_Source_'):
             if self.pf['pop_sed'] == 'bb':
-                self.__Source = Star
+                self._Source_ = Star
             elif self.pf['pop_sed'] in ['pl', 'mcd', 'simpl']:
-                self.__Source = BlackHole
+                self._Source_ = BlackHole
             else: 
-                self.__Source = LiteratureSource
+                self._Source_ = LiteratureSource
         
-        return self.__Source
+        return self._Source_
         
     @property
     def src_kwargs(self):
@@ -196,6 +195,10 @@ class GalaxyPopulation(HaloPopulation):
     @property
     def is_user_model(self):
         return self.pf['pop_model'].lower() == 'user'    
+        
+    @property
+    def is_user_fstar(self):
+        return type(self.pf['pop_fstar']) == FunctionType
         
     @property
     def rhoL_from_sfrd(self):
@@ -310,76 +313,134 @@ class GalaxyPopulation(HaloPopulation):
                 
         return self._eta
         
-    @property
-    def fstar(self):    
+    def fstar(self, z=None, M=None):    
         """
         Compute the mass- and redshift-dependent star-formation efficiency.
         """
+                
+        if self.is_user_fstar:
+            return self.pf['pop_fstar'](z, M)
         
-        if not self.is_ham_model:
+        elif not self.is_ham_model:
             return self.pf['pop_fstar']
-        
+                
         if hasattr(self, '_fstar'):
-            return self._fstar      
-            
+            return self._fstar(z, M)
+        
+        self._fstar = lambda zz, MM: self._fstar_poly(zz, MM, 
+            *self._fstar_coeff)
+        
+        return self._fstar(z, M)
+        
+    @property
+    def _Marr(self):
+        if not hasattr(self, '_Marr_'):
+            self._Marr_ = 10**self.pf['pop_logM']
+               
+        return self._Marr_
+        
+    @property    
+    def _fstar_ham(self):
+        """
+        These are the star-formation efficiencies derived from abundance
+        matching.
+        """
+                
+        if hasattr(self, '_fstar_ham_pts'):
+            return self._fstar_ham_pts
+                        
         # Otherwise, we're doing an abundance match!
         kappa_UV = 1. / self.yield_per_sfr
         
-        Marr = self._Marr = 10**self.pf['pop_logM']
+        Marr = self._Marr
         
         Nz, Nm = len(self.constraints['z']), len(Marr)
         
-        self._fstar = np.zeros([Nz, Nm])
+        self._fstar_ham_pts = np.zeros([Nz, Nm])
         
-        pb = ProgressBar(self._fstar.size, name='ham', 
+        pb = ProgressBar(self._fstar_ham_pts.size, name='ham', 
             use=self.pf['progress_bar'])
         pb.start()
         
         # Do it already    
         for i, z in enumerate(self.constraints['z']):
-            
+        
             alpha = self.constraints['alpha'][i]
             L_star = self.constraints['L_star'][i]
-            phi_star = self.constraints['phi_star'][i]  
-
+            phi_star = self.constraints['phi_star'][i]
+        
             self.halos.MF.update(z=z)
-
+        
             for j, M in enumerate(Marr):
-                
+        
                 if M < self.Mmin[i]: 
                     continue
-
+        
                 # Read in variables
                 Macc = self.Macc(z, M)
                 eta = self.eta[i]
-
+        
                 # Minimum luminosity as a function of minimum mass
                 LofM = lambda fstar: fstar * Macc * eta / kappa_UV
-
+        
                 # Number of halos at masses > M
                 int_nMh = np.interp(M, self.halos.M, self.halos.MF.ngtm)
-
+        
                 def to_min(fstar):
                     Lmin = LofM(fstar[0])
-
+        
                     if Lmin < 0:
                         return np.inf
-
+        
                     xmin = Lmin / L_star    
                     int_phiL = self._schecter_integral_inf(xmin, alpha)                                                      
                     int_phiL *= phi_star
-
+        
                     return abs(int_phiL - int_nMh)
-                  
+        
                 fast = fsolve(to_min, 0.001, factor=0.0001, maxfev=1000)[0]
-                        
-                self._fstar[i,j] = fast
-                
+        
+                self._fstar_ham_pts[i,j] = fast
+        
                 pb.update(i * Nm + j + 1)
         
-        pb.finish()        
+        pb.finish()    
+                        
+        return self._fstar_ham_pts    
+            
+    @property
+    def _fstar_coeff(self):
+        if not hasattr(self, '_fstar_coeff_'):
+            x = [self._Marr, self.constraints['z']]
+            y = self._fstar_ham.flatten()
+            #guess = [-160, 34., 10., -0.5, -2.5, 0.05]
+            guess = np.array([-158.17, 34.7, 9.91, -0.913, -2.542, 0.062])
+            
+            def to_min(x, *coeff):
+                M, z = np.meshgrid(*x)
+                return self._fstar_poly(z, M, *coeff).flatten()
+            
+            self._fstar_coeff_, self._fstar_cov_ = \
+                curve_fit(to_min, x, y, p0=guess)
+                                        
+        return self._fstar_coeff_
+        
+    def _fstar_poly(self, z, M, *coeff):
+        """
+        A 6 parameter model for the star-formation efficiency.
+        
+        References
+        ----------
+        Sun, G., and Furlanetto, S.R., 2015, in prep.
+        
+        """
+                        
+        logf = coeff[0] + coeff[1] * np.log10(M) \
+            + coeff[2] * ((1. + z) / 8.) \
+            + coeff[3] * ((1. + z) / 8.) * np.log10(M) \
+            + coeff[4] * (np.log10(M))**2. + coeff[5] * (np.log10(M))**3.
                 
-        return self._fstar  
+        return 10**logf
         
     def _schecter_integral_inf(self, xmin, alpha):
         """
@@ -419,8 +480,6 @@ class GalaxyPopulation(HaloPopulation):
         """
         return self.pf['lf_norm'] * ((L / self.Lstar)**self.pf['lf_gamma1'] \
             + (L / self.Lstar)**self.pf['lf_gamma1'])**-1.
-                
-
     
     def LuminosityFunction(self, L, z=None, Emin=None, Emax=None):
         """
@@ -450,7 +509,7 @@ class GalaxyPopulation(HaloPopulation):
             
             self.halos.MF.update(z=z)
             dndm = self._dndm = self.halos.MF.dndm.copy() / self.cosm.h70**4
-            fstar_of_m = self.fstar(M=self.halos.M)
+            fstar_of_m = self.fstar(z=z, M=self.halos.M)
             
             integrand = dndm * fstar_of_m * self.halos.M
             
@@ -558,38 +617,38 @@ class GalaxyPopulation(HaloPopulation):
 
     @property
     def _sfrd(self):
-        if not hasattr(self, '__sfrd'):
+        if not hasattr(self, '_sfrd_'):
             if self.pf['pop_sfrd'] is None:
-                self.__sfrd = None
+                self._sfrd_ = None
             elif type(self.pf['pop_sfrd']) is FunctionType:
-                self.__sfrd = self.pf['pop_sfrd']
+                self._sfrd_ = self.pf['pop_sfrd']
             else:
                 tmp = read_lit(self.pf['pop_sfrd'])
-                self.__sfrd = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
+                self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
         
-        return self.__sfrd
+        return self._sfrd_
     
     @property
     def _lf(self):
-        if not hasattr(self, '__lf'):
+        if not hasattr(self, '_lf_'):
             if self.pf['pop_rhoL'] is None and self.pf['pop_lf'] is None:
-                self.__lf = None
+                self._lf_ = None
             elif type(self.pf['pop_rhoL']) is FunctionType:
-                self.__lf = self.pf['pop_rhoL']
+                self._lf_ = self.pf['pop_rhoL']
             elif type(self.pf['pop_lf']) is FunctionType:
-                self.__lf = self.pf['pop_lf']  
+                self._lf_ = self.pf['pop_lf']  
             else:
                 for key in ['pop_rhoL', 'pop_lf']:
                     if self.pf[key] is None:
                         continue
                         
                     tmp = read_lit(self.pf[key])
-                    self.__lf = lambda L, z: tmp.LuminosityFunction(L, z=z,
+                    self._lf_ = lambda L, z: tmp.LuminosityFunction(L, z=z,
                         **self.pf['pop_kwargs'])
 
                     break
 
-        return self.__lf        
+        return self._lf_        
 
     def SFRD(self, z):
         """
@@ -621,7 +680,7 @@ class GalaxyPopulation(HaloPopulation):
     
         # SFRD approximated by some analytic function    
         if self._sfrd is not None:
-            return self.__sfrd(z) / rhodot_cgs
+            return self._sfrd(z) / rhodot_cgs
     
         # Most often: use fcoll model
         if self.is_fcoll_model:
@@ -634,48 +693,36 @@ class GalaxyPopulation(HaloPopulation):
                     self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
                 sys.exit(1)
                 
-        elif self.is_halo_model:
-            if self.halo_model == 'hod':
-
-                
-                self.halos.MF.update(z=z)
-                dndm = self._dndm = self.halos.MF.dndm.copy() / self.cosm.h70**4
-                fstar_of_m = self.fstar(M=self.halos.M)
-                 
-                integrand = dndm * fstar_of_m * self.halos.M
-                
-                # Apply mass cut
-                if self.pf['pop_Mmin'] is not None:
-                    iM = np.argmin(np.abs(self.halos.M - self.pf['pop_Mmin']))
-                else:
-                    iM = 0
-
-                # Msun / cMpc**3
-                integral = simps(dndm[iM:], x=self.halos.M[iM:])
-                
-                tdyn = s_per_myr * self.pf['pop_tSF']
-
-                return self.cosm.fbaryon * integral / rho_cgs / tdyn
-                
-            elif self.halo_model == 'clf':
-                raise NotImplemented('havent implemented CLF yet')    
+        #elif self.is_halo_model:
+        #    if self.halo_model == 'hod':
+        #
+        #        
+        #        self.halos.MF.update(z=z)
+        #        dndm = self._dndm = self.halos.MF.dndm.copy() / self.cosm.h70**4
+        #        fstar_of_m = self.fstar(M=self.halos.M)
+        #         
+        #        integrand = dndm * fstar_of_m * self.halos.M
+        #        
+        #        # Apply mass cut
+        #        if self.pf['pop_Mmin'] is not None:
+        #            iM = np.argmin(np.abs(self.halos.M - self.pf['pop_Mmin']))
+        #        else:
+        #            iM = 0
+        #
+        #        # Msun / cMpc**3
+        #        integral = simps(dndm[iM:], x=self.halos.M[iM:])
+        #        
+        #        tdyn = s_per_myr * self.pf['pop_tSF']
+        #
+        #        return self.cosm.fbaryon * integral / rho_cgs / tdyn
+        #        
+        #    elif self.halo_model == 'clf':
+        #        raise NotImplemented('havent implemented CLF yet')    
                     
         else:
             raise NotImplemented('dunno how to model the SFRD!')
     
         return sfrd                           
-
-    #@property
-    #def _mdep_fstar(self):
-    #    if not hasattr(self, '__mdep_fstar'):
-    #        self.__mdep_fstar = type(self.pf['pop_fstar']) is FunctionType
-    #    return self.__mdep_fstar
-    #
-    #def fstar(self, M=None, z=None):
-    #    if self.is_fcoll_model or (not self._mdep_fstar):
-    #        return self.pf['pop_fstar']
-    #
-    #    return self.pf['pop_fstar'](M, z)
             
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """

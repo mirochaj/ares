@@ -23,7 +23,7 @@ pars = \
 {
  'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
- 'pop_constraints': lf_pars,
+ 'pop_constraints': lf_pars,  # bouwens2015
  'pop_yield': 1. / 1.15e-28,
  'pop_yield_units': 'erg/s/Hz/sfr',
  'pop_logM': np.arange(8, 14.5, 0.25), # Masses for AM
@@ -51,14 +51,26 @@ fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
 import time
 
 t1 = time.time()
-fst = pop.fstar
+fst = pop.fstar(z=6., M=1e12)
 t2 = time.time()
 
 print "Abundance match took %g seconds" % (t2 - t1)
 
+colors = ['k', 'b', 'r', 'g']
 for i, z in enumerate(pop.constraints['z']):
-    ax2.loglog(pop._Marr, pop.fstar[i], label=r'$z=%g$' % z)
+    ax2.scatter(pop._Marr, pop._fstar_ham[i], 
+        label=r'$z=%g$' % z, color=colors[i], marker='o', facecolors='none')
     
 ax2.set_xlabel(r'$M_h / M_{\odot}$')
 ax2.set_ylabel(r'$f_{\ast}$')
-pl.legend(ncol=2, frameon=False, fontsize=16)
+pl.legend(ncol=2, frameon=False, fontsize=16, loc='lower left')
+
+Marr = np.logspace(8, 14)
+for i, z in enumerate(pop.constraints['z']):
+    fast = pop.fstar(z=z, M=Marr)
+    ax2.loglog(Marr, fast, color=colors[i])
+
+pl.draw()
+
+
+
