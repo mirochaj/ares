@@ -13,6 +13,7 @@ Description:
 import ares
 import numpy as np
 import matplotlib.pyplot as pl
+from ares.physics.Constants import g_per_msun, s_per_yr
 
 b15 = ares.util.read_lit('bouwens2015')
 
@@ -70,7 +71,22 @@ for i, z in enumerate(pop.constraints['z']):
     fast = pop.fstar(z=z, M=Marr)
     ax2.loglog(Marr, fast, color=colors[i])
 
+# SFR
+fig3 = pl.figure(3); ax3 = fig3.add_subplot(111)
+M6 = np.argmin(np.abs(pop.halos.M - 1e6))
+for i, z in enumerate(pop.constraints['z']):
+    iz = np.argmin(np.abs(pop.halos.z - z))
+    ax3.loglog(pop.halos.M[M6:], pop._sfr_ham[iz,M6:])
+
+ax3.set_xlabel(r'$M_h / M_{\odot}$')   
+ax3.set_ylabel(r'$\dot{\rho}_{\ast} \ \left[M_{\odot} / \mathrm{yr} \right]$')
+
+# SFRD
+fig4 = pl.figure(4); ax4 = fig4.add_subplot(111)
+pl.semilogy(pop.halos.z, pop._sfrd_ham_tab * g_per_msun / s_per_yr)
+
+ax4.set_xlabel(r'$z$')
+ax4.set_ylabel(r'$\dot{\rho}_{\ast} \ \left[M_{\odot} / \mathrm{yr} / \mathrm{cMpc}^3 \right]$')
+
 pl.draw()
-
-
 

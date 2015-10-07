@@ -60,17 +60,17 @@ class HaloPopulation(Population):
             self._init_fcoll()
     
         return self._fcoll
-    
+
     @property
     def dfcolldz(self):
         if not hasattr(self, '_dfcolldz'):
             self._init_fcoll()
-    
+
         return self._dfcolldz
-        
+
     def dfcolldt(self, z):
         return self.dfcolldz(z) / self.cosm.dtdz(z)    
-    
+
     def _set_fcoll(self, Tmin, mu):
         self._fcoll, self._dfcolldz, self._d2fcolldz2 = \
             self.halos.build_1d_splines(Tmin, mu)

@@ -22,6 +22,7 @@ from collections import namedtuple
 from ..sources.Source import Source
 from ..sources import Star, BlackHole
 from ..util.PrintInfo import print_pop
+from scipy.interpolate import interp1d
 from scipy.integrate import quad, simps
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
@@ -234,6 +235,12 @@ class GalaxyPopulation(HaloPopulation):
     
     @property
     def Macc(self):
+        """
+        Mass accretion rate onto halos of mass M at redshift z.
+        
+        ..note:: This is the *matter* accretion rate. To obtain the baryonic 
+            accretion rate, multiply by Cosmology.fbaryon.
+        """
         if not hasattr(self, '_Macc'):
             if self.pf['pop_Macc'] is None:
                 self._Macc = None
@@ -286,6 +293,7 @@ class GalaxyPopulation(HaloPopulation):
                 rhs *= (s_per_yr / g_per_msun) * cm_per_mpc**3
                 
                 # Accretion onto all halos (of mass M) at this redshift
+                # This is *matter*, not *baryons*
                 Macc = self.Macc(z, self.halos.M)
                 
                 j1 = np.argmin(np.abs(self.Mmin[i] - self.halos.M))
@@ -441,6 +449,50 @@ class GalaxyPopulation(HaloPopulation):
             + coeff[4] * (np.log10(M))**2. + coeff[5] * (np.log10(M))**3.
                 
         return 10**logf
+    
+    @property
+    def _sfr_ham(self):    
+        """
+        SFR as a function of redshift and halo mass yielded by abundance match.
+        """
+        if not hasattr(self, '_sfr_ham_'):
+            self._sfr_ham_ = np.zeros([self.halos.Nz, self.halos.Nm])
+            for i, z in enumerate(self.halos.z):
+                self._sfr_ham_[i] = self.cosm.fbaryon \
+                    * self.Macc(z, self.halos.M) * self.fstar(z, self.halos.M)
+            
+        return self._sfr_ham_
+    
+    @property
+    def _sfrd_ham(self):    
+        """
+        Spline fit to SFRD yielded by abundance match.
+        """    
+        
+        if not hasattr(self, '_sfrd_ham_'):
+            self._sfrd_ham_ = interp1d(self.halos.z, self._sfrd_ham_tab,
+                kind='cubic')
+                
+        return self._sfrd_ham_
+                
+    @property
+    def _sfrd_ham_tab(self):    
+        """
+        SFRD as a function of redshift yielded by abundance match.
+        """
+        if not hasattr(self, '_sfrd_ham_tab_'):
+            self._sfrd_ham_tab_ = np.zeros(self.halos.Nz)
+            
+            Mmin = 1e8 * np.ones(self.halos.Nz)
+            
+            M8 = np.argmin(np.abs(self.halos.M - 1e8))
+            
+            for i, z in enumerate(self.halos.z):
+                integrand = self._sfr_ham[i] * self.halos.dndm[i]
+                self._sfrd_ham_tab_[i] = \
+                    simps(integrand[M8:], x=self.halos.logM[M8:]) * log10
+    
+        return self._sfrd_ham_tab_
         
     def _schecter_integral_inf(self, xmin, alpha):
         """
@@ -692,6 +744,8 @@ class GalaxyPopulation(HaloPopulation):
                 negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'], 
                     self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
                 sys.exit(1)
+        elif self.is_ham_model:
+            return self._sfrd_ham(z) * g_per_msun / s_per_yr
                 
         #elif self.is_halo_model:
         #    if self.halo_model == 'hod':
