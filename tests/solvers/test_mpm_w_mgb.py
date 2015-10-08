@@ -43,7 +43,7 @@ ax1 = None; ax2 = None
 labels = ['optically thin', 'neutral IGM']
 for i, tau_approx in enumerate([True, 'neutral']):
     
-    pars['approx_tau'] = tau_approx
+    pars['pop_approx_tau'] = tau_approx
 
     sim = ares.simulations.MultiPhaseMedium(**pars)
     sim.run()

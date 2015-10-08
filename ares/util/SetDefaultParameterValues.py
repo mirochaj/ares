@@ -330,6 +330,7 @@ def PopulationParameters():
 
     'pop_fXh': None,
 
+    "pop_approx_tau": True,
     "pop_sawtooth": False,
     "pop_solve_rte": False,
     "pop_tau_Nz": 400,
@@ -549,8 +550,6 @@ def ControlParameters():
     "redshift_bins": None,
     "tau_table": None,
     "tau_prefix": tau_prefix,
-
-    "approx_tau": True,
 
     # File format
     "preferred_format": 'pkl',

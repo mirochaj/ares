@@ -67,11 +67,7 @@ class Global21cm(MultiPhaseMedium):
         else:
             ax.scatter(self.data[xaxis][-1::-mask], self.data['igm_dTb'][-1::-mask], 
                 **kwargs)        
-        
-        if gotax:
-            pl.draw()
-            return ax
-        
+                
         zmax = self.pf["first_light_redshift"]
         zmin = self.pf["final_redshift"] if self.pf["final_redshift"] >= 10 \
             else 5
@@ -96,7 +92,8 @@ class Global21cm(MultiPhaseMedium):
         if ymax is None:
             ymax = max(max(self.data['igm_dTb']), ax.get_ylim()[1])
         
-        ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))
+        if not gotax:
+            ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))
                 
         # Minor y-ticks - 10 mK increments
         yticks = np.linspace(ymin, 50, int((50 - ymin) / 10. + 1))
@@ -114,12 +111,18 @@ class Global21cm(MultiPhaseMedium):
             
         ax.set_ylim(ymin, ymax)    
         
-        if xscale == 'linear':
+        if xscale == 'linear' and (not gotax):
             ax.set_xticks(xticks, minor=False)
             ax.set_xticks(xticks_minor, minor=True)
-            
-        ax.set_yticks(yticks, minor=True)
         
+        if not gotax:    
+            ax.set_yticks(yticks, minor=True)
+        
+        if gotax:
+            ax.ticklabel_format(style='plain', axis='both')
+            pl.draw()
+            return ax
+            
         if ax.get_xlabel() == '':  
             if xaxis == 'z':  
                 ax.set_xlabel(labels['z'], fontsize='x-large')
