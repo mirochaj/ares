@@ -387,28 +387,30 @@ def print_pop(pop):
     
     print line("yield (erg / s / SFR) : %g" \
         % (pop.yield_per_sfr * g_per_msun / s_per_yr))
+    
+    print line("Emin (eV)             : %g" % (pop.pf['pop_Emin']))
+    print line("Emax (eV)             : %g" % (pop.pf['pop_Emax']))
     print line("EminNorm (eV)         : %g" % (pop.pf['pop_EminNorm']))
     print line("EmaxNorm (eV)         : %g" % (pop.pf['pop_EmaxNorm']))    
 
     ##
     # SPECTRUM STUFF
     ##
-    print line('-'*twidth)
-    print line('Spectrum')
-    print line('-'*twidth)
+    if pop.pf['pop_solve_rte']:
+        print line('-'*twidth)
+        print line('Spectrum')
+        print line('-'*twidth)
     
-    print line("SED               : %s" % (pop.pf['pop_sed']))
-    print line("Emin (eV)         : %g" % (pop.pf['pop_Emin']))
-    print line("Emax (eV)         : %g" % (pop.pf['pop_Emax']))
-
-    if pop.pf['pop_sed'] == 'pl':
-        print line("alpha             : %g" % pop.pf['pop_alpha'])
-        print line("logN              : %g" % pop.pf['pop_logN'])
-    elif pop.pf['pop_sed'] == 'mcd':
-        print line("mass (Msun)       : %g" % pop.pf['pop_mass'])
-        print line("rmax (Rg)         : %g" % pop.pf['pop_rmax'])
-    else:
-        print line("from source       : %s" % pop.pf['pop_sed'])
+        print line("SED               : %s" % (pop.pf['pop_sed']))
+        
+        if pop.pf['pop_sed'] == 'pl':
+            print line("alpha             : %g" % pop.pf['pop_alpha'])
+            print line("logN              : %g" % pop.pf['pop_logN'])
+        elif pop.pf['pop_sed'] == 'mcd':
+            print line("mass (Msun)       : %g" % pop.pf['pop_mass'])
+            print line("rmax (Rg)         : %g" % pop.pf['pop_rmax'])
+        else:
+            print line("from source       : %s" % pop.pf['pop_sed'])
         
     print "#"*width
 

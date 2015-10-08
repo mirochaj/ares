@@ -149,7 +149,7 @@ class GlobalVolume(object):
                 break
             
         # First, look in CWD or $ARES (if it exists)
-        self.tabname = self._load_tau(self.pf['tau_prefix'])
+        self.tabname = self._load_tau(pop, pop.pf['tau_prefix'])
                 
         if not self.tabname:
             return zpf, Epf, None
@@ -189,7 +189,7 @@ class GlobalVolume(object):
         
         if not (Emax_ok and Emin_ok):
             if self.pf['verbose']:
-                tau_tab_E_mismatch(self, Emin_ok, Emax_ok, Etab)
+                tau_tab_E_mismatch(pop, self.tabname, Emin_ok, Emax_ok, Etab)
                 
             if Etab.max() < Epf.max():
                 sys.exit(1)
@@ -263,7 +263,7 @@ class GlobalVolume(object):
         for i, pop in enumerate(self.pops):
                         
             # This means the population is completely approximate
-            if (not self.background.solve_rte[i]) or (self.background.solve_rte[i] == [False]):
+            if not self.background.solve_rte[i]:
                 self.logE[i] = [None]
                 self.dlogE[i] = [None]
                 self._sigma_E[i] = [None]
@@ -467,7 +467,7 @@ class GlobalVolume(object):
 
         return z, E, tau
     
-    def _tau_name(self, suffix='hdf5'):
+    def _tau_name(self, pop, suffix='hdf5'):
         """
         Return name of table based on its properties.
         """
@@ -480,10 +480,10 @@ class GlobalVolume(object):
         zf = self.pf['final_redshift']
         zi = self.pf['initial_redshift']
 
-        L, N = self._tau_shape()
+        L, N = self._tau_shape(pop)
 
-        E0 = self.pf['source_Emin']
-        E1 = self.pf['source_Emax']
+        E0 = pop.pf['pop_Emin']
+        E1 = pop.pf['pop_Emax']
 
         fn = lambda z1, z2, E1, E2: \
             'optical_depth_%s_%ix%i_z_%i-%i_logE_%.2g-%.2g.%s' \
@@ -491,12 +491,12 @@ class GlobalVolume(object):
 
         return fn(zf, zi, np.log10(E0), np.log10(E1)), fn
     
-    def _load_tau(self, prefix=None):
+    def _load_tau(self, pop, prefix=None):
         """
         Find an optical depth table.
         """
         
-        fn, fn_func = self._tau_name()
+        fn, fn_func = self._tau_name(pop)
     
         if prefix is None:
             ares_dir = os.environ.get('ARES')
@@ -598,7 +598,7 @@ class GlobalVolume(object):
         
         return zmin, zmax, int(Nz), logEmin, logEmax, chem, pre, post
                 
-    def _tau_shape(self):
+    def _tau_shape(self, pop):
         """
         Determine dimensions of optical depth table.
         
@@ -609,7 +609,7 @@ class GlobalVolume(object):
         # Set up log-grid in parameter x = 1 + z
         x = np.logspace(np.log10(1+self.pf['final_redshift']),
             np.log10(1+self.pf['initial_redshift']),
-            int(self.pf['pop_tau_Nz']))
+            int(pop.pf['pop_tau_Nz']))
         z = x - 1.
         logx = np.log10(x)
         logz = np.log10(z)
@@ -618,12 +618,12 @@ class GlobalVolume(object):
         R = x[1] / x[0]
         logR = np.log10(R)
         
-        E0 = self.pf['source_Emin']
+        E0 = pop.pf['pop_Emin']
         
         # Create mapping to frequency space
         E = 1. * E0
         n = 1
-        while E < self.pf['source_Emax']:
+        while E < pop.pf['pop_Emax']:
             E = E0 * R**(n - 1)
             n += 1    
         
@@ -633,7 +633,7 @@ class GlobalVolume(object):
         # Frequency grid must be index 1-based.
         N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
             zf=self.pf['final_redshift'], Emin=E0, 
-            Emax=self.pf['source_Emax'])
+            Emax=pop.pf['pop_Emax'])
         N -= 1
         
         return L, N
@@ -699,7 +699,7 @@ class GlobalVolume(object):
         if kw['zf'] is None and pop is not None:
             kw['zf'] = pop.zform
         
-        if self.background.solve_rte[popid] is None:
+        if not self.background.solve_rte[popid]:
             pass
         elif (kw['Emax'] is None) and self.background.solve_rte[popid] and \
             np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
@@ -774,7 +774,7 @@ class GlobalVolume(object):
 
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
-        if self.background.solve_rte[popid] is None:
+        if not self.background.solve_rte[popid]:
             weight = self.rate_to_coefficient(z, species, **kw)
             
             Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 

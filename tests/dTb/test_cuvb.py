@@ -23,6 +23,8 @@ pars = \
  'pop_yield{0}': 9690.,
  'pop_yield_units{0}': 'photons/baryon',
  'pop_solve_rte{0}': True,
+ 'pop_tau_Nz{0}': 1e3,
+ 'sawtooth_nmax': 13,
 }
 
 ax = None

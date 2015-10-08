@@ -117,30 +117,30 @@ def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok, ztab):
 
     print line(separator)
 
-def tau_tab_E_mismatch(igm, Emin_ok, Emax_ok, Etab):    
+def tau_tab_E_mismatch(pop, tabname, Emin_ok, Emax_ok, Etab):    
     print ""    
     print line(separator)
     print line('WARNING: optical depth table shape mismatch (in photon energy)')    
     print line(separator)        
     
-    if type(igm.tabname) is dict:
+    if type(tabname) is dict:
         which = 'dict'
     else:
         which = 'tab'
-        print line("found       : %s" % igm.tabname[igm.tabname.rfind('/')+1:])
+        print line("found       : %s" % tabname[tabname.rfind('/')+1:])
     
-    print line("Emin (pf)   : %g" % igm.pf['pop_Emin'])
+    print line("Emin (pf)   : %g" % pop.pf['pop_Emin'])
     print line("Emin (%s)  : %g" % (which, Etab.min()))
-    print line("Emax (pf)   : %g" % igm.pf['pop_Emax'])
+    print line("Emax (pf)   : %g" % pop.pf['pop_Emax'])
     print line("Emax (%s)  : %g" % (which, Etab.max())) 
 
-    if Etab.min() < igm.pf['pop_Emin']:
+    if Etab.min() < pop.pf['pop_Emin']:
         print line("this is OK  : we'll discard E < %.2e eV entries in table" \
-            % igm.pf['pop_Emin'])
+            % pop.pf['pop_Emin'])
 
-    if Etab.max() > igm.pf['pop_Emax']:
+    if Etab.max() > pop.pf['pop_Emax']:
         print line("this is OK  : we'll discard E > %.2e eV entries in table" \
-            % igm.pf['pop_Emax']) 
+            % pop.pf['pop_Emax']) 
 
     print line(separator)
 

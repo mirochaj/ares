@@ -271,7 +271,6 @@ def PopulationParameters():
     "pop_k_ion_igm": None,
     "pop_k_heat_igm": None,
     
-    
     # Set time interval over which emission occurs
     "pop_zform": 50.,
     "pop_zdead": 0.0,
@@ -319,6 +318,7 @@ def PopulationParameters():
 
     'pop_fXh': None,
 
+    "pop_approx_tau": True,
     "pop_sawtooth": False,
     "pop_solve_rte": False,
     "pop_tau_Nz": 400,
@@ -538,8 +538,6 @@ def ControlParameters():
     "redshift_bins": None,
     "tau_table": None,
     "tau_prefix": tau_prefix,
-
-    "approx_tau": True,
 
     # File format
     "preferred_format": 'pkl',

@@ -261,7 +261,7 @@ class UniformBackground(object):
         x = np.logspace(np.log10(1 + zf), np.log10(1 + zi), nz)
         z = x - 1.   
         R = x[1] / x[0]   
-        
+                
         # Loop over bands, build energy arrays
         tau_by_band = []
         energies_by_band = []
@@ -293,15 +293,21 @@ class UniformBackground(object):
                     # Create energy arrays
                     EofN = Emi * R**np.arange(N)
                     
+                    # A list of lists!                    
                     E.append(EofN)
                                         
                 if band == (E_LyA, E_LL) or (4 * E_LyA, 4 * E_LL):
                     tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
                 else:
                     tau = [self._set_tau(z, Earr, pop) for Earr in E]
-                    
+
                 ehat = [self.TabulateEmissivity(z, Earr, pop) for Earr in E]
-                                  
+
+                # Store stuff for this band
+                tau_by_band.extend(tau)
+                energies_by_band.extend(E)
+                emissivity_by_band.extend(ehat)
+
             else:
                 N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
                 E = E0 * R**np.arange(N)
@@ -312,10 +318,10 @@ class UniformBackground(object):
                 # Tabulate emissivity
                 ehat = self.TabulateEmissivity(z, E, pop)
 
-            # Store stuff for this band
-            tau_by_band.append(tau)
-            energies_by_band.append(E)
-            emissivity_by_band.append(ehat)
+                # Store stuff for this band
+                tau_by_band.append(tau)
+                energies_by_band.append(E)
+                emissivity_by_band.append(ehat)
 
         return z, energies_by_band, tau_by_band, emissivity_by_band
 
@@ -325,16 +331,16 @@ class UniformBackground(object):
         
         The results of this function depend on a few global parameters.
         
-        If approx_tau is True, then the optical depth will be assumed to be
+        If pop_approx_tau is True, then the optical depth will be assumed to be
         zero for all redshifts and energies.
         
-        If approx_tau == 'neutral', then the optical depth will be computed 
+        If pop_approx_tau == 'neutral', then the optical depth will be computed 
         assuming a neutral medium for all times (including HeI).
         
-        If approx_tau is a function, it is assumed to describe the ionized 
+        If pop_approx_tau is a function, it is assumed to describe the ionized 
         hydrogen fraction as a function of redshift.
         
-        If approx_tau is 'post_EoR', we assume the only species left that
+        If pop_approx_tau is 'post_EoR', we assume the only species left that
         isn't fully ionized is helium, with 100% of helium having been
         ionized once. That is, xHI = xHeI = 0, xHeII = 1.
         
@@ -352,7 +358,7 @@ class UniformBackground(object):
         """
                 
         # Default to optically thin if nothing is supplied
-        if self.pf['approx_tau'] == True:
+        if pop.pf['pop_approx_tau'] == True:
             return z, E, np.zeros([len(z), len(E)])
             
         # Not necessarily true in the future if we include H2 opacity    
@@ -360,7 +366,7 @@ class UniformBackground(object):
             return z, E, np.zeros([len(z), len(E)])
             
         # Otherwise, compute optical depth assuming constant ion fractions
-        if self.pf['approx_tau'] == 'neutral':
+        if pop.pf['pop_approx_tau'] == 'neutral':
             
             # Try to load file from disk.
             z, E, tau = self.volume._fetch_tau(pop, z, E)
@@ -372,7 +378,7 @@ class UniformBackground(object):
                 if self.pf['include_He']:
                     tau += self.volume.TabulateOpticalDepth(z, E, species=1)
                         
-        elif self.pf['approx_tau'] is 'post_EoR':            
+        elif pop.pf['pop_approx_tau'] is 'post_EoR':            
             tau = self.volume.TabulateOpticalDepth(z, E, species=2)
         
         return z, E, tau

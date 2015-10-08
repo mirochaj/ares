@@ -181,13 +181,6 @@ os.chdir('..')
 ARES_env = os.getenv('ARES')
 cwd = os.getcwd()
 
-# Go back down to the root level, otherwise the user will get slightly 
-# incorrect instructions for how to set the ARES environment variable
-os.chdir('..')    
-
-ARES_env = os.getenv('ARES')
-cwd = os.getcwd()
-
 ##
 # TELL PEOPLE TO SET ENVIRONMENT VARIABLE
 ##

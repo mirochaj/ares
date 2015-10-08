@@ -372,6 +372,7 @@ class MetaGalacticBackground(UniformBackground):
             for i, flux in enumerate(hist[popid]):
                 fzflat = []
                 for j in range(len(self.energies[popid])):
+                    print popid, i, j, len(self.energies[popid])
                     fzflat.extend(flux[j])
                 
                 f[i] = np.array(fzflat)
