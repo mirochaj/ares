@@ -33,11 +33,28 @@ class CompositePopulation:
         Construct list of *Population class instances.
         """
         
-        self.pops = []
+        self.pops = [None for i in range(self.Npops)]
+        to_tunnel = [None for i in range(self.Npops)]
         for i, pf in enumerate(self.pfs):
-            if pf['pop_type'] == 'galaxy':
-                self.pops.append(GalaxyPopulation(**pf))
+            
+            if pf['pop_tunnel'] is not None:
+                to_tunnel[i] = pf['pop_tunnel']
+            elif pf['pop_type'] == 'galaxy':
+                self.pops[i] = GalaxyPopulation(**pf)
             else:
                 raise ValueError('Unrecognized pop_type %s.' % pf['pop_type'])  
+
+        # Tunneling populations!
+        for i, entry in enumerate(to_tunnel):
+            if self.pfs[i]['pop_tunnel'] is None:
+                continue
+            
+            tmp = self.pfs[i].copy()
+            tmp['pop_sfrd'] = self.pops[to_tunnel[i]].SFRD
+            
+            self.pops[i] = GalaxyPopulation(**tmp)
+            
+            
+            
 
 

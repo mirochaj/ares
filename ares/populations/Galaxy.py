@@ -483,15 +483,23 @@ class GalaxyPopulation(HaloPopulation):
         if not hasattr(self, '_sfrd_ham_tab_'):
             self._sfrd_ham_tab_ = np.zeros(self.halos.Nz)
             
-            Mmin = 1e8 * np.ones(self.halos.Nz)
+            if self.pf['pop_Mmin'] is None:
+                Tmin = self.pf['pop_Tmin']
+                Mmin = self.halos.VirialMass(Tmin, self.halos.z, \
+                    mu=self.pf['mu'])
+            else:
+                Mmin = self.pf['pop_Mmin'] * np.ones(self.halos.Nz)
             
-            M8 = np.argmin(np.abs(self.halos.M - 1e8))
+            self._Mmin_of_z = Mmin
             
             for i, z in enumerate(self.halos.z):
                 integrand = self._sfr_ham[i] * self.halos.dndm[i]
+
+                k = np.argmin(np.abs(Mmin[i] - self.halos.M))
+
                 self._sfrd_ham_tab_[i] = \
-                    simps(integrand[M8:], x=self.halos.logM[M8:]) * log10
-    
+                    simps(integrand[k:], x=self.halos.logM[k:]) * log10
+
         return self._sfrd_ham_tab_
         
     def _schecter_integral_inf(self, xmin, alpha):

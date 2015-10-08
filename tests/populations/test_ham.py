@@ -13,7 +13,7 @@ Description:
 import ares
 import numpy as np
 import matplotlib.pyplot as pl
-from ares.physics.Constants import g_per_msun, s_per_yr
+from ares.physics.Constants import rhodot_cgs
 
 b15 = ares.util.read_lit('bouwens2015')
 
@@ -27,7 +27,7 @@ pars = \
  'pop_constraints': lf_pars,  # bouwens2015
  'pop_yield': 1. / 1.15e-28,
  'pop_yield_units': 'erg/s/Hz/sfr',
- 'pop_logM': np.arange(8, 14.5, 0.25), # Masses for AM
+ 'pop_logM': np.arange(10, 13.5, 0.25), # Masses for AM
  'hmf_func': 'ST',
 }
 
@@ -83,10 +83,23 @@ ax3.set_ylabel(r'$\dot{\rho}_{\ast} \ \left[M_{\odot} / \mathrm{yr} \right]$')
 
 # SFRD
 fig4 = pl.figure(4); ax4 = fig4.add_subplot(111)
-pl.semilogy(pop.halos.z, pop._sfrd_ham_tab * g_per_msun / s_per_yr)
+pl.semilogy(pop.halos.z, pop._sfrd_ham_tab, label='HAM')
+
+# Compare to fcoll
+pop_fcoll = ares.populations.GalaxyPopulation()
+zarr = np.arange(4, 40)
+sfrd = np.array(map(pop_fcoll.SFRD, zarr)) * rhodot_cgs
+pl.semilogy(zarr, sfrd, color='b', label='fcoll')
+
+# Compare to R15
+pop_r15 = ares.util.read_lit('robertson2015')
+pl.semilogy(zarr, map(pop_r15.SFRD, zarr), color='g', label='R15')
 
 ax4.set_xlabel(r'$z$')
 ax4.set_ylabel(r'$\dot{\rho}_{\ast} \ \left[M_{\odot} / \mathrm{yr} / \mathrm{cMpc}^3 \right]$')
+ax4.set_xlim(4, 30)
+ax4.set_ylim(1e-10, 1)
+pl.legend(loc='lower left', frameon=False)
 
 pl.draw()
 

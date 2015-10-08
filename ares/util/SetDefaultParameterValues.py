@@ -243,6 +243,8 @@ def PopulationParameters():
     
     "pop_type": 'galaxy',
     
+    "pop_tunnel": None,
+    
     "pop_model": 'fcoll', # fcoll, hod, clf, ham, user
     
     "pop_halo_model": None, # clf or hod (not yet implemented)
