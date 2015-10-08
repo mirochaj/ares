@@ -48,9 +48,9 @@ class CompositePopulation:
         for i, entry in enumerate(to_tunnel):
             if self.pfs[i]['pop_tunnel'] is None:
                 continue
-            
+                        
             tmp = self.pfs[i].copy()
-            tmp['pop_sfrd'] = lambda z: self.pops[to_tunnel[i]].SFRD(z)
+            tmp['pop_sfrd'] = self.pops[entry].SFRD
             
             self.pops[i] = GalaxyPopulation(**tmp)
             

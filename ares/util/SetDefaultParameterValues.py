@@ -329,6 +329,9 @@ def PopulationParameters():
     "pop_yield": 2.6e39, 
     "pop_yield_units": 'erg/s/SFR',
 
+    # If pop_yield_units == 'erg/s/sfr/hz, this is the reference wavelength
+    "pop_yield_wavelength": 1500.,
+
     'pop_fXh': None,
 
     "pop_approx_tau": True,
@@ -349,7 +352,7 @@ def PopulationParameters():
     pf.update(tmp)
     pf.update(rcParams)
 
-    return pf      
+    return pf
 
 def SourceParameters():
     pf = \

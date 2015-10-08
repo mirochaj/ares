@@ -28,7 +28,7 @@ from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
-    E_LyA, rho_cgs, s_per_myr, cm_per_mpc
+    E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters
 
@@ -74,23 +74,31 @@ def normalize_sed(pop):
     units = pop.pf['pop_yield_units'].replace(' ', '').lower()
                 
     if units == 'erg/s/sfr':
-        energy_per_sfr = pop.pf['pop_yield'] * s_per_yr / g_per_msun
+        return pop.pf['pop_yield'] * s_per_yr / g_per_msun
+
+    E1 = pop.pf['pop_EminNorm']
+    E2 = pop.pf['pop_EmaxNorm']
+    erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
+    
+    energy_per_sfr = pop.pf['pop_yield']
+    
+    if units == 'photons/baryon':
+        energy_per_sfr *= erg_per_phot / pop.cosm.g_per_baryon
+    elif units == 'photons/msun':
+        energy_per_sfr *= erg_per_phot / g_per_msun
+    elif units == 'photons/s/sfr':
+        energy_per_sfr *= erg_per_phot * s_per_yr / g_per_msun   
     elif units == 'erg/s/hz/sfr':
-        energy_per_sfr = pop.pf['pop_yield']
-    else:
-        E1 = pop.pf['pop_EminNorm']
-        E2 = pop.pf['pop_EmaxNorm']
-        erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
-        energy_per_sfr = pop.pf['pop_yield'] * erg_per_phot
         
-        if units == 'photons/baryon':
-            energy_per_sfr /= pop.cosm.g_per_baryon
-        elif units == 'photons/msun':
-            energy_per_sfr /= g_per_msun
-        elif units == 'photons/s/sfr':
-            energy_per_sfr *= s_per_yr / g_per_msun   
-        else:
-            raise ValueError('Unrecognized yield units: %s' % units)
+        E_yield = h_p * c / (pop.pf['pop_yield_wavelength'] * 1e-8) / erg_per_ev
+        Inu_E = pop.src.Spectrum(E_yield) * ev_per_hz
+                
+        # Convert from (EminNorm, EmaxNorm) to (Emin, Emax)
+        conv = pop._convert_band(pop.pf['pop_Emin'], pop.pf['pop_Emax'])
+        
+        energy_per_sfr *= conv * s_per_yr / g_per_msun  / Inu_E
+    else:
+        raise ValueError('Unrecognized yield units: %s' % units)
 
     return energy_per_sfr
 
@@ -111,13 +119,13 @@ class GalaxyPopulation(HaloPopulation):
     @property
     def sawtooth(self):
         return self.pf['pop_sawtooth']        
-        
+
     @property
     def is_lya_src(self):
         if not hasattr(self, '_is_lya_src'):
             self._is_lya_src = \
                 self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']    
-        
+
         return self._is_lya_src
     
     @property
@@ -338,7 +346,10 @@ class GalaxyPopulation(HaloPopulation):
         self._fstar = lambda zz, MM: self._fstar_poly(zz, MM, 
             *self._fstar_coeff)
         
-        return self._fstar(z, M)
+        fstar = self._fstar(z, M)
+        #fstar[np.argwhere(fstar > 1)] = 1.
+        
+        return fstar
         
     @property
     def _Marr(self):
@@ -356,10 +367,13 @@ class GalaxyPopulation(HaloPopulation):
                 
         if hasattr(self, '_fstar_ham_pts'):
             return self._fstar_ham_pts
-                        
+
         # Otherwise, we're doing an abundance match!
-        kappa_UV = 1. / self.yield_per_sfr
-        
+        if self.pf['pop_yield_units'].lower() == 'erg/s/hz/sfr':
+            kappa_UV = 1. / self.pf['pop_yield']
+        else:
+            raise NotImplemented('units for this must be erg/s/sfr/hz!')
+
         Marr = self._Marr
         
         Nz, Nm = len(self.constraints['z']), len(Marr)
