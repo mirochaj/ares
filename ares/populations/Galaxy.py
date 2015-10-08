@@ -10,7 +10,7 @@ Description:
 
 """
 
-import os, pickle
+import os, pickle, inspect
 import numpy as np
 from ..util import read_lit
 import matplotlib.pyplot as pl
@@ -205,7 +205,7 @@ class GalaxyPopulation(HaloPopulation):
     def rhoL_from_sfrd(self):
         if not hasattr(self, '_rhoL_from_sfrd'):
             self._rhoL_from_sfrd = self.is_fcoll_model \
-                or self.pf['pop_sfrd'] is not None
+                or self.is_ham_model or self.pf['pop_sfrd'] is not None
                 
         return self._rhoL_from_sfrd
     
@@ -454,6 +454,9 @@ class GalaxyPopulation(HaloPopulation):
     def _sfr_ham(self):    
         """
         SFR as a function of redshift and halo mass yielded by abundance match.
+        
+            ..note:: Units are Msun/yr.
+            
         """
         if not hasattr(self, '_sfr_ham_'):
             self._sfr_ham_ = np.zeros([self.halos.Nz, self.halos.Nm])
@@ -479,6 +482,8 @@ class GalaxyPopulation(HaloPopulation):
     def _sfrd_ham_tab(self):    
         """
         SFRD as a function of redshift yielded by abundance match.
+        
+            ..note:: Units are g/s/cm^3 (comoving).
         """
         if not hasattr(self, '_sfrd_ham_tab_'):
             self._sfrd_ham_tab_ = np.zeros(self.halos.Nz)
@@ -499,6 +504,8 @@ class GalaxyPopulation(HaloPopulation):
 
                 self._sfrd_ham_tab_[i] = \
                     simps(integrand[k:], x=self.halos.logM[k:]) * log10
+
+            self._sfrd_ham_tab_ *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return self._sfrd_ham_tab_
         
@@ -682,6 +689,8 @@ class GalaxyPopulation(HaloPopulation):
                 self._sfrd_ = None
             elif type(self.pf['pop_sfrd']) is FunctionType:
                 self._sfrd_ = self.pf['pop_sfrd']
+            elif inspect.ismethod(self.pf['pop_sfrd']):
+                self._sfrd_ = self.pf['pop_sfrd']
             else:
                 tmp = read_lit(self.pf['pop_sfrd'])
                 self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
@@ -737,10 +746,15 @@ class GalaxyPopulation(HaloPopulation):
     
         if z > self.zform:
             return 0.0
-    
+        
         # SFRD approximated by some analytic function    
         if self._sfrd is not None:
-            return self._sfrd(z) / rhodot_cgs
+            if self.pf['pop_sfrd_units'].lower() == 'g/s/cm^3':
+                return self._sfrd(z)
+            elif self.pf['pop_sfrd_units'].lower() == 'msun/yr/mpc^3':
+                return self._sfrd(z) / rhodot_cgs
+            else:
+                raise NotImplemented('Unrecognized SFRD units!')
     
         # Most often: use fcoll model
         if self.is_fcoll_model:
@@ -753,7 +767,7 @@ class GalaxyPopulation(HaloPopulation):
                     self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
                 sys.exit(1)
         elif self.is_ham_model:
-            return self._sfrd_ham(z) * g_per_msun / s_per_yr
+            return float(self._sfrd_ham(z))
                 
         #elif self.is_halo_model:
         #    if self.halo_model == 'hod':
@@ -801,7 +815,7 @@ class GalaxyPopulation(HaloPopulation):
         
         """
         
-        if self.is_fcoll_model or self.pf['pop_sfrd'] is not None:            
+        if self.rhoL_from_sfrd:
             rhoL = self.SFRD(z) * self.yield_per_sfr
         else:
             raise NotImplemented('help')    

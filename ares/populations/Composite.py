@@ -50,7 +50,7 @@ class CompositePopulation:
                 continue
             
             tmp = self.pfs[i].copy()
-            tmp['pop_sfrd'] = self.pops[to_tunnel[i]].SFRD
+            tmp['pop_sfrd'] = lambda z: self.pops[to_tunnel[i]].SFRD(z)
             
             self.pops[i] = GalaxyPopulation(**tmp)
             

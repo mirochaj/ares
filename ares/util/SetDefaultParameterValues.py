@@ -291,6 +291,7 @@ def PopulationParameters():
     "pop_Mmin": None,
     "pop_Mmax": None,
     "pop_sfrd": None,
+    "pop_sfrd_units": 'g/s/cm^3',
     
     # Scales SFRD
     "pop_Nlw": 9690.,
