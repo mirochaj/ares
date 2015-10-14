@@ -21,6 +21,7 @@ pars = \
  # Source properties
  'pop_type': 'galaxy',
  'pop_sfrd': lambda z: 0.1,
+ 'pop_sfrd_units': 'msun/yr/mpc^3', 
  'pop_sed': 'pl',
  'pop_alpha': -1.5,
  'pop_Emin': 1e2,
@@ -36,7 +37,6 @@ pars = \
  'initial_redshift': 40.,
  'final_redshift': 10.,
 }
-
 
 mgb = ares.simulations.MetaGalacticBackground(**pars)
 mgb.run()

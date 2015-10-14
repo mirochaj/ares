@@ -13,7 +13,7 @@ Description:
 import ares
 import numpy as np
 import matplotlib.pyplot as pl
-from ares.physics.Constants import rhodot_cgs
+from ares.physics.Constants import rhodot_cgs, cm_per_mpc
 
 b15 = ares.util.read_lit('bouwens2015')
 
@@ -25,10 +25,8 @@ pars = \
  'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
  'pop_constraints': lf_pars,  # bouwens2015
- 'pop_yield': 1. / 1.15e-28,
- 'pop_yield_units': 'erg/s/Hz/sfr',
+ 'pop_kappa_UV': 1.15e-28,
  'pop_logM': np.arange(10, 13.5, 0.25), # Masses for AM
- 'hmf_func': 'ST',
 }
 
 pop = ares.populations.GalaxyPopulation(**pars)
@@ -83,11 +81,14 @@ ax3.set_ylabel(r'$\dot{\rho}_{\ast} \ \left[M_{\odot} / \mathrm{yr} \right]$')
 
 # SFRD
 fig4 = pl.figure(4); ax4 = fig4.add_subplot(111)
-pl.semilogy(pop.halos.z, pop._sfrd_ham_tab, label='HAM')
+
+zarr = np.arange(4, 40)
+sfrd_1 = np.array(map(pop.SFRD, zarr)) * rhodot_cgs
+ax4.semilogy(zarr, sfrd_1, label='HAM')
 
 # Compare to fcoll
 pop_fcoll = ares.populations.GalaxyPopulation()
-zarr = np.arange(4, 40)
+
 sfrd = np.array(map(pop_fcoll.SFRD, zarr)) * rhodot_cgs
 pl.semilogy(zarr, sfrd, color='b', label='fcoll')
 
@@ -101,5 +102,53 @@ ax4.set_xlim(4, 30)
 ax4.set_ylim(1e-10, 1)
 pl.legend(loc='lower left', frameon=False)
 
+# Halo mass - halo luminosity relationship
+fig5 = pl.figure(5); ax5 = fig5.add_subplot(111)
+
+# At z=6
+for z in [6,7,8,9]:
+
+    fast = pop.fstar(z=z, M=pop.halos.M)
+    iz = np.argmin(np.abs(z - pop.halos.z))
+    ax5.loglog(pop.halos.M, pop._sfr_ham[iz,:] / pop.pf['pop_kappa_UV'],
+        label=r'$z=%i$' % z)
+
+ax5.set_xlabel(r'$M_h / M_{\odot}$')  
+ax5.set_ylabel(r'$L_h / (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{Hz}^{-1})$')  
+ax5.set_xlim(1e8, 1e14)
+ax5.set_ylim(1e25, 1e31)
+ax5.legend(loc='upper left', frameon=False, fontsize=16)
+
+# Ionization emissivity evolution
+fig6 = pl.figure(6); ax6 = fig6.add_subplot(111)
+
+Nion = 4000. * np.array(map(pop.SFRD, zarr)) * cm_per_mpc**3 / pop.cosm.g_per_baryon
+ax6.semilogy(zarr, Nion, label='HAM')
+
+ax6.set_ylabel(r'$N_{\mathrm{ion}} / (\mathrm{s}^{-1} \ \mathrm{cMpc}^{-3})$')
+ax6.set_xlabel(r'$z$')
+
+# Cumulative luminosity density
+fig7 = pl.figure(7); ax7 = fig7.add_subplot(111)
+
+from scipy.integrate import cumtrapz
+
+for z in [6,7,8,9]:
+
+    fast = pop.fstar(z=z, M=pop.halos.M)
+    iz = np.argmin(np.abs(z - pop.halos.z))
+    to_int = pop._sfr_ham[iz,:] * pop.halos.dndm[iz,:] / pop.pf['pop_kappa_UV']
+    rhoL = cumtrapz(to_int, x=pop.halos.logM) \
+        / np.trapz(to_int, x=pop.halos.logM)
+    
+    ax7.loglog(pop.halos.M[1:], rhoL, label=r'$z=%i$' % z)
+
+ax7.set_xlabel(r'$M_h / M_{\odot}$')  
+ax7.set_ylabel(r'$L_h / (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{Hz}^{-1})$')  
+ax7.set_xlim(1e8, 1e13)
+ax7.set_ylim(1e-2, 1.05)
+ax7.legend(loc='upper left', frameon=False, fontsize=16)
+
 pl.draw()
+
 

@@ -23,13 +23,13 @@ format = 'pkl'
 
 hmf_pars = \
 {
- "fitting_function": fit,
+ "hmf_func": fit,
  "hmf_dlogM": 0.01
 }
 ##
 
-hmf = ares.populations.HaloMassFunction.HaloDensity(hmf_analytic=False, 
-    load_hmf=False, **hmf_pars)
+hmf = ares.physics.HaloMassFunction(hmf_analytic=False, 
+    hmf_load=False, **hmf_pars)
 
 hmf.save(format=format)
 

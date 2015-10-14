@@ -22,6 +22,7 @@ src_pars = \
  # Source properties
  'pop_type': 'galaxy',
  'pop_sfrd': lambda z: 0.01 / (1. + z)**3.,
+ 'pop_sfrd_units': 'msun/yr/mpc^3', 
  'pop_sed': 'pl',
  'pop_alpha': 1.0,
  'pop_Emin': 1.,

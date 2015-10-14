@@ -10,8 +10,8 @@ Description:
 
 """
 
-import os, pickle, inspect
 import numpy as np
+import os, pickle, inspect
 from ..util import read_lit
 import matplotlib.pyplot as pl
 from types import FunctionType
@@ -88,15 +88,6 @@ def normalize_sed(pop):
         energy_per_sfr *= erg_per_phot / g_per_msun
     elif units == 'photons/s/sfr':
         energy_per_sfr *= erg_per_phot * s_per_yr / g_per_msun   
-    elif units == 'erg/s/hz/sfr':
-        
-        E_yield = h_p * c / (pop.pf['pop_yield_wavelength'] * 1e-8) / erg_per_ev
-        Inu_E = pop.src.Spectrum(E_yield) * ev_per_hz
-                
-        # Convert from (EminNorm, EmaxNorm) to (Emin, Emax)
-        conv = pop._convert_band(pop.pf['pop_Emin'], pop.pf['pop_Emax'])
-        
-        energy_per_sfr *= conv * s_per_yr / g_per_msun  / Inu_E
     else:
         raise ValueError('Unrecognized yield units: %s' % units)
 
@@ -264,7 +255,7 @@ class GalaxyPopulation(HaloPopulation):
         if not hasattr(self, '_Mmin'):
             # First, compute threshold mass vs. redshift
             if self.pf['pop_Mmin'] is not None:
-                self._Mmin = self.pf['pop_Mmin']
+                self._Mmin = self.pf['pop_Mmin'] * np.ones(self.halos.Nz)
             else:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'], 
                     z, mu=self.pf['mu'])
@@ -295,7 +286,7 @@ class GalaxyPopulation(HaloPopulation):
                 # eta = rhs / lhs
 
                 Mmin = self.Mmin[i]
-                logMmin = np.log10(self.Mmin[i])
+                logMmin = np.log10(Mmin)
                 
                 rhs = self.cosm.rho_m_z0 * self.dfcolldt(z)
                 rhs *= (s_per_yr / g_per_msun) * cm_per_mpc**3
@@ -304,7 +295,7 @@ class GalaxyPopulation(HaloPopulation):
                 # This is *matter*, not *baryons*
                 Macc = self.Macc(z, self.halos.M)
                 
-                j1 = np.argmin(np.abs(self.Mmin[i] - self.halos.M))
+                j1 = np.argmin(np.abs(Mmin - self.halos.M))
                 
                 if Macc[j1] > self.halos.M[j1]:
                     j1 -= 1
@@ -339,17 +330,15 @@ class GalaxyPopulation(HaloPopulation):
         
         elif not self.is_ham_model:
             return self.pf['pop_fstar']
-                
+
         if hasattr(self, '_fstar'):
-            return self._fstar(z, M)
-        
+            return self._fstar_cap(self._fstar(z, M))
+
         self._fstar = lambda zz, MM: self._fstar_poly(zz, MM, 
             *self._fstar_coeff)
         
         fstar = self._fstar(z, M)
-        #fstar[np.argwhere(fstar > 1)] = 1.
-        
-        return fstar
+        return self._fstar_cap(fstar)
         
     @property
     def _Marr(self):
@@ -357,22 +346,21 @@ class GalaxyPopulation(HaloPopulation):
             self._Marr_ = 10**self.pf['pop_logM']
                
         return self._Marr_
-        
+
     @property    
     def _fstar_ham(self):
         """
         These are the star-formation efficiencies derived from abundance
         matching.
         """
-                
+
         if hasattr(self, '_fstar_ham_pts'):
             return self._fstar_ham_pts
 
         # Otherwise, we're doing an abundance match!
-        if self.pf['pop_yield_units'].lower() == 'erg/s/hz/sfr':
-            kappa_UV = 1. / self.pf['pop_yield']
-        else:
-            raise NotImplemented('units for this must be erg/s/sfr/hz!')
+        assert self.is_ham_model
+        
+        kappa_UV = self.pf['pop_kappa_UV']
 
         Marr = self._Marr
         
@@ -399,7 +387,7 @@ class GalaxyPopulation(HaloPopulation):
                     continue
         
                 # Read in variables
-                Macc = self.Macc(z, M)
+                Macc = self.Macc(z, M) * self.cosm.fbaryon
                 eta = self.eta[i]
         
                 # Minimum luminosity as a function of minimum mass
@@ -436,16 +424,29 @@ class GalaxyPopulation(HaloPopulation):
             x = [self._Marr, self.constraints['z']]
             y = self._fstar_ham.flatten()
             #guess = [-160, 34., 10., -0.5, -2.5, 0.05]
-            guess = np.array([-158.17, 34.7, 9.91, -0.913, -2.542, 0.062])
+            #guess = np.array([0.1, 0.1., 1., -1., -0.6, 0.01])
+            guess = -1. * np.ones(6)
             
             def to_min(x, *coeff):
                 M, z = np.meshgrid(*x)
                 return self._fstar_poly(z, M, *coeff).flatten()
             
             self._fstar_coeff_, self._fstar_cov_ = \
-                curve_fit(to_min, x, y, p0=guess)
+                curve_fit(to_min, x, y, p0=guess, maxfev=10000)
                                         
         return self._fstar_coeff_
+        
+    def _fstar_cap(self, fstar):
+        if type(fstar) in [float, np.float64]:
+            if fstar > self.pf['pop_fstar_ceil']:
+                return self.pf['pop_fstar_ceil']
+            else:
+                return fstar
+        elif type(fstar) == np.ndarray:
+            ceil = self.pf['pop_fstar_ceil'] * np.ones_like(fstar)
+            return np.minimum(fstar, ceil)    
+        else:
+            raise TypeError('Unrecognized type: %s' % type(fstar))
         
     def _fstar_poly(self, z, M, *coeff):
         """
@@ -457,10 +458,11 @@ class GalaxyPopulation(HaloPopulation):
         
         """
                         
-        logf = coeff[0] + coeff[1] * np.log10(M) \
+        logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
             + coeff[2] * ((1. + z) / 8.) \
-            + coeff[3] * ((1. + z) / 8.) * np.log10(M) \
-            + coeff[4] * (np.log10(M))**2. + coeff[5] * (np.log10(M))**3.
+            + coeff[3] * ((1. + z) / 8.) * np.log10(M / 1e10) \
+            + coeff[4] * (np.log10(M / 1e10))**2. \
+            + coeff[5] * (np.log10(M / 1e10))**3.
                 
         return 10**logf
     
@@ -502,19 +504,10 @@ class GalaxyPopulation(HaloPopulation):
         if not hasattr(self, '_sfrd_ham_tab_'):
             self._sfrd_ham_tab_ = np.zeros(self.halos.Nz)
             
-            if self.pf['pop_Mmin'] is None:
-                Tmin = self.pf['pop_Tmin']
-                Mmin = self.halos.VirialMass(Tmin, self.halos.z, \
-                    mu=self.pf['mu'])
-            else:
-                Mmin = self.pf['pop_Mmin'] * np.ones(self.halos.Nz)
-            
-            self._Mmin_of_z = Mmin
-            
             for i, z in enumerate(self.halos.z):
                 integrand = self._sfr_ham[i] * self.halos.dndm[i]
 
-                k = np.argmin(np.abs(Mmin[i] - self.halos.M))
+                k = np.argmin(np.abs(self.Mmin[i] - self.halos.M))
 
                 self._sfrd_ham_tab_[i] = \
                     simps(integrand[k:], x=self.halos.logM[k:]) * log10
@@ -848,7 +841,26 @@ class GalaxyPopulation(HaloPopulation):
     def NumberEmissivity(self, z, E=None, Emin=None, Emax=None):
         return self.Emissivity(z, E, Emin, Emax) / (E * erg_per_ev)
 
-
+    def save(self, prefix, clobber=False):
+        """
+        Output population-specific data to disk.
+        
+        Parameters
+        ----------
+        prefix : str
+            
+        """
+        
+        fn = '%s.ham_coeff.pkl'
+        
+        if os.path.exists(fn) and (not clobber):
+            raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
+        
+        with open(fn, 'wb') as f:
+            data = (self.constraints, self._fstar_coeff)
+            pickle.dump(data, f)
+            
+        print "Wrote %s." % fn
         
 
               

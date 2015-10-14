@@ -44,6 +44,7 @@ pars = \
  'problem_type': 100,
  'pop_type': 'galaxy',
  'pop_sfrd': 'robertson2015',
+ 'pop_sfrd_units': 'msun/yr/mpc^3',
  'pop_sed': 'pl',
  'pop_alpha': 1.0,
  'pop_Emin': 13.6,
@@ -55,7 +56,7 @@ pars = \
  'initial_redshift': 30.,
  'final_redshift': 4.1,
  'include_igm': False,                   # single-zone model
- 'cgm_initial_temperature': 2e4,         # should be 20,000 K
+ 'cgm_initial_temperature': 2e4,
  'clumping_factor': 3.,
  'pop_fesc': 0.2,
  'cgm_recombination': 'B',

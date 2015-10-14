@@ -237,7 +237,6 @@ def PopulationParameters():
     for par in srcpars:
         pf[par.replace('source', 'pop')] = srcpars[par]
     
-    
     tmp = \
     {
     
@@ -286,6 +285,7 @@ def PopulationParameters():
         
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
+    "pop_fstar_ceil": 1.0,
     "pop_Tmin": 1e4,
     "pop_Tmax": None,
     "pop_Mmin": None,
@@ -327,7 +327,8 @@ def PopulationParameters():
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
     "pop_yield": 2.6e39, 
-    "pop_yield_units": 'erg/s/SFR',
+    "pop_yield_units": 'erg/s/sfr',
+    "pop_kappa_UV": None,
 
     # If pop_yield_units == 'erg/s/sfr/hz, this is the reference wavelength
     "pop_yield_wavelength": 1500.,

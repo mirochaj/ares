@@ -215,6 +215,9 @@ class StellarPopulation:
         
     @property
     def emissivity_per_sfr(self):
+        """
+        Photon emissivity? 10.08.
+        """
         if not hasattr(self, '_E_per_M'):
             self._E_per_M = np.zeros_like(self.data)
             for i in range(self.times.size):
@@ -315,6 +318,23 @@ class StellarPopulation:
         
         # Integrate (cumulatively) over time
         return cumtrapz(photons_per_b_t, x=t, initial=0.0)
+        
+    def yield_per_sfr(self, l=1500.):
+        """
+        Compute the yield of this population.
+        
+        Parameters
+        ----------
+        l : int, float
+            Wavelength at which to compute yield [Angstrom]
+        
+        ..note:: Units are [erg/s/SFR/Hz]**-1
+        
+        """
+        
+        return np.interp(l, self.wavelengths, )
+        
+        
         
 class Spectrum:
     def __init__(self):

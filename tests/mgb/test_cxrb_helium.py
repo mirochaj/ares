@@ -20,7 +20,8 @@ zi, zf = (10, 40)
 # Initialize radiation background
 pars = \
 {
- 'sfrd': lambda z: 1e-2 / (1. + z)**3.,
+ 'pop_sfrd': lambda z: 1e-2 / (1. + z)**3.,
+ 'pop_sfrd_units': 'msun/yr/mpc^3',
  'source_type': 'bh',
  'spectrum_type': 'pl',
  'spectrum_alpha': -1.5,

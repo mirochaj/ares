@@ -24,6 +24,7 @@ pop = s99.StellarPopulation(continuous_sf=False, Z=0.04)
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 ax1.loglog(pop.wavelengths, pop.data[:,0], color='k')
 ax1.loglog(pop.wavelengths, pop.data[:,10], color='b')
+ax1.set_ylim(1e30, 1e42)
 
 ax1.set_xlabel(ares.util.labels['lambda_AA'])
 ax1.set_ylabel(ares.util.labels['intensity_AA'])

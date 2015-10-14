@@ -23,10 +23,10 @@ dz = 0.05
 ##
 #
 
-hmf_a = ares.populations.HaloPopulation(fitting_function='PS', hmf_analytic=True,
+hmf_a = ares.populations.HaloPopulation(hmf_func='PS', hmf_analytic=True,
     hmf_dlogM=dlogM, hmf_zmin=10, hmf_zmax=50, hmf_dz=10)
-hmf_n = ares.populations.HaloPopulation(fitting_function='PS', hmf_analytic=False,
-    hmf_dlogM=dlogM, hmf_zmin=10, hmf_zmax=50, hmf_dz=10, load_hmf=False)
+hmf_n = ares.populations.HaloPopulation(hmf_func='PS', hmf_analytic=False,
+    hmf_dlogM=dlogM, hmf_zmin=10, hmf_zmax=50, hmf_dz=10, hmf_load=False)
 
 """
 First, plot fcoll at a few redshifts, using symbols for numerical solutions.
@@ -35,9 +35,9 @@ First, plot fcoll at a few redshifts, using symbols for numerical solutions.
 fig1 = pl.figure(1)
 ax1 = fig1.add_subplot(111)
 
-for i, z in enumerate(hmf_a.z):
-    ax1.loglog(hmf_a.M, hmf_a.fcoll_tab[i], color='k')
-    ax1.scatter(hmf_n.M, hmf_n.fcoll_tab[i], color='b', marker='o', 
+for i, z in enumerate(hmf_a.halos.z):
+    ax1.loglog(hmf_a.halos.M, hmf_a.halos.fcoll_tab[i], color='k')
+    ax1.scatter(hmf_n.halos.M, hmf_n.halos.fcoll_tab[i], color='b', marker='o', 
         facecolors='none')
 
 ax1.set_xlim(1e4, 1e11)
@@ -55,13 +55,13 @@ fig2 = pl.figure(2)
 ax2 = fig2.add_subplot(111)
 
 ls = ['-', '--', '-.', ':', '-']
-for i, z in enumerate(hmf_a.z):
-    err1 = (hmf_n.fcoll_tab[np.argmin(np.abs(z-hmf_n.z))] - \
-            hmf_a.fcoll_tab[np.argmin(np.abs(z-hmf_a.z))]) / \
-            hmf_a.fcoll_tab[np.argmin(np.abs(z-hmf_a.z))]
+for i, z in enumerate(hmf_a.halos.z):
+    err1 = (hmf_n.halos.fcoll_tab[np.argmin(np.abs(z-hmf_n.halos.z))] - \
+            hmf_a.halos.fcoll_tab[np.argmin(np.abs(z-hmf_a.halos.z))]) / \
+            hmf_a.halos.fcoll_tab[np.argmin(np.abs(z-hmf_a.halos.z))]
 
-    ax2.loglog(hmf_a.M, np.abs(err1), color='b', ls=ls[i])
-    ax2.loglog([hmf_a.VirialMass(1e4, z, mu=1.22)]*2, [1e-5, 1],
+    ax2.loglog(hmf_a.halos.M, np.abs(err1), color='b', ls=ls[i])
+    ax2.loglog([hmf_a.halos.VirialMass(1e4, z, mu=1.22)]*2, [1e-5, 1],
         color='k', ls=ls[i])
 
 ax2.annotate(r'$T_{\mathrm{min}}=10^4 \ \mathrm{K}$', (0.1, 0.9),

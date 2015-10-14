@@ -92,7 +92,7 @@ class Population(object):
     
         Returns
         -------
-        Photon luminosity density in erg / s / c-cm**3.
+        Photon luminosity density in photons / s / c-cm**3.
         
         """
         

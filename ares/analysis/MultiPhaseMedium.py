@@ -123,6 +123,9 @@ class MultiPhaseMedium:
                 self.pf = pickle.load(f)
                 f.close()
                 
+                self.cosm = Cosmology(**self.pf)
+                self.hydr = Hydrogen(**self.pf)
+                
             except IOError: 
                 if re.search('pkl', data):
                     f = open(data, 'rb')
@@ -666,8 +669,15 @@ class MultiPhaseMedium:
         
         if element == 'h':
             if zone is None:
-                xe = self.data['igm_%s_2' % element]
-                xi = self.data['cgm_%s_2' % element]
+                if self.pf['include_igm']:
+                    xe = self.data['igm_%s_2' % element]
+                else:
+                    xe = np.zeros_like(self.data['z'])
+                if self.pf['include_cgm']:
+                    xi = self.data['cgm_%s_2' % element]
+                else:
+                    xi = np.zeros_like(self.data['z'])
+                    
                 xavg = xi + (1. - xi) * xe
                 
                 to_plot = [xavg, xi, xe]
@@ -785,7 +795,7 @@ class MultiPhaseMedium:
         
     def OpticalDepthHistory(self, ax=None, fig=1, 
         scatter=False, show_xi=True, show_xe=True, show_xibar=True, 
-        obs_mu=0.081, obs_sigma=0.012, show_obs=False, annotate_obs=False,
+        obs_mu=0.066, obs_sigma=0.012, show_obs=False, annotate_obs=False,
         include_He=True, z_HeII_EoR=3., **kwargs): 
         """
         Plot (cumulative) optical depth to CMB evolution. 
@@ -820,20 +830,20 @@ class MultiPhaseMedium:
         ax.set_ylabel(r'$\tau_e$')
 
         #ax.plot([0, self.data['z'].min()], [tau.max() + tau_post]*2, **kwargs)
-        #
-        #if show_obs:
-        #    if obs_mu is not None:
-        #        ax.fill_between(ax.get_xlim(), [obs_mu-obs_sigma]*2, 
-        #            [obs_mu+obs_sigma]*2, color='red', alpha=0.5)
-        #    
-        #    if annotate_obs:    
-        #        #ax.annotate(r'$1-\sigma$ constraint', 
-        #        #    [self.data['z'].min(), obs_mu], ha='left',
-        #        #    va='center')  
-        #        ax.annotate(r'plus post-EoR $\tau_e$', 
-        #            [5, tau.max() + tau_post + 0.002], ha='left',
-        #            va='bottom')
-        #        ax.set_title('daeshed lines are upper limits')
+        
+        if show_obs:
+            if obs_mu is not None:
+                ax.fill_between(ax.get_xlim(), [obs_mu-obs_sigma]*2, 
+                    [obs_mu+obs_sigma]*2, color='red', alpha=0.5)
+            
+            if annotate_obs:    
+                #ax.annotate(r'$1-\sigma$ constraint', 
+                #    [self.data['z'].min(), obs_mu], ha='left',
+                #    va='center')  
+                ax.annotate(r'plus post-EoR $\tau_e$', 
+                    [5, tau.max() + tau_post + 0.002], ha='left',
+                    va='bottom')
+                ax.set_title('daeshed lines are upper limits')
 
         ax.ticklabel_format(style='plain', axis='both')
 
