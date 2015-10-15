@@ -16,6 +16,7 @@ from ..util.Stats import rebin
 from collections import Iterable
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
+from ..util.ParameterFile import ParameterFile
 from ..physics.CrossSections import PhotoIonizationCrossSection
 from ..physics.Constants import k_B, cm_per_kpc, s_per_myr, m_H, mH_amu, \
     mHe_amu
@@ -67,8 +68,7 @@ util = fake_chianti()
 tiny_number = 1e-8  # A relatively small species fraction
 
 class Grid(object):
-    def __init__(self, dims=64, length_units=cm_per_kpc, start_radius=0.01,
-        approx_Salpha=1, logarithmic_grid=False, cosmological_ics=False):
+    def __init__(self, **kwargs):
         """
         Initialize grid object.
         
@@ -83,20 +83,22 @@ class Grid(object):
             
         """
         
-        self.dims = int(dims)
-        self.length_units = length_units
-        self.start_radius = start_radius
-        self.approx_Salpha = approx_Salpha
-        self.log_grid = logarithmic_grid
+        self.pf = ParameterFile(**kwargs)
+        
+        self.dims = int(self.pf['grid_cells'])
+        self.length_units = self.pf['length_units']
+        self.start_radius = self.pf['start_radius']
+        self.approx_Salpha = self.pf['approx_Salpha']
+        self.log_grid = self.pf['logarithmic_grid']
 
         # Compute cell centers and edges
-        if logarithmic_grid:
+        if self.pf['logarithmic_grid']:
             self.r_edg = self.r = \
-                np.logspace(np.log10(self.R0), np.log10(length_units), 
+                np.logspace(np.log10(self.R0), np.log10(self.length_units), 
                 self.dims + 1)            
         else:
             self.r_edg = self.r = \
-                np.linspace(self.R0, length_units, self.dims + 1)
+                np.linspace(self.R0, self.length_units, self.dims + 1)
         
         # Compute interior cell walls, spacing, and mid-points        
         self.r_int = self.r_edg[0:-1]
@@ -106,7 +108,7 @@ class Grid(object):
         self.zi = 0
         
         # Override, to set ICs by cosmology
-        self.cosmological_ics = cosmological_ics
+        self.cosmological_ics = self.pf['cosmological_ics']
                 
     @property
     def zeros_absorbers(self):
@@ -331,7 +333,7 @@ class Grid(object):
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
-            self._hydr = Hydrogen(self.cosm, approx_Salpha=self.approx_Salpha)
+            self._hydr = Hydrogen(self.cosm, **self.pf)
         return self._hydr    
             
     @property

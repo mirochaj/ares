@@ -13,6 +13,7 @@ Description: Container for hydrogen physics stuff.
 import numpy as np
 import scipy.interpolate as interpolate
 from ..util.Math import central_difference
+from ..util.ParameterFile import ParameterFile
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL
 
 try:
@@ -59,16 +60,20 @@ c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
 c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
 
 class Hydrogen:
-    def __init__(self, cosm=None, approx_Salpha=1, nmax=23):
+    def __init__(self, cosm=None, **kwargs):
+        
+        self.pf = ParameterFile(**kwargs)
+        
         if cosm is None:
             from .Cosmology import Cosmology
-            self.cosm = Cosmology()
+            self.cosm = Cosmology(**self.pf)
         else:
             self.cosm = cosm
             
-        self.approx_S = approx_Salpha
+        self.interp_method = self.pf['interp_cc']
+        self.approx_S = self.pf['approx_Salpha']
         
-        self.nmax = nmax
+        self.nmax = self.pf['lya_nmax']
         self.fbarII = 0.72
         self.fbarIII = 0.63
         self.A10 = 2.85e-15 			
@@ -96,7 +101,7 @@ class Hydrogen:
     def kappa_H_pre(self):
         if not hasattr(self, '_kappa_H_pre'):                            
             self._kappa_H_pre = interpolate.interp1d(T_HH, kappa_HH, 
-                kind='cubic', bounds_error=False, fill_value=0.0)
+                kind=self.interp_method, bounds_error=False, fill_value=0.0)
 
         return self._kappa_H_pre
 
@@ -104,7 +109,7 @@ class Hydrogen:
     def kappa_e_pre(self):
         if not hasattr(self, '_kappa_e_pre'):     
             self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He,
-                kind='cubic', bounds_error=False, fill_value=0.0)
+                kind=self.interp_method, bounds_error=False, fill_value=0.0)
 
         return self._kappa_e_pre
 

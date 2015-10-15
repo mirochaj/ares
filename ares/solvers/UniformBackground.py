@@ -94,9 +94,7 @@ class UniformBackground(object):
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
-            self._hydr = Hydrogen(self.cosm, 
-                approx_Salpha=self.pf['approx_Salpha'], 
-                nmax=self.pf['lya_nmax'])
+            self._hydr = Hydrogen(self.cosm, **self.pf)
 
         return self._hydr
 

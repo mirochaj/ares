@@ -27,7 +27,7 @@ class GasParcel:
         
         self.grid = \
         Grid(
-            dims=self.pf['grid_cells'], 
+            grid_cells=self.pf['grid_cells'], 
             length_units=self.pf['length_units'], 
             start_radius=self.pf['start_radius'],
             approx_Salpha=self.pf['approx_Salpha'], 

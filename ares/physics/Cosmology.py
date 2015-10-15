@@ -12,39 +12,39 @@ Description:
 
 import numpy as np
 from scipy.integrate import quad
+from ..util.ParameterFile import ParameterFile
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun
 
 class Cosmology:
-    def __init__(self, omega_m_0=0.3089, omega_l_0=0.6911,
-        omega_b_0=0.0486, hubble_0=0.6774, 
-        helium_by_number=None, helium_by_mass=0.2453, cmb_temp_0=2.7255, 
-        approx_highz=False, sigma_8=0.8159, primordial_index=0.9667):
+    def __init__(self, **kwargs):
         """Initialize a Cosmology object.
         
         :param: omega_m_0: Pretty self-explanatory.
         
         """
+        
+        self.pf = ParameterFile(**kwargs)
                 
-        self.omega_m_0 = omega_m_0
-        self.omega_b_0 = omega_b_0
-        self.omega_l_0 = omega_l_0
+        self.omega_m_0 = self.pf['omega_m_0']
+        self.omega_b_0 = self.pf['omega_b_0']
+        self.omega_l_0 = self.pf['omega_l_0']
         self.omega_cdm_0 = self.omega_m_0 - self.omega_b_0
-        self.hubble_0 = hubble_0 * 100 / km_per_mpc
-        self.cmb_temp_0 = cmb_temp_0
-        self.approx_highz = approx_highz
-        self.sigma_8 = self.sigma8 = sigma_8
-        self.primordial_index = primordial_index
+        self.hubble_0 = self.pf['hubble_0'] * 100 / km_per_mpc
+        self.cmb_temp_0 = self.pf['cmb_temp_0']
+        self.approx_highz = self.pf['approx_highz']
+        self.sigma_8 = self.sigma8 = self.pf['sigma_8']
+        self.primordial_index = self.pf['primordial_index']
         
         self.CriticalDensityNow = (3 * self.hubble_0**2) \
             / (8 * np.pi * G)
         
-        self.h70 = hubble_0
+        self.h70 = self.pf['hubble_0']
         
-        if helium_by_number is None:
-            self.helium_by_mass = self.Y = helium_by_mass
+        if self.pf['helium_by_number'] is None:
+            self.helium_by_mass = self.Y = self.pf['helium_by_mass']
             self.helium_by_number = self.y = 1. / (1. / self.Y - 1.) / 4.
         else:
-            self.helium_by_number = self.y = helium_by_number
+            self.helium_by_number = self.y = self.pf['helium_by_number']
             self.Y = self.helium_by_mass = 4. * self.y / (1. + 4. * self.y)
         
         self.X = 1. - self.Y

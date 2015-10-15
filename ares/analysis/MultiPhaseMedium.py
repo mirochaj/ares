@@ -106,7 +106,7 @@ class MultiPhaseMedium:
             try:
                 self.hydr = self.sim.grid.hydr
             except AttributeError:
-                self.hydr = Hydrogen(cosm=self.cosm)
+                self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
         
         elif type(data) == dict:
             history = data.copy()
@@ -143,7 +143,7 @@ class MultiPhaseMedium:
             print "No parameter file found...setting all to default values."      
             self.pf = SetAllDefaults()
             self.cosm = Cosmology()
-            self.hydr = Hydrogen()
+            self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
             
         self.data = DummyDQ(pf=self.pf)
 
