@@ -24,7 +24,9 @@ In the event that a required file is missing, something has gone wrong. Many loo
 --------------------------------
 This is an odd one, known to occur in ``ares.physics.Hydrogen`` when using ``scipy.interpolate.interp1d`` to compute the collisional coupling coefficients for spin-exchange. 
 
-We still aren't sure why this happens -- it cannot always be reproduced, even by two users using the same version of *scipy*. A temporary hack is to use linear interpolation, instead of a spline, or to hack off data points at high temperatures in the lookup table. Working on a more satisfying solution...email me if you encounter this problem.
+We still aren't sure why this happens -- it cannot always be reproduced, even by two users using the same version of *scipy*. A temporary hack is to use linear interpolation, instead of a spline, or to hack off data points at high temperatures in the lookup table. To do this, pass ``interp_cc='linear'`` to whatever routines you're running (it will make its way to the ``Hydrogen`` class). To set it as a default on your system, have a look at the ''Custom Defaults'' section of :doc:`params`.
+
+Working on a more satisfying solution...email me if you encounter this problem.
 
 
 
