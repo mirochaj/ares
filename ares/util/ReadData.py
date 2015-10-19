@@ -68,7 +68,7 @@ def flatten_energies(E):
                 to_return.extend(flux_seg)
         else:
             to_return.extend(band)
-
+    
     return np.array(to_return)
 
 def flatten_flux(flux):
@@ -97,7 +97,7 @@ def _sort_history(all_data, prefix='', squeeze=False):
         Each element is a dictionary corresponding to data at a particular 
         snapshot.
     prefix : str
-        Will prepended to all dictionary keys in output dictionary.
+        Will prepend to all dictionary keys in output dictionary.
         
     Returns
     -------

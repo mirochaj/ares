@@ -29,6 +29,7 @@ pars = \
  'pop_yield_units': 'photons/msun',
 
  # Solution method
+ "sawtooth_nmax": 8,
  'pop_solve_rte': True,
  'pop_tau_Nz': 400,
  'include_H_Lya': False,
@@ -37,35 +38,49 @@ pars = \
  'final_redshift': 10.,
 }
 
-# First calculation: no sawtooth
-mgb = ares.simulations.MetaGalacticBackground(**pars)
-mgb.run()
+def test(tol=1e-3):
 
-z, E, flux = mgb.get_history(flatten=True)
-pl.semilogy(E, flux[-1] * E * erg_per_ev, color='k', ls=':')
-
-# Now, turn on sawtooth
-pars2 = pars.copy()
-pars2['pop_sawtooth'] = True
-
-mgb2 = ares.simulations.MetaGalacticBackground(**pars2)
-mgb2.run()
-
-z2, E2, flux2 = mgb2.get_history(flatten=True)
-pl.semilogy(E2, flux2[-1] * E2 * erg_per_ev, color='k', ls='--')
-
-# Grab GalaxyPopulation
-pop = mgb.pops[0]
-
-# Cosmologically-limited solution to the RTE
-# [Equation A1 in Mirocha (2014)]
-zi, zf = 40., 10.
-e_nu = np.array(map(lambda E: pop.Emissivity(zf, E), E))
-e_nu *= (1. + zf)**4.5 / 4. / np.pi / pop.cosm.HubbleParameter(zf) / -1.5
-e_nu *= ((1. + zi)**-1.5 - (1. + zf)**-1.5)
-e_nu *= c * ev_per_hz
-
-# Plot it
-pl.semilogy(E, e_nu, color='k', ls='-')
-pl.xlabel(ares.util.labels['E'])
-pl.ylabel(ares.util.labels['flux_E'])
+    # First calculation: no sawtooth
+    mgb = ares.simulations.MetaGalacticBackground(**pars)
+    mgb.run()
+    
+    z, E, flux = mgb.get_history(flatten=True)
+    pl.semilogy(E, flux[-1] * E * erg_per_ev, color='k', ls=':')
+    
+    # Now, turn on sawtooth
+    pars2 = pars.copy()
+    pars2['pop_sawtooth'] = True
+    
+    mgb2 = ares.simulations.MetaGalacticBackground(**pars2)
+    mgb2.run()
+    
+    z2, E2, flux_saw = mgb2.get_history(flatten=True)
+    pl.semilogy(E2, flux_saw[-1] * E2 * erg_per_ev, color='k', ls='--')
+    
+    # Grab GalaxyPopulation
+    pop = mgb.pops[0]
+    
+    # Cosmologically-limited solution to the RTE
+    # [Equation A1 in Mirocha (2014)]
+    zi, zf = 40., 10.
+    e_nu = np.array(map(lambda E: pop.Emissivity(zf, E), E))
+    e_nu *= (1. + zf)**4.5 / 4. / np.pi / pop.cosm.HubbleParameter(zf) / -1.5
+    e_nu *= ((1. + zi)**-1.5 - (1. + zf)**-1.5)
+    e_nu *= c * ev_per_hz
+    
+    # Plot it
+    pl.semilogy(E, e_nu, color='k', ls='-')
+    pl.xlabel(ares.util.labels['E'])
+    pl.ylabel(ares.util.labels['flux_E'])
+    
+    # Compare to analytic solution
+    flux_anl = e_nu
+    flux_num = flux[-1] * E * erg_per_ev
+    
+    diff = np.abs(flux_anl - flux_num) / flux_anl
+    
+    assert diff[0] < tol, \
+        "Relative error between analytical and numerical solutions exceeds %.3g." % tol
+    
+if __name__ == '__main__':
+    test()

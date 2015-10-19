@@ -54,10 +54,10 @@ class MetaGalacticBackground(UniformBackground):
         self.all_z = all_z
         self.all_fluxes_c = all_fluxes_c
         self.all_fluxes_l = all_fluxes_l
-        
+
         self._history_c = _sort_history(all_fluxes_c)
         self._history_l = _sort_history(all_fluxes_l)
-        
+
     def _init_stepping(self):
         """
         Initialize lists which bracket radiation background fluxes.
@@ -337,6 +337,11 @@ class MetaGalacticBackground(UniformBackground):
             emission history instead.
         popid : int
             ID number for population of interest.
+        flatten : bool
+            For sawtooth calculations, the energies are broken apart into 
+            different bands which have different sizes. Set this to true if
+            you just want a single array, rather than having the energies
+            and fluxes broken apart by their band.
 
         Returns
         -------
@@ -367,12 +372,11 @@ class MetaGalacticBackground(UniformBackground):
         
         if flatten:
             E = flatten_energies(self.energies[popid])
-            
+                        
             f = np.zeros([len(z), E.size])
             for i, flux in enumerate(hist[popid]):
                 fzflat = []
                 for j in range(len(self.energies[popid])):
-                    print popid, i, j, len(self.energies[popid])
                     fzflat.extend(flux[j])
                 
                 f[i] = np.array(fzflat)

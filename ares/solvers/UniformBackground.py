@@ -109,6 +109,10 @@ class UniformBackground(object):
     def solve_rte(self):
         """
         By population and band, are we solving the RTE in detail?
+        
+        ..note:: Currently, if a population has only one band, we will not
+            nest the list any further (i.e., no sub-bands). Should we?
+            
         """
                 
         if not hasattr(self, '_solve_rte'):
@@ -267,10 +271,9 @@ class UniformBackground(object):
         for band in bands:       
             
             E0, E1 = band
-                                
-            has_sawtooth = (E0 <= E_LyA <= E1) or (E0 <= E_LL <= E1)
-            has_sawtooth |= (E0 <= 4*E_LyA <= E1) or (E0 <= 4*E_LL <= E1)
-
+            has_sawtooth = (E0 == E_LyA) and (E1 == E_LL)
+            has_sawtooth |= (E0 == 4*E_LyA) or (E1 == 4*E_LL)
+            
             # Special treatment if LWB or UVB
             if has_sawtooth:
 
@@ -281,19 +284,19 @@ class UniformBackground(object):
                 for n in narr:
                     Emi = self.hydr.ELyn(n)
                     Ema = self.hydr.ELyn(n + 1)
-                    
+
                     if HeII:
                         Emi *= 4
                         Ema *= 4
-                    
+
                     N = num_freq_bins(nz, zi=zi, zf=zf, Emin=Emi, Emax=Ema)
-                    
+
                     # Create energy arrays
                     EofN = Emi * R**np.arange(N)
-                    
+
                     # A list of lists!                    
                     E.append(EofN)
-                                        
+
                 if band == (E_LyA, E_LL) or (4 * E_LyA, 4 * E_LL):
                     tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
                 else:
@@ -302,9 +305,9 @@ class UniformBackground(object):
                 ehat = [self.TabulateEmissivity(z, Earr, pop) for Earr in E]
 
                 # Store stuff for this band
-                tau_by_band.extend(tau)
-                energies_by_band.extend(E)
-                emissivity_by_band.extend(ehat)
+                tau_by_band.append(tau)
+                energies_by_band.append(E)
+                emissivity_by_band.append(ehat)
 
             else:
                 N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
@@ -397,9 +400,9 @@ class UniformBackground(object):
                 gen = None
             else:
                 gen = self.FluxGenerator(popid=i)
-            
+
             self.generators.append(gen)    
-            
+
     def _set_integrator(self):
         """
         Initialize attributes pertaining to numerical integration.
@@ -447,7 +450,7 @@ class UniformBackground(object):
                 # Sum over bands
                 for k, band in enumerate(self.energies[i]):
                     self._update_by_band_and_species(z, i, j, k, **kwargs)
-            
+
         # Sum over sources
         self.k_ion_tot = np.sum(self.k_ion, axis=0)
         self.k_ion2_tot = np.sum(self.k_ion2, axis=0)
@@ -459,9 +462,9 @@ class UniformBackground(object):
          'k_ion2': self.k_ion2_tot,
          'k_heat': self.k_heat_tot,
         }
-        
+
         return to_return
-        
+
     def _update_by_band_and_species(self, z, i, j, k, **kwargs):
         if kwargs['zone'] == 'igm':
             self.k_ion[i,0,j] += \
@@ -1090,7 +1093,7 @@ class UniformBackground(object):
         
         generators_by_band = []
         for i, band in enumerate(bands):
-            if type(self.energies[popid][i]) is list:            
+            if type(self.energies[popid][i]) is list:   
                 gen = self._flux_generator_sawtooth(E=self.energies[popid][i],
                     z=self.redshifts[popid], ehat=self.emissivities[popid][i],
                     tau=self.tau[popid][i])
