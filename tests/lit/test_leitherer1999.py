@@ -15,9 +15,10 @@ import matplotlib.pyplot as pl
 
 s99 = ares.util.read_lit('leitherer1999')
 
-# Currently, the starburst99 module works a little differently than others. Since there are so many
-# "switches", rather than "knobs", it gets its own StellarPopulation class to deal with this. Need
-# to work on how to generalize this with the rest of the API.
+# Currently, the starburst99 module works a little differently than others. 
+# Since there are so many "switches", rather than "knobs", it gets its own 
+# StellarPopulation class to deal with this. Need to work on how to generalize 
+# this with the rest of the API.
 pop = s99.StellarPopulation(continuous_sf=False, Z=0.04)
 
 # Stellar SED at 1 Myr
@@ -27,7 +28,7 @@ ax1.loglog(pop.wavelengths, pop.data[:,10], color='b')
 
 ax1.set_xlabel(ares.util.labels['lambda_AA'])
 ax1.set_ylabel(ares.util.labels['intensity_AA'])
-
+ax1.set_ylim(1e25, 1e40)
 pl.draw()
 
 # Plot Nion / Nlw vs. time
