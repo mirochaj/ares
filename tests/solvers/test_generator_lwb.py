@@ -13,7 +13,7 @@ Description: This is very similar to Haiman, Abel, & Rees (1997) Fig. 1.
 import ares
 import numpy as np
 import matplotlib.pyplot as pl
-from ares.physics.Constants import erg_per_ev, c, ev_per_hz
+from ares.physics.Constants import erg_per_ev, c, ev_per_hz, E_LyA
 
 pars = \
 {
@@ -29,15 +29,16 @@ pars = \
  'pop_yield_units': 'photons/msun',
 
  # Solution method
- "sawtooth_nmax": 8,
+ "lya_nmax": 8,
  'pop_solve_rte': True,
  'pop_tau_Nz': 400,
- 'include_H_Lya': False,
+ 'include_H_Lya': True,
 
  'initial_redshift': 40.,
  'final_redshift': 10.,
 }
 
+tol = 1e-3
 def test(tol=1e-3):
 
     # First calculation: no sawtooth
@@ -45,7 +46,10 @@ def test(tol=1e-3):
     mgb.run()
     
     z, E, flux = mgb.get_history(flatten=True)
-    pl.semilogy(E, flux[-1] * E * erg_per_ev, color='k', ls=':')
+    
+    f1 = pl.figure(1); ax1 = f1.add_subplot(111)
+    
+    ax1.semilogy(E, flux[-1] * E * erg_per_ev, color='k', ls=':')
     
     # Now, turn on sawtooth
     pars2 = pars.copy()
@@ -55,7 +59,15 @@ def test(tol=1e-3):
     mgb2.run()
     
     z2, E2, flux_saw = mgb2.get_history(flatten=True)
-    pl.semilogy(E2, flux_saw[-1] * E2 * erg_per_ev, color='k', ls='--')
+    ax1.semilogy(E2, flux_saw[-1] * E2 * erg_per_ev, color='k', ls='--')
+        
+    # Plot Lyman alpha flux evolution
+    f2 = pl.figure(2); ax2 = f2.add_subplot(111)
+    k = np.argmin(np.abs(E2 - E_LyA))
+        
+    ax2.semilogy(z2, flux_saw[:,k], color='k')
+    ax2.set_xlabel(r'$z$')
+    ax2.set_ylabel(r'$J_{\alpha}$')
     
     # Grab GalaxyPopulation
     pop = mgb.pops[0]
@@ -69,9 +81,11 @@ def test(tol=1e-3):
     e_nu *= c * ev_per_hz
     
     # Plot it
-    pl.semilogy(E, e_nu, color='k', ls='-')
-    pl.xlabel(ares.util.labels['E'])
-    pl.ylabel(ares.util.labels['flux_E'])
+    ax1.semilogy(E, e_nu, color='k', ls='-')
+    ax1.set_xlabel(ares.util.labels['E'])
+    ax1.set_ylabel(ares.util.labels['flux_E'])
+    
+    pl.show()
     
     # Compare to analytic solution
     flux_anl = e_nu

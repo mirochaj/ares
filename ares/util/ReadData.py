@@ -98,7 +98,7 @@ def _sort_history(all_data, prefix='', squeeze=False):
         snapshot.
     prefix : str
         Will prepend to all dictionary keys in output dictionary.
-        
+
     Returns
     -------
     Dictionary, sorted by gas properties, with entire history for each one.
@@ -130,7 +130,7 @@ def _sort_history(all_data, prefix='', squeeze=False):
         if squeeze:
             data[key] = np.array(data[key]).squeeze()
         else:
-            data[key] = np.array(data[key])    
+            data[key] = np.array(data[key])
 
     return data
 

@@ -36,8 +36,6 @@ src_pars = \
  'pop_tau_Nz': 400,
  'include_H_Lya': False,
 
- 'sawtooth_nmax': 8,
-
  'initial_redshift': zi,
  'final_redshift': zf,
 }

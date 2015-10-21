@@ -11,10 +11,10 @@ Description:
 """
 
 import numpy as np
-from ..physics.Constants import nu_0_mhz
 from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from .MultiPhaseMedium import MultiPhaseMedium
+from ..physics.Constants import nu_0_mhz, E_LyA
 
 defaults = \
 {
@@ -145,6 +145,10 @@ class Global21cm:
             self.medium.all_t, self.medium.all_z, self.medium.all_data_igm, \
             self.medium.all_data_cgm, self.medium.all_RCs_igm, self.medium.all_RCs_cgm
         
+        # Add zeros for Ja
+        for element in self.all_data_igm:
+            element['Ja'] = 0.0
+        
         # List for extrema-finding    
         self.all_dTb = self._init_dTb()
                                 
@@ -211,25 +215,43 @@ class Global21cm:
         for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
                                                                                        
             # Grab Lyman alpha flux
-            Ja = self.medium.field.LymanAlphaFlux(z)
-            
+            Ja = 0.0
+            for i, pop in enumerate(self.medium.field.pops):
+                if not pop.is_lya_src:
+                    continue
+                
+                if not self.medium.field.solve_rte[i]:    
+                    Ja += self.medium.field.LymanAlphaFlux(z)
+                    continue
+
+                # Grab line fluxes for this population for this step
+                for j, band in enumerate(self.medium.field.bands_by_pop[i]):
+                    E0, E1 = band
+                    if not (E0 <= E_LyA < E1):
+                        continue
+                    
+                    Earr = np.concatenate(self.medium.field.energies[i][j])
+                    l = np.argmin(np.abs(Earr - E_LyA))    
+                    
+                    Ja += self.medium.field.all_fluxes[-1][i][j][l]
+                                                
             # Compute spin temperature
             n_H = self.medium.parcel_igm.grid.cosm.nH(z)
             Ts = self.medium.parcel_igm.grid.hydr.Ts(z,
                 data_igm['Tk'], Ja, data_igm['h_2'], data_igm['e'] * n_H)
 
             # Compute volume-averaged ionized fraction
-            xavg = data_cgm['h_2'] + (1. - data_cgm['h_2']) * data_igm['h_2']        
+            xavg = data_cgm['h_2'] + (1. - data_cgm['h_2']) * data_igm['h_2']
 
             # Derive brightness temperature
             dTb = self.medium.parcel_igm.grid.hydr.dTb(z, xavg, Ts)
-            
+
             # Add derived fields to data
-            data_igm.update({'Ts': Ts, 'dTb': dTb})
-                        
+            data_igm.update({'Ts': Ts, 'dTb': dTb, 'Ja': Ja})
+
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
-            
+
     def run_inline_analysis(self):    
 
         if (self.pf['inline_analysis'] is None) and \

@@ -205,10 +205,7 @@ def PhysicsParameters():
                         # 2 = Chuzhoy, Alvarez, & Shapiro (2005),
                         # 3 = Furlanetto & Pritchard (2006)
 
-    "sawtooth_nmax": 8,
-
     # Lyman alpha sources
-
     "lya_nmax": 23,
     "lya_injected": True,
     'lya_continuum': True,
@@ -319,7 +316,7 @@ def PopulationParameters():
     'pop_fXh': None,
 
     "pop_approx_tau": True,
-    "pop_sawtooth": False,
+    #"pop_sawtooth": False,
     "pop_solve_rte": False,
     "pop_tau_Nz": 400,
 

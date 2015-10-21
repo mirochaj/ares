@@ -93,11 +93,7 @@ class GalaxyPopulation(HaloPopulation):
 
         self._eV_per_phot = {}
         self._conversion_factors = {}
-
-    @property
-    def sawtooth(self):
-        return self.pf['pop_sawtooth']        
-        
+           
     @property
     def is_lya_src(self):
         if not hasattr(self, '_is_lya_src'):

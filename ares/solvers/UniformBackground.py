@@ -153,7 +153,7 @@ class UniformBackground(object):
         Emin, Emax = pop.pf['pop_Emin'], pop.pf['pop_Emax']
         
         # Pure X-ray
-        if (Emin > E_LL) and (Emin > 4 * E_LL) or (not pop.sawtooth):
+        if (Emin > E_LL) and (Emin > 4 * E_LL):
             return [(Emin, Emax)]
         
         bands = []
@@ -280,7 +280,7 @@ class UniformBackground(object):
                 HeII = band[0] > E_LL
 
                 E = []
-                narr = np.arange(2, self.pf['sawtooth_nmax'])
+                narr = np.arange(2, self.pf['lya_nmax'])
                 for n in narr:
                     Emi = self.hydr.ELyn(n)
                     Ema = self.hydr.ELyn(n + 1)
@@ -834,32 +834,23 @@ class UniformBackground(object):
         # Flat spectrum, no injected photons, instantaneous emission only
         if not self.solve_rte[popid]:
             norm = c * self.cosm.dtdz(z) / four_pi
-            
+
             rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6)
-            
+
             return norm * (1. + z)**3 * (1. + pop.pf['lya_frec_bar']) * \
                 rhoLW / dnu
-        
+
         # Full calculation
         J = 0.0
-        
+
         for i, n in enumerate(self.narr):
-        
+
             if n == 2 and not pop.pf['lya_continuum']:
                 continue
             if n > 2 and not pop.pf['lya_injected']:
                 continue
             
-            #if self.pf['discrete_lwb']:
-            Jn = self.hydr.frec(n) * fluxes[i][0] * 0.2
-            #else:
-            #
-            #    En = self.hydr.ELyn(n)
-            #    Enp1 = self.hydr.ELyn(n + 1)
-            #    
-            #    Eeval = En + 0.01 * (Enp1 - En)
-            #    Jn = self.hydr.frec(n) * self.LymanWernerFlux(z, Eeval, 
-            #        **kwargs)
+            Jn = self.hydr.frec(n) * fluxes[i][0]
         
             J += Jn
         
@@ -987,7 +978,7 @@ class UniformBackground(object):
 
         L = redshifts.size
         ll = self._ll = L - 1
-        
+
         otf = False
 
         # Loop over redshift - this is the generator                    
@@ -1022,7 +1013,7 @@ class UniformBackground(object):
             # background spectrum that is not truncated at Emax
             flux[-1] = 0.0
                 
-            yield redshifts[ll], flux, None
+            yield redshifts[ll], flux
     
             # Increment redshift
             ll -= 1
@@ -1039,17 +1030,18 @@ class UniformBackground(object):
         
         Parameters
         ----------
-        List of fluxes, 
+        List of fluxes, for each sub-band in a sawtooth generator.
+        
         """          
-        
+
         line_flux = [np.zeros_like(fluxes[i]) for i in range(len(fluxes))]
-        
+
         # Compute Lyman-alpha flux
         if self.pf['include_H_Lya']:
             line_flux[0][0] += self.LymanAlphaFlux(z=None, fluxes=fluxes)
         
         return line_flux 
-        
+
     def _flux_generator_sawtooth(self, E, z, ehat, tau):
         """
         Create generators for the flux between all Lyman-n bands.
@@ -1058,19 +1050,19 @@ class UniformBackground(object):
         gens = []
         for i, nrg in enumerate(E):
             gens.append(self._flux_generator_generic(nrg, z, ehat[i], tau[i]))
-        
+
         # Generator over redshift
         for i in range(z.size):  
-            flux = []      
+            flux = []
             for gen in gens:
-                z, new_flux, garbage = gen.next()                
+                z, new_flux = gen.next()
                 flux.append(new_flux)
 
             # Increment fluxes
             line_flux = self._compute_line_flux(flux)
 
-            yield z, flatten_flux(flux), flatten_flux(line_flux)
-        
+            yield z, flatten_flux(flux) + flatten_flux(line_flux)
+
     def FluxGenerator(self, popid):
         """
         Evolve some radiation background in time.
