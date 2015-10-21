@@ -234,7 +234,7 @@ class Global21cm:
                     l = np.argmin(np.abs(Earr - E_LyA))    
                     
                     Ja += self.medium.field.all_fluxes[-1][i][j][l]
-                                                
+                                                                    
             # Compute spin temperature
             n_H = self.medium.parcel_igm.grid.cosm.nH(z)
             Ts = self.medium.parcel_igm.grid.hydr.Ts(z,

@@ -179,7 +179,7 @@ class MetaGalacticBackground(UniformBackground):
         Loop over flux generators and retrieve the next values.
         
         ..note:: Populations need not have identical redshift sampling.
-
+        
         Returns
         -------
         Current redshift and dictionary of fluxes. Each element of the flux
@@ -219,6 +219,7 @@ class MetaGalacticBackground(UniformBackground):
                 # generator and move on
                 if self._is_thru_run:
                     z, f = generator.next()
+                    z_by_pop[i] = z
                     fluxes_by_band.append(f)
                     continue
                                         
@@ -285,8 +286,10 @@ class MetaGalacticBackground(UniformBackground):
                     f = self._flo[i][j]
 
                 fluxes_by_band.append(f)
-
-            z_by_pop[i] = max(self._zlo[i])
+            
+            if not self._is_thru_run:   
+                z_by_pop[i] = max(self._zlo[i])    
+                
             fluxes[i] = fluxes_by_band
 
         if not self._is_thru_run:
@@ -296,7 +299,10 @@ class MetaGalacticBackground(UniformBackground):
         # Set the redshift based on whichever population took the smallest
         # step. Other populations will interpolate to find flux.
         znext = max(z_by_pop)
-        self.update_redshift(znext)
+        
+        # If being externally controlled, we can't tamper with the redshift!
+        if self._is_thru_run:
+            self.update_redshift(znext)
 
         return znext, fluxes
 
