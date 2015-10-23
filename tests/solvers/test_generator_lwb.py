@@ -39,7 +39,7 @@ pars = \
 }
 
 tol = 1e-3
-def test(tol=1e-3):
+def test(tol=1e-2):
 
     # First calculation: no sawtooth
     mgb = ares.simulations.MetaGalacticBackground(**pars)

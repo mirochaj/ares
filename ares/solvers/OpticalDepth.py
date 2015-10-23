@@ -11,14 +11,81 @@ Description:
 """
 
 import numpy as np
+import os, re, types
+from ..physics import Cosmology
+from scipy.integrate import quad
+from ..physics.Constants import c
+from ..util.Misc import num_freq_bins
+from ..util.Warnings import no_tau_table
 from ..util import ProgressBar, ParameterFile
+from ..physics.CrossSections import PhotoIonizationCrossSection, \
+    ApproximatePhotoIonizationCrossSection
+
+try:
+    import h5py
+    have_h5py = True
+except ImportError:
+    have_h5py = False
+    
+try:
+    from mpi4py import MPI
+    size = MPI.COMM_WORLD.size    
+    rank = MPI.COMM_WORLD.rank
+except ImportError:
+    size = 1
+    rank = 0    
+
+# Put this stuff in utils
+defkwargs = \
+{
+ 'zf':None, 
+ 'xray_flux':None,  
+ 'xray_emissivity': None, 
+ 'lw_flux':None,
+ 'lw_emissivity': None,
+ 'tau':None, 
+ 'return_rc': False, 
+ 'energy_units':False, 
+ 'xavg': 0.0,
+ 'zxavg':0.0,   
+}       
+
+barn = 1e-24
+Mbarn = 1e-18
 
 class OpticalDepth:
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
         
+        # Include helium opacities approximately?
+        self.approx_He = self.pf['include_He'] and self.pf['approx_He']
+        
+        # Include helium opacities self-consistently?
+        self.self_consistent_He = self.pf['include_He'] \
+            and (not self.pf['approx_He'])
+        
+        if self.pf['approx_sigma']:
+            self.sigma = ApproximatePhotoIonizationCrossSection
+        else:
+            self.sigma = PhotoIonizationCrossSection
+        
+        self._set_integrator()
+        
+    def _set_integrator(self):
+        self.integrator = self.pf["unsampled_integrator"]
+        self.sampled_integrator = self.pf["sampled_integrator"]
+        self.rtol = self.pf["integrator_rtol"]
+        self.atol = self.pf["integrator_atol"]
+        self.divmax = int(self.pf["integrator_divmax"])    
+        
     def ClumpyOpticalDepth(self):    
         pass
+
+    @property
+    def cosm(self):
+        if not hasattr(self, '_cosm'):
+            self._cosm = Cosmology(**self.pf)
+        return self._cosm
     
     def OpticalDepth(self):
         return self.DiffuseOpticalDepth()    
@@ -52,7 +119,7 @@ class OpticalDepth:
         kw = self._fix_kwargs(functionify=True, **kwargs)
     
         # Compute normalization factor to help numerical integrator
-        norm = self.cosm.hubble_0 / c / self.sigma0
+        norm = self.cosm.hubble_0 / c / Mbarn
     
         # Temporary function to compute emission energy of observed photon
         Erest = lambda z: self.RestFrameEnergy(z1, E, z)
@@ -89,6 +156,26 @@ class OpticalDepth:
             epsabs=self.atol, limit=self.divmax)[0] / norm
     
         return tau
+        
+    def _fix_kwargs(self, functionify=False, **kwargs):
+    
+        kw = defkwargs.copy()
+        kw.update(kwargs)
+        
+        if functionify and type(kw['xavg']) is not types.FunctionType:
+            tmp = kw['xavg']
+            kw['xavg'] = lambda z: tmp
+    
+        if kw['zf'] is None:
+            kw['zf'] = self.pf['final_redshift']
+    
+        #if not self.pf['source_solve_rte']:
+        #    pass
+        #elif (kw['Emax'] is None) and self.background.solve_rte[popid] and \
+        #    np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
+        #    kw['Emax'] = self.background.energies[popid][-1]
+    
+        return kw    
     
     def TabulateOpticalDepth(self, xavg=lambda z: 0.0):
         """
@@ -109,6 +196,9 @@ class OpticalDepth:
         Optical depth table.
     
         """
+        
+        if not hasattr(self, 'L'):
+            self._set_xrb(use_tab=False)
     
         # Create array for each processor
         tau_proc = np.zeros([self.L, self.N])
@@ -129,7 +219,7 @@ class OpticalDepth:
                 if l == (self.L - 1):
                     tau_proc[l,n] = 0.0
                 else:
-                    tau_proc[l,n] = self.OpticalDepth(self.z[l], 
+                    tau_proc[l,n] = self.DiffuseOpticalDepth(self.z[l], 
                         self.z[l+1], self.E[n], xavg=xavg)
     
                 pb.update(m)
@@ -184,8 +274,8 @@ class OpticalDepth:
         if self.pf['redshift_bins'] is None and self.pf['tau_table'] is None:
     
             # Set bounds in frequency/energy space
-            self.E0 = self.pf['spectrum_Emin']
-            self.E1 = self.pf['spectrum_Emax']    
+            self.E0 = self.pf['source_Emin']
+            self.E1 = self.pf['source_Emax']    
     
             return
     
@@ -197,10 +287,10 @@ class OpticalDepth:
     
             raise NotImplemented('whats going on here')
     
-        if use_tab and (self.pf['tau_table'] is not None or self.pf['discrete_xrb']):
+        if use_tab and (self.pf['tau_table'] is not None or self.pf['source_solve_rte']):
     
             found = False
-            if self.pf['discrete_xrb']:
+            if self.pf['source_solve_rte']:
     
                 # First, look in CWD or $ARES (if it exists)
                 self.tabname = self.load_tau(self.pf['tau_prefix'])
@@ -229,13 +319,13 @@ class OpticalDepth:
             zmin_ok = (self.z.min() <= self.pf['final_redshift']) or \
                 np.allclose(self.z.min(), self.pf['final_redshift'])
     
-            Emin_ok = (self.E0 <= self.pf['spectrum_Emin']) or \
-                np.allclose(self.E0, self.pf['spectrum_Emin'])
+            Emin_ok = (self.E0 <= self.pf['source_Emin']) or \
+                np.allclose(self.E0, self.pf['source_Emin'])
     
             # Results insensitive to Emax (so long as its relatively large)
             # so be lenient with this condition (100 eV or 1% difference
             # between parameter file and lookup table)
-            Emax_ok = np.allclose(self.E1, self.pf['spectrum_Emax'],
+            Emax_ok = np.allclose(self.E1, self.pf['source_Emax'],
                 atol=100., rtol=1e-2)
     
             # Check redshift bounds
@@ -251,7 +341,7 @@ class OpticalDepth:
                 if self.pf['verbose']:
                     tau_tab_E_mismatch(self, Emin_ok, Emax_ok)
     
-                if self.E1 < self.pf['spectrum_Emax']:
+                if self.E1 < self.pf['source_Emax']:
                     sys.exit(1)
     
             dlogx = np.diff(self.logx)
@@ -261,8 +351,8 @@ class OpticalDepth:
         else:
     
             # Set bounds in frequency/energy space
-            self.E0 = self.pf['spectrum_Emin']
-            self.E1 = self.pf['spectrum_Emax']
+            self.E0 = self.pf['source_Emin']
+            self.E1 = self.pf['source_Emax']
     
             # Set up log-grid in parameter x = 1 + z
             self.x = np.logspace(np.log10(1+self.pf['final_redshift']),
@@ -306,45 +396,6 @@ class OpticalDepth:
         self.sigma_E = np.array([np.array(map(lambda E: self.sigma(E, i), 
             self.E)) for i in xrange(3)])
         self.log_sigma_E = np.log10(self.sigma_E)
-    
-        # Pre-compute secondary ionization and heating factors
-        if self.esec.Method > 1:
-    
-            self.i_x = 0
-            self.fheat = np.ones([self.N, len(self.esec.x)])
-            self.flya = np.ones([self.N, len(self.esec.x)])
-    
-            self.fion = {}
-    
-            self.fion['h_1'] = np.ones([self.N, len(self.esec.x)])
-    
-            # Must evaluate at ELECTRON energy, not photon energy
-            for i, E in enumerate(self.E - E_th[0]):
-                self.fheat[i,:] = self.esec.DepositionFraction(self.esec.x, 
-                    E=E, channel='heat')
-                self.fion['h_1'][i,:] = \
-                    self.esec.DepositionFraction(self.esec.x, 
-                        E=E, channel='h_1')
-    
-                if self.pf['secondary_lya']:
-                    self.flya[i,:] = self.esec.DepositionFraction(self.esec.x, 
-                        E=E, channel='lya') 
-    
-            # Helium
-            if self.pf['include_He'] and not self.pf['approx_He']:
-    
-                self.fion['he_1'] = np.ones([self.N, len(self.esec.x)])
-                self.fion['he_2'] = np.ones([self.N, len(self.esec.x)])
-    
-                for i, E in enumerate(self.E - E_th[1]):
-                    self.fion['he_1'][i,:] = \
-                        self.esec.DepositionFraction(self.esec.x, 
-                        E=E, channel='he_1')
-    
-                for i, E in enumerate(self.E - E_th[2]):
-                    self.fion['he_2'][i,:] = \
-                        self.esec.DepositionFraction(self.esec.x, 
-                        E=E, channel='he_2')            
     
     def read_tau(self, fn):
         """
@@ -421,16 +472,16 @@ class OpticalDepth:
             self.E = np.logspace(np.log10(self.E0), np.log10(self.E1), self.N)
     
         # Correct for inconsistencies between parameter file and table
-        if self.pf['spectrum_Emin'] > self.E0:
-            Ediff = self.E - self.pf['spectrum_Emin']
+        if self.pf['source_Emin'] > self.E0:
+            Ediff = self.E - self.pf['source_Emin']
             i_E0 = np.argmin(np.abs(Ediff))
             if Ediff[i_E0] < 0:
                 i_E0 += 1
     
             self.tau[:,0:i_E0] = np.inf
     
-        if self.pf['spectrum_Emax'] < self.E1:
-            Ediff = self.E - self.pf['spectrum_Emax']
+        if self.pf['source_Emax'] < self.E1:
+            Ediff = self.E - self.pf['source_Emax']
             i_E0 = np.argmin(np.abs(Ediff))
             if Ediff[i_E0] < 0:
                 i_E0 += 1
@@ -455,8 +506,8 @@ class OpticalDepth:
     
         L, N = self.tau_shape()
     
-        E0 = self.pf['spectrum_Emin']
-        E1 = self.pf['spectrum_Emax']
+        E0 = self.pf['source_Emin']
+        E1 = self.pf['source_Emax']
     
         fn = lambda z1, z2, E1, E2: \
             'optical_depth_%s_%ix%i_z_%i-%i_logE_%.2g-%.2g.%s' \
@@ -591,12 +642,12 @@ class OpticalDepth:
         R = x[1] / x[0]
         logR = np.log10(R)
     
-        E0 = self.pf['spectrum_Emin']
+        E0 = self.pf['source_Emin']
     
         # Create mapping to frequency space
         E = 1. * E0
         n = 1
-        while E < self.pf['spectrum_Emax']:
+        while E < self.pf['source_Emax']:
             E = E0 * R**(n - 1)
             n += 1    
     
@@ -606,7 +657,7 @@ class OpticalDepth:
         # Frequency grid must be index 1-based.
         N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
             zf=self.pf['final_redshift'], Emin=E0, 
-            Emax=self.pf['spectrum_Emax'])
+            Emax=self.pf['source_Emax'])
         N -= 1
     
         return L, N

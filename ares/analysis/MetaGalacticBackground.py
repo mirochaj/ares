@@ -172,7 +172,7 @@ class MetaGalacticBackground:
         return self._history
         
     def PlotBackground(self, z=None, ax=None, fig=1, xaxis='energy', 
-        overplot_edges=True, **kwargs):
+        overplot_edges=True, units='J21', **kwargs):
         """
         Plot meta-galactic background intensity at a single redshift.
         
@@ -191,9 +191,17 @@ class MetaGalacticBackground:
         if z is None:
             i_z = -1
         else:
+            if z < zarr.min():
+                raise ValueError("Requested z lies below provied range.")
+                
             i_z = np.argmin(np.abs(z - zarr))
             
-        f = flux[i_z] * Earr * erg_per_ev / 1e-21
+        f = flux[i_z] * Earr * erg_per_ev
+        
+        if units.lower() == 'j21':
+            f /= 1e-21
+        elif units.lower() == 'nuFnu':
+            f *= Earr * erg_per_ev * ev_per_hz / 1e3
             
         if xaxis == 'energy':
             x = Earr
@@ -217,7 +225,11 @@ class MetaGalacticBackground:
                     ax.plot([h_P * c / (nrg * erg_per_ev)]*2, ax.get_ylim(), 
                         color='k', ls=':')
                     
-        ax.set_ylabel(r'$J_{\nu} / J_{21}$')
+        if units.lower() == 'j21':
+            ax.set_ylabel(r'$J_{\nu} / J_{21}$')
+        elif units.lower() == 'nuFnu':
+            ax.set_ylabel(r'$\mathrm{keV} \ \mathrm{cm}^{-2} \ \mathrm{s}^{-1} \ \mathrm{sr}^{-1}$')
+            
         pl.draw()
         
         if xaxis == 'energy' and not gotax:

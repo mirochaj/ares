@@ -49,8 +49,6 @@ for j, injected in enumerate([False, True]):
         else:
             label = None
 
-        print i, j, logT
-
         anl = ares.analysis.Global21cm(sim)
         ax_dTb = anl.GlobalSignature(ax=ax_dTb, color=colors[i], label=label,  
             ls=ls[j])

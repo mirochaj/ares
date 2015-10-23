@@ -915,7 +915,7 @@ class UniformBackground(object):
         photon energy.
             
         """
-        
+                
         Nz, Nf = len(z), len(E)
         
         Inu = np.zeros(Nf)

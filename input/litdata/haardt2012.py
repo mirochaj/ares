@@ -61,7 +61,7 @@ def MetaGalacticBackground():
 
     return z[-1::-1], E[-1::-1], fluxes[-1::-1,-1::-1]
 
-def SFRD(z):
+def SFRD(z, **kwargs):
     return (6.9e-3 + 0.14 * (z / 2.2)**1.5) / (1. + (z / 2.7)**4.1)
 
 def _qso_sed_uv():

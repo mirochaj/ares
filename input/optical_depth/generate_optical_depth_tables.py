@@ -36,7 +36,7 @@ except ImportError:
 zf, zi = (10, 50)
 Emin = E_LL
 Emax = 4 * E_LyA
-Nz = [400]
+Nz = [600]
 format = 'pkl'        # 'hdf5' or 'pkl' or 'npz'
 helium = 0
 ##
@@ -50,6 +50,7 @@ pars = \
  'source_Emax': Emax,
  'approx_xrb': 0,
  'approx_He': helium,
+ 'source_solve_rte': True,
  'initial_redshift': zi,
  'final_redshift': zf,
 }
@@ -68,7 +69,7 @@ for res in Nz:
     t1 = time.time()
     
     # Create IGM instance
-    igm = ares.solvers.IGM(use_tab=False, **pars)
+    igm = ares.solvers.OpticalDepth(use_tab=False, **pars)
     
     fn = igm.tau_name(suffix=format)[0]
     

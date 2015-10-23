@@ -37,7 +37,7 @@ pars = \
  'final_redshift': 10.,
 }
 
-def test(Ecomp=8e3, tol=1e-3):
+def test(Ecomp=8e3, tol=1e-2):
 
     mgb = ares.simulations.MetaGalacticBackground(**pars)
     mgb.run()
@@ -95,9 +95,9 @@ def test(Ecomp=8e3, tol=1e-3):
     flux_comp_thick = flux_thick[-1][np.argmin(np.abs(Ecomp - E2))]
     
     thin_OK = abs((flux_comp_thin - flux_comp_anl) / flux_comp_anl) \
-        < 1e-3
+        < tol
     thick_OK = abs((flux_comp_thick - flux_comp_anl) / flux_comp_anl) \
-        < 1e-3    
+        < tol    
     
     print "\n# Analytic (thin) ; Numerical (thin) ; Numerical (neutral)"
     print "----------------------------------------------------------"

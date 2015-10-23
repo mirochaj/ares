@@ -315,7 +315,7 @@ def PopulationParameters():
 
     'pop_fXh': None,
 
-    "pop_approx_tau": True,
+    "pop_approx_tau": True,     # shouldn't be a pop parameter
     #"pop_sawtooth": False,
     "pop_solve_rte": False,
     "pop_tau_Nz": 400,

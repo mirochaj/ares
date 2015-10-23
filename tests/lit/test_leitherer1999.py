@@ -23,11 +23,14 @@ pop = s99.StellarPopulation(continuous_sf=False, Z=0.04)
 
 # Stellar SED at 1 Myr
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
-ax1.loglog(pop.wavelengths, pop.data[:,0], color='k')
-ax1.loglog(pop.wavelengths, pop.data[:,10], color='b')
+ax1.loglog(pop.wavelengths, pop.data[:,0], color='k', 
+    label=r'$t=%i$ Myr' % pop.times[0])
+ax1.loglog(pop.wavelengths, pop.data[:,9], color='b', 
+        label=r'$t=%i$ Myr' % pop.times[9])
 
 ax1.set_xlabel(ares.util.labels['lambda_AA'])
 ax1.set_ylabel(ares.util.labels['intensity_AA'])
+ax1.legend(loc='lower right')
 ax1.set_ylim(1e25, 1e40)
 pl.draw()
 
