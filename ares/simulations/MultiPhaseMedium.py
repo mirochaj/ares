@@ -116,7 +116,7 @@ class MultiPhaseMedium(object):
                 self.gen_igm = self.parcel_igm.step()
 
                 self.field = MetaGalacticBackground(grid=self.parcel_igm.grid, 
-                    **self.pf)
+                    **kwargs)
 
                 # Set initial values for rate coefficients
                 self.parcel_igm.update_rate_coefficients(self.parcel_igm.grid.data, 
@@ -136,7 +136,7 @@ class MultiPhaseMedium(object):
                 
                 if not hasattr(self, 'field'):
                     self.field = MetaGalacticBackground(grid=self.parcel_cgm.grid, 
-                        **self.pf)
+                        **kwargs)
 
                 self.parcel_cgm.update_rate_coefficients(self.parcel_cgm.grid.data, 
                     **self.field.volume.rates_no_RT)

@@ -143,7 +143,7 @@ class MultiPhaseMedium:
                     
         # If missing parameter file
         if not hasattr(self, 'pf'):  
-            print "No parameter file found...setting all to default values."      
+            #print "ares.analysis.MPM: No parameter file found...setting all to default values."      
             self.pf = SetAllDefaults()
             self.cosm = Cosmology()
             self.hydr = Hydrogen()
@@ -161,7 +161,7 @@ class MultiPhaseMedium:
         # Add frequencies
         if 'z' in self.data:
             self.data['nu'] = nu_0_mhz / (1. + self.data['z'])
-        
+
         # For backward compatibility
         if 'dTb' in self.data:
             if 'igm_dTb' not in self.data:
@@ -169,7 +169,7 @@ class MultiPhaseMedium:
         elif 'igm_dTb' in self.data:
             if 'dTb' not in self.data:
                 self.data['dTb'] = self.data['igm_dTb']
-                                                     
+
         # For convenience - quantities in ascending order (in redshift)
         data_reorder = {}
         for key in self.data.keys():

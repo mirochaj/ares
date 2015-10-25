@@ -25,7 +25,6 @@ from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain
 
 try:
-    from scipy.spatial import KDTree
     from scipy.interpolate import interp1d
 except ImportError:
     pass
@@ -62,8 +61,6 @@ try:
 except ImportError:
     rank = 0
     size = 1
-
-nearest = lambda x, points: KDTree(points, leafsize=1e7).query(x)
     
 # Uninformative prior
 uninformative = lambda x, mi, ma: 1.0 if (mi <= x <= ma) else 0.0
@@ -281,6 +278,8 @@ class loglikelihood:
             sim = simG21(**kw)
             sim.run()
             
+            sim.run_inline_analysis()
+            
             tps = sim.turning_points
                     
         # Timestep weird (happens when xi ~ 1)
@@ -387,7 +386,7 @@ class loglikelihood:
         
         return logL, blobs
 
-class ModelFit(object):
+class FitGlobal21cm(object):
     def __init__(self, **kwargs):
         """
         Initialize a class for fitting the turning points in the global
@@ -814,7 +813,11 @@ class ModelFit(object):
             t2 = time.time()
 
             if rank == 0:
-                print "Burn-in complete in %.3g seconds." % (t2 - t1)
+                dt = t2 - t1
+                if dt > 60:
+                    print "Burn-in complete in %.3g minutes." % (dt / 60.)
+                else:
+                    print "Burn-in complete in %.3g seconds." % dt
 
             pos = self.tight_ball(pos, prob)
         else:

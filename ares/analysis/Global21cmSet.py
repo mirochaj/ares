@@ -237,7 +237,7 @@ class Global21cmSet(ModelSet):
         exclude : list
             For example, to exclude the temperature of turning point B, set
             exclude=('dTb', 'B')
-            
+        
         """
         
         had_mp = False

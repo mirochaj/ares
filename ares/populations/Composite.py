@@ -36,7 +36,7 @@ class CompositePopulation:
         self.pops = [None for i in range(self.Npops)]
         to_tunnel = [None for i in range(self.Npops)]
         for i, pf in enumerate(self.pfs):
-            
+                        
             if pf['pop_tunnel'] is not None:
                 to_tunnel[i] = pf['pop_tunnel']
             elif pf['pop_type'] == 'galaxy':

@@ -77,6 +77,7 @@ class UniformBackground(object):
             
         """
                 
+        self._kwargs = kwargs.copy()
         self.pf = ParameterFile(**kwargs)
         
         # Some useful physics modules
@@ -191,7 +192,7 @@ class UniformBackground(object):
         
         """
 
-        self.pops = CompositePopulation(**self.pf).pops
+        self.pops = CompositePopulation(**self._kwargs).pops
         self.Npops = len(self.pops)
 
         self.approx_all_pops = True

@@ -49,7 +49,7 @@ def pop_id_num(par):
         if m is None:
             return None, None
     
-    prefix = par.split(m.group(0))[0]
+    prefix = par.replace(m.group(0), '')
     
     return prefix, int(m.group(1))
 

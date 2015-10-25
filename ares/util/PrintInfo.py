@@ -94,8 +94,8 @@ def tabulate(data, rows, cols, cwidth=12, fmt='%.4e'):
     assert (cwidth % 2 == 0), \
         "Table elements must have an even number of characters."
         
-    assert (len(pre) + len(post) + (1 + len(cols)) * cwidth) <= width, \
-        "Table wider than maximum allowed width!"
+    #assert (len(pre) + len(post) + (1 + len(cols)) * cwidth) <= width, \
+    #    "Table wider than maximum allowed width!"
     
     # Initialize empty list of correct length
     hdr = [' ' for i in range(width)]

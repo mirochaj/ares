@@ -11,8 +11,8 @@ Description:
 """
 
 import numpy as np
-import os, pickle, inspect
 from ..util import read_lit
+import os, pickle, inspect, re
 import matplotlib.pyplot as pl
 from types import FunctionType
 from ..physics import Cosmology
@@ -52,6 +52,14 @@ except ImportError:
 
 ARES = os.getenv('ARES')    
 log10 = np.log(10.)
+
+def param_redshift(par):
+    
+    m = re.search(r"\[(\d+(\.\d*)?)\]", par)
+    
+    prefix = par.replace(m.group(0), '')
+
+    return prefix, float(m.group(1))
 
 lftypes = ['schecter', 'dpl']    
     
@@ -103,7 +111,7 @@ class GalaxyPopulation(HaloPopulation):
         # class. Also creates the parameter file attribute ``pf``.
         HaloPopulation.__init__(self, **kwargs)
         #self.pf.update(**kwargs)
-
+        
         self._eV_per_phot = {}
         self._conversion_factors = {}
 
@@ -320,7 +328,7 @@ class GalaxyPopulation(HaloPopulation):
                 
         return self._eta
         
-    def fstar(self, z=None, M=None):    
+    def fstar(self, z=None, M=None):
         """
         Compute the mass- and redshift-dependent star-formation efficiency.
         """
@@ -518,7 +526,7 @@ class GalaxyPopulation(HaloPopulation):
         
     def _schecter_integral_inf(self, xmin, alpha):
         """
-        Integral of the luminosity function over some interval (in luminosity).
+        Integral of the luminosity function from Lmin to inf (in luminosity).
     
         Parameters
         ----------
@@ -527,7 +535,7 @@ class GalaxyPopulation(HaloPopulation):
         alpha : int, float
             Faint-end slope
         """
-    
+
         return mpmath.gammainc(alpha + 1., xmin)
         
     #def _SchecterFunction(self, L):
@@ -555,7 +563,7 @@ class GalaxyPopulation(HaloPopulation):
         return self.pf['lf_norm'] * ((L / self.Lstar)**self.pf['lf_gamma1'] \
             + (L / self.Lstar)**self.pf['lf_gamma1'])**-1.
     
-    def LuminosityFunction(self, L, z=None, Emin=None, Emax=None):
+    def LuminosityFunction(self, L=None, M=None, z=None, Emin=None, Emax=None):
         """
         Compute luminosity function.
 
@@ -577,23 +585,38 @@ class GalaxyPopulation(HaloPopulation):
 
         elif self.is_ham_model:
             # Only know LF at a few redshifts...
-            pass
+            assert z in self.pf['pop_lf_z']
+            
+            if L is None:
+                
+                Mst = self.pf['pop_lf_Mstar[%g]' % z]
+                pst = self.pf['pop_lf_pstar[%g]' % z]
+                a = self.pf['pop_lf_alpha[%g]' % z]
+                
+                phi_of_M = 0.4 * np.log(10) * pst \
+                    * (10**(0.4 * (Mst - M)))**(1. + a) \
+                    * np.exp(-10**(0.4 * (Mst - M)))
+                    
+                return phi_of_M
+                
+            else:
+                raise NotImplemented('help')
 
         elif self.is_hod_model:
             
             self.halos.MF.update(z=z)
             dndm = self._dndm = self.halos.MF.dndm.copy() / self.cosm.h70**4
             fstar_of_m = self.fstar(z=z, M=self.halos.M)
-            
+
             integrand = dndm * fstar_of_m * self.halos.M
-            
+
             # Msun / cMpc**3
             integral = simps(dndm, x=self.halos.M)
-            
+
             tdyn = s_per_yr * 1e6
         else:
             raise NotImplemented('need help w/ this model!')    
-            
+
         L *= self._convert_band(Emin, Emax)
 
         if self.lf_type == 'user':

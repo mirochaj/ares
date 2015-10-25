@@ -159,6 +159,13 @@ gauss_parameters = \
  'gaussian_sigma': r'$\sigma_0 \ (\mathrm{MHz})$',
 }
 
+lf_parameters = \
+{
+ 'pop_lf_Mstar': r'$M_{\ast}$',
+ 'pop_lf_pstar': r'$\phi_{\ast}$',
+ 'pop_lf_alpha': r'$\alpha$',
+}
+
 other = \
 {
  'load': 'processor #',
@@ -170,6 +177,7 @@ labels.update(tanh_parameters)
 labels.update(gauss_parameters)
 labels.update(other)
 labels.update(common)
+labels.update(lf_parameters)
 
 # Add custom labels
 labels.update(custom_labels)

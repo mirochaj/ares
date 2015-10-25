@@ -48,7 +48,7 @@ class Global21cm:
             raise ValueError('Can only compute 21-cm signal in two-phase medium!')
             
         # If a physical model, proceed with initialization
-        self.medium = MultiPhaseMedium(**self.pf)
+        self.medium = MultiPhaseMedium(**kwargs)
 
         # Inline tracking of turning points
         if self.pf['track_extrema']:

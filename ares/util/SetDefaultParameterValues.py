@@ -31,7 +31,7 @@ _blob_redshifts.extend([6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40])
 
 # Nothing population specific
 _blob_names = ['z', 'igm_dTb', 'curvature', 'igm_Tk', 'igm_Ts', 'cgm_h_2', 
-    'igm_h_1', 'cgm_Gamma_h_1', 'igm_heat_h_1', 'Ja']
+    'igm_h_1', 'cgm_Gamma_h_1', 'igm_heat_h_1', 'igm_Ja']
     
 default_blobs = (_blob_names, _blob_names)
 
@@ -243,15 +243,22 @@ def PopulationParameters():
     "pop_type": 'galaxy',
     
     "pop_tunnel": None,
-    
+
     "pop_model": 'fcoll', # fcoll, hod, clf, ham, user
-    
+
     "pop_halo_model": None, # clf or hod (not yet implemented)
-    
+
     # HAM model
     "pop_constraints": None, # if ham model
     "pop_Macc": None,
-        
+
+    "pop_lf_z": None,
+
+    "pop_lf_M": None,
+    "pop_lf_Mstar": None,
+    "pop_lf_pstar": None,
+    "pop_lf_alpha": None,
+
     # Parameters for a HOD model
     "pop_duty_cycle": 1.0,
         
