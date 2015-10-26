@@ -94,7 +94,7 @@ class Chemistry(object):
         newdata = {}
         for field in data:
             newdata[field] = data[field].copy()
-        
+
         if not kwargs:
             kwargs = self.rcs.copy()
                     

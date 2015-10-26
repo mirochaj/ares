@@ -438,7 +438,9 @@ class ModelSet(object):
         if (self.subset is not None) or (not self.have_all_blobs):
         
             # Search file system for subset.*.pkl files
-            if self.subset == 'all' or (not self.have_all_blobs):
+            if self.subset is not None:
+                subset = self.subset
+            elif self.subset == 'all' or (not self.have_all_blobs):
                 subset = []
                 for path in ['.', self.path]:
                     to_search = '%s/%s.subset.*' % (path, self.fn)
@@ -446,10 +448,7 @@ class ModelSet(object):
                         blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
         
                         if blob not in subset:
-                            subset.append(blob)
-                            
-            elif self.subset is not None:
-                subset = self.subset
+                            subset.append(blob)              
             else:
                 subset = None
                 
@@ -463,8 +462,8 @@ class ModelSet(object):
             all_blob_names, self._blob_redshifts = \
                 map(list, pickle.load(f))
             f.close()
-                
-        if (subset) is None or (subset == []):
+           
+        if subset is None or (subset == []):
             self._blob_names = all_blob_names
         else:
             self._blob_names = subset
@@ -476,8 +475,9 @@ class ModelSet(object):
         if not hasattr(self, '_blobs'):
             # Read in individual blob files
             if (self.subset is not None) or (not self.have_all_blobs):
-            
-                if self.subset == 'all' or (not self.have_all_blobs):
+                if self.subset is not None:
+                    subset = self.subset
+                elif self.subset == 'all' or (not self.have_all_blobs):
                     subset = []
                     for path in ['.', self.path]:
                         to_search = '%s/%s.subset.*' % (path, self.fn)
@@ -486,8 +486,6 @@ class ModelSet(object):
             
                             if blob not in subset:
                                 subset.append(blob)
-                elif self.subset is not None:
-                    subset = self.subset
                 else:
                     subset = None
             

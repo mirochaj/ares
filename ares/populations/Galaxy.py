@@ -453,8 +453,12 @@ class GalaxyPopulation(HaloPopulation):
                 M, z = np.meshgrid(*x)
                 return self._fstar_poly(z, M, *coeff).flatten()
             
-            self._fstar_coeff_, self._fstar_cov_ = \
-                curve_fit(to_min, x, y, p0=guess, maxfev=10000)
+            try:
+                self._fstar_coeff_, self._fstar_cov_ = \
+                    curve_fit(to_min, x, y, p0=guess, maxfev=10000)
+            except RuntimeError:
+                self._fstar_coeff_, self._fstar_cov_ = \
+                    guess, np.diag(guess)
                                         
         return self._fstar_coeff_
         

@@ -242,6 +242,9 @@ class Global21cm:
                     l = np.argmin(np.abs(Earr - E_LyA))    
                     
                     Ja += self.medium.field.all_fluxes[-1][i][j][l]
+            
+            # Solver requires this                                            
+            Ja = np.atleast_1d(Ja)                                            
                                                                     
             # Compute spin temperature
             n_H = self.medium.parcel_igm.grid.cosm.nH(z)
@@ -256,7 +259,7 @@ class Global21cm:
 
             # Add derived fields to data
             data_igm.update({'Ts': Ts, 'dTb': dTb, 'Ja': Ja})
-
+            
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
 

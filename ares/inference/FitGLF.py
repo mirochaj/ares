@@ -747,7 +747,7 @@ class FitGLF(object):
             pickle.dump(self.sampler.acceptance_fraction, f)
             f.close()
     
-            print "Checkpoint: %s" % (time.ctime())
+            print "Checkpoint #%i: %s" % (ct, time.ctime())
     
             del data, f, pos_all, prob_all, blobs_all
             gc.collect()
