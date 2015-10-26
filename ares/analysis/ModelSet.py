@@ -1832,7 +1832,8 @@ class ModelSet(object):
     def PosteriorPDF(self, pars, to_hist=None, is_log=None, z=None, ax=None, fig=1, 
         multiplier=1., nu=[0.95, 0.68], overplot_nu=False, density=True, cdf=False,
         color_by_like=False, filled=True, take_log=False, bins=20, skip=0, skim=1, 
-        contour_method='raw', excluded=False, stop=None, **kwargs):
+        contour_method='raw', excluded=False, stop=None, rotate_x=45.,
+        rotate_y=45., **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
     
@@ -2041,7 +2042,11 @@ class ModelSet(object):
         self.set_axis_labels(ax, pars, is_log, take_log, labels)
 
         # Rotate ticks?
-
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(rotate_x)
+        for tick in ax.get_yticklabels():
+            tick.set_rotation(rotate_y)
+        
         pl.draw()
         
         return ax
@@ -3063,7 +3068,8 @@ class ModelSet(object):
         else:
             raise NotImplemented('Only support for hdf5 so far. Sorry!')
         
-    def set_axis_labels(self, ax, pars, is_log, take_log=False, labels=None):
+    def set_axis_labels(self, ax, pars, is_log, take_log=False, labels=None,
+        rotate_x=45, rotate_y=45):
         """
         Make nice axis labels.
         """
@@ -3128,8 +3134,8 @@ class ModelSet(object):
             return
     
         log_it = is_log[pars[1]] or take_log[pars[1]]
-        ax.set_ylabel(make_label(pars[1], log_it, labels))
-
+        ax.set_ylabel(make_label(pars[1], log_it, labels))        
+        
         pl.draw()
                 
     def confidence_regions(self, L, nu=[0.95, 0.68]):

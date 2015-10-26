@@ -53,7 +53,15 @@ class Global21cm:
         # Inline tracking of turning points
         if self.pf['track_extrema']:
             from ..analysis.TurningPoints import TurningPoints
-            self.track = TurningPoints(inline=True, **self.pf)    
+            self.track = TurningPoints(inline=True, **self.pf)
+        
+    @property
+    def pops(self):
+        return self.medium.field.pops
+        
+    @property
+    def grid(self):
+        return self.medium.field.grid
         
     def _init_dTb(self):
         """

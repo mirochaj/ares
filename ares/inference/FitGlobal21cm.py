@@ -15,7 +15,6 @@ from ..util.Stats import get_nu
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
 import gc, os, sys, copy, types, time, re
-from ..analysis import Global21cm as anlG21
 from ..simulations import Global21cm as simG21
 from ..util.Stats import Gauss1D, GaussND, rebin
 from ..analysis.TurningPoints import TurningPoints

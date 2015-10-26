@@ -59,7 +59,7 @@ class InlineAnalysis:
             for i, pop in enumerate(range(self.pf.Npops)):
                 
                 if hasattr(self.sim, 'pops'):
-                    pop = self.sim.pops.pops[i]
+                    pop = self.sim.pops[i]
                 elif hasattr(self.sim, 'medium'):
                     pop = self.sim.medium.field.pops[i]
                 else:
@@ -72,7 +72,7 @@ class InlineAnalysis:
                     
                 # Lyman-alpha emission                
                 if pop.pf['pop_lya_src']:
-                    blob_names.append('Ja%s' % suffix)
+                    blob_names.append('igm_Ja%s' % suffix)
                     
                 # SFRD
                 if not pop.pf['tanh_model']:
@@ -83,17 +83,20 @@ class InlineAnalysis:
                     
                     if j > 0 and (not self.pf['include_He']):
                         break
+                        
+                    if j > 0:
+                        raise NotImplemented('need to fix this')    
                 
                     blob_names.append('igm_%s' % sp1)
                     
                     if pop.pf['pop_ion_src_cgm'] and j == 0:
-                        blob_names.append('cgm_Gamma_%s%s' % (sp1, suffix))
+                        blob_names.append('cgm_k_ion')
                         
                     if pop.pf['pop_heat_src_igm']:
-                        blob_names.append('igm_heat_%s%s' % (sp1, suffix))
+                        blob_names.append('igm_k_heat')
                     
                     if pop.pf['pop_ion_src_igm'] and (not pop.pf['tanh_model']):
-                        blob_names.append('igm_Gamma_%s%s' % (sp1, suffix))
+                        blob_names.append('igm_k_ion')
                     else:
                         continue
                 
@@ -102,12 +105,12 @@ class InlineAnalysis:
                         
                     if pop.pf['tanh_model']:
                         continue
-                                            
+
                     for k, sp2 in enumerate(species):
                         if k > 0 and (not self.pf['include_He']):
                             break
                             
-                        blob_names.append('igm_gamma_%s_%s%s' % (sp1, sp2, suffix))
+                        blob_names.append('igm_k_ion2')
             
             tmp1.extend(blob_names)
         
@@ -229,7 +232,7 @@ class InlineAnalysis:
             if m is None:
                 pop_specific = False
                 pop_prefix = None
-
+                
             else:
                 pop_specific = True
                 
@@ -238,8 +241,6 @@ class InlineAnalysis:
                 
                 # Pop ID including curly braces
                 pop_prefix = field.strip(m.group(0))
-
-            print pop_prefix, pop_num, pop_specific, field, self.history.keys()
 
             # Setup a spline interpolant
             if field in self.history:
@@ -377,7 +378,7 @@ class InlineAnalysis:
                 return np.inf
             
         # Multi-pop model
-        for i, pop in enumerate(self.sim.pops.pops):
+        for i, pop in enumerate(self.sim.pops):
             if i != num:
                 continue
                 

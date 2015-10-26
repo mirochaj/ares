@@ -184,10 +184,7 @@ class loglikelihood:
         sim = simG21(**kw)
         sim.run()
         
-        anl = anlG21(sim)
-        anl.GlobalSignature()
-        raw_input('<enter>')
-        anl.close()
+        sim.run_inline_analysis()
         
         # Timestep weird (happens when xi ~ 1)
         #except SystemExit:
@@ -566,7 +563,7 @@ class FitGLF(object):
         if not os.path.exists('%s.chain.pkl' % prefix) and restart:
             raise IOError("This can't be a restart, %s*.pkl not found." % prefix)
     
-        #print_fit(self, steps=steps, burn=burn, fit_TP=fit_turning_points)
+        print_fit(self, steps=steps, burn=burn, fit_TP=False)
     
         assert len(self.error) == len(self.mu)
         
@@ -593,7 +590,8 @@ class FitGLF(object):
         self.loglikelihood = loglikelihood(steps, self.parameters, self.is_log, 
             self.x, self.z, self.mu, self.error, self.base_kwargs,
             self.nwalkers, self.priors,
-            prefix=self.prefix)
+            prefix=self.prefix, blob_names=self.blob_names,
+            blob_redshifts=self.blob_redshifts)
     
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
