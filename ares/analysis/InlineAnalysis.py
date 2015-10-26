@@ -60,6 +60,8 @@ class InlineAnalysis:
                 
                 if hasattr(self.sim, 'pops'):
                     pop = self.sim.pops.pops[i]
+                elif hasattr(self.sim, 'medium'):
+                    pop = self.sim.medium.field.pops[i]
                 else:
                     pop = self.sim
                 
@@ -68,8 +70,8 @@ class InlineAnalysis:
                 else:
                     suffix = ''
                     
-                # Lyman-alpha emission
-                if pop.pf['is_lya_src']:
+                # Lyman-alpha emission                
+                if pop.pf['pop_lya_src']:
                     blob_names.append('Ja%s' % suffix)
                     
                 # SFRD
@@ -84,13 +86,13 @@ class InlineAnalysis:
                 
                     blob_names.append('igm_%s' % sp1)
                     
-                    if pop.pf['is_ion_src_cgm'] and j == 0:
+                    if pop.pf['pop_ion_src_cgm'] and j == 0:
                         blob_names.append('cgm_Gamma_%s%s' % (sp1, suffix))
                         
-                    if pop.pf['is_heat_src_igm']:
+                    if pop.pf['pop_heat_src_igm']:
                         blob_names.append('igm_heat_%s%s' % (sp1, suffix))
                     
-                    if pop.pf['is_ion_src_igm'] and (not pop.pf['tanh_model']):
+                    if pop.pf['pop_ion_src_igm'] and (not pop.pf['tanh_model']):
                         blob_names.append('igm_Gamma_%s%s' % (sp1, suffix))
                     else:
                         continue
@@ -237,6 +239,8 @@ class InlineAnalysis:
                 # Pop ID including curly braces
                 pop_prefix = field.strip(m.group(0))
 
+            print pop_prefix, pop_num, pop_specific, field, self.history.keys()
+
             # Setup a spline interpolant
             if field in self.history:
                 interp = interp1d(self.history['z'][-1::-1],
@@ -244,7 +248,6 @@ class InlineAnalysis:
             elif field == 'tau_e':
                 tmp, tau_tmp = tau_CMB(self.sim)
                 interp = interp1d(tmp, tau_tmp)
-
             elif field == 'curvature':
                 tmp = []
                 for element in self.blob_redshifts:
@@ -260,12 +263,7 @@ class InlineAnalysis:
 
                 output.append(tmp)
                 continue
-            
-            #elif field == 'Jlw':
-            #    Jlw = self.integrated_fluxes()
-            #    output.append(Jlw)
-            #    continue
-            
+
             elif (field == 'sfrd'):
                 tmp = []
                 for redshift in self.redshifts_fl:
@@ -286,6 +284,9 @@ class InlineAnalysis:
                     tmp.append(sfrd)
                 output.append(tmp)
                 continue
+            #elif pop_prefix in self.history:
+            #    interp = interp1d(self.history['z'][-1::-1],
+            #        self.history[field][-1::-1])
 
             # Go back and actually interpolate, save the result (for each z)
             tmp = []
@@ -301,7 +302,7 @@ class InlineAnalysis:
                     tmp.append(np.inf)
                     
             output.append(tmp)
-            
+
         # Reshape output so it's (redshift x blobs)
         self.blobs = np.array(zip(*output))
         

@@ -78,7 +78,7 @@ class GLFSet(ModelSet):
             
         ax.errorbar(M, phi, yerr=err, fmt='none', **kwargs)
         ax.set_xlabel(r'$M$')
-        ax.set_ylabel(r'$\phi \ (\mathrm{cMpc}^{-3})$')
+        ax.set_ylabel(r'$\phi \ (\mathrm{cMpc}^{-3} \ \mathrm{mag}^{-1})$')
         ax.set_yscale('log')
         pl.draw()
         

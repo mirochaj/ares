@@ -227,16 +227,28 @@ class GalaxyPopulation(HaloPopulation):
     def constraints(self):
         if not hasattr(self, '_constraints'):
             
-            self._constraints = self.pf['pop_constraints'].copy()
-            
+            if self.pf['pop_constraints'] is not None:
+                self._constraints = self.pf['pop_constraints'].copy()
+            else:
+                self._constraints = {}
+                self._constraints['z'] = self.pf['pop_lf_z']
+                self._constraints['Mstar'] = []
+                self._constraints['pstar'] = []
+                self._constraints['alpha'] = []
+
+                for z in self._constraints['z']:
+                    self._constraints['Mstar'].append(self.pf['pop_lf_Mstar[%g]' % z])
+                    self._constraints['pstar'].append(self.pf['pop_lf_pstar[%g]' % z])
+                    self._constraints['alpha'].append(self.pf['pop_lf_pstar[%g]' % z])
+                            
             # Parameter file will have LF in Magnitudes...argh
-            redshifts = self.pf['pop_constraints']['z']
-            self._constraints['L_star'] = []
+            redshifts = self._constraints['z']
+            self._constraints['Lstar'] = []
             
             for i, z in enumerate(redshifts):
-                M = self.pf['pop_constraints']['M_star'][i]
+                M = self._constraints['Mstar'][i]
                 L = self.magsys.mAB_to_L(mag=M, z=z)
-                self._constraints['L_star'].append(L)
+                self._constraints['Lstar'].append(L)
         
         return self._constraints 
     
@@ -384,8 +396,8 @@ class GalaxyPopulation(HaloPopulation):
         for i, z in enumerate(self.constraints['z']):
         
             alpha = self.constraints['alpha'][i]
-            L_star = self.constraints['L_star'][i]
-            phi_star = self.constraints['phi_star'][i]
+            L_star = self.constraints['Lstar'][i]
+            phi_star = self.constraints['pstar'][i]
         
             self.halos.MF.update(z=z)
         

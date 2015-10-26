@@ -141,14 +141,14 @@ class loglikelihood:
         
     @property
     def blank_blob(self):
-        #if not hasattr(self, '_blank_blob'):
-        #
-        #    tup = tuple(np.ones(len(self.blob_names)) * np.inf)
-        #    self._blank_blob = []
-        #    for i in range(len(self.blob_redshifts)):
-        #        self._blank_blob.append(tup)
+        if not hasattr(self, '_blank_blob'):
+
+            tup = tuple(np.ones(len(self.blob_names)) * np.inf)
+            self._blank_blob = []
+            for i in range(len(self.blob_redshifts)):
+                self._blank_blob.append(tup)
     
-        return None #np.array(self._blank_blob)
+        return np.array(self._blank_blob)
     
     
     def __call__(self, pars, blobs=None):
@@ -160,7 +160,7 @@ class loglikelihood:
         Tuple: (log likelihood, blobs)
     
         """
-    
+
         kwargs = {}
         for i, par in enumerate(self.parameters):
     
@@ -182,14 +182,17 @@ class loglikelihood:
     
         #try:
         sim = simG21(**kw)
-        #sim.run()
+        sim.run()
         
-        
+        anl = anlG21(sim)
+        anl.GlobalSignature()
+        raw_input('<enter>')
+        anl.close()
         
         # Timestep weird (happens when xi ~ 1)
         #except SystemExit:
         #    pass
-    
+
         ## most likely: no (or too few) turning pts
         #except ValueError:                     
         #    # Write to "fail" file
@@ -202,14 +205,14 @@ class loglikelihood:
         #    gc.collect()
         #
         #    return -np.inf, self.blank_blob
-    
+
         # Apply priors to blobs
         blob_vals = []
         for key in self.logprior_B.priors:
-    
+
             if not hasattr(sim, 'blobs'):
                 break
-    
+
             z = self.logprior_B.priors[key][3]
     
             i = self.blob_names.index(key) 
@@ -220,19 +223,16 @@ class loglikelihood:
             blob_vals.append(val)    
     
         if blob_vals:
-            lp -= self.logprior_B(blob_vals)         
-    
+            lp -= self.logprior_B(blob_vals)
+
             # emcee will crash if this returns NaN
             if np.isnan(lp):
                 return -np.inf, self.blank_blob
-    
+
         if hasattr(sim, 'blobs'):
             blobs = sim.blobs
         else:
-            blobs = self.blank_blob    
-    
-        #if np.any(np.isnan(xarr)):
-        #    return -np.inf, self.blank_blob
+            blobs = self.blank_blob
 
         for popid, pop in enumerate(sim.medium.field.pops):
             if not pop.is_ham_model:
@@ -275,35 +275,37 @@ class FitGLF(object):
         self.base_kwargs = def_kwargs.copy()
         self.base_kwargs.update(kwargs)
     
-        #if 'auto_generate_blobs' in self.base_kwargs:            
-        #    if self.base_kwargs['auto_generate_blobs']:
-        #        kw = self.base_kwargs.copy()
-        #
-        #        sim = simG21(**kw)
-        #        #anl = InlineAnalysis(sim)
-        #
-        #        self.blob_names, self.blob_redshifts = \
-        #            anl.generate_blobs()
-        #
-        #        del sim, anl
-        #        gc.collect()
-        #
-        #        self.base_kwargs['inline_analysis'] = \
-        #            (self.blob_names, self.blob_redshifts)
-        #        self.base_kwargs['auto_generate_blobs'] = False
-        #else:
-        #
-        #    if 'inline_analysis' in self.base_kwargs and \
-        #        (not hasattr(self, 'blob_names')):
-        #        self.blob_names, self.blob_redshifts = \
-        #            self.base_kwargs['inline_analysis']
-        #
-        #    elif (not hasattr(self, 'blob_names')):
-        #        self.blob_names = _blob_names
-        #        self.blob_redshifts = _blob_redshifts
-        #
-        #    self.base_kwargs['inline_analysis'] = \
-        #        (self.blob_names, self.blob_redshifts)
+        if 'auto_generate_blobs' in self.base_kwargs:            
+            if self.base_kwargs['auto_generate_blobs']:
+                kw = self.base_kwargs.copy()
+        
+                sim = simG21(**kw)
+                sim.run()
+                
+                anl = InlineAnalysis(sim)
+        
+                self.blob_names, self.blob_redshifts = \
+                    anl.generate_blobs()
+        
+                del sim, anl
+                gc.collect()
+        
+                self.base_kwargs['inline_analysis'] = \
+                    (self.blob_names, self.blob_redshifts)
+                self.base_kwargs['auto_generate_blobs'] = False
+        else:
+        
+            if 'inline_analysis' in self.base_kwargs and \
+                (not hasattr(self, 'blob_names')):
+                self.blob_names, self.blob_redshifts = \
+                    self.base_kwargs['inline_analysis']
+        
+            elif (not hasattr(self, 'blob_names')):
+                self.blob_names = _blob_names
+                self.blob_redshifts = _blob_redshifts
+        
+            self.base_kwargs['inline_analysis'] = \
+                (self.blob_names, self.blob_redshifts)
         
         self.one_file_per_blob = self.base_kwargs['one_file_per_blob']        
     
@@ -359,7 +361,7 @@ class FitGLF(object):
         err = []
         for val in error1d:
             err.append(get_nu(val, nu_in=nu, nu_out=0.68))
-        
+
         self._error = np.array(err)
     
     @property
@@ -449,20 +451,20 @@ class FitGLF(object):
     @guesses.setter
     def guesses(self, value):
         self._guesses = value
-    
+
     def set_axes(self, parameters, is_log=True):
         """
         Set axes of parameter space to explore.
-    
+
         Parameters
         ----------
         parameters : list
             List of parameters to vary in fit.
         is_log : bool, list
             Explore log10 parameter space?
-    
+
         """
-    
+
         self.parameters = parameters
         self.Nd = len(self.parameters)
     
@@ -524,8 +526,7 @@ class FitGLF(object):
         f.close()
      
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        save_freq=500, fit_signal=False, fit_turning_points=True,
-        frequency_channels=None):
+        save_freq=500):
         """
         Run MCMC.
     
@@ -576,7 +577,7 @@ class FitGLF(object):
     
             if not emcee_mpipool:
                 self.pool.start()
-    
+
             # Non-root processors wait for instructions until job is done,
             # at which point, they don't need to do anything below here.
             if not self.pool.is_master():
@@ -585,10 +586,10 @@ class FitGLF(object):
                     self.pool.wait()
     
                 sys.exit(0)
-    
+
         else:
             self.pool = None
-    
+
         self.loglikelihood = loglikelihood(steps, self.parameters, self.is_log, 
             self.x, self.z, self.mu, self.error, self.base_kwargs,
             self.nwalkers, self.priors,
@@ -667,13 +668,13 @@ class FitGLF(object):
             f.close()
     
             # File for blobs themselves
-            #if self.one_file_per_blob:
-            #    for blob in self.blob_names:
-            #        f = open('%s.subset.%s.pkl' % (prefix, blob), 'wb')
-            #        f.close()
-            #else:
-            #    f = open('%s.blobs.pkl' % prefix, 'wb')
-            #    f.close()
+            if self.one_file_per_blob:
+                for blob in self.blob_names:
+                    f = open('%s.subset.%s.pkl' % (prefix, blob), 'wb')
+                    f.close()
+            else:
+                f = open('%s.blobs.pkl' % prefix, 'wb')
+                f.close()
     
             # Blob-info "binfo" file will be written by likelihood
     
@@ -681,7 +682,7 @@ class FitGLF(object):
             f = open('%s.pinfo.pkl' % prefix, 'wb')
             pickle.dump((self.parameters, self.is_log), f)
             f.close()
-    
+
             # Constant parameters being passed to ares.simulations.Global21cm
             f = open('%s.setup.pkl' % prefix, 'wb')
             tmp = self.base_kwargs.copy()
@@ -694,49 +695,50 @@ class FitGLF(object):
             pickle.dump(tmp, f)
             del tmp
             f.close()
-    
+
         # Take steps, append to pickle file every save_freq steps
         ct = 0
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
             iterations=steps, rstate0=state, storechain=False):
-    
+
             # Only the rank 0 processor ever makes it here
             ct += 1
     
             pos_all.append(pos.copy())
             prob_all.append(prob.copy())
-            #blobs_all.append(blobs)
-    
+            blobs_all.append(blobs)
+
             if ct % save_freq != 0:
                 continue
-    
+
             # Remember that pos.shape = (nwalkers, ndim)
             # So, pos_all has shape = (nsteps, nwalkers, ndim)
     
             data = [flatten_chain(np.array(pos_all)),
-                    flatten_logL(np.array(prob_all))]
+                    flatten_logL(np.array(prob_all)),
+                    flatten_blobs(np.array(blobs_all))]
     
-            for i, suffix in enumerate(['chain', 'logL']):
+            for i, suffix in enumerate(['chain', 'logL', 'blobs']):
                 fn = '%s.%s.pkl' % (prefix, suffix)
     
                 # Skip blobs if there are none being tracked
-                #if blobs_all == [{}] * len(blobs_all):
-                #    continue
-    
-                #if suffix == 'blobs':
-                #    if self.one_file_per_blob:
-                #        for j, blob in enumerate(self.blob_names):
-                #            barr = np.array(data[i])[:,:,j]
-                #            bfn = '%s.subset.%s.pkl' % (self.prefix, blob)
-                #            with open(bfn, 'ab') as f:
-                #                pickle.dump(barr, f)                        
-                #    else:
-                #        with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
-                #            pickle.dump(data[i], f)
-                #
-                #    continue
-                #
+                if blobs_all == [{}] * len(blobs_all):
+                    continue
+                
+                if suffix == 'blobs':
+                    if self.one_file_per_blob:
+                        for j, blob in enumerate(self.blob_names):
+                            barr = np.array(data[i])[:,:,j]
+                            bfn = '%s.subset.%s.pkl' % (self.prefix, blob)
+                            with open(bfn, 'ab') as f:
+                                pickle.dump(barr, f)                        
+                    else:
+                        with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
+                            pickle.dump(data[i], f)
+                
+                    continue
+                
                 f = open(fn, 'ab')
                 pickle.dump(data[i], f)
                 f.close()

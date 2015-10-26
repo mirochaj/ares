@@ -35,9 +35,9 @@ fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 
 L = np.logspace(27., 30.)
 for i, z in enumerate(pop.constraints['z']):
-    phi = pop.constraints['phi_star'][i] 
-    phi *= (L / pop.constraints['L_star'][i])**pop.constraints['alpha'][i]
-    phi *= np.exp(-L / pop.constraints['L_star'][i])
+    phi = pop.constraints['pstar'][i] 
+    phi *= (L / pop.constraints['Lstar'][i])**pop.constraints['alpha'][i]
+    phi *= np.exp(-L / pop.constraints['Lstar'][i])
     
     ax1.loglog(L, phi)
     

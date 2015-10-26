@@ -192,6 +192,9 @@ class MultiPhaseMedium:
         else:
             self._track = TurningPoints()
                 
+    def close(self):
+        pl.close('all')            
+                
     @property
     def dTbdz(self):
         if not hasattr(self, '_dTbdz'):
