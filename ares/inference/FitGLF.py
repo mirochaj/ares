@@ -337,7 +337,7 @@ class FitGLF(object):
     def mu(self, value):
         self._mu = value
     
-    def set_error(self, error1d=None, nu=0.68):
+    def set_error(self, err, nu=0.68):
         """
         Set errors to be used in likelihood calculation.
     
@@ -355,11 +355,11 @@ class FitGLF(object):
         """
     
         # Convert to 1-sigma errors
-        err = []
-        for val in error1d:
-            err.append(get_nu(val, nu_in=nu, nu_out=0.68))
+        #err = []
+        #for val in error1d:
+        #    err.append(get_nu(val, nu_in=nu, nu_out=0.68))
 
-        self._error = np.array(err)
+        self._error = err#np.array(err)
     
     @property
     def priors(self):

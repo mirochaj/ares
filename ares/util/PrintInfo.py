@@ -43,7 +43,7 @@ class ErrorIgnore(object):
       return returnfunction 
 
 # FORMATTING   
-width = 74
+width = 100#74
 pre = post = '#'*4    
 twidth = width - len(pre) - len(post) - 2
 #
@@ -91,9 +91,15 @@ def tabulate(data, rows, cols, cwidth=12, fmt='%.4e'):
     Take table, row names, column names, and output nicely.
     """
     
-    assert (cwidth % 2 == 0), \
-        "Table elements must have an even number of characters."
+    if type(cwidth) == int:
+        assert (cwidth % 2 == 0), \
+            "Table elements must have an even number of characters."
         
+        cwidth = [cwidth] * (len(cols) + 1)
+        
+    else:
+        assert len(cwidth) == len(cols) + 1
+                
     #assert (len(pre) + len(post) + (1 + len(cols)) * cwidth) <= width, \
     #    "Table wider than maximum allowed width!"
     
@@ -104,10 +110,10 @@ def tabulate(data, rows, cols, cwidth=12, fmt='%.4e'):
     
     hnames = []
     for i, col in enumerate(cols):
-        tmp = col.center(cwidth)
+        tmp = col.center(cwidth[i+1])    
         hnames.extend(list(tmp))
             
-    start = len(pre) + cwidth + 3
+    start = len(pre) + cwidth[0] + 3
     hdr[start:start + len(hnames)] = hnames
     
     # Convert from list to string        
@@ -126,21 +132,21 @@ def tabulate(data, rows, cols, cwidth=12, fmt='%.4e'):
         d[-len(post):] = list(post)
         
         d[len(pre)+1:len(pre)+1+len(rows[i])] = list(rows[i])
-        d[len(pre)+1+cwidth] = ':'
+        d[len(pre)+1+cwidth[0]] = ':'
 
         # Loop over columns
         numbers = ''
         for j in range(len(cols)):
             if type(data[i][j]) is str:
-                numbers += data[i][j].center(cwidth)
+                numbers += data[i][j].center(cwidth[j+1])
                 continue
             elif type(data[i][j]) is bool:
-                numbers += str(int(data[i][j])).center(cwidth)
+                numbers += str(int(data[i][j])).center(cwidth[j+1])
                 continue 
-            numbers += (fmt % data[i][j]).center(cwidth)
+            numbers += (fmt % data[i][j]).center(cwidth[j+1])
         numbers += ' '
 
-        c = len(pre) + 1 + cwidth + 2
+        c = len(pre) + 1 + cwidth[0] + 2
         d[c:c+len(numbers)] = list(numbers)
         
         d_s = ''
@@ -637,9 +643,10 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
 
     warnings = []
     
-    is_cov = True
-    if len(fit.error.shape) == 1:
-        is_cov = False
+    is_cov = False
+    #is_cov = True
+    #if len(fit.error.shape) == 1:
+    #    is_cov = False
 
     header = 'Parameter Estimation'
     print "\n" + "#"*width
@@ -684,7 +691,7 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
                 
             data.append([col1, col2])
 
-        tabulate(data, rows, cols, cwidth=18)    
+        tabulate(data, rows, cols, cwidth=[24, 12, 12, 12])    
 
     print line('-'*twidth)       
     print line('Parameter Space')     
@@ -703,7 +710,7 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
 
         data.append(tmp)
 
-    tabulate(data, rows, cols, fmt='%.2g', cwidth=18)
+    tabulate(data, rows, cols, fmt='%.2g', cwidth=[24, 12, 12, 12])
 
     print line('-'*twidth)       
     print line('Exploration')     
