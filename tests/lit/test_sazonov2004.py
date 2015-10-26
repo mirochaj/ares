@@ -16,7 +16,7 @@ import matplotlib.pyplot as pl
 
 s04 = ares.util.read_lit('sazonov2004')
 
-E = np.logspace(1, 4.5, 100)
+E = np.logspace(0., 6., 100)
 F = map(s04.Spectrum, E)
 
 pl.loglog(E, F)

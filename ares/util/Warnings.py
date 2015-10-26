@@ -149,7 +149,7 @@ def no_tau_table(urb):
     print line(separator)
     print line('WARNING: no optical depth table found')    
     print line(separator)        
-    print line("looking for : %s" % urb.volume.tabname)
+    print line("looking for : %s" % urb.tabname)
     if urb.pf['tau_prefix'] is not None:
         print line("in          : %s" % urb.pf['tau_prefix'])
     elif ARES is not None:

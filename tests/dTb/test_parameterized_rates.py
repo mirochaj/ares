@@ -14,41 +14,50 @@ import ares
 import numpy as np
 import matplotlib.pyplot as pl
 
-sim = ares.simulations.Global21cm(is_ion_src_igm=False)
-sim.run()
+def test():
 
-anl = ares.analysis.Global21cm(sim)
-ax1 = anl.GlobalSignature()
-
-# Parameterized evolution (const. in time)
-def Gamma_cgm_func(z, species=0, **kwargs):
-    return np.interp(z, sim.history['z'][-1::-1], 
-        sim.history['cgm_Gamma_h_1'][-1::-1])
+    sim = ares.simulations.Global21cm(is_ion_src_igm=False)
+    sim.run()
     
-def eheat_func(z, species=0, **kwargs):
-    return np.interp(z, sim.history['z'][-1::-1], 
-        sim.history['igm_heat_h_1'][-1::-1])
+    zarr = sim.history['z'][sim.history['z'] < 40]
+    
+    anl = ares.analysis.Global21cm(sim)
+    ax1 = anl.GlobalSignature()
+    
+    # Parameterized evolution (const. in time)
+    def Gamma_cgm_func(z, species=0, **kwargs):
+        return np.interp(z, sim.history['z'][-1::-1], 
+            sim.history['cgm_Gamma_h_1'][-1::-1])
+        
+    def eheat_func(z, species=0, **kwargs):
+        return np.interp(z, sim.history['z'][-1::-1], 
+            sim.history['igm_heat_h_1'][-1::-1])
+    
+    def Ja_func(z, **kwargs):
+        return np.interp(z, sim.history['z'][-1::-1], 
+            sim.history['Ja'][-1::-1])
+    
+    # Simulate it numerically! (parameterized everything)
+    sim2 = ares.simulations.Global21cm(Gamma_cgm=Gamma_cgm_func, 
+        heat_igm=eheat_func, Ja=Ja_func, is_ion_src_igm=False)
+    sim2.run()
+    
+    # Make sure values agree
+    sim1_ion_hist = np.interp(zarr, sim.history['z'][-1::-1], 
+        sim.history['cgm_h_2'][-1::-1])
+    sim2_ion_hist = np.interp(zarr, sim2.history['z'][-1::-1], 
+            sim2.history['cgm_h_2'][-1::-1])
+    
+    ion_hist_ok = np.allclose(sim1_ion_hist, sim2_ion_hist)
+            
+    sim1_T_hist = np.interp(zarr, sim.history['z'][-1::-1], 
+        sim.history['igm_Tk'][-1::-1])
+    sim2_T_hist = np.interp(zarr, sim2.history['z'][-1::-1], 
+            sim2.history['igm_Tk'][-1::-1])        
+    
+    T_hist_ok = np.allclose(sim1_T_hist, sim2_T_hist)
+    
+    assert ion_hist_ok and T_hist_ok
 
-def Ja_func(z, **kwargs):
-    return np.interp(z, sim.history['z'][-1::-1], 
-        sim.history['Ja'][-1::-1])
-
-# Simulate it numerically! (parameterized everything)
-sim2 = ares.simulations.Global21cm(Gamma_cgm=Gamma_cgm_func, 
-    heat_igm=eheat_func, Ja=Ja_func, is_ion_src_igm=False)
-sim2.run()
-
-anl2 = ares.analysis.Global21cm(sim2)
-anl2.GlobalSignature(ax=ax1, color='b')
-
-ax2 = anl.TemperatureHistory(fig=2)
-anl2.TemperatureHistory(ax=ax2, color='b')
-pl.draw()
-
-ax3 = anl.IonizationHistory(fig=3, color='k', show_xe=False, 
-    show_xibar=False)
-anl2.IonizationHistory(ax=ax3, color='b', show_xe=False, 
-    show_xibar=False)
-
-pl.draw()
-
+if __name__ == '__main__':
+    test()    

@@ -49,6 +49,7 @@ Contents
    structure
    troubleshooting
    contributing
+   history
 
 Indices and tables
 ==================

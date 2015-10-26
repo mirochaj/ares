@@ -10,6 +10,7 @@ Description:
 
 """
 
+import inspect
 import numpy as np
 from ..util import read_lit
 import os, pickle, inspect, re
@@ -69,9 +70,13 @@ class LiteratureSource(Source):
         Source.__init__(self)
         
         _src = read_lit(self.pf['pop_sed'])
-        
+                
         if hasattr(_src, 'Spectrum'):
-            self._Intensity = _src.Spectrum
+            if inspect.ismethod(_src.Spectrum) or \
+                (type(_src.Spectrum) is FunctionType):
+                self._Intensity = _src.Spectrum
+            else:
+                self._Intensity = _src.Spectrum(**self.pf['pop_kwargs'])
             
 def normalize_sed(pop):
     """
@@ -114,10 +119,6 @@ class GalaxyPopulation(HaloPopulation):
         
         self._eV_per_phot = {}
         self._conversion_factors = {}
-
-    @property
-    def sawtooth(self):
-        return self.pf['pop_sawtooth']        
 
     @property
     def is_lya_src(self):
@@ -171,6 +172,7 @@ class GalaxyPopulation(HaloPopulation):
                         self._src_kwargs[par] = bpars[par]
             else:
                 self._src_kwargs = self.pf.copy()
+                self._src_kwargs.update(self.pf['pop_kwargs'])
         
         return self._src_kwargs
 

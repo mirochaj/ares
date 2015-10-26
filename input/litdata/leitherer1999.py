@@ -162,7 +162,18 @@ class StellarPopulation:
         self.fn = _figure_name(**self.pf)
         self._raw_data = _reader(self.fn)
     
-        self.data = 10**self._raw_data[:,1:]
+    @property
+    def data(self):
+        """
+        Units = erg / s / A / [depends]
+        
+        Where, if instantaneous burst, [depends] = Msun
+        and if continuous SF, [depends] = Msun / yr
+        
+        """
+        if not hasattr(self, '_data'):
+            self._data = 10**self._raw_data[:,1:]
+        return self._data
     
     @property
     def cosm(self):
@@ -319,27 +330,45 @@ class StellarPopulation:
         # Integrate (cumulatively) over time
         return cumtrapz(photons_per_b_t, x=t, initial=0.0)
         
-    def yield_per_sfr(self, l=1500.):
-        """
-        Compute the yield of this population.
+            
         
-        Parameters
-        ----------
-        l : int, float
-            Wavelength at which to compute yield [Angstrom]
-        
-        ..note:: Units are [erg/s/SFR/Hz]**-1
-        
-        """
-        
-        return np.interp(l, self.wavelengths, )
-        
-        
-        
-class Spectrum:
-    def __init__(self):
-        pass
+class Spectrum(StellarPopulation):
+    def __init__(self, **kwargs):
+        StellarPopulation.__init__(self, **kwargs)
     
-    def __call__(self, E, t=0.0):
-        pass
+    @property
+    def Lbol(self):
+        if not hasattr(self, '_Lbol'):
+            to_int = self.intens
+               
+            self._Lbol = np.trapz(to_int, x=self.energies[-1::-1])
+            
+        return self._Lbol
+               
+    @property
+    def intens(self):
+        if not hasattr(self, '_intens'):
+            self._intens = self.data[-1::-1,-1] * self.dlde
+    
+        return self._intens
+        
+    @property
+    def nrg(self):
+        if not hasattr(self, '_nrg'):
+            self._nrg = self.energies[-1::-1]
+
+        return self._nrg
+        
+    @property
+    def dlde(self):
+        if not hasattr(self, '_dlde'):
+            diff = np.diff(self.wavelengths) / np.diff(self.energies)
+            self._dlde = np.concatenate((diff, [diff[-1]]))
+                    
+        return self._dlde
+        
+    def __call__(self, E, t=0.0):        
+        return np.interp(E, self.nrg, self.data[-1::-1,0]) #/ self.Lbol
+        
+        
         
