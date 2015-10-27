@@ -241,7 +241,7 @@ class GalaxyPopulation(HaloPopulation):
                 for z in self._constraints['z']:
                     self._constraints['Mstar'].append(self.pf['pop_lf_Mstar[%g]' % z])
                     self._constraints['pstar'].append(self.pf['pop_lf_pstar[%g]' % z])
-                    self._constraints['alpha'].append(self.pf['pop_lf_pstar[%g]' % z])
+                    self._constraints['alpha'].append(self.pf['pop_lf_alpha[%g]' % z])
                             
             # Parameter file will have LF in Magnitudes...argh
             redshifts = self._constraints['z']

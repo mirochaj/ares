@@ -24,6 +24,10 @@ from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain
     
+from ..util import read_lit
+from ..util.ParameterFile import pop_id_num    
+from ..populations.Galaxy import param_redshift
+    
 from .FitGlobal21cm import logprior
 
 try:
@@ -67,8 +71,6 @@ except ImportError:
 def_kwargs = {'track_extrema': 1, 'verbose': False, 'progress_bar': False,
     'one_file_per_blob': True}
 
-    
-    
 class loglikelihood:
     def __init__(self, steps, parameters, is_log, x, z, mu, errors,
         base_kwargs, nwalkers, priors={}, prefix=None,
@@ -185,7 +187,7 @@ class loglikelihood:
         sim.run()
         
         sim.run_inline_analysis()
-        
+                
         # Timestep weird (happens when xi ~ 1)
         #except SystemExit:
         #    pass
@@ -385,69 +387,39 @@ class FitGLF(object):
     @nwalkers.setter
     def nwalkers(self, value):
         self._nw = value
-    
+        
     @property
     def guesses(self):
-        """
-        Generate initial position vectors for all walkers.
-        """
-    
         if not hasattr(self, '_guesses'):
-    
-            self._guesses = []
-            for i in range(self.nwalkers):
-    
-                p0 = []
-                to_fix = []
-                for j, par in enumerate(self.parameters):
-    
-                    if par in self.priors:
-    
-                        dist, lo, hi = self.priors[par]
-    
-                        # Fix if tied to other parameter
-                        if (type(lo) is str) or (type(hi) is str):                            
-                            to_fix.append(par)
-                            p0.append(None)
-                            continue
-    
-                        if dist == 'uniform':
-                            val = np.random.rand() * (hi - lo) + lo
-                        else:
-                            val = np.random.normal(lo, scale=hi)
-                    else:
-                        raise ValueError('No prior for %s' % par)
-    
-                    # Save
-                    p0.append(val)
-    
-                # If some priors are linked, correct for that
-                for par in to_fix:
-    
-                    dist, lo, hi = self.priors[par]
-    
-                    if type(lo) is str:
-                        lo = p0[self.parameters.index(lo)]
-                    else:    
-                        hi = p0[self.parameters.index(hi)]
-    
-                    if dist == 'uniform':
-                        val = np.random.rand() * (hi - lo) + lo
-                    else:
-                        val = np.random.normal(lo, scale=hi)
-    
-                    k = self.parameters.index(par)
-                    p0[k] = val
-    
-                self._guesses.append(p0)
-    
-            self._guesses = np.array(self._guesses)
-    
+            jitter = 0.1
+            
+            b15 = read_lit('bouwens2015')
+            
+            
+            self._guesses = np.zeros([self.nwalkers, len(self.parameters)])
+            for i, key in enumerate(self.parameters):
+                
+                prefix_w_pop, z = param_redshift(key)
+                prefix, popid = pop_id_num(prefix_w_pop)
+                
+                if 'pop_lf_' not in prefix:
+                    raise NotImplemented('didnt really think this through')
+
+                par = prefix.replace('pop_lf_', '')
+                
+                b15.lf_pars[par]
+                
+                k = np.argmin(np.abs(z - np.array(b15.redshifts)))
+                    
+                if self.is_log[i]:
+                    self._guesses[:,i] = np.log10(b15.lf_pars[par][k])
+                else:
+                    self._guesses[:,i] = b15.lf_pars[par][k]
+                    
+                self._guesses[:,i] += \
+                    np.random.normal(scale=jitter, size=self.nwalkers)    
+                    
         return self._guesses
-    
-    @guesses.setter
-    def guesses(self, value):
-        self._guesses = value
 
     def set_axes(self, parameters, is_log=True):
         """
@@ -513,10 +485,13 @@ class FitGLF(object):
         if rank > 0:
             return
 
+            
+            
         fn = '%s.data.pkl' % prefix
         
         if os.path.exists(fn) and (not clobber):
-            raise IOError("%s exists! Set clobber=True to overwrite." % fn)
+            print "%s exists! Set clobber=True to overwrite." % fn
+            return
                 
         f = open(fn, 'wb')
         pickle.dump((self.x, self.mu, self.z, self.error), f)
@@ -633,7 +608,17 @@ class FitGLF(object):
             base_kwargs = pickle.load(f)
             f.close()  
     
-            if base_kwargs != self.base_kwargs:
+            ct = 0
+            for kw in base_kwargs:
+                try:
+                    if base_kwargs[kw] != self.base_kwargs[kw]:
+                        ct += 1
+                # Need to handle arrays separately
+                except ValueError:
+                    if not np.allclose(base_kwargs[kw], self.base_kwargs[kw]):
+                        ct += 1
+    
+            if ct > 0:
                 if size > 1:
                     if rank == 0:
                         print 'base_kwargs from file dont match those supplied!'
