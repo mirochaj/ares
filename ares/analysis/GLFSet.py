@@ -28,7 +28,7 @@ class GLFSet(ModelSet):
         
         return self.data['x'][i], self.data['y'][i], self.data['err'][i]
     
-    def ReconstructedLF(self, z, ax=None, fig=1, **kwargs):
+    def ReconstructedLF(self, z, ax=None, fig=1, N=100, **kwargs):
         """
         Plot constraints on the luminosity function at given z.
         """
@@ -56,7 +56,7 @@ class GLFSet(ModelSet):
         Mst = samples['pop_lf_Mstar']
         a = samples['pop_lf_alpha']
         
-        for i in range(100):
+        for i in range(N):
             phi = 0.4 * np.log(10.) * pst[i] \
                 * (10**(0.4 * (Mst[i] - M)))**(1. + a[i]) \
                 * np.exp(-10**(0.4 * (Mst[i] - M)))

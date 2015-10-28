@@ -715,14 +715,14 @@ class FitGLF(object):
             data = [flatten_chain(np.array(pos_all)),
                     flatten_logL(np.array(prob_all)),
                     flatten_blobs(np.array(blobs_all))]
-    
+
             for i, suffix in enumerate(['chain', 'logL', 'blobs']):
                 fn = '%s.%s.pkl' % (prefix, suffix)
-    
+
                 # Skip blobs if there are none being tracked
                 if blobs_all == [{}] * len(blobs_all):
                     continue
-                
+
                 if suffix == 'blobs':
                     if self.one_file_per_blob:
                         for j, blob in enumerate(self.blob_names):
@@ -733,20 +733,20 @@ class FitGLF(object):
                     else:
                         with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
                             pickle.dump(data[i], f)
-                
+
                     continue
-                
+
                 f = open(fn, 'ab')
                 pickle.dump(data[i], f)
                 f.close()
-    
+
             # This is a running total already so just save the end result 
             # for this set of steps
             f = open('%s.facc.pkl' % prefix, 'ab')
             pickle.dump(self.sampler.acceptance_fraction, f)
             f.close()
     
-            print "Checkpoint #%i: %s" % (ct, time.ctime())
+            print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
     
             del data, f, pos_all, prob_all, blobs_all
             gc.collect()

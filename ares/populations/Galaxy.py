@@ -297,7 +297,7 @@ class GalaxyPopulation(HaloPopulation):
         
         if not self.is_ham_model:
             raise AttributeError('eta is a HAM thing!')
-        
+
         # Prepare to compute eta
         if not hasattr(self, '_eta'):        
 
@@ -308,38 +308,31 @@ class GalaxyPopulation(HaloPopulation):
                 # eta = rhs / lhs
 
                 Mmin = self.Mmin[i]
-                logMmin = np.log10(Mmin)
                 
                 rhs = self.cosm.rho_m_z0 * self.dfcolldt(z)
                 rhs *= (s_per_yr / g_per_msun) * cm_per_mpc**3
-                
+
                 # Accretion onto all halos (of mass M) at this redshift
                 # This is *matter*, not *baryons*
                 Macc = self.Macc(z, self.halos.M)
                 
                 j1 = np.argmin(np.abs(Mmin - self.halos.M))
                 
-                if Macc[j1] > self.halos.M[j1]:
+                if Mmin > self.halos.M[j1]:
                     j1 -= 1
                 
                 j2 = j1 + 1
+
+                integ = self.halos.dndlnm[i] * Macc
+
+                p1 = simps(integ[j1:], x=self.halos.lnM[j1:])
+                p2 = simps(integ[j2:], x=self.halos.lnM[j2:])
                 
-                lhs = simps(Macc[j2:] * self.halos.dndm[i,j2:],
-                    x=self.halos.logM[j2:]) * log10
-                
-                # Add extra trapezoid
-                Macc1 = np.interp(Mmin, self.halos.M[j1:j2+1],
-                    [Macc[j1] * self.halos.dndm[i,j1],
-                     Macc[j2] * self.halos.dndm[i,j2]])
-                Macc2 = Macc[j2]
-                
-                extra = 0.5 * (self.halos.logM[j2] - logMmin) \
-                    * (Macc1 + Macc2) * log10
-                                    
-                lhs += extra
-                
+                lhs = np.interp(np.log(Mmin), self.halos.lnM[j1:j1+2],
+                    [p1, p2])
+                    
                 self._eta[i] = rhs / lhs
-                
+
         return self._eta
         
     def fstar(self, z=None, M=None):
@@ -401,23 +394,26 @@ class GalaxyPopulation(HaloPopulation):
             L_star = self.constraints['Lstar'][i]
             phi_star = self.constraints['pstar'][i]
         
-            self.halos.MF.update(z=z)
+            #self.halos.MF.update(z=z)
+            
+            eta = self.eta[i]
+            ngtm = self.halos.ngtm[np.argmin(np.abs(z - self.halos.z))]
         
             for j, M in enumerate(Marr):
         
                 if M < self.Mmin[i]: 
                     continue
-        
+
                 # Read in variables
                 Macc = self.Macc(z, M) * self.cosm.fbaryon
-                eta = self.eta[i]
-        
+                
                 # Minimum luminosity as a function of minimum mass
                 LofM = lambda fstar: fstar * Macc * eta / kappa_UV
-        
-                # Number of halos at masses > M
-                int_nMh = np.interp(M, self.halos.M, self.halos.MF.ngtm)
-        
+
+                # Number density of halos at masses > M
+                int_nMh = np.exp(np.interp(np.log(M), self.halos.lnM, 
+                    np.log(ngtm)))
+
                 def to_min(fstar):
                     Lmin = LofM(fstar[0])
         
@@ -526,17 +522,18 @@ class GalaxyPopulation(HaloPopulation):
         SFRD as a function of redshift yielded by abundance match.
         
             ..note:: Units are g/s/cm^3 (comoving).
+            
         """
         if not hasattr(self, '_sfrd_ham_tab_'):
             self._sfrd_ham_tab_ = np.zeros(self.halos.Nz)
             
             for i, z in enumerate(self.halos.z):
-                integrand = self._sfr_ham[i] * self.halos.dndm[i]
+                integrand = self._sfr_ham[i] * self.halos.M * self.halos.dndm[i]
 
                 k = np.argmin(np.abs(self.Mmin[i] - self.halos.M))
 
                 self._sfrd_ham_tab_[i] = \
-                    simps(integrand[k:], x=self.halos.logM[k:]) * log10
+                    simps(integrand[k:], x=np.log(self.halos.M[k:]))
 
             self._sfrd_ham_tab_ *= g_per_msun / s_per_yr / cm_per_mpc**3
 
@@ -765,7 +762,7 @@ class GalaxyPopulation(HaloPopulation):
 
                     break
 
-        return self._lf_        
+        return self._lf_
 
     def SFRD(self, z):
         """

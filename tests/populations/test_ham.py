@@ -99,7 +99,7 @@ pl.semilogy(zarr, map(pop_r15.SFRD, zarr), color='g', label='R15')
 ax4.set_xlabel(r'$z$')
 ax4.set_ylabel(r'$\dot{\rho}_{\ast} \ \left[M_{\odot} / \mathrm{yr} / \mathrm{cMpc}^3 \right]$')
 ax4.set_xlim(4, 30)
-ax4.set_ylim(1e-10, 1)
+ax4.set_ylim(1e-5, 1)
 pl.legend(loc='lower left', frameon=False)
 
 # Halo mass - halo luminosity relationship
@@ -155,7 +155,7 @@ pl.draw()
 fig8 = pl.figure(8); ax8 = fig8.add_subplot(111)
 
 z = np.linspace(5, 30)
-for M in 10**np.arange(8, 14):
+for M in 10**np.arange(7, 14):
     fst = pop.fstar(z, M)
     pl.plot(z, fst, label=r'$M_h / M_{\odot} = 10^{%i}$' % (np.log10(M)))
     

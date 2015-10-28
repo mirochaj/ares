@@ -2759,11 +2759,15 @@ class ModelSet(object):
         elif type(z) is not list:
             z = [z]
         
+        data = self.ExtractData(pars, z=z)
+        
         masks = []
         blob_vec = []
         for i in range(len(pars)):
-            blob = self.extract_blob(pars[i], z=z[i])
-            if hasattr(blob, 'mask'):
+            
+            blob = data[0][pars[i]]
+                
+            if hasattr(data, 'mask'):
                 masks.append(blob.mask)
             else:
                 masks.append(np.zeros_like(blob))
