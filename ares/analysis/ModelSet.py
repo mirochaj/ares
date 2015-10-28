@@ -553,6 +553,29 @@ class ModelSet(object):
     #        mask = f[key].attrs.get('mask')
     #        results[key] = np.ma.array(f[key].value, mask=mask)
             
+    @property
+    def timing(self):
+        if not hasattr(self, '_timing'):
+            self._timing = []
+            
+            i = 1
+            fn = '%s.timing_%s.pkl' % (self.prefix, str(i).zfill(4))
+            while os.path.exists(fn):
+                f = open(fn, 'rb')
+                while True:
+                    try:
+                        t, kw = pickle.load(f)
+                        self._timing.append((t, kw))
+                    except EOFError:
+                        break
+                        
+                f.close()
+                i += 1
+                fn = '%s.timing_%s.pkl' % (self.prefix, str(i).zfill(4))  
+                
+                
+        return self._timing
+            
     def save_hdf5(self):
         if not have_h5py:
             return

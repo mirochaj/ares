@@ -53,8 +53,9 @@ class Chemistry(object):
             
         self.solver = ode(self.chemnet.RateEquations, 
             jac=self.chemnet.Jacobian).set_integrator('vode',
-            with_jacobian=True, method='bdf', nsteps=1e4, 
-            atol=atol, rtol=rtol)
+            method='bdf', nsteps=1e4, order=5, atol=atol, rtol=rtol)
+            
+        self.solver._integrator.iwork[2] = -1
             
         # Empty arrays in the shapes we often need
         self.zeros_gridxq = np.zeros([self.grid.dims, 
@@ -82,24 +83,24 @@ class Chemistry(object):
             dz = dt / self.grid.cosm.dtdz(z)
         else:
             z = dz = 0
-                
+
         if 'he_1' in self.grid.absorbers:
             i = self.grid.absorbers.index('he_1')
             self.chemnet.psi[...,i] *= data['he_2'] / data['he_1']
-                
+
         # Make sure we've got number densities
         if 'n' not in data.keys():
             data['n'] = self.grid.particle_density(data, z)
-                
+
         newdata = {}
         for field in data:
             newdata[field] = data[field].copy()
 
         if not kwargs:
             kwargs = self.rcs.copy()
-                    
+
         kwargs_by_cell = self._sort_kwargs_by_cell(kwargs)
-        
+
         self.q_grid = np.zeros_like(self.zeros_gridxq)
         self.dqdt_grid = np.zeros_like(self.zeros_gridxq)
                               

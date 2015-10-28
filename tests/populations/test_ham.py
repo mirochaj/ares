@@ -151,4 +151,18 @@ ax7.legend(loc='upper left', frameon=False, fontsize=16)
 
 pl.draw()
 
+# SFE vs z
+fig8 = pl.figure(8); ax8 = fig8.add_subplot(111)
+
+z = np.linspace(5, 30)
+for M in 10**np.arange(8, 14):
+    fst = pop.fstar(z, M)
+    pl.plot(z, fst, label=r'$M_h / M_{\odot} = 10^{%i}$' % (np.log10(M)))
+    
+pl.xlabel(r'$z$')
+pl.ylabel(r'$f_{\ast}$')
+pl.legend(loc='lower right', fontsize=14)
+pl.yscale('log')
+
+
 

@@ -459,7 +459,7 @@ class GalaxyPopulation(HaloPopulation):
             except RuntimeError:
                 self._fstar_coeff_, self._fstar_cov_ = \
                     guess, np.diag(guess)
-                                        
+                            
         return self._fstar_coeff_
         
     def _fstar_cap(self, fstar):

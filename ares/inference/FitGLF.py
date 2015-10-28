@@ -20,7 +20,8 @@ from ..simulations import Global21cm as simG21
 from ..util.Stats import Gauss1D, GaussND, rebin
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
-from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
+from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts, \
+    SetAllDefaults
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain
     
@@ -68,13 +69,14 @@ except ImportError:
     rank = 0
     size = 1
     
+def_params = SetAllDefaults()    
 def_kwargs = {'track_extrema': 1, 'verbose': False, 'progress_bar': False,
     'one_file_per_blob': True}
 
 class loglikelihood:
     def __init__(self, steps, parameters, is_log, x, z, mu, errors,
         base_kwargs, nwalkers, priors={}, prefix=None,
-        burn=False, blob_names=None, blob_redshifts=None):
+        burn=False, blob_names=None, blob_redshifts=None, runsim=False):
         """
         Computes log-likelihood at given step in MCMC chain.
 
@@ -98,9 +100,6 @@ class loglikelihood:
         self.blob_names = blob_names
         self.blob_redshifts = blob_redshifts
         
-        # Setup binfo pkl file
-        self._prep_binfo()
-
         # Sort through priors        
         priors_P = {}   # parameters
         priors_B = {}   # blobs
@@ -128,7 +127,21 @@ class loglikelihood:
 
         self.mu = mu
         self.errors = errors
-                
+        self.runsim = runsim
+        
+        # Setup binfo pkl file
+        self._prep_binfo()
+        
+        # Setup timing file
+        self._prep_timing()
+        
+    def _prep_timing(self):
+        fn = '%s.timing_%s.pkl' % (self.prefix, str(rank).zfill(4))
+        if os.path.exists(fn):
+            return
+        f = open(fn, 'wb')
+        f.close()
+        
     def _prep_binfo(self):
         if rank > 0:
             return
@@ -138,8 +151,7 @@ class loglikelihood:
         # Blob names and list of redshifts at which to track them
         f = open('%s.binfo.pkl' % self.prefix, 'wb')
         pickle.dump((self.blob_names, self.blob_redshifts), f)
-        f.close()    
-        
+        f.close()
         
     @property
     def blank_blob(self):
@@ -151,7 +163,6 @@ class loglikelihood:
                 self._blank_blob.append(tup)
     
         return np.array(self._blank_blob)
-    
     
     def __call__(self, pars, blobs=None):
         """
@@ -182,11 +193,18 @@ class loglikelihood:
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
     
-        #try:
         sim = simG21(**kw)
-        sim.run()
         
-        sim.run_inline_analysis()
+        # If we're only fitting the LF, no need to run simulation
+        if self.runsim:
+            t1 = time.time()
+            sim.run()
+            t2 = time.time()
+            sim.run_inline_analysis()
+                        
+            tfn = '%s.timing_%s.pkl' % (self.prefix, str(rank).zfill(4))
+            with open(tfn, 'ab') as f:
+                pickle.dump((t2 - t1, kwargs), f)
                 
         # Timestep weird (happens when xi ~ 1)
         #except SystemExit:
@@ -214,7 +232,7 @@ class loglikelihood:
 
             z = self.logprior_B.priors[key][3]
     
-            i = self.blob_names.index(key) 
+            i = self.blob_names.index(key)
             j = self.blob_redshifts.index(z)
     
             val = sim.blobs[j,i]
@@ -391,33 +409,31 @@ class FitGLF(object):
     @property
     def guesses(self):
         if not hasattr(self, '_guesses'):
-            jitter = 0.1
+            jitter = 0.05
             
             b15 = read_lit('bouwens2015')
-            
-            
+                        
             self._guesses = np.zeros([self.nwalkers, len(self.parameters)])
             for i, key in enumerate(self.parameters):
                 
-                prefix_w_pop, z = param_redshift(key)
-                prefix, popid = pop_id_num(prefix_w_pop)
-                
-                if 'pop_lf_' not in prefix:
-                    raise NotImplemented('didnt really think this through')
-
-                par = prefix.replace('pop_lf_', '')
-                
-                b15.lf_pars[par]
-                
-                k = np.argmin(np.abs(z - np.array(b15.redshifts)))
-                    
-                if self.is_log[i]:
-                    self._guesses[:,i] = np.log10(b15.lf_pars[par][k])
+                scat = np.random.normal(scale=jitter, size=self.nwalkers)
+                                                
+                if 'pop_lf_' not in key:
+                    prefix, popid = pop_id_num(prefix_w_pop)
+                    val = self.base_kwargs[key]
                 else:
-                    self._guesses[:,i] = b15.lf_pars[par][k]
+                    prefix_w_pop, z = param_redshift(key)
+                    prefix, popid = pop_id_num(prefix_w_pop)
+                    par = prefix.replace('pop_lf_', '')
+                    k = np.argmin(np.abs(z - np.array(b15.redshifts)))
+                    val = b15.lf_pars[par][k]
+                                    
+                if self.is_log[i]:
+                    self._guesses[:,i] = np.log10(val)
+                else:
+                    self._guesses[:,i] = val
                     
-                self._guesses[:,i] += \
-                    np.random.normal(scale=jitter, size=self.nwalkers)    
+                self._guesses[:,i] *= (1. + scat)    
                     
         return self._guesses
 
@@ -484,8 +500,6 @@ class FitGLF(object):
     def save_data(self, prefix, clobber=False):
         if rank > 0:
             return
-
-            
             
         fn = '%s.data.pkl' % prefix
         
@@ -498,7 +512,7 @@ class FitGLF(object):
         f.close()
      
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        save_freq=500):
+        runsim=False, save_freq=500):
         """
         Run MCMC.
     
@@ -566,7 +580,7 @@ class FitGLF(object):
             self.x, self.z, self.mu, self.error, self.base_kwargs,
             self.nwalkers, self.priors,
             prefix=self.prefix, blob_names=self.blob_names,
-            blob_redshifts=self.blob_redshifts)
+            blob_redshifts=self.blob_redshifts, runsim=runsim)
     
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
