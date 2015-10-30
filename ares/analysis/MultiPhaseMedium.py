@@ -140,7 +140,7 @@ class MultiPhaseMedium:
                     
         # If missing parameter file
         if not hasattr(self, 'pf'):  
-            print "No parameter file found...setting all to default values."      
+            #print "No parameter file found...setting all to default values."      
             self.pf = SetAllDefaults()
             self.cosm = Cosmology()
             self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
