@@ -315,12 +315,12 @@ class GalaxyPopulation(HaloPopulation):
                 # Accretion onto all halos (of mass M) at this redshift
                 # This is *matter*, not *baryons*
                 Macc = self.Macc(z, self.halos.M)
-                
+
                 j1 = np.argmin(np.abs(Mmin - self.halos.M))
-                
+
                 if Mmin > self.halos.M[j1]:
                     j1 -= 1
-                
+
                 j2 = j1 + 1
 
                 integ = self.halos.dndlnm[i] * Macc
@@ -513,7 +513,7 @@ class GalaxyPopulation(HaloPopulation):
         if not hasattr(self, '_sfrd_ham_'):
             self._sfrd_ham_ = interp1d(self.halos.z, self._sfrd_ham_tab,
                 kind='cubic')
-                
+
         return self._sfrd_ham_
                 
     @property
@@ -528,12 +528,12 @@ class GalaxyPopulation(HaloPopulation):
             self._sfrd_ham_tab_ = np.zeros(self.halos.Nz)
             
             for i, z in enumerate(self.halos.z):
-                integrand = self._sfr_ham[i] * self.halos.M * self.halos.dndm[i]
+                integrand = self._sfr_ham[i] * self.halos.dndlnm[i]
 
                 k = np.argmin(np.abs(self.Mmin[i] - self.halos.M))
 
                 self._sfrd_ham_tab_[i] = \
-                    simps(integrand[k:], x=np.log(self.halos.M[k:]))
+                    simps(integrand[k:], x=self.halos.lnM[k:])
 
             self._sfrd_ham_tab_ *= g_per_msun / s_per_yr / cm_per_mpc**3
 
@@ -819,7 +819,7 @@ class GalaxyPopulation(HaloPopulation):
         #
         #        
         #        self.halos.MF.update(z=z)
-        #        dndm = self._dndm = self.halos.MF.dndm.copy() / self.cosm.h70**4
+        #        dndm = self._dndm = self.halos.MF.dndm.copy() / self.cosm.h70**3
         #        fstar_of_m = self.fstar(M=self.halos.M)
         #         
         #        integrand = dndm * fstar_of_m * self.halos.M

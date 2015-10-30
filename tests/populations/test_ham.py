@@ -22,6 +22,7 @@ lf_pars['z'] = b15.redshifts
 
 pars = \
 {
+ 'pop_fstar_ceil': 0.3,
  'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
  'pop_constraints': lf_pars,  # bouwens2015
