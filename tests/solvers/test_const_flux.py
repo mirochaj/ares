@@ -21,45 +21,69 @@ pars = \
 {
  'problem_type': 0,
  'grid_cells': 1, 
- 'initial_ionization': [1e-8],
- #'initial_temperature': 1e2,
+ 'initial_ionization': [1.-1e-6, 1e-6],
+ 'initial_temperature': 1e5,
  'isothermal': False,
- 'source_type': 'toy',
+ 
  'stop_time': 10.0,
  'plane_parallel': True,
  'recombination': 0,
+ 
+ 'source_type': 'toy',
  'source_qdot': 1e10,
  'source_lifetime': 1e10,
- 'spectrum_E': [13.61],
- 'spectrum_LE': [1.0],
+ 'source_E': [13.60000001],
+ 'source_LE': [1.0],
  'secondary_ionization': 0,
  'logdtDataDump': 0.5,
+ 'initial_timestep': 1e-15,
 }
 
-sim = ares.simulations.RaySegment(**pars)
-sim.run()
+def test(rtol=1e-2):
 
-anl = ares.analysis.RaySegment(sim.checkpoints)
+    # Numerical solution
+    sim = ares.simulations.RaySegment(**pars)
+    sim.run()
+    
+    anl = ares.analysis.RaySegment(sim)
+    
+    t, xHII = anl.CellEvolution(field='h_2')
+    
+    fig = pl.figure(1, figsize=(8, 12))
+    ax1 = fig.add_subplot(211); ax2 = fig.add_subplot(212)
+    
+    ax1.loglog(t / s_per_yr, xHII, color='k', label='numerical')
+    ax1.set_ylim(1e-8, 5)
+    ax1.set_ylabel(r'$x_{\mathrm{HII}}$')
+    
+    # Analytic solution: exponential time evolution
+    sigma0 = sigma(pars['source_E'][0])
+    qdot = pars['source_qdot']
+    Gamma = qdot * sigma0
+    
+    xi0 = pars['initial_ionization'][1]
+    C = 1. - xi0
+    def xi(t, Gamma=Gamma):
+        return 1. - C * np.exp(-Gamma * t)
+    
+    xHII_anyl = np.array(map(xi, t))
+    ax1.scatter(t / s_per_yr, xHII_anyl, color='b', facecolors='none', s=100,
+        label='analytic')
+    ax1.legend(loc='lower right')
+    
+    # Only test accuracy at somewhat later times
+    mask = t > 0
+    
+    err = np.abs(xHII[mask] - xHII_anyl[mask]) / xHII_anyl[mask]
+    
+    ax2.loglog(t / s_per_yr, err)
+    ax2.set_xlabel(r'$t \ (\mathrm{yr})$')
+    ax2.set_ylabel(r'rel. error')
+    
+    pl.draw()
 
-t, xHI = anl.CellEvolution(field='h_1')
-
-pl.loglog(t / s_per_yr, 1. - xHI, color='k', label='numerical')
-pl.ylim(1e-8, 1.5)
-pl.xlabel(r'$t / \mathrm{yr}$')
-pl.ylabel(r'Ionized Fraction')
-
-# Analytic solution
-sigma0 = sigma(pars['spectrum_E'][0])
-qdot = pars['source_qdot']
-Gamma = qdot * sigma0
-
-xi0 = 1e-8
-C = 1. - xi0
-def xi(t, Gamma=Gamma):
-    return 1. - C * np.exp(-Gamma * t)
-
-pars.update({'source_type': 'diffuse', 'Gamma': Gamma})
-
-pl.scatter(t / s_per_yr, map(xi, t), color='b', facecolors='none', s=100,
-    label='analytic')
-pl.legend(loc='lower right')
+    assert np.allclose(xHII[mask], xHII_anyl[mask], rtol=rtol, atol=0)
+    
+if __name__ == '__main__':
+    test()    
+    
