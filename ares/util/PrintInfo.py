@@ -643,19 +643,11 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
         return
 
     warnings = []
-<<<<<<< local
-    
-    is_cov = False
-    #is_cov = True
-    #if len(fit.error.shape) == 1:
-    #    is_cov = False
-=======
 
     is_cov = False
     #is_cov = True
     #if len(fit.error.shape) == 1:
     #    is_cov = False
->>>>>>> other
 
     header = 'Parameter Estimation'
     print "\n" + "#"*width
@@ -706,24 +698,6 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line('Parameter Space')     
     print line('-'*twidth)
 
-<<<<<<< local
-    if hasattr(fit, 'priors'):
-
-        data = []    
-        cols = ['prior_dist', 'prior_p1', 'prior_p2']
-        rows = fit.parameters    
-        for i, row in enumerate(rows):
-        
-            if row in fit.priors:
-                tmp = [fit.priors[row][0]]
-                tmp.extend(fit.priors[row][1:])
-            else:
-                tmp = ['n/a'] * 3
-        
-            data.append(tmp)
-        
-        tabulate(data, rows, cols, fmt='%.2g', cwidth=[24, 12, 12, 12])
-=======
     data = []    
     cols = ['prior_dist', 'prior_p1', 'prior_p2']
     rows = fit.parameters    
@@ -740,7 +714,6 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
         data.append(tmp)
     
     tabulate(data, rows, cols, fmt='%.2g', cwidth=[24, 12, 12, 12])
->>>>>>> other
 
     print line('-'*twidth)       
     print line('Exploration')     
@@ -751,24 +724,6 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line("burn-in     : %i" % burn)
     print line("steps       : %i" % steps)
     print line("outputs     : %s.*.pkl" % fit.prefix)
-<<<<<<< local
-    
-    if hasattr(fit, 'blob_names'):
-    
-        print line('-'*twidth)       
-        print line('Inline Analysis')     
-        print line('-'*twidth)
-        
-        Nb = len(fit.blob_names)
-        Nz = len(fit.blob_redshifts)
-        perwalkerperstep = Nb * Nz * 8 
-        MB = perwalkerperstep * fit.nwalkers * steps / 1e6
-        
-        print line("N blobs     : %i" % Nb)
-        print line("N redshifts : %i" % Nz)
-        print line("blob rate   : %i bytes / walker / step" % perwalkerperstep)
-        print line("blob size   : %.2g MB (total)" % MB)
-=======
 
     if hasattr(fit, 'blob_names'):
 
@@ -785,7 +740,6 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
         print line("N redshifts : %i" % Nz)
         print line("blob rate   : %i bytes / walker / step" % perwalkerperstep)
         print line("blob size   : %.2g MB (total)" % MB)
->>>>>>> other
 
     print "#"*width
     print ""
