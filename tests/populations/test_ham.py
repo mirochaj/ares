@@ -22,14 +22,11 @@ lf_pars['z'] = b15.redshifts
 
 pars = \
 {
- 'pop_fstar_ceil': 0.3,
  'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
  'pop_constraints': lf_pars,  # bouwens2015
  'pop_kappa_UV': 1.15e-28,
  'pop_logM': np.arange(10, 13.5, 0.25), # Masses for AM
- 'hmf_func': 'PS',
- 'hmf_analytic': False,
 }
 
 pop = ares.populations.GalaxyPopulation(**pars)
@@ -170,7 +167,7 @@ ax8.legend(loc='lower right', fontsize=14)
 # eta vs z
 fig9 = pl.figure(9); ax9 = fig9.add_subplot(111)
 
-pl.semilogy(pop.halos.z, pop.eta)
+ax9.plot(pop.halos.z, pop.eta)
 ax9.set_xlabel(r'$z$')
 ax9.set_ylabel(r'$\eta(z)$')
 

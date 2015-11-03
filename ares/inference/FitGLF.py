@@ -183,7 +183,7 @@ class loglikelihood:
                 save[par] = 10**pars[i]
             else:
                 save[par] = pars[i]
-    
+            
         # Apply prior on model parameters first (dont need to generate signal)
         lp = self.logprior_P(pars)
         if not np.isfinite(lp):
@@ -201,7 +201,7 @@ class loglikelihood:
             sim.run()
             t2 = time.time()
             sim.run_inline_analysis()
-                        
+                                    
             tfn = '%s.timing_%s.pkl' % (self.prefix, str(rank).zfill(4))
             with open(tfn, 'ab') as f:
                 pickle.dump((t2 - t1, kwargs), f)
@@ -512,7 +512,7 @@ class FitGLF(object):
         f.close()
      
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        runsim=False, save_freq=500):
+        runsim=False, save_freq=500, live_dangerously=False):
         """
         Run MCMC.
     
@@ -608,9 +608,13 @@ class FitGLF(object):
             if pars != self.parameters:
                 if size > 1:
                     if rank == 0:
-                        print 'parameters from file dont match those supplied!'
-                    MPI.COMM_WORLD.Abort()
-                raise ValueError('parameters from file dont match those supplied!')
+                        print 'warning: parameters from file dont match those supplied!'
+                    
+                    if not live_dangerously:
+                        if rank == 0:
+                            print "if you dont care, set live_dangerously=True"
+                        MPI.COMM_WORLD.Abort()
+                        raise ValueError('parameters from file dont match those supplied!')
             if is_log != self.is_log:
                 if size > 1:
                     if rank == 0:
@@ -635,9 +639,12 @@ class FitGLF(object):
             if ct > 0:
                 if size > 1:
                     if rank == 0:
-                        print 'base_kwargs from file dont match those supplied!'
-                    MPI.COMM_WORLD.Abort()
-                raise ValueError('base_kwargs from file dont match those supplied!')            
+                        print 'warning: base_kwargs from file dont match those supplied!'
+                    if not live_dangerously:
+                        if rank == 0:
+                            print "if you dont care, set live_dangerously=True"
+                        MPI.COMM_WORLD.Abort()
+                        raise ValueError('base_kwargs from file dont match those supplied!')            
     
             # Start from last step in pre-restart calculation
             chain = read_pickled_chain('%s.chain.pkl' % prefix)

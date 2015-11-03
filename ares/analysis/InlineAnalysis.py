@@ -384,7 +384,7 @@ class InlineAnalysis:
                 
             try:
                 sfrd = pop.SFRD(z) * rhodot_cgs
-            except SystemExit:
+            except SystemExit,ValueError:
                 sfrd = np.inf    
             
             return sfrd

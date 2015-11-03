@@ -325,11 +325,14 @@ class GalaxyPopulation(HaloPopulation):
 
                 integ = self.halos.dndlnm[i] * Macc
 
+                p0 = simps(integ[j1-1:], x=self.halos.lnM[j1-1:])
                 p1 = simps(integ[j1:], x=self.halos.lnM[j1:])
                 p2 = simps(integ[j2:], x=self.halos.lnM[j2:])
+                p3 = simps(integ[j2+1:], x=self.halos.lnM[j2+1:])
                 
-                lhs = np.interp(np.log(Mmin), self.halos.lnM[j1:j1+2],
-                    [p1, p2])
+                interp = interp1d(self.halos.lnM[j1-1:j1+3], [p0,p1,p2,p3])
+                
+                lhs = interp(np.log(Mmin))
                     
                 self._eta[i] = rhs / lhs
 
@@ -394,9 +397,7 @@ class GalaxyPopulation(HaloPopulation):
             alpha = self.constraints['alpha'][i]
             L_star = self.constraints['Lstar'][i]
             phi_star = self.constraints['pstar'][i]
-        
-            #self.halos.MF.update(z=z)
-            
+                    
             eta = self.eta[i]
             ngtm = self.halos.ngtm[np.argmin(np.abs(z - self.halos.z))]
         
@@ -500,7 +501,7 @@ class GalaxyPopulation(HaloPopulation):
         if not hasattr(self, '_sfr_ham_'):
             self._sfr_ham_ = np.zeros([self.halos.Nz, self.halos.Nm])
             for i, z in enumerate(self.halos.z):
-                self._sfr_ham_[i] = self.cosm.fbaryon \
+                self._sfr_ham_[i] = self.eta[i] * self.cosm.fbaryon \
                     * self.Macc(z, self.halos.M) * self.fstar(z, self.halos.M)
             
         return self._sfr_ham_
@@ -903,4 +904,3 @@ class GalaxyPopulation(HaloPopulation):
         
 
               
-        
