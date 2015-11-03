@@ -122,14 +122,14 @@ def make_label(name, take_log=False, labels=None):
         if prefix in labels:
             label = labels[prefix]
         else:
-            label = r'$%s$' % prefix
+            label = r'%s' % prefix
     else:
         num = int(m.group(1))
         prefix = name.split(m.group(0))[0]
         if prefix in labels:
             label = r'$%s$' % (undo_mathify(labels[prefix].split(m.group(0))[0]) + '^{%i}' % num)
         else:
-            label = r'$%s$' % prefix
+            label = r'%s' % prefix
         
     if take_log:        
         return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
@@ -342,7 +342,10 @@ class ModelSet(object):
         if not hasattr(self, '_base_kwargs'):
             if os.path.exists('%s.setup.pkl' % self.prefix):
                 f = open('%s.setup.pkl' % self.prefix, 'rb')
+                #try:
                 self._base_kwargs = pickle.load(f)
+                #except:
+                 #   self._base_kwargs = {}
                 f.close()
                 
             else:

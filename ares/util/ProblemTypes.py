@@ -66,11 +66,11 @@ def RaySegmentProblem(ptype):
         pf = {
               "problem_type": 0,
               "plane_parallel": 1,
-              "isothermal": 0,
+              "isothermal": 1,
               "density_units": 1.0,
               "length_units": 1e-4 * cm_per_kpc, # 100 milliparsecs 
               "time_units": s_per_myr,
-              "start_radius": 0.99,   # cell = 1 milliparsec across
+              "start_radius": 0.99999999,   # cell = 1 milliparsec across
               "grid_cells": 1, 
 
               "stop_time": 10, 
@@ -81,19 +81,19 @@ def RaySegmentProblem(ptype):
               "restricted_timestep": ['ions', 'electrons', 'temperature'],
 
               "initial_temperature": 1e2,
-              "initial_ionization": [1. - 1e-8, 1e-8],
+              "initial_ionization": [1.-1e-6, 1e-6],
 
               "source_type": 'star',
               "source_qdot": 1e12,
               "source_lifetime": 0.5,
 
-              "spectrum_type": 'bb',
+              "source_sed": 'bb',
               "tau_ifront": [0],
 
-              "spectrum_Emin": 13.6,
-              "spectrum_Emax": 100.,
-              "spectrum_EminNorm": 0.1,
-              "spectrum_EmaxNorm": 100.,
+              "source_Emin": 13.6,
+              "source_Emax": 100.,
+              "source_EminNorm": 0.1,
+              "source_EmaxNorm": 100.,
 
              }
 

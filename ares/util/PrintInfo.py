@@ -90,47 +90,48 @@ def tabulate(data, rows, cols, cwidth=12, fmt='%.4e'):
     """
     Take table, row names, column names, and output nicely.
     """
-    
+
     if type(cwidth) == int:
         assert (cwidth % 2 == 0), \
             "Table elements must have an even number of characters."
-        
+
         cwidth = [cwidth] * (len(cols) + 1)
-        
+
     else:
         assert len(cwidth) == len(cols) + 1
-                
+
     #assert (len(pre) + len(post) + (1 + len(cols)) * cwidth) <= width, \
     #    "Table wider than maximum allowed width!"
-    
+
     # Initialize empty list of correct length
     hdr = [' ' for i in range(width)]
     hdr[0:len(pre)] = list(pre)
     hdr[-len(post):] = list(post)
-    
+
     hnames = []
     for i, col in enumerate(cols):
         tmp = col.center(cwidth[i+1])    
         hnames.extend(list(tmp))
-            
+
     start = len(pre) + cwidth[0] + 3
+
     hdr[start:start + len(hnames)] = hnames
-    
+
     # Convert from list to string        
     hdr_s = ''
     for element in hdr:
         hdr_s += element
-        
+
     print hdr_s
 
     # Print out data
     for i in range(len(rows)):
-    
+
         d = [' ' for j in range(width)]
-        
+
         d[0:len(pre)] = list(pre)
         d[-len(post):] = list(post)
-        
+
         d[len(pre)+1:len(pre)+1+len(rows[i])] = list(rows[i])
         d[len(pre)+1+cwidth[0]] = ':'
 
@@ -148,11 +149,11 @@ def tabulate(data, rows, cols, cwidth=12, fmt='%.4e'):
 
         c = len(pre) + 1 + cwidth[0] + 2
         d[c:c+len(numbers)] = list(numbers)
-        
+
         d_s = ''
         for element in d:
             d_s += element
-    
+
         print d_s
         
 def print_warning(s, header='WARNING'):
@@ -642,11 +643,19 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
         return
 
     warnings = []
+<<<<<<< local
     
     is_cov = False
     #is_cov = True
     #if len(fit.error.shape) == 1:
     #    is_cov = False
+=======
+
+    is_cov = False
+    #is_cov = True
+    #if len(fit.error.shape) == 1:
+    #    is_cov = False
+>>>>>>> other
 
     header = 'Parameter Estimation'
     print "\n" + "#"*width
@@ -657,7 +666,7 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
         cols = ['position', 'error (diagonal of cov)']
     else:
         cols = ['position', 'error']   
-        
+
     if fit_TP:
 
         print line('-'*twidth)       
@@ -668,9 +677,9 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
         rows = []
         data = []
         for i, element in enumerate(fit.measurement_map):
-        
+
             tp, val = element
-        
+
             if tp == 'trans':
                 continue
 
@@ -683,12 +692,12 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
                 rows.append('T_%s (mK)' % tp)
 
             unit = fit.measurement_units[val]
-        
+
             if is_cov:
                 col1, col2 = fit.mu[i], np.sqrt(np.diag(fit.error)[i])
             else:
                 col1, col2 = fit.mu[i], fit.error[i]
-                
+
             data.append([col1, col2])
 
         tabulate(data, rows, cols, cwidth=[24, 12, 12, 12])    
@@ -697,6 +706,7 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line('Parameter Space')     
     print line('-'*twidth)
 
+<<<<<<< local
     if hasattr(fit, 'priors'):
 
         data = []    
@@ -713,6 +723,24 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
             data.append(tmp)
         
         tabulate(data, rows, cols, fmt='%.2g', cwidth=[24, 12, 12, 12])
+=======
+    data = []    
+    cols = ['prior_dist', 'prior_p1', 'prior_p2']
+    rows = fit.parameters    
+    for i, row in enumerate(rows):
+    
+        if not hasattr(fit, 'priors'):
+            tmp = ['n/a'] * 3
+        elif row in fit.priors:
+            tmp = [fit.priors[row][0]]
+            tmp.extend(fit.priors[row][1:])
+        else:
+            tmp = ['n/a'] * 3
+    
+        data.append(tmp)
+    
+    tabulate(data, rows, cols, fmt='%.2g', cwidth=[24, 12, 12, 12])
+>>>>>>> other
 
     print line('-'*twidth)       
     print line('Exploration')     
@@ -723,6 +751,7 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line("burn-in     : %i" % burn)
     print line("steps       : %i" % steps)
     print line("outputs     : %s.*.pkl" % fit.prefix)
+<<<<<<< local
     
     if hasattr(fit, 'blob_names'):
     
@@ -739,6 +768,24 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
         print line("N redshifts : %i" % Nz)
         print line("blob rate   : %i bytes / walker / step" % perwalkerperstep)
         print line("blob size   : %.2g MB (total)" % MB)
+=======
+
+    if hasattr(fit, 'blob_names'):
+
+        print line('-'*twidth)       
+        print line('Inline Analysis')     
+        print line('-'*twidth)
+
+        Nb = len(fit.blob_names)
+        Nz = len(fit.blob_redshifts)
+        perwalkerperstep = Nb * Nz * 8 
+        MB = perwalkerperstep * fit.nwalkers * steps / 1e6
+
+        print line("N blobs     : %i" % Nb)
+        print line("N redshifts : %i" % Nz)
+        print line("blob rate   : %i bytes / walker / step" % perwalkerperstep)
+        print line("blob size   : %.2g MB (total)" % MB)
+>>>>>>> other
 
     print "#"*width
     print ""

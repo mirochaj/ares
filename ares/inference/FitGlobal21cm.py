@@ -116,10 +116,12 @@ class logprior:
         """
         Compute log-likelihood of given model.
         """
-
+        
+        # If no priors were supplied, then assume everything is fair game
         if not self.priors:
-            return -np.inf
+            return 0.0
 
+        # Otherwise, compute the prior
         logL = 0.0
         for i, par in enumerate(self.pars):
             val = pars[i]
