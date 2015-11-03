@@ -390,6 +390,7 @@ class GalaxyPopulation(HaloPopulation):
         # Do it already    
         for i, z in enumerate(self.constraints['z']):
         
+            # Read in constraints for this redshift
             alpha = self.constraints['alpha'][i]
             L_star = self.constraints['Lstar'][i]
             phi_star = self.constraints['pstar'][i]
@@ -423,13 +424,13 @@ class GalaxyPopulation(HaloPopulation):
                     xmin = Lmin / L_star    
                     int_phiL = self._schecter_integral_inf(xmin, alpha)                                                      
                     int_phiL *= phi_star
-        
+
                     return abs(int_phiL - int_nMh)
-        
+
                 fast = fsolve(to_min, 0.001, factor=0.0001, maxfev=1000)[0]
-        
+
                 self._fstar_ham_pts[i,j] = fast
-        
+
                 pb.update(i * Nm + j + 1)
         
         pb.finish()    

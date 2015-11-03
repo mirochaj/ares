@@ -28,6 +28,8 @@ pars = \
  'pop_constraints': lf_pars,  # bouwens2015
  'pop_kappa_UV': 1.15e-28,
  'pop_logM': np.arange(10, 13.5, 0.25), # Masses for AM
+ 'hmf_func': 'PS',
+ 'hmf_analytic': False,
 }
 
 pop = ares.populations.GalaxyPopulation(**pars)
@@ -160,10 +162,16 @@ for M in 10**np.arange(7, 14):
     fst = pop.fstar(z, M)
     pl.plot(z, fst, label=r'$M_h / M_{\odot} = 10^{%i}$' % (np.log10(M)))
     
-pl.xlabel(r'$z$')
-pl.ylabel(r'$f_{\ast}$')
-pl.legend(loc='lower right', fontsize=14)
-pl.yscale('log')
+ax8.set_xlabel(r'$z$')
+ax8.set_ylabel(r'$f_{\ast}$')
+ax8.set_yscale('log')
+ax8.legend(loc='lower right', fontsize=14)
 
+# eta vs z
+fig9 = pl.figure(9); ax9 = fig9.add_subplot(111)
+
+pl.semilogy(pop.halos.z, pop.eta)
+ax9.set_xlabel(r'$z$')
+ax9.set_ylabel(r'$\eta(z)$')
 
 

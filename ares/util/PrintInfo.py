@@ -697,20 +697,22 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line('Parameter Space')     
     print line('-'*twidth)
 
-    data = []    
-    cols = ['prior_dist', 'prior_p1', 'prior_p2']
-    rows = fit.parameters    
-    for i, row in enumerate(rows):
+    if hasattr(fit, 'priors'):
 
-        if row in fit.priors:
-            tmp = [fit.priors[row][0]]
-            tmp.extend(fit.priors[row][1:])
-        else:
-            tmp = ['n/a'] * 3
-
-        data.append(tmp)
-
-    tabulate(data, rows, cols, fmt='%.2g', cwidth=[24, 12, 12, 12])
+        data = []    
+        cols = ['prior_dist', 'prior_p1', 'prior_p2']
+        rows = fit.parameters    
+        for i, row in enumerate(rows):
+        
+            if row in fit.priors:
+                tmp = [fit.priors[row][0]]
+                tmp.extend(fit.priors[row][1:])
+            else:
+                tmp = ['n/a'] * 3
+        
+            data.append(tmp)
+        
+        tabulate(data, rows, cols, fmt='%.2g', cwidth=[24, 12, 12, 12])
 
     print line('-'*twidth)       
     print line('Exploration')     
@@ -722,19 +724,21 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line("steps       : %i" % steps)
     print line("outputs     : %s.*.pkl" % fit.prefix)
     
-    print line('-'*twidth)       
-    print line('Inline Analysis')     
-    print line('-'*twidth)
+    if hasattr(fit, 'blob_names'):
     
-    Nb = len(fit.blob_names)
-    Nz = len(fit.blob_redshifts)
-    perwalkerperstep = Nb * Nz * 8 
-    MB = perwalkerperstep * fit.nwalkers * steps / 1e6
-
-    print line("N blobs     : %i" % Nb)
-    print line("N redshifts : %i" % Nz)
-    print line("blob rate   : %i bytes / walker / step" % perwalkerperstep)
-    print line("blob size   : %.2g MB (total)" % MB)
+        print line('-'*twidth)       
+        print line('Inline Analysis')     
+        print line('-'*twidth)
+        
+        Nb = len(fit.blob_names)
+        Nz = len(fit.blob_redshifts)
+        perwalkerperstep = Nb * Nz * 8 
+        MB = perwalkerperstep * fit.nwalkers * steps / 1e6
+        
+        print line("N blobs     : %i" % Nb)
+        print line("N redshifts : %i" % Nz)
+        print line("blob rate   : %i bytes / walker / step" % perwalkerperstep)
+        print line("blob size   : %.2g MB (total)" % MB)
 
     print "#"*width
     print ""
