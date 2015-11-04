@@ -241,7 +241,6 @@ class loglikelihood:
     
         if blob_vals:
             lp -= self.logprior_B(blob_vals)
-
             # emcee will crash if this returns NaN
             if np.isnan(lp):
                 return -np.inf, self.blank_blob
@@ -267,8 +266,9 @@ class loglikelihood:
         mu = np.concatenate(self.mu)
         err = np.concatenate(self.errors)
 
-        logL = lp - np.sum((phi - mu)**2 / 2. / err**2)
-    
+        logL = lp - 0.5 * (np.sum((phi - mu)**2 / 2. / err**2 \
+            + np.log(2. * np.pi * err**2)))
+
         #if blobs.shape != self.blank_blob.shape:
         #    raise ValueError('Shape mismatch between requested blobs and actual blobs!')    
     

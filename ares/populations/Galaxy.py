@@ -316,19 +316,17 @@ class GalaxyPopulation(HaloPopulation):
                 # This is *matter*, not *baryons*
                 Macc = self.Macc(z, self.halos.M)
 
+                # Find Mmin in self.halos.M
                 j1 = np.argmin(np.abs(Mmin - self.halos.M))
-
                 if Mmin > self.halos.M[j1]:
                     j1 -= 1
-
-                j2 = j1 + 1
 
                 integ = self.halos.dndlnm[i] * Macc
 
                 p0 = simps(integ[j1-1:], x=self.halos.lnM[j1-1:])
                 p1 = simps(integ[j1:], x=self.halos.lnM[j1:])
-                p2 = simps(integ[j2:], x=self.halos.lnM[j2:])
-                p3 = simps(integ[j2+1:], x=self.halos.lnM[j2+1:])
+                p2 = simps(integ[j1+1:], x=self.halos.lnM[j1+1:])
+                p3 = simps(integ[j1+2:], x=self.halos.lnM[j1+2:])
                 
                 interp = interp1d(self.halos.lnM[j1-1:j1+3], [p0,p1,p2,p3])
                 
@@ -352,8 +350,42 @@ class GalaxyPopulation(HaloPopulation):
         if hasattr(self, '_fstar'):
             return self._fstar_cap(self._fstar(z, M))
 
-        self._fstar = lambda zz, MM: self._fstar_poly(zz, MM, 
-            *self._fstar_coeff)
+        if self.pf['pop_fstar_extrap'] == 'continue':
+            self._fstar = lambda zz, MM: self._fstar_poly(zz, MM, 
+                *self._fstar_coeff)
+        # Fit a polynomial to the last few points
+        elif self.pf['pop_fstar_extrap'] == 'moderate':
+            
+            def tmp(zz, MM):
+                if MM > 10**self.pf['pop_logM'][0]:
+                    return self._fstar_poly(zz, MM, *self._fstar_coeff)
+                else:
+                    pass
+            
+            self._fstar = tmp
+        
+        # Set a constant upper limit below given mass limit     
+        elif self.pf['pop_fstar_extrap'] == 'constant':
+            fstar_Mmin = 10**self.pf['pop_logM'][0]
+            def tmp(zz, MM):
+                if type(MM) is np.ndarray:
+                    Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
+                        * fstar_Mmin
+                    Mhi = MM[np.argwhere(MM >= fstar_Mmin)]
+                                        
+                    fst_lo = self._fstar_poly(zz, Mlo, *self._fstar_coeff)
+                    fst_hi = self._fstar_poly(zz, Mhi, *self._fstar_coeff)
+                                        
+                    return np.concatenate((fst_lo, fst_hi)).squeeze()
+                    
+                elif MM > 10**self.pf['pop_logM'][0]:
+                    return self._fstar_poly(zz, MM, *self._fstar_coeff)
+                else:
+                    return self._fstar_poly(zz, fstar_Mmin, *self._fstar_coeff)
+            
+            self._fstar = tmp
+        else:
+            raise ValueError('Unknown pop extrap option!')
         
         fstar = self._fstar(z, M)
         return self._fstar_cap(fstar)
@@ -442,18 +474,16 @@ class GalaxyPopulation(HaloPopulation):
     def _fstar_coeff(self):
         if not hasattr(self, '_fstar_coeff_'):
             x = [self._Marr, self.constraints['z']]
-            y = self._fstar_ham.flatten()
-            #guess = [-160, 34., 10., -0.5, -2.5, 0.05]
-            #guess = np.array([0.1, 0.1., 1., -1., -0.6, 0.01])
+            y = np.log10(self._fstar_ham.flatten())
             guess = -1. * np.ones(6)
             
-            def to_min(x, *coeff):
+            def to_fit(x, *coeff):
                 M, z = np.meshgrid(*x)
-                return self._fstar_poly(z, M, *coeff).flatten()
+                return self._log_fstar_poly(z, M, *coeff).flatten()
             
             try:
                 self._fstar_coeff_, self._fstar_cov_ = \
-                    curve_fit(to_min, x, y, p0=guess, maxfev=10000)
+                    curve_fit(to_fit, x, y, p0=guess, maxfev=10000)
             except RuntimeError:
                 self._fstar_coeff_, self._fstar_cov_ = \
                     guess, np.diag(guess)
@@ -471,24 +501,27 @@ class GalaxyPopulation(HaloPopulation):
             return np.minimum(fstar, ceil)    
         else:
             raise TypeError('Unrecognized type: %s' % type(fstar))
-        
+
     def _fstar_poly(self, z, M, *coeff):
+        return 10**self._log_fstar_poly(z, M, *coeff)
+
+    def _log_fstar_poly(self, z, M, *coeff):
         """
         A 6 parameter model for the star-formation efficiency.
-        
+
         References
         ----------
         Sun, G., and Furlanetto, S.R., 2015, in prep.
-        
+
         """
-                        
+
         logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
             + coeff[2] * ((1. + z) / 8.) \
             + coeff[3] * ((1. + z) / 8.) * np.log10(M / 1e10) \
             + coeff[4] * (np.log10(M / 1e10))**2. \
             + coeff[5] * (np.log10(M / 1e10))**3.
                 
-        return 10**logf
+        return logf
     
     @property
     def _sfr_ham(self):    

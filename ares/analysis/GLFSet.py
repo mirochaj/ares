@@ -28,7 +28,8 @@ class GLFSet(ModelSet):
         
         return self.data['x'][i], self.data['y'][i], self.data['err'][i]
     
-    def ReconstructedLF(self, z, ax=None, fig=1, N=100, **kwargs):
+    def ReconstructedLF(self, z, ax=None, fig=1, N=100, 
+        resample=True, **kwargs):
         """
         Plot constraints on the luminosity function at given z.
         """
@@ -43,6 +44,9 @@ class GLFSet(ModelSet):
         # Find relevant elements in chain
         samples = {}
         for i, key in enumerate(self.parameters):
+            if not re.search('_lf_', key):
+                continue
+                
             prefix, redshift = param_redshift(key)
             if z != redshift:
                 continue
@@ -51,9 +55,14 @@ class GLFSet(ModelSet):
         
         i = self.data['z'].index(z)
         
-        M = np.array(self.data['x'][i])
+        if resample:
+            mi, ma = self.data['x'][i][0], self.data['x'][i][-1]
+            M = np.linspace(mi-2, ma+2, 200)
+        else:
+            M = np.array(self.data['x'][i])
+        
         pst = 10**samples['pop_lf_pstar']
-        Mst = samples['pop_lf_Mstar']
+        Mst = samples['pop_lf_Mstar']            
         a = samples['pop_lf_alpha']
         
         for i in range(N):

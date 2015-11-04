@@ -166,6 +166,9 @@ lf_parameters = \
  'pop_lf_alpha': r'$\alpha$',
 }
 
+class pop_parameters(dict):
+    pass
+
 other = \
 {
  'load': 'processor #',

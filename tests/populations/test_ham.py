@@ -27,6 +27,7 @@ pars = \
  'pop_constraints': lf_pars,  # bouwens2015
  'pop_kappa_UV': 1.15e-28,
  'pop_logM': np.arange(10, 13.5, 0.25), # Masses for AM
+ 'pop_fstar_extrap': 'continue',
 }
 
 pop = ares.populations.GalaxyPopulation(**pars)
@@ -55,19 +56,27 @@ t2 = time.time()
 
 print "Abundance match took %g seconds" % (t2 - t1)
 
-colors = ['k', 'b', 'r', 'g']
-for i, z in enumerate(pop.constraints['z']):
-    ax2.scatter(pop._Marr, pop._fstar_ham[i], 
+colors = ['r', 'b', 'g', 'k', 'm']
+for i, z in enumerate([5.9, 7.9]):
+    j = pop.constraints['z'].index(z)
+    ax2.scatter(pop._Marr, pop._fstar_ham[j], 
         label=r'$z=%g$' % z, color=colors[i], marker='o', facecolors='none')
     
 ax2.set_xlabel(r'$M_h / M_{\odot}$')
 ax2.set_ylabel(r'$f_{\ast}$')
-pl.legend(ncol=2, frameon=False, fontsize=16, loc='lower left')
+pl.legend(ncol=1, frameon=False, fontsize=16, loc='lower center')
 
 Marr = np.logspace(8, 14)
-for i, z in enumerate(pop.constraints['z']):
+for i, z in enumerate([5.9, 7.9]):
+    j = pop.constraints['z'].index(z)
+
     fast = pop.fstar(z=z, M=Marr)
     ax2.loglog(Marr, fast, color=colors[i])
+
+M2 = np.logspace(8, 14, 50)   
+fast = pop.fstar(z=10, M=M2)
+ax2.loglog(M2, fast, color='y')    
+ax2.set_ylim(1e-3, 1.5)
 
 # SFR
 fig3 = pl.figure(3); ax3 = fig3.add_subplot(111)
