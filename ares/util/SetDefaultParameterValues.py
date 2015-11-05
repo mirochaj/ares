@@ -255,6 +255,8 @@ def PopulationParameters():
     "pop_lf_Mstar": None,
     "pop_lf_pstar": None,
     "pop_lf_alpha": None,
+    "pop_lf_dustcorr": True,
+    "pop_lf_beta": -2.,
 
     # Parameters for a HOD model
     "pop_duty_cycle": 1.0,
@@ -289,6 +291,7 @@ def PopulationParameters():
         
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
+    "pop_fstar_zdep": True,
     "pop_fstar_ceil": 1.0,
     "pop_fstar_extrap": 'continue',
     "pop_Tmin": 1e4,

@@ -169,6 +169,7 @@ lf_parameters = \
 pop_parameters = \
 {
  'pop_yield': 'yield',
+ 'pop_lf_beta': r'$\Beta_{\mathrm{UV}}$',
 }
 
 #class pop_parameters(dict):

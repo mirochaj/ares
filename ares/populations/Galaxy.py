@@ -226,6 +226,13 @@ class GalaxyPopulation(HaloPopulation):
         return self._magsys
         
     @property
+    def _ham_Mmin(self):
+        if not hasattr(self, '_ham_Mmin_'):
+            tmp = self._fstar_ham
+        
+        return self._ham_Mmin_
+        
+    @property
     def constraints(self):
         if not hasattr(self, '_constraints'):
             
@@ -249,6 +256,11 @@ class GalaxyPopulation(HaloPopulation):
             
             for i, z in enumerate(redshifts):
                 M = self._constraints['Mstar'][i]
+                
+                if self.pf['pop_lf_dustcorr']:
+                    A1600 = 4.43 + 1.99 * self.pf['pop_lf_beta']
+                    M -= A1600
+                
                 L = self.magsys.mAB_to_L(mag=M, z=z)
                 self._constraints['Lstar'].append(L)
         
@@ -284,7 +296,7 @@ class GalaxyPopulation(HaloPopulation):
                 self._Mmin = np.array(map(Mvir, self.halos.z))
 
         return self._Mmin
-        
+    
     @property
     def eta(self):
         """
@@ -366,9 +378,7 @@ class GalaxyPopulation(HaloPopulation):
             except RuntimeError:
                 self._fstar_coeff_, self._fstar_cov_ = \
                     guess, np.diag(guess)
-            
-            
-            
+                        
             def tmp(zz, MM):
                 if MM > 10**self.pf['pop_logM'][0]:
                     return self._fstar_poly(zz, MM, *self._fstar_coeff)
@@ -442,18 +452,23 @@ class GalaxyPopulation(HaloPopulation):
         Nz = len(self.constraints['z'])
         #Nm = 
         
-        self._fstar_ham_pts = [[] for i in range(len(self.constraints['z']))]#np.zeros([Nz, Nm])
-        #pb = ProgressBar(1e3, use=False)
+        self._fstar_ham_pts = [[] for i in range(len(self.constraints['z']))]
         pb = ProgressBar(Nz * Nm, name='ham', use=self.pf['progress_bar'])
         pb.start()
-        
-        self._constraints['Mmin'] = [[] for i in range(len(self.constraints['z']))]
-        
+
+        self._ham_Mmin_ = [[] for i in range(len(self.constraints['z']))]
+
         # Do it already    
         for i, z in enumerate(self.constraints['z']):
-        
-            mags = b15.data[z]['M']
-            #self._constraints['Mmin'][i] = []
+
+            if self.pf['pop_lf_dustcorr']:
+
+                beta = self.pf['pop_lf_beta']
+                
+                A1600 = 4.43 + 1.99 * beta
+                mags = list(np.array(b15.data[z]['M']) - A1600)
+            else:
+                mags = b15.data[z]['M']
         
             # Read in constraints for this redshift
             alpha = self.constraints['alpha'][i]
@@ -475,7 +490,8 @@ class GalaxyPopulation(HaloPopulation):
                 int_phiL *= phi_star
                 
                 # Number density of halos at masses > M
-                ngtM_spl = interp1d(self.halos.lnM, np.log(ngtm), kind='linear')
+                ngtM_spl = interp1d(self.halos.lnM, np.log(ngtm), 
+                    kind='linear', bounds_error=False)
                 self.ngtM_spl = ngtM_spl
                 
                 def to_min(logMh):
@@ -487,7 +503,7 @@ class GalaxyPopulation(HaloPopulation):
                 
                 Mmin = np.exp(fsolve(to_min, 10., factor=0.01, maxfev=1000)[0])
                 
-                self._constraints['Mmin'][i].append(Mmin)
+                self._ham_Mmin_[i].append(Mmin)
                 
                 #print z, Lmin, Mmin, self.Macc(z, Mmin), eta
                 self._fstar_ham_pts[i].append(Lmin * kappa_UV \
@@ -536,22 +552,22 @@ class GalaxyPopulation(HaloPopulation):
     @property
     def _fstar_coeff(self):
         if not hasattr(self, '_fstar_coeff_'):
-            #x = [self._Marr, self.constraints['z']]
-            #y = np.log10(self._fstar_ham.flatten())
             M = []; fstar = []; z = []
-            for i, element in enumerate(self.constraints['Mmin']):
+            for i, element in enumerate(self._ham_Mmin):
                 z.extend([self.constraints['z'][i]] * len(element))
                 M.extend(element)
                 fstar.extend(self._fstar_ham[i]) 
 
-            #z = self.constraints['z']
             x = [np.array(M), np.array(z)]
             y = np.log10(fstar)
                 
             self._test = {'x': x, 'y': y}    
                 
-            guess = -1. * np.ones(6)
-            
+            if self.pf['pop_fstar_zdep']:
+                guess = -1. * np.ones(6)
+            else:
+                guess = -1. * np.ones(4)
+                
             def to_fit(Mz, *coeff):
                 #M, z = np.meshgrid(*xx)
                 M, z = Mz           
@@ -574,7 +590,7 @@ class GalaxyPopulation(HaloPopulation):
                 return fstar
         elif type(fstar) == np.ndarray:
             ceil = self.pf['pop_fstar_ceil'] * np.ones_like(fstar)
-            return np.minimum(fstar, ceil)    
+            return np.minimum(fstar, ceil)
         else:
             raise TypeError('Unrecognized type: %s' % type(fstar))
 
@@ -591,11 +607,16 @@ class GalaxyPopulation(HaloPopulation):
 
         """
         
-        logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
-            + coeff[2] * ((1. + z) / 8.) \
-            + coeff[3] * ((1. + z) / 8.) * np.log10(M / 1e10) \
-            + coeff[4] * (np.log10(M / 1e10))**2. \
-            + coeff[5] * (np.log10(M / 1e10))**3.
+        if self.pf['pop_fstar_zdep']:
+            logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
+                + coeff[2] * ((1. + z) / 8.) \
+                + coeff[3] * ((1. + z) / 8.) * np.log10(M / 1e10) \
+                + coeff[4] * (np.log10(M / 1e10))**2. \
+                + coeff[5] * (np.log10(M / 1e10))**3.
+        else:
+            logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
+                + coeff[2] * (np.log10(M / 1e10))**2. \
+                + coeff[3] * (np.log10(M / 1e10))**3.
                 
         return logf
     

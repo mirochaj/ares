@@ -417,8 +417,8 @@ class FitGLF(object):
             for i, key in enumerate(self.parameters):
                 
                 scat = np.random.normal(scale=jitter, size=self.nwalkers)
-                                                
-                if 'pop_lf_' not in key:
+                                  
+                if 'pop_lf_' not in key or (not re.search('\[', key)):
                     prefix, popid = pop_id_num(prefix_w_pop)
                     val = self.base_kwargs[key]
                 else:
