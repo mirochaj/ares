@@ -356,6 +356,19 @@ class GalaxyPopulation(HaloPopulation):
         # Fit a polynomial to the last few points
         elif self.pf['pop_fstar_extrap'] == 'moderate':
             
+            def to_fit(x, *coeff):
+                M, z = np.meshgrid(*x)
+                return self._log_fstar_poly(z, M, *coeff).flatten()
+            
+            try:
+                self._fstar_coeff_, self._fstar_cov_ = \
+                    curve_fit(to_fit, x, y, p0=guess, maxfev=10000)
+            except RuntimeError:
+                self._fstar_coeff_, self._fstar_cov_ = \
+                    guess, np.diag(guess)
+            
+            
+            
             def tmp(zz, MM):
                 if MM > 10**self.pf['pop_logM'][0]:
                     return self._fstar_poly(zz, MM, *self._fstar_coeff)
@@ -384,6 +397,8 @@ class GalaxyPopulation(HaloPopulation):
                     return self._fstar_poly(zz, fstar_Mmin, *self._fstar_coeff)
             
             self._fstar = tmp
+        elif self.pf['pop_fstar_extrap'] == 'z_independent':
+            raise NotImplemented('help')
         else:
             raise ValueError('Unknown pop extrap option!')
         
@@ -410,20 +425,35 @@ class GalaxyPopulation(HaloPopulation):
         # Otherwise, we're doing an abundance match!
         assert self.is_ham_model
         
+        b15 = read_lit('bouwens2015')
+        Nm = 0
+        for element in b15.data:
+            for M in b15.data[element]['M']:
+                Nm += 1
+        #mags = b15.data[z]['M']
+        
+        
         kappa_UV = self.pf['pop_kappa_UV']
 
         Marr = self._Marr
         
-        Nz, Nm = len(self.constraints['z']), len(Marr)
+        #Nz, Nm = len(self.constraints['z']), len(Marr)
         
-        self._fstar_ham_pts = np.zeros([Nz, Nm])
+        Nz = len(self.constraints['z'])
+        #Nm = 
         
-        pb = ProgressBar(self._fstar_ham_pts.size, name='ham', 
-            use=self.pf['progress_bar'])
+        self._fstar_ham_pts = [[] for i in range(len(self.constraints['z']))]#np.zeros([Nz, Nm])
+        #pb = ProgressBar(1e3, use=False)
+        pb = ProgressBar(Nz * Nm, name='ham', use=self.pf['progress_bar'])
         pb.start()
+        
+        self._constraints['Mmin'] = [[] for i in range(len(self.constraints['z']))]
         
         # Do it already    
         for i, z in enumerate(self.constraints['z']):
+        
+            mags = b15.data[z]['M']
+            #self._constraints['Mmin'][i] = []
         
             # Read in constraints for this redshift
             alpha = self.constraints['alpha'][i]
@@ -432,39 +462,72 @@ class GalaxyPopulation(HaloPopulation):
                     
             eta = self.eta[i]
             ngtm = self.halos.ngtm[np.argmin(np.abs(z - self.halos.z))]
-        
-            for j, M in enumerate(Marr):
-        
-                if M < self.Mmin[i]: 
-                    continue
-
-                # Read in variables
-                Macc = self.Macc(z, M) * self.cosm.fbaryon
+            log_ngtm = np.log(ngtm)
+            
+            # Use
+            LUV = [self.magsys.mAB_to_L(mag, z=z) for mag in mags]
                 
-                # Minimum luminosity as a function of minimum mass
-                LofM = lambda fstar: fstar * Macc * eta / kappa_UV
-
+            for j, Lmin in enumerate(LUV):
+                
+                
+                xmin = Lmin / L_star    
+                int_phiL = self._schecter_integral_inf(xmin, alpha)      
+                int_phiL *= phi_star
+                
                 # Number density of halos at masses > M
-                int_nMh = np.exp(np.interp(np.log(M), self.halos.lnM, 
-                    np.log(ngtm)))
-
-                def to_min(fstar):
-                    Lmin = LofM(fstar[0])
-        
-                    if Lmin < 0:
-                        return np.inf
-        
-                    xmin = Lmin / L_star    
-                    int_phiL = self._schecter_integral_inf(xmin, alpha)                                                      
-                    int_phiL *= phi_star
-
+                ngtM_spl = interp1d(self.halos.lnM, np.log(ngtm), kind='linear')
+                self.ngtM_spl = ngtM_spl
+                
+                def to_min(logMh):
+                    int_nMh = np.exp(ngtM_spl(logMh))[0]
+                
+                    #int_nMh = np.exp(np.interp())
+                
                     return abs(int_phiL - int_nMh)
-
-                fast = fsolve(to_min, 0.001, factor=0.0001, maxfev=1000)[0]
-
-                self._fstar_ham_pts[i,j] = fast
-
+                
+                Mmin = np.exp(fsolve(to_min, 10., factor=0.01, maxfev=1000)[0])
+                
+                self._constraints['Mmin'][i].append(Mmin)
+                
+                #print z, Lmin, Mmin, self.Macc(z, Mmin), eta
+                self._fstar_ham_pts[i].append(Lmin * kappa_UV \
+                    / eta / self.Macc(z, Mmin))
+                
+                
                 pb.update(i * Nm + j + 1)
+                
+            #for j, M in enumerate(Marr):
+            #
+            #    if M < self.Mmin[i]: 
+            #        continue
+            #
+            #    # Read in variables
+            #    Macc = self.Macc(z, M) * self.cosm.fbaryon
+            #    
+            #    # Minimum luminosity as a function of minimum mass
+            #    LofM = lambda fstar: fstar * Macc * eta / kappa_UV
+            #
+            #    # Number density of halos at masses > M
+            #    int_nMh = np.exp(np.interp(np.log(M), self.halos.lnM, 
+            #        np.log(ngtm)))
+            #
+            #    def to_min(fstar):
+            #        Lmin = LofM(fstar[0])
+            #
+            #        if Lmin < 0:
+            #            return np.inf
+            #
+            #        xmin = Lmin / L_star    
+            #        int_phiL = self._schecter_integral_inf(xmin, alpha)                                                      
+            #        int_phiL *= phi_star
+            #
+            #        return abs(int_phiL - int_nMh)
+            #
+            #    fast = fsolve(to_min, 0.001, factor=0.0001, maxfev=1000)[0]
+            #
+            #    self._fstar_ham_pts[i,j] = fast
+            #
+            #    pb.update(i * Nm + j + 1)
         
         pb.finish()    
                         
@@ -473,12 +536,25 @@ class GalaxyPopulation(HaloPopulation):
     @property
     def _fstar_coeff(self):
         if not hasattr(self, '_fstar_coeff_'):
-            x = [self._Marr, self.constraints['z']]
-            y = np.log10(self._fstar_ham.flatten())
+            #x = [self._Marr, self.constraints['z']]
+            #y = np.log10(self._fstar_ham.flatten())
+            M = []; fstar = []; z = []
+            for i, element in enumerate(self.constraints['Mmin']):
+                z.extend([self.constraints['z'][i]] * len(element))
+                M.extend(element)
+                fstar.extend(self._fstar_ham[i]) 
+
+            #z = self.constraints['z']
+            x = [np.array(M), np.array(z)]
+            y = np.log10(fstar)
+                
+            self._test = {'x': x, 'y': y}    
+                
             guess = -1. * np.ones(6)
             
-            def to_fit(x, *coeff):
-                M, z = np.meshgrid(*x)
+            def to_fit(Mz, *coeff):
+                #M, z = np.meshgrid(*xx)
+                M, z = Mz           
                 return self._log_fstar_poly(z, M, *coeff).flatten()
             
             try:
@@ -514,7 +590,7 @@ class GalaxyPopulation(HaloPopulation):
         Sun, G., and Furlanetto, S.R., 2015, in prep.
 
         """
-
+        
         logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
             + coeff[2] * ((1. + z) / 8.) \
             + coeff[3] * ((1. + z) / 8.) * np.log10(M / 1e10) \

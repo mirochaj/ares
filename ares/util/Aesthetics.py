@@ -166,8 +166,21 @@ lf_parameters = \
  'pop_lf_alpha': r'$\alpha$',
 }
 
-class pop_parameters(dict):
-    pass
+pop_parameters = \
+{
+ 'pop_yield': 'yield',
+}
+
+#class pop_parameters(dict):
+#
+#    def __getitem__(self, name):
+#        if key in self:
+#            return self.__dict__[name]
+#        
+#        # Otherwise, figure it out
+#        if key == 'pop_yield':
+#            
+        
 
 other = \
 {
@@ -181,6 +194,7 @@ labels.update(gauss_parameters)
 labels.update(other)
 labels.update(common)
 labels.update(lf_parameters)
+labels.update(pop_parameters)
 
 # Add custom labels
 labels.update(custom_labels)

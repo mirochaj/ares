@@ -470,9 +470,6 @@ def HaloMassFunctionParameters():
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     
-    # Compute the full mass function? 
-    "hmf_dndm": False,
-    
     }
     
     pf.update(rcParams)
