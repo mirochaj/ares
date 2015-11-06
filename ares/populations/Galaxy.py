@@ -263,8 +263,8 @@ class GalaxyPopulation(HaloPopulation):
             
             for i, z in enumerate(redshifts):
                 M = self._constraints['Mstar'][i]
-                M -= self.A1600(z, M)
-                L = self.magsys.mAB_to_L(mag=M, z=z)
+                Mdc = M - self.A1600(z, M)
+                L = self.magsys.mAB_to_L(mag=Mdc, z=z)
                 self._constraints['Lstar'].append(L)
         
         return self._constraints 
@@ -492,7 +492,7 @@ class GalaxyPopulation(HaloPopulation):
 
             # Read in constraints for this redshift
             alpha = self.constraints['alpha'][i]
-            L_star = self.constraints['Lstar'][i]
+            L_star = self.constraints['Lstar'][i]    # dust corrected
             phi_star = self.constraints['pstar'][i]
                     
             eta = self.eta[i]
@@ -669,7 +669,7 @@ class GalaxyPopulation(HaloPopulation):
         return self._sfrd_ham_
                 
     @property
-    def _sfrd_ham_tab(self):    
+    def _sfrd_ham_tab(self):
         """
         SFRD as a function of redshift yielded by abundance match.
         

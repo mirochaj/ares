@@ -2128,9 +2128,6 @@ class ModelSet(object):
             
         return all_contours
         
-    def get_2d_error(self, plane, nu=0.68):
-        pass
-        
     def ContourScatter(self, x, y, c, z=None, Nscat=1e4, take_log=False, 
         cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
         labels=None, **kwargs):
@@ -2167,17 +2164,20 @@ class ModelSet(object):
             labels_tmp.update(labels)
             labels = labels_tmp
 
+        if type(z) is not list:
+            z = [z] * 3
+
         pars = [x, y]
 
         axes = []
-        for par in pars:
+        for i, par in enumerate(pars):
             if par in self.parameters:
                 axes.append(self.chain[:,self.parameters.index(par)])
             elif par in self.blob_names:
-                axes.append(self.blobs[:,self.blob_redshifts.index(z),
+                axes.append(self.blobs[:,self.blob_redshifts.index(z[i]),
                     self.blob_names.index(par)])
             elif par in self.derived_blob_names:
-                axes.append(self.derived_blobs[:,self.blob_redshifts.index(z),
+                axes.append(self.derived_blobs[:,self.blob_redshifts.index(z[i]),
                     self.derived_blob_names.index(par)])        
 
         for i in range(2):
@@ -2189,10 +2189,10 @@ class ModelSet(object):
         if c in self.parameters:        
             zax = self.chain[:,self.parameters.index(c)].ravel()
         elif c in self.blob_names:   
-            zax = self.blobs[:,self.blob_redshifts.index(z),
+            zax = self.blobs[:,self.blob_redshifts.index(z[-1]),
                 self.blob_names.index(c)]
         elif c in self.derived_blob_names:   
-            zax = self.derived_blobs[:,self.blob_redshifts.index(z),
+            zax = self.derived_blobs[:,self.blob_redshifts.index(z[-1]),
                 self.derived_blob_names.index(c)]
                 
         if zax.shape[0] != self.chain.shape[0]:
@@ -2208,6 +2208,7 @@ class ModelSet(object):
         if take_log[2]:
             zax = np.log10(zax)    
             
+        z.pop(-1)
         ax = self.PosteriorPDF(pars, z=z, take_log=take_log, filled=False, 
             bins=bins, **kwargs)
         
@@ -2244,7 +2245,10 @@ class ModelSet(object):
         else:
             cblab = c 
             
-        cb.set_label(logify_str(cblab))
+        if take_log[2]:
+            cb.set_label(logify_str(cblab))
+        else:
+            cb.set_label(cblab)    
             
         cb.update_ticks()
             
