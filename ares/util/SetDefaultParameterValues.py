@@ -255,8 +255,13 @@ def PopulationParameters():
     "pop_lf_Mstar": None,
     "pop_lf_pstar": None,
     "pop_lf_alpha": None,
+
     "pop_lf_dustcorr": True,
     "pop_lf_beta": -2.,
+
+    # Beta can depend on magnitude and redshift
+    "pop_lf_beta_slope": None,
+    "pop_lf_beta_pivot": None,
 
     # Parameters for a HOD model
     "pop_duty_cycle": 1.0,

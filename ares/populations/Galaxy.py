@@ -137,9 +137,9 @@ class GalaxyPopulation(HaloPopulation):
                 self._Source_ = BlackHole
             else: 
                 self._Source_ = LiteratureSource
-        
+
         return self._Source_
-        
+
     @property
     def src_kwargs(self):
         """
@@ -227,6 +227,10 @@ class GalaxyPopulation(HaloPopulation):
         
     @property
     def _ham_Mmin(self):
+        """
+        These are the halo masses determined via abundance matching that
+        correspond to the M_UV's provided.
+        """
         if not hasattr(self, '_ham_Mmin_'):
             tmp = self._fstar_ham
         
@@ -234,6 +238,9 @@ class GalaxyPopulation(HaloPopulation):
         
     @property
     def constraints(self):
+        """
+        
+        """
         if not hasattr(self, '_constraints'):
             
             if self.pf['pop_constraints'] is not None:
@@ -256,15 +263,33 @@ class GalaxyPopulation(HaloPopulation):
             
             for i, z in enumerate(redshifts):
                 M = self._constraints['Mstar'][i]
-                
-                if self.pf['pop_lf_dustcorr']:
-                    A1600 = 4.43 + 1.99 * self.pf['pop_lf_beta']
-                    M -= A1600
-                
+                M -= self.A1600(z, M)
                 L = self.magsys.mAB_to_L(mag=M, z=z)
                 self._constraints['Lstar'].append(L)
         
         return self._constraints 
+        
+    def A1600(self, z, mag):
+        """
+        Determine infrared excess using Meurer et al. 1999 approach.
+        """
+        
+        if not self.pf['pop_lf_dustcorr']:
+            return 0.0    
+            
+        # Could be constant, but redshift dependent
+        if 'pop_lf_beta[%g]' % z in self.pf:
+            beta = self.pf['pop_lf_beta[%g]'] 
+                               
+        # Could depend on redshift AND magnitude
+        elif self.pf['pop_lf_beta_slope[%g]' % z] is not None:
+            beta = self.pf['pop_lf_beta_slope[%g]' % z] \
+                * (mag + 19.5) + self.pf['pop_lf_beta_pivot[%g]' % z]
+        # Could just be constant
+        else:
+            beta = self.pf['pop_lf_beta']
+            
+        return 4.43 + 1.99 * beta
     
     @property
     def Macc(self):
@@ -366,7 +391,7 @@ class GalaxyPopulation(HaloPopulation):
             self._fstar = lambda zz, MM: self._fstar_poly(zz, MM, 
                 *self._fstar_coeff)
         # Fit a polynomial to the last few points
-        elif self.pf['pop_fstar_extrap'] == 'moderate':
+        elif type(self.pf['pop_fstar_extrap'] != str):
             
             def to_fit(x, *coeff):
                 M, z = np.meshgrid(*x)
@@ -389,7 +414,7 @@ class GalaxyPopulation(HaloPopulation):
         
         # Set a constant upper limit below given mass limit     
         elif self.pf['pop_fstar_extrap'] == 'constant':
-            fstar_Mmin = 10**self.pf['pop_logM'][0]
+            fstar_Mmin = self._ham_Mmin[0]#10**self.pf['pop_logM'][0]
             def tmp(zz, MM):
                 if type(MM) is np.ndarray:
                     Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
@@ -461,15 +486,10 @@ class GalaxyPopulation(HaloPopulation):
         # Do it already    
         for i, z in enumerate(self.constraints['z']):
 
-            if self.pf['pop_lf_dustcorr']:
+            mags = []
+            for mag in b15.data[z]['M']:
+                mags.append(mag-self.A1600(z,mag))
 
-                beta = self.pf['pop_lf_beta']
-                
-                A1600 = 4.43 + 1.99 * beta
-                mags = list(np.array(b15.data[z]['M']) - A1600)
-            else:
-                mags = b15.data[z]['M']
-        
             # Read in constraints for this redshift
             alpha = self.constraints['alpha'][i]
             L_star = self.constraints['Lstar'][i]

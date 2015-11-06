@@ -95,7 +95,7 @@ def logify_str(s, sup=None):
     new_s = s_no_dollar
     
     if sup is not None:
-        new_s += sup_scriptify_str(s)
+        new_s += '[%s]' % sup_scriptify_str(s)
         
     return r'$\mathrm{log}_{10}' + new_s + '$'
     
@@ -127,7 +127,7 @@ def make_label(name, take_log=False, labels=None):
         num = int(m.group(1))
         prefix = name.split(m.group(0))[0]
         if prefix in labels:
-            label = r'$%s$' % (undo_mathify(labels[prefix].split(m.group(0))[0]) + '^{%i}' % num)
+            label = r'$%s$' % (undo_mathify(labels[prefix].split(m.group(0))[0]) + '^{[%i]}' % num)
         else:
             label = r'%s' % prefix
         

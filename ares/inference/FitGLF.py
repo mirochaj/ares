@@ -133,7 +133,7 @@ class loglikelihood:
         self._prep_binfo()
         
         # Setup timing file
-        self._prep_timing()
+        #self._prep_timing()
         
     def _prep_timing(self):
         fn = '%s.timing_%s.pkl' % (self.prefix, str(rank).zfill(4))
@@ -202,9 +202,9 @@ class loglikelihood:
             t2 = time.time()
             sim.run_inline_analysis()
                                     
-            tfn = '%s.timing_%s.pkl' % (self.prefix, str(rank).zfill(4))
-            with open(tfn, 'ab') as f:
-                pickle.dump((t2 - t1, kwargs), f)
+            #tfn = '%s.timing_%s.pkl' % (self.prefix, str(rank).zfill(4))
+            #with open(tfn, 'ab') as f:
+            #    pickle.dump((t2 - t1, kwargs), f)
                 
         # Timestep weird (happens when xi ~ 1)
         #except SystemExit:
@@ -405,6 +405,27 @@ class FitGLF(object):
     @nwalkers.setter
     def nwalkers(self, value):
         self._nw = value
+    
+    @property
+    def _guess_override_(self):
+        if not hasattr(self, '_guess_override_'):
+            self._guess_override_ = {}
+        
+        return self._guess_override_
+        
+    def guess_override(self, **kwargs):
+        if not hasattr(self, '_guess_override'):
+            self._guess_override_ = {}
+            
+        self._guess_override.update(kwargs)
+        return self._guess_override
+        
+    #@property
+    #def jitter(self):
+    #    pass
+    #
+    #@jitter.setter(self):
+    #    pass
         
     @property
     def guesses(self):

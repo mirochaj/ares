@@ -282,6 +282,9 @@ class ParameterFile(dict):
             if par in old_pars:
                 continue
             
+            if re.search('\[', par):
+                continue 
+            
             if verbose:
                 print 'WARNING: Unrecognized parameter: %s' % par        
     
