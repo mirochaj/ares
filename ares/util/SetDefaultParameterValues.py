@@ -431,6 +431,8 @@ def ControlParameters():
     "solver_rtol": 1e-8,
     "solver_atol": 1e-8,
     "interp_method": 'cubic',
+    
+    "interp_method_cc": 'cubic',
 
     # Initialization
     "load_ics": True,

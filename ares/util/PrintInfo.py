@@ -607,19 +607,19 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
 
     warnings = []
     
-    is_cov = True
-    if len(fit.error.shape) == 1:
-        is_cov = False
+    #is_cov = True
+    #if len(fit.error.shape) == 1:
+    #    is_cov = False
 
     header = 'Initializer: Parameter Estimation'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
 
-    if is_cov:
-        cols = ['position', 'error (diagonal of cov)']
-    else:
-        cols = ['position', 'error']   
+    #if is_cov:
+    #    cols = ['position', 'error (diagonal of cov)']
+    #else:
+    cols = ['position', 'error']   
         
     if fit_TP:
 
@@ -647,10 +647,10 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
 
             unit = fit.measurement_units[val]
         
-            if is_cov:
-                col1, col2 = fit.mu[i], np.sqrt(np.diag(fit.error)[i])
-            else:
-                col1, col2 = fit.mu[i], fit.error[i]
+            #if is_cov:
+            #    col1, col2 = fit.mu[i], np.sqrt(np.diag(fit.error)[i])
+            #else:
+            col1, col2 = fit.mu[i], fit.error[i]
                 
             data.append([col1, col2])
 
@@ -689,15 +689,17 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line('Inline Analysis')     
     print line('-'*twidth)
     
-    Nb = len(fit.blob_names)
-    Nz = len(fit.blob_redshifts)
-    perwalkerperstep = Nb * Nz * 8 
-    MB = perwalkerperstep * fit.nwalkers * steps / 1e6
-
-    print line("N blobs     : %i" % Nb)
-    print line("N redshifts : %i" % Nz)
-    print line("blob rate   : %i bytes / walker / step" % perwalkerperstep)
-    print line("blob size   : %.2g MB (total)" % MB)
+    if hasattr(fit, 'blob_names'):
+        Nb = len(fit.blob_names)
+        Nz = len(fit.blob_redshifts)
+        print line("N blobs     : %i" % Nb)
+        print line("N redshifts : %i" % Nz)
+    
+        perwalkerperstep = Nb * Nz * 8 
+        MB = perwalkerperstep * fit.nwalkers * steps / 1e6
+        
+        print line("blob rate   : %i bytes / walker / step" % perwalkerperstep)
+        print line("blob size   : %.2g MB (total)" % MB)
 
     print "#"*width
     print ""
