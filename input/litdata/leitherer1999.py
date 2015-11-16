@@ -242,6 +242,18 @@ class StellarPopulation:
         return self._E_per_M
         
     @property
+    def uvslope(self):
+        if not hasattr(self, '_uvslope'):
+            self._uvslope = np.zeros_like(self.data)
+            for i in range(self.times.size):
+                self._uvslope[1:,i] = np.diff(np.log(self.data[:,i])) \
+                    / np.diff(np.log(self.wavelengths))
+            
+        return self._uvslope
+        
+        
+        
+    @property
     def NperB(self):
         """
         Number of photons emitted per stellar baryon of star formation.
@@ -324,14 +336,11 @@ class StellarPopulation:
                 x=self.wavelengths[i1:i0])
             
         # Current units: photons / sec / baryon
-                
         t = self.times * s_per_myr
         
         # Integrate (cumulatively) over time
         return cumtrapz(photons_per_b_t, x=t, initial=0.0)
-        
-            
-        
+                
 class Spectrum(StellarPopulation):
     def __init__(self, **kwargs):
         StellarPopulation.__init__(self, **kwargs)

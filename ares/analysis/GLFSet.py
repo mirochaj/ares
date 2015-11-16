@@ -33,14 +33,14 @@ class GLFSet(ModelSet):
         """
         Plot constraints on the luminosity function at given z.
         """
-        
+
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
         else:
             gotax = True
-        
+
         # Find relevant elements in chain
         samples = {}
         for i, key in enumerate(self.parameters):
@@ -78,12 +78,7 @@ class GLFSet(ModelSet):
     def PlotData(self, z, ax=None, fig=1, **kwargs):
         M, phi, err = self.get_data(z)
         
-        if ax is None:
-            gotax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)
-        else:
-            gotax = True
+        ax, gotax = self.get_ax(ax, fig)
             
         ax.errorbar(M, phi, yerr=err, fmt='none', **kwargs)
         ax.set_xlabel(r'$M$')
@@ -92,6 +87,17 @@ class GLFSet(ModelSet):
         pl.draw()
         
         return ax
+            
+    def LF_vs_HMF(self, z):
+        """
+        Compare constraints on the slope of the LF vs. the slope of the HMF.
+        """
+        
+        ax, gotax = self.get_ax(ax, fig)
+        
+        
+        
+        
             
     def SlopeEvolution(self):
         pass

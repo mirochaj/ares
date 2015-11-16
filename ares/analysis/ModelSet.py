@@ -556,6 +556,16 @@ class ModelSet(object):
     #        mask = f[key].attrs.get('mask')
     #        results[key] = np.ma.array(f[key].value, mask=mask)
             
+    def get_ax(self, ax=None, fig=1):
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+        
+        return ax, gotax
+            
     @property
     def timing(self):
         if not hasattr(self, '_timing'):

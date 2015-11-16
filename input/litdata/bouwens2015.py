@@ -6,14 +6,18 @@ Table 6. 4 the last 5 rows.
 
 redshifts = [4.9, 5.9, 6.9, 7.9]
 
-lf_pars = \
+fits = {}
+
+fits['lf'] = {}
+
+fits['lf']['pars'] = \
 {
  'Mstar': [-21.17, -20.94, -20.87, -20.63], 
  'pstar': [0.74e-3, 0.5e-3, 0.29e-3, 0.21e-3],
  'alpha': [-1.76, -1.87, -2.06, -2.02],
 }
 
-lf_err = \
+fits['lf']['err'] = \
 {
  'Mstar': [0.12, 0.2, 0.26, 0.36], 
  'pstar': [0.16e-3, 0.19e-3, 0.165e-3, 0.17e-3],  # should be asymmetric!
@@ -22,7 +26,8 @@ lf_err = \
 
 # Table 5
 # Note: not currently including any of the upper limits
-data = \
+data = {}
+data['lf'] = \
 {
  3.9: {'M': [-22.69, -22.19, -21.69, -21.19, -20.69, -20.19, -19.69, -19.19,
              -18.69, -18.19, -17.69, -16.94, -15.94],
@@ -62,3 +67,5 @@ data = \
       }
 }
 
+
+units = {'phi': 1.}
