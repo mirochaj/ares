@@ -2706,30 +2706,32 @@ class ModelSet(object):
         elif type(z) is not list:
             z = [z]
         
-        masks = []
-        blob_vec = []
-        for i in range(len(pars)):
-            blob = self.extract_blob(pars[i], z=z[i])
-            if hasattr(blob, 'mask'):
-                masks.append(blob.mask)
-            else:
-                masks.append(np.zeros_like(blob))
-                
-            blob_vec.append(blob)    
+        #masks = []
+        #blob_vec = []
+        #for i in range(len(pars)):
+        #    blob = self.extract_blob(pars[i], z=z[i])
+        #    if hasattr(blob, 'mask'):
+        #        masks.append(blob.mask)
+        #    else:
+        #        masks.append(np.zeros_like(blob))
+        #        
+        #    blob_vec.append(blob)    
         
-        master_mask = np.zeros_like(masks[0])
-        for mask in masks:
-            master_mask += mask
+        to_hist, is_log = self.ExtractData(pars, z=z)
         
-        master_mask[master_mask > 0] = 1
+        #master_mask = np.zeros_like(masks[0])
+        #for mask in masks:
+        #    master_mask += mask
+        #
+        #master_mask[master_mask > 0] = 1
             
-        blob_vec_mast = self.blob_vec_mast = np.ma.array(blob_vec, 
-            mask=[master_mask] * len(blob_vec))
-        
-        blobs_compr = np.array([vec.compressed() for vec in blob_vec_mast])
+        #blob_vec_mast = self.blob_vec_mast = np.ma.array(blob_vec, 
+        #    mask=[master_mask] * len(blob_vec))
+        #
+        #blobs_compr = np.array([vec.compressed() for vec in blob_vec_mast])
 
-        mu = np.mean(blobs_compr, axis=1)
-        cov = np.cov(blobs_compr)
+        mu = np.mean(to_hist, axis=1)
+        cov = np.cov(to_hist)
 
         return mu, cov     
 
