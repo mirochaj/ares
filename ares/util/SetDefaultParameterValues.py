@@ -520,6 +520,8 @@ def ControlParameters():
     "first_light_redshift": 50.,
     
     "save_rate_coefficients": 1,
+    
+    "need_for_speed": False,
 
     "optically_thin": 0,
 

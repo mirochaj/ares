@@ -38,6 +38,7 @@ base_pars = \
  'cgm_recombination': 'B',
  'clumping_factor': 3.,
  'load_ics': False,
+ 'need_for_speed': True,
 }
 
 # Initialize a fitter object and give it the data to be fit
@@ -63,6 +64,8 @@ fitter.redshifts = 4.9
 fitter.guesses = 'bouwens2015'
 
 fitter.save_data('test_lf', clobber=True)
+
+fitter.runsim = False
 
 # Run the thing
 t1 = time.time()

@@ -104,7 +104,7 @@ class ParameterFile(dict):
         self._parse(**kwargs)
         
         # Check for stuff that'll break...stuff
-        self._check_for_conflicts(self)
+        self._check_for_conflicts(**kwargs)
     
     @property
     def Npops(self):
@@ -271,17 +271,21 @@ class ParameterFile(dict):
                 
         return self._unique
 
-    def _check_for_conflicts(self, pf):
+    def _check_for_conflicts(self, **kwargs):
         """
         Run through parsed parameter file looking for conflicts.
         """
-
+        
+        if 'need_for_speed' in kwargs:
+            if kwargs['need_for_speed']:
+                return 
+        
         try:
-            verbose = pf['verbose']
+            verbose = kwargs['verbose']
         except KeyError:
             verbose = self.defaults['verbose']
         
-        for kwarg in pf:
+        for kwarg in kwargs:
             
             par, num = pop_id_num(kwarg)
             if num is None:
@@ -299,9 +303,9 @@ class ParameterFile(dict):
             if verbose:
                 print 'WARNING: Unrecognized parameter: %s' % par        
     
-        conflicts = CheckForParameterConflicts(pf)
+        #conflicts = CheckForParameterConflicts(kwargs)
     
-        if conflicts:
-            raise Exception('Conflict(s) in input parameters.')
+        #if conflicts:
+        #    raise Exception('Conflict(s) in input parameters.')
     
     
