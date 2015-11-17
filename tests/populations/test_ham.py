@@ -24,9 +24,8 @@ pars = \
 {
  'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
- 'pop_constraints': lf_pars,  # bouwens2015
+ 'pop_constraints': 'bouwens2015',
  'pop_kappa_UV': 1.15e-28,
- 'pop_logM': np.arange(10, 13.5, 0.25), # Masses for AM
  'pop_fstar_extrap': 'continue',
 }
 

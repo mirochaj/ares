@@ -17,23 +17,25 @@ from ..util import ProgressBar
 import matplotlib._cntr as cntr
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
-from ..inference import ModelGrid
+#from ..inference import ModelGrid
 import re, os, string, time, glob
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
 from ..util.PrintInfo import print_model_set
-from ..util.ParameterFile import count_populations
 from .DerivedQuantities import DerivedQuantities as DQ
 from .DerivedQuantities import registry_special_Q
 from ..simulations.Global21cm import Global21cm as sG21
+from ..util.ParameterFile import count_populations, par_info
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_1D, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
 from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
     tanh_gjah_to_ares
+from ..inference.FitLuminosityFunction import param_redshift
+
 
 try:
     from scipy.optimize import fmin
@@ -114,8 +116,15 @@ def make_label(name, take_log=False, labels=None):
         labels = default_labels
         
     # Check to see if it has a population ID # tagged on the end
-    m = re.search(r"\{([0-9])\}", name)
+    # OR a redshift
     
+    try:
+        m = None
+        prefix, z = param_redshift(name)
+        prefix, popid = pop_id_num(prefix)
+    except:
+        m = re.search(r"\{([0-9])\}", name)
+        
     if m is None:
         num = None
         prefix = name
@@ -126,8 +135,9 @@ def make_label(name, take_log=False, labels=None):
     else:
         num = int(m.group(1))
         prefix = name.split(m.group(0))[0]
+        
         if prefix in labels:
-            label = r'$%s$' % (undo_mathify(labels[prefix].split(m.group(0))[0]) + '^{[%i]}' % num)
+            label = r'$%s[z=%.2g]$' % (undo_mathify(labels[prefix]), z)
         else:
             label = r'%s' % prefix
         
@@ -838,69 +848,69 @@ class ModelSet(object):
         
         print "Saved result to slice_%i attribute." % i
         
-    def ReRunModels(self, prefix=None, N=None, random=False, last=False, 
-        clobber=False, save_freq=10, **kwargs):
-        """
-        Take list of dictionaries and re-run each as a Global21cm model.
-
-        Parameters
-        ----------
-        N : int
-            Draw N samples from chain, and re-run those models.
-            If None, will re-run all models.
-        random : bool
-            If True, draw N *random* samples, rather than just the first N.
-        last : bool
-            If True, take last ``N`` samples from chain, rather than first.
-            
-        prefix : str
-            Prefix of files to be saved. There will be three:
-                i) prefix.chain.pkl
-                ii) prefix.blobs.pkl
-                iii) prefix.pinfo.pkl
-
-        Returns
-        -------
-        Nothing, just saves stuff to disk.
-        
-        """
-                
-        had_N = True
-        if N is None:
-            had_N = False
-            N = self.chain.shape[0]
-                    
-        model_num = np.arange(N)
-        
-        if had_N:
-            if random:
-                if size > 1:
-                    raise ValueError('This will cause each processor to run different models!')
-                np.random.shuffle(model_num)
-            
-            if last:
-                model_ids = model_num[-N:]
-            else:    
-                model_ids = model_num[0:N]            
-        else:
-            model_ids = model_num    
-                        
-        # Create list of models to run
-        models = []
-        for i, model in enumerate(model_ids):
-            tmp = {}
-            for j, par in enumerate(self.parameters):
-                tmp[par] = self.chain[i,j]
-            
-            models.append(tmp.copy())
-                                
-        # Take advantage of pre-existing machinery to run them
-        mg = self.mg = ModelGrid(**kwargs)
-        mg.set_models(models)
-        mg.is_log = self.is_log
-        mg.LoadBalance(0)
-
-        mg.run(prefix, clobber=clobber, save_freq=save_freq)
+    #def ReRunModels(self, prefix=None, N=None, random=False, last=False, 
+    #    clobber=False, save_freq=10, **kwargs):
+    #    """
+    #    Take list of dictionaries and re-run each as a Global21cm model.
+    #
+    #    Parameters
+    #    ----------
+    #    N : int
+    #        Draw N samples from chain, and re-run those models.
+    #        If None, will re-run all models.
+    #    random : bool
+    #        If True, draw N *random* samples, rather than just the first N.
+    #    last : bool
+    #        If True, take last ``N`` samples from chain, rather than first.
+    #        
+    #    prefix : str
+    #        Prefix of files to be saved. There will be three:
+    #            i) prefix.chain.pkl
+    #            ii) prefix.blobs.pkl
+    #            iii) prefix.pinfo.pkl
+    #
+    #    Returns
+    #    -------
+    #    Nothing, just saves stuff to disk.
+    #    
+    #    """
+    #            
+    #    had_N = True
+    #    if N is None:
+    #        had_N = False
+    #        N = self.chain.shape[0]
+    #                
+    #    model_num = np.arange(N)
+    #    
+    #    if had_N:
+    #        if random:
+    #            if size > 1:
+    #                raise ValueError('This will cause each processor to run different models!')
+    #            np.random.shuffle(model_num)
+    #        
+    #        if last:
+    #            model_ids = model_num[-N:]
+    #        else:    
+    #            model_ids = model_num[0:N]            
+    #    else:
+    #        model_ids = model_num    
+    #                    
+    #    # Create list of models to run
+    #    models = []
+    #    for i, model in enumerate(model_ids):
+    #        tmp = {}
+    #        for j, par in enumerate(self.parameters):
+    #            tmp[par] = self.chain[i,j]
+    #        
+    #        models.append(tmp.copy())
+    #                            
+    #    # Take advantage of pre-existing machinery to run them
+    #    mg = self.mg = ModelGrid(**kwargs)
+    #    mg.set_models(models)
+    #    mg.is_log = self.is_log
+    #    mg.LoadBalance(0)
+    #
+    #    mg.run(prefix, clobber=clobber, save_freq=save_freq)
 
     @property
     def plot_info(self):
@@ -3137,37 +3147,28 @@ class ModelSet(object):
         p = []
         sup = []
         for par in pars:
-
+            
             if type(par) is int:
                 sup.append(None)
                 p.append(par)
                 continue
 
             # If we want special labels for population specific parameters
-            #if par in labels:
-            sup.append(None)
-            p.append(par)
-            continue    
+            if par in labels:
+                sup.append(None)
+                p.append(par)
+                continue    
 
-            #p.append(par)
-            #
-            #m = re.search(r"\{([0-9])\}", par)
-            #
-            #if m is None:
-            #    sup.append(None)
-            #    p.append(par)
-            #    continue
-            #
-            ## Split parameter prefix from population ID in braces
-            #p.append(par.split(m.group(0))[0])
-            #sup.append(int(m.group(1)))
-        
-        del pars
-        pars = p
-    
+            prefix, popid, popz = par_info(par)
+                        
+            if prefix in labels:
+                p.append(labels[prefix])
+            else:
+                p.append(prefix)    
+                
         log_it = is_log[pars[0]] or take_log[pars[0]]
             
-        ax.set_xlabel(make_label(pars[0], log_it, labels))
+        ax.set_xlabel(make_label(p[0], log_it, labels))
     
         if len(pars) == 1:
             ax.set_ylabel('PDF')
@@ -3176,7 +3177,7 @@ class ModelSet(object):
             return
     
         log_it = is_log[pars[1]] or take_log[pars[1]]
-        ax.set_ylabel(make_label(pars[1], log_it, labels))        
+        ax.set_ylabel(make_label(p[1], log_it, labels))        
         
         pl.draw()
                 

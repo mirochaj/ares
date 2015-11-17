@@ -33,11 +33,16 @@ class InlineAnalysis:
             self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
         elif self.pf['auto_generate_blobs']:
             self.blob_names, self.blob_redshifts = self.generate_blobs()
+        else:
+            self.blob_names = self.blob_redshifts = []
     
-        self.need_extrema = 0
-        for tp in list('BCD'):
-            if tp in self.blob_redshifts:
-                self.need_extrema += 1
+        if self.pf['track_extrema']:
+            self.need_extrema = np.inf
+        else:    
+            self.need_extrema = 0
+            for tp in list('BCD'):
+                if tp in self.blob_redshifts:
+                    self.need_extrema += 1
                 
     def generate_blobs(self):
         """
@@ -142,6 +147,14 @@ class InlineAnalysis:
         if hasattr(self.sim, "turning_points"):
             self._turning_points = self.sim.turning_points
         elif not hasattr(self, '_turning_points') and self.need_extrema > 0:
+            
+            # Easy for certain phenomenological forms
+            if self.sim.pf['gaussian_model']:
+                self._turning_points = {'C': (self.sim.pf['gaussian_nu'],
+                    self.sim.pf['gaussian_A'])}
+                return self._turning_points
+            
+            # Otherwise, must compute numerically
             self._track = TurningPoints(inline=True, **self.pf)
 
             # Otherwise, find them. Not the most efficient, but it gets the job done

@@ -49,19 +49,25 @@ class MultiPhaseMedium(object):
         By default, this is a two-zone model, consisting of a  "bulk IGM"
         grid patch and an "HII regions" grid patch, dubbed "igm" and "cgm", 
         respectively. To perform a single-zone calculation, simply set 
-        ``include_cgm=False``.
+        ``include_cgm=False`` or ``include_igm=False``.
+        
         """
 
         if 'load_ics' not in kwargs:
-            kwargs['load_ics'] = True
-
-        self.pf = ParameterFile(**kwargs)
-                
-        # Load in initial conditions, interpolate to initial_redshift
-        if self.pf['load_ics']:
-            
-            inits = self.inits = _load_inits()
-
+            kwargs['load_ics'] = True        
+        self.kwargs = kwargs
+    
+    @property
+    def pf(self):
+        if not hasattr(self, '_pf'):
+            inits = self.inits
+            self._pf = ParameterFile(**self.kwargs)
+        return self._pf
+        
+    @property
+    def inits(self):
+        if not hasattr(self, '_inits'):    
+            self._inits = inits = _load_inits()
             zi = self.pf['initial_redshift']
             if not np.all(np.diff(inits['z']) > 0):
                 raise ValueError('Redshifts in ICs must be in ascending order!')
@@ -71,16 +77,58 @@ class MultiPhaseMedium(object):
             new_pars = {'cosmological_ics': False,
                         'igm_initial_temperature': Ti,
                         'igm_initial_ionization': [1. - xi, xi]}
-            kwargs.update(new_pars)
+                        
+            #if self.pf['include_He']:                                                  
+            #    igm_pars.update({'include_He': True,                                   
+            #        'initial_ionization': [1. - xi, xi, 1.-xi, xi, 1e-10]})            
+                                                
+            self.kwargs.update(new_pars)
+        return self._inits    
+        
+    @property
+    def field(self):
+        if not hasattr(self, '_field'):
+            if self.pf['include_igm']:
+                self._field = MetaGalacticBackground(grid=self.parcel_igm.grid, 
+                    **self.kwargs)
+            else:
+                self._field = MetaGalacticBackground(grid=self.parcel_cgm.grid, 
+                    **self.kwargs)
+                
+        return self._field
+            
+    @property
+    def parcels(self):
+        if not hasattr(self, '_parcels'):
+            self._initialize_zones()
+        return self._parcels 
 
-            #if self.pf['include_He']:
-            #    igm_pars.update({'include_He': True,
-            #        'initial_ionization': [1. - xi, xi, 1.-xi, xi, 1e-10]})         
-
-        self._initialize_zones(**kwargs)
-        self._insert_inits()
-
-    def _initialize_zones(self, **kwargs):
+    @property
+    def parcel_igm(self):
+        if not hasattr(self, '_parcel_igm'):
+            self._parcel_igm = self.parcels[0]
+        return self._parcel_igm
+        
+    @property
+    def parcel_cgm(self):
+        if not hasattr(self, '_parcel_cgm'):
+            if self.pf['include_igm']:
+                self._parcel_cgm = self.parcels[1]
+            else:
+                self._parcel_cgm = self.parcels[0]
+                
+        return self._parcel_cgm
+        
+    def rates_no_RT(self, grid):
+        _rates_no_RT = \
+            {'k_ion': np.zeros((grid.dims, grid.N_absorbers)),
+             'k_heat': np.zeros((grid.dims, grid.N_absorbers)),
+             'k_ion2': np.zeros((grid.dims, grid.N_absorbers, grid.N_absorbers)),
+            }
+    
+        return _rates_no_RT    
+    
+    def _initialize_zones(self):
         """
         Initialize (up to two) GasParcels.
         """
@@ -89,7 +137,7 @@ class MultiPhaseMedium(object):
         z = self.pf['initial_redshift']
         zf = self.pf['final_redshift']
                 
-        self.parcels = []
+        self._parcels = []
         for zone in ['igm', 'cgm']:
             if not self.pf['include_%s' % zone]:
                 continue
@@ -103,66 +151,52 @@ class MultiPhaseMedium(object):
 
                 # Have to rename variables so Grid class will know them
                 grid_key = key.replace('%s_' % zone, '')
-                
-                if key in kwargs:
-                    kw[grid_key] = kwargs[key]
+
+                if key in self.kwargs:
+                    kw[grid_key] = self.kwargs[key]
                 else:
                     kw[grid_key] = _mpm_defs[key]
                             
             if zone == 'igm':
                 self.kw_igm = kw.copy()
-                self.parcel_igm = GasParcel(**self.kw_igm)
+                parcel_igm = GasParcel(**self.kw_igm)
                 
-                self.gen_igm = self.parcel_igm.step()
+                self.gen_igm = parcel_igm.step()
 
-                self.field = MetaGalacticBackground(grid=self.parcel_igm.grid, 
-                    **kwargs)
+                #self.field = MetaGalacticBackground(grid=parcel_igm.grid, 
+                #    **self.kwargs)
 
                 # Set initial values for rate coefficients
-                self.parcel_igm.update_rate_coefficients(self.parcel_igm.grid.data, 
-                    **self.field.volume.rates_no_RT)
+                parcel_igm.update_rate_coefficients(parcel_igm.grid.data, 
+                    **self.rates_no_RT(parcel_igm.grid))
                     
-                self.parcels.append(self.parcel_igm)
+                self._parcels.append(parcel_igm)
                     
             else:
                 self.kw_cgm = kw.copy()
-                self.parcel_cgm = GasParcel(**self.kw_cgm)
-                self.parcel_cgm.grid.set_recombination_rate(True)
-                self.parcel_cgm._set_chemistry()
-                self.gen_cgm = self.parcel_cgm.step()
+                parcel_cgm = GasParcel(**self.kw_cgm)
+                parcel_cgm.grid.set_recombination_rate(True)
+                parcel_cgm._set_chemistry()
+                self.gen_cgm = parcel_cgm.step()
                 
-                self.parcel_cgm.chem.chemnet.monotonic_EoR = \
+                parcel_cgm.chem.chemnet.monotonic_EoR = \
                     self.pf['monotonic_EoR']
                 
-                if not hasattr(self, 'field'):
-                    self.field = MetaGalacticBackground(grid=self.parcel_cgm.grid, 
-                        **kwargs)
+                #if not hasattr(self, 'field'):
+                #    self.field = MetaGalacticBackground(grid=parcel_cgm.grid, 
+                #        **self.kwargs)
 
-                self.parcel_cgm.update_rate_coefficients(self.parcel_cgm.grid.data, 
-                    **self.field.volume.rates_no_RT)
+                parcel_cgm.update_rate_coefficients(parcel_cgm.grid.data, 
+                    **self.rates_no_RT(parcel_cgm.grid))
                 
-                self.parcels.append(self.parcel_cgm)
+                self._parcels.append(parcel_cgm)
                         
             if not hasattr(self, 'tf'):
                 self.tf = self.default_parcel.grid.cosm.LookbackTime(zf, z)
                 self.pf['stop_time'] = self.tf / self.pf['time_units']    
 
-            self.parcels[-1].pf['stop_time'] = self.pf['stop_time']
+            self._parcels[-1].pf['stop_time'] = self.pf['stop_time']
              
-    @property
-    def rates_no_RT(self):
-        if not hasattr(self, '_rates_no_RT'):
-            self._rates_no_RT = \
-                {'k_ion': np.zeros((self.grid.dims,
-                    self.grid.N_absorbers)),
-                 'k_heat': np.zeros((self.grid.dims,
-                    self.grid.N_absorbers)),
-                 'k_ion2': np.zeros((self.grid.dims,
-                    self.grid.N_absorbers, self.grid.N_absorbers)),
-                }
-    
-        return self._rates_no_RT
-
     @property
     def zones(self):
         if not hasattr(self, '_zones'):
@@ -226,6 +260,8 @@ class MultiPhaseMedium(object):
         Nothing: sets `history` attribute.
 
         """
+        
+        self._insert_inits()
 
         pb = ProgressBar(self.tf, use=self.pf['progress_bar'])
         pb.start()
@@ -409,8 +445,8 @@ class MultiPhaseMedium(object):
         self.all_t = []
         self.all_data_igm = []
         self.all_z = list(z_inits[0:i_trunc])
-        self.all_RCs_igm = [self.field.volume.rates_no_RT] * len(self.all_z)
-        self.all_RCs_cgm = [self.field.volume.rates_no_RT] * len(self.all_z)
+        self.all_RCs_igm = [self.rates_no_RT(self.parcel_igm.grid)] * len(self.all_z)
+        self.all_RCs_cgm = [self.rates_no_RT(self.parcel_igm.grid)] * len(self.all_z)
 
         # Don't mess with the CGM (much)
         if self.pf['include_cgm']:

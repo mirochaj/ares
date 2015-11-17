@@ -55,15 +55,15 @@ class TurningPoints(object):
         positive = not negative
         concave_up = np.all(dTb2dz2 > 0)
         concave_down = not concave_up
-                                                            
+        
         # Based on sign of brightness temperature and concavity,
         # determine which turning point we've found.
-        if negative and concave_up and ('B' not in self.TPs):
+        if negative and concave_up and (max(z) > 60 and 'B' not in self.TPs):
             return 'A'
         elif negative and concave_down and ('B' not in self.TPs):
             return 'B'
         elif negative and concave_up and ('C' not in self.TPs) \
-            and ('B' in self.TPs):
+            and (max(z) < 60 or 'B' in self.TPs):
             return 'C'
         elif positive and concave_down and ('D' not in self.TPs):
             return 'D'

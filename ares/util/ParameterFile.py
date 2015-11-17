@@ -53,6 +53,17 @@ def pop_id_num(par):
     
     return prefix, int(m.group(1))
 
+def par_info(par):
+    
+    prefix1, popid = pop_id_num(par)
+
+    m = re.search(r"\[(\d+(\.\d*)?)\]", prefix1)
+
+    prefix2 = prefix1.replace(m.group(0), '')
+    z = m.group(1)
+
+    return prefix2, popid, float(z)
+
 def count_populations(**kwargs):
     
     # Count populations

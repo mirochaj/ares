@@ -213,6 +213,10 @@ def flatten_blobs(data):
     reducing it to 2-D
     """
     
+    # Prevents a crash in MCMC.ModelFit
+    if np.all(data == {}):
+        return None
+        
     if len(data.shape) != 4:
         raise ValueError('chain ain\'t the right shape.')    
     

@@ -42,18 +42,27 @@ class Global21cm:
             return
         
         kwargs.update(defaults)
-        self.pf = ParameterFile(**kwargs)
-            
-        if not (self.pf['include_igm'] and self.pf['include_cgm']):
-            raise ValueError('Can only compute 21-cm signal in two-phase medium!')
-            
-        # If a physical model, proceed with initialization
-        self.medium = MultiPhaseMedium(**kwargs)
+        self.kwargs = kwargs
+        
+    @property
+    def pf(self):
+        if not hasattr(self, '_pf'):
+            self._pf = ParameterFile(**self.kwargs)
+        return self._pf
 
+    @property
+    def medium(self):
+        if not hasattr(self, '_medium'):
+            self._medium = MultiPhaseMedium(**self.kwargs)
+        return self._medium
+
+    @property
+    def track(self):
         # Inline tracking of turning points
-        if self.pf['track_extrema']:
+        if not hasattr(self, '_track') and self.pf['track_extrema']:
             from ..analysis.TurningPoints import TurningPoints
-            self.track = TurningPoints(inline=True, **self.pf)
+            self._track = TurningPoints(inline=True, **self.pf)
+        return self._track
         
     @property
     def pops(self):
@@ -265,6 +274,14 @@ class Global21cm:
 
     def run_inline_analysis(self):    
 
+        if self.pf['track_extrema']:
+            if hasattr(self, 'track'):
+                self.turning_points = self.track.turning_points
+            else:
+                from ..analysis.InlineAnalysis import InlineAnalysis
+                anl = InlineAnalysis(self)
+                self.turning_points = anl.turning_points
+
         if (self.pf['inline_analysis'] is None) and \
            (self.pf['auto_generate_blobs'] == False):
             return
@@ -277,12 +294,6 @@ class Global21cm:
                 tmp[key] = self.history[key]
 
         self.history = tmp
-    
-        from ..analysis.InlineAnalysis import InlineAnalysis
-        anl = InlineAnalysis(self)
-        anl.run_inline_analysis()
-    
-        self.turning_points = anl.turning_points
     
         self.blobs = anl.blobs
         self.blob_names, self.blob_redshifts = \

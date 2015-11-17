@@ -239,23 +239,28 @@ class GalaxyPopulation(HaloPopulation):
     @property
     def constraints(self):
         """
-        
+        Schechter parameters assumed for abundance match.
         """
         if not hasattr(self, '_constraints'):
             
-            if self.pf['pop_constraints'] is not None:
-                self._constraints = self.pf['pop_constraints'].copy()
-            else:
-                self._constraints = {}
-                self._constraints['z'] = self.pf['pop_lf_z']
-                self._constraints['Mstar'] = []
-                self._constraints['pstar'] = []
-                self._constraints['alpha'] = []
+            self._constraints = {}
+            if type(self.pf['pop_constraints']) == str:
+                data = read_lit(self.pf['pop_constraints'])
+                self._constraints['z'] = data.redshifts
 
-                for z in self._constraints['z']:
-                    self._constraints['Mstar'].append(self.pf['pop_lf_Mstar[%g]' % z])
-                    self._constraints['pstar'].append(self.pf['pop_lf_pstar[%g]' % z])
-                    self._constraints['alpha'].append(self.pf['pop_lf_alpha[%g]' % z])
+            elif self.pf['pop_lf_z'] is not None:
+                self._constraints['z'] = self.pf['pop_lf_z']
+            else:
+                raise ValueError('helps')
+            
+            self._constraints['Mstar'] = []
+            self._constraints['pstar'] = []
+            self._constraints['alpha'] = []
+            
+            for z in self._constraints['z']:
+                self._constraints['Mstar'].append(self.pf['pop_lf_Mstar[%g]' % z])
+                self._constraints['pstar'].append(self.pf['pop_lf_pstar[%g]' % z])
+                self._constraints['alpha'].append(self.pf['pop_lf_alpha[%g]' % z])
                             
             # Parameter file will have LF in Magnitudes...argh
             redshifts = self._constraints['z']
@@ -446,7 +451,25 @@ class GalaxyPopulation(HaloPopulation):
             self._Marr_ = 10**self.pf['pop_logM']
                
         return self._Marr_
-
+        
+    @property
+    def mags(self):
+        if not hasattr(self, '_mags'):
+            self._mags = []
+                        
+            if type(self.pf['pop_lf_mags']) is str:
+                data = read_lit(self.pf['pop_lf_mags'])
+                
+                for redshift in self.pf['pop_lf_z']:
+                    self._mags.append(data['lf'][redshift]['M'])
+            else:
+                assert len(self.pf['pop_lf_mags']) == len(self.pf['pop_lf_z']), \
+                    "Need magnitudes for each redshift bin!"
+                
+                self._mags = self.pf['pop_lf_mags']
+                
+        return self._mags
+            
     @property    
     def _fstar_ham(self):
         """
@@ -460,22 +483,16 @@ class GalaxyPopulation(HaloPopulation):
         # Otherwise, we're doing an abundance match!
         assert self.is_ham_model
         
-        b15 = read_lit('bouwens2015')
         Nm = 0
-        for element in b15.data:
-            for M in b15.data[element]['M']:
+        for i, z in enumerate(self.pf['pop_lf_z']):
+            for j, M in enumerate(self.pf['pop_lf_mags']):
                 Nm += 1
-        #mags = b15.data[z]['M']
-        
         
         kappa_UV = self.pf['pop_kappa_UV']
 
         Marr = self._Marr
-        
-        #Nz, Nm = len(self.constraints['z']), len(Marr)
-        
+                
         Nz = len(self.constraints['z'])
-        #Nm = 
         
         self._fstar_ham_pts = [[] for i in range(len(self.constraints['z']))]
         pb = ProgressBar(Nz * Nm, name='ham', use=self.pf['progress_bar'])
@@ -500,7 +517,7 @@ class GalaxyPopulation(HaloPopulation):
             log_ngtm = np.log(ngtm)
             
             # Use
-            LUV = [self.magsys.mAB_to_L(mag, z=z) for mag in mags]
+            LUV = [self.magsys.mAB_to_L(mag, z=z) for mag in self.mags]
                 
             for j, Lmin in enumerate(LUV):
                 
