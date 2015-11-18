@@ -255,6 +255,7 @@ def PopulationParameters():
     "pop_lf_Mstar": None,
     "pop_lf_pstar": None,
     "pop_lf_alpha": None,
+    "pop_lf_mags": None,
 
     "pop_lf_dustcorr": True,
     "pop_lf_beta": -2.,

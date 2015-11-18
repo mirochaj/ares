@@ -247,6 +247,7 @@ class GalaxyPopulation(HaloPopulation):
             if type(self.pf['pop_constraints']) == str:
                 data = read_lit(self.pf['pop_constraints'])
                 self._constraints['z'] = data.redshifts
+                fits = data.fits['lf']['pars']
 
             elif self.pf['pop_lf_z'] is not None:
                 self._constraints['z'] = self.pf['pop_lf_z']
@@ -257,10 +258,15 @@ class GalaxyPopulation(HaloPopulation):
             self._constraints['pstar'] = []
             self._constraints['alpha'] = []
             
-            for z in self._constraints['z']:
-                self._constraints['Mstar'].append(self.pf['pop_lf_Mstar[%g]' % z])
-                self._constraints['pstar'].append(self.pf['pop_lf_pstar[%g]' % z])
-                self._constraints['alpha'].append(self.pf['pop_lf_alpha[%g]' % z])
+            for i, z in enumerate(self._constraints['z']):
+                if type(self.pf['pop_constraints']) == str:
+                    self._constraints['Mstar'].append(fits['Mstar'][i])
+                    self._constraints['pstar'].append(fits['pstar'][i])
+                    self._constraints['alpha'].append(fits['alpha'][i])
+                else:                                              
+                    self._constraints['Mstar'].append(self.pf['pop_lf_Mstar[%g]' % z])
+                    self._constraints['pstar'].append(self.pf['pop_lf_pstar[%g]' % z])
+                    self._constraints['alpha'].append(self.pf['pop_lf_alpha[%g]' % z])
                             
             # Parameter file will have LF in Magnitudes...argh
             redshifts = self._constraints['z']
@@ -282,14 +288,20 @@ class GalaxyPopulation(HaloPopulation):
         if not self.pf['pop_lf_dustcorr']:
             return 0.0    
             
+        if type(self.pf['pop_lf_dustcorr']) == str:
+            pass    
+            
         # Could be constant, but redshift dependent
         if 'pop_lf_beta[%g]' % z in self.pf:
             beta = self.pf['pop_lf_beta[%g]'] 
                                
         # Could depend on redshift AND magnitude
-        elif self.pf['pop_lf_beta_slope[%g]' % z] is not None:
-            beta = self.pf['pop_lf_beta_slope[%g]' % z] \
-                * (mag + 19.5) + self.pf['pop_lf_beta_pivot[%g]' % z]
+        elif 'pop_lf_beta_slope[%g]' % z in self.pf:
+            if self.pf['pop_lf_beta_slope[%g]' % z] is not None:
+                beta = self.pf['pop_lf_beta_slope[%g]' % z] \
+                    * (mag + 19.5) + self.pf['pop_lf_beta_pivot[%g]' % z]
+            else:
+                beta = self.pf['pop_lf_beta']        
         # Could just be constant
         else:
             beta = self.pf['pop_lf_beta']
@@ -410,6 +422,7 @@ class GalaxyPopulation(HaloPopulation):
                     guess, np.diag(guess)
                         
             def tmp(zz, MM):
+                raise NotImplemented('need to fix this')
                 if MM > 10**self.pf['pop_logM'][0]:
                     return self._fstar_poly(zz, MM, *self._fstar_coeff)
                 else:
@@ -419,7 +432,7 @@ class GalaxyPopulation(HaloPopulation):
         
         # Set a constant upper limit below given mass limit     
         elif self.pf['pop_fstar_extrap'] == 'constant':
-            fstar_Mmin = self._ham_Mmin[0]#10**self.pf['pop_logM'][0]
+            fstar_Mmin = self._ham_Mmin[0]
             def tmp(zz, MM):
                 if type(MM) is np.ndarray:
                     Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
@@ -446,28 +459,21 @@ class GalaxyPopulation(HaloPopulation):
         return self._fstar_cap(fstar)
         
     @property
-    def _Marr(self):
-        if not hasattr(self, '_Marr_'):
-            self._Marr_ = 10**self.pf['pop_logM']
-               
-        return self._Marr_
-        
-    @property
     def mags(self):
         if not hasattr(self, '_mags'):
             self._mags = []
                         
-            if type(self.pf['pop_lf_mags']) is str:
-                data = read_lit(self.pf['pop_lf_mags'])
+            if type(self.pf['pop_constraints']) == str:
+                data = read_lit(self.pf['pop_constraints']).data
                 
-                for redshift in self.pf['pop_lf_z']:
-                    self._mags.append(data['lf'][redshift]['M'])
+                for redshift in self.constraints['z']:
+                    self._mags.append(np.array(data['lf'][redshift]['M']))
             else:
-                assert len(self.pf['pop_lf_mags']) == len(self.pf['pop_lf_z']), \
+                assert len(self.pf['pop_lf_mags']) == len(self.constraints['z']), \
                     "Need magnitudes for each redshift bin!"
                 
                 self._mags = self.pf['pop_lf_mags']
-                
+                  
         return self._mags
             
     @property    
@@ -484,13 +490,10 @@ class GalaxyPopulation(HaloPopulation):
         assert self.is_ham_model
         
         Nm = 0
-        for i, z in enumerate(self.pf['pop_lf_z']):
-            for j, M in enumerate(self.pf['pop_lf_mags']):
-                Nm += 1
+        for i, z in enumerate(self.constraints['z']):
+            Nm += len(self.mags[i])
         
         kappa_UV = self.pf['pop_kappa_UV']
-
-        Marr = self._Marr
                 
         Nz = len(self.constraints['z'])
         
@@ -504,24 +507,26 @@ class GalaxyPopulation(HaloPopulation):
         for i, z in enumerate(self.constraints['z']):
 
             mags = []
-            for mag in b15.data[z]['M']:
-                mags.append(mag-self.A1600(z,mag))
+            for mag in self.mags[i]:
+                mags.append(mag-self.A1600(z, mag))
 
             # Read in constraints for this redshift
             alpha = self.constraints['alpha'][i]
             L_star = self.constraints['Lstar'][i]    # dust corrected
             phi_star = self.constraints['pstar'][i]
                     
-            eta = self.eta[i]
-            ngtm = self.halos.ngtm[np.argmin(np.abs(z - self.halos.z))]
+            i_z = np.argmin(np.abs(z - self.halos.z))
+            eta = self.eta[i_z]
+            ngtm = self.halos.ngtm[i_z]
             log_ngtm = np.log(ngtm)
             
-            # Use
-            LUV = [self.magsys.mAB_to_L(mag, z=z) for mag in self.mags]
+            # Use dust-corrected magnitudes here
+            LUV = [self.magsys.mAB_to_L(mag, z=z) for mag in mags]
                 
+            # Loop over luminosities and perform abundance match
             for j, Lmin in enumerate(LUV):
-                
-                
+                                
+                # Integral of schecter function at L > Lmin                
                 xmin = Lmin / L_star    
                 int_phiL = self._schecter_integral_inf(xmin, alpha)      
                 int_phiL *= phi_star
@@ -533,54 +538,17 @@ class GalaxyPopulation(HaloPopulation):
                 
                 def to_min(logMh):
                     int_nMh = np.exp(ngtM_spl(logMh))[0]
-                
-                    #int_nMh = np.exp(np.interp())
-                
+                                
                     return abs(int_phiL - int_nMh)
                 
                 Mmin = np.exp(fsolve(to_min, 10., factor=0.01, maxfev=1000)[0])
                 
                 self._ham_Mmin_[i].append(Mmin)
                 
-                #print z, Lmin, Mmin, self.Macc(z, Mmin), eta
                 self._fstar_ham_pts[i].append(Lmin * kappa_UV \
-                    / eta / self.Macc(z, Mmin))
-                
+                    / eta / self.cosm.fbaryon / self.Macc(z, Mmin))
                 
                 pb.update(i * Nm + j + 1)
-                
-            #for j, M in enumerate(Marr):
-            #
-            #    if M < self.Mmin[i]: 
-            #        continue
-            #
-            #    # Read in variables
-            #    Macc = self.Macc(z, M) * self.cosm.fbaryon
-            #    
-            #    # Minimum luminosity as a function of minimum mass
-            #    LofM = lambda fstar: fstar * Macc * eta / kappa_UV
-            #
-            #    # Number density of halos at masses > M
-            #    int_nMh = np.exp(np.interp(np.log(M), self.halos.lnM, 
-            #        np.log(ngtm)))
-            #
-            #    def to_min(fstar):
-            #        Lmin = LofM(fstar[0])
-            #
-            #        if Lmin < 0:
-            #            return np.inf
-            #
-            #        xmin = Lmin / L_star    
-            #        int_phiL = self._schecter_integral_inf(xmin, alpha)                                                      
-            #        int_phiL *= phi_star
-            #
-            #        return abs(int_phiL - int_nMh)
-            #
-            #    fast = fsolve(to_min, 0.001, factor=0.0001, maxfev=1000)[0]
-            #
-            #    self._fstar_ham_pts[i,j] = fast
-            #
-            #    pb.update(i * Nm + j + 1)
         
         pb.finish()    
                         
@@ -668,8 +636,8 @@ class GalaxyPopulation(HaloPopulation):
         if not hasattr(self, '_sfr_ham_'):
             self._sfr_ham_ = np.zeros([self.halos.Nz, self.halos.Nm])
             for i, z in enumerate(self.halos.z):
-                self._sfr_ham_[i] = self.eta[i] * self.cosm.fbaryon \
-                    * self.Macc(z, self.halos.M) * self.fstar(z, self.halos.M)
+                self._sfr_ham_[i] = self.eta[i] * self.Macc(z, self.halos.M) \
+                    * self.cosm.fbaryon * self.fstar(z, self.halos.M)
             
         return self._sfr_ham_
     

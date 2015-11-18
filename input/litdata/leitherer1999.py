@@ -223,24 +223,24 @@ class StellarPopulation:
             self._tavg_sed = np.dot(self.data, self.weights) / self.times.max()
         
         return self._tavg_sed
-        
+
     @property
     def emissivity_per_sfr(self):
         """
-        Photon emissivity? 10.08.
+        Photon emissivity?
         """
         if not hasattr(self, '_E_per_M'):
             self._E_per_M = np.zeros_like(self.data)
             for i in range(self.times.size):
                 self._E_per_M[:,i] = self.data[:,i] / (self.energies * erg_per_ev)    
-            
+
             if self.pf['continuous_sf']:
                 pass
             else:
                 self._E_per_M /= 1e6
-        
+
         return self._E_per_M
-        
+
     @property
     def uvslope(self):
         if not hasattr(self, '_uvslope'):
@@ -248,11 +248,9 @@ class StellarPopulation:
             for i in range(self.times.size):
                 self._uvslope[1:,i] = np.diff(np.log(self.data[:,i])) \
                     / np.diff(np.log(self.wavelengths))
-            
+
         return self._uvslope
-        
-        
-        
+
     @property
     def NperB(self):
         """
@@ -279,6 +277,19 @@ class StellarPopulation:
                 self._NperB /= 1e6
 
         return self._NperB
+        
+    @property
+    def kappa_UV(self):    
+        """
+        Number of photons emitted per stellar baryon of star formation.
+        
+        Returns
+        -------
+        Two-dimensional array containing photon yield per unit stellar baryon per
+        second per angstrom. First axis corresponds to photon wavelength (or energy), 
+        and second axis to time.
+        
+        """
         
     def integrated_emissivity(self, l0, l1, unit='A'):
         # Find band of interest -- should be more precise and interpolate

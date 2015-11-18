@@ -17,7 +17,7 @@ from ares.physics.Constants import rhodot_cgs, cm_per_mpc
 
 b15 = ares.util.read_lit('bouwens2015')
 
-lf_pars = b15.lf_pars.copy()
+lf_pars = b15.fits['lf']['pars']
 lf_pars['z'] = b15.redshifts
 
 pars = \
@@ -26,7 +26,13 @@ pars = \
  'pop_Macc': 'mcbride2009',
  'pop_constraints': 'bouwens2015',
  'pop_kappa_UV': 1.15e-28,
+ 'pop_fstar_zdep': True,
  'pop_fstar_extrap': 'continue',
+ 'pop_fstar_ceil': 0.3,
+ 
+ # Dust
+ 'pop_lf_dustcorr': True,
+ 'pop_lf_beta': -2.,
 }
 
 pop = ares.populations.GalaxyPopulation(**pars)
@@ -58,9 +64,11 @@ print "Abundance match took %g seconds" % (t2 - t1)
 colors = ['r', 'b', 'g', 'k', 'm']
 for i, z in enumerate([5.9, 7.9]):
     j = pop.constraints['z'].index(z)
-    ax2.scatter(pop._Marr, pop._fstar_ham[j], 
+    ax2.scatter(pop._ham_Mmin_[j], pop._fstar_ham[j], 
         label=r'$z=%g$' % z, color=colors[i], marker='o', facecolors='none')
     
+ax2.plot([1e8, 1e15], [0.2]*2, color='k', ls=':')
+ax2.plot([1e8, 1e15], [0.3]*2, color='k', ls=':')
 ax2.set_xlabel(r'$M_h / M_{\odot}$')
 ax2.set_ylabel(r'$f_{\ast}$')
 pl.legend(ncol=1, frameon=False, fontsize=16, loc='lower center')
@@ -75,6 +83,8 @@ for i, z in enumerate([5.9, 7.9]):
 M2 = np.logspace(8, 14, 50)   
 fast = pop.fstar(z=10, M=M2)
 ax2.loglog(M2, fast, color='y')    
+fast = pop.fstar(z=15, M=M2)
+ax2.loglog(M2, fast, color='m')    
 ax2.set_ylim(1e-3, 1.5)
 
 # SFR
@@ -164,7 +174,7 @@ fig8 = pl.figure(8); ax8 = fig8.add_subplot(111)
 
 z = np.linspace(5, 30)
 for M in 10**np.arange(7, 14):
-    fst = pop.fstar(z, M)
+    fst = map(lambda z: pop.fstar(z, M), z)
     pl.plot(z, fst, label=r'$M_h / M_{\odot} = 10^{%i}$' % (np.log10(M)))
     
 ax8.set_xlabel(r'$z$')
