@@ -152,6 +152,7 @@ class Global21cm:
             return
         
         tf = self.medium.tf
+        self.medium._insert_inits()
                 
         pb = ProgressBar(tf, use=self.pf['progress_bar'])
         pb.start()
@@ -170,7 +171,7 @@ class Global21cm:
         self.all_dTb = self._init_dTb()
                                 
         for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():
-                        
+                                                
             pb.update(t)
                     
             # Save data
@@ -281,11 +282,19 @@ class Global21cm:
                 from ..analysis.InlineAnalysis import InlineAnalysis
                 anl = InlineAnalysis(self)
                 self.turning_points = anl.turning_points
+                
+                self.blobs = anl.blobs
+                self.blob_names, self.blob_redshifts = \
+                    anl.blob_names, anl.blob_redshifts
 
         if (self.pf['inline_analysis'] is None) and \
            (self.pf['auto_generate_blobs'] == False):
             return
+            
+        elif self.pf['inline_analysis'] is not None:
+            self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
 
+        # Just arrayify history elements if they aren't already arrays
         tmp = {}
         for key in self.history:
             if type(self.history[key]) is list:
@@ -294,11 +303,7 @@ class Global21cm:
                 tmp[key] = self.history[key]
 
         self.history = tmp
-    
-        self.blobs = anl.blobs
-        self.blob_names, self.blob_redshifts = \
-            anl.blob_names, anl.blob_redshifts
-            
+
     def save(self, prefix, suffix='pkl', clobber=False):
         """
         Save results of calculation. Pickle parameter file dict.

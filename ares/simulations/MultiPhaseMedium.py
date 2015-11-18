@@ -96,7 +96,15 @@ class MultiPhaseMedium(object):
                     **self.kwargs)
                 
         return self._field
-            
+        
+    @property
+    def pops(self):
+        return self.field.pops
+        
+    @property
+    def grid(self):
+        return self.field.grid        
+        
     @property
     def parcels(self):
         if not hasattr(self, '_parcels'):
@@ -127,6 +135,42 @@ class MultiPhaseMedium(object):
             }
     
         return _rates_no_RT    
+    
+    @property
+    def tf(self):
+        if not hasattr(self, '_tf'):
+            z = self.pf['initial_redshift']
+            zf = self.pf['final_redshift']
+            self._tf = self.default_parcel.grid.cosm.LookbackTime(zf, z)
+            self.pf['stop_time'] = self._tf / self.pf['time_units']
+        return self._tf
+        
+    def run_inline_analysis(self):    
+    
+        if (self.pf['inline_analysis'] is None) and \
+           (self.pf['auto_generate_blobs'] == False):
+            return
+    
+        elif self.pf['inline_analysis'] is not None:
+            self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
+        else:
+            raise NotImplemented('dunno what to do here')
+    
+        # Get da blobs
+        from ..analysis.InlineAnalysis import InlineAnalysis
+        anl = InlineAnalysis(self)  
+        anl.run_inline_analysis()      
+        self.blobs = anl.blobs
+        
+        # Just arrayify history elements if they aren't already arrays
+        tmp = {}
+        for key in self.history:
+            if type(self.history[key]) is list:
+                tmp[key] = np.array(self.history[key])
+            else:
+                tmp[key] = self.history[key]
+    
+        self.history = tmp
     
     def _initialize_zones(self):
         """
@@ -191,11 +235,7 @@ class MultiPhaseMedium(object):
                 
                 self._parcels.append(parcel_cgm)
                         
-            if not hasattr(self, 'tf'):
-                self.tf = self.default_parcel.grid.cosm.LookbackTime(zf, z)
-                self.pf['stop_time'] = self.tf / self.pf['time_units']    
-
-            self._parcels[-1].pf['stop_time'] = self.pf['stop_time']
+            self._parcels[-1].pf['stop_time'] = self.tf / self.pf['time_units']
              
     @property
     def zones(self):

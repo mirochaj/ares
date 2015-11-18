@@ -16,12 +16,11 @@ from .ModelFit import LogPrior
 from emcee.utils import sample_ball
 from ..util.PrintInfo import print_fit
 from .FitGlobal21cm import FitGlobal21cm
-from ..physics.Constants import nu_0_mhz
 import gc, os, sys, copy, types, time, re
 from ..util.ParameterFile import par_info
-from ..analysis import Global21cm as anlG21
 from ..simulations import Global21cm as simG21
 from ..populations.Galaxy import param_redshift
+from ..simulations import MultiPhaseMedium as simMPM
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts, \
     SetAllDefaults
@@ -94,11 +93,11 @@ class loglikelihood:
                     print 'Must supply redshift for prior on %s!' % key
                 MPI.COMM_WORLD.Abort()
 
-        self.logprior_P = LogPrior(priors_P, self.parameters)
+        self.logprior_P = LogPrior(priors_P, self.parameters, self.is_log)
         self.logprior_B = LogPrior(priors_B, b_pars)
                 
         # Setup binfo pkl file
-        #self._prep_binfo()
+        self._prep_binfo()
         
     def _prep_binfo(self):
         if rank > 0:
@@ -125,7 +124,21 @@ class loglikelihood:
                 self._blank_blob.append(tup)
     
         return np.array(self._blank_blob)
-    
+        
+    @property
+    def sim_class(self):
+        if not hasattr(self, '_sim_class'):
+            if 'include_igm' in self.base_kwargs:
+                if self.base_kwargs['include_igm']:
+                    self._sim_class = simG21
+                else:
+                    self._sim_class = simMPM
+            elif defaults['include_igm']:
+                self._sim_class = simG21
+            else:
+                self._sim_class = simMPM
+        return self._sim_class
+        
     def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -138,13 +151,11 @@ class loglikelihood:
 
         kwargs = {}
         for i, par in enumerate(self.parameters):
-    
-            save = kwargs
-    
+        
             if self.is_log[i]:
-                save[par] = 10**pars[i]
+                kwargs[par] = 10**pars[i]
             else:
-                save[par] = pars[i]
+                kwargs[par] = pars[i]
             
         # Apply prior on model parameters first (dont need to generate signal)
         lp = self.logprior_P(pars)
@@ -155,19 +166,25 @@ class loglikelihood:
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
     
-        sim = simG21(**kw)
+        sim = self.sim_class(**kw)
+        
+        if isinstance(sim, simG21):
+            medium = sim.medium
+        else:
+            medium = sim
                 
         # If we're only fitting the LF, no need to run simulation
         if self.run_21cm:
             t1 = time.time()
             sim.run()
             t2 = time.time()
+            
             sim.run_inline_analysis()
-                                    
+                                                             
             #tfn = '%s.timing_%s.pkl' % (self.prefix, str(rank).zfill(4))
             #with open(tfn, 'ab') as f:
             #    pickle.dump((t2 - t1, kwargs), f)
-                
+
         # Timestep weird (happens when xi ~ 1)
         #except SystemExit:
         #    pass
@@ -188,7 +205,7 @@ class loglikelihood:
         # Apply priors to blobs
         blob_vals = []
         for key in self.logprior_B.priors:
-
+            
             if not hasattr(sim, 'blobs'):
                 break
 
@@ -212,14 +229,15 @@ class loglikelihood:
         else:
             blobs = self.blank_blob
 
-        for popid, pop in enumerate(sim.medium.field.pops):
+        # Figre out which population is the one with the LF
+        for popid, pop in enumerate(medium.field.pops):
             if not pop.is_ham_model:
                 continue
             break
 
         phi = []
         for i, z in enumerate(self.redshifts):
-            pop = sim.medium.field.pops[popid] 
+            pop = medium.field.pops[popid] 
             p = pop.LuminosityFunction(M=np.array(self.xdata[i]), z=z)
             phi.extend(p)
 
@@ -239,6 +257,8 @@ class FitLuminosityFunction(FitGlobal21cm):
     Basically a Global21cm fit except we might not actually press "run" on
     any of the simulations. By default, we don't.
     """
+    
+    FitGlobal21cm.turning_points = False
     
     @property
     def runsim(self):
@@ -378,18 +398,18 @@ class FitLuminosityFunction(FitGlobal21cm):
         self._error = value    
     
     @property
-    def _guess_override_(self):
+    def guess_override(self):
         if not hasattr(self, '_guess_override_'):
             self._guess_override_ = {}
         
         return self._guess_override_
-        
-    def guess_override(self, **kwargs):
-        if not hasattr(self, '_guess_override'):
+    
+    @guess_override.setter
+    def guess_override(self, kwargs):
+        if not hasattr(self, '_guess_override_'):
             self._guess_override_ = {}
             
-        self._guess_override.update(kwargs)
-        return self._guess_override
+        self._guess_override_.update(kwargs)
             
     @property
     def guesses(self):
@@ -411,26 +431,40 @@ class FitLuminosityFunction(FitGlobal21cm):
             
             jitter = []
             guesses = []
-            for par in self.parameters:
+            for i, par in enumerate(self.parameters):
                 prefix, popid, popz = par_info(par)
                 
+                # Will never be log (?) for now, anyways
                 if re.search('pop_lf', prefix):
                     name = prefix.replace('pop_lf_', '')
+                    
+                    if self.is_log[i]:
+                        err = fits['err'][name][z.index(popz)]
+                        val = fits['pars'][name][z.index(popz)]
+                        
+                        new_jit = np.log10(abs(val - err) / val)
+                        new_guess = np.log10(fits['pars'][name][z.index(popz)])
+                    else:    
+                        new_jit = fits['err'][name][z.index(popz)]
+                        new_guess = fits['pars'][name][z.index(popz)]
+                        
+                # Will be in same units as priors
+                elif par in self.guess_override:
+                    new_jit = self.jitter[i]
+                    new_guess = self.guess_override[par]
+                # Never log
                 elif prefix in defaults:
-                    jitter.append(self.jitter)
-                    guesses.append(defaults[prefix])
-                    continue
+                    new_jit = self.jitter[i]
+                    new_guess = defaults[prefix]
                 else:
                     raise NotImplemented('help')
                     
-                jitter.append(fits['err'][name][z.index(popz)])
-                guesses.append(fits['pars'][name][z.index(popz)])
+                jitter.append(new_jit)
+                guesses.append(new_guess)
         
-            self._guesses = sample_ball(guesses, jitter, size=self.nwalkers)
-        
-            for i, par in enumerate(self.parameters):
-                if self.is_log[i]:
-                    self._guesses[:,i] = np.log10(self.guesses[:,i])
+            self.jitter = jitter
+            self._guesses = sample_ball(guesses, self.jitter, 
+                size=self.nwalkers)
         
         else:
             raise NotImplemented('help')

@@ -53,16 +53,28 @@ except ImportError:
     rank = 0
     size = 1
     
+twopi = np.sqrt(2 * np.pi)
+    
 guesses_shape_err = "If you supply guesses as 2-D array, it must have" 
 guesses_shape_err += " shape (nwalkers, nparameters)!"
 
 jitter_shape_err = "If you supply jitter as an array, it must have"
 jitter_shape_err += " shape (nparameters)"
-# Uninformative prior
-uninformative = lambda x, mi, ma: 1.0 if (mi <= x <= ma) else 0.0
 
-# Gaussian prior
-gauss1d = lambda x, mu, sigma: np.exp(-0.5 * (x - mu)**2 / sigma**2)
+def uninformative_lin(x, mi, ma):
+    if (mi <= x <= ma):
+        return 1.0 / (ma - mi)
+    else:
+        return 0.0
+
+def uninformative_log(x, mi, ma):
+    if (mi <= x <= ma):
+        return 1.0 / ((ma - mi) * x)
+    else:
+        return 0.0
+
+def gaussian_prior(x, mu, sigma):
+    return np.exp(-0.5 * (x - mu)**2 / sigma**2) / twopi / sigma
 
 def_kwargs = {'verbose': False, 'progress_bar': False,
     'one_file_per_blob': True}
@@ -102,9 +114,14 @@ def _str_to_val(p, par, pvals, pars):
     return pvals[pars.index('%s{%i}' % (prefix, num))]
 
 class LogPrior:
-    def __init__(self, priors, parameters):
+    def __init__(self, priors, parameters, is_log=None):
         self.pars = parameters  # just names *in order*
         self.priors = priors
+        
+        if is_log is None:
+            self.is_log = [False] * len(parameters)
+        else:
+            self.is_log = is_log
 
         if priors:
             self.prior_len = [len(self.priors[par]) for par in self.pars]
@@ -136,10 +153,13 @@ class LogPrior:
 
             # Uninformative priors
             if ptype == 'uniform':
-                logL -= np.log(uninformative(val, p1, p2))
+                if self.is_log[i]:
+                    logL -= uninformative_log(val, p1, p2)
+                else:
+                    logL -= np.log(uninformative_lin(val, p1, p2))
             # Gaussian priors
             elif ptype == 'gaussian':
-                logL -= np.log(gauss1d(val, p1, p2))
+                logL -= np.log(gaussian_prior(val, p1, p2))
             else:
                 raise ValueError('Unrecognized prior type: %s' % ptype)
 
@@ -403,7 +423,7 @@ class ModelFit(object):
         self.base_kwargs = def_kwargs.copy()
         self.base_kwargs.update(kwargs)            
         self.one_file_per_blob = self.base_kwargs['one_file_per_blob'] 
-                               
+                                            
     @property
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
@@ -469,27 +489,27 @@ class ModelFit(object):
     def priors(self, value):
         self._priors = value
         
-    @property
-    def blob_names(self):
-        if not hasattr(self, '_blob_names'):
-            self._blob_names = None
-    
-        return self._blob_names
-    
-    @blob_names.setter
-    def blob_names(self, value):
-        self._blob_names = value   
-    
-    @property
-    def blob_redshifts(self):
-        if not hasattr(self, '_blob_redshifts'):
-            self._blob_redshifts = None
-    
-        return self._blob_redshifts
-    
-    @blob_redshifts.setter
-    def blob_redshifts(self, value):
-        self._blob_redshifts = value     
+    #@property
+    #def blob_names(self):
+    #    if not hasattr(self, '_blob_names'):
+    #        self._blob_names = None
+    #
+    #    return self._blob_names
+    #
+    #@blob_names.setter
+    #def blob_names(self, value):
+    #    self._blob_names = value   
+    #
+    #@property
+    #def blob_redshifts(self):
+    #    if not hasattr(self, '_blob_redshifts'):
+    #        self._blob_redshifts = None
+    #
+    #    return self._blob_redshifts
+    #
+    #@blob_redshifts.setter
+    #def blob_redshifts(self, value):
+    #    self._blob_redshifts = value     
     
     @property
     def nwalkers(self):
@@ -497,7 +517,7 @@ class ModelFit(object):
             self._nw = self.Nd * 2
             
             if rank == 0:
-                print "Set nwalkers=%i." % self._nw
+                print "Defaulting to nwalkers=2*Nd=%i." % self._nw
             
         return self._nw
         
@@ -799,6 +819,9 @@ class ModelFit(object):
         # Burn in, prep output files     
         if (burn > 0) and (not restart):
             
+            if rank == 0:
+                print "Starting burn-in: %s" % (time.ctime())
+            
             t1 = time.time()
             pos, prob, state, blobs = \
                 self.sampler.run_mcmc(self.guesses, burn)
@@ -822,6 +845,9 @@ class ModelFit(object):
         #
         ## MAIN CALCULATION BELOW
         #
+
+        if rank == 0:
+            print "Starting MCMC: %s" % (time.ctime())
 
         # Take steps, append to pickle file every save_freq steps
         ct = 0

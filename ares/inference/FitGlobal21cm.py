@@ -88,7 +88,7 @@ class loglikelihood:
                     print 'Must supply redshift for prior on %s!' % key
                 MPI.COMM_WORLD.Abort()
 
-        self.logprior_P = LogPrior(priors_P, self.parameters)
+        self.logprior_P = LogPrior(priors_P, self.parameters, self.is_log)
         self.logprior_B = LogPrior(priors_B, b_pars)
 
         if self.turning_points:
@@ -149,18 +149,11 @@ class loglikelihood:
         """
 
         kwargs = {}
-        fg_kwargs = {}
         for i, par in enumerate(self.parameters):
-            
-            if par[0:2] == 'fg':
-                save = fg_kwargs
-            else:
-                save = kwargs
-            
             if self.is_log[i]:
-                save[par] = 10**pars[i]
+                kwargs[par] = 10**pars[i]
             else:
-                save[par] = pars[i]
+                kwargs[par] = pars[i]
 
         # Apply prior on model parameters first (dont need to generate signal)
         lp = self.logprior_P(pars)
@@ -283,9 +276,8 @@ class FitGlobal21cm(ModelFit):
         Anything you want based to each ares.simulations.Global21cm call.
         
         """
-
+        
         ModelFit.__init__(self, **kwargs)
-    
         self._prep_blobs()
         
     @property
@@ -380,15 +372,21 @@ class FitGlobal21cm(ModelFit):
             self._error = np.array(nu + T)
             
         else:
-            raise NotImplemented('help')    
+            raise NotImplemented('help')
             
     def _prep_blobs(self):
-                                
+        """
+        
+        """                        
         if 'gaussian_model' in self.base_kwargs:
             if self.base_kwargs['gaussian_model']:
                 return
         
-        if 'auto_generate_blobs' in self.base_kwargs:            
+        if 'inline_analysis' in self.base_kwargs:
+            self.blob_names, self.blob_redshifts = \
+                self.base_kwargs['inline_analysis']
+        
+        elif 'auto_generate_blobs' in self.base_kwargs:            
             if self.base_kwargs['auto_generate_blobs'] == True:
                 kw = self.base_kwargs.copy()
 
@@ -400,19 +398,13 @@ class FitGlobal21cm(ModelFit):
                 
                 del sim, anl
                 gc.collect()
-                
                 self.base_kwargs['inline_analysis'] = \
                     (self.blob_names, self.blob_redshifts)
                 self.base_kwargs['auto_generate_blobs'] = False
             elif self.base_kwargs['auto_generate_blobs'] == 'default':
                 self.blob_names = _blob_names
                 self.blob_redshifts = _blob_redshifts
-                
-        elif 'inline_analysis' in self.base_kwargs and \
-            (not hasattr(self, 'blob_names')):
-            self.blob_names, self.blob_redshifts = \
-                self.base_kwargs['inline_analysis']
-                        
+        
         elif hasattr(self, 'blob_names'):
             self.base_kwargs['inline_analysis'] = \
                 (self.blob_names, self.blob_redshifts)

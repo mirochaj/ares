@@ -56,8 +56,11 @@ def pop_id_num(par):
 def par_info(par):
     
     prefix1, popid = pop_id_num(par)
-
+    
     m = re.search(r"\[(\d+(\.\d*)?)\]", prefix1)
+
+    if m is None:
+        return prefix1, popid, None
 
     prefix2 = prefix1.replace(m.group(0), '')
     z = m.group(1)

@@ -469,7 +469,7 @@ class GalaxyPopulation(HaloPopulation):
                 for redshift in self.constraints['z']:
                     self._mags.append(np.array(data['lf'][redshift]['M']))
             else:
-                assert len(self.pf['pop_lf_mags']) == len(self.constraints['z']), \
+                assert len(self.mags) == len(self.constraints['z']), \
                     "Need magnitudes for each redshift bin!"
                 
                 self._mags = self.pf['pop_lf_mags']

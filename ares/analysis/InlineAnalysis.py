@@ -67,6 +67,8 @@ class InlineAnalysis:
                     pop = self.sim.pops[i]
                 elif hasattr(self.sim, 'medium'):
                     pop = self.sim.medium.field.pops[i]
+                elif hasattr(self.sim, 'field'):
+                    pop = self.sim.field.pops[i]        
                 else:
                     pop = self.sim
                 
