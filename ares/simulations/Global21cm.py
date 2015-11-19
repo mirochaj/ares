@@ -286,6 +286,8 @@ class Global21cm:
                 self.blobs = anl.blobs
                 self.blob_names, self.blob_redshifts = \
                     anl.blob_names, anl.blob_redshifts
+                    
+                return
 
         if (self.pf['inline_analysis'] is None) and \
            (self.pf['auto_generate_blobs'] == False):
@@ -293,6 +295,12 @@ class Global21cm:
             
         elif self.pf['inline_analysis'] is not None:
             self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
+
+        # Get da blobs
+        from ..analysis.InlineAnalysis import InlineAnalysis
+        anl = InlineAnalysis(self)  
+        anl.run_inline_analysis()      
+        self.blobs = anl.blobs
 
         # Just arrayify history elements if they aren't already arrays
         tmp = {}

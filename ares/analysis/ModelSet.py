@@ -3157,12 +3157,15 @@ class ModelSet(object):
             if par in labels:
                 sup.append(None)
                 p.append(par)
-                continue    
-
+                continue
+                
             prefix, popid, popz = par_info(par)
                         
             if prefix in labels:
                 p.append(labels[prefix])
+            elif prefix.replace('pop_', '') in labels:
+                sup.append(None)
+                p.append(labels[prefix.replace('pop_', '')])
             else:
                 p.append(prefix)    
                 

@@ -180,7 +180,7 @@ class loglikelihood:
             t2 = time.time()
             
             sim.run_inline_analysis()
-                                                             
+                                                                                                      
             #tfn = '%s.timing_%s.pkl' % (self.prefix, str(rank).zfill(4))
             #with open(tfn, 'ab') as f:
             #    pickle.dump((t2 - t1, kwargs), f)
@@ -216,7 +216,7 @@ class loglikelihood:
 
             val = sim.blobs[j,i]
 
-            blob_vals.append(val)    
+            blob_vals.append(val)
 
         if blob_vals:
             lp -= self.logprior_B(blob_vals)
@@ -240,7 +240,7 @@ class loglikelihood:
             pop = medium.field.pops[popid] 
             p = pop.LuminosityFunction(M=np.array(self.xdata[i]), z=z)
             phi.extend(p)
-
+            
         logL = lp - 0.5 * (np.sum((np.array(phi) - self.ydata)**2 \
             / 2. / self.error**2 + np.log(2. * np.pi * self.error**2)))
 

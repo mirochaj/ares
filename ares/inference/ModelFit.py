@@ -154,14 +154,16 @@ class LogPrior:
             # Uninformative priors
             if ptype == 'uniform':
                 if self.is_log[i]:
-                    logL -= uninformative_log(val, p1, p2)
+                    logL_i = uninformative_log(val, p1, p2)
                 else:
-                    logL -= np.log(uninformative_lin(val, p1, p2))
+                    logL_i = np.log(uninformative_lin(val, p1, p2))
             # Gaussian priors
             elif ptype == 'gaussian':
-                logL -= np.log(gaussian_prior(val, p1, p2))
+                logL_i = np.log(gaussian_prior(val, p1, p2))
             else:
                 raise ValueError('Unrecognized prior type: %s' % ptype)
+
+            logL -= logL_i
 
         return logL
         

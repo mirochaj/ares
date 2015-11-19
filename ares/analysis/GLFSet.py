@@ -11,13 +11,14 @@ Description:
 """
 
 import re
+import ares
 import numpy as np
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
 from ..populations.Galaxy import param_redshift
 from ..util.SetDefaultParameterValues import SetAllDefaults
 
-class GLFSet(ModelSet):
+class LuminosityFunctionSet(ModelSet):
     """
     Basically a ModelSet instance with routines specific to the high-z
     galaxy luminosity function.
@@ -88,16 +89,20 @@ class GLFSet(ModelSet):
         
         return ax
             
-    def LF_vs_HMF(self, z):
+    def alpha_hmf(self, z, M=1e9):
         """
         Compare constraints on the slope of the LF vs. the slope of the HMF.
         """
         
-        ax, gotax = self.get_ax(ax, fig)
+        if not hasattr(self, '_pop'):
+            self._pop = ares.populations.GalaxyPopulation(verbose=False)
         
+        i_z = np.argmin(np.abs(z - self._pop.halos.z))
         
+        alpha_of_M = np.diff(np.log(self._pop.halos.dndm[i_z,:])) \
+            / np.diff(self._pop.halos.lnM)
         
-        
+        return np.interp(M, self._pop.halos.M[0:-1], alpha_of_M)
             
     def SlopeEvolution(self):
         pass
