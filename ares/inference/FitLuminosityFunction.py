@@ -175,11 +175,22 @@ class loglikelihood:
                 
         # If we're only fitting the LF, no need to run simulation
         if self.run_21cm:
-            t1 = time.time()
-            sim.run()
-            t2 = time.time()
             
-            sim.run_inline_analysis()
+            try:
+                sim.run()
+                sim.run_inline_analysis()
+            except ValueError:
+                # Seems to happen in some weird cases when the 
+                # HAM fit fails
+                
+                f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
+                pickle.dump(kwargs, f)
+                f.close()
+                
+                del sim, kw, f
+                gc.collect()
+                
+                return -np.inf, self.blank_blob
                                                                                                       
             #tfn = '%s.timing_%s.pkl' % (self.prefix, str(rank).zfill(4))
             #with open(tfn, 'ab') as f:
