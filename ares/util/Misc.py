@@ -15,7 +15,6 @@ import subprocess
 import numpy as np
 from collections import Iterable
 from scipy.integrate import cumtrapz
-from .ProblemTypes import ProblemType
 from ..physics.Constants import sigma_T
 from .SetDefaultParameterValues import SetAllDefaults
 from .CheckForParameterConflicts import CheckForParameterConflicts
@@ -35,7 +34,11 @@ defaults = SetAllDefaults()
 logbx = lambda b, x: np.log10(x) / np.log10(b)
 
 def get_hg_rev():
-    pipe = subprocess.Popen(["hg", "id", "-i", ARES], stdout=subprocess.PIPE)
+    try:
+        pipe = subprocess.Popen(["hg", "id", "-i", ARES], stdout=subprocess.PIPE)
+    except:
+        return 'mercurial not installed'
+        
     return pipe.stdout.read().strip()
     
 class evolve:

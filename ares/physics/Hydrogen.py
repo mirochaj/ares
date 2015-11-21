@@ -13,6 +13,7 @@ Description: Container for hydrogen physics stuff.
 import numpy as np
 import scipy.interpolate as interpolate
 from ..util.Math import central_difference
+from ..util.ParameterFile import ParameterFile
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL
 
 try:
@@ -59,18 +60,20 @@ c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
 c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
 
 class Hydrogen:
-    def __init__(self, cosm=None, approx_Salpha=1, nmax=23, interp='cubic',
-        **kwargs):
+    def __init__(self, cosm=None, **kwargs):
+        
+        self.pf = ParameterFile(**kwargs)
+        
         if cosm is None:
             from .Cosmology import Cosmology
-            self.cosm = Cosmology()
+            self.cosm = Cosmology(**self.pf)
         else:
             self.cosm = cosm
+            
+        self.interp_method = self.pf['interp_cc']
+        self.approx_S = self.pf['approx_Salpha']
         
-        self.interp_method = interp    
-        self.approx_S = approx_Salpha
-        
-        self.nmax = nmax
+        self.nmax = self.pf['lya_nmax']
         self.fbarII = 0.72
         self.fbarIII = 0.63
         self.A10 = 2.85e-15 			
@@ -85,6 +88,7 @@ class Hydrogen:
         self.E_LyA = h * c / (1216. * 1e2 / 1e10) / erg_per_ev
         self.E_LyB = h * c / (1026. * 1e2 / 1e10) / erg_per_ev
         self.E_LL = h * self.nu_LL / erg_per_ev
+        
         self.nu_alpha = self.E_LyA * erg_per_ev / h
         self.nu_beta = self.E_LyB * erg_per_ev / h
         self.dnu = self.nu_LL - self.nu_alpha
@@ -97,7 +101,7 @@ class Hydrogen:
     def kappa_H_pre(self):
         if not hasattr(self, '_kappa_H_pre'):                            
             self._kappa_H_pre = interpolate.interp1d(T_HH, kappa_HH, 
-                kind='cubic', bounds_error=False, fill_value=0.0)
+                kind=self.interp_method, bounds_error=False, fill_value=0.0)
 
         return self._kappa_H_pre
 
@@ -105,7 +109,7 @@ class Hydrogen:
     def kappa_e_pre(self):
         if not hasattr(self, '_kappa_e_pre'):     
             self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He,
-                kind='cubic', bounds_error=False, fill_value=0.0)
+                kind=self.interp_method, bounds_error=False, fill_value=0.0)
 
         return self._kappa_e_pre
 
@@ -310,6 +314,12 @@ class Hydrogen:
         """ Return energy of Lyman-n photon in eV. """
         return E_LL * (1. - 1. / n**2)
         
+    def Ts(self, z, Tk, Ja, xHII, ne):
+        """
+        Short-hand for calling `SpinTemperature`.
+        """
+        return self.SpinTemperature(z, Tk, Ja, xHII, ne)
+        
     def SpinTemperature(self, z, Tk, Ja, xHII, ne):
         """
         Returns spin temperature of intergalactic hydrogen.
@@ -340,7 +350,13 @@ class Hydrogen:
         return (1.0 + x_c + x_a) / \
             (self.cosm.TCMB(z)**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
     
-    def DifferentialBrightnessTemperature(self, z, xHII, Ts):
+    def dTb(self, z, xHII, Ts):
+        """
+        Short-hand for calling `DifferentialBrightnessTemperature`.
+        """
+        return self.DifferentialBrightnessTemperature(z, xHII, Ts)
+        
+    def DifferentialBrightnessTemperature(self, z, xavg, Ts):
         """
         Global 21-cm signature relative to cosmic microwave background in mK.
         
@@ -348,10 +364,10 @@ class Hydrogen:
         ----------
         z : float, np.ndarray
             Redshift
-        xHII : float, np.ndarray 
-            Volume filling factor of HII regions
-        delta : float, np.ndarray 
-            Gas overdensity
+        xavg : float, np.ndarray 
+            Volume-averaged ionized fraction, i.e., a weighted average 
+            between the volume of fully ionized gas and the semi-neutral
+            bulk IGM beyond.
         Ts : float, np.ndarray
             Spin temperature of intergalactic hydrogen.
             
@@ -361,10 +377,9 @@ class Hydrogen:
         
         """
         
-        return 27. * (1. - xHII) * \
+        return 27. * (1. - xavg) * \
             (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
             np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
             (1.0 - self.cosm.TCMB(z) / Ts)
             
 
-            

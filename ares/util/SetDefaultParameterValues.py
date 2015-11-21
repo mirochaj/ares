@@ -432,7 +432,7 @@ def ControlParameters():
     "solver_atol": 1e-8,
     "interp_method": 'cubic',
     
-    "interp_method_cc": 'cubic',
+    "interp_cc": 'cubic',
 
     # Initialization
     "load_ics": True,
