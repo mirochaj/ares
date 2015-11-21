@@ -246,14 +246,19 @@ class GalaxyPopulation(HaloPopulation):
             self._constraints = {}
             if type(self.pf['pop_constraints']) == str:
                 data = read_lit(self.pf['pop_constraints'])
-                self._constraints['z'] = data.redshifts
+                
+                if self.pf['pop_lf_z'] is not None:
+                    self._constraints['z'] = self.pf['pop_lf_z']
+                else:
+                    self._constraints['z'] = data.redshifts
+                
                 fits = data.fits['lf']['pars']
 
             elif self.pf['pop_lf_z'] is not None:
                 self._constraints['z'] = self.pf['pop_lf_z']
             else:
-                raise ValueError('helps')
-            
+                raise ValueError('help')
+                        
             self._constraints['Mstar'] = []
             self._constraints['pstar'] = []
             self._constraints['alpha'] = []
@@ -389,7 +394,7 @@ class GalaxyPopulation(HaloPopulation):
                 self._eta[i] = rhs / lhs
 
         return self._eta
-        
+                
     def fstar(self, z=None, M=None):
         """
         Compute the mass- and redshift-dependent star-formation efficiency.
@@ -401,57 +406,131 @@ class GalaxyPopulation(HaloPopulation):
         elif not self.is_ham_model:
             return self.pf['pop_fstar']
 
+        # i.e., we already ran the fits, just use the results
         if hasattr(self, '_fstar'):
             return self._fstar_cap(self._fstar(z, M))
 
-        if self.pf['pop_fstar_extrap'] == 'continue':
-            self._fstar = lambda zz, MM: self._fstar_poly(zz, MM, 
+        ##
+        # FIT to ABUNDANCE MATCHING RESULTS HAPPENS NEXT
+        ##
+            
+        # Allow the 6-parameter fit used in Sun & Furlanetto to be extrapolated
+        # over all masses
+        if (self.pf['pop_fstar_M_extrap'] == 'continue') and \
+           (self.pf['pop_fstar_z_extrap'] == 'continue'):
+            self._fstar = lambda zz, MM: self._fstar_func(zz, MM, 
                 *self._fstar_coeff)
-        # Fit a polynomial to the last few points
-        elif type(self.pf['pop_fstar_extrap'] != str):
+                
+        elif (self.pf['pop_fstar_M_extrap'] == 'continue') and \
+             (self.pf['pop_fstar_z_extrap'][0] == 'const'):
+             
+            zhi = self.pf['pop_fstar_z_extrap'][1]
+            fstar_zhi = lambda MM: self._fstar_func(zhi, MM, 
+                *self._fstar_coeff)
             
-            def to_fit(x, *coeff):
-                M, z = np.meshgrid(*x)
-                return self._log_fstar_poly(z, M, *coeff).flatten()
-            
-            try:
-                self._fstar_coeff_, self._fstar_cov_ = \
-                    curve_fit(to_fit, x, y, p0=guess, maxfev=10000)
-            except RuntimeError:
-                self._fstar_coeff_, self._fstar_cov_ = \
-                    guess, np.diag(guess)
-                        
             def tmp(zz, MM):
-                raise NotImplemented('need to fix this')
-                if MM > 10**self.pf['pop_logM'][0]:
-                    return self._fstar_poly(zz, MM, *self._fstar_coeff)
-                else:
-                    pass
-            
-            self._fstar = tmp
+                
+                # If we're not past the highest redshift point, we're good
+                if zz <= zhi:
+                    return self._fstar_func(zz, MM, *self._fstar_coeff)
+                
+                # Otherwise, 
+                return fstar_zhi(MM)
+                
+            self._fstar = tmp     
         
-        # Set a constant upper limit below given mass limit     
-        elif self.pf['pop_fstar_extrap'] == 'constant':
-            fstar_Mmin = self._ham_Mmin[0]
+        # Fit a power-law to the last few points (in mass).
+        # Allow the redshift evolution to do its thing
+        elif (self.pf['pop_fstar_M_extrap'] == 'pl'):
+            
+            Mmin_of_z = [min(self._ham_Mmin[i]) \
+                for i, red in enumerate(self._fstar_ham_z)]
+            
+            fMlos = []
+            alphas = []
+            for i, redshift in enumerate(self._fstar_ham_z):
+                
+                Mlo = Mmin_of_z[i]
+                
+                M1 = 10**(np.log10(Mlo) - 0.01)
+                M2 = 10**(np.log10(Mlo) + 0.01)
+                
+                f1 = self._fstar_func(redshift, M1, *self._fstar_coeff)
+                f2 = self._fstar_func(redshift, M2, *self._fstar_coeff)
+                
+                fMlo = self._fstar_func(redshift, Mlo, *self._fstar_coeff)
+                
+                alpha = (np.log10(f2) - np.log10(f1)) \
+                    / (np.log10(M2) - np.log10(M1))
+            
+                fMlos.append(fMlo)
+                alphas.append(alpha)
+                
             def tmp(zz, MM):
+                
+                
+                # If this redshift is within the range of the data, interpolate
+                # between previously determined slopes
+                
+                if zz <= self._fstar_ham_z[-1]:
+                    Mlo = 10**np.interp(zz, self._fstar_ham_z, 
+                        np.log10(Mmin_of_z))
+                    fMlo = 10**np.interp(zz, self._fstar_ham_z, 
+                        np.log10(fMlos))                    
+                    
+                else:
+                    m = (Mmin_of_z[-2] - Mmin_of_z[-1]) \
+                        / (self._fstar_ham_z[-2] - self._fstar_ham_z[-1])
+                    Mlo = m * (zz - self._fstar_ham_z[-1]) + Mmin_of_z[-1]
+                                                                        
+                M1 = 10**(np.log10(Mlo) - 0.2)
+                M2 = 10**(np.log10(Mlo) + 0.2)
+                
+                f1 = self._fstar_func(zz, M1, *self._fstar_coeff)
+                f2 = self._fstar_func(zz, M2, *self._fstar_coeff)
+                
+                fMlo = self._fstar_func(zz, Mlo, *self._fstar_coeff)
+                
+                alpha = (np.log10(f2) - np.log10(f1)) \
+                    / (np.log10(M2) - np.log10(M1))
+                                
                 if type(MM) is np.ndarray:
-                    Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
-                        * fstar_Mmin
-                    Mhi = MM[np.argwhere(MM >= fstar_Mmin)]
+                    Mbelow = MM[np.argwhere(MM < Mlo)]
+                    Mabove = MM[np.argwhere(MM >= Mlo)]
                                         
-                    fst_lo = self._fstar_poly(zz, Mlo, *self._fstar_coeff)
-                    fst_hi = self._fstar_poly(zz, Mhi, *self._fstar_coeff)
+                    fst_lo = fMlo * (Mbelow / Mlo)**alpha
+                    fst_hi = self._fstar_func(zz, Mabove, *self._fstar_coeff)
                                         
                     return np.concatenate((fst_lo, fst_hi)).squeeze()
-                    
-                elif MM > 10**self.pf['pop_logM'][0]:
-                    return self._fstar_poly(zz, MM, *self._fstar_coeff)
+                elif MM > Mlo:
+                    return self._fstar_func(zz, MM, *self._fstar_coeff)
                 else:
-                    return self._fstar_poly(zz, fstar_Mmin, *self._fstar_coeff)
-            
+                    return fMlo * (MM / Mlo)**alpha
+
             self._fstar = tmp
-        elif self.pf['pop_fstar_extrap'] == 'z_independent':
-            raise NotImplemented('help')
+            
+        # Set a constant upper limit for fstar below given mass limit     
+        # Linearly interpolate in redshift to find this limit?
+        #elif self.pf['pop_fstar_M_extrap'] == 'constant':
+        #    fstar_Mmin = self._ham_Mmin[0]
+        #    def tmp(zz, MM):
+        #        if type(MM) is np.ndarray:
+        #            Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
+        #                * fstar_Mmin
+        #            Mhi = MM[np.argwhere(MM >= fstar_Mmin)]
+        #                                
+        #            fst_lo = self._fstar_func(zz, Mlo, *self._fstar_coeff)
+        #            fst_hi = self._fstar_func(zz, Mhi, *self._fstar_coeff)
+        #                                
+        #            return np.concatenate((fst_lo, fst_hi)).squeeze()
+        #            
+        #        elif MM > 10**self.pf['pop_logM'][0]:
+        #            return self._fstar_func(zz, MM, *self._fstar_coeff)
+        #        else:
+        #            return self._fstar_func(zz, fstar_Mmin, *self._fstar_coeff)
+        #    
+        #    self._fstar = tmp
+
         else:
             raise ValueError('Unknown pop extrap option!')
         
@@ -544,7 +623,6 @@ class GalaxyPopulation(HaloPopulation):
                 Mmin = np.exp(fsolve(to_min, 10., factor=0.01, maxfev=1000)[0])
                 
                 self._ham_Mmin_[i].append(Mmin)
-                
                 self._fstar_ham_pts[i].append(Lmin * kappa_UV \
                     / eta / self.cosm.fbaryon / self.Macc(z, Mmin))
                 
@@ -567,16 +645,21 @@ class GalaxyPopulation(HaloPopulation):
             y = np.log10(fstar)
                 
             self._test = {'x': x, 'y': y}    
-                
-            if self.pf['pop_fstar_zdep']:
+
+            if self.pf['pop_fstar_M_func'] == self.pf['pop_fstar_z_func'] == 'logpoly':            
                 guess = -1. * np.ones(6)
-            else:
-                guess = -1. * np.ones(4)
-                
+            elif (self.pf['pop_fstar_M_func'] == 'lognormal') and \
+                 (self.pf['pop_fstar_z_func'] == 'linear'):
+
+                guess = np.array([0.25, 0.05, 11., 0.05, 0.5, 0.05]) 
+            elif (self.pf['pop_fstar_M_func'] == 'lognormal') and \
+                 (self.pf['pop_fstar_z_func'] == 'const'):
+
+                 guess = [0.25, 11., 0.5]
+                 
             def to_fit(Mz, *coeff):
-                #M, z = np.meshgrid(*xx)
-                M, z = Mz           
-                return self._log_fstar_poly(z, M, *coeff).flatten()
+                M, z = Mz      
+                return self._log_fstar_func(z, M, *coeff).flatten()
             
             try:
                 self._fstar_coeff_, self._fstar_cov_ = \
@@ -584,9 +667,13 @@ class GalaxyPopulation(HaloPopulation):
             except RuntimeError:
                 self._fstar_coeff_, self._fstar_cov_ = \
                     guess, np.diag(guess)
-                            
+
         return self._fstar_coeff_
         
+    @property
+    def _fstar_ham_z(self):
+        return self.constraints['z']
+
     def _fstar_cap(self, fstar):
         if type(fstar) in [float, np.float64]:
             if fstar > self.pf['pop_fstar_ceil']:
@@ -599,30 +686,50 @@ class GalaxyPopulation(HaloPopulation):
         else:
             raise TypeError('Unrecognized type: %s' % type(fstar))
 
-    def _fstar_poly(self, z, M, *coeff):
-        return 10**self._log_fstar_poly(z, M, *coeff)
+    def _fstar_func(self, z, M, *coeff):
+        return 10**self._log_fstar_func(z, M, *coeff)
 
-    def _log_fstar_poly(self, z, M, *coeff):
+    def _log_fstar_func(self, z, M, *coeff):
         """
-        A 6 parameter model for the star-formation efficiency.
+        Parameterized forms for the SFE!
 
-        References
-        ----------
-        Sun, G., and Furlanetto, S.R., 2015, in prep.
-
+        .. note :: log10 to be clear.
+        
         """
         
-        if self.pf['pop_fstar_zdep']:
+        if self.pf['pop_fstar_M_func'] == self.pf['pop_fstar_z_func'] == 'logpoly':            
             logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
                 + coeff[2] * ((1. + z) / 8.) \
                 + coeff[3] * ((1. + z) / 8.) * np.log10(M / 1e10) \
                 + coeff[4] * (np.log10(M / 1e10))**2. \
                 + coeff[5] * (np.log10(M / 1e10))**3.
+        elif (self.pf['pop_fstar_M_func'] == 'lognormal') and \
+             (self.pf['pop_fstar_z_func'] == 'linear'):
+            
+            z0 = 4.    
+            logM = np.log10(M)
+            
+            fstar_of_z = lambda zz: coeff[0] + coeff[1] * (zz - z0) / z0 
+            Mpeak_of_z = lambda zz: coeff[2] + coeff[3] * (zz - z0) / z0  # log
+            sigma_of_z = lambda zz: coeff[4] + coeff[5] * (zz - z0) / z0 
+            
+            f = fstar_of_z(z) * np.exp(-(logM - Mpeak_of_z(z))**2 / 2. / 
+                sigma_of_z(z)**2)
+            logf = np.log10(f)
+            
+        elif (self.pf['pop_fstar_M_func'] == 'lognormal') and \
+             (self.pf['pop_fstar_z_func'] == 'const'):
+
+             logM = np.log10(M)
+             
+             f = coeff[0] * np.exp(-(logM - coeff[1])**2 / 2. / 
+                 coeff[2]**2)
+             logf = np.log10(f)
+             
         else:
-            logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
-                + coeff[2] * (np.log10(M / 1e10))**2. \
-                + coeff[3] * (np.log10(M / 1e10))**3.
-                
+            raise NotImplemented('dunno how to handle this case yet!')
+                 
+             
         return logf
     
     @property
@@ -686,35 +793,11 @@ class GalaxyPopulation(HaloPopulation):
             Lower limit of integration, (Lmin / Lstar)
         alpha : int, float
             Faint-end slope
+            
         """
 
         return mpmath.gammainc(alpha + 1., xmin)
         
-    #def _SchecterFunction(self, L):
-    #    """
-    #    Schecter function for, e.g., the galaxy luminosity function.
-    #    
-    #    Parameters
-    #    ----------
-    #    L : float
-    #    
-    #    """
-    #    
-    #    return self.phi0 * (L / self.Lstar)**self.pf['lf_slope'] \
-    #        * np.exp(-L / self.Lstar)
-            
-    def _DoublePowerLaw(self, L):
-        """
-        Double power-law function for, e.g., the quasar luminosity function.
-        
-        Parameters
-        ----------
-        L : float
-        
-        """
-        return self.pf['lf_norm'] * ((L / self.Lstar)**self.pf['lf_gamma1'] \
-            + (L / self.Lstar)**self.pf['lf_gamma1'])**-1.
-    
     def LuminosityFunction(self, L=None, M=None, z=None, Emin=None, Emax=None):
         """
         Compute luminosity function.

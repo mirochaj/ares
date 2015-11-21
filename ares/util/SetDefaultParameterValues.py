@@ -297,9 +297,11 @@ def PopulationParameters():
         
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
-    "pop_fstar_zdep": True,
     "pop_fstar_ceil": 1.0,
-    "pop_fstar_extrap": 'continue',
+    "pop_fstar_M_func": 'lognormal',
+    "pop_fstar_z_func": 'const',
+    "pop_fstar_M_extrap": 'continue',
+    "pop_fstar_z_extrap": 'continue',
     "pop_Tmin": 1e4,
     "pop_Tmax": None,
     "pop_Mmin": None,

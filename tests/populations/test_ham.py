@@ -22,13 +22,17 @@ lf_pars['z'] = b15.redshifts
 
 pars = \
 {
+ 'pop_Tmin': 5e5,
  'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
  'pop_constraints': 'bouwens2015',
+ 'pop_lf_z': [4.9, 5.9, 6.9, 7.9],
  'pop_kappa_UV': 1.15e-28,
- 'pop_fstar_zdep': True,
- 'pop_fstar_extrap': 'continue',
- 'pop_fstar_ceil': 0.3,
+ 'pop_fstar_M_func': 'lognormal',
+ 'pop_fstar_z_func': 'const',
+ 'pop_fstar_M_extrap': ('pl', 2e10),
+ 'pop_fstar_z_extrap': 'const',
+ 'pop_fstar_ceil': 0.5,
  
  # Dust
  'pop_lf_dustcorr': True,
@@ -62,7 +66,7 @@ t2 = time.time()
 print "Abundance match took %g seconds" % (t2 - t1)
 
 colors = ['r', 'b', 'g', 'k', 'm']
-for i, z in enumerate([5.9, 7.9]):
+for i, z in enumerate(pop.constraints['z']):
     j = pop.constraints['z'].index(z)
     ax2.scatter(pop._ham_Mmin_[j], pop._fstar_ham[j], 
         label=r'$z=%g$' % z, color=colors[i], marker='o', facecolors='none')
@@ -71,10 +75,10 @@ ax2.plot([1e8, 1e15], [0.2]*2, color='k', ls=':')
 ax2.plot([1e8, 1e15], [0.3]*2, color='k', ls=':')
 ax2.set_xlabel(r'$M_h / M_{\odot}$')
 ax2.set_ylabel(r'$f_{\ast}$')
-pl.legend(ncol=1, frameon=False, fontsize=16, loc='lower center')
+ax2.legend(ncol=1, frameon=False, fontsize=16, loc='lower right')
 
 Marr = np.logspace(8, 14)
-for i, z in enumerate([5.9, 7.9]):
+for i, z in enumerate(pop.constraints['z']):
     j = pop.constraints['z'].index(z)
 
     fast = pop.fstar(z=z, M=Marr)
@@ -85,6 +89,8 @@ fast = pop.fstar(z=10, M=M2)
 ax2.loglog(M2, fast, color='y')    
 fast = pop.fstar(z=15, M=M2)
 ax2.loglog(M2, fast, color='m')    
+fast = pop.fstar(z=18, M=M2)
+ax2.loglog(M2, fast, color='c')    
 ax2.set_ylim(1e-3, 1.5)
 
 # SFR
