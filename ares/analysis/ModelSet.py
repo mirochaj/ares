@@ -1690,6 +1690,9 @@ class ModelSet(object):
                     to_hist.append(val)
         
             else:
+                
+                
+                
                 val = self.extract_blob(par, z[k]).copy()
         
                 val *= multiplier[k]
@@ -3007,10 +3010,13 @@ class ModelSet(object):
         ax.plot(np.log10([val[0] * width, val[0] * width]), 
             np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
 
-    def extract_blob(self, name, z):
+    def extract_blob(self, name, z=None):
         """
         Extract a 1-D array of values for a given quantity at a given redshift.
         """
+        
+        if z is None:
+            z = self.blob_redshifts[0]
 
         # Otherwise, we've got a meta-data blob
         try:

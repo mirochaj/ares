@@ -15,6 +15,7 @@ import numpy as np
 from ..util.Misc import tau_CMB
 from scipy.interpolate import interp1d
 from .TurningPoints import TurningPoints
+from ..util.ParameterFile import par_info
 from ..physics.Constants import ev_per_hz, rhodot_cgs
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
@@ -43,7 +44,7 @@ class InlineAnalysis:
             for tp in list('BCD'):
                 if tp in self.blob_redshifts:
                     self.need_extrema += 1
-                
+  
     def generate_blobs(self):
         """
         Auto-generate blobs for inline analysis.
@@ -254,9 +255,11 @@ class InlineAnalysis:
                 # Population ID number
                 pop_num = int(m.group(1))
                 
+                pop_prefix, pop_id, pop_z = par_info(field)
+                
                 # Pop ID including curly braces
-                pop_prefix = field.strip(m.group(0))
-
+                #pop_prefix = field.strip(m.group(0))
+                
             # Setup a spline interpolant
             if field in self.history:
                 interp = interp1d(self.history['z'][-1::-1],
@@ -300,9 +303,15 @@ class InlineAnalysis:
                     tmp.append(sfrd)
                 output.append(tmp)
                 continue
-            #elif pop_prefix in self.history:
-            #    interp = interp1d(self.history['z'][-1::-1],
-            #        self.history[field][-1::-1])
+            elif 'fstar' in pop_prefix:
+                pop = self.sim.pops[pop_num]
+                
+                coeff_id = int(field[field.rfind('_')+1:])
+                
+                tmp = [pop._fstar_coeff[coeff_id]] * len(self.blob_redshifts)
+                
+                output.append(tmp)
+                continue
 
             # Go back and actually interpolate, save the result (for each z)
             tmp = []

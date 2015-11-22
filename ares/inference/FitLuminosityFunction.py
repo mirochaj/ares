@@ -12,7 +12,6 @@ Description:
 
 import numpy as np
 from ..util import read_lit
-from .ModelFit import LogPrior
 from emcee.utils import sample_ball
 from ..util.PrintInfo import print_fit
 from .FitGlobal21cm import FitGlobal21cm
@@ -20,6 +19,7 @@ import gc, os, sys, copy, types, time, re
 from ..util.ParameterFile import par_info
 from ..simulations import Global21cm as simG21
 from ..populations.Galaxy import param_redshift
+from .ModelFit import LogPrior, update_blob_names
 from ..simulations import MultiPhaseMedium as simMPM
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts, \
@@ -68,8 +68,13 @@ class loglikelihood:
 
         self.prefix = prefix   
 
-        self.blob_names = blob_names
+        self.blob_names = update_blob_names(blob_names)
         self.blob_redshifts = blob_redshifts
+        
+        tmp = (self.blob_names, self.blob_redshifts)
+        self.base_kwargs['inline_analysis'] = tmp
+        
+        #self._prep_binfo()
         
         # Sort through priors        
         priors_P = {}   # parameters
@@ -95,20 +100,6 @@ class loglikelihood:
 
         self.logprior_P = LogPrior(priors_P, self.parameters, self.is_log)
         self.logprior_B = LogPrior(priors_B, b_pars)
-                
-        # Setup binfo pkl file
-        self._prep_binfo()
-        
-    def _prep_binfo(self):
-        if rank > 0:
-            return
-    
-        # Outputs for arbitrary meta-data blobs
-    
-        # Blob names and list of redshifts at which to track them
-        f = open('%s.binfo.pkl' % self.prefix, 'wb')
-        pickle.dump((self.blob_names, self.blob_redshifts), f)
-        f.close()
         
     @property
     def blank_blob(self):
@@ -166,7 +157,7 @@ class loglikelihood:
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
     
-        sim = self.sim_class(**kw)
+        sim = self.sim = self.sim_class(**kw)
         
         if isinstance(sim, simG21):
             medium = sim.medium
@@ -176,8 +167,10 @@ class loglikelihood:
         # If we're only fitting the LF, no need to run simulation
         if self.run_21cm:
             
+            sim.run()
+            
             try:
-                sim.run()
+                sim.run()                
                 sim.run_inline_analysis()
             except ValueError:
                 # Seems to happen in some weird cases when the 
@@ -269,7 +262,11 @@ class FitLuminosityFunction(FitGlobal21cm):
     any of the simulations. By default, we don't.
     """
     
-    FitGlobal21cm.turning_points = False
+    def __init__(self, **kwargs):
+        FitGlobal21cm.turning_points = False
+        FitGlobal21cm.__init__(self, **kwargs)
+        
+        self.blob_names = update_blob_names(self.blob_names, **self.base_kwargs)
     
     @property
     def runsim(self):

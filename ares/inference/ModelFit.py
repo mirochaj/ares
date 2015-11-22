@@ -11,10 +11,12 @@ Description:
 """
 
 import numpy as np
+from ..util.SFE import SFE
 from ..util.Stats import get_nu
 from emcee.utils import sample_ball
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
+from ..util.ParameterFile import par_info
 import gc, os, sys, copy, types, time, re
 from ..analysis import Global21cm as anlG21
 from ..simulations import Global21cm as simG21
@@ -112,6 +114,28 @@ def _str_to_val(p, par, pvals, pars):
     prefix = p.split(m.group(0))[0]
 
     return pvals[pars.index('%s{%i}' % (prefix, num))]
+    
+def update_blob_names(blob_names, **kwargs):
+    
+    sfe = SFE(**kwargs)
+    
+    if sfe.irrelevant:
+        return blob_names
+    
+    # Add some elements for fstar
+    _blob_names = []
+    for blob in blob_names:
+        if re.search('fstar', blob):
+                        
+            prefix, pop_id, pop_z = par_info(blob)
+        
+            tmp = ['fstar{%i}_%i' % (pop_id, i) for i in range(sfe.Ncoeff)]
+    
+            _blob_names.extend(tmp)
+        else:
+            _blob_names.append(blob)
+            
+    return _blob_names    
 
 class LogPrior:
     def __init__(self, priors, parameters, is_log=None):
@@ -635,7 +659,6 @@ class ModelFit(object):
                 
             self._jitter = np.array(value)
             
-            
     @property
     def parameters(self):
         if not hasattr(self, '_parameters'):
@@ -660,12 +683,12 @@ class ModelFit(object):
         else:
             self._is_log = value
 
-    def prep_output_files(self, restart):
+    def prep_output_files(self, restart, clobber):
         if restart:
             pos = self._prep_from_restart()
         else:
             pos = None
-            self._prep_from_scratch()    
+            self._prep_from_scratch(clobber)    
     
         return pos
     
@@ -708,10 +731,13 @@ class ModelFit(object):
         
         return pos
 
-    def _prep_from_scratch(self):
+    def _prep_from_scratch(self, clobber):
         
         prefix = self.prefix
         
+        if clobber:
+            os.system('rm -f %s.*.pkl' % prefix)
+                    
         # Each processor gets its own fail file
         for i in range(size):
             f = open('%s.fail.%s.pkl' % (prefix, str(i).zfill(3)), 'wb')
@@ -731,6 +757,12 @@ class ModelFit(object):
         
         # File for blobs themselves
         if self.blob_names is not None:
+            
+            # Blob names and list of redshifts at which to track them
+            f = open('%s.binfo.pkl' % self.prefix, 'wb')
+            pickle.dump((self.blob_names, self.blob_redshifts), f)
+            f.close()
+            
             if self.one_file_per_blob:
                 for blob in self.blob_names:
                     f = open('%s.subset.%s.pkl' % (prefix, blob), 'wb')
@@ -738,7 +770,7 @@ class ModelFit(object):
             else:
                 f = open('%s.blobs.pkl' % prefix, 'wb')
                 f.close()
-        
+                        
         # Blob-info "binfo" file will be written by likelihood
         
         # Parameter names and list saying whether they are log10 or not
@@ -792,7 +824,7 @@ class ModelFit(object):
         if not os.path.exists('%s.chain.pkl' % prefix) and restart:
             msg = "This can't be a restart, %s*.pkl not found." % prefix
             raise IOError(msg)
-
+            
         # Initialize Pool
         if size > 1:
             self.pool = MPIPool()
@@ -816,7 +848,7 @@ class ModelFit(object):
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
                 
-        pos = self.prep_output_files(restart)        
+        pos = self.prep_output_files(restart, clobber)        
                 
         # Burn in, prep output files     
         if (burn > 0) and (not restart):
@@ -850,7 +882,7 @@ class ModelFit(object):
 
         if rank == 0:
             print "Starting MCMC: %s" % (time.ctime())
-
+            
         # Take steps, append to pickle file every save_freq steps
         ct = 0
         pos_all = []; prob_all = []; blobs_all = []
