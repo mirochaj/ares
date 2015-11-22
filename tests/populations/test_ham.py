@@ -22,7 +22,7 @@ lf_pars['z'] = b15.redshifts
 
 pars = \
 {
- 'pop_Tmin': 5e5,
+ 'pop_Tmin': 2e5,
  'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
  'pop_constraints': 'bouwens2015',
@@ -30,8 +30,8 @@ pars = \
  'pop_kappa_UV': 1.15e-28,
  'pop_fstar_M_func': 'lognormal',
  'pop_fstar_z_func': 'const',
- 'pop_fstar_M_extrap': ('pl', 2e10),
- 'pop_fstar_z_extrap': 'const',
+ 'pop_fstar_M_extrap': 'continue',
+ 'pop_fstar_z_extrap': 'continue',
  'pop_fstar_ceil': 0.5,
  
  # Dust

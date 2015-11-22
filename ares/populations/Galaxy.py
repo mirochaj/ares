@@ -244,30 +244,31 @@ class GalaxyPopulation(HaloPopulation):
         if not hasattr(self, '_constraints'):
             
             self._constraints = {}
+
+            # Read constraints from litdata
             if type(self.pf['pop_constraints']) == str:
                 data = read_lit(self.pf['pop_constraints'])
-                
-                if self.pf['pop_lf_z'] is not None:
-                    self._constraints['z'] = self.pf['pop_lf_z']
-                else:
-                    self._constraints['z'] = data.redshifts
-                
                 fits = data.fits['lf']['pars']
-
-            elif self.pf['pop_lf_z'] is not None:
+            
+            # Can optionally use a subset of redshift constraints provided 
+            if self.pf['pop_lf_z'] is not None:
                 self._constraints['z'] = self.pf['pop_lf_z']
             else:
-                raise ValueError('help')
+                self._constraints['z'] = data.redshifts
                         
             self._constraints['Mstar'] = []
             self._constraints['pstar'] = []
             self._constraints['alpha'] = []
             
             for i, z in enumerate(self._constraints['z']):
+                # If we read in fits from literature, have to be sure to
+                # get the redshifts correctly (since we're allowed to only
+                # use a subset of them)
                 if type(self.pf['pop_constraints']) == str:
-                    self._constraints['Mstar'].append(fits['Mstar'][i])
-                    self._constraints['pstar'].append(fits['pstar'][i])
-                    self._constraints['alpha'].append(fits['alpha'][i])
+                    j = data.redshifts.index(z)
+                    self._constraints['Mstar'].append(fits['Mstar'][j])
+                    self._constraints['pstar'].append(fits['pstar'][j])
+                    self._constraints['alpha'].append(fits['alpha'][j])
                 else:                                              
                     self._constraints['Mstar'].append(self.pf['pop_lf_Mstar[%g]' % z])
                     self._constraints['pstar'].append(self.pf['pop_lf_pstar[%g]' % z])
@@ -449,17 +450,17 @@ class GalaxyPopulation(HaloPopulation):
             fMlos = []
             alphas = []
             for i, redshift in enumerate(self._fstar_ham_z):
-                
+
                 Mlo = Mmin_of_z[i]
-                
+
                 M1 = 10**(np.log10(Mlo) - 0.01)
                 M2 = 10**(np.log10(Mlo) + 0.01)
-                
+
                 f1 = self._fstar_func(redshift, M1, *self._fstar_coeff)
                 f2 = self._fstar_func(redshift, M2, *self._fstar_coeff)
-                
+
                 fMlo = self._fstar_func(redshift, Mlo, *self._fstar_coeff)
-                
+
                 alpha = (np.log10(f2) - np.log10(f1)) \
                     / (np.log10(M2) - np.log10(M1))
             
@@ -479,17 +480,24 @@ class GalaxyPopulation(HaloPopulation):
                         np.log10(fMlos))                    
                     
                 else:
-                    m = (Mmin_of_z[-2] - Mmin_of_z[-1]) \
-                        / (self._fstar_ham_z[-2] - self._fstar_ham_z[-1])
-                    Mlo = m * (zz - self._fstar_ham_z[-1]) + Mmin_of_z[-1]
-                                                                        
-                M1 = 10**(np.log10(Mlo) - 0.2)
-                M2 = 10**(np.log10(Mlo) + 0.2)
+                    
+                    # Assume Mlo follows shape of function at fixed
+                    # logM distance from peak
+                    
+                    sigma_of_z = lambda zz: self._fstar_coeff[4] \
+                        + self._fstar_coeff[5] * (zz - 4.) / 4.
+                    
+                    Mpeak_of_z = lambda zz: self._fstar_coeff[2] \
+                        + self._fstar_coeff[3] * (zz - 4.) / 4.  # log
+                    Mlo = 10**(Mpeak_of_z(zz) - 1.5 * sigma_of_z(zz))
+                    
+                    fMlo = self._fstar_func(zz, Mlo, *self._fstar_coeff)                     
+                                                                                            
+                M1 = 10**(np.log10(Mlo) - 0.01)
+                M2 = 10**(np.log10(Mlo) + 0.01)
                 
                 f1 = self._fstar_func(zz, M1, *self._fstar_coeff)
                 f2 = self._fstar_func(zz, M2, *self._fstar_coeff)
-                
-                fMlo = self._fstar_func(zz, Mlo, *self._fstar_coeff)
                 
                 alpha = (np.log10(f2) - np.log10(f1)) \
                     / (np.log10(M2) - np.log10(M1))
@@ -646,7 +654,8 @@ class GalaxyPopulation(HaloPopulation):
                 
             self._test = {'x': x, 'y': y}    
 
-            if self.pf['pop_fstar_M_func'] == self.pf['pop_fstar_z_func'] == 'logpoly':            
+            if self.pf['pop_fstar_M_func'] == \
+               self.pf['pop_fstar_z_func'] == 'logpoly':            
                 guess = -1. * np.ones(6)
             elif (self.pf['pop_fstar_M_func'] == 'lognormal') and \
                  (self.pf['pop_fstar_z_func'] == 'linear'):
