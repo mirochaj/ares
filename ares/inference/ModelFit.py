@@ -11,11 +11,11 @@ Description:
 """
 
 import numpy as np
-from ..util.SFE import SFE
 from ..util.Stats import get_nu
 from emcee.utils import sample_ball
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
+from ..util.AbundanceMatching import HAM
 from ..util.ParameterFile import par_info
 import gc, os, sys, copy, types, time, re
 from ..analysis import Global21cm as anlG21
@@ -117,7 +117,7 @@ def _str_to_val(p, par, pvals, pars):
     
 def update_blob_names(blob_names, **kwargs):
     
-    sfe = SFE(**kwargs)
+    sfe = HAM(**kwargs)
     
     if sfe.irrelevant:
         return blob_names

@@ -26,11 +26,11 @@ pars = \
  'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
  'pop_constraints': 'bouwens2015',
- 'pop_lf_z': [3.8, 4.9, 5.9, 6.9, 7.9],
+ 'pop_lf_z': [4.9, 5.9, 6.9, 7.9],
  'pop_kappa_UV': 1.15e-28,
  'pop_fstar_M_func': 'lognormal',
  'pop_fstar_z_func': 'linear_t',
- 'pop_fstar_M_extrap': 'pl',
+ 'pop_fstar_M_extrap': ('pl', 1.5),
  'pop_fstar_z_extrap': 'continue', #('const', 3., 15.),
  'pop_fstar_ceil': 0.5,
  

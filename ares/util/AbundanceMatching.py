@@ -23,12 +23,15 @@ from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc
 z0 = 8. # arbitrary
 
 class HAM(object):
-    def __init__(self, galaxy):
-        self.galaxy = galaxy
-        self.pf = galaxy.pf
-        self.halos = galaxy.halos
-        self.cosm = self.halos.cosm
-        self.dfcolldt = galaxy.dfcolldt
+    def __init__(self, galaxy=None, **kwargs):
+        if galaxy is not None:
+            self.galaxy = galaxy
+            self.pf = galaxy.pf
+            self.halos = galaxy.halos
+            self.cosm = self.halos.cosm
+            self.dfcolldt = galaxy.dfcolldt
+        else:
+            self.pf = ParameterFile(**kwargs)
         
     @property
     def magsys(self):
@@ -477,7 +480,7 @@ class HAM(object):
                     # logM distance from peak
         
                     Mlo = 10**(self._Mpeak_of_z(zz) \
-                        - 1.5 * self._sigma_of_z(zz))
+                        - self.Mext[1] * self._sigma_of_z(zz))
         
                     fMlo = 10**self._log_fstar(zz, Mlo, *coeff)                     
         
@@ -536,7 +539,7 @@ class HAM(object):
         
         # Fit a power-law to the last few points (in mass).
         # Allow the redshift evolution to do its thing
-        elif (self.Mext == 'pl'):
+        elif (self.Mext[0] == 'pl'):
         
             return self.fstar_Mlo(z, M, *coeff)
         
@@ -666,7 +669,7 @@ class HAM(object):
             elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
                 self._guesses = np.array([0.25, 11., 0.5])
             elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_t'):
-                self._guesses = np.array([0.25, 0.05, 11., 0.05, 0.5, 0.05])
+                self._guesses = np.array([0.25, 0.05, 11., 0.5, 0.5, 0.05])
             else:
                 raise NotImplemented('help')
     
