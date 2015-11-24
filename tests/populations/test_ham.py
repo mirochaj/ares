@@ -26,12 +26,12 @@ pars = \
  'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
  'pop_constraints': 'bouwens2015',
- 'pop_lf_z': [4.9, 5.9, 6.9, 7.9],
+ 'pop_lf_z': [3.8, 4.9, 5.9, 6.9, 7.9],
  'pop_kappa_UV': 1.15e-28,
  'pop_fstar_M_func': 'lognormal',
- 'pop_fstar_z_func': 'const',
- 'pop_fstar_M_extrap': 'continue',
- 'pop_fstar_z_extrap': 'continue',
+ 'pop_fstar_z_func': 'linear_t',
+ 'pop_fstar_M_extrap': 'pl',
+ 'pop_fstar_z_extrap': 'continue', #('const', 3., 15.),
  'pop_fstar_ceil': 0.5,
  
  # Dust
@@ -44,10 +44,10 @@ pop = ares.populations.GalaxyPopulation(**pars)
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 
 L = np.logspace(27., 30.)
-for i, z in enumerate(pop.constraints['z']):
-    phi = pop.constraints['pstar'][i] 
-    phi *= (L / pop.constraints['Lstar'][i])**pop.constraints['alpha'][i]
-    phi *= np.exp(-L / pop.constraints['Lstar'][i])
+for i, z in enumerate(pop.ham.constraints['z']):
+    phi = pop.ham.constraints['pstar'][i] 
+    phi *= (L / pop.ham.constraints['Lstar'][i])**pop.ham.constraints['alpha'][i]
+    phi *= np.exp(-L / pop.ham.constraints['Lstar'][i])
     
     ax1.loglog(L, phi)
     
@@ -60,15 +60,15 @@ fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
 import time
 
 t1 = time.time()
-fst = pop.fstar(z=6., M=1e12)
+fst = pop.ham.fstar(z=6., M=1e12)
 t2 = time.time()
 
 print "Abundance match took %g seconds" % (t2 - t1)
 
 colors = ['r', 'b', 'g', 'k', 'm']
-for i, z in enumerate(pop.constraints['z']):
-    j = pop.constraints['z'].index(z)
-    ax2.scatter(pop._ham_Mmin_[j], pop._fstar_ham[j], 
+for i, z in enumerate(pop.ham.redshifts):
+    j = pop.ham.redshifts.index(z)
+    ax2.scatter(pop.ham.MofL_tab[j], pop.ham.fstar_tab[j], 
         label=r'$z=%g$' % z, color=colors[i], marker='o', facecolors='none')
     
 ax2.plot([1e8, 1e15], [0.2]*2, color='k', ls=':')
@@ -78,27 +78,26 @@ ax2.set_ylabel(r'$f_{\ast}$')
 ax2.legend(ncol=1, frameon=False, fontsize=16, loc='lower right')
 
 Marr = np.logspace(8, 14)
-for i, z in enumerate(pop.constraints['z']):
-    j = pop.constraints['z'].index(z)
+for i, z in enumerate(pop.ham.redshifts):
+    j = pop.ham.redshifts.index(z)
 
-    fast = pop.fstar(z=z, M=Marr)
+    fast = pop.ham.fstar(z=z, M=Marr)
     ax2.loglog(Marr, fast, color=colors[i])
 
+colors2 = 'y', 'm', 'c', 'gray'
 M2 = np.logspace(8, 14, 50)   
-fast = pop.fstar(z=10, M=M2)
-ax2.loglog(M2, fast, color='y')    
-fast = pop.fstar(z=15, M=M2)
-ax2.loglog(M2, fast, color='m')    
-fast = pop.fstar(z=18, M=M2)
-ax2.loglog(M2, fast, color='c')    
+for i, z in enumerate([10, 15, 20, 25]):
+    fast = pop.ham.fstar(z=z, M=M2)
+    ax2.loglog(M2, fast, color=colors2[i], ls='--')    
+ 
 ax2.set_ylim(1e-3, 1.5)
 
 # SFR
 fig3 = pl.figure(3); ax3 = fig3.add_subplot(111)
 M6 = np.argmin(np.abs(pop.halos.M - 1e6))
-for i, z in enumerate(pop.constraints['z']):
+for i, z in enumerate(pop.ham.redshifts):
     iz = np.argmin(np.abs(pop.halos.z - z))
-    ax3.loglog(pop.halos.M[M6:], pop._sfr_ham[iz,M6:])
+    ax3.loglog(pop.halos.M[M6:], pop.ham.sfr_tab[iz,M6:])
 
 ax3.set_xlabel(r'$M_h / M_{\odot}$')   
 ax3.set_ylabel(r'$\dot{\rho}_{\ast} \ \left[M_{\odot} / \mathrm{yr} \right]$')
@@ -106,7 +105,7 @@ ax3.set_ylabel(r'$\dot{\rho}_{\ast} \ \left[M_{\odot} / \mathrm{yr} \right]$')
 # SFRD
 fig4 = pl.figure(4); ax4 = fig4.add_subplot(111)
 
-zarr = np.arange(4, 40)
+zarr = np.arange(4, 40, 0.1)
 sfrd_1 = np.array(map(pop.SFRD, zarr)) * rhodot_cgs
 ax4.semilogy(zarr, sfrd_1, label='HAM')
 
@@ -132,9 +131,9 @@ fig5 = pl.figure(5); ax5 = fig5.add_subplot(111)
 # At z=6
 for z in [6,7,8,9]:
 
-    fast = pop.fstar(z=z, M=pop.halos.M)
+    fast = pop.ham.fstar(z=z, M=pop.halos.M)
     iz = np.argmin(np.abs(z - pop.halos.z))
-    ax5.loglog(pop.halos.M, pop._sfr_ham[iz,:] / pop.pf['pop_kappa_UV'],
+    ax5.loglog(pop.halos.M, pop.ham.sfr_tab[iz,:] / pop.pf['pop_kappa_UV'],
         label=r'$z=%i$' % z)
 
 ax5.set_xlabel(r'$M_h / M_{\odot}$')  
@@ -159,9 +158,9 @@ from scipy.integrate import cumtrapz
 
 for z in [6,7,8,9]:
 
-    fast = pop.fstar(z=z, M=pop.halos.M)
+    fast = pop.ham.fstar(z=z, M=pop.halos.M)
     iz = np.argmin(np.abs(z - pop.halos.z))
-    to_int = pop._sfr_ham[iz,:] * pop.halos.dndm[iz,:] / pop.pf['pop_kappa_UV']
+    to_int = pop.ham.sfr_tab[iz,:] * pop.halos.dndm[iz,:] / pop.pf['pop_kappa_UV']
     rhoL = cumtrapz(to_int, x=pop.halos.logM) \
         / np.trapz(to_int, x=pop.halos.logM)
     
@@ -180,7 +179,7 @@ fig8 = pl.figure(8); ax8 = fig8.add_subplot(111)
 
 z = np.linspace(5, 30)
 for M in 10**np.arange(7, 14):
-    fst = map(lambda z: pop.fstar(z, M), z)
+    fst = map(lambda z: pop.ham.fstar(z, M), z)
     pl.plot(z, fst, label=r'$M_h / M_{\odot} = 10^{%i}$' % (np.log10(M)))
     
 ax8.set_xlabel(r'$z$')
@@ -191,7 +190,7 @@ ax8.legend(loc='lower right', fontsize=14)
 # eta vs z
 fig9 = pl.figure(9); ax9 = fig9.add_subplot(111)
 
-ax9.plot(pop.halos.z, pop.eta)
+ax9.plot(pop.halos.z, pop.ham.eta / pop.cosm.fbaryon)
 ax9.set_xlabel(r'$z$')
 ax9.set_ylabel(r'$\eta(z)$')
 

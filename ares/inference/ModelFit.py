@@ -130,7 +130,7 @@ def update_blob_names(blob_names, **kwargs):
             prefix, pop_id, pop_z = par_info(blob)
         
             tmp = ['fstar{%i}_%i' % (pop_id, i) for i in range(sfe.Ncoeff)]
-    
+
             _blob_names.extend(tmp)
         else:
             _blob_names.append(blob)

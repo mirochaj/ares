@@ -308,7 +308,7 @@ class InlineAnalysis:
                 
                 coeff_id = int(field[field.rfind('_')+1:])
                 
-                tmp = [pop._fstar_coeff[coeff_id]] * len(self.blob_redshifts)
+                tmp = [pop.ham.coeff[coeff_id]] * len(self.blob_redshifts)
                 
                 output.append(tmp)
                 continue
