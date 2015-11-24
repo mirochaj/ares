@@ -422,7 +422,7 @@ class FitLuminosityFunction(FitGlobal21cm):
     @property
     def guesses(self):
         if not hasattr(self, '_guesses'):
-            raise ValueError('')
+            raise ValueError('help')
         return self._guesses            
     
     @guesses.setter

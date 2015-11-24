@@ -279,7 +279,7 @@ class StellarPopulation:
         return self._NperB
         
     @property
-    def kappa_UV(self):    
+    def kappa_UV(self, wave=1500.):    
         """
         Number of photons emitted per stellar baryon of star formation.
         
@@ -290,6 +290,27 @@ class StellarPopulation:
         and second axis to time.
         
         """
+        
+        if not hasattr(self, '_kappa_UV'):
+            j = np.argmin(np.abs(wave - self.wavelengths))
+            
+            dwavednu = np.diff(self.wavelengths) / np.diff(self.frequencies)
+            
+            # in erg / s / Hz
+            yield_UV = self.data[j,:] * np.abs(dwavednu[j])
+                        
+            # to erg / s / A / Msun
+            if self.pf['continuous_sf']:
+                pass
+            else:
+                yield_UV /= 1e6
+            
+            # Convert from Myr to years
+            t = self.times * 1e6
+        
+            self._kappa_UV = 1. / cumtrapz(yield_UV, x=t, initial=0.0)
+        
+        return self._kappa_UV
         
     def integrated_emissivity(self, l0, l1, unit='A'):
         # Find band of interest -- should be more precise and interpolate
