@@ -241,26 +241,26 @@ class GalaxyPopulation(HaloPopulation):
             Upper threshold of band to consider for LF [eV]        
 
         """
-        
+
         if self.is_fcoll_model:
             raise TypeError('this is an fcoll model!')
 
         elif self.is_ham_model:
             # Only know LF at a few redshifts...
             assert z in self.pf['pop_lf_z']
-            
+
             if L is None:
-                
+
                 Mst = self.pf['pop_lf_Mstar[%g]' % z]
                 pst = self.pf['pop_lf_pstar[%g]' % z]
                 a = self.pf['pop_lf_alpha[%g]' % z]
-                
+
                 phi_of_M = 0.4 * np.log(10) * pst \
                     * (10**(0.4 * (Mst - M)))**(1. + a) \
                     * np.exp(-10**(0.4 * (Mst - M)))
-                    
+
                 return phi_of_M
-                
+
             else:
                 raise NotImplemented('help')
 

@@ -30,7 +30,7 @@ pars = \
  'pop_kappa_UV': 1.15e-28,
  'pop_fstar_M_func': 'lognormal',
  'pop_fstar_z_func': 'linear_t',
- 'pop_fstar_M_extrap': ('pl', 1.5),
+ 'pop_fstar_M_extrap': 'continue',
  'pop_fstar_z_extrap': 'continue', #('const', 3., 15.),
  'pop_fstar_ceil': 0.5,
  
@@ -48,11 +48,23 @@ for i, z in enumerate(pop.ham.constraints['z']):
     phi = pop.ham.constraints['pstar'][i] 
     phi *= (L / pop.ham.constraints['Lstar'][i])**pop.ham.constraints['alpha'][i]
     phi *= np.exp(-L / pop.ham.constraints['Lstar'][i])
+    phi /= pop.ham.constraints['Lstar'][i]
     
     ax1.loglog(L, phi)
     
-ax1.set_xlabel(r'$L \ (\mathrm{erg} \ \mathrm{s}^{-1}) \ \mathrm{Hz}^{-1}$')
+# Verify that we get out what we put in
+for i, z in enumerate(pop.ham.constraints['z']):
+    Lh, phi = pop.ham.LuminosityFunction(z)
+    ax1.loglog(Lh, phi, ls='--', lw=3)
+    
+ax1.set_xlabel(r'$L \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{Hz}^{-1})$')
 ax1.set_ylabel(r'$\phi(L)$')
+ax1.set_xlim(1e27, 1e30)
+ax1.set_ylim(1e-39, 1e-29)
+pl.show()
+
+import sys
+sys.exit()
 
 # SFE
 fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
@@ -170,6 +182,7 @@ ax7.set_xlabel(r'$M_h / M_{\odot}$')
 ax7.set_ylabel(r'$L_h / (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{Hz}^{-1})$')  
 ax7.set_xlim(1e8, 1e13)
 ax7.set_ylim(1e-2, 1.05)
+ax7.set_title('cumulative luminosity')
 ax7.legend(loc='upper left', frameon=False, fontsize=16)
 
 pl.draw()

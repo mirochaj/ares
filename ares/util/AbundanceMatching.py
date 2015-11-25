@@ -310,6 +310,39 @@ class HAM(object):
                 self._eta[i] = rhs / lhs
     
         return self._eta
+        
+    def LuminosityFunction(self, z, Lunits='erg/s/Hz'):
+        """
+        Reconstructed luminosity function.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift. Will interpolate between values in halos.z if necessary.
+        Lunits : str
+
+        """
+        
+        eta = np.interp(z, self.halos.z, self.eta)
+        
+        Lh = self.cosm.fbaryon * self.Macc(z, self.halos.M) \
+            * eta * self.fstar(z, self.halos.M) / self.pf['pop_kappa_UV']
+        
+        dMh_dLh = np.diff(self.halos.M) / np.diff(Lh)
+        
+        dndm = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
+        
+        phi_of_L = dndm(z) * dMh_dLh
+        
+        if Lunits.lower() == 'erg/s/hz':
+            return Lh[:-1], phi_of_L
+        elif Lunits.lower() == 'mab':
+            M = self.magsys.L_to_mAB(Lh, z=z)
+            phi_of_L *= np.abs(np.diff(Lh) / np.diff(M))
+            
+            return M[:-1], phi_of_L
+        else:
+            NotImplemented('help')
     
     @property
     def MofL_tab(self):

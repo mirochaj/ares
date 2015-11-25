@@ -55,11 +55,23 @@ class MagnitudeSystem(Cosmology):
         
         if z is not None:
             dL = self.LuminosityDistance(z)
-            
+        
         # Apparent magnitude
-        m = mag + 5. * (np.log10(dL / cm_per_pc) - 1.)    
-            
+        m = mag + 5. * (np.log10(dL/ cm_per_pc) - 1.) 
+
         # Luminosity!    
         return 10**(m / -2.5) * norm_AB * 4. * np.pi * dL**2
-            
 
+    def L_to_mAB(self, L, z=None, dL=None):
+        # absolute magnitude
+        assert (z is not None) or (dL is not None)
+        
+        if z is not None:
+            dL = self.LuminosityDistance(z)
+         
+        #    
+        m = -2.5 * np.log10(L  / (norm_AB * 4. * np.pi * dL**2))
+        
+        return m - 5. * (np.log10(dL / cm_per_pc) - 1.) 
+
+    
