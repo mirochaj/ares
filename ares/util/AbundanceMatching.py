@@ -425,11 +425,11 @@ class HAM(object):
                 M, z = Mz      
                 return self._log_fstar(z, M, *coeff).flatten()
     
-            #try:
-            self._coeff, self._cov = \
-                curve_fit(to_fit, x, y, p0=guess, maxfev=100000)
-            #except RuntimeError:
-                #self._coeff, self._cov = guess, np.diag(guess)
+            try:
+                self._coeff, self._cov = \
+                    curve_fit(to_fit, x, y, p0=guess, maxfev=100000)
+            except RuntimeError:
+                self._coeff, self._cov = guess, np.diag(guess)
     
         return self._coeff
     
@@ -552,7 +552,8 @@ class HAM(object):
                     if self.Mext[0] == 'exp':
                         return fMlo * np.exp(-Mlo / MM) / np.exp(-1.)
                     else:    
-                        return fMlo * (MM / Mlo)**alpha
+                        return 10**self._log_fstar(zz, MM, *coeff) #\
+                            #+ fMlo * (MM / Mlo)**alpha
         
             self._fstar_Mlo = tmp
     
@@ -579,16 +580,19 @@ class HAM(object):
         elif (self.Mext == 'continue') and (self.zext[0] == 'const'):
 
             if z > self.zext[2]:
-                return self.fstar_zhi(M, *coeff)
+                fst = self.fstar_zhi(M, *coeff)
             elif z < self.zext[1]:
-                return self.fstar_zlo(M, *coeff)
+                fst = self.fstar_zlo(M, *coeff)
             else:
-                return 10**self._log_fstar(z, M, *coeff)
+                fst = 10**self._log_fstar(z, M, *coeff)
         
         # Fit a power-law to the last few points (in mass).
         # Allow the redshift evolution to do its thing
-        elif self.Mext[0] in ['pl', 'const', 'exp']:
-            return self.fstar_Mlo(z, M, *coeff)
+        elif self.Mext[0] in ['pl', 'exp']:
+            fst = self.fstar_Mlo(z, M, *coeff)
+        
+        elif self.Mext[0] == 'const':
+            fst = 10**self._log_fstar(z, M, *coeff) + self.Mext[1]
         
         # Set a constant upper limit for fstar below given mass limit     
         # Linearly interpolate in redshift to find this limit?
@@ -614,10 +618,11 @@ class HAM(object):
         
         else:
             raise ValueError('Unknown pop extrap option!')
-        
-        fstar = self._fstar(z, M)
-        return self._fstar_cap(fstar)
-        
+
+        return fst
+
+        #return self._fstar_cap(fstar)
+
     def _log_fstar(self, z, M, *coeff):    
         if self.Mfunc == self.zfunc == 'logpoly':            
             logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
