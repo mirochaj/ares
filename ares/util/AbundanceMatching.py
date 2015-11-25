@@ -494,14 +494,17 @@ class HAM(object):
         
                 fMlos.append(fMlo)
                 alphas.append(alpha)
+                
+            has_cutoff = type(self.Mext) in [list, tuple]
         
             def tmp(zz, MM, *coeff):
         
         
                 # If this redshift is within the range of the data, interpolate
                 # between previously determined slopes
-        
-                if zz <= self.redshifts[-1]:
+                
+                if (not has_cutoff) and \
+                   self.redshifts[0] <= zz <= self.redshifts[-1]:
                     Mlo = 10**np.interp(zz, self.redshifts, 
                         np.log10(Mmin_of_z))
                     fMlo = 10**np.interp(zz, self.redshifts, 
@@ -517,27 +520,39 @@ class HAM(object):
         
                     fMlo = 10**self._log_fstar(zz, Mlo, *coeff)                     
         
-                M1 = 10**(np.log10(Mlo) - 0.01)
-                M2 = 10**(np.log10(Mlo) + 0.01)
-        
-                f1 = 10**self._log_fstar(zz, M1, *coeff)
-                f2 = 10**self._log_fstar(zz, M2, *coeff)
-        
-                alpha = (np.log10(f2) - np.log10(f1)) \
-                    / (np.log10(M2) - np.log10(M1))
+                if self.Mext[0] == 'pl':
+                    M1 = 10**(np.log10(Mlo) - 0.01)
+                    M2 = 10**(np.log10(Mlo) + 0.01)
+                    
+                    f1 = 10**self._log_fstar(zz, M1, *coeff)
+                    f2 = 10**self._log_fstar(zz, M2, *coeff)
+                    
+                    alpha = (np.log10(f2) - np.log10(f1)) \
+                        / (np.log10(M2) - np.log10(M1))
+                elif self.Mext[0] == 'const':
+                    alpha = 0.
+                else:
+                    pass
         
                 if type(MM) is np.ndarray:
                     Mbelow = MM[np.argwhere(MM < Mlo)]
                     Mabove = MM[np.argwhere(MM >= Mlo)]
-        
-                    fst_lo = fMlo * (Mbelow / Mlo)**alpha
+                    
+                    if self.Mext[0] == 'exp':
+                        fst_lo = fMlo * np.exp(-Mlo / Mbelow) / np.exp(-1.)
+                    else:
+                        fst_lo = fMlo * (Mbelow / Mlo)**alpha
+                    
                     fst_hi = 10**self._log_fstar(zz, Mabove, *coeff)
         
                     return np.concatenate((fst_lo, fst_hi)).squeeze()
                 elif MM > Mlo:
                     return 10**self._log_fstar(zz, MM, *coeff)
                 else:
-                    return fMlo * (MM / Mlo)**alpha
+                    if self.Mext[0] == 'exp':
+                        return fMlo * np.exp(-Mlo / MM) / np.exp(-1.)
+                    else:    
+                        return fMlo * (MM / Mlo)**alpha
         
             self._fstar_Mlo = tmp
     
@@ -572,8 +587,7 @@ class HAM(object):
         
         # Fit a power-law to the last few points (in mass).
         # Allow the redshift evolution to do its thing
-        elif (self.Mext[0] == 'pl'):
-        
+        elif self.Mext[0] in ['pl', 'const', 'exp']:
             return self.fstar_Mlo(z, M, *coeff)
         
         # Set a constant upper limit for fstar below given mass limit     
@@ -626,7 +640,7 @@ class HAM(object):
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
             logM = np.log10(M)
              
-            f = coeff[0] * np.exp(-(logM - coeff[1])**2 / 2. / coeff[2]**2)
+            f = coeff[0] * np.exp(-(logM - coeff[1]) / 2. / coeff[2]**2)
             logf = np.log10(f)
         
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_t'):
