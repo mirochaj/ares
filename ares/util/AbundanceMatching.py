@@ -169,9 +169,9 @@ class HAM(object):
                 self._Macc = self.pf['pop_Macc']
             else:
                 self._Macc = read_lit(self.pf['pop_Macc']).Macc
-    
-        return self._Macc        
-    
+
+        return self._Macc
+
     @property
     def zlim(self):
         if not hasattr(self, '_zlim'):

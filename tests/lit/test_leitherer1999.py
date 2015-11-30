@@ -11,6 +11,7 @@ Description:
 """
 
 import ares
+import numpy as np
 import matplotlib.pyplot as pl
 
 s99 = ares.util.read_lit('leitherer1999')
@@ -27,7 +28,7 @@ ax1.loglog(pop.wavelengths, pop.data[:,0], color='k',
     label=r'$t=%i$ Myr' % pop.times[0])
 ax1.loglog(pop.wavelengths, pop.data[:,9], color='b', 
         label=r'$t=%i$ Myr' % pop.times[9])
-
+        
 ax1.set_xlabel(ares.util.labels['lambda_AA'])
 ax1.set_ylabel(ares.util.labels['intensity_AA'])
 ax1.legend(loc='lower right')
@@ -46,3 +47,23 @@ for Z in s99.metallicities.values():
 ax2.set_xlabel(r'$N_{\mathrm{ion}}$')
 ax2.set_xlabel(r'$N_{\mathrm{LW}}$')
 
+
+# Test interpolation
+fig3 = pl.figure(3); ax3 = fig3.add_subplot(111)
+
+pop1 = s99.StellarPopulation(pop_ssp=True, pop_Z=0.001)
+pop2 = s99.StellarPopulation(pop_ssp=True, pop_Z=0.04)
+
+ax3.loglog(pop1.wavelengths, pop1.data[:,9], color='k', ls='-')
+ax3.loglog(pop1.wavelengths, pop2.data[:,9], color='k', ls='--')
+
+for Z in np.logspace(np.log10(0.002), np.log10(0.02), 3):
+    pop = s99.StellarPopulation(pop_ssp=True, pop_Z=Z)
+    
+    ax3.loglog(pop.wavelengths, pop.data[:,9])
+    
+ax3.set_xlabel(ares.util.labels['lambda_AA'])
+ax3.set_ylabel(ares.util.labels['intensity_AA'])
+ax3.legend(loc='lower right')
+ax3.set_ylim(1e25, 1e40)
+pl.draw()    

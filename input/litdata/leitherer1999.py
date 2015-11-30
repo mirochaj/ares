@@ -12,6 +12,7 @@ import re, os
 import numpy as np
 from ares.physics import Cosmology
 from scipy.integrate import cumtrapz
+from scipy.interpolate import interp1d, RectBivariateSpline
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr
 
@@ -159,8 +160,31 @@ class StellarPopulation:
         self._load()
     
     def _load(self):
-        self.fn = _figure_name(**self.pf)
-        self._raw_data = _reader(self.fn)
+        
+        Zvals = np.sort(metallicities.values())
+        if self.pf['pop_Z'] not in Zvals:
+            
+            pf = self.pf.copy()
+            data = []
+            for Z in Zvals:
+                pf['pop_Z'] = Z
+                fn = _figure_name(**pf)
+                _raw_data = _reader(fn)
+                data.append(_raw_data[:,1:])
+            
+            data = self._dat = np.array(data)
+            self._wavelengths = _raw_data[:,0]
+            
+            self._raw_data = np.zeros_like(_raw_data)
+            for i, t in enumerate(self.times):
+                interp = RectBivariateSpline(np.log10(Zvals), np.log10(self.wavelengths), 
+                    data[:,:,i])
+                self._raw_data[:,i] = \
+                    interp(np.log10(self.pf['pop_Z']), np.log10(self.wavelengths))
+                        
+        else:        
+            self.fn = _figure_name(**self.pf)
+            self._raw_data = _reader(self.fn)
     
     @property
     def data(self):
@@ -251,7 +275,7 @@ class StellarPopulation:
 
         return self._uvslope
         
-    def LUV(self, wave=1500.):   
+    def LUV(self):   
         """
         Specific emissivity at provided wavelength.
         
@@ -260,6 +284,8 @@ class StellarPopulation:
         or 
             erg / s / Hz / Msun
         """
+        
+        wave = 1500. # hard-coded since we create an interpolation object 
         
         j = np.argmin(np.abs(wave - self.wavelengths))
         
@@ -278,9 +304,20 @@ class StellarPopulation:
         else:
             pass
             
-        return yield_UV[-1]
+        # Interpolate in time to obtain final LUV
+        if self.pf['pop_tsf'] in self.times:
+            return yield_UV[np.argmin(np.abs(self.times - self.pf['pop_tsf']))]
+            
+        k = np.argmin(np.abs(self.pf['pop_tsf'] - self.times))    
+        if self.times[k] > self.pf['pop_tsf']:
+            k -= 1
+            
+        if not hasattr(self, '_LUV_interp'):
+            self._LUV_interp = interp1d(self.times, yield_UV, kind='cubic')
+            
+        return self._LUV_interp(self.pf['pop_tsf'])
         
-    def kappa_UV(self, wave=1500.):    
+    def kappa_UV(self):    
         """
         Number of photons emitted per stellar baryon of star formation.
         
@@ -296,7 +333,7 @@ class StellarPopulation:
         
         """
         
-        return 1. / self.LUV(wave)
+        return 1. / self.LUV()
 
     def integrated_emissivity(self, l0, l1, unit='A'):
         # Find band of interest -- should be more precise and interpolate
