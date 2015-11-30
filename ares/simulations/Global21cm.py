@@ -19,7 +19,6 @@ from ..physics.Constants import nu_0_mhz, E_LyA
 defaults = \
 {
  'load_ics': True,
- 'problem_type': 101,
 }
 
 class Global21cm:
@@ -42,6 +41,9 @@ class Global21cm:
             return
         
         kwargs.update(defaults)
+        if 'problem_type' not in kwargs:
+            kwargs['problem_type'] = 101
+        
         self.kwargs = kwargs
         
     @property

@@ -19,7 +19,7 @@ s99 = ares.util.read_lit('leitherer1999')
 # Since there are so many "switches", rather than "knobs", it gets its own 
 # StellarPopulation class to deal with this. Need to work on how to generalize 
 # this with the rest of the API.
-pop = s99.StellarPopulation(continuous_sf=False, Z=0.04)
+pop = s99.StellarPopulation(pop_ssp=True, pop_Z=0.04)
 
 # Stellar SED at 1 Myr
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
@@ -34,13 +34,15 @@ ax1.legend(loc='lower right')
 ax1.set_ylim(1e25, 1e40)
 pl.draw()
 
-# Plot Nion / Nlw vs. time
-fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
 
-ax2.loglog(pop.times, pop.PhotonsPerBaryon(10.2, 13.6), color='k', ls='-', label='LW')
-ax2.loglog(pop.times, pop.PhotonsPerBaryon(13.6, 24.4), color='k', ls='--', label='LyC')
-ax2.legend(loc='upper left')
-ax2.set_xlabel(ares.util.labels['t_myr'])
-ax2.set_ylabel('photons / baryon')
-pl.draw()
+fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
+for Z in s99.metallicities.values():
+    pop = s99.StellarPopulation(pop_ssp=False, pop_Z=Z)
+    
+    Nion = pop.PhotonsPerBaryon(13.6, 24.6)
+    Nlw = pop.PhotonsPerBaryon(11.2, 13.6)
+    ax2.scatter(Nion, Nlw)
+    
+ax2.set_xlabel(r'$N_{\mathrm{ion}}$')
+ax2.set_xlabel(r'$N_{\mathrm{LW}}$')
 

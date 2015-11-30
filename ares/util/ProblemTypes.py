@@ -220,7 +220,7 @@ def ReionizationProblem(ptype):
         ptype_mod1 = round(ptype - 10 - ptype_int, 1)
     else:    
         ptype_mod1 = round(ptype - ptype_int, 1)
-                
+                                
     # Single-zone reionization problem
     if ptype_int == 0:
         pf = \
@@ -250,11 +250,11 @@ def ReionizationProblem(ptype):
             
         
     # Simple global 21-cm problem
-    if ptype_int == 1:
+    if ptype_mod1 in [0, 0.3]:
         pf = \
         {
         
-        'problem_type': 101,
+        'problem_type': 101.3,
         "grid_cells": 1,
         
         # Emits LW
@@ -315,6 +315,60 @@ def ReionizationProblem(ptype):
         "pop_solve_rte{2}": False,
 
         }
+        
+    elif ptype_mod1 == 0.2:
+        pf = \
+        {
+        
+        'problem_type': 101.2,
+        "grid_cells": 1,
+        
+        # Emits UV photons
+        'pop_type{0}': 'galaxy',
+        "pop_lya_src{0}": True,
+        "pop_ion_src_cgm{0}": True,
+        "pop_ion_src_igm{0}": False,
+        "pop_heat_src_cgm{0}": False,
+        "pop_heat_src_igm{0}": False,
+
+        "pop_fesc{0}": 0.1,
+        
+        "pop_Emin{0}": 10.2,
+        "pop_Emax{0}": 24.6,
+        "pop_EminNorm{0}": 13.6,
+        "pop_EmaxNorm{0}": 24.6, 
+        
+        "pop_sed{0}": 'leitherer1999',
+        "pop_Z{0}": 0.04,
+        "pop_ssp{0}": False,
+        "pop_tsf{0}": np.inf,             
+               
+        "pop_yield{0}": 9690., 
+        "pop_yield_units{0}": 'photons/baryon',
+        "pop_solve_rte{0}": False,
+        
+        # Emits X-rays
+        'pop_type{1}': 'galaxy',
+        "pop_lya_src{1}": False,
+        "pop_ion_src_cgm{1}": False,
+        "pop_ion_src_igm{1}": True,
+        "pop_heat_src_cgm{1}": False,
+        "pop_heat_src_igm{1}": True,
+
+        "pop_sed{1}": 'pl',
+        "pop_alpha{1}": -1.5,
+
+        "pop_Emin{1}": 2e2,
+        "pop_Emax{1}": 3e4,
+        "pop_EminNorm{1}": 5e2,
+        "pop_EmaxNorm{1}": 8e3,
+
+        "pop_Ex": 500.,
+        "pop_yield{1}": 2.6e39, 
+        "pop_yield_units{1}": 'erg/s/SFR',
+        "pop_solve_rte{1}": False,
+        
+        }    
 
     # Global 21-cm problem w/ meta-galactic backgrounds
     if ptype_int == 2:

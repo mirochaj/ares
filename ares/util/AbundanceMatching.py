@@ -70,7 +70,6 @@ class HAM(object):
         """
         
         if not hasattr(self, '_SFRD'):
-        
             self._SFRD = interp1d(self.halos.z, self.sfrd_tab,
                 kind='cubic')
                 
@@ -184,18 +183,28 @@ class HAM(object):
         if not hasattr(self, '_Mlim'):
             self._Mlim = [[min(self.MofL_tab[i]), max(self.MofL_tab[i])] \
                 for i in range(len(self.redshifts))]
-        return self._Mlim        
-        
+        return self._Mlim
+
     def fstar(self, z, M):
         return self.__call__(z, M, *self.coeff)
-        
+
+    @property
+    def kappa_UV(self):
+        if not hasattr(self, '_kappa_UV'):
+            if self.galaxy.sed_tab:
+                self._kappa_UV = self.galaxy.src.pop.kappa_UV()
+            else:
+                self._kappa_UV = self.pf['pop_lf_kappa_UV']
+            
+        return self._kappa_UV    
+    
     @property
     def fstar_tab(self):
         """
         These are the star-formation efficiencies derived from abundance
         matching.
         """
-    
+
         if hasattr(self, '_fstar_tab'):
             return self._fstar_tab
     
@@ -203,7 +212,7 @@ class HAM(object):
         for i, z in enumerate(self.redshifts):
             Nm += len(self.mags[i])
     
-        kappa_UV = self.pf['pop_kappa_UV']
+        kappa_UV = self.kappa_UV
     
         Nz = len(self.constraints['z'])
     
@@ -326,7 +335,7 @@ class HAM(object):
         eta = np.interp(z, self.halos.z, self.eta)
         
         Lh = self.cosm.fbaryon * self.Macc(z, self.halos.M) \
-            * eta * self.fstar(z, self.halos.M) / self.pf['pop_kappa_UV']
+            * eta * self.fstar(z, self.halos.M) / self.kappa_UV
         
         dMh_dLh = np.diff(self.halos.M) / np.diff(Lh)
         
@@ -591,7 +600,7 @@ class HAM(object):
         elif self.Mext[0] in ['pl', 'exp']:
             fst = self.fstar_Mlo(z, M, *coeff)
         
-        elif self.Mext[0] == 'const':
+        elif (self.Mext == 'const') or (self.Mext[0] == 'const'):
             fst = 10**self._log_fstar(z, M, *coeff) + self.Mext[1]
         
         # Set a constant upper limit for fstar below given mass limit     

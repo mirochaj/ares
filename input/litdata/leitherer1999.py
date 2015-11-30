@@ -41,10 +41,10 @@ info = \
 
 pars = \
 {
- 'Z': 0.04,
+ 'pop_Z': 0.04,
  'imf': 2.35,
- 'nebular': True,
- 'continuous_sf': False,
+ 'nebular': False,
+ 'pop_ssp': True,
 }
 
 def _reader(fn, skip=3, dtype=float):
@@ -90,7 +90,7 @@ def _fignum_to_figname():
     
 fig_num, fig_prefix = _fignum_to_figname()
     
-def _figure_name(Z=0.04, imf=2.35, nebular=True, continuous_sf=False):
+def _figure_name(pop_Z=0.04, imf=2.35, nebular=False, pop_ssp=True, **kwargs):
     """
     Only built for figures 1-12 right now.
     
@@ -106,10 +106,10 @@ def _figure_name(Z=0.04, imf=2.35, nebular=True, continuous_sf=False):
     mask = np.ones_like(options)
     
     # Can't be odd
-    if continuous_sf:
-        mask[options % 2 == 1] = 0
-    else:
+    if pop_ssp:
         mask[options % 2 == 0] = 0
+    else:
+        mask[options % 2 == 1] = 0
     
     # Can't be > 6
     if nebular:
@@ -132,10 +132,10 @@ def _figure_name(Z=0.04, imf=2.35, nebular=True, continuous_sf=False):
                       
     Zvals = metallicities.values()
     
-    if Z not in Zvals:
+    if pop_Z not in Zvals:
         raise ValueError('Unrecognized metallicity.')
         
-    Z_suffix = metallicities.keys()[Zvals.index(Z)]
+    Z_suffix = metallicities.keys()[Zvals.index(pop_Z)]
     
     if mask.sum() > 1:
         raise ValueError('Ambiguous SED.')
@@ -227,17 +227,17 @@ class StellarPopulation:
     @property
     def emissivity_per_sfr(self):
         """
-        Photon emissivity?
+        Photon emissivity.
         """
         if not hasattr(self, '_E_per_M'):
             self._E_per_M = np.zeros_like(self.data)
             for i in range(self.times.size):
                 self._E_per_M[:,i] = self.data[:,i] / (self.energies * erg_per_ev)    
 
-            if self.pf['continuous_sf']:
-                pass
-            else:
+            if self.pf['pop_ssp']:
                 self._E_per_M /= 1e6
+            else:
+                pass
 
         return self._E_per_M
 
@@ -250,39 +250,44 @@ class StellarPopulation:
                     / np.diff(np.log(self.wavelengths))
 
         return self._uvslope
-
-    @property
-    def NperB(self):
-        """
-        Number of photons emitted per stellar baryon of star formation.
         
-        Returns
-        -------
-        Two-dimensional array containing photon yield per unit stellar baryon per
-        second per angstrom. First axis corresponds to photon wavelength (or energy), 
-        and second axis to time.
-        
+    def LUV(self, wave=1500.):   
         """
-        if not hasattr(self, '_NperB'):
-            self._NperB = np.zeros_like(self.data)
-            for i in range(self.times.size):
-                self._NperB[:,i] = self.data[:,i] / (self.energies * erg_per_ev) 
-                
-            # Introduce "per baryon" units assuming 1 Msun in stars
-            self._NperB /= (g_per_msun / self.cosm.g_per_baryon)
+        Specific emissivity at provided wavelength.
+        
+        Units are 
+            erg / s / Hz / (Msun / yr)
+        or 
+            erg / s / Hz / Msun
+        """
+        
+        j = np.argmin(np.abs(wave - self.wavelengths))
+        
+        dwavednu = np.diff(self.wavelengths) / np.diff(self.frequencies)
+        
+        yield_UV = self.data[j,:] * np.abs(dwavednu[j])
+        
+        # Current units: 
+        # if pop_ssp: erg / sec / Hz / (Msun / 1e6)
+        # else: erg / sec / Hz / (Msun / yr)
+                    
+        # to erg / s / A / Msun
+        if self.pf['pop_ssp']:
+            yield_UV /= 1e6
+        # or erg / s / A / (Msun / yr)
+        else:
+            pass
             
-            if self.pf['continuous_sf']:
-                pass
-            else:
-                self._NperB /= 1e6
-
-        return self._NperB
+        return yield_UV[-1]
         
-    @property
     def kappa_UV(self, wave=1500.):    
         """
         Number of photons emitted per stellar baryon of star formation.
         
+        If star formation is continuous, this will have units of:
+            (Msun / yr) / (erg / s / Hz)
+        If star formation is in a burst, this will have units of:
+            Msun / (erg / s / Hz)
         Returns
         -------
         Two-dimensional array containing photon yield per unit stellar baryon per
@@ -291,27 +296,8 @@ class StellarPopulation:
         
         """
         
-        if not hasattr(self, '_kappa_UV'):
-            j = np.argmin(np.abs(wave - self.wavelengths))
-            
-            dwavednu = np.diff(self.wavelengths) / np.diff(self.frequencies)
-            
-            # in erg / s / Hz
-            yield_UV = self.data[j,:] * np.abs(dwavednu[j])
-                        
-            # to erg / s / A / Msun
-            if self.pf['continuous_sf']:
-                pass
-            else:
-                yield_UV /= 1e6
-            
-            # Convert from Myr to years
-            t = self.times * 1e6
-        
-            self._kappa_UV = 1. / cumtrapz(yield_UV, x=t, initial=0.0)
-        
-        return self._kappa_UV
-        
+        return 1. / self.LUV(wave)
+
     def integrated_emissivity(self, l0, l1, unit='A'):
         # Find band of interest -- should be more precise and interpolate
         
@@ -332,11 +318,38 @@ class StellarPopulation:
             photons_per_b_t[i] = np.trapz(self.emissivity_per_sfr[i1:i0,i], 
                 x=x[i1:i0])
                 
-        t = self.times * s_per_myr    
+        t = self.times * s_per_myr 
+      
+    def erg_per_phot(self, Emin, Emax):
+        return self.eV_per_phot(Emin, Emax) * erg_per_ev  
+        
+    def eV_per_phot(self, Emin, Emax):
+        i0 = np.argmin(np.abs(self.energies - Emin))
+        i1 = np.argmin(np.abs(self.energies - Emax))
+        
+        it = -1
                 
+        # Must convert units
+        E_avg = np.trapz(self.data[i1:i0,it] * self.energies[i1:i0], 
+            x=self.wavelengths[i1:i0]) \
+            / np.trapz(self.data[i1:i0,it], x=self.wavelengths[i1:i0])    
+        
+        return E_avg
+        
+    def yield_per_sfr(self, Emin, Emax):
+        """
+        Must be in the internal units of erg / g.
+        """
+        
+        # Units self-explanatory
+        N = self.PhotonsPerBaryon(Emin, Emax)
+
+        # Convert to erg / g        
+        return N * self.erg_per_phot(Emin, Emax) * self.cosm.b_per_g
+ 
     def PhotonsPerBaryon(self, Emin, Emax):    
         """
-        Compute the cumulative number of photons emitted per unit stellar baryon.
+        Compute the number of photons emitted per unit stellar baryon.
         
         ..note:: This integrand over the provided band, and cumulatively over time.
         
@@ -364,52 +377,61 @@ class StellarPopulation:
         # Count up the photons in each spectral bin for all times
         photons_per_b_t = np.zeros_like(self.times)
         for i in range(self.times.size):
-            photons_per_b_t[i] = np.trapz(self.NperB[i1:i0,i], 
-                x=self.wavelengths[i1:i0])
+            integrand = self.data[i1:i0,i] / (self.energies[i1:i0] * erg_per_ev)
+            photons_per_b_t[i] = np.trapz(integrand, x=self.wavelengths[i1:i0])
             
-        # Current units: photons / sec / baryon
-        t = self.times * s_per_myr
+        # Current units: 
+        # if pop_ssp: photons / sec / (Msun / 1e6)
+        # else: photons / sec / (Msun / yr)
         
         # Integrate (cumulatively) over time
-        return cumtrapz(photons_per_b_t, x=t, initial=0.0)
-                
-class Spectrum(StellarPopulation):
-    def __init__(self, **kwargs):
-        StellarPopulation.__init__(self, **kwargs)
-    
-    @property
-    def Lbol(self):
-        if not hasattr(self, '_Lbol'):
-            to_int = self.intens
-               
-            self._Lbol = np.trapz(to_int, x=self.energies[-1::-1])
-            
-        return self._Lbol
-               
-    @property
-    def intens(self):
-        if not hasattr(self, '_intens'):
-            self._intens = self.data[-1::-1,-1] * self.dlde
-    
-        return self._intens
-        
-    @property
-    def nrg(self):
-        if not hasattr(self, '_nrg'):
-            self._nrg = self.energies[-1::-1]
-
-        return self._nrg
-        
-    @property
-    def dlde(self):
-        if not hasattr(self, '_dlde'):
-            diff = np.diff(self.wavelengths) / np.diff(self.energies)
-            self._dlde = np.concatenate((diff, [diff[-1]]))
-                    
-        return self._dlde
-        
-    def __call__(self, E, t=0.0):        
-        return np.interp(E, self.nrg, self.data[-1::-1,0]) #/ self.Lbol
-        
-        
+        if self.pf['pop_ssp']:
+            photons_per_b_t *= self.cosm.g_per_baryon / g_per_msun
+            return cumtrapz(photons_per_b_t, x=self.times * s_per_myr,  
+                initial=0.0)[-1] / 1e6
+        # Take steady-state result
+        else:
+            photons_per_b_t *= s_per_yr
+            photons_per_b_t *= self.cosm.g_per_baryon / g_per_msun
+            return photons_per_b_t[-1]
+                            
+#class Spectrum(StellarPopulation):
+#    def __init__(self, **kwargs):
+#        StellarPopulation.__init__(self, **kwargs)
+#    
+#    @property
+#    def Lbol(self):
+#        if not hasattr(self, '_Lbol'):
+#            to_int = self.intens
+#               
+#            self._Lbol = np.trapz(to_int, x=self.energies[-1::-1])
+#            
+#        return self._Lbol
+#               
+#    @property
+#    def intens(self):
+#        if not hasattr(self, '_intens'):
+#            self._intens = self.data[-1::-1,-1] * self.dlde
+#    
+#        return self._intens
+#        
+#    @property
+#    def nrg(self):
+#        if not hasattr(self, '_nrg'):
+#            self._nrg = self.energies[-1::-1]
+#
+#        return self._nrg
+#        
+#    @property
+#    def dlde(self):
+#        if not hasattr(self, '_dlde'):
+#            diff = np.diff(self.wavelengths) / np.diff(self.energies)
+#            self._dlde = np.concatenate((diff, [diff[-1]]))
+#                    
+#        return self._dlde
+#        
+#    def __call__(self, E, t=0.0):        
+#        return np.interp(E, self.nrg, self.data[-1::-1,0]) #/ self.Lbol
+#        
+#        
         

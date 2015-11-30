@@ -270,6 +270,12 @@ def PopulationParameters():
     # Set the emission interval and SED
     "pop_sed": 'pl',
     
+    "pop_Z": 0.04,
+    "pop_ssp": False,             # a.k.a., continuous SF
+    "pop_tsf": np.inf,             
+
+    # Option of setting Z, t, or just supplying SSP table?
+    
     "pop_Emin": 2e2,
     "pop_Emax": 3e4,
     "pop_EminNorm": 5e2,

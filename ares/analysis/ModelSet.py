@@ -164,7 +164,7 @@ class ModelSubSet(object):
         pass
 
 class ModelSet(object):
-    def __init__(self, data, subset=None):
+    def __init__(self, data, subset=None, verbose=True):
         """
         Parameters
         ----------
@@ -203,10 +203,11 @@ class ModelSet(object):
                 self.path = prefix[0:i+1]
                 self.fn = prefix[i+1:]
 
-            try:
-                print_model_set(self)
-            except:
-                pass
+            if verbose:
+                try:
+                    print_model_set(self)
+                except:
+                    pass
                     
             #if not self.is_mcmc:
             #    
@@ -1661,7 +1662,8 @@ class ModelSet(object):
         -------
         Tuple with three entries:
          (i) Dictionary containing 1-D arrays of samples for each quantity.
-         (ii) 
+         (ii) Dictionary telling us which of the datasets are actually the
+          log10 values of the associated parameters.
          
          
         """
@@ -1690,8 +1692,6 @@ class ModelSet(object):
                     to_hist.append(val)
         
             else:
-                
-                
                 
                 val = self.extract_blob(par, z[k]).copy()
         
@@ -2400,6 +2400,9 @@ class ModelSet(object):
         skip_panels : list
             List of panel numbers to skip over.
         
+        ..note:: If you set take_log = True AND supply bins by hand, use the
+            log10 values of the bins you want.
+            
         Returns
         -------
         ares.analysis.MultiPlot.MultiPanel instance.
@@ -2563,7 +2566,7 @@ class ModelSet(object):
                     tohist = [to_hist[j], to_hist[-1::-1][i]]
                 except KeyError:
                     tohist = [to_hist[p2], to_hist[p1]]
-                
+                                
                 # 2-D PDFs elsewhere
                 ax = self.PosteriorPDF([p2, p1], to_hist=tohist, is_log=is_log,
                     ax=mp.grid[k], z=red, take_log=[take_log[j], take_log[-1::-1][i]],

@@ -75,13 +75,15 @@ fn_elec = 'elec_interp.tar.gz'
 fn_cuvb = 'UVB.out'
 fn_emiss = 'emissivity.out'
 
+print '\n'
+
 # First, secondary electron data from Furlanetto & Stoever (2010)
 if not os.path.exists('secondary_electrons'):
     os.mkdir('secondary_electrons')
     
 if not os.path.exists('secondary_electrons/%s' % fn_elec):
     os.chdir('secondary_electrons')
-    print "\nDownloading %s/%s..." % (sfurlane_xray, fn_elec)
+    print "Downloading %s/%s..." % (sfurlane_xray, fn_elec)
     urllib.urlretrieve('%s/%s' % (sfurlane_xray, fn_elec), fn_elec)
     os.chdir('..')
 
@@ -103,7 +105,7 @@ if not os.path.exists('starburst99'):
 
 if not os.path.exists('starburst99/data.tar.gz'):
     os.chdir('starburst99')
-    print "\nDownloading %s/data.tar.gz..." % s99_seds
+    print "Downloading %s/data.tar.gz..." % s99_seds
     urllib.urlretrieve('%s/data.tar.gz' % s99_seds, 'data.tar.gz')
     os.chdir('..')
     
@@ -127,13 +129,13 @@ if not os.path.exists('hm12'):
 
 if not os.path.exists('hm12/%s' % fn_cuvb):
     os.chdir('hm12')
-    print "\nDownloading %s/%s..." % (hm12_cuvb, fn_cuvb)
+    print "Downloading %s/%s..." % (hm12_cuvb, fn_cuvb)
     urllib.urlretrieve('%s/%s' % (hm12_cuvb, fn_cuvb), fn_cuvb)
     os.chdir('..')
     
 if not os.path.exists('hm12/%s' % fn_emiss):
     os.chdir('hm12')
-    print "\nDownloading %s/%s..." % (hm12_cuvb, fn_emiss)
+    print "Downloading %s/%s..." % (hm12_cuvb, fn_emiss)
     urllib.urlretrieve('%s/%s' % (hm12_cuvb, fn_emiss), fn_emiss)
     os.chdir('..')
 
@@ -143,7 +145,7 @@ if not os.path.exists('hmf'):
         
 if not os.path.exists('hmf/%s' % fn_hmf):
     os.chdir('hmf')
-    print "\nDownloading %s/%s..." % (bitbucket_DL, fn_hmf)
+    print "Downloading %s/%s..." % (bitbucket_DL, fn_hmf)
     urllib.urlretrieve('%s/%s' % (bitbucket_DL, fn_hmf), fn_hmf)
     os.chdir('..')
 
@@ -155,7 +157,7 @@ if not os.path.exists('inits'):
     
 if not os.path.exists('inits/%s' % fn_ics_np):
     os.chdir('inits')
-    print "\nDownloading %s/%s..." % (bitbucket_DL, fn_ics_np)
+    print "Downloading %s/%s..." % (bitbucket_DL, fn_ics_np)
     urllib.urlretrieve('%s/%s' % (bitbucket_DL, fn_ics_np), fn_ics_np)
     os.chdir('..')  
       
@@ -164,13 +166,13 @@ if not os.path.exists('optical_depth'):
 
 if not os.path.exists('optical_depth/%s' % fn_tau):
     os.chdir('optical_depth')
-    print "\nDownloading %s/%s..." % (bitbucket_DL, fn_tau)
+    print "Downloading %s/%s..." % (bitbucket_DL, fn_tau)
     urllib.urlretrieve('%s/%s' % (bitbucket_DL, fn_tau), fn_tau)
     os.chdir('..')
 
 if not os.path.exists('optical_depth/%s' % fn_tau2):    
     os.chdir('optical_depth')
-    print "\nDownloading %s/%s..." % (bitbucket_DL, fn_tau2)
+    print "Downloading %s/%s..." % (bitbucket_DL, fn_tau2)
     urllib.urlretrieve('%s/%s' % (bitbucket_DL, fn_tau2), fn_tau2)
     os.chdir('..')
     
