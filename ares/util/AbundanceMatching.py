@@ -10,7 +10,6 @@ Description:
 
 """
 
-import mpmath
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
@@ -19,6 +18,11 @@ from scipy.integrate import quad, simps
 from scipy.optimize import fsolve, curve_fit
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc
+
+try:
+    import mpmath
+except ImportError:
+    pass
 
 z0 = 8. # arbitrary
 

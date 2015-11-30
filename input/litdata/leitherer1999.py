@@ -162,6 +162,7 @@ class StellarPopulation:
     def _load(self):
         
         Zvals = np.sort(metallicities.values())
+                
         if self.pf['pop_Z'] not in Zvals:
             
             pf = self.pf.copy()
@@ -172,7 +173,7 @@ class StellarPopulation:
                 _raw_data = _reader(fn)
                 data.append(_raw_data[:,1:])
             
-            data = self._dat = np.array(data)
+            data = np.array(data)
             self._wavelengths = _raw_data[:,0]
             
             self._raw_data = np.zeros_like(_raw_data)
@@ -181,6 +182,8 @@ class StellarPopulation:
                     data[:,:,i])
                 self._raw_data[:,i] = \
                     interp(np.log10(self.pf['pop_Z']), np.log10(self.wavelengths))
+                     
+            self._data = 10**self._raw_data         
                         
         else:        
             self.fn = _figure_name(**self.pf)
