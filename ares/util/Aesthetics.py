@@ -168,6 +168,7 @@ lf_parameters = \
 
 pop_parameters = \
 {
+ 'pop_Z': r'$Z/Z_{\odot}$',
  'pop_yield': 'yield',
  'pop_lf_beta': r'$\Beta_{\mathrm{UV}}$',
 }

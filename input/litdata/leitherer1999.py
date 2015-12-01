@@ -46,6 +46,7 @@ pars = \
  'imf': 2.35,
  'nebular': False,
  'pop_ssp': True,
+ 'pop_tsf': 500.,
 }
 
 def _reader(fn, skip=3, dtype=float):
@@ -277,17 +278,8 @@ class StellarPopulation:
                     / np.diff(np.log(self.wavelengths))
 
         return self._uvslope
-        
-    def LUV(self):   
-        """
-        Specific emissivity at provided wavelength.
-        
-        Units are 
-            erg / s / Hz / (Msun / yr)
-        or 
-            erg / s / Hz / Msun
-        """
-        
+    
+    def LUV_of_t(self):
         wave = 1500. # hard-coded since we create an interpolation object 
         
         j = np.argmin(np.abs(wave - self.wavelengths))
@@ -307,6 +299,20 @@ class StellarPopulation:
         else:
             pass
             
+        return yield_UV
+        
+    def LUV(self):   
+        """
+        Specific emissivity at provided wavelength.
+        
+        Units are 
+            erg / s / Hz / (Msun / yr)
+        or 
+            erg / s / Hz / Msun
+        """
+        
+        yield_UV = self.LUV_of_t()
+            
         # Interpolate in time to obtain final LUV
         if self.pf['pop_tsf'] in self.times:
             return yield_UV[np.argmin(np.abs(self.times - self.pf['pop_tsf']))]
@@ -319,6 +325,9 @@ class StellarPopulation:
             self._LUV_interp = interp1d(self.times, yield_UV, kind='cubic')
             
         return self._LUV_interp(self.pf['pop_tsf'])
+        
+    def kappa_UV_of_t(self):        
+        return 1. / self.LUV_of_t()
         
     def kappa_UV(self):    
         """
@@ -387,6 +396,25 @@ class StellarPopulation:
         # Convert to erg / g        
         return N * self.erg_per_phot(Emin, Emax) * self.cosm.b_per_g
  
+    def PhotonsPerBaryon_of_t(self, Emin, Emax):    
+        # Find band of interest -- should be more precise and interpolate
+        i0 = np.argmin(np.abs(self.energies - Emin))
+        i1 = np.argmin(np.abs(self.energies - Emax))
+              
+        # Current units: photons / sec / baryon / Angstrom      
+                                     
+        # Count up the photons in each spectral bin for all times
+        photons_per_b_t = np.zeros_like(self.times)
+        for i in range(self.times.size):
+            integrand = self.data[i1:i0,i] / (self.energies[i1:i0] * erg_per_ev)
+            photons_per_b_t[i] = np.trapz(integrand, x=self.wavelengths[i1:i0])
+            
+        # Current units: 
+        # if pop_ssp: photons / sec / (Msun / 1e6)
+        # else: photons / sec / (Msun / yr)
+        
+        return photons_per_b_t
+        
     def PhotonsPerBaryon(self, Emin, Emax):    
         """
         Compute the number of photons emitted per unit stellar baryon.
@@ -408,17 +436,7 @@ class StellarPopulation:
     
         """
         
-        # Find band of interest -- should be more precise and interpolate
-        i0 = np.argmin(np.abs(self.energies - Emin))
-        i1 = np.argmin(np.abs(self.energies - Emax))
-              
-        # Current units: photons / sec / baryon / Angstrom      
-                                     
-        # Count up the photons in each spectral bin for all times
-        photons_per_b_t = np.zeros_like(self.times)
-        for i in range(self.times.size):
-            integrand = self.data[i1:i0,i] / (self.energies[i1:i0] * erg_per_ev)
-            photons_per_b_t[i] = np.trapz(integrand, x=self.wavelengths[i1:i0])
+        photons_per_b_t = self.PhotonsPerBaryon_of_t(Emin, Emax)    
             
         # Current units: 
         # if pop_ssp: photons / sec / (Msun / 1e6)

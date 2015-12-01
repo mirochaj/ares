@@ -422,7 +422,7 @@ class FitLuminosityFunction(FitGlobal21cm):
     @property
     def guesses(self):
         if not hasattr(self, '_guesses'):
-            raise ValueError('help')
+            raise ValueError('Must set guesses by hand!')
         return self._guesses            
     
     @guesses.setter
@@ -432,7 +432,9 @@ class FitLuminosityFunction(FitGlobal21cm):
         confidence regions of literature sources (for Schecter parameters).
         """
         
-        if type(value) == str:
+        assert type(value) == str, 'Must supply bouwens2015 at the moment.'
+        
+        if rank == 0:
             data = read_lit(value)
             fits = data.fits['lf']
             z = data.redshifts
@@ -473,9 +475,39 @@ class FitLuminosityFunction(FitGlobal21cm):
             self.jitter = jitter
             self._guesses = sample_ball(guesses, self.jitter, 
                 size=self.nwalkers)
+                
+            # Fix parameters whose values lie outside prior space
+            for i, par in enumerate(self.parameters):
+                if par not in self.priors:
+                    continue
+                    
+                if self.priors[par][0] != 'uniform':
+                    continue
+                
+                mi, ma = self.priors[par][1:]
+                
+                ok_lo = self._guesses[:,i] >= mi
+                ok_hi = self._guesses[:,i] <= ma
+                
+                if np.all(ok_lo) and np.all(ok_hi):
+                    continue
+                    
+                # Draw from uniform distribution for failed cases
+                
+                not_ok_lo = np.logical_not(ok_lo)
+                not_ok_hi = np.logical_not(ok_hi)
+                not_ok = np.logical_or(not_ok_hi, not_ok_lo)
+                
+                bad_mask = np.argwhere(not_ok)
+                
+                for j in bad_mask:
+                    print "Fixing guess for walker %i parameter %s" % (j[0], par)
+                    self._guesses[j[0],i] = np.random.uniform(mi, ma)
+                
+        #if size > 1:        
+        #    buff = np.zeros_like
         
-        else:
-            raise NotImplemented('help')
+        
 
     def save_data(self, prefix, clobber=False):
         if rank > 0:

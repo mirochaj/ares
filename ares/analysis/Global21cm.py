@@ -13,6 +13,7 @@ Description:
 import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl
+from .MultiPlot import MultiPanel
 from .MultiPhaseMedium import MultiPhaseMedium
 
 class Global21cm(MultiPhaseMedium):
@@ -180,8 +181,8 @@ class Global21cm(MultiPhaseMedium):
             ymax = [0, 0, 0]
             for i in xrange(2):
                 ymin[i], ymax[i]= mp.grid[i].get_ylim()        
-                
-        mp.grid[0].plot(self.data_asc['z'], self.data_asc['igm_dTb'], **kwargs)        
+
+        mp.grid[0].plot(self.data_asc['z'], self.data_asc['igm_dTb'], **kwargs)
         mp.grid[1].plot(self.z_p, self.dTbdnu, **kwargs)
         
         zf = int(np.min(self.data['z']))

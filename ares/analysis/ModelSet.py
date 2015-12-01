@@ -124,6 +124,7 @@ def make_label(name, take_log=False, labels=None):
         prefix, popid = pop_id_num(prefix)
     except:
         m = re.search(r"\{([0-9])\}", name)
+        z = popid = None
         
     if m is None:
         num = None
