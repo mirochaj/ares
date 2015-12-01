@@ -23,9 +23,9 @@ from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
+from ..util.Aesthetics import Labeler
 from ..util.PrintInfo import print_model_set
 from .DerivedQuantities import DerivedQuantities as DQ
-from .DerivedQuantities import registry_special_Q
 from ..simulations.Global21cm import Global21cm as sG21
 from ..util.ParameterFile import count_populations, par_info
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
@@ -36,14 +36,7 @@ from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     tanh_gjah_to_ares
 from ..inference.FitLuminosityFunction import param_redshift
 
-
-try:
-    from scipy.optimize import fmin
-    from scipy.integrate import dblquad
-except ImportError:
-    pass
-
-import pickle    
+import pickle 
 
 try:
     import h5py
@@ -58,12 +51,17 @@ try:
 except ImportError:
     rank = 0
     size = 1
-
-tanh_pars = TanhParameters()
-
-def_kwargs = {}
+    
+default_mp_kwargs = \
+{
+ 'diagonal': 'lower', 
+ 'keep_diagonal': True, 
+ 'panel_size': (0.5,0.5), 
+ 'padding': (0,0)
+}    
 
 def patch_pinfo(pars):
+    # This should be deprecated in future versions
     new_pars = []
     for par in pars:
 
@@ -76,89 +74,12 @@ def patch_pinfo(pars):
     
     return new_pars
 
-def parse_blobs(name):
-    nsplit = name.split('_')
-    
-    if len(nsplit) == 2:
-        pre, post = nsplit
-    elif len(nsplit) == 3:
-        pre, mid, post = nsplit
-
-        pre = pre + mid
-    
-    if pre in default_labels:
-        pass
-        
-    return None 
-        
-def logify_str(s, sup=None):
-    s_no_dollar = str(s.replace('$', ''))
-    
-    new_s = s_no_dollar
-    
-    if sup is not None:
-        new_s += '[%s]' % sup_scriptify_str(s)
-        
-    return r'$\mathrm{log}_{10}' + new_s + '$'
-    
-def undo_mathify(s):
-    return str(s.replace('$', ''))
-    
-def mathify_str(s):
-    return r'$%s$' % s    
-    
-def make_label(name, take_log=False, labels=None):
-    """
-    Take a string and make it a nice (LaTeX compatible) axis label. 
-    """
-    
-    if labels is None:
-        labels = default_labels
-        
-    # Check to see if it has a population ID # tagged on the end
-    # OR a redshift
-    
-    try:
-        m = None
-        prefix, z = param_redshift(name)
-        prefix, popid = pop_id_num(prefix)
-    except:
-        m = re.search(r"\{([0-9])\}", name)
-        z = popid = None
-        
-    if m is None:
-        num = None
-        prefix = name
-        if prefix in labels:
-            label = labels[prefix]
-        else:
-            label = r'%s' % prefix
-    else:
-        num = int(m.group(1))
-        prefix = name.split(m.group(0))[0]
-        
-        if prefix in labels:
-            label = r'$%s[z=%.2g]$' % (undo_mathify(labels[prefix]), z)
-        else:
-            label = r'%s' % prefix
-        
-    if take_log:        
-        return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
-    else:
-        return label
-        
 def err_str(label, mu, err, log, labels=None):
     s = undo_mathify(make_label(label, log, labels))
 
     s += '=%.3g^{+%.2g}_{-%.2g}' % (mu, err[1], err[0])
     
     return r'$%s$' % s
-
-def def_par_names(N):
-    return [i for i in np.arange(N)]
-
-def def_par_labels(i):
-    return 'parameter # %i' % i
 
 class ModelSubSet(object):
     def __init__(self):
@@ -850,70 +771,6 @@ class ModelSet(object):
         
         print "Saved result to slice_%i attribute." % i
         
-    #def ReRunModels(self, prefix=None, N=None, random=False, last=False, 
-    #    clobber=False, save_freq=10, **kwargs):
-    #    """
-    #    Take list of dictionaries and re-run each as a Global21cm model.
-    #
-    #    Parameters
-    #    ----------
-    #    N : int
-    #        Draw N samples from chain, and re-run those models.
-    #        If None, will re-run all models.
-    #    random : bool
-    #        If True, draw N *random* samples, rather than just the first N.
-    #    last : bool
-    #        If True, take last ``N`` samples from chain, rather than first.
-    #        
-    #    prefix : str
-    #        Prefix of files to be saved. There will be three:
-    #            i) prefix.chain.pkl
-    #            ii) prefix.blobs.pkl
-    #            iii) prefix.pinfo.pkl
-    #
-    #    Returns
-    #    -------
-    #    Nothing, just saves stuff to disk.
-    #    
-    #    """
-    #            
-    #    had_N = True
-    #    if N is None:
-    #        had_N = False
-    #        N = self.chain.shape[0]
-    #                
-    #    model_num = np.arange(N)
-    #    
-    #    if had_N:
-    #        if random:
-    #            if size > 1:
-    #                raise ValueError('This will cause each processor to run different models!')
-    #            np.random.shuffle(model_num)
-    #        
-    #        if last:
-    #            model_ids = model_num[-N:]
-    #        else:    
-    #            model_ids = model_num[0:N]            
-    #    else:
-    #        model_ids = model_num    
-    #                    
-    #    # Create list of models to run
-    #    models = []
-    #    for i, model in enumerate(model_ids):
-    #        tmp = {}
-    #        for j, par in enumerate(self.parameters):
-    #            tmp[par] = self.chain[i,j]
-    #        
-    #        models.append(tmp.copy())
-    #                            
-    #    # Take advantage of pre-existing machinery to run them
-    #    mg = self.mg = ModelGrid(**kwargs)
-    #    mg.set_models(models)
-    #    mg.is_log = self.is_log
-    #    mg.LoadBalance(0)
-    #
-    #    mg.run(prefix, clobber=clobber, save_freq=save_freq)
-
     @property
     def plot_info(self):
         if not hasattr(self, '_plot_info'):
@@ -1022,86 +879,7 @@ class ModelSet(object):
         dbs = self.derived_blobs
         
         return self._derived_blob_names
-
-    #@property
-    #def derived_blobs(self):
-    #    """
-    #    Total rates, convert to rate coefficients.
-    #    """
-    #
-    #    if hasattr(self, '_derived_blobs'):
-    #        return self._derived_blobs
-    #        
-    #    if os.path.exists('%s.dblobs.hdf5' % self.prefix) and have_h5py:
-    #        f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'r')
-    #        dbs = f['derived_blobs'].value
-    #        self._derived_blobs = np.ma.masked_array(dbs, mask=f['mask'].value)
-    #        self._derived_blob_names = list(f['derived_blob_names'].value)
-    #        f.close()
-    #        return self._derived_blobs
-    #
-    #    #if self.blobs is None:
-    #    #    return   
-    #
-    #    # Just a dummy class
-    #    pf = ModelSubSet()
-    #    pf.Npops = self.Npops
-    #
-    #    # Create data container to mimic that of a single run,
-    #    dqs = []
-    #    self._derived_blob_names = []
-    #    for i, redshift in enumerate(self.blob_redshifts):
-    #
-    #        if type(redshift) is str:
-    #            z = self.extract_blob('z', redshift)[i] 
-    #        else:
-    #            z = redshift
-    #
-    #        data = {}
-    #        data['z'] = np.array([z])
-    #        
-    #        for j, key in enumerate(self.blob_names):
-    #            data[key] = self.blobs[:,i,j]
-    #                        
-    #        _dq = DQ(data, pf)
-    #        
-    #        # SFRD
-    #        _dq.build(**registry_special_Q)
-    #        
-    #        dqs.append(_dq.derived_quantities.copy())
-    #
-    #        for key in _dq.derived_quantities:
-    #            if key in self._derived_blob_names:
-    #                continue
-    #            
-    #            self._derived_blob_names.append(key)
-    #
-    #    # (Nlinks, Nz, Nblobs)
-    #    shape = list(self.blobs.shape[:-1])
-    #    shape.append(len(self._derived_blob_names))
-    #
-    #    self._derived_blobs = np.ones(shape) * np.inf
         
-    #    for i, redshift in enumerate(self.blob_redshifts):
-    #        
-    #        data = dqs[i]
-    #        for key in data:
-    #            j = self._derived_blob_names.index(key)
-    #            self._derived_blobs[:,i,j] = data[key]
-    #
-    #            
-    #    mask = np.ones_like(self._derived_blobs)    
-    #    #mask[np.isinf(self._derived_blobs)] = 1
-    #    #mask[np.isnan(self._derived_blobs)] = 1
-    #    mask[np.isfinite(self._derived_blobs)] = 0
-    #    
-    #    self.dmask = mask
-    #    
-    #    self._derived_blobs = np.ma.masked_array(self._derived_blobs, 
-    #        mask=mask)
-    #
-    #    return self._derived_blobs
-
     def set_constraint(self, add_constraint=False, **constraints):
         """
         For ModelGrid calculations, the likelihood must be supplied 
@@ -1173,7 +951,7 @@ class ModelSet(object):
 
         self.logL[mask] = -np.inf
 
-    def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, 
+    def Scatter(self, pars, z=None, c=None, ax=None, fig=1, 
         take_log=False, multiplier=1., **kwargs):
         """
         Show occurrences of turning points B, C, and D for all models in
@@ -1268,8 +1046,8 @@ class ModelSet(object):
         else:
             scat = ax.scatter(xdat, ydat, **kwargs)
 
-        ax.set_xlabel(make_label(x, take_log=take_log[0]))
-        ax.set_ylabel(make_label(y, take_log=take_log[1]))
+        #ax.set_xlabel(make_label(x, take_log=take_log[0]))
+        #ax.set_ylabel(make_label(y, take_log=take_log[1]))
         #if take_log[0]:
         #    ax.set_xlabel(logify_str(labels[self.get_par_prefix(x)]))
         #else:
@@ -1352,7 +1130,7 @@ class ModelSet(object):
         Tuple, (maximum likelihood value, negative error, positive error).
         """
 
-        pars, take_log, multiplier, z = \
+        pars, take_log, multiplier, un_log, z = \
             self._listify_common_inputs([par], take_log, multiplier, z)
 
         to_hist, is_log = self.ExtractData(par, z=z, take_log=take_log, 
@@ -1642,7 +1420,8 @@ class ModelSet(object):
         
         return pars, to_hist, is_log, binvec
       
-    def ExtractData(self, pars, z=None, take_log=False, multiplier=1.):
+    def ExtractData(self, pars, z=None, take_log=False, un_log=False, 
+        multiplier=1.):
         """
         Extract data for subsequent analysis.
         
@@ -1669,8 +1448,8 @@ class ModelSet(object):
          
         """
         
-        pars, take_log, multiplier, z = \
-            self._listify_common_inputs(pars, take_log, multiplier, z)        
+        pars, take_log, multiplier, un_log, z = \
+            self._listify_common_inputs(pars, take_log, multiplier, un_log, z)        
                         
         to_hist = []
         is_log = []
@@ -1680,14 +1459,18 @@ class ModelSet(object):
             if par in self.parameters:
                 j = self.parameters.index(par)
                 is_log.append(self.is_log[j])
-                val = self.chain[:,j].copy()
+                
+                if self.is_log[j] and un_log[k]:
+                    val = 10**self.chain[:,j].copy()
+                else:
+                    val = self.chain[:,j].copy()
         
-                if self.is_log[j]:
+                if self.is_log[j] and (not un_log[k]):
                     val += np.log10(multiplier[k])
                 else:
                     val *= multiplier[k]
         
-                if take_log[k] and not self.is_log[j]:
+                if take_log[k] and (not self.is_log[j]):
                     to_hist.append(np.log10(val))
                 else:
                     to_hist.append(val)
@@ -1818,51 +1601,16 @@ class ModelSet(object):
                 input_output[par] = vin
             else:
                 input_output.append(vin)
-                    
-        # Loop over parameters
-        #for i, p1 in enumerate(pars[-1::-1]):
-        #    for j, p2 in enumerate(pars):
-        #        
-        #        # y-values first
-        #        if type(inputs) is list:
-        #            val = inputs[-1::-1][i]
-        #        elif p1 in inputs:
-        #            val = inputs[p1]
-        #        else:
-        #            val = None
-        #            
-        #        # Take log [optional]    
-        #        if val is None:
-        #            yin = None
-        #        elif is_log[i] or take_log[i]:
-        #            yin = np.log10(val * multiplier[-1::-1][i])                            
-        #        else:
-        #            yin = val * multiplier[-1::-1][i]                        
-        #                                    
-        #        # x-values next
-        #        if type(inputs) is list:
-        #            val = inputs[j]        
-        #        elif p2 in inputs:
-        #            val = inputs[p2]
-        #        else:
-        #            val = None
-        #                        
-        #        # Take log [optional]
-        #        if val is None:
-        #            xin = None  
-        #        elif is_log[Nd-j-1] or take_log[Nd-j-1]:
-        #            xin = np.log10(val * multiplier[-1::-1][Nd-j-1])
-        #        else:
-        #            xin = val * multiplier[-1::-1][Nd-j-1]
-                
             
         return input_output
         
-    def _listify_common_inputs(self, pars, take_log, multiplier, z):
+    def _listify_common_inputs(self, pars, take_log, multiplier, un_log, z):
         if type(pars) not in [list, tuple]:
             pars = [pars]
         if type(take_log) == bool:
             take_log = [take_log] * len(pars)
+        if type(un_log) == bool:
+            un_log = [un_log] * len(pars)    
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)
 
@@ -1872,16 +1620,16 @@ class ModelSet(object):
         else:
             z = [z] * len(pars)
             
-        return pars, take_log, multiplier, z
+        return pars, take_log, multiplier, un_log, z
 
     def PosteriorCDF(self, pars, bins=500, **kwargs):
         return self.PosteriorPDF(pars, bins=bins, cdf=True, **kwargs)
                
     def PosteriorPDF(self, pars, to_hist=None, is_log=None, z=None, ax=None, fig=1, 
-        multiplier=1., nu=[0.95, 0.68], overplot_nu=False, density=True, cdf=False,
-        color_by_like=False, filled=True, take_log=False, bins=20, skip=0, skim=1, 
-        contour_method='raw', excluded=False, stop=None, rotate_x=45.,
-        rotate_y=45., **kwargs):
+        multiplier=1., nu=[0.95, 0.68], cdf=False,
+        color_by_like=False, filled=True, take_log=False, un_log=False,
+        bins=20, skip=0, skim=1, 
+        contour_method='raw', excluded=False, stop=None, **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
     
@@ -1927,8 +1675,7 @@ class ModelSet(object):
 
         cs = None
         
-        kw = def_kwargs.copy()
-        kw.update(kwargs)
+        kw = kwargs
 
         if 'labels' in kw:
             labels_tmp = default_labels.copy()
@@ -1938,8 +1685,8 @@ class ModelSet(object):
         else:
             labels = default_labels
             
-        pars, take_log, multiplier, z = \
-            self._listify_common_inputs(pars, take_log, multiplier, z)
+        pars, take_log, multiplier, un_log, z = \
+            self._listify_common_inputs(pars, take_log, multiplier, un_log, z)
 
         # Only make a new plot window if there isn't already one
         if ax is None:
@@ -1952,7 +1699,7 @@ class ModelSet(object):
         # Grab all the data we need
         if (to_hist is None) or (is_log is None):
             to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log, 
-                multiplier=multiplier)
+                un_log=un_log, multiplier=multiplier)
 
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)
@@ -1984,7 +1731,7 @@ class ModelSet(object):
                 b = bins
             
             hist, bin_edges = \
-                np.histogram(tohist, density=density, bins=b, weights=weights)
+                np.histogram(tohist, density=True, bins=b, weights=weights)
 
             bc = rebin(bin_edges)
             
@@ -2087,71 +1834,18 @@ class ModelSet(object):
                 ax.set_yscale('linear')
             
         # Add nice labels (or try to)
-        self.set_axis_labels(ax, pars, is_log, take_log, labels)
+        self.set_axis_labels(ax, pars, is_log, take_log, un_log, labels)
 
         # Rotate ticks?
         for tick in ax.get_xticklabels():
-            tick.set_rotation(rotate_x)
+            tick.set_rotation(45.)
         for tick in ax.get_yticklabels():
-            tick.set_rotation(rotate_y)
+            tick.set_rotation(45.)
         
         pl.draw()
         
         return ax
       
-    def FindContour(self, pars, z=None, take_log=False, multiplier=1., bins=20, 
-        nu=0.68, contour_method='raw', weights=None):
-        """
-        Find a contour in the plane defined by `pars`, and return its x-y trajectory.
-        
-        Parameters
-        ----------
-        pars : list
-            2-element list of parameters that defined plane of interest.
-        
-        """
-        
-        pars, z, take_log, multiplier = \
-            self._listify_common_inputs(pars, z, take_log, multiplier)
-        
-        if type(nu) not in [list]:
-            nu = [nu]
-        
-        to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log,
-            multiplier=multiplier)
-        
-        binvec = self._set_bins(pars, to_hist, take_log, bins)
-        
-        # Compute 2-D histogram
-        hist, xedges, yedges = \
-            np.histogram2d(to_hist[pars[0]], to_hist[pars[1]], 
-                bins=[binvec[pars[0]], binvec[pars[1]]], weights=weights)
-        
-        # Recover bin centers
-        bc = []
-        for i, edges in enumerate([xedges, yedges]):
-            bc.append(rebin(edges))
-        
-        # ContourSet needs 2-D arrays
-        x, y = np.meshgrid(bc[0], bc[1])
-        
-        # Create contour object
-        c = cntr.Cntr(x, y, hist.T / hist.max())     
-                
-        # Find levels corresponding to nu-sigma inputs
-        nu, levels = error_2D(to_hist[pars[0]], to_hist[pars[1]], 
-            self.L / self.L.max(), bins=[binvec[pars[0]], binvec[pars[1]]], 
-            nu=nu, method=contour_method)
-        
-        # Find x-y trajectory of contour
-        all_contours = []
-        for level in levels:
-            nlist = c.trace(level, level, 0)
-            segs = nlist[:len(nlist)/2]
-            all_contours.append(segs) 
-            
-        return all_contours
-        
     def ContourScatter(self, x, y, c, z=None, Nscat=1e4, take_log=False, 
         cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
         labels=None, **kwargs):
@@ -2280,8 +1974,7 @@ class ModelSet(object):
         
         return ax, scat, cb    
         
-    def extract_panel(self, panel, mp, rotate_x=45, rotate_y=45, ax=None, 
-        fig=99):
+    def ExtractPanel(self, panel, mp, ax=None, fig=99):
         """
         Save panel of a triangle plot as separate file.
         
@@ -2315,7 +2008,7 @@ class ModelSet(object):
         for i, x in enumerate(mp.grid[panel].get_xticklabels()):
             xt.append(x.get_text())
         
-        ax.set_xticklabels(xt, rotation=rotate_x)
+        ax.set_xticklabels(xt, rotation=45.)
         
         yt = []
         for i, x in enumerate(mp.grid[panel].get_yticklabels()):
@@ -2330,12 +2023,13 @@ class ModelSet(object):
         
         return ax
                 
-    def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
-        padding=(0,0), show_errors=False, take_log=False, multiplier=1,
-        fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
-        skim=1, top=None, oned=True, twod=True, filled=True, box=None, 
-        rotate_x=45, rotate_y=45, add_cov=False, label_panels='upper right', 
-        fix=True, skip_panels=[], stop=None, **kwargs):
+    def TrianglePlot(self, pars=None, z=None, take_log=False, un_log=False, 
+        multiplier=1, fig=1, mp=None, inputs={}, tighten_up=0.0, ticks=5, 
+        bins=20, skip=0, scatter=False,
+        skim=1, oned=True, twod=True, filled=True, show_errors=False, 
+        label_panels='upper right', 
+        fix=True, skip_panels=[], stop=None, mp_kwargs={},
+        **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
 
@@ -2353,7 +2047,6 @@ class ModelSet(object):
             blobs.
 
             If None, this will plot *all* parameters, so be careful!
-
         fig : int
             ID number for plot window.
         bins : int, np.ndarray
@@ -2373,9 +2066,6 @@ class ModelSet(object):
             Dictionary of parameter:value pairs representing the input
             values for all model parameters being fit. If supplied, lines
             will be drawn on each panel denoting these values.
-        panel_size : list, tuple (2 elements)
-            Multiplicative factor in (x, y) to be applied to the default 
-            window size as defined in your matplotlibrc file. 
         skip : int
             Number of steps at beginning of chain to exclude.
         stop: int
@@ -2392,40 +2082,32 @@ class ModelSet(object):
         nu : list
             List of levels, default is 1,2, and 3 sigma contours (i.e., 
             nu=[0.68, 0.95])
-        rotate_x : bool
-            Rotate xtick labels 90 degrees.
-        add_cov : bool, list
-            Overplot 1-sigma contours, computed using the covariance matrix.
-            If it's a list, will assume it has [mu, cov] (i.e., not necessarily
-            the extracted covariance matrix but the one used in the fit).
         skip_panels : list
             List of panel numbers to skip over.
-        
+        mp_kwargs : dict 
+            panel_size : list, tuple (2 elements)
+                Multiplicative factor in (x, y) to be applied to the default 
+                window size as defined in your matplotlibrc file. 
+            
         ..note:: If you set take_log = True AND supply bins by hand, use the
             log10 values of the bins you want.
+        
             
         Returns
         -------
-        ares.analysis.MultiPlot.MultiPanel instance.
+        ares.analysis.MultiPlot.MultiPanel instance. Also saves a bunch of 
+        information to the `plot_info` attribute.
         
         """    
-                
-        pars, take_log, multiplier, z = \
-            self._listify_common_inputs(pars, take_log, multiplier, z)
-                
-        kw = def_kwargs.copy()
-        kw.update(kwargs)
-                        
-        if 'labels' in kwargs:
-            labels_tmp = default_labels.copy()
-            labels_tmp.update(kwargs['labels'])
-            labels = kwargs['labels']
-            kw['labels'] = kwargs['labels']
-        else:
-            labels = default_labels
         
+        # Make sure all inputs are lists of the same length!
+        pars, take_log, multiplier, un_log, z = \
+            self._listify_common_inputs(pars, take_log, multiplier, un_log, z)
+                
+
+        # Grab data that will be histogrammed
         to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log, 
-            multiplier=multiplier)
+            un_log=un_log, multiplier=multiplier)
             
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)      
@@ -2434,36 +2116,30 @@ class ModelSet(object):
             bins = [binvec[par] for par in pars]      
         else:
             bins = binvec    
-                                
+                 
+        # Can opt to exclude 1-D panels along diagonal                
         if oned:
             Nd = len(pars)
         else:
             Nd = len(pars) - 1
                            
-        # Multipanel instance
+        # Setup MultiPanel instance
         had_mp = True
         if mp is None:
             had_mp = False
             
-            if 'diagonal' not in kwargs:
-                kw['diagonal'] = 'lower'
-            if 'dims' not in kwargs:    
-                kw['dims'] = [Nd] * 2
-            if 'keep_diagonal' not in kwargs:    
-                kw['keep_diagonal'] = True
-            else:
+            mp_kw = default_mp_kwargs.copy()
+            mp_kw['dims'] = [Nd] * 2    
+            mp_kw.update(mp_kwargs)
+            if 'keep_diagonal' in mp_kwargs:
                 oned = False
-
-            mp = MultiPanel(padding=padding,
-                panel_size=panel_size, fig=fig, top=top, **kw)
+            
+            mp = MultiPanel(fig=fig, **mp_kw)
         
-        for key in ['bottom', 'top', 'left', 'right', 'figsize', 'diagonal', 'dims', 'keep_diagonal']:
-            if key in kw:
-                del kw[key]
-                        
         # Apply multipliers etc. to inputs
         inputs = self._set_inputs(pars, inputs, is_log, take_log, multiplier)
-
+        
+        # Save some plot info for [optional] later tinkering
         self.plot_info = {}
         self.plot_info['kwargs'] = kwargs
         
@@ -2512,19 +2188,13 @@ class ModelSet(object):
                         tohist = [to_hist[p2]]
 
                     # Plot the PDF
-                    ax = self.PosteriorPDF(p1, to_hist=tohist, is_log=is_log,
-                        ax=mp.grid[k], take_log=take_log[-1::-1][i], z=z[-1::-1][i],
+                    ax = self.PosteriorPDF(p1, ax=mp.grid[k], 
+                        to_hist=tohist, is_log=is_log, 
+                        take_log=take_log[-1::-1][i], z=z[-1::-1][i],
+                        un_log=un_log[-1::-1][i], 
                         multiplier=[multiplier[-1::-1][i]], 
-                        bins=[bins[-1::-1][i]], skip=skip, skim=skim, stop=stop, 
-                        **kw)
-
-                    if add_cov:
-                        if type(add_cov) is list:
-                            self._PosteriorIdealized(ax=mp.grid[k], 
-                                mu=add_cov[k], cov=add_cov[k])                            
-                        else:
-                            self._PosteriorIdealized(pars=p1, ax=mp.grid[k], 
-                                z=z[-1::-1][i])
+                        bins=[bins[-1::-1][i]], 
+                        skip=skip, skim=skim, stop=stop, **kwargs)
 
                     # Stick this stuff in fix_ticks?
                     if col != 0:
@@ -2569,20 +2239,21 @@ class ModelSet(object):
                     tohist = [to_hist[p2], to_hist[p1]]
                                 
                 # 2-D PDFs elsewhere
-                ax = self.PosteriorPDF([p2, p1], to_hist=tohist, is_log=is_log,
-                    ax=mp.grid[k], z=red, take_log=[take_log[j], take_log[-1::-1][i]],
+                #if scatter:
+                #    ax = self.Scatter([p2, p1], ax=mp.grid[k], 
+                #        to_hist=tohist, is_log=is_log, z=red, 
+                #        take_log=[take_log[j], take_log[-1::-1][i]],
+                #        multiplier=[multiplier[j], multiplier[-1::-1][i]], 
+                #        bins=[bins[j], bins[-1::-1][i]], filled=filled, 
+                #        skip=skip, stop=stop, **kwargs)
+                #else:
+                ax = self.PosteriorPDF([p2, p1], ax=mp.grid[k], 
+                    to_hist=tohist, is_log=is_log, z=red, 
+                    take_log=[take_log[j], take_log[-1::-1][i]],
+                    un_log=[un_log[j], un_log[-1::-1][i]],
                     multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                     bins=[bins[j], bins[-1::-1][i]], filled=filled, 
-                    skip=skip, stop=stop, **kw)
-                
-                if add_cov:
-                    if type(add_cov) is list:
-                        pass
-                        self._PosteriorIdealized(ax=mp.grid[k], 
-                            mu=add_cov[k], cov=add_cov[k])
-                    else:
-                        self._PosteriorIdealized(pars=[p2, p1], 
-                            ax=mp.grid[k], z=red)
+                    skip=skip, stop=stop, **kwargs)
 
                 if row != 0:
                     mp.grid[k].set_xlabel('')
@@ -2615,40 +2286,45 @@ class ModelSet(object):
             mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
         
         if fix:
-            mp.fix_ticks(oned=oned, N=ticks, rotate_x=rotate_x, rotate_y=rotate_y)
+            mp.fix_ticks(oned=oned, N=ticks, rotate_x=45, rotate_y=45)
         
         if not had_mp:
             mp.rescale_axes(tighten_up=tighten_up)
     
         if label_panels is not None and (not had_mp):
-            letters = list(string.ascii_lowercase)
-            letters.extend([let*2 for let in list(string.ascii_lowercase)])
-
-            ct = 0
-            for ax in mp.grid:
-                if ax is None:
-                    continue
-
-                if label_panels == 'upper left':
-                    ax.annotate('(%s)' % letters[ct], (0.05, 0.95),
-                        xycoords='axes fraction', ha='left', va='top')
-                elif label_panels == 'upper right':
-                    ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
-                        xycoords='axes fraction', ha='right', va='top')
-                elif label_panels == 'upper center':
-                    ax.annotate('(%s)' % letters[ct], (0.5, 0.95),
-                        xycoords='axes fraction', ha='center', va='top')
-                elif label_panels == 'lower right':
-                    ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
-                        xycoords='axes fraction', ha='right', va='top')                
-                else:
-                    print "WARNING: Uncrecognized label_panels option."
-                    break
-
-                ct += 1    
-
-            pl.draw()
-
+            mp = self._label_panels(mp, label_panels)
+    
+        return mp
+        
+    def _label_panels(self, mp, label_panels):
+        letters = list(string.ascii_lowercase)
+        letters.extend([let*2 for let in list(string.ascii_lowercase)])
+        
+        ct = 0
+        for ax in mp.grid:
+            if ax is None:
+                continue
+        
+            if label_panels == 'upper left':
+                ax.annotate('(%s)' % letters[ct], (0.05, 0.95),
+                    xycoords='axes fraction', ha='left', va='top')
+            elif label_panels == 'upper right':
+                ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
+                    xycoords='axes fraction', ha='right', va='top')
+            elif label_panels == 'upper center':
+                ax.annotate('(%s)' % letters[ct], (0.5, 0.95),
+                    xycoords='axes fraction', ha='center', va='top')
+            elif label_panels == 'lower right':
+                ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
+                    xycoords='axes fraction', ha='right', va='top')                
+            else:
+                print "WARNING: Uncrecognized label_panels option."
+                break
+        
+            ct += 1    
+        
+        pl.draw()    
+        
         return mp
         
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
@@ -2902,68 +2578,16 @@ class ModelSet(object):
             for k, yy in enumerate(y):
                 surf[j,k] = likelihood(yy, xx)
             
-        # Find levels corresponding to 1 and 2 sigma
-        levels = []
-        for k, level in enumerate(nu):
-
-            # Minimize difference between area(DX) and requested level
-            #to_min = lambda DX: \
-            #    np.abs(self._elliptical_integral(DX, eccen, _like) - level)
-            #
-            #guess = np.array([np.sqrt(new_var[0])])
-        
-            # Solve for the standard deviation in each dimension
-            #dx = fmin(to_min, guess, disp=False, ftol=1e-4)[0]
-            #dy = dx * np.sqrt(1. - eccen**2)
-                            
-            #contour = _like(dy, dx) 
-            contour_1s = _like(np.sqrt(new_var[1]), np.sqrt(new_var[0]))
-                        
-            #contour_1s_2 = self._elliptical_integral(np.sqrt(new_var[0]),
-            #    eccen, _like)  
-            
-            #print level, eccen, np.sqrt(new_var[0]), contour_1s_2
-                        
-            #print level, dx, dy, np.sqrt(new_var), self._elliptical_integral(dx, eccen, _like)
-                    
-            # Save and move on
-            levels.append(contour_1s)
+        # Find levels corresponding to 1 sigma
+        contour_1s = _like(np.sqrt(new_var[1]), np.sqrt(new_var[0]))
+        levels = [contour_1s]
 
         ax.contour(x, y, surf.T, levels=levels, linestyles=['-', '--'], 
             colors='k', zorder=10)
 
         pl.draw()
 
-    def _elliptical_integral(self, dx, ecc, like):
-    
-        # Integration is over an ellipse!
-        x1 = - dx
-        x2 = + dx
 
-        # Figure out elliptical surface
-        dy = dx * np.sqrt(1. - ecc**2)
-
-        # Arcs in +/- y
-        y1 = lambda x: - dy * np.sqrt(1. - (x / dx)**2)
-        y2 = lambda x: + dy * np.sqrt(1. - (x / dx)**2)
-
-        fig = pl.figure(10); ax = fig.add_subplot(111)
-
-        xm = np.linspace(x1, x2)
-        xp = np.linspace(x1, x2)
-
-        ym = map(y1, xm)
-        yp = map(y2, xp)
-
-        pl.plot(xm, ym, color='b')
-        pl.plot(xp, yp, color='r')
-        
-        raw_input('<enter>')
-        
-        pl.close()
-        
-        return dblquad(like, x1, x2, y1, y2, epsrel=1e-2, epsabs=1e-4)[0]            
-        
     def CorrelationMatrix(self, pars, z=None, fig=1, ax=None):
         """
         Plot correlation matrix.
@@ -3130,14 +2754,14 @@ class ModelSet(object):
         else:
             raise NotImplemented('Only support for hdf5 so far. Sorry!')
         
-    def set_axis_labels(self, ax, pars, is_log, take_log=False, labels=None,
-        rotate_x=45, rotate_y=45):
+    def set_axis_labels(self, ax, pars, is_log, take_log=False, un_log=False,
+        labels=None, rotate_x=45, rotate_y=45):
         """
         Make nice axis labels.
         """
         
-        pars, take_log, multiplier, z = \
-            self._listify_common_inputs(pars, take_log, 1.0, z=None)
+        pars, take_log, multiplier, un_log, z = \
+            self._listify_common_inputs(pars, take_log, 1.0, un_log, z=None)
         
         if type(is_log) != dict:
             tmp = {par:is_log[i] for i, par in enumerate(pars)}
@@ -3146,51 +2770,20 @@ class ModelSet(object):
             tmp = {par:take_log[i] for i, par in enumerate(pars)}
             take_log = tmp        
             
-        # [optionally] modify default labels
-        if labels is None:
-            labels = default_labels
-        else:
-            labels_tmp = default_labels.copy()
-            labels_tmp.update(labels)
-            labels = labels_tmp
+        # Prep for label making
+        labeler = self.labeler = Labeler(pars, is_log, **self.base_kwargs)
 
-        p = []
-        sup = []
-        for par in pars:
-            
-            if type(par) is int:
-                sup.append(None)
-                p.append(par)
-                continue
-
-            # If we want special labels for population specific parameters
-            if par in labels:
-                sup.append(None)
-                p.append(par)
-                continue
-                
-            prefix, popid, popz = par_info(par)
-                        
-            if prefix in labels:
-                p.append(labels[prefix])
-            elif prefix.replace('pop_', '') in labels:
-                sup.append(None)
-                p.append(labels[prefix.replace('pop_', '')])
-            else:
-                p.append(prefix)    
-                
-        log_it = is_log[pars[0]] or take_log[pars[0]]
-            
-        ax.set_xlabel(make_label(p[0], log_it, labels))
+        # x-axis first
+        ax.set_xlabel(labeler.label(pars[0], take_log=take_log[pars[0]], 
+            un_log=un_log[0]))
     
         if len(pars) == 1:
             ax.set_ylabel('PDF')
-    
             pl.draw()
             return
     
-        log_it = is_log[pars[1]] or take_log[pars[1]]
-        ax.set_ylabel(make_label(p[1], log_it, labels))        
+        ax.set_ylabel(labeler.label(pars[1], take_log=take_log[pars[1]], 
+            un_log=un_log[1]))
         
         pl.draw()
                 
