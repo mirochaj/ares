@@ -14,8 +14,8 @@ import numpy as np
 from ..util import read_lit
 from types import FunctionType
 from scipy.interpolate import interp1d
-from scipy.integrate import quad, simps
 from scipy.optimize import fsolve, curve_fit
+from scipy.integrate import quad, simps, cumtrapz
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc
 
@@ -198,7 +198,7 @@ class HAM(object):
             if self.galaxy.sed_tab:
                 self._kappa_UV = self.galaxy.src.pop.kappa_UV()
             else:
-                self._kappa_UV = self.pf['pop_lf_kappa_UV']
+                self._kappa_UV = self.pf['pop_kappa_UV']
             
         return self._kappa_UV    
     
@@ -407,19 +407,20 @@ class HAM(object):
         """
         if not hasattr(self, '_sfrd_tab'):
             self._sfrd_tab = np.zeros(self.halos.Nz)
-    
+            
             for i, z in enumerate(self.halos.z):
                 integrand = self.sfr_tab[i] * self.halos.dndlnm[i]
-    
-                k = np.argmin(np.abs(self.Mmin[i] - self.halos.M))
-    
-                self._sfrd_tab[i] = \
-                    simps(integrand[k:], x=self.halos.lnM[k:])
-    
+ 
+                tot = np.trapz(integrand, x=self.halos.lnM)
+                cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
+                
+                self._sfrd_tab[i] = tot - \
+                    np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
+                
             self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
-    
+
         return self._sfrd_tab    
-    
+
     @property
     def coeff(self):
         if not hasattr(self, '_coeff'):
@@ -428,14 +429,14 @@ class HAM(object):
                 z.extend([self.redshifts[i]] * len(element))
                 M.extend(element)
                 fstar.extend(self.fstar_tab[i]) 
-    
+
             x = [np.array(M), np.array(z)]
             y = np.log10(fstar)
-        
+
             guess = self.guesses
-    
+
             def to_fit(Mz, *coeff):
-                M, z = Mz      
+                M, z = Mz
                 return self._log_fstar(z, M, *coeff).flatten()
     
             try:

@@ -171,7 +171,6 @@ lf_parameters = \
 pop_parameters = \
 {
  'pop_Z': r'$Z/Z_{\odot}$',
- 'pop_Tmin': r'$T_{\mathrm{min}}$',
  'pop_lf_beta': r'$\Beta_{\mathrm{UV}}$',
 }
 
@@ -207,54 +206,7 @@ def undo_mathify(s):
     
 def mathify_str(s):
     return r'$%s$' % s    
-    
-def make_label(name, take_log=False, labels=None):
-    """
-    Take a string and make it a nice (LaTeX compatible) axis label. 
-    """
-    
-    if labels is None:
-        labels = default_labels
-        
-    # Check to see if it has a population ID # tagged on the end
-    # OR a redshift
-    
-    try:
-        m = None
-        prefix, z = param_redshift(name)
-        prefix, popid = pop_id_num(prefix)
-    except:
-        m = re.search(r"\{([0-9])\}", name)
-        z = popid = None
-        
-    if m is None:
-        num = None
-        prefix = name
-        if prefix in labels:
-            label = labels[prefix]
-        else:
-            label = r'%s' % prefix
-    else:
-        num = int(m.group(1))
-        prefix = name.split(m.group(0))[0]
-        
-        if prefix in labels:
-            label = r'$%s[z=%.2g]$' % (undo_mathify(labels[prefix]), z)
-        else:
-            label = r'%s' % prefix
-        
-    if take_log:        
-        return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
-    else:
-        return label
-        
-def err_str(label, mu, err, log, labels=None):
-    s = undo_mathify(make_label(label, log, labels))
-
-    s += '=%.3g^{+%.2g}_{-%.2g}' % (mu, err[1], err[0])
-    
-    return r'$%s$' % s
-
+            
 class Labeler(object):
     def __init__(self, pars, is_log=False, **kwargs):
         self.pars = pars
@@ -275,6 +227,9 @@ class Labeler(object):
                 units = self.base_kwargs[kwarg]
         
         return units
+    
+    def band(self, prefix):
+        pass
                 
     def label(self, par, take_log=False, un_log=False):
         """

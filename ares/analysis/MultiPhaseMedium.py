@@ -22,7 +22,6 @@ from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d
 from .TurningPoints import TurningPoints
 from ..physics import Cosmology, Hydrogen
-from ..util.Math import central_difference
 from ..util.SetDefaultParameterValues import *
 from ..simulations import Global21cm as simG21
 from ..simulations import MultiPhaseMedium as simMPM
@@ -194,96 +193,7 @@ class MultiPhaseMedium:
                 
     def close(self):
         pl.close('all')            
-                
-    @property
-    def dTbdz(self):
-        if not hasattr(self, '_dTbdz'):
-            self._z_p, self._dTbdz = \
-                central_difference(self.data_asc['z'], self.data_asc['igm_dTb'])
-        return self._dTbdz
-    
-    @property
-    def dTbdnu(self):
-        if not hasattr(self, '_dTbdnu'):
-            self._nu_p, self._dTbdnu = \
-                central_difference(self.data['nu'], self.data['dTb'])
-        return self._dTbdnu
-        
-    @property
-    def dTb2dz2(self):
-        if not hasattr(self, '_dTb2dz2'):
-            self._z_pp, self._dTb2dz2 = \
-                central_difference(self.z_p, self.dTbdz)
-        return self._dTbdz
-    
-    @property
-    def dTb2dnu2(self):
-        if not hasattr(self, '_dTbdnu'):
-            _dTbdnu = self.dTbdnu
-            _nu = self._nu_p
-            self._nu_pp, self._dTbdnu = central_difference(_nu, _dTbdnu)
-        return self._dTbdnu        
-    
-    @property
-    def z_p(self):
-        if not hasattr(self, '_z_p'):
-            tmp = self.dTbdz
-        return self._z_p
-    
-    @property
-    def z_pp(self):
-        if not hasattr(self, '_z_p'):
-            tmp = self.dTb2dz2
-        return self._z_pp    
-    
-    @property
-    def nu_p(self):
-        if not hasattr(self, '_nu_p'):
-            tmp = self.dTbdz
-        return self._nu_p    
-        
-    @property
-    def zB(self):
-        if not hasattr(self, '_zB'):
-            self._zB = self.turning_points[0][3]    
-        return self._zB
-    
-    @property
-    def zC(self):
-        if not hasattr(self, '_zC'):
-            self._zC = self.turning_points[0][2]    
-        return self._zC
-    
-    @property
-    def zD(self):
-        if not hasattr(self, '_zD'):
-            self._zD = self.turning_points[0][1]    
-        return self._zD
-    
-    @property
-    def znull(self):
-        if not hasattr(self, '_znull'):
-            self._znull = self.locate_null()
-        return self._znull
-    
-    @property
-    def TB(self):
-        if not hasattr(self, '_TB'):
-            self._TB = self.turning_points[1][3]    
-        return self._TB
-    
-    @property
-    def TC(self):
-        if not hasattr(self, '_TC'):
-            self._TC = self.turning_points[1][2]    
-        return self._TC
-    
-    @property
-    def TD(self):
-        if not hasattr(self, '_TD'):
-            self._TD = self.turning_points[1][1]    
-        return self._TD
-    
+                    
     @property
     def Trei(self):
         if not hasattr(self, '_Trei'):

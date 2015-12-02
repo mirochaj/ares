@@ -283,6 +283,7 @@ def ReionizationProblem(ptype):
         "pop_heat_src_cgm{1}": False,
         "pop_heat_src_igm{1}": True,
 
+        "pop_Tmin{1}": "pop_Tmin{0}",
         "pop_sed{1}": 'pl',
         "pop_alpha{1}": -1.5,
 
@@ -291,7 +292,7 @@ def ReionizationProblem(ptype):
         "pop_EminNorm{1}": 5e2,
         "pop_EmaxNorm{1}": 8e3,
 
-        "pop_Ex": 500.,
+        "pop_Ex{1}": 500.,
         "pop_yield{1}": 2.6e39, 
         "pop_yield_units{1}": 'erg/s/SFR',
         "pop_solve_rte{1}": False,
@@ -306,6 +307,7 @@ def ReionizationProblem(ptype):
 
         "pop_fesc{2}": 0.1,
         
+        "pop_Tmin{2}": "pop_Tmin{0}",
         "pop_Emin{2}": 13.6,
         "pop_Emax{2}": 1e2,
         "pop_EminNorm{2}": 13.6,
@@ -341,7 +343,7 @@ def ReionizationProblem(ptype):
         "pop_sed{0}": 'leitherer1999',
         "pop_Z{0}": 0.04,
         "pop_ssp{0}": False,
-        "pop_tsf{0}": np.inf,             
+        "pop_tsf{0}": 900.,             
                
         "pop_yield{0}": 9690., 
         "pop_yield_units{0}": 'photons/baryon',
@@ -349,6 +351,7 @@ def ReionizationProblem(ptype):
         
         # Emits X-rays
         'pop_type{1}': 'galaxy',
+        'pop_tunnel{1}': 0,
         "pop_lya_src{1}": False,
         "pop_ion_src_cgm{1}": False,
         "pop_ion_src_igm{1}": True,

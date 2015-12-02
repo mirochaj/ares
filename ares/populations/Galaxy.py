@@ -125,7 +125,8 @@ class GalaxyPopulation(HaloPopulation):
     def is_lya_src(self):
         if not hasattr(self, '_is_lya_src'):
             self._is_lya_src = \
-                self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']    
+                (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
+                and self.pf['pop_lya_src']
 
         return self._is_lya_src
     

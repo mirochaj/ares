@@ -56,8 +56,12 @@ def pop_id_num(par):
 def par_info(par):
     
     prefix1, popid = pop_id_num(par)
-    
-    m = re.search(r"\[(\d+(\.\d*)?)\]", prefix1)
+        
+    if prefix1 is not None:
+        m = re.search(r"\[(\d+(\.\d*)?)\]", prefix1)
+    else:
+        m = None
+        prefix1 = par
 
     if m is None:
         return prefix1, popid, None
@@ -221,10 +225,10 @@ class ParameterFile(dict):
             
                 # If we didn't supply this parameter for the linked population,
                 # assume default parameter value
-                if pf[par] not in pf:
+                if prefix not in pfs_by_pop[num_link]:
                     val = self.defaults[prefix_link]
                 else:
-                    val = pf[pf[par]]
+                    val = pfs_by_pop[num_link][prefix_link]
             
                 pfs_by_pop[num][prefix] = val
 

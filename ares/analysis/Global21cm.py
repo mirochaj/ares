@@ -14,9 +14,99 @@ import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
+from ..util.Math import central_difference
 from .MultiPhaseMedium import MultiPhaseMedium
 
 class Global21cm(MultiPhaseMedium):
+    @property
+    def dTbdz(self):
+        if not hasattr(self, '_dTbdz'):
+            self._z_p, self._dTbdz = \
+                central_difference(self.data_asc['z'], self.data_asc['igm_dTb'])
+        return self._dTbdz
+    
+    @property
+    def dTbdnu(self):
+        if not hasattr(self, '_dTbdnu'):
+            self._nu_p, self._dTbdnu = \
+                central_difference(self.data['nu'], self.data['dTb'])
+        return self._dTbdnu
+        
+    @property
+    def dTb2dz2(self):
+        if not hasattr(self, '_dTb2dz2'):
+            self._z_pp, self._dTb2dz2 = \
+                central_difference(self.z_p, self.dTbdz)
+        return self._dTbdz
+    
+    @property
+    def dTb2dnu2(self):
+        if not hasattr(self, '_dTbdnu'):
+            _dTbdnu = self.dTbdnu
+            _nu = self._nu_p
+            self._nu_pp, self._dTbdnu = central_difference(_nu, _dTbdnu)
+        return self._dTbdnu        
+    
+    @property
+    def z_p(self):
+        if not hasattr(self, '_z_p'):
+            tmp = self.dTbdz
+        return self._z_p
+    
+    @property
+    def z_pp(self):
+        if not hasattr(self, '_z_p'):
+            tmp = self.dTb2dz2
+        return self._z_pp    
+    
+    @property
+    def nu_p(self):
+        if not hasattr(self, '_nu_p'):
+            tmp = self.dTbdnu
+        return self._nu_p    
+        
+    @property
+    def zB(self):
+        if not hasattr(self, '_zB'):
+            self._zB = self.turning_points[0][3]    
+        return self._zB
+    
+    @property
+    def zC(self):
+        if not hasattr(self, '_zC'):
+            self._zC = self.turning_points[0][2]    
+        return self._zC
+    
+    @property
+    def zD(self):
+        if not hasattr(self, '_zD'):
+            self._zD = self.turning_points[0][1]    
+        return self._zD
+    
+    @property
+    def znull(self):
+        if not hasattr(self, '_znull'):
+            self._znull = self.locate_null()
+        return self._znull
+    
+    @property
+    def TB(self):
+        if not hasattr(self, '_TB'):
+            self._TB = self.turning_points[1][3]    
+        return self._TB
+    
+    @property
+    def TC(self):
+        if not hasattr(self, '_TC'):
+            self._TC = self.turning_points[1][2]    
+        return self._TC
+    
+    @property
+    def TD(self):
+        if not hasattr(self, '_TD'):
+            self._TD = self.turning_points[1][1]    
+        return self._TD
+    
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=5, scatter=False, xaxis='nu', 
         ymin=None, ymax=50, zmax=None, xscale='linear', **kwargs):
@@ -120,8 +210,6 @@ class Global21cm(MultiPhaseMedium):
             ax.set_yticks(yticks, minor=True)
         
         if gotax:
-            ax.ticklabel_format(style='plain', axis='both')
-            pl.draw()
             return ax
             
         if ax.get_xlabel() == '':  
@@ -157,7 +245,7 @@ class Global21cm(MultiPhaseMedium):
         
         return ax
 
-    def Derivative(self, mp=None, **kwargs):
+    def Derivative(self, mp=None, fig=1, **kwargs):
         """
         Plot signal and its first derivative (nicely).
 
@@ -171,45 +259,22 @@ class Global21cm(MultiPhaseMedium):
 
         """
 
-        new = True
         if mp is None:
-            mp = MultiPanel(dims=(2, 1), panel_size=(1, 0.6))
-            ymin, ymax = zip(*[(999999, -999999)] * 3)
+            gotax = False
+            mp = MultiPanel(dims=(2, 1), panel_size=(1, 0.6), fig=fig)
         else:
-            new = False
-            ymin = [0, 0, 0]
-            ymax = [0, 0, 0]
-            for i in xrange(2):
-                ymin[i], ymax[i]= mp.grid[i].get_ylim()        
+            gotax = True
 
-        mp.grid[0].plot(self.data_asc['z'], self.data_asc['igm_dTb'], **kwargs)
-        mp.grid[1].plot(self.z_p, self.dTbdnu, **kwargs)
+        ax = self.GlobalSignature(ax=mp.grid[0], z_ax=False, **kwargs)
         
-        zf = int(np.min(self.data['z']))
-        zfl = int(np.max(self.data['z']))
-            
-        # Set up axes
-        xticks = np.linspace(zf, zfl, 1 + (zfl - zf))
-        xticks = list(xticks)
-        for x in np.arange(int(zf), int(zfl)):
-            if x % 5 == 0:
-                xticks.remove(x)
+        mp.grid[1].plot(self.nu_p, self.dTbdnu, **kwargs)
         
-        yticks = np.linspace(-250, 50, 31)
-        yticks = list(yticks)
-        for y in np.linspace(-250, 50, 7):
-            yticks.remove(y)
-                        
-        mp.grid[0].set_xlabel(labels['z'])
-        mp.grid[0].set_ylabel(labels['igm_dTb'])
-        mp.grid[1].set_ylabel(r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$')
+        if not gotax:
+            mp.grid[1].set_ylabel(r'$\delta T_{\mathrm{b}}^{\prime} \ (\mathrm{mK} \ \mathrm{MHz}^{-1})$')
         
-        for i in xrange(2):                
-            mp.grid[i].set_xlim(5, 35)   
-            
-        mp.grid[0].set_ylim(min(1.05 * self.data['igm_dTb'].min(), ymin[0]), max(1.2 * self.data['igm_dTb'].max(), ymax[0]))
-        mp.grid[1].set_ylim(min(1.05 * self.dTbdnu.min(), ymin[1]), max(1.2 * self.dTbdnu[:-1].max(), ymax[1]))
-                     
-        mp.fix_ticks()
+        mp.grid[1].set_xticks(mp.grid[0].get_xticks())    
+        mp.grid[1].set_xticklabels([])    
+        mp.grid[1].set_xlim(mp.grid[0].get_xlim())
+        pl.draw()
         
         return mp

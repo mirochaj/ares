@@ -342,10 +342,10 @@ def PopulationParameters():
     "pop_ion_src_igm": True,
     "pop_heat_src_cgm": False,
     "pop_heat_src_igm": True,
-
+    
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
-    "pop_yield": 2.6e39, 
+    "pop_yield": 2.6e39,
     "pop_yield_units": 'erg/s/sfr',
     "pop_kappa_UV": None,
 
