@@ -22,7 +22,7 @@ lf_pars['z'] = b15.redshifts
 
 pars = \
 {
- 'pop_Tmin': 2e5,
+ 'pop_Tmin': 1e5,
  'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
  'pop_constraints': 'bouwens2015',
@@ -56,7 +56,7 @@ for i, z in enumerate(pop.ham.constraints['z']):
 for i, z in enumerate(pop.ham.constraints['z']):
     Lh, phi = pop.ham.LuminosityFunction(z)
     ax1.loglog(Lh, phi, ls='--', lw=3)
-    
+   
 ax1.set_xlabel(r'$L \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{Hz}^{-1})$')
 ax1.set_ylabel(r'$\phi(L)$')
 ax1.set_xlim(1e27, 1e30)

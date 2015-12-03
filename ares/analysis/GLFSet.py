@@ -89,6 +89,46 @@ class LuminosityFunctionSet(ModelSet):
         
         return ax
             
+    def StellarSED(self, ax=None, fig=1, N=500, src='leitherer1999', **kwargs):
+        """
+        Make a triangle plot of the stellar SED parameters.
+        """
+        
+        pars = []
+        for par in self.parameters:
+            if re.search('pop_Z', par):
+                pars.append(par)
+                break
+                
+        data = self.ExtractData(pars)
+        
+        if N > self.chain.shape[0]:
+            N = self.chain.shape[0]
+            
+        src = read_lit(src)
+        i_Z = self.parameters.index(pars[0])
+        
+        Z = []; kappa_UV = []; Nion = []; Nlw = []
+        for i in range(500):
+            
+            j = np.random.randint(0, N)
+            
+            kw = {par: data[par][j] for par in data}
+            
+            pop = src.StellarPopulation(**kw)
+            
+            Z.append(self.chain[j,i_Z])
+            kappa_UV.append(pop.kappa_UV)
+            Nion.append(pop.Nion)
+            Nlw.append(pop.Nlw)
+            
+        
+        parnames = ['pop_Z', 'pop_kappa_UV', 'pop_Nion', 'pop_Nlw']
+            
+        
+        
+                
+            
     def alpha_hmf(self, z, M=1e9):
         """
         Compare constraints on the slope of the LF vs. the slope of the HMF.

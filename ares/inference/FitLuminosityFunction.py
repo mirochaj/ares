@@ -153,6 +153,8 @@ class loglikelihood:
         if not np.isfinite(lp):
             return -np.inf, self.blank_blob
     
+        print kwargs['pop_fesc{0}']
+    
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
@@ -434,81 +436,49 @@ class FitLuminosityFunction(FitGlobal21cm):
         
         assert type(value) == str, 'Must supply bouwens2015 at the moment.'
         
-        if rank == 0:
-            data = read_lit(value)
-            fits = data.fits['lf']
-            z = data.redshifts
+        data = read_lit(value)
+        fits = data.fits['lf']
+        z = data.redshifts
+        
+        jitter = []
+        guesses = []
+        for i, par in enumerate(self.parameters):
+            prefix, popid, popz = par_info(par)
             
-            jitter = []
-            guesses = []
-            for i, par in enumerate(self.parameters):
-                prefix, popid, popz = par_info(par)
+            # Will never be log (?) for now, anyways
+            if re.search('pop_lf', prefix):
+                name = prefix.replace('pop_lf_', '')
                 
-                # Will never be log (?) for now, anyways
-                if re.search('pop_lf', prefix):
-                    name = prefix.replace('pop_lf_', '')
+                if self.is_log[i]:
+                    err = fits['err'][name][z.index(popz)]
+                    val = fits['pars'][name][z.index(popz)]
                     
-                    if self.is_log[i]:
-                        err = fits['err'][name][z.index(popz)]
-                        val = fits['pars'][name][z.index(popz)]
-                        
-                        new_jit = np.log10(abs(val - err) / val)
-                        new_guess = np.log10(fits['pars'][name][z.index(popz)])
-                    else:    
-                        new_jit = fits['err'][name][z.index(popz)]
-                        new_guess = fits['pars'][name][z.index(popz)]
-                        
-                # Will be in same units as priors
-                elif par in self.guess_override:
-                    new_jit = self.jitter[i]
-                    new_guess = self.guess_override[par]
-                # Never log
-                elif prefix in defaults:
-                    new_jit = self.jitter[i]
-                    new_guess = defaults[prefix]
-                else:
-                    raise NotImplemented('help')
+                    new_jit = np.log10(abs(val - err) / val)
+                    new_guess = np.log10(fits['pars'][name][z.index(popz)])
+                else:    
+                    new_jit = fits['err'][name][z.index(popz)]
+                    new_guess = fits['pars'][name][z.index(popz)]
                     
-                jitter.append(new_jit)
-                guesses.append(new_guess)
+            # Will be in same units as priors
+            elif par in self.guess_override:
+                new_jit = self.jitter[i]
+                new_guess = self.guess_override[par]
+            # Never log
+            elif prefix in defaults:
+                new_jit = self.jitter[i]
+                new_guess = defaults[prefix]
+            else:
+                raise NotImplemented('help')
+                
+            jitter.append(new_jit)
+            guesses.append(new_guess)
         
-            self.jitter = jitter
-            self._guesses = sample_ball(guesses, self.jitter, 
-                size=self.nwalkers)
+        self.jitter = jitter
+        guesses = sample_ball(guesses, self.jitter, size=self.nwalkers)
+            
+        # Fix parameters whose values lie outside prior space
+        self._guesses = self._fix_guesses(guesses)
                 
-            # Fix parameters whose values lie outside prior space
-            for i, par in enumerate(self.parameters):
-                if par not in self.priors:
-                    continue
-                    
-                if self.priors[par][0] != 'uniform':
-                    continue
-                
-                mi, ma = self.priors[par][1:]
-                
-                ok_lo = self._guesses[:,i] >= mi
-                ok_hi = self._guesses[:,i] <= ma
-                
-                if np.all(ok_lo) and np.all(ok_hi):
-                    continue
-                    
-                # Draw from uniform distribution for failed cases
-                
-                not_ok_lo = np.logical_not(ok_lo)
-                not_ok_hi = np.logical_not(ok_hi)
-                not_ok = np.logical_or(not_ok_hi, not_ok_lo)
-                
-                bad_mask = np.argwhere(not_ok)
-                
-                for j in bad_mask:
-                    print "Fixing guess for walker %i parameter %s" % (j[0], par)
-                    self._guesses[j[0],i] = np.random.uniform(mi, ma)
-                
-        #if size > 1:        
-        #    buff = np.zeros_like
-        
-        
-
     def save_data(self, prefix, clobber=False):
         if rank > 0:
             return

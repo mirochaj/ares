@@ -972,6 +972,8 @@ class ModelSet(object):
         -------
         matplotlib.axes._subplots.AxesSubplot instance.
 
+        
+
         """
 
         if ax is None:
@@ -2239,21 +2241,21 @@ class ModelSet(object):
                     tohist = [to_hist[p2], to_hist[p1]]
                                 
                 # 2-D PDFs elsewhere
-                #if scatter:
-                #    ax = self.Scatter([p2, p1], ax=mp.grid[k], 
-                #        to_hist=tohist, is_log=is_log, z=red, 
-                #        take_log=[take_log[j], take_log[-1::-1][i]],
-                #        multiplier=[multiplier[j], multiplier[-1::-1][i]], 
-                #        bins=[bins[j], bins[-1::-1][i]], filled=filled, 
-                #        skip=skip, stop=stop, **kwargs)
-                #else:
-                ax = self.PosteriorPDF([p2, p1], ax=mp.grid[k], 
-                    to_hist=tohist, is_log=is_log, z=red, 
-                    take_log=[take_log[j], take_log[-1::-1][i]],
-                    un_log=[un_log[j], un_log[-1::-1][i]],
-                    multiplier=[multiplier[j], multiplier[-1::-1][i]], 
-                    bins=[bins[j], bins[-1::-1][i]], filled=filled, 
-                    skip=skip, stop=stop, **kwargs)
+                if scatter:
+                    ax = self.Scatter([p2, p1], ax=mp.grid[k], 
+                        to_hist=tohist, is_log=is_log, z=red, 
+                        take_log=[take_log[j], take_log[-1::-1][i]],
+                        multiplier=[multiplier[j], multiplier[-1::-1][i]], 
+                        bins=[bins[j], bins[-1::-1][i]], filled=filled, 
+                        skip=skip, stop=stop, **kwargs)
+                else:
+                    ax = self.PosteriorPDF([p2, p1], ax=mp.grid[k], 
+                        to_hist=tohist, is_log=is_log, z=red, 
+                        take_log=[take_log[j], take_log[-1::-1][i]],
+                        un_log=[un_log[j], un_log[-1::-1][i]],
+                        multiplier=[multiplier[j], multiplier[-1::-1][i]], 
+                        bins=[bins[j], bins[-1::-1][i]], filled=filled, 
+                        skip=skip, stop=stop, **kwargs)
 
                 if row != 0:
                     mp.grid[k].set_xlabel('')

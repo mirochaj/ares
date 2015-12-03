@@ -272,7 +272,7 @@ def PopulationParameters():
     
     "pop_Z": 0.04,
     "pop_ssp": False,             # a.k.a., continuous SF
-    "pop_tsf": np.inf,             
+    "pop_tsf": np.inf,
 
     # Option of setting Z, t, or just supplying SSP table?
     

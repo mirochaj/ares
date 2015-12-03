@@ -361,7 +361,7 @@ class LogLikelihood:
             j = self.blob_redshifts.index(z)
 
             val = sim.blobs[j,i]
-            
+
             blob_vals.append(val)    
 
         if blob_vals:
@@ -614,7 +614,7 @@ class ModelFit(object):
                 self._guesses.append(p0)
         
             self._guesses = np.array(self._guesses)
-        
+                    
         return self._guesses
 
     @guesses.setter
@@ -641,6 +641,40 @@ class ModelFit(object):
             self._guesses = guesses_tmp
         else:
             raise ValueError('Dunno about this shape')
+            
+    def _fix_guesses(self, pos):
+        
+        guesses = pos.copy()
+        
+        # Fix parameters whose values lie outside prior space
+        for i, par in enumerate(self.parameters):
+            if par not in self.priors:
+                continue
+                
+            if self.priors[par][0] != 'uniform':
+                continue
+            
+            mi, ma = self.priors[par][1:]
+            
+            ok_lo = guesses[:,i] >= mi
+            ok_hi = guesses[:,i] <= ma
+            
+            if np.all(ok_lo) and np.all(ok_hi):
+                continue
+                
+            # Draw from uniform distribution for failed cases
+            
+            not_ok_lo = np.logical_not(ok_lo)
+            not_ok_hi = np.logical_not(ok_hi)
+            not_ok = np.logical_or(not_ok_hi, not_ok_lo)
+            
+            bad_mask = np.argwhere(not_ok)
+            
+            for j in bad_mask:
+                print "Fixing guess for walker %i parameter %s" % (j[0], par)
+                guesses[j[0],i] = np.random.uniform(mi, ma)
+                
+        return guesses
         
     @property 
     def jitter(self):
@@ -869,6 +903,7 @@ class ModelFit(object):
             mlpt = pos[np.argmax(prob)]
 
             pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
+            pos = self._fix_guesses(pos)
             
         elif not restart:
             pos = self.guesses

@@ -13,9 +13,9 @@ Description:
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
-from scipy.interpolate import interp1d
 from scipy.optimize import fsolve, curve_fit
-from scipy.integrate import quad, simps, cumtrapz
+from scipy.integrate import quad, simps, cumtrapz, ode
+from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc
 
@@ -171,6 +171,8 @@ class HAM(object):
                 self._Macc = None
             elif type(self.pf['pop_Macc']) is FunctionType:
                 self._Macc = self.pf['pop_Macc']
+            elif self.pf['pop_Macc'] == 'pl':
+                raise NotImplemented('do this')
             else:
                 self._Macc = read_lit(self.pf['pop_Macc']).Macc
 
@@ -356,7 +358,21 @@ class HAM(object):
             return M[:-1], phi_of_L
         else:
             NotImplemented('help')
-    
+
+    def MAB_limit(self, z):
+        """
+        Magnitude corresponding to minimum halo mass in which stars form.
+        """
+        
+        Mmin = np.interp(z, self.halos.z, self.Mmin)
+        
+        sfr_M_z = RectBivariateSpline(self.halos.z, self.halos.lnM, 
+            self.sfr_tab)
+            
+        Lh_Mmin = sfr_M_z(z, np.log(Mmin))[0][0] / self.kappa_UV    
+            
+        return self.magsys.L_to_mAB(Lh_Mmin, z=z)
+
     @property
     def MofL_tab(self):
         """
@@ -367,7 +383,7 @@ class HAM(object):
             tab = self.fstar_tab
     
         return self._MofL_tab
-        
+
     @property
     def Mmin(self):
         if not hasattr(self, '_Mmin'):
@@ -378,9 +394,9 @@ class HAM(object):
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'], 
                     z, mu=self.pf['mu'])
                 self._Mmin = np.array(map(Mvir, self.halos.z))
-    
+
         return self._Mmin    
-        
+
     @property
     def sfr_tab(self):
         """
@@ -396,7 +412,15 @@ class HAM(object):
                     * self.cosm.fbaryon * self.fstar(z, self.halos.M)
     
         return self._sfr_tab
-    
+        
+    #def Mh(self, z, zp):
+    #    """
+    #    For a halo of mass Mh now (at redshift z), what was its mass at 
+    #    redshift zp?
+    #    """    
+    #    
+    #    solver = self.Macc()
+                
     @property
     def sfrd_tab(self):
         """
@@ -420,6 +444,71 @@ class HAM(object):
             self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return self._sfrd_tab    
+
+    def Mh_of_z(self, zarr):
+        """
+        Given a redshift, evolve a halo from its initial mass (Mmin(z)) onward.
+        """
+        
+        # If in ascending order, flip
+        if np.all(np.diff(zarr) > 0):
+            zarr = zarr[-1::-1]
+            
+        zmin, zmax = zarr[-1], zarr[0]
+        dz = np.diff(zarr)
+        #dt = dz * self.cosm.dtdz(zarr[0:-1])
+        
+        # Initial mass of halo
+        M0 = np.interp(zmax, self.halos.z, self.Mmin)
+                
+        # dM/dt = rhs        
+        
+        eta = interp1d(self.halos.z, self.eta)
+        
+        rhs = lambda z, M: -self.Macc(z, M) * eta(z) * self.cosm.dtdz(z) / s_per_yr
+ 
+        solver = ode(rhs).set_integrator('vode', method='bdf')
+        
+        Mh = [M0]
+                
+        z = zmax
+        solver.set_initial_value(M0, z)
+                
+        i = 0
+        while z > zarr.min():
+            
+            solver.integrate(z+dz[i])
+            Mh_of_z = solver.y            
+            
+            Mh.append(Mh_of_z[0])
+            z += dz[i]
+            i += 1
+              
+        return zarr, Mh
+        
+    def Mstar(self, M):
+        """
+        Stellar mass as a function of halo mass and time.
+        """
+    
+        
+        dtdz = self.cosm.dtdz(self.halos.z)
+        
+        zarr, Mh_of_z = self.Mh_of_z(M)
+                                
+        
+        # M is the initial mass of a halo
+        # Macc_of_z is its MAR as a function of redshift
+        Macc_of_z = self.Macc(self.halos.z, M)
+        fstar_of_z = map(lambda z: self.fstar(z, Macc_of_z), self.halos.z)
+        
+        dtdz = self.cosm.dtdz(self.halos.z)
+        Mh_of_z = cumtrapz(Macc_of_z[-1::-1] * dtdz / s_per_yr,
+            x=self.halos.z[-1::-1], initial=M)
+            
+        Mh_of_z_all.append(Mh_of_z[-1::-1])    
+                
+                    
 
     @property
     def coeff(self):

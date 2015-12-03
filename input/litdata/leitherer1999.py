@@ -415,6 +415,18 @@ class StellarPopulation:
         
         return photons_per_b_t
         
+    @property
+    def Nion(self):
+        if not hasattr(self, '_Nion'):
+            self._Nion = self.PhotonsPerBaryon(13.6, 24.6)
+        return self._Nion
+        
+    @property
+    def Nlw(self):
+        if not hasattr(self, '_Nlw'):
+            self._Nlw = self.PhotonsPerBaryon(10.2, 13.6)
+        return self._Nlw    
+        
     def PhotonsPerBaryon(self, Emin, Emax):    
         """
         Compute the number of photons emitted per unit stellar baryon.
