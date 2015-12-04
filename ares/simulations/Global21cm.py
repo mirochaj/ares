@@ -304,6 +304,8 @@ class Global21cm:
         anl.run_inline_analysis()      
         self.blobs = anl.blobs
 
+        self.anl = anl
+
         # Just arrayify history elements if they aren't already arrays
         tmp = {}
         for key in self.history:

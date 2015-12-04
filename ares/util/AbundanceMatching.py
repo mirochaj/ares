@@ -326,6 +326,14 @@ class HAM(object):
     
         return self._eta
         
+    def Lh_of_M(self, z):    
+        eta = np.interp(z, self.halos.z, self.eta)
+        
+        Lh = self.cosm.fbaryon * self.Macc(z, self.halos.M) \
+            * eta * self.fstar(z, self.halos.M) / self.kappa_UV
+            
+        return self.halos.M, Lh
+        
     def LuminosityFunction(self, z, Lunits='erg/s/Hz'):
         """
         Reconstructed luminosity function.
@@ -373,6 +381,9 @@ class HAM(object):
             
         return self.magsys.L_to_mAB(Lh_Mmin, z=z)
 
+    def L_to_M(self, L):
+        pass
+
     @property
     def MofL_tab(self):
         """
@@ -412,14 +423,6 @@ class HAM(object):
                     * self.cosm.fbaryon * self.fstar(z, self.halos.M)
     
         return self._sfr_tab
-        
-    #def Mh(self, z, zp):
-    #    """
-    #    For a halo of mass Mh now (at redshift z), what was its mass at 
-    #    redshift zp?
-    #    """    
-    #    
-    #    solver = self.Macc()
                 
     @property
     def sfrd_tab(self):
@@ -463,8 +466,9 @@ class HAM(object):
                 
         # dM/dt = rhs        
         
-        eta = interp1d(self.halos.z, self.eta)
+        eta = interp1d(self.halos.z, self.eta, kind='cubic')
         
+        # Minus sign because M increases as z decreases (not dtdz conversion)
         rhs = lambda z, M: -self.Macc(z, M) * eta(z) * self.cosm.dtdz(z) / s_per_yr
  
         solver = ode(rhs).set_integrator('vode', method='bdf')
@@ -473,18 +477,19 @@ class HAM(object):
                 
         z = zmax
         solver.set_initial_value(M0, z)
+        #solver.integrate(zarr.min())
                 
         i = 0
         while z > zarr.min():
             
             solver.integrate(z+dz[i])
-            Mh_of_z = solver.y            
+            Mh_of_z = solver.y
             
             Mh.append(Mh_of_z[0])
             z += dz[i]
             i += 1
               
-        return zarr, Mh
+        return zarr, np.array(Mh)
         
     def Mstar(self, M):
         """
