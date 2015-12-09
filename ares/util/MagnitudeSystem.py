@@ -30,14 +30,20 @@ class MagnitudeSystem(Cosmology):
         
         Cosmology.__init__(self, **kw)
     
-    def mAB_to_L(self, mag, z=None, dL=None):
+    def mab_to_L(self, mag, z=None, dL=None):
         """
-        Convert AB magnitude to rest-frame luminosity.
+        Convert AB magnitude [APPARENT] to rest-frame luminosity.
+        """
+        pass
+    
+    def MAB_to_L(self, mag, z=None, dL=None):
+        """
+        Convert AB magnitude [ABSOLUTE] to rest-frame luminosity.
         
         Parameters
         ----------
         mag : int, float
-            AB magnitude.
+            Absolute magnitude in AB system.
         z : int, float
             Redshift of object
         dL : int, float
@@ -62,7 +68,7 @@ class MagnitudeSystem(Cosmology):
         # Luminosity!    
         return 10**(m / -2.5) * norm_AB * 4. * np.pi * dL**2
 
-    def L_to_mAB(self, L, z=None, dL=None):
+    def L_to_MAB(self, L, z=None, dL=None):
         # absolute magnitude
         assert (z is not None) or (dL is not None)
         
@@ -74,4 +80,6 @@ class MagnitudeSystem(Cosmology):
         
         return m - 5. * (np.log10(dL / cm_per_pc) - 1.) 
 
+    def mAB_to_flux_density(self, mag):
+        pass
     

@@ -272,7 +272,7 @@ def PopulationParameters():
     
     "pop_Z": 0.04,
     "pop_ssp": False,             # a.k.a., continuous SF
-    "pop_tsf": np.inf,
+    "pop_tsf": 100.,
 
     # Option of setting Z, t, or just supplying SSP table?
     
@@ -477,7 +477,7 @@ def HaloMassFunctionParameters():
     "hmf_logMmin": 4,
     "hmf_logMmax": 16,
     "hmf_dlogM": 0.01,
-    "hmf_zmin": 4,
+    "hmf_zmin": 3,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
     

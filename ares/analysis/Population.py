@@ -13,6 +13,7 @@ Description:
 import numpy as np
 import matplotlib.pyplot as pl
 from scipy.integrate import cumtrapz
+from ..util.ReadData import read_lit
 from ..physics.Constants import s_per_yr
 
 class Population(object):
@@ -20,9 +21,77 @@ class Population(object):
         assert pop.is_ham_model, "These routines only apply for HAM models!"
         self.pop = pop
         
-    def HMF_vs_LF(self, z, mags=True, ax=None, fig=1, **kwargs):
+    def HMF_vs_LF(self, z, ax=None, fig=1, mags=False, 
+        data=None, **kwargs):
         """
-        Plot the halo mass function vs. the galaxy luminosity function.
+        Plot the halo mass function vs. the stellar mass function.
+    
+        Plot SFR function instead?
+    
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        mags : bool
+            If True, luminosity function will be plotted in AB magnitude,
+            otherwise, in rest-frame 1600 Angstrom luminosity
+    
+        """
+    
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+    
+        # HMF
+        Mh = self.pop.ham.halos.M
+        i_z = np.argmin(np.abs(z - self.pop.ham.halos.z))
+        nofm = self.pop.ham.halos.dndm[i_z]
+        above_Mmin = self.pop.halos.M >= self.pop.ham.Mmin[i_z]
+
+        phi_hmf = nofm[0:-1] * np.diff(Mh) * above_Mmin[0:-1]
+
+        ax.loglog(Mh[0:-1], phi_hmf)        
+
+        # Now, LF
+        xLF, phi = self.pop.ham.LuminosityFunction(z, mags=mags)
+
+        phi_lf = phi[0:-1] * np.diff(xLF)
+
+        ax2 = ax.twiny()
+        ax2.semilogy(xLF[0:-1], phi_lf, 'r')
+        
+        # Change tick colors
+        ax2.spines['top'].set_color('red')
+        ax2.xaxis.label.set_color('red')
+        ax2.tick_params(axis='x', colors='red', which='both')
+
+        if mags:
+            ax2.set_xlabel(r'Galaxy Luminosity $(M_{\mathrm{UV}})$', color='r')
+            ax2.set_xlim(-6, -25)
+        else:
+            ax2.set_xlabel(r'Galaxy Luminosity $(L_{\mathrm{UV}} / \mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{Hz}^{-1})$', 
+                color='r')
+            ax2.set_xscale('log')                
+            ax2.set_xlim(1e25, 1e33)
+            
+        ax.set_xlabel(r'Halo Mass $(M_h / M_{\odot})$')
+        ax.set_xlim(1e6, 1e13)
+        ax.set_ylim(1e-9, 2)
+        
+        ax.set_ylabel(r'Number Density $(\phi / \mathrm{cMpc}^{-3})$')
+
+        pl.draw()        
+    
+        return ax, ax2
+        
+    def HMF_vs_SMF(self, z, ax=None, fig=1, **kwargs):
+        """
+        Plot the halo mass function vs. the stellar mass function.
+        
+        Plot SFR function instead?
         
         Parameters
         ----------
@@ -41,89 +110,53 @@ class Population(object):
         else:
             gotax = True
         
-        
         # HMF
+        Mh = self.pop.ham.halos.M
         i_z = np.argmin(np.abs(z - self.pop.ham.halos.z))
         nofm = self.pop.ham.halos.dndm[i_z]
+        above_Mmin = self.pop.halos.M >= self.pop.ham.Mmin[i_z]
         
-        ax.loglog(self.pop.ham.halos.M, nofm)
+        ax.loglog(Mh, nofm * Mh * above_Mmin)        
                 
-        ##
-        # LF first
-        ##
-        
-        if mags:
-            Lunits = 'mab'
-        else:
-            Lunits = 'erg/s/Hz'
-            
-        
-        phi_xax, phi = self.pop.ham.LuminosityFunction(z, Lunits=Lunits)
-        
-        #ax.semilogy(phi_xax, phi, **kwargs)
-        
-        
-        # Now, need mass-to-light
-        Mh, Lh = self.pop.ham.Lh_of_M(z)
-
-        if mags:
-            dndm_xax = self.pop.ham.magsys.L_to_mAB(Lh, z=z)[-1::-1]
-            phi = phi[-1::-1]
-        else:
-            dndm_xax = Lh
-        
-        #t = np.arange(0.01, 10.0, 0.01)
-        #s1 = np.exp(t)
-        #ax1.plot(t, s1, 'b-')
-        #ax1.set_xlabel('time (s)')
-        ## Make the y-axis label and tick labels match the line color.
-        #ax1.set_ylabel('exp', color='b')
-        #for tl in ax1.get_yticklabels():
-        #    tl.set_color('b')
-        #
-        #
-        
-        
-        #s2 = np.sin(2*np.pi*t)
-        ax2 = ax.twinx()
-        ax2.plot(dndm_xax, nofm, 'r')
-        #ax2.set_ylabel('sin', color='r')
-        #for tl in ax2.get_yticklabels():
-        #    tl.set_color('r')
-        #plt.show()    
-        
-        #if mags:
-        #    #ax.set_xscale('linear')
-        #    #ax2.set_xlabel(r'$M_{\mathrm{UV}}$')
-        #else:
-        #    
-        #    ax.set_xlabel(r'$L_h \ (\mathrm{erg} \ \mathrm{s} \ \mathrm{Hz}^{-1})$')
-        
-        ax.set_xscale('log')
+        # Now, need SFR
+        Mh_, Ms_ = self.SMHM(z)
+        nofm_ = np.exp(np.interp(np.log(Mh_), np.log(self.pop.halos.M), 
+            np.log(self.pop.halos.dndm[i_z])))
+                
+        above_Mmin = Mh_ >= self.pop.ham.Mmin[i_z]
+                
+        ax2 = ax.twiny()
+        ax2.loglog(Ms_, nofm_ * Mh_ * above_Mmin, 'r')
+        ax2.set_xlabel(r'$M_{\ast} / M_{\odot}$', color='r')
+        for tl in ax2.get_xticklabels():
+            tl.set_color('r')
+        for tl in ax2.get_xticks():
+            tl.set_color('r')    
+                
         ax.set_xlabel(r'$M_h / M_{\odot}$')
-        ax.set_xlim(self.pop.ham.Mmin[i_z], 1e14)
-        ax.set_ylim(1e-12, 1e6)
+        ax.set_xlim(0.8 * self.pop.ham.Mmin[i_z], 1e14)
+        ax.set_ylim(1e-13, 1e2)
         ax.set_ylabel('Number Density')
-        
+                
         pl.draw()        
         
         return ax
         
     def SMHM(self, z, ratio=False, Nz=100, zmax=40):
         """
-        Plot the stellar-mass halo-mass relation.
+        Compute the stellar-mass halo-mass (SMHM) relation.
         """
         
         # Array of formation redshifts from high to low
         zarr = np.linspace(z, zmax, Nz)[-1::-1]
-        
+
         Mh_all = []
         Mstar_all = []
         for i in range(Nz):
             
             # Obtain halo mass for all times since zmax = zarr[i]
             zz, Mh = self.pop.ham.Mh_of_z(zarr[i:])
-        
+            
             Mh_all.append(Mh[-1])
             
             # Compute stellar mass
@@ -141,9 +174,7 @@ class Population(object):
             Mstar = np.trapz(integrand, x=zz)
             Mstar_all.append(Mstar)
             
-            print i
-            
-        return np.array(Mh_all), np.array(Mstar_all)
+        return np.array(Mh_all)[-1::-1], np.array(Mstar_all)[-1::-1]
         
     def SamplePosterior(self, x, func, pars, errors, Ns=1e3):
         """

@@ -25,6 +25,7 @@ hmf_pars = \
 {
  "hmf_func": fit,
  "hmf_dlogM": 0.01,
+ "hmf_zmin": 3.,
 }
 ##
 

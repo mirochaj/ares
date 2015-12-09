@@ -55,7 +55,7 @@ class HAM(object):
                 for redshift in self.redshifts:
                     self._mags.append(np.array(data['lf'][redshift]['M']))
             else:
-                assert len(self.mags) == len(self.redshifts), \
+                assert len(self.pf['pop_lf_mags']) == len(self.redshifts), \
                     "Need magnitudes for each redshift bin!"
     
                 self._mags = self.pf['pop_lf_mags']
@@ -116,15 +116,16 @@ class HAM(object):
                     self._constraints['Mstar'].append(self.pf['pop_lf_Mstar[%g]' % z])
                     self._constraints['pstar'].append(self.pf['pop_lf_pstar[%g]' % z])
                     self._constraints['alpha'].append(self.pf['pop_lf_alpha[%g]' % z])
-    
+     
             # Parameter file will have LF in Magnitudes...argh
             redshifts = self._constraints['z']
             self._constraints['Lstar'] = []
     
+            # Correct magnitudes for dust extinction, convert to luminosity
             for i, z in enumerate(redshifts):
                 M = self._constraints['Mstar'][i]
                 Mdc = M - self.A1600(z, M)
-                L = self.magsys.mAB_to_L(mag=Mdc, z=z)
+                L = self.magsys.MAB_to_L(mag=Mdc, z=z)
                 self._constraints['Lstar'].append(L)
     
         return self._constraints 
@@ -227,6 +228,7 @@ class HAM(object):
         pb.start()
     
         self._MofL_tab = [[] for i in range(len(self.constraints['z']))]
+        self._LofM_tab = [[] for i in range(len(self.constraints['z']))]
     
         # Do it already    
         for i, z in enumerate(self.redshifts):
@@ -246,10 +248,14 @@ class HAM(object):
             log_ngtm = np.log(ngtm)
     
             # Use dust-corrected magnitudes here
-            LUV = [self.magsys.mAB_to_L(mag, z=z) for mag in mags]
+            LUV_dc = [self.magsys.MAB_to_L(mag, z=z) for mag in mags]
+    
+            # No dust correction
+            LUV_no_dc = [self.magsys.MAB_to_L(mag, z=z) \
+                for mag in self.mags[i]]
     
             # Loop over luminosities and perform abundance match
-            for j, Lmin in enumerate(LUV):
+            for j, Lmin in enumerate(LUV_dc):
     
                 # Integral of schecter function at L > Lmin                
                 xmin = Lmin / L_star    
@@ -269,6 +275,7 @@ class HAM(object):
                 Mmin = np.exp(fsolve(to_min, 10., factor=0.01, maxfev=1000)[0])
     
                 self._MofL_tab[i].append(Mmin)
+                self._LofM_tab[i].append(LUV_no_dc[j])
                 self._fstar_tab[i].append(Lmin * kappa_UV \
                     / eta / self.cosm.fbaryon / self.Macc(z, Mmin))
     
@@ -334,15 +341,24 @@ class HAM(object):
             
         return self.halos.M, Lh
         
-    def LuminosityFunction(self, z, Lunits='erg/s/Hz'):
+    def LuminosityFunction(self, z, mags=False):
         """
         Reconstructed luminosity function.
         
+        ..note:: This is number per [abcissa]
+                
         Parameters
         ----------
         z : int, float
             Redshift. Will interpolate between values in halos.z if necessary.
-        Lunits : str
+        mags : bool
+            If True, x-values will be in absolute (AB) magnitudes
+        dc : bool
+            If True, magnitudes will be corrected for dust attenuation.
+            
+        Returns
+        -------
+        Magnitudes (or luminosities) and number density.
 
         """
         
@@ -355,34 +371,50 @@ class HAM(object):
         
         dndm = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
         
+        # Only return stuff above Mmin
+        Mmin = np.interp(z, self.halos.z, self.Mmin)
+        
+        above_Mmin = self.halos.M >= Mmin
+        
         phi_of_L = dndm(z) * dMh_dLh
         
-        if Lunits.lower() == 'erg/s/hz':
-            return Lh[:-1], phi_of_L
-        elif Lunits.lower() == 'mab':
-            M = self.magsys.L_to_mAB(Lh, z=z)
-            phi_of_L *= np.abs(np.diff(Lh) / np.diff(M))
-            
-            return M[:-1], phi_of_L
+        if mags:
+            MAB = self.magsys.L_to_MAB(Lh, z=z)
+            phi_of_L *= np.abs(np.diff(Lh) / np.diff(MAB))
+            return MAB[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1]
         else:
-            NotImplemented('help')
+            return Lh[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1] 
 
+    def L1600_limit(self, z):
+        eta = np.interp(z, self.halos.z, self.eta)
+        Mmin = np.interp(z, self.halos.z, self.Mmin)
+        
+        #sfr_M_z = RectBivariateSpline(self.halos.z, self.halos.lnM, 
+        #    np.log(self.sfr_tab))
+            
+        #Lh_Mmin = np.exp(sfr_M_z(z, np.log(Mmin))[0][0]) / self.kappa_UV   
+        
+        return self.cosm.fbaryon * self.Macc(z, Mmin) \
+            * eta * self.fstar(z, Mmin) / self.kappa_UV
+            
     def MAB_limit(self, z):
         """
         Magnitude corresponding to minimum halo mass in which stars form.
         """
         
-        Mmin = np.interp(z, self.halos.z, self.Mmin)
+        Lh_Mmin = self.L1600_limit(z)
         
-        sfr_M_z = RectBivariateSpline(self.halos.z, self.halos.lnM, 
-            self.sfr_tab)
-            
-        Lh_Mmin = sfr_M_z(z, np.log(Mmin))[0][0] / self.kappa_UV    
-            
-        return self.magsys.L_to_mAB(Lh_Mmin, z=z)
+        return self.magsys.L_to_MAB(Lh_Mmin, z=z)
 
-    def L_to_M(self, L):
-        pass
+    @property
+    def LofM_tab(self):
+        """
+        Intrinsic luminosities corresponding to the supplied magnitudes.
+        """
+        if not hasattr(self, '_LofM_tab'):
+            tab = self.fstar_tab
+
+        return self._LofM_tab            
 
     @property
     def MofL_tab(self):
@@ -421,6 +453,9 @@ class HAM(object):
             for i, z in enumerate(self.halos.z):
                 self._sfr_tab[i] = self.eta[i] * self.Macc(z, self.halos.M) \
                     * self.cosm.fbaryon * self.fstar(z, self.halos.M)
+    
+                mask = self.halos.M >= self.Mmin[i]
+                self._sfr_tab[i] *= mask
     
         return self._sfr_tab
                 
@@ -476,8 +511,7 @@ class HAM(object):
         Mh = [M0]
                 
         z = zmax
-        solver.set_initial_value(M0, z)
-        #solver.integrate(zarr.min())
+        solver.set_initial_value(M0, z)                
                 
         i = 0
         while z > zarr.min():
@@ -513,8 +547,6 @@ class HAM(object):
             
         Mh_of_z_all.append(Mh_of_z[-1::-1])    
                 
-                    
-
     @property
     def coeff(self):
         if not hasattr(self, '_coeff'):
@@ -699,37 +731,33 @@ class HAM(object):
         elif self.Mext[0] in ['pl', 'exp']:
             fst = self.fstar_Mlo(z, M, *coeff)
         
+        elif (self.Mext == 'floor') or (self.Mext[0] == 'floor'):
+            fst = 10**self._log_fstar(z, M, *coeff)
         elif (self.Mext == 'const') or (self.Mext[0] == 'const'):
-            fst = 10**self._log_fstar(z, M, *coeff) + self.Mext[1]
         
         # Set a constant upper limit for fstar below given mass limit     
         # Linearly interpolate in redshift to find this limit?
-        #elif self.pf['pop_fstar_M_extrap'] == 'constant':
-        #    fstar_Mmin = self._ham_Mmin[0]
-        #    def tmp(zz, MM):
-        #        if type(MM) is np.ndarray:
-        #            Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
-        #                * fstar_Mmin
-        #            Mhi = MM[np.argwhere(MM >= fstar_Mmin)]
-        #                                
-        #            fst_lo = self._fstar_func(zz, Mlo, *self._fstar_coeff)
-        #            fst_hi = self._fstar_func(zz, Mhi, *self._fstar_coeff)
-        #                                
-        #            return np.concatenate((fst_lo, fst_hi)).squeeze()
-        #            
-        #        elif MM > 10**self.pf['pop_logM'][0]:
-        #            return self._fstar_func(zz, MM, *self._fstar_coeff)
-        #        else:
-        #            return self._fstar_func(zz, fstar_Mmin, *self._fstar_coeff)
-        #    
-        #    self._fstar = tmp
-        
+            #fstar_Mmin = self.fstar_Mlo[0]
+            def tmp(zz, MM):
+                if type(MM) is np.ndarray:
+                    Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
+                        * fstar_Mmin
+                    Mhi = MM[np.argwhere(MM >= fstar_Mmin)]
+                                        
+                    fst_lo = self._fstar_func(zz, Mlo, *self._fstar_coeff)
+                    fst_hi = self._fstar_func(zz, Mhi, *self._fstar_coeff)
+                                        
+                    fst = np.concatenate((fst_lo, fst_hi)).squeeze()
+                    
+                elif MM > 10**self.pf['pop_logM'][0]:
+                    fst = self._fstar_func(zz, MM, *self._fstar_coeff)
+                else:
+                    fst = self._fstar_func(zz, fstar_Mmin, *self._fstar_coeff)
+                    
         else:
             raise ValueError('Unknown pop extrap option!')
 
         return fst
-
-        #return self._fstar_cap(fstar)
 
     def _log_fstar(self, z, M, *coeff):    
         if self.Mfunc == self.zfunc == 'logpoly':            
@@ -742,32 +770,36 @@ class HAM(object):
             logM = np.log10(M)
             
             self._fstar_of_z = lambda zz: coeff[0] + coeff[1] * (1. + zz) / z0 
-            self._Mpeak_of_z = lambda zz: coeff[2] + coeff[3] * (1. + zz) / z0  # log
+            self._Mpeak_of_z = lambda zz: coeff[2] + coeff[3] * (1. + zz) / z0  # log10
             self._sigma_of_z = lambda zz: coeff[4] + coeff[5] * (1. + zz) / z0 
             
             f = self._fstar_of_z(z) \
                 * np.exp(-(logM - self._Mpeak_of_z(z))**2 / 2. / 
                 self._sigma_of_z(z)**2)
                 
-            logf = np.log10(f)
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
             logM = np.log10(M)
              
             f = coeff[0] * np.exp(-(logM - coeff[1]) / 2. / coeff[2]**2)
-            logf = np.log10(f)
         
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_t'):
             logM = np.log10(M)
             
-            self._fstar_of_z = lambda zz: coeff[0] + coeff[1] * ((1. + zz) / z0)**-1.5 
-            self._Mpeak_of_z = lambda zz: coeff[2] + coeff[3] * ((1. + zz) / z0)**-1.5  # log
-            self._sigma_of_z = lambda zz: coeff[4] + coeff[5] * ((1. + zz) / z0)**-1.5 
+            self._fstar_of_z = lambda zz: coeff[0] + coeff[1] \
+                * ((1. + zz) / (1. + z0))**-1.5 
+            self._Mpeak_of_z = lambda zz: coeff[2] \
+                -1.5 * np.log10((1. + zz) / (1. + z0))
+            self._sigma_of_z = lambda zz: coeff[3] #\
+                #-1.5 * np.log10((1. + zz) / (1. + z0))
                                                                     
             f = self._fstar_of_z(z) \
                 * np.exp(-(logM - self._Mpeak_of_z(z))**2 / 2. / 
                 self._sigma_of_z(z)**2)
                 
-            logf = np.log10(f)
+        if (self.Mext[0] == 'floor'):
+            f += self.Mext[1]
+                
+        logf = np.log10(f)
             
         return logf    
         
@@ -825,11 +857,11 @@ class HAM(object):
             if self.Mfunc == self.zfunc == 'logpoly':            
                 self._guesses = -1. * np.ones(6) 
             elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_z'):
-                self._guesses = np.array([0.25, 0.05, 11., 0.05, 0.5, 0.05]) 
+                self._guesses = np.array([0.25, 0.05, 12., 0.05, 0.5, 0.05])
             elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
                 self._guesses = np.array([0.25, 11., 0.5])
             elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_t'):
-                self._guesses = np.array([0.25, 0.05, 11., 0.5, 0.5, 0.05])
+                self._guesses = np.array([0.25, 0.05, 12., 0.5])
             else:
                 raise NotImplemented('help')
     

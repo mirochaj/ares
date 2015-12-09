@@ -579,8 +579,9 @@ class MultiPanel:
                 for h, element in enumerate(self.elements_by_row[k]):
                     if element in self.left:
                         continue  
-                    if element in self.diag:
-                        continue              
+                    if self.diag is not None:
+                        if element in self.diag:
+                            continue              
                         
                     self.grid[element].set_yticks(yticks)
                     self.grid[element].set_ylim(ylim)
