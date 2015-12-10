@@ -305,7 +305,7 @@ def PopulationParameters():
     "pop_fstar": 0.1,
     "pop_fstar_ceil": 1.0,
     "pop_fstar_M_func": 'lognormal',
-    "pop_fstar_z_func": 'const',
+    "pop_fstar_z_func": 'linear_t',
     "pop_fstar_M_extrap": 'continue',
     "pop_fstar_z_extrap": 'continue',
     "pop_Tmin": 1e4,

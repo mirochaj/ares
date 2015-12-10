@@ -341,7 +341,11 @@ class HAM(object):
             
         return self.halos.M, Lh
         
-    def LuminosityFunction(self, z, mags=False):
+    def SFR(self, z, M):
+        eta = np.interp(z, self.halos.z, self.eta)
+        return self.cosm.fbaryon * self.Macc(z, M) * eta * self.fstar(z, M)
+        
+    def LuminosityFunction(self, z, mags=False, undo_dc=False):
         """
         Reconstructed luminosity function.
         
@@ -361,11 +365,8 @@ class HAM(object):
         Magnitudes (or luminosities) and number density.
 
         """
-        
-        eta = np.interp(z, self.halos.z, self.eta)
-        
-        Lh = self.cosm.fbaryon * self.Macc(z, self.halos.M) \
-            * eta * self.fstar(z, self.halos.M) / self.kappa_UV
+                
+        Lh = self.SFR(z, self.halos.M) / self.kappa_UV
         
         dMh_dLh = np.diff(self.halos.M) / np.diff(Lh)
         
@@ -380,6 +381,8 @@ class HAM(object):
         
         if mags:
             MAB = self.magsys.L_to_MAB(Lh, z=z)
+            if undo_dc:
+                MAB += self.A1600(z, MAB)
             phi_of_L *= np.abs(np.diff(Lh) / np.diff(MAB))
             return MAB[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1]
         else:
@@ -731,7 +734,7 @@ class HAM(object):
         elif self.Mext[0] in ['pl', 'exp']:
             fst = self.fstar_Mlo(z, M, *coeff)
         
-        elif (self.Mext == 'floor') or (self.Mext[0] == 'floor'):
+        elif (self.Mext[0] == 'floor'):
             fst = 10**self._log_fstar(z, M, *coeff)
         elif (self.Mext == 'const') or (self.Mext[0] == 'const'):
         
@@ -776,22 +779,22 @@ class HAM(object):
             f = self._fstar_of_z(z) \
                 * np.exp(-(logM - self._Mpeak_of_z(z))**2 / 2. / 
                 self._sigma_of_z(z)**2)
-                
+
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
             logM = np.log10(M)
-             
+
             f = coeff[0] * np.exp(-(logM - coeff[1]) / 2. / coeff[2]**2)
-        
+
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_t'):
             logM = np.log10(M)
-            
+
             self._fstar_of_z = lambda zz: coeff[0] + coeff[1] \
                 * ((1. + zz) / (1. + z0))**-1.5 
             self._Mpeak_of_z = lambda zz: coeff[2] \
                 -1.5 * np.log10((1. + zz) / (1. + z0))
             self._sigma_of_z = lambda zz: coeff[3] #\
                 #-1.5 * np.log10((1. + zz) / (1. + z0))
-                                                                    
+
             f = self._fstar_of_z(z) \
                 * np.exp(-(logM - self._Mpeak_of_z(z))**2 / 2. / 
                 self._sigma_of_z(z)**2)
@@ -802,7 +805,7 @@ class HAM(object):
         logf = np.log10(f)
             
         return logf    
-        
+
     @property
     def Npops(self):
         return self.pf.Npops
@@ -818,7 +821,7 @@ class HAM(object):
             self._pop_id = i
         
         return self._pop_id
-        
+
     @property
     def irrelevant(self):
         if not hasattr(self, '_irrelevant'):
@@ -826,16 +829,16 @@ class HAM(object):
                 self._irrelevant = True
             else:
                 self._irrelevant = False
-        
+
         return self._irrelevant
-            
+
     @property
     def Mfunc(self):
         return self.pf.pfs[self.pop_id]['pop_fstar_M_func']
     
     @property
     def zfunc(self):
-        return self.pf.pfs[self.pop_id]['pop_fstar_z_func']    
+        return self.pf.pfs[self.pop_id]['pop_fstar_z_func']
     
     @property
     def Mext(self):

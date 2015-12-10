@@ -563,57 +563,61 @@ class ModelFit(object):
         Generate initial position vectors for all walkers.
         """
         
+        if rank > 0:
+            return
+        
         # Set using priors
         if not hasattr(self, '_guesses') and hasattr(self, 'priors'):
             
-            self._guesses = []
-            for i in range(self.nwalkers):
+            if rank == 0:
+                self._guesses = []
+                for i in range(self.nwalkers):
+                    
+                    p0 = []
+                    to_fix = []
+                    for j, par in enumerate(self.parameters):
                 
-                p0 = []
-                to_fix = []
-                for j, par in enumerate(self.parameters):
-
-                    if par in self.priors:
-                        
-                        dist, lo, hi = self.priors[par]
-                        
-                        # Fix if tied to other parameter
-                        if (type(lo) is str) or (type(hi) is str):                            
-                            to_fix.append(par)
-                            p0.append(None)
-                            continue
+                        if par in self.priors:
                             
+                            dist, lo, hi = self.priors[par]
+                            
+                            # Fix if tied to other parameter
+                            if (type(lo) is str) or (type(hi) is str):                            
+                                to_fix.append(par)
+                                p0.append(None)
+                                continue
+                                
+                            if dist == 'uniform':
+                                val = np.random.rand() * (hi - lo) + lo
+                            else:
+                                val = np.random.normal(lo, scale=hi)
+                        else:
+                            raise ValueError('No prior for %s' % par)
+                
+                        # Save
+                        p0.append(val)
+                
+                    # If some priors are linked, correct for that
+                    for par in to_fix:
+                
+                        dist, lo, hi = self.priors[par]
+                
+                        if type(lo) is str:
+                            lo = p0[self.parameters.index(lo)]
+                        else:    
+                            hi = p0[self.parameters.index(hi)]
+                
                         if dist == 'uniform':
                             val = np.random.rand() * (hi - lo) + lo
                         else:
                             val = np.random.normal(lo, scale=hi)
-                    else:
-                        raise ValueError('No prior for %s' % par)
-
-                    # Save
-                    p0.append(val)
-
-                # If some priors are linked, correct for that
-                for par in to_fix:
-
-                    dist, lo, hi = self.priors[par]
-
-                    if type(lo) is str:
-                        lo = p0[self.parameters.index(lo)]
-                    else:    
-                        hi = p0[self.parameters.index(hi)]
-
-                    if dist == 'uniform':
-                        val = np.random.rand() * (hi - lo) + lo
-                    else:
-                        val = np.random.normal(lo, scale=hi)
+                        
+                        k = self.parameters.index(par)
+                        p0[k] = val
                     
-                    k = self.parameters.index(par)
-                    p0[k] = val
+                    self._guesses.append(p0)
                 
-                self._guesses.append(p0)
-        
-            self._guesses = np.array(self._guesses)
+                self._guesses = np.array(self._guesses)
                     
         return self._guesses
 
@@ -629,6 +633,9 @@ class ModelFit(object):
             
         """
         
+        if rank > 0:
+            return
+        
         guesses_tmp = np.array(value)
         
         if guesses_tmp.ndim == 1:
@@ -643,6 +650,9 @@ class ModelFit(object):
             raise ValueError('Dunno about this shape')
             
     def _fix_guesses(self, pos):
+        
+        if rank > 0:
+            return
         
         guesses = pos.copy()
         
@@ -716,7 +726,7 @@ class ModelFit(object):
             self._is_log = [value] * self.Nd
         else:
             self._is_log = value
-
+            
     def prep_output_files(self, restart, clobber):
         if restart:
             pos = self._prep_from_restart()
@@ -846,7 +856,7 @@ class ModelFit(object):
             Append to pre-existing files of the same prefix if one exists?
             
         """
-
+        
         self.prefix = prefix
 
         if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
@@ -923,7 +933,7 @@ class ModelFit(object):
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
             iterations=steps, rstate0=state, storechain=False):
-                        
+                                    
             # Only the rank 0 processor ever makes it here
             ct += 1
                                                 

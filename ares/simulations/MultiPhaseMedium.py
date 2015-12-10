@@ -291,6 +291,9 @@ class MultiPhaseMedium(object):
         #self.
         
         
+    def _stop_criteria_met(self):
+        pass    
+        
     def run(self):
         """
         Run simulation from start to finish.

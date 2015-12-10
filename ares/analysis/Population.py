@@ -15,14 +15,71 @@ import matplotlib.pyplot as pl
 from scipy.integrate import cumtrapz
 from ..util.ReadData import read_lit
 from ..physics.Constants import s_per_yr
+from ..util.Aesthetics import labels
 
 class Population(object):
     def __init__(self, pop):
         assert pop.is_ham_model, "These routines only apply for HAM models!"
         self.pop = pop
         
-    def HMF_vs_LF(self, z, ax=None, fig=1, mags=False, 
-        data=None, **kwargs):
+    def MassToLight(self, z, ax=None, fig=1, **kwargs):
+        """
+        Plot the halo mass to luminosity relationship yielded by AM.
+        """        
+                
+                
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+            
+        Mh, Lh = self.pop.ham.Lh_of_M(z)
+    
+        ax.loglog(Mh, Lh, **kwargs)
+    
+        if z in self.pop.ham.redshifts:
+            k = self.pop.ham.redshifts.index(z)
+            ax.scatter(self.pop.ham.MofL_tab[k], self.pop.ham.LofM_tab[k], 
+                **kwargs)
+                
+        ax.set_xlabel(labels['Mh'])
+        ax.set_ylabel(labels['Lh'])
+
+        ax.set_xlim(1e6, 1e14)
+        ax.set_ylim(1e23, 1e33)
+
+        pl.draw()
+    
+        return ax
+        
+    def SFE(self, z, ax=None, fig=1, **kwargs):
+        
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+    
+        Marr = np.logspace(8, 14)    
+        
+        fast = self.pop.ham.fstar(z=z, M=Marr)
+        ax.loglog(Marr, fast, **kwargs)
+    
+        if z in self.pop.ham.redshifts:
+            k = self.pop.ham.redshifts.index(z)
+            ax.scatter(self.pop.ham.MofL_tab[k], self.pop.ham.fstar_tab[k],
+                **kwargs)
+        
+        ax.set_xlabel(labels['Mh'])
+        ax.set_xlabel(labels['fstar'])
+        pl.draw()
+        
+        return ax
+        
+    def HMF_vs_LF(self, z, ax=None, fig=1, mags=False, data=None, **kwargs):
         """
         Plot the halo mass function vs. the stellar mass function.
     

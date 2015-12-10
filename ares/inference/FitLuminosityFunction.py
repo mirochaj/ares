@@ -153,8 +153,6 @@ class loglikelihood:
         if not np.isfinite(lp):
             return -np.inf, self.blank_blob
     
-        print kwargs['pop_fesc{0}']
-    
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
@@ -168,17 +166,16 @@ class loglikelihood:
                 
         # If we're only fitting the LF, no need to run simulation
         if self.run_21cm:
-            
-            sim.run()
-            
+                        
             try:
-                sim.run()                
+                sim.run()                      
                 sim.run_inline_analysis()
             except ValueError:
                 # Seems to happen in some weird cases when the 
                 # HAM fit fails
                 
-                f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
+                f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 
+                    'ab')
                 pickle.dump(kwargs, f)
                 f.close()
                 
@@ -434,6 +431,9 @@ class FitLuminosityFunction(FitGlobal21cm):
         confidence regions of literature sources (for Schecter parameters).
         """
         
+        if rank > 0:
+            return
+        
         assert type(value) == str, 'Must supply bouwens2015 at the moment.'
         
         data = read_lit(value)
@@ -478,7 +478,7 @@ class FitLuminosityFunction(FitGlobal21cm):
             
         # Fix parameters whose values lie outside prior space
         self._guesses = self._fix_guesses(guesses)
-                
+                        
     def save_data(self, prefix, clobber=False):
         if rank > 0:
             return

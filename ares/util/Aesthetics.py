@@ -166,6 +166,8 @@ lf_parameters = \
  'pop_lf_Mstar': r'$M_{\ast}$',
  'pop_lf_pstar': r'$\phi_{\ast}$',
  'pop_lf_alpha': r'$\alpha$',
+ 'Mh': r'$M_h / M_{\odot}$',
+ 'Lh': r'$L_h / (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{Hz}^{-1})$', 
 }
 
 pop_parameters = \
