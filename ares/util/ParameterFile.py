@@ -47,7 +47,7 @@ def pop_id_num(par):
         m = re.search(r"\_([0-9])\_", par)
         
         if m is None:
-            return None, None
+            return par, None
     
     prefix = par.replace(m.group(0), '')
     

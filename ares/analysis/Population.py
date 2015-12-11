@@ -22,7 +22,29 @@ class Population(object):
         assert pop.is_ham_model, "These routines only apply for HAM models!"
         self.pop = pop
         
-    def MassToLight(self, z, ax=None, fig=1, **kwargs):
+    def LuminosityFunction(self, z, ax=None, fig=1, cumulative=False, **kwargs):
+
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+            
+        Mh, Lh = self.pop.ham.Lh_of_M(z)
+                
+        k = np.argmin(np.abs(z - self.pop.ham.halos.z))
+        dndlnm = self.pop.ham.halos.dndlnm[k]
+        
+        integrand = Lh * dndlnm
+        Lhc = cumtrapz(integrand, x=self.pop.ham.halos.lnM, initial=0.0)
+        
+        ax.loglog(Mh, Lhc / Lhc[-1], **kwargs)
+        ax.set_ylim(1e-3, 2)
+        
+        return ax
+        
+    def MassToLight(self, z, ax=None, fig=1, scatkw={}, **kwargs):
         """
         Plot the halo mass to luminosity relationship yielded by AM.
         """        
@@ -36,25 +58,25 @@ class Population(object):
             gotax = True
             
         Mh, Lh = self.pop.ham.Lh_of_M(z)
-    
+        
+        
         ax.loglog(Mh, Lh, **kwargs)
+        ax.set_ylim(1e23, 1e33)
     
         if z in self.pop.ham.redshifts:
             k = self.pop.ham.redshifts.index(z)
             ax.scatter(self.pop.ham.MofL_tab[k], self.pop.ham.LofM_tab[k], 
-                **kwargs)
+                **scatkw)
                 
+        ax.set_xlim(1e6, 1e15)        
         ax.set_xlabel(labels['Mh'])
         ax.set_ylabel(labels['Lh'])
-
-        ax.set_xlim(1e6, 1e14)
-        ax.set_ylim(1e23, 1e33)
 
         pl.draw()
     
         return ax
         
-    def SFE(self, z, ax=None, fig=1, **kwargs):
+    def SFE(self, z, ax=None, fig=1, scatkw={}, **kwargs):
         
         if ax is None:
             gotax = False
@@ -65,16 +87,16 @@ class Population(object):
     
         Marr = np.logspace(8, 14)    
         
-        fast = self.pop.ham.fstar(z=z, M=Marr)
+        fast = self.pop.ham.SFE(z=z, M=Marr)
         ax.loglog(Marr, fast, **kwargs)
     
         if z in self.pop.ham.redshifts:
             k = self.pop.ham.redshifts.index(z)
             ax.scatter(self.pop.ham.MofL_tab[k], self.pop.ham.fstar_tab[k],
-                **kwargs)
+                **scatkw)
         
         ax.set_xlabel(labels['Mh'])
-        ax.set_xlabel(labels['fstar'])
+        ax.set_ylabel(labels['fstar'])
         pl.draw()
         
         return ax

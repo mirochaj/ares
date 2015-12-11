@@ -394,6 +394,7 @@ class GalaxyPopulation(HaloPopulation):
             raise TypeError('this is an fcoll model!')
         
         elif self.is_ham_model:
+                        
             # Only know LF at a few redshifts...
             assert z in self.pf['pop_lf_z']
         

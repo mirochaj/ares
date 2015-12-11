@@ -18,10 +18,10 @@ from .FitGlobal21cm import FitGlobal21cm
 import gc, os, sys, copy, types, time, re
 from ..util.ParameterFile import par_info
 from ..simulations import Global21cm as simG21
-from ..populations.Galaxy import param_redshift
 from .ModelFit import LogPrior, update_blob_names
 from ..simulations import MultiPhaseMedium as simMPM
 from ..analysis.InlineAnalysis import InlineAnalysis
+from ..populations.Galaxy import param_redshift, GalaxyPopulation
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts, \
     SetAllDefaults
 
@@ -119,7 +119,9 @@ class loglikelihood:
     @property
     def sim_class(self):
         if not hasattr(self, '_sim_class'):
-            if 'include_igm' in self.base_kwargs:
+            if (not self.run_21cm):
+                self._sim_class = GalaxyPopulation
+            elif 'include_igm' in self.base_kwargs:
                 if self.base_kwargs['include_igm']:
                     self._sim_class = simG21
                 else:
@@ -127,7 +129,8 @@ class loglikelihood:
             elif defaults['include_igm']:
                 self._sim_class = simG21
             else:
-                self._sim_class = simMPM
+                self._sim_class = simMPM                
+                
         return self._sim_class
         
     def __call__(self, pars, blobs=None):
@@ -161,6 +164,8 @@ class loglikelihood:
         
         if isinstance(sim, simG21):
             medium = sim.medium
+        elif isinstance(sim, GalaxyPopulation):
+            medium = None       
         else:
             medium = sim
                 
@@ -233,14 +238,16 @@ class loglikelihood:
             blobs = self.blank_blob
 
         # Figre out which population is the one with the LF
-        for popid, pop in enumerate(medium.field.pops):
-            if not pop.is_ham_model:
-                continue
-            break
-
+        if medium is not None:
+            for popid, pop in enumerate(medium.field.pops):
+                if not pop.is_ham_model:
+                    continue
+                break
+        else:
+            pop = sim
+            
         phi = []
         for i, z in enumerate(self.redshifts):
-            pop = medium.field.pops[popid] 
             p = pop.LuminosityFunction(M=np.array(self.xdata[i]), z=z)
             phi.extend(p)
             

@@ -263,6 +263,17 @@ def PopulationParameters():
     # Beta can depend on magnitude and redshift
     "pop_lf_beta_slope": None,
     "pop_lf_beta_pivot": None,
+    
+    "pop_fstar_ceil": 1.0,
+    
+    "pop_ham_fit": 'Lh',
+    "pop_ham_Mfun": 'poly',   # or lognormal
+    "pop_ham_zfun": 'poly',   # or (time, redshift, free)
+    "pop_ham_Mext": None,
+    "pop_ham_zext": None,
+    "pop_ham_Mext_par": None,
+    "pop_ham_zext_par": None,
+    
 
     # Parameters for a HOD model
     "pop_duty_cycle": 1.0,
@@ -303,11 +314,7 @@ def PopulationParameters():
         
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
-    "pop_fstar_ceil": 1.0,
-    "pop_fstar_M_func": 'lognormal',
-    "pop_fstar_z_func": 'linear_t',
-    "pop_fstar_M_extrap": 'continue',
-    "pop_fstar_z_extrap": 'continue',
+
     "pop_Tmin": 1e4,
     "pop_Tmax": None,
     "pop_Mmin": None,

@@ -191,9 +191,77 @@ class HAM(object):
             self._Mlim = [[min(self.MofL_tab[i]), max(self.MofL_tab[i])] \
                 for i in range(len(self.redshifts))]
         return self._Mlim
+        
+    @property
+    def fit_fstar(self):
+        if not hasattr(self, '_fit_fstar'):
+            if self.pf['pop_ham_fit'] == 'fstar':
+                self._fit_fstar = True
+            else:
+                self._fit_fstar = False
+    
+        return self._fit_fstar       
+    
+    @property
+    def fit_Lh(self):
+        if not hasattr(self, '_fit_Lh'):
+            self._fit_Lh = not self.fit_fstar
+    
+        return self._fit_Lh
 
-    def fstar(self, z, M):
-        return self.__call__(z, M, *self.coeff)
+    def fstar(self, z, M, *coeff):
+        zok = np.all(self.zlim[0] <= z <= self.zlim[1])
+                        
+        # If we're extrapolating no matter what or we're within the
+        # allowed redshift and mass range, we're done                
+        if (zok or (self.zext[0] is None)) and (self.Mext[0] is None):
+            return 10**self._log_fstar(z, M, *coeff)
+        
+        ##
+        # OTHERWISE, WE ARE DOING SOME EXTRAPOLATING
+        ##
+        
+        elif (self.Mext[0] is None) and (self.zext[0] == 'const'):
+
+            if z > self.zext[2]:
+                fst = self.fstar_zhi(M, *coeff)
+            elif z < self.zext[1]:
+                fst = self.fstar_zlo(M, *coeff)
+            else:
+                fst = 10**self._log_fstar(z, M, *coeff)
+        
+        # Fit a power-law to the last few points (in mass).
+        # Allow the redshift evolution to do its thing
+        elif self.Mext[0] in ['pl', 'exp']:
+            fst = self.fstar_Mlo(z, M, *coeff)
+        
+        elif (self.Mext[0] == 'floor'):
+            fst = 10**self._log_fstar(z, M, *coeff)
+        elif (self.Mext[0] == 'const') or (self.Mext[0] == 'const'):
+        
+        # Set a constant upper limit for fstar below given mass limit     
+        # Linearly interpolate in redshift to find this limit?
+            #fstar_Mmin = self.fstar_Mlo[0]
+            def tmp(zz, MM):
+                if type(MM) is np.ndarray:
+                    Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
+                        * fstar_Mmin
+                    Mhi = MM[np.argwhere(MM >= fstar_Mmin)]
+                                        
+                    fst_lo = self._fstar_func(zz, Mlo, *self._fstar_coeff)
+                    fst_hi = self._fstar_func(zz, Mhi, *self._fstar_coeff)
+                                        
+                    fst = np.concatenate((fst_lo, fst_hi)).squeeze()
+                    
+                elif MM > 10**self.pf['pop_logM'][0]:
+                    fst = self._fstar_func(zz, MM, *self._fstar_coeff)
+                else:
+                    fst = self._fstar_func(zz, fstar_Mmin, *self._fstar_coeff)
+                    
+        else:
+            raise ValueError('Unknown pop extrap option!')
+
+        return fst
 
     @property
     def kappa_UV(self):
@@ -218,8 +286,6 @@ class HAM(object):
         Nm = 0
         for i, z in enumerate(self.redshifts):
             Nm += len(self.mags[i])
-    
-        kappa_UV = self.kappa_UV
     
         Nz = len(self.constraints['z'])
     
@@ -275,8 +341,8 @@ class HAM(object):
                 Mmin = np.exp(fsolve(to_min, 10., factor=0.01, maxfev=1000)[0])
     
                 self._MofL_tab[i].append(Mmin)
-                self._LofM_tab[i].append(LUV_no_dc[j])
-                self._fstar_tab[i].append(Lmin * kappa_UV \
+                self._LofM_tab[i].append(LUV_dc[j])
+                self._fstar_tab[i].append(Lmin * self.kappa_UV \
                     / eta / self.cosm.fbaryon / self.Macc(z, Mmin))
     
                 pb.update(i * Nm + j + 1)
@@ -337,7 +403,7 @@ class HAM(object):
         eta = np.interp(z, self.halos.z, self.eta)
         
         Lh = self.cosm.fbaryon * self.Macc(z, self.halos.M) \
-            * eta * self.fstar(z, self.halos.M) / self.kappa_UV
+            * eta * self.SFE(z, self.halos.M) / self.kappa_UV
             
         return self.halos.M, Lh
         
@@ -484,8 +550,8 @@ class HAM(object):
                 
             self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
-        return self._sfrd_tab    
-
+        return self._sfrd_tab
+        
     def Mh_of_z(self, zarr):
         """
         Given a redshift, evolve a halo from its initial mass (Mmin(z)) onward.
@@ -553,6 +619,16 @@ class HAM(object):
     @property
     def coeff(self):
         if not hasattr(self, '_coeff'):
+            if self.fit_fstar:
+                self._coeff = self.coeff_fstar
+            else:
+                self._coeff = self.coeff_mtl
+                
+        return self._coeff
+                
+    @property
+    def coeff_fstar(self):
+        if not hasattr(self, '_coeff_fstar'):
             M = []; fstar = []; z = []
             for i, element in enumerate(self.MofL_tab):
                 z.extend([self.redshifts[i]] * len(element))
@@ -569,12 +645,38 @@ class HAM(object):
                 return self._log_fstar(z, M, *coeff).flatten()
     
             try:
-                self._coeff, self._cov = \
+                self._coeff_fstar, self._cov = \
                     curve_fit(to_fit, x, y, p0=guess, maxfev=100000)
             except RuntimeError:
-                self._coeff, self._cov = guess, np.diag(guess)
+                self._coeff_fstar, self._cov = guess, np.diag(guess)
     
-        return self._coeff
+        return self._coeff_fstar
+        
+    @property
+    def coeff_mtl(self):
+        if not hasattr(self, '_coeff_mtl'):
+            M = []; Lh = []; z = []
+            for i, element in enumerate(self.MofL_tab):
+                z.extend([self.redshifts[i]] * len(element))
+                M.extend(element)
+                Lh.extend(self.LofM_tab[i])
+
+            x = [np.array(M), np.array(z)]
+            y = np.log10(Lh)
+
+            guess = self.guesses
+
+            def to_fit(Mz, *coeff):
+                M, z = Mz
+                return self._log_Lh(z, M, *coeff).flatten()
+    
+            try:
+                self._coeff_mtl, self._cov = \
+                    curve_fit(to_fit, x, y, p0=guess, maxfev=100000)
+            except RuntimeError:
+                self._coeff_mtl, self._cov = guess, np.diag(guess)
+    
+        return self._coeff_mtl
     
     def _fstar_cap(self, fstar):
         if type(fstar) in [float, np.float64]:
@@ -638,7 +740,7 @@ class HAM(object):
                 fMlos.append(fMlo)
                 alphas.append(alpha)
                 
-            has_cutoff = type(self.Mext) in [list, tuple]
+            has_cutoff = type(self.Mext[0]) in [list, tuple]
         
             def tmp(zz, MM, *coeff):
         
@@ -702,73 +804,32 @@ class HAM(object):
     
         return self._fstar_Mlo    
     
-    def __call__(self, z, M, *coeff):
+    def SFE(self, z, M):
         """
         Compute the star-formation efficiency.
         
         If outside the bounds, must extrapolate.
         """
         
-        zok = np.all(self.zlim[0] <= z <= self.zlim[1])
-                        
-        # If we're extrapolating no matter what or we're within the
-        # allowed redshift and mass range, we're done                
-        if (zok or (self.zext == 'continue')) and (self.Mext == 'continue'):
-            return 10**self._log_fstar(z, M, *coeff)
-        
-        ##
-        # OTHERWISE, WE ARE DOING SOME EXTRAPOLATING
-        ##
-        
-        elif (self.Mext == 'continue') and (self.zext[0] == 'const'):
+        if self.fit_fstar:
+            return self.fstar(z, M, *self.coeff)
 
-            if z > self.zext[2]:
-                fst = self.fstar_zhi(M, *coeff)
-            elif z < self.zext[1]:
-                fst = self.fstar_zlo(M, *coeff)
-            else:
-                fst = 10**self._log_fstar(z, M, *coeff)
+        # Otherwise, we fit the mass-to-light ratio
+        eta = np.interp(z, self.halos.z, self.eta)
         
-        # Fit a power-law to the last few points (in mass).
-        # Allow the redshift evolution to do its thing
-        elif self.Mext[0] in ['pl', 'exp']:
-            fst = self.fstar_Mlo(z, M, *coeff)
-        
-        elif (self.Mext[0] == 'floor'):
-            fst = 10**self._log_fstar(z, M, *coeff)
-        elif (self.Mext == 'const') or (self.Mext[0] == 'const'):
-        
-        # Set a constant upper limit for fstar below given mass limit     
-        # Linearly interpolate in redshift to find this limit?
-            #fstar_Mmin = self.fstar_Mlo[0]
-            def tmp(zz, MM):
-                if type(MM) is np.ndarray:
-                    Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
-                        * fstar_Mmin
-                    Mhi = MM[np.argwhere(MM >= fstar_Mmin)]
-                                        
-                    fst_lo = self._fstar_func(zz, Mlo, *self._fstar_coeff)
-                    fst_hi = self._fstar_func(zz, Mhi, *self._fstar_coeff)
-                                        
-                    fst = np.concatenate((fst_lo, fst_hi)).squeeze()
-                    
-                elif MM > 10**self.pf['pop_logM'][0]:
-                    fst = self._fstar_func(zz, MM, *self._fstar_coeff)
-                else:
-                    fst = self._fstar_func(zz, fstar_Mmin, *self._fstar_coeff)
-                    
-        else:
-            raise ValueError('Unknown pop extrap option!')
-
-        return fst
-
+        return self.Lh(z, M, *self.coeff) * self.kappa_UV \
+            / (self.cosm.fbaryon * self.Macc(z, M) * eta)        
+            
     def _log_fstar(self, z, M, *coeff):    
-        if self.Mfunc == self.zfunc == 'logpoly':            
+        
+        if self.Mfunc == self.zfunc == 'poly':            
             logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
                  + coeff[2] * ((1. + z) / 8.) \
                  + coeff[3] * ((1. + z) / 8.) * np.log10(M / 1e10) \
                  + coeff[4] * (np.log10(M / 1e10))**2. \
                  + coeff[5] * (np.log10(M / 1e10))**3.
+                 
+            f = 10**logf
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_z'):
             logM = np.log10(M)
             
@@ -804,8 +865,24 @@ class HAM(object):
                 
         logf = np.log10(f)
             
-        return logf    
-
+        return logf
+        
+    @property
+    def blobs(self):
+        return None
+        
+    def Lh(self, z, M, *coeff):
+        return 10**self._log_Lh(z, M, *coeff) 
+           
+    def _log_Lh(self, z, M, *coeff): 
+        if self.Mfunc == 'pl':
+            return coeff[0] + coeff[1] * np.log10(M / 1e12)
+        elif self.Mfunc == 'schechter':
+            return coeff[0] + coeff[1] * np.log10(M / coeff[2]) - M / coeff[2]
+        elif self.Mfunc == 'poly':
+            return coeff[0] + coeff[1] * np.log10(M / 1e10) \
+                + coeff[2] * (np.log10(M / 1e10))**2 
+    
     @property
     def Npops(self):
         return self.pf.Npops
@@ -834,19 +911,21 @@ class HAM(object):
 
     @property
     def Mfunc(self):
-        return self.pf.pfs[self.pop_id]['pop_fstar_M_func']
+        return self.pf.pfs[self.pop_id]['pop_ham_Mfun']
     
     @property
     def zfunc(self):
-        return self.pf.pfs[self.pop_id]['pop_fstar_z_func']
+        return self.pf.pfs[self.pop_id]['pop_ham_zfun']
     
     @property
     def Mext(self):
-        return self.pf.pfs[self.pop_id]['pop_fstar_M_extrap']
+        return self.pf.pfs[self.pop_id]['pop_ham_Mext'], \
+            self.pf.pfs[self.pop_id]['pop_ham_Mext_par']
         
     @property
     def zext(self):
-        return self.pf.pfs[self.pop_id]['pop_fstar_z_extrap']        
+        return self.pf.pfs[self.pop_id]['pop_ham_zext'], \
+              self.pf.pfs[self.pop_id]['pop_ham_zext_par']
         
     @property
     def Ncoeff(self):
@@ -857,19 +936,45 @@ class HAM(object):
     @property
     def guesses(self):
         if not hasattr(self, '_guesses'):  
-            if self.Mfunc == self.zfunc == 'logpoly':            
-                self._guesses = -1. * np.ones(6) 
-            elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_z'):
-                self._guesses = np.array([0.25, 0.05, 12., 0.05, 0.5, 0.05])
-            elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
-                self._guesses = np.array([0.25, 11., 0.5])
-            elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_t'):
-                self._guesses = np.array([0.25, 0.05, 12., 0.5])
+            if self.fit_fstar:
+                if self.Mfunc == self.zfunc == 'poly':            
+                    self._guesses = -1. * np.ones(6) 
+                elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_z'):
+                    self._guesses = np.array([0.25, 0.05, 12., 0.05, 0.5, 0.05])
+                elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
+                    self._guesses = np.array([0.25, 11., 0.5])
+                elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_t'):
+                    self._guesses = np.array([0.25, 0.05, 12., 0.5])
+                else:
+                    raise NotImplemented('help')
+            elif self.fit_Lh:
+                if self.Mfunc == 'pl':
+                    self._guesses = np.array([26., 1.]) 
+                elif self.Mfunc == 'poly':
+                    self._guesses = np.array([28., 1., 1., 1.])
+                elif self.Mfunc == 'schechter':
+                    self._guesses = np.array([28., 1., 11.5])    
+                else:
+                    raise NotImplemented('help')
             else:
-                raise NotImplemented('help')
+                raise NotImplemented('Unrecognized option!')
     
         return self._guesses    
                  
+    def Mpeak(self, z):
+        """
+        Mass at which SFE peaks.
+        """
+    
+        if self.Mfunc == 'lognormal':
+            return 
+        
+    def fpeak(self, z):
+        """
+        Peak SFE.
+        """
+    
+        if self.Mfunc    
                  
                  
                  

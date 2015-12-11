@@ -121,6 +121,9 @@ def update_blob_names(blob_names, **kwargs):
     
     if sfe.irrelevant:
         return blob_names
+        
+    if blob_names is None:
+        return None
     
     # Add some elements for fstar
     _blob_names = []
