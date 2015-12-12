@@ -867,10 +867,6 @@ class HAM(object):
             
         return logf
         
-    @property
-    def blobs(self):
-        return None
-        
     def Lh(self, z, M, *coeff):
         return 10**self._log_Lh(z, M, *coeff) 
            
@@ -921,18 +917,18 @@ class HAM(object):
     def Mext(self):
         return self.pf.pfs[self.pop_id]['pop_ham_Mext'], \
             self.pf.pfs[self.pop_id]['pop_ham_Mext_par']
-        
+
     @property
     def zext(self):
         return self.pf.pfs[self.pop_id]['pop_ham_zext'], \
               self.pf.pfs[self.pop_id]['pop_ham_zext_par']
-        
+
     @property
     def Ncoeff(self):
         if not hasattr(self, '_Ncoeff'): 
             self._Ncoeff = len(self.guesses)
         return self._Ncoeff
-        
+
     @property
     def guesses(self):
         if not hasattr(self, '_guesses'):  
@@ -958,25 +954,25 @@ class HAM(object):
                     raise NotImplemented('help')
             else:
                 raise NotImplemented('Unrecognized option!')
-    
-        return self._guesses    
-                 
+
+        return self._guesses
+
     def Mpeak(self, z):
         """
         Mass at which SFE peaks.
         """
-    
+
         if self.Mfunc == 'lognormal':
-            return 
-        
-    def fpeak(self, z):
-        """
-        Peak SFE.
-        """
-    
-        if self.Mfunc    
-                 
-                 
+            return
+
+    #def fpeak(self, z):
+    #    """
+    #    Peak SFE.
+    #    """
+    #
+    #    if self.Mfunc    
+
+
                  
                  
                  

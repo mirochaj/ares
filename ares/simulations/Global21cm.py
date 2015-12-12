@@ -12,16 +12,17 @@ Description:
 
 import numpy as np
 from ..util.ReadData import _sort_history
+from ..util.BlobFactory import BlobFactory
 from ..util import ParameterFile, ProgressBar
-from .MultiPhaseMedium import MultiPhaseMedium
 from ..physics.Constants import nu_0_mhz, E_LyA
+from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 
 defaults = \
 {
  'load_ics': True,
 }
 
-class Global21cm:
+class Global21cm(AnalyzeGlobal21cm,BlobFactory):
     def __init__(self, **kwargs):
         """
         Set up a two-zone model for the global 21-cm signal.
@@ -55,17 +56,10 @@ class Global21cm:
     @property
     def medium(self):
         if not hasattr(self, '_medium'):
+            from .MultiPhaseMedium import MultiPhaseMedium
             self._medium = MultiPhaseMedium(**self.kwargs)
         return self._medium
 
-    @property
-    def track(self):
-        # Inline tracking of turning points
-        if not hasattr(self, '_track') and self.pf['track_extrema']:
-            from ..analysis.TurningPoints import TurningPoints
-            self._track = TurningPoints(inline=True, **self.pf)
-        return self._track
-        
     @property
     def pops(self):
         return self.medium.field.pops

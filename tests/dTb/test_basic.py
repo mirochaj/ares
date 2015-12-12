@@ -16,9 +16,7 @@ def test():
 
     sim = ares.simulations.Global21cm()
     sim.run()
-    
-    anl = ares.analysis.Global21cm(sim)
-    ax = anl.GlobalSignature()
+    sim.GlobalSignature()
         
     assert True
     

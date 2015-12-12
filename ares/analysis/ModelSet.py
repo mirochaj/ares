@@ -26,7 +26,6 @@ from ..util import labels as default_labels
 from ..util.Aesthetics import Labeler
 from ..util.PrintInfo import print_model_set
 from .DerivedQuantities import DerivedQuantities as DQ
-from ..simulations.Global21cm import Global21cm as sG21
 from ..util.ParameterFile import count_populations, par_info
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_1D, error_2D, _error_2D_crude, \
@@ -34,7 +33,6 @@ from ..util.Stats import Gauss1D, GaussND, error_1D, error_2D, _error_2D_crude, 
 from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
     tanh_gjah_to_ares
-from ..inference.FitLuminosityFunction import param_redshift
 
 import pickle 
 
@@ -1281,47 +1279,7 @@ class ModelSet(object):
 
         return self._slice_by_nu(pars, z=z, take_log=take_log, bins=bins, 
             like=like, **constraints)
-        
-    def ExamineFailures(self, N=1):
-        """
-        Try to figure out what went wrong with failed models.
-        
-        Picks a random subset of failed models, plots them, and returns
-        the analysis instances associated with each.
-        
-        Parameters
-        ----------
-        N : int
-            Number of failed models to plot.
-            
-        """    
-        
-        kw = self.base_kwargs.copy()
-                
-        Nf = len(self.fails)
-        
-        r = np.arange(Nf)
-        np.random.shuffle(r)
-        
-        ax = None
-        objects = {}
-        for i in range(N):
-            
-            idnum = r[i]
-            
-            p = self.base_kwargs.copy()
-            p.update(self.fails[idnum])
-            
-            sim = sG21(**p)
-            sim.run()
-            
-            anl = aG21(sim)
-            ax = anl.GlobalSignature(label='fail i=%i' % idnum)
-            
-            objects[idnum] = anl
-            
-        return ax, objects
-        
+
     def _prep_plot(self, pars, z=None, take_log=False, multiplier=1.,
         skip=0, skim=1, bins=20):
         """

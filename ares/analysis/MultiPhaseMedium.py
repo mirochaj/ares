@@ -20,11 +20,8 @@ from scipy.optimize import fsolve
 from ..physics.Constants import *
 from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d
-from .TurningPoints import TurningPoints
 from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
-from ..simulations import Global21cm as simG21
-from ..simulations import MultiPhaseMedium as simMPM
 from .DerivedQuantities import DerivedQuantities as DQ
 
 try:
@@ -68,7 +65,7 @@ class DummyDQ(object):
     
 turning_points = ['D', 'C', 'B', 'A']
 
-class MultiPhaseMedium:
+class MultiPhaseMedium(object):
     def __init__(self, data=None, **kwargs):
         """
         Initialize analysis object.
@@ -85,94 +82,74 @@ class MultiPhaseMedium:
             of the (binary/pickled) file containing the parameters.
                 
         """
+        
+        return
                 
-        if isinstance(data, simG21) or isinstance(data, simMPM):
-            self.sim = data
-            self.pf = self.sim.pf
-            history = self.sim.history
-
-            try:
-                self.cosm = self.sim.grid.cosm
-            except AttributeError:
-                self.cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
-                omega_l_0=self.pf["omega_l_0"], 
-                omega_b_0=self.pf["omega_b_0"], 
-                hubble_0=self.pf["hubble_0"], 
-                helium_by_number=self.pf['helium_by_number'], 
-                cmb_temp_0=self.pf["cmb_temp_0"], 
-                approx_highz=self.pf["approx_highz"])
-            
-            try:
-                self.hydr = self.sim.grid.hydr
-            except AttributeError:
-                self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
+        #if isinstance(data, simG21) or isinstance(data, simMPM):
+        #    self.sim = data
+        #    self.pf = self.sim.pf
+        #    history = self.sim.history
+        #
+        #    try:
+        #        self.cosm = self.sim.grid.cosm
+        #    except AttributeError:
+        #        self.cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
+        #        omega_l_0=self.pf["omega_l_0"], 
+        #        omega_b_0=self.pf["omega_b_0"], 
+        #        hubble_0=self.pf["hubble_0"], 
+        #        helium_by_number=self.pf['helium_by_number'], 
+        #        cmb_temp_0=self.pf["cmb_temp_0"], 
+        #        approx_highz=self.pf["approx_highz"])
+        #    
+        #    try:
+        #        self.hydr = self.sim.grid.hydr
+        #    except AttributeError:
+        #        self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
+        
+        if data is None:
+            return
         
         elif type(data) == dict:
             history = data.copy()
             
         # Read output of a simulation from disk
         elif type(data) is str:
+            self._load_data(data)
             
-            try:
-                f = open('%s.history.pkl' % data, 'rb')
-                history = pickle.load(f)
-                f.close()
-                
-                f = open('%s.parameters.pkl' % data, 'rb')
-                self.pf = pickle.load(f)
-                f.close()
-                
-                self.cosm = Cosmology(**self.pf)
-                self.hydr = Hydrogen(**self.pf)
-                
-            except IOError: 
-                if re.search('pkl', data):
-                    f = open(data, 'rb')
-                    history = pickle.load(f)
-                    f.close()
-                else:
-                    f = open(data, 'r')
-                    cols = f.readline().split()[1:]
-                    data = np.loadtxt(f)
-                    
-                    history = {}
-                    for i, col in enumerate(cols):
-                        history[col] = data[:,i]
-                    f.close()
                     
         # If missing parameter file
-        if not hasattr(self, 'pf'):  
-            #print "No parameter file found...setting all to default values."      
-            self.pf = SetAllDefaults()
-            self.cosm = Cosmology()
-            self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
+        #if not hasattr(self, 'pf'):  
+        #    #print "No parameter file found...setting all to default values."      
+        #    self.pf = SetAllDefaults()
+        #    self.cosm = Cosmology()
+        #    self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
             
-        self.data = DummyDQ(pf=self.pf)
+        #self.data = DummyDQ(pf=self.pf)
+        #
+        ## Add history to data
+        #self.data.add_data(history)
 
-        # Add history to data
-        self.data.add_data(history)
-
-        if not hasattr(self, 'data'):
-            raise ValueError('Must supply simulation instance, dict, or file prefix!')
+        #if not hasattr(self, 'data'):
+        #    raise ValueError('Must supply simulation instance, dict, or file prefix!')
 
         self.kwargs = kwargs    
 
         # Add frequencies
-        if 'z' in self.data:
-            self.data['nu'] = nu_0_mhz / (1. + self.data['z'])
+        #if 'z' in self.data:
+        #    self.data['nu'] = nu_0_mhz / (1. + self.data['z'])
 
         # For backward compatibility
-        if 'dTb' in self.data:
-            if 'igm_dTb' not in self.data:
-                self.data['igm_dTb'] = self.data['dTb']
-        elif 'igm_dTb' in self.data:
-            if 'dTb' not in self.data:
-                self.data['dTb'] = self.data['igm_dTb']
+        #if 'dTb' in self.data:
+        #    if 'igm_dTb' not in self.data:
+        #        self.data['igm_dTb'] = self.data['dTb']
+        #elif 'igm_dTb' in self.data:
+        #    if 'dTb' not in self.data:
+        #        self.data['dTb'] = self.data['igm_dTb']
 
         # For convenience - quantities in ascending order (in redshift)
-        data_reorder = {}
-        for key in self.data.keys():
-            data_reorder[key] = np.array(self.data[key])[-1::-1]
+        #data_reorder = {}
+        #for key in self.data.keys():
+        #    data_reorder[key] = np.array(self.data[key])[-1::-1]
         
         # Re-order
         if np.all(np.diff(self.data['z']) > 0):
@@ -185,11 +162,45 @@ class MultiPhaseMedium:
             self.data_asc.add_data(data_reorder)
 
         self.interp = {}
+             
+    def _load_data(self, data):
+        try:
+            f = open('%s.history.pkl' % data, 'rb')
+            history = pickle.load(f)
+            f.close()
+            
+            f = open('%s.parameters.pkl' % data, 'rb')
+            self.pf = pickle.load(f)
+            f.close()
+            
+            self.cosm = Cosmology(**self.pf)
+            self.hydr = Hydrogen(**self.pf)
+            
+        except IOError: 
+            if re.search('pkl', data):
+                f = open(data, 'rb')
+                history = pickle.load(f)
+                f.close()
+            else:
+                f = open(data, 'r')
+                cols = f.readline().split()[1:]
+                data = np.loadtxt(f)
+                
+                history = {}
+                for i, col in enumerate(cols):
+                    history[col] = data[:,i]
+                f.close()  
+                
+        self.history = history       
+                
+    @property
+    def data(self):
+        if not hasattr(self, '_data'):
+            if hasattr(self, 'history'):
+                self._data = DummyDQ(pf=self.pf)
+                self._data.add_data(self.history)
 
-        if hasattr(self, 'pf'):
-            self._track = TurningPoints(**self.pf)
-        else:
-            self._track = TurningPoints()
+        return self._data
                 
     def close(self):
         pl.close('all')            
@@ -317,33 +328,6 @@ class MultiPhaseMedium:
             self._tau_e = self.data['tau_CMB_tot'][z50]
         
         return self._tau_e       
-                
-    @property            
-    def turning_points(self):
-        """
-        Locate turning points.
-        """
-        
-        # Use turning_points from ares.simulations.Global21cm if we've got 'em
-        if isinstance(self.sim, simG21):
-            if hasattr(self.sim, 'turning_points'):
-                return self.sim.turning_points
-        
-        if hasattr(self, '_turning_points'):
-            return self._turning_points
-            
-        # Otherwise, find them. Not the most efficient, but it gets the job done
-        # Redshifts in descending order
-        for i in range(len(self.data['z'])):
-            if i < 10:
-                continue
-            
-            stop = self._track.is_stopping_point(self.data['z'][0:i], 
-                self.data['igm_dTb'][0:i])
-                                
-        self._turning_points = self._track.turning_points
-        
-        return self._turning_points
         
     def add_redshift_axis(self, ax):
         """

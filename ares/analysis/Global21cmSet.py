@@ -14,7 +14,6 @@ import re
 import numpy as np
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
-from ..simulations import Global21cm as sG21
 from ..physics.Constants import J21_num, cm_per_mpc
 from ..util.SetDefaultParameterValues import SetAllDefaults
 
@@ -280,18 +279,18 @@ class Global21cmSet(ModelSet):
             return mp    
 
         # Draw the 120 MHz cutoff for DARE
-        if pts == 'D' or (pts == list('BCD')):
-            mp.grid[4].plot([120]*2, mp.grid[4].get_ylim(), color='k', ls='--')
-            mp.grid[10].plot([120]*2, mp.grid[10].get_ylim(), color='k', ls='--')
-            
-            # Plot saturated limit
-            no_ion = sG21(tanh_model=True, tanh_x0=0., tanh_Tz0=15)
-            nu_gt_100 = no_ion.history['nu'] > 100.0
-            x = no_ion.history['nu'][nu_gt_100]
-            y = no_ion.history['dTb'][nu_gt_100]
-            mp.grid[4].plot(x, y, color='k', ls='--')
-            
-            pl.draw()
+        #if pts == 'D' or (pts == list('BCD')):
+        #    mp.grid[4].plot([120]*2, mp.grid[4].get_ylim(), color='k', ls='--')
+        #    mp.grid[10].plot([120]*2, mp.grid[10].get_ylim(), color='k', ls='--')
+        #    
+        #    # Plot saturated limit
+        #    no_ion = sG21(tanh_model=True, tanh_x0=0., tanh_Tz0=15)
+        #    nu_gt_100 = no_ion.history['nu'] > 100.0
+        #    x = no_ion.history['nu'][nu_gt_100]
+        #    y = no_ion.history['dTb'][nu_gt_100]
+        #    mp.grid[4].plot(x, y, color='k', ls='--')
+        #    
+        #    pl.draw()
             
         return mp    
         

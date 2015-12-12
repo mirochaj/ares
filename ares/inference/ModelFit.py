@@ -19,7 +19,6 @@ from ..util.AbundanceMatching import HAM
 from ..util.ParameterFile import par_info
 import gc, os, sys, copy, types, time, re
 from ..analysis import Global21cm as anlG21
-from ..simulations import Global21cm as simG21
 from ..util.Stats import Gauss1D, GaussND, rebin
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis

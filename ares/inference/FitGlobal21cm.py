@@ -168,14 +168,14 @@ class loglikelihood:
             sim = simG21(**kw)
             sim.run()
             
-            sim.run_inline_analysis()
+            #sim.run_inline_analysis()
             
             tps = sim.turning_points
                                         
         # Timestep weird (happens when xi ~ 1)
         except SystemExit:
             
-            sim.run_inline_analysis()
+            #sim.run_inline_analysis()
             tps = sim.turning_points
                  
         # most likely: no (or too few) turning pts

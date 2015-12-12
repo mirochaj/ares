@@ -14,6 +14,8 @@ import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
+from ..physics.Constants import nu_0_mhz
+from .TurningPoints import TurningPoints
 from ..util.Math import central_difference
 from .MultiPhaseMedium import MultiPhaseMedium
 
@@ -68,51 +70,95 @@ class Global21cm(MultiPhaseMedium):
     @property
     def zB(self):
         if not hasattr(self, '_zB'):
-            self._zB = self.turning_points[0][3]    
+            self._zB = self.turning_points['B'][0]    
         return self._zB
     
     @property
     def zC(self):
         if not hasattr(self, '_zC'):
-            self._zC = self.turning_points[0][2]    
+            self._zC = self.turning_points['C'][0]
         return self._zC
     
     @property
     def zD(self):
         if not hasattr(self, '_zD'):
-            self._zD = self.turning_points[0][1]    
+            self._zD = self.turning_points['D'][0]
         return self._zD
+
+    @property
+    def nuB(self):
+        if not hasattr(self, '_zB'):
+            self._nuB = nu_0_mhz / (1. + self.zB)
+        return self._nuB
+    
+    @property
+    def nuC(self):
+        if not hasattr(self, '_zC'):
+            self._nuC = nu_0_mhz / (1. + self.zC)
+        return self._nuC
+    
+    @property
+    def nuD(self):
+        if not hasattr(self, '_zD'):
+            self._nuD = nu_0_mhz / (1. + self.zD)
+        return self._nuD
     
     @property
     def znull(self):
         if not hasattr(self, '_znull'):
             self._znull = self.locate_null()
         return self._znull
-    
+
     @property
     def TB(self):
         if not hasattr(self, '_TB'):
-            self._TB = self.turning_points[1][3]    
+            self._TB = self.turning_points['B'][1]
         return self._TB
-    
+
     @property
     def TC(self):
         if not hasattr(self, '_TC'):
-            self._TC = self.turning_points[1][2]    
+            self._TC = self.turning_points['C'][1]    
         return self._TC
-    
+
     @property
     def TD(self):
         if not hasattr(self, '_TD'):
-            self._TD = self.turning_points[1][1]    
+            self._TD = self.turning_points['D'][1]
         return self._TD
+    
+    @property
+    def track(self):
+        if not hasattr(self, '_track'):     
+            if hasattr(self, 'pf'):
+                self._track = TurningPoints(**self.pf)
+            else:
+                self._track = TurningPoints()
+        return self._track
+    
+    @property
+    def turning_points(self):
+        if not hasattr(self, '_turning_points'):  
+
+            # Otherwise, find them. Not the most efficient, but it gets the job done
+            # Redshifts in descending order
+            for i in range(len(self.data['z'])):
+                if i < 10:
+                    continue
+            
+                stop = self.track.is_stopping_point(self.data['z'][0:i], 
+                    self.data['igm_dTb'][0:i])
+            
+            self._turning_points = self.track.turning_points
+                        
+        return self._turning_points
     
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=5, scatter=False, xaxis='nu', 
         ymin=None, ymax=50, zmax=None, xscale='linear', **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
-        
+
         Parameters
         ----------
         ax : matplotlib.axes.AxesSubplot instance
@@ -153,7 +199,7 @@ class Global21cm(MultiPhaseMedium):
         else:
             gotax = True
         
-        if scatter is False:        
+        if scatter is False:      
             ax.plot(self.data[xaxis], self.data['igm_dTb'], **kwargs)
         else:
             ax.scatter(self.data[xaxis][-1::-mask], self.data['igm_dTb'][-1::-mask], 

@@ -36,7 +36,7 @@ class TurningPoints(object):
         #if self.pf['initial_redshift'] < 70:
         #    self.TPs.append('A')
             
-        self.turning_points = {}
+        self.turning_points = {}    
         self.found_TP, self.z_TP = False, -99999
         self.Npts = 0    
             
@@ -174,6 +174,5 @@ class TurningPoints(object):
         elif self.found_TP:
             self.Npts += 1
             
-            
         return False
-    
+            

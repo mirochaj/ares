@@ -13,9 +13,8 @@ and analyzing them.
 
 import numpy as np
 import copy, os, gc, re, time
-from ..simulations import Global21cm
 from ..util import GridND, ProgressBar
-from ..analysis.InlineAnalysis import InlineAnalysis
+#from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.ReadData import read_pickle_file, read_pickled_dict
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
@@ -68,8 +67,15 @@ class ModelGrid:
         if 'tanh_model' in self.base_kwargs:
             if self.base_kwargs['tanh_model']:
                 self.tanh = True
-                
+                                
         self.one_file_per_blob = self.base_kwargs['one_file_per_blob']
+        
+    @property
+    def simulator(self):
+        if not hasattr(self, '_simulator'):
+            from ..simulations import Global21cm
+            self._simulator = Global21cm
+        return self._simulator
         
     @property
     def blob_names(self):
@@ -79,7 +85,7 @@ class ModelGrid:
         if 'auto_generate_blobs' in self.base_kwargs:
             kw = self.base_kwargs.copy()
                         
-            sim = Global21cm(**kw)
+            sim = self.simulator(**kw)
             anl = InlineAnalysis(sim)
             
             self._blob_names, self._blob_redshifts = \
@@ -294,7 +300,14 @@ class ModelGrid:
             f = open('%s.binfo.pkl' % prefix, 'wb')
             pickle.dump((self.blob_names, self.blob_redshifts), f)
             f.close()
-
+            
+    @property
+    def simulator(self):
+        if not hasattr(self, '_simulator'):
+            from ..simulations import Global21cm
+            self._simulator = Global21cm
+        return self._simulator
+    
     def run(self, prefix, clobber=False, restart=False, save_freq=500):
         """
         Run model grid, for each realization thru a given turning point.
@@ -427,7 +440,7 @@ class ModelGrid:
 
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
             if i_Tmin not in fcoll.keys() and (not self.tanh):
-                sim = Global21cm(**p)
+                sim = self.simulator(**p)
                 
                 pops = sim.medium.field.sources
                 
@@ -452,10 +465,10 @@ class ModelGrid:
                     'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
                     'dfcolldz%s' % suffix: fcoll[i_Tmin]['dfcolldz%s' % suffix]}
                 p.update(hmf_pars)
-                sim = Global21cm(**p)
+                sim = self.simulator(**p)
                 
             else:
-                sim = Global21cm(**p)
+                sim = self.simulator(**p)
 
             # Run simulation!
             try:
