@@ -22,6 +22,7 @@ from ..analysis import Global21cm as anlG21
 from ..util.Stats import Gauss1D, GaussND, rebin
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
+from ..util.BlobFactory import BlobFactory
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain
@@ -138,7 +139,7 @@ def update_blob_names(blob_names, **kwargs):
             _blob_names.append(blob)
             
     return _blob_names    
-
+    
 class LogPrior:
     def __init__(self, priors, parameters, is_log=None):
         self.pars = parameters  # just names *in order*
@@ -435,7 +436,7 @@ class LogLikelihood:
         
         return logL, blobs
 
-class ModelFit(object):
+class ModelFit(BlobFactory):
     def __init__(self, **kwargs):
         """
         Initialize a wrapper class for MCMC simulations.
@@ -451,6 +452,7 @@ class ModelFit(object):
         self.base_kwargs = def_kwargs.copy()
         self.base_kwargs.update(kwargs)            
         self.one_file_per_blob = self.base_kwargs['one_file_per_blob'] 
+        self.pf = self.base_kwargs
                                             
     @property
     def loglikelihood(self):
@@ -517,28 +519,6 @@ class ModelFit(object):
     def priors(self, value):
         self._priors = value
         
-    #@property
-    #def blob_names(self):
-    #    if not hasattr(self, '_blob_names'):
-    #        self._blob_names = None
-    #
-    #    return self._blob_names
-    #
-    #@blob_names.setter
-    #def blob_names(self, value):
-    #    self._blob_names = value   
-    #
-    #@property
-    #def blob_redshifts(self):
-    #    if not hasattr(self, '_blob_redshifts'):
-    #        self._blob_redshifts = None
-    #
-    #    return self._blob_redshifts
-    #
-    #@blob_redshifts.setter
-    #def blob_redshifts(self, value):
-    #    self._blob_redshifts = value     
-    
     @property
     def nwalkers(self):
         if not hasattr(self, '_nw'):
@@ -806,18 +786,12 @@ class ModelFit(object):
             
             # Blob names and list of redshifts at which to track them
             f = open('%s.binfo.pkl' % self.prefix, 'wb')
-            pickle.dump((self.blob_names, self.blob_redshifts), f)
+            pickle.dump((self.blob_names, self.blob_ivars, self.blob_funcs), f)
             f.close()
             
-            if self.one_file_per_blob:
-                for blob in self.blob_names:
-                    f = open('%s.subset.%s.pkl' % (prefix, blob), 'wb')
-                    f.close()
-            else:
-                f = open('%s.blobs.pkl' % prefix, 'wb')
-                f.close()
-                        
-        # Blob-info "binfo" file will be written by likelihood
+            #for blob in self.blob_names:
+            #    f = open('%s.subset.%s.pkl' % (prefix, blob), 'wb')
+            #    f.close()
         
         # Parameter names and list saying whether they are log10 or not
         f = open('%s.pinfo.pkl' % prefix, 'wb')
@@ -951,7 +925,7 @@ class ModelFit(object):
             
             data = [flatten_chain(np.array(pos_all)),
                     flatten_logL(np.array(prob_all)),
-                    flatten_blobs(np.array(blobs_all))]
+                    blobs]
 
             for i, suffix in enumerate(['chain', 'logL', 'blobs']):
             
@@ -962,21 +936,27 @@ class ModelFit(object):
                 fn = '%s.%s.pkl' % (prefix, suffix)                
                                 
                 if suffix == 'blobs':
-                    if self.one_file_per_blob:
-                        for j, blob in enumerate(self.blob_names):
-                            barr = np.array(data[i])[:,:,j]
-                            bfn = '%s.subset.%s.pkl' % (self.prefix, blob)
-                            with open(bfn, 'ab') as f:
-                                pickle.dump(barr, f)                        
-                    else:
-                        with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
-                            pickle.dump(data[i], f)
                     
-                    continue
-
-                f = open(fn, 'ab')
-                pickle.dump(data[i], f)
-                f.close()
+                    
+                    pass
+                    
+                    
+                    
+                    #if self.one_file_per_blob:
+                    #    for j, blob in enumerate(self.blob_names):
+                    #        barr = np.array(data[i])[:,:,j]
+                    #        bfn = '%s.subset.%s.pkl' % (self.prefix, blob)
+                    #        with open(bfn, 'ab') as f:
+                    #            pickle.dump(barr, f)                        
+                    #else:
+                    #    with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
+                    #        pickle.dump(data[i], f)
+                    
+                    #continue
+                else:
+                    f = open(fn, 'ab')
+                    pickle.dump(data[i], f)
+                    f.close()
 
             # This is a running total already so just save the end result 
             # for this set of steps
@@ -1002,3 +982,14 @@ class ModelFit(object):
         if rank == 0:
             print "Finished on %s" % (time.ctime())
     
+    def write_blobs(self, blobs):
+        """
+        
+        """
+        
+        blobs_by_group = []
+        
+        fn = '%s.group_%s'
+        
+        
+        

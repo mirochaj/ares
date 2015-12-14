@@ -28,8 +28,9 @@ class BlobFactory(object):
     def _parse_blobs(self):
         names = self.pf['blob_names']
         if names is None:
-            self._blob_names = None
-            self._blob_dims = None
+            self._blob_names = self._blob_ivars = None
+            self._blob_dims = self._blob_nd = None
+            self._blob_funcs = None
             return None
         else:
             # Otherwise, figure out how many different kinds (shapes) of
@@ -58,6 +59,12 @@ class BlobFactory(object):
                     self._blob_funcs.append([None] * len(element))
                 else:
                     self._blob_funcs.append(self.pf['blob_funcs'][i])
+    
+    @property
+    def blob_groups(self):
+        if not hasattr(self, '_blob_groups'):
+            self._blob_groups = len(self.blob_nd)
+        return self._blob_nd
                 
     @property
     def blob_nd(self):    

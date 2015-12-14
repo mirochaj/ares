@@ -165,7 +165,7 @@ class loglikelihood:
         kw.update(kwargs)
 
         try:
-            sim = simG21(**kw)
+            sim = self.sim = simG21(**kw)
             sim.run()
             
             #sim.run_inline_analysis()
@@ -185,12 +185,12 @@ class loglikelihood:
         #        f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
         #        pickle.dump(kwargs, f)
         #        f.close()
-        #                    
+        #
         #    del sim, kw, f
         #    gc.collect()
         #
         #    return -np.inf, self.blank_blob
-                
+
         # Apply priors to blobs
         blob_vals = []
         for key in self.logprior_B.priors:
@@ -212,12 +212,12 @@ class loglikelihood:
 
             # emcee will crash if this returns NaN
             if np.isnan(lp):
-                return -np.inf, self.blank_blob
+                return -np.inf, {}#self.blank_blob
 
-        if hasattr(sim, 'blobs'):
-            blobs = sim.blobs
-        else:
-            blobs = self.blank_blob    
+        #if hasattr(sim, 'blobs'):
+        #    blobs = sim.blobs
+        #else:
+        #    blobs = self.blank_blob    
 
         #if (not self.turning_points) and (not self.fit_signal):
         #    del sim, kw
@@ -244,22 +244,11 @@ class loglikelihood:
         if np.any(np.isnan(yarr)):
             return -np.inf, self.blank_blob
         
-        # Compute log-likelihood, including prior knowledge
-        #if self.is_cov:
-        #    a = (xarr - self.mu).T
-        #    b = np.dot(self.icov, xarr - self.mu)
-        #    
-        #    logL = lp - 0.5 * np.dot(a, b)
-        #
-        #else:
-        logL = lp \
-            - np.sum((yarr - self.ydata)**2 / 2. / self.error**2)
+        logL = lp - 0.5 * (np.sum(yarr - self.ydata)**2 \
+                / 2. / self.error**2 + np.log(2. * np.pi * self.error**2))
         
-        if blobs != {}:                
-            if blobs.shape != self.blank_blob.shape:
-                msg = 'Shape mismatch between requested blobs and actual blobs!'
-                raise ValueError(msg)    
-            
+        blobs = sim.blobs
+                    
         del sim, kw
         gc.collect()
         
@@ -278,7 +267,7 @@ class FitGlobal21cm(ModelFit):
         """
         
         ModelFit.__init__(self, **kwargs)
-        self._prep_blobs()
+        #self._prep_blobs()
         
     @property
     def loglikelihood(self):
@@ -330,31 +319,29 @@ class FitGlobal21cm(ModelFit):
         
     @data.setter
     def data(self, value):
-        if type(value) == dict:
-            
+        if type(value) == dict:            
             kwargs = value.copy()
             kwargs.update(def_kwargs)
             
             sim = simGlobal21cm(**kwargs)
             sim.run()
 
-            anl = anlGlobal21cm(sim)
-            self.anl = anl
             self.sim = sim
 
-            if self.turning_points:
-                z = [anl.turning_points[tp][0] for tp in anl.turning_points]
-                T = [anl.turning_points[tp][1] for tp in anl.turning_points]
-                                
-                ModelFit.xdata = np.array(z)
-                ModelFit.ydata = np.array(T)
-                
-                self._data = np.array(z + T)
-
-            else:
-                raise NotImplemented('help!')                
+        elif isinstance(value, simGlobal21cm):
+            sim = self.sim = value                   
         else:
             raise NotImplemented('help!')
+            
+        if self.turning_points:
+            z = [sim.turning_points[tp][0] for tp in self.turning_points]
+            T = [sim.turning_points[tp][1] for tp in self.turning_points]
+                         
+            nu = nu_0_mhz / (1. + np.array(z))
+            ModelFit.xdata = nu
+            ModelFit.ydata = np.array(T)
+            
+            self._data = np.array(list(nu) + T)    
 
     @property
     def error(self):
@@ -372,58 +359,62 @@ class FitGlobal21cm(ModelFit):
             self._error = np.array(nu + T)
             
         else:
-            raise NotImplemented('help')
-            
-    def _prep_blobs(self):
-        """
-        
-        """                        
-        if 'gaussian_model' in self.base_kwargs:
-            if self.base_kwargs['gaussian_model']:
-                return
-        
-        if 'inline_analysis' in self.base_kwargs:
-            self.blob_names, self.blob_redshifts = \
-                self.base_kwargs['inline_analysis']
-        
-        elif 'auto_generate_blobs' in self.base_kwargs:            
-            if self.base_kwargs['auto_generate_blobs'] == True:
-                kw = self.base_kwargs.copy()
-
-                sim = simG21(**kw)
-                anl = InlineAnalysis(sim)
-
-                self.blob_names, self.blob_redshifts = \
-                    anl.generate_blobs()
+            if hasattr(self, '_data'):
+                assert len(value) == len(self.data), \
+                    "Data and errors must have same shape!"
                 
-                del sim, anl
-                gc.collect()
-                self.base_kwargs['inline_analysis'] = \
-                    (self.blob_names, self.blob_redshifts)
-                self.base_kwargs['auto_generate_blobs'] = False
-            elif self.base_kwargs['auto_generate_blobs'] == 'default':
-                self.blob_names = _blob_names
-                self.blob_redshifts = _blob_redshifts
-        
-        elif hasattr(self, 'blob_names'):
-            self.base_kwargs['inline_analysis'] = \
-                (self.blob_names, self.blob_redshifts)
-        else:
-            self.blob_names = self.blob_redshifts = None
-
-        if self.blob_redshifts is not None:
-                    
-            TPs = 0
-            for z in self.blob_redshifts:
-                if z in list('BCD'):
-                    TPs += 1
+            self._error = value
             
-            if self.turning_points:  
-                msg = 'Fitting won\'t work if no turning points are provided.'
-                assert TPs > 0, msg
-            
-        self.one_file_per_blob = self.base_kwargs['one_file_per_blob']        
-            
+    #def _prep_blobs(self):
+    #    """
+    #    
+    #    """                        
+    #    if 'gaussian_model' in self.base_kwargs:
+    #        if self.base_kwargs['gaussian_model']:
+    #            return
+    #    
+    #    if 'inline_analysis' in self.base_kwargs:
+    #        self.blob_names, self.blob_redshifts = \
+    #            self.base_kwargs['inline_analysis']
+    #    
+    #    elif 'auto_generate_blobs' in self.base_kwargs:            
+    #        if self.base_kwargs['auto_generate_blobs'] == True:
+    #            kw = self.base_kwargs.copy()
+    #
+    #            sim = simG21(**kw)
+    #            anl = InlineAnalysis(sim)
+    #
+    #            self.blob_names, self.blob_redshifts = \
+    #                anl.generate_blobs()
+    #            
+    #            del sim, anl
+    #            gc.collect()
+    #            self.base_kwargs['inline_analysis'] = \
+    #                (self.blob_names, self.blob_redshifts)
+    #            self.base_kwargs['auto_generate_blobs'] = False
+    #        elif self.base_kwargs['auto_generate_blobs'] == 'default':
+    #            self.blob_names = _blob_names
+    #            self.blob_redshifts = _blob_redshifts
+    #    
+    #    elif hasattr(self, 'blob_names'):
+    #        self.base_kwargs['inline_analysis'] = \
+    #            (self.blob_names, self.blob_redshifts)
+    #    else:
+    #        self.blob_names = self.blob_redshifts = None
+    #
+    #    if self.blob_redshifts is not None:
+    #                
+    #        TPs = 0
+    #        for z in self.blob_redshifts:
+    #            if z in list('BCD'):
+    #                TPs += 1
+    #        
+    #        if self.turning_points:  
+    #            msg = 'Fitting won\'t work if no turning points are provided.'
+    #            assert TPs > 0, msg
+    #        
+    #    self.one_file_per_blob = self.base_kwargs['one_file_per_blob']        
+    #        
     def _check_for_conflicts(self):
         """
         Hacky at the moment. Preventative measure against is_log=True for

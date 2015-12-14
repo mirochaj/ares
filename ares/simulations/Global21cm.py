@@ -52,6 +52,10 @@ class Global21cm(AnalyzeGlobal21cm,BlobFactory):
         if not hasattr(self, '_pf'):
             self._pf = ParameterFile(**self.kwargs)
         return self._pf
+        
+    @pf.setter
+    def pf(self, value):
+        self._pf = value
 
     @property
     def medium(self):
@@ -127,9 +131,9 @@ class Global21cm(AnalyzeGlobal21cm,BlobFactory):
             nu =  nu_0_mhz / (1. + z)   
         
         if is_gauss:
-            self.history = model(nu, **self.pf).data    
+            self.history = model(nu, **self.pf)    
         else:
-            self.history = model(z, **self.pf).data    
+            self.history = model(z, **self.pf)
 
         return True
         

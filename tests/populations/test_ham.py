@@ -28,11 +28,10 @@ pars = \
  'pop_constraints': 'bouwens2015',
  'pop_lf_z': [4.9, 5.9, 6.9, 7.9],
  'pop_kappa_UV': 1.15e-28,
- 'pop_fstar_M_func': 'lognormal',
- 'pop_fstar_z_func': 'linear_t',
- 'pop_fstar_M_extrap': 'continue',
- 'pop_fstar_z_extrap': 'continue', #('const', 3., 15.),
- 'pop_fstar_ceil': 0.5,
+ 'pop_ham_Mfun': 'lognormal',
+ 'pop_ham_zfun': 'linear_t',
+ 'pop_ham_Mext': None,
+ 'pop_ham_zext': None,
  
  # Dust
  'pop_lf_dustcorr': True,

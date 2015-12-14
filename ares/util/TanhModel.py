@@ -16,7 +16,7 @@ from ..util import ParameterFile
 from scipy.misc import derivative
 from ..util.ReadData import _load_inits
 from ..physics import Hydrogen, Cosmology
-from ..analysis.Global21cm import Global21cm
+#from ..analysis.Global21cm import Global21cm
 from ..physics.Constants import k_B, J21_num, nu_0_mhz
 from ..physics.RateCoefficients import RateCoefficients
 from ..util.SetDefaultParameterValues import TanhParameters
@@ -57,7 +57,7 @@ class TanhModel:
             approx_highz=self.pf["approx_highz"])
         
         # Create instance of Hydrogen class
-        self.hydr = Hydrogen(cosm=self.cosm, **self.pf['approx_Salpha'])
+        self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
 
         if self.pf['load_ics']:
             CR = _load_inits()
@@ -208,6 +208,6 @@ class TanhModel:
          'cgm_Gamma_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
         }
 
-        tmp = Global21cm(data=hist)    
+        #tmp = Global21cm(data=hist)    
 
-        return tmp
+        return hist

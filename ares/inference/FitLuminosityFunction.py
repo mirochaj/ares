@@ -446,16 +446,16 @@ class FitLuminosityFunction(FitGlobal21cm):
         data = read_lit(value)
         fits = data.fits['lf']
         z = data.redshifts
-        
+
         jitter = []
         guesses = []
         for i, par in enumerate(self.parameters):
             prefix, popid, popz = par_info(par)
-            
+
             # Will never be log (?) for now, anyways
             if re.search('pop_lf', prefix):
                 name = prefix.replace('pop_lf_', '')
-                
+
                 if self.is_log[i]:
                     err = fits['err'][name][z.index(popz)]
                     val = fits['pars'][name][z.index(popz)]
