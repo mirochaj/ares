@@ -21,6 +21,7 @@ from .MultiPlot import MultiPanel
 import re, os, string, time, glob
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
+from ..util.BlobFactory import BlobFactory
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
 from ..util.Aesthetics import Labeler
@@ -83,7 +84,7 @@ class ModelSubSet(object):
     def __init__(self):
         pass
 
-class ModelSet(object):
+class ModelSet(BlobFactory):
     def __init__(self, data, subset=None, verbose=True):
         """
         Parameters
@@ -243,20 +244,20 @@ class ModelSet(object):
 
         return mask, blobs
         
-    @property
-    def data(self):
-        if not hasattr(self, '_data'):
-            self._data = {}
-            f = open('%s.data.pkl' % self.prefix, 'rb')
-            x, y, z, err = pickle.load(f)
-            f.close()
-            
-            self._data['x'] = x
-            self._data['y'] = y
-            self._data['err'] = err
-            self._data['z'] = z
-            
-        return self._data
+    #@property
+    #def data(self):
+    #    if not hasattr(self, '_data'):
+    #        self._data = {}
+    #        f = open('%s.data.pkl' % self.prefix, 'rb')
+    #        x, y, z, err = pickle.load(f)
+    #        f.close()
+    #        
+    #        self._data['x'] = x
+    #        self._data['y'] = y
+    #        self._data['err'] = err
+    #        self._data['z'] = z
+    #        
+    #    return self._data
 
     @property
     def load(self):
@@ -267,6 +268,10 @@ class ModelSet(object):
                 self._load = None
 
         return self._load
+
+    @property
+    def pf(self):
+        return self.base_kwargs
 
     @property
     def base_kwargs(self):
@@ -335,146 +340,158 @@ class ModelSet(object):
         
         return self._facc
             
-    @property
-    def blob_names(self):
-        if not hasattr(self, '_blob_names'):
-            self._blob_names, self._blob_redshifts = \
-                self._determine_blob_properties()
-            #if os.path.exists('%s.binfo.pkl' % self.prefix):
-            #    f = open('%s.binfo.pkl' % self.prefix, 'rb')
-            #    self._blob_names, self._blob_redshifts = \
-            #        map(list, pickle.load(f))
-            #    f.close()
-                
-        return self._blob_names
-    
-    @property
-    def blob_redshifts(self):
-        if not hasattr(self, '_blob_redshifts'):
-            self._blob_names, self._blob_redshifts = \
-                self._determine_blob_properties()
-            #if os.path.exists('%s.binfo.pkl' % self.prefix):
-            #    f = open('%s.binfo.pkl' % self.prefix, 'rb')
-            #    junk, self._blob_redshifts = \
-            #        map(list, pickle.load(f))
-            #    f.close()
-        
-        return self._blob_redshifts
+    #@property
+    #def blob_names(self):
+    #    if not hasattr(self, '_blob_names'):
+    #        self._determine_blob_properties()
+    #
+    #    return self._blob_names
+    #
+    #@property
+    #def blob_ivars(self):
+    #    if not hasattr(self, '_blob_redshifts'):
+    #        self._determine_blob_properties()
+    #
+    #    return self._blob_ivars
+    #    
+    #@property
+    #def blob_nd(self):
+    #    if not hasattr(self, '_blob_redshifts'):
+    #        self._determine_blob_properties()
+    #
+    #    return self._blob_nd
 
-    def _determine_blob_properties(self):
-        """
-        Figure out blob names and redshifts.
-        """
-        
-        subset = None
-        
+    #def _determine_blob_properties(self):
+    #    """
+    #    Figure out blob names and redshifts.
+    #    """
+    #    
+    #    if os.path.exists('%s.binfo.pkl' % self.prefix):
+    #        f = open('%s.binfo.pkl' % self.prefix, 'rb')
+    #        self._blob_names, self._blob_ivars, self._blob_funcs = \
+    #            map(list, pickle.load(f))
+    #        f.close()
+    #        
+    #        self._blob_nd = []
+    #        self._blob_dims = []
+    #        self._blob_funcs = []
+    #        try:
+    #            self._blob_nd.append(len(np.shape(self._blob_ivars[i])))
+    #            self._blob_dims.append(np.shape(self._blob_ivars[i]))
+    #        except:
+    #            # Scalars!
+    #            self._blob_nd.append(0)
+    #            self._blob_dims.append(0)
+    #    
+    #    #subset = None
+    #    
         # Read in only a subset of all (in principle) available blobs
-        if (self.subset is not None) or (not self.have_all_blobs):
-        
-            # Search file system for subset.*.pkl files
-            if self.subset is not None:
-                subset = self.subset
-            elif self.subset == 'all' or (not self.have_all_blobs):
-                subset = []
-                for path in ['.', self.path]:
-                    to_search = '%s/%s.subset.*' % (path, self.fn)
-                    for fn in glob.glob(to_search):
-                        blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
-        
-                        if blob not in subset:
-                            subset.append(blob)              
-            else:
-                subset = None
+        #if (self.subset is not None) or (not self.have_all_blobs):
+        #
+        #    # Search file system for subset.*.pkl files
+        #    if self.subset is not None:
+        #        subset = self.subset
+        #    elif self.subset == 'all' or (not self.have_all_blobs):
+        #        subset = []
+        #        for path in ['.', self.path]:
+        #            to_search = '%s/%s.subset.*' % (path, self.fn)
+        #            for fn in glob.glob(to_search):
+        #                blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
+        #
+        #                if blob not in subset:
+        #                    subset.append(blob)              
+        #    else:
+        #        subset = None
+        #        
+        #    if (subset is not None) and (subset != []):
+        #    
+        #        if type(subset) not in [list, tuple]:
+        #            subset = [subset]
+        #        
+        #if os.path.exists('%s.binfo.pkl' % self.prefix):
+        #    f = open('%s.binfo.pkl' % self.prefix, 'rb')
+        #    all_blob_names, self._blob_redshifts = \
+        #        map(list, pickle.load(f))
+        #    f.close()
+        #   
+        #if subset is None or (subset == []):
+        #    self._blob_names = all_blob_names
+        #else:
+        #    self._blob_names = subset
                 
-            if (subset is not None) and (subset != []):
-            
-                if type(subset) not in [list, tuple]:
-                    subset = [subset]
-                
-        if os.path.exists('%s.binfo.pkl' % self.prefix):
-            f = open('%s.binfo.pkl' % self.prefix, 'rb')
-            all_blob_names, self._blob_redshifts = \
-                map(list, pickle.load(f))
-            f.close()
-           
-        if subset is None or (subset == []):
-            self._blob_names = all_blob_names
-        else:
-            self._blob_names = subset
-                
-        return self._blob_names, self._blob_redshifts
+        #return self._blob_names, self._blob_ivars, self._blob_funcs
 
-    @property
-    def blobs(self):
-        if not hasattr(self, '_blobs'):
-            # Read in individual blob files
-            if (self.subset is not None) or (not self.have_all_blobs):
-                if self.subset is not None:
-                    subset = self.subset
-                elif self.subset == 'all' or (not self.have_all_blobs):
-                    subset = []
-                    for path in ['.', self.path]:
-                        to_search = '%s/%s.subset.*' % (path, self.fn)
-                        for fn in glob.glob(to_search):
-                            blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
-            
-                            if blob not in subset:
-                                subset.append(blob)
-                else:
-                    subset = None
-            
-                if (subset is not None) and (subset != []):
-            
-                    if type(subset) not in [list, tuple]:
-                        subset = [subset]
-                    
-                    self._blob_names = subset                        
-                    mask, blobs = self._load_subset()
-                    
-                    self.mask = np.zeros_like(blobs)
-                    self.mask[np.isinf(blobs)] = 1
-                    self.mask[np.isnan(blobs)] = 1
-                    self._blobs = np.ma.array(blobs, mask=self.mask)
-                    
-            elif os.path.exists('%s.blobs.hdf5' % self.prefix) and have_h5py:
-                t1 = time.time()
-                f = h5py.File('%s.blobs.hdf5' % self.prefix, 'r')
-                bs = f['blobs'].value
-                self._blobs = np.ma.masked_array(bs, mask=f['mask'].value)
-                f.close()
-                t2 = time.time()    
-                
-                if rank == 0:
-                    print "Loaded %s.blobs.hdf5 in %.2g seconds.\n" \
-                     % (self.prefix, t2 - t1)
-            
-            elif os.path.exists('%s.blobs.pkl' % self.prefix):
-                
-                try:
-                    if rank == 0:
-                        print "Loading %s.blobs.pkl..." % self.prefix
-                    
-                    t1 = time.time()
-                    blobs = read_pickle_file('%s.blobs.pkl' % self.prefix)
-                    t2 = time.time()    
-                        
-                    if rank == 0:
-                        print "Loaded %s.blobs.pkl in %.2g seconds.\n" \
-                         % (self.prefix, t2 - t1)
-                        
-                    self._mask = np.zeros_like(blobs)    
-                    self._mask[np.isinf(blobs)] = 1
-                    self._mask[np.isnan(blobs)] = 1
-                    self._blobs = np.ma.masked_array(blobs, mask=self._mask)
-                    
-                except:
-                    if rank == 0:
-                        print "WARNING: Error loading blobs."    
-        
-            else:
-                self._blobs = None            
-
-        return self._blobs
+    #@property
+    #def blobs(self):
+    #    if not hasattr(self, '_blobs'):
+    #        # Read in individual blob files
+    #        if (self.subset is not None) or (not self.have_all_blobs):
+    #            if self.subset is not None:
+    #                subset = self.subset
+    #            elif self.subset == 'all' or (not self.have_all_blobs):
+    #                subset = []
+    #                for path in ['.', self.path]:
+    #                    to_search = '%s/%s.subset.*' % (path, self.fn)
+    #                    for fn in glob.glob(to_search):
+    #                        blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
+    #        
+    #                        if blob not in subset:
+    #                            subset.append(blob)
+    #            else:
+    #                subset = None
+    #        
+    #            if (subset is not None) and (subset != []):
+    #        
+    #                if type(subset) not in [list, tuple]:
+    #                    subset = [subset]
+    #                
+    #                self._blob_names = subset                        
+    #                mask, blobs = self._load_subset()
+    #                
+    #                self.mask = np.zeros_like(blobs)
+    #                self.mask[np.isinf(blobs)] = 1
+    #                self.mask[np.isnan(blobs)] = 1
+    #                self._blobs = np.ma.array(blobs, mask=self.mask)
+    #                
+    #        elif os.path.exists('%s.blobs.hdf5' % self.prefix) and have_h5py:
+    #            t1 = time.time()
+    #            f = h5py.File('%s.blobs.hdf5' % self.prefix, 'r')
+    #            bs = f['blobs'].value
+    #            self._blobs = np.ma.masked_array(bs, mask=f['mask'].value)
+    #            f.close()
+    #            t2 = time.time()    
+    #            
+    #            if rank == 0:
+    #                print "Loaded %s.blobs.hdf5 in %.2g seconds.\n" \
+    #                 % (self.prefix, t2 - t1)
+    #        
+    #        elif os.path.exists('%s.blobs.pkl' % self.prefix):
+    #            
+    #            try:
+    #                if rank == 0:
+    #                    print "Loading %s.blobs.pkl..." % self.prefix
+    #                
+    #                t1 = time.time()
+    #                blobs = read_pickle_file('%s.blobs.pkl' % self.prefix)
+    #                t2 = time.time()    
+    #                    
+    #                if rank == 0:
+    #                    print "Loaded %s.blobs.pkl in %.2g seconds.\n" \
+    #                     % (self.prefix, t2 - t1)
+    #                    
+    #                self._mask = np.zeros_like(blobs)    
+    #                self._mask[np.isinf(blobs)] = 1
+    #                self._mask[np.isnan(blobs)] = 1
+    #                self._blobs = np.ma.masked_array(blobs, mask=self._mask)
+    #                
+    #            except:
+    #                if rank == 0:
+    #                    print "WARNING: Error loading blobs."    
+    #    
+    #        else:
+    #            self._blobs = None            
+    #
+    #    return self._blobs
         
     #def _load_blob(self, blob):
     #    
@@ -2597,34 +2614,28 @@ class ModelSet(object):
             np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
         ax.plot(np.log10([val[0] * width, val[0] * width]), 
             np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
-
-    def extract_blob(self, name, z=None):
-        """
-        Extract a 1-D array of values for a given quantity at a given redshift.
-        """
-        
-        if z is None:
-            z = self.blob_redshifts[0]
-
-        # Otherwise, we've got a meta-data blob
-        try:
-            i = self.blob_redshifts.index(z)
-        except ValueError:
             
-            ztmp = []
-            for redshift in self.blob_redshifts_float:
-                if redshift is None:
-                    ztmp.append(None)
-                else:
-                    ztmp.append(round(redshift, 1))    
+    def extract_blob(self, name, x=None):
+        """
+        Extract a 1-D array of values for a given quantity.
+        
+        Parameters
+        ----------
+        name : str
+            Name of quantity
+        x : list, tuple, array
+            Independent variables a given blob may depend on.
+            
+        """
                 
-            i = ztmp.index(round(z, 1))
-
-        if name in self.blob_names:
-            j = self.blob_names.index(name)            
-            return self.blobs[:,i,j]
-        else:
-            return self.derived_blobs[name][:,i]
+        i, j, nd, dims = self.blob_info(name)
+        blob = self.get_blob_from_disk(name)
+        
+        if nd == 0:
+            return blob
+        elif nd == 1:
+            k = list(self.blob_ivars[i]).index(x)
+            return blob[:,k]
     
     def max_likelihood_parameters(self):
         """

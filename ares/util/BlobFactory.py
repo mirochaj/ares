@@ -11,7 +11,11 @@ Description:
 """
 
 import numpy as np
-from ..util.ParameterFile import ParameterFile
+
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 class BlobFactory(object):
     """
@@ -100,12 +104,15 @@ class BlobFactory(object):
     def blobs(self):
         if not hasattr(self, '_blobs'):
             self._generate_blobs()    
-
+    
         return self._blobs
 
     def _generate_blobs(self):
         """
         Create a list of blobs, one per blob group.
+        
+        ..note:: This should only be run for individual simulations,
+            not in the analysis of MCMC data.
         
         Returns
         -------
@@ -145,43 +152,65 @@ class BlobFactory(object):
                 
             self._blobs.append(np.array(this_group))
             
-    def old(self):    
-        if self.pf['track_extrema']:
-            if hasattr(self, 'track'):
-                self.turning_points = self.track.turning_points
-            else:
-                from ..analysis.InlineAnalysis import InlineAnalysis
-                anl = InlineAnalysis(self)
-                self.turning_points = anl.turning_points
+    @property 
+    def data(self):
+        if not hasattr(self, '_data'):
+            self._data = {}
+        return self._data
     
-                self.blobs = anl.blobs
-                self.blob_names, self.blob_redshifts = \
-                    anl.blob_names, anl.blob_redshifts
+    @data.setter
+    def data(self, value):
+        self._data.update(value)    
     
-                return
+    def get_blob_from_disk(self, name):
+        return self.__getitem__(name)
     
-        if (self.pf['inline_analysis'] is None) and \
-           (self.pf['auto_generate_blobs'] == False):
-            return
-    
-        elif self.pf['inline_analysis'] is not None:
-            self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
-    
-        # Get da blobs
-        from ..analysis.InlineAnalysis import InlineAnalysis
-        anl = InlineAnalysis(self)  
-        anl.run_inline_analysis()      
-        self.blobs = anl.blobs
-    
-        self.anl = anl
-    
-        # Just arrayify history elements if they aren't already arrays
-        tmp = {}
-        for key in self.history:
-            if type(self.history[key]) is list:
-                tmp[key] = np.array(self.history[key])
-            else:
-                tmp[key] = self.history[key]
-    
-        self.history = tmp
+    def __getitem__(self, name):
+        if name in self.data:
+            return self.data[name]
         
+        return self._get_item(name)
+    
+    def blob_info(self, name):
+        found = False
+        for i, group in enumerate(self.blob_names):
+            for j, element in enumerate(group):
+                if element == name:
+                    found = True
+                    break            
+            if element == name:
+                break
+                
+        if not found:
+            raise KeyError('Blob %s not found.' % name)        
+                
+        return i, j, self.blob_nd[i], self.blob_dims[i]
+    
+    def _get_item(self, name):
+        
+        i, j, nd, dims = self.blob_info(name)
+    
+        fn = "%s.blob_%id.%s.pkl" % (self.prefix, nd, name)
+        
+        f = open(fn, 'rb')
+    
+        all_data = []
+        while True:
+            try:
+                data = pickle.load(f)
+            except EOFError:
+                break
+    
+            all_data.extend(data)
+    
+        all_data = np.array(all_data)
+        
+        mask = np.logical_not(np.isfinite(all_data))
+        masked_data = np.ma.array(all_data, mask=mask)
+        
+        self.data = {name: masked_data}
+        
+        return masked_data
+    
+    
+    
