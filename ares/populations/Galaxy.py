@@ -28,6 +28,7 @@ from scipy.integrate import quad, simps
 from ..util.AbundanceMatching import HAM
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
+from ..util.BlobFactory import BlobFactory
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz
@@ -107,7 +108,7 @@ def normalize_sed(pop):
 
     return energy_per_sfr
 
-class GalaxyPopulation(HaloPopulation):
+class GalaxyPopulation(HaloPopulation,BlobFactory):
     def __init__(self, **kwargs):
         """
         Initializes a GalaxyPopulation object (duh).

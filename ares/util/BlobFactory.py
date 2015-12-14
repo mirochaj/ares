@@ -10,12 +10,45 @@ Description:
 
 """
 
+import re
 import numpy as np
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
+    
+def get_k(s):
+    m = re.search(r"\[(\d+(\.\d*)?)\]", s)
+    return int(m.group(1))
+    
+def parse_attribute(blob_name, obj_base):
+            
+    attr_split = blob_name.split('.')
+
+    if len(attr_split) == 1: 
+        s = attr_split[0]
+        if re.search('\[', s):     
+            k = get_k(s)
+            return obj_base.__getattribute__(s[0:s.rfind('[')])[k]
+        else:
+            return obj_base.__getattribute__(s)
+        
+    # Nested attribute
+    obj_list = [obj_base]
+    for i in range(len(attr_split)):
+        s = attr_split[i]    
+        
+        if re.search('\[', s): 
+            k = get_k(s)
+            blob = obj_list[i].__getattribute__(s[0:s.rfind('[')])[k]
+            break
+        else:
+            new_obj = obj_list[i].__getattribute__(s)
+                                        
+        obj_list.append(new_obj)
+        
+    return blob
 
 class BlobFactory(object):
     """
@@ -30,7 +63,11 @@ class BlobFactory(object):
     """
     
     def _parse_blobs(self):
-        names = self.pf['blob_names']
+        try:
+            names = self.pf['blob_names']
+        except KeyError:
+            names = None
+            
         if names is None:
             self._blob_names = self._blob_ivars = None
             self._blob_dims = self._blob_nd = None
@@ -131,15 +168,15 @@ class BlobFactory(object):
                         
             this_group = []
             for j, key in enumerate(element):
-                
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is not None:
                         raise NotImplemented('help!')
                     else:
                         # Assume blob name is the attribute
-                        blob = self.__getattribute__(key)
-                
+                        #blob = self.__getattribute__(key)
+                        blob = parse_attribute(key, self)
+                    
                 # 1-D blobs. Assume the independent variable is redshift.
                 elif self.blob_nd[i] == 1:
                     z = self.blob_ivars[i]
@@ -153,21 +190,21 @@ class BlobFactory(object):
             self._blobs.append(np.array(this_group))
             
     @property 
-    def data(self):
-        if not hasattr(self, '_data'):
-            self._data = {}
-        return self._data
+    def blob_data(self):
+        if not hasattr(self, '_blob_data'):
+            self._blob_data = {}
+        return self._blob_data
     
-    @data.setter
-    def data(self, value):
-        self._data.update(value)    
+    @blob_data.setter
+    def blob_data(self, value):
+        self._blob_data.update(value)    
     
     def get_blob_from_disk(self, name):
         return self.__getitem__(name)
     
     def __getitem__(self, name):
-        if name in self.data:
-            return self.data[name]
+        if name in self.blob_data:
+            return self.blob_data[name]
         
         return self._get_item(name)
     
@@ -208,7 +245,7 @@ class BlobFactory(object):
         mask = np.logical_not(np.isfinite(all_data))
         masked_data = np.ma.array(all_data, mask=mask)
         
-        self.data = {name: masked_data}
+        self.blob_data = {name: masked_data}
         
         return masked_data
     

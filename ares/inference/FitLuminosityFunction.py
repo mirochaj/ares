@@ -18,7 +18,7 @@ from .FitGlobal21cm import FitGlobal21cm
 import gc, os, sys, copy, types, time, re
 from ..util.ParameterFile import par_info
 from ..simulations import Global21cm as simG21
-from .ModelFit import LogPrior, update_blob_names
+from .ModelFit import LogPrior
 from ..simulations import MultiPhaseMedium as simMPM
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..populations.Galaxy import param_redshift, GalaxyPopulation
@@ -43,7 +43,7 @@ defaults = SetAllDefaults()
 class loglikelihood:
     def __init__(self, xdata, ydata, error, redshifts, parameters, is_log,
         base_kwargs, priors={}, prefix=None, blob_names=None, 
-        blob_redshifts=None, run_21cm=False):
+        blob_ivars=None, blob_funcs=None, run_21cm=False):
         """
         Computes log-likelihood at given step in MCMC chain.
 
@@ -68,11 +68,12 @@ class loglikelihood:
 
         self.prefix = prefix   
 
-        self.blob_names = update_blob_names(blob_names)
-        self.blob_redshifts = blob_redshifts
+        self.blob_names = blob_names
+        self.blob_ivars = blob_ivars
+        self.blob_funcs = blob_funcs
         
-        tmp = (self.blob_names, self.blob_redshifts)
-        self.base_kwargs['inline_analysis'] = tmp
+        #tmp = (self.blob_names, self.blob_redshifts)
+        #self.base_kwargs['inline_analysis'] = tmp
         
         #self._prep_binfo()
         
@@ -108,13 +109,16 @@ class loglikelihood:
             if self.blob_names is None:
                 self._blank_blob = {}
                 return {}
-
-            tup = tuple(np.ones(len(self.blob_names)) * np.inf)
-            self._blank_blob = []
-            for i in range(len(self.blob_redshifts)):
-                self._blank_blob.append(tup)
     
-        return np.array(self._blank_blob)
+            self._blank_blob = []
+            for i, group in enumerate(self.blob_names):
+                if self.blob_ivars[i] is None:
+                    self._blank_blob.append([np.inf] * len(group))
+                else:
+                    arr = np.ones([len(group), self.blob_ivars[i].size])
+                    self._blank_blob.append(arr * np.inf)
+    
+        return self._blank_blob
         
     @property
     def sim_class(self):
@@ -174,7 +178,7 @@ class loglikelihood:
                         
             try:
                 sim.run()                      
-                sim.run_inline_analysis()
+                #sim.run_inline_analysis()
             except ValueError:
                 # Seems to happen in some weird cases when the 
                 # HAM fit fails
@@ -232,11 +236,6 @@ class loglikelihood:
             if np.isnan(lp):
                 return -np.inf, self.blank_blob
 
-        if hasattr(sim, 'blobs'):
-            blobs = sim.blobs
-        else:
-            blobs = self.blank_blob
-
         # Figre out which population is the one with the LF
         if medium is not None:
             for popid, pop in enumerate(medium.field.pops):
@@ -250,12 +249,17 @@ class loglikelihood:
         for i, z in enumerate(self.redshifts):
             p = pop.LuminosityFunction(M=np.array(self.xdata[i]), z=z)
             phi.extend(p)
-            
+                        
         logL = lp - 0.5 * (np.sum((np.array(phi) - self.ydata)**2 \
             / 2. / self.error**2 + np.log(2. * np.pi * self.error**2)))
 
         #if blobs.shape != self.blank_blob.shape:
         #    raise ValueError('Shape mismatch between requested blobs and actual blobs!')    
+        
+        if hasattr(sim, 'blobs'):
+            blobs = sim.blobs
+        else:
+            blobs = self.blank_blob
     
         del sim, kw
         gc.collect()
@@ -271,9 +275,7 @@ class FitLuminosityFunction(FitGlobal21cm):
     def __init__(self, **kwargs):
         FitGlobal21cm.turning_points = False
         FitGlobal21cm.__init__(self, **kwargs)
-        
-        self.blob_names = update_blob_names(self.blob_names, **self.base_kwargs)
-    
+            
     @property
     def runsim(self):
         if not hasattr(self, '_runsim'):
@@ -290,7 +292,8 @@ class FitLuminosityFunction(FitGlobal21cm):
             self._loglikelihood = loglikelihood(self.xdata, 
                 self.ydata_flat, self.error_flat, self.redshifts, 
                 self.parameters, self.is_log, self.base_kwargs, self.priors, 
-                self.prefix, self.blob_names, self.blob_redshifts, self.runsim)    
+                self.prefix, self.blob_names, self.blob_ivars, self.blob_funcs,
+                self.runsim)    
 
         return self._loglikelihood
 

@@ -957,28 +957,3 @@ class HAM(object):
 
         return self._guesses
 
-    def Mpeak(self, z):
-        """
-        Mass at which SFE peaks.
-        """
-
-        if self.Mfunc == 'lognormal':
-            return
-
-    #def fpeak(self, z):
-    #    """
-    #    Peak SFE.
-    #    """
-    #
-    #    if self.Mfunc    
-
-
-                 
-                 
-                 
-                 
-                 
-                 
-                 
-                 
-                 

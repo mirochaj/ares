@@ -115,31 +115,6 @@ def _str_to_val(p, par, pvals, pars):
 
     return pvals[pars.index('%s{%i}' % (prefix, num))]
     
-def update_blob_names(blob_names, **kwargs):
-    
-    sfe = HAM(**kwargs)
-    
-    if sfe.irrelevant:
-        return blob_names
-        
-    if blob_names is None:
-        return None
-    
-    # Add some elements for fstar
-    _blob_names = []
-    for blob in blob_names:
-        if re.search('fstar', blob):
-                        
-            prefix, pop_id, pop_z = par_info(blob)
-        
-            tmp = ['fstar{%i}_%i' % (pop_id, i) for i in range(sfe.Ncoeff)]
-
-            _blob_names.extend(tmp)
-        else:
-            _blob_names.append(blob)
-            
-    return _blob_names    
-    
 class LogPrior:
     def __init__(self, priors, parameters, is_log=None):
         self.pars = parameters  # just names *in order*
@@ -923,7 +898,7 @@ class ModelFit(BlobFactory):
             for i, suffix in enumerate(['chain', 'logL', 'blobs']):
             
                 # Skip blobs if there are none being tracked
-                if data[i] is None:
+                if self.blob_names is None:
                     continue
 
                 if suffix == 'blobs':
@@ -940,18 +915,7 @@ class ModelFit(BlobFactory):
                                 % (self.prefix, self.blob_nd[j], blob)
                             with open(bfn, 'ab') as f:
                                 pickle.dump(np.array(to_write), f)                       
-                    
-                    #if self.one_file_per_blob:
-                    #    for j, blob in enumerate(self.blob_names):
-                    #        barr = np.array(data[i])[:,:,j]
-                    #        bfn = '%s.subset.%s.pkl' % (self.prefix, blob)
-                    #        with open(bfn, 'ab') as f:
-                    #            pickle.dump(barr, f)                        
-                    #else:
-                    #    with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
-                    #        pickle.dump(data[i], f)
-                    
-                    #continue
+                
                 else:
                     fn = '%s.%s.pkl' % (prefix, suffix)
                     f = open(fn, 'ab')
@@ -982,14 +946,4 @@ class ModelFit(BlobFactory):
         if rank == 0:
             print "Finished on %s" % (time.ctime())
     
-    def write_blobs(self, blobs):
-        """
-        
-        """
-        
-        blobs_by_group = []
-        
-        fn = '%s.group_%s'
-        
-        
         

@@ -351,57 +351,7 @@ class FitGlobal21cm(ModelFit):
                     "Data and errors must have same shape!"
                 
             self._error = value
-            
-    #def _prep_blobs(self):
-    #    """
-    #    
-    #    """                        
-    #    if 'gaussian_model' in self.base_kwargs:
-    #        if self.base_kwargs['gaussian_model']:
-    #            return
-    #    
-    #    if 'inline_analysis' in self.base_kwargs:
-    #        self.blob_names, self.blob_redshifts = \
-    #            self.base_kwargs['inline_analysis']
-    #    
-    #    elif 'auto_generate_blobs' in self.base_kwargs:            
-    #        if self.base_kwargs['auto_generate_blobs'] == True:
-    #            kw = self.base_kwargs.copy()
-    #
-    #            sim = simG21(**kw)
-    #            anl = InlineAnalysis(sim)
-    #
-    #            self.blob_names, self.blob_redshifts = \
-    #                anl.generate_blobs()
-    #            
-    #            del sim, anl
-    #            gc.collect()
-    #            self.base_kwargs['inline_analysis'] = \
-    #                (self.blob_names, self.blob_redshifts)
-    #            self.base_kwargs['auto_generate_blobs'] = False
-    #        elif self.base_kwargs['auto_generate_blobs'] == 'default':
-    #            self.blob_names = _blob_names
-    #            self.blob_redshifts = _blob_redshifts
-    #    
-    #    elif hasattr(self, 'blob_names'):
-    #        self.base_kwargs['inline_analysis'] = \
-    #            (self.blob_names, self.blob_redshifts)
-    #    else:
-    #        self.blob_names = self.blob_redshifts = None
-    #
-    #    if self.blob_redshifts is not None:
-    #                
-    #        TPs = 0
-    #        for z in self.blob_redshifts:
-    #            if z in list('BCD'):
-    #                TPs += 1
-    #        
-    #        if self.turning_points:  
-    #            msg = 'Fitting won\'t work if no turning points are provided.'
-    #            assert TPs > 0, msg
-    #        
-    #    self.one_file_per_blob = self.base_kwargs['one_file_per_blob']        
-    #        
+          
     def _check_for_conflicts(self):
         """
         Hacky at the moment. Preventative measure against is_log=True for
