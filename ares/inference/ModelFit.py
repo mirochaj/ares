@@ -221,9 +221,6 @@ class LogLikelihood:
         self.blob_names = blob_names
         self.blob_redshifts = blob_redshifts
         
-        # Setup binfo pkl file
-        self._prep_binfo()
-
         # Sort through priors        
         priors_P = {}   # parameters
         priors_B = {}   # blobs
@@ -286,25 +283,17 @@ class LogLikelihood:
     @property
     def blank_blob(self):
         if not hasattr(self, '_blank_blob'):
-
-            tup = tuple(np.ones(len(self.blob_names)) * np.inf)
+    
             self._blank_blob = []
-            for i in range(len(self.blob_redshifts)):
-                self._blank_blob.append(tup)
-
-        return np.array(self._blank_blob)
-        
-    def _prep_binfo(self):
-        if rank > 0:
-            return
-        
-        # Outputs for arbitrary meta-data blobs
-        
-        # Blob names and list of redshifts at which to track them
-        f = open('%s.binfo.pkl' % self.prefix, 'wb')
-        pickle.dump((self.blob_names, self.blob_redshifts), f)
-        f.close()    
-        
+            for i, group in enumerate(self.blob_names):
+                if self.blob_ivars[i] is None:
+                    self._blank_blob.append([np.inf] * len(group))
+                else:
+                    arr = np.ones([len(group), self.blob_ivars[i].size])
+                    self._blank_blob.append(arr * np.inf)
+    
+        return self._blank_blob
+       
     def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -789,9 +778,11 @@ class ModelFit(BlobFactory):
             pickle.dump((self.blob_names, self.blob_ivars, self.blob_funcs), f)
             f.close()
             
-            #for blob in self.blob_names:
-            #    f = open('%s.subset.%s.pkl' % (prefix, blob), 'wb')
-            #    f.close()
+            for i, group in enumerate(self.blob_names):
+                for blob in group:
+                    fntup = (prefix, self.blob_nd[i], blob)
+                    f = open('%s.blob_%id.%s.pkl' % fntup, 'wb')
+                    f.close()
         
         # Parameter names and list saying whether they are log10 or not
         f = open('%s.pinfo.pkl' % prefix, 'wb')
@@ -926,21 +917,29 @@ class ModelFit(BlobFactory):
             data = [flatten_chain(np.array(pos_all)),
                     flatten_logL(np.array(prob_all)),
                     blobs]
+                    
+            self.test = data
 
             for i, suffix in enumerate(['chain', 'logL', 'blobs']):
             
                 # Skip blobs if there are none being tracked
                 if data[i] is None:
                     continue
-                                
-                fn = '%s.%s.pkl' % (prefix, suffix)                
-                                
+
                 if suffix == 'blobs':
                     
-                    
-                    pass
-                    
-                    
+                    for j, group in enumerate(self.blob_names):
+                        for k, blob in enumerate(group):
+                            to_write = []
+                            for l in range(self.nwalkers):  
+                                # blobs, walker, blob group, blob
+                                barr = data[i][l][j][k]
+                                to_write.append(barr)
+                                
+                            bfn = '%s.blob_%id.%s.pkl' \
+                                % (self.prefix, self.blob_nd[j], blob)
+                            with open(bfn, 'ab') as f:
+                                pickle.dump(np.array(to_write), f)                       
                     
                     #if self.one_file_per_blob:
                     #    for j, blob in enumerate(self.blob_names):
@@ -954,6 +953,7 @@ class ModelFit(BlobFactory):
                     
                     #continue
                 else:
+                    fn = '%s.%s.pkl' % (prefix, suffix)
                     f = open(fn, 'ab')
                     pickle.dump(data[i], f)
                     f.close()

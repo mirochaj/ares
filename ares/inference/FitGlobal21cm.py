@@ -43,7 +43,7 @@ def_kwargs = {'verbose': False, 'progress_bar': False,
 class loglikelihood:
     def __init__(self, xdata, ydata, error, parameters, is_log,
         base_kwargs, priors={}, prefix=None, blob_names=None, 
-        blob_redshifts=None, turning_points=None):
+        blob_ivars=None, blob_funcs=None, turning_points=None):
         """
         Computes log-likelihood at given step in MCMC chain.
 
@@ -60,12 +60,10 @@ class loglikelihood:
         self.prefix = prefix 
 
         self.blob_names = blob_names
-        self.blob_redshifts = blob_redshifts
+        self.blob_ivars = blob_ivars
+        self.blob_funcs = blob_funcs
         self.turning_points = turning_points
         
-        # Setup binfo pkl file
-        self._prep_binfo()
-
         # Sort through priors        
         priors_P = {}   # parameters
         priors_B = {}   # blobs
@@ -114,30 +112,17 @@ class loglikelihood:
     @property
     def blank_blob(self):
         if not hasattr(self, '_blank_blob'):
-            if self.blob_names is None:
-                self._blank_blob = {}
-                return {}
-                
-            tup = tuple(np.ones(len(self.blob_names)) * np.inf)
+    
             self._blank_blob = []
-            for i in range(len(self.blob_redshifts)):
-                self._blank_blob.append(tup)
-
-            self._blank_blob = np.array(self._blank_blob)
-
+            for i, group in enumerate(self.blob_names):
+                if self.blob_ivars[i] is None:
+                    self._blank_blob.append([np.inf] * len(group))
+                else:
+                    arr = np.ones([len(group), self.blob_ivars[i].size])
+                    self._blank_blob.append(arr * np.inf)
+    
         return self._blank_blob
-        
-    def _prep_binfo(self):
-        if rank > 0:
-            return
-
-        # Outputs for arbitrary meta-data blobs
-
-        # Blob names and list of redshifts at which to track them
-        f = open('%s.binfo.pkl' % self.prefix, 'wb')
-        pickle.dump((self.blob_names, self.blob_redshifts), f)
-        f.close()    
-
+    
     def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -228,7 +213,8 @@ class loglikelihood:
         if self.turning_points: 
                         
             try:
-                nu = [nu_0_mhz / (1. + tps[tp][0]) for tp in self.turning_points]
+                nu = [nu_0_mhz / (1. + tps[tp][0]) \
+                    for tp in self.turning_points]
                 T = [tps[tp][1] for tp in self.turning_points]
             except KeyError:
                 return -np.inf, self.blank_blob
@@ -244,14 +230,15 @@ class loglikelihood:
         if np.any(np.isnan(yarr)):
             return -np.inf, self.blank_blob
         
-        logL = lp - 0.5 * (np.sum(yarr - self.ydata)**2 \
-                / 2. / self.error**2 + np.log(2. * np.pi * self.error**2))
+        like = 0.5 * (np.sum((yarr - self.ydata)**2 \
+            / 2. / self.error**2 + np.log(2. * np.pi * self.error**2))) 
+        logL = lp - like
         
         blobs = sim.blobs
                     
         del sim, kw
         gc.collect()
-        
+                    
         return logL, blobs
 
 class FitGlobal21cm(ModelFit):
@@ -274,8 +261,8 @@ class FitGlobal21cm(ModelFit):
         if not hasattr(self, '_loglikelihood'):
             self._loglikelihood = loglikelihood(self.xdata, self.ydata, 
                 self.error, self.parameters, self.is_log, self.base_kwargs, 
-                self.priors, self.prefix, self.blob_names, self.blob_redshifts,
-                self.turning_points)    
+                self.priors, self.prefix, self.blob_names, self.blob_ivars,
+                self.blob_funcs, self.turning_points)    
         
         return self._loglikelihood
         
