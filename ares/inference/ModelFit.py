@@ -264,8 +264,11 @@ class LogLikelihood:
                 if self.blob_ivars[i] is None:
                     self._blank_blob.append([np.inf] * len(group))
                 else:
-                    arr = np.ones([len(group), self.blob_ivars[i].size])
-                    self._blank_blob.append(arr * np.inf)
+                    if self.blob_nd[i] == 0:
+                        self._blank_blob.append([np.inf] * len(group))
+                    else:
+                        arr = np.ones([len(group), self.blob_ivars[i].size])
+                        self._blank_blob.append(arr * np.inf)
     
         return self._blank_blob
        
@@ -417,7 +420,18 @@ class ModelFit(BlobFactory):
         self.base_kwargs.update(kwargs)            
         self.one_file_per_blob = self.base_kwargs['one_file_per_blob'] 
         self.pf = self.base_kwargs
-                                            
+    
+    @property
+    def blob_info(self):
+        if not hasattr(self, '_blob_info'):
+            self._blob_info = \
+                {'blob_names': self.blob_names, 
+                 'blob_ivars': self.blob_ivars,
+                 'blob_funcs': self.blob_funcs,
+                 'blob_nd': self.blob_nd,
+                 'blob_dims': self.blob_dims}
+        return self._blob_info
+                                                                                  
     @property
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
@@ -893,8 +907,6 @@ class ModelFit(BlobFactory):
                     flatten_logL(np.array(prob_all)),
                     blobs]
                     
-            self.test = data
-
             for i, suffix in enumerate(['chain', 'logL', 'blobs']):
             
                 # Skip blobs if there are none being tracked

@@ -42,8 +42,8 @@ def_kwargs = {'verbose': False, 'progress_bar': False,
 
 class loglikelihood:
     def __init__(self, xdata, ydata, error, parameters, is_log,
-        base_kwargs, priors={}, prefix=None, blob_names=None, 
-        blob_ivars=None, blob_funcs=None, turning_points=None):
+        base_kwargs, priors={}, prefix=None, blob_info=None,
+        turning_points=None):
         """
         Computes log-likelihood at given step in MCMC chain.
 
@@ -59,9 +59,13 @@ class loglikelihood:
 
         self.prefix = prefix 
 
-        self.blob_names = blob_names
-        self.blob_ivars = blob_ivars
-        self.blob_funcs = blob_funcs
+        if blob_info is not None:
+            self.blob_names = blob_info['blob_names']
+            self.blob_ivars = blob_info['blob_ivars']
+            self.blob_funcs = blob_info['blob_funcs']
+            self.blob_nd = blob_info['blob_nd']
+            self.blob_dims = blob_info['blob_dims']
+            
         self.turning_points = turning_points
         
         # Sort through priors        
@@ -118,8 +122,11 @@ class loglikelihood:
                 if self.blob_ivars[i] is None:
                     self._blank_blob.append([np.inf] * len(group))
                 else:
-                    arr = np.ones([len(group), self.blob_ivars[i].size])
-                    self._blank_blob.append(arr * np.inf)
+                    if self.blob_nd[i] == 0:
+                        self._blank_blob.append([np.inf] * len(group))
+                    else:
+                        arr = np.ones([len(group), self.blob_ivars[i].size])
+                        self._blank_blob.append(arr * np.inf)
     
         return self._blank_blob
     
@@ -261,8 +268,7 @@ class FitGlobal21cm(ModelFit):
         if not hasattr(self, '_loglikelihood'):
             self._loglikelihood = loglikelihood(self.xdata, self.ydata, 
                 self.error, self.parameters, self.is_log, self.base_kwargs, 
-                self.priors, self.prefix, self.blob_names, self.blob_ivars,
-                self.blob_funcs, self.turning_points)    
+                self.priors, self.prefix, self.blob_info, self.turning_points)    
         
         return self._loglikelihood
         

@@ -13,7 +13,8 @@ Description:
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
-from scipy.optimize import fsolve, curve_fit
+from .Warnings import lf_constraints
+from scipy.optimize import fsolve, curve_fit, fmin
 from scipy.integrate import quad, simps, cumtrapz, ode
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
@@ -25,6 +26,11 @@ except ImportError:
     pass
 
 z0 = 8. # arbitrary
+
+try:
+    from scipy.misc import derivative
+except ImportError:
+    pass
 
 class HAM(object):
     def __init__(self, galaxy=None, **kwargs):
@@ -50,8 +56,8 @@ class HAM(object):
             self._mags = []
     
             if type(self.pf['pop_constraints']) == str:
-                data = read_lit(self.pf['pop_constraints']).data
-    
+                data = read_lit(self.pf['pop_constraints']).data        
+                                    
                 for redshift in self.redshifts:
                     self._mags.append(np.array(data['lf'][redshift]['M']))
             else:
@@ -90,6 +96,14 @@ class HAM(object):
     
             # Read constraints from litdata
             if type(self.pf['pop_constraints']) == str:
+                for key in self.pf:
+                    if 'pop_lf_Mstar' not in key:
+                        continue
+                        
+                    if self.pf[key] is not None:
+                        print lf_constraints
+                        break
+                
                 data = read_lit(self.pf['pop_constraints'])
                 fits = data.fits['lf']['pars']
     
@@ -409,7 +423,7 @@ class HAM(object):
         
     def SFR(self, z, M):
         eta = np.interp(z, self.halos.z, self.eta)
-        return self.cosm.fbaryon * self.Macc(z, M) * eta * self.fstar(z, M)
+        return self.cosm.fbaryon * self.Macc(z, M) * eta * self.SFE(z, M)
         
     def LuminosityFunction(self, z, mags=False, undo_dc=False):
         """
@@ -464,7 +478,7 @@ class HAM(object):
         #Lh_Mmin = np.exp(sfr_M_z(z, np.log(Mmin))[0][0]) / self.kappa_UV   
         
         return self.cosm.fbaryon * self.Macc(z, Mmin) \
-            * eta * self.fstar(z, Mmin) / self.kappa_UV
+            * eta * self.SFE(z, Mmin) / self.kappa_UV
             
     def MAB_limit(self, z):
         """
@@ -521,7 +535,7 @@ class HAM(object):
             self._sfr_tab = np.zeros([self.halos.Nz, self.halos.Nm])
             for i, z in enumerate(self.halos.z):
                 self._sfr_tab[i] = self.eta[i] * self.Macc(z, self.halos.M) \
-                    * self.cosm.fbaryon * self.fstar(z, self.halos.M)
+                    * self.cosm.fbaryon * self.SFE(z, self.halos.M)
     
                 mask = self.halos.M >= self.Mmin[i]
                 self._sfr_tab[i] *= mask
@@ -608,7 +622,7 @@ class HAM(object):
         # M is the initial mass of a halo
         # Macc_of_z is its MAR as a function of redshift
         Macc_of_z = self.Macc(self.halos.z, M)
-        fstar_of_z = map(lambda z: self.fstar(z, Macc_of_z), self.halos.z)
+        fstar_of_z = map(lambda z: self.SFE(z, Macc_of_z), self.halos.z)
         
         dtdz = self.cosm.dtdz(self.halos.z)
         Mh_of_z = cumtrapz(Macc_of_z[-1::-1] * dtdz / s_per_yr,
@@ -849,12 +863,11 @@ class HAM(object):
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_t'):
             logM = np.log10(M)
 
-            self._fstar_of_z = lambda zz: coeff[0] + coeff[1] \
-                * ((1. + zz) / (1. + z0))**-1.5 
-            self._Mpeak_of_z = lambda zz: coeff[2] \
+            self._fstar_of_z = lambda zz: coeff[0] \
                 -1.5 * np.log10((1. + zz) / (1. + z0))
-            self._sigma_of_z = lambda zz: coeff[3] #\
-                #-1.5 * np.log10((1. + zz) / (1. + z0))
+            self._Mpeak_of_z = lambda zz: coeff[1] \
+                -1.5 * np.log10((1. + zz) / (1. + z0))
+            self._sigma_of_z = lambda zz: coeff[2]
 
             f = self._fstar_of_z(z) \
                 * np.exp(-(logM - self._Mpeak_of_z(z))**2 / 2. / 
@@ -940,7 +953,7 @@ class HAM(object):
                 elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
                     self._guesses = np.array([0.25, 11., 0.5])
                 elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_t'):
-                    self._guesses = np.array([0.25, 0.05, 12., 0.5])
+                    self._guesses = np.array([0.25, 12., 0.5])
                 else:
                     raise NotImplemented('help')
             elif self.fit_Lh:
@@ -957,3 +970,39 @@ class HAM(object):
 
         return self._guesses
 
+    def Mpeak(self, z):
+        """
+        The mass at which the star formation efficiency peaks.
+        """
+        alpha = lambda MM: self.gamma(z, MM)
+            
+        i = np.argmin(np.abs(z - np.array(self.redshifts)))
+        guess = self.MofL_tab[i][np.argmax(self.fstar_tab[i])]
+
+        return fmin(alpha, x0=guess, maxiter=1e4, full_output=False,
+            xtol=1e-3, ftol=1e-5, disp=False)[0]
+            
+    def fpeak(self, z):
+        return self.SFE(z, self.Mpeak(z))
+    
+    def gamma(self, z, M):
+        """
+        This is a power-law index describing the relationship between the
+        SFE and and halo mass.
+        """
+        
+        return derivative(lambda MM: self.SFE(z, MM), M, dx=0.01) \
+            * M / self.SFE(z, M)
+            
+    def gamma2(self, z, M):
+        """
+        Slope in Lh(Mh)?
+        """
+        pass
+        
+
+            
+            
+            
+            
+            

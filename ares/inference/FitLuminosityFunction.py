@@ -42,8 +42,7 @@ defaults = SetAllDefaults()
 
 class loglikelihood:
     def __init__(self, xdata, ydata, error, redshifts, parameters, is_log,
-        base_kwargs, priors={}, prefix=None, blob_names=None, 
-        blob_ivars=None, blob_funcs=None, run_21cm=False):
+        base_kwargs, priors={}, prefix=None, blob_info=None, run_21cm=False):
         """
         Computes log-likelihood at given step in MCMC chain.
 
@@ -58,6 +57,13 @@ class loglikelihood:
 
         self.base_kwargs = base_kwargs
 
+        if blob_info is not None:
+            self.blob_names = blob_info['blob_names']
+            self.blob_ivars = blob_info['blob_ivars']
+            self.blob_funcs = blob_info['blob_funcs']
+            self.blob_nd = blob_info['blob_nd']
+            self.blob_dims = blob_info['blob_dims']
+
         # Not flat
         self.xdata = xdata
         self.redshifts = redshifts
@@ -68,10 +74,6 @@ class loglikelihood:
 
         self.prefix = prefix   
 
-        self.blob_names = blob_names
-        self.blob_ivars = blob_ivars
-        self.blob_funcs = blob_funcs
-        
         #tmp = (self.blob_names, self.blob_redshifts)
         #self.base_kwargs['inline_analysis'] = tmp
         
@@ -105,21 +107,19 @@ class loglikelihood:
     @property
     def blank_blob(self):
         if not hasattr(self, '_blank_blob'):
-            
-            if self.blob_names is None:
-                self._blank_blob = {}
-                return {}
     
             self._blank_blob = []
             for i, group in enumerate(self.blob_names):
                 if self.blob_ivars[i] is None:
                     self._blank_blob.append([np.inf] * len(group))
                 else:
-                    arr = np.ones([len(group), self.blob_ivars[i].size])
-                    self._blank_blob.append(arr * np.inf)
+                    if self.blob_nd[i] == 0:
+                        self._blank_blob.append([np.inf] * len(group))
+                    else:
+                        arr = np.ones([len(group), self.blob_ivars[i].size])
+                        self._blank_blob.append(arr * np.inf)
     
         return self._blank_blob
-        
     @property
     def sim_class(self):
         if not hasattr(self, '_sim_class'):
@@ -256,11 +256,11 @@ class loglikelihood:
         #if blobs.shape != self.blank_blob.shape:
         #    raise ValueError('Shape mismatch between requested blobs and actual blobs!')    
         
-        if hasattr(sim, 'blobs'):
-            blobs = sim.blobs
-        else:
-            blobs = self.blank_blob
-    
+        #try:
+        blobs = sim.blobs
+        #except:
+         #   blobs = self.blank_blob   
+            
         del sim, kw
         gc.collect()
     
@@ -292,8 +292,7 @@ class FitLuminosityFunction(FitGlobal21cm):
             self._loglikelihood = loglikelihood(self.xdata, 
                 self.ydata_flat, self.error_flat, self.redshifts, 
                 self.parameters, self.is_log, self.base_kwargs, self.priors, 
-                self.prefix, self.blob_names, self.blob_ivars, self.blob_funcs,
-                self.runsim)    
+                self.prefix, self.blob_info, self.runsim)    
 
         return self._loglikelihood
 

@@ -23,7 +23,11 @@ def get_k(s):
     return int(m.group(1))
     
 def parse_attribute(blob_name, obj_base):
-            
+    """
+    Find the attribute nested somewhere in an object that we need to compute
+    the value of blob `blob_name`.
+    """
+
     attr_split = blob_name.split('.')
 
     if len(attr_split) == 1: 
@@ -33,21 +37,25 @@ def parse_attribute(blob_name, obj_base):
             return obj_base.__getattribute__(s[0:s.rfind('[')])[k]
         else:
             return obj_base.__getattribute__(s)
-        
+
     # Nested attribute
+    blob = None
     obj_list = [obj_base]
     for i in range(len(attr_split)):
-        s = attr_split[i]    
-        
+        s = attr_split[i]
+
         if re.search('\[', s): 
             k = get_k(s)
             blob = obj_list[i].__getattribute__(s[0:s.rfind('[')])[k]
             break
         else:
             new_obj = obj_list[i].__getattribute__(s)
-                                        
+
         obj_list.append(new_obj)
-        
+
+    if blob is None:
+        blob = new_obj
+
     return blob
 
 class BlobFactory(object):
@@ -170,23 +178,30 @@ class BlobFactory(object):
             for j, key in enumerate(element):
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
-                    if self.blob_funcs[i][j] is not None:
-                        raise NotImplemented('help!')
-                    else:
+                    if self.blob_funcs[i][j] is None:
                         # Assume blob name is the attribute
                         #blob = self.__getattribute__(key)
                         blob = parse_attribute(key, self)
-                    
+                    else:
+                        fname = self.blob_funcs[i][j]
+                        func = parse_attribute(fname, self)
+                        blob = func(self.blob_ivars[i])
+
                 # 1-D blobs. Assume the independent variable is redshift.
                 elif self.blob_nd[i] == 1:
-                    z = self.blob_ivars[i]
-                    blob = np.interp(z, self.history['z'][-1::-1], 
-                        self.history[key][-1::-1])
+                    if self.blob_funcs[i] is None:
+                        z = self.blob_ivars[i]
+                        blob = np.interp(z, self.history['z'][-1::-1], 
+                            self.history[key][-1::-1])
+                    else:
+                        fname = self.blob_funcs[i][j]
+                        func = parse_attribute(fname, self)
+                        blob = func(self.blob_ivars[i])
                 else:
-                    pass
-                                
+                    xarr = self.blob_ivars[i]
+
                 this_group.append(blob)
-                
+
             self._blobs.append(np.array(this_group))
             
     @property 

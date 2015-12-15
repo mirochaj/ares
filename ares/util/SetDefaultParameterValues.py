@@ -266,7 +266,7 @@ def PopulationParameters():
     
     "pop_fstar_ceil": 1.0,
     
-    "pop_ham_fit": 'Lh',
+    "pop_ham_fit": 'fstar',
     "pop_ham_Mfun": 'poly',   # or lognormal
     "pop_ham_zfun": 'poly',   # or (time, redshift, free)
     "pop_ham_Mext": None,

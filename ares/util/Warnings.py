@@ -92,6 +92,12 @@ table by hand via the hmf_table parameter. You may also want to check out
 https://bitbucket.org/mirochaj/glorb/Downloads for standard HMF tables.
 """
 
+lf_constraints = \
+"""
+WARNING: The contents of `pop_constraints` will override the values of 
+`pop_lf_Mstar`, `pop_lf_pstar`, and `pop_lf_alpha`. 
+"""
+
 def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok, ztab):    
     print ""    
     print line(separator)
