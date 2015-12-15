@@ -1128,7 +1128,7 @@ class ModelSet(BlobFactory):
         return nu, levels
     
     def get_1d_error(self, par, z=None, bins=500, nu=0.68, take_log=False,
-        limit=None, multiplier=1.):
+        limit=None, un_log=False, multiplier=1.):
         """
         Compute 1-D error bar for input parameter.
         
@@ -1148,7 +1148,7 @@ class ModelSet(BlobFactory):
         """
 
         pars, take_log, multiplier, un_log, z = \
-            self._listify_common_inputs([par], take_log, multiplier, z)
+            self._listify_common_inputs([par], take_log, multiplier, un_log, z)
 
         to_hist, is_log = self.ExtractData(par, z=z, take_log=take_log, 
             multiplier=multiplier)
