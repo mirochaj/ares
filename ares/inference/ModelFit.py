@@ -905,7 +905,7 @@ class ModelFit(BlobFactory):
             
             data = [flatten_chain(np.array(pos_all)),
                     flatten_logL(np.array(prob_all)),
-                    blobs]
+                    blobs_all]
                     
             for i, suffix in enumerate(['chain', 'logL', 'blobs']):
             
