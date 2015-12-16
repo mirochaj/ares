@@ -889,39 +889,50 @@ class ModelFit(BlobFactory):
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
             iterations=steps, rstate0=state, storechain=False):
-                                    
+
             # Only the rank 0 processor ever makes it here
             ct += 1
-                                                
+
             pos_all.append(pos.copy())
             prob_all.append(prob.copy())
             blobs_all.append(blobs)
-            
+
             if ct % save_freq != 0:
                 continue
 
             # Remember that pos.shape = (nwalkers, ndim)
             # So, pos_all has shape = (nsteps, nwalkers, ndim)
-            
+
             data = [flatten_chain(np.array(pos_all)),
                     flatten_logL(np.array(prob_all)),
                     blobs_all]
-                    
+
             for i, suffix in enumerate(['chain', 'logL', 'blobs']):
-            
+
                 # Skip blobs if there are none being tracked
                 if self.blob_names is None:
                     continue
 
                 if suffix == 'blobs':
-                    
+
+                    # Weird shape: must re-organize a bit
+                    # First, get rid of # walkers dimension and compress
+                    # the # of steps dimension
+                    blobs_now = []
+                    for k in range(save_freq):
+                        blobs_now.extend(data[i][k])
+
+                    # We're saving one file per blob
+                    # The shape of the array will be just blob_nd
+
                     for j, group in enumerate(self.blob_names):
                         for k, blob in enumerate(group):
                             to_write = []
-                            for l in range(self.nwalkers):  
-                                # blobs, walker, blob group, blob
-                                barr = data[i][l][j][k]
-                                to_write.append(barr)
+                            for l in range(self.nwalkers * save_freq):  
+                                # indices: walkers*steps, blob group, blob
+                                barr = blobs_now[l][j][k]
+                                                                
+                                to_write.append(barr)   
                                 
                             bfn = '%s.blob_%id.%s.pkl' \
                                 % (self.prefix, self.blob_nd[j], blob)

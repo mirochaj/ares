@@ -207,25 +207,6 @@ def read_pickled_blobs(fn):
 
     pass
     
-def flatten_blobs_OLD(data):
-    """
-    Take a 3-D array, eliminate dimension corresponding to walkers, thus
-    reducing it to 2-D
-    """
-    
-    # Prevents a crash in MCMC.ModelFit
-    if np.all(data == {}):
-        return None
-        
-    if len(data.shape) != 4:
-        raise ValueError('chain ain\'t the right shape.')    
-    
-    new = []
-    for i in range(data.shape[1]):
-        new.extend(data[:,i,:,:])
-        
-    return new
-
 def flatten_blobs(data):
     """
     Take a 3-D array, eliminate dimension corresponding to walkers, thus
