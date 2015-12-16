@@ -84,28 +84,7 @@ class MultiPhaseMedium(object):
         """
         
         return
-                
-        #if isinstance(data, simG21) or isinstance(data, simMPM):
-        #    self.sim = data
-        #    self.pf = self.sim.pf
-        #    history = self.sim.history
-        #
-        #    try:
-        #        self.cosm = self.sim.grid.cosm
-        #    except AttributeError:
-        #        self.cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
-        #        omega_l_0=self.pf["omega_l_0"], 
-        #        omega_b_0=self.pf["omega_b_0"], 
-        #        hubble_0=self.pf["hubble_0"], 
-        #        helium_by_number=self.pf['helium_by_number'], 
-        #        cmb_temp_0=self.pf["cmb_temp_0"], 
-        #        approx_highz=self.pf["approx_highz"])
-        #    
-        #    try:
-        #        self.hydr = self.sim.grid.hydr
-        #    except AttributeError:
-        #        self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
-        
+
         if data is None:
             return
         
@@ -194,6 +173,32 @@ class MultiPhaseMedium(object):
         self.history = history       
                 
     @property
+    def cosm(self):
+        if not hasattr(self, '_cosm'):
+            try:
+                self._cosm = self.sim.grid.cosm
+            except AttributeError:
+                self._cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
+                omega_l_0=self.pf["omega_l_0"], 
+                omega_b_0=self.pf["omega_b_0"], 
+                hubble_0=self.pf["hubble_0"], 
+                helium_by_number=self.pf['helium_by_number'], 
+                cmb_temp_0=self.pf["cmb_temp_0"], 
+                approx_highz=self.pf["approx_highz"])
+            
+        return self._cosm
+            
+    @property
+    def hydr(self):  
+        if not hasattr(self, '_hydr'):      
+            try:
+                self._hydr = self.sim.grid.hydr
+            except AttributeError:
+                self._hydr = Hydrogen(cosm=self.cosm, **self.pf)
+            
+        return self._hydr                    
+                
+    @property
     def data(self):
         if not hasattr(self, '_data'):
             if hasattr(self, 'history'):
@@ -203,7 +208,22 @@ class MultiPhaseMedium(object):
         return self._data
                 
     def close(self):
-        pl.close('all')            
+        pl.close('all')        
+        
+    @property
+    def data_asc(self):
+        if not hasattr(self, '_data_asc'):
+            
+            if np.all(np.diff(self.data['z']) > 0):
+                data_reorder = self.data.copy()
+            else:
+                data_reorder = {}
+                for key in self.data.keys():
+                    data_reorder[key] = np.array(self.data[key])[-1::-1]
+            
+            self._data_asc = data_reorder
+            
+        return self._data_asc    
                     
     @property
     def Trei(self):

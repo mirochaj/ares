@@ -1127,7 +1127,7 @@ class ModelSet(BlobFactory):
                                                                       
         return nu, levels
     
-    def get_1d_error(self, par, z=None, bins=500, nu=0.68, take_log=False,
+    def get_1d_error(self, par, ivar=None, bins=500, nu=0.68, take_log=False,
         limit=None, un_log=False, multiplier=1.):
         """
         Compute 1-D error bar for input parameter.
@@ -1147,10 +1147,10 @@ class ModelSet(BlobFactory):
         Tuple, (maximum likelihood value, negative error, positive error).
         """
 
-        pars, take_log, multiplier, un_log, z = \
-            self._listify_common_inputs([par], take_log, multiplier, un_log, z)
+        pars, take_log, multiplier, un_log, ivar = \
+            self._listify_common_inputs([par], take_log, multiplier, un_log, ivar)
 
-        to_hist, is_log = self.ExtractData(par, z=z, take_log=take_log, 
+        to_hist, is_log = self.ExtractData(par, ivar=ivar, take_log=take_log, 
             multiplier=multiplier)
 
         # Need to weight results of non-MCMC runs explicitly
@@ -1397,7 +1397,7 @@ class ModelSet(BlobFactory):
         
         return pars, to_hist, is_log, binvec
       
-    def ExtractData(self, pars, z=None, take_log=False, un_log=False, 
+    def ExtractData(self, pars, ivar=None, take_log=False, un_log=False, 
         multiplier=1.):
         """
         Extract data for subsequent analysis.
@@ -1425,8 +1425,9 @@ class ModelSet(BlobFactory):
          
         """
         
-        pars, take_log, multiplier, un_log, z = \
-            self._listify_common_inputs(pars, take_log, multiplier, un_log, z)        
+        pars, take_log, multiplier, un_log, ivar = \
+            self._listify_common_inputs(pars, take_log, multiplier, un_log, 
+            ivar)        
                         
         to_hist = []
         is_log = []
@@ -1454,7 +1455,12 @@ class ModelSet(BlobFactory):
         
             else:
                 
-                val = self.extract_blob(par, z[k]).copy()
+                i, j, nd, dmis = self.blob_info(par)
+                
+                if nd == 0:
+                    val = self.extract_blob(par).copy()
+                else:
+                    val = self.extract_blob(par, ivar=ivar[k]).copy()
         
                 val *= multiplier[k]
         
@@ -1581,7 +1587,12 @@ class ModelSet(BlobFactory):
             
         return input_output
         
-    def _listify_common_inputs(self, pars, take_log, multiplier, un_log, z):
+    def _listify_common_inputs(self, pars, take_log, multiplier, un_log, 
+        ivar=None):
+        """
+        Make everything lists.
+        """
+        
         if type(pars) not in [list, tuple]:
             pars = [pars]
         if type(take_log) == bool:
@@ -1590,19 +1601,22 @@ class ModelSet(BlobFactory):
             un_log = [un_log] * len(pars)    
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)
-
-        if type(z) is list:
-            if len(z) != len(pars):
-                raise ValueError('Length of z must be = length of pars!')
-        else:
-            z = [z] * len(pars)
             
-        return pars, take_log, multiplier, un_log, z
+        if ivar is not None:
+            if type(ivar) is list and (len(pars) == 1):    
+                ivar = list(np.atleast_2d(ivar))
+            else:    
+                assert len(ivar) == len(pars)
+        else:
+            ivar = [None] * len(pars)
+            
+        return pars, take_log, multiplier, un_log, ivar
 
     def PosteriorCDF(self, pars, bins=500, **kwargs):
         return self.PosteriorPDF(pars, bins=bins, cdf=True, **kwargs)
                
-    def PosteriorPDF(self, pars, to_hist=None, is_log=None, z=None, ax=None, fig=1, 
+    def PosteriorPDF(self, pars, to_hist=None, is_log=None, ivar=None, 
+        ax=None, fig=1, 
         multiplier=1., nu=[0.95, 0.68], cdf=False,
         color_by_like=False, filled=True, take_log=False, un_log=False,
         bins=20, skip=0, skim=1, 
@@ -1617,7 +1631,7 @@ class ModelSet(BlobFactory):
         ----------
         pars : str, list
             Name of parameter or list of parameters to analyze.
-        z : float
+        ivar : float
             Redshift, if any element of pars is a "blob" quantity.
         plot : bool
             Plot PDF?
@@ -1662,8 +1676,9 @@ class ModelSet(BlobFactory):
         else:
             labels = default_labels
             
-        pars, take_log, multiplier, un_log, z = \
-            self._listify_common_inputs(pars, take_log, multiplier, un_log, z)
+        pars, take_log, multiplier, un_log, ivar = \
+            self._listify_common_inputs(pars, take_log, multiplier, un_log, 
+            ivar)
 
         # Only make a new plot window if there isn't already one
         if ax is None:
@@ -1675,8 +1690,8 @@ class ModelSet(BlobFactory):
 
         # Grab all the data we need
         if (to_hist is None) or (is_log is None):
-            to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log, 
-                un_log=un_log, multiplier=multiplier)
+            to_hist, is_log = self.ExtractData(pars, ivar=ivar, 
+                take_log=take_log, un_log=un_log, multiplier=multiplier)
 
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)
@@ -2000,7 +2015,7 @@ class ModelSet(BlobFactory):
         
         return ax
                 
-    def TrianglePlot(self, pars=None, z=None, take_log=False, un_log=False, 
+    def TrianglePlot(self, pars=None, ivar=None, take_log=False, un_log=False, 
         multiplier=1, fig=1, mp=None, inputs={}, tighten_up=0.0, ticks=5, 
         bins=20, skip=0, scatter=False,
         skim=1, oned=True, twod=True, filled=True, show_errors=False, 
@@ -2033,7 +2048,7 @@ class ModelSet(BlobFactory):
             you apply a multiplier or take_log, the bins should be in the
             native units times the multiplier or in the log10 of the native
             units (or both).
-        z : int, float, str, list
+        ivar : int, float, str, list
             If plotting arbitrary meta-data blobs, must choose a redshift.
             Can be 'B', 'C', or 'D' to extract blobs at 21-cm turning points,
             or simply a number. If it's a list, it must have the same
@@ -2078,12 +2093,12 @@ class ModelSet(BlobFactory):
         """    
         
         # Make sure all inputs are lists of the same length!
-        pars, take_log, multiplier, un_log, z = \
-            self._listify_common_inputs(pars, take_log, multiplier, un_log, z)
-                
+        pars, take_log, multiplier, un_log, ivar = \
+            self._listify_common_inputs(pars, take_log, multiplier, un_log, 
+            ivar)    
 
         # Grab data that will be histogrammed
-        to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log, 
+        to_hist, is_log = self.ExtractData(pars, ivar=ivar, take_log=take_log, 
             un_log=un_log, multiplier=multiplier)
             
         # Modify bins to account for log-taking, multipliers, etc.
@@ -2167,7 +2182,7 @@ class ModelSet(BlobFactory):
                     # Plot the PDF
                     ax = self.PosteriorPDF(p1, ax=mp.grid[k], 
                         to_hist=tohist, is_log=is_log, 
-                        take_log=take_log[-1::-1][i], z=z[-1::-1][i],
+                        take_log=take_log[-1::-1][i], ivar=ivar[-1::-1][i],
                         un_log=un_log[-1::-1][i], 
                         multiplier=[multiplier[-1::-1][i]], 
                         bins=[bins[-1::-1][i]], 
@@ -2188,7 +2203,7 @@ class ModelSet(BlobFactory):
                     self.plot_info[k] = {}
                     self.plot_info[k]['axes'] = [p1]
                     self.plot_info[k]['data'] = tohist
-                    self.plot_info[k]['z'] = z[-1::-1][i]
+                    self.plot_info[k]['ivar'] = ivar[-1::-1][i]
                     self.plot_info[k]['bins'] = [bins[-1::-1][i]]
                     self.plot_info[k]['multplier'] = [multiplier[-1::-1][i]]
                     self.plot_info[k]['take_log'] = take_log[-1::-1][i]
@@ -2204,7 +2219,10 @@ class ModelSet(BlobFactory):
                             
                     continue
 
-                red = [z[j], z[-1::-1][i]]
+                if ivar is not None:
+                    iv = [ivar[j], ivar[-1::-1][i]]
+                else:
+                    iv = None
 
                 # If not oned, may end up with some x vs. x plots if we're not careful
                 if p1 == p2 and (red[0] == red[1]):
@@ -2225,7 +2243,7 @@ class ModelSet(BlobFactory):
                         skip=skip, stop=stop, **kwargs)
                 else:
                     ax = self.PosteriorPDF([p2, p1], ax=mp.grid[k], 
-                        to_hist=tohist, is_log=is_log, z=red, 
+                        to_hist=tohist, is_log=is_log, ivar=iv, 
                         take_log=[take_log[j], take_log[-1::-1][i]],
                         un_log=[un_log[j], un_log[-1::-1][i]],
                         multiplier=[multiplier[j], multiplier[-1::-1][i]], 
@@ -2240,7 +2258,7 @@ class ModelSet(BlobFactory):
                 self.plot_info[k] = {}
                 self.plot_info[k]['axes'] = [p2, p1]
                 self.plot_info[k]['data'] = tohist
-                self.plot_info[k]['z'] = red
+                self.plot_info[k]['ivar'] = iv
                 self.plot_info[k]['bins'] = [bins[j], bins[-1::-1][i]]
                 self.plot_info[k]['multiplier'] = [multiplier[j], multiplier[-1::-1][i]]
                 self.plot_info[k]['take_log'] = [take_log[j], take_log[-1::-1][i]] 
@@ -2614,8 +2632,8 @@ class ModelSet(BlobFactory):
             np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
         ax.plot(np.log10([val[0] * width, val[0] * width]), 
             np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
-            
-    def extract_blob(self, name, x=None):
+                        
+    def extract_blob(self, name, ivar=None):
         """
         Extract a 1-D array of values for a given quantity.
         
@@ -2623,7 +2641,7 @@ class ModelSet(BlobFactory):
         ----------
         name : str
             Name of quantity
-        x : list, tuple, array
+        ivar : list, tuple, array
             Independent variables a given blob may depend on.
             
         """
@@ -2634,8 +2652,13 @@ class ModelSet(BlobFactory):
         if nd == 0:
             return blob
         elif nd == 1:
-            k = list(self.blob_ivars[i]).index(x)
+            k = list(self.blob_ivars[i]).index(ivar)
             return blob[:,k]
+        elif nd == 2:
+            assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
+            k1 = list(self.blob_ivars[i][0]).index(ivar[0])
+            k2 = list(self.blob_ivars[i][1]).index(ivar[1])
+            return blob[:,k1,k2]    
     
     def max_likelihood_parameters(self):
         """
@@ -2731,9 +2754,9 @@ class ModelSet(BlobFactory):
         Make nice axis labels.
         """
         
-        pars, take_log, multiplier, un_log, z = \
-            self._listify_common_inputs(pars, take_log, 1.0, un_log, z=None)
-        
+        pars, take_log, multiplier, un_log, ivar = \
+            self._listify_common_inputs(pars, take_log, 1.0, un_log, None)
+
         if type(is_log) != dict:
             tmp = {par:is_log[i] for i, par in enumerate(pars)}
             is_log = tmp

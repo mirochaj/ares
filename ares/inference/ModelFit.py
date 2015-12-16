@@ -927,7 +927,7 @@ class ModelFit(BlobFactory):
                                 % (self.prefix, self.blob_nd[j], blob)
                             with open(bfn, 'ab') as f:
                                 pickle.dump(np.array(to_write), f)                       
-                
+                                
                 else:
                     fn = '%s.%s.pkl' % (prefix, suffix)
                     f = open(fn, 'ab')

@@ -95,7 +95,7 @@ class BlobFactory(object):
             self._blob_funcs = []
             for i, element in enumerate(self._blob_names):
                 try:
-                    self._blob_nd.append(len(np.shape(self._blob_ivars[i])))
+                    self._blob_nd.append(len(self._blob_ivars[i]))
                     self._blob_dims.append(np.shape(self._blob_ivars[i]))
                 except:
                     # Scalars!
@@ -189,18 +189,28 @@ class BlobFactory(object):
 
                 # 1-D blobs. Assume the independent variable is redshift.
                 elif self.blob_nd[i] == 1:
-                    if self.blob_funcs[i] is None:
-                        z = self.blob_ivars[i]
-                        blob = np.interp(z, self.history['z'][-1::-1], 
+                    x = np.array(self.blob_ivars[i])
+                    if self.blob_funcs[i] is None:   
+                        blob = np.interp(x, self.history['z'][-1::-1], 
                             self.history[key][-1::-1])
                     else:
                         fname = self.blob_funcs[i][j]
                         func = parse_attribute(fname, self)
-                        blob = func(self.blob_ivars[i])
+                        blob = func(x)
                 else:
-                    xarr = self.blob_ivars[i]
+                    # Must have blob_funcs for this case
+                    fname = self.blob_funcs[i][j]
+                    func = parse_attribute(fname, self)
+                    
+                    xarr, yarr = map(np.array, self.blob_ivars[i])
+                    blob = []
+                    for i, x in enumerate(xarr):
+                        tmp = []
+                        for j, y in enumerate(yarr):
+                            tmp.append(func(x, y))
+                        blob.append(tmp)
 
-                this_group.append(blob)
+                this_group.append(np.array(blob))
 
             self._blobs.append(np.array(this_group))
             
@@ -224,6 +234,12 @@ class BlobFactory(object):
         return self._get_item(name)
     
     def blob_info(self, name):
+        """
+        Returns
+        -------
+        index of blob group, index of element within group, dimensionality, 
+        and exact dimensions of blob.
+        """
         found = False
         for i, group in enumerate(self.blob_names):
             for j, element in enumerate(group):
