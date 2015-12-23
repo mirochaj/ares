@@ -12,7 +12,7 @@ Description: Tabulate integrals that appear in the rate equations.
 
 import time
 import numpy as np
-from ..util import ProgressBar
+from ..util.ProgressBar import ProgressBar
 from ..physics.Constants import erg_per_ev
 from ..physics.SecondaryElectrons import *
 import os, re, scipy, itertools, math, copy
@@ -46,7 +46,7 @@ class IntegralTable:
         
         #if self.pf['source_table']:
         #    self.load(self.pf['source_table'])
-            
+                        
         # Move this stuff to TableProperties    
         if logN is None:
             

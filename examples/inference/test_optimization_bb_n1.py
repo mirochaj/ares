@@ -28,12 +28,13 @@ logN = [np.linspace(15, 20, 51)]
 src = {'problem_type': 2}
 
 # Initialize optimization object - use simulated annealing rather than MCMC
-sedop = ares.inference.SpectrumOptimization(logN=logN, Z=Z, nfreq=1, 
-    rs=src, mcmc=False, isothermal=False, thinlimit=True)
+sedop = ares.inference.SpectrumOptimization(logN=logN, Z=Z, problem_type=2)
+
+sedop.nfreq = 1
+sedop.guess = [30.,1.0]
 
 # Run optimization
-sedop(1e4, burn=1e3, guess=[30., 1.0], err=0.01, step=[5, 0.05], 
-    afreq=10, gamma=0.99)
+sedop.run(1e4, burn=1e3, err=0.01, step=[5, 0.05], afreq=10, gamma=0.99)
 
 # Compute cost function by brute force
 E = np.linspace(15, 50, 100)
@@ -45,8 +46,8 @@ for i in xrange(len(E)):
 
 # Plot contours of cost function, analytic solution, and last 1000 steps of chain
 pl.contour(E, LE, lnL.T, 3, colors='k', linestyles=[':', '--', '-'])
-pl.plot(sedop.sampler.chain, sedop.sampler.chain, color='b')
-    
+pl.scatter(*sedop.sampler.x, marker='o', s=200, facecolors='none')    
+
 # We should recover the mean ionizing photon energy and the 
 # fraction of the bolometric luminosity emitted above 13.6 eV
 Emono = sedop.rs.hnu_bar[0]

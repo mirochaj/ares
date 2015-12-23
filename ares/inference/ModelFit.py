@@ -169,6 +169,9 @@ class LogPrior:
 
         return logL
         
+# For backward compatibility
+logprior = LogPrior        
+        
 class LogLikelihood:
     def __init__(self, steps, parameters, is_log, mu, errors,
         base_kwargs, nwalkers, priors={}, errmap=None, errunits=None, 

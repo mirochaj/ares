@@ -5,8 +5,7 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on 2010-10-19.
 
-Description: Defaults for all different kinds of parameters, now sorted
-into groups.
+Description: Defaults for all different kinds of parameters.
      
 """
 

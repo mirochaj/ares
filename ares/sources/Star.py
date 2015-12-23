@@ -13,6 +13,7 @@ Description:
 import numpy as np
 from .Source import Source
 from scipy.integrate import quad
+from ..util.ParameterFile import ParameterFile
 from ..util.SetDefaultParameterValues import StellarParameters
 from ..physics.Constants import h, erg_per_ev, k_B, c, sigma_SB, s_per_myr
 
@@ -50,8 +51,8 @@ class Star(Source):
         
         """  
         
-        self.pf = StellarParameters()
-        self.pf.update(kwargs)
+        self.pf = ParameterFile(**kwargs)#StellarParameters()
+        #self.pf.update(kwargs)
         Source.__init__(self)
         
         self._name = 'star'

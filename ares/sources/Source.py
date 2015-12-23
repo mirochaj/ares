@@ -48,11 +48,11 @@ class Source(object):
         """    
         
         # Update cosmological parameters
-        for par in cosmo_pars:
-            if par in self.pf:
-                continue
-        
-            self.pf[par] = cosmo_pars[par]
+        #for par in cosmo_pars:
+        #    if par in self.pf:
+        #        continue
+        #
+        #    self.pf[par] = cosmo_pars[par]
                 
         # Modify parameter file if spectrum_file provided
         #self._load_spectrum()        
@@ -257,8 +257,20 @@ class Source(object):
     def tables(self):
         if not hasattr(self, '_tables'):
             self._create_integral_table()
-                    
-        return self._tables            
+        return self._tables    
+    
+    @property
+    def tab(self):
+        if not hasattr(self, '_tab'):
+            self._create_integral_table()
+        return self._tab     
+        
+    @property
+    def tabs(self):
+        if not hasattr(self, '_tabs'):
+            self._create_integral_table()
+        return self._tabs
+        
     def _create_integral_table(self, logN=None):
         """
         Take tables and create interpolation functions.
@@ -278,11 +290,11 @@ class Source(object):
                 self.pf.update({'tables_logNmax': [np.max(tmp) for tmp in logN]})
 
             # Tabulate away!            
-            self.tab = IntegralTable(self.pf, self, self.grid, logN)
-            self.tabs = self.tab.TabulateRateIntegrals()
+            self._tab = IntegralTable(self.pf, self, self.grid, logN)
+            self._tabs = self.tab.TabulateRateIntegrals()
         else:
-            self.tab = IntegralTable(self.pf, self, self.grid, logN)
-            self.tabs = self.tab.load(self.pf['source_table'])
+            self._tab = IntegralTable(self.pf, self, self.grid, logN)
+            self._tabs = self.tab.load(self.pf['source_table'])
         
         self._setup_interp()
         
@@ -521,8 +533,7 @@ class Source(object):
         """     
         
         if Emin is None:
-            Emin = max(self.grid.ioniz_thresholds[absorber], 
-                np.array(self.Emin)[self.ionizing])
+            Emin = max(self.grid.ioniz_thresholds[absorber], self.Emin)
         if Emax is None:
             Emax = self.Emax
             

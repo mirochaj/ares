@@ -13,19 +13,20 @@ Description:
 import copy
 import numpy as np
 from ..static import Grid
-from ..sources import RadiationSource
+from ..sources import BlackHole, Star
 from ..physics.Constants import erg_per_ev 
+from ..util.ParameterFile import ParameterFile
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
 
-try:
-    import ndmin
-except ImportError:
-    pass
-    
 try:
     import h5py
 except ImportError:
     pass    
+    
+try:
+    from scipy.optimize import basinhopping
+except ImportError:
+    pass
     
 try:
     from mpi4py import MPI
@@ -35,49 +36,89 @@ except ImportError:
     rank = 0
     size = 1
     
+def halve_list(li):
+    N = len(li)
+    return li[0:N/2], li[N/2:]    
+    
 class SpectrumOptimization:
-    def __init__(self, logN=None, helium=False, nfreq=1, rs=None, fn=None, 
-        thinlimit=False, isothermal=False, secondary_ionization=0, mcmc=False,
-        loglikelihood=None):
-        self.logN = logN
-        self.nfreq = nfreq
-        self.rs = rs
-        self.fn = fn
-        self.thinlimit = thinlimit
-        self.isothermal = isothermal
-        self.secondary_ionization = secondary_ionization
-        self.mcmc = mcmc
+    def __init__(self, **kwargs):
+        self.pf = ParameterFile(**kwargs)
+        #logN=None, helium=False, nfreq=1, rs=None, fn=None, 
+        #    thinlimit=False, isothermal=False, secondary_ionization=0, mcmc=False,
+        #    loglikelihood=None
+        #self.logN = logN
+        #self.nfreq = nfreq
+        #self.rs = rs
+        #self.fn = fn
+        #self.thinlimit = thinlimit
+        #self.isothermal = isothermal
+        #self.secondary_ionization = secondary_ionization
+        #self.mcmc = mcmc
         
         # Use Grid class to carry info about absorbing species
-        self.grid = Grid()
-        self.grid.set_physics(isothermal=self.isothermal, 
-            secondary_ionization=self.secondary_ionization)
-        self.grid.set_chemistry(helium)
+        self.grid = Grid(**kwargs)
+        self.grid.set_properties(**self.pf)
         
         self.Z = self.grid.Z
         
+        self.mcmc = False
+        self.thinlimit = True
+        
         # Initialize radiation source
-        if self.rs is None:
-            self.rs = RadiationSource(self.grid, 
-                self.logN, **{'spectrum_file': self.fn})
-        elif type(self.rs) is dict:
-            self.rs = RadiationSource(self.grid, 
-                self.logN, **self.rs)        
+        #if self.rs is None:
+        #    self.rs = RadiationSource(self.grid, 
+        #        self.logN, **{'spectrum_file': self.fn})
+        #elif type(self.rs) is dict:
+        #    self.rs = RadiationSource(self.grid, 
+        #        self.logN, **self.rs)        
+        
+        self.rs = Star(grid=self.grid, init_tabs=True, **kwargs)
+        self.rs.grid = self.grid
         
         # What integrals are we comparing to?
-        self.integrals = copy.deepcopy(self.rs.tab.IntegralList)
-        self.integrals.pop(self.integrals.index('Tau'))
+
+    @property
+    def integrals(self):
+        if not hasattr(self, '_integrals'):
+            self._integrals = copy.deepcopy(self.rs.tab.IntegralList)
+            self._integrals.pop(self._integrals.index('Tau'))
         
+        return self._integrals
+    
+    @property
+    def tau_dims(self):
+        if not hasattr(self, '_tau_dims'):    
         # Figure out size of optical depth array [np.prod(logN.shape) x nfreq]
-        self.tau_dims = list(self.rs.tab.dimsN.copy())
-        self.tau_dims.append(len(self.Z))
-        self.tau_dims.append(self.nfreq)
-        
-        self.tab_dims = list(self.rs.tab.dimsN.copy())
+            self._tau_dims = list(self.rs.tab.dimsN.copy())
+            self._tau_dims.append(len(self.Z))
+            self._tau_dims.append(self.nfreq)
+            
+            self._tab_dims = list(self.rs.tab.dimsN.copy())
+        return self._tau_dims
         #self.tab_dims.insert(0, len(self.Z))
         #self.tab_dims.insert(0, len(self.integrals))
+    @property
+    def tab_dims(self):
+        return self.tau_dims
+    @property
+    def nfreq(self):
+        return self._nfreq
+    @nfreq.setter
+    def nfreq(self, value):
+        self._nfreq = int(value)
+        
+    @property
+    def guess(self):
+        if not hasattr(self, '_guess'):
+            self._guess = np.array([20., 1.0])
+        return self._guess
+    @guess.setter
+    def guess(self, value):
+        assert len(value) == 2 * self.nfreq, "len(guess) must be = 2*nfreq!"
+        self._guess = value
     
-    def run(self, steps, limits=None, step=None, burn=None, guess=None, err=0.1):
+    def run(self, steps, limits=None, step=None, burn=None, guess=None, 
+        err=0.1, gamma=0.99, afreq=50):
         self.__call__(steps, guess=guess, limits=limits, step=step, 
             burn=burn, err=err)
     
@@ -105,26 +146,14 @@ class SpectrumOptimization:
             for i in xrange(self.nfreq * 2):
                 guess.append(np.random.rand() * \
                     (limits[i][1] - limits[i][0]) + limits[i][0])
-            
-        if self.mcmc:
-            self.sampler = ndmin.MarkovChain(lambda p: self.cost(p, err), 
-                cov=np.diag(step), limits=limits)
-            self.sampler.burn_in(burn, guess=guess)
-            
-            if steps > 0:
-                self.sampler.run(steps, guess=self.sampler.xarr_ML, 
-                    eigval=self.sampler.eigenvals, eigvec=self.sampler.eigenvecs)    
-        else:    
-            self.sampler = ndmin.Annealer(self.cost, limits=limits, 
-                step=step, afreq=afreq, gamma=gamma)
-            
-            self.sampler.run(steps)
+         
+        self.sampler = basinhopping(self.cost, x0=self.guess) 
          
         if rank == 0:
             print 'Optimization complete.'    
         
-    def cost(self, pars, err=0.1):
-        E, LE = ndmin.util.halve_list(pars)
+    def cost(self, pars):
+        E, LE = halve_list(pars)
         #bfx = sigma_E(E)        
                 
         # Compute optical depth for all combinations of column densities
