@@ -16,7 +16,6 @@ from ..physics import Hydrogen
 from ..physics import Cosmology
 from scipy.integrate import quad
 from ..util import ParameterFile
-from ..util.Misc import sort, evolve
 from ..physics.Constants import erg_per_ev, E_LL
 from ..static.IntegralTables import IntegralTable
 from ..static.InterpolationTables import LookupTable
