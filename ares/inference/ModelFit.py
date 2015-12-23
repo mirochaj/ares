@@ -12,7 +12,6 @@ Description:
 
 import numpy as np
 from ..util.Stats import get_nu
-from emcee.utils import sample_ball
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
 from ..util.AbundanceMatching import HAM
@@ -34,6 +33,7 @@ except:
 
 try:
     import emcee
+    from emcee.utils import sample_ball
 except ImportError:
     pass
 
