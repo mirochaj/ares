@@ -2,15 +2,48 @@ Developing *ares*
 =================
 If *ares* lacks functionality you're interested in, but seems to exhibit some 
 features you'd like to make use of, adapting it to suit your purpose should
-(in principle) be fairly straightforward. The following section shows
+(in principle) be fairly straightforward. The following sections describe
 how you might go about doing this. 
 
 If you end up developing something that might be useful for others and
 are willing to share, you should absolutely `fork ares on bitbucket <https://bitbucket.org/mirochaj/ares/fork>`_.
 Feel free to shoot me an email if you need help getting started!
 
-Basic Hacking
--------------
+First things first: avoid breaking everything!
+----------------------------------------------
+There are a few basic rules to follow in developing *ares* that should prevent major crashes. They are covered below.
+
+Imports
+~~~~~~~
+First and foremost, when you write a new module you should follow the hierarchy that's already in place. Below, the pre-existing sub-modules within *ares* are listed in an order representative of that hierarchy:
+
+- inference
+- simulations
+- solvers
+- static
+- populations, sources
+- physics, util
+
+It will hopefully be clear which sub-module your new code ought to be added to. For example, if you're writing code to fit a particular kind of dataset, you'll want to add your new module to ``ares.inference``. If you're creating new kinds of sources populations, ``ares.populations``, and so on. If you're adding new physical constants, rate coefficients, etc., look at ``ares.physics.Constants`` and ``ares.physics.RateCoefficients``.
+
+Now, you'll (hopefully) be making use of at least some pre-existing capabilities of *ares*, which means your module will need to import classes from other sub-modules. There is only one rule here: 
+
+**When writing a new class, let's say within sub-module X, you cannot import classes from sub-modules Y that lie above X in the hierarchy.** 
+
+This is to prevent circular imports (which result in recursion errors).
+
+Inheritance
+~~~~~~~~~~~
+You might also want to inherit pre-existing classes rather than simply making new instances of them in your own. For example, if creating a class to represent a new type of source population, it would be wise to inherit the ``ares.populations.Population`` class, which has a slew of convenience routines. More on that later.
+
+Again, there's only one rule, which is related to the hierarchy listed in the above section:
+
+**Parent Classes (i.e., those to be inherited) must be defined either at the same level in the hierarchy as the Child Classes or below.**
+
+This is a little obvious from the rule about imports, since a class must be either defined locally or imported before it can be inherited.
+
+"Under the Hood": Walkthrough
+-----------------------------
 As mentioned in :doc:`structure`, `ares` uses Python generators heavily. The
 main reason for this is to make adapting the code to your needs straightforward.
 For example, if you don't want to bother with generating astrophysically-motivated
@@ -44,9 +77,12 @@ and data on each iteration. All we'll do in this example is to force the
 ionization rate coefficient to be a constant:
 
 ::
-  
+    
+    # Containers for the data on each timestep
     all_t = []
     all_data = []
+    
+    # Evolve in time
     for t, dt, data in sim.step():
         
         # Save current time and data
@@ -176,18 +212,36 @@ you could do:
     cell midpoints. The edges are accessible also (via `r` or `r_edg`), but
     have one more element, thus causing a ``ValueError`` if used in attempts
     to plot radial profiles.
-
-Advanced Hacking
-----------------
-Stay tuned.
-
-Summary
--------
+    
+    
 The procedure of repeatedly calling the generator, updating rate coefficients,
 and storing data is what is happening ''under the hood'' each time you call
 the `run` method of a class in the :py:mod:`ares.simulations` module. If you
 come up with some new type of calculation and are tired of calling the `step`
 function explicitly, perhaps it's time to create a new submodule in
-:py:mod:`ares.simulations` module!
+:py:mod:`ares.simulations` module!    
+
+Advanced Hacking
+----------------
+
+New Classes
+~~~~~~~~~~~
+
+New Parameters
+~~~~~~~~~~~~~~
+
+New Source Populations
+~~~~~~~~~~~~~~~~~~~~~~
+
+New Simulations
+~~~~~~~~~~~~~~~
+
+New Fitters
+~~~~~~~~~~~
+
+
+
+
+
 
 

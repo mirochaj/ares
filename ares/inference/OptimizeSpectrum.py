@@ -133,8 +133,11 @@ class SpectrumOptimization(object):
         if not hasattr(self, '_guess'):
             self._guess = []
             for i in xrange(self.nfreq * 2):
-                self._guess.append(np.random.rand() * \
+                if i < self.nfreq:
+                    self._guess.append(np.random.rand() * \
                     (self.limits[i][1] - self.limits[i][0]) + self.limits[i][0])
+                else:
+                    self._guess.append(self.rs.Spectrum(self._guess[i - self.nfreq]))
     
             tot = np.sum(self._guess[self.nfreq:])
             for i in xrange(self.nfreq, self.nfreq * 2):
@@ -149,7 +152,7 @@ class SpectrumOptimization(object):
         self._guess = np.array(value)
     
     def _accept_test(self, **kwargs):
-                               
+                                       
         # If cost is not finite
         if not np.isfinite(kwargs['f_new']):
             return False             
@@ -166,10 +169,25 @@ class SpectrumOptimization(object):
         
         return True
     
-    def run(self, **kwargs):
-        self.__call__(**kwargs)
+    def run(self, steps=1, **kwargs):
+        
+        if rank == 0:
+            print 'Finding optimal %i-bin discrete SED...' % self.nfreq
+        
+        logL = []
+        results = []
+        for i in range(steps):
+            self.__call__(**kwargs)
+            logL.append(self.logL)
+            results.append(self.pars.copy())
     
-    def __call__(self, niter=100, T=1.0, stepsize=0.5, interval=50):
+        self.all_logL = logL
+        self.all_results = results
+        
+        if rank == 0:
+            print 'Optimization complete.'    
+    
+    def __call__(self, **kwargs):
         """
         Construct optimal discrete spectrum for a given radiation source.
         
@@ -178,18 +196,16 @@ class SpectrumOptimization(object):
                 entry in Z.
         """
         
-        if rank == 0:
-            print 'Finding optimal %i-bin discrete SED...' % self.nfreq
-                  
-        self.sampler = basinhopping(self.cost, x0=self.guess, 
-            niter=int(niter), T=T, stepsize=stepsize, interval=interval,
-            accept_test=self._accept_test)#, minimizer_kwargs={'method': 'BFGS'}) 
-         
-        self.pos = self.pars = self.results = self.sampler.x 
-         
-        if rank == 0:
-            print 'Optimization complete.'    
         
+        self.sampler = basinhopping(self.cost, x0=self.guess, 
+            accept_test=self._accept_test)
+         
+        E, L = self.sampler.x[0:self.nfreq], self.sampler.x[self.nfreq:] 
+        loc = np.argsort(E) 
+         
+        self.logL = self.sampler.fun
+        self.pos = self.pars = self.results = np.concatenate((E[loc], L[loc]))
+         
     def cost(self, pars):
         E, LE = pars[0:self.nfreq], pars[self.nfreq:]
         #bfx = sigma_E(E)        
@@ -220,17 +236,16 @@ class SpectrumOptimization(object):
                 cont = self.rs.tabs[name]
                 disc = discrete_tables[name]
                 
+                # Difference array (finite elements only)
                 diffarr = np.atleast_1d(np.abs(disc - cont)[mask])
-                diffarr_fin = diffarr[np.isfinite(diffarr)]
-                         
-                if diffarr_fin.size == 0:
+
+                if not np.all(np.isfinite(diffarr)):
                     return np.inf
                 
-                cost = 0.
                 if self.thinlimit:
-                    cost += np.max(diffarr_fin)
-
-                cost += np.mean(diffarr_fin)
+                    cost = np.max(diffarr)
+                else:
+                    cost = np.mean(diffarr)
                                         
         return cost
     

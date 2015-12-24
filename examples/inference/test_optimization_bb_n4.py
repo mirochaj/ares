@@ -38,7 +38,7 @@ sedop = ares.inference.SpectrumOptimization(**pars)
 sedop.nfreq = 4
 sedop.thinlimit = False
 
-sedop.run(niter=1000, stepsize=0.05)
+sedop.run(100)
 
 # Plot optimal Phi and Psi functions vs. HI column density
 pars = sedop.pars

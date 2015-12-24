@@ -28,9 +28,7 @@ realization of the global 21-cm signal using all default parameter values:
 
     sim = ares.simulations.Global21cm()
     sim.run()
-
-    anl = ares.analysis.Global21cm(sim)
-    ax = anl.GlobalSignature()
+    sim.GlobalSignature()
 
 See :doc:`example_21cm_simple` in :doc:`examples` for a more thorough 
 introduction to this type of calculation.

@@ -35,7 +35,7 @@ sedop.guess = [30.,1.0]
 sedop.thinlimit = True
 
 # Run optimization
-sedop.run(niter=1e3)
+sedop.run(100)
 
 # Compute cost function by brute force
 E = np.linspace(15, 50, 100)
@@ -47,8 +47,9 @@ for i in xrange(len(E)):
 
 # Plot contours of cost function, analytic solution, optimal solution
 pl.contour(E, LE, lnL.T, 3, colors='k', linestyles=[':', '--', '-'])
-pl.scatter(*sedop.pars, color='b', marker='o', s=100, 
-    facecolors='none')
+pl.scatter(zip(*sedop.all_results)[0], zip(*sedop.all_results)[1],
+    c=sedop.all_logL)
+
 
 # We should recover the mean ionizing photon energy and the 
 # fraction of the bolometric luminosity emitted above 13.6 eV
@@ -63,7 +64,8 @@ pl.xlabel(r'$h\nu \ (\mathrm{eV})$')
 pl.ylabel(r'$L_{\nu} / L_{\mathrm{bol}}$')
 
 # Plot optimal Phi and Psi functions vs. HI column density
-Eopt, LEopt = sedop.sampler.x
+Eopt, LEopt = sedop.pars
+print sedop.pars
 
 mp = MultiPanel(dims=(2,1), fig=2)
 
