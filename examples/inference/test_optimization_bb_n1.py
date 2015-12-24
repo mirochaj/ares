@@ -18,23 +18,24 @@ from ares.util.Stats import rebin
 from ares.analysis import MultiPanel
 from ares.physics.Constants import erg_per_ev 
 
-# Set chemistry - hydrogen only for this test
-Z = [1]
-
-# Set column density interval of interest (and number of sampling points)
-logN = [np.linspace(15, 20, 51)]
-
 # Set source properties - grab 10^5 K blackbody from RT06 #2
-src = {'problem_type': 2}
+pars = \
+{
+ 'problem_type': 2,
+ 'tables_logN': [np.linspace(15, 20, 51)],
+ 'isothermal': True,
+ 'secondary_ionization': 0,
+}
 
 # Initialize optimization object - use simulated annealing rather than MCMC
-sedop = ares.inference.SpectrumOptimization(logN=logN, Z=Z, problem_type=2)
+sedop = ares.inference.SpectrumOptimization(**pars)
 
 sedop.nfreq = 1
 sedop.guess = [30.,1.0]
+sedop.thinlimit = True
 
 # Run optimization
-sedop.run(1e4, burn=1e3, err=0.01, step=[5, 0.05], afreq=10, gamma=0.99)
+sedop.run(niter=1e3)
 
 # Compute cost function by brute force
 E = np.linspace(15, 50, 100)
@@ -44,9 +45,10 @@ for i in xrange(len(E)):
     for j in xrange(len(LE)):
         lnL[i,j] = sedop.cost(np.array([E[i], LE[j]]))
 
-# Plot contours of cost function, analytic solution, and last 1000 steps of chain
+# Plot contours of cost function, analytic solution, optimal solution
 pl.contour(E, LE, lnL.T, 3, colors='k', linestyles=[':', '--', '-'])
-pl.scatter(*sedop.sampler.x, marker='o', s=200, facecolors='none')    
+pl.scatter(*sedop.pars, color='b', marker='o', s=100, 
+    facecolors='none')
 
 # We should recover the mean ionizing photon energy and the 
 # fraction of the bolometric luminosity emitted above 13.6 eV
@@ -58,58 +60,25 @@ pl.scatter([Emono]*2, [Lmono]*2, color='k', marker='+', s=200)
 
 # Nice labels
 pl.xlabel(r'$h\nu \ (\mathrm{eV})$')
-pl.ylabel(r'$L_{\nu}$')
-pl.xlim()
-
-
-raw_input('click <enter> for confidence regions (E, LE)')
-pl.close()
-
-# Histogram MCMC results and plot
-Ebins = np.linspace(Emono-5, Emono+5, 51)
-Lbins = np.linspace(Lmono-0.1, Lmono+0.1, 51)
-histE, binsE = np.histogram(sedop.sampler.chain[...,0], bins = Ebins)
-histLE, binsLE = np.histogram(sedop.sampler.chain[...,1], bins = Lbins)
-
-# Grab multiplot class
-mp = MultiPanel(dims=(1,2))
-
-mp.grid[0].plot(rebin(Ebins), histE, color = 'k', 
-    drawstyle = 'steps-mid')
-mp.grid[1].plot(rebin(Lbins), histLE, color = 'k', 
-    drawstyle = 'steps-mid')
-
-mp.grid[0].plot([Emono] * 2, mp.grid[0].get_ylim(), color = 'k', ls = ':')
-mp.grid[1].plot([Lmono] * 2, mp.grid[1].get_ylim(), color = 'k', ls = ':')
-
-mp.grid[0].set_xlabel(r'$h\nu \ (\mathrm{eV})$')
-mp.grid[1].set_xlabel(r'$L_{\nu}$')
-mp.grid[0].set_ylabel('Number of Samples')
-
-mp.fix_ticks()
-pl.draw()
-raw_input('click <enter> for Phi and Psi')
-pl.close()
+pl.ylabel(r'$L_{\nu} / L_{\mathrm{bol}}$')
 
 # Plot optimal Phi and Psi functions vs. HI column density
-pars = sedop.sampler.xarr_ML
-Eopt, LEopt = np.array(pars[:len(pars) / 2]), np.array(pars[len(pars) / 2:])
+Eopt, LEopt = sedop.sampler.x
 
-best_phi = sedop.discrete_tabs(Eopt, LEopt)['logPhi_h_1']
-best_psi = sedop.discrete_tabs(Eopt, LEopt)['logPsi_h_1']
+mp = MultiPanel(dims=(2,1), fig=2)
 
-mp = MultiPanel(dims=(2,1))
+for i, integ in enumerate(sedop.integrals):
+    integral = 'log%s_h_1' % integ
+    best_int = sedop.discrete_tabs(Eopt, LEopt)[integral]
+    mp.grid[i].loglog(10**sedop.logN[0], 10**sedop.rs.tabs[integral], color='k')
+    mp.grid[i].loglog(10**sedop.logN[0], 10**best_int, color='b')
 
-mp.grid[0].loglog(10**sedop.logN[0], 10**sedop.rs.tabs['logPhi_h_1'], color='k')
-mp.grid[0].loglog(10**sedop.logN[0], 10**best_phi, color='b')
 mp.grid[0].set_ylim(1e6, 1e11)
-mp.grid[0].set_ylabel(r'$\Phi$')
+mp.grid[0].set_ylabel(r'$\Phi(N)$')
 mp.grid[0].set_xlabel(r'$N \ (\mathrm{cm}^{-2})$')
 
-mp.grid[1].loglog(10**sedop.logN[0], 10**sedop.rs.tabs['logPsi_h_1'], color='k')
-mp.grid[1].loglog(10**sedop.logN[0], 10**best_psi, color='b')
 mp.grid[1].set_ylim(1e-4, 2)
-mp.grid[1].set_ylabel(r'$\Psi$')
+mp.grid[1].set_ylabel(r'$\Psi(N)$')
 
 mp.fix_ticks()
 

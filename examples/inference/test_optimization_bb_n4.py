@@ -26,36 +26,23 @@ except ImportError:
 
 erg_per_ev = ares.physics.Constants.erg_per_ev 
 
-### INPUT
-burn = 1e5
-steps = 1e5
-mcmc = False
-###
-
-# Set chemistry - hydrogen only for this test
-Z = [1]
-
-# Set column density interval of interest
-logN = [np.linspace(16, 20, 41)]
-
-# Set source properties - grab radiation source for RT06 #2 (10^5 K BB)
-src = {'problem_type': 2}
+pars = \
+{
+ 'problem_type': 2,
+ 'tables_logN': [np.linspace(15, 20, 51)],
+}
 
 # Compute "posterior probability" via simulated annealing - really "cost"
-sedop = ares.inference.SpectrumOptimization(logN=logN, Z=Z, nfreq=4, 
-    rs=src, mcmc=mcmc, isothermal=False, thinlimit=False)
-step = [25.] * sedop.nfreq
-step.extend([0.25] * sedop.nfreq)
-limits = [(13.6, 100.)] * 4
-limits.extend([(0., 1.)] * 4)
-sedop(steps, burn=burn, limits=limits, err=0.2, afreq=30, gamma=0.99)
+sedop = ares.inference.SpectrumOptimization(**pars)
+
+sedop.nfreq = 4
+sedop.thinlimit = False
+
+sedop.run(niter=1000, stepsize=0.05)
 
 # Plot optimal Phi and Psi functions vs. HI column density
-pars = sedop.sampler.xarr_ML
-Eopt, LEopt = np.array(pars[:len(pars) / 2]), np.array(pars[len(pars) / 2:])
-
-if rank > 0:
-    sys.exit()
+pars = sedop.pars
+Eopt, LEopt = pars[0:sedop.nfreq], pars[sedop.nfreq:]
 
 """
 Print optimal SED to screen, plot best fit Phi and Psi.
@@ -81,7 +68,7 @@ mp.grid[1].set_ylabel(r'$\Psi$')
 mp.fix_ticks()
 
 pl.draw()
-raw_input('')
+raw_input('<enter> to proceed')
 pl.close()
 
 # Histograms for energy bins.

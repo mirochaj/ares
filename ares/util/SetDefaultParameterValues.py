@@ -76,6 +76,10 @@ def GridParameters():
     "tables_logNmin": [None],
     "tables_logNmax": [None],
     "tables_dlogN": [0.1],        
+    
+    # overrides above parameters
+    "tables_logN": None, 
+    
     "tables_xmin": [1e-8],
     #
     

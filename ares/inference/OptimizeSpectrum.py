@@ -40,43 +40,33 @@ def halve_list(li):
     N = len(li)
     return li[0:N/2], li[N/2:]    
     
-class SpectrumOptimization:
+class SpectrumOptimization(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
-        #logN=None, helium=False, nfreq=1, rs=None, fn=None, 
-        #    thinlimit=False, isothermal=False, secondary_ionization=0, mcmc=False,
-        #    loglikelihood=None
-        #self.logN = logN
-        #self.nfreq = nfreq
-        #self.rs = rs
-        #self.fn = fn
-        #self.thinlimit = thinlimit
-        #self.isothermal = isothermal
-        #self.secondary_ionization = secondary_ionization
-        #self.mcmc = mcmc
-        
+
         # Use Grid class to carry info about absorbing species
         self.grid = Grid(**kwargs)
         self.grid.set_properties(**self.pf)
         
+        # Shortcut
         self.Z = self.grid.Z
         
+        # 
         self.mcmc = False
+        
+        # Should make property/setter
         self.thinlimit = True
         
-        # Initialize radiation source
-        #if self.rs is None:
-        #    self.rs = RadiationSource(self.grid, 
-        #        self.logN, **{'spectrum_file': self.fn})
-        #elif type(self.rs) is dict:
-        #    self.rs = RadiationSource(self.grid, 
-        #        self.logN, **self.rs)        
-        
+        # Needs to be made more general!
         self.rs = Star(grid=self.grid, init_tabs=True, **kwargs)
-        self.rs.grid = self.grid
         
-        # What integrals are we comparing to?
+        # Forget why this has to be set by hand...
+        self.rs.grid = self.grid        
 
+    @property
+    def logN(self):
+        return self.rs.tab.logN
+        
     @property
     def integrals(self):
         if not hasattr(self, '_integrals'):
@@ -84,6 +74,10 @@ class SpectrumOptimization:
             self._integrals.pop(self._integrals.index('Tau'))
         
         return self._integrals
+        
+    @integrals.setter
+    def integrals(self, value):
+        self._integrals = value
     
     @property
     def tau_dims(self):
@@ -97,9 +91,11 @@ class SpectrumOptimization:
         return self._tau_dims
         #self.tab_dims.insert(0, len(self.Z))
         #self.tab_dims.insert(0, len(self.integrals))
+    
     @property
     def tab_dims(self):
         return self.tau_dims
+    
     @property
     def nfreq(self):
         return self._nfreq
@@ -108,22 +104,72 @@ class SpectrumOptimization:
         self._nfreq = int(value)
         
     @property
+    def step_size(self):
+        if not hasattr(self, '_step_size'):
+            self._step_size = 0.5
+        return self._step_size
+    @step_size.setter
+    def step_size(self, value):
+        self._step_size = value
+    
+    @property
+    def limits(self):
+        if not hasattr(self, '_limits'):
+            self._limits = [(self.rs.Emin, self.rs.Emax)] * self.nfreq \
+                + [(0, 1)] * self.nfreq
+        return self._limits
+        
+    @limits.setter
+    def limits(self, value):
+        if len(value) == 2:
+            Elim, Llim = value
+            self._limits = [Elim] * self.nfreq + [Llim] * self.nfreq
+        else:
+            assert len(value) == (2 * self.nfreq)
+            self._limits = value
+                
+    @property
     def guess(self):
         if not hasattr(self, '_guess'):
-            self._guess = np.array([20., 1.0])
+            self._guess = []
+            for i in xrange(self.nfreq * 2):
+                self._guess.append(np.random.rand() * \
+                    (self.limits[i][1] - self.limits[i][0]) + self.limits[i][0])
+    
+            tot = np.sum(self._guess[self.nfreq:])
+            for i in xrange(self.nfreq, self.nfreq * 2):
+                self._guess[i] /= tot
+            
+            self._guess = np.array(self._guess)
+    
         return self._guess
     @guess.setter
     def guess(self, value):
         assert len(value) == 2 * self.nfreq, "len(guess) must be = 2*nfreq!"
-        self._guess = value
+        self._guess = np.array(value)
     
-    def run(self, steps, limits=None, step=None, burn=None, guess=None, 
-        err=0.1, gamma=0.99, afreq=50):
-        self.__call__(steps, guess=guess, limits=limits, step=step, 
-            burn=burn, err=err)
+    def _accept_test(self, **kwargs):
+                               
+        # If cost is not finite
+        if not np.isfinite(kwargs['f_new']):
+            return False             
+                               
+        # Force normalization to be in interval [0, 1]
+        # Force energies to be within provided limits        
+        for i, x in enumerate(kwargs['x_new']):
+            if not (self.limits[i][0] <= x <= self.limits[i][1]):
+                return False
+
+        # Force sum of normalizations to be less than 1
+        if np.sum(kwargs['x_new'][self.nfreq:]) > 1:
+            return False
+        
+        return True
     
-    def __call__(self, steps, guess=None, limits=None, step=None, burn=None, 
-        err=0.1, gamma=0.99, afreq=50):
+    def run(self, **kwargs):
+        self.__call__(**kwargs)
+    
+    def __call__(self, niter=100, T=1.0, stepsize=0.5, interval=50):
         """
         Construct optimal discrete spectrum for a given radiation source.
         
@@ -134,26 +180,18 @@ class SpectrumOptimization:
         
         if rank == 0:
             print 'Finding optimal %i-bin discrete SED...' % self.nfreq
-
-        # Initialize sampler - generous control parameters
-        if limits is None:
-            limits = [(13.6, 1e2)] * self.nfreq
-            limits.extend([(0.0, 1.0)] * self.nfreq)
-        if step is None:    
-            step = [(lim[1] - lim[0]) for lim in limits]
-        if guess is None:
-            guess = []
-            for i in xrange(self.nfreq * 2):
-                guess.append(np.random.rand() * \
-                    (limits[i][1] - limits[i][0]) + limits[i][0])
+                  
+        self.sampler = basinhopping(self.cost, x0=self.guess, 
+            niter=int(niter), T=T, stepsize=stepsize, interval=interval,
+            accept_test=self._accept_test)#, minimizer_kwargs={'method': 'BFGS'}) 
          
-        self.sampler = basinhopping(self.cost, x0=self.guess) 
+        self.pos = self.pars = self.results = self.sampler.x 
          
         if rank == 0:
             print 'Optimization complete.'    
         
     def cost(self, pars):
-        E, LE = halve_list(pars)
+        E, LE = pars[0:self.nfreq], pars[self.nfreq:]
         #bfx = sigma_E(E)        
                 
         # Compute optical depth for all combinations of column densities
@@ -181,25 +219,19 @@ class SpectrumOptimization:
 
                 cont = self.rs.tabs[name]
                 disc = discrete_tables[name]
+                
+                diffarr = np.atleast_1d(np.abs(disc - cont)[mask])
+                diffarr_fin = diffarr[np.isfinite(diffarr)]
+                         
+                if diffarr_fin.size == 0:
+                    return np.inf
+                
+                cost = 0.
+                if self.thinlimit:
+                    cost += np.max(diffarr_fin)
 
-                if self.mcmc: # really lnL in this case
-                                                            
-                    #if integral == 'Phi':
-                    #    var = (10**self.logN[j])**2 * \
-                    #        np.sum(LE**2 * np.exp(-2. * tau[...,j,:]) \
-                    #        * (0.01 * bfx)**2 / E**2, axis = -1) / erg_per_ev**2
-                    #else:
-                    #    var = (10**self.logN[j])**2 * \
-                    #        np.sum(LE**2 * np.exp(-2. * tau[...,j,:]) \
-                    #        * (0.01 * bfx)**2, axis = -1)
-
-                    cost -= np.sum((disc - cont)[mask]**2 / err**2)
-                else:
-                    cost += np.max(np.abs(disc - cont)[mask])
-                    
-                    if not self.thinlimit:
-                        cost += np.mean(np.abs(disc - cont)[mask])
-        
+                cost += np.mean(diffarr_fin)
+                                        
         return cost
     
     def tab_name(self, integral, absorber):
@@ -209,7 +241,7 @@ class SpectrumOptimization:
         """
         Compute values of integral quantities assuming discrete emission.
         """
-        
+                
         if tau is None:
             tau = self.tau(E)
         
@@ -244,8 +276,17 @@ class SpectrumOptimization:
         """
         Compute total optical depth (over all species) as a function of 
         discrete emission energy E (eV).
+        
+        Parameters
+        ----------
+        E : int, float
+            Photon energy in eV.
+        
+        Returns
+        -------
         """
         
+        E = np.atleast_1d(E)
         tau_E = np.zeros(self.tau_dims)
         
         for i in xrange(self.rs.tab.elements_per_table):
@@ -253,10 +294,11 @@ class SpectrumOptimization:
                 
                 loc = list(self.rs.tab.indices_N[i])
                 loc.append(j)
-                                    
-                tau_E[tuple(loc)] = \
-                    np.array(self.rs.tab.PartialOpticalDepth(E, 
-                    self.rs.tab.Nall[i], absorber))
+                    
+                tmp = np.array(map(lambda EE: self.rs.tab.PartialOpticalDepth(EE, 
+                    float(self.rs.tab.Nall[i]), absorber), E))
+                                
+                tau_E[tuple(loc)] = tmp
                     
         return tau_E
         

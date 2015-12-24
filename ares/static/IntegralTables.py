@@ -47,15 +47,17 @@ class IntegralTable:
         #if self.pf['source_table']:
         #    self.load(self.pf['source_table'])
                         
-        # Move this stuff to TableProperties    
-        if logN is None:
+        # Move this stuff to TableProperties
+        if self.pf['tables_logN'] is not None:
+            self.logN = self.pf['tables_logN']  
+        elif logN is None:
             
             # Required bounds of table assuming minimum species fraction
             self.logNlimits = self.TableBoundsAuto(self.pf['tables_xmin'])
                         
             # Only override automatic table properties if the request table size
             # is *bigger* than the default one.
-            self.N = []
+            self._N = []
             self.logN = []
             for i, absorber in enumerate(self.grid.absorbers):
                 
@@ -70,11 +72,11 @@ class IntegralTable:
                 d = int((logNmax - logNmin) / self.pf['tables_dlogN'][i]) + 1
             
                 self.logN.append(np.linspace(logNmin, logNmax, d))
-                self.N.append(np.logspace(logNmin, logNmax, d))
+                self._N.append(np.logspace(logNmin, logNmax, d))
         else:    
             self.logN = logN
-            self.N = [10**tmp for tmp in self.logN]
-            
+        
+
         # Retrieve dimensions, add some for secondary electrons if necessary                        
         self.dimsN = np.array([len(element) for element in self.N])
         self.elements_per_table = np.prod(self.dimsN)
@@ -116,6 +118,12 @@ class IntegralTable:
         self.E_th = {}
         for absorber in ['h_1', 'he_1', 'he_2']:
             self.E_th[absorber] = self.grid.ioniz_thresholds[absorber]
+    
+    @property
+    def N(self):    
+        if not hasattr(self, '_N'):
+            self._N = [10**tmp for tmp in self.logN]
+        return self._N
         
     def TableBoundsAuto(self, xmin=1e-5):
         """
