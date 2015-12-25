@@ -1,5 +1,5 @@
-Alternative Parameterizations for Sources and Spectra
------------------------------------------------------
+Parameterized Models for Sources and Their Spectra
+--------------------------------------------------
 If you want to use *ares*'s numerical solvers, but don't care for the
 available slew of input options (e.g., spectra, luminosity functions, etc.),
 you can pass in functions of your own. 
@@ -95,5 +95,9 @@ For a sanity check, let's use yet another ``litdata`` submodule, containing the 
     pl.draw()
 
 This is not even close to an apples-to-apples comparison, but let's worry about that more later.
+
+
+
+
 
 

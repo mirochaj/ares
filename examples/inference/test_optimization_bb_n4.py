@@ -35,10 +35,10 @@ pars = \
 # Compute "posterior probability" via simulated annealing - really "cost"
 sedop = ares.inference.SpectrumOptimization(**pars)
 
-sedop.nfreq = 4
+sedop.nfreq = 3
 sedop.thinlimit = False
 
-sedop.run(100)
+sedop.run(10)
 
 # Plot optimal Phi and Psi functions vs. HI column density
 pars = sedop.pars

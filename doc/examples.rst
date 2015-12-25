@@ -23,6 +23,7 @@ Advanced
 --------
 * :doc:`example_adv_RT_w_He`
 * :doc:`example_customization`
+* :doc:`example_fcoll_alternatives`
 
 Requests...?
  

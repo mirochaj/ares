@@ -4,6 +4,13 @@ Bouwens et al., 2015, ApJ, 803, 34
 Table 6. 4 the last 5 rows.
 """
 
+info = \
+{
+ 'reference': 'Bouwens et al., 2015, ApJ, 803, 34'
+ 'data': 'Table 5', 
+ 'fits': 'Table 6', 
+}
+
 redshifts = [3.8, 4.9, 5.9, 6.9, 7.9]
 
 fits = {}
@@ -68,4 +75,3 @@ data['lf'] = \
 }
 
 
-units = {'phi': 1.}
