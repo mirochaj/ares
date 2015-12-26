@@ -27,6 +27,8 @@ def parse_attribute(blob_name, obj_base):
     Find the attribute nested somewhere in an object that we need to compute
     the value of blob `blob_name`.
     """
+    
+    print blob_name, obj_base
 
     attr_split = blob_name.split('.')
 
@@ -69,13 +71,13 @@ class BlobFactory(object):
         blob_funcs
         
     """
-    
+
     def _parse_blobs(self):
         try:
             names = self.pf['blob_names']
         except KeyError:
             names = None
-            
+
         if names is None:
             self._blob_names = self._blob_ivars = None
             self._blob_dims = self._blob_nd = None
@@ -89,13 +91,13 @@ class BlobFactory(object):
 
             self._blob_names = names
             self._blob_ivars = self.pf['blob_ivars']
-            
+
             self._blob_nd = []
             self._blob_dims = []
             self._blob_funcs = []
             for i, element in enumerate(self._blob_names):
                 try:
-                    self._blob_nd.append(len(self._blob_ivars[i]))
+                    self._blob_nd.append(len(self._blob_ivars[i].shape))
                     self._blob_dims.append(np.shape(self._blob_ivars[i]))
                 except:
                     # Scalars!
@@ -190,7 +192,7 @@ class BlobFactory(object):
                 # 1-D blobs. Assume the independent variable is redshift.
                 elif self.blob_nd[i] == 1:
                     x = np.array(self.blob_ivars[i])
-                    if self.blob_funcs[i] is None:   
+                    if (self.blob_funcs[i][j] is None):
                         blob = np.interp(x, self.history['z'][-1::-1], 
                             self.history[key][-1::-1])
                     else:

@@ -1,6 +1,5 @@
 Examples
 ========
-See below.
 
 Basics
 ------
@@ -24,18 +23,18 @@ Advanced
 * :doc:`example_adv_RT_w_He`
 * :doc:`example_customization`
 * :doc:`example_fcoll_alternatives`
-
-Requests...?
  
 Surveying Parameter Space
 -------------------------
-* :doc:`example_grid_I`
-* :doc:`example_grid_II`
-* :doc:`example_grid_analysis`
-* :doc:`example_mcmc_I`
-* :doc:`example_mcmc_analysis`
 
-Post-Processing Cosmological Simulations
-----------------------------------------
-Stay tuned.
+* Model Grids
+    * :doc:`example_grid_I`
+    * :doc:`example_grid_II`
 
+* Forecasting and Fitting with MCMC
+    * :doc:`example_mcmc_I`
+    
+* Analyzing Sets of Models
+    * :doc:`example_inline_analysis`
+    * :doc:`example_grid_analysis`
+    * :doc:`example_mcmc_analysis`

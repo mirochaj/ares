@@ -22,7 +22,7 @@ First and foremost, when you write a new module you should follow the hierarchy 
 - solvers
 - static
 - populations, sources
-- physics, util
+- physics, util, analysis
 
 It will hopefully be clear which sub-module your new code ought to be added to. For example, if you're writing code to fit a particular kind of dataset, you'll want to add your new module to ``ares.inference``. If you're creating new kinds of sources populations, ``ares.populations``, and so on. If you're adding new physical constants, rate coefficients, etc., look at ``ares.physics.Constants`` and ``ares.physics.RateCoefficients``.
 
