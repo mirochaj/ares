@@ -31,7 +31,7 @@ pars = \
  
  'pop_ham_fit': 'fstar',
  'pop_ham_Mfun': 'poly',
- 'pop_ham_zfun': 'poly',
+ 'pop_ham_zfun': 'const',
  'pop_ham_Mext': None,
  'pop_ham_zext': None,
  

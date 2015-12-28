@@ -12,10 +12,7 @@ To begin,
     import numpy as np
     
 Before we run a set of models, we need to decide what quantities we'd like
-to save for each model. Anything stored in the ``history`` attribute of an
-``ares.simulations.Global21cm`` instance is fair game: see :doc:`fields` for
-more information. We also must supply a series of redshifts
-at which to save the quantities of interest.
+to save for each model. For a detailed description of how to do this in general cases, check out :doc:`example_inline_analysis`. 
 
 Let's save the following quantities:
 
@@ -29,7 +26,7 @@ Let's save the following quantities:
 
 i.e., ::
 
-    fields = ['z', 'igm_dTb', 'igm_Ts', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 'igm_k_heat_h_1', 'cgm_k_ion_h_1']
+    blob_names = ['z', 'igm_dTb', 'igm_Ts', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 'igm_k_heat_h_1', 'cgm_k_ion_h_1']
 
 We'll save each of these quantities at the three extrema in the global 21-cm
 signal (turning points B, C, and D), and a few other redshifts of interest.

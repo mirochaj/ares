@@ -20,6 +20,34 @@ from ..util.Math import central_difference
 from .MultiPhaseMedium import MultiPhaseMedium
 
 class Global21cm(MultiPhaseMedium):
+    
+    def __getattr__(self, name):
+        if not hasattr(self, '_attrs'):
+            self._attrs = {}
+        if name not in self._attrs:
+            # See if this is a turning point
+            spl = name.split('_')
+            
+            if len(spl) > 2:
+                quantity = ''
+                for item in spl[0:-1]:
+                    quantity += '%s_' % item
+                quantity = quantity.rstrip('_')
+                pt = spl[-1]
+            else:
+                quantity, pt = spl
+    
+            if pt in list('BCD'):
+                z = self.__getattribute__('z%s' % pt)
+            else:
+                # This'd be where e.g., zrei, should go
+                raise NotImplemented('hey fix me!')
+    
+            self._attrs[name] = \
+                np.interp(z, self.data_asc['z'], self.data_asc[quantity])
+    
+        return self._attrs[name]
+    
     @property
     def dTbdz(self):
         if not hasattr(self, '_dTbdz'):
