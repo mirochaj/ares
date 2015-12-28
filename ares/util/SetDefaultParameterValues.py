@@ -335,9 +335,6 @@ def PopulationParameters():
     "pop_xi_LW": None,     # product of fstar and Nlw
     "pop_xi_UV": None,     # product of fstar, Nion, and fesc
     
-    # HAM parameters
-    "pop_logM": np.arange(8, 13.5, 0.5), # Masses for AM
-    
     # Override luminosity density
     "pop_rhoL": None,
     

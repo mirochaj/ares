@@ -28,8 +28,6 @@ def parse_attribute(blob_name, obj_base):
     the value of blob `blob_name`.
     """
     
-    print blob_name, obj_base
-
     attr_split = blob_name.split('.')
 
     if len(attr_split) == 1: 
@@ -46,10 +44,16 @@ def parse_attribute(blob_name, obj_base):
     for i in range(len(attr_split)):
         s = attr_split[i]
 
+        # Brackets indicate...?
         if re.search('\[', s): 
             k = get_k(s)
             blob = obj_list[i].__getattribute__(s[0:s.rfind('[')])[k]
-            break
+            
+            if (i == (len(attr_split) - 1)):
+                break
+            else:
+                new_obj = blob
+                blob = None
         else:
             new_obj = obj_list[i].__getattribute__(s)
 
@@ -57,7 +61,7 @@ def parse_attribute(blob_name, obj_base):
 
     if blob is None:
         blob = new_obj
-
+        
     return blob
 
 class BlobFactory(object):
@@ -96,14 +100,29 @@ class BlobFactory(object):
             self._blob_dims = []
             self._blob_funcs = []
             for i, element in enumerate(self._blob_names):
-                try:
-                    self._blob_nd.append(len(self._blob_ivars[i].shape))
-                    self._blob_dims.append(np.shape(self._blob_ivars[i]))
-                except:
-                    # Scalars!
+                
+                # Scalars
+                if np.isscalar(self._blob_ivars[i]) or \
+                   (self._blob_ivars[i] is None):
                     self._blob_nd.append(0)
                     self._blob_dims.append(0)
+                # Everything else
+                else:
                     
+                    # Be careful with 1-D
+                    if type(self._blob_ivars[i]) is np.ndarray:
+                        lenarr = len(self._blob_ivars[i].shape)
+                        assert lenarr == 1
+                        
+                        self._blob_nd.append(1)
+                        self._blob_dims.append(lenarr)
+                    else:
+
+                        self._blob_nd.append(len(self._blob_ivars[i]))
+                        self._blob_dims.append([len(element) \
+                            for element in self._blob_ivars[i]])
+                
+                # Handle functions
                 if self.pf['blob_funcs'] is None:
                     self._blob_funcs.append([None] * len(element))
                 elif self._blob_dims[i] == 1 and self.pf['blob_funcs'] is None:
@@ -198,7 +217,7 @@ class BlobFactory(object):
                     else:
                         fname = self.blob_funcs[i][j]
                         func = parse_attribute(fname, self)
-                        blob = func(x)
+                        blob = np.array(map(func, x))
                 else:
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]

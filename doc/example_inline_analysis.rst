@@ -73,7 +73,73 @@ The blobs themselves can be accessed via:
 In this case, using blobs isn't necessary since we have all data from the simulation at our fingertips. However, the attribute ``sim.blobs`` is extremely important for model grids or MCMC fits, as its contents are the only thing written to disk other than the MCMC samples themselves.
 
     
-Example: Scalar, 1-D, and 2-D blobs
------------------------------------
-Working on it.
+Example: 2-D blobs
+------------------
+Now, let's track slightly more complex blobs.
+
+::
+
+    blob_names = [['Mpeak', 'fpeak'], ['gamma']]
+    
+::
+    
+    blob_ivars = [redshift, [[4.9, 5.9], np.logspace(8, 11, 4)]]
+::
+
+    blob_funcs = [['pops[0].ham.Mpeak', 'pops[0].ham.fpeak'], ['pops[0].ham.gamma']],
+    
+    
+
+
+::
+
+    redshift = 3.8
+    
+    b15 = ares.util.read_lit('bouwens2015')
+    mags = b15.data['lf'][redshift]['M']
+    
+    base_pars = \
+    {
+     'pop_Tmin{0}': 1e5,
+     'pop_model{0}': 'ham',
+     'pop_Macc{0}': 'mcbride2009',
+    
+     'pop_lf_z{0}': [redshift],
+     
+     'pop_ham_fit{0}': 'fstar',
+     'pop_ham_Mfun{0}': 'poly',
+     'pop_ham_zfun{0}': 'const',
+      
+     'pop_lf_mags{0}': [mags],
+    
+     'pop_sed{0}': 'leitherer1999',
+     'pop_fesc{0}': 0.2,
+     'pop_lf_Mstar[%.2g]{0}' % redshift: -22, 
+     'pop_lf_pstar[%.2g]{0}' % redshift: 1e-3, 
+     'pop_lf_alpha[%.2g]{0}' % redshift: -2,
+     
+     'pop_ion_src_igm{1}': False,
+     
+     'problem_type': 101.2,
+     
+     'cgm_initial_temperature': 2e4,
+     'cgm_recombination': 'B',
+     'clumping_factor': 3.,
+     'load_ics': False,
+     
+     'blob_names': blob_names,
+     'blob_ivars': blob_ivars,
+     'blob_funcs': blob_funcs,
+     
+    }
+
+Run the thing:    
+    
+::
+    
+    sim.run()
+    
+and check the blobs
+
+    sim.blobs
     

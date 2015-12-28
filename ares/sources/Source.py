@@ -48,11 +48,12 @@ class Source(object):
         """    
         
         # Update cosmological parameters
-        #for par in cosmo_pars:
-        #    if par in self.pf:
-        #        continue
-        #
-        #    self.pf[par] = cosmo_pars[par]
+        # Why is this necessary? J.M.12.27.2015
+        for par in cosmo_pars:
+            if par in self.pf:
+                continue
+        
+            self.pf[par] = cosmo_pars[par]
                 
         # Modify parameter file if spectrum_file provided
         #self._load_spectrum()        

@@ -6,7 +6,7 @@ Table 6. 4 the last 5 rows.
 
 info = \
 {
- 'reference': 'Bouwens et al., 2015, ApJ, 803, 34'
+ 'reference': 'Bouwens et al., 2015, ApJ, 803, 34',
  'data': 'Table 5', 
  'fits': 'Table 6', 
 }

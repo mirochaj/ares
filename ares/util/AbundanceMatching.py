@@ -840,10 +840,15 @@ class HAM(object):
             logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
                  + coeff[2] * ((1. + z) / 8.) \
                  + coeff[3] * ((1. + z) / 8.) * np.log10(M / 1e10) \
-                 + coeff[4] * (np.log10(M / 1e10))**2. \
-                 + coeff[5] * (np.log10(M / 1e10))**3.
+                 + coeff[4] * (np.log10(M / 1e10))**2.
                  
             f = 10**logf
+            
+        elif (self.Mfunc == 'poly') and (self.zfunc == 'const'):
+            logf = coeff[0] + coeff[1] * np.log10(M / 1e10) \
+                 + coeff[2] * (np.log10(M / 1e10))**2.
+        
+            f = 10**logf    
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_z'):
             logM = np.log10(M)
             
@@ -858,23 +863,26 @@ class HAM(object):
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
             logM = np.log10(M)
 
-            f = coeff[0] * np.exp(-(logM - coeff[1]) / 2. / coeff[2]**2)
+            f = coeff[0] * np.exp(-(logM - coeff[1])**2 / 2. / coeff[2]**2)
 
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_t'):
             logM = np.log10(M)
 
             self._fstar_of_z = lambda zz: coeff[0] \
                 -1.5 * np.log10((1. + zz) / (1. + z0))
+            # logM
             self._Mpeak_of_z = lambda zz: coeff[1] \
                 -1.5 * np.log10((1. + zz) / (1. + z0))
             self._sigma_of_z = lambda zz: coeff[2]
 
-            f = self._fstar_of_z(z) \
+            f = 10**self._fstar_of_z(z) \
                 * np.exp(-(logM - self._Mpeak_of_z(z))**2 / 2. / 
                 self._sigma_of_z(z)**2)
                 
         if (self.Mext[0] == 'floor'):
             f += self.Mext[1]
+                
+        f = np.minimum(f, self.pf['pop_fstar_ceil'])
                 
         logf = np.log10(f)
             
@@ -947,7 +955,9 @@ class HAM(object):
         if not hasattr(self, '_guesses'):  
             if self.fit_fstar:
                 if self.Mfunc == self.zfunc == 'poly':            
-                    self._guesses = -1. * np.ones(6) 
+                    self._guesses = -1. * np.ones(5) 
+                elif (self.Mfunc == 'poly') and (self.zfunc == 'const'):
+                    self._guesses = -1. * np.ones(3)
                 elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_z'):
                     self._guesses = np.array([0.25, 0.05, 12., 0.05, 0.5, 0.05])
                 elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
@@ -974,13 +984,14 @@ class HAM(object):
         """
         The mass at which the star formation efficiency peaks.
         """
+        
         alpha = lambda MM: self.gamma(z, MM)
             
         i = np.argmin(np.abs(z - np.array(self.redshifts)))
         guess = self.MofL_tab[i][np.argmax(self.fstar_tab[i])]
 
-        return fmin(alpha, x0=guess, maxiter=1e4, full_output=False,
-            xtol=1e-3, ftol=1e-5, disp=False)[0]
+        return fsolve(alpha, x0=guess)#, maxiter=1e4, full_output=False,
+            #xtol=1e-3, ftol=1e-5, disp=False)[0]
             
     def fpeak(self, z):
         return self.SFE(z, self.Mpeak(z))
@@ -989,10 +1000,19 @@ class HAM(object):
         """
         This is a power-law index describing the relationship between the
         SFE and and halo mass.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift
+        M : int, float
+            Halo mass in [Msun]
+            
         """
         
-        return derivative(lambda MM: self.SFE(z, MM), M, dx=0.01) \
-            * M / self.SFE(z, M)
+        fst = lambda MM: self.SFE(z, MM)
+        
+        return derivative(fst, M, dx=1e6) * M / fst(M)
             
     def gamma2(self, z, M):
         """
