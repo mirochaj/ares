@@ -21,9 +21,9 @@ So, we define a nested list containing the names of our blobs:
 
 ::
 
-    blob_names = [['TB', 'TC', 'TD'], ['cgm_h_2', igm_Tk', 'igm_dTb']]
+    blob_names = [['tau_e'], ['cgm_h_2', igm_Tk', 'igm_dTb']]
 
-The blobs ares sorted by their dimensionality: the first sublist contains the names of all scalar blobs, while the second contains the 1-D blobs. Important question: how do you know the names of blobs? The scalar blobs, in this case ``TB``, ``TC``, and ``TD`` are all *attributes* of the ``Global21cm`` simulation class (well, really of ares.analysis.Global21cm, but they get inherited). The 1-D blobs are all names of *ares* fields: see :doc:`fields` for more information.
+The blobs ares sorted by their dimensionality: the first sublist contains the names of all scalar blobs, while the second contains the 1-D blobs. Important question: how do you know the names of blobs? The scalar blobs, in this case just ``tau_e`` (the CMB optical depth) are all *attributes* of the ``Global21cm`` simulation class (well, really of ares.analysis.Global21cm, but they get inherited). The 1-D blobs are all names of *ares* fields: see :doc:`fields` for more information.
 
 Now, for the 1-D blobs we also need to provide a sequence of redshifts at which to save each quantity:
 
@@ -71,6 +71,17 @@ The blobs themselves can be accessed via:
     
     
 In this case, using blobs isn't necessary since we have all data from the simulation at our fingertips. However, the attribute ``sim.blobs`` is extremely important for model grids or MCMC fits, as its contents are the only thing written to disk other than the MCMC samples themselves.
+
+Special Redshifts
+~~~~~~~~~~~~~~~~~
+We'll often be interested in saving a series of quantities at the redshifts corresponding to the extrema of the global 21-cm signal. However, since those aren't known *a-priori*, we can't specify them like we did above. Instead, we tag a suffix (either ``B``, ``C``, or ``D``) onto pre-existing *ares* fields, i.e., 
+
+::
+
+    extrema = ['z_B', 'igm_dTb_B', 'z_C', 'igm_dTb_C', 'igm_Tk_C']
+    blob_names = [extrema, ['cgm_h_2', igm_Tk', 'igm_dTb']]
+    
+and so on.    
 
     
 Example: 2-D blobs

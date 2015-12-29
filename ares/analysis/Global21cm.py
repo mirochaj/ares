@@ -20,14 +20,16 @@ from ..util.Math import central_difference
 from .MultiPhaseMedium import MultiPhaseMedium
 
 class Global21cm(MultiPhaseMedium):
-    
+    #def __init__(self, data=None, **kwargs):
+    #    MultiPhaseMedium.__init__(data, **kwargs)
+        
+        
     def __getattr__(self, name):
-        if not hasattr(self, '_attrs'):
-            self._attrs = {}
-        if name not in self._attrs:
+        
+        if name not in self.__dict__.keys():
             # See if this is a turning point
             spl = name.split('_')
-            
+                        
             if len(spl) > 2:
                 quantity = ''
                 for item in spl[0:-1]:
@@ -43,10 +45,16 @@ class Global21cm(MultiPhaseMedium):
                 # This'd be where e.g., zrei, should go
                 raise NotImplemented('hey fix me!')
     
-            self._attrs[name] = \
-                np.interp(z, self.data_asc['z'], self.data_asc[quantity])
-    
-        return self._attrs[name]
+            if quantity == 'z':
+                self.__dict__[name] = self.turning_points[pt][0]
+            elif quantity == 'nu':
+                self.__dict__[name] = \
+                    nu_0_mhz / (1. + self.turning_points[pt][0])
+            else:
+                self.__dict__[name] = \
+                    np.interp(z, self.data_asc['z'], self.data_asc[quantity])
+
+        return self.__dict__[name]
     
     @property
     def dTbdz(self):

@@ -82,7 +82,9 @@ class MultiPhaseMedium(object):
             of the (binary/pickled) file containing the parameters.
                 
         """
-        
+                
+        self.attrs = {}        
+                
         return
 
         if data is None:
