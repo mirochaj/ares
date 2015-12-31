@@ -783,11 +783,19 @@ class ModelSet(BlobFactory):
         # (don't want to modify that)
         if c is not None:
             p = list(pars) + [c]
+            if ivar is not None:
+                if len(ivar) != 3:
+                    iv = list(ivar) + [None]
+                else:
+                    iv = ivar
+            else:
+                iv = None
         else:
             p = pars
+            iv = ivar
         
         data, is_log = \
-            self.ExtractData(p, ivar, take_log, un_log, multiplier)
+            self.ExtractData(p, iv, take_log, un_log, multiplier)
 
         xdata = data[p[0]]
         ydata = data[p[1]]
@@ -1136,7 +1144,9 @@ class ModelSet(BlobFactory):
         pars : list
             List of quantities to return. These can be parameters or the names
             of meta-data blobs.
-         
+        ivars : list
+            List of independent variables at which to compute values of pars.
+        
         Returns
         -------
         Tuple with three entries:

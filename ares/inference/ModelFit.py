@@ -407,8 +407,17 @@ class ModelFit(BlobFactory):
 
         self.base_kwargs = def_kwargs.copy()
         self.base_kwargs.update(kwargs)            
-        self.pf = self.base_kwargs
+        
+    @property
+    def pf(self):
+        if not hasattr(self, '_pf'):    
+            self._pf = self.base_kwargs
+        return self._pf
     
+    @pf.setter
+    def pf(self, value):
+        self._pf = value
+        
     @property
     def blob_info(self):
         if not hasattr(self, '_blob_info'):

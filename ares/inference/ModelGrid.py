@@ -36,6 +36,12 @@ def_kwargs = {'verbose': False, 'progress_bar': False}
 class ModelGrid(ModelFit):
     """Create an object for setting up and running model grids."""
     
+    @property
+    def tol(self):
+        if not hasattr(self, '_tol'):
+            self._tol = 1e-3
+        return self._tol
+    
     @property 
     def tanh(self):
         if not hasattr(self, '_tanh'):
@@ -65,7 +71,7 @@ class ModelGrid(ModelFit):
         """
         
         # Read in current status of model grid
-        fails = read_pickled_dict('%s.fail.pkl' % prefix)
+        #fails = read_pickled_dict('%s.fail.pkl' % prefix)
         chain = read_pickle_file('%s.chain.pkl' % prefix)
 
         # Read parameter info
@@ -74,14 +80,11 @@ class ModelGrid(ModelFit):
         f.close()
         
         # Prepare for blobs (optional)
-        if os.path.exists('%s.binfo.pkl' % prefix):
-            f = open('%s.binfo.pkl' % prefix, 'rb')
-            n, z = pickle.load(f)
+        if os.path.exists('%s.setup.pkl' % prefix):
+            f = open('%s.setup.pkl' % prefix, 'rb')
+            self.pf = pickle.load(f)
             f.close()
             
-            self.blob_names = n
-            self.blob_redshifts = z 
-        
         if len(axes_names) != chain.shape[1]:
             raise ValueError('Cannot change dimensionality on restart!')
             
@@ -112,14 +115,14 @@ class ModelGrid(ModelFit):
             
             self.done[kvec] = 1
             
-        for fail in fails:
-            
-            kvec = self.grid.locate_entry(fail, tol=self.tol)
-            
-            if None in kvec:
-                continue
-            
-            self.done[kvec] = 1
+        #for fail in fails:
+        #    
+        #    kvec = self.grid.locate_entry(fail, tol=self.tol)
+        #    
+        #    if None in kvec:
+        #        continue
+        #    
+        #    self.done[kvec] = 1
                 
     @property            
     def axes(self):
