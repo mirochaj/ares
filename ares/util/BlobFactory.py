@@ -145,6 +145,12 @@ class BlobFactory(object):
                     self._blob_funcs.append([None] * len(element))
                 else:
                     self._blob_funcs.append(self.pf['blob_funcs'][i])
+
+        self._blob_nd = tuple(self._blob_nd)                    
+        self._blob_dims = tuple(self._blob_dims)            
+        self._blob_names = tuple(self._blob_names)
+        self._blob_ivars = tuple(self._blob_ivars)
+        self._blob_funcs = tuple(self._blob_funcs)
     
     @property
     def blob_groups(self):
