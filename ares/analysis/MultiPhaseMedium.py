@@ -175,10 +175,7 @@ class MultiPhaseMedium(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            try:
-                self._cosm = self.sim.grid.cosm
-            except (AttributeError, ValueError):
-                self._cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
+            self._cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
                 omega_l_0=self.pf["omega_l_0"],
                 omega_b_0=self.pf["omega_b_0"], 
                 hubble_0=self.pf["hubble_0"],
@@ -191,10 +188,7 @@ class MultiPhaseMedium(object):
     @property
     def hydr(self):  
         if not hasattr(self, '_hydr'):      
-            try:
-                self._hydr = self.sim.grid.hydr
-            except AttributeError:
-                self._hydr = Hydrogen(cosm=self.cosm, **self.pf)
+            self._hydr = Hydrogen(cosm=self.cosm, **self.pf)
             
         return self._hydr                    
                 

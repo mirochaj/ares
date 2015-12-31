@@ -25,11 +25,18 @@ class Global21cm(MultiPhaseMedium):
         
         
     def __getattr__(self, name):
-        
+                                
+        # Indicates that this attribute is being accessed from within a 
+        # property. Don't want to override that behavior!
+        if (name[0] == '_'):
+            raise AttributeError('This will get caught. Don\'t worry!')
+        #if name in ['sim', 'blobs']:
+        #    return None                
+                                                
         if name not in self.__dict__.keys():
             # See if this is a turning point
             spl = name.split('_')
-                        
+                                                
             if len(spl) > 2:
                 quantity = ''
                 for item in spl[0:-1]:
@@ -39,18 +46,17 @@ class Global21cm(MultiPhaseMedium):
             else:
                 quantity, pt = spl
     
-            if pt in list('BCD'):
-                z = self.__getattribute__('z%s' % pt)
-            else:
+            if pt not in list('BCD'):
                 # This'd be where e.g., zrei, should go
-                raise NotImplemented('hey fix me!')
-    
+                raise NotImplemented('help!')
+
             if quantity == 'z':
                 self.__dict__[name] = self.turning_points[pt][0]
             elif quantity == 'nu':
                 self.__dict__[name] = \
                     nu_0_mhz / (1. + self.turning_points[pt][0])
             else:
+                z = self.turning_points[pt][0]
                 self.__dict__[name] = \
                     np.interp(z, self.data_asc['z'], self.data_asc[quantity])
 
@@ -102,93 +108,6 @@ class Global21cm(MultiPhaseMedium):
         if not hasattr(self, '_nu_p'):
             tmp = self.dTbdnu
         return self._nu_p    
-        
-    @property
-    def zB(self):
-        if not hasattr(self, '_zB'):
-            if 'B' in self.turning_points:
-                self._zB = self.turning_points['B'][0]    
-            else:
-                self._zB = None
-        return self._zB
-    
-    @property
-    def zC(self):
-        if not hasattr(self, '_zC'):
-            if 'C' in self.turning_points:
-                self._zC = self.turning_points['C'][0]
-            else:
-                self._zC = None
-        return self._zC
-    
-    @property
-    def zD(self):
-        if not hasattr(self, '_zD'):
-            if 'D' in self.turning_points:
-                self._zD = self.turning_points['D'][0]
-            else:
-                self._zD = None
-        return self._zD
-
-    @property
-    def nuB(self):
-        if not hasattr(self, '_zB'):
-            if 'B' in self.turning_points:
-                self._nuB = nu_0_mhz / (1. + self.zB)
-            else:
-                self._nuB = none
-        return self._nuB
-    
-    @property
-    def nuC(self):
-        if not hasattr(self, '_zC'):
-            if 'C' in self.turning_points:
-                self._nuC = nu_0_mhz / (1. + self.zC)
-            else:
-                self._nuC = None
-        return self._nuC
-    
-    @property
-    def nuD(self):
-        if not hasattr(self, '_zD'):
-            if 'D' in self.turning_points:
-                self._nuD = nu_0_mhz / (1. + self.zD)
-            else:
-                self._nuD = None
-        return self._nuD
-    
-    @property
-    def znull(self):
-        if not hasattr(self, '_znull'):
-            self._znull = self.locate_null()
-        return self._znull
-
-    @property
-    def TB(self):
-        if not hasattr(self, '_TB'):
-            if 'B' in self.turning_points:
-                self._TB = self.turning_points['B'][1]
-            else:
-                self._TB = None
-        return self._TB
-
-    @property
-    def TC(self):
-        if not hasattr(self, '_TC'):
-            if 'B' in self.turning_points:
-                self._TC = self.turning_points['C'][1]    
-            else:
-                self._TC = None
-        return self._TC
-
-    @property
-    def TD(self):
-        if not hasattr(self, '_TD'):
-            if 'D' in self.turning_points:
-                self._TD = self.turning_points['D'][1]
-            else:
-                self._TD = None
-        return self._TD
     
     @property
     def track(self):

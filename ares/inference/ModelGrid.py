@@ -368,11 +368,11 @@ class ModelGrid(ModelFit):
             # Run simulation!
             try:
                 sim.run()
-                sim.run_inline_analysis()            
+                #sim.run_inline_analysis()            
                             
             # Timestep error
-            except SystemExit:
-                sim.run_inline_analysis()
+            #except SystemExit:
+            #    sim.run_inline_analysis()
                 
             except:         
                 # Write to "fail" file - this might cause problems in parallel

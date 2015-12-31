@@ -42,17 +42,23 @@ def parse_attribute(blob_name, obj_base):
     """
     Find the attribute nested somewhere in an object that we need to compute
     the value of blob `blob_name`.
-    """
     
+    ..note:: This is the only place I ever use eval (I think). It's because
+        using __getattribute__ conflicts with the __getattr__ method used
+        in analysis.Global21cm.
+        
+    """
+        
     attr_split = blob_name.split('.')
 
     if len(attr_split) == 1: 
         s = attr_split[0]
         if re.search('\[', s):     
             k = get_k(s)
-            return obj_base.__getattribute__(s[0:s.rfind('[')])[k]
+            s2 = s[0:s.rfind('[')]
+            return eval('obj_base.%s' % s2)
         else:
-            return obj_base.__getattribute__(s)
+            return eval('obj_base.%s' % s)
 
     # Nested attribute
     blob = None
@@ -60,10 +66,12 @@ def parse_attribute(blob_name, obj_base):
     for i in range(len(attr_split)):
         s = attr_split[i]
 
-        # Brackets indicate...?
+        # Brackets indicate...attributes that don't require ivars but have
+        # more than one element. Should do this differently
         if re.search('\[', s): 
             k = get_k(s)
-            blob = obj_list[i].__getattribute__(s[0:s.rfind('[')])[k]
+            s2 = s[0:s.rfind('[')]
+            blob = eval('obj_base.%s' % s2)
             
             if (i == (len(attr_split) - 1)):
                 break
@@ -71,7 +79,7 @@ def parse_attribute(blob_name, obj_base):
                 new_obj = blob
                 blob = None
         else:
-            new_obj = obj_list[i].__getattribute__(s)
+            new_obj = eval('obj_base.%s' % s)
 
         obj_list.append(new_obj)
 
@@ -85,7 +93,7 @@ class BlobFactory(object):
     This class must be inherited by another class, which need only have the
     ``pf`` attribute.
     
-    The three most (only?) important parameters are:
+    The three most (only) important parameters are:
         blob_names
         blob_ivars
         blob_funcs
@@ -93,6 +101,7 @@ class BlobFactory(object):
     """
 
     def _parse_blobs(self):
+                        
         try:
             names = self.pf['blob_names']
         except KeyError:
@@ -191,8 +200,8 @@ class BlobFactory(object):
     @property
     def blobs(self):
         if not hasattr(self, '_blobs'):
-            self._generate_blobs()    
-    
+            self._generate_blobs()  
+
         return self._blobs
         
     def get_blob(self, name, ivar=None):
@@ -245,7 +254,7 @@ class BlobFactory(object):
                         
             this_group = []
             for j, key in enumerate(element):
-                                
+                                                
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:

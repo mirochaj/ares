@@ -22,37 +22,34 @@ defaults = \
  'load_ics': True,
 }
 
-class Global21cm(AnalyzeGlobal21cm,BlobFactory):
+class Global21cm(BlobFactory,AnalyzeGlobal21cm):
     def __init__(self, **kwargs):
         """
         Set up a two-zone model for the global 21-cm signal.
         
         ..note :: This is essentially a MultiPhaseMedium calculation, except
-            with the option of performing inline analysis to track extrema 
-            in the 21-cm signal, and/or use alternative (phenomenological)
-            parameterizations such as a tanh for the ionization, thermal,
-            and LW background evolution.
+            the Lyman alpha background and 21-cm background are calculated, 
+            and alternative (phenomenological) parameterizations such as a 
+            tanh for the ionization, thermal, and LW background evolution, 
+            may be used.
             
         """
 
         # See if this is a tanh model calculation
         is_phenom = self._check_if_phenom(**kwargs)
-
-        if is_phenom:
-            return
         
         kwargs.update(defaults)
         if 'problem_type' not in kwargs:
             kwargs['problem_type'] = 101
         
         self.kwargs = kwargs
-        
+
     @property
     def pf(self):
         if not hasattr(self, '_pf'):
             self._pf = ParameterFile(**self.kwargs)
         return self._pf
-        
+
     @pf.setter
     def pf(self, value):
         self._pf = value
@@ -71,7 +68,7 @@ class Global21cm(AnalyzeGlobal21cm,BlobFactory):
     @property
     def grid(self):
         return self.medium.field.grid
-        
+    
     def _init_dTb(self):
         """
         Compute differential brightness temperature for initial conditions.
@@ -211,8 +208,8 @@ class Global21cm(AnalyzeGlobal21cm,BlobFactory):
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
         
-        if self.pf['track_extrema']:
-            self.run_inline_analysis()
+        #if self.pf['track_extrema']:
+        #    self.run_inline_analysis()
 
     def step(self):
         """
@@ -273,46 +270,46 @@ class Global21cm(AnalyzeGlobal21cm,BlobFactory):
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
 
-    def run_inline_analysis(self):    
-
-        if self.pf['track_extrema']:
-            if hasattr(self, 'track'):
-                self.turning_points = self.track.turning_points
-            else:
-                from ..analysis.InlineAnalysis import InlineAnalysis
-                anl = InlineAnalysis(self)
-                self.turning_points = anl.turning_points
-                
-                self.blobs = anl.blobs
-                self.blob_names, self.blob_redshifts = \
-                    anl.blob_names, anl.blob_redshifts
-                    
-                return
-
-        if (self.pf['inline_analysis'] is None) and \
-           (self.pf['auto_generate_blobs'] == False):
-            return
-            
-        elif self.pf['inline_analysis'] is not None:
-            self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
-
-        # Get da blobs
-        from ..analysis.InlineAnalysis import InlineAnalysis
-        anl = InlineAnalysis(self)  
-        anl.run_inline_analysis()      
-        self.blobs = anl.blobs
-
-        self.anl = anl
-
-        # Just arrayify history elements if they aren't already arrays
-        tmp = {}
-        for key in self.history:
-            if type(self.history[key]) is list:
-                tmp[key] = np.array(self.history[key])
-            else:
-                tmp[key] = self.history[key]
-
-        self.history = tmp
+    #def run_inline_analysis(self):    
+    #
+    #    if self.pf['track_extrema']:
+    #        if hasattr(self, 'track'):
+    #            self.turning_points = self.track.turning_points
+    #        else:
+    #            from ..analysis.InlineAnalysis import InlineAnalysis
+    #            anl = InlineAnalysis(self)
+    #            self.turning_points = anl.turning_points
+    #            
+    #            self.blobs = anl.blobs
+    #            self.blob_names, self.blob_redshifts = \
+    #                anl.blob_names, anl.blob_redshifts
+    #                
+    #            return
+    #
+    #    if (self.pf['inline_analysis'] is None) and \
+    #       (self.pf['auto_generate_blobs'] == False):
+    #        return
+    #        
+    #    elif self.pf['inline_analysis'] is not None:
+    #        self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
+    #
+    #    # Get da blobs
+    #    from ..analysis.InlineAnalysis import InlineAnalysis
+    #    anl = InlineAnalysis(self)  
+    #    anl.run_inline_analysis()      
+    #    self.blobs = anl.blobs
+    #
+    #    self.anl = anl
+    #
+    #    # Just arrayify history elements if they aren't already arrays
+    #    tmp = {}
+    #    for key in self.history:
+    #        if type(self.history[key]) is list:
+    #            tmp[key] = np.array(self.history[key])
+    #        else:
+    #            tmp[key] = self.history[key]
+    #
+    #    self.history = tmp
 
     def save(self, prefix, suffix='pkl', clobber=False):
         """

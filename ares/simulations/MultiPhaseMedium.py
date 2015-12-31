@@ -145,32 +145,32 @@ class MultiPhaseMedium(object):
             self.pf['stop_time'] = self._tf / self.pf['time_units']
         return self._tf
         
-    def run_inline_analysis(self):    
-    
-        if (self.pf['inline_analysis'] is None) and \
-           (self.pf['auto_generate_blobs'] == False):
-            return
-    
-        elif self.pf['inline_analysis'] is not None:
-            self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
-        else:
-            raise NotImplemented('dunno what to do here')
-    
-        # Get da blobs
-        from ..analysis.InlineAnalysis import InlineAnalysis
-        anl = InlineAnalysis(self)  
-        anl.run_inline_analysis()      
-        self.blobs = anl.blobs
-        
-        # Just arrayify history elements if they aren't already arrays
-        tmp = {}
-        for key in self.history:
-            if type(self.history[key]) is list:
-                tmp[key] = np.array(self.history[key])
-            else:
-                tmp[key] = self.history[key]
-    
-        self.history = tmp
+    #def run_inline_analysis(self):    
+    #
+    #    if (self.pf['inline_analysis'] is None) and \
+    #       (self.pf['auto_generate_blobs'] == False):
+    #        return
+    #
+    #    elif self.pf['inline_analysis'] is not None:
+    #        self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
+    #    else:
+    #        raise NotImplemented('dunno what to do here')
+    #
+    #    # Get da blobs
+    #    from ..analysis.InlineAnalysis import InlineAnalysis
+    #    anl = InlineAnalysis(self)  
+    #    anl.run_inline_analysis()      
+    #    self.blobs = anl.blobs
+    #    
+    #    # Just arrayify history elements if they aren't already arrays
+    #    tmp = {}
+    #    for key in self.history:
+    #        if type(self.history[key]) is list:
+    #            tmp[key] = np.array(self.history[key])
+    #        else:
+    #            tmp[key] = self.history[key]
+    #
+    #    self.history = tmp
     
     def _initialize_zones(self):
         """

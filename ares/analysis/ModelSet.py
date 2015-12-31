@@ -2471,7 +2471,7 @@ class ModelSet(BlobFactory):
             raise NotImplemented('Only support for hdf5 so far. Sorry!')
         
     def set_axis_labels(self, ax, pars, is_log, take_log=False, un_log=False,
-        cb=None, labels=None, rotate_x=45, rotate_y=45):
+        cb=None, labels=None):
         """
         Make nice axis labels.
         """
@@ -2501,13 +2501,27 @@ class ModelSet(BlobFactory):
         ax.set_ylabel(labeler.label(pars[1], take_log=take_log[pars[1]], 
             un_log=un_log[1]))
             
+        pl.draw()
+                        
+        xt = []
+        for i, x in enumerate(ax.get_xticklabels()):
+            xt.append(x.get_text())
+        
+        ax.set_xticklabels(xt, rotation=45.)
+        
+        yt = []
+        for i, x in enumerate(ax.get_yticklabels()):
+            yt.append(x.get_text())
+        
+        ax.set_yticklabels(yt, rotation=45.)
+            
         # colorbar
         if cb is not None and len(pars) > 2:
             cb.set_label(labeler.label(pars[2], take_log=take_log[pars[2]], 
                 un_log=un_log[2]))
         
         pl.draw()
-                
+                        
     def confidence_regions(self, L, nu=[0.95, 0.68]):
         """
         Integrate outward at "constant water level" to determine proper
