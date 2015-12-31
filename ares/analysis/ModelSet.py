@@ -966,18 +966,15 @@ class ModelSet(BlobFactory):
 
         self.logL[mask] = -np.inf
 
-    def Scatter(self, pars, z=None, c=None, ax=None, fig=1, 
-        take_log=False, multiplier=1., **kwargs):
+    def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
+        take_log=False, un_log=False, multiplier=1., **kwargs):
         """
-        Show occurrences of turning points B, C, and D for all models in
-        (z, dTb) space, with points color-coded to likelihood.
+        Plot samples as points in 2-d plane.
     
         Parameters
         ----------
-        x : str
-            Fields for the x-axis.
-        y : str
-            Fields for the y-axis.        
+        pars : list
+            2-element list of parameter names. 
         z : str, float
             Redshift at which to plot x vs. y, if applicable.
         c : str
@@ -987,10 +984,8 @@ class ModelSet(BlobFactory):
         -------
         matplotlib.axes._subplots.AxesSubplot instance.
 
-        
-
         """
-
+        
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -998,101 +993,42 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
 
-        if 'labels' in kwargs:
-            labels_tmp = default_labels.copy()
-            labels_tmp.update(kwargs['labels'])
-            labels = labels_tmp
-        else:
-            labels = default_labels
-
-        if type(take_log) == bool:
-            take_log = [take_log] * 2
-        if type(multiplier) in [int, float]:
-            multiplier = [multiplier] * 2
-
-        if z is not None:
-            j = self.blob_redshifts.index(z)
-
-        if x in self.parameters:
-            xdat = self.chain[:,self.parameters.index(x)]
-        else:
-            if z is None:
-                raise ValueError('Must supply redshift!')
-            if x in self.blob_names:
-                xdat = self.blobs[:,j,self.blob_names.index(x)]
-            else:
-                xdat = self.derived_blobs[:,j,self.derived_blob_names.index(x)]
-        
-        if y in self.parameters:
-            ydat = self.chain[:,self.parameters.index(y)]
-        else:
-            if z is None:
-                raise ValueError('Must supply redshift!')
-            if y in self.blob_names:
-                ydat = self.blobs[:,j,self.blob_names.index(y)]
-            else:
-                ydat = self.derived_blobs[:,j,self.derived_blob_names.index(y)]
-        
-        cdat = None
-        if c in self.parameters:
-            cdat = self.chain[:,self.parameters.index(c)]
-        elif c == 'load':
-            cdat = self.load
-        elif c is None:
-            pass
-        else:
-            if z is None:
-                raise ValueError('Must supply redshift!')
-            if c in self.blob_names:
-                cdat = self.blobs[:,j,self.blob_names.index(c)]
-            else:
-                cdat = self.derived_blobs[:,j,self.derived_blob_names.index(c)]
-
-        if take_log[0]:
-            xdat = np.log10(xdat)
-        if take_log[1]:
-            ydat = np.log10(ydat)
-        if len(take_log) == 3 and cdat is not None:
-            if take_log[2]:
-                cdat = np.log10(cdat)  
-
-        if hasattr(self, 'weights') and cdat is None:
-            scat = ax.scatter(xdat, ydat, c=self.weights, **kwargs)
-        elif cdat is not None:
-            scat = ax.scatter(xdat, ydat, c=cdat, **kwargs)
-        else:
-            scat = ax.scatter(xdat, ydat, **kwargs)
-
-        #ax.set_xlabel(make_label(x, take_log=take_log[0]))
-        #ax.set_ylabel(make_label(y, take_log=take_log[1]))
-        #if take_log[0]:
-        #    ax.set_xlabel(logify_str(labels[self.get_par_prefix(x)]))
-        #else:
-        #    ax.set_xlabel(labels[self.get_par_prefix(x)])
-
-        #if take_log[1]: 
-        #    ax.set_ylabel(logify_str(labels[self.get_par_prefix(y)]))
-        #else:
-        #    ax.set_ylabel(labels[self.get_par_prefix(y)])
-                            
+        # Make a new variable since pars might be self.parameters
+        # (don't want to modify that)
         if c is not None:
-            cb = pl.colorbar(scat)
-            try:
-                if take_log[2]: 
-                    cb.set_label(logify_str(labels[self.get_par_prefix(c)]))
-                else:
-                    cb.set_label(labels[self.get_par_prefix(c)])
-            except IndexError:
-                cb.set_label(labels[self.get_par_prefix(c)])
+            p = pars + [c]
+        else:
+            p = pars
         
-            self._cb = cb
+        data, is_log = \
+            self.ExtractData(p, ivar, take_log, un_log, multiplier)
+
+        xdata = data[p[0]]
+        ydata = data[p[1]]
         
-        pl.draw()
+        if c is not None:
+            cdata = data[p[2]]
+        else:
+            cdata = None
+
+        if hasattr(self, 'weights') and cdata is None:
+            scat = ax.scatter(xdata, ydata, c=self.weights, **kwargs)
+        elif cdata is not None:
+            scat = ax.scatter(xdata, ydata, c=cdata, **kwargs)
+        else:
+            scat = ax.scatter(xdata, ydata, **kwargs)
+
+                           
+        if cdata is not None:
+            cb = self._cb = pl.colorbar(scat)
+        else:
+            cb = None
+            
+        # Make labels
+        self.set_axis_labels(ax, p, is_log, take_log, un_log, cb)
         
+        pl.draw()        
         self._ax = ax
-        self.plot_info = {'x': x, 'y': y, 'log': take_log, 
-            'multiplier': multiplier, 'z': z}
-    
         return ax
     
     def get_par_prefix(self, par):
@@ -2749,7 +2685,7 @@ class ModelSet(BlobFactory):
             raise NotImplemented('Only support for hdf5 so far. Sorry!')
         
     def set_axis_labels(self, ax, pars, is_log, take_log=False, un_log=False,
-        labels=None, rotate_x=45, rotate_y=45):
+        cb=None, labels=None, rotate_x=45, rotate_y=45):
         """
         Make nice axis labels.
         """
@@ -2778,6 +2714,11 @@ class ModelSet(BlobFactory):
     
         ax.set_ylabel(labeler.label(pars[1], take_log=take_log[pars[1]], 
             un_log=un_log[1]))
+            
+        # colorbar
+        if cb is not None and len(pars) > 2:
+            cb.set_label(labeler.label(pars[2], take_log=take_log[pars[2]], 
+                un_log=un_log[2]))
         
         pl.draw()
                 

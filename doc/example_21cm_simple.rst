@@ -80,14 +80,11 @@ To do simple parameter study, you could do something like:
     ax = None
     for fX in [0.2, 1.]:
         for fstar in [0.05, 0.1]:
-            sim = ares.simulations.Global21cm(fX=fX, fstar=fstar)
+            sim = ares.simulations.Global21cm(fX=fX, fstar=fstar, problem_type=101)
             sim.run()
 
-            # Object for common analysis routines
-            anl = ares.analysis.MultiPhaseMedium(sim)
-
             # Plot the global signal
-            ax = anl.GlobalSignature(ax=ax,
+            ax = sim.GlobalSignature(ax=ax,
                 label=r'$f_X=%.2g, f_{\ast}=%.2g$' % (fX, fstar))
                 
                 
@@ -102,7 +99,7 @@ To do simple parameter study, you could do something like:
    the :math:`L_X`-SFR relation and the star formation efficiency.
                 
 See :doc:`example_grid_I` for examples of how to run and analyze large grids
-of models more easily.
+of models more easily. The key advantage of using the built-in model grid runner is having *ares* automatically store any information from each calculation that you deem desirable, and store it in a format amenable to the built-in analysis routines.
 
 
             

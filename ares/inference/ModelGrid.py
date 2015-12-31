@@ -13,8 +13,8 @@ and analyzing them.
 
 import numpy as np
 import copy, os, gc, re, time
+from .ModelFit import ModelFit
 from ..util import GridND, ProgressBar
-#from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.ReadData import read_pickle_file, read_pickled_dict
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
@@ -31,94 +31,28 @@ except ImportError:
     rank = 0
     size = 1
 
-def_kwargs = {'track_extrema': True, 'verbose': False, 'progress_bar': False,
-    'one_file_per_blob': True}    
+def_kwargs = {'verbose': False, 'progress_bar': False}    
 
-class ModelGrid:
+class ModelGrid(ModelFit):
     """Create an object for setting up and running model grids."""
-    def __init__(self, tol=1e-5, **kwargs):
-        """
-        Initialize a model grid.
-        
-        Parameters
-        ----------
-        tol : float
-            Absolute tolerance that determines whether parameters of a 
-            pre-existing grid are different than those in a new grid.
-            Only applied on restarts.
-        prefix : str
-            Will look for a file called <prefix>.grid.hdf5
-        
-        grid : instance
-        
-        one_file_per_blob : bool    
-            Give each blobs its own file? Helps analysis and data transfer for
-            very large datasets.
-
-        verbose : bool
-
-        """
-        
-        self.tol = tol
-        self.base_kwargs = def_kwargs.copy()
-        self.base_kwargs.update(kwargs)
-        
-        self.tanh = False
-        if 'tanh_model' in self.base_kwargs:
-            if self.base_kwargs['tanh_model']:
-                self.tanh = True
-                                
-        self.one_file_per_blob = self.base_kwargs['one_file_per_blob']
-        
+    
+    @property 
+    def tanh(self):
+        if not hasattr(self, '_tanh'):
+            if 'tanh_model' in self.base_kwargs:
+                if self.base_kwargs['tanh_model']:
+                    self._tanh = True
+            else:
+                self._tanh = False
+        return self._tanh                  
+                                        
     @property
     def simulator(self):
         if not hasattr(self, '_simulator'):
             from ..simulations import Global21cm
             self._simulator = Global21cm
         return self._simulator
-        
-    @property
-    def blob_names(self):
-        if hasattr(self, '_blob_names'):
-            return self._blob_names
-                
-        if 'auto_generate_blobs' in self.base_kwargs:
-            kw = self.base_kwargs.copy()
-                        
-            sim = self.simulator(**kw)
-            anl = InlineAnalysis(sim)
             
-            self._blob_names, self._blob_redshifts = \
-                anl.generate_blobs()
-            
-            del sim, anl
-            
-        elif 'inline_analysis' in self.base_kwargs:
-            self._blob_names, self._blob_redshifts = \
-                self.base_kwargs['inline_analysis']
-        else:
-            self._blob_names = _blob_names
-            self._blob_redshifts = _blob_redshifts
-            
-        return self._blob_names
-            
-    @blob_names.setter
-    def blob_names(self, value):
-        self._blob_names = value        
-            
-    @property 
-    def blob_redshifts(self):
-        if hasattr(self, '_blob_redshifts'):
-            return self._blob_redshifts
-        
-        names, z = self.blob_names    
-            
-        return self._blob_redshifts
-
-    @blob_redshifts.setter
-    def blob_redshifts(self, value):
-        self._blob_redshifts = value
-
     def _read_restart(self, prefix):
         """
         Figure out which models have already been run.
@@ -187,7 +121,12 @@ class ModelGrid:
             
             self.done[kvec] = 1
                 
-    def set_axes(self, **kwargs):
+    @property            
+    def axes(self):
+        return self.grid.axes
+    
+    @axes.setter            
+    def axes(self, kwargs):
         """
         Create GridND instance, construct N-D parameter space.
         """
@@ -226,19 +165,7 @@ class ModelGrid:
         # Shortcut to parameter names
         self.parameters = self.grid.axes_names
 
-    @property
-    def is_log(self):
-        if not hasattr(self, '_is_log'):
-            self._is_log = [False] * self.grid.Nd
-        
-        return self._is_log
-        
-    @is_log.setter
-    def is_log(self, value):
-        assert(len(value) == len(self.parameters))
-        self._is_log = value    
-        
-    def prep_output_files(self, prefix, restart):
+    def prep_output_files(self, restart, clobber):
         """
         Stick this in utilities folder?
         """
@@ -248,59 +175,21 @@ class ModelGrid:
         
         if restart:
             return
+            
+        prefix = self.prefix
+        super(ModelGrid, self)._prep_from_scratch(clobber)
     
         # Say what processor computed which models.
         # Really just to make sure load-balancing etc. is working
         f = open('%s.load.pkl' % prefix, 'wb')
         f.close()
-    
-        # Main output: MCMC chains (flattened)
-        f = open('%s.chain.pkl' % prefix, 'wb')
-        f.close()
         
-        # Failed models
-        f = open('%s.fail.pkl' % prefix, 'wb')
-        f.close()
-        
-        # Parameter names and list saying whether they are log10 or not
-        f = open('%s.pinfo.pkl' % prefix, 'wb')
-        pickle.dump((self.grid.axes_names, self.is_log), f)
-        f.close()
-        
-        # Constant parameters being passed to ares.simulations.Global21cm
-        f = open('%s.setup.pkl' % prefix, 'wb')
-        tmp = self.base_kwargs.copy()
-        to_axe = []
-        for key in tmp:
-            if re.search(key, 'tau_table'):
-                to_axe.append(key)
-        for key in to_axe:
-            del tmp[key] # this might be big, get rid of it
-        pickle.dump(tmp, f)
-        del tmp
-        f.close()
-
-        if 'Tmin' in self.grid.axes_names:
-            f = open('%s.fcoll.pkl' % prefix, 'wb')
-            f.close()
-        
-        # Outputs for arbitrary meta-data blobs
-        if hasattr(self, 'blob_names'):
-
-            # File for blobs themselves
-            if self.one_file_per_blob:
-                for blob in self.blob_names:
-                    f = open('%s.subset.%s.pkl' % (prefix, blob), 'wb')
-                    f.close()
-            else:
-                f = open('%s.blobs.pkl' % prefix, 'wb')
+        for par in self.grid.axes_names:
+            if re.search('Tmin', par):
+                f = open('%s.fcoll.pkl' % prefix, 'wb')
                 f.close()
-            
-            # Blob names and list of redshifts at which to track them
-            f = open('%s.binfo.pkl' % prefix, 'wb')
-            pickle.dump((self.blob_names, self.blob_redshifts), f)
-            f.close()
-            
+                break
+
     @property
     def simulator(self):
         if not hasattr(self, '_simulator'):
@@ -353,7 +242,7 @@ class ModelGrid:
             # Re-run load-balancing
             self.LoadBalance(self.LB)
 
-            ct0 = self.done.sum() 
+            ct0 = self.done.sum()
 
         else:
             ct0 = 0
@@ -378,7 +267,7 @@ class ModelGrid:
                 print 'Running %i-element model-grid.' % self.grid.size
                 
         # Make some blank files for data output                 
-        self.prep_output_files(prefix, restart)                 
+        self.prep_output_files(restart, clobber)                 
 
         if not hasattr(self, 'LB'):
             self.LoadBalance(0)                    
@@ -406,7 +295,7 @@ class ModelGrid:
                 pb_i = min(ct * size, Nleft - 1)
             else:
                 pb_i = h
-            
+
             # Skip if it's a restart and we've already run this model
             if restart:
                 if self.done[kvec]:
@@ -427,7 +316,7 @@ class ModelGrid:
 
             # Copy kwargs - may need updating with pre-existing lookup tables
             p = self.base_kwargs.copy()
-            
+
             # Log-ify stuff if necessary
             kw = {}
             for i, par in enumerate(self.parameters):
@@ -442,16 +331,22 @@ class ModelGrid:
             if i_Tmin not in fcoll.keys() and (not self.tanh):
                 sim = self.simulator(**p)
                 
-                pops = sim.medium.field.sources
+                self.sim = sim
+                
+                pops = sim.pops
                 
                 if hasattr(self, 'Tmin_ax_popid'):
                     loc = self.Tmin_ax_popid
                     suffix = '{%i}' % loc
                 else:
-                    loc = 0
-                    suffix = ''
+                    if sim.pf.Npops > 1:
+                        loc = 0
+                        suffix = '{0}'
+                    else:    
+                        loc = 0
+                        suffix = ''
                                 
-                hmf_pars = {'Tmin%s' % suffix: sim.pf['Tmin%s' % suffix],
+                hmf_pars = {'pop_Tmin%s' % suffix: sim.pf['pop_Tmin%s' % suffix],
                     'fcoll%s' % suffix: copy.deepcopy(pops[loc].fcoll), 
                     'dfcolldz%s' % suffix: copy.deepcopy(pops[loc].dfcolldz)}
 
@@ -461,7 +356,7 @@ class ModelGrid:
             # If we already have matching fcoll splines, use them!
             elif not self.tanh:        
                                         
-                hmf_pars = {'Tmin%s' % suffix: fcoll[i_Tmin]['Tmin%s' % suffix],
+                hmf_pars = {'pop_Tmin%s' % suffix: fcoll[i_Tmin]['pop_Tmin%s' % suffix],
                     'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
                     'dfcolldz%s' % suffix: fcoll[i_Tmin]['dfcolldz%s' % suffix]}
                 p.update(hmf_pars)
@@ -515,30 +410,19 @@ class ModelGrid:
             # Here we wait until we get the key
             if rank != 0:
                 MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
-
+                
+            # First assemble data from all processors?
+            # Analogous to assembling data from all walkers in MCMC
+                
             f = open('%s.chain.pkl' % self.prefix, 'ab')
             pickle.dump(chain_all, f)
             f.close()
             
-            if self.one_file_per_blob:
-                for i, blob in enumerate(self.blob_names):
-                    barr = np.array(blobs_all)[:,:,i]
-                    with open('%s.subset.%s.pkl' % (self.prefix, blob), 'ab') as f:
-                        pickle.dump(barr, f)                        
-            else:
-                with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
-                    pickle.dump(blobs_all, f)
+            self.save_blobs(blobs_all, uncompress=False)
             
             f = open('%s.load.pkl' % self.prefix, 'ab')
             pickle.dump(load_all, f)
             f.close()
-            
-            if hasattr(self, 'blob_names') and rank == 0:
-                print self.blob_names
-                print self.blob_redshifts
-                f = open('%s.binfo.pkl' % self.prefix, 'wb')
-                pickle.dump((self.blob_names, self.blob_redshifts), f)
-                f.close()
 
             # Send the key to the next processor
             if rank != (size-1):
@@ -562,14 +446,7 @@ class ModelGrid:
                 pickle.dump(chain_all, f)
         
         if blobs_all:
-            if self.one_file_per_blob:
-                for i, blob in enumerate(self.blob_names):
-                    barr = np.array(blobs_all)[:,:,i]
-                    with open('%s.subset.%s.pkl' % (self.prefix, blob), 'ab') as f:
-                        pickle.dump(barr, f)
-            else:
-                with open('%s.blobs.pkl' % self.prefix, 'ab') as f:
-                    pickle.dump(blobs_all, f)
+            self.save_blobs(blobs_all, uncompress=False)
         
         if load_all:
             with open('%s.load.pkl' % self.prefix, 'ab') as f:
@@ -628,6 +505,11 @@ class ModelGrid:
                 raise NotImplemented('Trouble w/ multiple Tmin axes!')
                 
         return self._Tmin_in_grid
+        
+    @property
+    def nwalkers(self):
+        # Each processor writes its own data
+        return 1
             
     def LoadBalance(self, method=0):
         if self.grid.structured:

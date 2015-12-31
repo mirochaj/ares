@@ -34,11 +34,7 @@ except ImportError:
     rank = 0
     size = 1
 
-extrema_warning = "WARNING: Did you forget to set track_extrema=True?"
-extrema_warning += " It's not too late to modify base_kwargs!"
-
-def_kwargs = {'verbose': False, 'progress_bar': False,
-    'one_file_per_blob': True}
+def_kwargs = {'verbose': False, 'progress_bar': False}
 
 class loglikelihood:
     def __init__(self, xdata, ydata, error, parameters, is_log,
@@ -76,25 +72,18 @@ class loglikelihood:
         b_pars = []
         for key in priors:
             # Priors on model parameters
-            if len(priors[key]) == 3:
+            if key in self.parameters:
                 p_pars.append(key)
                 priors_P[key] = priors[key]
-
-            elif len(priors[key]) == 4:
+            else:
                 b_pars.append(key)
                 priors_B[key] = priors[key]
-            
-            # Should set up a proper Warnings module for this sort of thing
-            if key == 'tau_e' and len(priors[key]) != 4:
-                if rank == 0:
-                    print 'Must supply redshift for prior on %s!' % key
-                MPI.COMM_WORLD.Abort()
 
         self.logprior_P = LogPrior(priors_P, self.parameters, self.is_log)
         self.logprior_B = LogPrior(priors_B, b_pars)
 
         if self.turning_points:
-            
+
             nu = [xdata[i] for i, tp in enumerate(self.turning_points)]
             T = [ydata[i] for i, tp in enumerate(self.turning_points)]
             
@@ -105,13 +94,6 @@ class loglikelihood:
             self.ydata = ydata
             
         self.error = error
-
-        #self.is_cov = False        
-        #if len(self.errors.shape) > 1:
-        #    self.is_cov = True
-        #    self.Dcov = np.linalg.det(self.errors)
-        #    self.icov = np.linalg.inv(self.errors)
-        #
 
     @property
     def blank_blob(self):
@@ -129,7 +111,20 @@ class loglikelihood:
                         self._blank_blob.append(arr * np.inf)
     
         return self._blank_blob
-    
+        
+    def _compute_blob_prior(self, sim):
+        blob_vals = []
+        for i, key in enumerate(self.logprior_B.pars):
+            if self.logprior_B.prior_len[i] == 3:
+                blob_vals.append(sim.get_blob(key))
+            else:
+                raise NotImplemented('help')
+
+        if blob_vals:
+            return self.logprior_B(blob_vals)
+        else:
+            return -np.inf
+        
     def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -184,27 +179,30 @@ class loglikelihood:
         #    return -np.inf, self.blank_blob
 
         # Apply priors to blobs
-        blob_vals = []
-        for key in self.logprior_B.priors:
-
-            if not hasattr(sim, 'blobs'):
-                break
-            
-            z = self.logprior_B.priors[key][3]
-
-            i = self.blob_names.index(key) 
-            j = self.blob_redshifts.index(z)
-
-            val = sim.blobs[j,i]
-            
-            blob_vals.append(val)    
-
-        if blob_vals:
-            lp -= self.logprior_B(blob_vals)         
-
-            # emcee will crash if this returns NaN
-            if np.isnan(lp):
-                return -np.inf, {}#self.blank_blob
+        #blob_vals = []
+        #for key in self.logprior_B.priors:
+        #
+        #    if not hasattr(sim, 'blobs'):
+        #        break
+        #    
+        #    #z = self.logprior_B.priors[key][3]
+        #    #
+        #    #i = self.blob_names.index(key) 
+        #    #j = self.blob_redshifts.index(z)
+        #    #
+        #    #val = sim.blobs[j,i]
+        #    
+        #    blob_vals.append(sim.get_blob(name, ivar))    
+        #
+        #if blob_vals:
+        #    lp -= self.logprior_B(blob_vals)         
+        #
+        
+        lp = self._compute_blob_prior(sim)
+        
+        # emcee will crash if this returns NaN
+        if np.isnan(lp):
+            return -np.inf, {}#self.blank_blob
 
         #if hasattr(sim, 'blobs'):
         #    blobs = sim.blobs
@@ -240,7 +238,7 @@ class loglikelihood:
         like = 0.5 * (np.sum((yarr - self.ydata)**2 \
             / 2. / self.error**2 + np.log(2. * np.pi * self.error**2))) 
         logL = lp - like
-        
+                
         blobs = sim.blobs
                     
         del sim, kw
@@ -249,18 +247,18 @@ class loglikelihood:
         return logL, blobs
 
 class FitGlobal21cm(ModelFit):
-    def __init__(self, **kwargs):
-        """
-        Initialize a class for fitting the turning points in the global
-        21-cm signal.
-
-        Optional Keyword Arguments
-        --------------------------
-        Anything you want based to each ares.simulations.Global21cm call.
-        
-        """
-        
-        ModelFit.__init__(self, **kwargs)
+    #def __init__(self, **kwargs):
+    #    """
+    #    Initialize a class for fitting the turning points in the global
+    #    21-cm signal.
+    #
+    #    Optional Keyword Arguments
+    #    --------------------------
+    #    Anything you want based to each ares.simulations.Global21cm call.
+    #    
+    #    """
+    #    
+    #    ModelFit.__init__(self, **kwargs)
         #self._prep_blobs()
         
     @property
@@ -276,9 +274,7 @@ class FitGlobal21cm(ModelFit):
     def turning_points(self):
         if not hasattr(self, '_turning_points'):
             self._turning_points = list('BCD')
-            if 'track_extrema' not in self.base_kwargs:
-                print extrema_warning
-                        
+
         return self._turning_points
 
     @turning_points.setter
@@ -297,13 +293,7 @@ class FitGlobal21cm(ModelFit):
                 self._turning_points = [value]            
             else:
                 self._turning_points = list(value)
-        
-        if self._turning_points is not None:
-            if 'track_extrema' not in self.base_kwargs:
-                print extrema_warning
-            elif not self.base_kwargs['track_extrema']:
-                print extrema_warning
-                
+                        
     @property
     def data(self):
         if not hasattr(self, '_data'):

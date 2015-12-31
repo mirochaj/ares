@@ -18,6 +18,22 @@ try:
 except ImportError:
     import pickle
     
+# Some standard blobs    
+    
+    
+class default_blobs(object):
+    def __init__(self):
+        blobs_1d = ['igm_dTb', 'igm_Ts', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 
+            'igm_k_heat_h_1', 'cgm_k_ion_h_1']
+        blobs_scalar = ['z_B', 'z_C', 'z_D']
+        for key in blobs_1d:    
+            for tp in list('BCD'):
+                blobs_scalar.append('%s_%s' % (key, tp))
+                
+        self.blob_names = [blobs_scalar, blobs_1d]
+        self.blob_ivars = [None, np.arange(5, 41, 1)]
+    
+    
 def get_k(s):
     m = re.search(r"\[(\d+(\.\d*)?)\]", s)
     return int(m.group(1))
@@ -172,7 +188,33 @@ class BlobFactory(object):
             self._generate_blobs()    
     
         return self._blobs
+        
+    def get_blob(self, name, ivar=None):
+        for i in self.blob_groups:
+            for j, blob in enumerate(self.blob_names[i]):
+                if blob == name:
+                    break
+            
+            if blob == name:
+                break        
+                    
+        if self.blob_nd[i] > 0 and (ivar is None):
+            raise ValueError('Must provide ivar!')
+        elif self.blob_nd[i] == 0:
+            return float(self.blobs[i])
+        elif self.blob_nd[i] == 1:
+            assert ivar in self.blob_ivars[i]
+            
+            raise NotImplemented('help')
+            
+        elif self.blob_nd[i] == 2:
+            assert len(ivar) == 2
+            # also assert that both values are in self.blob_ivars!
+            # Actually, we don't have to abide by that. As long as a function
+            # is provided we can evaluate the blob anywhere (with interp)
 
+            raise NotImplemented('help')            
+            
     def _generate_blobs(self):
         """
         Create a list of blobs, one per blob group.
@@ -197,6 +239,7 @@ class BlobFactory(object):
                         
             this_group = []
             for j, key in enumerate(element):
+                                
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:

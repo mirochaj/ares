@@ -82,9 +82,7 @@ class MultiPhaseMedium(object):
             of the (binary/pickled) file containing the parameters.
                 
         """
-                
-        self.attrs = {}        
-                
+
         return
 
         if data is None:
@@ -143,20 +141,20 @@ class MultiPhaseMedium(object):
             self.data_asc.add_data(data_reorder)
 
         self.interp = {}
-             
+
     def _load_data(self, data):
         try:
             f = open('%s.history.pkl' % data, 'rb')
             history = pickle.load(f)
             f.close()
-            
+
             f = open('%s.parameters.pkl' % data, 'rb')
             self.pf = pickle.load(f)
             f.close()
-            
+
             self.cosm = Cosmology(**self.pf)
             self.hydr = Hydrogen(**self.pf)
-            
+
         except IOError: 
             if re.search('pkl', data):
                 f = open(data, 'rb')
@@ -166,26 +164,26 @@ class MultiPhaseMedium(object):
                 f = open(data, 'r')
                 cols = f.readline().split()[1:]
                 data = np.loadtxt(f)
-                
+
                 history = {}
                 for i, col in enumerate(cols):
                     history[col] = data[:,i]
                 f.close()  
-                
+
         self.history = history       
-                
+
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
             try:
                 self._cosm = self.sim.grid.cosm
-            except AttributeError:
+            except (AttributeError, ValueError):
                 self._cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
-                omega_l_0=self.pf["omega_l_0"], 
+                omega_l_0=self.pf["omega_l_0"],
                 omega_b_0=self.pf["omega_b_0"], 
-                hubble_0=self.pf["hubble_0"], 
-                helium_by_number=self.pf['helium_by_number'], 
-                cmb_temp_0=self.pf["cmb_temp_0"], 
+                hubble_0=self.pf["hubble_0"],
+                helium_by_number=self.pf['helium_by_number'],
+                cmb_temp_0=self.pf["cmb_temp_0"],
                 approx_highz=self.pf["approx_highz"])
             
         return self._cosm

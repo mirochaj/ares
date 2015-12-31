@@ -141,12 +141,16 @@ class ParameterFile(dict):
         if 'problem_type' not in kw:
             kw['problem_type'] = self.defaults['problem_type']    
             
-        # Change names of parameters to ensure backward compatibility        
-        kw.update(backward_compatibility(kw['problem_type'], **kw))
         kw = bracketify(**kw)
             
         kwargs = ProblemType(kw['problem_type'])
-        kwargs.update(kw)
+        
+        tmp = kwargs.copy()
+        tmp.update(kw)
+        
+        # Change names of parameters to ensure backward compatibility        
+        tmp.update(backward_compatibility(kw['problem_type'], **tmp))
+        kwargs.update(tmp)
                         
         ##    
         # Up until this point, just problem_type-specific kwargs and any

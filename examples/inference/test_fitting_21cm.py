@@ -40,10 +40,10 @@ fitter.priors = \
 }
 
 # Run the thing
-fitter.run('test_generic_mcmc', steps=100, save_freq=10, clobber=True)
+fitter.run('test_generic_21cm', steps=100, save_freq=10, clobber=True)
 
 # Read-in the results and make a few plots
-anl = ares.analysis.ModelSet('test_generic_mcmc')
+anl = ares.analysis.ModelSet('test_generic_21cm')
 
 # Best-fit model
 pars = anl.max_likelihood_parameters()

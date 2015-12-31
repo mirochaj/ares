@@ -78,8 +78,7 @@ def uninformative_log(x, mi, ma):
 def gaussian_prior(x, mu, sigma):
     return np.exp(-0.5 * (x - mu)**2 / sigma**2) / twopi / sigma
 
-def_kwargs = {'verbose': False, 'progress_bar': False,
-    'one_file_per_blob': True}
+def_kwargs = {'verbose': False, 'progress_bar': False}
 
 def _str_to_val(p, par, pvals, pars):
     """
@@ -141,14 +140,10 @@ class LogPrior:
             val = pars[i]
 
             ptype = self.priors[self.pars[i]][0]
-            if self.prior_len[i] == 3:
-                p1, p2 = self.priors[self.pars[i]][1:]
-            else:
-                p1, p2, red = self.priors[self.pars[i]][1:]                
-
+            p1, p2 = self.priors[self.pars[i]][1:]
+            
             # Figure out if this prior is linked to others
             if type(p1) is str:
-                tmp = p1
                 p1 = _str_to_val(p1, par, pars, self.pars)
             if type(p2) is str:
                 p2 = _str_to_val(p2, par, pars, self.pars)
@@ -207,20 +202,13 @@ class LogLikelihood:
         b_pars = []
         for key in priors:
             # Priors on model parameters
-            if len(priors[key]) == 3:
+            if key in self.parameters:
                 p_pars.append(key)
                 priors_P[key] = priors[key]
-
-            elif len(priors[key]) == 4:
+            else:
                 b_pars.append(key)
                 priors_B[key] = priors[key]
             
-            # Should set up a proper Warnings module for this sort of thing
-            if key == 'tau_e' and len(priors[key]) != 4:
-                if rank == 0:
-                    print 'Must supply redshift for prior on %s!' % key
-                MPI.COMM_WORLD.Abort()
-
         self.logprior_P = logprior(priors_P, self.parameters)
         self.logprior_B = logprior(priors_B, b_pars)
 
@@ -244,8 +232,6 @@ class LogLikelihood:
             if not hasattr(sim, 'blobs'):
                 break
             
-            z = self.logprior_B.priors[key][3]
-
             i = self.blob_names.index(key) 
             j = self.blob_redshifts.index(z)
 
@@ -421,7 +407,6 @@ class ModelFit(BlobFactory):
 
         self.base_kwargs = def_kwargs.copy()
         self.base_kwargs.update(kwargs)            
-        self.one_file_per_blob = self.base_kwargs['one_file_per_blob'] 
         self.pf = self.base_kwargs
     
     @property
@@ -912,36 +897,12 @@ class ModelFit(BlobFactory):
 
             for i, suffix in enumerate(['chain', 'logL', 'blobs']):
 
-                # Skip blobs if there are none being tracked
-                if self.blob_names is None:
-                    continue
-
+                # Blobs
                 if suffix == 'blobs':
-
-                    # Weird shape: must re-organize a bit
-                    # First, get rid of # walkers dimension and compress
-                    # the # of steps dimension
-                    blobs_now = []
-                    for k in range(save_freq):
-                        blobs_now.extend(data[i][k])
-
-                    # We're saving one file per blob
-                    # The shape of the array will be just blob_nd
-
-                    for j, group in enumerate(self.blob_names):
-                        for k, blob in enumerate(group):
-                            to_write = []
-                            for l in range(self.nwalkers * save_freq):  
-                                # indices: walkers*steps, blob group, blob
-                                barr = blobs_now[l][j][k]
-                                                                
-                                to_write.append(barr)   
-                                
-                            bfn = '%s.blob_%id.%s.pkl' \
-                                % (self.prefix, self.blob_nd[j], blob)
-                            with open(bfn, 'ab') as f:
-                                pickle.dump(np.array(to_write), f)                       
-                                
+                    if self.blob_names is None:
+                        continue
+                    self.save_blobs(data[i])
+                # Other stuff
                 else:
                     fn = '%s.%s.pkl' % (prefix, suffix)
                     f = open(fn, 'ab')
@@ -972,4 +933,45 @@ class ModelFit(BlobFactory):
         if rank == 0:
             print "Finished on %s" % (time.ctime())
     
+    def save_blobs(self, blobs, uncompress=True):
+        """
+        Write blobs to disk.
         
+        Parameters
+        ----------
+        uncompress : bool
+            True for MCMC, False for model grids.
+        """
+        
+        # Number of steps taken between the last checkpoint and this one
+        blen = len(blobs)
+        # Usually this will just be = save_freq
+        
+        # Weird shape: must re-organize a bit
+        # First, get rid of # walkers dimension and compress
+        # the # of steps dimension
+        if uncompress:
+            blobs_now = []
+            for k in range(blen):
+                blobs_now.extend(blobs[k])
+        else:
+            blobs_now = blobs
+
+        # We're saving one file per blob
+        # The shape of the array will be just blob_nd
+
+        for j, group in enumerate(self.blob_names):
+            for k, blob in enumerate(group):
+                to_write = []
+                for l in range(self.nwalkers * blen):  
+                    # indices: walkers*steps, blob group, blob
+                    barr = blobs_now[l][j][k]
+                                                    
+                    to_write.append(barr)   
+                    
+                bfn = '%s.blob_%id.%s.pkl' \
+                    % (self.prefix, self.blob_nd[j], blob)
+                with open(bfn, 'ab') as f:
+                    pickle.dump(np.array(to_write), f) 
+                    
+                       
