@@ -1,3 +1,5 @@
+:orphan:
+
 The Intergalactic Medium
 ========================
 We've seen so far that you can initialize stellar and BH populations and 

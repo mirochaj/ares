@@ -1,3 +1,5 @@
+:orphan:
+
 The Metagalactic X-ray Background
 =================================
 In this example, we'll compute the Meta-Galactic X-ray background over a

@@ -1,3 +1,5 @@
+:orphan:
+
 Grid Parameters
 ===============
 

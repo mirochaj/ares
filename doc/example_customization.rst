@@ -1,3 +1,5 @@
+:orphan:
+
 Parameterized Models for Sources and Their Spectra
 --------------------------------------------------
 If you want to use *ares*'s numerical solvers, but don't care for the

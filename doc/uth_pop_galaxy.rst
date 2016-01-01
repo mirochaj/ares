@@ -1,3 +1,5 @@
+:orphan:
+
 Galaxy Populations
 ======================
 In these examples, we will initialize a galaxy population object, defined

@@ -759,11 +759,6 @@ class ModelFit(BlobFactory):
         # File for blobs themselves
         if self.blob_names is not None:
             
-            # Blob names and list of redshifts at which to track them
-            f = open('%s.binfo.pkl' % self.prefix, 'wb')
-            pickle.dump((self.blob_names, self.blob_ivars, self.blob_funcs), f)
-            f.close()
-            
             for i, group in enumerate(self.blob_names):
                 for blob in group:
                     fntup = (prefix, self.blob_nd[i], blob)

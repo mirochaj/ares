@@ -1,3 +1,5 @@
+:orphan:
+
 The Metagalactic Lyman-Werner Background
 ========================================
 One of the main motivations for *ares* was to be able to easily generate

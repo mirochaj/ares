@@ -1,3 +1,5 @@
+:orphan:
+
 Using Data from the Literature
 ==============================
 Within ``$ARES/input/litdata`` there are several empirical formulae and datasets

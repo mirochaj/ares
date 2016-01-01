@@ -27,11 +27,8 @@ Advanced
 Surveying Parameter Space
 -------------------------
 
-* Model Grids
+* Running Large Suites of Models
     * :doc:`example_grid_I`
-    * :doc:`example_grid_II`
-
-* Forecasting and Fitting with MCMC
     * :doc:`example_mcmc_I`
     
 * Analyzing Sets of Models

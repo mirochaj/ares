@@ -1,3 +1,5 @@
+:orphan:
+
 Alternatives to fcoll models
 ============================
 Most of the global 21-cm examples in the documentation tie the volume-averaged emissivity of galaxies to the rate at which mass collapses into dark matter halos. Because of this, they are referred to as :math:`f_{\mathrm{coll}}` models throughout, and are selected by setting ``pop_model='fcoll'``.

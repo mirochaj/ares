@@ -1,3 +1,5 @@
+:orphan:
+
 Initializing a Stellar Source
 =============================
 In these examples, we will initialize a stellar population object, defined

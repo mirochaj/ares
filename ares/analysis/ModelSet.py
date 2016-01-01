@@ -1187,7 +1187,25 @@ class ModelSet(BlobFactory):
         
             else:
                 
-                i, j, nd, dmis = self.blob_info(par)
+                try:
+                    i, j, nd, dims = self.blob_info(par)
+                    z_to_freq = False
+                    freq_to_z = False
+                except KeyError:
+                    
+                    # Handle case where we have redshift but not frequency
+                    # or vice-versa
+                    pre, post = par.split('_')
+                    
+                    z_to_freq = pre == 'nu' and post in list('BCD')
+                    freq_to_z = pre == 'z' and post in list('BCD')
+                    
+                    if z_to_freq:
+                        par = 'z_%s' % post
+                        i, j, nd, dims = self.blob_info('z_%s' % post)
+                    elif freq_to_z:
+                        par = 'nu_%s' % post
+                        i, j, nd, dims = self.blob_info('nu_%s' % post)
                 
                 if nd == 0:
                     val = self.extract_blob(par).copy()
@@ -1196,6 +1214,11 @@ class ModelSet(BlobFactory):
         
                 val *= multiplier[k]
         
+                if z_to_freq:
+                    val = nu_0_mhz / (1. + val)
+                elif freq_to_z:
+                    val = nu_0_mhz / val - 1.
+                    
                 if take_log[k]:
                     is_log.append(True)
                     to_hist.append(np.log10(val))

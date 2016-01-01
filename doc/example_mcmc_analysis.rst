@@ -1,3 +1,5 @@
+:orphan:
+
 Analyzing MCMC Calculations
 ===========================
 Point: triangle plots, recovered quantities, etc.

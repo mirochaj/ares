@@ -1,3 +1,5 @@
+:orphan:
+
 Stellar Populations
 ===================
 In these examples, we will initialize a stellar population object, defined
@@ -74,9 +76,7 @@ stars whose SED is a blackbody:
     # Create Population instance
     pop = ares.populations.StellarPopulation(**params)
                                  
-The ``approx_lwb`` keyword argument tells StellarPopulation that we'll be treating
-the UV spectrum of this population in detail. To verify this, access the ``rs`` attribute
-(which is short for ``radiation source'' to indicate that it is an ares.sources.RadiationSource instance):
+The ``approx_lwb`` keyword argument tells StellarPopulation that we'll be treating the UV spectrum of this population in detail. To verify this, access the ``rs`` attribute (which is short for ''radiation source'' to indicate that it is an ares.sources.RadiationSource instance):
 
 ::
 

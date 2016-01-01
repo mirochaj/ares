@@ -1,3 +1,5 @@
+:orphan:
+
 Advanced Parameter Study
 ========================
 In this example, we'll follow the same procedure as in the :doc:`example_grid_I` 

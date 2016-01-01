@@ -1,3 +1,5 @@
+:orphan:
+
 Black Hole Populations
 ======================
 In these examples, we will initialize a stellar population object, defined

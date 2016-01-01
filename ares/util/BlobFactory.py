@@ -327,7 +327,7 @@ class BlobFactory(object):
                     break            
             if element == name:
                 break
-                
+                        
         if not found:
             raise KeyError('Blob %s not found.' % name)        
                 

@@ -36,18 +36,18 @@ introduction to this type of calculation.
 Contents
 --------
 .. toctree::
-   :maxdepth: 1
+    :maxdepth: 1
 
-   Home <self>
-   install
-   examples
-   params
-   fields
-   uth
-   structure
-   troubleshooting
-   contributing
-   history
+    Home <self>
+    install
+    examples
+    params
+    fields
+    uth
+    structure
+    troubleshooting
+    contributing
+    history
 
 Indices and tables
 ==================

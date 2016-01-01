@@ -1,2 +1,4 @@
+:orphan:
+
 The Hydrogen Atom
 =================

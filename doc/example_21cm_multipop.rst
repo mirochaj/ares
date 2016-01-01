@@ -1,3 +1,5 @@
+:orphan:
+
 Models with Multiple Source Populations
 =========================================
 *ares* can handle an arbitrary number of source populations. To

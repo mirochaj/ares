@@ -1,3 +1,5 @@
+:orphan:
+
 Running *ares* with *emcee*
 ===========================
 It's relatively straightforward to call the Markov-Chain Monte Carlo code

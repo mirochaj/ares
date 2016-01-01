@@ -1,3 +1,5 @@
+:orphan:
+
 The ``Source`` Class
 --------------------
 All types of radiation sources inherit from one master class: the Source

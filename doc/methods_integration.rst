@@ -1,3 +1,5 @@
+:orphan:
+
 Integrating the Cosmological Radiative Transfer Equation
 ========================================================
 We implemented multiple methods for integrating the cosmological radiative transfer equation (C-RTE), which we outline here. The most important piece of this is computing the IGM optical depth,

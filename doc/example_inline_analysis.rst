@@ -1,3 +1,5 @@
+:orphan:
+
 Inline Analysis
 ===============
 When running a large number of models, each of which takes a few seconds (or more), it's important to do as much analysis "inline" as possible. For example, say we are interested in obtaining confidence intervals for quantities other than the free parameters of our model. Yes, we could go back later and re-run certain subsets of models and extract whatever information we want, but with a little planning, we can eliminate the need for these "extra" computations. The *emcee* code dubs such quantities `arbitrary meta-data blobs <http://dan.iel.fm/emcee/current/user/advanced/#arbitrary-metadata-blobs>`_, and as a result, any quantities computed during calculations in *ares* will be named "blobs" as well.

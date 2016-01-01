@@ -1,3 +1,5 @@
+:orphan:
+
 Cosmology Parameters
 ====================
 The default cosmological parameters in *ares* are from *Planck*. Specifically, we take values from the last column of Table 4 in `Planck XIII <http://adsabs.harvard.edu/abs/2015arXiv150201589P>`_. 

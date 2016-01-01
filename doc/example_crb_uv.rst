@@ -1,3 +1,5 @@
+:orphan:
+
 The Metagalactic UV Background
 ==============================
 If you haven't yet looked at the :doc:`example_crb_lw` example, that might be a good place to start as the setup here is very similar, and as a result, we'll skip over a few of the details. 

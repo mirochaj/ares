@@ -1,3 +1,5 @@
+:orphan:
+
 Two-Zone IGM Model for the Global 21-cm Signal
 ==============================================
 To begin, first import ares:

@@ -1,3 +1,5 @@
+:orphan:
+
 Including Helium in 1-D Radiative Transfer Calculations
 =======================================================
 

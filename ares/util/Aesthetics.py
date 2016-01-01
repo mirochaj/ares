@@ -130,14 +130,26 @@ history_elements = \
  'igm_he_1': r'$x_{\mathrm{HeI}}$',
  'igm_he_2': r'$x_{\mathrm{HeII}}$',
  'igm_he_3': r'$x_{\mathrm{HeIII}}$',
+ 'igm_dTb': r'$\delta T_b$',
  'igm_Tk': r'$T_K$',
  'cgm_h_2': r'$Q_{\mathrm{HII}}$',
  'xavg': r'$\overline{x}_i$',
  'Ts': r'$T_S$',
  'z': r'$z$',
+ 'nu': r'$\nu$', 
  'Ja': r'$J_{\alpha}$', 
  'Jlw': r'$J_{\mathrm{LW}}$', 
 }
+
+tp_parameters = {}
+for key in history_elements:
+    for tp in list('BCD'):
+        if key in ['z', 'nu']:
+            tp_parameters['%s_%s' % (key, tp)] = \
+                r'%s_{\mathrm{%s}}$' % (history_elements[key][0:-1], tp)
+        else:
+            tp_parameters['%s_%s' % (key, tp)] = \
+                r'%s(z_{\mathrm{%s}})$' % (history_elements[key][0:-1], tp)
 
 tanh_parameters = \
 {
@@ -192,6 +204,7 @@ labels.update(other)
 labels.update(common)
 labels.update(lf_parameters)
 labels.update(pop_parameters)
+labels.update(tp_parameters)
 
 # Add custom labels
 labels.update(custom_labels)

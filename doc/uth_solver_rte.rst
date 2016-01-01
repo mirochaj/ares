@@ -1,3 +1,5 @@
+:orphan:
+
 Cosmological Radiative Transfer
 ===============================
 We've seen so far that you can initialize stellar and BH populations and 

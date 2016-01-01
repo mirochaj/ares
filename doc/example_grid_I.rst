@@ -1,3 +1,5 @@
+:orphan:
+
 Simple Parameter Study: 2-D Model Grid
 ======================================
 Often we want to study how the 21-cm signal changes over a range of parameters. 
@@ -11,8 +13,24 @@ To begin,
     import ares
     import numpy as np
     
-Fast Example: :math:`tanh` model for the global 21-cm signal
-------------------------------------------------------------    
+Quick Example: :math:`tanh` model for the global 21-cm signal
+-------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+More Expensive Models
+---------------------
     
 Before we run a set of models, we need to decide what quantities we'd like
 to save for each model. For a detailed description of how to do this in general cases, check out :doc:`example_inline_analysis`. 

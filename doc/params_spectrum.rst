@@ -1,3 +1,5 @@
+:orphan:
+
 Spectrum Parameters
 ===================
 We use :math:`I_{\nu}` to denote to the SED of sources. It is proportional
