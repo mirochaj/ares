@@ -1361,6 +1361,12 @@ class ModelSet(BlobFactory):
             
         if ivar is not None:
             if type(ivar) is list:
+                if len(pars) == 1:
+                    i, j, nd, dims = self.blob_info(pars[0])
+                    
+                    if nd == 2:
+                        ivar = list(np.atleast_2d(ivar))
+                
                 assert len(ivar) == len(pars)
             else:
                 if len(pars) == 1:
