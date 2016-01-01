@@ -761,6 +761,8 @@ class ModelSet(BlobFactory):
         ----------
         pars : list
             2-element list of parameter names. 
+        ivar : float, list
+            Independent variable(s) to be used for non-scalar blobs.
         z : str, float
             Redshift at which to plot x vs. y, if applicable.
         c : str
@@ -793,7 +795,7 @@ class ModelSet(BlobFactory):
         else:
             p = pars
             iv = ivar
-        
+                    
         data, is_log = \
             self.ExtractData(p, iv, take_log, un_log, multiplier)
 
@@ -801,7 +803,7 @@ class ModelSet(BlobFactory):
         ydata = data[p[1]]
         
         if c is not None:
-            cdata = data[p[2]]
+            cdata = data[p[2]].squeeze()
         else:
             cdata = None
 
@@ -1358,10 +1360,14 @@ class ModelSet(BlobFactory):
             multiplier = [multiplier] * len(pars)
             
         if ivar is not None:
-            if type(ivar) is list and (len(pars) == 1):    
-                ivar = list(np.atleast_2d(ivar))
-            else:    
+            if type(ivar) is list:
                 assert len(ivar) == len(pars)
+            else:
+                if len(pars) == 1:
+                    ivar = [ivar]
+                else:
+                    raise ValueError('ivar must be same length as pars')    
+                
         else:
             ivar = [None] * len(pars)
             
@@ -1434,7 +1440,7 @@ class ModelSet(BlobFactory):
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)
-
+            
         # Only make a new plot window if there isn't already one
         if ax is None:
             gotax = False

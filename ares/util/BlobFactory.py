@@ -47,46 +47,64 @@ def parse_attribute(blob_name, obj_base):
         using __getattribute__ conflicts with the __getattr__ method used
         in analysis.Global21cm.
         
+    Parameters
+    ----------
+    blob_name : str
+        Full name of blob (might be nested)
+    obj_base : instance
+        Usually just an instance of BlobFactory, which is inherited by
+        simulation classes, so think of this as an instance of an
+        ares.simulation class.
+        
     """
         
     attr_split = blob_name.split('.')
 
     if len(attr_split) == 1: 
         s = attr_split[0]
-        if re.search('\[', s):     
-            k = get_k(s)
-            s2 = s[0:s.rfind('[')]
-            return eval('obj_base.%s' % s2)
-        else:
-            return eval('obj_base.%s' % s)
+        #if re.search('\[', s):     
+        #    k = get_k(s)
+        #    s2 = s[0:s.rfind('[')]
+        #    return eval('obj_base.%s' % s2)
+        #else:
+        return eval('obj_base.%s' % s)
 
     # Nested attribute
-    blob = None
+    blob_attr = None
     obj_list = [obj_base]
     for i in range(len(attr_split)):
         s = attr_split[i]
 
         # Brackets indicate...attributes that don't require ivars but have
         # more than one element. Should do this differently
-        if re.search('\[', s): 
-            k = get_k(s)
-            s2 = s[0:s.rfind('[')]
-            blob = eval('obj_base.%s' % s2)
-            
-            if (i == (len(attr_split) - 1)):
-                break
-            else:
-                new_obj = blob
-                blob = None
-        else:
-            new_obj = eval('obj_base.%s' % s)
+        #if re.search('\[', s): 
+        #    k = get_k(s)
+        #    s2 = s[0:s.rfind('[')]
+        #    blob = eval('obj_base.%s' % s2)
+        #    
+        #    if (i == (len(attr_split) - 1)):
+        #        break
+        #    else:
+        #        new_obj = blob
+        #        blob = None
+        #else:
 
+        new_obj = eval('obj_base.%s' % s)
         obj_list.append(new_obj)
 
-    if blob is None:
-        blob = new_obj
+        obj_base = obj_list[-1]
         
-    return blob
+        #if i == 0:
+        #    new_obj = eval('obj_base.%s' % s)
+        #else:
+        #new_obj = eval('obj_list[%i-1].%s' % (i, s))
+
+        
+
+    #if blob is None:
+    #    blob = new_obj
+        
+    return new_obj
 
 class BlobFactory(object):
     """
@@ -347,11 +365,12 @@ class BlobFactory(object):
                 data = pickle.load(f)
             except EOFError:
                 break
-    
-            all_data.extend(data)
-    
-        all_data = np.array(all_data)
         
+            all_data.extend(data)
+                
+        # Dunno why this squeeze is necessary but it is so there
+        all_data = np.array(all_data).squeeze()
+            
         mask = np.logical_not(np.isfinite(all_data))
         masked_data = np.ma.array(all_data, mask=mask)
         

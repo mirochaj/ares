@@ -69,8 +69,8 @@ To run,
 To speed things up, you could increase the grid spacing. Or, execute the above in parallel as a Python script (assuming you have MPI and mpi4py installed).
 
     .. note:: If the model grid doesn’t finish running, that’s OK! Simply    
-        re-execute the above command and supply restart=True as an additional 
-        keyword argument, and it will pick up where it left off.
+        re-execute the above command and supply ``restart=True`` as an 
+        additional keyword argument, and it will pick up where it left off.
     
 To analyze the results, create an analysis instance,    
 
@@ -94,13 +94,13 @@ See :doc:`example_grid_analysis` for more information.
 
 More Expensive Models
 ---------------------
+Setting ``tanh_model=True`` sped things up considerably in the previous example. In general, you can run grids varying any *ares* parameters you like, just know that physical models take a few seconds each, whereas the :math:`tanh` model takes much less than a second for one model.
 
-
-Load-balancing can be very advantageous – there are a few built-in methods for doing this, but more on that later. For this example we’ll turn off load balancing since we’re running in an interactive Python session in serial:
+In one particular case -- when ``Tmin`` is one axis of the model grid -- load-balancing can be very advantageous. Just execute the following command before running the grid:
 
 ::
     
-    mg.LoadBalance(method=0)
+    mg.LoadBalance(method=1)
     
 
 
