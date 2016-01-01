@@ -12,7 +12,6 @@ Description:
 
 import ares, time
 import numpy as np
-import matplotlib.pyplot as pl
 
 #
 ##

@@ -28,7 +28,7 @@ Surveying Parameter Space
 -------------------------
 
 * Running Large Suites of Models
-    * :doc:`example_grid_I`
+    * :doc:`example_grid`
     * :doc:`example_mcmc_I`
     
 * Analyzing Sets of Models
