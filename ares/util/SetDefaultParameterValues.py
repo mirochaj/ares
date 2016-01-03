@@ -274,8 +274,10 @@ def PopulationParameters():
     "pop_ham_zfun": 'poly',   # or (time, redshift, free)
     "pop_ham_Mext": None,
     "pop_ham_zext": None,
-    "pop_ham_Mext_par": None,
-    "pop_ham_zext_par": None,
+    "pop_ham_Mext_par1": None,
+    "pop_ham_zext_par1": None,
+    "pop_ham_Mext_par2": None,
+    "pop_ham_zext_par2": None,
     
 
     # Parameters for a HOD model

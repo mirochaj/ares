@@ -228,14 +228,14 @@ class HAM(object):
                         
         # If we're extrapolating no matter what or we're within the
         # allowed redshift and mass range, we're done                
-        if (zok or (self.zext[0] is None)) and (self.Mext[0] is None):
+        if (zok or (self.zext[0] is None)) and (self.Mext is None):
             return 10**self._log_fstar(z, M, *coeff)
         
         ##
         # OTHERWISE, WE ARE DOING SOME EXTRAPOLATING
         ##
         
-        elif (self.Mext[0] is None) and (self.zext[0] == 'const'):
+        elif (self.Mext is None) and (self.zext[0] == 'const'):
 
             if z > self.zext[2]:
                 fst = self.fstar_zhi(M, *coeff)
@@ -246,12 +246,12 @@ class HAM(object):
         
         # Fit a power-law to the last few points (in mass).
         # Allow the redshift evolution to do its thing
-        elif self.Mext[0] in ['pl', 'exp']:
+        elif self.Mext in ['pl', 'exp']:
             fst = self.fstar_Mlo(z, M, *coeff)
-        
-        elif (self.Mext[0] == 'floor'):
+          
+        elif (self.Mext in ['floor', 'pl_floor']):
             fst = 10**self._log_fstar(z, M, *coeff)
-        elif (self.Mext[0] == 'const') or (self.Mext[0] == 'const'):
+        elif (self.Mext == 'const') or (self.Mext == 'const'):
         
         # Set a constant upper limit for fstar below given mass limit     
         # Linearly interpolate in redshift to find this limit?
@@ -754,7 +754,7 @@ class HAM(object):
                 fMlos.append(fMlo)
                 alphas.append(alpha)
                 
-            has_cutoff = type(self.Mext[0]) in [list, tuple]
+            has_cutoff = type(self.Mext) in [list, tuple]
         
             def tmp(zz, MM, *coeff):
         
@@ -831,7 +831,7 @@ class HAM(object):
         # Otherwise, we fit the mass-to-light ratio
         eta = np.interp(z, self.halos.z, self.eta)
         
-        return self.Lh(z, M, *self.coeff) * self.kappa_UV \
+        return self.Lh(z, M) * self.kappa_UV \
             / (self.cosm.fbaryon * self.Macc(z, M) * eta)        
             
     def _log_fstar(self, z, M, *coeff):    
@@ -879,8 +879,11 @@ class HAM(object):
                 * np.exp(-(logM - self._Mpeak_of_z(z))**2 / 2. / 
                 self._sigma_of_z(z)**2)
                 
-        if (self.Mext[0] == 'floor'):
+        if (self.Mext == 'floor'):
             f += self.Mext[1]
+        elif self.Mext == 'pl_floor':
+            f += self.Mext_pars[0] * (M / 1e8)**self.Mext_pars[1] \
+                * np.exp(-M / 1e12)
                 
         f = np.minimum(f, self.pf['pop_fstar_ceil'])
                 
@@ -888,8 +891,8 @@ class HAM(object):
             
         return logf
         
-    def Lh(self, z, M, *coeff):
-        return 10**self._log_Lh(z, M, *coeff) 
+    def Lh(self, z, M):
+        return 10**self._log_Lh(z, M, *self.coeff) 
            
     def _log_Lh(self, z, M, *coeff): 
         if self.Mfunc == 'pl':
@@ -936,8 +939,12 @@ class HAM(object):
     
     @property
     def Mext(self):
-        return self.pf.pfs[self.pop_id]['pop_ham_Mext'], \
-            self.pf.pfs[self.pop_id]['pop_ham_Mext_par']
+        return self.pf.pfs[self.pop_id]['pop_ham_Mext']
+    
+    @property
+    def Mext_pars(self):
+        return self.pf.pfs[self.pop_id]['pop_ham_Mext_par1'], \
+            self.pf.pfs[self.pop_id]['pop_ham_Mext_par2']
 
     @property
     def zext(self):
@@ -985,7 +992,7 @@ class HAM(object):
         The mass at which the star formation efficiency peaks.
         """
         
-        alpha = lambda MM: self.gamma(z, MM)
+        alpha = lambda MM: self.gamma_sfe(z, MM)
             
         i = np.argmin(np.abs(z - np.array(self.redshifts)))
         guess = self.MofL_tab[i][np.argmax(self.fstar_tab[i])]
@@ -996,7 +1003,7 @@ class HAM(object):
     def fpeak(self, z):
         return self.SFE(z, self.Mpeak(z))
     
-    def gamma(self, z, M):
+    def gamma_sfe(self, z, M):
         """
         This is a power-law index describing the relationship between the
         SFE and and halo mass.
@@ -1014,9 +1021,9 @@ class HAM(object):
         
         return derivative(fst, M, dx=1e6) * M / fst(M)
             
-    def gamma2(self, z, M):
+    def gamma_LhMh(self, z, M):
         """
-        Slope in Lh(Mh)?
+        Slope in Lh(Mh).
         """
         pass
         
