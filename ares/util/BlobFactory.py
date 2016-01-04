@@ -144,11 +144,13 @@ class BlobFactory(object):
             self._blob_funcs = []
             for i, element in enumerate(self._blob_names):
                 
-                # Scalars
+                # Scalars: must be class properties, i.e., funcs = None
                 if np.isscalar(self._blob_ivars[i]) or \
                    (self._blob_ivars[i] is None):
                     self._blob_nd.append(0)
                     self._blob_dims.append(0)
+                    self._blob_funcs.append([None] * len(element))
+                    continue
                 # Everything else
                 else:
                     
@@ -158,20 +160,30 @@ class BlobFactory(object):
                         assert lenarr == 1
                         
                         self._blob_nd.append(1)
-                        self._blob_dims.append(lenarr)
+                        dims = len(self._blob_ivars[i]), 
+                        self._blob_dims.append(dims)
                     else:
 
                         self._blob_nd.append(len(self._blob_ivars[i]))
-                        self._blob_dims.append([len(element) \
-                            for element in self._blob_ivars[i]])
+                        
+                        dims = tuple([len(element2) \
+                            for element2 in self._blob_ivars[i]])
+                        self._blob_dims.append(dims)
                 
                 # Handle functions
-                if self.pf['blob_funcs'] is None:
+                
+                try:
+                    no_blob_funcs = self.pf['blob_funcs'] is None or \
+                        self.pf['blob_funcs'][i] is None
+                except (TypeError, IndexError):
+                    no_blob_funcs = True
+                
+                if no_blob_funcs:                     
                     self._blob_funcs.append([None] * len(element))
-                elif self._blob_dims[i] == 1 and self.pf['blob_funcs'] is None:
-                    self._blob_funcs.append([None] * len(element))
-                else:
-                    self._blob_funcs.append(self.pf['blob_funcs'][i])
+                    continue
+
+                assert len(element) == len(self.pf['blob_funcs'][i])
+                self._blob_funcs.append(self.pf['blob_funcs'][i])
 
         self._blob_nd = tuple(self._blob_nd)                    
         self._blob_dims = tuple(self._blob_dims)            

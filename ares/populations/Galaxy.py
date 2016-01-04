@@ -397,7 +397,7 @@ class GalaxyPopulation(HaloPopulation,BlobFactory):
         elif self.is_ham_model:
                         
             # Only know LF at a few redshifts...
-            assert z in self.pf['pop_lf_z']
+            assert z in self.ham.redshifts
         
             if L is None:
         

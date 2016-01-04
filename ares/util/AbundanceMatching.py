@@ -13,7 +13,6 @@ Description:
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
-from .Warnings import lf_constraints
 from scipy.optimize import fsolve, curve_fit, fmin
 from scipy.integrate import quad, simps, cumtrapz, ode
 from scipy.interpolate import interp1d, RectBivariateSpline
@@ -95,15 +94,7 @@ class HAM(object):
             self._constraints = {}
     
             # Read constraints from litdata
-            if type(self.pf['pop_constraints']) == str:
-                for key in self.pf:
-                    if 'pop_lf_Mstar' not in key:
-                        continue
-                        
-                    if self.pf[key] is not None:
-                        print lf_constraints
-                        break
-                
+            if type(self.pf['pop_constraints']) == str:                
                 data = read_lit(self.pf['pop_constraints'])
                 fits = data.fits['lf']['pars']
     
@@ -121,16 +112,28 @@ class HAM(object):
                 # If we read in fits from literature, have to be sure to
                 # get the redshifts correctly (since we're allowed to only
                 # use a subset of them)
-                if type(self.pf['pop_constraints']) == str:
+                
+                # Also, must override litdata if appropriate pars are passed.
+                
+                Mname = 'pop_lf_Mstar[%g]' % z
+                pname = 'pop_lf_pstar[%g]' % z
+                aname = 'pop_lf_alpha[%g]' % z
+                if Mname in self.pf:
+                    self._constraints['Mstar'].append(self.pf[Mname])
+                elif type(self.pf['pop_constraints']) == str:
                     j = data.redshifts.index(z)
                     self._constraints['Mstar'].append(fits['Mstar'][j])
+                if pname in self.pf:   
+                    self._constraints['pstar'].append(self.pf[pname])
+                elif type(self.pf['pop_constraints']) == str:
+                    j = data.redshifts.index(z)
                     self._constraints['pstar'].append(fits['pstar'][j])
+                if aname in self.pf:
+                    self._constraints['alpha'].append(self.pf[aname])
+                elif type(self.pf['pop_constraints']) == str:
+                    j = data.redshifts.index(z)
                     self._constraints['alpha'].append(fits['alpha'][j])
-                else:                                              
-                    self._constraints['Mstar'].append(self.pf['pop_lf_Mstar[%g]' % z])
-                    self._constraints['pstar'].append(self.pf['pop_lf_pstar[%g]' % z])
-                    self._constraints['alpha'].append(self.pf['pop_lf_alpha[%g]' % z])
-     
+
             # Parameter file will have LF in Magnitudes...argh
             redshifts = self._constraints['z']
             self._constraints['Lstar'] = []
@@ -224,58 +227,58 @@ class HAM(object):
         return self._fit_Lh
 
     def fstar(self, z, M, *coeff):
-        zok = np.all(self.zlim[0] <= z <= self.zlim[1])
+        #zok = np.all(self.zlim[0] <= z <= self.zlim[1])
                         
         # If we're extrapolating no matter what or we're within the
         # allowed redshift and mass range, we're done                
-        if (zok or (self.zext[0] is None)) and (self.Mext is None):
-            return 10**self._log_fstar(z, M, *coeff)
+        #if (zok or (self.zext[0] is None)) and (self.Mext is None):
+        return 10**self._log_fstar(z, M, *coeff)
         
         ##
         # OTHERWISE, WE ARE DOING SOME EXTRAPOLATING
         ##
         
-        elif (self.Mext is None) and (self.zext[0] == 'const'):
-
-            if z > self.zext[2]:
-                fst = self.fstar_zhi(M, *coeff)
-            elif z < self.zext[1]:
-                fst = self.fstar_zlo(M, *coeff)
-            else:
-                fst = 10**self._log_fstar(z, M, *coeff)
-        
-        # Fit a power-law to the last few points (in mass).
-        # Allow the redshift evolution to do its thing
-        elif self.Mext in ['pl', 'exp']:
-            fst = self.fstar_Mlo(z, M, *coeff)
-          
-        elif (self.Mext in ['floor', 'pl_floor']):
-            fst = 10**self._log_fstar(z, M, *coeff)
-        elif (self.Mext == 'const') or (self.Mext == 'const'):
-        
-        # Set a constant upper limit for fstar below given mass limit     
-        # Linearly interpolate in redshift to find this limit?
-            #fstar_Mmin = self.fstar_Mlo[0]
-            def tmp(zz, MM):
-                if type(MM) is np.ndarray:
-                    Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
-                        * fstar_Mmin
-                    Mhi = MM[np.argwhere(MM >= fstar_Mmin)]
-                                        
-                    fst_lo = self._fstar_func(zz, Mlo, *self._fstar_coeff)
-                    fst_hi = self._fstar_func(zz, Mhi, *self._fstar_coeff)
-                                        
-                    fst = np.concatenate((fst_lo, fst_hi)).squeeze()
-                    
-                elif MM > 10**self.pf['pop_logM'][0]:
-                    fst = self._fstar_func(zz, MM, *self._fstar_coeff)
-                else:
-                    fst = self._fstar_func(zz, fstar_Mmin, *self._fstar_coeff)
-                    
-        else:
-            raise ValueError('Unknown pop extrap option!')
-
-        return fst
+        #elif (self.Mext is None) and (self.zext[0] == 'const'):
+        #
+        #    if z > self.zext[2]:
+        #        fst = self.fstar_zhi(M, *coeff)
+        #    elif z < self.zext[1]:
+        #        fst = self.fstar_zlo(M, *coeff)
+        #    else:
+        #        fst = 10**self._log_fstar(z, M, *coeff)
+        #
+        ## Fit a power-law to the last few points (in mass).
+        ## Allow the redshift evolution to do its thing
+        #elif self.Mext in ['pl', 'exp']:
+        #    fst = self.fstar_Mlo(z, M, *coeff)
+        #  
+        #elif (self.Mext in ['floor', 'pl_floor']):
+        #    fst = 10**self._log_fstar(z, M, *coeff)
+        #elif (self.Mext == 'const') or (self.Mext == 'const'):
+        #
+        ## Set a constant upper limit for fstar below given mass limit     
+        ## Linearly interpolate in redshift to find this limit?
+        #    #fstar_Mmin = self.fstar_Mlo[0]
+        #    def tmp(zz, MM):
+        #        if type(MM) is np.ndarray:
+        #            Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
+        #                * fstar_Mmin
+        #            Mhi = MM[np.argwhere(MM >= fstar_Mmin)]
+        #                                
+        #            fst_lo = self._fstar_func(zz, Mlo, *self._fstar_coeff)
+        #            fst_hi = self._fstar_func(zz, Mhi, *self._fstar_coeff)
+        #                                
+        #            fst = np.concatenate((fst_lo, fst_hi)).squeeze()
+        #            
+        #        elif MM > 10**self.pf['pop_logM'][0]:
+        #            fst = self._fstar_func(zz, MM, *self._fstar_coeff)
+        #        else:
+        #            fst = self._fstar_func(zz, fstar_Mmin, *self._fstar_coeff)
+        #            
+        #else:
+        #    raise ValueError('Unknown pop extrap option!')
+        #
+        #return fst
 
     @property
     def kappa_UV(self):
@@ -834,6 +837,16 @@ class HAM(object):
         return self.Lh(z, M) * self.kappa_UV \
             / (self.cosm.fbaryon * self.Macc(z, M) * eta)        
             
+    @property
+    def _apply_floor(self):
+        if not hasattr(self, '_apply_floor_'):
+            self._apply_floor_ = 1
+        return self._apply_floor_
+    
+    @_apply_floor.setter
+    def _apply_floor(self, value):
+        self._apply_floor_ = value        
+            
     def _log_fstar(self, z, M, *coeff):    
         
         if self.Mfunc == self.zfunc == 'poly':            
@@ -860,6 +873,21 @@ class HAM(object):
                 * np.exp(-(logM - self._Mpeak_of_z(z))**2 / 2. / 
                 self._sigma_of_z(z)**2)
 
+        elif (self.Mfunc == 'lognormal') and (self.zfunc == 'pl'):
+            logM = np.log10(M)
+        
+            self._fstar_of_z = lambda zz: coeff[0] \
+                - coeff[1] * np.log10((1. + zz) / (1. + z0))
+            # logM
+            self._Mpeak_of_z = lambda zz: coeff[2] \
+                - coeff[3] * np.log10((1. + zz) / (1. + z0))
+            self._sigma_of_z = lambda zz: coeff[4] \
+                    - coeff[5] * np.log10((1. + zz) / (1. + z0))
+        
+            f = self._fstar_of_z(z) \
+                * np.exp(-(logM - self._Mpeak_of_z(z))**2 / 2. / 
+                self._sigma_of_z(z)**2)
+        
         elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
             logM = np.log10(M)
 
@@ -881,10 +909,13 @@ class HAM(object):
                 
         if (self.Mext == 'floor'):
             f += self.Mext[1]
-        elif self.Mext == 'pl_floor':
-            f += self.Mext_pars[0] * (M / 1e8)**self.Mext_pars[1] \
-                * np.exp(-M / 1e12)
-                
+        elif self.Mext == 'pl_floor' and self._apply_floor:
+            self._apply_floor = 0
+            to_add = self.Mext_pars[0] * 10**self._log_fstar(z, 1e10, *coeff)
+            to_add *= (M / 1e10)**self.Mext_pars[1] * np.exp(-M / 1e11)
+            f += to_add
+            self._apply_floor = 1
+            
         f = np.minimum(f, self.pf['pop_fstar_ceil'])
                 
         logf = np.log10(f)
@@ -969,6 +1000,8 @@ class HAM(object):
                     self._guesses = np.array([0.25, 0.05, 12., 0.05, 0.5, 0.05])
                 elif (self.Mfunc == 'lognormal') and (self.zfunc == 'const'):
                     self._guesses = np.array([0.25, 11., 0.5])
+                elif (self.Mfunc == 'lognormal') and (self.zfunc == 'pl'):
+                    self._guesses = np.array([0.25, 0.05, 11., 0.05, 0.5, 0.05])    
                 elif (self.Mfunc == 'lognormal') and (self.zfunc == 'linear_t'):
                     self._guesses = np.array([0.25, 12., 0.5])
                 else:
