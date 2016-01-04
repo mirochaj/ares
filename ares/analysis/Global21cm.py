@@ -50,6 +50,9 @@ class Global21cm(MultiPhaseMedium):
                 # This'd be where e.g., zrei, should go
                 raise NotImplemented('help!')
 
+            if pt not in self.turning_points:
+                return np.inf
+
             if quantity == 'z':
                 self.__dict__[name] = self.turning_points[pt][0]
             elif quantity == 'nu':

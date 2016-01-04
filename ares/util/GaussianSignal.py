@@ -82,7 +82,7 @@ class GaussianModel:
          'igm_dTb': dTb,
         }
     
-        tmp = Global21cm(data=hist)
+        #tmp = Global21cm(data=hist)
         
-        return tmp
+        return hist
     

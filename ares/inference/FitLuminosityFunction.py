@@ -115,11 +115,17 @@ class loglikelihood:
                 else:
                     if self.blob_nd[i] == 0:
                         self._blank_blob.append([np.inf] * len(group))
-                    else:
-                        arr = np.ones([len(group), self.blob_ivars[i].size])
+                    elif self.blob_nd[i] == 1:
+                        arr = np.ones([len(group), self.blob_dims[i][0]])
                         self._blank_blob.append(arr * np.inf)
-    
+                    elif self.blob_nd[i] == 2:
+                        dims = len(group), self.blob_dims[i][0], \
+                            self.blob_dims[i][1]
+                        arr = np.ones(dims)
+                        self._blank_blob.append(arr * np.inf)    
+
         return self._blank_blob
+
     @property
     def sim_class(self):
         if not hasattr(self, '_sim_class'):
@@ -136,7 +142,7 @@ class loglikelihood:
                 self._sim_class = simMPM                
                 
         return self._sim_class
-        
+
     def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -154,7 +160,7 @@ class loglikelihood:
                 kwargs[par] = 10**pars[i]
             else:
                 kwargs[par] = pars[i]
-            
+
         # Apply prior on model parameters first (dont need to generate signal)
         lp = self.logprior_P(pars)
         if not np.isfinite(lp):
@@ -179,9 +185,10 @@ class loglikelihood:
             try:
                 sim.run()                      
                 #sim.run_inline_analysis()
-            except ValueError:
+            except (ValueError, IndexError):
                 # Seems to happen in some weird cases when the 
                 # HAM fit fails
+                # Also, if Tmin goes crazy big (IndexError in integration)
                 
                 f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 
                     'ab')
