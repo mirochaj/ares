@@ -201,7 +201,7 @@ class loglikelihood:
         #    lp -= self.logprior_B(blob_vals)         
         #
         
-        lp -= self._compute_blob_prior(sim)
+        lp += self._compute_blob_prior(sim)
         
         # emcee will crash if this returns NaN
         if np.isnan(lp):

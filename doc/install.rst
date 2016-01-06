@@ -12,6 +12,9 @@ and optionally:
 * `hmf <http://hmf.readthedocs.org/en/latest/>`_ (halo mass function calculator written by Stephen Murray)
 * `mpi4py <http://mpi4py.scipy.org>`_
 * `h5py <http://www.h5py.org/>`_
+* `setuptools <https://pypi.python.org/pypi/setuptools>`_
+* `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_
+
 
 If you have mercurial installed, you can clone *ares* and its entire revision history via: ::
 
@@ -32,7 +35,7 @@ A few lookup tables will be downloaded to ``$ARES/input`` automatically.
 
 Don't have Python already?
 --------------------------
-If you do *not* already have Python installed, you might consider downloading `yt <http://yt-project.org/>`_, which has a convenient installation script that will download and install a lot of common Python packages for you (everything but *hmf* listed above).
+If you do *not* already have Python installed, you might consider downloading `yt <http://yt-project.org/>`_, which has a convenient installation script that will download and install Python and many commonly-used Python packages for you.
 
 Help
 ----

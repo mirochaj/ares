@@ -480,10 +480,14 @@ class FitLuminosityFunction(FitGlobal21cm):
                     new_jit = fits['err'][name][z.index(popz)]
                     new_guess = fits['pars'][name][z.index(popz)]
                     
-            # Will be in same units as priors
+            # Take guess from guess_override (must be set manually)
             elif par in self.guess_override:
                 new_jit = self.jitter[i]
                 new_guess = self.guess_override[par]
+            # Place guesses near middle of prior space    
+            elif par in self.priors:
+                new_jit = self.jitter[i]
+                new_guess = np.mean(self.priors[par][1:])
             # Never log
             elif prefix in defaults:
                 if defaults[prefix] is None:

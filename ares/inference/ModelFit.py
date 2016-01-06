@@ -148,21 +148,17 @@ class LogPrior:
             if type(p2) is str:
                 p2 = _str_to_val(p2, par, pars, self.pars)
 
-            print par, p1, p2, self.is_log[i], val
-
             # Uninformative priors
             if ptype == 'uniform':
                 if self.is_log[i]:
-                    logL_i = -uninformative_log(val, p1, p2)
+                    logL += uninformative_log(val, p1, p2)
                 else:
-                    logL_i = np.log(uninformative_lin(val, p1, p2))
+                    logL += np.log(uninformative_lin(val, p1, p2))
             # Gaussian priors
             elif ptype == 'gaussian':
-                logL_i = np.log(gaussian_prior(val, p1, p2))
+                logL += np.log(gaussian_prior(val, p1, p2))
             else:
                 raise ValueError('Unrecognized prior type: %s' % ptype)
-
-            logL -= logL_i
 
         return logL
         
@@ -319,7 +315,7 @@ class LogLikelihood:
             blob_vals.append(val)    
 
         if blob_vals:
-            lp -= self.logprior_B(blob_vals)         
+            lp += self.logprior_B(blob_vals)         
 
             # emcee will crash if this returns NaN
             if np.isnan(lp):
@@ -336,27 +332,27 @@ class LogLikelihood:
             return lp, blobs
 
         # Compute the likelihood if we've made it this far
-        
+
         if self.fit_signal:
-            
+
             xarr = np.interp(self.signal_z, sim.history['z'][-1::-1],
                 sim.history['dTb'][-1::-1])
-                
+
         elif self.fit_turning_points: 
             # Fit turning points    
             xarr = []
-            
+
             # Convert frequencies to redshift, temperatures to K
             for element in self.errmap:
                 tp, i = element            
-            
+
                 # Models without turning point B, C, or D get thrown out.
                 if tp not in tps:
                     del sim, kw
                     gc.collect()
-            
+
                     return -np.inf, self.blank_blob
-            
+
                 if i == 0 and self.errunits[0] == 'MHz':
                     xarr.append(nu_0_mhz / (1. + tps[tp][i]))
                 else:
@@ -748,7 +744,7 @@ class ModelFit(BlobFactory):
     @property
     def checkpoint_by_proc(self):
         if not hasattr(self, '_checkpoint_by_proc'):
-            self._checkpoint_by_proc = False
+            self._checkpoint_by_proc = True
         return self._checkpoint_by_proc
         
     @checkpoint_by_proc.setter

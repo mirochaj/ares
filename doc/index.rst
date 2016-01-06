@@ -46,6 +46,7 @@ Contents
     uth
     structure
     troubleshooting
+    updates
     contributing
     history
 

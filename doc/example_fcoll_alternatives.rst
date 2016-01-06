@@ -71,7 +71,7 @@ To initialize a population, we must importantly set ``pop_model='ham'``:
 
     pop = ares.populations.GalaxyPopulation(**pars)
 
-This population instance has an attribute ``ham``, which carries along all of the abundance matching info. For starters, let's just plot up the constraints on the LF at each redshift, which have been converted from magnitudes to rest-frame :math:`1500\AA` luminosities:
+This population instance has an attribute ``ham``, which carries along all of the abundance matching info. For starters, let's just plot up the constraints on the LF at each redshift, which have been converted from magnitudes to rest-frame :math:`1500 \AA` luminosities:
 
 ::
 
@@ -86,11 +86,13 @@ This population instance has an attribute ``ham``, which carries along all of th
     pl.ylim(1e-39, 1e-29)
     pl.show()
 
-Now, the key quantity yielded by the abundance matching procedure is $L_h(M_h)$, which we convert to a star-formation efficiency (SFE), :math:`f_{ast}`, assuming a model for the halo mass accretion rate (from McBride et al. (2009); see ``pop_Macc`` parameter above):
+Now, the key quantity yielded by the abundance matching procedure is :math:`L_h(M_h)`, which we convert to a star-formation efficiency (SFE), :math:`f_{\ast}`, assuming a model for the halo mass accretion rate (MAR; from McBride et al. (2009); see ``pop_Macc`` parameter above):
 
 ::
 
     colors = ['r', 'b', 'g', 'k', 'm']
+    
+    # First, plot the discrete set of points for the SFE
     for i, z in enumerate(pop.ham.redshifts):
         j = pop.ham.redshifts.index(z)
         Mh = pop.ham.MofL_tab[j]
@@ -102,6 +104,7 @@ Now, the key quantity yielded by the abundance matching procedure is $L_h(M_h)$,
     pl.ylabel(r'$f_{\ast}$')
     pl.legend(ncol=1, frameon=False, fontsize=16, loc='lower right')
 
+    # Now, plot fits to the SFE over a range of masses
     Marr = np.logspace(8, 14)
     for i, z in enumerate(pop.ham.redshifts):
         j = pop.ham.redshifts.index(z)

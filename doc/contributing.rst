@@ -1,5 +1,5 @@
-Developing *ares*
-=================
+*ares* Development: Contributing!
+=================================
 If *ares* lacks functionality you're interested in, but seems to exhibit some 
 features you'd like to make use of, adapting it to suit your purpose should
 (in principle) be fairly straightforward. The following sections describe
