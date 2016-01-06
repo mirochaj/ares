@@ -271,7 +271,7 @@ class BlobFactory(object):
         if self.blob_nd[i] > 0 and (ivar is None):
             raise ValueError('Must provide ivar!')
         elif self.blob_nd[i] == 0:
-            return float(self.blobs[i])
+            return float(self.blobs[i][j])
         elif self.blob_nd[i] == 1:
             assert ivar in self.blob_ivars[i]
             j = list(self.blob_ivars[i]).index(ivar)

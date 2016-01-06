@@ -98,6 +98,9 @@ class loglikelihood:
     @property
     def blank_blob(self):
         if not hasattr(self, '_blank_blob'):
+            if self.blob_names is None:
+                self._blank_blob = {}
+                return self._blank_blob
     
             self._blank_blob = []
             for i, group in enumerate(self.blob_names):
@@ -198,11 +201,11 @@ class loglikelihood:
         #    lp -= self.logprior_B(blob_vals)         
         #
         
-        lp = self._compute_blob_prior(sim)
+        lp -= self._compute_blob_prior(sim)
         
         # emcee will crash if this returns NaN
         if np.isnan(lp):
-            return -np.inf, {}#self.blank_blob
+            return -np.inf, self.blank_blob
 
         #if hasattr(sim, 'blobs'):
         #    blobs = sim.blobs

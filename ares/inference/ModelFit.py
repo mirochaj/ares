@@ -224,26 +224,19 @@ class LogLikelihood:
         self.errmap = errmap
         self.errunits = errunits
         
-    def compute_blob_prior(self, pars):
-        lp = 0.0
+    def _compute_blob_prior(self, sim):
         blob_vals = []
-        for key in self.logprior_B.priors:
-
-            if not hasattr(sim, 'blobs'):
-                break
-            
-            i = self.blob_names.index(key) 
-            j = self.blob_redshifts.index(z)
-
-            val = sim.blobs[j,i]
-            
-            blob_vals.append(val)    
-
+        for i, key in enumerate(self.logprior_B.pars):
+            if self.logprior_B.prior_len[i] == 3:
+                blob_vals.append(sim.get_blob(key))
+            else:
+                raise NotImplemented('help')
+    
         if blob_vals:
-            lp -= self.logprior_B(blob_vals)
-
-        return lp
-
+            return self.logprior_B(blob_vals)
+        else:
+            return -np.inf
+    
     @property
     def blank_blob(self):
         if not hasattr(self, '_blank_blob'):

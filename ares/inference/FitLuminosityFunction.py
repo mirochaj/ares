@@ -121,6 +121,19 @@ class loglikelihood:
                         self._blank_blob.append(arr * np.inf)    
 
         return self._blank_blob
+        
+    def _compute_blob_prior(self, sim):
+        blob_vals = []
+        for i, key in enumerate(self.logprior_B.pars):
+            if self.logprior_B.prior_len[i] == 3:
+                blob_vals.append(sim.get_blob(key))
+            else:
+                raise NotImplemented('help')
+    
+        if blob_vals:
+            return self.logprior_B(blob_vals)
+        else:
+            return -np.inf    
 
     @property
     def sim_class(self):
@@ -200,6 +213,12 @@ class loglikelihood:
             #with open(tfn, 'ab') as f:
             #    pickle.dump((t2 - t1, kwargs), f)
 
+        lp += self._compute_blob_prior(sim)
+        
+        # emcee will crash if this returns NaN
+        if np.isnan(lp):
+            return -np.inf, self.blank_blob
+
         # Timestep weird (happens when xi ~ 1)
         #except SystemExit:
         #    pass
@@ -217,27 +236,6 @@ class loglikelihood:
         #
         #    return -np.inf, self.blank_blob
 
-        # Apply priors to blobs
-        blob_vals = []
-        for key in self.logprior_B.priors:
-            
-            if not hasattr(sim, 'blobs'):
-                break
-
-            z = self.logprior_B.priors[key][3]
-    
-            i = self.blob_names.index(key)
-            j = self.blob_redshifts.index(z)
-
-            val = sim.blobs[j,i]
-
-            blob_vals.append(val)
-
-        if blob_vals:
-            lp -= self.logprior_B(blob_vals)
-            # emcee will crash if this returns NaN
-            if np.isnan(lp):
-                return -np.inf, self.blank_blob
 
         # Figre out which population is the one with the LF
         if medium is not None:
