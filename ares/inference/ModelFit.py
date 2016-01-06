@@ -737,7 +737,15 @@ class ModelFit(BlobFactory):
         prefix = self.prefix
         
         if clobber:
-            os.system('rm -f %s.*.pkl' % prefix)
+            # Delete only the files made by this routine. Don't want to risk
+            # deleting other files the user may have created with similar
+            # naming convention!
+            
+            for suffix in ['chain', 'logL', 'facc', 'pinfo', 'setup']:
+                os.system('rm -f %s.%s.pkl' % (prefix, suffix))
+            
+            os.system('rm -f %s.fail*.pkl' % prefix)
+            os.system('rm -f %s.blob*.pkl' % prefix)
                     
         # Each processor gets its own fail file
         for i in range(size):

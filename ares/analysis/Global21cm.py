@@ -14,6 +14,7 @@ import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
+from scipy.interpolate import interp1d
 from ..physics.Constants import nu_0_mhz
 from .TurningPoints import TurningPoints
 from ..util.Math import central_difference
@@ -25,7 +26,7 @@ class Global21cm(MultiPhaseMedium):
         
         
     def __getattr__(self, name):
-                                
+                                                                      
         # Indicates that this attribute is being accessed from within a 
         # property. Don't want to override that behavior!
         if (name[0] == '_'):
@@ -137,6 +138,10 @@ class Global21cm(MultiPhaseMedium):
             self._turning_points = self.track.turning_points
                         
         return self._turning_points
+        
+    def derivative(self, freq):
+        interp = interp1d(self.nu_p, self.dTbdnu, kind='linear')
+        return interp(freq)
     
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=5, scatter=False, xaxis='nu', 

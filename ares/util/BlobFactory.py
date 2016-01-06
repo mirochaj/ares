@@ -57,7 +57,7 @@ def parse_attribute(blob_name, obj_base):
         ares.simulation class.
         
     """
-        
+            
     attr_split = blob_name.split('.')
 
     if len(attr_split) == 1: 
@@ -137,7 +137,13 @@ class BlobFactory(object):
                 "Must supply blob_names as list or tuple!"
 
             self._blob_names = names
-            self._blob_ivars = self.pf['blob_ivars']
+            if 'blob_ivars' in self.pf:
+                if self.pf['blob_ivars'] is None:
+                    self._blob_ivars = [None] * len(names)
+                else:
+                    self._blob_ivars = self.pf['blob_ivars']
+            else:
+                self._blob_ivars = [None] * len(names)
 
             self._blob_nd = []
             self._blob_dims = []
@@ -175,7 +181,7 @@ class BlobFactory(object):
                 try:
                     no_blob_funcs = self.pf['blob_funcs'] is None or \
                         self.pf['blob_funcs'][i] is None
-                except (TypeError, IndexError):
+                except (KeyError, TypeError, IndexError):
                     no_blob_funcs = True
                 
                 if no_blob_funcs:                     
@@ -190,12 +196,31 @@ class BlobFactory(object):
         self._blob_names = tuple(self._blob_names)
         self._blob_ivars = tuple(self._blob_ivars)
         self._blob_funcs = tuple(self._blob_funcs)
+        
+    @property
+    def blob_nbytes(self):
+        """
+        Estimate for the size of each blob (per walker per step).
+        """    
+                
+        if not hasattr(self, '_blob_nbytes'):
+            nvalues = 0.
+            for i in range(self.blob_groups):
+                if self.blob_nd[i] == 0:
+                    nvalues += len(self.blob_names[i])
+                else:
+                    nvalues += len(self.blob_names[i]) \
+                        * np.product(self.blob_dims[i])
     
+            self._blob_nbytes = nvalues * 8.
+        
+        return self._blob_nbytes    
+        
     @property
     def blob_groups(self):
         if not hasattr(self, '_blob_groups'):
             self._blob_groups = len(self.blob_nd)
-        return self._blob_nd
+        return self._blob_groups
                 
     @property
     def blob_nd(self):    
@@ -235,7 +260,7 @@ class BlobFactory(object):
         return self._blobs
         
     def get_blob(self, name, ivar=None):
-        for i in self.blob_groups:
+        for i in range(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
                 if blob == name:
                     break
@@ -249,8 +274,9 @@ class BlobFactory(object):
             return float(self.blobs[i])
         elif self.blob_nd[i] == 1:
             assert ivar in self.blob_ivars[i]
+            j = list(self.blob_ivars[i]).index(ivar)
             
-            raise NotImplemented('help')
+            return float(self.blobs[i][j])
             
         elif self.blob_nd[i] == 2:
             assert len(ivar) == 2

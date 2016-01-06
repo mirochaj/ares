@@ -180,8 +180,8 @@ class ModelSet(BlobFactory):
     
         self.have_all_blobs = os.path.exists('%s.blobs.pkl' % self.prefix)
     
-        self._pf = ModelSubSet()
-        self._pf.Npops = self.Npops
+        #self._pf = ModelSubSet()
+        #self._pf.Npops = self.Npops
         
         self.derived_blobs = DQ(self)
     
@@ -1166,7 +1166,7 @@ class ModelSet(BlobFactory):
         to_hist = []
         is_log = []
         for k, par in enumerate(pars):
-        
+                    
             # If one of our free parameters, return right away
             if par in self.parameters:
                 j = self.parameters.index(par)
@@ -1194,7 +1194,7 @@ class ModelSet(BlobFactory):
                     z_to_freq = False
                     freq_to_z = False
                 except KeyError:
-                    
+
                     # Handle case where we have redshift but not frequency
                     # or vice-versa
                     pre, post = par.split('_')
@@ -1208,14 +1208,14 @@ class ModelSet(BlobFactory):
                     elif freq_to_z:
                         par = 'nu_%s' % post
                         i, j, nd, dims = self.blob_info('nu_%s' % post)
-                
+
                 if nd == 0:
                     val = self.extract_blob(par).copy()
                 else:
                     val = self.extract_blob(par, ivar=ivar[k]).copy()
-        
+
                 val *= multiplier[k]
-        
+
                 if z_to_freq:
                     val = nu_0_mhz / (1. + val)
                 elif freq_to_z:
@@ -1358,7 +1358,7 @@ class ModelSet(BlobFactory):
             un_log = [un_log] * len(pars)    
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)
-            
+
         if ivar is not None:
             if type(ivar) is list:
                 if len(pars) == 1:

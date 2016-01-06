@@ -144,7 +144,7 @@ class DerivedQuantities(object):
         
         if pf is None:
             if ModelSet is not None:
-                self.pf = ModelSet._pf
+                self.pf = ModelSet.pf
             else:
                 self.pf = namedtuple
                 self.pf.Npops = 1

@@ -107,6 +107,9 @@ class loglikelihood:
     @property
     def blank_blob(self):
         if not hasattr(self, '_blank_blob'):
+            if self.blob_names is None:
+                self._blank_blob = {}
+                return self._blank_blob
     
             self._blank_blob = []
             for i, group in enumerate(self.blob_names):
@@ -129,9 +132,9 @@ class loglikelihood:
     @property
     def sim_class(self):
         if not hasattr(self, '_sim_class'):
-            if (not self.run_21cm):
-                self._sim_class = GalaxyPopulation
-            elif 'include_igm' in self.base_kwargs:
+            #if (not self.run_21cm):
+            #    self._sim_class = GalaxyPopulation
+            if 'include_igm' in self.base_kwargs:
                 if self.base_kwargs['include_igm']:
                     self._sim_class = simG21
                 else:
@@ -263,10 +266,10 @@ class loglikelihood:
         #if blobs.shape != self.blank_blob.shape:
         #    raise ValueError('Shape mismatch between requested blobs and actual blobs!')    
         
-        #try:
-        blobs = sim.blobs
-        #except:
-         #   blobs = self.blank_blob   
+        try:
+            blobs = sim.blobs
+        except:
+            blobs = self.blank_blob
             
         del sim, kw
         gc.collect()
