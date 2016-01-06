@@ -73,7 +73,7 @@ def uninformative_log(x, mi, ma):
     if (mi <= x <= ma):
         return 1.0 / ((ma - mi) * x)
     else:
-        return 0.0
+        return -np.inf
 
 def gaussian_prior(x, mu, sigma):
     return np.exp(-0.5 * (x - mu)**2 / sigma**2) / twopi / sigma
@@ -139,8 +139,8 @@ class LogPrior:
         for i, par in enumerate(self.pars):
             val = pars[i]
 
-            ptype = self.priors[self.pars[i]][0]
-            p1, p2 = self.priors[self.pars[i]][1:]
+            ptype = self.priors[par][0]
+            p1, p2 = self.priors[par][1:]
             
             # Figure out if this prior is linked to others
             if type(p1) is str:
@@ -148,10 +148,12 @@ class LogPrior:
             if type(p2) is str:
                 p2 = _str_to_val(p2, par, pars, self.pars)
 
+            print par, p1, p2, self.is_log[i], val
+
             # Uninformative priors
             if ptype == 'uniform':
                 if self.is_log[i]:
-                    logL_i = uninformative_log(val, p1, p2)
+                    logL_i = -uninformative_log(val, p1, p2)
                 else:
                     logL_i = np.log(uninformative_lin(val, p1, p2))
             # Gaussian priors
@@ -486,7 +488,23 @@ class ModelFit(BlobFactory):
     @priors.setter
     def priors(self, value):
         self._priors = value
-        
+            
+        # Warn user if a prior has no match in parameters or blobs
+        for prior in self._priors:
+            if prior in self.parameters:
+                continue
+            if prior in self.all_blob_names:
+                continue
+                
+            warn = "Setting prior on %s but %s not in parameters or blobs!" \
+                % (prior, prior)
+            
+            if size == 1:
+                raise KeyError(warn)
+            else:
+                print warn
+                MPI.COMM_WORLD.Abort()
+
     @property
     def nwalkers(self):
         if not hasattr(self, '_nw'):
@@ -631,7 +649,7 @@ class ModelFit(BlobFactory):
             bad_mask = np.argwhere(not_ok)
             
             for j in bad_mask:
-                print "Fixing guess for walker %i parameter %s" % (j[0], par)
+                #print "Fixing guess for walker %i parameter %s" % (j[0], par)
                 guesses[j[0],i] = np.random.uniform(mi, ma)
                 
         return guesses

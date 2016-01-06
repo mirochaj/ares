@@ -216,6 +216,15 @@ class BlobFactory(object):
         
         return self._blob_nbytes    
         
+    @property 
+    def all_blob_names(self):
+        if not hasattr(self, '_all_blob_names'):
+            self._all_blob_names = []
+            for i in range(self.blob_groups):
+                self._all_blob_names.extend(self.blob_names[i])    
+        
+        return self._all_blob_names
+        
     @property
     def blob_groups(self):
         if not hasattr(self, '_blob_groups'):
