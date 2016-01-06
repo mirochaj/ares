@@ -465,7 +465,7 @@ class FitLuminosityFunction(FitGlobal21cm):
         guesses = []
         for i, par in enumerate(self.parameters):
             prefix, popid, popz = par_info(par)
-
+            
             # Will never be log (?) for now, anyways
             if re.search('pop_lf', prefix):
                 name = prefix.replace('pop_lf_', '')
@@ -486,6 +486,8 @@ class FitLuminosityFunction(FitGlobal21cm):
                 new_guess = self.guess_override[par]
             # Never log
             elif prefix in defaults:
+                if defaults[prefix] is None:
+                    raise TypeError('Must supply initial guess for parameter %s via guess_override!' % prefix)
                 new_jit = self.jitter[i]
                 new_guess = defaults[prefix]
             else:
