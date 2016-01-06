@@ -711,12 +711,14 @@ class ModelFit(BlobFactory):
         base_kwargs = pickle.load(f)
         f.close()  
         
-        if base_kwargs != self.base_kwargs:
-            if size > 1:
-                if rank == 0:
-                    print 'base_kwargs from file dont match those supplied!'
-                MPI.COMM_WORLD.Abort()
-            raise ValueError('base_kwargs from file dont match those supplied!')   
+        #for kwarg in base_kwargs:
+        #    if type(base_kwargs[kwarg])
+        #if base_kwargs != self.base_kwargs:
+        #    if size > 1:
+        #        if rank == 0:
+        #            print 'base_kwargs from file dont match those supplied!'
+        #        MPI.COMM_WORLD.Abort()
+        #    raise ValueError('base_kwargs from file dont match those supplied!')   
                     
         # Start from last step in pre-restart calculation
         chain = read_pickled_chain('%s.chain.pkl' % prefix)
@@ -724,6 +726,16 @@ class ModelFit(BlobFactory):
         pos = chain[-self.nwalkers:,:]
         
         return pos
+        
+    @property
+    def checkpoint_by_proc(self):
+        if not hasattr(self, '_checkpoint_by_proc'):
+            self._checkpoint_by_proc = False
+        return self._checkpoint_by_proc
+        
+    @checkpoint_by_proc.setter
+    def checkpoint_by_proc(self, value):
+        self._checkpoint_by_proc = value
 
     def _prep_from_scratch(self, clobber):
         

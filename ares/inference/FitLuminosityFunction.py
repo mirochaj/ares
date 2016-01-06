@@ -42,7 +42,8 @@ defaults = SetAllDefaults()
 
 class loglikelihood:
     def __init__(self, xdata, ydata, error, redshifts, parameters, is_log,
-        base_kwargs, priors={}, prefix=None, blob_info=None, run_21cm=False):
+        base_kwargs, priors={}, prefix=None, blob_info=None, run_21cm=False,
+        checkpoint_by_proc=False):
         """
         Computes log-likelihood at given step in MCMC chain.
 
@@ -54,6 +55,7 @@ class loglikelihood:
         self.parameters = parameters # important that they are in order?
         self.is_log = is_log
         self.run_21cm = run_21cm
+        self.checkpoint_by_proc = checkpoint_by_proc
 
         self.base_kwargs = base_kwargs
 
@@ -151,6 +153,13 @@ class loglikelihood:
                 self._sim_class = simMPM                
                 
         return self._sim_class
+        
+    def checkpoint(self, **kwargs):
+        if self.checkpoint_by_proc:
+            procid = str(rank).zfill(4)
+            fn = '%s.checkpt.proc_%s.pkl' % (self.prefix, procid)
+            with open(fn, 'wb') as f:
+                pickle.dump(kwargs, f)    
 
     def __call__(self, pars, blobs=None):
         """
@@ -178,6 +187,8 @@ class loglikelihood:
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
+        
+        self.checkpoint(**kw)
     
         sim = self.sim = self.sim_class(**kw)
         
@@ -193,7 +204,6 @@ class loglikelihood:
                         
             try:
                 sim.run()                      
-                #sim.run_inline_analysis()
             except (ValueError, IndexError):
                 # Seems to happen in some weird cases when the 
                 # HAM fit fails
@@ -261,10 +271,10 @@ class loglikelihood:
             blobs = sim.blobs
         except:
             blobs = self.blank_blob
-            
+                
         del sim, kw
         gc.collect()
-    
+            
         return logL, blobs
     
 class FitLuminosityFunction(FitGlobal21cm):
@@ -293,7 +303,8 @@ class FitLuminosityFunction(FitGlobal21cm):
             self._loglikelihood = loglikelihood(self.xdata, 
                 self.ydata_flat, self.error_flat, self.redshifts, 
                 self.parameters, self.is_log, self.base_kwargs, self.priors, 
-                self.prefix, self.blob_info, self.runsim)    
+                self.prefix, self.blob_info, self.runsim, 
+                self.checkpoint_by_proc)    
 
         return self._loglikelihood
 
