@@ -270,7 +270,7 @@ class LogLikelihood:
         Tuple: (log likelihood, blobs)
 
         """
-
+        
         # Apply prior on model parameters first (dont need to generate signal)
         lp = self.logprior_P(pars)
         if not np.isfinite(lp):

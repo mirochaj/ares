@@ -87,20 +87,13 @@ class loglikelihood:
         b_pars = []
         for key in priors:
             # Priors on model parameters
-            if len(priors[key]) == 3:
+            if key in self.parameters:
                 p_pars.append(key)
                 priors_P[key] = priors[key]
-
-            elif len(priors[key]) == 4:
+            else:
                 b_pars.append(key)
                 priors_B[key] = priors[key]
             
-            # Should set up a proper Warnings module for this sort of thing
-            if key == 'tau_e' and len(priors[key]) != 4:
-                if rank == 0:
-                    print 'Must supply redshift for prior on %s!' % key
-                MPI.COMM_WORLD.Abort()
-
         self.logprior_P = LogPrior(priors_P, self.parameters, self.is_log)
         self.logprior_B = LogPrior(priors_B, b_pars)
         
