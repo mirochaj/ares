@@ -121,9 +121,7 @@ class TurningPoints(object):
         
         # If we found a turning point, hone in on its position
         if self.found_TP and (z[-1] < self.z_TP) and (self.Npts > 5): 
-            
-            print self.z_TP
-            
+                        
             # Redshift and temperature points bracketing crudely-determined
             # extremum position
             k = np.argmin(np.abs(z - self.z_TP - 2 * self.z_delay))

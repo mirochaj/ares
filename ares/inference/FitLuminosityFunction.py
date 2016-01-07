@@ -113,7 +113,7 @@ class loglikelihood(LogLikelihood):
         if self.runsim:
                         
             try:
-                sim.run()                      
+                sim.run()                     
             except (ValueError, IndexError):
                 # Seems to happen in some weird cases when the 
                 # HAM fit fails

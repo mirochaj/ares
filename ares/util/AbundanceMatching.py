@@ -13,7 +13,7 @@ Description:
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
-from scipy.optimize import fsolve, curve_fit, fmin
+from scipy.optimize import fsolve, curve_fit
 from scipy.integrate import quad, simps, cumtrapz, ode
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
@@ -355,7 +355,8 @@ class HAM(object):
     
                     return abs(int_phiL - int_nMh)
     
-                Mmin = np.exp(fsolve(to_min, 10., factor=0.01, maxfev=1000)[0])
+                Mmin = np.exp(fsolve(to_min, 10., factor=0.01, 
+                    maxfev=10000)[0])
     
                 self._MofL_tab[i].append(Mmin)
                 self._LofM_tab[i].append(LUV_dc[j])
@@ -1030,8 +1031,8 @@ class HAM(object):
         i = np.argmin(np.abs(z - np.array(self.redshifts)))
         guess = self.MofL_tab[i][np.argmax(self.fstar_tab[i])]
 
-        return fsolve(alpha, x0=guess)#, maxiter=1e4, full_output=False,
-            #xtol=1e-3, ftol=1e-5, disp=False)[0]
+        return fsolve(alpha, x0=guess, maxiter=1e4, full_output=False,
+            xtol=1e-3, ftol=1e-5, disp=False)[0]
             
     def fpeak(self, z):
         return self.SFE(z, self.Mpeak(z))

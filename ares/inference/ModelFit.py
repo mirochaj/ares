@@ -241,8 +241,13 @@ class LogLikelihood(object):
                 else:
                     if self.blob_nd[i] == 0:
                         self._blank_blob.append([np.inf] * len(group))
-                    else:
-                        arr = np.ones([len(group), self.blob_ivars[i].size])
+                    elif self.blob_nd[i] == 1:
+                        arr = np.ones([len(group), self.blob_dims[i][0]])
+                        self._blank_blob.append(arr * np.inf)
+                    elif self.blob_nd[i] == 2:
+                        dims = len(group), self.blob_dims[i][0], \
+                            self.blob_dims[i][1]
+                        arr = np.ones(dims)
                         self._blank_blob.append(arr * np.inf)
     
         return self._blank_blob
