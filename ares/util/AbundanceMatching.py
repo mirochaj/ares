@@ -402,7 +402,7 @@ class HAM(object):
                     j1 -= 1
     
                 integ = self.halos.dndlnm[i] * Macc
-    
+                    
                 p0 = simps(integ[j1-1:], x=self.halos.lnM[j1-1:])
                 p1 = simps(integ[j1:], x=self.halos.lnM[j1:])
                 p2 = simps(integ[j1+1:], x=self.halos.lnM[j1+1:])

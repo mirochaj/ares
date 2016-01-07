@@ -31,9 +31,8 @@ class Global21cm(MultiPhaseMedium):
         # property. Don't want to override that behavior!
         if (name[0] == '_'):
             raise AttributeError('This will get caught. Don\'t worry!')
-        #if name in ['sim', 'blobs']:
-        #    return None                
-                                                
+
+        # Now, possibly make an attribute
         if name not in self.__dict__.keys():
             # See if this is a turning point
             spl = name.split('_')
@@ -45,7 +44,10 @@ class Global21cm(MultiPhaseMedium):
                 quantity = quantity.rstrip('_')
                 pt = spl[-1]
             else:
-                quantity, pt = spl
+                try:
+                    quantity, pt = spl
+                except ValueError:
+                    raise AttributeError('No attribute %s.' % name)    
     
             if pt not in list('BCD'):
                 # This'd be where e.g., zrei, should go
@@ -125,15 +127,30 @@ class Global21cm(MultiPhaseMedium):
     @property
     def turning_points(self):
         if not hasattr(self, '_turning_points'):  
+            
+            # If we're here, the simulation has already been run.
+            # We've got the option to smooth the derivative before 
+            # finding the extrema 
+            if self.pf['smooth_derivative'] > 0:
+                s = self.pf['smooth_derivative']
+                boxcar = np.zeros_like(self.dTbdz)
+                boxcar[boxcar.size/2 - s/2: boxcar.size/2 + s/2] = \
+                    np.ones(s) / float(s)
+                
+                dTb = np.convolve(self.data['igm_dTb'], boxcar, mode='same')
+                
+            else:
+                dTb = self.data['igm_dTb']
+            
+            z = self.data['z']
 
             # Otherwise, find them. Not the most efficient, but it gets the job done
             # Redshifts in descending order
-            for i in range(len(self.data['z'])):
+            for i in range(len(z)):
                 if i < 10:
                     continue
             
-                stop = self.track.is_stopping_point(self.data['z'][0:i], 
-                    self.data['igm_dTb'][0:i])
+                stop = self.track.is_stopping_point(z[0:i], dTb[0:i])
             
             self._turning_points = self.track.turning_points
                         
@@ -281,7 +298,7 @@ class Global21cm(MultiPhaseMedium):
         
         return ax
 
-    def Derivative(self, mp=None, fig=1, **kwargs):
+    def GlobalSignatureDerivative(self, mp=None, fig=1, **kwargs):
         """
         Plot signal and its first derivative (nicely).
 

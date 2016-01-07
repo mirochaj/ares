@@ -12,9 +12,9 @@ Description:
 
 import numpy as np
 from ..util.PrintInfo import print_fit
-from .ModelFit import ModelFit, LogPrior
 from ..physics.Constants import nu_0_mhz
 import gc, os, sys, copy, types, time, re
+from .ModelFit import ModelFit, LogLikelihood
 from ..simulations import Global21cm as simG21
 from ..analysis import Global21cm as anlGlobal21cm
 from ..analysis.InlineAnalysis import InlineAnalysis
@@ -36,7 +36,7 @@ except ImportError:
 
 def_kwargs = {'verbose': False, 'progress_bar': False}
 
-class loglikelihood:
+class loglikelihood(LogLikelihood):
     def __init__(self, xdata, ydata, error, parameters, is_log,
         base_kwargs, priors={}, prefix=None, blob_info=None,
         turning_points=None):
@@ -48,40 +48,8 @@ class loglikelihood:
 
         """
 
-        self.parameters = parameters
-        self.is_log = is_log
-
-        self.base_kwargs = base_kwargs
-
-        self.prefix = prefix 
-
-        if blob_info is not None:
-            self.blob_names = blob_info['blob_names']
-            self.blob_ivars = blob_info['blob_ivars']
-            self.blob_funcs = blob_info['blob_funcs']
-            self.blob_nd = blob_info['blob_nd']
-            self.blob_dims = blob_info['blob_dims']
-            
         self.turning_points = turning_points
         
-        # Sort through priors        
-        priors_P = {}   # parameters
-        priors_B = {}   # blobs
-
-        p_pars = []
-        b_pars = []
-        for key in priors:
-            # Priors on model parameters
-            if key in self.parameters:
-                p_pars.append(key)
-                priors_P[key] = priors[key]
-            else:
-                b_pars.append(key)
-                priors_B[key] = priors[key]
-
-        self.logprior_P = LogPrior(priors_P, self.parameters, self.is_log)
-        self.logprior_B = LogPrior(priors_B, b_pars)
-
         if self.turning_points:
 
             nu = [xdata[i] for i, tp in enumerate(self.turning_points)]
@@ -94,39 +62,11 @@ class loglikelihood:
             self.ydata = ydata
             
         self.error = error
-
-    @property
-    def blank_blob(self):
-        if not hasattr(self, '_blank_blob'):
-            if self.blob_names is None:
-                self._blank_blob = {}
-                return self._blank_blob
-    
-            self._blank_blob = []
-            for i, group in enumerate(self.blob_names):
-                if self.blob_ivars[i] is None:
-                    self._blank_blob.append([np.inf] * len(group))
-                else:
-                    if self.blob_nd[i] == 0:
-                        self._blank_blob.append([np.inf] * len(group))
-                    else:
-                        arr = np.ones([len(group), self.blob_ivars[i].size])
-                        self._blank_blob.append(arr * np.inf)
-    
-        return self._blank_blob
         
-    def _compute_blob_prior(self, sim):
-        blob_vals = []
-        for i, key in enumerate(self.logprior_B.pars):
-            if self.logprior_B.prior_len[i] == 3:
-                blob_vals.append(sim.get_blob(key))
-            else:
-                raise NotImplemented('help')
-
-        if blob_vals:
-            return self.logprior_B(blob_vals)
-        else:
-            return -np.inf
+    @property
+    def turning_points(self):
+        if not hasattr(self, '_turning_points'):
+            self._turning_points    
         
     def __call__(self, pars, blobs=None):
         """
@@ -181,41 +121,11 @@ class loglikelihood:
         #
         #    return -np.inf, self.blank_blob
 
-        # Apply priors to blobs
-        #blob_vals = []
-        #for key in self.logprior_B.priors:
-        #
-        #    if not hasattr(sim, 'blobs'):
-        #        break
-        #    
-        #    #z = self.logprior_B.priors[key][3]
-        #    #
-        #    #i = self.blob_names.index(key) 
-        #    #j = self.blob_redshifts.index(z)
-        #    #
-        #    #val = sim.blobs[j,i]
-        #    
-        #    blob_vals.append(sim.get_blob(name, ivar))    
-        #
-        #if blob_vals:
-        #    lp -= self.logprior_B(blob_vals)         
-        #
-        
         lp += self._compute_blob_prior(sim)
         
         # emcee will crash if this returns NaN
         if np.isnan(lp):
             return -np.inf, self.blank_blob
-
-        #if hasattr(sim, 'blobs'):
-        #    blobs = sim.blobs
-        #else:
-        #    blobs = self.blank_blob    
-
-        #if (not self.turning_points) and (not self.fit_signal):
-        #    del sim, kw
-        #    gc.collect()
-        #    return lp, blobs
 
         # Compute the likelihood if we've made it this far
         if self.turning_points: 

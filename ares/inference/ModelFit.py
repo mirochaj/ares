@@ -83,7 +83,7 @@ def_kwargs = {'verbose': False, 'progress_bar': False}
 def _str_to_val(p, par, pvals, pars):
     """
     Convert string to parameter value.
-    
+
     Parameters
     ----------
     p : str
@@ -165,13 +165,12 @@ class LogPrior:
 # For backward compatibility
 logprior = LogPrior        
         
-class LogLikelihood:
-    def __init__(self, steps, parameters, is_log, mu, errors,
-        base_kwargs, nwalkers, priors={}, errmap=None, errunits=None, 
-        prefix=None, 
-        burn=False, blob_names=None, blob_redshifts=None):
+class LogLikelihood(object):
+    def __init__(self, xdata, ydata, error, parameters, is_log,
+        base_kwargs, priors={}, prefix=None, blob_info=None, 
+        checkpoint_by_proc=False):
         """
-        Computes log-likelihood at given step in MCMC chain.
+        This is only to be inherited by another log-likelihood class.
 
         Parameters
         ----------
@@ -180,18 +179,26 @@ class LogLikelihood:
 
         self.parameters = parameters # important that they are in order?
         self.is_log = is_log
-
-        self.base_kwargs = base_kwargs
-        self.nwalkers = nwalkers
-
-        self.burn = burn
-        self.prefix = prefix   
-        self.fit_signal = fit_signal
-        self.fit_turning_points = fit_turning_points     
-
-        self.blob_names = blob_names
-        self.blob_redshifts = blob_redshifts
+        self.checkpoint_by_proc = checkpoint_by_proc
         
+        self.base_kwargs = base_kwargs
+        
+        if blob_info is not None:
+            self.blob_names = blob_info['blob_names']
+            self.blob_ivars = blob_info['blob_ivars']
+            self.blob_funcs = blob_info['blob_funcs']
+            self.blob_nd = blob_info['blob_nd']
+            self.blob_dims = blob_info['blob_dims']
+        
+        # Not flat
+        self.xdata = xdata
+        
+        # Flat
+        self.ydata = np.array(ydata)
+        self.error = np.array(error)
+        
+        self.prefix = prefix   
+
         # Sort through priors        
         priors_P = {}   # parameters
         priors_B = {}   # blobs
@@ -207,20 +214,8 @@ class LogLikelihood:
                 b_pars.append(key)
                 priors_B[key] = priors[key]
             
-        self.logprior_P = logprior(priors_P, self.parameters)
-        self.logprior_B = logprior(priors_B, b_pars)
-
-        self.mu = mu
-        self.errors = errors
-
-        self.is_cov = False        
-        if len(self.errors.shape) > 1:
-            self.is_cov = True
-            self.Dcov = np.linalg.det(self.errors)
-            self.icov = np.linalg.inv(self.errors)
-            
-        self.errmap = errmap
-        self.errunits = errunits
+        self.logprior_P = LogPrior(priors_P, self.parameters, self.is_log)
+        self.logprior_B = LogPrior(priors_B, b_pars)
         
     def _compute_blob_prior(self, sim):
         blob_vals = []
@@ -251,137 +246,13 @@ class LogLikelihood:
                         self._blank_blob.append(arr * np.inf)
     
         return self._blank_blob
-       
-    def __call__(self, pars, blobs=None):
-        """
-        Compute log-likelihood for model generated via input parameters.
-
-        Returns
-        -------
-        Tuple: (log likelihood, blobs)
-
-        """
         
-        # Apply prior on model parameters first (dont need to generate signal)
-        lp = self.logprior_P(pars)
-        if not np.isfinite(lp):
-            return -np.inf, self.blank_blob
-
-        # Run a model and retrieve turning points
-        kw = self.base_kwargs.copy()
-        kw.update(kwargs)
-
-        try:
-            sim = simG21(**kw)
-            sim.run()
-            
-            sim.run_inline_analysis()
-            
-            tps = sim.turning_points
-                    
-        # Timestep weird (happens when xi ~ 1)
-        except SystemExit:
-            
-            sim.run_inline_analysis()
-            tps = sim.turning_points
-                 
-        # most likely: no (or too few) turning pts
-        except ValueError:                     
-            # Write to "fail" file
-            if not self.burn:
-                f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
-                pickle.dump(kwargs, f)
-                f.close()
-                            
-            del sim, kw, f
-            gc.collect()
-        
-            return -np.inf, self.blank_blob
-                
-        # Apply priors to blobs
-        blob_vals = []
-        for key in self.logprior_B.priors:
-
-            if not hasattr(sim, 'blobs'):
-                break
-            
-            z = self.logprior_B.priors[key][3]
-
-            i = self.blob_names.index(key) 
-            j = self.blob_redshifts.index(z)
-
-            val = sim.blobs[j,i]
-
-            blob_vals.append(val)    
-
-        if blob_vals:
-            lp += self.logprior_B(blob_vals)         
-
-            # emcee will crash if this returns NaN
-            if np.isnan(lp):
-                return -np.inf, self.blank_blob
-
-        if hasattr(sim, 'blobs'):
-            blobs = sim.blobs
-        else:
-            blobs = self.blank_blob    
-
-        if (not self.fit_turning_points) and (not self.fit_signal):
-            del sim, kw
-            gc.collect()
-            return lp, blobs
-
-        # Compute the likelihood if we've made it this far
-
-        if self.fit_signal:
-
-            xarr = np.interp(self.signal_z, sim.history['z'][-1::-1],
-                sim.history['dTb'][-1::-1])
-
-        elif self.fit_turning_points: 
-            # Fit turning points    
-            xarr = []
-
-            # Convert frequencies to redshift, temperatures to K
-            for element in self.errmap:
-                tp, i = element            
-
-                # Models without turning point B, C, or D get thrown out.
-                if tp not in tps:
-                    del sim, kw
-                    gc.collect()
-
-                    return -np.inf, self.blank_blob
-
-                if i == 0 and self.errunits[0] == 'MHz':
-                    xarr.append(nu_0_mhz / (1. + tps[tp][i]))
-                else:
-                    xarr.append(tps[tp][i])
-                       
-            # Values of current model that correspond to mu vector
-            xarr = np.array(xarr)
-                    
-        if np.any(np.isnan(xarr)):
-            return -np.inf, self.blank_blob
-        
-        # Compute log-likelihood, including prior knowledge
-        if self.is_cov:
-            a = (xarr - self.mu).T
-            b = np.dot(self.icov, xarr - self.mu)
-            
-            logL = lp - 0.5 * np.dot(a, b)
-
-        else:
-            logL = lp \
-                - np.sum((xarr - self.mu)**2 / 2. / self.errors**2)
-                        
-        if blobs.shape != self.blank_blob.shape:
-            raise ValueError('Shape mismatch between requested blobs and actual blobs!')    
-            
-        del sim, kw
-        gc.collect()
-        
-        return logL, blobs
+    def checkpoint(self, **kwargs):
+        if self.checkpoint_by_proc:
+            procid = str(rank).zfill(4)
+            fn = '%s.checkpt.proc_%s.pkl' % (self.prefix, procid)
+            with open(fn, 'wb') as f:
+                pickle.dump(kwargs, f)    
 
 class ModelFit(BlobFactory):
     def __init__(self, **kwargs):

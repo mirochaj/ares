@@ -566,12 +566,7 @@ def ControlParameters():
     "stop_xavg": 0.999,   # stop at given ionized fraction
     "track_extrema": False,
     "stop_delay": 0.5,      # differential redshift step
-    "inline_analysis": None,
-    "one_file_per_blob": True,
-    "auto_generate_blobs": False,
-    "override_blob_names": None,
-    "override_blob_redshifts": None,
-
+    "smooth_derivative": 0, 
 
     "blob_names": None,
     "blob_ivars": None,

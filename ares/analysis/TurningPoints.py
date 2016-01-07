@@ -39,14 +39,14 @@ class TurningPoints(object):
         self.turning_points = {}    
         self.found_TP, self.z_TP = False, -99999
         self.Npts = 0    
-            
+        
     @property
     def step(self):
         if not hasattr(self, '_step'):
             self._step = 0
         
         return self._step
-        
+
     def which_extremum(self, z, dTb, zp, dTbdz):
         # Compute second derivative
         zpp, dTb2dz2 = central_difference(zp, dTbdz)   
@@ -99,12 +99,12 @@ class TurningPoints(object):
             # If changes in temperatures have different signs, we found
             # a turning point. Come back in dz = self.z_delay to compute the 
             # details
-            if len(np.unique(np.sign(dT3pt))) != 2:
+            if len(np.unique(np.sign(dT3pt))) == 1:
                 pass
             else:
                 self.found_TP = True
                 self.z_TP = z[-1] - self.z_delay
-                
+            
             # Check for zero-crossing too
             if not np.all(np.sign(dTb[-1:-3:-1]) < 0) and \
                 'trans' not in self.turning_points:
@@ -121,6 +121,8 @@ class TurningPoints(object):
         
         # If we found a turning point, hone in on its position
         if self.found_TP and (z[-1] < self.z_TP) and (self.Npts > 5): 
+            
+            print self.z_TP
             
             # Redshift and temperature points bracketing crudely-determined
             # extremum position

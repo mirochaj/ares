@@ -13,15 +13,15 @@ Description:
 import numpy as np
 from ..util import read_lit
 from emcee.utils import sample_ball
+from .ModelFit import LogLikelihood
 from ..util.PrintInfo import print_fit
 from .FitGlobal21cm import FitGlobal21cm
 import gc, os, sys, copy, types, time, re
 from ..util.ParameterFile import par_info
 from ..simulations import Global21cm as simG21
-from .ModelFit import LogPrior
+from ..populations.Galaxy import param_redshift
 from ..simulations import MultiPhaseMedium as simMPM
 from ..analysis.InlineAnalysis import InlineAnalysis
-from ..populations.Galaxy import param_redshift, GalaxyPopulation
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts, \
     SetAllDefaults
 
@@ -40,108 +40,27 @@ except ImportError:
 
 defaults = SetAllDefaults()
 
-class loglikelihood:
-    def __init__(self, xdata, ydata, error, redshifts, parameters, is_log,
-        base_kwargs, priors={}, prefix=None, blob_info=None, run_21cm=False,
-        checkpoint_by_proc=False):
-        """
-        Computes log-likelihood at given step in MCMC chain.
+class loglikelihood(LogLikelihood):
 
-        Parameters
-        ----------
-
-        """
-
-        self.parameters = parameters # important that they are in order?
-        self.is_log = is_log
-        self.run_21cm = run_21cm
-        self.checkpoint_by_proc = checkpoint_by_proc
-
-        self.base_kwargs = base_kwargs
-
-        if blob_info is not None:
-            self.blob_names = blob_info['blob_names']
-            self.blob_ivars = blob_info['blob_ivars']
-            self.blob_funcs = blob_info['blob_funcs']
-            self.blob_nd = blob_info['blob_nd']
-            self.blob_dims = blob_info['blob_dims']
-
-        # Not flat
-        self.xdata = xdata
-        self.redshifts = redshifts
-        
-        # Flat
-        self.ydata = np.array(ydata)
-        self.error = np.array(error)
-
-        self.prefix = prefix   
-
-        #tmp = (self.blob_names, self.blob_redshifts)
-        #self.base_kwargs['inline_analysis'] = tmp
-        
-        #self._prep_binfo()
-        
-        # Sort through priors        
-        priors_P = {}   # parameters
-        priors_B = {}   # blobs
-
-        p_pars = []
-        b_pars = []
-        for key in priors:
-            # Priors on model parameters
-            if key in self.parameters:
-                p_pars.append(key)
-                priors_P[key] = priors[key]
-            else:
-                b_pars.append(key)
-                priors_B[key] = priors[key]
-            
-        self.logprior_P = LogPrior(priors_P, self.parameters, self.is_log)
-        self.logprior_B = LogPrior(priors_B, b_pars)
-        
     @property
-    def blank_blob(self):
-        if not hasattr(self, '_blank_blob'):
-            if self.blob_names is None:
-                self._blank_blob = {}
-                return self._blank_blob
-    
-            self._blank_blob = []
-            for i, group in enumerate(self.blob_names):
-                if self.blob_ivars[i] is None:
-                    self._blank_blob.append([np.inf] * len(group))
-                else:
-                    if self.blob_nd[i] == 0:
-                        self._blank_blob.append([np.inf] * len(group))
-                    elif self.blob_nd[i] == 1:
-                        arr = np.ones([len(group), self.blob_dims[i][0]])
-                        self._blank_blob.append(arr * np.inf)
-                    elif self.blob_nd[i] == 2:
-                        dims = len(group), self.blob_dims[i][0], \
-                            self.blob_dims[i][1]
-                        arr = np.ones(dims)
-                        self._blank_blob.append(arr * np.inf)    
+    def runsim(self):
+        if not hasattr(self, '_runsim'):
+            self._runsim = True
+        return self._runsim
+    @runsim.setter
+    def runsim(self, value):
+        self._runsim = value
 
-        return self._blank_blob
-        
-    def _compute_blob_prior(self, sim):
-        blob_vals = []
-        for i, key in enumerate(self.logprior_B.pars):
-            if self.logprior_B.prior_len[i] == 3:
-                blob_vals.append(sim.get_blob(key))
-            else:
-                raise NotImplemented('help')
-    
-        if blob_vals:
-            return self.logprior_B(blob_vals)
-        else:
-            return -np.inf    
+    @property
+    def redshifts(self):
+        return self._redshifts
+    @redshifts.setter
+    def redshifts(self, value):
+        self._redshifts = value
 
     @property
     def sim_class(self):
         if not hasattr(self, '_sim_class'):
-            #if (not self.run_21cm):
-            #    self._sim_class = GalaxyPopulation
             if 'include_igm' in self.base_kwargs:
                 if self.base_kwargs['include_igm']:
                     self._sim_class = simG21
@@ -154,13 +73,6 @@ class loglikelihood:
                 
         return self._sim_class
         
-    def checkpoint(self, **kwargs):
-        if self.checkpoint_by_proc:
-            procid = str(rank).zfill(4)
-            fn = '%s.checkpt.proc_%s.pkl' % (self.prefix, procid)
-            with open(fn, 'wb') as f:
-                pickle.dump(kwargs, f)    
-
     def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -194,13 +106,11 @@ class loglikelihood:
         
         if isinstance(sim, simG21):
             medium = sim.medium
-        elif isinstance(sim, GalaxyPopulation):
-            medium = None       
         else:
             medium = sim
                 
         # If we're only fitting the LF, no need to run simulation
-        if self.run_21cm:
+        if self.runsim:
                         
             try:
                 sim.run()                      
@@ -218,10 +128,6 @@ class loglikelihood:
                 gc.collect()
                 
                 return -np.inf, self.blank_blob
-                                                                                                      
-            #tfn = '%s.timing_%s.pkl' % (self.prefix, str(rank).zfill(4))
-            #with open(tfn, 'ab') as f:
-            #    pickle.dump((t2 - t1, kwargs), f)
 
         lp += self._compute_blob_prior(sim)
         
@@ -229,32 +135,13 @@ class loglikelihood:
         if np.isnan(lp):
             return -np.inf, self.blank_blob
 
-        # Timestep weird (happens when xi ~ 1)
-        #except SystemExit:
-        #    pass
-
-        ## most likely: no (or too few) turning pts
-        #except ValueError:                     
-        #    # Write to "fail" file
-        #    if not self.burn:
-        #        f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
-        #        pickle.dump(kwargs, f)
-        #        f.close()
-        #
-        #    del sim, kw, f
-        #    gc.collect()
-        #
-        #    return -np.inf, self.blank_blob
-
-
         # Figre out which population is the one with the LF
-        if medium is not None:
-            for popid, pop in enumerate(medium.field.pops):
-                if not pop.is_ham_model:
-                    continue
-                break
-        else:
-            pop = sim
+        for popid, pop in enumerate(medium.field.pops):
+            if not pop.is_ham_model:
+                continue
+            break
+        
+        # Compute the luminosity function, goodness of fit, return    
             
         phi = []
         for i, z in enumerate(self.redshifts):
@@ -264,9 +151,6 @@ class loglikelihood:
         logL = lp - 0.5 * (np.sum((np.array(phi) - self.ydata)**2 \
             / 2. / self.error**2 + np.log(2. * np.pi * self.error**2)))
 
-        #if blobs.shape != self.blank_blob.shape:
-        #    raise ValueError('Shape mismatch between requested blobs and actual blobs!')    
-        
         try:
             blobs = sim.blobs
         except:
@@ -301,10 +185,12 @@ class FitLuminosityFunction(FitGlobal21cm):
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
             self._loglikelihood = loglikelihood(self.xdata, 
-                self.ydata_flat, self.error_flat, self.redshifts, 
+                self.ydata_flat, self.error_flat, 
                 self.parameters, self.is_log, self.base_kwargs, self.priors, 
-                self.prefix, self.blob_info, self.runsim, 
-                self.checkpoint_by_proc)    
+                self.prefix, self.blob_info, self.checkpoint_by_proc)   
+            
+            self._loglikelihood.runsim = self.runsim
+            self._loglikelihood.redshifts = self.redshifts
 
         return self._loglikelihood
 

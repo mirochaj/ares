@@ -1443,10 +1443,6 @@ class ModelSet(BlobFactory):
         else:
             labels = default_labels
             
-        pars, take_log, multiplier, un_log, ivar = \
-            self._listify_common_inputs(pars, take_log, multiplier, un_log, 
-            ivar)
-            
         # Only make a new plot window if there isn't already one
         if ax is None:
             gotax = False
@@ -1459,7 +1455,11 @@ class ModelSet(BlobFactory):
         if (to_hist is None) or (is_log is None):
             to_hist, is_log = self.ExtractData(pars, ivar=ivar, 
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
-
+                
+        pars, take_log, multiplier, un_log, ivar = \
+            self._listify_common_inputs(pars, take_log, multiplier, un_log, 
+            ivar)
+            
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)
         
@@ -1859,14 +1859,15 @@ class ModelSet(BlobFactory):
         
         """    
         
+        # Grab data that will be histogrammed
+        to_hist, is_log = self.ExtractData(pars, ivar=ivar, take_log=take_log, 
+            un_log=un_log, multiplier=multiplier)
+            
         # Make sure all inputs are lists of the same length!
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)    
-
-        # Grab data that will be histogrammed
-        to_hist, is_log = self.ExtractData(pars, ivar=ivar, take_log=take_log, 
-            un_log=un_log, multiplier=multiplier)
+        
             
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)      
