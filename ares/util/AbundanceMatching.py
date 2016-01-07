@@ -1031,8 +1031,8 @@ class HAM(object):
         i = np.argmin(np.abs(z - np.array(self.redshifts)))
         guess = self.MofL_tab[i][np.argmax(self.fstar_tab[i])]
 
-        return fsolve(alpha, x0=guess, maxiter=1e4, full_output=False,
-            xtol=1e-3, ftol=1e-5, disp=False)[0]
+        return fsolve(alpha, x0=guess, maxfev=10000, full_output=False,
+            xtol=1e-3)[0]
             
     def fpeak(self, z):
         return self.SFE(z, self.Mpeak(z))
