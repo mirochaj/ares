@@ -37,7 +37,7 @@ def get_hg_rev():
     try:
         pipe = subprocess.Popen(["hg", "id", "-i", ARES], stdout=subprocess.PIPE)
     except:
-        return 'mercurial not installed'
+        return 'unknown'
         
     return pipe.stdout.read().strip()
     

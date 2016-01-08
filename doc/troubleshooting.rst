@@ -23,9 +23,7 @@ In the event that a required file is missing, something has gone wrong. Many loo
 
 ``LinAlgError: singular matrix``
 --------------------------------
-This is an odd one, known to occur in ``ares.physics.Hydrogen`` when using ``scipy.interpolate.interp1d`` to compute the collisional coupling coefficients for spin-exchange. 
-
-We still aren't sure why this happens -- it cannot always be reproduced, even by two users using the same version of *scipy*. A temporary hack is to use linear interpolation, instead of a spline, or to hack off data points at high temperatures in the lookup table. Working on a more satisfying solution...email me if you encounter this problem.
+This is known to occur in ``ares.physics.Hydrogen`` when using ``scipy.interpolate.interp1d`` to compute the collisional coupling coefficients for spin-exchange. It is due to a bug in LAPACK version 3.4.2 (see `this thread <https://github.com/scipy/scipy/issues/3868>`_). One solution is to install a newer version of LAPACK. Alternatively, you could use linear interpolation, instead of a spline, by passing ``interp_cc='linear'`` as a keyword argument to whatever class you're instantiating, or more permanently by adding ``interp_cc='linear'`` to your custom defaults file (see :doc:`parameters` section for instructions).
 
 
 

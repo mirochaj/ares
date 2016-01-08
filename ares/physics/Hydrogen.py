@@ -59,7 +59,7 @@ g13 = gamma(1. / 3.)
 c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
 c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
 
-class Hydrogen:
+class Hydrogen(object):
     def __init__(self, cosm=None, **kwargs):
         
         self.pf = ParameterFile(**kwargs)
@@ -101,7 +101,8 @@ class Hydrogen:
     def kappa_H_pre(self):
         if not hasattr(self, '_kappa_H_pre'):                            
             self._kappa_H_pre = interpolate.interp1d(T_HH, kappa_HH, 
-                kind=self.interp_method, bounds_error=False, fill_value=0.0)
+                kind=self.interp_method, bounds_error=False, fill_value=0.0,
+                assume_sorted=True)
 
         return self._kappa_H_pre
 
@@ -109,7 +110,8 @@ class Hydrogen:
     def kappa_e_pre(self):
         if not hasattr(self, '_kappa_e_pre'):     
             self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He,
-                kind=self.interp_method, bounds_error=False, fill_value=0.0)
+                kind=self.interp_method, bounds_error=False, fill_value=0.0,
+                assume_sorted=True)
 
         return self._kappa_e_pre
 

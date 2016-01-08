@@ -58,7 +58,7 @@ class TanhModel:
         
         # Create instance of Hydrogen class
         self.hydr = Hydrogen(cosm=self.cosm,
-            approx_Salpha=self.pf['approx_Salpha'])
+            approx_Salpha=self.pf['approx_Salpha'], **kwargs)
 
         if self.pf['load_ics']:
             CR = load_inits()
