@@ -908,6 +908,12 @@ class HAM(object):
                 * np.exp(-(logM - self._Mpeak_of_z(z))**2 / 2. / 
                 self._sigma_of_z(z)**2)
                 
+        # Nothing stopping some of the above treatments from negative fstar 
+        f = np.maximum(f, 0.0)        
+                
+        ##
+        # HANDLE LOW-MASS END
+        ##        
         if (self.Mext == 'floor'):
             f += self.Mext[1]
         elif self.Mext == 'pl_floor' and self._apply_floor:
@@ -917,6 +923,7 @@ class HAM(object):
             f += to_add
             self._apply_floor = 1
             
+        # Apply ceiling
         f = np.minimum(f, self.pf['pop_fstar_ceil'])
                 
         logf = np.log10(f)

@@ -22,17 +22,19 @@ lf_pars['z'] = b15.redshifts
 
 pars = \
 {
- 'pop_Tmin': 1e5,
+ 'pop_Tmin': 1e4,
  'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
  'pop_constraints': 'bouwens2015',
- 'pop_lf_z': [4.9, 5.9, 6.9, 7.9],
+ 'pop_lf_z': [3.8, 4.9, 5.9, 6.9, 7.9],
  'pop_kappa_UV': 1.15e-28,
  
  'pop_ham_fit': 'fstar',
- 'pop_ham_Mfun': 'poly',
- 'pop_ham_zfun': 'const',
- 'pop_ham_Mext': None,
+ 'pop_ham_Mfun': 'lognormal',
+ 'pop_ham_zfun': 'pl',
+ 'pop_ham_Mext': 'pl_floor',
+ 'pop_ham_Mext_par1': 3.0,
+ 'pop_ham_Mext_par2': 1./3.,
  'pop_ham_zext': None,
  
  # Dust
@@ -44,7 +46,7 @@ pop = ares.populations.GalaxyPopulation(**pars)
 
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 
-L = np.logspace(27., 30.)
+L = np.logspace(27., 31.)
 for i, z in enumerate(pop.ham.constraints['z']):
     phi = pop.ham.constraints['pstar'][i] 
     phi *= (L / pop.ham.constraints['Lstar'][i])**pop.ham.constraints['alpha'][i]
@@ -60,7 +62,7 @@ for i, z in enumerate(pop.ham.constraints['z']):
    
 ax1.set_xlabel(r'$L \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{Hz}^{-1})$')
 ax1.set_ylabel(r'$\phi(L)$')
-ax1.set_xlim(1e27, 1e30)
+ax1.set_xlim(1e27, 1e31)
 ax1.set_ylim(1e-39, 1e-29)
 pl.show()
 
@@ -88,9 +90,9 @@ for i, z in enumerate(pop.ham.redshifts):
     fast = pop.ham.SFE(z=z, M=Marr)
     ax2.loglog(Marr, fast, color=colors[i])
 
-colors2 = 'y', 'm', 'c', 'gray'
+colors2 = ['y', 'm', 'c', 'gray']*3
 M2 = np.logspace(8, 14, 50)   
-for i, z in enumerate([10, 15, 20, 25]):
+for i, z in enumerate([10, 15, 20, 25, 35, 45]):
     fast = pop.ham.SFE(z=z, M=M2)
     ax2.loglog(M2, fast, color=colors2[i], ls='--')    
  
