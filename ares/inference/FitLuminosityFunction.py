@@ -148,9 +148,10 @@ class loglikelihood(LogLikelihood):
             p = pop.LuminosityFunction(M=np.array(self.xdata[i]), z=z)
             phi.extend(p)
                         
-        logL = lp - 0.5 * (np.sum((np.array(phi) - self.ydata)**2 \
-            / 2. / self.error**2 + np.log(2. * np.pi * self.error**2)))
+        PofD = -0.5 * (np.sum((np.array(phi) - self.ydata)**2 \
+            / self.error**2 + np.log(2. * np.pi * self.error**2)))
 
+        print lp, sim.tau_e, PofD
         try:
             blobs = sim.blobs
         except:
@@ -159,7 +160,7 @@ class loglikelihood(LogLikelihood):
         del sim, kw
         gc.collect()
             
-        return logL, blobs
+        return lp - PofD, blobs
     
 class FitLuminosityFunction(FitGlobal21cm):
     """

@@ -149,7 +149,7 @@ class loglikelihood(LogLikelihood):
             return -np.inf, self.blank_blob
         
         like = 0.5 * (np.sum((yarr - self.ydata)**2 \
-            / 2. / self.error**2 + np.log(2. * np.pi * self.error**2))) 
+            / self.error**2 + np.log(2. * np.pi * self.error**2))) 
         logL = lp - like
                 
         blobs = sim.blobs
