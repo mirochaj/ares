@@ -55,7 +55,7 @@ except ImportError:
     rank = 0
     size = 1
     
-twopi = np.sqrt(2 * np.pi)
+sqrt_twopi = np.sqrt(2 * np.pi)
     
 guesses_shape_err = "If you supply guesses as 2-D array, it must have" 
 guesses_shape_err += " shape (nwalkers, nparameters)!"
@@ -76,7 +76,7 @@ def uninformative_log(x, mi, ma):
         return -np.inf
 
 def gaussian_prior(x, mu, sigma):
-    return np.exp(-0.5 * (x - mu)**2 / sigma**2) / twopi / sigma
+    return np.exp(-0.5 * (x - mu)**2 / sigma**2) / sqrt_twopi / sigma
 
 def_kwargs = {'verbose': False, 'progress_bar': False}
 
@@ -636,7 +636,7 @@ class ModelFit(BlobFactory):
             # deleting other files the user may have created with similar
             # naming convention!
             
-            for suffix in ['chain', 'logL', 'facc', 'pinfo', 'setup']:
+            for suffix in ['chain', 'logL', 'facc', 'pinfo', 'setup', 'priors']:
                 os.system('rm -f %s.%s.pkl' % (prefix, suffix))
             
             os.system('rm -f %s.fail*.pkl' % prefix)
@@ -671,6 +671,11 @@ class ModelFit(BlobFactory):
         # Parameter names and list saying whether they are log10 or not
         f = open('%s.pinfo.pkl' % prefix, 'wb')
         pickle.dump((self.parameters, self.is_log), f)
+        f.close()
+        
+        # Priors!
+        f = open('%s.priors.pkl' % prefix, 'wb')
+        pickle.dump(self.priors, f)
         f.close()
         
         # Constant parameters being passed to ares.simulations.Global21cm

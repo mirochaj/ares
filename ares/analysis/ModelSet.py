@@ -256,6 +256,18 @@ class ModelSet(BlobFactory):
         return self._parameters
         
     @property
+    def priors(self):
+        if not hasattr(self, '_priors'):   
+            if os.path.exists('%s.priors.pkl' % self.prefix):
+                f = open('%s.priors.pkl' % self.prefix, 'rb')
+                self._priors = pickle.load(f)
+                f.close() 
+            else:
+                self._priors = {}
+                
+        return self._priors    
+        
+    @property
     def is_log(self):
         if not hasattr(self, '_is_log'):
             pars = self.parameters

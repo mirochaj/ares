@@ -151,7 +151,6 @@ class loglikelihood(LogLikelihood):
         PofD = -0.5 * (np.sum((np.array(phi) - self.ydata)**2 \
             / self.error**2 + np.log(2. * np.pi * self.error**2)))
 
-        print lp, sim.tau_e, PofD
         try:
             blobs = sim.blobs
         except:
