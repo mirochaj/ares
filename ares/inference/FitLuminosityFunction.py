@@ -37,6 +37,8 @@ try:
 except ImportError:
     rank = 0
     size = 1
+    
+twopi = 2. * np.pi
 
 defaults = SetAllDefaults()
 
@@ -72,6 +74,13 @@ class loglikelihood(LogLikelihood):
                 self._sim_class = simMPM                
                 
         return self._sim_class
+        
+    @property
+    def const_term(self):
+        if not hasattr(self, '_const_term'):
+            self._const_term = -np.log(np.sqrt(twopi)) \
+                             -  np.sum(np.log(self.error))
+        return self._const_term                     
         
     def __call__(self, pars, blobs=None):
         """
@@ -148,18 +157,18 @@ class loglikelihood(LogLikelihood):
             p = pop.LuminosityFunction(M=np.array(self.xdata[i]), z=z)
             phi.extend(p)
                         
-        PofD = -0.5 * (np.sum((np.array(phi) - self.ydata)**2 \
-            / self.error**2 + np.log(2. * np.pi * self.error**2)))
+        PofD = self.const_term - \
+            0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)
 
         try:
             blobs = sim.blobs
         except:
             blobs = self.blank_blob
-                
+                        
         del sim, kw
         gc.collect()
             
-        return lp - PofD, blobs
+        return lp + PofD, blobs
     
 class FitLuminosityFunction(FitGlobal21cm):
     """

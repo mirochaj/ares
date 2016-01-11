@@ -14,7 +14,6 @@ import inspect
 import numpy as np
 from ..util import read_lit
 import os, pickle, inspect, re
-import matplotlib.pyplot as pl
 from types import FunctionType
 from ..physics import Cosmology
 from .Halo import HaloPopulation

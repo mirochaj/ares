@@ -2154,7 +2154,7 @@ class ModelSet(BlobFactory):
             
             try:
                 value, (blob_err1, blob_err2) = \
-                    self.get_1d_error(blob, z=z, nu=nu, take_log=take_log,
+                    self.get_1d_error(blob, ivar=z, nu=nu, take_log=take_log,
                     bins=bins, limit=limit)
             except TypeError:
                 continue
@@ -2166,10 +2166,10 @@ class ModelSet(BlobFactory):
             if type(z) == str and not plot_bands:
                 if blob == 'dTb':
                     mu_z, (z_err1, z_err2) = \
-                        self.get_1d_error('nu', z=z, nu=nu, bins=bins)
+                        self.get_1d_error('nu', ivar=z, nu=nu, bins=bins)
                 else:
                     mu_z, (z_err1, z_err2) = \
-                        self.get_1d_error('z', z=z, nu=nu, bins=bins)
+                        self.get_1d_error('z', ivar=z, nu=nu, bins=bins)
 
                 xerr = np.array(z_err1, z_err2).T
             else:
