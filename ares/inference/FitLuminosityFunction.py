@@ -140,7 +140,7 @@ class loglikelihood(LogLikelihood):
 
         lp += self._compute_blob_prior(sim)
         
-        # emcee will crash if this returns NaN
+        # emcee will crash if this returns NaN. OK if it's inf though.
         if np.isnan(lp):
             return -np.inf, self.blank_blob
 
@@ -164,10 +164,10 @@ class loglikelihood(LogLikelihood):
             blobs = sim.blobs
         except:
             blobs = self.blank_blob
-                        
+             
         del sim, kw
         gc.collect()
-            
+                        
         return lp + PofD, blobs
     
 class FitLuminosityFunction(FitGlobal21cm):

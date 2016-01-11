@@ -17,11 +17,11 @@ from ..physics.Constants import nu_0_mhz
 from ..util.AbundanceMatching import HAM
 from ..util.ParameterFile import par_info
 import gc, os, sys, copy, types, time, re
+from ..util.BlobFactory import BlobFactory
 from ..analysis import Global21cm as anlG21
-from ..util.Stats import Gauss1D, GaussND, rebin
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
-from ..util.BlobFactory import BlobFactory
+from ..util.Stats import Gauss1D, GaussND, rebin, get_nu
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain
@@ -78,6 +78,13 @@ def uninformative_log(x, mi, ma):
 def gaussian_prior(x, mu, sigma):
     return np.exp(-0.5 * (x - mu)**2 / sigma**2) / sqrt_twopi / sigma
 
+def truncated_gaussian_prior(x, mu, sigma, trunc):
+    
+    if (x < trunc[0]) or (x > trunc[1]):
+        return 0.0
+        
+    return np.exp(-0.5 * (x - mu)**2 / sigma**2) / sqrt_twopi / sigma
+
 def_kwargs = {'verbose': False, 'progress_bar': False}
 
 def _str_to_val(p, par, pvals, pars):
@@ -127,6 +134,21 @@ class LogPrior:
         if priors:
             self.prior_len = [len(self.priors[par]) for par in self.pars]
 
+    @property
+    def priors_w_trunc(self):
+        if not hasattr(self, '_priors_w_trunc'):
+            self._priors_w_trunc = {}
+            for i, par in enumerate(self.pars):
+                if self.priors[par][0] != 'truncated_gaussian':
+                    continue
+                    
+                p1, p2, p3 = self.priors[par][1:]                        
+                xout = get_nu(p2, 0.685, p3)    
+                
+                self._priors_w_trunc[par] = (p1 - xout, p1 + xout)
+    
+        return self._priors_w_trunc
+            
     def __call__(self, pars):
         """
         Compute prior of given model.
@@ -140,7 +162,10 @@ class LogPrior:
             val = pars[i]
 
             ptype = self.priors[par][0]
-            p1, p2 = self.priors[par][1:]
+            if ptype == 'truncated_gaussian':
+                p1, p2, p3 = self.priors[par][1:]
+            else:
+                p1, p2 = self.priors[par][1:]
             
             # Figure out if this prior is linked to others
             if type(p1) is str:
@@ -157,6 +182,9 @@ class LogPrior:
             # Gaussian priors
             elif ptype == 'gaussian':
                 logL += np.log(gaussian_prior(val, p1, p2))
+            elif ptype == 'truncated_gaussian':
+                lim = self.priors_w_trunc[par]
+                logL += np.log(truncated_gaussian_prior(val, p1, p2, lim))
             else:
                 raise ValueError('Unrecognized prior type: %s' % ptype)
 
@@ -220,10 +248,10 @@ class LogLikelihood(object):
     def _compute_blob_prior(self, sim):
         blob_vals = []
         for i, key in enumerate(self.logprior_B.pars):
-            if self.logprior_B.prior_len[i] == 3:
-                blob_vals.append(sim.get_blob(key))
-            else:
-                raise NotImplemented('help')
+            #if self.logprior_B.prior_len[i] == 3:
+            blob_vals.append(sim.get_blob(key))
+            #else:
+            #   raise NotImplemented('help')
     
         if blob_vals:
             return self.logprior_B(blob_vals)

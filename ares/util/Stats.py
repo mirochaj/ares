@@ -66,6 +66,8 @@ def get_nu(sigma, nu_in, nu_out):
     if nu_in == nu_out:
         return sigma
     
+    var = sigma**2
+    
     # 1-D Gaussian with variable variance
     pdf = lambda x, var: np.exp(-x**2 / 2. / var)
         
