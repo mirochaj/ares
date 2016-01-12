@@ -13,8 +13,9 @@ class instances.
 import re
 import numpy as np
 from ..util import ParameterFile
+from .GalaxyHAM import GalaxyHAM
 from .Galaxy import GalaxyPopulation
-            
+
 class CompositePopulation:
     def __init__(self, **kwargs):
         """
@@ -40,7 +41,10 @@ class CompositePopulation:
             if pf['pop_tunnel'] is not None:
                 to_tunnel[i] = pf['pop_tunnel']
             elif pf['pop_type'] == 'galaxy':
-                self.pops[i] = GalaxyPopulation(**pf)
+                if pf['pop_model'] == 'ham':
+                    self.pops[i] = GalaxyHAM(**pf)
+                else:
+                    self.pops[i] = GalaxyPopulation(**pf)
             else:
                 raise ValueError('Unrecognized pop_type %s.' % pf['pop_type'])  
 
@@ -52,8 +56,11 @@ class CompositePopulation:
             tmp = self.pfs[i].copy()
             tmp['pop_sfrd'] = self.pops[entry].SFRD
             
+            #if pf['pop_model'] == 'ham':
+            #    self.pops[i] = GalaxyHAM(**tmp)
+            #else:
             self.pops[i] = GalaxyPopulation(**tmp)
-            
+
             
             
 

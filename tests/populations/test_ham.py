@@ -31,34 +31,52 @@ pars = \
  
  'pop_ham_fit': 'fstar',
  'pop_ham_Mfun': 'lognormal',
- 'pop_ham_zfun': 'pl',
- 'pop_ham_Mext': 'pl_floor',
- 'pop_ham_Mext_par1': 3.0,
- 'pop_ham_Mext_par2': 1./3.,
- 'pop_ham_zext': None,
+ 'pop_ham_zfun': 'const',
+ #'pop_ham_Mext': 'pl_floor',
+ #'pop_ham_Mext_par1': 3.0,
+ #'pop_ham_Mext_par2': 1./3.,
+ #'pop_ham_zext': None,
  
  # Dust
- 'pop_lf_dustcorr': True,
+ 'pop_lf_dustcorr': False,
  'pop_lf_beta': -2.,
 }
 
-pop = ares.populations.GalaxyPopulation(**pars)
+pop = ares.populations.GalaxyHAM(**pars)
 
+fig0 = pl.figure(0); ax0 = fig0.add_subplot(111)
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 
+# Plot fits compared to observational data
+mags = np.arange(-24, -10, 0.05)
+
+colors = ['k', 'b', 'g', 'r', 'c', 'y', 'm']
+for i, z in enumerate(pop.constraints['z']):
+    ax0.scatter(b15.data['lf'][z]['M'], b15.data['lf'][z]['phi'],
+        color=colors[i], edgecolors='none', s=50)
+    phi = pop.phi_of_M(z)
+    ax0.semilogy(M + pop.A1600(z, M), phi, color=colors[i])
+    
+ax0.set_xlabel(r'$M_{\mathrm{UV}}$')
+ax0.set_ylabel(r'$\phi(M)$')
+ax0.set_ylim(1e-7, 1e-1)
+ax0.set_xlim(-25, -15)
+
 L = np.logspace(27., 31.)
-for i, z in enumerate(pop.ham.constraints['z']):
-    phi = pop.ham.constraints['pstar'][i] 
-    phi *= (L / pop.ham.constraints['Lstar'][i])**pop.ham.constraints['alpha'][i]
-    phi *= np.exp(-L / pop.ham.constraints['Lstar'][i])
-    phi /= pop.ham.constraints['Lstar'][i]
+
+# Plot Schecter function fits
+for i, z in enumerate(pop.constraints['z']):
+    phi = pop.constraints['pstar'][i] 
+    phi *= (L / pop.constraints['Lstar'][i])**pop.constraints['alpha'][i]
+    phi *= np.exp(-L / pop.constraints['Lstar'][i])
+    phi /= pop.constraints['Lstar'][i]
     
     ax1.loglog(L, phi)
     
 # Verify that we get out what we put in
-for i, z in enumerate(pop.ham.constraints['z']):
-    Lh, phi = pop.ham.LuminosityFunction(z)
-    ax1.loglog(Lh, phi, ls='--', lw=3)
+for i, z in enumerate(pop.constraints['z']):
+    Lh, phi = pop.LuminosityFunction(z, L)
+    ax1.loglog(Lh, phi, ls='--', lw=4)
    
 ax1.set_xlabel(r'$L \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{Hz}^{-1})$')
 ax1.set_ylabel(r'$\phi(L)$')
@@ -66,15 +84,17 @@ ax1.set_xlim(1e27, 1e31)
 ax1.set_ylim(1e-39, 1e-29)
 pl.show()
 
+
+
 # SFE
 fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
 
 import time
 
 colors = ['r', 'b', 'g', 'k', 'm']
-for i, z in enumerate(pop.ham.redshifts):
-    j = pop.ham.redshifts.index(z)
-    ax2.scatter(pop.ham.MofL_tab[j], pop.ham.fstar_tab[j], 
+for i, z in enumerate(pop.redshifts):
+    j = pop.redshifts.index(z)
+    ax2.scatter(pop.MofL_tab[j], pop.fstar_tab[j], 
         label=r'$z=%g$' % z, color=colors[i], marker='o', facecolors='none')
     
 ax2.plot([1e8, 1e15], [0.2]*2, color='k', ls=':')
@@ -84,19 +104,23 @@ ax2.set_ylabel(r'$f_{\ast}$')
 ax2.legend(ncol=1, frameon=False, fontsize=16, loc='lower right')
 
 Marr = np.logspace(8, 14)
-for i, z in enumerate(pop.ham.redshifts):
-    j = pop.ham.redshifts.index(z)
+for i, z in enumerate(pop.redshifts):
+    j = pop.redshifts.index(z)
 
-    fast = pop.ham.SFE(z=z, M=Marr)
+    fast = pop.SFE(z=z, M=Marr)
     ax2.loglog(Marr, fast, color=colors[i])
 
 colors2 = ['y', 'm', 'c', 'gray']*3
 M2 = np.logspace(8, 14, 50)   
 for i, z in enumerate([10, 15, 20, 25, 35, 45]):
-    fast = pop.ham.SFE(z=z, M=M2)
+    fast = pop.SFE(z=z, M=M2)
     ax2.loglog(M2, fast, color=colors2[i], ls='--')    
  
 ax2.set_ylim(1e-3, 1.5)
+
+import sys
+sys.exit()
+
 
 # SFR
 fig3 = pl.figure(3); ax3 = fig3.add_subplot(111)

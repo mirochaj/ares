@@ -153,5 +153,14 @@ class LuminosityFunctionSet(ModelSet):
     def LstarEvolution(self):
         pass
         
+    def PredictLF(self, z, name='galaxy_lf', **kwargs):
+        """
+        Plot luminosity function at redshift z, as predicted by fits.
+        """
+        pass
+        #lf = self.ExtractData(name)
+            
+        
+            
         
         

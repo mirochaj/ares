@@ -2005,7 +2005,7 @@ class ModelSet(BlobFactory):
                     iv = None
 
                 # If not oned, may end up with some x vs. x plots if we're not careful
-                if p1 == p2 and (red[0] == red[1]):
+                if p1 == p2 and (iv[0] == iv[1]):
                     continue
                     
                 try:

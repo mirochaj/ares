@@ -154,7 +154,8 @@ class loglikelihood(LogLikelihood):
             
         phi = []
         for i, z in enumerate(self.redshifts):
-            p = pop.LuminosityFunction(M=np.array(self.xdata[i]), z=z)
+            p = pop.LuminosityFunction(z=z, x=np.array(self.xdata[i]), 
+                mags=True)
             phi.extend(p)
                         
         PofD = self.const_term - \
@@ -164,7 +165,7 @@ class loglikelihood(LogLikelihood):
             blobs = sim.blobs
         except:
             blobs = self.blank_blob
-             
+                          
         del sim, kw
         gc.collect()
                         

@@ -24,10 +24,8 @@ from ..sources import Star, BlackHole
 from ..util.PrintInfo import print_pop
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, simps
-from ..util.AbundanceMatching import HAM
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
-from ..util.BlobFactory import BlobFactory
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz
@@ -107,7 +105,7 @@ def normalize_sed(pop):
 
     return energy_per_sfr
 
-class GalaxyPopulation(HaloPopulation,BlobFactory):
+class GalaxyPopulation(HaloPopulation):
     def __init__(self, **kwargs):
         """
         Initializes a GalaxyPopulation object (duh).
@@ -232,12 +230,6 @@ class GalaxyPopulation(HaloPopulation,BlobFactory):
         return self._rhoL_from_sfrd
     
     @property
-    def ham(self):
-        if not hasattr(self, '_ham'):
-            self._ham = HAM(galaxy=self)
-        return self._ham
-        
-    @property
     def sed_tab(self):
         if not hasattr(self, '_sed_tab'):
             if self.pf['pop_sed'] == 'leitherer1999':
@@ -345,6 +337,8 @@ class GalaxyPopulation(HaloPopulation,BlobFactory):
                 self._sfrd_ = self.pf['pop_sfrd']
             elif inspect.ismethod(self.pf['pop_sfrd']):
                 self._sfrd_ = self.pf['pop_sfrd']
+            elif isinstance(self.pf['pop_sfrd'], interp1d):
+                self._sfrd_ = self.pf['pop_sfrd']    
             else:
                 tmp = read_lit(self.pf['pop_sfrd'])
                 self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
@@ -373,74 +367,74 @@ class GalaxyPopulation(HaloPopulation,BlobFactory):
 
         return self._lf_
         
-    def LuminosityFunction(self, L=None, M=None, z=None, Emin=None, Emax=None):
-        """
-        Compute luminosity function.
-        
-        Parameters
-        ----------
-        L : int, float
-            Luminosity to consider
-        z : int, float 
-            Redshift.
-        Emin : int, float
-            Lower threshold of band to consider for LF [eV]
-        Emax : int, float    
-            Upper threshold of band to consider for LF [eV]        
-        
-        """
-        
-        if self.is_fcoll_model:
-            raise TypeError('this is an fcoll model!')
-        
-        elif self.is_ham_model:
-                        
-            # Only know LF at a few redshifts...
-            assert z in self.ham.redshifts
-        
-            if L is None:
-        
-                Mst = self.pf['pop_lf_Mstar[%g]' % z]
-                pst = self.pf['pop_lf_pstar[%g]' % z]
-                a = self.pf['pop_lf_alpha[%g]' % z]
-        
-                phi_of_M = 0.4 * np.log(10) * pst \
-                    * (10**(0.4 * (Mst - M)))**(1. + a) \
-                    * np.exp(-10**(0.4 * (Mst - M)))
-        
-                return phi_of_M
-        
-            else:
-                raise NotImplemented('help')
-        
-        elif self.is_hod_model:
-        
-            self.halos.MF.update(z=z)
-            dndm = self._dndm = self.halos.MF.dndm.copy() / self.cosm.h70**4
-            fstar_of_m = self.fstar(z=z, M=self.halos.M)
-        
-            integrand = dndm * fstar_of_m * self.halos.M
-        
-            # Msun / cMpc**3
-            integral = simps(dndm, x=self.halos.M)
-        
-            tdyn = s_per_yr * 1e6
-        else:
-            raise NotImplemented('need help w/ this model!')    
-        
-        L *= self._convert_band(Emin, Emax)
-        
-        if self.lf_type == 'user':
-            phi = self._UserDefinedLF(L, z)
-        elif self.lf_type == 'schecter':
-            phi = self._SchecterFunction(L)
-        elif self.lf_type == 'dpl':
-            phi = self._DoublePowerLaw(L)
-        else:
-            raise NotImplemented('Function type %s not supported' % self.lf_type)
-        
-        return phi        
-        
+    #def LuminosityFunction(self, L=None, M=None, z=None, Emin=None, Emax=None):
+    #    """
+    #    Compute luminosity function.
+    #    
+    #    Parameters
+    #    ----------
+    #    L : int, float
+    #        Luminosity to consider
+    #    z : int, float 
+    #        Redshift.
+    #    Emin : int, float
+    #        Lower threshold of band to consider for LF [eV]
+    #    Emax : int, float    
+    #        Upper threshold of band to consider for LF [eV]        
+    #    
+    #    """
+    #    
+    #    if self.is_fcoll_model:
+    #        raise TypeError('this is an fcoll model!')
+    #    
+    #    elif self.is_ham_model:
+    #                    
+    #        # Only know LF at a few redshifts...
+    #        assert z in self.ham.redshifts
+    #    
+    #        if L is None:
+    #    
+    #            Mst = self.pf['pop_lf_Mstar[%g]' % z]
+    #            pst = self.pf['pop_lf_pstar[%g]' % z]
+    #            a = self.pf['pop_lf_alpha[%g]' % z]
+    #    
+    #            phi_of_M = 0.4 * np.log(10.) * pst \
+    #                * (10**(0.4 * (Mst - M)))**(1. + a) \
+    #                * np.exp(-10**(0.4 * (Mst - M)))
+    #    
+    #            return phi_of_M
+    #    
+    #        else:
+    #            raise NotImplemented('help')
+    #    
+    #    elif self.is_hod_model:
+    #    
+    #        self.halos.MF.update(z=z)
+    #        dndm = self._dndm = self.halos.MF.dndm.copy() / self.cosm.h70**4
+    #        fstar_of_m = self.fstar(z=z, M=self.halos.M)
+    #    
+    #        integrand = dndm * fstar_of_m * self.halos.M
+    #    
+    #        # Msun / cMpc**3
+    #        integral = simps(dndm, x=self.halos.M)
+    #    
+    #        tdyn = s_per_yr * 1e6
+    #    else:
+    #        raise NotImplemented('need help w/ this model!')    
+    #    
+    #    L *= self._convert_band(Emin, Emax)
+    #    
+    #    if self.lf_type == 'user':
+    #        phi = self._UserDefinedLF(L, z)
+    #    elif self.lf_type == 'schecter':
+    #        phi = self._SchecterFunction(L)
+    #    elif self.lf_type == 'dpl':
+    #        phi = self._DoublePowerLaw(L)
+    #    else:
+    #        raise NotImplemented('Function type %s not supported' % self.lf_type)
+    #    
+    #    return phi        
+    #    
     def SFRD(self, z):
         """
         Compute the comoving star formation rate density (SFRD).
@@ -478,19 +472,17 @@ class GalaxyPopulation(HaloPopulation,BlobFactory):
             else:
                 raise NotImplemented('Unrecognized SFRD units!')
     
-        # Most often: use fcoll model
-        if self.is_fcoll_model:
-           
-            # SFRD computed via fcoll parameterization
-            sfrd = self.pf['pop_fstar'] * self.cosm.rho_b_z0 * self.dfcolldt(z)
-            
-            if sfrd < 0:
-                negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'], 
-                    self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
-                sys.exit(1)
-        elif self.is_ham_model:
-            return self.ham.SFRD(z)
-                
+        if not self.is_fcoll_model:
+            raise ValueError('Must be an fcoll model!')
+                   
+        # SFRD computed via fcoll parameterization
+        sfrd = self.pf['pop_fstar'] * self.cosm.rho_b_z0 * self.dfcolldt(z)
+        
+        if sfrd < 0:
+            negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'], 
+                self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
+            sys.exit(1)
+
         #elif self.is_halo_model:
         #    if self.halo_model == 'hod':
         #
@@ -516,10 +508,7 @@ class GalaxyPopulation(HaloPopulation,BlobFactory):
         #        
         #    elif self.halo_model == 'clf':
         #        raise NotImplemented('havent implemented CLF yet')    
-                    
-        else:
-            raise NotImplemented('dunno how to model the SFRD!')
-    
+
         return sfrd                           
             
     @property

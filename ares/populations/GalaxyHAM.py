@@ -1,6 +1,6 @@
 """
 
-AbundanceMatching.py
+GalaxyHAM.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -13,6 +13,7 @@ Description:
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
+from .Galaxy import GalaxyPopulation
 from scipy.optimize import fsolve, curve_fit
 from scipy.integrate import quad, simps, cumtrapz, ode
 from scipy.interpolate import interp1d, RectBivariateSpline
@@ -31,16 +32,17 @@ try:
 except ImportError:
     pass
 
-class HAM(object):
-    def __init__(self, galaxy=None, **kwargs):
-        if galaxy is not None:
-            self.galaxy = galaxy
-            self.pf = galaxy.pf
-            self.halos = galaxy.halos
-            self.cosm = self.halos.cosm
-            self.dfcolldt = galaxy.dfcolldt
-        else:
-            self.pf = ParameterFile(**kwargs)
+class GalaxyHAM(GalaxyPopulation):
+    #def __init__(self, galaxy=None, **kwargs):
+    #    # Is there a reason not to inherit?
+    #    if galaxy is not None:
+    #        self.galaxy = galaxy
+    #        self.pf = galaxy.pf
+    #        self.halos = galaxy.halos
+    #        self.cosm = self.halos.cosm
+    #        self.dfcolldt = galaxy.dfcolldt
+    #    else:
+    #        self.pf = ParameterFile(**kwargs)
         
     @property
     def magsys(self):
@@ -283,8 +285,8 @@ class HAM(object):
     @property
     def kappa_UV(self):
         if not hasattr(self, '_kappa_UV'):
-            if self.galaxy.sed_tab:
-                self._kappa_UV = self.galaxy.src.pop.kappa_UV()
+            if self.sed_tab:
+                self._kappa_UV = self.src.pop.kappa_UV()
             else:
                 self._kappa_UV = self.pf['pop_kappa_UV']
             
@@ -416,20 +418,12 @@ class HAM(object):
                 self._eta[i] = rhs / lhs
     
         return self._eta
-        
-    def Lh_of_M(self, z):    
-        eta = np.interp(z, self.halos.z, self.eta)
-        
-        Lh = self.cosm.fbaryon * self.Macc(z, self.halos.M) \
-            * eta * self.SFE(z, self.halos.M) / self.kappa_UV
-            
-        return self.halos.M, Lh
-        
+                
     def SFR(self, z, M):
         eta = np.interp(z, self.halos.z, self.eta)
         return self.cosm.fbaryon * self.Macc(z, M) * eta * self.SFE(z, M)
         
-    def LuminosityFunction(self, z, mags=False, undo_dc=False):
+    def LuminosityFunction(self, z, x, mags=True, dc=False):
         """
         Reconstructed luminosity function.
         
@@ -449,38 +443,102 @@ class HAM(object):
         Magnitudes (or luminosities) and number density.
 
         """
+            
+        if mags:
+            x_phi, phi = self.phi_of_M(z)
+            
+            # Optionally undo dust correction
+            if not dc:
+                x_phi += self.A1600(z, x_phi)
                 
+            # Setup interpolant
+            interp = interp1d(x_phi, np.log10(phi), kind='linear',
+                bounds_error=False, fill_value=-np.inf)
+            
+            phi_of_x = 10**interp(x)
+                
+            return phi_of_x
+        else:
+            
+            x_phi, phi = self.phi_of_L(z)
+            
+            # Setup interpolant
+            interp = interp1d(np.log10(x_phi), np.log10(phi), kind='linear',
+                bounds_error=False, fill_value=-np.inf)
+            
+            phi_of_x = 10**interp(np.log10(x))
+                                
+        return phi_of_x
+        
+        #if mags:
+        #    MAB = self.magsys.L_to_MAB(Lh, z=z)
+        #    if undo_dc:
+        #        MAB += self.A1600(z, MAB)
+        #    phi_of_L *= np.abs(np.diff(Lh) / np.diff(MAB))
+        #    return MAB[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1]
+        #else:
+        #    return Lh[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1] 
+
+    #@property
+    #def Lh_of_M(self, z):
+    #    eta = np.interp(z, self.halos.z, self.eta)
+    #
+    #    Lh = self.cosm.fbaryon * self.Macc(z, self.halos.M) \
+    #        * eta * self.SFE(z, self.halos.M) / self.kappa_UV
+    #
+    #    return self.halos.M, Lh
+
+    def phi_of_L(self, z):
+
+        if not hasattr(self, '_phi_of_L'):
+            self._phi_of_L = {}
+        else:
+            if z in self._phi_of_L:
+                return self._phi_of_L[z]
+
         Lh = self.SFR(z, self.halos.M) / self.kappa_UV
-        
         dMh_dLh = np.diff(self.halos.M) / np.diff(Lh)
-        
         dndm = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
-        
+
         # Only return stuff above Mmin
         Mmin = np.interp(z, self.halos.z, self.Mmin)
-        
+
         above_Mmin = self.halos.M >= Mmin
-        
+        below_Mmax = self.halos.M <= self.pf['pop_lf_Mmax']
+        ok = np.logical_and(above_Mmin, below_Mmax)[0:-1]
+
         phi_of_L = dndm(z) * dMh_dLh
-        
-        if mags:
-            MAB = self.magsys.L_to_MAB(Lh, z=z)
-            if undo_dc:
-                MAB += self.A1600(z, MAB)
-            phi_of_L *= np.abs(np.diff(Lh) / np.diff(MAB))
-            return MAB[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1]
+
+        self._phi_of_L[z] = Lh[:-1] * ok, phi_of_L * ok
+          
+        return self._phi_of_L[z]
+    
+    def phi_of_M(self, z):
+        if not hasattr(self, '_phi_of_M'):
+            self._phi_of_M = {}
         else:
-            return Lh[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1] 
+            if z in self._phi_of_M:
+                return self._phi_of_M[z]
+                
+        Lh, phi_of_L = self.phi_of_L(z)
+
+        MAB = self.magsys.L_to_MAB(Lh, z=z)
+
+        phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))
+                
+        self._phi_of_M[z] = MAB[0:-1], phi_of_M
+        
+        return self._phi_of_M[z]        
 
     def L1600_limit(self, z):
         eta = np.interp(z, self.halos.z, self.eta)
         Mmin = np.interp(z, self.halos.z, self.Mmin)
-        
+
         #sfr_M_z = RectBivariateSpline(self.halos.z, self.halos.lnM, 
         #    np.log(self.sfr_tab))
-            
+
         #Lh_Mmin = np.exp(sfr_M_z(z, np.log(Mmin))[0][0]) / self.kappa_UV   
-        
+
         return self.cosm.fbaryon * self.Macc(z, Mmin) \
             * eta * self.SFE(z, Mmin) / self.kappa_UV
             
@@ -909,7 +967,7 @@ class HAM(object):
                 self._sigma_of_z(z)**2)
                 
         # Nothing stopping some of the above treatments from negative fstar 
-        f = np.maximum(f, 0.0)        
+        f = np.maximum(f, 0.0)
                 
         ##
         # HANDLE LOW-MASS END

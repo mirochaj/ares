@@ -283,9 +283,9 @@ class BlobFactory(object):
             return float(self.blobs[i][j])
         elif self.blob_nd[i] == 1:
             assert ivar in self.blob_ivars[i]
-            j = list(self.blob_ivars[i]).index(ivar)
+            k = list(self.blob_ivars[i]).index(ivar)
             
-            return float(self.blobs[i][j])
+            return float(self.blobs[i][j][k])
             
         elif self.blob_nd[i] == 2:
             assert len(ivar) == 2
@@ -293,8 +293,14 @@ class BlobFactory(object):
             # Actually, we don't have to abide by that. As long as a function
             # is provided we can evaluate the blob anywhere (with interp)
 
-            raise NotImplemented('help')            
-            
+            for n in range(2):
+                assert ivar[n] in self.blob_ivars[i][n]
+
+            k = list(self.blob_ivars[i][0]).index(ivar[0])
+            l = list(self.blob_ivars[i][1]).index(ivar[1])
+
+            return float(self.blobs[i][j][k][l])
+                        
     def _generate_blobs(self):
         """
         Create a list of blobs, one per blob group.
@@ -319,7 +325,7 @@ class BlobFactory(object):
                         
             this_group = []
             for j, key in enumerate(element):
-                                                
+                                                                
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -348,9 +354,9 @@ class BlobFactory(object):
                     
                     xarr, yarr = map(np.array, self.blob_ivars[i])
                     blob = []
-                    for i, x in enumerate(xarr):
+                    for x in xarr:
                         tmp = []
-                        for j, y in enumerate(yarr):
+                        for y in yarr:
                             tmp.append(func(x, y))
                         blob.append(tmp)
 
