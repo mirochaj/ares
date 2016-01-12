@@ -145,35 +145,35 @@ class ModelSet(BlobFactory):
             self._chain = data.chain
             self._is_log = data.is_log
             self._base_kwargs = data.base_kwargs
-            self._fails = data.fails
+            #self._fails = data.fails
             
             self.mask = np.zeros_like(data.blobs)    
             self.mask[np.isinf(data.blobs)] = 1
             self.mask[np.isnan(data.blobs)] = 1
-            self._blobs = np.ma.masked_array(data.blobs, mask=self.mask)
+            #self._blobs = np.ma.masked_array(data.blobs, mask=self.mask)
 
-            self._blob_names = data.blob_names
-            self._blob_redshifts = data.blob_redshifts
-            self._parameters = data.parameters
-            self._is_mcmc = data.is_mcmc
+            #self._blob_names = data.blob_names
+            #self._blob_redshifts = data.blob_redshifts
+            #self._parameters = data.parameters
+            #self._is_mcmc = data.is_mcmc
             
-            if self.is_mcmc:
-                self.logL = data.logL
-            else:
-                try:
-                    self.load = data.load
-                except AttributeError:
-                    pass
-                try:            
-                    self.axes = data.axes
-                except AttributeError:
-                    pass
-                try:
-                    self.grid = data.grid
-                except AttributeError:
-                    pass
+            #if self.is_mcmc:
+            #    self.logL = data.logL
+            #else:
+            #    try:
+            #        self.load = data.load
+            #    except AttributeError:
+            #        pass
+            #    try:            
+            #        self.axes = data.axes
+            #    except AttributeError:
+            #        pass
+            #    try:
+            #        self.grid = data.grid
+            #    except AttributeError:
+            #        pass
 
-            self.Nd = int(self.chain.shape[-1])       
+            #self.Nd = int(self.chain.shape[-1])       
                 
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
@@ -205,6 +205,17 @@ class ModelSet(BlobFactory):
     #        self._data['z'] = z
     #        
     #    return self._data
+    
+    @property
+    def mask(self):
+        if not hasattr(self, '_mask'):
+            self._mask = Ellipsis
+        return self._mask
+    
+    @mask.setter
+    def mask(self, value):
+        assert len(value) == len(self.logL)
+        self._mask = value
 
     @property
     def load(self):
@@ -393,8 +404,10 @@ class ModelSet(BlobFactory):
                 if rank == 0:
                     print "Loaded %s in %.2g seconds.\n" % (fn, t2-t1)
 
+                self._chain = self._chain[self.mask]
+                    
             else:
-                self._chain = None
+                self._chain = None            
 
         return self._chain        
     
@@ -403,9 +416,10 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_logL'):            
             if os.path.exists('%s.logL.pkl' % self.prefix):
                 self._logL = read_pickled_logL('%s.logL.pkl' % self.prefix)
+                self._logL = self._logL[self.mask]
             else:
                 self._logL = None
-        
+                
         return self._logL
     
     @logL.setter
@@ -514,7 +528,7 @@ class ModelSet(BlobFactory):
         """
                 
         if not hasattr(self, '_ax'):
-            raise AttributeError('No axis found.')        
+            raise AttributeError('No axis found.')
                 
         self._op = self._ax.figure.canvas.mpl_connect('button_press_event', 
             self._on_press)
@@ -552,45 +566,81 @@ class ModelSet(BlobFactory):
         self._ax.add_patch(rect)
         self._ax.figure.canvas.draw()
         
+        self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
+        
+        #i = 0
+        #while hasattr(self, 'slice_%i' % i):
+        #    i += 1
+        
+        #tmp = self._slice_by_nu(pars=pars, z=z, like=0.95, 
+        #    take_log=take_log, **constraints)
+        
+        #setattr(self, 'slice_%i' % i, tmp)
+        
+        #print "Saved result to slice_%i attribute." % i
+        
+    def Slice(self, constraints, pars, ivar=None, take_log=False, un_log=False, 
+            multiplier=1.):
+        """
+        Return revised ("sliced") dataset given set of criteria.
+    
+        Parameters
+        ----------
+        constraints : dict
+            Dictionary of constraints to use to calculate likelihood.
+            Each entry should be a two-element list, with the first
+            element being the redshift at which to apply the constraint,
+            and second, a function for the posterior PDF for that quantity.s
+    
+        Examples
+        --------
+    
+        Returns
+        -------
+        Object to be used to initialize a new ModelSet instance.
+    
+        """
+        
+        if len(constraints) == 4:
+            Nd = 2
+            x1, x2, y1, y2 = constraints
+        else:
+            Nd = 1
+            x1, x2 = constraints
+    
         # Figure out what these values translate to.
+        data, is_log = self.ExtractData(pars, ivar, take_log, un_log, 
+            multiplier)
+            
+        # Figure out elements we want
+        xok = np.logical_and(data[pars[0]] >= x1, data[pars[0]] <= x2)
         
-        # Get basic info about plot
-        x = self.plot_info['x']
-        y = self.plot_info['y']
-        z = self.plot_info['z']
-        take_log = self.plot_info['log']
-        multiplier = self.plot_info['multiplier']
+        if Nd == 2:
+            yok = np.logical_and(data[pars[1]] >= y1, data[pars[1]] <= y2)
+            to_keep = np.logical_and(xok, yok)
+        else:
+            to_keep = xok
         
-        pars = [x, y]
-        
-        # Index corresponding to this redshift
-        iz = self.blob_redshifts.index(z)
-        
-        # Use slice routine!
-        constraints = \
-        {
-         x: [z, lambda xx: 1 if lx <= xx <= (lx + dx) else 0],
-         y: [z, lambda yy: 1 if ly <= yy <= (ly + dy) else 0],
-        }
-        
+        model_set = ModelSet(self.prefix)
+        model_set.mask = to_keep
+    
         i = 0
         while hasattr(self, 'slice_%i' % i):
             i += 1
-        
-        tmp = self._slice_by_nu(pars=pars, z=z, like=0.95, 
-            take_log=take_log, **constraints)
-        
-        setattr(self, 'slice_%i' % i, tmp)        
+    
+        setattr(self, 'slice_%i' % i, model_set)
         
         print "Saved result to slice_%i attribute." % i
+        
+        return model_set
         
     @property
     def plot_info(self):
         if not hasattr(self, '_plot_info'):
             self._plot_info = None
-        
+    
         return self._plot_info
-        
+    
     @plot_info.setter
     def plot_info(self, value):
         self._plot_info = value
@@ -832,6 +882,9 @@ class ModelSet(BlobFactory):
         else:
             cb = None
             
+        self.plot_info = {'pars': pars, 'ivar': ivar,
+            'take_log': take_log, 'un_log':un_log, 'multiplier':multiplier}
+            
         # Make labels
         self.set_axis_labels(ax, p, is_log, take_log, un_log, cb)
         
@@ -1012,35 +1065,6 @@ class ModelSet(BlobFactory):
         
         return ModelSet(model_set)
         
-    def Slice(self, pars=None, z=None, like=0.68, take_log=False, bins=20, 
-        **constraints):
-        """
-        Return revised ("sliced") dataset given set of criteria.
-                
-        Parameters
-        ----------
-        like : float
-            If supplied, return a new ModelSet instance containing only the
-            models with likelihood's exceeding this value.
-        constraints : dict
-            Dictionary of constraints to use to calculate likelihood.
-            Each entry should be a two-element list, with the first
-            element being the redshift at which to apply the constraint,
-            and second, a function for the posterior PDF for that quantity.s
-                
-        Examples
-        --------
-        
-        
-        Returns
-        -------
-        Object to be used to initialize a new ModelSet instance.
-        
-        """
-
-        return self._slice_by_nu(pars, z=z, take_log=take_log, bins=bins, 
-            like=like, **constraints)
-
     def _prep_plot(self, pars, z=None, take_log=False, multiplier=1.,
         skip=0, skim=1, bins=20):
         """
@@ -1177,6 +1201,7 @@ class ModelSet(BlobFactory):
                         
         to_hist = []
         is_log = []
+        apply_mask = []
         for k, par in enumerate(pars):
                     
             # If one of our free parameters, return right away
@@ -1198,6 +1223,8 @@ class ModelSet(BlobFactory):
                     to_hist.append(np.log10(val))
                 else:
                     to_hist.append(val)
+                    
+                apply_mask.append(False)
         
             else:
                 
@@ -1239,12 +1266,20 @@ class ModelSet(BlobFactory):
                 else:
                     is_log.append(False)
                     to_hist.append(val)
-        
+                    
+                apply_mask.append(True)
+                            
         # Re-organize
         if len(np.unique(pars)) < len(pars):
-            data = to_hist
+            data = to_hist[self.mask]
         else:    
-            data = {par:to_hist[i] for i, par in enumerate(pars)}
+            data = {}
+            for i, par in enumerate(pars):
+                if apply_mask[i]:
+                    data[par] = to_hist[i][self.mask]
+                else:
+                    data[par] = to_hist[i]
+
             is_log = {par:is_log[i] for i, par in enumerate(pars)}
                     
         return data, is_log
@@ -1396,7 +1431,7 @@ class ModelSet(BlobFactory):
                
     def PosteriorPDF(self, pars, to_hist=None, is_log=None, ivar=None, 
         ax=None, fig=1, 
-        multiplier=1., nu=[0.95, 0.68], cdf=False,
+        multiplier=1., like=[0.95, 0.68], cdf=False,
         color_by_like=False, filled=True, take_log=False, un_log=False,
         bins=20, skip=0, skim=1, 
         contour_method='raw', excluded=False, stop=None, **kwargs):
@@ -1556,7 +1591,7 @@ class ModelSet(BlobFactory):
                 # nu-% of the area
 
                 if contour_method == 'raw':
-                    nu, levels = error_2D(None, None, hist, None, nu=nu, 
+                    nu, levels = error_2D(None, None, hist, None, nu=like, 
                         method='raw')
                 else:
                     nu, levels = error_2D(to_hist[0], to_hist[1], self.L / self.L.max(), 
@@ -1850,9 +1885,9 @@ class ModelSet(BlobFactory):
         color_by_like : bool
             If True, set contour levels by confidence regions enclosing nu-%
             of the likelihood. Set parameter `nu` to modify these levels.
-        nu : list
+        like : list
             List of levels, default is 1,2, and 3 sigma contours (i.e., 
-            nu=[0.68, 0.95])
+            like=[0.68, 0.95])
         skip_panels : list
             List of panel numbers to skip over.
         mp_kwargs : dict 
@@ -2103,7 +2138,7 @@ class ModelSet(BlobFactory):
         return mp
         
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
-        nu=0.68, take_log=False, bins=20, label=None,
+        like=0.68, take_log=False, bins=20, label=None,
         plot_bands=False, limit=None, **kwargs):
         """
         Plot constraints on the redshift evolution of given quantity.
@@ -2154,7 +2189,7 @@ class ModelSet(BlobFactory):
             
             try:
                 value, (blob_err1, blob_err2) = \
-                    self.get_1d_error(blob, ivar=z, nu=nu, take_log=take_log,
+                    self.get_1d_error(blob, ivar=z, like=like, take_log=take_log,
                     bins=bins, limit=limit)
             except TypeError:
                 continue
@@ -2166,10 +2201,10 @@ class ModelSet(BlobFactory):
             if type(z) == str and not plot_bands:
                 if blob == 'dTb':
                     mu_z, (z_err1, z_err2) = \
-                        self.get_1d_error('nu', ivar=z, nu=nu, bins=bins)
+                        self.get_1d_error('nu', ivar=z, nu=like, bins=bins)
                 else:
                     mu_z, (z_err1, z_err2) = \
-                        self.get_1d_error('z', ivar=z, nu=nu, bins=bins)
+                        self.get_1d_error('z', ivar=z, nu=like, bins=bins)
 
                 xerr = np.array(z_err1, z_err2).T
             else:
@@ -2276,7 +2311,7 @@ class ModelSet(BlobFactory):
         return mu, cov     
 
     def _PosteriorIdealized(self, ax=None, pars=None, mu=None, cov=None, z=None, 
-        nu=[0.68, 0.95]):
+        like=[0.68, 0.95]):
         """
         Draw posterior distribution using covariance matrix.
         """
@@ -2579,77 +2614,7 @@ class ModelSet(BlobFactory):
                 un_log=un_log[2]))
         
         pl.draw()
-                        
-    def confidence_regions(self, L, nu=[0.95, 0.68]):
-        """
-        Integrate outward at "constant water level" to determine proper
-        2-D marginalized confidence regions.
-    
-        ..note:: This is fairly crude -- the "coarse-ness" of the resulting
-            PDFs will depend a lot on the binning.
-    
-        Parameters
-        ----------
-        L : np.ndarray
-            Grid of likelihoods.
-        nu : float, list
-            Confidence intervals of interest.
-    
-        Returns
-        -------
-        List of contour values (relative to maximum likelihood) corresponding 
-        to the confidence region bounds specified in the "nu" parameter, 
-        in order of decreasing nu.
-        """
-    
-        if type(nu) in [int, float]:
-            nu = np.array([nu])
-    
-        # Put nu-values in ascending order
-        if not np.all(np.diff(nu) > 0):
-            nu = nu[-1::-1]
-    
-        peak = float(L.max())
-        tot = float(L.sum())
-    
-        # Counts per bin in descending order
-        Ldesc = np.sort(L.ravel())[-1::-1]
-    
-        j = 0  # corresponds to whatever contour we're on
-    
-        Lprev = 1.0
-        Lencl_prev = 0.0
-        contours = [1.0]
-        for i in range(1, Ldesc.size):
-    
-            # How much area (fractional) is enclosed within the current contour?
-            Lencl_now = L[L >= Ldesc[i]].sum() / tot
-    
-            Lnow = Ldesc[i]
-    
-            # Haven't hit next contour yet
-            if Lencl_now < nu[j]:
-                pass
-    
-            # Just passed a contour
-            else:
-                # Interpolate to find contour more precisely
-                Linterp = np.interp(nu[j], [Lencl_prev, Lencl_now],
-                    [Ldesc[i-1], Ldesc[i]])
-                # Save relative to peak
-                contours.append(Linterp / peak)
-    
-                j += 1
-    
-            Lprev = Lnow
-            Lencl_prev = Lencl_now
-    
-            if j == len(nu):
-                break
-    
-        # Return values that match up to inputs    
-        return nu[-1::-1], contours[-1::-1]
-    
+                            
     def errors_to_latex(self, pars, nu=0.68, in_units=None, out_units=None):
         """
         Output maximum-likelihood values and nu-sigma errors ~nicely.
