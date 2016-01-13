@@ -269,6 +269,10 @@ class BlobFactory(object):
         return self._blobs
         
     def get_blob(self, name, ivar=None):
+        """
+        This is meant to recover a blob from a single simulation, i.e.,
+        NOT a whole slew of them from an MCMC.
+        """
         for i in range(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
                 if blob == name:

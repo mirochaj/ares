@@ -1249,9 +1249,9 @@ class ModelSet(BlobFactory):
                         i, j, nd, dims = self.blob_info('nu_%s' % post)
 
                 if nd == 0:
-                    val = self.extract_blob(par).copy()
+                    val = self.get_blob(par).copy()
                 else:
-                    val = self.extract_blob(par, ivar=ivar[k]).copy()
+                    val = self.get_blob(par, ivar=ivar[k]).copy()
 
                 val *= multiplier[k]
 
@@ -2310,94 +2310,6 @@ class ModelSet(BlobFactory):
 
         return mu, cov     
 
-    def _PosteriorIdealized(self, ax=None, pars=None, mu=None, cov=None, z=None, 
-        like=[0.68, 0.95]):
-        """
-        Draw posterior distribution using covariance matrix.
-        """
-
-        # Handle 1-D PDFs separately
-        if pars is not None:
-            if type(pars) is str:
-            
-                # Set bounds using current axes limits
-                mi, ma = ax.get_xlim()
-                x = np.linspace(mi, ma, 100)
-                
-                # Extract the data, and calculate the mean and variance
-                blob = self.extract_blob(pars, z=z)
-                mu = np.mean(blob)
-                cov = np.std(blob)**2
-                
-                # Plot the PDF!
-                ax.plot(x, np.exp(-(x - mu)**2 / 2. / cov), color='k', ls='-')
-                
-                pl.draw()
-                return
-
-        if pars is not None:
-            if len(pars) > 2: 
-                raise ValueError('Only meant for 2x2 chunks of covariance.')
-
-        # Compute the covariance matrix
-        if cov is None:
-            mu, cov = self.CovarianceMatrix(pars, z)
-        
-        var = np.sqrt(np.diag(cov))
-
-        # When integrating over constant likelihood contours, must hold
-        # the eccentricity constant
-        eccen = np.sqrt(1. - (min(var) / max(var))**2)    
-
-        # For elliptical integration paths, must make sure the semi-major
-        # axis is longer than the semi-minor axis
-        if var[1] > var[0]:
-            new_mu = mu[-1::-1]
-
-            diag = np.diag(cov)[-1::-1]
-            new_cov = np.zeros([len(diag)] * 2)
-            new_cov[0,0] = diag[0]
-            new_cov[1,1] = diag[1]
-        else:
-            new_mu = mu
-            
-            diag = np.diag(cov)
-            new_cov = np.zeros([len(diag)] * 2)
-            new_cov[0,0] = diag[0]
-            new_cov[1,1] = diag[1]
-            
-        # Convenience variable for variances    
-        new_var = diag
-        
-        # Likelihood functions                      
-        likelihood = lambda yy, xx: GaussND(np.array([xx, yy]), mu, cov) 
-            
-        # For integration, consider 2-D Gaussian centered at zero for simplicity
-        _like = lambda yy, xx: GaussND(np.array([xx, yy]), 
-            np.array([0.]*2), new_cov)
-            
-        xmin, xmax = np.array(ax.get_xlim())
-        ymin, ymax = np.array(ax.get_ylim())
-        
-        x = np.linspace(xmin, xmax, 100)                    
-        y = np.linspace(ymin, ymax, 100)   
-
-        # Construct likelihood surface                        
-        surf = np.zeros([x.size, y.size])
-        for j, xx in enumerate(x):
-            for k, yy in enumerate(y):
-                surf[j,k] = likelihood(yy, xx)
-            
-        # Find levels corresponding to 1 sigma
-        contour_1s = _like(np.sqrt(new_var[1]), np.sqrt(new_var[0]))
-        levels = [contour_1s]
-
-        ax.contour(x, y, surf.T, levels=levels, linestyles=['-', '--'], 
-            colors='k', zorder=10)
-
-        pl.draw()
-
-
     def CorrelationMatrix(self, pars, z=None, fig=1, ax=None):
         """
         Plot correlation matrix.
@@ -2448,7 +2360,7 @@ class ModelSet(BlobFactory):
         ax.plot(np.log10([val[0] * width, val[0] * width]), 
             np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
                         
-    def extract_blob(self, name, ivar=None):
+    def get_blob(self, name, ivar=None):
         """
         Extract a 1-D array of values for a given quantity.
         
@@ -2460,7 +2372,7 @@ class ModelSet(BlobFactory):
             Independent variables a given blob may depend on.
             
         """
-                
+                        
         i, j, nd, dims = self.blob_info(name)
         blob = self.get_blob_from_disk(name)
         
@@ -2475,21 +2387,23 @@ class ModelSet(BlobFactory):
             k2 = list(self.blob_ivars[i][1]).index(ivar[1])
             return blob[:,k1,k2]    
     
+    @property
     def max_likelihood_parameters(self):
         """
         Return parameter values at maximum likelihood point.
         """
     
-        iML = np.argmax(self.logL)
-    
-        p = {}
-        for i, par in enumerate(self.parameters):
-            if self.is_log[i]:
-                p[par] = 10**self.chain[iML,i]
-            else:
-                p[par] = self.chain[iML,i]
-    
-        return p
+        if not hasattr(self, '_max_like_pars'):
+            iML = np.argmax(self.logL)
+            
+            self._max_like_pars = {}
+            for i, par in enumerate(self.parameters):
+                if self.is_log[i]:
+                    self._max_like_pars[par] = 10**self.chain[iML,i]
+                else:
+                    self._max_like_pars[par] = self.chain[iML,i]
+            
+        return self._max_like_pars
         
     def save(self, pars, z=None, path='.', fmt='hdf5', clobber=False):
         """
@@ -2614,93 +2528,5 @@ class ModelSet(BlobFactory):
                 un_log=un_log[2]))
         
         pl.draw()
-                            
-    def errors_to_latex(self, pars, nu=0.68, in_units=None, out_units=None):
-        """
-        Output maximum-likelihood values and nu-sigma errors ~nicely.
-        """
-                
-        if type(nu) != list:
-            nu = [nu]
-            
-        hdr = 'parameter    '
-        for conf in nu:
-            hdr += '%.1f' % (conf * 100)
-            hdr += '%    '
-        
-        print hdr
-        print '-' * len(hdr)    
-        
-        for i, par in enumerate(pars):
-            
-            s = str(par)
-            
-            for j, conf in enumerate(nu):
-                
-                
-                mu, sigma = \
-                    map(np.array, self.get_1d_error(par, bins=100, nu=conf))
 
-                if in_units and out_units != None:
-                    mu, sigma = self.convert_units(mu, sigma,
-                        in_units=in_units, out_units=out_units)
-
-                s += r" & $%5.3g_{-%5.3g}^{+%5.3g}$   " % (mu, sigma[0], sigma[1])
-        
-            s += '\\\\'
-            
-            print s
-    
-    def convert_units(self, mu, sigma, in_units, out_units):
-        """
-        Convert units on common parameters of interest.
-        
-        So far, just equipped to handle frequency -> redshift and Kelvin
-        to milli-Kelvin conversions. 
-        
-        Parameters
-        ----------
-        mu : float
-            Maximum likelihood value of some parameter.
-        sigma : np.ndarray
-            Two-element array containing asymmetric error bar.
-        in_units : str
-            Units of input mu and sigma values.
-        out_units : str
-            Desired units for output.
-        
-        Options
-        -------
-        in_units and out_units can be one of :
-        
-            MHz
-            redshift
-            K
-            mK
-            
-        Returns
-        -------
-        Tuple, (mu, sigma). Remember that sigma is itself a two-element array.
-            
-        """
-        
-        if in_units == 'MHz' and out_units == 'redshift':
-            new_mu = nu_0_mhz / mu - 1.
-            new_sigma = abs(new_mu - (nu_0_mhz / (mu + sigma[1]) - 1.)), \
-                abs(new_mu - (nu_0_mhz / (mu - sigma[0]) - 1.))
-                        
-        elif in_units == 'redshift' and out_units == 'MHz':
-            new_mu = nu_0_mhz / (1. + mu)
-            new_sigma = abs(new_mu - (nu_0_mhz / (1. + mu - sigma[0]))), \
-                        abs(new_mu - (nu_0_mhz / (1. + mu - sigma[1])))
-        elif in_units == 'K' and out_units == 'mK':
-            new_mu = mu * 1e3
-            new_sigma = np.array(sigma) * 1e3
-        elif in_units == 'mK' and out_units == 'K':
-            new_mu = mu / 1e3
-            new_sigma = np.array(sigma) / 1e3
-        else:
-            raise ValueError('Unrecognized unit combination')
-        
-        return new_mu, new_sigma
     

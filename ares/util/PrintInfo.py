@@ -787,42 +787,6 @@ def print_model_set(mset):
     print line('-'*twidth)
     for i, par in enumerate(mset.parameters):
         print line("param    #%s: %s" % (str(i).zfill(2), par))
-
-    print line('-'*twidth)
-    print line('Data Available (filename = prefix + .suffix*.pkl)')
-    print line('-'*twidth)
-
-    suffixes = []
-    for fn in glob.glob('%s%s*' % (path, prefix)):
-
-        if not re.search('.pkl', fn):
-            continue
-
-        suffix = fn.split('.')[1]
-
-        if suffix not in suffixes:
-            suffixes.append(suffix)
-
-    for i, suffix in enumerate(suffixes):
-        print line("suffix   #%s: %s" % (str(i).zfill(2), suffix))
-        
-    print line('-'*twidth)
-    print line('Data Products (filename = prefix + .suffix*.hdf5)')
-    print line('-'*twidth)    
-    
-    suffixes = []
-    for fn in glob.glob('%s%s*' % (path, prefix)):
-
-        if not re.search('.hdf5', fn):
-            continue
-
-        suffix = fn.split('.')[1]
-
-        if suffix not in suffixes:
-            suffixes.append(suffix)
-
-    for i, suffix in enumerate(suffixes):
-        print line("suffix   #%s: %s" % (str(i).zfill(2), suffix))
         
     print "#"*width
     print ""

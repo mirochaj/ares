@@ -45,6 +45,10 @@ class GalaxyHAM(GalaxyPopulation):
     #        self.pf = ParameterFile(**kwargs)
         
     @property
+    def is_ham_model(self):
+        return True
+        
+    @property
     def magsys(self):
         if not hasattr(self, '_magsys'):
             self._magsys = MagnitudeSystem(**self.pf)
@@ -1120,11 +1124,14 @@ class GalaxyHAM(GalaxyPopulation):
         
         return derivative(fst, M, dx=1e6) * M / fst(M)
             
-    def gamma_LhMh(self, z, M):
+    def alpha_lf(self, z, mag):
         """
-        Slope in Lh(Mh).
+        Slope in the luminosity function
         """
-        pass
+        
+        logphi = lambda MM: np.log10(self.LuminosityFunction(z, MM, mags=True))
+        
+        return -(derivative(logphi, mag, dx=0.1) + 1.)
         
 
             

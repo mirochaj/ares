@@ -263,7 +263,7 @@ def PopulationParameters():
     "pop_lf_dustcorr": True,
     "pop_lf_beta": -2.,
 
-    "pop_lf_Mmax": 1e13,
+    "pop_lf_Mmax": 5e13,
 
     # Beta can depend on magnitude and redshift
     "pop_lf_beta_slope": None,

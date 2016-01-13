@@ -27,18 +27,19 @@ pars = \
  'pop_Macc': 'mcbride2009',
  'pop_constraints': 'bouwens2015',
  'pop_lf_z': [3.8, 4.9, 5.9, 6.9, 7.9],
- 'pop_kappa_UV': 1.15e-28,
+ #'pop_kappa_UV': 1.15e-28,
+ 'pop_sed': 'leitherer1999',
  
  'pop_ham_fit': 'fstar',
  'pop_ham_Mfun': 'lognormal',
  'pop_ham_zfun': 'const',
- #'pop_ham_Mext': 'pl_floor',
- #'pop_ham_Mext_par1': 3.0,
- #'pop_ham_Mext_par2': 1./3.,
+ 'pop_ham_Mext': 'pl_floor',
+ 'pop_ham_Mext_par1': 3.0,
+ 'pop_ham_Mext_par2': 1./3.,
  #'pop_ham_zext': None,
  
  # Dust
- 'pop_lf_dustcorr': False,
+ 'pop_lf_dustcorr': True,
  'pop_lf_beta': -2.,
 }
 
@@ -48,13 +49,13 @@ fig0 = pl.figure(0); ax0 = fig0.add_subplot(111)
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
 
 # Plot fits compared to observational data
-mags = np.arange(-24, -10, 0.05)
+M = np.arange(-24, -10, 0.05)
 
 colors = ['k', 'b', 'g', 'r', 'c', 'y', 'm']
 for i, z in enumerate(pop.constraints['z']):
     ax0.scatter(b15.data['lf'][z]['M'], b15.data['lf'][z]['phi'],
         color=colors[i], edgecolors='none', s=50)
-    phi = pop.phi_of_M(z)
+    phi = pop.LuminosityFunction(z, M, mags=True)
     ax0.semilogy(M + pop.A1600(z, M), phi, color=colors[i])
     
 ax0.set_xlabel(r'$M_{\mathrm{UV}}$')
@@ -75,8 +76,8 @@ for i, z in enumerate(pop.constraints['z']):
     
 # Verify that we get out what we put in
 for i, z in enumerate(pop.constraints['z']):
-    Lh, phi = pop.LuminosityFunction(z, L)
-    ax1.loglog(Lh, phi, ls='--', lw=4)
+    phi = pop.LuminosityFunction(z, L, mags=False)
+    ax1.loglog(L, phi, ls='--', lw=4)
    
 ax1.set_xlabel(r'$L \ (\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{Hz}^{-1})$')
 ax1.set_ylabel(r'$\phi(L)$')

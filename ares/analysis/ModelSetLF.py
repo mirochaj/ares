@@ -13,12 +13,19 @@ Description:
 import re
 import ares
 import numpy as np
+from ..util import read_lit
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
 from ..populations.Galaxy import param_redshift
 from ..util.SetDefaultParameterValues import SetAllDefaults
 
-class LuminosityFunctionSet(ModelSet):
+ln10 = np.log(10.)
+
+phi_of_M = lambda M, pstar, Mstar, alpha: 0.4 * ln10 * pstar \
+    * (10**(0.4 * (Mstar - M)*(1. + alpha))) \
+    * np.exp(-10**(0.4 * (Mstar - M)))
+
+class ModelSetLF(ModelSet):
     """
     Basically a ModelSet instance with routines specific to the high-z
     galaxy luminosity function.
@@ -29,8 +36,144 @@ class LuminosityFunctionSet(ModelSet):
         
         return self.data['x'][i], self.data['y'][i], self.data['err'][i]
     
-    def ReconstructedLF(self, z, ax=None, fig=1, N=100, 
-        resample=True, **kwargs):
+    def SFE(self, z, ax=None, fig=1, N=1, **kwargs):
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+            
+        if N == 1:
+            kwargs = [self.max_likelihood_parameters]
+        else:
+            raise NotImplemented('')    
+        
+    def LuminosityFunction(self, z, ax=None, fig=1, N=100, 
+        compare_to=None, popid=0, name='galaxy_lf', best_only=True, 
+        assume_schecter=True, scatter_kwargs={}, Mlim=(-24, -10), **kwargs):
+        """
+        Plot the luminosity function used to train the SFE.
+        
+        """
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+        
+        # Plot fits compared to observational data
+        
+        M = np.arange(Mlim[0], Mlim[1], 0.05)
+        lit = read_lit(compare_to)
+    
+        if (compare_to is not None) and (z in lit.redshifts):
+            ax.errorbar(lit.data['lf'][z]['M'], lit.data['lf'][z]['phi'],
+                yerr=lit.data['lf'][z]['err'], fmt='o', zorder=10,
+                **scatter_kwargs)
+                
+            # Plot B15 constraints too?
+            
+        if assume_schecter:
+            pars = self.max_likelihood_parameters
+            
+            Mstar = pars['pop_lf_Mstar[%.2g]{%i}' % (z, popid)]
+            pstar = pars['pop_lf_pstar[%.2g]{%i}' % (z, popid)]
+            alpha = pars['pop_lf_alpha[%.2g]{%i}' % (z, popid)]
+
+            phi = phi_of_M(M, pstar, Mstar, alpha)
+            ax.semilogy(M, phi, ls='--', **kwargs)
+        else:
+            info = self.blob_info(name)
+            ivars = self.blob_ivars[info[0]]
+            
+            i = list(ivars[0]).index(z)
+            M = ivars[1]
+            
+            loc = np.argmax(self.logL)
+            
+            phi = []
+            for i, mag in enumerate(M):
+                data, is_log = self.ExtractData(name, ivar=[z, M[i]])
+                
+                if best_only:
+                    phi.append(data[name][loc])
+                else:
+                    phi.append(data[name])    
+                
+            phi = np.array(phi)
+                
+            if best_only:    
+                ax.semilogy(M, phi, **kwargs)
+            else:
+                for i in range(N):
+                    ax.semilogy(M, phi[:,i], **kwargs)
+
+        ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+        ax.set_ylabel(r'$\phi(M)$')
+        ax.set_ylim(1e-7, 1e-1)
+        ax.set_xlim(-25, -15)
+        
+        return ax
+        
+    def FaintEndSlope(self, z, mag=None, ax=None, fig=1, N=100, 
+        name='alpha_lf', best_only=False, **kwargs):
+        """
+        
+        """
+        
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+            
+        info = self.blob_info(name)
+        ivars = self.blob_ivars[info[0]]
+        
+        i = list(ivars[0]).index(z)
+        M = ivars[1]
+        
+        loc = np.argmax(self.logL)
+        
+        alpha = []
+        for i, mag in enumerate(M):
+            data, is_log = self.ExtractData(name, ivar=[z, M[i]])
+            
+            if best_only:
+                alpha.append(data[name][loc])
+            else:
+                alpha.append(data[name])
+         
+        alpha = np.array(alpha) 
+                
+        if best_only:    
+            ax.plot(M, alpha, **kwargs)
+        else:
+            for i in range(N):
+                ax.plot(M, alpha[:,i], **kwargs)   
+                
+        ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+        ax.set_ylabel(r'$\alpha$')
+        #ax.set_ylim(1e-7, 1e-1)
+        #ax.set_xlim(-25, Mlim[1])
+        
+        return ax         
+            
+    def AddConstraints(self, z, compare_to, ax):
+        """
+        
+        """
+        lit = read_lit(compare_to)
+        
+        if (compare_to is not None) and (z in lit.redshifts):
+            ax.errorbar(lit.data['lf'][z]['M'], lit.data['lf'][z]['phi'],
+                yerr=lit.data['lf'][z]['err'], fmt='o', zorder=10,
+                **scatter_kwargs)
+    
+    def ReconstructedLF(self, z, ax=None, fig=1, N=1, resample=True, **kwargs):
         """
         Plot constraints on the luminosity function at given z.
         """
@@ -41,6 +184,7 @@ class LuminosityFunctionSet(ModelSet):
             ax = fig.add_subplot(111)
         else:
             gotax = True
+
 
         # Find relevant elements in chain
         samples = {}
@@ -125,10 +269,6 @@ class LuminosityFunctionSet(ModelSet):
         
         parnames = ['pop_Z', 'pop_kappa_UV', 'pop_Nion', 'pop_Nlw']
             
-        
-        
-                
-            
     def alpha_hmf(self, z, M=1e9):
         """
         Compare constraints on the slope of the LF vs. the slope of the HMF.
@@ -157,8 +297,10 @@ class LuminosityFunctionSet(ModelSet):
         """
         Plot luminosity function at redshift z, as predicted by fits.
         """
-        pass
-        #lf = self.ExtractData(name)
+        
+        
+        
+        lf = self.ExtractData(name)
             
         
             
