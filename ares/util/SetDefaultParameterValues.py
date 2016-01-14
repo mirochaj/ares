@@ -263,8 +263,6 @@ def PopulationParameters():
     "pop_lf_dustcorr": True,
     "pop_lf_beta": -2.,
 
-    "pop_lf_Mmax": 5e13,
-
     # Beta can depend on magnitude and redshift
     "pop_lf_beta_slope": None,
     "pop_lf_beta_pivot": None,
@@ -280,6 +278,40 @@ def PopulationParameters():
     "pop_ham_zext_par1": None,
     "pop_ham_Mext_par2": None,
     "pop_ham_zext_par2": None,
+    
+    # Parameterized SFE
+    "pop_sfe_Mfun": None,
+    "pop_sfe_Mfun_par0": None,
+    "pop_sfe_Mfun_par1": None,
+    "pop_sfe_Mfun_par2": None,
+    "pop_sfe_zfun": None,    
+    "pop_sfe_zfun_par0": None,    
+    "pop_sfe_zfun_par1": None, 
+    "pop_sfe_zfun_par2": None,  
+    "pop_sfe_ceil": 1.0,     
+    
+    "pop_lf_Mmax": 5e13,
+    
+    # Lognormal Mh dependencies
+    # The 'par%i' parameters are for the z-dependence
+    'pop_sfe_fpeak': 'constant',
+    'pop_sfe_Mpeak': 'constant',
+    'pop_sfe_sigma': 'constant',
+    
+    'pop_sfe_Mpeak_par0': 1e12,
+    'pop_sfe_Mpeak_par1': None,
+    'pop_sfe_fpeak_par0': 0.3,
+    'pop_sfe_fpeak_par1': None,
+    'pop_sfe_sigma_par0': 0.8,
+    'pop_sfe_sigma_par1': None,
+    
+    
+    
+    
+    
+    
+    
+    
     
 
     # Parameters for a HOD model
