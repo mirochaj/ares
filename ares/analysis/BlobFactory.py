@@ -20,7 +20,6 @@ except ImportError:
     
 # Some standard blobs    
     
-    
 class default_blobs(object):
     def __init__(self):
         blobs_1d = ['igm_dTb', 'igm_Ts', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 

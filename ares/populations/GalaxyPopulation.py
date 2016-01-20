@@ -16,6 +16,7 @@ from types import FunctionType
 from collections import namedtuple
 from .GalaxyAggregate import GalaxyAggregate
 from scipy.optimize import fsolve, curve_fit
+from ..util.DustCorrection import DustCorrection
 from scipy.integrate import quad, simps, cumtrapz, ode
 from ..util.StarFormationEfficiency import ParameterizedSFE
 from scipy.interpolate import interp1d, RectBivariateSpline
@@ -29,7 +30,7 @@ except ImportError:
     
 z0 = 9. # arbitrary
     
-class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE):
+class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
 
     @property
     def magsys(self):
@@ -50,35 +51,7 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE):
                 kind='cubic')
                 
         return self._SFRD
-        
-    def A1600(self, z, mag):
-        """
-        Determine infrared excess using Meurer et al. 1999 approach.
-        """
-    
-        if not self.pf['pop_lf_dustcorr']:
-            return 0.0    
-    
-        if type(self.pf['pop_lf_dustcorr']) == str:
-            pass    
-    
-        # Could be constant, but redshift dependent
-        if 'pop_lf_beta[%g]' % z in self.pf:
-            beta = self.pf['pop_lf_beta[%g]']
-
-        # Could depend on redshift AND magnitude
-        elif 'pop_lf_beta_slope[%g]' % z in self.pf:
-            if self.pf['pop_lf_beta_slope[%g]' % z] is not None:
-                beta = self.pf['pop_lf_beta_slope[%g]' % z] \
-                    * (mag + 19.5) + self.pf['pop_lf_beta_pivot[%g]' % z]
-            else:
-                beta = self.pf['pop_lf_beta']        
-        # Could just be constant
-        else:
-            beta = self.pf['pop_lf_beta']
-    
-        return 4.43 + 1.99 * beta
-        
+                
     @property
     def Macc(self):
         """
@@ -201,7 +174,7 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE):
 
             # Optionally undo dust correction
             if not dc:
-                xarr = x_phi + self.A1600(z, x_phi)
+                xarr = x_phi + self.AUV(z, x_phi)
             else:
                 xarr = x_phi
 
@@ -227,7 +200,7 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE):
         #if mags:
         #    MAB = self.magsys.L_to_MAB(Lh, z=z)
         #    if undo_dc:
-        #        MAB += self.A1600(z, MAB)
+        #        MAB += self.AUV(z, MAB)
         #    phi_of_L *= np.abs(np.diff(Lh) / np.diff(MAB))
         #    return MAB[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1]
         #else:

@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'SFE']
+    'MultiPhase', 'SFE', 'Dust']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -260,10 +260,13 @@ def SFEParameters():
 
     'sfe_Mpeak_par0': 1e12,
     'sfe_Mpeak_par1': None,
+    'sfe_Mpeak_par2': None,    
     'sfe_fpeak_par0': 0.3,
     'sfe_fpeak_par1': None,
+    'sfe_fpeak_par2': None,    
     'sfe_sigma_par0': 0.8,
     'sfe_sigma_par1': None,
+    'sfe_sigma_par2': None,
     }
 
     pf.update(tmp)
@@ -271,6 +274,25 @@ def SFEParameters():
 
     return pf
     
+def DustParameters():
+    pf = {}
+    
+    tmp = \
+    {     
+     'dustcorr_Afun': 'meurer1999',
+
+     'dustcorr_Bfun': 'constant',
+     
+     'dustcorr_Bfun_par0': -2.,
+     'dustcorr_Bfun_par1': None,
+     'dustcorr_Bfun_par2': None,
+
+    }
+        
+    pf.update(tmp)
+    pf.update(rcParams)
+
+    return pf
 def PopulationParameters():
     """
     Parameters associated with populations of objects, which give rise to

@@ -17,8 +17,8 @@ from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
 from ..util.ParameterFile import par_info
 import gc, os, sys, copy, types, time, re
-from ..util.BlobFactory import BlobFactory
 from ..analysis import Global21cm as anlG21
+from ..analysis.BlobFactory import BlobFactory
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.Stats import Gauss1D, GaussND, rebin, get_nu
@@ -240,11 +240,8 @@ class LogLikelihood(object):
     def _compute_blob_prior(self, sim):
         blob_vals = []
         for i, key in enumerate(self.logprior_B.pars):
-            #if self.logprior_B.prior_len[i] == 3:
             blob_vals.append(sim.get_blob(key))
-            #else:
-            #   raise NotImplemented('help')
-    
+
         if blob_vals:
             return self.logprior_B(blob_vals)
         else:

@@ -17,11 +17,10 @@ import matplotlib.pyplot as pl
 pars = \
 {
  'pop_Tmin': 1e4,
- #'pop_model': 'ham',
  'pop_Macc': 'mcbride2009',
 
- #'pop_kappa_UV': 1.15e-28,
- 'pop_sed': 'leitherer1999',
+ 'pop_kappa_UV': 1.15e-28,
+ #'pop_sed': 'leitherer1999',
  
  # Dust
  'pop_lf_dustcorr': True,
@@ -29,14 +28,16 @@ pars = \
  
  'sfe_Mfun': 'lognormal',
   
- 'sfe_fpeak': 'constant',
- 'sfe_Mpeak': 'constant',
+ 'sfe_fpeak': 'pl',
+ 'sfe_Mpeak': 'pl',
  'sfe_sigma': 'constant',
   
  'sfe_Mpeak_par0': 5e11,
- 'sfe_Mpeak_par1': None,
+ 'sfe_Mpeak_par1': -1.,
+ 'sfe_Mpeak_par2': 0.2,
  'sfe_fpeak_par0': 0.3,
- 'sfe_fpeak_par1': None,
+ 'sfe_fpeak_par1': -1.,
+ 'sfe_fpeak_par2': 0.2,
  'sfe_sigma_par0': 0.8,
  'sfe_sigma_par1': None,
 
@@ -78,7 +79,7 @@ for k, ext in enumerate(extrap):
         
         phi = pop.LuminosityFunction(z, M, mags=True)
         
-        ax0.semilogy(M + pop.A1600(z, M), phi, color=colors[i], ls=ls[k])
+        ax0.semilogy(M + pop.AUV(z, M), phi, color=colors[i], ls=ls[k])
 
         ax1.loglog(Mh, pop.fstar(z, Mh), color=colors[i], ls=ls[k])
 

@@ -12,6 +12,8 @@ Description:
 
 import numpy as np
 
+z0 = 9. # arbitrary
+
 class ParameterizedSFE(object):
 
     @property
@@ -64,16 +66,26 @@ class ParameterizedSFE(object):
             func = lambda zz: coeff1 + coeff2 * (1. + zz) / (1. + z0)
         elif self.pf['sfe_%s' % name] == 'linear_t':
             coeff = self.pf['sfe_%s_par0' % name]
-            func = lambda zz: coeff - 1.5 * (1. + zz) / (1. + z0)
-        
+            func = lambda zz: 10**(np.log10(coeff) - 1.5 * (1. + zz) / (1. + z0))
+        elif self.pf['sfe_%s' % name] == 'pl':
+            coeff1 = self.pf['sfe_%s_par0' % name]
+            coeff2 = self.pf['sfe_%s_par1' % name]
+            func = lambda zz: 10**(np.log10(coeff1) + coeff2 * (1. + zz) / (1. + z0))
+        elif self.pf['sfe_%s' % name] == 'poly':
+            coeff1 = self.pf['sfe_%s_par0' % name]
+            coeff2 = self.pf['sfe_%s_par1' % name]
+            coeff3 = self.pf['sfe_%s_par2' % name]
+            func = lambda zz: 10**(np.log10(coeff1) + coeff2 * (1. + zz) / (1. + z0) \
+                + coeff3 * ((1. + zz) / (1. + z0))**2)
+
         return func
-        
+
     @property
     def _apply_extrap(self):
         if not hasattr(self, '_apply_extrap_'):
             self._apply_extrap_ = 1
         return self._apply_extrap_
-    
+
     @_apply_extrap.setter
     def _apply_extrap(self, value):
         self._apply_extrap_ = value    
@@ -88,6 +100,8 @@ class ParameterizedSFE(object):
         if self.Mfunc == 'lognormal':            
             f = self.fpeak(z) * np.exp(-(logM - np.log10(self.Mpeak(z)))**2 \
                 / 2. / self.sigma(z)**2)
+        elif self.Mfunc == 'poly':
+            raise NotImplemented('sorry dude!')
         else:
             raise NotImplemented('sorry dude!')
             

@@ -17,11 +17,10 @@ from ..util import ProgressBar
 import matplotlib._cntr as cntr
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
-#from ..inference import ModelGrid
 import re, os, string, time, glob
+from .BlobFactory import BlobFactory
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
-from ..util.BlobFactory import BlobFactory
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
 from ..util.Aesthetics import Labeler

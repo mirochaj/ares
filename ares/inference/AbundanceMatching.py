@@ -25,29 +25,14 @@ try:
 except ImportError:
     pass
 
-z0 = 8. # arbitrary
+z0 = 9. # arbitrary
 
 try:
     from scipy.misc import derivative
 except ImportError:
     pass
 
-class GalaxyHAM(GalaxyPopulation):
-    #def __init__(self, galaxy=None, **kwargs):
-    #    # Is there a reason not to inherit?
-    #    if galaxy is not None:
-    #        self.galaxy = galaxy
-    #        self.pf = galaxy.pf
-    #        self.halos = galaxy.halos
-    #        self.cosm = self.halos.cosm
-    #        self.dfcolldt = galaxy.dfcolldt
-    #    else:
-    #        self.pf = ParameterFile(**kwargs)
-        
-    @property
-    def is_ham_model(self):
-        return True
-        
+class AbundanceMatching(GalaxyPopulation):
     @property
     def magsys(self):
         if not hasattr(self, '_magsys'):

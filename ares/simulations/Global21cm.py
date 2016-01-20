@@ -12,8 +12,8 @@ Description:
 
 import numpy as np
 from ..util.ReadData import _sort_history
-from ..util.BlobFactory import BlobFactory
 from ..util import ParameterFile, ProgressBar
+from ..analysis.BlobFactory import BlobFactory
 from ..physics.Constants import nu_0_mhz, E_LyA
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 
