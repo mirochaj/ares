@@ -148,11 +148,12 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
         eta = np.interp(z, self.halos.z, self.eta)
         return self.cosm.fbaryon * self.Macc(z, M) * eta * self.SFE(z, M)
         
-    def LuminosityFunction(self, z, x, mags=True, dc=False):
+    def LuminosityFunction(self, z, x, mags=True):
         """
         Reconstructed luminosity function.
         
-        ..note:: This is number per [abcissa]
+        ..note:: This is number per [abcissa]. No dust correction has
+            been applied.
                 
         Parameters
         ----------
@@ -160,9 +161,6 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
             Redshift. Will interpolate between values in halos.z if necessary.
         mags : bool
             If True, x-values will be in absolute (AB) magnitudes
-        dc : bool
-            If True, magnitudes will be corrected for dust attenuation.
-            
         Returns
         -------
         Magnitudes (or luminosities) and number density.
@@ -172,19 +170,12 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
         if mags:
             x_phi, phi = self.phi_of_M(z)
 
-            # Optionally undo dust correction
-            if not dc:
-                xarr = x_phi + self.AUV(z, x_phi)
-            else:
-                xarr = x_phi
-
             # Setup interpolant
             interp = interp1d(x_phi, np.log10(phi), kind='linear',
                 bounds_error=False, fill_value=-np.inf)
 
             phi_of_x = 10**interp(x)
 
-            return phi_of_x
         else:
             
             x_phi, phi = self.phi_of_L(z)
@@ -196,24 +187,6 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
             phi_of_x = 10**interp(np.log10(x))
                                 
         return phi_of_x
-        
-        #if mags:
-        #    MAB = self.magsys.L_to_MAB(Lh, z=z)
-        #    if undo_dc:
-        #        MAB += self.AUV(z, MAB)
-        #    phi_of_L *= np.abs(np.diff(Lh) / np.diff(MAB))
-        #    return MAB[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1]
-        #else:
-        #    return Lh[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1] 
-
-    #@property
-    #def Lh_of_M(self, z):
-    #    eta = np.interp(z, self.halos.z, self.eta)
-    #
-    #    Lh = self.cosm.fbaryon * self.Macc(z, self.halos.M) \
-    #        * eta * self.SFE(z, self.halos.M) / self.kappa_UV
-    #
-    #    return self.halos.M, Lh
 
     def phi_of_L(self, z):
 

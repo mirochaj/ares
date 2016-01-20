@@ -293,6 +293,7 @@ def DustParameters():
     pf.update(rcParams)
 
     return pf
+    
 def PopulationParameters():
     """
     Parameters associated with populations of objects, which give rise to

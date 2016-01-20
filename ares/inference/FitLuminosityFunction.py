@@ -149,19 +149,18 @@ class loglikelihood(LogLikelihood):
             if pop.is_fcoll_model:
                 continue
             break
-
-        self.pop = pop
-
+        
         # Compute the luminosity function, goodness of fit, return
         phi = []
         for i, z in enumerate(self.redshifts):
-            p = pop.LuminosityFunction(z=z, x=np.array(self.xdata[i]), 
-                mags=True, dc=False)
+            xdat = np.array(self.xdata[i])
+            M = xdat - pop.AUV(z, xdat)
+            p = pop.LuminosityFunction(z=z, x=M, mags=True)
             phi.extend(p)
-
+            
         PofD = self.const_term - \
             0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)
-
+            
         if np.isnan(PofD):
             return -np.inf, self.blank_blob
 

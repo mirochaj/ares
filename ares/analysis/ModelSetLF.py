@@ -17,6 +17,7 @@ from ..util import read_lit
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
 from ..populations.Galaxy import param_redshift
+from ..util.DustCorrection import DustCorrection
 from ..util.SetDefaultParameterValues import SetAllDefaults
 
 ln10 = np.log(10.)
@@ -31,12 +32,20 @@ class ModelSetLF(ModelSet):
     galaxy luminosity function.
     """
     
+    @property
+    def dc(self):
+        if not hasattr(self, '_dc'):
+            self._dc = DustCorrection()
+        return self._dc
+    
     def get_data(self, z):
         i = self.data['z'].index(z)
         
         return self.data['x'][i], self.data['y'][i], self.data['err'][i]
     
-    def SFE(self, z, ax=None, fig=1, N=1, **kwargs):
+    def SFE(self, z, ax=None, fig=1, N=1, name='fstar', shade_by_like=False, 
+        like=0.685, scatter_kwargs={}, take_log=False, un_log=False,
+        multiplier=1, **kwargs):
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -44,14 +53,58 @@ class ModelSetLF(ModelSet):
         else:
             gotax = True
             
-        if N == 1:
-            kwargs = [self.max_likelihood_parameters]
+        if shade_by_like:
+            q1 = 0.5 * 100 * (1. - like)    
+            q2 = 100 * like + q1    
+            
+        info = self.blob_info(name)
+        ivars = self.blob_ivars[info[0]]
+        
+        # We assume that ivars are [redshift, magnitude]
+        M = ivars[1]
+        
+        loc = np.argmax(self.logL)
+        
+        sfe = []
+        for i, mass in enumerate(M):
+            data, is_log = self.ExtractData(name, ivar=[z, mass],
+                take_log=take_log, un_log=un_log, multiplier=multiplier)
+        
+            if not shade_by_like:
+                sfe.append(data[name][loc])
+            else:
+                lo, hi = np.percentile(data[name].compressed(), (q1, q2))
+                sfe.append((lo, hi))    
+        
+        if shade_by_like:
+            sfe = np.array(sfe).T
+        
+            if take_log:
+                sfe = 10**sfe
+            else:
+                zeros = np.argwhere(sfe == 0)
+                for element in zeros:
+                    sfe[element[0],element[1]] = 1e-15
+        
+            ax.fill_between(M, sfe[0], sfe[1], **kwargs)
+            ax.set_yscale('log')
         else:
-            raise NotImplemented('')    
+            if take_log:
+                sfe = 10**sfe
+            ax.semilogy(M, sfe, **kwargs)
+        
+        ax.set_xlabel(r'$M_h / M_{\odot}$')
+        ax.set_ylabel(r'$f_{\ast}(M)$')
+        ax.set_ylim(1e-8, 1)
+        ax.set_xlim(7, 13)
+        pl.draw()
+
+        return ax
         
     def LuminosityFunction(self, z, ax=None, fig=1, compare_to=None, popid=0, 
         name='galaxy_lf', shade_by_like=False, like=0.685, scatter_kwargs={}, 
-        Mlim=(-24, -10), **kwargs):
+        Mlim=(-24, -10), take_log=False, un_log=False,
+        multiplier=1, **kwargs):
         """
         Plot the luminosity function used to train the SFE.
         
@@ -85,32 +138,38 @@ class ModelSetLF(ModelSet):
         
         # We assume that ivars are [redshift, magnitude]
         mags_disk = ivars[1]
-        
+        #
         #if self.pf['pop_lf_dustcorr{%i}' % popid]:
-        #    M += 0.45
+        #mags_disk += self.dc.AUV(z, mags_disk)
         
         loc = np.argmax(self.logL)
         
         phi = []
         for i, mag in enumerate(mags_disk):
-            data, is_log = self.ExtractData(name, ivar=[z, mags_disk[i]])
+            data, is_log = self.ExtractData(name, ivar=[z, mags_disk[i]],
+                take_log=take_log, un_log=un_log, multiplier=multiplier)
 
             if not shade_by_like:
                 phi.append(data[name][loc])
             else:
                 lo, hi = np.percentile(data[name].compressed(), (q1, q2))
                 phi.append((lo, hi))    
-                    
+
         if shade_by_like:
-            phi = self.phi = np.array(phi).T
+            phi = np.array(phi).T
             
-            zeros = np.argwhere(phi == 0)
-            for element in zeros:
-                phi[element[0],element[1]] = 1e-15
+            if take_log:
+                phi = 10**phi
+            else:    
+                zeros = np.argwhere(phi == 0)
+                for element in zeros:
+                    phi[element[0],element[1]] = 1e-15
             
             ax.fill_between(mags_disk, phi[0], phi[1], **kwargs)
             ax.set_yscale('log')
         else:
+            if take_log:
+                phi = 10**phi
             ax.semilogy(mags_disk, phi, **kwargs)
         
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')

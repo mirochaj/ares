@@ -79,7 +79,7 @@ for k, ext in enumerate(extrap):
         
         phi = pop.LuminosityFunction(z, M, mags=True)
         
-        ax0.semilogy(M + pop.AUV(z, M), phi, color=colors[i], ls=ls[k])
+        ax0.semilogy(M, phi, color=colors[i], ls=ls[k])
 
         ax1.loglog(Mh, pop.fstar(z, Mh), color=colors[i], ls=ls[k])
 
