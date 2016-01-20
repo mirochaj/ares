@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase']
+    'MultiPhase', 'SFE']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -224,6 +224,53 @@ def PhysicsParameters():
             
     return pf
     
+def SFEParameters():
+    pf = {}
+    
+    tmp = \
+    {
+    # Parameterized SFE
+    "sfe_Mfun": 'lognormal',
+    "sfe_Mfun_par0": None,
+    "sfe_Mfun_par1": None,
+    "sfe_Mfun_par2": None,
+    "sfe_zfun": 'constant',    
+    "sfe_zfun_par0": None,    
+    "sfe_zfun_par1": None, 
+    "sfe_zfun_par2": None,  
+    "sfe_ceil": 1.0,     
+    
+    # Extrapolations
+    'sfe_Mfun_lo': 'pl',
+    'sfe_Mfun_lo_par0': 1e10,
+    'sfe_Mfun_lo_par1': 0.33,
+    'sfe_Mfun_lo_par2': 1e7,
+
+    'sfe_Mfun_hi': 'exp',
+    'sfe_Mfun_hi_par0': 1e13,
+    'sfe_Mfun_hi_par1': None,
+    
+    "sfe_Mmax": 5e13,
+
+    # Lognormal Mh dependencies
+    # The 'par%i' parameters are for the z-dependence
+    'sfe_fpeak': 'constant',
+    'sfe_Mpeak': 'constant',
+    'sfe_sigma': 'constant',
+
+    'sfe_Mpeak_par0': 1e12,
+    'sfe_Mpeak_par1': None,
+    'sfe_fpeak_par0': 0.3,
+    'sfe_fpeak_par1': None,
+    'sfe_sigma_par0': 0.8,
+    'sfe_sigma_par1': None,
+    }
+
+    pf.update(tmp)
+    pf.update(rcParams)
+
+    return pf
+    
 def PopulationParameters():
     """
     Parameters associated with populations of objects, which give rise to
@@ -262,6 +309,8 @@ def PopulationParameters():
 
     "pop_lf_dustcorr": True,
     "pop_lf_beta": -2.,
+    
+    'pop_lf_Mmax': 1e13,
 
     # Beta can depend on magnitude and redshift
     "pop_lf_beta_slope": None,
@@ -278,42 +327,7 @@ def PopulationParameters():
     "pop_ham_zext_par1": None,
     "pop_ham_Mext_par2": None,
     "pop_ham_zext_par2": None,
-    
-    # Parameterized SFE
-    "pop_sfe_Mfun": None,
-    "pop_sfe_Mfun_par0": None,
-    "pop_sfe_Mfun_par1": None,
-    "pop_sfe_Mfun_par2": None,
-    "pop_sfe_zfun": None,    
-    "pop_sfe_zfun_par0": None,    
-    "pop_sfe_zfun_par1": None, 
-    "pop_sfe_zfun_par2": None,  
-    "pop_sfe_ceil": 1.0,     
-    
-    "pop_lf_Mmax": 5e13,
-    
-    # Lognormal Mh dependencies
-    # The 'par%i' parameters are for the z-dependence
-    'pop_sfe_fpeak': 'constant',
-    'pop_sfe_Mpeak': 'constant',
-    'pop_sfe_sigma': 'constant',
-    
-    'pop_sfe_Mpeak_par0': 1e12,
-    'pop_sfe_Mpeak_par1': None,
-    'pop_sfe_fpeak_par0': 0.3,
-    'pop_sfe_fpeak_par1': None,
-    'pop_sfe_sigma_par0': 0.8,
-    'pop_sfe_sigma_par1': None,
-    
-    
-    
-    
-    
-    
-    
-    
-    
-
+        
     # Parameters for a HOD model
     "pop_duty_cycle": 1.0,
         

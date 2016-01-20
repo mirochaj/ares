@@ -19,7 +19,6 @@ from .FitGlobal21cm import FitGlobal21cm
 import gc, os, sys, copy, types, time, re
 from ..util.ParameterFile import par_info
 from ..simulations import Global21cm as simG21
-from ..populations.Galaxy import param_redshift
 from ..simulations import MultiPhaseMedium as simMPM
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts, \
@@ -110,14 +109,14 @@ class loglikelihood(LogLikelihood):
         kw.update(kwargs)
         
         self.checkpoint(**kw)
-    
+
         sim = self.sim = self.sim_class(**kw)
-        
+
         if isinstance(sim, simG21):
             medium = sim.medium
         else:
             medium = sim
-                
+
         # If we're only fitting the LF, no need to run simulation
         if self.runsim:
                         
@@ -137,27 +136,29 @@ class loglikelihood(LogLikelihood):
                 gc.collect()
                 
                 return -np.inf, self.blank_blob
-
-        lp += self._compute_blob_prior(sim)
         
+        if self.logprior_B.pars != []:
+            lp += self._compute_blob_prior(sim)
+
         # emcee will crash if this returns NaN. OK if it's inf though.
         if np.isnan(lp):
             return -np.inf, self.blank_blob
 
         # Figre out which population is the one with the LF
         for popid, pop in enumerate(medium.field.pops):
-            if not pop.is_ham_model:
+            if pop.is_fcoll_model:
                 continue
             break
-        
-        # Compute the luminosity function, goodness of fit, return    
-            
+
+        self.pop = pop
+
+        # Compute the luminosity function, goodness of fit, return
         phi = []
         for i, z in enumerate(self.redshifts):
             p = pop.LuminosityFunction(z=z, x=np.array(self.xdata[i]), 
-                mags=True)
+                mags=True, dc=False)
             phi.extend(p)
-                        
+
         PofD = self.const_term - \
             0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)
 
@@ -168,7 +169,7 @@ class loglikelihood(LogLikelihood):
             blobs = sim.blobs
         except:
             blobs = self.blank_blob
-                                      
+
         del sim, kw
         gc.collect()
                         
@@ -337,73 +338,6 @@ class FitLuminosityFunction(FitGlobal21cm):
             self._guess_override_ = {}
             
         self._guess_override_.update(kwargs)
-            
-    @property
-    def guesses(self):
-        if not hasattr(self, '_guesses'):
-            raise ValueError('Must set guesses by hand!')
-        return self._guesses            
-    
-    @guesses.setter
-    def guesses(self, value):
-        """
-        Can supply string, e.g., 'bouwens2015', to initialize walkers within
-        confidence regions of literature sources (for Schecter parameters).
-        """
-        
-        if rank > 0:
-            return
-        
-        assert type(value) == str, 'Must supply bouwens2015 at the moment.'
-        
-        data = read_lit(value)
-        fits = data.fits['lf']
-        z = data.redshifts
-
-        jitter = []
-        guesses = []
-        for i, par in enumerate(self.parameters):
-            prefix, popid, popz = par_info(par)
-            
-            # Will never be log (?) for now, anyways
-            if re.search('pop_lf', prefix):
-                name = prefix.replace('pop_lf_', '')
-
-                if self.is_log[i]:
-                    err = fits['err'][name][z.index(popz)]
-                    val = fits['pars'][name][z.index(popz)]
-                    
-                    new_jit = np.log10(abs(val - err) / val)
-                    new_guess = np.log10(fits['pars'][name][z.index(popz)])
-                else:    
-                    new_jit = fits['err'][name][z.index(popz)]
-                    new_guess = fits['pars'][name][z.index(popz)]
-                    
-            # Take guess from guess_override (must be set manually)
-            elif par in self.guess_override:
-                new_jit = self.jitter[i]
-                new_guess = self.guess_override[par]
-            # Place guesses near middle of prior space    
-            elif par in self.priors:
-                new_jit = self.jitter[i]
-                new_guess = np.mean(self.priors[par][1:])
-            # Never log
-            elif prefix in defaults:
-                if defaults[prefix] is None:
-                    raise TypeError('Must supply initial guess for parameter %s via guess_override!' % prefix)
-                new_jit = self.jitter[i]
-                new_guess = defaults[prefix]
-            else:
-                raise NotImplemented('help')
-                
-            jitter.append(new_jit)
-            guesses.append(new_guess)
-        
-        self.jitter = jitter
-        guesses = sample_ball(guesses, self.jitter, size=self.nwalkers)
-            
-        # Fix parameters whose values lie outside prior space
-        self._guesses = self._fix_guesses(guesses)
                         
     def save_data(self, prefix, clobber=False):
         if rank > 0:

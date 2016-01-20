@@ -264,10 +264,10 @@ class BlobFactory(object):
     @property
     def blobs(self):
         if not hasattr(self, '_blobs'):
-            self._generate_blobs()  
+            self._generate_blobs()
 
         return self._blobs
-        
+
     def get_blob(self, name, ivar=None):
         """
         This is meant to recover a blob from a single simulation, i.e.,
@@ -280,7 +280,7 @@ class BlobFactory(object):
             
             if blob == name:
                 break        
-                    
+
         if self.blob_nd[i] > 0 and (ivar is None):
             raise ValueError('Must provide ivar!')
         elif self.blob_nd[i] == 0:
@@ -288,9 +288,9 @@ class BlobFactory(object):
         elif self.blob_nd[i] == 1:
             assert ivar in self.blob_ivars[i]
             k = list(self.blob_ivars[i]).index(ivar)
-            
+
             return float(self.blobs[i][j][k])
-            
+
         elif self.blob_nd[i] == 2:
             assert len(ivar) == 2
             # also assert that both values are in self.blob_ivars!

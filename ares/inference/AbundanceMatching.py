@@ -1,6 +1,6 @@
 """
 
-GalaxyHAM.py
+AbundanceMatching.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -13,7 +13,7 @@ Description:
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
-from .Galaxy import GalaxyPopulation
+from ..populations import GalaxyPopulation
 from scipy.optimize import fsolve, curve_fit
 from scipy.integrate import quad, simps, cumtrapz, ode
 from scipy.interpolate import interp1d, RectBivariateSpline
@@ -70,9 +70,9 @@ class GalaxyHAM(GalaxyPopulation):
                     "Need magnitudes for each redshift bin!"
     
                 self._mags = self.pf['pop_lf_mags']
-    
-        return self._mags    
-        
+
+        return self._mags
+
     @property
     def redshifts(self):
         return self.constraints['z']

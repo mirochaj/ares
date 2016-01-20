@@ -14,113 +14,22 @@ import numpy as np
 from ..util import read_lit
 from types import FunctionType
 from collections import namedtuple
-from .Galaxy import GalaxyPopulation
+from .GalaxyAggregate import GalaxyAggregate
 from scipy.optimize import fsolve, curve_fit
 from scipy.integrate import quad, simps, cumtrapz, ode
+from ..util.StarFormationEfficiency import ParameterizedSFE
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc
 
+try:
+    from scipy.misc import derivative
+except ImportError:
+    pass
+    
 z0 = 9. # arbitrary
-
-class ParameterizedSFE(object):
-
-    @property
-    def Mfunc(self):
-        return self.pf.pfs[self.pop_id]['pop_sfe_Mfun']
     
-    @property
-    def zfunc(self):
-        return self.pf.pfs[self.pop_id]['pop_sfe_zfun']
-    
-        
-    @property
-    def fpeak(self):
-        if not hasattr(self, '_fpeak'):
-            self._fpeak = self.func('fpeak')
-    
-        return self._fpeak
-        
-    @property
-    def Mpeak(self):
-        if not hasattr(self, '_Mpeak'):
-            self._Mpeak = self.func('Mpeak')
-    
-        return self._Mpeak  
-    
-    @property
-    def sigma(self):
-        if not hasattr(self, '_sigma'):
-            self._sigma = self.func('sigma')
-    
-        return self._sigma     
-    
-    @property
-    def Mlo_extrap(self):
-        if not hasattr(self, '_Mlo_extrap'):
-            self._Mlo_extrap = self.pf['pop_sfe_Mfun_lo'] is not None
-        return self._Mlo_extrap
-    @property
-    def Mhi_extrap(self):
-        if not hasattr(self, '_Mhi_extrap'):
-            self._Mhi_extrap = self.pf['pop_sfe_Mfun_hi'] is not None
-        return self._Mhi_extrap   
-    
-    def func(self, name):        
-        if self.pf['pop_sfe_%s' % name] == 'constant':
-            func = lambda zz: self.pf['pop_sfe_%s_par0' % name]
-        elif self.pf['pop_sfe_%s' % name] == 'linear_z':
-            coeff1 = self.pf['pop_sfe_%s_par0' % name]
-            coeff2 = self.pf['pop_sfe_%s_par1' % name]
-            func = lambda zz: coeff1 + coeff2 * (1. + zz) / (1. + z0)
-        elif self.pf['pop_sfe_%s' % name] == 'linear_t':
-            coeff = self.pf['pop_sfe_%s_par0' % name]
-            func = lambda zz: coeff - 1.5 * (1. + zz) / (1. + z0)
-        
-        return func
-        
-    @property
-    def _apply_extrap(self):
-        if not hasattr(self, '_apply_extrap_'):
-            self._apply_extrap_ = 1
-        return self._apply_extrap_
-    
-    @_apply_extrap.setter
-    def _apply_extrap(self, value):
-        self._apply_extrap_ = value    
-        
-    def fstar(self, z, M):
-        """
-        Compute the star formation efficiency.
-        """
-        
-        logM = np.log10(M)
-        
-        if self.Mfunc == 'lognormal':            
-            f = self.fpeak(z) * np.exp(-(logM - np.log10(self.Mpeak(z)))**2 \
-                / 2. / self.sigma(z)**2)
-        else:
-            raise NotImplemented('sorry dude!')    
-            
-        to_add = 0.0
-        if self._apply_extrap:
-            self._apply_extrap = 0
-            
-            if self.Mlo_extrap:
-                Mpivot = self.pf['pop_sfe_Mfun_lo_par0']
-                alpha = self.pf['pop_sfe_Mfun_lo_par1']
-                to_add = self.fstar(z, Mpivot) \
-                    * (M / Mpivot)**alpha
-            #if self.Mlo_extrap:
-            #    to_add *= (M / 1e10)**self.Mext_pars[1] * np.exp(-M / 1e11)
-            
-            self._apply_extrap = 1
-
-        f += to_add
-    
-        return f
-
-class GalaxyMZ(GalaxyPopulation,ParameterizedSFE):
+class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE):
 
     @property
     def magsys(self):
@@ -286,20 +195,22 @@ class GalaxyMZ(GalaxyPopulation,ParameterizedSFE):
         Magnitudes (or luminosities) and number density.
 
         """
-            
+
         if mags:
             x_phi, phi = self.phi_of_M(z)
-            
+
             # Optionally undo dust correction
             if not dc:
-                x_phi += self.A1600(z, x_phi)
-                
+                xarr = x_phi + self.A1600(z, x_phi)
+            else:
+                xarr = x_phi
+
             # Setup interpolant
             interp = interp1d(x_phi, np.log10(phi), kind='linear',
                 bounds_error=False, fill_value=-np.inf)
-            
+
             phi_of_x = 10**interp(x)
-                
+
             return phi_of_x
         else:
             
@@ -351,7 +262,7 @@ class GalaxyMZ(GalaxyPopulation,ParameterizedSFE):
         ok = np.logical_and(above_Mmin, below_Mmax)[0:-1]
 
         phi_of_L = dndm(z) * dMh_dLh
-
+        
         self._phi_of_L[z] = Lh[:-1] * ok, phi_of_L * ok
           
         return self._phi_of_L[z]

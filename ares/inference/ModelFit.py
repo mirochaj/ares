@@ -12,9 +12,9 @@ Description:
 
 import numpy as np
 from ..util.Stats import get_nu
+from ..util.MPIPool import MPIPool
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
-from ..util.AbundanceMatching import HAM
 from ..util.ParameterFile import par_info
 import gc, os, sys, copy, types, time, re
 from ..util.BlobFactory import BlobFactory
@@ -38,14 +38,6 @@ except ImportError:
     pass
 
 emcee_mpipool = False
-try:
-    from mpi_pool import MPIPool
-except ImportError:
-    try:
-        from emcee.utils import MPIPool
-        emcee_mpipool = True    
-    except ImportError:
-        pass
      
 try:
     from mpi4py import MPI
@@ -261,6 +253,10 @@ class LogLikelihood(object):
     @property
     def blank_blob(self):
         if not hasattr(self, '_blank_blob'):
+            
+            if self.blob_names is None:
+                self._blank_blob = []
+                return []
     
             self._blank_blob = []
             for i, group in enumerate(self.blob_names):
@@ -285,7 +281,7 @@ class LogLikelihood(object):
             procid = str(rank).zfill(4)
             fn = '%s.checkpt.proc_%s.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
-                pickle.dump(kwargs, f)    
+                pickle.dump(kwargs, f)
 
 class ModelFit(BlobFactory):
     def __init__(self, **kwargs):

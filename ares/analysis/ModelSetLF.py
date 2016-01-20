@@ -49,9 +49,9 @@ class ModelSetLF(ModelSet):
         else:
             raise NotImplemented('')    
         
-    def LuminosityFunction(self, z, ax=None, fig=1, N=100, 
-        compare_to=None, popid=0, name='galaxy_lf', best_only=True, 
-        assume_schecter=True, scatter_kwargs={}, Mlim=(-24, -10), **kwargs):
+    def LuminosityFunction(self, z, ax=None, fig=1, compare_to=None, popid=0, 
+        name='galaxy_lf', shade_by_like=False, like=0.685, scatter_kwargs={}, 
+        Mlim=(-24, -10), **kwargs):
         """
         Plot the luminosity function used to train the SFE.
         
@@ -62,61 +62,65 @@ class ModelSetLF(ModelSet):
             ax = fig.add_subplot(111)
         else:
             gotax = True
-        
+            
+        if shade_by_like:
+            q1 = 0.5 * 100 * (1. - like)    
+            q2 = 100 * like + q1
+            
         # Plot fits compared to observational data
-        
         M = np.arange(Mlim[0], Mlim[1], 0.05)
         lit = read_lit(compare_to)
     
-        if (compare_to is not None) and (z in lit.redshifts):
+        if (compare_to is not None) and (z in lit.redshifts) and not gotax:
+            phi = np.array(lit.data['lf'][z]['phi'])
+            err = np.array(lit.data['lf'][z]['err'])
+            uplims = phi - err <= 0.0
+            
             ax.errorbar(lit.data['lf'][z]['M'], lit.data['lf'][z]['phi'],
                 yerr=lit.data['lf'][z]['err'], fmt='o', zorder=10,
-                **scatter_kwargs)
-                
-            # Plot B15 constraints too?
-            
-        if assume_schecter:
-            pars = self.max_likelihood_parameters
-            
-            Mstar = pars['pop_lf_Mstar[%.2g]{%i}' % (z, popid)]
-            pstar = pars['pop_lf_pstar[%.2g]{%i}' % (z, popid)]
-            alpha = pars['pop_lf_alpha[%.2g]{%i}' % (z, popid)]
+                uplims=uplims, **scatter_kwargs)
+                            
+        info = self.blob_info(name)
+        ivars = self.blob_ivars[info[0]]
+        
+        # We assume that ivars are [redshift, magnitude]
+        mags_disk = ivars[1]
+        
+        #if self.pf['pop_lf_dustcorr{%i}' % popid]:
+        #    M += 0.45
+        
+        loc = np.argmax(self.logL)
+        
+        phi = []
+        for i, mag in enumerate(mags_disk):
+            data, is_log = self.ExtractData(name, ivar=[z, mags_disk[i]])
 
-            phi = phi_of_M(M, pstar, Mstar, alpha)
-            ax.semilogy(M, phi, ls='--', **kwargs)
-        else:
-            info = self.blob_info(name)
-            ivars = self.blob_ivars[info[0]]
-            
-            i = list(ivars[0]).index(z)
-            M = ivars[1]
-            
-            loc = np.argmax(self.logL)
-            
-            phi = []
-            for i, mag in enumerate(M):
-                data, is_log = self.ExtractData(name, ivar=[z, M[i]])
-                
-                if best_only:
-                    phi.append(data[name][loc])
-                else:
-                    phi.append(data[name])    
-                
-            phi = np.array(phi)
-                
-            if best_only:    
-                ax.semilogy(M, phi, **kwargs)
+            if not shade_by_like:
+                phi.append(data[name][loc])
             else:
-                for i in range(N):
-                    ax.semilogy(M, phi[:,i], **kwargs)
-
+                lo, hi = np.percentile(data[name].compressed(), (q1, q2))
+                phi.append((lo, hi))    
+                    
+        if shade_by_like:
+            phi = self.phi = np.array(phi).T
+            
+            zeros = np.argwhere(phi == 0)
+            for element in zeros:
+                phi[element[0],element[1]] = 1e-15
+            
+            ax.fill_between(mags_disk, phi[0], phi[1], **kwargs)
+            ax.set_yscale('log')
+        else:
+            ax.semilogy(mags_disk, phi, **kwargs)
+        
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')
         ax.set_ylabel(r'$\phi(M)$')
-        ax.set_ylim(1e-7, 1e-1)
-        ax.set_xlim(-25, -15)
-        
+        ax.set_ylim(1e-8, 10)
+        ax.set_xlim(-25, -10)
+        pl.draw()
+
         return ax
-        
+
     def FaintEndSlope(self, z, mag=None, ax=None, fig=1, N=100, 
         name='alpha_lf', best_only=False, **kwargs):
         """

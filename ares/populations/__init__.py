@@ -1,7 +1,7 @@
 from .Halo import HaloPopulation
-from .Galaxy import GalaxyPopulation
-from .GalaxyHAM import GalaxyHAM
-from .GalaxyMZ import GalaxyMZ
-from .Stellar import StellarPopulation
-from .BlackHole import BlackHolePopulation
 from .Composite import CompositePopulation
+from .GalaxyAggregate import GalaxyAggregate
+from .GalaxyPopulation import GalaxyPopulation
+#from .Stellar import StellarPopulation
+#from .BlackHole import BlackHolePopulation
+
