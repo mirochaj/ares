@@ -26,7 +26,7 @@ class Global21cm(MultiPhaseMedium):
         
         
     def __getattr__(self, name):
-                                                                      
+                                                                              
         # Indicates that this attribute is being accessed from within a 
         # property. Don't want to override that behavior!
         if (name[0] == '_'):

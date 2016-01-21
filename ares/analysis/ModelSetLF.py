@@ -43,7 +43,7 @@ class ModelSetLF(ModelSet):
         
         return self.data['x'][i], self.data['y'][i], self.data['err'][i]
     
-    def SFE(self, z, ax=None, fig=1, N=1, name='fstar', shade_by_like=False, 
+    def SFE(self, z, ax=None, fig=1, name='fstar', shade_by_like=False, 
         like=0.685, scatter_kwargs={}, take_log=False, un_log=False,
         multiplier=1, **kwargs):
         if ax is None:
@@ -87,16 +87,18 @@ class ModelSetLF(ModelSet):
                     sfe[element[0],element[1]] = 1e-15
         
             ax.fill_between(M, sfe[0], sfe[1], **kwargs)
+            ax.set_xscale('log')
             ax.set_yscale('log')
         else:
             if take_log:
                 sfe = 10**sfe
-            ax.semilogy(M, sfe, **kwargs)
+            ax.loglog(M, sfe, **kwargs)
         
+        self.sfe = sfe
         ax.set_xlabel(r'$M_h / M_{\odot}$')
         ax.set_ylabel(r'$f_{\ast}(M)$')
         ax.set_ylim(1e-8, 1)
-        ax.set_xlim(7, 13)
+        ax.set_xlim(1e7, 1e14)
         pl.draw()
 
         return ax
@@ -124,7 +126,7 @@ class ModelSetLF(ModelSet):
         M = np.arange(Mlim[0], Mlim[1], 0.05)
         lit = read_lit(compare_to)
     
-        if (compare_to is not None) and (z in lit.redshifts) and not gotax:
+        if (compare_to is not None) and (z in lit.redshifts) and (not gotax):
             phi = np.array(lit.data['lf'][z]['phi'])
             err = np.array(lit.data['lf'][z]['err'])
             uplims = phi - err <= 0.0
@@ -132,18 +134,18 @@ class ModelSetLF(ModelSet):
             ax.errorbar(lit.data['lf'][z]['M'], lit.data['lf'][z]['phi'],
                 yerr=lit.data['lf'][z]['err'], fmt='o', zorder=10,
                 uplims=uplims, **scatter_kwargs)
-                            
+
         info = self.blob_info(name)
         ivars = self.blob_ivars[info[0]]
-        
+
         # We assume that ivars are [redshift, magnitude]
         mags_disk = ivars[1]
         #
         #if self.pf['pop_lf_dustcorr{%i}' % popid]:
         #mags_disk += self.dc.AUV(z, mags_disk)
-        
+
         loc = np.argmax(self.logL)
-        
+
         phi = []
         for i, mag in enumerate(mags_disk):
             data, is_log = self.ExtractData(name, ivar=[z, mags_disk[i]],
@@ -157,21 +159,21 @@ class ModelSetLF(ModelSet):
 
         if shade_by_like:
             phi = np.array(phi).T
-            
+
             if take_log:
                 phi = 10**phi
-            else:    
+            else:
                 zeros = np.argwhere(phi == 0)
                 for element in zeros:
                     phi[element[0],element[1]] = 1e-15
-            
+
             ax.fill_between(mags_disk, phi[0], phi[1], **kwargs)
             ax.set_yscale('log')
         else:
             if take_log:
                 phi = 10**phi
             ax.semilogy(mags_disk, phi, **kwargs)
-        
+
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')
         ax.set_ylabel(r'$\phi(M)$')
         ax.set_ylim(1e-8, 10)

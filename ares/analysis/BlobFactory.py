@@ -263,7 +263,10 @@ class BlobFactory(object):
     @property
     def blobs(self):
         if not hasattr(self, '_blobs'):
-            self._generate_blobs()
+            if not self.blob_names:
+                self._blobs = []
+            else:
+                self._generate_blobs()
 
         return self._blobs
 
@@ -328,7 +331,7 @@ class BlobFactory(object):
                         
             this_group = []
             for j, key in enumerate(element):
-                                                                
+                                                                                                                    
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:

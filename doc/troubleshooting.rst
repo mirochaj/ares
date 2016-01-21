@@ -25,7 +25,11 @@ In the event that a required file is missing, something has gone wrong. Many loo
 This is known to occur in ``ares.physics.Hydrogen`` when using ``scipy.interpolate.interp1d`` to compute the collisional coupling coefficients for spin-exchange. It is due to a bug in LAPACK version 3.4.2 (see `this thread <https://github.com/scipy/scipy/issues/3868>`_). One solution is to install a newer version of LAPACK. Alternatively, you could use linear interpolation, instead of a spline, by passing ``interp_cc='linear'`` as a keyword argument to whatever class you're instantiating, or more permanently by adding ``interp_cc='linear'`` to your custom defaults file (see :doc:`parameters` section for instructions).
 
 
-
 21-cm Extrema-Finding Not Working
 ---------------------------------
 If the derivative of the signal is noisy (due to numerical artifacts, for example) then the extrema-finding can fail. If you can visually see three extrema in the global 21-cm signal but they are either absent or crazy in ``ares.simulations.Global21cm.turning_points``, then this might be going on. Try setting the ``smooth_derivative`` parameter to a value of 5 or 10.  This parameter will smooth the derivative with a boxcar of length ``smooth_derivative`` before performing the extrema finding. Let me know if this happens (and under what circumstances), as it would be preferable to eliminate numerical artifacts at a lower level in the code rather than smoothing them out after the fact.
+
+
+``AttributeError: No attribute blobs.``
+---------------------------------------
+This is a bit of a red herring. If you're running an MCMC fit and saving 2-D blobs, which always require you to pass the name of the function, this error occurs if you supply a function that does not exist. Check for typos and/or that the function exists where it should.

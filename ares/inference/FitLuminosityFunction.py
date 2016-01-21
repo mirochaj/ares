@@ -167,7 +167,7 @@ class loglikelihood(LogLikelihood):
         try:
             blobs = sim.blobs
         except:
-            blobs = self.blank_blob
+            blobs = self.blank_blob    
 
         del sim, kw
         gc.collect()

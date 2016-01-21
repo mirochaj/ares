@@ -2378,12 +2378,12 @@ class ModelSet(BlobFactory):
         if nd == 0:
             return blob
         elif nd == 1:
-            k = list(self.blob_ivars[i]).index(ivar)
+            k = np.argmin(np.abs(self.blob_ivars[i] - ivar))
             return blob[:,k]
         elif nd == 2:
             assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
-            k1 = list(self.blob_ivars[i][0]).index(ivar[0])
-            k2 = list(self.blob_ivars[i][1]).index(ivar[1])
+            k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))
+            k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
             return blob[:,k1,k2]    
     
     @property
