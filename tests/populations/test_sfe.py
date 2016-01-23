@@ -23,32 +23,36 @@ pars = \
  #'pop_sed': 'leitherer1999',
  
  # Dust
- 'pop_lf_dustcorr': True,
- 'pop_lf_beta': -2.,
+ #'pop_lf_dustcorr': False,
+ #'pop_lf_beta': -2.,
  
- 'sfe_Mfun': 'lognormal',
+ #'sfe_Mfun': 'lognormal',
+ 
+ 'dustcorr_Afun': None,
  
  'pop_lf_Mmax': 1e15,
   
- 'sfe_fpeak': 'pl',
- 'sfe_Mpeak': 'pl',
+ 'sfe_fpeak': 'constant',
+ 'sfe_Mpeak': 'constant',
  'sfe_sigma': 'constant',
   
- 'sfe_Mpeak_par0': 5e11,
- 'sfe_Mpeak_par1': -1.,
- 'sfe_Mpeak_par2': 0.2,
- 'sfe_fpeak_par0': 0.3,
- 'sfe_fpeak_par1': -1.,
- 'sfe_fpeak_par2': 0.2,
+ 'sfe_Mpeak_par0': 1e12,
+ 'sfe_Mpeak_par1': None,
+ 'sfe_Mpeak_par2': None,
+ 'sfe_fpeak_par0': 0.15,
+ 'sfe_fpeak_par1': None,
+ 'sfe_fpeak_par2': None,
  'sfe_sigma_par0': 0.8,
  'sfe_sigma_par1': None,
 
- 'sfe_Mfun_lo': 'pl',
- 'sfe_Mfun_lo_par0': 1e10,
- 'sfe_Mfun_lo_par1': 0.33,
+ 'sfe_Mfun': 'dpl',
+ 'sfe_Mfun_par0': 0.7,
+ 'sfe_Mfun_par1': 1e12,
+ 'sfe_Mfun_par2': 0.7,
+ 'sfe_Mfun_par3': 0.6,
  
- 'sfe_Mfun_hi': 'exp',
- 'sfe_Mfun_hi_par0': 2e13,
+ 'sfe_Mfun_hi': None,
+ 'sfe_Mfun_hi_par0': 1e14,
  'sfe_Mfun_hi_par1': 0.1, #could force less than Mpeak
 
 }
@@ -58,19 +62,13 @@ b15 = ares.util.read_lit('bouwens2015')
 # Plot models compared to observational data
 M = np.linspace(-24, -10, 40)
 L = np.logspace(25, 32, 40)
-Mh = np.logspace(7, 13)
+Mh = np.logspace(7, 15)
 
 fig0 = pl.figure(0); ax0 = fig0.add_subplot(111)
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
-fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
 
-extrap = [{'sfe_Mfun_lo': None, 'sfe_Mfun_hi': None},
-          {'sfe_Mfun_lo': 'pl', 'sfe_Mfun_hi': None},
-          {'sfe_Mfun_lo': 'pl', 'sfe_Mfun_hi': 'exp'},
-          {'sfe_Mfun_lo': None, 'sfe_Mfun_hi': 'exp'}]
-
-extrap = [{'sfe_Mfun_lo': 'pl', 'sfe_Mfun_hi': None},
-          {'sfe_Mfun_lo': 'pl', 'sfe_Mfun_hi': 'exp'}]
+extrap = [{'sfe_Mfun': 'dpl', 'sfe_Mfun_par2': 0.3},
+          {'sfe_Mfun': 'dpl', 'sfe_Mfun_par2': 0.6}]
 
 marker = ['o', '^']
 ls = ['-', '--', ':', '-.']
@@ -92,10 +90,10 @@ for k, ext in enumerate(extrap):
         lum, phi2 = pop.phi_of_L(z)
         
         ax0.semilogy(mag, phi1, color=colors[i], ls=ls[k])
-        ax2.loglog(lum, phi2, color=colors[i], ls=ls[k])
+        #ax2.loglog(lum, phi2, color=colors[i], ls=ls[k])
 
-        ax0.scatter(M, phi_I_1, color=colors[i], marker=marker[k], facecolors='none')
-        ax2.scatter(L, phi_I_2, color=colors[i], marker=marker[k], facecolors='none')
+        #ax0.scatter(M, phi_I_1, color=colors[i], marker=marker[k], facecolors='none')
+        #ax2.scatter(L, phi_I_2, color=colors[i], marker=marker[k], facecolors='none')
 
         ax1.loglog(Mh, pop.fstar(z, Mh), color=colors[i], ls=ls[k])
 
@@ -104,8 +102,8 @@ ax0.set_ylabel(r'$\phi(M)$')
 ax0.set_ylim(1e-7, 1e2)
 ax0.set_xlim(-25, 0)
 ax1.set_ylim(1e-3, 1)
-ax2.set_xlim(1e20, 1e32)
-ax2.set_ylim(1e-35, 1e-18)
+#ax2.set_xlim(1e20, 1e35)
+#ax2.set_ylim(1e-60, 1e-21)
 pl.show()
 
 

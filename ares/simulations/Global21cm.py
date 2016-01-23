@@ -270,47 +270,6 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
 
-    #def run_inline_analysis(self):    
-    #
-    #    if self.pf['track_extrema']:
-    #        if hasattr(self, 'track'):
-    #            self.turning_points = self.track.turning_points
-    #        else:
-    #            from ..analysis.InlineAnalysis import InlineAnalysis
-    #            anl = InlineAnalysis(self)
-    #            self.turning_points = anl.turning_points
-    #            
-    #            self.blobs = anl.blobs
-    #            self.blob_names, self.blob_redshifts = \
-    #                anl.blob_names, anl.blob_redshifts
-    #                
-    #            return
-    #
-    #    if (self.pf['inline_analysis'] is None) and \
-    #       (self.pf['auto_generate_blobs'] == False):
-    #        return
-    #        
-    #    elif self.pf['inline_analysis'] is not None:
-    #        self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
-    #
-    #    # Get da blobs
-    #    from ..analysis.InlineAnalysis import InlineAnalysis
-    #    anl = InlineAnalysis(self)  
-    #    anl.run_inline_analysis()      
-    #    self.blobs = anl.blobs
-    #
-    #    self.anl = anl
-    #
-    #    # Just arrayify history elements if they aren't already arrays
-    #    tmp = {}
-    #    for key in self.history:
-    #        if type(self.history[key]) is list:
-    #            tmp[key] = np.array(self.history[key])
-    #        else:
-    #            tmp[key] = self.history[key]
-    #
-    #    self.history = tmp
-
     def save(self, prefix, suffix='pkl', clobber=False):
         """
         Save results of calculation. Pickle parameter file dict.
@@ -332,7 +291,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
     
         """
     
-        import os
+        import os, pickle
     
         fn = '%s.history.%s' % (prefix, suffix)
     
@@ -342,9 +301,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             else: 
                 raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
     
-        if suffix == 'pkl':      
-            import pickle
-                  
+        if suffix == 'pkl':                        
             f = open(fn, 'wb')
             pickle.dump(self.history, f)
             f.close()
@@ -376,8 +333,8 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             for i in range(len(self.history[key])):
                 s = ''
     
-                for key in self.sim.history:
-                    s += '%-20.8e' % self.history[key][i]
+                for key in self.history:
+                    s += '%-20.8e' % (self.history[key][i])
     
                 if not s.strip():
                     continue

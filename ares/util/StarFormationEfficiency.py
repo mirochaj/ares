@@ -100,6 +100,12 @@ class ParameterizedSFE(object):
         if self.Mfunc == 'lognormal':            
             f = self.fpeak(z) * np.exp(-(logM - np.log10(self.Mpeak(z)))**2 \
                 / 2. / self.sigma(z)**2)
+        elif self.Mfunc == 'dpl':
+            p1 = self.pf['sfe_Mfun_par0']
+            p2 = self.pf['sfe_Mfun_par1']
+            p3 = self.pf['sfe_Mfun_par2']
+            p4 = self.pf['sfe_Mfun_par3']
+            f = 2. * p1 / ((M / p2)**-p3 + (M / p2)**p4)
         elif self.Mfunc == 'poly':
             raise NotImplemented('sorry dude!')
         else:
@@ -119,10 +125,19 @@ class ParameterizedSFE(object):
                     p3 = self.pf['sfe_Mfun_lo_par2']
                     to_add = self.fstar(z, p1) * (M / p1)**p2 \
                         * np.exp(-p3 / M)
+                elif self.pf['sfe_Mfun_lo'] == 'dpl':
+                    p3 = self.pf['sfe_Mfun_lo_par2']
+                    p4 = self.pf['sfe_Mfun_lo_par3']
+                    to_add = p1 / ((M / p2)**-p3 + (M / p2)**p4)
                     
             if self.Mhi_extrap:
-                Mexp = self.pf['sfe_Mfun_hi_par0']
-                to_mult = np.exp(-M / Mexp)
+                if self.pf['sfe_Mfun_hi'] == 'exp':
+                    Mexp = self.pf['sfe_Mfun_hi_par0']
+                    to_mult = np.exp(-M / Mexp)
+                elif self.pf['sfe_Mfun_hi'] == 'pl':    
+                    Mt = self.pf['sfe_Mfun_hi_par0']
+                    dM = self.pf['sfe_Mfun_hi_par1']
+                    to_mult = 1. - np.tanh((M - Mt) / dM)   
                 
             self._apply_extrap = 1
 

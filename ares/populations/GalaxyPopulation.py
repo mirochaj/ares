@@ -158,12 +158,12 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
             x_phi, phi = self.phi_of_M(z)
 
             # Setup interpolant
-            interp = interp1d(x_phi[-1::-1], np.log10(phi)[-1::-1], 
-                kind='linear', bounds_error=False, fill_value=-np.inf)
+            #interp = interp1d(x_phi[-1::-1], np.log10(phi)[-1::-1], 
+            #    kind='linear', bounds_error=False, fill_value=-np.inf)
             
-            phi_of_x = 10**interp(x)
+            #phi_of_x = 10**interp(x)
             #
-            #phi_of_x = 10**np.interp(x, x_phi[-1::-1], np.log10(phi)[-1::-1])
+            phi_of_x = 10**np.interp(x, x_phi[-1::-1], np.log10(phi)[-1::-1])
 
         else:
             

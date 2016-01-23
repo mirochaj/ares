@@ -234,6 +234,7 @@ def SFEParameters():
     "sfe_Mfun_par0": None,
     "sfe_Mfun_par1": None,
     "sfe_Mfun_par2": None,
+    "sfe_Mfun_par3": None,
     "sfe_zfun": 'constant',    
     "sfe_zfun_par0": None,    
     "sfe_zfun_par1": None, 
@@ -242,9 +243,10 @@ def SFEParameters():
     
     # Extrapolations
     'sfe_Mfun_lo': None,
-    'sfe_Mfun_lo_par0': 1e10,
-    'sfe_Mfun_lo_par1': 0.33,
-    'sfe_Mfun_lo_par2': 1e7,
+    'sfe_Mfun_lo_par0': 1e12,
+    'sfe_Mfun_lo_par1': 0.1,
+    'sfe_Mfun_lo_par2': 0.33,
+    'sfe_Mfun_lo_par3': 0.33,
 
     'sfe_Mfun_hi': None,
     'sfe_Mfun_hi_par0': 1e13,
@@ -333,7 +335,7 @@ def PopulationParameters():
     "pop_lf_dustcorr": True,
     "pop_lf_beta": -2.,
     
-    'pop_lf_Mmax': 1e13,
+    'pop_lf_Mmax': 1e15,
 
     # Beta can depend on magnitude and redshift
     "pop_lf_beta_slope": None,

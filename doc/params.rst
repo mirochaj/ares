@@ -13,6 +13,7 @@ Here, we'll provide a brief description of each parameter.
  * :doc:`params_sources`
  * :doc:`params_populations`
  * :doc:`params_spectrum`
+ * :doc:`params_sfe`
  * :doc:`params_inference`
  * :doc:`params_hmf`
  * :doc:`params_control`

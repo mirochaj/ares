@@ -106,12 +106,12 @@ Lookup tables
     Default: ``None``
     
 ``load_tau``
-    If ``True``, will search path set in environment variable ARES for optical depth tables with dimensions given by ``redshift_bins`` (see above), and the energy range defined by ``spectrum_Emin`` and ``spectrum_Emax``.
+    If ``True``, will search path set in environment variable ``$ARES`` for optical depth tables with dimensions given by ``redshift_bins`` (see above), and the energy range defined by ``spectrum_Emin`` and ``spectrum_Emax``.
     
     Default: ``False``
 
 ``tau_prefix``
-    Path to directory on disk where optical depth tables are stored. Set this if you keep optical depth tables stored in a place other than the ARES environment variable!
+    Path to directory on disk where optical depth tables are stored. Set this if you keep optical depth tables stored in a place other than the ``$ARES`` environment variable!
     
     Default: ``None``
 

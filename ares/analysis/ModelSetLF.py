@@ -45,7 +45,7 @@ class ModelSetLF(ModelSet):
     
     def SFE(self, z, ax=None, fig=1, name='fstar', shade_by_like=False, 
         like=0.685, scatter_kwargs={}, take_log=False, un_log=False,
-        multiplier=1, **kwargs):
+        multiplier=1, skip=0, stop=None, **kwargs):
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -63,7 +63,7 @@ class ModelSetLF(ModelSet):
         # We assume that ivars are [redshift, magnitude]
         M = ivars[1]
         
-        loc = np.argmax(self.logL)
+        loc = np.argmax(self.logL[skip:stop])
         
         sfe = []
         for i, mass in enumerate(M):
@@ -71,9 +71,10 @@ class ModelSetLF(ModelSet):
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
         
             if not shade_by_like:
-                sfe.append(data[name][loc])
+                sfe.append(data[name][skip:stop][loc])
             else:
-                lo, hi = np.percentile(data[name].compressed(), (q1, q2))
+                lo, hi = np.percentile(data[name][skip:stop].compressed(), 
+                    (q1, q2))
                 sfe.append((lo, hi))    
         
         if shade_by_like:
@@ -96,7 +97,7 @@ class ModelSetLF(ModelSet):
         
         ax.set_xlabel(r'$M_h / M_{\odot}$')
         ax.set_ylabel(r'$f_{\ast}(M)$')
-        ax.set_ylim(1e-8, 1)
+        ax.set_ylim(1e-4, 1)
         ax.set_xlim(1e7, 1e14)
         pl.draw()
 
@@ -105,7 +106,7 @@ class ModelSetLF(ModelSet):
     def LuminosityFunction(self, z, ax=None, fig=1, compare_to=None, popid=0, 
         name='galaxy_lf', shade_by_like=False, like=0.685, scatter_kwargs={}, 
         Mlim=(-24, -10), take_log=False, un_log=False,
-        multiplier=1, **kwargs):
+        multiplier=1, skip=0, stop=None, **kwargs):
         """
         Plot the luminosity function used to train the SFE.
         
@@ -143,7 +144,7 @@ class ModelSetLF(ModelSet):
         #if self.pf['pop_lf_dustcorr{%i}' % popid]:
         #mags_disk += self.dc.AUV(z, mags_disk)
 
-        loc = np.argmax(self.logL)
+        loc = np.argmax(self.logL[skip:stop])
 
         phi = []
         for i, mag in enumerate(mags_disk):
@@ -151,12 +152,11 @@ class ModelSetLF(ModelSet):
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
 
             if not shade_by_like:
-                phi.append(data[name][loc])
+                phi.append(data[name][skip:stop][loc])
             else:
-                lo, hi = np.percentile(data[name].compressed(), (q1, q2))
+                lo, hi = np.percentile(data[name][skip:stop].compressed(), 
+                    (q1, q2))
                 phi.append((lo, hi))    
-
-            print mag, data[name][loc]
 
         if shade_by_like:
             phi = np.array(phi).T

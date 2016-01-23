@@ -74,16 +74,11 @@ class MultiPhaseMedium(object):
         ----------
         sim : instance
             Instance of glorb.Simulate.Simulation class
-        history : dict, str
+        data : dict, str
             Either a dictionary containing the 21-cm history or the name
             of the (HDF5) file containing the history.
-        pf : dict, str
-            Either a dictionary containing the parameters, or the name
-            of the (binary/pickled) file containing the parameters.
-                
-        """
 
-        return
+        """
 
         if data is None:
             return
@@ -95,52 +90,7 @@ class MultiPhaseMedium(object):
         elif type(data) is str:
             self._load_data(data)
             
-                    
-        # If missing parameter file
-        #if not hasattr(self, 'pf'):  
-        #    #print "No parameter file found...setting all to default values."      
-        #    self.pf = SetAllDefaults()
-        #    self.cosm = Cosmology()
-        #    self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
-            
-        #self.data = DummyDQ(pf=self.pf)
-        #
-        ## Add history to data
-        #self.data.add_data(history)
-
-        #if not hasattr(self, 'data'):
-        #    raise ValueError('Must supply simulation instance, dict, or file prefix!')
-
         self.kwargs = kwargs    
-
-        # Add frequencies
-        #if 'z' in self.data:
-        #    self.data['nu'] = nu_0_mhz / (1. + self.data['z'])
-
-        # For backward compatibility
-        #if 'dTb' in self.data:
-        #    if 'igm_dTb' not in self.data:
-        #        self.data['igm_dTb'] = self.data['dTb']
-        #elif 'igm_dTb' in self.data:
-        #    if 'dTb' not in self.data:
-        #        self.data['dTb'] = self.data['igm_dTb']
-
-        # For convenience - quantities in ascending order (in redshift)
-        #data_reorder = {}
-        #for key in self.data.keys():
-        #    data_reorder[key] = np.array(self.data[key])[-1::-1]
-        
-        # Re-order
-        if np.all(np.diff(self.data['z']) > 0):
-            self.data_asc = DummyDQ(pf=self.pf)
-            self.data_asc.add_data(self.data)
-            self.data = DummyDQ(pf=self.pf)
-            self.data.add_data(data_reorder)
-        else:
-            self.data_asc = DummyDQ(pf=self.pf)
-            self.data_asc.add_data(data_reorder)
-
-        self.interp = {}
 
     def _load_data(self, data):
         try:
@@ -161,14 +111,21 @@ class MultiPhaseMedium(object):
                 history = pickle.load(f)
                 f.close()
             else:
-                f = open(data, 'r')
+                import glob
+                fn = glob.glob('./%s.history*' % data)[0]
+                f = open(fn, 'r')
                 cols = f.readline().split()[1:]
-                data = np.loadtxt(f)
+                _data = np.loadtxt(f)
 
                 history = {}
                 for i, col in enumerate(cols):
-                    history[col] = data[:,i]
+                    history[col] = _data[:,i]
                 f.close()  
+                
+                pf = glob.glob('./%s.parameters*' % data)[0]
+                f = open(pf, 'rb')
+                self.pf = pickle.load(f)
+                f.close()
 
         self.history = history       
 
