@@ -241,12 +241,12 @@ def SFEParameters():
     "sfe_ceil": 1.0,     
     
     # Extrapolations
-    'sfe_Mfun_lo': 'pl',
+    'sfe_Mfun_lo': None,
     'sfe_Mfun_lo_par0': 1e10,
     'sfe_Mfun_lo_par1': 0.33,
     'sfe_Mfun_lo_par2': 1e7,
 
-    'sfe_Mfun_hi': 'exp',
+    'sfe_Mfun_hi': None,
     'sfe_Mfun_hi_par0': 1e13,
     'sfe_Mfun_hi_par1': None,
     
@@ -261,7 +261,7 @@ def SFEParameters():
     'sfe_Mpeak_par0': 1e12,
     'sfe_Mpeak_par1': None,
     'sfe_Mpeak_par2': None,    
-    'sfe_fpeak_par0': 0.3,
+    'sfe_fpeak_par0': 0.5,
     'sfe_fpeak_par1': None,
     'sfe_fpeak_par2': None,    
     'sfe_sigma_par0': 0.8,
@@ -320,7 +320,7 @@ def PopulationParameters():
 
     # HAM model
     "pop_constraints": None, # if ham model
-    "pop_Macc": None,
+    "pop_Macc": 'mcbride2009',
 
     "pop_lf_z": None,
 
@@ -427,7 +427,7 @@ def PopulationParameters():
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
     "pop_yield": 2.6e39,
     "pop_yield_units": 'erg/s/sfr',
-    "pop_kappa_UV": None,
+    "pop_kappa_UV": 1.15e-28,
 
     # If pop_yield_units == 'erg/s/sfr/hz, this is the reference wavelength
     "pop_yield_wavelength": 1500.,

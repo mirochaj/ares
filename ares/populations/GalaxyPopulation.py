@@ -74,19 +74,6 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
         return self._Macc
 
     @property
-    def zlim(self):
-        if not hasattr(self, '_zlim'):
-            self._zlim = [min(self.redshifts), max(self.redshifts)]    
-        return self._zlim
-        
-    @property
-    def Mlim(self):
-        if not hasattr(self, '_Mlim'):
-            self._Mlim = [[min(self.MofL_tab[i]), max(self.MofL_tab[i])] \
-                for i in range(len(self.redshifts))]
-        return self._Mlim
-
-    @property
     def kappa_UV(self):
         if not hasattr(self, '_kappa_UV'):
             if self.sed_tab:
@@ -171,10 +158,12 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
             x_phi, phi = self.phi_of_M(z)
 
             # Setup interpolant
-            interp = interp1d(x_phi, np.log10(phi), kind='linear',
-                bounds_error=False, fill_value=-np.inf)
-
+            interp = interp1d(x_phi[-1::-1], np.log10(phi)[-1::-1], 
+                kind='linear', bounds_error=False, fill_value=-np.inf)
+            
             phi_of_x = 10**interp(x)
+            #
+            #phi_of_x = 10**np.interp(x, x_phi[-1::-1], np.log10(phi)[-1::-1])
 
         else:
             
@@ -206,29 +195,33 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
         above_Mmin = self.halos.M >= Mmin
         below_Mmax = self.halos.M <= self.pf['pop_lf_Mmax']
         ok = np.logical_and(above_Mmin, below_Mmax)[0:-1]
+        mask = self.mask = np.logical_not(ok)
 
         phi_of_L = dndm(z) * dMh_dLh
         
-        self._phi_of_L[z] = Lh[:-1] * ok, phi_of_L * ok
-          
+        lum = np.ma.array(Lh[:-1], mask=mask)
+        phi = np.ma.array(phi_of_L, mask=mask)
+
+        self._phi_of_L[z] = lum, phi
+
         return self._phi_of_L[z]
-    
+
     def phi_of_M(self, z):
         if not hasattr(self, '_phi_of_M'):
             self._phi_of_M = {}
         else:
             if z in self._phi_of_M:
                 return self._phi_of_M[z]
-                
+
         Lh, phi_of_L = self.phi_of_L(z)
 
         MAB = self.magsys.L_to_MAB(Lh, z=z)
 
         phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))
-                
+
         self._phi_of_M[z] = MAB[0:-1], phi_of_M
-        
-        return self._phi_of_M[z]        
+
+        return self._phi_of_M[z]
 
     def L1600_limit(self, z):
         eta = np.interp(z, self.halos.z, self.eta)

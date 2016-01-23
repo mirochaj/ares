@@ -28,7 +28,7 @@ from ..util.PrintInfo import print_model_set
 from .DerivedQuantities import DerivedQuantities as DQ
 from ..util.ParameterFile import count_populations, par_info
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
-from ..util.Stats import Gauss1D, GaussND, error_1D, error_2D, _error_2D_crude, \
+from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
 from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
@@ -943,8 +943,8 @@ class ModelSet(BlobFactory):
         Tuple, (maximum likelihood value, negative error, positive error).
         """
 
-        pars, take_log, multiplier, un_log, ivar = \
-            self._listify_common_inputs([par], take_log, multiplier, un_log, ivar)
+        #pars, take_log, multiplier, un_log, ivar = \
+        #    self._listify_common_inputs([par], take_log, multiplier, un_log, ivar)
 
         to_hist, is_log = self.ExtractData(par, ivar=ivar, take_log=take_log, 
             multiplier=multiplier)
@@ -961,28 +961,18 @@ class ModelSet(BlobFactory):
         
         if hasattr(to_hist[par], 'compressed'):
             to_hist[par] = to_hist[par].compressed()
-                
-                
+                       
         if to_hist[par] == []:
             print "WARNING: error w/ %s" % par
             print "@ z=" % z
             return
                 
-        hist, bin_edges = \
-            np.histogram(to_hist[par], density=True, bins=bins, 
-            weights=weights)
-
-        bc = rebin(bin_edges)
-
-        if to_hist is []:
-            return None, (None, None)
-
-        mu, sigma = error_1D(bc, hist, nu=nu, limit=limit)
-                
-        try:
-            mu, sigma = error_1D(bc, hist, nu=nu, limit=limit)
-        except ValueError:
-            return None, (None, None)
+        mu = to_hist[par][np.argmax(self.logL)]
+        
+        q1 = 0.5 * 100 * (1. - nu)    
+        q2 = 100 * nu + q1
+        lo, hi = np.percentile(to_hist[par], (q1, q2))
+        sigma = (mu - lo, hi - mu)
 
         return mu, np.array(sigma)
         
@@ -1196,8 +1186,8 @@ class ModelSet(BlobFactory):
         
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
-            ivar)        
-                        
+            ivar)
+                                    
         to_hist = []
         is_log = []
         apply_mask = []
@@ -1501,24 +1491,24 @@ class ModelSet(BlobFactory):
         if (to_hist is None) or (is_log is None):
             to_hist, is_log = self.ExtractData(pars, ivar=ivar, 
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
-                
+
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)
             
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)
-        
+
         # We might supply weights by-hand for ModelGrid calculations
         if not hasattr(self, 'weights'):
             weights = None
         else:
             weights = self.weights
-            
+
         ##
         ### Histogramming and plotting starts here
         ##
-        
+
         if stop is not None:
             stop = -int(stop)
                     

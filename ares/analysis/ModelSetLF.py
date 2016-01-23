@@ -94,7 +94,6 @@ class ModelSetLF(ModelSet):
                 sfe = 10**sfe
             ax.loglog(M, sfe, **kwargs)
         
-        self.sfe = sfe
         ax.set_xlabel(r'$M_h / M_{\odot}$')
         ax.set_ylabel(r'$f_{\ast}(M)$')
         ax.set_ylim(1e-8, 1)
@@ -157,6 +156,8 @@ class ModelSetLF(ModelSet):
                 lo, hi = np.percentile(data[name].compressed(), (q1, q2))
                 phi.append((lo, hi))    
 
+            print mag, data[name][loc]
+
         if shade_by_like:
             phi = np.array(phi).T
 
@@ -172,6 +173,7 @@ class ModelSetLF(ModelSet):
         else:
             if take_log:
                 phi = 10**phi
+            
             ax.semilogy(mags_disk, phi, **kwargs)
 
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')
@@ -232,59 +234,12 @@ class ModelSetLF(ModelSet):
         
         """
         lit = read_lit(compare_to)
-        
+
         if (compare_to is not None) and (z in lit.redshifts):
             ax.errorbar(lit.data['lf'][z]['M'], lit.data['lf'][z]['phi'],
                 yerr=lit.data['lf'][z]['err'], fmt='o', zorder=10,
                 **scatter_kwargs)
-    
-    def ReconstructedLF(self, z, ax=None, fig=1, N=1, resample=True, **kwargs):
-        """
-        Plot constraints on the luminosity function at given z.
-        """
 
-        if ax is None:
-            gotax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)
-        else:
-            gotax = True
-
-
-        # Find relevant elements in chain
-        samples = {}
-        for i, key in enumerate(self.parameters):
-            if not re.search('_lf_', key):
-                continue
-                
-            prefix, redshift = param_redshift(key)
-            if z != redshift:
-                continue
-                
-            samples[prefix[0:prefix.find('{')]] = self.chain[:,i]
-        
-        i = self.data['z'].index(z)
-        
-        if resample:
-            mi, ma = self.data['x'][i][0], self.data['x'][i][-1]
-            M = np.linspace(mi-2, ma+2, 200)
-        else:
-            M = np.array(self.data['x'][i])
-        
-        pst = 10**samples['pop_lf_pstar']
-        Mst = samples['pop_lf_Mstar']            
-        a = samples['pop_lf_alpha']
-        
-        for i in range(N):
-            phi = 0.4 * np.log(10.) * pst[i] \
-                * (10**(0.4 * (Mst[i] - M)))**(1. + a[i]) \
-                * np.exp(-10**(0.4 * (Mst[i] - M)))
-            
-            ax.semilogy(M, phi, **kwargs)
-        
-        pl.draw()
-        return ax
-            
     def PlotData(self, z, ax=None, fig=1, **kwargs):
         M, phi, err = self.get_data(z)
         

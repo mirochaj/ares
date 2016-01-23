@@ -126,7 +126,7 @@ class GalaxyAggregate(HaloPopulation):
                 and self.pf['pop_lya_src']
 
         return self._is_lya_src
-    
+
     @property
     def _Source(self):
         if not hasattr(self, '_Source_'):

@@ -19,10 +19,12 @@ class DustCorrection(object):
         
     @property
     def method(self):
-        return self.pf['dustcorr_method']
+        return self.pf['dustcorr_Afun']
         
     def AUV(self, z, mag):
-        if self.pf['dustcorr_Afun'].lower() == 'meurer1999':
+        if self.pf['dustcorr_Afun'] is None:
+            return 0.0
+        elif self.pf['dustcorr_Afun'].lower() == 'meurer1999':
             return self.MeurerDC(z, mag)
         else:
             raise NotImplemented('sorry!')

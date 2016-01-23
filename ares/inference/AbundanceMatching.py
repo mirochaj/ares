@@ -33,173 +33,105 @@ except ImportError:
     pass
 
 class AbundanceMatching(GalaxyPopulation):
-    @property
-    def magsys(self):
-        if not hasattr(self, '_magsys'):
-            self._magsys = MagnitudeSystem(**self.pf)
-    
-        return self._magsys
-        
+
     @property
     def mags(self):
         if not hasattr(self, '_mags'):
-            self._mags = []
-    
-            if type(self.pf['pop_constraints']) == str:
-                data = read_lit(self.pf['pop_constraints']).data        
-                                    
-                for redshift in self.redshifts:
-                    self._mags.append(np.array(data['lf'][redshift]['M']))
-            else:
-                assert len(self.pf['pop_lf_mags']) == len(self.redshifts), \
-                    "Need magnitudes for each redshift bin!"
-    
-                self._mags = self.pf['pop_lf_mags']
+            self._mags = self.constraints['mags']
 
         return self._mags
+        
+    @mags.setter
+    def mags(self, value):
+        assert len(value) == len(self.redshifts), \
+            "Need magnitudes for each redshift bin!"
+        self._mags = value
 
     @property
     def redshifts(self):
-        return self.constraints['z']
-        
-    @property   
-    def SFRD(self):
-        """
-        Compute star-formation rate density (SFRD).
-        
-        """
-        
-        if not hasattr(self, '_SFRD'):
-            self._SFRD = interp1d(self.halos.z, self.sfrd_tab,
-                kind='cubic')
-                
-        return self._SFRD
+        if not hasattr(self, '_redshifts'):
+            raise AttributeError('Must set redshifts by hand or through constraints!')
+    
+        return self._redshifts
+    
+    @redshifts.setter
+    def redshifts(self, value):
+        if type(value) not in [list, np.ndarray, tuple]:
+            self._redshifts = [value]
+        else:
+            self._redshifts = value
     
     @property
     def constraints(self):
+        return self._constraints
+    
+    @constraints.setter
+    def constraints(self, value):
         """
         Schechter parameters assumed for abundance match.
         """
-        if not hasattr(self, '_constraints'):
     
-            self._constraints = {}
-    
-            # Read constraints from litdata
-            if type(self.pf['pop_constraints']) == str:                
-                data = read_lit(self.pf['pop_constraints'])
-                fits = data.fits['lf']['pars']
-    
-            # Can optionally use a subset of redshift constraints provided 
-            if self.pf['pop_lf_z'] is not None:
-                self._constraints['z'] = self.pf['pop_lf_z']
-            else:
-                self._constraints['z'] = data.redshifts
-    
-            self._constraints['Mstar'] = []
-            self._constraints['pstar'] = []
-            self._constraints['alpha'] = []
-    
-            for i, z in enumerate(self._constraints['z']):
-                # If we read in fits from literature, have to be sure to
-                # get the redshifts correctly (since we're allowed to only
-                # use a subset of them)
-                
-                # Also, must override litdata if appropriate pars are passed.
-                
-                Mname = 'pop_lf_Mstar[%g]' % z
-                pname = 'pop_lf_pstar[%g]' % z
-                aname = 'pop_lf_alpha[%g]' % z
-                if Mname in self.pf:
-                    self._constraints['Mstar'].append(self.pf[Mname])
-                elif type(self.pf['pop_constraints']) == str:
-                    j = data.redshifts.index(z)
-                    self._constraints['Mstar'].append(fits['Mstar'][j])
-                if pname in self.pf:   
-                    self._constraints['pstar'].append(self.pf[pname])
-                elif type(self.pf['pop_constraints']) == str:
-                    j = data.redshifts.index(z)
-                    self._constraints['pstar'].append(fits['pstar'][j])
-                if aname in self.pf:
-                    self._constraints['alpha'].append(self.pf[aname])
-                elif type(self.pf['pop_constraints']) == str:
-                    j = data.redshifts.index(z)
-                    self._constraints['alpha'].append(fits['alpha'][j])
-
-            # Parameter file will have LF in Magnitudes...argh
-            redshifts = self._constraints['z']
-            self._constraints['Lstar'] = []
-    
-            # Correct magnitudes for dust extinction, convert to luminosity
-            for i, z in enumerate(redshifts):
-                M = self._constraints['Mstar'][i]
-                Mdc = M - self.A1600(z, M)
-                L = self.magsys.MAB_to_L(mag=Mdc, z=z)
-                self._constraints['Lstar'].append(L)
-    
-        return self._constraints 
-    
-    def A1600(self, z, mag):
-        """
-        Determine infrared excess using Meurer et al. 1999 approach.
-        """
-    
-        if not self.pf['pop_lf_dustcorr']:
-            return 0.0    
-    
-        if type(self.pf['pop_lf_dustcorr']) == str:
-            pass    
-    
-        # Could be constant, but redshift dependent
-        if 'pop_lf_beta[%g]' % z in self.pf:
-            beta = self.pf['pop_lf_beta[%g]'] 
-    
-        # Could depend on redshift AND magnitude
-        elif 'pop_lf_beta_slope[%g]' % z in self.pf:
-            if self.pf['pop_lf_beta_slope[%g]' % z] is not None:
-                beta = self.pf['pop_lf_beta_slope[%g]' % z] \
-                    * (mag + 19.5) + self.pf['pop_lf_beta_pivot[%g]' % z]
-            else:
-                beta = self.pf['pop_lf_beta']        
-        # Could just be constant
-        else:
-            beta = self.pf['pop_lf_beta']
-    
-        return 4.43 + 1.99 * beta
+        self._constraints = {}
         
-    @property
-    def Macc(self):
-        """
-        Mass accretion rate onto halos of mass M at redshift z.
-    
-        ..note:: This is the *matter* accretion rate. To obtain the baryonic 
-            accretion rate, multiply by Cosmology.fbaryon.
+        # Read constraints from litdata
+        if type(value) == str:                
+            self.constraints_source = value
+            data = read_lit(value)
+            fits = data.fits['lf']['pars']
+        
+        # Can optionally use a subset of redshift constraints provided 
+        try:
+            self._constraints['z'] = self.redshifts
+        except AttributeError:
+            self._constraints['z'] = data.redshifts
+            self.redshifts = data.redshifts
+        
+        self._constraints['Mstar'] = []
+        self._constraints['pstar'] = []
+        self._constraints['alpha'] = []
+        self._constraints['mags'] = []
+        
+        for i, z in enumerate(self._constraints['z']):
+            # If we read in fits from literature, have to be sure to
+            # get the redshifts correctly (since we're allowed to only
+            # use a subset of them)
             
-        """
-        if not hasattr(self, '_Macc'):
-            if self.pf['pop_Macc'] is None:
-                self._Macc = None
-            elif type(self.pf['pop_Macc']) is FunctionType:
-                self._Macc = self.pf['pop_Macc']
-            elif self.pf['pop_Macc'] == 'pl':
-                raise NotImplemented('do this')
-            else:
-                self._Macc = read_lit(self.pf['pop_Macc']).Macc
-
-        return self._Macc
-
-    @property
-    def zlim(self):
-        if not hasattr(self, '_zlim'):
-            self._zlim = [min(self.redshifts), max(self.redshifts)]    
-        return self._zlim
+            # Also, must override litdata if appropriate pars are passed.
+            
+            Mname = 'pop_lf_Mstar[%g]' % z
+            pname = 'pop_lf_pstar[%g]' % z
+            aname = 'pop_lf_alpha[%g]' % z
+            if Mname in self.pf:
+                self._constraints['Mstar'].append(self.pf[Mname])
+            elif type(value) == str:
+                j = data.redshifts.index(z)
+                self._constraints['Mstar'].append(fits['Mstar'][j])
+            if pname in self.pf:   
+                self._constraints['pstar'].append(self.pf[pname])
+            elif type(value) == str:
+                j = data.redshifts.index(z)
+                self._constraints['pstar'].append(fits['pstar'][j])
+            if aname in self.pf:
+                self._constraints['alpha'].append(self.pf[aname])
+            elif type(value) == str:
+                j = data.redshifts.index(z)
+                self._constraints['alpha'].append(fits['alpha'][j])
         
-    @property
-    def Mlim(self):
-        if not hasattr(self, '_Mlim'):
-            self._Mlim = [[min(self.MofL_tab[i]), max(self.MofL_tab[i])] \
-                for i in range(len(self.redshifts))]
-        return self._Mlim
+            self._constraints['mags'].append(np.array(data.data['lf'][z]['M']))
         
+        # Parameter file will have LF in Magnitudes...argh
+        redshifts = self._constraints['z']
+        self._constraints['Lstar'] = []
+        
+        # Correct magnitudes for dust extinction, convert to luminosity
+        for i, z in enumerate(redshifts):
+            M = self._constraints['Mstar'][i]
+            Mdc = M - self.AUV(z, M)
+            L = self.magsys.MAB_to_L(mag=Mdc, z=z)
+            self._constraints['Lstar'].append(L)
+        
+        return self._constraints 
+
     @property
     def fit_fstar(self):
         if not hasattr(self, '_fit_fstar'):
@@ -217,70 +149,6 @@ class AbundanceMatching(GalaxyPopulation):
     
         return self._fit_Lh
 
-    def fstar(self, z, M, *coeff):
-        #zok = np.all(self.zlim[0] <= z <= self.zlim[1])
-                        
-        # If we're extrapolating no matter what or we're within the
-        # allowed redshift and mass range, we're done                
-        #if (zok or (self.zext[0] is None)) and (self.Mext is None):
-        return 10**self._log_fstar(z, M, *coeff)
-        
-        ##
-        # OTHERWISE, WE ARE DOING SOME EXTRAPOLATING
-        ##
-        
-        #elif (self.Mext is None) and (self.zext[0] == 'const'):
-        #
-        #    if z > self.zext[2]:
-        #        fst = self.fstar_zhi(M, *coeff)
-        #    elif z < self.zext[1]:
-        #        fst = self.fstar_zlo(M, *coeff)
-        #    else:
-        #        fst = 10**self._log_fstar(z, M, *coeff)
-        #
-        ## Fit a power-law to the last few points (in mass).
-        ## Allow the redshift evolution to do its thing
-        #elif self.Mext in ['pl', 'exp']:
-        #    fst = self.fstar_Mlo(z, M, *coeff)
-        #  
-        #elif (self.Mext in ['floor', 'pl_floor']):
-        #    fst = 10**self._log_fstar(z, M, *coeff)
-        #elif (self.Mext == 'const') or (self.Mext == 'const'):
-        #
-        ## Set a constant upper limit for fstar below given mass limit     
-        ## Linearly interpolate in redshift to find this limit?
-        #    #fstar_Mmin = self.fstar_Mlo[0]
-        #    def tmp(zz, MM):
-        #        if type(MM) is np.ndarray:
-        #            Mlo = np.ones_like(MM[np.argwhere(MM < fstar_Mmin)]) \
-        #                * fstar_Mmin
-        #            Mhi = MM[np.argwhere(MM >= fstar_Mmin)]
-        #                                
-        #            fst_lo = self._fstar_func(zz, Mlo, *self._fstar_coeff)
-        #            fst_hi = self._fstar_func(zz, Mhi, *self._fstar_coeff)
-        #                                
-        #            fst = np.concatenate((fst_lo, fst_hi)).squeeze()
-        #            
-        #        elif MM > 10**self.pf['pop_logM'][0]:
-        #            fst = self._fstar_func(zz, MM, *self._fstar_coeff)
-        #        else:
-        #            fst = self._fstar_func(zz, fstar_Mmin, *self._fstar_coeff)
-        #            
-        #else:
-        #    raise ValueError('Unknown pop extrap option!')
-        #
-        #return fst
-
-    @property
-    def kappa_UV(self):
-        if not hasattr(self, '_kappa_UV'):
-            if self.sed_tab:
-                self._kappa_UV = self.src.pop.kappa_UV()
-            else:
-                self._kappa_UV = self.pf['pop_kappa_UV']
-            
-        return self._kappa_UV    
-    
     @property
     def fstar_tab(self):
         """
@@ -309,7 +177,7 @@ class AbundanceMatching(GalaxyPopulation):
     
             mags = []
             for mag in self.mags[i]:
-                mags.append(mag-self.A1600(z, mag))
+                mags.append(mag-self.AUV(z, mag))
     
             # Read in constraints for this redshift
             alpha = self.constraints['alpha'][i]
@@ -360,165 +228,6 @@ class AbundanceMatching(GalaxyPopulation):
     
         return self._fstar_tab
     
-    @property
-    def eta(self):
-        """
-        Correction factor for Macc.
-    
-        \eta(z) \int_{M_{\min}}^{\infty} \dot{M}_{\mathrm{acc}}(z,M) n(z,M) dM
-            = \bar{\rho}_m^0 \frac{df_{\mathrm{coll}}}{dt}|_{M_{\min}}
-    
-        """
-
-        # Prepare to compute eta
-        if not hasattr(self, '_eta'):        
-    
-            self._eta = np.zeros_like(self.halos.z)
-    
-            for i, z in enumerate(self.halos.z):
-    
-                # eta = rhs / lhs
-    
-                Mmin = self.Mmin[i]
-    
-                rhs = self.cosm.rho_m_z0 * self.dfcolldt(z)
-                rhs *= (s_per_yr / g_per_msun) * cm_per_mpc**3
-    
-                # Accretion onto all halos (of mass M) at this redshift
-                # This is *matter*, not *baryons*
-                Macc = self.Macc(z, self.halos.M)
-    
-                # Find Mmin in self.halos.M
-                j1 = np.argmin(np.abs(Mmin - self.halos.M))
-                if Mmin > self.halos.M[j1]:
-                    j1 -= 1
-    
-                integ = self.halos.dndlnm[i] * Macc
-                    
-                p0 = simps(integ[j1-1:], x=self.halos.lnM[j1-1:])
-                p1 = simps(integ[j1:], x=self.halos.lnM[j1:])
-                p2 = simps(integ[j1+1:], x=self.halos.lnM[j1+1:])
-                p3 = simps(integ[j1+2:], x=self.halos.lnM[j1+2:])
-    
-                interp = interp1d(self.halos.lnM[j1-1:j1+3], [p0,p1,p2,p3])
-    
-                lhs = interp(np.log(Mmin))
-    
-                self._eta[i] = rhs / lhs
-    
-        return self._eta
-                
-    def SFR(self, z, M):
-        eta = np.interp(z, self.halos.z, self.eta)
-        return self.cosm.fbaryon * self.Macc(z, M) * eta * self.SFE(z, M)
-        
-    def LuminosityFunction(self, z, x, mags=True, dc=False):
-        """
-        Reconstructed luminosity function.
-        
-        ..note:: This is number per [abcissa]
-                
-        Parameters
-        ----------
-        z : int, float
-            Redshift. Will interpolate between values in halos.z if necessary.
-        mags : bool
-            If True, x-values will be in absolute (AB) magnitudes
-        dc : bool
-            If True, magnitudes will be corrected for dust attenuation.
-            
-        Returns
-        -------
-        Magnitudes (or luminosities) and number density.
-
-        """
-            
-        if mags:
-            x_phi, phi = self.phi_of_M(z)
-            
-            # Optionally undo dust correction
-            if not dc:
-                x_phi += self.A1600(z, x_phi)
-                
-            # Setup interpolant
-            interp = interp1d(x_phi, np.log10(phi), kind='linear',
-                bounds_error=False, fill_value=-np.inf)
-            
-            phi_of_x = 10**interp(x)
-                
-            return phi_of_x
-        else:
-            
-            x_phi, phi = self.phi_of_L(z)
-            
-            # Setup interpolant
-            interp = interp1d(np.log10(x_phi), np.log10(phi), kind='linear',
-                bounds_error=False, fill_value=-np.inf)
-            
-            phi_of_x = 10**interp(np.log10(x))
-                                
-        return phi_of_x
-        
-        #if mags:
-        #    MAB = self.magsys.L_to_MAB(Lh, z=z)
-        #    if undo_dc:
-        #        MAB += self.A1600(z, MAB)
-        #    phi_of_L *= np.abs(np.diff(Lh) / np.diff(MAB))
-        #    return MAB[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1]
-        #else:
-        #    return Lh[:-1] * above_Mmin[0:-1], phi_of_L * above_Mmin[0:-1] 
-
-    #@property
-    #def Lh_of_M(self, z):
-    #    eta = np.interp(z, self.halos.z, self.eta)
-    #
-    #    Lh = self.cosm.fbaryon * self.Macc(z, self.halos.M) \
-    #        * eta * self.SFE(z, self.halos.M) / self.kappa_UV
-    #
-    #    return self.halos.M, Lh
-
-    def phi_of_L(self, z):
-
-        if not hasattr(self, '_phi_of_L'):
-            self._phi_of_L = {}
-        else:
-            if z in self._phi_of_L:
-                return self._phi_of_L[z]
-
-        Lh = self.SFR(z, self.halos.M) / self.kappa_UV
-        dMh_dLh = np.diff(self.halos.M) / np.diff(Lh)
-        dndm = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
-
-        # Only return stuff above Mmin
-        Mmin = np.interp(z, self.halos.z, self.Mmin)
-
-        above_Mmin = self.halos.M >= Mmin
-        below_Mmax = self.halos.M <= self.pf['pop_lf_Mmax']
-        ok = np.logical_and(above_Mmin, below_Mmax)[0:-1]
-
-        phi_of_L = dndm(z) * dMh_dLh
-
-        self._phi_of_L[z] = Lh[:-1] * ok, phi_of_L * ok
-          
-        return self._phi_of_L[z]
-    
-    def phi_of_M(self, z):
-        if not hasattr(self, '_phi_of_M'):
-            self._phi_of_M = {}
-        else:
-            if z in self._phi_of_M:
-                return self._phi_of_M[z]
-                
-        Lh, phi_of_L = self.phi_of_L(z)
-
-        MAB = self.magsys.L_to_MAB(Lh, z=z)
-
-        phi_of_M = phi_of_L[0:-1] * np.abs(np.diff(Lh) / np.diff(MAB))
-                
-        self._phi_of_M[z] = MAB[0:-1], phi_of_M
-        
-        return self._phi_of_M[z]        
-
     def L1600_limit(self, z):
         eta = np.interp(z, self.halos.z, self.eta)
         Mmin = np.interp(z, self.halos.z, self.Mmin)
@@ -561,62 +270,6 @@ class AbundanceMatching(GalaxyPopulation):
     
         return self._MofL_tab
 
-    @property
-    def Mmin(self):
-        if not hasattr(self, '_Mmin'):
-            # First, compute threshold mass vs. redshift
-            if self.pf['pop_Mmin'] is not None:
-                self._Mmin = self.pf['pop_Mmin'] * np.ones(self.halos.Nz)
-            else:
-                Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'], 
-                    z, mu=self.pf['mu'])
-                self._Mmin = np.array(map(Mvir, self.halos.z))
-
-        return self._Mmin    
-
-    @property
-    def sfr_tab(self):
-        """
-        SFR as a function of redshift and halo mass yielded by abundance match.
-
-            ..note:: Units are Msun/yr.
-    
-        """
-        if not hasattr(self, '_sfr_tab'):
-            self._sfr_tab = np.zeros([self.halos.Nz, self.halos.Nm])
-            for i, z in enumerate(self.halos.z):
-                self._sfr_tab[i] = self.eta[i] * self.Macc(z, self.halos.M) \
-                    * self.cosm.fbaryon * self.SFE(z, self.halos.M)
-    
-                mask = self.halos.M >= self.Mmin[i]
-                self._sfr_tab[i] *= mask
-    
-        return self._sfr_tab
-                
-    @property
-    def sfrd_tab(self):
-        """
-        SFRD as a function of redshift yielded by abundance match.
-    
-            ..note:: Units are g/s/cm^3 (comoving).
-    
-        """
-        if not hasattr(self, '_sfrd_tab'):
-            self._sfrd_tab = np.zeros(self.halos.Nz)
-            
-            for i, z in enumerate(self.halos.z):
-                integrand = self.sfr_tab[i] * self.halos.dndlnm[i]
- 
-                tot = np.trapz(integrand, x=self.halos.lnM)
-                cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
-                
-                self._sfrd_tab[i] = tot - \
-                    np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
-                
-            self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
-
-        return self._sfrd_tab
-        
     def Mh_of_z(self, zarr):
         """
         Given a redshift, evolve a halo from its initial mass (Mmin(z)) onward.
@@ -869,22 +522,6 @@ class AbundanceMatching(GalaxyPopulation):
     
         return self._fstar_Mlo    
     
-    def SFE(self, z, M):
-        """
-        Compute the star-formation efficiency.
-        
-        If outside the bounds, must extrapolate.
-        """
-        
-        if self.fit_fstar:
-            return self.fstar(z, M, *self.coeff)
-
-        # Otherwise, we fit the mass-to-light ratio
-        eta = np.interp(z, self.halos.z, self.eta)
-        
-        return self.Lh(z, M) * self.kappa_UV \
-            / (self.cosm.fbaryon * self.Macc(z, M) * eta)        
-            
     @property
     def _apply_floor(self):
         if not hasattr(self, '_apply_floor_'):
@@ -1006,38 +643,6 @@ class AbundanceMatching(GalaxyPopulation):
         return self._pop_id
 
     @property
-    def irrelevant(self):
-        if not hasattr(self, '_irrelevant'):
-            if self.pf.pfs[self.pop_id]['pop_model'] != 'ham':
-                self._irrelevant = True
-            else:
-                self._irrelevant = False
-
-        return self._irrelevant
-
-    @property
-    def Mfunc(self):
-        return self.pf.pfs[self.pop_id]['pop_ham_Mfun']
-    
-    @property
-    def zfunc(self):
-        return self.pf.pfs[self.pop_id]['pop_ham_zfun']
-    
-    @property
-    def Mext(self):
-        return self.pf.pfs[self.pop_id]['pop_ham_Mext']
-    
-    @property
-    def Mext_pars(self):
-        return self.pf.pfs[self.pop_id]['pop_ham_Mext_par1'], \
-            self.pf.pfs[self.pop_id]['pop_ham_Mext_par2']
-
-    @property
-    def zext(self):
-        return self.pf.pfs[self.pop_id]['pop_ham_zext'], \
-              self.pf.pfs[self.pop_id]['pop_ham_zext_par']
-
-    @property
     def Ncoeff(self):
         if not hasattr(self, '_Ncoeff'): 
             self._Ncoeff = len(self.guesses)
@@ -1075,48 +680,48 @@ class AbundanceMatching(GalaxyPopulation):
 
         return self._guesses
 
-    def Mpeak(self, z):
-        """
-        The mass at which the star formation efficiency peaks.
-        """
-        
-        alpha = lambda MM: self.gamma_sfe(z, MM)
-            
-        i = np.argmin(np.abs(z - np.array(self.redshifts)))
-        guess = self.MofL_tab[i][np.argmax(self.fstar_tab[i])]
-
-        return fsolve(alpha, x0=guess, maxfev=10000, full_output=False,
-            xtol=1e-3)[0]
-            
-    def fpeak(self, z):
-        return self.SFE(z, self.Mpeak(z))
-    
-    def gamma_sfe(self, z, M):
-        """
-        This is a power-law index describing the relationship between the
-        SFE and and halo mass.
-        
-        Parameters
-        ----------
-        z : int, float
-            Redshift
-        M : int, float
-            Halo mass in [Msun]
-            
-        """
-        
-        fst = lambda MM: self.SFE(z, MM)
-        
-        return derivative(fst, M, dx=1e6) * M / fst(M)
-            
-    def alpha_lf(self, z, mag):
-        """
-        Slope in the luminosity function
-        """
-        
-        logphi = lambda MM: np.log10(self.LuminosityFunction(z, MM, mags=True))
-        
-        return -(derivative(logphi, mag, dx=0.1) + 1.)
+    #def Mpeak(self, z):
+    #    """
+    #    The mass at which the star formation efficiency peaks.
+    #    """
+    #    
+    #    alpha = lambda MM: self.gamma_sfe(z, MM)
+    #        
+    #    i = np.argmin(np.abs(z - np.array(self.redshifts)))
+    #    guess = self.MofL_tab[i][np.argmax(self.fstar_tab[i])]
+    #
+    #    return fsolve(alpha, x0=guess, maxfev=10000, full_output=False,
+    #        xtol=1e-3)[0]
+    #        
+    #def fpeak(self, z):
+    #    return self.SFE(z, self.Mpeak(z))
+    #
+    #def gamma_sfe(self, z, M):
+    #    """
+    #    This is a power-law index describing the relationship between the
+    #    SFE and and halo mass.
+    #    
+    #    Parameters
+    #    ----------
+    #    z : int, float
+    #        Redshift
+    #    M : int, float
+    #        Halo mass in [Msun]
+    #        
+    #    """
+    #    
+    #    fst = lambda MM: self.SFE(z, MM)
+    #    
+    #    return derivative(fst, M, dx=1e6) * M / fst(M)
+    #        
+    #def alpha_lf(self, z, mag):
+    #    """
+    #    Slope in the luminosity function
+    #    """
+    #    
+    #    logphi = lambda MM: np.log10(self.LuminosityFunction(z, MM, mags=True))
+    #    
+    #    return -(derivative(logphi, mag, dx=0.1) + 1.)
         
 
             
