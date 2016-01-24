@@ -874,7 +874,6 @@ class ModelSet(BlobFactory):
             scat = ax.scatter(xdata, ydata, c=cdata, **kwargs)
         else:
             scat = ax.scatter(xdata, ydata, **kwargs)
-
                            
         if cdata is not None:
             cb = self._cb = pl.colorbar(scat)
@@ -1903,7 +1902,6 @@ class ModelSet(BlobFactory):
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)    
-        
             
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)      
@@ -2036,7 +2034,7 @@ class ModelSet(BlobFactory):
                     tohist = [to_hist[j], to_hist[-1::-1][i]]
                 except KeyError:
                     tohist = [to_hist[p2], to_hist[p1]]
-                                
+                                                    
                 # 2-D PDFs elsewhere
                 if scatter:
                     ax = self.Scatter([p2, p1], ax=mp.grid[k], 

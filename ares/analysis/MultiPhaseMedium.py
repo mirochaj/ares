@@ -102,8 +102,8 @@ class MultiPhaseMedium(object):
             self.pf = pickle.load(f)
             f.close()
 
-            self.cosm = Cosmology(**self.pf)
-            self.hydr = Hydrogen(**self.pf)
+            #self.cosm = Cosmology(**self.pf)
+            #self.hydr = Hydrogen(**self.pf)
 
         except IOError: 
             if re.search('pkl', data):

@@ -161,15 +161,6 @@ class loglikelihood(LogLikelihood):
         PofD = self.const_term - \
             0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)
             
-        #import matplotlib.pyplot as pl
-        #pl.scatter(M, self.ydata)
-        #pl.semilogy(M, p)
-        #pl.semilogy(*pop.phi_of_M(z), ls='--')
-        #print PofD, kwargs
-        #pl.ylim(1e-6, 10)
-        #raw_input('<enter>')
-        #pl.close()    
-            
         if np.isnan(PofD):
             return -np.inf, self.blank_blob
 

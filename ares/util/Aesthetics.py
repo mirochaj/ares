@@ -191,6 +191,15 @@ pop_parameters = \
  'pop_lf_beta': r'$\Beta_{\mathrm{UV}}$',
 }
 
+sfe_parameters = \
+{
+ "galaxy_lf": r'$\phi(M_{\mathrm{UV}})$',
+ "sfe_Mfun_par0": r'$a_M^0$',
+ "sfe_Mfun_par1": r'$a_M^1$',
+ "sfe_Mfun_par2": r'$a_M^2$',
+ "sfe_Mfun_par3": r'$a_M^3$',
+}
+
 other = \
 {
  'load': 'processor #',
@@ -205,6 +214,7 @@ labels.update(common)
 labels.update(lf_parameters)
 labels.update(pop_parameters)
 labels.update(tp_parameters)
+labels.update(sfe_parameters)
 
 # Add custom labels
 labels.update(custom_labels)

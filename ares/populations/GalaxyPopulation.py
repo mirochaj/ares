@@ -156,15 +156,7 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
 
         if mags:
             x_phi, phi = self.phi_of_M(z)
-
-            # Setup interpolant
-            #interp = interp1d(x_phi[-1::-1], np.log10(phi)[-1::-1], 
-            #    kind='linear', bounds_error=False, fill_value=-np.inf)
-            
-            #phi_of_x = 10**interp(x)
-            #
             phi_of_x = 10**np.interp(x, x_phi[-1::-1], np.log10(phi)[-1::-1])
-
         else:
             
             x_phi, phi = self.phi_of_L(z)
@@ -492,9 +484,12 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
         Slope in the luminosity function
         """
         
-        logphi = lambda MM: np.log10(self.LuminosityFunction(z, MM, mags=True))
+        logphi = lambda logL: np.log10(self.LuminosityFunction(z, 10**logL, mags=False))
         
-        return -(derivative(logphi, mag, dx=0.1) + 1.)
+        Mdc = mag - self.AUV(z, mag)
+        L = self.magsys.MAB_to_L(mag=Mdc, z=z)
+        
+        return derivative(logphi, np.log10(L), dx=0.1)
         
 
             

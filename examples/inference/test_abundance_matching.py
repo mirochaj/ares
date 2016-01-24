@@ -18,7 +18,7 @@ import matplotlib.pyplot as pl
 
 # 
 ## INPUT
-redshifts = [4.9]
+redshifts = [3.8]
 betas = [None, -2]
 method = [None, 'meurer1999']
 ##
@@ -32,7 +32,7 @@ for h, beta in enumerate(betas):
 
     pars = {'dustcorr_Afun': method[h], 'dustcorr_Bfun_par0': beta}
 
-    ham = ares.inference.AbundanceMatching(**pars)
+    ham = ares.inference.AbundanceMatching(sfe_Mfun='dpl', **pars)
 
     ham.constraints = 'bouwens2015'
     ham.redshifts = redshifts
@@ -44,13 +44,20 @@ for h, beta in enumerate(betas):
 
     for i, z in enumerate(ham.redshifts):
         pl.scatter(ham.MofL_tab[i], ham.fstar_tab[i], color=colors[i],
-            label=label, marker=markers[h])
+            label=label, marker=markers[h], facecolors='none', s=50)
     
 pl.xscale('log')
 pl.yscale('log')
 pl.xlabel(r'$M_h / M_{\odot}$')
 pl.ylabel(r'$f_{\ast}$')
 pl.legend(loc='lower left', ncol=1, fontsize=14)
+
+# Fit it real quick
+best = ham.fit_fstar()
+
+M = np.logspace(8, 14)
+pl.loglog(M, ham._fstar(3.8, M, best))
+
 
 
 

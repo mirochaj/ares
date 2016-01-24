@@ -251,6 +251,8 @@ def SFEParameters():
     'sfe_Mfun_hi': None,
     'sfe_Mfun_hi_par0': 1e13,
     'sfe_Mfun_hi_par1': None,
+    'sfe_Mfun_hi_par2': None,
+    'sfe_Mfun_hi_par3': None,
     
     "sfe_Mmax": 5e13,
 

@@ -88,23 +88,28 @@ class ParameterizedSFE(object):
 
     @_apply_extrap.setter
     def _apply_extrap(self, value):
-        self._apply_extrap_ = value    
+        self._apply_extrap_ = value   
         
     def fstar(self, z, M):
         """
         Compute the star formation efficiency.
         """
         
+        pars = [self.pf['sfe_Mfun_par%i' % i] for i in range(4)]
+        lpars = [self.pf['sfe_Mfun_lo_par%i' % i] for i in range(4)]
+        hpars = [self.pf['sfe_Mfun_hi_par%i' % i] for i in range(4)]
+        
+        return self._fstar(z, M, pars, lpars, hpars)
+        
+    def _fstar(self, z, M, pars, lopars=None, hipars=None):
+            
         logM = np.log10(M)
         
         if self.Mfunc == 'lognormal':            
             f = self.fpeak(z) * np.exp(-(logM - np.log10(self.Mpeak(z)))**2 \
                 / 2. / self.sigma(z)**2)
         elif self.Mfunc == 'dpl':
-            p1 = self.pf['sfe_Mfun_par0']
-            p2 = self.pf['sfe_Mfun_par1']
-            p3 = self.pf['sfe_Mfun_par2']
-            p4 = self.pf['sfe_Mfun_par3']
+            p1 = pars[0]; p2 = pars[1]; p3 = pars[2]; p4 = pars[3]
             f = 2. * p1 / ((M / p2)**-p3 + (M / p2)**p4)
         elif self.Mfunc == 'poly':
             raise NotImplemented('sorry dude!')
@@ -120,7 +125,7 @@ class ParameterizedSFE(object):
                 p1 = self.pf['sfe_Mfun_lo_par0']
                 p2 = self.pf['sfe_Mfun_lo_par1']
                 if self.pf['sfe_Mfun_lo'] == 'pl':
-                    to_add = self.fstar(z, p1) * (M / p1)**p2
+                    to_add = p1 * (M / 1e10)**p2
                 elif self.pf['sfe_Mfun_lo'] == 'plexp':
                     p3 = self.pf['sfe_Mfun_lo_par2']
                     to_add = self.fstar(z, p1) * (M / p1)**p2 \
@@ -129,7 +134,7 @@ class ParameterizedSFE(object):
                     p3 = self.pf['sfe_Mfun_lo_par2']
                     p4 = self.pf['sfe_Mfun_lo_par3']
                     to_add = p1 / ((M / p2)**-p3 + (M / p2)**p4)
-                    
+
             if self.Mhi_extrap:
                 if self.pf['sfe_Mfun_hi'] == 'exp':
                     Mexp = self.pf['sfe_Mfun_hi_par0']

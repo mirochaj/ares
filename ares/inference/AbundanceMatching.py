@@ -132,15 +132,34 @@ class AbundanceMatching(GalaxyPopulation):
         
         return self._constraints 
 
-    @property
     def fit_fstar(self):
-        if not hasattr(self, '_fit_fstar'):
-            if self.pf['pop_ham_fit'] == 'fstar':
-                self._fit_fstar = True
-            else:
-                self._fit_fstar = False
-    
-        return self._fit_fstar       
+        M = []; fstar = []; z = []
+        for i, element in enumerate(self.MofL_tab):
+            z.extend([self.redshifts[i]] * len(element))
+            M.extend(element)
+            fstar.extend(self.fstar_tab[i]) 
+
+        x = [np.array(M), np.array(z)]
+        y = np.array(fstar)
+
+        guess = [0.2, 1e12, 0.5, 0.5]
+
+        def to_fit(Mz, *coeff):
+            M, z = Mz
+            #for i in range(4):
+            #    self.pf['sfe_Mfun_par%i' % i] = coeff[i]
+                
+            return self._fstar(z, M, coeff).flatten()
+
+        coeff, cov = curve_fit(to_fit, x, y, p0=guess, maxfev=100000)
+
+        #try:
+        #    self._coeff_fstar, self._cov = \
+        #        curve_fit(to_fit, x, y, p0=guess, maxfev=100000)
+        #except RuntimeError:
+        #    self._coeff_fstar, self._cov = guess, np.diag(guess)
+        
+        return coeff       
     
     @property
     def fit_Lh(self):
@@ -169,8 +188,8 @@ class AbundanceMatching(GalaxyPopulation):
         pb = ProgressBar(Nz * Nm, name='ham', use=self.pf['progress_bar'])
         pb.start()
     
-        self._MofL_tab = [[] for i in range(len(self.constraints['z']))]
-        self._LofM_tab = [[] for i in range(len(self.constraints['z']))]
+        self._MofL_tab = [[] for i in range(len(self.redshifts))]
+        self._LofM_tab = [[] for i in range(len(self.redshifts))]
     
         # Do it already    
         for i, z in enumerate(self.redshifts):
@@ -334,15 +353,15 @@ class AbundanceMatching(GalaxyPopulation):
             
         Mh_of_z_all.append(Mh_of_z[-1::-1])    
                 
-    @property
-    def coeff(self):
-        if not hasattr(self, '_coeff'):
-            if self.fit_fstar:
-                self._coeff = self.coeff_fstar
-            else:
-                self._coeff = self.coeff_mtl
-                
-        return self._coeff
+    #@property
+    #def coeff(self):
+    #    if not hasattr(self, '_coeff'):
+    #        if self.fit_fstar:
+    #            self._coeff = self.coeff_fstar
+    #        else:
+    #            self._coeff = self.coeff_mtl
+    #            
+    #    return self._coeff
                 
     @property
     def coeff_fstar(self):
