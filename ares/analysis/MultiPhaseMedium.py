@@ -112,7 +112,12 @@ class MultiPhaseMedium(object):
                 f.close()
             else:
                 import glob
-                fn = glob.glob('./%s.history*' % data)[0]
+                fns = glob.glob('./%s.history*' % data)
+                if not fns:
+                    raise IOError('No files with prefix %s.' % data)
+                else:
+                    fn = fns[0]
+                    
                 f = open(fn, 'r')
                 cols = f.readline().split()[1:]
                 _data = np.loadtxt(f)

@@ -44,6 +44,27 @@ class Population(object):
         
         return ax
         
+    def ObservedLF(self, source, z, ax=None, fig=1):
+        
+        data = read_lit(source)
+        
+        assert z in data.redshifts, "Requested redshift not in source %s" % source
+        
+        uplims = np.array(data.data['lf'][z]['err']) < 0
+        
+        err_lo = []; err_hi = []
+        for hh, err1 in enumerate(o13.data['lf'][z]['err']):
+            if uplims[hh]:
+                err_hi.append(0.0)
+                err_lo.append(0.8 * o13.data['lf'][z]['phi'][hh])
+            else:
+                err_hi.append(err1)
+                err_lo.append(err1)
+
+        mp.grid[i].errorbar(o13.data['lf'][z]['M'], o13.data['lf'][z]['phi'],
+            yerr=(err_lo, err_hi), uplims=list(uplims), fmt='o', 
+            color='g', zorder=10, mec='g', ms=3)    
+        
     def MassToLight(self, z, ax=None, fig=1, scatkw={}, **kwargs):
         """
         Plot the halo mass to luminosity relationship yielded by AM.

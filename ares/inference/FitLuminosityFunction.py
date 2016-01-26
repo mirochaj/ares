@@ -121,7 +121,7 @@ class loglikelihood(LogLikelihood):
         if self.runsim:
                         
             try:
-                sim.run()                     
+                sim.run()                
             except (ValueError, IndexError):
                 # Seems to happen in some weird cases when the 
                 # HAM fit fails
@@ -158,9 +158,9 @@ class loglikelihood(LogLikelihood):
             p = pop.LuminosityFunction(z=z, x=M, mags=True)
             phi.extend(p)
             
-        PofD = self.const_term - \
-            0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)
-            
+        lnL = 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
+        PofD = self.const_term - lnL
+                        
         if np.isnan(PofD):
             return -np.inf, self.blank_blob
 

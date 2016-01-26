@@ -145,6 +145,11 @@ class ModelGrid(ModelFit):
         # Shortcut to parameter names
         self.parameters = self.grid.axes_names
         
+    @property
+    def priors(self):
+        # Need to override priors in ModelFit
+        return {}    
+        
     def set_models(self, models):
         """
         Set all models by hand. 

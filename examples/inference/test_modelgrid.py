@@ -31,7 +31,6 @@ base_pars = \
  'blob_funcs': None,
 }
 
-
 mg = ares.inference.ModelGrid(**base_pars)
 
 mg.axes = grid_axes

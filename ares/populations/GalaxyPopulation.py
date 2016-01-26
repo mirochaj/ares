@@ -415,35 +415,35 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
             return coeff[0] + coeff[1] * np.log10(M / 1e10) \
                 + coeff[2] * (np.log10(M / 1e10))**2 
     
-    @property
-    def Npops(self):
-        return self.pf.Npops
-        
-    @property
-    def pop_id(self):
-        # Pop ID number for HAM population
-        if not hasattr(self, '_pop_id'):
-            for i, pf in enumerate(self.pf.pfs):
-                if pf['pop_model'] == 'ham':
-                    break
-            
-            self._pop_id = i
-        
-        return self._pop_id
-    
-    @property
-    def Mext(self):
-        return self.pf.pfs[self.pop_id]['pop_sfe_Mext']
-
-    @property
-    def Mext_pars(self):
-        return self.pf.pfs[self.pop_id]['pop_sfe_Mext_par1'], \
-            self.pf.pfs[self.pop_id]['pop_sfe_Mext_par2']
-
-    @property
-    def zext(self):
-        return self.pf.pfs[self.pop_id]['pop_sfe_zext'], \
-              self.pf.pfs[self.pop_id]['pop_sfe_zext_par']
+    #@property
+    #def Npops(self):
+    #    return self.pf.Npops
+    #    
+    #@property
+    #def pop_id(self):
+    #    # Pop ID number for HAM population
+    #    if not hasattr(self, '_pop_id'):
+    #        for i, pf in enumerate(self.pf.pfs):
+    #            if pf['pop_model'] == 'pSFE':
+    #                break
+    #        
+    #        self._pop_id = i
+    #    
+    #    return self._pop_id
+    #
+    #@property
+    #def Mext(self):
+    #    return self.pf.pfs[self.pop_id]['pop_sfe_Mext']
+    #
+    #@property
+    #def Mext_pars(self):
+    #    return self.pf.pfs[self.pop_id]['pop_sfe_Mext_par1'], \
+    #        self.pf.pfs[self.pop_id]['pop_sfe_Mext_par2']
+    #
+    #@property
+    #def zext(self):
+    #    return self.pf.pfs[self.pop_id]['pop_sfe_zext'], \
+    #          self.pf.pfs[self.pop_id]['pop_sfe_zext_par']
 
     #def Mpeak(self, z):
     #    """

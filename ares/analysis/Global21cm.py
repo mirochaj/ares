@@ -20,6 +20,11 @@ from .TurningPoints import TurningPoints
 from ..util.Math import central_difference
 from .MultiPhaseMedium import MultiPhaseMedium
 
+try:
+    from scipy.stats import kurtosis, skew
+except ImportError:
+    pass
+
 class Global21cm(MultiPhaseMedium):
     #def __init__(self, data=None, **kwargs):
     #    MultiPhaseMedium.__init__(data, **kwargs)
@@ -114,6 +119,23 @@ class Global21cm(MultiPhaseMedium):
         if not hasattr(self, '_nu_p'):
             tmp = self.dTbdnu
         return self._nu_p    
+        
+    @property
+    def kurtosis(self):
+        if not hasattr(self, '_kurtosis'):
+            i1 = np.argmin(np.abs(self.nu_B - self.data['nu']))
+            i2 = np.argmin(np.abs(self.nu_D - self.data['nu']))
+            self._kurtosis = kurtosis(self.data['igm_dTb'][i1:i2])
+            
+        return self._kurtosis
+    
+    @property
+    def skewness(self):
+        if not hasattr(self, '_skewness'):
+            i1 = np.argmin(np.abs(self.nu_B - self.data['nu']))
+            i2 = np.argmin(np.abs(self.nu_D - self.data['nu']))
+            self._skewness = skew(self.data['igm_dTb'][i1:i2])
+        return self._skewness
     
     @property
     def track(self):

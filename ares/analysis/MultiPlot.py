@@ -268,7 +268,6 @@ class MultiPanel:
             self._rows = [[] for i in range(self.dims[0])]
             for element in self.active_elements:
                 col, row = self.axis_position(element)
-    
                 self._rows[row].append(element)
     
         return self._rows        
@@ -286,7 +285,8 @@ class MultiPanel:
         elif self.dims[1] == 1:
             return (0, i)        
         else:
-            return i % self.dims[1], int(i / self.dims[0])
+            return i % self.dims[1], i % self.dims[0]
+            #return i % self.dims[1], int(i / self.dims[0])
         
     def axis_number(self, j, k):
         """

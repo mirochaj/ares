@@ -432,6 +432,19 @@ class HaloMassFunction(object):
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**-0.5 \
             * ((1. + z) / 10.)**-1.5
                 
+    def VirialRadius(self, M, z, mu=0.6):
+        """
+        Compute virial radius corresponding to halo of given virial mass 
+        and collapse redshift.
+        
+        Equation 24 in Barkana & Loeb (2001).
+        """
+        
+        return 0.784 * (M * self.cosm.h70 / 1e8)**(1. / 3.) \
+            * (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
+            / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
+            * ((1. + z) / 10.)**-1.
+                
     def table_prefix(self):
         """
         What should we name this table?

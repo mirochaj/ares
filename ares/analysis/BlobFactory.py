@@ -343,7 +343,8 @@ class BlobFactory(object):
                         func = parse_attribute(fname, self)
                         blob = func(self.blob_ivars[i])
 
-                # 1-D blobs. Assume the independent variable is redshift.
+                # 1-D blobs. Assume the independent variable is redshift 
+                # unless a function is provided
                 elif self.blob_nd[i] == 1:
                     x = np.array(self.blob_ivars[i])
                     if (self.blob_funcs[i][j] is None):
@@ -365,7 +366,7 @@ class BlobFactory(object):
                         for y in yarr:
                             tmp.append(func(x, y))
                         blob.append(tmp)
-
+                        
                 this_group.append(np.array(blob))
 
             self._blobs.append(np.array(this_group))
@@ -427,9 +428,10 @@ class BlobFactory(object):
         
             all_data.extend(data)
                 
-        # Dunno why this squeeze is necessary but it is so there
-        all_data = np.array(all_data).squeeze()
-            
+        # Used to have a squeeze() here for no apparent reason...
+        # somehow it resolved itself.
+        all_data = np.array(all_data)    
+
         mask = np.logical_not(np.isfinite(all_data))
         masked_data = np.ma.array(all_data, mask=mask)
         
