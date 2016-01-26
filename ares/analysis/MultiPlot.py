@@ -285,9 +285,8 @@ class MultiPanel:
         elif self.dims[1] == 1:
             return (0, i)        
         else:
-            return i % self.dims[1], i % self.dims[0]
-            #return i % self.dims[1], int(i / self.dims[0])
-        
+            return tuple(np.argwhere(self.elements[-1::-1] == i)[0][-1::-1])
+
     def axis_number(self, j, k):
         """
         Given indices describing a panel's (x,y) position, return ID number.
