@@ -110,8 +110,6 @@ class loglikelihood(LogLikelihood):
         
         self.checkpoint(**kw)
         
-        kw['pop_fesc{0}'] = 0.1
-
         sim = self.sim = self.sim_class(**kw)
 
         if isinstance(sim, simG21):

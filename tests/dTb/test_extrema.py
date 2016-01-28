@@ -46,12 +46,10 @@ def test():
     # Now, check the turning-point-finding on the tanh model
     # Test sensitivity to frequency sampling
     for dnu in [0.05, 0.1, 0.5, 1]:
-        freq = np.arange(50, 120+dnu, dnu)
+        freq = np.arange(40, 120+dnu, dnu)
         sim = ares.simulations.Global21cm(tanh_model=True, 
             output_frequencies=freq)
-        
-        print dnu, sim.turning_points                
-            
+                    
     # Everything good?
     assert absorption_OK and no_nonsense
     

@@ -156,7 +156,7 @@ class TurningPoints(object):
                             
             if TP in ['B', 'D']:
                 TTP *= -1.
-                            
+
             # Compute curvature at turning point (mK**2 / MHz**2)
             nuTP = nu_0_mhz / (1. + zTP)
             d2 = derivative(lambda zz: splev(zz, Bspl_fit1), x0=float(zTP), 
