@@ -125,7 +125,7 @@ class ParameterizedHaloProperty(object):
         to_mult = 1.0
         if self._apply_extrap:
             self._apply_extrap = 0
-            
+
             if self.Mlo_extrap:
                 p1 = self.pf['php_Mfun_lo_par0']
                 p2 = self.pf['php_Mfun_lo_par1']
