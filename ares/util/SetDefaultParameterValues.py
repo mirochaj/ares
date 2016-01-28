@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'SFE', 'Dust']
+    'MultiPhase', 'SFE', 'Dust', 'HaloProperty']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -223,6 +223,44 @@ def PhysicsParameters():
     pf.update(rcParams)
             
     return pf
+    
+def HaloPropertyParameters():
+    pf = {}
+    
+    tmp = \
+    {
+     "php_Mfun": 'dpl',
+     "php_Mfun_par0": None,
+     "php_Mfun_par1": None,
+     "php_Mfun_par2": None,
+     "php_Mfun_par3": None,
+     "php_zfun": 'constant',    
+     "php_zfun_par0": None,    
+     "php_zfun_par1": None, 
+     "php_zfun_par2": None,  
+     "php_zfun_par2": None,
+     "php_ceil": 1.0,
+
+     'php_Mfun_lo': None,
+     'php_Mfun_lo_par0': 1e12,
+     'php_Mfun_lo_par1': 0.1,
+     'php_Mfun_lo_par2': 0.33,
+     'php_Mfun_lo_par3': 0.33,
+
+     'php_Mfun_hi': None,
+     'php_Mfun_hi_par0': 1e13,
+     'php_Mfun_hi_par1': None,
+     'php_Mfun_hi_par2': None,
+     'php_Mfun_hi_par3': None,
+
+     "php_Mmax": 5e13,
+    
+    }  
+    
+    pf.update(tmp)
+    pf.update(rcParams)
+
+    return pf  
     
 def SFEParameters():
     pf = {}

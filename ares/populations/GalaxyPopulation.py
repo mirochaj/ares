@@ -18,10 +18,10 @@ from .GalaxyAggregate import GalaxyAggregate
 from scipy.optimize import fsolve, curve_fit
 from ..util.DustCorrection import DustCorrection
 from scipy.integrate import quad, simps, cumtrapz, ode
-from ..util.StarFormationEfficiency import ParameterizedSFE
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc
+from ..util.StarFormationEfficiency import ParameterizedHaloProperty
 
 try:
     from scipy.misc import derivative
@@ -30,8 +30,12 @@ except ImportError:
     
 z0 = 9. # arbitrary
     
-class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
+class GalaxyPopulation(GalaxyAggregate,DustCorrection):
 
+    @property
+    def model(self):
+        return self.pf['pop_model']
+    
     @property
     def magsys(self):
         if not hasattr(self, '_magsys'):
@@ -132,8 +136,13 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
         return self._eta
                 
     def SFR(self, z, M):
-        eta = np.interp(z, self.halos.z, self.eta)
-        return self.cosm.fbaryon * self.Macc(z, M) * eta * self.SFE(z, M)
+        if self.model == 'sfe':
+            eta = np.interp(z, self.halos.z, self.eta)
+            return self.cosm.fbaryon * self.Macc(z, M) * eta * self.SFE(z, M)
+        elif self.model == 'tdyn':
+            return self.pf['pop_fstar'] * self.cosm.fbaryon * M / self.tdyn(z, M)    
+        else:
+            raise NotImplemented('Unrecognized model: %s' % self.model)
         
     def LuminosityFunction(self, z, x, mags=True):
         """
@@ -394,7 +403,7 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
         If outside the bounds, must extrapolate.
         """
     
-        return self.fstar(z, M)
+        return np.minimum(self.fstar(z, M), self.pf['php_ceil'])
     
         ## Otherwise, we fit the mass-to-light ratio
         #eta = np.interp(z, self.halos.z, self.eta)
@@ -402,6 +411,29 @@ class GalaxyPopulation(GalaxyAggregate,ParameterizedSFE,DustCorrection):
         #return self.Lh(z, M) * self.kappa_UV \
         #    / (self.cosm.fbaryon * self.Macc(z, M) * eta)        
     
+    
+    @property
+    def fstar(self):
+        if not hasattr(self, '_fstar'):
+            self._fstar = ParameterizedHaloProperty(**self.pf)
+        return self._fstar
+        
+    @property
+    def tdyn_inv(self):
+        if not hasattr(self, '_tdyn_func'):
+            self._tdyn_inv = ParameterizedHaloProperty(**self.pf)
+        return self._tdyn_inv
+    
+    def precipitation_rate(self, z, M):
+        pass    
+    
+    def tdyn(self, z, M):
+        """
+        Compute the dynamical time of a halo of mass M at redshift z.
+        
+        .. note :: Units are [s]^{-1}
+        """
+        return 1. / self.tdyn_inv(z, M)
     
     def Lh(self, z, M):
         return 10**self._log_Lh(z, M, *self.coeff) 

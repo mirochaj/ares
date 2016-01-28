@@ -84,7 +84,8 @@ class TurningPoints(object):
         """
         
         # Hack: don't check for turning points right at beginning
-        if self.step < 10 or (z[-1] > 1e3):
+        # Also: need at least 3 points to check for a turning point
+        if self.step < 3 or (z[-1] > 1e3):
             self._step += 1
             return False
 
@@ -118,9 +119,9 @@ class TurningPoints(object):
                 
                 if self.pf['stop'] == 'trans':
                     return True
-        
+                
         # If we found a turning point, hone in on its position
-        if self.found_TP and (z[-1] < self.z_TP) and (self.Npts > 5): 
+        if self.found_TP and (z[-1] < self.z_TP) and (self.Npts > 3): 
                         
             # Redshift and temperature points bracketing crudely-determined
             # extremum position
@@ -143,7 +144,7 @@ class TurningPoints(object):
             TTP_guess = np.interp(zTP_guess, z[k:-1], dTb[k:-1]) 
                                                                    
             # Spline interpolation to get "final" extremum redshift
-            Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=5)
+            Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=3)
                 
             if TP in ['B', 'D']:
                 dTb_fit = lambda zz: -splev(zz, Bspl_fit1)

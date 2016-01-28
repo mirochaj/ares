@@ -7,5 +7,5 @@ from .ProgressBar import ProgressBar
 from .ParameterFile import ParameterFile
 from .MagnitudeSystem import MagnitudeSystem
 from .RestrictTimestep import RestrictTimestep
-from .StarFormationEfficiency import ParameterizedSFE
+from .StarFormationEfficiency import ParameterizedHaloProperty
 
