@@ -11,7 +11,7 @@ info = \
  'fits': 'Table 6', 
 }
 
-redshifts = [3.8, 4.9, 5.9, 6.9, 7.9]
+redshifts = [3.8, 4.9, 5.9, 6.9, 7.9, 10.4]
 
 ULIM = -1e10
 

@@ -62,14 +62,11 @@ class ObservedLF(object):
                 z = redshift
                 
             data[source] = {}
-            
-            uplims = np.array(src.data['lf'][z]['err']) < 0    
-            
-            data[source]['ulim'] = list(uplims)
+                        
             data[source]['M'] = src.data['lf'][z]['M']
             
             if src.units['phi'] == 'log10':
-                err_lo = []; err_hi = []
+                err_lo = []; err_hi = []; uplims = []
                 for i, err in enumerate(src.data['lf'][z]['err']):
                     
                     if type(err) not in [int, float]:
@@ -86,30 +83,38 @@ class ObservedLF(object):
                     err1 = 10**logphi_ML - phi_lo
                     err2 = phi_hi - 10**logphi_ML
                     
-                    if uplims[i]:
+                    if (err < 0):
                         err_hi.append(0.0)
                         err_lo.append(0.8 * 10**logphi_ML)
                     else:
                         err_lo.append(err1)
                         err_hi.append(err2)
+                        
+                    uplims.append(err < 0)    
                     
                 data[source]['err'] = (err_lo, err_hi)        
                 data[source]['phi'] = 10**np.array(src.data['lf'][z]['phi'])
+                data[source]['ulim'] = uplims
             else:                
                 
-                err_lo = []; err_hi = []
+                err_lo = []; err_hi = []; uplims = []
                 for i, err in enumerate(src.data['lf'][z]['err']):
                     
                     if type(err) in [list, tuple, np.ndarray]:
-                        raise NotImplemented('help!')
+                        err_hi.append(err[1])
+                        err_lo.append(err[0])
+                        uplims.append(False)
                     else:    
-                        if uplims[i]:
+                        if (err < 0):
                             err_hi.append(0.0)
                             err_lo.append(0.8 * src.data['lf'][z]['phi'][i])
                         else:
                             err_hi.append(err)
                             err_lo.append(err)
+                            
+                        uplims.append(err < 0)    
                 
+                data[source]['ulim'] = uplims
                 data[source]['err'] = (err_lo, err_hi)
                 data[source]['phi'] = src.data['lf'][z]['phi']
 
@@ -201,7 +206,7 @@ class ObservedLF(object):
             ax.set_xlim(-24, -14.)
             ax.set_ylim(1e-7, 5e-1)
             ax.set_xticks(np.arange(-23, -13, 2), minor=True)
-            ax.set_yscale('log', nonposy='clip')    
+            ax.set_yscale('log', nonposy='clip')
             
         mp.fix_ticks(rotate_x=45)
         
