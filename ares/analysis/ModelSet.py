@@ -213,7 +213,8 @@ class ModelSet(BlobFactory):
     
     @mask.setter
     def mask(self, value):
-        assert len(value) == len(self.logL)
+        if self.is_mcmc:
+            assert len(value) == len(self.logL)
         self._mask = value
 
     @property
@@ -585,7 +586,11 @@ class ModelSet(BlobFactory):
     
         Parameters
         ----------
-        constraints : dict
+        constraints : list, tuple
+            A rectangle (or line segment) bounding the region of interest. 
+            For 2-D plane, supply (left, right, bottom, top), and then to
+            `pars` supply list of datasets defining the plane.
+        pars:
             Dictionary of constraints to use to calculate likelihood.
             Each entry should be a two-element list, with the first
             element being the redshift at which to apply the constraint,
@@ -1604,7 +1609,6 @@ class ModelSet(BlobFactory):
                         ax.contour(bc[0], bc[1], hist / hist.max(), 
                             levels, colors=kwargs['color'], linewidths=1, 
                             zorder=2)
-                            
                         
                     else:
                         ax.contourf(bc[0], bc[1], hist / hist.max(), 
@@ -1639,7 +1643,31 @@ class ModelSet(BlobFactory):
         pl.draw()
         
         return ax
-      
+              
+    def Contour(self, pars, levels=None, ivar=None, take_log=False,
+        un_log=False, multiplier=1., ax=None, fig=1, filled=False, **kwargs):         
+        # Only make a new plot window if there isn't already one
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+
+        # Grab all the data we need
+        to_hist, is_log = self.ExtractData(pars, ivar=ivar, 
+            take_log=take_log, un_log=un_log, multiplier=multiplier)
+
+        pars, take_log, multiplier, un_log, ivar = \
+            self._listify_common_inputs(pars, take_log, multiplier, un_log, 
+            ivar)
+            
+        x, y, z = to_hist[pars[0]], to_hist[pars[1]], to_hist[pars[2]]
+        
+        ax.contour(x, y, z)
+            
+        return ax    
+              
     def ContourScatter(self, x, y, c, z=None, Nscat=1e4, take_log=False, 
         cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
         labels=None, **kwargs):
@@ -2124,6 +2152,66 @@ class ModelSet(BlobFactory):
         
         return mp
         
+    def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
+        shade_by_like=False, percentile=False, take_log=False, un_log=False, 
+        multiplier=1, skip=0, stop=None, **kwargs):    
+        """
+        Reconstructed evolution in whatever the independent variable is.
+        """
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+        
+        info = self.blob_info(name)
+        ivars = self.blob_ivars[info[0]]
+        
+        if info[2] != 1:
+            raise NotImplemented('If not 1-D blob, must supply ivars!')
+        
+        # We assume that ivars are [redshift, magnitude]
+        xarr = ivars[0]
+        
+        if self.is_mcmc:
+            loc = np.argmax(self.logL[skip:stop])
+        
+        data, is_log = self.ExtractData(name, ivar=xarr,
+            take_log=take_log, un_log=un_log, multiplier=multiplier)
+        
+        y = []
+        for i, x in enumerate(xarr):            
+            if percentile:
+                lo, hi = np.percentile(data[name][:,i][skip:stop].compressed(), 
+                    (q1, q2))
+                y.append((lo, hi))    
+            elif (shade_by_like and self.is_mcmc):
+                y.append(data[name][:,i][skip:stop][loc])
+            else:
+                dat = data[name][:,i][skip:stop].compressed()
+                lo, hi = dat.min(), dat.max()
+                y.append((lo, hi))
+        
+        if not (shade_by_like or percentile) and self.is_mcmc:
+            if take_log:
+                y = 10**y
+        
+            ax.plot(xarr, y, **kwargs)
+        else:
+            y = np.array(y).T
+        
+            if take_log:
+                y = 10**y
+            else:
+                zeros = np.argwhere(y == 0)
+                for element in zeros:
+                    y[element[0],element[1]] = 1e-15
+        
+            ax.fill_between(xarr, y[0], y[1], **kwargs)
+            
+        return ax
+        
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
         like=0.68, take_log=False, bins=20, label=None,
         plot_bands=False, limit=None, **kwargs):
@@ -2295,7 +2383,35 @@ class ModelSet(BlobFactory):
         mu = np.mean(blobs_compr, axis=1)
         cov = np.cov(blobs_compr)
 
-        return mu, cov     
+        return mu, cov    
+        
+    def assemble_kwargs_list(self, N=5000):
+        """
+        Return dictionaries that can be used to initialize an ares 
+        simulation. 
+        
+        N : int
+            Maximum number of models to return.
+            
+        Returns
+        -------
+        List of dictionaries. Maximum length: `N`.
+            
+        """ 
+        
+        all_kwargs = []
+        for i, element in enumerate(self.chain):
+            
+            if i >= N:
+                break
+                
+            kwargs = self.base_kwargs.copy()
+            for j, parameter in enumerate(self.parameters):
+                kwargs[parameter] = self.chain[i,j]
+                
+            all_kwargs.append(kwargs.copy())
+            
+        return all_kwargs    
 
     def CorrelationMatrix(self, pars, z=None, fig=1, ax=None):
         """
@@ -2315,38 +2431,6 @@ class ModelSet(BlobFactory):
     
         return ax
     
-    def add_boxes(self, ax=None, val=None, width=None, **kwargs):
-        """
-        Add boxes to 2-D PDFs.
-        
-        Parameters
-        ----------
-        ax : matplotlib.axes._subplots.AxesSubplot instance
-        
-        val : int, float
-            Center of box (probably maximum likelihood value)
-        width : int, float
-            Size of box (above/below maximum likelihood value)
-        
-        """
-        
-        if width is None:
-            return
-        
-        iwidth = 1. / width
-            
-        # Vertical lines
-        ax.plot(np.log10([val[0] * iwidth, val[0] * width]), 
-            np.log10([val[1] * width, val[1] * width]), **kwargs)
-        ax.plot(np.log10([val[0] * iwidth, val[0] * width]), 
-            np.log10([val[1] * iwidth, val[1] * iwidth]), **kwargs)
-            
-        # Horizontal lines
-        ax.plot(np.log10([val[0] * iwidth, val[0] * iwidth]), 
-            np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
-        ax.plot(np.log10([val[0] * width, val[0] * width]), 
-            np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
-                        
     def get_blob(self, name, ivar=None):
         """
         Extract a 1-D array of values for a given quantity.

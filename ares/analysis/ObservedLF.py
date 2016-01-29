@@ -15,10 +15,12 @@ from ..util import read_lit
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
 
-all_datasets = ('bouwens2015', 'atek2015', 'oesch2013')
+all_datasets = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015')
 
-default_colors = {'bouwens2015': 'r', 'atek2015': 'y', 'oesch2013': 'm'}
-default_markers = {'bouwens2015': 's', 'atek2015': '^', 'oesch2013': 'o'}
+default_colors = {'bouwens2015': 'r', 'atek2015': 'y', 'oesch2013': 'm',
+    'oesch2014': 'c'}
+default_markers = {'bouwens2015': 's', 'atek2015': '^', 'oesch2013': 'o',
+    'oesch2014': 'v'}
 
 class ObservedLF(object):
     def __init__(self):

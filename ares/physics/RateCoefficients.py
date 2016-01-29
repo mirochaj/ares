@@ -26,7 +26,7 @@ have_chianti = False
 
 rate_sources = ['fk94', 'chianti']
 
-class RateCoefficients:
+class RateCoefficients(object):
     def __init__(self, grid=None, rate_src='fk94', T=T, recombination='B'):
         """
         Parameters

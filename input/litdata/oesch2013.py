@@ -7,8 +7,7 @@ Table 6. 4 the last 5 rows.
 info = \
 {
  'reference': 'Oesch et al., 2013, ApJ, 773, 75',
- 'data': 'Table 5', 
- 'fits': 'Table 6', 
+ 'data': 'Table 4', 
 }
 
 redshifts = [9, 10]
@@ -19,21 +18,21 @@ fits = {}
 
 fits['lf'] = {}
 
-fits['lf']['pars'] = \
-{
- 'Mstar': [-20.88, -21.17, -20.94, -20.87, -20.63], 
- 'pstar': [1.97e-3, 0.74e-3, 0.5e-3, 0.29e-3, 0.21e-3],
- 'alpha': [-1.64, -1.76, -1.87, -2.06, -2.02],
-}
+#fits['lf']['pars'] = \
+#{
+# 'Mstar': [-20.88, -21.17, -20.94, -20.87, -20.63], 
+# 'pstar': [1.97e-3, 0.74e-3, 0.5e-3, 0.29e-3, 0.21e-3],
+# 'alpha': [-1.64, -1.76, -1.87, -2.06, -2.02],
+#}
+#
+#fits['lf']['err'] = \
+#{
+# 'Mstar': [0.08, 0.12, 0.2, 0.26, 0.36], 
+# 'pstar': [0.315e-3, 0.16e-3, 0.19e-3, 0.165e-3, 0.17e-3],  # should be asymmetric!
+# 'alpha': [0.04, 0.05, 0.1, 0.13, 0.23],
+#}
 
-fits['lf']['err'] = \
-{
- 'Mstar': [0.08, 0.12, 0.2, 0.26, 0.36], 
- 'pstar': [0.315e-3, 0.16e-3, 0.19e-3, 0.165e-3, 0.17e-3],  # should be asymmetric!
- 'alpha': [0.04, 0.05, 0.1, 0.13, 0.23],
-}
-
-# Table 5
+# Table 4
 # Note: not currently including any of the upper limits
 data = {}
 data['lf'] = \

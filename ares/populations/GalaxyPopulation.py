@@ -18,10 +18,11 @@ from .GalaxyAggregate import GalaxyAggregate
 from scipy.optimize import fsolve, curve_fit
 from ..util.DustCorrection import DustCorrection
 from scipy.integrate import quad, simps, cumtrapz, ode
+from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
-from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc
 from ..util.StarFormationEfficiency import ParameterizedHaloProperty
+from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, k_B
 
 try:
     from scipy.misc import derivative
@@ -135,12 +136,37 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
         return self._eta
                 
-    def SFR(self, z, M):
+    @property
+    def cooling_function(self):
+        if not hasattr(self, '_Lambda'):
+            #rc = RateCoefficients()
+            #cool_ci = lambda T: rc.CollisionalIonizationCoolingRate(0, T)
+            #cool_re = lambda T: rc.RadiativeRecombinationRate(0, T)
+            #cool_ex = lambda T: rc.CollisionalExcitationCoolingRate(0, T)
+            #self._Lambda = lambda T: cool_ci(T) + cool_re(T) + cool_ex(T)
+
+            Z = 1e-2
+            self._Lambda = lambda T: 1.8e-22 * (1e6 / T) * Z
+            
+        return self._Lambda
+                
+    def SFR(self, z, M, mu=0.6):
+        """
+        Star formation rate at redshift z in a halo of mass M.
+        
+        ..note:: Units should be solar masses per year at this point.
+        """
         if self.model == 'sfe':
             eta = np.interp(z, self.halos.z, self.eta)
             return self.cosm.fbaryon * self.Macc(z, M) * eta * self.SFE(z, M)
         elif self.model == 'tdyn':
             return self.pf['pop_fstar'] * self.cosm.fbaryon * M / self.tdyn(z, M)    
+        elif self.model == 'precip':
+            T = self.halos.VirialTemperature(M, z, mu)
+            cool = self.cooling_function(T)
+            pre_factor = 3. * np.pi * G * mu * m_p * k_B * T / 50. / cool
+                        
+            return pre_factor * M * s_per_yr * self.SFE(z, M)
         else:
             raise NotImplemented('Unrecognized model: %s' % self.model)
         
