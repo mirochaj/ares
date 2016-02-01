@@ -880,7 +880,7 @@ class ModelSet(BlobFactory):
         else:
             scat = ax.scatter(xdata, ydata, **kwargs)
                            
-        if cdata is not None:
+        if (cdata is not None) and (not gotax):
             cb = self._cb = pl.colorbar(scat)
         else:
             cb = None
@@ -2385,7 +2385,7 @@ class ModelSet(BlobFactory):
 
         return mu, cov    
         
-    def assemble_kwargs_list(self, N=5000):
+    def AssembleParametersList(self, N=5000):
         """
         Return dictionaries that can be used to initialize an ares 
         simulation. 

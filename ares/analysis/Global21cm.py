@@ -26,10 +26,7 @@ except ImportError:
     pass
 
 class Global21cm(MultiPhaseMedium):
-    #def __init__(self, data=None, **kwargs):
-    #    MultiPhaseMedium.__init__(data, **kwargs)
-        
-        
+ 
     def __getattr__(self, name):
                                                                               
         # Indicates that this attribute is being accessed from within a 
@@ -320,7 +317,8 @@ class Global21cm(MultiPhaseMedium):
         
         return ax
 
-    def GlobalSignatureDerivative(self, mp=None, fig=1, **kwargs):
+    def GlobalSignatureDerivative(self, mp=None, ax=None, fig=1, 
+        show_signal=False, **kwargs):
         """
         Plot signal and its first derivative (nicely).
 
@@ -334,22 +332,36 @@ class Global21cm(MultiPhaseMedium):
 
         """
 
-        if mp is None:
-            gotax = False
-            mp = MultiPanel(dims=(2, 1), panel_size=(1, 0.6), fig=fig)
+        if show_signal:
+            if mp is None:
+                gotax = False
+                mp = MultiPanel(dims=(2, 1), panel_size=(1, 0.6), fig=fig)
+            else:
+                gotax = True
         else:
-            gotax = True
+            if ax is None:
+                gotax = False
+                fig = pl.figure(fig)
+                ax = fig.add_subplot(111)
+            else:
+                gotax = True
 
-        ax = self.GlobalSignature(ax=mp.grid[0], z_ax=False, **kwargs)
-        
-        mp.grid[1].plot(self.nu_p, self.dTbdnu, **kwargs)
-        
+        if show_signal:
+            ax2 = self.GlobalSignature(ax=mp.grid[0], z_ax=False, **kwargs)
+            mp.grid[1].plot(self.nu_p, self.dTbdnu, **kwargs)
+            ax = mp.grid[1]
+            ax.set_xticks(mp.grid[0].get_xticks())    
+            ax.set_xticklabels([])    
+            ax.set_xlim(mp.grid[0].get_xlim())
+        else:
+            ax.plot(self.nu_p, self.dTbdnu, **kwargs)
+                
         if not gotax:
-            mp.grid[1].set_ylabel(r'$\delta T_{\mathrm{b}}^{\prime} \ (\mathrm{mK} \ \mathrm{MHz}^{-1})$')
+            ax.set_ylabel(r'$\delta T_{\mathrm{b}}^{\prime} \ (\mathrm{mK} \ \mathrm{MHz}^{-1})$')
         
-        mp.grid[1].set_xticks(mp.grid[0].get_xticks())    
-        mp.grid[1].set_xticklabels([])    
-        mp.grid[1].set_xlim(mp.grid[0].get_xlim())
         pl.draw()
         
-        return mp
+        if show_signal:
+            return mp
+        else:
+            return ax

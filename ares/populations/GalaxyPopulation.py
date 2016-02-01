@@ -145,8 +145,8 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             #cool_ex = lambda T: rc.CollisionalExcitationCoolingRate(0, T)
             #self._Lambda = lambda T: cool_ci(T) + cool_re(T) + cool_ex(T)
 
-            Z = 1e-2
-            self._Lambda = lambda T: 1.8e-22 * (1e6 / T) * Z
+            Z = lambda z: 10**(-0.15 * z)
+            self._Lambda = lambda T, z: 1.8e-22 * (1e6 / T) * Z(z)
             
         return self._Lambda
                 
@@ -163,7 +163,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             return self.pf['pop_fstar'] * self.cosm.fbaryon * M / self.tdyn(z, M)    
         elif self.model == 'precip':
             T = self.halos.VirialTemperature(M, z, mu)
-            cool = self.cooling_function(T)
+            cool = self.cooling_function(T, z)
             pre_factor = 3. * np.pi * G * mu * m_p * k_B * T / 50. / cool
                         
             return pre_factor * M * s_per_yr * self.SFE(z, M)
@@ -450,9 +450,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             self._tdyn_inv = ParameterizedHaloProperty(**self.pf)
         return self._tdyn_inv
     
-    def precipitation_rate(self, z, M):
-        pass    
-    
     def tdyn(self, z, M):
         """
         Compute the dynamical time of a halo of mass M at redshift z.
@@ -460,10 +457,10 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         .. note :: Units are [s]^{-1}
         """
         return 1. / self.tdyn_inv(z, M)
-    
+
     def Lh(self, z, M):
         return 10**self._log_Lh(z, M, *self.coeff) 
-           
+
     def _log_Lh(self, z, M, *coeff): 
         if self.Mfunc == 'pl':
             return coeff[0] + coeff[1] * np.log10(M / 1e12)
@@ -472,7 +469,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         elif self.Mfunc == 'poly':
             return coeff[0] + coeff[1] * np.log10(M / 1e10) \
                 + coeff[2] * (np.log10(M / 1e10))**2 
-    
+
     #@property
     #def Npops(self):
     #    return self.pf.Npops

@@ -678,7 +678,7 @@ def ControlParameters():
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     "stop_xavg": 0.999,   # stop at given ionized fraction
     "track_extrema": False,
-    "stop_delay": 0.5,      # differential redshift step
+    "delay_extrema": 5,      # Number of steps
     "smooth_derivative": 0, 
 
     "blob_names": None,
