@@ -110,9 +110,6 @@ class ParameterizedHaloProperty(object):
         if self.Mfunc == 'lognormal':            
             f = self.fpeak(z) * np.exp(-(logM - np.log10(self.Mpeak(z)))**2 \
                 / 2. / self.sigma(z)**2)
-        #elif self.Mfunc == 'dpl':
-        #    p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
-        #    f = 0.5 * p0 * ((M / p1)**-p2 + (M / p1)**p3)
         elif self.Mfunc == 'dpl':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
             f = 2. * p0 / ((M / p1)**-p2 + (M / p1)**p3)    

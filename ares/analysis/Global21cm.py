@@ -172,13 +172,31 @@ class Global21cm(MultiPhaseMedium):
             # Otherwise, find them. Not the most efficient, but it gets the job done
             # Redshifts in descending order
             for i in range(len(z)):
-                if i < 10:
+                if i < 5:
                     continue
             
                 stop = self.track.is_stopping_point(z[0:i], dTb[0:i])
             
-            self._turning_points = self.track.turning_points
-                        
+            # See if anything is wonky
+            fixes = {}
+            if 'C' in self.track.turning_points:
+                zC = self.track.turning_points['C'][0]
+                if (zC < 0) or (zC > 50):
+                    i_min = np.argmin(self.data['igm_dTb'])
+                    fixes['C'] = (self.data['z'][i_min], 
+                        self.data['igm_dTb'][i_min], -99999)
+            if 'D' in self.track.turning_points:
+                zD = self.track.turning_points['D'][0]
+                if (zD < 0) or (zD > 50):
+                    i_max = np.argmax(self.data['igm_dTb'])
+                    fixes['D'] = (self.data['z'][i_max], 
+                        self.data['igm_dTb'][i_max], -99999)            
+
+            result = self.track.turning_points
+            result.update(fixes)
+
+            self._turning_points = result       
+
         return self._turning_points
         
     def derivative(self, freq):

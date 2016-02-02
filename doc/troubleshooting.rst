@@ -27,7 +27,7 @@ This is known to occur in ``ares.physics.Hydrogen`` when using ``scipy.interpola
 
 21-cm Extrema-Finding Not Working
 ---------------------------------
-If the derivative of the signal is noisy (due to numerical artifacts, for example) then the extrema-finding can fail. If you can visually see three extrema in the global 21-cm signal but they are either absent or crazy in ``ares.simulations.Global21cm.turning_points``, then this might be going on. Try setting the ``smooth_derivative`` parameter to a value of 5 or 10.  This parameter will smooth the derivative with a boxcar of length ``smooth_derivative`` before performing the extrema finding. Let me know if this happens (and under what circumstances), as it would be preferable to eliminate numerical artifacts at a lower level in the code rather than smoothing them out after the fact.
+If the derivative of the signal is noisy (due to numerical artifacts, for example) then the extrema-finding can fail. If you can visually see three extrema in the global 21-cm signal but they are either absent or crazy in ``ares.simulations.Global21cm.turning_points``, then this might be going on. Try setting the ``smooth_derivative`` parameter to a value of 0.1 or 0.2.  This parameter will smooth the derivative with a boxcar of width :math:`\Delta z=` ``smooth_derivative`` before performing the extrema finding. Let me know if this happens (and under what circumstances), as it would be preferable to eliminate numerical artifacts at a lower level in the code rather than smoothing them out after the fact.
 
 
 ``AttributeError: No attribute blobs.``

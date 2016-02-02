@@ -147,9 +147,9 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             #cool_re = lambda T: rc.RadiativeRecombinationRate(0, T)
             #cool_ex = lambda T: rc.CollisionalExcitationCoolingRate(0, T)
             #self._Lambda = lambda T: cool_ci(T) + cool_re(T) + cool_ex(T)
-            M = lambda z, T: self.halos.VirialMass(T, z)
-            Z = lambda z, M: self.metallicity_in_PR(z, M)
-            self._Lambda = lambda T, z: 1.8e-22 * (1e6 / T) * Z(z, M(z, T))
+            #M = lambda z, T: self.halos.VirialMass(T, z)
+            Z = lambda z, M: 1e-2#self.metallicity_in_PR(z, M)
+            self._Lambda = lambda T, z: 1.8e-22 * (1e6 / T) * 1e-2#Z(z, M(z, T))
             
         return self._Lambda
                 
