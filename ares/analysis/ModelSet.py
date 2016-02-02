@@ -567,18 +567,7 @@ class ModelSet(BlobFactory):
         self._ax.figure.canvas.draw()
         
         self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
-        
-        #i = 0
-        #while hasattr(self, 'slice_%i' % i):
-        #    i += 1
-        
-        #tmp = self._slice_by_nu(pars=pars, z=z, like=0.95, 
-        #    take_log=take_log, **constraints)
-        
-        #setattr(self, 'slice_%i' % i, tmp)
-        
-        #print "Saved result to slice_%i attribute." % i
-        
+                
     def Slice(self, constraints, pars, ivar=None, take_log=False, un_log=False, 
             multiplier=1.):
         """

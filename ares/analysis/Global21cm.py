@@ -151,7 +151,13 @@ class Global21cm(MultiPhaseMedium):
             # We've got the option to smooth the derivative before 
             # finding the extrema 
             if self.pf['smooth_derivative'] > 0:
-                s = self.pf['smooth_derivative']
+                sm = self.pf['smooth_derivative']
+                arr = self.z_p[np.logical_and(self.z_p >= 6, self.z_p <= 25)]
+                s = int(sm / np.diff(arr).mean())#self.pf['smooth_derivative']
+                
+                if s % 2 != 0:
+                    s += 1
+                
                 boxcar = np.zeros_like(self.dTbdz)
                 boxcar[boxcar.size/2 - s/2: boxcar.size/2 + s/2] = \
                     np.ones(s) / float(s)
