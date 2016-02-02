@@ -2157,6 +2157,25 @@ class ModelSet(BlobFactory):
         multiplier=1, skip=0, stop=None, **kwargs):    
         """
         Reconstructed evolution in whatever the independent variable is.
+        
+        Parameters
+        ----------
+        name : str
+            Name of blob to reconstruct.
+        ivar : list
+            Independent variables at which to extract blob. If the blob is
+            1-D, one need not supply `ivar` -- instead, we'll grab the 
+            appropriate values automatically. If 2-D, however, one needs
+            to supply `ivar` explicitly.
+        percentile : bool, float    
+            If not False, should be the confidence interval to plot, e.g, 0.68.
+        shade_by_like : bool
+            If True, fills region corresponding to value of `percentile`. If
+            percentile is not provided, it will pick the min and max values
+            of quantity `name` at each value of the independent variable. If
+            percentile==False, will plot the maximum likelihood reconstructed
+            function.
+            
         """
         if ax is None:
             gotax = False
@@ -2165,31 +2184,34 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
         
+        if percentile:    
+            q1 = 0.5 * 100 * (1. - percentile)    
+            q2 = 100 * percentile + q1    
+        
         info = self.blob_info(name)
         ivars = self.blob_ivars[info[0]]
         
         if info[2] != 1:
-            raise NotImplemented('If not 1-D blob, must supply ivars!')
+            raise NotImplemented('If not 1-D blob, this routine needs fixing!')
         
         # We assume that ivars are [redshift, magnitude]
-        xarr = ivars[0]
+        xarr = ivars
         
         if self.is_mcmc:
             loc = np.argmax(self.logL[skip:stop])
         
-        data, is_log = self.ExtractData(name, ivar=xarr,
-            take_log=take_log, un_log=un_log, multiplier=multiplier)
+        data = self.get_blob(name)
         
         y = []
         for i, x in enumerate(xarr):            
             if percentile:
-                lo, hi = np.percentile(data[name][:,i][skip:stop].compressed(), 
+                lo, hi = np.percentile(data[:,i][skip:stop].compressed(), 
                     (q1, q2))
                 y.append((lo, hi))    
             elif (shade_by_like and self.is_mcmc):
-                y.append(data[name][:,i][skip:stop][loc])
+                y.append(data[:,i][skip:stop][loc])
             else:
-                dat = data[name][:,i][skip:stop].compressed()
+                dat = data[:,i][skip:stop].compressed()
                 lo, hi = dat.min(), dat.max()
                 y.append((lo, hi))
         
@@ -2433,7 +2455,11 @@ class ModelSet(BlobFactory):
     
     def get_blob(self, name, ivar=None):
         """
-        Extract a 1-D array of values for a given quantity.
+        Extract array of values for a given quantity.
+        
+        If ivar is supplied, will return subset of that array corresponding
+        only to those ivars. If ivar is not supplied, you'll get the whole 
+        thing!
         
         Parameters
         ----------
@@ -2450,8 +2476,11 @@ class ModelSet(BlobFactory):
         if nd == 0:
             return blob
         elif nd == 1:
-            k = np.argmin(np.abs(self.blob_ivars[i] - ivar))
-            return blob[:,k]
+            if ivar is None:
+                return blob
+            else:
+                k = np.argmin(np.abs(self.blob_ivars[i] - ivar))
+                return blob[:,k]
         elif nd == 2:
             assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
             k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))

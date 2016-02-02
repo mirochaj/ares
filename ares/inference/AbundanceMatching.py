@@ -91,7 +91,7 @@ class AbundanceMatching(GalaxyPopulation):
         self._constraints['alpha'] = []
         self._constraints['mags'] = []
         
-        for i, z in enumerate(self._constraints['z']):
+        for i, z in enumerate(self.redshifts):
             # If we read in fits from literature, have to be sure to
             # get the redshifts correctly (since we're allowed to only
             # use a subset of them)
@@ -239,7 +239,7 @@ class AbundanceMatching(GalaxyPopulation):
                 self._MofL_tab[i].append(Mmin)
                 self._LofM_tab[i].append(LUV_dc[j])
                 self._fstar_tab[i].append(Lmin * self.kappa_UV \
-                    / eta / self.cosm.fbaryon / self.Macc(z, Mmin))
+                    / self.pSFR(z, Mmin))
     
                 pb.update(i * Nm + j + 1)
     
@@ -649,17 +649,17 @@ class AbundanceMatching(GalaxyPopulation):
     def Npops(self):
         return self.pf.Npops
         
-    @property
-    def pop_id(self):
-        # Pop ID number for HAM population
-        if not hasattr(self, '_pop_id'):
-            for i, pf in enumerate(self.pf.pfs):
-                if pf['pop_model'] == 'ham':
-                    break
-            
-            self._pop_id = i
-        
-        return self._pop_id
+    #@property
+    #def pop_id(self):
+    #    # Pop ID number for HAM population
+    #    if not hasattr(self, '_pop_id'):
+    #        for i, pf in enumerate(self.pf.pfs):
+    #            if pf['pop_model'] == 'ham':
+    #                break
+    #        
+    #        self._pop_id = i
+    #    
+    #    return self._pop_id
 
     @property
     def Ncoeff(self):

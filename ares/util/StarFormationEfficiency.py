@@ -154,6 +154,6 @@ class ParameterizedHaloProperty(object):
         f += to_add
         f *= to_mult
     
-        return f
+        return np.minimum(f, self.pf['php_ceil'])
               
         

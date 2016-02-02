@@ -136,6 +136,9 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
         return self._eta
                 
+    def metallicity_in_PR(self, z, M):
+        return 1e-2 * (M / 1e11)**0.48 #* 10**(-0.15 * z)
+                
     @property
     def cooling_function(self):
         if not hasattr(self, '_Lambda'):
@@ -144,9 +147,9 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             #cool_re = lambda T: rc.RadiativeRecombinationRate(0, T)
             #cool_ex = lambda T: rc.CollisionalExcitationCoolingRate(0, T)
             #self._Lambda = lambda T: cool_ci(T) + cool_re(T) + cool_ex(T)
-
-            Z = lambda z: 10**(-0.15 * z)
-            self._Lambda = lambda T, z: 1.8e-22 * (1e6 / T) * Z(z)
+            M = lambda z, T: self.halos.VirialMass(T, z)
+            Z = lambda z, M: self.metallicity_in_PR(z, M)
+            self._Lambda = lambda T, z: 1.8e-22 * (1e6 / T) * Z(z, M(z, T))
             
         return self._Lambda
                 
@@ -169,6 +172,27 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             return pre_factor * M * s_per_yr * self.SFE(z, M)
         else:
             raise NotImplemented('Unrecognized model: %s' % self.model)
+        
+    def pSFR(self, z, M, mu=0.6):
+        """
+        The product of this number and the SFE gives you the SFR.
+        
+        pre-SFR factor, hence, "pSFR"        
+        """
+        if self.model == 'sfe':
+            eta = np.interp(z, self.halos.z, self.eta)
+            return self.cosm.fbaryon * self.Macc(z, M) * eta
+        elif self.model == 'tdyn':
+            return self.cosm.fbaryon * M / self.tdyn(z, M)    
+        elif self.model == 'precip':
+            T = self.halos.VirialTemperature(M, z, mu)
+            cool = self.cooling_function(T, z)
+            pre_factor = 3. * np.pi * G * mu * m_p * k_B * T / 50. / cool
+                        
+            return pre_factor * M * s_per_yr
+        else:
+            raise NotImplemented('Unrecognized model: %s' % self.model)
+            
         
     def LuminosityFunction(self, z, x, mags=True):
         """
@@ -249,6 +273,13 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         self._phi_of_M[z] = MAB[0:-1], phi_of_M
 
         return self._phi_of_M[z]
+        
+    def lf_from_pars(self, z, pars):
+        for i, par in enumerate(pars):
+            self.pf['php_Mfun_par%i' % i] = par
+    
+        return self.phi_of_M(z)
+        
 
     def L1600_limit(self, z):
         eta = np.interp(z, self.halos.z, self.eta)

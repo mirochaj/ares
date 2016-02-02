@@ -254,6 +254,9 @@ def HaloPropertyParameters():
      'php_Mfun_hi_par3': None,
 
      "php_Mmax": 5e13,
+     
+     "php_auxfun": lambda p0: lambda z: 10**(-0.15 * z),
+     "php_aux_par0": 1e-3,
     
     }  
     
