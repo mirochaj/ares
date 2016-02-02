@@ -187,11 +187,14 @@ class Global21cm(MultiPhaseMedium):
                         self.data['igm_dTb'][i_min], -99999)
             if 'D' in self.track.turning_points:
                 zD = self.track.turning_points['D'][0]
+                TD = self.track.turning_points['D'][1]
                 if (zD < 0) or (zD > 50):
                     i_max = np.argmax(self.data['igm_dTb'])
                     fixes['D'] = (self.data['z'][i_max], 
                         self.data['igm_dTb'][i_max], -99999)            
-
+                elif TD < 1e-4:
+                    fixes['D'] = (-np.inf, -np.inf, -99999)
+                
             result = self.track.turning_points
             result.update(fixes)
 
