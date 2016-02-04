@@ -15,12 +15,12 @@ from ..util import read_lit
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
 
-all_datasets = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015')
+all_datasets = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
+    'parsa2016')
 
 default_colors = {'bouwens2015': 'r', 'atek2015': 'y', 'oesch2013': 'm',
-    'oesch2014': 'c'}
-default_markers = {'bouwens2015': 's', 'atek2015': '^', 'oesch2013': 'o',
-    'oesch2014': 'v'}
+    'oesch2014': 'c', 'parsa2016': 'g'}
+default_markers = {src:'o' for src in all_datasets}
 
 class ObservedLF(object):
     def __init__(self):
@@ -122,8 +122,7 @@ class ObservedLF(object):
 
         return data    
                 
-    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
-        legend=False, **kwargs):
+    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, **kwargs):
         """
         Plot the luminosity function data at a given redshift.
         """
@@ -151,7 +150,8 @@ class ObservedLF(object):
             
             if not kwargs:
                 kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 
-                    'mec':default_colors[source],
+                    'mec':default_colors[source], 
+                    'fmt': default_markers[source],
                     'color':default_colors[source], 'capthick':2}
             else:
                 kw = kwargs
@@ -161,11 +161,13 @@ class ObservedLF(object):
         ax.set_yscale('log')    
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
         ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1}]$')
+        ax.set_xlim(-24, -14)
+        pl.draw()
         
         return ax
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
-        panel_size=(0.75,0.75), fig=1, legend=False):
+        panel_size=(0.75,0.75), fig=1):
         """
         Plot the luminosity function at a bunch of different redshifts.
         
@@ -183,6 +185,9 @@ class ObservedLF(object):
             nrows = len(redshifts)
         else:
             nrows = len(redshifts) / ncols
+            
+        if nrows * ncols != len(redshifts):
+            nrows += 1
             
         dims = (nrows, ncols)    
             

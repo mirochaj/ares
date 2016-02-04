@@ -206,6 +206,17 @@ class Global21cm(MultiPhaseMedium):
         interp = interp1d(self.nu_p, self.dTbdnu, kind='linear')
         return interp(freq)
     
+    def SaturatedLimit(self, ax):
+        z = nu_0_mhz / self.data['nu'] - 1.
+        dTb = self.hydr.DifferentialBrightnessTemperature(z, 0.0, np.inf)
+
+        ax.plot(self.data['nu'], dTb, color='k', ls=':')
+        ax.fill_between(self.data['nu'], dTb, 500 * np.ones_like(dTb),
+            color='none', hatch='X', edgecolor='k', linewidth=0.0)
+        pl.draw()
+        
+        return ax
+    
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=5, scatter=False, xaxis='nu', 
         ymin=None, ymax=50, zmax=None, xscale='linear', **kwargs):
