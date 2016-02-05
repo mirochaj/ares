@@ -117,7 +117,7 @@ class LogPrior:
     def __init__(self, priors, parameters, is_log=None):
         self.pars = parameters  # just names *in order*
         self.priors = priors
-        
+
         if is_log is None:
             self.is_log = [False] * len(parameters)
         else:

@@ -10,7 +10,6 @@ Description:
 
 """
 
-
 import numpy as np   
 import matplotlib.pyplot as pl
 from ares.physics import Hydrogen
