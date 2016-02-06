@@ -2157,7 +2157,26 @@ class ModelSet(BlobFactory):
         multiplier=1, skip=0, stop=None, **kwargs):    
         """
         Reconstructed evolution in whatever the independent variable is.
+        
+        Parameters
+        ----------
+        name : str
+            Name of blob you're interested in.
+        ivar : list, np.ndarray
+            List of values (or nested list) of independent variables. If 
+            blob is 2-D, only need to provide the independent variable for
+            one of the dimensions, e.g., 
+                
+                # If LF data, plot LF at z=3.8
+                ivar = [3.8, None]
+                
+            or 
+            
+                # If LF data, plot z evolution of phi(MUV=-20)
+                ivar = [None, -20]
+        
         """
+        
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -2165,34 +2184,70 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
         
+        if percentile:
+            q1 = 0.5 * 100 * (1. - percentile)    
+            q2 = 100 * percentile + q1    
+        
         info = self.blob_info(name)
         ivars = self.blob_ivars[info[0]]
+        nd = info[2]
         
-        if info[2] != 1:
-            raise NotImplemented('If not 1-D blob, must supply ivars!')
-        
-        # We assume that ivars are [redshift, magnitude]
-        xarr = ivars[0]
-        
+        if nd != 1 and (ivar is None):
+            raise NotImplemented('If not 1-D blob, must supply one ivar!')
+                
+        # Grab the maximum likelihood point 'cuz why not
         if self.is_mcmc:
             loc = np.argmax(self.logL[skip:stop])
         
-        data, is_log = self.ExtractData(name, ivar=xarr,
-            take_log=take_log, un_log=un_log, multiplier=multiplier)
-        
-        y = []
-        for i, x in enumerate(xarr):            
-            if percentile:
-                lo, hi = np.percentile(data[name][:,i][skip:stop].compressed(), 
-                    (q1, q2))
-                y.append((lo, hi))    
-            elif (shade_by_like and self.is_mcmc):
-                y.append(data[name][:,i][skip:stop][loc])
+        # 1-D case 
+        if nd == 1:
+            # Read in the independent variable(s)
+            xarr = ivars[0]
+            
+            tmp, is_log = self.ExtractData(name, #ivar=xarr,
+                take_log=take_log, un_log=un_log, multiplier=multiplier)
+            
+            data = tmp[name].squeeze()
+            
+            y = []
+            for i, x in enumerate(xarr):
+                if percentile:
+                    lo, hi = np.percentile(data[:,i][skip:stop].compressed(), 
+                        (q1, q2))
+                    y.append((lo, hi))    
+                elif (shade_by_like and self.is_mcmc):
+                    y.append(data[:,i][skip:stop][loc])
+                else:
+                    dat = data[:,i][skip:stop].compressed()
+                    lo, hi = dat.min(), dat.max()
+                    y.append((lo, hi))
+        elif nd == 2:
+            if ivar[0] is None:
+                scalar = ivar[1]
+                vector = xarr = ivars[0]
+                slc = slice(-1, None, -1)
             else:
-                dat = data[name][:,i][skip:stop].compressed()
-                lo, hi = dat.min(), dat.max()
-                y.append((lo, hi))
-        
+                scalar = ivar[0]
+                vector = xarr = ivars[1]
+                slc = slice(0, None, 1)
+                        
+            y = []
+            for i, value in enumerate(vector):
+                iv = [scalar, value][slc]
+                data, is_log = self.ExtractData(name, ivar=iv,
+                    take_log=take_log, un_log=un_log, multiplier=multiplier)
+                        
+                if percentile:
+                    lo, hi = np.percentile(data[name][skip:stop].compressed(),
+                        (q1, q2))
+                    y.append((lo, hi))    
+                elif (shade_by_like and self.is_mcmc):
+                    y.append(data[name][skip:stop][loc])
+                else:
+                    dat = data[name][skip:stop].compressed()
+                    lo, hi = dat.min(), dat.max()
+                    y.append((lo, hi))
+                        
         if not (shade_by_like or percentile) and self.is_mcmc:
             if take_log:
                 y = 10**y
@@ -2433,7 +2488,10 @@ class ModelSet(BlobFactory):
     
     def get_blob(self, name, ivar=None):
         """
-        Extract a 1-D array of values for a given quantity.
+        Extract an array of values for a given quantity.
+        
+        ..note:: If ivar is not supplied, this is equivalent to just reading
+            in the entire blob from disk.
         
         Parameters
         ----------
@@ -2450,9 +2508,15 @@ class ModelSet(BlobFactory):
         if nd == 0:
             return blob
         elif nd == 1:
-            k = np.argmin(np.abs(self.blob_ivars[i] - ivar))
-            return blob[:,k]
+            if ivar is None:
+                return blob
+            else:
+                k = np.argmin(np.abs(self.blob_ivars[i] - ivar))
+                return blob[:,k]
         elif nd == 2:
+            if ivar is None:
+                return blob
+                    
             assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
             k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))
             k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))

@@ -21,7 +21,7 @@ from scipy.integrate import quad, simps, cumtrapz, ode
 from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
-from ..util.StarFormationEfficiency import ParameterizedHaloProperty
+from ..util.ParameterizedHaloProperty import ParameterizedHaloProperty
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, k_B
 
 try:

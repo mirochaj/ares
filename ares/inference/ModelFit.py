@@ -497,7 +497,10 @@ class ModelFit(BlobFactory):
         if rank > 0:
             return
         
-        guesses_tmp = np.array(value)
+        if type(value) is dict:
+            guesses_tmp = np.array([value[par] for par in self.parameters])
+        else:    
+            guesses_tmp = np.array(value)
         
         if guesses_tmp.ndim == 1:
             self._guesses = sample_ball(guesses_tmp, self.jitter, 

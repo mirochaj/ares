@@ -1,6 +1,6 @@
 """
 
-StarFormationEfficiency.py
+ParameterizedHaloProperty.py
 
 Author: Jordan Mirocha
 Affiliation: UCLA
@@ -110,9 +110,9 @@ class ParameterizedHaloProperty(object):
         if self.Mfunc == 'lognormal':            
             f = self.fpeak(z) * np.exp(-(logM - np.log10(self.Mpeak(z)))**2 \
                 / 2. / self.sigma(z)**2)
-        #elif self.Mfunc == 'dpl':
-        #    p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
-        #    f = 0.5 * p0 * ((M / p1)**-p2 + (M / p1)**p3)
+        elif self.Mfunc == 'pl':
+            p0 = pars[0]; p1 = pars[1]; p2 = pars[2]
+            f = p0 * (M / p1)**p2
         elif self.Mfunc == 'dpl':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
             f = 2. * p0 / ((M / p1)**-p2 + (M / p1)**p3)    
@@ -127,18 +127,17 @@ class ParameterizedHaloProperty(object):
             self._apply_extrap = 0
 
             if self.Mlo_extrap:
-                p1 = self.pf['php_Mfun_lo_par0']
-                p2 = self.pf['php_Mfun_lo_par1']
+                p0 = self.pf['php_Mfun_lo_par0']
+                p1 = self.pf['php_Mfun_lo_par1']
                 if self.pf['php_Mfun_lo'] == 'pl':
-                    to_add = p1 * (M / 1e10)**p2
+                    to_add = p0 * (M / 1e10)**p1
                 elif self.pf['php_Mfun_lo'] == 'plexp':
-                    p3 = self.pf['php_Mfun_lo_par2']
-                    to_add = self.fstar(z, p1) * (M / p1)**p2 \
-                        * np.exp(-p3 / M)
+                    p2 = self.pf['php_Mfun_lo_par2']
+                    to_add = p0 * (M / 1e10)**p1 * np.exp(-M / p2)
                 elif self.pf['php_Mfun_lo'] == 'dpl':
-                    p3 = self.pf['php_Mfun_lo_par2']
-                    p4 = self.pf['php_Mfun_lo_par3']
-                    to_add = p1 / ((M / p2)**-p3 + (M / p2)**p4)
+                    p2 = self.pf['php_Mfun_lo_par2']
+                    p3 = self.pf['php_Mfun_lo_par3']
+                    to_add = 2 * p1 / ((M / p2)**-p3 + (M / p2)**p4)
 
             if self.Mhi_extrap:
                 if self.pf['php_Mfun_hi'] == 'exp':

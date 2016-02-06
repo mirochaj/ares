@@ -157,7 +157,7 @@ class loglikelihood(LogLikelihood):
             M = xdat - pop.AUV(z, xdat)
             p = pop.LuminosityFunction(z=z, x=M, mags=True)
             phi.extend(p)
-
+            
         lnL = 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
         PofD = self.const_term - lnL
                         
@@ -245,7 +245,6 @@ class FitLuminosityFunction(FitGlobal21cm):
             litdata = read_lit(value)
             self._data = litdata.data['lf']
             self._redshifts = litdata.redshifts
-            
         else:
             raise NotImplemented('help!')
                                         
@@ -257,7 +256,14 @@ class FitLuminosityFunction(FitGlobal21cm):
             for i, redshift in enumerate(self.redshifts):
                 self._xdata_flat.extend(self.data[redshift]['M'])
                 self._ydata_flat.extend(self.data[redshift]['phi'])
-                self._error_flat.extend(self.data[redshift]['err'])
+                
+                # Cludge for asymmetric errors
+                for j, err in enumerate(self.data[redshift]['err']):
+                    if type(err) in [tuple, list]:
+                        self._error_flat.append(np.mean(err))
+                    else:
+                        self._error_flat.append(err)
+                #self._error_flat.extend(self.data[redshift]['err'])
                 
                 zlist = [redshift] * len(self.data[redshift]['M'])
                 self._redshifts_flat.extend(zlist)
