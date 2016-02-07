@@ -901,8 +901,7 @@ class ModelFit(BlobFactory):
                 to_write = []
                 for l in range(self.nwalkers * blen):  
                     # indices: walkers*steps, blob group, blob
-                    barr = blobs_now[l][j][k]
-                                                    
+                    barr = blobs_now[l][j][k]                   
                     to_write.append(barr)   
                     
                 bfn = '%s.blob_%id.%s.pkl' \

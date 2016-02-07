@@ -2264,7 +2264,9 @@ class ModelSet(BlobFactory):
                     y[element[0],element[1]] = 1e-15
         
             ax.fill_between(xarr, y[0], y[1], **kwargs)
-            
+        
+        pl.draw()
+                        
         return ax
         
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,

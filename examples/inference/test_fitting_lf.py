@@ -62,7 +62,7 @@ base_pars = \
  'php_Mfun_lo_par2{0}': 1e11,
  
  # No dustcorr for now
- 'dustcorr_Afun': None,
+ 'dustcorr_Afun': 'meurer1999',
   
  'problem_type': 101.2,
  
@@ -114,7 +114,7 @@ fitter.is_log = is_log
 fitter.priors = priors
 
 # Setup # of walkers and initial guesses for them
-fitter.nwalkers = 48
+fitter.nwalkers = 24
 
 fitter.data = 'bouwens2015'
 fitter.redshifts = [3.8]
@@ -124,16 +124,16 @@ fitter.guesses = \
 {
  'pop_Tmin{0}': 4.,
  'pop_fesc{0}': -1.,
- 'php_Mfun_par0{0}': 4.72770501e-01,
+ 'php_Mfun_par0{0}': 0.5,
  'php_Mfun_par1{0}': 11.5,
- 'php_Mfun_par2{0}': 8.18579900e-01,
- 'php_Mfun_par3{0}': 4.75179770e-01,
- 'php_Mfun_lo_par0{0}': -2,
+ 'php_Mfun_par2{0}': 0.8,
+ 'php_Mfun_par3{0}': 0.5,
+ 'php_Mfun_lo_par0{0}': -2.,
  'php_Mfun_lo_par1{0}': 0.1,
  'php_Mfun_lo_par2{0}': 13.,
 }
 
-fitter.save_data('test_lf_w_tau', clobber=True)
+fitter.save_data('test_lf', clobber=True)
 
 fitter.runsim = True
 
