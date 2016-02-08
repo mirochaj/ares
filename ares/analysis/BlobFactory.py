@@ -347,9 +347,11 @@ class BlobFactory(object):
                 # unless a function is provided
                 elif self.blob_nd[i] == 1:
                     x = np.array(self.blob_ivars[i]).squeeze()
-                    if (self.blob_funcs[i][j] is None):
+                    if (self.blob_funcs[i][j] is None) and (key in self.history):
                         blob = np.interp(x, self.history['z'][-1::-1], 
                             self.history[key][-1::-1])
+                    elif self.blob_funcs[i][j] is None:
+                        raise KeyError('Blob %s not in history!' % key)
                     else:
                         fname = self.blob_funcs[i][j]
                         func = parse_attribute(fname, self)

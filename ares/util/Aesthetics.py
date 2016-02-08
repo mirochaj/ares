@@ -117,7 +117,6 @@ common = \
  
  'tau_e': r'$\tau_e$',
  'tau_tot': r'$\tau_e$', 
- 'curvature': r'$\delta^{\prime \prime} T_b \ [\mathrm{mK}^2 \ \mathrm{MHz}^{-2}]$',
 }    
 ##
 #
@@ -139,11 +138,14 @@ history_elements = \
  'nu': r'$\nu$', 
  'Ja': r'$J_{\alpha}$', 
  'Jlw': r'$J_{\mathrm{LW}}$', 
+ 
+ 'slope': r'$\delta^{\prime} T_b \ [\mathrm{mK} \ \mathrm{MHz}^{-1}]$',
+ 'curvature': r'$\delta^{\prime \prime} T_b \ [\mathrm{mK}^2 \ \mathrm{MHz}^{-2}]$', 
 }
 
 tp_parameters = {}
 for key in history_elements:
-    for tp in list('BCD'):
+    for tp in ['B', 'C', 'D', 'ZC']:
         if key in ['z', 'nu']:
             tp_parameters['%s_%s' % (key, tp)] = \
                 r'%s_{\mathrm{%s}}$' % (history_elements[key][0:-1], tp)
