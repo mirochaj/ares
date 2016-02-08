@@ -26,10 +26,7 @@ except ImportError:
     pass
 
 class Global21cm(MultiPhaseMedium):
-    #def __init__(self, data=None, **kwargs):
-    #    MultiPhaseMedium.__init__(data, **kwargs)
-        
-        
+ 
     def __getattr__(self, name):
                                                                               
         # Indicates that this attribute is being accessed from within a 
@@ -158,7 +155,13 @@ class Global21cm(MultiPhaseMedium):
             # We've got the option to smooth the derivative before 
             # finding the extrema 
             if self.pf['smooth_derivative'] > 0:
-                s = self.pf['smooth_derivative']
+                sm = self.pf['smooth_derivative']
+                arr = self.z_p[np.logical_and(self.z_p >= 6, self.z_p <= 25)]
+                s = int(sm / np.diff(arr).mean())#self.pf['smooth_derivative']
+                
+                if s % 2 != 0:
+                    s += 1
+                
                 boxcar = np.zeros_like(self.dTbdz)
                 boxcar[boxcar.size/2 - s/2: boxcar.size/2 + s/2] = \
                     np.ones(s) / float(s)
@@ -173,18 +176,50 @@ class Global21cm(MultiPhaseMedium):
             # Otherwise, find them. Not the most efficient, but it gets the job done
             # Redshifts in descending order
             for i in range(len(z)):
-                if i < 10:
+                if i < 5:
                     continue
             
                 stop = self.track.is_stopping_point(z[0:i], dTb[0:i])
             
-            self._turning_points = self.track.turning_points
-                        
+            # See if anything is wonky
+            fixes = {}
+            if 'C' in self.track.turning_points:
+                zC = self.track.turning_points['C'][0]
+                if (zC < 0) or (zC > 50):
+                    i_min = np.argmin(self.data['igm_dTb'])
+                    fixes['C'] = (self.data['z'][i_min], 
+                        self.data['igm_dTb'][i_min], -99999)
+            if 'D' in self.track.turning_points:
+                zD = self.track.turning_points['D'][0]
+                TD = self.track.turning_points['D'][1]
+                if (zD < 0) or (zD > 50):
+                    i_max = np.argmax(self.data['igm_dTb'])
+                    fixes['D'] = (self.data['z'][i_max], 
+                        self.data['igm_dTb'][i_max], -99999)            
+                elif TD < 1e-4:
+                    fixes['D'] = (-np.inf, -np.inf, -99999)
+                
+            result = self.track.turning_points
+            result.update(fixes)
+
+            self._turning_points = result       
+
         return self._turning_points
         
     def derivative(self, freq):
         interp = interp1d(self.nu_p, self.dTbdnu, kind='linear')
         return interp(freq)
+    
+    def SaturatedLimit(self, ax):
+        z = nu_0_mhz / self.data['nu'] - 1.
+        dTb = self.hydr.DifferentialBrightnessTemperature(z, 0.0, np.inf)
+
+        ax.plot(self.data['nu'], dTb, color='k', ls=':')
+        ax.fill_between(self.data['nu'], dTb, 500 * np.ones_like(dTb),
+            color='none', hatch='X', edgecolor='k', linewidth=0.0)
+        pl.draw()
+        
+        return ax
     
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=5, scatter=False, xaxis='nu', 
@@ -324,7 +359,8 @@ class Global21cm(MultiPhaseMedium):
         
         return ax
 
-    def GlobalSignatureDerivative(self, mp=None, fig=1, **kwargs):
+    def GlobalSignatureDerivative(self, mp=None, ax=None, fig=1, 
+        show_signal=False, **kwargs):
         """
         Plot signal and its first derivative (nicely).
 
@@ -338,22 +374,36 @@ class Global21cm(MultiPhaseMedium):
 
         """
 
-        if mp is None:
-            gotax = False
-            mp = MultiPanel(dims=(2, 1), panel_size=(1, 0.6), fig=fig)
+        if show_signal:
+            if mp is None:
+                gotax = False
+                mp = MultiPanel(dims=(2, 1), panel_size=(1, 0.6), fig=fig)
+            else:
+                gotax = True
         else:
-            gotax = True
+            if ax is None:
+                gotax = False
+                fig = pl.figure(fig)
+                ax = fig.add_subplot(111)
+            else:
+                gotax = True
 
-        ax = self.GlobalSignature(ax=mp.grid[0], z_ax=False, **kwargs)
-        
-        mp.grid[1].plot(self.nu_p, self.dTbdnu, **kwargs)
-        
+        if show_signal:
+            ax2 = self.GlobalSignature(ax=mp.grid[0], z_ax=False, **kwargs)
+            mp.grid[1].plot(self.nu_p, self.dTbdnu, **kwargs)
+            ax = mp.grid[1]
+            ax.set_xticks(mp.grid[0].get_xticks())    
+            ax.set_xticklabels([])    
+            ax.set_xlim(mp.grid[0].get_xlim())
+        else:
+            ax.plot(self.nu_p, self.dTbdnu, **kwargs)
+                
         if not gotax:
-            mp.grid[1].set_ylabel(r'$\delta T_{\mathrm{b}}^{\prime} \ (\mathrm{mK} \ \mathrm{MHz}^{-1})$')
+            ax.set_ylabel(r'$\delta T_{\mathrm{b}}^{\prime} \ (\mathrm{mK} \ \mathrm{MHz}^{-1})$')
         
-        mp.grid[1].set_xticks(mp.grid[0].get_xticks())    
-        mp.grid[1].set_xticklabels([])    
-        mp.grid[1].set_xlim(mp.grid[0].get_xlim())
         pl.draw()
         
-        return mp
+        if show_signal:
+            return mp
+        else:
+            return ax

@@ -58,6 +58,9 @@ default_mp_kwargs = \
  'padding': (0,0)
 }    
 
+# Machine precision
+MP = np.finfo(float).eps
+
 def patch_pinfo(pars):
     # This should be deprecated in future versions
     new_pars = []
@@ -567,18 +570,7 @@ class ModelSet(BlobFactory):
         self._ax.figure.canvas.draw()
         
         self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
-        
-        #i = 0
-        #while hasattr(self, 'slice_%i' % i):
-        #    i += 1
-        
-        #tmp = self._slice_by_nu(pars=pars, z=z, like=0.95, 
-        #    take_log=take_log, **constraints)
-        
-        #setattr(self, 'slice_%i' % i, tmp)
-        
-        #print "Saved result to slice_%i attribute." % i
-        
+                
     def Slice(self, constraints, pars, ivar=None, take_log=False, un_log=False, 
             multiplier=1.):
         """
@@ -615,12 +607,18 @@ class ModelSet(BlobFactory):
         # Figure out what these values translate to.
         data, is_log = self.ExtractData(pars, ivar, take_log, un_log, 
             multiplier)
-            
+                        
         # Figure out elements we want
-        xok = np.logical_and(data[pars[0]] >= x1, data[pars[0]] <= x2)
+        xok_ = np.logical_and(data[pars[0]] >= x1, data[pars[0]] <= x2)
+        xok_MP = np.logical_or(np.abs(data[pars[0]] - x1) <= MP, 
+            np.abs(data[pars[0]] - x2) <= MP)
+        xok = np.logical_or(xok_, xok_MP)
         
         if Nd == 2:
-            yok = np.logical_and(data[pars[1]] >= y1, data[pars[1]] <= y2)
+            yok_ = np.logical_and(data[pars[1]] >= y1, data[pars[1]] <= y2)
+            yok_MP = np.logical_or(np.abs(data[pars[1]] - y1) <= MP, 
+                np.abs(data[pars[1]] - y2) <= MP)
+            yok = np.logical_or(yok_, yok_MP)
             to_keep = np.logical_and(xok, yok)
         else:
             to_keep = xok
@@ -819,7 +817,8 @@ class ModelSet(BlobFactory):
         self.logL[mask] = -np.inf
 
     def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
-        take_log=False, un_log=False, multiplier=1., **kwargs):
+        take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
+        **kwargs):
         """
         Plot samples as points in 2-d plane.
     
@@ -880,7 +879,7 @@ class ModelSet(BlobFactory):
         else:
             scat = ax.scatter(xdata, ydata, **kwargs)
                            
-        if cdata is not None:
+        if (cdata is not None) and use_colorbar:
             cb = self._cb = pl.colorbar(scat)
         else:
             cb = None
@@ -1644,8 +1643,25 @@ class ModelSet(BlobFactory):
         
         return ax
               
-    def Contour(self, pars, levels=None, ivar=None, take_log=False,
+    def Contour(self, pars, c, levels, leveltol=1e-6, ivar=None, take_log=False,
         un_log=False, multiplier=1., ax=None, fig=1, filled=False, **kwargs):         
+        """
+        Draw contours that are NOT associated with confidence levels.
+        
+        ..note:: To draw many contours in same plane, just call this 
+            function repeatedly.
+        
+        Parameters
+        ----------
+        pars : list 
+            List of parameters defining the plane on which to draw contours.
+        c : str
+            Name of parameter or blob that we're to draw contours of.
+        levels : list
+            [Optional] list of levels for 
+                        
+        """
+        
         # Only make a new plot window if there isn't already one
         if ax is None:
             gotax = False
@@ -1654,19 +1670,27 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
 
+        p = list(pars) + [c]
+
         # Grab all the data we need
-        to_hist, is_log = self.ExtractData(pars, ivar=ivar, 
+        data, is_log = self.ExtractData(p, ivar=ivar, 
             take_log=take_log, un_log=un_log, multiplier=multiplier)
 
-        pars, take_log, multiplier, un_log, ivar = \
-            self._listify_common_inputs(pars, take_log, multiplier, un_log, 
-            ivar)
-            
-        x, y, z = to_hist[pars[0]], to_hist[pars[1]], to_hist[pars[2]]
+        xdata = data[p[0]]
+        ydata = data[p[1]]    
+        zdata = data[p[2]]
         
-        ax.contour(x, y, z)
+        for level in levels:
+            # Find indices of appropriate elements
+            cond = np.abs(zdata - level) < leveltol
+            elements = np.argwhere(cond).squeeze()
             
-        return ax    
+            order = np.argsort(xdata[elements])
+            ax.plot(xdata[elements][order], ydata[elements][order], **kwargs)
+            
+        pl.draw()    
+            
+        return ax, xdata, ydata, zdata
               
     def ContourScatter(self, x, y, c, z=None, Nscat=1e4, take_log=False, 
         cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
@@ -2175,6 +2199,15 @@ class ModelSet(BlobFactory):
                 # If LF data, plot z evolution of phi(MUV=-20)
                 ivar = [None, -20]
         
+        percentile : bool, float    
+            If not False, should be the confidence interval to plot, e.g, 0.68.
+        shade_by_like : bool
+            If True, fills region corresponding to value of `percentile`. If
+            percentile is not provided, it will pick the min and max values
+            of quantity `name` at each value of the independent variable. If
+            percentile==False, will plot the maximum likelihood reconstructed
+            function.
+            
         """
         
         if ax is None:
@@ -2184,7 +2217,7 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
         
-        if percentile:
+        if percentile:    
             q1 = 0.5 * 100 * (1. - percentile)    
             q2 = 100 * percentile + q1    
         
@@ -2226,6 +2259,7 @@ class ModelSet(BlobFactory):
                 scalar = ivar[1]
                 vector = xarr = ivars[0]
                 slc = slice(-1, None, -1)
+
             else:
                 scalar = ivar[0]
                 vector = xarr = ivars[1]
@@ -2442,7 +2476,7 @@ class ModelSet(BlobFactory):
 
         return mu, cov    
         
-    def assemble_kwargs_list(self, N=5000):
+    def AssembleParametersList(self, N=5000):
         """
         Return dictionaries that can be used to initialize an ares 
         simulation. 
@@ -2493,7 +2527,6 @@ class ModelSet(BlobFactory):
         Extract an array of values for a given quantity.
         
         ..note:: If ivar is not supplied, this is equivalent to just reading
-            in the entire blob from disk.
         
         Parameters
         ----------

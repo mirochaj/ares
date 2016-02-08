@@ -187,13 +187,13 @@ class ModelGrid(ModelFit):
         prefix = self.prefix
         super(ModelGrid, self)._prep_from_scratch(clobber)
     
-        os.remove('%s.logL.pkl')
-    
+        os.remove('%s.logL.pkl' % prefix)
+
         # Say what processor computed which models.
         # Really just to make sure load-balancing etc. is working
         f = open('%s.load.pkl' % prefix, 'wb')
         f.close()
-        
+
         for par in self.grid.axes_names:
             if re.search('Tmin', par):
                 f = open('%s.fcoll.pkl' % prefix, 'wb')

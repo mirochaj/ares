@@ -27,7 +27,7 @@ class TurningPoints(object):
     def __init__(self, inline=False, **kwargs):
         self.pf = ParameterFile(**kwargs)
             
-        self.z_delay = self.pf['stop_delay']   
+        self.delay = self.pf['delay_extrema'] 
             
         # Keep track of turning points we've passed
         self.TPs = []
@@ -96,14 +96,18 @@ class TurningPoints(object):
             dT3pt = np.diff(dTb[-1:-4:-1])
 
             # If changes in temperatures have different signs, we found
-            # a turning point. Come back in dz = self.z_delay to compute the 
-            # details
+            # a turning point. Come back in self.delay steps to interpolate
+            # and determine its position more accurately
             if len(np.unique(np.sign(dT3pt))) == 1:
                 pass
             else:
                 self.found_TP = True
-                self.z_TP = z[-1] - self.z_delay
-            
+                
+                # Set a redshift just below current point.
+                # This is when we'll come back to precisely determine where
+                # the extremum is (when we have enough points to interpolate)
+                self.z_TP = z[-2]
+                            
             # Check for zero-crossing too
             if not np.all(np.sign(dTb[-1:-3:-1]) < 0) and \
                 'ZC' not in self.turning_points:
@@ -119,11 +123,12 @@ class TurningPoints(object):
                     return True
                 
         # If we found a turning point, hone in on its position
-        if self.found_TP and (z[-1] < self.z_TP) and (self.Npts > 3): 
+        # (z[-1] < self.z_TP) and 
+        if self.found_TP and (self.Npts > 5): 
                         
             # Redshift and temperature points bracketing crudely-determined
             # extremum position
-            k = np.argmin(np.abs(z - self.z_TP - 2 * self.z_delay))
+            k = -2 * self.delay - 1
             zbracketed = np.array(z[k:-1])
             Tbracketed = np.array(dTb[k:-1])
                         
@@ -140,9 +145,9 @@ class TurningPoints(object):
             # Crude guess at turning pt. position
             zTP_guess = zz[np.argmin(np.abs(dT))]    
             TTP_guess = np.interp(zTP_guess, z[k:-1], dTb[k:-1]) 
-                                                                   
+                                                                               
             # Spline interpolation to get "final" extremum redshift
-            Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=3)
+            Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=5)
                 
             if TP in ['B', 'D']:
                 dTb_fit = lambda zz: -splev(zz, Bspl_fit1)

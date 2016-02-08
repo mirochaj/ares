@@ -254,6 +254,9 @@ def HaloPropertyParameters():
      'php_Mfun_hi_par3': None,
 
      "php_Mmax": 5e13,
+     
+     "php_auxfun": lambda p0: lambda z: 10**(-0.15 * z),
+     "php_aux_par0": 1e-3,
     
     }  
     
@@ -678,7 +681,7 @@ def ControlParameters():
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     "stop_xavg": 0.999,   # stop at given ionized fraction
     "track_extrema": False,
-    "stop_delay": 0.5,      # differential redshift step
+    "delay_extrema": 5,      # Number of steps
     "smooth_derivative": 0, 
 
     "blob_names": None,
