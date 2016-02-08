@@ -54,7 +54,7 @@ class Global21cm(MultiPhaseMedium):
                 except ValueError:
                     raise AttributeError('No attribute %s.' % name)    
     
-            if pt not in list('BCD'):
+            if pt not in ['B', 'C', 'D', 'ZC']:
                 # This'd be where e.g., zrei, should go
                 raise NotImplemented('help!')
 
@@ -118,7 +118,7 @@ class Global21cm(MultiPhaseMedium):
     def nu_p(self):
         if not hasattr(self, '_nu_p'):
             tmp = self.dTbdnu
-        return self._nu_p    
+        return self._nu_p
         
     @property
     def kurtosis(self):
@@ -136,6 +136,10 @@ class Global21cm(MultiPhaseMedium):
             i2 = np.argmin(np.abs(self.nu_D - self.data['nu']))
             self._skewness = skew(self.data['igm_dTb'][i1:i2])
         return self._skewness
+    
+    @property
+    def slope_ZC(self):
+        return self.turning_points['ZC'][1]
     
     @property
     def track(self):

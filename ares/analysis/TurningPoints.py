@@ -23,8 +23,6 @@ try:
 except ImportError:
     pass
 
-turning_points = list('ABCDE')
-
 class TurningPoints(object):
     def __init__(self, inline=False, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -108,16 +106,16 @@ class TurningPoints(object):
             
             # Check for zero-crossing too
             if not np.all(np.sign(dTb[-1:-3:-1]) < 0) and \
-                'trans' not in self.turning_points:
+                'ZC' not in self.turning_points:
                 zTP = np.interp(0.0, dTb[-1:-3:-1], z[-1:-3:-1])
                 zz, dTbdnu = take_derivative(np.array(z[-1:-10:-1]),
                     np.array(dTb[-1:-10:-1]), wrt='nu')
 
                 slope = np.interp(zTP, zz, dTbdnu)
                 
-                self.turning_points['trans'] = (zTP, slope, None)
+                self.turning_points['ZC'] = (zTP, slope, None)
                 
-                if self.pf['stop'] == 'trans':
+                if self.pf['stop'] == 'ZC':
                     return True
                 
         # If we found a turning point, hone in on its position

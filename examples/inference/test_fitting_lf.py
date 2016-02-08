@@ -40,8 +40,8 @@ base_pars = \
  'pop_model{1}': 'sfe',
  'pop_Macc{0}': 'mcbride2009',
 
- 'pop_sed{0}': 'leitherer1999',
- #'pop_kappa_UV{0}': 1.15e-29,
+ #'pop_sed{0}': 'leitherer1999',
+ 'pop_kappa_UV{0}': 1.15e-29,
 
  'pop_fesc{0}': 0.2,
 
@@ -62,7 +62,7 @@ base_pars = \
  'php_Mfun_lo_par2{0}': 1e11,
  
  # No dustcorr for now
- 'dustcorr_Afun': 'meurer1999',
+ 'dustcorr_Afun': None,
   
  'problem_type': 101.2,
  
@@ -84,18 +84,19 @@ fitter = ares.inference.FitLuminosityFunction(**base_pars)
 
 pars = \
     [
-     'pop_Tmin{0}', 'pop_fesc{0}',
+     'pop_Tmin{0}', 'pop_fesc{0}', 'pop_kappa_UV{0}',
      'php_Mfun_par0{0}', 'php_Mfun_par1{0}', 'php_Mfun_par2{0}',
      'php_Mfun_par3{0}', 'php_Mfun_lo_par0{0}',
      'php_Mfun_lo_par1{0}', 'php_Mfun_lo_par2{0}'
     ]
 
-is_log = [True, True, False, True, False, False, True, False, True]
+is_log = [True, True, True, False, True, False, False, True, False, True]
 
 priors = \
     {
      'pop_Tmin{0}': ['uniform', 2.5, 5.5], 
      'pop_fesc{0}': ['uniform', -3, 0.],
+     'pop_kappa_UV{0}': ['uniform', -30, -27],
 
      'php_Mfun_par0{0}': ['uniform', 0., 1.],
      'php_Mfun_par1{0}': ['uniform', 7, 13],
@@ -124,11 +125,12 @@ fitter.guesses = \
 {
  'pop_Tmin{0}': 4.,
  'pop_fesc{0}': -1.,
+ 'pop_kappa_UV{0}': -28., 
  'php_Mfun_par0{0}': 0.5,
  'php_Mfun_par1{0}': 11.5,
  'php_Mfun_par2{0}': 0.8,
  'php_Mfun_par3{0}': 0.5,
- 'php_Mfun_lo_par0{0}': -2.,
+ 'php_Mfun_lo_par0{0}': -3.,
  'php_Mfun_lo_par1{0}': 0.1,
  'php_Mfun_lo_par2{0}': 13.,
 }
