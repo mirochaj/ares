@@ -187,7 +187,8 @@ class ModelGrid(ModelFit):
         prefix = self.prefix
         super(ModelGrid, self)._prep_from_scratch(clobber)
     
-        os.remove('%s.logL.pkl' % prefix)
+        if os.path.exists('%s.logL.pkl' % prefix):
+            os.remove('%s.logL.pkl' % prefix)
 
         # Say what processor computed which models.
         # Really just to make sure load-balancing etc. is working
