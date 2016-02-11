@@ -115,7 +115,9 @@ class ParameterizedHaloProperty(object):
             f = p0 * (M / p1)**p2
         elif self.Mfunc == 'dpl':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
-            f = 2. * p0 / ((M / p1)**-p2 + (M / p1)**p3)    
+            f = 2. * p0 / ((M / p1)**-p2 + (M / p1)**p3) 
+        elif self.Mfunc == 'user':
+            f = self.pf['php_Mfun_fun'](z, M)
         elif self.Mfunc == 'poly':
             raise NotImplemented('sorry dude!')
         else:

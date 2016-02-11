@@ -230,6 +230,7 @@ def HaloPropertyParameters():
     tmp = \
     {
      "php_Mfun": 'dpl',
+     "php_Mfun_fun": None,
      "php_Mfun_par0": None,
      "php_Mfun_par1": None,
      "php_Mfun_par2": None,

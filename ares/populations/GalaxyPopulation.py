@@ -462,13 +462,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
         return np.minimum(self.fstar(z, M), self.pf['php_ceil'])
     
-        ## Otherwise, we fit the mass-to-light ratio
-        #eta = np.interp(z, self.halos.z, self.eta)
-        #
-        #return self.Lh(z, M) * self.kappa_UV \
-        #    / (self.cosm.fbaryon * self.Macc(z, M) * eta)        
-    
-    
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
@@ -488,64 +481,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         .. note :: Units are [s]^{-1}
         """
         return 1. / self.tdyn_inv(z, M)
-
-    def Lh(self, z, M):
-        return 10**self._log_Lh(z, M, *self.coeff) 
-
-    def _log_Lh(self, z, M, *coeff): 
-        if self.Mfunc == 'pl':
-            return coeff[0] + coeff[1] * np.log10(M / 1e12)
-        elif self.Mfunc == 'schechter':
-            return coeff[0] + coeff[1] * np.log10(M / coeff[2]) - M / coeff[2]
-        elif self.Mfunc == 'poly':
-            return coeff[0] + coeff[1] * np.log10(M / 1e10) \
-                + coeff[2] * (np.log10(M / 1e10))**2 
-
-    #@property
-    #def Npops(self):
-    #    return self.pf.Npops
-    #    
-    #@property
-    #def pop_id(self):
-    #    # Pop ID number for HAM population
-    #    if not hasattr(self, '_pop_id'):
-    #        for i, pf in enumerate(self.pf.pfs):
-    #            if pf['pop_model'] == 'pSFE':
-    #                break
-    #        
-    #        self._pop_id = i
-    #    
-    #    return self._pop_id
-    #
-    #@property
-    #def Mext(self):
-    #    return self.pf.pfs[self.pop_id]['pop_sfe_Mext']
-    #
-    #@property
-    #def Mext_pars(self):
-    #    return self.pf.pfs[self.pop_id]['pop_sfe_Mext_par1'], \
-    #        self.pf.pfs[self.pop_id]['pop_sfe_Mext_par2']
-    #
-    #@property
-    #def zext(self):
-    #    return self.pf.pfs[self.pop_id]['pop_sfe_zext'], \
-    #          self.pf.pfs[self.pop_id]['pop_sfe_zext_par']
-
-    #def Mpeak(self, z):
-    #    """
-    #    The mass at which the star formation efficiency peaks.
-    #    """
-    #    
-    #    alpha = lambda MM: self.gamma_sfe(z, MM)
-    #        
-    #    i = np.argmin(np.abs(z - np.array(self.redshifts)))
-    #    guess = self.MofL_tab[i][np.argmax(self.fstar_tab[i])]
-    #
-    #    return fsolve(alpha, x0=guess, maxfev=10000, full_output=False,
-    #        xtol=1e-3)[0]
-    #
-    #def fpeak(self, z):
-    #    return self.SFE(z, self.Mpeak(z))
     
     def gamma_sfe(self, z, M):
         """

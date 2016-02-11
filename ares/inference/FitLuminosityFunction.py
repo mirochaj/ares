@@ -149,7 +149,7 @@ class loglikelihood(LogLikelihood):
             if pop.is_fcoll_model:
                 continue
             break
-        
+                
         # Compute the luminosity function, goodness of fit, return
         phi = []
         for i, z in enumerate(self.redshifts):

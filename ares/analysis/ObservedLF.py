@@ -138,6 +138,8 @@ class ObservedLF(object):
         
         if sources == 'all':
             sources = all_datasets
+        elif type(sources) is str:
+            sources = [sources]
             
         for source in sources:  
             if source not in data:

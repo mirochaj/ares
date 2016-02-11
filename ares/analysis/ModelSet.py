@@ -1218,7 +1218,7 @@ class ModelSet(BlobFactory):
                     
                 apply_mask.append(False)
         
-            else:
+            elif par in self.all_blob_names:
                 
                 try:
                     i, j, nd, dims = self.blob_info(par)
@@ -1260,6 +1260,20 @@ class ModelSet(BlobFactory):
                     to_hist.append(val)
                     
                 apply_mask.append(True)
+                
+            else:
+                cand = glob.glob('%s*%s*.pkl' % (self.prefix, par))
+                
+                if len(cand) != 1:
+                    raise IOError('Found %i files for %s.' % (len(cand), par))
+                      
+                f = open(cand[0], 'rb')     
+                dat = pickle.load(f)
+                f.close()
+                           
+                to_hist.append(dat)        
+                is_log.append(False)
+                apply_mask.append(True)            
                             
         # Re-organize
         if len(np.unique(pars)) < len(pars):
@@ -2178,7 +2192,7 @@ class ModelSet(BlobFactory):
         
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         shade_by_like=False, percentile=False, take_log=False, un_log=False, 
-        multiplier=1, skip=0, stop=None, **kwargs):    
+        multiplier=1, skip=0, stop=None, return_data=False, **kwargs):    
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -2300,8 +2314,11 @@ class ModelSet(BlobFactory):
             ax.fill_between(xarr, y[0], y[1], **kwargs)
         
         pl.draw()
-                        
-        return ax
+                 
+        if return_data:
+            return ax, xarr, y
+        else:            
+            return ax
         
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
         like=0.68, take_log=False, bins=20, label=None,
@@ -2425,7 +2442,7 @@ class ModelSet(BlobFactory):
         
         return ax
         
-    def CovarianceMatrix(self, pars, z=None):
+    def CovarianceMatrix(self, pars, ivar=None):
         """
         Compute covariance matrix for input parameters.
 
@@ -2440,12 +2457,7 @@ class ModelSet(BlobFactory):
         
         """
         
-        if z is None:
-            z = [None] * len(pars)
-        elif type(z) is not list:
-            z = [z]
-        
-        data = self.ExtractData(pars, z=z)
+        data = self.ExtractData(pars, ivar)
         
         masks = []
         blob_vec = []
@@ -2504,12 +2516,12 @@ class ModelSet(BlobFactory):
             
         return all_kwargs    
 
-    def CorrelationMatrix(self, pars, z=None, fig=1, ax=None):
+    def CorrelationMatrix(self, pars, ivar=None, fig=1, ax=None):
         """
         Plot correlation matrix.
         """
     
-        mu, cov = self.CovarianceMatrix(pars, z=z)
+        mu, cov = self.CovarianceMatrix(pars, ivar=ivar)
     
         corr = correlation_matrix(cov)
     
@@ -2527,6 +2539,7 @@ class ModelSet(BlobFactory):
         Extract an array of values for a given quantity.
         
         ..note:: If ivar is not supplied, this is equivalent to just reading
+            all data from disk.
         
         Parameters
         ----------
@@ -2546,7 +2559,7 @@ class ModelSet(BlobFactory):
             if ivar is None:
                 return blob
             else:
-                k = np.argmin(np.abs(self.blob_ivars[i] - ivar))
+                k = np.argmin(np.abs(self.blob_ivars[i][0] - ivar))
                 return blob[:,k]
         elif nd == 2:
             if ivar is None:
@@ -2574,6 +2587,47 @@ class ModelSet(BlobFactory):
                     self._max_like_pars[par] = self.chain[iML,i]
             
         return self._max_like_pars
+        
+    def DeriveBlob(self, expr, varmap, save=True, name=None, clobber=False):
+        """
+        Derive new blob from pre-existing ones.
+        
+        Parameters
+        ----------
+        expr : str
+            For example, 'x - y'
+        varmap : dict
+            Relates variables in `expr` to blobs. For example, 
+            
+            varmap = {'x': 'nu_D', 'y': 'nu_C'}
+        
+        
+        """    
+        
+        blobs = varmap.values()
+        
+        data, is_log = self.ExtractData(blobs)
+        
+        for var in varmap.keys():
+            exec('%s = data[\'%s\']' % (var, varmap[var]))
+            
+        result = eval(expr)
+        
+        if save:
+            assert name is not None, "Must supply name for new blob!"
+            
+            nd = len(result.shape)
+            
+            fn = '%s.blob_%id.%s.pkl' % (self.prefix, nd, name)
+            
+            if os.path.exists(fn) and (not clobber):
+                raise IOError('%s exists! Set clobber=True or remove by hand.' % fn)
+        
+            f = open(fn, 'wb')
+            pickle.dump(result, f)
+            f.close()
+        
+        return result
         
     def save(self, pars, z=None, path='.', fmt='hdf5', clobber=False):
         """
