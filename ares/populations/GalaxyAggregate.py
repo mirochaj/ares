@@ -213,13 +213,6 @@ class GalaxyAggregate(HaloPopulation):
         return type(self.pf['pop_fstar']) == FunctionType
         
     @property
-    def rhoL_from_sfrd(self):
-        if not hasattr(self, '_rhoL_from_sfrd'):
-            self._rhoL_from_sfrd = True#self.pf['pop_sfrd'] is not None
-
-        return self._rhoL_from_sfrd
-
-    @property
     def sed_tab(self):
         if not hasattr(self, '_sed_tab'):
             if self.pf['pop_sed'] == 'leitherer1999':
@@ -227,7 +220,7 @@ class GalaxyAggregate(HaloPopulation):
             else:
                 self._sed_tab = False
         return self._sed_tab
-
+        
     def _convert_band(self, Emin, Emax):
         """
         Convert from luminosity function in reference band to given bounds.
@@ -434,10 +427,7 @@ class GalaxyAggregate(HaloPopulation):
         """
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
-        if self.rhoL_from_sfrd:
-            rhoL = self.SFRD(z) * self.yield_per_sfr
-        else:
-            raise NotImplemented('help')
+        rhoL = self.SFRD(z) * self.yield_per_sfr
 
         # Convert from reference band to arbitrary band
         rhoL *= self._convert_band(Emin, Emax)
@@ -448,7 +438,7 @@ class GalaxyAggregate(HaloPopulation):
         if E is not None:
             return rhoL * self.src.Spectrum(E)
         else:
-            return rhoL    
+            return rhoL
 
     def NumberEmissivity(self, z, E=None, Emin=None, Emax=None):
         return self.Emissivity(z, E, Emin, Emax) / (E * erg_per_ev)
@@ -456,23 +446,23 @@ class GalaxyAggregate(HaloPopulation):
     def save(self, prefix, clobber=False):
         """
         Output population-specific data to disk.
-        
+
         Parameters
         ----------
         prefix : str
-            
+
         """
-        
+
         fn = '%s.ham_coeff.pkl'
-        
+
         if os.path.exists(fn) and (not clobber):
             raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
-        
+
         with open(fn, 'wb') as f:
             data = (self.constraints, self._fstar_coeff)
             pickle.dump(data, f)
-            
+
         print "Wrote %s." % fn
-        
+
 
               

@@ -15,6 +15,8 @@ from .ParameterFile import ParameterFile
 
 z0 = 9. # arbitrary
 
+Mh_dep_parameters = ['pop_fesc', 'pop_kappa_UV', 'pop_Z']
+
 class ParameterizedHaloProperty(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -115,7 +117,10 @@ class ParameterizedHaloProperty(object):
             f = p0 * (M / p1)**p2
         elif self.Mfunc == 'dpl':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
-            f = 2. * p0 / ((M / p1)**-p2 + (M / p1)**p3) 
+            f = 2. * p0 / ((M / p1)**-p2 + (M / p1)**p3)    
+        elif self.Mfunc == 'plsum2':
+            p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
+            f = p0 * (M / 1e10)**p1 + p2 * (M / 1e10)**p3
         elif self.Mfunc == 'user':
             f = self.pf['php_Mfun_fun'](z, M)
         elif self.Mfunc == 'poly':

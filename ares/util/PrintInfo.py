@@ -386,7 +386,7 @@ def print_pop(pop):
             print line("SF          : in halos w/ M >= 10**%g Msun" \
                 % (round(np.log10(pop.pf['pop_Mmin']), 2)))
         print line("HMF         : %s" % pop.pf['hmf_func'])
-        print line("fstar       : %g" % pop.pf['pop_fstar'])
+        #print line("fstar       : %g" % pop.pf['pop_fstar'])
     
     print line('-'*twidth)
     print line('Radiative Output')

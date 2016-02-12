@@ -19,6 +19,9 @@ from .CheckForParameterConflicts import CheckForParameterConflicts
 old_pars = ['fX', 'cX', 'fstar', 'fesc', 'Nion', 'Nlw']
 
 def bracketify(**kwargs):
+    """
+    Convert underscores to brackets.
+    """
     kw = {}
     for par in kwargs:
         m = re.search(r"\_([0-9])\_", par)
@@ -54,6 +57,10 @@ def pop_id_num(par):
     return prefix, int(m.group(1))
 
 def par_info(par):
+    """
+    Break apart parameter name, a population ID #, and potentially another
+    identification number that corresponds to a ParameterizedHaloProperty.
+    """
     
     prefix1, popid = pop_id_num(par)
         
@@ -67,9 +74,9 @@ def par_info(par):
         return prefix1, popid, None
 
     prefix2 = prefix1.replace(m.group(0), '')
-    z = m.group(1)
+    phpid = m.group(1)
 
-    return prefix2, popid, float(z)
+    return prefix2, popid, int(phpid)
 
 def count_populations(**kwargs):
     

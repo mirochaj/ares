@@ -49,7 +49,7 @@ class Population(object):
                 
         return self._cosm
 
-    def LuminosityDensity(self, z, Emin=None, Emax=None, Lmin=None, Lmax=None):
+    def LuminosityDensity(self, z, Emin=None, Emax=None):
         """
         Return the luminosity density in the (Emin, Emax) band.
         
@@ -65,23 +65,21 @@ class Population(object):
         """
         
         # This means the luminosity density is determined by the SFRD
-        if self.rhoL_from_sfrd:
-            return self.Emissivity(z, Emin=Emin, Emax=Emax)
+        return self.Emissivity(z, Emin=Emin, Emax=Emax)
         
-        if Lmin is None:
-            Lmin = 1e41
-        if Lmax is None:
-            Lmax = 1e42
+        #if Lmin is None:
+        #    Lmin = 1e41
+        #if Lmax is None:
+        #    Lmax = 1e42
+        #
+        #integrand = lambda LL: 10**LL * self._lf(10**LL, z=z)
+        #band_conv = self._convert_band(Emin, Emax)
+        #                
+        #mult = band_conv / cm_per_mpc**3                
+        #                
+        #return quad(integrand, np.log10(Lmin), np.log10(Lmax))[0] * mult
         
-        integrand = lambda LL: 10**LL * self._lf(10**LL, z=z)
-        band_conv = self._convert_band(Emin, Emax)
-                        
-        mult = band_conv / cm_per_mpc**3                
-                        
-        return quad(integrand, np.log10(Lmin), np.log10(Lmax))[0] * mult
-        
-    def PhotonLuminosityDensity(self, z, Emin=None, Emax=None, Lmin=None, 
-        Lmax=None):
+    def PhotonLuminosityDensity(self, z, Emin=None, Emax=None):
         """
         Return the photon luminosity density in the (Emin, Emax) band.
         
@@ -96,37 +94,10 @@ class Population(object):
         
         """
         
-        rhoL = self.LuminosityDensity(z, Emin, Emax, Lmin, Lmax)
+        rhoL = self.LuminosityDensity(z, Emin, Emax)
         eV_per_phot = self._get_energy_per_photon(Emin, Emax)
         
         return rhoL / (eV_per_phot * erg_per_ev)
         
-    def SpaceDensity(self, z, Emin=None, Emax=None, Lmin=None, Lmax=None):
-        """
-        Return the space density of objects.
-    
-        Parameters
-        ----------
-        z : int, flot
-            Redshift of interest.
-    
-        Returns
-        -------
-        Luminosity density in erg / s / cMpc**3.    
-    
-        """
-    
-        # This means the luminosity density is determined by the SFRD
-        if self.rhoL_from_sfrd:
-            raise NotImplemented('help!')
-            return self.Emissivity(z, Emin=Emin, Emax=Emax)
-    
-        if Lmin is None:
-            Lmin = 1e41
-        if Lmax is None:
-            Lmax = 1e42
-    
-        integrand = lambda LL: self._lf(10**LL, z=z)
-    
-        return quad(integrand, np.log10(Lmin), np.log10(Lmax))[0]
+
     

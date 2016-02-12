@@ -241,6 +241,7 @@ def HaloPropertyParameters():
      "php_zfun_par2": None,  
      "php_zfun_par2": None,
      "php_ceil": 1.0,
+     "php_floor": 1.0,
 
      'php_Mfun_lo': None,
      'php_Mfun_lo_par0': 1e12,
