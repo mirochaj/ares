@@ -192,13 +192,6 @@ class GalaxyAggregate(HaloPopulation):
                 self._yield_per_sfr = normalize_sed(self)
             
         return self._yield_per_sfr
-        
-    @property
-    def Nion(self):
-        if not hasattr(self, '_Nion'):
-            pass
-        
-        return self._Nion
 
     @property
     def is_fcoll_model(self):
@@ -231,14 +224,14 @@ class GalaxyAggregate(HaloPopulation):
             Minimum energy [eV]
         Emax : int, float
             Maximum energy [eV]
-            
+
         Returns
         -------
         Multiplicative factor that converts LF in reference band to that 
         defined by ``(Emin, Emax)``.
-        
+
         """
-        
+
         different_band = False
 
         # Lower bound

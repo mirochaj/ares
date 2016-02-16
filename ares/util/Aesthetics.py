@@ -200,10 +200,14 @@ sfe_parameters = \
  "php_Mfun_par1": r'$a_M^1$',
  "php_Mfun_par2": r'$a_M^2$',
  "php_Mfun_par3": r'$a_M^3$',
+ "php_Mfun_par4": r'$a_M^4$',
+ "php_Mfun_par5": r'$a_M^5$',
+ "php_Mfun_par6": r'$a_M^6$',
  "php_Mfun_lo_par0": r'$b_M^0$',
  "php_Mfun_lo_par1": r'$b_M^1$',
  "php_Mfun_lo_par2": r'$b_M^2$',
  "php_Mfun_lo_par3": r'$b_M^3$',
+  "php_Mfun_lo_par4": r'$b_M^4$',
 }
 
 other = \
@@ -283,7 +287,7 @@ class Labeler(object):
         elif (popid is not None) and (redshift is None) and (prefix in labels):
             label = labels[prefix]
         elif redshift is not None and (prefix in labels):
-            label = r'$%s[z=%.2g]$' % (undo_mathify(labels[prefix]), redshift)
+            label = r'$%s[%.2g]$' % (undo_mathify(labels[prefix]), redshift)
         
         # Troubleshoot if label not found
         if label is None:

@@ -92,6 +92,19 @@ def count_populations(**kwargs):
             popIDs.append(num)
 
     return len(popIDs)
+    
+def count_properties(**kwargs):
+    phpIDs = [0]
+    for par in kwargs:
+
+        prefix, popid, phpid = par_info(par)
+        if phpid is None:
+            continue
+
+        if phpid not in phpIDs:
+            phpIDs.append(phpid)
+
+    return len(phpIDs)
 
 class ParameterFile(dict):
     def __init__(self, **kwargs):
@@ -130,7 +143,18 @@ class ParameterFile(dict):
             self._Npops = count_populations(**tmp)
 
         return self._Npops
-
+    
+    @property
+    def Nphps(self):
+        if not hasattr(self, '_Nphps'):
+            tmp = self._kwargs.copy()
+            if 'problem_type' in self._kwargs:
+                tmp.update(ProblemType(self._kwargs['problem_type']))
+    
+            self._Nphps = count_properties(**tmp)
+    
+        return self._Nphps
+    
     def _parse(self, **kw):
         """
         Parse kwargs dictionary.
@@ -141,6 +165,8 @@ class ParameterFile(dict):
         with curly braces.
         If Npops > 1, all population-specific parameters *must* be associated
         with a population, i.e., have curly braces in the name.
+        
+        Same goes for PHPs.
               
         """    
                 

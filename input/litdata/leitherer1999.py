@@ -280,8 +280,13 @@ class StellarPopulation:
         return self._uvslope
     
     def LUV_of_t(self):
-        wave = 1500. # hard-coded since we create an interpolation object 
-        
+        return self.L1500_of_t()
+    
+    def L_per_SFR_of_t(self, wave=1500.):
+        """
+        UV luminosity per unit SFR.
+        """
+                
         j = np.argmin(np.abs(wave - self.wavelengths))
         
         dwavednu = np.diff(self.wavelengths) / np.diff(self.frequencies)
@@ -301,7 +306,10 @@ class StellarPopulation:
             
         return yield_UV
         
-    def LUV(self):   
+    def LUV(self):
+        return self.L_per_SFR_of_t()[-1]
+        
+    def L_per_sfr(self, wave=1500.):   
         """
         Specific emissivity at provided wavelength.
         
@@ -311,7 +319,7 @@ class StellarPopulation:
             erg / s / Hz / Msun
         """
         
-        yield_UV = self.LUV_of_t()
+        yield_UV = self.LUV_of_t(wave)
             
         # Interpolate in time to obtain final LUV
         if self.pf['pop_tsf'] in self.times:

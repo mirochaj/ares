@@ -157,7 +157,7 @@ class loglikelihood(LogLikelihood):
             M = xdat - pop.AUV(z, xdat)
             p = pop.LuminosityFunction(z=z, x=M, mags=True)
             phi.extend(p)
-            
+                        
         lnL = 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
         PofD = self.const_term - lnL
                                                 

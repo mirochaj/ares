@@ -24,7 +24,8 @@ from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..util.ParameterizedHaloProperty import ParameterizedHaloProperty, \
     Mh_dep_parameters
-from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, k_B
+from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
+    k_B, h_p, erg_per_ev, ev_per_hz
 
 try:
     from scipy.misc import derivative
@@ -60,18 +61,31 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         return self._SFRD
                 
     @property   
-    def rhoL(self):
+    def rhoL1500(self):
         """
         Compute star-formation rate density (SFRD).
     
         """
     
-        if not hasattr(self, '_rhoL'):
-            self._rhoL = interp1d(self.halos.z, self.rhoL_tab,
+        if not hasattr(self, '_rhoL500'):
+            self._rhoL500 = interp1d(self.halos.z, self.rhoL1500_tab,
                 kind='cubic')
     
-        return self._rhoL
-            
+        return self._rhoL500
+    
+    @property   
+    def rhoLyC(self):
+        """
+        Compute star-formation rate density (SFRD).
+    
+        """
+    
+        if not hasattr(self, '_rhoLyC'):
+            self._rhoLyC = interp1d(self.halos.z, self.rhoLyC_tab,
+                kind='cubic')
+    
+        return self._rhoLyC    
+        
     @property
     def Macc(self):
         """
@@ -94,15 +108,41 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         return self._Macc
 
     @property
+    def L1500_per_sfr(self):
+        if not hasattr(self, '_L1500_per_sfr'):
+            if self.sed_tab:
+                self._L1500_per_sfr = lambda z, M: self.src.pop.LUV()
+            elif self.pf['pop_L1500_per_sfr'][0:3] == 'php':
+                if self.pf['pop_L1500_per_sfr'] is not None:
+                    pars = self.get_php_pars(self.pf['pop_L1500_per_sfr']) 
+                    self._L1500_per_sfr = ParameterizedHaloProperty(**pars)    
+                else:
+                    self._L1500_per_sfr = lambda z, M: 1. / self.kappa_UV(z, M)
+            else:
+                self._L1500_per_sfr = lambda z, M: self.pf['pop_L1500_per_sfr']
+    
+            bad = (self.pf['pop_L1500_per_sfr'] is None) and \
+                  (self.pf['pop_kappa_UV'] is None)    
+            assert not bad, 'Can\'t kappa_UV and L1500_per_sfr'
+    
+        return self._L1500_per_sfr
+    @property
     def kappa_UV(self):
         if not hasattr(self, '_kappa_UV'):
             if self.sed_tab:
-                self._kappa_UV = self.src.pop.kappa_UV()
-            elif type(self.pf['pop_kappa_UV']) is str:
-                raise NotImplemented('working on it')
-                self._kappa_UV = ParameterizedHaloProperty()
+                self._kappa_UV = lambda z, M: self.src.pop.kappa_UV()
+            elif self.pf['pop_kappa_UV'][0:3] == 'php':
+                if self.pf['pop_kappa_UV'] is not None:
+                    pars = self.get_php_pars(self.pf['pop_kappa_UV'])   
+                    self._kappa_UV = ParameterizedHaloProperty(**pars) 
+                else:
+                    self._kappa_UV = lambda z, M: 1. / self.L1500_per_sfr(z, M)
             else:
-                self._kappa_UV = self.pf['pop_kappa_UV']
+                self._kappa_UV = lambda z, M: self.pf['pop_kappa_UV']
+            
+            bad = (self.pf['pop_L1500_per_sfr'] is None) and \
+                  (self.pf['pop_kappa_UV'] is None)    
+            assert not bad, 'Can\'t kappa_UV and L1500_per_sfr'
             
         return self._kappa_UV    
         
@@ -113,11 +153,11 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
         \eta(z) \int_{M_{\min}}^{\infty} \dot{M}_{\mathrm{acc}}(z,M) n(z,M) dM
             = \bar{\rho}_m^0 \frac{df_{\mathrm{coll}}}{dt}|_{M_{\min}}
-    
+
         """
 
         # Prepare to compute eta
-        if not hasattr(self, '_eta'):        
+        if not hasattr(self, '_eta'):
     
             self._eta = np.zeros_like(self.halos.z)
     
@@ -215,14 +255,27 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     def scalable_rhoL(self):
         """
         Can we just determine a luminosity density by scaling the SFRD?
+        
+        The answer will be "no" for any population with halo-mass-dependent
+        values for photon yields (per SFR), escape fractions, or spectra.
         """
+        
         if not hasattr(self, '_scalable_rhoL'):
             self._scalable_rhoL = True
             for par in Mh_dep_parameters:
                 if type(self.pf[par]) is str:
                     self._scalable_rhoL = False
                     break
-            
+                    
+                for i in range(self.pf.Nphps):
+                    pn = '%s[%i]' % (par,i)
+                    if pn not in self.pf:
+                        continue
+
+                    if type(self.pf[pn]) is str:
+                        self._scalable_rhoL = False
+                        break
+
         return self._scalable_rhoL
             
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
@@ -242,14 +295,14 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         if self.scalable_rhoL:
-            rhoL = super(GalaxyAggregate, self).Emissivity(z, E, Emin, Emax)
+            rhoL = super(GalaxyPopulation, self).Emissivity(z, E, Emin, Emax)
         else:
             
             # This means we're using some mass-dependent yield or fesc 
             
-            # Call upon a spline
+            # Call up a spline
             
-            rhoL = self.rhoL[(Emin, Emax)](z)
+            return self.rhoLyC(z)
             
             
             #raise NotImplemented('help')
@@ -301,7 +354,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             if z in self._phi_of_L:
                 return self._phi_of_L[z]
 
-        Lh = self.SFR(z, self.halos.M) / self.kappa_UV
+        Lh = self.SFR(z, self.halos.M) / self.kappa_UV(z, self.halos.M)
         dMh_dLh = np.diff(self.halos.M) / np.diff(Lh)
         dndm = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
 
@@ -444,50 +497,103 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
 
         return self._sfrd_tab
     
-    
-    
     @property
-    def L_tab(self):
-        """
-        SFR as a function of redshift and halo mass yielded by abundance match.
-    
-            ..note:: Units are Msun/yr.
+    def LLyC_tab(self):
+        if not hasattr(self, '_LLyC_tab'):
+            M = self.halos.M
+            kappa = self.kappa_UV(None, M)
+            fesc = self.fesc(None, M)
+            
+            dnu = (54.4 - 13.6) / ev_per_hz
+            #nrg_per_phot = 25. * erg_per_ev
 
-        """
-        if not hasattr(self, '_sfr_tab'):
-            self._L_tab = np.zeros([self.halos.Nz, self.halos.Nm])
+            Nion_per_L1500 = self.f912_per_f1500 / (1. / dnu)
+            
+            self._LLyC_tab = np.zeros([self.halos.Nz, self.halos.Nm])
+            
             for i, z in enumerate(self.halos.z):
-                self._L_tab[i] = self.sfr_tab[i,:]
-    
+                self._LLyC_tab[i] = self.L1500_tab[i] * Nion_per_L1500 \
+                    * fesc
+            
                 mask = self.halos.M >= self.Mmin[i]
-                self._sfr_tab[i] *= mask
-    
-        return self._sfr_tab
+                self._LLyC_tab[i] *= mask
+            
+        return self._LLyC_tab
+        
+    @property
+    def f912_per_f1500(self):
+        return 1.
 
     @property
-    def rhoL_tab(self):
+    def L1500_tab(self):
         """
-        SFRD as a function of redshift yielded by abundance match.
+        Luminosity as a function of redshift and halo mass.
     
-            ..note:: Units are g/s/cm^3 (comoving).
-    
+            ..note:: Units are erg/s/Hz/(Msun / yr).
+
         """
-        if not hasattr(self, '_rhoL_tab'):
-            self._rhoL_tab = np.zeros(self.halos.Nz)
-    
+        if not hasattr(self, '_L1500_tab'):
+            M = self.halos.M
+            kappa = self.kappa_UV(None, M)
+            
+            self._L1500_tab = np.zeros([self.halos.Nz, self.halos.Nm])
+            
             for i, z in enumerate(self.halos.z):
-                integrand = self.sfr_tab[i] * self.halos.dndlnm[i]
+                self._L1500_tab[i] = self.sfr_tab[i,:] / kappa
+            
+                mask = self.halos.M >= self.Mmin[i]
+                self._L1500_tab[i] *= mask
+
+        return self._L1500_tab
+        
+    @property
+    def rhoL1500_tab(self):
+        """
+        Luminosity density at 1500A as a function of redshift.
+    
+            ..note:: Units are erg/s/Hz (comoving).
+    
+        """
+        if not hasattr(self, '_rhoL1500_tab'):
+            self._rhoL1500_tab = np.zeros(self.halos.Nz)
+
+            for i, z in enumerate(self.halos.z):
+                integrand = self.L1500_tab[i] * self.halos.dndlnm[i]
     
                 tot = np.trapz(integrand, x=self.halos.lnM)
                 cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
     
-                self._sfrd_tab[i] = tot - \
+                self._rhoL1500_tab[i] = tot - \
+                    np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
+        
+            self._rhoL1500_tab /= cm_per_mpc**3
+        
+        return self._rhoL1500_tab    
+
+    @property
+    def rhoLyC_tab(self):
+        """
+        Luminosity density at 1500A as a function of redshift.
+    
+            ..note:: Units are erg/s/Hz (comoving).
+    
+        """
+        if not hasattr(self, '_rhoLyC_tab'):
+            self._rhoLyC_tab = np.zeros(self.halos.Nz)
+    
+            for i, z in enumerate(self.halos.z):
+                integrand = self.LLyC_tab[i] * self.halos.dndlnm[i]
+    
+                tot = np.trapz(integrand, x=self.halos.lnM)
+                cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
+    
+                self._rhoLyC_tab[i] = tot - \
                     np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
     
-            self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
+            self._rhoLyC_tab /= cm_per_mpc**3
     
-        return self._sfrd_tab    
-        
+        return self._rhoLyC_tab    
+    
     @property
     def _apply_floor(self):
         if not hasattr(self, '_apply_floor_'):
@@ -568,34 +674,43 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
         If outside the bounds, must extrapolate.
         """
-    
+        
+        #p, popid, phpid = par_info(self.pf['pop_fstar'])
         return np.minimum(self.fstar(z, M), self.pf['php_ceil'])
     
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
-            if self.pf['pop_fstar'][0:3] == 'php':
+            if type(self.pf['pop_fstar']) is float:
+                self._fstar = lambda z, M: self.pf['pop_fstar']
+            elif self.pf['pop_fstar'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_fstar'])
                 self._fstar = ParameterizedHaloProperty(**pars)
             else:
-                self._fstar = lambda z, M: self.pf['pop_fstar']
+                raise ValueError('Unrecognized data type for pop_fstar!')  
                 
         return self._fstar
     
     @property    
     def fesc(self):
         if not hasattr(self, '_fesc'):
-            if self.pf['pop_fesc'][0:3] == 'php':
+            if type(self.pf['pop_fesc']) is float:
+                self._fesc = lambda z, M: self.pf['pop_fesc']
+            elif self.pf['pop_fesc'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_fesc'])    
                 self._fesc = ParameterizedHaloProperty(**pars)
             else:
-                self._fesc = lambda z, M: self.pf['pop_fesc']
+                raise ValueError('Unrecognized data type for pop_fesc!')  
     
-        return self._fesc    
+        return self._fesc
     
     def get_php_pars(self, par):
-        prefix, popid, phpid = par_info(par)
+        """
+        Find ParameterizedHaloProperty's for this parameter.
+        """
         
+        prefix, popid, phpid = par_info(par)
+
         pars = {}
         for key in self.pf:
             if key[0:3] != 'php':
@@ -603,10 +718,12 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                 
             p, popid, phpid_ = par_info(key)    
             
-            if phpid_ != phpid:
+            if (phpid is None) and (self.pf.Nphps == 1):
+                pars[p] = self.pf['%s' % p]
+            elif phpid_ != phpid:
                 continue
-            
-            pars[p] = self.pf['%s[%i]' % (p, phpid)]
+            else:    
+                pars[p] = self.pf['%s[%i]' % (p, phpid)]
             
         return pars
         

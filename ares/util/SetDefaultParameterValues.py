@@ -224,6 +224,26 @@ def PhysicsParameters():
             
     return pf
     
+def SEDParameters():
+    pf = {}
+    
+    tmp = \
+    {
+     "sed_fun": None,
+     "sed_fun_par0": None,
+     "sed_fun_par1": None,
+     "sed_fun_par2": None,
+     "sed_fun_par3": None,
+     "sed_fun_par4": None,
+     "sed_fun_par5": None,
+
+    }  
+    
+    pf.update(tmp)
+    pf.update(rcParams)
+
+    return pf    
+    
 def HaloPropertyParameters():
     pf = {}
     
@@ -235,13 +255,16 @@ def HaloPropertyParameters():
      "php_Mfun_par1": None,
      "php_Mfun_par2": None,
      "php_Mfun_par3": None,
+     "php_Mfun_par4": None,
+     "php_Mfun_par5": None,
+
      "php_zfun": 'constant',    
      "php_zfun_par0": None,    
      "php_zfun_par1": None, 
      "php_zfun_par2": None,  
-     "php_zfun_par2": None,
+     "php_zfun_par3": None,
      "php_ceil": 1.0,
-     "php_floor": 1.0,
+     "php_floor": 0.0,
 
      'php_Mfun_lo': None,
      'php_Mfun_lo_par0': 1e12,
@@ -265,7 +288,7 @@ def HaloPropertyParameters():
     pf.update(tmp)
     pf.update(rcParams)
 
-    return pf  
+    return pf
     
 def SFEParameters():
     pf = {}
@@ -475,6 +498,7 @@ def PopulationParameters():
     "pop_yield": 2.6e39,
     "pop_yield_units": 'erg/s/sfr',
     "pop_kappa_UV": 1.15e-28,
+    "pop_L1500_per_sfr": None,
 
     # If pop_yield_units == 'erg/s/sfr/hz, this is the reference wavelength
     "pop_yield_wavelength": 1500.,
