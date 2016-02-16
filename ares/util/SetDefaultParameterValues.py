@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'SFE', 'Dust', 'HaloProperty']
+    'MultiPhase', 'Dust', 'HaloProperty']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -224,26 +224,6 @@ def PhysicsParameters():
             
     return pf
     
-def SEDParameters():
-    pf = {}
-    
-    tmp = \
-    {
-     "sed_fun": None,
-     "sed_fun_par0": None,
-     "sed_fun_par1": None,
-     "sed_fun_par2": None,
-     "sed_fun_par3": None,
-     "sed_fun_par4": None,
-     "sed_fun_par5": None,
-
-    }  
-    
-    pf.update(tmp)
-    pf.update(rcParams)
-
-    return pf    
-    
 def HaloPropertyParameters():
     pf = {}
     
@@ -279,71 +259,14 @@ def HaloPropertyParameters():
      'php_Mfun_hi_par3': None,
 
      "php_Mmax": 5e13,
-     
-     "php_auxfun": lambda p0: lambda z: 10**(-0.15 * z),
-     "php_aux_par0": 1e-3,
-    
+         
     }  
     
     pf.update(tmp)
     pf.update(rcParams)
 
     return pf
-    
-def SFEParameters():
-    pf = {}
-    
-    tmp = \
-    {
-    # Parameterized SFE
-    "sfe_Mfun": 'lognormal',
-    "sfe_Mfun_par0": None,
-    "sfe_Mfun_par1": None,
-    "sfe_Mfun_par2": None,
-    "sfe_Mfun_par3": None,
-    "sfe_zfun": 'constant',    
-    "sfe_zfun_par0": None,    
-    "sfe_zfun_par1": None, 
-    "sfe_zfun_par2": None,  
-    "sfe_ceil": 1.0,     
-    
-    # Extrapolations
-    'sfe_Mfun_lo': None,
-    'sfe_Mfun_lo_par0': 1e12,
-    'sfe_Mfun_lo_par1': 0.1,
-    'sfe_Mfun_lo_par2': 0.33,
-    'sfe_Mfun_lo_par3': 0.33,
 
-    'sfe_Mfun_hi': None,
-    'sfe_Mfun_hi_par0': 1e13,
-    'sfe_Mfun_hi_par1': None,
-    'sfe_Mfun_hi_par2': None,
-    'sfe_Mfun_hi_par3': None,
-    
-    "sfe_Mmax": 5e13,
-
-    # Lognormal Mh dependencies
-    # The 'par%i' parameters are for the z-dependence
-    'sfe_fpeak': 'constant',
-    'sfe_Mpeak': 'constant',
-    'sfe_sigma': 'constant',
-
-    'sfe_Mpeak_par0': 1e12,
-    'sfe_Mpeak_par1': None,
-    'sfe_Mpeak_par2': None,    
-    'sfe_fpeak_par0': 0.5,
-    'sfe_fpeak_par1': None,
-    'sfe_fpeak_par2': None,    
-    'sfe_sigma_par0': 0.8,
-    'sfe_sigma_par1': None,
-    'sfe_sigma_par2': None,
-    }
-
-    pf.update(tmp)
-    pf.update(rcParams)
-
-    return pf
-    
 def DustParameters():
     pf = {}
     
@@ -497,6 +420,7 @@ def PopulationParameters():
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
     "pop_yield": 2.6e39,
     "pop_yield_units": 'erg/s/sfr',
+    
     "pop_kappa_UV": 1.15e-28,
     "pop_L1500_per_sfr": None,
 

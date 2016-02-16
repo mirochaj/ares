@@ -126,10 +126,13 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             assert not bad, 'Can\'t kappa_UV and L1500_per_sfr'
     
         return self._L1500_per_sfr
+
     @property
     def kappa_UV(self):
         if not hasattr(self, '_kappa_UV'):
-            if self.sed_tab:
+            if self.pf['pop_L1500_per_sfr'] is not None:
+                self._kappa_UV = lambda z, M: 1. / self.L1500_per_sfr(z, M)
+            elif self.sed_tab:
                 self._kappa_UV = lambda z, M: self.src.pop.kappa_UV()
             elif self.pf['pop_kappa_UV'][0:3] == 'php':
                 if self.pf['pop_kappa_UV'] is not None:
@@ -301,6 +304,8 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             # This means we're using some mass-dependent yield or fesc 
             
             # Call up a spline
+            
+            print Emin, Emax
             
             return self.rhoLyC(z)
             
@@ -504,7 +509,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             kappa = self.kappa_UV(None, M)
             fesc = self.fesc(None, M)
             
-            dnu = (54.4 - 13.6) / ev_per_hz
+            dnu = (24.4 - 13.6) / ev_per_hz
             #nrg_per_phot = 25. * erg_per_ev
 
             Nion_per_L1500 = self.f912_per_f1500 / (1. / dnu)
@@ -630,43 +635,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                     self._Mpars_of_z[i] = func
 
         return self._Mpars_of_z
-                        
-    #ef fstar(self, z, M):  
-    #   """
-    #   Compute the halo-mass and redshift dependent star formation efficiency.
-    #   
-    #   Parameters
-    #   ----------
-    #   
-    #   """  
-    #   
-    #   logM = np.log10(M)
-    #   
-    #   if self.Mfunc == 'lognormal':
-    #       p = self.Mpars_of_z
-    #       f = p[0](z) * np.exp(-(logM - p[1](z))**2 / 2. / p[2](z)**2)
-    #   else:
-    #       raise NotImplemented('sorry!')
-    #           
-    #   # Nothing stopping some of the above treatments from negative fstar 
-    #   f = np.maximum(f, 0.0)
-    #           
-    #   ##
-    #   # HANDLE LOW-MASS END
-    #   ##        
-    #   #if (self.Mext == 'floor'):
-    #   #    f += self.Mext[1]
-    #   #elif self.Mext == 'pl_floor' and self._apply_floor:
-    #   #    self._apply_floor = 0
-    #   #    to_add = self.Mext_pars[0] * 10**self._log_fstar(z, 1e10, *coeff)
-    #   #    to_add *= (M / 1e10)**self.Mext_pars[1] * np.exp(-M / 1e11)
-    #   #    f += to_add
-    #   #    self._apply_floor = 1
-    #       
-    #   # Apply ceiling
-    #   f = np.minimum(f, self.pf['pop_sfe_ceil'])
-    #                       
-    #   return f
 
     def SFE(self, z, M):
         """
@@ -675,7 +643,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         If outside the bounds, must extrapolate.
         """
         
-        #p, popid, phpid = par_info(self.pf['pop_fstar'])
         return np.minimum(self.fstar(z, M), self.pf['php_ceil'])
     
     @property
@@ -703,6 +670,32 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                 raise ValueError('Unrecognized data type for pop_fesc!')  
     
         return self._fesc
+        
+    @property    
+    def Nion(self):
+        if not hasattr(self, '_Nion'):
+            if type(self.pf['pop_Nion']) is float:
+                self._Nion = lambda z, M: self.pf['pop_Nion']
+            elif self.pf['pop_Nion'][0:3] == 'php':
+                pars = self.get_php_pars(self.pf['pop_Nion'])
+                self._Nion = ParameterizedHaloProperty(**pars)
+            else:
+                raise ValueError('Unrecognized data type for pop_fesc!')  
+    
+        return self._Nion   
+        
+    @property
+    def Nlw(self):
+        if not hasattr(self, '_Nlw'):
+            if type(self.pf['pop_Nlw']) is float:
+                self._Nlw = lambda z, M: self.pf['pop_Nlw']
+            elif self.pf['pop_Nlw'][0:3] == 'php':
+                pars = self.get_php_pars(self.pf['pop_Nlw'])
+                self._Nlw = ParameterizedHaloProperty(**pars)
+            else:
+                raise ValueError('Unrecognized data type for pop_fesc!')  
+    
+        return self._Nlw 
     
     def get_php_pars(self, par):
         """

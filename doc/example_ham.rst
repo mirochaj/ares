@@ -1,22 +1,7 @@
 :orphan:
 
-Alternatives to fcoll models
-============================
-Most of the global 21-cm examples in the documentation tie the volume-averaged emissivity of galaxies to the rate at which mass collapses into dark matter halos. Because of this, they are referred to as :math:`f_{\mathrm{coll}}` models throughout, and are selected by setting ``pop_model='fcoll'``.
-
-Here are a few more options for source populations.
-
-A few imports before we begin:
-
-::
-
-    import ares
-    import numpy as np
-    import matplotlib.pyplot as pl
-
-
-Halo Abundance Matching (HAM)
------------------------------
+Halo Abundance Matching
+=======================
 This technique relates measurements of the galaxy luminosity function (LF) to the dark matter halo mass function by assuming galaxies of luminosity :math:`L` with number density :math:`\phi(L)` live in halos of mass :math:`M_h`, whose number density is given by the HMF, :math:`n(M_h)`. By enforcing the condition:
 
 .. math::
@@ -117,37 +102,3 @@ You can also access the SFRD via ``pop.ham.SFRD``, which just integrates the pro
 .. note:: You can run simulations of the global 21-cm using the HAM model for 
     source populations. Just be sure to pass in the appropriate parameters, as 
     ``pop_model != 'ham'`` by default!
-
-    
-Extrapolation options
-~~~~~~~~~~~~~~~~~~~~~
-In the above example defaults were used to extrapolate the SFE to low masses and high redshifts. There are several options for this, which are listed below, which should be supplied via the ``pop_ham_Mfun`` and ``pop_ham_zfun`` parameters as strings.
-
-+------------+------------+----------------------------------+
-| Dimension  |    :math:`f_{\ast}(M,z)` options              |
-+============+============+===================+==============+
-| logM       |  ``poly``  |  ``lognormal``    |              |
-+------------+------------+-------------------+--------------+
-| (1+z)      |  ``poly``  |  ``linear_t``     | ``constant`` |
-+------------+------------+-------------------+--------------+
-
-
-+------------+------------+-------------------+--------------+
-| Dimension  |    :math:`L_h(M_h)` options                   |
-+============+============+===================+==============+
-| logM       |  ``poly``  |  ``pl``           |              |
-+------------+------------+-------------------+--------------+
-| (1+z)      |  ``poly``  |  ``linear_t``     | ``constant`` |
-+------------+------------+-------------------+--------------+
-
-
-
-Halo Occupation Distribution (HOD)
-----------------------------------
-Not yet implemented.
-
-
-
-
-
-

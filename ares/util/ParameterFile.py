@@ -232,8 +232,9 @@ class ParameterFile(dict):
             for par in kwargs:
                     
                 # See if this parameter belongs to a particular population
-                prefix, num = pop_id_num(par)
-                if num is None:
+                # We DON'T care at this stage about []'s
+                prefix, popid = pop_id_num(par)
+                if popid is None:
                     # We already handled non-pop-specific parameters
                     continue
                     
@@ -241,33 +242,57 @@ class ParameterFile(dict):
                 # or source tag (i.e., an ID number in {}'s or _'s)
 
                 # See if this parameter is linked to another population
-                if type(kwargs[par]) is str:
-                    prefix_link, num_link = pop_id_num(kwargs[par])
+                # OR another parameter within the same population
+                if (type(kwargs[par]) is str):
+                    prefix_link, popid_link, phpid_link = par_info(kwargs[par])
+                    if (popid_link is None) and (phpid_link is None):
+                        # Move-on: nothing to see here
+                        # Just a parameter that can be a string
+                        pass
+                    
+                    if (phpid_link is None):
+                        pass
+                    # In this case, might have some intra-population link-age    
+                    elif kwargs[par] == 'php[%i]' % phpid_link:
+                        # This is the only false alarm I think
+                        prefix_link, popid_link, phpid_link = None, None, None
                 else:
-                    prefix_link, num_link = None, None
+                    prefix_link, popid_link, phpid_link = None, None, None
                 
                 # If it is linked, we'll handle it in just a sec
-                if num_link is not None:
+                if (popid_link is not None) or (phpid_link is not None):                    
                     linked_pars.append(par)
                     continue
     
                 # Otherwise, save it
-                pfs_by_pop[num][prefix] = kwargs[par]
+                pfs_by_pop[popid][prefix] = kwargs[par]
     
             # Update linked parameters
             for par in linked_pars:
-            
-                prefix, num = pop_id_num(par)
-                prefix_link, num_link = pop_id_num(kwargs[par])
+                
+                # Grab info for linker and linkee
+                prefix, popid, phpid = par_info(par)
+                prefix_link, popid_link, phpid_link = par_info(kwargs[par])
+                            
+                # Account for the fact that the parameter name might have []'s            
+                if phpid is None:
+                    name = prefix
+                else:
+                    name = '%s[%i]' % (prefix, phpid)
+                    
+                if phpid_link is None:
+                    name_link = prefix_link
+                else:
+                    name_link = '%s[%i]' % (prefix_link, phpid_link)
             
                 # If we didn't supply this parameter for the linked population,
                 # assume default parameter value
-                if prefix not in pfs_by_pop[num_link]:
+                if name_link not in pfs_by_pop[popid_link]:
                     val = self.defaults[prefix_link]
                 else:
-                    val = pfs_by_pop[num_link][prefix_link]
+                    val = pfs_by_pop[popid_link][name_link]
             
-                pfs_by_pop[num][prefix] = val
+                pfs_by_pop[popid_link][name] = val
 
             # Save as attribute
             self.pfs = pfs_by_pop

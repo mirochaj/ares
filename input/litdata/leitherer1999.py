@@ -280,7 +280,7 @@ class StellarPopulation:
         return self._uvslope
     
     def LUV_of_t(self):
-        return self.L1500_of_t()
+        return self.L_per_SFR_of_t()
     
     def L_per_SFR_of_t(self, wave=1500.):
         """

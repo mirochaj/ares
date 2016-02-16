@@ -15,7 +15,8 @@ from .ParameterFile import ParameterFile
 
 z0 = 9. # arbitrary
 
-Mh_dep_parameters = ['pop_fesc', 'pop_kappa_UV', 'pop_Z']
+Mh_dep_parameters = ['pop_fstar', 'pop_fesc', 'pop_L1500_per_sfr', 
+    'pop_Nion', 'pop_Nlw']
 
 class ParameterizedHaloProperty(object):
     def __init__(self, **kwargs):
@@ -121,7 +122,33 @@ class ParameterizedHaloProperty(object):
         elif self.Mfunc == 'plsum2':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
             f = p0 * (M / 1e10)**p1 + p2 * (M / 1e10)**p3
-        elif self.Mfunc == 'pwpl':
+        elif (self.Mfunc == 'rstep'):
+            p0 = pars[0]; p1 = pars[1]; p2 = pars[2]
+            
+            if type(M) is np.ndarray:
+                lo = M <= p2
+                hi = M > p2
+                
+                return lo * p0 * p1 + hi * p1 
+            else:
+                if M <= p2:
+                    return p0 * p1
+                else:
+                    return p1
+        elif (self.Mfunc == 'astep'):
+            p0 = pars[0]; p1 = pars[1]; p2 = pars[2]
+        
+            if type(M) is np.ndarray:
+                lo = M <= p2
+                hi = M > p2
+        
+                return lo * p0 + hi * p1 
+            else:
+                if M <= p2:
+                    return p0
+                else:
+                    return p1            
+        elif (self.Mfunc == 'pwpl'):
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
             p4 = pars[4]; p5 = pars[5]
             
