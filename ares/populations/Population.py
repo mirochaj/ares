@@ -10,23 +10,20 @@ Description:
 
 """
 
-import numpy as np
 from ..physics import Cosmology
 from ..util import ParameterFile
-from scipy.integrate import quad
-from ..physics.Constants import cm_per_mpc, erg_per_ev
-
-log10 = np.log(10.)    # for when we integrate in log-space
+from ..physics.Constants import E_LyA
 
 class Population(object):
     def __init__(self, grid=None, **kwargs):
         
+        # why is this necessary?
         if 'problem_type' in kwargs:
             del kwargs['problem_type']
-        
+
         self.pf = ParameterFile(**kwargs)
         self.grid = grid
-                
+
         self.zform = self.pf['pop_zform']
         self.zdead = self.pf['pop_zdead']
 
@@ -49,55 +46,4 @@ class Population(object):
                 
         return self._cosm
 
-    def LuminosityDensity(self, z, Emin=None, Emax=None):
-        """
-        Return the luminosity density in the (Emin, Emax) band.
         
-        Parameters
-        ----------
-        z : int, flot
-            Redshift of interest.
-            
-        Returns
-        -------
-        Luminosity density in erg / s / c-cm**3.
-            
-        """
-        
-        # This means the luminosity density is determined by the SFRD
-        return self.Emissivity(z, Emin=Emin, Emax=Emax)
-        
-        #if Lmin is None:
-        #    Lmin = 1e41
-        #if Lmax is None:
-        #    Lmax = 1e42
-        #
-        #integrand = lambda LL: 10**LL * self._lf(10**LL, z=z)
-        #band_conv = self._convert_band(Emin, Emax)
-        #                
-        #mult = band_conv / cm_per_mpc**3                
-        #                
-        #return quad(integrand, np.log10(Lmin), np.log10(Lmax))[0] * mult
-        
-    def PhotonLuminosityDensity(self, z, Emin=None, Emax=None):
-        """
-        Return the photon luminosity density in the (Emin, Emax) band.
-        
-        Parameters
-        ----------
-        z : int, flot
-            Redshift of interest.
-    
-        Returns
-        -------
-        Photon luminosity density in photons / s / c-cm**3.
-        
-        """
-        
-        rhoL = self.LuminosityDensity(z, Emin, Emax)
-        eV_per_phot = self._get_energy_per_photon(Emin, Emax)
-        
-        return rhoL / (eV_per_phot * erg_per_ev)
-        
-
-    

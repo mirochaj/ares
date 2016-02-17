@@ -103,7 +103,7 @@ class loglikelihood(LogLikelihood):
         lp = self.logprior_P(pars)
         if not np.isfinite(lp):
             return -np.inf, self.blank_blob
-    
+
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
@@ -123,9 +123,8 @@ class loglikelihood(LogLikelihood):
             try:
                 sim.run()                
             except (ValueError, IndexError):
-                # Seems to happen in some weird cases when the 
-                # HAM fit fails
-                # Also, if Tmin goes crazy big (IndexError in integration)
+                # Seems to happen if Tmin goes crazy big 
+                # (IndexError in integration)
                 
                 f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 
                     'ab')

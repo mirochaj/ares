@@ -319,7 +319,7 @@ class StellarPopulation:
             erg / s / Hz / Msun
         """
         
-        yield_UV = self.LUV_of_t(wave)
+        yield_UV = self.L_per_SFR_of_t(wave)
             
         # Interpolate in time to obtain final LUV
         if self.pf['pop_tsf'] in self.times:

@@ -1220,11 +1220,37 @@ class ModelSet(BlobFactory):
         
             elif par in self.all_blob_names:
                 
-                try:
-                    i, j, nd, dims = self.blob_info(par)
-                    z_to_freq = False
-                    freq_to_z = False
-                except KeyError:
+                i, j, nd, dims = self.blob_info(par)
+
+                if nd == 0:
+                    val = self.get_blob(par).copy()
+                else:
+                    val = self.get_blob(par, ivar=ivar[k]).copy()
+
+                val *= multiplier[k]
+                    
+                if take_log[k]:
+                    is_log.append(True)
+                    to_hist.append(np.log10(val))
+                else:
+                    is_log.append(False)
+                    to_hist.append(val)
+                    
+                apply_mask.append(True)
+                
+            else:
+                
+                cand = glob.glob('%s*%s*.pkl' % (self.prefix, par))
+                
+                if len(cand) == 1:
+                    f = open(cand[0], 'rb')     
+                    dat = pickle.load(f)
+                    f.close()
+
+                    to_hist.append(dat)        
+                    is_log.append(False)
+                    apply_mask.append(True)
+                else:
 
                     # Handle case where we have redshift but not frequency
                     # or vice-versa
@@ -1239,41 +1265,22 @@ class ModelSet(BlobFactory):
                     elif freq_to_z:
                         par = 'nu_%s' % post
                         i, j, nd, dims = self.blob_info('nu_%s' % post)
-
-                if nd == 0:
-                    val = self.get_blob(par).copy()
-                else:
-                    val = self.get_blob(par, ivar=ivar[k]).copy()
-
-                val *= multiplier[k]
-
-                if z_to_freq:
-                    val = nu_0_mhz / (1. + val)
-                elif freq_to_z:
-                    val = nu_0_mhz / val - 1.
-                    
-                if take_log[k]:
-                    is_log.append(True)
-                    to_hist.append(np.log10(val))
-                else:
+                        
+                    if nd == 0:
+                        val = self.get_blob(par).copy()
+                    else:
+                        val = self.get_blob(par, ivar=ivar[k]).copy()
+                
+                    if z_to_freq:
+                        val = nu_0_mhz / (1. + val)
+                    elif freq_to_z:
+                        val = nu_0_mhz / val - 1.  
+                        
+                    to_hist.append(val)        
                     is_log.append(False)
-                    to_hist.append(val)
-                    
-                apply_mask.append(True)
-                
-            else:
-                cand = glob.glob('%s*%s*.pkl' % (self.prefix, par))
-                
-                if len(cand) != 1:
-                    raise IOError('Found %i files for %s.' % (len(cand), par))
-                      
-                f = open(cand[0], 'rb')     
-                dat = pickle.load(f)
-                f.close()
-                           
-                to_hist.append(dat)        
-                is_log.append(False)
-                apply_mask.append(True)            
+                    apply_mask.append(True)      
+                     
+                   
                             
         # Re-organize
         if len(np.unique(pars)) < len(pars):
@@ -2621,7 +2628,9 @@ class ModelSet(BlobFactory):
             fn = '%s.blob_%id.%s.pkl' % (self.prefix, nd, name)
             
             if os.path.exists(fn) and (not clobber):
-                raise IOError('%s exists! Set clobber=True or remove by hand.' % fn)
+                print '%s exists! Set clobber=True or remove by hand.' % fn
+                data, is_log = self.ExtractData(name)
+                return data[name]
         
             f = open(fn, 'wb')
             pickle.dump(result, f)
