@@ -641,7 +641,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
-            if type(self.pf['pop_fstar']) is float:
+            if type(self.pf['pop_fstar']) in [float, np.float64]:
                 self._fstar = lambda z, M: self.pf['pop_fstar']
             elif self.pf['pop_fstar'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_fstar'])
@@ -654,7 +654,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     @property    
     def fesc(self):
         if not hasattr(self, '_fesc'):
-            if type(self.pf['pop_fesc']) is float:
+            if type(self.pf['pop_fesc']) in [float, np.float64]:
                 self._fesc = lambda z, M: self.pf['pop_fesc']
             elif self.pf['pop_fesc'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_fesc'])    
@@ -667,7 +667,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     @property    
     def Nion(self):
         if not hasattr(self, '_Nion'):
-            if type(self.pf['pop_Nion']) is float:
+            if type(self.pf['pop_Nion']) in [float, np.float64]:
                 self._Nion = lambda z, M: self.pf['pop_Nion']
             elif self.pf['pop_Nion'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_Nion'])
@@ -680,7 +680,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     @property
     def Nlw(self):
         if not hasattr(self, '_Nlw'):
-            if type(self.pf['pop_Nlw']) is float:
+            if type(self.pf['pop_Nlw']) in [float, np.float64]:
                 self._Nlw = lambda z, M: self.pf['pop_Nlw']
             elif self.pf['pop_Nlw'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_Nlw'])
