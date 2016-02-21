@@ -13,6 +13,11 @@ Description:
 import numpy as np
 from .ParameterFile import ParameterFile
 
+def tanh_astep(M, lo, hi, logM0, logdM):
+    return (lo - hi) * 0.5 * (np.tanh((logM0 - np.log10(M)) / logdM) + 1.) + hi
+def tanh_rstep(M, lo, hi, logM0, logdM):
+    return hi * lo * 0.5 * (np.tanh((logM0 - np.log10(M)) / logdM) + 1.) + hi
+
 z0 = 9. # arbitrary
 
 Mh_dep_parameters = ['pop_fstar', 'pop_fesc', 'pop_L1500_per_sfr', 
@@ -56,6 +61,13 @@ class ParameterizedHaloProperty(object):
         if not hasattr(self, '_Mlo_extrap'):
             self._Mlo_extrap = self.pf['php_Mfun_lo'] is not None
         return self._Mlo_extrap
+        
+    @property
+    def M_aug(self):
+        if not hasattr(self, '_M_aug'):
+            self._M_aug = self.pf['php_Mfun_aug'] is not None
+        return self._M_aug  
+          
     @property
     def Mhi_extrap(self):
         if not hasattr(self, '_Mhi_extrap'):
@@ -101,28 +113,36 @@ class ParameterizedHaloProperty(object):
         """
 
         pars = [self.pf['php_Mfun_par%i' % i] for i in range(6)]
-        lpars = [self.pf['php_Mfun_lo_par%i' % i] for i in range(4)]
-        hpars = [self.pf['php_Mfun_hi_par%i' % i] for i in range(4)]
+        #lpars = [self.pf['php_Mfun_lo_par%i' % i] for i in range(4)]
+        #hpars = [self.pf['php_Mfun_hi_par%i' % i] for i in range(4)]
 
-        return self._call(z, M, pars, lpars, hpars)
+        return self._call(z, M, pars)
 
-    def _call(self, z, M, pars, lopars=None, hipars=None):
+    def _call(self, z, M, pars, func=None):
+
+        if func is None:
+            func = self.Mfunc
 
         logM = np.log10(M)
-
-        if self.Mfunc == 'lognormal':            
-            f = self.fpeak(z) * np.exp(-(logM - np.log10(self.Mpeak(z)))**2 \
-                / 2. / self.sigma(z)**2)
-        elif self.Mfunc == 'pl':
+                
+        if func == 'lognormal':
+            p0 = pars[0]; p1 = pars[1]; p2 = pars[2]
+            f = p0 * np.exp(-(logM - p1)**2 / 2. / p2**2)    
+            #f = self.fpeak(z) * np.exp(-(logM - np.log10(self.Mpeak(z)))**2 \
+            #    / 2. / self.sigma(z)**2)
+        elif func == 'pl':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]
             f = p0 * (M / p1)**p2
-        elif self.Mfunc == 'dpl':
+        elif func == 'plexp':
+            p0 = pars[0]; p1 = pars[1]; p2 = pars[2]
+            f = p0 * (M / 1e10)**p1 * np.exp(-M / p2)
+        elif func == 'dpl':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
             f = 2. * p0 / ((M / p1)**-p2 + (M / p1)**p3)    
-        elif self.Mfunc == 'plsum2':
+        elif func == 'plsum2':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
             f = p0 * (M / 1e10)**p1 + p2 * (M / 1e10)**p3
-        elif (self.Mfunc == 'rstep'):
+        elif func == 'rstep':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]
             
             if type(M) is np.ndarray:
@@ -135,7 +155,14 @@ class ParameterizedHaloProperty(object):
                     return p0 * p1
                 else:
                     return p1
-        elif (self.Mfunc == 'astep'):
+        elif func == 'tanh_abs':
+            p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
+            return tanh_astep(M, p0, p1, p2, p3)
+        elif func == 'tanh_rel':
+            p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
+            return tanh_rstep(M, p0, p1, p2, p3)    
+            
+        elif func == 'astep':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]
         
             if type(M) is np.ndarray:
@@ -148,7 +175,7 @@ class ParameterizedHaloProperty(object):
                     return p0
                 else:
                     return p1            
-        elif (self.Mfunc == 'pwpl'):
+        elif func == 'pwpl':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]; p3 = pars[3]
             p4 = pars[4]; p5 = pars[5]
             
@@ -163,45 +190,34 @@ class ParameterizedHaloProperty(object):
                     return p0 * (M / 1e10)**p1
                 else:
                     return p2 * (M / 1e10)**p3
-        elif self.Mfunc == 'user':
+        elif func == 'okamoto':
+            p0 = pars[0]; p1 = pars[1]
+            f = (1. + (2.**(p0 / 3.) - 1.) * (M / p1)**-p0)**(-3. / p0)
+        elif func == 'user':
             f = self.pf['php_Mfun_fun'](z, M)
-        elif self.Mfunc == 'poly':
-            raise NotImplemented('sorry dude!')
+
         else:
             raise NotImplemented('sorry dude!')
-    
-        to_add = 0.0
-        to_mult = 1.0
-        if self._apply_extrap:
+
+        # Add or multiply to main function.
+        if self.M_aug and self._apply_extrap:
             self._apply_extrap = 0
-
-            if self.Mlo_extrap:
-                p0 = self.pf['php_Mfun_lo_par0']
-                p1 = self.pf['php_Mfun_lo_par1']
-                if self.pf['php_Mfun_lo'] == 'pl':
-                    to_add = p0 * (M / 1e10)**p1
-                elif self.pf['php_Mfun_lo'] == 'plexp':
-                    p2 = self.pf['php_Mfun_lo_par2']
-                    to_add = p0 * (M / 1e10)**p1 * np.exp(-M / p2)
-                elif self.pf['php_Mfun_lo'] == 'dpl':
-                    p2 = self.pf['php_Mfun_lo_par2']
-                    p3 = self.pf['php_Mfun_lo_par3']
-                    to_add = 2 * p1 / ((M / p2)**-p3 + (M / p2)**p4)
-
-            if self.Mhi_extrap:
-                if self.pf['php_Mfun_hi'] == 'exp':
-                    Mexp = self.pf['php_Mfun_hi_par0']
-                    to_mult = np.exp(-M / Mexp)
-                elif self.pf['php_Mfun_hi'] == 'pl':    
-                    Mt = self.pf['php_Mfun_hi_par0']
-                    dM = self.pf['php_Mfun_hi_par1']
-                    to_mult = 1. - np.tanh((M - Mt) / dM)   
-                
-            self._apply_extrap = 1
-
-        f += to_add
-        f *= to_mult
-    
-        return np.maximum(np.minimum(f, self.pf['php_ceil']), self.pf['php_floor'])
+            
+            p = [self.pf['php_Mfun_aug_par%i' % i] for i in range(6)]
+            aug = self._call(z, M, p, self.pf['php_Mfun_aug'])
+            
+            if self.pf['php_Mfun_aug_meth'] == 'multiply':
+                f *= aug
+            else:
+                f += aug
+                                
+            self._apply_extrap = 1    
+            
+        if self.pf['php_ceil'] is not None:
+            f = np.minimum(f, self.pf['php_ceil'])
+        if self.pf['php_floor'] is not None:
+            f = np.maximum(f, self.pf['php_floor'])
+        
+        return f
               
         

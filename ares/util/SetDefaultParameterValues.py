@@ -245,18 +245,15 @@ def HaloPropertyParameters():
      "php_zfun_par3": None,
      "php_ceil": 1.0,
      "php_floor": 0.0,
-
-     'php_Mfun_lo': None,
-     'php_Mfun_lo_par0': 1e12,
-     'php_Mfun_lo_par1': 0.1,
-     'php_Mfun_lo_par2': 0.33,
-     'php_Mfun_lo_par3': 0.33,
-
-     'php_Mfun_hi': None,
-     'php_Mfun_hi_par0': 1e13,
-     'php_Mfun_hi_par1': None,
-     'php_Mfun_hi_par2': None,
-     'php_Mfun_hi_par3': None,
+     
+     'php_Mfun_aug': None,
+     'php_Mfun_aug_meth': 'multiply',
+     'php_Mfun_aug_par0': None,
+     'php_Mfun_aug_par1': None,
+     'php_Mfun_aug_par2': None,
+     'php_Mfun_aug_par3': None,
+     'php_Mfun_aug_par4': None,
+     'php_Mfun_aug_par5': None,
 
      "php_Mmax": 5e13,
          

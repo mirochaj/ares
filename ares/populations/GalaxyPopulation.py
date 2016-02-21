@@ -55,12 +55,14 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         if not hasattr(self, '_L1500_per_SFR'):
             if self.sed_tab:
                 self._L1500_per_SFR = lambda z, M: self.src.pop.L_per_sfr()
+            elif type(self.pf['pop_L1500_per_sfr']) in [float, np.float64]:
+                self._L1500_per_SFR = \
+                    lambda z, M: self.pf['pop_L1500_per_sfr']
             elif self.pf['pop_L1500_per_sfr'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_L1500_per_sfr']) 
                 self._L1500_per_SFR = ParameterizedHaloProperty(**pars)    
             else:
-                self._L1500_per_SFR = \
-                    lambda z, M: self.pf['pop_L1500_per_sfr']
+                raise TypeError('dunno how to handle this')
         
         return self._L1500_per_SFR
 
