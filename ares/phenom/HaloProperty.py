@@ -11,7 +11,7 @@ Description:
 """
 
 import numpy as np
-from .ParameterFile import ParameterFile
+from ..util import ParameterFile
 
 def tanh_astep(M, lo, hi, logM0, logdM):
     return (lo - hi) * 0.5 * (np.tanh((logM0 - np.log10(M)) / logdM) + 1.) + hi

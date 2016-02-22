@@ -15,7 +15,7 @@ from scipy.integrate import quad
 from ..util.ParameterFile import ParameterFile
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun
 
-class Cosmology:
+class Cosmology(object):
     def __init__(self, **kwargs):
         """Initialize a Cosmology object.
         

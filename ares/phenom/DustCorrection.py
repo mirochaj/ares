@@ -11,7 +11,7 @@ Description:
 """
 
 import numpy as np
-from .ParameterFile import ParameterFile
+from ..util import ParameterFile
 
 class DustCorrection(object):
     def __init__(self, **kwargs):

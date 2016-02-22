@@ -19,7 +19,6 @@ from ..simulations import Global21cm as simG21
 from ..analysis import Global21cm as anlGlobal21cm
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..simulations import Global21cm as simGlobal21cm
-from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
  
 try:
     import cPickle as pickle

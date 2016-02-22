@@ -29,7 +29,6 @@ try:
 except ImportError:
     pass
     
-    
 class DummyDQ(object):
     """
     A wrapper around DerivedQuantities.

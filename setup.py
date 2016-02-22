@@ -12,7 +12,7 @@ ares_link = 'https://bitbucket.org/mirochaj/ares'
 ares_packages = \
     ['ares', 'ares.analysis', 'ares.simulations', 'ares.populations',
      'ares.util', 'ares.solvers', 'ares.static', 'ares.sources', 
-     'ares.physics', 'ares.inference']
+     'ares.physics', 'ares.inference', 'ares.phenom']
 
 setup(name='ares',
       version='0.1',

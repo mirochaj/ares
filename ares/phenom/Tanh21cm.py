@@ -16,7 +16,6 @@ from ..util import ParameterFile
 from scipy.misc import derivative
 from ..util.ReadData import _load_inits
 from ..physics import Hydrogen, Cosmology
-#from ..analysis.Global21cm import Global21cm
 from ..physics.Constants import k_B, J21_num, nu_0_mhz
 from ..physics.RateCoefficients import RateCoefficients
 from ..util.SetDefaultParameterValues import TanhParameters
@@ -43,7 +42,7 @@ def shift_z(z, nu_bias):
 
     return freq_to_z(nu)
     
-class TanhModel:
+class Tanh21cm(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
 
@@ -207,7 +206,5 @@ class TanhModel:
          'igm_heat_h_1': self.heating_rate(z, Tref, zref_T, dz_T),
          'cgm_Gamma_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
         }
-
-        #tmp = Global21cm(data=hist)    
 
         return hist

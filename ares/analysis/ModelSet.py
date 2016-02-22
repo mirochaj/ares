@@ -2198,8 +2198,9 @@ class ModelSet(BlobFactory):
         return mp
         
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
-        shade_by_like=False, percentile=False, take_log=False, un_log=False, 
-        multiplier=1, skip=0, stop=None, return_data=False, **kwargs):    
+        shade_by_like=False, percentile=0.68, take_log=False, un_log=False, 
+        multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
+        **kwargs):    
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -2302,6 +2303,10 @@ class ModelSet(BlobFactory):
                     dat = data[name][skip:stop].compressed()
                     lo, hi = dat.min(), dat.max()
                     y.append((lo, hi))
+                    
+        # Convert redshifts to frequencies    
+        if z_to_freq:
+            xarr = nu_0_mhz / (1. + xarr)
                         
         if not (shade_by_like or percentile) and self.is_mcmc:
             if take_log:

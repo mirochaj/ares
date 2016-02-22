@@ -16,12 +16,12 @@ from types import FunctionType
 from ..util.ParameterFile import par_info
 from .GalaxyAggregate import GalaxyAggregate
 from scipy.optimize import fsolve, curve_fit
-from ..util.DustCorrection import DustCorrection
+from ..phenom.DustCorrection import DustCorrection
 from scipy.integrate import quad, simps, cumtrapz, ode
 from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
-from ..util.ParameterizedHaloProperty import ParameterizedHaloProperty, \
+from ..phenom.HaloProperty import ParameterizedHaloProperty, \
     Mh_dep_parameters
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz

@@ -79,7 +79,9 @@ def par_info(par):
     return prefix2, popid, int(phpid)
 
 def count_populations(**kwargs):
-    
+    """
+    Count the number of populations to be used for this calculation.
+    """
     # Count populations
     popIDs = [0]
     for par in kwargs:
@@ -94,17 +96,30 @@ def count_populations(**kwargs):
     return len(popIDs)
     
 def count_properties(**kwargs):
-    phpIDs = [0]
+    """
+    Count the number of parameterized halo properties in this model.
+    """
+    
+    phps = []    
+    phpIDs = []
     for par in kwargs:
 
-        prefix, popid, phpid = par_info(par)
-        if phpid is None:
+        if type(kwargs[par]) is not str:
             continue
 
+        if kwargs[par][0:3] != 'php':
+            continue
+        
+        prefix, popid, phpid = par_info(par)
+        
+        if phpid is None:
+            phpid = 0
+
         if phpid not in phpIDs:
+            phps.append(par)
             phpIDs.append(phpid)
 
-    return len(phpIDs)
+    return len(phpIDs), phps
 
 class ParameterFile(dict):
     def __init__(self, **kwargs):
@@ -151,9 +166,18 @@ class ParameterFile(dict):
             if 'problem_type' in self._kwargs:
                 tmp.update(ProblemType(self._kwargs['problem_type']))
     
-            self._Nphps = count_properties(**tmp)
+            self._Nphps, self._phps = count_properties(**tmp)
     
         return self._Nphps
+    
+    @property
+    def phps(self):
+        """
+        List of parameterized halo properties.
+        """
+        if not hasattr(self, '_phps'):
+            tmp = self.Nphps
+        return self._phps
     
     def _parse(self, **kw):
         """
@@ -165,9 +189,7 @@ class ParameterFile(dict):
         with curly braces.
         If Npops > 1, all population-specific parameters *must* be associated
         with a population, i.e., have curly braces in the name.
-        
-        Same goes for PHPs.
-              
+                      
         """    
                 
         # Start w/ problem specific parameters (always)

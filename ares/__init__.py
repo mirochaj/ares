@@ -9,7 +9,9 @@ if _os.path.exists('%s/.ares/defaults.py' % _HOME):
     rcParams = _imp.load_module('defaults.py', _f, _filename, _data).pf
 else:
     rcParams = {}
-
-import static, solvers, physics, simulations, sources, analysis, inference, \
-    util
-
+    
+import physics, util, phenom, analysis
+import sources, populations
+import static, solvers
+import simulations
+import inference

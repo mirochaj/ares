@@ -24,7 +24,7 @@ gauss_pars = ['gaussian_A', 'gaussian_nu', 'gaussian_sigma']
 def gauss_generic(nu, A, nu0, sigma):
     return A * np.exp(-(nu - nu0)**2 / 2. / sigma**2)
 
-class GaussianModel:
+class Gaussian21cm(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
     

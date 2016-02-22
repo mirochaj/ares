@@ -11,24 +11,21 @@ Description: Utilities for converting magnitudes to luminosities and such.
 """
 
 import numpy as np
-from ..physics import Cosmology
+from ..physics.Cosmology import Cosmology
 from ..physics.Constants import cm_per_pc
-from .SetDefaultParameterValues import CosmologyParameters
-
-cosm = CosmologyParameters()
 
 norm_AB = 3631. * 1e-23  # 3631 Jansky in cgs, i.e., 
                          # 3631 * 1e-23 erg / s / cm**2 / Hz
 
 class MagnitudeSystem(Cosmology):
-    def __init__(self, **kwargs):
-        
-        if not kwargs:
-            kw = cosm
-        else:
-            kw = {key : kwargs[key] for key in cosm}
-        
-        Cosmology.__init__(self, **kw)
+    #def __init__(self, **kwargs):
+    #    
+    #    if not kwargs:
+    #        kw = cosm
+    #    else:
+    #        kw = {key : kwargs[key] for key in cosm}
+    #    
+    #    Cosmology.__init__(self, **kw)
     
     def mab_to_L(self, mag, z=None, dL=None):
         """

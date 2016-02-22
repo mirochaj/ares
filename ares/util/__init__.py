@@ -7,5 +7,4 @@ from .ProgressBar import ProgressBar
 from .ParameterFile import ParameterFile
 from .MagnitudeSystem import MagnitudeSystem
 from .RestrictTimestep import RestrictTimestep
-from .ParameterizedHaloProperty import ParameterizedHaloProperty
 
