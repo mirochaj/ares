@@ -16,7 +16,7 @@ from ..util import ParameterFile
 from .GalaxyAggregate import GalaxyAggregate
 from .GalaxyPopulation import GalaxyPopulation
 
-class CompositePopulation:
+class CompositePopulation(object):
     def __init__(self, **kwargs):
         """
         Initialize a CompositePopulation object, i.e., a list of *Population instances.

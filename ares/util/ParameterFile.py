@@ -14,6 +14,7 @@ import re
 from .ProblemTypes import ProblemType
 from .SetDefaultParameterValues import SetAllDefaults
 from .BackwardCompatibility import backward_compatibility
+from .SetDefaultParameterValues import HaloPropertyParameters
 from .CheckForParameterConflicts import CheckForParameterConflicts
 
 old_pars = ['fX', 'cX', 'fstar', 'fesc', 'Nion', 'Nlw']
@@ -110,8 +111,8 @@ def count_properties(**kwargs):
         if kwargs[par][0:3] != 'php':
             continue
         
-        prefix, popid, phpid = par_info(par)
-        
+        prefix, popid, phpid = par_info(kwargs[par])
+                
         if phpid is None:
             phpid = 0
 
@@ -120,6 +121,61 @@ def count_properties(**kwargs):
             phpIDs.append(phpid)
 
     return len(phpIDs), phps
+    
+def identify_phps(**kwargs):
+    """
+    Count the number of parameterized halo properties in this model.
+    
+    Sort them by population ID #.
+    
+    Returns
+    -------
+    List of lists: parameterized halo properties for each population.
+    NOTE: they are not in order
+    """
+
+    Npops = count_populations(**kwargs)
+    phps = [[] for i in range(Npops)]
+
+    for par in kwargs:
+
+        if type(kwargs[par]) is not str:
+            continue
+
+        if (kwargs[par] != 'php') and (kwargs[par][0:4] != 'php['):
+            continue
+
+        # This will NOT have a pop ID
+        just_php, nothing, phpid = par_info(kwargs[par])
+        
+        prefix, popid, age = par_info(par)
+        
+        if (popid is None) and (Npops == 1):
+            # I think this is guaranteed to be true
+            if prefix not in phps[0]:
+                phps[0].append(prefix) 
+        else:
+            if prefix in phps[popid]:
+                continue
+                
+            phps[popid].append(prefix)
+            
+    return phps
+    
+    ## Sort PHPs
+    #for i, pop in enumerate(phps):
+    #    if not pop:
+    #        continue
+    #        
+    #    tmp = [None for k in range(len(pop))]
+    #    for j, php in enumerate(pop):
+    #        
+    #        k = kwargs['']
+    #        tmp[]
+            
+            
+        
+        
 
 class ParameterFile(dict):
     def __init__(self, **kwargs):
@@ -130,10 +186,12 @@ class ParameterFile(dict):
         self.defaults = SetAllDefaults()
         
         # Defaults w/o all parameters that are population-specific
+        # This is to-be-used in reconstructing a master parameter file
         self.defaults_pop_dep = {}
         self.defaults_pop_indep = {}
         for key in self.defaults:
-            if re.search('pop_', key) or re.search('source_', key):
+            if re.search('pop_', key) or re.search('source_', key) or \
+               re.search('php_', key):
                 self.defaults_pop_dep[key] = self.defaults[key]
                 continue
             
@@ -167,7 +225,7 @@ class ParameterFile(dict):
                 tmp.update(ProblemType(self._kwargs['problem_type']))
     
             self._Nphps, self._phps = count_properties(**tmp)
-    
+
         return self._Nphps
     
     @property
@@ -196,8 +254,10 @@ class ParameterFile(dict):
         if 'problem_type' not in kw:
             kw['problem_type'] = self.defaults['problem_type']    
             
+        # Change underscores to brackets in parameter names
         kw = bracketify(**kw)
-            
+        
+        # Read in kwargs for this problem type
         kwargs = ProblemType(kw['problem_type'])
         
         tmp = kwargs.copy()
@@ -205,7 +265,7 @@ class ParameterFile(dict):
         
         # Change names of parameters to ensure backward compatibility        
         tmp.update(backward_compatibility(kw['problem_type'], **tmp))
-        kwargs.update(tmp)
+        kwargs.update(tmp)            
                         
         ##    
         # Up until this point, just problem_type-specific kwargs and any
@@ -215,13 +275,14 @@ class ParameterFile(dict):
         pf_base = {}  # Temporary master parameter file   
                       # Should have no {}'s
                     
-        pf_base.update(self.defaults)            
+        pf_base.update(self.defaults)  
                     
         # For single-population calculations, we're done for the moment
         if self.Npops == 1:
-            pf_base.update(kwargs)
+            pfs_by_pop = self.update_php_pars([pf_base], **kwargs)
+            pfs_by_pop[0].update(kwargs)
             
-            self.pfs = [pf_base]
+            self.pfs = pfs_by_pop
             
         # Otherwise, we need to go through and make separate dictionaries
         # for each population
@@ -241,13 +302,16 @@ class ParameterFile(dict):
             for par in kwargs:
                 if par in self.defaults_pop_indep:
                     pf_base[par] = kwargs[par]
-            
-            # Sort parameter files by population
-            # This has all parameters that *don't* vary from one
-            # population to the next, and as such is the basis for all
-            # population-specific dictionaries
+                    
+            # We now have a parameter file containing all non-pop-specific
+            # parameters, which we can use as a base for all pop-specific
+            # parameter files.        
             pfs_by_pop = [pf_base.copy() for i in range(self.Npops)]
             
+            pfs_by_pop = self.update_php_pars(pfs_by_pop, **kwargs)
+             
+            # Some pops are linked together: keep track of them, apply
+            # fixes at the end.
             linked_pars = []
     
             # Add population-specific changes
@@ -264,7 +328,8 @@ class ParameterFile(dict):
                 # or source tag (i.e., an ID number in {}'s or _'s)
 
                 # See if this parameter is linked to another population
-                # OR another parameter within the same population
+                # OR another parameter within the same population.
+                # The latter only occurs for PHPs
                 if (type(kwargs[par]) is str):
                     prefix_link, popid_link, phpid_link = par_info(kwargs[par])
                     if (popid_link is None) and (phpid_link is None):
@@ -329,12 +394,31 @@ class ParameterFile(dict):
                     self['%s{%i}' % (key, i)] = poppf[key]
                 else:
                     self[key] = poppf[key]
-                    
+
+    def update_php_pars(self, pfs_by_pop, **kwargs):
+        # In a given population, there may be 1+ parameterized halo
+        # properties ('phps') denoted by []'s. We need to update the
+        # defaults to have these square brackets!
+        phps = identify_phps(**kwargs)
+        php_defs = HaloPropertyParameters()
+        
+        # Need to do this even for single population runs
+        for i, pf in enumerate(pfs_by_pop):
+            if len(phps[i]) < 2:
+                continue
+
+            for key in php_defs:
+                del pf[key]
+                for k in range(len(phps[i])):
+                    pf['%s[%i]' % (key, k)] = php_defs[key]
+
+        return pfs_by_pop
+
     @property
     def unique(self):
         """
         Show the parameters that are not defaults.
-        """                    
+        """
         if not hasattr(self, '_unique'):
             self._unique = {}
             

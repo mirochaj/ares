@@ -10,6 +10,7 @@ Description:
 
 """
 
+import re
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
@@ -637,8 +638,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
         If outside the bounds, must extrapolate.
         """
-        
-        return np.minimum(self.fstar(z, M), self.pf['php_ceil'])
+        return self.fstar(z, M)
     
     @property
     def fstar(self):
@@ -701,6 +701,9 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
 
         pars = {}
         for key in self.pf:
+            if not re.search('\[%i\]' % phpid, key):
+                continue
+                
             if key[0:3] != 'php':
                 continue
                 
@@ -708,11 +711,9 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             
             if (phpid is None) and (self.pf.Nphps == 1):
                 pars[p] = self.pf['%s' % p]
-            elif phpid_ != phpid:
-                continue
             else:    
                 pars[p] = self.pf['%s[%i]' % (p, phpid)]
-            
+                        
         return pars
         
     @property

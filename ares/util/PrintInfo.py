@@ -379,10 +379,10 @@ def print_pop(pop):
             sf = lambda x: '[%i]' % x
         else:
             sf = lambda x: ''
-            
+                        
         for i, par in enumerate(pop.pf.phps):
                 
-            pname = '%s%s' % (par, sf(i))
+            pname = par.replace('pop_', '').ljust(20)
                                 
             s = pop.pf['php_Mfun%s' % sf(i)]
                                 
@@ -396,7 +396,7 @@ def print_pop(pop):
                 else:
                     s += ' * %s' % pop.pf['php_Mfun_aug%s' % sf(i)]
                 
-            print line("%s         : %s" % (pname, s))
+            print line("%s: %s" % (pname, s))
                 
     print line('-'*twidth)
     print line('Radiative Output')

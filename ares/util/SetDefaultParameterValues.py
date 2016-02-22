@@ -243,8 +243,6 @@ def HaloPropertyParameters():
      "php_zfun_par1": None, 
      "php_zfun_par2": None,  
      "php_zfun_par3": None,
-     "php_ceil": 1.0,
-     "php_floor": 0.0,
      
      'php_Mfun_aug': None,
      'php_Mfun_aug_meth': 'multiply',
@@ -254,6 +252,9 @@ def HaloPropertyParameters():
      'php_Mfun_aug_par3': None,
      'php_Mfun_aug_par4': None,
      'php_Mfun_aug_par5': None,
+
+     "php_ceil": 1.0,
+     "php_floor": 0.0,
 
      "php_Mmax": 5e13,
          

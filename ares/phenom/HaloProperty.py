@@ -144,11 +144,11 @@ class ParameterizedHaloProperty(object):
             f = p0 * (M / 1e10)**p1 + p2 * (M / 1e10)**p3
         elif func == 'rstep':
             p0 = pars[0]; p1 = pars[1]; p2 = pars[2]
-            
+
             if type(M) is np.ndarray:
                 lo = M <= p2
                 hi = M > p2
-                
+
                 return lo * p0 * p1 + hi * p1 
             else:
                 if M <= p2:
