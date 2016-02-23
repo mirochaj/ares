@@ -55,13 +55,18 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         
         if not hasattr(self, '_L1500_per_SFR'):
             if self.sed_tab:
-                self._L1500_per_SFR = lambda z, M: self.src.pop.L_per_sfr()
+                self._L1500_per_SFR = lambda z, M: self.src.pop.L_per_sfr() \
+                    / self.pf['pop_fstar_boost']
             elif type(self.pf['pop_L1500_per_sfr']) in [float, np.float64]:
                 self._L1500_per_SFR = \
-                    lambda z, M: self.pf['pop_L1500_per_sfr']
+                    lambda z, M: self.pf['pop_L1500_per_sfr'] \
+                        / self.pf['pop_fstar_boost']
             elif self.pf['pop_L1500_per_sfr'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_L1500_per_sfr']) 
-                self._L1500_per_SFR = ParameterizedHaloProperty(**pars)    
+                inst = ParameterizedHaloProperty(**pars)
+                
+                self._L1500_per_SFR = lambda z, M: inst.__call__(z, M) \
+                        / self.pf['pop_fstar_boost']                    
             else:
                 raise TypeError('dunno how to handle this')
         
@@ -644,10 +649,14 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     def fstar(self):
         if not hasattr(self, '_fstar'):
             if type(self.pf['pop_fstar']) in [float, np.float64]:
-                self._fstar = lambda z, M: self.pf['pop_fstar']
+                self._fstar = lambda z, M: self.pf['pop_fstar'] \
+                    * self.pf['pop_fstar_boost']
             elif self.pf['pop_fstar'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_fstar'])
-                self._fstar = ParameterizedHaloProperty(**pars)
+                inst = ParameterizedHaloProperty(**pars)
+                
+                self._fstar = lambda z, M: inst.__call__(z, M) \
+                        * self.pf['pop_fstar_boost']
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
                 
@@ -665,7 +674,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                 raise ValueError('Unrecognized data type for pop_fesc!')  
     
         return self._fesc
-        
+
     @property    
     def Nion(self):
         if not hasattr(self, '_Nion'):
@@ -676,9 +685,9 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                 self._Nion = ParameterizedHaloProperty(**pars)
             else:
                 raise ValueError('Unrecognized data type for pop_fesc!')  
-    
+
         return self._Nion   
-        
+
     @property
     def Nlw(self):
         if not hasattr(self, '_Nlw'):

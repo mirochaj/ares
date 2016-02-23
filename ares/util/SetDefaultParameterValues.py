@@ -253,8 +253,8 @@ def HaloPropertyParameters():
      'php_Mfun_aug_par4': None,
      'php_Mfun_aug_par5': None,
 
-     "php_ceil": 1.0,
-     "php_floor": 0.0,
+     "php_ceil": None,
+     "php_floor": None,
 
      "php_Mmax": 5e13,
          
@@ -421,6 +421,8 @@ def PopulationParameters():
     
     "pop_kappa_UV": 1.15e-28,
     "pop_L1500_per_sfr": None,
+    
+    "pop_fstar_boost": 1.,
 
     # If pop_yield_units == 'erg/s/sfr/hz, this is the reference wavelength
     "pop_yield_wavelength": 1500.,

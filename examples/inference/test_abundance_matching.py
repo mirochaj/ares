@@ -23,6 +23,7 @@ betas = [None, -2]
 method = [None, 'meurer1999']
 ##
 #
+
 markers = ['o', 's', '^', '>']
 
 # Masses
