@@ -326,8 +326,10 @@ def DustParameters():
     {     
      'dustcorr_Afun': 'meurer1999',
 
-     'dustcorr_Bfun': 'constant',
+     'dustcorr_Bfun': 'FitMason',
      
+     's_beta': 0.34,
+          
      'dustcorr_Bfun_par0': -2.,
      'dustcorr_Bfun_par1': None,
      'dustcorr_Bfun_par2': None,
