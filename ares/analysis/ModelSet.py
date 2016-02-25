@@ -1240,7 +1240,7 @@ class ModelSet(BlobFactory):
                 
             else:
                 
-                cand = glob.glob('%s*%s*.pkl' % (self.prefix, par))
+                cand = glob.glob('%s*.%s.pkl' % (self.prefix, par))
                 
                 if len(cand) == 1:
                     f = open(cand[0], 'rb')     

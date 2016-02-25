@@ -399,6 +399,9 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                                 
         return phi_of_x
 
+    def Lh(self, z):
+        return self.SFR(z, self.halos.M) * self.L1500_per_SFR(z, self.halos.M)
+
     def phi_of_L(self, z):
 
         if not hasattr(self, '_phi_of_L'):
@@ -407,7 +410,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             if z in self._phi_of_L:
                 return self._phi_of_L[z]
 
-        Lh = self.SFR(z, self.halos.M) * self.L1500_per_SFR(z, self.halos.M)
+        Lh = self.Lh(z)
         
         dMh_dLh = np.diff(self.halos.M) / np.diff(Lh)
         dndm = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
@@ -424,6 +427,8 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         
         lum = np.ma.array(Lh[:-1], mask=mask)
         phi = np.ma.array(phi_of_L, mask=mask)
+        
+        phi[mask == True] = 0.
 
         self._phi_of_L[z] = lum, phi
 
@@ -446,21 +451,26 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
 
         return self._phi_of_M[z]
         
+    def MUV_max(self, z): 
+        """
+        
+        """   
+        
+        i_z = np.argmin(np.abs(z - self.halos.z))
+        
+        Mmin = np.interp(z, self.halos.z, self.Mmin)
+        Lmin = np.interp(Mmin, self.halos.M, self.Lh(z))
+        
+        MAB = self.magsys.L_to_MAB(Lmin, z=z)
+        
+        return MAB
+
     def lf_from_pars(self, z, pars):
         for i, par in enumerate(pars):
             self.pf['php_Mfun_par%i' % i] = par
-    
+
         return self.phi_of_M(z)
         
-    def MAB_limit(self, z):
-        """
-        Magnitude corresponding to minimum halo mass in which stars form.
-        """
-        
-        Lh_Mmin = self.L1600_limit(z)
-        
-        return self.magsys.L_to_MAB(Lh_Mmin, z=z)
-
     #@property
     #def LofM_tab(self):
     #    """
