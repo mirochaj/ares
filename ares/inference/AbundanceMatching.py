@@ -126,6 +126,7 @@ class AbundanceMatching(GalaxyPopulation):
         # Correct magnitudes for dust extinction, convert to luminosity
         for i, z in enumerate(redshifts):
             M = self._constraints['Mstar'][i]
+            #Mdc = M - self.AUV(z, M)
             Mdc = M - self.AUV(z, M)
             L = self.magsys.MAB_to_L(mag=Mdc, z=z)
             self._constraints['Lstar'].append(L)
@@ -196,6 +197,7 @@ class AbundanceMatching(GalaxyPopulation):
     
             mags = []
             for mag in self.mags[i]:
+                #mags.append(mag-self.AUV(z, mag))
                 mags.append(mag-self.AUV(z, mag))
     
             # Read in constraints for this redshift
