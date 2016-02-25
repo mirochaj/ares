@@ -11,7 +11,6 @@ Description:
 """
 
 import numpy as np
-from scipy.integrate import quad
 from .ParameterFile import ParameterFile
 
 class DustCorrection(object):
@@ -25,42 +24,71 @@ class DustCorrection(object):
 	#   ==========   Parametrization of Auv   ==========   #
 	
     def AUV(self, z, mag):
-		''' Return mean correction <Auv> averaged over Luv or SFR assuming a normally distributed Auv '''
+		''' Return non-negative mean correction <Auv> averaged over Luv assuming a normally distributed Auv '''
 		
-		sigma = self.pf['s_beta']
-		
-		# The 0.79*np.log(10)*sigma**2 comes from 0.2*ln10*sigma_{Auv}**2, see Smit et al. (2012)
-		
+		# The scatter in <Auv> can be attributed to 1. scatter in beta(Muv) 2. intrinsic scatter in Auv(beta)
 		if self.pf['dustcorr_Afun'] is None:
 			return 0.0
 		elif self.pf['dustcorr_Afun'].lower() == 'meurer1999':
-			return self.MeurerDC(z, mag)[1][0] + self.MeurerDC(z, mag)[1][1] * self.Beta(z, mag) + 0.79*np.log(10)*sigma**2
+			sigma = np.sqrt((self.pf['s_beta']*self.MeurerDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
+			temp = self.MeurerDC(z, mag)[1][0] + self.MeurerDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
+			return np.maximum(temp, 0.0)
 		elif self.pf['dustcorr_Afun'].lower() == 'pettini1998':
-			return self.PettiniDC(z, mag)[1][0] + self.PettiniDC(z, mag)[1][1] * self.Beta(z, mag) + 0.79*np.log(10)*sigma**2
+			sigma = np.sqrt((self.pf['s_beta']*self.PettiniDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
+			temp = self.PettiniDC(z, mag)[1][0] + self.PettiniDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
+			return np.maximum(temp, 0.0)
+		elif self.pf['dustcorr_Afun'].lower() == 'capakhighz':
+			sigma = np.sqrt((self.pf['s_beta']*self.CapakDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
+			temp = self.CapakDC(z, mag)[1][0] + self.CapakDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
+			return np.maximum(temp, 0.0)
+		elif self.pf['dustcorr_Afun'].lower() == 'evolving':
+			sigma = np.sqrt((self.pf['s_beta']*self.EvolvDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
+			temp = self.EvolvDC(z, mag)[1][0] + self.EvolvDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
+			return np.maximum(temp, 0.0)					
 		else:
 			raise NotImplemented('sorry!')
+	
 	
     def MeurerDC(self, z, mag):
     	coeff = [4.43, 1.99]    
         val = coeff[0] + coeff[1] * self.Beta(z, mag)
         val = np.maximum(val, 0.0)
         return [val, coeff]
-
+	
+	
     def PettiniDC(self, z, mag):
     	coeff = [1.49, 0.68]
     	val =  coeff[0] + coeff[1] * self.Beta(z, mag)
     	val = np.maximum(val, 0.0)
         return [val, coeff]
     
+    def CapakDC(self, z, mag):
+    	# Fit to Capak upper limits
+    	coeff = [0.312, 0.176]
+    	val =  coeff[0] + coeff[1] * self.Beta(z, mag)
+    	val = np.maximum(val, 0.0)
+        return [val, coeff]
+        
+    def EvolvDC(self, z, mag, z1=5.0, z2=6.0):
+    	# Stepwise correction for the given thresholds z1 & z2
+    	if z < z1:
+    		return self.MeurerDC(z, mag)
+    	elif (z >= z1) & (z < z2):
+    		return self.PettiniDC(z, mag)
+    	else:
+    		return self.CapakDC(z, mag) 
+    	
     
     #   ==========   Parametrization of Beta   ==========   #
     def Beta(self, z, mag):
+        
         if self.pf['dustcorr_Bfun'] == 'constant':
             return self.pf['dustcorr_Bfun_par0']
         elif self.pf['dustcorr_Bfun'] == 'FitMason':
         	return self.BetaFit(z, mag)
         else:
             raise NotImplemented('sorry!')
+    
     
     def beta0(self, z):
     	''' Get the measured UV continuum slope from Bouwens+2014 '''
@@ -79,10 +107,12 @@ class DustCorrection(object):
     	elif _z == 8.0:
         	val = -2.13; err_rand = 0.44; err_sys = 0.27
     	else:
+    		# Assume constant at z>8
         	val = -2.00; err_rand = 0.00; err_sys = 0.00
 
     	return [val, err_rand, err_sys]
-    	
+    
+    
     def dbeta0_dM0(self, z):
     	''' Get the measured slope of the UV continuum slope from Bouwens+2014 '''
     	_z = np.round(z,0)
@@ -100,9 +130,11 @@ class DustCorrection(object):
     	elif _z == 8.0:
         	val = -0.20; err = 0.07
     	else:
+    		# Assume constant at z>8
         	val = -0.15; err = 0.00
         
         return [val, err]
+    
     
     def BetaFit(self, z, mag):
     	''' An linear + exponential fit to Bouwens+14 data adopted from Mason+2015 '''

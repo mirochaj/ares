@@ -21,9 +21,9 @@ import matplotlib.pyplot as pl
 redshifts = [3.8, 4.9, 5.9, 6.9]
 #betas = [None, -2]
 #betas = [0.01, 0.34]
-s_betas = [0.01, 0.34]
+s_betas = [0.34, 0.34]
 #method = [None, 'meurer1999']
-method = ['meurer1999', 'meurer1999']
+method = ['evolving', 'meurer1999']
 ##
 #
 markers = ['o', 's', '^', '>']
@@ -57,10 +57,10 @@ for h, s_beta in enumerate(s_betas):
         
         if h > 0:
             #label = r'$z=%.2g, \beta=%.2g$' % (z, beta)
-            label = r'$z=%.2g, \sigma_{beta}=%s$' % (z, s_beta)
+            label = r'$z=%.2g, \sigma_{\beta}=%s$, %s' % (z, s_beta, method[h])
         else:
             #label = 'no DC'
-            label = r'$z=%.2g, \sigma_{beta}=%s$' % (z, s_beta)
+            label = r'$z=%.2g, \sigma_{\beta}=%s$, %s' % (z, s_beta, method[h])
             
         pl.scatter(ham.MofL_tab[0], ham.fstar_tab[0], color=colors[i],
             label=label, marker=markers[h], facecolors='none', s=50)
@@ -71,7 +71,7 @@ pl.xscale('log')
 pl.yscale('log')
 pl.xlabel(r'$M_h / M_{\odot}$')
 pl.ylabel(r'$f_{\ast}$')
-pl.legend(loc='lower left', ncol=1, fontsize=14)
+pl.legend(loc='lower left', ncol=1, fontsize=12)
 pl.show()
 
 
