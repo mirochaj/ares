@@ -78,7 +78,10 @@ class HaloPopulation(Population):
     @property
     def halos(self):
         if not hasattr(self, '_halos'):
-            self._halos = HaloMassFunction(**self.pf)
+            if self.pf['hmf_instance'] is not None:
+                self._halos = self.pf['hmf_instance']
+            else:
+                self._halos = HaloMassFunction(**self.pf)
         return self._halos
 
     def _init_fcoll(self):

@@ -20,7 +20,6 @@ from .Population import Population
 from collections import namedtuple
 from ..sources.Source import Source
 from ..sources import Star, BlackHole
-from ..util.PrintInfo import print_pop
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, simps
 from scipy.optimize import fsolve, fmin, curve_fit

@@ -83,7 +83,7 @@ class MultiPhaseMedium(object):
             return
         
         elif type(data) == dict:
-            history = data.copy()
+            self.history = data.copy()
             
         # Read output of a simulation from disk
         elif type(data) is str:

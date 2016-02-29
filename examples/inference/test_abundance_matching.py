@@ -18,41 +18,37 @@ import matplotlib.pyplot as pl
 
 # 
 ## INPUT
-redshifts = [3.8, 4.9, 5.9, 6.9]
-#betas = [None, -2]
-#betas = [0.01, 0.34]
-s_betas = [0.34, 0.34]
-#method = [None, 'meurer1999']
-method = ['evolving', 'meurer1999']
+redshifts = [3.8]
+betas = [-2, -2]
+s_betas = [0.] * 2
+method = ['meurer1999']*2#, None, 'evolving']
+fbeta = ['constant', 'FitMason']
 ##
 #
 
 markers = ['o', 's', '^', '>']
 
 # Masses
-M = np.logspace(8, 14)
+M = np.logspace(8, 13.2)
 
 # For redshifts
 colors = 'k', 'b', 'r', 'g', 'c', 'm'
+ls = [':', '--', '-']
 
 #for h, beta in enumerate(betas):
 for h, s_beta in enumerate(s_betas):
     
-    #if h == 0:
-    #    continue
-
-    #pars = {'dustcorr_Afun': method[h], 'dustcorr_Bfun_par0': beta}
-    #pars = {'dustcorr_Afun': method[h], 'dustcorr_Bfun': beta}
-    pars = {'dustcorr_Afun': method[h], 's_beta': s_beta}
+    pars = {'dustcorr_Afun': method[h], 'dustcorr_Bfun': fbeta[h],
+        's_beta': s_beta, 'dustcorr_Bfun_par0': betas[h]}
 
     for i, z in enumerate(redshifts):
-        
-        ham = ares.inference.AbundanceMatching(sfe_Mfun='dpl', pop_model='precip', 
-            pop_kappa_UV=1e-29, **pars)
+                
+        ham = ares.inference.AbundanceMatching(php_Mfun='dpl', 
+            pop_model='sfe', pop_fstar='php', pop_L1500_per_sfr=3*8.7e27, **pars)
 
         ham.redshifts = [z]
         ham.constraints = 'bouwens2015'
-
+        
         # Fit it real quick
         best = ham.fit_fstar()
         
@@ -66,13 +62,17 @@ for h, s_beta in enumerate(s_betas):
         pl.scatter(ham.MofL_tab[0], ham.fstar_tab[0], color=colors[i],
             label=label, marker=markers[h], facecolors='none', s=50)
 
-        pl.loglog(M, ham.fstar._call(z, M, best), color=colors[i])
+        pl.loglog(M, ham.fstar._call(z, M, best), color=colors[i], ls=ls[h])
 
 pl.xscale('log')
 pl.yscale('log')
+pl.xlim(1e8, 2e13)
+pl.loglog([1e8, 2e13], [0.5]*2, color='r', ls=':')
+pl.loglog([1e8, 2e13], [0.3]*2, color='r', ls=':')
+pl.loglog([1e8, 2e13], [0.1]*2, color='r', ls=':')
 pl.xlabel(r'$M_h / M_{\odot}$')
 pl.ylabel(r'$f_{\ast}$')
-pl.legend(loc='lower left', ncol=1, fontsize=12)
+pl.legend(loc='lower right', ncol=2, fontsize=10)
 pl.show()
 
 

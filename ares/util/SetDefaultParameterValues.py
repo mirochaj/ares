@@ -253,6 +253,8 @@ def HaloPropertyParameters():
      'php_Mfun_aug_par4': None,
      'php_Mfun_aug_par5': None,
 
+     "php_boost": 1.,
+     "php_iboost": 1.,
      "php_ceil": None,
      "php_floor": None,
 
@@ -338,15 +340,15 @@ def PopulationParameters():
     
     "pop_fstar_ceil": 1.0,
     
-    "pop_ham_fit": 'fstar',
-    "pop_ham_Mfun": 'poly',   # or lognormal
-    "pop_ham_zfun": 'poly',   # or (time, redshift, free)
-    "pop_ham_Mext": None,
-    "pop_ham_zext": None,
-    "pop_ham_Mext_par1": None,
-    "pop_ham_zext_par1": None,
-    "pop_ham_Mext_par2": None,
-    "pop_ham_zext_par2": None,
+    #"pop_ham_fit": 'fstar',
+    #"pop_ham_Mfun": 'poly',   # or lognormal
+    #"pop_ham_zfun": 'poly',   # or (time, redshift, free)
+    #"pop_ham_Mext": None,
+    #"pop_ham_zext": None,
+    #"pop_ham_Mext_par1": None,
+    #"pop_ham_zext_par1": None,
+    #"pop_ham_Mext_par2": None,
+    #"pop_ham_zext_par2": None,
         
     # Parameters for a HOD model
     "pop_duty_cycle": 1.0,
@@ -550,6 +552,7 @@ def HaloMassFunctionParameters():
     {
     "hmf_func": 'ST',
     
+    "hmf_instance": None,
     "hmf_load": True,
     "hmf_table": None,
     "hmf_analytic": False,

@@ -82,8 +82,7 @@ You can examine the contents of ``sim.history``, a dictionary which contains
 the redshift evolution of all IGM physical quantities, or use some built-in 
 analysis routines: ::
 
-    anl = ares.analysis.Global21cm(sim)     # Initialize the analysis class
-    ax = anl.GlobalSignature()                     
+    sim.GlobalSignature()
     
 If the plot doesn't appear automatically, set ``interactive: True`` in your matplotlibrc file or type: ::
 

@@ -333,6 +333,19 @@ class ModelFit(BlobFactory):
         self._loglikelihood = value
             
     @property
+    def seed(self):
+        if not hasattr(self, '_seed'):
+            self._seed = None
+        return self._seed
+        
+    @seed.setter
+    def seed(self, value):
+        if rank > 0:
+            return
+        
+        self._seed = value
+        
+    @property
     def error_independent(self):
         if not hasattr(self, '_err_indep'):
             self._err_indep = self.error.ndim == 1
@@ -772,8 +785,10 @@ class ModelFit(BlobFactory):
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
                 
-        pos = self.prep_output_files(restart, clobber)        
-                
+        pos = self.prep_output_files(restart, clobber)    
+        
+        state = None#np.random.RandomState(self.seed)
+                        
         # Burn in, prep output files     
         if (burn > 0) and (not restart):
             
@@ -782,7 +797,7 @@ class ModelFit(BlobFactory):
             
             t1 = time.time()
             pos, prob, state, blobs = \
-                self.sampler.run_mcmc(self.guesses, burn)
+                self.sampler.run_mcmc(self.guesses, burn, rstate0=state)
             self.sampler.reset()
             t2 = time.time()
 

@@ -48,7 +48,6 @@ class DustCorrection(object):
 		else:
 			raise NotImplemented('sorry!')
 	
-	
     def MeurerDC(self, z, mag):
     	coeff = [4.43, 1.99]    
         val = coeff[0] + coeff[1] * self.Beta(z, mag)

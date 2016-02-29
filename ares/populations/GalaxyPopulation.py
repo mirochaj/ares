@@ -175,6 +175,11 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
 
         return self._rho_N[(Emin, Emax)](z)
         
+    def _sfrd_func(self, z):
+        # This is a cheat so that the SFRD spline isn't constructed
+        # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
+        return self.SFRD(z)
+        
     @property   
     def SFRD(self):
         """
@@ -278,20 +283,9 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         
         ..note:: Units should be solar masses per year at this point.
         """
-        if self.model == 'sfe':
-            eta = np.interp(z, self.halos.z, self.eta)
-            return self.cosm.fbaryon * self.Macc(z, M) * eta * self.SFE(z, M)
-        elif self.model == 'tdyn':
-            return self.pf['pop_fstar'] * self.cosm.fbaryon * M / self.tdyn(z, M)    
-        elif self.model == 'precip':
-            T = self.halos.VirialTemperature(M, z, mu)
-            cool = self.cooling_function(T, z)
-            pre_factor = 3. * np.pi * G * mu * m_p * k_B * T / 50. / cool
-                        
-            return pre_factor * M * s_per_yr * self.SFE(z, M)
-        else:
-            raise NotImplemented('Unrecognized model: %s' % self.model)
         
+        return self.pSFR(z, M, mu) * self.SFE(z, M)
+
     def pSFR(self, z, M, mu=0.6):
         """
         The product of this number and the SFE gives you the SFR.
@@ -470,27 +464,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             self.pf['php_Mfun_par%i' % i] = par
 
         return self.phi_of_M(z)
-        
-    #@property
-    #def LofM_tab(self):
-    #    """
-    #    Intrinsic luminosities corresponding to the supplied magnitudes.
-    #    """
-    #    if not hasattr(self, '_LofM_tab'):
-    #        tab = self.fstar_tab
-    #
-    #    return self._LofM_tab            
-    #
-    #@property
-    #def MofL_tab(self):
-    #    """
-    #    These are the halo masses determined via abundance matching that
-    #    correspond to the M_UV's provided.
-    #    """
-    #    if not hasattr(self, '_MofL_tab'):
-    #        tab = self.fstar_tab
-    #
-    #    return self._MofL_tab
 
     @property
     def Mmin(self):
@@ -594,58 +567,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                 self._LLW_tab[i] *= mask
     
         return self._LLW_tab
-        
-        
-        
-    #@property
-    #def f912_per_f1500(self):
-    #    return 1.
-
-    #@property
-    #def L1500_tab(self):
-    #    """
-    #    Luminosity as a function of redshift and halo mass.
-    #
-    #        ..note:: Units are erg/s/Hz/(Msun / yr).
-    #
-    #    """
-    #    if not hasattr(self, '_L1500_tab'):
-    #        M = self.halos.M
-    #        kappa = self.kappa_UV(None, M)
-    #        
-    #        self._L1500_tab = np.zeros([self.halos.Nz, self.halos.Nm])
-    #        
-    #        for i, z in enumerate(self.halos.z):
-    #            self._L1500_tab[i] = self.sfr_tab[i,:] / kappa
-    #        
-    #            mask = self.halos.M >= self.Mmin[i]
-    #            self._L1500_tab[i] *= mask
-    #
-    #    return self._L1500_tab
-        
-    #@property
-    #def rhoL1500_tab(self):
-    #    """
-    #    Luminosity density at 1500A as a function of redshift.
-    #
-    #        ..note:: Units are erg/s/Hz (comoving).
-    #
-    #    """
-    #    if not hasattr(self, '_rhoL1500_tab'):
-    #        self._rhoL1500_tab = np.zeros(self.halos.Nz)
-    #
-    #        for i, z in enumerate(self.halos.z):
-    #            integrand = self.L1500_tab[i] * self.halos.dndlnm[i]
-    #
-    #            tot = np.trapz(integrand, x=self.halos.lnM)
-    #            cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
-    #
-    #            self._rhoL1500_tab[i] = tot - \
-    #                np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
-    #    
-    #        self._rhoL1500_tab /= cm_per_mpc**3
-    #    
-    #    return self._rhoL1500_tab    
 
     def SFE(self, z, M):
         """
@@ -663,10 +584,10 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                     * self.pf['pop_fstar_boost']
             elif self.pf['pop_fstar'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_fstar'])
-                inst = ParameterizedHaloProperty(**pars)
+                self._fstar = ParameterizedHaloProperty(**pars)
                 
-                self._fstar = lambda z, M: inst.__call__(z, M) \
-                        * self.pf['pop_fstar_boost']
+                 #= lambda z, M: inst.__call__(z, M) \
+                 #       * self.pf['pop_fstar_boost']
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
                 
@@ -714,14 +635,23 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     def get_php_pars(self, par):
         """
         Find ParameterizedHaloProperty's for this parameter.
+        
+        ..note:: par isn't the name of the parameter, it is the value. Usually,
+            it's something like 'php[0]'.
+            
+        Returns
+        -------
+        Dictionary of parameters to be used to initialize a new HaloProperty.
+            
         """
         
         prefix, popid, phpid = par_info(par)
 
         pars = {}
         for key in self.pf:
-            if not re.search('\[%i\]' % phpid, key):
-                continue
+            if (self.pf.Nphps != 1):
+                if not re.search('\[%i\]' % phpid, key):
+                    continue
                 
             if key[0:3] != 'php':
                 continue
@@ -729,10 +659,19 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             p, popid, phpid_ = par_info(key)    
             
             if (phpid is None) and (self.pf.Nphps == 1):
-                pars[p] = self.pf['%s' % p]
+                pars[p] = self.pf['%s' % p]          
+            
+            # This means we probably have some parameters bracketed
+            # and some not...should make it so this doesn't happen
+            elif (phpid is not None) and (self.pf.Nphps == 1):
+                try:
+                    pars[p] = self.pf['%s[%i]' % (p, phpid)]   
+                except KeyError:
+                    # This means it's just default values
+                    pars[p] = self.pf['%s' % p]   
             else:    
                 pars[p] = self.pf['%s[%i]' % (p, phpid)]
-                        
+
         return pars
         
     @property

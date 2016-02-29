@@ -100,6 +100,7 @@ class ParameterizedHaloProperty(object):
     @property
     def _apply_extrap(self):
         if not hasattr(self, '_apply_extrap_'):
+            #if self.pf['php_Mfun_aug']
             self._apply_extrap_ = 1
         return self._apply_extrap_
 
@@ -119,6 +120,9 @@ class ParameterizedHaloProperty(object):
         return self._call(z, M, pars)
 
     def _call(self, z, M, pars, func=None):
+        """
+        A higher-level version of __call__ that accepts a few more kwargs.
+        """
 
         if func is None:
             func = self.Mfunc
@@ -217,6 +221,9 @@ class ParameterizedHaloProperty(object):
             f = np.minimum(f, self.pf['php_ceil'])
         if self.pf['php_floor'] is not None:
             f = np.maximum(f, self.pf['php_floor'])
+        
+        f *= self.pf['php_boost']
+        f /= self.pf['php_iboost']
         
         return f
               

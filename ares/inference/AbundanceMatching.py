@@ -154,12 +154,6 @@ class AbundanceMatching(GalaxyPopulation):
 
         coeff, cov = curve_fit(to_fit, x, y, p0=guess, maxfev=100000)
 
-        #try:
-        #    self._coeff_fstar, self._cov = \
-        #        curve_fit(to_fit, x, y, p0=guess, maxfev=100000)
-        #except RuntimeError:
-        #    self._coeff_fstar, self._cov = guess, np.diag(guess)
-        
         return coeff       
     
     @property
@@ -197,7 +191,6 @@ class AbundanceMatching(GalaxyPopulation):
     
             mags = []
             for mag in self.mags[i]:
-                #mags.append(mag-self.AUV(z, mag))
                 mags.append(mag-self.AUV(z, mag))
     
             # Read in constraints for this redshift
@@ -216,12 +209,12 @@ class AbundanceMatching(GalaxyPopulation):
             # No dust correction
             LUV_no_dc = [self.magsys.MAB_to_L(mag, z=z) \
                 for mag in self.mags[i]]
-    
+
             # Loop over luminosities and perform abundance match
             for j, Lmin in enumerate(LUV_dc):
-    
+
                 # Integral of schecter function at L > Lmin                
-                xmin = Lmin / L_star    
+                xmin = Lmin / L_star
                 int_phiL = mpmath.gammainc(alpha + 1., xmin)
                 int_phiL *= phi_star
     
@@ -240,9 +233,9 @@ class AbundanceMatching(GalaxyPopulation):
     
                 self._MofL_tab[i].append(Mmin)
                 self._LofM_tab[i].append(LUV_dc[j])
-                self._fstar_tab[i].append(Lmin * self.kappa_UV \
+                self._fstar_tab[i].append(Lmin / self.L1500_per_SFR(None, Mmin) \
                     / self.pSFR(z, Mmin))
-    
+
                 pb.update(i * Nm + j + 1)
     
         pb.finish()    
@@ -259,7 +252,7 @@ class AbundanceMatching(GalaxyPopulation):
         #Lh_Mmin = np.exp(sfr_M_z(z, np.log(Mmin))[0][0]) / self.kappa_UV   
 
         return self.cosm.fbaryon * self.Macc(z, Mmin) \
-            * eta * self.SFE(z, Mmin) / self.kappa_UV
+            * eta * self.SFE(z, Mmin) / self.L1500_per_SFR(None, Mmin)
             
     def MAB_limit(self, z):
         """
@@ -436,7 +429,7 @@ class AbundanceMatching(GalaxyPopulation):
                 10**self._log_fstar(self.zext[2], MM, *coeff)
                 
         return self._fstar_zhi
-    
+
     @property
     def fstar_zlo(self):
         if not hasattr(self, '_fstar_zhi'):
@@ -444,15 +437,15 @@ class AbundanceMatching(GalaxyPopulation):
                 10**self._log_fstar(self.zext[1], MM, *coeff)
     
         return self._fstar_zlo
-        
+
     @property
     def fstar_Mhi(self):
         if not hasattr(self, '_fstar_zhi'):
             self._fstar_Mhi = lambda MM, *coeff: \
                 10**self._log_fstar(self.zext[2], MM, *coeff)
-    
+
         return self._fstar_zhi
-    
+
     @property
     def fstar_Mlo(self):
         if not hasattr(self, '_fstar_Mlo'):

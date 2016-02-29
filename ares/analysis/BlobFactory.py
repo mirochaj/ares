@@ -227,7 +227,10 @@ class BlobFactory(object):
     @property
     def blob_groups(self):
         if not hasattr(self, '_blob_groups'):
-            self._blob_groups = len(self.blob_nd)
+            if self.blob_nd is not None:
+                self._blob_groups = len(self.blob_nd)
+            else:
+                self._blob_groups = 0
         return self._blob_groups
                 
     @property

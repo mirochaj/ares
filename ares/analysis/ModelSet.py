@@ -191,23 +191,7 @@ class ModelSet(BlobFactory):
         #    self._fix_up()
         #except AttributeError:
         #    pass
-        
-        
-    #@property
-    #def data(self):
-    #    if not hasattr(self, '_data'):
-    #        self._data = {}
-    #        f = open('%s.data.pkl' % self.prefix, 'rb')
-    #        x, y, z, err = pickle.load(f)
-    #        f.close()
-    #        
-    #        self._data['x'] = x
-    #        self._data['y'] = y
-    #        self._data['err'] = err
-    #        self._data['z'] = z
-    #        
-    #    return self._data
-    
+            
     @property
     def mask(self):
         if not hasattr(self, '_mask'):

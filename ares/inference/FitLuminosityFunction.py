@@ -10,6 +10,7 @@ Description:
 
 """
 
+import time
 import numpy as np
 from ..util import read_lit
 from emcee.utils import sample_ball
@@ -81,6 +82,24 @@ class loglikelihood(LogLikelihood):
                              -  np.sum(np.log(self.error))
         return self._const_term                     
         
+    @property
+    def hmf_instance(self):
+        if not hasattr(self, '_hmf_instance'):
+            self._hmf_instance = None
+        return self._hmf_instance
+    
+    @hmf_instance.setter
+    def hmf_instance(self, value):
+        self._hmf_instance = value
+    
+    @property 
+    def save_hmf(self):
+        return self._save_hmf
+    
+    @save_hmf.setter
+    def save_hmf(self, value):
+        self._save_hmf = value
+    
     def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -110,6 +129,9 @@ class loglikelihood(LogLikelihood):
         
         self.checkpoint(**kw)
         
+        if self.hmf_instance is not None:
+            kw['hmf_instance'] = self.hmf_instance
+        
         sim = self.sim = self.sim_class(**kw)
 
         if isinstance(sim, simG21):
@@ -119,7 +141,7 @@ class loglikelihood(LogLikelihood):
 
         # If we're only fitting the LF, no need to run simulation
         if self.runsim:
-                        
+
             try:
                 sim.run()                
             except (ValueError, IndexError):
@@ -147,8 +169,13 @@ class loglikelihood(LogLikelihood):
         for popid, pop in enumerate(medium.field.pops):
             if pop.is_fcoll_model:
                 continue
-            break
                 
+            break
+          
+        if self.save_hmf:
+            self.hmf_instance = pop.halos
+            self.save_hmf = False
+   
         # Compute the luminosity function, goodness of fit, return
         phi = []
         for i, z in enumerate(self.redshifts):
@@ -193,6 +220,16 @@ class FitLuminosityFunction(FitGlobal21cm):
     def runsim(self, value):
         self._runsim = value
         
+    @property 
+    def save_hmf(self):
+        if not hasattr(self, '_save_hmf'):
+            self._save_hmf = True
+        return self._save_hmf
+    
+    @save_hmf.setter
+    def save_hmf(self, value):
+        self._save_hmf = value    
+    
     @property
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
@@ -203,6 +240,7 @@ class FitLuminosityFunction(FitGlobal21cm):
             
             self._loglikelihood.runsim = self.runsim
             self._loglikelihood.redshifts = self.redshifts
+            self._loglikelihood.save_hmf = self.save_hmf
 
         return self._loglikelihood
 
