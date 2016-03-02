@@ -351,7 +351,7 @@ def PopulationParameters():
     #"pop_ham_zext_par2": None,
         
     # Parameters for a HOD model
-    "pop_duty_cycle": 1.0,
+    "pop_fduty": 1.0,
         
     # Set the emission interval and SED
     "pop_sed": 'pl',

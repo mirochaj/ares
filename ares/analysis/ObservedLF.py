@@ -122,7 +122,8 @@ class ObservedLF(object):
 
         return data    
                 
-    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, **kwargs):
+    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
+        AUV=0.0, **kwargs):
         """
         Plot the luminosity function data at a given redshift.
         """
@@ -158,7 +159,8 @@ class ObservedLF(object):
             else:
                 kw = kwargs
             
-            ax.errorbar(M, phi, yerr=err, uplims=ulim, zorder=10, **kw)
+            ax.errorbar(np.array(M)-AUV, phi, yerr=err, uplims=ulim, 
+                zorder=10, **kw)
         
         ax.set_yscale('log')    
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')    

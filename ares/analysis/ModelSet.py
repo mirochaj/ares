@@ -911,7 +911,7 @@ class ModelSet(BlobFactory):
         return nu, levels
     
     def get_1d_error(self, par, ivar=None, bins=500, nu=0.68, take_log=False,
-        limit=None, un_log=False, multiplier=1.):
+        limit=None, un_log=False, multiplier=1., peak='median'):
         """
         Compute 1-D error bar for input parameter.
         
@@ -925,6 +925,10 @@ class ModelSet(BlobFactory):
             Percent likelihood enclosed by this 1-D error
         limit : str
             Valid options: 'lower' and 'upper', if not None.
+        peak : str
+            Determines whether the 'best' value is the median, mode, or
+            maximum likelihood point.
+            
         Returns
         -------
         Tuple, (maximum likelihood value, negative error, positive error).
@@ -954,7 +958,14 @@ class ModelSet(BlobFactory):
             print "@ z=" % z
             return
                 
-        mu = to_hist[par][np.argmax(self.logL)]
+        if peak == 'median':
+            N = len(self.logL)
+            psorted = np.sort(to_hist[par])
+            mu = psorted[int(N / 2.)]
+        elif peak == 'mode':
+            pass
+        else:
+            mu = to_hist[par][np.argmax(self.logL)]
         
         q1 = 0.5 * 100 * (1. - nu)    
         q2 = 100 * nu + q1

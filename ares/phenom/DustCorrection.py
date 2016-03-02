@@ -138,6 +138,21 @@ class DustCorrection(object):
     def BetaFit(self, z, mag):
     	''' An linear + exponential fit to Bouwens+14 data adopted from Mason+2015 '''
     	_M0 = -19.5; _c = -2.33
+    	
+    	# Must handle piecewise function carefully for arrays of magnitudes
+    	# lo vs. hi NOT in absolute value, i.e., lo means bright.
+    	if type(mag) == np.ndarray:
+    	    assert np.all(np.diff(mag) > 0), \
+    	        "Magnitude values must be increasing!"
+
+    	    Mlo = mag[mag < _M0]
+    	    Mhi = mag[mag >= _M0]
+    	    Alo = self.dbeta0_dM0(z)[0]*(Mlo - _M0) + self.beta0(z)[0]
+    	    Ahi = (self.beta0(z)[0] - _c) * np.exp(self.dbeta0_dM0(z)[0]*(Mhi - _M0)/(self.beta0(z)[0] - _c)) + _c
+
+            return np.concatenate((Alo, Ahi))
+
+        # Otherwise, standard if/else works
     	if mag < _M0:
     		return self.dbeta0_dM0(z)[0]*(mag - _M0) + self.beta0(z)[0]
     	else:

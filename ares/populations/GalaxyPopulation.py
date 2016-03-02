@@ -161,7 +161,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         
         for i, z in enumerate(self.halos.z):
             integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
-                * N_per_Msun * fesc
+                * N_per_Msun * fesc * self.fduty(z, self.halos.M)
         
             tot = np.trapz(integrand, x=self.halos.lnM)
             cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
@@ -417,7 +417,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         ok = np.logical_and(above_Mmin, below_Mmax)[0:-1]
         mask = self.mask = np.logical_not(ok)
 
-        phi_of_L = dndm(z) * dMh_dLh
+        phi_of_L = dndm(z) * self.fduty(z, self.halos.M[0:-1]) * dMh_dLh
         
         lum = np.ma.array(Lh[:-1], mask=mask)
         phi = np.ma.array(phi_of_L, mask=mask)
@@ -447,7 +447,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         
     def MUV_max(self, z): 
         """
-        
+        Compute the magnitude corresponding to the Tmin threshold.
         """   
         
         i_z = np.argmin(np.abs(z - self.halos.z))
@@ -509,7 +509,8 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             self._sfrd_tab = np.zeros(self.halos.Nz)
             
             for i, z in enumerate(self.halos.z):
-                integrand = self.sfr_tab[i] * self.halos.dndlnm[i]
+                integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
+                    * self.fduty(z, self.halos.M)
  
                 tot = np.trapz(integrand, x=self.halos.lnM)
                 cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
@@ -592,6 +593,19 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                 raise ValueError('Unrecognized data type for pop_fstar!')  
                 
         return self._fstar
+    
+    @property
+    def fduty(self):
+        if not hasattr(self, '_fduty'):
+            if type(self.pf['pop_fduty']) in [float, np.float64]:
+                self._fduty = lambda z, M: self.pf['pop_fduty']
+            elif self.pf['pop_fstar'][0:3] == 'php':
+                pars = self.get_php_pars(self.pf['pop_fduty'])
+                self._fduty = ParameterizedHaloProperty(**pars)
+            else:
+                raise ValueError('Unrecognized data type for pop_fstar!')  
+    
+        return self._fduty   
     
     @property    
     def fesc(self):

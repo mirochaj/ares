@@ -20,8 +20,8 @@ import matplotlib.pyplot as pl
 ## INPUT
 redshifts = [3.8]
 betas = [-2, -2]
-s_betas = [0.] * 2
-method = ['meurer1999']*2#, None, 'evolving']
+s_betas = [0., 0.34]
+method = ['meurer1999', 'evolving']
 fbeta = ['constant', 'FitMason']
 ##
 #
@@ -44,7 +44,7 @@ for h, s_beta in enumerate(s_betas):
     for i, z in enumerate(redshifts):
                 
         ham = ares.inference.AbundanceMatching(php_Mfun='dpl', 
-            pop_model='sfe', pop_fstar='php', pop_L1500_per_sfr=3*8.7e27, **pars)
+            pop_model='sfe', pop_fstar='php', pop_L1500_per_sfr=8.7e27, **pars)
 
         ham.redshifts = [z]
         ham.constraints = 'bouwens2015'
@@ -67,8 +67,8 @@ for h, s_beta in enumerate(s_betas):
 pl.xscale('log')
 pl.yscale('log')
 pl.xlim(1e8, 2e13)
+pl.loglog([1e8, 2e13], [1.]*2, color='r', ls=':')
 pl.loglog([1e8, 2e13], [0.5]*2, color='r', ls=':')
-pl.loglog([1e8, 2e13], [0.3]*2, color='r', ls=':')
 pl.loglog([1e8, 2e13], [0.1]*2, color='r', ls=':')
 pl.xlabel(r'$M_h / M_{\odot}$')
 pl.ylabel(r'$f_{\ast}$')
