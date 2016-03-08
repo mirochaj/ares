@@ -279,9 +279,9 @@ class ModelSet(BlobFactory):
                 self._is_mcmc = True
             else:
                 self._is_mcmc = False
-        
+
         return self._is_mcmc
-        
+
     @property
     def facc(self):
         if not hasattr(self, '_facc'):

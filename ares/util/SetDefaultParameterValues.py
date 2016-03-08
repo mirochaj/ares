@@ -319,7 +319,10 @@ def PopulationParameters():
 
     # HAM model
     "pop_constraints": None, # if ham model
+    
+    # Mass accretion rate
     "pop_Macc": 'mcbride2009',
+    "pop_Macc_conserve_norm": False,
 
     "pop_lf_z": None,
 
@@ -328,29 +331,9 @@ def PopulationParameters():
     "pop_lf_pstar": None,
     "pop_lf_alpha": None,
     "pop_lf_mags": None,
-
-    "pop_lf_dustcorr": True,
-    "pop_lf_beta": -2.,
     
     'pop_lf_Mmax': 1e15,
 
-    # Beta can depend on magnitude and redshift
-    "pop_lf_beta_slope": None,
-    "pop_lf_beta_pivot": None,
-    
-    "pop_fstar_ceil": 1.0,
-    
-    #"pop_ham_fit": 'fstar',
-    #"pop_ham_Mfun": 'poly',   # or lognormal
-    #"pop_ham_zfun": 'poly',   # or (time, redshift, free)
-    #"pop_ham_Mext": None,
-    #"pop_ham_zext": None,
-    #"pop_ham_Mext_par1": None,
-    #"pop_ham_zext_par1": None,
-    #"pop_ham_Mext_par2": None,
-    #"pop_ham_zext_par2": None,
-        
-    # Parameters for a HOD model
     "pop_fduty": 1.0,
         
     # Set the emission interval and SED

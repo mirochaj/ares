@@ -196,7 +196,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         """
         Mass accretion rate onto halos of mass M at redshift z.
     
-        ..note:: This is the *matter* accretion rate. To obtain the baryonic 
+        ..note:: This is the *DM* mass accretion rate. To obtain the baryonic 
             accretion rate, multiply by Cosmology.fbaryon.
             
         """
@@ -212,6 +212,53 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
 
         return self._Macc
         
+    def iMAR(self, z, source=None):
+        """
+        The integrated mass (*matter*, i.e., baryons + CDM) accretion rate.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift
+        source : str
+            Can be a litdata module, e.g., 'mcbride2009'.
+            
+        Returns
+        -------
+        Integrated DM mass accretion rate in units of Msun/yr/cMpc**3.
+            
+        """    
+
+        if source is not None:
+            src = read_lit(source)
+
+            i = np.argmin(np.abs(z - self.halos.z))
+
+            # Integrand: convert Macc from DM MAR to total matter MAR
+            integ = self.halos.dndlnm[i] \
+                * src.Macc(z, self.halos.M) / self.cosm.fcdm
+
+            Mmin = np.interp(z, self.halos.z, self.Mmin)
+            j1 = np.argmin(np.abs(Mmin - self.halos.M))
+            if Mmin > self.halos.M[j1]:
+                j1 -= 1
+
+            p0 = simps(integ[j1-1:], x=self.halos.lnM[j1-1:])
+            p1 = simps(integ[j1:], x=self.halos.lnM[j1:])
+            p2 = simps(integ[j1+1:], x=self.halos.lnM[j1+1:])
+            p3 = simps(integ[j1+2:], x=self.halos.lnM[j1+2:])
+
+            interp = interp1d(self.halos.lnM[j1-1:j1+3], [p0,p1,p2,p3])
+
+            Macc = interp(np.log(Mmin))
+
+        else:
+            Macc = self.cosm.rho_m_z0 * self.dfcolldt(z) * cm_per_mpc**3 \
+                * s_per_yr / g_per_msun
+
+        # Convert from DM to all matter
+        return Macc
+
     @property
     def eta(self):
         """
@@ -224,39 +271,50 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
 
         # Prepare to compute eta
         if not hasattr(self, '_eta'):
-    
-            self._eta = np.zeros_like(self.halos.z)
-    
-            for i, z in enumerate(self.halos.z):
-    
-                # eta = rhs / lhs
-    
-                Mmin = self.Mmin[i]
-    
-                rhs = self.cosm.rho_m_z0 * self.dfcolldt(z)
-                rhs *= (s_per_yr / g_per_msun) * cm_per_mpc**3
-    
-                # Accretion onto all halos (of mass M) at this redshift
-                # This is *matter*, not *baryons*
-                Macc = self.Macc(z, self.halos.M)
-    
-                # Find Mmin in self.halos.M
-                j1 = np.argmin(np.abs(Mmin - self.halos.M))
-                if Mmin > self.halos.M[j1]:
-                    j1 -= 1
-    
-                integ = self.halos.dndlnm[i] * Macc
+        
+            if self.pf['pop_Macc_conserve_norm']:
+                
+                _rhs = np.zeros_like(self.halos.z)
+                _lhs = np.zeros_like(self.halos.z)
+                self._eta = np.ones_like(self.halos.z)
+                
+                for i, z in enumerate(self.halos.z):
+                
+                    # eta = rhs / lhs
+                
+                    Mmin = self.Mmin[i]
+                
+                    # My Eq. 3
+                    rhs = self.cosm.rho_cdm_z0 * self.dfcolldt(z)
+                    rhs *= (s_per_yr / g_per_msun) * cm_per_mpc**3
+                
+                    # Accretion onto all halos (of mass M) at this redshift
+                    # This is *matter*, not *baryons*
+                    Macc = self.Macc(z, self.halos.M)
+                
+                    # Find Mmin in self.halos.M
+                    j1 = np.argmin(np.abs(Mmin - self.halos.M))
+                    if Mmin > self.halos.M[j1]:
+                        j1 -= 1
+                
+                    integ = self.halos.dndlnm[i] * Macc
+                        
+                    p0 = simps(integ[j1-1:], x=self.halos.lnM[j1-1:])
+                    p1 = simps(integ[j1:], x=self.halos.lnM[j1:])
+                    p2 = simps(integ[j1+1:], x=self.halos.lnM[j1+1:])
+                    p3 = simps(integ[j1+2:], x=self.halos.lnM[j1+2:])
+                
+                    interp = interp1d(self.halos.lnM[j1-1:j1+3], [p0,p1,p2,p3])
+
+                    lhs = interp(np.log(Mmin))
                     
-                p0 = simps(integ[j1-1:], x=self.halos.lnM[j1-1:])
-                p1 = simps(integ[j1:], x=self.halos.lnM[j1:])
-                p2 = simps(integ[j1+1:], x=self.halos.lnM[j1+1:])
-                p3 = simps(integ[j1+2:], x=self.halos.lnM[j1+2:])
-    
-                interp = interp1d(self.halos.lnM[j1-1:j1+3], [p0,p1,p2,p3])
-    
-                lhs = interp(np.log(Mmin))
-    
-                self._eta[i] = rhs / lhs
+                    _lhs[i] = lhs
+                    _rhs[i] = rhs
+
+                    self._eta[i] = rhs / lhs
+                        
+            else:
+                self._eta = np.ones_like(self.halos.z)
     
         return self._eta
                 
@@ -294,14 +352,13 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         """
         if self.model == 'sfe':
             eta = np.interp(z, self.halos.z, self.eta)
-            return self.cosm.fbaryon * self.Macc(z, M) * eta
+            return self.cosm.fbar_over_fcdm * self.Macc(z, M) * eta
         elif self.model == 'tdyn':
             return self.cosm.fbaryon * M / self.tdyn(z, M)    
         elif self.model == 'precip':
             T = self.halos.VirialTemperature(M, z, mu)
             cool = self.cooling_function(T, z)
-            pre_factor = 3. * np.pi * G * mu * m_p * k_B * T / 50. / cool
-                        
+            pre_factor = 3. * np.pi * G * mu * m_p * k_B * T / 50. / cool                        
             return pre_factor * M * s_per_yr
         else:
             raise NotImplemented('Unrecognized model: %s' % self.model)
@@ -490,7 +547,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             self._sfr_tab = np.zeros([self.halos.Nz, self.halos.Nm])
             for i, z in enumerate(self.halos.z):
                 self._sfr_tab[i] = self.eta[i] * self.Macc(z, self.halos.M) \
-                    * self.cosm.fbaryon * self.SFE(z, self.halos.M)
+                    * self.cosm.fbar_over_fcdm * self.SFE(z, self.halos.M)
     
                 mask = self.halos.M >= self.Mmin[i]
                 self._sfr_tab[i] *= mask

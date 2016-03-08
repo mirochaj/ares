@@ -267,14 +267,14 @@ class HaloMassFunction(object):
             mf_fit=self.hmf_func, transfer_options=transfer_pars,
             **cosmology)
             
-        # Masses in hmf are in units of Msun / h
-        self.M = self.MF.M * self.cosm.h70
+        # Masses in hmf are in units of Msun * h
+        self.M = self.MF.M / self.cosm.h70
         self.logM = np.log10(self.M)
         self.lnM = np.log(self.M)
-        self.logM_over_h = np.log10(self.MF.M)
+        
         self.Nm = self.M.size
         
-        self.dndm = np.zeros([len(self.z), len(self.logM_over_h)])
+        self.dndm = np.zeros([self.Nz, self.Nm])
         self.mgtm = np.zeros_like(self.dndm)
         self.ngtm = np.zeros_like(self.dndm)
         self.fcoll_tab = np.zeros_like(self.dndm)
@@ -298,9 +298,9 @@ class HaloMassFunction(object):
             else:
                 
                 # Has units of h**4 / cMpc**3 / Msun
-                self.dndm[i] = self.MF.dndm.copy() / self.cosm.h70**4
+                self.dndm[i] = self.MF.dndm.copy() * self.cosm.h70**4
                 self.mgtm[i] = self.MF.rho_gtm.copy()
-                self.ngtm[i] = self.MF.ngtm.copy() / self.cosm.h70**3
+                self.ngtm[i] = self.MF.ngtm.copy() * self.cosm.h70**3
                 
                 # Remember that mgtm and mean_dens have factors of h**2
                 # so we're OK here dimensionally
@@ -414,7 +414,7 @@ class HaloMassFunction(object):
             
         """    
         
-        return 1.98e4 * (mu / 0.6) * (M * self.cosm.h70 / 1e8)**(2. / 3.) * \
+        return 1.98e4 * (mu / 0.6) * (M / self.cosm.h70 / 1e8)**(2. / 3.) * \
             (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) /
             self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(1. / 3.) * \
             ((1. + z) / 10.)
@@ -440,7 +440,7 @@ class HaloMassFunction(object):
         Equation 24 in Barkana & Loeb (2001).
         """
         
-        return 0.784 * (M * self.cosm.h70 / 1e8)**(1. / 3.) \
+        return 0.784 * (M / self.cosm.h70 / 1e8)**(1. / 3.) \
             * (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
             * ((1. + z) / 10.)**-1.

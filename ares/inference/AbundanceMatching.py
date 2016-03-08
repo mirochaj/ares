@@ -197,10 +197,9 @@ class AbundanceMatching(GalaxyPopulation):
             L_star = self.constraints['Lstar'][i]    # dust corrected
             phi_star = self.constraints['pstar'][i]
     
+            # Mass function
             i_z = np.argmin(np.abs(z - self.halos.z))
-            eta = self.eta[i_z]
             ngtm = self.halos.ngtm[i_z]
-            log_ngtm = np.log(ngtm)
     
             # Use dust-corrected magnitudes here
             LUV_dc = [self.magsys.MAB_to_L(mag, z=z) for mag in mags]
@@ -240,19 +239,7 @@ class AbundanceMatching(GalaxyPopulation):
         pb.finish()    
     
         return self._fstar_tab
-    
-    def L1600_limit(self, z):
-        eta = np.interp(z, self.halos.z, self.eta)
-        Mmin = np.interp(z, self.halos.z, self.Mmin)
 
-        #sfr_M_z = RectBivariateSpline(self.halos.z, self.halos.lnM, 
-        #    np.log(self.sfr_tab))
-
-        #Lh_Mmin = np.exp(sfr_M_z(z, np.log(Mmin))[0][0]) / self.kappa_UV   
-
-        return self.cosm.fbaryon * self.Macc(z, Mmin) \
-            * eta * self.SFE(z, Mmin) / self.L1500_per_SFR(None, Mmin)
-            
     def MAB_limit(self, z):
         """
         Magnitude corresponding to minimum halo mass in which stars form.

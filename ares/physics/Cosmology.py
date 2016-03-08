@@ -60,6 +60,7 @@ class Cosmology(object):
         # Hydrogen, helium, electron, and baryon densities today (z = 0)
         self.rho_b_z0 = self.MeanBaryonDensity(0)
         self.rho_m_z0 = self.MeanMatterDensity(0)
+        self.rho_cdm_z0 = self.rho_m_z0 - self.rho_b_z0
         self.nH0 = (1. - self.Y) * self.rho_b_z0 / m_H
         self.nHe0 = self.y * self.nH0
         self.ne0 = self.nH0 + 2. * self.nHe0
@@ -72,6 +73,9 @@ class Cosmology(object):
         self.TcmbNow = self.cmb_temp_0
         
         self.fbaryon = self.omega_b_0 / self.omega_m_0
+        self.fcdm = self.omega_cdm_0 / self.omega_m_0
+        
+        self.fbar_over_fcdm = self.fbaryon / self.fcdm
         
         # Used in hmf
         self.pars = {'omega_lambda':self.omega_l_0,
