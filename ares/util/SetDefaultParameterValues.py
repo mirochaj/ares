@@ -321,8 +321,8 @@ def PopulationParameters():
     "pop_constraints": None, # if ham model
     
     # Mass accretion rate
-    "pop_Macc": 'mcbride2009',
-    "pop_Macc_conserve_norm": False,
+    "pop_MAR": 'mcbride2009',
+    "pop_MAR_conserve_norm": False,
 
     "pop_lf_z": None,
 

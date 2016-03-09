@@ -12,8 +12,10 @@ Description:
 
 import numpy as np
 from .Population import Population
+from scipy.integrate import cumtrapz
 from ..physics import HaloMassFunction
 from ..util.PrintInfo import print_pop
+from ..physics.Constants import cm_per_mpc, s_per_yr, g_per_msun
 
 class HaloPopulation(Population):
     def __init__(self, **kwargs):
@@ -95,4 +97,90 @@ class HaloPopulation(Population):
             self._fcoll, self._dfcolldz = \
                 self.pf['pop_fcoll'], self.pf['pop_dfcolldz']
     
+    def iMAR(self, z, source=None):
+        """
+        The integrated DM accretion rate.
+    
+        Parameters
+        ----------
+        z : int, float
+            Redshift
+        source : str
+            Can be a litdata module, e.g., 'mcbride2009'.
+    
+        Returns
+        -------
+        Integrated DM mass accretion rate in units of Msun/yr/cMpc**3.
+    
+        """    
+    
+        return self.cosm.rho_m_z0 * self.dfcolldt(z) * cm_per_mpc**3 \
+                * s_per_yr / g_per_msun
+    
+    @property
+    def _MAR_tab(self):
+        if not hasattr(self, '_MAR_tab_'):
+            self._MAR_tab_ = {}
+        return self._MAR_tab_
+    
+    def MAR_via_AM(self, z, method=0):
+        """
+        Compute mass accretion rate by abundance matching across redshift.
+        
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        
+        """
+        
+        #if z in self._MAR_tab:
+        #    return self._MAR_tab[z]
+            
+        k = np.argmin(np.abs(z - self.halos.z))    
+
+        if z not in self.halos.z:
+            print "WARNING: Rounding to nearest redshift z=%.3g" % self.halos.z[k]
+        
+        # Use cumtrapz
+        if method == 0:
+            dn_gtm_1t = cumtrapz(self.halos.dndlnm[k], x=self.halos.lnM,
+                initial=0.0)
+            dn_gtm_2t = cumtrapz(self.halos.dndlnm[k-1], x=self.halos.lnM,
+                initial=0.0)    
+            dn_gtm_1 = dn_gtm_1t[-1] - dn_gtm_1t
+            dn_gtm_2 = dn_gtm_2t[-1] - dn_gtm_2t
+            
+        # Regular trapz: you'd think we'd get the same thing, but we don't. argh.
+        elif method == 1:
+            dn_gtm_1 = []
+            dn_gtm_2 = []
+            for j in range(self.halos.Nm):
+                this_M_z1 = np.trapz(self.halos.dndlnm[k][j:], 
+                    x=self.halos.lnM[j:])
+                this_M_z2 = np.trapz(self.halos.dndlnm[k-1][j:], 
+                    x=self.halos.lnM[j:]) 
+                    
+                dn_gtm_1.append(this_M_z1)
+                dn_gtm_2.append(this_M_z2)
+
+            dn_gtm_1 = np.array(dn_gtm_1)
+            dn_gtm_2 = np.array(dn_gtm_2)
+        
+        # Need to reverse arrays so that interpolants are in ascending order
+        M_2 = np.exp(np.interp(dn_gtm_1[-1::-1], dn_gtm_2[-1::-1], 
+            self.halos.lnM[-1::-1])[-1::-1])
+
+        # Compute time difference between z bins
+        dz = self.halos.z[k] - self.halos.z[k-1]
+        dt = dz * abs(self.cosm.dtdz(z)) / s_per_yr
+        
+        # Inferred mass accretion rate        
+        self._MAR_tab[z] = (M_2 - self.halos.M) / dt
+        
+        return self._MAR_tab[z]
+        
+        
+        
         
