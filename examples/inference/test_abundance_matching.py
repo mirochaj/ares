@@ -45,7 +45,7 @@ for h, s_beta in enumerate(s_betas):
 
         ham = ares.inference.AbundanceMatching(php_Mfun='dpl', 
             pop_model='sfe', pop_fstar='php', pop_L1500_per_sfr=8.7e27, 
-            pop_Macc_conserve_norm=False, **pars)
+            pop_MAR_conserve_norm=False, **pars)
 
         ham.redshifts = [z]
         ham.constraints = 'bouwens2015'
@@ -63,7 +63,8 @@ for h, s_beta in enumerate(s_betas):
         pl.scatter(ham.MofL_tab[0], ham.fstar_tab[0], color=colors[i],
             label=label, marker=markers[h], facecolors='none', s=50)
 
-        pl.loglog(M, ham.fstar._call(z, M, best), color=colors[i], ls=ls[h])
+        pl.loglog(M, ham.fstar_no_boost(z, M, best), 
+            color=colors[i], ls=ls[h])
 
 pl.xscale('log')
 pl.yscale('log')

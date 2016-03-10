@@ -129,9 +129,16 @@ class HaloPopulation(Population):
         
         Parameters
         ----------
+        z : int, float
+            Redshift.
+        method : int
+            Different integration techniques...will eventually eliminate, but
+            using for debugging at the moment.
         
         Returns
         -------
+        Array of mass accretion rates, each element corresponding to the halo
+        masses in self.halos.M.
         
         """
         
@@ -168,9 +175,16 @@ class HaloPopulation(Population):
             dn_gtm_1 = np.array(dn_gtm_1)
             dn_gtm_2 = np.array(dn_gtm_2)
         
-        # Need to reverse arrays so that interpolants are in ascending order
-        M_2 = np.exp(np.interp(dn_gtm_1[-1::-1], dn_gtm_2[-1::-1], 
-            self.halos.lnM[-1::-1])[-1::-1])
+        # Don't integrate
+        if method == 2:
+            
+            M_2 = np.exp(np.interp(self.halos.dndlnm[k][-1::-1],
+                self.halos.dndlnm[k-1][-1::-1], 
+                self.halos.lnM[-1::-1])[-1::-1])
+        else:
+            # Need to reverse arrays so that interpolants are in ascending order
+            M_2 = np.exp(np.interp(dn_gtm_1[-1::-1], dn_gtm_2[-1::-1], 
+                self.halos.lnM[-1::-1])[-1::-1])
 
         # Compute time difference between z bins
         dz = self.halos.z[k] - self.halos.z[k-1]

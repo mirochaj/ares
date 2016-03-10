@@ -255,6 +255,33 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         else:
             return super(GalaxyPopulation, self).iMAR(z)
 
+    def cMAR(self, z, source=None):
+        """
+        Compute cumulative mass accretion rate, i.e., integrated MAR in 
+        halos >M.
+        """
+        
+        if source is not None:        
+            src = read_lit(source)
+            MAR = src.MAR(z, self.halos.M)    
+        else:
+            MAR = super(GalaxyPopulation, self).MAR_via_AM(z, method=2)
+                    
+        # Grab redshift
+        k = np.argmin(np.abs(z - self.halos.z))
+
+        integ = self.halos.dndlnm[k] * MAR / self.cosm.fcdm
+
+        Mmin = np.interp(z, self.halos.z, self.Mmin)
+        j1 = np.argmin(np.abs(Mmin - self.halos.M))
+        if Mmin > self.halos.M[j1]:
+            j1 -= 1    
+
+        incremental_Macc = cumtrapz(integ[j1:], x=self.halos.lnM[j1:],
+            initial=0.0)
+
+        return self.halos.M[j1:], incremental_Macc / incremental_Macc[-1]
+
     @property
     def eta(self):
         """
@@ -630,6 +657,15 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         """
         return self.fstar(z, M)
     
+    def fstar_no_boost(self, z, M, coeff):
+        """
+        Only used in AbundanceMatching routine. Kind of a cludge.
+        """
+        if not hasattr(self, '_fstar'):
+            tmp = self.fstar
+            
+        return self._fstar_inst._call(z, M, coeff)
+    
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
@@ -638,10 +674,10 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                     * self.pf['pop_fstar_boost']
             elif self.pf['pop_fstar'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_fstar'])
-                self._fstar = ParameterizedHaloProperty(**pars)
+                self._fstar_inst = ParameterizedHaloProperty(**pars)
                 
-                 #= lambda z, M: inst.__call__(z, M) \
-                 #       * self.pf['pop_fstar_boost']
+                self._fstar = lambda z, M: self._fstar_inst.__call__(z, M) \
+                        * self.pf['pop_fstar_boost']
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
                 

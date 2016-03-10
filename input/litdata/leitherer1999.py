@@ -14,7 +14,7 @@ from ares.physics import Cosmology
 from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
-    s_per_myr
+    s_per_myr, m_H
 
 _input = os.getenv('ARES') + '/input/starburst99'
 
@@ -309,6 +309,10 @@ class StellarPopulation:
     def LUV(self):
         return self.L_per_SFR_of_t()[-1]
         
+    @property
+    def L1500(self):
+        return self.L_per_sfr()   
+        
     def L_per_sfr(self, wave=1500.):   
         """
         Specific emissivity at provided wavelength.
@@ -405,17 +409,28 @@ class StellarPopulation:
         return N * self.erg_per_phot(Emin, Emax) * self.cosm.b_per_g
  
     def PhotonsPerBaryon_of_t(self, Emin, Emax):    
+        """
+        Compute photons emitted per baryon for all times.
+        
+        Returns
+        -------
+        Integrated flux between (Emin, Emax) for all times in units of 
+        photons / sec / (Msun [/ yr])
+        """
         # Find band of interest -- should be more precise and interpolate
         i0 = np.argmin(np.abs(self.energies - Emin))
         i1 = np.argmin(np.abs(self.energies - Emax))
-              
-        # Current units: photons / sec / baryon / Angstrom      
                                      
         # Count up the photons in each spectral bin for all times
         photons_per_b_t = np.zeros_like(self.times)
         for i in range(self.times.size):
-            integrand = self.data[i1:i0,i] / (self.energies[i1:i0] * erg_per_ev)
-            photons_per_b_t[i] = np.trapz(integrand, x=self.wavelengths[i1:i0])
+            integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0]\
+                / (self.energies[i1:i0] * erg_per_ev)
+            
+            # Current units of integrand: photons / sec / Angstrom / [depends on ssp]
+            
+            photons_per_b_t[i] = \
+                np.trapz(integrand, x=np.log(self.wavelengths[i1:i0]))
             
         # Current units: 
         # if pop_ssp: photons / sec / (Msun / 1e6)
@@ -453,24 +468,27 @@ class StellarPopulation:
         An array with the same dimensions as ``self.times``, representing the 
         cumulative number of photons emitted per stellar baryon of star formation
         as a function of time.
-    
+
         """
-        
+
+        #assert self.pf['pop_ssp'], "Probably shouldn't do this for continuous SF."
+
         photons_per_b_t = self.PhotonsPerBaryon_of_t(Emin, Emax)    
-            
+
         # Current units: 
         # if pop_ssp: photons / sec / (Msun / 1e6)
         # else: photons / sec / (Msun / yr)
-        
+
+        g_per_b = self.cosm.g_per_baryon
+
         # Integrate (cumulatively) over time
         if self.pf['pop_ssp']:
-            photons_per_b_t *= self.cosm.g_per_baryon / g_per_msun
-            return cumtrapz(photons_per_b_t, x=self.times * s_per_myr,  
-                initial=0.0)[-1] / 1e6
+            photons_per_b_t *= g_per_b / g_per_msun
+            return np.trapz(photons_per_b_t, x=self.times * s_per_myr) / 1e6
         # Take steady-state result
         else:
             photons_per_b_t *= s_per_yr
-            photons_per_b_t *= self.cosm.g_per_baryon / g_per_msun
+            photons_per_b_t *= g_per_b / g_per_msun
             return photons_per_b_t[-1]
                             
 #class Spectrum(StellarPopulation):
