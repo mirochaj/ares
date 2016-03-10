@@ -22,7 +22,7 @@ In the event that a required file is missing, something has gone wrong. Many loo
 
 ``LinAlgError: singular matrix``
 --------------------------------
-This is known to occur in ``ares.physics.Hydrogen`` when using ``scipy.interpolate.interp1d`` to compute the collisional coupling coefficients for spin-exchange. It is due to a bug in LAPACK version 3.4.2 (see `this thread <https://github.com/scipy/scipy/issues/3868>`_). One solution is to install a newer version of LAPACK. Alternatively, you could use linear interpolation, instead of a spline, by passing ``interp_cc='linear'`` as a keyword argument to whatever class you're instantiating, or more permanently by adding ``interp_cc='linear'`` to your custom defaults file (see :doc:`parameters` section for instructions).
+This is known to occur in ``ares.physics.Hydrogen`` when using ``scipy.interpolate.interp1d`` to compute the collisional coupling coefficients for spin-exchange. It is due to a bug in LAPACK version 3.4.2 (see `this thread <https://github.com/scipy/scipy/issues/3868>`_). One solution is to install a newer version of LAPACK. Alternatively, you could use linear interpolation, instead of a spline, by passing ``interp_cc='linear'`` as a keyword argument to whatever class you're instantiating, or more permanently by adding ``interp_cc='linear'`` to your custom defaults file (see :doc:`params` section for instructions).
 
 
 21-cm Extrema-Finding Not Working

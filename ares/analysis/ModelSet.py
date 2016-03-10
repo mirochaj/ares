@@ -23,6 +23,7 @@ from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
+import matplotlib.patches as patches
 from ..util.Aesthetics import Labeler
 from ..util.PrintInfo import print_model_set
 from .DerivedQuantities import DerivedQuantities as DQ
@@ -35,6 +36,18 @@ from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     tanh_gjah_to_ares
 
 import pickle 
+
+try:
+    import shapely.geometry as geometry
+    have_shapely = True
+except ImportError:
+    have_shapely = False
+    
+try:
+    from descartes import PolygonPatch
+    have_descartes = True
+except ImportError:
+    have_descartes = False    
 
 try:
     import h5py
@@ -878,6 +891,46 @@ class ModelSet(BlobFactory):
         self._ax = ax
         return ax
     
+    def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
+        take_log=False, un_log=False, multiplier=1., 
+        **kwargs):
+        """
+        Basically a scatterplot but instead of plotting individual points,
+        we draw lines bounding the locations of all those points.
+        """
+        
+        assert have_shapely, "Need shapely installed for this to work."
+        assert have_descartes, "Need descartes installed for this to work."
+        
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+    
+        data, is_log = \
+            self.ExtractData(pars, ivar, take_log, un_log, multiplier)
+        
+        xdata = data[pars[0]]
+        ydata = data[pars[1]]
+        
+        # Organize into (x, y) pairs
+        points = zip(xdata, ydata)
+        
+        # Create polygon object
+        point_collection = geometry.MultiPoint(list(points))
+        polygon = point_collection.convex_hull
+        
+        # Plot a Polygon using descartes
+        x_min, y_min, x_max, y_max = polygon.bounds
+        patch = PolygonPatch(polygon, **kwargs)
+        ax.add_patch(patch)
+        
+        pl.draw()
+        
+        return ax
+        
     def get_par_prefix(self, par):
         m = re.search(r"\{([0-9])\}", par)
 
@@ -2193,9 +2246,9 @@ class ModelSet(BlobFactory):
         return mp
         
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
-        shade_by_like=False, percentile=0.68, take_log=False, un_log=False, 
+        use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        **kwargs):    
+        best='median', **kwargs):    
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -2218,12 +2271,9 @@ class ModelSet(BlobFactory):
         
         percentile : bool, float    
             If not False, should be the confidence interval to plot, e.g, 0.68.
-        shade_by_like : bool
-            If True, fills region corresponding to value of `percentile`. If
-            percentile is not provided, it will pick the min and max values
-            of quantity `name` at each value of the independent variable. If
-            percentile==False, will plot the maximum likelihood reconstructed
-            function.
+        use_best : bool
+            If True, will plot the maximum likelihood reconstructed
+            function. Otherwise, will use `percentile` and plot shaded region.
             
         """
         
@@ -2247,7 +2297,12 @@ class ModelSet(BlobFactory):
                 
         # Grab the maximum likelihood point 'cuz why not
         if self.is_mcmc:
-            loc = np.argmax(self.logL[skip:stop])
+            if best == 'median':
+                N = len(self.logL)
+                psorted = np.argsort(self.logL)
+                loc = psorted[int(N / 2.)]
+            else:
+                loc = np.argmax(self.logL[skip:stop])
         
         # 1-D case 
         if nd == 1:
@@ -2265,7 +2320,7 @@ class ModelSet(BlobFactory):
                     lo, hi = np.percentile(data[:,i][skip:stop].compressed(), 
                         (q1, q2))
                     y.append((lo, hi))    
-                elif (shade_by_like and self.is_mcmc):
+                elif (use_best and self.is_mcmc):
                     y.append(data[:,i][skip:stop][loc])
                 else:
                     dat = data[:,i][skip:stop].compressed()
@@ -2288,12 +2343,13 @@ class ModelSet(BlobFactory):
                 data, is_log = self.ExtractData(name, ivar=iv,
                     take_log=take_log, un_log=un_log, multiplier=multiplier)
                         
-                if percentile:
+                if (use_best and self.is_mcmc):
+                    y.append(data[name][skip:stop][loc])        
+                elif percentile:
                     lo, hi = np.percentile(data[name][skip:stop].compressed(),
                         (q1, q2))
                     y.append((lo, hi))    
-                elif (shade_by_like and self.is_mcmc):
-                    y.append(data[name][skip:stop][loc])
+                
                 else:
                     dat = data[name][skip:stop].compressed()
                     lo, hi = dat.min(), dat.max()
@@ -2303,7 +2359,7 @@ class ModelSet(BlobFactory):
         if z_to_freq:
             xarr = nu_0_mhz / (1. + xarr)
                         
-        if not (shade_by_like or percentile) and self.is_mcmc:
+        if use_best and self.is_mcmc:
             if take_log:
                 y = 10**y
         

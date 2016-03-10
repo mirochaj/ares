@@ -180,7 +180,11 @@ class loglikelihood(LogLikelihood):
         phi = []
         for i, z in enumerate(self.redshifts):
             xdat = np.array(self.xdata[i])
-            M = xdat - pop.AUV(z, xdat)
+            
+            # Apply dust correction to observed data, which is uncorrected
+            M = xdat - pop.AUV(z, xdat) 
+            
+            # Generate model LF
             p = pop.LuminosityFunction(z=z, x=M, mags=True)
             phi.extend(p)
                         

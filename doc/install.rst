@@ -14,7 +14,8 @@ and optionally:
 * `h5py <http://www.h5py.org/>`_
 * `setuptools <https://pypi.python.org/pypi/setuptools>`_
 * `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_
-
+* `shapely <https://pypi.python.org/pypi/Shapely>`_
+* `descartes <https://pypi.python.org/pypi/descartes>`_
 
 If you have mercurial installed, you can clone *ares* and its entire revision history via: ::
 

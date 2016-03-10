@@ -24,7 +24,7 @@ First and foremost, when you write a new module you should follow the hierarchy 
 - populations, sources
 - physics, util, analysis
 
-It will hopefully be clear which sub-module your new code ought to be added to. For example, if you're writing code to fit a particular kind of dataset, you'll want to add your new module to ``ares.inference``. If you're creating new kinds of sources populations, ``ares.populations``, and so on. If you're adding new physical constants, rate coefficients, etc., look at ``ares.physics.Constants`` and ``ares.physics.RateCoefficients``.
+It will hopefully be clear which sub-module your new code ought to be added to. For example, if you're writing code to fit a particular kind of dataset, you'll want to add your new module to ``ares.inference``. If you're creating new kinds of source populations, ``ares.populations``, and so on. If you're adding new physical constants, rate coefficients, etc., look at ``ares.physics.Constants`` and ``ares.physics.RateCoefficients``.
 
 Now, you'll (hopefully) be making use of at least some pre-existing capabilities of *ares*, which means your module will need to import classes from other sub-modules. There is only one rule here: 
 
