@@ -40,7 +40,7 @@ import pickle
 try:
     import shapely.geometry as geometry
     have_shapely = True
-except ImportError:
+except ImportError, OSError:
     have_shapely = False
     
 try:
@@ -2633,22 +2633,25 @@ class ModelSet(BlobFactory):
             k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
             return blob[:,k1,k2]    
     
-    @property
-    def max_likelihood_parameters(self):
+    def max_likelihood_parameters(self, method='median'):
         """
         Return parameter values at maximum likelihood point.
         """
-    
-        if not hasattr(self, '_max_like_pars'):
+                    
+        if method == 'median':
+            N = len(self.logL)
+            psorted = np.sort(self.logL)
+            iML = psorted[int(N / 2.)]
+        else:
             iML = np.argmax(self.logL)
-            
-            self._max_like_pars = {}
-            for i, par in enumerate(self.parameters):
-                if self.is_log[i]:
-                    self._max_like_pars[par] = 10**self.chain[iML,i]
-                else:
-                    self._max_like_pars[par] = self.chain[iML,i]
-            
+        
+        self._max_like_pars = {}
+        for i, par in enumerate(self.parameters):
+            if self.is_log[i]:
+                self._max_like_pars[par] = 10**self.chain[iML,i]
+            else:
+                self._max_like_pars[par] = self.chain[iML,i]
+        
         return self._max_like_pars
         
     def DeriveBlob(self, expr, varmap, save=True, name=None, clobber=False):
