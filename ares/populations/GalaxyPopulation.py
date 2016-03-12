@@ -207,6 +207,25 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                 self._MAR = self.pf['pop_MAR']
             elif self.pf['pop_MAR'] == 'pl':
                 raise NotImplemented('do this')
+            elif self.pf['pop_MAR'] == 'hmf':
+                func = lambda zz: super(GalaxyPopulation, self).MAR_via_AM(zz, 
+                    method=1)
+                
+                _MAR_tab = np.zeros_like(self.halos.dndm)
+                for i, z in enumerate(self.halos.z):
+                    _MAR_tab[i] = func(z)
+                
+                mask = np.zeros_like(_MAR_tab)
+                mask[np.isnan(_MAR_tab)] = 1
+                
+                self._MAR_tab = np.ma.array(_MAR_tab, mask=mask)
+                self._MAR_mask = mask    
+                
+                spl = RectBivariateSpline(self.halos.z, self.halos.lnM,
+                    np.log(self._MAR_tab), kx=3, ky=3)
+                            
+                self._MAR = lambda z, M: np.exp(spl(z, np.log(M))).squeeze()
+                
             else:
                 self._MAR = read_lit(self.pf['pop_MAR']).MAR
 
