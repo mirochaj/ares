@@ -208,8 +208,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             elif self.pf['pop_MAR'] == 'pl':
                 raise NotImplemented('do this')
             elif self.pf['pop_MAR'] == 'hmf':
-                func = lambda zz: super(GalaxyPopulation, self).MAR_via_AM(zz, 
-                    method=1)
+                func = lambda zz: super(GalaxyPopulation, self).MAR_via_AM(zz)
                 
                 _MAR_tab = np.zeros_like(self.halos.dndm)
                 for i, z in enumerate(self.halos.z):
@@ -284,7 +283,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             src = read_lit(source)
             MAR = src.MAR(z, self.halos.M)    
         else:
-            MAR = super(GalaxyPopulation, self).MAR_via_AM(z, method=2)
+            MAR = super(GalaxyPopulation, self).MAR_via_AM(z)
                     
         # Grab redshift
         k = np.argmin(np.abs(z - self.halos.z))
