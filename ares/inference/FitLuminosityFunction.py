@@ -169,28 +169,28 @@ class loglikelihood(LogLikelihood):
         for popid, pop in enumerate(medium.field.pops):
             if pop.is_fcoll_model:
                 continue
-                
+
             break
-          
+
         if self.save_hmf:
             self.hmf_instance = pop.halos
             self.save_hmf = False
-   
+
         # Compute the luminosity function, goodness of fit, return
         phi = []
         for i, z in enumerate(self.redshifts):
             xdat = np.array(self.xdata[i])
-            
+
             # Apply dust correction to observed data, which is uncorrected
             M = xdat - pop.AUV(z, xdat) 
             
             # Generate model LF
             p = pop.LuminosityFunction(z=z, x=M, mags=True)
-            phi.extend(p)
-                        
+            phi.extend(p)           
+
         lnL = 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
         PofD = self.const_term - lnL
-                                                
+                    
         if np.isnan(PofD):
             return -np.inf, self.blank_blob
 
@@ -292,9 +292,11 @@ class FitLuminosityFunction(FitGlobal21cm):
     @property
     def xdata_flat(self):
         if not hasattr(self, '_xdata_flat'):
+            self._mask = []
             self._xdata_flat = []; self._ydata_flat = []
             self._error_flat = []; self._redshifts_flat = []
             for i, redshift in enumerate(self.redshifts):
+                self._mask.extend(self.data[redshift]['M'].mask)
                 self._xdata_flat.extend(self.data[redshift]['M'])
                 self._ydata_flat.extend(self.data[redshift]['phi'])
                 
@@ -304,10 +306,13 @@ class FitLuminosityFunction(FitGlobal21cm):
                         self._error_flat.append(np.mean(err))
                     else:
                         self._error_flat.append(err)
-                #self._error_flat.extend(self.data[redshift]['err'])
                 
                 zlist = [redshift] * len(self.data[redshift]['M'])
                 self._redshifts_flat.extend(zlist)
+                
+            self._xdata_flat = np.ma.array(self._xdata_flat, mask=self._mask)
+            self._ydata_flat = np.ma.array(self._ydata_flat, mask=self._mask)
+            self._error_flat = np.ma.array(self._error_flat, mask=self._mask)
 
         return self._xdata_flat
     

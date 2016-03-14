@@ -488,7 +488,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                 bounds_error=False, fill_value=-np.inf)
             
             phi_of_x = 10**interp(np.log10(x))
-                                
+                                                                
         return phi_of_x
 
     def Lh(self, z):
@@ -644,9 +644,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                 self._LLyC_tab[i] *= mask
             
         return self._LLyC_tab
-        
-        
-        
+                
     @property
     def LLW_tab(self):
         if not hasattr(self, '_LLW_tab'):
@@ -664,7 +662,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
                 mask = self.halos.M >= self.Mmin[i]
                 self._LLW_tab[i] *= mask
-    
+
         return self._LLW_tab
 
     def SFE(self, z, M):
@@ -674,16 +672,16 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         If outside the bounds, must extrapolate.
         """
         return self.fstar(z, M)
-    
+
     def fstar_no_boost(self, z, M, coeff):
         """
         Only used in AbundanceMatching routine. Kind of a cludge.
         """
         if not hasattr(self, '_fstar'):
             tmp = self.fstar
-            
+
         return self._fstar_inst._call(z, M, coeff)
-    
+
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):

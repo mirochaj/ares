@@ -210,12 +210,28 @@ class LogLikelihood(object):
             self.blob_nd = blob_info['blob_nd']
             self.blob_dims = blob_info['blob_dims']
         
+        ##
+        # Note: you might thinking np.array is innocuous, but we have to be
+        # a little careful below since sometimes xdata, ydata, etc. are
+        # masked arrays, and casting them to regular arrays screws things up.
+        ##
+        
         # Not flat
-        self.xdata = xdata
+        if type(xdata) is list:
+            self.xdata = np.array(xdata)
+        else:
+            self.xdata = xdata
         
         # Flat
-        self.ydata = np.array(ydata)
-        self.error = np.array(error)
+        if type(ydata) is list:
+            self.ydata = np.array(ydata)
+        else:
+            self.ydata = ydata
+        
+        if type(error) is list:
+            self.error = np.array(error)
+        else:
+            self.error = error
         
         self.prefix = prefix   
 

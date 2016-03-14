@@ -4,6 +4,8 @@ Bouwens et al., 2015, ApJ, 803, 34
 Table 6. 4 the last 5 rows.
 """
 
+import numpy as np
+
 info = \
 {
  'reference': 'Bouwens et al., 2015, ApJ, 803, 34',
@@ -34,8 +36,8 @@ fits['lf']['err'] = \
 }
 
 # Table 5
-data = {}
-data['lf'] = \
+tmp_data = {}
+tmp_data['lf'] = \
 {
  3.8: {'M': [-22.69, -22.19, -21.69, -21.19, -20.69, -20.19, -19.69, -19.19,
              -18.69, -18.19, -17.69, -16.94, -15.94],
@@ -80,5 +82,21 @@ data['lf'] = \
 }
 
 units = {'phi': 1.}
+
+data = {}
+data['lf'] = {}
+for key in tmp_data['lf']:
+    mask = np.array(tmp_data['lf'][key]['err']) == ULIM
+    
+    data['lf'][key] = {}
+    data['lf'][key]['M'] = np.ma.array(tmp_data['lf'][key]['M'], mask=mask) 
+    data['lf'][key]['phi'] = np.ma.array(tmp_data['lf'][key]['phi'], mask=mask) 
+    data['lf'][key]['err'] = tmp_data['lf'][key]['err']
+
+
+
+
+
+
 
 

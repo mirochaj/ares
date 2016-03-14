@@ -64,8 +64,12 @@ class ObservedLF(object):
                 z = redshift
                 
             data[source] = {}
-                        
-            data[source]['M'] = src.data['lf'][z]['M']
+            
+            M = src.data['lf'][z]['M']            
+            if hasattr(M, 'data'):
+                data[source]['M'] = M.data
+            else:
+                data[source]['M'] = np.array(M)
             
             if src.units['phi'] == 'log10':
                 err_lo = []; err_hi = []; uplims = []
@@ -74,7 +78,7 @@ class ObservedLF(object):
                     if type(err) not in [int, float]:
                         raise NotImplemented('help!')
                     
-                    logphi_ML = np.array(src.data['lf'][z]['phi'][i])
+                    logphi_ML = src.data['lf'][z]['phi'][i]
                     
                     logphi_lo_tmp = logphi_ML - err   # log10 phi
                     logphi_hi_tmp = logphi_ML + err   # log10 phi
@@ -94,8 +98,11 @@ class ObservedLF(object):
                         
                     uplims.append(err < 0)    
                     
-                data[source]['err'] = (err_lo, err_hi)        
-                data[source]['phi'] = 10**np.array(src.data['lf'][z]['phi'])
+                data[source]['err'] = (err_lo, err_hi) 
+                if hasattr(src.data['lf'][z]['phi'], 'data'):       
+                    data[source]['phi'] = 10**src.data['lf'][z]['phi'].data
+                else:
+                    data[source]['phi'] = 10**np.array(src.data['lf'][z]['phi'])
                 data[source]['ulim'] = uplims
             else:                
                 
@@ -118,9 +125,12 @@ class ObservedLF(object):
                 
                 data[source]['ulim'] = uplims
                 data[source]['err'] = (err_lo, err_hi)
-                data[source]['phi'] = src.data['lf'][z]['phi']
-
-        return data    
+                if hasattr(src.data['lf'][z]['phi'], 'data'):
+                    data[source]['phi'] = src.data['lf'][z]['phi'].data
+                else:
+                    data[source]['phi'] = np.array(src.data['lf'][z]['phi'])
+                
+        return data
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
         AUV=None, **kwargs):
@@ -142,15 +152,17 @@ class ObservedLF(object):
         elif type(sources) is str:
             sources = [sources]
             
-        for source in sources:  
+        for source in sources:
             if source not in data:
-                continue      
-                                
-            M = data[source]['M']
-            phi = data[source]['phi']
+                continue
+                        
+            # For some reason the upper limits aren't working anymore
+            # since I masked the M, phi arrays                    
+            M = np.array(data[source]['M'], dtype=np.float64)
+            phi = np.array(data[source]['phi'], dtype=np.float64)
             err = data[source]['err']
-            ulim = data[source]['ulim']
-            
+            ulim = np.array(data[source]['ulim'], dtype=np.float64)
+                                                
             if not kwargs:
                 kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 
                     'mec':default_colors[source], 
@@ -163,7 +175,8 @@ class ObservedLF(object):
                 dc = AUV(z, np.array(M))
             else:
                 dc = 0
-            ax.errorbar(np.array(M)-dc, phi, yerr=err, uplims=ulim, 
+                
+            ax.errorbar(M-dc, phi, yerr=err, uplims=ulim, 
                 zorder=10, **kw)
         
         ax.set_yscale('log')    

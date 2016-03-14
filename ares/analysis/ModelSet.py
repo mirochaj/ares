@@ -2337,6 +2337,8 @@ class ModelSet(BlobFactory):
                 vector = xarr = ivars[1]
                 slc = slice(0, None, 1)
                         
+                print scalar        
+                        
             y = []
             for i, value in enumerate(vector):
                 iv = [scalar, value][slc]
