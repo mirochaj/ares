@@ -2316,12 +2316,12 @@ class ModelSet(BlobFactory):
             
             y = []
             for i, x in enumerate(xarr):
-                if percentile:
+                if (use_best and self.is_mcmc):
+                    y.append(data[:,i][skip:stop][loc])
+                elif percentile:
                     lo, hi = np.percentile(data[:,i][skip:stop].compressed(), 
                         (q1, q2))
-                    y.append((lo, hi))    
-                elif (use_best and self.is_mcmc):
-                    y.append(data[:,i][skip:stop][loc])
+                    y.append((lo, hi))
                 else:
                     dat = data[:,i][skip:stop].compressed()
                     lo, hi = dat.min(), dat.max()
@@ -2336,9 +2336,7 @@ class ModelSet(BlobFactory):
                 scalar = ivar[0]
                 vector = xarr = ivars[1]
                 slc = slice(0, None, 1)
-                        
-                print scalar        
-                        
+                                                
             y = []
             for i, value in enumerate(vector):
                 iv = [scalar, value][slc]
@@ -2351,7 +2349,6 @@ class ModelSet(BlobFactory):
                     lo, hi = np.percentile(data[name][skip:stop].compressed(),
                         (q1, q2))
                     y.append((lo, hi))    
-                
                 else:
                     dat = data[name][skip:stop].compressed()
                     lo, hi = dat.min(), dat.max()
@@ -2360,6 +2357,8 @@ class ModelSet(BlobFactory):
         # Convert redshifts to frequencies    
         if z_to_freq:
             xarr = nu_0_mhz / (1. + xarr)
+                        
+        # Where y is zero, set to small number?                
                         
         if use_best and self.is_mcmc:
             if take_log:

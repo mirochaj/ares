@@ -329,7 +329,7 @@ class ParameterFile(dict):
 
                 # See if this parameter is linked to another population
                 # OR another parameter within the same population.
-                # The latter only occurs for PHPs
+                # The latter only occurs for PHPs.
                 if (type(kwargs[par]) is str):
                     prefix_link, popid_link, phpid_link = par_info(kwargs[par])
                     if (popid_link is None) and (phpid_link is None):

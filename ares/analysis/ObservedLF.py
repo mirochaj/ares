@@ -22,6 +22,8 @@ default_colors = {'bouwens2015': 'r', 'atek2015': 'y', 'oesch2013': 'm',
     'oesch2014': 'c', 'parsa2016': 'g'}
 default_markers = {src:'o' for src in all_datasets}
 
+_ulim_tick = 0.5
+
 class ObservedLF(object):
     def __init__(self):
         pass
@@ -91,7 +93,7 @@ class ObservedLF(object):
                     
                     if (err < 0):
                         err_hi.append(0.0)
-                        err_lo.append(0.8 * 10**logphi_ML)
+                        err_lo.append(_ulim_tick * 10**logphi_ML)
                     else:
                         err_lo.append(err1)
                         err_hi.append(err2)
@@ -106,6 +108,11 @@ class ObservedLF(object):
                 data[source]['ulim'] = uplims
             else:                
                 
+                if hasattr(src.data['lf'][z]['phi'], 'data'):
+                    data[source]['phi'] = src.data['lf'][z]['phi'].data
+                else:
+                    data[source]['phi'] = np.array(src.data['lf'][z]['phi'])
+                
                 err_lo = []; err_hi = []; uplims = []
                 for i, err in enumerate(src.data['lf'][z]['err']):
                     
@@ -116,7 +123,7 @@ class ObservedLF(object):
                     else:    
                         if (err < 0):
                             err_hi.append(0.0)
-                            err_lo.append(0.8 * src.data['lf'][z]['phi'][i])
+                            err_lo.append(_ulim_tick * data[source]['phi'][i])
                         else:
                             err_hi.append(err)
                             err_lo.append(err)
@@ -125,10 +132,7 @@ class ObservedLF(object):
                 
                 data[source]['ulim'] = uplims
                 data[source]['err'] = (err_lo, err_hi)
-                if hasattr(src.data['lf'][z]['phi'], 'data'):
-                    data[source]['phi'] = src.data['lf'][z]['phi'].data
-                else:
-                    data[source]['phi'] = np.array(src.data['lf'][z]['phi'])
+                
                 
         return data
                 
@@ -155,13 +159,11 @@ class ObservedLF(object):
         for source in sources:
             if source not in data:
                 continue
-                        
-            # For some reason the upper limits aren't working anymore
-            # since I masked the M, phi arrays                    
-            M = np.array(data[source]['M'], dtype=np.float64)
-            phi = np.array(data[source]['phi'], dtype=np.float64)
-            err = data[source]['err']
-            ulim = np.array(data[source]['ulim'], dtype=np.float64)
+                                        
+            M = np.array(data[source]['M'])
+            phi = np.array(data[source]['phi'])
+            err = np.array(data[source]['err'])
+            ulim = np.array(data[source]['ulim'])
                                                 
             if not kwargs:
                 kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 
@@ -175,14 +177,13 @@ class ObservedLF(object):
                 dc = AUV(z, np.array(M))
             else:
                 dc = 0
-                
-            ax.errorbar(M-dc, phi, yerr=err, uplims=ulim, 
-                zorder=10, **kw)
+              
+            ax.errorbar(M-dc, phi, yerr=err, uplims=ulim, zorder=10, **kw)
         
-        ax.set_yscale('log')    
+        ax.set_yscale('log', nonposy='clip')    
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
         ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1}]$')
-        ax.set_xlim(-24, -14)
+        ax.set_xlim(-25.5, -10)
         pl.draw()
         
         return ax

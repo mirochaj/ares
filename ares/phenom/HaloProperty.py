@@ -18,7 +18,7 @@ def tanh_astep(M, lo, hi, logM0, logdM):
 def tanh_rstep(M, lo, hi, logM0, logdM):
     return hi * lo * 0.5 * (np.tanh((logM0 - np.log10(M)) / logdM) + 1.) + hi
 
-z0 = 9. # arbitrary
+#z0 = 9. # arbitrary
 
 Mh_dep_parameters = ['pop_fstar', 'pop_fesc', 'pop_L1500_per_sfr', 
     'pop_Nion', 'pop_Nlw']
@@ -32,71 +32,34 @@ class ParameterizedHaloProperty(object):
         return self.pf['php_Mfun']
     
     @property
-    def zfunc(self):
-        return self.pf['php_zfun']
-        
-    @property
-    def fpeak(self):
-        if not hasattr(self, '_fpeak'):
-            self._fpeak = self.func('fpeak')
-    
-        return self._fpeak
-        
-    @property
-    def Mpeak(self):
-        if not hasattr(self, '_Mpeak'):
-            self._Mpeak = self.func('Mpeak')
-    
-        return self._Mpeak  
-    
-    @property
-    def sigma(self):
-        if not hasattr(self, '_sigma'):
-            self._sigma = self.func('sigma')
-    
-        return self._sigma     
-    
-    @property
-    def Mlo_extrap(self):
-        if not hasattr(self, '_Mlo_extrap'):
-            self._Mlo_extrap = self.pf['php_Mfun_lo'] is not None
-        return self._Mlo_extrap
-        
-    @property
     def M_aug(self):
         if not hasattr(self, '_M_aug'):
             self._M_aug = self.pf['php_Mfun_aug'] is not None
         return self._M_aug  
-          
-    @property
-    def Mhi_extrap(self):
-        if not hasattr(self, '_Mhi_extrap'):
-            self._Mhi_extrap = self.pf['php_Mfun_hi'] is not None
-        return self._Mhi_extrap   
-    
-    def func(self, name):        
-        if self.pf['php_%s' % name] == 'constant':
-            func = lambda zz: self.pf['php_%s_par0' % name]
-        elif self.pf['php_%s' % name] == 'linear_z':
-            coeff1 = self.pf['php_%s_par0' % name]
-            coeff2 = self.pf['php_%s_par1' % name]
-            func = lambda zz: coeff1 + coeff2 * (1. + zz) / (1. + z0)
-        elif self.pf['php_%s' % name] == 'linear_t':
-            coeff = self.pf['php_%s_par0' % name]
-            func = lambda zz: 10**(np.log10(coeff) - 1.5 * (1. + zz) / (1. + z0))
-        elif self.pf['php_%s' % name] == 'pl':
-            coeff1 = self.pf['php_%s_par0' % name]
-            coeff2 = self.pf['php_%s_par1' % name]
-            func = lambda zz: 10**(np.log10(coeff1) + coeff2 * (1. + zz) / (1. + z0))
-        elif self.pf['php_%s' % name] == 'poly':
-            coeff1 = self.pf['php_%s_par0' % name]
-            coeff2 = self.pf['php_%s_par1' % name]
-            coeff3 = self.pf['php_%s_par2' % name]
-            func = lambda zz: 10**(np.log10(coeff1) + coeff2 * (1. + zz) / (1. + z0) \
-                + coeff3 * ((1. + zz) / (1. + z0))**2)
 
-        return func
-
+    #def func(self, name):        
+    #    if self.pf['php_%s' % name] == 'constant':
+    #        func = lambda zz: self.pf['php_%s_par0' % name]
+    #    elif self.pf['php_%s' % name] == 'linear_z':
+    #        coeff1 = self.pf['php_%s_par0' % name]
+    #        coeff2 = self.pf['php_%s_par1' % name]
+    #        func = lambda zz: coeff1 + coeff2 * (1. + zz) / (1. + z0)
+    #    elif self.pf['php_%s' % name] == 'linear_t':
+    #        coeff = self.pf['php_%s_par0' % name]
+    #        func = lambda zz: 10**(np.log10(coeff) - 1.5 * (1. + zz) / (1. + z0))
+    #    elif self.pf['php_%s' % name] == 'pl':
+    #        coeff1 = self.pf['php_%s_par0' % name]
+    #        coeff2 = self.pf['php_%s_par1' % name]
+    #        func = lambda zz: 10**(np.log10(coeff1) + coeff2 * (1. + zz) / (1. + z0))
+    #    elif self.pf['php_%s' % name] == 'poly':
+    #        coeff1 = self.pf['php_%s_par0' % name]
+    #        coeff2 = self.pf['php_%s_par1' % name]
+    #        coeff3 = self.pf['php_%s_par2' % name]
+    #        func = lambda zz: 10**(np.log10(coeff1) + coeff2 * (1. + zz) / (1. + z0) \
+    #            + coeff3 * ((1. + zz) / (1. + z0))**2)
+    #
+    #    return func
+    #
     @property
     def _apply_extrap(self):
         if not hasattr(self, '_apply_extrap_'):
@@ -124,6 +87,7 @@ class ParameterizedHaloProperty(object):
                     tmp.append(self.pf[name])
                 else:
                     tmp.append(None)
+                    
             pars2.append(tmp)
 
         return self._call(z, M, [pars1, pars2])
@@ -142,25 +106,26 @@ class ParameterizedHaloProperty(object):
         pars1, pars2 = pars
         
         # Read-in parameters to more convenient names
+        # I don't usually use exec, but when I do, it's to do garbage like this
         for i, par in enumerate(pars1):
             
             # Handle redshift dependencies
             if type(par) == str:
                 p = pars2[i]
                 if par == 'linear_t':
-                    val = 10**(np.log10(p[0]) - 1.5 * (1. + z) / (1. + p[1]))
+                    #val = 10**(np.log10(p[0]) - 1.5 * (1. + z) / (1. + p[1]))
+                    val = p[0] * ((1. + z) / (1. + p[1]))**-1.5
                 elif par == 'pl':
-                    val = 10**(np.log10(p[0]) + p[2] * (1. + z) / (1. + p[1]))
+                    #val = 10**(np.log10(p[0]) + p[2] * (1. + z) / (1. + p[1]))
+                    val = p[0] * ((1. + z) / (1. + p[1]))**p[2]
                 
                 exec('p%i = val' % i)
             # Otherwise, assume parameter is just a number
             else:
-                exec('p%i = pars1[%i]' % (i,i))
-                
+                exec('p%i = par' % i)
+                                
         if func == 'lognormal':
             f = p0 * np.exp(-(logM - p1)**2 / 2. / p2**2)    
-            #f = self.fpeak(z) * np.exp(-(logM - np.log10(self.Mpeak(z)))**2 \
-            #    / 2. / self.sigma(z)**2)
         elif func == 'pl':
             f = p0 * (M / p1)**p2
         elif func == 'plexp':
@@ -183,7 +148,7 @@ class ParameterizedHaloProperty(object):
         elif func == 'tanh_abs':
             return tanh_astep(M, p0, p1, p2, p3)
         elif func == 'tanh_rel':
-            return tanh_rstep(M, p0, p1, p2, p3)    
+            return tanh_rstep(M, p0, p1, p2, p3)
         elif func == 'astep':
             if type(M) is np.ndarray:
                 lo = M <= p2
@@ -219,13 +184,13 @@ class ParameterizedHaloProperty(object):
             self._apply_extrap = 0
             
             p = [self.pf['php_Mfun_aug_par%i' % i] for i in range(6)]
-            aug = self._call(z, M, p, self.pf['php_Mfun_aug'])
+            aug = self._call(z, M, [p, None], self.pf['php_Mfun_aug'])
             
             if self.pf['php_Mfun_aug_meth'] == 'multiply':
                 f *= aug
             else:
                 f += aug
-                                
+
             self._apply_extrap = 1    
             
         if self.pf['php_ceil'] is not None:

@@ -196,19 +196,13 @@ pop_parameters = \
 sfe_parameters = \
 {
  "galaxy_lf": r'$\phi(M_{\mathrm{UV}})$',
- "php_Mfun_par0": r'$a_M^0$',
- "php_Mfun_par1": r'$a_M^1$',
- "php_Mfun_par2": r'$a_M^2$',
- "php_Mfun_par3": r'$a_M^3$',
- "php_Mfun_par4": r'$a_M^4$',
- "php_Mfun_par5": r'$a_M^5$',
- "php_Mfun_par6": r'$a_M^6$',
- "php_Mfun_lo_par0": r'$b_M^0$',
- "php_Mfun_lo_par1": r'$b_M^1$',
- "php_Mfun_lo_par2": r'$b_M^2$',
- "php_Mfun_lo_par3": r'$b_M^3$',
-  "php_Mfun_lo_par4": r'$b_M^4$',
 }
+
+for i in range(6):
+    sfe_parameters['php_Mfun_par%i' % i] = r'$p_{%i}$' %i
+    for j in range(6):
+        sfe_parameters['php_Mfun_par%i_par%i' % (i,j)] = r'$p_{%i,%i}$' % (i,j)
+        
 
 other = \
 {

@@ -542,19 +542,19 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         self._phi_of_M[z] = MAB[0:-1], phi_of_M
 
         return self._phi_of_M[z]
-        
+
     def MUV_max(self, z): 
         """
         Compute the magnitude corresponding to the Tmin threshold.
         """   
-        
+
         i_z = np.argmin(np.abs(z - self.halos.z))
-        
+
         Mmin = np.interp(z, self.halos.z, self.Mmin)
         Lmin = np.interp(Mmin, self.halos.M, self.Lh(z))
-        
+
         MAB = self.magsys.L_to_MAB(Lmin, z=z)
-        
+
         return MAB
 
     def lf_from_pars(self, z, pars):
