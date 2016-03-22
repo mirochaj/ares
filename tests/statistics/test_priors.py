@@ -61,8 +61,8 @@ if exponential_test:
     assert ep.numparams == 1
     t0 = time.time()
     expon_sample = [ep.draw() for i in range(sample_size)]
-    print 'It took %.5f s to draw %i points from an exponential distribution.' %\
-        (time.time()-t0,sample_size,)
+    print ('It took %.5f s to draw %i ' % (time.time()-t0, sample_size)) +\
+          'points from an exponential distribution.'
     pl.figure()
     pl.hist(expon_sample, bins=100, histtype='step', color='b', linewidth=2,\
         normed=True, label='sampled')
@@ -187,7 +187,7 @@ if multivariate_gaussian_test:
     t0 = time.time()
     mgp_sample = [mgp.draw() for i in range(sample_size)]
     print (('It took %.3f s for a sample ' % (time.time()-t0)) +\
-          ('of size %i' % (sample_size,)) + ' to be drawn from a multivariate' +\
+          ('of size %i to be drawn from a multivariate' % (sample_size,)) +\
           (' (%i parameters) Gaussian.' % mgp.numparams))
     mgp_xs = [mgp_sample[i][0] for i in range(sample_size)]
     mgp_ys = [mgp_sample[i][1] for i in range(sample_size)]
@@ -210,7 +210,8 @@ if parallelepiped_test:
     center = [-15., 20.]
     face_directions = [[1., 1.], [1., -1.]]
     distances = [10., 1.]
-    pp = ParallelepipedPrior(center, face_directions, distances, norm_dirs=False)
+    pp = ParallelepipedPrior(center, face_directions, distances,\
+        norm_dirs=False)
     assert pp.numparams == 2
     t0 = time.time()
     sample = [pp.draw() for i in range(sample_size)]
