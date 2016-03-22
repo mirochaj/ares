@@ -10,7 +10,6 @@ Description:
 
 """
 
-import time
 import numpy as np
 from ..util import read_lit
 from emcee.utils import sample_ball
@@ -96,8 +95,6 @@ class loglikelihood(LogLikelihood):
         Tuple: (log likelihood, blobs)
     
         """
-                
-        t1 = time.time()
 
         kwargs = {}
         for i, par in enumerate(self.parameters):
@@ -183,10 +180,6 @@ class loglikelihood(LogLikelihood):
 
         del sim, kw
         gc.collect()
-        
-        t2 = time.time()
-        
-        print 'Likelihood eval in %.2g sec' % (t2 - t1)
                                                 
         return lp + PofD, blobs
     
