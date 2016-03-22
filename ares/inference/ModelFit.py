@@ -44,8 +44,6 @@ try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
     size = MPI.COMM_WORLD.size
-    MPI._p_pickle.dumps = pickle.dumps
-    MPI._p_pickle.loads = pickle.loads
 except ImportError:
     rank = 0
     size = 1
