@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from .PriorSet import PriorSet
 from ..util.Stats import get_nu
 from ..util.MPIPool import MPIPool
 from ..util.PrintInfo import print_fit
@@ -112,83 +113,13 @@ def _str_to_val(p, par, pvals, pars):
     prefix = p.split(m.group(0))[0]
 
     return pvals[pars.index('%s{%i}' % (prefix, num))]
+
     
-class LogPrior:
-    def __init__(self, priors, parameters, is_log=None):
-        self.pars = parameters  # just names *in order*
-        self.priors = priors
-
-        if is_log is None:
-            self.is_log = [False] * len(parameters)
-        else:
-            self.is_log = is_log
-
-        if priors:
-            self.prior_len = [len(self.priors[par]) for par in self.pars]
-
-    @property
-    def priors_w_trunc(self):
-        if not hasattr(self, '_priors_w_trunc'):
-            self._priors_w_trunc = {}
-            for i, par in enumerate(self.pars):
-                if self.priors[par][0] != 'truncated_gaussian':
-                    continue
-                    
-                p1, p2, p3 = self.priors[par][1:]                        
-                xout = get_nu(p2, 0.685, p3)    
-                
-                self._priors_w_trunc[par] = (p1 - xout, p1 + xout)
-    
-        return self._priors_w_trunc
-            
-    def __call__(self, pars):
-        """
-        Compute prior of given model.
-        """
-
-        if not self.priors:
-            return -np.inf
-
-        logL = 0.0
-        for i, par in enumerate(self.pars):
-            val = pars[i]
-
-            ptype = self.priors[par][0]
-            if ptype == 'truncated_gaussian':
-                p1, p2, p3 = self.priors[par][1:]
-            else:
-                p1, p2 = self.priors[par][1:]
-            
-            # Figure out if this prior is linked to others
-            if type(p1) is str:
-                p1 = _str_to_val(p1, par, pars, self.pars)
-            if type(p2) is str:
-                p2 = _str_to_val(p2, par, pars, self.pars)
-
-            # Uninformative priors
-            if ptype == 'uniform':
-                if self.is_log[i]:
-                    logL += uninformative_log(val, p1, p2)
-                else:
-                    logL += np.log(uninformative_lin(val, p1, p2))
-            # Gaussian priors
-            elif ptype == 'gaussian':
-                logL += np.log(gaussian_prior(val, p1, p2))
-            elif ptype == 'truncated_gaussian':
-                lim = self.priors_w_trunc[par]
-                logL += np.log(truncated_gaussian_prior(val, p1, p2, lim))
-            else:
-                raise ValueError('Unrecognized prior type: %s' % ptype)
-
-        return logL
-        
-# For backward compatibility
-logprior = LogPrior        
         
 class LogLikelihood(object):
-    def __init__(self, xdata, ydata, error, parameters, is_log,
-        base_kwargs, priors={}, prefix=None, blob_info=None, 
-        checkpoint_by_proc=False):
+    def __init__(self, xdata, ydata, error, parameters, is_log,\
+        base_kwargs, param_prior_set=None, blob_prior_set=None,\
+        prefix=None, blob_info=None, checkpoint_by_proc=False):
         """
         This is only to be inherited by another log-likelihood class.
 
@@ -211,7 +142,7 @@ class LogLikelihood(object):
             self.blob_dims = blob_info['blob_dims']
         
         ##
-        # Note: you might thinking np.array is innocuous, but we have to be
+        # Note: you might think using np.array is innocuous, but we have to be
         # a little careful below since sometimes xdata, ydata, etc. are
         # masked arrays, and casting them to regular arrays screws things up.
         ##
@@ -233,34 +164,40 @@ class LogLikelihood(object):
         else:
             self.error = error
         
-        self.prefix = prefix   
+        self.prefix = prefix
 
-        # Sort through priors        
-        priors_P = {}   # parameters
-        priors_B = {}   # blobs
-
-        p_pars = []
-        b_pars = []
-        for key in priors:
-            # Priors on model parameters
-            if key in self.parameters:
-                p_pars.append(key)
-                priors_P[key] = priors[key]
-            else:
-                b_pars.append(key)
-                priors_B[key] = priors[key]
-            
-        self.logprior_P = LogPrior(priors_P, self.parameters, self.is_log)
-        self.logprior_B = LogPrior(priors_B, b_pars)
+        self.priors_P = param_prior_set
+        if len(self.priors_P.params) != len(self.parameters):
+            raise ValueError("The number of parameters of the priors given " +\
+                             "to a loglikelihood object is not equal to " +\
+                             "the number of parameters given to the object.")
         
-    def _compute_blob_prior(self, sim):
-        blob_vals = []
-        for i, key in enumerate(self.logprior_B.pars):
-            blob_vals.append(sim.get_blob(key))
-
-        if blob_vals:
-            return self.logprior_B(blob_vals)
+        if blob_info is None:
+            self.priors_B = PriorSet()
+        elif isinstance(blob_prior_set, PriorSet):
+            self.priors_B = blob_prior_set
         else:
+            try:
+                # perhaps the prior tuples
+                # (prior, params, transformations) were given
+                self.priors_B = PriorSet(prior_tuples=blob_prior_set)
+            except:
+                raise ValueError("The value given as the blob_prior_set " +\
+                                 "argument to the initializer of a " +\
+                                 "Loglikelihood could not be cast " +\
+                                 "into a PriorSet.")
+
+
+    def _compute_blob_prior(self, sim):
+        blob_vals = {}
+        for key in self.priors_B.params:
+            blob_vals[key] = sim.get_blob(key)
+        
+        try:
+            # will return 0 if there are no blobs
+            return self.priors_B.log_prior(blob_vals)
+        except:
+            # some of the blobs were not retrieved (then they are Nones)!
             return -np.inf
     
     @property
@@ -360,12 +297,13 @@ class ModelFit(BlobFactory):
             return
         
         self._seed = value
-        
-    @property
-    def error_independent(self):
-        if not hasattr(self, '_err_indep'):
-            self._err_indep = self.error.ndim == 1
-        return self._err_indep
+    
+    # Pretty sure this no longer needs to exist, but not 100% sure    
+    #@property
+    #def error_independent(self):
+    #    if not hasattr(self, '_err_indep'):
+    #        self._err_indep = self.error.ndim == 1
+    #    return self._err_indep
             
     @property 
     def xdata(self):
@@ -401,31 +339,75 @@ class ModelFit(BlobFactory):
         self._error = np.array(value)
 
     @property
-    def priors(self):
-        if not hasattr(self, '_priors'):
-            raise ValueError('Must set priors by hand!')
+    def prior_set_P(self):
+        if not hasattr(self, '_prior_set_P'):
+            ps = self.prior_set
+            subset = PriorSet()
+            for (prior, params, transforms) in ps._data:
+                are_pars_P = [(par in self.parameters) for par in params]
+                are_pars_P = np.array(are_pars_P)
 
-        return self._priors
-
-    @priors.setter
-    def priors(self, value):
-        self._priors = value
-            
-        # Warn user if a prior has no match in parameters or blobs
-        for prior in self._priors:
-            if prior in self.parameters:
-                continue
-            if prior in self.all_blob_names:
-                continue
+                if np.all(are_pars_P):
+                    subset.add_prior(prior, params, transforms)
+                elif not np.all(are_pars_P == False):
+                    raise AttributeError("Blob priors and parameter " +\
+                                         "priors are coupled!")
+            self._prior_set_P = subset
+        return self._prior_set_P
+    
+    @property
+    def prior_set_B(self):
+        if not hasattr(self, '_prior_set_B'):
+            ps = self.prior_set
+            subset = PriorSet()
+            for (prior, params, transforms) in ps._data:
+                are_pars_B = [(par in self.all_blob_names) for par in params]
+                are_pars_B = np.array(are_pars_B)
                 
-            warn = "Setting prior on %s but %s not in parameters or blobs!" \
-                % (prior, prior)
+                if np.all(are_pars_B):
+                    subset.add_prior(prior, params, transforms)
+                elif not np.all(are_pars_B == False):
+                    raise AttributeError("Blob priors and parameter " +\
+                                         "priors are coupled!")
+            self._prior_set_B = subset
+        return self._prior_set_B
+
+    @property
+    def prior_set(self):
+        if not hasattr(self, '_prior_set'):
+            raise ValueError('Must set prior_set by hand!')
+
+        return self._prior_set
+
+    @prior_set.setter
+    def prior_set(self, value):
+        if isinstance(value, PriorSet):
+            # could do more error catching but it would enforce certain
+            # attributes being set before others which could complicate things
+            self._prior_set = value
+
+            # Warn user if a prior has no match in parameters or blobs
+            for param in self._prior_set.params:
+                if param in self.parameters:
+                    continue
+                if param in self.all_blob_names:
+                    continue
+                
+                warn = ("Setting prior on %s but %s " % (param, param,)) +\
+                        "not in parameters or blobs!"
             
-            if size == 1:
-                raise KeyError(warn)
-            else:
-                print warn
-                MPI.COMM_WORLD.Abort()
+                if size == 1:
+                    raise KeyError(warn)
+                else:
+                    print warn
+                    MPI.COMM_WORLD.Abort()
+        else:
+            try:
+                self._prior_set = PriorSet(prior_tuples=value)
+            except:
+                raise ValueError("The prior_set property was set to " +\
+                                 "something which was not a PriorSet " +\
+                                 "and could not be cast as a PriorSet.")
 
     @property
     def nwalkers(self):
@@ -457,55 +439,58 @@ class ModelFit(BlobFactory):
             return
         
         # Set using priors
-        if not hasattr(self, '_guesses') and hasattr(self, 'priors'):
+        if not hasattr(self, '_guesses') and hasattr(self, '_prior_set'):
             
             if rank == 0:
                 self._guesses = []
                 for i in range(self.nwalkers):
-                    
-                    p0 = []
-                    to_fix = []
-                    for j, par in enumerate(self.parameters):
-                
-                        if par in self.priors:
-                            
-                            dist, lo, hi = self.priors[par]
-                            
-                            # Fix if tied to other parameter
-                            if (type(lo) is str) or (type(hi) is str):                            
-                                to_fix.append(par)
-                                p0.append(None)
-                                continue
-                                
-                            if dist == 'uniform':
-                                val = np.random.rand() * (hi - lo) + lo
-                            else:
-                                val = np.random.normal(lo, scale=hi)
-                        else:
-                            raise ValueError('No prior for %s' % par)
-                
-                        # Save
-                        p0.append(val)
-                
-                    # If some priors are linked, correct for that
-                    for par in to_fix:
-                
-                        dist, lo, hi = self.priors[par]
-                
-                        if type(lo) is str:
-                            lo = p0[self.parameters.index(lo)]
-                        else:    
-                            hi = p0[self.parameters.index(hi)]
-                
-                        if dist == 'uniform':
-                            val = np.random.rand() * (hi - lo) + lo
-                        else:
-                            val = np.random.normal(lo, scale=hi)
-                        
-                        k = self.parameters.index(par)
-                        p0[k] = val
-                    
-                    self._guesses.append(p0)
+                    draw = self.prior_set.draw()
+                    self._guesses.append([draw[self.parameters[ipar]]\
+                                          for ipar in range(prior.numparams)])
+            #        
+            #        p0 = []
+            #        to_fix = []
+            #        for j, par in enumerate(self.parameters):
+            #    
+            #            if par in self.priors:
+            #                
+            #                dist, lo, hi = self.priors[par]
+            #                
+            #                # Fix if tied to other parameter
+            #                if (type(lo) is str) or (type(hi) is str):
+            #                    to_fix.append(par)
+            #                    p0.append(None)
+            #                    continue
+            #                    
+            #                if dist == 'uniform':
+            #                    val = np.random.rand() * (hi - lo) + lo
+            #                else:
+            #                    val = np.random.normal(lo, scale=hi)
+            #            else:
+            #                raise ValueError('No prior for %s' % par)
+            #    
+            #            # Save
+            #            p0.append(val)
+            #    
+            #        # If some priors are linked, correct for that
+            #        for par in to_fix:
+            #    
+            #            dist, lo, hi = self.priors[par]
+            #    
+            #            if type(lo) is str:
+            #                lo = p0[self.parameters.index(lo)]
+            #            else:    
+            #                hi = p0[self.parameters.index(hi)]
+            #    
+            #            if dist == 'uniform':
+            #                val = np.random.rand() * (hi - lo) + lo
+            #            else:
+            #                val = np.random.normal(lo, scale=hi)
+            #            
+            #            k = self.parameters.index(par)
+            #            p0[k] = val
+            #        
+            #        self._guesses.append(p0)
                 
                 self._guesses = np.array(self._guesses)
                     
@@ -542,42 +527,45 @@ class ModelFit(BlobFactory):
         else:
             raise ValueError('Dunno about this shape')
             
-    def _fix_guesses(self, pos):
-        
-        if rank > 0:
-            return
-        
-        guesses = pos.copy()
-        
-        # Fix parameters whose values lie outside prior space
-        for i, par in enumerate(self.parameters):
-            if par not in self.priors:
-                continue
-                
-            if self.priors[par][0] != 'uniform':
-                continue
-            
-            mi, ma = self.priors[par][1:]
-            
-            ok_lo = guesses[:,i] >= mi
-            ok_hi = guesses[:,i] <= ma
-            
-            if np.all(ok_lo) and np.all(ok_hi):
-                continue
-                
-            # Draw from uniform distribution for failed cases
-            
-            not_ok_lo = np.logical_not(ok_lo)
-            not_ok_hi = np.logical_not(ok_hi)
-            not_ok = np.logical_or(not_ok_hi, not_ok_lo)
-            
-            bad_mask = np.argwhere(not_ok)
-            
-            for j in bad_mask:
-                #print "Fixing guess for walker %i parameter %s" % (j[0], par)
-                guesses[j[0],i] = np.random.uniform(mi, ma)
-                
-        return guesses
+    # I don't know how to integrate this using the new prior system
+    # Can you help, Jordan?
+    #
+    #def _fix_guesses(self, pos):
+    #    
+    #    if rank > 0:
+    #        return
+    #    
+    #    guesses = pos.copy()
+    #    
+    #    # Fix parameters whose values lie outside prior space
+    #    for i, par in enumerate(self.parameters):
+    #        if par not in self.priors:
+    #            continue
+    #            
+    #        if self.priors[par][0] != 'uniform':
+    #            continue
+    #        
+    #        mi, ma = self.priors[par][1:]
+    #        
+    #        ok_lo = guesses[:,i] >= mi
+    #        ok_hi = guesses[:,i] <= ma
+    #        
+    #        if np.all(ok_lo) and np.all(ok_hi):
+    #            continue
+    #            
+    #        # Draw from uniform distribution for failed cases
+    #        
+    #        not_ok_lo = np.logical_not(ok_lo)
+    #        not_ok_hi = np.logical_not(ok_hi)
+    #        not_ok = np.logical_or(not_ok_hi, not_ok_lo)
+    #        
+    #        bad_mask = np.argwhere(not_ok)
+    #        
+    #        for j in bad_mask:
+    #            #print "Fixing guess for walker %i parameter %s" % (j[0], par)
+    #            guesses[j[0],i] = np.random.uniform(mi, ma)
+    #            
+    #    return guesses
         
     @property 
     def jitter(self):
@@ -689,7 +677,7 @@ class ModelFit(BlobFactory):
             # deleting other files the user may have created with similar
             # naming convention!
             
-            for suffix in ['chain', 'logL', 'facc', 'pinfo', 'setup', 'priors']:
+            for suffix in ['chain', 'logL', 'facc', 'pinfo', 'setup', 'prior_set']:
                 os.system('rm -f %s.%s.pkl' % (prefix, suffix))
             
             os.system('rm -f %s.fail*.pkl' % prefix)
@@ -727,8 +715,8 @@ class ModelFit(BlobFactory):
         f.close()
         
         # Priors!
-        f = open('%s.priors.pkl' % prefix, 'wb')
-        pickle.dump(self.priors, f)
+        f = open('%s.prior_set.pkl' % prefix, 'wb')
+        pickle.dump(self.prior_set, f)
         f.close()
         
         # Constant parameters being passed to ares.simulations.Global21cm
@@ -824,7 +812,7 @@ class ModelFit(BlobFactory):
             mlpt = pos[np.argmax(prob)]
 
             pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
-            pos = self._fix_guesses(pos)
+            #pos = self._fix_guesses(pos)
             
         elif not restart:
             pos = self.guesses

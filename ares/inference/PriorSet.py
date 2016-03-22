@@ -1,0 +1,293 @@
+"""
+PriorSet.py
+
+Author: Keith Tauscher
+Affiliation: University of Colorado at Boulder
+Created on: Sat Mar 19 15:01:00 2016
+
+Description: A container which can hold an arbitrary number of priors, each of
+             which can have any number of parameters which it describes (as
+             long as the specific prior supports that number of parameters).
+             Priors can be added through PriorSet.add_prior(prior, params)
+             where prior is a _Prior and params is a list of the parameters to
+             which prior applies. Once all the priors are added, points can be
+             drawn using PriorSet.draw() and the log_prior of the entire set of
+             priors can be evaluated at a point using
+             PriorSet.log_prior(point). See documentation of individual
+             functions for further details.
+"""
+
+import numpy as np
+from .Priors import _Prior
+
+list_types = [list, tuple, np.ndarray]
+valid_transforms = ['log', 'square', 'arcsin']
+
+def _check_if_valid_transform(transform):
+    #
+    # Checks if the given variable is either None
+    # or a string describing a valid transform.
+    #
+    if type(transform) is str:
+        if transform not in valid_transforms:
+            raise ValueError("The transform given to apply" +\
+                             " to a variable was not valid.")
+    elif (transform is not None):
+        raise ValueError("The type of the transform given to a PriorSet " +\
+                         "to apply to a parameter was not recognized.")
+
+def _log_prior_addition(value, transform):
+    #
+    # Finds the term which should be added to the log prior due to the
+    # transform (pretty much the log of the derivative of the transformed
+    # parameter with respect to the original parameter evaluated at value.
+    #
+    if transform is None:
+        return 0.
+    elif transform == 'log':
+        return -1. * np.log(value)
+    elif transform == 'square':
+        return np.log(2 * value)
+    elif transform == 'arcsin':
+        return -np.log(1.-np.power(value, 2.)) / 2.
+    else:
+        raise ValueError("For some reason the _log_prior_addition " +\
+                         "function wasn't implemented for the transform " +\
+                         "given, which is \"%s\"." % (transform,))
+
+def _apply_transform(value, transform):
+    #
+    # Applies the given transform to the value and returns the result.
+    #
+    if transform is None:
+        return value
+    elif transform == 'log':
+        return np.log(value)
+    elif transform == 'square':
+        return np.power(value, 2.)
+    elif transform == 'arcsin':
+        return np.arcsin(value)
+    else:
+        raise ValueError("Something went wrong and an attempt to evaluate " +\
+                         "an invalid transform was made. This should " +\
+                         "have been caught by previous error catching!")
+
+def _apply_inverse_transform(value, transform):
+    #
+    # Applies the inverse of the given transform
+    # to the value and returns the result.
+    #
+    if transform is None:
+        return value
+    elif transform == 'log':
+        return np.exp(value)
+    elif transform == 'square':
+        return np.sqrt(value)
+    elif transform == 'arcsin':
+        return np.sin(value)
+    else:
+        raise ValueError("Something went wrong and an attempt to evaluate" +\
+                         " an invalid (inverse) transform was made. This" +\
+                         "should've been caught by previous error catching!")
+        
+
+class PriorSet():
+    """
+    An object which keeps track of many priors which can be univariate or
+    multivariate. It provides methods like log_prior, which calls log_prior on
+    all of its constituent priors, and draw, which draws from all of its
+    constituent priors.
+    """
+    def __init__(self, prior_tuples=[]):
+        """
+        Creates a new PriorSet with the given priors inside.
+        
+        prior_tuples a list of lists/tuples of the form (prior, params) where
+                     prior is an instance of the _Prior class and params is
+                     a list of parameters (strings) which prior describes.
+        """
+        self._data = []
+        self._params = []
+        if type(prior_tuples) in list_types:
+            for iprior in range(len(prior_tuples)):
+                this_tup = prior_tuples[iprior]
+                if (type(this_tup) in list_types) and len(this_tup) == 3:
+                    (prior, params, transforms) = prior_tuples[iprior]
+                    self.add_prior(prior, params, transforms)
+                else:
+                    raise ValueError("One of the prior tuples provided to " +\
+                                     "the initializer of a PriorSet was not" +\
+                                     " a list/tuple of length 2 like " +\
+                                     "(prior, params).")
+        else:
+            raise ValueError("The prior_tuples argument given to the " +\
+                             "initializer was not list-like. It should be " +\
+                             "a list of tuples of the form (prior, params, " +\
+                             "transformations) where prior is a _Prior " +\
+                             "object and params and transformations " +\
+                             "are lists of strings.")
+
+    @property
+    def empty(self):
+        """
+        Finds whether this PriorSet is empty.
+        
+        returns True if no priors have been added, False otherwise
+        """
+        return (len(self._data) == 0)
+
+    @property
+    def params(self):
+        """
+        Finds and returns the parameters which this PriorSet describes.
+        """
+        return self._params
+
+    def add_prior(self, prior, params, transforms=None):
+        """
+        Adds a prior and the parameters it describes to the PriorSet.
+        
+        prior prior describing the given parameters (should be a _Prior object)
+        params list of parameters described by the given prior
+               (can be a single string if the prior is univariate)
+        transforms list of transformations to apply to the parameters
+                   (can be a single string if the prior is univariate)
+        """
+        if isinstance(prior, _Prior):
+            if transforms is None:
+                transforms = [None] * prior.numparams
+            elif (type(transforms) is str):
+                _check_if_valid_transform(transforms)
+                if (prior.numparams == 1):
+                    transforms = [transforms]
+                else:
+                    raise ValueError("The transforms variable applied" +\
+                                     " to parameters of a PriorSet was " +\
+                                     "provided as a string even though the " +\
+                                     "prior being provided was multivariate.")
+            elif type(transforms) in list_types:
+                if len(transforms) == prior.numparams:
+                    for itran in range(len(transforms)):
+                        _check_if_valid_transform(transforms[itran])
+                else:
+                    raise ValueError("The list of transforms applied to " +\
+                                     "parameters in a PriorSet was not " +\
+                                     "the same length as the list of " +\
+                                     "parameters of the prior.")
+            else:
+                raise ValueError("The type of the transforms variable " +\
+                                 "supplied to PriorSet's add_prior function" +\
+                                 " was not recognized. It should be a " +\
+                                 "single valid string (if prior is " +\
+                                 "univariate) or list of valid strings (if" +\
+                                 " prior is multivariate).")
+            if prior.numparams == 1:
+                if type(params) is str:
+                    self._check_name(params)
+                    self._data.append((prior, [params], transforms))
+                elif type(params) in list_types:
+                    if len(params) > 1:
+                        raise ValueError("The prior given to a PriorSet was" +\
+                                         " univariate, but more than one " +\
+                                         "parameter was given.")
+                    else:
+                        self._check_name(params[0])
+                        self._data.append((prior, [params[0]], transforms))
+                else:
+                    raise ValueError("The type of the parameters given " +\
+                                     "to a PriorSet was not recognized.")
+            elif type(params) is str:
+                raise ValueError("A single parameter was given even though" +\
+                                 " the prior given is multivariate " +\
+                                 ("(numparams=%i)." % (prior.numparams,)))
+            elif type(params) in list_types:
+                if (len(params) == prior.numparams):
+                    for name in params:
+                        self._check_name(name)
+                    data_tup = (prior,\
+                        [params[i] for i in range(len(params))], transforms)
+                    self._data.append(data_tup)
+                else:
+                    raise ValueError("The number of parameters of the given" +\
+                                     (" prior (%i) " % (prior.numparams,)) +\
+                                     "was not equal to the number of para" +\
+                                     ("meters given (%i)." % (len(params),)))
+            else:
+                raise ValueError("The params given to a PriorSet" +\
+                                 " (along with a prior) was not " +\
+                                 "a string nor a list of strings.")
+        else:
+            raise ValueError("The prior given to a PriorSet" +\
+                             " was not recognized as a prior.")
+        for iparam in range(prior.numparams):
+            # this line looks weird but it works for any input
+            self._params.append(self._data[-1][1][iparam])
+
+    def draw(self):
+        """
+        Draws a point from all priors.
+        
+        returns a dictionary of random values indexed by parameter name
+        """
+        point = {}
+        for iprior in range(len(self._data)):
+            (prior, params, transforms) = self._data[iprior]
+            if (prior.numparams == 1):
+                point[params[0]] = _apply_inverse_transform(prior.draw(),\
+                    transforms[0])
+            else:
+                this_draw = prior.draw()
+                for iparam in range(len(params)):
+                    point[params[iparam]] = _apply_inverse_transform(\
+                        this_draw[iparam], transforms[iparam])
+        return point
+
+    def log_prior(self, point):
+        """
+        Evaluates the log of the product of the priors contained in this
+        PriorSet.
+        
+        point should be a dictionary of values indexed by the parameter names
+        
+        returns the total log_prior coming from contributions from all priors
+        """
+        if type(point) is dict:
+            result = 0.
+            for iprior in range(len(self._data)):
+                (prior, params, transforms) = self._data[iprior]
+                if (prior.numparams == 1):
+                    result += prior.log_prior(\
+                        _apply_transform(point[params[0]], transforms[0]))
+                else:
+                    result += prior.log_prior(\
+                        [_apply_transform(point[params[i]], transforms[i])\
+                                                  for i in range(len(params))])
+                for i in range(len(params)):
+                    result +=\
+                        _log_prior_addition(point[params[i]], transforms[i])
+            return result
+        else:
+            raise ValueError("point given to log_prior function " +\
+                             "of a PriorSet was not a dictionary " +\
+                             "of values indexed by parameter names.")
+
+    def _check_name(self, name):
+        #
+        # Checks the given name to see if it is already taken in the parameters
+        # of the priors in this PriorSet.
+        #
+        if not (type(name) is str):
+            raise ValueError("A parameter provided to a " +\
+                             "PriorSet was not a string.")
+        broken = False
+        for iprior in range(len(self._data)):
+            for param in self._data[iprior]:
+                if name == param:
+                    broken = True
+                    break
+            if broken:
+                break
+        if broken:
+            raise ValueError("The name of a parameter provided" +\
+                             " to a PriorSet is already taken.")
+
