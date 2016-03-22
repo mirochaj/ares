@@ -14,7 +14,7 @@ import re
 import numpy as np
 
 try:
-    import cPickle as pickle
+    import dill as pickle
 except ImportError:
     import pickle
     

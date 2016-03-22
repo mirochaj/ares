@@ -113,10 +113,8 @@ class ParameterizedHaloProperty(object):
             if type(par) == str:
                 p = pars2[i]
                 if par == 'linear_t':
-                    #val = 10**(np.log10(p[0]) - 1.5 * (1. + z) / (1. + p[1]))
                     val = p[0] * ((1. + z) / (1. + p[1]))**-1.5
                 elif par == 'pl':
-                    #val = 10**(np.log10(p[0]) + p[2] * (1. + z) / (1. + p[1]))
                     val = p[0] * ((1. + z) / (1. + p[1]))**p[2]
                 
                 exec('p%i = val' % i)
@@ -129,26 +127,26 @@ class ParameterizedHaloProperty(object):
         elif func == 'pl':
             f = p0 * (M / p1)**p2
         elif func == 'plexp':
-            f = p0 * (M / 1e10)**p1 * np.exp(-M / p2)
+            f = p0 * (M / p1)**p2 * np.exp(-M / p3)
         elif func == 'dpl':
             f = 2. * p0 / ((M / p1)**-p2 + (M / p1)**p3)    
         elif func == 'plsum2':
-            f = p0 * (M / 1e10)**p1 + p2 * (M / 1e10)**p3
+            f = p0 * (M / p1)**p2 + p3 * (M / p1)**p4
+        elif func == 'tanh_abs':
+            return tanh_astep(M, p0, p1, p2, p3)
+        elif func == 'tanh_rel':
+            return tanh_rstep(M, p0, p1, p2, p3)
         elif func == 'rstep':
             if type(M) is np.ndarray:
                 lo = M <= p2
                 hi = M > p2
-
+        
                 return lo * p0 * p1 + hi * p1 
             else:
                 if M <= p2:
                     return p0 * p1
                 else:
                     return p1
-        elif func == 'tanh_abs':
-            return tanh_astep(M, p0, p1, p2, p3)
-        elif func == 'tanh_rel':
-            return tanh_rstep(M, p0, p1, p2, p3)
         elif func == 'astep':
             if type(M) is np.ndarray:
                 lo = M <= p2
@@ -169,9 +167,9 @@ class ParameterizedHaloProperty(object):
                      + hi * p2 * (M / p4)**p3
             else:
                 if M <= p4:
-                    return p0 * (M / 1e10)**p1
+                    return p0 * (M / p1)**p2
                 else:
-                    return p2 * (M / 1e10)**p3
+                    return p3 * (M / p1)**p4
         elif func == 'okamoto':
             f = (1. + (2.**(p0 / 3.) - 1.) * (M / p1)**-p0)**(-3. / p0)
         elif func == 'user':

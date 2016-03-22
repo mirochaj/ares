@@ -133,7 +133,6 @@ class ObservedLF(object):
                 data[source]['ulim'] = uplims
                 data[source]['err'] = (err_lo, err_hi)
                 
-                
         return data
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
@@ -182,7 +181,7 @@ class ObservedLF(object):
         
         ax.set_yscale('log', nonposy='clip')    
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
-        ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1}]$')
+        ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
         ax.set_xlim(-25.5, -10)
         pl.draw()
         

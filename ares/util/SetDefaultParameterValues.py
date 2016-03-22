@@ -238,11 +238,11 @@ def HaloPropertyParameters():
      "php_Mfun_par4": None,
      "php_Mfun_par5": None,
 
-     "php_zfun": 'constant',    
-     "php_zfun_par0": None,    
-     "php_zfun_par1": None, 
-     "php_zfun_par2": None,  
-     "php_zfun_par3": None,
+     #"php_zfun": 'constant',    
+     #"php_zfun_par0": None,    
+     #"php_zfun_par1": None, 
+     #"php_zfun_par2": None,  
+     #"php_zfun_par3": None,
      
      'php_Mfun_aug': None,
      'php_Mfun_aug_meth': 'multiply',
@@ -327,6 +327,9 @@ def PopulationParameters():
     # Mass accretion rate
     "pop_MAR": 'mcbride2009',
     "pop_MAR_conserve_norm": False,
+    
+    "pop_tdyn": 1e7,
+    "pop_sSFR": None,
 
     "pop_lf_z": None,
 

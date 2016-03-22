@@ -190,6 +190,20 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             self._SFRD = interp1d(self.halos.z, self.sfrd_tab, kind='cubic')
                 
         return self._SFRD
+        
+    def RGR(self):
+        """
+        'Reservoir growth rate'
+        
+        Parameters
+        ----------
+        
+        
+        Returns
+        -------
+        
+        """
+        pass
 
     @property
     def MAR(self):
@@ -208,23 +222,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             elif self.pf['pop_MAR'] == 'pl':
                 raise NotImplemented('do this')
             elif self.pf['pop_MAR'] == 'hmf':
-                func = lambda zz: super(GalaxyPopulation, self).MAR_via_AM(zz)
-                
-                _MAR_tab = np.zeros_like(self.halos.dndm)
-                for i, z in enumerate(self.halos.z):
-                    _MAR_tab[i] = func(z)
-                
-                mask = np.zeros_like(_MAR_tab)
-                mask[np.isnan(_MAR_tab)] = 1
-                
-                self._MAR_tab = np.ma.array(_MAR_tab, mask=mask)
-                self._MAR_mask = mask    
-                
-                spl = RectBivariateSpline(self.halos.z, self.halos.lnM,
-                    np.log(self._MAR_tab), kx=3, ky=3)
-                            
-                self._MAR = lambda z, M: np.exp(spl(z, np.log(M))).squeeze()
-                
+                self._MAR = self.halos.MAR_func
             else:
                 self._MAR = read_lit(self.pf['pop_MAR']).MAR
 
@@ -276,7 +274,11 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     def cMAR(self, z, source=None):
         """
         Compute cumulative mass accretion rate, i.e., integrated MAR in 
-        halos >M.
+        halos Mmin<M'<M.
+        
+        Parameters
+        ----------
+        z : int, float
         """
         
         if source is not None:        
@@ -298,7 +300,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         incremental_Macc = cumtrapz(integ[j1:], x=self.halos.lnM[j1:],
             initial=0.0)
 
-        return self.halos.M[j1:], incremental_Macc / incremental_Macc[-1]
+        return self.halos.M[j1:], incremental_Macc
 
     @property
     def eta(self):
@@ -456,6 +458,31 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             return rhoL * self.src.Spectrum(E)
         else:
             return rhoL
+            
+    def StellarMassFunction(self, z, sSFR, mags=True):
+        """
+        Name says it all.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+        sSFR : int, float, np.ndarray
+            Specific star-formation rate
+        
+        Returns
+        -------   
+        Tuple containing (stellar masses, # density).
+            
+        """
+        
+        assert mags
+
+        mags, phi = self.phi_of_M(z)
+    
+        # mags corresponds to halos.M
+        
+        return self.SFR(z, self.halos.M) * sSFR, phi
     
     def LuminosityFunction(self, z, x, mags=True):
         """
@@ -750,6 +777,19 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                 raise ValueError('Unrecognized data type for pop_fesc!')  
     
         return self._Nlw 
+        
+    @property    
+    def tdyn(self):
+        if not hasattr(self, '_tdyn'):
+            if type(self.pf['pop_tdyn']) in [float, np.float64]:
+                self._tdyn = lambda z, M: self.pf['pop_tdyn']
+            elif self.pf['pop_tdyn'][0:3] == 'php':
+                pars = self.get_php_pars(self.pf['pop_tdyn'])    
+                self._tdyn = ParameterizedHaloProperty(**pars)
+            else:
+                raise ValueError('Unrecognized data type for pop_fesc!')  
+    
+        return self._tdyn  
     
     def get_php_pars(self, par):
         """
@@ -793,20 +833,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
 
         return pars
         
-    @property
-    def tdyn_inv(self):
-        if not hasattr(self, '_tdyn_func'):
-            self._tdyn_inv = ParameterizedHaloProperty(**self.pf)
-        return self._tdyn_inv
-    
-    def tdyn(self, z, M):
-        """
-        Compute the dynamical time of a halo of mass M at redshift z.
-        
-        .. note :: Units are [s]^{-1}
-        """
-        return 1. / self.tdyn_inv(z, M)
-    
     def gamma_sfe(self, z, M):
         """
         This is a power-law index describing the relationship between the

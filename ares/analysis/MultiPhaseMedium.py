@@ -11,8 +11,8 @@ Description:
 """
 
 import numpy as np
+import re, scipy, os
 from ..util import labels
-import re, scipy, os, pickle
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
 from scipy.misc import derivative
@@ -24,6 +24,11 @@ from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
 from .DerivedQuantities import DerivedQuantities as DQ
 
+try:
+    import dill as pickle
+except ImportError:
+    import pickle
+    
 try:
     import h5py
 except ImportError:

@@ -26,9 +26,9 @@ from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts, \
     SetAllDefaults
 
 try:
-    import cPickle as pickle
+    import dill as pickle
 except:
-    import pickle    
+    import pickle
 
 try:
     from mpi4py import MPI
@@ -41,6 +41,19 @@ except ImportError:
 twopi = 2. * np.pi
 
 defaults = SetAllDefaults()
+
+def _which_sim_inst(**kw):
+    if 'include_igm' in kw:
+        if kw['include_igm']:
+            _sim_class = simG21
+        else:
+            _sim_class = simMPM
+    elif defaults['include_igm']:
+        _sim_class = simG21
+    else:
+        _sim_class = simMPM
+    
+    return _sim_class
 
 class loglikelihood(LogLikelihood):
 
@@ -63,15 +76,7 @@ class loglikelihood(LogLikelihood):
     @property
     def sim_class(self):
         if not hasattr(self, '_sim_class'):
-            if 'include_igm' in self.base_kwargs:
-                if self.base_kwargs['include_igm']:
-                    self._sim_class = simG21
-                else:
-                    self._sim_class = simMPM
-            elif defaults['include_igm']:
-                self._sim_class = simG21
-            else:
-                self._sim_class = simMPM                
+            self._sim_class = _which_sim_inst(**self.base_kwargs)        
                 
         return self._sim_class
         
@@ -81,25 +86,7 @@ class loglikelihood(LogLikelihood):
             self._const_term = -np.log(np.sqrt(twopi)) \
                              -  np.sum(np.log(self.error))
         return self._const_term                     
-        
-    @property
-    def hmf_instance(self):
-        if not hasattr(self, '_hmf_instance'):
-            self._hmf_instance = None
-        return self._hmf_instance
-    
-    @hmf_instance.setter
-    def hmf_instance(self, value):
-        self._hmf_instance = value
-    
-    @property 
-    def save_hmf(self):
-        return self._save_hmf
-    
-    @save_hmf.setter
-    def save_hmf(self, value):
-        self._save_hmf = value
-    
+
     def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -109,6 +96,8 @@ class loglikelihood(LogLikelihood):
         Tuple: (log likelihood, blobs)
     
         """
+                
+        t1 = time.time()
 
         kwargs = {}
         for i, par in enumerate(self.parameters):
@@ -127,11 +116,8 @@ class loglikelihood(LogLikelihood):
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
         
-        self.checkpoint(**kw)
-        
-        if self.hmf_instance is not None:
-            kw['hmf_instance'] = self.hmf_instance
-        
+        #self.checkpoint(**kw)
+
         sim = self.sim = self.sim_class(**kw)
 
         if isinstance(sim, simG21):
@@ -172,10 +158,6 @@ class loglikelihood(LogLikelihood):
 
             break
 
-        if self.save_hmf:
-            self.hmf_instance = pop.halos
-            self.save_hmf = False
-
         # Compute the luminosity function, goodness of fit, return
         phi = []
         for i, z in enumerate(self.redshifts):
@@ -201,7 +183,11 @@ class loglikelihood(LogLikelihood):
 
         del sim, kw
         gc.collect()
-                        
+        
+        t2 = time.time()
+        
+        print 'Likelihood eval in %.2g sec' % (t2 - t1)
+                                                
         return lp + PofD, blobs
     
 class FitLuminosityFunction(FitGlobal21cm):
@@ -232,11 +218,32 @@ class FitLuminosityFunction(FitGlobal21cm):
     
     @save_hmf.setter
     def save_hmf(self, value):
-        self._save_hmf = value    
+        self._save_hmf = value
     
     @property
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
+
+            if self.save_hmf:
+                sim_class = _which_sim_inst(**self.base_kwargs)
+                
+                sim = sim_class(**self.base_kwargs)
+                
+                if isinstance(sim, simG21):
+                    medium = sim.medium
+                else:
+                    medium = sim
+                    
+                for popid, pop in enumerate(medium.field.pops):
+                    if pop.is_fcoll_model:
+                        continue
+                
+                    break
+                    
+                hmf = pop.halos
+                assert 'hmf_instance' not in self.base_kwargs
+                self.base_kwargs['hmf_instance'] = hmf    
+
             self._loglikelihood = loglikelihood(self.xdata, 
                 self.ydata_flat, self.error_flat, 
                 self.parameters, self.is_log, self.base_kwargs, self.priors, 
@@ -244,7 +251,6 @@ class FitLuminosityFunction(FitGlobal21cm):
             
             self._loglikelihood.runsim = self.runsim
             self._loglikelihood.redshifts = self.redshifts
-            self._loglikelihood.save_hmf = self.save_hmf
 
         return self._loglikelihood
 

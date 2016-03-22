@@ -123,46 +123,7 @@ class HaloPopulation(Population):
     #        self._MAR_tab_ = {}
     #    return self._MAR_tab_
     
-    def MAR_via_AM(self, z):
-        """
-        Compute mass accretion rate by abundance matching across redshift.
-        
-        Parameters
-        ----------
-        z : int, float
-            Redshift.
 
-        Returns
-        -------
-        Array of mass accretion rates, each element corresponding to the halo
-        masses in self.halos.M.
-        
-        """
-        
-        k = np.argmin(np.abs(z - self.halos.z))    
-
-        if z not in self.halos.z:
-            print "WARNING: Rounding to nearest redshift z=%.3g" % self.halos.z[k]
-        
-        # For some reason flipping the order is necessary for non-bogus results
-        dn_gtm_1t = cumtrapz(self.halos.dndlnm[k][-1::-1], 
-            x=self.halos.lnM[-1::-1], initial=0.)[-1::-1]
-        dn_gtm_2t = cumtrapz(self.halos.dndlnm[k-1][-1::-1], 
-            x=self.halos.lnM[-1::-1], initial=0.)[-1::-1]
-        
-        dn_gtm_1 = dn_gtm_1t[-1] - dn_gtm_1t
-        dn_gtm_2 = dn_gtm_2t[-1] - dn_gtm_2t
-
-        # Need to reverse arrays so that interpolants are in ascending order
-        M_2 = np.exp(np.interp(dn_gtm_1[-1::-1], dn_gtm_2[-1::-1], 
-            self.halos.lnM[-1::-1])[-1::-1])
-        
-        # Compute time difference between z bins
-        dz = self.halos.z[k] - self.halos.z[k-1]
-        dt = dz * abs(self.cosm.dtdz(z)) / s_per_yr
-        
-        return (M_2 - self.halos.M) / dt
-        
         
         
         

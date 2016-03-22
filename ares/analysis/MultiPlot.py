@@ -94,10 +94,13 @@ class MultiPanel:
         if (diagonal is not None) and not self.square:
             raise ValueError('Must have square matrix to use diagonal=True')
 
-        self.dims = dims
-        self.J, self.K = dims
-        self.padding = padding
+        self.dims = tuple(dims)
+        self.J, self.K = dims # J = nrows, K = ncols
+        self.nrows = self.J
+        self.ncols = self.K
         
+        self.padding = padding
+                
         # Size of an individual panel (in inches)
         self.pane_size = np.array(figsize) * np.array([right-left, top-bottom])
         self.pane_size *= np.array(panel_size)
@@ -179,15 +182,15 @@ class MultiPanel:
         self.bottom = []
         self.top = []
         for i in xrange(self.N):
-            j, k = self.axis_position(i)
+            k, j = self.axis_position(i)  # col, row
             
-            if k == 0:
-                self.bottom.append(i)
-            if k == self.K - 1:
-                self.top.append(i)    
             if j == 0:
+                self.bottom.append(i)
+            if j == self.nrows - 1:
+                self.top.append(i)    
+            if k == 0:
                 self.left.append(i)
-            if j == self.J - 1:
+            if k == self.ncols - 1:
                 self.right.append(i)       
 
         # Create subplots

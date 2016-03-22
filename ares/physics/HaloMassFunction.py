@@ -9,18 +9,24 @@ Description:
 
 """
 
+import os, re, sys
 import numpy as np
 from . import Cosmology
-import pickle, os, re, sys
 from ..util import ParameterFile
 from scipy.misc import derivative
 from ..util.Warnings import no_hmf
+from scipy.integrate import cumtrapz
 from ..util.Math import central_difference
 from ..util.ProgressBar import ProgressBar
-from .Constants import g_per_msun, cm_per_mpc
 from ..util.ParameterFile import ParameterFile
+from .Constants import g_per_msun, cm_per_mpc, s_per_yr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline
 
+try:
+    import dill as pickle
+except ImportError:
+    import pickle
+    
 try:
     from scipy.special import erfc
 except ImportError:
@@ -52,8 +58,6 @@ except ImportError:
     have_pycamb = False    
 
 ARES = os.getenv("ARES")    
-
-
 
 sqrt2 = np.sqrt(2.)    
 
@@ -392,7 +396,71 @@ class HaloMassFunction(object):
         """
         
         return np.squeeze(self.dfcolldz_spline(z, logMmin))
-
+        
+    def MAR_via_AM(self, z):
+        """
+        Compute mass accretion rate by abundance matching across redshift.
+    
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+    
+        Returns
+        -------
+        Array of mass accretion rates, each element corresponding to the halo
+        masses in self.M.
+    
+        """
+    
+        k = np.argmin(np.abs(z - self.z))
+    
+        if z not in self.z:
+            print "WARNING: Rounding to nearest redshift z=%.3g" % self.z[k]
+    
+        # For some reason flipping the order is necessary for non-bogus results
+        dn_gtm_1t = cumtrapz(self.dndlnm[k][-1::-1], 
+            x=self.lnM[-1::-1], initial=0.)[-1::-1]
+        dn_gtm_2t = cumtrapz(self.dndlnm[k-1][-1::-1], 
+            x=self.lnM[-1::-1], initial=0.)[-1::-1]
+    
+        dn_gtm_1 = dn_gtm_1t[-1] - dn_gtm_1t
+        dn_gtm_2 = dn_gtm_2t[-1] - dn_gtm_2t
+    
+        # Need to reverse arrays so that interpolants are in ascending order
+        M_2 = np.exp(np.interp(dn_gtm_1[-1::-1], dn_gtm_2[-1::-1], 
+            self.lnM[-1::-1])[-1::-1])
+    
+        # Compute time difference between z bins
+        dz = self.z[k] - self.z[k-1]
+        dt = dz * abs(self.cosm.dtdz(z)) / s_per_yr
+    
+        return (M_2 - self.M) / dt
+        
+    @property
+    def MAR_func(self):
+        if not hasattr(self, '_MAR_func'):
+            
+            func = lambda zz: self.MAR_via_AM(zz)
+            
+            _MAR_tab = np.ones_like(self.dndm)
+            for i, z in enumerate(self.z):
+                _MAR_tab[i] = func(z)
+            
+            mask = np.zeros_like(_MAR_tab)
+            mask[np.isnan(_MAR_tab)] = 1
+            _MAR_tab[mask == 1] = 0.
+            
+            self._MAR_tab = np.ma.array(_MAR_tab, mask=mask)
+            self._MAR_mask = mask    
+            
+            spl = RectBivariateSpline(self.z, self.lnM,
+                self._MAR_tab, kx=3, ky=3)
+                        
+            self._MAR_func = lambda z, M: spl(z, np.log(M)).squeeze()
+        
+        return self._MAR_func
+        
     def dlogfdlogt(self, z):
         """
         Logarithmic derivative of fcoll with respect to log-time.

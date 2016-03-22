@@ -20,19 +20,6 @@ from ..analysis import Global21cm as anlGlobal21cm
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..simulations import Global21cm as simGlobal21cm
  
-try:
-    import cPickle as pickle
-except:
-    import pickle
-
-try:
-    from mpi4py import MPI
-    rank = MPI.COMM_WORLD.rank
-    size = MPI.COMM_WORLD.size
-except ImportError:
-    rank = 0
-    size = 1
-
 def_kwargs = {'verbose': False, 'progress_bar': False}
 
 class loglikelihood(LogLikelihood):
@@ -96,15 +83,12 @@ class loglikelihood(LogLikelihood):
         try:
             sim = self.sim = simG21(**kw)
             sim.run()
-            
-            #sim.run_inline_analysis()
-            
+                        
             tps = sim.turning_points
                                         
         # Timestep weird (happens when xi ~ 1)
         except SystemExit:
             
-            #sim.run_inline_analysis()
             tps = sim.turning_points
                  
         # most likely: no (or too few) turning pts
