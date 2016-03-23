@@ -758,17 +758,14 @@ class LinkedPrior(_Prior):
         
         returns the log_prior at the given value (ignoring delta functions)
         """
-        if value in numerical_types:
+        if type(value) in numerical_types:
             return self.shared_prior.log_prior(value)
-        elif value in list_types:
+        elif type(value) in list_types:
             if (len(value) == self.numparams):
                 for ival in range(len(value)):
                     if value[ival] != value[0]:
-                        print "Warning: LinkedPrior.log_prior returning " +\
-                              "-inf because the value given to it was neith" +\
-                              "er a single value or a list of equal values " +\
-                              "(a single value is probably the better way)."
                         return -np.inf
+                return self.shared_prior.log_prior(value[0])
             else:
                 raise ValueError("The length of the point given to a " +\
                                  "LinkedPrior was not the same as the " +\
@@ -838,13 +835,11 @@ class SequentialPrior(_Prior):
         """
         if type(point) in list_types:
             if len(point) == self.numparams:
-                if all([point[ip] <= point[ip+1] for ip in range(len(point))]):
+                if all([point[ip] <= point[ip+1] for ip in range(len(point)-1)]):
                     result = np.log(factorial(self.numparams))
                     for ipar in range(self.numparams):
                         result += self.shared_prior.log_prior(point[ipar])
                 else:
-                    print "Warning: SequentialPrior.log_prior returning " +\
-                          "-inf because given values are not sorted!"
                     return -np.inf
             else:
                 raise ValueError("The length of the point provided to a " +\

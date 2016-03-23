@@ -2,14 +2,14 @@ import time
 import numpy as np
 from ares.inference.Priors import GaussianPrior, UniformPrior,\
     ParallelepipedPrior, ExponentialPrior, BetaPrior, GammaPrior,\
-    TruncatedGaussianPrior
+    TruncatedGaussianPrior, LinkedPrior, SequentialPrior
 import matplotlib.pyplot as pl
 import matplotlib.cm as cm
 
 def_cm = cm.Greys
 
 t00 = time.time()
-sample_size = int(1e4)
+sample_size = int(1e5)
 
 uniform_test = True
 exponential_test = True
@@ -19,6 +19,8 @@ truncated_gaussian_test = True
 univariate_gaussian_test = True
 multivariate_gaussian_test = True
 parallelepiped_test = True
+linked_test = True
+sequential_test = True
 
 
 
@@ -187,14 +189,30 @@ if multivariate_gaussian_test:
     t0 = time.time()
     mgp_sample = [mgp.draw() for i in range(sample_size)]
     print (('It took %.3f s for a sample ' % (time.time()-t0)) +\
-          ('of size %i to be drawn from a multivariate' % (sample_size,)) +\
-          (' (%i parameters) Gaussian.' % mgp.numparams))
+          ('of size %i to be drawn from a multivariate ' % (sample_size,)) +\
+          ('(%i parameters) Gaussian.' % mgp.numparams))
     mgp_xs = [mgp_sample[i][0] for i in range(sample_size)]
     mgp_ys = [mgp_sample[i][1] for i in range(sample_size)]
     pl.figure()
-    pl.hist2d(mgp_xs, mgp_ys, bins=100, cmap=def_cm)
+    pl.hist2d(mgp_xs, mgp_ys, bins=100, cmap=cm.bone)
     pl.title('Multivariate Gaussian prior (2 dimensions) with ' +\
              ('mean=%s and covariance=%s' % (mmean,mcov,)), size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+    xs = np.arange(-50., 40.1, 0.1)
+    ys = np.arange(-25., 65.1, 0.1)
+    row_size = len(xs)
+    (xs, ys) = np.meshgrid(xs, ys)
+    logpriors = np.ndarray(xs.shape)
+    for ix in range(row_size):
+        for iy in range(row_size):
+            logpriors[ix,iy] = mgp.log_prior([xs[ix,iy], ys[ix,iy]])
+    pl.figure()
+    pl.imshow(np.exp(logpriors), cmap=cm.bone, extent=[-50.,40.,-25.,65.],\
+        origin='lower')
+    pl.title('e^(log_prior) for GaussianPrior',\
+        size='xx-large')
     pl.xlabel('x', size='xx-large')
     pl.ylabel('y', size='xx-large')
     pl.tick_params(labelsize='xx-large', width=2, length=6)
@@ -220,9 +238,24 @@ if parallelepiped_test:
     xs = [sample[i][0] for i in range(sample_size)]
     ys = [sample[i][1] for i in range(sample_size)]
     pl.figure()
-    pl.hist2d(xs, ys, bins=100, cmap=def_cm)
+    pl.hist2d(xs, ys, bins=100, cmap=cm.bone)
     pl.title('Parallelogram shaped uniform dist. centered at %s.' % center,\
         size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+    xs = np.arange(-20.5, -9.4, 0.1)
+    ys = np.arange(14.5, 25.6, 0.1)
+    (xs, ys) = np.meshgrid(xs, ys)
+    (x_size, y_size) = xs.shape
+    logpriors = np.ndarray(xs.shape)
+    for ix in range(x_size):
+        for iy in range(y_size):
+            logpriors[ix,iy] = pp.log_prior([xs[ix,iy], ys[ix,iy]])
+    pl.figure()
+    pl.imshow(np.exp(logpriors), cmap=cm.bone, extent=[-25.,-4.9,14.,26.1],\
+        origin='lower')
+    pl.title('e^(log_prior) for ParallelepipedPrior distribution', size='xx-large')
     pl.xlabel('x', size='xx-large')
     pl.ylabel('y', size='xx-large')
     pl.tick_params(labelsize='xx-large', width=2, length=6)
@@ -233,6 +266,84 @@ if parallelepiped_test:
         assert pp.log_prior(point) == pp.log_prior(center)
 
 ###############################################################################
+###############################################################################
+
+
+############################## LinkedPrior test ###############################
+###############################################################################
+
+if linked_test:
+    lp = LinkedPrior(GaussianPrior(0., 1.), 2)
+    t0 = time.time()
+    sample = [lp.draw() for i in range(sample_size)]
+    print ("It took %.3f s to draw %i" % (time.time()-t0,sample_size,)) +\
+          " vectors from a LinkedPrior with a Normal(0,1) distribution."
+    sam_xs = [sample[i][0] for i in range(sample_size)]
+    sam_ys = [sample[i][1] for i in range(sample_size)]
+    pl.figure()
+    pl.hist2d(sam_xs, sam_ys, bins=100, cmap=cm.bone)
+    pl.title('Sampled distribution of a LinkedPrior ' +\
+             'with a Normal(0,1) distribution', size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+    xs = np.arange(-3., 3.03, 0.03)
+    ys = np.arange(-3., 3.03, 0.03)
+    row_size = len(xs)
+    (xs, ys) = np.meshgrid(xs, ys)
+    logpriors = np.ndarray(xs.shape)
+    for ix in range(row_size):
+        for iy in range(row_size):
+            logpriors[ix,iy] = lp.log_prior([xs[ix,iy], ys[ix,iy]])
+    pl.figure()
+    pl.imshow(np.exp(logpriors), cmap=cm.bone, extent=[-3.,3.,-3.,3.],\
+        origin='lower')
+    pl.title('e^(log_prior) for LinkedPrior with a Normal(0,1) distribution',\
+        size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+
+###############################################################################
+###############################################################################
+
+
+############################ SequentialPrior test #############################
+###############################################################################
+
+if sequential_test:
+    sp = SequentialPrior(UniformPrior(0., 1.), 2)
+    t0 = time.time()
+    sample = [sp.draw() for i in range(sample_size)]
+    print ("It took %.3f s to draw %i" % (time.time()-t0,sample_size,)) +\
+          " vectors from a SequentialPrior with a Unif(0,1) distribution."
+    sam_xs = [sample[i][0] for i in range(sample_size)]
+    sam_ys = [sample[i][1] for i in range(sample_size)]
+    pl.figure()
+    pl.hist2d(sam_xs, sam_ys, bins=100, cmap=cm.bone)
+    pl.title('Sampled distribution of a LinkedPrior ' +\
+             'with a Unif(0,1) distribution', size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+    xs = np.arange(0., 1.01, 0.01)
+    ys = np.arange(0., 1.01, 0.01)
+    row_size = len(xs)
+    (xs, ys) = np.meshgrid(xs, ys)
+    logpriors = np.ndarray(xs.shape)
+    for ix in range(row_size):
+        for iy in range(row_size):
+            logpriors[ix,iy] = sp.log_prior([xs[ix,iy], ys[ix,iy]])
+    pl.figure()
+    pl.imshow(np.exp(logpriors), cmap=cm.bone, extent=[0.,1.,0.,1.],\
+        origin='lower')
+    pl.title('e^(log_prior) for SequentialPrior with Unif(0,1) distribution',\
+        size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+    
+
 ###############################################################################
 
 print 'The full test took %.3f s' % (time.time()-t00,)
