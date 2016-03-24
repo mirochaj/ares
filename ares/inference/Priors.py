@@ -97,6 +97,51 @@ def _normed(vec):
     arrvec = np.array(vec)
     return (arrvec / lalg.norm(arrvec))
 
+def search_sorted(array, value):
+    """
+    Searches the given sorted array for the given value using a
+    BinarySearch which should execute in O(log N).
+    
+    array a 1D sorted numerical array
+    value the numerical value to search for
+
+    returns index of array closest to value
+            returns None if value is outside variable bounds
+    """
+    def index_to_check(rmin, rmax):
+        return (rmin + rmax) / 2
+    range_min = 0
+    range_max_0 = len(array)
+    range_max = range_max_0
+    numloops = 0
+    while numloops < 100:
+        numloops += 1
+        if (range_max - range_min) == 1:
+            if range_max == range_max_0:
+                raise NotImplementedError("For some reason, range_max-" +\
+                                          "range_min reached 1 before " +\
+                                          "the element was found. The " +\
+                                          "element being searched for " +\
+                                          ("was %s. (min,max)" % (value,) +\
+                                          ("=%s" % ((range_min, range_max),))))
+            else:
+                high_index = range_max
+        else:
+            high_index = index_to_check(range_min, range_max)
+        high_val = array[high_index]
+        low_val = array[high_index - 1]
+        if value < low_val:
+            range_max = high_index
+        elif value > high_val:
+            range_min = high_index
+        else: # low_val <= value <= high_val
+            if (2 * (high_val - value)) < (high_val - low_val):
+                return high_index
+            else:
+                return high_index - 1
+    raise NotImplementedError("Something went wrong! I " +\
+                              "caught a pseudo-infinite loop!")
+
 class _Prior():
     """
     This class exists for error catching. Since it exists as
@@ -835,7 +880,8 @@ class SequentialPrior(_Prior):
         """
         if type(point) in list_types:
             if len(point) == self.numparams:
-                if all([point[ip] <= point[ip+1] for ip in range(len(point)-1)]):
+                if all([point[ip] <= point[ip+1]\
+                        for ip in range(len(point)-1)]):
                     result = np.log(factorial(self.numparams))
                     for ipar in range(self.numparams):
                         result += self.shared_prior.log_prior(point[ipar])
@@ -848,4 +894,199 @@ class SequentialPrior(_Prior):
         else:
             raise ValueError("The point given to a SequentialPrior " +\
                              "was not of a list type.")
+
+class GriddedPrior(_Prior):
+    """
+    A class representing an arbitrary dimensional (well, up to 32 dimensions)
+    probability distribution (of finite support!).
+    """
+    def __init__(self, variables, pdf=None):
+        """
+        Initializes a new GriddedPrior using the given variables.
+        
+        variables list of variable ranges (i.e. len(variables) == ndim
+                  and variables[i] is the range of the ith variable)
+        pdf numpy.ndarray with same ndim as number of parameters and with
+              the ith axis having the same length as the ith variables range
+        """
+        if type(variables) in list_types:
+            self._N = len(variables)
+            self.vars = [variables[i] for i in range(len(variables))]
+            self.shape =\
+                tuple([len(variables[i]) for i in range(self.numparams)])
+            self.size = np.prod(self.shape)
+            if pdf is None:
+                self.pdf = np.ones(self.shape)
+            elif type(pdf) in list_types:
+                arrpdf = np.array(pdf)
+                if arrpdf.shape == self.shape:
+                    self.pdf = arrpdf
+                else:
+                    raise ValueError("The pdf given to a GriddedPrior " +\
+                                     "were not of the expected shape. It " +\
+                                     "should be an N-dimensional array with" +\
+                                     " each dimension given by the length " +\
+                                     "of the corresponding variable's " +\
+                                     "range. Its values should be " +\
+                                     "proportional to the pdf.")
+            else:
+                raise ValueError("The pdf given to a GriddedPrior were " +\
+                                 "not of a list type. It should be " +\
+                                 "an N-dimensional array with each " +\
+                                 "dimension given by the length of the " +\
+                                 "corresponding variable's range. Its " +\
+                                 "values should be proportional to the pdf.")
+        else:
+            raise ValueError("The variables given to a GriddedPrior were " +\
+                             "not of a list type. It should be a " +\
+                             "list/tuple of variable ranges.")
+        self.pdf = self.pdf.flatten()
+        self._make_cdf()
+
+    @property
+    def numparams(self):
+        """
+        Finds and returns the number of parameters which this prior describes.
+        """
+        return self._N
+
+    def draw(self):
+        """
+        Draws and returns a point from this distribution.
+        """
+        rval = rand.rand()
+        inv_cdf_index = self._inverse_cdf_by_packed_index(rval)
+        return self._point_from_packed_index(inv_cdf_index)
+
+    def log_prior(self, point):
+        """
+        Evaluates and returns the log of the pdf of this distribution at the
+        given point.
+        
+        point numpy.ndarray of variable values describing the point
+        
+        returns the log of the pdf associated with the pixel containing point
+        """
+        index = self._packed_index_from_point(point)
+        if index is None:
+            return -np.inf
+        return np.log(self.pdf[index])
+
+    def _make_cdf(self):
+        #
+        # Constructs the cdf array.
+        #
+        running_sum = 0.
+        self.cdf = []
+        for i in range(len(self.pdf)):
+            self.cdf.append(running_sum)
+            running_sum += (self.pdf[i] * self._pixel_area(i))
+        self.cdf = np.array(self.cdf) / self.cdf[-1]
+        self.pdf = self.pdf / self.cdf[-1]
+
+    def _unpack_index(self, index):
+        #
+        # Finds N-dimensional index corresponding to given index.
+        #
+        if index is None:
+            return None
+        inds_in_reverse = []
+        running_product = self.shape[self._N - 1]
+        inds_in_reverse.append(index % running_product)
+        for k in range(1, self._N):
+            rel_dim = self.shape[self._N - k - 1]
+            inds_in_reverse.append((index / running_product) % rel_dim)
+            running_product *= rel_dim
+        return inds_in_reverse[-1::-1]
+
+    def _pack_index(self, unpacked_indices):
+        #
+        # Finds single index which is the packed version
+        # of unpacked_indices (which should be a list)
+        #
+        if unpacked_indices is None:
+            return None
+        cumulative_index = 0
+        running_product = 1
+        for i in range(self._N - 1, - 1, - 1):
+            cumulative_index += (running_product * unpacked_indices[i])
+            running_product *= self.shape[i]
+        return cumulative_index
+
+    def _unpacked_indices_from_point(self, point):
+        #
+        # Gets the unpacked indices which is associated with this point.
+        #
+        unpacked_indices = []
+        for ivar in range(self._N):
+            try:
+                index = search_sorted(self.vars[ivar], point[ivar])
+            except:
+                return None
+            unpacked_indices.append(index)
+        return unpacked_indices
+
+    def _packed_index_from_point(self, point):
+        #
+        # Finds the packed index associated with the given point.
+        #
+        return self._pack_index(self._unpacked_indices_from_point(point))
+        
+    def _point_from_packed_index(self, index):
+        #
+        # Finds the point associated with the given packed index
+        #
+        int_part = int(index + 0.5)
+        unpacked_indices = self._unpack_index(int_part)
+        point = [self.vars[i][unpacked_indices[i]] for i in range(self._N)]
+        return  np.array(point) + self._continuous_offset(unpacked_indices)
+
+    def _continuous_offset(self, unpacked_indices):
+        #
+        # Finds a vector offset to simulate a continuous distribution (even
+        # though, internally pixels are being used
+        #
+        return np.array(\
+            [self._single_var_offset(i, unpacked_indices[i], rand.rand())\
+             for i in range(self._N)])
+
+    def _single_var_offset(self, ivar, index, rval):
+        #
+        # Finds the offset for a single variable. rval should be Unif(0,1)
+        #
+        this_var_length = self.shape[ivar]
+        if index == 0:
+            return (0.5 *\
+                    rval * (self.vars[ivar][1] - self.vars[ivar][0]))
+        elif index == (this_var_length - 1):
+            return ((-0.5) *\
+                    rval * (self.vars[ivar][-1] - self.vars[ivar][-2]))
+        else:
+            return 0.5 * (self.vars[ivar][index]\
+                          - (rval * self.vars[ivar][index - 1])\
+                          - ((1 - rval) * self.vars[ivar][index + 1]))
+
+    def _pixel_area(self, packed_index):
+        #
+        # Finds the area of the pixel described by the given index.
+        #
+        pixel_area = 1.
+        unpacked_indices = self._unpack_index(packed_index)
+        for ivar in range(self._N):
+            this_index = unpacked_indices[ivar]
+            if this_index == 0:
+                pixel_area *= (0.5 * (self.vars[ivar][1] - self.vars[ivar][0]))
+            elif this_index == len(self.vars[ivar]) - 1:
+                pixel_area *= (0.5 *\
+                               (self.vars[ivar][-1] - self.vars[ivar][-2]))
+            else:
+                pixel_area *= (0.5 * (self.vars[ivar][this_index + 1] -\
+                                      self.vars[ivar][this_index - 1]))
+        return pixel_area
+
+    def _inverse_cdf_by_packed_index(self, value):
+        #
+        # Finds the index where the cdf has the given value.
+        #
+        return search_sorted(self.cdf, value)
 

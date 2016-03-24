@@ -2,11 +2,11 @@ import time
 import numpy as np
 from ares.inference.Priors import GaussianPrior, UniformPrior,\
     ParallelepipedPrior, ExponentialPrior, BetaPrior, GammaPrior,\
-    TruncatedGaussianPrior, LinkedPrior, SequentialPrior
+    TruncatedGaussianPrior, LinkedPrior, SequentialPrior, GriddedPrior
 import matplotlib.pyplot as pl
 import matplotlib.cm as cm
 
-def_cm = cm.Greys
+def_cm = cm.bone
 
 t00 = time.time()
 sample_size = int(1e5)
@@ -21,7 +21,7 @@ multivariate_gaussian_test = True
 parallelepiped_test = True
 linked_test = True
 sequential_test = True
-
+gridded_test = True
 
 
 ############################# UniformPrior test  ##############################
@@ -194,7 +194,7 @@ if multivariate_gaussian_test:
     mgp_xs = [mgp_sample[i][0] for i in range(sample_size)]
     mgp_ys = [mgp_sample[i][1] for i in range(sample_size)]
     pl.figure()
-    pl.hist2d(mgp_xs, mgp_ys, bins=100, cmap=cm.bone)
+    pl.hist2d(mgp_xs, mgp_ys, bins=100, cmap=def_cm)
     pl.title('Multivariate Gaussian prior (2 dimensions) with ' +\
              ('mean=%s and covariance=%s' % (mmean,mcov,)), size='xx-large')
     pl.xlabel('x', size='xx-large')
@@ -209,7 +209,7 @@ if multivariate_gaussian_test:
         for iy in range(row_size):
             logpriors[ix,iy] = mgp.log_prior([xs[ix,iy], ys[ix,iy]])
     pl.figure()
-    pl.imshow(np.exp(logpriors), cmap=cm.bone, extent=[-50.,40.,-25.,65.],\
+    pl.imshow(np.exp(logpriors), cmap=def_cm, extent=[-50.,40.,-25.,65.],\
         origin='lower')
     pl.title('e^(log_prior) for GaussianPrior',\
         size='xx-large')
@@ -238,7 +238,7 @@ if parallelepiped_test:
     xs = [sample[i][0] for i in range(sample_size)]
     ys = [sample[i][1] for i in range(sample_size)]
     pl.figure()
-    pl.hist2d(xs, ys, bins=100, cmap=cm.bone)
+    pl.hist2d(xs, ys, bins=100, cmap=def_cm)
     pl.title('Parallelogram shaped uniform dist. centered at %s.' % center,\
         size='xx-large')
     pl.xlabel('x', size='xx-large')
@@ -253,9 +253,10 @@ if parallelepiped_test:
         for iy in range(y_size):
             logpriors[ix,iy] = pp.log_prior([xs[ix,iy], ys[ix,iy]])
     pl.figure()
-    pl.imshow(np.exp(logpriors), cmap=cm.bone, extent=[-25.,-4.9,14.,26.1],\
+    pl.imshow(np.exp(logpriors), cmap=def_cm, extent=[-25.,-4.9,14.,26.1],\
         origin='lower')
-    pl.title('e^(log_prior) for ParallelepipedPrior distribution', size='xx-large')
+    pl.title('e^(log_prior) for ParallelepipedPrior distribution',\
+        size='xx-large')
     pl.xlabel('x', size='xx-large')
     pl.ylabel('y', size='xx-large')
     pl.tick_params(labelsize='xx-large', width=2, length=6)
@@ -281,7 +282,7 @@ if linked_test:
     sam_xs = [sample[i][0] for i in range(sample_size)]
     sam_ys = [sample[i][1] for i in range(sample_size)]
     pl.figure()
-    pl.hist2d(sam_xs, sam_ys, bins=100, cmap=cm.bone)
+    pl.hist2d(sam_xs, sam_ys, bins=100, cmap=def_cm)
     pl.title('Sampled distribution of a LinkedPrior ' +\
              'with a Normal(0,1) distribution', size='xx-large')
     pl.xlabel('x', size='xx-large')
@@ -296,7 +297,7 @@ if linked_test:
         for iy in range(row_size):
             logpriors[ix,iy] = lp.log_prior([xs[ix,iy], ys[ix,iy]])
     pl.figure()
-    pl.imshow(np.exp(logpriors), cmap=cm.bone, extent=[-3.,3.,-3.,3.],\
+    pl.imshow(np.exp(logpriors), cmap=def_cm, extent=[-3.,3.,-3.,3.],\
         origin='lower')
     pl.title('e^(log_prior) for LinkedPrior with a Normal(0,1) distribution',\
         size='xx-large')
@@ -320,7 +321,7 @@ if sequential_test:
     sam_xs = [sample[i][0] for i in range(sample_size)]
     sam_ys = [sample[i][1] for i in range(sample_size)]
     pl.figure()
-    pl.hist2d(sam_xs, sam_ys, bins=100, cmap=cm.bone)
+    pl.hist2d(sam_xs, sam_ys, bins=100, cmap=def_cm)
     pl.title('Sampled distribution of a LinkedPrior ' +\
              'with a Unif(0,1) distribution', size='xx-large')
     pl.xlabel('x', size='xx-large')
@@ -335,7 +336,7 @@ if sequential_test:
         for iy in range(row_size):
             logpriors[ix,iy] = sp.log_prior([xs[ix,iy], ys[ix,iy]])
     pl.figure()
-    pl.imshow(np.exp(logpriors), cmap=cm.bone, extent=[0.,1.,0.,1.],\
+    pl.imshow(np.exp(logpriors), cmap=def_cm, extent=[0.,1.,0.,1.],\
         origin='lower')
     pl.title('e^(log_prior) for SequentialPrior with Unif(0,1) distribution',\
         size='xx-large')
@@ -345,6 +346,59 @@ if sequential_test:
     
 
 ###############################################################################
+###############################################################################
+
+
+############################# GriddedPrior test ###############################
+###############################################################################
+
+if gridded_test:
+    def pdf_func(x,y):
+        if (y > (10. - ((x ** 2) / 5.))) and\
+           (y < ((4. * x) + 30.)) and\
+           (y < (-4. * x) + 30.) and\
+           (x >= -10.) and (x <= 10.):
+            return np.exp(-((x ** 2) + ((y - 10.) ** 2)) / 200.)
+        else:
+            return 0.
+    
+    xs = np.arange(-20., 20.1, 0.1)
+    ys = np.arange(-10., 30., 0.1)
+    pdf = np.ndarray((len(xs), len(ys)))
+    for ix in range(len(xs)):
+        for iy in range(len(ys)):
+            pdf[ix,iy] = pdf_func(xs[ix], ys[iy])
+    gp = GriddedPrior([xs, ys], pdf=pdf)
+    t0 = time.time()
+    sample = [gp.draw() for i in range(sample_size)]
+    print ("It took %.3f s to draw %i " % (time.time()-t0, sample_size,)) +\
+           "points from a user-defined distribution with " +\
+           ("%i pixels." % (len(xs) * len(ys),))
+    sampled_xs = [sample[i][0] for i in range(sample_size)]
+    sampled_ys = [sample[i][1] for i in range(sample_size)]
+    pl.figure()
+    pl.hist2d(sampled_xs, sampled_ys, bins=100, cmap=def_cm)
+    pl.title('Points sampled from a user-defined distribution',\
+        size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+
+    pdf_from_log_prior = np.ndarray((len(ys), len(xs)))
+    Xs, Ys = np.meshgrid(xs, ys)
+    for ix in range(len(xs)):
+        for iy in range(len(ys)):
+            pdf_from_log_prior[iy,ix] =\
+                np.exp(gp.log_prior([Xs[iy,ix], Ys[iy,ix]]))
+    pl.figure()
+    pl.imshow(pdf_from_log_prior / np.max(pdf_from_log_prior), origin='lower',\
+        cmap=def_cm, extent=[-20., 20., -10., 30.])
+    pl.gca().set_aspect('equal', adjustable='box')
+    pl.title('e^(log_prior) for same distribution as previous sample',\
+        size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
 
 print 'The full test took %.3f s' % (time.time()-t00,)
 pl.show()
