@@ -57,28 +57,6 @@ guesses_shape_err += " shape (nwalkers, nparameters)!"
 jitter_shape_err = "If you supply jitter as an array, it must have"
 jitter_shape_err += " shape (nparameters)"
 
-def uninformative_lin(x, mi, ma):
-    if (mi <= x <= ma):
-        return 1.0 / (ma - mi)
-    else:
-        return 0.0
-
-def uninformative_log(x, mi, ma):
-    if (mi <= x <= ma):
-        return 1.0 / ((ma - mi) * x)
-    else:
-        return -np.inf
-
-def gaussian_prior(x, mu, sigma):
-    return np.exp(-0.5 * (x - mu)**2 / sigma**2) / sqrt_twopi / sigma
-
-def truncated_gaussian_prior(x, mu, sigma, trunc):
-    
-    if (x < trunc[0]) or (x > trunc[1]):
-        return 0.0
-        
-    return np.exp(-0.5 * (x - mu)**2 / sigma**2) / sqrt_twopi / sigma
-
 def_kwargs = {'verbose': False, 'progress_bar': False}
 
 def _str_to_val(p, par, pvals, pars):
@@ -93,7 +71,7 @@ def _str_to_val(p, par, pvals, pars):
         Name of parameter who's prior is linked.
     pars : list
         List of values for each parameter on this step.
-        
+
     Returns
     -------
     Numerical value corresponding to this linker-linkee relationship.    
@@ -114,6 +92,28 @@ def _str_to_val(p, par, pvals, pars):
     prefix = p.split(m.group(0))[0]
 
     return pvals[pars.index('%s{%i}' % (prefix, num))]
+        
+def guesses_from_priors(pars, prior_set, nwalkers):
+    """
+    Generate initial position vectors for nwalkers.
+
+    Parameters
+    ----------
+    pars : list 
+        Names of parameters
+    prior_set : PriorSet object
+
+    nwalkers : int
+        Number of walkers
+
+    """
+
+    guesses = []
+    for i in range(nwalkers):
+        draw = prior_set.draw()
+        guesses.append([draw[pars[ipar]] for ipar in range(len(pars))])
+
+    return np.array(guesses)    
         
 class LogLikelihood(object):
     def __init__(self, xdata, ydata, error, parameters, is_log,\
@@ -139,6 +139,9 @@ class LogLikelihood(object):
             self.blob_funcs = blob_info['blob_funcs']
             self.blob_nd = blob_info['blob_nd']
             self.blob_dims = blob_info['blob_dims']
+        else:
+            self.blob_names = self.blob_ivars = self.blob_funcs = \
+                self.blob_nd = self.blob_dims = None
         
         ##
         # Note: you might think using np.array is innocuous, but we have to be
@@ -246,8 +249,12 @@ class ModelFit(BlobFactory):
         """
 
         self.base_kwargs = def_kwargs.copy()
-        self.base_kwargs.update(kwargs)            
-        
+        self.base_kwargs.update(kwargs)          
+          
+    @property
+    def info(self):
+        print_fit(self)      
+    
     @property
     def pf(self):
         if not hasattr(self, '_pf'):    
@@ -434,65 +441,16 @@ class ModelFit(BlobFactory):
         Generate initial position vectors for all walkers.
         """
         
-        if rank > 0:
-            return
+        if hasattr(self, '_guesses'):
+            return self._guesses
         
         # Set using priors
-        if not hasattr(self, '_guesses') and hasattr(self, '_prior_set'):
-            
-            if rank == 0:
-                self._guesses = []
-                for i in range(self.nwalkers):
-                    draw = self.prior_set.draw()
-                    self._guesses.append([draw[self.parameters[ipar]]\
-                                          for ipar in range(prior.numparams)])
-            #        
-            #        p0 = []
-            #        to_fix = []
-            #        for j, par in enumerate(self.parameters):
-            #    
-            #            if par in self.priors:
-            #                
-            #                dist, lo, hi = self.priors[par]
-            #                
-            #                # Fix if tied to other parameter
-            #                if (type(lo) is str) or (type(hi) is str):
-            #                    to_fix.append(par)
-            #                    p0.append(None)
-            #                    continue
-            #                    
-            #                if dist == 'uniform':
-            #                    val = np.random.rand() * (hi - lo) + lo
-            #                else:
-            #                    val = np.random.normal(lo, scale=hi)
-            #            else:
-            #                raise ValueError('No prior for %s' % par)
-            #    
-            #            # Save
-            #            p0.append(val)
-            #    
-            #        # If some priors are linked, correct for that
-            #        for par in to_fix:
-            #    
-            #            dist, lo, hi = self.priors[par]
-            #    
-            #            if type(lo) is str:
-            #                lo = p0[self.parameters.index(lo)]
-            #            else:    
-            #                hi = p0[self.parameters.index(hi)]
-            #    
-            #            if dist == 'uniform':
-            #                val = np.random.rand() * (hi - lo) + lo
-            #            else:
-            #                val = np.random.normal(lo, scale=hi)
-            #            
-            #            k = self.parameters.index(par)
-            #            p0[k] = val
-            #        
-            #        self._guesses.append(p0)
-                
-                self._guesses = np.array(self._guesses)
-                    
+        if (not hasattr(self, '_guesses')) and hasattr(self, '_prior_set'):            
+            self._guesses = guesses_from_priors(self.parameters, 
+                self.prior_set, self.nwalkers)
+        else:
+            raise AttributeError('Must set guesses or prior_set by hand!')
+                     
         return self._guesses
 
     @guesses.setter
@@ -514,7 +472,7 @@ class ModelFit(BlobFactory):
             guesses_tmp = np.array([value[par] for par in self.parameters])
         else:    
             guesses_tmp = np.array(value)
-        
+                    
         if guesses_tmp.ndim == 1:
             self._guesses = sample_ball(guesses_tmp, self.jitter, 
                 size=self.nwalkers)
@@ -525,7 +483,7 @@ class ModelFit(BlobFactory):
             self._guesses = guesses_tmp
         else:
             raise ValueError('Dunno about this shape')
-            
+                        
     # I don't know how to integrate this using the new prior system
     # Can you help, Jordan?
     #
@@ -757,7 +715,7 @@ class ModelFit(BlobFactory):
             Append to pre-existing files of the same prefix if one exists?
             
         """
-        
+                
         self.prefix = prefix
 
         if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):

@@ -105,7 +105,11 @@ class loglikelihood(LogLikelihood):
                 kwargs[par] = pars[i]
 
         # Apply prior on model parameters first (dont need to generate signal)
-        lp = self.logprior_P(pars)
+        point = {}
+        for i in range(len(self.parameters)):
+            point[self.parameters[i]] = pars[i]
+        
+        lp = self.priors_P.log_prior(point)
         if not np.isfinite(lp):
             return -np.inf, self.blank_blob
 
@@ -141,7 +145,7 @@ class loglikelihood(LogLikelihood):
                 
                 return -np.inf, self.blank_blob
         
-        if self.logprior_B.pars != []:
+        if self.priors_B.params != []:
             lp += self._compute_blob_prior(sim)
 
         # emcee will crash if this returns NaN. OK if it's inf though.
@@ -239,11 +243,14 @@ class FitLuminosityFunction(FitGlobal21cm):
 
             self._loglikelihood = loglikelihood(self.xdata, 
                 self.ydata_flat, self.error_flat, 
-                self.parameters, self.is_log, self.base_kwargs, self.priors, 
+                self.parameters, self.is_log, self.base_kwargs, 
+                self.prior_set_P, self.prior_set_B, 
                 self.prefix, self.blob_info, self.checkpoint_by_proc)   
             
             self._loglikelihood.runsim = self.runsim
             self._loglikelihood.redshifts = self.redshifts
+
+            self.info
 
         return self._loglikelihood
 

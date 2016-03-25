@@ -647,17 +647,16 @@ def print_21cm_sim(sim):
     for warning in warnings:
         print_warning(warning)       
 
-def print_fit(fit, steps, burn=0, fit_TP=True):         
+def print_fit(fitter):         
 
+    return
+    
     if rank > 0:
         return
 
     warnings = []
 
     is_cov = False
-    #is_cov = True
-    #if len(fit.error.shape) == 1:
-    #    is_cov = False
 
     header = 'Parameter Estimation'
     print "\n" + "#"*width

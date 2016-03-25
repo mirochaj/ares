@@ -87,32 +87,24 @@ pars = \
 
 is_log = [False, True, False, False]
 
-priors = \
-    {
-     'php_Mfun_par0{0}': ['uniform', 0., 1.],
-     'php_Mfun_par1{0}': ['uniform', 7, 13],
-     'php_Mfun_par2{0}': ['uniform', 0., 1.],
-     'php_Mfun_par3{0}': ['uniform', 0., 1.],
-    }
-
 fitter.parameters = pars
 fitter.is_log = is_log
-fitter.priors = priors
+
+# PRIORS
+ps = ares.inference.PriorSet()
+ps.add_prior(ares.inference.Priors.UniformPrior(0, 1), 'php_Mfun_par0{0}')
+ps.add_prior(ares.inference.Priors.UniformPrior(7, 13),'php_Mfun_par1{0}')
+ps.add_prior(ares.inference.Priors.UniformPrior(0, 1), 'php_Mfun_par2{0}')
+ps.add_prior(ares.inference.Priors.UniformPrior(0, 1), 'php_Mfun_par3{0}')
+fitter.prior_set = ps
 
 # Setup # of walkers and initial guesses for them
-fitter.nwalkers = 12
+fitter.nwalkers = 48
 
 fitter.data = 'bouwens2015'
 fitter.redshifts = [3.8]
 
 fitter.jitter = [0.1] * len(pars)
-fitter.guesses = \
-{
- 'php_Mfun_par0{0}': 0.5,
- 'php_Mfun_par1{0}': 11.5,
- 'php_Mfun_par2{0}': 0.8,
- 'php_Mfun_par3{0}': 0.5,
-}
 
 fitter.save_data('test_lf', clobber=True)
 
@@ -121,7 +113,7 @@ fitter.save_hmf = False
 
 # Run the thing
 t1 = time.time()
-fitter.run('test_lf', burn=0, steps=20, save_freq=2, clobber=True)
+fitter.run('test_lf', burn=0, steps=20, save_freq=1, clobber=True)
 t2 = time.time()
 
 print "Run complete in %.4g minutes.\n" % ((t2 - t1) / 60.)

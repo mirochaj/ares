@@ -91,7 +91,7 @@ def _apply_inverse_transform(value, transform):
                          "should've been caught by previous error catching!")
         
 
-class PriorSet():
+class PriorSet(object):
     """
     An object which keeps track of many priors which can be univariate or
     multivariate. It provides methods like log_prior, which calls log_prior on

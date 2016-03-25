@@ -2292,7 +2292,7 @@ class ModelSet(BlobFactory):
             q2 = 100 * percentile + q1    
         
         info = self.blob_info(name)
-        ivars = self.blob_ivars[info[0]]
+        ivars = np.atleast_2d(self.blob_ivars[info[0]])
         nd = info[2]
         
         if nd != 1 and (ivar is None):
@@ -2309,10 +2309,11 @@ class ModelSet(BlobFactory):
         
         # 1-D case 
         if nd == 1:
+            
             # Read in the independent variable(s)
             xarr = ivars[0]
             
-            tmp, is_log = self.ExtractData(name, #ivar=xarr,
+            tmp, is_log = self.ExtractData(name, 
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
             
             data = tmp[name].squeeze()

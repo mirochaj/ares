@@ -20,14 +20,18 @@ base_pars = \
  'problem_type': 101,
  'tanh_model': True,
  'blob_names': [['tau_e'], ['cgm_h_2', 'igm_Tk', 'igm_dTb']],
- 'blob_ivars': [None, np.arange(6, 21)],
+ 'blob_ivars': [None, np.arange(6, 31)],
  'blob_funcs': None,
 }
 
 # Initialize fitter
 fitter = ares.inference.FitGlobal21cm(**base_pars)
 
-# Assume default parameters
+fitter.frequencies = np.arange(40, 150)
+
+# Assume default parameters: will automatically be interpolated onto 
+# frequencies (defined above)
+fitter.noise = 10. # will add Gaussian random noise
 fitter.data = base_pars
 
 # Set axes of parameter space
@@ -35,23 +39,22 @@ fitter.parameters = ['tanh_xz0', 'tanh_xdz', 'tanh_Tz0', 'tanh_Tdz']
 fitter.is_log = [False]*4
 
 # Set priors on model parameters (uninformative)
-fitter.priors = \
-{
- 'tanh_xz0': ['uniform', 5., 20.],
- 'tanh_xdz': ['uniform', 0.1, 20],
- 'tanh_Tz0': ['uniform', 5., 20.],
- 'tanh_Tdz': ['uniform', 0.1, 20],
- 'tau_e': ['gaussian', 0.066, 0.012],
-}
+ps = ares.inference.PriorSet()
+ps.add_prior(ares.inference.Priors.UniformPrior(5., 20.), 'tanh_xz0')
+ps.add_prior(ares.inference.Priors.UniformPrior(0.1, 20.), 'tanh_xdz')
+ps.add_prior(ares.inference.Priors.UniformPrior(5., 20.), 'tanh_Tz0')
+ps.add_prior(ares.inference.Priors.UniformPrior(0.1, 20.), 'tanh_Tdz')
+ps.add_prior(ares.inference.Priors.GaussianPrior(0.066, 0.012), 'tau_e')
+fitter.prior_set = ps
 
 # Set errors
-fitter.error = {tp:[1.0, 5.] for tp in list('BCD')}
+fitter.error = 10. * np.ones_like(fitter.xdata)
 
 fitter.nwalkers = 128
 
 # Run it!
 t1 = time.time()
-fitter.run(prefix='test_tanh', burn=0, steps=50, clobber=True, save_freq=10)
+fitter.run(prefix='test_tanh', burn=0, steps=50, clobber=True, save_freq=1)
 t2 = time.time()
 
 print "Run complete in %.4g minutes.\n" % ((t2 - t1) / 60.)
