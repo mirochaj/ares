@@ -327,7 +327,7 @@ class ModelFit(BlobFactory):
             raise AttributeError("Must set ydata by hand!")
         return self._ydata
         
-    @xdata.setter
+    @ydata.setter
     def ydata(self, value):
         self._ydata = value    
     

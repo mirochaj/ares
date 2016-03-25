@@ -194,7 +194,7 @@ class FitGlobal21cm(ModelFit):
         if type(value) == dict:            
             kwargs = value.copy()
             kwargs.update(def_kwargs)
-            
+
             sim = simGlobal21cm(**kwargs)
             sim.run()
 
@@ -204,29 +204,28 @@ class FitGlobal21cm(ModelFit):
             sim = self.sim = value                   
         else:
             assert len(value) == len(self.frequencies)            
-            self.ydata = value
-            
+            ModelFit.ydata = value
+
         if self.turning_points:
             z = [sim.turning_points[tp][0] for tp in self.turning_points]
             T = [sim.turning_points[tp][1] for tp in self.turning_points]
-                         
+
             nu = nu_0_mhz / (1. + np.array(z))
-            ModelFit.xdata = nu
-            ModelFit.ydata = np.array(T)
-            
-            self._data = np.array(list(nu) + T)    
+            self.xdata = nu
+            self.ydata = np.array(T)
+
+            self._data = np.array(list(nu) + T)
         else:
             assert self.frequencies is not None, \
                 "Must set frequencies by hand or set turning_points."
             
             self.xdata = self.frequencies
-            
             if hasattr(self, 'sim'):
                 nu = self.sim.data['nu']
                 dTb = self.sim.data['igm_dTb']
-                ModelFit.ydata = np.interp(self.xdata, nu, dTb).copy() \
+                self.ydata = np.interp(self.xdata, nu, dTb).copy() \
                     + self.noise
-    
+
     @property
     def noise(self):
         if not hasattr(self, '_noise'):

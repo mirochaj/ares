@@ -146,7 +146,7 @@ class AbundanceMatching(GalaxyPopulation):
 
         def to_fit(Mz, *coeff):
             M, z = Mz
-            return self.fstar_no_boost(z, M, coeff).flatten()
+            return self.fstar_no_boost(z, M, [coeff, None]).flatten()
 
         coeff, cov = curve_fit(to_fit, x, y, p0=guess, maxfev=100000)
 

@@ -322,17 +322,17 @@ def PopulationParameters():
     "pop_halo_model": None, # clf or hod (not yet implemented)
 
     # HAM model
-    "pop_constraints": None, # if ham model
+    "pop_constraints": None, # deprecated?
     
     # Mass accretion rate
-    "pop_MAR": 'mcbride2009',
+    "pop_MAR": 'hmf',
     "pop_MAR_conserve_norm": False,
     
     "pop_tdyn": 1e7,
     "pop_sSFR": None,
 
+    # the pop_lf pars here might be deprecated
     "pop_lf_z": None,
-
     "pop_lf_M": None,
     "pop_lf_Mstar": None,
     "pop_lf_pstar": None,

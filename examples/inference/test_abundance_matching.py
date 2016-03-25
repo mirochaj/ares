@@ -63,7 +63,7 @@ for h, s_beta in enumerate(s_betas):
         pl.scatter(ham.MofL_tab[0], ham.fstar_tab[0], color=colors[i],
             label=label, marker=markers[h], facecolors='none', s=50)
 
-        pl.loglog(M, ham.fstar_no_boost(z, M, best), 
+        pl.loglog(M, ham.fstar_no_boost(z, M, [best, None]), 
             color=colors[i], ls=ls[h])
 
 pl.xscale('log')

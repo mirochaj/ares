@@ -17,18 +17,12 @@ import numpy as np
 ## INPUT
 blob_n1 = ['galaxy_lf']
 blob_n2 = ['fstar']
-blob_n3 = ['cgm_h_2', 'igm_Ts', 'igm_Tk', 'igm_dTb']
-blob_n4 = ['tau_e', 'z_C', 'igm_dTb_C', 'z_D', 'igm_dTb_D']
 blob_i1 = [np.array([3.8, 4.9, 5.9, 6.9, 7, 7.9, 8, 9, 10, 10.4, 11, 12]),
     np.arange(-24, -8, 0.5)]
 blob_i2 = [np.array([3.8]),
     10**np.arange(7., 14.5, 0.5)]
-blob_i3 = [np.arange(5, 15.1, 0.1)]
-blob_i4 = None
 blob_f1 = ['pops[0].LuminosityFunction']
 blob_f2 = ['pops[0].fstar']
-blob_f3 = None
-blob_f4 = None
 ##
 #
 
@@ -71,9 +65,9 @@ base_pars = \
  'smooth_derivative': 10,
  'final_redshift': 5.,
  
- 'blob_names': [blob_n1, blob_n2],#, blob_n3, blob_n4],
- 'blob_ivars': [blob_i1, blob_i2],#, blob_i3, blob_i4],
- 'blob_funcs': [blob_f1, blob_f2],#, blob_f3, blob_f4],
+ 'blob_names': [blob_n1, blob_n2],
+ 'blob_ivars': [blob_i1, blob_i2],
+ 'blob_funcs': [blob_f1, blob_f2],
 }
 
 # Initialize a fitter object and give it the data to be fit
