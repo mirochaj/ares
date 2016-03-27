@@ -78,6 +78,12 @@ And the following multivariate priors are included:
     (support) x1<x2<x3<...<xN where all are in support of shared_prior
     (mean) no convenient expression
     (variance) no convenient expression
+
+(5) GriddedPrior(variables, prior=None)
+    (pdf) user-defined through prior ndarray, if prior=None, assumed uniform
+    (support) must be rectangular; defined through variable ranges in variables
+    (mean) unknown a priori
+    (variance) unknown a priori
 """
 
 import numpy as np
@@ -153,6 +159,7 @@ class _Prior():
     self.draw() --- draws a point from the distribution
     self.log_prior(point) --- evaluates the log_prior at the given point
     self.numparams --- property, not function
+    self.to_string() --- string summary of this prior
     
     In both of these functions, point is a configuration. It could be a
     single number for a univariate prior or a numpy.ndarray for a multivariate
@@ -203,6 +210,12 @@ class GammaPrior(_Prior):
         return (self._shape_min_one * np.log(value)) -\
                (self.shape * np.log(self.scale)) -\
                (value / self.scale) - log_gamma(self.shape)
+    
+    def to_string(self):
+        """
+        Finds and returns the string representation of this GammaPrior.
+        """
+        return "Gamma(%.2g, %.2g)" % (self.shape, self.scale)
 
     def _check_if_greater_than_zero(self, value, name):
         #
@@ -270,6 +283,12 @@ class BetaPrior(_Prior):
         return (self._alpha_min_one * np.log(value)) +\
                (self._beta_min_one * np.log(1. - value)) -\
                np.log(beta_func(self.alpha, self.beta))
+    
+    def to_string(self):
+        """
+        Finds and returns a string representation of this BetaPrior.
+        """
+        return "Beta(%.2g, %.2g)" % (self.alpha, self.beta)
 
 class ExponentialPrior(_Prior):
     """
@@ -324,7 +343,15 @@ class ExponentialPrior(_Prior):
         if val_min_shift < 0:
             return -np.inf
         return (np.log(self.rate) - (self.rate * val_min_shift))
-    
+
+    def to_string(self):
+        """
+        Finds and returns a string version of this ExponentialPrior.
+        """
+        if self.shift != 0:
+            return "Exp(%.2g, shift=%.2g)" %\
+                (self.rate, self.shift)
+        return "Exp(%.2g)" % (self.rate,)
 
 class UniformPrior(_Prior):
     """
@@ -379,6 +406,12 @@ class UniformPrior(_Prior):
         if (value >= self.low) and (value <= self.high):
             return self._log_P
         return -np.inf
+    
+    def to_string(self):
+        """
+        Finds and returns a string representation of this UniformPrior.
+        """
+        return "Unif(%.2g, %.2g)" % (self.low, self.high)
 
 class TruncatedGaussianPrior(_Prior):
     """
@@ -441,6 +474,18 @@ class TruncatedGaussianPrior(_Prior):
                 (value > self.hi and self.hi is not None):
             return -np.inf
         return self._cons_lp_term - ((value - self.mean) ** 2) / (2 * self.var)
+
+    def to_string(self):
+        if self.lo is None:
+            low_string = "-inf"
+        else:
+            low_string = "%.1g" % (self.lo,)
+        if self.hi is None:
+            high_string = "inf"
+        else:
+            high_string = "%.1g" % (self.hi,)
+        return "Normal(%.2g, %.2g) on [%s,%s]" %\
+            (self.mean, self.var, low_string, high_string)
 
 ########### Multivariate priors (Gaussian can also be univariate) #############
 
@@ -567,6 +612,16 @@ class GaussianPrior(_Prior):
         expon = np.float64(minus_mean * self.invcov * minus_mean.T) / 2.
         return -1. * (np.log(self.detcov) / 2. + expon +\
             ((self.numparams * np.log(two_pi)) / 2.))
+
+    def to_string(self):
+        """
+        Finds and returns the string representation of this GaussianPrior.
+        """
+        if self.numparams == 1:
+            return "Normal(mean=%s,variance=%s)" %\
+                (self.mean.A[0,0], self.cov.A[0,0])
+        else:
+            return "Normal(%s, %s)" % (self.mean, self.cov)
 
 
 class ParallelepipedPrior(_Prior):
@@ -716,6 +771,13 @@ class ParallelepipedPrior(_Prior):
             return -np.log(self.area)
         return -np.inf
 
+    def to_string(self):
+        """
+        Finds and returns a string representation of this ParallelepipedPrior.
+        """
+        return "Parallelepiped(%s, %s, %s)" %\
+            (self.center, self.face_directions, self.distance)
+
     def _in_region(self, point):
         #
         # Finds if the given point is in the region defined by this
@@ -819,6 +881,12 @@ class LinkedPrior(_Prior):
             raise ValueError("The point provided to a LinkedPrior " +\
                              "was not of a numerical type or a list type.")
 
+    def to_string(self):
+        """
+        Finds and returns a string representation of this LinkedPrior.
+        """
+        return "Linked(%s)" % (self.shared_prior.to_string(),)
+
 
 class SequentialPrior(_Prior):
     """
@@ -894,6 +962,12 @@ class SequentialPrior(_Prior):
         else:
             raise ValueError("The point given to a SequentialPrior " +\
                              "was not of a list type.")
+
+    def to_string(self):
+        """
+        Finds and returns a string representation of this SequentialPrior.
+        """
+        return "Sequential(%s)" % (self.shared_prior.to_string(),)
 
 class GriddedPrior(_Prior):
     """
@@ -971,6 +1045,13 @@ class GriddedPrior(_Prior):
         if index is None:
             return -np.inf
         return np.log(self.pdf[index])
+
+
+    def to_string(self):
+        """
+        Finds and returns a string representation of this GriddedPrior.
+        """
+        return "Gridded(user defined)"
 
     def _make_cdf(self):
         #

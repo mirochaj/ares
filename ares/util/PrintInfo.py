@@ -707,22 +707,19 @@ def print_fit(fitter):
     print line('Parameter Space')     
     print line('-'*twidth)
 
-    data = []    
-    cols = ['prior_dist', 'prior_p1', 'prior_p2']
-    rows = fit.parameters    
+    data = []
+    cols = ['Prior', 'Transformation']
+    rows = fit.parameters
     for i, row in enumerate(rows):
-    
-        if not hasattr(fit, 'priors'):
-            tmp = ['n/a'] * 3
-        elif row in fit.priors:
-            tmp = [fit.priors[row][0]]
-            tmp.extend(fit.priors[row][1:])
+        if not hasattr(fit, 'prior_set'):
+            tmp = ['N/A'] * 2
         else:
-            tmp = ['n/a'] * 3
-    
+            try:
+                tmp = list(fit.prior_set.parameter_strings())
+            except:
+                tmp = ['N/A'] * 2
         data.append(tmp)
-    
-    tabulate(data, rows, cols, fmt='%.2g', cwidth=[24, 12, 12, 12])
+    tabulate(data, rows, cols, cwidth=[24, 18, 18])
 
     print line('-'*twidth)       
     print line('Exploration')     
