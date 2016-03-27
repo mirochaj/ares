@@ -271,6 +271,56 @@ class PriorSet(object):
                              "of a PriorSet was not a dictionary " +\
                              "of values indexed by parameter names.")
 
+    def find_prior(self, parameter):
+        """
+        Finds the prior associated with the given parameter. Also finds the
+        index of the parameter in that prior and the transformation applied to
+        the parameter.
+        
+        parameter string name of parameter
+        """
+        found = False
+        for (this_prior, these_params, these_transforms) in self._data:
+            for iparam in range(len(these_params)):
+                if parameter == these_params[iparam]:
+                    return (this_prior, iparam, these_transforms[iparam])
+        raise ValueError(("The parameter searched for (%s)" % (parameter,)) +\
+                         "in a PriorSet was not found.")
+
+    def parameter_strings(self, parameter):
+        """
+        Makes an informative string about this parameter's place in this
+        PriorSet.
+        
+        parameter string name of parameter
+        
+        returns (param_string, transform) in tuple form
+        """
+        string = ""
+        (prior, index, transform) = self.find_prior(parameter)
+        if prior.numparams != 1:
+            string += (self._numerical_adjective(index) + 'param of ')
+        string += prior.to_string()
+        return (string, transform)
+
+    def _numerical_adjective(self, num):
+        #
+        # Creates a numerical adjective, such as '1st', '2nd', '6th' and so on.
+        #
+        if (type(num) in [int, np.int32, np.int64]) and (num > 0):
+            base_string = str(num)
+            if num == 1:
+                return str(num) + 'st'
+            elif num == 2:
+                return str(num) + 'nd'
+            elif num == 3:
+                return str(num) + 'rd'
+            else:
+                return str(num) + 'th'
+        else:
+            raise ValueError("Numerical adjectives apply " +\
+                             "only to positive integers.")
+
     def _check_name(self, name):
         #
         # Checks the given name to see if it is already taken in the parameters
