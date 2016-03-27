@@ -28,10 +28,10 @@ from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle    
+#try:
+#    import dill as pickle
+#except ImportError:
+import pickle    
 
 try:
     import emcee
