@@ -117,7 +117,7 @@ class loglikelihood(LogLikelihood):
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
         
-        #self.checkpoint(**kw)
+        self.checkpoint(**kw)
 
         sim = self.sim = self.sim_class(**kw)
 

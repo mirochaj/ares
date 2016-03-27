@@ -672,9 +672,10 @@ class ModelFit(BlobFactory):
         f.close()
         
         # Priors!
-        f = open('%s.prior_set.pkl' % prefix, 'wb')
-        pickle.dump(self.prior_set, f)
-        f.close()
+        if hasattr(self, '_prior_set'):
+            f = open('%s.prior_set.pkl' % prefix, 'wb')
+            pickle.dump(self.prior_set, f)
+            f.close()
         
         # Constant parameters being passed to ares.simulations.Global21cm
         f = open('%s.setup.pkl' % prefix, 'wb')
@@ -812,20 +813,18 @@ class ModelFit(BlobFactory):
                     flatten_logL(np.array(prob_all)),
                     blobs_all]
 
-            for i, suffix in enumerate(['chain', 'logL', 'blobs']):
-
-                # Blobs
-                if suffix == 'blobs':
-                    if self.blob_names is None:
-                        continue
-                    self.save_blobs(data[i])
-                # Other stuff
-                else:
-                    fn = '%s.%s.pkl' % (prefix, suffix)
-                    #f = open(fn, 'ab')
-                    with open(fn, 'ab') as f:
-                        pickle.dump(list(data[i]), f)
-                    #f.close()
+            #for i, suffix in enumerate(['chain', 'logL', 'blobs']):
+            #
+            #    # Blobs
+            #    if suffix == 'blobs':
+            #        if self.blob_names is None:
+            #            continue
+            #        self.save_blobs(data[i])
+            #    # Other stuff
+            #    else:
+            #        fn = '%s.%s.pkl' % (prefix, suffix)
+            #        with open(fn, 'ab') as f:
+            #            pickle.dump(data[i], f)
                     
             # This is a running total already so just save the end result 
             # for this set of steps
@@ -835,7 +834,7 @@ class ModelFit(BlobFactory):
 
             print "Checkpoint: %s" % (time.ctime())
 
-            del data, f, pos_all, prob_all, blobs_all
+            del data, pos_all, prob_all, blobs_all
             gc.collect()
 
             # Delete chain, logL, etc., to be conscious of memory
@@ -857,10 +856,12 @@ class ModelFit(BlobFactory):
         
         Parameters
         ----------
+        blobs : list
+
         uncompress : bool
             True for MCMC, False for model grids.
         """
-        
+                
         # Number of steps taken between the last checkpoint and this one
         blen = len(blobs)
         # Usually this will just be = save_freq

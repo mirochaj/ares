@@ -7,7 +7,7 @@ try:
         MPI._p_pickle.loads = dill.loads
     except ImportError:
         pass
-    except AttributeError:
+    except AttributeError: # named differently depending on version
         MPI.pickle.dumps = dill.dumps
         MPI.pickle.loads = dill.loads
 except ImportError:
