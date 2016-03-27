@@ -28,30 +28,17 @@ class loglikelihood(LogLikelihood):
         prefix=None, blob_info=None, turning_points=None):
         """
         Computes log-likelihood at given step in MCMC chain.
-
+    
         Parameters
         ----------
-
+    
         """
         
         LogLikelihood.__init__(self, xdata, ydata, error, parameters, is_log,
             base_kwargs, param_prior_set, blob_prior_set, 
             prefix, blob_info)
-
+    
         self.turning_points = turning_points
-        
-        if self.turning_points is not None:
-
-            nu = [xdata[i] for i, tp in enumerate(self.turning_points)]
-            T = [ydata[i] for i, tp in enumerate(self.turning_points)]
-            
-            self.xdata = None
-            self.ydata = np.array(nu + T)
-        else:
-            self.xdata = xdata
-            self.ydata = ydata
-            
-        self.error = error
         
     def __call__(self, pars, blobs=None):
         """
@@ -116,15 +103,15 @@ class loglikelihood(LogLikelihood):
             return -np.inf, self.blank_blob
 
         # Compute the likelihood if we've made it this far
-        if self.turning_points: 
-                        
+        if self.turning_points:
+
             try:
                 nu = [nu_0_mhz / (1. + tps[tp][0]) \
                     for tp in self.turning_points]
                 T = [tps[tp][1] for tp in self.turning_points]
             except KeyError:
                 return -np.inf, self.blank_blob
-            
+
             yarr = np.array(nu + T)
             
             assert len(yarr) == len(self.ydata)
@@ -191,6 +178,12 @@ class FitGlobal21cm(ModelFit):
         
     @data.setter
     def data(self, value):
+        """
+        Set x and ydata at the same time, either by passing in 
+        a simulation instance, a dictionary of parameters, or a 
+        sequence of brightness temperatures corresponding to the
+        frequencies defined in self.frequencies (self.xdata).
+        """
         if type(value) == dict:            
             kwargs = value.copy()
             kwargs.update(def_kwargs)
@@ -204,17 +197,16 @@ class FitGlobal21cm(ModelFit):
             sim = self.sim = value                   
         else:
             assert len(value) == len(self.frequencies)            
-            ModelFit.ydata = value
+            self.ydata = value
+            return
 
         if self.turning_points:
             z = [sim.turning_points[tp][0] for tp in self.turning_points]
             T = [sim.turning_points[tp][1] for tp in self.turning_points]
 
             nu = nu_0_mhz / (1. + np.array(z))
-            self.xdata = nu
-            self.ydata = np.array(T)
-
-            self._data = np.array(list(nu) + T)
+            self.xdata = None
+            self.ydata = np.array(list(nu) + T)
         else:
             assert self.frequencies is not None, \
                 "Must set frequencies by hand or set turning_points."

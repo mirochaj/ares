@@ -813,18 +813,18 @@ class ModelFit(BlobFactory):
                     flatten_logL(np.array(prob_all)),
                     blobs_all]
 
-            #for i, suffix in enumerate(['chain', 'logL', 'blobs']):
-            #
-            #    # Blobs
-            #    if suffix == 'blobs':
-            #        if self.blob_names is None:
-            #            continue
-            #        self.save_blobs(data[i])
-            #    # Other stuff
-            #    else:
-            #        fn = '%s.%s.pkl' % (prefix, suffix)
-            #        with open(fn, 'ab') as f:
-            #            pickle.dump(data[i], f)
+            for i, suffix in enumerate(['chain', 'logL', 'blobs']):
+            
+                # Blobs
+                if suffix == 'blobs':
+                    if self.blob_names is None:
+                        continue
+                    self.save_blobs(data[i])
+                # Other stuff
+                else:
+                    fn = '%s.%s.pkl' % (prefix, suffix)
+                    with open(fn, 'ab') as f:
+                        pickle.dump(data[i], f)
                     
             # This is a running total already so just save the end result 
             # for this set of steps
