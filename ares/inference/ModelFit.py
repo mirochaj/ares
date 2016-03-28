@@ -884,7 +884,10 @@ class ModelFit(BlobFactory):
                 to_write = []
                 for l in range(self.nwalkers * blen):  
                     # indices: walkers*steps, blob group, blob
-                    barr = blobs_now[l][j][k]                   
+                    walker = blobs_now[l]# TESTING ONLY FOR 3/28
+                    group = walker[j] # TESTING ONLY FOR 3/28
+                    barr = group[k] # TESTING ONLY FOR 3/28
+                    #barr = blobs_now[l][j][k]  #ONLY COMMENTED FOR 3/28                  
                     to_write.append(barr)   
                     
                 bfn = '%s.blob_%id.%s.pkl' \

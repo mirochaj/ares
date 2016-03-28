@@ -125,9 +125,14 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         model = PhenomModel(**kwargs)                
         self.pf = model.pf
             
-        if self.pf['output_frequencies'] is not None:
-            nu = self.pf['output_frequencies']
-            z = nu_0_mhz / nu - 1.
+        #if self.pf['output_frequencies'] is not None:# CHANGED ONLY FOR 3/27
+        #    nu = self.pf['output_frequencies'] # CHANGED ONLY FOR 3/27
+        #    z = nu_0_mhz / nu - 1. # CHANGED ONLY FOR 3/27
+        if (self.pf['nu_min'] is not None) and\
+           (self.pf['dnu'] is not None): # ONLY FOR 3/27
+            nu = np.arange(self.pf['nu_min'],\
+                self.pf['nu_max'] + self.pf['dnu'], self.pf['dnu']) # ONLY 3/27
+            z = nu_0_mhz / nu - 1. # ONLY FOR 3/27
         else:
             z = np.arange(self.pf['final_redshift'] + self.pf['output_dz'],
                 self.pf['initial_redshift'], self.pf['output_dz'])[-1::-1]
