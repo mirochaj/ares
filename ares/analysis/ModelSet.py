@@ -613,7 +613,7 @@ class ModelSet(BlobFactory):
         xok_MP = np.logical_or(np.abs(data[pars[0]] - x1) <= MP, 
             np.abs(data[pars[0]] - x2) <= MP)
         xok = np.logical_or(xok_, xok_MP)
-        
+
         if Nd == 2:
             yok_ = np.logical_and(data[pars[1]] >= y1, data[pars[1]] <= y2)
             yok_MP = np.logical_or(np.abs(data[pars[1]] - y1) <= MP, 
@@ -622,10 +622,10 @@ class ModelSet(BlobFactory):
             to_keep = np.logical_and(xok, yok)
         else:
             to_keep = xok
-        
+
         model_set = ModelSet(self.prefix)
         model_set.mask = to_keep
-    
+
         i = 0
         while hasattr(self, 'slice_%i' % i):
             i += 1
@@ -900,6 +900,12 @@ class ModelSet(BlobFactory):
         """
         Basically a scatterplot but instead of plotting individual points,
         we draw lines bounding the locations of all those points.
+        
+        Parameters
+        ----------
+        pars : list, tuple
+            List of parameters that defines 2-D plane.
+            
         """
         
         assert have_shapely, "Need shapely installed for this to work."
@@ -2292,8 +2298,12 @@ class ModelSet(BlobFactory):
             q2 = 100 * percentile + q1    
         
         info = self.blob_info(name)
-        ivars = np.atleast_2d(self.blob_ivars[info[0]])
         nd = info[2]
+        
+        if nd == 1:
+            ivars = np.atleast_2d(self.blob_ivars[info[0]])
+        else:
+            ivars = self.blob_ivars[info[0]]
         
         if nd != 1 and (ivar is None):
             raise NotImplemented('If not 1-D blob, must supply one ivar!')
@@ -2524,39 +2534,19 @@ class ModelSet(BlobFactory):
         Returns vector of mean, and the covariance matrix itself.
         
         """
+                
+        data, is_log = self.ExtractData(pars, ivar=ivar)
         
-        data = self.ExtractData(pars, ivar)
-        
-        masks = []
         blob_vec = []
         for i in range(len(pars)):
-            
-            blob = data[0][pars[i]]
-                
-            if hasattr(data, 'mask'):
-                masks.append(blob.mask)
-            else:
-                masks.append(np.zeros_like(blob))
-                
-            blob_vec.append(blob)    
+            blob_vec.append(data[pars[i]])    
         
-        master_mask = np.zeros_like(masks[0])
-        for mask in masks:
-            master_mask += mask
-        
-        master_mask[master_mask > 0] = 1
-            
-        blob_vec_mast = self.blob_vec_mast = np.ma.array(blob_vec, 
-            mask=[master_mask] * len(blob_vec))
-        
-        blobs_compr = np.array([vec.compressed() for vec in blob_vec_mast])
-
-        mu = np.mean(blobs_compr, axis=1)
-        cov = np.cov(blobs_compr)
+        mu  = np.ma.mean(blob_vec, axis=1)
+        cov = np.ma.cov(blob_vec)
 
         return mu, cov    
         
-    def AssembleParametersList(self, N=5000):
+    def AssembleParametersList(self, N=None, loc=None):
         """
         Return dictionaries that can be used to initialize an ares 
         simulation. 
@@ -2573,8 +2563,12 @@ class ModelSet(BlobFactory):
         all_kwargs = []
         for i, element in enumerate(self.chain):
             
-            if i >= N:
-                break
+            if loc is not None:
+                if i != loc:
+                    continue
+            elif N is not None:
+                if i >= N:
+                    break
                 
             kwargs = self.base_kwargs.copy()
             for j, parameter in enumerate(self.parameters):
@@ -2582,8 +2576,11 @@ class ModelSet(BlobFactory):
                 
             all_kwargs.append(kwargs.copy())
             
-        return all_kwargs    
-
+        if loc is not None:
+            return all_kwargs[0]
+        else:
+            return all_kwargs
+            
     def CorrelationMatrix(self, pars, ivar=None, fig=1, ax=None):
         """
         Plot correlation matrix.

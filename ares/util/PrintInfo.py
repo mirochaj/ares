@@ -70,6 +70,11 @@ S_methods = \
  3: 'Furlanetto & Pritchard (2006)'
 }             
 
+def header(s):
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, s.center(twidth), post)
+    print "#"*width
+
 def line(s, just='l'):
     """ 
     Take a string, add a prefix and suffix (some number of # symbols).

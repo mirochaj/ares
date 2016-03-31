@@ -19,7 +19,7 @@ base_pars = \
 {
  'problem_type': 101,
  'tanh_model': True,
- 'blob_names': [['tau_e'], ['cgm_h_2', 'igm_Tk', 'igm_dTb']],
+ 'blob_names': [['tau_e', 'z_C', 'z_D'], ['cgm_h_2', 'igm_Tk', 'igm_dTb']],
  'blob_ivars': [None, np.arange(6, 31)],
  'blob_funcs': None,
 }
