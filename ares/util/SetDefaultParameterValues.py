@@ -687,10 +687,7 @@ def TanhParameters():
     'tanh_xdz': 2.,
     'tanh_bias_temp': 0.0,   # in mK
     'tanh_bias_freq': 0.0,   # in MHz
-    'output_frequencies': None,
-    'nu_min': None, # ONLY FOR 3/27###################################
-    'nu_max': 120., # ONLY FOR 3/27##################################
-    'dnu': None, # ONLY FOR 3/27####################################### 
+    'output_frequencies': np.arange(40., 121.),
     'output_dz': 0.025,  # Redshift sampling
     }
 
