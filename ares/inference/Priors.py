@@ -962,6 +962,7 @@ class SequentialPrior(_Prior):
         else:
             raise ValueError("The point given to a SequentialPrior " +\
                              "was not of a list type.")
+        return result
 
     def to_string(self):
         """
