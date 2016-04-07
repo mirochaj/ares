@@ -295,6 +295,7 @@ class ModelFit(BlobFactory):
     def seed(self):
         if not hasattr(self, '_seed'):
             self._seed = None
+
         return self._seed
         
     @seed.setter
@@ -304,13 +305,6 @@ class ModelFit(BlobFactory):
         
         self._seed = value
     
-    # Pretty sure this no longer needs to exist, but not 100% sure    
-    #@property
-    #def error_independent(self):
-    #    if not hasattr(self, '_err_indep'):
-    #        self._err_indep = self.error.ndim == 1
-    #    return self._err_indep
-            
     @property 
     def xdata(self):
         if not hasattr(self, '_xdata'):
@@ -427,7 +421,7 @@ class ModelFit(BlobFactory):
         
     @nwalkers.setter
     def nwalkers(self, value):
-        self._nw = value
+        self._nw = int(value)
         
     @property
     def Nd(self):
@@ -832,7 +826,7 @@ class ModelFit(BlobFactory):
             pickle.dump(self.sampler.acceptance_fraction, f)
             f.close()
 
-            print "Checkpoint: %s" % (time.ctime())
+            print "Checkpoint %i: %s" % (ct / save_freq, time.ctime())
 
             del data, pos_all, prob_all, blobs_all
             gc.collect()

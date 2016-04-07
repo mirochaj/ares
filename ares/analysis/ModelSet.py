@@ -211,7 +211,10 @@ class ModelSet(BlobFactory):
     @property
     def mask(self):
         if not hasattr(self, '_mask'):
-            self._mask = Ellipsis
+            if self.is_mcmc:
+                self._mask = np.zeros_like(self.logL)
+            else:
+                self._mask = np.zeros(self.chain.shape[0])
         return self._mask
     
     @mask.setter
@@ -407,7 +410,8 @@ class ModelSet(BlobFactory):
                 if rank == 0:
                     print "Loaded %s in %.2g seconds.\n" % (fn, t2-t1)
 
-                self._chain = self._chain[self.mask]
+                mask2d = np.array([self.mask] * self._chain.shape[1]).T
+                self._chain = np.ma.array(self._chain, mask=mask2d)
                     
             else:
                 self._chain = None            
@@ -419,7 +423,7 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_logL'):            
             if os.path.exists('%s.logL.pkl' % self.prefix):
                 self._logL = read_pickled_logL('%s.logL.pkl' % self.prefix)
-                self._logL = self._logL[self.mask]
+                self._logL = np.ma.array(self._logL, mask=self.mask)
             else:
                 self._logL = None
                 
@@ -571,8 +575,8 @@ class ModelSet(BlobFactory):
         
         self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
                 
-    def Slice(self, constraints, pars, ivar=None, take_log=False, un_log=False, 
-            multiplier=1.):
+    def Slice(self, constraints, pars, ivar=None, take_log=False, 
+        un_log=False, multiplier=1.):
         """
         Return revised ("sliced") dataset given set of criteria.
     
@@ -581,7 +585,8 @@ class ModelSet(BlobFactory):
         constraints : list, tuple
             A rectangle (or line segment) bounding the region of interest. 
             For 2-D plane, supply (left, right, bottom, top), and then to
-            `pars` supply list of datasets defining the plane.
+            `pars` supply list of datasets defining the plane. For 1-D, just
+            supply (min, max).
         pars:
             Dictionary of constraints to use to calculate likelihood.
             Each entry should be a two-element list, with the first
@@ -623,8 +628,18 @@ class ModelSet(BlobFactory):
         else:
             to_keep = xok
 
+        mask = np.logical_not(to_keep)
+
         model_set = ModelSet(self.prefix)
-        model_set.mask = to_keep
+        if not hasattr(self, '_mask'):
+            model_set.mask = mask
+        else:
+            if self.mask is Ellipsis:
+                model_set.mask = mask
+            else:
+                mask_pre = self.mask.copy()
+                del self._mask
+                model_set.mask = np.logical_or(mask, mask_pre)
 
         i = 0
         while hasattr(self, 'slice_%i' % i):
@@ -917,7 +932,7 @@ class ModelSet(BlobFactory):
             ax = fig.add_subplot(111)
         else:
             gotax = True
-    
+
         data, is_log = \
             self.ExtractData(pars, ivar, take_log, un_log, multiplier)
         
@@ -1250,7 +1265,6 @@ class ModelSet(BlobFactory):
                                     
         to_hist = []
         is_log = []
-        apply_mask = []
         for k, par in enumerate(pars):
                     
             # If one of our free parameters, return right away
@@ -1272,9 +1286,7 @@ class ModelSet(BlobFactory):
                     to_hist.append(np.log10(val))
                 else:
                     to_hist.append(val)
-                    
-                apply_mask.append(False)
-        
+                            
             elif par in self.all_blob_names:
                 
                 i, j, nd, dims = self.blob_info(par)
@@ -1292,9 +1304,7 @@ class ModelSet(BlobFactory):
                 else:
                     is_log.append(False)
                     to_hist.append(val)
-                    
-                apply_mask.append(True)
-                
+                                    
             else:
                 
                 cand = glob.glob('%s*.%s.pkl' % (self.prefix, par))
@@ -1306,7 +1316,6 @@ class ModelSet(BlobFactory):
 
                     to_hist.append(dat)        
                     is_log.append(False)
-                    apply_mask.append(True)
                 else:
 
                     # Handle case where we have redshift but not frequency
@@ -1335,20 +1344,14 @@ class ModelSet(BlobFactory):
                         
                     to_hist.append(val)        
                     is_log.append(False)
-                    apply_mask.append(True)      
-                     
-                   
-                            
+                                        
         # Re-organize
         if len(np.unique(pars)) < len(pars):
-            data = to_hist[self.mask]
+            data = np.ma.array(to_hist, mask=self.mask)
         else:    
             data = {}
             for i, par in enumerate(pars):
-                if apply_mask[i]:
-                    data[par] = to_hist[i][self.mask]
-                else:
-                    data[par] = to_hist[i]
+                data[par] = np.ma.array(to_hist[i], mask=self.mask)
 
             is_log = {par:is_log[i] for i, par in enumerate(pars)}
                     

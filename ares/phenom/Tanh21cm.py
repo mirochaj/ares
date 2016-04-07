@@ -197,6 +197,7 @@ class Tanh21cm(object):
         hist = \
         {
          'z': z,
+         'dTb': dTb,
          'igm_dTb': dTb,
          'igm_Tk': Tk,
          'igm_Ts': Ts,
