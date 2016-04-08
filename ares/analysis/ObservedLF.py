@@ -16,10 +16,10 @@ import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
 
 all_datasets = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
-    'parsa2016')
+    'parsa2016', 'finkelstein2015')
 
 default_colors = {'bouwens2015': 'r', 'atek2015': 'y', 'oesch2013': 'm',
-    'oesch2014': 'c', 'parsa2016': 'g'}
+    'oesch2014': 'c', 'parsa2016': 'g', 'finkelstein2015': 'b'}
 default_markers = {src:'o' for src in all_datasets}
 
 _ulim_tick = 0.5
