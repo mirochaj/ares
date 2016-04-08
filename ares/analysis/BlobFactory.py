@@ -22,7 +22,7 @@ import pickle
     
 class default_blobs(object):
     def __init__(self):
-        blobs_1d = ['igm_dTb', 'igm_Ts', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 
+        blobs_1d = ['dTb', 'igm_Ts', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 
             'igm_k_heat_h_1', 'cgm_k_ion_h_1']
         blobs_scalar = ['z_B', 'z_C', 'z_D']
         for key in blobs_1d:    

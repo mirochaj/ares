@@ -76,11 +76,9 @@ class MultiPhaseMedium(object):
         
         Parameters
         ----------
-        sim : instance
-            Instance of glorb.Simulate.Simulation class
         data : dict, str
-            Either a dictionary containing the 21-cm history or the name
-            of the (HDF5) file containing the history.
+            Either a dictionary containing the entire history or the prefix
+            of the files containing the history/parameters.
 
         """
 
@@ -88,6 +86,7 @@ class MultiPhaseMedium(object):
             return
         
         elif type(data) == dict:
+            self.pf = SetAllDefaults()
             self.history = data.copy()
             
         # Read output of a simulation from disk

@@ -26,12 +26,15 @@ except ImportError:
     pass
 
 class Global21cm(MultiPhaseMedium):
- 
+    
     def __getattr__(self, name):
         """
         This gets called anytime we try to fetch an attribute that doesn't
         exist (yet).
         """
+            
+        if hasattr(MultiPhaseMedium, name):
+            return MultiPhaseMedium.__dict__[name].__get__(self, MultiPhaseMedium)
                                                                               
         # Indicates that this attribute is being accessed from within a 
         # property. Don't want to override that behavior!
@@ -88,7 +91,7 @@ class Global21cm(MultiPhaseMedium):
     def dTbdz(self):
         if not hasattr(self, '_dTbdz'):
             self._z_p, self._dTbdz = \
-                central_difference(self.data_asc['z'], self.data_asc['igm_dTb'])
+                central_difference(self.data_asc['z'], self.data_asc['dTb'])
         return self._dTbdz
     
     @property
@@ -142,7 +145,7 @@ class Global21cm(MultiPhaseMedium):
         if not hasattr(self, '_kurtosis'):
             i1 = np.argmin(np.abs(self.nu_B - self.data['nu']))
             i2 = np.argmin(np.abs(self.nu_D - self.data['nu']))
-            self._kurtosis = kurtosis(self.data['igm_dTb'][i1:i2])
+            self._kurtosis = kurtosis(self.data['dTb'][i1:i2])
             
         return self._kurtosis
     
@@ -151,7 +154,7 @@ class Global21cm(MultiPhaseMedium):
         if not hasattr(self, '_skewness'):
             i1 = np.argmin(np.abs(self.nu_B - self.data['nu']))
             i2 = np.argmin(np.abs(self.nu_D - self.data['nu']))
-            self._skewness = skew(self.data['igm_dTb'][i1:i2])
+            self._skewness = skew(self.data['dTb'][i1:i2])
         return self._skewness
     
     @property
@@ -174,7 +177,7 @@ class Global21cm(MultiPhaseMedium):
         boxcar[boxcar.size/2 - s/2: boxcar.size/2 + s/2] = \
             np.ones(s) / float(s)
         
-        return np.convolve(self.data['igm_dTb'], boxcar, mode='same')
+        return np.convolve(self.data['dTb'], boxcar, mode='same')
     
     @property
     def turning_points(self):
@@ -186,7 +189,7 @@ class Global21cm(MultiPhaseMedium):
             if self.pf['smooth_derivative'] > 0:
                 dTb = self.smooth_derivative(self.pf['smooth_derivative'])
             else:
-                dTb = self.data['igm_dTb']
+                dTb = self.data['dTb']
             
             z = self.data['z']
 
@@ -203,16 +206,16 @@ class Global21cm(MultiPhaseMedium):
             if 'C' in self.track.turning_points:
                 zC = self.track.turning_points['C'][0]
                 if (zC < 0) or (zC > 50):
-                    i_min = np.argmin(self.data['igm_dTb'])
+                    i_min = np.argmin(self.data['dTb'])
                     fixes['C'] = (self.data['z'][i_min], 
-                        self.data['igm_dTb'][i_min], -99999)
+                        self.data['dTb'][i_min], -99999)
             if 'D' in self.track.turning_points:
                 zD = self.track.turning_points['D'][0]
                 TD = self.track.turning_points['D'][1]
                 if (zD < 0) or (zD > 50):
-                    i_max = np.argmax(self.data['igm_dTb'])
+                    i_max = np.argmax(self.data['dTb'])
                     fixes['D'] = (self.data['z'][i_max], 
-                        self.data['igm_dTb'][i_max], -99999)            
+                        self.data['dTb'][i_max], -99999)            
                 elif TD < 1e-4:
                     fixes['D'] = (-np.inf, -np.inf, -99999)
                 
@@ -297,9 +300,9 @@ class Global21cm(MultiPhaseMedium):
             gotax = True
         
         if scatter is False:      
-            ax.plot(self.data[xaxis], self.data['igm_dTb'], **kwargs)
+            ax.plot(self.data[xaxis], self.data['dTb'], **kwargs)
         else:
-            ax.scatter(self.data[xaxis][-1::-mask], self.data['igm_dTb'][-1::-mask], 
+            ax.scatter(self.data[xaxis][-1::-mask], self.data['dTb'][-1::-mask], 
                 **kwargs)        
                 
         zmax = self.pf["first_light_redshift"]
@@ -315,7 +318,7 @@ class Global21cm(MultiPhaseMedium):
             xticks_minor = np.arange(10, 190, 20)
 
         if ymin is None:
-            ymin = max(min(min(self.data['igm_dTb']), ax.get_ylim()[0]), -500)
+            ymin = max(min(min(self.data['dTb']), ax.get_ylim()[0]), -500)
     
             # Set lower y-limit by increments of 50 mK
             for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500]:
@@ -324,7 +327,7 @@ class Global21cm(MultiPhaseMedium):
                     break
     
         if ymax is None:
-            ymax = max(max(self.data['igm_dTb']), ax.get_ylim()[1])
+            ymax = max(max(self.data['dTb']), ax.get_ylim()[1])
         
         if not gotax:
             ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))
@@ -447,7 +450,7 @@ class Global21cm(MultiPhaseMedium):
         for i, sim in enumerate(sims):
     
             nu.append(sim.data['nu'])
-            dTb.append(sim.data['igm_dTb'])
+            dTb.append(sim.data['dTb'])
     
             ax = sim.GlobalSignature(ax=ax, **kwargs)
     

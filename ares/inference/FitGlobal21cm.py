@@ -198,6 +198,7 @@ class FitGlobal21cm(ModelFit):
         else:
             assert len(value) == len(self.frequencies)            
             self.ydata = value
+            assert not self.turning_points
             return
 
         if self.turning_points:

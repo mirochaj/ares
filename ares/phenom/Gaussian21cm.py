@@ -80,6 +80,7 @@ class Gaussian21cm(object):
         {
          'z': nu_0_mhz / nu - 1.,
          'igm_dTb': dTb,
+         'dTb': dTb,
         }
     
         #tmp = Global21cm(data=hist)

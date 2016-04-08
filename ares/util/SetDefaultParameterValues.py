@@ -671,6 +671,15 @@ def ControlParameters():
     pf.update(rcParams)
 
     return pf
+    
+_sampling_parameters = \
+{
+ 'output_frequencies': None,
+ 'output_freq_min': 30.,
+ 'output_freq_max': 200.,
+ 'output_freq_res': 1.,    
+ 'output_dz': None,  # Redshift sampling    
+}
 
 def TanhParameters():
     pf = \
@@ -687,11 +696,15 @@ def TanhParameters():
     'tanh_xdz': 2.,
     'tanh_bias_temp': 0.0,   # in mK
     'tanh_bias_freq': 0.0,   # in MHz
+<<<<<<< local
     'output_frequencies': np.arange(40., 121.),
     'output_dz': 0.025,  # Redshift sampling
+=======
+>>>>>>> other
     }
 
     pf.update(rcParams)
+    pf.update(_sampling_parameters)
 
     return pf
     
@@ -702,9 +715,10 @@ def GaussianParameters():
      'gaussian_A': -100., 
      'gaussian_nu': 70.,
      'gaussian_sigma': 10.,
-     'output_frequencies': None,
-     'output_dz': 0.025,  # Redshift sampling
     }
+    
+    pf.update(rcParams)
+    pf.update(_sampling_parameters)
     
     return pf
 

@@ -110,6 +110,7 @@ registry_state_Q = \
 {
  'nu': lambda data: nu_0_mhz / (1. + data['z']),
  'dTb': lambda data: data['igm_dTb'],
+ 'igm_dTb': lambda data: data['dTb'], # axe eventually
  'contrast': lambda data: 1. - data['Tcmb'] / data['Ts'],
  'igm_h_2': lambda data: 1. - data['igm_h_1'],
  'igm_he_3': lambda data: 1. - data['igm_he_1'] - data['igm_he_2'],

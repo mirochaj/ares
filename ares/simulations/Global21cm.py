@@ -128,10 +128,17 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         if self.pf['output_frequencies'] is not None:
             nu = self.pf['output_frequencies']
             z = nu_0_mhz / nu - 1.
-        else:
+        elif self.pf['output_dz'] is not None:
             z = np.arange(self.pf['final_redshift'] + self.pf['output_dz'],
                 self.pf['initial_redshift'], self.pf['output_dz'])[-1::-1]
             nu =  nu_0_mhz / (1. + z)   
+        else:
+            nu_min = self.pf['output_freq_min']
+            nu_max = self.pf['output_freq_max']
+            nu_res = self.pf['output_freq_res']
+        
+            nu = np.arange(nu_min, nu_max, nu_res)
+            z = nu_0_mhz / nu - 1.
         
         if is_gauss:
             self.history = model(nu, **self.pf)    
