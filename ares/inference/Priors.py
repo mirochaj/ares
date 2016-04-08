@@ -470,8 +470,8 @@ class TruncatedGaussianPrior(_Prior):
         
         value numerical value of the variable
         """
-        if (value < self.lo and self.lo is not None) or\
-                (value > self.hi and self.hi is not None):
+        if (self.lo is not None and value < self.lo) or\
+                (self.hi is not None and value > self.hi):
             return -np.inf
         return self._cons_lp_term - ((value - self.mean) ** 2) / (2 * self.var)
 
@@ -1003,7 +1003,9 @@ class GriddedPrior(_Prior):
                                      " each dimension given by the length " +\
                                      "of the corresponding variable's " +\
                                      "range. Its values should be " +\
-                                     "proportional to the pdf.")
+                                     "proportional to the pdf. The shape " +\
+                                     ("was %s when it should have been %s" %\
+                                     (arrpdf.shape, self.shape,)))
             else:
                 raise ValueError("The pdf given to a GriddedPrior were " +\
                                  "not of a list type. It should be " +\

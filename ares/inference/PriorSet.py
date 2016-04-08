@@ -299,7 +299,7 @@ class PriorSet(object):
         string = ""
         (prior, index, transform) = self.find_prior(parameter)
         if prior.numparams != 1:
-            string += (self._numerical_adjective(index) + 'param of ')
+            string += (self._numerical_adjective(index) + ' param of ')
         string += prior.to_string()
         return (string, transform)
 
@@ -309,17 +309,19 @@ class PriorSet(object):
         #
         if (type(num) in [int, np.int32, np.int64]) and (num > 0):
             base_string = str(num)
-            if num == 1:
-                return str(num) + 'st'
+            if num == 0:
+                return '0th'
+            elif num == 1:
+                return '1st'
             elif num == 2:
-                return str(num) + 'nd'
+                return '2nd'
             elif num == 3:
-                return str(num) + 'rd'
+                return '3rd'
             else:
                 return str(num) + 'th'
         else:
             raise ValueError("Numerical adjectives apply " +\
-                             "only to positive integers.")
+                             "only to non-negative integers.")
 
     def _check_name(self, name):
         #
