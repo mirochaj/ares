@@ -696,11 +696,6 @@ def TanhParameters():
     'tanh_xdz': 2.,
     'tanh_bias_temp': 0.0,   # in mK
     'tanh_bias_freq': 0.0,   # in MHz
-<<<<<<< local
-    'output_frequencies': np.arange(40., 121.),
-    'output_dz': 0.025,  # Redshift sampling
-=======
->>>>>>> other
     }
 
     pf.update(rcParams)
