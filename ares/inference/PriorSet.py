@@ -307,7 +307,7 @@ class PriorSet(object):
         #
         # Creates a numerical adjective, such as '1st', '2nd', '6th' and so on.
         #
-        if (type(num) in [int, np.int32, np.int64]) and (num > 0):
+        if (type(num) in [int, np.int32, np.int64]) and (num >= 0):
             base_string = str(num)
             if num == 0:
                 return '0th'
