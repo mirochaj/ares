@@ -629,17 +629,14 @@ class ModelSet(BlobFactory):
             to_keep = xok
 
         mask = np.logical_not(to_keep)
-
+        
+        ##
+        # CREATE NEW MODELSET INSTANCE
+        ##
         model_set = ModelSet(self.prefix)
-        if not hasattr(self, '_mask'):
-            model_set.mask = mask
-        else:
-            if self.mask is Ellipsis:
-                model_set.mask = mask
-            else:
-                mask_pre = self.mask.copy()
-                del self._mask
-                model_set.mask = np.logical_or(mask, mask_pre)
+        
+        # Set the mask! 
+        model_set.mask = np.logical_or(mask, self.mask)
 
         i = 0
         while hasattr(self, 'slice_%i' % i):
@@ -936,16 +933,16 @@ class ModelSet(BlobFactory):
         data, is_log = \
             self.ExtractData(pars, ivar, take_log, un_log, multiplier)
         
-        xdata = data[pars[0]]
-        ydata = data[pars[1]]
+        xdata = data[pars[0]].compressed()
+        ydata = data[pars[1]].compressed()
         
         # Organize into (x, y) pairs
         points = zip(xdata, ydata)
-        
+                
         # Create polygon object
         point_collection = geometry.MultiPoint(list(points))
         polygon = point_collection.convex_hull
-        
+                
         # Plot a Polygon using descartes
         x_min, y_min, x_max, y_max = polygon.bounds
         patch = PolygonPatch(polygon, **kwargs)
