@@ -346,9 +346,13 @@ def PopulationParameters():
     # Set the emission interval and SED
     "pop_sed": 'pl',
     
+    # For synthesis models
     "pop_Z": 0.04,
+    "pop_imf": 2.35,
+    "pop_nebular": False,
     "pop_ssp": False,             # a.k.a., continuous SF
     "pop_tsf": 100.,
+    "pop_binaries": False,        # for BPASS
 
     # Option of setting Z, t, or just supplying SSP table?
     

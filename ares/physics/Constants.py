@@ -93,6 +93,9 @@ J21_num = 1e-21 / E_LyA / erg_per_ev
 
 nu_0_mhz = nu_0 / 1e6
 
+# solar luminosity
+Lsun = 3.828e33
+
 # Helium
 m_He = m_HeI = 2.0 * (m_p + m_n + m_e)
 m_HeII = 2.0 * (m_p + m_n) + m_e
