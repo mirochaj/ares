@@ -242,35 +242,33 @@ class SynthesisModel(object):
         # Convert to erg / g        
         return N * self.erg_per_phot(Emin, Emax) * self.cosm.b_per_g
  
-    def PhotonsPerBaryon_of_t(self, Emin, Emax):    
+    def IntegratedEmission(self, Emin, Emax):    
         """
-        Compute photons emitted per baryon for all times.
+        Compute photons emitted integrated in some band for all times.
         
         Returns
         -------
         Integrated flux between (Emin, Emax) for all times in units of 
         photons / sec / (Msun [/ yr])
         """
+        
         # Find band of interest -- should be more precise and interpolate
         i0 = np.argmin(np.abs(self.energies - Emin))
         i1 = np.argmin(np.abs(self.energies - Emax))
                                      
         # Count up the photons in each spectral bin for all times
-        photons_per_b_t = np.zeros_like(self.times)
+        flux = np.zeros_like(self.times)
         for i in range(self.times.size):
-            integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0]\
+            integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0] \
                 / (self.energies[i1:i0] * erg_per_ev)
-            
-            # Current units of integrand: photons / sec / Angstrom / [depends on ssp]
-            
-            photons_per_b_t[i] = \
-                np.trapz(integrand, x=np.log(self.wavelengths[i1:i0]))
+                        
+            flux[i] = np.trapz(integrand, x=np.log(self.wavelengths[i1:i0]))
             
         # Current units: 
         # if pop_ssp: photons / sec / (Msun / 1e6)
         # else: photons / sec / (Msun / yr)
         
-        return photons_per_b_t
+        return flux
         
     @property
     def Nion(self):
@@ -307,11 +305,13 @@ class SynthesisModel(object):
 
         #assert self.pf['pop_ssp'], "Probably shouldn't do this for continuous SF."
 
-        photons_per_b_t = self.PhotonsPerBaryon_of_t(Emin, Emax)    
+        photons_per_b_t = self.IntegratedEmission(Emin, Emax)    
 
         # Current units: 
-        # if pop_ssp: photons / sec / (Msun / 1e6)
-        # else: photons / sec / (Msun / yr)
+        # if pop_ssp: 
+        #     photons / sec / (Msun / 1e6)
+        # else: 
+        #     photons / sec / (Msun / yr)
 
         g_per_b = self.cosm.g_per_baryon
 
