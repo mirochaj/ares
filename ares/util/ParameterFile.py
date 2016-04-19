@@ -63,7 +63,7 @@ def par_info(par):
     identification number that corresponds to a ParameterizedHaloProperty.
     """
     
-    prefix1, popid = pop_id_num(par)
+    prefix1, popid = pop_id_num(par)    
         
     if prefix1 is not None:
         m = re.search(r"\[(\d+(\.\d*)?)\]", prefix1)

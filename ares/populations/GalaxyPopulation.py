@@ -55,7 +55,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         
         if not hasattr(self, '_L1500_per_SFR'):
             if self.sed_tab:
-                self._L1500_per_SFR = lambda z, M: self.src.pop.L_per_sfr() \
+                self._L1500_per_SFR = lambda z, M: self.src.L1500 \
                     / self.pf['pop_fstar_boost']
             elif type(self.pf['pop_L1500_per_sfr']) in [float, np.float64]:
                 self._L1500_per_SFR = \
@@ -755,26 +755,54 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     @property    
     def Nion(self):
         if not hasattr(self, '_Nion'):
-            if type(self.pf['pop_Nion']) in [float, np.float64]:
+            try:
+                is_php = self.pf['pop_Nion'][0:3] == 'php'
+            except IndexError:
+                is_php = False
+                
+            if self.sed_tab and (not is_php):
+                self._Nion = lambda z, M: self.src.Nion \
+                    / self.pf['pop_fstar_boost']
+            elif type(self.pf['pop_Nion']) in [float, np.float64]:
                 self._Nion = lambda z, M: self.pf['pop_Nion']
-            elif self.pf['pop_Nion'][0:3] == 'php':
-                pars = self.get_php_pars(self.pf['pop_Nion'])
+            elif is_php:
+                tmp = self.get_php_pars(self.pf['pop_Nion'])
+                                
+                # Correct values that are strings:
+                if self.sed_tab:
+                    pars = {}
+                    for par in tmp:
+                        if tmp[par] == 'from_sed':
+                            pars[par] = self.src.Nion / self.pf['pop_fstar_boost']
+                        else:
+                            pars[par] = tmp[par]
+                else:
+                    pars = tmp            
+                                                
                 self._Nion = ParameterizedHaloProperty(**pars)
             else:
-                raise ValueError('Unrecognized data type for pop_fesc!')  
+                raise ValueError('Unrecognized data type for pop_Nion!')  
 
         return self._Nion   
 
     @property
     def Nlw(self):
         if not hasattr(self, '_Nlw'):
-            if type(self.pf['pop_Nlw']) in [float, np.float64]:
+            try:
+                is_php = self.pf['pop_Nlw'][0:3] == 'php'
+            except IndexError:
+                is_php = False
+                
+            if self.sed_tab and (not is_php):
+                self._Nlw = lambda z, M: self.src.Nlw \
+                    / self.pf['pop_fstar_boost']
+            elif type(self.pf['pop_Nlw']) in [float, np.float64]:
                 self._Nlw = lambda z, M: self.pf['pop_Nlw']
             elif self.pf['pop_Nlw'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_Nlw'])
                 self._Nlw = ParameterizedHaloProperty(**pars)
             else:
-                raise ValueError('Unrecognized data type for pop_fesc!')  
+                raise ValueError('Unrecognized data type for pop_fesc!')
     
         return self._Nlw 
         
@@ -798,12 +826,21 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         ..note:: par isn't the name of the parameter, it is the value. Usually,
             it's something like 'php[0]'.
             
+        For example, if in the parameter file, you set:
+        
+            'pop_fesc{0}'='php[1]'
+            
+        This routine runs off and finds all parameters that look like:
+        
+            'php_*par?{0}[1]'
+            
         Returns
         -------
         Dictionary of parameters to be used to initialize a new HaloProperty.
             
         """
-        
+
+
         prefix, popid, phpid = par_info(par)
 
         pars = {}
@@ -811,15 +848,15 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             if (self.pf.Nphps != 1):
                 if not re.search('\[%i\]' % phpid, key):
                     continue
-                
+
             if key[0:3] != 'php':
                 continue
-                
+
             p, popid, phpid_ = par_info(key)    
-            
+
             if (phpid is None) and (self.pf.Nphps == 1):
                 pars[p] = self.pf['%s' % p]          
-            
+
             # This means we probably have some parameters bracketed
             # and some not...should make it so this doesn't happen
             elif (phpid is not None) and (self.pf.Nphps == 1):

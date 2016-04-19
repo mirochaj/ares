@@ -27,7 +27,7 @@ class SynthesisModel(object):
     @property
     def litinst(self):
         if not hasattr(self, '_litinst'):
-            self._litinst = read_lit(self.pf['pop_model'])
+            self._litinst = read_lit(self.pf['pop_sed'])
         return self._litinst
     
     @property
