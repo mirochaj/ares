@@ -42,35 +42,91 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             self._magsys = MagnitudeSystem(**self.pf)
     
         return self._magsys
-
-    @property
-    def L1500_per_SFR(self):
+        
+    def __getattr__(self, name):
         """
-        
-        Returns
-        -------
-        In units of erg/s/Hz/(Msun/yr).
-        
+        This gets called anytime we try to fetch an attribute that doesn't
+        exist (yet). Right, now this is only used for L1500, Nion, Nlw.
         """
-        
-        if not hasattr(self, '_L1500_per_SFR'):
-            if self.sed_tab:
-                self._L1500_per_SFR = lambda z, M: self.src.L1500 \
-                    / self.pf['pop_fstar_boost']
-            elif type(self.pf['pop_L1500_per_sfr']) in [float, np.float64]:
-                self._L1500_per_SFR = \
-                    lambda z, M: self.pf['pop_L1500_per_sfr'] \
-                        / self.pf['pop_fstar_boost']
-            elif self.pf['pop_L1500_per_sfr'][0:3] == 'php':
-                pars = self.get_php_pars(self.pf['pop_L1500_per_sfr']) 
-                inst = ParameterizedHaloProperty(**pars)
+    
+        # Indicates that this attribute is being accessed from within a 
+        # property. Don't want to override that behavior!
+        if (name[0] == '_'):
+            raise AttributeError('This will get caught. Don\'t worry!')
+    
+        full_name = 'pop_' + name
                 
-                self._L1500_per_SFR = lambda z, M: inst.__call__(z, M) \
-                        / self.pf['pop_fstar_boost']                    
+        # might need to capitalize sfr
+        #assert name in ['L1500_per_sfr', 'Nion', 'Nlw']
+    
+        # Now, possibly make an attribute
+        if name not in self.__dict__.keys(): 
+            
+            try:
+                is_php = self.pf[full_name][0:3] == 'php'
+            except IndexError:
+                is_php = False
+    
+            if self.sed_tab and (not is_php):
+                result = lambda z, M: self.src.__getattribute__(name) \
+                    / self.pf['pop_fstar_boost']
+            elif type(self.pf[full_name]) in [float, np.float64]:
+                result = lambda z, M: self.pf[full_name] \
+                        / self.pf['pop_fstar_boost']
+            elif is_php:
+                tmp = self.get_php_pars(self.pf[full_name]) 
+                
+                # Correct values that are strings:
+                if self.sed_tab:
+                    pars = {}
+                    for par in tmp:
+                        if tmp[par] == 'from_sed':
+                            pars[par] = self.src.__getattribute__(name) \
+                                / self.pf['pop_fstar_boost']
+                        else:
+                            pars[par] = tmp[par]            
+                else:
+                    pars = tmp            
+                    
+                inst = ParameterizedHaloProperty(**pars)
+                result = lambda z, M: inst.__call__(z, M) \
+                        / self.pf['pop_fstar_boost']          
+        
             else:
                 raise TypeError('dunno how to handle this')
-        
-        return self._L1500_per_SFR
+                
+            self.__dict__[name] = result
+    
+        return self.__dict__[name]
+
+    #@property
+    #def L1500_per_SFR(self):
+    #    """
+    #    
+    #    Returns
+    #    -------
+    #    In units of erg/s/Hz/(Msun/yr).
+    #    
+    #    """
+    #    
+    #    if not hasattr(self, '_L1500_per_SFR'):
+    #        if self.sed_tab:
+    #            self._L1500_per_SFR = lambda z, M: self.src.L1500 \
+    #                / self.pf['pop_fstar_boost']
+    #        elif type(self.pf['pop_L1500_per_sfr']) in [float, np.float64]:
+    #            self._L1500_per_SFR = \
+    #                lambda z, M: self.pf['pop_L1500_per_sfr'] \
+    #                    / self.pf['pop_fstar_boost']
+    #        elif self.pf['pop_L1500_per_sfr'][0:3] == 'php':
+    #            pars = self.get_php_pars(self.pf['pop_L1500_per_sfr']) 
+    #            inst = ParameterizedHaloProperty(**pars)
+    #            
+    #            self._L1500_per_SFR = lambda z, M: inst.__call__(z, M) \
+    #                    / self.pf['pop_fstar_boost']                    
+    #        else:
+    #            raise TypeError('dunno how to handle this')
+    #    
+    #    return self._L1500_per_SFR
 
     def N_per_Msun(self, Emin, Emax):
         """
@@ -519,7 +575,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         return phi_of_x
 
     def Lh(self, z):
-        return self.SFR(z, self.halos.M) * self.L1500_per_SFR(z, self.halos.M)
+        return self.SFR(z, self.halos.M) * self.L1500_per_sfr(z, self.halos.M)
 
     def phi_of_L(self, z):
 
@@ -752,60 +808,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
         return self._fesc
 
-    @property    
-    def Nion(self):
-        if not hasattr(self, '_Nion'):
-            try:
-                is_php = self.pf['pop_Nion'][0:3] == 'php'
-            except IndexError:
-                is_php = False
-                
-            if self.sed_tab and (not is_php):
-                self._Nion = lambda z, M: self.src.Nion \
-                    / self.pf['pop_fstar_boost']
-            elif type(self.pf['pop_Nion']) in [float, np.float64]:
-                self._Nion = lambda z, M: self.pf['pop_Nion']
-            elif is_php:
-                tmp = self.get_php_pars(self.pf['pop_Nion'])
-                                
-                # Correct values that are strings:
-                if self.sed_tab:
-                    pars = {}
-                    for par in tmp:
-                        if tmp[par] == 'from_sed':
-                            pars[par] = self.src.Nion / self.pf['pop_fstar_boost']
-                        else:
-                            pars[par] = tmp[par]
-                else:
-                    pars = tmp            
-                                                
-                self._Nion = ParameterizedHaloProperty(**pars)
-            else:
-                raise ValueError('Unrecognized data type for pop_Nion!')  
-
-        return self._Nion   
-
-    @property
-    def Nlw(self):
-        if not hasattr(self, '_Nlw'):
-            try:
-                is_php = self.pf['pop_Nlw'][0:3] == 'php'
-            except IndexError:
-                is_php = False
-                
-            if self.sed_tab and (not is_php):
-                self._Nlw = lambda z, M: self.src.Nlw \
-                    / self.pf['pop_fstar_boost']
-            elif type(self.pf['pop_Nlw']) in [float, np.float64]:
-                self._Nlw = lambda z, M: self.pf['pop_Nlw']
-            elif self.pf['pop_Nlw'][0:3] == 'php':
-                pars = self.get_php_pars(self.pf['pop_Nlw'])
-                self._Nlw = ParameterizedHaloProperty(**pars)
-            else:
-                raise ValueError('Unrecognized data type for pop_fesc!')
-    
-        return self._Nlw 
-        
     @property    
     def tdyn(self):
         if not hasattr(self, '_tdyn'):
