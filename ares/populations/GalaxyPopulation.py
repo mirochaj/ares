@@ -64,7 +64,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             
             try:
                 is_php = self.pf[full_name][0:3] == 'php'
-            except IndexError:
+            except (IndexError, TypeError):
                 is_php = False
     
             if self.sed_tab and (not is_php):
@@ -768,15 +768,21 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
+            
+            if self.pf['pop_calib_rhoL1500'] is not None:
+                boost = self.pf['pop_calib_rhoL1500'] / self.L1500_per_sfr(None, None)
+                assert self.pf['pop_fstar_boost'] == 1
+            else:
+                boost = 1. / self.pf['pop_fstar_boost']
+            
             if type(self.pf['pop_fstar']) in [float, np.float64]:
-                self._fstar = lambda z, M: self.pf['pop_fstar'] \
-                    * self.pf['pop_fstar_boost']
+                self._fstar = lambda z, M: self.pf['pop_fstar'] * boost
             elif self.pf['pop_fstar'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_fstar'])
                 self._fstar_inst = ParameterizedHaloProperty(**pars)
                 
                 self._fstar = lambda z, M: self._fstar_inst.__call__(z, M) \
-                        * self.pf['pop_fstar_boost']
+                        * boost
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
                 

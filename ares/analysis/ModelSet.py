@@ -1344,11 +1344,17 @@ class ModelSet(BlobFactory):
                                         
         # Re-organize
         if len(np.unique(pars)) < len(pars):
-            data = np.ma.array(to_hist, mask=self.mask)
+            if self.is_mcmc:
+                data = np.ma.array(to_hist, mask=self.mask)
+            else:
+                data = np.array(to_hist)
         else:    
             data = {}
             for i, par in enumerate(pars):
-                data[par] = np.ma.array(to_hist[i], mask=self.mask)
+                if self.is_mcmc:
+                    data[par] = np.ma.array(to_hist[i], mask=self.mask)
+                else:
+                    data[par] = np.array(to_hist[i])
 
             is_log = {par:is_log[i] for i, par in enumerate(pars)}
                     

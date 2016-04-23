@@ -423,6 +423,7 @@ def PopulationParameters():
     
     "pop_kappa_UV": 1.15e-28,
     "pop_L1500_per_sfr": None,
+    "pop_calib_rhoL1500": None,
     
     "pop_fstar_boost": 1.,
 
