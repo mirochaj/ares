@@ -120,11 +120,11 @@ def search_sorted(array, value):
     range_max_0 = len(array)
     range_max = range_max_0
     numloops = 0
-    while numloops < 100:
+    while numloops < 1000000:
         numloops += 1
         if (range_max - range_min) == 1:
-            if range_max == range_max_0:
-                raise NotImplementedError("For some reason, range_max-" +\
+            if (range_max == range_max_0) or (range_min == 0):
+                raise LookupError("For some reason, range_max-" +\
                                           "range_min reached 1 before " +\
                                           "the element was found. The " +\
                                           "element being searched for " +\
@@ -1061,11 +1061,14 @@ class GriddedPrior(_Prior):
         # Constructs the cdf array.
         #
         running_sum = 0.
-        self.cdf = []
+        print 'initializing cdf'
+        self.cdf = np.ndarray(len(self.pdf))
+        print 'filling cdf'
         for i in range(len(self.pdf)):
-            self.cdf.append(running_sum)
+            self.cdf[i] = running_sum
             running_sum += (self.pdf[i] * self._pixel_area(i))
-        self.cdf = np.array(self.cdf) / self.cdf[-1]
+        print 'renormalizing pdf and cdf'
+        self.cdf = self.cdf / self.cdf[-1]
         self.pdf = self.pdf / self.cdf[-1]
 
     def _unpack_index(self, index):
@@ -1105,7 +1108,7 @@ class GriddedPrior(_Prior):
         for ivar in range(self._N):
             try:
                 index = search_sorted(self.vars[ivar], point[ivar])
-            except:
+            except LookupError:
                 return None
             unpacked_indices.append(index)
         return unpacked_indices
