@@ -29,3 +29,5 @@ input/starburst99/README
 *OLD*
 *.orig
 .cache/*
+input/bpass/SEDS/
+*.tar.gz
