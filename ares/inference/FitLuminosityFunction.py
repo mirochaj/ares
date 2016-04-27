@@ -117,7 +117,8 @@ class loglikelihood(LogLikelihood):
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
         
-        self.checkpoint(**kw)
+        # Don't save base_kwargs for each proc! Needlessly expensive I/O-wise.
+        self.checkpoint(**kwargs)
 
         sim = self.sim = self.sim_class(**kw)
 

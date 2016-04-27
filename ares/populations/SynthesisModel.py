@@ -27,7 +27,7 @@ class SynthesisModel(object):
     @property
     def litinst(self):
         if not hasattr(self, '_litinst'):
-            self._litinst = read_lit(self.pf['pop_model'])
+            self._litinst = read_lit(self.pf['pop_sed'])
         return self._litinst
     
     @property
@@ -144,7 +144,7 @@ class SynthesisModel(object):
         return self.L_per_SFR_of_t()[-1]
         
     @property
-    def L1500(self):
+    def L1500_per_sfr(self):
         return self.L_per_sfr()   
         
     def L_per_sfr(self, wave=1500.):   

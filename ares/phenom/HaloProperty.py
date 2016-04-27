@@ -110,7 +110,7 @@ class ParameterizedHaloProperty(object):
         # Read-in parameters to more convenient names
         # I don't usually use exec, but when I do, it's to do garbage like this
         for i, par in enumerate(pars1):
-            
+                        
             # Handle redshift dependencies
             if type(par) == str:
                 p = pars2[i]
@@ -118,6 +118,8 @@ class ParameterizedHaloProperty(object):
                     val = p[0] * ((1. + z) / (1. + p[1]))**-1.5
                 elif par == 'pl':
                     val = p[0] * ((1. + z) / (1. + p[1]))**p[2]
+                #else:
+                #    val = par
                 
                 exec('p%i = val' % i)
             # Otherwise, assume parameter is just a number
@@ -177,7 +179,7 @@ class ParameterizedHaloProperty(object):
         elif func == 'user':
             f = self.pf['php_Mfun_fun'](z, M)
         else:
-            raise NotImplemented('sorry dude!')
+            raise NotImplementedError('Don\'t know how to treat %s function!' % func)
 
         # Add or multiply to main function.
         if self.M_aug and self._apply_extrap:
