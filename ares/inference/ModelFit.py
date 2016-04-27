@@ -332,12 +332,6 @@ class ModelFit(BlobFactory):
         
         self._loglikelihood = value
             
-    @property
-    def error_independent(self):
-        if not hasattr(self, '_err_indep'):
-            self._err_indep = self.error.ndim == 1
-        return self._err_indep
-            
     @property 
     def xdata(self):
         if not hasattr(self, '_xdata'):

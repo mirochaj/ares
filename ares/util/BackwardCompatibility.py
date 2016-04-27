@@ -31,6 +31,16 @@ def backward_compatibility(ptype, **kwargs):
     if ptype == 101:
         pf = {}
         
+        if 'Tmin' in kwargs:
+            for i in range(3):
+                pf['pop_Tmin{%i}' % i] = kwargs['Tmin']
+        
+        if 'Mmin' in kwargs:
+            assert 'Tmin' not in kwargs, "Must only supply Tmin OR Mmin!"
+            for i in range(3):
+                pf['pop_Mmin{%i}' % i] = kwargs['Mmin']        
+                pf['pop_Tmin{%i}' % i] = None
+            
         if 'fstar' in kwargs:
             for i in range(3):
                 pf['pop_fstar{%i}' % i] = kwargs['fstar']

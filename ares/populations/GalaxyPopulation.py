@@ -657,7 +657,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
                 raise ValueError('Unrecognized data type for pop_fstar!')  
                 
         return self._fstar
-    
+
     @property    
     def fesc(self):
         if not hasattr(self, '_fesc'):

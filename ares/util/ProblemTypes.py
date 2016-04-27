@@ -343,7 +343,7 @@ def ReionizationProblem(ptype):
         "pop_sed{0}": 'leitherer1999',
         "pop_Z{0}": 0.04,
         "pop_ssp{0}": False,
-        "pop_tsf{0}": 900.,             
+        "pop_tsf{0}": 100.,             
                
         "pop_yield{0}": 9690., 
         "pop_yield_units{0}": 'photons/baryon',
