@@ -18,10 +18,10 @@ from ..util import GridND, ProgressBar
 from ..util.ReadData import read_pickle_file, read_pickled_dict
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
-#try:
-#    import dill as pickle
-#except:
-import pickle
+try:
+    import dill as pickle
+except:
+    import pickle
 
 try:
     from mpi4py import MPI
