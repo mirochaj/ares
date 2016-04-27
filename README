@@ -60,7 +60,7 @@ You will need:
 - `scipy <http://www.scipy.org/>`_
 - `matplotlib <http://matplotlib.org/>`_
 
-and optionally, 
+and optionally,
 
 - `hmf <https://github.com/steven-murray/hmf>`_
 - `h5py <http://www.h5py.org/>`_
@@ -68,6 +68,8 @@ and optionally,
 - `python-progressbar <https://code.google.com/p/python-progressbar/>`_
 - `setuptools <https://pypi.python.org/pypi/setuptools>`_
 - `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_
+- `shapely <https://pypi.python.org/pypi/Shapely>`_
+- `descartes <https://pypi.python.org/pypi/descartes>`_
 
 Quick Example
 --------------
@@ -82,8 +84,7 @@ You can examine the contents of ``sim.history``, a dictionary which contains
 the redshift evolution of all IGM physical quantities, or use some built-in 
 analysis routines: ::
 
-    anl = ares.analysis.Global21cm(sim)     # Initialize the analysis class
-    ax = anl.GlobalSignature()                     
+    sim.GlobalSignature()
     
 If the plot doesn't appear automatically, set ``interactive: True`` in your matplotlibrc file or type: ::
 
@@ -120,7 +121,7 @@ If you encounter problems with installation or running simple scripts, first che
 Contributors
 ------------
 
-Primary author: `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_ (CU-Boulder) 
+Primary author: `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_ (UCLA) 
 
 Additional contributions / corrections / suggestions from:
     
@@ -128,4 +129,5 @@ Additional contributions / corrections / suggestions from:
 - Jacob Jost (CU-Boulder)
 - `Greg Salvesen <http://jila.colorado.edu/~salvesen/>`_ (CU-Boulder)
 - `Adrian Liu <http://w.astro.berkeley.edu/~acliu/>`_ (UC-Berkeley)
-
+- Jason Sun (Caltech)
+- Keith Tauscher (CU-Boulder)

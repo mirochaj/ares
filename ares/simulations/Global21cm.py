@@ -10,12 +10,18 @@ Description:
 
 """
 
+import os
 import numpy as np
 from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from ..analysis.BlobFactory import BlobFactory
 from ..physics.Constants import nu_0_mhz, E_LyA
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
+
+try:
+    import dill as pickle
+except ImportError:
+    import pickle
 
 defaults = \
 {
@@ -37,11 +43,11 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
 
         # See if this is a tanh model calculation
         is_phenom = self._check_if_phenom(**kwargs)
-        
+
         kwargs.update(defaults)
         if 'problem_type' not in kwargs:
             kwargs['problem_type'] = 101
-        
+
         self.kwargs = kwargs
 
     @property
@@ -108,12 +114,12 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
 
         if 'tanh_model' in kwargs:
             if kwargs['tanh_model']:
-                from ..util.TanhModel import TanhModel as PhenomModel
+                from ..phenom.Tanh21cm import Tanh21cm as PhenomModel
                 is_tanh = True
                 
         elif 'gaussian_model' in kwargs:
             if kwargs['gaussian_model']:
-                from ..util.GaussianSignal import GaussianModel as PhenomModel            
+                from ..phenom.Gaussian21cm import Gaussian21cm as PhenomModel            
                 is_gauss = True
                 
         model = PhenomModel(**kwargs)                
@@ -122,10 +128,17 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         if self.pf['output_frequencies'] is not None:
             nu = self.pf['output_frequencies']
             z = nu_0_mhz / nu - 1.
-        else:
+        elif self.pf['output_dz'] is not None:
             z = np.arange(self.pf['final_redshift'] + self.pf['output_dz'],
                 self.pf['initial_redshift'], self.pf['output_dz'])[-1::-1]
             nu =  nu_0_mhz / (1. + z)   
+        else:
+            nu_min = self.pf['output_freq_min']
+            nu_max = self.pf['output_freq_max']
+            nu_res = self.pf['output_freq_res']
+        
+            nu = np.arange(nu_min, nu_max, nu_res)
+            z = nu_0_mhz / nu - 1.
         
         if is_gauss:
             self.history = model(nu, **self.pf)    
@@ -290,8 +303,6 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             Overwrite pre-existing files of same name?
     
         """
-    
-        import os, pickle
     
         fn = '%s.history.%s' % (prefix, suffix)
     

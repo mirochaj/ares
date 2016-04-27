@@ -13,7 +13,6 @@ Description:
 import numpy as np
 from types import FunctionType
 import types, os, textwrap, glob, re
-from .NormalizeSED import emission_bands
 from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz, g_per_msun, s_per_yr
 
 try:
@@ -70,6 +69,11 @@ S_methods = \
  2: 'Chuzhoy, Alvarez, & Shapiro (2005)',
  3: 'Furlanetto & Pritchard (2006)'
 }             
+
+def header(s):
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, s.center(twidth), post)
+    print "#"*width
 
 def line(s, just='l'):
     """ 
@@ -346,25 +350,17 @@ def print_pop(pop):
     if type(EmaxNorm) is not list:
         EmaxNorm = list([EmaxNorm])
 
-    #norm_by = pop.pf['norm_by']
-    #bands = emission_bands(Emin, Emax, pop.pf['xray_Emin']) 
-    #
-    #if len(bands) == 1:
-    #    norm_by == bands[0]   
-
-    if pop.pf['pop_type'] == 'bh':
-        header  = 'BH Population'
-    elif pop.pf['pop_type'] == 'star':
-        header  = 'Stellar Population'
-    elif pop.pf['pop_type'] == 'galaxy':
-        header  = 'Galaxy Population'        
+    if pop.pf['pop_model'] == 'fcoll':
+        header = 'Galaxy Population: fcoll'
+    else:
+        header = 'Galaxy Population: Mh-dependent'
 
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
 
     print line('-'*twidth)
-    print line('Redshift Evolution')
+    print line('Star Formation')
     print line('-'*twidth)
 
     # Redshift evolution stuff
@@ -373,11 +369,6 @@ def print_pop(pop):
             print line("SFRD        : %s" % pop.pf['pop_sfrd'])
         else:
             print line("SFRD        : parameterized")
-    elif pop.pf['pop_rhoL'] is not None:
-        if type(pop.pf['pop_rhoL']) is FunctionType:
-            print line("rho_L(z)    : parameterized")
-        else:
-            print line("rho_L(z)    : %s" % pop.pf['pop_rhoL'])
     else:
         if pop.pf['pop_Mmin'] is None:
             print line("SF          : in halos w/ Tvir >= 10**%g K" \
@@ -386,8 +377,32 @@ def print_pop(pop):
             print line("SF          : in halos w/ M >= 10**%g Msun" \
                 % (round(np.log10(pop.pf['pop_Mmin']), 2)))
         print line("HMF         : %s" % pop.pf['hmf_func'])
-        #print line("fstar       : %g" % pop.pf['pop_fstar'])
-    
+
+    # Parameterized halo properties
+    if pop.pf.Nphps > 0:
+        if pop.pf.Nphps > 1:
+            sf = lambda x: '[%i]' % x
+        else:
+            sf = lambda x: ''
+                        
+        for i, par in enumerate(pop.pf.phps):
+                
+            pname = par.replace('pop_', '').ljust(20)
+                                
+            s = pop.pf['php_Mfun%s' % sf(i)]
+                                
+            if 'php_Mfun_aug%s' % sf(i) not in pop.pf:
+                print line("%s   : %s" % (pname, s))
+                continue    
+                
+            if pop.pf['php_Mfun_aug%s' % sf(i)] is not None:
+                if pop.pf['php_Mfun_aug_meth%s' % sf(i)] == 'add':
+                    s += ' + %s' % pop.pf['php_Mfun_aug%s' % sf(i)]
+                else:
+                    s += ' * %s' % pop.pf['php_Mfun_aug%s' % sf(i)]
+                
+            print line("%s: %s" % (pname, s))
+                
     print line('-'*twidth)
     print line('Radiative Output')
     print line('-'*twidth)
@@ -637,17 +652,16 @@ def print_21cm_sim(sim):
     for warning in warnings:
         print_warning(warning)       
 
-def print_fit(fit, steps, burn=0, fit_TP=True):         
+def print_fit(fitter):         
 
+    return
+    
     if rank > 0:
         return
 
     warnings = []
 
     is_cov = False
-    #is_cov = True
-    #if len(fit.error.shape) == 1:
-    #    is_cov = False
 
     header = 'Parameter Estimation'
     print "\n" + "#"*width
@@ -698,22 +712,19 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line('Parameter Space')     
     print line('-'*twidth)
 
-    data = []    
-    cols = ['prior_dist', 'prior_p1', 'prior_p2']
-    rows = fit.parameters    
+    data = []
+    cols = ['Prior', 'Transformation']
+    rows = fit.parameters
     for i, row in enumerate(rows):
-    
-        if not hasattr(fit, 'priors'):
-            tmp = ['n/a'] * 3
-        elif row in fit.priors:
-            tmp = [fit.priors[row][0]]
-            tmp.extend(fit.priors[row][1:])
+        if not hasattr(fit, 'prior_set'):
+            tmp = ['N/A'] * 2
         else:
-            tmp = ['n/a'] * 3
-    
+            try:
+                tmp = list(fit.prior_set.parameter_strings())
+            except:
+                tmp = ['N/A'] * 2
         data.append(tmp)
-    
-    tabulate(data, rows, cols, fmt='%.2g', cwidth=[24, 12, 12, 12])
+    tabulate(data, rows, cols, cwidth=[24, 18, 18])
 
     print line('-'*twidth)       
     print line('Exploration')     

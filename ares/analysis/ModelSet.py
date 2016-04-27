@@ -23,6 +23,7 @@ from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
+import matplotlib.patches as patches
 from ..util.Aesthetics import Labeler
 from ..util.PrintInfo import print_model_set
 from .DerivedQuantities import DerivedQuantities as DQ
@@ -34,7 +35,22 @@ from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
     tanh_gjah_to_ares
 
-import pickle 
+try:
+    import dill as pickle
+except ImportError:
+    import pickle 
+
+try:
+    import shapely.geometry as geometry
+    have_shapely = True
+except ImportError, OSError:
+    have_shapely = False
+    
+try:
+    from descartes import PolygonPatch
+    have_descartes = True
+except ImportError:
+    have_descartes = False    
 
 try:
     import h5py
@@ -191,27 +207,14 @@ class ModelSet(BlobFactory):
         #    self._fix_up()
         #except AttributeError:
         #    pass
-        
-        
-    #@property
-    #def data(self):
-    #    if not hasattr(self, '_data'):
-    #        self._data = {}
-    #        f = open('%s.data.pkl' % self.prefix, 'rb')
-    #        x, y, z, err = pickle.load(f)
-    #        f.close()
-    #        
-    #        self._data['x'] = x
-    #        self._data['y'] = y
-    #        self._data['err'] = err
-    #        self._data['z'] = z
-    #        
-    #    return self._data
-    
+            
     @property
     def mask(self):
         if not hasattr(self, '_mask'):
-            self._mask = Ellipsis
+            if self.is_mcmc:
+                self._mask = np.zeros_like(self.logL)
+            else:
+                self._mask = np.zeros(self.chain.shape[0])
         return self._mask
     
     @mask.setter
@@ -295,9 +298,9 @@ class ModelSet(BlobFactory):
                 self._is_mcmc = True
             else:
                 self._is_mcmc = False
-        
+
         return self._is_mcmc
-        
+
     @property
     def facc(self):
         if not hasattr(self, '_facc'):
@@ -407,7 +410,8 @@ class ModelSet(BlobFactory):
                 if rank == 0:
                     print "Loaded %s in %.2g seconds.\n" % (fn, t2-t1)
 
-                self._chain = self._chain[self.mask]
+                mask2d = np.array([self.mask] * self._chain.shape[1]).T
+                self._chain = np.ma.array(self._chain, mask=mask2d)
                     
             else:
                 self._chain = None            
@@ -419,7 +423,7 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_logL'):            
             if os.path.exists('%s.logL.pkl' % self.prefix):
                 self._logL = read_pickled_logL('%s.logL.pkl' % self.prefix)
-                self._logL = self._logL[self.mask]
+                self._logL = np.ma.array(self._logL, mask=self.mask)
             else:
                 self._logL = None
                 
@@ -571,8 +575,8 @@ class ModelSet(BlobFactory):
         
         self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
                 
-    def Slice(self, constraints, pars, ivar=None, take_log=False, un_log=False, 
-            multiplier=1.):
+    def Slice(self, constraints, pars, ivar=None, take_log=False, 
+        un_log=False, multiplier=1.):
         """
         Return revised ("sliced") dataset given set of criteria.
     
@@ -581,7 +585,8 @@ class ModelSet(BlobFactory):
         constraints : list, tuple
             A rectangle (or line segment) bounding the region of interest. 
             For 2-D plane, supply (left, right, bottom, top), and then to
-            `pars` supply list of datasets defining the plane.
+            `pars` supply list of datasets defining the plane. For 1-D, just
+            supply (min, max).
         pars:
             Dictionary of constraints to use to calculate likelihood.
             Each entry should be a two-element list, with the first
@@ -613,7 +618,7 @@ class ModelSet(BlobFactory):
         xok_MP = np.logical_or(np.abs(data[pars[0]] - x1) <= MP, 
             np.abs(data[pars[0]] - x2) <= MP)
         xok = np.logical_or(xok_, xok_MP)
-        
+
         if Nd == 2:
             yok_ = np.logical_and(data[pars[1]] >= y1, data[pars[1]] <= y2)
             yok_MP = np.logical_or(np.abs(data[pars[1]] - y1) <= MP, 
@@ -622,10 +627,17 @@ class ModelSet(BlobFactory):
             to_keep = np.logical_and(xok, yok)
         else:
             to_keep = xok
+
+        mask = np.logical_not(to_keep)
         
+        ##
+        # CREATE NEW MODELSET INSTANCE
+        ##
         model_set = ModelSet(self.prefix)
-        model_set.mask = to_keep
-    
+        
+        # Set the mask! 
+        model_set.mask = np.logical_or(mask, self.mask)
+
         i = 0
         while hasattr(self, 'slice_%i' % i):
             i += 1
@@ -894,6 +906,52 @@ class ModelSet(BlobFactory):
         self._ax = ax
         return ax
     
+    def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
+        take_log=False, un_log=False, multiplier=1., 
+        **kwargs):
+        """
+        Basically a scatterplot but instead of plotting individual points,
+        we draw lines bounding the locations of all those points.
+        
+        Parameters
+        ----------
+        pars : list, tuple
+            List of parameters that defines 2-D plane.
+            
+        """
+        
+        assert have_shapely, "Need shapely installed for this to work."
+        assert have_descartes, "Need descartes installed for this to work."
+        
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+
+        data, is_log = \
+            self.ExtractData(pars, ivar, take_log, un_log, multiplier)
+        
+        xdata = data[pars[0]].compressed()
+        ydata = data[pars[1]].compressed()
+        
+        # Organize into (x, y) pairs
+        points = zip(xdata, ydata)
+                
+        # Create polygon object
+        point_collection = geometry.MultiPoint(list(points))
+        polygon = point_collection.convex_hull
+                
+        # Plot a Polygon using descartes
+        x_min, y_min, x_max, y_max = polygon.bounds
+        patch = PolygonPatch(polygon, **kwargs)
+        ax.add_patch(patch)
+        
+        pl.draw()
+        
+        return ax
+        
     def get_par_prefix(self, par):
         m = re.search(r"\{([0-9])\}", par)
 
@@ -927,7 +985,7 @@ class ModelSet(BlobFactory):
         return nu, levels
     
     def get_1d_error(self, par, ivar=None, bins=500, nu=0.68, take_log=False,
-        limit=None, un_log=False, multiplier=1.):
+        limit=None, un_log=False, multiplier=1., peak='median'):
         """
         Compute 1-D error bar for input parameter.
         
@@ -941,6 +999,10 @@ class ModelSet(BlobFactory):
             Percent likelihood enclosed by this 1-D error
         limit : str
             Valid options: 'lower' and 'upper', if not None.
+        peak : str
+            Determines whether the 'best' value is the median, mode, or
+            maximum likelihood point.
+            
         Returns
         -------
         Tuple, (maximum likelihood value, negative error, positive error).
@@ -970,7 +1032,14 @@ class ModelSet(BlobFactory):
             print "@ z=" % z
             return
                 
-        mu = to_hist[par][np.argmax(self.logL)]
+        if peak == 'median':
+            N = len(self.logL)
+            psorted = np.sort(to_hist[par])
+            mu = psorted[int(N / 2.)]
+        elif peak == 'mode':
+            pass
+        else:
+            mu = to_hist[par][np.argmax(self.logL)]
         
         q1 = 0.5 * 100 * (1. - nu)    
         q2 = 100 * nu + q1
@@ -1193,7 +1262,6 @@ class ModelSet(BlobFactory):
                                     
         to_hist = []
         is_log = []
-        apply_mask = []
         for k, par in enumerate(pars):
                     
             # If one of our free parameters, return right away
@@ -1215,16 +1283,37 @@ class ModelSet(BlobFactory):
                     to_hist.append(np.log10(val))
                 else:
                     to_hist.append(val)
-                    
-                apply_mask.append(False)
-        
+                            
             elif par in self.all_blob_names:
                 
-                try:
-                    i, j, nd, dims = self.blob_info(par)
-                    z_to_freq = False
-                    freq_to_z = False
-                except KeyError:
+                i, j, nd, dims = self.blob_info(par)
+
+                if nd == 0:
+                    val = self.get_blob(par).copy()
+                else:
+                    val = self.get_blob(par, ivar=ivar[k]).copy()
+
+                val *= multiplier[k]
+                    
+                if take_log[k]:
+                    is_log.append(True)
+                    to_hist.append(np.log10(val))
+                else:
+                    is_log.append(False)
+                    to_hist.append(val)
+                                    
+            else:
+                
+                cand = glob.glob('%s*.%s.pkl' % (self.prefix, par))
+                
+                if len(cand) == 1:
+                    f = open(cand[0], 'rb')     
+                    dat = pickle.load(f)
+                    f.close()
+
+                    to_hist.append(dat)        
+                    is_log.append(False)
+                else:
 
                     # Handle case where we have redshift but not frequency
                     # or vice-versa
@@ -1239,52 +1328,27 @@ class ModelSet(BlobFactory):
                     elif freq_to_z:
                         par = 'nu_%s' % post
                         i, j, nd, dims = self.blob_info('nu_%s' % post)
-
-                if nd == 0:
-                    val = self.get_blob(par).copy()
-                else:
-                    val = self.get_blob(par, ivar=ivar[k]).copy()
-
-                val *= multiplier[k]
-
-                if z_to_freq:
-                    val = nu_0_mhz / (1. + val)
-                elif freq_to_z:
-                    val = nu_0_mhz / val - 1.
-                    
-                if take_log[k]:
-                    is_log.append(True)
-                    to_hist.append(np.log10(val))
-                else:
+                        
+                    if nd == 0:
+                        val = self.get_blob(par).copy()
+                    else:
+                        val = self.get_blob(par, ivar=ivar[k]).copy()
+                
+                    if z_to_freq:
+                        val = nu_0_mhz / (1. + val)
+                    elif freq_to_z:
+                        val = nu_0_mhz / val - 1.  
+                        
+                    to_hist.append(val)        
                     is_log.append(False)
-                    to_hist.append(val)
-                    
-                apply_mask.append(True)
-                
-            else:
-                cand = glob.glob('%s*%s*.pkl' % (self.prefix, par))
-                
-                if len(cand) != 1:
-                    raise IOError('Found %i files for %s.' % (len(cand), par))
-                      
-                f = open(cand[0], 'rb')     
-                dat = pickle.load(f)
-                f.close()
-                           
-                to_hist.append(dat)        
-                is_log.append(False)
-                apply_mask.append(True)            
-                            
+                                        
         # Re-organize
         if len(np.unique(pars)) < len(pars):
-            data = to_hist[self.mask]
+            data = np.ma.array(to_hist, mask=self.mask)
         else:    
             data = {}
             for i, par in enumerate(pars):
-                if apply_mask[i]:
-                    data[par] = to_hist[i][self.mask]
-                else:
-                    data[par] = to_hist[i]
+                data[par] = np.ma.array(to_hist[i], mask=self.mask)
 
             is_log = {par:is_log[i] for i, par in enumerate(pars)}
                     
@@ -2191,8 +2255,9 @@ class ModelSet(BlobFactory):
         return mp
         
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
-        shade_by_like=False, percentile=False, take_log=False, un_log=False, 
-        multiplier=1, skip=0, stop=None, return_data=False, **kwargs):    
+        use_best=False, percentile=0.68, take_log=False, un_log=False, 
+        multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
+        best='median', **kwargs):    
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -2215,12 +2280,9 @@ class ModelSet(BlobFactory):
         
         percentile : bool, float    
             If not False, should be the confidence interval to plot, e.g, 0.68.
-        shade_by_like : bool
-            If True, fills region corresponding to value of `percentile`. If
-            percentile is not provided, it will pick the min and max values
-            of quantity `name` at each value of the independent variable. If
-            percentile==False, will plot the maximum likelihood reconstructed
-            function.
+        use_best : bool
+            If True, will plot the maximum likelihood reconstructed
+            function. Otherwise, will use `percentile` and plot shaded region.
             
         """
         
@@ -2236,34 +2298,44 @@ class ModelSet(BlobFactory):
             q2 = 100 * percentile + q1    
         
         info = self.blob_info(name)
-        ivars = self.blob_ivars[info[0]]
         nd = info[2]
+        
+        if nd == 1:
+            ivars = np.atleast_2d(self.blob_ivars[info[0]])
+        else:
+            ivars = self.blob_ivars[info[0]]
         
         if nd != 1 and (ivar is None):
             raise NotImplemented('If not 1-D blob, must supply one ivar!')
                 
         # Grab the maximum likelihood point 'cuz why not
         if self.is_mcmc:
-            loc = np.argmax(self.logL[skip:stop])
+            if best == 'median':
+                N = len(self.logL)
+                psorted = np.argsort(self.logL)
+                loc = psorted[int(N / 2.)]
+            else:
+                loc = np.argmax(self.logL[skip:stop])
         
         # 1-D case 
         if nd == 1:
+            
             # Read in the independent variable(s)
             xarr = ivars[0]
             
-            tmp, is_log = self.ExtractData(name, #ivar=xarr,
+            tmp, is_log = self.ExtractData(name, 
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
             
             data = tmp[name].squeeze()
             
             y = []
             for i, x in enumerate(xarr):
-                if percentile:
+                if (use_best and self.is_mcmc):
+                    y.append(data[:,i][skip:stop][loc])
+                elif percentile:
                     lo, hi = np.percentile(data[:,i][skip:stop].compressed(), 
                         (q1, q2))
-                    y.append((lo, hi))    
-                elif (shade_by_like and self.is_mcmc):
-                    y.append(data[:,i][skip:stop][loc])
+                    y.append((lo, hi))
                 else:
                     dat = data[:,i][skip:stop].compressed()
                     lo, hi = dat.min(), dat.max()
@@ -2278,25 +2350,31 @@ class ModelSet(BlobFactory):
                 scalar = ivar[0]
                 vector = xarr = ivars[1]
                 slc = slice(0, None, 1)
-                        
+                                                
             y = []
             for i, value in enumerate(vector):
                 iv = [scalar, value][slc]
                 data, is_log = self.ExtractData(name, ivar=iv,
                     take_log=take_log, un_log=un_log, multiplier=multiplier)
                         
-                if percentile:
+                if (use_best and self.is_mcmc):
+                    y.append(data[name][skip:stop][loc])        
+                elif percentile:
                     lo, hi = np.percentile(data[name][skip:stop].compressed(),
                         (q1, q2))
                     y.append((lo, hi))    
-                elif (shade_by_like and self.is_mcmc):
-                    y.append(data[name][skip:stop][loc])
                 else:
                     dat = data[name][skip:stop].compressed()
                     lo, hi = dat.min(), dat.max()
                     y.append((lo, hi))
+                    
+        # Convert redshifts to frequencies    
+        if z_to_freq:
+            xarr = nu_0_mhz / (1. + xarr)
                         
-        if not (shade_by_like or percentile) and self.is_mcmc:
+        # Where y is zero, set to small number?                
+                        
+        if use_best and self.is_mcmc:
             if take_log:
                 y = 10**y
         
@@ -2456,39 +2534,19 @@ class ModelSet(BlobFactory):
         Returns vector of mean, and the covariance matrix itself.
         
         """
+                
+        data, is_log = self.ExtractData(pars, ivar=ivar)
         
-        data = self.ExtractData(pars, ivar)
-        
-        masks = []
         blob_vec = []
         for i in range(len(pars)):
-            
-            blob = data[0][pars[i]]
-                
-            if hasattr(data, 'mask'):
-                masks.append(blob.mask)
-            else:
-                masks.append(np.zeros_like(blob))
-                
-            blob_vec.append(blob)    
+            blob_vec.append(data[pars[i]])    
         
-        master_mask = np.zeros_like(masks[0])
-        for mask in masks:
-            master_mask += mask
-        
-        master_mask[master_mask > 0] = 1
-            
-        blob_vec_mast = self.blob_vec_mast = np.ma.array(blob_vec, 
-            mask=[master_mask] * len(blob_vec))
-        
-        blobs_compr = np.array([vec.compressed() for vec in blob_vec_mast])
-
-        mu = np.mean(blobs_compr, axis=1)
-        cov = np.cov(blobs_compr)
+        mu  = np.ma.mean(blob_vec, axis=1)
+        cov = np.ma.cov(blob_vec)
 
         return mu, cov    
         
-    def AssembleParametersList(self, N=5000):
+    def AssembleParametersList(self, N=None, loc=None):
         """
         Return dictionaries that can be used to initialize an ares 
         simulation. 
@@ -2505,8 +2563,12 @@ class ModelSet(BlobFactory):
         all_kwargs = []
         for i, element in enumerate(self.chain):
             
-            if i >= N:
-                break
+            if loc is not None:
+                if i != loc:
+                    continue
+            elif N is not None:
+                if i >= N:
+                    break
                 
             kwargs = self.base_kwargs.copy()
             for j, parameter in enumerate(self.parameters):
@@ -2514,8 +2576,11 @@ class ModelSet(BlobFactory):
                 
             all_kwargs.append(kwargs.copy())
             
-        return all_kwargs    
-
+        if loc is not None:
+            return all_kwargs[0]
+        else:
+            return all_kwargs
+            
     def CorrelationMatrix(self, pars, ivar=None, fig=1, ax=None):
         """
         Plot correlation matrix.
@@ -2570,22 +2635,25 @@ class ModelSet(BlobFactory):
             k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
             return blob[:,k1,k2]    
     
-    @property
-    def max_likelihood_parameters(self):
+    def max_likelihood_parameters(self, method='median'):
         """
         Return parameter values at maximum likelihood point.
         """
-    
-        if not hasattr(self, '_max_like_pars'):
+                    
+        if method == 'median':
+            N = len(self.logL)
+            psorted = np.sort(self.logL)
+            iML = psorted[int(N / 2.)]
+        else:
             iML = np.argmax(self.logL)
-            
-            self._max_like_pars = {}
-            for i, par in enumerate(self.parameters):
-                if self.is_log[i]:
-                    self._max_like_pars[par] = 10**self.chain[iML,i]
-                else:
-                    self._max_like_pars[par] = self.chain[iML,i]
-            
+        
+        self._max_like_pars = {}
+        for i, par in enumerate(self.parameters):
+            if self.is_log[i]:
+                self._max_like_pars[par] = 10**self.chain[iML,i]
+            else:
+                self._max_like_pars[par] = self.chain[iML,i]
+        
         return self._max_like_pars
         
     def DeriveBlob(self, expr, varmap, save=True, name=None, clobber=False):
@@ -2621,7 +2689,9 @@ class ModelSet(BlobFactory):
             fn = '%s.blob_%id.%s.pkl' % (self.prefix, nd, name)
             
             if os.path.exists(fn) and (not clobber):
-                raise IOError('%s exists! Set clobber=True or remove by hand.' % fn)
+                print '%s exists! Set clobber=True or remove by hand.' % fn
+                data, is_log = self.ExtractData(name)
+                return data[name]
         
             f = open(fn, 'wb')
             pickle.dump(result, f)

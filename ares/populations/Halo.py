@@ -12,8 +12,10 @@ Description:
 
 import numpy as np
 from .Population import Population
+from scipy.integrate import cumtrapz
 from ..physics import HaloMassFunction
 from ..util.PrintInfo import print_pop
+from ..physics.Constants import cm_per_mpc, s_per_yr, g_per_msun
 
 class HaloPopulation(Population):
     def __init__(self, **kwargs):
@@ -78,7 +80,10 @@ class HaloPopulation(Population):
     @property
     def halos(self):
         if not hasattr(self, '_halos'):
-            self._halos = HaloMassFunction(**self.pf)
+            if self.pf['hmf_instance'] is not None:
+                self._halos = self.pf['hmf_instance']
+            else:
+                self._halos = HaloMassFunction(**self.pf)
         return self._halos
 
     def _init_fcoll(self):
@@ -92,4 +97,33 @@ class HaloPopulation(Population):
             self._fcoll, self._dfcolldz = \
                 self.pf['pop_fcoll'], self.pf['pop_dfcolldz']
     
+    def iMAR(self, z, source=None):
+        """
+        The integrated DM accretion rate.
+    
+        Parameters
+        ----------
+        z : int, float
+            Redshift
+        source : str
+            Can be a litdata module, e.g., 'mcbride2009'.
+    
+        Returns
+        -------
+        Integrated DM mass accretion rate in units of Msun/yr/cMpc**3.
+    
+        """    
+    
+        return self.cosm.rho_m_z0 * self.dfcolldt(z) * cm_per_mpc**3 \
+                * s_per_yr / g_per_msun
+    
+    #@property
+    #def _MAR_tab(self):
+    #    if not hasattr(self, '_MAR_tab_'):
+    #        self._MAR_tab_ = {}
+    #    return self._MAR_tab_
+    
+
+        
+        
         

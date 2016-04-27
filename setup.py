@@ -12,7 +12,7 @@ ares_link = 'https://bitbucket.org/mirochaj/ares'
 ares_packages = \
     ['ares', 'ares.analysis', 'ares.simulations', 'ares.populations',
      'ares.util', 'ares.solvers', 'ares.static', 'ares.sources', 
-     'ares.physics', 'ares.inference']
+     'ares.physics', 'ares.inference', 'ares.phenom']
 
 setup(name='ares',
       version='0.1',
@@ -65,6 +65,7 @@ bitbucket_DL = 'https://bitbucket.org/mirochaj/ares/downloads'
 sfurlane_xray = 'http://www.astro.ucla.edu/~sfurlane/docs'
 s99_seds = 'http://www.stsci.edu/science/starburst99/data'
 hm12_cuvb = 'http://www.ucolick.org/~pmadau/CUBA/Media'
+bpass_seds = 'http://bpass.auckland.ac.nz/2/files'
 
 # Filenames
 fn_hmf = 'hmf_ST_logM_1200_4-16_z_1141_3-60.pkl'
@@ -122,6 +123,28 @@ if not os.path.exists('starburst99/fig1a.dat'):
     os.rmdir('data')
     
     os.chdir('..')
+    
+# Next, BPASS dataset from Eldridge et al. 2009
+if not os.path.exists('bpass'):
+    os.mkdir('bpass')
+
+for Z in ['001', '004', '008', '020', '040']:
+    fn = 'sed_bpass_z%s_tar.gz' % Z
+    if not os.path.exists('bpass/%s' % fn):
+        os.chdir('bpass')
+        print "Downloading %s/%s..." % (bpass_seds, fn)
+        urllib.urlretrieve('%s/%s' % (bpass_seds, fn), fn)
+        os.chdir('..')
+    
+    if not os.path.exists('bpass/SEDS/sed.bpass.constant.cloudy.bin.z%s' % Z):
+        os.chdir('bpass')
+    
+        import tarfile
+        tar = tarfile.open(fn)
+        tar.extractall()
+        tar.close()
+    
+        os.chdir('..')    
     
 # Next, Haardt & Madau (2012) data
 if not os.path.exists('hm12'):

@@ -12,10 +12,10 @@ Description: Initialize a radiation source.
 
 import re, os
 import numpy as np
-from ..physics import Hydrogen
-from ..physics import Cosmology
 from scipy.integrate import quad
 from ..util import ParameterFile
+from ..physics.Hydrogen import Hydrogen
+from ..physics.Cosmology import Cosmology
 from ..physics.Constants import erg_per_ev, E_LL
 from ..static.IntegralTables import IntegralTable
 from ..static.InterpolationTables import LookupTable

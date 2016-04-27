@@ -25,9 +25,9 @@ from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts, \
     SetAllDefaults
 
 try:
-    import cPickle as pickle
+    import dill as pickle
 except:
-    import pickle    
+    import pickle
 
 try:
     from mpi4py import MPI
@@ -40,6 +40,19 @@ except ImportError:
 twopi = 2. * np.pi
 
 defaults = SetAllDefaults()
+
+def _which_sim_inst(**kw):
+    if 'include_igm' in kw:
+        if kw['include_igm']:
+            _sim_class = simG21
+        else:
+            _sim_class = simMPM
+    elif defaults['include_igm']:
+        _sim_class = simG21
+    else:
+        _sim_class = simMPM
+    
+    return _sim_class
 
 class loglikelihood(LogLikelihood):
 
@@ -62,15 +75,7 @@ class loglikelihood(LogLikelihood):
     @property
     def sim_class(self):
         if not hasattr(self, '_sim_class'):
-            if 'include_igm' in self.base_kwargs:
-                if self.base_kwargs['include_igm']:
-                    self._sim_class = simG21
-                else:
-                    self._sim_class = simMPM
-            elif defaults['include_igm']:
-                self._sim_class = simG21
-            else:
-                self._sim_class = simMPM                
+            self._sim_class = _which_sim_inst(**self.base_kwargs)        
                 
         return self._sim_class
         
@@ -80,7 +85,7 @@ class loglikelihood(LogLikelihood):
             self._const_term = -np.log(np.sqrt(twopi)) \
                              -  np.sum(np.log(self.error))
         return self._const_term                     
-        
+
     def __call__(self, pars, blobs=None):
         """
         Compute log-likelihood for model generated via input parameters.
@@ -100,16 +105,20 @@ class loglikelihood(LogLikelihood):
                 kwargs[par] = pars[i]
 
         # Apply prior on model parameters first (dont need to generate signal)
-        lp = self.logprior_P(pars)
+        point = {}
+        for i in range(len(self.parameters)):
+            point[self.parameters[i]] = pars[i]
+        
+        lp = self.priors_P.log_prior(point)
         if not np.isfinite(lp):
             return -np.inf, self.blank_blob
-    
+
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
         
         self.checkpoint(**kw)
-        
+
         sim = self.sim = self.sim_class(**kw)
 
         if isinstance(sim, simG21):
@@ -119,13 +128,12 @@ class loglikelihood(LogLikelihood):
 
         # If we're only fitting the LF, no need to run simulation
         if self.runsim:
-                        
+
             try:
                 sim.run()                
             except (ValueError, IndexError):
-                # Seems to happen in some weird cases when the 
-                # HAM fit fails
-                # Also, if Tmin goes crazy big (IndexError in integration)
+                # Seems to happen if Tmin goes crazy big 
+                # (IndexError in integration)
                 
                 f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 
                     'ab')
@@ -137,7 +145,7 @@ class loglikelihood(LogLikelihood):
                 
                 return -np.inf, self.blank_blob
         
-        if self.logprior_B.pars != []:
+        if self.priors_B.params != []:
             lp += self._compute_blob_prior(sim)
 
         # emcee will crash if this returns NaN. OK if it's inf though.
@@ -148,19 +156,24 @@ class loglikelihood(LogLikelihood):
         for popid, pop in enumerate(medium.field.pops):
             if pop.is_fcoll_model:
                 continue
+
             break
-                
+
         # Compute the luminosity function, goodness of fit, return
         phi = []
         for i, z in enumerate(self.redshifts):
             xdat = np.array(self.xdata[i])
-            M = xdat - pop.AUV(z, xdat)
+
+            # Apply dust correction to observed data, which is uncorrected
+            M = xdat - pop.AUV(z, xdat) 
+            
+            # Generate model LF
             p = pop.LuminosityFunction(z=z, x=M, mags=True)
-            phi.extend(p)
-                        
+            phi.extend(p)           
+
         lnL = 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
         PofD = self.const_term - lnL
-                                                
+                    
         if np.isnan(PofD):
             return -np.inf, self.blank_blob
 
@@ -171,7 +184,7 @@ class loglikelihood(LogLikelihood):
 
         del sim, kw
         gc.collect()
-                        
+                                                
         return lp + PofD, blobs
     
 class FitLuminosityFunction(FitGlobal21cm):
@@ -194,16 +207,50 @@ class FitLuminosityFunction(FitGlobal21cm):
     def runsim(self, value):
         self._runsim = value
         
+    @property 
+    def save_hmf(self):
+        if not hasattr(self, '_save_hmf'):
+            self._save_hmf = True
+        return self._save_hmf
+    
+    @save_hmf.setter
+    def save_hmf(self, value):
+        self._save_hmf = value
+    
     @property
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
+
+            if self.save_hmf:
+                sim_class = _which_sim_inst(**self.base_kwargs)
+                
+                sim = sim_class(**self.base_kwargs)
+                
+                if isinstance(sim, simG21):
+                    medium = sim.medium
+                else:
+                    medium = sim
+                    
+                for popid, pop in enumerate(medium.field.pops):
+                    if pop.is_fcoll_model:
+                        continue
+                
+                    break
+                    
+                hmf = pop.halos
+                assert 'hmf_instance' not in self.base_kwargs
+                self.base_kwargs['hmf_instance'] = hmf    
+
             self._loglikelihood = loglikelihood(self.xdata, 
                 self.ydata_flat, self.error_flat, 
-                self.parameters, self.is_log, self.base_kwargs, self.priors, 
+                self.parameters, self.is_log, self.base_kwargs, 
+                self.prior_set_P, self.prior_set_B, 
                 self.prefix, self.blob_info, self.checkpoint_by_proc)   
             
             self._loglikelihood.runsim = self.runsim
             self._loglikelihood.redshifts = self.redshifts
+
+            self.info
 
         return self._loglikelihood
 
@@ -251,9 +298,11 @@ class FitLuminosityFunction(FitGlobal21cm):
     @property
     def xdata_flat(self):
         if not hasattr(self, '_xdata_flat'):
+            self._mask = []
             self._xdata_flat = []; self._ydata_flat = []
             self._error_flat = []; self._redshifts_flat = []
             for i, redshift in enumerate(self.redshifts):
+                self._mask.extend(self.data[redshift]['M'].mask)
                 self._xdata_flat.extend(self.data[redshift]['M'])
                 self._ydata_flat.extend(self.data[redshift]['phi'])
                 
@@ -263,10 +312,13 @@ class FitLuminosityFunction(FitGlobal21cm):
                         self._error_flat.append(np.mean(err))
                     else:
                         self._error_flat.append(err)
-                #self._error_flat.extend(self.data[redshift]['err'])
                 
                 zlist = [redshift] * len(self.data[redshift]['M'])
                 self._redshifts_flat.extend(zlist)
+                
+            self._xdata_flat = np.ma.array(self._xdata_flat, mask=self._mask)
+            self._ydata_flat = np.ma.array(self._ydata_flat, mask=self._mask)
+            self._error_flat = np.ma.array(self._error_flat, mask=self._mask)
 
         return self._xdata_flat
     

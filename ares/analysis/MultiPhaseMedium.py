@@ -11,8 +11,8 @@ Description:
 """
 
 import numpy as np
+import re, scipy, os
 from ..util import labels
-import re, scipy, os, pickle
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
 from scipy.misc import derivative
@@ -25,10 +25,14 @@ from ..util.SetDefaultParameterValues import *
 from .DerivedQuantities import DerivedQuantities as DQ
 
 try:
+    import dill as pickle
+except ImportError:
+    import pickle
+    
+try:
     import h5py
 except ImportError:
     pass
-    
     
 class DummyDQ(object):
     """
@@ -72,11 +76,9 @@ class MultiPhaseMedium(object):
         
         Parameters
         ----------
-        sim : instance
-            Instance of glorb.Simulate.Simulation class
         data : dict, str
-            Either a dictionary containing the 21-cm history or the name
-            of the (HDF5) file containing the history.
+            Either a dictionary containing the entire history or the prefix
+            of the files containing the history/parameters.
 
         """
 
@@ -84,7 +86,8 @@ class MultiPhaseMedium(object):
             return
         
         elif type(data) == dict:
-            history = data.copy()
+            self.pf = SetAllDefaults()
+            self.history = data.copy()
             
         # Read output of a simulation from disk
         elif type(data) is str:

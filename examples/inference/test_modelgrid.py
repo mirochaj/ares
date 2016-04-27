@@ -15,8 +15,8 @@ import numpy as np
 
 #
 ##
-z0 = np.arange(6, 12, 0.1)
-dz = np.arange(0.1, 8.1, 0.1)
+z0 = np.arange(6, 12, 1.)
+dz = np.arange(0.1, 8.1, 1.)
 grid_axes = {'tanh_xz0': z0, 'tanh_xdz': dz}
 ##
 #

@@ -20,7 +20,6 @@ from .Population import Population
 from collections import namedtuple
 from ..sources.Source import Source
 from ..sources import Star, BlackHole
-from ..util.PrintInfo import print_pop
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, simps
 from scipy.optimize import fsolve, fmin, curve_fit
@@ -30,33 +29,7 @@ from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters
-
-try:
-    from scipy.special import erfc
-except ImportError:
-    pass
     
-try:
-    from mpi4py import MPI
-    rank = MPI.COMM_WORLD.rank
-    size = MPI.COMM_WORLD.size
-except ImportError:
-    rank = 0
-    size = 1
-
-ARES = os.getenv('ARES')    
-log10 = np.log(10.)
-
-def param_redshift(par):
-
-    m = re.search(r"\[(\d+(\.\d*)?)\]", par)
-    
-    prefix = par.replace(m.group(0), '')
-
-    return prefix, float(m.group(1))
-
-lftypes = ['schecter', 'dpl']    
-
 class LiteratureSource(Source):
     def __init__(self, **kwargs):
         self.pf = kwargs
@@ -134,6 +107,8 @@ class GalaxyAggregate(HaloPopulation):
                 self._Source_ = Star
             elif self.pf['pop_sed'] in ['pl', 'mcd', 'simpl']:
                 self._Source_ = BlackHole
+            elif self.pf['pop_sed'] is None:
+                self._Source_ = None
             else:
                 self._Source_ = LiteratureSource
 
@@ -149,6 +124,11 @@ class GalaxyAggregate(HaloPopulation):
         
         """
         if not hasattr(self, '_src_kwargs'):
+            
+            if self._Source is None:
+                self._src_kwargs = {}
+                return {}
+            
             self._src_kwargs = {}
             if self._Source is Star:
                 spars = StellarParameters()
@@ -178,7 +158,10 @@ class GalaxyAggregate(HaloPopulation):
     @property
     def src(self):
         if not hasattr(self, '_src'):
-            self._src = self._Source(**self.src_kwargs)
+            if self._Source is not None:
+                self._src = self._Source(**self.src_kwargs)
+            else:
+                self._src = None
                     
         return self._src
 
@@ -271,7 +254,10 @@ class GalaxyAggregate(HaloPopulation):
         return 1.0
 
     def _get_energy_per_photon(self, Emin, Emax):
-        # Should this go in Population
+        """
+        Returns energy per photon (in eV) in provided band.
+        """
+        
         different_band = False
 
         # Lower bound
@@ -369,32 +355,6 @@ class GalaxyAggregate(HaloPopulation):
                 self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
             sys.exit(1)
 
-        #elif self.is_halo_model:
-        #    if self.halo_model == 'hod':
-        #
-        #        
-        #        self.halos.MF.update(z=z)
-        #        dndm = self._dndm = self.halos.MF.dndm.copy() / self.cosm.h70**3
-        #        fstar_of_m = self.fstar(M=self.halos.M)
-        #         
-        #        integrand = dndm * fstar_of_m * self.halos.M
-        #        
-        #        # Apply mass cut
-        #        if self.pf['pop_Mmin'] is not None:
-        #            iM = np.argmin(np.abs(self.halos.M - self.pf['pop_Mmin']))
-        #        else:
-        #            iM = 0
-        #
-        #        # Msun / cMpc**3
-        #        integral = simps(dndm[iM:], x=self.halos.M[iM:])
-        #        
-        #        tdyn = s_per_myr * self.pf['pop_tSF']
-        #
-        #        return self.cosm.fbaryon * integral / rho_cgs / tdyn
-        #        
-        #    elif self.halo_model == 'clf':
-        #        raise NotImplemented('havent implemented CLF yet')    
-
         return sfrd                           
             
     @property
@@ -404,10 +364,158 @@ class GalaxyAggregate(HaloPopulation):
                 (self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
         return self._reference_band
             
+    @property
+    def model(self):
+        return self.pf['pop_model']
+    
+    @property
+    def is_lya_src(self):
+        if not hasattr(self, '_is_lya_src'):
+            self._is_lya_src = \
+                (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
+                and self.pf['pop_lya_src']
+    
+        return self._is_lya_src
+    
+    @property
+    def is_fcoll_model(self):
+        return self.pf['pop_model'].lower() == 'fcoll'
+    
+    @property
+    def is_user_model(self):
+        return self.pf['pop_model'].lower() == 'user'    
+    
+
+   #@property
+   #def Mh_dep_sed(self):
+   #    if not hasattr(self, '_Mh_dep_sed'):
+   #        if self.pf['pop_sed'] == 'leitherer1999':
+            
+
+    @property
+    def sed_tab(self):
+        if not hasattr(self, '_sed_tab'):
+            if self.pf['pop_sed'] == 'leitherer1999':
+                self._sed_tab = True
+            else:
+                self._sed_tab = False
+    
+        return self._sed_tab
+    
+    def _convert_band(self, Emin, Emax):
+        """
+        Convert from fractional luminosity in reference band to given bounds.
+    
+        Parameters
+        ----------
+        Emin : int, float
+            Minimum energy [eV]
+        Emax : int, float
+            Maximum energy [eV]
+    
+        Returns
+        -------
+        Multiplicative factor that converts LF in reference band to that 
+        defined by ``(Emin, Emax)``.
+    
+        """
+    
+        different_band = False
+    
+        # Lower bound
+        if (Emin is not None) and (self.src is not None):
+            different_band = True
+        else:
+            Emin = self.pf['pop_Emin']
+    
+        # Upper bound
+        if (Emax is not None) and (self.src is not None):
+            different_band = True
+        else:
+            Emax = self.pf['pop_Emax']
+    
+        # Modify band if need be
+        if different_band:    
+    
+            if (Emin, Emax) in self._conversion_factors:
+                return self._conversion_factors[(Emin, Emax)]
+    
+            if Emin < self.pf['pop_Emin']:
+                print "WARNING: Emin < pop_Emin"
+            if Emax > self.pf['pop_Emax']:
+                print "WARNING: Emax > pop_Emax"    
+    
+            # If tabulated, do things differently
+            if self.sed_tab:
+                factor = self.src.pop.yield_per_sfr(Emin, Emax) \
+                    / self.src.pop.yield_per_sfr(*self.reference_band)
+            else:
+                factor = quad(self.src.Spectrum, Emin, Emax)[0]
+    
+            self._conversion_factors[(Emin, Emax)] = factor
+    
+            return factor
+    
+        return 1.0
+    
+    def _get_energy_per_photon(self, Emin, Emax):
+        """
+        Compute the mean energy per photon in the provided band.
+    
+        If sed_tab or yield provided, will need Spectrum instance.
+        Otherwise, assumes flat SED?
+    
+        Parameters
+        ----------
+        Emin : int, float
+            Minimum photon energy to consider in eV.
+        Emax : int, float
+            Maximum photon energy to consider in eV.    
+    
+        Returns
+        -------
+        Photon energy in eV.
+    
+        """
+        different_band = False
+    
+        # Lower bound
+        if (Emin is not None) and (self.src is not None):
+            different_band = True
+        else:
+            Emin = self.pf['pop_Emin']
+    
+        # Upper bound
+        if (Emax is not None) and (self.src is not None):
+            different_band = True
+        else:
+            Emax = self.pf['pop_Emax']
+    
+        if (Emin, Emax) in self._eV_per_phot:
+            return self._eV_per_phot[(Emin, Emax)]
+    
+        if Emin < self.pf['pop_Emin']:
+            print "WARNING: Emin < pop_Emin"
+        if Emax > self.pf['pop_Emax']:
+            print "WARNING: Emax > pop_Emax"    
+    
+        if self.sed_tab:
+            Eavg = self.src.pop.eV_per_phot(Emin, Emax)
+        else:
+            integrand = lambda E: self.src.Spectrum(E) * E
+            Eavg = quad(integrand, Emin, Emax)[0]
+    
+        self._eV_per_phot[(Emin, Emax)] = Eavg 
+    
+        return Eavg    
+        
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
         and rest-frame photon energy [eV].
+        
+        ..note:: If `E` is not supplied, this is a luminosity density in the
+            (Emin, Emax) band.
         
         Parameters
         ----------
@@ -457,5 +565,44 @@ class GalaxyAggregate(HaloPopulation):
 
         print "Wrote %s." % fn
 
-
-              
+    def LuminosityDensity(self, z, Emin=None, Emax=None):
+        """
+        Return the luminosity density in the (Emin, Emax) band.
+    
+        Parameters
+        ----------
+        z : int, flot
+            Redshift of interest.
+    
+        Returns
+        -------
+        Luminosity density in erg / s / c-cm**3.
+    
+        """
+    
+        return self.Emissivity(z, Emin=Emin, Emax=Emax)
+    
+    def PhotonLuminosityDensity(self, z, Emin=None, Emax=None):
+        """
+        Return the photon luminosity density in the (Emin, Emax) band.
+    
+        Parameters
+        ----------
+        z : int, flot
+            Redshift of interest.
+    
+        Returns
+        -------
+        Photon luminosity density in photons / s / c-cm**3.
+    
+        """
+    
+        rhoL = self.LuminosityDensity(z, Emin, Emax)
+        eV_per_phot = self._get_energy_per_photon(Emin, Emax)
+        
+        return rhoL / (eV_per_phot * erg_per_ev)
+    
+    
+    
+    
+          

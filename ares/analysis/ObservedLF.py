@@ -16,11 +16,13 @@ import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
 
 all_datasets = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
-    'parsa2016')
+    'parsa2016', 'finkelstein2015')
 
 default_colors = {'bouwens2015': 'r', 'atek2015': 'y', 'oesch2013': 'm',
-    'oesch2014': 'c', 'parsa2016': 'g'}
+    'oesch2014': 'c', 'parsa2016': 'g', 'finkelstein2015': 'b'}
 default_markers = {src:'o' for src in all_datasets}
+
+_ulim_tick = 0.5
 
 class ObservedLF(object):
     def __init__(self):
@@ -64,8 +66,12 @@ class ObservedLF(object):
                 z = redshift
                 
             data[source] = {}
-                        
-            data[source]['M'] = src.data['lf'][z]['M']
+            
+            M = src.data['lf'][z]['M']            
+            if hasattr(M, 'data'):
+                data[source]['M'] = M.data
+            else:
+                data[source]['M'] = np.array(M)
             
             if src.units['phi'] == 'log10':
                 err_lo = []; err_hi = []; uplims = []
@@ -74,7 +80,7 @@ class ObservedLF(object):
                     if type(err) not in [int, float]:
                         raise NotImplemented('help!')
                     
-                    logphi_ML = np.array(src.data['lf'][z]['phi'][i])
+                    logphi_ML = src.data['lf'][z]['phi'][i]
                     
                     logphi_lo_tmp = logphi_ML - err   # log10 phi
                     logphi_hi_tmp = logphi_ML + err   # log10 phi
@@ -87,17 +93,25 @@ class ObservedLF(object):
                     
                     if (err < 0):
                         err_hi.append(0.0)
-                        err_lo.append(0.8 * 10**logphi_ML)
+                        err_lo.append(_ulim_tick * 10**logphi_ML)
                     else:
                         err_lo.append(err1)
                         err_hi.append(err2)
                         
                     uplims.append(err < 0)    
                     
-                data[source]['err'] = (err_lo, err_hi)        
-                data[source]['phi'] = 10**np.array(src.data['lf'][z]['phi'])
+                data[source]['err'] = (err_lo, err_hi) 
+                if hasattr(src.data['lf'][z]['phi'], 'data'):       
+                    data[source]['phi'] = 10**src.data['lf'][z]['phi'].data
+                else:
+                    data[source]['phi'] = 10**np.array(src.data['lf'][z]['phi'])
                 data[source]['ulim'] = uplims
             else:                
+                
+                if hasattr(src.data['lf'][z]['phi'], 'data'):
+                    data[source]['phi'] = src.data['lf'][z]['phi'].data
+                else:
+                    data[source]['phi'] = np.array(src.data['lf'][z]['phi'])
                 
                 err_lo = []; err_hi = []; uplims = []
                 for i, err in enumerate(src.data['lf'][z]['err']):
@@ -109,7 +123,7 @@ class ObservedLF(object):
                     else:    
                         if (err < 0):
                             err_hi.append(0.0)
-                            err_lo.append(0.8 * src.data['lf'][z]['phi'][i])
+                            err_lo.append(_ulim_tick * data[source]['phi'][i])
                         else:
                             err_hi.append(err)
                             err_lo.append(err)
@@ -118,11 +132,11 @@ class ObservedLF(object):
                 
                 data[source]['ulim'] = uplims
                 data[source]['err'] = (err_lo, err_hi)
-                data[source]['phi'] = src.data['lf'][z]['phi']
-
-        return data    
                 
-    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, **kwargs):
+        return data
+                
+    def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
+        AUV=None, **kwargs):
         """
         Plot the luminosity function data at a given redshift.
         """
@@ -141,15 +155,15 @@ class ObservedLF(object):
         elif type(sources) is str:
             sources = [sources]
             
-        for source in sources:  
+        for source in sources:
             if source not in data:
-                continue      
-                                
-            M = data[source]['M']
-            phi = data[source]['phi']
-            err = data[source]['err']
-            ulim = data[source]['ulim']
-            
+                continue
+                                        
+            M = np.array(data[source]['M'])
+            phi = np.array(data[source]['phi'])
+            err = np.array(data[source]['err'])
+            ulim = np.array(data[source]['ulim'])
+                                                
             if not kwargs:
                 kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 
                     'mec':default_colors[source], 
@@ -158,12 +172,17 @@ class ObservedLF(object):
             else:
                 kw = kwargs
             
-            ax.errorbar(M, phi, yerr=err, uplims=ulim, zorder=10, **kw)
+            if AUV is not None:
+                dc = AUV(z, np.array(M))
+            else:
+                dc = 0
+              
+            ax.errorbar(M-dc, phi, yerr=err, uplims=ulim, zorder=10, **kw)
         
-        ax.set_yscale('log')    
+        ax.set_yscale('log', nonposy='clip')    
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
-        ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1}]$')
-        ax.set_xlim(-24, -14)
+        ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
+        ax.set_xlim(-25.5, -10)
         pl.draw()
         
         return ax

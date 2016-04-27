@@ -12,7 +12,12 @@ Description:
 
 import numpy as np
 import imp as _imp
-import os, pickle, re, sys
+import os, re, sys
+
+try:
+    import dill as pickle
+except ImportError:
+    import pickle
 
 try:
     import h5py
@@ -338,6 +343,7 @@ def read_pickled_chain(fn):
         return np.array(new_data)
         
     else:
+        print Nd
         raise ValueError('unrecognized chain shape')
             
     

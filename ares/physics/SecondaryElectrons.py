@@ -12,11 +12,16 @@ Gnedin, & Shull (2002) also available.
 
 """
 
-import os, pickle
+import os
 import numpy as np
 from collections import Iterable
 from ..util.Math import LinearNDInterpolator
 
+try:
+    import dill as pickle
+except ImportError:
+    import pickle
+    
 try:
     import h5py
     have_h5py = True

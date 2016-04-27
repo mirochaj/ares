@@ -16,7 +16,7 @@ from ..util import ParameterFile
 from .GalaxyAggregate import GalaxyAggregate
 from .GalaxyPopulation import GalaxyPopulation
 
-class CompositePopulation:
+class CompositePopulation(object):
     def __init__(self, **kwargs):
         """
         Initialize a CompositePopulation object, i.e., a list of *Population instances.
@@ -56,7 +56,7 @@ class CompositePopulation:
             tmp = self.pfs[i].copy()
             
             # This is the tunnel
-            tmp['pop_sfrd'] = self.pops[entry].SFRD
+            tmp['pop_sfrd'] = self.pops[entry]._sfrd_func
 
             # Only makes sense to tunnel to non-fcoll model
             self.pops[i] = GalaxyAggregate(**tmp)

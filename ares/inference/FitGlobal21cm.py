@@ -19,54 +19,26 @@ from ..simulations import Global21cm as simG21
 from ..analysis import Global21cm as anlGlobal21cm
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..simulations import Global21cm as simGlobal21cm
-from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
  
-try:
-    import cPickle as pickle
-except:
-    import pickle
-
-try:
-    from mpi4py import MPI
-    rank = MPI.COMM_WORLD.rank
-    size = MPI.COMM_WORLD.size
-except ImportError:
-    rank = 0
-    size = 1
-
 def_kwargs = {'verbose': False, 'progress_bar': False}
 
 class loglikelihood(LogLikelihood):
     def __init__(self, xdata, ydata, error, parameters, is_log,
-        base_kwargs, priors={}, prefix=None, blob_info=None,
-        turning_points=None):
+        base_kwargs, param_prior_set=None, blob_prior_set=None, 
+        prefix=None, blob_info=None, turning_points=None):
         """
         Computes log-likelihood at given step in MCMC chain.
-
+    
         Parameters
         ----------
-
+    
         """
-
+        
+        LogLikelihood.__init__(self, xdata, ydata, error, parameters, is_log,
+            base_kwargs, param_prior_set, blob_prior_set, 
+            prefix, blob_info)
+    
         self.turning_points = turning_points
-        
-        if self.turning_points:
-
-            nu = [xdata[i] for i, tp in enumerate(self.turning_points)]
-            T = [ydata[i] for i, tp in enumerate(self.turning_points)]
-            
-            self.xdata = None
-            self.ydata = np.array(nu + T)
-        else:
-            self.xdata = xdata
-            self.ydata = ydata
-            
-        self.error = error
-        
-    @property
-    def turning_points(self):
-        if not hasattr(self, '_turning_points'):
-            self._turning_points    
         
     def __call__(self, pars, blobs=None):
         """
@@ -86,7 +58,12 @@ class loglikelihood(LogLikelihood):
                 kwargs[par] = pars[i]
 
         # Apply prior on model parameters first (dont need to generate signal)
-        lp = self.logprior_P(pars)
+        
+        point = {}
+        for i in range(len(self.parameters)):
+            point[self.parameters[i]] = pars[i]
+        
+        lp = self.priors_P.log_prior(point)
         if not np.isfinite(lp):
             return -np.inf, self.blank_blob
 
@@ -97,15 +74,12 @@ class loglikelihood(LogLikelihood):
         try:
             sim = self.sim = simG21(**kw)
             sim.run()
-            
-            #sim.run_inline_analysis()
-            
+                        
             tps = sim.turning_points
                                         
         # Timestep weird (happens when xi ~ 1)
         except SystemExit:
             
-            #sim.run_inline_analysis()
             tps = sim.turning_points
                  
         # most likely: no (or too few) turning pts
@@ -121,29 +95,30 @@ class loglikelihood(LogLikelihood):
         #
         #    return -np.inf, self.blank_blob
 
-        lp += self._compute_blob_prior(sim)
+        if self.priors_B.params != []:
+            lp += self._compute_blob_prior(sim)
         
         # emcee will crash if this returns NaN
         if np.isnan(lp):
             return -np.inf, self.blank_blob
 
         # Compute the likelihood if we've made it this far
-        if self.turning_points: 
-                        
+        if self.turning_points:
+
             try:
                 nu = [nu_0_mhz / (1. + tps[tp][0]) \
                     for tp in self.turning_points]
                 T = [tps[tp][1] for tp in self.turning_points]
             except KeyError:
                 return -np.inf, self.blank_blob
-            
+
             yarr = np.array(nu + T)
             
             assert len(yarr) == len(self.ydata)
                     
         else:
-            yarr = np.interp(self.xdata, sim.history['nu'],            
-                sim.history['dTb'])                                  
+            yarr = np.interp(self.xdata, sim.data['nu'],            
+                sim.history['igm_dTb'])                                  
                 
         if np.any(np.isnan(yarr)):
             return -np.inf, self.blank_blob
@@ -160,33 +135,21 @@ class loglikelihood(LogLikelihood):
         return logL, blobs
 
 class FitGlobal21cm(ModelFit):
-    #def __init__(self, **kwargs):
-    #    """
-    #    Initialize a class for fitting the turning points in the global
-    #    21-cm signal.
-    #
-    #    Optional Keyword Arguments
-    #    --------------------------
-    #    Anything you want based to each ares.simulations.Global21cm call.
-    #    
-    #    """
-    #    
-    #    ModelFit.__init__(self, **kwargs)
-        #self._prep_blobs()
         
     @property
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
             self._loglikelihood = loglikelihood(self.xdata, self.ydata, 
                 self.error, self.parameters, self.is_log, self.base_kwargs, 
-                self.priors, self.prefix, self.blob_info, self.turning_points)    
+                self.prior_set_P, self.prior_set_B, 
+                self.prefix, self.blob_info, self.turning_points)    
         
         return self._loglikelihood
         
     @property
     def turning_points(self):
         if not hasattr(self, '_turning_points'):
-            self._turning_points = list('BCD')
+            self._turning_points = None
 
         return self._turning_points
 
@@ -215,10 +178,16 @@ class FitGlobal21cm(ModelFit):
         
     @data.setter
     def data(self, value):
+        """
+        Set x and ydata at the same time, either by passing in 
+        a simulation instance, a dictionary of parameters, or a 
+        sequence of brightness temperatures corresponding to the
+        frequencies defined in self.frequencies (self.xdata).
+        """
         if type(value) == dict:            
             kwargs = value.copy()
             kwargs.update(def_kwargs)
-            
+
             sim = simGlobal21cm(**kwargs)
             sim.run()
 
@@ -227,18 +196,39 @@ class FitGlobal21cm(ModelFit):
         elif isinstance(value, simGlobal21cm):
             sim = self.sim = value                   
         else:
-            raise NotImplemented('help!')
-            
+            assert len(value) == len(self.frequencies)            
+            self.ydata = value
+            assert not self.turning_points
+            return
+
         if self.turning_points:
             z = [sim.turning_points[tp][0] for tp in self.turning_points]
             T = [sim.turning_points[tp][1] for tp in self.turning_points]
-                         
-            nu = nu_0_mhz / (1. + np.array(z))
-            ModelFit.xdata = nu
-            ModelFit.ydata = np.array(T)
-            
-            self._data = np.array(list(nu) + T)    
 
+            nu = nu_0_mhz / (1. + np.array(z))
+            self.xdata = None
+            self.ydata = np.array(list(nu) + T)
+        else:
+            assert self.frequencies is not None, \
+                "Must set frequencies by hand or set turning_points."
+            
+            self.xdata = self.frequencies
+            if hasattr(self, 'sim'):
+                nu = self.sim.data['nu']
+                dTb = self.sim.data['igm_dTb']
+                self.ydata = np.interp(self.xdata, nu, dTb).copy() \
+                    + self.noise
+
+    @property
+    def noise(self):
+        if not hasattr(self, '_noise'):
+            self._noise = np.zeros_like(self.xdata)
+        return self._noise
+    
+    @noise.setter
+    def noise(self, value):
+        self._noise = np.random.normal(0., value, size=len(self.frequencies))
+            
     @property
     def error(self):
         if not hasattr(self, '_error'):

@@ -49,7 +49,7 @@ class ModelSelection(object):
         
         for i in range(self.Nsets):
             ax = self.ms(i).PosteriorPDF(pars, ax=ax, fig=fig, **kwargs)
-
+    
         return ax
         
     def TrianglePlot(self, pars, ax=None, fig=1, **kwargs):

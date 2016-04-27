@@ -9,18 +9,24 @@ Description:
 
 """
 
+import os, re, sys
 import numpy as np
 from . import Cosmology
-import pickle, os, re, sys
 from ..util import ParameterFile
 from scipy.misc import derivative
 from ..util.Warnings import no_hmf
+from scipy.integrate import cumtrapz
 from ..util.Math import central_difference
 from ..util.ProgressBar import ProgressBar
-from .Constants import g_per_msun, cm_per_mpc
 from ..util.ParameterFile import ParameterFile
+from .Constants import g_per_msun, cm_per_mpc, s_per_yr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline
 
+try:
+    import dill as pickle
+except ImportError:
+    import pickle
+    
 try:
     from scipy.special import erfc
 except ImportError:
@@ -52,8 +58,6 @@ except ImportError:
     have_pycamb = False    
 
 ARES = os.getenv("ARES")    
-
-
 
 sqrt2 = np.sqrt(2.)    
 
@@ -267,14 +271,14 @@ class HaloMassFunction(object):
             mf_fit=self.hmf_func, transfer_options=transfer_pars,
             **cosmology)
             
-        # Masses in hmf are in units of Msun / h
-        self.M = self.MF.M * self.cosm.h70
+        # Masses in hmf are in units of Msun * h
+        self.M = self.MF.M / self.cosm.h70
         self.logM = np.log10(self.M)
         self.lnM = np.log(self.M)
-        self.logM_over_h = np.log10(self.MF.M)
+        
         self.Nm = self.M.size
         
-        self.dndm = np.zeros([len(self.z), len(self.logM_over_h)])
+        self.dndm = np.zeros([self.Nz, self.Nm])
         self.mgtm = np.zeros_like(self.dndm)
         self.ngtm = np.zeros_like(self.dndm)
         self.fcoll_tab = np.zeros_like(self.dndm)
@@ -298,9 +302,9 @@ class HaloMassFunction(object):
             else:
                 
                 # Has units of h**4 / cMpc**3 / Msun
-                self.dndm[i] = self.MF.dndm.copy() / self.cosm.h70**4
+                self.dndm[i] = self.MF.dndm.copy() * self.cosm.h70**4
                 self.mgtm[i] = self.MF.rho_gtm.copy()
-                self.ngtm[i] = self.MF.ngtm.copy() / self.cosm.h70**3
+                self.ngtm[i] = self.MF.ngtm.copy() * self.cosm.h70**3
                 
                 # Remember that mgtm and mean_dens have factors of h**2
                 # so we're OK here dimensionally
@@ -392,7 +396,71 @@ class HaloMassFunction(object):
         """
         
         return np.squeeze(self.dfcolldz_spline(z, logMmin))
-
+        
+    def MAR_via_AM(self, z):
+        """
+        Compute mass accretion rate by abundance matching across redshift.
+    
+        Parameters
+        ----------
+        z : int, float
+            Redshift.
+    
+        Returns
+        -------
+        Array of mass accretion rates, each element corresponding to the halo
+        masses in self.M.
+    
+        """
+    
+        k = np.argmin(np.abs(z - self.z))
+    
+        if z not in self.z:
+            print "WARNING: Rounding to nearest redshift z=%.3g" % self.z[k]
+    
+        # For some reason flipping the order is necessary for non-bogus results
+        dn_gtm_1t = cumtrapz(self.dndlnm[k][-1::-1], 
+            x=self.lnM[-1::-1], initial=0.)[-1::-1]
+        dn_gtm_2t = cumtrapz(self.dndlnm[k-1][-1::-1], 
+            x=self.lnM[-1::-1], initial=0.)[-1::-1]
+    
+        dn_gtm_1 = dn_gtm_1t[-1] - dn_gtm_1t
+        dn_gtm_2 = dn_gtm_2t[-1] - dn_gtm_2t
+    
+        # Need to reverse arrays so that interpolants are in ascending order
+        M_2 = np.exp(np.interp(dn_gtm_1[-1::-1], dn_gtm_2[-1::-1], 
+            self.lnM[-1::-1])[-1::-1])
+    
+        # Compute time difference between z bins
+        dz = self.z[k] - self.z[k-1]
+        dt = dz * abs(self.cosm.dtdz(z)) / s_per_yr
+    
+        return (M_2 - self.M) / dt
+        
+    @property
+    def MAR_func(self):
+        if not hasattr(self, '_MAR_func'):
+            
+            func = lambda zz: self.MAR_via_AM(zz)
+            
+            _MAR_tab = np.ones_like(self.dndm)
+            for i, z in enumerate(self.z):
+                _MAR_tab[i] = func(z)
+            
+            mask = np.zeros_like(_MAR_tab)
+            mask[np.isnan(_MAR_tab)] = 1
+            _MAR_tab[mask == 1] = 0.
+            
+            self._MAR_tab = np.ma.array(_MAR_tab, mask=mask)
+            self._MAR_mask = mask    
+            
+            spl = RectBivariateSpline(self.z, self.lnM,
+                self._MAR_tab, kx=3, ky=3)
+                        
+            self._MAR_func = lambda z, M: spl(z, np.log(M)).squeeze()
+        
+        return self._MAR_func
+        
     def dlogfdlogt(self, z):
         """
         Logarithmic derivative of fcoll with respect to log-time.
@@ -414,7 +482,7 @@ class HaloMassFunction(object):
             
         """    
         
-        return 1.98e4 * (mu / 0.6) * (M * self.cosm.h70 / 1e8)**(2. / 3.) * \
+        return 1.98e4 * (mu / 0.6) * (M / self.cosm.h70 / 1e8)**(2. / 3.) * \
             (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) /
             self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(1. / 3.) * \
             ((1. + z) / 10.)
@@ -440,7 +508,7 @@ class HaloMassFunction(object):
         Equation 24 in Barkana & Loeb (2001).
         """
         
-        return 0.784 * (M * self.cosm.h70 / 1e8)**(1. / 3.) \
+        return 0.784 * (M / self.cosm.h70 / 1e8)**(1. / 3.) \
             * (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
             * ((1. + z) / 10.)**-1.

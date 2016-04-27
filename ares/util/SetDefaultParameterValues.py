@@ -238,29 +238,33 @@ def HaloPropertyParameters():
      "php_Mfun_par4": None,
      "php_Mfun_par5": None,
 
-     "php_zfun": 'constant',    
-     "php_zfun_par0": None,    
-     "php_zfun_par1": None, 
-     "php_zfun_par2": None,  
-     "php_zfun_par3": None,
-     "php_ceil": 1.0,
-     "php_floor": 0.0,
+     #"php_zfun": 'constant',    
+     #"php_zfun_par0": None,    
+     #"php_zfun_par1": None, 
+     #"php_zfun_par2": None,  
+     #"php_zfun_par3": None,
+     
+     'php_Mfun_aug': None,
+     'php_Mfun_aug_meth': 'multiply',
+     'php_Mfun_aug_par0': None,
+     'php_Mfun_aug_par1': None,
+     'php_Mfun_aug_par2': None,
+     'php_Mfun_aug_par3': None,
+     'php_Mfun_aug_par4': None,
+     'php_Mfun_aug_par5': None,
 
-     'php_Mfun_lo': None,
-     'php_Mfun_lo_par0': 1e12,
-     'php_Mfun_lo_par1': 0.1,
-     'php_Mfun_lo_par2': 0.33,
-     'php_Mfun_lo_par3': 0.33,
-
-     'php_Mfun_hi': None,
-     'php_Mfun_hi_par0': 1e13,
-     'php_Mfun_hi_par1': None,
-     'php_Mfun_hi_par2': None,
-     'php_Mfun_hi_par3': None,
+     "php_boost": 1.,
+     "php_iboost": 1.,
+     "php_ceil": None,
+     "php_floor": None,
 
      "php_Mmax": 5e13,
          
     }  
+    
+    for i in range(6):
+        for j in range(6):
+            tmp['php_Mfun_par%i_par%i' % (i,j)] = None
     
     pf.update(tmp)
     pf.update(rcParams)
@@ -274,8 +278,14 @@ def DustParameters():
     {     
      'dustcorr_Afun': 'meurer1999',
 
-     'dustcorr_Bfun': 'constant',
+     'dustcorr_Bfun': 'FitMason',
      
+     # Intrinsic scatter in the beta-mag relation (gaussian)
+     's_beta': 0.34,
+     
+     # Intrinsic scatter in the AUV-beta relation
+     's_AUV': 0.0,
+          
      'dustcorr_Bfun_par0': -2.,
      'dustcorr_Bfun_par1': None,
      'dustcorr_Bfun_par2': None,
@@ -312,47 +322,37 @@ def PopulationParameters():
     "pop_halo_model": None, # clf or hod (not yet implemented)
 
     # HAM model
-    "pop_constraints": None, # if ham model
-    "pop_Macc": 'mcbride2009',
+    "pop_constraints": None, # deprecated?
+    
+    # Mass accretion rate
+    "pop_MAR": 'hmf',
+    "pop_MAR_conserve_norm": False,
+    
+    "pop_tdyn": 1e7,
+    "pop_sSFR": None,
 
+    # the pop_lf pars here might be deprecated
     "pop_lf_z": None,
-
     "pop_lf_M": None,
     "pop_lf_Mstar": None,
     "pop_lf_pstar": None,
     "pop_lf_alpha": None,
     "pop_lf_mags": None,
-
-    "pop_lf_dustcorr": True,
-    "pop_lf_beta": -2.,
     
     'pop_lf_Mmax': 1e15,
 
-    # Beta can depend on magnitude and redshift
-    "pop_lf_beta_slope": None,
-    "pop_lf_beta_pivot": None,
-    
-    "pop_fstar_ceil": 1.0,
-    
-    "pop_ham_fit": 'fstar',
-    "pop_ham_Mfun": 'poly',   # or lognormal
-    "pop_ham_zfun": 'poly',   # or (time, redshift, free)
-    "pop_ham_Mext": None,
-    "pop_ham_zext": None,
-    "pop_ham_Mext_par1": None,
-    "pop_ham_zext_par1": None,
-    "pop_ham_Mext_par2": None,
-    "pop_ham_zext_par2": None,
-        
-    # Parameters for a HOD model
-    "pop_duty_cycle": 1.0,
+    "pop_fduty": 1.0,
         
     # Set the emission interval and SED
     "pop_sed": 'pl',
     
+    # For synthesis models
     "pop_Z": 0.04,
+    "pop_imf": 2.35,
+    "pop_nebular": False,
     "pop_ssp": False,             # a.k.a., continuous SF
     "pop_tsf": 100.,
+    "pop_binaries": False,        # for BPASS
 
     # Option of setting Z, t, or just supplying SSP table?
     
@@ -423,6 +423,8 @@ def PopulationParameters():
     
     "pop_kappa_UV": 1.15e-28,
     "pop_L1500_per_sfr": None,
+    
+    "pop_fstar_boost": 1.,
 
     # If pop_yield_units == 'erg/s/sfr/hz, this is the reference wavelength
     "pop_yield_wavelength": 1500.,
@@ -544,6 +546,7 @@ def HaloMassFunctionParameters():
     {
     "hmf_func": 'ST',
     
+    "hmf_instance": None,
     "hmf_load": True,
     "hmf_table": None,
     "hmf_analytic": False,
@@ -672,6 +675,15 @@ def ControlParameters():
     pf.update(rcParams)
 
     return pf
+    
+_sampling_parameters = \
+{
+ 'output_frequencies': None,
+ 'output_freq_min': 30.,
+ 'output_freq_max': 200.,
+ 'output_freq_res': 1.,    
+ 'output_dz': None,  # Redshift sampling    
+}
 
 def TanhParameters():
     pf = \
@@ -688,11 +700,10 @@ def TanhParameters():
     'tanh_xdz': 2.,
     'tanh_bias_temp': 0.0,   # in mK
     'tanh_bias_freq': 0.0,   # in MHz
-    'output_frequencies': None,
-    'output_dz': 0.025,  # Redshift sampling
     }
 
     pf.update(rcParams)
+    pf.update(_sampling_parameters)
 
     return pf
     
@@ -703,9 +714,10 @@ def GaussianParameters():
      'gaussian_A': -100., 
      'gaussian_nu': 70.,
      'gaussian_sigma': 10.,
-     'output_frequencies': None,
-     'output_dz': 0.025,  # Redshift sampling
     }
+    
+    pf.update(rcParams)
+    pf.update(_sampling_parameters)
     
     return pf
 

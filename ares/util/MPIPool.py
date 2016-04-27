@@ -1,5 +1,15 @@
 try:
     from mpi4py import MPI
+    
+    try:
+        import dill
+        MPI._p_pickle.dumps = dill.dumps
+        MPI._p_pickle.loads = dill.loads
+    except ImportError:
+        pass
+    except AttributeError: # named differently depending on version
+        MPI.pickle.dumps = dill.dumps
+        MPI.pickle.loads = dill.loads
 except ImportError:
     MPI = None
 

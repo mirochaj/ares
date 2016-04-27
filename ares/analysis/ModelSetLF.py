@@ -16,8 +16,7 @@ import numpy as np
 from ..util import read_lit
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
-from ..util.DustCorrection import DustCorrection
-from ..populations.GalaxyAggregate import param_redshift
+from ..phenom.DustCorrection import DustCorrection
 from ..util.SetDefaultParameterValues import SetAllDefaults
 
 ln10 = np.log(10.)
