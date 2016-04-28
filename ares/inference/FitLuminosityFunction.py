@@ -12,7 +12,6 @@ Description:
 
 import numpy as np
 from ..util import read_lit
-from emcee.utils import sample_ball
 from .ModelFit import LogLikelihood
 from ..util.PrintInfo import print_fit
 from .FitGlobal21cm import FitGlobal21cm
@@ -28,6 +27,11 @@ try:
     import dill as pickle
 except:
     import pickle
+
+try:
+    from emcee.utils import sample_ball
+except ImportError:
+    pass
 
 try:
     from mpi4py import MPI
