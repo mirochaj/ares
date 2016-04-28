@@ -619,9 +619,9 @@ class GaussianPrior(_Prior):
         """
         if self.numparams == 1:
             return "Normal(mean=%s,variance=%s)" %\
-                (self.mean.A[0,0], self.cov.A[0,0])
+                (self.mean.A[0,0], self.covariance.A[0,0])
         else:
-            return "Normal(%s, %s)" % (self.mean, self.cov)
+            return "Normal(%s, %s)" % (self.mean, self.covariance)
 
 
 class ParallelepipedPrior(_Prior):
