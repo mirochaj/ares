@@ -125,19 +125,19 @@ if not os.path.exists('starburst99/fig1a.dat'):
     os.chdir('..')
     
 # Next, BPASS dataset from Eldridge et al. 2009
-if not os.path.exists('bpass'):
-    os.mkdir('bpass')
+if not os.path.exists('bpass_v1'):
+    os.mkdir('bpass_v1')
 
 for Z in ['001', '004', '008', '020', '040']:
     fn = 'sed_bpass_z%s_tar.gz' % Z
-    if not os.path.exists('bpass/%s' % fn):
-        os.chdir('bpass')
+    if not os.path.exists('bpass_v1/%s' % fn):
+        os.chdir('bpass_v1')
         print "Downloading %s/%s..." % (bpass_seds, fn)
         urllib.urlretrieve('%s/%s' % (bpass_seds, fn), fn)
         os.chdir('..')
     
-    if not os.path.exists('bpass/SEDS/sed.bpass.constant.cloudy.bin.z%s' % Z):
-        os.chdir('bpass')
+    if not os.path.exists('bpass_v1/SEDS/sed.bpass.constant.cloudy.bin.z%s' % Z):
+        os.chdir('bpass_v1')
     
         import tarfile
         tar = tarfile.open(fn)
@@ -155,7 +155,7 @@ if not os.path.exists('hm12/%s' % fn_cuvb):
     print "Downloading %s/%s..." % (hm12_cuvb, fn_cuvb)
     urllib.urlretrieve('%s/%s' % (hm12_cuvb, fn_cuvb), fn_cuvb)
     os.chdir('..')
-    
+
 if not os.path.exists('hm12/%s' % fn_emiss):
     os.chdir('hm12')
     print "Downloading %s/%s..." % (hm12_cuvb, fn_emiss)

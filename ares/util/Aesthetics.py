@@ -240,9 +240,13 @@ def mathify_str(s):
     return r'$%s$' % s    
             
 class Labeler(object):
-    def __init__(self, pars, is_log=False, **kwargs):
+    def __init__(self, pars, is_log=False, extra_labels={}, **kwargs):
         self.pars = pars
         self.base_kwargs = kwargs
+        self.extras = extra_labels
+        
+        self.labels = labels.copy()
+        self.labels.update(self.extras)
         
         if type(is_log) == bool:
             self.is_log = [is_log] * len(pars)
@@ -268,6 +272,9 @@ class Labeler(object):
         Create a pretty label for this parameter.
         """
         
+        if par in self.labels:
+            return self.labels[par]
+        
         prefix, popid, redshift = par_info(par)
         
         units = self.units(prefix)
@@ -275,19 +282,19 @@ class Labeler(object):
         label = None
                 
         # Simplest case
-        if popid == redshift == None and (par in labels):
-            label = labels[prefix]
+        if popid == redshift == None and (par in self.labels):
+            label = self.labels[prefix]
         # Has pop ID number
-        elif (popid is not None) and (redshift is None) and (prefix in labels):
-            label = labels[prefix]
-        elif redshift is not None and (prefix in labels):
-            label = r'$%s[%.2g]$' % (undo_mathify(labels[prefix]), redshift)
+        elif (popid is not None) and (redshift is None) and (prefix in self.labels):
+            label = self.labels[prefix]
+        elif redshift is not None and (prefix in self.labels):
+            label = r'$%s[%.2g]$' % (undo_mathify(self.labels[prefix]), redshift)
         
         # Troubleshoot if label not found
         if label is None:
             if re.search('pop_', prefix):
-                if prefix[4:] in labels:
-                    label = labels[prefix[4:]]
+                if prefix[4:] in self.labels:
+                    label = self.labels[prefix[4:]]
                 else:
                     label = prefix
             else:
