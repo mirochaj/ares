@@ -246,7 +246,21 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             self._SFRD = interp1d(self.halos.z, self.sfrd_tab, kind='cubic')
                 
         return self._SFRD
-        
+    
+    @property   
+    def SMD(self):
+        """
+        Compute stellar mass density (SMD).
+        """
+    
+        if not hasattr(self, '_SMD'):
+            dtdz = np.array(map(self.cosm.dtdz, self.halos.z))
+            self._smd_tab = cumtrapz(self.sfrd_tab[-1::-1] * dtdz[-1::-1], 
+                dx=np.abs(np.diff(self.halos.z[-1::-1])), initial=0.)[-1::-1]
+            self._SMD = interp1d(self.halos.z, self._smd_tab, kind='cubic')
+    
+        return self._SMD
+    
     def RGR(self):
         """
         'Reservoir growth rate'
