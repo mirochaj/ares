@@ -22,7 +22,7 @@ setup(name='ares',
       url=ares_link,
       packages=ares_packages,
       install_requires=[
-        'numpy>=1.8,<1.11',
+        'numpy==1.8.2',
       ],
      )
           
