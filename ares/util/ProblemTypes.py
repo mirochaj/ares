@@ -31,15 +31,15 @@ from ..physics.Constants import m_H, cm_per_kpc, cm_per_mpc, s_per_myr
 defs = SetAllDefaults()
     
 def RaySegmentProblem(ptype):
-    
+
     ptype_int = int(ptype)
-    
+
     if abs(ptype_int) > 10:
         ptype_int -= 10 * np.sign(ptype_int)
         ptype_mod1 = round(ptype - 10 - ptype_int, 1)
-    else:    
+    else:
         ptype_mod1 = round(ptype - ptype_int, 1)
-        
+
     # Single-zone, cosmological expansion test         
     if ptype_int == -1:
         pf = {
@@ -382,6 +382,9 @@ def ReionizationProblem(ptype):
         raise NotImplemented('Have not implemented problem_type = 103 yet.')
 
     return pf  
+
+def GalaxyProblem(ptype):
+    pass
 
 def ProblemType(ptype):
     """

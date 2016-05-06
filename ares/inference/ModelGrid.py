@@ -20,7 +20,7 @@ from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
 try:
     import dill as pickle
-except:
+except ImportError:
     import pickle
 
 try:
@@ -275,7 +275,7 @@ class ModelGrid(ModelFit):
             if restart:
                 print "Update: %i models down, %i to go." % (ct0, Nleft)
             else:
-                print 'Running %i-element model-grid.' % self.grid.size
+                print 'Running %i-element model grid.' % self.grid.size
                 
         # Make some blank files for data output                 
         self.prep_output_files(restart, clobber)                 
@@ -379,21 +379,15 @@ class ModelGrid(ModelFit):
             # Run simulation!
             try:
                 sim.run()
-                #sim.run_inline_analysis()            
-                            
-            # Timestep error
-            #except SystemExit:
-            #    sim.run_inline_analysis()
-                
             except:         
                 # Write to "fail" file - this might cause problems in parallel
                 f = open('%s.fail.pkl' % self.prefix, 'ab')
                 pickle.dump(kwargs, f)
                 f.close()
-
+            
                 del p, sim
                 gc.collect()
-
+            
                 pb.update(pb_i)
                 ct += 1
                 continue

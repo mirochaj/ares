@@ -135,6 +135,9 @@ class ObservedLF(object):
                 
         return data
                 
+    def Plot1D(self):
+        pass            
+                
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
         AUV=None, **kwargs):
         """

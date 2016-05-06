@@ -15,6 +15,8 @@ import ares
 import numpy as np
 import matplotlib.pyplot as pl
 
+def test():
+
 # Two HMFs: one analytic, one numerical
 hmf_a = ares.populations.HaloPopulation(hmf_func='PS', hmf_analytic=True)
 hmf_n = ares.populations.HaloPopulation(hmf_func='PS', hmf_analytic=False,

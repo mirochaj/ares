@@ -101,13 +101,6 @@ class MultiPhaseMedium(object):
             history = pickle.load(f)
             f.close()
 
-            f = open('%s.parameters.pkl' % data, 'rb')
-            self.pf = pickle.load(f)
-            f.close()
-
-            #self.cosm = Cosmology(**self.pf)
-            #self.hydr = Hydrogen(**self.pf)
-
         except IOError: 
             if re.search('pkl', data):
                 f = open(data, 'rb')
@@ -129,11 +122,16 @@ class MultiPhaseMedium(object):
                 for i, col in enumerate(cols):
                     history[col] = _data[:,i]
                 f.close()  
+
+        try:            
+            f = open('%s.parameters.pkl' % data, 'rb')
+            self.pf = pickle.load(f)
+            f.close()        
                 
-                pf = glob.glob('./%s.parameters*' % data)[0]
-                f = open(pf, 'rb')
-                self.pf = pickle.load(f)
-                f.close()
+        except AttributeError:
+            self.pf = {"final_redshift": 5., "initial_redshift": 100.,
+                'first_light_redshift': 100.}
+            print 'Error loading %s.parameters.pkl.' % data
 
         self.history = history       
 

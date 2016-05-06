@@ -30,7 +30,7 @@ except ImportError:
     
 clobber_msg = "Run with clobber=True to overwrite."
 
-class GridAxis:
+class GridAxis(object):
     def __init__(self, name=None, num=None, values=None):
         """
         Initialize GridAxis object.

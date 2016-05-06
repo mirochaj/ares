@@ -22,6 +22,7 @@ from ..sources.Source import Source
 from ..sources import Star, BlackHole
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, simps
+from .SynthesisModel import SynthesisModel
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
@@ -30,24 +31,25 @@ from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters
     
-class LiteratureSource(Source):
-    def __init__(self, **kwargs):
-        self.pf = kwargs
-        Source.__init__(self)
-
-        _src = read_lit(self.pf['pop_sed'])
-
-        if hasattr(_src, 'Spectrum'):
-            if inspect.ismethod(_src.Spectrum) or \
-                (type(_src.Spectrum) is FunctionType):
-                self._Intensity = _src.Spectrum
-            else:
-                self._Intensity = _src.Spectrum(**self.pf['pop_kwargs'])
-        else:
-            if self.pf['pop_sed'] != 'leitherer1999':
-                raise NotImplemented('help')
-
-            self.pop = _src.StellarPopulation(**self.pf)
+#class LiteratureSource(Source):
+#    def __init__(self, **kwargs):
+#        self.pf = kwargs
+#        Source.__init__(self)
+#        
+#        assert self.pf['pop_sed'] in ['leitherer1999', 'eldridge2009']
+#
+#        self.pop = SynthesisModel
+#
+#
+#        #if hasattr(self.pop, 'Spectrum'):
+#        #    if inspect.ismethod(_src.Spectrum) or \
+#        #        (type(_src.Spectrum) is FunctionType):
+#        #        self._Intensity = _src.Spectrum
+#        #    else:
+#        #        self._Intensity = _src.Spectrum(**self.pf['pop_kwargs'])
+#        #else:
+#        #    
+#        #        raise NotImplemented('help')
             
 def normalize_sed(pop):
     """
@@ -110,7 +112,7 @@ class GalaxyAggregate(HaloPopulation):
             elif self.pf['pop_sed'] is None:
                 self._Source_ = None
             else:
-                self._Source_ = LiteratureSource
+                self._Source_ = SynthesisModel
 
         return self._Source_
 
@@ -162,15 +164,14 @@ class GalaxyAggregate(HaloPopulation):
                 self._src = self._Source(**self.src_kwargs)
             else:
                 self._src = None
-                    
+
         return self._src
 
     @property
     def yield_per_sfr(self):
         if not hasattr(self, '_yield_per_sfr'):
-            if isinstance(self.src, LiteratureSource):
-                s99 = self.src.pop
-                self._yield_per_sfr = s99.yield_per_sfr(*self.reference_band)
+            if isinstance(self.src, SynthesisModel):
+                self._yield_per_sfr = self.src.yield_per_sfr(*self.reference_band)
             else:
                 self._yield_per_sfr = normalize_sed(self)
             
@@ -191,7 +192,7 @@ class GalaxyAggregate(HaloPopulation):
     @property
     def sed_tab(self):
         if not hasattr(self, '_sed_tab'):
-            if self.pf['pop_sed'] == 'leitherer1999':
+            if self.pf['pop_sed'] in ['leitherer1999', 'eldridge2009']:
                 self._sed_tab = True
             else:
                 self._sed_tab = False
@@ -242,8 +243,8 @@ class GalaxyAggregate(HaloPopulation):
                 
             # If tabulated, do things differently
             if self.sed_tab:
-                factor = self.src.pop.yield_per_sfr(Emin, Emax) \
-                    / self.src.pop.yield_per_sfr(*self.reference_band)
+                factor = self.src.yield_per_sfr(Emin, Emax) \
+                    / self.src.yield_per_sfr(*self.reference_band)
             else:
                 factor = quad(self.src.Spectrum, Emin, Emax)[0]
             
@@ -281,7 +282,7 @@ class GalaxyAggregate(HaloPopulation):
             print "WARNING: Emax > pop_Emax"    
         
         if self.sed_tab:
-            Eavg = self.src.pop.eV_per_phot(Emin, Emax)
+            Eavg = self.src.eV_per_phot(Emin, Emax)
         else:
             integrand = lambda E: self.src.Spectrum(E) * E
             Eavg = quad(integrand, Emin, Emax)[0]
@@ -390,17 +391,6 @@ class GalaxyAggregate(HaloPopulation):
    #def Mh_dep_sed(self):
    #    if not hasattr(self, '_Mh_dep_sed'):
    #        if self.pf['pop_sed'] == 'leitherer1999':
-            
-
-    @property
-    def sed_tab(self):
-        if not hasattr(self, '_sed_tab'):
-            if self.pf['pop_sed'] == 'leitherer1999':
-                self._sed_tab = True
-            else:
-                self._sed_tab = False
-    
-        return self._sed_tab
     
     def _convert_band(self, Emin, Emax):
         """
@@ -447,8 +437,8 @@ class GalaxyAggregate(HaloPopulation):
     
             # If tabulated, do things differently
             if self.sed_tab:
-                factor = self.src.pop.yield_per_sfr(Emin, Emax) \
-                    / self.src.pop.yield_per_sfr(*self.reference_band)
+                factor = self.src.yield_per_sfr(Emin, Emax) \
+                    / self.src.yield_per_sfr(*self.reference_band)
             else:
                 factor = quad(self.src.Spectrum, Emin, Emax)[0]
     
@@ -500,7 +490,7 @@ class GalaxyAggregate(HaloPopulation):
             print "WARNING: Emax > pop_Emax"    
     
         if self.sed_tab:
-            Eavg = self.src.pop.eV_per_phot(Emin, Emax)
+            Eavg = self.src.eV_per_phot(Emin, Emax)
         else:
             integrand = lambda E: self.src.Spectrum(E) * E
             Eavg = quad(integrand, Emin, Emax)[0]

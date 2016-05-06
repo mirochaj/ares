@@ -637,7 +637,7 @@ class ModelSet(BlobFactory):
         
         # Set the mask! 
         model_set.mask = np.logical_or(mask, self.mask)
-
+        
         i = 0
         while hasattr(self, 'slice_%i' % i):
             i += 1
@@ -1005,7 +1005,11 @@ class ModelSet(BlobFactory):
             
         Returns
         -------
-        Tuple, (maximum likelihood value, negative error, positive error).
+        if peak is None:
+            Returns x-values corresponding to desired quartile range, i.e.,
+            not really an error-bar.
+        else:
+            tuple: (maximum likelihood value, negative error, positive error).
         """
 
         #pars, take_log, multiplier, un_log, ivar = \
@@ -1023,28 +1027,32 @@ class ModelSet(BlobFactory):
         # Apply mask to weights
         if weights is not None and to_hist[par].shape != weights.shape:
             weights = weights[np.logical_not(mask)]
-        
-        if hasattr(to_hist[par], 'compressed'):
-            to_hist[par] = to_hist[par].compressed()
-                       
+
         if to_hist[par] == []:
             print "WARNING: error w/ %s" % par
             print "@ z=" % z
             return
-                
+
         if peak == 'median':
             N = len(self.logL)
             psorted = np.sort(to_hist[par])
             mu = psorted[int(N / 2.)]
         elif peak == 'mode':
-            pass
-        else:
             mu = to_hist[par][np.argmax(self.logL)]
+        else:
+            mu = None
+            
+        if hasattr(to_hist[par], 'compressed'):
+            to_hist[par] = to_hist[par].compressed()
         
         q1 = 0.5 * 100 * (1. - nu)    
         q2 = 100 * nu + q1
         lo, hi = np.percentile(to_hist[par], (q1, q2))
-        sigma = (mu - lo, hi - mu)
+        
+        if mu is not None:
+            sigma = (mu - lo, hi - mu)
+        else:
+            sigma = (lo, hi)
 
         return mu, np.array(sigma)
         
@@ -1343,14 +1351,30 @@ class ModelSet(BlobFactory):
                     is_log.append(False)
                                         
         # Re-organize
-        if len(np.unique(pars)) < len(pars):
-            data = np.ma.array(to_hist, mask=self.mask)
-        else:    
-            data = {}
-            for i, par in enumerate(pars):
+        #if len(np.unique(pars)) < len(pars):
+        #    if self.is_mcmc:
+        #        data = np.ma.array(to_hist, mask=self.mask)
+        #    else:
+        #        data = np.array(to_hist)
+        #else:    
+        data = {}
+        for i, par in enumerate(pars):
+            if par in data:
+                continue
+                
+            if self.is_mcmc:
                 data[par] = np.ma.array(to_hist[i], mask=self.mask)
-
-            is_log = {par:is_log[i] for i, par in enumerate(pars)}
+            else:
+                try:
+                    data[par] = np.ma.array(to_hist[i], mask=self.mask)
+                except np.ma.MaskError:
+                    print "MaskError encountered. Assuming mask=0."
+                    
+                    new_mask = np.array([self.mask.copy()] * to_hist[i].shape[1]).T
+                    
+                    data[par] = np.ma.array(to_hist[i], mask=new_mask)
+        
+        is_log = {par:is_log[i] for i, par in enumerate(pars)}
                     
         return data, is_log
 
@@ -1553,12 +1577,9 @@ class ModelSet(BlobFactory):
         kw = kwargs
 
         if 'labels' in kw:
-            labels_tmp = default_labels.copy()
-            labels_tmp.update(kwargs['labels'])
-            labels = labels_tmp
-
+            labels = kwargs['labels']
         else:
-            labels = default_labels
+            labels = {}
             
         # Only make a new plot window if there isn't already one
         if ax is None:
@@ -1709,7 +1730,7 @@ class ModelSet(BlobFactory):
                 ax.set_yscale('linear')
             
         # Add nice labels (or try to)
-        self.set_axis_labels(ax, pars, is_log, take_log, un_log, labels)
+        self.set_axis_labels(ax, pars, is_log, take_log, un_log, None, labels)
 
         # Rotate ticks?
         for tick in ax.get_xticklabels():
@@ -2257,7 +2278,7 @@ class ModelSet(BlobFactory):
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        best='median', **kwargs):    
+        best='median', fill=True, **kwargs):    
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -2388,8 +2409,13 @@ class ModelSet(BlobFactory):
                 zeros = np.argwhere(y == 0)
                 for element in zeros:
                     y[element[0],element[1]] = 1e-15
-        
-            ax.fill_between(xarr, y[0], y[1], **kwargs)
+            
+            if fill:
+                ax.fill_between(xarr, y[0], y[1], **kwargs)
+            else:
+                ax.plot(xarr, y[0], **kwargs)
+                ax.plot(xarr, y[1], **kwargs)
+                
         
         pl.draw()
                  
@@ -2546,7 +2572,7 @@ class ModelSet(BlobFactory):
 
         return mu, cov    
         
-    def AssembleParametersList(self, N=None, loc=None):
+    def AssembleParametersList(self, N=None, loc=None, include_bkw=False):
         """
         Return dictionaries that can be used to initialize an ares 
         simulation. 
@@ -2570,10 +2596,17 @@ class ModelSet(BlobFactory):
                 if i >= N:
                     break
                 
-            kwargs = self.base_kwargs.copy()
-            for j, parameter in enumerate(self.parameters):
-                kwargs[parameter] = self.chain[i,j]
+            if include_bkw:
+                kwargs = self.base_kwargs.copy()    
+            else:
+                kwargs = {}
                 
+            for j, parameter in enumerate(self.parameters):
+                if self.is_log[j]:
+                    kwargs[parameter] = 10**self.chain[i,j]
+                else:
+                    kwargs[parameter] = self.chain[i,j]
+                    
             all_kwargs.append(kwargs.copy())
             
         if loc is not None:
@@ -2772,11 +2805,11 @@ class ModelSet(BlobFactory):
             raise NotImplemented('Only support for hdf5 so far. Sorry!')
         
     def set_axis_labels(self, ax, pars, is_log, take_log=False, un_log=False,
-        cb=None, labels=None):
+        cb=None, labels={}):
         """
         Make nice axis labels.
         """
-        
+                
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, 1.0, un_log, None)
 
@@ -2788,7 +2821,8 @@ class ModelSet(BlobFactory):
             take_log = tmp        
             
         # Prep for label making
-        labeler = self.labeler = Labeler(pars, is_log, **self.base_kwargs)
+        labeler = self.labeler = Labeler(pars, is_log, extra_labels=labels,
+            **self.base_kwargs)
 
         # x-axis first
         ax.set_xlabel(labeler.label(pars[0], take_log=take_log[pars[0]], 

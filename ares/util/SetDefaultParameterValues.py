@@ -224,6 +224,47 @@ def PhysicsParameters():
             
     return pf
     
+def ParametericPropertyParameters():
+    pf = {}
+    
+    tmp = \
+    {
+     "php_func": 'dpl',
+     "php_ivar": 'Mh',
+     "php_par0": None,
+     "php_par1": None,
+     "php_par2": None,
+     "php_par3": None,
+     "php_par4": None,
+     "php_par5": None,
+    
+     'php_aug_func': None,
+     'php_aug_meth': 'multiply',
+     'php_aug_par0': None,
+     'php_aug_par1': None,
+     'php_aug_par2': None,
+     'php_aug_par3': None,
+     'php_aug_par4': None,
+     'php_aug_par5': None,
+    
+     "php_boost": 1.,
+     "php_iboost": 1.,
+     "php_ceil": None,
+     "php_floor": None,
+    
+     "php_Mmax": 5e13,
+    
+    }  
+    
+    for i in range(6):
+        for j in range(6):
+            tmp['php_Mfun_par%i_par%i' % (i,j)] = None
+    
+    pf.update(tmp)
+    pf.update(rcParams)
+    
+    return pf
+    
 def HaloPropertyParameters():
     pf = {}
     
@@ -423,6 +464,7 @@ def PopulationParameters():
     
     "pop_kappa_UV": 1.15e-28,
     "pop_L1500_per_sfr": None,
+    "pop_calib_rhoL1500": None,
     
     "pop_fstar_boost": 1.,
 

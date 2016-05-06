@@ -39,29 +39,6 @@ class ParameterizedHaloProperty(object):
             self._M_aug = self.pf['php_Mfun_aug'] is not None
         return self._M_aug  
 
-    #def func(self, name):        
-    #    if self.pf['php_%s' % name] == 'constant':
-    #        func = lambda zz: self.pf['php_%s_par0' % name]
-    #    elif self.pf['php_%s' % name] == 'linear_z':
-    #        coeff1 = self.pf['php_%s_par0' % name]
-    #        coeff2 = self.pf['php_%s_par1' % name]
-    #        func = lambda zz: coeff1 + coeff2 * (1. + zz) / (1. + z0)
-    #    elif self.pf['php_%s' % name] == 'linear_t':
-    #        coeff = self.pf['php_%s_par0' % name]
-    #        func = lambda zz: 10**(np.log10(coeff) - 1.5 * (1. + zz) / (1. + z0))
-    #    elif self.pf['php_%s' % name] == 'pl':
-    #        coeff1 = self.pf['php_%s_par0' % name]
-    #        coeff2 = self.pf['php_%s_par1' % name]
-    #        func = lambda zz: 10**(np.log10(coeff1) + coeff2 * (1. + zz) / (1. + z0))
-    #    elif self.pf['php_%s' % name] == 'poly':
-    #        coeff1 = self.pf['php_%s_par0' % name]
-    #        coeff2 = self.pf['php_%s_par1' % name]
-    #        coeff3 = self.pf['php_%s_par2' % name]
-    #        func = lambda zz: 10**(np.log10(coeff1) + coeff2 * (1. + zz) / (1. + z0) \
-    #            + coeff3 * ((1. + zz) / (1. + z0))**2)
-    #
-    #    return func
-    #
     @property
     def _apply_extrap(self):
         if not hasattr(self, '_apply_extrap_'):
@@ -71,7 +48,7 @@ class ParameterizedHaloProperty(object):
 
     @_apply_extrap.setter
     def _apply_extrap(self, value):
-        self._apply_extrap_ = value   
+        self._apply_extrap_ = value
 
     def __call__(self, z, M):
         """
@@ -110,7 +87,7 @@ class ParameterizedHaloProperty(object):
         # Read-in parameters to more convenient names
         # I don't usually use exec, but when I do, it's to do garbage like this
         for i, par in enumerate(pars1):
-            
+                        
             # Handle redshift dependencies
             if type(par) == str:
                 p = pars2[i]
@@ -118,6 +95,8 @@ class ParameterizedHaloProperty(object):
                     val = p[0] * ((1. + z) / (1. + p[1]))**-1.5
                 elif par == 'pl':
                     val = p[0] * ((1. + z) / (1. + p[1]))**p[2]
+                #else:
+                #    val = par
                 
                 exec('p%i = val' % i)
             # Otherwise, assume parameter is just a number
@@ -177,7 +156,7 @@ class ParameterizedHaloProperty(object):
         elif func == 'user':
             f = self.pf['php_Mfun_fun'](z, M)
         else:
-            raise NotImplemented('sorry dude!')
+            raise NotImplementedError('Don\'t know how to treat %s function!' % func)
 
         # Add or multiply to main function.
         if self.M_aug and self._apply_extrap:
