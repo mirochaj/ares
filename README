@@ -16,6 +16,8 @@ risk! Correctness of results is not guaranteed.
 
 The `docs <http://ares.readthedocs.org/en/latest/>`_ are still a work in progress.
 
+[![Build Status](https://drone.io/bitbucket.org/mirochaj/ares-dev/status.png)](https://drone.io/bitbucket.org/mirochaj/ares-dev/latest)
+
 Getting started
 ---------------------
 To clone a copy and install: ::
