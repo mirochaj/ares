@@ -7,14 +7,15 @@ try:
 except ImportError:
     from distutils.core import setup
 
-if '--fresh' in sys.argv:
-    fresh = True
-    sys.argv.remove('--fresh')
-else:
-    fresh = False
-    
-# Add CMD line option for preferred file format?
-    
+# Parse some command-line options before setup gets called
+options = []
+for option in ['--fresh', '--minimal', '--clean']:
+    if option in sys.argv:
+        options.append(option)
+
+for option in options:
+    sys.argv.remove(option)
+        
 ares_link = 'https://bitbucket.org/mirochaj/ares'
 
 ares_packages = \
@@ -58,10 +59,7 @@ for fn in ['defaults', 'labels']:
         except:
             pass
     
-"""
-Auxiliary data download.
-"""
-
+# Auxiliary data downloads
 # Format: [URL, file 1, file 2, ..., file to run when done]
 
 aux_data = \
@@ -95,7 +93,12 @@ aux_data = \
 print '\n'
 os.chdir('input')
 
-for direc in aux_data:
+if '--minimal' in options:
+    to_download = ['inits', 'hmf', 'secondary_electrons', 'optical_depth']
+else:
+    to_download = aux_data.keys()
+
+for direc in to_download:
     if not os.path.exists(direc):
         os.mkdir(direc)
     
@@ -105,10 +108,11 @@ for direc in aux_data:
     for fn in aux_data[direc][1:-1]:
     
         if os.path.exists(fn):
-            if fresh:
+            if '--fresh' or '--clean' in options:
                 os.remove(fn)
-            else:
-                continue
+            
+        if '--clean' in options:
+            continue
     
         print "Downloading %s/%s..." % (web, fn)
         urllib.urlretrieve('%s/%s' % (web, fn), fn)
