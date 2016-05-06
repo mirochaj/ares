@@ -654,6 +654,14 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
 
         return MAB
 
+    def Mh_of_MUV(self, z, MUV):
+        
+        # MAB corresponds to self.halos.M
+        MAB, phi = self.phi_of_M(z)
+
+        return np.interp(MUV, MAB[-1::-1], self.halos.M[-1:1:-1])
+        
+
     def lf_from_pars(self, z, pars):
         for i, par in enumerate(pars):
             self.pf['php_Mfun_par%i' % i] = par

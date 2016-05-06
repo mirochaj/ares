@@ -313,6 +313,7 @@ class MultiPanel:
             return None
         if i >= self.N:
             return None
+            
         return i
                     
     def above_diagonal(self, i):

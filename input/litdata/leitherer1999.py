@@ -16,7 +16,7 @@ from scipy.interpolate import interp1d, RectBivariateSpline
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H
 
-_input = os.getenv('ARES') + '/input/starburst99'
+_input = os.getenv('ARES') + '/input/starburst99/data'
 
 metallicities = \
 {
