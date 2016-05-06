@@ -14,9 +14,13 @@ A few papers on how it works:
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
 
+.. image:: https://drone.io/bitbucket.org/mirochaj/ares-dev/status.png
+   :target: https://drone.io/bitbucket.org/mirochaj/ares-dev/latest
+
 The `docs <http://ares.readthedocs.org/en/latest/>`_ are still a work in progress.
 
-[![Build Status](https://drone.io/bitbucket.org/mirochaj/ares-dev/status.png)](https://drone.io/bitbucket.org/mirochaj/ares-dev/latest)
+.. image:: https://readthedocs.org/projects/ares/badge/?version=latest
+   :target: http://ares.readthedocs.io/en/latest/?badge=latest
 
 Getting started
 ---------------------
