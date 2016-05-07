@@ -81,6 +81,8 @@ def test(rtol=1e-2):
     ax2.set_ylabel(r'rel. error')
     
     pl.draw()
+    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.close()    
 
     assert np.allclose(xHII[mask], xHII_anyl[mask], rtol=rtol, atol=0)
     

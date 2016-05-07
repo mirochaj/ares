@@ -62,6 +62,7 @@ def test():
     pl.legend(fontsize=14, loc='best')
 
     pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.close()
 
     assert True
 

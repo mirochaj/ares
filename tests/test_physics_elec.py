@@ -84,7 +84,8 @@ def test():
     mp.fix_ticks()
     
     pl.savefig('%s.png' % (__file__.rstrip('.py')))
-    
+    pl.close('all')
+        
     assert True
     
 if __name__ == '__main__':
