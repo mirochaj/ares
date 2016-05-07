@@ -43,8 +43,6 @@ def test():
 
     # Plot 21-cm signature
     mp.grid[0].semilogx(z, map(dTb, z), color='k', label='analytic')
-    
-    
     mp.grid[0].semilogx(z, map(dTb, z), color='b', label='CosmoRec')
     mp.grid[0].legend(loc='lower right')
 

@@ -33,33 +33,19 @@ To clone a copy and install: ::
     cd ares
     python setup.py install
 
-It would be in your best interest to set an environment variable which points
-to the *ares* install directory, e.g. (in bash) ::
+You'll need to set an environment variable which points to the *ares* install directory, e.g. (in bash) ::
 
     export ARES=/users/<yourusername>/ares
 
-*ares* will look in ``$ARES/input`` for lookup tables of various kinds, e.g.,
-the halo mass function (in ``$ARES/input/hmf``), IGM optical depth (in
-``$ARES/input/optical_depth``), spectral energy distributions (in
-``$ARES/input/seds``), etc.
+*ares* will look in ``$ARES/input`` for lookup tables of various kinds. To download said lookup tables, run ::
 
-When you first run the ``setup.py`` script, a few files will be downloaded
-automatically:
+    python remote.py
+    
+This might take a few minutes. If something goes wrong with the download, you can run    ::
 
-hmf_ST_logM_1200_4-16_z_1121_4-60.pkl
-    Lookup table for the halo mass function. To make your own lookup tables, run
-    ``$ARES/input/generate_hmf_tables.py``. You'll need to install 
-    `hmf <https://github.com/steven-murray/hmf>`_ for this to work.
-
-initial_conditions.npz
-    Evolution of IGM thermal and ionization state computed using the ``CosmoRec``
-    code.
-
-optical_depth_H_400x1616_z_10-50_logE_2-4.7.pkl
-    IGM optical depth from :math:`10 \leq z \leq 40` and :math:`0.1 \leq h\nu / keV \leq 30` in a neutral
-    universe. To make your own lookup tables spanning different redshifts,
-    energies, or for prescribed ionization histories, run
-    ``$ARES/input/generate_optical_depth_tables.py``.
+    python remote.py fresh
+    
+to get fresh copies of everything.
     
 Dependencies
 --------------------

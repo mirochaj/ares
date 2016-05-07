@@ -17,9 +17,10 @@ import numpy as np
 def test(rtol=1e-2):
 
     # Two HMFs: one analytic, one numerical
-    hmf_a = ares.populations.HaloPopulation(hmf_func='PS', hmf_analytic=True)
+    hmf_a = ares.populations.HaloPopulation(hmf_func='PS', hmf_analytic=True,
+        pop_Mmin=1e8)
     hmf_n = ares.populations.HaloPopulation(hmf_func='PS', hmf_analytic=False,
-        hmf_load=True)
+        hmf_load=True, pop_Mmin=1e8)
     
     ok = True
     for i, z in enumerate([5, 10, 15, 20]):
@@ -31,6 +32,7 @@ def test(rtol=1e-2):
         except AttributeError:
             fcoll_n = hmf_n.halos.fcoll(z, hmf_a.halos.logM)
         
+        # Limit to intermediate mass range
         mask = np.logical_and(hmf_a.halos.M >= 1e8, hmf_a.halos.M <= 1e11)
         
         ok_z = np.allclose(fcoll_n[mask], fcoll_a[mask], rtol=rtol, atol=0)
