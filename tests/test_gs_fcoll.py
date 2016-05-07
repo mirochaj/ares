@@ -20,7 +20,8 @@ def test():
     sim.GlobalSignature()
     
     pl.savefig('%s.png' % (__file__.rstrip('.py')))
-        
+    pl.close()
+            
     assert True
     
 if __name__ == '__main__':

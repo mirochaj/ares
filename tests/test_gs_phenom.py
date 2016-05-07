@@ -21,10 +21,11 @@ def test():
         
     sim2 = ares.simulations.Global21cm(gaussian_model=True)
     sim2.run()
-    sim2.GlobalSignature(ax=ax, label='gaussian', fontsize=14)
+    sim2.GlobalSignature(ax=ax, label='gaussian')
     
-    ax.legend(loc='lower right')
+    ax.legend(loc='lower right', fontsize=14)
     pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.close()        
         
     assert True
     

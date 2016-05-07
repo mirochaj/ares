@@ -117,7 +117,7 @@ for direc in to_download:
         print "Downloading %s/%s..." % (web, fn)
         urllib.urlretrieve('%s/%s' % (web, fn), fn)
         
-        if not re.search(fn, 'tar'):
+        if not re.search('tar', fn):
             continue
             
         tar = tarfile.open(fn)

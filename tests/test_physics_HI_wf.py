@@ -34,6 +34,9 @@ def test():
     pl.legend(loc='lower right', frameon=False, fontsize=14)
     pl.annotate(r'assuming $T_k \propto (1+z)^2$', (0.1, 0.4), 
         xycoords='axes fraction')
+        
+    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.close()    
 
     assert True
 
