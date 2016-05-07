@@ -65,7 +65,7 @@ def test():
     pl.savefig('%s.png' % (__file__.rstrip('.py')))
     pl.close()
     
-    return True
+    assert True
     
 if __name__ == '__main__':
     test()    
