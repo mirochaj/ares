@@ -15,7 +15,7 @@ import numpy as np
 
 def test():
 
-    sim = ares.simulations.Global21cm(is_ion_src_igm=False,
+    sim = ares.simulations.Global21cm(tanh_model=True,
         verbose=False, progress_bar=False)
     sim.run()
     
@@ -35,9 +35,9 @@ def test():
             sim.history['Ja'][-1::-1])
     
     # Simulate it numerically! (parameterized everything)
-    sim2 = ares.simulations.Global21cm(Gamma_cgm=Gamma_cgm_func, 
-        heat_igm=eheat_func, Ja=Ja_func, is_ion_src_igm=False,
-        verbose=False, progress_bar=False)
+    sim2 = ares.simulations.Global21cm(pop_k_ion_cgm=Gamma_cgm_func, 
+        pop_k_heat_igm=eheat_func, pop_Ja=Ja_func, is_ion_src_igm=False,
+        verbose=False, progress_bar=False, pop_model='user')
     sim2.run()
     
     # Make sure values agree

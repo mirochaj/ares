@@ -27,12 +27,19 @@ If you do not have mercurial installed, and would rather just grab a tarball
 of the most recent version, select the `Download repository
 <https://bitbucket.org/mirochaj/ares/downloads>`_ option on bitbucket.
     
-It would be in your best interest to set an environment variable which points
-to the *ares* install directory, e.g. (in bash) ::
+You'll need to set an environment variable which points to the *ares* install directory, e.g. (in bash) ::
 
-    export ARES=/users/<yourusername>/ares    
+    export ARES=/users/<yourusername>/ares
+
+*ares* will look in ``$ARES/input`` for lookup tables of various kinds. To download said lookup tables, run ::
+
+    python remote.py
     
-A few lookup tables will be downloaded to ``$ARES/input`` automatically.    
+This might take a few minutes. If something goes wrong with the download, you can run    ::
+
+    python remote.py fresh
+    
+to get fresh copies of everything.
 
 Don't have Python already?
 --------------------------

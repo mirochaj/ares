@@ -17,7 +17,7 @@ import matplotlib.pyplot as pl
 pars = \
 {
  'pop_type': 'galaxy',
- #'pop_sfrd': 'robertson2015',
+ 'pop_sfrd': 'robertson2015',
  'pop_sed': 'pl',
  'pop_alpha': -1.5,
  'pop_Emin': 2e2,

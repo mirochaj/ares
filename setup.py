@@ -1,46 +1,25 @@
 #!/usr/bin/env python
 
-import os, re, urllib, shutil, sys, tarfile
+import os
 
 try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
 
-# Parse some command-line options before setup gets called
-options = []
-for option in ['--fresh', '--minimal', '--clean']:
-    if option in sys.argv:
-        options.append(option)
-
-for option in options:
-    sys.argv.remove(option)
-        
 ares_link = 'https://bitbucket.org/mirochaj/ares'
-
-ares_packages = \
-    ['ares', 'ares.analysis', 'ares.simulations', 'ares.populations',
-     'ares.util', 'ares.solvers', 'ares.static', 'ares.sources', 
-     'ares.physics', 'ares.inference', 'ares.phenom']
-
-ares_descr = \
-"""
-The Accelerated Reionization Era Simulations (ares) code was designed to 
-rapidly generate models for the global 21-cm signal. It can also be used as 
-a 1-D radiative transfer code, stand-alone non-equilibrium chemistry solver, 
-or global radiation background calculator.
-"""
 
 setup(name='ares',
       version='0.1',
       description='Accelerated Reionization Era Simulations',
-      long_description=ares_descr,
       author='Jordan Mirocha',
       author_email='mirochaj@gmail.com',
       url=ares_link,
-      packages=ares_packages,
+      packages=['ares', 'ares.analysis', 'ares.simulations', 
+       'ares.populations', 'ares.util', 'ares.solvers', 'ares.static', 
+       'ares.sources', 'ares.physics', 'ares.inference', 'ares.phenom'],
      )
-          
+     
 # Try to set up $HOME/.ares
 HOME = os.getenv('HOME')
 if not os.path.exists('%s/.ares' % HOME):
@@ -58,88 +37,14 @@ for fn in ['defaults', 'labels']:
             f.close()
         except:
             pass
-    
-# Auxiliary data downloads
-# Format: [URL, file 1, file 2, ..., file to run when done]
-
-aux_data = \
-{
- 'hmf': ['%s/downloads' % ares_link, 
-    'hmf_ST_logM_1200_4-16_z_1141_3-60.pkl',
-    None],
- 'inits': ['%s/downloads' % ares_link, 
-     'initial_conditions.npz',
-     None],    
- 'optical_depth': ['%s/downloads' % ares_link, 
-    'optical_depth_H_400x1616_z_10-50_logE_2-4.7.pkl',
-    'optical_depth_He_400x1616_z_10-50_logE_2-4.7.pkl',
-    None],
- 'secondary_electrons': ['http://www.astro.ucla.edu/~sfurlane/docs',
-    'elec_interp.tar.gz', 
-    'read_FJS10.py'],
- 'starburst99': ['http://www.stsci.edu/science/starburst99/data',
-    'data.tar.gz', 
-    None],                        
- 'hm12': ['http://www.ucolick.org/~pmadau/CUBA/Media',
-    'UVB.out', 
-    'emissivity.out', 
-    None],
- 'bpass_v1': ['http://bpass.auckland.ac.nz/2/files'] + \
-    ['sed_bpass_z%s_tar.gz' % Z for Z in ['001', '004', '008', '020', '040']] + \
-    [None],
-
-}
-
-print '\n'
-os.chdir('input')
-
-if '--minimal' in options:
-    to_download = ['inits', 'hmf', 'secondary_electrons', 'optical_depth']
-else:
-    to_download = aux_data.keys()
-
-for direc in to_download:
-    if not os.path.exists(direc):
-        os.mkdir(direc)
-    
-    os.chdir(direc)
-    
-    web = aux_data[direc][0]
-    for fn in aux_data[direc][1:-1]:
-    
-        if os.path.exists(fn):
-            if '--fresh' or '--clean' in options:
-                os.remove(fn)
-            
-        if '--clean' in options:
-            continue
-    
-        print "Downloading %s/%s..." % (web, fn)
-        urllib.urlretrieve('%s/%s' % (web, fn), fn)
-        
-        if not re.search('tar', fn):
-            continue
-            
-        tar = tarfile.open(fn)
-        tar.extractall()
-        tar.close()
-    
-    # Run a script [optional]
-    if aux_data[direc][-1] is not None:
-        execfile(aux_data[direc][-1])
-    
-    os.chdir('..')
-
-# Go back down to the root level, otherwise the user will get slightly 
-# incorrect instructions for how to set the ARES environment variable
-os.chdir('..')
+              
+##
+# TELL PEOPLE TO SET ENVIRONMENT VARIABLE
+##
 
 ARES_env = os.getenv('ARES')
 cwd = os.getcwd()
 
-##
-# TELL PEOPLE TO SET ENVIRONMENT VARIABLE
-##
 if not ARES_env:
 
     import re    
