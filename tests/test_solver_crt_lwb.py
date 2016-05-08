@@ -93,6 +93,9 @@ def test(tol=1e-2):
     
     diff = np.abs(flux_anl - flux_num) / flux_anl
     
+    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.close('all')    
+    
     assert diff[0] < tol, \
         "Relative error between analytical and numerical solutions exceeds %.3g." % tol
     

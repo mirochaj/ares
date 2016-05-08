@@ -39,29 +39,6 @@ class ParameterizedHaloProperty(object):
             self._M_aug = self.pf['php_Mfun_aug'] is not None
         return self._M_aug  
 
-    #def func(self, name):        
-    #    if self.pf['php_%s' % name] == 'constant':
-    #        func = lambda zz: self.pf['php_%s_par0' % name]
-    #    elif self.pf['php_%s' % name] == 'linear_z':
-    #        coeff1 = self.pf['php_%s_par0' % name]
-    #        coeff2 = self.pf['php_%s_par1' % name]
-    #        func = lambda zz: coeff1 + coeff2 * (1. + zz) / (1. + z0)
-    #    elif self.pf['php_%s' % name] == 'linear_t':
-    #        coeff = self.pf['php_%s_par0' % name]
-    #        func = lambda zz: 10**(np.log10(coeff) - 1.5 * (1. + zz) / (1. + z0))
-    #    elif self.pf['php_%s' % name] == 'pl':
-    #        coeff1 = self.pf['php_%s_par0' % name]
-    #        coeff2 = self.pf['php_%s_par1' % name]
-    #        func = lambda zz: 10**(np.log10(coeff1) + coeff2 * (1. + zz) / (1. + z0))
-    #    elif self.pf['php_%s' % name] == 'poly':
-    #        coeff1 = self.pf['php_%s_par0' % name]
-    #        coeff2 = self.pf['php_%s_par1' % name]
-    #        coeff3 = self.pf['php_%s_par2' % name]
-    #        func = lambda zz: 10**(np.log10(coeff1) + coeff2 * (1. + zz) / (1. + z0) \
-    #            + coeff3 * ((1. + zz) / (1. + z0))**2)
-    #
-    #    return func
-    #
     @property
     def _apply_extrap(self):
         if not hasattr(self, '_apply_extrap_'):
@@ -71,7 +48,7 @@ class ParameterizedHaloProperty(object):
 
     @_apply_extrap.setter
     def _apply_extrap(self, value):
-        self._apply_extrap_ = value   
+        self._apply_extrap_ = value
 
     def __call__(self, z, M):
         """

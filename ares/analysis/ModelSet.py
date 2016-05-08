@@ -637,7 +637,7 @@ class ModelSet(BlobFactory):
         
         # Set the mask! 
         model_set.mask = np.logical_or(mask, self.mask)
-
+        
         i = 0
         while hasattr(self, 'slice_%i' % i):
             i += 1
@@ -1005,7 +1005,11 @@ class ModelSet(BlobFactory):
             
         Returns
         -------
-        Tuple, (maximum likelihood value, negative error, positive error).
+        if peak is None:
+            Returns x-values corresponding to desired quartile range, i.e.,
+            not really an error-bar.
+        else:
+            tuple: (maximum likelihood value, negative error, positive error).
         """
 
         #pars, take_log, multiplier, un_log, ivar = \
@@ -1023,20 +1027,20 @@ class ModelSet(BlobFactory):
         # Apply mask to weights
         if weights is not None and to_hist[par].shape != weights.shape:
             weights = weights[np.logical_not(mask)]
-                       
+
         if to_hist[par] == []:
             print "WARNING: error w/ %s" % par
             print "@ z=" % z
             return
-                
+
         if peak == 'median':
             N = len(self.logL)
             psorted = np.sort(to_hist[par])
             mu = psorted[int(N / 2.)]
         elif peak == 'mode':
-            pass
-        else:
             mu = to_hist[par][np.argmax(self.logL)]
+        else:
+            mu = None
             
         if hasattr(to_hist[par], 'compressed'):
             to_hist[par] = to_hist[par].compressed()
@@ -1044,7 +1048,11 @@ class ModelSet(BlobFactory):
         q1 = 0.5 * 100 * (1. - nu)    
         q2 = 100 * nu + q1
         lo, hi = np.percentile(to_hist[par], (q1, q2))
-        sigma = (mu - lo, hi - mu)
+        
+        if mu is not None:
+            sigma = (mu - lo, hi - mu)
+        else:
+            sigma = (lo, hi)
 
         return mu, np.array(sigma)
         
@@ -1353,10 +1361,18 @@ class ModelSet(BlobFactory):
         for i, par in enumerate(pars):
             if par in data:
                 continue
+                
             if self.is_mcmc:
                 data[par] = np.ma.array(to_hist[i], mask=self.mask)
             else:
-                data[par] = np.ma.array(to_hist[i], mask=0)
+                try:
+                    data[par] = np.ma.array(to_hist[i], mask=self.mask)
+                except np.ma.MaskError:
+                    print "MaskError encountered. Assuming mask=0."
+                    
+                    new_mask = np.array([self.mask.copy()] * to_hist[i].shape[1]).T
+                    
+                    data[par] = np.ma.array(to_hist[i], mask=new_mask)
         
         is_log = {par:is_log[i] for i, par in enumerate(pars)}
                     
@@ -2262,7 +2278,7 @@ class ModelSet(BlobFactory):
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        best='median', **kwargs):    
+        best='median', fill=True, **kwargs):    
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -2393,8 +2409,13 @@ class ModelSet(BlobFactory):
                 zeros = np.argwhere(y == 0)
                 for element in zeros:
                     y[element[0],element[1]] = 1e-15
-        
-            ax.fill_between(xarr, y[0], y[1], **kwargs)
+            
+            if fill:
+                ax.fill_between(xarr, y[0], y[1], **kwargs)
+            else:
+                ax.plot(xarr, y[0], **kwargs)
+                ax.plot(xarr, y[1], **kwargs)
+                
         
         pl.draw()
                  

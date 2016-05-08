@@ -12,7 +12,6 @@ Description: Make sure our extrema-finding routines work.
     
 import ares
 import numpy as np
-import matplotlib.pyplot as pl
 from ares.physics.Constants import nu_0_mhz
 
 def test():
@@ -53,7 +52,5 @@ def test():
     # Everything good?
     assert absorption_OK and no_nonsense
     
-    
-
 if __name__ == "__main__":
     test()

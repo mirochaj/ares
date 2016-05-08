@@ -111,6 +111,9 @@ def test(Ecomp=8e3, tol=1e-2):
         abs((flux_comp_thick - flux_comp_anl) / flux_comp_anl))
     print "----------------------------------------------------------"
     
+    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.close()    
+
     assert thin_OK and thick_OK, \
         "Relative error between analytical and numerical solutions exceeds %.3g." % tol
 
