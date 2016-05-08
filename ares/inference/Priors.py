@@ -618,7 +618,7 @@ class GaussianPrior(_Prior):
         Finds and returns the string representation of this GaussianPrior.
         """
         if self.numparams == 1:
-            return "Normal(mean=%s,variance=%s)" %\
+            return "Normal(mean=%.3g,variance=%.3g)" %\
                 (self.mean.A[0,0], self.covariance.A[0,0])
         else:
             return "Normal(%s, %s)" % (self.mean, self.covariance)
