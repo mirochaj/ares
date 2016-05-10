@@ -56,7 +56,7 @@ def test(Ecomp=8e3, tol=1e-2):
     
     # Grab GalaxyPopulation
     pop = mgb.pops[0]
-    
+
     # Cosmologically-limited solution to the RTE
     # [Equation A1 in Mirocha (2014)]
     zi, zf = 40., 10.
@@ -65,18 +65,16 @@ def test(Ecomp=8e3, tol=1e-2):
     e_nu *= (1. + 10.)**6. / -3.
     e_nu *= ((1. + 40.)**-3. - (1. + 10.)**-3.)
     e_nu *= ev_per_hz
-    
+
     # Plot it
     pl.loglog(E, e_nu, color='k', ls='-')
     pl.xlabel(ares.util.labels['E'])
     pl.ylabel(ares.util.labels['flux_E'])
-    pl.savefig('example_crb_xr.png')
-    
-    
+
     """
     Do neutral absorption in IGM.
     """
-    
+
     pars['pop_solve_rte'] = True
     pars['pop_approx_tau'] = 'neutral'
     pars['pop_tau_Nz'] = 400

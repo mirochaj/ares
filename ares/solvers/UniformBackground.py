@@ -230,7 +230,7 @@ class UniformBackground(object):
                 z, nrg, tau, ehat = self._set_grid(pop, bands)
             else:
                 z = nrg = ehat = tau = None
-                
+
             self.tau.append(tau)
             self.energies.append(nrg)
             self.redshifts.append(z)
