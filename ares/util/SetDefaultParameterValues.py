@@ -392,6 +392,7 @@ def PopulationParameters():
     "pop_imf": 2.35,
     "pop_nebular": False,
     "pop_ssp": False,             # a.k.a., continuous SF
+    "pop_psm_instance": None,
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
 

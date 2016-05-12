@@ -160,7 +160,9 @@ class GalaxyAggregate(HaloPopulation):
     @property
     def src(self):
         if not hasattr(self, '_src'):
-            if self._Source is not None:
+            if self.pf['pop_psm_instance'] is not None:
+                self._src = self.pf['pop_psm_instance']
+            elif self._Source is not None:
                 self._src = self._Source(**self.src_kwargs)
             else:
                 self._src = None
@@ -197,7 +199,12 @@ class GalaxyAggregate(HaloPopulation):
             else:
                 self._sed_tab = False
         return self._sed_tab
-        
+    
+    def _sfrd_func(self, z):
+        # This is a cheat so that the SFRD spline isn't constructed
+        # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
+        return self.SFRD(z)    
+    
     def _convert_band(self, Emin, Emax):
         """
         Convert from luminosity function in reference band to given bounds.

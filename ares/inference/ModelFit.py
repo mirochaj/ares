@@ -679,8 +679,10 @@ class ModelFit(BlobFactory):
             # this might be big, get rid of it
             if re.search(key, 'tau_table'):
                 to_axe.append(key)
-            #if re.search(key, 'hmf_instance'):
-            #    to_axe.append(key)    
+            if re.search(key, 'hmf_instance'):
+                to_axe.append(key)
+            if re.search(key, 'pop_psm_instance'):
+                to_axe.append(key)        
         
         for key in to_axe:
             tmp[key] = 'unpicklable'

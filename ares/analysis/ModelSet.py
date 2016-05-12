@@ -242,10 +242,10 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_base_kwargs'):
             if os.path.exists('%s.setup.pkl' % self.prefix):
                 f = open('%s.setup.pkl' % self.prefix, 'rb')
-                #try:
-                self._base_kwargs = pickle.load(f)
-                #except:
-                 #   self._base_kwargs = {}
+                try:
+                    self._base_kwargs = pickle.load(f)
+                except:
+                    self._base_kwargs = {}
                 f.close()
                 
             else:

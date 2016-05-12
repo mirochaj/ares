@@ -88,9 +88,10 @@ class UniformBackground(object):
             self.grid = None
             self.cosm = Cosmology()
 
-        self._set_populations()
-        self._set_generators()
         self._set_integrator()
+        
+        #self._set_populations()
+        #self._set_generators()
         
     @property
     def hydr(self):
@@ -109,23 +110,18 @@ class UniformBackground(object):
     @property
     def solve_rte(self):
         """
-        By population and band, are we solving the RTE in detail?
-        
-        ..note:: Currently, if a population has only one band, we will not
-            nest the list any further (i.e., no sub-bands). Should we?
-            
+        By population and band, are we solving the RTE in detail?    
         """
                 
         if not hasattr(self, '_solve_rte'):
-    
+                
             self._solve_rte = []
             for i, pop in enumerate(self.pops):
                                 
                 if self.bands_by_pop[i] is None:
                     self._solve_rte.append(False)
                     continue
-                
-                this_pop = []
+                                
                 for j, band in enumerate(self.bands_by_pop[i]):
                     
                     if band is None:
@@ -134,7 +130,7 @@ class UniformBackground(object):
                     elif type(pop.pf['pop_solve_rte']) is bool:
                         self._solve_rte.append(pop.pf['pop_solve_rte'])
                         break
-                        
+
         assert len(self._solve_rte) == len(self.pops)                
                                 
         return self._solve_rte
@@ -180,63 +176,131 @@ class UniformBackground(object):
             
         return bands
 
-    def _set_populations(self):
-        """
-        Initialize population(s) of radiation sources!
+    @property
+    def pops(self):
+        if not hasattr(self, '_pops'):
+            self._pops = CompositePopulation(**self._kwargs).pops
+            
+            self.approx_all_pops = True
+            for i, pop in enumerate(self._pops):
+
+                # Can't use self.approx_rte in this case... :(
+
+                if pop.pf['pop_solve_rte'] == False:
+                    continue
+                else:
+                    self.approx_all_pops = False
+                    break
+            
+        return self._pops
+
+    @property
+    def Npops(self):
+        return len(self.pops)
+    
+    @property
+    def energies(self):
+        if not hasattr(self, '_energies'):
+            bands = self.bands_by_pop
+        return self._energies
+    
+    @property
+    def redshifts(self):
+        if not hasattr(self, '_redshifts'):
+            bands = self.bands_by_pop
+        return self._redshifts
+    
+    @property
+    def bands_by_pop(self):
+        if not hasattr(self, '_bands_by_pop'):
+            # Figure out which band each population emits in
+            if self.approx_all_pops:
+                self._energies = [[None] for i in range(self.Npops)]
+                self._redshifts = [None for i in range(self.Npops)]
+                self._bands_by_pop = [None for i in range(self.Npops)]   
+            else:    
+                # Really just need to know if it emits ionizing photons, 
+                # or has any sawtooths we need to care about
+                self._bands_by_pop = []
+                self._energies = []
+                self._redshifts = []
+                for i, pop in enumerate(self.pops):
+                    bands = self._get_bands(pop)
+                    self._bands_by_pop.append(bands)   
+                    
+                    if (bands is None) or (not pop.pf['pop_solve_rte']):
+                        z = nrg = ehat = tau = None
+                    else:
+                        z, nrg, tau, ehat = self._set_grid(pop, bands)                        
+
+                    self._energies.append(nrg)
+                    self._redshifts.append(z)
+                    
+        return self._bands_by_pop            
+
+    @property
+    def tau(self):
+        if not hasattr(self, '_tau'):
+            self._tau = []
+            for i, pop in enumerate(self.pops):
+                if self.solve_rte[i]:
+                    bands = self.bands_by_pop[i]
+                    z, nrg, tau, ehat = self._set_grid(pop, bands, 
+                        compute_tau=True)
+                else:
+                    z = nrg = ehat = tau = None
+
+                self._tau.append(tau)
         
-        This routine will figure out emission energies, redshifts, and
-        tabulate emissivities. 
-        
-        Returns
-        -------
-        Nothing. Sets attributes `energies`, `redshifts`, and `emissivity`
-        for each population.
-        
-        """
+        return self._tau
+    
+    @property
+    def emissivities(self):
+        if not hasattr(self, '_emissivities'):
+            self._emissivities = []
+            for i, pop in enumerate(self.pops):
+                if self.solve_rte[i]:
+                    bands = self.bands_by_pop[i]
+                    z, nrg, tau, ehat = self._set_grid(pop, bands, 
+                        compute_emissivities=True)
+                else:
+                    z = nrg = ehat = tau = None
+    
+                self._emissivities.append(ehat)
+    
+        return self._emissivities
 
-        self.pops = CompositePopulation(**self._kwargs).pops
-        self.Npops = len(self.pops)
+    #def _set_populations(self):
+    #    """
+    #    Initialize population(s) of radiation sources!
+    #    
+    #    This routine will figure out emission energies, redshifts, and
+    #    tabulate emissivities. 
+    #    
+    #    Returns
+    #    -------
+    #    Nothing. Sets attributes `energies`, `redshifts`, and `emissivity`
+    #    for each population.
+    #    
+    #    """
+    #
+    #    self.tau = []
+    #    self.energies = []; self.redshifts = []; self.emissivities = []
+    #    for i, pop in enumerate(self.pops):
+    #
+    #        if self.solve_rte[i]:
+    #            bands = bands_by_pop[i]
+    #            z, nrg, tau, ehat = self._set_grid(pop, bands)
+    #        else:
+    #            z = nrg = ehat = tau = None
+    #
+    #        self.tau.append(tau)
+    #        self.energies.append(nrg)
+    #        self.redshifts.append(z)
+    #        self.emissivities.append(ehat)
 
-        self.approx_all_pops = True
-        for i, pop in enumerate(self.pops):
-
-            # Can't use self.approx_rte in this case... :(
-
-            if pop.pf['pop_solve_rte'] == False:
-                continue
-            else:
-                self.approx_all_pops = False
-                break
-
-        if self.approx_all_pops:
-            self.energies = [[None] for i in range(self.Npops)]
-            self.bands_by_pop = [None for i in range(self.Npops)]
-            return
-
-        # Figure out which band each population emits in
-
-        # Really just need to know if it emits ionizing photons, or has any
-        # sawtooths we need to care about
-        bands_by_pop = self.bands_by_pop = []
-        for pop in self.pops:
-            bands_by_pop.append(self._get_bands(pop))
-
-        self.tau = []
-        self.energies = []; self.redshifts = []; self.emissivities = []
-        for i, pop in enumerate(self.pops):
-
-            if self.solve_rte[i]:
-                bands = bands_by_pop[i]
-                z, nrg, tau, ehat = self._set_grid(pop, bands)
-            else:
-                z = nrg = ehat = tau = None
-
-            self.tau.append(tau)
-            self.energies.append(nrg)
-            self.redshifts.append(z)
-            self.emissivities.append(ehat)
-
-    def _set_grid(self, pop, bands, zi=None, zf=None, nz=None):
+    def _set_grid(self, pop, bands, zi=None, zf=None, nz=None, 
+        compute_tau=False, compute_emissivities=False):
         """
         Create energy and redshift arrays.
         
@@ -297,13 +361,19 @@ class UniformBackground(object):
 
                     # A list of lists!                    
                     E.append(EofN)
-
-                if band == (E_LyA, E_LL) or (4 * E_LyA, 4 * E_LL):
-                    tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
+                
+                if compute_tau:
+                    if band == (E_LyA, E_LL) or (4 * E_LyA, 4 * E_LL):
+                        tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
+                    else:
+                        tau = [self._set_tau(z, Earr, pop) for Earr in E]
                 else:
-                    tau = [self._set_tau(z, Earr, pop) for Earr in E]
-
-                ehat = [self.TabulateEmissivity(z, Earr, pop) for Earr in E]
+                    tau = None
+                
+                if compute_emissivities:    
+                    ehat = [self.TabulateEmissivity(z, Earr, pop) for Earr in E]
+                else:
+                    ehat = None
 
                 # Store stuff for this band
                 tau_by_band.append(tau)
@@ -315,10 +385,16 @@ class UniformBackground(object):
                 E = E0 * R**np.arange(N)
                                 
                 # Tabulate optical depth
-                z, E, tau = self._set_tau(z, E, pop)
+                if compute_tau:
+                    z, E, tau = self._set_tau(z, E, pop)
+                else:
+                    tau = None
 
                 # Tabulate emissivity
-                ehat = self.TabulateEmissivity(z, E, pop)
+                if compute_emissivities:
+                    ehat = self.TabulateEmissivity(z, E, pop)
+                else:
+                    ehat = None
 
                 # Store stuff for this band
                 tau_by_band.append(tau)
@@ -387,7 +463,8 @@ class UniformBackground(object):
         
         return z, E, tau
 
-    def _set_generators(self):
+    @property
+    def generators(self):
         """
         Create generators for each population.
         
@@ -396,15 +473,18 @@ class UniformBackground(object):
         Nothing. Sets attribute `generators`.
 
         """
+        if not hasattr(self, '_generators'):
         
-        self.generators = []
-        for i, pop in enumerate(self.pops):
-            if not self.solve_rte[i]:
-                gen = None
-            else:
-                gen = self.FluxGenerator(popid=i)
-
-            self.generators.append(gen)    
+            self._generators = []
+            for i, pop in enumerate(self.pops):
+                if not self.solve_rte[i]:
+                    gen = None
+                else:
+                    gen = self.FluxGenerator(popid=i)
+            
+                self._generators.append(gen)    
+        
+        return self._generators
 
     def _set_integrator(self):
         """
