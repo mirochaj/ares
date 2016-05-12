@@ -15,6 +15,8 @@ A few papers on how it works:
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
 
+If you'd like to live on the bleeding edge, check out the development fork: `ares-dev <https://bitbucket.org/mirochaj/ares-dev>`_.
+
 The `docs <http://ares.readthedocs.org/en/latest/>`_ are still a work in progress.
 
 Getting started
@@ -128,4 +130,3 @@ Additional contributions / corrections / suggestions from:
 - Jacob Jost (CU-Boulder)
 - `Greg Salvesen <http://jila.colorado.edu/~salvesen/>`_ (CU-Boulder)
 - `Adrian Liu <http://w.astro.berkeley.edu/~acliu/>`_ (UC-Berkeley)
-
