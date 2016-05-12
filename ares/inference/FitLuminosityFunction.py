@@ -236,7 +236,7 @@ class FitLuminosityFunction(FitGlobal21cm):
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
 
-            if (self.save_hmf or self.save_ssp):
+            if (self.save_hmf or self.save_psm):
                 sim_class = _which_sim_inst(**self.base_kwargs)
                 
                 sim = sim_class(**self.base_kwargs)
