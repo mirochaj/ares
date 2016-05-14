@@ -94,6 +94,16 @@ class GalaxyAggregate(HaloPopulation):
         self._conversion_factors = {}
 
     @property
+    def id_num(self):
+        if not hasattr(self, '_id_num'):
+            self._id_num = None
+        return self._id_num
+        
+    @id_num.setter
+    def id_num(self, value):
+        self._id_num = int(value)
+        
+    @property
     def is_lya_src(self):
         if not hasattr(self, '_is_lya_src'):
             self._is_lya_src = \
@@ -200,10 +210,11 @@ class GalaxyAggregate(HaloPopulation):
                 self._sed_tab = False
         return self._sed_tab
     
-    def _sfrd_func(self, z):
-        # This is a cheat so that the SFRD spline isn't constructed
-        # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
-        return self.SFRD(z)    
+    #def _sfrd_func(self, z):
+    #    # This is a cheat so that the SFRD spline isn't constructed
+    #    # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
+    #    
+    #    return self.SFRD(z)    
     
     def _convert_band(self, Emin, Emax):
         """
@@ -308,12 +319,16 @@ class GalaxyAggregate(HaloPopulation):
             elif inspect.ismethod(self.pf['pop_sfrd']):
                 self._sfrd_ = self.pf['pop_sfrd']
             elif isinstance(self.pf['pop_sfrd'], interp1d):
-                self._sfrd_ = self.pf['pop_sfrd']    
+                self._sfrd_ = selfsel.pf['pop_sfrd']    
             else:
                 tmp = read_lit(self.pf['pop_sfrd'])
                 self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
         
         return self._sfrd_
+        
+    @_sfrd.setter
+    def _sfrd(self, value):
+        self._sfrd_ = value
     
     def SFRD(self, z):
         """
@@ -343,7 +358,7 @@ class GalaxyAggregate(HaloPopulation):
         if z > self.zform:
             return 0.0
         
-        # SFRD approximated by some analytic function    
+        # SFRD given by some function    
         if self._sfrd is not None:
             if self.pf['pop_sfrd_units'].lower() == 'g/s/cm^3':
                 return self._sfrd(z)

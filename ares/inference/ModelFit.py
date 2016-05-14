@@ -685,7 +685,7 @@ class ModelFit(BlobFactory):
                 to_axe.append(key)        
         
         for key in to_axe:
-            tmp[key] = 'unpicklable'
+            tmp[key] = None
             
         pickle.dump(tmp, f)
         del tmp

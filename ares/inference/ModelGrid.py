@@ -376,6 +376,8 @@ class ModelGrid(ModelFit):
             else:
                 sim = self.simulator(**p)
 
+            sim.run()
+            
             # Run simulation!
             try:
                 sim.run()

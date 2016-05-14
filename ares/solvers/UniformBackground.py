@@ -175,22 +175,28 @@ class UniformBackground(object):
             bands.append((E_LL, Emax))    
             
         return bands
-
+        
     @property
-    def pops(self):
-        if not hasattr(self, '_pops'):
-            self._pops = CompositePopulation(**self._kwargs).pops
+    def approx_all_pops(self):
+        if not hasattr(self, '_approx_all_pops'):
             
-            self.approx_all_pops = True
-            for i, pop in enumerate(self._pops):
+            self._approx_all_pops = True
+            for i, pop in enumerate(self.pops):
 
                 # Can't use self.approx_rte in this case... :(
 
                 if pop.pf['pop_solve_rte'] == False:
                     continue
                 else:
-                    self.approx_all_pops = False
+                    self._approx_all_pops = False
                     break
+
+        return self._approx_all_pops
+
+    @property
+    def pops(self):
+        if not hasattr(self, '_pops'):
+            self._pops = CompositePopulation(**self._kwargs).pops
             
         return self._pops
 
