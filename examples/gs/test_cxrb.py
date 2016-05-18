@@ -10,13 +10,15 @@ Description:
 
 """
 
-import os, ares
+import ares
+import matplotlib.pyplot as pl
 
 pars1 = \
 {
  'pop_solve_rte{1}': True,
  'pop_tau_Nz{1}': 400,
  'pop_approx_tau{1}': True,
+ 'problem_type': 101.2,
 }
 
 pars2 = pars1.copy()
@@ -29,9 +31,9 @@ for p in [pars1, pars2, {'problem_type': 101}]:
     sim = ares.simulations.Global21cm(**p)
     sim.run()
     
-    anl = ares.analysis.Global21cm(sim)
-    ax = anl.GlobalSignature(ax=ax)
+    ax = sim.GlobalSignature(ax=ax)
 
+pl.show()
 
 
 

@@ -43,10 +43,15 @@ def test():
 
     # Plot 21-cm signature
     mp.grid[0].semilogx(z, map(dTb, z), color='k', label='analytic')
-    mp.grid[0].semilogx(z, map(dTb, z), color='b', label='CosmoRec')
-    mp.grid[0].legend(loc='lower right')
-
+    
     CR = ares.util.ReadData._load_inits()
+    
+    # Assume neutral medium for simplicity
+    Ts_CR = hydr.SpinTemperature(CR['z'], CR['Tk'], 0.0, 0.0, 0.0)
+    dTb_CR = hydr.DifferentialBrightnessTemperature(CR['z'], 0.0, Ts_CR)
+    
+    mp.grid[0].semilogx(CR['z'], dTb_CR, color='b', label='CosmoRec')
+    mp.grid[0].legend(loc='lower right')
 
     mp.grid[1].loglog(CR['z'], CR['Tk'], color='b', ls='--')
     
@@ -65,7 +70,7 @@ def test():
     pl.savefig('%s.png' % (__file__.rstrip('.py')))
     pl.close()
     
-    return True
+    assert True
     
 if __name__ == '__main__':
     test()    

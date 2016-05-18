@@ -317,9 +317,9 @@ def DustParameters():
     
     tmp = \
     {     
-     'dustcorr_Afun': 'meurer1999',
+     'dustcorr_Afun': None,
 
-     'dustcorr_Bfun': 'FitMason',
+     'dustcorr_Bfun': 'constant',
      
      # Intrinsic scatter in the beta-mag relation (gaussian)
      's_beta': 0.34,
@@ -388,10 +388,11 @@ def PopulationParameters():
     "pop_sed": 'pl',
     
     # For synthesis models
-    "pop_Z": 0.04,
+    "pop_Z": 0.02,
     "pop_imf": 2.35,
     "pop_nebular": False,
     "pop_ssp": False,             # a.k.a., continuous SF
+    "pop_psm_instance": None,
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
 
@@ -474,7 +475,6 @@ def PopulationParameters():
     'pop_fXh': None,
 
     "pop_approx_tau": True,     # shouldn't be a pop parameter
-    #"pop_sawtooth": False,
     "pop_solve_rte": False,
     "pop_tau_Nz": 400,
 
@@ -655,13 +655,12 @@ def ControlParameters():
     "solver_rtol": 1e-8,
     "solver_atol": 1e-8,
     "interp_method": 'cubic',
-    "interp_cc": 'cubic',
+    "interp_cc": 'linear',
 
     # Initialization
     "load_ics": True,
     "cosmological_ics": False,
     "load_sim": False,
-    
 
     # Timestepping
     "max_dt": 1.,

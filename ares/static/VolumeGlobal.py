@@ -685,7 +685,7 @@ class GlobalVolume(object):
     def coefficient_to_rate(self, z, species=0, **kw):
         return 1. / self.rate_to_coefficient(z, species, **kw)
 
-    def _fix_kwargs(self, functionify=False, popid=0, **kwargs):
+    def _fix_kwargs(self, functionify=False, popid=0, band=0, **kwargs):
 
         kw = defkwargs.copy()
         kw.update(kwargs)
@@ -703,7 +703,8 @@ class GlobalVolume(object):
             pass
         elif (kw['Emax'] is None) and self.background.solve_rte[popid] and \
             np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
-            kw['Emax'] = self.background.energies[popid][-1]
+            
+            kw['Emax'] = self.background.energies[popid][band][-1]
                         
         return kw
         
@@ -739,8 +740,8 @@ class GlobalVolume(object):
         pop = self.pops[popid]
                                 
         if not pop.pf['pop_heat_src_igm'] or (z >= pop.zform):
-            return 0.0
-        
+            return 0.0        
+                
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
 
@@ -768,9 +769,9 @@ class GlobalVolume(object):
                         / (self.esec.x[j] - self.esec.x[i_x])                
             else:
                 fheat = self.esec.DepositionFraction(kw['igm_e'])[0]
-                
+
         else:
-            fheat = self.pf['fXh']
+            fheat = self.pf['pop_fXh']
 
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
@@ -781,7 +782,7 @@ class GlobalVolume(object):
                 Emax=pop.pf['pop_Emax'])
                                                 
             return weight * fheat * Lx * (1. + z)**3
-
+            
         # Otherwise, do the full calculation
 
         # Re-normalize to help integrator
@@ -810,14 +811,14 @@ class GlobalVolume(object):
         # This means the fluxes have been computed already - integrate
         # over discrete set of points
         else:
-
+            
             integrand = self.sigma_E[popid][band][species] \
                 * (self._E[popid][band] - E_th[species])
 
             if self.approx_He:
                 integrand += self.cosm.y * self.sigma_E[popid][band][1] \
                     * (self._E[popid][band] - E_th[1])
-
+                    
             integrand *= kw['fluxes'][popid][band] * fheat / norm / ev_per_hz
                          
         # Compute integral over energy
@@ -826,15 +827,19 @@ class GlobalVolume(object):
                 lambda b: kw['Emax'], epsrel=self.rtol, epsabs=self.atol)
         else:
             if kw['Emax'] is not None:
-                imax = np.argmin(np.abs(self.E - kw['Emax']))
+                imax = np.argmin(np.abs(self._E[popid][band] - kw['Emax']))
                 if imax == 0:
                     return 0.0
-                    
+                elif imax == (len(self._E[popid][band]) - 1):  
+                    imax = None 
+                                        
                 if self.sampled_integrator == 'romb':
                     raise ValueError("Romberg's method cannot be used for integrating subintervals.")
-                    heat = romb(integrand[0:imax] * self.E[0:imax], dx=self.dlogE[0:imax])[0] * log10
+                    heat = romb(integrand[0:imax] * self.E[0:imax], 
+                        dx=self.dlogE[0:imax])[0] * log10
                 else:
-                    heat = simps(integrand[0:imax] * self.E[popid][0:imax], x=self.logE[popid][0:imax]) * log10
+                    heat = simps(integrand[0:imax] * self._E[popid][band][0:imax], 
+                        x=self.logE[popid][band][0:imax]) * log10
             
             else:
                 imin = np.argmin(np.abs(self._E[popid][band] - pop.pf['pop_Emin']))
@@ -1133,7 +1138,7 @@ class GlobalVolume(object):
         if not self.pf['secondary_lya']:
             return 0.0
         
-        return 1e-25
+        #return 1e-25
         
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
@@ -1162,7 +1167,7 @@ class GlobalVolume(object):
         # Compute integrand
         integrand = self.sigma_E[species] * (self.E - E_th[species])
        
-        integrand *= kw['xray_flux'] * flya / norm / ev_per_hz
+        integrand *= kw['fluxes'] * flya / norm / ev_per_hz
                          
         if kw['Emax'] is not None:
             imax = np.argmin(np.abs(self.E - kw['Emax']))

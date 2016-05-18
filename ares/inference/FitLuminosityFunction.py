@@ -99,7 +99,7 @@ class loglikelihood(LogLikelihood):
         Tuple: (log likelihood, blobs)
     
         """
-
+                
         kwargs = {}
         for i, par in enumerate(self.parameters):
         
@@ -175,7 +175,7 @@ class loglikelihood(LogLikelihood):
             # Generate model LF
             p = pop.LuminosityFunction(z=z, x=M, mags=True)
             phi.extend(p)           
-
+                
         lnL = 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
         PofD = self.const_term - lnL
                     
@@ -189,7 +189,7 @@ class loglikelihood(LogLikelihood):
 
         del sim, kw
         gc.collect()
-                                                
+
         return lp + PofD, blobs
     
 class FitLuminosityFunction(FitGlobal21cm):
@@ -222,11 +222,21 @@ class FitLuminosityFunction(FitGlobal21cm):
     def save_hmf(self, value):
         self._save_hmf = value
     
+    @property 
+    def save_psm(self):
+        if not hasattr(self, '_save_psm'):
+            self._save_psm = True
+        return self._save_psm
+    
+    @save_psm.setter
+    def save_psm(self, value):
+        self._save_psm = value    
+    
     @property
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
 
-            if self.save_hmf:
+            if (self.save_hmf or self.save_psm):
                 sim_class = _which_sim_inst(**self.base_kwargs)
                 
                 sim = sim_class(**self.base_kwargs)
@@ -241,10 +251,18 @@ class FitLuminosityFunction(FitGlobal21cm):
                         continue
                 
                     break
+                
+                self.pops = medium.field.pops
                     
-                hmf = pop.halos
-                assert 'hmf_instance' not in self.base_kwargs
-                self.base_kwargs['hmf_instance'] = hmf    
+                if self.save_hmf:
+                    hmf = pop.halos
+                    assert 'hmf_instance' not in self.base_kwargs
+                    self.base_kwargs['hmf_instance'] = hmf    
+                if self.save_psm:
+                    #raise NotImplemented('help')
+                    psm = pop.src
+                    assert 'pop_psm_instance' not in self.base_kwargs
+                    self.base_kwargs['pop_psm_instance{%i}' % popid] = psm
 
             self._loglikelihood = loglikelihood(self.xdata, 
                 self.ydata_flat, self.error_flat, 

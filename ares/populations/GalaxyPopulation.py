@@ -43,21 +43,30 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
         return self._magsys
         
+    #def L1500_per_sfr(self, z, M):
+    #    return self.pf['pop_L1500_per_sfr']    
+    #def Nion(self, z, M):
+    #    return self.pf['pop_Nion']  
+    #def Nlw(self, z, M):
+    #    return self.pf['pop_Nlw'] 
+        
     def __getattr__(self, name):
         """
         This gets called anytime we try to fetch an attribute that doesn't
         exist (yet). Right, now this is only used for L1500, Nion, Nlw.
         """
-    
+            
         # Indicates that this attribute is being accessed from within a 
         # property. Don't want to override that behavior!
         if (name[0] == '_'):
             raise AttributeError('This will get caught. Don\'t worry!')
-    
+        
         full_name = 'pop_' + name
                 
         # might need to capitalize sfr
-        #assert name in ['L1500_per_sfr', 'Nion', 'Nlw']
+        #if name not in self.__dict__.keys():
+        #    if name not in ['L1500_per_sfr', 'Nion', 'Nlw']:
+        #        return super(GalaxyPopulation, self).__getattribute__(name)
     
         # Now, possibly make an attribute
         if name not in self.__dict__.keys(): 
@@ -244,8 +253,12 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         
         if not hasattr(self, '_SFRD'):
             self._SFRD = interp1d(self.halos.z, self.sfrd_tab, kind='cubic')
-                
+
         return self._SFRD
+        
+    @SFRD.setter
+    def SFRD(self, value):
+        self._SFRD = value    
     
     @property   
     def SMD(self):
