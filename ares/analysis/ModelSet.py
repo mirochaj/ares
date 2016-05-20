@@ -1385,7 +1385,9 @@ class ModelSet(BlobFactory):
         # deletes all rows with nan's or inf's
         data = {}
         if remove_nas:
-            to_hist = delete_nan_rows(to_hist)
+            to_hist, deleted_indices = delete_nan_rows(to_hist)
+            print "delete_nan_rows was run in ExtractData. It" +\
+                (" deleted %i rows."% (len(deleted_indices),))
             
         for i, par in enumerate(pars):
             if par in data:

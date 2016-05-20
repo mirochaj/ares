@@ -365,8 +365,7 @@ def delete_nan_rows(array):
             indices.append(i)
     del is_inf_or_nan
     # this does not change array; just returns modified copy
-    print "delete_nan_rows was run. It deleted %i rows." % (len(indices),)
-    return np.delete(array, indices, axis=0)
+    return np.delete(array, indices, axis=0), indices
         
     
     
