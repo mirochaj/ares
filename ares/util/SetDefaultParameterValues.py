@@ -438,6 +438,10 @@ def PopulationParameters():
     "pop_Nion": 4e3,
     "pop_fesc": 0.1,
     
+    # Should
+    "pop_fesc_LW": 1.,
+    "pop_fesc_LyC": 0.1,
+
     # Parameters that sweep fstar under the rug
     "pop_xi_XR": None,     # product of fstar and fX
     "pop_xi_LW": None,     # product of fstar and Nlw

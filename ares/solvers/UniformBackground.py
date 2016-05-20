@@ -924,7 +924,8 @@ class UniformBackground(object):
         if not self.solve_rte[popid]:
             norm = c * self.cosm.dtdz(z) / four_pi
 
-            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6)
+            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6) \
+                * pop.pf['pop_fesc_LW']
 
             return norm * (1. + z)**3 * (1. + pop.pf['lya_frec_bar']) * \
                 rhoLW / dnu

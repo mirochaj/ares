@@ -89,6 +89,11 @@ class MultiPanel:
         if top is None:
             top = pl.rcParams['figure.subplot.top']
             
+        self.l = left
+        self.r = right
+        self.b = bottom
+        self.t = top    
+            
         self.square = dims[0] == dims[1]
         
         if (diagonal is not None) and not self.square:
@@ -606,10 +611,10 @@ class MultiPanel:
 
     def fix_axes_labels(self):
         for i in xrange(self.N):
-            
+
             if self.grid[i] is None:
                 continue
-            
+
             # (column, row)
             j, k = self.axis_position(i)
 

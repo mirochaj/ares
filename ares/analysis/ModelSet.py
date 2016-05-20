@@ -878,7 +878,7 @@ class ModelSet(BlobFactory):
 
         xdata = data[p[0]]
         ydata = data[p[1]]
-        
+                
         if c is not None:
             cdata = data[p[2]].squeeze()
         else:
@@ -895,6 +895,8 @@ class ModelSet(BlobFactory):
             cb = self._cb = pl.colorbar(scat)
         else:
             cb = None
+        
+        self._scat = scat
             
         self.plot_info = {'pars': pars, 'ivar': ivar,
             'take_log': take_log, 'un_log':un_log, 'multiplier':multiplier}
@@ -1309,7 +1311,8 @@ class ModelSet(BlobFactory):
                 else:
                     is_log.append(False)
                     to_hist.append(val)
-                                    
+            
+            # Only derived blobs in this else block, yes?                        
             else:
                 
                 cand = glob.glob('%s*.%s.pkl' % (self.prefix, par))
@@ -1318,8 +1321,23 @@ class ModelSet(BlobFactory):
                     f = open(cand[0], 'rb')     
                     dat = pickle.load(f)
                     f.close()
-
-                    to_hist.append(dat)        
+                    
+                    # What follows is real cludgey...sorry, future Jordan
+                    nd = len(dat.shape) - 1
+                    assert nd == 1, "Help!"
+                    
+                    if ivar[k] is not None:
+                        for hh in range(len(self.blob_dims)):
+                            if len(self.blob_dims[hh]) != 1:
+                                continue
+                            if len(dat[0]) == self.blob_dims[hh][0]:
+                                loc = np.argmin(np.abs(self.blob_ivars[hh][0] - ivar[k]))
+                                break
+                            
+                        to_hist.append(dat[:,loc])
+                    else:
+                        to_hist.append(dat)
+                    
                     is_log.append(False)
                 else:
 
@@ -2717,7 +2735,8 @@ class ModelSet(BlobFactory):
         if save:
             assert name is not None, "Must supply name for new blob!"
             
-            nd = len(result.shape)
+            # First dimension is # of samples
+            nd = len(result.shape) - 1
             
             fn = '%s.blob_%id.%s.pkl' % (self.prefix, nd, name)
             
