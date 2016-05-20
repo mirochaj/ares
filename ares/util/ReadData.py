@@ -14,10 +14,10 @@ import numpy as np
 import imp as _imp
 import os, re, sys
 
-#try:
-#    import dill as pickle
-#except ImportError:
-import pickle
+try:
+    import dill as pickle
+except ImportError:
+    import pickle
 
 try:
     import h5py

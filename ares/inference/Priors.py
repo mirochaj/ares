@@ -120,7 +120,7 @@ def search_sorted(array, value):
     range_max_0 = len(array)
     range_max = range_max_0
     numloops = 0
-    while numloops < 1000000:
+    while numloops < 100:
         numloops += 1
         if (range_max - range_min) == 1:
             if (range_max == range_max_0) or (range_min == 0):

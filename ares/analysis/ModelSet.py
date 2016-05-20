@@ -1281,15 +1281,12 @@ class ModelSet(BlobFactory):
                                     
         to_hist = np.ndarray((len(self.chain), len(pars)))
         is_log = np.ndarray(len(pars), dtype=bool)
-        #to_hist = []
-        #is_log = []
         for k, par in enumerate(pars):
                     
             # If one of our free parameters, return right away
             if par in self.parameters:
                 j = self.parameters.index(par)
                 is_log[k] = self.is_log[j]
-                #is_log.append(self.is_log[j])
                 
                 if self.is_log[j] and un_log[k]:
                     val = 10**self.chain[:,j].copy()
@@ -1303,10 +1300,8 @@ class ModelSet(BlobFactory):
         
                 if take_log[k] and (not self.is_log[j]):
                     to_hist[:,k] = np.log10(val)
-                    #to_hist.append(np.log10(val))
                 else:
                     to_hist[:,k] = val
-                    #to_hist.append(val)
                             
             elif par in self.all_blob_names:
                 
@@ -1322,13 +1317,9 @@ class ModelSet(BlobFactory):
                 if take_log[k]:
                     is_log[k] = True
                     to_hist[:,k] = np.log10(val)
-                    #is_log.append(True)
-                    #to_hist.append(np.log10(val))
                 else:
                     is_log[k] = False
                     to_hist[:,k] = val
-                    #is_log.append(False)
-                    #to_hist.append(val)
                                     
             else:
                 
@@ -1341,8 +1332,6 @@ class ModelSet(BlobFactory):
 
                     to_hist[:,k] = dat
                     is_log[k] = False
-                    #to_hist.append(dat)        
-                    #is_log.append(False)
                 else:
 
                     # Handle case where we have redshift but not frequency
@@ -1371,8 +1360,6 @@ class ModelSet(BlobFactory):
                     
                     to_hist[:,k] = val
                     is_log[k] = False
-                    #to_hist.append(val)        
-                    #is_log.append(False)
                                         
         # Re-organize
         #if len(np.unique(pars)) < len(pars):
@@ -1382,9 +1369,8 @@ class ModelSet(BlobFactory):
         #        data = np.array(to_hist)
         #else:    
 
-        # deletes all rows with nan's or inf's
-        data = {}
         if remove_nas:
+            # deletes all rows with nan's or inf's
             to_hist, deleted_indices = delete_nan_rows(to_hist)
             chain_length = len(self.chain)
             num_deleted = len(deleted_indices)
@@ -1394,7 +1380,8 @@ class ModelSet(BlobFactory):
                   "is high, it may be that the parameters/blobs which you " +\
                   "are extracting are not well defined in the case of the " +\
                   "given data."
-            
+        
+        data = {}
         for i, par in enumerate(pars):
             if par in data:
                 continue
