@@ -2075,8 +2075,9 @@ class ModelSet(BlobFactory):
         
         # Grab data that will be histogrammed
         np_version = np.__version__.split('.')
-        newer_than_one = (np_version[0] > 1)
-        newer_than_one_pt_nine = ((np_version[0] == 1) and (np_version[1]>9))
+        newer_than_one = (int(np_version[0]) > 1)
+        newer_than_one_pt_nine =\
+            ((int(np_version[0]) == 1) and (int(np_version[1])>9))
         remove_nas = (newer_than_one or newer_than_one_pt_nine)
         to_hist, is_log = self.ExtractData(pars, ivar=ivar, take_log=take_log,
             un_log=un_log, multiplier=multiplier, remove_nas=remove_nas)
@@ -2200,7 +2201,9 @@ class ModelSet(BlobFactory):
                         
                     if xin is not None:
                         mp.grid[k].plot([xin]*2, [0, 1.05], 
-                            color='k', ls=':', lw=2, zorder=20)
+                            color='g', zorder=20)
+                        #mp.grid[k].plot([xin]*2, [0, 1.05], 
+                        #    color='k', ls=':', lw=2, zorder=20)
                             
                     continue
 
@@ -2256,12 +2259,17 @@ class ModelSet(BlobFactory):
                                                                     
                 # Plot as dotted lines
                 if xin is not None:
-                    mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k',
-                        ls=':', zorder=20)
+                    mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='g',
+                        zorder=20)
+                    #mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k',
+                    #    ls=':', zorder=20)
                 if yin is not None:
-                    mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k',
-                        ls=':', zorder=20)
+                    mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='g',
+                        zorder=20)
+                    #mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k',
+                    #    ls=':', zorder=20)
 
+                    
         if oned:
             mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
         
