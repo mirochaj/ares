@@ -1386,8 +1386,14 @@ class ModelSet(BlobFactory):
         data = {}
         if remove_nas:
             to_hist, deleted_indices = delete_nan_rows(to_hist)
-            print "delete_nan_rows was run in ExtractData. It" +\
-                (" deleted %i rows."% (len(deleted_indices),))
+            chain_length = len(self.chain)
+            num_deleted = len(deleted_indices)
+            print "delete_nan_rows was run in ExtractData. It ignored " +\
+                  ("%i%% of " % ((100. * num_deleted) / chain_length,)) +\
+                  ("the  %i chain links. If this number " % (chain_length,)) +\
+                  "is high, it may be that the parameters/blobs which you " +\
+                  "are extracting are not well defined in the case of the " +\
+                  "given data."
             
         for i, par in enumerate(pars):
             if par in data:
