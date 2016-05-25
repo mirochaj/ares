@@ -14,6 +14,7 @@ import numpy as np
 import re, scipy, os
 from ..util import labels
 import matplotlib.pyplot as pl
+from ..util.Stats import get_nu
 from .MultiPlot import MultiPanel
 from scipy.misc import derivative
 from scipy.optimize import fsolve
@@ -456,6 +457,36 @@ class MultiPhaseMedium(object):
             twinax.invert_xaxis()
         
         pl.draw()
+
+    def add_tau_inset(self, ax, tau_ax=None, rect=[.2, .7, .2, .05], mu=0.055, 
+        sig1=0.009, **kwargs):
+        """
+        Make a little inset showing tau_e relative to its observational
+        constraints.
+        """
+        
+        sig2 = get_nu(sig1, 0.68, 0.95)
+        
+        if tau_ax is None:
+            fig = ax.figure
+            
+            tau_ax = fig.add_axes(rect)
+            tau_ax.set_yticks([])
+            tau_ax.set_yticklabels([])
+        
+            tau_ax.set_xlim(mu-sig2-0.01, mu+sig2+0.01)
+            tau_ax.fill_between([mu-sig2-0.01, mu-sig2], 0, 1, color='gray')
+            tau_ax.fill_between([mu+sig2+0.01, mu+sig2], 0, 1, color='gray')
+            tau_ax.set_xticks([mu-sig2, mu-sig1, mu, mu+sig1, mu+sig2])
+            tau_ax.set_xticklabels([])
+            tau_ax.set_title(r'$\tau_e$', fontsize=16)
+            tau_ax.xaxis.set_tick_params(width=1, length=5)
+    
+        tau_ax.plot([self.tau_e]*2, [0, 1], **kwargs)
+        
+        pl.draw()
+        
+        return tau_ax
 
     def TemperatureHistory(self, ax=None, fig=1, show_Tcmb=False,
         show_Ts=False, show_Tk=True, scatter=False, mask=5, 

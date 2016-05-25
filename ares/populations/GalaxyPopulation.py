@@ -274,20 +274,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
         return self._SMD
     
-    def RGR(self):
-        """
-        'Reservoir growth rate'
-        
-        Parameters
-        ----------
-        
-        
-        Returns
-        -------
-        
-        """
-        pass
-
     @property
     def MAR(self):
         """
