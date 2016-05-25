@@ -123,8 +123,8 @@ def search_sorted(array, value):
     while numloops < 100:
         numloops += 1
         if (range_max - range_min) == 1:
-            if range_max == range_max_0:
-                raise NotImplementedError("For some reason, range_max-" +\
+            if (range_max == range_max_0) or (range_min == 0):
+                raise LookupError("For some reason, range_max-" +\
                                           "range_min reached 1 before " +\
                                           "the element was found. The " +\
                                           "element being searched for " +\
@@ -618,10 +618,10 @@ class GaussianPrior(_Prior):
         Finds and returns the string representation of this GaussianPrior.
         """
         if self.numparams == 1:
-            return "Normal(mean=%s,variance=%s)" %\
-                (self.mean.A[0,0], self.cov.A[0,0])
+            return "Normal(mean=%.3g,variance=%.3g)" %\
+                (self.mean.A[0,0], self.covariance.A[0,0])
         else:
-            return "Normal(%s, %s)" % (self.mean, self.cov)
+            return "Normal(%s, %s)" % (self.mean, self.covariance)
 
 
 class ParallelepipedPrior(_Prior):
@@ -1061,11 +1061,14 @@ class GriddedPrior(_Prior):
         # Constructs the cdf array.
         #
         running_sum = 0.
-        self.cdf = []
+        print 'initializing cdf'
+        self.cdf = np.ndarray(len(self.pdf))
+        print 'filling cdf'
         for i in range(len(self.pdf)):
-            self.cdf.append(running_sum)
+            self.cdf[i] = running_sum
             running_sum += (self.pdf[i] * self._pixel_area(i))
-        self.cdf = np.array(self.cdf) / self.cdf[-1]
+        print 'renormalizing pdf and cdf'
+        self.cdf = self.cdf / self.cdf[-1]
         self.pdf = self.pdf / self.cdf[-1]
 
     def _unpack_index(self, index):
@@ -1105,7 +1108,7 @@ class GriddedPrior(_Prior):
         for ivar in range(self._N):
             try:
                 index = search_sorted(self.vars[ivar], point[ivar])
-            except:
+            except LookupError:
                 return None
             unpacked_indices.append(index)
         return unpacked_indices

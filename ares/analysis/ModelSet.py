@@ -33,12 +33,12 @@ from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
 from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
-    tanh_gjah_to_ares
+    tanh_gjah_to_ares, delete_nan_rows
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle 
+#try:
+#    import dill as pickle
+#except ImportError:
+import pickle 
 
 try:
     import shapely.geometry as geometry
@@ -1237,7 +1237,7 @@ class ModelSet(BlobFactory):
         return pars, to_hist, is_log, binvec
       
     def ExtractData(self, pars, ivar=None, take_log=False, un_log=False, 
-        multiplier=1.):
+        multiplier=1., remove_nas=False):
         """
         Extract data for subsequent analysis.
         
@@ -1255,6 +1255,17 @@ class ModelSet(BlobFactory):
             of meta-data blobs.
         ivars : list
             List of independent variables at which to compute values of pars.
+        take_log single bool or list of bools determining whether data should
+                 be presented after its log is taken
+        un_log single bool or list of bools determining whether data should be
+               presented after its log is untaken (i.e. it is exponentiated)
+        multiplier list of numbers to multiply the parameters by before they
+                   are presented
+        remove_nas bool determining whether rows with nan's or inf's should be
+                   removed or not. This must be set to True when the user
+                   is using numpy newer than version 1.9.x if the user wants
+                   to histogram the data because numpy gave up support for
+                   masked arrays in histograms.
         
         Returns
         -------
@@ -1262,7 +1273,7 @@ class ModelSet(BlobFactory):
          (i) Dictionary containing 1-D arrays of samples for each quantity.
          (ii) Dictionary telling us which of the datasets are actually the
           log10 values of the associated parameters.
-         
+         (iii)
          
         """
         
@@ -1270,14 +1281,14 @@ class ModelSet(BlobFactory):
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)
                                     
-        to_hist = []
-        is_log = []
+        to_hist = np.ndarray((len(self.chain), len(pars)))
+        is_log = np.ndarray(len(pars), dtype=bool)
         for k, par in enumerate(pars):
                     
             # If one of our free parameters, return right away
             if par in self.parameters:
                 j = self.parameters.index(par)
-                is_log.append(self.is_log[j])
+                is_log[k] = self.is_log[j]
                 
                 if self.is_log[j] and un_log[k]:
                     val = 10**self.chain[:,j].copy()
@@ -1290,9 +1301,9 @@ class ModelSet(BlobFactory):
                     val *= multiplier[k]
         
                 if take_log[k] and (not self.is_log[j]):
-                    to_hist.append(np.log10(val))
+                    to_hist[:,k] = np.log10(val)
                 else:
-                    to_hist.append(val)
+                    to_hist[:,k] = val
                             
             elif par in self.all_blob_names:
                 
@@ -1306,8 +1317,8 @@ class ModelSet(BlobFactory):
                 val *= multiplier[k]
                     
                 if take_log[k]:
-                    is_log.append(True)
-                    to_hist.append(np.log10(val))
+                    is_log[k] = True
+                    to_hist[:,k] = np.log10(val)
                 else:
                     is_log.append(False)
                     to_hist.append(val)
@@ -1339,6 +1350,7 @@ class ModelSet(BlobFactory):
                         to_hist.append(dat)
                     
                     is_log.append(False)
+
                 else:
 
                     # Handle case where we have redshift but not frequency
@@ -1364,9 +1376,9 @@ class ModelSet(BlobFactory):
                         val = nu_0_mhz / (1. + val)
                     elif freq_to_z:
                         val = nu_0_mhz / val - 1.  
-                        
-                    to_hist.append(val)        
-                    is_log.append(False)
+                    
+                    to_hist[:,k] = val
+                    is_log[k] = False
                                         
         # Re-organize
         #if len(np.unique(pars)) < len(pars):
@@ -1375,22 +1387,39 @@ class ModelSet(BlobFactory):
         #    else:
         #        data = np.array(to_hist)
         #else:    
+
+        if remove_nas:
+            # deletes all rows with nan's or inf's
+            to_hist, deleted_indices = delete_nan_rows(to_hist)
+            chain_length = len(self.chain)
+            num_deleted = len(deleted_indices)
+            print "delete_nan_rows was run in ExtractData. It ignored " +\
+                  ("%i%% of " % ((100. * num_deleted) / chain_length,)) +\
+                  ("the  %i chain links. If this number " % (chain_length,)) +\
+                  "is high, it may be that the parameters/blobs which you " +\
+                  "are extracting are not well defined in the case of the " +\
+                  "given data."
+        
         data = {}
         for i, par in enumerate(pars):
             if par in data:
                 continue
                 
             if self.is_mcmc:
-                data[par] = np.ma.array(to_hist[i], mask=self.mask)
+                if remove_nas:
+                    # no need for mask because nans and infs have been removed
+                    data[par] = to_hist[:,i]
+                else:
+                    data[par] = np.ma.array(to_hist[:,i], mask=self.mask)
             else:
                 try:
-                    data[par] = np.ma.array(to_hist[i], mask=self.mask)
+                    data[par] = np.ma.array(to_hist[:,i], mask=self.mask)
                 except np.ma.MaskError:
                     print "MaskError encountered. Assuming mask=0."
                     
-                    new_mask = np.array([self.mask.copy()] * to_hist[i].shape[1]).T
+                    new_mask = np.array([self.mask.copy()] * to_hist[:,i].shape[1]).T
                     
-                    data[par] = np.ma.array(to_hist[i], mask=new_mask)
+                    data[par] = np.ma.array(to_hist[:,i], mask=new_mask)
         
         is_log = {par:is_log[i] for i, par in enumerate(pars)}
                     
@@ -2064,8 +2093,13 @@ class ModelSet(BlobFactory):
         """    
         
         # Grab data that will be histogrammed
-        to_hist, is_log = self.ExtractData(pars, ivar=ivar, take_log=take_log, 
-            un_log=un_log, multiplier=multiplier)
+        np_version = np.__version__.split('.')
+        newer_than_one = (int(np_version[0]) > 1)
+        newer_than_one_pt_nine =\
+            ((int(np_version[0]) == 1) and (int(np_version[1])>9))
+        remove_nas = (newer_than_one or newer_than_one_pt_nine)
+        to_hist, is_log = self.ExtractData(pars, ivar=ivar, take_log=take_log,
+            un_log=un_log, multiplier=multiplier, remove_nas=remove_nas)
             
         # Make sure all inputs are lists of the same length!
         pars, take_log, multiplier, un_log, ivar = \
@@ -2186,7 +2220,9 @@ class ModelSet(BlobFactory):
                         
                     if xin is not None:
                         mp.grid[k].plot([xin]*2, [0, 1.05], 
-                            color='k', ls=':', lw=2, zorder=20)
+                            color='g', zorder=20)
+                        #mp.grid[k].plot([xin]*2, [0, 1.05], 
+                        #    color='k', ls=':', lw=2, zorder=20)
                             
                     continue
 
@@ -2242,12 +2278,17 @@ class ModelSet(BlobFactory):
                                                                     
                 # Plot as dotted lines
                 if xin is not None:
-                    mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k',
-                        ls=':', zorder=20)
+                    mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='g',
+                        zorder=20)
+                    #mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k',
+                    #    ls=':', zorder=20)
                 if yin is not None:
-                    mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k',
-                        ls=':', zorder=20)
+                    mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='g',
+                        zorder=20)
+                    #mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k',
+                    #    ls=':', zorder=20)
 
+                    
         if oned:
             mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
         
