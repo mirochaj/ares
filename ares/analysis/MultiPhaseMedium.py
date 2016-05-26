@@ -23,6 +23,7 @@ from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d
 from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
+from mpl_toolkits.axes_grid import inset_locator
 from .DerivedQuantities import DerivedQuantities as DQ
 
 try:
@@ -457,36 +458,79 @@ class MultiPhaseMedium(object):
             twinax.invert_xaxis()
         
         pl.draw()
+        
+    def add_tau_inset(self, ax, inset=None, width=0.2, height=0.025, loc=1,
+            mu=0.055, sig1=0.009, padding=0.02, borderpad=0.5, 
+            ticklabels=None, fmt='%.2g', **kwargs):
 
-    def add_tau_inset(self, ax, tau_ax=None, rect=[.2, .7, .2, .05], mu=0.055, 
-        sig1=0.009, **kwargs):
-        """
-        Make a little inset showing tau_e relative to its observational
-        constraints.
-        """
-        
         sig2 = get_nu(sig1, 0.68, 0.95)
+
+        if inset is None:
+            inset = self.add_inset(ax, inset=inset, width=width, height=height, 
+                loc=loc, mu=mu, sig1=sig1, padding=padding, 
+                borderpad=borderpad, **kwargs)
+        else:
+            inset.fill_between([mu-sig2-padding, mu-sig2], 0, 1, color='lightgray')
+            inset.fill_between([mu+sig2+padding, mu+sig2], 0, 1, color='lightgray')
+            xticks = [mu-sig2-padding, mu-sig2, mu-sig1, mu, 
+                mu+sig1, mu+sig2, mu+sig2+padding]
+            inset.set_xticks(xticks)
+            if ticklabels is not None:
+                
+                tmp = []
+                for tick in ticklabels:
+                    if tick < 0:
+                        tmp.append(len(xticks)+tick)
+                    else:
+                        tmp.append(tick)         
+                
+                l = []
+                for k, tick in enumerate(xticks):
+                      
+                    if k in tmp:
+                        l.append(fmt % xticks[k])
+                    else:
+                        l.append('')
+                    
+                inset.set_xticklabels(l)
+            else:    
+                inset.set_xticklabels([])
+            inset.set_title(r'$\tau_e$', fontsize=18)
+            inset.xaxis.set_tick_params(width=1, length=5)
+
+        inset.plot([self.tau_e]*2, [0, 1], **kwargs)
         
-        if tau_ax is None:
-            fig = ax.figure
+        return inset
             
-            tau_ax = fig.add_axes(rect)
-            tau_ax.set_yticks([])
-            tau_ax.set_yticklabels([])
+    def add_inset(self, ax, inset=None, mu=None, sig1=None, lo=None, hi=None,
+        width=0.1, height=0.1, loc=1,
+        padding=0.02, borderpad=0.5, **kwargs):
+        """
+        Add inset 'slider' thing.
+        """
         
-            tau_ax.set_xlim(mu-sig2-0.01, mu+sig2+0.01)
-            tau_ax.fill_between([mu-sig2-0.01, mu-sig2], 0, 1, color='gray')
-            tau_ax.fill_between([mu+sig2+0.01, mu+sig2], 0, 1, color='gray')
-            tau_ax.set_xticks([mu-sig2, mu-sig1, mu, mu+sig1, mu+sig2])
-            tau_ax.set_xticklabels([])
-            tau_ax.set_title(r'$\tau_e$', fontsize=16)
-            tau_ax.xaxis.set_tick_params(width=1, length=5)
-    
-        tau_ax.plot([self.tau_e]*2, [0, 1], **kwargs)
+        assert (mu is not None and sig1 is not None) \
+            or (lo is not None and hi is not None)
         
+        if inset is not None:
+            pass
+        else:    
+            inset = inset_locator.inset_axes(ax, width='{0}%'.format(100 * width), 
+                height='{0}%'.format(100 * height), loc=loc, borderpad=borderpad)
+        
+            inset.set_yticks([])
+            inset.set_yticklabels([])
+            
+            if (lo is None and hi is None):
+                sig2 = get_nu(sig1, 0.68, 0.95)
+                lo = mu-sig2-padding
+                hi = mu+sig2+padding
+            
+            inset.set_xlim(lo, hi)
+            
         pl.draw()
         
-        return tau_ax
+        return inset
 
     def TemperatureHistory(self, ax=None, fig=1, show_Tcmb=False,
         show_Ts=False, show_Tk=True, scatter=False, mask=5, 
