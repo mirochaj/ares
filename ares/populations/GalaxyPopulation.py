@@ -43,13 +43,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
         return self._magsys
         
-    #def L1500_per_sfr(self, z, M):
-    #    return self.pf['pop_L1500_per_sfr']    
-    #def Nion(self, z, M):
-    #    return self.pf['pop_Nion']  
-    #def Nlw(self, z, M):
-    #    return self.pf['pop_Nlw'] 
-        
     def __getattr__(self, name):
         """
         This gets called anytime we try to fetch an attribute that doesn't
@@ -63,11 +56,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         
         full_name = 'pop_' + name
                 
-        # might need to capitalize sfr
-        #if name not in self.__dict__.keys():
-        #    if name not in ['L1500_per_sfr', 'Nion', 'Nlw']:
-        #        return super(GalaxyPopulation, self).__getattribute__(name)
-    
         # Now, possibly make an attribute
         if name not in self.__dict__.keys(): 
             
@@ -107,35 +95,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             self.__dict__[name] = result
     
         return self.__dict__[name]
-
-    #@property
-    #def L1500_per_SFR(self):
-    #    """
-    #    
-    #    Returns
-    #    -------
-    #    In units of erg/s/Hz/(Msun/yr).
-    #    
-    #    """
-    #    
-    #    if not hasattr(self, '_L1500_per_SFR'):
-    #        if self.sed_tab:
-    #            self._L1500_per_SFR = lambda z, M: self.src.L1500 \
-    #                / self.pf['pop_fstar_boost']
-    #        elif type(self.pf['pop_L1500_per_sfr']) in [float, np.float64]:
-    #            self._L1500_per_SFR = \
-    #                lambda z, M: self.pf['pop_L1500_per_sfr'] \
-    #                    / self.pf['pop_fstar_boost']
-    #        elif self.pf['pop_L1500_per_sfr'][0:3] == 'php':
-    #            pars = self.get_php_pars(self.pf['pop_L1500_per_sfr']) 
-    #            inst = ParameterizedHaloProperty(**pars)
-    #            
-    #            self._L1500_per_SFR = lambda z, M: inst.__call__(z, M) \
-    #                    / self.pf['pop_fstar_boost']                    
-    #        else:
-    #            raise TypeError('dunno how to handle this')
-    #    
-    #    return self._L1500_per_SFR
 
     def N_per_Msun(self, Emin, Emax):
         """
