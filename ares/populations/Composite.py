@@ -56,12 +56,15 @@ class CompositePopulation(object):
             tmp = self.pfs[i].copy()
             
             # This is the tunnel
-            tmp['pop_sfrd'] = self.pops[entry]._sfrd_func
+            #tmp['pop_sfrd'] = self.pops[entry]._sfrd_func
 
             # Only makes sense to tunnel to non-fcoll model
             self.pops[i] = GalaxyAggregate(**tmp)
+            self.pops[i]._sfrd = self.pops[entry]._sfrd_func
 
-            
+        # Set ID numbers (mostly for debugging purposes)
+        for i, pop in enumerate(self.pops):
+            pop.id_num = i
             
 
 

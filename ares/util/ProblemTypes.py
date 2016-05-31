@@ -340,8 +340,8 @@ def ReionizationProblem(ptype):
         "pop_EminNorm{0}": 13.6,
         "pop_EmaxNorm{0}": 24.6, 
         
-        "pop_sed{0}": 'leitherer1999',
-        "pop_Z{0}": 0.04,
+        "pop_sed{0}": 'eldridge2009',
+        "pop_Z{0}": 0.02,
         "pop_ssp{0}": False,
         "pop_tsf{0}": 100.,             
                

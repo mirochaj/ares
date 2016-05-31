@@ -37,7 +37,6 @@ aux_data = \
 
 }
 
-print '\n'
 os.chdir('input')
 
 if 'minimal' in options:
@@ -77,7 +76,4 @@ for direc in to_download:
     
     os.chdir('..')
 
-# Go back down to the root level, otherwise the user will get slightly 
-# incorrect instructions for how to set the ARES environment variable
-os.chdir('..')
 

@@ -165,7 +165,7 @@ class BlobFactory(object):
                         assert lenarr == 1
                         
                         self._blob_nd.append(1)
-                        dims = len(self._blob_ivars[i]), 
+                        dims = len(self._blob_ivars[i]),
                         self._blob_dims.append(dims)
                     else:
 

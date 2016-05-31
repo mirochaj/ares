@@ -48,17 +48,14 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         This gets called anytime we try to fetch an attribute that doesn't
         exist (yet). Right, now this is only used for L1500, Nion, Nlw.
         """
-    
+            
         # Indicates that this attribute is being accessed from within a 
         # property. Don't want to override that behavior!
         if (name[0] == '_'):
             raise AttributeError('This will get caught. Don\'t worry!')
-    
+        
         full_name = 'pop_' + name
                 
-        # might need to capitalize sfr
-        #assert name in ['L1500_per_sfr', 'Nion', 'Nlw']
-    
         # Now, possibly make an attribute
         if name not in self.__dict__.keys(): 
             
@@ -98,35 +95,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             self.__dict__[name] = result
     
         return self.__dict__[name]
-
-    #@property
-    #def L1500_per_SFR(self):
-    #    """
-    #    
-    #    Returns
-    #    -------
-    #    In units of erg/s/Hz/(Msun/yr).
-    #    
-    #    """
-    #    
-    #    if not hasattr(self, '_L1500_per_SFR'):
-    #        if self.sed_tab:
-    #            self._L1500_per_SFR = lambda z, M: self.src.L1500 \
-    #                / self.pf['pop_fstar_boost']
-    #        elif type(self.pf['pop_L1500_per_sfr']) in [float, np.float64]:
-    #            self._L1500_per_SFR = \
-    #                lambda z, M: self.pf['pop_L1500_per_sfr'] \
-    #                    / self.pf['pop_fstar_boost']
-    #        elif self.pf['pop_L1500_per_sfr'][0:3] == 'php':
-    #            pars = self.get_php_pars(self.pf['pop_L1500_per_sfr']) 
-    #            inst = ParameterizedHaloProperty(**pars)
-    #            
-    #            self._L1500_per_SFR = lambda z, M: inst.__call__(z, M) \
-    #                    / self.pf['pop_fstar_boost']                    
-    #        else:
-    #            raise TypeError('dunno how to handle this')
-    #    
-    #    return self._L1500_per_SFR
 
     def N_per_Msun(self, Emin, Emax):
         """
@@ -244,8 +212,12 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         
         if not hasattr(self, '_SFRD'):
             self._SFRD = interp1d(self.halos.z, self.sfrd_tab, kind='cubic')
-                
+
         return self._SFRD
+        
+    @SFRD.setter
+    def SFRD(self, value):
+        self._SFRD = value    
     
     @property   
     def SMD(self):
@@ -261,20 +233,6 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
     
         return self._SMD
     
-    def RGR(self):
-        """
-        'Reservoir growth rate'
-        
-        Parameters
-        ----------
-        
-        
-        Returns
-        -------
-        
-        """
-        pass
-
     @property
     def MAR(self):
         """

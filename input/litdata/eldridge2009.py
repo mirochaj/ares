@@ -65,8 +65,8 @@ def _kwargs_to_fn(**kwargs):
         fn += '.sin'
     
     # Metallicity
-    fn += '.z%s' % str(int(kwargs['pop_Z'] * 1e3)).zfill(3)        
-        
+    fn += '.z%s' % str(int(kwargs['pop_Z'] * 1e3)).zfill(3)   
+            
     return _input + '/' + fn    
             
 def _load(**kwargs):

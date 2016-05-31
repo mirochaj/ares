@@ -251,7 +251,10 @@ class Labeler(object):
         if type(is_log) == bool:
             self.is_log = [is_log] * len(pars)
         else:
-            self.is_log = is_log
+            if is_log == {}:
+                self.is_log = {key:False for key in self.pars}
+            else:
+                self.is_log = is_log
         
     def units(self, prefix):
         units = None
@@ -263,13 +266,10 @@ class Labeler(object):
                 units = self.base_kwargs[kwarg]
         
         return units
-    
-    def band(self, prefix):
-        pass
                 
     def label(self, par, take_log=False, un_log=False):
         """
-        Create a pretty label for this parameter.
+        Create a pretty label for this parameter (if possible).
         """
         
         if par in self.labels:

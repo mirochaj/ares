@@ -18,6 +18,7 @@ from scipy.interpolate import interp1d
 from ..physics.Constants import nu_0_mhz
 from .TurningPoints import TurningPoints
 from ..util.Math import central_difference
+from matplotlib.ticker import ScalarFormatter 
 from .MultiPhaseMedium import MultiPhaseMedium
 
 try:
@@ -255,7 +256,8 @@ class Global21cm(MultiPhaseMedium):
     
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=5, scatter=False, xaxis='nu', 
-        ymin=None, ymax=50, zmax=None, xscale='linear', **kwargs):
+        ymin=None, ymax=50, zmax=None, xscale='linear', force_draw=False,
+        **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
 
@@ -355,7 +357,7 @@ class Global21cm(MultiPhaseMedium):
         if not gotax:    
             ax.set_yticks(yticks, minor=True)
         
-        if gotax and (ax.get_xlabel().strip()):
+        if gotax and (ax.get_xlabel().strip()) and (not force_draw):
             return ax
             
         if ax.get_xlabel() == '':  
@@ -383,7 +385,14 @@ class Global21cm(MultiPhaseMedium):
         
         self.twinax = twinax
         
-        ax.ticklabel_format(style='plain', axis='both')
+        try:
+            ax.ticklabel_format(style='plain', axis='both')
+        except AttributeError:
+            ax.xaxis.set_major_formatter(ScalarFormatter())
+            ax.yaxis.set_major_formatter(ScalarFormatter())
+            #twinax.xaxis.set_major_formatter(ScalarFormatter())
+            ax.ticklabel_format(style='plain', axis='both')
+            
         ax.set_xscale(xscale)
                     
         pl.draw()

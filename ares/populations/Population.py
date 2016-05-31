@@ -26,7 +26,7 @@ class Population(object):
 
         self.zform = self.pf['pop_zform']
         self.zdead = self.pf['pop_zdead']
-
+        
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):    
