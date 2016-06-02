@@ -694,7 +694,8 @@ def ControlParameters():
                              # 2 = neutral approx, approx cross sections
 
     # Discretizing integration
-    "redshift_bins": None,
+    #"redshift_bins": None,
+    "tau_Nz": 400,
     "tau_table": None,
     "tau_prefix": tau_prefix,
 

@@ -273,6 +273,32 @@ class ModelSet(BlobFactory):
         return self._parameters
         
     @property
+    def nwalkers(self):
+        # Read parameter names and info
+        if not hasattr(self, '_nwalkers'):
+            if os.path.exists('%s.rinfo.pkl' % self.prefix):
+                f = open('%s.rinfo.pkl' % self.prefix, 'rb')
+                self._nwalkers, self._save_freq, self._steps = \
+                    map(int, pickle.load(f))
+                f.close()
+            else:
+                self._nwalkers = self._save_freq = self._steps = None
+    
+        return self._nwalkers
+    
+    @property
+    def save_freq(self):
+        if not hasattr(self, '_save_freq'):
+            nwalkers = self.nwalkers
+        return self._save_freq
+    
+    @property
+    def steps(self):
+        if not hasattr(self, '_steps'):
+            nwalkers = self.nwalkers
+        return self._steps
+    
+    @property
     def priors(self):
         if not hasattr(self, '_priors'):   
             if os.path.exists('%s.priors.pkl' % self.prefix):
@@ -466,6 +492,32 @@ class ModelSet(BlobFactory):
                 self._fails = None
             
         return self._fails
+        
+    def get_walker(self, num):
+        """
+        Return chain elements corresponding to specific walker.
+        
+        Parameters
+        ----------
+        num : int
+            ID # for walker of interest.
+            
+        Returns
+        -------
+        2-D array with shape (nsteps, nparameters).
+        
+        """
+        
+        sf = self.save_freq
+        nw = self.nwalkers
+        nchunks = int(self.steps / sf)
+        schunk = nw * sf
+        data = []
+        for i in range(nchunks):
+            chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
+            data.extend(chunk)
+            
+        return np.array(data)
                 
     @property
     def Npops(self):
@@ -1271,11 +1323,11 @@ class ModelSet(BlobFactory):
           log10 values of the associated parameters.
          
         """
-        
+
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)
-                               
+
         data = {}
         is_log = {}
         for k, par in enumerate(pars):

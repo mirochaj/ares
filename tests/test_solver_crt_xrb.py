@@ -48,9 +48,9 @@ def test(tol = 1e-2):
     aplpars = plpars.copy()
     aplpars.update({'pop_logN': 21., 'pop_hardening': 'extrinsic'})
     
-    fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
-    fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
-    fig3 = pl.figure(3); ax3 = fig3.add_subplot(111)
+    fig1 = pl.figure(0); ax1 = fig1.add_subplot(111)
+    fig2 = pl.figure(1); ax2 = fig2.add_subplot(111)
+    fig3 = pl.figure(2); ax3 = fig3.add_subplot(111)
     
     # Loop over sources and plot CXRB
     colors = ['k', 'b']
@@ -94,7 +94,6 @@ def test(tol = 1e-2):
             
             assert diff[0] < tol, \
                 "Relative error between analytical and numerical solutions exceeds %.3g." % tol
-        
         
         # Plot up heating rate evolution
         heat = np.zeros_like(z)

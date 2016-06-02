@@ -18,6 +18,7 @@ from ..util import ParameterFile
 from ..static import GlobalVolume
 from ..util.Misc import num_freq_bins
 from scipy.interpolate import interp1d
+from .OpticalDepth import OpticalDepth
 from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
 from ..populations import CompositePopulation
@@ -92,6 +93,12 @@ class UniformBackground(object):
         
         #self._set_populations()
         #self._set_generators()
+        
+    @property
+    def OpticalDepth(self):
+        if not hasattr(self, '_OpticalDepth'):
+            self._OpticalDepth = OpticalDepth(**self.pf)
+        return self._OpticalDepth
         
     @property
     def hydr(self):
@@ -448,25 +455,28 @@ class UniformBackground(object):
         # Not necessarily true in the future if we include H2 opacity    
         if E.max() <= E_LL:
             return z, E, np.zeros([len(z), len(E)])
-            
-        # Otherwise, compute optical depth assuming constant ion fractions
-        if pop.pf['pop_approx_tau'] == 'neutral':
-            
-            # Try to load file from disk.
-            z, E, tau = self.volume._fetch_tau(pop, z, E)
-            
-            # Generate it now if no file was found.
-            if tau is None:    
-                no_tau_table(self)
-                tau = self.volume.TabulateOpticalDepth(z, E)
-                if self.pf['include_He']:
-                    tau += self.volume.TabulateOpticalDepth(z, E, species=1)
-                        
-        elif pop.pf['pop_approx_tau'] is 'post_EoR':            
-            tau = self.volume.TabulateOpticalDepth(z, E, species=2)
-        else:
-            raise NotImplemented('Unrecognized approx_tau option.')
+                    
+        # Create an ares.simulations.OpticalDepth instance
+        tau_solver = OpticalDepth(**pop.pf)
         
+        # Try to load file from disk.
+        z, E, tau = tau_solver._fetch_tau(pop, z, E)
+                
+        # Generate it now if no file was found.
+        if tau is None:
+            no_tau_table(self)
+            
+            if pop.pf['pop_approx_tau'] is 'neutral':
+                tau_solver.ionization_history = lambda z: 0.0
+            elif pop.pf['pop_approx_tau'] is 'post_EoR':
+                tau_solver.ionization_history = lambda z: 1.0
+            elif type(pop.pf['pop_approx_tau']) is types.FunctionType:
+                tau_solver.ionization_history = pop.pf['pop_approx_tau']
+            else:                                                          
+                raise NotImplemented('Unrecognized approx_tau option.')
+
+            tau = tau_solver.TabulateOpticalDepth()   
+
         return z, E, tau
 
     @property
