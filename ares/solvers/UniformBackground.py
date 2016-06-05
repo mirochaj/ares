@@ -804,6 +804,7 @@ class UniformBackground(object):
             else:
                 tau = 0.0
         else:
+            raise NotImplemented('this needs fixing')
             tau = self.volume.OpticalDepth(z, zp, E, xavg=kw['xavg'])
     
         return c * (1. + z)**2 * epsilonhat_over_H * np.exp(-tau) / four_pi

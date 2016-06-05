@@ -69,7 +69,7 @@ def GridParameters():
     # Line photons
     "include_H_Lya": False,
 
-    "initial_ionization": [1. - 1e-8, 1e-8],
+    "initial_ionization": [1. - 1e-8, 1e-8, 1.-2e-8, 1e-8, 1e-8],
     "initial_temperature": 1e4,
             
     # These have shape len(absorbers)
@@ -110,7 +110,7 @@ def MultiPhaseParameters():
      "cgm_grid_cells": 1,
      "cgm_expansion": True,
      "cgm_initial_temperature": [1e4],
-     "cgm_initial_ionization": [1.-1e-8, 1e-8],
+     "cgm_initial_ionization": [1.-1e-8, 1e-8, 1.-2e-8, 1e-8, 1e-8],
      "cgm_isothermal": True,
      "cgm_recombination": 'A',
      "cgm_collisional_ionization": False,
@@ -122,7 +122,7 @@ def MultiPhaseParameters():
      "igm_grid_cells": 1,     
      "igm_expansion": True,
      "igm_initial_temperature": None,         
-     'igm_initial_ionization': None,
+     'igm_initial_ionization': [1.-1e-8, 1e-8, 1.-2e-8, 1e-8, 1e-8],
      "igm_isothermal": False,
      "igm_recombination": 'B',
      "igm_compton_scattering": True,

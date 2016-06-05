@@ -281,8 +281,10 @@ class GlobalVolume(object):
                 #self.fion[i] = [None for k in range(Nbands)]
                 self.flya[i] = [None for k in range(Nbands)]
                 
+            ##
             # If we make it here, the population has at least one band that
             # requires a detailed solution to the RTE    
+            ## 
                 
             # Loop over each band for this population
             for j, band in enumerate(self.background.energies[i]):
@@ -312,97 +314,36 @@ class GlobalVolume(object):
                 
                     # Must evaluate at ELECTRON energy, not photon energy
                     for i, nrg in enumerate(E - E_th[0]):
-                        self.fheat[popid][i,:] = \
+                        self.fheat[i][i,:] = \
                             self.esec.DepositionFraction(self.esec.x, E=nrg, 
                             channel='heat')
-                        self.fion[popid]['h_1'][i,:] = \
+                        self.fion[i]['h_1'][i,:] = \
                             self.esec.DepositionFraction(self.esec.x, E=nrg, 
                             channel='h_1')
                 
                         if self.pf['secondary_lya']:
-                            self.flya[popid][i,:] = \
+                            self.flya[i][i,:] = \
                                 self.esec.DepositionFraction(self.esec.x, E=nrg, 
                                 channel='lya') 
                 
                     # Helium
                     if self.pf['include_He'] and not self.pf['approx_He']:
                 
-                        self.fion[popid]['he_1'] = np.ones([N, len(self.esec.x)])
-                        self.fion[popid]['he_2'] = np.ones([N, len(self.esec.x)])
+                        self.fion[i]['he_1'] = np.ones([N, len(self.esec.x)])
+                        self.fion[i]['he_2'] = np.ones([N, len(self.esec.x)])
                 
                         for i, nrg in enumerate(E - E_th[1]):
-                            self.fion[popid]['he_1'][i,:] = \
+                            self.fion[i]['he_1'][i,:] = \
                                 self.esec.DepositionFraction(self.esec.x, 
                                 E=nrg, channel='he_1')
                 
                         for i, nrg in enumerate(E - E_th[2]):
-                            self.fion[popid]['he_2'][i,:] = \
+                            self.fion[i]['he_2'][i,:] = \
                                 self.esec.DepositionFraction(self.esec.x, 
                                 E=nrg, channel='he_2')    
                 
         return        
-                
-        #self.logE = [np.log10(nrg) for nrg in self._E]
-        #self.dlogE = [np.diff(nrgs) for nrgs in self.logE]
-        #
-        #self._sigma_E = [None for i in range(self.Npops)]
-        #self.fheat = [None for i in range(self.Npops)]
-        #self.fion = [None for i in range(self.Npops)]
-        #self.flya = [None for i in range(self.Npops)]
-
-        # Loop over source populations
-        for popid, src in enumerate(self.pops):
-
-            if not self.background.solve_rte[popid]:
-                continue
-
-            E = self._E[popid]
-            N = E.size
-
-            # Pre-compute cross-sections
-            self._sigma_E[popid] = \
-                np.array([np.array(map(lambda E: self.sigma(E, i), E)) \
-                for i in xrange(3)])
-
-            # Pre-compute secondary ionization and heating factors
-            if self.esec.Method > 1:
-
-                self.fheat[i] = np.ones([N, len(self.esec.x)])
-                self.flya[i] = np.ones([N, len(self.esec.x)])
-
-                self.fion[i] = {}
-                self.fion[i]['h_1'] = np.ones([N, len(self.esec.x)])
-
-                # Must evaluate at ELECTRON energy, not photon energy
-                for k, nrg in enumerate(E - E_th[0]):
-                    self.fheat[i][k,:] = \
-                        self.esec.DepositionFraction(self.esec.x, E=nrg, 
-                        channel='heat')
-                    self.fion[i]['h_1'][k,:] = \
-                        self.esec.DepositionFraction(self.esec.x, E=nrg, 
-                        channel='h_1')
-
-                    if self.pf['secondary_lya']:
-                        self.flya[i][k,:] = \
-                            self.esec.DepositionFraction(self.esec.x, E=nrg, 
-                            channel='lya') 
-                        
-                # Helium
-                if self.pf['include_He'] and not self.pf['approx_He']:
-                    
-                    self.fion[i]['he_1'] = np.ones([N, len(self.esec.x)])
-                    self.fion[i]['he_2'] = np.ones([N, len(self.esec.x)])
-                    
-                    for k, nrg in enumerate(E - E_th[1]):
-                        self.fion[popid]['he_1'][k,:] = \
-                            self.esec.DepositionFraction(self.esec.x, 
-                            E=nrg, channel='he_1')
-                    
-                    for k, nrg in enumerate(E - E_th[2]):
-                        self.fion[popid]['he_2'][k,:] = \
-                            self.esec.DepositionFraction(self.esec.x, 
-                            E=nrg, channel='he_2')            
-                            
+                                            
     def _set_integrator(self):
         self.integrator = self.pf["unsampled_integrator"]
         self.sampled_integrator = self.pf["sampled_integrator"]
@@ -783,8 +724,10 @@ class GlobalVolume(object):
                                                 
             return weight * fheat * Lx * (1. + z)**3
             
+        ##
         # Otherwise, do the full calculation
-
+        ##
+        
         # Re-normalize to help integrator
         norm = J21_num * self.sigma0
                 

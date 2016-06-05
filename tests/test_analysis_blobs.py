@@ -111,7 +111,11 @@ def test(Ns=500, Nd=4, prefix='test'):
         else:
             ivars.append([setup['blob_ivars'][i][0][0], setup['blob_ivars'][i][1][0]])
         
-    anl.TrianglePlot(anl.all_blob_names, ivar=ivars, fig=4)        
+    anl.TrianglePlot(anl.all_blob_names, ivar=ivars, fig=4)
+    
+    for i in range(1, 5):
+        pl.figure(i)
+        pl.savefig('%s_%i.png' % (__file__.rstrip('.py'), i))     
     
     pl.close('all')
     

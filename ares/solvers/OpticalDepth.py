@@ -17,6 +17,7 @@ from ..physics import Cosmology
 from scipy.integrate import quad
 from ..physics.Constants import c
 from ..util.Misc import num_freq_bins
+from scipy.interpolate import interp1d
 from ..util.Warnings import no_tau_table
 from ..util import ProgressBar, ParameterFile
 from ..physics.CrossSections import PhotoIonizationCrossSection, \
@@ -88,12 +89,14 @@ class OpticalDepth(object):
         
     @ionization_history.setter
     def ionization_history(self, value):
-        if type(value) is not types.FunctionType:
+        if isinstance(value, interp1d):
+            self._ionization_history = value
+        elif type(value) is not types.FunctionType:
             self._ionization_history = lambda z: value
         else:    
             self._ionization_history = value        
         
-    def ClumpyOpticalDepth(self):    
+    def ClumpyOpticalDepth(self):
         pass
 
     @property
@@ -177,7 +180,7 @@ class OpticalDepth(object):
         kw = defkwargs.copy()
         kw.update(kwargs)
         
-        if functionify and type(kw['xavg']) is not types.FunctionType:
+        if functionify and (type(kw['xavg']) is not types.FunctionType):
             tmp = kw['xavg']
             kw['xavg'] = lambda z: tmp
     
@@ -293,8 +296,8 @@ class OpticalDepth(object):
         if self.pf['pop_tau_Nz'] is None and self.pf['tau_table'] is None:
     
             # Set bounds in frequency/energy space
-            self.E0 = self.pf['source_Emin']
-            self.E1 = self.pf['source_Emax']    
+            self.E0 = self.pf['pop_Emin']
+            self.E1 = self.pf['pop_Emax']    
     
             return
     
@@ -307,10 +310,10 @@ class OpticalDepth(object):
     
             raise NotImplemented('whats going on here')
     
-        if use_tab and (self.pf['tau_table'] is not None or self.pf['source_solve_rte']):
+        if use_tab and (self.pf['tau_table'] is not None or self.pf['pop_solve_rte']):
     
             found = False
-            if self.pf['source_solve_rte']:
+            if self.pf['pop_solve_rte']:
     
                 # First, look in CWD or $ARES (if it exists)
                 self.tabname = self.find_tau(self.pf['tau_prefix'])
@@ -339,13 +342,13 @@ class OpticalDepth(object):
             zmin_ok = (self.z.min() <= self.pf['final_redshift']) or \
                 np.allclose(self.z.min(), self.pf['final_redshift'])
     
-            Emin_ok = (self.E0 <= self.pf['source_Emin']) or \
-                np.allclose(self.E0, self.pf['source_Emin'])
+            Emin_ok = (self.E0 <= self.pf['pop_Emin']) or \
+                np.allclose(self.E0, self.pf['pop_Emin'])
     
             # Results insensitive to Emax (so long as its relatively large)
             # so be lenient with this condition (100 eV or 1% difference
             # between parameter file and lookup table)
-            Emax_ok = np.allclose(self.E1, self.pf['source_Emax'],
+            Emax_ok = np.allclose(self.E1, self.pf['pop_Emax'],
                 atol=100., rtol=1e-2)
     
             # Check redshift bounds
@@ -361,7 +364,7 @@ class OpticalDepth(object):
                 if self.pf['verbose']:
                     tau_tab_E_mismatch(self, Emin_ok, Emax_ok)
     
-                if self.E1 < self.pf['source_Emax']:
+                if self.E1 < self.pf['pop_Emax']:
                     sys.exit(1)
     
             dlogx = np.diff(self.logx)
@@ -371,8 +374,8 @@ class OpticalDepth(object):
         else:
     
             # Set bounds in frequency/energy space
-            self.E0 = self.pf['source_Emin']
-            self.E1 = self.pf['source_Emax']
+            self.E0 = self.pf['pop_Emin']
+            self.E1 = self.pf['pop_Emax']
     
             # Set up log-grid in parameter x = 1 + z
             self.x = np.logspace(np.log10(1+self.pf['final_redshift']),
@@ -421,6 +424,9 @@ class OpticalDepth(object):
         """
         Read optical depth table.
         """
+        
+        if rank == 0:
+            print "Loading %s..." % fn
         
         if type(fn) is dict:
     
@@ -491,16 +497,16 @@ class OpticalDepth(object):
             self.E = np.logspace(np.log10(self.E0), np.log10(self.E1), self.N)
     
         # Correct for inconsistencies between parameter file and table
-        if self.pf['source_Emin'] > self.E0:
-            Ediff = self.E - self.pf['source_Emin']
+        if self.pf['pop_Emin'] > self.E0:
+            Ediff = self.E - self.pf['pop_Emin']
             i_E0 = np.argmin(np.abs(Ediff))
             if Ediff[i_E0] < 0:
                 i_E0 += 1
     
             self.tau[:,0:i_E0] = np.inf
     
-        if self.pf['source_Emax'] < self.E1:
-            Ediff = self.E - self.pf['source_Emax']
+        if self.pf['pop_Emax'] < self.E1:
+            Ediff = self.E - self.pf['pop_Emax']
             i_E0 = np.argmin(np.abs(Ediff))
             if Ediff[i_E0] < 0:
                 i_E0 += 1
@@ -531,8 +537,8 @@ class OpticalDepth(object):
     
         L, N = self.tau_shape()
     
-        E0 = self.pf['source_Emin']
-        E1 = self.pf['source_Emax']
+        E0 = self.pf['pop_Emin']
+        E1 = self.pf['pop_Emax']
         
         #if self.ionization_history is not None:
         #    fn = lambda z1, z2, E1, E2: \
@@ -687,7 +693,7 @@ class OpticalDepth(object):
     
         # If we made it this far, we found a table that may be suitable
         ztab, Etab, tau = self.load(self.tabname)
-    
+            
         # Return right away if there's no potential for conflict
         if (zpf is None) and (Epf is None):
             return ztab, Etab, tau
@@ -770,12 +776,12 @@ class OpticalDepth(object):
         R = x[1] / x[0]
         logR = np.log10(R)
     
-        E0 = self.pf['source_Emin']
+        E0 = self.pf['pop_Emin']
     
         # Create mapping to frequency space
         E = 1. * E0
         n = 1
-        while E < self.pf['source_Emax']:
+        while E < self.pf['pop_Emax']:
             E = E0 * R**(n - 1)
             n += 1    
     
@@ -785,7 +791,7 @@ class OpticalDepth(object):
         # Frequency grid must be index 1-based.
         N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
             zf=self.pf['final_redshift'], Emin=E0, 
-            Emax=self.pf['source_Emax'])
+            Emax=self.pf['pop_Emax'])
         N -= 1
     
         return L, N

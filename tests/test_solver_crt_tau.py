@@ -19,6 +19,7 @@ from ares.physics.Constants import c, ev_per_hz, erg_per_ev
 
 def test(tol=5e-2):
 
+
     alpha = -2.
     beta = -6.
     zi = 10.
@@ -29,9 +30,6 @@ def test(tol=5e-2):
     {
      'include_He': 0,
      'approx_He': 0,
-     
-     'source_Emin': 5e2,
-     'source_Emax': 1e3, 
      
      'initial_redshift': zi,
      'final_redshift': zf,
@@ -61,7 +59,7 @@ def test(tol=5e-2):
         # Create OpticalDepth instance
         igm = ares.solvers.OpticalDepth(**pars)
         
-        # Impose an ionization history
+        # Impose an ionization history: neutral for all times
         igm.ionization_history = lambda z: 0.0
         
         # Tabulate tau
@@ -84,6 +82,27 @@ def test(tol=5e-2):
         z1, E1, f1 = sim_1.get_history(0, flatten=True)
         z2, E2, f2 = sim_2.get_history(0, flatten=True)
         
+        # Impose a transparent IGM to check tau I/O
+        if i == 0:
+            
+            igm.ionization_history = lambda z: 1.0
+            
+            # Tabulate tau
+            tau = igm.TabulateOpticalDepth()
+            igm.save(prefix='tau_test', suffix='pkl', clobber=True)
+            
+            pars['tau_table'] = 'tau_test.pkl'
+            pars['pop_approx_tau'] = False
+            sim_3 = ares.simulations.MetaGalacticBackground(**pars)
+            sim_3.run()
+        
+            z3, E3, f3 = sim_3.get_history(0, flatten=True)
+        
+            os.remove('tau_test.pkl')
+        
+            assert np.allclose(f3[-1], f2[-1]), "Problem with tau I/O."
+        
+        # Compare to analytic solution
         if i == 0:
             # Grab GalaxyPopulation
             E = E1
@@ -131,8 +150,8 @@ def test(tol=5e-2):
     pl.ylabel(ares.util.labels['flux'])
     pl.legend(fontsize=14)
     pl.savefig('%s.png' % __file__.rstrip('.py'))
-    
+
 if __name__ == '__main__':
     test()
     
-    
+   
