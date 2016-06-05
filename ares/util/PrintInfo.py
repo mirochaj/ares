@@ -389,17 +389,17 @@ def print_pop(pop):
                 
             pname = par.replace('pop_', '').ljust(20)
                                 
-            s = pop.pf['php_Mfun%s' % sf(i)]
+            s = pop.pf['php_func%s' % sf(i)]
                                 
-            if 'php_Mfun_aug%s' % sf(i) not in pop.pf:
+            if 'php_faux%s' % sf(i) not in pop.pf:
                 print line("%s   : %s" % (pname, s))
                 continue    
                 
-            if pop.pf['php_Mfun_aug%s' % sf(i)] is not None:
-                if pop.pf['php_Mfun_aug_meth%s' % sf(i)] == 'add':
-                    s += ' + %s' % pop.pf['php_Mfun_aug%s' % sf(i)]
+            if pop.pf['php_faux%s' % sf(i)] is not None:
+                if pop.pf['php_faux_meth%s' % sf(i)] == 'add':
+                    s += ' + %s' % pop.pf['php_faux%s' % sf(i)]
                 else:
-                    s += ' * %s' % pop.pf['php_Mfun_aug%s' % sf(i)]
+                    s += ' * %s' % pop.pf['php_faux%s' % sf(i)]
                 
             print line("%s: %s" % (pname, s))
                 

@@ -13,8 +13,8 @@ class instances.
 import re
 import numpy as np
 from ..util import ParameterFile
+from .GalaxyCohort import GalaxyCohort
 from .GalaxyAggregate import GalaxyAggregate
-from .GalaxyPopulation import GalaxyPopulation
 
 class CompositePopulation(object):
     def __init__(self, **kwargs):

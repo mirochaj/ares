@@ -1,6 +1,6 @@
 """
 
-GalaxyMZ.py
+GalaxyCohort.py
 
 Author: Jordan Mirocha
 Affiliation: UCLA
@@ -34,7 +34,7 @@ except ImportError:
     
 z0 = 9. # arbitrary
     
-class GalaxyPopulation(GalaxyAggregate,DustCorrection):
+class GalaxyCohort(GalaxyAggregate,DustCorrection):
     
     @property
     def magsys(self):
@@ -801,16 +801,33 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
         return self._fstar_inst._call(z, M, coeff)
 
     @property
+    def mlf(self):
+        if not hasattr(self, '_mlf'):
+        
+            if type(self.pf['pop_mlf']) in [float, np.float64]:
+                self._mlf = lambda z, M: self.pf['pop_mlf']
+            elif self.pf['pop_mlf'][0:3] == 'php':
+                pars = self.get_php_pars(self.pf['pop_mlf'])    
+                self._mlf = ParameterizedHaloProperty(**pars)
+            else:
+                raise ValueError('Unrecognized data type for pop_mlf!')  
+    
+        return self._mlf
+
+    @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
             
             if self.pf['pop_calib_rhoL1500'] is not None:
-                boost = self.pf['pop_calib_rhoL1500'] / self.L1500_per_sfr(None, None)
+                boost = self.pf['pop_calib_rhoL1500'] \
+                    / self.L1500_per_sfr(None, None)
                 assert self.pf['pop_fstar_boost'] == 1
             else:
                 boost = 1. / self.pf['pop_fstar_boost']
             
-            if type(self.pf['pop_fstar']) in [float, np.float64]:
+            if self.pf['pop_mlf'] is not None:
+                self._fstar = lambda z, M: boost / (1. + self.mlf(z, M))
+            elif type(self.pf['pop_fstar']) in [float, np.float64]:
                 self._fstar = lambda z, M: self.pf['pop_fstar'] * boost
             elif self.pf['pop_fstar'][0:3] == 'php':
                 pars = self.get_php_pars(self.pf['pop_fstar'])

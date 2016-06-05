@@ -13,7 +13,7 @@ Description:
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
-from ..populations import GalaxyPopulation
+from ..populations import GalaxyCohort
 from scipy.optimize import fsolve, curve_fit
 from scipy.integrate import quad, simps, cumtrapz, ode
 from scipy.interpolate import interp1d, RectBivariateSpline
@@ -32,7 +32,7 @@ try:
 except ImportError:
     pass
 
-class AbundanceMatching(GalaxyPopulation):
+class AbundanceMatching(GalaxyCohort):
 
     @property
     def mags(self):
