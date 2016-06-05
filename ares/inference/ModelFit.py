@@ -628,7 +628,7 @@ class ModelFit(BlobFactory):
             # deleting other files the user may have created with similar
             # naming convention!
             
-            for suffix in ['chain', 'logL', 'facc', 'pinfo', 'setup', 'prior_set']:
+            for suffix in ['chain', 'logL', 'facc', 'pinfo', 'rinfo', 'setup', 'prior_set']:
                 os.system('rm -f %s.%s.pkl' % (prefix, suffix))
             
             os.system('rm -f %s.fail*.pkl' % prefix)
@@ -663,6 +663,11 @@ class ModelFit(BlobFactory):
         # Parameter names and list saying whether they are log10 or not
         f = open('%s.pinfo.pkl' % prefix, 'wb')
         pickle.dump((self.parameters, self.is_log), f)
+        f.close()
+        
+        # "Run" info
+        f = open('%s.rinfo.pkl' % prefix, 'wb')
+        pickle.dump((self.nwalkers, self.save_freq, self.steps), f)
         f.close()
         
         # Priors!
@@ -744,6 +749,9 @@ class ModelFit(BlobFactory):
         else:
             self.pool = None
 
+        self.steps = steps
+        self.save_freq = save_freq
+
         # Initialize sampler
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
@@ -808,8 +816,11 @@ class ModelFit(BlobFactory):
                     flatten_logL(np.array(prob_all)),
                     blobs_all]
 
+            # The flattened version of pos_all has 
+            # shape = (save_freq * nwalkers, ndim)
+
             for i, suffix in enumerate(['chain', 'logL', 'blobs']):
-            
+
                 # Blobs
                 if suffix == 'blobs':
                     if self.blob_names is None:

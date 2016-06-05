@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'Dust', 'HaloProperty']
+    'MultiPhase', 'Dust', 'HaloProperty', 'Old']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -651,7 +651,8 @@ def ControlParameters():
                              # 2 = neutral approx, approx cross sections
 
     # Discretizing integration
-    "redshift_bins": None,
+    #"redshift_bins": None,
+    "tau_Nz": 400,
     "tau_table": None,
     "tau_prefix": tau_prefix,
 
@@ -686,6 +687,17 @@ _sampling_parameters = \
  'output_freq_res': 1.,    
  'output_dz': None,  # Redshift sampling    
 }
+
+# Old != Deprecated
+def OldParameters():
+    pf = \
+    {
+     'xi_LW': None,
+     'xi_UV': None,
+     'xi_XR': None,
+    }
+    
+    return pf
 
 def TanhParameters():
     pf = \
