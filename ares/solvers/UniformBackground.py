@@ -573,10 +573,10 @@ class UniformBackground(object):
                 self.volume.HeatingRate(z, species=j, popid=i,
                 band=k, **kwargs)
     
-            for k, donor in enumerate(self.grid.absorbers):
-                self.k_ion2[i,0,j,k] += \
+            for h, donor in enumerate(self.grid.absorbers):
+                self.k_ion2[i,0,j,h] += \
                     self.volume.SecondaryIonizationRateIGM(z, 
-                    species=j, donor=k, popid=i, band=k, **kwargs)
+                    species=j, donor=h, popid=i, band=k, **kwargs)
     
         else:
             self.k_ion[i,0,j] += \

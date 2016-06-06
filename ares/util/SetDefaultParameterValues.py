@@ -190,7 +190,7 @@ def PhysicsParameters():
     "secondary_ionization": 1,  # 0 = Deposit all energy as heat
                                 # 1 = Shull & vanSteenberg (1985)
                                 # 2 = Ricotti, Gnedin, & Shull (2002)
-                                # 3 = Furlanetto & Stoever (2010)     
+                                # 3 = Furlanetto & Stoever (2010)
                                 
     "secondary_lya": False,     # Collisionally excited Lyman alpha?
     
