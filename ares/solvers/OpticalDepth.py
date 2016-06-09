@@ -10,16 +10,19 @@ Description:
 
 """
 
+import pickle
 import numpy as np
 import os, re, types
 from ..physics import Cosmology
 from scipy.integrate import quad
 from ..physics.Constants import c
 from ..util.Misc import num_freq_bins
+from scipy.interpolate import interp1d
 from ..util.Warnings import no_tau_table
 from ..util import ProgressBar, ParameterFile
 from ..physics.CrossSections import PhotoIonizationCrossSection, \
     ApproximatePhotoIonizationCrossSection
+from ..util.Warnings import tau_tab_z_mismatch, tau_tab_E_mismatch
 
 try:
     import h5py
@@ -53,7 +56,7 @@ defkwargs = \
 barn = 1e-24
 Mbarn = 1e-18
 
-class OpticalDepth:
+class OpticalDepth(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
         
@@ -77,8 +80,23 @@ class OpticalDepth:
         self.rtol = self.pf["integrator_rtol"]
         self.atol = self.pf["integrator_atol"]
         self.divmax = int(self.pf["integrator_divmax"])    
+                
+    @property    
+    def ionization_history(self):    
+        if not hasattr(self, '_ionization_history'):
+            self._ionization_history = lambda z: 0.0
+        return self._ionization_history    
         
-    def ClumpyOpticalDepth(self):    
+    @ionization_history.setter
+    def ionization_history(self, value):
+        if isinstance(value, interp1d):
+            self._ionization_history = value
+        elif type(value) is not types.FunctionType:
+            self._ionization_history = lambda z: value
+        else:    
+            self._ionization_history = value        
+        
+    def ClumpyOpticalDepth(self):
         pass
 
     @property
@@ -162,7 +180,7 @@ class OpticalDepth:
         kw = defkwargs.copy()
         kw.update(kwargs)
         
-        if functionify and type(kw['xavg']) is not types.FunctionType:
+        if functionify and (type(kw['xavg']) is not types.FunctionType):
             tmp = kw['xavg']
             kw['xavg'] = lambda z: tmp
     
@@ -177,7 +195,7 @@ class OpticalDepth:
     
         return kw    
     
-    def TabulateOpticalDepth(self, xavg=lambda z: 0.0):
+    def TabulateOpticalDepth(self):
         """
         Compute optical depth as a function of (redshift, photon energy).
     
@@ -196,6 +214,8 @@ class OpticalDepth:
         Optical depth table.
     
         """
+        
+        xavg = self.ionization_history
         
         if not hasattr(self, 'L'):
             self._set_xrb(use_tab=False)
@@ -233,6 +253,8 @@ class OpticalDepth:
         else:
             tau = tau_proc
     
+        self.tau = tau
+    
         return tau
         
     def RestFrameEnergy(self, z, E, zp):
@@ -260,7 +282,7 @@ class OpticalDepth:
     
         Notes
         -----
-        If redshift_bins != None, will setup logarithmic grid in new parameter
+        If tau_Nz != None, will setup logarithmic grid in new parameter
         x = 1 + z. Then, given that R = x_{j+1} / x_j = const. for j < J, we can 
         create a logarithmic photon frequency / energy grid. This technique
         is outlined in Haardt & Madau (1996) Appendix C.
@@ -271,29 +293,30 @@ class OpticalDepth:
     
         """
     
-        if self.pf['redshift_bins'] is None and self.pf['tau_table'] is None:
+        if self.pf['pop_tau_Nz'] is None and self.pf['tau_table'] is None:
     
             # Set bounds in frequency/energy space
-            self.E0 = self.pf['source_Emin']
-            self.E1 = self.pf['source_Emax']    
+            self.E0 = self.pf['pop_Emin']
+            self.E1 = self.pf['pop_Emax']    
     
             return
     
         self.tabname = None
     
         # Use Haardt & Madau (1996) Appendix C technique for z, nu grids
-        if not ((self.pf['redshift_bins'] is not None or \
-            self.pf['tau_table'] is not None) and (not self.pf['approx_xrb'])):
+        if not ((self.pf['pop_tau_Nz'] is not None or \
+            self.pf['tau_table'] is not None)):
+            #  and (not self.pf['approx_xrb'])?
     
             raise NotImplemented('whats going on here')
     
-        if use_tab and (self.pf['tau_table'] is not None or self.pf['source_solve_rte']):
+        if use_tab and (self.pf['tau_table'] is not None or self.pf['pop_solve_rte']):
     
             found = False
-            if self.pf['source_solve_rte']:
+            if self.pf['pop_solve_rte']:
     
                 # First, look in CWD or $ARES (if it exists)
-                self.tabname = self.load_tau(self.pf['tau_prefix'])
+                self.tabname = self.find_tau(self.pf['tau_prefix'])
     
                 if self.tabname is not None:
                     found = True
@@ -309,7 +332,7 @@ class OpticalDepth:
                 sys.exit(1)
     
             # If we made it this far, we found a table that may be suitable
-            self.read_tau(self.tabname)
+            z, E, tau = self.load(self.tabname)
     
             zmax_ok = (self.z.max() >= self.pf['initial_redshift']) or \
                 np.allclose(self.z.max(), self.pf['initial_redshift']) or \
@@ -319,13 +342,13 @@ class OpticalDepth:
             zmin_ok = (self.z.min() <= self.pf['final_redshift']) or \
                 np.allclose(self.z.min(), self.pf['final_redshift'])
     
-            Emin_ok = (self.E0 <= self.pf['source_Emin']) or \
-                np.allclose(self.E0, self.pf['source_Emin'])
+            Emin_ok = (self.E0 <= self.pf['pop_Emin']) or \
+                np.allclose(self.E0, self.pf['pop_Emin'])
     
             # Results insensitive to Emax (so long as its relatively large)
             # so be lenient with this condition (100 eV or 1% difference
             # between parameter file and lookup table)
-            Emax_ok = np.allclose(self.E1, self.pf['source_Emax'],
+            Emax_ok = np.allclose(self.E1, self.pf['pop_Emax'],
                 atol=100., rtol=1e-2)
     
             # Check redshift bounds
@@ -341,7 +364,7 @@ class OpticalDepth:
                 if self.pf['verbose']:
                     tau_tab_E_mismatch(self, Emin_ok, Emax_ok)
     
-                if self.E1 < self.pf['source_Emax']:
+                if self.E1 < self.pf['pop_Emax']:
                     sys.exit(1)
     
             dlogx = np.diff(self.logx)
@@ -351,13 +374,13 @@ class OpticalDepth:
         else:
     
             # Set bounds in frequency/energy space
-            self.E0 = self.pf['source_Emin']
-            self.E1 = self.pf['source_Emax']
+            self.E0 = self.pf['pop_Emin']
+            self.E1 = self.pf['pop_Emax']
     
             # Set up log-grid in parameter x = 1 + z
             self.x = np.logspace(np.log10(1+self.pf['final_redshift']),
                 np.log10(1+self.pf['initial_redshift']),
-                int(self.pf['redshift_bins']))
+                int(self.pf['pop_tau_Nz']))
     
             self.z = self.x - 1.
             self.logx = np.log10(self.x)
@@ -397,11 +420,14 @@ class OpticalDepth:
             self.E)) for i in xrange(3)])
         self.log_sigma_E = np.log10(self.sigma_E)
     
-    def read_tau(self, fn):
+    def load(self, fn):
         """
         Read optical depth table.
         """
-    
+        
+        if rank == 0:
+            print "Loading %s..." % fn
+        
         if type(fn) is dict:
     
             self.E0 = fn['E'].min()
@@ -432,7 +458,6 @@ class OpticalDepth:
             f.close()
     
         elif re.search('npz', fn) or re.search('pkl', fn):    
-    
             if re.search('pkl', fn):
                 f = open(fn, 'rb')
                 data = pickle.load(f)
@@ -472,16 +497,16 @@ class OpticalDepth:
             self.E = np.logspace(np.log10(self.E0), np.log10(self.E1), self.N)
     
         # Correct for inconsistencies between parameter file and table
-        if self.pf['source_Emin'] > self.E0:
-            Ediff = self.E - self.pf['source_Emin']
+        if self.pf['pop_Emin'] > self.E0:
+            Ediff = self.E - self.pf['pop_Emin']
             i_E0 = np.argmin(np.abs(Ediff))
             if Ediff[i_E0] < 0:
                 i_E0 += 1
     
             self.tau[:,0:i_E0] = np.inf
     
-        if self.pf['source_Emax'] < self.E1:
-            Ediff = self.E - self.pf['source_Emax']
+        if self.pf['pop_Emax'] < self.E1:
+            Ediff = self.E - self.pf['pop_Emax']
             i_E0 = np.argmin(np.abs(Ediff))
             if Ediff[i_E0] < 0:
                 i_E0 += 1
@@ -490,11 +515,17 @@ class OpticalDepth:
     
         self.logx = np.log10(self.x)
         self.logz = np.log10(self.z)
+        
+        return self.z, self.E, self.tau
     
-    def tau_name(self, suffix='hdf5'):
+    def tau_name(self, prefix=None, suffix='hdf5'):
         """
         Return name of table based on its properties.
         """
+        
+        # Return right away if we supplied a table by hand
+        if self.pf['tau_table'] is not None:
+            return self.pf['tau_table'], None
     
         if not have_h5py:
             suffix == 'pkl'
@@ -506,16 +537,21 @@ class OpticalDepth:
     
         L, N = self.tau_shape()
     
-        E0 = self.pf['source_Emin']
-        E1 = self.pf['source_Emax']
-    
+        E0 = self.pf['pop_Emin']
+        E1 = self.pf['pop_Emax']
+        
+        #if self.ionization_history is not None:
+        #    fn = lambda z1, z2, E1, E2: \
+        #        'optical_depth_%s_%ix%i_z_%i-%i_logE_%.2g-%.2g.%s' \
+        #        % (HorHe, L, N, z1, z2, E1, E2, suffix)
+        #else:
         fn = lambda z1, z2, E1, E2: \
             'optical_depth_%s_%ix%i_z_%i-%i_logE_%.2g-%.2g.%s' \
             % (HorHe, L, N, z1, z2, E1, E2, suffix)
-    
+        
         return fn(zf, zi, np.log10(E0), np.log10(E1)), fn
     
-    def load_tau(self, prefix=None):
+    def find_tau(self, prefix=None):
         """
         Find an optical depth table.
         """
@@ -605,7 +641,7 @@ class OpticalDepth:
             return None
     
     def _parse_tab(self, fn):
-    
+        
         tmp1, tmp2 = fn.split('_z_')
         pre = tmp1[0:tmp1.rfind('x')]
         red, tmp3 = fn.split('_logE_')
@@ -622,6 +658,104 @@ class OpticalDepth:
     
         return zmin, zmax, int(Nz), logEmin, logEmax, chem, pre, post
     
+    def _fetch_tau(self, pop, zpf, Epf):
+        """
+        Look for optical depth tables. Supply corrected energy and redshift
+        arrays if there is a mistmatch between those generated from information
+        in the parameter file and those found in the optical depth table.
+    
+        .. note:: This will only be called from UniformBackground, and on
+            populations which are using the generator framework.
+    
+        Parameters
+        ----------
+        popid : int
+            ID # for population of interest.
+        zpf : np.ndarray
+            What the redshifts should be according to the parameter file.    
+        Epf : np.ndarray
+            What the energies should be according to the parameter file.
+    
+        Returns
+        -------
+        Energies and redshifts, potentially revised from Epf and zpf.
+    
+        """
+    
+        # First, look in CWD or $ARES (if it exists)
+        if pop.pf['tau_table'] is None:
+            self.tabname = self.find_tau(pop.pf['tau_prefix'])
+        else:
+            self.tabname = pop.pf['tau_table']
+            
+        if not self.tabname:
+            return zpf, Epf, None
+    
+        # If we made it this far, we found a table that may be suitable
+        ztab, Etab, tau = self.load(self.tabname)
+            
+        # Return right away if there's no potential for conflict
+        if (zpf is None) and (Epf is None):
+            return ztab, Etab, tau
+    
+        # Figure out if the tables need fixing    
+        zmax_ok = \
+            (ztab.max() >= zpf.max()) or \
+            np.allclose(ztab.max(), zpf.max())
+        zmin_ok = \
+            (ztab.min() <= zpf.min()) or \
+            np.allclose(ztab.min(), zpf.min())
+    
+        Emin_ok = \
+            (Etab.min() <= Epf.min()) or \
+            np.allclose(Etab.min(), Epf.min())
+    
+        # Results insensitive to Emax (so long as its relatively large)
+        # so be lenient with this condition (100 eV or 1% difference
+        # between parameter file and lookup table)
+        Emax_ok = np.allclose(Etab.max(), Epf.max(), atol=100., rtol=1e-2)
+    
+        # Check redshift bounds
+        if not (zmax_ok and zmin_ok):
+            if not zmax_ok:
+                tau_tab_z_mismatch(self, zmin_ok, zmax_ok, ztab)
+                sys.exit(1)
+            else:
+                if self.pf['verbose']:
+                    tau_tab_z_mismatch(self, zmin_ok, zmax_ok, ztab)
+    
+        if not (Emax_ok and Emin_ok):
+            if self.pf['verbose']:
+                tau_tab_E_mismatch(pop, self.tabname, Emin_ok, Emax_ok, Etab)
+    
+            if Etab.max() < Epf.max():
+                sys.exit(1)
+    
+        # Correct for inconsistencies between parameter file and table
+        # By effectively masking out those elements with tau -> inf
+        if Epf.min() > Etab.min():
+            Ediff = Etab - Epf.min()
+            i_E0 = np.argmin(np.abs(Ediff))
+            if Ediff[i_E0] < 0:
+                i_E0 += 1
+    
+            #tau[:,0:i_E0+1] = np.inf
+        else:
+            i_E0 = 0
+    
+        if Epf.max() < Etab.max():
+            Ediff = Etab - Epf.max()
+            i_E1 = np.argmin(np.abs(Ediff))
+            if Ediff[i_E1] < 0:
+                i_E1 += 1
+    
+            #tau[:,i_E1+1:] = np.inf
+        else:
+            i_E1 = None
+    
+        # We're done!
+        return ztab, Etab[i_E0:i_E1], tau[:,i_E0:i_E1]
+    
     def tau_shape(self):
         """
         Determine dimensions of optical depth table.
@@ -633,7 +767,7 @@ class OpticalDepth:
         # Set up log-grid in parameter x = 1 + z
         x = np.logspace(np.log10(1+self.pf['final_redshift']),
             np.log10(1+self.pf['initial_redshift']),
-            int(self.pf['redshift_bins']))
+            int(self.pf['pop_tau_Nz']))
         z = x - 1.
         logx = np.log10(x)
         logz = np.log10(z)
@@ -642,12 +776,12 @@ class OpticalDepth:
         R = x[1] / x[0]
         logR = np.log10(R)
     
-        E0 = self.pf['source_Emin']
+        E0 = self.pf['pop_Emin']
     
         # Create mapping to frequency space
         E = 1. * E0
         n = 1
-        while E < self.pf['source_Emax']:
+        while E < self.pf['pop_Emax']:
             E = E0 * R**(n - 1)
             n += 1    
     
@@ -657,9 +791,62 @@ class OpticalDepth:
         # Frequency grid must be index 1-based.
         N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
             zf=self.pf['final_redshift'], Emin=E0, 
-            Emax=self.pf['source_Emax'])
+            Emax=self.pf['pop_Emax'])
         N -= 1
     
         return L, N
     
+    def save(self, fn=None, prefix=None, suffix='pkl', clobber=False):
+        """
+        Write optical depth table to disk.
+        
+        Parameters
+        ----------
+        fn : str
+            Full filename (including suffix). Will override prefix and suffix
+            parameters.
+            
+        """
+        if rank != 0:
+            return
+        
+        if fn is None:
+            if prefix is None:    
+                prefix = self.tau_name(prefix=None, suffix=suffix)   
+            
+            fn = prefix + '.' + suffix
+            
+        else:
+            suffix = fn[fn.rfind('.')+1:]    
+
+        if os.path.exists(fn) and (not clobber):
+            raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
+
+        if suffix == 'hdf5':
+            f = h5py.File(fn, 'w')
+            f.create_dataset('tau', data=self.tau)
+            f.create_dataset('redshift', data=self.z)
+            f.create_dataset('photon_energy', data=self.E)
+            f.close()
+        elif suffix == 'npz':
+            to_write = {'tau': self.tau, 'z': self.z, 'E': self.E}
+
+            f = open(fn, 'w')
+            np.savez(f, **to_write)
+            f.close()
+
+        elif suffix == 'pkl':
+
+            f = open(fn, 'wb')
+            pickle.dump({'tau': self.tau, 'z': self.z, 'E': self.E}, f)
+            f.close()    
+
+        else:
+            print 'Unrecognized suffix \'%s\'. Using np.savetxt...' % suffix
+            f = open(fn, 'w')
+            hdr = "zmin=%.4g zmax=%.4g Emin=%.8e Emax=%.8e" % \
+                (self.z.min(), self.z.max(), self.E.min(), self.E.max())
+            np.savetxt(fn, self.tau, header=hdr, fmt='%.8e')
+
+        print 'Wrote %s.' % fn
     

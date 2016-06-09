@@ -83,7 +83,11 @@ def test(tol=1e-2):
     f2 = pl.figure(2); ax2 = f2.add_subplot(111)
     k = np.argmin(np.abs(E - E_LyA))
     
-    ax2.semilogy(z, flux[:,k], color='k')
+    ax2.semilogy(z, flux[:,k] * E[k] * erg_per_ev, color='k')
+    
+    # Plot analytic solution for Ly-a flux
+    ax2.scatter(zf, e_nu[k], s=150, marker='+')
+    
     ax2.set_xlabel(r'$z$')
     ax2.set_ylabel(r'$J_{\alpha}$')
         
@@ -92,7 +96,7 @@ def test(tol=1e-2):
     mgb.run()
     
     z, E, flux = mgb.get_history(flatten=True)
-    ax2.semilogy(z, flux[:,k], color='k', ls='--')
+    ax2.semilogy(z, flux[:,k] * E[k] * erg_per_ev, color='k', ls='--')
     
     pl.figure(1)
     pl.savefig('%s_1.png' % (__file__.rstrip('.py')))

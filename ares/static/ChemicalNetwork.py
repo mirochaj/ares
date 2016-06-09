@@ -18,7 +18,7 @@ from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h
         
 rad_const = (8. * sigma_T / 3. / m_e / c)        
         
-class ChemicalNetwork:
+class ChemicalNetwork(object):
     def __init__(self, grid, rate_src='fk94', recombination='B'):
         """
         Initialize chemical network.

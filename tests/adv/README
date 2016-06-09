@@ -1,0 +1,3 @@
+Note about 'advanced' tests
+---------------------------
+Scripts in this folder are either (i) a little expensive, or (ii) rely on non-standard dependencies or lookup tables, which may complicate or lengthen the build. As a result, they are not included in the standard test suite.

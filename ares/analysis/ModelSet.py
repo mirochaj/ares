@@ -273,6 +273,32 @@ class ModelSet(BlobFactory):
         return self._parameters
         
     @property
+    def nwalkers(self):
+        # Read parameter names and info
+        if not hasattr(self, '_nwalkers'):
+            if os.path.exists('%s.rinfo.pkl' % self.prefix):
+                f = open('%s.rinfo.pkl' % self.prefix, 'rb')
+                self._nwalkers, self._save_freq, self._steps = \
+                    map(int, pickle.load(f))
+                f.close()
+            else:
+                self._nwalkers = self._save_freq = self._steps = None
+    
+        return self._nwalkers
+    
+    @property
+    def save_freq(self):
+        if not hasattr(self, '_save_freq'):
+            nwalkers = self.nwalkers
+        return self._save_freq
+    
+    @property
+    def steps(self):
+        if not hasattr(self, '_steps'):
+            nwalkers = self.nwalkers
+        return self._steps
+    
+    @property
     def priors(self):
         if not hasattr(self, '_priors'):   
             if os.path.exists('%s.priors.pkl' % self.prefix):
@@ -466,6 +492,32 @@ class ModelSet(BlobFactory):
                 self._fails = None
             
         return self._fails
+        
+    def get_walker(self, num):
+        """
+        Return chain elements corresponding to specific walker.
+        
+        Parameters
+        ----------
+        num : int
+            ID # for walker of interest.
+            
+        Returns
+        -------
+        2-D array with shape (nsteps, nparameters).
+        
+        """
+        
+        sf = self.save_freq
+        nw = self.nwalkers
+        nchunks = int(self.steps / sf)
+        schunk = nw * sf
+        data = []
+        for i in range(nchunks):
+            chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
+            data.extend(chunk)
+            
+        return np.array(data)
                 
     @property
     def Npops(self):
@@ -878,7 +930,7 @@ class ModelSet(BlobFactory):
 
         xdata = data[p[0]]
         ydata = data[p[1]]
-        
+                
         if c is not None:
             cdata = data[p[2]].squeeze()
         else:
@@ -895,6 +947,8 @@ class ModelSet(BlobFactory):
             cb = self._cb = pl.colorbar(scat)
         else:
             cb = None
+        
+        self._scat = scat
             
         self.plot_info = {'pars': pars, 'ivar': ivar,
             'take_log': take_log, 'un_log':un_log, 'multiplier':multiplier}
@@ -984,7 +1038,7 @@ class ModelSet(BlobFactory):
                                                                       
         return nu, levels
     
-    def get_1d_error(self, par, ivar=None, bins=500, nu=0.68, take_log=False,
+    def get_1d_error(self, par, ivar=None, nu=0.68, take_log=False,
         limit=None, un_log=False, multiplier=1., peak='median'):
         """
         Compute 1-D error bar for input parameter.
@@ -993,12 +1047,8 @@ class ModelSet(BlobFactory):
         ----------
         par : str
             Name of parameter. 
-        bins : int
-            Number of bins to use in histogram
         nu : float
             Percent likelihood enclosed by this 1-D error
-        limit : str
-            Valid options: 'lower' and 'upper', if not None.
         peak : str
             Determines whether the 'best' value is the median, mode, or
             maximum likelihood point.
@@ -1267,27 +1317,26 @@ class ModelSet(BlobFactory):
         
         Returns
         -------
-        Tuple with three entries:
+        Tuple with two entries:
          (i) Dictionary containing 1-D arrays of samples for each quantity.
          (ii) Dictionary telling us which of the datasets are actually the
           log10 values of the associated parameters.
-         (iii)
          
         """
-        
+
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)
-                                    
-        to_hist = np.ndarray((len(self.chain), len(pars)))
-        is_log = np.ndarray(len(pars), dtype=bool)
+
+        data = {}
+        is_log = {}
         for k, par in enumerate(pars):
                     
-            # If one of our free parameters, return right away
+            # If one of our free parameters, things are easy.
             if par in self.parameters:
-                j = self.parameters.index(par)
-                is_log[k] = self.is_log[j]
                 
+                j = self.parameters.index(par)
+
                 if self.is_log[j] and un_log[k]:
                     val = 10**self.chain[:,j].copy()
                 else:
@@ -1297,12 +1346,8 @@ class ModelSet(BlobFactory):
                     val += np.log10(multiplier[k])
                 else:
                     val *= multiplier[k]
-        
-                if take_log[k] and (not self.is_log[j]):
-                    to_hist[:,k] = np.log10(val)
-                else:
-                    to_hist[:,k] = val
-                            
+                                            
+            # Blobs are a little harder, might need new mask later.
             elif par in self.all_blob_names:
                 
                 i, j, nd, dims = self.blob_info(par)
@@ -1312,15 +1357,10 @@ class ModelSet(BlobFactory):
                 else:
                     val = self.get_blob(par, ivar=ivar[k]).copy()
 
+                # Blobs are never stored as log10 of their true values
                 val *= multiplier[k]
-                    
-                if take_log[k]:
-                    is_log[k] = True
-                    to_hist[:,k] = np.log10(val)
-                else:
-                    is_log[k] = False
-                    to_hist[:,k] = val
-                                    
+                
+            # Only derived blobs in this else block, yes?                        
             else:
                 
                 cand = glob.glob('%s*.%s.pkl' % (self.prefix, par))
@@ -1329,81 +1369,76 @@ class ModelSet(BlobFactory):
                     f = open(cand[0], 'rb')     
                     dat = pickle.load(f)
                     f.close()
-
-                    to_hist[:,k] = dat
-                    is_log[k] = False
-                else:
-
-                    # Handle case where we have redshift but not frequency
-                    # or vice-versa
-                    pre, post = par.split('_')
                     
-                    z_to_freq = pre == 'nu' and post in list('BCD')
-                    freq_to_z = pre == 'z' and post in list('BCD')
+                    # What follows is real cludgey...sorry, future Jordan
+                    nd = len(dat.shape) - 1
+                    assert nd == 1, "Help!"
                     
-                    if z_to_freq:
-                        par = 'z_%s' % post
-                        i, j, nd, dims = self.blob_info('z_%s' % post)
-                    elif freq_to_z:
-                        par = 'nu_%s' % post
-                        i, j, nd, dims = self.blob_info('nu_%s' % post)
-                        
-                    if nd == 0:
-                        val = self.get_blob(par).copy()
+                    if ivar[k] is not None:
+                        for hh in range(len(self.blob_dims)):
+                            if len(self.blob_dims[hh]) != 1:
+                                continue
+                            if len(dat[0]) == self.blob_dims[hh][0]:
+                                loc = np.argmin(np.abs(self.blob_ivars[hh][0] - ivar[k]))
+                                break
+                            
+                        val = dat[:,loc]
                     else:
-                        val = self.get_blob(par, ivar=ivar[k]).copy()
-                
-                    if z_to_freq:
-                        val = nu_0_mhz / (1. + val)
-                    elif freq_to_z:
-                        val = nu_0_mhz / val - 1.  
-                    
-                    to_hist[:,k] = val
-                    is_log[k] = False
-                                        
-        # Re-organize
-        #if len(np.unique(pars)) < len(pars):
-        #    if self.is_mcmc:
-        #        data = np.ma.array(to_hist, mask=self.mask)
-        #    else:
-        #        data = np.array(to_hist)
-        #else:    
+                        val = dat
 
-        if remove_nas:
-            # deletes all rows with nan's or inf's
-            to_hist, deleted_indices = delete_nan_rows(to_hist)
-            chain_length = len(self.chain)
-            num_deleted = len(deleted_indices)
-            print "delete_nan_rows was run in ExtractData. It ignored " +\
-                  ("%i%% of " % ((100. * num_deleted) / chain_length,)) +\
-                  ("the  %i chain links. If this number " % (chain_length,)) +\
-                  "is high, it may be that the parameters/blobs which you " +\
-                  "are extracting are not well defined in the case of the " +\
-                  "given data."
-        
-        data = {}
-        for i, par in enumerate(pars):
-            if par in data:
-                continue
+            # Take log, unless the parameter is already in log10
+            if take_log[k] and (not self.is_log[j]):
+                val = np.log10(val)        
+                                   
+            ##
+            # OK, at this stage, 'val' is just an array. If it corresponds to
+            # a parameter, it's 1-D, if a blob, it's dimensionality could
+            # be different. So, we have to be a little careful with the mask.
+            ##                   
+              
+            if not np.all(np.array(val.shape) == np.array(self.mask.shape)):
                 
+                # If no masked elements, don't worry any more. Just set -> 0.
+                if not np.any(self.mask == 1):
+                    mask = 0
+                # Otherwise, we might need to reshape the mask.
+                # If, for example, certain links in the MCMC chain are masked,
+                # we need to make sure that every blob element corresponding
+                # to those links are masked.
+                else:
+                    mask = np.zeros_like(val)
+                    for j, element in enumerate(self.mask):
+                        if element == 1:
+                            mask[j].fill(1)
+            else:
+                mask = self.mask
+
+            if remove_nas:
+                # deletes all rows with nan's or inf's
+                to_hist, deleted_indices = delete_nan_rows(val)
+                chain_length = len(self.chain)
+                num_deleted = len(deleted_indices)
+                print "delete_nan_rows was run in ExtractData. It ignored " +\
+                      ("%i%% of " % ((100. * num_deleted) / chain_length,)) +\
+                      ("the  %i chain links. If this number " % (chain_length,)) +\
+                      "is high, it may be that the parameters/blobs which you " +\
+                      "are extracting are not well defined in the case of the " +\
+                      "given data."
+                      
             if self.is_mcmc:
                 if remove_nas:
                     # no need for mask because nans and infs have been removed
-                    data[par] = to_hist[:,i]
+                    data[par] = val
                 else:
-                    data[par] = np.ma.array(to_hist[:,i], mask=self.mask)
+                    data[par] = np.ma.array(val, mask=mask)
             else:
                 try:
-                    data[par] = np.ma.array(to_hist[:,i], mask=self.mask)
+                    data[par] = np.ma.array(val, mask=mask)
                 except np.ma.MaskError:
                     print "MaskError encountered. Assuming mask=0."
-                    
-                    new_mask = np.array([self.mask.copy()] * to_hist[:,i].shape[1]).T
-                    
-                    data[par] = np.ma.array(to_hist[:,i], mask=new_mask)
-        
-        is_log = {par:is_log[i] for i, par in enumerate(pars)}
-                    
+                        
+                    data[par] = np.ma.array(val, mask=0)
+
         return data, is_log
 
     def _set_bins(self, pars, to_hist, take_log=False, bins=20):
@@ -2757,7 +2792,8 @@ class ModelSet(BlobFactory):
         if save:
             assert name is not None, "Must supply name for new blob!"
             
-            nd = len(result.shape)
+            # First dimension is # of samples
+            nd = len(result.shape) - 1
             
             fn = '%s.blob_%id.%s.pkl' % (self.prefix, nd, name)
             

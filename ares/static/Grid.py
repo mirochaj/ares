@@ -346,7 +346,7 @@ class Grid(object):
         """
         Initialize grid properties all in one go.
         """    
-        
+
         self.set_physics(
             isothermal=kwargs['isothermal'], 
             compton_scattering=kwargs['compton_scattering'],
@@ -356,7 +356,7 @@ class Grid(object):
             clumping_factor=kwargs['clumping_factor'],
             collisional_ionization=kwargs['collisional_ionization']
         )
-        
+
         self.set_cosmology(
             initial_redshift=kwargs['initial_redshift'], 
             omega_m_0=kwargs["omega_m_0"], 
@@ -366,12 +366,12 @@ class Grid(object):
             helium_by_number=kwargs['helium_by_number'], 
             cmb_temp_0=kwargs["cmb_temp_0"],
             approx_highz=kwargs["approx_highz"])
-        
+
         self.set_chemistry(kwargs['include_He'])
         self.set_density(kwargs['density_units'])
         self.set_ionization(kwargs['initial_ionization'])
         self.set_temperature(kwargs['initial_temperature'])
-                
+
     def set_physics(self, isothermal=False, compton_scattering=False,
         secondary_ionization=0, expansion=False, recombination='B',
         clumping_factor=1.0, collisional_ionization=True):
@@ -381,7 +381,7 @@ class Grid(object):
         self._expansion = expansion
         self._recombination = recombination
         self._collisional_ionization = collisional_ionization
-        
+
         if type(clumping_factor) is not types.FunctionType:
             self._clumping_factor = lambda z: clumping_factor
         else:
@@ -544,8 +544,6 @@ class Grid(object):
                 
         if x is not None:
 
-            assert(len(x) == len(self.species))
-               
             for j, species in enumerate(self.species):
                 element, state = species.split('_')
                 Z = util.element2z(element)

@@ -18,6 +18,7 @@ from ..util import ParameterFile
 from ..static import GlobalVolume
 from ..util.Misc import num_freq_bins
 from scipy.interpolate import interp1d
+from .OpticalDepth import OpticalDepth
 from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
 from ..populations import CompositePopulation
@@ -92,6 +93,12 @@ class UniformBackground(object):
         
         #self._set_populations()
         #self._set_generators()
+        
+    @property
+    def OpticalDepth(self):
+        if not hasattr(self, '_OpticalDepth'):
+            self._OpticalDepth = OpticalDepth(**self.pf)
+        return self._OpticalDepth
         
     @property
     def hydr(self):
@@ -448,25 +455,28 @@ class UniformBackground(object):
         # Not necessarily true in the future if we include H2 opacity    
         if E.max() <= E_LL:
             return z, E, np.zeros([len(z), len(E)])
-            
-        # Otherwise, compute optical depth assuming constant ion fractions
-        if pop.pf['pop_approx_tau'] == 'neutral':
-            
-            # Try to load file from disk.
-            z, E, tau = self.volume._fetch_tau(pop, z, E)
-            
-            # Generate it now if no file was found.
-            if tau is None:    
-                no_tau_table(self)
-                tau = self.volume.TabulateOpticalDepth(z, E)
-                if self.pf['include_He']:
-                    tau += self.volume.TabulateOpticalDepth(z, E, species=1)
-                        
-        elif pop.pf['pop_approx_tau'] is 'post_EoR':            
-            tau = self.volume.TabulateOpticalDepth(z, E, species=2)
-        else:
-            raise NotImplemented('Unrecognized approx_tau option.')
+                    
+        # Create an ares.simulations.OpticalDepth instance
+        tau_solver = OpticalDepth(**pop.pf)
         
+        # Try to load file from disk.
+        z, E, tau = tau_solver._fetch_tau(pop, z, E)
+                
+        # Generate it now if no file was found.
+        if tau is None:
+            no_tau_table(self)
+            
+            if pop.pf['pop_approx_tau'] is 'neutral':
+                tau_solver.ionization_history = lambda z: 0.0
+            elif pop.pf['pop_approx_tau'] is 'post_EoR':
+                tau_solver.ionization_history = lambda z: 1.0
+            elif type(pop.pf['pop_approx_tau']) is types.FunctionType:
+                tau_solver.ionization_history = pop.pf['pop_approx_tau']
+            else:                                                          
+                raise NotImplemented('Unrecognized approx_tau option.')
+
+            tau = tau_solver.TabulateOpticalDepth()   
+
         return z, E, tau
 
     @property
@@ -563,10 +573,10 @@ class UniformBackground(object):
                 self.volume.HeatingRate(z, species=j, popid=i,
                 band=k, **kwargs)
     
-            for k, donor in enumerate(self.grid.absorbers):
-                self.k_ion2[i,0,j,k] += \
+            for h, donor in enumerate(self.grid.absorbers):
+                self.k_ion2[i,0,j,h] += \
                     self.volume.SecondaryIonizationRateIGM(z, 
-                    species=j, donor=k, popid=i, band=k, **kwargs)
+                    species=j, donor=h, popid=i, band=k, **kwargs)
     
         else:
             self.k_ion[i,0,j] += \
@@ -794,6 +804,7 @@ class UniformBackground(object):
             else:
                 tau = 0.0
         else:
+            raise NotImplemented('this needs fixing')
             tau = self.volume.OpticalDepth(z, zp, E, xavg=kw['xavg'])
     
         return c * (1. + z)**2 * epsilonhat_over_H * np.exp(-tau) / four_pi
@@ -924,7 +935,8 @@ class UniformBackground(object):
         if not self.solve_rte[popid]:
             norm = c * self.cosm.dtdz(z) / four_pi
 
-            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6)
+            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6) \
+                * pop.pf['pop_fesc_LW']
 
             return norm * (1. + z)**3 * (1. + pop.pf['lya_frec_bar']) * \
                 rhoLW / dnu

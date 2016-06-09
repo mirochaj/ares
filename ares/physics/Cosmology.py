@@ -137,6 +137,9 @@ class Cosmology(object):
             / self.hubble_0
 
         return t
+        
+    #def z_of_t(self, t):
+        
 
     def Tgas(self, z):
         """

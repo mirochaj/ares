@@ -119,105 +119,105 @@ class GlobalVolume(object):
 
         return self._rates_no_RT
 
-    def _fetch_tau(self, pop, zpf, Epf):
-        """
-        Look for optical depth tables. Supply corrected energy and redshift
-        arrays if there is a mistmatch between those generated from information
-        in the parameter file and those found in the optical depth table.
-        
-        .. note:: This will only be called from UniformBackground, and on
-            populations which are using the generator framework.
-        
-        Parameters
-        ----------
-        popid : int
-            ID # for population of interest.
-        zpf : np.ndarray
-            What the redshifts should be according to the parameter file.    
-        Epf : np.ndarray
-            What the energies should be according to the parameter file.
-        
-        Returns
-        -------
-        Energies and redshifts, potentially revised from Epf and zpf.
-        
-        """
-        
-        for i in range(self.Npops):
-            if pop == self.pops[i]:
-                band = self.background.bands_by_pop[i]
-                break
-            
-        # First, look in CWD or $ARES (if it exists)
-        self.tabname = self._load_tau(pop, pop.pf['tau_prefix'])
-                
-        if not self.tabname:
-            return zpf, Epf, None
-        
-        # If we made it this far, we found a table that may be suitable
-        ztab, Etab, tau = self._read_tau(self.tabname)
-                
-        # Return right away if there's no potential for conflict
-        if (zpf is None) and (Epf is None):
-            return ztab, Etab, tau
-            
-        # Figure out if the tables need fixing    
-        zmax_ok = \
-            (ztab.max() >= zpf.max()) or \
-            np.allclose(ztab.max(), zpf.max())
-        zmin_ok = \
-            (ztab.min() <= zpf.min()) or \
-            np.allclose(ztab.min(), zpf.min())
-                                
-        Emin_ok = \
-            (Etab.min() <= Epf.min()) or \
-            np.allclose(Etab.min(), Epf.min())
-        
-        # Results insensitive to Emax (so long as its relatively large)
-        # so be lenient with this condition (100 eV or 1% difference
-        # between parameter file and lookup table)
-        Emax_ok = np.allclose(Etab.max(), Epf.max(), atol=100., rtol=1e-2)
-                
-        # Check redshift bounds
-        if not (zmax_ok and zmin_ok):
-            if not zmax_ok:
-                tau_tab_z_mismatch(self, zmin_ok, zmax_ok, ztab)
-                sys.exit(1)
-            else:
-                if self.pf['verbose']:
-                    tau_tab_z_mismatch(self, zmin_ok, zmax_ok, ztab)
-        
-        if not (Emax_ok and Emin_ok):
-            if self.pf['verbose']:
-                tau_tab_E_mismatch(pop, self.tabname, Emin_ok, Emax_ok, Etab)
-                
-            if Etab.max() < Epf.max():
-                sys.exit(1)
-                                                            
-        # Correct for inconsistencies between parameter file and table
-        # By effectively masking out those elements with tau -> inf
-        if Epf.min() > Etab.min():
-            Ediff = Etab - Epf.min()
-            i_E0 = np.argmin(np.abs(Ediff))
-            if Ediff[i_E0] < 0:
-                i_E0 += 1
-        
-            #tau[:,0:i_E0+1] = np.inf
-        else:
-            i_E0 = 0
-        
-        if Epf.max() < Etab.max():
-            Ediff = Etab - Epf.max()
-            i_E1 = np.argmin(np.abs(Ediff))
-            if Ediff[i_E1] < 0:
-                i_E1 += 1
-        
-            #tau[:,i_E1+1:] = np.inf
-        else:
-            i_E1 = None
-            
-        # We're done!
-        return ztab, Etab[i_E0:i_E1], tau[:,i_E0:i_E1]
+    #def _fetch_tau(self, pop, zpf, Epf):
+    #    """
+    #    Look for optical depth tables. Supply corrected energy and redshift
+    #    arrays if there is a mistmatch between those generated from information
+    #    in the parameter file and those found in the optical depth table.
+    #    
+    #    .. note:: This will only be called from UniformBackground, and on
+    #        populations which are using the generator framework.
+    #    
+    #    Parameters
+    #    ----------
+    #    popid : int
+    #        ID # for population of interest.
+    #    zpf : np.ndarray
+    #        What the redshifts should be according to the parameter file.    
+    #    Epf : np.ndarray
+    #        What the energies should be according to the parameter file.
+    #    
+    #    Returns
+    #    -------
+    #    Energies and redshifts, potentially revised from Epf and zpf.
+    #    
+    #    """
+    #    
+    #    for i in range(self.Npops):
+    #        if pop == self.pops[i]:
+    #            band = self.background.bands_by_pop[i]
+    #            break
+    #        
+    #    # First, look in CWD or $ARES (if it exists)
+    #    self.tabname = self._load_tau(pop, pop.pf['tau_prefix'])
+    #            
+    #    if not self.tabname:
+    #        return zpf, Epf, None
+    #    
+    #    # If we made it this far, we found a table that may be suitable
+    #    ztab, Etab, tau = self._read_tau(self.tabname)
+    #            
+    #    # Return right away if there's no potential for conflict
+    #    if (zpf is None) and (Epf is None):
+    #        return ztab, Etab, tau
+    #        
+    #    # Figure out if the tables need fixing    
+    #    zmax_ok = \
+    #        (ztab.max() >= zpf.max()) or \
+    #        np.allclose(ztab.max(), zpf.max())
+    #    zmin_ok = \
+    #        (ztab.min() <= zpf.min()) or \
+    #        np.allclose(ztab.min(), zpf.min())
+    #                            
+    #    Emin_ok = \
+    #        (Etab.min() <= Epf.min()) or \
+    #        np.allclose(Etab.min(), Epf.min())
+    #    
+    #    # Results insensitive to Emax (so long as its relatively large)
+    #    # so be lenient with this condition (100 eV or 1% difference
+    #    # between parameter file and lookup table)
+    #    Emax_ok = np.allclose(Etab.max(), Epf.max(), atol=100., rtol=1e-2)
+    #            
+    #    # Check redshift bounds
+    #    if not (zmax_ok and zmin_ok):
+    #        if not zmax_ok:
+    #            tau_tab_z_mismatch(self, zmin_ok, zmax_ok, ztab)
+    #            sys.exit(1)
+    #        else:
+    #            if self.pf['verbose']:
+    #                tau_tab_z_mismatch(self, zmin_ok, zmax_ok, ztab)
+    #    
+    #    if not (Emax_ok and Emin_ok):
+    #        if self.pf['verbose']:
+    #            tau_tab_E_mismatch(pop, self.tabname, Emin_ok, Emax_ok, Etab)
+    #            
+    #        if Etab.max() < Epf.max():
+    #            sys.exit(1)
+    #                                                        
+    #    # Correct for inconsistencies between parameter file and table
+    #    # By effectively masking out those elements with tau -> inf
+    #    if Epf.min() > Etab.min():
+    #        Ediff = Etab - Epf.min()
+    #        i_E0 = np.argmin(np.abs(Ediff))
+    #        if Ediff[i_E0] < 0:
+    #            i_E0 += 1
+    #    
+    #        #tau[:,0:i_E0+1] = np.inf
+    #    else:
+    #        i_E0 = 0
+    #    
+    #    if Epf.max() < Etab.max():
+    #        Ediff = Etab - Epf.max()
+    #        i_E1 = np.argmin(np.abs(Ediff))
+    #        if Ediff[i_E1] < 0:
+    #            i_E1 += 1
+    #    
+    #        #tau[:,i_E1+1:] = np.inf
+    #    else:
+    #        i_E1 = None
+    #        
+    #    # We're done!
+    #    return ztab, Etab[i_E0:i_E1], tau[:,i_E0:i_E1]
 
     @property
     def E(self):
@@ -247,17 +247,24 @@ class GlobalVolume(object):
         
         """
 
-        # Remember: this is [Npops, Nbands/pop]
+        # Remember: these will all be [Npops, Nbands/pop, Nenergies/band]
         self._E = self.background.energies
-        
         self.logE = [[] for k in range(self.Npops)]
         self.dlogE = [[] for k in range(self.Npops)]
-        self._sigma_E = [[] for k in range(self.Npops)]
         self.fheat = [[] for k in range(self.Npops)]
         self.flya = [[] for k in range(self.Npops)]
         
-        # Semi-special treatment for secondary ionization
-        #self.fion = [{} for k in range(self.Npops)]
+        # These are species dependent
+        self._sigma_E = {}
+        self.fion = {}
+        for species in ['h_1', 'he_1', 'he_2']:
+            self._sigma_E[species] = [[] for k in range(self.Npops)]
+            self.fion[species] = [[] for k in range(self.Npops)]
+            
+        ##
+        # Note: If secondary_ionization > 1, there will be an ionized fraction
+        # dimension in fion and fheat.
+        ##    
         
         # Loop over populations
         for i, pop in enumerate(self.pops):
@@ -266,143 +273,114 @@ class GlobalVolume(object):
             if not self.background.solve_rte[i]:
                 self.logE[i] = [None]
                 self.dlogE[i] = [None]
-                self._sigma_E[i] = [None]
                 self.fheat[i] = [None]
-                #self.fion[i] = [None]
                 self.flya[i] = [None]
+                
+                for species in ['h_1', 'he_1', 'he_2']:
+                    self.fion[species][i] = [None]
+                    self._sigma_E[species][i] = [None]
+                
                 continue
             else:
                 Nbands = len(self.background.energies[i])
 
                 self.logE[i] = [None for k in range(Nbands)]
                 self.dlogE[i] = [None for k in range(Nbands)]
-                self._sigma_E[i] = [None for k in range(Nbands)]
-                self.fheat[i] = [None for k in range(Nbands)]
-                #self.fion[i] = [None for k in range(Nbands)]
-                self.flya[i] = [None for k in range(Nbands)]
-                
+
+                self.fheat[i] = \
+                    [np.ones([self.background.energies[i][j].size, 
+                     len(self.esec.x)]) \
+                     for j in range(Nbands)]
+                self.flya[i] = \
+                    [np.ones([self.background.energies[i][j].size, 
+                     len(self.esec.x)]) \
+                     for j in range(Nbands)]
+                     
+                for species in ['h_1', 'he_1', 'he_2']:
+                    if self.esec.Method > 1:
+                        self._sigma_E[species][i] = \
+                            [np.ones([self.background.energies[i][j].size, 
+                             len(self.esec.x)]) \
+                             for j in range(Nbands)]
+                        self.fion[species][i] = \
+                            [np.ones([self.background.energies[i][j].size, 
+                             len(self.esec.x)]) \
+                             for j in range(Nbands)]
+                        
+                    else:
+                        self._sigma_E[species][i] = [None for k in range(Nbands)]
+                        self.fion[species][i] = [None for k in range(Nbands)]
+                        self.fheat[i] = [None for k in range(Nbands)]
+                        self.flya[i] = [None for k in range(Nbands)]
+
+            ##
             # If we make it here, the population has at least one band that
             # requires a detailed solution to the RTE    
-                
+            ##
+
             # Loop over each band for this population
             for j, band in enumerate(self.background.energies[i]):
-            
+
                 if band is None:
                     continue
 
                 # More convenient variables
-                E = self._E[i][j]    
+                E = self._E[i][j]
                 N = E.size
 
                 # Compute some things we need, like bound-free cross-section
                 self.logE[i][j] = np.log10(E)
                 self.dlogE[i][j] = np.diff(self.logE[i][j])
-                self._sigma_E[i][j] = \
-                    np.array([np.array(map(lambda E: self.sigma(E, k), E)) \
-                    for k in xrange(3)])
+                
+                # 
+                for k, species in enumerate(['h_1', 'he_1', 'he_2']):
+                    self._sigma_E[species][i][j] = \
+                        np.array(map(lambda E: self.sigma(E, k), E))
 
                 # Pre-compute secondary ionization and heating factors
                 if self.esec.Method > 1:
                 
+                    # Don't worry: we'll fill these in in a sec!
                     self.fheat[i][j] = np.ones([N, len(self.esec.x)])
                     self.flya[i][j] = np.ones([N, len(self.esec.x)])
                 
-                    #self.fion[popid] = {}
-                    #self.fion[popid]['h_1'] = np.ones([N, len(self.esec.x)])
-                
                     # Must evaluate at ELECTRON energy, not photon energy
-                    for i, nrg in enumerate(E - E_th[0]):
-                        self.fheat[popid][i,:] = \
+                    for k, nrg in enumerate(E - E_th[0]):
+                        self.fheat[i][j][k] = \
                             self.esec.DepositionFraction(self.esec.x, E=nrg, 
                             channel='heat')
-                        self.fion[popid]['h_1'][i,:] = \
+                        self.fion['h_1'][i][j][k] = \
                             self.esec.DepositionFraction(self.esec.x, E=nrg, 
                             channel='h_1')
                 
                         if self.pf['secondary_lya']:
-                            self.flya[popid][i,:] = \
+                            self.flya[i][j][k] = \
                                 self.esec.DepositionFraction(self.esec.x, E=nrg, 
                                 channel='lya') 
                 
                     # Helium
                     if self.pf['include_He'] and not self.pf['approx_He']:
                 
-                        self.fion[popid]['he_1'] = np.ones([N, len(self.esec.x)])
-                        self.fion[popid]['he_2'] = np.ones([N, len(self.esec.x)])
+                        # Don't worry: we'll fill these in in a sec!
+                        self.fion['he_1'][i][j] = np.ones([N, len(self.esec.x)])
+                        self.fion['he_2'][i][j] = np.ones([N, len(self.esec.x)])
                 
-                        for i, nrg in enumerate(E - E_th[1]):
-                            self.fion[popid]['he_1'][i,:] = \
+                        for k, nrg in enumerate(E - E_th[1]):
+                            self.fion['he_1'][i][j][k] = \
                                 self.esec.DepositionFraction(self.esec.x, 
                                 E=nrg, channel='he_1')
                 
-                        for i, nrg in enumerate(E - E_th[2]):
-                            self.fion[popid]['he_2'][i,:] = \
+                        for k, nrg in enumerate(E - E_th[2]):
+                            self.fion['he_2'][i][j][k] = \
                                 self.esec.DepositionFraction(self.esec.x, 
                                 E=nrg, channel='he_2')    
                 
-        return        
+                    else:
+                        self.fion['he_1'][i][j] = np.zeros([N, len(self.esec.x)])
+                        self.fion['he_2'][i][j] = np.zeros([N, len(self.esec.x)])
                 
-        #self.logE = [np.log10(nrg) for nrg in self._E]
-        #self.dlogE = [np.diff(nrgs) for nrgs in self.logE]
-        #
-        #self._sigma_E = [None for i in range(self.Npops)]
-        #self.fheat = [None for i in range(self.Npops)]
-        #self.fion = [None for i in range(self.Npops)]
-        #self.flya = [None for i in range(self.Npops)]
-
-        # Loop over source populations
-        for popid, src in enumerate(self.pops):
-
-            if not self.background.solve_rte[popid]:
-                continue
-
-            E = self._E[popid]
-            N = E.size
-
-            # Pre-compute cross-sections
-            self._sigma_E[popid] = \
-                np.array([np.array(map(lambda E: self.sigma(E, i), E)) \
-                for i in xrange(3)])
-
-            # Pre-compute secondary ionization and heating factors
-            if self.esec.Method > 1:
-
-                self.fheat[i] = np.ones([N, len(self.esec.x)])
-                self.flya[i] = np.ones([N, len(self.esec.x)])
-
-                self.fion[i] = {}
-                self.fion[i]['h_1'] = np.ones([N, len(self.esec.x)])
-
-                # Must evaluate at ELECTRON energy, not photon energy
-                for k, nrg in enumerate(E - E_th[0]):
-                    self.fheat[i][k,:] = \
-                        self.esec.DepositionFraction(self.esec.x, E=nrg, 
-                        channel='heat')
-                    self.fion[i]['h_1'][k,:] = \
-                        self.esec.DepositionFraction(self.esec.x, E=nrg, 
-                        channel='h_1')
-
-                    if self.pf['secondary_lya']:
-                        self.flya[i][k,:] = \
-                            self.esec.DepositionFraction(self.esec.x, E=nrg, 
-                            channel='lya') 
-                        
-                # Helium
-                if self.pf['include_He'] and not self.pf['approx_He']:
-                    
-                    self.fion[i]['he_1'] = np.ones([N, len(self.esec.x)])
-                    self.fion[i]['he_2'] = np.ones([N, len(self.esec.x)])
-                    
-                    for k, nrg in enumerate(E - E_th[1]):
-                        self.fion[popid]['he_1'][k,:] = \
-                            self.esec.DepositionFraction(self.esec.x, 
-                            E=nrg, channel='he_1')
-                    
-                    for k, nrg in enumerate(E - E_th[2]):
-                        self.fion[popid]['he_2'][k,:] = \
-                            self.esec.DepositionFraction(self.esec.x, 
-                            E=nrg, channel='he_2')            
-                            
+        return        
+                                            
     def _set_integrator(self):
         self.integrator = self.pf["unsampled_integrator"]
         self.sampled_integrator = self.pf["sampled_integrator"]
@@ -410,233 +388,233 @@ class GlobalVolume(object):
         self.atol = self.pf["integrator_atol"]
         self.divmax = int(self.pf["integrator_divmax"])
     
-    def _read_tau(self, fn):
-        """ Read optical depth table. """
-        
-        if type(fn) is dict:
-            
-            E0 = fn['E'].min()
-            E1 = fn['E'].max()
-            E = fn['E']
-            z = fn['z']
-            x = z + 1
-            N = E.size
-                
-            R = x[1] / self.x[0]
-            
-            tau = fn['tau']
-
-        elif re.search('hdf5', fn):
-
-            f = h5py.File(self.tabname, 'r')
-
-            E0 = min(f['photon_energy'].value)
-            E1 = max(f['photon_energy'].value)
-            E = f['photon_energy'].value
-            z = f['redshift'].value
-            x = z + 1
-            N = E.size
-                
-            R = x[1] / x[0]
-            
-            tau = f['tau'].value
-            f.close()
-
-        elif re.search('npz', fn) or re.search('pkl', fn):    
-
-            if re.search('pkl', fn):
-                f = open(fn, 'rb')
-                data = pickle.load(f)
-            else:
-                f = open(fn, 'r')
-                data = dict(np.load(f))
-            
-            E0 = data['E'].min()
-            E1 = data['E'].max()            
-            E = data['E']
-            z = data['z']
-            x = z + 1
-            N = E.size
-            
-            R = x[1] / x[0]
-            
-            tau = tau = data['tau']
-            f.close()
-        else:
-            raise NotImplemented('Don\'t know how to read %s.' % fn)
-
-        return z, E, tau
+    #def _read_tau(self, fn):
+    #    """ Read optical depth table. """
+    #    
+    #    if type(fn) is dict:
+    #        
+    #        E0 = fn['E'].min()
+    #        E1 = fn['E'].max()
+    #        E = fn['E']
+    #        z = fn['z']
+    #        x = z + 1
+    #        N = E.size
+    #            
+    #        R = x[1] / self.x[0]
+    #        
+    #        tau = fn['tau']
+    #
+    #    elif re.search('hdf5', fn):
+    #
+    #        f = h5py.File(self.tabname, 'r')
+    #
+    #        E0 = min(f['photon_energy'].value)
+    #        E1 = max(f['photon_energy'].value)
+    #        E = f['photon_energy'].value
+    #        z = f['redshift'].value
+    #        x = z + 1
+    #        N = E.size
+    #            
+    #        R = x[1] / x[0]
+    #        
+    #        tau = f['tau'].value
+    #        f.close()
+    #
+    #    elif re.search('npz', fn) or re.search('pkl', fn):    
+    #
+    #        if re.search('pkl', fn):
+    #            f = open(fn, 'rb')
+    #            data = pickle.load(f)
+    #        else:
+    #            f = open(fn, 'r')
+    #            data = dict(np.load(f))
+    #        
+    #        E0 = data['E'].min()
+    #        E1 = data['E'].max()            
+    #        E = data['E']
+    #        z = data['z']
+    #        x = z + 1
+    #        N = E.size
+    #        
+    #        R = x[1] / x[0]
+    #        
+    #        tau = tau = data['tau']
+    #        f.close()
+    #    else:
+    #        raise NotImplemented('Don\'t know how to read %s.' % fn)
+    #
+    #    return z, E, tau
     
-    def _tau_name(self, pop, suffix='hdf5'):
-        """
-        Return name of table based on its properties.
-        """
-
-        if not have_h5py:
-            suffix == 'pkl'
-
-        HorHe = 'He' if self.pf['include_He'] else 'H'
-
-        zf = self.pf['final_redshift']
-        zi = self.pf['initial_redshift']
-
-        L, N = self._tau_shape(pop)
-
-        E0 = pop.pf['pop_Emin']
-        E1 = pop.pf['pop_Emax']
-
-        fn = lambda z1, z2, E1, E2: \
-            'optical_depth_%s_%ix%i_z_%i-%i_logE_%.2g-%.2g.%s' \
-            % (HorHe, L, N, z1, z2, E1, E2, suffix)
-
-        return fn(zf, zi, np.log10(E0), np.log10(E1)), fn
+    #def _tau_name(self, pop, suffix='hdf5'):
+    #    """
+    #    Return name of table based on its properties.
+    #    """
+    #
+    #    if not have_h5py:
+    #        suffix == 'pkl'
+    #
+    #    HorHe = 'He' if self.pf['include_He'] else 'H'
+    #
+    #    zf = self.pf['final_redshift']
+    #    zi = self.pf['initial_redshift']
+    #
+    #    L, N = self._tau_shape(pop)
+    #
+    #    E0 = pop.pf['pop_Emin']
+    #    E1 = pop.pf['pop_Emax']
+    #
+    #    fn = lambda z1, z2, E1, E2: \
+    #        'optical_depth_%s_%ix%i_z_%i-%i_logE_%.2g-%.2g.%s' \
+    #        % (HorHe, L, N, z1, z2, E1, E2, suffix)
+    #
+    #    return fn(zf, zi, np.log10(E0), np.log10(E1)), fn
     
-    def _load_tau(self, pop, prefix=None):
-        """
-        Find an optical depth table.
-        """
-        
-        fn, fn_func = self._tau_name(pop)
-    
-        if prefix is None:
-            ares_dir = os.environ.get('ARES')
-            if not ares_dir:
-                print "No ARES environment variable."
-                return None
+    #def _load_tau(self, pop, prefix=None):
+    #    """
+    #    Find an optical depth table.
+    #    """
+    #    
+    #    fn, fn_func = self._tau_name(pop)
+    #
+    #    if prefix is None:
+    #        ares_dir = os.environ.get('ARES')
+    #        if not ares_dir:
+    #            print "No ARES environment variable."
+    #            return None
+    #        
+    #        input_dirs = [os.path.join(ares_dir,'input','optical_depth')]
+    #
+    #    else:
+    #        if type(prefix) is str:
+    #            input_dirs = [prefix]
+    #        else:
+    #            input_dirs = prefix
+    #
+    #    guess = os.path.join(input_dirs[0], fn)
+    #    if os.path.exists(guess):
+    #        return guess
+    #
+    #    ## Find exactly what table should be
+    #    zmin, zmax, Nz, lEmin, lEmax, chem, pre, post = self._parse_tab(fn)
+    #
+    #    ok_matches = []
+    #    perfect_matches = []
+    #    
+    #    # Loop through input directories
+    #    for input_dir in input_dirs:
+    #                        
+    #        # Loop over files in input_dir, look for best match
+    #        for fn1 in os.listdir(input_dir):
+    #            
+    #            if re.search('hdf5', fn1) and (not have_h5py):
+    #                continue
+    #
+    #            tab_name = os.path.join(input_dir, fn1)
+    #            
+    #            try:
+    #                zmin_f, zmax_f, Nz_f, lEmin_f, lEmax_f, chem_f, p1, p2 = \
+    #                    self._parse_tab(fn1)
+    #            except:
+    #                continue
+    #
+    #            # Dealbreakers
+    #            if Nz_f != Nz:
+    #                continue
+    #            if zmax_f < zmax:
+    #                continue
+    #            if chem_f != chem:
+    #                continue
+    #
+    #            # Continue with possible matches
+    #            for fmt in ['pkl', 'npz', 'hdf5']:
+    #
+    #                if fn1 == fn and fmt == self.pf['preferred_format']:
+    #                    perfect_matches.append(tab_name)
+    #                    continue
+    #
+    #                if c and fmt == self.pf['preferred_format']:
+    #                    perfect_matches.append(tab_name)
+    #                    continue
+    #
+    #                # If number of redshift bins and energy range right...
+    #                if re.search(pre, fn1) and re.search(post, fn1):
+    #                    if re.search(fmt, fn1) and fmt == self.pf['preferred_format']:
+    #                        perfect_matches.append(tab_name)
+    #                    else:
+    #                        ok_matches.append(tab_name)
+    #                
+    #                # If number of redshift bins is right...
+    #                elif re.search(pre, fn1):
+    #                                            
+    #                    if re.search(fmt, fn1) and fmt == self.pf['preferred_format']:
+    #                        perfect_matches.append(tab_name)
+    #                    else:
+    #                        ok_matches.append(tab_name)
+    #    
+    #    if perfect_matches:
+    #        return perfect_matches[0]
+    #    elif ok_matches:
+    #        return ok_matches[0]
+    #    else:
+    #        return None
             
-            input_dirs = [os.path.join(ares_dir,'input','optical_depth')]
-    
-        else:
-            if type(prefix) is str:
-                input_dirs = [prefix]
-            else:
-                input_dirs = prefix
-    
-        guess = os.path.join(input_dirs[0], fn)
-        if os.path.exists(guess):
-            return guess
-    
-        ## Find exactly what table should be
-        zmin, zmax, Nz, lEmin, lEmax, chem, pre, post = self._parse_tab(fn)
-
-        ok_matches = []
-        perfect_matches = []
-        
-        # Loop through input directories
-        for input_dir in input_dirs:
-                            
-            # Loop over files in input_dir, look for best match
-            for fn1 in os.listdir(input_dir):
-                
-                if re.search('hdf5', fn1) and (not have_h5py):
-                    continue
-
-                tab_name = os.path.join(input_dir, fn1)
-                
-                try:
-                    zmin_f, zmax_f, Nz_f, lEmin_f, lEmax_f, chem_f, p1, p2 = \
-                        self._parse_tab(fn1)
-                except:
-                    continue
-
-                # Dealbreakers
-                if Nz_f != Nz:
-                    continue
-                if zmax_f < zmax:
-                    continue
-                if chem_f != chem:
-                    continue
-
-                # Continue with possible matches
-                for fmt in ['pkl', 'npz', 'hdf5']:
-
-                    if fn1 == fn and fmt == self.pf['preferred_format']:
-                        perfect_matches.append(tab_name)
-                        continue
-
-                    if c and fmt == self.pf['preferred_format']:
-                        perfect_matches.append(tab_name)
-                        continue
-
-                    # If number of redshift bins and energy range right...
-                    if re.search(pre, fn1) and re.search(post, fn1):
-                        if re.search(fmt, fn1) and fmt == self.pf['preferred_format']:
-                            perfect_matches.append(tab_name)
-                        else:
-                            ok_matches.append(tab_name)
-                    
-                    # If number of redshift bins is right...
-                    elif re.search(pre, fn1):
-                                                
-                        if re.search(fmt, fn1) and fmt == self.pf['preferred_format']:
-                            perfect_matches.append(tab_name)
-                        else:
-                            ok_matches.append(tab_name)
-        
-        if perfect_matches:
-            return perfect_matches[0]
-        elif ok_matches:
-            return ok_matches[0]
-        else:
-            return None
-            
-    def _parse_tab(self, fn):
-                
-        tmp1, tmp2 = fn.split('_z_')
-        pre = tmp1[0:tmp1.rfind('x')]
-        red, tmp3 = fn.split('_logE_')
-        post = '_logE_' + tmp3.replace('.hdf5', '')
-        
-        # Find exactly what table should be
-        zmin, zmax = map(float, red[red.rfind('z')+2:].partition('-')[0::2])
-        logEmin, logEmax = map(float, tmp3[tmp3.rfind('E')+1:tmp3.rfind('.')].partition('-')[0::2])
-        
-        Nz = pre[pre.rfind('_')+1:]
-        
-        # Hack off Nz string and optical_depth_
-        chem = pre.strip(Nz)[14:-1]#.strip('optical_depth_')
-        
-        return zmin, zmax, int(Nz), logEmin, logEmax, chem, pre, post
-                
-    def _tau_shape(self, pop):
-        """
-        Determine dimensions of optical depth table.
-        
-        Unfortunately, this is a bit redundant with the procedure in
-        self._init_xrb, but that's the way it goes.
-        """
-        
-        # Set up log-grid in parameter x = 1 + z
-        x = np.logspace(np.log10(1+self.pf['final_redshift']),
-            np.log10(1+self.pf['initial_redshift']),
-            int(pop.pf['pop_tau_Nz']))
-        z = x - 1.
-        logx = np.log10(x)
-        logz = np.log10(z)
-
-        # Constant ratio between elements in x-grid
-        R = x[1] / x[0]
-        logR = np.log10(R)
-        
-        E0 = pop.pf['pop_Emin']
-        
-        # Create mapping to frequency space
-        E = 1. * E0
-        n = 1
-        while E < pop.pf['pop_Emax']:
-            E = E0 * R**(n - 1)
-            n += 1    
-        
-        # Set attributes for dimensions of optical depth grid
-        L = len(x)
-        
-        # Frequency grid must be index 1-based.
-        N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
-            zf=self.pf['final_redshift'], Emin=E0, 
-            Emax=pop.pf['pop_Emax'])
-        N -= 1
-        
-        return L, N
+    #def _parse_tab(self, fn):
+    #            
+    #    tmp1, tmp2 = fn.split('_z_')
+    #    pre = tmp1[0:tmp1.rfind('x')]
+    #    red, tmp3 = fn.split('_logE_')
+    #    post = '_logE_' + tmp3.replace('.hdf5', '')
+    #    
+    #    # Find exactly what table should be
+    #    zmin, zmax = map(float, red[red.rfind('z')+2:].partition('-')[0::2])
+    #    logEmin, logEmax = map(float, tmp3[tmp3.rfind('E')+1:tmp3.rfind('.')].partition('-')[0::2])
+    #    
+    #    Nz = pre[pre.rfind('_')+1:]
+    #    
+    #    # Hack off Nz string and optical_depth_
+    #    chem = pre.strip(Nz)[14:-1]#.strip('optical_depth_')
+    #    
+    #    return zmin, zmax, int(Nz), logEmin, logEmax, chem, pre, post
+    #            
+    #def _tau_shape(self, pop):
+    #    """
+    #    Determine dimensions of optical depth table.
+    #    
+    #    Unfortunately, this is a bit redundant with the procedure in
+    #    self._init_xrb, but that's the way it goes.
+    #    """
+    #    
+    #    # Set up log-grid in parameter x = 1 + z
+    #    x = np.logspace(np.log10(1+self.pf['final_redshift']),
+    #        np.log10(1+self.pf['initial_redshift']),
+    #        int(pop.pf['pop_tau_Nz']))
+    #    z = x - 1.
+    #    logx = np.log10(x)
+    #    logz = np.log10(z)
+    #
+    #    # Constant ratio between elements in x-grid
+    #    R = x[1] / x[0]
+    #    logR = np.log10(R)
+    #    
+    #    E0 = pop.pf['pop_Emin']
+    #    
+    #    # Create mapping to frequency space
+    #    E = 1. * E0
+    #    n = 1
+    #    while E < pop.pf['pop_Emax']:
+    #        E = E0 * R**(n - 1)
+    #        n += 1    
+    #    
+    #    # Set attributes for dimensions of optical depth grid
+    #    L = len(x)
+    #    
+    #    # Frequency grid must be index 1-based.
+    #    N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
+    #        zf=self.pf['final_redshift'], Emin=E0, 
+    #        Emax=pop.pf['pop_Emax'])
+    #    N -= 1
+    #    
+    #    return L, N
     
     def RestFrameEnergy(self, z, E, zp):
         """
@@ -744,6 +722,8 @@ class GlobalVolume(object):
                 
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
+        
+        species_str = species_i_to_str[species]
 
         if pop.pf['pop_k_heat_igm'] is not None:
             return pop.pf['pop_k_heat_igm'](z)
@@ -754,7 +734,7 @@ class GlobalVolume(object):
             # Interpolate in energy and ionized fraction
             if self.esec.Method > 1 and (kw['fluxes'][popid][band] is not None):
                 if kw['igm_e'] <= self.esec.x[0]:
-                    fheat = self.fheat[popid][:,0]
+                    fheat = self.fheat[popid][band][:,0]
                 else:
 
                     i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
@@ -763,8 +743,8 @@ class GlobalVolume(object):
                         
                     j = i_x + 1    
                     
-                    fheat = self.fheat[popid][:,i_x] \
-                        + (self.fheat[popid][:,j] - self.fheat[popid][:,i_x]) \
+                    fheat = self.fheat[popid][band][:,i_x] \
+                        + (self.fheat[popid][band][:,j] - self.fheat[popid][band][:,i_x]) \
                         * (kw['igm_e'] - self.esec.x[i_x]) \
                         / (self.esec.x[j] - self.esec.x[i_x])                
             else:
@@ -783,8 +763,10 @@ class GlobalVolume(object):
                                                 
             return weight * fheat * Lx * (1. + z)**3
             
+        ##
         # Otherwise, do the full calculation
-
+        ##
+        
         # Re-normalize to help integrator
         norm = J21_num * self.sigma0
                 
@@ -812,11 +794,11 @@ class GlobalVolume(object):
         # over discrete set of points
         else:
             
-            integrand = self.sigma_E[popid][band][species] \
+            integrand = self.sigma_E[species_str][popid][band] \
                 * (self._E[popid][band] - E_th[species])
 
             if self.approx_He:
-                integrand += self.cosm.y * self.sigma_E[popid][band][1] \
+                integrand += self.cosm.y * self.sigma_E['he_1'][popid][band] \
                     * (self._E[popid][band] - E_th[1])
                     
             integrand *= kw['fluxes'][popid][band] * fheat / norm / ev_per_hz
@@ -945,6 +927,8 @@ class GlobalVolume(object):
 
         # Grab defaults, do some patches if need be
         kw = self._fix_kwargs(**kwargs)
+        
+        species_str = species_i_to_str[species]
 
         if pop.pf['pop_k_ion_igm'] is not None:
             return pop.pf['pop_k_ion_igm'](z)
@@ -978,7 +962,7 @@ class GlobalVolume(object):
         
         # Integrate over set of discrete points
         else:  
-            integrand = self.sigma_E[popid][band][species] \
+            integrand = self.sigma_E[species_str][popid][band] \
                 * kw['fluxes'][popid][band] / norm / ev_per_hz
         
             if self.sampled_integrator == 'romb':
@@ -1047,7 +1031,7 @@ class GlobalVolume(object):
         if not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
             return 0.0
         
-        if ((donor or species) in [1,2]) and self.pf['approx_He']:
+        if ((donor or species) in [1,2]) and (not self.pf['include_He']):
             return 0.0
 
         # Grab defaults, do some patches if need be
@@ -1058,11 +1042,12 @@ class GlobalVolume(object):
 
         species_str = species_i_to_str[species]
         donor_str = species_i_to_str[donor]
-
+        
         if self.esec.Method > 1:
+            
             fion_const = 1.
             if kw['igm_e'] == 0:
-                fion = self.fion[popid][species_str][:,0]
+                fion = self.fion[species_str][popid][band][:,0]
             else:
                 i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
                 if self.esec.x[i_x] > kw['igm_e']:
@@ -1070,8 +1055,8 @@ class GlobalVolume(object):
                     
                 j = i_x + 1    
 
-                fion = self.fion[popid][species_str][:,i_x] \
-                    + (self.fion[popid][species_str][:,j] - self.fion[popid][species_str][:,i_x]) \
+                fion = self.fion[species_str][popid][band][:,i_x] \
+                    + (self.fion[species_str][popid][band][:,j] - self.fion[species_str][popid][:,i_x]) \
                     * (kw['igm_e'] - self.esec.x[i_x]) \
                     / (self.esec.x[j] - self.esec.x[i_x])
         else:
@@ -1094,11 +1079,11 @@ class GlobalVolume(object):
                     zxavg=kw['zxavg']) * self.sigma(E) * (E - E_th[0]) \
                     / E_th[0] / norm / ev_per_hz
         else:
-            integrand = fion * self.sigma_E[popid][band][donor] \
+            integrand = fion * self.sigma_E[donor_str][popid][band] \
                 * (self.E[popid][band] - E_th[donor])
             
             if self.pf['approx_He']:
-                integrand += self.cosm.y * self.sigma_E[popid][band][1] \
+                integrand += self.cosm.y * self.sigma_E['he_1'][popid][band] \
                     * (self.E[popid][band] - E_th[1])
             
             integrand = integrand
@@ -1165,7 +1150,7 @@ class GlobalVolume(object):
         norm = J21_num * self.sigma0
                 
         # Compute integrand
-        integrand = self.sigma_E[species] * (self.E - E_th[species])
+        integrand = self.sigma_E[species_str] * (self.E - E_th[species])
        
         integrand *= kw['fluxes'] * flya / norm / ev_per_hz
                          
@@ -1204,210 +1189,147 @@ class GlobalVolume(object):
 
         return heat
         
-    def OpticalDepth(self, z1, z2, E, **kwargs):
-        """
-        Compute the optical depth between two redshifts.
-        
-        If no keyword arguments are supplied, assumes the IGM is neutral.
-        
-        Parameters
-        ----------
-        z1 : float
-            observer redshift
-        z2 : float
-            emission redshift
-        E : float
-            observed photon energy (eV)  
-            
-        Notes
-        -----
-        If keyword argument 'xavg' is supplied, it must be a function of 
-        redshift.
-        
-        Returns
-        -------
-        Optical depth between z1 and z2 at observed energy E.
-        
-        """
-        
-        #kw = self._fix_kwargs(functionify=True, **kwargs)
-        kw = kwargs
-        
-        # Compute normalization factor to help numerical integrator
-        norm = self.cosm.hubble_0 / c / self.sigma0
-        
-        # Temporary function to compute emission energy of observed photon
-        Erest = lambda z: self.RestFrameEnergy(z1, E, z)
-            
-        # Always have hydrogen
-        sHI = lambda z: self.sigma(Erest(z), species=0)
-                
-        # Figure out number densities and cross sections of everything
-        if self.approx_He:
-            nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-            nHeI = lambda z: nHI(z) * self.cosm.y
-            sHeI = lambda z: self.sigma(Erest(z), species=1)
-            nHeII = lambda z: 0.0
-            sHeII = lambda z: 0.0
-        elif self.self_consistent_He:
-            if type(kw['xavg']) is not list:
-                raise TypeError('hey! fix me')
-                
-            nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-            nHeI = lambda z: self.cosm.nHe(z) \
-                * (1. - kw['xavg'](z) - kw['xavg'](z))
-            sHeI = lambda z: self.sigma(Erest(z), species=1)
-            nHeII = lambda z: self.cosm.nHe(z) * kw['xavg'](z)
-            sHeII = lambda z: self.sigma(Erest(z), species=2)
-        else:
-            nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-            nHeI = sHeI = nHeII = sHeII = lambda z: 0.0
-        
-        tau_integrand = lambda z: norm * self.cosm.dldz(z) \
-            * (nHI(z) * sHI(z) + nHeI(z) * sHeI(z) + nHeII(z) * sHeII(z))
-            
-        # Integrate using adaptive Gaussian quadrature
-        tau = quad(tau_integrand, z1, z2, epsrel=self.rtol, 
-            epsabs=self.atol, limit=self.divmax)[0] / norm
-                                                    
-        return tau
-
-    def Tau(self, z1, z2, E, species=0, sfrac=lambda z: 1.0):
-        """
-        Compute the optical depth between two redshifts.
-    
-        If no keyword arguments are supplied, assumes the IGM is neutral.
-    
-        Parameters
-        ----------
-        z1 : float
-            observer redshift
-        z2 : float
-            emission redshift
-        E : float
-            observed photon energy (eV)  
-        species : int
-            Can be 0, 1, or 2 for HI, HeI, HeII
-    
-        Notes
-        -----
-        If keyword argument 'xavg' is supplied, it must be a function of 
-        redshift.
-    
-        Returns
-        -------
-        Optical depth between z1 and z2 at observed energy E.
-    
-        """
-    
-        # Compute normalization factor to help numerical integrator
-        norm = self.cosm.hubble_0 / c / self.sigma0
-    
-        # Temporary function to compute emission energy of observed photon
-        Erest = lambda z: self.RestFrameEnergy(z1, E, z)
-    
-        # Cross-section
-        s = lambda z: self.sigma(Erest(z), species=species)
-        
-        if species == 0:
-            n = lambda z: self.cosm.nH(z) * sfrac(z)
-        else:    
-            n = lambda z: self.cosm.nHe(z) * sfrac(z)
-        
-        tau_integrand = lambda z: norm * self.cosm.dldz(z) * n(z) * s(z)
-        
-    
-        # Figure out number densities and cross sections of everything
-        #if self.approx_He:
-        #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-        #    nHeI = lambda z: nHI(z) * self.cosm.y
-        #    sHeI = lambda z: self.sigma(Erest(z), species=1)
-        #    nHeII = lambda z: 0.0
-        #    sHeII = lambda z: 0.0
-        #elif self.self_consistent_He:
-        #    if type(kw['xavg']) is not list:
-        #        raise TypeError('hey! fix me')
-        #
-        #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-        #    nHeI = lambda z: self.cosm.nHe(z) \
-        #        * (1. - kw['xavg'](z) - kw['xavg'](z))
-        #    sHeI = lambda z: self.sigma(Erest(z), species=1)
-        #    nHeII = lambda z: self.cosm.nHe(z) * kw['xavg'](z)
-        #    sHeII = lambda z: self.sigma(Erest(z), species=2)
-        #else:
-        #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-        #    nHeI = sHeI = nHeII = sHeII = lambda z: 0.0
-    
-        #tau_integrand = lambda z: norm * self.cosm.dldz(z) \
-        #    * (nHI(z) * sHI(z) + nHeI(z) * sHeI(z) + nHeII(z) * sHeII(z))
-    
-        # Integrate using adaptive Gaussian quadrature
-        tau = quad(tau_integrand, z1, z2, epsrel=self.rtol, 
-            epsabs=self.atol, limit=self.divmax)[0] / norm
-    
-        return tau
-                        
-    def TabulateOpticalDepth(self, z, E, species=0, sfrac=lambda z: 1.0):
-        """
-        Compute optical depth as a function of (redshift, photon energy).
-        
-        Parameters
-        ----------
-        xavg : function
-            Mean ionized fraction as a function of redshift.
-
-        Notes
-        -----
-        Assumes logarithmic grid in variable x = 1 + z. Corresponding 
-        grid in photon energy determined in _init_xrb.    
-            
-        Returns
-        -------
-        Optical depth table.
-        
-        """
-        
-        self.z = z
-        self.E = E
-        self.L = len(z)
-        self.N = len(E)
-        
-        # Create array for each processor
-        tau_proc = np.zeros([self.L, self.N])
-
-        pb = ProgressBar(self.L * self.N, 
-            'tau(z, %.3g/eV, %.3g/eV)' % (E.min(), E.max()))
-        pb.start()     
-
-        # Loop over redshift, photon energy
-        for l in range(self.L):
-
-            for n in range(self.N):
-                m = l * self.N + n + 1
-
-                if m % size != rank:
-                    continue
-
-                # Compute optical depth
-                if l == (self.L - 1):
-                    tau_proc[l,n] = 0.0
-                else:
-                    #tau_proc[l,n] = self.OpticalDepth(self.z[l], 
-                    #    self.z[l+1], self.E[n], xavg=xavg)
-                    tau_proc[l,n] = self.Tau(self.z[l],
-                        self.z[l+1], self.E[n], species=species, 
-                        sfrac=sfrac)
-                        
-                pb.update(m)
-                    
-        pb.finish()
-        
-        # Communicate results
-        if size > 1:
-            tau = np.zeros_like(tau_proc)       
-            nothing = MPI.COMM_WORLD.Allreduce(tau_proc, tau)            
-        else:
-            tau = tau_proc
-            
-        return tau
-        
+    #def OpticalDepth(self, z1, z2, E, **kwargs):
+    #    """
+    #    Compute the optical depth between two redshifts.
+    #    
+    #    If no keyword arguments are supplied, assumes the IGM is neutral.
+    #    
+    #    Parameters
+    #    ----------
+    #    z1 : float
+    #        observer redshift
+    #    z2 : float
+    #        emission redshift
+    #    E : float
+    #        observed photon energy (eV)  
+    #        
+    #    Notes
+    #    -----
+    #    If keyword argument 'xavg' is supplied, it must be a function of 
+    #    redshift.
+    #    
+    #    Returns
+    #    -------
+    #    Optical depth between z1 and z2 at observed energy E.
+    #    
+    #    """
+    #    
+    #    #kw = self._fix_kwargs(functionify=True, **kwargs)
+    #    kw = kwargs
+    #    
+    #    # Compute normalization factor to help numerical integrator
+    #    norm = self.cosm.hubble_0 / c / self.sigma0
+    #    
+    #    # Temporary function to compute emission energy of observed photon
+    #    Erest = lambda z: self.RestFrameEnergy(z1, E, z)
+    #        
+    #    # Always have hydrogen
+    #    sHI = lambda z: self.sigma(Erest(z), species=0)
+    #            
+    #    # Figure out number densities and cross sections of everything
+    #    if self.approx_He:
+    #        nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
+    #        nHeI = lambda z: nHI(z) * self.cosm.y
+    #        sHeI = lambda z: self.sigma(Erest(z), species=1)
+    #        nHeII = lambda z: 0.0
+    #        sHeII = lambda z: 0.0
+    #    elif self.self_consistent_He:
+    #        if type(kw['xavg']) is not list:
+    #            raise TypeError('hey! fix me')
+    #            
+    #        nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
+    #        nHeI = lambda z: self.cosm.nHe(z) \
+    #            * (1. - kw['xavg'](z) - kw['xavg'](z))
+    #        sHeI = lambda z: self.sigma(Erest(z), species=1)
+    #        nHeII = lambda z: self.cosm.nHe(z) * kw['xavg'](z)
+    #        sHeII = lambda z: self.sigma(Erest(z), species=2)
+    #    else:
+    #        nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
+    #        nHeI = sHeI = nHeII = sHeII = lambda z: 0.0
+    #    
+    #    tau_integrand = lambda z: norm * self.cosm.dldz(z) \
+    #        * (nHI(z) * sHI(z) + nHeI(z) * sHeI(z) + nHeII(z) * sHeII(z))
+    #        
+    #    # Integrate using adaptive Gaussian quadrature
+    #    tau = quad(tau_integrand, z1, z2, epsrel=self.rtol, 
+    #        epsabs=self.atol, limit=self.divmax)[0] / norm
+    #                                                
+    #    return tau
+    #
+    #def Tau(self, z1, z2, E, species=0, sfrac=lambda z: 1.0):
+    #    """
+    #    Compute the optical depth between two redshifts.
+    #
+    #    If no keyword arguments are supplied, assumes the IGM is neutral.
+    #
+    #    Parameters
+    #    ----------
+    #    z1 : float
+    #        observer redshift
+    #    z2 : float
+    #        emission redshift
+    #    E : float
+    #        observed photon energy (eV)  
+    #    species : int
+    #        Can be 0, 1, or 2 for HI, HeI, HeII
+    #
+    #    Notes
+    #    -----
+    #    If keyword argument 'xavg' is supplied, it must be a function of 
+    #    redshift.
+    #
+    #    Returns
+    #    -------
+    #    Optical depth between z1 and z2 at observed energy E.
+    #
+    #    """
+    #
+    #    # Compute normalization factor to help numerical integrator
+    #    norm = self.cosm.hubble_0 / c / self.sigma0
+    #
+    #    # Temporary function to compute emission energy of observed photon
+    #    Erest = lambda z: self.RestFrameEnergy(z1, E, z)
+    #
+    #    # Cross-section
+    #    s = lambda z: self.sigma(Erest(z), species=species)
+    #    
+    #    if species == 0:
+    #        n = lambda z: self.cosm.nH(z) * sfrac(z)
+    #    else:    
+    #        n = lambda z: self.cosm.nHe(z) * sfrac(z)
+    #    
+    #    tau_integrand = lambda z: norm * self.cosm.dldz(z) * n(z) * s(z)
+    #    
+    #
+    #    # Figure out number densities and cross sections of everything
+    #    #if self.approx_He:
+    #    #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
+    #    #    nHeI = lambda z: nHI(z) * self.cosm.y
+    #    #    sHeI = lambda z: self.sigma(Erest(z), species=1)
+    #    #    nHeII = lambda z: 0.0
+    #    #    sHeII = lambda z: 0.0
+    #    #elif self.self_consistent_He:
+    #    #    if type(kw['xavg']) is not list:
+    #    #        raise TypeError('hey! fix me')
+    #    #
+    #    #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
+    #    #    nHeI = lambda z: self.cosm.nHe(z) \
+    #    #        * (1. - kw['xavg'](z) - kw['xavg'](z))
+    #    #    sHeI = lambda z: self.sigma(Erest(z), species=1)
+    #    #    nHeII = lambda z: self.cosm.nHe(z) * kw['xavg'](z)
+    #    #    sHeII = lambda z: self.sigma(Erest(z), species=2)
+    #    #else:
+    #    #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
+    #    #    nHeI = sHeI = nHeII = sHeII = lambda z: 0.0
+    #
+    #    #tau_integrand = lambda z: norm * self.cosm.dldz(z) \
+    #    #    * (nHI(z) * sHI(z) + nHeI(z) * sHeI(z) + nHeII(z) * sHeII(z))
+    #
+    #    # Integrate using adaptive Gaussian quadrature
+    #    tau = quad(tau_integrand, z1, z2, epsrel=self.rtol, 
+    #        epsabs=self.atol, limit=self.divmax)[0] / norm
+    #
+    #    return tau
+    #                    
+    #

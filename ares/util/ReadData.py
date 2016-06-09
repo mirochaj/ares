@@ -244,6 +244,7 @@ def flatten_chain(data):
     for i in range(data.shape[1]):
         new.extend(data[:,i,:])
 
+    # Is there a reason not to cast this to an array?
     return new
 
 def flatten_logL(data):

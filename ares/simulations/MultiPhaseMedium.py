@@ -17,28 +17,6 @@ from ..util.ReadData import _sort_history, _load_inits
 from .MetaGalacticBackground import MetaGalacticBackground
 from ..util.SetDefaultParameterValues import MultiPhaseParameters
 
-# These should go in ProblemTypes?
-igm_pars = \
-{
- 'grid_cells': 1,
- 'isothermal': False,
- 'expansion': True,
- 'initial_ionization': [1.-1.2e-3, 1.2e-3],
- 'cosmological_ics': False,
-}
-
-cgm_pars = \
-{
- 'grid_cells': 1,
- 'isothermal': True,
- 'initial_ionization': [1. - 1e-8, 1e-8],
- 'initial_temperature': [1e4],
- 'expansion': True,
- 'cosmological_ics': True,
- 'recombination': 'A',
- 'include_He': False,
-}
-
 _mpm_defs = MultiPhaseParameters()
 
 class MultiPhaseMedium(object):
@@ -56,7 +34,7 @@ class MultiPhaseMedium(object):
         if 'load_ics' not in kwargs:
             kwargs['load_ics'] = True        
         self.kwargs = kwargs
-    
+        
     @property
     def pf(self):
         if not hasattr(self, '_pf'):
@@ -74,15 +52,19 @@ class MultiPhaseMedium(object):
                 
             Ti = np.interp(zi, inits['z'], inits['Tk'])
             xi = np.interp(zi, inits['z'], inits['xe'])
-            new_pars = {'cosmological_ics': False,
-                        'igm_initial_temperature': Ti,
-                        'igm_initial_ionization': [1. - xi, xi]}
-                        
-            #if self.pf['include_He']:                                                  
-            #    igm_pars.update({'include_He': True,                                   
-            #        'initial_ionization': [1. - xi, xi, 1.-xi, xi, 1e-10]})            
-                                                
-            self.kwargs.update(new_pars)
+                                                    
+            #if self.pf['include_He']:
+            new = {'igm_initial_temperature': Ti,                                 
+                'initial_ionization': [1. - xi, xi, 1.-xi, xi, 1e-10]}
+            self.kwargs.update(new)        
+                
+            #else:
+            #    new_pars = {'cosmological_ics': False,
+            #                'igm_initial_temperature': Ti,
+            #                'igm_initial_ionization': [1. - xi, xi]}
+            #
+                #self.kwargs.update(new_pars)    
+            
         return self._inits    
         
     @property
@@ -153,7 +135,7 @@ class MultiPhaseMedium(object):
         # Reset stop time based on final redshift.
         z = self.pf['initial_redshift']
         zf = self.pf['final_redshift']
-                
+                        
         self._parcels = []
         for zone in ['igm', 'cgm']:
             if not self.pf['include_%s' % zone]:
@@ -180,9 +162,6 @@ class MultiPhaseMedium(object):
                 
                 self.gen_igm = parcel_igm.step()
 
-                #self.field = MetaGalacticBackground(grid=parcel_igm.grid, 
-                #    **self.kwargs)
-
                 # Set initial values for rate coefficients
                 parcel_igm.update_rate_coefficients(parcel_igm.grid.data, 
                     **self.rates_no_RT(parcel_igm.grid))
@@ -199,10 +178,6 @@ class MultiPhaseMedium(object):
                 parcel_cgm.chem.chemnet.monotonic_EoR = \
                     self.pf['monotonic_EoR']
                 
-                #if not hasattr(self, 'field'):
-                #    self.field = MetaGalacticBackground(grid=parcel_cgm.grid, 
-                #        **self.kwargs)
-
                 parcel_cgm.update_rate_coefficients(parcel_cgm.grid.data, 
                     **self.rates_no_RT(parcel_cgm.grid))
                 

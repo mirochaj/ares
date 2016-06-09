@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'Dust', 'HaloProperty']
+    'MultiPhase', 'Dust', 'HaloProperty', 'Old']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -69,7 +69,7 @@ def GridParameters():
     # Line photons
     "include_H_Lya": False,
 
-    "initial_ionization": [1. - 1e-8, 1e-8],
+    "initial_ionization": [1. - 1e-8, 1e-8, 1.-2e-8, 1e-8, 1e-8],
     "initial_temperature": 1e4,
             
     # These have shape len(absorbers)
@@ -110,7 +110,7 @@ def MultiPhaseParameters():
      "cgm_grid_cells": 1,
      "cgm_expansion": True,
      "cgm_initial_temperature": [1e4],
-     "cgm_initial_ionization": [1.-1e-8, 1e-8],
+     "cgm_initial_ionization": [1.-1e-8, 1e-8, 1.-2e-8, 1e-8, 1e-8],
      "cgm_isothermal": True,
      "cgm_recombination": 'A',
      "cgm_collisional_ionization": False,
@@ -122,7 +122,7 @@ def MultiPhaseParameters():
      "igm_grid_cells": 1,     
      "igm_expansion": True,
      "igm_initial_temperature": None,         
-     'igm_initial_ionization': None,
+     'igm_initial_ionization': [1.-1e-8, 1e-8, 1.-2e-8, 1e-8, 1e-8],
      "igm_isothermal": False,
      "igm_recombination": 'B',
      "igm_compton_scattering": True,
@@ -190,7 +190,7 @@ def PhysicsParameters():
     "secondary_ionization": 1,  # 0 = Deposit all energy as heat
                                 # 1 = Shull & vanSteenberg (1985)
                                 # 2 = Ricotti, Gnedin, & Shull (2002)
-                                # 3 = Furlanetto & Stoever (2010)     
+                                # 3 = Furlanetto & Stoever (2010)
                                 
     "secondary_lya": False,     # Collisionally excited Lyman alpha?
     
@@ -438,6 +438,10 @@ def PopulationParameters():
     "pop_Nion": 4e3,
     "pop_fesc": 0.1,
     
+    # Should
+    "pop_fesc_LW": 1.,
+    "pop_fesc_LyC": 0.1,
+
     # Parameters that sweep fstar under the rug
     "pop_xi_XR": None,     # product of fstar and fX
     "pop_xi_LW": None,     # product of fstar and Nlw
@@ -690,7 +694,8 @@ def ControlParameters():
                              # 2 = neutral approx, approx cross sections
 
     # Discretizing integration
-    "redshift_bins": None,
+    #"redshift_bins": None,
+    "tau_Nz": 400,
     "tau_table": None,
     "tau_prefix": tau_prefix,
 
@@ -725,6 +730,17 @@ _sampling_parameters = \
  'output_freq_res': 1.,    
  'output_dz': None,  # Redshift sampling    
 }
+
+# Old != Deprecated
+def OldParameters():
+    pf = \
+    {
+     'xi_LW': None,
+     'xi_UV': None,
+     'xi_XR': None,
+    }
+    
+    return pf
 
 def TanhParameters():
     pf = \
