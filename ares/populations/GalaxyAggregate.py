@@ -12,7 +12,7 @@ Description:
 
 import numpy as np
 from ..util import read_lit
-import os, pickle, inspect, re
+import os, inspect, re
 from types import FunctionType
 from ..physics import Cosmology
 from .Halo import HaloPopulation
@@ -30,7 +30,12 @@ from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters
-    
+
+#try:
+#    import dill as pickle
+#except:
+import pickle
+
 #class LiteratureSource(Source):
 #    def __init__(self, **kwargs):
 #        self.pf = kwargs

@@ -24,10 +24,10 @@ from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
 from .DerivedQuantities import DerivedQuantities as DQ
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
+#try:
+#    import dill as pickle
+#except ImportError:
+import pickle
     
 try:
     import h5py

@@ -23,10 +23,10 @@ from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts, \
     SetAllDefaults
 
-try:
-    import dill as pickle
-except:
-    import pickle
+#try:
+#    import dill as pickle
+#except:
+import pickle
 
 try:
     from emcee.utils import sample_ball

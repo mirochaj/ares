@@ -13,10 +13,10 @@ Description:
 import re
 import numpy as np
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
+#try:
+#    import dill as pickle
+#except ImportError:
+import pickle
     
 # Some standard blobs    
     
