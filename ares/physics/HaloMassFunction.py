@@ -385,6 +385,10 @@ class HaloMassFunction(object):
         elif self.pf['pop_Tmax'] is not None:
             logMmax = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, 
                 mu=self.pf['mu']))
+            
+            if logMmin >= logMmax:
+                return 0.0
+                
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
                  - np.squeeze(self.fcoll_spline_2d(z, logMmax))             
          

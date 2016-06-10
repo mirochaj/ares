@@ -209,13 +209,13 @@ class GalaxyAggregate(HaloPopulation):
             else:
                 self._sed_tab = False
         return self._sed_tab
-    
+
     #def _sfrd_func(self, z):
     #    # This is a cheat so that the SFRD spline isn't constructed
     #    # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
     #    
     #    return self.SFRD(z)    
-    
+
     def _convert_band(self, Emin, Emax):
         """
         Convert from luminosity function in reference band to given bounds.
@@ -271,43 +271,6 @@ class GalaxyAggregate(HaloPopulation):
             return factor
         
         return 1.0
-
-    def _get_energy_per_photon(self, Emin, Emax):
-        """
-        Returns energy per photon (in eV) in provided band.
-        """
-        
-        different_band = False
-
-        # Lower bound
-        if (Emin is not None) and (self.src is not None):
-            different_band = True
-        else:
-            Emin = self.pf['pop_Emin']
-
-        # Upper bound
-        if (Emax is not None) and (self.src is not None):
-            different_band = True
-        else:
-            Emax = self.pf['pop_Emax']
-            
-        if (Emin, Emax) in self._eV_per_phot:
-            return self._eV_per_phot[(Emin, Emax)]
-        
-        if Emin < self.pf['pop_Emin']:
-            print "WARNING: Emin < pop_Emin"
-        if Emax > self.pf['pop_Emax']:
-            print "WARNING: Emax > pop_Emax"    
-        
-        if self.sed_tab:
-            Eavg = self.src.eV_per_phot(Emin, Emax)
-        else:
-            integrand = lambda E: self.src.Spectrum(E) * E
-            Eavg = quad(integrand, Emin, Emax)[0]
-        
-        self._eV_per_phot[(Emin, Emax)] = Eavg 
-        
-        return Eavg 
 
     @property
     def _sfrd(self):

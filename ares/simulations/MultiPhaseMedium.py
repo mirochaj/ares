@@ -55,7 +55,7 @@ class MultiPhaseMedium(object):
                                                     
             #if self.pf['include_He']:
             new = {'igm_initial_temperature': Ti,                                 
-                'initial_ionization': [1. - xi, xi, 1.-xi, xi, 1e-10]}
+                'initial_ionization': [1. - xi, xi, 1.-xi-1e-10, xi, 1e-10]}
             self.kwargs.update(new)        
                 
             #else:

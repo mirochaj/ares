@@ -186,6 +186,8 @@ class ObservedLF(object):
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
         ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
         ax.set_xlim(-25.5, -10)
+        ax.set_xticks(np.arange(-25, -10, 1), minor=True)
+        
         pl.draw()
         
         return ax

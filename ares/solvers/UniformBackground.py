@@ -458,6 +458,7 @@ class UniformBackground(object):
                     
         # Create an ares.simulations.OpticalDepth instance
         tau_solver = OpticalDepth(**pop.pf)
+        self._tau_solver = tau_solver
         
         # Try to load file from disk.
         z, E, tau = tau_solver._fetch_tau(pop, z, E)
