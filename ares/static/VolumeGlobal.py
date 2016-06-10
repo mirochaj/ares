@@ -247,17 +247,24 @@ class GlobalVolume(object):
         
         """
 
-        # Remember: this is [Npops, Nbands/pop]
+        # Remember: these will all be [Npops, Nbands/pop, Nenergies/band]
         self._E = self.background.energies
-        
         self.logE = [[] for k in range(self.Npops)]
         self.dlogE = [[] for k in range(self.Npops)]
-        self._sigma_E = [[] for k in range(self.Npops)]
         self.fheat = [[] for k in range(self.Npops)]
         self.flya = [[] for k in range(self.Npops)]
         
-        # Semi-special treatment for secondary ionization
-        #self.fion = [{} for k in range(self.Npops)]
+        # These are species dependent
+        self._sigma_E = {}
+        self.fion = {}
+        for species in ['h_1', 'he_1', 'he_2']:
+            self._sigma_E[species] = [[] for k in range(self.Npops)]
+            self.fion[species] = [[] for k in range(self.Npops)]
+            
+        ##
+        # Note: If secondary_ionization > 1, there will be an ionized fraction
+        # dimension in fion and fheat.
+        ##    
         
         # Loop over populations
         for i, pop in enumerate(self.pops):
@@ -266,143 +273,114 @@ class GlobalVolume(object):
             if not self.background.solve_rte[i]:
                 self.logE[i] = [None]
                 self.dlogE[i] = [None]
-                self._sigma_E[i] = [None]
                 self.fheat[i] = [None]
-                #self.fion[i] = [None]
                 self.flya[i] = [None]
+                
+                for species in ['h_1', 'he_1', 'he_2']:
+                    self.fion[species][i] = [None]
+                    self._sigma_E[species][i] = [None]
+                
                 continue
             else:
                 Nbands = len(self.background.energies[i])
 
                 self.logE[i] = [None for k in range(Nbands)]
                 self.dlogE[i] = [None for k in range(Nbands)]
-                self._sigma_E[i] = [None for k in range(Nbands)]
-                self.fheat[i] = [None for k in range(Nbands)]
-                #self.fion[i] = [None for k in range(Nbands)]
-                self.flya[i] = [None for k in range(Nbands)]
-                
+
+                self.fheat[i] = \
+                    [np.ones([self.background.energies[i][j].size, 
+                     len(self.esec.x)]) \
+                     for j in range(Nbands)]
+                self.flya[i] = \
+                    [np.ones([self.background.energies[i][j].size, 
+                     len(self.esec.x)]) \
+                     for j in range(Nbands)]
+                     
+                for species in ['h_1', 'he_1', 'he_2']:
+                    if self.esec.Method > 1:
+                        self._sigma_E[species][i] = \
+                            [np.ones([self.background.energies[i][j].size, 
+                             len(self.esec.x)]) \
+                             for j in range(Nbands)]
+                        self.fion[species][i] = \
+                            [np.ones([self.background.energies[i][j].size, 
+                             len(self.esec.x)]) \
+                             for j in range(Nbands)]
+                        
+                    else:
+                        self._sigma_E[species][i] = [None for k in range(Nbands)]
+                        self.fion[species][i] = [None for k in range(Nbands)]
+                        self.fheat[i] = [None for k in range(Nbands)]
+                        self.flya[i] = [None for k in range(Nbands)]
+
+            ##
             # If we make it here, the population has at least one band that
             # requires a detailed solution to the RTE    
-                
+            ##
+
             # Loop over each band for this population
             for j, band in enumerate(self.background.energies[i]):
-            
+
                 if band is None:
                     continue
 
                 # More convenient variables
-                E = self._E[i][j]    
+                E = self._E[i][j]
                 N = E.size
 
                 # Compute some things we need, like bound-free cross-section
                 self.logE[i][j] = np.log10(E)
                 self.dlogE[i][j] = np.diff(self.logE[i][j])
-                self._sigma_E[i][j] = \
-                    np.array([np.array(map(lambda E: self.sigma(E, k), E)) \
-                    for k in xrange(3)])
+                
+                # 
+                for k, species in enumerate(['h_1', 'he_1', 'he_2']):
+                    self._sigma_E[species][i][j] = \
+                        np.array(map(lambda E: self.sigma(E, k), E))
 
                 # Pre-compute secondary ionization and heating factors
                 if self.esec.Method > 1:
                 
+                    # Don't worry: we'll fill these in in a sec!
                     self.fheat[i][j] = np.ones([N, len(self.esec.x)])
                     self.flya[i][j] = np.ones([N, len(self.esec.x)])
                 
-                    #self.fion[popid] = {}
-                    #self.fion[popid]['h_1'] = np.ones([N, len(self.esec.x)])
-                
                     # Must evaluate at ELECTRON energy, not photon energy
-                    for i, nrg in enumerate(E - E_th[0]):
-                        self.fheat[popid][i,:] = \
+                    for k, nrg in enumerate(E - E_th[0]):
+                        self.fheat[i][j][k] = \
                             self.esec.DepositionFraction(self.esec.x, E=nrg, 
                             channel='heat')
-                        self.fion[popid]['h_1'][i,:] = \
+                        self.fion['h_1'][i][j][k] = \
                             self.esec.DepositionFraction(self.esec.x, E=nrg, 
                             channel='h_1')
                 
                         if self.pf['secondary_lya']:
-                            self.flya[popid][i,:] = \
+                            self.flya[i][j][k] = \
                                 self.esec.DepositionFraction(self.esec.x, E=nrg, 
                                 channel='lya') 
                 
                     # Helium
                     if self.pf['include_He'] and not self.pf['approx_He']:
                 
-                        self.fion[popid]['he_1'] = np.ones([N, len(self.esec.x)])
-                        self.fion[popid]['he_2'] = np.ones([N, len(self.esec.x)])
+                        # Don't worry: we'll fill these in in a sec!
+                        self.fion['he_1'][i][j] = np.ones([N, len(self.esec.x)])
+                        self.fion['he_2'][i][j] = np.ones([N, len(self.esec.x)])
                 
-                        for i, nrg in enumerate(E - E_th[1]):
-                            self.fion[popid]['he_1'][i,:] = \
+                        for k, nrg in enumerate(E - E_th[1]):
+                            self.fion['he_1'][i][j][k] = \
                                 self.esec.DepositionFraction(self.esec.x, 
                                 E=nrg, channel='he_1')
                 
-                        for i, nrg in enumerate(E - E_th[2]):
-                            self.fion[popid]['he_2'][i,:] = \
+                        for k, nrg in enumerate(E - E_th[2]):
+                            self.fion['he_2'][i][j][k] = \
                                 self.esec.DepositionFraction(self.esec.x, 
                                 E=nrg, channel='he_2')    
                 
-        return        
+                    else:
+                        self.fion['he_1'][i][j] = np.zeros([N, len(self.esec.x)])
+                        self.fion['he_2'][i][j] = np.zeros([N, len(self.esec.x)])
                 
-        #self.logE = [np.log10(nrg) for nrg in self._E]
-        #self.dlogE = [np.diff(nrgs) for nrgs in self.logE]
-        #
-        #self._sigma_E = [None for i in range(self.Npops)]
-        #self.fheat = [None for i in range(self.Npops)]
-        #self.fion = [None for i in range(self.Npops)]
-        #self.flya = [None for i in range(self.Npops)]
-
-        # Loop over source populations
-        for popid, src in enumerate(self.pops):
-
-            if not self.background.solve_rte[popid]:
-                continue
-
-            E = self._E[popid]
-            N = E.size
-
-            # Pre-compute cross-sections
-            self._sigma_E[popid] = \
-                np.array([np.array(map(lambda E: self.sigma(E, i), E)) \
-                for i in xrange(3)])
-
-            # Pre-compute secondary ionization and heating factors
-            if self.esec.Method > 1:
-
-                self.fheat[i] = np.ones([N, len(self.esec.x)])
-                self.flya[i] = np.ones([N, len(self.esec.x)])
-
-                self.fion[i] = {}
-                self.fion[i]['h_1'] = np.ones([N, len(self.esec.x)])
-
-                # Must evaluate at ELECTRON energy, not photon energy
-                for k, nrg in enumerate(E - E_th[0]):
-                    self.fheat[i][k,:] = \
-                        self.esec.DepositionFraction(self.esec.x, E=nrg, 
-                        channel='heat')
-                    self.fion[i]['h_1'][k,:] = \
-                        self.esec.DepositionFraction(self.esec.x, E=nrg, 
-                        channel='h_1')
-
-                    if self.pf['secondary_lya']:
-                        self.flya[i][k,:] = \
-                            self.esec.DepositionFraction(self.esec.x, E=nrg, 
-                            channel='lya') 
-                        
-                # Helium
-                if self.pf['include_He'] and not self.pf['approx_He']:
-                    
-                    self.fion[i]['he_1'] = np.ones([N, len(self.esec.x)])
-                    self.fion[i]['he_2'] = np.ones([N, len(self.esec.x)])
-                    
-                    for k, nrg in enumerate(E - E_th[1]):
-                        self.fion[popid]['he_1'][k,:] = \
-                            self.esec.DepositionFraction(self.esec.x, 
-                            E=nrg, channel='he_1')
-                    
-                    for k, nrg in enumerate(E - E_th[2]):
-                        self.fion[popid]['he_2'][k,:] = \
-                            self.esec.DepositionFraction(self.esec.x, 
-                            E=nrg, channel='he_2')            
-                            
+        return        
+                                            
     def _set_integrator(self):
         self.integrator = self.pf["unsampled_integrator"]
         self.sampled_integrator = self.pf["sampled_integrator"]
@@ -744,6 +722,8 @@ class GlobalVolume(object):
                 
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
+        
+        species_str = species_i_to_str[species]
 
         if pop.pf['pop_k_heat_igm'] is not None:
             return pop.pf['pop_k_heat_igm'](z)
@@ -754,7 +734,7 @@ class GlobalVolume(object):
             # Interpolate in energy and ionized fraction
             if self.esec.Method > 1 and (kw['fluxes'][popid][band] is not None):
                 if kw['igm_e'] <= self.esec.x[0]:
-                    fheat = self.fheat[popid][:,0]
+                    fheat = self.fheat[popid][band][:,0]
                 else:
 
                     i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
@@ -763,8 +743,8 @@ class GlobalVolume(object):
                         
                     j = i_x + 1    
                     
-                    fheat = self.fheat[popid][:,i_x] \
-                        + (self.fheat[popid][:,j] - self.fheat[popid][:,i_x]) \
+                    fheat = self.fheat[popid][band][:,i_x] \
+                        + (self.fheat[popid][band][:,j] - self.fheat[popid][band][:,i_x]) \
                         * (kw['igm_e'] - self.esec.x[i_x]) \
                         / (self.esec.x[j] - self.esec.x[i_x])                
             else:
@@ -783,8 +763,10 @@ class GlobalVolume(object):
                                                 
             return weight * fheat * Lx * (1. + z)**3
             
+        ##
         # Otherwise, do the full calculation
-
+        ##
+        
         # Re-normalize to help integrator
         norm = J21_num * self.sigma0
                 
@@ -812,11 +794,11 @@ class GlobalVolume(object):
         # over discrete set of points
         else:
             
-            integrand = self.sigma_E[popid][band][species] \
+            integrand = self.sigma_E[species_str][popid][band] \
                 * (self._E[popid][band] - E_th[species])
 
             if self.approx_He:
-                integrand += self.cosm.y * self.sigma_E[popid][band][1] \
+                integrand += self.cosm.y * self.sigma_E['he_1'][popid][band] \
                     * (self._E[popid][band] - E_th[1])
                     
             integrand *= kw['fluxes'][popid][band] * fheat / norm / ev_per_hz
@@ -945,6 +927,8 @@ class GlobalVolume(object):
 
         # Grab defaults, do some patches if need be
         kw = self._fix_kwargs(**kwargs)
+        
+        species_str = species_i_to_str[species]
 
         if pop.pf['pop_k_ion_igm'] is not None:
             return pop.pf['pop_k_ion_igm'](z)
@@ -978,7 +962,7 @@ class GlobalVolume(object):
         
         # Integrate over set of discrete points
         else:  
-            integrand = self.sigma_E[popid][band][species] \
+            integrand = self.sigma_E[species_str][popid][band] \
                 * kw['fluxes'][popid][band] / norm / ev_per_hz
         
             if self.sampled_integrator == 'romb':
@@ -1047,7 +1031,7 @@ class GlobalVolume(object):
         if not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
             return 0.0
         
-        if ((donor or species) in [1,2]) and self.pf['approx_He']:
+        if ((donor or species) in [1,2]) and (not self.pf['include_He']):
             return 0.0
 
         # Grab defaults, do some patches if need be
@@ -1058,11 +1042,12 @@ class GlobalVolume(object):
 
         species_str = species_i_to_str[species]
         donor_str = species_i_to_str[donor]
-
+        
         if self.esec.Method > 1:
+            
             fion_const = 1.
             if kw['igm_e'] == 0:
-                fion = self.fion[popid][species_str][:,0]
+                fion = self.fion[species_str][popid][band][:,0]
             else:
                 i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
                 if self.esec.x[i_x] > kw['igm_e']:
@@ -1070,8 +1055,8 @@ class GlobalVolume(object):
                     
                 j = i_x + 1    
 
-                fion = self.fion[popid][species_str][:,i_x] \
-                    + (self.fion[popid][species_str][:,j] - self.fion[popid][species_str][:,i_x]) \
+                fion = self.fion[species_str][popid][band][:,i_x] \
+                    + (self.fion[species_str][popid][band][:,j] - self.fion[species_str][popid][:,i_x]) \
                     * (kw['igm_e'] - self.esec.x[i_x]) \
                     / (self.esec.x[j] - self.esec.x[i_x])
         else:
@@ -1094,11 +1079,11 @@ class GlobalVolume(object):
                     zxavg=kw['zxavg']) * self.sigma(E) * (E - E_th[0]) \
                     / E_th[0] / norm / ev_per_hz
         else:
-            integrand = fion * self.sigma_E[popid][band][donor] \
+            integrand = fion * self.sigma_E[donor_str][popid][band] \
                 * (self.E[popid][band] - E_th[donor])
             
             if self.pf['approx_He']:
-                integrand += self.cosm.y * self.sigma_E[popid][band][1] \
+                integrand += self.cosm.y * self.sigma_E['he_1'][popid][band] \
                     * (self.E[popid][band] - E_th[1])
             
             integrand = integrand
@@ -1165,7 +1150,7 @@ class GlobalVolume(object):
         norm = J21_num * self.sigma0
                 
         # Compute integrand
-        integrand = self.sigma_E[species] * (self.E - E_th[species])
+        integrand = self.sigma_E[species_str] * (self.E - E_th[species])
        
         integrand *= kw['fluxes'] * flya / norm / ev_per_hz
                          

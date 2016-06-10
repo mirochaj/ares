@@ -458,6 +458,7 @@ class UniformBackground(object):
                     
         # Create an ares.simulations.OpticalDepth instance
         tau_solver = OpticalDepth(**pop.pf)
+        self._tau_solver = tau_solver
         
         # Try to load file from disk.
         z, E, tau = tau_solver._fetch_tau(pop, z, E)
@@ -573,10 +574,10 @@ class UniformBackground(object):
                 self.volume.HeatingRate(z, species=j, popid=i,
                 band=k, **kwargs)
     
-            for k, donor in enumerate(self.grid.absorbers):
-                self.k_ion2[i,0,j,k] += \
+            for h, donor in enumerate(self.grid.absorbers):
+                self.k_ion2[i,0,j,h] += \
                     self.volume.SecondaryIonizationRateIGM(z, 
-                    species=j, donor=k, popid=i, band=k, **kwargs)
+                    species=j, donor=h, popid=i, band=k, **kwargs)
     
         else:
             self.k_ion[i,0,j] += \
@@ -804,6 +805,7 @@ class UniformBackground(object):
             else:
                 tau = 0.0
         else:
+            raise NotImplemented('this needs fixing')
             tau = self.volume.OpticalDepth(z, zp, E, xavg=kw['xavg'])
     
         return c * (1. + z)**2 * epsilonhat_over_H * np.exp(-tau) / four_pi

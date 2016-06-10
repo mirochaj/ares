@@ -8,7 +8,9 @@ v0.2
 ----
 Not yet released, but here are some notes as we go:
 
-- Abundance matching implemented, can be used as model for global 21-cm signal. You'll need `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_ to use it.
+- Can model the star-formation efficiency as a mass- and redshift-dependent quantity using *HaloProperty* objects.
+- This, coupled with the *GalaxyPopulation* class, allows one to generate models of the galaxy luminosity function. Also possible to fit real datasets (using *ares.inference.FitLuminosityFunction* module).
+- Creation of a *litdata* module to facilitate use of data from the literature. At the moment, this includes recent measurements of the galaxy luminosity function and stellar population synthesis models (*starburst99* and *BPASS*).
 
 v0.1
 ----

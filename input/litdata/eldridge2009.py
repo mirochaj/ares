@@ -78,6 +78,8 @@ def _load(**kwargs):
 
     # Interpolate
     if kwargs['pop_Z'] not in Zvals:
+        
+        raise NotImplemented('this needs fixing.')
 
         data = []
         for Z in Zvals:

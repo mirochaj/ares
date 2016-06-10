@@ -4,7 +4,7 @@ This page is an attempt to keep track of common errors and instructions for how 
 
 Plots not showing up
 --------------------
-If, when running some *ares* script (e.g., those in ``$ARES/tests``) the program runs to completion without errors but does not produce a figure, it may be due to your matplotlib settings. Most test scripts use ``draw`` to ultimately produce the figure because it is non-blocking and thus allows you to continue tinkering with the output if you'd like. One of two things is going on:
+If when running some *ares* script the program runs to completion without errors but does not produce a figure, it may be due to your matplotlib settings. Most test scripts use ``draw`` to ultimately produce the figure because it is non-blocking and thus allows you to continue tinkering with the output if you'd like. One of two things is going on:
 
 * You invoked the script with the standard Python interpreter (i.e., **not** iPython). Try running it with iPython, which will spit you back into an interactive session once the script is done, and thus keep the plot window open.
 * Alternatively, your default ``matplotlib`` settings may have caused this. Check out your ``matplotlibrc`` file (in ``$HOME/.matplotlibrc``) and make sure ``interactive : True``. 
@@ -18,7 +18,7 @@ There are a few different places in the code that will attempt to read-in lookup
 - Make sure you have set the ``$ARES`` environment variable. See the :doc:`install` page for instructions.
 - Make sure the required file is where it should be, i.e., nested under ``$ARES/input``.
 
-In the event that a required file is missing, something has gone wrong. Many lookup tables are downloaded automatically when you run the ``setup.py`` script, so the first thing you should do is re-run ``python setup.py install``. 
+In the event that a required file is missing, something has gone wrong. Run ``python remote.py fresh`` to download new copies of all files.
 
 ``LinAlgError: singular matrix``
 --------------------------------
@@ -27,7 +27,7 @@ This is known to occur in ``ares.physics.Hydrogen`` when using ``scipy.interpola
 
 21-cm Extrema-Finding Not Working
 ---------------------------------
-If the derivative of the signal is noisy (due to numerical artifacts, for example) then the extrema-finding can fail. If you can visually see three extrema in the global 21-cm signal but they are either absent or crazy in ``ares.simulations.Global21cm.turning_points``, then this might be going on. Try setting the ``smooth_derivative`` parameter to a value of 0.1 or 0.2.  This parameter will smooth the derivative with a boxcar of width :math:`\Delta z=` ``smooth_derivative`` before performing the extrema finding. Let me know if this happens (and under what circumstances), as it would be preferable to eliminate numerical artifacts at a lower level in the code rather than smoothing them out after the fact.
+If the derivative of the signal is noisy (due to numerical artifacts, for example) then the extrema-finding can fail. If you can visually see three extrema in the global 21-cm signal but they are either absent or crazy in ``ares.simulations.Global21cm.turning_points``, then this might be going on. Try setting the ``smooth_derivative`` parameter to a value of 0.1 or 0.2.  This parameter will smooth the derivative with a boxcar of width :math:`\Delta z=` ``smooth_derivative`` before performing the extrema finding. Let me know if this happens (and under what circumstances), as it would be better to eliminate numerical artifacts than to smooth them out after the fact.
 
 
 ``AttributeError: No attribute blobs.``

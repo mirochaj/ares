@@ -256,7 +256,7 @@ class Global21cm(MultiPhaseMedium):
     
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=5, scatter=False, xaxis='nu', 
-        ymin=None, ymax=50, zmax=None, xscale='linear', force_draw=False,
+        ymin=None, ymax=50, zmax=None, rotate_xticks=False, force_draw=False,
         **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
@@ -316,8 +316,8 @@ class Global21cm(MultiPhaseMedium):
             xticks = list(np.arange(zmin, zmax, zmin))
             xticks_minor = list(np.arange(zmin, zmax, 1))
         else:
-            xticks = np.arange(20, 200, 20)
-            xticks_minor = np.arange(10, 190, 20)
+            xticks = np.arange(50, 250, 50)
+            xticks_minor = np.arange(10, 200, 10)
 
         if ymin is None:
             ymin = max(min(min(self.data['dTb']), ax.get_ylim()[0]), -500)
@@ -331,7 +331,7 @@ class Global21cm(MultiPhaseMedium):
         if ymax is None:
             ymax = max(max(self.data['dTb']), ax.get_ylim()[1])
         
-        if not gotax:
+        if (not gotax) or force_draw:
             ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))
                 
         # Minor y-ticks - 10 mK increments
@@ -349,13 +349,18 @@ class Global21cm(MultiPhaseMedium):
             ax.set_xlim(10, 210)
             
         ax.set_ylim(ymin, ymax)    
-        
-        if xscale == 'linear' and (not gotax):
+                    
+        if (not gotax) or force_draw:    
             ax.set_xticks(xticks, minor=False)
             ax.set_xticks(xticks_minor, minor=True)
-        
-        if not gotax:    
             ax.set_yticks(yticks, minor=True)
+        
+            if rotate_xticks:
+                xt = []
+                for x in ax.get_xticklabels():
+                    xt.append(x.get_text())
+                
+                ax.set_xticklabels(xt, rotation=45.)
         
         if gotax and (ax.get_xlabel().strip()) and (not force_draw):
             return ax
@@ -392,9 +397,7 @@ class Global21cm(MultiPhaseMedium):
             ax.yaxis.set_major_formatter(ScalarFormatter())
             #twinax.xaxis.set_major_formatter(ScalarFormatter())
             ax.ticklabel_format(style='plain', axis='both')
-            
-        ax.set_xscale(xscale)
-                    
+                                
         pl.draw()
         
         return ax
@@ -447,7 +450,38 @@ class Global21cm(MultiPhaseMedium):
             return mp
         else:
             return ax
+    
+    def add_Ts_inset(self, ax, inset=None, width=0.2, height=0.025, loc=1,
+            z=8.4, lo=1.9, hi=None, padding=0.02, borderpad=0.5, 
+            fmt='%.2g', **kwargs):
+        
+        if inset is None:
+            inset = self.add_inset(ax, inset=inset, width=width, height=height, 
+                loc=loc, lo=lo, hi=hi, padding=padding, 
+                borderpad=borderpad, **kwargs)
+        else:
+            inset.fill_between([0., self.cosm.Tgas(z)], 0, 1, 
+                color='k', facecolor='none', hatch='//')
+            #inset.plot([self.cosm.Tgas(z)]*2, [0, 1], 
+            #    color='k')    
+            inset.fill_between([self.cosm.Tgas(z), lo], 0, 1, 
+                color='lightgray')    
+            #inset.fill_between([self.cosm.TCMB(z), hi], 0, 1, 
+            #    color='k', facecolor='none', hatch='-')    
+            xticks = [1, 10, 100]
+            inset.set_xticks(xticks)
+            inset.set_xlim(0.8, hi)
+    
+            inset.set_title(r'$T_S(z=%.2g)$' % z, fontsize=16, y=1.08)
+            inset.xaxis.set_tick_params(width=1, length=5, labelsize=10)
             
+        Ts = np.interp(z, self.data_asc['z'], self.data_asc['igm_Ts'])
+        inset.plot([Ts]*2, [0, 1], **kwargs)
+        inset.set_xscale('log')
+        pl.draw()
+    
+        return inset        
+    
     def fill_between_sims(self, other_sim, ax=None, **kwargs):
         sims = [self, other_sim]
         

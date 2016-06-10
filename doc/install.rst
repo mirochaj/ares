@@ -26,6 +26,9 @@ If you have mercurial installed, you can clone *ares* and its entire revision hi
 If you do not have mercurial installed, and would rather just grab a tarball
 of the most recent version, select the `Download repository
 <https://bitbucket.org/mirochaj/ares/downloads>`_ option on bitbucket.
+
+.. note:: If you'd like to live on the bleeding edge, check out the *ares-dev*
+    fork.
     
 You'll need to set an environment variable which points to the *ares* install directory, e.g. (in bash) ::
 

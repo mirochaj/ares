@@ -209,10 +209,12 @@ class ParameterFile(dict):
     @property
     def Npops(self):
         if not hasattr(self, '_Npops'):
-            tmp = self._kwargs.copy()
+            
+            tmp = {}
             if 'problem_type' in self._kwargs:
                 tmp.update(ProblemType(self._kwargs['problem_type']))
-                
+            tmp.update(self._kwargs)
+            
             self._Npops = count_populations(**tmp)
 
         return self._Npops
@@ -454,14 +456,14 @@ class ParameterFile(dict):
         if 'need_for_speed' in kwargs:
             if kwargs['need_for_speed']:
                 return 
-        
+
         try:
             verbose = kwargs['verbose']
         except KeyError:
             verbose = self.defaults['verbose']
-        
+
         for kwarg in kwargs:
-            
+
             par, num = pop_id_num(kwarg)
             if num is None:
                 par = kwarg
