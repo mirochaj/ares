@@ -43,7 +43,7 @@ info = \
 pars = \
 {
  'pop_Z': 0.04,
- 'imf': 2.35,
+ 'pop_imf': 2.35,
  'nebular': False,
  'pop_ssp': True,
  'pop_tsf': 500.,

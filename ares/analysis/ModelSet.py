@@ -1493,7 +1493,7 @@ class ModelSet(BlobFactory):
         -------
         Dictionary, elements sorted by 
         """
-        
+
         if inputs is None:
             return None
         
@@ -1508,8 +1508,11 @@ class ModelSet(BlobFactory):
             inputs = list(inputs)
                         
         if type(is_log) is dict:
-            tmp = [is_log[par] for par in pars]    
-            is_log = tmp
+            if is_log != {}:
+                tmp = [is_log[par] for par in pars]    
+                is_log = tmp
+            else:
+                is_log = [False] * len(pars)
         
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)    
@@ -2120,7 +2123,7 @@ class ModelSet(BlobFactory):
         # Make sure all inputs are lists of the same length!
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
-            ivar)    
+            ivar)        
             
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)      
@@ -2236,9 +2239,7 @@ class ModelSet(BlobFactory):
                         
                     if xin is not None:
                         mp.grid[k].plot([xin]*2, [0, 1.05], 
-                            color='g', zorder=20)
-                        #mp.grid[k].plot([xin]*2, [0, 1.05], 
-                        #    color='k', ls=':', lw=2, zorder=20)
+                            color='k', ls=':', lw=2, zorder=20)
                             
                     continue
 
@@ -2294,15 +2295,11 @@ class ModelSet(BlobFactory):
                                                                     
                 # Plot as dotted lines
                 if xin is not None:
-                    mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='g',
-                        zorder=20)
-                    #mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k',
-                    #    ls=':', zorder=20)
+                    mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k',
+                        ls=':', zorder=20)
                 if yin is not None:
-                    mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='g',
-                        zorder=20)
-                    #mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k',
-                    #    ls=':', zorder=20)
+                    mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k',
+                        ls=':', zorder=20)
 
                     
         if oned:
@@ -2353,7 +2350,7 @@ class ModelSet(BlobFactory):
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        best='median', fill=True, **kwargs):    
+        best='maxL', fill=True, **kwargs):    
         """
         Reconstructed evolution in whatever the independent variable is.
         

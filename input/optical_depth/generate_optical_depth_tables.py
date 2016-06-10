@@ -66,6 +66,6 @@ for res in Nz:
     
     # Tabulate tau
     tau = igm.TabulateOpticalDepth()
-    igm.save(prefix='tau_test', suffix=format, clobber=True)
+    igm.save(suffix=format, clobber=True)
 
     

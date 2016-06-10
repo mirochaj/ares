@@ -470,35 +470,20 @@ class MultiPhaseMedium(object):
                 loc=loc, mu=mu, sig1=sig1, padding=padding, 
                 borderpad=borderpad, **kwargs)
         else:
-            inset.fill_between([mu-sig2-padding, mu-sig2], 0, 1, color='lightgray')
-            inset.fill_between([mu+sig2+padding, mu+sig2], 0, 1, color='lightgray')
+            inset.fill_between([mu-sig2-padding, mu-sig2], 0, 1, 
+                color='lightgray')
+            inset.fill_between([mu+sig2+padding, mu+sig2], 0, 1, 
+                color='lightgray')
             xticks = [mu-sig2-padding, mu-sig2, mu-sig1, mu, 
                 mu+sig1, mu+sig2, mu+sig2+padding]
             inset.set_xticks(xticks)
-            if ticklabels is not None:
-                
-                tmp = []
-                for tick in ticklabels:
-                    if tick < 0:
-                        tmp.append(len(xticks)+tick)
-                    else:
-                        tmp.append(tick)         
-                
-                l = []
-                for k, tick in enumerate(xticks):
-                      
-                    if k in tmp:
-                        l.append(fmt % xticks[k])
-                    else:
-                        l.append('')
-                    
-                inset.set_xticklabels(l)
-            else:    
-                inset.set_xticklabels([])
-            inset.set_title(r'$\tau_e$', fontsize=18)
-            inset.xaxis.set_tick_params(width=1, length=5)
+            inset.set_xticklabels(['', r'$-2\sigma$','',r'$\mu$', '', r'$+2\sigma$', ''])
+
+            inset.set_title(r'$\tau_e$', fontsize=18, y=1.08)
+            inset.xaxis.set_tick_params(width=1, length=5, labelsize=10)
 
         inset.plot([self.tau_e]*2, [0, 1], **kwargs)
+        pl.draw()
         
         return inset
             

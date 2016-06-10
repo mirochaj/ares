@@ -518,7 +518,7 @@ class OpticalDepth(object):
         
         return self.z, self.E, self.tau
     
-    def tau_name(self, prefix=None, suffix='hdf5'):
+    def tau_name(self, prefix=None, suffix='pkl'):
         """
         Return name of table based on its properties.
         """
@@ -812,12 +812,12 @@ class OpticalDepth(object):
         
         if fn is None:
             if prefix is None:    
-                prefix = self.tau_name(prefix=None, suffix=suffix)   
-            
-            fn = prefix + '.' + suffix
+                fn, func = self.tau_name(prefix=None, suffix=suffix)   
+            else:
+                fn = prefix + '.' + suffix
             
         else:
-            suffix = fn[fn.rfind('.')+1:]    
+            suffix = fn[fn.rfind('.')+1:]
 
         if os.path.exists(fn) and (not clobber):
             raise IOError('%s exists! Set clobber=True to overwrite.' % fn)

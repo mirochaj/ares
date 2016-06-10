@@ -445,14 +445,14 @@ class MultiPanel:
         # Get locations of ticks on bottom row
         if axis is 'x':
             ticks_by_col = []
-            for i in range(self.dims[1]):
+            for i in self.bottom:
                 ticks_by_col.append(self.grid[i].get_xticks())
         
         # Get locations of ticks on left column
         if axis is 'y':
             ticks_by_row = []
-            for i in range(self.dims[0]):
-                ticks_by_row.append(self.grid[self.left[i]].get_xticks())
+            for i in self.left:
+                ticks_by_row.append(self.grid[i].get_xticks())
             
         # Figure out if axes are shared or not    
         if axis == 'x':
