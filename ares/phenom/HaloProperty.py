@@ -104,7 +104,7 @@ class ParameterizedHaloProperty(object):
                 exec('p%i = par' % i)
                                 
         if func == 'lognormal':
-            f = p0 * np.exp(-(logM - p1)**2 / 2. / p2**2)    
+            f = p0 * np.exp(-(logM - p1)**2 / 2. / p2**2)
         elif func == 'pl':
             f = p0 * (M / p1)**p2
         elif func == 'plexp':
@@ -144,8 +144,8 @@ class ParameterizedHaloProperty(object):
                 lo = M <= p4
                 hi = M > p4
 
-                return lo * p0 * (M / p4)**p1 \
-                     + hi * p2 * (M / p4)**p3
+                return lo * p0 * (M / p1)**p2 \
+                     + hi * p3 * (M / p1)**p4
             else:
                 if M <= p4:
                     return p0 * (M / p1)**p2
