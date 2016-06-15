@@ -320,7 +320,8 @@ class Global21cm(MultiPhaseMedium):
             xticks_minor = np.arange(10, 200, 10)
 
         if ymin is None:
-            ymin = max(min(min(self.data['dTb']), ax.get_ylim()[0]), -500)
+            ymin = max(min(min(self.data['dTb'][np.isfinite(self.data['dTb'])]), 
+                ax.get_ylim()[0]), -500)
     
             # Set lower y-limit by increments of 50 mK
             for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500]:
@@ -329,7 +330,8 @@ class Global21cm(MultiPhaseMedium):
                     break
     
         if ymax is None:
-            ymax = max(max(self.data['dTb']), ax.get_ylim()[1])
+            ymax = max(max(self.data['dTb'][np.isfinite(self.data['dTb'])]), 
+                ax.get_ylim()[1])
         
         if (not gotax) or force_draw:
             ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))

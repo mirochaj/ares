@@ -12,10 +12,25 @@ Description:
 
 import ares
 
-pb_pop = ares.util.ParameterBundles.Population('sfe')
-pb_sed = ares.util.ParameterBundles.Spectrum('bpass')
+pop1 = ares.util.ParameterBundles.Population('sfe')
+pop2 = ares.util.ParameterBundles.Population('sfe')
 
-pf = pb_pop + pb_sed
+pop1.num = 0
+pop2.num = 0
 
-pop = ares.populations.GalaxyPopulation(**pf)
+
+sed = ares.util.ParameterBundles.Spectrum('bpass')
+
+pf = pop1 + sed
+
+gpop = ares.populations.GalaxyPopulation(**pf)
+
+"""
+How to deal with multiple PHPs?
+
+Institute warning if you're about to add one, that you need to assign an ID
+number to the first PHP befor eyou continue?
+
+Should make these like defaults and labels, i.e., add a config file.
+"""
 

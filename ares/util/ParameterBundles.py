@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from .ReadData import read_lit
 from .ParameterFile import pop_id_num
 from .SetDefaultParameterValues import SetAllDefaults
 from .PrintInfo import header, footer, separator, line
@@ -34,21 +35,33 @@ def _add_pop_tag(par, num):
         return '%s{%i}' % (par, num)
 
 class ParameterBundle(dict):
-    def __init__(self, base=None, **kwargs):
-        self.base = base
-        self.kwargs = kwargs
-        
-        if base is not None:
-            self._initialize(base, **kwargs)
-        
+    def __init__(self, base=None, data=None, **kwargs):
+        if data is None:
+            self.base = base
+            self.kwargs = kwargs
+            
+            if base is not None:
+                self._initialize(base, **kwargs)
+        else:
+            for key in data:
+                self[key] = data[key]
+            
     def _initialize(self, base, **kwargs):
         
         tmp = self.keys()
         for key in tmp:
             del self[key]
         
-        for key in kwargs[base]:
-            self[key] = kwargs[base][key] 
+        if base in kwargs:
+            pars = kwargs[base].keys()
+            kw = kwargs[base]
+        else:
+            # Assume litdata
+            kw = read_lit(base).parameters
+            pars = kw.keys()
+        
+        for key in pars:
+            self[key] = kw[key]    
                
     def __getattr__(self, name):
         if name not in self.keys():
@@ -59,9 +72,35 @@ class ParameterBundle(dict):
         tmp = self.copy()
         
         # Make sure to not overwrite anything here!
+        for key in other:
+            if key in tmp:
+                raise KeyError('%s supplied more than once!' % key)
+                
+            tmp[key] = other[key]    
+                
+        return ParameterBundle(data=tmp)
         
-        tmp.update(other)
-        return tmp
+    def __sub__(self, other):
+        tmp1 = self.copy()
+    
+        for key in other:    
+            del tmp1[key]
+    
+        return ParameterBundle(data=tmp1)    
+    
+    @property
+    def num(self):
+        if not hasattr(self, '_num'):
+            self._num = None
+        return self._num
+    
+    @num.setter
+    def num(self, value):
+        assert value % 1 == 0
+        self._value = value
+    
+        for key in self.keys():
+            self[_add_pop_tag(key, value)] = self.pop(key)    
     
     @property    
     def info(self):
@@ -88,36 +127,58 @@ _pop_sfe = \
  'php_Mfun_par1': 1e12,
  'php_Mfun_par2': 0.67,
  'php_Mfun_par3': 0.5,
+ 
+ # Redshift dependent parameters here
+ 
+}
+
+_pop_mlf = \
+{
+ 'pop_model': 'mlf',
+ 'pop_fstar': None,
+ 'pop_mlf': 'php',
+ 'pop_MAR': 'hmf',
+ 
+ 'php_Mfun': 'dpl',
+ 'php_Mfun_par0': 0.1,
+ 'php_Mfun_par1': 1e12,
+ 'php_Mfun_par2': 0.67,
+ 'php_Mfun_par3': 0.5,
 }
 
 _Population = \
 {
- 'fcoll': dict(pop_Tmin=1e4),
+ 'fcoll': {},
  'sfe': _pop_sfe.copy(),
  'mlf': {},
  'sfr': {},
  'ml': {},
 }
 
+# Some different spectral models
 _uvsed_toy = dict(pop_yield=4000, pop_yield_units='photons/b',
     pop_Emin=10.2, pop_Emax=24.6, pop_EminNorm=13.6, pop_EmaxNorm=24.6)
 _uvsed_bpass = dict(pop_sed='eldridge2009', pop_binaries=False, pop_Z=0.02,
     pop_Emin=10.2, pop_Emax=24.6, pop_EminNorm=13.6, pop_EmaxNorm=24.6)
+_uvsed_s99 = _uvsed_bpass.copy()
+_uvsed_s99['pop_sed'] = 'leitherer1999'
 _xrsed = dict(pop_yield=2.6e39, pop_yield_units='erg/s/sfr',
     pop_Emin=2e2, pop_Emax=3e4, pop_EminNorm=5e2, pop_EmaxNorm=8e3,
     pop_sed='mcd', pop_logN=-np.inf, pop_solve_rte=False,
     pop_tau_Nz=1e3, pop_approx_tau='neutral')
+
 
 _Spectrum = \
 {
  'uv': _uvsed_toy,
  'xray': _xrsed,
  'bpass': _uvsed_bpass,
+ 's99': _uvsed_s99,
 }
 
 _Simulation = \
 {
- 'gs': [],
+ 'gs': {'problem_type': 101.2},
  'gp': [],
  'mpm': [],
  'mgb': [],
@@ -155,22 +216,20 @@ class Population(ParameterBundle):
         
     def reinitialize(self, base):
         ParameterBundle.__init__(self, base, **_Population)    
-        
-    @property
-    def num(self):
-        if not hasattr(self, '_num'):
-            self._num = None
-        return self._num
 
-    @num.setter
-    def num(self, value):
-        assert value % 1 == 0
-        self._value = value
-        
-        for key in self.keys():
-            self[_add_pop_tag(key, value)] = self.pop(key)
-  
+class HaloProperty(ParameterBundle):
+    """
+    Create a set of parameters needed for Populations. In general, this means
+    choosing (i) the basic underlying model and (ii) the yields.
+    """
 
+    def __init__(self, base=None):
+        ParameterBundle.__init__(self, base, **_Population)
+
+    def reinitialize(self, base):
+        ParameterBundle.__init__(self, base, **_Population)    
+          
+          
 class Physics(ParameterBundle):
     def __init__(self):
         pass

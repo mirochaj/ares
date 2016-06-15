@@ -18,8 +18,6 @@ A few papers on how it works:
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
 
-The `docs <http://ares.readthedocs.org/en/latest/>`_ are still a work in progress.
-
 Current status:
 
 .. image:: https://drone.io/bitbucket.org/mirochaj/ares-dev/status.png
