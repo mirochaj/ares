@@ -30,7 +30,7 @@ from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters
-    
+
 #class LiteratureSource(Source):
 #    def __init__(self, **kwargs):
 #        self.pf = kwargs

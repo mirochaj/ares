@@ -24,6 +24,17 @@ def tanh_rstep(M, lo, hi, logM0, logdM):
 
 Mh_dep_parameters = ['pop_fstar', 'pop_fesc', 'pop_L1500_per_sfr', 
     'pop_Nion', 'pop_Nlw']
+    
+str_rep = \
+{
+ 'pl': 'p[0] * (x / p[1])**p[2]',
+ 'dpl': 'p[0] / ((x / p[1])**-p[2] + (x / p[1])**p[3])',
+ 'pwpl': 'p[0] * (x / p[1])**p[2] if x <= p[1] else p[3] * (x / p[1])**p[4]',
+ 'plexp': 'p[0] * (x / p[1])**p[2] * np.exp(-x / p[3])',
+ 'astep': 'p0 if x <= p1 else p2',
+ 'rstep': 'p0 * p2 if x <= p1 else p2',
+ 'plsum': 'p[0] * (x / p[1])**p[2] + p[3] * (x / p[4])**p5',
+}
 
 class ParameterizedHaloProperty(object):
     def __init__(self, **kwargs):
@@ -112,8 +123,6 @@ class ParameterizedHaloProperty(object):
                 # Parameters that are...parameterized! Things are nested, i.e,
                 # fstar is not necessarily separable.
                 
-                
-                
             else:
                 exec('p%i = par' % i)
             
@@ -198,4 +207,6 @@ class ParameterizedHaloProperty(object):
         
         return f
               
-        
+
+# Backwards compatible        
+GalaxyPopulation = GalaxyCohort

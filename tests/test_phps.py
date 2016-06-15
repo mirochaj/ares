@@ -43,19 +43,15 @@ def test():
     'php_func_par1': 1e11,
     'php_func_par2': 0.,
     }
-    
-    
-    
-    
+        
     pop_sfe = ares.populations.GalaxyCohort(**pars_sfe)
     pop_mlf = ares.populations.GalaxyCohort(**pars_mlf)
     
     assert pop_sfe.fstar(10., 1e10) == pop_mlf.fstar(10., 1e10) == 1e-1, \
         "Mass evolution not working properly in both SFE and MLF approaches."
     
-    
-        
-    # Third, a population where we parameterize the SFR function.
+    # Third, a population where we parameterize the SFR function. Just take it
+    # from one of the GalaxyCohort instances above.
     pars_sfr = \
     {
     'pop_fstar': None,
@@ -84,6 +80,8 @@ def test():
     'php_func_par1': 1e11,
     'php_func_par2': 0.,
     
+    # The php_faux will get applied to the php_func with the same pop ID
+    # and php ID.
     'php_faux': 'pl',
     'php_faux_var': 'redshift',
     'php_faux_meth': 'multiply',
@@ -101,7 +99,6 @@ def test():
     
     assert pop_sfe.fstar(z1, 1e10) * correction == pop_sfe.fstar(z2, 1e10), \
         "Redshift evolution not working properly for SFE."
-
 
     """
     Last test: introduce redshift dependent parameter.
