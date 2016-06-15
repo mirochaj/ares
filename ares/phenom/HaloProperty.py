@@ -163,18 +163,18 @@ class ParameterizedHaloProperty(object):
                     return p0
                 else:
                     return p1            
-        #elif func == 'pwpl':
-        #    if type(M) is np.ndarray:
-        #        lo = M <= p4
-        #        hi = M > p4
-        #
-        #        return lo * p0 * (M / p4)**p1 \
-        #             + hi * p2 * (M / p4)**p3
-        #    else:
-        #        if M <= p4:
-        #            return p0 * (M / p1)**p2
-        #        else:
-        #            return p3 * (M / p1)**p4
+        elif func == 'pwpl':
+            if type(M) is np.ndarray:
+                lo = x <= p4
+                hi = x > p4
+
+                return lo * p0 * (x / p1)**p2 \
+                     + hi * p3 * (x / p1)**p4
+            else:
+                if x <= p4:
+                    return p0 * (x / p1)**p2
+                else:            
+                    return p3 * (x / p1)**p4
         elif func == 'okamoto':
             assert var == 'mass'
             f = (1. + (2.**(p0 / 3.) - 1.) * (x / p1)**-p0)**(-3. / p0)

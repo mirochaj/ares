@@ -68,12 +68,19 @@ S_methods = \
  1: 'Salpha = const. = 1',
  2: 'Chuzhoy, Alvarez, & Shapiro (2005)',
  3: 'Furlanetto & Pritchard (2006)'
-}             
+}         
+
+def footer():
+    print "#"*width
+    print ""    
 
 def header(s):
     print "\n" + "#"*width
     print "%s %s %s" % (pre, s.center(twidth), post)
     print "#"*width
+
+def separator():
+    print line('-'*twidth)
 
 def line(s, just='l'):
     """ 

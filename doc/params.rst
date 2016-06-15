@@ -19,6 +19,10 @@ Here, we'll provide a brief description of each parameter.
  * :doc:`params_control`
  * :doc:`params_cosmology`
  
+For relatively complex calculations it can be difficult to know / remember which parameters are needed. Because of this, a convenience object called the `ParameterBundle` was introduced in June of 2016 to package together sets of commonly-used parameters and values. See the following page for more information on creating and using these objects:
+
+ * :doc:`param_bundles`
+ 
 Custom Defaults
 --------------- 
 To adapt the defaults to your liking *without* modifying the source code (all
