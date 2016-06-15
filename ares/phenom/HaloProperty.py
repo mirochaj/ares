@@ -22,15 +22,18 @@ def tanh_rstep(M, lo, hi, logM0, logdM):
 
 #z0 = 9. # arbitrary
 
+# These are imported in GalaxyCohort...
 Mh_dep_parameters = ['pop_fstar', 'pop_fesc', 'pop_L1500_per_sfr', 
     'pop_Nion', 'pop_Nlw']
     
-str_rep = \
+func_options = \
 {
  'pl': 'p[0] * (x / p[1])**p[2]',
- 'dpl': 'p[0] / ((x / p[1])**-p[2] + (x / p[1])**p[3])',
- 'pwpl': 'p[0] * (x / p[1])**p[2] if x <= p[1] else p[3] * (x / p[1])**p[4]',
+ 'dpl': 'p[0] / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
+ 'dpl_arbnorm': 'p[0](p[4]) / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
+ 'pwpl': 'p[0] * (x / p[4])**p[1] if x <= p[4] else p[2] * (x / p[4])**p[3]',
  'plexp': 'p[0] * (x / p[1])**p[2] * np.exp(-x / p[3])',
+ 'lognormal': 'p[0] * np.exp(-(logx - p[1])**2 / 2. / p[2]**2)',
  'astep': 'p0 if x <= p1 else p2',
  'rstep': 'p0 * p2 if x <= p1 else p2',
  'plsum': 'p[0] * (x / p[1])**p[2] + p[3] * (x / p[4])**p5',
@@ -72,19 +75,6 @@ class ParameterizedHaloProperty(object):
         """
 
         pars1 = [self.pf['php_func_par%i' % i] for i in range(6)]
-        pars2 = [self.pf['php_faux_par%i' % i] for i in range(6)]
-        #pars2 = []
-        #
-        #for i in range(6):
-        #    tmp = []
-        #    for j in range(6):
-        #        name = 'php_Mfun_par%i_par%i' % (i,j)
-        #        if name in self.pf:
-        #            tmp.append(self.pf[name])
-        #        else:
-        #            tmp.append(None)
-        #            
-        #    pars2.append(tmp)
 
         return self._call(z, M, pars1)
 
@@ -99,16 +89,19 @@ class ParameterizedHaloProperty(object):
              
         # Otherwise, assume it's the auxilary function
         else:
-            func = self.faux   
+            #func = self.faux   
             s = 'faux'     
 
         # Determine independent variables
         var = self.pf['php_%s_var' % s].lower()
         if var == 'mass':
             x = M
-        else:
-            assert var == 'redshift'
+        elif (var == 'redshift') or (var == 'z'):
             x = z
+        elif var == '1+z':
+            x = 1. + z
+        else:
+            raise ValueError('Unrecognized func_var \'%s\'.' % var)    
         
         logx = np.log10(x)
         
@@ -134,47 +127,49 @@ class ParameterizedHaloProperty(object):
         elif func == 'plexp':
             f = p0 * (x / p1)**p2 * np.exp(-x / p3)
         elif func == 'dpl':
-            f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**p3)    
+            f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3)    
+        elif func == 'dpl_arbnorm':
+            f = p0 * (((p4 / p1)**-p2 + (p4 / p1)**-p3)) \
+                        / ((x / p1)**-p2 + (x / p1)**-p3)
         elif func == 'plsum2':
             f = p0 * (x / p1)**p2 + p3 * (x / p1)**p4
         elif func == 'tanh_abs':
-            return tanh_astep(x, p0, p1, p2, p3)
+            f = tanh_astep(x, p0, p1, p2, p3)
         elif func == 'tanh_rel':
-            return tanh_rstep(x, p0, p1, p2, p3)
+            f = tanh_rstep(x, p0, p1, p2, p3)
         elif func == 'rstep':
             if type(x) is np.ndarray:
                 lo = x <= p2
                 hi = x > p2
         
-                return lo * p0 * p1 + hi * p1 
+                f = lo * p0 * p1 + hi * p1 
             else:
                 if x <= p2:
-                    return p0 * p1
+                    f = p0 * p1
                 else:
-                    return p1
+                    f = p1
         elif func == 'astep':
             if type(x) is np.ndarray:
                 lo = x <= p2
                 hi = x > p2
 
-                return lo * p0 + hi * p1 
+                f = lo * p0 + hi * p1 
             else:
                 if x <= p2:
-                    return p0
+                    f = p0
                 else:
-                    return p1            
+                    f = p1            
         elif func == 'pwpl':
-            if type(M) is np.ndarray:
+            if type(x) is np.ndarray:
                 lo = x <= p4
                 hi = x > p4
 
-                return lo * p0 * (x / p1)**p2 \
-                     + hi * p3 * (x / p1)**p4
+                f = lo * p0 * (x / p4)**p1 + hi * p2 * (x / p4)**p3
             else:
                 if x <= p4:
-                    return p0 * (x / p1)**p2
+                    f = p0 * (x / p4)**p1
                 else:            
-                    return p3 * (x / p1)**p4
+                    f = p2 * (x / p4)**p3
         elif func == 'okamoto':
             assert var == 'mass'
             f = (1. + (2.**(p0 / 3.) - 1.) * (x / p1)**-p0)**(-3. / p0)
@@ -189,24 +184,28 @@ class ParameterizedHaloProperty(object):
             
             p = [self.pf['php_faux_par%i' % i] for i in range(6)]
             aug = self._call(z, M, p, self.pf['php_faux'])
-            
+                        
             if self.pf['php_faux_meth'] == 'multiply':
                 f *= aug
-            else:
+            elif self.pf['php_faux_meth'] == 'add':
                 f += aug
+            else:    
+                raise NotImplemented('Unknown faux_meth \'%s\'' % self.pf['php_faux_meth'])
 
-            self._apply_extrap = 1    
-            
-        #if self.pf['php_ceil'] is not None:
-        #    f = np.minimum(f, self.pf['php_ceil'])
-        #if self.pf['php_floor'] is not None:
-        #    f = np.maximum(f, self.pf['php_floor'])
-        #
+            self._apply_extrap = 1 
+        
+        # Only apply floor/ceil after auxiliary function has been applied
+        if self._apply_extrap:                
+
+            if self.pf['php_ceil'] is not None:
+                f = np.minimum(f, self.pf['php_ceil'])
+            if self.pf['php_floor'] is not None:
+                f = np.maximum(f, self.pf['php_floor'])
+        
         #f *= self.pf['php_boost']
         #f /= self.pf['php_iboost']
         
         return f
               
 
-# Backwards compatible        
-GalaxyPopulation = GalaxyCohort
+
