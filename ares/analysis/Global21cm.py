@@ -453,7 +453,7 @@ class Global21cm(MultiPhaseMedium):
         else:
             return ax
     
-    def add_Ts_inset(self, ax, inset=None, width=0.2, height=0.025, loc=1,
+    def add_Ts_inset(self, ax, inset=None, width=0.3, height=0.15, loc=3,
             z=8.4, lo=1.9, hi=None, padding=0.02, borderpad=0.5, 
             fmt='%.2g', **kwargs):
         

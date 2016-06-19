@@ -20,17 +20,18 @@ dpl = \
  # Stellar pop + fesc
  'pop_sed{0}': 'eldridge2009',
  'pop_binaries{0}': False,
- 'pop_fesc{0}': 0.2,
  'pop_Z{0}': 0.02,
+ 
+ 'pop_fesc{0}': 0.2,
 
  # SFE
  'pop_fstar{0}': 'php[0]',
  'php_func{0}[0]': 'dpl',
  'php_func_var{0}[0]': 'mass',
- 'php_func_par0{0}[0]': 0.05,
- 'php_func_par1{0}[0]': 2e11,
- 'php_func_par2{0}[0]': 0.66,
- 'php_func_par3{0}[0]': 0.33,
+ 'php_func_par0{0}[0]': 0.052,       # Table 1 in paper (last 4 rows)
+ 'php_func_par1{0}[0]': 3e11,
+ 'php_func_par2{0}[0]': 0.47,        # Table 1 in paper (last 4 rows)
+ 'php_func_par3{0}[0]': -0.65,       # Table 1 in paper (last 4 rows)
  
  # Careful with X-ray heating
  'pop_sed{1}': 'mcd',
@@ -60,7 +61,6 @@ dpl = \
  'final_redshift': 5.,
 }
 
-
 _floor_specific = \
 {
 'php_faux{0}[0]': 'plexp',
@@ -78,10 +78,40 @@ floor.update(_floor_specific)
 _steep_specific = \
 {
  'php_faux{0}[0]': 'okamoto',
+ 'php_faux_var{0}[0]': 'mass',
+ 'php_faux_meth{0}[0]': 'multiply',
  'php_faux_par0{0}[0]': 1.,
- 'php_faux_par1{0}[0]': 5e9,
+ 'php_faux_par1{0}[0]': 1e9,
 }
 
 steep = dpl.copy()
 steep.update(_steep_specific)
 
+"""
+Redshift-dependent options
+"""
+_dpl_fz_specific = \
+{
+'php_faux{0}[0]': 'pl',
+'php_faux_var{0}[0]': '1+z',
+'php_faux_meth{0}[0]': 'multiply',
+'php_faux_par0{0}[0]': 1.,
+'php_faux_par1{0}[0]': 7.,
+'php_faux_par2{0}[0]': 1.,
+}
+
+dpl_fz = dpl.copy()
+dpl_fz.update(_dpl_fz_specific)
+
+_dpl_Mz_specific = \
+{
+'php_faux{0}[0]': 'pl',
+'php_faux_var{0}[0]': '1+z',
+'php_faux_meth{0}[0]': 'multiply',
+'php_faux_par0{0}[0]': 1.,
+'php_faux_par1{0}[0]': 7.,
+'php_faux_par2{0}[0]': 1.,
+}
+
+dpl_Mz = dpl.copy()
+dpl_Mz.update(_dpl_Mz_specific)
