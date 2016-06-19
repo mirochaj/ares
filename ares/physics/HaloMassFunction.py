@@ -623,7 +623,9 @@ class HaloMassFunction(object):
             if not overwrite:
                 return
                 
-            os.system('rm -f %s' % fn)    
+            os.system('rm -f %s' % fn)  
+            
+            self.build_2d_spline()  
                 
             f = open(fn, 'wb')            
             pickle.dump(self.z, f)

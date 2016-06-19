@@ -361,9 +361,6 @@ def PopulationParameters():
     "pop_model": 'fcoll', # fcoll, hod, clf, ham, user
 
     "pop_halo_model": None, # clf or hod (not yet implemented)
-
-    # HAM model
-    "pop_constraints": None, # deprecated?
     
     # Mass accretion rate
     "pop_MAR": 'hmf',

@@ -527,7 +527,7 @@ class GalaxyPopulation(GalaxyAggregate,DustCorrection):
             If True, x-values will be in absolute (AB) magnitudes
         Returns
         -------
-        Magnitudes (or luminosities) and number density.
+        Number density.
 
         """
 
