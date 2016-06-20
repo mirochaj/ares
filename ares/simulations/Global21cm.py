@@ -18,10 +18,10 @@ from ..analysis.BlobFactory import BlobFactory
 from ..physics.Constants import nu_0_mhz, E_LyA
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 
-#try:
-#    import dill as pickle
-#except ImportError:
-import pickle
+try:
+    import dill as pickle
+except ImportError:
+    import pickle
 
 defaults = \
 {
