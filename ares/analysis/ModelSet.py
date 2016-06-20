@@ -1296,7 +1296,7 @@ class ModelSet(BlobFactory):
           all the indexing yourself.
          (2) [optionally] take the logarithm.
          (3) [optionally] apply multiplicative factors.
-         (4) If bins are s
+         (4) Create a mask that excludes all nans / infs.
          
         Parameters
         ----------
@@ -1414,7 +1414,7 @@ class ModelSet(BlobFactory):
                             mask[j].fill(1)
             else:
                 mask = self.mask
-                      
+
             if self.is_mcmc:
                 data[par] = np.ma.array(val, mask=mask)
             else:
