@@ -33,7 +33,7 @@ from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
 from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
-    tanh_gjah_to_ares, delete_nan_rows
+    tanh_gjah_to_ares
 
 #try:
 #    import dill as pickle
@@ -1447,7 +1447,7 @@ class ModelSet(BlobFactory):
                             break
             for par in data:
                 data[par] = np.delete(data[par], to_remove, axis=0)
-            print ("%i of %i " % (len(to_remove),len(data[data.keys()[0]]),) +\
+            print ("%i of %i " % (len(to_remove),length,)) +\
                   "chain elements ignored because of chain links with " +\
                   "inf's/nan's."
 

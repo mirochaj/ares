@@ -22,10 +22,10 @@ from ..util.ParameterFile import ParameterFile
 from .Constants import g_per_msun, cm_per_mpc, s_per_yr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline
 
-#try:
-#    import dill as pickle
-#except ImportError:
-import pickle
+try:
+    import dill as pickle
+except ImportError:
+    import pickle
     
 try:
     from scipy.special import erfc
