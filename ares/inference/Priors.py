@@ -621,7 +621,7 @@ class GaussianPrior(_Prior):
             return "Normal(mean=%.3g,variance=%.3g)" %\
                 (self.mean.A[0,0], self.covariance.A[0,0])
         else:
-            return "Normal(%s, %s)" % (self.mean, self.covariance)
+            return "%i-dim Normal" % (len(self.mean.A[0]),)
 
 
 class ParallelepipedPrior(_Prior):

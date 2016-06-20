@@ -33,7 +33,7 @@ from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
 from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
-    tanh_gjah_to_ares, delete_nan_rows
+    tanh_gjah_to_ares
 
 #try:
 #    import dill as pickle
@@ -73,6 +73,8 @@ default_mp_kwargs = \
  'panel_size': (0.5,0.5), 
  'padding': (0,0)
 }    
+
+numerical_types = [float, np.float64, np.float32, int, np.int32, np.int64]
 
 # Machine precision
 MP = np.finfo(float).eps
@@ -1412,25 +1414,9 @@ class ModelSet(BlobFactory):
                             mask[j].fill(1)
             else:
                 mask = self.mask
-
-            if remove_nas:
-                # deletes all rows with nan's or inf's
-                to_hist, deleted_indices = delete_nan_rows(val)
-                chain_length = len(self.chain)
-                num_deleted = len(deleted_indices)
-                print "delete_nan_rows was run in ExtractData. It ignored " +\
-                      ("%i%% of " % ((100. * num_deleted) / chain_length,)) +\
-                      ("the  %i chain links. If this number " % (chain_length,)) +\
-                      "is high, it may be that the parameters/blobs which you " +\
-                      "are extracting are not well defined in the case of the " +\
-                      "given data."
                       
             if self.is_mcmc:
-                if remove_nas:
-                    # no need for mask because nans and infs have been removed
-                    data[par] = val
-                else:
-                    data[par] = np.ma.array(val, mask=mask)
+                data[par] = np.ma.array(val, mask=mask)
             else:
                 try:
                     data[par] = np.ma.array(val, mask=mask)
@@ -1438,6 +1424,32 @@ class ModelSet(BlobFactory):
                     print "MaskError encountered. Assuming mask=0."
                         
                     data[par] = np.ma.array(val, mask=0)
+
+        if remove_nas:
+            to_remove = []
+            length = len(data[data.keys()[0]])
+            for ilink in range(length):
+                for par in data:
+                    elem = data[par][ilink]
+                    if type(elem) is np.ma.core.MaskedConstant:
+                        to_remove.append(ilink)
+                        break
+                    elif type(elem) in numerical_types:
+                        if np.isinf(elem) or np.isnan(elem):
+                            to_remove.append(ilink)
+                            break
+                    else: # elem is array (because par is a non-0d blob)
+                        is_inf_or_nan = (np.isinf(elem) | np.isnan(elem))
+                        if hasattr(elem, 'mask'): # ignore rows affected by mask
+                            is_inf_or_nan = (is_inf_or_nan | elem.mask)
+                        if not np.all(~is_inf_or_nan):
+                            to_remove.append(ilink)
+                            break
+            for par in data:
+                data[par] = np.delete(data[par], to_remove, axis=0)
+            print ("%i of %i " % (len(to_remove),length,)) +\
+                  "chain elements ignored because of chain links with " +\
+                  "inf's/nan's."
 
         return data, is_log
 
