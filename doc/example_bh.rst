@@ -1,3 +1,5 @@
+:orphan:
+
 Initializing a Black Hole Source
 ================================
 In these examples, we will initialize a black hole population object, defined

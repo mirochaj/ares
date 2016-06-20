@@ -78,7 +78,7 @@ f.close()
 if not os.path.exists('outputs'):
     os.mkdir('outputs')
 
-# Run the thing    
+# Run the thing
 os.system('%s CosmoRec.parameters.dat' % to_CR)
     
 for fn in os.listdir('outputs'):

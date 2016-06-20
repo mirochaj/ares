@@ -10,6 +10,7 @@ Description:
 
 """
 
+import sys, os
 import numpy as np
 import sys, textwrap, os
 from .PrintInfo import twidth, line, tabulate
@@ -58,9 +59,8 @@ def dt_error(grid, z, q, dqdt, new_dt, cell, method):
     data = []
     for i in range(len(grid.qmap)):
         name = grid.qmap[i]
-        rows.append(name)
-                
-        data.append([q[i], dqdt[i]])
+        rows.append(name)                
+        data.append([q[cell][i], dqdt[cell][i]])
             
     # Print quantities and their rates of change
     tabulate(data, rows, cols, cwidth=12)  
@@ -92,7 +92,13 @@ table by hand via the hmf_table parameter. You may also want to check out
 https://bitbucket.org/mirochaj/glorb/Downloads for standard HMF tables.
 """
 
-def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok):    
+lf_constraints = \
+"""
+WARNING: The contents of `pop_constraints` will override the values of 
+`pop_lf_Mstar`, `pop_lf_pstar`, and `pop_lf_alpha`. 
+"""
+
+def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok, ztab):    
     print ""    
     print line(separator)
     print line('WARNING: optical depth table shape mismatch (in redshift)')    
@@ -105,56 +111,60 @@ def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok):
         print line("found       : %s" % igm.tabname[igm.tabname.rfind('/')+1:])
     
     print line("zmin (pf)   : %g" % igm.pf['final_redshift'])
-    print line("zmin (%s)  : %g" % (which, igm.z.min()))
-    print line("zmax (pf)   : %g" % igm.pf['first_light_redshift'])
-    print line("zmax (%s)  : %g" % (which, igm.z.max()))
+    print line("zmin (%s)  : %g" % (which, ztab.min()))
+    print line("zmax (pf)   : %g" % \
+        (min(igm.pf['first_light_redshift'], igm.pf['initial_redshift'])))
+    print line("zmax (%s)  : %g" % (which, ztab.max()))
 
     if not zmin_ok:
-        print line("this is OK  : we'll transition to an on-the-fly tau calculator at z=%.2g" % igm.z.min())
+        print line("this is OK  : we'll transition to an on-the-fly tau calculator at z=%.2g" % ztab.min())
         if (0 < igm.pf['EoR_xavg'] < 1):
             print line("            : or whenever x > %.1e, whichever comes first" % igm.pf['EoR_xavg'])
 
     print line(separator)
 
-def tau_tab_E_mismatch(igm, Emin_ok, Emax_ok):    
+def tau_tab_E_mismatch(pop, tabname, Emin_ok, Emax_ok, Etab):    
     print ""    
     print line(separator)
     print line('WARNING: optical depth table shape mismatch (in photon energy)')    
     print line(separator)        
     
-    if type(igm.tabname) is dict:
+    if type(tabname) is dict:
         which = 'dict'
     else:
         which = 'tab'
-        print line("found       : %s" % igm.tabname[igm.tabname.rfind('/')+1:])
+        print line("found       : %s" % tabname[tabname.rfind('/')+1:])
     
-    print line("Emin (pf)   : %g" % igm.pf['spectrum_Emin'])
-    print line("Emin (%s)  : %g" % (which, igm.E.min()))
-    print line("Emax (pf)   : %g" % igm.pf['spectrum_Emax'])
-    print line("Emax (%s)  : %g" % (which, igm.E.max())) 
+    print line("Emin (pf)   : %g" % pop.pf['pop_Emin'])
+    print line("Emin (%s)  : %g" % (which, Etab.min()))
+    print line("Emax (pf)   : %g" % pop.pf['pop_Emax'])
+    print line("Emax (%s)  : %g" % (which, Etab.max())) 
 
-    if igm.E0 < igm.pf['spectrum_Emin']:
+    if Etab.min() < pop.pf['pop_Emin']:
         print line("this is OK  : we'll discard E < %.2e eV entries in table" \
-            % igm.pf['spectrum_Emin'])
+            % pop.pf['pop_Emin'])
 
-    if igm.E1 > igm.pf['spectrum_Emax']:
+    if Etab.max() > pop.pf['pop_Emax']:
         print line("this is OK  : we'll discard E > %.2e eV entries in table" \
-            % igm.pf['spectrum_Emax']) 
+            % pop.pf['pop_Emax']) 
 
     print line(separator)
 
-def no_tau_table(igm):
+def no_tau_table(urb):
     print ""    
     print line(separator)
-    print line('ERROR (no optical depth table)')    
+    print line('WARNING: no optical depth table found')    
     print line(separator)        
-    print line("looking for : %s" % igm.tau_name()[0])
-    if igm.pf['tau_prefix'] is not None:
-        print line("in          : %s" % igm.pf['tau_prefix'])
-    elif glorb_dir is not None:
-        print line("in          : %s/input/optical_depth" % glorb_dir)
+    print line("looking for : %s" % urb.tabname)
+    if urb.pf['tau_prefix'] is not None:
+        print line("in          : %s" % urb.pf['tau_prefix'])
+    elif ARES is not None:
+        print line("in          : %s/input/optical_depth" % ARES)
     else:
         print line("in          : nowhere! set $ARES or tau_prefix")
+
+    print line(separator)
+    print line("Generating a new table will take 5-10 minutes...")
 
     print line(separator)
 

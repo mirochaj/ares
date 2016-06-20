@@ -12,6 +12,10 @@ and optionally:
 * `hmf <http://hmf.readthedocs.org/en/latest/>`_ (halo mass function calculator written by Stephen Murray)
 * `mpi4py <http://mpi4py.scipy.org>`_
 * `h5py <http://www.h5py.org/>`_
+* `setuptools <https://pypi.python.org/pypi/setuptools>`_
+* `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_
+* `shapely <https://pypi.python.org/pypi/Shapely>`_
+* `descartes <https://pypi.python.org/pypi/descartes>`_
 
 If you have mercurial installed, you can clone *ares* and its entire revision history via: ::
 
@@ -19,18 +23,30 @@ If you have mercurial installed, you can clone *ares* and its entire revision hi
     cd ares
     python setup.py install
     
-If you do not have mercurial installed, and would rather just grab a tarball of the most recent version, select the `Download repository <https://bitbucket.org/mirochaj/ares/downloads>`_ option on bitbucket.
-    
-Once you've got the code, you'll need to set an environment variable which
-points to the *ares* install directory, e.g. (in bash) ::
+If you do not have mercurial installed, and would rather just grab a tarball
+of the most recent version, select the `Download repository
+<https://bitbucket.org/mirochaj/ares/downloads>`_ option on bitbucket.
 
-    export ARES=/users/<yourusername>/ares    
+.. note:: If you'd like to live on the bleeding edge, check out the *ares-dev*
+    fork.
     
-A few lookup tables will be downloaded to ``$ARES/input`` automatically.    
+You'll need to set an environment variable which points to the *ares* install directory, e.g. (in bash) ::
+
+    export ARES=/users/<yourusername>/ares
+
+*ares* will look in ``$ARES/input`` for lookup tables of various kinds. To download said lookup tables, run ::
+
+    python remote.py
+    
+This might take a few minutes. If something goes wrong with the download, you can run    ::
+
+    python remote.py fresh
+    
+to get fresh copies of everything.
 
 Don't have Python already?
 --------------------------
-If you do *not* already have Python installed, you might consider downloading `yt <http://yt-project.org/>`_, which has a convenient installation script that will download and install a lot of common Python packages for you (everything but *hmf* listed above).
+If you do *not* already have Python installed, you might consider downloading `yt <http://yt-project.org/>`_, which has a convenient installation script that will download and install Python and many commonly-used Python packages for you.
 
 Help
 ----

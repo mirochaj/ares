@@ -1,3 +1,5 @@
+:orphan:
+
 Source Parameters
 =================
 
@@ -28,6 +30,12 @@ Source Parameters
     Time after which radiation from this source will no longer be considered.
 
     Default: :math:`10^{10}` [``time_units``]
+    
+``source_hardening``
+    For non-zero absorbing columns, this parameter determines whether or not the 
+    column is applied before or after normalizing the source's luminosity. 
+    
+    Default: ``extrinsic``
     
  
 ::

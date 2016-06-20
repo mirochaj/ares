@@ -1,3 +1,5 @@
+:orphan:
+
 Analyzing Model Grids
 =====================
 Once you have a model grid in hand, there are a slew of built-in analysis 

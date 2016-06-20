@@ -15,6 +15,7 @@ import numpy as np
 from ..util.Misc import tau_CMB
 from scipy.interpolate import interp1d
 from .TurningPoints import TurningPoints
+from ..util.ParameterFile import par_info
 from ..physics.Constants import ev_per_hz, rhodot_cgs
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
@@ -33,12 +34,17 @@ class InlineAnalysis:
             self.blob_names, self.blob_redshifts = self.pf['inline_analysis']
         elif self.pf['auto_generate_blobs']:
             self.blob_names, self.blob_redshifts = self.generate_blobs()
+        else:
+            self.blob_names = self.blob_redshifts = []
     
-        self.need_extrema = 0
-        for tp in list('BCD'):
-            if tp in self.blob_redshifts:
-                self.need_extrema += 1
-                
+        if self.pf['track_extrema']:
+            self.need_extrema = np.inf
+        else:    
+            self.need_extrema = 0
+            for tp in list('BCD'):
+                if tp in self.blob_redshifts:
+                    self.need_extrema += 1
+  
     def generate_blobs(self):
         """
         Auto-generate blobs for inline analysis.
@@ -59,7 +65,11 @@ class InlineAnalysis:
             for i, pop in enumerate(range(self.pf.Npops)):
                 
                 if hasattr(self.sim, 'pops'):
-                    pop = self.sim.pops.pops[i]
+                    pop = self.sim.pops[i]
+                elif hasattr(self.sim, 'medium'):
+                    pop = self.sim.medium.field.pops[i]
+                elif hasattr(self.sim, 'field'):
+                    pop = self.sim.field.pops[i]        
                 else:
                     pop = self.sim
                 
@@ -68,9 +78,9 @@ class InlineAnalysis:
                 else:
                     suffix = ''
                     
-                # Lyman-alpha emission
-                if pop.pf['is_lya_src']:
-                    blob_names.append('Ja%s' % suffix)
+                # Lyman-alpha emission                
+                if pop.pf['pop_lya_src']:
+                    blob_names.append('igm_Ja%s' % suffix)
                     
                 # SFRD
                 if not pop.pf['tanh_model']:
@@ -81,17 +91,20 @@ class InlineAnalysis:
                     
                     if j > 0 and (not self.pf['include_He']):
                         break
+                        
+                    if j > 0:
+                        raise NotImplemented('need to fix this')    
                 
                     blob_names.append('igm_%s' % sp1)
                     
-                    if pop.pf['is_ion_src_cgm'] and j == 0:
-                        blob_names.append('cgm_Gamma_%s%s' % (sp1, suffix))
+                    if pop.pf['pop_ion_src_cgm'] and j == 0:
+                        blob_names.append('cgm_k_ion')
                         
-                    if pop.pf['is_heat_src_igm']:
-                        blob_names.append('igm_heat_%s%s' % (sp1, suffix))
+                    if pop.pf['pop_heat_src_igm']:
+                        blob_names.append('igm_k_heat')
                     
-                    if pop.pf['is_ion_src_igm'] and (not pop.pf['tanh_model']):
-                        blob_names.append('igm_Gamma_%s%s' % (sp1, suffix))
+                    if pop.pf['pop_ion_src_igm'] and (not pop.pf['tanh_model']):
+                        blob_names.append('igm_k_ion')
                     else:
                         continue
                 
@@ -100,12 +113,12 @@ class InlineAnalysis:
                         
                     if pop.pf['tanh_model']:
                         continue
-                                            
+
                     for k, sp2 in enumerate(species):
                         if k > 0 and (not self.pf['include_He']):
                             break
                             
-                        blob_names.append('igm_gamma_%s_%s%s' % (sp1, sp2, suffix))
+                        blob_names.append('igm_k_ion2')
             
             tmp1.extend(blob_names)
         
@@ -137,6 +150,14 @@ class InlineAnalysis:
         if hasattr(self.sim, "turning_points"):
             self._turning_points = self.sim.turning_points
         elif not hasattr(self, '_turning_points') and self.need_extrema > 0:
+            
+            # Easy for certain phenomenological forms
+            if self.sim.pf['gaussian_model']:
+                self._turning_points = {'C': (self.sim.pf['gaussian_nu'],
+                    self.sim.pf['gaussian_A'])}
+                return self._turning_points
+            
+            # Otherwise, must compute numerically
             self._track = TurningPoints(inline=True, **self.pf)
 
             # Otherwise, find them. Not the most efficient, but it gets the job done
@@ -150,7 +171,7 @@ class InlineAnalysis:
                     continue
 
                 stop = self._track.is_stopping_point(self.history['z'][0:i], 
-                    self.history['dTb'][0:i])
+                    self.history['igm_dTb'][0:i])
 
             self._turning_points = self._track.turning_points
 
@@ -227,16 +248,18 @@ class InlineAnalysis:
             if m is None:
                 pop_specific = False
                 pop_prefix = None
-
+                
             else:
                 pop_specific = True
                 
                 # Population ID number
                 pop_num = int(m.group(1))
                 
+                pop_prefix, pop_id, pop_z = par_info(field)
+                
                 # Pop ID including curly braces
-                pop_prefix = field.strip(m.group(0))
-
+                #pop_prefix = field.strip(m.group(0))
+                
             # Setup a spline interpolant
             if field in self.history:
                 interp = interp1d(self.history['z'][-1::-1],
@@ -244,7 +267,6 @@ class InlineAnalysis:
             elif field == 'tau_e':
                 tmp, tau_tmp = tau_CMB(self.sim)
                 interp = interp1d(tmp, tau_tmp)
-
             elif field == 'curvature':
                 tmp = []
                 for element in self.blob_redshifts:
@@ -260,12 +282,7 @@ class InlineAnalysis:
 
                 output.append(tmp)
                 continue
-            
-            #elif field == 'Jlw':
-            #    Jlw = self.integrated_fluxes()
-            #    output.append(Jlw)
-            #    continue
-            
+
             elif (field == 'sfrd'):
                 tmp = []
                 for redshift in self.redshifts_fl:
@@ -286,6 +303,15 @@ class InlineAnalysis:
                     tmp.append(sfrd)
                 output.append(tmp)
                 continue
+            elif 'fstar' in pop_prefix:
+                pop = self.sim.pops[pop_num]
+                
+                coeff_id = int(field[field.rfind('_')+1:])
+                
+                tmp = [pop.ham.coeff[coeff_id]] * len(self.blob_redshifts)
+                
+                output.append(tmp)
+                continue
 
             # Go back and actually interpolate, save the result (for each z)
             tmp = []
@@ -301,7 +327,7 @@ class InlineAnalysis:
                     tmp.append(np.inf)
                     
             output.append(tmp)
-            
+
         # Reshape output so it's (redshift x blobs)
         self.blobs = np.array(zip(*output))
         
@@ -376,13 +402,13 @@ class InlineAnalysis:
                 return np.inf
             
         # Multi-pop model
-        for i, pop in enumerate(self.sim.pops.pops):
+        for i, pop in enumerate(self.sim.pops):
             if i != num:
                 continue
                 
             try:
                 sfrd = pop.SFRD(z) * rhodot_cgs
-            except SystemExit:
+            except:
                 sfrd = np.inf    
             
             return sfrd

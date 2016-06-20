@@ -11,9 +11,9 @@ Description:
 """
 
 import numpy as np
+from types import FunctionType
 import types, os, textwrap, glob, re
-from .NormalizeSED import emission_bands
-from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz
+from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz, g_per_msun, s_per_yr
 
 try:
     from mpi4py import MPI
@@ -23,8 +23,26 @@ except ImportError:
     rank = 0
     size = 1
  
+class ErrorIgnore(object):
+   def __init__(self, errors, errorreturn = None, errorcall = None):
+      self.errors = errors
+      self.errorreturn = errorreturn
+      self.errorcall = errorcall
+
+   def __call__(self, function):
+      def returnfunction(*args, **kwargs):
+         try:
+            return function(*args, **kwargs)
+         except Exception as E:
+            if type(E) not in self.errors:
+               raise E
+            if self.errorcall is not None:
+               self.errorcall(E, *args, **kwargs)
+            return self.errorreturn
+      return returnfunction 
+
 # FORMATTING   
-width = 84
+width = 74
 pre = post = '#'*4    
 twidth = width - len(pre) - len(post) - 2
 #
@@ -50,7 +68,19 @@ S_methods = \
  1: 'Salpha = const. = 1',
  2: 'Chuzhoy, Alvarez, & Shapiro (2005)',
  3: 'Furlanetto & Pritchard (2006)'
-}             
+}         
+
+def footer():
+    print "#"*width
+    print ""    
+
+def header(s):
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, s.center(twidth), post)
+    print "#"*width
+
+def separator():
+    print line('-'*twidth)
 
 def line(s, just='l'):
     """ 
@@ -71,63 +101,70 @@ def tabulate(data, rows, cols, cwidth=12, fmt='%.4e'):
     """
     Take table, row names, column names, and output nicely.
     """
-    
-    assert (cwidth % 2 == 0), \
-        "Table elements must have an even number of characters."
-        
-    assert (len(pre) + len(post) + (1 + len(cols)) * cwidth) <= width, \
-        "Table wider than maximum allowed width!"
-    
+
+    if type(cwidth) == int:
+        assert (cwidth % 2 == 0), \
+            "Table elements must have an even number of characters."
+
+        cwidth = [cwidth] * (len(cols) + 1)
+
+    else:
+        assert len(cwidth) == len(cols) + 1
+
+    #assert (len(pre) + len(post) + (1 + len(cols)) * cwidth) <= width, \
+    #    "Table wider than maximum allowed width!"
+
     # Initialize empty list of correct length
     hdr = [' ' for i in range(width)]
     hdr[0:len(pre)] = list(pre)
     hdr[-len(post):] = list(post)
-    
+
     hnames = []
     for i, col in enumerate(cols):
-        tmp = col.center(cwidth)
+        tmp = col.center(cwidth[i+1])    
         hnames.extend(list(tmp))
-            
-    start = len(pre) + cwidth + 3
+
+    start = len(pre) + cwidth[0] + 3
+
     hdr[start:start + len(hnames)] = hnames
-    
+
     # Convert from list to string        
     hdr_s = ''
     for element in hdr:
         hdr_s += element
-        
+
     print hdr_s
 
     # Print out data
     for i in range(len(rows)):
-    
+
         d = [' ' for j in range(width)]
-        
+
         d[0:len(pre)] = list(pre)
         d[-len(post):] = list(post)
-        
+
         d[len(pre)+1:len(pre)+1+len(rows[i])] = list(rows[i])
-        d[len(pre)+1+cwidth] = ':'
+        d[len(pre)+1+cwidth[0]] = ':'
 
         # Loop over columns
         numbers = ''
         for j in range(len(cols)):
             if type(data[i][j]) is str:
-                numbers += data[i][j].center(cwidth)
+                numbers += data[i][j].center(cwidth[j+1])
                 continue
             elif type(data[i][j]) is bool:
-                numbers += str(int(data[i][j])).center(cwidth)
+                numbers += str(int(data[i][j])).center(cwidth[j+1])
                 continue 
-            numbers += (fmt % data[i][j]).center(cwidth)
+            numbers += (fmt % data[i][j]).center(cwidth[j+1])
         numbers += ' '
 
-        c = len(pre) + 1 + cwidth + 2
+        c = len(pre) + 1 + cwidth[0] + 2
         d[c:c+len(numbers)] = list(numbers)
-        
+
         d_s = ''
         for element in d:
             d_s += element
-    
+
         print d_s
         
 def print_warning(s, header='WARNING'):
@@ -151,7 +188,7 @@ def print_1d_sim(sim):
 
     warnings = []
 
-    header = 'Initializer: Radiative Transfer Simulation'
+    header = 'Radiative Transfer Simulation'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
@@ -251,6 +288,37 @@ def print_1d_sim(sim):
     print "#"*width
     print ""
 
+def print_rate_int(tab):
+    """
+    Print information about a population to the screen.
+
+    Parameters
+    ----------
+    pop : ares.populations.*Population instance
+
+    """
+    
+    if rank > 0 or not pop.pf['verbose']:
+        return
+
+    warnings = []
+
+    header  = 'Tabulated Rate Coefficient Integrals'
+    
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, header.center(twidth), post)
+    print "#"*width
+
+    #print line('-'*twidth)
+    #print line('Redshift Evolution')
+    #print line('-'*twidth)    
+    #
+    print "#"*width
+
+    for warning in warnings:
+        print_warning(warning)
+
+#@ErrorIgnore(errors=[KeyError])
 def print_pop(pop):
     """
     Print information about a population to the screen.
@@ -266,11 +334,11 @@ def print_pop(pop):
 
     warnings = []
 
-    alpha = pop.pf['spectrum_alpha']
-    Emin = pop.pf['spectrum_Emin']
-    Emax = pop.pf['spectrum_Emax']
-    EminNorm = pop.pf['spectrum_EminNorm']
-    EmaxNorm = pop.pf['spectrum_EmaxNorm']
+    alpha = pop.pf['pop_alpha']
+    Emin = pop.pf['pop_Emin']
+    Emax = pop.pf['pop_Emax']
+    EminNorm = pop.pf['pop_EminNorm']
+    EmaxNorm = pop.pf['pop_EmaxNorm']
 
     if EminNorm is None:
         EminNorm = Emin
@@ -289,100 +357,91 @@ def print_pop(pop):
     if type(EmaxNorm) is not list:
         EmaxNorm = list([EmaxNorm])
 
-    norm_by = pop.pf['norm_by']
-    bands = emission_bands(Emin, Emax, pop.pf['xray_Emin']) 
-
-    if len(bands) == 1:
-        norm_by == bands[0]   
-
-    if pop.pf['source_type'] == 'bh':
-        header  = 'Initializer: BH Population'
-    elif pop.pf['source_type'] == 'star':
-        header  = 'Initializer: Stellar Population'
+    if pop.pf['pop_model'] == 'fcoll':
+        header = 'Galaxy Population: fcoll'
+    else:
+        header = 'Galaxy Population: Mh-dependent'
 
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
 
     print line('-'*twidth)
-    print line('Redshift Evolution')
+    print line('Star Formation')
     print line('-'*twidth)
 
     # Redshift evolution stuff
-    if pop.model <= 2:
-        if pop.pf['sfrd'] is not None:
-            print line("SF          : parameterized")
+    if pop.pf['pop_sfrd'] is not None:
+        if type(pop.pf['pop_sfrd']) is str:
+            print line("SFRD        : %s" % pop.pf['pop_sfrd'])
         else:
-            if pop.pf['Mmin'] is None:
-                print line("SF          : in halos w/ Tvir >= 10**%g K" \
-                    % (round(np.log10(pop.pf['Tmin']), 2)))
-                if pop.pf['Tmax'] is not None:
-                    print line("SF          : in halos w/ Tvir < 10**%g K" \
-                        % (round(np.log10(pop.pf['Tmax']), 2)))
-                        
-            else:
-                print line("SF          : in halos w/ M >= 10**%g Msun" \
-                    % (round(np.log10(pop.pf['Mmin']), 2)))
-            print line("HMF         : %s" % pop.pf['fitting_function'])
-            
-            # Print out location of HMF table
-            #j = pop.halos.fn.rfind('/')
-            #print line("HMF prefix  : %s" % pop.halos.fn[0:j])
-            #print line("HMF file    : %s" % pop.halos.fn[j+1:])
-            
-            if pop.pf['fstar'] is not None:
-                print line("fstar       : %g" % pop.pf['fstar'])
-        print line("model       : %i" % pop.model)
-
-        if pop.model >= 0:
-            print line("fbh         : 10**%g" % np.log10(pop.pf['fbh']))
-
+            print line("SFRD        : parameterized")
     else:
-        print "#### PopIII      : in halos w/ Tvir >= 10**%g K" \
-            % (round(np.log10(pop.pf['Tmin'], 2)))
-        print "#### HMF         : %s" % pop.pf['fitting_function']                    
-        print "#### fstar       : %g" % pop.pf['fstar']
-        print "####"            
-        print "#### fbh         : %g" % pop.pf['fbh']
-        print "#### fedd        : %g" % pop.pf['fedd']
-        print "#### eta         : %g" % pop.pf['eta']
+        if pop.pf['pop_Mmin'] is None:
+            print line("SF          : in halos w/ Tvir >= 10**%g K" \
+                % (round(np.log10(pop.pf['pop_Tmin']), 2)))
+        else:
+            print line("SF          : in halos w/ M >= 10**%g Msun" \
+                % (round(np.log10(pop.pf['pop_Mmin']), 2)))
+        print line("HMF         : %s" % pop.pf['hmf_func'])
+
+    # Parameterized halo properties
+    if pop.pf.Nphps > 0:
+        if pop.pf.Nphps > 1:
+            sf = lambda x: '[%i]' % x
+        else:
+            sf = lambda x: ''
+                        
+        for i, par in enumerate(pop.pf.phps):
+                
+            pname = par.replace('pop_', '').ljust(20)
+                                
+            s = pop.pf['php_func%s' % sf(i)]
+                                
+            if 'php_faux%s' % sf(i) not in pop.pf:
+                print line("%s   : %s" % (pname, s))
+                continue    
+                
+            if pop.pf['php_faux%s' % sf(i)] is not None:
+                if pop.pf['php_faux_meth%s' % sf(i)] == 'add':
+                    s += ' + %s' % pop.pf['php_faux%s' % sf(i)]
+                else:
+                    s += ' * %s' % pop.pf['php_faux%s' % sf(i)]
+                
+            print line("%s: %s" % (pname, s))
+                
+    print line('-'*twidth)
+    print line('Radiative Output')
+    print line('-'*twidth)
+    
+    if hasattr(pop, 'yield_per_sfr'):
+        print line("yield (erg / s / SFR) : %g" \
+            % (pop.yield_per_sfr * g_per_msun / s_per_yr))
+    
+    print line("Emin (eV)             : %g" % (pop.pf['pop_Emin']))
+    print line("Emax (eV)             : %g" % (pop.pf['pop_Emax']))
+    print line("EminNorm (eV)         : %g" % (pop.pf['pop_EminNorm']))
+    print line("EmaxNorm (eV)         : %g" % (pop.pf['pop_EmaxNorm']))    
 
     ##
     # SPECTRUM STUFF
     ##
-    print line('-'*twidth)
-    print line('Spectrum')
-    print line('-'*twidth)
-
-    cols = ['lw', 'uv', 'xray']
-    rows = ['is_src', 'approx RTE', 'Eavg / eV', 'erg / g', 'photons / b']
-    data = [[bool(pop.pf['is_lya_src']), bool(pop.pf['is_ion_src_cgm']), 
-        bool(pop.pf['is_heat_src_igm'])]]
-    data.append([bool(pop.pf['approx_lwb']), 'n/a', bool(pop.pf['approx_xrb'])])
-    data.append((pop.Elw, pop.Eion, pop.Ex))
-    data.append((pop.cLW, pop.cUV, pop.cX))
-    data.append((pop.Nlw, pop.Nion, pop.Nx))
-
-    tabulate(data, rows, cols)
-
-    if not (pop.pf['approx_lwb'] and pop.pf['approx_xrb']):
-        print line("sed         :  %s " % pop.pf['spectrum_type'])
-        print line("sed         :  normalized by %s emission" % norm_by)
-
-    if pop.pf['spectrum_type'] == 'bb':    
-        print line("sed         :  T = 10**%.3g K" \
-            % np.log10(pop.pf['source_temperature']))
-
-    if pop.pf['spectrum_type'] in ['mcd', 'simpl']:
-        print line("Mbh         :  %g " % pop.pf['source_mass'])
-
-    if pop.pf['spectrum_type'] == 'simpl':
-        print line("Gamma       :  %g " % pop.pf['spectrum_alpha'])
-        print line("fsc         :  %g " % pop.pf['spectrum_fsc'])
-
-    if np.isfinite(pop.pf['spectrum_logN']):
-        print line("logN        :  %g " % pop.pf['spectrum_logN'])
-
+    if pop.pf['pop_solve_rte']:
+        print line('-'*twidth)
+        print line('Spectrum')
+        print line('-'*twidth)
+    
+        print line("SED               : %s" % (pop.pf['pop_sed']))
+        
+        if pop.pf['pop_sed'] == 'pl':
+            print line("alpha             : %g" % pop.pf['pop_alpha'])
+            print line("logN              : %g" % pop.pf['pop_logN'])
+        elif pop.pf['pop_sed'] == 'mcd':
+            print line("mass (Msun)       : %g" % pop.pf['pop_mass'])
+            print line("rmax (Rg)         : %g" % pop.pf['pop_rmax'])
+        else:
+            print line("from source       : %s" % pop.pf['pop_sed'])
+        
     print "#"*width
 
     for warning in warnings:
@@ -410,7 +469,7 @@ def print_rb(rb):
 
     warnings = []        
 
-    header = 'Initializer: Radiation Background'
+    header = 'Radiation Background'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
@@ -482,7 +541,7 @@ def print_21cm_sim(sim):
 
     warnings = []
 
-    header = 'Initializer: 21-cm Simulation'
+    header = '21-cm Simulation'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
@@ -600,27 +659,27 @@ def print_21cm_sim(sim):
     for warning in warnings:
         print_warning(warning)       
 
-def print_fit(fit, steps, burn=0, fit_TP=True):         
+def print_fit(fitter):         
 
+    return
+    
     if rank > 0:
         return
 
     warnings = []
-    
-    #is_cov = True
-    #if len(fit.error.shape) == 1:
-    #    is_cov = False
 
-    header = 'Initializer: Parameter Estimation'
+    is_cov = False
+
+    header = 'Parameter Estimation'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
 
-    #if is_cov:
-    #    cols = ['position', 'error (diagonal of cov)']
-    #else:
-    cols = ['position', 'error']   
-        
+    if is_cov:
+        cols = ['position', 'error (diagonal of cov)']
+    else:
+        cols = ['position', 'error']   
+
     if fit_TP:
 
         print line('-'*twidth)       
@@ -631,9 +690,9 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
         rows = []
         data = []
         for i, element in enumerate(fit.measurement_map):
-        
+
             tp, val = element
-        
+
             if tp == 'trans':
                 continue
 
@@ -646,34 +705,33 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
                 rows.append('T_%s (mK)' % tp)
 
             unit = fit.measurement_units[val]
-        
-            #if is_cov:
-            #    col1, col2 = fit.mu[i], np.sqrt(np.diag(fit.error)[i])
-            #else:
-            col1, col2 = fit.mu[i], fit.error[i]
-                
+
+            if is_cov:
+                col1, col2 = fit.mu[i], np.sqrt(np.diag(fit.error)[i])
+            else:
+                col1, col2 = fit.mu[i], fit.error[i]
+
             data.append([col1, col2])
 
-        tabulate(data, rows, cols, cwidth=18)    
+        tabulate(data, rows, cols, cwidth=[24, 12, 12, 12])    
 
     print line('-'*twidth)       
     print line('Parameter Space')     
     print line('-'*twidth)
 
-    data = []    
-    cols = ['prior_dist', 'prior_p1', 'prior_p2']
-    rows = fit.parameters    
+    data = []
+    cols = ['Prior', 'Transformation']
+    rows = fit.parameters
     for i, row in enumerate(rows):
-
-        if row in fit.priors:
-            tmp = [fit.priors[row][0]]
-            tmp.extend(fit.priors[row][1:])
+        if not hasattr(fit, 'prior_set'):
+            tmp = ['N/A'] * 2
         else:
-            tmp = ['n/a'] * 3
-
+            try:
+                tmp = list(fit.prior_set.parameter_strings())
+            except:
+                tmp = ['N/A'] * 2
         data.append(tmp)
-
-    tabulate(data, rows, cols, fmt='%.2g', cwidth=18)
+    tabulate(data, rows, cols, cwidth=[24, 18, 18])
 
     print line('-'*twidth)       
     print line('Exploration')     
@@ -684,20 +742,20 @@ def print_fit(fit, steps, burn=0, fit_TP=True):
     print line("burn-in     : %i" % burn)
     print line("steps       : %i" % steps)
     print line("outputs     : %s.*.pkl" % fit.prefix)
-    
-    print line('-'*twidth)       
-    print line('Inline Analysis')     
-    print line('-'*twidth)
-    
+
     if hasattr(fit, 'blob_names'):
+
+        print line('-'*twidth)       
+        print line('Inline Analysis')     
+        print line('-'*twidth)
+
         Nb = len(fit.blob_names)
         Nz = len(fit.blob_redshifts)
-        print line("N blobs     : %i" % Nb)
-        print line("N redshifts : %i" % Nz)
-    
         perwalkerperstep = Nb * Nz * 8 
         MB = perwalkerperstep * fit.nwalkers * steps / 1e6
-        
+
+        print line("N blobs     : %i" % Nb)
+        print line("N redshifts : %i" % Nz)
         print line("blob rate   : %i bytes / walker / step" % perwalkerperstep)
         print line("blob size   : %.2g MB (total)" % MB)
 
@@ -747,42 +805,6 @@ def print_model_set(mset):
     print line('-'*twidth)
     for i, par in enumerate(mset.parameters):
         print line("param    #%s: %s" % (str(i).zfill(2), par))
-
-    print line('-'*twidth)
-    print line('Data Available (filename = prefix + .suffix*.pkl)')
-    print line('-'*twidth)
-
-    suffixes = []
-    for fn in glob.glob('%s%s*' % (path, prefix)):
-
-        if not re.search('.pkl', fn):
-            continue
-
-        suffix = fn.split('.')[1]
-
-        if suffix not in suffixes:
-            suffixes.append(suffix)
-
-    for i, suffix in enumerate(suffixes):
-        print line("suffix   #%s: %s" % (str(i).zfill(2), suffix))
-        
-    print line('-'*twidth)
-    print line('Data Products (filename = prefix + .suffix*.hdf5)')
-    print line('-'*twidth)    
-    
-    suffixes = []
-    for fn in glob.glob('%s%s*' % (path, prefix)):
-
-        if not re.search('.hdf5', fn):
-            continue
-
-        suffix = fn.split('.')[1]
-
-        if suffix not in suffixes:
-            suffixes.append(suffix)
-
-    for i, suffix in enumerate(suffixes):
-        print line("suffix   #%s: %s" % (str(i).zfill(2), suffix))
         
     print "#"*width
     print ""

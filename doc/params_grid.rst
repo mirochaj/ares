@@ -1,3 +1,5 @@
+:orphan:
+
 Grid Parameters
 ===============
 
@@ -29,3 +31,13 @@ Grid Parameters
     
 
 ``initial_temperature``
+
+``include_igm``
+    Include IGM phase in the model?
+    
+    Default: ``True``
+    
+``include_cgm``
+    Include CGM phase in the model?
+
+    Default: ``True``    

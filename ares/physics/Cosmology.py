@@ -15,7 +15,7 @@ from scipy.integrate import quad
 from ..util.ParameterFile import ParameterFile
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun
 
-class Cosmology:
+class Cosmology(object):
     def __init__(self, **kwargs):
         """Initialize a Cosmology object.
         
@@ -29,14 +29,15 @@ class Cosmology:
         self.omega_b_0 = self.pf['omega_b_0']
         self.omega_l_0 = self.pf['omega_l_0']
         self.omega_cdm_0 = self.omega_m_0 - self.omega_b_0
+
         self.hubble_0 = self.pf['hubble_0'] * 100 / km_per_mpc
         self.cmb_temp_0 = self.pf['cmb_temp_0']
         self.approx_highz = self.pf['approx_highz']
+        self.approx_lowz = False
         self.sigma_8 = self.sigma8 = self.pf['sigma_8']
         self.primordial_index = self.pf['primordial_index']
         
-        self.CriticalDensityNow = (3 * self.hubble_0**2) \
-            / (8 * np.pi * G)
+        self.CriticalDensityNow = (3 * self.hubble_0**2) / (8 * np.pi * G)
         
         self.h70 = self.pf['hubble_0']
         
@@ -52,14 +53,22 @@ class Cosmology:
         self.g_per_baryon = m_H / (1. - self.Y) / (1. + self.y)
         self.b_per_g = 1. / self.g_per_baryon
         self.baryon_per_Msun = g_per_msun / self.g_per_baryon
-                
+         
+        # Decoupling (gas from CMB) redshift       
         self.zdec = 150. * (self.omega_b_0 * self.h70**2 / 0.023)**0.4 - 1.
 
+        # Matter/Lambda equality
+        #if self.omega_l_0 > 0:
+        self.a_eq = (self.omega_m_0 / self.omega_l_0)**(1./3.)
+        self.z_eq = 1. / self.a_eq - 1.
+        
+        # Common
         self.Omh2 = self.omega_b_0 * self.h70**2
 
         # Hydrogen, helium, electron, and baryon densities today (z = 0)
         self.rho_b_z0 = self.MeanBaryonDensity(0)
         self.rho_m_z0 = self.MeanMatterDensity(0)
+        self.rho_cdm_z0 = self.rho_m_z0 - self.rho_b_z0
         self.nH0 = (1. - self.Y) * self.rho_b_z0 / m_H
         self.nHe0 = self.y * self.nH0
         self.ne0 = self.nH0 + 2. * self.nHe0
@@ -71,7 +80,10 @@ class Cosmology:
         self.delta_c0 = 1.686
         self.TcmbNow = self.cmb_temp_0
         
-        self.fbaryon = self.omega_b_0 / self.omega_cdm_0
+        self.fbaryon = self.omega_b_0 / self.omega_m_0
+        self.fcdm = self.omega_cdm_0 / self.omega_m_0
+        
+        self.fbar_over_fcdm = self.fbaryon / self.fcdm
         
         # Used in hmf
         self.pars = {'omega_lambda':self.omega_l_0,
@@ -91,13 +103,8 @@ class Cosmology:
         """
         Returns lookback time from z_i to z_f in seconds, where z_i < z_f.
         """
-        
-        #if self.approx_highz:
-        return 2. * ((1. + z_i)**-1.5 - (1. + z_f)**-1.5) / \
-            np.sqrt(self.omega_m_0) / self.hubble_0 / 3.    
-        
-        integrand = lambda z: 1. / (1. + z) / self.EvolutionFunction(z)
-        return quad(integrand, z_i, z_f)[0] / self.HubbleParameter(z_i)
+
+        return self.t_of_z(z_i) - self.t_of_z(z_f)
         
     def TCMB(self, z):
         return self.cmb_temp_0 * (1. + z)
@@ -106,9 +113,42 @@ class Cosmology:
         """ CMB energy density. """
         return 4.0 * sigma_SB * self.TCMB(z)**4 / c
     
+    def t_of_z(self, z):
+        """
+        Time-redshift relation for a matter + lambda Universe.
+        
+        References
+        ----------
+        Ryden, Equation 6.28
+        
+        Returns
+        -------
+        Time since Big Bang in seconds.
+        
+        """
+        #if self.approx_highz:
+        #    pass
+        #elif self.approx_lowz:
+        #    pass
+            
+        # Full calculation
+        a = 1. / (1. + z)
+        t = (2. / 3. / np.sqrt(1. - self.omega_m_0)) \
+            * np.log((a / self.a_eq)**1.5 + np.sqrt(1. + (a / self.a_eq)**3.)) \
+            / self.hubble_0
+
+        return t
+        
+    #def z_of_t(self, t):
+        
+
     def Tgas(self, z):
         """
         Gas kinetic temperature at z assuming only adiabatic cooling after zdec.
+        
+        .. note :: This is very approximate. Use RECFAST or CosmoRec for more
+            precise solutions.
+            
         """
         
         if z >= self.zdec:
@@ -116,16 +156,12 @@ class Cosmology:
         else:
             return self.TCMB(self.zdec) * (1. + z)**2 / (1. + self.zdec)**2
 
-    def ScaleFactor(self, z):
-        return 1. / (1. + z)
-        
     def EvolutionFunction(self, z):
         return self.omega_m_0 * (1.0 + z)**3  + self.omega_l_0
         
     def HubbleParameter(self, z):
         if self.approx_highz:
-            return self.hubble_0 * np.sqrt(self.omega_m_0) \
-                * (1. + z)**1.5
+            return self.hubble_0 * np.sqrt(self.omega_m_0) * (1. + z)**1.5
         return self.hubble_0 * np.sqrt(self.EvolutionFunction(z)) 
     
     def HubbleLength(self, z):
@@ -169,10 +205,13 @@ class Cosmology:
     
     def LuminosityDistance(self, z):
         """
-        Returns luminosity distance in Mpc.  Assumes we mean distance from us (z = 0).
+        Returns luminosity distance in cm.  Assumes we mean distance from us (z = 0).
         """
         
-        return (1. + z) * self.ComovingRadialDistance(0., z)
+        integr = quad(lambda z: self.hubble_0 / self.HubbleParameter(z), 
+            0.0, z)[0]
+        
+        return integr * c * (1. + z) / self.hubble_0
         
     def ComovingRadialDistance(self, z0, z):
         """

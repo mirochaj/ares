@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Wed Sep 24 15:15:36 MDT 2014
 
-Description: This will be like glorb.evolve.RadiationBackground.
+Description: 
 
 """
 
@@ -15,21 +15,22 @@ from math import ceil
 import os, re, types, gc
 from ..util.Misc import logbx
 from ..util import ParameterFile
-from ..physics.Constants import *
-from .IntergalacticMedium import IGM
-from ..util.PrintInfo import print_rb
+from ..static import GlobalVolume
 from ..util.Misc import num_freq_bins
 from scipy.interpolate import interp1d
+from .OpticalDepth import OpticalDepth
+from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
-from ..populations import StellarPopulation
+from ..populations import CompositePopulation
+from ..util.ReadData import flatten_flux, split_flux
 from scipy.integrate import quad, romberg, romb, trapz, simps
-from ..populations import BlackHolePopulation, StellarPopulation
+from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
 
 try:
     import h5py
 except ImportError:
     pass
-     
+
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
@@ -37,9 +38,9 @@ try:
 except ImportError:
     rank = 0
     size = 1
-    
+
 ARES = os.getenv('ARES')
-            
+
 log10 = np.log(10.)    # for when we integrate in log-space
 four_pi = 4. * np.pi
 
@@ -60,8 +61,8 @@ defkwargs = \
  'zxavg':0.0,   
 }       
 
-class UniformBackground:
-    def __init__(self, pop=None, use_tab=True, **kwargs):
+class UniformBackground(object):
+    def __init__(self, grid=None, **kwargs):
         """
         Initialize a UniformBackground object.
         
@@ -72,41 +73,437 @@ class UniformBackground:
         
         Parameters
         ----------
-        pop : glorb.populations.StellarPopulation instance, or
-              glorb.populations.BlackHolePopulation instance
-        
+        grid : instance
+            ares.static.Grid instance
+            
         """
                 
-        if pop is not None:
-            self.pop = pop
-            self.pf = self.pop.pf
-        else:
-            self.pf = ParameterFile(**kwargs)
-            
-            if self.pf['source_type'] == 'star':
-                self.pop = StellarPopulation(**kwargs)
-            else:
-            #elif self.pf['source_type'] == 'bh':
-                self.pop = BlackHolePopulation(**kwargs)
-            #else:
-            #    raise ValueError('source_type %s not recognized.' \
-            #        % self.pf['source_type'])
-                 
+        self._kwargs = kwargs.copy()
+        self.pf = ParameterFile(**kwargs)
+        
         # Some useful physics modules
-        self.cosm = self.pop.cosm
-        self.hydr = Hydrogen(self.pop.cosm, 
-            approx_Salpha=self.pf['approx_Salpha'], nmax=self.pf['lya_nmax'])
-        
-        # IGM instance
-        self.igm = IGM(rb=self, use_tab=use_tab, **kwargs)
-        
+        if grid is not None:
+            self.grid = grid
+            self.cosm = grid.cosm
+        else:
+            self.grid = None
+            self.cosm = Cosmology()
+
         self._set_integrator()
         
-        if self.pf['verbose'] and \
-            (not self.pf['approx_lwb'] or not self.pf['approx_xrb']):
-             print_rb(self)
-             
-    def _set_integrator(self):    
+        #self._set_populations()
+        #self._set_generators()
+        
+    @property
+    def OpticalDepth(self):
+        if not hasattr(self, '_OpticalDepth'):
+            self._OpticalDepth = OpticalDepth(**self.pf)
+        return self._OpticalDepth
+        
+    @property
+    def hydr(self):
+        if not hasattr(self, '_hydr'):
+            self._hydr = Hydrogen(self.cosm, **self.pf)
+
+        return self._hydr
+
+    @property
+    def volume(self):
+        if not hasattr(self, '_volume'):
+            self._volume = GlobalVolume(self)
+
+        return self._volume      
+        
+    @property
+    def solve_rte(self):
+        """
+        By population and band, are we solving the RTE in detail?    
+        """
+                
+        if not hasattr(self, '_solve_rte'):
+                
+            self._solve_rte = []
+            for i, pop in enumerate(self.pops):
+                                
+                if self.bands_by_pop[i] is None:
+                    self._solve_rte.append(False)
+                    continue
+                                
+                for j, band in enumerate(self.bands_by_pop[i]):
+                    
+                    if band is None:
+                        self._solve_rte.append(False)
+                        break
+                    elif type(pop.pf['pop_solve_rte']) is bool:
+                        self._solve_rte.append(pop.pf['pop_solve_rte'])
+                        break
+
+        assert len(self._solve_rte) == len(self.pops)                
+                                
+        return self._solve_rte
+        
+    def _get_bands(self, pop):
+        """
+        Break radiation field into chunks we know how to deal with.
+        
+        For example, HI, HeI, and HeII sawtooth modulation.
+        
+        Returns
+        -------
+        List of band segments that will be handled by the generator.
+        
+        """
+        
+        Emin, Emax = pop.pf['pop_Emin'], pop.pf['pop_Emax']
+        
+        # Pure X-ray
+        if (Emin > E_LL) and (Emin > 4 * E_LL):
+            return [(Emin, Emax)]
+        
+        bands = []
+        
+        # Check for optical/IR
+        if Emin < E_LyA:
+            bands.append((Emin, E_LyA))
+        
+        # Check for sawtooth
+        if Emin < E_LL:
+            bands.append((E_LyA, E_LL))
+
+        if Emax <= E_LL:
+            return bands
+
+        # Check for HeII
+        if Emax > (4 * E_LL):
+            bands.append((E_LL, 4 * E_LyA))
+            bands.append((4 * E_LyA, 4 * E_LL))
+            bands.append((4 * E_LL, Emax))
+        else:
+            bands.append((E_LL, Emax))    
+            
+        return bands
+        
+    @property
+    def approx_all_pops(self):
+        if not hasattr(self, '_approx_all_pops'):
+            
+            self._approx_all_pops = True
+            for i, pop in enumerate(self.pops):
+
+                # Can't use self.approx_rte in this case... :(
+
+                if pop.pf['pop_solve_rte'] == False:
+                    continue
+                else:
+                    self._approx_all_pops = False
+                    break
+
+        return self._approx_all_pops
+
+    @property
+    def pops(self):
+        if not hasattr(self, '_pops'):
+            self._pops = CompositePopulation(**self._kwargs).pops
+            
+        return self._pops
+
+    @property
+    def Npops(self):
+        return len(self.pops)
+    
+    @property
+    def energies(self):
+        if not hasattr(self, '_energies'):
+            bands = self.bands_by_pop
+        return self._energies
+    
+    @property
+    def redshifts(self):
+        if not hasattr(self, '_redshifts'):
+            bands = self.bands_by_pop
+        return self._redshifts
+    
+    @property
+    def bands_by_pop(self):
+        if not hasattr(self, '_bands_by_pop'):
+            # Figure out which band each population emits in
+            if self.approx_all_pops:
+                self._energies = [[None] for i in range(self.Npops)]
+                self._redshifts = [None for i in range(self.Npops)]
+                self._bands_by_pop = [None for i in range(self.Npops)]   
+            else:    
+                # Really just need to know if it emits ionizing photons, 
+                # or has any sawtooths we need to care about
+                self._bands_by_pop = []
+                self._energies = []
+                self._redshifts = []
+                for i, pop in enumerate(self.pops):
+                    bands = self._get_bands(pop)
+                    self._bands_by_pop.append(bands)   
+                    
+                    if (bands is None) or (not pop.pf['pop_solve_rte']):
+                        z = nrg = ehat = tau = None
+                    else:
+                        z, nrg, tau, ehat = self._set_grid(pop, bands)                        
+
+                    self._energies.append(nrg)
+                    self._redshifts.append(z)
+                    
+        return self._bands_by_pop            
+
+    @property
+    def tau(self):
+        if not hasattr(self, '_tau'):
+            self._tau = []
+            for i, pop in enumerate(self.pops):
+                if self.solve_rte[i]:
+                    bands = self.bands_by_pop[i]
+                    z, nrg, tau, ehat = self._set_grid(pop, bands, 
+                        compute_tau=True)
+                else:
+                    z = nrg = ehat = tau = None
+
+                self._tau.append(tau)
+        
+        return self._tau
+    
+    @property
+    def emissivities(self):
+        if not hasattr(self, '_emissivities'):
+            self._emissivities = []
+            for i, pop in enumerate(self.pops):
+                if self.solve_rte[i]:
+                    bands = self.bands_by_pop[i]
+                    z, nrg, tau, ehat = self._set_grid(pop, bands, 
+                        compute_emissivities=True)
+                else:
+                    z = nrg = ehat = tau = None
+    
+                self._emissivities.append(ehat)
+    
+        return self._emissivities
+
+    #def _set_populations(self):
+    #    """
+    #    Initialize population(s) of radiation sources!
+    #    
+    #    This routine will figure out emission energies, redshifts, and
+    #    tabulate emissivities. 
+    #    
+    #    Returns
+    #    -------
+    #    Nothing. Sets attributes `energies`, `redshifts`, and `emissivity`
+    #    for each population.
+    #    
+    #    """
+    #
+    #    self.tau = []
+    #    self.energies = []; self.redshifts = []; self.emissivities = []
+    #    for i, pop in enumerate(self.pops):
+    #
+    #        if self.solve_rte[i]:
+    #            bands = bands_by_pop[i]
+    #            z, nrg, tau, ehat = self._set_grid(pop, bands)
+    #        else:
+    #            z = nrg = ehat = tau = None
+    #
+    #        self.tau.append(tau)
+    #        self.energies.append(nrg)
+    #        self.redshifts.append(z)
+    #        self.emissivities.append(ehat)
+
+    def _set_grid(self, pop, bands, zi=None, zf=None, nz=None, 
+        compute_tau=False, compute_emissivities=False):
+        """
+        Create energy and redshift arrays.
+        
+        Parameters
+        ----------
+        
+        
+        Returns
+        -------
+        Tuple of redshifts and energies for this particular population.
+        
+        References
+        ----------
+        Haardt, F. & Madau, P. 1996, ApJ, 461, 20
+        
+        """
+
+        if zi is None:
+            zi = pop.pf['initial_redshift']
+        if zf is None:    
+            zf = pop.pf['final_redshift']
+        if nz is None:
+            nz = pop.pf['pop_tau_Nz']
+            
+        x = np.logspace(np.log10(1 + zf), np.log10(1 + zi), nz)
+        z = x - 1.   
+        R = x[1] / x[0]   
+                
+        # Loop over bands, build energy arrays
+        tau_by_band = []
+        energies_by_band = []
+        emissivity_by_band = []        
+        for band in bands:       
+            
+            E0, E1 = band
+            has_sawtooth = (E0 == E_LyA) and (E1 == E_LL)
+            has_sawtooth |= (E0 == 4*E_LyA) or (E1 == 4*E_LL)
+            
+            # Special treatment if LWB or UVB
+            if has_sawtooth:
+
+                HeII = band[0] > E_LL
+
+                E = []
+                narr = np.arange(2, self.pf['lya_nmax'])
+                for n in narr:
+                    Emi = self.hydr.ELyn(n)
+                    Ema = self.hydr.ELyn(n + 1)
+
+                    if HeII:
+                        Emi *= 4
+                        Ema *= 4
+
+                    N = num_freq_bins(nz, zi=zi, zf=zf, Emin=Emi, Emax=Ema)
+
+                    # Create energy arrays
+                    EofN = Emi * R**np.arange(N)
+
+                    # A list of lists!                    
+                    E.append(EofN)
+                
+                if compute_tau:
+                    if band == (E_LyA, E_LL) or (4 * E_LyA, 4 * E_LL):
+                        tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
+                    else:
+                        tau = [self._set_tau(z, Earr, pop) for Earr in E]
+                else:
+                    tau = None
+                
+                if compute_emissivities:    
+                    ehat = [self.TabulateEmissivity(z, Earr, pop) for Earr in E]
+                else:
+                    ehat = None
+
+                # Store stuff for this band
+                tau_by_band.append(tau)
+                energies_by_band.append(E)
+                emissivity_by_band.append(ehat)
+
+            else:
+                N = num_freq_bins(x.size, zi=zi, zf=zf, Emin=E0, Emax=E1)
+                E = E0 * R**np.arange(N)
+                                
+                # Tabulate optical depth
+                if compute_tau:
+                    z, E, tau = self._set_tau(z, E, pop)
+                else:
+                    tau = None
+
+                # Tabulate emissivity
+                if compute_emissivities:
+                    ehat = self.TabulateEmissivity(z, E, pop)
+                else:
+                    ehat = None
+
+                # Store stuff for this band
+                tau_by_band.append(tau)
+                energies_by_band.append(E)
+                emissivity_by_band.append(ehat)
+
+        return z, energies_by_band, tau_by_band, emissivity_by_band
+
+    def _set_tau(self, z, E, pop):
+        """
+        Tabulate the optical depth.
+        
+        The results of this function depend on a few global parameters.
+        
+        If pop_approx_tau is True, then the optical depth will be assumed to be
+        zero for all redshifts and energies.
+        
+        If pop_approx_tau == 'neutral', then the optical depth will be computed 
+        assuming a neutral medium for all times (including HeI).
+        
+        If pop_approx_tau is a function, it is assumed to describe the ionized 
+        hydrogen fraction as a function of redshift.
+        
+        If pop_approx_tau is 'post_EoR', we assume the only species left that
+        isn't fully ionized is helium, with 100% of helium having been
+        ionized once. That is, xHI = xHeI = 0, xHeII = 1.
+        
+        Parameters
+        ----------
+        z : np.ndarray
+            Array of redshifts.
+        energies : np.ndarray
+            Array of rest-frame photon energies.    
+        
+        Returns
+        -------
+        A 2-D array of optical depths, of shape (len(z), len(E)).    
+            
+        """
+                
+        # Default to optically thin if nothing is supplied
+        if pop.pf['pop_approx_tau'] == True:
+            return z, E, np.zeros([len(z), len(E)])
+            
+        # Not necessarily true in the future if we include H2 opacity    
+        if E.max() <= E_LL:
+            return z, E, np.zeros([len(z), len(E)])
+                    
+        # Create an ares.simulations.OpticalDepth instance
+        tau_solver = OpticalDepth(**pop.pf)
+        self._tau_solver = tau_solver
+        
+        # Try to load file from disk.
+        z, E, tau = tau_solver._fetch_tau(pop, z, E)
+                
+        # Generate it now if no file was found.
+        if tau is None:
+            no_tau_table(self)
+            
+            if pop.pf['pop_approx_tau'] is 'neutral':
+                tau_solver.ionization_history = lambda z: 0.0
+            elif pop.pf['pop_approx_tau'] is 'post_EoR':
+                tau_solver.ionization_history = lambda z: 1.0
+            elif type(pop.pf['pop_approx_tau']) is types.FunctionType:
+                tau_solver.ionization_history = pop.pf['pop_approx_tau']
+            else:                                                          
+                raise NotImplemented('Unrecognized approx_tau option.')
+
+            tau = tau_solver.TabulateOpticalDepth()   
+
+        return z, E, tau
+
+    @property
+    def generators(self):
+        """
+        Create generators for each population.
+        
+        Returns
+        -------
+        Nothing. Sets attribute `generators`.
+
+        """
+        if not hasattr(self, '_generators'):
+        
+            self._generators = []
+            for i, pop in enumerate(self.pops):
+                if not self.solve_rte[i]:
+                    gen = None
+                else:
+                    gen = self.FluxGenerator(popid=i)
+            
+                self._generators.append(gen)    
+        
+        return self._generators
+
+    def _set_integrator(self):
         """
         Initialize attributes pertaining to numerical integration.
         """
@@ -118,24 +515,93 @@ class UniformBackground:
         self._atol = self.pf["integrator_atol"]
         self._divmax = int(self.pf["integrator_divmax"])
     
-    def AngleAveragedFlux(self, z, E, **kwargs):
+    def update_rate_coefficients(self, z, **kwargs):
+        """
+        Compute ionization and heating rate coefficients.
+
+        Returns
+        -------
+        Dictionary containing ionization and heating rate coefficients.
+
+        """
+
+        # Setup arrays for results - sorted by sources and absorbers
+        # The middle dimension of length 1 is the number of cells
+        # which is always 1 for these kinds of calculations
+        self.k_ion  = np.zeros([self.Npops, 1, self.grid.N_absorbers])
+        self.k_ion2 = np.zeros([self.Npops, 1, self.grid.N_absorbers, 
+            self.grid.N_absorbers])
+        self.k_heat = np.zeros([self.Npops, 1, self.grid.N_absorbers])
+        
+        # Loop over sources
+        for i, source in enumerate(self.pops):
+
+            ##
+            ## What to do for approximate RTE populations?
+            ##
+            
+            # Loop over absorbing species
+            for j, species in enumerate(self.grid.absorbers):
+                
+                if not self.solve_rte[i]:
+                    self._update_by_band_and_species(z, i, j, None, **kwargs)
+                    continue
+                
+                # Sum over bands
+                for k, band in enumerate(self.energies[i]):
+                    self._update_by_band_and_species(z, i, j, k, **kwargs)
+
+        # Sum over sources
+        self.k_ion_tot = np.sum(self.k_ion, axis=0)
+        self.k_ion2_tot = np.sum(self.k_ion2, axis=0)
+        self.k_heat_tot = np.sum(self.k_heat, axis=0)
+
+        to_return = \
+        {
+         'k_ion': self.k_ion_tot,
+         'k_ion2': self.k_ion2_tot,
+         'k_heat': self.k_heat_tot,
+        }
+
+        return to_return
+
+    def _update_by_band_and_species(self, z, i, j, k, **kwargs):
+        if kwargs['zone'] == 'igm':
+            self.k_ion[i,0,j] += \
+                self.volume.IonizationRateIGM(z, species=j, popid=i,
+                band=k, **kwargs)
+            self.k_heat[i,0,j] += \
+                self.volume.HeatingRate(z, species=j, popid=i,
+                band=k, **kwargs)
+    
+            for h, donor in enumerate(self.grid.absorbers):
+                self.k_ion2[i,0,j,h] += \
+                    self.volume.SecondaryIonizationRateIGM(z, 
+                    species=j, donor=h, popid=i, band=k, **kwargs)
+    
+        else:
+            self.k_ion[i,0,j] += \
+                self.volume.IonizationRateCGM(z, species=j, popid=i,
+                band=k, **kwargs)
+        
+    def AngleAveragedFlux(self, z, E, popid=0, **kwargs):
         """
         Compute flux at observed redshift z and energy E (eV).
-    
+
         Local flux (i.e. flux at redshift z) depends (potentially) on emission 
         from sources at all redshifts z' > z. This method performs an integral
         over redshift, properly accounting for geometrical dilution, redshift,
         source SEDs, and the fact that emissivities were (possibly) different
         at higher redshift. That is, we actually solve the cosmological 
         radiative transfer equation.
-    
+
         Parameters
         ----------
         z : float
             observer redshift
         E : float
             observed photon energy (eV)
-    
+
         ===============
         relevant kwargs
         ===============
@@ -165,6 +631,8 @@ class UniformBackground:
         AngleAveragedFluxSlice : the function we're integrating over.
     
         """
+        
+        pop = self.pops[popid]
     
         if E < E_LyA:
             thin = False
@@ -188,9 +656,9 @@ class UniformBackground:
         kw.update(kwargs)
     
         # Set limits of integration in redshift space
-        zi = max(z, self.pop.zdead)
+        zi = max(z, pop.zdead)
         if kw['zf'] is None:
-            zf = self.pop.zform
+            zf = pop.zform
         else:
             zf = kw['zf']
     
@@ -225,7 +693,7 @@ class UniformBackground:
     
         # Compute integral
         if type(integrand) == types.FunctionType:
-            if self.pop.burst:
+            if pop.burst:
                 raise ValueError('Burst needs correctness-check.')
                 #flux = integrand(self.pop.zform)
             elif self._integrator == 'quad':
@@ -261,7 +729,7 @@ class UniformBackground:
     
         return flux
     
-    def AngleAveragedFluxSlice(self, z, E, zp, **kwargs):
+    def AngleAveragedFluxSlice(self, z, E, zp, popid=0, **kwargs):
         """
         Compute flux at observed redshift z due to sources at higher redshift.
     
@@ -307,16 +775,18 @@ class UniformBackground:
     
         """
     
+        pop = self.pops[popid]
+    
         kw = defkwargs.copy()
         kw.update(kwargs)
     
         if kw['xray_emissivity'] is None: # should include LyA too
             H = self.cosm.HubbleParameter(zp)
-            E0 = self.igm.RestFrameEnergy(z, E, zp)
-            epsilonhat = self.pop.NumberEmissivity(zp, E0)
+            E0 = self.volume.RestFrameEnergy(z, E, zp)
+            epsilonhat = pop.NumberEmissivity(zp, E0)
             epsilonhat_over_H = epsilonhat / H
     
-            if (E0 > self.pop.rs.Emax) or (E0 < self.pop.rs.Emin):
+            if (E0 > pop.src.Emax) or (E0 < pop.src.Emin):
                 return 0.0
     
         else:
@@ -330,42 +800,17 @@ class UniformBackground:
                 tau = kw['tau']
         elif kw['xavg'] is not None:
             if E > E_LL:
-                tau = self.igm.OpticalDepth(z, zp, E, xavg=kw['xavg'],
+                tau = self.volume.OpticalDepth(z, zp, E, xavg=kw['xavg'],
                     zxavg=kw['zxavg'])
             else:
                 tau = 0.0
         else:
-            tau = self.igm.OpticalDepth(z, zp, E, xavg=kw['xavg'])
+            raise NotImplemented('this needs fixing')
+            tau = self.volume.OpticalDepth(z, zp, E, xavg=kw['xavg'])
     
         return c * (1. + z)**2 * epsilonhat_over_H * np.exp(-tau) / four_pi
-    
-    def LWBackground(self):
-        """
-        Compute LW Background over all redshifts.
-    
-        Returns
-        -------
-        Redshifts, photon energies, and fluxes, (z, E, flux).
-        The flux array has shape (# redshift points, # frequency points).
-        Each of these are lists, one element per Lyman-n band.
-    
-        """
         
-        # Now, compute background flux
-        cxrb = self.LWFluxGenerator()
-    
-        Nn = len(self.igm.lwb_En)
-        fluxes = [np.zeros_like(self.igm.lwb_emiss[i]) for i in range(Nn)]
-        
-        for i, flux in enumerate(cxrb):
-            j = len(self.igm.lwb_zl) - i - 1  # since we're going from high-z to low-z
-            
-            for n in range(Nn):
-                fluxes[n][j] = flux[n]
-    
-        return self.igm.lwb_zl, self.igm.lwb_En, fluxes    
-    
-    def LymanWernerFlux(self, z, E, **kwargs):
+    def LymanWernerFlux(self, z, E, popid=0, **kwargs):
         """
         Compute flux at observed redshift z and energy E (eV).
     
@@ -402,6 +847,8 @@ class UniformBackground:
         AngleAveragedFluxSlice : the function we're integrating over.
     
         """
+        
+        pop = self.pops[popid]
     
         kw = defkwargs.copy()
         kw.update(kwargs)
@@ -417,13 +864,13 @@ class UniformBackground:
         # Corresponding zmax ("dark screen" as Z. Haiman likes to say)
         if kw['tau'] == 0.0:
             if kw['zf'] is None:
-                zmax = self.pop.zform
+                zmax = pop.zform
             else:
                 zmax = kw['zf']
         else:
             zmax = En * (1. + z) / E - 1.
     
-        zmax = min(zmax, self.pop.zform)
+        zmax = min(zmax, pop.zform)
     
         # Normalize to help integrator
         Jc = 1e-10
@@ -451,69 +898,68 @@ class UniformBackground:
     
         return self._frec
         
-    def LymanAlphaFlux(self, z=None, fluxes=None, **kwargs):
+    @property
+    def narr(self):
+        if not hasattr(self, '_narr'):
+            self._narr = np.arange(2, self.pf['lya_nmax'])    
+        
+        return self._narr
+
+    def LymanAlphaFlux(self, z=None, fluxes=None, popid=0, **kwargs):
         """
-        Compute background flux at Lyman-alpha resonance. Includes products
-        of Ly-n cascades if approx_lwb=0.
+        Compute background flux at Lyman-alpha resonance. 
+        
+        ..note:: Optionally includes products of Ly-n cascades if approx_lwb=0.
         
         Parameters
         ----------
         z : int, float
             Redshift of interest
         fluxes : np.ndarray
-            Results of LWBackground. List of 2-D arrays, one per Ly-n band
-            (from n=2 to n=lya_nmax). 
+            Fluxes grouped by LW band at a single redshift.
 
         Returns
         -------
-        Lyman alpha flux at given redshift, or, if fluxes are supplied, returns
-        flux at all redshifts.
+        Lyman alpha flux at given redshift.
             
         """
+        
+        pop = self.pops[popid]
 
-        if not self.pf['is_lya_src'] or (z > self.pop.zform):
+        if not pop.is_lya_src or (z > pop.zform):
             return 0.0
+            
+        if pop.pf['pop_Ja'] is not None:
+            return pop.pf['pop_Ja'](z)
 
-        if self.pf['Ja'] is not None:
-            return self.pf['Ja'](z)    
+        # Flat spectrum, no injected photons, instantaneous emission only
+        if not self.solve_rte[popid]:
+            norm = c * self.cosm.dtdz(z) / four_pi
+
+            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6) \
+                * pop.pf['pop_fesc_LW']
+
+            return norm * (1. + z)**3 * (1. + pop.pf['lya_frec_bar']) * \
+                rhoLW / dnu
 
         # Full calculation
-        if self.pf['approx_lwb'] == 0:
+        J = 0.0
 
-            if self.pf['discrete_lwb']:
-                J = np.zeros(fluxes[0].shape[0])
-            else:
-                J = 0.0
+        for i, n in enumerate(self.narr):
+
+            if n == 2 and not pop.pf['lya_continuum']:
+                continue
+            if n > 2 and not pop.pf['lya_injected']:
+                continue
             
-            for i, n in enumerate(np.arange(2, self.pf['lya_nmax'])):
-    
-                if n == 2 and not self.pf['lya_continuum']:
-                    continue
-                if n > 2 and not self.pf['lya_injected']:
-                    continue
-    
-                En = self.hydr.ELyn(n)
-                Enp1 = self.hydr.ELyn(n + 1)
-                
-                if self.pf['discrete_lwb']:
-                    Jn = self.hydr.frec(n) * fluxes[i][:,0]
-                else:
-                    Eeval = En + 0.01 * (Enp1 - En)
-                    Jn = self.hydr.frec(n) * self.LymanWernerFlux(z, Eeval, 
-                        **kwargs)    
-    
-                J += Jn
-    
-            return J
-    
-        # Flat spectrum, no injected photons, instantaneous emission only
-        else:
-            norm = c * self.cosm.dtdz(z) / four_pi
-            return norm * (1. + z)**3 * (1. + self.pf['lya_frec_bar']) * \
-                self.pop.LymanWernerPhotonLuminosityDensity(z) / dnu
+            Jn = self.hydr.frec(n) * fluxes[i][0]
+        
+            J += Jn
+        
+        return J        
         
     def load_sed(self, prefix=None):
-        fn = self.pop.rs.sed_name()
+        fn = pop.src.sed_name()
     
         if prefix is None:
             if not ARES:
@@ -551,132 +997,8 @@ class UniformBackground:
     
         self.tabname = good_tab
         return good_tab
-    
-    def TabulateXrayEmissivity(self, zarr=None, **kwargs):
-        """ 
-        Compute emissivity of sources over redshift and frequency.
-    
-        Parameters
-        ----------
-        z : float
-            observer redshift
-    
-        ===============
-        relevant kwargs
-        ===============
-        zarr : np.ndarray
-            array of redshifts corresponding to entries in xarr
-    
-        Returns
-        -------
-        Emissivity (in units of s**-1 cm**-3 Hz**-1 sr**-1) as function of observed photon 
-        energy and redshift, z' > z. Actually, emissivity / HubbleParameter.
-    
-        shape = (z, E)
-    
-        """
-    
-        if zarr is None:
-            Nz = self.igm.L
-            zarr = self.igm.z
-        else:
-            Nz = len(zarr)
-    
-        found = False
-    
-        # SED table supplied by-hand
-        if self.pf['spectrum_table'] is not None:
-            if os.path.exists(self.pf['spectrum_table']):
-                found = True
-                if re.search('.hdf5', self.pf['spectrum_table']) or \
-                   re.search('.h5', self.pf['spectrum_table']):
-                    f = h5py.File(self.pf['spectrum_table'], 'r')
-                    E = f['E'].value
-                    LE = f['LE'].value
-                    f.close()
-                    if rank == 0 and self.pf['verbose']:
-                        print "Loaded %s." % self.pf['spectrum_table']
-                else:
-                    E, LE = np.loadtxt(self.pf['spectrum_table'], unpack=True)
-    
-                if self.pf['verbose'] and rank == 0:
-                    print "Loaded %s." % self.pf['spectrum_table']
-    
-            else:
-                if rank == 0 and self.pf['verbose'] \
-                    and self.pf['spectrum_table'] is not None:
-                    print "%s does not exist.\nCreating now..." % self.pf['spectrum_table']
-    
-        # Auto-find SED table
-        elif self.pf['load_sed']:
-            tab = self.load_sed(self.pf['sed_prefix'])
-    
-            if tab is not None:
-                E, LE = np.loadtxt(tab, unpack=True)
-                found = True
-    
-                if self.pf['verbose'] and rank == 0:
-                    print "Loaded %s." % tab
-                    self.pf['spectrum_table'] = tab
-    
-            else:
-                if rank == 0 and self.pf['verbose']:
-                    print "No SED table found. Creating SED now..."
-    
-        if found:    
-            # Fix energy sampling if need be    
-            if E.size != self.igm.E.size or (not np.allclose(E, self.igm.E)):    
-                if rank == 0:
-                    print 'Photon energies in SED table do not match specifications in parameter file.'
-                    print 'Interpolating to required values...'
-    
-                func = interp1d(np.log10(E), np.log10(LE), kind='linear', 
-                    fill_value=-np.inf, bounds_error=False)
-                self.Inu = 10**np.array(map(func, self.igm.logE))
-    
-            else:
-                self.Inu = LE        
-    
-            # Apply a power-law cutoff
-            if np.isfinite(self.pf['spectrum_logN']):
-                print "Applying power-law cutoff to input SED."
-                cutoff = lambda nrg: np.exp(-10.**self.pf['spectrum_logN'] \
-                    * (self.igm.sigma(nrg, 0) + self.pf['approx_He'] \
-                    * self.cosm.y * self.igm.sigma(nrg, 1)))
-    
-                self.Inu *= np.array(map(cutoff, self.igm.E))
-    
-        # Generate table from scratch
-        if not found:
-            # Assumes spectral shape doesn't change with time
-    
-            Inu = np.zeros(self.igm.N)
-            for i in range(self.igm.N): 
-                Inu[i] = self.pop.rs.Spectrum(self.igm.E[i])
-    
-            self.Inu = Inu
-    
-            if self.pf['spectrum_table'] is not None and rank == 0:
-                f = h5py.File(self.pf['spectrum_table'], 'w')
-                f.create_dataset('E', data=self.igm.E)
-                f.create_dataset('LE', data=self.Inu)
-                f.close()
-                if rank == 0 and self.pf['verbose']:
-                    print "Wrote %s." % self.pf['spectrum_table']
-    
-        self.Inu_hat = self.Inu / self.igm.E
-    
-        # Now, redshift dependent parts    
-        epsilon = np.zeros([Nz, self.igm.N])                     
-        for ll in xrange(Nz):
-            H = self.cosm.HubbleParameter(zarr[ll])                 
-            Lbol = self.pop.XrayLuminosityDensity(zarr[ll])                   
-            epsilon[ll,:] = self.Inu_hat * Lbol * ev_per_hz / H / erg_per_ev                
-    
-        self._xray_emissivity = epsilon
-        return epsilon
-            
-    def TabulateEmissivity(self, z, E):
+
+    def TabulateEmissivity(self, z, E, pop):
         """
         Tabulate emissivity over photon energy and redshift.
         
@@ -686,24 +1008,21 @@ class UniformBackground:
             Array of photon energies [eV]
         z : np.ndarray
             Array of redshifts 
+        popid : int
+            Identification number for population of interest.
             
         Returns
         -------
         A 2-D array, first axis corresponding to redshift, second axis for
-        redshift.
+        photon energy.
             
-        """      
-        
-        if np.all(E < E_th[0]):
-            L_func = self.pop.LymanWernerLuminosityDensity
-        else:
-            L_func = self.pop.XrayLuminosityDensity
-        
+        """
+                
         Nz, Nf = len(z), len(E)
         
         Inu = np.zeros(Nf)
         for i in xrange(Nf): 
-            Inu[i] = self.pop.rs.Spectrum(E[i])
+            Inu[i] = pop.src.Spectrum(E[i])
 
         # Convert to photon energy (well, something proportional to it)
         Inu_hat = Inu / E
@@ -711,94 +1030,66 @@ class UniformBackground:
         # Now, redshift dependent parts    
         epsilon = np.zeros([Nz, Nf])                     
         for ll in xrange(Nz):
-            H = self.cosm.HubbleParameter(z[ll])                 
-            Lbol = L_func(z[ll])  
+            H = self.cosm.HubbleParameter(z[ll])   
+            Lbol = pop.LuminosityDensity(z[ll])  
             epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H / erg_per_ev                
         
         return epsilon
             
-    def XrayBackground(self):
+    def _flux_generator_generic(self, energies, redshifts, ehat, tau=None,
+        flux0=None):
         """
-        Compute Cosmic X-ray Background over all redshifts.
-    
-        Returns
-        -------
-        Redshifts, photon energies, and CXB fluxes, (z, E, flux).
-        The flux array has shape (# redshift points, # frequency points).
-    
-        """
-    
-        # Now, compute background flux
-        cxrb = self.XrayFluxGenerator(self.igm.tau)
-    
-        fluxes = np.zeros([self.igm.L, self.igm.N])
-        for i, flux in enumerate(cxrb):
-            j = self.igm.L - i - 1  # since we're going from high-z to low-z
-            fluxes[j,:] = flux.copy()
-    
-        return self.igm.z, self.igm.E, fluxes    
-    
-    def XrayFluxGenerator(self, tau=None, emissivity=None, flux0=None):
-        """ 
-        Compute X-ray background flux in a memory efficient way.
-    
+        Generic flux generator.
+        
         Parameters
         ----------
+        energies : np.ndarray
+            1-D array of photon energies
+        redshifts : np.ndarray
+            1-D array of redshifts
+        ehat : np.ndarray
+            2-D array of tabulate emissivities.
         tau : np.ndarray
-            2-D optical depth, dimensions (self.L, self.N)
-        emissivity : np.ndarray
-            2-D, dimensions (self.L, self.N)
-        flux0 : np.ndarray
-            1-D array of fluxes, size is self.N
-    
-        Notes
-        -----
-        1. We only tabulate the emissivity in log-x formalism. 
-        2. This cannot be parallelized.
-          -I suppose we could parallelize over frequency but not redshift,
-           but then fluxes would have to be communicated on every redshift
-           step. Probably not worth it.
-    
-        Returns
-        -------
-        Generator for the flux, each in units of s**-1 cm**-2 Hz**-1 sr**-1
-    
+            2-D array of optical depths, or reference to an array that will
+            be modified with time.
+        flux0 : np.ndarray  
+            1-D array of initial flux values.
+            
         """
-    
-        if self.pf['redshift_bins'] is None and self.pf['tau_table'] is None:
-            raise ValueError('This method only works if redshift_bins != None.')
         
-        if emissivity is None:
-            emissivity_over_H = self.TabulateXrayEmissivity()
+        # Some stuff we need
+        x = 1. + redshifts
+        xsq = x**2
+        R = x[1] / x[0]     
+        Rsq = R**2
+        
+        # Shorthand
+        zarr = redshifts
+
+        #if tau is None:
+        #    if type(energies) is list:
+        #        tau = [np.zeros([redshifts.size, Earr.size]) \
+        #            for Earr in energies]
+        #    else:
+        #        tau = np.zeros([redshifts.size, energies.size])
+
+        if flux0 is None:
+            flux = np.zeros_like(energies)
         else:
-            emissivity_over_H = emissivity
-    
-        if tau is None:
-            tau = self.igm.tau
-            
-        optically_thin = False
-        if np.all(tau == 0):
-            optically_thin = True
-    
+            flux = flux0
+
+        L = redshifts.size
+        ll = self._ll = L - 1
+
         otf = False
-        if tau.shape == self.igm.E.shape:
-            otf = True
-    
-        if flux0 is None:    
-            flux = np.zeros_like(self.igm.E)
-        else:
-            flux = flux0.copy()
-    
-        ll = self.igm.L - 1
-        self.tau = tau
-    
+
         # Loop over redshift - this is the generator                    
-        z = self.igm.z[-1]
-        while z >= self.igm.z[0]:
-            
+        z = redshifts[-1]
+        while z >= redshifts[0]:
+                        
             # First iteration: no time for there to be flux yet
             # (will use argument flux0 if the EoR just started)
-            if ll == (self.igm.L - 1):
+            if ll == (L - 1):
                 pass
     
             # General case
@@ -809,102 +1100,104 @@ class UniformBackground:
                 else:   
                     exp_term = np.exp(-np.roll(tau[ll], -1))
     
-                trapz_base = 0.5 * (self.igm.z[ll+1] - self.igm.z[ll])
+                trapz_base = 0.5 * (zarr[ll+1] - zarr[ll])
 
-                # First term in Eq. 25 of Mirocha (2014)
-                #fnm1 = np.roll(emissivity_over_H[ll+1], -1, axis=-1)                
-                #fnm1 *= exp_term     
-                #fnm1 += emissivity_over_H[ll]
-                #fnm1 *= trapz_base
-                #
-                ## Second term in Eq. 25 of Mirocha (2014)       
-                #flux = np.roll(flux, -1) * exp_term / self.igm.Rsq
-                #
-                ## Add two terms together to get final flux
-                #flux += fnm1 * c * self.igm.x[ll]**2 / four_pi
-    
-                # Less readable version, but faster!
                 # Equivalent to Eq. 25 in Mirocha (2014)
+                # Less readable, but faster!
                 flux = (c / four_pi) \
-                    * ((self.igm.xsq[ll+1] * trapz_base) \
-                    * emissivity_over_H[ll]) \
-                    + exp_term * ((c / four_pi) * self.igm.xsq[ll+1] \
-                    * trapz_base * np.roll(emissivity_over_H[ll+1], -1, axis=-1) \
-                    + np.roll(flux, -1) / self.igm.Rsq)
-                
+                    * ((xsq[ll+1] * trapz_base) * ehat[ll]) \
+                    + exp_term * ((c / four_pi) * xsq[ll+1] \
+                    * trapz_base * np.roll(ehat[ll+1], -1, axis=-1) \
+                    + np.roll(flux, -1) / Rsq)
+                                    
             # No higher energies for photons to redshift from.
             # An alternative would be to extrapolate, and thus mimic a
             # background spectrum that is not truncated at Emax
             flux[-1] = 0.0
-    
-            yield flux
+                
+            yield redshifts[ll], flux
     
             # Increment redshift
             ll -= 1
-            z = self.igm.z[ll]
+            z = redshifts[ll]
     
             if ll == -1:
                 break
-    
-    def LWFluxGenerator(self):
+                
+    def _compute_line_flux(self, fluxes):  
         """
-        Evolute Lyman-Werner background in time.
+        Compute emission in lines.
         
+        ..note:: Includes Ly-a emission only at this point.
+        
+        Parameters
+        ----------
+        List of fluxes, for each sub-band in a sawtooth generator.
+        
+        """          
+
+        line_flux = [np.zeros_like(fluxes[i]) for i in range(len(fluxes))]
+
+        # Compute Lyman-alpha flux
+        if self.pf['include_H_Lya']:
+            line_flux[0][0] += self.LymanAlphaFlux(z=None, fluxes=fluxes)
+        
+        return line_flux 
+
+    def _flux_generator_sawtooth(self, E, z, ehat, tau):
+        """
+        Create generators for the flux between all Lyman-n bands.
+        """
+
+        gens = []
+        for i, nrg in enumerate(E):
+            gens.append(self._flux_generator_generic(nrg, z, ehat[i], tau[i]))
+
+        # Generator over redshift
+        for i in range(z.size):  
+            flux = []
+            for gen in gens:
+                z, new_flux = gen.next()
+                flux.append(new_flux)
+
+            # Increment fluxes
+            line_flux = self._compute_line_flux(flux)
+
+            yield z, flatten_flux(flux) + flatten_flux(line_flux)
+
+    def FluxGenerator(self, popid):
+        """
+        Evolve some radiation background in time.
+        
+        Parameters
+        ----------
+        popid : str
+            Create flux generator for a single population.
+    
         Returns
         -------
         Generator for the flux, each in units of s**-1 cm**-2 Hz**-1 sr**-1.
-        Unlike XrayFluxGenerator, this is a list, with each element 
-        corresponding to the flux between n and n+1 resonances.
+        Each step returns the current redshift, and the flux as a function of 
+        energy at the current redshift.
+        
         """
-        
-        Nn = len(self.igm.lwb_En)
-        
-        flux = [np.zeros_like(self.igm.lwb_En[i]) for i in range(Nn)]
-        
-        L = len(self.igm.lwb_zl)
-        ll = L - 1
-        
-        # Loop over redshift - this is the generator                    
-        z = self.igm.lwb_zl[-1]
-        while z >= self.igm.lwb_zl[0]:
-            
-            # Loop over Lyman-n bands
-            for i, n in enumerate(self.igm.lwb_n):
-                
-                # Emissivity in this band, at this redshift, for all energies
-                emissivity_over_H = self.igm.lwb_emiss[i]
-            
-                # First iteration: no time for there to be flux yet
-                # (will use argument flux0 if the EoR just started)
-                if ll == (L - 1):
-                    pass
-                
-                # General case
-                else:
-                        
-                    trapz_base = 0.5 * \
-                        (self.igm.lwb_zl[ll+1] - self.igm.lwb_zl[ll])
 
-                    # Equivalent to Eq. 25 in Mirocha (2014) but tau = 0
-                    flux[i] = (c / four_pi) \
-                        * ((self.igm.lwb_xsq[ll+1] * trapz_base) \
-                        * emissivity_over_H[ll]) \
-                        + ((c / four_pi) * self.igm.lwb_xsq[ll+1] \
-                        * trapz_base * np.roll(emissivity_over_H[ll+1], -1, axis=-1) \
-                        + np.roll(flux[i], -1) / self.igm.lwb_Rsq)
-                    
-                # This must be corrected: this bin cannot contain photons
-                # that originated @ z_{ll+1} because those photons would be 
-                # absorbed at the Ly-n+1 resonance, not Ly-n.
-                flux[i][-1] = 0.0
+        # List of all intervals in rest-frame photon energy
+        bands = self.bands_by_pop[popid]
         
-            yield flux
+        generators_by_band = []
+        for i, band in enumerate(bands):
+            if type(self.energies[popid][i]) is list:   
+                gen = self._flux_generator_sawtooth(E=self.energies[popid][i],
+                    z=self.redshifts[popid], ehat=self.emissivities[popid][i],
+                    tau=self.tau[popid][i])
+            else:        
+                gen = self._flux_generator_generic(self.energies[popid][i],
+                    self.redshifts[popid], self.emissivities[popid][i],
+                    tau=self.tau[popid][i])
+
+            generators_by_band.append(gen)
+
+        return generators_by_band
+        
     
-            # Increment redshift
-            ll -= 1
-            z = self.igm.lwb_zl[ll]
-    
-            if ll == -1:
-                break
-    
-             

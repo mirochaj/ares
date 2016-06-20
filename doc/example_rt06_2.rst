@@ -1,3 +1,5 @@
+:orphan:
+
 RT06 Test #2 (Strömgren Sphere, thermal evolution allowed)
 ==========================================================
 Test #2 from the Radiative Transfer Comparison Project (`Iliev et al. 2006

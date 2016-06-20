@@ -1,3 +1,5 @@
+:orphan:
+
 Physics Parameters
 ==================
 
@@ -37,6 +39,7 @@ Physics Parameters
 
 ``approx_He``
     See following table for possible behaviors depending on value of ``include_He``.
+    
     Default: False
     
 ===============  ==============  =============== 

@@ -89,15 +89,23 @@ class MultiPanel:
         if top is None:
             top = pl.rcParams['figure.subplot.top']
             
+        self.l = left
+        self.r = right
+        self.b = bottom
+        self.t = top    
+            
         self.square = dims[0] == dims[1]
         
         if (diagonal is not None) and not self.square:
             raise ValueError('Must have square matrix to use diagonal=True')
 
-        self.dims = dims
-        self.J, self.K = dims
-        self.padding = padding
+        self.dims = tuple(dims)
+        self.J, self.K = dims # J = nrows, K = ncols
+        self.nrows = self.J
+        self.ncols = self.K
         
+        self.padding = padding
+                
         # Size of an individual panel (in inches)
         self.pane_size = np.array(figsize) * np.array([right-left, top-bottom])
         self.pane_size *= np.array(panel_size)
@@ -179,15 +187,15 @@ class MultiPanel:
         self.bottom = []
         self.top = []
         for i in xrange(self.N):
-            j, k = self.axis_position(i)
+            k, j = self.axis_position(i)  # col, row
             
-            if k == 0:
-                self.bottom.append(i)
-            if k == self.K - 1:
-                self.top.append(i)    
             if j == 0:
+                self.bottom.append(i)
+            if j == self.nrows - 1:
+                self.top.append(i)    
+            if k == 0:
                 self.left.append(i)
-            if j == self.J - 1:
+            if k == self.ncols - 1:
                 self.right.append(i)       
 
         # Create subplots
@@ -268,7 +276,6 @@ class MultiPanel:
             self._rows = [[] for i in range(self.dims[0])]
             for element in self.active_elements:
                 col, row = self.axis_position(element)
-    
                 self._rows[row].append(element)
     
         return self._rows        
@@ -286,8 +293,8 @@ class MultiPanel:
         elif self.dims[1] == 1:
             return (0, i)        
         else:
-            return i % self.dims[1], int(i / self.dims[0])
-        
+            return tuple(np.argwhere(self.elements[-1::-1] == i)[0][-1::-1])
+
     def axis_number(self, j, k):
         """
         Given indices describing a panel's (x,y) position, return ID number.
@@ -311,6 +318,7 @@ class MultiPanel:
             return None
         if i >= self.N:
             return None
+            
         return i
                     
     def above_diagonal(self, i):
@@ -437,14 +445,14 @@ class MultiPanel:
         # Get locations of ticks on bottom row
         if axis is 'x':
             ticks_by_col = []
-            for i in range(self.dims[1]):
+            for i in self.bottom:
                 ticks_by_col.append(self.grid[i].get_xticks())
         
         # Get locations of ticks on left column
         if axis is 'y':
             ticks_by_row = []
-            for i in range(self.dims[0]):
-                ticks_by_row.append(self.grid[self.left[i]].get_xticks())
+            for i in self.left:
+                ticks_by_row.append(self.grid[i].get_xticks())
             
         # Figure out if axes are shared or not    
         if axis == 'x':
@@ -579,8 +587,9 @@ class MultiPanel:
                 for h, element in enumerate(self.elements_by_row[k]):
                     if element in self.left:
                         continue  
-                    if element in self.diag:
-                        continue              
+                    if self.diag is not None:
+                        if element in self.diag:
+                            continue              
                         
                     self.grid[element].set_yticks(yticks)
                     self.grid[element].set_ylim(ylim)
@@ -602,10 +611,10 @@ class MultiPanel:
 
     def fix_axes_labels(self):
         for i in xrange(self.N):
-            
+
             if self.grid[i] is None:
                 continue
-            
+
             # (column, row)
             j, k = self.axis_position(i)
 

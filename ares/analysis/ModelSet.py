@@ -17,31 +17,40 @@ from ..util import ProgressBar
 import matplotlib._cntr as cntr
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
-from ..inference import ModelGrid
 import re, os, string, time, glob
+from .BlobFactory import BlobFactory
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
-from .Global21cm import Global21cm as aG21
+from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
+import matplotlib.patches as patches
+from ..util.Aesthetics import Labeler
 from ..util.PrintInfo import print_model_set
-from ..util.ParameterFile import count_populations
 from .DerivedQuantities import DerivedQuantities as DQ
-from .DerivedQuantities import registry_special_Q
-from ..simulations.Global21cm import Global21cm as sG21
+from ..util.ParameterFile import count_populations, par_info
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
-from ..util.Stats import Gauss1D, GaussND, error_1D, error_2D, _error_2D_crude, \
+from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
 from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
-    tanh_gjah_to_ares
+    tanh_gjah_to_ares, delete_nan_rows
+
+#try:
+#    import dill as pickle
+#except ImportError:
+import pickle 
 
 try:
-    from scipy.optimize import fmin
-    from scipy.integrate import dblquad
+    import shapely.geometry as geometry
+    have_shapely = True
+except ImportError, OSError:
+    have_shapely = False
+    
+try:
+    from descartes import PolygonPatch
+    have_descartes = True
 except ImportError:
-    pass
-
-import pickle    
+    have_descartes = False    
 
 try:
     import h5py
@@ -56,12 +65,20 @@ try:
 except ImportError:
     rank = 0
     size = 1
+    
+default_mp_kwargs = \
+{
+ 'diagonal': 'lower', 
+ 'keep_diagonal': True, 
+ 'panel_size': (0.5,0.5), 
+ 'padding': (0,0)
+}    
 
-tanh_pars = TanhParameters()
-
-def_kwargs = {}
+# Machine precision
+MP = np.finfo(float).eps
 
 def patch_pinfo(pars):
+    # This should be deprecated in future versions
     new_pars = []
     for par in pars:
 
@@ -74,68 +91,6 @@ def patch_pinfo(pars):
     
     return new_pars
 
-def parse_blobs(name):
-    nsplit = name.split('_')
-    
-    if len(nsplit) == 2:
-        pre, post = nsplit
-    elif len(nsplit) == 3:
-        pre, mid, post = nsplit
-
-        pre = pre + mid
-    
-    if pre in default_labels:
-        pass
-        
-    return None 
-        
-def logify_str(s, sup=None):
-    s_no_dollar = str(s.replace('$', ''))
-    
-    new_s = s_no_dollar
-    
-    if sup is not None:
-        new_s += sup_scriptify_str(s)
-        
-    return r'$\mathrm{log}_{10}' + new_s + '$'
-    
-def undo_mathify(s):
-    return str(s.replace('$', ''))
-    
-def mathify_str(s):
-    return r'$%s$' % s    
-    
-def make_label(name, take_log=False, labels=None):
-    """
-    Take a string and make it a nice (LaTeX compatible) axis label. 
-    """
-    
-    if labels is None:
-        labels = default_labels
-        
-    # Check to see if it has a population ID # tagged on the end
-    m = re.search(r"\{([0-9])\}", name)
-    
-    if m is None:
-        num = None
-        prefix = name
-        if prefix in labels:
-            label = labels[prefix]
-        else:
-            label = r'$%s$' % prefix
-    else:
-        num = int(m.group(1))
-        prefix = name.split(m.group(0))[0]
-        if prefix in labels:
-            label = r'$%s$' % (undo_mathify(labels[prefix].split(m.group(0))[0]) + '^{%i}' % num)
-        else:
-            label = r'$%s$' % prefix
-        
-    if take_log:        
-        return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
-    else:
-        return label
-        
 def err_str(label, mu, err, log, labels=None):
     s = undo_mathify(make_label(label, log, labels))
 
@@ -143,18 +98,12 @@ def err_str(label, mu, err, log, labels=None):
     
     return r'$%s$' % s
 
-def def_par_names(N):
-    return [i for i in np.arange(N)]
-
-def def_par_labels(i):
-    return 'parameter # %i' % i
-
 class ModelSubSet(object):
     def __init__(self):
         pass
 
-class ModelSet(object):
-    def __init__(self, data, subset=None):
+class ModelSet(BlobFactory):
+    def __init__(self, data, subset=None, verbose=True):
         """
         Parameters
         ----------
@@ -193,10 +142,11 @@ class ModelSet(object):
                 self.path = prefix[0:i+1]
                 self.fn = prefix[i+1:]
 
-            try:
-                print_model_set(self)
-            except:
-                pass
+            if verbose:
+                try:
+                    print_model_set(self)
+                except:
+                    pass
                     
             #if not self.is_mcmc:
             #    
@@ -213,43 +163,43 @@ class ModelSet(object):
             self._chain = data.chain
             self._is_log = data.is_log
             self._base_kwargs = data.base_kwargs
-            self._fails = data.fails
+            #self._fails = data.fails
             
             self.mask = np.zeros_like(data.blobs)    
             self.mask[np.isinf(data.blobs)] = 1
             self.mask[np.isnan(data.blobs)] = 1
-            self._blobs = np.ma.masked_array(data.blobs, mask=self.mask)
+            #self._blobs = np.ma.masked_array(data.blobs, mask=self.mask)
 
-            self._blob_names = data.blob_names
-            self._blob_redshifts = data.blob_redshifts
-            self._parameters = data.parameters
-            self._is_mcmc = data.is_mcmc
+            #self._blob_names = data.blob_names
+            #self._blob_redshifts = data.blob_redshifts
+            #self._parameters = data.parameters
+            #self._is_mcmc = data.is_mcmc
             
-            if self.is_mcmc:
-                self.logL = data.logL
-            else:
-                try:
-                    self.load = data.load
-                except AttributeError:
-                    pass
-                try:            
-                    self.axes = data.axes
-                except AttributeError:
-                    pass
-                try:
-                    self.grid = data.grid
-                except AttributeError:
-                    pass
+            #if self.is_mcmc:
+            #    self.logL = data.logL
+            #else:
+            #    try:
+            #        self.load = data.load
+            #    except AttributeError:
+            #        pass
+            #    try:            
+            #        self.axes = data.axes
+            #    except AttributeError:
+            #        pass
+            #    try:
+            #        self.grid = data.grid
+            #    except AttributeError:
+            #        pass
 
-            self.Nd = int(self.chain.shape[-1])       
+            #self.Nd = int(self.chain.shape[-1])       
                 
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
     
         self.have_all_blobs = os.path.exists('%s.blobs.pkl' % self.prefix)
     
-        self._pf = ModelSubSet()
-        self._pf.Npops = self.Npops
+        #self._pf = ModelSubSet()
+        #self._pf.Npops = self.Npops
         
         self.derived_blobs = DQ(self)
     
@@ -257,60 +207,21 @@ class ModelSet(object):
         #    self._fix_up()
         #except AttributeError:
         #    pass
-        
-    def _load_subset(self):
-        """
-        Read in data from a file specific to a single blob/parameter.
-        """
-                
-        Nz = None
-        for i, par in enumerate(self.blob_names):
             
-            for path in ['.', self.path]:
-        
-                fn = '%s/%s.subset.%s.hdf5' % (path, self.fn, par)
-                fn_pkl = '%s/%s.subset.%s.pkl' % (path, self.fn, par)
-                
-                if os.path.exists(fn):
-                    f = h5py.File(fn, 'r')
-                    ids, redshifts = zip(*f.attrs.items())
-                    
-                    if Nz is None:
-                        Nz = len(redshifts)
-                        shape = [self.chain.shape[0], Nz, len(self.blob_names)]
-                        blobs = np.zeros(shape)
-                        mask = np.zeros_like(blobs)
-                    
-                    # Add data
-                    for j, redshift in enumerate(self._blob_redshifts):                                
-                        idnum = ids[j]
-                        mask[:,j,i] = f[idnum].attrs.get('mask')
-                        blobs[:,j,i] = f[idnum].value
-                
-                    f.close()
-                    
-                elif os.path.exists(fn_pkl):
-                        
-                    # If these are pickle files, the redshifts will match up with 
-                    # those listed in the binfo file.                    
-                    if Nz is None:
-                        redshifts = self.blob_redshifts
-                        Nz = len(redshifts)
-                        shape = [self.chain.shape[0], Nz, len(self.blob_names)]
-                        blobs = np.zeros(shape)
-                        mask = np.zeros_like(blobs)
-
-                    fn = '%s/%s.subset.%s.pkl' % (path, self.fn, par)            
-                    blobs[:,:,i] = read_pickle_file(fn)
-                    mask = None
-
-                else:
-                    continue
-
-        if not hasattr(self, '_blob_redshifts'):
-            self._blob_redshifts = redshifts
-
-        return mask, blobs
+    @property
+    def mask(self):
+        if not hasattr(self, '_mask'):
+            if self.is_mcmc:
+                self._mask = np.zeros_like(self.logL)
+            else:
+                self._mask = np.zeros(self.chain.shape[0])
+        return self._mask
+    
+    @mask.setter
+    def mask(self, value):
+        if self.is_mcmc:
+            assert len(value) == len(self.logL)
+        self._mask = value
 
     @property
     def load(self):
@@ -323,11 +234,18 @@ class ModelSet(object):
         return self._load
 
     @property
+    def pf(self):
+        return self.base_kwargs
+
+    @property
     def base_kwargs(self):
         if not hasattr(self, '_base_kwargs'):
             if os.path.exists('%s.setup.pkl' % self.prefix):
                 f = open('%s.setup.pkl' % self.prefix, 'rb')
-                self._base_kwargs = pickle.load(f)
+                try:
+                    self._base_kwargs = pickle.load(f)
+                except:
+                    self._base_kwargs = {}
                 f.close()
                 
             else:
@@ -349,7 +267,48 @@ class ModelSet(object):
                 self._parameters = ['p%i' % i \
                     for i in range(self.chain.shape[-1])]
         
+            self._is_log = tuple(self._is_log)
+            self._parameters = tuple(self._parameters)
+        
         return self._parameters
+        
+    @property
+    def nwalkers(self):
+        # Read parameter names and info
+        if not hasattr(self, '_nwalkers'):
+            if os.path.exists('%s.rinfo.pkl' % self.prefix):
+                f = open('%s.rinfo.pkl' % self.prefix, 'rb')
+                self._nwalkers, self._save_freq, self._steps = \
+                    map(int, pickle.load(f))
+                f.close()
+            else:
+                self._nwalkers = self._save_freq = self._steps = None
+    
+        return self._nwalkers
+    
+    @property
+    def save_freq(self):
+        if not hasattr(self, '_save_freq'):
+            nwalkers = self.nwalkers
+        return self._save_freq
+    
+    @property
+    def steps(self):
+        if not hasattr(self, '_steps'):
+            nwalkers = self.nwalkers
+        return self._steps
+    
+    @property
+    def priors(self):
+        if not hasattr(self, '_priors'):   
+            if os.path.exists('%s.priors.pkl' % self.prefix):
+                f = open('%s.priors.pkl' % self.prefix, 'rb')
+                self._priors = pickle.load(f)
+                f.close() 
+            else:
+                self._priors = {}
+                
+        return self._priors    
         
     @property
     def is_log(self):
@@ -365,9 +324,9 @@ class ModelSet(object):
                 self._is_mcmc = True
             else:
                 self._is_mcmc = False
-        
+
         return self._is_mcmc
-        
+
     @property
     def facc(self):
         if not hasattr(self, '_facc'):
@@ -385,160 +344,39 @@ class ModelSet(object):
                 self._facc = None
         
         return self._facc
-            
-    @property
-    def blob_names(self):
-        if not hasattr(self, '_blob_names'):
-            self._blob_names, self._blob_redshifts = \
-                self._determine_blob_properties()
-            #if os.path.exists('%s.binfo.pkl' % self.prefix):
-            #    f = open('%s.binfo.pkl' % self.prefix, 'rb')
-            #    self._blob_names, self._blob_redshifts = \
-            #        map(list, pickle.load(f))
-            #    f.close()
-                
-        return self._blob_names
-    
-    @property
-    def blob_redshifts(self):
-        if not hasattr(self, '_blob_redshifts'):
-            self._blob_names, self._blob_redshifts = \
-                self._determine_blob_properties()
-            #if os.path.exists('%s.binfo.pkl' % self.prefix):
-            #    f = open('%s.binfo.pkl' % self.prefix, 'rb')
-            #    junk, self._blob_redshifts = \
-            #        map(list, pickle.load(f))
-            #    f.close()
-        
-        return self._blob_redshifts
-
-    def _determine_blob_properties(self):
-        """
-        Figure out blob names and redshifts.
-        """
-        
-        subset = None
-        
-        # Read in only a subset of all (in principle) available blobs
-        if (self.subset is not None) or (not self.have_all_blobs):
-        
-            # Search file system for subset.*.pkl files
-            if self.subset == 'all' or (not self.have_all_blobs):
-                subset = []
-                for path in ['.', self.path]:
-                    to_search = '%s/%s.subset.*' % (path, self.fn)
-                    for fn in glob.glob(to_search):
-                        blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
-        
-                        if blob not in subset:
-                            subset.append(blob)
-                            
-            elif self.subset is not None:
-                subset = self.subset
-            else:
-                subset = None
-                
-            if (subset is not None) and (subset != []):
-            
-                if type(subset) not in [list, tuple]:
-                    subset = [subset]
-                
-        if os.path.exists('%s.binfo.pkl' % self.prefix):
-            f = open('%s.binfo.pkl' % self.prefix, 'rb')
-            all_blob_names, self._blob_redshifts = \
-                map(list, pickle.load(f))
-            f.close()
-                
-        if (subset) is None or (subset == []):
-            self._blob_names = all_blob_names
+                        
+    def get_ax(self, ax=None, fig=1):
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
         else:
-            self._blob_names = subset
-                
-        return self._blob_names, self._blob_redshifts
-
+            gotax = True
+        
+        return ax, gotax
+            
     @property
-    def blobs(self):
-        if not hasattr(self, '_blobs'):
-            # Read in individual blob files
-            if (self.subset is not None) or (not self.have_all_blobs):
+    def timing(self):
+        if not hasattr(self, '_timing'):
+            self._timing = []
             
-                if self.subset == 'all' or (not self.have_all_blobs):
-                    subset = []
-                    for path in ['.', self.path]:
-                        to_search = '%s/%s.subset.*' % (path, self.fn)
-                        for fn in glob.glob(to_search):
-                            blob = re.search(r'subset.=?([^.>]+)',fn).group(1)
-            
-                            if blob not in subset:
-                                subset.append(blob)
-                elif self.subset is not None:
-                    subset = self.subset
-                else:
-                    subset = None
-            
-                if (subset is not None) and (subset != []):
-            
-                    if type(subset) not in [list, tuple]:
-                        subset = [subset]
-                    
-                    self._blob_names = subset                        
-                    mask, blobs = self._load_subset()
-                    
-                    self.mask = np.zeros_like(blobs)
-                    self.mask[np.isinf(blobs)] = 1
-                    self.mask[np.isnan(blobs)] = 1
-                    self._blobs = np.ma.array(blobs, mask=self.mask)
-                    
-            elif os.path.exists('%s.blobs.hdf5' % self.prefix) and have_h5py:
-                t1 = time.time()
-                f = h5py.File('%s.blobs.hdf5' % self.prefix, 'r')
-                bs = f['blobs'].value
-                self._blobs = np.ma.masked_array(bs, mask=f['mask'].value)
+            i = 1
+            fn = '%s.timing_%s.pkl' % (self.prefix, str(i).zfill(4))
+            while os.path.exists(fn):
+                f = open(fn, 'rb')
+                while True:
+                    try:
+                        t, kw = pickle.load(f)
+                        self._timing.append((t, kw))
+                    except EOFError:
+                        break
+                        
                 f.close()
-                t2 = time.time()    
+                i += 1
+                fn = '%s.timing_%s.pkl' % (self.prefix, str(i).zfill(4))  
                 
-                if rank == 0:
-                    print "Loaded %s.blobs.hdf5 in %.2g seconds.\n" \
-                     % (self.prefix, t2 - t1)
-            
-            elif os.path.exists('%s.blobs.pkl' % self.prefix):
                 
-                try:
-                    if rank == 0:
-                        print "Loading %s.blobs.pkl..." % self.prefix
-                    
-                    t1 = time.time()
-                    blobs = read_pickle_file('%s.blobs.pkl' % self.prefix)
-                    t2 = time.time()    
-                        
-                    if rank == 0:
-                        print "Loaded %s.blobs.pkl in %.2g seconds.\n" \
-                         % (self.prefix, t2 - t1)
-                        
-                    self._mask = np.zeros_like(blobs)    
-                    self._mask[np.isinf(blobs)] = 1
-                    self._mask[np.isnan(blobs)] = 1
-                    self._blobs = np.ma.masked_array(blobs, mask=self._mask)
-                    
-                except:
-                    if rank == 0:
-                        print "WARNING: Error loading blobs."    
-        
-            else:
-                self._blobs = None            
-
-        return self._blobs
-        
-    #def _load_blob(self, blob):
-    #    
-    #    fn = '%s'
-    #    
-    #    f = h5py.File(fn, 'r')
-    #    
-    #    results = {}
-    #    for key in f:
-    #        mask = f[key].attrs.get('mask')
-    #        results[key] = np.ma.array(f[key].value, mask=mask)
+        return self._timing
             
     def save_hdf5(self):
         if not have_h5py:
@@ -598,8 +436,11 @@ class ModelSet(object):
                 if rank == 0:
                     print "Loaded %s in %.2g seconds.\n" % (fn, t2-t1)
 
+                mask2d = np.array([self.mask] * self._chain.shape[1]).T
+                self._chain = np.ma.array(self._chain, mask=mask2d)
+                    
             else:
-                self._chain = None
+                self._chain = None            
 
         return self._chain        
     
@@ -608,9 +449,10 @@ class ModelSet(object):
         if not hasattr(self, '_logL'):            
             if os.path.exists('%s.logL.pkl' % self.prefix):
                 self._logL = read_pickled_logL('%s.logL.pkl' % self.prefix)
+                self._logL = np.ma.array(self._logL, mask=self.mask)
             else:
                 self._logL = None
-        
+                
         return self._logL
     
     @logL.setter
@@ -650,6 +492,32 @@ class ModelSet(object):
                 self._fails = None
             
         return self._fails
+        
+    def get_walker(self, num):
+        """
+        Return chain elements corresponding to specific walker.
+        
+        Parameters
+        ----------
+        num : int
+            ID # for walker of interest.
+            
+        Returns
+        -------
+        2-D array with shape (nsteps, nparameters).
+        
+        """
+        
+        sf = self.save_freq
+        nw = self.nwalkers
+        nchunks = int(self.steps / sf)
+        schunk = nw * sf
+        data = []
+        for i in range(nchunks):
+            chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
+            data.extend(chunk)
+            
+        return np.array(data)
                 
     @property
     def Npops(self):
@@ -698,6 +566,20 @@ class ModelSet(object):
             
         return self._blob_redshifts_float
     
+    @property    
+    def blob_redshifts_float(self):
+        if not hasattr(self, '_blob_redshifts_float'):
+            self._blob_redshifts_float = []
+            for i, redshift in enumerate(self.blob_redshifts):
+                if type(redshift) is str:
+                    z = None
+                else:
+                    z = redshift
+                    
+                self._blob_redshifts_float.append(z)
+            
+        return self._blob_redshifts_float
+    
     def SelectModels(self):
         """
         Draw a rectangle on supplied matplotlib.axes.Axes instance, return
@@ -705,7 +587,7 @@ class ModelSet(object):
         """
                 
         if not hasattr(self, '_ax'):
-            raise AttributeError('No axis found.')        
+            raise AttributeError('No axis found.')
                 
         self._op = self._ax.figure.canvas.mpl_connect('button_press_event', 
             self._on_press)
@@ -743,109 +625,88 @@ class ModelSet(object):
         self._ax.add_patch(rect)
         self._ax.figure.canvas.draw()
         
+        self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
+                
+    def Slice(self, constraints, pars, ivar=None, take_log=False, 
+        un_log=False, multiplier=1.):
+        """
+        Return revised ("sliced") dataset given set of criteria.
+    
+        Parameters
+        ----------
+        constraints : list, tuple
+            A rectangle (or line segment) bounding the region of interest. 
+            For 2-D plane, supply (left, right, bottom, top), and then to
+            `pars` supply list of datasets defining the plane. For 1-D, just
+            supply (min, max).
+        pars:
+            Dictionary of constraints to use to calculate likelihood.
+            Each entry should be a two-element list, with the first
+            element being the redshift at which to apply the constraint,
+            and second, a function for the posterior PDF for that quantity.s
+    
+        Examples
+        --------
+    
+        Returns
+        -------
+        Object to be used to initialize a new ModelSet instance.
+    
+        """
+        
+        if len(constraints) == 4:
+            Nd = 2
+            x1, x2, y1, y2 = constraints
+        else:
+            Nd = 1
+            x1, x2 = constraints
+    
         # Figure out what these values translate to.
+        data, is_log = self.ExtractData(pars, ivar, take_log, un_log, 
+            multiplier)
+                        
+        # Figure out elements we want
+        xok_ = np.logical_and(data[pars[0]] >= x1, data[pars[0]] <= x2)
+        xok_MP = np.logical_or(np.abs(data[pars[0]] - x1) <= MP, 
+            np.abs(data[pars[0]] - x2) <= MP)
+        xok = np.logical_or(xok_, xok_MP)
+
+        if Nd == 2:
+            yok_ = np.logical_and(data[pars[1]] >= y1, data[pars[1]] <= y2)
+            yok_MP = np.logical_or(np.abs(data[pars[1]] - y1) <= MP, 
+                np.abs(data[pars[1]] - y2) <= MP)
+            yok = np.logical_or(yok_, yok_MP)
+            to_keep = np.logical_and(xok, yok)
+        else:
+            to_keep = xok
+
+        mask = np.logical_not(to_keep)
         
-        # Get basic info about plot
-        x = self.plot_info['x']
-        y = self.plot_info['y']
-        z = self.plot_info['z']
-        take_log = self.plot_info['log']
-        multiplier = self.plot_info['multiplier']
+        ##
+        # CREATE NEW MODELSET INSTANCE
+        ##
+        model_set = ModelSet(self.prefix)
         
-        pars = [x, y]
-        
-        # Index corresponding to this redshift
-        iz = self.blob_redshifts.index(z)
-        
-        # Use slice routine!
-        constraints = \
-        {
-         x: [z, lambda xx: 1 if lx <= xx <= (lx + dx) else 0],
-         y: [z, lambda yy: 1 if ly <= yy <= (ly + dy) else 0],
-        }
+        # Set the mask! 
+        model_set.mask = np.logical_or(mask, self.mask)
         
         i = 0
         while hasattr(self, 'slice_%i' % i):
             i += 1
-        
-        tmp = self._slice_by_nu(pars=pars, z=z, like=0.95, 
-            take_log=take_log, **constraints)
-        
-        setattr(self, 'slice_%i' % i, tmp)        
+    
+        setattr(self, 'slice_%i' % i, model_set)
         
         print "Saved result to slice_%i attribute." % i
         
-    def ReRunModels(self, prefix=None, N=None, random=False, last=False, 
-        clobber=False, save_freq=10, **kwargs):
-        """
-        Take list of dictionaries and re-run each as a Global21cm model.
-
-        Parameters
-        ----------
-        N : int
-            Draw N samples from chain, and re-run those models.
-            If None, will re-run all models.
-        random : bool
-            If True, draw N *random* samples, rather than just the first N.
-        last : bool
-            If True, take last ``N`` samples from chain, rather than first.
-            
-        prefix : str
-            Prefix of files to be saved. There will be three:
-                i) prefix.chain.pkl
-                ii) prefix.blobs.pkl
-                iii) prefix.pinfo.pkl
-
-        Returns
-        -------
-        Nothing, just saves stuff to disk.
+        return model_set
         
-        """
-                
-        had_N = True
-        if N is None:
-            had_N = False
-            N = self.chain.shape[0]
-                    
-        model_num = np.arange(N)
-        
-        if had_N:
-            if random:
-                if size > 1:
-                    raise ValueError('This will cause each processor to run different models!')
-                np.random.shuffle(model_num)
-            
-            if last:
-                model_ids = model_num[-N:]
-            else:    
-                model_ids = model_num[0:N]            
-        else:
-            model_ids = model_num    
-                        
-        # Create list of models to run
-        models = []
-        for i, model in enumerate(model_ids):
-            tmp = {}
-            for j, par in enumerate(self.parameters):
-                tmp[par] = self.chain[i,j]
-            
-            models.append(tmp.copy())
-                                
-        # Take advantage of pre-existing machinery to run them
-        mg = self.mg = ModelGrid(**kwargs)
-        mg.set_models(models)
-        mg.is_log = self.is_log
-        mg.LoadBalance(0)
-
-        mg.run(prefix, clobber=clobber, save_freq=save_freq)
-
     @property
     def plot_info(self):
         if not hasattr(self, '_plot_info'):
             self._plot_info = None
-        
+    
         return self._plot_info
-        
+    
     @plot_info.setter
     def plot_info(self, value):
         self._plot_info = value
@@ -947,86 +808,7 @@ class ModelSet(object):
         dbs = self.derived_blobs
         
         return self._derived_blob_names
-
-    #@property
-    #def derived_blobs(self):
-    #    """
-    #    Total rates, convert to rate coefficients.
-    #    """
-    #
-    #    if hasattr(self, '_derived_blobs'):
-    #        return self._derived_blobs
-    #        
-    #    if os.path.exists('%s.dblobs.hdf5' % self.prefix) and have_h5py:
-    #        f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'r')
-    #        dbs = f['derived_blobs'].value
-    #        self._derived_blobs = np.ma.masked_array(dbs, mask=f['mask'].value)
-    #        self._derived_blob_names = list(f['derived_blob_names'].value)
-    #        f.close()
-    #        return self._derived_blobs
-    #
-    #    #if self.blobs is None:
-    #    #    return   
-    #
-    #    # Just a dummy class
-    #    pf = ModelSubSet()
-    #    pf.Npops = self.Npops
-    #
-    #    # Create data container to mimic that of a single run,
-    #    dqs = []
-    #    self._derived_blob_names = []
-    #    for i, redshift in enumerate(self.blob_redshifts):
-    #
-    #        if type(redshift) is str:
-    #            z = self.extract_blob('z', redshift)[i] 
-    #        else:
-    #            z = redshift
-    #
-    #        data = {}
-    #        data['z'] = np.array([z])
-    #        
-    #        for j, key in enumerate(self.blob_names):
-    #            data[key] = self.blobs[:,i,j]
-    #                        
-    #        _dq = DQ(data, pf)
-    #        
-    #        # SFRD
-    #        _dq.build(**registry_special_Q)
-    #        
-    #        dqs.append(_dq.derived_quantities.copy())
-    #
-    #        for key in _dq.derived_quantities:
-    #            if key in self._derived_blob_names:
-    #                continue
-    #            
-    #            self._derived_blob_names.append(key)
-    #
-    #    # (Nlinks, Nz, Nblobs)
-    #    shape = list(self.blobs.shape[:-1])
-    #    shape.append(len(self._derived_blob_names))
-    #
-    #    self._derived_blobs = np.ones(shape) * np.inf
         
-    #    for i, redshift in enumerate(self.blob_redshifts):
-    #        
-    #        data = dqs[i]
-    #        for key in data:
-    #            j = self._derived_blob_names.index(key)
-    #            self._derived_blobs[:,i,j] = data[key]
-    #
-    #            
-    #    mask = np.ones_like(self._derived_blobs)    
-    #    #mask[np.isinf(self._derived_blobs)] = 1
-    #    #mask[np.isnan(self._derived_blobs)] = 1
-    #    mask[np.isfinite(self._derived_blobs)] = 0
-    #    
-    #    self.dmask = mask
-    #    
-    #    self._derived_blobs = np.ma.masked_array(self._derived_blobs, 
-    #        mask=mask)
-    #
-    #    return self._derived_blobs
-
     def set_constraint(self, add_constraint=False, **constraints):
         """
         For ModelGrid calculations, the likelihood must be supplied 
@@ -1098,18 +880,18 @@ class ModelSet(object):
 
         self.logL[mask] = -np.inf
 
-    def Scatter(self, x, y, z=None, c=None, ax=None, fig=1, 
-        take_log=False, multiplier=1., **kwargs):
+    def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
+        take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
+        **kwargs):
         """
-        Show occurrences of turning points B, C, and D for all models in
-        (z, dTb) space, with points color-coded to likelihood.
+        Plot samples as points in 2-d plane.
     
         Parameters
         ----------
-        x : str
-            Fields for the x-axis.
-        y : str
-            Fields for the y-axis.        
+        pars : list
+            2-element list of parameter names. 
+        ivar : float, list
+            Independent variable(s) to be used for non-scalar blobs.
         z : str, float
             Redshift at which to plot x vs. y, if applicable.
         c : str
@@ -1120,7 +902,7 @@ class ModelSet(object):
         matplotlib.axes._subplots.AxesSubplot instance.
 
         """
-
+        
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -1128,103 +910,102 @@ class ModelSet(object):
         else:
             gotax = True
 
-        if 'labels' in kwargs:
-            labels_tmp = default_labels.copy()
-            labels_tmp.update(kwargs['labels'])
-            labels = labels_tmp
-        else:
-            labels = default_labels
-
-        if type(take_log) == bool:
-            take_log = [take_log] * 2
-        if type(multiplier) in [int, float]:
-            multiplier = [multiplier] * 2
-
-        if z is not None:
-            j = self.blob_redshifts.index(z)
-
-        if x in self.parameters:
-            xdat = self.chain[:,self.parameters.index(x)]
-        else:
-            if z is None:
-                raise ValueError('Must supply redshift!')
-            if x in self.blob_names:
-                xdat = self.blobs[:,j,self.blob_names.index(x)]
-            else:
-                xdat = self.derived_blobs[:,j,self.derived_blob_names.index(x)]
-        
-        if y in self.parameters:
-            ydat = self.chain[:,self.parameters.index(y)]
-        else:
-            if z is None:
-                raise ValueError('Must supply redshift!')
-            if y in self.blob_names:
-                ydat = self.blobs[:,j,self.blob_names.index(y)]
-            else:
-                ydat = self.derived_blobs[:,j,self.derived_blob_names.index(y)]
-        
-        cdat = None
-        if c in self.parameters:
-            cdat = self.chain[:,self.parameters.index(c)]
-        elif c == 'load':
-            cdat = self.load
-        elif c is None:
-            pass
-        else:
-            if z is None:
-                raise ValueError('Must supply redshift!')
-            if c in self.blob_names:
-                cdat = self.blobs[:,j,self.blob_names.index(c)]
-            else:
-                cdat = self.derived_blobs[:,j,self.derived_blob_names.index(c)]
-
-        if take_log[0]:
-            xdat = np.log10(xdat)
-        if take_log[1]:
-            ydat = np.log10(ydat)
-        if len(take_log) == 3 and cdat is not None:
-            if take_log[2]:
-                cdat = np.log10(cdat)  
-
-        if hasattr(self, 'weights') and cdat is None:
-            scat = ax.scatter(xdat, ydat, c=self.weights, **kwargs)
-        elif cdat is not None:
-            scat = ax.scatter(xdat, ydat, c=cdat, **kwargs)
-        else:
-            scat = ax.scatter(xdat, ydat, **kwargs)
-
-        ax.set_xlabel(make_label(x, take_log=take_log[0]))
-        ax.set_ylabel(make_label(y, take_log=take_log[1]))
-        #if take_log[0]:
-        #    ax.set_xlabel(logify_str(labels[self.get_par_prefix(x)]))
-        #else:
-        #    ax.set_xlabel(labels[self.get_par_prefix(x)])
-
-        #if take_log[1]: 
-        #    ax.set_ylabel(logify_str(labels[self.get_par_prefix(y)]))
-        #else:
-        #    ax.set_ylabel(labels[self.get_par_prefix(y)])
-                            
+        # Make a new variable since pars might be self.parameters
+        # (don't want to modify that)
         if c is not None:
-            cb = pl.colorbar(scat)
-            try:
-                if take_log[2]: 
-                    cb.set_label(logify_str(labels[self.get_par_prefix(c)]))
+            p = list(pars) + [c]
+            if ivar is not None:
+                if len(ivar) != 3:
+                    iv = list(ivar) + [None]
                 else:
-                    cb.set_label(labels[self.get_par_prefix(c)])
-            except IndexError:
-                cb.set_label(labels[self.get_par_prefix(c)])
+                    iv = ivar
+            else:
+                iv = None
+        else:
+            p = pars
+            iv = ivar
+                    
+        data, is_log = \
+            self.ExtractData(p, iv, take_log, un_log, multiplier)
+
+        xdata = data[p[0]]
+        ydata = data[p[1]]
+                
+        if c is not None:
+            cdata = data[p[2]].squeeze()
+        else:
+            cdata = None
+
+        if hasattr(self, 'weights') and cdata is None:
+            scat = ax.scatter(xdata, ydata, c=self.weights, **kwargs)
+        elif cdata is not None:
+            scat = ax.scatter(xdata, ydata, c=cdata, **kwargs)
+        else:
+            scat = ax.scatter(xdata, ydata, **kwargs)
+                           
+        if (cdata is not None) and use_colorbar:
+            cb = self._cb = pl.colorbar(scat)
+        else:
+            cb = None
         
-            self._cb = cb
+        self._scat = scat
+            
+        self.plot_info = {'pars': pars, 'ivar': ivar,
+            'take_log': take_log, 'un_log':un_log, 'multiplier':multiplier}
+            
+        # Make labels
+        self.set_axis_labels(ax, p, is_log, take_log, un_log, cb)
+        
+        pl.draw()        
+        self._ax = ax
+        return ax
+    
+    def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
+        take_log=False, un_log=False, multiplier=1., 
+        **kwargs):
+        """
+        Basically a scatterplot but instead of plotting individual points,
+        we draw lines bounding the locations of all those points.
+        
+        Parameters
+        ----------
+        pars : list, tuple
+            List of parameters that defines 2-D plane.
+            
+        """
+        
+        assert have_shapely, "Need shapely installed for this to work."
+        assert have_descartes, "Need descartes installed for this to work."
+        
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+
+        data, is_log = \
+            self.ExtractData(pars, ivar, take_log, un_log, multiplier)
+        
+        xdata = data[pars[0]].compressed()
+        ydata = data[pars[1]].compressed()
+        
+        # Organize into (x, y) pairs
+        points = zip(xdata, ydata)
+                
+        # Create polygon object
+        point_collection = geometry.MultiPoint(list(points))
+        polygon = point_collection.convex_hull
+                
+        # Plot a Polygon using descartes
+        x_min, y_min, x_max, y_max = polygon.bounds
+        patch = PolygonPatch(polygon, **kwargs)
+        ax.add_patch(patch)
         
         pl.draw()
         
-        self._ax = ax
-        self.plot_info = {'x': x, 'y': y, 'log': take_log, 
-            'multiplier': multiplier, 'z': z}
-    
         return ax
-    
+        
     def get_par_prefix(self, par):
         m = re.search(r"\{([0-9])\}", par)
 
@@ -1257,8 +1038,8 @@ class ModelSet(object):
                                                                       
         return nu, levels
     
-    def get_1d_error(self, par, z=None, bins=500, nu=0.68, take_log=False,
-        limit=None, multiplier=1.):
+    def get_1d_error(self, par, ivar=None, nu=0.68, take_log=False,
+        limit=None, un_log=False, multiplier=1., peak='median'):
         """
         Compute 1-D error bar for input parameter.
         
@@ -1266,22 +1047,25 @@ class ModelSet(object):
         ----------
         par : str
             Name of parameter. 
-        bins : int
-            Number of bins to use in histogram
         nu : float
             Percent likelihood enclosed by this 1-D error
-        limit : str
-            Valid options: 'lower' and 'upper', if not None.
+        peak : str
+            Determines whether the 'best' value is the median, mode, or
+            maximum likelihood point.
+            
         Returns
         -------
-        Tuple, (maximum likelihood value, negative error, positive error).
-
+        if peak is None:
+            Returns x-values corresponding to desired quartile range, i.e.,
+            not really an error-bar.
+        else:
+            tuple: (maximum likelihood value, negative error, positive error).
         """
 
-        pars, take_log, multiplier, z = \
-            self._listify_common_inputs([par], take_log, multiplier, z)
+        #pars, take_log, multiplier, un_log, ivar = \
+        #    self._listify_common_inputs([par], take_log, multiplier, un_log, ivar)
 
-        to_hist, is_log = self.ExtractData(par, z=z, take_log=take_log, 
+        to_hist, is_log = self.ExtractData(par, ivar=ivar, take_log=take_log, 
             multiplier=multiplier)
 
         # Need to weight results of non-MCMC runs explicitly
@@ -1293,31 +1077,32 @@ class ModelSet(object):
         # Apply mask to weights
         if weights is not None and to_hist[par].shape != weights.shape:
             weights = weights[np.logical_not(mask)]
-        
-        if hasattr(to_hist[par], 'compressed'):
-            to_hist[par] = to_hist[par].compressed()
-                
-                
+
         if to_hist[par] == []:
             print "WARNING: error w/ %s" % par
             print "@ z=" % z
             return
-                
-        hist, bin_edges = \
-            np.histogram(to_hist[par], density=True, bins=bins, 
-            weights=weights)
 
-        bc = rebin(bin_edges)
-
-        if to_hist is []:
-            return None, (None, None)
-
-        mu, sigma = error_1D(bc, hist, nu=nu, limit=limit)
-                
-        try:
-            mu, sigma = error_1D(bc, hist, nu=nu, limit=limit)
-        except ValueError:
-            return None, (None, None)
+        if peak == 'median':
+            N = len(self.logL)
+            psorted = np.sort(to_hist[par])
+            mu = psorted[int(N / 2.)]
+        elif peak == 'mode':
+            mu = to_hist[par][np.argmax(self.logL)]
+        else:
+            mu = None
+            
+        if hasattr(to_hist[par], 'compressed'):
+            to_hist[par] = to_hist[par].compressed()
+        
+        q1 = 0.5 * 100 * (1. - nu)    
+        q2 = 100 * nu + q1
+        lo, hi = np.percentile(to_hist[par], (q1, q2))
+        
+        if mu is not None:
+            sigma = (mu - lo, hi - mu)
+        else:
+            sigma = (lo, hi)
 
         return mu, np.array(sigma)
         
@@ -1398,75 +1183,6 @@ class ModelSet(object):
             model_set.axes = self.axes
         
         return ModelSet(model_set)
-        
-    def Slice(self, pars=None, z=None, like=0.68, take_log=False, bins=20, 
-        **constraints):
-        """
-        Return revised ("sliced") dataset given set of criteria.
-                
-        Parameters
-        ----------
-        like : float
-            If supplied, return a new ModelSet instance containing only the
-            models with likelihood's exceeding this value.
-        constraints : dict
-            Dictionary of constraints to use to calculate likelihood.
-            Each entry should be a two-element list, with the first
-            element being the redshift at which to apply the constraint,
-            and second, a function for the posterior PDF for that quantity.s
-                
-        Examples
-        --------
-        
-        
-        Returns
-        -------
-        Object to be used to initialize a new ModelSet instance.
-        
-        """
-
-        return self._slice_by_nu(pars, z=z, take_log=take_log, bins=bins, 
-            like=like, **constraints)
-        
-    def ExamineFailures(self, N=1):
-        """
-        Try to figure out what went wrong with failed models.
-        
-        Picks a random subset of failed models, plots them, and returns
-        the analysis instances associated with each.
-        
-        Parameters
-        ----------
-        N : int
-            Number of failed models to plot.
-            
-        """    
-        
-        kw = self.base_kwargs.copy()
-                
-        Nf = len(self.fails)
-        
-        r = np.arange(Nf)
-        np.random.shuffle(r)
-        
-        ax = None
-        objects = {}
-        for i in range(N):
-            
-            idnum = r[i]
-            
-            p = self.base_kwargs.copy()
-            p.update(self.fails[idnum])
-            
-            sim = sG21(**p)
-            sim.run()
-            
-            anl = aG21(sim)
-            ax = anl.GlobalSignature(label='fail i=%i' % idnum)
-            
-            objects[idnum] = anl
-            
-        return ax, objects
         
     def _prep_plot(self, pars, z=None, take_log=False, multiplier=1.,
         skip=0, skim=1, bins=20):
@@ -1568,7 +1284,8 @@ class ModelSet(object):
         
         return pars, to_hist, is_log, binvec
       
-    def ExtractData(self, pars, z=None, take_log=False, multiplier=1.):
+    def ExtractData(self, pars, ivar=None, take_log=False, un_log=False, 
+        multiplier=1., remove_nas=False):
         """
         Extract data for subsequent analysis.
         
@@ -1584,58 +1301,144 @@ class ModelSet(object):
         pars : list
             List of quantities to return. These can be parameters or the names
             of meta-data blobs.
-         
+        ivars : list
+            List of independent variables at which to compute values of pars.
+        take_log single bool or list of bools determining whether data should
+                 be presented after its log is taken
+        un_log single bool or list of bools determining whether data should be
+               presented after its log is untaken (i.e. it is exponentiated)
+        multiplier list of numbers to multiply the parameters by before they
+                   are presented
+        remove_nas bool determining whether rows with nan's or inf's should be
+                   removed or not. This must be set to True when the user
+                   is using numpy newer than version 1.9.x if the user wants
+                   to histogram the data because numpy gave up support for
+                   masked arrays in histograms.
+        
         Returns
         -------
-        Tuple with three entries:
+        Tuple with two entries:
          (i) Dictionary containing 1-D arrays of samples for each quantity.
-         (ii) 
-         
+         (ii) Dictionary telling us which of the datasets are actually the
+          log10 values of the associated parameters.
          
         """
-        
-        pars, take_log, multiplier, z = \
-            self._listify_common_inputs(pars, take_log, multiplier, z)        
-                        
-        to_hist = []
-        is_log = []
+
+        pars, take_log, multiplier, un_log, ivar = \
+            self._listify_common_inputs(pars, take_log, multiplier, un_log, 
+            ivar)
+
+        data = {}
+        is_log = {}
         for k, par in enumerate(pars):
-        
-            # If one of our free parameters, return right away
+                    
+            # If one of our free parameters, things are easy.
             if par in self.parameters:
+                
                 j = self.parameters.index(par)
-                is_log.append(self.is_log[j])
-                val = self.chain[:,j].copy()
+
+                if self.is_log[j] and un_log[k]:
+                    val = 10**self.chain[:,j].copy()
+                else:
+                    val = self.chain[:,j].copy()
         
-                if self.is_log[j]:
+                if self.is_log[j] and (not un_log[k]):
                     val += np.log10(multiplier[k])
                 else:
                     val *= multiplier[k]
-        
-                if take_log[k] and not self.is_log[j]:
-                    to_hist.append(np.log10(val))
+                                            
+            # Blobs are a little harder, might need new mask later.
+            elif par in self.all_blob_names:
+                
+                i, j, nd, dims = self.blob_info(par)
+
+                if nd == 0:
+                    val = self.get_blob(par).copy()
                 else:
-                    to_hist.append(val)
-        
-            else:
-                val = self.extract_blob(par, z[k]).copy()
-        
+                    val = self.get_blob(par, ivar=ivar[k]).copy()
+
+                # Blobs are never stored as log10 of their true values
                 val *= multiplier[k]
-        
-                if take_log[k]:
-                    is_log.append(True)
-                    to_hist.append(np.log10(val))
-                else:
-                    is_log.append(False)
-                    to_hist.append(val)
-        
-        # Re-organize
-        if len(np.unique(pars)) < len(pars):
-            data = to_hist
-        else:    
-            data = {par:to_hist[i] for i, par in enumerate(pars)}
-            is_log = {par:is_log[i] for i, par in enumerate(pars)}
+                
+            # Only derived blobs in this else block, yes?                        
+            else:
+                
+                cand = glob.glob('%s*.%s.pkl' % (self.prefix, par))
+                
+                if len(cand) == 1:
+                    f = open(cand[0], 'rb')     
+                    dat = pickle.load(f)
+                    f.close()
                     
+                    # What follows is real cludgey...sorry, future Jordan
+                    nd = len(dat.shape) - 1
+                    assert nd == 1, "Help!"
+                    
+                    if ivar[k] is not None:
+                        for hh in range(len(self.blob_dims)):
+                            if len(self.blob_dims[hh]) != 1:
+                                continue
+                            if len(dat[0]) == self.blob_dims[hh][0]:
+                                loc = np.argmin(np.abs(self.blob_ivars[hh][0] - ivar[k]))
+                                break
+                            
+                        val = dat[:,loc]
+                    else:
+                        val = dat
+
+            # Take log, unless the parameter is already in log10
+            if take_log[k] and (not self.is_log[j]):
+                val = np.log10(val)        
+                                   
+            ##
+            # OK, at this stage, 'val' is just an array. If it corresponds to
+            # a parameter, it's 1-D, if a blob, it's dimensionality could
+            # be different. So, we have to be a little careful with the mask.
+            ##                   
+              
+            if not np.all(np.array(val.shape) == np.array(self.mask.shape)):
+                
+                # If no masked elements, don't worry any more. Just set -> 0.
+                if not np.any(self.mask == 1):
+                    mask = 0
+                # Otherwise, we might need to reshape the mask.
+                # If, for example, certain links in the MCMC chain are masked,
+                # we need to make sure that every blob element corresponding
+                # to those links are masked.
+                else:
+                    mask = np.zeros_like(val)
+                    for j, element in enumerate(self.mask):
+                        if element == 1:
+                            mask[j].fill(1)
+            else:
+                mask = self.mask
+
+            if remove_nas:
+                # deletes all rows with nan's or inf's
+                to_hist, deleted_indices = delete_nan_rows(val)
+                chain_length = len(self.chain)
+                num_deleted = len(deleted_indices)
+                print "delete_nan_rows was run in ExtractData. It ignored " +\
+                      ("%i%% of " % ((100. * num_deleted) / chain_length,)) +\
+                      ("the  %i chain links. If this number " % (chain_length,)) +\
+                      "is high, it may be that the parameters/blobs which you " +\
+                      "are extracting are not well defined in the case of the " +\
+                      "given data."
+                      
+            if self.is_mcmc:
+                if remove_nas:
+                    # no need for mask because nans and infs have been removed
+                    data[par] = val
+                else:
+                    data[par] = np.ma.array(val, mask=mask)
+            else:
+                try:
+                    data[par] = np.ma.array(val, mask=mask)
+                except np.ma.MaskError:
+                    print "MaskError encountered. Assuming mask=0."
+                        
+                    data[par] = np.ma.array(val, mask=0)
+
         return data, is_log
 
     def _set_bins(self, pars, to_hist, take_log=False, bins=20):
@@ -1690,7 +1493,7 @@ class ModelSet(object):
         -------
         Dictionary, elements sorted by 
         """
-        
+
         if inputs is None:
             return None
         
@@ -1705,8 +1508,11 @@ class ModelSet(object):
             inputs = list(inputs)
                         
         if type(is_log) is dict:
-            tmp = [is_log[par] for par in pars]    
-            is_log = tmp
+            if is_log != {}:
+                tmp = [is_log[par] for par in pars]    
+                is_log = tmp
+            else:
+                is_log = [False] * len(pars)
         
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)    
@@ -1742,68 +1548,52 @@ class ModelSet(object):
                 input_output[par] = vin
             else:
                 input_output.append(vin)
-                    
-        # Loop over parameters
-        #for i, p1 in enumerate(pars[-1::-1]):
-        #    for j, p2 in enumerate(pars):
-        #        
-        #        # y-values first
-        #        if type(inputs) is list:
-        #            val = inputs[-1::-1][i]
-        #        elif p1 in inputs:
-        #            val = inputs[p1]
-        #        else:
-        #            val = None
-        #            
-        #        # Take log [optional]    
-        #        if val is None:
-        #            yin = None
-        #        elif is_log[i] or take_log[i]:
-        #            yin = np.log10(val * multiplier[-1::-1][i])                            
-        #        else:
-        #            yin = val * multiplier[-1::-1][i]                        
-        #                                    
-        #        # x-values next
-        #        if type(inputs) is list:
-        #            val = inputs[j]        
-        #        elif p2 in inputs:
-        #            val = inputs[p2]
-        #        else:
-        #            val = None
-        #                        
-        #        # Take log [optional]
-        #        if val is None:
-        #            xin = None  
-        #        elif is_log[Nd-j-1] or take_log[Nd-j-1]:
-        #            xin = np.log10(val * multiplier[-1::-1][Nd-j-1])
-        #        else:
-        #            xin = val * multiplier[-1::-1][Nd-j-1]
-                
             
         return input_output
         
-    def _listify_common_inputs(self, pars, take_log, multiplier, z):
+    def _listify_common_inputs(self, pars, take_log, multiplier, un_log, 
+        ivar=None):
+        """
+        Make everything lists.
+        """
+        
         if type(pars) not in [list, tuple]:
             pars = [pars]
         if type(take_log) == bool:
             take_log = [take_log] * len(pars)
+        if type(un_log) == bool:
+            un_log = [un_log] * len(pars)    
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)
 
-        if type(z) is list:
-            if len(z) != len(pars):
-                raise ValueError('Length of z must be = length of pars!')
+        if ivar is not None:
+            if type(ivar) is list:
+                if len(pars) == 1:
+                    i, j, nd, dims = self.blob_info(pars[0])
+                    
+                    if nd == 2:
+                        ivar = list(np.atleast_2d(ivar))
+                
+                assert len(ivar) == len(pars)
+            else:
+                if len(pars) == 1:
+                    ivar = [ivar]
+                else:
+                    raise ValueError('ivar must be same length as pars')    
+                
         else:
-            z = [z] * len(pars)
+            ivar = [None] * len(pars)
             
-        return pars, take_log, multiplier, z
+        return pars, take_log, multiplier, un_log, ivar
 
     def PosteriorCDF(self, pars, bins=500, **kwargs):
         return self.PosteriorPDF(pars, bins=bins, cdf=True, **kwargs)
                
-    def PosteriorPDF(self, pars, to_hist=None, is_log=None, z=None, ax=None, fig=1, 
-        multiplier=1., nu=[0.95, 0.68], overplot_nu=False, density=True, cdf=False,
-        color_by_like=False, filled=True, take_log=False, bins=20, skip=0, skim=1, 
+    def PosteriorPDF(self, pars, to_hist=None, is_log=None, ivar=None, 
+        ax=None, fig=1, 
+        multiplier=1., like=[0.95, 0.68], cdf=False,
+        color_by_like=False, filled=True, take_log=False, un_log=False,
+        bins=20, skip=0, skim=1, 
         contour_method='raw', excluded=False, stop=None, **kwargs):
         """
         Compute posterior PDF for supplied parameters. 
@@ -1815,7 +1605,7 @@ class ModelSet(object):
         ----------
         pars : str, list
             Name of parameter or list of parameters to analyze.
-        z : float
+        ivar : float
             Redshift, if any element of pars is a "blob" quantity.
         plot : bool
             Plot PDF?
@@ -1850,20 +1640,13 @@ class ModelSet(object):
 
         cs = None
         
-        kw = def_kwargs.copy()
-        kw.update(kwargs)
+        kw = kwargs
 
         if 'labels' in kw:
-            labels_tmp = default_labels.copy()
-            labels_tmp.update(kwargs['labels'])
-            labels = labels_tmp
-
+            labels = kwargs['labels']
         else:
-            labels = default_labels
+            labels = {}
             
-        pars, take_log, multiplier, z = \
-            self._listify_common_inputs(pars, take_log, multiplier, z)
-
         # Only make a new plot window if there isn't already one
         if ax is None:
             gotax = False
@@ -1874,22 +1657,26 @@ class ModelSet(object):
 
         # Grab all the data we need
         if (to_hist is None) or (is_log is None):
-            to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log, 
-                multiplier=multiplier)
+            to_hist, is_log = self.ExtractData(pars, ivar=ivar, 
+                take_log=take_log, un_log=un_log, multiplier=multiplier)
 
+        pars, take_log, multiplier, un_log, ivar = \
+            self._listify_common_inputs(pars, take_log, multiplier, un_log, 
+            ivar)
+            
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)
-        
+
         # We might supply weights by-hand for ModelGrid calculations
         if not hasattr(self, 'weights'):
             weights = None
         else:
             weights = self.weights
-            
+
         ##
         ### Histogramming and plotting starts here
         ##
-        
+
         if stop is not None:
             stop = -int(stop)
                     
@@ -1907,7 +1694,7 @@ class ModelSet(object):
                 b = bins
             
             hist, bin_edges = \
-                np.histogram(tohist, density=density, bins=b, weights=weights)
+                np.histogram(tohist, density=True, bins=b, weights=weights)
 
             bc = rebin(bin_edges)
             
@@ -1959,12 +1746,9 @@ class ModelSet(object):
 
                 # Get likelihood contours (relative to peak) that enclose
                 # nu-% of the area
-                #nu, levels = self.get_levels(hist, nu=nu)
-                #
-                #print nu, levels
 
                 if contour_method == 'raw':
-                    nu, levels = error_2D(None, None, hist, None, nu=nu, 
+                    nu, levels = error_2D(None, None, hist, None, nu=like, 
                         method='raw')
                 else:
                     nu, levels = error_2D(to_hist[0], to_hist[1], self.L / self.L.max(), 
@@ -1989,7 +1773,6 @@ class ModelSet(object):
                         ax.contour(bc[0], bc[1], hist / hist.max(), 
                             levels, colors=kwargs['color'], linewidths=1, 
                             zorder=2)
-                            
                         
                     else:
                         ax.contourf(bc[0], bc[1], hist / hist.max(), 
@@ -2013,70 +1796,67 @@ class ModelSet(object):
                 ax.set_yscale('linear')
             
         # Add nice labels (or try to)
-        self.set_axis_labels(ax, pars, is_log, take_log, labels)
+        self.set_axis_labels(ax, pars, is_log, take_log, un_log, None, labels)
 
         # Rotate ticks?
-
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(45.)
+        for tick in ax.get_yticklabels():
+            tick.set_rotation(45.)
+        
         pl.draw()
         
         return ax
-      
-    def FindContour(self, pars, z=None, take_log=False, multiplier=1., bins=20, 
-        nu=0.68, contour_method='raw', weights=None):
+              
+    def Contour(self, pars, c, levels, leveltol=1e-6, ivar=None, take_log=False,
+        un_log=False, multiplier=1., ax=None, fig=1, filled=False, **kwargs):         
         """
-        Find a contour in the plane defined by `pars`, and return its x-y trajectory.
+        Draw contours that are NOT associated with confidence levels.
+        
+        ..note:: To draw many contours in same plane, just call this 
+            function repeatedly.
         
         Parameters
         ----------
-        pars : list
-            2-element list of parameters that defined plane of interest.
-        
+        pars : list 
+            List of parameters defining the plane on which to draw contours.
+        c : str
+            Name of parameter or blob that we're to draw contours of.
+        levels : list
+            [Optional] list of levels for 
+                        
         """
         
-        pars, z, take_log, multiplier = \
-            self._listify_common_inputs(pars, z, take_log, multiplier)
+        # Only make a new plot window if there isn't already one
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+
+        p = list(pars) + [c]
+
+        # Grab all the data we need
+        data, is_log = self.ExtractData(p, ivar=ivar, 
+            take_log=take_log, un_log=un_log, multiplier=multiplier)
+
+        xdata = data[p[0]]
+        ydata = data[p[1]]    
+        zdata = data[p[2]]
         
-        if type(nu) not in [list]:
-            nu = [nu]
-        
-        to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log,
-            multiplier=multiplier)
-        
-        binvec = self._set_bins(pars, to_hist, take_log, bins)
-        
-        # Compute 2-D histogram
-        hist, xedges, yedges = \
-            np.histogram2d(to_hist[pars[0]], to_hist[pars[1]], 
-                bins=[binvec[pars[0]], binvec[pars[1]]], weights=weights)
-        
-        # Recover bin centers
-        bc = []
-        for i, edges in enumerate([xedges, yedges]):
-            bc.append(rebin(edges))
-        
-        # ContourSet needs 2-D arrays
-        x, y = np.meshgrid(bc[0], bc[1])
-        
-        # Create contour object
-        c = cntr.Cntr(x, y, hist.T / hist.max())     
-                
-        # Find levels corresponding to nu-sigma inputs
-        nu, levels = error_2D(to_hist[pars[0]], to_hist[pars[1]], 
-            self.L / self.L.max(), bins=[binvec[pars[0]], binvec[pars[1]]], 
-            nu=nu, method=contour_method)
-        
-        # Find x-y trajectory of contour
-        all_contours = []
         for level in levels:
-            nlist = c.trace(level, level, 0)
-            segs = nlist[:len(nlist)/2]
-            all_contours.append(segs) 
+            # Find indices of appropriate elements
+            cond = np.abs(zdata - level) < leveltol
+            elements = np.argwhere(cond).squeeze()
             
-        return all_contours
-        
-    def get_2d_error(self, plane, nu=0.68):
-        pass
-        
+            order = np.argsort(xdata[elements])
+            ax.plot(xdata[elements][order], ydata[elements][order], **kwargs)
+            
+        pl.draw()    
+            
+        return ax, xdata, ydata, zdata
+              
     def ContourScatter(self, x, y, c, z=None, Nscat=1e4, take_log=False, 
         cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
         labels=None, **kwargs):
@@ -2113,17 +1893,20 @@ class ModelSet(object):
             labels_tmp.update(labels)
             labels = labels_tmp
 
+        if type(z) is not list:
+            z = [z] * 3
+
         pars = [x, y]
 
         axes = []
-        for par in pars:
+        for i, par in enumerate(pars):
             if par in self.parameters:
                 axes.append(self.chain[:,self.parameters.index(par)])
             elif par in self.blob_names:
-                axes.append(self.blobs[:,self.blob_redshifts.index(z),
+                axes.append(self.blobs[:,self.blob_redshifts.index(z[i]),
                     self.blob_names.index(par)])
             elif par in self.derived_blob_names:
-                axes.append(self.derived_blobs[:,self.blob_redshifts.index(z),
+                axes.append(self.derived_blobs[:,self.blob_redshifts.index(z[i]),
                     self.derived_blob_names.index(par)])        
 
         for i in range(2):
@@ -2135,10 +1918,10 @@ class ModelSet(object):
         if c in self.parameters:        
             zax = self.chain[:,self.parameters.index(c)].ravel()
         elif c in self.blob_names:   
-            zax = self.blobs[:,self.blob_redshifts.index(z),
+            zax = self.blobs[:,self.blob_redshifts.index(z[-1]),
                 self.blob_names.index(c)]
         elif c in self.derived_blob_names:   
-            zax = self.derived_blobs[:,self.blob_redshifts.index(z),
+            zax = self.derived_blobs[:,self.blob_redshifts.index(z[-1]),
                 self.derived_blob_names.index(c)]
                 
         if zax.shape[0] != self.chain.shape[0]:
@@ -2154,6 +1937,7 @@ class ModelSet(object):
         if take_log[2]:
             zax = np.log10(zax)    
             
+        z.pop(-1)
         ax = self.PosteriorPDF(pars, z=z, take_log=take_log, filled=False, 
             bins=bins, **kwargs)
         
@@ -2190,7 +1974,10 @@ class ModelSet(object):
         else:
             cblab = c 
             
-        cb.set_label(logify_str(cblab))
+        if take_log[2]:
+            cb.set_label(logify_str(cblab))
+        else:
+            cb.set_label(cblab)    
             
         cb.update_ticks()
             
@@ -2198,8 +1985,7 @@ class ModelSet(object):
         
         return ax, scat, cb    
         
-    def extract_panel(self, panel, mp, rotate_x=45, rotate_y=45, ax=None, 
-        fig=99):
+    def ExtractPanel(self, panel, mp, ax=None, fig=99):
         """
         Save panel of a triangle plot as separate file.
         
@@ -2233,7 +2019,7 @@ class ModelSet(object):
         for i, x in enumerate(mp.grid[panel].get_xticklabels()):
             xt.append(x.get_text())
         
-        ax.set_xticklabels(xt, rotation=rotate_x)
+        ax.set_xticklabels(xt, rotation=45.)
         
         yt = []
         for i, x in enumerate(mp.grid[panel].get_yticklabels()):
@@ -2248,12 +2034,13 @@ class ModelSet(object):
         
         return ax
                 
-    def TrianglePlot(self, pars=None, z=None, panel_size=(0.5,0.5), 
-        padding=(0,0), show_errors=False, take_log=False, multiplier=1,
-        fig=1, inputs={}, tighten_up=0.0, ticks=5, bins=20, mp=None, skip=0, 
-        skim=1, top=None, oned=True, twod=True, filled=True, box=None, 
-        rotate_x=45, rotate_y=45, add_cov=False, label_panels='upper right', 
-        fix=True, skip_panels=[], stop=None, **kwargs):
+    def TrianglePlot(self, pars=None, ivar=None, take_log=False, un_log=False, 
+        multiplier=1, fig=1, mp=None, inputs={}, tighten_up=0.0, ticks=5, 
+        bins=20, skip=0, scatter=False,
+        skim=1, oned=True, twod=True, filled=True, show_errors=False, 
+        label_panels='upper right', 
+        fix=True, skip_panels=[], stop=None, mp_kwargs={},
+        **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
 
@@ -2271,7 +2058,6 @@ class ModelSet(object):
             blobs.
 
             If None, this will plot *all* parameters, so be careful!
-
         fig : int
             ID number for plot window.
         bins : int, np.ndarray
@@ -2281,7 +2067,7 @@ class ModelSet(object):
             you apply a multiplier or take_log, the bins should be in the
             native units times the multiplier or in the log10 of the native
             units (or both).
-        z : int, float, str, list
+        ivar : int, float, str, list
             If plotting arbitrary meta-data blobs, must choose a redshift.
             Can be 'B', 'C', or 'D' to extract blobs at 21-cm turning points,
             or simply a number. If it's a list, it must have the same
@@ -2291,9 +2077,6 @@ class ModelSet(object):
             Dictionary of parameter:value pairs representing the input
             values for all model parameters being fit. If supplied, lines
             will be drawn on each panel denoting these values.
-        panel_size : list, tuple (2 elements)
-            Multiplicative factor in (x, y) to be applied to the default 
-            window size as defined in your matplotlibrc file. 
         skip : int
             Number of steps at beginning of chain to exclude.
         stop: int
@@ -2307,40 +2090,40 @@ class ModelSet(object):
         color_by_like : bool
             If True, set contour levels by confidence regions enclosing nu-%
             of the likelihood. Set parameter `nu` to modify these levels.
-        nu : list
+        like : list
             List of levels, default is 1,2, and 3 sigma contours (i.e., 
-            nu=[0.68, 0.95])
-        rotate_x : bool
-            Rotate xtick labels 90 degrees.
-        add_cov : bool, list
-            Overplot 1-sigma contours, computed using the covariance matrix.
-            If it's a list, will assume it has [mu, cov] (i.e., not necessarily
-            the extracted covariance matrix but the one used in the fit).
+            like=[0.68, 0.95])
         skip_panels : list
             List of panel numbers to skip over.
+        mp_kwargs : dict 
+            panel_size : list, tuple (2 elements)
+                Multiplicative factor in (x, y) to be applied to the default 
+                window size as defined in your matplotlibrc file. 
+            
+        ..note:: If you set take_log = True AND supply bins by hand, use the
+            log10 values of the bins you want.
         
+            
         Returns
         -------
-        ares.analysis.MultiPlot.MultiPanel instance.
+        ares.analysis.MultiPlot.MultiPanel instance. Also saves a bunch of 
+        information to the `plot_info` attribute.
         
         """    
-                
-        pars, take_log, multiplier, z = \
-            self._listify_common_inputs(pars, take_log, multiplier, z)
-                
-        kw = def_kwargs.copy()
-        kw.update(kwargs)
-                        
-        if 'labels' in kwargs:
-            labels_tmp = default_labels.copy()
-            labels_tmp.update(kwargs['labels'])
-            labels = kwargs['labels']
-            kw['labels'] = kwargs['labels']
-        else:
-            labels = default_labels
         
-        to_hist, is_log = self.ExtractData(pars, z=z, take_log=take_log, 
-            multiplier=multiplier)
+        # Grab data that will be histogrammed
+        np_version = np.__version__.split('.')
+        newer_than_one = (int(np_version[0]) > 1)
+        newer_than_one_pt_nine =\
+            ((int(np_version[0]) == 1) and (int(np_version[1])>9))
+        remove_nas = (newer_than_one or newer_than_one_pt_nine)
+        to_hist, is_log = self.ExtractData(pars, ivar=ivar, take_log=take_log,
+            un_log=un_log, multiplier=multiplier, remove_nas=remove_nas)
+            
+        # Make sure all inputs are lists of the same length!
+        pars, take_log, multiplier, un_log, ivar = \
+            self._listify_common_inputs(pars, take_log, multiplier, un_log, 
+            ivar)        
             
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)      
@@ -2349,36 +2132,30 @@ class ModelSet(object):
             bins = [binvec[par] for par in pars]      
         else:
             bins = binvec    
-                                
+                 
+        # Can opt to exclude 1-D panels along diagonal                
         if oned:
             Nd = len(pars)
         else:
             Nd = len(pars) - 1
                            
-        # Multipanel instance
+        # Setup MultiPanel instance
         had_mp = True
         if mp is None:
             had_mp = False
             
-            if 'diagonal' not in kwargs:
-                kw['diagonal'] = 'lower'
-            if 'dims' not in kwargs:    
-                kw['dims'] = [Nd] * 2
-            if 'keep_diagonal' not in kwargs:    
-                kw['keep_diagonal'] = True
-            else:
+            mp_kw = default_mp_kwargs.copy()
+            mp_kw['dims'] = [Nd] * 2    
+            mp_kw.update(mp_kwargs)
+            if 'keep_diagonal' in mp_kwargs:
                 oned = False
-
-            mp = MultiPanel(padding=padding,
-                panel_size=panel_size, fig=fig, top=top, **kw)
+            
+            mp = MultiPanel(fig=fig, **mp_kw)
         
-        for key in ['bottom', 'top', 'left', 'right', 'figsize', 'diagonal', 'dims', 'keep_diagonal']:
-            if key in kw:
-                del kw[key]
-                        
         # Apply multipliers etc. to inputs
         inputs = self._set_inputs(pars, inputs, is_log, take_log, multiplier)
-
+        
+        # Save some plot info for [optional] later tinkering
         self.plot_info = {}
         self.plot_info['kwargs'] = kwargs
         
@@ -2427,19 +2204,13 @@ class ModelSet(object):
                         tohist = [to_hist[p2]]
 
                     # Plot the PDF
-                    ax = self.PosteriorPDF(p1, to_hist=tohist, is_log=is_log,
-                        ax=mp.grid[k], take_log=take_log[-1::-1][i], z=z[-1::-1][i],
+                    ax = self.PosteriorPDF(p1, ax=mp.grid[k], 
+                        to_hist=tohist, is_log=is_log, 
+                        take_log=take_log[-1::-1][i], ivar=ivar[-1::-1][i],
+                        un_log=un_log[-1::-1][i], 
                         multiplier=[multiplier[-1::-1][i]], 
-                        bins=[bins[-1::-1][i]], skip=skip, skim=skim, stop=stop, 
-                        **kw)
-
-                    if add_cov:
-                        if type(add_cov) is list:
-                            self._PosteriorIdealized(ax=mp.grid[k], 
-                                mu=add_cov[k], cov=add_cov[k])                            
-                        else:
-                            self._PosteriorIdealized(pars=p1, ax=mp.grid[k], 
-                                z=z[-1::-1][i])
+                        bins=[bins[-1::-1][i]], 
+                        skip=skip, skim=skim, stop=stop, **kwargs)
 
                     # Stick this stuff in fix_ticks?
                     if col != 0:
@@ -2456,7 +2227,7 @@ class ModelSet(object):
                     self.plot_info[k] = {}
                     self.plot_info[k]['axes'] = [p1]
                     self.plot_info[k]['data'] = tohist
-                    self.plot_info[k]['z'] = z[-1::-1][i]
+                    self.plot_info[k]['ivar'] = ivar[-1::-1][i]
                     self.plot_info[k]['bins'] = [bins[-1::-1][i]]
                     self.plot_info[k]['multplier'] = [multiplier[-1::-1][i]]
                     self.plot_info[k]['take_log'] = take_log[-1::-1][i]
@@ -2472,32 +2243,36 @@ class ModelSet(object):
                             
                     continue
 
-                red = [z[j], z[-1::-1][i]]
+                if ivar is not None:
+                    iv = [ivar[j], ivar[-1::-1][i]]
+                else:
+                    iv = None
 
                 # If not oned, may end up with some x vs. x plots if we're not careful
-                if p1 == p2 and (red[0] == red[1]):
+                if p1 == p2 and (iv[0] == iv[1]):
                     continue
                     
                 try:
                     tohist = [to_hist[j], to_hist[-1::-1][i]]
                 except KeyError:
                     tohist = [to_hist[p2], to_hist[p1]]
-                
+                                                    
                 # 2-D PDFs elsewhere
-                ax = self.PosteriorPDF([p2, p1], to_hist=tohist, is_log=is_log,
-                    ax=mp.grid[k], z=red, take_log=[take_log[j], take_log[-1::-1][i]],
-                    multiplier=[multiplier[j], multiplier[-1::-1][i]], 
-                    bins=[bins[j], bins[-1::-1][i]], filled=filled, 
-                    skip=skip, stop=stop, **kw)
-                
-                if add_cov:
-                    if type(add_cov) is list:
-                        pass
-                        self._PosteriorIdealized(ax=mp.grid[k], 
-                            mu=add_cov[k], cov=add_cov[k])
-                    else:
-                        self._PosteriorIdealized(pars=[p2, p1], 
-                            ax=mp.grid[k], z=red)
+                if scatter:
+                    ax = self.Scatter([p2, p1], ax=mp.grid[k], 
+                        to_hist=tohist, is_log=is_log, z=red, 
+                        take_log=[take_log[j], take_log[-1::-1][i]],
+                        multiplier=[multiplier[j], multiplier[-1::-1][i]], 
+                        bins=[bins[j], bins[-1::-1][i]], filled=filled, 
+                        skip=skip, stop=stop, **kwargs)
+                else:
+                    ax = self.PosteriorPDF([p2, p1], ax=mp.grid[k], 
+                        to_hist=tohist, is_log=is_log, ivar=iv, 
+                        take_log=[take_log[j], take_log[-1::-1][i]],
+                        un_log=[un_log[j], un_log[-1::-1][i]],
+                        multiplier=[multiplier[j], multiplier[-1::-1][i]], 
+                        bins=[bins[j], bins[-1::-1][i]], filled=filled, 
+                        skip=skip, stop=stop, **kwargs)
 
                 if row != 0:
                     mp.grid[k].set_xlabel('')
@@ -2507,7 +2282,7 @@ class ModelSet(object):
                 self.plot_info[k] = {}
                 self.plot_info[k]['axes'] = [p2, p1]
                 self.plot_info[k]['data'] = tohist
-                self.plot_info[k]['z'] = red
+                self.plot_info[k]['ivar'] = iv
                 self.plot_info[k]['bins'] = [bins[j], bins[-1::-1][i]]
                 self.plot_info[k]['multiplier'] = [multiplier[j], multiplier[-1::-1][i]]
                 self.plot_info[k]['take_log'] = [take_log[j], take_log[-1::-1][i]] 
@@ -2526,48 +2301,203 @@ class ModelSet(object):
                     mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k',
                         ls=':', zorder=20)
 
+                    
         if oned:
             mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
         
         if fix:
-            mp.fix_ticks(oned=oned, N=ticks, rotate_x=rotate_x, rotate_y=rotate_y)
+            mp.fix_ticks(oned=oned, N=ticks, rotate_x=45, rotate_y=45)
         
         if not had_mp:
             mp.rescale_axes(tighten_up=tighten_up)
     
         if label_panels is not None and (not had_mp):
-            letters = list(string.ascii_lowercase)
-            letters.extend([let*2 for let in list(string.ascii_lowercase)])
-
-            ct = 0
-            for ax in mp.grid:
-                if ax is None:
-                    continue
-
-                if label_panels == 'upper left':
-                    ax.annotate('(%s)' % letters[ct], (0.05, 0.95),
-                        xycoords='axes fraction', ha='left', va='top')
-                elif label_panels == 'upper right':
-                    ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
-                        xycoords='axes fraction', ha='right', va='top')
-                elif label_panels == 'upper center':
-                    ax.annotate('(%s)' % letters[ct], (0.5, 0.95),
-                        xycoords='axes fraction', ha='center', va='top')
-                elif label_panels == 'lower right':
-                    ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
-                        xycoords='axes fraction', ha='right', va='top')                
-                else:
-                    print "WARNING: Uncrecognized label_panels option."
-                    break
-
-                ct += 1    
-
-            pl.draw()
-
+            mp = self._label_panels(mp, label_panels)
+    
         return mp
         
+    def _label_panels(self, mp, label_panels):
+        letters = list(string.ascii_lowercase)
+        letters.extend([let*2 for let in list(string.ascii_lowercase)])
+        
+        ct = 0
+        for ax in mp.grid:
+            if ax is None:
+                continue
+        
+            if label_panels == 'upper left':
+                ax.annotate('(%s)' % letters[ct], (0.05, 0.95),
+                    xycoords='axes fraction', ha='left', va='top')
+            elif label_panels == 'upper right':
+                ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
+                    xycoords='axes fraction', ha='right', va='top')
+            elif label_panels == 'upper center':
+                ax.annotate('(%s)' % letters[ct], (0.5, 0.95),
+                    xycoords='axes fraction', ha='center', va='top')
+            elif label_panels == 'lower right':
+                ax.annotate('(%s)' % letters[ct], (0.95, 0.95),
+                    xycoords='axes fraction', ha='right', va='top')                
+            else:
+                print "WARNING: Uncrecognized label_panels option."
+                break
+        
+            ct += 1    
+        
+        pl.draw()    
+        
+        return mp
+        
+    def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
+        use_best=False, percentile=0.68, take_log=False, un_log=False, 
+        multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
+        best='maxL', fill=True, **kwargs):    
+        """
+        Reconstructed evolution in whatever the independent variable is.
+        
+        Parameters
+        ----------
+        name : str
+            Name of blob you're interested in.
+        ivar : list, np.ndarray
+            List of values (or nested list) of independent variables. If 
+            blob is 2-D, only need to provide the independent variable for
+            one of the dimensions, e.g., 
+                
+                # If LF data, plot LF at z=3.8
+                ivar = [3.8, None]
+                
+            or 
+            
+                # If LF data, plot z evolution of phi(MUV=-20)
+                ivar = [None, -20]
+        
+        percentile : bool, float    
+            If not False, should be the confidence interval to plot, e.g, 0.68.
+        use_best : bool
+            If True, will plot the maximum likelihood reconstructed
+            function. Otherwise, will use `percentile` and plot shaded region.
+            
+        """
+        
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+        
+        if percentile:    
+            q1 = 0.5 * 100 * (1. - percentile)    
+            q2 = 100 * percentile + q1    
+        
+        info = self.blob_info(name)
+        nd = info[2]
+        
+        if nd == 1:
+            ivars = np.atleast_2d(self.blob_ivars[info[0]])
+        else:
+            ivars = self.blob_ivars[info[0]]
+        
+        if nd != 1 and (ivar is None):
+            raise NotImplemented('If not 1-D blob, must supply one ivar!')
+                
+        # Grab the maximum likelihood point 'cuz why not
+        if self.is_mcmc:
+            if best == 'median':
+                N = len(self.logL)
+                psorted = np.argsort(self.logL)
+                loc = psorted[int(N / 2.)]
+            else:
+                loc = np.argmax(self.logL[skip:stop])
+        
+        # 1-D case 
+        if nd == 1:
+            
+            # Read in the independent variable(s)
+            xarr = ivars[0]
+            
+            tmp, is_log = self.ExtractData(name, 
+                take_log=take_log, un_log=un_log, multiplier=multiplier)
+            
+            data = tmp[name].squeeze()
+            
+            y = []
+            for i, x in enumerate(xarr):
+                if (use_best and self.is_mcmc):
+                    y.append(data[:,i][skip:stop][loc])
+                elif percentile:
+                    lo, hi = np.percentile(data[:,i][skip:stop].compressed(), 
+                        (q1, q2))
+                    y.append((lo, hi))
+                else:
+                    dat = data[:,i][skip:stop].compressed()
+                    lo, hi = dat.min(), dat.max()
+                    y.append((lo, hi))
+        elif nd == 2:
+            if ivar[0] is None:
+                scalar = ivar[1]
+                vector = xarr = ivars[0]
+                slc = slice(-1, None, -1)
+
+            else:
+                scalar = ivar[0]
+                vector = xarr = ivars[1]
+                slc = slice(0, None, 1)
+                                                
+            y = []
+            for i, value in enumerate(vector):
+                iv = [scalar, value][slc]
+                data, is_log = self.ExtractData(name, ivar=iv,
+                    take_log=take_log, un_log=un_log, multiplier=multiplier)
+                        
+                if (use_best and self.is_mcmc):
+                    y.append(data[name][skip:stop][loc])        
+                elif percentile:
+                    lo, hi = np.percentile(data[name][skip:stop].compressed(),
+                        (q1, q2))
+                    y.append((lo, hi))    
+                else:
+                    dat = data[name][skip:stop].compressed()
+                    lo, hi = dat.min(), dat.max()
+                    y.append((lo, hi))
+                    
+        # Convert redshifts to frequencies    
+        if z_to_freq:
+            xarr = nu_0_mhz / (1. + xarr)
+                        
+        # Where y is zero, set to small number?                
+                        
+        if use_best and self.is_mcmc:
+            if take_log:
+                y = 10**y
+        
+            ax.plot(xarr, y, **kwargs)
+        else:
+            y = np.array(y).T
+        
+            if take_log:
+                y = 10**y
+            else:
+                zeros = np.argwhere(y == 0)
+                for element in zeros:
+                    y[element[0],element[1]] = 1e-15
+            
+            if fill:
+                ax.fill_between(xarr, y[0], y[1], **kwargs)
+            else:
+                ax.plot(xarr, y[0], **kwargs)
+                ax.plot(xarr, y[1], **kwargs)
+                
+        
+        pl.draw()
+                 
+        if return_data:
+            return ax, xarr, y
+        else:            
+            return ax
+        
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
-        nu=0.68, take_log=False, bins=20, label=None,
+        like=0.68, take_log=False, bins=20, label=None,
         plot_bands=False, limit=None, **kwargs):
         """
         Plot constraints on the redshift evolution of given quantity.
@@ -2618,7 +2548,7 @@ class ModelSet(object):
             
             try:
                 value, (blob_err1, blob_err2) = \
-                    self.get_1d_error(blob, z=z, nu=nu, take_log=take_log,
+                    self.get_1d_error(blob, ivar=z, like=like, take_log=take_log,
                     bins=bins, limit=limit)
             except TypeError:
                 continue
@@ -2630,10 +2560,11 @@ class ModelSet(object):
             if type(z) == str and not plot_bands:
                 if blob == 'dTb':
                     mu_z, (z_err1, z_err2) = \
-                        self.get_1d_error('nu', z=z, nu=nu, bins=bins)
+                        self.get_1d_error('nu', ivar=z, nu=like, bins=bins)
                 else:
                     mu_z, (z_err1, z_err2) = \
-                        self.get_1d_error('z', z=z, nu=nu, bins=bins)
+                        self.get_1d_error('z', ivar=z, nu=like, bins=bins)
+
                 xerr = np.array(z_err1, z_err2).T
             else:
                 mu_z = z
@@ -2682,11 +2613,12 @@ class ModelSet(object):
             ax.set_xlabel(r'$z$')
             
         ax.set_ylabel(ylabel)
+
         pl.draw()
         
         return ax
         
-    def CovarianceMatrix(self, pars, z=None):
+    def CovarianceMatrix(self, pars, ivar=None):
         """
         Compute covariance matrix for input parameters.
 
@@ -2700,187 +2632,66 @@ class ModelSet(object):
         Returns vector of mean, and the covariance matrix itself.
         
         """
+                
+        data, is_log = self.ExtractData(pars, ivar=ivar)
         
-        if z is None:
-            z = [None] * len(pars)
-        elif type(z) is not list:
-            z = [z]
+        blob_vec = []
+        for i in range(len(pars)):
+            blob_vec.append(data[pars[i]])    
         
-        #masks = []
-        #blob_vec = []
-        #for i in range(len(pars)):
-        #    blob = self.extract_blob(pars[i], z=z[i])
-        #    if hasattr(blob, 'mask'):
-        #        masks.append(blob.mask)
-        #    else:
-        #        masks.append(np.zeros_like(blob))
-        #        
-        #    blob_vec.append(blob)    
-        
-        to_hist, is_log = self.ExtractData(pars, z=z)
-        
-        #master_mask = np.zeros_like(masks[0])
-        #for mask in masks:
-        #    master_mask += mask
-        #
-        #master_mask[master_mask > 0] = 1
-            
-        #blob_vec_mast = self.blob_vec_mast = np.ma.array(blob_vec, 
-        #    mask=[master_mask] * len(blob_vec))
-        #
-        #blobs_compr = np.array([vec.compressed() for vec in blob_vec_mast])
+        mu  = np.ma.mean(blob_vec, axis=1)
+        cov = np.ma.cov(blob_vec)
 
-        mu = np.mean(to_hist, axis=1)
-        cov = np.cov(to_hist)
-
-        return mu, cov     
-
-    def _PosteriorIdealized(self, ax=None, pars=None, mu=None, cov=None, z=None, 
-        nu=[0.68, 0.95]):
+        return mu, cov    
+        
+    def AssembleParametersList(self, N=None, loc=None, include_bkw=False):
         """
-        Draw posterior distribution using covariance matrix.
-        """
-
-        # Handle 1-D PDFs separately
-        if pars is not None:
-            if type(pars) is str:
+        Return dictionaries that can be used to initialize an ares 
+        simulation. 
+        
+        N : int
+            Maximum number of models to return.
             
-                # Set bounds using current axes limits
-                mi, ma = ax.get_xlim()
-                x = np.linspace(mi, ma, 100)
+        Returns
+        -------
+        List of dictionaries. Maximum length: `N`.
+            
+        """ 
+        
+        all_kwargs = []
+        for i, element in enumerate(self.chain):
+            
+            if loc is not None:
+                if i != loc:
+                    continue
+            elif N is not None:
+                if i >= N:
+                    break
                 
-                # Extract the data, and calculate the mean and variance
-                blob = self.extract_blob(pars, z=z)
-                mu = np.mean(blob)
-                cov = np.std(blob)**2
+            if include_bkw:
+                kwargs = self.base_kwargs.copy()    
+            else:
+                kwargs = {}
                 
-                # Plot the PDF!
-                ax.plot(x, np.exp(-(x - mu)**2 / 2. / cov), color='k', ls='-')
-                
-                pl.draw()
-                return
-
-        if pars is not None:
-            if len(pars) > 2: 
-                raise ValueError('Only meant for 2x2 chunks of covariance.')
-
-        # Compute the covariance matrix
-        if cov is None:
-            mu, cov = self.CovarianceMatrix(pars, z)
-        
-        var = np.sqrt(np.diag(cov))
-
-        # When integrating over constant likelihood contours, must hold
-        # the eccentricity constant
-        eccen = np.sqrt(1. - (min(var) / max(var))**2)    
-
-        # For elliptical integration paths, must make sure the semi-major
-        # axis is longer than the semi-minor axis
-        if var[1] > var[0]:
-            new_mu = mu[-1::-1]
-
-            diag = np.diag(cov)[-1::-1]
-            new_cov = np.zeros([len(diag)] * 2)
-            new_cov[0,0] = diag[0]
-            new_cov[1,1] = diag[1]
-        else:
-            new_mu = mu
-            
-            diag = np.diag(cov)
-            new_cov = np.zeros([len(diag)] * 2)
-            new_cov[0,0] = diag[0]
-            new_cov[1,1] = diag[1]
-            
-        # Convenience variable for variances    
-        new_var = diag
-        
-        # Likelihood functions                      
-        likelihood = lambda yy, xx: GaussND(np.array([xx, yy]), mu, cov) 
-            
-        # For integration, consider 2-D Gaussian centered at zero for simplicity
-        _like = lambda yy, xx: GaussND(np.array([xx, yy]), 
-            np.array([0.]*2), new_cov)
-            
-        xmin, xmax = np.array(ax.get_xlim())
-        ymin, ymax = np.array(ax.get_ylim())
-        
-        x = np.linspace(xmin, xmax, 100)                    
-        y = np.linspace(ymin, ymax, 100)   
-
-        # Construct likelihood surface                        
-        surf = np.zeros([x.size, y.size])
-        for j, xx in enumerate(x):
-            for k, yy in enumerate(y):
-                surf[j,k] = likelihood(yy, xx)
-            
-        # Find levels corresponding to 1 and 2 sigma
-        levels = []
-        for k, level in enumerate(nu):
-
-            # Minimize difference between area(DX) and requested level
-            #to_min = lambda DX: \
-            #    np.abs(self._elliptical_integral(DX, eccen, _like) - level)
-            #
-            #guess = np.array([np.sqrt(new_var[0])])
-        
-            # Solve for the standard deviation in each dimension
-            #dx = fmin(to_min, guess, disp=False, ftol=1e-4)[0]
-            #dy = dx * np.sqrt(1. - eccen**2)
-                            
-            #contour = _like(dy, dx) 
-            contour_1s = _like(np.sqrt(new_var[1]), np.sqrt(new_var[0]))
-                        
-            #contour_1s_2 = self._elliptical_integral(np.sqrt(new_var[0]),
-            #    eccen, _like)  
-            
-            #print level, eccen, np.sqrt(new_var[0]), contour_1s_2
-                        
-            #print level, dx, dy, np.sqrt(new_var), self._elliptical_integral(dx, eccen, _like)
+            for j, parameter in enumerate(self.parameters):
+                if self.is_log[j]:
+                    kwargs[parameter] = 10**self.chain[i,j]
+                else:
+                    kwargs[parameter] = self.chain[i,j]
                     
-            # Save and move on
-            levels.append(contour_1s)
-
-        ax.contour(x, y, surf.T, levels=levels, linestyles=['-', '--'], 
-            colors='k', zorder=10)
-
-        pl.draw()
-
-    def _elliptical_integral(self, dx, ecc, like):
-    
-        # Integration is over an ellipse!
-        x1 = - dx
-        x2 = + dx
-
-        # Figure out elliptical surface
-        dy = dx * np.sqrt(1. - ecc**2)
-
-        # Arcs in +/- y
-        y1 = lambda x: - dy * np.sqrt(1. - (x / dx)**2)
-        y2 = lambda x: + dy * np.sqrt(1. - (x / dx)**2)
-
-        fig = pl.figure(10); ax = fig.add_subplot(111)
-
-        xm = np.linspace(x1, x2)
-        xp = np.linspace(x1, x2)
-
-        ym = map(y1, xm)
-        yp = map(y2, xp)
-
-        pl.plot(xm, ym, color='b')
-        pl.plot(xp, yp, color='r')
-        
-        raw_input('<enter>')
-        
-        pl.close()
-        
-        return dblquad(like, x1, x2, y1, y2, epsrel=1e-2, epsabs=1e-4)[0]            
-        
-    def CorrelationMatrix(self, pars, z=None, fig=1, ax=None):
+            all_kwargs.append(kwargs.copy())
+            
+        if loc is not None:
+            return all_kwargs[0]
+        else:
+            return all_kwargs
+            
+    def CorrelationMatrix(self, pars, ivar=None, fig=1, ax=None):
         """
         Plot correlation matrix.
         """
     
-        mu, cov = self.CovarianceMatrix(pars, z=z)
+        mu, cov = self.CovarianceMatrix(pars, ivar=ivar)
     
         corr = correlation_matrix(cov)
     
@@ -2893,78 +2704,106 @@ class ModelSet(object):
     
         return ax
     
-    def add_boxes(self, ax=None, val=None, width=None, **kwargs):
+    def get_blob(self, name, ivar=None):
         """
-        Add boxes to 2-D PDFs.
+        Extract an array of values for a given quantity.
+        
+        ..note:: If ivar is not supplied, this is equivalent to just reading
+            all data from disk.
         
         Parameters
         ----------
-        ax : matplotlib.axes._subplots.AxesSubplot instance
-        
-        val : int, float
-            Center of box (probably maximum likelihood value)
-        width : int, float
-            Size of box (above/below maximum likelihood value)
-        
-        """
-        
-        if width is None:
-            return
-        
-        iwidth = 1. / width
+        name : str
+            Name of quantity
+        ivar : list, tuple, array
+            Independent variables a given blob may depend on.
             
-        # Vertical lines
-        ax.plot(np.log10([val[0] * iwidth, val[0] * width]), 
-            np.log10([val[1] * width, val[1] * width]), **kwargs)
-        ax.plot(np.log10([val[0] * iwidth, val[0] * width]), 
-            np.log10([val[1] * iwidth, val[1] * iwidth]), **kwargs)
-            
-        # Horizontal lines
-        ax.plot(np.log10([val[0] * iwidth, val[0] * iwidth]), 
-            np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
-        ax.plot(np.log10([val[0] * width, val[0] * width]), 
-            np.log10([val[1] * iwidth, val[1] * width]), **kwargs)
-
-    def extract_blob(self, name, z):
         """
-        Extract a 1-D array of values for a given quantity at a given redshift.
-        """
-
-        # Otherwise, we've got a meta-data blob
-        try:
-            i = self.blob_redshifts.index(z)
-        except ValueError:
-            
-            ztmp = []
-            for redshift in self.blob_redshifts_float:
-                if redshift is None:
-                    ztmp.append(None)
-                else:
-                    ztmp.append(round(redshift, 1))    
-                
-            i = ztmp.index(round(z, 1))
-
-        if name in self.blob_names:
-            j = self.blob_names.index(name)            
-            return self.blobs[:,i,j]
-        else:
-            return self.derived_blobs[name][:,i]
+                        
+        i, j, nd, dims = self.blob_info(name)
+        blob = self.get_blob_from_disk(name)
+        
+        if nd == 0:
+            return blob
+        elif nd == 1:
+            if ivar is None:
+                return blob
+            else:
+                k = np.argmin(np.abs(self.blob_ivars[i][0] - ivar))
+                return blob[:,k]
+        elif nd == 2:
+            if ivar is None:
+                return blob
+                    
+            assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
+            k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))
+            k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
+            return blob[:,k1,k2]    
     
-    def max_likelihood_parameters(self):
+    def max_likelihood_parameters(self, method='median'):
         """
         Return parameter values at maximum likelihood point.
         """
-    
-        iML = np.argmax(self.logL)
-    
-        p = {}
+                    
+        if method == 'median':
+            N = len(self.logL)
+            psorted = np.sort(self.logL)
+            iML = psorted[int(N / 2.)]
+        else:
+            iML = np.argmax(self.logL)
+        
+        self._max_like_pars = {}
         for i, par in enumerate(self.parameters):
             if self.is_log[i]:
-                p[par] = 10**self.chain[iML,i]
+                self._max_like_pars[par] = 10**self.chain[iML,i]
             else:
-                p[par] = self.chain[iML,i]
-    
-        return p
+                self._max_like_pars[par] = self.chain[iML,i]
+        
+        return self._max_like_pars
+        
+    def DeriveBlob(self, expr, varmap, save=True, name=None, clobber=False):
+        """
+        Derive new blob from pre-existing ones.
+        
+        Parameters
+        ----------
+        expr : str
+            For example, 'x - y'
+        varmap : dict
+            Relates variables in `expr` to blobs. For example, 
+            
+            varmap = {'x': 'nu_D', 'y': 'nu_C'}
+        
+        
+        """    
+        
+        blobs = varmap.values()
+        
+        data, is_log = self.ExtractData(blobs)
+        
+        for var in varmap.keys():
+            exec('%s = data[\'%s\']' % (var, varmap[var]))
+            
+        result = eval(expr)
+        
+        if save:
+            assert name is not None, "Must supply name for new blob!"
+            
+            # First dimension is # of samples
+            nd = len(result.shape) - 1
+            
+            fn = '%s.blob_%id.%s.pkl' % (self.prefix, nd, name)
+            
+            if os.path.exists(fn) and (not clobber):
+                print '%s exists! Set clobber=True or remove by hand.' % fn
+                data, is_log = self.ExtractData(name)
+                return data[name]
+        
+            f = open(fn, 'wb')
+            pickle.dump(result, f)
+            f.close()
+        
+        return result
         
     def save(self, pars, z=None, path='.', fmt='hdf5', clobber=False):
         """
@@ -3038,14 +2877,15 @@ class ModelSet(object):
         else:
             raise NotImplemented('Only support for hdf5 so far. Sorry!')
         
-    def set_axis_labels(self, ax, pars, is_log, take_log=False, labels=None):
+    def set_axis_labels(self, ax, pars, is_log, take_log=False, un_log=False,
+        cb=None, labels={}):
         """
         Make nice axis labels.
         """
-        
-        pars, take_log, multiplier, z = \
-            self._listify_common_inputs(pars, take_log, 1.0, z=None)
-        
+                
+        pars, take_log, multiplier, un_log, ivar = \
+            self._listify_common_inputs(pars, take_log, 1.0, un_log, None)
+
         if type(is_log) != dict:
             tmp = {par:is_log[i] for i, par in enumerate(pars)}
             is_log = tmp
@@ -3053,216 +2893,41 @@ class ModelSet(object):
             tmp = {par:take_log[i] for i, par in enumerate(pars)}
             take_log = tmp        
             
-        # [optionally] modify default labels
-        if labels is None:
-            labels = default_labels
-        else:
-            labels_tmp = default_labels.copy()
-            labels_tmp.update(labels)
-            labels = labels_tmp
+        # Prep for label making
+        labeler = self.labeler = Labeler(pars, is_log, extra_labels=labels,
+            **self.base_kwargs)
 
-        p = []
-        sup = []
-        for par in pars:
-
-            if type(par) is int:
-                sup.append(None)
-                p.append(par)
-                continue
-
-            # If we want special labels for population specific parameters
-            #if par in labels:
-            sup.append(None)
-            p.append(par)
-            continue    
-
-            #p.append(par)
-            #
-            #m = re.search(r"\{([0-9])\}", par)
-            #
-            #if m is None:
-            #    sup.append(None)
-            #    p.append(par)
-            #    continue
-            #
-            ## Split parameter prefix from population ID in braces
-            #p.append(par.split(m.group(0))[0])
-            #sup.append(int(m.group(1)))
-        
-        del pars
-        pars = p
-    
-        log_it = is_log[pars[0]] or take_log[pars[0]]
-            
-        ax.set_xlabel(make_label(pars[0], log_it, labels))
+        # x-axis first
+        ax.set_xlabel(labeler.label(pars[0], take_log=take_log[pars[0]], 
+            un_log=un_log[0]))
     
         if len(pars) == 1:
             ax.set_ylabel('PDF')
-    
             pl.draw()
             return
     
-        log_it = is_log[pars[1]] or take_log[pars[1]]
-        ax.set_ylabel(make_label(pars[1], log_it, labels))
-
+        ax.set_ylabel(labeler.label(pars[1], take_log=take_log[pars[1]], 
+            un_log=un_log[1]))
+            
         pl.draw()
-                
-    def confidence_regions(self, L, nu=[0.95, 0.68]):
-        """
-        Integrate outward at "constant water level" to determine proper
-        2-D marginalized confidence regions.
-    
-        ..note:: This is fairly crude -- the "coarse-ness" of the resulting
-            PDFs will depend a lot on the binning.
-    
-        Parameters
-        ----------
-        L : np.ndarray
-            Grid of likelihoods.
-        nu : float, list
-            Confidence intervals of interest.
-    
-        Returns
-        -------
-        List of contour values (relative to maximum likelihood) corresponding 
-        to the confidence region bounds specified in the "nu" parameter, 
-        in order of decreasing nu.
-        """
-    
-        if type(nu) in [int, float]:
-            nu = np.array([nu])
-    
-        # Put nu-values in ascending order
-        if not np.all(np.diff(nu) > 0):
-            nu = nu[-1::-1]
-    
-        peak = float(L.max())
-        tot = float(L.sum())
-    
-        # Counts per bin in descending order
-        Ldesc = np.sort(L.ravel())[-1::-1]
-    
-        j = 0  # corresponds to whatever contour we're on
-    
-        Lprev = 1.0
-        Lencl_prev = 0.0
-        contours = [1.0]
-        for i in range(1, Ldesc.size):
-    
-            # How much area (fractional) is enclosed within the current contour?
-            Lencl_now = L[L >= Ldesc[i]].sum() / tot
-    
-            Lnow = Ldesc[i]
-    
-            # Haven't hit next contour yet
-            if Lencl_now < nu[j]:
-                pass
-    
-            # Just passed a contour
-            else:
-                # Interpolate to find contour more precisely
-                Linterp = np.interp(nu[j], [Lencl_prev, Lencl_now],
-                    [Ldesc[i-1], Ldesc[i]])
-                # Save relative to peak
-                contours.append(Linterp / peak)
-    
-                j += 1
-    
-            Lprev = Lnow
-            Lencl_prev = Lencl_now
-    
-            if j == len(nu):
-                break
-    
-        # Return values that match up to inputs    
-        return nu[-1::-1], contours[-1::-1]
-    
-    def errors_to_latex(self, pars, nu=0.68, in_units=None, out_units=None):
-        """
-        Output maximum-likelihood values and nu-sigma errors ~nicely.
-        """
-                
-        if type(nu) != list:
-            nu = [nu]
-            
-        hdr = 'parameter    '
-        for conf in nu:
-            hdr += '%.1f' % (conf * 100)
-            hdr += '%    '
-        
-        print hdr
-        print '-' * len(hdr)    
-        
-        for i, par in enumerate(pars):
-            
-            s = str(par)
-            
-            for j, conf in enumerate(nu):
-                
-                
-                mu, sigma = \
-                    map(np.array, self.get_1d_error(par, bins=100, nu=conf))
-
-                if in_units and out_units != None:
-                    mu, sigma = self.convert_units(mu, sigma,
-                        in_units=in_units, out_units=out_units)
-
-                s += r" & $%5.3g_{-%5.3g}^{+%5.3g}$   " % (mu, sigma[0], sigma[1])
-        
-            s += '\\\\'
-            
-            print s
-    
-    def convert_units(self, mu, sigma, in_units, out_units):
-        """
-        Convert units on common parameters of interest.
-        
-        So far, just equipped to handle frequency -> redshift and Kelvin
-        to milli-Kelvin conversions. 
-        
-        Parameters
-        ----------
-        mu : float
-            Maximum likelihood value of some parameter.
-        sigma : np.ndarray
-            Two-element array containing asymmetric error bar.
-        in_units : str
-            Units of input mu and sigma values.
-        out_units : str
-            Desired units for output.
-        
-        Options
-        -------
-        in_units and out_units can be one of :
-        
-            MHz
-            redshift
-            K
-            mK
-            
-        Returns
-        -------
-        Tuple, (mu, sigma). Remember that sigma is itself a two-element array.
-            
-        """
-        
-        if in_units == 'MHz' and out_units == 'redshift':
-            new_mu = nu_0_mhz / mu - 1.
-            new_sigma = abs(new_mu - (nu_0_mhz / (mu + sigma[1]) - 1.)), \
-                abs(new_mu - (nu_0_mhz / (mu - sigma[0]) - 1.))
                         
-        elif in_units == 'redshift' and out_units == 'MHz':
-            new_mu = nu_0_mhz / (1. + mu)
-            new_sigma = abs(new_mu - (nu_0_mhz / (1. + mu - sigma[0]))), \
-                        abs(new_mu - (nu_0_mhz / (1. + mu - sigma[1])))
-        elif in_units == 'K' and out_units == 'mK':
-            new_mu = mu * 1e3
-            new_sigma = np.array(sigma) * 1e3
-        elif in_units == 'mK' and out_units == 'K':
-            new_mu = mu / 1e3
-            new_sigma = np.array(sigma) / 1e3
-        else:
-            raise ValueError('Unrecognized unit combination')
+        xt = []
+        for i, x in enumerate(ax.get_xticklabels()):
+            xt.append(x.get_text())
         
-        return new_mu, new_sigma
+        ax.set_xticklabels(xt, rotation=45.)
+        
+        yt = []
+        for i, x in enumerate(ax.get_yticklabels()):
+            yt.append(x.get_text())
+        
+        ax.set_yticklabels(yt, rotation=45.)
+            
+        # colorbar
+        if cb is not None and len(pars) > 2:
+            cb.set_label(labeler.label(pars[2], take_log=take_log[pars[2]], 
+                un_log=un_log[2]))
+        
+        pl.draw()
+
     

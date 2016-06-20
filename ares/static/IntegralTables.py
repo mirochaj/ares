@@ -10,8 +10,9 @@ Description: Tabulate integrals that appear in the rate equations.
      
 """
 
+import time
 import numpy as np
-from ..util import ProgressBar
+from ..util.ProgressBar import ProgressBar
 from ..physics.Constants import erg_per_ev
 from ..physics.SecondaryElectrons import *
 import os, re, scipy, itertools, math, copy
@@ -45,16 +46,18 @@ class IntegralTable:
         
         #if self.pf['source_table']:
         #    self.load(self.pf['source_table'])
-            
-        # Move this stuff to TableProperties    
-        if logN is None:
+                        
+        # Move this stuff to TableProperties
+        if self.pf['tables_logN'] is not None:
+            self.logN = self.pf['tables_logN']  
+        elif logN is None:
             
             # Required bounds of table assuming minimum species fraction
             self.logNlimits = self.TableBoundsAuto(self.pf['tables_xmin'])
                         
             # Only override automatic table properties if the request table size
             # is *bigger* than the default one.
-            self.N = []
+            self._N = []
             self.logN = []
             for i, absorber in enumerate(self.grid.absorbers):
                 
@@ -69,11 +72,11 @@ class IntegralTable:
                 d = int((logNmax - logNmin) / self.pf['tables_dlogN'][i]) + 1
             
                 self.logN.append(np.linspace(logNmin, logNmax, d))
-                self.N.append(np.logspace(logNmin, logNmax, d))
+                self._N.append(np.logspace(logNmin, logNmax, d))
         else:    
             self.logN = logN
-            self.N = [10**tmp for tmp in self.logN]
-            
+        
+
         # Retrieve dimensions, add some for secondary electrons if necessary                        
         self.dimsN = np.array([len(element) for element in self.N])
         self.elements_per_table = np.prod(self.dimsN)
@@ -96,7 +99,7 @@ class IntegralTable:
         self.x = 10**self.logx
             
         # Times
-        if self.pf['spectrum_evolving']:
+        if False:#self.pf['spectrum_evolving']:
             if self.pf['tables_times'] is None:
                 stop = self.pf['stop_time'] * self.pf['time_units']
                 self.t = np.linspace(0, stop, 1 + stop / self.pf['tables_dt'])
@@ -115,6 +118,12 @@ class IntegralTable:
         self.E_th = {}
         for absorber in ['h_1', 'he_1', 'he_2']:
             self.E_th[absorber] = self.grid.ioniz_thresholds[absorber]
+    
+    @property
+    def N(self):    
+        if not hasattr(self, '_N'):
+            self._N = [10**tmp for tmp in self.logN]
+        return self._N
         
     def TableBoundsAuto(self, xmin=1e-5):
         """
@@ -187,31 +196,35 @@ class IntegralTable:
             self.Nd += 1
             self.axes.append(self.logx)
             self.axes_names.append('x')
-        if self.pf['spectrum_evolving']:
+        if False:#self.pf['spectrum_evolving']:
             self.Nd += 1
             self.axes.append(self.t)
             self.axes_names.append('t')
                                 
-    def DatasetName(self, integral, absorber, donor):
+    def _DatasetName(self, integral, absorber, donor):
         """
-        Return name of table.  Will be called from dictionary or hdf5 using
+        Return name of table. Will be called from dictionary or hdf5 using
         this name.
         """    
         
         if integral in ['PhiWiggle', 'PsiWiggle']:
             return "log%s_%s_%s" % (integral, absorber, donor)
         elif integral == 'Tau':
-            return 'log%s' % integral    
+            return 'log%s' % integral
         else:
-            return "log%s_%s" % (integral, absorber)   
+            return "log%s_%s" % (integral, absorber)       
               
     def TabulateRateIntegrals(self):
         """
-        Return a dictionary of lookup tables, and also store a copy as self.itabs.
+        Return a dictionary of lookup tables, and also store a copy as 
+        self.itabs.
         """
         
         if rank == 0:
-            print '\nTabulating integral quantities...'        
+            print 'Tabulating integral quantities...'   
+            
+        if self.pf['tables_discrete_gen'] and size > 1:
+            self._tabulate_tau_E_N()
                 
         # Loop over integrals
         h = 0
@@ -223,8 +236,9 @@ class IntegralTable:
             donor = self.grid.absorbers[i_donor]
             for i, absorber in enumerate(self.grid.absorbers):
                 
-                name = self.DatasetName(integral, absorber, donor)
-                                        
+                name = self._DatasetName(integral, absorber, donor)
+                                
+                # Only need to do this once        
                 if integral == 'Tau' and i > 0:
                     continue
                     
@@ -264,7 +278,7 @@ class IntegralTable:
                     for k, t in enumerate(tmpt):                        
                         for l, x in enumerate(tmpx):  
                             tab[ind][k,l] = self.Tabulate(integral, 
-                                absorber, donor, self.Nall[j], x=x, t=t)
+                                absorber, donor, self.Nall[j], x=x, t=t, ind=j)
 
                     pb.update(j)
                     
@@ -302,24 +316,83 @@ class IntegralTable:
             tabs = collected_tabs.copy()
         
         self.tabs = tabs
+
         return tabs         
-            
-    def TotalOpticalDepth(self, N):
+    
+    def _tabulate_tau_E_N(self):
         """
-        Optical depth due to all absorbing species at given column density.
-        Assumes ncol is a 3-element array.
+        Tabulate the optical depth as a function of energy and column density.
         """
         
-        tau = 0.0
-        for absorber in self.grid.absorbers:
-            tau += self.OpticalDepth(N[self.grid.absorbers.index(absorber)], 
-                absorber)
+        self._tau_E_N = {}
+
+        # This is just because each absorber will have different limits
+        # of integration, at least in general.
+        for i, absorber in enumerate(self.grid.absorbers):
+
+            if i > 0:
+                abs_prev = self.grid.absorbers[i-1]
+                if np.all(self.E[absorber] == self.E[abs_prev]):
+                    self._tau_E_N[absorber] = self._tau_E_N[abs_prev]
+                    continue
+
+            buff = np.zeros([len(self.E[absorber]), self.Nall.shape[0]])
+
+            for j, actual_absorber in enumerate(self.grid.absorbers):
+
+                pb = ProgressBar(self.elements_per_table, 
+                    'tau(E, N; %s, %s)' % (absorber, actual_absorber))
+                pb.start()
+
+                sigma = self.sigma_E[actual_absorber]
                 
-            #if self.grid.approx_He:
-            #    Nhe = self.grid.abundances[1] \
-            #        * N[self.grid.absorbers.index('h_1')]
-            #    tau += self.OpticalDepth(Nhe, 'he_1')  
-    
+                for k in range(self.Nall.shape[0]):
+                    
+                    if k % size != rank:
+                        continue
+                    
+                    buff[:,k] += sigma * self.Nall[k][j]
+                    
+                    pb.update(k)
+                
+                pb.finish()
+                                 
+            self._tau_E_N[absorber] = \
+                np.zeros([len(self.E[absorber]), self.Nall.shape[0]])
+                
+            nothing = MPI.COMM_WORLD.Allreduce(buff, self._tau_E_N[absorber])
+            
+            del buff
+            
+    def TotalOpticalDepth(self, N, ind=None):
+        """
+        Optical depth due to all absorbing species at given column density.
+
+        Parameters
+        ----------
+        N : array
+            Each entry is the column density for a particular element.
+            
+        """
+
+        if self.pf['tables_discrete_gen']:
+            tau = 0.0
+            for absorber in self.grid.absorbers:
+                E = self.E[absorber]
+                tau += np.trapz(self.tau_E_N[absorber][:,ind], E)
+        
+        else:
+
+            tau = 0.0
+            for absorber in self.grid.absorbers:
+                tau += self.OpticalDepth(N[self.grid.absorbers.index(absorber)], 
+                    absorber)
+            
+                #if self.grid.approx_He:
+                #    Nhe = self.grid.abundances[1] \
+                #        * N[self.grid.absorbers.index('h_1')]
+                #    tau += self.OpticalDepth(Nhe, 'he_1')  
+        
         return tau
                
     def OpticalDepth(self, N, absorber):
@@ -351,6 +424,13 @@ class IntegralTable:
         """
         Returns the optical depth at energy E due to column densities 
         of all absorbers.
+        
+        Parameters
+        ----------
+        E : float, list
+            Energy of photon to consider [eV]
+        N : list, dictionary
+            Column densities for all absorbers
         """
                                     
         if type(E) in [float, np.float32, np.float64]:
@@ -372,98 +452,255 @@ class IntegralTable:
         
         return tau
         
-    def Tabulate(self, integral, absorber, donor, N, x=None, t=0):
+    def Tabulate(self, integral, absorber, donor, N, x=None, t=0, ind=None):
         if integral == 'Phi':
-            table = self.Phi(N, absorber, t = t)
+            table = self.Phi(N, absorber, t=t, ind=ind)
         if integral == 'Psi':
-            table = self.Psi(N, absorber, t = t)
+            table = self.Psi(N, absorber, t=t, ind=ind)
         if integral == 'PhiWiggle':
-            table = self.PhiWiggle(N, absorber, donor, x = x, t = t)
+            table = self.PhiWiggle(N, absorber, donor, x=x, t=t)
         if integral == 'PsiWiggle':
-            table = self.PsiWiggle(N, absorber, donor, x = x, t = t)
+            table = self.PsiWiggle(N, absorber, donor, x=x, t=t)
         if integral == 'PhiHat':
-            table = self.PhiHat(N, absorber, donor, x = x, t = t)
+            table = self.PhiHat(N, absorber, donor, x=x, t=t)
         if integral == 'PsiHat':
-            table = self.PsiHat(N, absorber, donor, x = x, t = t)
+            table = self.PsiHat(N, absorber, donor, x=x, t=t)
         if integral == 'Tau':
-            table = self.TotalOpticalDepth(N)
+            table = self.TotalOpticalDepth(N, ind=ind)
             
         return np.log10(table)
         
-    def Phi(self, N, absorber, t=0):
+    @property
+    def E(self):
+        if not hasattr(self, '_E'):
+            if self.pf['tables_discrete_gen']:
+                self._E = {}
+                for absorber in self.grid.absorbers:
+                    Emin = max(self.E_th[absorber], self.src.Emin)
+                    self._E[absorber] = np.linspace(Emin, self.src.Emax, 
+                        self.pf['tables_energy_bins'])
+                        
+                if self.pf['secondary_ionization'] > 1:
+                    raise ValueError('E attribute no longer unique!')
+                            
+            else:
+                self._E = None
+                
+        return self._E
+    
+    @property
+    def sigma_E(self):    
+        if not hasattr(self, '_sigma_E'):
+            self._sigma_E = {}
+            for absorber in self.grid.absorbers:
+                self._sigma_E[absorber] = \
+                    np.array(map(self.grid.bf_cross_sections[absorber],
+                    self.E[absorber]))
+                
+        return self._sigma_E
+        
+    @property
+    def I_E(self):
+        if not hasattr(self, '_I_E'):
+            self._I_E = {}
+            for absorber in self.grid.absorbers:
+                E = self.E[absorber]
+                self._I_E[absorber] = np.array(map(self.src.Spectrum, E))
+                        
+        return self._I_E
+        
+    @property
+    def fheat(self):
+        if not hasattr(self, '_fheat'):
+            
+            self._fheat = {}
+            for absorber in self.grid.absorbers:
+                Ei = self.E_th[absorber]
+                
+                func = lambda E: \
+                    self.esec.DepositionFraction(x,E=E-Ei, channel='heat')    
+            
+                self._fheat[absorber] = np.array(map(func, self.E))
+                
+        return self._fheat
+    
+    @property
+    def fion(self):
+        if not hasattr(self, '_fion'):
+    
+            self._fion = {}
+            for absorber in self.grid.absorbers:
+                Ei = self.E_th[absorber]
+    
+                func = lambda E: \
+                    self.esec.DepositionFraction(x,E=E-Ei, channel=absorber)    
+    
+                self._fion[absorber] = np.array(map(func, self.E))
+    
+        return self._fheat    
+        
+        
+    @property
+    def tau_E_N(self):
+        """
+        Energy-dependent optical depth as a function of column density.
+        
+        ..note:: Includes the contributions from all absorbers.
+        
+        This is sorted by absorber only because each absorber has its own
+        array of energies.
+        
+        """
+        
+        if not hasattr(self, '_tau_E_N'):
+            self._tabulate_tau_E_N()
+            #self._tau_E_N = {}
+            #for i, absorber in enumerate(self.grid.absorbers):
+            #    
+            #    #if i > 0 and np.all(self.E[absorber] == self.E[]
+            #    self._tau_E_N[absorber] = \
+            #        np.zeros([len(self.E[absorber]), self.Nall.shape[0]])
+            #                         
+            #    for j, actual_absorber in enumerate(self.grid.absorbers):
+            #        sigma = self.sigma_E[actual_absorber]
+            #        
+            #        for k in range(self.Nall.shape[0]):
+            #            self._tau_E_N[absorber][:,k] += sigma * self.Nall[k][j]
+                                         
+        return self._tau_E_N
+        
+    def Phi(self, N, absorber, t=0, ind=None):
         """
         Equation 10 in Mirocha et al. 2012.
-        """
-                                                         
-        # Otherwise, continuous spectrum                
-        if self.pf['photon_conserving']:
-            integrand = lambda E: self.src.Spectrum(E, t=t) * \
-                np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E
-                            
-        else:
-            integrand = lambda E: self.grid.bf_cross_sections[absorber](E) * \
-                self.src.Spectrum(E, t = t) * \
-                np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E \
-                / self.E_th[absorber]
-                
-        integral = quad(integrand, max(self.E_th[absorber], self.src.Emin), 
-            self.src.Emax, limit=1000)[0] / erg_per_ev    
+        
+        Parameters
+        ----------
+        N : list
+            Column density for each absorbing species.
+        absorber : str
+            Name of absorber, probably 'h_1', 'he_1', or 'he_2'.
+        ind : int
+            [Optional] index where input column density lives in self.Nall.
             
+        """
+        
+        # Do the integral discretely?
+        if self.pf['tables_discrete_gen']:
+                        
+            if self.pf['photon_conserving']:
+                integrand = self.I_E[absorber] \
+                    * np.exp(-self.tau_E_N[absorber][:,ind]) / self.E[absorber]
+            else:
+                integrand = self.sigma_E[absorber] * self.I_E[absorber] \
+                    * np.exp(-self.tau_E_N[absorber][:,ind]) \
+                    / self.E[absorber] / self.E_th[absorber]
+          
+            integral = np.trapz(integrand, self.E[absorber]) / erg_per_ev
+          
+        # If not, use Gaussian quadrature
+        else:  
+            
+            if self.pf['photon_conserving']:
+                integrand = lambda E: self.src.Spectrum(E, t=t) * \
+                    np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E
+                                
+            else:
+                integrand = lambda E: self.grid.bf_cross_sections[absorber](E) * \
+                    self.src.Spectrum(E, t=t) * \
+                    np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E \
+                    / self.E_th[absorber]
+                    
+            integral = quad(integrand, max(self.E_th[absorber], self.src.Emin), 
+                self.src.Emax, limit=1000)[0] / erg_per_ev
+                
         if not self.pf['photon_conserving']:
             integral *= self.E_th[absorber]
-            
-        return integral 
+                
+        return integral         
         
-    def Psi(self, N, absorber, t=None):            
+    def Psi(self, N, absorber, t=None, ind=None):            
         """
         Equation 11 in Mirocha et al. 2012.
+        
+        Parameters
+        ----------
+        N : list
+            Column density for each absorbing species.
+        absorber : str
+            Name of absorber, probably 'h_1', 'he_1', or 'he_2'.
+        ind : int
+            [Optional] index where input column density lives in self.Nall.
+            
         """        
         
-        # Otherwise, continuous spectrum    
-        if self.pf['photon_conserving']:
-            integrand = lambda E: self.src.Spectrum(E, t = t) * \
-                np.exp(-self.SpecificOpticalDepth(E, N)[0])
-        else:
-            integrand = lambda E: self.grid.bf_cross_sections[absorber](E) * \
-                self.src.Spectrum(E, t = t) * \
-                np.exp(-self.SpecificOpticalDepth(E, N)[0]) \
-                / self.E_th[absorber]
-        
-        integral = quad(integrand, max(self.E_th[absorber], self.src.Emin), 
-            self.src.Emax, limit=1000)[0]
+        if self.pf['tables_discrete_gen']:      
             
+            if self.pf['photon_conserving']:
+                integrand = self.I_E[absorber] \
+                    * np.exp(-self.tau_E_N[absorber][:,ind])
+            else:
+                integrand = self.sigma_E[absorber] * self.I_E[absorber] \
+                    * np.exp(-self.tau_E_N) \
+                    / self.E_th[absorber]
+          
+            integral = np.trapz(integrand, self.E[absorber])
+        
+        else:
+            # Otherwise, continuous spectrum    
+            if self.pf['photon_conserving']:
+                integrand = lambda E: self.src.Spectrum(E, t = t) * \
+                    np.exp(-self.SpecificOpticalDepth(E, N)[0])
+            else:
+                integrand = lambda E: self.grid.bf_cross_sections[absorber](E) * \
+                    self.src.Spectrum(E, t=t) * \
+                    np.exp(-self.SpecificOpticalDepth(E, N)[0]) \
+                    / self.E_th[absorber]
+            
+            integral = quad(integrand, max(self.E_th[absorber], self.src.Emin), 
+                self.src.Emax, limit=1000)[0]
+                
         if not self.pf['photon_conserving']:
             integral *= self.E_th[absorber]
         
         return integral
                               
-    def PhiHat(self, N, absorber, donor=None, x=None, t=None):
+    def PhiHat(self, N, absorber, donor=None, x=None, t=None, ind=None):
         """
         Equation 2.20 in the manual.
         """        
         
         Ei = self.E_th[absorber]
         
-        # Otherwise, continuous spectrum                
-        if self.pf['photon_conserving']:
-            integrand = lambda E: \
-                self.esec.DepositionFraction(x,E=E-Ei, channel='heat') * \
-                self.src.Spectrum(E, t = t) * \
-                np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E
-        else:
-            integrand = lambda E: \
-                self.esec.DepositionFraction(x, E=E-Ei, channel='heat') * \
-                PhotoIonizationCrossSection(E, absorber) * \
-                self.src.Spectrum(E, t = t) * \
-                np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E \
-                / self.E_th[absorber]    
-        
-        # Integrate over energies in lookup table
-        c = self.E >= max(Ei, self.src.Emin)
-        c &= self.E <= self.src.Emax                       
-        samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
-             
-        integral = simps(samples, self.E[c]) / erg_per_ev     
+        if self.pf['tables_discrete_gen']:
+            if self.pf['photon_conserving']:
+                integrand = self.fheat * self.I_E \
+                    * np.exp(-self.tau_E_N[absorber][:,ind])
+            else:
+                integrand = self.fheat * self.sigma_E * self.I_E \
+                    * np.exp(-self.tau_E_N[absorber][:,ind]) / Ei
+                    
+        else:    
+            
+            # Otherwise, continuous spectrum                
+            if self.pf['photon_conserving']:
+                integrand = lambda E: \
+                    self.esec.DepositionFraction(x,E=E-Ei, channel='heat') * \
+                    self.src.Spectrum(E, t=t) * \
+                    np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E
+            else:
+                integrand = lambda E: \
+                    self.esec.DepositionFraction(x, E=E-Ei, channel='heat') * \
+                    PhotoIonizationCrossSection(E, absorber) * \
+                    self.src.Spectrum(E, t = t) * \
+                    np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E \
+                    / self.E_th[absorber]    
+            
+            # Integrate over energies in lookup table
+            c = self.E >= max(Ei, self.src.Emin)
+            c &= self.E <= self.src.Emax                       
+            samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
+                 
+            integral = simps(samples, self.E[c]) / erg_per_ev     
         
         if not self.pf['photon_conserving']:
             integral *= self.E_th[absorber]
@@ -475,28 +712,32 @@ class IntegralTable:
         Equation 2.21 in the manual.
         """        
         
-        Ei = self.E_th[absorber]
-        
-        # Otherwise, continuous spectrum    
-        if self.pf['photon_conserving']:
-            integrand = lambda E: \
-                self.esec.DepositionFraction(x, E=E-Ei, channel='heat') * \
-                self.src.Spectrum(E, t = t) * \
-                np.exp(-self.SpecificOpticalDepth(E, N)[0])
+        if self.pf['tables_discrete_gen']:
+            raise NotImplemented('help')
         else:
-            integrand = lambda E: \
-                self.esec.DepositionFraction(x, E=E-Ei, channel='heat') * \
-                PhotoIonizationCrossSection(E, species) * \
-                self.src.Spectrum(E, t = t) * \
-                np.exp(-self.SpecificOpticalDepth(E, N)[0]) \
-                / self.E_th[absorber]
         
-        # Integrate over energies in lookup table
-        c = self.E >= max(Ei, self.src.Emin)
-        c &= self.E <= self.src.Emax
-        samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
-        
-        integral = simps(samples, self.E[c])  
+            Ei = self.E_th[absorber]
+            
+            # Otherwise, continuous spectrum    
+            if self.pf['photon_conserving']:
+                integrand = lambda E: \
+                    self.esec.DepositionFraction(x, E=E-Ei, channel='heat') * \
+                    self.src.Spectrum(E, t = t) * \
+                    np.exp(-self.SpecificOpticalDepth(E, N)[0])
+            else:
+                integrand = lambda E: \
+                    self.esec.DepositionFraction(x, E=E-Ei, channel='heat') * \
+                    PhotoIonizationCrossSection(E, species) * \
+                    self.src.Spectrum(E, t = t) * \
+                    np.exp(-self.SpecificOpticalDepth(E, N)[0]) \
+                    / self.E_th[absorber]
+            
+            # Integrate over energies in lookup table
+            c = self.E >= max(Ei, self.src.Emin)
+            c &= self.E <= self.src.Emax
+            samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
+            
+            integral = simps(samples, self.E[c])  
         
         if not self.pf['photon_conserving']:
             integral *= self.E_th[absorber]
@@ -508,29 +749,33 @@ class IntegralTable:
         Equation 2.18 in the manual.
         """        
         
-        Ej = self.E_th[donor]
+        if self.pf['tables_discrete_gen']:
+            raise NotImplemented('help')
+        else:
         
-        # Otherwise, continuous spectrum                
-        if self.pf['photon_conserving']:
-            integrand = lambda E: \
-                self.esec.DepositionFraction(x, E=E-Ej, channel=absorber) * \
-                self.src.Spectrum(E, t = t) * \
-                np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E
-
-        #else:
-        #    integrand = lambda E: 1e10 * \
-        #        self.esec.DepositionFraction(E, xHII, channel = species + 1) * \
-        #        PhotoIonizationCrossSection(E, species) * \
-        #        self.src.Spectrum(E, t = t) * \
-        #        np.exp(-self.SpecificOpticalDepth(E, ncol)[0]) / E \
-        #        / self.E_th[absorber]
-        
-        # Integrate over energies in lookup table    
-        c = self.E >= max(Ej, self.src.Emin)
-        c &= self.E <= self.src.Emax
-        samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
-        
-        integral = simps(samples, self.E[c]) / erg_per_ev
+            Ej = self.E_th[donor]
+            
+            # Otherwise, continuous spectrum                
+            if self.pf['photon_conserving']:
+                integrand = lambda E: \
+                    self.esec.DepositionFraction(x, E=E-Ej, channel=absorber) * \
+                    self.src.Spectrum(E, t = t) * \
+                    np.exp(-self.SpecificOpticalDepth(E, N)[0]) / E
+            
+            #else:
+            #    integrand = lambda E: 1e10 * \
+            #        self.esec.DepositionFraction(E, xHII, channel = species + 1) * \
+            #        PhotoIonizationCrossSection(E, species) * \
+            #        self.src.Spectrum(E, t = t) * \
+            #        np.exp(-self.SpecificOpticalDepth(E, ncol)[0]) / E \
+            #        / self.E_th[absorber]
+            
+            # Integrate over energies in lookup table    
+            c = self.E >= max(Ej, self.src.Emin)
+            c &= self.E <= self.src.Emax
+            samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
+            
+            integral = simps(samples, self.E[c]) / erg_per_ev
             
         if not self.pf['photon_conserving']:
             integral *= self.E_th[absorber]
@@ -542,27 +787,31 @@ class IntegralTable:
         Equation 2.19 in the manual.
         """        
         
-        Ej = self.E_th[donor]
+        if self.pf['tables_discrete_gen']:
+            raise NotImplemented('help')
+        else:
         
-        # Otherwise, continuous spectrum    
-        if self.pf['photon_conserving']:
-            integrand = lambda E: \
-                self.esec.DepositionFraction(x, E=E-Ej, channel=absorber) * \
-                self.src.Spectrum(E, t = t) * \
-                np.exp(-self.SpecificOpticalDepth(E, N)[0])
-        #else:
-        #    integrand = lambda E: PhotoIonizationCrossSection(E, species) * \
-        #        self.src.Spectrum(E, t = t) * \
-        #        np.exp(-self.SpecificOpticalDepth(E, ncol)[0])
-        #        / self.E_th[absorber]
-           
-        # Integrate over energies in lookup table        
-        c = self.E >= max(Ej, self.src.Emin)
-        c &= self.E <= self.src.Emax
-        samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
-             
-        integral = simps(samples, self.E[c])
-          
+            Ej = self.E_th[donor]
+            
+            # Otherwise, continuous spectrum    
+            if self.pf['photon_conserving']:
+                integrand = lambda E: \
+                    self.esec.DepositionFraction(x, E=E-Ej, channel=absorber) * \
+                    self.src.Spectrum(E, t = t) * \
+                    np.exp(-self.SpecificOpticalDepth(E, N)[0])
+            #else:
+            #    integrand = lambda E: PhotoIonizationCrossSection(E, species) * \
+            #        self.src.Spectrum(E, t = t) * \
+            #        np.exp(-self.SpecificOpticalDepth(E, ncol)[0])
+            #        / self.E_th[absorber]
+               
+            # Integrate over energies in lookup table        
+            c = self.E >= max(Ej, self.src.Emin)
+            c &= self.E <= self.src.Emax
+            samples = np.array([integrand(E) for E in self.E[c]])[..., 0]
+                 
+            integral = simps(samples, self.E[c])
+              
         if not self.pf['photon_conserving']:
             integral *= self.E_th[absorber]    
                 
@@ -573,10 +822,19 @@ class IntegralTable:
         Return fractional Lyman-alpha excitation.
         """         
         
-        pass
+        raise NotImplemented('havent implemented secondary Lyman-alpha!')
                                   
-    def save(self, fn=None):
-        """ Write table to hdf5. """
+    def save(self, prefix=None):
+        """ 
+        Write table to hdf5 or npz. 
+        
+        Parameters
+        ----------
+        prefix : str
+            Prefix for output files. Suffix will be .npz, unless you have
+            hdf5 and h5py installed, in which case it will be .hdf5.
+        
+        """
         
         if rank > 0:
             return
@@ -588,11 +846,14 @@ class IntegralTable:
             have_h5py = False    
             
         have_h5py = False # testing
+        
+        if prefix is None:
+            prefix = 'rt1d_integral_table.%s' % (time.ctime().replace(' ', '_'))    
             
-        if fn is None and have_h5py:
-            fn = 'rt1d_integral_table.hdf5'
-        elif fn is None:
-            fn = 'rt1d_integral_table.npz'
+        if have_h5py:
+            fn = '%s.hdf5' % prefix
+        else:
+            fn = '%s.npz' % prefix
         
         if have_h5py:
         
@@ -643,9 +904,6 @@ class IntegralTable:
             # Save parameters
             import pickle
             
-            prefix = fn[0:fn.rfind('.')]
-            suffix = fn[fn.rfind('.')+1:]
-            
             f = open('%s.pars.pkl' % prefix, 'wb')
             pickle.dump(self.pf, f)
             f.close()
@@ -667,12 +925,23 @@ class IntegralTable:
                 if re.search('logN', key):
                     if re.search('h_1', key):
                         i = 0
+                    elif re.search('he_1', key):
+                        i = 1
+                    elif re.search('he_1', key):
+                        i = 2
                     else:
-                        raise NotImplemented('help! fix npz reader for N > 1')
+                        i = None        
+
+                    if i is None:
+                        continue
                     
                     axes.append([i, key, data[key]])
         
                     continue
+                elif re.search('t', key):
+                    raise NotImplemented('fix reader for time dimension!')
+                elif re.search('x', key):
+                    raise NotImplemented('fix reader for x_i dimension!')
             
                 self.tabs[key] = data[key]
 

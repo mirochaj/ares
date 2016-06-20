@@ -16,6 +16,7 @@ Note: This can be run in parallel, e.g.,
 
 import numpy as np
 import os, ares, time, pickle
+from ares.physics.Constants import E_LL, E_LyA
 
 try:
     import h5py
@@ -32,12 +33,13 @@ except ImportError:
 
 #
 ## INPUT
-zf, zi = (10, 50)
-Emin = 1e2
-Emax = 5e4
-Nz = [400]
+zf, zi = (5, 50)
+Emin = 2e2
+Emax = 3e4
+Nz = [1e3]
 format = 'pkl'        # 'hdf5' or 'pkl' or 'npz'
 helium = 1
+xavg = lambda z: 0.0  # neutral
 ##
 #
 
@@ -45,74 +47,25 @@ helium = 1
 pars = \
 {
  'include_He': helium,
- 'spectrum_Emin': Emin,
- 'spectrum_Emax': Emax,
- 'approx_xrb': 0,
+ 'pop_Emin': Emin,
+ 'pop_Emax': Emax,
  'approx_He': helium,
  'initial_redshift': zi,
  'final_redshift': zf,
 }
 
-# Track how long it takes, output result to file
-#if rank == 0 and not os.path.exists('tau_tab_timing.txt'):
-#    t = open('tau_tab_timing.txt', 'w')
-#    print >> t, "#                fn            time (s)    # of cores"
-#    t.close()
-
 for res in Nz:
 
-    pars.update({'redshift_bins': res})
+    pars.update({'pop_tau_Nz': res})
 
-    # Start timer
-    t1 = time.time()
+    # Create OpticalDepth instance
+    igm = ares.solvers.OpticalDepth(**pars)
     
-    # Create IGM instance
-    igm = ares.solvers.IGM(use_tab=False, **pars)
+    # Impose an ionization history: neutral for all times
+    igm.ionization_history = xavg
     
-    fn = igm.tau_name(suffix=format)[0]
-    
-    if os.path.exists(fn):
-        if rank == 0:
-            raise IOError('%s exists! Exiting.' % fn)
-    
-    if rank == 0:
-        print "Now creating %s..." % fn
-    
+    # Tabulate tau
     tau = igm.TabulateOpticalDepth()
-    
-    t2 = time.time()
+    igm.save(suffix=format, clobber=True)
 
-    if rank != 0:
-        continue
-    
-    if format == 'hdf5':
-        f = h5py.File(fn, 'w')
-        f.create_dataset('tau', data=tau)
-        f.create_dataset('redshift', data=igm.z)
-        f.create_dataset('photon_energy', data=igm.E)
-        f.close()
-    elif format == 'npz':
-        to_write = {'tau': tau, 'z': igm.z, 'E': igm.E}
-        
-        f = open(fn, 'w')
-        np.savez(f, **to_write)
-        f.close()
-        
-    elif format == 'pkl':
-        
-        f = open(fn, 'wb')
-        pickle.dump({'tau': tau, 'z': igm.z, 'E': igm.E}, f)
-        f.close()    
-        
-    else:
-        f = open(fn, 'w')
-        hdr = "zmin=%.4g zmax=%.4g Emin=%.8e Emax=%.8e" % \
-            (igm.z.min(), igm.z.max(), igm.E.min(), igm.E.max())
-        np.savetxt(fn, tau, header=hdr, fmt='%.8e')
-
-    print 'Wrote %s.' % fn
-    #t = open('tau_tab_timing.txt', 'a')
-    #print >> t, "%s %g %i" % (fn, (t2-t1), size)
-    #t.close()
-    
     

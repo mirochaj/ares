@@ -54,7 +54,7 @@ class LookupTable:
         self.size = np.prod(self.shape)
         
         self.Nd = len(logN)
-        self.evolving = int(np.any(pf['spectrum_evolving']))
+        self.evolving = False#int(np.any(pf['spectrum_evolving']))
         self.adv_secondary_ionization = int(pf['secondary_ionization'] > 1)
         self.Ed = self.adv_secondary_ionization + self.evolving
                 
@@ -143,8 +143,5 @@ class LookupTable:
         else:    
             if self.Ed:
                 raise NotImplemented('Haven\'t implemented time and secondary ionization option yet.')
-            
-            if not mathutils:
-                raise ImportError('mathutils package required for N > 2')
             
             self.interp = LinearNDInterpolator(self.logN, self.table)

@@ -63,7 +63,7 @@ class Hydrogen(object):
     def __init__(self, cosm=None, **kwargs):
         
         self.pf = ParameterFile(**kwargs)
-        
+
         if cosm is None:
             from .Cosmology import Cosmology
             self.cosm = Cosmology(**self.pf)

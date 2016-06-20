@@ -19,6 +19,15 @@ If you'd like to live on the bleeding edge, check out the development fork: `are
 
 The `docs <http://ares.readthedocs.org/en/latest/>`_ are still a work in progress.
 
+Current status:
+
+.. image:: https://drone.io/bitbucket.org/mirochaj/ares-dev/status.png
+   :target: https://drone.io/bitbucket.org/mirochaj/ares-dev/latest
+
+.. image:: https://readthedocs.org/projects/ares/badge/?version=latest
+   :target: http://ares.readthedocs.io/en/latest/?badge=latest
+
+
 Getting started
 ---------------------
 To clone a copy and install: ::
@@ -27,33 +36,19 @@ To clone a copy and install: ::
     cd ares
     python setup.py install
 
-It would be in your best interest to set an environment variable which points
-to the *ares* install directory, e.g. (in bash) ::
+You'll need to set an environment variable which points to the *ares* install directory, e.g. (in bash) ::
 
     export ARES=/users/<yourusername>/ares
 
-*ares* will look in ``$ARES/input`` for lookup tables of various kinds, e.g.,
-the halo mass function (in ``$ARES/input/hmf``), IGM optical depth (in
-``$ARES/input/optical_depth``), spectral energy distributions (in
-``$ARES/input/seds``), etc.
+*ares* will look in ``$ARES/input`` for lookup tables of various kinds. To download said lookup tables, run ::
 
-When you first run the ``setup.py`` script, a few files will be downloaded
-automatically:
+    python remote.py
+    
+This might take a few minutes. If something goes wrong with the download, you can run    ::
 
-hmf_ST_logM_1200_4-16_z_1121_4-60.pkl
-    Lookup table for the halo mass function. To make your own lookup tables, run
-    ``$ARES/input/generate_hmf_tables.py``. You'll need to install 
-    `hmf <https://github.com/steven-murray/hmf>`_ for this to work.
-
-initial_conditions.npz
-    Evolution of IGM thermal and ionization state computed using the ``CosmoRec``
-    code.
-
-optical_depth_H_400x1616_z_10-50_logE_2-4.7.pkl
-    IGM optical depth from :math:`10 \leq z \leq 40` and :math:`0.1 \leq h\nu / keV \leq 30` in a neutral
-    universe. To make your own lookup tables spanning different redshifts,
-    energies, or for prescribed ionization histories, run
-    ``$ARES/input/generate_optical_depth_tables.py``.
+    python remote.py fresh
+    
+to get fresh copies of everything.
     
 Dependencies
 --------------------
@@ -63,13 +58,16 @@ You will need:
 - `scipy <http://www.scipy.org/>`_
 - `matplotlib <http://matplotlib.org/>`_
 
-and optionally, 
+and optionally,
 
 - `hmf <https://github.com/steven-murray/hmf>`_
 - `h5py <http://www.h5py.org/>`_
 - `mpi4py <http://mpi4py.scipy.org>`_
 - `python-progressbar <https://code.google.com/p/python-progressbar/>`_
 - `setuptools <https://pypi.python.org/pypi/setuptools>`_
+- `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_
+- `shapely <https://pypi.python.org/pypi/Shapely>`_
+- `descartes <https://pypi.python.org/pypi/descartes>`_
 
 Quick Example
 --------------
@@ -84,8 +82,7 @@ You can examine the contents of ``sim.history``, a dictionary which contains
 the redshift evolution of all IGM physical quantities, or use some built-in 
 analysis routines: ::
 
-    anl = ares.analysis.Global21cm(sim)     # Initialize the analysis class
-    ax = anl.GlobalSignature()                     
+    sim.GlobalSignature()
     
 If the plot doesn't appear automatically, set ``interactive: True`` in your matplotlibrc file or type: ::
 
@@ -122,7 +119,7 @@ If you encounter problems with installation or running simple scripts, first che
 Contributors
 ------------
 
-Primary author: `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_ (CU-Boulder) 
+Primary author: `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/home>`_ (UCLA) 
 
 Additional contributions / corrections / suggestions from:
     
@@ -130,3 +127,7 @@ Additional contributions / corrections / suggestions from:
 - Jacob Jost (CU-Boulder)
 - `Greg Salvesen <http://jila.colorado.edu/~salvesen/>`_ (CU-Boulder)
 - `Adrian Liu <http://w.astro.berkeley.edu/~acliu/>`_ (UC-Berkeley)
+- Jason Sun (Caltech)
+- Keith Tauscher (CU-Boulder)
+- Saurabh Singh (RRI)
+

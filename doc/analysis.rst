@@ -1,3 +1,5 @@
+:orphan:
+
 Built-In Analysis Tools
 =======================
 ares has a built-in analysis module which contains routines for performing standard

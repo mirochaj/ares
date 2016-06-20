@@ -16,6 +16,7 @@ from ..util.Stats import rebin
 from collections import Iterable
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
+from ..util.ParameterFile import ParameterFile
 from ..physics.CrossSections import PhotoIonizationCrossSection
 from ..physics.Constants import k_B, cm_per_kpc, s_per_myr, m_H, mH_amu, \
     mHe_amu
@@ -67,8 +68,7 @@ util = fake_chianti()
 tiny_number = 1e-8  # A relatively small species fraction
 
 class Grid(object):
-    def __init__(self, dims=64, length_units=cm_per_kpc, start_radius=0.01,
-        approx_Salpha=1, logarithmic_grid=False):
+    def __init__(self, **kwargs):
         """
         Initialize grid object.
         
@@ -83,20 +83,22 @@ class Grid(object):
             
         """
         
-        self.dims = int(dims)
-        self.length_units = length_units
-        self.start_radius = start_radius
-        self.approx_Salpha = approx_Salpha
-        self.log_grid = logarithmic_grid
+        self.pf = ParameterFile(**kwargs)
+        
+        self.dims = int(self.pf['grid_cells'])
+        self.length_units = self.pf['length_units']
+        self.start_radius = self.pf['start_radius']
+        self.approx_Salpha = self.pf['approx_Salpha']
+        self.log_grid = self.pf['logarithmic_grid']
 
         # Compute cell centers and edges
-        if logarithmic_grid:
+        if self.pf['logarithmic_grid']:
             self.r_edg = self.r = \
-                np.logspace(np.log10(self.R0), np.log10(length_units), 
+                np.logspace(np.log10(self.R0), np.log10(self.length_units), 
                 self.dims + 1)            
         else:
             self.r_edg = self.r = \
-                np.linspace(self.R0, length_units, self.dims + 1)
+                np.linspace(self.R0, self.length_units, self.dims + 1)
         
         # Compute interior cell walls, spacing, and mid-points        
         self.r_int = self.r_edg[0:-1]
@@ -104,6 +106,9 @@ class Grid(object):
         self.r_mid = rebin(self.r_edg)
         
         self.zi = 0
+        
+        # Override, to set ICs by cosmology
+        self.cosmological_ics = self.pf['cosmological_ics']
                 
     @property
     def zeros_absorbers(self):
@@ -221,6 +226,8 @@ class Grid(object):
                     self._species_types.append(1)
                 else:
                     self._species_types.append(-1) 
+                    
+            self._species_types = np.array(self._species_types)        
         
         return self._species_types       
         
@@ -312,16 +319,21 @@ class Grid(object):
         return self._recombination
         
     @property
+    def collisional_ionization(self):
+        if not hasattr(self, '_collisional_ionization'):
+            self.set_physics()
+        return self._collisional_ionization   
+        
+    @property
     def clumping_factor(self):
         if not hasattr(self, '_clumping_factor'):
             self.set_physics()
         return self._clumping_factor
         
-        
     @property
     def hydr(self):
         if not hasattr(self, '_hydr'):
-            self._hydr = Hydrogen(self.cosm, approx_Salpha=self.approx_Salpha)
+            self._hydr = Hydrogen(self.cosm, **self.pf)
         return self._hydr    
             
     @property
@@ -330,18 +342,46 @@ class Grid(object):
             self._cosm = Cosmology()
         return self._cosm            
                 
-    def initialize(self, data):
-        self.set_chemistry()            
-                
+    def set_properties(self, **kwargs):
+        """
+        Initialize grid properties all in one go.
+        """    
+
+        self.set_physics(
+            isothermal=kwargs['isothermal'], 
+            compton_scattering=kwargs['compton_scattering'],
+            secondary_ionization=kwargs['secondary_ionization'], 
+            expansion=kwargs['expansion'],
+            recombination=kwargs['recombination'],
+            clumping_factor=kwargs['clumping_factor'],
+            collisional_ionization=kwargs['collisional_ionization']
+        )
+
+        self.set_cosmology(
+            initial_redshift=kwargs['initial_redshift'], 
+            omega_m_0=kwargs["omega_m_0"], 
+            omega_l_0=kwargs["omega_l_0"], 
+            omega_b_0=kwargs["omega_b_0"], 
+            hubble_0=kwargs["hubble_0"], 
+            helium_by_number=kwargs['helium_by_number'], 
+            cmb_temp_0=kwargs["cmb_temp_0"],
+            approx_highz=kwargs["approx_highz"])
+
+        self.set_chemistry(kwargs['include_He'])
+        self.set_density(kwargs['density_units'])
+        self.set_ionization(kwargs['initial_ionization'])
+        self.set_temperature(kwargs['initial_temperature'])
+
     def set_physics(self, isothermal=False, compton_scattering=False,
         secondary_ionization=0, expansion=False, recombination='B',
-        clumping_factor=1.0):
+        clumping_factor=1.0, collisional_ionization=True):
         self._isothermal = isothermal
         self._compton_scattering = compton_scattering
         self._secondary_ionization = secondary_ionization
         self._expansion = expansion
         self._recombination = recombination
-        
+        self._collisional_ionization = collisional_ionization
+
         if type(clumping_factor) is not types.FunctionType:
             self._clumping_factor = lambda z: clumping_factor
         else:
@@ -351,14 +391,14 @@ class Grid(object):
             self.set_cosmology()
         
     @property
-    def in_bubbles(self):    
-        if not hasattr(self, '_in_bubbles'):
+    def is_cgm_patch(self):    
+        if not hasattr(self, '_is_cgm_patch'):
             self.set_recombination_rate()
             
-        return self._in_bubbles
+        return self._is_cgm_patch
         
-    def set_recombination_rate(self, in_bubbles=False):
-        self._in_bubbles = in_bubbles    
+    def set_recombination_rate(self, is_cgm_patch=False):
+        self._is_cgm_patch = is_cgm_patch    
         
     def set_cosmology(self, initial_redshift=1e3, omega_m_0=0.272, 
         omega_l_0=0.728, omega_b_0=0.044, hubble_0=0.702, 
@@ -451,8 +491,10 @@ class Grid(object):
             or an array of values the same size as the grid itself.
             
         """
-          
-        if isinstance(nH, Iterable):    
+        
+        if self.cosmological_ics:
+            self.n_H = self.cosm.nH(self.zi) 
+        elif isinstance(nH, Iterable):    
             self.n_H = nH
         else:
             self.n_H = nH * np.ones(self.dims)    
@@ -477,48 +519,45 @@ class Grid(object):
             to uniform medium), or an array of values like the grid.
         """
         
-        if isinstance(T0, Iterable):
-            self.data['Tk'] = T0
+        if self.cosmological_ics:
+            Tgas = self.cosm.Tgas(self.zi)
+            if isinstance(T0, Iterable):
+                self.data['Tk'] = np.array(Tgas)
+            else:
+                self.data['Tk'] = Tgas * np.ones(self.dims)
+        elif isinstance(T0, Iterable):
+            self.data['Tk'] = np.array(T0)
         else:
             self.data['Tk'] = T0 * np.ones(self.dims)
             
-    def set_ionization(self, Z=None, x=None, state=None, perturb=0):
+    def set_ionization(self, x=None):
         """
         Set initial ionization state.  
-        
-        If Z is None, assume constant ion fraction of 1 / (1 + Z) for all Z.
-        
+                
         Parameters
         ----------
-        Z : int, list
-        x : int, list
+        x : float, list
+            Initial ionization state for all species. Must be a 1:1 mapping
+            between values in this list and values in self.species.
           
-        """       
-        
+        """    
+                
         if x is not None:
-            self.data[util.zion2name(Z, 1)].fill(1. - x)
-            self.data[util.zion2name(Z, 2)].fill(x)
-            
-            if Z == 2:
-                self.data[util.zion2name(Z, 3)].fill(x)
-                        
-        elif state == 'neutral':
-            for Z in self.Z:
 
-                N = len(self.ions_by_parent[util.z2element(Z)]) - 1
-                            
-                for i in xrange(1 + Z):
-                    name = util.zion2name(Z, i + 1)
-                    
-                    if i == 0:
-                        self.data[name] = np.ones(self.dims) - N * tiny_number
-                    else:
-                        self.data[name] = tiny_number * np.ones(self.dims)
-        
+            for j, species in enumerate(self.species):
+                element, state = species.split('_')
+                Z = util.element2z(element)
+                i = int(state)
+                         
+                name = util.zion2name(Z, i)
+                self.data[name].fill(x[j])
+                  
+        # Otherwise assume neutral
         else:
-            for species in self.all_ions:
-                self.data[species].fill(1. \
-                    / (1. + util.convertName(species)['Z']))
+            for sp in self.ions:
+                self.data[sp].fill(1e-8)
+            for sp in self.neutrals:
+                self.data[sp].fill(1.0 - 1e-8)
         
         # Set electron density
         self._set_electron_fraction()
@@ -540,38 +579,35 @@ class Grid(object):
                 
             self.data[key] = data[key].copy()
     
-    def make_clump(self, position = None, radius = None, overdensity = None,
-        temperature = None, ionization = None, profile = None):
-        """ Create a clump! """
+    def create_slab(self, **kwargs):
+        """ Create a slab. """
+                
+        if not kwargs['slab']:
+            return        
                 
         # Figure out where the clump is
         gridarr = np.linspace(0, 1, self.dims)
-        isclump = (gridarr >= (position - radius)) \
-                & (gridarr <= (position + radius))
+        isslab = (gridarr >= (kwargs['slab_position'] - kwargs['slab_radius'])) \
+                & (gridarr <= (kwargs['slab_position'] + kwargs['slab_radius']))
                 
         # First, modify density and temperature
-        if profile == 0:
-            self.data['rho'][isclump] *= overdensity
-            self.data['n'][isclump] *= overdensity
-            self.n_H[isclump] *= overdensity
-            self.n_ref[isclump] *= overdensity
-            self.data['Tk'][isclump] = temperature
-        #if profile == 1:
-        #    self.data['rho'] += self.data['rho'] * overdensity \
-        #        * np.exp(-(gridarr - position)**2 / 2. / radius**2)
-        #    self.n_H += self.n_H * overdensity \
-        #        * np.exp(-(gridarr - position)**2 / 2. / radius**2)
-        #    self.data['T'] -= self.data['T'] * overdensity \
-        #        * np.exp(-(gridarr - position)**2 / 2. / radius**2)
-           
-        # Need to think more about Gaussian clump T, x.   
+        if kwargs['slab_profile'] == 0:
+            self.data['rho'][isslab] *= kwargs['slab_overdensity']
+            self.n_H[isslab] *= kwargs['slab_overdensity']
+            self.data['Tk'][isslab] = kwargs['slab_temperature']
+        else:
+            raise NotImplemented('only know uniform slabs')
                 
         # Ionization state - could generalize this more
-        for neutral in self.neutrals:
-            self.data[neutral][isclump] = 1. - ionization
-        for ion in self.ions:
-            self.data[ion][isclump] = ionization    
-        
+        for j, species in enumerate(self.species):
+            element, state = species.split('_')
+            Z = util.element2z(element)
+            i = int(state)
+                     
+            name = util.zion2name(Z, i)
+            self.data[name][isslab] = np.ones(isslab.sum()) \
+                * kwargs['slab_ionization'][j]
+                
         # Reset electron density, particle density, and gas energy
         self._set_electron_fraction()
                 

@@ -1,9 +1,8 @@
 Examples
 ========
-See below.
 
-Basics
-------
+Simple Models
+-------------
     
 * Reionization & Global 21-cm Signal
     * :doc:`example_21cm_simple`
@@ -14,30 +13,34 @@ Basics
     * :doc:`example_rt06_2`
     
 * Uniform Radiation Backgrounds
-    * :doc:`example_cuvb`
-    * :doc:`example_cxrb`
-
-Advanced
---------
-Coming soon. For now, peruse ``ares/tests/dTb`` for lots of different 21-cm examples and
-``ares/tests/rt1d`` for a few more 1-D radiative transfer problems.
-
-Under the hood
---------------
-* :doc:`example_stellar_pop`
-* :doc:`example_bh_pop` 
-* :doc:`example_igm`
-* :doc:`example_chem`
+    * :doc:`example_crb_lw`
+    * :doc:`example_crb_uv`    
+    * :doc:`example_crb_xr`
+    * :doc:`example_crb_br`
  
-Surveying Parameter Space
--------------------------
-* :doc:`example_grid_I`
-* :doc:`example_grid_II`
-* :doc:`example_grid_analysis`
-* :doc:`example_mcmc_I`
-* :doc:`example_mcmc_analysis`
+Parameter Studies and Inference
+-------------------------------
 
-Post-Processing Cosmological Simulations
-----------------------------------------
-Stay tuned.
+* Running Large Suites of Models
+    * :doc:`example_grid`
+    
+* Fitting and Forecasting    
+    * :doc:`example_mcmc_I`
+    
+* Simple Fitting
+    * :doc:`example_ham`
+    * :doc:`example_sedop`
+    
+* Analyzing Sets of Models
+    * :doc:`example_inline_analysis`
+    * :doc:`example_grid_analysis`
+    * :doc:`example_mcmc_analysis`
+
+More
+----
+* :doc:`example_adv_RT_w_He`
+* :doc:`example_customization`
+* :doc:`example_galaxypop`
+* :doc:`example_litdata`
+
 

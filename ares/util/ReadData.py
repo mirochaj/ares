@@ -11,8 +11,13 @@ Description:
 """
 
 import numpy as np
-import os, pickle, cPickle, re
-from pickle import UnpicklingError
+import imp as _imp
+import os, re, sys
+
+try:
+    import dill as pickle
+except ImportError:
+    import pickle
 
 try:
     import h5py
@@ -27,6 +32,112 @@ except ImportError:
     rank = 0
     
 ARES = os.environ.get('ARES')
+sys.path.insert(1, '%s/input/litdata' % ARES)
+
+def read_lit(prefix, path=None):
+    """
+    Read data from the literature.
+    
+    Parameters
+    ----------
+    prefix : str
+        Everything preceeding the '.py' in the name of the module.
+    path : str
+        If you want to look somewhere besides $ARES/input/litdata, provide
+        that path here.
+
+    """
+
+    if path is not None:
+        prefix = '%s/%s' % (path, prefix)
+    
+    # Load custom defaults    
+    if os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix)):
+        _f, _filename, _data = _imp.find_module(prefix, 
+            ['%s/input/litdata/' % ARES])
+        mod = _imp.load_module('%s' % prefix, _f, _filename, _data)
+    else:
+        mod = None
+    
+    return mod
+
+def flatten_energies(E):
+    """
+    Take fluxes sorted by band and flatten to single energy dimension.
+    """
+
+    to_return = []
+    for i, band in enumerate(E):
+        if type(band) is list:
+            for j, flux_seg in enumerate(band):
+                to_return.extend(flux_seg)
+        else:
+            to_return.extend(band)
+    
+    return np.array(to_return)
+
+def flatten_flux(flux):
+    return flatten_energies(flux)
+
+def split_flux(energies, fluxes):
+    """
+    Take flattened fluxes and re-sort into band-grouped fluxes.
+    """
+    
+    i_E = np.cumsum(map(len, energies))
+    fluxes_split = np.hsplit(fluxes, i_E)
+
+    return fluxes_split
+
+def _sort_flux_history(all_fluxes):
+    pass    
+
+def _sort_history(all_data, prefix='', squeeze=False):
+    """
+    Take list of dictionaries and re-sort into 2-D arrays.
+    
+    Parameters
+    ----------
+    all_data : list
+        Each element is a dictionary corresponding to data at a particular 
+        snapshot.
+    prefix : str
+        Will prepend to all dictionary keys in output dictionary.
+
+    Returns
+    -------
+    Dictionary, sorted by gas properties, with entire history for each one.
+    """
+
+    data = {}
+    for key in all_data[0]:
+        if type(key) is int and not prefix.strip():
+            name = int(key)
+        else:
+            name = '%s%s' % (prefix, key)
+        
+        data[name] = []
+        
+    # Loop over time snapshots
+    for element in all_data:
+
+        # Loop over fields
+        for key in element:
+            if type(key) is int and not prefix.strip():
+                name = int(key)
+            else:
+                name = '%s%s' % (prefix, key)
+                
+            data[name].append(element[key])
+
+    # Cast everything to arrays
+    for key in data:
+        if squeeze:
+            data[key] = np.array(data[key]).squeeze()
+        else:
+            data[key] = np.array(data[key])
+
+    return data
 
 tanh_gjah_to_ares = \
 {
@@ -50,7 +161,6 @@ fcoll_gjah_to_ares = \
 '\\log_{10}xi_\\mathrm{UV}': 'xi_UV',
 '\\log_{10}T_\\mathrm{min}': 'Tmin',
 }
-
     
 def _load_hdf5(fn):    
     inits = {}
@@ -67,7 +177,7 @@ def _load_npz(fn):
     data.close()
     return new
 
-def load_inits(fn=None):
+def _load_inits(fn=None):
 
     if fn is None:
         fn = '%s/input/inits/initial_conditions.npz' % ARES
@@ -107,14 +217,18 @@ def flatten_blobs(data):
     Take a 3-D array, eliminate dimension corresponding to walkers, thus
     reducing it to 2-D
     """
-    
+
+    # Prevents a crash in MCMC.ModelFit
+    if np.all(data == {}):
+        return None
+
     if len(data.shape) != 4:
         raise ValueError('chain ain\'t the right shape.')    
-    
+
     new = []
     for i in range(data.shape[1]):
         new.extend(data[:,i,:,:])
-        
+
     return new
     
 def flatten_chain(data):
@@ -130,6 +244,7 @@ def flatten_chain(data):
     for i in range(data.shape[1]):
         new.extend(data[:,i,:])
 
+    # Is there a reason not to cast this to an array?
     return new
 
 def flatten_logL(data):
@@ -229,10 +344,29 @@ def read_pickled_chain(fn):
         return np.array(new_data)
         
     else:
+        print Nd
         raise ValueError('unrecognized chain shape')
             
     
-    
+def delete_nan_rows(array):
+    """
+    Finds a copy of the given array with all rows (slices of constant 0th
+    index) which contain nan's or inf's removed.
+
+    array a numpy.ndarray with more than one dimension
+
+    returns a copy of array with rows with nan's or inf's removed
+    """
+    indices = []
+    # same shape as array with boolean type; True only for nan's and infs
+    is_inf_or_nan = (np.isinf(array)|np.isnan(array))
+    # for loop finds which rows to delete
+    for i in range(len(array)):
+        if not np.all(~is_inf_or_nan[i,...]):
+            indices.append(i)
+    del is_inf_or_nan
+    # this does not change array; just returns modified copy
+    return np.delete(array, indices, axis=0), indices
         
     
     

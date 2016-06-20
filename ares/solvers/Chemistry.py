@@ -44,15 +44,25 @@ class Chemistry(object):
         self.chemnet = ChemicalNetwork(grid, rate_src=rate_src,
             recombination=recombination)
         
+        # Only need to compute rate coefficients once for isothermal gas
+        if self.grid.isothermal:
+            self.rcs = \
+                self.chemnet.SourceIndependentCoefficients(grid.data['Tk'])
+        else:
+            self.rcs = {}
+            
         self.solver = ode(self.chemnet.RateEquations, 
             jac=self.chemnet.Jacobian).set_integrator('vode',
-            with_jacobian=True, method='bdf', nsteps=1e4, 
-            atol=atol, rtol=rtol)
+            method='bdf', nsteps=1e4, order=5, atol=atol, rtol=rtol)
             
-        self.zeros_gridxq = np.zeros([self.grid.dims, len(self.grid.evolving_fields)])
+        self.solver._integrator.iwork[2] = -1
+            
+        # Empty arrays in the shapes we often need
+        self.zeros_gridxq = np.zeros([self.grid.dims, 
+            len(self.grid.evolving_fields)])
         self.zeros_grid_x_abs = np.zeros_like(self.grid.zeros_grid_x_absorbers)
         self.zeros_grid_x_abs2 = np.zeros_like(self.grid.zeros_grid_x_absorbers2)
-    
+        
     def Evolve(self, data, t, dt, **kwargs):
         """
         Evolve all cells by dt.
@@ -73,21 +83,24 @@ class Chemistry(object):
             dz = dt / self.grid.cosm.dtdz(z)
         else:
             z = dz = 0
-                
+
         if 'he_1' in self.grid.absorbers:
             i = self.grid.absorbers.index('he_1')
             self.chemnet.psi[...,i] *= data['he_2'] / data['he_1']
-                
+
         # Make sure we've got number densities
         if 'n' not in data.keys():
-            data['n'] = self.grid.particle_density(data, z)        
-                
+            data['n'] = self.grid.particle_density(data, z)
+
         newdata = {}
         for field in data:
             newdata[field] = data[field].copy()
-                    
-        kwargs_by_cell = self.sort_kwargs_by_cell(kwargs)
-                               
+
+        if not kwargs:
+            kwargs = self.rcs.copy()
+
+        kwargs_by_cell = self._sort_kwargs_by_cell(kwargs)
+
         self.q_grid = np.zeros_like(self.zeros_gridxq)
         self.dqdt_grid = np.zeros_like(self.zeros_gridxq)
                               
@@ -100,10 +113,10 @@ class Chemistry(object):
                 q[i] = data[species][cell]
                                     
             kwargs_cell = kwargs_by_cell[cell]
-                            
+                                        
             if self.rtON:
-                args = (cell, kwargs_cell['Gamma'], kwargs_cell['gamma'],
-                    kwargs_cell['Heat'], data['n'][cell], t)
+                args = (cell, kwargs_cell['k_ion'], kwargs_cell['k_ion2'],
+                    kwargs_cell['k_heat'], data['n'][cell], t)
             else:
                 args = (cell, self.grid.zeros_absorbers, 
                     self.grid.zeros_absorbers2, self.grid.zeros_absorbers, 
@@ -111,22 +124,22 @@ class Chemistry(object):
 
             self.solver.set_initial_value(q, 0.0).set_f_params(args).set_jac_params(args)
             self.solver.integrate(dt)
-                                                
+
             self.q_grid[cell] = q.copy()
             self.dqdt_grid[cell] = self.chemnet.dqdt.copy()
 
             for i, value in enumerate(self.solver.y):
                 newdata[self.grid.evolving_fields[i]][cell] = self.solver.y[i]
-                                                         
+
         # Compute particle density
         newdata['n'] = self.grid.particle_density(newdata, z - dz)
-                        
+        
         return newdata  
-    
-    def sort_kwargs_by_cell(self, kwargs):
+
+    def _sort_kwargs_by_cell(self, kwargs):
         """
         Convert kwargs dictionary to list.
-        
+
         Entries correspond to cells, a dictionary of values for each.
         """    
         

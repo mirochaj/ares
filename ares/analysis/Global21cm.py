@@ -4,7 +4,7 @@ Global21cm.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
-Created on: Thu Oct  4 12:59:46 2012
+Created on: Sat Oct  3 14:57:31 PDT 2015
 
 Description: 
 
@@ -12,190 +12,82 @@ Description:
 
 import numpy as np
 from ..util import labels
-import re, scipy, os, pickle
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
-from scipy.misc import derivative
-from scipy.optimize import fsolve
-from ..physics.Constants import *
-from scipy.integrate import cumtrapz
 from scipy.interpolate import interp1d
+from ..physics.Constants import nu_0_mhz
 from .TurningPoints import TurningPoints
-from ..physics import Cosmology, Hydrogen
 from ..util.Math import central_difference
-from ..util.SetDefaultParameterValues import *
-from ..simulations import Global21cm as simG21
-from .DerivedQuantities import DerivedQuantities as DQ
+from matplotlib.ticker import ScalarFormatter 
+from .MultiPhaseMedium import MultiPhaseMedium
 
 try:
-    import h5py
+    from scipy.stats import kurtosis, skew
 except ImportError:
     pass
-    
-    
-class DummyDQ(object):
-    """
-    A wrapper around DerivedQuantities.
-    """
-    def __init__(self, pf={}):
-        self._data = {}
-        self._dq = DQ(ModelSet=None, pf=pf)
-        
-    def add_data(self, data):
-        self._dq._add_data(data)
-        for key in data:
-            self._data[key] = data[key]
-            
-    def keys(self):
-        return self._data.keys()    
-            
-    def __iter__(self):
-        for key in self._data.keys():
-            yield key        
-            
-    def __contains__(self, name):
-        return name in self._data.keys()
-            
-    def __getitem__(self, name):
-        if name in self._data:
-            return self._data[name]
-            
-        self._data[name] = self._dq[name]
-        return self._data[name]    
-            
-    def __setitem__(self, name, value):
-        self._data[name] = value
-    
-turning_points = ['D', 'C', 'B', 'A']
 
-class Global21cm:
-    def __init__(self, sim=None, prefix=None, history=None, pf=None, **kwargs):
+class Global21cm(MultiPhaseMedium):
+    
+    def __getattr__(self, name):
         """
-        Initialize analysis object.
-        
-        Parameters
-        ----------
-        sim : instance
-            Instance of glorb.Simulate.Simulation class
-        history : dict, str
-            Either a dictionary containing the 21-cm history or the name
-            of the (HDF5) file containing the history.
-        pf : dict, str
-            Either a dictionary containing the parameters, or the name
-            of the (binary/pickled) file containing the parameters.
-                
+        This gets called anytime we try to fetch an attribute that doesn't
+        exist (yet).
         """
-        
-        # Analyze an ares.simulations.Global21cm object
-        if isinstance(sim, simG21):
-            self.sim = sim    # simG21 instance
-            self.pf = sim.pf
-            self.data = DummyDQ(pf=self.pf)
-            self.data.add_data(sim.history)
-            #self.data = sim.history.copy()
-            try:
-                self.cosm = sim.grid.cosm
-            except AttributeError:
-                self.cosm = Cosmology(omega_m_0=self.pf["omega_m_0"], 
-                omega_l_0=self.pf["omega_l_0"], 
-                omega_b_0=self.pf["omega_b_0"], 
-                hubble_0=self.pf["hubble_0"], 
-                helium_by_number=self.pf['helium_by_number'], 
-                cmb_temp_0=self.pf["cmb_temp_0"], 
-                approx_highz=self.pf["approx_highz"])
-            try:
-                self.hydr = sim.grid.hydr
-            except AttributeError:
-                self.hydr = Hydrogen(cosm=self.cosm)
-        # Read output of a simulation from disk
-        elif prefix is not None:
-            f = open('%s.parameters.pkl' % prefix, 'rb')
-            self.pf = pickle.load(f)
-            f.close()
             
-            f = open('%s.history.pkl' % prefix, 'rb')
-            history = pickle.load(f)
-            f.close()
-        else:
-            self.pf = {}
-                    
-        # Read simulation output from dictionary    
-        if (history is not None) or (prefix is not None):
-            self.sim = None
-            self.data = DummyDQ(pf=self.pf)
-            if type(history) is dict:
-                self.data.add_data(history)
-            elif re.search('hdf5', history):
-                f = h5py.File(history, 'r')
-                tmp = {}
-                for key in f.keys():
-                    tmp = f[key].value[-1::-1]
-                f.close()
-                self.data.add_data(tmp)
+        if hasattr(MultiPhaseMedium, name):
+            return MultiPhaseMedium.__dict__[name].__get__(self, MultiPhaseMedium)
+                                                                              
+        # Indicates that this attribute is being accessed from within a 
+        # property. Don't want to override that behavior!
+        if (name[0] == '_'):
+            raise AttributeError('This will get caught. Don\'t worry!')
+
+        # Now, possibly make an attribute
+        if name not in self.__dict__.keys():
+            # See if this is a turning point
+            spl = name.split('_')
+                                                
+            if len(spl) > 2:
+                quantity = ''
+                for item in spl[0:-1]:
+                    quantity += '%s_' % item
+                quantity = quantity.rstrip('_')
+                pt = spl[-1]
             else:
-                if re.search('pkl', history):
-                    f = open(history, 'rb')
-                    self.data.add_data(pickle.load(f))
-                    f.close()
-                elif re.search('npz', history):
-                    self.data.add_data(np.load(history))
-                else:    
-                    f = open(history, 'r')
-                    cols = f.readline().split()[1:]
-                    data = np.loadtxt(f)
-                    
-                    tmp = {}
-                    for i, col in enumerate(cols):
-                        tmp[col] = data[:,i]
-                    f.close()
-                    self.data.add_data(tmp)
-
-            if pf is None:
-                self.pf = SetAllDefaults()
-            elif type(pf) is dict:
-                self.pf = pf
-            elif os.path.exists(pf):
-                f = open(pf, 'rb')
                 try:
-                    self.pf = pickle.load(f)
-                except:
-                    self.pf = SetAllDefaults()
-                f.close()
+                    quantity, pt = spl
+                except ValueError:
+                    raise AttributeError('No attribute %s.' % name)    
+    
+            if pt not in ['B', 'C', 'D', 'ZC']:
+                # This'd be where e.g., zrei, should go
+                raise NotImplemented('help!')
 
-            self.cosm = Cosmology()
-            self.hydr = Hydrogen()
+            if pt not in self.turning_points:
+                return np.inf
 
-        if not hasattr(self, 'data'):
-            raise ValueError('Must supply simulation instance, dict, or file prefix!')
-
-        self.kwargs = kwargs    
-
-        # Add frequencies
-        if 'z' in self.data:
-            self.data['nu'] = nu_0_mhz / (1. + self.data['z'])
-                                                     
-        # For convenience - quantities in ascending order (in redshift)
-        data_reorder = {}
-        for key in self.data.keys():
-            data_reorder[key] = np.array(self.data[key])[-1::-1]
-        
-        # Re-order
-        if np.all(np.diff(self.data['z']) > 0):
-            self.data_asc = DummyDQ(pf=self.pf)
-            self.data_asc.add_data(self.data)
-            self.data = DummyDQ(pf=self.pf)
-            self.data.add_data(data_reorder)
-        else:
-            self.data_asc = DummyDQ(pf=self.pf)
-            self.data_asc.add_data(data_reorder)
-
-        self.interp = {}
-
-        if hasattr(self, 'pf'):
-            self._track = TurningPoints(**self.pf)
-        else:
-            self._track = TurningPoints()
+            if quantity == 'z':
+                self.__dict__[name] = self.turning_points[pt][0]
+            elif quantity == 'nu':
+                self.__dict__[name] = \
+                    nu_0_mhz / (1. + self.turning_points[pt][0])
+            elif quantity in self.data_asc:
+                z = self.turning_points[pt][0]
+                self.__dict__[name] = \
+                    np.interp(z, self.data_asc['z'], self.data_asc[quantity])
+            else:
+                z = self.turning_points[pt][0]
                 
+                # Treat derivatives specially                
+                if quantity == 'slope':    
+                    self.__dict__[name] = self.derivative_of_z(z)
+                elif quantity == 'curvature':
+                    self.__dict__[name] = self.curvature_of_z(z)
+                else:
+                    raise KeyError('Unrecognized quantity: %s' % quantity)
+
+        return self.__dict__[name]
+    
     @property
     def dTbdz(self):
         if not hasattr(self, '_dTbdz'):
@@ -207,7 +99,7 @@ class Global21cm:
     def dTbdnu(self):
         if not hasattr(self, '_dTbdnu'):
             self._nu_p, self._dTbdnu = \
-                central_difference(self.data['nu'], self.data['dTb'])               
+                central_difference(self.data['nu'], self.data['dTb'])
         return self._dTbdnu
         
     @property
@@ -219,11 +111,11 @@ class Global21cm:
     
     @property
     def dTb2dnu2(self):
-        if not hasattr(self, '_dTbdnu'):
+        if not hasattr(self, '_dTb2dnu2'):
             _dTbdnu = self.dTbdnu
             _nu = self._nu_p
-            self._nu_pp, self._dTbdnu = central_difference(_nu, _dTbdnu)
-        return self._dTbdnu        
+            self._nu_pp, self._dTb2dnu2 = central_difference(_nu, _dTbdnu)
+        return self._dTb2dnu2        
     
     @property
     def z_p(self):
@@ -240,321 +132,135 @@ class Global21cm:
     @property
     def nu_p(self):
         if not hasattr(self, '_nu_p'):
-            tmp = self.dTbdz
-        return self._nu_p    
+            tmp = self.dTbdnu
+        return self._nu_p
+    
+    @property
+    def nu_pp(self):
+        if not hasattr(self, '_nu_pp'):
+            tmp = self.dTb2dnu2
+        return self._nu_pp    
         
     @property
-    def zB(self):
-        if not hasattr(self, '_zB'):
-            self._zB = self.turning_points[0][3]    
-        return self._zB
-    
-    @property
-    def zC(self):
-        if not hasattr(self, '_zC'):
-            self._zC = self.turning_points[0][2]    
-        return self._zC
-    
-    @property
-    def zD(self):
-        if not hasattr(self, '_zD'):
-            self._zD = self.turning_points[0][1]    
-        return self._zD
-    
-    @property
-    def znull(self):
-        if not hasattr(self, '_znull'):
-            self._znull = self.locate_null()
-        return self._znull
-    
-    @property
-    def TB(self):
-        if not hasattr(self, '_TB'):
-            self._TB = self.turning_points[1][3]    
-        return self._TB
-    
-    @property
-    def TC(self):
-        if not hasattr(self, '_TC'):
-            self._TC = self.turning_points[1][2]    
-        return self._TC
-    
-    @property
-    def TD(self):
-        if not hasattr(self, '_TD'):
-            self._TD = self.turning_points[1][1]    
-        return self._TD
-    
-    @property
-    def Trei(self):
-        if not hasattr(self, '_Trei'):
-            self._Trei = self.turning_points[1][0]    
-        return self._Trei
+    def kurtosis(self):
+        if not hasattr(self, '_kurtosis'):
+            i1 = np.argmin(np.abs(self.nu_B - self.data['nu']))
+            i2 = np.argmin(np.abs(self.nu_D - self.data['nu']))
+            self._kurtosis = kurtosis(self.data['dTb'][i1:i2])
             
-    def _initialize_interpolation(self, field):
-        """ Set up scipy.interpolate.interp1d instances for all fields. """            
-                
-        self.interp[field] = scipy.interpolate.interp1d(self.data_asc['z'], 
-            self.data_asc[field], kind='cubic')
-                       
-    def field(self, z, field='dTb'):  
-        """ Interpolate value of any field in self.data to redshift z. """ 
-                
-        if field not in self.interp:
-            self._initialize_interpolation(field)
-         
-        return self.interp[field](z)
-                
-    def z_to_mhz(self, z):
-        return nu_0_mhz / (1. + z)
-                
-    def zrei(self):
-        """
-        Find midpoint of reionization.
-        """         
-        
-        zz = self.data['z'][self.data['z'] < 40]
-        xz = self.data['cgm_h_2'][self.data['z'] < 40]
-        
-        return np.interp(0.5, xz, zz)
-        
-    def tau_CMB(self):
-        """
-        Compute CMB optical depth history.
-        """
-        
-        QHII = self.data_asc['cgm_h_2'] 
-        xHII = self.data_asc['igm_h_2'] 
-        nH = self.cosm.nH(self.data_asc['z'])
-        dldz = self.cosm.dldz(self.data_asc['z'])
-        
-        integrand = (QHII + (1. - QHII) * xHII) * nH
-        
-        if 'igm_he_1' in self.data_asc:
-            QHeII = self.data_asc['cgm_h_2'] 
-            xHeII = self.data_asc['igm_he_2'] 
-            xHeIII = self.data_asc['igm_he_3'] 
-            nHe = self.cosm.nHe(self.data_asc['z'])
-            integrand += (QHeII + (1. - QHeII) * xHeII + 2. * xHeIII) \
-                * nHe 
-                
-        integrand *= sigma_T * dldz
-        
-        tau = cumtrapz(integrand, self.data_asc['z'], initial=0)
-            
-        tau[self.data_asc['z'] > 100] = 0.0 
-            
-        self.data_asc['tau_CMB'] = tau
-        self.data['tau_CMB'] = tau[-1::-1]
-        
-        # Make no arrays that go to z=0
-        zlo, tlo = self.tau_post_EoR()
-                
-        tau_tot = tlo[-1] + tau
-        
-        tau_tot[self.data_asc['z'] > 100] = 0.0 
-        
-        self.data_asc['z_CMB'] = np.concatenate((zlo, self.data_asc['z']))
-        self.data['z_CMB'] = self.data_asc['z_CMB'][-1::-1]
-                
-        self.data_asc['tau_CMB_tot'] = np.concatenate((tlo, tau_tot))
-        self.data['tau_CMB_tot'] = tau_tot[-1::-1]
-                
+        return self._kurtosis
+    
     @property
-    def tau_e(self):
-        if not hasattr(self, '_tau_e'):
-            if 'tau_CMB_tot' not in self.data:
-                self.tau_CMB()
-                
-            z50 = np.argmin(np.abs(self.data['z_CMB'] - 50))
-            self._tau_e = self.data['tau_CMB_tot'][z50]
+    def skewness(self):
+        if not hasattr(self, '_skewness'):
+            i1 = np.argmin(np.abs(self.nu_B - self.data['nu']))
+            i2 = np.argmin(np.abs(self.nu_D - self.data['nu']))
+            self._skewness = skew(self.data['dTb'][i1:i2])
+        return self._skewness
+    
+    @property
+    def track(self):
+        if not hasattr(self, '_track'):     
+            if hasattr(self, 'pf'):
+                self._track = TurningPoints(**self.pf)
+            else:
+                self._track = TurningPoints()
+        return self._track
         
-        return self._tau_e       
-                
-    @property            
+    def smooth_derivative(self, sm):
+        arr = self.z_p[np.logical_and(self.z_p >= 6, self.z_p <= 25)]
+        s = int(sm / np.diff(arr).mean())#self.pf['smooth_derivative']
+        
+        if s % 2 != 0:
+            s += 1
+        
+        boxcar = np.zeros_like(self.dTbdz)
+        boxcar[boxcar.size/2 - s/2: boxcar.size/2 + s/2] = \
+            np.ones(s) / float(s)
+        
+        return np.convolve(self.data['dTb'], boxcar, mode='same')
+    
+    @property
     def turning_points(self):
-        """
-        Locate turning points.
-        """
-        
-        # Use turning_points from ares.simulations.Global21cm if we've got 'em
-        if isinstance(self.sim, simG21):
-            if hasattr(self.sim, 'turning_points'):
-                return self.sim.turning_points
-        
-        if hasattr(self, '_turning_points'):
-            return self._turning_points
+        if not hasattr(self, '_turning_points'):  
             
-        # Otherwise, find them. Not the most efficient, but it gets the job done
-        # Redshifts in descending order
-        for i in range(len(self.data['z'])):
-            if i < 10:
-                continue
+            # If we're here, the simulation has already been run.
+            # We've got the option to smooth the derivative before 
+            # finding the extrema 
+            if self.pf['smooth_derivative'] > 0:
+                dTb = self.smooth_derivative(self.pf['smooth_derivative'])
+            else:
+                dTb = self.data['dTb']
             
-            stop = self._track.is_stopping_point(self.data['z'][0:i], 
-                self.data['dTb'][0:i])
-                                
-        self._turning_points = self._track.turning_points
-        
+            z = self.data['z']
+
+            # Otherwise, find them. Not the most efficient, but it gets the job done
+            # Redshifts in descending order
+            for i in range(len(z)):
+                if i < 5:
+                    continue
+            
+                stop = self.track.is_stopping_point(z[0:i], dTb[0:i])
+            
+            # See if anything is wonky
+            fixes = {}
+            if 'C' in self.track.turning_points:
+                zC = self.track.turning_points['C'][0]
+                if (zC < 0) or (zC > 50):
+                    i_min = np.argmin(self.data['dTb'])
+                    fixes['C'] = (self.data['z'][i_min], 
+                        self.data['dTb'][i_min], -99999)
+            if 'D' in self.track.turning_points:
+                zD = self.track.turning_points['D'][0]
+                TD = self.track.turning_points['D'][1]
+                if (zD < 0) or (zD > 50):
+                    i_max = np.argmax(self.data['dTb'])
+                    fixes['D'] = (self.data['z'][i_max], 
+                        self.data['dTb'][i_max], -99999)            
+                elif TD < 1e-4:
+                    fixes['D'] = (-np.inf, -np.inf, -99999)
+                
+            result = self.track.turning_points
+            result.update(fixes)
+
+            self._turning_points = result       
+
         return self._turning_points
         
-    def add_redshift_axis(self, ax):
-        """
-        Take plot with frequency on x-axis and add top axis with corresponding 
-        redshift.
+    def derivative_of_freq(self, freq):
+        interp = interp1d(self.nu_p, self.dTbdnu, kind='linear')
+        return interp(freq)
     
-        Parameters
-        ----------
-        ax : matplotlib.axes.AxesSubplot instance
-            Axis on which to add a redshift scale.
-        """    
-        
-        fig = ax.xaxis.get_figure()
-        
-        #for ax in fig.axes:
-        #    if ax.get_xlabel() == '$z$':
-        #        return
-        
-        z = np.arange(10, 110, 10)[-1::-1]
-        z_minor= np.arange(15, 80, 5)[-1::-1]
-        nu = nu_0_mhz / (1. + z)
-        nu_minor = nu_0_mhz / (1. + z_minor)
+    def curvature_of_freq(self, freq):
+        interp = interp1d(self.nu_pp, self.dTb2dnu2, kind='linear')
+        return interp(freq)  
     
-        z_labels = map(str, z)
-        
-        # Add 25, 15 and 12, 8 to redshift labels
-        z_labels.insert(-1, '15')
-        z_labels.insert(-1, '12')
-        z_labels.extend(['8', '7', '6', '5'])                
-        #z_labels.insert(-5, '25')
-        
-        z = np.array(map(int, z_labels))
-        
-        nu = nu_0_mhz / (1. + z)
-        nu_minor = nu_0_mhz / (1. + z_minor)
-        
-        ax_z = ax.twiny()
-        ax_z.set_xlabel(labels['z'])        
-        ax_z.set_xticks(nu)
-        ax_z.set_xticks(nu_minor, minor=True)
-            
-        # A bit hack-y
-        for i, label in enumerate(z_labels):
-            if label in ['40','50', '60', '70']:
-                z_labels[i] = ''
-        
-            if float(label) > 80:
-                z_labels[i] = ''
-    
-        ax_z.set_xticklabels(z_labels)
-        ax_z.set_xlim(ax.get_xlim())
-        
-        pl.draw()
-    
-        return ax_z    
-        
-    def add_frequency_axis(self, ax):
-        """
-        Take plot with redshift on x-axis and add top axis with corresponding 
-        (observed) 21-cm frequency.
-        
-        Parameters
-        ----------
-        ax : matplotlib.axes.AxesSubplot instance
-        """    
-        
-        nu = np.arange(20, 220, 20)[-1::-1]
-        nu_minor = np.arange(30, 230, 20)[-1::-1]
-        znu = nu_0_mhz / np.array(nu) - 1.
-        znu_minor = nu_0_mhz / np.array(nu_minor) - 1.
-        
-        ax_freq = ax.twiny()
-        ax_freq.set_xlabel(labels['nu'])        
-        ax_freq.set_xticks(znu)
-        ax_freq.set_xticks(znu_minor, minor=True)
-        ax_freq.set_xlim(ax.get_xlim())
-        
-        freq_labels = map(str, nu)
-        
-        # A bit hack-y
-        for i, label in enumerate(freq_labels):
-            if label in ['140', '180']:
-                freq_labels[i] = ''
-                
-            if float(label) >= 200:
-                freq_labels[i] = ''
+    def derivative_of_z(self, z):
+        freq = nu_0_mhz / (1. + z)
+        return self.derivative_of_freq(freq)
 
-        ax_freq.set_xticklabels(freq_labels)
-        
+    def curvature_of_z(self, z):
+        freq = nu_0_mhz / (1. + z)
+        return self.curvature_of_freq(freq)
+    
+    def SaturatedLimit(self, ax):
+        z = nu_0_mhz / self.data['nu'] - 1.
+        dTb = self.hydr.DifferentialBrightnessTemperature(z, 0.0, np.inf)
+
+        ax.plot(self.data['nu'], dTb, color='k', ls=':')
+        ax.fill_between(self.data['nu'], dTb, 500 * np.ones_like(dTb),
+            color='none', hatch='X', edgecolor='k', linewidth=0.0)
         pl.draw()
         
-        return ax_freq
-        
-    def add_time_axis(self, ax):
-        """
-        Take plot with redshift on x-axis and add top axis with corresponding 
-        time since Big Bang.
-        
-        This is crude at the moment -- should self-consistently solve for
-        age of the universe.
-        
-        Parameters
-        ----------
-        ax : matplotlib.axes.AxesSubplot instance
-        """
-        
-        age = 13.7 * 1e3 # Myr
-        
-        t = np.arange(100, 1e3, 100) # in Myr
-        t_minor = np.arange(0, 1e3, 50)[1::2]
-        
-        zt = map(lambda tt: self.cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
-            np.inf), t)
-        zt_minor = map(lambda tt: self.cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
-            np.inf), t_minor)
-        
-        ax_time = ax.twiny()
-        ax_time.set_xlabel(labels['t_myr'])        
-        ax_time.set_xticks(zt)
-        ax_time.set_xticks(zt_minor, minor=True)
-        ax_time.set_xlim(ax.get_xlim())
-        
-        # A bit hack-y
-        time_labels = map(str, map(int, t))
-        for i, label in enumerate(time_labels):
-            tnow = float(label)
-            if (tnow in [400, 600, 700]) or (tnow > 800):
-                time_labels[i] = ''    
-            
-        ax_time.set_xticklabels(time_labels)
-        
-        pl.draw()
-        
-        return ax_time
-        
-    def reverse_x_axis(self, ax, twinax=None):
-        """
-        By default, we plot quantities vs. redshift, ascending from left to 
-        right. This method will flip the x-axis, so that redshift is 
-        decreasing from left to right.
-        """
-        
-        ax.invert_xaxis()
-        
-        if twinax is None:
-            print "If you have a twinx axis, be sure to re-run add_time_axis or add_frequency_axis!"
-            print "OR: pass that axis object as a keyword argument to this function!"
-        else:
-            twinax.invert_xaxis()
-        
-        pl.draw()
-        
+        return ax
+    
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=5, scatter=False, xaxis='nu', 
-        ymin=None, ymax=50, zmax=None, xscale='linear', **kwargs):
+        ymin=None, ymax=50, zmax=None, rotate_xticks=False, force_draw=False,
+        **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
-        
+
         Parameters
         ----------
         ax : matplotlib.axes.AxesSubplot instance
@@ -594,17 +300,13 @@ class Global21cm:
             ax = fig.add_subplot(111)
         else:
             gotax = True
-            
-            blank_ax = False
-            if np.all(ax.get_xticks() == np.linspace(0, 1, 6)):
-                blank_ax = True
-
-        if scatter is False:    
+        
+        if scatter is False:      
             ax.plot(self.data[xaxis], self.data['dTb'], **kwargs)
         else:
             ax.scatter(self.data[xaxis][-1::-mask], self.data['dTb'][-1::-mask], 
-                **kwargs)   
-        
+                **kwargs)        
+                
         zmax = self.pf["first_light_redshift"]
         zmin = self.pf["final_redshift"] if self.pf["final_redshift"] >= 10 \
             else 5
@@ -614,11 +316,12 @@ class Global21cm:
             xticks = list(np.arange(zmin, zmax, zmin))
             xticks_minor = list(np.arange(zmin, zmax, 1))
         else:
-            xticks = np.arange(20, 220, 20)
-            xticks_minor = np.arange(10, 210, 20)
+            xticks = np.arange(50, 250, 50)
+            xticks_minor = np.arange(10, 200, 10)
 
         if ymin is None:
-            ymin = max(min(min(self.data['dTb']), ax.get_ylim()[0]), -500)
+            ymin = max(min(min(self.data['dTb'][np.isfinite(self.data['dTb'])]), 
+                ax.get_ylim()[0]), -500)
     
             # Set lower y-limit by increments of 50 mK
             for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500]:
@@ -627,9 +330,11 @@ class Global21cm:
                     break
     
         if ymax is None:
-            ymax = max(max(self.data['dTb']), ax.get_ylim()[1])
+            ymax = max(max(self.data['dTb'][np.isfinite(self.data['dTb'])]), 
+                ax.get_ylim()[1])
         
-        ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))
+        if (not gotax) or force_draw:
+            ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))
                 
         # Minor y-ticks - 10 mK increments
         yticks = np.linspace(ymin, 50, int((50 - ymin) / 10. + 1))
@@ -643,51 +348,64 @@ class Global21cm:
         if xaxis == 'z' and hasattr(self, 'pf'):
             ax.set_xlim(5, self.pf["initial_redshift"])
         else:
-            ax.set_xlim(10, 150)
+            ax.set_xlim(10, 210)
             
         ax.set_ylim(ymin, ymax)    
-        
-        # Ticks
-        if (not gotax) or blank_ax:
-            if xscale == 'linear':
-                ax.set_xticks(xticks, minor=False)
-                ax.set_xticks(xticks_minor, minor=True)
-            
-            ax.set_yticks(yticks, minor=True)
-            
-            if ax.get_xlabel() == '':  
-                if xaxis == 'z':  
-                    ax.set_xlabel(labels['z'], fontsize='x-large')
-                else:
-                    ax.set_xlabel(labels['nu'])
-            
-            if ax.get_ylabel() == '':    
-                ax.set_ylabel(labels['dTb'], fontsize='x-large')    
-            
-            if 'label' in kwargs:
-                if kwargs['label'] is not None:
-                    ax.legend(loc='best')
-
-            # Twin axes along the top
-            twinax = None
-            if freq_ax:
-                twinax = self.add_frequency_axis(ax)
-            elif time_ax:
-                twinax = self.add_time_axis(ax)
-            elif z_ax:
-                twinax = self.add_redshift_axis(ax)
-            
-            if twinax is not None:
-                self.twinax = twinax
-            
-            ax.ticklabel_format(style='plain', axis='both')
-            ax.set_xscale(xscale)
                     
+        if (not gotax) or force_draw:    
+            ax.set_xticks(xticks, minor=False)
+            ax.set_xticks(xticks_minor, minor=True)
+            ax.set_yticks(yticks, minor=True)
+        
+            if rotate_xticks:
+                xt = []
+                for x in ax.get_xticklabels():
+                    xt.append(x.get_text())
+                
+                ax.set_xticklabels(xt, rotation=45.)
+        
+        if gotax and (ax.get_xlabel().strip()) and (not force_draw):
+            return ax
+            
+        if ax.get_xlabel() == '':  
+            if xaxis == 'z':  
+                ax.set_xlabel(labels['z'], fontsize='x-large')
+            else:
+                ax.set_xlabel(labels['nu'])
+        
+        if ax.get_ylabel() == '':    
+            ax.set_ylabel(labels['dTb'], fontsize='x-large')    
+        
+        if 'label' in kwargs:
+            if kwargs['label'] is not None:
+                ax.legend(loc='best')
+                
+        # Twin axes along the top
+        if freq_ax:
+            twinax = self.add_frequency_axis(ax)        
+        elif time_ax:
+            twinax = self.add_time_axis(ax)
+        elif z_ax:
+            twinax = self.add_redshift_axis(ax)
+        else:
+            twinax = None
+        
+        self.twinax = twinax
+        
+        try:
+            ax.ticklabel_format(style='plain', axis='both')
+        except AttributeError:
+            ax.xaxis.set_major_formatter(ScalarFormatter())
+            ax.yaxis.set_major_formatter(ScalarFormatter())
+            #twinax.xaxis.set_major_formatter(ScalarFormatter())
+            ax.ticklabel_format(style='plain', axis='both')
+                                
         pl.draw()
-
+        
         return ax
 
-    def Derivative(self, mp=None, **kwargs):
+    def GlobalSignatureDerivative(self, mp=None, ax=None, fig=1, 
+        show_signal=False, **kwargs):
         """
         Plot signal and its first derivative (nicely).
 
@@ -701,425 +419,123 @@ class Global21cm:
 
         """
 
-        new = True
-        if mp is None:
-            mp = MultiPanel(dims=(2, 1), panel_size=(1, 0.6))
-            ymin, ymax = zip(*[(999999, -999999)] * 3)
-        else:
-            new = False
-            ymin = [0, 0, 0]
-            ymax = [0, 0, 0]
-            for i in xrange(2):
-                ymin[i], ymax[i]= mp.grid[i].get_ylim()        
-                
-        mp.grid[0].plot(self.data['nu'], self.data['dTb'], **kwargs)        
-        mp.grid[1].plot(self._nu_p, self.dTbdnu, **kwargs)
-        
-        zf = int(np.min(self.data['z']))
-        zfl = int(np.max(self.data['z']))
-            
-        # Set up axes
-        xticks = np.linspace(zf, zfl, 1 + (zfl - zf))
-        xticks = list(xticks)
-        for x in np.arange(int(zf), int(zfl)):
-            if x % 5 == 0:
-                xticks.remove(x)
-        
-        yticks = np.linspace(-250, 50, 31)
-        yticks = list(yticks)
-        for y in np.linspace(-250, 50, 7):
-            yticks.remove(y)
-                        
-        mp.grid[0].set_xlabel(labels['z'])
-        mp.grid[0].set_ylabel(labels['dTb'])
-        mp.grid[1].set_ylabel(r'$d (\delta T_{\mathrm{b}}) / d\nu \ (\mathrm{mK/MHz})$')
-        
-        for i in xrange(2):                
-            mp.grid[i].set_xlim(5, 35)   
-            
-        mp.grid[0].set_ylim(min(1.05 * self.data['dTb'].min(), ymin[0]), max(1.2 * self.data['dTb'].max(), ymax[0]))
-        mp.grid[1].set_ylim(min(1.05 * self.dTbdnu.min(), ymin[1]), max(1.2 * self.dTbdnu[:-1].max(), ymax[1]))
-                     
-        mp.fix_ticks()
-        
-        return mp
-                
-    def TemperatureHistory(self, ax=None, fig=1, show_Tcmb=False,
-        show_Ts=False, show_Tk=True, scatter=False, mask=5, 
-        show_legend=False, **kwargs):
-        """
-        Plot kinetic, CMB, and spin temperatures vs. redshift. 
-        
-        Parameters
-        ----------
-        
-        """
-        
-        hasax = True
-        if ax is None:
-            hasax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)
-        
-        if 'label' not in kwargs:
-            labels = [r'$T_{\gamma}$', r'$T_K$', r'$T_S$']
-        else:
-            labels = [kwargs['label']]*3
-            del kwargs['label']
-                
-        if not scatter:
-            if show_Tcmb:
-                ax.semilogy(self.data['z'], self.cosm.TCMB(self.data['z']), 
-                    label=labels[0], **kwargs)
-            
-            if show_Tk:
-                ax.semilogy(self.data['z'], self.data['igm_Tk'], 
-                    label=labels[1], **kwargs)
-            
-            if show_Ts:
-                ax.semilogy(self.data['z'], self.data['Ts'], 
-                    label=labels[2], **kwargs)
-        else:
-            if show_Tcmb:
-                ax.scatter(self.data['z'][-1::-mask], self.cosm.TCMB(self.data['z'][-1::-mask]), 
-                    label=labels[0], **kwargs)
-            
-            ax.scatter(self.data['z'][-1::-mask], self.data['igm_Tk'][-1::-mask], 
-                label=labels[1], **kwargs)
-            
-            if show_Ts:
-                ax.semilogy(self.data['z'][-1::-mask], self.data['Ts'][-1::-mask], 
-                    label=labels[2], **kwargs)            
-                
-        if not hasax:
-            if hasattr(self, 'pf'):
-                ax.set_xlim(int(self.pf["final_redshift"]), 
-                    self.pf["initial_redshift"])
-            ax.set_xlabel(r'$z$')
-            
-        if not ax.get_ylabel():    
-            ax.set_ylabel(r'Temperature $(\mathrm{K})$') 
-        
-        if show_legend:
-            ax.legend(loc='best')
-                
-        pl.draw()
-        
-        return ax
-        
-    def IonizationHistory(self, ax=None, zone=None, element='h', 
-        fig=1, scatter=False, 
-        mask=5, show_xi=True, show_xe=True, show_xibar=True, 
-        show_legend=False, **kwargs):
-        """
-        Plot ionized fraction evolution. 
-        
-        Parameters
-        ----------
-        zone : str
-            Either "cgm", "igm", or None. If None, will plot mean ionized
-            fraction evolution
-        
-        """
-        
-        hasax = True
-        if ax is None:
-            hasax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)
-        
-        if element == 'h':
-            xe = self.data['igm_%s_2' % element]
-            xi = self.data['cgm_%s_2' % element]
-            xavg = xi + (1. - xi) * xe
-
-            to_plot = [xavg, xi, xe]
-            show = [show_xibar, show_xi, show_xe]
-
-        else:
-            to_plot = [self.data['igm_he_%i' % sp] for sp in [2,3]]
-            show = [True] * 2
-               
-        if 'label' not in kwargs:
-            if element == 'h':
-                labels = [r'$\bar{x}_i$', r'$x_i$', r'$x_e$']
+        if show_signal:
+            if mp is None:
+                gotax = False
+                mp = MultiPanel(dims=(2, 1), panel_size=(1, 0.6), fig=fig)
             else:
-                labels = [r'$x_{\mathrm{HeII}}$',
-                          r'$x_{\mathrm{HeIII}}$']
+                gotax = True
         else:
-            labels = [kwargs['label']]*len(to_plot)
-            del kwargs['label']
-            
-        if 'ls' not in kwargs:
-            ls = ['-', '--', ':']
+            if ax is None:
+                gotax = False
+                fig = pl.figure(fig)
+                ax = fig.add_subplot(111)
+            else:
+                gotax = True
+
+        if show_signal:
+            ax2 = self.GlobalSignature(ax=mp.grid[0], z_ax=False, **kwargs)
+            mp.grid[1].plot(self.nu_p, self.dTbdnu, **kwargs)
+            ax = mp.grid[1]
+            ax.set_xticks(mp.grid[0].get_xticks())    
+            ax.set_xticklabels([])    
+            ax.set_xlim(mp.grid[0].get_xlim())
         else:
-            ls = [kwargs['ls']]*len(to_plot)
-            del kwargs['ls']   
-               
-        if not scatter:
-            
-            for i, element in enumerate(to_plot):
-                if not show[i]:
-                    continue
-                    
-                ax.semilogy(self.data['z'], element, ls=ls[i], label=labels[i],
-                    **kwargs)
-        else:   
-            
-            for i, element in enumerate(to_plot):
-                if not show[i]:
-                    continue
-                    
-                ax.semilogy(self.data['z'][-1::-mask], element[-1::-mask], 
-                    label=labels[i], **kwargs)
-
-        if hasattr(self, 'pf'):
-            ax.set_xlim(int(self.pf["final_redshift"]), 
-                self.pf["initial_redshift"])
-        ax.set_ylim(ax.get_ylim()[0], 1.5)
-
-        ax.set_xlabel(r'$z$')
-        ax.set_ylabel(r'Ionized Fraction')
-        ax.set_yscale('log')
-
-        if show_legend:
-            ncol = 2 if element == 'he' else 1
-            ax.legend(loc='best', ncol=ncol)
-        
-        pl.draw()
-        
-        return ax
-        
-    def IonizationRateHistory(self, fig=1, ax=None, species='h_1', show_legend=False,
-        **kwargs):
-        """
-        Plot ionization rates as a function of redshift.
-        """    
-        
-        hasax = True
-        if ax is None:
-            hasax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)
-        
-        n1 = map(self.cosm.nH, self.data['z']) if species == 'h_1' \
-        else map(self.cosm.nHe, self.data['z'])
-        
-        n1 = np.array(n1) * np.array(self.data['igm_%s' % species])
-        
-        ratePrimary = np.array(self.data['igm_Gamma_%s' % species]) #* n1
-        
-        ax.semilogy(self.data['z'], ratePrimary, ls='-', **kwargs)
-        
-        rateSecondary = np.zeros_like(self.data['z'])
-        
-        for donor in ['h_1', 'he_1', 'he_2']: 
-            
-            field = 'igm_gamma_%s_%s' % (species, donor)
-            
-            if field not in self.data:
-                continue
-               
-            n2 = map(self.cosm.nH, self.data['z']) if donor == 'h_1' \
-            else map(self.cosm.nHe, self.data['z'])
-        
-            n2 = np.array(n2) * np.array(self.data['igm_%s' % donor])
-        
-            rateSecondary += \
-                np.array(self.data['igm_gamma_%s_%s' % (species, donor)]) * n2 / n1
-        
-        ax.semilogy(self.data['z'], rateSecondary, ls='--')
-        
-        ax.set_xlim(self.pf['final_redshift'], self.pf['first_light_redshift'])
-        
-        pl.draw()
-        
-        return ax
-        
-        
-    def OverplotDAREWindow(self, ax, color='r', alpha=0.5):        
-        ax.fill_between(np.arange(11, 36), -150, 50, 
-            facecolor = color, alpha = alpha)    
-            
-        pl.draw()        
-        
-    def OpticalDepthHistory(self, ax=None, fig=1, 
-        scatter=False, show_xi=True, show_xe=True, show_xibar=True, 
-        obs_mu=0.081, obs_sigma=0.012, show_obs=False, annotate_obs=False,
-        **kwargs): 
-        """
-        Plot (cumulative) optical depth to CMB evolution. 
-        
-        Parameters
-        ----------
-        obs_mu : float
-            Observationally constrained CMB optical depth. If supplied, will
-            draw shaded region denoting this value +/- the error (obs_sigma,
-            see below).
-        obs_sigma : float
-            1-sigma error on CMB optical depth.
-        show_obs : bool
-            Show shaded region for observational constraint?
-        
-        """
-        
-        hasax = True
-        if ax is None:
-            hasax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)
+            ax.plot(self.nu_p, self.dTbdnu, **kwargs)
                 
-        if 'tau_CMB' not in self.data:
-            self.tau_CMB()
-
-        ax.plot(self.data_asc['z_CMB'], self.data_asc['tau_CMB_tot'], **kwargs)
-
-        ax.set_xlim(0, 20)
-
-        ax.set_xlabel(labels['z'])
-        ax.set_ylabel(r'$\tau_e$')
-
-        #ax.plot([0, self.data['z'].min()], [tau.max() + tau_post]*2, **kwargs)
-        #
-        #if show_obs:
-        #    if obs_mu is not None:
-        #        ax.fill_between(ax.get_xlim(), [obs_mu-obs_sigma]*2, 
-        #            [obs_mu+obs_sigma]*2, color='red', alpha=0.5)
-        #    
-        #    if annotate_obs:    
-        #        #ax.annotate(r'$1-\sigma$ constraint', 
-        #        #    [self.data['z'].min(), obs_mu], ha='left',
-        #        #    va='center')  
-        #        ax.annotate(r'plus post-EoR $\tau_e$', 
-        #            [5, tau.max() + tau_post + 0.002], ha='left',
-        #            va='bottom')
-        #        ax.set_title('daeshed lines are upper limits')
-
-        ax.ticklabel_format(style='plain', axis='both')
-
-        pl.draw()
-
-        return ax
-
-    def RadiationBackground(self, z, ax=None, fig=1, band='lw', **kwargs):
-        """
-        Plot radiation background at supplied redshift and band.
-        """
-        
-        if band != 'lw':
-            raise NotImplemented('Only know LW background so far...')
-            
-        if not hasattr(self.sim, '_Jrb'):
-            raise ValueError('This simulation didnt evolve JLw...')
-            
-        hasax = True
-        if ax is None:
-            hasax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)    
-
-        for i, element in enumerate(self.sim._Jrb):
-
-            if element is None:
-                continue
-
-            # Read data for this radiation background
-            zlw, Elw, Jlw = element 
-
-            # Determine redshift
-            ilo = np.argmin(np.abs(zlw - z))
-            if zlw[ilo] > z:
-                ilo -= 1
-            ihi = ilo + 1
-
-            zlo, zhi = zlw[ilo], zlw[ihi]
-
-            for j, band in enumerate(Elw):
-
-                # Interpolate: flux is (Nbands x Nz x NE)
-                Jlo = Jlw[j][zlo]
-                Jhi = Jlw[j][zhi]
-
-                J = np.zeros_like(Jlw[j][zlo])
-                for k, nrg in enumerate(band):
-                    J[k] = np.interp(z, [zlo, zhi], [Jlo[k], Jhi[k]])
-
-                ax.plot(band, J, **kwargs)
-
-                # Fill in sawtooth
-                if j > 0:
-                    ax.semilogy([band[0]]*2, [J[0] / 1e4, J[0]], **kwargs)
+        if not gotax:
+            ax.set_ylabel(r'$\delta T_{\mathrm{b}}^{\prime} \ (\mathrm{mK} \ \mathrm{MHz}^{-1})$')
         
         pl.draw()
         
-        return ax
-
-    def tau_post_EoR(self):
-        """
-        Compute optical depth to electron scattering of the CMB.
-        Equation 2 of Shull & Venkatesan 2008.
-        
-        Only includes optical depth to CMB contribution from a time after 
-        the final redshift in the dataset. It is assumed that the universe
-        is fully ionized at all times, and that helium reionization occurs
-        at z = 3.
-        
-        Returns
-        -------
-        Post-EoR (as far as our data is concerned) optical depth.
-        """    
-
-        zmin = self.data['z'].min()
-        ztmp = np.linspace(0, zmin, 1000)
-
-        QHII = 1.0
-        nH = self.cosm.nH(ztmp)
-        dldz = self.cosm.dldz(ztmp)
-
-        integrand = QHII * nH
-
-        if 'igm_he_1' in self.data_asc:
-            QHeII = 1.0
-            xHeIII = 1.0
-            nHe = self.cosm.nHe(ztmp)
-            integrand += (QHeII + 2. * xHeIII) * nHe 
-
-        integrand *= sigma_T * dldz
-
-        tau = cumtrapz(integrand, ztmp, initial=0)
-        
-        return ztmp, tau
-    
-    def blob_analysis(self, field, z):    
-        """
-        Compute value of given field at given redshift.
-        
-        Parameters
-        ----------
-        fields : str
-            Fields to extract
-        z : list
-            Redshift at which to compute value of input fields.
-            'B', 'C', 'D', as well as numerical values are acceptable.
-        
-        Returns
-        -------
-        Value of field at input redshift, z.
-        
-        """
-
-        # Convert turning points to actual redshifts
-        if type(z) is str:
-            z = self.turning_points[z][0]
-            
-        # Redshift x blobs
-        if field in self.data_asc:
-            interp = interp1d(self.data_asc['z'],
-                self.data_asc[field])
+        if show_signal:
+            return mp
         else:
-            raise NotImplemented('help!')
+            return ax
+    
+    def add_Ts_inset(self, ax, inset=None, width=0.3, height=0.15, loc=3,
+            z=8.4, lo=1.9, hi=None, padding=0.02, borderpad=0.5, 
+            fmt='%.2g', **kwargs):
+        
+        if inset is None:
+            inset = self.add_inset(ax, inset=inset, width=width, height=height, 
+                loc=loc, lo=lo, hi=hi, padding=padding, 
+                borderpad=borderpad, **kwargs)
+        else:
+            inset.fill_between([0., self.cosm.Tgas(z)], 0, 1, 
+                color='k', facecolor='none', hatch='//')
+            #inset.plot([self.cosm.Tgas(z)]*2, [0, 1], 
+            #    color='k')    
+            inset.fill_between([self.cosm.Tgas(z), lo], 0, 1, 
+                color='lightgray')    
+            #inset.fill_between([self.cosm.TCMB(z), hi], 0, 1, 
+            #    color='k', facecolor='none', hatch='-')    
+            xticks = [1, 10, 100]
+            inset.set_xticks(xticks)
+            inset.set_xlim(0.8, hi)
+    
+            inset.set_title(r'$T_S(z=%.2g)$' % z, fontsize=16, y=1.08)
+            inset.xaxis.set_tick_params(width=1, length=5, labelsize=10)
             
-        return float(interp(z))
+        Ts = np.interp(z, self.data_asc['z'], self.data_asc['igm_Ts'])
+        inset.plot([Ts]*2, [0, 1], **kwargs)
+        inset.set_xscale('log')
+        pl.draw()
+    
+        return inset        
+    
+    def fill_between_sims(self, other_sim, ax=None, **kwargs):
+        sims = [self, other_sim]
         
-
+        assert len(sims) == 2, 'Only works for sets of two simulations.'
+    
         
+        nu = []; dTb = []; C = []; D = []
+    
+        for i, sim in enumerate(sims):
+    
+            nu.append(sim.data['nu'])
+            dTb.append(sim.data['dTb'])
+    
+            ax = sim.GlobalSignature(ax=ax, **kwargs)
+    
+            C.append(sim.turning_points['C'])
+            D.append(sim.turning_points['D'])
+    
+        y1_w_x0 = np.interp(nu[0], nu[1], dTb[1])
+        ax.fill_between(nu[0], dTb[0], y1_w_x0, **kwargs)
+    
+        for tp in [C, D]:
+            nu_C_0 = nu_0_mhz / (1. + tp[0][0])
+            nu_C_1 = nu_0_mhz / (1. + tp[1][0])
+            T_C_0 = tp[0][1]
+            T_C_1 = tp[1][1]
+    
+            nu_min = min(nu_C_0, nu_C_1)    
+    
+            # Line connecting turning points
+            def y_min(nu):
+    
+                dnu = abs(nu_C_0 - nu_C_1)
+                dT = abs(T_C_0 - T_C_1)
+                m = dT / dnu
+    
+                return m * (nu - nu_min) + min(T_C_0, T_C_1)
+    
+            new_nu = np.linspace(min(nu_C_0, nu_C_1), max(nu_C_0, nu_C_1))
+    
+            new_T0 = np.interp(new_nu, nu[0], dTb[0])
+            new_T1 = np.interp(new_nu, nu[1], dTb[1])
+    
+            if tp == C:
+                ax.fill_between(new_nu, y_min(new_nu), np.minimum(new_T0, new_T1), 
+                    **kwargs)
+            else:
+                ax.fill_between(new_nu, y_min(new_nu), np.maximum(new_T0, new_T1), 
+                    **kwargs)
+    
+        pl.draw()
+    
+        return ax
+    
+    
