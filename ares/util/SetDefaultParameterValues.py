@@ -224,85 +224,38 @@ def PhysicsParameters():
             
     return pf
     
-def ParametericPropertyParameters():
-    pf = {}
-    
-    tmp = \
-    {
-     "php_func": 'dpl',
-     "php_ivar": 'Mh',
-     "php_par0": None,
-     "php_par1": None,
-     "php_par2": None,
-     "php_par3": None,
-     "php_par4": None,
-     "php_par5": None,
-    
-     'php_aug_func': None,
-     'php_aug_meth': 'multiply',
-     'php_aug_par0': None,
-     'php_aug_par1': None,
-     'php_aug_par2': None,
-     'php_aug_par3': None,
-     'php_aug_par4': None,
-     'php_aug_par5': None,
-    
-     "php_boost": 1.,
-     "php_iboost": 1.,
-     "php_ceil": None,
-     "php_floor": None,
-    
-     "php_Mmax": 5e13,
-    
-    }  
-    
-    for i in range(6):
-        for j in range(6):
-            tmp['php_Mfun_par%i_par%i' % (i,j)] = None
-    
-    pf.update(tmp)
-    pf.update(rcParams)
-    
-    return pf
-    
 def HaloPropertyParameters():
     pf = {}
     
     tmp = \
     {
-     "php_Mfun": 'dpl',
-     "php_Mfun_fun": None,
-     "php_Mfun_par0": None,
-     "php_Mfun_par1": None,
-     "php_Mfun_par2": None,
-     "php_Mfun_par3": None,
-     "php_Mfun_par4": None,
-     "php_Mfun_par5": None,
+     "php_func": 'dpl',
+     "php_func_var": 'mass',
+     "php_func_par0": None,
+     "php_func_par1": None,
+     "php_func_par2": None,
+     "php_func_par3": None,
+     "php_func_par4": None,
+     "php_func_par5": None,
 
-     #"php_zfun": 'constant',    
-     #"php_zfun_par0": None,    
-     #"php_zfun_par1": None, 
-     #"php_zfun_par2": None,  
-     #"php_zfun_par3": None,
-     
-     'php_Mfun_aug': None,
-     'php_Mfun_aug_meth': 'multiply',
-     'php_Mfun_aug_par0': None,
-     'php_Mfun_aug_par1': None,
-     'php_Mfun_aug_par2': None,
-     'php_Mfun_aug_par3': None,
-     'php_Mfun_aug_par4': None,
-     'php_Mfun_aug_par5': None,
+     'php_faux': None,
+     'php_faux_var': None,
+     'php_faux_meth': 'multiply',
+     'php_faux_par0': None,
+     'php_faux_par1': None,
+     'php_faux_par2': None,
+     'php_faux_par3': None,
+     'php_faux_par4': None,
+     'php_faux_par5': None,
 
      "php_boost": 1.,
      "php_iboost": 1.,
      "php_ceil": None,
      "php_floor": None,
-
-     "php_Mmax": 5e13,
          
     }  
     
+    # Hrm...can't remember what this is about.
     for i in range(6):
         for j in range(6):
             tmp['php_Mfun_par%i_par%i' % (i,j)] = None
@@ -422,6 +375,10 @@ def PopulationParameters():
         
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
+    
+    "pop_sfe": None,
+    "pop_mlf": None,
+    "pop_sfr": None,
 
     "pop_Tmin": 1e4,
     "pop_Tmax": None,

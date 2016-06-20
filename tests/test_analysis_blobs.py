@@ -40,7 +40,6 @@ def test(Ns=500, Nd=4, prefix='test'):
     with open('%s.logL.pkl' % prefix, 'wb') as f:
         pickle.dump(logL, f)    
     
-    
     # Make some blobs. 0-D, 1-D, and 2-D.
     setup = \
     {

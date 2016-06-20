@@ -459,8 +459,8 @@ class MultiPhaseMedium(object):
         
         pl.draw()
         
-    def add_tau_inset(self, ax, inset=None, width=0.2, height=0.025, loc=1,
-            mu=0.055, sig1=0.009, padding=0.02, borderpad=0.5, 
+    def add_tau_inset(self, ax, inset=None, width=0.3, height=0.15, loc=3,
+            mu=0.055, sig1=0.009, padding=0.02, borderpad=1, 
             ticklabels=None, fmt='%.2g', **kwargs):
 
         sig2 = get_nu(sig1, 0.68, 0.95)
@@ -488,7 +488,7 @@ class MultiPhaseMedium(object):
         return inset
             
     def add_inset(self, ax, inset=None, mu=None, sig1=None, lo=None, hi=None,
-        width=0.1, height=0.1, loc=1,
+        width=0.3, height=0.15, loc=3,
         padding=0.02, borderpad=0.5, **kwargs):
         """
         Add inset 'slider' thing.

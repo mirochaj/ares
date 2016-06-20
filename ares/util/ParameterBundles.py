@@ -56,13 +56,16 @@ class ParameterBundle(dict):
             pars = kwargs[base].keys()
             kw = kwargs[base]
         else:
+            # Assume format: "paperyear:modelname", e.g., "mirocha2016:dpl"
+            paper, model = base.split(':')
+            
             # Assume litdata
-            kw = read_lit(base).parameters
+            kw = read_lit(paper).__dict__[model]
             pars = kw.keys()
-        
+
         for key in pars:
             self[key] = kw[key]    
-               
+
     def __getattr__(self, name):
         if name not in self.keys():
             pass    
@@ -109,13 +112,43 @@ class ParameterBundle(dict):
         header('Bundle Options')
         for key in self.kwargs.keys():
             if key == self.base:
+                found = True
                 print line('*%s*' % self.base)
             else:
+                found = False
                 print line(key)
+            
+        if not found:
+            print line('*%s*' % self.base)
             
         separator()
         print line('Run \'reinitialize\' with one of the above as argument to change.')
         footer()
+        
+    def orphans(self):
+        """
+        Return dictionary of parameters that aren't associated with a population.
+        """
+        tmp = {}
+        for par in self:
+            prefix, idnum = pop_id_num(par)
+            if idnum is None:
+                tmp[par] = self[par]
+                
+        return tmp
+    
+    def pars_by_pop(self, num):
+        """
+        Return dictionary of parameters associated with population `num`.
+        """
+        tmp = {}
+        for par in self:
+            prefix, idnum = pop_id_num(par)
+            if idnum == num:
+                tmp[par] = self[par]
+                
+        return tmp        
+            
 
 _pop_sfe = \
 {

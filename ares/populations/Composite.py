@@ -14,7 +14,7 @@ import re
 import numpy as np
 from ..util import ParameterFile
 from .GalaxyAggregate import GalaxyAggregate
-from .GalaxyPopulation import GalaxyPopulation
+from .GalaxyCohort import GalaxyCohort, GalaxyPopulation
 
 class CompositePopulation(object):
     def __init__(self, **kwargs):
