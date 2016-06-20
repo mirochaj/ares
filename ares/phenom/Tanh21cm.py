@@ -56,7 +56,8 @@ class Tanh21cm(object):
             approx_highz=self.pf["approx_highz"])
         
         # Create instance of Hydrogen class
-        self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
+        self.hydr = Hydrogen(cosm=self.cosm,
+            approx_Salpha=self.pf['approx_Salpha'], **kwargs)
 
         if self.pf['load_ics']:
             CR = _load_inits()

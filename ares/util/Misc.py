@@ -34,7 +34,11 @@ defaults = SetAllDefaults()
 logbx = lambda b, x: np.log10(x) / np.log10(b)
 
 def get_hg_rev():
-    pipe = subprocess.Popen(["hg", "id", "-i", ARES], stdout=subprocess.PIPE)
+    try:
+        pipe = subprocess.Popen(["hg", "id", "-i", ARES], stdout=subprocess.PIPE)
+    except:
+        return 'unknown'
+        
     return pipe.stdout.read().strip()
     
 class evolve:

@@ -613,7 +613,7 @@ def ControlParameters():
     "solver_rtol": 1e-8,
     "solver_atol": 1e-8,
     "interp_method": 'cubic',
-    "interp_cc": 'linear',
+    "interp_cc": 'linear',    
 
     # Initialization
     "load_ics": True,
