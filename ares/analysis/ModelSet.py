@@ -35,10 +35,10 @@ from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
     tanh_gjah_to_ares, delete_nan_rows
 
-#try:
-#    import dill as pickle
-#except ImportError:
-import pickle 
+try:
+    import dill as pickle
+except ImportError:
+    import pickle 
 
 try:
     import shapely.geometry as geometry
@@ -74,7 +74,6 @@ default_mp_kwargs = \
  'padding': (0,0)
 }    
 
-masked_constant_string = "<class 'numpy.ma.core.MaskedConstant'>"
 numerical_types = [float, np.float64, np.float32, int, np.int32, np.int64]
 
 # Machine precision
