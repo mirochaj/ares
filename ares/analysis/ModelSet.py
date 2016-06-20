@@ -35,10 +35,10 @@ from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
     tanh_gjah_to_ares, delete_nan_rows
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle 
+#try:
+#    import dill as pickle
+#except ImportError:
+import pickle 
 
 try:
     import shapely.geometry as geometry
