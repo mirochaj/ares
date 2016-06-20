@@ -17,10 +17,10 @@ import numpy as np
 from collections import Iterable
 from ..util.Math import LinearNDInterpolator
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
+#try:
+#    import dill as pickle
+#except ImportError:
+import pickle
     
 try:
     import h5py

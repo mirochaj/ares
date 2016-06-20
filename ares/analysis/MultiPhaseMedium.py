@@ -26,10 +26,10 @@ from ..util.SetDefaultParameterValues import *
 from mpl_toolkits.axes_grid import inset_locator
 from .DerivedQuantities import DerivedQuantities as DQ
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
+#try:
+#    import dill as pickle
+#except ImportError:
+import pickle
     
 try:
     import h5py
