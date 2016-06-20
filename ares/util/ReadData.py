@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+import numpy.ma as ma
 import imp as _imp
 import os, re, sys
 
@@ -346,27 +347,6 @@ def read_pickled_chain(fn):
     else:
         print Nd
         raise ValueError('unrecognized chain shape')
-            
-    
-def delete_nan_rows(array):
-    """
-    Finds a copy of the given array with all rows (slices of constant 0th
-    index) which contain nan's or inf's removed.
-
-    array a numpy.ndarray with more than one dimension
-
-    returns a copy of array with rows with nan's or inf's removed
-    """
-    indices = []
-    # same shape as array with boolean type; True only for nan's and infs
-    is_inf_or_nan = (np.isinf(array)|np.isnan(array))
-    # for loop finds which rows to delete
-    for i in range(len(array)):
-        if not np.all(~is_inf_or_nan[i,...]):
-            indices.append(i)
-    del is_inf_or_nan
-    # this does not change array; just returns modified copy
-    return np.delete(array, indices, axis=0), indices
         
     
     
