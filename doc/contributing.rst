@@ -40,7 +40,7 @@ Again, there's only one rule, which is related to the hierarchy listed in the ab
 
 **Parent Classes (i.e., those to be inherited) must be defined either at the same level in the hierarchy as the Child Classes or below.**
 
-This is a little obvious from the rule about imports, since a class must be either defined locally or imported before it can be inherited.
+This follows from the rule about imports, since a class must be either defined locally or imported before it can be inherited.
 
 "Under the Hood": Walkthrough
 -----------------------------
