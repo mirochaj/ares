@@ -231,6 +231,7 @@ class ModelGrid(ModelFit):
         """
 
         self.prefix = prefix
+        self.save_freq = save_freq
 
         if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
             if not restart:

@@ -92,12 +92,12 @@ Redshift-dependent options
 """
 _dpl_fz_specific = \
 {
-'php_faux{0}[0]': 'pl',
-'php_faux_var{0}[0]': '1+z',
-'php_faux_meth{0}[0]': 'multiply',
-'php_faux_par0{0}[0]': 1.,
-'php_faux_par1{0}[0]': 7.,
-'php_faux_par2{0}[0]': 1.,
+ 'php_faux{0}[0]': 'pl',
+ 'php_faux_var{0}[0]': '1+z',
+ 'php_faux_meth{0}[0]': 'multiply',
+ 'php_faux_par0{0}[0]': 1.,
+ 'php_faux_par1{0}[0]': 7.,
+ 'php_faux_par2{0}[0]': 1.,
 }
 
 dpl_fz = dpl.copy()
@@ -105,12 +105,10 @@ dpl_fz.update(_dpl_fz_specific)
 
 _dpl_Mz_specific = \
 {
-'php_faux{0}[0]': 'pl',
-'php_faux_var{0}[0]': '1+z',
-'php_faux_meth{0}[0]': 'multiply',
-'php_faux_par0{0}[0]': 1.,
-'php_faux_par1{0}[0]': 7.,
-'php_faux_par2{0}[0]': 1.,
+ 'php_func_par1{0}[0]': 'pl',
+ 'php_func_par1_par0{0}[0]': dpl['php_func_par1{0}[0]'],
+ 'php_func_par1_par1{0}[0]': 5.9,
+ 'php_func_par1_par2{0}[0]': -1.,
 }
 
 dpl_Mz = dpl.copy()

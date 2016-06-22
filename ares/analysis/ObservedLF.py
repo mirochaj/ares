@@ -120,6 +120,10 @@ class ObservedLF(object):
                         err_hi.append(err[1])
                         err_lo.append(err[0])
                         uplims.append(False)
+                    elif err is None:
+                        err_lo.append(0)
+                        err_hi.append(0)
+                        uplims.append(False)
                     else:    
                         if (err < 0):
                             err_hi.append(0.0)

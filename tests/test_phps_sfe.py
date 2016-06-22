@@ -48,6 +48,20 @@ pars_dpl = \
 'php_func_par4': 1e14,      # Normalization mass
 }
 
+pars_dpl_Mofz = \
+{
+'pop_fstar': 'php',
+'php_func': 'dpl',
+'php_func_var': 'mass',
+'php_func_par0': 1e-1,
+'php_func_par1': 'pl',
+'php_func_par1_par0': 1e11,
+'php_func_par1_par1': 6.,
+'php_func_par1_par2': -1.,
+'php_func_par2': 0.6,
+'php_func_par3': -0.5,
+}
+
 pars_pwpl = \
 {
 'pop_fstar': 'php',
@@ -85,14 +99,28 @@ def test():
     pl.ylim(1e-4, 0.2)
     pl.legend(loc='lower right', fontsize=14)
     
-    p = pars_pl.copy()
-    p.update(pars_pl_w_zdep)
-    pop = ares.populations.GalaxyCohort(**p)
-    for i, z in enumerate([10, 15, 20]):
-        pl.loglog(Mh, pop.SFE(z, Mh), color='m', ls=ls[i])
+    pl.savefig('%s_1.png' % (__file__.rstrip('.py')))     
+    pl.close()
     
-    pl.savefig('%s.png' % (__file__.rstrip('.py')))     
+    p1 = pars_pl.copy()
+    p1.update(pars_pl_w_zdep)
+    pop1 = ares.populations.GalaxyCohort(**p1)
+    pop2 = ares.populations.GalaxyCohort(**pars_dpl_Mofz)
     
+    colors = ['k', 'b']
+    ls = ['-', '--', ':']
+    labels = [r'$f_{\ast}(z)$', r'$M_p(z)$']
+    for j, pop in enumerate([pop1, pop2]):
+        for i, z in enumerate([6, 15, 30]):
+            pl.loglog(Mh, pop.SFE(z, Mh), color=colors[j], ls=ls[i],
+                label=labels[j] if i == 0 else None)
+    
+    pl.xlabel(r'$M_h / M_{\odot}$')
+    pl.ylabel(r'$f_{\ast}$')
+    pl.ylim(1e-4, 0.2)
+    pl.legend(loc='upper left', fontsize=14)
+    
+    pl.savefig('%s_2.png' % (__file__.rstrip('.py')))     
     
 if __name__ == '__main__':
     test()

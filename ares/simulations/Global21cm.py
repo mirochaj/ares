@@ -355,16 +355,22 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
     
             f.close()
     
+        print 'Wrote %s.history.%s' % (prefix, suffix)
+    
+        write_pf = True
         if os.path.exists('%s.parameters.pkl' % prefix):
             if clobber:
                 os.remove('%s.parameters.pkl' % prefix)
             else: 
-                raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
+                write_pf = False
+                print 'WARNING: %s.parameters.pkl exists! Set clobber=True to overwrite.' % prefix
+
+        if write_pf:
+            # Save parameter file
+            f = open('%s.parameters.pkl' % prefix, 'wb')
+            pickle.dump(self.pf, f)
+            f.close()
     
-        # Save parameter file
-        f = open('%s.parameters.pkl' % prefix, 'wb')
-        pickle.dump(self.pf, f)
-        f.close()
-    
-        print 'Wrote %s and %s.parameters.pkl' % (fn, prefix)
+            print 'Wrote %s.parameters.pkl' % prefix
+        
     

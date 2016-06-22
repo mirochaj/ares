@@ -52,7 +52,7 @@ is inherited by the ``ares.simulations.Global21cm`` class:
    :align:   center
    :width:   600
    
-   One possible realization for the global 21-cm signal.
+   One possible realization for the global 21-cm signal. You should get something that looks like this, but may not be exactly the same depending on what version of *ares* you're using.
         
 If you'd like to save the results to disk, do something like: 
 

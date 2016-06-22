@@ -72,8 +72,20 @@ class ParameterizedHaloProperty(object):
         """
 
         pars1 = [self.pf['php_func_par%i' % i] for i in range(6)]
+        pars2 = []
 
-        return self._call(z, M, pars1)
+        for i in range(6):
+            tmp = []
+            for j in range(6):
+                name = 'php_func_par%i_par%i' % (i,j)
+                if name in self.pf:
+                    tmp.append(self.pf[name])
+                else:
+                    tmp.append(None)
+        
+            pars2.append(tmp)
+        
+        return self._call(z, M, [pars1, pars2])
 
     def _call(self, z, M, pars, func=None):
         """
@@ -83,10 +95,8 @@ class ParameterizedHaloProperty(object):
         if func is None:
             func = self.func
             s = 'func' 
-             
         # Otherwise, assume it's the auxilary function
         else:
-            #func = self.faux   
             s = 'faux'     
 
         # Determine independent variables
@@ -102,17 +112,24 @@ class ParameterizedHaloProperty(object):
         
         logx = np.log10(x)
         
-        # Separate main parameters and auxiliary parameters 
+        # [optional] Modify parameters as function of redshift
+        pars1, pars2 = pars
         
         # Read-in parameters to more convenient names
         # I don't usually use exec, but when I do, it's to do garbage like this
-        for i, par in enumerate(pars):
+        for i, par in enumerate(pars1):
             
             if type(par) == str:
-                raise NotImplemented('deal with it')
+                
                 # Parameters that are...parameterized! Things are nested, i.e,
                 # fstar is not necessarily separable.
                 
+                assert par == 'pl', 'Only support for PL extensions.'
+                
+                p = pars2[i]
+                val = p[0] * ((1. + z) / (1. + p[1]))**p[2]
+                
+                exec('p%i = val' % i)
             else:
                 exec('p%i = par' % i)
             
@@ -126,8 +143,8 @@ class ParameterizedHaloProperty(object):
         elif func == 'dpl':
             f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3)    
         elif func == 'dpl_arbnorm':
-            f = p0 * (((p4 / p1)**-p2 + (p4 / p1)**-p3)) \
-                        / ((x / p1)**-p2 + (x / p1)**-p3)
+            normcorr = (((p4 / p1)**-p2 + (p4 / p1)**-p3))
+            f = p0 * normcorr / ((x / p1)**-p2 + (x / p1)**-p3)
         elif func == 'plsum2':
             f = p0 * (x / p1)**p2 + p3 * (x / p1)**p4
         elif func == 'tanh_abs':
@@ -180,7 +197,7 @@ class ParameterizedHaloProperty(object):
             self._apply_extrap = 0
             
             p = [self.pf['php_faux_par%i' % i] for i in range(6)]
-            aug = self._call(z, M, p, self.pf['php_faux'])
+            aug = self._call(z, M, [p,None], self.pf['php_faux'])
                         
             if self.pf['php_faux_meth'] == 'multiply':
                 f *= aug
@@ -201,7 +218,7 @@ class ParameterizedHaloProperty(object):
         
         #f *= self.pf['php_boost']
         #f /= self.pf['php_iboost']
-        
+                
         return f
               
 

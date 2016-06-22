@@ -258,7 +258,7 @@ def HaloPropertyParameters():
     # Hrm...can't remember what this is about.
     for i in range(6):
         for j in range(6):
-            tmp['php_Mfun_par%i_par%i' % (i,j)] = None
+            tmp['php_func_par%i_par%i' % (i,j)] = None
     
     pf.update(tmp)
     pf.update(rcParams)
