@@ -115,7 +115,6 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
 
         # Otherwise, calculate what it should be
         if (Emin, Emax) == (13.6, 24.6):
-
             # Should be based on energy at this point, not photon number
             self._N_per_Msun[(Emin, Emax)] = self.Nion(None, self.halos.M) \
                 * self.cosm.b_per_g * g_per_msun #/ s_per_yr
@@ -193,7 +192,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             tab[i] = tot - \
                 np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
             
-        tab *= 1. / s_per_yr / cm_per_mpc**3    
+        tab *= 1. / s_per_yr / cm_per_mpc**3
         
         self._rho_N[(Emin, Emax)] = interp1d(self.halos.z, tab, kind='cubic')
 
@@ -445,19 +444,19 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         
         if not hasattr(self, '_scalable_rhoL'):
             self._scalable_rhoL = True
-            for par in Mh_dep_parameters:
-                if type(self.pf[par]) is str:
-                    self._scalable_rhoL = False
-                    break
-                    
-                for i in range(self.pf.Nphps):
-                    pn = '%s[%i]' % (par,i)
-                    if pn not in self.pf:
-                        continue
-
-                    if type(self.pf[pn]) is str:
-                        self._scalable_rhoL = False
-                        break
+            #for par in Mh_dep_parameters:
+            #    if type(self.pf[par]) is str:
+            #        self._scalable_rhoL = False
+            #        break
+            #        
+            #    for i in range(self.pf.Nphps):
+            #        pn = '%s[%i]' % (par,i)
+            #        if pn not in self.pf:
+            #            continue
+            #
+            #        if type(self.pf[pn]) is str:
+            #            self._scalable_rhoL = False
+            #            break
 
         return self._scalable_rhoL
             

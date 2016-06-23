@@ -36,6 +36,20 @@ class SynthesisModel(object):
             self._cosm = Cosmology(**self.pf)
         return self._cosm
     
+    def Spectrum(self, E):
+        j1 = np.argmin(np.abs(self.pf['pop_EminNorm']) - self.energies)
+        j2 = np.argmin(np.abs(self.pf['pop_EmaxNorm']) - self.energies)
+        #norm = np.trapz(self.data[j1:j2,self.i_tsf], x=self.energies[j1:j2])
+        
+        return np.interp(E, self.energies[-1::-1], 
+            self.data[-1::-1,self.i_tsf]) #/ norm
+    
+    @property
+    def i_tsf(self):
+        if not hasattr(self, '_i_tsf'):
+            self._i_tsf = np.argmin(np.abs(self.pf['pop_tsf'] - self.times))
+        return self._i_tsf
+    
     @property
     def data(self):
         """
