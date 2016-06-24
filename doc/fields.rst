@@ -21,8 +21,11 @@ These are the default elements in the ``history`` dictionary, which is an attrib
 
 We also generally keep track of the ionization and heating rate coefficients:
 
-* Rate coefficient for photo-ionization ``Gamma_h_1``.
-* etc.
+* Rate coefficient for photo-ionization, ``k_ion``.
+* Rate coefficient for secondary ionization by photo-electrons, ``k_ion2``.
+* Rate coefficient for photo-heating, ``k_heat``.
+
+Each of these quantities are multi-dimensional because we store the rate coefficients for each absorbing species separately. 
 
 Two-Zone IGM Models
 -------------------
@@ -31,16 +34,15 @@ For calculations of the reionization history or global 21-cm signal, in which we
 * Kinetic temperature, ``igm_Tk``.
 * HII region volume filling factor, ``cgm_h_2``.
 * Neutral fraction in the bulk IGM, ``igm_h_1``.
-* Heating rate in the IGM, ``igm_heat_h_1``.
-* Volume-averaged ionization rate, or rate of change in ``cgm_h_2``, ``cgm_Gamma_h_1``.
-
+* Heating rate in the IGM, ``igm_k_heat``.
+* Volume-averaged ionization rate, ``cgm_k_ion``.
 
 There are also new (passive) quantities, like the neutral hydrogen excitation
-(or ``spin'' temperature), the 21-cm brightness temperature, and rate
-coefficients that govern the time evolution of the 21-cm signal:
+(or ``spin'' temperature), the 21-cm brightness temperature, and the Lyman-:math:`\alpha` background intensity:
 
 * 21-cm brightness temperature: ``'igm_dTb'``.
 * Spin temperature: ``'igm_Ts'``.
+* :math:`J_{\alpha}`: ``'igm_Ja'``.
 
 Each of these are only associated with the IGM grid patch, since the other phase of the IGM is assumed to be fully ionized and thus dark at 21-cm wavelengths.
 

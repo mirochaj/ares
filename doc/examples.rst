@@ -27,9 +27,9 @@ Parameter Studies and Inference
 * Fitting and Forecasting    
     * :doc:`example_mcmc_I`
     
-* Simple Fitting
-    * :doc:`example_ham`
-    * :doc:`example_sedop`
+.. * Simple Fitting
+..     * :doc:`example_ham`
+..     * :doc:`example_sedop`
     
 * Analyzing Sets of Models
     * :doc:`example_inline_analysis`

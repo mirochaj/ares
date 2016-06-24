@@ -23,21 +23,15 @@ A Simple GalaxyPopulation
 
     pars = \
     {
-     'pop_Tmin': 1e4,
      'pop_model': 'sfe',
-     'pop_Macc': 'mcbride2009',
-
-     'pop_sed': 'leitherer1999',
-
-     'pop_fesc': 0.2,
+     'pop_sed': 'eldridge2009',
 
      'pop_fstar': 'php',
-     'php_Mfun': 'dpl',
-     'php_Mfun_par0': 0.15,
-     'php_Mfun_par1': 1e12,
-     'php_Mfun_par2': 0.5,
-     'php_Mfun_par3': 0.5,
-
+     'php_func': 'dpl',
+     'php_func_par0': 0.05,
+     'php_func_par1': 1e11,
+     'php_func_par2': 0.5,
+     'php_func_par3': -0.5,
     }
     
 ::
@@ -45,7 +39,6 @@ A Simple GalaxyPopulation
     pop = ares.populations.GalaxyPopulation(**pars)
     
     MUV = np.linspace(-24, -10)
-    
     
     pl.semilogy(MUV, pop.LuminosityFunction(4, MUV))
     
@@ -59,12 +52,43 @@ To compare to the observed galaxy luminosity function
 The ``round_z`` makes it so that any dataset available in the range :math:`3.7 \leq z \leq 4.3`` gets included in the plot.
 
 
+   
+    
+Extrapolation options
+~~~~~~~~~~~~~~~~~~~~~
+It's fairly easy to augment the double power-law used in the previous example. 
+'php_faux{0}[0]': 'pl',
+'php_faux_var{0}[0]': 'mass',
+'php_faux_meth{0}[0]': 'add',
+'php_faux_par0{0}[0]': 0.005,
+'php_faux_par1{0}[0]': 1e9,
+'php_faux_par2{0}[0]': 0.01,
+'php_faux_par3{0}[0]': 1e10,
+
+
++------------+------------+----------------------------------+
+| Dimension  |    :math:`f_{\ast}(M,z)` options              |
++============+============+===================+==============+
+| logM       |  ``poly``  |  ``lognormal``    |              |
++------------+------------+-------------------+--------------+
+| (1+z)      |  ``poly``  |  ``linear_t``     | ``constant`` |
++------------+------------+-------------------+--------------+
+
+
++------------+------------+-------------------+--------------+
+| Dimension  |    :math:`L_h(M_h)` options                   |
++============+============+===================+==============+
+| logM       |  ``poly``  |  ``pl``           |              |
++------------+------------+-------------------+--------------+
+| (1+z)      |  ``poly``  |  ``linear_t``     | ``constant`` |
++------------+------------+-------------------+--------------+
 
 
 
 
 Parameterized Halo Properties (PHPs)
 ------------------------------------
+In general, we can use the same approach outlined above to parameterize other quantities as a function of halo mass and/or redshift. 
 
 ::
 
@@ -101,41 +125,10 @@ Parameterized Halo Properties (PHPs)
     
     pl.semilogy(MUV, pop.LuminosityFunction(4, MUV))
 
-
-Compare to UV luminosity density of previous model.
-
-
 Currently, the following parameters are supported by the PHP protocol:
 
 * ``pop_fstar``
 * ``pop_fesc``
-
-
-   
-    
-Extrapolation options
-~~~~~~~~~~~~~~~~~~~~~
-In the above example defaults were used to extrapolate the SFE to low masses and high redshifts. There are several options for this, which are listed below, which should be supplied via the ``pop_ham_Mfun`` and ``pop_ham_zfun`` parameters as strings.
-
-+------------+------------+----------------------------------+
-| Dimension  |    :math:`f_{\ast}(M,z)` options              |
-+============+============+===================+==============+
-| logM       |  ``poly``  |  ``lognormal``    |              |
-+------------+------------+-------------------+--------------+
-| (1+z)      |  ``poly``  |  ``linear_t``     | ``constant`` |
-+------------+------------+-------------------+--------------+
-
-
-+------------+------------+-------------------+--------------+
-| Dimension  |    :math:`L_h(M_h)` options                   |
-+============+============+===================+==============+
-| logM       |  ``poly``  |  ``pl``           |              |
-+------------+------------+-------------------+--------------+
-| (1+z)      |  ``poly``  |  ``linear_t``     | ``constant`` |
-+------------+------------+-------------------+--------------+
-
-
-
 
 
 

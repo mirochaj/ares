@@ -131,12 +131,11 @@ We use square brackets on this page to denote the units of parameters.
 
 For backward compatibility
 --------------------------
-There are many parameters that do *not* have the ``pop_`` prefix attached to them, but are nonetheless convenient because they are the most common parameters in fiducial global 21-cm models. In addition, in *ares* version 0.1, the ``pop_`` formulation was not yet in place, and the following parameters were the norm. They can still be used for ``problem_type=100`` (see :doc:`problem_types`), but one should be careful otherwise.
+There are many parameters that do *not* have the ``pop_`` prefix attached to them, but are nonetheless convenient because they are the most common parameters in fiducial global 21-cm models. In addition, in *ares* version 0.1, the ``pop_`` formulation was not yet in place, and the following parameters were the norm. They can still be used for ``problem_type=101`` (see :doc:`problem_types`), but one should be careful otherwise.
 
 ``cX``
     Normalization of the X-ray luminosity to star formation rate (:math:`L_X`-SFR) relation in 
-    band given by ``spectrum_EminNorm`` and ``spectrum_EmaxNorm``. If ``approx_xrb=1``, this
-    represents the X-ray luminosity density per unit star formation, such that the heating
+    band given by ``pop_EminNorm`` and ``pop_EmaxNorm``. If ``approx_xrb=1``, this represents the X-ray luminosity density per unit star formation, such that the heating
     rate density will be equal to :math:`\epsilon_X = f_{X,h} c_X f_X \times \text{SFR}`.
 
     Default: :math:`3.4 \times 10^{40}` [:math:`\text{erg} \ \text{s}^{-1} \ (M_{\odot} \ \mathrm{yr}^{-1})^{-1}`]
@@ -165,3 +164,26 @@ There are many parameters that do *not* have the ``pop_`` prefix attached to the
     
     Default: 0.1
 
+
+
+``xi_UV``
+    Ionizing efficiency, :math:`\xi_{\mathrm{UV}}`. If supplied, overrides ``fesc``, ``Nion``, and ``fstar``, as it is defined by:
+        
+        :math:`\xi_{\mathrm{UV}} \equiv f_{\ast} f_{\mathrm{esc}} N_{\mathrm{ion}}`
+
+    Default: `None`
+
+``xi_LW``
+    Lyman-Werner efficiency, :math:`\xi_{\mathrm{LW}}`. If supplied, overrides ``Nlw``, and ``fstar``, as it is defined by:
+
+        :math:`\xi_{\mathrm{LW}} \equiv f_{\ast} N_{\mathrm{LW}}`
+
+    Default: `None`
+
+
+``xi_XR``
+    X-ray efficiency, :math:`\xi_{\mathrm{XR}}`. If supplied, overrides  ``fX`` and ``fstar``, as it is defined by:
+
+        :math:`\xi_{\mathrm{XR}} \equiv f_{\ast} f_X`
+
+    Default: `None`
