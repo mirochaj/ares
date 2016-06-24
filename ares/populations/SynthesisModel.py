@@ -11,12 +11,13 @@ Description:
 """
 
 import numpy as np
+from scipy.integrate import quad
 from ares.physics import Cosmology
 from ..util.ReadData import read_lit
 from scipy.interpolate import interp1d
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
-    s_per_myr, m_H
+    s_per_myr, m_H, ev_per_hz
 
 relevant_pars = ['pop_Z', 'pop_imf', 'pop_nebular', 'pop_ssp', 'pop_tsf']
 
@@ -36,14 +37,66 @@ class SynthesisModel(object):
             self._cosm = Cosmology(**self.pf)
         return self._cosm
     
-    def Spectrum(self, E):
-        j1 = np.argmin(np.abs(self.pf['pop_EminNorm']) - self.energies)
-        j2 = np.argmin(np.abs(self.pf['pop_EmaxNorm']) - self.energies)
-        #norm = np.trapz(self.data[j1:j2,self.i_tsf], x=self.energies[j1:j2])
-        
-        return np.interp(E, self.energies[-1::-1], 
-            self.data[-1::-1,self.i_tsf]) #/ norm
+    def AveragePhotonEnergy(self, Emin, Emax):
+        """
+        Return average photon energy in supplied band.
+        """
     
+        j1 = np.argmin(np.abs(Emin - self.energies))
+        j2 = np.argmin(np.abs(Emax - self.energies))
+        
+        E = self.energies[j2:j1][-1::-1]
+        
+        # Units: erg / s / Hz
+        to_int = self.Spectrum(E) * E
+         
+        # Units: erg / s
+        return np.trapz(to_int, x=E)
+    
+        #integrand = lambda EE: self.Spectrum(EE) * EE
+        #return quad(integrand, Emin, Emax)[0]    
+    
+    def Spectrum(self, E):
+        """
+        Return a normalized version of the spectrum at photon energy E / eV.
+        """
+        # reverse energies so they are in ascending order
+        nrg = self.energies[-1::-1]
+        return np.interp(E, nrg, self.sed_at_tsf) / self.norm
+
+    @property
+    def sed_at_tsf(self):
+        if not hasattr(self, '_sed_at_tsf'):
+            # erg / s / Hz        
+            self._sed_at_tsf = \
+                self.data[-1::-1, self.i_tsf] * self.dwdn[-1::-1] / ev_per_hz
+        return self._sed_at_tsf
+
+    @property
+    def dwdn(self):
+        if not hasattr(self, '_dwdn'):
+            tmp = np.abs(np.diff(self.wavelengths) / np.diff(self.frequencies))
+            self._dwdn = np.concatenate((tmp, [tmp[-1]]))
+        return self._dwdn
+
+    @property
+    def norm(self):
+        """
+        Normalization constant that forces self.Spectrum to have unity
+        integral in the (EminNorm, EmaxNorm) band.
+        """
+        if not hasattr(self, '_norm'):
+            j1 = np.argmin(np.abs(self.pf['pop_EminNorm'] - self.energies))
+            j2 = np.argmin(np.abs(self.pf['pop_EmaxNorm'] - self.energies))
+            
+            # Units: erg / s / Hz
+            to_int = self.sed_at_tsf[j2:j1]
+            
+            # Units: erg / s
+            self._norm = np.trapz(to_int, x=self.energies[j2:j1][-1::-1]) 
+                
+        return self._norm
+
     @property
     def i_tsf(self):
         if not hasattr(self, '_i_tsf'):
@@ -55,7 +108,7 @@ class SynthesisModel(object):
         """
         Units = erg / s / A / [depends]
         
-        Where, if instantaneous burst, [depends] = Msun
+        Where, if instantaneous burst, [depends] = 1e6 Msun
         and if continuous SF, [depends] = Msun / yr
         
         """

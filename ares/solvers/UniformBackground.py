@@ -137,6 +137,11 @@ class UniformBackground(object):
                     elif type(pop.pf['pop_solve_rte']) is bool:
                         self._solve_rte.append(pop.pf['pop_solve_rte'])
                         break
+                    #elif type(pop.pf['pop_solve_rte']) is tuple:
+                    #    if band == pop.pf['pop_solve_rte']:
+                    #        self._solve_rte.append(band)
+                    #    else:
+                    #        self._solve_rte.append(False)
 
         assert len(self._solve_rte) == len(self.pops)                
                                 
@@ -1026,12 +1031,12 @@ class UniformBackground(object):
 
         # Convert to photon energy (well, something proportional to it)
         Inu_hat = Inu / E
-        
+
         # Now, redshift dependent parts    
-        epsilon = np.zeros([Nz, Nf])                     
+        epsilon = np.zeros([Nz, Nf])
         for ll in xrange(Nz):
-            H = self.cosm.HubbleParameter(z[ll])   
-            Lbol = pop.LuminosityDensity(z[ll])  
+            H = self.cosm.HubbleParameter(z[ll])
+            Lbol = pop.LuminosityDensity(z[ll])
             epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H / erg_per_ev                
         
         return epsilon

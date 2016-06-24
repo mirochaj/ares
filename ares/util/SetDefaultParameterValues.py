@@ -434,6 +434,7 @@ def PopulationParameters():
 
     "pop_approx_tau": True,     # shouldn't be a pop parameter
     "pop_solve_rte": False,
+    
     "pop_tau_Nz": 400,
 
     # Pre-created splines

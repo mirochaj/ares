@@ -182,10 +182,11 @@ class GalaxyAggregate(HaloPopulation):
     @property
     def yield_per_sfr(self):
         if not hasattr(self, '_yield_per_sfr'):
-            if isinstance(self.src, SynthesisModel):
-                self._yield_per_sfr = self.src.yield_per_sfr(*self.reference_band)
-            else:
-                self._yield_per_sfr = normalize_sed(self)
+            #if isinstance(self.src, SynthesisModel):
+            #    self._yield_per_sfr = self.src.yield_per_sfr(*self.reference_band)
+            #else:
+            #    self._yield_per_sfr = normalize_sed(self)
+            self._yield_per_sfr = normalize_sed(self)
             
         return self._yield_per_sfr
 
@@ -247,29 +248,29 @@ class GalaxyAggregate(HaloPopulation):
             different_band = True
         else:
             Emax = self.pf['pop_Emax']
-            
+
         # Modify band if need be
         if different_band:    
-            
+
             if (Emin, Emax) in self._conversion_factors:
                 return self._conversion_factors[(Emin, Emax)]
-            
+
             if Emin < self.pf['pop_Emin']:
                 print "WARNING: Emin < pop_Emin"
             if Emax > self.pf['pop_Emax']:
                 print "WARNING: Emax > pop_Emax"    
-                
+
             # If tabulated, do things differently
             if self.sed_tab:
                 factor = self.src.yield_per_sfr(Emin, Emax) \
                     / self.src.yield_per_sfr(*self.reference_band)
             else:
                 factor = quad(self.src.Spectrum, Emin, Emax)[0]
-            
+
             self._conversion_factors[(Emin, Emax)] = factor
             
             return factor
-        
+
         return 1.0
 
     @property

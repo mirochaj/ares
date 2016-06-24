@@ -444,19 +444,19 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         
         if not hasattr(self, '_scalable_rhoL'):
             self._scalable_rhoL = True
-            #for par in Mh_dep_parameters:
-            #    if type(self.pf[par]) is str:
-            #        self._scalable_rhoL = False
-            #        break
-            #        
-            #    for i in range(self.pf.Nphps):
-            #        pn = '%s[%i]' % (par,i)
-            #        if pn not in self.pf:
-            #            continue
-            #
-            #        if type(self.pf[pn]) is str:
-            #            self._scalable_rhoL = False
-            #            break
+            for par in Mh_dep_parameters:
+                if type(self.pf[par]) is str:
+                    self._scalable_rhoL = False
+                    break
+                    
+                for i in range(self.pf.Nphps):
+                    pn = '%s[%i]' % (par,i)
+                    if pn not in self.pf:
+                        continue
+            
+                    if type(self.pf[pn]) is str:
+                        self._scalable_rhoL = False
+                        break
 
         return self._scalable_rhoL
             
