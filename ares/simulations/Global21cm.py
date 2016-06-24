@@ -40,7 +40,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             may be used.
             
         """
-
+        
         # See if this is a tanh model calculation
         is_phenom = self._check_if_phenom(**kwargs)
 

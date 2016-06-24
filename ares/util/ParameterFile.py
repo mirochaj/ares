@@ -264,9 +264,9 @@ class ParameterFile(dict):
         
         tmp = kwargs.copy()
         tmp.update(kw)
-        
+                
         # Change names of parameters to ensure backward compatibility        
-        tmp.update(backward_compatibility(kw['problem_type'], **tmp))
+        tmp.update(backward_compatibility(kw['problem_type'], **tmp))        
         kwargs.update(tmp)            
                         
         ##    
