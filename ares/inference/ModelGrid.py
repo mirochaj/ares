@@ -48,6 +48,8 @@ class ModelGrid(ModelFit):
             if 'tanh_model' in self.base_kwargs:
                 if self.base_kwargs['tanh_model']:
                     self._tanh = True
+                else:
+                    self._tanh = False
             else:
                 self._tanh = False
         return self._tanh                  
