@@ -59,13 +59,7 @@ g13 = gamma(1. / 3.)
 c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
 c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
 
-<<<<<<< local
-class Hydrogen:
-    def __init__(self, cosm=None, **kwargs):
-        
-        self.pf = ParameterFile(**kwargs)
-        
-=======
+
 class Hydrogen(object):
     def __init__(self, cosm=None, **kwargs):
         
