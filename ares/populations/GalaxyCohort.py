@@ -445,6 +445,11 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         if not hasattr(self, '_scalable_rhoL'):
             self._scalable_rhoL = True
             for par in Mh_dep_parameters:
+                
+                # If this is the only Mh-dep parameter, we're still scalable.
+                if par == 'pop_fstar':
+                    continue
+                
                 if type(self.pf[par]) is str:
                     self._scalable_rhoL = False
                     break

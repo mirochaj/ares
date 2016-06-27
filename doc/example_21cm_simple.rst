@@ -1,7 +1,7 @@
 :orphan:
 
-Two-Zone IGM Model for the Global 21-cm Signal
-==============================================
+Simple Models for the Global 21-cm Signal
+=========================================
 To begin, first import ares:
 
 :: 
@@ -60,7 +60,7 @@ If you'd like to save the results to disk, do something like:
 
     sim.save('test_21cm')
     
-which saves the contents of ``sim.history`` at all time snapshots. 
+which saves the contents of ``sim.history`` at all time snapshots to the file ``test_21cm.history.pkl`` and the parameters used in the model in ``test_21cm.parameters.pkl``.
 
 .. note :: The default format for output files is ``pkl``, though ASCII (e.g., ``.txt`` or ``.dat``), ``.npz``, and ``.hdf5`` are also supported. Use the optional keyword argument ``suffix``.
 
@@ -97,10 +97,7 @@ To do simple parameter study, you could do something like:
    :width:   600
 
    Four realizations of the global 21-cm signal, varying the normalization of
-   the :math:`L_X`-SFR relation and the star formation efficiency. Note again
-   that depending on which version of the code you're using, you may not get
-   this *exact* plot since default parameter values etc. have changed over
-   time, but it should be similar at least.
+   the :math:`L_X`-SFR relation and the star formation efficiency. 
                 
 Check out :doc:`params_populations` for a listing of the most common parameters that govern the properties of source populations, and :doc:`example_grid` for examples of how to run and analyze large grids of models more easily. The key advantage of using the built-in model grid runner is having *ares* automatically store any information from each calculation that you deem desirable, and store it in a format amenable to the built-in analysis routines.
 

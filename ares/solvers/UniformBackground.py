@@ -504,7 +504,7 @@ class UniformBackground(object):
                 else:
                     gen = self.FluxGenerator(popid=i)
             
-                self._generators.append(gen)    
+                self._generators.append(gen)
         
         return self._generators
 

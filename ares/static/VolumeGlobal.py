@@ -890,12 +890,12 @@ class GlobalVolume(object):
 
         if pop.pf['pop_k_ion_cgm'] is not None:
             return self.pf['pop_k_ion_cgm'](z)
-                
+
         if kw['return_rc']:
             weight = self.rate_to_coefficient(z, species, **kw)
         else:
             weight = 1.0
-          
+
         Qdot = pop.PhotonLuminosityDensity(z, Emin=13.6, Emax=24.6)
                         
         return weight * Qdot * (1. + z)**3  

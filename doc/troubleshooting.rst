@@ -1,6 +1,6 @@
 Troubleshooting
 ===============
-This page is an attempt to keep track of common errors and instructions for how to fix them. 
+This page is an attempt to keep track of common errors and instructions for how to fix them. If you encounter a bug not listed below, `fork ares on bitbucket <https://bitbucket.org/mirochaj/ares/fork>`_ and an issue a pull request to contribute your patch, if you have one. Otherwise, shoot me an email and I can try to help.
 
 Plots not showing up
 --------------------

@@ -2,9 +2,7 @@
 
 Built-In Analysis Tools
 =======================
-ares has a built-in analysis module which contains routines for performing standard
-operations like plotting the ionization history, thermal history, and global 21-cm
-signature for a given input model. For example, 
+ares has a built-in analysis module which contains routines for performing standard operations like plotting the ionization history, thermal history, and global 21-cm signature for a given input model. For example,
 
 ::
 
@@ -25,8 +23,7 @@ or look at the cumulative CMB optical depth: ::
 
     ax4 = anl.OpticalDepthHistory(fig=4)
     
-Each of these functions accept standard matplotlib keyword arguments like 
-``color``, ``ls``, ``label``, and so on.
+Each of these functions accept standard matplotlib keyword arguments like ``color``, ``ls``, ``label``, and so on.
     
     
 
