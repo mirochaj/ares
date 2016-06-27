@@ -16,13 +16,7 @@ from ..util.ParameterFile import ParameterFile
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun
 
 class Cosmology(object):
-    def __init__(self, **kwargs):
-        """Initialize a Cosmology object.
-        
-        :param: omega_m_0: Pretty self-explanatory.
-        
-        """
-        
+    def __init__(self, **kwargs):        
         self.pf = ParameterFile(**kwargs)
                 
         self.omega_m_0 = self.pf['omega_m_0']
@@ -104,7 +98,7 @@ class Cosmology(object):
         """
         
         return self.t_of_z(z_i) - self.t_of_z(z_f)
-        
+
     def TCMB(self, z):
         return self.cmb_temp_0 * (1. + z)
         
@@ -255,4 +249,3 @@ class Cosmology(object):
         return 18. * np.pi**2 + 82. * d - 39. * d**2
     
             
-    

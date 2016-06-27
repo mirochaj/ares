@@ -667,7 +667,7 @@ def print_fit(fitter):
         return
 
     warnings = []
-
+        
     is_cov = False
 
     header = 'Parameter Estimation'
@@ -675,11 +675,8 @@ def print_fit(fitter):
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
 
-    if is_cov:
-        cols = ['position', 'error (diagonal of cov)']
-    else:
-        cols = ['position', 'error']   
-
+    cols = ['position', 'error']   
+        
     if fit_TP:
 
         print line('-'*twidth)       
