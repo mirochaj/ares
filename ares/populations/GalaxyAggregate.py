@@ -56,16 +56,18 @@ def normalize_sed(pop):
     Convert yield to erg / g.
     """
     
-    # Remove whitespace and convert everything to lower-case
-    units = pop.pf['pop_yield_units'].replace(' ', '').lower()
-                
-    if units == 'erg/s/sfr':
-        return pop.pf['pop_yield'] * s_per_yr / g_per_msun
-
     E1 = pop.pf['pop_EminNorm']
     E2 = pop.pf['pop_EmaxNorm']
-    erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
     
+    if pop.pf['pop_yield'] == 'from_sed':
+        return pop.src.yield_per_sfr(E1, E2)
+    else:    
+        # Remove whitespace and convert everything to lower-case
+        units = pop.pf['pop_yield_units'].replace(' ', '').lower()
+        if units == 'erg/s/sfr':
+            return pop.pf['pop_yield'] * s_per_yr / g_per_msun
+
+    erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
     energy_per_sfr = pop.pf['pop_yield']
     
     if units == 'photons/baryon':
@@ -182,10 +184,6 @@ class GalaxyAggregate(HaloPopulation):
     @property
     def yield_per_sfr(self):
         if not hasattr(self, '_yield_per_sfr'):
-            #if isinstance(self.src, SynthesisModel):
-            #    self._yield_per_sfr = self.src.yield_per_sfr(*self.reference_band)
-            #else:
-            #    self._yield_per_sfr = normalize_sed(self)
             self._yield_per_sfr = normalize_sed(self)
             
         return self._yield_per_sfr
@@ -216,62 +214,6 @@ class GalaxyAggregate(HaloPopulation):
     #    # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
     #    
     #    return self.SFRD(z)    
-
-    def _convert_band(self, Emin, Emax):
-        """
-        Convert from luminosity function in reference band to given bounds.
-
-        Parameters
-        ----------
-        Emin : int, float
-            Minimum energy [eV]
-        Emax : int, float
-            Maximum energy [eV]
-
-        Returns
-        -------
-        Multiplicative factor that converts LF in reference band to that 
-        defined by ``(Emin, Emax)``.
-
-        """
-
-        different_band = False
-
-        # Lower bound
-        if (Emin is not None) and (self.src is not None):
-            different_band = True
-        else:
-            Emin = self.pf['pop_Emin']
-
-        # Upper bound
-        if (Emax is not None) and (self.src is not None):
-            different_band = True
-        else:
-            Emax = self.pf['pop_Emax']
-
-        # Modify band if need be
-        if different_band:    
-
-            if (Emin, Emax) in self._conversion_factors:
-                return self._conversion_factors[(Emin, Emax)]
-
-            if Emin < self.pf['pop_Emin']:
-                print "WARNING: Emin < pop_Emin"
-            if Emax > self.pf['pop_Emax']:
-                print "WARNING: Emax > pop_Emax"    
-
-            # If tabulated, do things differently
-            if self.sed_tab:
-                factor = self.src.yield_per_sfr(Emin, Emax) \
-                    / self.src.yield_per_sfr(*self.reference_band)
-            else:
-                factor = quad(self.src.Spectrum, Emin, Emax)[0]
-
-            self._conversion_factors[(Emin, Emax)] = factor
-            
-            return factor
-
-        return 1.0
 
     @property
     def _sfrd(self):
@@ -453,6 +395,7 @@ class GalaxyAggregate(HaloPopulation):
         Photon energy in eV.
     
         """
+                
         different_band = False
     
         # Lower bound
@@ -480,9 +423,9 @@ class GalaxyAggregate(HaloPopulation):
         else:
             integrand = lambda E: self.src.Spectrum(E) * E
             Eavg = quad(integrand, Emin, Emax)[0]
-    
+        
         self._eV_per_phot[(Emin, Emax)] = Eavg 
-    
+        
         return Eavg    
         
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
@@ -505,13 +448,13 @@ class GalaxyAggregate(HaloPopulation):
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         rhoL = self.SFRD(z) * self.yield_per_sfr
-
+                
         # Convert from reference band to arbitrary band
         rhoL *= self._convert_band(Emin, Emax)
-        
+                        
         if Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
             rhoL *= self.pf['pop_fesc']
-
+                    
         if E is not None:
             return rhoL * self.src.Spectrum(E)
         else:

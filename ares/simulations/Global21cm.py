@@ -97,7 +97,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             # Derive brightness temperature
             Tb = self.medium.parcel_igm.grid.hydr.dTb(z[i], xavg, Ts)
             self.all_data_igm[i]['dTb'] = float(Tb)
-            self.all_data_igm[i]['Ts'] = Ts
+            self.all_data_igm[i]['igm_Ts'] = Ts
             dTb.append(Tb)
             
         return dTb
@@ -249,7 +249,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                 if not pop.is_lya_src:
                     continue
                                 
-                if not self.medium.field.solve_rte[i]:   
+                if not np.any(self.medium.field.solve_rte[i]):
                     Ja += self.medium.field.LymanAlphaFlux(z, popid=i)
                     continue
 
@@ -279,7 +279,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             dTb = self.medium.parcel_igm.grid.hydr.dTb(z, xavg, Ts)
 
             # Add derived fields to data
-            data_igm.update({'Ts': Ts, 'dTb': dTb, 'Ja': Ja})
+            data_igm.update({'igm_Ts': Ts, 'dTb': dTb, 'Ja': Ja})
             
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 

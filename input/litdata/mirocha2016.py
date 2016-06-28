@@ -5,6 +5,7 @@ Parameters defining the fiducial model (see Table 1).
 """
 
 from numpy import inf
+from ares.physics.Constants import E_LyA
 
 # Calibration set!
 dpl = \
@@ -21,6 +22,11 @@ dpl = \
  'pop_sed{0}': 'eldridge2009',
  'pop_binaries{0}': False,
  'pop_Z{0}': 0.02,
+ 'pop_Emin{0}': 10.19,
+ 'pop_Emax{0}': 24.6,
+ 'pop_yield{0}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
+                             # should make this automatic
+                             
  
  'pop_fesc{0}': 0.2,
 
@@ -57,7 +63,7 @@ dpl = \
  'cgm_initial_temperature': 2e4,
  'cgm_recombination': 'B',
  'clumping_factor': 3.,
- 'smooth_derivative': 0.5,
+ #'smooth_derivative': 0.5,
  'final_redshift': 5.,
 }
 

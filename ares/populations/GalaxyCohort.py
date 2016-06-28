@@ -123,7 +123,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
                 * self.cosm.b_per_g * g_per_msun #/ s_per_yr
     
         return self._N_per_Msun[(Emin, Emax)]
-    
+
     #def rho_L(self, z, Emin, Emax):
     #    """
     #    Compute the luminosity density in some bandpass at some redshift.
@@ -181,11 +181,11 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             fesc = self.fesc(None, self.halos.M)
         else:
             fesc = 1.
-        
+
         for i, z in enumerate(self.halos.z):
             integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
                 * N_per_Msun * fesc * self.fduty(z, self.halos.M)
-        
+
             tot = np.trapz(integrand, x=self.halos.lnM)
             cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
             
@@ -296,7 +296,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
 
             return interp(np.log(Mmin))
         else:
-            return super(GalaxyPopulation, self).iMAR(z)
+            return super(GalaxyCohort, self).iMAR(z)
 
     def cMAR(self, z, source=None):
         """
@@ -312,7 +312,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             src = read_lit(source)
             MAR = src.MAR(z, self.halos.M)    
         else:
-            MAR = super(GalaxyPopulation, self).MAR_via_AM(z)
+            MAR = super(GalaxyCohort, self).MAR_via_AM(z)
                     
         # Grab redshift
         k = np.argmin(np.abs(z - self.halos.z))
@@ -482,7 +482,9 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         if self.scalable_rhoL:
-            rhoL = super(GalaxyPopulation, self).Emissivity(z, E, Emin, Emax)
+            rhoL = super(GalaxyCohort, self).Emissivity(z, E=E, 
+                Emin=Emin, Emax=Emax)
+            
         else:
             raise NotImplemented('can\'t yet have Mh-dep SEDs (parametric)')
 
@@ -946,14 +948,13 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             
         # erg / s / cm**3
         if self.scalable_rhoL:
-            rhoL = self.Emissivity(z, Emin, Emax)
-            erg_per_phot = super(GalaxyPopulation, 
+            rhoL = self.Emissivity(z, E=None, Emin=Emin, Emax=Emax)
+            erg_per_phot = super(GalaxyCohort, 
                 self)._get_energy_per_photon(Emin, Emax) * erg_per_ev
+                            
             return rhoL / erg_per_phot
         else:
             return self.rho_N(z, Emin, Emax)
-        
-
                  
 # Backwards compatible        
 GalaxyPopulation = GalaxyCohort         

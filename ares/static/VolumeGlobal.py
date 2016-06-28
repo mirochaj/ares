@@ -268,9 +268,9 @@ class GlobalVolume(object):
         
         # Loop over populations
         for i, pop in enumerate(self.pops):
-                        
+                  
             # This means the population is completely approximate
-            if not self.background.solve_rte[i]:
+            if not np.any(self.background.solve_rte[i]):
                 self.logE[i] = [None]
                 self.dlogE[i] = [None]
                 self.fheat[i] = [None]
@@ -281,49 +281,62 @@ class GlobalVolume(object):
                     self._sigma_E[species][i] = [None]
                 
                 continue
-            else:
-                Nbands = len(self.background.energies[i])
-
-                self.logE[i] = [None for k in range(Nbands)]
-                self.dlogE[i] = [None for k in range(Nbands)]
-
-                self.fheat[i] = \
-                    [np.ones([self.background.energies[i][j].size, 
-                     len(self.esec.x)]) \
-                     for j in range(Nbands)]
-                self.flya[i] = \
-                    [np.ones([self.background.energies[i][j].size, 
-                     len(self.esec.x)]) \
-                     for j in range(Nbands)]
-                     
-                for species in ['h_1', 'he_1', 'he_2']:
-                    if self.esec.Method > 1:
-                        self._sigma_E[species][i] = \
-                            [np.ones([self.background.energies[i][j].size, 
-                             len(self.esec.x)]) \
-                             for j in range(Nbands)]
-                        self.fion[species][i] = \
-                            [np.ones([self.background.energies[i][j].size, 
-                             len(self.esec.x)]) \
-                             for j in range(Nbands)]
-                        
-                    else:
-                        self._sigma_E[species][i] = [None for k in range(Nbands)]
-                        self.fion[species][i] = [None for k in range(Nbands)]
-                        self.fheat[i] = [None for k in range(Nbands)]
-                        self.flya[i] = [None for k in range(Nbands)]
-
+            
             ##
             # If we make it here, the population has at least one band that
             # requires a detailed solution to the RTE    
             ##
+            
+            Nbands = len(self.background.energies[i])
+            
+            self.logE[i] = [None for k in range(Nbands)]
+            self.dlogE[i] = [None for k in range(Nbands)]
+            self.fheat[i] = [None for k in range(Nbands)]
+            self.flya[i] = [None for k in range(Nbands)]
+            for species in ['h_1', 'he_1', 'he_2']:
+                self.fion[species][i] = [None for k in range(Nbands)]
+                self._sigma_E[species][i] = [None for k in range(Nbands)]
 
             # Loop over each band for this population
-            for j, band in enumerate(self.background.energies[i]):
+            for j, band in enumerate(self.background.bands_by_pop[i]):
 
                 if band is None:
                     continue
+                                        
+                if (not self.background.solve_rte[i][j]) or \
+                   (not np.any(np.array(band) > E_LL)):
+                    continue
+                    #self.fheat[i][j] = None
+                    #self.flya[i][j] = None
+                    #self.fion[species][i][j] = None
+                    #self._sigma_E[species][i][j] = None
+                else:    
+                    self.fheat[i][j] = \
+                        [np.ones([self.background.energies[i][j].size, 
+                         len(self.esec.x)]) \
+                         for j in range(Nbands)]
+                    self.flya[i] = \
+                        [np.ones([self.background.energies[i][j].size, 
+                         len(self.esec.x)]) \
+                         for j in range(Nbands)]
+                
+                    for species in ['h_1', 'he_1', 'he_2']:
+                        if self.esec.Method > 1:
+                            self._sigma_E[species][i] = \
+                                [np.ones([self.background.energies[i][j].size, 
+                                 len(self.esec.x)]) \
+                                 for j in range(Nbands)]
+                            self.fion[species][i] = \
+                                [np.ones([self.background.energies[i][j].size, 
+                                 len(self.esec.x)]) \
+                                 for j in range(Nbands)]
 
+                        else:
+                            self._sigma_E[species][i] = [None for k in range(Nbands)]
+                            self.fion[species][i] = [None for k in range(Nbands)]
+                            self.fheat[i] = [None for k in range(Nbands)]
+                            self.flya[i] = [None for k in range(Nbands)]    
+                
                 # More convenient variables
                 E = self._E[i][j]
                 N = E.size
@@ -378,6 +391,10 @@ class GlobalVolume(object):
                     else:
                         self.fion['he_1'][i][j] = np.zeros([N, len(self.esec.x)])
                         self.fion['he_2'][i][j] = np.zeros([N, len(self.esec.x)])
+            
+            
+            
+            
                 
         return        
                                             
@@ -677,9 +694,9 @@ class GlobalVolume(object):
         if kw['zf'] is None and pop is not None:
             kw['zf'] = pop.zform
         
-        if not self.background.solve_rte[popid]:
+        if not self.background.solve_rte[popid][band]:
             pass
-        elif (kw['Emax'] is None) and self.background.solve_rte[popid] and \
+        elif (kw['Emax'] is None) and self.background.solve_rte[popid][band] and \
             np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
             
             kw['Emax'] = self.background.energies[popid][band][-1]
@@ -755,7 +772,7 @@ class GlobalVolume(object):
 
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
-        if not self.background.solve_rte[popid]:
+        if not self.background.solve_rte[popid][band]:
             weight = self.rate_to_coefficient(z, species, **kw)
             
             Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 
@@ -847,7 +864,7 @@ class GlobalVolume(object):
 
         return heat    
         
-    def IonizationRateCGM(self, z, species=0, popid=0, **kwargs):
+    def IonizationRateCGM(self, z, species=0, popid=0, band=0, **kwargs):
         """
         Compute growth rate of HII regions.
 
@@ -875,8 +892,17 @@ class GlobalVolume(object):
         argument, which is False by default.
 
         """
-        
+            
         pop = self.pops[popid]
+        
+        if band is not None:
+            b = self.background.bands_by_pop[popid][band]
+            if not np.any(np.array(b) > E_LL):
+                return 0.0
+            if not np.allclose(b[0], E_LL, atol=0.1, rtol=0):
+                return 0.0
+        else:
+            b = [13.6, 24.6]
         
         if (not pop.pf['pop_ion_src_cgm']) or (z > pop.zform):
             return 0.0
@@ -884,7 +910,7 @@ class GlobalVolume(object):
         # Need some guidance from 1-D calculations to do this
         if species > 0:
             return 0.0
-        
+
         kw = defkwargs.copy()
         kw.update(kwargs)
 
@@ -895,9 +921,9 @@ class GlobalVolume(object):
             weight = self.rate_to_coefficient(z, species, **kw)
         else:
             weight = 1.0
-
-        Qdot = pop.PhotonLuminosityDensity(z, Emin=13.6, Emax=24.6)
-                        
+            
+        Qdot = pop.PhotonLuminosityDensity(z, Emin=13.6, Emax=24.4)
+                                                                                                               
         return weight * Qdot * (1. + z)**3  
             
     def IonizationRateIGM(self, z, species=0, popid=0, band=0, **kwargs):
@@ -933,7 +959,7 @@ class GlobalVolume(object):
         if pop.pf['pop_k_ion_igm'] is not None:
             return pop.pf['pop_k_ion_igm'](z)
 
-        if (not self.background.solve_rte[popid]) or \
+        if (not self.background.solve_rte[popid][band]) or \
             (not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX'])):
             
             Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 
@@ -1025,7 +1051,7 @@ class GlobalVolume(object):
             return 0.0 
 
         # Computed in IonizationRateIGM in this case
-        if not self.background.solve_rte[popid]:
+        if not self.background.solve_rte[popid][band]:
             return 0.0
 
         if not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
@@ -1189,147 +1215,3 @@ class GlobalVolume(object):
 
         return heat
         
-    #def OpticalDepth(self, z1, z2, E, **kwargs):
-    #    """
-    #    Compute the optical depth between two redshifts.
-    #    
-    #    If no keyword arguments are supplied, assumes the IGM is neutral.
-    #    
-    #    Parameters
-    #    ----------
-    #    z1 : float
-    #        observer redshift
-    #    z2 : float
-    #        emission redshift
-    #    E : float
-    #        observed photon energy (eV)  
-    #        
-    #    Notes
-    #    -----
-    #    If keyword argument 'xavg' is supplied, it must be a function of 
-    #    redshift.
-    #    
-    #    Returns
-    #    -------
-    #    Optical depth between z1 and z2 at observed energy E.
-    #    
-    #    """
-    #    
-    #    #kw = self._fix_kwargs(functionify=True, **kwargs)
-    #    kw = kwargs
-    #    
-    #    # Compute normalization factor to help numerical integrator
-    #    norm = self.cosm.hubble_0 / c / self.sigma0
-    #    
-    #    # Temporary function to compute emission energy of observed photon
-    #    Erest = lambda z: self.RestFrameEnergy(z1, E, z)
-    #        
-    #    # Always have hydrogen
-    #    sHI = lambda z: self.sigma(Erest(z), species=0)
-    #            
-    #    # Figure out number densities and cross sections of everything
-    #    if self.approx_He:
-    #        nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-    #        nHeI = lambda z: nHI(z) * self.cosm.y
-    #        sHeI = lambda z: self.sigma(Erest(z), species=1)
-    #        nHeII = lambda z: 0.0
-    #        sHeII = lambda z: 0.0
-    #    elif self.self_consistent_He:
-    #        if type(kw['xavg']) is not list:
-    #            raise TypeError('hey! fix me')
-    #            
-    #        nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-    #        nHeI = lambda z: self.cosm.nHe(z) \
-    #            * (1. - kw['xavg'](z) - kw['xavg'](z))
-    #        sHeI = lambda z: self.sigma(Erest(z), species=1)
-    #        nHeII = lambda z: self.cosm.nHe(z) * kw['xavg'](z)
-    #        sHeII = lambda z: self.sigma(Erest(z), species=2)
-    #    else:
-    #        nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-    #        nHeI = sHeI = nHeII = sHeII = lambda z: 0.0
-    #    
-    #    tau_integrand = lambda z: norm * self.cosm.dldz(z) \
-    #        * (nHI(z) * sHI(z) + nHeI(z) * sHeI(z) + nHeII(z) * sHeII(z))
-    #        
-    #    # Integrate using adaptive Gaussian quadrature
-    #    tau = quad(tau_integrand, z1, z2, epsrel=self.rtol, 
-    #        epsabs=self.atol, limit=self.divmax)[0] / norm
-    #                                                
-    #    return tau
-    #
-    #def Tau(self, z1, z2, E, species=0, sfrac=lambda z: 1.0):
-    #    """
-    #    Compute the optical depth between two redshifts.
-    #
-    #    If no keyword arguments are supplied, assumes the IGM is neutral.
-    #
-    #    Parameters
-    #    ----------
-    #    z1 : float
-    #        observer redshift
-    #    z2 : float
-    #        emission redshift
-    #    E : float
-    #        observed photon energy (eV)  
-    #    species : int
-    #        Can be 0, 1, or 2 for HI, HeI, HeII
-    #
-    #    Notes
-    #    -----
-    #    If keyword argument 'xavg' is supplied, it must be a function of 
-    #    redshift.
-    #
-    #    Returns
-    #    -------
-    #    Optical depth between z1 and z2 at observed energy E.
-    #
-    #    """
-    #
-    #    # Compute normalization factor to help numerical integrator
-    #    norm = self.cosm.hubble_0 / c / self.sigma0
-    #
-    #    # Temporary function to compute emission energy of observed photon
-    #    Erest = lambda z: self.RestFrameEnergy(z1, E, z)
-    #
-    #    # Cross-section
-    #    s = lambda z: self.sigma(Erest(z), species=species)
-    #    
-    #    if species == 0:
-    #        n = lambda z: self.cosm.nH(z) * sfrac(z)
-    #    else:    
-    #        n = lambda z: self.cosm.nHe(z) * sfrac(z)
-    #    
-    #    tau_integrand = lambda z: norm * self.cosm.dldz(z) * n(z) * s(z)
-    #    
-    #
-    #    # Figure out number densities and cross sections of everything
-    #    #if self.approx_He:
-    #    #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-    #    #    nHeI = lambda z: nHI(z) * self.cosm.y
-    #    #    sHeI = lambda z: self.sigma(Erest(z), species=1)
-    #    #    nHeII = lambda z: 0.0
-    #    #    sHeII = lambda z: 0.0
-    #    #elif self.self_consistent_He:
-    #    #    if type(kw['xavg']) is not list:
-    #    #        raise TypeError('hey! fix me')
-    #    #
-    #    #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-    #    #    nHeI = lambda z: self.cosm.nHe(z) \
-    #    #        * (1. - kw['xavg'](z) - kw['xavg'](z))
-    #    #    sHeI = lambda z: self.sigma(Erest(z), species=1)
-    #    #    nHeII = lambda z: self.cosm.nHe(z) * kw['xavg'](z)
-    #    #    sHeII = lambda z: self.sigma(Erest(z), species=2)
-    #    #else:
-    #    #    nHI = lambda z: self.cosm.nH(z) * (1. - kw['xavg'](z))
-    #    #    nHeI = sHeI = nHeII = sHeII = lambda z: 0.0
-    #
-    #    #tau_integrand = lambda z: norm * self.cosm.dldz(z) \
-    #    #    * (nHI(z) * sHI(z) + nHeI(z) * sHeI(z) + nHeII(z) * sHeII(z))
-    #
-    #    # Integrate using adaptive Gaussian quadrature
-    #    tau = quad(tau_integrand, z1, z2, epsrel=self.rtol, 
-    #        epsabs=self.atol, limit=self.divmax)[0] / norm
-    #
-    #    return tau
-    #                    
-    #

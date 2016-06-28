@@ -369,7 +369,7 @@ class SynthesisModel(object):
         # Convert to erg / g        
         return N * self.erg_per_phot(Emin, Emax) * self.cosm.b_per_g
  
-    def IntegratedEmission(self, Emin, Emax):    
+    def IntegratedEmission(self, Emin, Emax, energy_units=False):    
         """
         Compute photons emitted integrated in some band for all times.
         
@@ -386,8 +386,11 @@ class SynthesisModel(object):
         # Count up the photons in each spectral bin for all times
         flux = np.zeros_like(self.times)
         for i in range(self.times.size):
-            integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0] \
-                / (self.energies[i1:i0] * erg_per_ev)
+            if energy_units:
+                integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0]
+            else:
+                integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0] \
+                    / (self.energies[i1:i0] * erg_per_ev)
                         
             flux[i] = np.trapz(integrand, x=np.log(self.wavelengths[i1:i0]))
             

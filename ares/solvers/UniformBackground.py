@@ -126,22 +126,32 @@ class UniformBackground(object):
             for i, pop in enumerate(self.pops):
                                 
                 if self.bands_by_pop[i] is None:
-                    self._solve_rte.append(False)
+                    self._solve_rte.append([False])
                     continue
-                                
+                
+                tmp = []                
                 for j, band in enumerate(self.bands_by_pop[i]):
                     
                     if band is None:
-                        self._solve_rte.append(False)
-                        break
+                        # When does this happen?
+                        tmp.append(False)
+                        #if j == 0:
+                        #    break
                     elif type(pop.pf['pop_solve_rte']) is bool:
-                        self._solve_rte.append(pop.pf['pop_solve_rte'])
-                        break
-                    #elif type(pop.pf['pop_solve_rte']) is tuple:
-                    #    if band == pop.pf['pop_solve_rte']:
-                    #        self._solve_rte.append(band)
-                    #    else:
-                    #        self._solve_rte.append(False)
+                        tmp.append(pop.pf['pop_solve_rte'])
+                       #if j == 0:
+                       #    break
+                    elif type(pop.pf['pop_solve_rte']) is tuple:
+                        if band == pop.pf['pop_solve_rte']:
+                            tmp.append(True)
+                        # Eh, close  enough (to 0.1 eV)
+                        elif np.allclose(band, pop.pf['pop_solve_rte'], 
+                            atol=1e-1, rtol=0.):
+                            tmp.append(True)
+                        else:
+                            tmp.append(False)
+                            
+                self._solve_rte.append(tmp)            
 
         assert len(self._solve_rte) == len(self.pops)                
                                 
@@ -287,35 +297,6 @@ class UniformBackground(object):
                 self._emissivities.append(ehat)
     
         return self._emissivities
-
-    #def _set_populations(self):
-    #    """
-    #    Initialize population(s) of radiation sources!
-    #    
-    #    This routine will figure out emission energies, redshifts, and
-    #    tabulate emissivities. 
-    #    
-    #    Returns
-    #    -------
-    #    Nothing. Sets attributes `energies`, `redshifts`, and `emissivity`
-    #    for each population.
-    #    
-    #    """
-    #
-    #    self.tau = []
-    #    self.energies = []; self.redshifts = []; self.emissivities = []
-    #    for i, pop in enumerate(self.pops):
-    #
-    #        if self.solve_rte[i]:
-    #            bands = bands_by_pop[i]
-    #            z, nrg, tau, ehat = self._set_grid(pop, bands)
-    #        else:
-    #            z = nrg = ehat = tau = None
-    #
-    #        self.tau.append(tau)
-    #        self.energies.append(nrg)
-    #        self.redshifts.append(z)
-    #        self.emissivities.append(ehat)
 
     def _set_grid(self, pop, bands, zi=None, zf=None, nz=None, 
         compute_tau=False, compute_emissivities=False):
@@ -499,7 +480,7 @@ class UniformBackground(object):
         
             self._generators = []
             for i, pop in enumerate(self.pops):
-                if not self.solve_rte[i]:
+                if not np.any(self.solve_rte[i]):
                     gen = None
                 else:
                     gen = self.FluxGenerator(popid=i)
@@ -548,13 +529,20 @@ class UniformBackground(object):
             # Loop over absorbing species
             for j, species in enumerate(self.grid.absorbers):
                 
-                if not self.solve_rte[i]:
+                if not np.any(self.solve_rte[i]):
                     self._update_by_band_and_species(z, i, j, None, **kwargs)
                     continue
                 
                 # Sum over bands
                 for k, band in enumerate(self.energies[i]):
-                    self._update_by_band_and_species(z, i, j, k, **kwargs)
+                    
+                    # Still may not necessarily solve the RTE
+                    if self.solve_rte[i][k]:
+                        self._update_by_band_and_species(z, i, j, k, 
+                            **kwargs)
+                    else:
+                        self._update_by_band_and_species(z, i, j, k, 
+                            **kwargs)                    
 
         # Sum over sources
         self.k_ion_tot = np.sum(self.k_ion, axis=0)
@@ -938,7 +926,7 @@ class UniformBackground(object):
             return pop.pf['pop_Ja'](z)
 
         # Flat spectrum, no injected photons, instantaneous emission only
-        if not self.solve_rte[popid]:
+        if not np.any(self.solve_rte[popid]):
             norm = c * self.cosm.dtdz(z) / four_pi
 
             rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6) \
@@ -949,9 +937,9 @@ class UniformBackground(object):
 
         # Full calculation
         J = 0.0
-
+                
         for i, n in enumerate(self.narr):
-
+        
             if n == 2 and not pop.pf['lya_continuum']:
                 continue
             if n > 2 and not pop.pf['lya_injected']:
@@ -961,7 +949,7 @@ class UniformBackground(object):
         
             J += Jn
         
-        return J        
+        return J
         
     def load_sed(self, prefix=None):
         fn = pop.src.sed_name()
@@ -1195,7 +1183,7 @@ class UniformBackground(object):
             if type(self.energies[popid][i]) is list:   
                 gen = self._flux_generator_sawtooth(E=self.energies[popid][i],
                     z=self.redshifts[popid], ehat=self.emissivities[popid][i],
-                    tau=self.tau[popid][i])
+                    tau=self.tau[popid][i])                    
             else:        
                 gen = self._flux_generator_generic(self.energies[popid][i],
                     self.redshifts[popid], self.emissivities[popid][i],
