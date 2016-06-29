@@ -14,6 +14,7 @@ info = \
 }
 
 redshifts = [4, 5, 6, 7, 8]
+wavelength = 1500.
 
 ULIM = -1e10
 

@@ -128,7 +128,7 @@ class SynthesisModel(object):
                 x=self.energies[j2:j1][-1::-1])
                 
         return self._norm
-
+        
     @property
     def i_tsf(self):
         if not hasattr(self, '_i_tsf'):
@@ -215,7 +215,7 @@ class SynthesisModel(object):
     def LUV_of_t(self):
         return self.L_per_SFR_of_t()
     
-    def L_per_SFR_of_t(self, wave=1500., avg=1):
+    def L_per_SFR_of_t(self, wave=1600., avg=1):
         """
         UV luminosity per unit SFR.
         """

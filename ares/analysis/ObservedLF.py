@@ -27,7 +27,7 @@ _ulim_tick = 0.5
 class ObservedLF(object):
     def __init__(self):
         pass
-        
+
     def compile_data(self, redshift, sources='all', round_z=False):
         """
         Create a master dictionary containing the MUV points, phi points,
@@ -37,20 +37,20 @@ class ObservedLF(object):
         ----------
         z : int, float
             Redshift, dummy!
-            
+
         """
-        
+
         data = {}
-        
+
         if sources == 'all':
             sources = all_datasets
         elif type(sources) is str:
             sources = [sources]    
-            
+
         for source in sources:
-            
+
             src = read_lit(source)
-            
+
             if redshift not in src.redshifts and (not round_z):
                 print "No z=%g data in %s" % (redshift, source)
                 continue
@@ -66,6 +66,7 @@ class ObservedLF(object):
                 z = redshift
                 
             data[source] = {}
+            data[source]['wavelength'] = src.wavelength
             
             M = src.data['lf'][z]['M']            
             if hasattr(M, 'data'):
@@ -143,9 +144,19 @@ class ObservedLF(object):
         pass            
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
-        AUV=None, **kwargs):
+        AUV=None, wavelength=1600., sed_model=None, **kwargs):
         """
         Plot the luminosity function data at a given redshift.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest
+        wavelength : int, float 
+            Wavelength (in Angstroms) of LF. 
+        sed_model : instance
+            ares.populations.SynthesisModel
+            
         """
         
         if ax is None:
@@ -183,8 +194,16 @@ class ObservedLF(object):
                 dc = AUV(z, np.array(M))
             else:
                 dc = 0
+                
+            # Shift band [optional]
+            if data[source]['wavelength'] != wavelength:
+                #shift = sed_model.
+                print "WARNING: %s wavelength=%iA, not %iA!" \
+                    % (src, data[source]['wavelength'], wavelength)
+            #else:
+            shift = 0.    
               
-            ax.errorbar(M-dc, phi, yerr=err, uplims=ulim, zorder=10, **kw)
+            ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, **kw)
         
         ax.set_yscale('log', nonposy='clip')    
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
