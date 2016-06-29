@@ -922,7 +922,7 @@ class GlobalVolume(object):
         else:
             weight = 1.0
             
-        Qdot = pop.PhotonLuminosityDensity(z, Emin=13.6, Emax=24.4)
+        Qdot = pop.PhotonLuminosityDensity(z, Emin=13.6, Emax=24.6)
                                                                                                                
         return weight * Qdot * (1. + z)**3  
             

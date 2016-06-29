@@ -26,8 +26,7 @@ dpl = \
  'pop_Emax{0}': 24.6,
  'pop_yield{0}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
                              # should make this automatic
-                             
- 
+
  'pop_fesc{0}': 0.2,
 
  # SFE
@@ -38,7 +37,7 @@ dpl = \
  'php_func_par1{0}[0]': 3e11,
  'php_func_par2{0}[0]': 0.47,        # Table 1 in paper (last 4 rows)
  'php_func_par3{0}[0]': -0.65,       # Table 1 in paper (last 4 rows)
- 
+
  # Careful with X-ray heating
  'pop_sed{1}': 'mcd',
  'pop_yield{1}': 2.6e39,
@@ -48,7 +47,7 @@ dpl = \
  'pop_EminNorm{1}': 5e2,
  'pop_EmaxNorm{1}': 8e3,
  'pop_logN{1}': -inf,
- 
+
  'pop_solve_rte{1}': True,
  'pop_tau_Nz{1}': 1e3,
  'pop_approx_tau{1}': 'neutral',

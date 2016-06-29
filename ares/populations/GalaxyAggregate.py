@@ -31,26 +31,6 @@ from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters
 
-#class LiteratureSource(Source):
-#    def __init__(self, **kwargs):
-#        self.pf = kwargs
-#        Source.__init__(self)
-#        
-#        assert self.pf['pop_sed'] in ['leitherer1999', 'eldridge2009']
-#
-#        self.pop = SynthesisModel
-#
-#
-#        #if hasattr(self.pop, 'Spectrum'):
-#        #    if inspect.ismethod(_src.Spectrum) or \
-#        #        (type(_src.Spectrum) is FunctionType):
-#        #        self._Intensity = _src.Spectrum
-#        #    else:
-#        #        self._Intensity = _src.Spectrum(**self.pf['pop_kwargs'])
-#        #else:
-#        #    
-#        #        raise NotImplemented('help')
-            
 def normalize_sed(pop):
     """
     Convert yield to erg / g.
@@ -75,7 +55,7 @@ def normalize_sed(pop):
     elif units == 'photons/msun':
         energy_per_sfr *= erg_per_phot / g_per_msun
     elif units == 'photons/s/sfr':
-        energy_per_sfr *= erg_per_phot * s_per_yr / g_per_msun   
+        energy_per_sfr *= erg_per_phot * s_per_yr / g_per_msun
     else:
         raise ValueError('Unrecognized yield units: %s' % units)
 
@@ -314,12 +294,6 @@ class GalaxyAggregate(HaloPopulation):
     def is_user_model(self):
         return self.pf['pop_model'].lower() == 'user'    
     
-
-   #@property
-   #def Mh_dep_sed(self):
-   #    if not hasattr(self, '_Mh_dep_sed'):
-   #        if self.pf['pop_sed'] == 'leitherer1999':
-    
     def _convert_band(self, Emin, Emax):
         """
         Convert from fractional luminosity in reference band to given bounds.
@@ -351,7 +325,7 @@ class GalaxyAggregate(HaloPopulation):
             different_band = True
         else:
             Emax = self.pf['pop_Emax']
-    
+        
         # Modify band if need be
         if different_band:    
     
@@ -368,7 +342,8 @@ class GalaxyAggregate(HaloPopulation):
                 factor = self.src.yield_per_sfr(Emin, Emax) \
                     / self.src.yield_per_sfr(*self.reference_band)
             else:
-                factor = quad(self.src.Spectrum, Emin, Emax)[0]
+                factor = quad(self.src.Spectrum, Emin, Emax)[0] \
+                    / quad(self.src.Spectrum, *self.reference_band)[0]
     
             self._conversion_factors[(Emin, Emax)] = factor
     
@@ -422,7 +397,8 @@ class GalaxyAggregate(HaloPopulation):
             Eavg = self.src.eV_per_phot(Emin, Emax)
         else:
             integrand = lambda E: self.src.Spectrum(E) * E
-            Eavg = quad(integrand, Emin, Emax)[0]
+            Eavg = quad(integrand, Emin, Emax)[0] \
+                / quad(self.src.Spectrum, Emin, Emax)[0]
         
         self._eV_per_phot[(Emin, Emax)] = Eavg 
         
@@ -448,13 +424,13 @@ class GalaxyAggregate(HaloPopulation):
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         rhoL = self.SFRD(z) * self.yield_per_sfr
-                
+                                
         # Convert from reference band to arbitrary band
         rhoL *= self._convert_band(Emin, Emax)
-                        
+       
         if Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
             rhoL *= self.pf['pop_fesc']
-                    
+                            
         if E is not None:
             return rhoL * self.src.Spectrum(E)
         else:

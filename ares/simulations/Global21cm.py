@@ -260,7 +260,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                         continue
                     
                     Earr = np.concatenate(self.medium.field.energies[i][j])
-                    l = np.argmin(np.abs(Earr - E_LyA))    
+                    l = np.argmin(np.abs(Earr - E_LyA))     # should be 0
                     
                     Ja += self.medium.field.all_fluxes[-1][i][j][l]
             

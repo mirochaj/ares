@@ -940,9 +940,12 @@ class UniformBackground(object):
                 
         for i, n in enumerate(self.narr):
         
-            if n == 2 and not pop.pf['lya_continuum']:
+            # Continuum photons included by default
+            if n == 2:
                 continue
-            if n > 2 and not pop.pf['lya_injected']:
+                
+            # Injected line photons optional    
+            if n > 2 and not pop.pf['include_injected_lya']:
                 continue
             
             Jn = self.hydr.frec(n) * fluxes[i][0]
@@ -1026,7 +1029,7 @@ class UniformBackground(object):
             H = self.cosm.HubbleParameter(z[ll])
             Lbol = pop.LuminosityDensity(z[ll])
             epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H / erg_per_ev                
-        
+
         return epsilon
             
     def _flux_generator_generic(self, energies, redshifts, ehat, tau=None,
@@ -1127,15 +1130,15 @@ class UniformBackground(object):
         ----------
         List of fluxes, for each sub-band in a sawtooth generator.
         
-        """          
-
+        """     
+        
         line_flux = [np.zeros_like(fluxes[i]) for i in range(len(fluxes))]
 
         # Compute Lyman-alpha flux
-        if self.pf['include_H_Lya']:
+        if self.pf['include_injected_lya']:
             line_flux[0][0] += self.LymanAlphaFlux(z=None, fluxes=fluxes)
         
-        return line_flux 
+        return line_flux
 
     def _flux_generator_sawtooth(self, E, z, ehat, tau):
         """

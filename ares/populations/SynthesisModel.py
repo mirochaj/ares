@@ -21,6 +21,35 @@ from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
 
 relevant_pars = ['pop_Z', 'pop_imf', 'pop_nebular', 'pop_ssp', 'pop_tsf']
 
+class DummyClass(object):
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.Nt = 11
+    
+    @property 
+    def times(self):
+        return np.linspace(0, 500, self.Nt)
+    
+    @property
+    def weights(self):
+        return np.ones_like(self.times)
+    
+    def _load(self, **kwargs):
+        # Energies must be in *descending* order
+        if np.all(np.diff(kwargs['pop_E']) > 0):
+            E = kwargs['pop_E'][-1::-1]
+            L = kwargs['pop_L'][-1::-1]
+        else:
+            E = kwargs['pop_E']
+            L = kwargs['pop_L'] 
+
+        data = np.array([L] * self.Nt).T
+        wave = 1e8 * h_p * c / (E * erg_per_ev)
+        
+        assert len(wave) == data.shape[0], "len(pop_L) must == len(pop_E)."
+                
+        return wave, data
+        
 class SynthesisModel(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -28,7 +57,11 @@ class SynthesisModel(object):
     @property
     def litinst(self):
         if not hasattr(self, '_litinst'):
-            self._litinst = read_lit(self.pf['pop_sed'])
+            if self.pf['pop_sed'] == 'user':
+                self._litinst = DummyClass()
+            else:    
+                self._litinst = read_lit(self.pf['pop_sed'])
+                
         return self._litinst
     
     @property
@@ -48,28 +81,29 @@ class SynthesisModel(object):
         E = self.energies[j2:j1][-1::-1]
         
         # Units: erg / s / Hz
-        to_int = self.Spectrum(E) * E
+        to_int = self.Spectrum(E)
          
         # Units: erg / s
-        return np.trapz(to_int, x=E)
-    
-        #integrand = lambda EE: self.Spectrum(EE) * EE
-        #return quad(integrand, Emin, Emax)[0]    
-    
+        return np.trapz(to_int * E, x=E) / np.trapz(to_int, x=E)
+
     def Spectrum(self, E):
         """
         Return a normalized version of the spectrum at photon energy E / eV.
         """
         # reverse energies so they are in ascending order
         nrg = self.energies[-1::-1]
-        return np.interp(E, nrg, self.sed_at_tsf) / self.norm
+        return np.interp(E, nrg, self.sed_at_tsf[-1::-1]) / self.norm
 
     @property
     def sed_at_tsf(self):
         if not hasattr(self, '_sed_at_tsf'):
-            # erg / s / Hz        
-            self._sed_at_tsf = \
-                self.data[-1::-1, self.i_tsf] * self.dwdn[-1::-1] / ev_per_hz
+            # erg / s / Hz      
+            if self.pf['pop_yield'] == 'from_sed':  
+                self._sed_at_tsf = \
+                    self.data[:,self.i_tsf] * self.dwdn / ev_per_hz
+            else:
+                self._sed_at_tsf = self.data[:,self.i_tsf]
+                    
         return self._sed_at_tsf
 
     @property
@@ -89,11 +123,9 @@ class SynthesisModel(object):
             j1 = np.argmin(np.abs(self.pf['pop_EminNorm'] - self.energies))
             j2 = np.argmin(np.abs(self.pf['pop_EmaxNorm'] - self.energies))
             
-            # Units: erg / s / Hz
-            to_int = self.sed_at_tsf[j2:j1]
-            
-            # Units: erg / s
-            self._norm = np.trapz(to_int, x=self.energies[j2:j1][-1::-1]) 
+            # Remember: energy axis in descending order
+            self._norm = np.trapz(self.sed_at_tsf[j2:j1][-1::-1], 
+                x=self.energies[j2:j1][-1::-1])
                 
         return self._norm
 
@@ -354,7 +386,7 @@ class SynthesisModel(object):
         # Must convert units
         E_avg = np.trapz(self.data[i1:i0,it] * self.energies[i1:i0], 
             x=self.wavelengths[i1:i0]) \
-            / np.trapz(self.data[i1:i0,it], x=self.wavelengths[i1:i0])    
+            / np.trapz(self.data[i1:i0,it], x=self.wavelengths[i1:i0])
         
         return E_avg
         

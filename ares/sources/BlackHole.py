@@ -308,7 +308,7 @@ class BlackHole(Source):
         
         return self.epsilon * 4.0 * np.pi * G * Mnow * g_per_msun * m_p \
             * c / sigma_T
-            
+
     def Mass(self, t):
         """
         Compute black hole mass after t (seconds) have elapsed.  Relies on 

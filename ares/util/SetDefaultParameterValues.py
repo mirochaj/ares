@@ -67,7 +67,7 @@ def GridParameters():
     "include_igm": True,
     
     # Line photons
-    "include_H_Lya": False,
+    "include_injected_lya": True,
 
     "initial_ionization": [1. - 1e-8, 1e-8, 1.-2e-8, 1e-8, 1e-8],
     "initial_temperature": 1e4,
@@ -75,7 +75,7 @@ def GridParameters():
     # These have shape len(absorbers)
     "tables_logNmin": [None],
     "tables_logNmax": [None],
-    "tables_dlogN": [0.1],        
+    "tables_dlogN": [0.1],   
     
     # overrides above parameters
     "tables_logN": None, 
@@ -211,8 +211,6 @@ def PhysicsParameters():
 
     # Lyman alpha sources
     "lya_nmax": 23,
-    "lya_injected": True,
-    'lya_continuum': True,
     'lya_frec_bar': 0.0,   # Neglect injected photons by default if we're
                            # treating background in approximate way
                      
@@ -337,6 +335,10 @@ def PopulationParameters():
     # Set the emission interval and SED
     "pop_sed": 'pl',
     
+    # If pop_sed == 'user'
+    "pop_E": None,
+    "pop_L": None,
+    
     # For synthesis models
     "pop_Z": 0.02,
     "pop_imf": 2.35,
@@ -432,7 +434,7 @@ def PopulationParameters():
 
     'pop_fXh': None,
 
-    "pop_approx_tau": True,     # shouldn't be a pop parameter
+    "pop_approx_tau": True,     # shouldn't be a pop parameter?
     "pop_solve_rte": False,
     
     "pop_tau_Nz": 400,
