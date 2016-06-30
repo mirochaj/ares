@@ -28,6 +28,9 @@ dpl = \
                              # should make this automatic
 
  'pop_fesc{0}': 0.2,
+ 
+ 'pop_calib_L1600': None,    # Change!
+ 
 
  # SFE
  'pop_fstar{0}': 'php[0]',

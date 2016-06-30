@@ -424,8 +424,8 @@ def PopulationParameters():
     "pop_yield_units": 'erg/s/sfr',
     
     "pop_kappa_UV": 1.15e-28,
-    "pop_L1500_per_sfr": None,
-    "pop_calib_rhoL1500": None,
+    "pop_L1600_per_sfr": None,
+    "pop_calib_L1600": None,
     
     "pop_fstar_boost": 1.,
 

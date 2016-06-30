@@ -246,56 +246,14 @@ class SynthesisModel(object):
             
         return yield_UV
     
-    def L_per_SFR_test(self, t=100, wave=1500, avg=1):
-        """
-        UV luminosity per unit SFR.
-        """
-        
-        k = np.argmin(np.abs(self.pf['pop_tsf'] - self.times))    
-        if self.times[k] > self.pf['pop_tsf']:
-            k -= 1        
-        
-        j = np.argmin(np.abs(wave - self.wavelengths))
-        
-        dwavednu = np.diff(self.wavelengths) / np.diff(self.frequencies)
-        
-        if avg == 1:
-            yield_UV = self.data[j,k] * np.abs(dwavednu[j])
-        else:
-            assert avg % 2 != 0, "avg must be odd"
-            s = (avg - 1) / 2
-            
-            tmp = []
-            for i in range(avg):
-                this_w = self.data[j-s+i,k] * np.abs(dwavednu[j-s+i])
-        
-                tmp.append(this_w)
-                
-            yield_UV = np.mean(tmp)    
-        
-        # Current units: 
-        # if pop_ssp: 
-        #     erg / sec / Hz / (Msun / 1e6)
-        # else: 
-        #     erg / sec / Hz / (Msun / yr)
-        
-        # to erg / s / A / Msun
-        if self.pf['pop_ssp']:
-            yield_UV /= 1e6
-        # or erg / s / A / (Msun / yr)
-        else:
-            pass
-        
-        return yield_UV
-    
     def LUV(self):
         return self.L_per_SFR_of_t()[-1]
         
     @property
-    def L1500_per_sfr(self):
+    def L1600_per_sfr(self):
         return self.L_per_sfr()   
         
-    def L_per_sfr(self, wave=1500., avg=1):   
+    def L_per_sfr(self, wave=1600., avg=1):   
         """
         Specific emissivity at provided wavelength.
         

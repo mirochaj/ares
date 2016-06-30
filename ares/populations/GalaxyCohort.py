@@ -46,7 +46,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
     def __getattr__(self, name):
         """
         This gets called anytime we try to fetch an attribute that doesn't
-        exist (yet). Right, now this is only used for L1500, Nion, Nlw.
+        exist (yet). Right, now this is only used for L1600, Nion, Nlw.
         """
             
         # Indicates that this attribute is being accessed from within a 
@@ -553,7 +553,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         return phi_of_x
 
     def Lh(self, z):
-        return self.SFR(z, self.halos.M) * self.L1500_per_sfr(z, self.halos.M)
+        return self.SFR(z, self.halos.M) * self.L1600_per_sfr(z, self.halos.M)
 
     def phi_of_L(self, z):
 
@@ -701,12 +701,12 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             dnu = (24.6 - 13.6) / ev_per_hz
             #nrg_per_phot = 25. * erg_per_ev
 
-            Nion_per_L1500 = self.Nion(None, M) / (1. / dnu)
+            Nion_per_L1600 = self.Nion(None, M) / (1. / dnu)
             
             self._LLyC_tab = np.zeros([self.halos.Nz, self.halos.Nm])
             
             for i, z in enumerate(self.halos.z):
-                self._LLyC_tab[i] = self.L1500_tab[i] * Nion_per_L1500 \
+                self._LLyC_tab[i] = self.L1600_tab[i] * Nion_per_L1600 \
                     * fesc
             
                 mask = self.halos.M >= self.Mmin[i]
@@ -722,12 +722,12 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             dnu = (13.6 - 10.2) / ev_per_hz
             #nrg_per_phot = 25. * erg_per_ev
     
-            Nlw_per_L1500 = self.Nlw(None, M) / (1. / dnu)
+            Nlw_per_L1600 = self.Nlw(None, M) / (1. / dnu)
     
             self._LLW_tab = np.zeros([self.halos.Nz, self.halos.Nm])
     
             for i, z in enumerate(self.halos.z):
-                self._LLW_tab[i] = self.L1500_tab[i] * Nlw_per_L1500
+                self._LLW_tab[i] = self.L1600_tab[i] * Nlw_per_L1600
     
                 mask = self.halos.M >= self.Mmin[i]
                 self._LLW_tab[i] *= mask
@@ -769,9 +769,9 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
     def fstar(self):
         if not hasattr(self, '_fstar'):
             
-            if self.pf['pop_calib_rhoL1500'] is not None:
-                boost = self.pf['pop_calib_rhoL1500'] \
-                    / self.L1500_per_sfr(None, None)
+            if self.pf['pop_calib_L1600'] is not None:
+                boost = self.pf['pop_calib_L1600'] \
+                    / self.L1600_per_sfr(None, None)
                 assert self.pf['pop_fstar_boost'] == 1
             else:
                 boost = 1. / self.pf['pop_fstar_boost']

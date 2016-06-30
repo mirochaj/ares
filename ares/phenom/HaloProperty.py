@@ -20,7 +20,7 @@ def tanh_rstep(M, lo, hi, logM0, logdM):
     # NOTE: lo = value at the low-mass end
     return hi * lo * 0.5 * (np.tanh((logM0 - np.log10(M)) / logdM) + 1.) + hi
 
-Mh_dep_parameters = ['pop_fstar', 'pop_fesc', 'pop_L1500_per_sfr', 
+Mh_dep_parameters = ['pop_fstar', 'pop_fesc', 'pop_L1600_per_sfr', 
     'pop_Nion', 'pop_Nlw']
     
 func_options = \
