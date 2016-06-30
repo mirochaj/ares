@@ -769,10 +769,15 @@ class GlobalVolume(object):
 
         else:
             fheat = self.pf['pop_fXh']
-
+            
+        if band is not None:
+            solve_rte = self.background.solve_rte[popid][band]
+        else:
+            solve_rte = False    
+         
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
-        if not self.background.solve_rte[popid][band]:
+        if not solve_rte:
             weight = self.rate_to_coefficient(z, species, **kw)
             
             Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 
@@ -959,7 +964,12 @@ class GlobalVolume(object):
         if pop.pf['pop_k_ion_igm'] is not None:
             return pop.pf['pop_k_ion_igm'](z)
 
-        if (not self.background.solve_rte[popid][band]) or \
+        if band is not None:
+            solve_rte = self.background.solve_rte[popid][band]
+        else:
+            solve_rte = False
+
+        if (not solve_rte) or \
             (not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX'])):
             
             Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 
@@ -1050,8 +1060,13 @@ class GlobalVolume(object):
         if not pop.pf['pop_ion_src_igm']:
             return 0.0 
 
+        if band is not None:
+            solve_rte = self.background.solve_rte[popid][band]
+        else:
+            solve_rte = False
+
         # Computed in IonizationRateIGM in this case
-        if not self.background.solve_rte[popid][band]:
+        if not solve_rte:
             return 0.0
 
         if not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):

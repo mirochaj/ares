@@ -97,7 +97,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             # Derive brightness temperature
             Tb = self.medium.parcel_igm.grid.hydr.dTb(z[i], xavg, Ts)
             self.all_data_igm[i]['dTb'] = float(Tb)
-            self.all_data_igm[i]['igm_Ts'] = Ts
+            self.all_data_igm[i]['Ts'] = Ts
             dTb.append(Tb)
             
         return dTb
@@ -208,6 +208,8 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
         self.history['dTb'] = self.history['igm_dTb']
+        self.history['Ts'] = self.history['igm_Ts']
+        self.history['Ja'] = self.history['igm_Ja']
         
         # Save rate coefficients [optional]
         if self.pf['save_rate_coefficients']:
@@ -279,7 +281,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             dTb = self.medium.parcel_igm.grid.hydr.dTb(z, xavg, Ts)
 
             # Add derived fields to data
-            data_igm.update({'igm_Ts': Ts, 'dTb': dTb, 'Ja': Ja})
+            data_igm.update({'Ts': Ts, 'dTb': dTb, 'Ja': Ja})
             
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 

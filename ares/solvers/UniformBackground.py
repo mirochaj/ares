@@ -245,7 +245,7 @@ class UniformBackground(object):
             if self.approx_all_pops:
                 self._energies = [[None] for i in range(self.Npops)]
                 self._redshifts = [None for i in range(self.Npops)]
-                self._bands_by_pop = [None for i in range(self.Npops)]   
+                self._bands_by_pop = [[None] for i in range(self.Npops)]   
             else:    
                 # Really just need to know if it emits ionizing photons, 
                 # or has any sawtooths we need to care about
@@ -541,7 +541,7 @@ class UniformBackground(object):
                         self._update_by_band_and_species(z, i, j, k, 
                             **kwargs)
                     else:
-                        self._update_by_band_and_species(z, i, j, k, 
+                        self._update_by_band_and_species(z, i, j, None, 
                             **kwargs)                    
 
         # Sum over sources
