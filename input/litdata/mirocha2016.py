@@ -5,6 +5,7 @@ Parameters defining the fiducial model (see Table 1).
 """
 
 from numpy import inf
+from ares.physics.Constants import E_LyA
 
 # Calibration set!
 dpl = \
@@ -21,18 +22,34 @@ dpl = \
  'pop_sed{0}': 'eldridge2009',
  'pop_binaries{0}': False,
  'pop_Z{0}': 0.02,
- 
- 'pop_fesc{0}': 0.2,
+ 'pop_Emin{0}': 10.19,
+ 'pop_Emax{0}': 24.6,
+ 'pop_yield{0}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
+                             # should make this automatic
 
+ 'pop_fesc{0}': 0.1,
+ 
+ # Solve LWB!
+ 'pop_solve_rte{0}': (10.2, 13.6),
+
+ 
  # SFE
  'pop_fstar{0}': 'php[0]',
  'php_func{0}[0]': 'dpl',
  'php_func_var{0}[0]': 'mass',
- 'php_func_par0{0}[0]': 0.052,       # Table 1 in paper (last 4 rows)
- 'php_func_par1{0}[0]': 3e11,
- 'php_func_par2{0}[0]': 0.47,        # Table 1 in paper (last 4 rows)
- 'php_func_par3{0}[0]': -0.65,       # Table 1 in paper (last 4 rows)
  
+ ##
+ # IMPORTANT
+ ##
+ 'php_func_par0{0}[0]': 0.05,       # Table 1 in paper (last 4 rows)
+ 'php_func_par1{0}[0]': 2.8e11,
+ 'php_func_par2{0}[0]': 0.49,       
+ 'php_func_par3{0}[0]': -0.61,      
+ 'pop_calib_L1600': 1.0185e28,      # Enforces Equation 13 in paper 
+ ##
+ #
+ ##z
+
  # Careful with X-ray heating
  'pop_sed{1}': 'mcd',
  'pop_yield{1}': 2.6e39,
@@ -42,7 +59,7 @@ dpl = \
  'pop_EminNorm{1}': 5e2,
  'pop_EmaxNorm{1}': 8e3,
  'pop_logN{1}': -inf,
- 
+
  'pop_solve_rte{1}': True,
  'pop_tau_Nz{1}': 1e3,
  'pop_approx_tau{1}': 'neutral',
@@ -57,7 +74,7 @@ dpl = \
  'cgm_initial_temperature': 2e4,
  'cgm_recombination': 'B',
  'clumping_factor': 3.,
- 'smooth_derivative': 0.5,
+ #'smooth_derivative': 0.5,
  'final_redshift': 5.,
 }
 
@@ -92,12 +109,12 @@ Redshift-dependent options
 """
 _dpl_fz_specific = \
 {
-'php_faux{0}[0]': 'pl',
-'php_faux_var{0}[0]': '1+z',
-'php_faux_meth{0}[0]': 'multiply',
-'php_faux_par0{0}[0]': 1.,
-'php_faux_par1{0}[0]': 7.,
-'php_faux_par2{0}[0]': 1.,
+ 'php_faux{0}[0]': 'pl',
+ 'php_faux_var{0}[0]': '1+z',
+ 'php_faux_meth{0}[0]': 'multiply',
+ 'php_faux_par0{0}[0]': 1.,
+ 'php_faux_par1{0}[0]': 7.,
+ 'php_faux_par2{0}[0]': 1.,
 }
 
 dpl_fz = dpl.copy()
@@ -105,12 +122,10 @@ dpl_fz.update(_dpl_fz_specific)
 
 _dpl_Mz_specific = \
 {
-'php_faux{0}[0]': 'pl',
-'php_faux_var{0}[0]': '1+z',
-'php_faux_meth{0}[0]': 'multiply',
-'php_faux_par0{0}[0]': 1.,
-'php_faux_par1{0}[0]': 7.,
-'php_faux_par2{0}[0]': 1.,
+ 'php_func_par1{0}[0]': 'pl',
+ 'php_func_par1_par0{0}[0]': dpl['php_func_par1{0}[0]'],
+ 'php_func_par1_par1{0}[0]': 5.9,
+ 'php_func_par1_par2{0}[0]': -1.,
 }
 
 dpl_Mz = dpl.copy()

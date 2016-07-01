@@ -15,18 +15,20 @@ Quick Example: :math:`tanh` model for the global 21-cm signal
 -------------------------------------------------------------
 Before we run a set of models, we need to decide what quantities we’d like to save. For a detailed description of how to do this in general cases, check out :doc:`example_inline_analysis`.
 
-For now, let’s save the redshift and brightness temperature of the global 21-cm emission maximum, which we dub ‘’Turning Point D’‘, and the CMB optical depth,
+For now, let’s save the redshift and brightness temperature of the global 21-cm emission maximum, which we dub "Turning Point D", and the CMB optical depth,
 
 ::
 
-    blobs_scalar = ['z_D', 'igm_dTb_D', 'tau_e']
+    blobs_scalar = ['z_D', 'dTb_D', 'tau_e']
     
 in addition to the ionization, thermal, and global 21-cm histories at redshifts between 5 and 20 (at :math:`\Delta z = 1` increments),
 
 ::
 
-    blobs_1d = ['cgm_h_2', 'igm_Tk', 'igm_dTb']
+    blobs_1d = ['cgm_h_2', 'igm_Tk', 'dTb']
     blobs_1d_z = np.arange(5, 21)
+    
+.. note :: For a complete listing of ideas for 1-D blobs see :doc:`fields`.
     
 Now, we’ll make a dictionary full of parameters that will get passed to every global 21-cm signal calculation. In addition to the blobs, we’ll set ``tanh_model=True`` to speed things up (see next section regarding physical models), and ``problem_type=101``:    
 
@@ -64,13 +66,13 @@ To run,
 
 ::
 
-    mg.run(‘test_2d_grid’, clobber=True, save_freq=100)
+    mg.run('test_2d_grid', clobber=True, save_freq=100)
 
 To speed things up, you could increase the grid spacing. Or, execute the above in parallel as a Python script (assuming you have MPI and mpi4py installed).
 
     .. note:: If the model grid doesn’t finish running, that’s OK! Simply    
-        re-execute the above command and supply ``restart=True`` as an 
-        additional keyword argument, and it will pick up where it left off.
+        re-execute the above command with ``restart=True`` as an 
+        additional keyword argument and it will pick up where it left off.
     
 To analyze the results, create an analysis instance,    
 

@@ -14,7 +14,8 @@ import numpy as np
 import scipy.interpolate as interpolate
 from ..util.Math import central_difference
 from ..util.ParameterFile import ParameterFile
-from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL
+from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
+    k_B
 
 try:
     from scipy.special import gamma
@@ -59,12 +60,11 @@ g13 = gamma(1. / 3.)
 c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
 c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
 
-
 class Hydrogen(object):
     def __init__(self, cosm=None, **kwargs):
         
         self.pf = ParameterFile(**kwargs)
-        
+
         if cosm is None:
             from .Cosmology import Cosmology
             self.cosm = Cosmology(**self.pf)
@@ -85,14 +85,14 @@ class Hydrogen(object):
         self.a_0 = 5.292e-9 				
                 
         # Common lines, etc.
-        self.nu_LL = 13.6 * erg_per_ev / h
-        self.E_LyA = h * c / (1216. * 1e2 / 1e10) / erg_per_ev
-        self.E_LyB = h * c / (1026. * 1e2 / 1e10) / erg_per_ev
-        self.E_LL = h * self.nu_LL / erg_per_ev
-        
-        self.nu_alpha = self.E_LyA * erg_per_ev / h
-        self.nu_beta = self.E_LyB * erg_per_ev / h
-        self.dnu = self.nu_LL - self.nu_alpha
+        #self.nu_LL = 13.6 * erg_per_ev / h
+        #self.E_LyA = h * c / (1216. * 1e2 / 1e10) / erg_per_ev
+        #self.E_LyB = h * c / (1026. * 1e2 / 1e10) / erg_per_ev
+        #self.E_LL = h * self.nu_LL / erg_per_ev
+        #
+        #self.nu_alpha = self.E_LyA * erg_per_ev / h
+        #self.nu_beta = self.E_LyB * erg_per_ev / h
+        #self.dnu = self.nu_LL - self.nu_alpha
         
         self.tabulated_coeff = \
             {'kappa_H': kappa_HH, 'kappa_e': kappa_He, 
@@ -293,6 +293,12 @@ class Hydrogen(object):
         """ Gunn-Peterson optical depth. """
         return 1.5 * self.cosm.nH(z) * (1. - xHII) * l_LyA**3 * 50e6 \
             / self.cosm.HubbleParameter(z)
+    
+    def lya_width(self, Tk):
+        """
+        Returns Doppler line-width of the Ly-a line in eV.
+        """
+        return np.sqrt(2. * k_B * Tk / m_e / c**2) * E_LyA
         
     def Sa(self, z=None, Tk=None, xHII=0.0):
         """

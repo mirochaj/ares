@@ -10,7 +10,7 @@ Notes
 
 import re, os
 import numpy as np
-from scipy.interpolate import interp1d, RectBivariateSpline
+from scipy.interpolate import interp1d
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, Lsun
 
@@ -79,26 +79,32 @@ def _load(**kwargs):
     # Interpolate
     if kwargs['pop_Z'] not in Zvals:
         
-        raise NotImplemented('this needs fixing.')
+        #raise NotImplemented('this needs fixing.')
 
+        assert min(Zvals) <= kwargs['pop_Z'] <= max(Zvals), \
+            'Metallicity supplied lies outside range allowed.'
+        
         data = []
-        for Z in Zvals:
-            pf['pop_Z'] = Z
-            fn = _kwargs_to_fn(**kwargs)
-            _raw_data = np.loadtxt(fn)
-            data.append(_raw_data[:,1:])
-
-        data = np.array(data)
-        wavelengths = _raw_data[:,0]
-
-        _raw_data = np.zeros_like(_raw_data)
+        i = 0
+        while Zvals[i] < kwargs['pop_Z']: 
+            i += 1
+        
+        Zv = Zvals[i-1], Zvals[i]
+        tmp = kwargs.copy()
+        del tmp['pop_Z']
+        (w1, d1), (w2, d2) = _load(pop_Z=Zvals[i-1], **tmp), \
+            _load(pop_Z=Zvals[i], **tmp)
+        to_interp = np.log10(np.array([d1,d2]) / Lsun)
+        
+        wavelengths = wave = w1
+        
+        _raw_data = np.zeros_like(d1)
         for i, t in enumerate(times):
-            interp = RectBivariateSpline(np.log10(Zvals), np.log10(wavelengths), 
-                np.log10(data[:,:,i]))
-            _raw_data[:,i] = \
-                interp(np.log10(kwargs['pop_Z']), np.log10(wavelengths))
+            inter = interp1d(np.log10(Zv), to_interp[:,:,i], axis=0)
+            _raw_data[:,i] = inter(np.log10(kwargs['pop_Z']))
 
-        _data = 10**_raw_data
+        data = 10**_raw_data
+        
     # No interpolation necessary
     else:        
         fn = _kwargs_to_fn(**kwargs)

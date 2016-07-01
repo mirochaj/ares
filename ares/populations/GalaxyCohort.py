@@ -46,7 +46,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
     def __getattr__(self, name):
         """
         This gets called anytime we try to fetch an attribute that doesn't
-        exist (yet). Right, now this is only used for L1500, Nion, Nlw.
+        exist (yet). Right, now this is only used for L1600, Nion, Nlw.
         """
             
         # Indicates that this attribute is being accessed from within a 
@@ -115,7 +115,6 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
 
         # Otherwise, calculate what it should be
         if (Emin, Emax) == (13.6, 24.6):
-
             # Should be based on energy at this point, not photon number
             self._N_per_Msun[(Emin, Emax)] = self.Nion(None, self.halos.M) \
                 * self.cosm.b_per_g * g_per_msun #/ s_per_yr
@@ -124,7 +123,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
                 * self.cosm.b_per_g * g_per_msun #/ s_per_yr
     
         return self._N_per_Msun[(Emin, Emax)]
-    
+
     #def rho_L(self, z, Emin, Emax):
     #    """
     #    Compute the luminosity density in some bandpass at some redshift.
@@ -182,18 +181,18 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             fesc = self.fesc(None, self.halos.M)
         else:
             fesc = 1.
-        
+
         for i, z in enumerate(self.halos.z):
             integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
                 * N_per_Msun * fesc * self.fduty(z, self.halos.M)
-        
+
             tot = np.trapz(integrand, x=self.halos.lnM)
             cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
             
             tab[i] = tot - \
                 np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
             
-        tab *= 1. / s_per_yr / cm_per_mpc**3    
+        tab *= 1. / s_per_yr / cm_per_mpc**3
         
         self._rho_N[(Emin, Emax)] = interp1d(self.halos.z, tab, kind='cubic')
 
@@ -297,7 +296,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
 
             return interp(np.log(Mmin))
         else:
-            return super(GalaxyPopulation, self).iMAR(z)
+            return super(GalaxyCohort, self).iMAR(z)
 
     def cMAR(self, z, source=None):
         """
@@ -313,7 +312,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             src = read_lit(source)
             MAR = src.MAR(z, self.halos.M)    
         else:
-            MAR = super(GalaxyPopulation, self).MAR_via_AM(z)
+            MAR = super(GalaxyCohort, self).MAR_via_AM(z)
                     
         # Grab redshift
         k = np.argmin(np.abs(z - self.halos.z))
@@ -446,6 +445,11 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         if not hasattr(self, '_scalable_rhoL'):
             self._scalable_rhoL = True
             for par in Mh_dep_parameters:
+                
+                # If this is the only Mh-dep parameter, we're still scalable.
+                if par == 'pop_fstar':
+                    continue
+                
                 if type(self.pf[par]) is str:
                     self._scalable_rhoL = False
                     break
@@ -454,7 +458,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
                     pn = '%s[%i]' % (par,i)
                     if pn not in self.pf:
                         continue
-
+            
                     if type(self.pf[pn]) is str:
                         self._scalable_rhoL = False
                         break
@@ -478,7 +482,9 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         if self.scalable_rhoL:
-            rhoL = super(GalaxyPopulation, self).Emissivity(z, E, Emin, Emax)
+            rhoL = super(GalaxyCohort, self).Emissivity(z, E=E, 
+                Emin=Emin, Emax=Emax)
+            
         else:
             raise NotImplemented('can\'t yet have Mh-dep SEDs (parametric)')
 
@@ -547,7 +553,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         return phi_of_x
 
     def Lh(self, z):
-        return self.SFR(z, self.halos.M) * self.L1500_per_sfr(z, self.halos.M)
+        return self.SFR(z, self.halos.M) * self.L1600_per_sfr(z, self.halos.M)
 
     def phi_of_L(self, z):
 
@@ -695,12 +701,12 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             dnu = (24.6 - 13.6) / ev_per_hz
             #nrg_per_phot = 25. * erg_per_ev
 
-            Nion_per_L1500 = self.Nion(None, M) / (1. / dnu)
+            Nion_per_L1600 = self.Nion(None, M) / (1. / dnu)
             
             self._LLyC_tab = np.zeros([self.halos.Nz, self.halos.Nm])
             
             for i, z in enumerate(self.halos.z):
-                self._LLyC_tab[i] = self.L1500_tab[i] * Nion_per_L1500 \
+                self._LLyC_tab[i] = self.L1600_tab[i] * Nion_per_L1600 \
                     * fesc
             
                 mask = self.halos.M >= self.Mmin[i]
@@ -716,12 +722,12 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             dnu = (13.6 - 10.2) / ev_per_hz
             #nrg_per_phot = 25. * erg_per_ev
     
-            Nlw_per_L1500 = self.Nlw(None, M) / (1. / dnu)
+            Nlw_per_L1600 = self.Nlw(None, M) / (1. / dnu)
     
             self._LLW_tab = np.zeros([self.halos.Nz, self.halos.Nm])
     
             for i, z in enumerate(self.halos.z):
-                self._LLW_tab[i] = self.L1500_tab[i] * Nlw_per_L1500
+                self._LLW_tab[i] = self.L1600_tab[i] * Nlw_per_L1600
     
                 mask = self.halos.M >= self.Mmin[i]
                 self._LLW_tab[i] *= mask
@@ -763,9 +769,9 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
     def fstar(self):
         if not hasattr(self, '_fstar'):
             
-            if self.pf['pop_calib_rhoL1500'] is not None:
-                boost = self.pf['pop_calib_rhoL1500'] \
-                    / self.L1500_per_sfr(None, None)
+            if self.pf['pop_calib_L1600'] is not None:
+                boost = self.pf['pop_calib_L1600'] \
+                    / self.L1600_per_sfr(None, None)
                 assert self.pf['pop_fstar_boost'] == 1
             else:
                 boost = 1. / self.pf['pop_fstar_boost']
@@ -942,14 +948,13 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             
         # erg / s / cm**3
         if self.scalable_rhoL:
-            rhoL = self.Emissivity(z, Emin, Emax)
-            erg_per_phot = super(GalaxyPopulation, 
+            rhoL = self.Emissivity(z, E=None, Emin=Emin, Emax=Emax)
+            erg_per_phot = super(GalaxyCohort, 
                 self)._get_energy_per_photon(Emin, Emax) * erg_per_ev
+                               
             return rhoL / erg_per_phot
         else:
             return self.rho_N(z, Emin, Emax)
-        
-
                  
 # Backwards compatible        
 GalaxyPopulation = GalaxyCohort         

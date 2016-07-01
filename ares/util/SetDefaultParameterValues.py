@@ -29,8 +29,8 @@ _blob_redshifts = list('BCD')
 _blob_redshifts.extend([6, 7, 8, 9, 10, 15, 20, 25, 30, 35, 40])
 
 # Nothing population specific
-_blob_names = ['z', 'igm_dTb', 'curvature', 'igm_Tk', 'igm_Ts', 'cgm_h_2', 
-    'igm_h_1', 'cgm_k_ion', 'igm_k_heat', 'igm_Ja', 'tau_e']
+_blob_names = ['z', 'dTb', 'curvature', 'igm_Tk', 'igm_Ts', 'cgm_h_2', 
+    'igm_h_1', 'cgm_k_ion', 'igm_k_heat', 'Ja', 'tau_e']
     
 default_blobs = (_blob_names, _blob_names)
 
@@ -67,7 +67,7 @@ def GridParameters():
     "include_igm": True,
     
     # Line photons
-    "include_H_Lya": False,
+    "include_injected_lya": True,
 
     "initial_ionization": [1. - 1e-8, 1e-8, 1.-2e-8, 1e-8, 1e-8],
     "initial_temperature": 1e4,
@@ -75,7 +75,7 @@ def GridParameters():
     # These have shape len(absorbers)
     "tables_logNmin": [None],
     "tables_logNmax": [None],
-    "tables_dlogN": [0.1],        
+    "tables_dlogN": [0.1],   
     
     # overrides above parameters
     "tables_logN": None, 
@@ -211,8 +211,6 @@ def PhysicsParameters():
 
     # Lyman alpha sources
     "lya_nmax": 23,
-    "lya_injected": True,
-    'lya_continuum': True,
     'lya_frec_bar': 0.0,   # Neglect injected photons by default if we're
                            # treating background in approximate way
                      
@@ -258,7 +256,7 @@ def HaloPropertyParameters():
     # Hrm...can't remember what this is about.
     for i in range(6):
         for j in range(6):
-            tmp['php_Mfun_par%i_par%i' % (i,j)] = None
+            tmp['php_func_par%i_par%i' % (i,j)] = None
     
     pf.update(tmp)
     pf.update(rcParams)
@@ -336,6 +334,10 @@ def PopulationParameters():
         
     # Set the emission interval and SED
     "pop_sed": 'pl',
+    
+    # If pop_sed == 'user'
+    "pop_E": None,
+    "pop_L": None,
     
     # For synthesis models
     "pop_Z": 0.02,
@@ -422,8 +424,8 @@ def PopulationParameters():
     "pop_yield_units": 'erg/s/sfr',
     
     "pop_kappa_UV": 1.15e-28,
-    "pop_L1500_per_sfr": None,
-    "pop_calib_rhoL1500": None,
+    "pop_L1600_per_sfr": None,
+    "pop_calib_L1600": None,
     
     "pop_fstar_boost": 1.,
 
@@ -432,8 +434,9 @@ def PopulationParameters():
 
     'pop_fXh': None,
 
-    "pop_approx_tau": True,     # shouldn't be a pop parameter
+    "pop_approx_tau": True,     # shouldn't be a pop parameter?
     "pop_solve_rte": False,
+    
     "pop_tau_Nz": 400,
 
     # Pre-created splines
@@ -613,7 +616,7 @@ def ControlParameters():
     "solver_rtol": 1e-8,
     "solver_atol": 1e-8,
     "interp_method": 'cubic',
-    "interp_cc": 'linear',    
+    "interp_cc": 'linear',
 
     # Initialization
     "load_ics": True,

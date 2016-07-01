@@ -43,7 +43,7 @@ def test(Ns=500, Nd=4, prefix='test'):
     # Make some blobs. 0-D, 1-D, and 2-D.
     setup = \
     {
-     'blob_names': [['blob_0'], ['blob_1'], ['blob_2']], 
+     'blob_names': [['blob_0'], ['blob_1'], ['blob_2', 'blob_3']], 
      'blob_ivars': [None, [np.arange(10)], [np.arange(10), np.arange(10,20)]],
     }
     
@@ -65,7 +65,18 @@ def test(Ns=500, Nd=4, prefix='test'):
             if nd > 0:
                 dims.extend(map(len, setup['blob_ivars'][i]))
             
-            data = np.reshape(np.random.normal(size=np.product(dims)), dims)
+            size = np.product(dims)
+            data = np.reshape(np.random.normal(size=size), dims)
+            
+            # Add some nans to blob_3 to test our handling of them
+            if blob == 'blob_3':
+                num = int(np.product(dims) / 10.)
+                
+                mask_inf = np.ones(size)
+                r = np.unique(np.random.randint(0, size, size=num))
+                mask_inf[r] = np.inf
+            
+                data *= np.reshape(mask_inf, dims)
                     
             with open('%s.blob_%id.%s.pkl' % (prefix, nd, blob), 'wb') as f:
                 pickle.dump(data, f)
@@ -110,6 +121,8 @@ def test(Ns=500, Nd=4, prefix='test'):
         else:
             ivars.append([setup['blob_ivars'][i][0][0], setup['blob_ivars'][i][1][0]])
         
+    ivars.append([setup['blob_ivars'][i][0][0], setup['blob_ivars'][i][1][0]])    
+        
     anl.TrianglePlot(anl.all_blob_names, ivar=ivars, fig=4)
     
     for i in range(1, 5):
@@ -133,6 +146,6 @@ def test(Ns=500, Nd=4, prefix='test'):
             os.remove('%s.blob_%id.%s.pkl' % (prefix, nd, blob))
     
     assert True
-
+    
 if __name__ == '__main__':
     test()

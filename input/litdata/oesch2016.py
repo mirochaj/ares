@@ -12,6 +12,8 @@ Table 2 and volume estimate from text.
 
 redshifts = [11.1]
 
+wavelength = 1600. # I think?
+
 ULIM = -1e10
 
 data = {}
@@ -19,7 +21,7 @@ data['lf'] = \
 {
  11.1: {'M': [-22.1],
        'phi': [1. / 1.2e6],
-       'err': [ULIM],
+       'err': [None],
       },               
 }
 

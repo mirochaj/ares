@@ -48,6 +48,8 @@ class ModelGrid(ModelFit):
             if 'tanh_model' in self.base_kwargs:
                 if self.base_kwargs['tanh_model']:
                     self._tanh = True
+                else:
+                    self._tanh = False
             else:
                 self._tanh = False
         return self._tanh                  
@@ -231,6 +233,7 @@ class ModelGrid(ModelFit):
         """
 
         self.prefix = prefix
+        self.save_freq = save_freq
 
         if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
             if not restart:

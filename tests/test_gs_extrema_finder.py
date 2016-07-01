@@ -48,7 +48,7 @@ def test():
         freq = np.arange(40, 120+dnu, dnu)
         sim = ares.simulations.Global21cm(tanh_model=True, 
             output_frequencies=freq)
-                    
+                                
     # Everything good?
     assert absorption_OK and no_nonsense
     

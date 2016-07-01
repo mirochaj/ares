@@ -665,10 +665,11 @@ class ModelFit(BlobFactory):
         pickle.dump((self.parameters, self.is_log), f)
         f.close()
         
-        # "Run" info
-        f = open('%s.rinfo.pkl' % prefix, 'wb')
-        pickle.dump((self.nwalkers, self.save_freq, self.steps), f)
-        f.close()
+        # "Run" info (MCMC only)
+        if hasattr(self, 'steps'):
+            f = open('%s.rinfo.pkl' % prefix, 'wb')
+            pickle.dump((self.nwalkers, self.save_freq, self.steps), f)
+            f.close()
         
         # Priors!
         if hasattr(self, '_prior_set'):

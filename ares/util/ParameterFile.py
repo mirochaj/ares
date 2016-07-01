@@ -133,10 +133,10 @@ def identify_phps(**kwargs):
     List of lists: parameterized halo properties for each population.
     NOTE: they are not in order
     """
-
+    
     Npops = count_populations(**kwargs)
     phps = [[] for i in range(Npops)]
-
+    
     for par in kwargs:
 
         if type(kwargs[par]) is not str:
@@ -162,21 +162,6 @@ def identify_phps(**kwargs):
             
     return phps
     
-    ## Sort PHPs
-    #for i, pop in enumerate(phps):
-    #    if not pop:
-    #        continue
-    #        
-    #    tmp = [None for k in range(len(pop))]
-    #    for j, php in enumerate(pop):
-    #        
-    #        k = kwargs['']
-    #        tmp[]
-            
-            
-        
-        
-
 class ParameterFile(dict):
     def __init__(self, **kwargs):
         """
@@ -264,9 +249,9 @@ class ParameterFile(dict):
         
         tmp = kwargs.copy()
         tmp.update(kw)
-        
+                
         # Change names of parameters to ensure backward compatibility        
-        tmp.update(backward_compatibility(kw['problem_type'], **tmp))
+        tmp.update(backward_compatibility(kw['problem_type'], **tmp))        
         kwargs.update(tmp)            
                         
         ##    

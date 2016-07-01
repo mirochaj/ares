@@ -124,7 +124,8 @@ class ParameterBundle(dict):
         separator()
         print line('Run \'reinitialize\' with one of the above as argument to change.')
         footer()
-        
+    
+    @property    
     def orphans(self):
         """
         Return dictionary of parameters that aren't associated with a population.
@@ -137,7 +138,7 @@ class ParameterBundle(dict):
                 
         return tmp
     
-    def pars_by_pop(self, num):
+    def pars_by_pop(self, num, strip_id=False):
         """
         Return dictionary of parameters associated with population `num`.
         """
@@ -145,7 +146,10 @@ class ParameterBundle(dict):
         for par in self:
             prefix, idnum = pop_id_num(par)
             if idnum == num:
-                tmp[par] = self[par]
+                if strip_id:
+                    tmp[prefix] = self[par]
+                else:    
+                    tmp[par] = self[par]
                 
         return tmp        
             

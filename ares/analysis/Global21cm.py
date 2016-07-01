@@ -459,7 +459,7 @@ class Global21cm(MultiPhaseMedium):
         
         if inset is None:
             inset = self.add_inset(ax, inset=inset, width=width, height=height, 
-                loc=loc, lo=lo, hi=hi, padding=padding, 
+                loc=loc, lo=lo, hi=hi, padding=padding, mu=None, sigma=None,
                 borderpad=borderpad, **kwargs)
         else:
             inset.fill_between([0., self.cosm.Tgas(z)], 0, 1, 

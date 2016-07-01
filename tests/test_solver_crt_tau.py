@@ -150,6 +150,7 @@ def test(tol=5e-2):
     pl.ylabel(ares.util.labels['flux'])
     pl.legend(fontsize=14)
     pl.savefig('%s.png' % __file__.rstrip('.py'))
+    pl.close()
 
 if __name__ == '__main__':
     test()

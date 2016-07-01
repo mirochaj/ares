@@ -495,7 +495,7 @@ class MultiPhaseMedium(object):
         """
         
         assert (mu is not None and sig1 is not None) \
-            or (lo is not None and hi is not None)
+            or (lo is not None or hi is not None)
         
         if inset is not None:
             pass

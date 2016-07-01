@@ -348,8 +348,9 @@ class Source(object):
         """
         
         integrand = lambda EE: self.Spectrum(EE) * EE
+        norm = lambda EE: self.Spectrum(EE)
         
-        return quad(integrand, Emin, Emax)[0]
+        return quad(integrand, Emin, Emax)[0] / quad(norm, Emin, Emax)[0]
         
     @property
     def qdot_bar(self):

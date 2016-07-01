@@ -27,9 +27,6 @@ If you do not have mercurial installed, and would rather just grab a tarball
 of the most recent version, select the `Download repository
 <https://bitbucket.org/mirochaj/ares/downloads>`_ option on bitbucket.
 
-.. note:: If you'd like to live on the bleeding edge, check out the *ares-dev*
-    fork.
-    
 You'll need to set an environment variable which points to the *ares* install directory, e.g. (in bash) ::
 
     export ARES=/users/<yourusername>/ares
@@ -43,6 +40,26 @@ This might take a few minutes. If something goes wrong with the download, you ca
     python remote.py fresh
     
 to get fresh copies of everything.
+
+*ares* branches
+---------------
+*ares* has two main branches. The first, ``default``, is meant to be stable, and will only be updated with critical bug fixes or upon arrival at major development milestones. The "bleeding edge" lives in the ``ares-dev`` branch, and while you are more likely to find bugs in ``ares-dev``, you will also find the newest features. 
+
+By default after you clone *ares* you'll be using the ``default`` branch. To switch, simply type:  ::
+
+    hg update ares-dev
+    
+To switch back, ::
+
+    hg update default
+    
+For a nice discussion of the pros and cons of different branching techniques in mercurial, `this article is a nice place to start <http://stevelosh.com/blog/2009/08/a-guide-to-branching-in-mercurial/>`_. 
+
+*ares* versions
+---------------
+The first stable release of *ares* was used in `Mirocha et al. (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_, and is tagged as `v0.1` in the revision history.
+
+If you're unsure which version is best for you, see :doc:`history`.
 
 Don't have Python already?
 --------------------------

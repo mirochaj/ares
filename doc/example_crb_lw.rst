@@ -21,19 +21,24 @@ First things first:
     import ares
     import numpy as np
     import matplotlib.pyplot as pl
+    from ares.physics.Constants import erg_per_ev, c, ev_per_hz
 
 Now, let's set some parameters that define the properties of the source population:
 
 ::
+
+    alpha = 0.
+    beta = 0.
     
     pars = \
     {
      'pop_type': 'galaxy',
-     'pop_sfrd': lambda z: 0.1,
+     'pop_sfrd': lambda z: 0.1 * (1. + z)**beta,
+     'pop_sfrd_units': 'msun/yr/mpc^3',
      'pop_sed': 'pl',
-     'pop_alpha': 1.0,          
-     'pop_Emin': 10.18,
-     'pop_Emax': 15.,
+     'pop_alpha': alpha,     # flat SED       
+     'pop_Emin': 1,
+     'pop_Emax': 1e2,
      'pop_EminNorm': 13.6,
      'pop_EmaxNorm': 1e2,
      'pop_yield': 1e57,
@@ -41,8 +46,10 @@ Now, let's set some parameters that define the properties of the source populati
 
      # Solution method
      'pop_solve_rte': True,
+     'lya_nmax': 8,
      'pop_tau_Nz': 400,
-     'include_H_Lya': False,
+     #'include_H_Lya': False,
+     #'pop_approx_tau': True,
 
      'initial_redshift': 40,
      'final_redshift': 10,
@@ -61,35 +68,6 @@ Next, let's initialize an :class:`ares.simulations.MetaGalacticBackground` objec
 ::
 
     mgb = ares.simulations.MetaGalacticBackground(**pars)
-
-So long as ``verbose=True`` (which it is by default), you should see the following output to the screen:
-
-::
-
-    ##########################################################################
-    ####                  Initializer: Galaxy Population                  ####
-    ##########################################################################
-    #### ---------------------------------------------------------------- ####
-    #### Redshift Evolution                                               ####
-    #### ---------------------------------------------------------------- ####
-    #### SFRD        : parameterized                                      ####
-    #### ---------------------------------------------------------------- ####
-    #### Radiative Output                                                 ####
-    #### ---------------------------------------------------------------- ####
-    #### yield (erg / s / SFR) : 3.43977e+39                              ####
-    #### EminNorm (eV)         : 13.6                                     ####
-    #### EmaxNorm (eV)         : 100                                      ####
-    #### ---------------------------------------------------------------- ####
-    #### Spectrum                                                         ####
-    #### ---------------------------------------------------------------- ####
-    #### SED               : pl                                           ####
-    #### Emin (eV)         : 1                                            ####
-    #### Emax (eV)         : 41.8                                         ####
-    #### alpha             : 1                                            ####
-    #### logN              : -inf                                         ####
-    ##########################################################################
-    
-This is really just to provide a sanity check. The only real difference you may notice is that the units of the yield have been converted to :math:`\mathrm{erg} \ \mathrm{s}^{-1} \ (M_{\odot} \ \mathrm{yr}^{-1})^{-1}`.    
     
 To run the thing:
 
@@ -97,40 +75,51 @@ To run the thing:
 
     mgb.run()
 
+So long as ``verbose=True`` (which it is by default), you should see the following output to the screen:
+
+::
+
+    ##########################################################################
+    ####                     Galaxy Population: fcoll                     ####
+    ##########################################################################
+    #### ---------------------------------------------------------------- ####
+    #### Star Formation                                                   ####
+    #### ---------------------------------------------------------------- ####
+    #### SFRD        : parameterized                                      ####
+    #### ---------------------------------------------------------------- ####
+    #### Radiative Output                                                 ####
+    #### ---------------------------------------------------------------- ####
+    #### yield (erg / s / SFR) : 2.88373e+39                              ####
+    #### Emin (eV)             : 1                                        ####
+    #### Emax (eV)             : 100                                      ####
+    #### EminNorm (eV)         : 13.6                                     ####
+    #### EmaxNorm (eV)         : 100                                      ####
+    #### ---------------------------------------------------------------- ####
+    #### Spectrum                                                         ####
+    #### ---------------------------------------------------------------- ####
+    #### SED               : pl                                           ####
+    #### alpha             : 0                                            ####
+    #### logN              : -inf                                         ####
+    ##########################################################################
+      
+This is really just to provide a sanity check. The only real difference you may notice is that the units of the yield have been converted to :math:`\mathrm{erg} \ \mathrm{s}^{-1} \ (M_{\odot} \ \mathrm{yr}^{-1})^{-1}`.    
+
+
 The results of the calculation, as in any ``ares.simulations`` class, are stored in an attribute called ``history``. Here, we'll use a convenience routine to extract the redshifts, photon energies, and corresponding fluxes (a 2-D array):
 
 ::
 
     z, E, flux = mgb.get_history(flatten=True)
     
-Internally, fluxes are computed in units of :math:`\mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1}`, but often it can be useful to look at the background flux in terms of its energy. So, let's import some useful constants:
-
-::
-
-    from ares.physics.Constants import *
-
-and plot the flux at the final redshift (:math:`z=10`) in units of :math:`\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1}`:
+Internally, fluxes are computed in units of :math:`\mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1}`, but often it can be useful to look at the background flux in terms of its energy, i.e., in units of :math:`\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1}`:
 
 ::
 
     pl.semilogy(E, flux[-1] * E * erg_per_ev, color='k', ls=':')
     
-You should see...    
-    
-By default, *ares* will not do any sort of detailed radiative transfer that accounts for neutral absorption, which is why the background spectrum...  To turn that on,
-
-::
-
-    pars2 = pars.copy()
-    pars2['pop_sawtooth'] = True
-    
-    mgb2 = ares.simulations.MetaGalacticBackground(**pars2)
-    mgb2.run()
-    
-    z2, E2, flux2 = mgb2.get_history(flatten=True)
-    pl.semilogy(E2, flux2[-1] * E2 * erg_per_ev, color='k', ls='--')
-    
-Compare to the analytic solution, given by Equation A1 in `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_ (the *cosmologically-limited* solution to the radiative transfer equation)
+You should see the characteristic sawtooth modulation of an intrinsically flat spectrum.
+        
+Compare to the analytic solution, given by Equation A1 in `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_ (the *cosmologically-limited* solution to the radiative transfer equation), which does *not* take into account the sawtooth modulation:
 
 .. math ::
     
@@ -144,28 +133,22 @@ with :math:`\alpha = \beta = 0` (i.e., constant SFRD, flat spectrum), :math:`z=1
     pop = mgb.pops[0] 
     
     # Compute cosmologically-limited solution
-    e_nu = np.array(map(lambda E: pop.Emissivity(10, E), E))
-    e_nu *= c / 4. / np.pi / pop.cosm.HubbleParameter(10.) 
-    e_nu *= (1. + 10.)**4.5 / -1.5
-    e_nu *= ((1. + 40.)**-1.5 - (1. + 10.)**-1.5)
-    e_nu *= ev_per_hz
+    zi, zf = 40., 10.
+    e_nu = np.array(map(lambda E: pop.Emissivity(zf, E), E))
+    e_nu *= (1. + zf)**(4.5 - (alpha + beta)) / 4. / np.pi \
+        / pop.cosm.HubbleParameter(zf) / (alpha + beta - 1.5)
+    e_nu *= ((1. + zi)**(alpha + beta - 1.5) - (1. + zf)**(alpha + beta - 1.5))
+    e_nu *= c * ev_per_hz
     
     # Plot it
     pl.semilogy(E, e_nu, color='k', ls='-')
     
-Add some axis labels:
+Add some axis labels if you'd like:
 
 ::
 
     pl.xlabel(ares.util.labels['E'])
     pl.ylabel(ares.util.labels['flux_E'])
     
-When it's all said and done, you should have something like the plot below.
-
-.. figure::  http://casa.colorado.edu/~mirochaj/docs/glorb/basic_star.png
-   :align:   center
-   :width:   600
-
-   The Lyman-Werner (and below) background at :math:`z=10` that arises from a population of flat spectrum sources.
 
     

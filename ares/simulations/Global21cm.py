@@ -40,7 +40,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             may be used.
             
         """
-
+        
         # See if this is a tanh model calculation
         is_phenom = self._check_if_phenom(**kwargs)
 
@@ -208,6 +208,8 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
         self.history['dTb'] = self.history['igm_dTb']
+        self.history['Ts'] = self.history['igm_Ts']
+        self.history['Ja'] = self.history['igm_Ja']
         
         # Save rate coefficients [optional]
         if self.pf['save_rate_coefficients']:
@@ -249,7 +251,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                 if not pop.is_lya_src:
                     continue
                                 
-                if not self.medium.field.solve_rte[i]:   
+                if not np.any(self.medium.field.solve_rte[i]):
                     Ja += self.medium.field.LymanAlphaFlux(z, popid=i)
                     continue
 
@@ -260,7 +262,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                         continue
                     
                     Earr = np.concatenate(self.medium.field.energies[i][j])
-                    l = np.argmin(np.abs(Earr - E_LyA))    
+                    l = np.argmin(np.abs(Earr - E_LyA))     # should be 0
                     
                     Ja += self.medium.field.all_fluxes[-1][i][j][l]
             
@@ -355,16 +357,22 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
     
             f.close()
     
+        print 'Wrote %s.history.%s' % (prefix, suffix)
+    
+        write_pf = True
         if os.path.exists('%s.parameters.pkl' % prefix):
             if clobber:
                 os.remove('%s.parameters.pkl' % prefix)
             else: 
-                raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
+                write_pf = False
+                print 'WARNING: %s.parameters.pkl exists! Set clobber=True to overwrite.' % prefix
+
+        if write_pf:
+            # Save parameter file
+            f = open('%s.parameters.pkl' % prefix, 'wb')
+            pickle.dump(self.pf, f)
+            f.close()
     
-        # Save parameter file
-        f = open('%s.parameters.pkl' % prefix, 'wb')
-        pickle.dump(self.pf, f)
-        f.close()
-    
-        print 'Wrote %s and %s.parameters.pkl' % (fn, prefix)
+            print 'Wrote %s.parameters.pkl' % prefix
+        
     

@@ -53,8 +53,8 @@ Contents
     examples
     params
     fields
+    inits_tables
     uth
-    structure
     troubleshooting
     updates
     contributing

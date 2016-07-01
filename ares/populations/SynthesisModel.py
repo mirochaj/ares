@@ -11,15 +11,45 @@ Description:
 """
 
 import numpy as np
+from scipy.integrate import quad
 from ares.physics import Cosmology
 from ..util.ReadData import read_lit
 from scipy.interpolate import interp1d
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
-    s_per_myr, m_H
+    s_per_myr, m_H, ev_per_hz
 
 relevant_pars = ['pop_Z', 'pop_imf', 'pop_nebular', 'pop_ssp', 'pop_tsf']
 
+class DummyClass(object):
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.Nt = 11
+    
+    @property 
+    def times(self):
+        return np.linspace(0, 500, self.Nt)
+    
+    @property
+    def weights(self):
+        return np.ones_like(self.times)
+    
+    def _load(self, **kwargs):
+        # Energies must be in *descending* order
+        if np.all(np.diff(kwargs['pop_E']) > 0):
+            E = kwargs['pop_E'][-1::-1]
+            L = kwargs['pop_L'][-1::-1]
+        else:
+            E = kwargs['pop_E']
+            L = kwargs['pop_L'] 
+
+        data = np.array([L] * self.Nt).T
+        wave = 1e8 * h_p * c / (E * erg_per_ev)
+        
+        assert len(wave) == data.shape[0], "len(pop_L) must == len(pop_E)."
+                
+        return wave, data
+        
 class SynthesisModel(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -27,7 +57,11 @@ class SynthesisModel(object):
     @property
     def litinst(self):
         if not hasattr(self, '_litinst'):
-            self._litinst = read_lit(self.pf['pop_sed'])
+            if self.pf['pop_sed'] == 'user':
+                self._litinst = DummyClass()
+            else:    
+                self._litinst = read_lit(self.pf['pop_sed'])
+                
         return self._litinst
     
     @property
@@ -36,12 +70,77 @@ class SynthesisModel(object):
             self._cosm = Cosmology(**self.pf)
         return self._cosm
     
+    def AveragePhotonEnergy(self, Emin, Emax):
+        """
+        Return average photon energy in supplied band.
+        """
+    
+        j1 = np.argmin(np.abs(Emin - self.energies))
+        j2 = np.argmin(np.abs(Emax - self.energies))
+        
+        E = self.energies[j2:j1][-1::-1]
+        
+        # Units: erg / s / Hz
+        to_int = self.Spectrum(E)
+         
+        # Units: erg / s
+        return np.trapz(to_int * E, x=E) / np.trapz(to_int, x=E)
+
+    def Spectrum(self, E):
+        """
+        Return a normalized version of the spectrum at photon energy E / eV.
+        """
+        # reverse energies so they are in ascending order
+        nrg = self.energies[-1::-1]
+        return np.interp(E, nrg, self.sed_at_tsf[-1::-1]) / self.norm
+
+    @property
+    def sed_at_tsf(self):
+        if not hasattr(self, '_sed_at_tsf'):
+            # erg / s / Hz      
+            if self.pf['pop_yield'] == 'from_sed':  
+                self._sed_at_tsf = \
+                    self.data[:,self.i_tsf] * self.dwdn / ev_per_hz
+            else:
+                self._sed_at_tsf = self.data[:,self.i_tsf]
+                    
+        return self._sed_at_tsf
+
+    @property
+    def dwdn(self):
+        if not hasattr(self, '_dwdn'):
+            tmp = np.abs(np.diff(self.wavelengths) / np.diff(self.frequencies))
+            self._dwdn = np.concatenate((tmp, [tmp[-1]]))
+        return self._dwdn
+
+    @property
+    def norm(self):
+        """
+        Normalization constant that forces self.Spectrum to have unity
+        integral in the (EminNorm, EmaxNorm) band.
+        """
+        if not hasattr(self, '_norm'):
+            j1 = np.argmin(np.abs(self.pf['pop_EminNorm'] - self.energies))
+            j2 = np.argmin(np.abs(self.pf['pop_EmaxNorm'] - self.energies))
+            
+            # Remember: energy axis in descending order
+            self._norm = np.trapz(self.sed_at_tsf[j2:j1][-1::-1], 
+                x=self.energies[j2:j1][-1::-1])
+                
+        return self._norm
+        
+    @property
+    def i_tsf(self):
+        if not hasattr(self, '_i_tsf'):
+            self._i_tsf = np.argmin(np.abs(self.pf['pop_tsf'] - self.times))
+        return self._i_tsf
+    
     @property
     def data(self):
         """
         Units = erg / s / A / [depends]
         
-        Where, if instantaneous burst, [depends] = Msun
+        Where, if instantaneous burst, [depends] = 1e6 Msun
         and if continuous SF, [depends] = Msun / yr
         
         """
@@ -116,7 +215,7 @@ class SynthesisModel(object):
     def LUV_of_t(self):
         return self.L_per_SFR_of_t()
     
-    def L_per_SFR_of_t(self, wave=1500., avg=1):
+    def L_per_SFR_of_t(self, wave=1600., avg=1):
         """
         UV luminosity per unit SFR.
         """
@@ -147,56 +246,14 @@ class SynthesisModel(object):
             
         return yield_UV
     
-    def L_per_SFR_test(self, t=100, wave=1500, avg=1):
-        """
-        UV luminosity per unit SFR.
-        """
-        
-        k = np.argmin(np.abs(self.pf['pop_tsf'] - self.times))    
-        if self.times[k] > self.pf['pop_tsf']:
-            k -= 1        
-        
-        j = np.argmin(np.abs(wave - self.wavelengths))
-        
-        dwavednu = np.diff(self.wavelengths) / np.diff(self.frequencies)
-        
-        if avg == 1:
-            yield_UV = self.data[j,k] * np.abs(dwavednu[j])
-        else:
-            assert avg % 2 != 0, "avg must be odd"
-            s = (avg - 1) / 2
-            
-            tmp = []
-            for i in range(avg):
-                this_w = self.data[j-s+i,k] * np.abs(dwavednu[j-s+i])
-        
-                tmp.append(this_w)
-                
-            yield_UV = np.mean(tmp)    
-        
-        # Current units: 
-        # if pop_ssp: 
-        #     erg / sec / Hz / (Msun / 1e6)
-        # else: 
-        #     erg / sec / Hz / (Msun / yr)
-        
-        # to erg / s / A / Msun
-        if self.pf['pop_ssp']:
-            yield_UV /= 1e6
-        # or erg / s / A / (Msun / yr)
-        else:
-            pass
-        
-        return yield_UV
-    
     def LUV(self):
         return self.L_per_SFR_of_t()[-1]
         
     @property
-    def L1500_per_sfr(self):
+    def L1600_per_sfr(self):
         return self.L_per_sfr()   
         
-    def L_per_sfr(self, wave=1500., avg=1):   
+    def L_per_sfr(self, wave=1600., avg=1):   
         """
         Specific emissivity at provided wavelength.
         
@@ -287,7 +344,7 @@ class SynthesisModel(object):
         # Must convert units
         E_avg = np.trapz(self.data[i1:i0,it] * self.energies[i1:i0], 
             x=self.wavelengths[i1:i0]) \
-            / np.trapz(self.data[i1:i0,it], x=self.wavelengths[i1:i0])    
+            / np.trapz(self.data[i1:i0,it], x=self.wavelengths[i1:i0])
         
         return E_avg
         
@@ -302,7 +359,7 @@ class SynthesisModel(object):
         # Convert to erg / g        
         return N * self.erg_per_phot(Emin, Emax) * self.cosm.b_per_g
  
-    def IntegratedEmission(self, Emin, Emax):    
+    def IntegratedEmission(self, Emin, Emax, energy_units=False):    
         """
         Compute photons emitted integrated in some band for all times.
         
@@ -319,8 +376,11 @@ class SynthesisModel(object):
         # Count up the photons in each spectral bin for all times
         flux = np.zeros_like(self.times)
         for i in range(self.times.size):
-            integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0] \
-                / (self.energies[i1:i0] * erg_per_ev)
+            if energy_units:
+                integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0]
+            else:
+                integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0] \
+                    / (self.energies[i1:i0] * erg_per_ev)
                         
             flux[i] = np.trapz(integrand, x=np.log(self.wavelengths[i1:i0]))
             
