@@ -29,7 +29,6 @@ This is known to occur in ``ares.physics.Hydrogen`` when using ``scipy.interpola
 ---------------------------------
 If the derivative of the signal is noisy (due to numerical artifacts, for example) then the extrema-finding can fail. If you can visually see three extrema in the global 21-cm signal but they are either absent or crazy in ``ares.simulations.Global21cm.turning_points``, then this might be going on. Try setting the ``smooth_derivative`` parameter to a value of 0.1 or 0.2.  This parameter will smooth the derivative with a boxcar of width :math:`\Delta z=` ``smooth_derivative`` before performing the extrema finding. Let me know if this happens (and under what circumstances), as it would be better to eliminate numerical artifacts than to smooth them out after the fact.
 
-
 ``AttributeError: No attribute blobs.``
 ---------------------------------------
 This is a bit of a red herring. If you're running an MCMC fit and saving 2-D blobs, which always require you to pass the name of the function, this error occurs if you supply a function that does not exist. Check for typos and/or that the function exists where it should.

@@ -45,7 +45,7 @@ def _kwargs_to_fn(**kwargs):
     """
     Determine filename of appropriate BPASS lookup table based on kwargs.
     """
-    
+
     # All files share this prefix
     fn = 'sed.bpass'  
     

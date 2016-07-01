@@ -2692,12 +2692,12 @@ class ModelSet(BlobFactory):
                     kwargs[parameter] = self.chain[i,j]
                     
             all_kwargs.append(kwargs.copy())
-            
+
         if loc is not None:
             return all_kwargs[0]
         else:
             return all_kwargs
-            
+
     def CorrelationMatrix(self, pars, ivar=None, fig=1, ax=None):
         """
         Plot correlation matrix.

@@ -39,19 +39,39 @@ aux_data = \
 
 os.chdir('input')
 
-if 'minimal' in options:
-    to_download = ['inits', 'secondary_electrons']
+files = []
+if len(options) > 0:
+    if 'minimal' in options:
+        to_download = ['inits', 'secondary_electrons']
+        files = [None, None]
+    else:
+        to_download = []
+        for key in options:
+            if re.search(':', key):
+                pre, post = key.split(':')
+                to_download.append(pre)
+                files.append(int(post))
+            else:
+                to_download.append(key)
+                files.append(None)
 else:
     to_download = aux_data.keys()
+    files = [None] * len(to_download)
 
-for direc in to_download:
+for i, direc in enumerate(to_download):
     if not os.path.exists(direc):
         os.mkdir(direc)
     
     os.chdir(direc)
     
     web = aux_data[direc][0]
-    for fn in aux_data[direc][1:-1]:
+    
+    if files[i] is None:
+        fns = aux_data[direc][1:-1]
+    else:
+        fns = [aux_data[direc][1:-1][files[i]]]
+        
+    for fn in fns:
     
         if os.path.exists(fn):
             if 'fresh' or 'clean' in options:
@@ -63,9 +83,11 @@ for direc in to_download:
         print "Downloading %s/%s..." % (web, fn)
         urllib.urlretrieve('%s/%s' % (web, fn), fn)
         
+        # If it's not a tarball, move on
         if not re.search('tar', fn):
             continue
             
+        # Otherwise, unpack it
         tar = tarfile.open(fn)
         tar.extractall()
         tar.close()
