@@ -199,7 +199,7 @@ class ObservedLF(object):
             if data[source]['wavelength'] != wavelength:
                 #shift = sed_model.
                 print "WARNING: %s wavelength=%iA, not %iA!" \
-                    % (src, data[source]['wavelength'], wavelength)
+                    % (source, data[source]['wavelength'], wavelength)
             #else:
             shift = 0.    
               

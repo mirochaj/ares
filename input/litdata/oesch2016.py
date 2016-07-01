@@ -12,6 +12,8 @@ Table 2 and volume estimate from text.
 
 redshifts = [11.1]
 
+wavelength = 1600. # I think?
+
 ULIM = -1e10
 
 data = {}

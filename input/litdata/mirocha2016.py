@@ -27,19 +27,28 @@ dpl = \
  'pop_yield{0}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
                              # should make this automatic
 
- 'pop_fesc{0}': 0.2,
+ 'pop_fesc{0}': 0.1,
  
- 'pop_calib_L1600': None,    # Change!
- 
+ # Solve LWB!
+ 'pop_solve_rte{0}': (10.2, 13.6),
 
+ 
  # SFE
  'pop_fstar{0}': 'php[0]',
  'php_func{0}[0]': 'dpl',
  'php_func_var{0}[0]': 'mass',
- 'php_func_par0{0}[0]': 0.052,       # Table 1 in paper (last 4 rows)
- 'php_func_par1{0}[0]': 3e11,
- 'php_func_par2{0}[0]': 0.47,        # Table 1 in paper (last 4 rows)
- 'php_func_par3{0}[0]': -0.65,       # Table 1 in paper (last 4 rows)
+ 
+ ##
+ # IMPORTANT
+ ##
+ 'php_func_par0{0}[0]': 0.05,       # Table 1 in paper (last 4 rows)
+ 'php_func_par1{0}[0]': 2.8e11,
+ 'php_func_par2{0}[0]': 0.49,       
+ 'php_func_par3{0}[0]': -0.61,      
+ 'pop_calib_L1600': 1.0185e28,      # Enforces Equation 13 in paper 
+ ##
+ #
+ ##z
 
  # Careful with X-ray heating
  'pop_sed{1}': 'mcd',
