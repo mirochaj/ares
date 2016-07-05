@@ -58,9 +58,8 @@ Other
 -----
 If the bundle you specify is not defined in ares.util.ParameterBundles, *ares* will search for a module of the same name in ares/input/litdata. For more on these kinds of modules, see :doc:`uth_litdata`.
 
-* ``mirocha2016``
-    Initialize a simulation of the global 21-cm signal using the galaxy
-    luminosity function as the underlying model, as in `Mirocha, Furlanetto, \& Sun (2016) <http://arxiv.org/abs/1607.00386>`_. Note that for this to work "out of the box," you will need a few lookup tables...
+* ``mirocha2016:dpl``
+    Parameters to initialize a simulation of the global 21-cm signal using a halo-mass-dependent star formation efficiency (a double power law (DPL) by default), as in `Mirocha, Furlanetto, \& Sun (2016) <http://arxiv.org/abs/1607.00386>`_. Note that for this to work "out of the box," you will need a few lookup tables...
 
 
 

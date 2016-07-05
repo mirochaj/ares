@@ -36,6 +36,7 @@ _pop_fcoll = \
 {
  'pop_model': 'fcoll',
  'pop_Tmin': 1e4,
+ 'pop_Tmax': None,
 }
 
 _pop_sfe = \

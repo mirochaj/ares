@@ -61,6 +61,9 @@ ARES = os.getenv("ARES")
 
 sqrt2 = np.sqrt(2.)    
 
+tiny_fcoll = 1e-12
+tiny_dfcolldz = 1e-12
+
 # Force CAMB to span broader range in wavenumber
 transfer_pars = \
 {
@@ -154,7 +157,9 @@ class HaloMassFunction(object):
                 self.fn = '%s.pkl' % fn
             elif os.path.exists('%s.hdf5' % fn):
                 self.fn = '%s.hdf5' % fn    
-                
+    
+    #def __getattr__(self, name):
+        #if name not in self:            
         if self.hmf_func == 'PS' and self.hmf_analytic:
             self.fn = None        
         
@@ -167,6 +172,8 @@ class HaloMassFunction(object):
                 sys.exit()
         else:
             self.load_table()
+            
+        #return self[name]    
             
     def load_table(self):
         """ Load table from HDF5 or binary. """
@@ -362,16 +369,29 @@ class HaloMassFunction(object):
         
         fcoll_spline = None
         
+        # TESTING: force dfcolldz_tab > 0
+        self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
+        
         spline = UnivariateSpline(self.ztab, np.log10(self.dfcolldz_tab), k=3)
         dfcolldz_spline = lambda z: 10**spline.__call__(z)
 
         return fcoll_spline, dfcolldz_spline, None
         
+    #@property
+    #def fcoll_spline_2d(self):
+    #    if not hasattr(self, '_fcoll_spline_2d'):
+    #        self._fcoll_spline_2d = RectBivariateSpline(self.z, 
+    #            self.logM, self.fcoll_tab, kx=3, ky=3)
+    #    return self._fcoll_spline_2d
+        
     def build_2d_spline(self):                            
         """ Setup splines for fcoll. """
         
-        self.fcoll_spline_2d = RectBivariateSpline(self.z, 
+        spl = self.fcoll_spline_2d
+        
+        self._fcoll_spline_2d = RectBivariateSpline(self.z, 
             self.logM, self.fcoll_tab, kx=3, ky=3)
+        
 
     def fcoll(self, z, logMmin):
         """
@@ -381,13 +401,14 @@ class HaloMassFunction(object):
         
         if self.pf['pop_Mmax'] is not None:
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
-                 - np.squeeze(self.fcoll_spline_2d(z, np.log10(self.pf['pop_Mmax'])))
+                 - np.squeeze(self.fcoll_spline_2d(z, 
+                    np.log10(self.pf['pop_Mmax'])))
         elif self.pf['pop_Tmax'] is not None:
             logMmax = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, 
                 mu=self.pf['mu']))
-            
+                
             if logMmin >= logMmax:
-                return 0.0
+                return tiny_fcoll
                 
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
                  - np.squeeze(self.fcoll_spline_2d(z, logMmax))             
@@ -522,7 +543,7 @@ class HaloMassFunction(object):
         What should we name this table?
         
         Convention:
-        hmt_FIT_logM_nM_logMmin_logMmax_z_nz_
+        hmf_FIT_logM_nM_logMmin_logMmax_z_nz_
         
         Read:
         halo mass function using FIT form of the mass function
@@ -531,6 +552,7 @@ class HaloMassFunction(object):
         
         
         """
+        
         try:
             M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
             prefix = 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.hmf_func, 
