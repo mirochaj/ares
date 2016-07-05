@@ -48,7 +48,7 @@ dpl = \
  'pop_calib_L1600': 1.0185e28,      # Enforces Equation 13 in paper 
  ##
  #
- ##z
+ ##
 
  # Careful with X-ray heating
  'pop_sed{1}': 'mcd',

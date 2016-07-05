@@ -53,7 +53,7 @@ Contents
     examples
     params
     fields
-    inits_tables
+    .. inits_tables
     uth
     troubleshooting
     updates

@@ -53,7 +53,7 @@ To switch back, ::
 
     hg update default
     
-For a nice discussion of the pros and cons of different branching techniques in mercurial, `this article is a nice place to start <http://stevelosh.com/blog/2009/08/a-guide-to-branching-in-mercurial/>`_. 
+For a discussion of the pros and cons of different branching techniques in mercurial, `this article is a nice place to start <http://stevelosh.com/blog/2009/08/a-guide-to-branching-in-mercurial/>`_. 
 
 *ares* versions
 ---------------
@@ -63,7 +63,7 @@ If you're unsure which version is best for you, see :doc:`history`.
 
 Don't have Python already?
 --------------------------
-If you do *not* already have Python installed, you might consider downloading `yt <http://yt-project.org/>`_, which has a convenient installation script that will download and install Python and many commonly-used Python packages for you.
+If you do *not* already have Python installed, you might consider downloading `yt <http://yt-project.org/>`_, which has a convenient installation script that will download and install Python and many commonly-used Python packages for you. `Anaconda <https://www.continuum.io/downloads>`_ is also good for this.
 
 Help
 ----

@@ -7,5 +7,6 @@ from .WriteData import CheckPoints
 from .ProgressBar import ProgressBar
 from .ParameterFile import ParameterFile
 from .MagnitudeSystem import MagnitudeSystem
+from .ParameterBundles import ParameterBundle
 from .RestrictTimestep import RestrictTimestep
 
