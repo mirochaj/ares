@@ -3,7 +3,7 @@
 The Metagalactic X-ray Background
 =================================
 In this example, we'll compute the Meta-Galactic X-ray background over a
-series of redshifts at high redshifts (:math:`10 \leq z \leq 40):
+series of redshifts (:math:`10 \leq z \leq 40`):
 
 ::
     
@@ -21,6 +21,10 @@ series of redshifts at high redshifts (:math:`10 \leq z \leq 40):
      'pop_EmaxNorm': 8e3,
      'pop_yield': 2.6e39,
      'pop_yield_units': 'erg/s/sfr',
+     
+     # Solution method
+     'pop_solve_rte': True,
+     'pop_tau_Nz': 400,
 
      'initial_redshift': 40.,
      'final_redshift': 10.,
@@ -87,6 +91,7 @@ and plot up the result:
 
 ::
 
+    import matplotlib.pyplot as pl
     from ares.physics.Constants import erg_per_ev
 
     pl.semilogy(E, flux[-1] * E * erg_per_ev, color='k')
@@ -104,6 +109,9 @@ Compare to the analytic solution, given by Equation A1 in `Mirocha (2014) <http:
 with :math:`\alpha = -1.5`, :math:`\beta = 0`, :math:`z=10`, and :math:`z_i=40`,
 
 ::
+
+    import numpy as np
+    from ares.physics.Constants import c, ev_per_hz    
 
     # Grab the GalaxyPopulation instance
     pop = mgb.pops[0] 
@@ -159,25 +167,6 @@ The optical depth lookup tables that ship with *ares* use ``pop_tau_Nz=400``
 as a default. If you run with ``pop_tau_Nz=500``, you should see some improvement in the soft X-ray spectrum. It'll take a few minutes to generate a new table. Run `$ARES/input/optical_depth/generate_optical_depth_tables.py` to make more!
 
 .. note :: Development of a dynamic optical depth calculation is underway, which can be turned on and off using the ``dynamic_tau`` parameter.
-    
-Tabulating the Optical Depth    
-----------------------------
-The above example relied on a pre-existing table of the IGM optical depth over
-redshift and photon energy, hence the parameter ``discrete_xrb``, which tells ares
-to go looking in ``$ARES/input/optical_depth`` for lookup tables. This technique
-was outlined originally in Appendix C of `Haardt & Madau (1996) <http://adsabs.harvard.edu/abs/1996ApJ...461...20H>`_.
-
-The shape of the lookup table is defined by the minimum and maximum redshift
-(10 and 40 by default), the number of redshift bins used to sample that
-interval, ``redshift_bins``, the minimum and maximum photon energies (0.2 and
-30 keV by default), and the number of photon energies (determined iteratively
-from the redshift and energy intervals and the value of ``redshift_bins``).
-
-To make optical depth tables of your own, see ``$ARES/examples/generate_optical_depth_tables.py``.
-By default, ares generates tables assuming the IGM is fully neutral, but that
-is not required. See Section 3 of `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_
-for more discussion of this technique.
-
 
 Alternative Methods
 -------------------

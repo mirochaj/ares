@@ -1373,7 +1373,7 @@ class ModelSet(BlobFactory):
                     f.close()
                     
                     # What follows is real cludgey...sorry, future Jordan
-                    nd = len(dat.shape) - 1
+                    nd = len(dat.shape) #- 1
                     assert nd == 1, "Help!"
                     
                     if ivar[k] is not None:

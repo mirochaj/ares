@@ -48,11 +48,7 @@ Now, let's set some parameters that define the properties of the source populati
      # Solution method
      'pop_solve_rte': True,
      'pop_tau_Nz': 400,
-     'include_H_Lya': False,
-
-     'sawtooth_nmax': 8,
-     'pop_sawtooth': True,
-
+     
      'initial_redshift': 7.,
      'final_redshift': 3.,
     }

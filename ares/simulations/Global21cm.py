@@ -122,6 +122,9 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                 from ..phenom.Gaussian21cm import Gaussian21cm as PhenomModel            
                 is_gauss = True
                 
+        if (not is_tanh) and (not is_gauss):
+            return False
+                
         model = PhenomModel(**kwargs)                
         self.pf = model.pf
             

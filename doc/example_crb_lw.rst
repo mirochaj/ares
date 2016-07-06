@@ -48,8 +48,6 @@ Now, let's set some parameters that define the properties of the source populati
      'pop_solve_rte': True,
      'lya_nmax': 8,
      'pop_tau_Nz': 400,
-     #'include_H_Lya': False,
-     #'pop_approx_tau': True,
 
      'initial_redshift': 40,
      'final_redshift': 10,

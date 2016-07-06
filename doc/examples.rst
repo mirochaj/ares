@@ -42,7 +42,7 @@ Parameter Studies and Inference
 More
 ----
 * :doc:`example_adv_RT_w_He`
-* :doc:`example_customization`
+.. * :doc:`example_customization`
 * :doc:`example_galaxypop`
 * :doc:`example_litdata`
 

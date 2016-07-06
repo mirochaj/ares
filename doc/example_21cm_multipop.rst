@@ -12,13 +12,12 @@ one of PopIII stars:
     pars = \
     {
      'Tmin{0}': 1e4,               # atomic cooling halos
-     'source_type{0}': 'star',
      'fstar{0}': 1e-1,
      'Nion{0}': 4e3,
      'Nlw{0}': 9600.,
      
      'Tmin{1}': 300.,              # molecular cooling halos
-     'source_type{1}': 'star',
+     'Tmax{1}': 1e4,             
      'fstar{1}': 1e-4,
      'Nion{1}': 30e3,
      'Nlw{1}': 4800.,
