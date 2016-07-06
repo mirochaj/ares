@@ -215,6 +215,11 @@ class GalaxyAggregate(HaloPopulation):
     @_sfrd.setter
     def _sfrd(self, value):
         self._sfrd_ = value
+            
+    def _sfrd_func(self, z):
+        # This is a cheat so that the SFRD spline isn't constructed
+        # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
+        return self.SFRD(z)
     
     def SFRD(self, z):
         """

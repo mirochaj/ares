@@ -44,7 +44,7 @@ pars = \
 def test(tol=1e-2):
 
     # First calculation: no sawtooth
-    mgb = ares.simulations.MetaGalacticBackground(include_H_Lya=False, **pars)
+    mgb = ares.simulations.MetaGalacticBackground(**pars)
     mgb.run()
     
     z, E, flux = mgb.get_history(flatten=True)
@@ -92,7 +92,7 @@ def test(tol=1e-2):
     ax2.set_ylabel(r'$J_{\alpha}$')
         
     # Compare to case where line cascade is included
-    mgb = ares.simulations.MetaGalacticBackground(include_H_Lya=True, **pars)
+    mgb = ares.simulations.MetaGalacticBackground(**pars)
     mgb.run()
     
     z, E, flux = mgb.get_history(flatten=True)

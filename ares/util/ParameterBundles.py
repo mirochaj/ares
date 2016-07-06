@@ -85,7 +85,6 @@ _sed_uv = \
  "pop_EmaxNorm": 24.6,        
  "pop_yield": 3e4, 
  "pop_yield_units": 'photons/baryon',
- "pop_solve_rte": False,
 }
 
 _pop_synth = \
@@ -101,8 +100,6 @@ _pop_synth = \
 
 _sed_xr = \
 {
- 'pop_type': 'galaxy', 
- 'pop_model': 'fcoll',
 
  # Emits X-rays
  "pop_lya_src": False,
@@ -125,12 +122,16 @@ _sed_xr = \
  "pop_yield_units": 'erg/s/SFR',
 }
 
-_crte = \
+_crte_xrb = \
 {
  "pop_solve_rte": True, 
  "pop_tau_Nz": 400,
  "pop_approx_tau": 'neutral',
 }
+
+_crte_lwb = _crte_xrb.copy()
+_crte_lwb['pop_solve_rte'] = (10.2, 13.6)
+_crte_lwb['pop_approx_tau'] = True
 
 # Some different spectral models
 _uvsed_toy = dict(pop_yield=4000, pop_yield_units='photons/b',
@@ -139,18 +140,18 @@ _uvsed_bpass = dict(pop_sed='eldridge2009', pop_binaries=False, pop_Z=0.02,
     pop_Emin=10.2, pop_Emax=24.6, pop_EminNorm=13.6, pop_EmaxNorm=24.6)
 _uvsed_s99 = _uvsed_bpass.copy()
 _uvsed_s99['pop_sed'] = 'leitherer1999'
-_mcd = dict(pop_yield=2.6e39, pop_yield_units='erg/s/sfr',
-    pop_Emin=2e2, pop_Emax=3e4, pop_EminNorm=5e2, pop_EmaxNorm=8e3,
-    pop_sed='mcd', pop_logN=-np.inf, pop_solve_rte=False,
-    pop_tau_Nz=1e3, pop_approx_tau='neutral')
 
+_mcd = _sed_xr.copy()
+_mcd['pop_sed'] = 'mcd'
 _pl = _mcd.copy()
 _pl['pop_sed'] = 'pl'
 
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'xray': _pop_sfe, 'sfe': _pop_sfe, 'lf': _pop_sfe},
- 'sed': {'uv': _sed_uv, 'pl': _pl, 'mcd': _mcd, 'bpass': _uvsed_bpass},
+ 'sed': {'uv': _sed_uv, 'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 
+    'bpass': _uvsed_bpass, 's99': _uvsed_s99},
+ 'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'sim': {'gs': None}, # problem types
 }
 

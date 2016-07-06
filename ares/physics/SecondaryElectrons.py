@@ -49,10 +49,12 @@ class SecondaryElectrons:
         
         if os.path.exists(os.path.join(ARES,prefix,'secondary_electron_data.hdf5')):
             self.fn = os.path.join(ARES,prefix,'secondary_electron_data.hdf5')
+            have_hdf5_file = True
         else:
             self.fn = os.path.join(ARES,prefix,'secondary_electron_data.pkl')
+            have_hdf5_file = False
 
-        if have_h5py:
+        if have_h5py and have_hdf5_file:
             f = h5py.File(self.fn, 'r')
 
             # Read in Furlanetto & Stoever lookup tables

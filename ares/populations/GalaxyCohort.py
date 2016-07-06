@@ -624,13 +624,6 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         MAB, phi = self.phi_of_M(z)
 
         return np.interp(MUV, MAB[-1::-1], self.halos.M[-1:1:-1])
-        
-
-    def lf_from_pars(self, z, pars):
-        for i, par in enumerate(pars):
-            self.pf['php_Mfun_par%i' % i] = par
-
-        return self.phi_of_M(z)
 
     @property
     def Mmin(self):
@@ -656,8 +649,12 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         if not hasattr(self, '_sfr_tab'):
             self._sfr_tab = np.zeros([self.halos.Nz, self.halos.Nm])
             for i, z in enumerate(self.halos.z):
-                self._sfr_tab[i] = self.eta[i] * self.MAR(z, self.halos.M) \
-                    * self.cosm.fbar_over_fcdm * self.SFE(z, self.halos.M)
+                if self.pf['pop_model'] == 'sfe':
+                    self._sfr_tab[i] = self.eta[i] * self.MAR(z, self.halos.M) \
+                        * self.cosm.fbar_over_fcdm * self.SFE(z, self.halos.M)
+                elif self.pf['pop_model'] == 'sfe_tab':
+                    self._sfr_tab[i] = self.eta[i] * self.MAR(z, self.halos.M) \
+                        * self.cosm.fbar_over_fcdm * self.SFE(z, self.halos.M)
     
                 mask = self.halos.M >= self.Mmin[i]
                 self._sfr_tab[i] *= mask

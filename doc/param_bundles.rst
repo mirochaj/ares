@@ -53,7 +53,17 @@ Currently, the following SED bundles are supported:
 
 * ``sed:s99``
     A stellar SED from the original *starburst99* dataset.
+    
+Physics
+-------
 
+* ``physics:lwb``
+    A few parameters that turn on a proper treatment of the Lyman-Werner background.
+    
+
+* ``physics:xrb``
+    A few parameters that turn on a proper treatment of the X-ray background.
+    
 Other
 -----
 If the bundle you specify is not defined in ares.util.ParameterBundles, *ares* will search for a module of the same name in ares/input/litdata. For more on these kinds of modules, see :doc:`uth_litdata`.

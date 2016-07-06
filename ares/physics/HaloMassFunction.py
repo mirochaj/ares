@@ -130,22 +130,13 @@ class HaloMassFunction(object):
         
         """
         self.pf = ParameterFile(**kwargs)
-        self.cosm = Cosmology(
-            omega_m_0=self.pf['omega_m_0'], 
-            omega_l_0=self.pf['omega_l_0'], 
-            omega_b_0=self.pf['omega_b_0'],  
-            hubble_0=self.pf['hubble_0'],  
-            helium_by_number=self.pf['helium_by_number'], 
-            cmb_temp_0=self.pf['cmb_temp_0'], 
-            approx_highz=self.pf['approx_highz'], 
-            sigma_8=self.pf['sigma_8'],
-            primordial_index=self.pf['primordial_index'])
         
+        # Read in a few parameters for convenience        
         self.fn = self.pf["hmf_table"]
         self.hmf_func = self.pf['hmf_func']
-        
         self.hmf_analytic = self.pf['hmf_analytic']
         
+        # Verify that Tmax is set correctly
         if self.pf['pop_Tmax'] is not None:
             assert self.pf['pop_Tmax'] > self.pf['pop_Tmin'], \
                 "Tmax must exceed Tmin!"
@@ -174,6 +165,22 @@ class HaloMassFunction(object):
             self.load_table()
             
         #return self[name]    
+            
+    @property
+    def cosm(self):
+        if not hasattr(self, '_cosm'):
+            self._cosm = Cosmology(
+                omega_m_0=self.pf['omega_m_0'], 
+                omega_l_0=self.pf['omega_l_0'], 
+                omega_b_0=self.pf['omega_b_0'],  
+                hubble_0=self.pf['hubble_0'],  
+                helium_by_number=self.pf['helium_by_number'], 
+                cmb_temp_0=self.pf['cmb_temp_0'], 
+                approx_highz=self.pf['approx_highz'], 
+                sigma_8=self.pf['sigma_8'],
+                primordial_index=self.pf['primordial_index'])        
+
+        return self._cosm
             
     def load_table(self):
         """ Load table from HDF5 or binary. """
@@ -386,13 +393,10 @@ class HaloMassFunction(object):
         
     def build_2d_spline(self):                            
         """ Setup splines for fcoll. """
-        
-        spl = self.fcoll_spline_2d
-        
+                
         self._fcoll_spline_2d = RectBivariateSpline(self.z, 
             self.logM, self.fcoll_tab, kx=3, ky=3)
         
-
     def fcoll(self, z, logMmin):
         """
         Return fraction of mass in halos more massive than 10**logMmin.

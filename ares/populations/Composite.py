@@ -44,7 +44,7 @@ class CompositePopulation(object):
                 if pf['pop_model'] == 'fcoll':
                     self.pops[i] = GalaxyAggregate(**pf)
                 else:
-                    self.pops[i] = GalaxyPopulation(**pf)
+                    self.pops[i] = GalaxyCohort(**pf)
             else:
                 raise ValueError('Unrecognized pop_type %s.' % pf['pop_type'])  
 

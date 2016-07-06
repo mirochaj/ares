@@ -381,7 +381,12 @@ def PopulationParameters():
     "pop_sfe": None,
     "pop_mlf": None,
     "pop_sfr": None,
-
+    
+    "pop_tab_z": None,
+    "pop_tab_Mh": None,
+    "pop_tab_sfe": None,
+    "pop_tab_sfr": None,
+            
     "pop_Tmin": 1e4,
     "pop_Tmax": None,
     "pop_Mmin": None,
@@ -522,7 +527,7 @@ def StellarParameters():
 def BlackHoleParameters():
     pf = \
     {
-    "source_mass": 1e5,
+    #"source_mass": 1e5,
     "source_rmax": 1e3,
     "source_alpha": -1.5,
     
