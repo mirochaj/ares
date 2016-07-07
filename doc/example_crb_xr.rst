@@ -166,7 +166,7 @@ parameter, e.g.,
 The optical depth lookup tables that ship with *ares* use ``pop_tau_Nz=400``
 as a default. If you run with ``pop_tau_Nz=500``, you should see some improvement in the soft X-ray spectrum. It'll take a few minutes to generate a new table. Run `$ARES/input/optical_depth/generate_optical_depth_tables.py` to make more!
 
-.. note :: Development of a dynamic optical depth calculation is underway, which can be turned on and off using the ``dynamic_tau`` parameter.
+.. .. note :: Development of a dynamic optical depth calculation is underway, which can be turned on and off using the ``dynamic_tau`` parameter.
 
 Alternative Methods
 -------------------

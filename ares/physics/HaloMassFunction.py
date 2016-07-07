@@ -67,7 +67,6 @@ tiny_dfcolldz = 1e-12
 # Force CAMB to span broader range in wavenumber
 transfer_pars = \
 {
- 'transfer__kmax': 0.0,
  'transfer__kmax': 100.,
  'transfer__k_per_logint': 0.,
 }
