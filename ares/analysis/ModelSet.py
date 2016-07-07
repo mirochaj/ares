@@ -2663,6 +2663,8 @@ class ModelSet(BlobFactory):
         
         N : int
             Maximum number of models to return.
+        include_bkw : bool  
+            Include base_kwargs?
             
         Returns
         -------
@@ -2672,6 +2674,9 @@ class ModelSet(BlobFactory):
         
         all_kwargs = []
         for i, element in enumerate(self.chain):
+            
+            if self.mask[i]:
+                continue
             
             if loc is not None:
                 if i != loc:

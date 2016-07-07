@@ -90,7 +90,7 @@ or instead, the position of the emission maximum with the same color coding:
 
 ::
 
-    anl.Scatter(['z_D', 'igm_dTb_D'], c='tau_e')
+    anl.Scatter(['z_D', 'igm_dTb_D'], c='tau_e', fig=2)
     
 See :doc:`example_grid_analysis` for more information.
 

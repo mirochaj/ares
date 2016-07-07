@@ -53,7 +53,15 @@ The keyword argument ``ivar`` is short for "independent variables" -- it is ``No
     
     print anl.blob_ivars
     
-So our choice of :math:`z=10` should be OK.    
+So our choice of :math:`z=10` should be OK.  
+
+If you forget what fields are available for analysis, see:
+
+::
+
+    print anl.blob_names, anl.blob_ivars
+
+.. note :: Calling quantities of interest `blobs` was inspired by the arbitrary meta-data blobs in `emcee <http://dan.iel.fm/emcee/current/>`_.   
  
 For more 21-cm-focused analyses, you may want to view how the extrema in the
 global 21-cm signal change as a function of the model parameters:
@@ -82,15 +90,62 @@ This will create a new blob, called ``nu_D``, that can be used for subsequent an
 
     # Scatterplot showing where emission peak occurs
     ax = anl.Scatter(['nu_D', 'dTb_D'], c='tau_e', fig=6, edgecolors='none')
-    
-If you forget what fields are available for analysis (and at what redshifts),
-see:
+
+Problem Realizations
+--------------------    
+You may have noticed that in this model grid there are three realizations whose emission maxima seem to occur at :math:`\delta T_b \approx 0`. In general, this is possible, but given the regularity of the grid points in parameter space it seems unlikely that any individual model would stray substantially from the locus of all other models.
+
+To inspect potentially problematic realizations, it is first useful to isolate them from the rest. You can select them visually by first invoking
 
 ::
 
-    print anl.blob_names, anl.blob_ivars
+    anl.SelectModels()
     
-.. note :: Calling quantities of interest `blobs` was inspired by the arbitrary meta-data blobs in `emcee <http://dan.iel.fm/emcee/current/>`_. 
+and then clicking and dragging within the plot window to define a rectangle, starting from its upper left corner (click) and ending with its bottom right corner (release). The set of models bounded by this rectangle will be saved as a new ``ModelSet`` object that can be used just like the original one. Each successive "slice" will be saved as attributes ``slice_0``, ``slice_1``, etc. that you can assign to a new variable, as, e.g.
+
+::
+
+    slc0 = anl.slice_0
+    slc0.Scatter(['nu_D', 'dTb_D'], c='tau_e', fig=7, edgecolors='none')
+    
+Alternatively, you can specify a rectangle by hand. For example, 
+
+::
+
+    slc = anl.Slice([100, 120, 0, 10], pars=['nu_D', 'dTb_D'])
+    
+extracts all models with ``100 <= nu_D <= 120`` and ``0 <= dTb_D <= 10``. Check:
+
+::
+
+    slc.Scatter(['nu_D', 'dTb_D'], c='tau_e', fig=8, edgecolors='none')
+    
+If you wanted to examine models in more detail, you could re-run them. Collecting the parameter dictionaries required to do so is easy:
+
+::
+
+    kwargs_list = slc.AssembleParametersList(include_bkw=True)
+    
+This routine returns a list in which each element is a dictionary of parameters for a single model. The keyword argument ``include_bkw`` controls whether the "base kwargs," i.e., those that are shared by all models in the grid, are included in each list element. If they are (as above), then any individual dictionary can be used to initialize a simulation. For example:
+
+::
+    
+    ax = None
+    for kwargs in kwargs_list:
+        sim = ares.simulations.Global21cm(**kwargs)
+        sim.run()
+        ax = sim.GlobalSignature(color='b', alpha=0.5, ax=ax)
+    
+If you've got models that seem to have something wrong with them, sending me the dictionary (or a list of them as above) will help a lot. Just do something like:
+
+::
+
+    import pickle
+    f = open('problematic_models.pkl', 'wb')
+    pickle.dump(f)
+    f.close()
+    
+    
 
 .. Confidence Contours
 .. -------------------
