@@ -383,7 +383,7 @@ def print_pop(pop):
         else:
             print line("SF          : in halos w/ M >= 10**%g Msun" \
                 % (round(np.log10(pop.pf['pop_Mmin']), 2)))
-        print line("HMF         : %s" % pop.pf['hmf_func'])
+        print line("HMF         : %s" % pop.pf['hmf_model'])
 
     # Parameterized halo properties
     if pop.pf.Nphps > 0:

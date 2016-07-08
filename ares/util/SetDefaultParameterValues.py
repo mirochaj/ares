@@ -552,7 +552,7 @@ def BlackHoleParameters():
 def HaloMassFunctionParameters():
     pf = \
     {
-    "hmf_func": 'ST',
+    "hmf_model": 'ST',
     
     "hmf_instance": None,
     "hmf_load": True,
