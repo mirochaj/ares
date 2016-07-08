@@ -220,13 +220,7 @@ class HaloMassFunction(object):
     @property
     def MF(self):
         if not hasattr(self, '_MF'):
-            cosmology = {'omegav':self.cosm.omega_l_0,
-                         'omegac':self.cosm.omega_cdm_0,
-                         'omegab':self.cosm.omega_b_0,
-                         'sigma_8':self.cosm.sigma8,
-                         'h':self.cosm.h70,
-                         'n':self.cosm.primordial_index}
-                         
+
             self.logMmin = self.pf['hmf_logMmin']
             self.logMmax = self.pf['hmf_logMmax']
             self.zmin = self.pf['hmf_zmin']
@@ -240,8 +234,9 @@ class HaloMassFunction(object):
             # Initialize Perturbations class
             self._MF = MassFunction(Mmin=self.logMmin, Mmax=self.logMmax, 
                 dlog10m=self.dlogM, z=self.z[0], 
-                hmf_model=self.hmf_func, #cosmo_params=cosmology,
-                growth_params=growth_pars, **transfer_pars)
+                hmf_model=self.hmf_func, cosmo_params=self.cosmo_params,
+                growth_params=growth_pars, sigma_8=self.cosm.sigma8, 
+                n=self.cosm.primordial_index, **transfer_pars)
                 
         return self._MF   
 
@@ -258,6 +253,12 @@ class HaloMassFunction(object):
     @fcoll_tab.setter
     def fcoll_tab(self, value):
         self._fcoll_tab = value
+        
+    @property
+    def cosmo_params(self):
+        return {'Om0':self.cosm.omega_m_0,
+                'Ob0':self.cosm.omega_b_0,
+                'H0':self.cosm.h70*100}    
                 
     def build_fcoll_tab(self):
         """
@@ -265,13 +266,6 @@ class HaloMassFunction(object):
         
         Can be run in parallel.
         """    
-        
-        cosmology = {'omegav':self.cosm.omega_l_0,
-                     'omegac':self.cosm.omega_cdm_0,
-                     'omegab':self.cosm.omega_b_0,
-                     'sigma_8':self.cosm.sigma8,
-                     'h':self.cosm.h70,
-                     'n':self.cosm.primordial_index}
         
         self.logMmin = self.pf['hmf_logMmin']
         self.logMmax = self.pf['hmf_logMmax']
@@ -291,8 +285,9 @@ class HaloMassFunction(object):
         # Initialize Perturbations class
         self.MF = MassFunction(Mmin=self.logMmin, Mmax=self.logMmax, 
             dlog10m=self.dlogM, z=self.z[0], 
-            hmf_model=self.hmf_func, #cosmo_params=cosmology, 
-            growth_params=growth_pars, **transfer_pars)
+            hmf_model=self.hmf_func, cosmo_params=self.cosmo_params, 
+            growth_params=growth_pars, sigma_8=self.cosm.sigma8, 
+            n=self.cosm.primordial_index, **transfer_pars)
             
         # Masses in hmf are in units of Msun * h
         self.M = self.MF.M / self.cosm.h70

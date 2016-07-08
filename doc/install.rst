@@ -9,7 +9,7 @@ Installation
 and optionally:
 
 * `python-progressbar <https://code.google.com/p/python-progressbar/>`_
-* `hmf <http://hmf.readthedocs.org/en/latest/>`_ (halo mass function calculator written by Stephen Murray)
+* `hmf <http://hmf.readthedocs.org/en/latest/>`_ 
 * `mpi4py <http://mpi4py.scipy.org>`_
 * `h5py <http://www.h5py.org/>`_
 * `setuptools <https://pypi.python.org/pypi/setuptools>`_
