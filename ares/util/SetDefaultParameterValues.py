@@ -632,6 +632,12 @@ def ControlParameters():
     "tau_ifront": 0.5,
     "restricted_timestep": ['ions', 'neutrals', 'electrons', 'temperature'],
     
+    # k-space resolution
+    "powspec_logkmin": -3,
+    "powspec_logkmax": 2.,
+    "powspec_dlogk": 0.1,
+    "powspec_z": 10.,
+    
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     "stop_xavg": 0.999,   # stop at given ionized fraction
