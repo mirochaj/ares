@@ -556,6 +556,7 @@ def HaloMassFunctionParameters():
     
     "hmf_instance": None,
     "hmf_load": True,
+    "hmf_load_ps": False,
     "hmf_table": None,
     "hmf_analytic": False,
     
@@ -660,6 +661,13 @@ def ControlParameters():
     "tau_Nz": 400,
     "tau_table": None,
     "tau_prefix": tau_prefix,
+
+    # Power spectrum stuff
+    "powspec_logkmin": -3,
+    "powspec_logkmax": 2,
+    "powspec_dlogk": 0.5,    
+    "powspec_dlogr": 0.1,
+    "powspec_band": (11.2, 13.6),
 
     # File format
     "preferred_format": 'pkl',

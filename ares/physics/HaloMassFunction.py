@@ -193,6 +193,9 @@ class HaloMassFunction(object):
             self.M = 10**self.logM
             self.fcoll_tab = f['fcoll'].value
             self.dndm = f['dndm'].value
+            if self.pf['hmf_load_ps']:
+                self.bias_tab = f['bias'].value
+                self.psCDM_tab = f['psCDM'].value
             f.close()
                         
         elif re.search('.pkl', self.fn):
@@ -202,11 +205,14 @@ class HaloMassFunction(object):
             self.M = 10**self.logM
             self.fcoll_spline_2d = pickle.load(f)
             self.dndm = pickle.load(f)
-            try:
-                self.ngtm = pickle.load(f)
-                self.mgtm = pickle.load(f)
-            except EOFError:
-                pass
+            
+            self.ngtm = pickle.load(f)
+            self.mgtm = pickle.load(f)
+            
+            if self.pf['hmf_load_ps']:
+                self.bias = pickle.load(f)
+                self.psCDM = pickle.load(f)
+            
             f.close()
 
         else:
@@ -230,10 +236,10 @@ class HaloMassFunction(object):
             
             self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
             self.z = np.linspace(self.zmin, self.zmax, self.Nz)             
-                         
+
             # Initialize Perturbations class
             self._MF = MassFunction(Mmin=self.logMmin, Mmax=self.logMmax, 
-                dlog10m=self.dlogM, z=self.z[0], 
+                dlog10m=self.dlogM, z=self.z[0],
                 hmf_model=self.hmf_func, cosmo_params=self.cosmo_params,
                 growth_params=growth_pars, sigma_8=self.cosm.sigma8, 
                 n=self.cosm.primordial_index, **transfer_pars)
@@ -295,11 +301,15 @@ class HaloMassFunction(object):
         self.lnM = np.log(self.M)
         
         self.Nm = self.M.size
+
+        self.k = self.MF.k * self.cosm.hubble_0
         
         self.dndm = np.zeros([self.Nz, self.Nm])
         self.mgtm = np.zeros_like(self.dndm)
         self.ngtm = np.zeros_like(self.dndm)
         fcoll_tab = np.zeros_like(self.dndm)
+        self.bias_tab = np.zeros_like(self.dndm)
+        self.psCDM_tab = np.zeros([len(self.z), len(self.k)])
         
         pb = ProgressBar(len(self.z), 'fcoll')
         pb.start()
@@ -324,6 +334,11 @@ class HaloMassFunction(object):
                 self.mgtm[i] = self.MF.rho_gtm.copy()
                 self.ngtm[i] = self.MF.ngtm.copy() * self.cosm.h70**3
                 
+                # For power spectra
+                self.bias_tab[i] = 1. + (0.75 * self.MF.nu - 1.) / self.MF.delta_c + \
+                    (2. * 0.3 / self.MF.delta_c) / (1. + (0.75 * self.MF.nu)**0.3)
+                self.psCDM_tab[i] = self.MF.power / self.cosm.h70**3
+                
                 # Remember that mgtm and mean_density have factors of h**2
                 # so we're OK here dimensionally
                 fcoll_tab[i] = self.mgtm[i] / self.MF.mean_density0
@@ -345,16 +360,23 @@ class HaloMassFunction(object):
             tmp3 = np.zeros_like(self.ngtm)
             nothing = MPI.COMM_WORLD.Allreduce(self.ngtm, tmp3)
             self.ngtm = tmp3
-            #
-            #tmp4 = np.zeros_like(self.mgtm)
-            #nothing = MPI.COMM_WORLD.Allreduce(self.mgtm, tmp4)
-            #self.mgtm = tmp4
+            
+            tmp4 = np.zeros_like(self.bias_tab)
+            nothing = MPI.COMM_WORLD.Allreduce(self.bias_tab, tmp4)
+            self.bias_tab = tmp4
+            
+            tmp5 = np.zeros_like(self.psCDM_tab)
+            nothing = MPI.COMM_WORLD.Allreduce(self.psCDM_tab, tmp5)
+            self.psCDM_tab = tmp5
+            
         else:
             _fcoll_tab = fcoll_tab   
                     
         # Fix NaN elements
         _fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
         self._fcoll_tab = _fcoll_tab
+                    
+                    
                     
     def build_1d_splines(self, Tmin, mu=0.6):
         """
@@ -396,6 +418,28 @@ class HaloMassFunction(object):
     @fcoll_spline_2d.setter
     def fcoll_spline_2d(self, value):
         self._fcoll_spline_2d = value
+      
+    @property
+    def bias(self):
+        if not hasattr(self, '_bias'):
+            self._bias = RectBivariateSpline(self.z, 
+                self.logM, self.bias_tab, kx=3, ky=3)
+        return self._bias 
+    
+    @bias.setter
+    def bias(self, value):
+        self._bias = value
+    
+    @property
+    def psCDM(self):
+        if not hasattr(self, '_psCDM'):
+            self._psCDM = RectBivariateSpline(self.z, 
+                self.k, self.psCDM_tab, kx=3, ky=3)
+        return self._psCDM
+        
+    @psCDM.setter
+    def psCDM(self, value):
+        self._psCDM = value    
         
     def fcoll(self, z, logMmin):
         """
@@ -628,6 +672,8 @@ class HaloMassFunction(object):
             f.create_dataset('dndm', data=self.dndm)
             f.create_dataset('ngtm', data=self.ngtm)
             f.create_dataset('mgtm', data=self.mgtm)            
+            f.create_dataset('bias', data=self.bias_tab)            
+            f.create_dataset('psCDM', data=self.psCDM_tab)            
             f.close()
             
             print 'Wrote %s.' % fn
@@ -661,6 +707,8 @@ class HaloMassFunction(object):
             pickle.dump(self.dndm, f)
             pickle.dump(self.ngtm, f)
             pickle.dump(self.mgtm, f)
+            pickle.dump(self.bias, f)
+            pickle.dump(self.psCDM, f)
             f.close()
             
             print 'Wrote %s.' % fn

@@ -1,4 +1,3 @@
-import ParameterBundles
 from .GridND import GridND
 from .Misc import get_hg_rev
 from .Aesthetics import labels

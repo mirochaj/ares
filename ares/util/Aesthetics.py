@@ -199,11 +199,16 @@ sfe_parameters = \
 }
 
 for i in range(6):
-    sfe_parameters['php_Mfun_par%i' % i] = r'$p_{%i}$' %i
+    sfe_parameters['php_func_par%i' % i] = r'$p_{%i}$' %i
     for j in range(6):
-        sfe_parameters['php_Mfun_par%i_par%i' % (i,j)] = r'$p_{%i,%i}$' % (i,j)
+        sfe_parameters['php_func_par%i_par%i' % (i,j)] = r'$p_{%i,%i}$' % (i,j)
         
+powspec = \
+{
+ 'k': r'$k \ [\mathrm{cMpc}^{-1}]$',
+ 'dpow': r'$\Delta^2(k)$',
 
+}
 other = \
 {
  'load': 'processor #',
@@ -219,6 +224,7 @@ labels.update(lf_parameters)
 labels.update(pop_parameters)
 labels.update(tp_parameters)
 labels.update(sfe_parameters)
+labels.update(powspec)
 
 # Add custom labels
 labels.update(custom_labels)

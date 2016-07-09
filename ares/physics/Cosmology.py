@@ -13,7 +13,8 @@ Description:
 import numpy as np
 from scipy.integrate import quad
 from ..util.ParameterFile import ParameterFile
-from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun
+from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
+    cm_per_mpc
 
 class Cosmology(object):
     def __init__(self, **kwargs):        
@@ -47,7 +48,7 @@ class Cosmology(object):
         self.g_per_baryon = m_H / (1. - self.Y) / (1. + self.y)
         self.b_per_g = 1. / self.g_per_baryon
         self.baryon_per_Msun = g_per_msun / self.g_per_baryon
-         
+        
         # Decoupling (gas from CMB) redshift       
         self.zdec = 150. * (self.omega_b_0 * self.h70**2 / 0.023)**0.4 - 1.
 
@@ -67,6 +68,9 @@ class Cosmology(object):
         self.nHe0 = self.y * self.nH0
         self.ne0 = self.nH0 + 2. * self.nHe0
         #self.n0 = self.nH0 + self.nHe0 + self.ne0
+        
+        # Mean density in Msun / Mpc**3
+        self.mean_density0 = self.rho_m_z0 * cm_per_mpc**3 / g_per_msun
         
         self.nH = lambda z: self.nH0 * (1. + z)**3
         self.nHe = lambda z: self.nHe0 * (1. + z)**3

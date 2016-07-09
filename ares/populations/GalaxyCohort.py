@@ -25,7 +25,7 @@ from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..phenom.HaloProperty import ParameterizedHaloProperty, \
     Mh_dep_parameters
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
-    k_B, h_p, erg_per_ev, ev_per_hz
+    k_B, h_p, erg_per_ev, ev_per_hz, c
 
 try:
     from scipy.misc import derivative
@@ -948,7 +948,58 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             return rhoL / erg_per_phot
         else:
             return self.rho_N(z, Emin, Emax)
-                 
+             
+    def ScalingFactor(self, z):
+        return (self.cosm.h70 / 0.7)**-1 * (self.cosm.omega_m_0 / 0.27)**-0.5 * ((1. + z) / 21.)**-0.5
+    
+    def ModulationFactor(self, z0, z=None, r=None, lc=False):
+        """
+        Return the modulation factor as a function of redshift or comoving distance
+        - Reference: Ahn et al. 2009
+    
+        :param z0: source redshift
+        :param z: the redshift (whose LW intensity is) of interest
+        :param r: the distance from the source in cMpc
+        :lc: True or False, including the light cone effect
+    
+        :return:
+        """
+        if z != None and r == None:
+            r_comov = self.cosm.ComovingRadialDistance(z0, z) / cm_per_mpc
+        elif z == None and r != None:
+            r_comov = r
+        else:
+            raise ValueError('Must specify either "z" or "r".')
+        alpha = self.ScalingFactor(z0)
+        _a = 0.167
+        r_star = c * _a * self.cosm.HubbleTime(z0) * (1.+z0) / cm_per_mpc
+        ans = np.maximum(1.7 * np.exp(-(r_comov / 116.29 / alpha)**0.68) - 0.7, 0.0)
+        if lc == True:
+            ans *= np.exp(-r/r_star)
+    
+        return ans
+    
+    def FluxProfile(self, z, r, logm, lc=False):
+        kw = {'z':z, 'r':r, 'logm':logm}
+        iM = np.argmin(np.abs(logm - self.halos.logM))
+        return self.Lh(z)[iM] * self.ModulationFactor(z, r=r) / (4. * np.pi * r**2)
+    
+    def FluxProfileFT(self, z, k, logm, lc=False):
+        _r_LW = 97.39 * self.ScalingFactor(z)
+        #rarr = np.linspace(1e-5, _r_LW, Nr)
+        
+        dlogr = self.pf['powspec_dlogr']
+        
+        logr = np.arange(-5, _r_LW+dlogr, dlogr)
+        rarr = 10**logr
+        
+        _numerator = 4. * np.pi * rarr**2 * (np.sin(k * rarr) / (k * rarr)) \
+            * self.FluxProfile(z, rarr, logm, lc=lc)
+        _denominator = 4. * np.pi * rarr**2 * self.FluxProfile(z, rarr, logm, lc=lc)
+        
+        return np.trapz(_numerator * rarr, dx=dlogr) \
+             / np.trapz(_denominator * rarr, dx=dlogr)
+        
 # Backwards compatible        
 GalaxyPopulation = GalaxyCohort         
 

@@ -11,9 +11,9 @@ Description:
 """
 
 import numpy as np
+from ..physics import HaloModel
 from .Population import Population
 from scipy.integrate import cumtrapz
-from ..physics import HaloMassFunction
 from ..util.PrintInfo import print_pop
 from ..physics.Constants import cm_per_mpc, s_per_yr, g_per_msun
 
@@ -83,7 +83,7 @@ class HaloPopulation(Population):
             if self.pf['hmf_instance'] is not None:
                 self._halos = self.pf['hmf_instance']
             else:
-                self._halos = HaloMassFunction(**self.pf)
+                self._halos = HaloModel(**self.pf)
                 
         return self._halos
 
