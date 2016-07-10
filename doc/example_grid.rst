@@ -49,7 +49,15 @@ and create the ``ModelGrid`` instance,
 
     mg = ares.inference.ModelGrid(**base_pars)
     
-At this point we have yet to specify which parameters will define the axes of the model grid. Since we set ``tanh_model=True``, we have 9 parameters to choose from. Let’s take the reionization redshift, ``tanh_xz0``, and duration, ``tanh_xdz``, and sample them over a reasonable redshift interval with a spacing of :math:`\Delta z = 0.1`
+At this point we have yet to specify which parameters will define the axes of the model grid. Since we set ``tanh_model=True``, we have 9 parameters to choose from: a step height, step width, and step redshift for the Ly-:math:`\alpha`, thermal, and ionization histories:
+
+* Ly-:math:`\alpha` history parameters: ``tanh_J0``, ``tanh_Jz0``, ``tanh_Jdz``.
+* Thermal history parameters: ``tanh_T0``, ``tanh_Tz0``, ``tanh_Tdz``.
+* Ionization history parameters: ``tanh_x0``, ``tanh_xz0``, ``tanh_xdz``.
+
+The Ly-:math:`\alpha` step height, ``tanh_J0``, must be provided in units of :math:`J_{21} = 10^{-21} \mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cm}^{-2} \ \mathrm{Hz}^{-1} \ \mathrm{sr}^{-1}`, while the temperature step height is assumed to be in Kelvin. The ionization step height should not exceed unity -- in fact it's safe to assume ``tanh_x0=1`` (we know that reionization *ends*!). See `Harker et al. (2016) <http://adsabs.harvard.edu/abs/2016MNRAS.455.3829H>`_ for more information about the *tanh* model.
+
+Let’s take the reionization redshift, ``tanh_xz0``, and duration, ``tanh_xdz``, and sample them over a reasonable redshift interval with a spacing of :math:`\Delta z = 0.1`
 
 ::
 
@@ -96,13 +104,30 @@ See :doc:`example_grid_analysis` for more information.
 
 More Expensive Models
 ---------------------
-Setting ``tanh_model=True`` sped things up considerably in the previous example. In general, you can run grids varying any *ares* parameters you like, just know that physical models take a few seconds each, whereas the :math:`tanh` model takes much less than a second for one model.
+Setting ``tanh_model=True`` sped things up considerably in the previous example. In general, you can run grids varying any *ares* parameters you like, just know that physical models (i.e., those with ``tanh_model=False``) take a few seconds each, whereas the :math:`tanh` model takes much less than a second for one model.
 
-In one particular case -- when ``Tmin`` is one axis of the model grid -- load-balancing can be very advantageous. Just execute the following command before running the grid:
+For example, to repeat the previous exercise for a physical model, you could replace this commands:
+
+::
+
+    z0 = np.arange(6, 12, 0.1)
+    dz = np.arange(0.1, 8.1, 0.1)
+    mg.axes = {'tanh_xz0': z0, 'tanh_xdz': dz}
+    
+with (for example)
+
+::
+
+    fX = np.logspace(-1, 1, 21)
+    Tmin = np.logspace(3, 5, 21)
+    mg.axes = {'fX': z0, 'Tmin': dz}
+
+In one particular case -- when ``Tmin`` or ``pop_Tmin`` is an axis of the model grid -- load-balancing can be very advantageous. Just execute the following command before running the grid:
 
 ::
     
     mg.LoadBalance(method=1)
+
     
 
 

@@ -62,6 +62,7 @@ and optionally,
 - `hmf <https://github.com/steven-murray/hmf>`_
 - `h5py <http://www.h5py.org/>`_
 - `mpi4py <http://mpi4py.scipy.org>`_
+- `emcee <http://dan.iel.fm/emcee/current/>`_
 - `python-progressbar <https://code.google.com/p/python-progressbar/>`_
 - `setuptools <https://pypi.python.org/pypi/setuptools>`_
 - `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_
