@@ -39,6 +39,12 @@ _pop_fcoll = \
  'pop_Tmax': None,
 }
 
+_pop_user = \
+{
+ 'pop_model': 'user',
+ 'pop_sfrd': lambda z: 0.1,
+}
+
 _pop_sfe = \
 {
  'pop_model': 'sfe',
@@ -69,21 +75,22 @@ _pop_mlf = \
 
 _sed_uv = \
 {
- # Emits LW
+ # Emits LW and LyC
  "pop_lya_src": True,
  "pop_ion_src_cgm": True,
  "pop_ion_src_igm": False,
- "pop_heat_src_cgm": False,
  "pop_heat_src_igm": False,
  
  "pop_fesc": 0.1,
  "pop_fesc_LW": 1.0,
  
+ 'pop_sed': 'pl',
+ 'pop_alpha': 1.0,
  "pop_Emin": 10.2,
  "pop_Emax": 24.6,
  "pop_EminNorm": 13.6,
  "pop_EmaxNorm": 24.6,        
- "pop_yield": 3e4, 
+ "pop_yield": 4e3, 
  "pop_yield_units": 'photons/baryon',
 }
 
@@ -95,7 +102,7 @@ _pop_synth = \
  'pop_Z': 0.02,
  'pop_Emin': 1,
  'pop_Emax': 1e2,
- 'pop_yield{0}': 'from_sed',
+ 'pop_yield': 'from_sed',
 }
 
 _sed_xr = \
@@ -148,11 +155,11 @@ _pl['pop_sed'] = 'pl'
 
 _Bundles = \
 {
- 'pop': {'fcoll': _pop_fcoll, 'xray': _pop_sfe, 'sfe': _pop_sfe, 'lf': _pop_sfe},
+ 'pop': {'fcoll': _pop_fcoll, 'sfe': _pop_sfe, 'user': _pop_user},
  'sed': {'uv': _sed_uv, 'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 
     'bpass': _uvsed_bpass, 's99': _uvsed_s99},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
- 'sim': {'gs': None}, # problem types
+ 'sim': {'1pop': None, '2pop': None}, # problem types kind of
 }
 
 class ParameterBundle(dict):

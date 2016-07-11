@@ -162,26 +162,27 @@ def identify_phps(**kwargs):
             
     return phps
     
+# All defaults
+defaults = SetAllDefaults()
+   
+# Defaults w/o all parameters that are population-specific
+# This is to-be-used in reconstructing a master parameter file
+defaults_pop_dep = {}
+defaults_pop_indep = {}
+for key in defaults:
+    if re.search('pop_', key) or re.search('source_', key) or \
+       re.search('php_', key):
+        defaults_pop_dep[key] = defaults[key]
+        continue
+    
+    defaults_pop_indep[key] = defaults[key]    
+
 class ParameterFile(dict):
     def __init__(self, **kwargs):
         """
         Build parameter file instance.
         """
 
-        self.defaults = SetAllDefaults()
-        
-        # Defaults w/o all parameters that are population-specific
-        # This is to-be-used in reconstructing a master parameter file
-        self.defaults_pop_dep = {}
-        self.defaults_pop_indep = {}
-        for key in self.defaults:
-            if re.search('pop_', key) or re.search('source_', key) or \
-               re.search('php_', key):
-                self.defaults_pop_dep[key] = self.defaults[key]
-                continue
-            
-            self.defaults_pop_indep[key] = self.defaults[key]        
-        
         # Keep user-supplied kwargs as attribute  
         self._kwargs = kwargs.copy()
         
@@ -239,7 +240,7 @@ class ParameterFile(dict):
                 
         # Start w/ problem specific parameters (always)
         if 'problem_type' not in kw:
-            kw['problem_type'] = self.defaults['problem_type']    
+            kw['problem_type'] = defaults['problem_type']    
             
         # Change underscores to brackets in parameter names
         kw = bracketify(**kw)
@@ -247,6 +248,7 @@ class ParameterFile(dict):
         # Read in kwargs for this problem type
         kwargs = ProblemType(kw['problem_type'])
         
+        # Add in user-supplied kwargs
         tmp = kwargs.copy()
         tmp.update(kw)
                 
@@ -262,7 +264,7 @@ class ParameterFile(dict):
         pf_base = {}  # Temporary master parameter file   
                       # Should have no {}'s
                     
-        pf_base.update(self.defaults)  
+        pf_base.update(defaults)  
                     
         # For single-population calculations, we're done for the moment
         if self.Npops == 1:
@@ -279,7 +281,7 @@ class ParameterFile(dict):
             
             # Only add non-pop-specific parameters from ProblemType defaults
             prb = ProblemType(kwargs['problem_type'])
-            for par in self.defaults_pop_indep:
+            for par in defaults_pop_indep:
                 if par not in prb:
                     continue
                     
@@ -287,7 +289,7 @@ class ParameterFile(dict):
             
             # and kwargs
             for par in kwargs:
-                if par in self.defaults_pop_indep:
+                if par in defaults_pop_indep:
                     pf_base[par] = kwargs[par]
                     
             # We now have a parameter file containing all non-pop-specific
@@ -362,7 +364,7 @@ class ParameterFile(dict):
                 # If we didn't supply this parameter for the linked population,
                 # assume default parameter value
                 if name_link not in pfs_by_pop[popid_link]:
-                    val = self.defaults[prefix_link]
+                    val = defaults[prefix_link]
                 else:
                     val = pfs_by_pop[popid_link][name_link]
             
@@ -377,7 +379,7 @@ class ParameterFile(dict):
 
             for key in poppf:
                 
-                if self.Npops > 1 and key in self.defaults_pop_dep:
+                if self.Npops > 1 and key in defaults_pop_dep:
                     self['%s{%i}' % (key, i)] = poppf[key]
                 else:
                     self[key] = poppf[key]
@@ -412,8 +414,8 @@ class ParameterFile(dict):
             ptype = ProblemType(self['problem_type'])
             
             for key in self:
-                if key in self.defaults_pop_indep:
-                    if self[key] != self.defaults_pop_indep[key]:
+                if key in defaults_pop_indep:
+                    if self[key] != defaults_pop_indep[key]:
                         self._unique[key] = self[key]
                 
                 elif key in ptype:
@@ -427,8 +429,8 @@ class ParameterFile(dict):
                     if num is None:
                         continue
                     
-                    if prefix in self.defaults and (num >= self.Npops):
-                        if self[key] != self.defaults[prefix]:
+                    if prefix in defaults and (num >= self.Npops):
+                        if self[key] != defaults[prefix]:
                             self._unique[key] = self[key]
                 
         return self._unique
@@ -445,7 +447,7 @@ class ParameterFile(dict):
         try:
             verbose = kwargs['verbose']
         except KeyError:
-            verbose = self.defaults['verbose']
+            verbose = defaults['verbose']
 
         for kwarg in kwargs:
 
@@ -453,7 +455,7 @@ class ParameterFile(dict):
             if num is None:
                 par = kwarg
             
-            if par in self.defaults.keys():
+            if par in defaults.keys():
                 continue
                 
             if par in old_pars:

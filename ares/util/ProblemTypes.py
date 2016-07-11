@@ -247,10 +247,13 @@ def ReionizationProblem(ptype):
          'cgm_recombination': 'B',
          'cgm_collisional_ionization': False,
         }
+
             
-        
-    # Simple global 21-cm problem
-    if ptype_mod1 in [0, 0.3]:
+    # Simple global 21-cm problem            
+    if ptype_mod1 == 0:
+        pf = {}
+
+    elif ptype_mod1 in [0.3]:
         pf = \
         {
         

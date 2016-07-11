@@ -1,6 +1,6 @@
 :origin:
 
-Simple Parameter Study: 2-D Model Grid
+Parameter Study: 2-D Model Grid
 ======================================
 Often we want to study how the 21-cm signal changes over a range of parameters. We can do so using the ModelGrid class, and use numpy arrays to represent the range of values we’re interested in.
 
@@ -101,6 +101,71 @@ or instead, the position of the emission maximum with the same color coding:
     anl.Scatter(['z_D', 'igm_dTb_D'], c='tau_e', fig=2)
     
 See :doc:`example_grid_analysis` for more information.
+
+Accessing the Data Directly
+---------------------------
+If you'd like to access the data directly for further manipulation, you'll be looking at the following attributes of the ``ModelSet`` class:
+
+* ``chain``, which is a 2-D array with dimensions (number of models, number dimensions).
+* ``get_blob``, which is a function that can be used to read-in blobs from disk.
+
+.. note :: The ``chain`` attribute is referred to as such because is analogous to an MCMC chain, but rather than random samples of the posterior distribution, it represents "samples" on a structured mesh.
+
+For example, to retrieve the samples of the ``test_2d_grid`` dataset above, you could do:
+
+::
+
+    # Just the names of the axes
+    x, y = anl.parameters 
+    
+    xdata, ydata = anl.chain[:,0], anl.chain[:,1]
+    
+or equivalently,
+
+::
+
+    xdata, ydata = anl.chain.T
+    
+And to plot the samples,
+
+::
+
+    import matplotlib.pyplot as pl
+    
+    pl.scatter(xdata, ydata)
+    pl.xlabel(x)
+    pl.ylabel(y)
+    
+To extract blobs, you could do :
+
+::
+
+    QHII = anl.get_blob('cgm_h_2')
+    
+    print QHII.shape
+    
+Notice that the first dimension of ``QHII`` is the same as the first dimension of ``chain`` -- just the number of samples in the ModelGrid. The second dimension, however, is different. Now, rather than representing the dimensionality of the parameter space, it represents the dimensionality of this particular blob. Why 16 elements? Because our blobs were setup such that the quantities ``cgm_h_2``, ``igm_Tk``, and ``dTb`` were recorded at all redshifts in ``np.arange(5, 21)``, which has 16 elements.
+
+So, we could for example color-code the points in our previous plot by the volume-averaged ionization fraction at :math:`z=10` by doing:
+
+::
+
+    pl.scatter(xdata, ydata, c=QHII[:,5], edgecolors='none')
+    
+If you forget the properties of a blob, you can type
+
+::
+
+    group, element, nd, shape = anl.blob_info('cgm_h_2')
+    
+which returns the index of blob group, index of the element within that group, dimensionality of the blob, and the shape of blob. This can be useful, for example, to automatically figure out the independent variables for a blob:
+
+::
+
+    # Should be 10 (redshift of interest above)
+    anl.blob_ivars[i][5]
+    
+All of the built-in analysis routines are structured so that you don't have to think about these things on a regular basis if you don't want to!    
 
 More Expensive Models
 ---------------------

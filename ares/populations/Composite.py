@@ -41,7 +41,7 @@ class CompositePopulation(object):
             if pf['pop_tunnel'] is not None:
                 to_tunnel[i] = pf['pop_tunnel']
             elif pf['pop_type'] == 'galaxy':
-                if pf['pop_model'] == 'fcoll':
+                if pf['pop_model'] in ['fcoll', 'user']:
                     self.pops[i] = GalaxyAggregate(**pf)
                 else:
                     self.pops[i] = GalaxyCohort(**pf)

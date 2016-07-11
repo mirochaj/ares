@@ -205,7 +205,7 @@ class GalaxyAggregate(HaloPopulation):
             elif inspect.ismethod(self.pf['pop_sfrd']):
                 self._sfrd_ = self.pf['pop_sfrd']
             elif isinstance(self.pf['pop_sfrd'], interp1d):
-                self._sfrd_ = selfsel.pf['pop_sfrd']    
+                self._sfrd_ = self.pf['pop_sfrd']    
             else:
                 tmp = read_lit(self.pf['pop_sfrd'])
                 self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
