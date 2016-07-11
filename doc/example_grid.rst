@@ -11,8 +11,8 @@ Before we start, the few usual imports:
     import ares
     import numpy as np
     
-Quick Example: :math:`tanh` model for the global 21-cm signal
--------------------------------------------------------------
+Efficient Example: :math:`tanh` model for the global 21-cm signal
+-----------------------------------------------------------------
 Before we run a set of models, we need to decide what quantities we’d like to save. For a detailed description of how to do this in general cases, check out :doc:`example_inline_analysis`.
 
 For now, let’s save the redshift and brightness temperature of the global 21-cm emission maximum, which we dub "Turning Point D", and the CMB optical depth,

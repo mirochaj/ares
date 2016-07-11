@@ -12,6 +12,7 @@ Description:
 
 import os
 import numpy as np
+from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from ..analysis.BlobFactory import BlobFactory
@@ -42,13 +43,21 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         """
         
         # See if this is a tanh model calculation
-        is_phenom = self._check_if_phenom(**kwargs)
+        is_phenom = self.is_phenom = self._check_if_phenom(**kwargs)
 
         kwargs.update(defaults)
         if 'problem_type' not in kwargs:
             kwargs['problem_type'] = 101
 
         self.kwargs = kwargs
+        
+        # Print info to screen
+        if self.pf['verbose']:
+            print_sim(self)
+
+    @property
+    def info(self):
+        print_sim(self)
 
     @property
     def pf(self):
@@ -109,20 +118,20 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         if ('tanh_model' not in kwargs) and ('gaussian_model' not in kwargs):
             return False
             
-        is_tanh = False
-        is_gauss = False    
+        self.is_tanh = False
+        self.is_gauss = False    
 
         if 'tanh_model' in kwargs:
             if kwargs['tanh_model']:
                 from ..phenom.Tanh21cm import Tanh21cm as PhenomModel
-                is_tanh = True
+                self.is_tanh = True
                 
         elif 'gaussian_model' in kwargs:
             if kwargs['gaussian_model']:
                 from ..phenom.Gaussian21cm import Gaussian21cm as PhenomModel            
-                is_gauss = True
+                self.is_gauss = True
                 
-        if (not is_tanh) and (not is_gauss):
+        if (not self.is_tanh) and (not self.is_gauss):
             return False
                 
         model = PhenomModel(**kwargs)                
@@ -143,7 +152,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             nu = np.arange(nu_min, nu_max, nu_res)
             z = nu_0_mhz / nu - 1.
         
-        if is_gauss:
+        if self.is_gauss:
             self.history = model(nu, **self.pf)    
         else:
             self.history = model(z, **self.pf)
@@ -168,7 +177,6 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         self.medium._insert_inits()
                 
         pb = ProgressBar(tf, use=self.pf['progress_bar'])
-        pb.start()
         
         # Lists for data in general
         self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm, \
@@ -184,7 +192,12 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         self.all_dTb = self._init_dTb()
                                 
         for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():
-                                                
+            
+            # Delaying the initialization prevents progressbar from being
+            # interrupted by, e.g., PrintInfo calls
+            if not pb.has_pb:
+                pb.start()
+                                                    
             pb.update(t)
                     
             # Save data

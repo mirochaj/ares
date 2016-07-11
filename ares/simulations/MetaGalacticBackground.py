@@ -48,6 +48,7 @@ class MetaGalacticBackground(UniformBackground):
             all_z.append(z)
             all_fluxes.append(fluxes)
 
+        # At this stage, redshift is in descending order
         self.all_z = all_z
         self.all_fluxes = all_fluxes
 
@@ -292,13 +293,13 @@ class MetaGalacticBackground(UniformBackground):
                 
             fluxes[i] = fluxes_by_band
 
-        if not self._is_thru_run:
-            self.all_z.append(z_by_pop)
-            self.all_fluxes.append(fluxes)
-
         # Set the redshift based on whichever population took the smallest
         # step. Other populations will interpolate to find flux.
         znext = max(z_by_pop)
+        
+        if (not self._is_thru_run):
+            self.all_z.append(z_by_pop)
+            self.all_fluxes.append(fluxes)
         
         # If being externally controlled, we can't tamper with the redshift!
         if self._is_thru_run:
@@ -331,8 +332,20 @@ class MetaGalacticBackground(UniformBackground):
         # Run update_rate_coefficients within MultiPhaseMedium
         return super(MetaGalacticBackground, self).update_rate_coefficients(z, 
             **kwargs)
+            
+    def get_integrated_flux(self, band, popid=0):
+        """
+        Return integrated flux in supplied (Emin, Emax) band at all redshifts.
+        """
+        
+        zarr, Earr, flux = self.get_history(popid, True, True)
+        
+        i1 = np.argmin(np.abs(Earr - band[0]))
+        i2 = np.argmin(np.abs(Earr - band[1]))
+                
+        return zarr, np.trapz(flux[:,i1:i2], x=Earr[i1:i2], axis=1)
 
-    def get_history(self, popid=0, flatten=False):
+    def get_history(self, popid=0, flatten=False, uniquify=True):
         """
         Grab data associated with a single population.
 
@@ -364,6 +377,8 @@ class MetaGalacticBackground(UniformBackground):
         
         hist = self.history
             
+        # First, get redshifts. If not run "thru run", then they will
+        # be in descending order so flip 'em.
         if self._is_thru_run:
             z = self.redshifts[popid]
         else:
@@ -380,9 +395,23 @@ class MetaGalacticBackground(UniformBackground):
                     fzflat.extend(flux[j])
 
                 f[i] = np.array(fzflat)
-
-            return z[-1::-1], E, np.array(f)
+    
+            # "tr" = "to return"
+            z_tr = z
+            E_tr = E
+            f_tr = np.array(f)[-1::-1,:]
         else:
-            return z[-1::-1], self.energies[popid], hist[popid]
+            z_tr = z
+            E_tr = self.energies[popid]
+            f_tr = hist[popid][-1::-1,:]
+            
+        # We've flipped the fluxes too since they are inherently in 
+        # order of descending redshift.    
+        
+        if uniquify:
+            z_uni, indi = np.unique(z_tr, return_index=True)
+            return z_uni, E_tr, f_tr[indi,:]
+        else:    
+            return z_tr, E_tr, f_tr
 
         

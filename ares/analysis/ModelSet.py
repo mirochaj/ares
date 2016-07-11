@@ -1348,14 +1348,18 @@ class ModelSet(BlobFactory):
                     val += np.log10(multiplier[k])
                 else:
                     val *= multiplier[k]
-                                            
+                    
+                # Take log, unless the parameter is already in log10
+                if take_log[k] and (not self.is_log[j]):
+                    val = np.log10(val)
+                                        
             # Blobs are a little harder, might need new mask later.
             elif par in self.all_blob_names:
                 
                 i, j, nd, dims = self.blob_info(par)
 
                 if nd == 0:
-                    val = self.get_blob(par).copy()
+                    val = self.get_blob(par, ivar=None).copy()
                 else:
                     val = self.get_blob(par, ivar=ivar[k]).copy()
 
@@ -1388,9 +1392,10 @@ class ModelSet(BlobFactory):
                     else:
                         val = dat
 
-            # Take log, unless the parameter is already in log10
-            if take_log[k] and (not self.is_log[j]):
-                val = np.log10(val)        
+            # must handle log-ifying blobs separately
+            if par not in self.parameters:
+                if take_log[k]:
+                    val = np.log10(val)
                                    
             ##
             # OK, at this stage, 'val' is just an array. If it corresponds to
@@ -2746,7 +2751,7 @@ class ModelSet(BlobFactory):
             if ivar is None:
                 return blob
             else:
-                k = np.argmin(np.abs(self.blob_ivars[i][0] - ivar))
+                k = np.argmin(np.abs(self.blob_ivars[i] - ivar))
                 return blob[:,k]
         elif nd == 2:
             if ivar is None:

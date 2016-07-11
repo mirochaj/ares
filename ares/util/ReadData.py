@@ -107,6 +107,7 @@ def _sort_history(all_data, prefix='', squeeze=False):
     Returns
     -------
     Dictionary, sorted by gas properties, with entire history for each one.
+    
     """
 
     data = {}

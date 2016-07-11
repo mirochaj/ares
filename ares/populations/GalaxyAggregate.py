@@ -27,7 +27,7 @@ from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
-    E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz
+    E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters
 
@@ -290,6 +290,24 @@ class GalaxyAggregate(HaloPopulation):
                 and self.pf['pop_lya_src']
     
         return self._is_lya_src
+    
+    @property
+    def is_uv_src(self):
+        if not hasattr(self, '_is_uv_src'):
+            self._is_uv_src = \
+                (self.pf['pop_Emax'] > E_LL) \
+                and self.pf['pop_ion_src_cgm']
+    
+        return self._is_uv_src    
+    
+    @property
+    def is_xray_src(self):
+        if not hasattr(self, '_is_xray_src'):
+            self._is_xray_src = \
+                (E_LL <= self.pf['pop_Emin']) \
+                and self.pf['pop_heat_src_igm']
+    
+        return self._is_xray_src    
     
     @property
     def is_fcoll_model(self):

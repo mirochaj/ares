@@ -425,7 +425,7 @@ class OpticalDepth(object):
         Read optical depth table.
         """
         
-        if rank == 0:
+        if (rank == 0) and self.pf['verbose']:
             print "Loading %s..." % fn
         
         if type(fn) is dict:

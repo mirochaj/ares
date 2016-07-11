@@ -24,13 +24,6 @@ class HaloPopulation(Population):
         # class. Also creates the parameter file attribute ``pf``.
         Population.__init__(self, **kwargs)
 
-        # Print info to screen
-        if self.pf['verbose']:
-            self.info
-
-        # Setup splines for interpolation of dfcoll/dt
-        #self._init_fcoll()
-
     @property
     def parameterized(self):
         if not hasattr(self, '_parameterized'):

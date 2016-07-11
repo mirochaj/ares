@@ -51,7 +51,7 @@ def test(tol=1e-2):
     
     f1 = pl.figure(1); ax1 = f1.add_subplot(111)
     
-    ax1.semilogy(E, flux[-1] * E * erg_per_ev, color='k', ls='--')
+    ax1.semilogy(E, flux[0] * E * erg_per_ev, color='k', ls='--')
     
     # Grab GalaxyPopulation
     pop = mgb.pops[0]
@@ -67,7 +67,7 @@ def test(tol=1e-2):
     
     # Compare to analytic solution
     flux_anl = e_nu
-    flux_num = flux[-1] * E * erg_per_ev
+    flux_num = flux[0] * E * erg_per_ev
     
     diff = np.abs(flux_anl - flux_num) / flux_anl
     
