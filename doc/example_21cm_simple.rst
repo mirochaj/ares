@@ -16,7 +16,7 @@ values will be used:
 
 ::
     
-    sim = ares.simulations.Global21cm()
+    sim = ares.simulations.Global21cm(problem_type=101.3)
     
 See the :doc:`params` page for a listing of parameters that can be passed
 to ``ares.simulations.Global21cm`` as keyword arguments.
@@ -81,7 +81,7 @@ To do simple parameter study, you could do something like:
     ax = None
     for fX in [0.2, 1.]:
         for fstar in [0.05, 0.1]:
-            sim = ares.simulations.Global21cm(fX=fX, fstar=fstar, problem_type=101)
+            sim = ares.simulations.Global21cm(fX=fX, fstar=fstar, problem_type=101.3)
             sim.run()
 
             # Plot the global signal

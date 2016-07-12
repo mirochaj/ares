@@ -94,6 +94,12 @@ _sed_uv = \
  "pop_yield_units": 'photons/baryon',
 }
 
+_sed_lw = _sed_uv.copy()
+_sed_lw['pop_ion_src_cgm'] = False
+
+_sed_lyc = _sed_uv.copy()
+_sed_lyc['pop_lya_src'] = False
+
 _pop_synth = \
 {
  # Stellar pop + fesc
@@ -156,20 +162,22 @@ _pl['pop_sed'] = 'pl'
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'sfe': _pop_sfe, 'user': _pop_user},
- 'sed': {'uv': _sed_uv, 'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 
-    'bpass': _uvsed_bpass, 's99': _uvsed_s99},
+ 'sed': {'uv': _sed_uv, 'lw': _sed_lw, 'lyc': _sed_lyc, 
+         'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 
+         'bpass': _uvsed_bpass, 's99': _uvsed_s99},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
- 'sim': {'1pop': None, '2pop': None}, # problem types kind of
 }
 
 class ParameterBundle(dict):
-    def __init__(self, bundle=None, **kwargs):
+    def __init__(self, bundle=None, id_num=None, **kwargs):
         self.bundle = bundle
         self.kwargs = kwargs
         
         # data should be a string
         if bundle is not None:
             self._initialize(bundle, **kwargs)
+            if id_num is not None:
+                self.num = id_num
         else:
             for key in kwargs:
                 self[key] = kwargs[key]
@@ -304,3 +312,15 @@ class ParameterBundle(dict):
                 
         return tmp        
 
+
+_PB = ParameterBundle
+_uv_pop = _PB('pop:fcoll', id_num=0) + _PB('sed:uv', id_num=0)
+_xr_pop = _PB('pop:fcoll', id_num=1) + _PB('sed:xray', id_num=1)
+
+_gs_4par = _PB('pop:fcoll', id_num=0) + _PB('sed:lw', id_num=0) \
+         + _PB('pop:fcoll', id_num=1) + _PB('sed:lyc', id_num=1) \
+         + _PB('pop:fcoll', id_num=2) + _PB('sed:xray', id_num=2)
+
+_tmp = {'gs_2pop': _uv_pop+_xr_pop, 'gs_4par': _gs_4par}
+
+_Bundles['sim'] = _tmp

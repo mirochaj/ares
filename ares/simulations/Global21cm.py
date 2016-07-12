@@ -240,9 +240,6 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
         
-        #if self.pf['track_extrema']:
-        #    self.run_inline_analysis()
-
     def step(self):
         """
         Generator for the 21-cm signal.
