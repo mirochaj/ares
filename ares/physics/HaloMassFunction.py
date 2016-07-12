@@ -152,7 +152,9 @@ class HaloMassFunction(object):
             if os.path.exists('%s.pkl' % fn):
                 self.fn = '%s.pkl' % fn
             elif os.path.exists('%s.hdf5' % fn):
-                self.fn = '%s.hdf5' % fn    
+                self.fn = '%s.hdf5' % fn   
+            elif os.path.exists('%s.npz' % fn):
+                self.fn = '%s.npz' % fn     
              
         if self.hmf_func == 'PS' and self.hmf_analytic:
             self.fn = None
@@ -193,8 +195,19 @@ class HaloMassFunction(object):
             self.M = 10**self.logM
             self.fcoll_tab = f['fcoll'].value
             self.dndm = f['dndm'].value
+            self.ngtm = f['ngtm'].value
+            self.mgtm = f['mgtm'].value
             f.close()
-                        
+        elif re.search('.npz', self.fn):
+            f = np.load(self.fn)
+            self.z = f['z']
+            self.logM = f['logM']
+            self.M = 10**self.logM
+            self.fcoll_tab = f['fcoll']
+            self.dndm = f['dndm']
+            self.ngtm = f['ngtm']
+            self.mgtm = f['mgtm']
+            f.close()                        
         elif re.search('.pkl', self.fn):
             f = open(self.fn, 'rb')
             self.z = pickle.load(f)
@@ -202,11 +215,8 @@ class HaloMassFunction(object):
             self.M = 10**self.logM
             self.fcoll_spline_2d = pickle.load(f)
             self.dndm = pickle.load(f)
-            try:
-                self.ngtm = pickle.load(f)
-                self.mgtm = pickle.load(f)
-            except EOFError:
-                pass
+            self.ngtm = pickle.load(f)
+            self.mgtm = pickle.load(f)
             f.close()
 
         else:
@@ -600,9 +610,9 @@ class HaloMassFunction(object):
         if destination is None:
             destination = '.'
         
-        if format == 'hdf5':
+        if format in ['hdf5', 'npz']:
             if fn is None:
-                fn = '%s/%s.hdf5' % (destination, self.table_prefix())
+                fn = '%s/%s.%s' % (destination, self.table_prefix(), format)
             
             if not clobber:
                 if os.path.exists(fn):
@@ -621,18 +631,26 @@ class HaloMassFunction(object):
                 
             os.system('rm -f %s' % fn)    
                 
-            f = h5py.File(fn, 'w')
-            f.create_dataset('z', data=self.z)
-            f.create_dataset('logM', data=self.logM)
-            f.create_dataset('fcoll', data=self.fcoll_tab)
-            f.create_dataset('dndm', data=self.dndm)
-            f.create_dataset('ngtm', data=self.ngtm)
-            f.create_dataset('mgtm', data=self.mgtm)            
-            f.close()
-            
-            print 'Wrote %s.' % fn
-            return
-            
+            if format == 'hdf5':
+                f = h5py.File(fn, 'w')
+                f.create_dataset('z', data=self.z)
+                f.create_dataset('logM', data=self.logM)
+                f.create_dataset('fcoll', data=self.fcoll_tab)
+                f.create_dataset('dndm', data=self.dndm)
+                f.create_dataset('ngtm', data=self.ngtm)
+                f.create_dataset('mgtm', data=self.mgtm)            
+                f.close()
+                
+                print 'Wrote %s.' % fn
+                return
+            else:
+                data = {'z': self.z, 'logM': self.logM, 
+                        'fcoll': self.fcoll_tab, 'dndm': self.dndm,
+                        'ngtm': self.ngtm, 'mgtm': self.mgtm}
+                np.savez(fn, **data)
+                print 'Wrote %s.' % fn
+                return
+                        
         # Otherwise, pickle it!    
         if fn is None:
             fn = '%s/%s.pkl' % (destination, self.table_prefix())

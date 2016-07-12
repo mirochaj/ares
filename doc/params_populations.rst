@@ -104,7 +104,7 @@ Parameterized halo properties
 Parameterized halo properties are most often used in the context of the galaxy luminosity function, where model the efficiency of star formation as a function of halo mass and (perhaps) redshift. See the ``mirocha2016`` option in :doc:`param_bundles` for a concrete example of how these parameters can be used.
 
 ``php_func``
-    Function adopted. Options currently include ``''lognormal''`` and ``''dpl''``.
+    Function adopted. Options include ``pl``, ``dpl``, and many more. See listing below parameter(s) ``php_func_par[0-5]``.
 
     Default: ``dpl``
 
@@ -118,7 +118,7 @@ Parameterized halo properties are most often used in the context of the galaxy l
     Default: ``mass``
 
 ``php_func_par[0-5]``
-    Parameters required by ``php_func``. Their meaning depends on the type of function employed. See below for meaning of each parameter by ``php_func`` and number.
+    Parameters required by ``php_func``. Their meaning depends on the type of function employed. See below for meaning of each parameter by ``php_func`` and number (:math:`x` is either redshift or halo mass in general).
 
     Options:
         + ``pl``: :math:`p[0] * (x / p[1])^{p[2]}`

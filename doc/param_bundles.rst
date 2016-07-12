@@ -2,7 +2,7 @@
 
 Parameter Bundles
 =================
-The goal of ParameterBundles is to neatly package sets of commonly-used parameters with their most often-used values. This means you don't need to sift through the vast listing in `SetDefaultParameterValues` and attempt to determine which you'll need every time you run a new type of calculation. Instead, you can initialize a `ParameterBundle` object and make modifications from there.
+The goal of ParameterBundles is to neatly package sets of commonly-used parameters with their most often-used values. This means you don't need to sift through the vast listing in `SetDefaultParameterValues` and attempt to determine which you'll need every time you run a new type of calculation. Instead, you can initialize a `ParameterBundle` object and make modifications rather than starting from scratch. Think of them as building blocks for a complete set of parameters.
 
 This sort of functionality already exists to some degree given the different :doc:`problem_types` in *ares*. However, problem types are reserved for simulations only, whereas parameter bundles can be used to separately initialize the sub-components of a typical *ares* calculation, like `GalaxyPopulation` objects, parameters governing numerical approximations and the physics being included, etc.
 

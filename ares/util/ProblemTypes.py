@@ -250,10 +250,10 @@ def ReionizationProblem(ptype):
 
             
     # Simple global 21-cm problem            
-    if ptype_mod1 == 0:
+    if ptype_int == 0:
         pf = {}
 
-    elif ptype_mod1 in [0.3]:
+    elif ptype_mod1 in [0, 0.3]:
         pf = \
         {
         

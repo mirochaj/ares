@@ -33,3 +33,7 @@ If the derivative of the signal is noisy (due to numerical artifacts, for exampl
 ---------------------------------------
 This is a bit of a red herring. If you're running an MCMC fit and saving 2-D blobs, which always require you to pass the name of the function, this error occurs if you supply a function that does not exist. Check for typos and/or that the function exists where it should.
 
+``TypeError: __init__() got an unexpected keyword argument 'assume_sorted'``
+----------------------------------------------------------------------------
+Turns out this parameter didn't exist prior to scipy version 0.14. If you update to scipy version >= 0.14, you should be set. If you're worried that upgrading scipy might break other codes of yours, you can also simply navigate to ``ares/physics/Hydrogen.py`` and delete each occurrence of ``assume_sorted=True``, which should have no real effect (except for perhaps a very slight slowdown).
+

@@ -475,7 +475,7 @@ def print_sim(sim):
     print line('-'*twidth)
     
     rows = []
-    cols = ['type', 'Ly-a', 'Ly-C', 'X-ray', 'RTE']
+    cols = ['model', 'Ly-a', 'Ly-C', 'X-ray', 'RTE']
     data = []
     for i, pop in enumerate(sim.pops):
         rows.append('pop #%i' % i)
