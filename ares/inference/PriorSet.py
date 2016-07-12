@@ -21,7 +21,7 @@ import numpy as np
 from .Priors import _Prior
 
 list_types = [list, tuple, np.ndarray]
-valid_transforms = ['log', 'square', 'arcsin']
+valid_transforms = ['log', 'log10', 'square', 'arcsin']
 
 def _check_if_valid_transform(transform):
     #
@@ -46,6 +46,8 @@ def _log_prior_addition(value, transform):
         return 0.
     elif transform == 'log':
         return -1. * np.log(value)
+    elif transform == 'log10':
+        return -1. * np.log(np.log(10) * value)
     elif transform == 'square':
         return np.log(2 * value)
     elif transform == 'arcsin':
@@ -63,6 +65,8 @@ def _apply_transform(value, transform):
         return value
     elif transform == 'log':
         return np.log(value)
+    elif transform == 'log10':
+        return np.log10(value)
     elif transform == 'square':
         return np.power(value, 2.)
     elif transform == 'arcsin':
@@ -81,6 +85,8 @@ def _apply_inverse_transform(value, transform):
         return value
     elif transform == 'log':
         return np.exp(value)
+    elif transform == 'log10':
+        return 10. ** value
     elif transform == 'square':
         return np.sqrt(value)
     elif transform == 'arcsin':
