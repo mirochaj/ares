@@ -130,6 +130,7 @@ history_elements = \
  'igm_he_2': r'$x_{\mathrm{HeII}}$',
  'igm_he_3': r'$x_{\mathrm{HeIII}}$',
  'igm_dTb': r'$\delta T_b$',
+ 'dTb': r'$\delta T_b$', 
  'igm_Tk': r'$T_K$',
  'cgm_h_2': r'$Q_{\mathrm{HII}}$',
  'xavg': r'$\overline{x}_i$',

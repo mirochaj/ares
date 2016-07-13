@@ -25,7 +25,7 @@ Parameter Studies and Inference
 
 * Running Large Suites of Models
     * :doc:`example_grid`
-.. * :doc:`example_mc_sampling`    
+    * :doc:`example_mc_sampling`    
     
 * Fitting and Forecasting    
     * :doc:`example_mcmc_I`

@@ -1,6 +1,6 @@
 :origin:
 
-Parameter Study: 2-D Model Grid
+Simple Parameter Study: 2-D Model Grid
 ======================================
 Often we want to study how the 21-cm signal changes over a range of parameters. We can do so using the ModelGrid class, and use numpy arrays to represent the range of values we’re interested in.
 
