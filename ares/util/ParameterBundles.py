@@ -13,6 +13,7 @@ Description:
 import numpy as np
 from .ReadData import read_lit
 from .ParameterFile import pop_id_num
+from .ProblemTypes import ProblemType
 from .SetDefaultParameterValues import SetAllDefaults
 from .PrintInfo import header, footer, separator, line
 
@@ -194,11 +195,13 @@ class ParameterBundle(dict):
         
         if pre in _Bundles.keys():
             kw = _Bundles[pre][post]
-            pars = kw.keys()
         # Assume format: "paperyear:modelname", e.g., "mirocha2016:dpl"
+        elif pre == 'prob':
+            kw = ProblemType(float(post))
         else:
             kw = read_lit(pre).__dict__[post]
-            pars = kw.keys()
+        
+        pars = kw.keys()
 
         for key in pars:
             self[key] = kw[key]    

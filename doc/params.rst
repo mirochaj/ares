@@ -22,6 +22,10 @@ For relatively complex calculations it can be difficult to know / remember which
 
  * :doc:`param_bundles`
  
+also relevant to problem initialization:
+
+ * :doc:`problem_types`
+ 
 Custom Defaults
 --------------- 
 To adapt the defaults to your liking *without* modifying the source code (all
