@@ -2783,12 +2783,23 @@ class ModelSet(BlobFactory):
         
         return self._max_like_pars
         
-    def DeriveBlob(self, expr, varmap, save=True, name=None, clobber=False):
+    def DeriveBlob(self, func=None, fields=None, expr=None, varmap=None, 
+        save=True, name=None, clobber=False):
         """
         Derive new blob from pre-existing ones.
         
         Parameters
         ----------
+        Either supply the first two arguments:
+        func : function!
+            A function of two variables: ``data`` (a dictionary containing the 
+            data) and ``ivars``, which contain the independent variables for
+            each field in ``data``.
+        fields : list, tuple
+            List of quantities required by ``func``.
+            
+        OR the second two:    
+            
         expr : str
             For example, 'x - y'
         varmap : dict
@@ -2796,17 +2807,40 @@ class ModelSet(BlobFactory):
             
             varmap = {'x': 'nu_D', 'y': 'nu_C'}
         
+        The remaining parameters are:
+        
+        save : bool
+            Save to disk? If not, just returns array.
+        name : str
+            If save==True, this is a name for this new blob that we can use
+            to call it up later.
+        clobber : bool
+            If file with same ``name`` exists, overwrite it?
         
         """    
         
-        blobs = varmap.values()
-        
-        data, is_log = self.ExtractData(blobs)
-        
-        for var in varmap.keys():
-            exec('%s = data[\'%s\']' % (var, varmap[var]))
+        if func is not None:
+            data, is_log = self.ExtractData(fields)
             
-        result = eval(expr)
+            # Grab ivars
+            ivars = {}
+            for key in data:
+                i, j, nd, size = self.blob_info(key)
+                ivars[key] = self.blob_ivars[i]
+                
+            result = func(data, ivars)
+        
+        else:
+        
+            blobs = varmap.values()
+            
+            data, is_log = self.ExtractData(blobs)
+            
+            # Assign data to variable names
+            for var in varmap.keys():
+                exec('%s = data[\'%s\']' % (var, varmap[var]))
+            
+            result = eval(expr)
         
         if save:
             assert name is not None, "Must supply name for new blob!"

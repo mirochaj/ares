@@ -52,7 +52,9 @@ dpl = \
 
  # Careful with X-ray heating
  'pop_sed{1}': 'mcd',
+ 'pop_Z{1}': 'pop_Z{0}',
  'pop_yield{1}': 2.6e39,
+ 'pop_yield_Z_index{1}': None,
  'pop_alpha{1}': -1.5,
  'pop_Emin{1}': 2e2,
  'pop_Emax{1}': 3e4,

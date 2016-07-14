@@ -39,13 +39,18 @@ def normalize_sed(pop):
     E1 = pop.pf['pop_EminNorm']
     E2 = pop.pf['pop_EmaxNorm']
     
+    if pop.pf['pop_yield_Z_index'] is not None:
+        Zfactor = (pop.pf['pop_Z'] / 0.02)**pop.pf['pop_yield_Z_index']
+    else:
+        Zfactor = 1.
+            
     if pop.pf['pop_yield'] == 'from_sed':
         return pop.src.yield_per_sfr(E1, E2)
     else:    
         # Remove whitespace and convert everything to lower-case
         units = pop.pf['pop_yield_units'].replace(' ', '').lower()
         if units == 'erg/s/sfr':
-            return pop.pf['pop_yield'] * s_per_yr / g_per_msun
+            return Zfactor * pop.pf['pop_yield'] * s_per_yr / g_per_msun
 
     erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
     energy_per_sfr = pop.pf['pop_yield']
@@ -59,7 +64,7 @@ def normalize_sed(pop):
     else:
         raise ValueError('Unrecognized yield units: %s' % units)
 
-    return energy_per_sfr
+    return energy_per_sfr * Zfactor
 
 class GalaxyAggregate(HaloPopulation):
     def __init__(self, **kwargs):

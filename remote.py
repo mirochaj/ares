@@ -78,9 +78,12 @@ for i, direc in enumerate(to_download):
     for fn in fns:
             
         if os.path.exists(fn):
-            if 'fresh' or 'clean' in options:
+            if ('fresh' in options) or ('clean' in options):
                 os.remove(fn)
+            else:
+                continue
             
+        # 'clean' just deletes files, doesn't download new ones
         if 'clean' in options:
             continue
     

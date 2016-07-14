@@ -347,7 +347,11 @@ class ParameterFile(dict):
             for par in linked_pars:
                 
                 # Grab info for linker and linkee
+                
+                # Info for the parameter whose value is linked to another
                 prefix, popid, phpid = par_info(par)
+                
+                # Parameter whose value were taking
                 prefix_link, popid_link, phpid_link = par_info(kwargs[par])
                             
                 # Account for the fact that the parameter name might have []'s            
@@ -367,8 +371,8 @@ class ParameterFile(dict):
                     val = defaults[prefix_link]
                 else:
                     val = pfs_by_pop[popid_link][name_link]
-            
-                pfs_by_pop[popid_link][name] = val
+                                
+                pfs_by_pop[popid][name] = val
 
             # Save as attribute
             self.pfs = pfs_by_pop

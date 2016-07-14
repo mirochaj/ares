@@ -1,7 +1,7 @@
 :orphan:
 
-Analyzing Model Grids
-=====================
+Analyzing Model Grids / Monte Carlo Simulations
+===============================================
 Once you have a model grid in hand, there are a slew of built-in analysis 
 routines that you might consider using. For the rest of this example,
 we'll assume you have completed a :doc:`example_grid`, and have the associated set of files
