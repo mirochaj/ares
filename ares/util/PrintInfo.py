@@ -503,14 +503,14 @@ def print_sim(sim):
             
         data.append(tmp)    
     
-    tabulate(data, rows, cols, cwidth=8, fmt='%s')
+    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8], fmt='%s')
     
     print line('-'*twidth)
     print line('Physics')
     print line('-'*twidth)
     
     phys_pars = ['cgm_initial_temperature', 'clumping_factor', 
-        'secondary_ionization', 'approx_Salpha', 'include_He', 'hmf_model']
+        'secondary_ionization', 'approx_Salpha', 'include_He']
 
     cosm_pars = ["omega_m_0", "omega_b_0", "omega_l_0", "hubble_0", 
         "helium_by_number", "sigma_8"]

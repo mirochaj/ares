@@ -263,7 +263,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             for i, pop in enumerate(self.medium.field.pops):
                 if not pop.is_lya_src:
                     continue
-                                
+                                                    
                 if not np.any(self.medium.field.solve_rte[i]):
                     Ja += self.medium.field.LymanAlphaFlux(z, popid=i)
                     continue

@@ -162,6 +162,57 @@ def identify_phps(**kwargs):
             
     return phps
     
+def get_php_pars(par, pf):
+    """
+    Find ParameterizedHaloProperty's for this parameter.
+    
+    ..note:: par isn't the name of the parameter, it is the value. Usually,
+        it's something like 'php[0]'.
+        
+    For example, if in the parameter file, you set:
+    
+        'pop_fesc{0}'='php[1]'
+        
+    This routine runs off and finds all parameters that look like:
+    
+        'php_*par?{0}[1]'
+        
+    Returns
+    -------
+    Dictionary of parameters to be used to initialize a new HaloProperty.
+        
+    """
+
+
+    prefix, popid, phpid = par_info(par)
+
+    pars = {}
+    for key in pf:
+        if (pf.Nphps != 1):
+            if not re.search('\[%i\]' % phpid, key):
+                continue
+
+        if key[0:3] != 'php':
+            continue
+
+        p, popid, phpid_ = par_info(key)    
+
+        if (phpid is None) and (pf.Nphps == 1):
+            pars[p] = pf['%s' % p]          
+
+        # This means we probably have some parameters bracketed
+        # and some not...should make it so this doesn't happen
+        elif (phpid is not None) and (pf.Nphps == 1):
+            try:
+                pars[p] = pf['%s[%i]' % (p, phpid)]   
+            except KeyError:
+                # This means it's just default values
+                pars[p] = pf['%s' % p]   
+        else:    
+            pars[p] = pf['%s[%i]' % (p, phpid)]
+
+    return pars    
+    
 # All defaults
 defaults = SetAllDefaults()
    

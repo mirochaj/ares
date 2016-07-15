@@ -213,18 +213,18 @@ def PhysicsParameters():
     "lya_nmax": 23,
     'lya_frec_bar': 0.0,   # Neglect injected photons by default if we're
                            # treating background in approximate way
-                     
+
     "rate_source": 'fk94', # fk94, option for development here
-    
+
     }
-    
+
     pf.update(rcParams)
-            
+
     return pf
-    
+
 def HaloPropertyParameters():
     pf = {}
-    
+
     tmp = \
     {
      "php_func": 'dpl',
@@ -367,6 +367,9 @@ def PopulationParameters():
     
     # By-hand parameterizations
     "pop_Ja": None,
+    "pop_ion_rate": None,
+    "pop_heat_rate": None,
+        
     "pop_k_ion_cgm": None,
     "pop_k_ion_igm": None,
     "pop_k_heat_igm": None,

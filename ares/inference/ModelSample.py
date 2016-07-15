@@ -31,7 +31,7 @@ class ModelSample(ModelGrid):
     
     @seed.setter
     def seed(self, value):
-        self._seed = value    
+        self._seed = value
     
     @property            
     def axes(self):
@@ -49,7 +49,8 @@ class ModelSample(ModelGrid):
         # Initialize space
         models = []
         for i in range(self.N):
-            models.append(self.prior_set.draw())
+            kw = self.prior_set.draw()
+            models.append(kw)
             
         self.set_models(models)
         

@@ -14,6 +14,7 @@ import re
 import numpy as np
 from ..util import ParameterFile
 from .GalaxyAggregate import GalaxyAggregate
+from .Parameterized import ParametricPopulation
 from .GalaxyCohort import GalaxyCohort, GalaxyPopulation
 
 class CompositePopulation(object):
@@ -41,10 +42,13 @@ class CompositePopulation(object):
             if pf['pop_tunnel'] is not None:
                 to_tunnel[i] = pf['pop_tunnel']
             elif pf['pop_type'] == 'galaxy':
-                if pf['pop_model'] in ['fcoll', 'user']:
+                if pf['pop_model'] in ['fcoll', 'user-sfrd']:
                     self.pops[i] = GalaxyAggregate(**pf)
+                elif pf['pop_model'] == 'user-rates':
+                    self.pops[i] = ParametricPopulation(**pf)
                 else:
                     self.pops[i] = GalaxyCohort(**pf)
+                
             else:
                 raise ValueError('Unrecognized pop_type %s.' % pf['pop_type'])  
 

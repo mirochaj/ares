@@ -735,7 +735,10 @@ class GlobalVolume(object):
         pop = self.pops[popid]
                                 
         if not pop.pf['pop_heat_src_igm'] or (z >= pop.zform):
-            return 0.0        
+            return 0.0    
+            
+        if pop.pf['pop_heat_rate'] is not None:
+            return pop.HeatingRate(z)
                 
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
@@ -915,6 +918,10 @@ class GlobalVolume(object):
         # Need some guidance from 1-D calculations to do this
         if species > 0:
             return 0.0
+
+        if pop.pf['pop_ion_rate'] is not None:
+            return pop.IonizationRateCGM(z)    
+        
 
         kw = defkwargs.copy()
         kw.update(kwargs)

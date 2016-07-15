@@ -923,7 +923,7 @@ class UniformBackground(object):
             return 0.0
             
         if pop.pf['pop_Ja'] is not None:
-            return pop.pf['pop_Ja'](z)
+            return pop.LymanAlphaFlux(z)
 
         # Flat spectrum, no injected photons, instantaneous emission only
         if not np.any(self.solve_rte[popid]):
