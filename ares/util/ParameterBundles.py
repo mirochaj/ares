@@ -14,12 +14,7 @@ import numpy as np
 from .ReadData import read_lit
 from .ParameterFile import pop_id_num
 from .ProblemTypes import ProblemType
-from .SetDefaultParameterValues import SetAllDefaults
 from .PrintInfo import header, footer, separator, line
-
-defaults = SetAllDefaults()
-
-gs_options = ['4par', '2pop', 'lf']
 
 def _add_pop_tag(par, num):
     """
@@ -35,34 +30,52 @@ def _add_pop_tag(par, num):
 
 _pop_fcoll = \
 {
- 'pop_model': 'fcoll',
+ 'pop_sfr_model': 'fcoll',
  'pop_Tmin': 1e4,
  'pop_Tmax': None,
 }
 
-_pop_user = \
+_pop_user_sfrd = \
 {
- 'pop_model': 'user',
- 'pop_sfrd': lambda z: 0.1,
+
+ 'pop_sfr_model': 'sfrd-func',
+
+ 'pop_sfrd': 'php[0]',
+ 'php_func[0]': 'dpl',
+ 'php_func_var[0]': 'redshift',
+ 'php_func_par0[0]': 1e-6,
+ 'php_func_par1[0]': 15.,
+ 'php_func_par2[0]': -5.,
+ 'php_func_par3[0]': -8.,
+ 
+}
+
+_sed_toy = \
+{
+ 'pop_sed_model': False,
+ 'pop_Nion': 4e3,
+ 'pop_Nlw': 9690,
+ 'pop_fX': 1.0,
+ 'pop_fesc': 0.1,
 }
 
 _pop_sfe = \
 {
- 'pop_model': 'sfe',
+ 'pop_sfr_model': 'sfe-func',
  'pop_fstar': 'php',
  'pop_MAR': 'hmf',
  'php_func': 'dpl',
  'php_func_par0': 0.1,
- 'php_func_par1': 1e12,
- 'php_func_par2': 0.67,
- 'php_func_par3': 0.5,
- 
+ 'php_func_par1': 3e11,
+ 'php_func_par2': 0.6,
+ 'php_func_par3': -0.6,
+
  # Redshift dependent parameters here
 }
 
 _pop_mlf = \
 {
- 'pop_model': 'mlf',
+ 'pop_sfr_model': 'mlf',
  'pop_fstar': None,
  'pop_mlf': 'php',
  'pop_MAR': 'hmf',
@@ -162,9 +175,9 @@ _pl['pop_sed'] = 'pl'
 
 _Bundles = \
 {
- 'pop': {'fcoll': _pop_fcoll, 'sfe': _pop_sfe, 'user': _pop_user},
+ 'pop': {'fcoll': _pop_fcoll, 'sfe-func': _pop_sfe, 'sfrd-func': _pop_user_sfrd},
  'sed': {'uv': _sed_uv, 'lw': _sed_lw, 'lyc': _sed_lyc, 
-         'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 
+         'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 'toy': _sed_toy,
          'bpass': _uvsed_bpass, 's99': _uvsed_s99},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
 }

@@ -20,7 +20,7 @@ from ..util.Math import central_difference
 from ..util.ProgressBar import ProgressBar
 from ..util.ParameterFile import ParameterFile
 from .Constants import g_per_msun, cm_per_mpc, s_per_yr
-from scipy.interpolate import UnivariateSpline, RectBivariateSpline
+from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
 
 import pickle
 #try:
@@ -149,12 +149,12 @@ class HaloMassFunction(object):
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load']:
             fn = '%s/input/hmf/%s' % (ARES, self.table_prefix())
-            if os.path.exists('%s.pkl' % fn):
-                self.fn = '%s.pkl' % fn
-            elif os.path.exists('%s.hdf5' % fn):
-                self.fn = '%s.hdf5' % fn   
-            elif os.path.exists('%s.npz' % fn):
-                self.fn = '%s.npz' % fn     
+            #if os.path.exists('%s.pkl' % fn):
+            #    self.fn = '%s.pkl' % fn
+            #elif os.path.exists('%s.hdf5' % fn):
+            #    self.fn = '%s.hdf5' % fn   
+            #elif os.path.exists('%s.npz' % fn):
+            self.fn = '%s.npz' % fn     
              
         if self.hmf_func == 'PS' and self.hmf_analytic:
             self.fn = None
@@ -391,7 +391,7 @@ class HaloMassFunction(object):
         # TESTING: force dfcolldz_tab > 0
         self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
         
-        spline = UnivariateSpline(self.ztab, np.log10(self.dfcolldz_tab), k=3)
+        spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), kind='cubic')
         dfcolldz_spline = lambda z: 10**spline.__call__(z)
 
         return fcoll_spline, dfcolldz_spline, None
@@ -423,12 +423,12 @@ class HaloMassFunction(object):
                 
             if logMmin >= logMmax:
                 return tiny_fcoll
-                
+
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
                  - np.squeeze(self.fcoll_spline_2d(z, logMmax))             
-         
-        return np.squeeze(self.fcoll_spline_2d(z, logMmin))
-                 
+        else:
+            return np.squeeze(self.fcoll_spline_2d(z, logMmin))
+
     def dfcolldz(self, z, logMmin):
         """
         Return derivative of fcoll(z).
@@ -499,14 +499,6 @@ class HaloMassFunction(object):
             self._MAR_func = lambda z, M: spl(z, np.log(M)).squeeze()
         
         return self._MAR_func
-        
-    def dlogfdlogt(self, z):
-        """
-        Logarithmic derivative of fcoll with respect to log-time.
-        
-        High-z approximation under effect.
-        """
-        return self.dfcolldz(z) * 2. * (1. + z) / 3. / self.fcoll(z)
                                                    
     def VirialTemperature(self, M, z, mu=0.6):
         """

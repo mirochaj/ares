@@ -13,8 +13,8 @@ Description:
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
-from ..populations import GalaxyCohort
 from scipy.optimize import fsolve, curve_fit
+from ..populations.GalaxyCohort import GalaxyCohort
 from scipy.integrate import quad, simps, cumtrapz, ode
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar

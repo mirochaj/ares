@@ -309,14 +309,13 @@ def PopulationParameters():
     
     "pop_tunnel": None,
 
-    "pop_model": 'fcoll', # fcoll, hod, clf, ham, user
-
-    "pop_halo_model": None, # clf or hod (not yet implemented)
+    "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,
+    "pop_sed_model": True,    # or False
     
     # Mass accretion rate
     "pop_MAR": 'hmf',
     "pop_MAR_conserve_norm": False,
-    
+
     "pop_tdyn": 1e7,
     "pop_sSFR": None,
 
@@ -327,7 +326,7 @@ def PopulationParameters():
     "pop_lf_pstar": None,
     "pop_lf_alpha": None,
     "pop_lf_mags": None,
-    
+
     'pop_lf_Mmax': 1e15,
 
     "pop_fduty": 1.0,
@@ -395,12 +394,14 @@ def PopulationParameters():
     "pop_Mmin": None,
     "pop_Mmax": None,
     "pop_sfrd": None,
-    "pop_sfrd_units": 'g/s/cm^3',
+    "pop_sfrd_units": 'msun/yr/mpc^3',
     
     # Scales SFRD
     "pop_Nlw": 9690.,
     "pop_Nion": 4e3,
     "pop_fesc": 0.1,
+    "pop_fX": 1.0,
+    "pop_cX": 2.6e39,
     
     # Should
     "pop_fesc_LW": 1.,

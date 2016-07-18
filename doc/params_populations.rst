@@ -47,9 +47,9 @@ Basic Properties
     
 Star formation history
 ----------------------    
-The following parameters control the star-formation history of a population.
+The following parameters control the star-formation history of a population. See :doc:`uth_pop_sfrd` for more information.
 
-``pop_model``
+``pop_sfr_model``
     Value determines how star-formation history is computed.
     
     Options:
@@ -98,6 +98,87 @@ The following parameters control the star-formation history of a population.
     
 ``pop_calib_L1600``
     If not ``None``, this parameter will guarantee that the :math:`1600\AA` luminosity (per unit star formation) is fixed at the provided value. This can be useful if, for example, you're modeling the galaxy luminosity function (LF) and want to change the stellar population model while preserving the LF. See Section 3.4 of `Mirocha, Furlanetto, \& Sun (2016) <http://arxiv.org/abs/1607.00386>`_ for further discussion of this.
+    
+Radiation Fields
+----------------
+``pop_sed_model``
+    Treat the SED of this source population in detail?
+
+    See :doc:`uth_pop_radiation` for more information.
+
+    Default: ``True``
+
+``pop_yield``
+    How many photons are emitted per unit star formation?
+
+    Default: :math:`2.6 \times 10^{39}`
+
+``pop_yield_units``
+    How to normalize the yield? 
+
+    Options: 
+
+    + ``erg/s/SFR`` [i.e., :math:`\mathrm{erg} \ \mathrm{s}^{-1} \ (M_{\odot} \ \mathrm{yr}^{-1})^{-1}`]
+    + ``photons/baryon``
+    + ``photons/Msun``
+
+    Default: ``erg/s/SFR``
+
+Internally, all units are cgs, which means at run-time all yields will be converted to units of :math:`\mathrm{erg} \ \mathrm{g}^{-1}`.
+
+These parameters of course dictate an amount of energy produced per unit star formation *in a particular band*. That band is specified by the ``pop_EminNorm`` and ``pop_EmaxNorm`` parameters.
+
+``pop_EminNorm``
+    Minimum photon energy to consider in normalization.
+
+    Default: 200 [eV]
+
+``pop_EmaxNorm``
+    Maximum photon energy to consider in normalization.
+
+    Default: 3e4 [eV]
+
+To be precise,
+
+.. math ::
+
+    \int_{\texttt{pop_EminNorm}}^{\texttt{pop_EmaxNorm}} \frac{\epsilon_{\nu}}{\dot{\rho}_{\ast}} d\nu = \frac{\texttt{pop_yield}}{\texttt{pop_yield_units}}
+
+where :math:`\epsilon_{\nu}` is the emissivity of the population and :math:`\dot{\rho}_{\ast}` is the star-formation rate density (SFRD).
+
+This range does not necessarily determine the band in which photons are emitted. For example, you might want to normalize the emission in the 0.5-8 keV band (e.g., if you're adopting the :math:`L_X`-SFR relation), but allow sources to emit at all energies. To do so, you must choose an SED, which then gets used to extrapolate the 0.5-8 keV yield to lower/higher energies.
+
+We use square brackets on this page to denote the units of parameters.
+
+``pop_sed``
+    Spectral energy distribution assumed for this population.
+
+    Options:
+
+    + ``'bb'``: blackbody. If supplied, ``pop_temperature`` sets assumed blackbody temperature.
+    + ``'pl'``: power-law. If supplied, ``pop_alpha`` parameter sets power-law index.
+    + ``'mcd'``; Multi-color disk (Mitsuda et al. 1984)
+    + ``'simpl'``: SIMPL Comptonization model (Steiner et al. 2009)
+    + ``'qso'``: Quasar template spectrum (Sazonov et al. 2004)
+    + ``leitherer1999``: Stellar population synthesis models from the original `starburst99 <http://www.stsci.edu/science/starburst99/docs/default.htm>`_ dataset.
+    + ``eldridge2009``: Stellar population synthesis models from `BPASS <http://bpass.auckland.ac.nz/>`_ version 1.0 models.
+
+``pop_Z``
+    If ``pop_sed`` is ``leitherer1999`` or ``eldridge2009``, this is the stellar metallicity assumed for the synthesis models. Can take on values in the range :math:`0.001 \leq Z \leq 0.04``.
+
+    Default: 0.02 (solar)
+
+``pop_Emin``
+    Minimum photon energy to consider in radiative transfer calculation.
+
+    Default: 200 [eV]
+
+``pop_Emax``
+    Maximum photon energy to consider in radiative transfer calculation. 
+
+    Default: 3e4 [eV]
+
+    
     
 Parameterized halo properties
 -----------------------------
@@ -158,79 +239,6 @@ Parameterized halo properties are most often used in the context of the galaxy l
     Parameters required by ``php_faux``. 
 
             
-Radiation Fields
-----------------
-``pop_yield``
-    How many photons are emitted per unit star formation?
-    
-    Default: :math:`2.6 \times 10^{39}`
-    
-``pop_yield_units``
-    How to normalize the yield? 
-    
-    Options: 
-    
-    + ``erg/s/SFR`` [i.e., :math:`\mathrm{erg} \ \mathrm{s}^{-1} \ (M_{\odot} \ \mathrm{yr}^{-1})^{-1}`]
-    + ``photons/baryon``
-    + ``photons/Msun``
-        
-    Default: ``erg/s/SFR``
-    
-Internally, all units are cgs, which means at run-time all yields will be converted to units of :math:`\mathrm{erg} \ \mathrm{g}^{-1}`.
-
-These parameters of course dictate an amount of energy produced per unit star formation *in a particular band*. That band is specified by the ``pop_EminNorm`` and ``pop_EmaxNorm`` parameters.
-
-``pop_EminNorm``
-    Minimum photon energy to consider in normalization.
-    
-    Default: 200 [eV]
-
-``pop_EmaxNorm``
-    Maximum photon energy to consider in normalization.
-
-    Default: 3e4 [eV]
-    
-To be precise,
-
-.. math ::
-
-    \int_{\texttt{pop_EminNorm}}^{\texttt{pop_EmaxNorm}} \frac{\epsilon_{\nu}}{\dot{\rho}_{\ast}} d\nu = \frac{\texttt{pop_yield}}{\texttt{pop_yield_units}}
-    
-where :math:`\epsilon_{\nu}` is the emissivity of the population and :math:`\dot{\rho}_{\ast}` is the star-formation rate density (SFRD).
-
-This range does not necessarily determine the band in which photons are emitted. For example, you might want to normalize the emission in the 0.5-8 keV band (e.g., if you're adopting the :math:`L_X`-SFR relation), but allow sources to emit at all energies. To do so, you must choose an SED, which then gets used to extrapolate the 0.5-8 keV yield to lower/higher energies.
-
-We use square brackets on this page to denote the units of parameters.
-
-``pop_sed``
-    Spectral energy distribution assumed for this population.
-    
-    Options:
-
-    + ``'bb'``: blackbody. If supplied, ``pop_temperature`` sets assumed blackbody temperature.
-    + ``'pl'``: power-law. If supplied, ``pop_alpha`` parameter sets power-law index.
-    + ``'mcd'``; Multi-color disk (Mitsuda et al. 1984)
-    + ``'simpl'``: SIMPL Comptonization model (Steiner et al. 2009)
-    + ``'qso'``: Quasar template spectrum (Sazonov et al. 2004)
-    + ``leitherer1999``: Stellar population synthesis models from the original `starburst99 <http://www.stsci.edu/science/starburst99/docs/default.htm>`_ dataset.
-    + ``eldridge2009``: Stellar population synthesis models from `BPASS <http://bpass.auckland.ac.nz/>`_ version 1.0 models.
-    
-``pop_Z``
-    If ``pop_sed`` is ``leitherer1999`` or ``eldridge2009``, this is the stellar metallicity assumed for the synthesis models. Can take on values in the range :math:`0.001 \leq Z \leq 0.04``.
-    
-    Default: 0.02 (solar)
-
-``pop_Emin``
-    Minimum photon energy to consider in radiative transfer calculation.
-
-    Default: 200 [eV]
-
-``pop_Emax``
-    Maximum photon energy to consider in radiative transfer calculation. 
-
-    Default: 3e4 [eV]
-        
-
 For backward compatibility
 --------------------------
 There are many parameters that do *not* have the ``pop_`` prefix attached to them, but are nonetheless convenient because they are the most common parameters in fiducial global 21-cm models. In addition, in *ares* version 0.1, the ``pop_`` formulation was not yet in place, and the following parameters were the norm. They can still be used for ``problem_type=101`` (see :doc:`problem_types`), but one should be careful otherwise.

@@ -337,7 +337,8 @@ class Global21cm(MultiPhaseMedium):
                 ax.get_ylim()[1])
         
         if (not gotax) or force_draw:
-            ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))
+            ax.set_yticks(np.arange(int(ymin / 50) * 50, 
+                100, 50))
                 
         # Minor y-ticks - 10 mK increments
         yticks = np.linspace(ymin, 50, int((50 - ymin) / 10. + 1))
@@ -368,6 +369,7 @@ class Global21cm(MultiPhaseMedium):
                 ax.set_xticklabels(xt, rotation=45.)
         
         if gotax and (ax.get_xlabel().strip()) and (not force_draw):
+            pl.draw()
             return ax
             
         if ax.get_xlabel() == '':  

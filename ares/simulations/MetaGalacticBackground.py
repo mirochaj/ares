@@ -84,7 +84,7 @@ class MetaGalacticBackground(UniformBackground):
         # Looping over populations.
         z_by_pop = []
         for i, generator in enumerate(self.generators):
-            
+
             # Recall that each generator may actually be a list of generators,
             # one for each (sub-)band.
             

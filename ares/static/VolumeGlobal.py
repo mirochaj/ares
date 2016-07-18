@@ -921,7 +921,6 @@ class GlobalVolume(object):
 
         if pop.pf['pop_ion_rate'] is not None:
             return pop.IonizationRateCGM(z)    
-        
 
         kw = defkwargs.copy()
         kw.update(kwargs)

@@ -14,8 +14,9 @@ import re
 import numpy as np
 from ..util import ParameterFile
 from .GalaxyAggregate import GalaxyAggregate
-from .Parameterized import ParametricPopulation
-from .GalaxyCohort import GalaxyCohort, GalaxyPopulation
+from .GalaxyPopulation import GalaxyPopulation
+#from .Parameterized import ParametricPopulation
+
 
 class CompositePopulation(object):
     def __init__(self, **kwargs):
@@ -39,22 +40,15 @@ class CompositePopulation(object):
         to_tunnel = [None for i in range(self.Npops)]
         for i, pf in enumerate(self.pfs):
                         
-            if pf['pop_tunnel'] is not None:
-                to_tunnel[i] = pf['pop_tunnel']
-            elif pf['pop_type'] == 'galaxy':
-                if pf['pop_model'] in ['fcoll', 'user-sfrd']:
-                    self.pops[i] = GalaxyAggregate(**pf)
-                elif pf['pop_model'] == 'user-rates':
-                    self.pops[i] = ParametricPopulation(**pf)
-                else:
-                    self.pops[i] = GalaxyCohort(**pf)
-                
+            if re.search('link', pf['pop_sfr_model']):
+                junk, linkto = pf['pop_sfr_model'].split(':')
+                to_tunnel[i] = int(linkto)
             else:
-                raise ValueError('Unrecognized pop_type %s.' % pf['pop_type'])  
+                self.pops[i] = GalaxyPopulation(**pf)
 
         # Tunneling populations!
         for i, entry in enumerate(to_tunnel):
-            if self.pfs[i]['pop_tunnel'] is None:
+            if entry is None:
                 continue
                         
             tmp = self.pfs[i].copy()

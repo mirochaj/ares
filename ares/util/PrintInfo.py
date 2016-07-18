@@ -357,11 +357,6 @@ def print_pop(pop):
     if type(EmaxNorm) is not list:
         EmaxNorm = list([EmaxNorm])
 
-    if pop.pf['pop_model'] == 'fcoll':
-        header = 'Galaxy Population: fcoll'
-    else:
-        header = 'Galaxy Population: Mh-dependent'
-
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
@@ -475,11 +470,17 @@ def print_sim(sim):
     print line('-'*twidth)
     
     rows = []
-    cols = ['model', 'Ly-a', 'Ly-C', 'X-ray', 'RTE']
+    cols = ['sfrd', 'sed', 'Ly-a', 'Ly-C', 'X-ray', 'RTE']
     data = []
     for i, pop in enumerate(sim.pops):
         rows.append('pop #%i' % i)
-        tmp = [pop.pf['pop_model']]
+        if re.search('link', pop.pf['pop_sfr_model']):
+            junk, num = pop.pf['pop_sfr_model'].split(':')
+            mod = 'link:%i' % int(num)
+        else:
+            mod = pop.pf['pop_sfr_model']
+            
+        tmp = [mod, 'yes' if pop.pf['pop_sed_model'] else 'no']
         
         if pop.is_lya_src:
             tmp.append('x')
@@ -503,7 +504,7 @@ def print_sim(sim):
             
         data.append(tmp)    
     
-    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8], fmt='%s')
+    tabulate(data, rows, cols, cwidth=[8,10,8,8,8,8,8], fmt='%s')
     
     print line('-'*twidth)
     print line('Physics')

@@ -885,6 +885,3 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         else:
             return self.rho_N(z, Emin, Emax)
                  
-# Backwards compatible        
-GalaxyPopulation = GalaxyCohort         
-

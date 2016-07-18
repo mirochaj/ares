@@ -13,8 +13,8 @@ dpl = \
  # Halos, MAR, etc.
  'pop_Tmin{0}': 1e4,
  'pop_Tmin{1}': 'pop_Tmin{0}',
- 'pop_model{0}': 'sfe',
- 'pop_model{1}': 'sfe',
+ 'pop_sfr_model{0}': 'sfe-func',
+ 'pop_sfr_model{1}': 'link:0',
  'pop_MAR{0}': 'hmf',
  'pop_MAR_conserve_norm{0}': False,
  

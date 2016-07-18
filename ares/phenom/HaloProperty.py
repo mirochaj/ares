@@ -35,7 +35,7 @@ func_options = \
  'rstep': 'p0 * p2 if x <= p1 else p2',
  'plsum': 'p[0] * (x / p[1])**p[2] + p[3] * (x / p[4])**p5',
 }
-
+    
 class ParameterizedHaloProperty(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -66,7 +66,7 @@ class ParameterizedHaloProperty(object):
     def _apply_extrap(self, value):
         self._apply_extrap_ = value
 
-    def __call__(self, z, M, func=None):
+    def __call__(self, z, M=None, func=None):
         """
         Compute the star formation efficiency.
         """

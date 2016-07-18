@@ -21,8 +21,8 @@ from scipy.interpolate import interp1d
 from .OpticalDepth import OpticalDepth
 from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
-from ..populations import CompositePopulation
 from ..util.ReadData import flatten_flux, split_flux
+from ..populations.Composite import CompositePopulation
 from scipy.integrate import quad, romberg, romb, trapz, simps
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
 
@@ -929,8 +929,7 @@ class UniformBackground(object):
         if not np.any(self.solve_rte[popid]):
             norm = c * self.cosm.dtdz(z) / four_pi
 
-            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6) \
-                * pop.pf['pop_fesc_LW']
+            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6)
 
             return norm * (1. + z)**3 * (1. + pop.pf['lya_frec_bar']) * \
                 rhoLW / dnu
