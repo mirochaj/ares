@@ -40,10 +40,13 @@ aux_data = \
 os.chdir('input')
 
 files = []
-if len(options) > 0:
+if (len(options) > 0) and ('clean' not in options):
     if 'minimal' in options:
         to_download = ['inits', 'secondary_electrons']
         files = [None, None]
+    elif 'clean' in options:
+        to_download = aux_data.keys()
+        files = [None] * len(to_download)
     else:
         to_download = []
         for key in options:
@@ -57,8 +60,9 @@ if len(options) > 0:
 else:
     to_download = aux_data.keys()
     files = [None] * len(to_download)
-
+        
 for i, direc in enumerate(to_download):
+                
     if not os.path.exists(direc):
         os.mkdir(direc)
     
@@ -72,11 +76,14 @@ for i, direc in enumerate(to_download):
         fns = [aux_data[direc][1:-1][files[i]]]
         
     for fn in fns:
-    
-        if os.path.exists(fn):
-            if 'fresh' or 'clean' in options:
-                os.remove(fn)
             
+        if os.path.exists(fn):
+            if ('fresh' in options) or ('clean' in options):
+                os.remove(fn)
+            else:
+                continue
+            
+        # 'clean' just deletes files, doesn't download new ones
         if 'clean' in options:
             continue
     

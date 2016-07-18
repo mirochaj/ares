@@ -20,12 +20,13 @@ from ..util.Math import central_difference
 from ..util.ProgressBar import ProgressBar
 from ..util.ParameterFile import ParameterFile
 from .Constants import g_per_msun, cm_per_mpc, s_per_yr
-from scipy.interpolate import UnivariateSpline, RectBivariateSpline
+from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
+import pickle
+#try:
+#    import dill as pickle
+#except ImportError:
+#    import pickle
     
 try:
     from scipy.special import erfc
@@ -61,12 +62,19 @@ ARES = os.getenv("ARES")
 
 sqrt2 = np.sqrt(2.)    
 
+tiny_fcoll = 1e-18
+tiny_dfcolldz = 1e-18
+
 # Force CAMB to span broader range in wavenumber
 transfer_pars = \
 {
- 'transfer__kmax': 0.0,
- 'transfer__kmax': 100.,
- 'transfer__k_per_logint': 0.,
+ 'lnk_max': np.log(2e4),
+ 'dlnk': 0.01,
+}
+
+growth_pars = \
+{
+ 'dlna': 0.0001,
 }
 
 class HaloMassFunction(object):
@@ -127,22 +135,13 @@ class HaloMassFunction(object):
         
         """
         self.pf = ParameterFile(**kwargs)
-        self.cosm = Cosmology(
-            omega_m_0=self.pf['omega_m_0'], 
-            omega_l_0=self.pf['omega_l_0'], 
-            omega_b_0=self.pf['omega_b_0'],  
-            hubble_0=self.pf['hubble_0'],  
-            helium_by_number=self.pf['helium_by_number'], 
-            cmb_temp_0=self.pf['cmb_temp_0'], 
-            approx_highz=self.pf['approx_highz'], 
-            sigma_8=self.pf['sigma_8'],
-            primordial_index=self.pf['primordial_index'])
         
+        # Read in a few parameters for convenience        
         self.fn = self.pf["hmf_table"]
-        self.hmf_func = self.pf['hmf_func']
-        
+        self.hmf_func = self.pf['hmf_model']
         self.hmf_analytic = self.pf['hmf_analytic']
         
+        # Verify that Tmax is set correctly
         if self.pf['pop_Tmax'] is not None:
             assert self.pf['pop_Tmax'] > self.pf['pop_Tmin'], \
                 "Tmax must exceed Tmin!"
@@ -153,20 +152,38 @@ class HaloMassFunction(object):
             if os.path.exists('%s.pkl' % fn):
                 self.fn = '%s.pkl' % fn
             elif os.path.exists('%s.hdf5' % fn):
-                self.fn = '%s.hdf5' % fn    
-                
+                self.fn = '%s.hdf5' % fn   
+            elif os.path.exists('%s.npz' % fn):
+                self.fn = '%s.npz' % fn     
+             
         if self.hmf_func == 'PS' and self.hmf_analytic:
-            self.fn = None        
+            self.fn = None
         
         # Either create table from scratch or load one if we found a match
         if self.fn is None:
             if have_hmf and have_pycamb:
-                self.build_fcoll_tab()
+                pass
             else:
                 no_hmf(self)
                 sys.exit()
         else:
             self.load_table()
+                        
+    @property
+    def cosm(self):
+        if not hasattr(self, '_cosm'):
+            self._cosm = Cosmology(
+                omega_m_0=self.pf['omega_m_0'], 
+                omega_l_0=self.pf['omega_l_0'], 
+                omega_b_0=self.pf['omega_b_0'],  
+                hubble_0=self.pf['hubble_0'],  
+                helium_by_number=self.pf['helium_by_number'], 
+                cmb_temp_0=self.pf['cmb_temp_0'], 
+                approx_highz=self.pf['approx_highz'], 
+                sigma_8=self.pf['sigma_8'],
+                primordial_index=self.pf['primordial_index'])        
+
+        return self._cosm
             
     def load_table(self):
         """ Load table from HDF5 or binary. """
@@ -178,10 +195,19 @@ class HaloMassFunction(object):
             self.M = 10**self.logM
             self.fcoll_tab = f['fcoll'].value
             self.dndm = f['dndm'].value
+            self.ngtm = f['ngtm'].value
+            self.mgtm = f['mgtm'].value
             f.close()
-            
-            self.build_2d_spline()
-            
+        elif re.search('.npz', self.fn):
+            f = np.load(self.fn)
+            self.z = f['z']
+            self.logM = f['logM']
+            self.M = 10**self.logM
+            self.fcoll_tab = f['fcoll']
+            self.dndm = f['dndm']
+            self.ngtm = f['ngtm']
+            self.mgtm = f['mgtm']
+            f.close()                        
         elif re.search('.pkl', self.fn):
             f = open(self.fn, 'rb')
             self.z = pickle.load(f)
@@ -189,11 +215,8 @@ class HaloMassFunction(object):
             self.M = 10**self.logM
             self.fcoll_spline_2d = pickle.load(f)
             self.dndm = pickle.load(f)
-            try:
-                self.ngtm = pickle.load(f)
-                self.mgtm = pickle.load(f)
-            except EOFError:
-                pass
+            self.ngtm = pickle.load(f)
+            self.mgtm = pickle.load(f)
             f.close()
 
         else:
@@ -207,13 +230,7 @@ class HaloMassFunction(object):
     @property
     def MF(self):
         if not hasattr(self, '_MF'):
-            cosmology = {'omegav':self.cosm.omega_l_0,
-                         'omegac':self.cosm.omega_cdm_0,
-                         'omegab':self.cosm.omega_b_0,
-                         'sigma_8':self.cosm.sigma8,
-                         'h':self.cosm.h70,
-                         'n':self.cosm.primordial_index}
-                         
+
             self.logMmin = self.pf['hmf_logMmin']
             self.logMmax = self.pf['hmf_logMmax']
             self.zmin = self.pf['hmf_zmin']
@@ -227,14 +244,31 @@ class HaloMassFunction(object):
             # Initialize Perturbations class
             self._MF = MassFunction(Mmin=self.logMmin, Mmax=self.logMmax, 
                 dlog10m=self.dlogM, z=self.z[0], 
-                mf_fit=self.hmf_func, transfer_options=transfer_pars,
-                **cosmology)    
+                hmf_model=self.hmf_func, cosmo_params=self.cosmo_params,
+                growth_params=growth_pars, sigma_8=self.cosm.sigma8, 
+                n=self.cosm.primordial_index, **transfer_pars)
                 
         return self._MF   
-        
+
     @MF.setter
     def MF(self, value):
         self._MF = value     
+        
+    @property
+    def fcoll_tab(self):
+        if not hasattr(self, '_fcoll_tab'):
+            self.build_fcoll_tab()
+        return self._fcoll_tab    
+    
+    @fcoll_tab.setter
+    def fcoll_tab(self, value):
+        self._fcoll_tab = value
+        
+    @property
+    def cosmo_params(self):
+        return {'Om0':self.cosm.omega_m_0,
+                'Ob0':self.cosm.omega_b_0,
+                'H0':self.cosm.h70*100}    
                 
     def build_fcoll_tab(self):
         """
@@ -242,13 +276,6 @@ class HaloMassFunction(object):
         
         Can be run in parallel.
         """    
-        
-        cosmology = {'omegav':self.cosm.omega_l_0,
-                     'omegac':self.cosm.omega_cdm_0,
-                     'omegab':self.cosm.omega_b_0,
-                     'sigma_8':self.cosm.sigma8,
-                     'h':self.cosm.h70,
-                     'n':self.cosm.primordial_index}
         
         self.logMmin = self.pf['hmf_logMmin']
         self.logMmax = self.pf['hmf_logMmax']
@@ -261,15 +288,16 @@ class HaloMassFunction(object):
         self.z = np.linspace(self.zmin, self.zmax, self.Nz)
         
         self.Nm = np.logspace(self.logMmin, self.logMmax, self.dlogM).size
-                
+
         if rank == 0:    
             print "\nComputing %s mass function..." % self.hmf_func    
-                
+
         # Initialize Perturbations class
         self.MF = MassFunction(Mmin=self.logMmin, Mmax=self.logMmax, 
             dlog10m=self.dlogM, z=self.z[0], 
-            mf_fit=self.hmf_func, transfer_options=transfer_pars,
-            **cosmology)
+            hmf_model=self.hmf_func, cosmo_params=self.cosmo_params, 
+            growth_params=growth_pars, sigma_8=self.cosm.sigma8, 
+            n=self.cosm.primordial_index, **transfer_pars)
             
         # Masses in hmf are in units of Msun * h
         self.M = self.MF.M / self.cosm.h70
@@ -281,23 +309,23 @@ class HaloMassFunction(object):
         self.dndm = np.zeros([self.Nz, self.Nm])
         self.mgtm = np.zeros_like(self.dndm)
         self.ngtm = np.zeros_like(self.dndm)
-        self.fcoll_tab = np.zeros_like(self.dndm)
+        fcoll_tab = np.zeros_like(self.dndm)
         
         pb = ProgressBar(len(self.z), 'fcoll')
         pb.start()
 
         for i, z in enumerate(self.z):
-
+            
             if i > 0:
-                self.MF.update(z=z, **cosmology)
+                self.MF.update(z=z)
                 
             if i % size != rank:
                 continue
                 
             # Compute collapsed fraction
             if self.hmf_func == 'PS' and self.hmf_analytic:
-                delta_c = self.MF.delta_c / self.MF.growth
-                self.fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
+                delta_c = self.MF.delta_c / self.MF.growth.growth_factor(z)
+                fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
                 
             else:
                 
@@ -306,19 +334,19 @@ class HaloMassFunction(object):
                 self.mgtm[i] = self.MF.rho_gtm.copy()
                 self.ngtm[i] = self.MF.ngtm.copy() * self.cosm.h70**3
                 
-                # Remember that mgtm and mean_dens have factors of h**2
+                # Remember that mgtm and mean_density have factors of h**2
                 # so we're OK here dimensionally
-                self.fcoll_tab[i] = self.mgtm[i] / self.MF.mean_dens
+                fcoll_tab[i] = self.mgtm[i] / self.MF.mean_density0
                         
             pb.update(i)
             
         pb.finish()
-        
+                
         # Collect results!
         if size > 1:
-            tmp = np.zeros_like(self.fcoll_tab)
-            nothing = MPI.COMM_WORLD.Allreduce(self.fcoll_tab, tmp)
-            self.fcoll_tab = tmp
+            tmp = np.zeros_like(fcoll_tab)
+            nothing = MPI.COMM_WORLD.Allreduce(fcoll_tab, tmp)
+            _fcoll_tab = tmp
             
             tmp2 = np.zeros_like(self.dndm)
             nothing = MPI.COMM_WORLD.Allreduce(self.dndm, tmp2)
@@ -331,15 +359,13 @@ class HaloMassFunction(object):
             #tmp4 = np.zeros_like(self.mgtm)
             #nothing = MPI.COMM_WORLD.Allreduce(self.mgtm, tmp4)
             #self.mgtm = tmp4
-        
+        else:
+            _fcoll_tab = fcoll_tab   
+                    
         # Fix NaN elements
-        self.logfcoll_tab = np.log10(self.fcoll_tab)
-        self.logfcoll_tab[np.isnan(self.fcoll_tab)] = -np.inf 
-        self.fcoll_tab[np.isnan(self.fcoll_tab)] = 0.0
-                
-        if self.Nz > 3:
-            self.build_2d_spline()
-            
+        _fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
+        self._fcoll_tab = _fcoll_tab
+                    
     def build_1d_splines(self, Tmin, mu=0.6):
         """
         Construct splines for fcoll and its derivatives given a (fixed) 
@@ -362,17 +388,25 @@ class HaloMassFunction(object):
         
         fcoll_spline = None
         
-        spline = UnivariateSpline(self.ztab, np.log10(self.dfcolldz_tab), k=3)
+        # TESTING: force dfcolldz_tab > 0
+        self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
+        
+        spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), kind='cubic')
         dfcolldz_spline = lambda z: 10**spline.__call__(z)
 
         return fcoll_spline, dfcolldz_spline, None
         
-    def build_2d_spline(self):                            
-        """ Setup splines for fcoll. """
+    @property
+    def fcoll_spline_2d(self):
+        if not hasattr(self, '_fcoll_spline_2d'):
+            self._fcoll_spline_2d = RectBivariateSpline(self.z, 
+                self.logM, self.fcoll_tab, kx=3, ky=3)
+        return self._fcoll_spline_2d
         
-        self.fcoll_spline_2d = RectBivariateSpline(self.z, 
-            self.logM, self.fcoll_tab, kx=3, ky=3)
-
+    @fcoll_spline_2d.setter
+    def fcoll_spline_2d(self, value):
+        self._fcoll_spline_2d = value
+        
     def fcoll(self, z, logMmin):
         """
         Return fraction of mass in halos more massive than 10**logMmin.
@@ -381,19 +415,20 @@ class HaloMassFunction(object):
         
         if self.pf['pop_Mmax'] is not None:
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
-                 - np.squeeze(self.fcoll_spline_2d(z, np.log10(self.pf['pop_Mmax'])))
+                 - np.squeeze(self.fcoll_spline_2d(z, 
+                    np.log10(self.pf['pop_Mmax'])))
         elif self.pf['pop_Tmax'] is not None:
             logMmax = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, 
                 mu=self.pf['mu']))
-            
-            if logMmin >= logMmax:
-                return 0.0
                 
+            if logMmin >= logMmax:
+                return tiny_fcoll
+
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
                  - np.squeeze(self.fcoll_spline_2d(z, logMmax))             
-         
-        return np.squeeze(self.fcoll_spline_2d(z, logMmin))
-                 
+        else:
+            return np.squeeze(self.fcoll_spline_2d(z, logMmin))
+
     def dfcolldz(self, z, logMmin):
         """
         Return derivative of fcoll(z).
@@ -464,14 +499,6 @@ class HaloMassFunction(object):
             self._MAR_func = lambda z, M: spl(z, np.log(M)).squeeze()
         
         return self._MAR_func
-        
-    def dlogfdlogt(self, z):
-        """
-        Logarithmic derivative of fcoll with respect to log-time.
-        
-        High-z approximation under effect.
-        """
-        return self.dfcolldz(z) * 2. * (1. + z) / 3. / self.fcoll(z)
                                                    
     def VirialTemperature(self, M, z, mu=0.6):
         """
@@ -522,7 +549,7 @@ class HaloMassFunction(object):
         What should we name this table?
         
         Convention:
-        hmt_FIT_logM_nM_logMmin_logMmax_z_nz_
+        hmf_FIT_logM_nM_logMmin_logMmax_z_nz_
         
         Read:
         halo mass function using FIT form of the mass function
@@ -531,6 +558,7 @@ class HaloMassFunction(object):
         
         
         """
+        
         try:
             M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
             prefix = 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.hmf_func, 
@@ -565,15 +593,18 @@ class HaloMassFunction(object):
         
         """
         
+        # Do this first! (Otherwise parallel runs will be garbage)
+        tab = self.fcoll_tab
+        
         if rank > 0:
             return
         
         if destination is None:
             destination = '.'
         
-        if format == 'hdf5':
+        if format in ['hdf5', 'npz']:
             if fn is None:
-                fn = '%s/%s.hdf5' % (destination, self.table_prefix())
+                fn = '%s/%s.%s' % (destination, self.table_prefix(), format)
             
             if not clobber:
                 if os.path.exists(fn):
@@ -592,18 +623,26 @@ class HaloMassFunction(object):
                 
             os.system('rm -f %s' % fn)    
                 
-            f = h5py.File(fn, 'w')
-            f.create_dataset('z', data=self.z)
-            f.create_dataset('logM', data=self.logM)
-            f.create_dataset('fcoll', data=self.fcoll_tab)
-            f.create_dataset('dndm', data=self.dndm)
-            f.create_dataset('ngtm', data=self.ngtm)
-            f.create_dataset('mgtm', data=self.mgtm)            
-            f.close()
-            
-            print 'Wrote %s.' % fn
-            return
-            
+            if format == 'hdf5':
+                f = h5py.File(fn, 'w')
+                f.create_dataset('z', data=self.z)
+                f.create_dataset('logM', data=self.logM)
+                f.create_dataset('fcoll', data=self.fcoll_tab)
+                f.create_dataset('dndm', data=self.dndm)
+                f.create_dataset('ngtm', data=self.ngtm)
+                f.create_dataset('mgtm', data=self.mgtm)            
+                f.close()
+                
+                print 'Wrote %s.' % fn
+                return
+            else:
+                data = {'z': self.z, 'logM': self.logM, 
+                        'fcoll': self.fcoll_tab, 'dndm': self.dndm,
+                        'ngtm': self.ngtm, 'mgtm': self.mgtm}
+                np.savez(fn, **data)
+                print 'Wrote %s.' % fn
+                return
+                        
         # Otherwise, pickle it!    
         if fn is None:
             fn = '%s/%s.pkl' % (destination, self.table_prefix())
@@ -624,9 +663,7 @@ class HaloMassFunction(object):
                 return
                 
             os.system('rm -f %s' % fn)  
-            
-            self.build_2d_spline()  
-                
+                            
             f = open(fn, 'wb')            
             pickle.dump(self.z, f)
             pickle.dump(self.logM, f)

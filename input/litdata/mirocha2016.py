@@ -13,8 +13,8 @@ dpl = \
  # Halos, MAR, etc.
  'pop_Tmin{0}': 1e4,
  'pop_Tmin{1}': 'pop_Tmin{0}',
- 'pop_model{0}': 'sfe',
- 'pop_model{1}': 'sfe',
+ 'pop_sfr_model{0}': 'sfe-func',
+ 'pop_sfr_model{1}': 'link:0',
  'pop_MAR{0}': 'hmf',
  'pop_MAR_conserve_norm{0}': False,
  
@@ -48,11 +48,13 @@ dpl = \
  'pop_calib_L1600': 1.0185e28,      # Enforces Equation 13 in paper 
  ##
  #
- ##z
+ ##
 
  # Careful with X-ray heating
  'pop_sed{1}': 'mcd',
+ 'pop_Z{1}': 'pop_Z{0}',
  'pop_yield{1}': 2.6e39,
+ 'pop_yield_Z_index{1}': None,
  'pop_alpha{1}': -1.5,
  'pop_Emin{1}': 2e2,
  'pop_Emax{1}': 3e4,

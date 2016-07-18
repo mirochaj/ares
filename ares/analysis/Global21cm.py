@@ -301,11 +301,14 @@ class Global21cm(MultiPhaseMedium):
         else:
             gotax = True
         
-        if scatter is False:      
+        ##
+        # Plot the stupid thing
+        ##
+        if scatter is False:   
             ax.plot(self.data[xaxis], self.data['dTb'], **kwargs)
         else:
             ax.scatter(self.data[xaxis][-1::-mask], self.data['dTb'][-1::-mask], 
-                **kwargs)        
+                **kwargs)
                 
         zmax = self.pf["first_light_redshift"]
         zmin = self.pf["final_redshift"] if self.pf["final_redshift"] >= 10 \
@@ -334,7 +337,8 @@ class Global21cm(MultiPhaseMedium):
                 ax.get_ylim()[1])
         
         if (not gotax) or force_draw:
-            ax.set_yticks(np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)))
+            ax.set_yticks(np.arange(int(ymin / 50) * 50, 
+                100, 50))
                 
         # Minor y-ticks - 10 mK increments
         yticks = np.linspace(ymin, 50, int((50 - ymin) / 10. + 1))
@@ -365,6 +369,7 @@ class Global21cm(MultiPhaseMedium):
                 ax.set_xticklabels(xt, rotation=45.)
         
         if gotax and (ax.get_xlabel().strip()) and (not force_draw):
+            pl.draw()
             return ax
             
         if ax.get_xlabel() == '':  
@@ -376,10 +381,6 @@ class Global21cm(MultiPhaseMedium):
         if ax.get_ylabel() == '':    
             ax.set_ylabel(labels['dTb'], fontsize='x-large')    
         
-        if 'label' in kwargs:
-            if kwargs['label'] is not None:
-                ax.legend(loc='best')
-                
         # Twin axes along the top
         if freq_ax:
             twinax = self.add_frequency_axis(ax)        

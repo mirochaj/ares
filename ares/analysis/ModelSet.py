@@ -1348,14 +1348,18 @@ class ModelSet(BlobFactory):
                     val += np.log10(multiplier[k])
                 else:
                     val *= multiplier[k]
-                                            
+                    
+                # Take log, unless the parameter is already in log10
+                if take_log[k] and (not self.is_log[j]):
+                    val = np.log10(val)
+                                        
             # Blobs are a little harder, might need new mask later.
             elif par in self.all_blob_names:
                 
                 i, j, nd, dims = self.blob_info(par)
 
                 if nd == 0:
-                    val = self.get_blob(par).copy()
+                    val = self.get_blob(par, ivar=None).copy()
                 else:
                     val = self.get_blob(par, ivar=ivar[k]).copy()
 
@@ -1373,7 +1377,7 @@ class ModelSet(BlobFactory):
                     f.close()
                     
                     # What follows is real cludgey...sorry, future Jordan
-                    nd = len(dat.shape) - 1
+                    nd = len(dat.shape) #- 1
                     assert nd == 1, "Help!"
                     
                     if ivar[k] is not None:
@@ -1388,9 +1392,10 @@ class ModelSet(BlobFactory):
                     else:
                         val = dat
 
-            # Take log, unless the parameter is already in log10
-            if take_log[k] and (not self.is_log[j]):
-                val = np.log10(val)        
+            # must handle log-ifying blobs separately
+            if par not in self.parameters:
+                if take_log[k]:
+                    val = np.log10(val)
                                    
             ##
             # OK, at this stage, 'val' is just an array. If it corresponds to
@@ -2663,6 +2668,8 @@ class ModelSet(BlobFactory):
         
         N : int
             Maximum number of models to return.
+        include_bkw : bool  
+            Include base_kwargs?
             
         Returns
         -------
@@ -2672,6 +2679,9 @@ class ModelSet(BlobFactory):
         
         all_kwargs = []
         for i, element in enumerate(self.chain):
+            
+            if self.mask[i]:
+                continue
             
             if loc is not None:
                 if i != loc:
@@ -2741,7 +2751,7 @@ class ModelSet(BlobFactory):
             if ivar is None:
                 return blob
             else:
-                k = np.argmin(np.abs(self.blob_ivars[i][0] - ivar))
+                k = np.argmin(np.abs(self.blob_ivars[i] - ivar))
                 return blob[:,k]
         elif nd == 2:
             if ivar is None:
@@ -2773,12 +2783,23 @@ class ModelSet(BlobFactory):
         
         return self._max_like_pars
         
-    def DeriveBlob(self, expr, varmap, save=True, name=None, clobber=False):
+    def DeriveBlob(self, func=None, fields=None, expr=None, varmap=None, 
+        save=True, name=None, clobber=False):
         """
         Derive new blob from pre-existing ones.
         
         Parameters
         ----------
+        Either supply the first two arguments:
+        func : function!
+            A function of two variables: ``data`` (a dictionary containing the 
+            data) and ``ivars``, which contain the independent variables for
+            each field in ``data``.
+        fields : list, tuple
+            List of quantities required by ``func``.
+            
+        OR the second two:    
+            
         expr : str
             For example, 'x - y'
         varmap : dict
@@ -2786,17 +2807,40 @@ class ModelSet(BlobFactory):
             
             varmap = {'x': 'nu_D', 'y': 'nu_C'}
         
+        The remaining parameters are:
+        
+        save : bool
+            Save to disk? If not, just returns array.
+        name : str
+            If save==True, this is a name for this new blob that we can use
+            to call it up later.
+        clobber : bool
+            If file with same ``name`` exists, overwrite it?
         
         """    
         
-        blobs = varmap.values()
-        
-        data, is_log = self.ExtractData(blobs)
-        
-        for var in varmap.keys():
-            exec('%s = data[\'%s\']' % (var, varmap[var]))
+        if func is not None:
+            data, is_log = self.ExtractData(fields)
             
-        result = eval(expr)
+            # Grab ivars
+            ivars = {}
+            for key in data:
+                i, j, nd, size = self.blob_info(key)
+                ivars[key] = self.blob_ivars[i]
+                
+            result = func(data, ivars)
+        
+        else:
+        
+            blobs = varmap.values()
+            
+            data, is_log = self.ExtractData(blobs)
+            
+            # Assign data to variable names
+            for var in varmap.keys():
+                exec('%s = data[\'%s\']' % (var, varmap[var]))
+            
+            result = eval(expr)
         
         if save:
             assert name is not None, "Must supply name for new blob!"

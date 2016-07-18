@@ -14,7 +14,9 @@ A few papers on how it works:
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
 
-If you'd like to live on the bleeding edge, check out the ares-dev branch!
+If you'd like to live on the bleeding edge, check out the ares-dev branch! Once you clone *ares* you can switch via: ::
+    
+    hg up ares-dev
 
 The `docs <http://ares.readthedocs.org/en/latest/>`_ are still a work in progress.
 
@@ -62,6 +64,7 @@ and optionally,
 - `hmf <https://github.com/steven-murray/hmf>`_
 - `h5py <http://www.h5py.org/>`_
 - `mpi4py <http://mpi4py.scipy.org>`_
+- `emcee <http://dan.iel.fm/emcee/current/>`_
 - `python-progressbar <https://code.google.com/p/python-progressbar/>`_
 - `setuptools <https://pypi.python.org/pypi/setuptools>`_
 - `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_

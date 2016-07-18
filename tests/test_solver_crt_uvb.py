@@ -44,14 +44,14 @@ pars = \
 def test(tol=1e-2):
 
     # First calculation: no sawtooth
-    mgb = ares.simulations.MetaGalacticBackground(include_H_Lya=False, **pars)
+    mgb = ares.simulations.MetaGalacticBackground(**pars)
     mgb.run()
     
     z, E, flux = mgb.get_history(flatten=True)
     
     f1 = pl.figure(1); ax1 = f1.add_subplot(111)
     
-    ax1.semilogy(E, flux[-1] * E * erg_per_ev, color='k', ls='--')
+    ax1.semilogy(E, flux[0] * E * erg_per_ev, color='k', ls='--')
     
     # Grab GalaxyPopulation
     pop = mgb.pops[0]
@@ -67,7 +67,7 @@ def test(tol=1e-2):
     
     # Compare to analytic solution
     flux_anl = e_nu
-    flux_num = flux[-1] * E * erg_per_ev
+    flux_num = flux[0] * E * erg_per_ev
     
     diff = np.abs(flux_anl - flux_num) / flux_anl
     
@@ -92,7 +92,7 @@ def test(tol=1e-2):
     ax2.set_ylabel(r'$J_{\alpha}$')
         
     # Compare to case where line cascade is included
-    mgb = ares.simulations.MetaGalacticBackground(include_H_Lya=True, **pars)
+    mgb = ares.simulations.MetaGalacticBackground(**pars)
     mgb.run()
     
     z, E, flux = mgb.get_history(flatten=True)
