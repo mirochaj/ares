@@ -15,10 +15,8 @@ Simple Models
     * :doc:`example_rt06_2`
     
 * Uniform Radiation Backgrounds
-    * :doc:`example_crb_lw`
-    * :doc:`example_crb_uv`    
+    * :doc:`example_crb_uv`
     * :doc:`example_crb_xr`
-    * :doc:`example_crb_br`
  
 Parameter Studies and Inference
 -------------------------------

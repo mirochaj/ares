@@ -11,8 +11,9 @@ series of redshifts (:math:`10 \leq z \leq 40`):
     pars = \
     {
      # Source properties
-     'pop_type': 'galaxy',
+     'pop_sfr_model': 'sfrd-func',
      'pop_sfrd': lambda z: 0.1,
+     
      'pop_sed': 'pl',
      'pop_alpha': -1.5,
      'pop_Emin': 1e2,
