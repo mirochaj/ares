@@ -20,14 +20,13 @@ If you'd like to live on the bleeding edge, check out the ares-dev branch! Once 
 
 The `docs <http://ares.readthedocs.org/en/latest/>`_ are still a work in progress.
 
-Current status:
+Current status of default branch:
 
-.. image:: https://drone.io/bitbucket.org/mirochaj/ares-dev/status.png
-   :target: https://drone.io/bitbucket.org/mirochaj/ares-dev/latest
+.. image:: https://drone.io/bitbucket.org/mirochaj/ares/status.png
+   :target: https://drone.io/bitbucket.org/mirochaj/ares/latest
 
 .. image:: https://readthedocs.org/projects/ares/badge/?version=latest
    :target: http://ares.readthedocs.io/en/latest/?badge=latest
-
 
 Getting started
 ---------------------
