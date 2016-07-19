@@ -107,7 +107,7 @@ def guesses_from_priors(pars, prior_set, nwalkers):
         Number of walkers
 
     """
-
+    print "Making guesses from PriorSet..."
     guesses = []
     for i in range(nwalkers):
         draw = prior_set.draw()
@@ -171,8 +171,11 @@ class LogLikelihood(object):
         self.priors_P = param_prior_set
         if len(self.priors_P.params) != len(self.parameters):
             raise ValueError("The number of parameters of the priors given " +\
-                             "to a loglikelihood object is not equal to " +\
-                             "the number of parameters given to the object.")
+                             "to a loglikelihood object " +\
+                             ("(%i) " % (len(self.priors_P.params),)) +\
+                             "is not equal to the number of parameters " +\
+                             "given to the object " +\
+                             ("(%i)." % (len(self.parameters),)))
         
         if blob_info is None:
             self.priors_B = PriorSet()
@@ -405,9 +408,62 @@ class ModelFit(BlobFactory):
             try:
                 self._prior_set = PriorSet(prior_tuples=value)
             except:
-                raise ValueError("The prior_set property was set to " +\
-                                 "something which was not a PriorSet " +\
-                                 "and could not be cast as a PriorSet.")
+                err_msg = "The prior_set property was set to something " +\
+                          "which was not a PriorSet and could not be cast " +\
+                          "as a PriorSet."
+                if size == 1:
+                    raise ValueError(err_msg)
+                else:
+                    print err_msg
+                    MPI.COMM_WORLD.Abort()
+
+    @property
+    def guesses_prior_set(self):
+        """
+        The PriorSet object which is used to initialize the walkers. If
+        self.guesses_prior_set is set, it will be used here. Otherwise, the same
+        PriorSet which will be used in the likelihood calculation will be used
+        to initialize the walkers.
+        """
+        if hasattr(self, '_guesses_prior_set'):
+            return self._guesses_prior_set
+        else:
+            return self.prior_set_P
+    
+    @guesses_prior_set.setter
+    def guesses_prior_set(self, value):
+        """
+        A setter for the PriorSet which will be used to initialize the walkers.
+        This attribute is optional. If it is not set, the PriorSet which is
+        used in the likelihood calculation is used to initialize the walkers.
+        
+        value a PriorSet object
+        """
+        if isinstance(value, PriorSet):
+            self._guesses_prior_set = value
+            
+            for param in self._guesses_prior_set.params:
+                if param in self.parameters:
+                    continue
+                warn = "Setting prior on %s but %s not in parameters!" %\
+                    ((param,) * 2)
+                if size == 1:
+                    raise KeyError(warn)
+                else:
+                    print warn
+                    MPI.COMM_WORLD.Abort()
+        else:
+            try:
+                self._guesses_prior_set = PriorSet(prior_tuples=value)
+            except:
+                err_msg = "The guesses_prior_set property was set to " +\
+                          "something which was not a PriorSet and could " +\
+                          "not be cast as a PriorSet."
+                if size == 1:
+                    raise ValueError(err_msg)
+                else:
+                    print err_msg
+                    MPI.COMM_WORLD.Abort()
 
     @property
     def nwalkers(self):
@@ -434,17 +490,13 @@ class ModelFit(BlobFactory):
         """
         Generate initial position vectors for all walkers.
         """
-        
-        if hasattr(self, '_guesses'):
-            return self._guesses
-        
         # Set using priors
-        if (not hasattr(self, '_guesses')) and hasattr(self, '_prior_set'):            
-            self._guesses = guesses_from_priors(self.parameters, 
-                self.prior_set, self.nwalkers)
-        else:
-            raise AttributeError('Must set guesses or prior_set by hand!')
-                     
+        if (not hasattr(self, '_guesses')):
+            if hasattr(self, '_prior_set'):
+                self._guesses = guesses_from_priors(self.parameters,
+                    self.guesses_prior_set, self.nwalkers)
+            else:
+                raise AttributeError('Must set guesses or prior_set by hand!')
         return self._guesses
 
     @guesses.setter
@@ -477,6 +529,23 @@ class ModelFit(BlobFactory):
             self._guesses = guesses_tmp
         else:
             raise ValueError('Dunno about this shape')
+
+    def _adjust_guesses(self, pos, mlpt):
+        if rank > 0:
+            return
+        std = np.std(pos, axis=0)
+        pos = sample_ball(mlpt, std, size=self.nwalkers)
+        newpos = pos.copy()
+        def is_outside_prior(guess_list):
+            this_guess_dict = {}
+            for iparam in range(len(self.parameters)):
+                this_guess_dict[self.parameters[iparam]] = guess_list[iparam]
+            return not np.isfinite(self.prior_set_P.log_prior(this_guess_dict))
+        for iguess in range(newpos.shape[0]):
+            while is_outside_prior(newpos[iguess]):
+                newpos[iguess] = sample_ball(mlpt, std, size=1)[0]
+        return newpos
+            
                         
     # I don't know how to integrate this using the new prior system
     # Can you help, Jordan?
@@ -628,7 +697,8 @@ class ModelFit(BlobFactory):
             # deleting other files the user may have created with similar
             # naming convention!
             
-            for suffix in ['chain', 'logL', 'facc', 'pinfo', 'rinfo', 'setup', 'prior_set']:
+            for suffix in ['chain', 'logL', 'facc', 'pinfo', 'rinfo', 'setup',\
+                           'prior_set']:
                 os.system('rm -f %s.%s.pkl' % (prefix, suffix))
             
             os.system('rm -f %s.fail*.pkl' % prefix)
@@ -775,12 +845,10 @@ class ModelFit(BlobFactory):
 
             if rank == 0:
                 print "Burn-in complete in %.3g seconds." % (t2 - t1)
-
-            # Find maximum likelihood point
-            mlpt = pos[np.argmax(prob)]
-
-            pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
-            #pos = self._fix_guesses(pos)
+                if not hasattr(self, '_guesses_prior_set'):
+                    # Find maximum likelihood point
+                    mlpt = pos[np.argmax(prob)]
+                    pos = self._adjust_guesses(pos, mlpt)
             
         elif not restart:
             pos = self.guesses
