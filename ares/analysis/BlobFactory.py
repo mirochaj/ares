@@ -154,7 +154,10 @@ class BlobFactory(object):
                 if self._blob_ivars[i] is None:
                     self._blob_nd.append(0)
                     self._blob_dims.append(0)
-                    if self.pf['blob_funcs'][i] is None:
+                    
+                    if self.pf['blob_funcs'] is None:
+                        self._blob_funcs.append([None] * len(element))
+                    elif self.pf['blob_funcs'][i] is None:
                         self._blob_funcs.append([None] * len(element))
                     else:
                         self._blob_funcs.append(self.pf['blob_funcs'][i])

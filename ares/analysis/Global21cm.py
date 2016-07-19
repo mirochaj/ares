@@ -184,15 +184,19 @@ class Global21cm(MultiPhaseMedium):
     def turning_points(self):
         if not hasattr(self, '_turning_points'):  
             
+            _z = self.data['z']
+            lowz = _z < 70
+            
             # If we're here, the simulation has already been run.
             # We've got the option to smooth the derivative before 
             # finding the extrema 
             if self.pf['smooth_derivative'] > 0:
-                dTb = self.smooth_derivative(self.pf['smooth_derivative'])
+                _dTb = self.smooth_derivative(self.pf['smooth_derivative'])
             else:
-                dTb = self.data['dTb']
+                _dTb = self.data['dTb']
             
-            z = self.data['z']
+            z = self.data['z'][lowz]
+            dTb = _dTb[lowz]
 
             # Otherwise, find them. Not the most efficient, but it gets the job done
             # Redshifts in descending order
@@ -445,6 +449,8 @@ class Global21cm(MultiPhaseMedium):
             ax.plot(self.nu_p, self.dTbdnu, **kwargs)
                 
         if not gotax:
+            if not show_signal:
+                ax.set_xlabel(labels['nu'])
             ax.set_ylabel(r'$\delta T_{\mathrm{b}}^{\prime} \ (\mathrm{mK} \ \mathrm{MHz}^{-1})$')
         
         pl.draw()

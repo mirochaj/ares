@@ -129,19 +129,21 @@ Say you're running a simulation with multiple populations and, while their radia
     pop0.num = 0
 
 Now, let's make a second population with the same star-formation model:
+
+::
     
     pop1 = {'pop_sfr_model{1}': 'link:0'}
     
     # Add together
     pars = pop0 + pop1
     
-The 'link:0' means "link to population 0". So, if we initialize a simulation with both populations, e.g.,
+The ``'link:0'`` means "link to population #0". So, if we initialize a simulation with both populations, e.g.,
 
 ::
 
     sim = ares.simulations.Global21cm(**pars)
     
-and check the SFRDs, 
+and compare their SFRDs, they should be equal:
 
 ::
 
