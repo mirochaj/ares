@@ -1,6 +1,31 @@
 Troubleshooting
 ===============
-This page is an attempt to keep track of common errors and instructions for how to fix them. If you encounter a bug not listed below, `fork ares on bitbucket <https://bitbucket.org/mirochaj/ares/fork>`_ and an issue a pull request to contribute your patch, if you have one. Otherwise, shoot me an email and I can try to help.
+This page is an attempt to keep track of common errors and instructions for how to fix them. If you encounter a bug not listed below, `fork ares on bitbucket <https://bitbucket.org/mirochaj/ares/fork>`_ and an issue a pull request to contribute your patch, if you have one. Otherwise, shoot me an email and I can try to help. It would be useful if you can send me the dictionary of parameters for a particular calculation. For example, if you ran a global 21-cm calculation via
+
+::
+
+    import ares
+    
+    pars = {'parameter_1': 1e6, 'parameter_2': 2} # or whatever
+
+    sim = ares.simulations.Global21cm(**pars)
+    sim.run()
+    
+and you get weird or erroneous results, pickle the parameters:
+
+::
+
+    import pickle
+    f = open('problematic_model.pkl', 'wb')
+    pickle.dump(pars, f)
+    f.close()
+    
+and send them to me. Thanks! 
+
+   .. note :: If you've got a set of problematic models that you encountered            
+        while running a model grid or some such thing, check out the section 
+        on "problem realizations" in :doc:`example_grid_analysis`.
+    
 
 Plots not showing up
 --------------------

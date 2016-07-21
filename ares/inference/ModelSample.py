@@ -22,30 +22,30 @@ class ModelSample(ModelGrid):
     @prior_set.setter
     def prior_set(self, value):
         self._prior_set = value
-    
+
     @property
     def seed(self):
         if hasattr(self, '_seed'):
             return self._seed
         return None
-    
+
     @seed.setter
     def seed(self, value):
         self._seed = value
-    
+
     @property            
     def axes(self):
         return self.prior_set.params
-    
+
     @property
     def N(self):
         return self._N
     @N.setter
     def N(self, value):
         self._N = int(value)
-        
+
     def run(self, prefix, clobber=False, restart=False, save_freq=500):
-        
+
         # Initialize space
         models = []
         for i in range(self.N):
