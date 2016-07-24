@@ -12,6 +12,7 @@ Description:
 
 import re
 import numpy as np
+from inspect import ismethod
 from types import FunctionType
 from scipy.interpolate import RectBivariateSpline
 
@@ -367,8 +368,8 @@ class BlobFactory(object):
                     else:
                         fname = self.blob_funcs[i][j]
                         func = parse_attribute(fname, self)
-                        
-                        if type(func) is FunctionType:
+                                                
+                        if ismethod(func):
                             blob = np.array(map(func, x))
                         else:
                             blob = np.interp(x, func[0], func[1])

@@ -13,6 +13,15 @@ Description:
 import numpy as np
 from .ModelGrid import ModelGrid
 
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1
+
+
 class ModelSample(ModelGrid):
     
     @property
@@ -45,13 +54,39 @@ class ModelSample(ModelGrid):
         self._N = int(value)
 
     def run(self, prefix, clobber=False, restart=False, save_freq=500):
+        """
+        Run self.N models.
 
-        # Initialize space
-        models = []
-        for i in range(self.N):
-            kw = self.prior_set.draw()
-            models.append(kw)
+        Parameters
+        ----------
+        prefix : str
+            Prefix for all output files.
+        save_freq : int
+            Number of steps to take before writing data to disk. Note that if
+            you're running in parallel, this is the number of steps *each 
+            processor* will take before writing to disk.
+        clobber : bool
+            Overwrite pre-existing files of the same prefix if one exists?
+        restart : bool
+            Append to pre-existing files of the same prefix if one exists?
+
+        Returns
+        -------
+        """
+        
+        # Initialize space -- careful if running in parallel
+        if rank == 0:
+            models = []
+            for i in range(self.N):
+                kw = self.prior_set.draw()
+                models.append(kw)
+                
+        else:
+            models = None
             
+        if size > 1:
+            models = MPI.COMM_WORLD.bcast(models, root=0)
+        
         self.set_models(models)
         
         super(ModelSample, self).run(prefix, clobber, restart, save_freq)

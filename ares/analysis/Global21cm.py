@@ -544,6 +544,13 @@ class Global21cm(MultiPhaseMedium):
         pl.draw()
     
         return ax
+        
+    def Slope(self, freq):
+        """
+        Return slope of signal in mK / MHz at input frequency (MHz).
+        """    
+        
+        return np.interp(freq, self.nu_p, self.dTbdnu)
     
     def WidthMeasure(self, max_fraction=0.5, peak_relative=False, to_freq=True):
         """
@@ -603,7 +610,9 @@ class Global21cm(MultiPhaseMedium):
                 l = abs(self.z_C[i] - l)
                 r = abs(self.z_C[i] - r)
         
-        val = r - l
+            val = r - l
+        else:
+            val = abs(r - l)
         
         return val
         
