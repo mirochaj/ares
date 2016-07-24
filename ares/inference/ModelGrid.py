@@ -16,12 +16,11 @@ import copy, os, gc, re, time
 from .ModelFit import ModelFit
 from ..util import GridND, ProgressBar
 from ..util.ReadData import read_pickle_file, read_pickled_dict
-from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
+#try:
+#    import dill as pickle
+#except ImportError:
+import pickle
 
 try:
     from mpi4py import MPI
@@ -292,7 +291,12 @@ class ModelGrid(ModelFit):
         # Initialize progressbar
         pb = ProgressBar(Nleft, 'grid')
         pb.start()
-
+        
+        if pb.has_pb:
+            use_checks = False
+        else:
+            use_checks = True
+        
         chain_all = []; blobs_all = []; load_all = []
 
         # Loop over models, use StellarPopulation.update routine 
@@ -416,6 +420,9 @@ class ModelGrid(ModelFit):
                 del p, sim
                 gc.collect()
                 continue
+
+            if rank == 0 and use_checks:
+                print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
 
             # Here we wait until we get the key
             if rank != 0:

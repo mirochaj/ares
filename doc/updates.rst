@@ -38,15 +38,15 @@ This will print out a list of files in your fork that have either been modified 
 
 If, however, some files have been changed and you'd like to see just exactly what changes were made, use the ``diff`` command. For example, if when you type ``hg status`` you see something like::
 
-    M tests/test_gsm.py
+    M tests/test_solver_chem_h.py
     
 follow-up with::
 
-    hg diff tests/test_gsm.py
+    hg diff tests/test_solver_chem_h.py
     
 and you'll see a modified version of the file with ``+`` symbols indicating additions and ``-`` signs indicating removals. If there have been lots of changes, you may want to pipe the output of ``hg diff`` to, e.g., the UNIX program ``less``::
 
-    hg diff tests/test_gsm.py | less
+    hg diff tests/test_solver_chem_h.py | less
     
 and use ``u`` and ``d`` to navigate up and down in the output.
 
@@ -77,7 +77,7 @@ You'll once again be prompted for your credentials, and then (hopefully) told ho
 
 If you get some sort of authorization error, have a look at the following file: ::
 
-    $PERSES/.hg/hgrc
+    $ARES/.hg/hgrc
     
 You should see something that looks like ::
 

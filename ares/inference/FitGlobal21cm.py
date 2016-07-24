@@ -193,7 +193,8 @@ class FitGlobal21cm(ModelFit):
 
             self.sim = sim
 
-        elif isinstance(value, simGlobal21cm):
+        elif isinstance(value, simGlobal21cm) or \
+             isinstance(value, anlGlobal21cm):
             sim = self.sim = value                   
         else:
             assert len(value) == len(self.frequencies)            

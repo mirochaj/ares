@@ -14,7 +14,7 @@ Some examples below.
 
 Generic MCMC Fitting
 --------------------
-
+The example below 
 
 
 
@@ -82,11 +82,9 @@ Generic MCMC Fitting
     anl.TrianglePlot(anl.parameters, fig=2)
     
     
-    
-    
 Fitting Global 21-cm Extrema
 ----------------------------
-The fastest model to fit is one treating the Lyman-:math:`\alpha`, ionization, and thermal histories as a tanh function:
+The fastest model to fit is one treating the Lyman-:math:`\alpha`, ionization, and thermal histories as a tanh function, so that's what we'll use in this example. 
 
 ::
 
@@ -100,27 +98,29 @@ The fastest model to fit is one treating the Lyman-:math:`\alpha`, ionization, a
      'blob_funcs': None,
     }
     
+.. note :: These ``blob_*`` parameters were covered in :doc:`example_grid`, so if you have yet to go through that example, now might be a good time!
     
 Now, initialize a fitter:
 
 ::   
     
     # Initialize fitter
-    fit = ares.inference.ModelFit(**base_pars)
+    fitter = ares.inference.FitGlobal21cm(**base_pars)
  
 and the turning points to be fit:
 
 ::
+
+    fitter.turning_points = True
     
     # Assume default parameters
-    fitter.data = base_pars
+    fitter.data = {'tanh_model': True}
     
     # Set errors
     fitter.error = {tp:[1.0, 5.] for tp in list('BCD')}
     
     
-Finally, we set the parameters to be varied in the fit and their priors, which
-in this case we'll take to be uninformative over a relatively broad range:
+Now, we set the parameters to be varied in the fit and whether or not to explore their values in log10,
 
 ::
 
@@ -128,30 +128,36 @@ in this case we'll take to be uninformative over a relatively broad range:
     fitter.parameters = ['tanh_xz0', 'tanh_xdz', 'tanh_Tz0', 'tanh_Tdz']
     fitter.is_log = [False]*4
     
-    # Set priors on model parameters (uninformative)
-    fit.priors = \
-    {
-     'tanh_xz0': ['uniform', 5., 20.],
-     'tanh_xdz': ['uniform', 0.1, 20],
-     'tanh_Tz0': ['uniform', 5., 20.],
-     'tanh_Tdz': ['uniform', 0.1, 20],
-    }
+as well as the priors on the parameters, which in this case we'll take to be uninformative over a relatively broad range:
 
-    # Set the number of Goodman-Weare walkers 
-    fit.nwalkers = 128
+::
     
-To finally run it, 
+    ps = ares.inference.PriorSet()
+    ps.add_prior(UniformPrior(5, 20), 'tanh_xz0')
+    ps.add_prior(UniformPrior(0.1, 20), 'tanh_xdz')
+    ps.add_prior(UniformPrior(5, 20), 'tanh_Tz0')
+    ps.add_prior(UniformPrior(0.1, 20), 'tanh_Tdz')
+    fitter.prior_set = ps
+    
+Finally, we set the number of Goodman-Weare walkers 
+
+::
+
+    fitter.nwalkers = 128
+    
+and run the fit:
       
 ::    
     
-    fit.run(prefix='test_tanh', burn=10, steps=50, save_freq=10)
+    fitter.run(prefix='test_tanh', burn=10, steps=50, save_freq=10)
 
-This will result in a series of files named ``test_tanh*.pkl``. 
+This will result in a series of files named ``test_tanh*.pkl``. See the example on :doc:`example_mcmc_I` to proceed with inspecting the above dataset.
 
 Fitting Global 21-cm Signal
 ---------------------------
-
+Stay tuned.
 
 Fitting the Galaxy Luminosity Function
 --------------------------------------
+Stay tuned.
 

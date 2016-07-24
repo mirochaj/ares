@@ -2697,9 +2697,9 @@ class ModelSet(BlobFactory):
                 
             for j, parameter in enumerate(self.parameters):
                 if self.is_log[j]:
-                    kwargs[parameter] = 10**self.chain[i,j]
+                    kwargs[parameter] = 10**self.chain[i,j].data
                 else:
-                    kwargs[parameter] = self.chain[i,j]
+                    kwargs[parameter] = self.chain[i,j].data
                     
             all_kwargs.append(kwargs.copy())
 

@@ -45,6 +45,7 @@ def test(Ns=500, Nd=4, prefix='test'):
     {
      'blob_names': [['blob_0'], ['blob_1'], ['blob_2', 'blob_3']], 
      'blob_ivars': [None, [np.arange(10)], [np.arange(10), np.arange(10,20)]],
+     'blob_funcs': None,
     }
     
     with open('%s.setup.pkl' % prefix, 'wb') as f:

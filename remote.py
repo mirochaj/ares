@@ -50,6 +50,9 @@ if (len(options) > 0) and ('clean' not in options):
     else:
         to_download = []
         for key in options:
+            if key == 'fresh':
+                continue
+                
             if re.search(':', key):
                 pre, post = key.split(':')
                 to_download.append(pre)

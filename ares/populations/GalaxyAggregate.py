@@ -385,9 +385,11 @@ class GalaxyAggregate(HaloPopulation):
                 return self._conversion_factors[(Emin, Emax)]
     
             if Emin < self.pf['pop_Emin']:
-                print "WARNING: Emin < pop_Emin"
+                print "WARNING: Emin (%.2g eV) < pop_Emin (%.2g eV)" \
+                    % (Emin, self.pf['pop_Emin'])
             if Emax > self.pf['pop_Emax']:
-                print "WARNING: Emax > pop_Emax"    
+                print "WARNING: Emax (%.2g eV) > pop_Emax (%.2g eV)" \
+                    % (Emax, self.pf['pop_Emax'])
     
             # If tabulated, do things differently
             if self.sed_tab:

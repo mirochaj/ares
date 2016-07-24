@@ -142,7 +142,7 @@ If you've got models that seem to have something wrong with them, sending me the
 
     import pickle
     f = open('problematic_models.pkl', 'wb')
-    pickle.dump(kw)
+    pickle.dump(kwargs_list, f)
     f.close()
     
     

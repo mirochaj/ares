@@ -12,6 +12,7 @@ Description:
 
 import re
 import numpy as np
+from inspect import ismethod
 from types import FunctionType
 from scipy.interpolate import RectBivariateSpline
 
@@ -79,7 +80,7 @@ def parse_attribute(blob_name, obj_base):
     attr_split = []
     for element in s.split('.'):
         attr_split.append(element.replace(marker, '.'))
-                
+                                
     if len(attr_split) == 1: 
         s = attr_split[0]
         return eval('obj_base.%s' % s)
@@ -150,12 +151,18 @@ class BlobFactory(object):
             self._blob_funcs = []
             for i, element in enumerate(self._blob_names):
                 
-                # Scalars: must be class properties, i.e., funcs = None
-                if np.isscalar(self._blob_ivars[i]) or \
-                   (self._blob_ivars[i] is None):
+                # Scalar blobs handled first
+                if self._blob_ivars[i] is None:
                     self._blob_nd.append(0)
                     self._blob_dims.append(0)
-                    self._blob_funcs.append([None] * len(element))
+                    
+                    if self.pf['blob_funcs'] is None:
+                        self._blob_funcs.append([None] * len(element))
+                    elif self.pf['blob_funcs'][i] is None:
+                        self._blob_funcs.append([None] * len(element))
+                    else:
+                        self._blob_funcs.append(self.pf['blob_funcs'][i])
+                        
                     continue
                 # Everything else
                 else:
@@ -336,7 +343,7 @@ class BlobFactory(object):
                         
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                    
+                                                                                                                                                                     
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -345,8 +352,9 @@ class BlobFactory(object):
                         blob = parse_attribute(key, self)
                     else:
                         fname = self.blob_funcs[i][j]
-                        func = parse_attribute(fname, self)
-                        blob = func(self.blob_ivars[i])
+                        # In this case, the return of parse_attribute is
+                        # a value, not a function to be applied to ivars.
+                        blob = parse_attribute(fname, self)
 
                 # 1-D blobs. Assume the independent variable is redshift 
                 # unless a function is provided
@@ -360,8 +368,8 @@ class BlobFactory(object):
                     else:
                         fname = self.blob_funcs[i][j]
                         func = parse_attribute(fname, self)
-                        
-                        if type(func) is FunctionType:
+                                                
+                        if ismethod(func):
                             blob = np.array(map(func, x))
                         else:
                             blob = np.interp(x, func[0], func[1])

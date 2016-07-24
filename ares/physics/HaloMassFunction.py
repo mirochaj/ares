@@ -74,7 +74,7 @@ transfer_pars = \
 
 growth_pars = \
 {
- 'dlna': 0.0001,
+ 'dlna': 1e-5,
 }
 
 class HaloMassFunction(object):

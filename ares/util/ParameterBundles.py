@@ -61,9 +61,8 @@ _sed_toy = \
 
 _pop_sfe = \
 {
- 'pop_sfr_model': 'sfe-func',
+ 'pop_sfr_model': 'sfe-dpl',
  'pop_fstar': 'php',
- 'pop_MAR': 'hmf',
  'php_func': 'dpl',
  'php_func_par0': 0.1,
  'php_func_par1': 3e11,
@@ -71,6 +70,17 @@ _pop_sfe = \
  'php_func_par3': -0.6,
 
  # Redshift dependent parameters here
+}
+
+_pop_sfe_ext = \
+{
+ 'php_faux': 'plexp',
+ 'php_faux_var': 'mass',
+ 'php_faux_meth': 'add',
+ 'php_faux_par0': 0.005,
+ 'php_faux_par1': 1e9,
+ 'php_faux_par2': 0.01,
+ 'php_faux_par3': 1e10,
 }
 
 _pop_mlf = \
@@ -175,7 +185,8 @@ _pl['pop_sed'] = 'pl'
 
 _Bundles = \
 {
- 'pop': {'fcoll': _pop_fcoll, 'sfe-func': _pop_sfe, 'sfrd-func': _pop_user_sfrd},
+ 'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe, 
+    'sfrd-func': _pop_user_sfrd, 'sfe-pl-ext': _pop_sfe_ext},
  'sed': {'uv': _sed_uv, 'lw': _sed_lw, 'lyc': _sed_lyc, 
          'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 'toy': _sed_toy,
          'bpass': _uvsed_bpass, 's99': _uvsed_s99},

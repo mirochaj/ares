@@ -20,7 +20,7 @@ alpha = 0.
 
 pars = \
 {
- 'pop_type': 'galaxy',
+ 'pop_sfr_model': 'sfrd-func',
  'pop_sfrd': lambda z: 0.1 * (1. + z)**beta,  # for analytic solution to work this must be const
  'pop_sfrd_units': 'msun/yr/mpc^3',
  'pop_sed': 'pl',

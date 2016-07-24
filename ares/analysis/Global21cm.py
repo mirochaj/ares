@@ -184,15 +184,19 @@ class Global21cm(MultiPhaseMedium):
     def turning_points(self):
         if not hasattr(self, '_turning_points'):  
             
+            _z = self.data['z']
+            lowz = _z < 70
+            
             # If we're here, the simulation has already been run.
             # We've got the option to smooth the derivative before 
             # finding the extrema 
             if self.pf['smooth_derivative'] > 0:
-                dTb = self.smooth_derivative(self.pf['smooth_derivative'])
+                _dTb = self.smooth_derivative(self.pf['smooth_derivative'])
             else:
-                dTb = self.data['dTb']
+                _dTb = self.data['dTb']
             
-            z = self.data['z']
+            z = self.data['z'][lowz]
+            dTb = _dTb[lowz]
 
             # Otherwise, find them. Not the most efficient, but it gets the job done
             # Redshifts in descending order
@@ -445,6 +449,8 @@ class Global21cm(MultiPhaseMedium):
             ax.plot(self.nu_p, self.dTbdnu, **kwargs)
                 
         if not gotax:
+            if not show_signal:
+                ax.set_xlabel(labels['nu'])
             ax.set_ylabel(r'$\delta T_{\mathrm{b}}^{\prime} \ (\mathrm{mK} \ \mathrm{MHz}^{-1})$')
         
         pl.draw()
@@ -538,5 +544,75 @@ class Global21cm(MultiPhaseMedium):
         pl.draw()
     
         return ax
+        
+    def Slope(self, freq):
+        """
+        Return slope of signal in mK / MHz at input frequency (MHz).
+        """    
+        
+        return np.interp(freq, self.nu_p, self.dTbdnu)
     
-    
+    def WidthMeasure(self, max_fraction=0.5, peak_relative=False, to_freq=True):
+        """
+        Return a measurement of the width of the absorption signal.
+        
+        Parameters
+        ----------
+        max_fraction : float
+            At what fraction of the peak should we evaluate the width?
+        peak_relative: bool 
+            If True, compute the width on the left (L) and right (R) side of 
+            the peak separately, and return R - L. If Not, the return value is
+            the full width of the peak evaluated at max_fraction * its max.
+        to_freq: bool
+            If True, return value is in MHz. If False, it is a differential
+            redshift element.
+            
+        .. note :: With default parameters, this function returns the 
+            full-width at half-maximum (FWHM) of the absorption signal.
+            
+        """
+        
+        if not np.isfinite(self.z_C):
+            return -np.inf
+        
+        # Only use low redshifts once source are "on"
+        _z = self.data_asc['z']
+        ok = _z < self.pf['first_light_redshift']
+        z = self.data_asc['z'][ok]
+        dTb = self.data_asc['dTb'][ok]
+        
+        i_max = np.argmin(np.abs(dTb - self.dTb_C))
+        
+        # At what fraction of peak do we measure width?
+        h_max = max_fraction * self.dTb_C
+        
+        if len(dTb[:i_max]) < 2 or len(dTb[i_max:]) < 2:
+            return -np.inf
+        
+        interp_l = interp1d(dTb[:i_max], z[:i_max], bounds_error=False, 
+            fill_value=-np.inf)
+        interp_r = interp1d(dTb[i_max:], z[i_max:], bounds_error=False, 
+            fill_value=-np.inf)
+        
+        l = abs(interp_l(h_max))
+        r = abs(interp_r(h_max))
+                
+        if to_freq:
+            l = nu_0_mhz / (1. + l)
+            r = nu_0_mhz / (1. + r)
+        
+        if peak_relative:
+            if to_freq:
+                l = abs(self.nu_C - l)
+                r = abs(self.nu_C - r)
+            else:
+                l = abs(self.z_C[i] - l)
+                r = abs(self.z_C[i] - r)
+        
+            val = r - l
+        else:
+            val = abs(r - l)
+        
+        return val
+        

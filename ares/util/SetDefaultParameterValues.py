@@ -666,6 +666,7 @@ def ControlParameters():
     "tau_Nz": 400,
     "tau_table": None,
     "tau_prefix": tau_prefix,
+    "tau_instance": None,
 
     # File format
     "preferred_format": 'pkl',

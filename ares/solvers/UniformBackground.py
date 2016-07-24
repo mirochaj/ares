@@ -442,7 +442,13 @@ class UniformBackground(object):
         if E.max() <= E_LL:
             return z, E, np.zeros([len(z), len(E)])
                     
-        # Create an ares.simulations.OpticalDepth instance
+        # See if we've got an instance of OpticalDepth already handy
+        if self.pf['tau_instance'] is not None:
+            self._tau_solver = self.pf['tau_instance']
+            return self._tau_solver.z_fetched, self._tau_solver.E_fetched, \
+                self._tau_solver.tau_fetched
+            
+        # Create an ares.simulations.OpticalDepth instance    
         tau_solver = OpticalDepth(**pop.pf)
         self._tau_solver = tau_solver
         
