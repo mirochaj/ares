@@ -76,11 +76,14 @@ class ModelSample(ModelGrid):
         
         # Initialize space -- careful if running in parallel
         if rank == 0:
+            
+            np.random.seed(self.seed)
+            
             models = []
             for i in range(self.N):
                 kw = self.prior_set.draw()
                 models.append(kw)
-                
+                             
         else:
             models = None
             

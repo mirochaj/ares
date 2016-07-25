@@ -285,7 +285,7 @@ class BlobFactory(object):
     def get_blob(self, name, ivar=None):
         """
         This is meant to recover a blob from a single simulation, i.e.,
-        NOT a whole slew of them from an MCMC. UNLESS bset == True.
+        NOT a whole slew of them from an MCMC.
         """
         for i in range(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
@@ -300,8 +300,14 @@ class BlobFactory(object):
         elif self.blob_nd[i] == 0:
             return float(self.blobs[i][j])
         elif self.blob_nd[i] == 1:
-            assert ivar in self.blob_ivars[i]
-            k = list(self.blob_ivars[i]).index(ivar)
+            
+            if len(self.blob_ivars[i]) == 1:
+                iv = self.blob_ivars[i][0]
+            else:
+                iv = self.blob_ivars[i]     
+            
+            assert ivar in iv
+            k = list(iv).index(ivar)
 
             return float(self.blobs[i][j][k])
 

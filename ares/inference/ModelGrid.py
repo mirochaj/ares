@@ -469,7 +469,8 @@ class ModelGrid(ModelFit):
             with open('%s.load.pkl' % self.prefix, 'ab') as f:
                 pickle.dump(load_all, f)
         
-        print "Processor %i: Wrote %s.*.pkl" % (rank, prefix)
+        print "Processor %i: Wrote %s.*.pkl (@ %s)" \
+            % (rank, prefix, time.ctime())
         
         # Send the key to the next processor
         if rank != (size-1):

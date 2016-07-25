@@ -553,6 +553,9 @@ class Global21cm(MultiPhaseMedium):
         return np.interp(freq, self.nu_p, self.dTbdnu)
     
     def WidthMeasure(self, max_fraction=0.5, peak_relative=False, to_freq=True):
+        return self.Width(max_fraction, peak_relative, to_freq)
+        
+    def Width(self, max_fraction=0.5, peak_relative=False, to_freq=True):
         """
         Return a measurement of the width of the absorption signal.
         
