@@ -179,26 +179,32 @@ class ModelGrid(ModelFit):
         Stick this in utilities folder?
         """
         
-        if rank != 0:
-            return
-        
         if restart:
             return
+        
+        if self.save_by_proc:
+            prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
+        else:
+            prefix_by_proc = self.prefix
+        
+            if rank != 0:
+                return
             
         prefix = self.prefix
-        super(ModelGrid, self)._prep_from_scratch(clobber)
+        super(ModelGrid, self)._prep_from_scratch(clobber, 
+            by_proc=self.save_by_proc)
     
         if os.path.exists('%s.logL.pkl' % prefix):
             os.remove('%s.logL.pkl' % prefix)
 
         # Say what processor computed which models.
         # Really just to make sure load-balancing etc. is working
-        f = open('%s.load.pkl' % prefix, 'wb')
+        f = open('%s.load.pkl' % prefix_by_proc, 'wb')
         f.close()
 
         for par in self.grid.axes_names:
             if re.search('Tmin', par):
-                f = open('%s.fcoll.pkl' % prefix, 'wb')
+                f = open('%s.fcoll.pkl' % prefix_by_proc, 'wb')
                 f.close()
                 break
 
@@ -230,26 +236,31 @@ class ModelGrid(ModelFit):
         -------
 
         """
-
+        
         self.prefix = prefix
         self.save_freq = save_freq
-
-        if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
+        
+        if self.save_by_proc:
+            prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
+        else:
+            prefix_by_proc = prefix
+                
+        if os.path.exists('%s.chain.pkl' % prefix_by_proc) and (not clobber):
             if not restart:
                 raise IOError('%s exists! Remove manually, set clobber=True, or set restart=True to append.' 
-                    % prefix)
+                    % prefix_by_proc)
 
-        if not os.path.exists('%s.chain.pkl' % prefix) and restart:
-            raise IOError("This can't be a restart, %s*.pkl not found." % prefix)
+        if not os.path.exists('%s.chain.pkl' % prefix_by_proc) and restart:
+            raise IOError("This can't be a restart, %s*.pkl not found." % prefix_by_proc)
         
         # Load previous results if this is a restart
         if restart:
-            if rank != 0:
+            if (not self.save_by_proc) and (rank != 0):
                 MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
                 
-            self._read_restart(prefix)
+            self._read_restart(prefix_by_proc)
             
-            if rank != (size-1):
+            if (not self.save_by_proc) and (rank != (size-1)):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
                 
             # Re-run load-balancing
@@ -424,26 +435,25 @@ class ModelGrid(ModelFit):
             if rank == 0 and use_checks:
                 print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
 
-            # Here we wait until we get the key
-            if rank != 0:
+            if (not self.save_by_proc) and (rank != 0):
+                # Here we wait until we get the key      
                 MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
-                
+                    
             # First assemble data from all processors?
             # Analogous to assembling data from all walkers in MCMC
-                
-            f = open('%s.chain.pkl' % self.prefix, 'ab')
+            f = open('%s.chain.pkl' % prefix_by_proc, 'ab')
             pickle.dump(chain_all, f)
             f.close()
             
-            self.save_blobs(blobs_all, uncompress=False)
+            self.save_blobs(blobs_all, False, prefix_by_proc)
             
-            f = open('%s.load.pkl' % self.prefix, 'ab')
+            f = open('%s.load.pkl' % prefix_by_proc, 'ab')
             pickle.dump(load_all, f)
             f.close()
-
+            
             # Send the key to the next processor
-            if rank != (size-1):
-                MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
+            if (not self.save_by_proc) and (rank != (size-1)):
+                    MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
             
             del p, sim
             del chain_all, blobs_all, load_all
@@ -455,25 +465,25 @@ class ModelGrid(ModelFit):
 
         # Need to make sure we write results to disk if we didn't 
         # hit the last checkpoint
-        if rank != 0:
+        if (not self.save_by_proc) and (rank != 0):
             MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
     
         if chain_all:
-            with open('%s.chain.pkl' % self.prefix, 'ab') as f:
+            with open('%s.chain.pkl' % prefix_by_proc, 'ab') as f:
                 pickle.dump(chain_all, f)
         
         if blobs_all:
-            self.save_blobs(blobs_all, uncompress=False)
+            self.save_blobs(blobs_all, False, prefix_by_proc)
         
         if load_all:
-            with open('%s.load.pkl' % self.prefix, 'ab') as f:
+            with open('%s.load.pkl' % prefix_by_proc, 'ab') as f:
                 pickle.dump(load_all, f)
         
-        print "Processor %i: Wrote %s.*.pkl (@ %s)" \
+        print "Processor %i: Wrote %s.*.pkl (%s)" \
             % (rank, prefix, time.ctime())
         
         # Send the key to the next processor
-        if rank != (size-1):
+        if (not self.save_by_proc) and (rank != (size-1)):
             MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
                 
     @property        
@@ -528,15 +538,31 @@ class ModelGrid(ModelFit):
     def nwalkers(self):
         # Each processor writes its own data
         return 1
+        
+    @property
+    def save_by_proc(self):
+        if not hasattr(self, '_save_by_proc'):
+            self._save_by_proc = False
+        return self._save_by_proc
+        
+    @save_by_proc.setter
+    def save_by_proc(self, value):
+        self._save_by_proc = value
+            
+    @property
+    def assignments(self):
+        if not hasattr(self, '_assignments'):
+            self._assignments = np.zeros(self.grid.size)
+        return self._assignments
+            
+    @assignments.setter
+    def assignments(self, value):
+        self._assignments = value
             
     def LoadBalance(self, method=None, pars=None):
-        
-        if size == 1 or method is None:
-            self.assignments = np.zeros(self.grid.size)
-            return
-        
+                
         if self.grid.structured:
-            self._structured_balance(method=method)       
+            self._structured_balance(method=method)
         else: 
             self._unstructured_balance(method=method)       
             

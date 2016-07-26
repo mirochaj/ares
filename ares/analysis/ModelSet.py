@@ -440,7 +440,32 @@ class ModelSet(BlobFactory):
 
                 mask2d = np.array([self.mask] * self._chain.shape[1]).T
                 self._chain = np.ma.array(self._chain, mask=mask2d)
+            
+            # We might have data stored by processor
+            elif os.path.exists('%s.000.chain.pkl' % self.prefix):
+                i = 0
+                full_chain = []
+                full_mask = []
+                fn = '%s.000.chain.pkl' % self.prefix
+                while True:
+                                        
+                    if not os.path.exists(fn):
+                        break
+                                        
+                    this_chain = read_pickled_chain(fn)                                    
+                    full_chain.extend(this_chain.copy())                    
                     
+                    i += 1
+                    fn = '%s.%s.chain.pkl' % (self.prefix, str(i).zfill(3))  
+                    
+                self._chain = np.ma.array(full_chain, mask=0)
+
+                # So we don't have to stitch them together again.
+                if rank == 0:
+                    f = open('%s.chain.pkl' % self.prefix, 'wb')
+                    pickle.dump(self._chain, f)
+                    f.close()
+
             else:
                 self._chain = None            
 
