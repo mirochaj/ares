@@ -177,10 +177,6 @@ Check that we got our blobs:
 ..     
 ..      'pop_sed{0}': 'leitherer1999',
 ..      'pop_fesc{0}': 0.2,
-..      'pop_lf_Mstar[%.2g]{0}' % redshift: -22, 
-..      'pop_lf_pstar[%.2g]{0}' % redshift: 1e-3, 
-..      'pop_lf_alpha[%.2g]{0}' % redshift: -2,
-..      
 ..      'pop_ion_src_igm{1}': False,
 ..      
 ..      'problem_type': 101.2,

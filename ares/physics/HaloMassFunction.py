@@ -149,7 +149,9 @@ class HaloMassFunction(object):
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load']:
             fn = '%s/input/hmf/%s' % (ARES, self.table_prefix())
-            if os.path.exists('%s.pkl' % fn):
+            if os.path.exists('%s.%s' % (fn, self.pf['preferred_format'])):
+                self.fn = '%s.%s' % (fn, self.pf['preferred_format'])
+            elif os.path.exists('%s.pkl' % fn):
                 self.fn = '%s.pkl' % fn
             elif os.path.exists('%s.hdf5' % fn):
                 self.fn = '%s.hdf5' % fn   

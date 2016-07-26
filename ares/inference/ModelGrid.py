@@ -529,7 +529,12 @@ class ModelGrid(ModelFit):
         # Each processor writes its own data
         return 1
             
-    def LoadBalance(self, method=0):
+    def LoadBalance(self, method=None, pars=None):
+        
+        if size == 1 or method is None:
+            self.assignments = np.zeros(self.grid.size)
+            return
+        
         if self.grid.structured:
             self._structured_balance(method=method)       
         else: 
@@ -560,6 +565,12 @@ class ModelGrid(ModelFit):
                 tag=10*rank)
                    
         self.LB = 0
+        
+    def _balance_via_grouping(self, par):    
+        pass
+    
+    def _balance_via_sorting(self, par):    
+        pass
                         
     def _structured_balance(self, method=0):
         """

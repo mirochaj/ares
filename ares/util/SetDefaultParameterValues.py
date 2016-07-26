@@ -638,6 +638,7 @@ def ControlParameters():
     "max_dt": 1.,
     "max_dz": None,
     "max_timestep": 1.,
+    "min_timestep": 1e-8,
     "epsilon_dt": 0.05,
     "initial_timestep": 1e-2,
     "tau_ifront": 0.5,
@@ -645,7 +646,12 @@ def ControlParameters():
     
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
-    "stop_xavg": 0.999,   # stop at given ionized fraction
+    
+    "stop_igm_h_2": None,
+    "stop_cgm_h_2": None,
+    
+    
+    
     "track_extrema": False,
     "delay_extrema": 5,      # Number of steps
     "smooth_derivative": 0, 
