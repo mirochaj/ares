@@ -37,6 +37,9 @@ aux_data = \
 
 }
 
+if not os.path.exists('input'):
+    os.mkdir('input')
+
 os.chdir('input')
 
 files = []
@@ -60,6 +63,10 @@ if (len(options) > 0) and ('clean' not in options):
             else:
                 to_download.append(key)
                 files.append(None)
+                
+        if to_download == [] and 'fresh' in options:
+            to_download = aux_data.keys()
+            files = [None] * len(to_download)        
 else:
     to_download = aux_data.keys()
     files = [None] * len(to_download)

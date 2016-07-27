@@ -540,9 +540,19 @@ class ModelSet(BlobFactory):
         nchunks = int(self.steps / sf)
         schunk = nw * sf
         data = []
-        for i in range(nchunks):
+        i = 0
+        while True:
+            
+            
+            print 'hello', i
+        #for i in range(nchunks):
+            #try:
             chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
             data.extend(chunk)
+            #except:
+            #    break
+                
+            i += 1
             
         return np.array(data)
                 
@@ -985,6 +995,17 @@ class ModelSet(BlobFactory):
         
         pl.draw()        
         self._ax = ax
+        return ax
+        
+    def _fix_tick_labels(self, ax):
+        tx = map(int, ax.get_xticks())
+        ax.set_xticklabels(map(str, tx))
+        
+        ty = map(int, ax.get_yticks())
+        ax.set_yticklabels(map(str, ty))
+        
+        pl.draw()
+        
         return ax
     
     def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,

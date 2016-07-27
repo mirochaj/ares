@@ -805,7 +805,7 @@ class ModelFit(BlobFactory):
             iterations=steps, rstate0=state, storechain=False):
             # Only the rank 0 processor ever makes it here
             ct += 1
-
+            
             pos_all.append(pos.copy())
             prob_all.append(prob.copy())
             blobs_all.append(blobs)

@@ -107,9 +107,9 @@ steep = dpl.copy()
 steep.update(_steep_specific)
 
 """
-Redshift-dependent options
+Redshift-dependent options.
 """
-_dpl_fz_specific = \
+_fz_specific = \
 {
  'php_faux{0}[0]': 'pl',
  'php_faux_var{0}[0]': '1+z',
@@ -119,10 +119,7 @@ _dpl_fz_specific = \
  'php_faux_par2{0}[0]': 1.,
 }
 
-dpl_fz = dpl.copy()
-dpl_fz.update(_dpl_fz_specific)
-
-_dpl_Mz_specific = \
+_Mz_specific = \
 {
  'php_func_par1{0}[0]': 'pl',
  'php_func_par1_par0{0}[0]': dpl['php_func_par1{0}[0]'],
@@ -130,5 +127,17 @@ _dpl_Mz_specific = \
  'php_func_par1_par2{0}[0]': -1.,
 }
 
+dpl_fz = dpl.copy()
+dpl_fz.update(_fz_specific)
 dpl_Mz = dpl.copy()
-dpl_Mz.update(_dpl_Mz_specific)
+dpl_Mz.update(_Mz_specific)
+
+steep_fz = steep.copy()
+steep_fz.update(_fz_specific)
+steep_Mz = steep.copy()
+steep_Mz.update(_Mz_specific)
+
+floor_fz = floor.copy()
+floor_fz.update(_fz_specific)
+floor_Mz = floor.copy()
+floor_Mz.update(_Mz_specific)

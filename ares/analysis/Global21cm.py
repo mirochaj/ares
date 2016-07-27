@@ -552,10 +552,12 @@ class Global21cm(MultiPhaseMedium):
         
         return np.interp(freq, self.nu_p, self.dTbdnu)
     
-    def WidthMeasure(self, max_fraction=0.5, peak_relative=False, to_freq=True):
+    def WidthMeasure(self, max_fraction=0.5, peak_relative=False, to_freq=True,
+        absorption=True):
         return self.Width(max_fraction, peak_relative, to_freq)
         
-    def Width(self, max_fraction=0.5, peak_relative=False, to_freq=True):
+    def Width(self, max_fraction=0.5, peak_relative=False, to_freq=True,
+        absorption=True):
         """
         Return a measurement of the width of the absorption signal.
         
@@ -576,7 +578,19 @@ class Global21cm(MultiPhaseMedium):
             
         """
         
-        if not np.isfinite(self.z_C):
+        if absorption:
+            tp = 'C'
+        else:
+            tp = 'D'
+        
+        if tp not in self.turning_points:
+            return -np.inf
+        
+        z_pt = self.turning_points[tp][0]
+        n_pt = nu_0_mhz / (1. + z_pt)
+        T_pt = self.turning_points[tp][1]
+        
+        if not np.isfinite(z_pt):
             return -np.inf
         
         # Only use low redshifts once source are "on"
@@ -585,10 +599,10 @@ class Global21cm(MultiPhaseMedium):
         z = self.data_asc['z'][ok]
         dTb = self.data_asc['dTb'][ok]
         
-        i_max = np.argmin(np.abs(dTb - self.dTb_C))
+        i_max = np.argmin(np.abs(dTb - T_pt))
         
         # At what fraction of peak do we measure width?
-        h_max = max_fraction * self.dTb_C
+        h_max = max_fraction * T_pt
         
         if len(dTb[:i_max]) < 2 or len(dTb[i_max:]) < 2:
             return -np.inf
@@ -607,11 +621,11 @@ class Global21cm(MultiPhaseMedium):
         
         if peak_relative:
             if to_freq:
-                l = abs(self.nu_C - l)
-                r = abs(self.nu_C - r)
+                l = abs(n_pt - l)
+                r = abs(n_pt - r)
             else:
-                l = abs(self.z_C[i] - l)
-                r = abs(self.z_C[i] - r)
+                l = abs(z_pt[i] - l)
+                r = abs(z_pt[i] - r)
         
             val = r - l
         else:

@@ -82,7 +82,7 @@ You can also create your own derived quantities. A very simple example is to con
 ::
 
     # 1420.4057 is the rest frequency of the 21-cm line in MHz
-    anl.DeriveBlob('1420.4057 / (1. + x)', varmap={'x': 'z_D'}, name='nu_D')
+    anl.DeriveBlob(expr='1420.4057 / (1. + x)', varmap={'x': 'z_D'}, name='nu_D')
     
 This will create a new blob, called ``nu_D``, that can be used for subsequent analysis. For example,
 
