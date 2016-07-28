@@ -393,8 +393,13 @@ class ModelGrid(ModelFit):
                 
             else:
                 sim = self.simulator(**p)
-
-            sim.run()
+                
+            # Write this set of parameters to disk before running 
+            # so we can troubleshoot later if the run never finishes.
+            procid = str(rank).zfill(3)
+            fn = '%s.checkpt.proc_%s.pkl' % (self.prefix, procid)
+            with open(fn, 'wb') as f:
+                pickle.dump(p, f)    
             
             # Run simulation!
             try:
@@ -450,11 +455,11 @@ class ModelGrid(ModelFit):
             f = open('%s.load.pkl' % prefix_by_proc, 'ab')
             pickle.dump(load_all, f)
             f.close()
-            
+
             # Send the key to the next processor
             if (not self.save_by_proc) and (rank != (size-1)):
                     MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
-            
+
             del p, sim
             del chain_all, blobs_all, load_all
             gc.collect()
