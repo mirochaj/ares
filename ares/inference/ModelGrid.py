@@ -19,7 +19,6 @@ from .ModelFit import ModelFit
 from ..util import GridND, ProgressBar
 from ..util.ReadData import read_pickle_file, read_pickled_dict
 
-
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
@@ -397,7 +396,7 @@ class ModelGrid(ModelFit):
             procid = str(rank).zfill(3)
             fn = '%s.checkpt.proc_%s.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
-                pickle.dump(p, f)
+                pickle.dump(kw, f)
                 
             # Kill if model gets stuck    
             if self.timeout is not None:
