@@ -408,9 +408,7 @@ class ModelGrid(ModelFit):
             try:
                 sim.run()
             except:        
-                
-                print 'hey', rank
-                 
+                                 
                 # Write to "fail" file - this might cause problems in parallel
                 f = open('%s.fail.proc_%s.pkl' % (self.prefix, procid), 'ab')
                 pickle.dump(kw, f)
