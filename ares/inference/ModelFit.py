@@ -10,6 +10,7 @@ Description:
 
 """
 
+import pickle
 import numpy as np
 from .PriorSet import PriorSet
 from ..util.Stats import get_nu
@@ -27,11 +28,6 @@ from ..util.Stats import Gauss1D, GaussND, rebin, get_nu
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain
-
-#try:
-#    import dill as pickle
-#except ImportError:
-import pickle    
 
 try:
     import emcee
@@ -422,6 +418,19 @@ class ModelFit(BlobFactory):
     @nwalkers.setter
     def nwalkers(self, value):
         self._nw = int(value)
+        
+    def _handler(self, signum, frame):
+        raise Exception("Calculation took too long!")
+    
+    @property
+    def timeout(self):
+        if not hasattr(self, '_timeout'):
+            self._timeout = None
+        return self._timeout
+    
+    @timeout.setter
+    def timeout(self, value):
+        self._timeout = value
         
     @property
     def Nd(self):

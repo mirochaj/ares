@@ -11,16 +11,14 @@ and analyzing them.
 
 """
 
+import signal
+import pickle
 import numpy as np
 import copy, os, gc, re, time
 from .ModelFit import ModelFit
 from ..util import GridND, ProgressBar
 from ..util.ReadData import read_pickle_file, read_pickled_dict
 
-#try:
-#    import dill as pickle
-#except ImportError:
-import pickle
 
 try:
     from mpi4py import MPI
@@ -399,15 +397,23 @@ class ModelGrid(ModelFit):
             procid = str(rank).zfill(3)
             fn = '%s.checkpt.proc_%s.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
-                pickle.dump(p, f)    
+                pickle.dump(p, f)
+                
+            # Kill if model gets stuck    
+            if self.timeout is not None:
+                signal.signal(signal.SIGALRM, self._handler)
+                signal.alarm(self.timeout)
             
             # Run simulation!
             try:
                 sim.run()
-            except:         
+            except:        
+                
+                print 'hey', rank
+                 
                 # Write to "fail" file - this might cause problems in parallel
-                f = open('%s.fail.pkl' % self.prefix, 'ab')
-                pickle.dump(kwargs, f)
+                f = open('%s.fail.proc_%s.pkl' % (self.prefix, procid), 'ab')
+                pickle.dump(kw, f)
                 f.close()
             
                 del p, sim
