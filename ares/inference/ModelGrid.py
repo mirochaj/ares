@@ -406,6 +406,11 @@ class ModelGrid(ModelFit):
             # Run simulation!
             try:
                 sim.run()
+                
+                # Disable the alarm
+                if self.timeout is not None:
+                    signal.alarm(0)
+                
             except:        
                                  
                 # Write to "fail" file - this might cause problems in parallel
@@ -418,8 +423,13 @@ class ModelGrid(ModelFit):
             
                 pb.update(pb_i)
                 ct += 1
+                
+                # Disable the alarm
+                if self.timeout is not None:
+                    signal.alarm(0)
+                
                 continue
-
+                
             ct += 1
             
             chain = np.array([kwargs[key] for key in self.parameters])
@@ -431,7 +441,7 @@ class ModelGrid(ModelFit):
             ##
             # File I/O from here on out
             ##
-            
+
             pb.update(ct)
 
             # Only record results every save_freq steps
