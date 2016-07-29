@@ -82,7 +82,7 @@ def test():
     lw = 2, 2, 4
     labels = ['pl_w_ceil', 'dpl', 'pwpl']
     for i, pars in enumerate([pars_pl, pars_dpl, pars_pwpl]):
-        pop = ares.populations.GalaxyCohort(**pars)
+        pop = ares.populations.GalaxyPopulation(pop_sfr_model='sfe-func', **pars)
         
         fnow = pop.SFE(6., Mh).copy()
         
@@ -104,8 +104,10 @@ def test():
     
     p1 = pars_pl.copy()
     p1.update(pars_pl_w_zdep)
-    pop1 = ares.populations.GalaxyCohort(**p1)
-    pop2 = ares.populations.GalaxyCohort(**pars_dpl_Mofz)
+    pop1 = ares.populations.GalaxyPopulation(pop_sfr_model='sfe-func', 
+        **p1)
+    pop2 = ares.populations.GalaxyPopulation(pop_sfr_model='sfe-func', 
+        **pars_dpl_Mofz)
     
     colors = ['k', 'b']
     ls = ['-', '--', ':']

@@ -33,12 +33,12 @@ except ImportError:
 
 #
 ## INPUT
-zf, zi = (5, 50)
+zf, zi = (10, 50)
 Emin = 2e2
 Emax = 3e4
-Nz = [1e3]
+Nz = [400]
 format = 'pkl'        # 'hdf5' or 'pkl' or 'npz'
-helium = 1
+helium = 0
 xavg = lambda z: 0.0  # neutral
 ##
 #

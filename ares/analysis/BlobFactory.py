@@ -12,6 +12,9 @@ Description:
 
 import re
 import numpy as np
+from inspect import ismethod
+from types import FunctionType
+from scipy.interpolate import RectBivariateSpline
 
 try:
     import dill as pickle
@@ -56,48 +59,47 @@ def parse_attribute(blob_name, obj_base):
         ares.simulation class.
         
     """
-            
-    attr_split = blob_name.split('.')
+    
+    # Check for decimals
+    
+    decimals = []
+    for i in range(1, len(blob_name) - 1):
+        if blob_name[i-1].isdigit() and blob_name[i] == '.' \
+           and blob_name[i+1].isdigit():
+            decimals.append(i)
 
+    marker = 'x&x&'
+
+    s = ''
+    for i, char in enumerate(blob_name):
+        if i in decimals:
+            s += marker
+        else:
+            s += blob_name[i]
+        
+    attr_split = []
+    for element in s.split('.'):
+        attr_split.append(element.replace(marker, '.'))
+                                
     if len(attr_split) == 1: 
         s = attr_split[0]
-        #if re.search('\[', s):     
-        #    k = get_k(s)
-        #    s2 = s[0:s.rfind('[')]
-        #    return eval('obj_base.%s' % s2)
-        #else:
         return eval('obj_base.%s' % s)
 
     # Nested attribute
     blob_attr = None
     obj_list = [obj_base]
     for i in range(len(attr_split)):
+        
+        # One particular chunk of the attribute name
         s = attr_split[i]
-
-        # Brackets indicate...attributes that don't require ivars but have
-        # more than one element. Should do this differently
-        #if re.search('\[', s): 
-        #    k = get_k(s)
-        #    s2 = s[0:s.rfind('[')]
-        #    blob = eval('obj_base.%s' % s2)
-        #    
-        #    if (i == (len(attr_split) - 1)):
-        #        break
-        #    else:
-        #        new_obj = blob
-        #        blob = None
-        #else:
 
         new_obj = eval('obj_base.%s' % s)
         obj_list.append(new_obj)
 
         obj_base = obj_list[-1]
-        
-        #if i == 0:
-        #    new_obj = eval('obj_base.%s' % s)
-        #else:
-        #new_obj = eval('obj_list[%i-1].%s' % (i, s))
 
+        # Need to stop once we see parentheses
+        
         
 
     #if blob is None:
@@ -149,12 +151,18 @@ class BlobFactory(object):
             self._blob_funcs = []
             for i, element in enumerate(self._blob_names):
                 
-                # Scalars: must be class properties, i.e., funcs = None
-                if np.isscalar(self._blob_ivars[i]) or \
-                   (self._blob_ivars[i] is None):
+                # Scalar blobs handled first
+                if self._blob_ivars[i] is None:
                     self._blob_nd.append(0)
                     self._blob_dims.append(0)
-                    self._blob_funcs.append([None] * len(element))
+                    
+                    if self.pf['blob_funcs'] is None:
+                        self._blob_funcs.append([None] * len(element))
+                    elif self.pf['blob_funcs'][i] is None:
+                        self._blob_funcs.append([None] * len(element))
+                    else:
+                        self._blob_funcs.append(self.pf['blob_funcs'][i])
+                        
                     continue
                 # Everything else
                 else:
@@ -187,7 +195,8 @@ class BlobFactory(object):
                     self._blob_funcs.append([None] * len(element))
                     continue
 
-                assert len(element) == len(self.pf['blob_funcs'][i])
+                assert len(element) == len(self.pf['blob_funcs'][i]), \
+                    "blob_names must have same length as blob_funcs!"
                 self._blob_funcs.append(self.pf['blob_funcs'][i])
 
         self._blob_nd = tuple(self._blob_nd)                    
@@ -276,7 +285,7 @@ class BlobFactory(object):
     def get_blob(self, name, ivar=None):
         """
         This is meant to recover a blob from a single simulation, i.e.,
-        NOT a whole slew of them from an MCMC.
+        NOT a whole slew of them from an MCMC. UNLESS bset == True.
         """
         for i in range(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
@@ -334,7 +343,7 @@ class BlobFactory(object):
                         
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                    
+                                                                                                                                                                     
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -343,33 +352,48 @@ class BlobFactory(object):
                         blob = parse_attribute(key, self)
                     else:
                         fname = self.blob_funcs[i][j]
-                        func = parse_attribute(fname, self)
-                        blob = func(self.blob_ivars[i])
+                        # In this case, the return of parse_attribute is
+                        # a value, not a function to be applied to ivars.
+                        blob = parse_attribute(fname, self)
 
                 # 1-D blobs. Assume the independent variable is redshift 
                 # unless a function is provided
                 elif self.blob_nd[i] == 1:
                     x = np.array(self.blob_ivars[i]).squeeze()
                     if (self.blob_funcs[i][j] is None) and (key in self.history):
-                        blob = np.interp(x, self.history['z'][-1::-1], 
+                        blob = np.interp(x, self.history['z'][-1::-1],
                             self.history[key][-1::-1])
                     elif self.blob_funcs[i][j] is None:
                         raise KeyError('Blob %s not in history!' % key)
                     else:
                         fname = self.blob_funcs[i][j]
                         func = parse_attribute(fname, self)
-                        blob = np.array(map(func, x))
+                                                
+                        if ismethod(func):
+                            blob = np.array(map(func, x))
+                        else:
+                            blob = np.interp(x, func[0], func[1])
                 else:
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]
-                    func = parse_attribute(fname, self)
-                    
+                    tmp_f = parse_attribute(fname, self)
+
                     xarr, yarr = map(np.array, self.blob_ivars[i])
+
+                    if type(tmp_f) is FunctionType:
+                        func = tmp_f
+                    elif type(tmp_f) is tuple:
+                        z, E, flux = tmp_f
+                        func = RectBivariateSpline(z, E, flux)
+                    else:
+                        raise TypeError('Sorry: don\'t understand blob %s' % name)
+                    
                     blob = []
                     for x in xarr:
                         tmp = []
-                        for y in yarr:
+                        for y in yarr:                            
                             tmp.append(func(x, y))
+
                         blob.append(tmp)
                         
                 this_group.append(np.array(blob))

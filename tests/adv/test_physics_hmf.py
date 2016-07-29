@@ -17,14 +17,14 @@ import numpy as np
 def test(rtol=1e-2):
 
     # Two HMFs: one analytic, one numerical
-    hmf_a = ares.populations.HaloPopulation(hmf_func='PS', hmf_analytic=True,
+    hmf_a = ares.populations.HaloPopulation(hmf_model='PS', hmf_analytic=True,
         pop_Mmin=1e8)
-    hmf_n = ares.populations.HaloPopulation(hmf_func='PS', hmf_analytic=False,
+    hmf_n = ares.populations.HaloPopulation(hmf_model='PS', hmf_analytic=False,
         hmf_load=True, pop_Mmin=1e8)
     
     ok = True
     for i, z in enumerate([5, 10, 15, 20]):
-        
+                            
         fcoll_a = hmf_a.halos.fcoll_tab[np.argmin(np.abs(z-hmf_a.halos.z))]
         
         try:
@@ -40,7 +40,7 @@ def test(rtol=1e-2):
         if not ok_z:
             ok = False
             break
-                
+            
     assert ok, "Relative error between analytical and numerical solutions exceeds %.3g." % rtol        
     
 if __name__ == '__main__':

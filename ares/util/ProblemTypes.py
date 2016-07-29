@@ -247,10 +247,15 @@ def ReionizationProblem(ptype):
          'cgm_recombination': 'B',
          'cgm_collisional_ionization': False,
         }
+
             
-        
-    # Simple global 21-cm problem
-    if ptype_mod1 in [0, 0.3]:
+    # Simple global 21-cm problem            
+    if ptype_int == 0:
+        # Blank slate
+        pf = {}
+
+    # Simple 3-pop model (each pop only 1 type of radiation)
+    elif ptype_mod1 in [0, 0.3]:
         pf = \
         {
         
@@ -264,8 +269,6 @@ def ReionizationProblem(ptype):
         "pop_ion_src_igm{0}": False,
         "pop_heat_src_cgm{0}": False,
         "pop_heat_src_igm{0}": False,
-
-        "pop_fesc{0}": 1.0,
         
         "pop_Emin{0}": 10.2,
         "pop_Emax{0}": 13.6,
@@ -344,14 +347,10 @@ def ReionizationProblem(ptype):
         "pop_Z{0}": 0.02,
         "pop_ssp{0}": False,
         "pop_tsf{0}": 100.,
-               
-        "pop_yield{0}": 9690., 
-        "pop_yield_units{0}": 'photons/baryon',
-        "pop_solve_rte{0}": False,
         
         # Emits X-rays
         'pop_type{1}': 'galaxy',
-        'pop_tunnel{1}': 0,
+        'pop_tunnel{1}': 0,         # Takes SFRD from population 1
         "pop_lya_src{1}": False,
         "pop_ion_src_cgm{1}": False,
         "pop_ion_src_igm{1}": True,

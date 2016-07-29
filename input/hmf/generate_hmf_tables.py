@@ -13,7 +13,7 @@ parallel, e.g.,
 
 """
 
-import os, ares
+import ares
 
 ## INPUT
 fit = 'ST'
@@ -23,7 +23,7 @@ format = 'pkl'
 
 hmf_pars = \
 {
- "hmf_func": fit,
+ "hmf_model": fit,
  "hmf_dlogM": 0.01,
  "hmf_zmin": 3.,
  "hmf_dz": 0.05,

@@ -31,17 +31,17 @@ x = np.array([1.0e-4, 2.318e-4, 4.677e-4, 1.0e-3, 2.318e-3,
               4.677e-3, 1.0e-2, 2.318e-2, 4.677e-2, 1.0e-1, 
               0.5, 0.9, 0.99, 0.999])
 
-files = ['xi_0.999.dat', 'xi_0.990.dat', 'xi_0.900.dat', 'xi_0.500.dat', 
+xi_files = ['xi_0.999.dat', 'xi_0.990.dat', 'xi_0.900.dat', 'xi_0.500.dat', 
          'log_xi_-1.0.dat', 'log_xi_-1.3.dat', 'log_xi_-1.6.dat',
          'log_xi_-2.0.dat', 'log_xi_-2.3.dat', 'log_xi_-2.6.dat',
          'log_xi_-3.0.dat', 'log_xi_-3.3.dat', 'log_xi_-3.6.dat',
          'log_xi_-4.0.dat']
 
-files.reverse()
+xi_files.reverse()
          
 # Make some blank arrays         
 energies = np.zeros(258)
-heat = np.zeros([len(files), 258])
+heat = np.zeros([len(xi_files), 258])
 fion = np.zeros_like(heat)
 fexc = np.zeros_like(heat)
 fLya = np.zeros_like(heat)
@@ -50,7 +50,7 @@ fHeI = np.zeros_like(heat)
 fHeII = np.zeros_like(heat)
 
 # Read in energy and fractional heat deposition for each ionized fraction.
-for i, fn in enumerate(files):
+for i, fn in enumerate(xi_files):
           
     # Read data 
     nrg, f_ion, f_heat, f_exc, n_Lya, n_ionHI, n_ionHeI, n_ionHeII, \

@@ -425,7 +425,7 @@ class OpticalDepth(object):
         Read optical depth table.
         """
         
-        if rank == 0:
+        if (rank == 0) and self.pf['verbose']:
             print "Loading %s..." % fn
         
         if type(fn) is dict:
@@ -681,7 +681,7 @@ class OpticalDepth(object):
         Energies and redshifts, potentially revised from Epf and zpf.
     
         """
-    
+        
         # First, look in CWD or $ARES (if it exists)
         if pop.pf['tau_table'] is None:
             self.tabname = self.find_tau(pop.pf['tau_prefix'])
@@ -752,7 +752,11 @@ class OpticalDepth(object):
             #tau[:,i_E1+1:] = np.inf
         else:
             i_E1 = None
-    
+            
+        self.z_fetched = ztab
+        self.E_fetched = Etab[i_E0:i_E1]  
+        self.tau_fetched = tau[:,i_E0:i_E1]
+            
         # We're done!
         return ztab, Etab[i_E0:i_E1], tau[:,i_E0:i_E1]
     
