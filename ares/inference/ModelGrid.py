@@ -169,7 +169,8 @@ class ModelGrid(ModelFit):
         self.grid.Nd = len(self.grid.axes_names)
 
         # Shortcut to parameter names
-        self.parameters = self.grid.axes_names
+        if not hasattr(self, 'parameters'):
+            self.parameters = self.grid.axes_names
 
     def prep_output_files(self, restart, clobber):
         """

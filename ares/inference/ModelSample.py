@@ -42,8 +42,10 @@ class ModelSample(ModelGrid):
         self._seed = value
 
     @property            
-    def axes(self):
-        return self.prior_set.params
+    def parameters(self):
+        if not hasattr(self, '_parameters'):
+            self._parameters = self.prior_set.params
+        return self._parameters
 
     @property
     def N(self):
@@ -51,6 +53,27 @@ class ModelSample(ModelGrid):
     @N.setter
     def N(self, value):
         self._N = int(value)
+    
+    @property
+    def is_log(self):
+        if not hasattr(self, '_is_log'):
+            self._is_log = [False] * len(self.parameters)
+        return self._is_log
+        
+    @is_log.setter
+    def is_log(self, value):
+        if type(value) in [int, bool]:
+            self._is_log = value
+        elif type(value) is dict:
+            self._is_log = []
+            for par in self.parameters:
+                if par in value:
+                    self._is_log.append(value[par])
+                else:
+                    self._is_log.append(False)
+        else:
+            assert len(value) == len(self.parameters)
+            self._is_log = value
         
     def get_models(self):
         if rank == 0:
