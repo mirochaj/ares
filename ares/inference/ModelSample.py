@@ -21,7 +21,6 @@ except ImportError:
     rank = 0
     size = 1
 
-
 class ModelSample(ModelGrid):
     
     @property
@@ -52,6 +51,24 @@ class ModelSample(ModelGrid):
     @N.setter
     def N(self, value):
         self._N = int(value)
+        
+    def get_models(self):
+        if rank == 0:
+
+            np.random.seed(self.seed)
+
+            models = []
+            for i in range(self.N):
+                kw = self.prior_set.draw()
+                models.append(kw)
+
+        else:
+            models = None
+
+        if size > 1:
+            models = MPI.COMM_WORLD.bcast(models, root=0)
+               
+        return models
                 
     def run(self, prefix, clobber=False, restart=False, save_freq=500):
         """
@@ -74,20 +91,7 @@ class ModelSample(ModelGrid):
         -------
         """
         
-        if rank == 0:
-
-            np.random.seed(self.seed)
-
-            models = []
-            for i in range(self.N):
-                kw = self.prior_set.draw()
-                models.append(kw)
-
-        else:
-            models = None
-
-        if size > 1:
-            models = MPI.COMM_WORLD.bcast(models, root=0)
+        models = self.get_models()
                     
         # Initialize space -- careful if running in parallel
         self.set_models(models)

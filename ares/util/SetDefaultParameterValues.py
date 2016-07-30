@@ -245,7 +245,27 @@ def HaloPropertyParameters():
      'php_faux_par3': None,
      'php_faux_par4': None,
      'php_faux_par5': None,
-
+     
+     'php_faux_A': None,
+     'php_faux_A_var': None,
+     'php_faux_A_meth': 'multiply',
+     'php_faux_A_par0': None,
+     'php_faux_A_par1': None,
+     'php_faux_A_par2': None,
+     'php_faux_A_par3': None,
+     'php_faux_A_par4': None,
+     'php_faux_A_par5': None,
+     
+     'php_faux_B': None,
+     'php_faux_B_var': None,
+     'php_faux_B_meth': 'multiply',
+     'php_faux_B_par0': None,
+     'php_faux_B_par1': None,
+     'php_faux_B_par2': None,
+     'php_faux_B_par3': None,
+     'php_faux_B_par4': None,
+     'php_faux_B_par5': None,
+     
      "php_boost": 1.,
      "php_iboost": 1.,
      "php_ceil": None,

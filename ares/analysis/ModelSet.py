@@ -1035,14 +1035,14 @@ class ModelSet(BlobFactory):
         data, is_log = \
             self.ExtractData(pars, ivar, take_log, un_log, multiplier)
         
-        xdata = data[pars[0]].compressed()
-        ydata = data[pars[1]].compressed()
+        xdata = self.xdata = data[pars[0]].compressed()
+        ydata = self.ydata = data[pars[1]].compressed()
         
         # Organize into (x, y) pairs
         points = zip(xdata, ydata)
                 
         # Create polygon object
-        point_collection = geometry.MultiPoint(list(points))
+        point_collection = self.point_collection = geometry.MultiPoint(list(points))
         polygon = point_collection.convex_hull
                 
         # Plot a Polygon using descartes
@@ -1051,7 +1051,7 @@ class ModelSet(BlobFactory):
         ax.add_patch(patch)
         
         pl.draw()
-        
+            
         return ax
         
     def get_par_prefix(self, par):
@@ -2709,13 +2709,23 @@ class ModelSet(BlobFactory):
         
     def AssembleParametersList(self, N=None, loc=None, include_bkw=False):
         """
-        Return dictionaries that can be used to initialize an ares 
-        simulation. 
+        Return dictionaries of parameters corresponding to elements of the
+        chain. Really just a convenience thing -- converting 1-D arrays 
+        (i.e, links of the chain) into dictionaries -- so that the parameters
+        can be passed into ares.simulations objects.
+        
+        .. note :: Masked chain elements are excluded.
         
         N : int
-            Maximum number of models to return.
+            Maximum number of models to return, starting from beginning of
+            chain. If None, return all available.
         include_bkw : bool  
-            Include base_kwargs?
+            Include base_kwargs? If so, then each element within the returned
+            list can be supplied to an ares.simulations instance and recreate
+            that model exactly.
+        loc : int
+            If supplied, only the dictionary of parameters associated with
+            link `loc` in the chain will be returned.
             
         Returns
         -------
@@ -2742,11 +2752,17 @@ class ModelSet(BlobFactory):
                 kwargs = {}
                 
             for j, parameter in enumerate(self.parameters):
-                if self.is_log[j]:
-                    kwargs[parameter] = 10**self.chain[i,j]
+                if type(self.chain) == np.ma.core.MaskedArray:
+                    if self.is_log[j]:
+                        kwargs[parameter] = 10**self.chain.data[i,j]
+                    else:
+                        kwargs[parameter] = self.chain.data[i,j]
                 else:
-                    kwargs[parameter] = self.chain[i,j]
-                    
+                    if self.is_log[j]:
+                        kwargs[parameter] = 10**self.chain[i,j]
+                    else:
+                        kwargs[parameter] = self.chain[i,j]
+                                        
             all_kwargs.append(kwargs.copy())
 
         if loc is not None:

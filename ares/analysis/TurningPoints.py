@@ -163,7 +163,8 @@ class TurningPoints(object):
             if TP in ['B', 'D']:
                 TTP *= -1.
 
-            #if self.is_crazy(TP, zTP, TTP):
+            if self.is_crazy(TP, zTP, TTP):
+                self.turning_points[TP] = (-np.inf, -np.inf, -np.inf)
                 
             # Compute curvature at turning point (mK**2 / MHz**2)
             nuTP = nu_0_mhz / (1. + zTP)
@@ -193,6 +194,8 @@ class TurningPoints(object):
         # Check that redshift is within bounds of simulation
         if (z < self.pf['final_redshift']) or (z > self.pf['initial_redshift']):
             return True
+            
+        return False
             
         if tp == 'B':
             if T < -50:

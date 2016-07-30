@@ -132,12 +132,27 @@ dpl_fz.update(_fz_specific)
 dpl_Mz = dpl.copy()
 dpl_Mz.update(_Mz_specific)
 
-steep_fz = steep.copy()
-steep_fz.update(_fz_specific)
-steep_Mz = steep.copy()
-steep_Mz.update(_Mz_specific)
+_steep_fz = {}
+for key in _steep_specific:
+    new_key = 'php_faux%s' % key.split('faux')[1]
+    _steep_fz[new_key] = _steep_specific[key]
 
-floor_fz = floor.copy()
-floor_fz.update(_fz_specific)
-floor_Mz = floor.copy()
-floor_Mz.update(_Mz_specific)
+for key in _fz_specific:
+    new_key = 'php_faux_A%s' % key.split('faux')[1]
+    _steep_fz[new_key] = _fz_specific[key]
+
+steep_fz = dpl.copy()
+steep_fz.update(_steep_fz)
+
+_floor_fz = {}
+for key in _floor_specific:
+    new_key = 'php_faux%s' % key.split('faux')[1]
+    _floor_fz[new_key] = _floor_specific[key]
+
+for key in _fz_specific:
+    new_key = 'php_faux_A%s' % key.split('faux')[1]
+    _floor_fz[new_key] = _fz_specific[key]
+
+floor_fz = dpl.copy()
+floor_fz.update(_floor_fz)
+
