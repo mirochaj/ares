@@ -507,14 +507,45 @@ class ModelSet(BlobFactory):
     def fails(self):
         if not hasattr(self, '_fails'):
             if os.path.exists('%s.fails.pkl' % self.prefix):
+                with open('%s.fails.pkl' % self.prefix, 'rb') as f:
+                    self._fails = []
+                    while True:
+                        try:
+                            self._fails.append(pickle.load(f))
+                        except EOFError:
+                            break
+
+            elif os.path.exists('%s.fail.proc_000.pkl' % self.prefix):
                 i = 0
-                self._fails = []
-                while os.path.exists('%s.fail_%s.pkl' % (self.prefix, str(i).zfill(3))):
-                
-                    data = read_pickled_dict('%s.fail_%s.pkl' % (prefix, str(i).zfill(3)))
-                    self._fails.extend(data)                    
-                    i += 1
+                fails = []
+                fn = '%s.fail.proc_%s.pkl' % (self.prefix, str(i).zfill(3))
+                while True:
+            
+                    if not os.path.exists(fn):
+                        break
+            
+                    f = open(fn, 'rb')
+                    data = []
+                    while True:
+                        try:
+                            data.append(pickle.load(f))
+                        except EOFError:
+                            break
+                    f.close()
                     
+                    fails.extend(data)                 
+            
+                    i += 1
+                    fn = '%s.fail.proc_%s.pkl' % (self.prefix, str(i).zfill(3))
+                        
+                # So we don't have to stitch them together again.
+                if rank == 0:
+                    f = open('%s.fails.pkl' % self.prefix, 'wb')
+                    pickle.dump(fails, f)
+                    f.close()
+                    
+                self._fails = fails    
+                
             else:
                 self._fails = None
             
