@@ -200,7 +200,7 @@ models you might find that the calculations grind to a halt. This can be a big p
 
     mg.timeout = 60  
 
-to limit calculations to 60 seconds or less. Models that trip this alarm will be recorded in the ``*fail.proc*.pkl`` files so that you can look back later and (hopefully) figure out why they took so long.
+to limit calculations to 60 seconds or less. Models that trip this alarm will be recorded in the ``*fail*.pkl`` files so that you can look back later and (hopefully) figure out why they took so long.
 
 .. note :: This tends to happen because the ionization and/or heating rates 
     are very large, which drives the time-step to very small values. However, 

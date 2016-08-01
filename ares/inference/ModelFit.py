@@ -629,26 +629,29 @@ class ModelFit(BlobFactory):
         self._checkpoint_by_proc = value
 
     def _prep_from_scratch(self, clobber, by_proc=False):
+        if rank > 0:
+            return
         
         if by_proc:
             prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
         else:
             prefix_by_proc = self.prefix
-        
+                
         if clobber:
             # Delete only the files made by this routine. Don't want to risk
             # deleting other files the user may have created with similar
             # naming convention!
             
-            for suffix in ['chain', 'logL', 'facc', 'pinfo', 'rinfo', 'setup', 'prior_set']:
+            for suffix in ['logL', 'facc', 'pinfo', 'rinfo', 'setup', 'prior_set']:
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
-                os.system('rm -f %s.%s.pkl' % (prefix_by_proc, suffix))
             
-            os.system('rm -f %s.fail.pkl' % prefix_by_proc)
-            os.system('rm -f %s.blob*.pkl' % prefix_by_proc)
+            os.system('rm -f %s.*.fail.pkl' % self.prefix)
+            os.system('rm -f %s.*.chain.pkl' % self.prefix)
+            os.system('rm -f %s.*.blob*.pkl' % self.prefix)
             
             # Need to potentially axe a product file
             os.system('rm -f %s.fails.pkl' % self.prefix)
+            os.system('rm -f %s.chain.pkl' % self.prefix)
                     
         # Each processor gets its own fail file
         f = open('%s.fail.pkl' % prefix_by_proc, 'wb')
@@ -659,11 +662,11 @@ class ModelFit(BlobFactory):
         f.close()
         
         # Main output: log-likelihood
-        f = open('%s.logL.pkl' % prefix_by_proc, 'wb')
+        f = open('%s.logL.pkl' % self.prefix, 'wb')
         f.close()
         
         # Store acceptance fraction
-        f = open('%s.facc.pkl' % prefix_by_proc, 'wb')
+        f = open('%s.facc.pkl' % self.prefix, 'wb')
         f.close()
         
         # File for blobs themselves

@@ -9,6 +9,11 @@ ares_link = 'https://bitbucket.org/mirochaj/ares'
 # Auxiliary data downloads
 # Format: [URL, file 1, file 2, ..., file to run when done]
 
+#_bpassv2_links = \
+#[
+# ''
+#]
+#
 aux_data = \
 {
  'hmf': ['%s/downloads' % ares_link, 
@@ -34,7 +39,9 @@ aux_data = \
  'bpass_v1': ['http://bpass.auckland.ac.nz/2/files'] + \
     ['sed_bpass_z%s_tar.gz' % Z for Z in ['001', '004', '008', '020', '040']] + \
     [None],
-
+ #'bpass_v2': ['https://drive.google.com/file/d/'] + \
+ #    ['bpassv2-imf%i-300tar.gz' % IMF for IMF in [100, 135]] + \
+ #     [None],    
 }
 
 if not os.path.exists('input'):

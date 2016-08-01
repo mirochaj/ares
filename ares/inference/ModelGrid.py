@@ -407,39 +407,24 @@ class ModelGrid(ModelFit):
             # Run simulation!
             try:
                 sim.run()
-                
-                # Disable the alarm
-                if self.timeout is not None:
-                    signal.alarm(0)
-                
-            except:        
-                                 
+            except Exception:                                 
                 # Write to "fail" file
-                
                 f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 
                     'ab')
                 pickle.dump(kw, f)
                 f.close()
             
-                del p, sim
-                gc.collect()
-            
-                pb.update(pb_i)
-                ct += 1
-                
-                # Disable the alarm
-                if self.timeout is not None:
-                    signal.alarm(0)
-                
-                continue
-               
-            ct += 1
-            
+            # Disable the alarm
+            if self.timeout is not None:
+                signal.alarm(0)
+                            
             chain = np.array([kwargs[key] for key in self.parameters])
 
             chain_all.append(chain)
             blobs_all.append(sim.blobs)
             load_all.append(rank)
+                   
+            ct += 1
 
             ##
             # File I/O from here on out
@@ -474,7 +459,7 @@ class ModelGrid(ModelFit):
 
             # Send the key to the next processor
             if (not self.save_by_proc) and (rank != (size-1)):
-                    MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
+                MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
 
             del p, sim
             del chain_all, blobs_all, load_all
