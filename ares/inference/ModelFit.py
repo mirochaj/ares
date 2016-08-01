@@ -644,8 +644,11 @@ class ModelFit(BlobFactory):
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
                 os.system('rm -f %s.%s.pkl' % (prefix_by_proc, suffix))
             
-            os.system('rm -f %s.fail*.pkl' % prefix_by_proc)
+            os.system('rm -f %s.fail.pkl' % prefix_by_proc)
             os.system('rm -f %s.blob*.pkl' % prefix_by_proc)
+            
+            # Need to potentially axe a product file
+            os.system('rm -f %s.fails.pkl' % self.prefix)
                     
         # Each processor gets its own fail file
         f = open('%s.fail.pkl' % prefix_by_proc, 'wb')

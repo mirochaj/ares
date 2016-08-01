@@ -432,7 +432,7 @@ class ModelGrid(ModelFit):
                     signal.alarm(0)
                 
                 continue
-                
+               
             ct += 1
             
             chain = np.array([kwargs[key] for key in self.parameters])

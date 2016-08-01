@@ -2729,7 +2729,7 @@ class ModelSet(BlobFactory):
 
         return mu, cov    
         
-    def AssembleParametersList(self, N=None, loc=None, include_bkw=False):
+    def AssembleParametersList(self, N=None, ids=None, include_bkw=False):
         """
         Return dictionaries of parameters corresponding to elements of the
         chain. Really just a convenience thing -- converting 1-D arrays 
@@ -2754,15 +2754,15 @@ class ModelSet(BlobFactory):
         List of dictionaries. Maximum length: `N`.
             
         """ 
-        
+                
         all_kwargs = []
         for i, element in enumerate(self.chain):
             
             if self.mask[i]:
                 continue
             
-            if loc is not None:
-                if i != loc:
+            if ids is not None:
+                if (i != ids) or (i not in ids):
                     continue
             elif N is not None:
                 if i >= N:
@@ -2787,27 +2787,22 @@ class ModelSet(BlobFactory):
                                         
             all_kwargs.append(kwargs.copy())
 
-        if loc is not None:
-            return all_kwargs[0]
-        else:
-            return all_kwargs
+        return all_kwargs
 
     def CorrelationMatrix(self, pars, ivar=None, fig=1, ax=None):
-        """
-        Plot correlation matrix.
-        """
-    
+        """ Plot correlation matrix. """
+
         mu, cov = self.CovarianceMatrix(pars, ivar=ivar)
-    
+
         corr = correlation_matrix(cov)
-    
+
         if ax is None:
             fig = pl.figure(fig); ax = fig.add_subplot(111)
-    
+
         cax = ax.imshow(corr, interpolation='none', cmap='RdBu_r', 
             vmin=-1, vmax=1)
         cb = pl.colorbar(cax)
-    
+
         return ax
     
     def get_blob(self, name, ivar=None):
