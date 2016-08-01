@@ -508,17 +508,11 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_fails'):
             if os.path.exists('%s.fails.pkl' % self.prefix):
                 with open('%s.fails.pkl' % self.prefix, 'rb') as f:
-                    self._fails = []
-                    while True:
-                        try:
-                            self._fails.append(pickle.load(f))
-                        except EOFError:
-                            break
-
+                    self._fails = pickle.load(f)
             elif os.path.exists('%s.fail.proc_000.pkl' % self.prefix):
                 i = 0
                 fails = []
-                fn = '%s.fail.proc_%s.pkl' % (self.prefix, str(i).zfill(3))
+                fn = '%s.%s.fail.pkl' % (self.prefix, str(i).zfill(3))
                 while True:
             
                     if not os.path.exists(fn):
@@ -536,7 +530,7 @@ class ModelSet(BlobFactory):
                     fails.extend(data)                 
             
                     i += 1
-                    fn = '%s.fail.proc_%s.pkl' % (self.prefix, str(i).zfill(3))
+                    fn = '%s.%s.fail.pkl' % (self.prefix, str(i).zfill(3))
                         
                 # So we don't have to stitch them together again.
                 if rank == 0:
@@ -573,15 +567,12 @@ class ModelSet(BlobFactory):
         data = []
         i = 0
         while True:
-            
-            
-            print 'hello', i
-        #for i in range(nchunks):
-            #try:
-            chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
-            data.extend(chunk)
-            #except:
-            #    break
+                    
+            try:
+                chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
+                data.extend(chunk)
+            except:
+                break
                 
             i += 1
             

@@ -395,7 +395,7 @@ class ModelGrid(ModelFit):
             # Write this set of parameters to disk before running 
             # so we can troubleshoot later if the run never finishes.
             procid = str(rank).zfill(3)
-            fn = '%s.checkpt.proc_%s.pkl' % (self.prefix, procid)
+            fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
                 pickle.dump(kw, f)
                 
@@ -414,8 +414,10 @@ class ModelGrid(ModelFit):
                 
             except:        
                                  
-                # Write to "fail" file - this might cause problems in parallel
-                f = open('%s.fail.proc_%s.pkl' % (self.prefix, procid), 'ab')
+                # Write to "fail" file
+                
+                f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 
+                    'ab')
                 pickle.dump(kw, f)
                 f.close()
             

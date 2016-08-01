@@ -90,9 +90,9 @@ class ModelSample(ModelGrid):
 
         if size > 1:
             models = MPI.COMM_WORLD.bcast(models, root=0)
-               
+
         return models
-                
+
     def run(self, prefix, clobber=False, restart=False, save_freq=500):
         """
         Run self.N models.
