@@ -509,12 +509,12 @@ class ModelSet(BlobFactory):
             if os.path.exists('%s.fails.pkl' % self.prefix):
                 with open('%s.fails.pkl' % self.prefix, 'rb') as f:
                     self._fails = pickle.load(f)
-            elif os.path.exists('%s.fail.proc_000.pkl' % self.prefix):
+            elif os.path.exists('%s.000.fail.pkl' % self.prefix):
                 i = 0
                 fails = []
                 fn = '%s.%s.fail.pkl' % (self.prefix, str(i).zfill(3))
                 while True:
-            
+                        
                     if not os.path.exists(fn):
                         break
             
