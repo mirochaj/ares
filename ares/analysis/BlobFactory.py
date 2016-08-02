@@ -502,10 +502,11 @@ class BlobFactory(object):
         mask = np.logical_not(np.isfinite(to_return))
         masked_data = np.ma.array(to_return, mask=mask)
         
-        if by_proc and rank == 0:
-            f = open("%s.blob_%id.%s.pkl" % (self.prefix, nd, name), 'wb')
-            pickle.dump(masked_data, f)
-            f.close()
+        # CAN BE VERY CONFUSING
+        #if by_proc and rank == 0:
+        #    f = open("%s.blob_%id.%s.pkl" % (self.prefix, nd, name), 'wb')
+        #    pickle.dump(masked_data, f)
+        #    f.close()
         
         self.blob_data = {name: masked_data}
         

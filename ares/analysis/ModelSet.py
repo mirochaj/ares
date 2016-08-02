@@ -461,10 +461,12 @@ class ModelSet(BlobFactory):
                 self._chain = np.ma.array(full_chain, mask=0)
 
                 # So we don't have to stitch them together again.
-                if rank == 0:
-                    f = open('%s.chain.pkl' % self.prefix, 'wb')
-                    pickle.dump(self._chain, f)
-                    f.close()
+                # THIS CAN BE REALLY CONFUSING IF YOU, E.G., RUN A NEW
+                # CALCULATION AND FORGET TO CLEAR OUT OLD FILES.
+                #if rank == 0:
+                #    f = open('%s.chain.pkl' % self.prefix, 'wb')
+                #    pickle.dump(self._chain, f)
+                #    f.close()
 
             else:
                 self._chain = None            
@@ -533,10 +535,11 @@ class ModelSet(BlobFactory):
                     fn = '%s.%s.fail.pkl' % (self.prefix, str(i).zfill(3))
                         
                 # So we don't have to stitch them together again.
-                if rank == 0:
-                    f = open('%s.fails.pkl' % self.prefix, 'wb')
-                    pickle.dump(fails, f)
-                    f.close()
+                # AVOIDING CONFUSION
+                #if rank == 0:
+                #    f = open('%s.fails.pkl' % self.prefix, 'wb')
+                #    pickle.dump(fails, f)
+                #    f.close()
                     
                 self._fails = fails    
                 

@@ -413,17 +413,17 @@ class ModelGrid(ModelFit):
                     'ab')
                 pickle.dump(kw, f)
                 f.close()
-            
+
             # Disable the alarm
             if self.timeout is not None:
                 signal.alarm(0)
-                            
+
             chain = np.array([kwargs[key] for key in self.parameters])
 
             chain_all.append(chain)
             blobs_all.append(sim.blobs)
             load_all.append(rank)
-                   
+
             ct += 1
 
             ##
