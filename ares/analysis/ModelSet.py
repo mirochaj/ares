@@ -2866,7 +2866,7 @@ class ModelSet(BlobFactory):
         return self._max_like_pars
         
     def DeriveBlob(self, func=None, fields=None, expr=None, varmap=None, 
-        save=True, name=None, clobber=False):
+        save=True, ivar=None, name=None, clobber=False):
         """
         Derive new blob from pre-existing ones.
         
@@ -2915,8 +2915,12 @@ class ModelSet(BlobFactory):
         else:
         
             blobs = varmap.values()
+            if ivar is not None:
+                iv = [ivar[blob] for blob in blobs]
+            else:
+                iv = None    
             
-            data, is_log = self.ExtractData(blobs)
+            data, is_log = self.ExtractData(blobs, ivar=iv)
             
             # Assign data to variable names
             for var in varmap.keys():
