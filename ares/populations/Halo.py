@@ -80,12 +80,37 @@ class HaloPopulation(Population):
                 
         return self._halos
 
+    def update_Mmin(self, z, Mmin):
+        """
+        Given the redshift and minimum mass, create a new _dfcolldz function.
+        """
+        if not hasattr(self, '_z_Mmin'):
+            self._z_Mmin = []
+            self._Mmin = []
+        
+        self._z_Mmin.append(z)
+        self._Mmin.append(Mmin)
+        
+        # Need to extrapolate
+        zarr = self._z_Mmin[-1:-6:-1]
+        Mmin = self._Mmin[-1:-6:-1]
+        
+        fcoll = [self.fcoll(zarr[i], np.log10(Mmin[i])) for i in range(5)]
+        
+        # Take these grid points and create dfcolldz function that
+        # extrapolates beyond
+        self._dfcolldz = None
+        
     def _init_fcoll(self):
         # Halo stuff
         if self.pf['pop_sfrd'] is not None:
             return
 
-        if self.pf['pop_fcoll'] is None:
+        if self.pf['pop_feedback']:
+            # 2-D function in this case, of (redshift, logMmin)
+            self._fcoll = self.halos.fcoll
+            self._dfcolldz = None
+        elif self.pf['pop_fcoll'] is None:
             self._set_fcoll(self.pf['pop_Tmin'], self.pf['mu'])
         else:
             self._fcoll, self._dfcolldz = \

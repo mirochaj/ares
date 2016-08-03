@@ -449,6 +449,9 @@ def PopulationParameters():
     "pop_solve_rte": False,
     
     "pop_tau_Nz": 400,
+    
+    # Feedback! LW for now, but could be other stuff eventually (?)
+    "pop_feedback": False,
 
     # Pre-created splines
     "pop_fcoll": None,
