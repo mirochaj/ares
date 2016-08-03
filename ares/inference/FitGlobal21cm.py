@@ -76,7 +76,7 @@ class loglikelihood(LogLikelihood):
             sim.run()
                         
             tps = sim.turning_points
-                                        
+                                                                                
         # Timestep weird (happens when xi ~ 1)
         except SystemExit:
             
@@ -118,7 +118,7 @@ class loglikelihood(LogLikelihood):
                     
         else:
             yarr = np.interp(self.xdata, sim.data['nu'],            
-                sim.history['igm_dTb'])                                  
+                sim.history['igm_dTb'])                             
                 
         if np.any(np.isnan(yarr)):
             return -np.inf, self.blank_blob
@@ -169,6 +169,16 @@ class FitGlobal21cm(ModelFit):
                 self._turning_points = [value]            
             else:
                 self._turning_points = list(value)
+                
+    @property
+    def frequencies(self):
+        if not hasattr(self, '_frequencies'):
+            raise AttributeError('Must supply frequencies by hand!')
+        return self._frequencies
+        
+    @frequencies.setter
+    def frequencies(self, value):
+        self._frequencies = value
                         
     @property
     def data(self):
@@ -198,8 +208,8 @@ class FitGlobal21cm(ModelFit):
             sim = self.sim = value                   
         else:
             assert len(value) == len(self.frequencies)            
-            self.ydata = value
             assert not self.turning_points
+            self.ydata = value
             return
 
         if self.turning_points:
@@ -210,8 +220,6 @@ class FitGlobal21cm(ModelFit):
             self.xdata = None
             self.ydata = np.array(list(nu) + T)
         else:
-            assert self.frequencies is not None, \
-                "Must set frequencies by hand or set turning_points."
             
             self.xdata = self.frequencies
             if hasattr(self, 'sim'):

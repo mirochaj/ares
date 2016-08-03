@@ -2927,6 +2927,8 @@ class ModelSet(BlobFactory):
                 exec('%s = data[\'%s\']' % (var, varmap[var]))
             
             result = eval(expr)
+            
+            # Delete newly created local variables?
         
         if save:
             assert name is not None, "Must supply name for new blob!"
