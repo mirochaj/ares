@@ -115,7 +115,7 @@ class ModelSample(ModelGrid):
         """
         
         models = self.get_models()
-                    
+            
         # Initialize space -- careful if running in parallel
         self.set_models(models)
                 

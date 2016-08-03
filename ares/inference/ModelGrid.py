@@ -68,9 +68,18 @@ class ModelGrid(ModelFit):
             
         """
         
+        if os.path.exists('%s.000.chain.pkl' % prefix):
+            save_by_proc = True
+        else:
+            save_by_proc = False
+        
+        if save_by_proc:
+            prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
+        else:
+            prefix_by_proc = prefix
+        
         # Read in current status of model grid
-        #fails = read_pickled_dict('%s.fail.pkl' % prefix)
-        chain = read_pickle_file('%s.chain.pkl' % prefix)
+        chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
 
         # Read parameter info
         f = open('%s.pinfo.pkl' % prefix, 'rb')
@@ -85,14 +94,23 @@ class ModelGrid(ModelFit):
             
         if len(axes_names) != chain.shape[1]:
             raise ValueError('Cannot change dimensionality on restart!')
-            
-        if axes_names != self.grid.axes_names:
-            raise ValueError('Cannot change axes variables on restart!')
+        
+        if self.grid.structured:
+            if axes_names != self.grid.axes_names:
+                raise ValueError('Cannot change axes variables on restart!')
+        else:
+            for par in axes_names:
+                if par in self.grid.axes_names:
+                    continue
+                raise ValueError('Cannot change axes variables on restart!')
         
         # Figure out axes
         axes = {}
         for i in range(chain.shape[1]):
             axes[axes_names[i]] = np.unique(chain[:,i])
+
+        if (not self.grid.structured):
+            return
 
         # Array of ones/zeros: has this model already been done?
         self.done = np.zeros(self.grid.shape)
@@ -113,15 +131,6 @@ class ModelGrid(ModelFit):
             
             self.done[kvec] = 1
             
-        #for fail in fails:
-        #    
-        #    kvec = self.grid.locate_entry(fail, tol=self.tol)
-        #    
-        #    if None in kvec:
-        #        continue
-        #    
-        #    self.done[kvec] = 1
-                
     @property            
     def axes(self):
         return self.grid.axes
@@ -256,15 +265,18 @@ class ModelGrid(ModelFit):
             if (not self.save_by_proc) and (rank != 0):
                 MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
                 
-            self._read_restart(prefix_by_proc)
+            self._read_restart(prefix)
             
             if (not self.save_by_proc) and (rank != (size-1)):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
                 
-            # Re-run load-balancing
-            self.LoadBalance(self.LB)
-
-            ct0 = self.done.sum()
+            if self.grid.structured:    
+                # Re-run load-balancing
+                self.LoadBalance(self.LB)
+                
+                ct0 = self.done.sum()
+            else:
+                ct0 = 0
 
         else:
             ct0 = 0
@@ -283,8 +295,11 @@ class ModelGrid(ModelFit):
         
         # Print out how many models we have (left) to compute
         if rank == 0:
-            if restart:
+            if restart and self.grid.structured:
                 print "Update: %i models down, %i to go." % (ct0, Nleft)
+            elif restart:
+                print 'Expanding pre-existing model set with %i more models.' \
+                    % self.grid.size
             else:
                 print 'Running %i-element model grid.' % self.grid.size
                 
@@ -324,7 +339,7 @@ class ModelGrid(ModelFit):
                 pb_i = h
 
             # Skip if it's a restart and we've already run this model
-            if restart:
+            if restart and self.grid.structured:
                 if self.done[kvec]:
                     pb.update(pb_i)
                     continue

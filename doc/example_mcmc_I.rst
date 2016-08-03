@@ -85,9 +85,36 @@ This will result in a series of files named ``test_tanh*.pkl``. See the example 
 
 Fitting Global 21-cm Signal
 ---------------------------
-Stay tuned.
+To fit the entire spectrum, rather than just the turning points, the above example requires only minor modification. 
 
-Fitting the Galaxy Luminosity Function
---------------------------------------
-Stay tuned.
+Whereas previously we set
+
+::
+
+    fitter.turning_points = True
+
+    # Assume default parameters
+    fitter.data = {'tanh_model': True}
+
+    # Set errors
+    fitter.error = {tp:[1.0, 5.] for tp in list('BCD')}
+    
+now, we must provide errors at a specified set of frequencies:
+
+::
+
+    fitter.turning_points = False
+    fitter.frequencies = np.arange(50, 200) # assumed to be in MHz
+
+    # Assume default parameters
+    fitter.data = {'tanh_model': True}
+
+    # Set errors to be a constant 10 mK across the band
+    fitter.error = 10. * np.ones_like(fitter.frequencies)
+    
+That's it!    
+
+.. Fitting the Galaxy Luminosity Function
+.. --------------------------------------
+.. Stay tuned.
 
