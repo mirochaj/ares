@@ -260,12 +260,14 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                                                                                        
             # Grab Lyman alpha flux
             Ja = 0.0
+            Jlw = 0.0
             for i, pop in enumerate(self.medium.field.pops):
                 if not pop.is_lya_src:
                     continue
                                                     
                 if not np.any(self.medium.field.solve_rte[i]):
                     Ja += self.medium.field.LymanAlphaFlux(z, popid=i)
+                    Jlw += self.medium.field.LymanWernerFlux(z, popid=i)
                     continue
 
                 # Grab line fluxes for this population for this step
@@ -278,7 +280,19 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     l = np.argmin(np.abs(Earr - E_LyA))     # should be 0
                     
                     Ja += self.medium.field.all_fluxes[-1][i][j][l]
-            
+                    
+                    # Feedback time
+                    if not pop.pf['pop_feedback']:
+                        continue
+                    
+                    # Find photons in LW band    
+                    is_LW = np.logical_and(Earr >= 11.18, Earr <= E_LL)
+                    
+                    # And corresponding fluxes
+                    j = self.medium.field.all_fluxes[-1][i][j][is_LW]
+                    
+                    Jlw += np.trapz(j, x=Earr[is_LW])
+                    
             # Solver requires this                                            
             Ja = np.atleast_1d(Ja)                                            
                                                                     
@@ -295,7 +309,18 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
 
             # Add derived fields to data
             data_igm.update({'Ts': Ts, 'dTb': dTb, 'Ja': Ja})
-            
+                        
+            # Apply LW feedback
+            for i, pop in enumerate(self.medium.field.pops):
+                if not pop.pf['pop_feedback']:
+                    continue
+                    
+                # Compute new minimum mass
+                new_Mmin = some_function(z, Jlw)    
+                    
+                # Reset the minimum mass of star-forming halos
+                pop.update_Mmin(z, new_Mmin)
+                        
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
 
