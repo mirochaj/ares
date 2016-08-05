@@ -845,10 +845,10 @@ class ModelFit(BlobFactory):
 
             if rank == 0:
                 print "Burn-in complete in %.3g seconds." % (t2 - t1)
-                if not hasattr(self, '_guesses_prior_set'):
-                    # Find maximum likelihood point
-                    mlpt = pos[np.argmax(prob)]
-                    pos = self._adjust_guesses(pos, mlpt)
+                #if not hasattr(self, '_guesses_prior_set'):
+                #    # Find maximum likelihood point
+                #    mlpt = pos[np.argmax(prob)]
+                #    pos = self._adjust_guesses(pos, mlpt)
             
         elif not restart:
             pos = self.guesses
