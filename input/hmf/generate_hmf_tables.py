@@ -17,7 +17,7 @@ import ares
 
 ## INPUT
 fit = 'ST'
-format = 'pkl'
+format = 'npz'
 ##
 
 

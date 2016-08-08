@@ -245,7 +245,27 @@ def HaloPropertyParameters():
      'php_faux_par3': None,
      'php_faux_par4': None,
      'php_faux_par5': None,
-
+     
+     'php_faux_A': None,
+     'php_faux_A_var': None,
+     'php_faux_A_meth': 'multiply',
+     'php_faux_A_par0': None,
+     'php_faux_A_par1': None,
+     'php_faux_A_par2': None,
+     'php_faux_A_par3': None,
+     'php_faux_A_par4': None,
+     'php_faux_A_par5': None,
+     
+     'php_faux_B': None,
+     'php_faux_B_var': None,
+     'php_faux_B_meth': 'multiply',
+     'php_faux_B_par0': None,
+     'php_faux_B_par1': None,
+     'php_faux_B_par2': None,
+     'php_faux_B_par3': None,
+     'php_faux_B_par4': None,
+     'php_faux_B_par5': None,
+     
      "php_boost": 1.,
      "php_iboost": 1.,
      "php_ceil": None,
@@ -641,6 +661,7 @@ def ControlParameters():
     "max_dt": 1.,
     "max_dz": None,
     "max_timestep": 1.,
+    "min_timestep": 1e-8,
     "epsilon_dt": 0.05,
     "initial_timestep": 1e-2,
     "tau_ifront": 0.5,
@@ -648,7 +669,12 @@ def ControlParameters():
     
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
-    "stop_xavg": 0.999,   # stop at given ionized fraction
+    
+    "stop_igm_h_2": None,
+    "stop_cgm_h_2": None,
+    
+    
+    
     "track_extrema": False,
     "delay_extrema": 5,      # Number of steps
     "smooth_derivative": 0, 

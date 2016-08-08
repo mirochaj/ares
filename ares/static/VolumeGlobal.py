@@ -662,7 +662,7 @@ class GlobalVolume(object):
         
         Provides units of per atom.
         """
-        
+
         if self.pf['photon_counting']:
             prefix = zone
         else:
@@ -935,7 +935,7 @@ class GlobalVolume(object):
             
         Qdot = pop.PhotonLuminosityDensity(z, Emin=13.6, Emax=24.6)
                                                                                                                
-        return weight * Qdot * (1. + z)**3  
+        return weight * Qdot * (1. + z)**3
             
     def IonizationRateIGM(self, z, species=0, popid=0, band=0, **kwargs):
         """

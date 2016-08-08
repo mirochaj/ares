@@ -10,6 +10,7 @@ Description:
 
 """
 
+import pickle
 import numpy as np
 from .PriorSet import PriorSet
 from ..util.Stats import get_nu
@@ -27,11 +28,6 @@ from ..util.Stats import Gauss1D, GaussND, rebin, get_nu
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain
-
-#try:
-#    import dill as pickle
-#except ImportError:
-import pickle    
 
 try:
     import emcee
@@ -230,8 +226,8 @@ class LogLikelihood(object):
         
     def checkpoint(self, **kwargs):
         if self.checkpoint_by_proc:
-            procid = str(rank).zfill(4)
-            fn = '%s.checkpt.proc_%s.pkl' % (self.prefix, procid)
+            procid = str(rank).zfill(3)
+            fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
                 pickle.dump(kwargs, f)
 
@@ -422,6 +418,19 @@ class ModelFit(BlobFactory):
     @nwalkers.setter
     def nwalkers(self, value):
         self._nw = int(value)
+        
+    def _handler(self, signum, frame):
+        raise Exception("Calculation took too long!")
+    
+    @property
+    def timeout(self):
+        if not hasattr(self, '_timeout'):
+            self._timeout = None
+        return self._timeout
+    
+    @timeout.setter
+    def timeout(self, value):
+        self._timeout = value
         
     @property
     def Nd(self):
@@ -619,36 +628,45 @@ class ModelFit(BlobFactory):
     def checkpoint_by_proc(self, value):
         self._checkpoint_by_proc = value
 
-    def _prep_from_scratch(self, clobber):
+    def _prep_from_scratch(self, clobber, by_proc=False):
+        if rank > 0:
+            return
         
-        prefix = self.prefix
-        
+        if by_proc:
+            prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
+        else:
+            prefix_by_proc = self.prefix
+                
         if clobber:
             # Delete only the files made by this routine. Don't want to risk
             # deleting other files the user may have created with similar
             # naming convention!
             
-            for suffix in ['chain', 'logL', 'facc', 'pinfo', 'rinfo', 'setup', 'prior_set']:
-                os.system('rm -f %s.%s.pkl' % (prefix, suffix))
+            for suffix in ['logL', 'facc', 'pinfo', 'rinfo', 'setup', 'prior_set']:
+                os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
             
-            os.system('rm -f %s.fail*.pkl' % prefix)
-            os.system('rm -f %s.blob*.pkl' % prefix)
+            os.system('rm -f %s.*.fail.pkl' % self.prefix)
+            os.system('rm -f %s.*.chain.pkl' % self.prefix)
+            os.system('rm -f %s.*.blob*.pkl' % self.prefix)
+            
+            # Need to potentially axe a product file
+            os.system('rm -f %s.fails.pkl' % self.prefix)
+            os.system('rm -f %s.chain.pkl' % self.prefix)
                     
         # Each processor gets its own fail file
-        for i in range(size):
-            f = open('%s.fail.%s.pkl' % (prefix, str(i).zfill(3)), 'wb')
-            f.close()  
+        f = open('%s.fail.pkl' % prefix_by_proc, 'wb')
+        f.close()  
         
         # Main output: MCMC chains (flattened)
-        f = open('%s.chain.pkl' % prefix, 'wb')
+        f = open('%s.chain.pkl' % prefix_by_proc, 'wb')
         f.close()
         
         # Main output: log-likelihood
-        f = open('%s.logL.pkl' % prefix, 'wb')
+        f = open('%s.logL.pkl' % self.prefix, 'wb')
         f.close()
         
         # Store acceptance fraction
-        f = open('%s.facc.pkl' % prefix, 'wb')
+        f = open('%s.facc.pkl' % self.prefix, 'wb')
         f.close()
         
         # File for blobs themselves
@@ -656,29 +674,29 @@ class ModelFit(BlobFactory):
             
             for i, group in enumerate(self.blob_names):
                 for blob in group:
-                    fntup = (prefix, self.blob_nd[i], blob)
+                    fntup = (prefix_by_proc, self.blob_nd[i], blob)
                     f = open('%s.blob_%id.%s.pkl' % fntup, 'wb')
                     f.close()
         
         # Parameter names and list saying whether they are log10 or not
-        f = open('%s.pinfo.pkl' % prefix, 'wb')
+        f = open('%s.pinfo.pkl' % self.prefix, 'wb')
         pickle.dump((self.parameters, self.is_log), f)
         f.close()
         
         # "Run" info (MCMC only)
         if hasattr(self, 'steps'):
-            f = open('%s.rinfo.pkl' % prefix, 'wb')
+            f = open('%s.rinfo.pkl' % self.prefix, 'wb')
             pickle.dump((self.nwalkers, self.save_freq, self.steps), f)
             f.close()
         
         # Priors!
         if hasattr(self, '_prior_set'):
-            f = open('%s.prior_set.pkl' % prefix, 'wb')
+            f = open('%s.prior_set.pkl' % self.prefix, 'wb')
             pickle.dump(self.prior_set, f)
             f.close()
         
         # Constant parameters being passed to ares.simulations.Global21cm
-        f = open('%s.setup.pkl' % prefix, 'wb')
+        f = open('%s.setup.pkl' % self.prefix, 'wb')
         tmp = self.base_kwargs.copy()
         to_axe = []
         for key in tmp:
@@ -802,7 +820,7 @@ class ModelFit(BlobFactory):
             iterations=steps, rstate0=state, storechain=False):
             # Only the rank 0 processor ever makes it here
             ct += 1
-
+            
             pos_all.append(pos.copy())
             prob_all.append(prob.copy())
             blobs_all.append(blobs)
@@ -857,7 +875,7 @@ class ModelFit(BlobFactory):
         if rank == 0:
             print "Finished on %s" % (time.ctime())
     
-    def save_blobs(self, blobs, uncompress=True):
+    def save_blobs(self, blobs, uncompress=True, prefix=None):
         """
         Write blobs to disk.
         
@@ -868,6 +886,9 @@ class ModelFit(BlobFactory):
         uncompress : bool
             True for MCMC, False for model grids.
         """
+        
+        if prefix is None:
+            prefix = self.prefix
                 
         # Number of steps taken between the last checkpoint and this one
         blen = len(blobs)
@@ -894,7 +915,7 @@ class ModelFit(BlobFactory):
                     to_write.append(barr)   
                     
                 bfn = '%s.blob_%id.%s.pkl' \
-                    % (self.prefix, self.blob_nd[j], blob)
+                    % (prefix, self.blob_nd[j], blob)
                 with open(bfn, 'ab') as f:
                     pickle.dump(np.array(to_write), f) 
                     

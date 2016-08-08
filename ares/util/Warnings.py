@@ -51,6 +51,7 @@ def dt_error(grid, z, q, dqdt, new_dt, cell, method):
     print line("cell #      : %i" % cell)
     if z is not None:
         print line("redshift    : %.4g" % z)
+
     print line(separator2)  
      
     cols = ['value', 'derivative']

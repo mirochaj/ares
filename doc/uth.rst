@@ -35,8 +35,12 @@ Data from the literature
 Solvers
 -------
 * :doc:`uth_solver_chem`
-* :doc:`uth_solver_rt1d`
-* :doc:`uth_solver_rte`
+.. * :doc:`uth_solver_rt1d`
+.. * :doc:`uth_solver_rte`
+
+.. Inference
+.. ---------
+.. * :doc:`uth_mcmc`
 
 
 .. Simulation Drivers

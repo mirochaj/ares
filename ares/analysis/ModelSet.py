@@ -440,7 +440,34 @@ class ModelSet(BlobFactory):
 
                 mask2d = np.array([self.mask] * self._chain.shape[1]).T
                 self._chain = np.ma.array(self._chain, mask=mask2d)
+            
+            # We might have data stored by processor
+            elif os.path.exists('%s.000.chain.pkl' % self.prefix):
+                i = 0
+                full_chain = []
+                full_mask = []
+                fn = '%s.000.chain.pkl' % self.prefix
+                while True:
+                                        
+                    if not os.path.exists(fn):
+                        break
+                                        
+                    this_chain = read_pickled_chain(fn)                                    
+                    full_chain.extend(this_chain.copy())                    
                     
+                    i += 1
+                    fn = '%s.%s.chain.pkl' % (self.prefix, str(i).zfill(3))  
+                    
+                self._chain = np.ma.array(full_chain, mask=0)
+
+                # So we don't have to stitch them together again.
+                # THIS CAN BE REALLY CONFUSING IF YOU, E.G., RUN A NEW
+                # CALCULATION AND FORGET TO CLEAR OUT OLD FILES.
+                #if rank == 0:
+                #    f = open('%s.chain.pkl' % self.prefix, 'wb')
+                #    pickle.dump(self._chain, f)
+                #    f.close()
+
             else:
                 self._chain = None            
 
@@ -482,14 +509,40 @@ class ModelSet(BlobFactory):
     def fails(self):
         if not hasattr(self, '_fails'):
             if os.path.exists('%s.fails.pkl' % self.prefix):
+                with open('%s.fails.pkl' % self.prefix, 'rb') as f:
+                    self._fails = pickle.load(f)
+            elif os.path.exists('%s.000.fail.pkl' % self.prefix):
                 i = 0
-                self._fails = []
-                while os.path.exists('%s.fail_%s.pkl' % (self.prefix, str(i).zfill(3))):
-                
-                    data = read_pickled_dict('%s.fail_%s.pkl' % (prefix, str(i).zfill(3)))
-                    self._fails.extend(data)                    
-                    i += 1
+                fails = []
+                fn = '%s.%s.fail.pkl' % (self.prefix, str(i).zfill(3))
+                while True:
+                        
+                    if not os.path.exists(fn):
+                        break
+            
+                    f = open(fn, 'rb')
+                    data = []
+                    while True:
+                        try:
+                            data.append(pickle.load(f))
+                        except EOFError:
+                            break
+                    f.close()
                     
+                    fails.extend(data)                 
+            
+                    i += 1
+                    fn = '%s.%s.fail.pkl' % (self.prefix, str(i).zfill(3))
+                        
+                # So we don't have to stitch them together again.
+                # AVOIDING CONFUSION
+                #if rank == 0:
+                #    f = open('%s.fails.pkl' % self.prefix, 'wb')
+                #    pickle.dump(fails, f)
+                #    f.close()
+                    
+                self._fails = fails    
+                
             else:
                 self._fails = None
             
@@ -515,9 +568,16 @@ class ModelSet(BlobFactory):
         nchunks = int(self.steps / sf)
         schunk = nw * sf
         data = []
-        for i in range(nchunks):
-            chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
-            data.extend(chunk)
+        i = 0
+        while True:
+                    
+            try:
+                chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
+                data.extend(chunk)
+            except:
+                break
+                
+            i += 1
             
         return np.array(data)
                 
@@ -961,6 +1021,17 @@ class ModelSet(BlobFactory):
         pl.draw()        
         self._ax = ax
         return ax
+        
+    def _fix_tick_labels(self, ax):
+        tx = map(int, ax.get_xticks())
+        ax.set_xticklabels(map(str, tx))
+        
+        ty = map(int, ax.get_yticks())
+        ax.set_yticklabels(map(str, ty))
+        
+        pl.draw()
+        
+        return ax
     
     def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
         take_log=False, un_log=False, multiplier=1., 
@@ -989,14 +1060,14 @@ class ModelSet(BlobFactory):
         data, is_log = \
             self.ExtractData(pars, ivar, take_log, un_log, multiplier)
         
-        xdata = data[pars[0]].compressed()
-        ydata = data[pars[1]].compressed()
+        xdata = self.xdata = data[pars[0]].compressed()
+        ydata = self.ydata = data[pars[1]].compressed()
         
         # Organize into (x, y) pairs
         points = zip(xdata, ydata)
                 
         # Create polygon object
-        point_collection = geometry.MultiPoint(list(points))
+        point_collection = self.point_collection = geometry.MultiPoint(list(points))
         polygon = point_collection.convex_hull
                 
         # Plot a Polygon using descartes
@@ -1005,7 +1076,7 @@ class ModelSet(BlobFactory):
         ax.add_patch(patch)
         
         pl.draw()
-        
+            
         return ax
         
     def get_par_prefix(self, par):
@@ -2661,30 +2732,40 @@ class ModelSet(BlobFactory):
 
         return mu, cov    
         
-    def AssembleParametersList(self, N=None, loc=None, include_bkw=False):
+    def AssembleParametersList(self, N=None, ids=None, include_bkw=False):
         """
-        Return dictionaries that can be used to initialize an ares 
-        simulation. 
+        Return dictionaries of parameters corresponding to elements of the
+        chain. Really just a convenience thing -- converting 1-D arrays 
+        (i.e, links of the chain) into dictionaries -- so that the parameters
+        can be passed into ares.simulations objects.
+        
+        .. note :: Masked chain elements are excluded.
         
         N : int
-            Maximum number of models to return.
+            Maximum number of models to return, starting from beginning of
+            chain. If None, return all available.
         include_bkw : bool  
-            Include base_kwargs?
+            Include base_kwargs? If so, then each element within the returned
+            list can be supplied to an ares.simulations instance and recreate
+            that model exactly.
+        loc : int
+            If supplied, only the dictionary of parameters associated with
+            link `loc` in the chain will be returned.
             
         Returns
         -------
         List of dictionaries. Maximum length: `N`.
             
         """ 
-        
+                
         all_kwargs = []
         for i, element in enumerate(self.chain):
             
             if self.mask[i]:
                 continue
             
-            if loc is not None:
-                if i != loc:
+            if ids is not None:
+                if (i != ids) or (i not in ids):
                     continue
             elif N is not None:
                 if i >= N:
@@ -2696,34 +2777,35 @@ class ModelSet(BlobFactory):
                 kwargs = {}
                 
             for j, parameter in enumerate(self.parameters):
-                if self.is_log[j]:
-                    kwargs[parameter] = 10**self.chain[i,j]
+                if type(self.chain) == np.ma.core.MaskedArray:
+                    if self.is_log[j]:
+                        kwargs[parameter] = 10**self.chain.data[i,j]
+                    else:
+                        kwargs[parameter] = self.chain.data[i,j]
                 else:
-                    kwargs[parameter] = self.chain[i,j]
-                    
+                    if self.is_log[j]:
+                        kwargs[parameter] = 10**self.chain[i,j]
+                    else:
+                        kwargs[parameter] = self.chain[i,j]
+                                        
             all_kwargs.append(kwargs.copy())
 
-        if loc is not None:
-            return all_kwargs[0]
-        else:
-            return all_kwargs
+        return all_kwargs
 
     def CorrelationMatrix(self, pars, ivar=None, fig=1, ax=None):
-        """
-        Plot correlation matrix.
-        """
-    
+        """ Plot correlation matrix. """
+
         mu, cov = self.CovarianceMatrix(pars, ivar=ivar)
-    
+
         corr = correlation_matrix(cov)
-    
+
         if ax is None:
             fig = pl.figure(fig); ax = fig.add_subplot(111)
-    
+
         cax = ax.imshow(corr, interpolation='none', cmap='RdBu_r', 
             vmin=-1, vmax=1)
         cb = pl.colorbar(cax)
-    
+
         return ax
     
     def get_blob(self, name, ivar=None):
@@ -2784,7 +2866,7 @@ class ModelSet(BlobFactory):
         return self._max_like_pars
         
     def DeriveBlob(self, func=None, fields=None, expr=None, varmap=None, 
-        save=True, name=None, clobber=False):
+        save=True, ivar=None, name=None, clobber=False):
         """
         Derive new blob from pre-existing ones.
         
@@ -2833,14 +2915,20 @@ class ModelSet(BlobFactory):
         else:
         
             blobs = varmap.values()
+            if ivar is not None:
+                iv = [ivar[blob] for blob in blobs]
+            else:
+                iv = None    
             
-            data, is_log = self.ExtractData(blobs)
+            data, is_log = self.ExtractData(blobs, ivar=iv)
             
             # Assign data to variable names
             for var in varmap.keys():
                 exec('%s = data[\'%s\']' % (var, varmap[var]))
             
             result = eval(expr)
+            
+            # Delete newly created local variables?
         
         if save:
             assert name is not None, "Must supply name for new blob!"
