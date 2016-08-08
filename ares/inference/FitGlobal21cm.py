@@ -70,6 +70,12 @@ class loglikelihood(LogLikelihood):
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
+        
+        self.checkpoint(**kwargs)
+        
+        if self.timeout is not None:
+            signal.signal(signal.SIGALRM, self._handler)
+            signal.alarm(self.timeout)
 
         try:
             sim = self.sim = simG21(**kw)
@@ -81,7 +87,11 @@ class loglikelihood(LogLikelihood):
         except SystemExit:
             
             tps = sim.turning_points
-                 
+            
+        # Disable the alarm
+        if self.timeout is not None:
+            signal.alarm(0)    
+             
         # most likely: no (or too few) turning pts
         #except ValueError:                     
         #    # Write to "fail" file

@@ -427,12 +427,12 @@ class HaloMassFunction(object):
         else:
             return np.squeeze(self.fcoll_spline_2d(z, logMmin))
 
-    def dfcolldz(self, z, logMmin):
+    def dfcolldz(self, z):
         """
         Return derivative of fcoll(z).
         """
         
-        return np.squeeze(self.dfcolldz_spline(z, logMmin))
+        return np.squeeze(self.dfcolldz_spline(z))
         
     def MAR_via_AM(self, z):
         """

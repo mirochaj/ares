@@ -37,9 +37,9 @@ tiny_number = 1e-20
 
 class SecondaryElectrons:
     def __init__(self, method=0):
-        self.Method = method
+        self.method = method
 
-        if self.Method == 3:
+        if self.method == 3:
             self._load_data()
             
     def _load_data(self):   
@@ -111,7 +111,7 @@ class SecondaryElectrons:
             self._x = 10**self.logx
         return self._x    
         
-    def DepositionFraction(self, xHII, E=None, channel='heat'):
+    def DepositionFraction(self, xHII, E=None, channel='heat', method=None):
         """
         Return the fraction of secondary electron energy deposited as heat, or 
         further ionizations.
@@ -131,19 +131,22 @@ class SecondaryElectrons:
             
         """
         
+        if method is None:
+            method = self.method
+        
         if not isinstance(xHII, Iterable):
             xHII = np.array([xHII])
                     
         if E is None: 
             E = tiny_number
         
-        if self.Method == 0:
+        if method == 0:
             if channel == 'heat':
                 return np.ones_like(xHII)
             else: 
                 return np.zeros_like(xHII)
             
-        if self.Method == 1: 
+        if method == 1: 
             if channel == 'heat': 
                 tmp = tiny_number * np.zeros_like(xHII)
                 tmp[xHII <= 1e-4] = 0.15 * np.ones(len(tmp[xHII <= 1e-4]))
@@ -160,7 +163,7 @@ class SecondaryElectrons:
                 return 0.4766 * pow(1. - pow(xHII, 0.2735), 1.5221)
             
         # Ricotti, Gnedin, & Shull (2002)
-        if self.Method == 2:
+        if method == 2:
             if channel == 'heat': 
                 tmp = tiny_number * np.zeros_like(xHII)
                 tmp[xHII <= 1e-4] = 0.15 * np.ones_like(tmp[xHII <= 1e-4]) 
@@ -193,7 +196,7 @@ class SecondaryElectrons:
                 return tiny_number * np.zeros_like(xHII)
         
         # Furlanetto & Stoever (2010)
-        if self.Method == 3:
+        if method == 3:
             
             f = tiny_number * np.zeros_like(xHII)
             

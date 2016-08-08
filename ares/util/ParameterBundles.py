@@ -59,6 +59,14 @@ _sed_toy = \
  'pop_fesc': 0.1,
 }
 
+_sed_xi = \
+{
+ 'pop_sed_model': False,
+ 'pop_xi_LW': 40.,
+ 'pop_xi_UV': 969.,
+ 'pop_xi_XR': 0.1,
+}
+
 _pop_sfe = \
 {
  'pop_sfr_model': 'sfe-dpl',
@@ -189,7 +197,7 @@ _Bundles = \
     'sfrd-func': _pop_user_sfrd, 'sfe-pl-ext': _pop_sfe_ext},
  'sed': {'uv': _sed_uv, 'lw': _sed_lw, 'lyc': _sed_lyc, 
          'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 'toy': _sed_toy,
-         'bpass': _uvsed_bpass, 's99': _uvsed_s99},
+         'bpass': _uvsed_bpass, 's99': _uvsed_s99, 'xi': _sed_xi},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
 }
 

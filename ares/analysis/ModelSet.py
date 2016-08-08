@@ -1780,7 +1780,7 @@ class ModelSet(BlobFactory):
             else:
                 tohist = to_hist[skip:stop]
                 b = bins
-            
+                        
             hist, bin_edges = \
                 np.histogram(tohist, density=True, bins=b, weights=weights)
 
@@ -1799,16 +1799,6 @@ class ModelSet(BlobFactory):
         # Marginalized 2-D PDFs
         else:
             
-            #if to_hist[0].size != to_hist[1].size:
-            #    print 'Looks like calculation was terminated after chain',
-            #    print 'was written to disk, but before blobs. How unlucky!'
-            #    print 'Applying cludge to ensure shape match...'
-            #    
-            #    if to_hist[0].size > to_hist[1].size:
-            #        to_hist[0] = to_hist[0][0:to_hist[1].size]
-            #    else:
-            #        to_hist[1] = to_hist[1][0:to_hist[0].size]
-
             if type(to_hist) is dict:
                 tohist1 = to_hist[pars[0]][skip:stop]
                 tohist2 = to_hist[pars[1]][skip:stop]

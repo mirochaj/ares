@@ -112,9 +112,9 @@ def guesses_from_priors(pars, prior_set, nwalkers):
     return np.array(guesses)    
         
 class LogLikelihood(object):
-    def __init__(self, xdata, ydata, error, parameters, is_log,\
-        base_kwargs, param_prior_set=None, blob_prior_set=None,\
-        prefix=None, blob_info=None, checkpoint_by_proc=False):
+    def __init__(self, xdata, ydata, error, parameters, is_log,
+        base_kwargs, param_prior_set=None, blob_prior_set=None,
+        prefix=None, blob_info=None, checkpoint_by_proc=False, timeout=None):
         """
         This is only to be inherited by another log-likelihood class.
 
@@ -128,6 +128,7 @@ class LogLikelihood(object):
         self.checkpoint_by_proc = checkpoint_by_proc
         
         self.base_kwargs = base_kwargs
+        self.timeout = timeout
         
         if blob_info is not None:
             self.blob_names = blob_info['blob_names']
