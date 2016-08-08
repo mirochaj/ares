@@ -380,13 +380,16 @@ class HaloMassFunction(object):
             else:
                 self.logM_min[i] = np.log10(self.pf['pop_Mmin'])
                     
-            self.fcoll_Tmin[i] = self.fcoll(z, self.logM_min[i])
+            self.fcoll_Tmin[i] = self.fcoll_2d(z, self.logM_min[i])
         
         self.ztab, self.dfcolldz_tab = \
             central_difference(self.z, self.fcoll_Tmin)
         self.dfcolldz_tab *= -1.
         
-        fcoll_spline = None
+        _tmp = interp1d(self.z, np.log10(self.fcoll_Tmin), kind='cubic')
+        fcoll_spline = lambda z: 10**_tmp.__call__(z)
+        
+        #fcoll_spline = None
         
         # TESTING: force dfcolldz_tab > 0
         self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
@@ -407,7 +410,7 @@ class HaloMassFunction(object):
     def fcoll_spline_2d(self, value):
         self._fcoll_spline_2d = value
         
-    def fcoll(self, z, logMmin):
+    def fcoll_2d(self, z, logMmin):
         """
         Return fraction of mass in halos more massive than 10**logMmin.
         Interpolation in 2D, x = redshift = z, y = logMass.
@@ -429,12 +432,12 @@ class HaloMassFunction(object):
         else:
             return np.squeeze(self.fcoll_spline_2d(z, logMmin))
 
-    def dfcolldz(self, z, logMmin):
+    def dfcolldz(self, z):
         """
         Return derivative of fcoll(z).
         """
         
-        return np.squeeze(self.dfcolldz_spline(z, logMmin))
+        return np.squeeze(self.dfcolldz_spline(z))
         
     def MAR_via_AM(self, z):
         """

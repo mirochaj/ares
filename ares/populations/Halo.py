@@ -15,6 +15,7 @@ from .Population import Population
 from scipy.integrate import cumtrapz
 from ..physics import HaloMassFunction
 from ..util.PrintInfo import print_pop
+from ..util.Math import central_difference
 from ..physics.Constants import cm_per_mpc, s_per_yr, g_per_msun
 
 class HaloPopulation(Population):
@@ -84,33 +85,71 @@ class HaloPopulation(Population):
         """
         Given the redshift and minimum mass, create a new _dfcolldz function.
         """
-        if not hasattr(self, '_z_Mmin'):
-            self._z_Mmin = []
-            self._Mmin = []
         
-        self._z_Mmin.append(z)
-        self._Mmin.append(Mmin)
+        if not hasattr(self, '_counter'):
+            self._counter = 0
+            
+        # Data containers    
+        if not hasattr(self, '_z_list'):
+            self._z_list = []
+            self._fcoll_list = []
         
-        # Need to extrapolate
-        zarr = self._z_Mmin[-1:-6:-1]
-        Mmin = self._Mmin[-1:-6:-1]
+        # Brute-force
+        if self._counter < 5:
+            Tmin = self.halos.VirialTemperature(Mmin, z, mu=0.6)
+            self._set_fcoll(Tmin, mu=0.6)
+            
+            self._z_list.append(z)
+            self._fcoll_list.append(self.fcoll(z))
+                            
+        else:
+                        
+            # Do something cool!
+            
+            # Step 1: Calculate fcoll(z, Mmin)
+            
+            fcoll = self.halos.fcoll_2d(z, np.log10(Mmin))
+            
+
+            
+            # Step 2: Append to lists
+            
+            self._z_list.append(z)
+            self._fcoll_list.append(fcoll)
+            
+            # Step 2.5: Take derivative!
+            
+            
+            _ztab, _dfcolldz_tab = \
+                central_difference(self._z_list, self._fcoll_list)
+            
+            
+            # Step 3: Create extrapolants
+            z_hi, z_lo = _ztab[-2:]
+            dfcdz_hi, dfcdz_lo = _dfcolldz_tab[-2:]
+            
+            dfcdz_p = (dfcdz_lo - dfcdz_hi) / (z_lo - z_hi)
+            
+                        
+            self._dfcolldz = lambda z: abs(dfcdz_p * (z - z_lo) + dfcdz_lo)
+            
+                        
+                
+        #if self._counter > 8:
+        #    raise ValueError('hey')
         
-        fcoll = [self.fcoll(zarr[i], np.log10(Mmin[i])) for i in range(5)]
-        
-        # Take these grid points and create dfcolldz function that
-        # extrapolates beyond
-        self._dfcolldz = None
+        self._counter += 1
         
     def _init_fcoll(self):
         # Halo stuff
         if self.pf['pop_sfrd'] is not None:
             return
 
-        if self.pf['pop_feedback']:
-            # 2-D function in this case, of (redshift, logMmin)
-            self._fcoll = self.halos.fcoll
-            self._dfcolldz = None
-        elif self.pf['pop_fcoll'] is None:
+        #if self.pf['pop_feedback']:
+        #    # 2-D function in this case, of (redshift, logMmin)
+        #    self._fcoll = self.halos.fcoll
+        #    self._dfcolldz = self.halos.dfcolldz
+        if self.pf['pop_fcoll'] is None:
             self._set_fcoll(self.pf['pop_Tmin'], self.pf['mu'])
         else:
             self._fcoll, self._dfcolldz = \

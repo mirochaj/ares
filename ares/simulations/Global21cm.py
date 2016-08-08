@@ -267,7 +267,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                                                     
                 if not np.any(self.medium.field.solve_rte[i]):
                     Ja += self.medium.field.LymanAlphaFlux(z, popid=i)
-                    Jlw += self.medium.field.LymanWernerFlux(z, popid=i)
+                    Jlw += 1e-30#self.medium.field.LymanWernerFlux(z, popid=i)
                     continue
 
                 # Grab line fluxes for this population for this step
@@ -291,7 +291,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     # And corresponding fluxes
                     j = self.medium.field.all_fluxes[-1][i][j][is_LW]
                     
-                    Jlw += np.trapz(j, x=Earr[is_LW])
+                    Jlw += 1e-30#np.trapz(j, x=Earr[is_LW])
                     
             # Solver requires this                                            
             Ja = np.atleast_1d(Ja)                                            
@@ -316,7 +316,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     continue
                     
                 # Compute new minimum mass
-                new_Mmin = some_function(z, Jlw)    
+                new_Mmin = 1e5#some_function(z, Jlw)    
                     
                 # Reset the minimum mass of star-forming halos
                 pop.update_Mmin(z, new_Mmin)

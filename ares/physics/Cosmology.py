@@ -195,7 +195,7 @@ class Cosmology(object):
         return (3.0 * self.HubbleParameter(z)**2) / (8.0 * np.pi * G)
     
     def dtdz(self, z):
-        return 1. / self.HubbleParameter(z) / (1. + z) 
+        return 1. / self.HubbleParameter(z) / (1. + z)
     
     def LuminosityDistance(self, z):
         """
