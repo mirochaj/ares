@@ -25,7 +25,8 @@ def_kwargs = {'verbose': False, 'progress_bar': False}
 class loglikelihood(LogLikelihood):
     def __init__(self, xdata, ydata, error, parameters, is_log,
         base_kwargs, param_prior_set=None, blob_prior_set=None, 
-        prefix=None, blob_info=None, turning_points=None):
+        prefix=None, blob_info=None, checkpoint_by_proc=True, timeout=None,
+        turning_points=None):
         """
         Computes log-likelihood at given step in MCMC chain.
     
@@ -36,7 +37,7 @@ class loglikelihood(LogLikelihood):
         
         LogLikelihood.__init__(self, xdata, ydata, error, parameters, is_log,
             base_kwargs, param_prior_set, blob_prior_set, 
-            prefix, blob_info)
+            prefix, blob_info, checkpoint_by_proc, timeout)
     
         self.turning_points = turning_points
         
@@ -152,7 +153,8 @@ class FitGlobal21cm(ModelFit):
             self._loglikelihood = loglikelihood(self.xdata, self.ydata, 
                 self.error, self.parameters, self.is_log, self.base_kwargs, 
                 self.prior_set_P, self.prior_set_B, 
-                self.prefix, self.blob_info, self.turning_points)    
+                self.prefix, self.blob_info, self.checkpoint_by_proc,
+                self.timeout, self.turning_points)    
         
         return self._loglikelihood
         
