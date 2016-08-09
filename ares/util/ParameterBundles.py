@@ -202,9 +202,14 @@ _Bundles = \
 }
 
 class ParameterBundle(dict):
-    def __init__(self, bundle=None, id_num=None, **kwargs):
+    def __init__(self, bundle=None, id_num=None, bset=None, **kwargs):
         self.bundle = bundle
         self.kwargs = kwargs
+        
+        if bset is None:
+            self.bset = _Bundles
+        else:
+            self.bset = bset
         
         # data should be a string
         if bundle is not None:
@@ -225,8 +230,8 @@ class ParameterBundle(dict):
         # Assume format: "modeltype:model", e.g., "pop:fcoll" or "sed:uv"
         pre, post = bundle.split(':')
         
-        if pre in _Bundles.keys():
-            kw = _Bundles[pre][post]
+        if pre in self.bset.keys():
+            kw = self.bset[pre][post]
         # Assume format: "paperyear:modelname", e.g., "mirocha2016:dpl"
         elif pre == 'prob':
             kw = ProblemType(float(post))
@@ -275,7 +280,7 @@ class ParameterBundle(dict):
         self._value = value
     
         for key in self.keys():
-            self[_add_pop_tag(key, value)] = self.pop(key)    
+            self[_add_pop_tag(key, value)] = self.pop(key)
     
     @property
     def Npops(self):
