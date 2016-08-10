@@ -740,6 +740,7 @@ def GaussianParameters():
      'gaussian_A': -100., 
      'gaussian_nu': 70.,
      'gaussian_sigma': 10.,
+     'gaussian_bias_temp': 0
     }
     
     pf.update(rcParams)
