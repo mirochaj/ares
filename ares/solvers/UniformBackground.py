@@ -809,7 +809,7 @@ class UniformBackground(object):
     
         return c * (1. + z)**2 * epsilonhat_over_H * np.exp(-tau) / four_pi
         
-    def LymanWernerFlux(self, z, E, popid=0, **kwargs):
+    def LymanWernerFlux(self, z, E=None, popid=0, **kwargs):
         """
         Compute flux at observed redshift z and energy E (eV).
     
@@ -851,6 +851,15 @@ class UniformBackground(object):
     
         kw = defkwargs.copy()
         kw.update(kwargs)
+        
+        # Flat spectrum, no injected photons, instantaneous emission only
+        if not np.any(self.solve_rte[popid]):
+            norm = c * self.cosm.dtdz(z) / four_pi
+
+            rhoLW = pop.PhotonLuminosityDensity(z, Emin=11.2, Emax=13.6)
+
+            # Crude mean photon energy
+            return 0.5 * (11.2 + 13.6) * erg_per_ev * norm * (1. + z)**3 * rhoLW / dnu
     
         # Closest Lyman line (from above)
         n = ceil(np.sqrt(E_LL / (E_LL - E)))
