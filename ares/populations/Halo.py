@@ -125,19 +125,21 @@ class HaloPopulation(Population):
             
             
             # Step 3: Create extrapolants
-            z_hi, z_lo = _ztab[-2:]
-            dfcdz_hi, dfcdz_lo = _dfcolldz_tab[-2:]
+            z_hi, z_mid, z_lo = _ztab[-3:]
+            dfcdz_hi, dfcdz_mid, dfcdz_lo = _dfcolldz_tab[-3:]
             
             dfcdz_p = (dfcdz_lo - dfcdz_hi) / (z_lo - z_hi)
-            
-                        
+            dfcdz_a = (dfcdz_mid - dfcdz_hi) / (z_mid - z_hi)
+            dfcdz_b = (dfcdz_lo - dfcdz_mid) / (z_lo - z_mid)
+            #print dfcdz_hi, dfcdz_mid, dfcdz_lo
+            #self._dfcolldz = lambda z: abs(dfcdz_hi + dfcdz_a*(z-z_hi) + ((dfcdz_b-dfcdz_a)/(z_lo-z_hi))*(z-z_mid)*(z-z_hi)) 
+
             self._dfcolldz = lambda z: abs(dfcdz_p * (z - z_lo) + dfcdz_lo)
             
-                        
                 
         #if self._counter > 8:
         #    raise ValueError('hey')
-        
+        #
         self._counter += 1
         
     def _init_fcoll(self):

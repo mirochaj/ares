@@ -41,7 +41,6 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             may be used.
             
         """
-        
         # See if this is a tanh model calculation
         is_phenom = self.is_phenom = self._check_if_phenom(**kwargs)
 
@@ -316,8 +315,10 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     continue
                     
                 # Compute new minimum mass
-                new_Mmin = 1e5#some_function(z, Jlw)    
-                    
+                new_Mmin = 2.5 * pow(10,5) * pow(((1+z)/26),-1.5) * (1+6.96*pow(4*3.14*Jlw,0.47)) 
+                
+                #print new_Mmin
+                
                 # Reset the minimum mass of star-forming halos
                 pop.update_Mmin(z, new_Mmin)
                         
