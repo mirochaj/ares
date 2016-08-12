@@ -21,6 +21,7 @@ import re, os, string, time, glob
 from .BlobFactory import BlobFactory
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
+from matplotlib.collections import PatchCollection
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
 import matplotlib.patches as patches
@@ -35,13 +36,16 @@ from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
     tanh_gjah_to_ares
 
-#try:
-#    import dill as pickle
-#except ImportError:
 import pickle 
 
 try:
+    from scipy.spatial import Delaunay
+except ImportError:
+    pass
+
+try:
     import shapely.geometry as geometry
+    from shapely.ops import cascaded_union, polygonize
     have_shapely = True
 except ImportError, OSError:
     have_shapely = False
@@ -1061,7 +1065,7 @@ class ModelSet(BlobFactory):
     
     def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
         take_log=False, un_log=False, multiplier=1., 
-        **kwargs):
+        boundary_type='concave', alpha=0.3, **kwargs):
         """
         Basically a scatterplot but instead of plotting individual points,
         we draw lines bounding the locations of all those points.
@@ -1070,12 +1074,18 @@ class ModelSet(BlobFactory):
         ----------
         pars : list, tuple
             List of parameters that defines 2-D plane.
+        boundary_type : str
+            Options: 'convex' or 'concave' or 'envelope'
+        alpha : float
+            Only used if boundary_type == 'concave'. Making alpha smaller
+            makes the contouring more crude, but also less noisy as a result.
+        
             
         """
         
         assert have_shapely, "Need shapely installed for this to work."
         assert have_descartes, "Need descartes installed for this to work."
-        
+
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -1085,21 +1095,37 @@ class ModelSet(BlobFactory):
 
         data, is_log = \
             self.ExtractData(pars, ivar, take_log, un_log, multiplier)
-        
+
         xdata = self.xdata = data[pars[0]].compressed()
         ydata = self.ydata = data[pars[1]].compressed()
-        
+
         # Organize into (x, y) pairs
         points = zip(xdata, ydata)
-                
+
         # Create polygon object
-        point_collection = self.point_collection = geometry.MultiPoint(list(points))
-        polygon = point_collection.convex_hull
+        point_collection = geometry.MultiPoint(list(points))
+        
+        if boundary_type == 'convex':
+            polygon = point_collection.convex_hull
+        elif boundary_type == 'concave':
+            polygon, edge_points = self._alpha_shape(points, alpha)
+        elif boundary_type == 'envelope':
+            polygon = point_collection.envelope
+        else:
+            raise ValueError('Unrecognized boundary_type=%s!' % boundary_type)        
                 
-        # Plot a Polygon using descartes
         x_min, y_min, x_max, y_max = polygon.bounds
-        patch = PolygonPatch(polygon, **kwargs)
-        ax.add_patch(patch)
+        
+        # Plot a Polygon using descartes
+        try:        
+            patch = PolygonPatch(polygon, **kwargs)
+            ax.add_patch(patch)
+        except:
+            patches = []
+            for pgon in polygon:
+                patches.append(PolygonPatch(pgon, **kwargs))
+            
+            ax.add_collection(PatchCollection(patches, match_original=True))
         
         pl.draw()
             
@@ -3090,4 +3116,67 @@ class ModelSet(BlobFactory):
         
         pl.draw()
 
+    def _alpha_shape(self, points, alpha):
+        """
+        
+        Stolen from here:
+        
+        http://blog.thehumangeo.com/2014/05/12/drawing-boundaries-in-python/
+        
+        Thanks, stranger!
+        
+        Compute the alpha shape (concave hull) of a set
+        of points.
+        @param points: Iterable container of points.
+        @param alpha: alpha value to influence the
+            gooeyness of the border. Smaller numbers
+            don't fall inward as much as larger numbers.
+            Too large, and you lose everything!
+            
+        """
+        if len(points) < 4:
+            # When you have a triangle, there is no sense
+            # in computing an alpha shape.
+            return geometry.MultiPoint(list(points)).convex_hull
+
+        def add_edge(edges, edge_points, coords, i, j):
+            """
+            Add a line between the i-th and j-th points,
+            if not in the list already
+            """
+            if (i, j) in edges or (j, i) in edges:
+                # already added
+                return
+            edges.add( (i, j) )
+            edge_points.append(coords[ [i, j] ])
+            
+        coords = np.array(points)#np.array([point.coords[0] for point in points])
+        tri = Delaunay(coords)
+        edges = set()
+        edge_points = []
+        # loop over triangles:
+        # ia, ib, ic = indices of corner points of the
+        # triangle
+        for ia, ib, ic in tri.vertices:
+            pa = coords[ia]
+            pb = coords[ib]
+            pc = coords[ic]
+            # Lengths of sides of triangle
+            a = np.sqrt((pa[0]-pb[0])**2 + (pa[1]-pb[1])**2)
+            b = np.sqrt((pb[0]-pc[0])**2 + (pb[1]-pc[1])**2)
+            c = np.sqrt((pc[0]-pa[0])**2 + (pc[1]-pa[1])**2)
+            # Semiperimeter of triangle
+            s = (a + b + c)/2.0
+            # Area of triangle by Heron's formula
+            area = np.sqrt(s*(s-a)*(s-b)*(s-c))
+            circum_r = a*b*c/(4.0*area)
+            # Here's the radius filter.
+            #print circum_r
+            if circum_r < 1.0/alpha:
+                add_edge(edges, edge_points, coords, ia, ib)
+                add_edge(edges, edge_points, coords, ib, ic)
+                add_edge(edges, edge_points, coords, ic, ia)
+        m = geometry.MultiLineString(edge_points)
+        triangles = list(polygonize(m))
+        return cascaded_union(triangles), edge_points
     
