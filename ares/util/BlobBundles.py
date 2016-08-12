@@ -23,9 +23,6 @@ _gs_shape_n = ['hwhm_diff_C', 'hwqm_diff_C', 'fwhm_C',
              
 _gs_shape_f = ['Width(max_fraction=0.5, peak_relative=True)', 
                'Width(max_fraction=0.25, peak_relative=True)',
-               'Width(max_fraction=0.25, peak_relative=False)',
-               'Width(max_fraction=0.5, peak_relative=True)', 
-               'Width(max_fraction=0.25, peak_relative=True)',
                'Width(max_fraction=0.25, peak_relative=False)'
                ]
 
@@ -33,7 +30,11 @@ _extrema = {'blob_names':_gs_ext, 'blob_ivars': None,  'blob_funcs': None}
 _history = {'blob_names':_gs_hist,'blob_ivars': _def_z,'blob_funcs': None}
 _shape = {'blob_names':_gs_shape_n,'blob_ivars': None, 'blob_funcs': _gs_shape_f}
 
-_blobs = {'gs': {'extrema': _extrema, 'history': _history, 'shape': _shape}}
+_blobs = \
+{
+ 'gs': {'extrema': _extrema, 'history': _history, 'shape': _shape},
+ 'rb': None, # eventually 
+}
 
 _keys = ('blob_names', 'blob_ivars', 'blob_funcs')
 

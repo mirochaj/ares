@@ -232,7 +232,6 @@ class ParameterBundle(dict):
         
         if pre in self.bset.keys():
             kw = self.bset[pre][post]
-        # Assume format: "paperyear:modelname", e.g., "mirocha2016:dpl"
         elif pre == 'prob':
             kw = ProblemType(float(post))
         else:

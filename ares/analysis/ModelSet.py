@@ -472,6 +472,32 @@ class ModelSet(BlobFactory):
                 self._chain = None            
 
         return self._chain        
+        
+    @property
+    def checkpoints(self):
+        # Read MCMC chain
+        if not hasattr(self, '_checkpoints'):
+            i = 0
+            fail = 0
+            self._checkpoints = {}
+            fn = '%s.000.checkpt.pkl' % self.prefix
+            while True:
+            
+                if not os.path.exists(fn):
+                    fail += 1
+                    
+                    if fail > 10:
+                        break
+                else:
+                    with open(fn, 'rb') as f:
+                        kw = pickle.load(f)                 
+                    
+                    self._checkpoints[i] = kw
+            
+                i += 1
+                fn = '%s.%s.checkpt.pkl' % (self.prefix, str(i).zfill(3))
+                
+        return self._checkpoints  
     
     @property
     def logL(self):

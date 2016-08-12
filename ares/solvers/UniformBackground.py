@@ -858,7 +858,7 @@ class UniformBackground(object):
 
             rhoLW = pop.PhotonLuminosityDensity(z, Emin=11.2, Emax=13.6)
 
-            return norm * (1. + z)**3 * rhoLW
+            return norm * (1. + z)**3 * rhoLW / dnu
     
         # Closest Lyman line (from above)
         n = ceil(np.sqrt(E_LL / (E_LL - E)))
