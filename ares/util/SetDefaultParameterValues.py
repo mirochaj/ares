@@ -726,6 +726,8 @@ def TanhParameters():
     'tanh_xdz': 2.,
     'tanh_bias_temp': 0.0,   # in mK
     'tanh_bias_freq': 0.0,   # in MHz
+    'tanh_scale_temp': 1.0,
+    'tanh_scale_freq': 1.0
     }
 
     pf.update(rcParams)
