@@ -946,7 +946,7 @@ class UniformBackground(object):
 
             rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6)
 
-            return norm * (1. + z)**3 * (1. + pop.pf['lya_frec_bar']) * \
+            return norm * (1. + z)**3 * (1. + pop.pf['pop_frec_bar']) * \
                 rhoLW / dnu
 
         # Full calculation

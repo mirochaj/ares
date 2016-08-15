@@ -16,7 +16,7 @@ from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from ..analysis.BlobFactory import BlobFactory
-from ..physics.Constants import nu_0_mhz, E_LyA
+from ..physics.Constants import nu_0_mhz, E_LyA, E_LL, ev_per_hz
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 
 try:
@@ -186,6 +186,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         # Add zeros for Ja
         for element in self.all_data_igm:
             element['Ja'] = 0.0
+            element['Jlw'] = 0.0
         
         # List for extrema-finding    
         self.all_dTb = self._init_dTb()
@@ -225,6 +226,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         self.history['dTb'] = self.history['igm_dTb']
         self.history['Ts'] = self.history['igm_Ts']
         self.history['Ja'] = self.history['igm_Ja']
+        self.history['Jlw'] = self.history['igm_Jlw']
         
         # Save rate coefficients [optional]
         if self.pf['save_rate_coefficients']:
@@ -279,10 +281,10 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     l = np.argmin(np.abs(Earr - E_LyA))     # should be 0
                     
                     Ja += self.medium.field.all_fluxes[-1][i][j][l]
-                    
+
+                    ##
                     # Feedback time
-                    if not pop.pf['pop_feedback']:
-                        continue
+                    ##
                     
                     # Find photons in LW band    
                     is_LW = np.logical_and(Earr >= 11.18, Earr <= E_LL)
@@ -290,8 +292,9 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     # And corresponding fluxes
                     flux = self.medium.field.all_fluxes[-1][i][j][is_LW]
                     
-                    Jlw += np.trapz(flux, x=Earr[is_LW])
-                    
+                    dnu = (E_LL - 11.18) / ev_per_hz
+                    Jlw += np.trapz(flux, x=Earr[is_LW]) / dnu
+                                        
             # Solver requires this                                            
             Ja = np.atleast_1d(Ja)                                            
                                                                     
@@ -307,7 +310,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             dTb = self.medium.parcel_igm.grid.hydr.dTb(z, xavg, Ts)
 
             # Add derived fields to data
-            data_igm.update({'Ts': Ts, 'dTb': dTb, 'Ja': Ja})
+            data_igm.update({'Ts': Ts, 'dTb': dTb, 'Ja': Ja, 'Jlw': Jlw})
                         
             # Apply LW feedback
             for i, pop in enumerate(self.medium.field.pops):
@@ -315,8 +318,9 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     continue
                     
                 # Compute new minimum mass
-                new_Mmin = 2.5 * pow(10,5) * pow(((1+z)/26),-1.5) * (1+6.96*pow(4*3.14*Jlw,0.47)) 
-                                
+                new_Mmin = 2.5 * 1e5 * pow(((1.+z)/26.),-1.5) \
+                    * (1+6.96*pow(4*np.pi* (Jlw / 1e-21),0.47)) 
+                                                                
                 # Reset the minimum mass of star-forming halos
                 pop.update_Mmin(z, new_Mmin)
                         

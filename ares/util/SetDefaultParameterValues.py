@@ -211,9 +211,7 @@ def PhysicsParameters():
 
     # Lyman alpha sources
     "lya_nmax": 23,
-    'lya_frec_bar': 0.0,   # Neglect injected photons by default if we're
-                           # treating background in approximate way
-
+    
     "rate_source": 'fk94', # fk94, option for development here
 
     }
@@ -464,6 +462,9 @@ def PopulationParameters():
     "pop_yield_wavelength": 1500.,
 
     'pop_fXh': None,
+    
+    'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
+                           # treating background in approximate way
 
     "pop_approx_tau": True,     # shouldn't be a pop parameter?
     "pop_solve_rte": False,
