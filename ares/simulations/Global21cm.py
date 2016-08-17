@@ -16,8 +16,8 @@ from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from ..analysis.BlobFactory import BlobFactory
-from ..physics.Constants import nu_0_mhz, E_LyA, E_LL, ev_per_hz
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
+from ..physics.Constants import nu_0_mhz, E_LyA, E_LL, ev_per_hz, erg_per_ev
 
 try:
     import dill as pickle
@@ -267,7 +267,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     continue
                                                     
                 if not np.any(self.medium.field.solve_rte[i]):
-                    Ja += self.medium.field.LymanAlphaFlux(z, popid=i)
+                    Ja += self.medium.field.LymanAlphaFlux(z, popid=i)                    
                     Jlw += self.medium.field.LymanWernerFlux(z, popid=i)
                     continue
 
@@ -292,6 +292,9 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     # And corresponding fluxes
                     flux = self.medium.field.all_fluxes[-1][i][j][is_LW]
                     
+                    # Convert to energy units, and per eV to prep for integral
+                    flux *= Earr[is_LW] * erg_per_ev / ev_per_hz
+                    
                     dnu = (E_LL - 11.18) / ev_per_hz
                     Jlw += np.trapz(flux, x=Earr[is_LW]) / dnu
                                         
@@ -314,13 +317,14 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                         
             # Apply LW feedback
             for i, pop in enumerate(self.medium.field.pops):
+                                
                 if not pop.pf['pop_feedback']:
                     continue
                     
                 # Compute new minimum mass
                 new_Mmin = 2.5 * 1e5 * pow(((1.+z)/26.),-1.5) \
                     * (1+6.96*pow(4*np.pi* (Jlw / 1e-21),0.47)) 
-                                                                
+                                                                                                        
                 # Reset the minimum mass of star-forming halos
                 pop.update_Mmin(z, new_Mmin)
                         

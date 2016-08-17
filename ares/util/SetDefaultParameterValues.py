@@ -659,7 +659,6 @@ def ControlParameters():
     "load_sim": False,
 
     # Timestepping
-    "max_dt": 1.,
     "max_dz": None,
     "max_timestep": 1.,
     "min_timestep": 1e-8,

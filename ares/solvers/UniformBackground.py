@@ -839,7 +839,7 @@ class UniformBackground(object):
     
         Returns
         -------
-        Flux in units of s**-1 cm**-2 Hz**-1 sr**-1
+        Flux in units of erg s**-1 cm**-2 Hz**-1 sr**-1
     
         See Also
         --------
@@ -856,10 +856,13 @@ class UniformBackground(object):
         if not np.any(self.solve_rte[popid]):
             norm = c * self.cosm.dtdz(z) / four_pi
 
-            rhoLW = pop.PhotonLuminosityDensity(z, Emin=11.2, Emax=13.6)
+            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6) \
+                * (E_LL - 11.18) / (E_LL - E_LyA)
 
             # Crude mean photon energy
-            return 0.5 * (11.2 + 13.6) * erg_per_ev * norm * (1. + z)**3 * rhoLW / dnu
+            dnu_LW = (E_LL - 11.18) / ev_per_hz
+            return 0.5 * (11.2 + 13.6) * erg_per_ev * norm * (1. + z)**3 \
+                * rhoLW / dnu_LW
     
         # Closest Lyman line (from above)
         n = ceil(np.sqrt(E_LL / (E_LL - E)))
@@ -1027,9 +1030,9 @@ class UniformBackground(object):
         photon energy.
             
         """
-                
+
         Nz, Nf = len(z), len(E)
-        
+
         Inu = np.zeros(Nf)
         for i in xrange(Nf): 
             Inu[i] = pop.src.Spectrum(E[i])
