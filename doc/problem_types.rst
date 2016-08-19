@@ -46,7 +46,7 @@ Slightly more advanced global 21-cm signal problem in which the Ly-:math:`\alpha
     + ``pop_Z{0}``: Stellar metallicity.
     + ``pop_fesc{0}``: Escape fraction of LyC radiation.
     + ``pop_yield{1}``: Normalization of the X-ray luminosity star-formation rate relation in the 0.5-8 keV band.
-    + ``pop_Tmin{0}``: Minimum virial temperature of star-forming halos. Note that ``pop_Tmin{1}``is automatically linked to ``pop_Tmin{0}``.
+    + ``pop_Tmin{0}``: Minimum virial temperature of star-forming halos. Note that ``pop_Tmin{1}`` is automatically linked to ``pop_Tmin{0}``.
 
 
     

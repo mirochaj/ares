@@ -71,7 +71,7 @@ dpl = \
  'approx_He': True,
  'secondary_ionization': 3,
  'approx_Salpha': 3,
- 'problem_type': 101.2,
+ 'problem_type': 102,
  'photon_counting': True,
  'cgm_initial_temperature': 2e4,
  'cgm_recombination': 'B',

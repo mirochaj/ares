@@ -47,7 +47,7 @@ try:
     import shapely.geometry as geometry
     from shapely.ops import cascaded_union, polygonize
     have_shapely = True
-except ImportError, OSError:
+except (ImportError, OSError):
     have_shapely = False
     
 try:

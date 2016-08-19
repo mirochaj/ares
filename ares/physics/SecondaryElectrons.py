@@ -35,7 +35,7 @@ prefix = os.path.join('input','secondary_electrons')
 # our spline will get screwed up since log(0) = inf
 tiny_number = 1e-20
 
-class SecondaryElectrons:
+class SecondaryElectrons(object):
     def __init__(self, method=0):
         self.method = method
 
@@ -70,22 +70,35 @@ class SecondaryElectrons:
             self.fion_tab = f['fion'].value
             
             f.close()
-                    
         else:
-            f = open(self.fn, 'rb')
-            
-            self.E = pickle.load(f)
-            self._x = pickle.load(f)
-            
-            self.fh_tab = pickle.load(f)
-            self.fexc_tab = pickle.load(f)
-            self.flya_tab = pickle.load(f)
-            self.fionHI_tab = pickle.load(f)
-            self.fionHeI_tab = pickle.load(f)
-            self.fionHeII_tab = pickle.load(f)
-            self.fion_tab = pickle.load(f)
-            
-            f.close()
+            try:
+                f = open(self.fn, 'rb')
+                
+                self.E = pickle.load(f)
+                self._x = pickle.load(f)
+                
+                self.fh_tab = pickle.load(f)
+                self.fexc_tab = pickle.load(f)
+                self.flya_tab = pickle.load(f)
+                self.fionHI_tab = pickle.load(f)
+                self.fionHeI_tab = pickle.load(f)
+                self.fionHeII_tab = pickle.load(f)
+                self.fion_tab = pickle.load(f)
+                
+                f.close()
+            except:
+                self.fn = os.path.join(ARES,prefix,'secondary_electron_data.npz')
+                f = np.load(self.fn)
+                self.E = f["electron_energy"]
+                self._x = f["ionized_fraction"]
+
+                self.fh_tab = f["f_heat"]
+                self.fionHI_tab = f["fion_HI"]
+                self.fionHeI_tab = f["fion_HeI"]
+                self.fionHeII_tab = f["fion_HeII"]
+                self.fexc_tab = f["fexc"]
+                self.flya_tab = f['f_Lya']
+                self.fion_tab = f['fion']
             
         self._logx = np.log10(self.x)    
          
