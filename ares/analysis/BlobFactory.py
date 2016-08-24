@@ -12,6 +12,7 @@ Description:
 
 import os
 import re
+import glob
 import numpy as np
 from inspect import ismethod
 from types import FunctionType
@@ -460,12 +461,39 @@ class BlobFactory(object):
         i, j, nd, dims = self.blob_info(name)
     
         fn = "%s.blob_%id.%s.pkl" % (self.prefix, nd, name)
-        
-        # Might have data split up among processors
+                
+        # Might have data split up among processors or checkpoints
         by_proc = False
+        by_dd = False
         if not os.path.exists(fn):
-            by_proc = True
-            fn = "%s.000.blob_%id.%s.pkl" % (self.prefix, nd, name)
+            
+            # First, look for processor-by-processor outputs
+            fn = "%s.proc0000.blob_%id.%s.pkl" % (self.prefix, nd, name)
+            if os.path.exists(fn):
+                by_proc = True        
+                by_dd = False
+            # Then, those where each checkpoint has its own file    
+            else:
+                by_proc = False
+                by_dd = True
+                
+                search_for = "%s.dd????.blob_%id.%s.pkl" % (self.prefix, nd, name)
+                _ddf = glob.glob(search_for)
+                        
+                if self.include_checkpoints is None:
+                    ddf = _ddf
+                else:
+                    ddf = []
+                    for dd in self.include_checkpoints:
+                        ddid = str(dd).zfill(4)
+                        tmp = "%s.dd%s.blob_%id.%s.pkl" \
+                            % (self.prefix, ddid, nd, name)
+                        ddf.append(tmp)
+                
+                print ddf
+                
+                # Start with the first...
+                fn = ddf[0]        
         
         fid = 0
         to_return = []
@@ -475,6 +503,8 @@ class BlobFactory(object):
                 break
         
             f = open(fn, 'rb')
+            
+            print "Opened %s" % fn
     
             all_data = []
             while True:
@@ -492,12 +522,19 @@ class BlobFactory(object):
             all_data = np.array(all_data, dtype=np.float64)
             to_return.extend(all_data)
             
-            if not by_proc:
+            if not (by_proc or by_dd):
                 break
                 
             fid += 1
-            fn = "%s.%s.blob_%id.%s.pkl" % (self.prefix, str(fid).zfill(3),
-                nd, name)
+            
+            if by_proc:
+                fn = "%s.%s.blob_%id.%s.pkl" \
+                    % (self.prefix, str(fid).zfill(4), nd, name)
+            else:
+                if (fid >= len(ddf)):
+                    break
+                    
+                fn = ddf[fid]
         
         mask = np.logical_not(np.isfinite(to_return))
         masked_data = np.ma.array(to_return, mask=mask)

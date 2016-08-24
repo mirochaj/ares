@@ -695,7 +695,7 @@ def ControlParameters():
     "tau_instance": None,
 
     # File format
-    "preferred_format": 'pkl',
+    "preferred_format": 'npz',
 
     # Finding SED tables
     "load_sed": False,

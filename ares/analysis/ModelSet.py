@@ -418,6 +418,26 @@ class ModelSet(BlobFactory):
                 self._Nd = None
         
         return self._Nd
+    
+    @property
+    def include_checkpoints(self):
+        if not hasattr(self, '_include_checkpoints'):
+            self._include_checkpoints = None
+        return self._include_checkpoints
+        
+    @include_checkpoints.setter
+    def include_checkpoints(self, value):
+        assert type(value) in [int, list, tuple, np.ndarray], \
+            "Supplied checkpoint(s) must be integer or iterable of integers!"
+            
+        if type(value) is int:
+            self._include_checkpoints = [value]
+        else:        
+            self._include_checkpoints = value
+            
+        if hasattr(self, '_chain'):
+            print "WARNING: the chain has already been read.", 
+            print "Be sure to delete `_chain` attribute before continuing."
 
     @property
     def chain(self):
@@ -446,11 +466,11 @@ class ModelSet(BlobFactory):
                 self._chain = np.ma.array(self._chain, mask=mask2d)
             
             # We might have data stored by processor
-            elif os.path.exists('%s.000.chain.pkl' % self.prefix):
+            elif os.path.exists('%s.proc0000.chain.pkl' % self.prefix):
                 i = 0
                 full_chain = []
                 full_mask = []
-                fn = '%s.000.chain.pkl' % self.prefix
+                fn = '%s.proc0000.chain.pkl' % self.prefix
                 while True:
                                         
                     if not os.path.exists(fn):
@@ -460,17 +480,42 @@ class ModelSet(BlobFactory):
                     full_chain.extend(this_chain.copy())                    
                     
                     i += 1
-                    fn = '%s.%s.chain.pkl' % (self.prefix, str(i).zfill(3))  
+                    fn = '%s.proc%s.chain.pkl' % (self.prefix, str(i).zfill(4))  
                     
                 self._chain = np.ma.array(full_chain, mask=0)
 
                 # So we don't have to stitch them together again.
                 # THIS CAN BE REALLY CONFUSING IF YOU, E.G., RUN A NEW
                 # CALCULATION AND FORGET TO CLEAR OUT OLD FILES.
+                # Hence, it is commented out (for now).
                 #if rank == 0:
                 #    f = open('%s.chain.pkl' % self.prefix, 'wb')
                 #    pickle.dump(self._chain, f)
                 #    f.close()
+
+            # If each "chunk" gets its own file.
+            elif glob.glob('%s.dd*.chain.pkl' % self.prefix):
+                
+                if self.include_checkpoints is not None:
+                    outputs_to_read = []
+                    for output_num in self.include_checkpoints:
+                        dd = str(output_num).zfill(4)
+                        fn = '%s.dd%s.chain.pkl' % (self.prefix, dd)
+                        outputs_to_read.append(fn)
+                else:
+                    outputs_to_read = \
+                        glob.glob('%s.dd*.chain.pkl' % self.prefix)
+                                
+                full_chain = []
+                for fn in outputs_to_read:
+                    if not os.path.exists(fn):
+                        print "Found no output: %s" % fn
+                        continue
+                    
+                    this_chain = read_pickled_chain(fn)                                    
+                    full_chain.extend(this_chain.copy())                    
+                    
+                self._chain = np.ma.array(full_chain, mask=0)
 
             else:
                 self._chain = None            
@@ -509,6 +554,26 @@ class ModelSet(BlobFactory):
             if os.path.exists('%s.logL.pkl' % self.prefix):
                 self._logL = read_pickled_logL('%s.logL.pkl' % self.prefix)
                 self._logL = np.ma.array(self._logL, mask=self.mask)
+            elif glob.glob('%s.dd*.logL.pkl' % self.prefix):
+                if self.include_checkpoints is not None:
+                    outputs_to_read = []
+                    for output_num in self.include_checkpoints:
+                        dd = str(output_num).zfill(4)
+                        fn = '%s.dd%s.logL.pkl' % (self.prefix, dd)
+                        outputs_to_read.append(fn)
+                else:
+                    outputs_to_read = \
+                        glob.glob('%s.dd*.logL.pkl' % self.prefix)
+                
+                full_chain = []
+                for fn in outputs_to_read:
+                    if not os.path.exists(fn):
+                        print "Found no output: %s" % fn
+                        continue
+                        
+                    full_chain.extend(read_pickled_logL(fn))
+                        
+                self._logL = np.ma.array(full_chain, mask=self.mask)        
             else:
                 self._logL = None
                 

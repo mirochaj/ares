@@ -18,6 +18,8 @@ The fastest model to fit is one treating the Lyman-:math:`\alpha`, ionization, a
 
 ::
 
+    import numpy as np
+
     # These go to every calculation
     base_pars = \
     {
@@ -33,6 +35,8 @@ The fastest model to fit is one treating the Lyman-:math:`\alpha`, ionization, a
 Now, initialize a fitter:
 
 ::   
+
+    import ares
     
     # Initialize fitter
     fitter = ares.inference.FitGlobal21cm(**base_pars)
@@ -61,8 +65,11 @@ Now, we set the parameters to be varied in the fit and whether or not to explore
 as well as the priors on the parameters, which in this case we'll take to be uninformative over a relatively broad range:
 
 ::
+
+    from ares.inference import PriorSet
+    from ares.inference.Priors import UniformPrior
     
-    ps = ares.inference.PriorSet()
+    ps = PriorSet()
     ps.add_prior(UniformPrior(5, 20), 'tanh_xz0')
     ps.add_prior(UniformPrior(0.1, 20), 'tanh_xdz')
     ps.add_prior(UniformPrior(5, 20), 'tanh_Tz0')

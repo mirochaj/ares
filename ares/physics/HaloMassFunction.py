@@ -175,8 +175,8 @@ class HaloMassFunction(object):
                 omega_l_0=self.pf['omega_l_0'], 
                 omega_b_0=self.pf['omega_b_0'],  
                 hubble_0=self.pf['hubble_0'],  
-                helium_by_number=self.pf['helium_by_number'], 
-                cmb_temp_0=self.pf['cmb_temp_0'], 
+                helium_by_number=self.pf['helium_by_number'],
+                cmb_temp_0=self.pf['cmb_temp_0'],
                 approx_highz=self.pf['approx_highz'], 
                 sigma_8=self.pf['sigma_8'],
                 primordial_index=self.pf['primordial_index'])        
