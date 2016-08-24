@@ -43,7 +43,7 @@ import pickle
 try:
     import shapely.geometry as geometry
     have_shapely = True
-except ImportError, OSError:
+except (ImportError, OSError):
     have_shapely = False
     
 try:
