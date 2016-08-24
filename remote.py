@@ -17,14 +17,14 @@ ares_link = 'https://bitbucket.org/mirochaj/ares'
 aux_data = \
 {
  'hmf': ['%s/downloads' % ares_link, 
-    'hmf_ST_logM_1200_4-16_z_1141_3-60.pkl',
+    'hmf_ST_logM_1200_4-16_z_1141_3-60.npz',
     None],
  'inits': ['%s/downloads' % ares_link, 
      'initial_conditions.npz',
      None],    
  'optical_depth': ['%s/downloads' % ares_link, 
-    'optical_depth_H_400x1616_z_10-50_logE_2-4.7.pkl',
-    'optical_depth_He_400x1616_z_10-50_logE_2-4.7.pkl',
+    'optical_depth_H_400x1616_z_10-50_logE_2-4.7.npz',
+    'optical_depth_He_400x1616_z_10-50_logE_2-4.7.npz',
     None],
  'secondary_electrons': ['http://www.astro.ucla.edu/~sfurlane/docs',
     'elec_interp.tar.gz', 
