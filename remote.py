@@ -117,9 +117,12 @@ for i, direc in enumerate(to_download):
             continue
             
         # Otherwise, unpack it
-        tar = tarfile.open(fn)
-        tar.extractall()
-        tar.close()
+        try:
+            tar = tarfile.open(fn)
+            tar.extractall()
+            tar.close()
+        except:
+            print "WARNING: Error unpacking %s/%s" % (web, fn)
     
     # Run a script [optional]
     if aux_data[direc][-1] is not None:
