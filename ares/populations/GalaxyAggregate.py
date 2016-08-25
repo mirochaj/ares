@@ -34,6 +34,8 @@ from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL
 from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters
+    
+_synthesis_models = ['leitherer1999', 'eldridge2009']
 
 def normalize_sed(pop):
     """
@@ -119,8 +121,10 @@ class GalaxyAggregate(HaloPopulation):
                 self._Source_ = BlackHole
             elif self.pf['pop_sed'] is None:
                 self._Source_ = None
-            else:
+            elif self.pf['pop_sed'] in _synthesis_models:    
                 self._Source_ = SynthesisModel
+            else:
+                self._Source_ = read_lit(self.pf['pop_sed'])
 
         return self._Source_
 
@@ -171,7 +175,11 @@ class GalaxyAggregate(HaloPopulation):
             if self.pf['pop_psm_instance'] is not None:
                 self._src = self.pf['pop_psm_instance']
             elif self._Source is not None:
-                self._src = self._Source(**self.src_kwargs)
+                try:
+                    self._src = self._Source(**self.src_kwargs)
+                except TypeError:
+                    # For litdata
+                    self._src = self._Source
             else:
                 self._src = None
 

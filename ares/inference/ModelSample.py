@@ -21,7 +21,6 @@ except ImportError:
     rank = 0
     size = 1
 
-
 class ModelSample(ModelGrid):
     
     @property
@@ -43,8 +42,10 @@ class ModelSample(ModelGrid):
         self._seed = value
 
     @property            
-    def axes(self):
-        return self.prior_set.params
+    def parameters(self):
+        if not hasattr(self, '_parameters'):
+            self._parameters = self.prior_set.params
+        return self._parameters
 
     @property
     def N(self):
@@ -52,6 +53,45 @@ class ModelSample(ModelGrid):
     @N.setter
     def N(self, value):
         self._N = int(value)
+    
+    @property
+    def is_log(self):
+        if not hasattr(self, '_is_log'):
+            self._is_log = [False] * len(self.parameters)
+        return self._is_log
+        
+    @is_log.setter
+    def is_log(self, value):
+        if type(value) in [int, bool]:
+            self._is_log = value
+        elif type(value) is dict:
+            self._is_log = []
+            for par in self.parameters:
+                if par in value:
+                    self._is_log.append(value[par])
+                else:
+                    self._is_log.append(False)
+        else:
+            assert len(value) == len(self.parameters)
+            self._is_log = value
+        
+    def get_models(self):
+        if rank == 0:
+
+            np.random.seed(self.seed)
+
+            models = []
+            for i in range(self.N):
+                kw = self.prior_set.draw()
+                models.append(kw)
+
+        else:
+            models = None
+
+        if size > 1:
+            models = MPI.COMM_WORLD.bcast(models, root=0)
+
+        return models
 
     def run(self, prefix, clobber=False, restart=False, save_freq=500):
         """
@@ -74,20 +114,10 @@ class ModelSample(ModelGrid):
         -------
         """
         
-        # Initialize space -- careful if running in parallel
-        if rank == 0:
-            models = []
-            for i in range(self.N):
-                kw = self.prior_set.draw()
-                models.append(kw)
-                
-        else:
-            models = None
+        models = self.get_models()
             
-        if size > 1:
-            models = MPI.COMM_WORLD.bcast(models, root=0)
-        
+        # Initialize space -- careful if running in parallel
         self.set_models(models)
-        
+                
         super(ModelSample, self).run(prefix, clobber, restart, save_freq)
         

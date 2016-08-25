@@ -4,6 +4,12 @@ Development History
 
 Here's an attempt to keep track of major changes to the code over time, which will be tagged in the bitbucket repository with version numbers.
 
+v0.3
+----
+Not tagged yet, but a running list of updates:
+
+- Updated to work with `hmf <http://hmf.readthedocs.org/en/latest/>`_ version 2.0.1.
+
 v0.2
 ----
 This is the version of the code used in `Mirocha, Furlanetto, \& Sun (submitted) <http://arxiv.org/abs/1607.00386>`_. 

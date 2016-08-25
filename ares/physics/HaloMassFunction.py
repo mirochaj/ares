@@ -23,10 +23,6 @@ from .Constants import g_per_msun, cm_per_mpc, s_per_yr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
 
 import pickle
-#try:
-#    import dill as pickle
-#except ImportError:
-#    import pickle
     
 try:
     from scipy.special import erfc
@@ -74,7 +70,7 @@ transfer_pars = \
 
 growth_pars = \
 {
- 'dlna': 1e-5,
+ 'dlna': 5e-6,
 }
 
 class HaloMassFunction(object):
@@ -149,7 +145,9 @@ class HaloMassFunction(object):
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load']:
             fn = '%s/input/hmf/%s' % (ARES, self.table_prefix())
-            if os.path.exists('%s.pkl' % fn):
+            if os.path.exists('%s.%s' % (fn, self.pf['preferred_format'])):
+                self.fn = '%s.%s' % (fn, self.pf['preferred_format'])
+            elif os.path.exists('%s.pkl' % fn):
                 self.fn = '%s.pkl' % fn
             elif os.path.exists('%s.hdf5' % fn):
                 self.fn = '%s.hdf5' % fn   
@@ -177,8 +175,8 @@ class HaloMassFunction(object):
                 omega_l_0=self.pf['omega_l_0'], 
                 omega_b_0=self.pf['omega_b_0'],  
                 hubble_0=self.pf['hubble_0'],  
-                helium_by_number=self.pf['helium_by_number'], 
-                cmb_temp_0=self.pf['cmb_temp_0'], 
+                helium_by_number=self.pf['helium_by_number'],
+                cmb_temp_0=self.pf['cmb_temp_0'],
                 approx_highz=self.pf['approx_highz'], 
                 sigma_8=self.pf['sigma_8'],
                 primordial_index=self.pf['primordial_index'])        
@@ -429,12 +427,12 @@ class HaloMassFunction(object):
         else:
             return np.squeeze(self.fcoll_spline_2d(z, logMmin))
 
-    def dfcolldz(self, z, logMmin):
+    def dfcolldz(self, z):
         """
         Return derivative of fcoll(z).
         """
         
-        return np.squeeze(self.dfcolldz_spline(z, logMmin))
+        return np.squeeze(self.dfcolldz_spline(z))
         
     def MAR_via_AM(self, z):
         """

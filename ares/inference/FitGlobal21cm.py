@@ -25,7 +25,8 @@ def_kwargs = {'verbose': False, 'progress_bar': False}
 class loglikelihood(LogLikelihood):
     def __init__(self, xdata, ydata, error, parameters, is_log,
         base_kwargs, param_prior_set=None, blob_prior_set=None, 
-        prefix=None, blob_info=None, turning_points=None):
+        prefix=None, blob_info=None, checkpoint_by_proc=True, timeout=None,
+        turning_points=None):
         """
         Computes log-likelihood at given step in MCMC chain.
     
@@ -36,7 +37,7 @@ class loglikelihood(LogLikelihood):
         
         LogLikelihood.__init__(self, xdata, ydata, error, parameters, is_log,
             base_kwargs, param_prior_set, blob_prior_set, 
-            prefix, blob_info)
+            prefix, blob_info, checkpoint_by_proc, timeout)
     
         self.turning_points = turning_points
         
@@ -70,18 +71,28 @@ class loglikelihood(LogLikelihood):
         # Run a model and retrieve turning points
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
+        
+        self.checkpoint(**kwargs)
+        
+        if self.timeout is not None:
+            signal.signal(signal.SIGALRM, self._handler)
+            signal.alarm(self.timeout)
 
         try:
             sim = self.sim = simG21(**kw)
             sim.run()
                         
             tps = sim.turning_points
-                                        
+                                                                                
         # Timestep weird (happens when xi ~ 1)
         except SystemExit:
             
             tps = sim.turning_points
-                 
+            
+        # Disable the alarm
+        if self.timeout is not None:
+            signal.alarm(0)    
+             
         # most likely: no (or too few) turning pts
         #except ValueError:                     
         #    # Write to "fail" file
@@ -118,7 +129,7 @@ class loglikelihood(LogLikelihood):
                     
         else:
             yarr = np.interp(self.xdata, sim.data['nu'],            
-                sim.history['igm_dTb'])                                  
+                sim.history['igm_dTb'])                             
                 
         if np.any(np.isnan(yarr)):
             return -np.inf, self.blank_blob
@@ -142,7 +153,8 @@ class FitGlobal21cm(ModelFit):
             self._loglikelihood = loglikelihood(self.xdata, self.ydata, 
                 self.error, self.parameters, self.is_log, self.base_kwargs, 
                 self.prior_set_P, self.prior_set_B, 
-                self.prefix, self.blob_info, self.turning_points)    
+                self.prefix, self.blob_info, self.checkpoint_by_proc,
+                self.timeout, self.turning_points)    
         
         return self._loglikelihood
         
@@ -169,6 +181,16 @@ class FitGlobal21cm(ModelFit):
                 self._turning_points = [value]            
             else:
                 self._turning_points = list(value)
+                
+    @property
+    def frequencies(self):
+        if not hasattr(self, '_frequencies'):
+            raise AttributeError('Must supply frequencies by hand!')
+        return self._frequencies
+        
+    @frequencies.setter
+    def frequencies(self, value):
+        self._frequencies = value
                         
     @property
     def data(self):
@@ -198,8 +220,8 @@ class FitGlobal21cm(ModelFit):
             sim = self.sim = value                   
         else:
             assert len(value) == len(self.frequencies)            
-            self.ydata = value
             assert not self.turning_points
+            self.ydata = value
             return
 
         if self.turning_points:
@@ -210,8 +232,6 @@ class FitGlobal21cm(ModelFit):
             self.xdata = None
             self.ydata = np.array(list(nu) + T)
         else:
-            assert self.frequencies is not None, \
-                "Must set frequencies by hand or set turning_points."
             
             self.xdata = self.frequencies
             if hasattr(self, 'sim'):

@@ -42,7 +42,7 @@ def backward_compatibility(ptype, **kwargs):
     
     """
         
-    if ptype == 101.3:
+    if ptype == 101:
         pf = {}
                 
         if par_supplied('Tmin', **kwargs):

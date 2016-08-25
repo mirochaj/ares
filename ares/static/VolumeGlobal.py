@@ -321,7 +321,7 @@ class GlobalVolume(object):
                          for j in range(Nbands)]
                 
                     for species in ['h_1', 'he_1', 'he_2']:
-                        if self.esec.Method > 1:
+                        if self.esec.method > 1:
                             self._sigma_E[species][i] = \
                                 [np.ones([self.background.energies[i][j].size, 
                                  len(self.esec.x)]) \
@@ -351,7 +351,7 @@ class GlobalVolume(object):
                         np.array(map(lambda E: self.sigma(E, k), E))
 
                 # Pre-compute secondary ionization and heating factors
-                if self.esec.Method > 1:
+                if self.esec.method > 1:
                 
                     # Don't worry: we'll fill these in in a sec!
                     self.fheat[i][j] = np.ones([N, len(self.esec.x)])
@@ -662,7 +662,7 @@ class GlobalVolume(object):
         
         Provides units of per atom.
         """
-        
+
         if self.pf['photon_counting']:
             prefix = zone
         else:
@@ -747,16 +747,20 @@ class GlobalVolume(object):
 
         if pop.pf['pop_k_heat_igm'] is not None:
             return pop.pf['pop_k_heat_igm'](z)
-
+            
+        if band is not None:
+            solve_rte = self.background.solve_rte[popid][band]
+        else:
+            solve_rte = False    
+            
         # Compute fraction of photo-electron energy deposited as heat
         if pop.pf['pop_fXh'] is None:
             
             # Interpolate in energy and ionized fraction
-            if self.esec.Method > 1 and (kw['fluxes'][popid][band] is not None):
+            if (self.esec.method > 1) and solve_rte:
                 if kw['igm_e'] <= self.esec.x[0]:
                     fheat = self.fheat[popid][band][:,0]
                 else:
-
                     i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
                     if self.esec.x[i_x] > kw['igm_e']:
                         i_x -= 1
@@ -767,16 +771,13 @@ class GlobalVolume(object):
                         + (self.fheat[popid][band][:,j] - self.fheat[popid][band][:,i_x]) \
                         * (kw['igm_e'] - self.esec.x[i_x]) \
                         / (self.esec.x[j] - self.esec.x[i_x])                
+            elif self.esec.method > 1:
+                raise ValueError('Only know how to do advanced secondary ionization with solve_rte=True')
             else:
                 fheat = self.esec.DepositionFraction(kw['igm_e'])[0]
 
         else:
-            fheat = self.pf['pop_fXh']
-            
-        if band is not None:
-            solve_rte = self.background.solve_rte[popid][band]
-        else:
-            solve_rte = False    
+            fheat = pop.pf['pop_fXh']
          
         # Assume heating rate density at redshift z is only due to emission
         # from sources at redshift z
@@ -935,7 +936,7 @@ class GlobalVolume(object):
             
         Qdot = pop.PhotonLuminosityDensity(z, Emin=13.6, Emax=24.6)
                                                                                                                
-        return weight * Qdot * (1. + z)**3  
+        return weight * Qdot * (1. + z)**3
             
     def IonizationRateIGM(self, z, species=0, popid=0, band=0, **kwargs):
         """
@@ -1089,9 +1090,9 @@ class GlobalVolume(object):
 
         species_str = species_i_to_str[species]
         donor_str = species_i_to_str[donor]
-        
-        if self.esec.Method > 1:
-            
+
+        if self.esec.method > 1 and solve_rte:
+
             fion_const = 1.
             if kw['igm_e'] == 0:
                 fion = self.fion[species_str][popid][band][:,0]
@@ -1099,13 +1100,15 @@ class GlobalVolume(object):
                 i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
                 if self.esec.x[i_x] > kw['igm_e']:
                     i_x -= 1
-                    
+
                 j = i_x + 1    
 
                 fion = self.fion[species_str][popid][band][:,i_x] \
                     + (self.fion[species_str][popid][band][:,j] - self.fion[species_str][popid][:,i_x]) \
                     * (kw['igm_e'] - self.esec.x[i_x]) \
                     / (self.esec.x[j] - self.esec.x[i_x])
+        elif self.esec.method > 1:
+            raise ValueError('Only know how to do advanced secondary ionization with solve_rte=True')
         else:
             fion = 1.0
             fion_const = self.esec.DepositionFraction(kw['igm_e'], 
@@ -1176,7 +1179,7 @@ class GlobalVolume(object):
         kw = self._fix_kwargs(**kwargs)
                 
         # Compute fraction of photo-electron energy deposited as Lya excitation
-        if self.esec.Method > 1 and (kw['fluxes'][popid] is not None):
+        if self.esec.method > 1 and (kw['fluxes'][popid] is not None):
             if kw['igm_e'] == 0:
                 flya = self.flya[:,0]
             else:

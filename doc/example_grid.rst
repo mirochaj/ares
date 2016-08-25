@@ -193,6 +193,22 @@ In one particular case -- when ``Tmin`` or ``pop_Tmin`` is an axis of the model 
     
     mg.LoadBalance(method=1)
 
+If the edges of your parameter space correspond to rather extreme    
+models you might find that the calculations grind to a halt. This can be a big problem because you'll end up with one or more processors spinning their wheels while the rest of the processors continue. One way of dealing with this is to set an "alarm" that will be tripped if the runtime of a particular model exceeds some user-defined value. For example, before running a model grid, you might set:
+
+::
+
+    mg.timeout = 60  
+
+to limit calculations to 60 seconds or less. Models that trip this alarm will be recorded in the ``*fail*.pkl`` files so that you can look back later and (hopefully) figure out why they took so long.
+
+.. note :: This tends to happen because the ionization and/or heating rates 
+    are very large, which drives the time-step to very small values. However, 
+    in these circumstances the temperature and/or ionized fraction are 
+    typically exceedingly large, at which point the 21-cm signal is zero and 
+    need not be tracked any longer. As a result, terminating such calculations 
+    before completion rarely has an important impact on the results.
+
     
 
 

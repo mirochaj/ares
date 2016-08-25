@@ -168,11 +168,16 @@ class MultiPhaseMedium(object):
                 
     def close(self):
         pl.close('all')        
+    
+    def draw(self):
+        pl.draw()
+    
+    def show(self):
+        pl.show()    
         
     @property
     def data_asc(self):
         if not hasattr(self, '_data_asc'):
-            
             if np.all(np.diff(self.data['z']) > 0):
                 data_reorder = self.data.copy()
             else:
@@ -182,7 +187,7 @@ class MultiPhaseMedium(object):
             
             self._data_asc = data_reorder
             
-        return self._data_asc    
+        return self._data_asc
                     
     @property
     def Trei(self):

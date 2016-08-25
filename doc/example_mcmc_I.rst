@@ -11,82 +11,14 @@ and perform a fits to:
     - Something really cool I haven't even thought of yet!
 
 Some examples below.
-
-Generic MCMC Fitting
---------------------
-The example below 
-
-
-
-
-::
-
-    # Create some fake data
-    x = np.arange(0, 10, 0.1)
-    y = np.exp(-(x - 5)**2 / 2. / 1.**2)
-    y += np.random.normal(loc=0., scale=0.1, size=len(y))
-    
-    # Plot it
-    pl.plot(x, y, label='"data"')
-    
-    # Initialize a fitter object and give it the data to be fit
-    fitter = ModelFit()
-    
-    fitter.xdata = x
-    fitter.ydata = y
-    fitter.error = 0.5 * np.ones_like(y)
-    
-    # Define the model (a Gaussian)
-    model = lambda x, *pars: pars[0] * np.exp(-(x - pars[1])**2 / 2. / pars[2]**2)
-    
-    class loglikelihood:
-        def __init__(self, xdata, ydata, error, model):
-            self.xdata = xdata
-            self.ydata = ydata
-            self.error = error
-            self.model = model
-            
-        def __call__(self, pars):
-            
-            model = self.model(self.xdata, *pars)
-            
-            return -np.sum((self.ydata - model)**2 / 2. / self.error**2), {}
-    
-    # Give the dimensions of the parameter space names (optional)
-    fitter.parameters = ['A', 'mu', 'sigma']
-    fitter.is_log = False
-    
-    # Setup # of walkers and initial guesses for them
-    fitter.nwalkers = 100
-    
-    fitter.jitter = 0.25
-    fitter.guesses = [1., 5., 1.]
-    
-    # Set the loglikelihood attribute
-    fitter.loglikelihood = loglikelihood(x, y, fitter.error, model)
-    
-    # Run the thing
-    fitter.run('test_generic_mcmc', steps=500, save_freq=50, clobber=True)
-    
-    # Read-in the results and make a few plots
-    anl = ares.analysis.ModelSet('test_generic_mcmc')
-    
-    # Best-fit model
-    pars = anl.max_likelihood_parameters()
-    
-    best_fit = map(lambda x: model(x, pars['A'], pars['mu'], pars['sigma']), x)
-    pl.plot(x, best_fit, color='b', label='best fit')
-    pl.legend(fontsize=14)
-    
-    # Confidence contours
-    anl.TrianglePlot(anl.parameters, fig=2)
-    
     
 Fitting Global 21-cm Extrema
 ----------------------------
 The fastest model to fit is one treating the Lyman-:math:`\alpha`, ionization, and thermal histories as a tanh function, so that's what we'll use in this example. 
 
 ::
+
+    import numpy as np
 
     # These go to every calculation
     base_pars = \
@@ -103,6 +35,8 @@ The fastest model to fit is one treating the Lyman-:math:`\alpha`, ionization, a
 Now, initialize a fitter:
 
 ::   
+
+    import ares
     
     # Initialize fitter
     fitter = ares.inference.FitGlobal21cm(**base_pars)
@@ -131,8 +65,11 @@ Now, we set the parameters to be varied in the fit and whether or not to explore
 as well as the priors on the parameters, which in this case we'll take to be uninformative over a relatively broad range:
 
 ::
+
+    from ares.inference import PriorSet
+    from ares.inference.Priors import UniformPrior
     
-    ps = ares.inference.PriorSet()
+    ps = PriorSet()
     ps.add_prior(UniformPrior(5, 20), 'tanh_xz0')
     ps.add_prior(UniformPrior(0.1, 20), 'tanh_xdz')
     ps.add_prior(UniformPrior(5, 20), 'tanh_Tz0')
@@ -155,9 +92,36 @@ This will result in a series of files named ``test_tanh*.pkl``. See the example 
 
 Fitting Global 21-cm Signal
 ---------------------------
-Stay tuned.
+To fit the entire spectrum, rather than just the turning points, the above example requires only minor modification. 
 
-Fitting the Galaxy Luminosity Function
---------------------------------------
-Stay tuned.
+Whereas previously we set
+
+::
+
+    fitter.turning_points = True
+
+    # Assume default parameters
+    fitter.data = {'tanh_model': True}
+
+    # Set errors
+    fitter.error = {tp:[1.0, 5.] for tp in list('BCD')}
+    
+now, we must provide errors at a specified set of frequencies:
+
+::
+
+    fitter.turning_points = False
+    fitter.frequencies = np.arange(50, 200) # assumed to be in MHz
+
+    # Assume default parameters
+    fitter.data = {'tanh_model': True}
+
+    # Set errors to be a constant 10 mK across the band
+    fitter.error = 10. * np.ones_like(fitter.frequencies)
+    
+That's it!    
+
+.. Fitting the Galaxy Luminosity Function
+.. --------------------------------------
+.. Stay tuned.
 

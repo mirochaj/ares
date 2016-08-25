@@ -59,6 +59,14 @@ _sed_toy = \
  'pop_fesc': 0.1,
 }
 
+_sed_xi = \
+{
+ 'pop_sed_model': False,
+ 'pop_xi_LW': 40.,
+ 'pop_xi_UV': 969.,
+ 'pop_xi_XR': 0.1,
+}
+
 _pop_sfe = \
 {
  'pop_sfr_model': 'sfe-dpl',
@@ -189,14 +197,19 @@ _Bundles = \
     'sfrd-func': _pop_user_sfrd, 'sfe-pl-ext': _pop_sfe_ext},
  'sed': {'uv': _sed_uv, 'lw': _sed_lw, 'lyc': _sed_lyc, 
          'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 'toy': _sed_toy,
-         'bpass': _uvsed_bpass, 's99': _uvsed_s99},
+         'bpass': _uvsed_bpass, 's99': _uvsed_s99, 'xi': _sed_xi},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
 }
 
 class ParameterBundle(dict):
-    def __init__(self, bundle=None, id_num=None, **kwargs):
+    def __init__(self, bundle=None, id_num=None, bset=None, **kwargs):
         self.bundle = bundle
         self.kwargs = kwargs
+        
+        if bset is None:
+            self.bset = _Bundles
+        else:
+            self.bset = bset
         
         # data should be a string
         if bundle is not None:
@@ -217,9 +230,8 @@ class ParameterBundle(dict):
         # Assume format: "modeltype:model", e.g., "pop:fcoll" or "sed:uv"
         pre, post = bundle.split(':')
         
-        if pre in _Bundles.keys():
-            kw = _Bundles[pre][post]
-        # Assume format: "paperyear:modelname", e.g., "mirocha2016:dpl"
+        if pre in self.bset.keys():
+            kw = self.bset[pre][post]
         elif pre == 'prob':
             kw = ProblemType(float(post))
         else:
@@ -267,7 +279,7 @@ class ParameterBundle(dict):
         self._value = value
     
         for key in self.keys():
-            self[_add_pop_tag(key, value)] = self.pop(key)    
+            self[_add_pop_tag(key, value)] = self.pop(key)
     
     @property
     def Npops(self):
