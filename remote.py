@@ -126,7 +126,10 @@ for i, direc in enumerate(to_download):
     
     # Run a script [optional]
     if aux_data[direc][-1] is not None:
-        execfile(aux_data[direc][-1])
+        try:
+            execfile(aux_data[direc][-1])
+        except:
+            print "WARNING: Error running %s" % aux_data[direc][-1] 
     
     os.chdir('..')
 
