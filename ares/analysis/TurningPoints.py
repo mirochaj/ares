@@ -150,31 +150,41 @@ class TurningPoints(object):
             #    self.guess_from_signal(TP, z[k:-1], dTb[k:-1])
                                                                                                          
             # Spline interpolation to get "final" extremum redshift
-            Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=5)
+            for k in [3, 2]:
+                Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=k)
+                    
+                if TP in ['B', 'D']:
+                    dTb_fit = lambda zz: -splev(zz, Bspl_fit1)
+                else:
+                    dTb_fit = lambda zz: splev(zz, Bspl_fit1)
                 
-            if TP in ['B', 'D']:
-                dTb_fit = lambda zz: -splev(zz, Bspl_fit1)
-            else:
-                dTb_fit = lambda zz: splev(zz, Bspl_fit1)
-            
-            zTP = float(minimize(dTb_fit, zTP_guess, tol=1e-4).x[0])
-            TTP = float(dTb_fit(zTP))
-                            
-            if TP in ['B', 'D']:
-                TTP *= -1.
+                zTP = float(minimize(dTb_fit, zTP_guess, tol=1e-4).x[0])
+                TTP = float(dTb_fit(zTP))
+                
+                if TP in ['B', 'D']:
+                    TTP *= -1.
 
-            #if self.is_crazy(TP, zTP, TTP):
-                
-            # Compute curvature at turning point (mK**2 / MHz**2)
-            nuTP = nu_0_mhz / (1. + zTP)
-            d2 = float(derivative(lambda zz: splev(zz, Bspl_fit1), 
-                x0=float(zTP), n=2, dx=1e-4, order=5) * nu_0_mhz**2 / nuTP**4)
-                
-            self.turning_points[TP] = (zTP, TTP, d2)
-                      
+                # Contingencies....
+                if self.is_crazy(TP, zTP, TTP):    
+                    
+                    if k == 2:
+                        self.turning_points[TP] = (-np.inf, -np.inf, -np.inf)
+                    else:
+                        continue
+                    
+                else:  
+                    # Compute curvature at turning point (mK**2 / MHz**2)
+                    nuTP = nu_0_mhz / (1. + zTP)
+                    d2 = float(derivative(lambda zz: splev(zz, Bspl_fit1), 
+                        x0=float(zTP), n=2, dx=1e-4, order=5) * nu_0_mhz**2 / nuTP**4)
+                        
+                    self.turning_points[TP] = (zTP, TTP, d2)
+                    
+                    break
+               
+            # Reset null state       
             self.found_TP = False
             self.z_TP = -99999
-            
             self.Npts = 0
                               
             if self.pf['stop'] in self.TPs:
@@ -193,6 +203,8 @@ class TurningPoints(object):
         # Check that redshift is within bounds of simulation
         if (z < self.pf['final_redshift']) or (z > self.pf['initial_redshift']):
             return True
+            
+        return False
             
         if tp == 'B':
             if T < -50:

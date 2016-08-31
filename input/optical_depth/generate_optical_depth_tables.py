@@ -14,8 +14,9 @@ Note: This can be run in parallel, e.g.,
 
 """
 
+import ares
 import numpy as np
-import os, ares, time, pickle
+import os, time, pickle
 from ares.physics.Constants import E_LL, E_LyA
 
 try:
@@ -33,12 +34,12 @@ except ImportError:
 
 #
 ## INPUT
-zf, zi = (10, 50)
+zf, zi = (5, 50)
 Emin = 2e2
 Emax = 3e4
 Nz = [400]
-format = 'pkl'        # 'hdf5' or 'pkl' or 'npz'
-helium = 0
+format = 'npz'        # 'hdf5' or 'pkl' or 'npz'
+helium = 1
 xavg = lambda z: 0.0  # neutral
 ##
 #

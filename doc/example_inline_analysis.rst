@@ -12,8 +12,8 @@ A few examples of meta-data blobs:
 - 1-D blobs (e.g., the global 21-cm signal, :math:`\delta T_b(z)`, the thermal history, :math:`T_K(z)`)
 - 2-D blobs (e.g., the star-formation efficiency, :math:`f_{\ast}(z, M_h)`, the meta-galactic radiation background intensity, :math:`J(z, \nu)`)
 
-Example: Scalar and 1-D blobs only
-----------------------------------
+Example: Common Scalar and 1-D Blobs
+------------------------------------
 Let's learn by example. Here is a typical calculation (model for the global 21-cm signal), where we have modified the input parameters so that a few quantities of interest are saved:
 
 - Scalars: extrema in the global 21-cm signal (which we label turning points B, C, and D). 
@@ -23,7 +23,7 @@ So, we define a nested list containing the names of our blobs:
 
 ::
 
-    blob_names = [['tau_e'], ['cgm_h_2', 'igm_Tk', 'igm_dTb']]
+    blob_names = [['tau_e'], ['cgm_h_2', 'igm_Tk', 'dTb']]
 
 The blobs ares sorted by their dimensionality: the first sublist contains the names of all scalar blobs, while the second contains the 1-D blobs. Important question: how do you know the names of blobs? The scalar blobs, in this case just ``tau_e`` (the CMB optical depth) are all *attributes* of the ``Global21cm`` simulation class (well, really of ares.analysis.Global21cm, but they get inherited). The 1-D blobs are all names of *ares* fields: see :doc:`fields` for more information.
 
@@ -34,6 +34,8 @@ Now, for the 1-D blobs we also need to provide a sequence of redshifts at which 
     blob_ivars = [None, np.arange(6, 21)]
     
 Notice that ``blob_ivars`` is a 2-element list (ivars is short for "independent variables," since in general they need not be redshifts): one element for each blob group (scalar and 1-D). Since the scalars are just numbers, the first element in this list is just ``None``, while the second indicates that we'll save the desired quantities at redshifts :math:`z=6,7,...,20`.
+
+.. note :: *ares* works with redshift internally, which is why the independent variable is assumed to be :math:`z` for the most common fields like ``cgm_h_2``, ``igm_Tk``, etc. So, if you wanted to sample equally over some frequency range, simply define that array first and convert to redshifts via :math:`z = (\nu_0 / \nu) - 1` where :math:`\nu_0 = 1420.4057` MHz.
 
 We supply these lists via parameters of the same name:
 
@@ -71,8 +73,7 @@ The blobs themselves can be accessed via:
 
     sim.blobs
     
-    
-In this case, using blobs isn't necessary since we have all data from the simulation at our fingertips. However, the attribute ``sim.blobs`` is extremely important for model grids or MCMC fits, as its contents are the only thing written to disk other than the MCMC samples themselves.
+.. note :: In this case, using blobs isn't necessary since we have all data from the simulation at our fingertips. However, the attribute ``sim.blobs`` is extremely important for model grids or MCMC fits, as its contents are the only thing written to disk other than the MCMC samples themselves.
 
 Special Redshifts
 ~~~~~~~~~~~~~~~~~
@@ -80,15 +81,64 @@ We'll often be interested in saving a series of quantities at the redshifts corr
 
 ::
 
-    extrema = ['z_B', 'igm_dTb_B', 'z_C', 'igm_dTb_C', 'igm_Tk_C']
-    blob_names = [extrema, ['cgm_h_2', igm_Tk', 'igm_dTb']]
+    extrema = ['z_B', 'dTb_B', 'z_C', 'dTb_C', 'igm_Tk_C']
+    blob_names = [extrema, ['cgm_h_2', igm_Tk', 'dTb']]
     
 and so on.   
 
- 
-Example: 2-D blobs
-------------------
-Now, let's track slightly more complex blobs. For example, if you're running models of galaxy populations (see :doc:`example_galaxypop`), you might want to save the galaxy luminosity function at a series of magnitudes *and* a series of redshifts. 
+Example: Derived Blobs
+----------------------
+There are many quantities one might be interested in that are **not** computed by *ares* by default, but can be derived after-the-fact from quantities *ares* does compute. Things are setup such that you can provide your own function to compute such "derived blobs," or you can simply refer to built-in functions that are attributes of *ares* simulation objects.
+
+To build on our previous example:
+
+::
+
+    # Note the addition of 'fwhm' and 'slope'
+    blob_names = [['tau_e', 'z_C', 'dTb_C'], ['fwhm'], ['slope']]
+    blob_ivars = [None, None, [np.arange(40, 151, 1)]]
+    
+The ``'fwhm'`` blob is just a number, while ``'slope'`` here will be saved at integer frequencies between 40 and 150 MHz.
+
+Now, we must specify the functions needed to compute ``'fwhm'`` and ``'slope'``. In this case, we don't need to write them from scratch, as they already exist in ``ares.analysis.Global21cm``, which is inherited by ``ares.simulations.Global21cm``. *ares* will assume blob functions are attributes of the simulation class, which means these quantities are readily available:
+
+::
+
+    # Width in MHz, Slope in mK / MHz
+    blob_funcs = [None, ['Width()'], ['Slope']]
+    
+Notice that the width function gets an empty set of parentheses -- this is because there is no independent variable for this quantity. Alternatively, the slope function is given without parentheses to indicate that it must be applied over a range of values.
+
+Before running it, create a parameters dictionary:    
+
+::
+
+    pars = \
+    {
+     'problem_type': 101,           # Simple global 21-cm problem
+     'blob_names': blob_names,
+     'blob_ivars': blob_ivars,
+     'blob_funcs': blob_funcs,      # NEW!
+     'tanh_model': True,            # Just to speed things up
+    }
+
+To test:
+
+::
+
+    sim = ares.simulations.Global21cm(**pars)
+    sim.run()
+    
+Check that we got our blobs:
+
+::
+
+    print sim.get_blob('fwhm')
+    print sim.get_blob('slope', 150.) # @ 150 MHz
+
+.. Example: 2-D blobs
+.. ------------------
+.. Now, let's track slightly more complex blobs. For example, if you're running models of galaxy populations (see :doc:`example_galaxypop`), you might want to save the galaxy luminosity function at a series of magnitudes *and* a series of redshifts. 
 
 .. ::
 .. 
@@ -127,10 +177,6 @@ Now, let's track slightly more complex blobs. For example, if you're running mod
 ..     
 ..      'pop_sed{0}': 'leitherer1999',
 ..      'pop_fesc{0}': 0.2,
-..      'pop_lf_Mstar[%.2g]{0}' % redshift: -22, 
-..      'pop_lf_pstar[%.2g]{0}' % redshift: 1e-3, 
-..      'pop_lf_alpha[%.2g]{0}' % redshift: -2,
-..      
 ..      'pop_ion_src_igm{1}': False,
 ..      
 ..      'problem_type': 101.2,

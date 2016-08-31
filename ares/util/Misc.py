@@ -11,7 +11,6 @@ Description:
 """
 
 import re, os
-import subprocess
 import numpy as np
 from collections import Iterable
 from scipy.integrate import cumtrapz
@@ -27,14 +26,12 @@ except ImportError:
     rank = 0
     size = 1
 
-ARES = os.getenv('ARES')
-
-defaults = SetAllDefaults()
-
 logbx = lambda b, x: np.log10(x) / np.log10(b)
 
 def get_hg_rev():
+    import subprocess
     try:
+        ARES = os.getenv('ARES')
         pipe = subprocess.Popen(["hg", "id", "-i", ARES], stdout=subprocess.PIPE)
     except:
         return 'unknown'

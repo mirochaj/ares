@@ -10,7 +10,9 @@ Description:
 
 """
 
+import os
 import re
+import glob
 import numpy as np
 from inspect import ismethod
 from types import FunctionType
@@ -20,6 +22,14 @@ try:
     import dill as pickle
 except ImportError:
     import pickle
+    
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1    
     
 # Some standard blobs    
     
@@ -285,7 +295,7 @@ class BlobFactory(object):
     def get_blob(self, name, ivar=None):
         """
         This is meant to recover a blob from a single simulation, i.e.,
-        NOT a whole slew of them from an MCMC. UNLESS bset == True.
+        NOT a whole slew of them from an MCMC.
         """
         for i in range(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
@@ -300,8 +310,14 @@ class BlobFactory(object):
         elif self.blob_nd[i] == 0:
             return float(self.blobs[i][j])
         elif self.blob_nd[i] == 1:
-            assert ivar in self.blob_ivars[i]
-            k = list(self.blob_ivars[i]).index(ivar)
+            
+            if len(self.blob_ivars[i]) == 1:
+                iv = self.blob_ivars[i][0]
+            else:
+                iv = self.blob_ivars[i]     
+            
+            assert ivar in iv
+            k = list(iv).index(ivar)
 
             return float(self.blobs[i][j][k])
 
@@ -445,24 +461,89 @@ class BlobFactory(object):
         i, j, nd, dims = self.blob_info(name)
     
         fn = "%s.blob_%id.%s.pkl" % (self.prefix, nd, name)
-        
-        f = open(fn, 'rb')
-    
-        all_data = []
-        while True:
-            try:
-                data = pickle.load(f)
-            except EOFError:
-                break
-            
-            all_data.extend(data)
                 
-        # Used to have a squeeze() here for no apparent reason...
-        # somehow it resolved itself.
-        all_data = np.array(all_data, dtype=np.float64)
-
-        mask = np.logical_not(np.isfinite(all_data))
-        masked_data = np.ma.array(all_data, mask=mask)
+        # Might have data split up among processors or checkpoints
+        by_proc = False
+        by_dd = False
+        if not os.path.exists(fn):
+            
+            # First, look for processor-by-processor outputs
+            fn = "%s.proc0000.blob_%id.%s.pkl" % (self.prefix, nd, name)
+            if os.path.exists(fn):
+                by_proc = True        
+                by_dd = False
+            # Then, those where each checkpoint has its own file    
+            else:
+                by_proc = False
+                by_dd = True
+                
+                search_for = "%s.dd????.blob_%id.%s.pkl" % (self.prefix, nd, name)
+                _ddf = glob.glob(search_for)
+                        
+                if self.include_checkpoints is None:
+                    ddf = _ddf
+                else:
+                    ddf = []
+                    for dd in self.include_checkpoints:
+                        ddid = str(dd).zfill(4)
+                        tmp = "%s.dd%s.blob_%id.%s.pkl" \
+                            % (self.prefix, ddid, nd, name)
+                        ddf.append(tmp)
+                
+                print ddf
+                
+                # Start with the first...
+                fn = ddf[0]        
+        
+        fid = 0
+        to_return = []
+        while True:
+            
+            if not os.path.exists(fn):
+                break
+        
+            f = open(fn, 'rb')
+            
+            print "Opened %s" % fn
+    
+            all_data = []
+            while True:
+                try:
+                    data = pickle.load(f)
+                except EOFError:
+                    break
+                
+                all_data.extend(data)
+                
+            f.close()    
+                
+            # Used to have a squeeze() here for no apparent reason...
+            # somehow it resolved itself.
+            all_data = np.array(all_data, dtype=np.float64)
+            to_return.extend(all_data)
+            
+            if not (by_proc or by_dd):
+                break
+                
+            fid += 1
+            
+            if by_proc:
+                fn = "%s.%s.blob_%id.%s.pkl" \
+                    % (self.prefix, str(fid).zfill(4), nd, name)
+            else:
+                if (fid >= len(ddf)):
+                    break
+                    
+                fn = ddf[fid]
+        
+        mask = np.logical_not(np.isfinite(to_return))
+        masked_data = np.ma.array(to_return, mask=mask)
+        
+        # CAN BE VERY CONFUSING
+        #if by_proc and rank == 0:
+        #    f = open("%s.blob_%id.%s.pkl" % (self.prefix, nd, name), 'wb')
+        #    pickle.dump(masked_data, f)
+        #    f.close()
         
         self.blob_data = {name: masked_data}
         

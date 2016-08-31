@@ -54,8 +54,9 @@ The following parameters control the star-formation history of a population. See
     
     Options:
         + ``fcoll``: Relate SFRD to rate of collapse onto halos above minimum virial temperature (``pop_Tmin``) or mass (``pop_Mmin``) threshold assuming constant efficiency of star formation (``pop_fstar``).
-        + ``sfe``: Model star formation efficiency as function halo mass and (perhaps) redshift. See next section for more details.
-        + ``user``: User-supplied function of redshift. See ``pop_sfrd`` below.
+        + ``sfe-func``: Model star formation efficiency as function halo mass and (perhaps) redshift. See next section for more details.
+        + ``sfrd-func``: User-supplied function of redshift. See ``pop_sfrd`` below.
+        + ``link:<ID>``: Link the SFRD to population with the given ``ID`` number (in <>'s).
     
 ``pop_Tmin``
     Minimum virial temperature of star-forming halos.
