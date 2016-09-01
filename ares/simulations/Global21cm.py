@@ -375,7 +375,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             
             rtol = self.pf['feedback_LW_rtol']
             atol = self.pf['feedback_LW_atol']
-            
+
             # Compute error
             if self.pf['feedback_LW_mean_err']:
                 

@@ -1113,6 +1113,7 @@ class ModelSet(BlobFactory):
         self.set_axis_labels(ax, p, is_log, take_log, un_log, cb)
         
         pl.draw()        
+        
         self._ax = ax
         return ax
         
@@ -3132,7 +3133,7 @@ class ModelSet(BlobFactory):
         """
         Make nice axis labels.
         """
-                
+                        
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, 1.0, un_log, None)
 
@@ -3159,19 +3160,11 @@ class ModelSet(BlobFactory):
         ax.set_ylabel(labeler.label(pars[1], take_log=take_log[pars[1]], 
             un_log=un_log[1]))
             
-        pl.draw()
-                        
-        xt = []
-        for i, x in enumerate(ax.get_xticklabels()):
-            xt.append(x.get_text())
-        
-        ax.set_xticklabels(xt, rotation=45.)
-        
-        yt = []
-        for i, x in enumerate(ax.get_yticklabels()):
-            yt.append(x.get_text())
-        
-        ax.set_yticklabels(yt, rotation=45.)
+        # Rotate ticks?
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(45.)
+        for tick in ax.get_yticklabels():
+            tick.set_rotation(45.)
             
         # colorbar
         if cb is not None and len(pars) > 2:
@@ -3179,6 +3172,8 @@ class ModelSet(BlobFactory):
                 un_log=un_log[2]))
         
         pl.draw()
+        
+        return ax
 
     def _alpha_shape(self, points, alpha):
         """
