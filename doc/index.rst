@@ -16,7 +16,7 @@ A few papers on how it works:
 - Uniform backgrounds \& global 21-cm signal: `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_.
 
 Be warned: this code is still under active development -- use at your own
-risk! Correctness of results is not guaranteed.
+risk! Correctness of results is not guaranteed. This documentation is as much of a work in progress as the code itself, so if you encounter gaps or errors please do let me know.
 
 Current status:
 
@@ -53,7 +53,7 @@ Contents
     examples
     params
     fields
-    inits_tables
+    .. inits_tables
     uth
     troubleshooting
     updates

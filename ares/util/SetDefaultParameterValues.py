@@ -213,18 +213,18 @@ def PhysicsParameters():
     "lya_nmax": 23,
     'lya_frec_bar': 0.0,   # Neglect injected photons by default if we're
                            # treating background in approximate way
-                     
+
     "rate_source": 'fk94', # fk94, option for development here
-    
+
     }
-    
+
     pf.update(rcParams)
-            
+
     return pf
-    
+
 def HaloPropertyParameters():
     pf = {}
-    
+
     tmp = \
     {
      "php_func": 'dpl',
@@ -245,7 +245,27 @@ def HaloPropertyParameters():
      'php_faux_par3': None,
      'php_faux_par4': None,
      'php_faux_par5': None,
-
+     
+     'php_faux_A': None,
+     'php_faux_A_var': None,
+     'php_faux_A_meth': 'multiply',
+     'php_faux_A_par0': None,
+     'php_faux_A_par1': None,
+     'php_faux_A_par2': None,
+     'php_faux_A_par3': None,
+     'php_faux_A_par4': None,
+     'php_faux_A_par5': None,
+     
+     'php_faux_B': None,
+     'php_faux_B_var': None,
+     'php_faux_B_meth': 'multiply',
+     'php_faux_B_par0': None,
+     'php_faux_B_par1': None,
+     'php_faux_B_par2': None,
+     'php_faux_B_par3': None,
+     'php_faux_B_par4': None,
+     'php_faux_B_par5': None,
+     
      "php_boost": 1.,
      "php_iboost": 1.,
      "php_ceil": None,
@@ -309,14 +329,13 @@ def PopulationParameters():
     
     "pop_tunnel": None,
 
-    "pop_model": 'fcoll', # fcoll, hod, clf, ham, user
-
-    "pop_halo_model": None, # clf or hod (not yet implemented)
+    "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,
+    "pop_sed_model": True,    # or False
     
     # Mass accretion rate
     "pop_MAR": 'hmf',
     "pop_MAR_conserve_norm": False,
-    
+
     "pop_tdyn": 1e7,
     "pop_sSFR": None,
 
@@ -327,7 +346,7 @@ def PopulationParameters():
     "pop_lf_pstar": None,
     "pop_lf_alpha": None,
     "pop_lf_mags": None,
-    
+
     'pop_lf_Mmax': 1e15,
 
     "pop_fduty": 1.0,
@@ -367,6 +386,9 @@ def PopulationParameters():
     
     # By-hand parameterizations
     "pop_Ja": None,
+    "pop_ion_rate": None,
+    "pop_heat_rate": None,
+        
     "pop_k_ion_cgm": None,
     "pop_k_ion_igm": None,
     "pop_k_heat_igm": None,
@@ -381,18 +403,25 @@ def PopulationParameters():
     "pop_sfe": None,
     "pop_mlf": None,
     "pop_sfr": None,
-
+    
+    "pop_tab_z": None,
+    "pop_tab_Mh": None,
+    "pop_tab_sfe": None,
+    "pop_tab_sfr": None,
+            
     "pop_Tmin": 1e4,
     "pop_Tmax": None,
     "pop_Mmin": None,
     "pop_Mmax": None,
     "pop_sfrd": None,
-    "pop_sfrd_units": 'g/s/cm^3',
+    "pop_sfrd_units": 'msun/yr/mpc^3',
     
     # Scales SFRD
     "pop_Nlw": 9690.,
     "pop_Nion": 4e3,
     "pop_fesc": 0.1,
+    "pop_fX": 1.0,
+    "pop_cX": 2.6e39,
     
     # Should
     "pop_fesc_LW": 1.,
@@ -422,6 +451,8 @@ def PopulationParameters():
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
     "pop_yield": 2.6e39,
     "pop_yield_units": 'erg/s/sfr',
+    
+    "pop_yield_Z_index": None,
     
     "pop_kappa_UV": 1.15e-28,
     "pop_L1600_per_sfr": None,
@@ -522,7 +553,7 @@ def StellarParameters():
 def BlackHoleParameters():
     pf = \
     {
-    "source_mass": 1e5,
+    #"source_mass": 1e5,
     "source_rmax": 1e3,
     "source_alpha": -1.5,
     
@@ -547,7 +578,7 @@ def BlackHoleParameters():
 def HaloMassFunctionParameters():
     pf = \
     {
-    "hmf_func": 'ST',
+    "hmf_model": 'ST',
     
     "hmf_instance": None,
     "hmf_load": True,
@@ -627,6 +658,7 @@ def ControlParameters():
     "max_dt": 1.,
     "max_dz": None,
     "max_timestep": 1.,
+    "min_timestep": 1e-8,
     "epsilon_dt": 0.05,
     "initial_timestep": 1e-2,
     "tau_ifront": 0.5,
@@ -640,7 +672,12 @@ def ControlParameters():
     
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
-    "stop_xavg": 0.999,   # stop at given ionized fraction
+    
+    "stop_igm_h_2": None,
+    "stop_cgm_h_2": None,
+    
+    
+    
     "track_extrema": False,
     "delay_extrema": 5,      # Number of steps
     "smooth_derivative": 0, 
@@ -661,9 +698,10 @@ def ControlParameters():
     "tau_Nz": 400,
     "tau_table": None,
     "tau_prefix": tau_prefix,
+    "tau_instance": None,
 
     # File format
-    "preferred_format": 'pkl',
+    "preferred_format": 'npz',
 
     # Finding SED tables
     "load_sed": False,

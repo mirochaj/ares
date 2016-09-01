@@ -30,7 +30,7 @@ Create Python functions.
 
 Using Constraints from the Literature
 -------------------------------------
-Some SED and luminosity density models will definitely be used over and over again. This motivated the creation of the ``litdata'' module, which you can use on its own as a convenient way of reading in models from the literature (see :doc:`uth_litdata`) or through more sophisticated calculations, e.g., :doc:`example_crb_uv`. If one of your user-defined models is common in the literature, consider forking *ares* and adding it to the database! See :doc:`uth_litdata` for instructions on how to do that, or simply emulate pre-existing modules in ``$ARES/input/litdata``.
+Some SED and luminosity density models will definitely be used over and over again. This motivated the creation of the ''litdata'' module, which you can use on its own as a convenient way of reading in models from the literature (see :doc:`uth_litdata`) or through more sophisticated calculations, e.g., :doc:`example_crb_uv`. If one of your user-defined models is common in the literature, consider forking *ares* and adding it to the database! See :doc:`uth_litdata` for instructions on how to do that, or simply emulate pre-existing modules in ``$ARES/input/litdata``.
 
 For example, to use the template quasar spectrum from `Sazonov et al. (2004) <http://adsabs.harvard.edu/abs/2004MNRAS.347..144S>`_ and the luminosity density evolution of `Ueda et al. (2003) <http://adsabs.harvard.edu/abs/2003ApJ...598..886U>`_, you would modify the parameters from the :doc:`example_crb_uv` example as follows:
 
@@ -53,8 +53,6 @@ For example, to use the template quasar spectrum from `Sazonov et al. (2004) <ht
      'pop_tau_Nz': 100,
      'include_H_Lya': False,
 
-     'sawtooth_nmax': 8,
-
      'initial_redshift': 6,
      'final_redshift': 3,
     }
@@ -67,8 +65,7 @@ Now, initialize a simulation instance and run it in the usual way:
 
 ::
 
-    rad = ares.simulations.MetaGalacticBackground(pop_sawtooth=True, 
-        approx_tau=None, **pars)
+    rad = ares.simulations.MetaGalacticBackground(**pars)
 
     # Compute background flux
     rad.run()

@@ -17,6 +17,7 @@ def test():
     # First, a population where we model the star formation efficiency as a PL
     pars_sfe = \
     {
+    'pop_sfr_model': 'sfe-func',
     'pop_fstar': 'php',
     'pop_mlf': None,
     
@@ -34,6 +35,7 @@ def test():
     # figure out the SFE. We should get the same answer!
     pars_mlf = \
     {
+    'pop_sfr_model': 'sfe-func',
     'pop_fstar': None,
     'pop_mlf': 'php',
     
@@ -44,8 +46,8 @@ def test():
     'php_func_par2': 0.,
     }
         
-    pop_sfe = ares.populations.GalaxyCohort(**pars_sfe)
-    pop_mlf = ares.populations.GalaxyCohort(**pars_mlf)
+    pop_sfe = ares.populations.GalaxyPopulation(**pars_sfe)
+    pop_mlf = ares.populations.GalaxyPopulation(**pars_mlf)
     
     assert pop_sfe.fstar(10., 1e10) == pop_mlf.fstar(10., 1e10) == 1e-1, \
         "Mass evolution not working properly in both SFE and MLF approaches."
@@ -72,6 +74,7 @@ def test():
     
     pars_sfe = \
     {
+    'pop_sfr_model': 'sfe-func',
     'pop_fstar': 'php',
     
     'php_func': 'pl',
@@ -93,7 +96,7 @@ def test():
     z1 = 10.
     z2 = 15.
     
-    pop_sfe = ares.populations.GalaxyCohort(**pars_sfe)
+    pop_sfe = ares.populations.GalaxyPopulation(**pars_sfe)
     
     correction = (z2 / z1)**pars_sfe['php_faux_par2']
     

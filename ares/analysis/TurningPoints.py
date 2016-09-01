@@ -145,31 +145,46 @@ class TurningPoints(object):
             # Crude guess at turning pt. position
             zTP_guess = zz[np.argmin(np.abs(dT))]    
             TTP_guess = np.interp(zTP_guess, z[k:-1], dTb[k:-1]) 
-                                                                               
-            # Spline interpolation to get "final" extremum redshift
-            Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=5)
-                
-            if TP in ['B', 'D']:
-                dTb_fit = lambda zz: -splev(zz, Bspl_fit1)
-            else:
-                dTb_fit = lambda zz: splev(zz, Bspl_fit1)
             
-            zTP = minimize(dTb_fit, zTP_guess, tol=1e-4).x[0]
-            TTP = dTb_fit(zTP)
-                            
-            if TP in ['B', 'D']:
-                TTP *= -1.
-
-            # Compute curvature at turning point (mK**2 / MHz**2)
-            nuTP = nu_0_mhz / (1. + zTP)
-            d2 = derivative(lambda zz: splev(zz, Bspl_fit1), x0=float(zTP), 
-                n=2, dx=1e-4, order=5) * nu_0_mhz**2 / nuTP**4
+            #zTP_new_guess, TTP_new_guess = \
+            #    self.guess_from_signal(TP, z[k:-1], dTb[k:-1])
+                                                                                                         
+            # Spline interpolation to get "final" extremum redshift
+            for k in [3, 2]:
+                Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=k)
+                    
+                if TP in ['B', 'D']:
+                    dTb_fit = lambda zz: -splev(zz, Bspl_fit1)
+                else:
+                    dTb_fit = lambda zz: splev(zz, Bspl_fit1)
                 
-            self.turning_points[TP] = (float(zTP), float(TTP), float(d2))
-                      
+                zTP = float(minimize(dTb_fit, zTP_guess, tol=1e-4).x[0])
+                TTP = float(dTb_fit(zTP))
+                
+                if TP in ['B', 'D']:
+                    TTP *= -1.
+
+                # Contingencies....
+                if self.is_crazy(TP, zTP, TTP):    
+                    
+                    if k == 2:
+                        self.turning_points[TP] = (-np.inf, -np.inf, -np.inf)
+                    else:
+                        continue
+                    
+                else:  
+                    # Compute curvature at turning point (mK**2 / MHz**2)
+                    nuTP = nu_0_mhz / (1. + zTP)
+                    d2 = float(derivative(lambda zz: splev(zz, Bspl_fit1), 
+                        x0=float(zTP), n=2, dx=1e-4, order=5) * nu_0_mhz**2 / nuTP**4)
+                        
+                    self.turning_points[TP] = (zTP, TTP, d2)
+                    
+                    break
+               
+            # Reset null state       
             self.found_TP = False
             self.z_TP = -99999
-            
             self.Npts = 0
                               
             if self.pf['stop'] in self.TPs:
@@ -179,4 +194,61 @@ class TurningPoints(object):
             self.Npts += 1
             
         return False
+    
+    #def guess_from_derivative(self, tp, zarr, Tarr, dTarr):
+    #    return zz[np.argmin(np.abs(dTarr))], \
+    #        np.interp(zTP_guess, z[k:-1], dTb[k:-1])
+    
+    def is_crazy(self, tp, z, T):
+        # Check that redshift is within bounds of simulation
+        if (z < self.pf['final_redshift']) or (z > self.pf['initial_redshift']):
+            return True
+            
+        return False
+            
+        if tp == 'B':
+            if T < -50:
+                return True
+            else:
+                return False
+        elif tp == 'C':
+            if T < -500:
+                return True
+            else:
+                return False
+        elif tp == 'D':
+            if T > 50:
+                return True
+            else:
+                return False
+                
+        return False        
+    
+    def guess_from_signal(self, tp, zarr, Tarr):
+        """
+        If turning point is unphysical, something went wrong. 
+        Fall back to simpler estimate.
+        """
+        
+        if tp == 'B':
+            TTP_guess = np.min(np.abs(Tarr))
+            zTP_guess = np.interp(TTP_guess, Tarr[-1::-1], zarr[-1::-1])
+        elif tp == 'C':
+            TTP_guess = np.min(Tarr)
+            zTP_guess = np.interp(TTP_guess, Tarr[-1::-1], zarr[-1::-1])
+        elif tp == 'D':
+            TTP_guess = np.max(Tarr)
+            zTP_guess = np.interp(TTP_guess, Tarr, zarr)
+        else:        
+            return None, None
+                                
+        return zTP_guess, TTP_guess
+        
+        
+            
+        # Check curvature    
+            
+        
+    
+                
             

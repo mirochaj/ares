@@ -35,7 +35,7 @@ func_options = \
  'rstep': 'p0 * p2 if x <= p1 else p2',
  'plsum': 'p[0] * (x / p[1])**p[2] + p[3] * (x / p[4])**p5',
 }
-
+    
 class ParameterizedHaloProperty(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -50,11 +50,17 @@ class ParameterizedHaloProperty(object):
 
     @property
     def faux(self):
-        return self.pf['php_faux']
-    
-    @property
-    def faux(self):
-        return self.pf['php_faux']
+        if not hasattr(self, '_faux'):
+            self._faux = False
+            for faux_id in ['', '_A', '_B']:
+                                
+                if self.pf['php_faux%s' % faux_id] is None:
+                    continue
+                
+                self._faux = True
+                break
+                
+        return self._faux
 
     @property
     def _apply_extrap(self):
@@ -66,7 +72,7 @@ class ParameterizedHaloProperty(object):
     def _apply_extrap(self, value):
         self._apply_extrap_ = value
 
-    def __call__(self, z, M, func=None):
+    def __call__(self, z, M=None, func=None):
         """
         Compute the star formation efficiency.
         """
@@ -87,7 +93,7 @@ class ParameterizedHaloProperty(object):
         
         return self._call(z, M, [pars1, pars2])
 
-    def _call(self, z, M, pars, func=None):
+    def _call(self, z, M, pars, func=None, faux_id=''):
         """
         A higher-level version of __call__ that accepts a few more kwargs.
         """
@@ -97,7 +103,7 @@ class ParameterizedHaloProperty(object):
             s = 'func' 
         # Otherwise, assume it's the auxilary function
         else:
-            s = 'faux'     
+            s = 'faux%s' % faux_id
 
         # Determine independent variables
         var = self.pf['php_%s_var' % s].lower()
@@ -193,32 +199,34 @@ class ParameterizedHaloProperty(object):
             raise NotImplementedError('Don\'t know how to treat %s function!' % func)
 
         # Add or multiply to main function.
-        if (self.faux is not None) and self._apply_extrap:
+        if self.faux and self._apply_extrap:
             self._apply_extrap = 0
-            
-            p = [self.pf['php_faux_par%i' % i] for i in range(6)]
-            aug = self._call(z, M, [p,None], self.pf['php_faux'])
-                        
-            if self.pf['php_faux_meth'] == 'multiply':
-                f *= aug
-            elif self.pf['php_faux_meth'] == 'add':
-                f += aug
-            else:    
-                raise NotImplemented('Unknown faux_meth \'%s\'' % self.pf['php_faux_meth'])
+
+            for k, faux_id in enumerate(['', '_A', '_B']):
+                                
+                if self.pf['php_faux%s' % faux_id] is None:
+                    continue
+                                
+                p = [self.pf['php_faux%s_par%s' % (faux_id, i)] for i in range(6)]
+                aug = self._call(z, M, [p,None], self.pf['php_faux%s' % faux_id], faux_id)
+
+                if self.pf['php_faux%s_meth' % faux_id] == 'multiply':
+                    f *= aug
+                elif self.pf['php_faux%s_meth' % faux_id] == 'add':
+                    f += aug
+                else:    
+                    raise NotImplemented('Unknown faux_meth \'%s\'' % self.pf['%s_meth' % par_pre])
 
             self._apply_extrap = 1 
-        
+
         # Only apply floor/ceil after auxiliary function has been applied
-        if self._apply_extrap:                
+        if self._apply_extrap:
 
             if self.pf['php_ceil'] is not None:
                 f = np.minimum(f, self.pf['php_ceil'])
             if self.pf['php_floor'] is not None:
                 f = np.maximum(f, self.pf['php_floor'])
-        
-        #f *= self.pf['php_boost']
-        #f /= self.pf['php_iboost']
-                
+
         return f
               
 

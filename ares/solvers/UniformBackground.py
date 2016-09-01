@@ -21,8 +21,8 @@ from scipy.interpolate import interp1d
 from .OpticalDepth import OpticalDepth
 from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
-from ..populations import CompositePopulation
 from ..util.ReadData import flatten_flux, split_flux
+from ..populations.Composite import CompositePopulation
 from scipy.integrate import quad, romberg, romb, trapz, simps
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
 
@@ -442,7 +442,13 @@ class UniformBackground(object):
         if E.max() <= E_LL:
             return z, E, np.zeros([len(z), len(E)])
                     
-        # Create an ares.simulations.OpticalDepth instance
+        # See if we've got an instance of OpticalDepth already handy
+        if self.pf['tau_instance'] is not None:
+            self._tau_solver = self.pf['tau_instance']
+            return self._tau_solver.z_fetched, self._tau_solver.E_fetched, \
+                self._tau_solver.tau_fetched
+            
+        # Create an ares.simulations.OpticalDepth instance    
         tau_solver = OpticalDepth(**pop.pf)
         self._tau_solver = tau_solver
         
@@ -803,7 +809,7 @@ class UniformBackground(object):
     
         return c * (1. + z)**2 * epsilonhat_over_H * np.exp(-tau) / four_pi
         
-    def LymanWernerFlux(self, z, E, popid=0, **kwargs):
+    def LymanWernerFlux(self, z, E=None, popid=0, **kwargs):
         """
         Compute flux at observed redshift z and energy E (eV).
     
@@ -845,6 +851,14 @@ class UniformBackground(object):
     
         kw = defkwargs.copy()
         kw.update(kwargs)
+        
+        # Flat spectrum, no injected photons, instantaneous emission only
+        if not np.any(self.solve_rte[popid]):
+            norm = c * self.cosm.dtdz(z) / four_pi
+
+            rhoLW = pop.PhotonLuminosityDensity(z, Emin=11.2, Emax=13.6)
+
+            return norm * (1. + z)**3 * rhoLW / dnu
     
         # Closest Lyman line (from above)
         n = ceil(np.sqrt(E_LL / (E_LL - E)))
@@ -923,14 +937,13 @@ class UniformBackground(object):
             return 0.0
             
         if pop.pf['pop_Ja'] is not None:
-            return pop.pf['pop_Ja'](z)
+            return pop.LymanAlphaFlux(z)
 
         # Flat spectrum, no injected photons, instantaneous emission only
         if not np.any(self.solve_rte[popid]):
             norm = c * self.cosm.dtdz(z) / four_pi
 
-            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6) \
-                * pop.pf['pop_fesc_LW']
+            rhoLW = pop.PhotonLuminosityDensity(z, Emin=10.2, Emax=13.6)
 
             return norm * (1. + z)**3 * (1. + pop.pf['lya_frec_bar']) * \
                 rhoLW / dnu

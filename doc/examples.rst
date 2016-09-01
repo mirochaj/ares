@@ -15,17 +15,15 @@ Simple Models
     * :doc:`example_rt06_2`
     
 * Uniform Radiation Backgrounds
-    * :doc:`example_crb_lw`
-    * :doc:`example_crb_uv`    
+    * :doc:`example_crb_uv`
     * :doc:`example_crb_xr`
-    * :doc:`example_crb_br`
  
 Parameter Studies and Inference
 -------------------------------
 
 * Running Large Suites of Models
     * :doc:`example_grid`
-.. * :doc:`example_mc_sampling`    
+    * :doc:`example_mc_sampling`    
     
 * Fitting and Forecasting    
     * :doc:`example_mcmc_I`
@@ -42,8 +40,8 @@ Parameter Studies and Inference
 More
 ----
 * :doc:`example_adv_RT_w_He`
-* :doc:`example_customization`
 * :doc:`example_galaxypop`
 * :doc:`example_litdata`
+.. * :doc:`example_customization`
 
 

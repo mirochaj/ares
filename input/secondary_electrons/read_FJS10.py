@@ -91,6 +91,12 @@ pickle.dump(fHeI_xi, f)
 pickle.dump(fHeII_xi, f)
 pickle.dump(fion_xi, f)
 f.close()
+         
+# Make npz file
+data = {'electron_energy': np.array(energies), 'ionized_fraction': np.array(x),
+    'f_heat': heat_xi, 'fion_HI': fHI_xi, 'fion_HeI': fHeI_xi,
+    'fion_HeII': fHeII_xi, 'f_Lya': fLya_xi, 'fion': fion_xi, 'fexc': fexc_xi}
+np.savez('secondary_electron_data.npz', **data)
                 
 # Make HDF5 file
 if have_h5py:
