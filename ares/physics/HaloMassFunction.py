@@ -12,11 +12,13 @@ Description:
 import os, re, sys
 import numpy as np
 from . import Cosmology
+from types import FunctionType
 from ..util import ParameterFile
 from scipy.misc import derivative
+from ..util.Misc import get_hg_rev
 from ..util.Warnings import no_hmf
 from scipy.integrate import cumtrapz
-from ..util.Math import central_difference
+from ..util.Math import central_difference, smooth
 from ..util.ProgressBar import ProgressBar
 from ..util.ParameterFile import ParameterFile
 from .Constants import g_per_msun, cm_per_mpc, s_per_yr
@@ -52,7 +54,7 @@ try:
     import pycamb
     have_pycamb = True
 except ImportError:
-    have_pycamb = False    
+    have_pycamb = False
 
 ARES = os.getenv("ARES")    
 
@@ -143,7 +145,7 @@ class HaloMassFunction(object):
                 "Tmax must exceed Tmin!"
         
         # Look for tables in input directory
-        if ARES is not None and self.pf['hmf_load']:
+        if ARES is not None and self.pf['hmf_load'] and (self.fn is None):
             fn = '%s/input/hmf/%s' % (ARES, self.table_prefix())
             if os.path.exists('%s.%s' % (fn, self.pf['preferred_format'])):
                 self.fn = '%s.%s' % (fn, self.pf['preferred_format'])
@@ -154,6 +156,7 @@ class HaloMassFunction(object):
             elif os.path.exists('%s.npz' % fn):
                 self.fn = '%s.npz' % fn     
              
+        # Override switch: compute Press-Schechter function analytically
         if self.hmf_func == 'PS' and self.hmf_analytic:
             self.fn = None
         
@@ -166,7 +169,23 @@ class HaloMassFunction(object):
                 sys.exit()
         else:
             self.load_table()
+            
+        if self.pf['hmf_dfcolldz_smooth']:
+            assert self.pf['hmf_dfcolldz_smooth'] % 2 != 0, \
+                'hmf_dfcolldz_smooth must be odd!'
                         
+    @property
+    def Mmax(self):
+        if not hasattr(self, '_Mmax'):
+            self._Mmax = self.pf['pop_Mmax']
+        return self._Mmax
+    
+    @property
+    def logMmax(self):
+        if not hasattr(self, '_logMmax'):
+            self._logMmax = np.log10(self.Mmax)
+        return self._logMmax 
+               
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
@@ -226,6 +245,31 @@ class HaloMassFunction(object):
         self.Nm = self.M.size
         
     @property
+    def growth_pars(self):
+        if not hasattr(self, '_growth_pars'):
+            self._growth_pars = growth_pars
+        return self._growth_pars
+        
+    @growth_pars.setter
+    def growth_pars(self, value):
+        assert type(value) == dict, "`growth_pars` must be a dictionary."
+        assert 'dlna' in value, "`growth_pars` must contain key 'dlna'."
+        self._growth_pars = value
+    
+    @property
+    def transfer_pars(self):
+        if not hasattr(self, '_transfer_pars'):
+            self._transfer_pars = transfer_pars
+        return self._transfer_pars
+    
+    @transfer_pars.setter
+    def transfer_pars(self, value):
+        assert type(value) == dict, "`transfer_pars` must be a dictionary."
+        assert 'lnk_max' in value, "`growth_pars` must contain key 'lnk_max'."
+        assert 'dlnk' in value, "`growth_pars` must contain key 'dlnk'."
+        self._transfer_pars = value    
+        
+    @property
     def MF(self):
         if not hasattr(self, '_MF'):
 
@@ -243,8 +287,8 @@ class HaloMassFunction(object):
             self._MF = MassFunction(Mmin=self.logMmin, Mmax=self.logMmax, 
                 dlog10m=self.dlogM, z=self.z[0], 
                 hmf_model=self.hmf_func, cosmo_params=self.cosmo_params,
-                growth_params=growth_pars, sigma_8=self.cosm.sigma8, 
-                n=self.cosm.primordial_index, **transfer_pars)
+                growth_params=self.growth_pars, sigma_8=self.cosm.sigma8, 
+                n=self.cosm.primordial_index, **self.transfer_pars)
                 
         return self._MF   
 
@@ -370,30 +414,89 @@ class HaloMassFunction(object):
         minimum virial temperature.
         """
         
-        self.logM_min = np.zeros_like(self.z)        
+        Mmin_of_z = (self.pf['pop_Mmin'] is None) or \
+            type(self.pf['pop_Mmin']) is FunctionType
+        Mmax_of_z = (self.pf['pop_Tmax'] is not None) or \
+            type(self.pf['pop_Mmax']) is FunctionType    
+        
+        self.logM_min = np.zeros_like(self.z)
+        self.logM_max = np.zeros_like(self.z)
         self.fcoll_Tmin = np.zeros_like(self.z)
+        self.dndm_Mmin = np.zeros_like(self.z)
+        self.dndm_Mmax = np.zeros_like(self.z)
         for i, z in enumerate(self.z):
             if self.pf['pop_Mmin'] is None:
                 self.logM_min[i] = np.log10(self.VirialMass(Tmin, z, mu=mu))
             else:
-                self.logM_min[i] = np.log10(self.pf['pop_Mmin'])
+                if type(self.pf['pop_Mmin']) is FunctionType:
+                    self.logM_min[i] = np.log10(self.pf['pop_Mmin'](z))
+                else:    
+                    self.logM_min[i] = np.log10(self.pf['pop_Mmin'])
                     
+            if Mmax_of_z:
+                self.logM_max[i] = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, mu=mu))        
+                self.dndm_Mmax[i] = 10**np.interp(self.logM_min[i], self.logM, 
+                    np.log10(self.dndm[i,:]))
+            # For boundary term
+            if Mmin_of_z:
+                self.dndm_Mmin[i] = 10**np.interp(self.logM_min[i], self.logM, 
+                    np.log10(self.dndm[i,:]))
+            
             self.fcoll_Tmin[i] = self.fcoll(z, self.logM_min[i])
-        
+            
+        # Main term: rate of change in collapsed fraction in halos that were
+        # already above the threshold.
         self.ztab, self.dfcolldz_tab = \
             central_difference(self.z, self.fcoll_Tmin)
+        
+        # Compute boundary term(s)
+        #if Mmin_of_z:
+        #    self.ztab, dMmindz = \
+        #        central_difference(self.z, 10**self.logM_min)
+        #            
+        #    bc_min = 10**self.logM_min[1:-1] * self.dndm_Mmin[1:-1] \
+        #        * dMmindz / self.MF.mean_density0
+        #        
+        #    self.dfcolldz_tab -= bc_min    
+        #            
+        #if Mmax_of_z:
+        #    self.ztab, dMmaxdz = \
+        #        central_difference(self.z, 10**self.logM_max)
+        #
+        #    bc_max = 10**self.logM_min[1:-1] * self.dndm_Mmax[1:-1] \
+        #        * dMmindz / self.MF.mean_density0
+        #        
+        #    self.dfcolldz_tab += bc_max
+                
+        # Maybe smooth things
+        if self.pf['hmf_dfcolldz_smooth']:
+            if int(self.pf['hmf_dfcolldz_smooth']) > 1:
+                kern = self.pf['hmf_dfcolldz_smooth']
+            else:
+                kern = 3
+            
+            self.dfcolldz_tab = smooth(self.ztab, self.dfcolldz_tab, kern)
+        
+            if self.pf['hmf_dfcolldz_trunc']:
+                self.dfcolldz_tab[0:kern] = np.zeros(kern)
+                self.dfcolldz_tab[-kern:] = np.zeros(kern)
+        
+            # Cut off edges of array?
+        
+        # 'cuz time and redshift are different        
         self.dfcolldz_tab *= -1.
         
         fcoll_spline = None
-        
-        # TESTING: force dfcolldz_tab > 0
+
+        # TESTING: force dfcolldz_tab > 0 [should be unnecessary]
         self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
-        
-        spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), kind='cubic')
+
+        spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
+            kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
         dfcolldz_spline = lambda z: 10**spline.__call__(z)
 
         return fcoll_spline, dfcolldz_spline, None
-        
+
     @property
     def fcoll_spline_2d(self):
         if not hasattr(self, '_fcoll_spline_2d'):
@@ -411,10 +514,9 @@ class HaloMassFunction(object):
         Interpolation in 2D, x = redshift = z, y = logMass.
         """ 
         
-        if self.pf['pop_Mmax'] is not None:
+        if self.Mmax is not None:
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
-                 - np.squeeze(self.fcoll_spline_2d(z, 
-                    np.log10(self.pf['pop_Mmax'])))
+                 - np.squeeze(self.fcoll_spline_2d(z, self.logMmax))
         elif self.pf['pop_Tmax'] is not None:
             logMmax = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, 
                 mu=self.pf['mu']))
@@ -636,7 +738,9 @@ class HaloMassFunction(object):
             else:
                 data = {'z': self.z, 'logM': self.logM, 
                         'fcoll': self.fcoll_tab, 'dndm': self.dndm,
-                        'ngtm': self.ngtm, 'mgtm': self.mgtm}
+                        'ngtm': self.ngtm, 'mgtm': self.mgtm,
+                        'pars': {'growth_pars': self.growth_pars,
+                                 'transfer_pars': self.transfer_pars}}
                 np.savez(fn, **data)
                 print 'Wrote %s.' % fn
                 return
@@ -669,6 +773,8 @@ class HaloMassFunction(object):
             pickle.dump(self.dndm, f)
             pickle.dump(self.ngtm, f)
             pickle.dump(self.mgtm, f)
+            pickle.dump({'growth_pars': self.growth_pars,
+                'transfer_pars': self.transfer_pars}, f)
             f.close()
             
             print 'Wrote %s.' % fn

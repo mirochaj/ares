@@ -215,6 +215,13 @@ def PhysicsParameters():
                            # treating background in approximate way
 
     "rate_source": 'fk94', # fk94, option for development here
+    
+    'feedback_LW': False,
+    'feedback_LW_iter': None, 
+    'feedback_LW_maxiter': 10,
+    'feedback_LW_rtol': 0.,
+    'feedback_LW_atol': 1.,
+    'feedback_LW_mean_err': False,
 
     }
 
@@ -592,6 +599,9 @@ def HaloMassFunctionParameters():
     "hmf_zmin": 3,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
+    
+    "hmf_dfcolldz_smooth": False,
+    "hmf_dfcolldz_trunc": False,
     
     # Mean molecular weight of collapsing gas
     "mu": 0.61,

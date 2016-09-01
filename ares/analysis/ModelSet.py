@@ -660,7 +660,6 @@ class ModelSet(BlobFactory):
         
         sf = self.save_freq
         nw = self.nwalkers
-        nchunks = int(self.steps / sf)
         schunk = nw * sf
         data = []
         i = 0

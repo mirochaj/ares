@@ -22,7 +22,7 @@ aux_data = \
  'inits': ['%s/downloads' % ares_link, 
      'initial_conditions.npz',
      None],    
- 'optical_depth': ['%s/downloads' % ares_link, 
+ 'optical_depth': ['%s/downloads' % ares_link,
     'optical_depth_H_400x1616_z_10-50_logE_2-4.7.npz',
     'optical_depth_He_400x1616_z_10-50_logE_2-4.7.npz',
     None],

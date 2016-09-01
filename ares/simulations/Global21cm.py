@@ -16,7 +16,7 @@ from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from ..analysis.BlobFactory import BlobFactory
-from ..physics.Constants import nu_0_mhz, E_LyA
+from ..physics.Constants import nu_0_mhz, E_LyA, erg_per_ev
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 
 try:
@@ -54,7 +54,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         # Print info to screen
         if self.pf['verbose']:
             print_sim(self)
-
+            
     @property
     def info(self):
         print_sim(self)
@@ -172,6 +172,12 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         # If this was a tanh model, we're already done.
         if hasattr(self, 'history'):
             return
+            
+        if not hasattr(self, '_ct'):
+            self._ct = 0
+            
+        if not hasattr(self, '_suite'):
+            self._suite = []    
         
         tf = self.medium.tf
         self.medium._insert_inits()
@@ -190,7 +196,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         
         # List for extrema-finding    
         self.all_dTb = self._init_dTb()
-                                
+                                        
         for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():
             
             # Delaying the initialization prevents progressbar from being
@@ -215,7 +221,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     break
 
         pb.finish()
-
+        
         self.history_igm = _sort_history(self.all_data_igm, prefix='igm_',
             squeeze=True)
         self.history_cgm = _sort_history(self.all_data_cgm, prefix='cgm_',
@@ -239,7 +245,40 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
+                
+        self._ct += 1
+                
+        self._suite.append(self.history.copy())
         
+        if self.pf['feedback_LW'] and (not self._is_converged()):
+            # Compute JLW for next iteration.
+            ztmp = self.history['z'][-1::-1]
+            Ja = 10.2 * erg_per_ev * self.history['Ja'][-1::-1] / 1e-21
+            
+            # Should make 50 -> first_light_redshift
+            ok = ztmp < 50
+            
+            f_Jlw = lambda zz: np.interp(zz, ztmp[ok], Ja[ok])
+            
+            f_Mmin = lambda z: 2.5 * 1e5 * pow(((1.+z)/26.),-1.5) \
+                * (1+6.96*pow(4*np.pi* (f_Jlw(z)),0.47))
+            
+            kw_orig = self.kwargs.copy()
+            
+            self.kwargs['pop_Mmin{%i}' % self.pf['feedback_LW']] = f_Mmin
+                        
+            #self.__delattr__('pf')
+            #self.__delattr__('_medium')
+            #self.__delattr__('history')
+            
+            delattr(self, '_pf')
+            delattr(self, '_medium')
+            delattr(self, 'history')       
+            #super(Global21cm, self).__delattr__('history')
+                        
+            self.__init__(**self.kwargs)
+            self.run()
+                                
     def step(self):
         """
         Generator for the 21-cm signal.
@@ -298,6 +337,74 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
+            
+    def _is_converged(self):
+        # Perform set number of iterations
+        if self.pf['feedback_LW_iter'] is not None:
+            if self._ct > self.pf['feedback_LW_iter']:
+                return True
+        elif self._ct > self.pf['feedback_LW_maxiter']:
+            return True
+        # Iterate until convergence criterion is met
+        elif self._ct > 1:
+    
+            # Grab global spectra for this iteration and previous one
+            znow = self.history['z'][-1::-1]
+            dTb_now = self.history['dTb'][-1::-1]
+            
+            sim_pre = self._suite[-2]
+            zpre = sim_pre['z'][-1::-1]
+            dTb_pre = sim_pre['dTb'][-1::-1]
+            
+            ok = znow < 50
+            
+            # Interpolate to common redshift grid
+            dTb_now_interp = np.interp(zpre, znow, dTb_now)
+            
+            dTb_pre = dTb_pre[np.where(ok)]
+            dTb_now_interp = dTb_now_interp[np.where(ok)]
+            
+            err_rel = np.abs((dTb_now_interp - dTb_pre) \
+                / dTb_now_interp)
+            err_abs = np.abs(dTb_now_interp - dTb_pre)
+            
+            #print "Iteration #%i: err_rel (mean) = %.5g, err_abs (mean) = %.5g" \
+            #    % (self._ct, err_rel.mean(), err_abs.mean())
+            #print "Iteration #%i: err_rel (max) = %.5g, err_abs (max) = %.5g" \
+            #    % (self._ct, err_rel.max(), err_abs.max()) 
+            
+            rtol = self.pf['feedback_LW_rtol']
+            atol = self.pf['feedback_LW_atol']
+            
+            # Compute error
+            if self.pf['feedback_LW_mean_err']:
+                
+                
+                if rtol > 0:
+                    if err_rel.mean() > rtol:
+                        return False
+                    elif err_rel.mean() < rtol and (atol == 0):
+                        return True
+                    
+                # Only make it here if rtol is satisfied or irrelevant
+                
+                if atol > 0:
+                    if err_abs.mean() < atol:
+                        return True                        
+                
+            else:  
+                converged = np.allclose(dTb_pre, dTb_now_interp,
+                    rtol=rtol, atol=atol)
+                                          
+                if converged:
+                    return True
+        else:
+            pass
+            
+            # This should only happen on iteration #1 when we're using
+            # a tolerance-based convergence criterion.
+
+        return False
 
     def save(self, prefix, suffix='pkl', clobber=False):
         """
