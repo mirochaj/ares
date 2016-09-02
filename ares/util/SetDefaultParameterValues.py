@@ -216,6 +216,7 @@ def PhysicsParameters():
 
     "rate_source": 'fk94', # fk94, option for development here
     
+    # LW feedback parameters
     'feedback_LW': False,
     'feedback_LW_iter': None, 
     'feedback_LW_maxiter': 10,
@@ -599,6 +600,12 @@ def HaloMassFunctionParameters():
     "hmf_zmin": 3,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
+    
+    # to CAMB
+    'hmf_dlna': 5e-6,
+    'hmf_dlnk': 1e-2,
+    'hmf_lnk_min': np.log(1e-8),
+    'hmf_lnk_max': np.log(2e4),
     
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,

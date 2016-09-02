@@ -63,18 +63,6 @@ sqrt2 = np.sqrt(2.)
 tiny_fcoll = 1e-18
 tiny_dfcolldz = 1e-18
 
-# Force CAMB to span broader range in wavenumber
-transfer_pars = \
-{
- 'lnk_max': np.log(2e4),
- 'dlnk': 0.01,
-}
-
-growth_pars = \
-{
- 'dlna': 5e-6,
-}
-
 class HaloMassFunction(object):
     def __init__(self, **kwargs):
         """
@@ -247,34 +235,23 @@ class HaloMassFunction(object):
     @property
     def growth_pars(self):
         if not hasattr(self, '_growth_pars'):
-            self._growth_pars = growth_pars
+            self._growth_pars = {'dlna': self.pf['hmf_dlna']}
         return self._growth_pars
         
-    @growth_pars.setter
-    def growth_pars(self, value):
-        assert type(value) == dict, "`growth_pars` must be a dictionary."
-        assert 'dlna' in value, "`growth_pars` must contain key 'dlna'."
-        self._growth_pars = value
-    
     @property
     def transfer_pars(self):
         if not hasattr(self, '_transfer_pars'):
-            self._transfer_pars = transfer_pars
+            self._transfer_pars = {'dlnk': self.pf['hmf_dlnk'],
+                'lnk_min': self.pf['hmf_lnk_min'],
+                'lnk_max': self.pf['hmf_lnk_max']}
         return self._transfer_pars
-    
-    @transfer_pars.setter
-    def transfer_pars(self, value):
-        assert type(value) == dict, "`transfer_pars` must be a dictionary."
-        assert 'lnk_max' in value, "`growth_pars` must contain key 'lnk_max'."
-        assert 'dlnk' in value, "`growth_pars` must contain key 'dlnk'."
-        self._transfer_pars = value    
-        
+
     @property
     def MF(self):
         if not hasattr(self, '_MF'):
 
-            self.logMmin = self.pf['hmf_logMmin']
-            self.logMmax = self.pf['hmf_logMmax']
+            self.logMmin_tab = self.pf['hmf_logMmin']
+            self.logMmax_tab = self.pf['hmf_logMmax']
             self.zmin = self.pf['hmf_zmin']
             self.zmax = self.pf['hmf_zmax']
             self.dlogM = self.pf['hmf_dlogM']
@@ -284,7 +261,7 @@ class HaloMassFunction(object):
             self.z = np.linspace(self.zmin, self.zmax, self.Nz)             
                          
             # Initialize Perturbations class
-            self._MF = MassFunction(Mmin=self.logMmin, Mmax=self.logMmax, 
+            self._MF = MassFunction(Mmin=self.logMmin_tab, Mmax=self.logMmax_tab, 
                 dlog10m=self.dlogM, z=self.z[0], 
                 hmf_model=self.hmf_func, cosmo_params=self.cosmo_params,
                 growth_params=self.growth_pars, sigma_8=self.cosm.sigma8, 
@@ -295,17 +272,17 @@ class HaloMassFunction(object):
     @MF.setter
     def MF(self, value):
         self._MF = value     
-        
+
     @property
     def fcoll_tab(self):
         if not hasattr(self, '_fcoll_tab'):
             self.build_fcoll_tab()
         return self._fcoll_tab    
-    
+
     @fcoll_tab.setter
     def fcoll_tab(self, value):
         self._fcoll_tab = value
-        
+
     @property
     def cosmo_params(self):
         return {'Om0':self.cosm.omega_m_0,
@@ -319,8 +296,8 @@ class HaloMassFunction(object):
         Can be run in parallel.
         """    
         
-        self.logMmin = self.pf['hmf_logMmin']
-        self.logMmax = self.pf['hmf_logMmax']
+        self.logMmin_tab = self.pf['hmf_logMmin']
+        self.logMmax_tab = self.pf['hmf_logMmax']
         self.zmin = self.pf['hmf_zmin']
         self.zmax = self.pf['hmf_zmax']
         self.dlogM = self.pf['hmf_dlogM']
@@ -329,17 +306,17 @@ class HaloMassFunction(object):
         self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
         self.z = np.linspace(self.zmin, self.zmax, self.Nz)
         
-        self.Nm = np.logspace(self.logMmin, self.logMmax, self.dlogM).size
+        self.Nm = np.logspace(self.logMmin_tab, self.logMmax_tab, self.dlogM).size
 
         if rank == 0:    
             print "\nComputing %s mass function..." % self.hmf_func    
 
         # Initialize Perturbations class
-        self.MF = MassFunction(Mmin=self.logMmin, Mmax=self.logMmax, 
+        self.MF = MassFunction(Mmin=self.logMmin_tab, Mmax=self.logMmax_tab, 
             dlog10m=self.dlogM, z=self.z[0], 
             hmf_model=self.hmf_func, cosmo_params=self.cosmo_params, 
-            growth_params=growth_pars, sigma_8=self.cosm.sigma8, 
-            n=self.cosm.primordial_index, **transfer_pars)
+            growth_params=self.growth_pars, sigma_8=self.cosm.sigma8, 
+            n=self.cosm.primordial_index, **self.transfer_pars)
             
         # Masses in hmf are in units of Msun * h
         self.M = self.MF.M / self.cosm.h70
@@ -450,23 +427,23 @@ class HaloMassFunction(object):
             central_difference(self.z, self.fcoll_Tmin)
         
         # Compute boundary term(s)
-        #if Mmin_of_z:
-        #    self.ztab, dMmindz = \
-        #        central_difference(self.z, 10**self.logM_min)
-        #            
-        #    bc_min = 10**self.logM_min[1:-1] * self.dndm_Mmin[1:-1] \
-        #        * dMmindz / self.MF.mean_density0
-        #        
-        #    self.dfcolldz_tab -= bc_min    
-        #            
-        #if Mmax_of_z:
-        #    self.ztab, dMmaxdz = \
-        #        central_difference(self.z, 10**self.logM_max)
-        #
-        #    bc_max = 10**self.logM_min[1:-1] * self.dndm_Mmax[1:-1] \
-        #        * dMmindz / self.MF.mean_density0
-        #        
-        #    self.dfcolldz_tab += bc_max
+        if Mmin_of_z:
+            self.ztab, dMmindz = \
+                central_difference(self.z, 10**self.logM_min)
+                    
+            bc_min = 10**self.logM_min[1:-1] * self.dndm_Mmin[1:-1] \
+                * dMmindz / self.MF.mean_density0
+                
+            self.dfcolldz_tab -= bc_min    
+                    
+        if Mmax_of_z:
+            self.ztab, dMmaxdz = \
+                central_difference(self.z, 10**self.logM_max)
+        
+            bc_max = 10**self.logM_min[1:-1] * self.dndm_Mmax[1:-1] \
+                * dMmindz / self.MF.mean_density0
+                
+            self.dfcolldz_tab += bc_max
                 
         # Maybe smooth things
         if self.pf['hmf_dfcolldz_smooth']:
@@ -704,7 +681,10 @@ class HaloMassFunction(object):
         
         if format in ['hdf5', 'npz']:
             if fn is None:
-                fn = '%s/%s.%s' % (destination, self.table_prefix(), format)
+                fn = '%s/%s.%s' % (destination, self.table_prefix(), format)                
+            else:
+                assert format in fn, \
+                    "Suffix of provided filename does not match chosen format."
             
             if not clobber:
                 if os.path.exists(fn):

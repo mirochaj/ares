@@ -1178,7 +1178,7 @@ class ModelSet(BlobFactory):
             polygon = point_collection.envelope
         else:
             raise ValueError('Unrecognized boundary_type=%s!' % boundary_type)        
-                
+
         x_min, y_min, x_max, y_max = polygon.bounds
         
         # Plot a Polygon using descartes

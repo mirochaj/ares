@@ -52,8 +52,14 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         self.kwargs = kwargs
         
         # Print info to screen
-        if self.pf['verbose']:
+        if self.pf['verbose'] and self.count == 0:
             print_sim(self)
+            
+    @property 
+    def count(self):
+        if not hasattr(self, '_count'):
+            self._count = 0
+        return self._count
             
     @property
     def info(self):
@@ -172,10 +178,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         # If this was a tanh model, we're already done.
         if hasattr(self, 'history'):
             return
-            
-        if not hasattr(self, '_ct'):
-            self._ct = 0
-            
+
         if not hasattr(self, '_suite'):
             self._suite = []    
         
@@ -246,7 +249,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
                 
-        self._ct += 1
+        self._count += 1
                 
         self._suite.append(self.history.copy())
         
@@ -341,12 +344,12 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
     def _is_converged(self):
         # Perform set number of iterations
         if self.pf['feedback_LW_iter'] is not None:
-            if self._ct > self.pf['feedback_LW_iter']:
+            if self.count > self.pf['feedback_LW_iter']:
                 return True
-        elif self._ct > self.pf['feedback_LW_maxiter']:
+        elif self.count > self.pf['feedback_LW_maxiter']:
             return True
         # Iterate until convergence criterion is met
-        elif self._ct > 1:
+        elif self.count > 1:
     
             # Grab global spectra for this iteration and previous one
             znow = self.history['z'][-1::-1]
@@ -369,9 +372,9 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             err_abs = np.abs(dTb_now_interp - dTb_pre)
             
             #print "Iteration #%i: err_rel (mean) = %.5g, err_abs (mean) = %.5g" \
-            #    % (self._ct, err_rel.mean(), err_abs.mean())
+            #    % (self.count, err_rel.mean(), err_abs.mean())
             #print "Iteration #%i: err_rel (max) = %.5g, err_abs (max) = %.5g" \
-            #    % (self._ct, err_rel.max(), err_abs.max()) 
+            #    % (self.count, err_rel.max(), err_abs.max()) 
             
             rtol = self.pf['feedback_LW_rtol']
             atol = self.pf['feedback_LW_atol']
