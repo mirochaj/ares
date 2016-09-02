@@ -614,15 +614,15 @@ class ModelFit(BlobFactory):
                     
         # Start from last step in pre-restart calculation
         if self.checkpoint_append:
-            raise NotImplemented('Must specific *which* output to restart from!')
-            #chain = read_pickled_chain('%s.chain.pkl' % prefix)
-        else:
             chain = read_pickled_chain('%s.chain.pkl' % prefix)
+        else:
+            raise NotImplemented('Must specific *which* output to restart from!')
             
-        pos = chain[-self.nwalkers:,:]
+        (nw, sf) = (self.nwalkers, self.save_freq)
+        pos = chain[-(nw-1)*sf-1::sf,:]    
         
         return pos
-        
+
     @property
     def checkpoint_by_proc(self):
         if not hasattr(self, '_checkpoint_by_proc'):

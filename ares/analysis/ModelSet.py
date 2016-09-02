@@ -660,19 +660,19 @@ class ModelSet(BlobFactory):
         
         sf = self.save_freq
         nw = self.nwalkers
-        nchunks = int(self.steps / sf)
-        schunk = nw * sf
+        
+        assert num < nw, "Only %i walkers were used!" % nw
+        
+        steps_per_walker = self.chain.shape[0] / nw
+        nchunks = steps_per_walker / sf
+        
+        # "size" of each chunk in # of MCMC steps
+        schunk = nw * sf 
+        
         data = []
-        i = 0
-        while True:
-                    
-            try:
-                chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
-                data.extend(chunk)
-            except:
-                break
-                
-            i += 1
+        for i in range(nchunks):   
+            chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
+            data.extend(chunk)
             
         return np.array(data)
                 
