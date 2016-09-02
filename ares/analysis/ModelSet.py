@@ -3160,19 +3160,11 @@ class ModelSet(BlobFactory):
         ax.set_ylabel(labeler.label(pars[1], take_log=take_log[pars[1]], 
             un_log=un_log[1]))
             
-        pl.draw()
-                        
-        xt = []
-        for i, x in enumerate(ax.get_xticklabels()):
-            xt.append(x.get_text())
-        
-        ax.set_xticklabels(xt, rotation=45.)
-        
-        yt = []
-        for i, x in enumerate(ax.get_yticklabels()):
-            yt.append(x.get_text())
-        
-        ax.set_yticklabels(yt, rotation=45.)
+        # Rotate ticks?
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(45.)
+        for tick in ax.get_yticklabels():
+            tick.set_rotation(45.)
             
         # colorbar
         if cb is not None and len(pars) > 2:

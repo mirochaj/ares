@@ -503,9 +503,7 @@ class BlobFactory(object):
                 break
         
             f = open(fn, 'rb')
-            
-            print "Opened %s" % fn
-    
+                
             all_data = []
             while True:
                 try:
@@ -528,7 +526,7 @@ class BlobFactory(object):
             fid += 1
             
             if by_proc:
-                fn = "%s.%s.blob_%id.%s.pkl" \
+                fn = "%s.proc%s.blob_%id.%s.pkl" \
                     % (self.prefix, str(fid).zfill(4), nd, name)
             else:
                 if (fid >= len(ddf)):

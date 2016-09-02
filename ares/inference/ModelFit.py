@@ -571,21 +571,21 @@ class ModelFit(BlobFactory):
             
     def prep_output_files(self, restart, clobber):
         if restart:
-            pos = self._prep_from_restart()
+            pos = self._prep_from_restart(restart)
         else:
             pos = None
             self._prep_from_scratch(clobber)    
     
         return pos
     
-    def _prep_from_restart(self):
+    def _prep_from_restart(self, restart):
 
         prefix = self.prefix
-        
+
         f = open('%s.pinfo.pkl' % prefix, 'rb')
         pars, is_log = pickle.load(f)
         f.close()
-                                            
+
         if pars != self.parameters:
             if size > 1:
                 if rank == 0:
@@ -603,6 +603,14 @@ class ModelFit(BlobFactory):
         base_kwargs = pickle.load(f)
         f.close()  
         
+        f = open('%s.rinfo.pkl' % self.prefix, 'r')
+        nwalkers, save_freq, steps = pickle.load(f)
+        f.close()
+        
+        # These things CANNOT change on restart
+        assert nwalkers == self.nwalkers
+        assert save_freq == self.save_freq
+        
         #for kwarg in base_kwargs:
         #    if type(base_kwargs[kwarg])
         #if base_kwargs != self.base_kwargs:
@@ -616,7 +624,33 @@ class ModelFit(BlobFactory):
         if self.checkpoint_append:
             chain = read_pickled_chain('%s.chain.pkl' % prefix)
         else:
-            raise NotImplemented('Must specific *which* output to restart from!')
+            
+            if type(restart) is bool:
+            
+                ct = 0 
+                while True:
+                    dd = 'dd' + str(ct).zfill(4)
+                    fn = '%s.%s.chain.pkl' % (prefix, dd)
+                                        
+                    if os.path.exists(fn):
+                        ct += 1
+                        continue
+                    else:
+                        break
+                        
+                # Back up a step to file that exists
+                self.ct = ct - 1    
+
+                dd = 'dd' + str(self.ct).zfill(4)
+                fn = '%s.%s.chain.pkl' % (prefix, dd)
+            else:
+                assert type(restart) is str, \
+                    "If not True or False, restart must be filename!"
+                fn = restart
+                self.ct = int(fn.split('.')[-3][2:])
+                 
+            print "Restarting from %s." % fn
+            chain = read_pickled_chain(fn)
             
         (nw, sf) = (self.nwalkers, self.save_freq)
         pos = chain[-(nw-1)*sf-1::sf,:]    
@@ -748,8 +782,10 @@ class ModelFit(BlobFactory):
             Number of steps to take before writing data to disk.
         clobber : bool  
             Overwrite pre-existing files of the same prefix if one exists?
-        restart : bool
+        restart : bool, str
             Append to pre-existing files of the same prefix if one exists?
+            Can also supply the filename of the checkpoint from which to 
+            restart.
             
         """
                 
@@ -761,10 +797,11 @@ class ModelFit(BlobFactory):
                 msg += ' or set restart=True to append.' 
                 raise IOError(msg)
 
-        if not os.path.exists('%s.chain.pkl' % prefix) and restart:
-            msg = "This can't be a restart, %s*.pkl not found." % prefix
-            raise IOError(msg)
-            
+        if self.checkpoint_append:
+            if not os.path.exists('%s.chain.pkl' % prefix) and restart:
+                msg = "This can't be a restart, %s*.pkl not found." % prefix
+                raise IOError(msg)
+
         # Initialize Pool
         if size > 1:
             self.pool = MPIPool()
@@ -775,7 +812,7 @@ class ModelFit(BlobFactory):
             # Non-root processors wait for instructions until job is done,
             # at which point, they don't need to do anything below here.
             if not self.pool.is_master():
-                
+
                 if emcee_mpipool:
                     self.pool.wait()
                     
@@ -828,12 +865,14 @@ class ModelFit(BlobFactory):
 
         if rank == 0:
             print "Starting MCMC: %s" % (time.ctime())
-            
+        
+        # Need to make sure we don't overwrite previous outputs in this case    
         if restart and (not self.checkpoint_append):
-            raise NotImplemented('Need to be careful here w/ tracking DD!')
-            
+            ct = (self.ct + 1) * save_freq
+        else:
+            ct = 0
+                        
         # Take steps, append to pickle file every save_freq steps
-        ct = 0
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
             iterations=steps, rstate0=state, storechain=False):
@@ -891,7 +930,10 @@ class ModelFit(BlobFactory):
             pickle.dump(self.sampler.acceptance_fraction, f)
             f.close()
 
-            print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
+            if self.checkpoint_append:
+                print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
+            else:
+                print "Wrote %s.%s.*.pkl: %s" % (prefix, dd, time.ctime())
 
             del data, pos_all, prob_all, blobs_all
             gc.collect()
