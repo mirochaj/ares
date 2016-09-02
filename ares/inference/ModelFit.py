@@ -687,8 +687,8 @@ class ModelFit(BlobFactory):
             #chain = read_pickled_chain('%s.chain.pkl' % prefix)
         else:
             chain = read_pickled_chain('%s.chain.pkl' % prefix)
-            
-        pos = chain[-self.nwalkers:,:]
+        
+        pos = chain[-((self.nwalkers-1)*self.save_freq)-1::self.save_freq,:]
         
         return pos
         
