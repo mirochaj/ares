@@ -18,7 +18,7 @@ from ..util.MPIPool import MPIPool
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
 from ..util.ParameterFile import par_info
-import gc, os, sys, copy, types, time, re
+import gc, os, sys, copy, types, time, re, glob
 from ..analysis import Global21cm as anlG21
 from types import FunctionType, InstanceType
 from ..analysis.BlobFactory import BlobFactory
@@ -683,14 +683,32 @@ class ModelFit(BlobFactory):
                     
         # Start from last step in pre-restart calculation
         if self.checkpoint_append:
-            raise NotImplemented('Must specific *which* output to restart from!')
-            #chain = read_pickled_chain('%s.chain.pkl' % prefix)
-        else:
             chain = read_pickled_chain('%s.chain.pkl' % prefix)
+        else:
+            # lec = largest existing checkpoint
+            chain =\
+                read_pickled_chain(self._latest_checkpoint_chain_file(prefix))
         
         pos = chain[-((self.nwalkers-1)*self.save_freq)-1::self.save_freq,:]
         
         return pos
+
+    def _saved_checkpoint_chain_files(self, prefix):
+        return glob.glob(prefix + ".dd*.chain.pkl")
+    
+
+    def _saved_checkpoints(self, prefix):
+        ans = [int(fn[-14:-10])\
+            for fn in self._saved_checkpoint_chain_files(prefix)]
+        print ans
+        return ans
+    
+
+    def _latest_checkpoint_chain_file(self, prefix):
+        all_chain_fns = self._saved_checkpoint_chain_files(prefix)
+        ckpt_numbers = [int(fn[-14:-10]) for fn in all_chain_fns]
+        return all_chain_fns[np.argmax(ckpt_numbers)]
+
         
     @property
     def checkpoint_by_proc(self):
@@ -831,10 +849,18 @@ class ModelFit(BlobFactory):
                 msg += ' or set restart=True to append.' 
                 raise IOError(msg)
 
-        if not os.path.exists('%s.chain.pkl' % prefix) and restart:
-            msg = "This can't be a restart, %s*.pkl not found." % prefix
-            raise IOError(msg)
-            
+        if restart:
+            # below checks for checkpoint_append==True failure
+            cptapdtrfl = (self.checkpoint_append and\
+                (not os.path.exists('%s.chain.pkl' % (prefix,))))
+            # below checks for checkpoint_append==False failure
+            cptapdflsfl = ((not self.checkpoint_append) and\
+                (not glob.glob('%s.dd*.pkl' % (prefix,))))
+            # either way, produce error
+            if cptapdtrfl or cptapdflsfl:
+                raise IOError("This can't be a restart, " +\
+                              ("%s*.pkl not found." % (prefix,)))
+
         # Initialize Pool
         if size > 1:
             self.pool = MPIPool()
@@ -898,10 +924,11 @@ class ModelFit(BlobFactory):
             print "Starting MCMC: %s" % (time.ctime())
             
         if restart and (not self.checkpoint_append):
-            raise NotImplemented('Need to be careful here w/ tracking DD!')
+            ct = save_freq * (1 + max(self._saved_checkpoints(prefix)))
+        else:
+            ct = 0
             
         # Take steps, append to pickle file every save_freq steps
-        ct = 0
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
             iterations=steps, rstate0=state, storechain=False):
