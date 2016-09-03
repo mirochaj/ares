@@ -355,7 +355,7 @@ class HaloMassFunction(object):
                 
                 # Remember that mgtm and mean_density have factors of h**2
                 # so we're OK here dimensionally
-                fcoll_tab[i] = self.mgtm[i] / self.MF.mean_density0
+                fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
                         
             pb.update(i)
             
@@ -432,7 +432,7 @@ class HaloMassFunction(object):
                 central_difference(self.z, 10**self.logM_min)
                     
             bc_min = 10**self.logM_min[1:-1] * self.dndm_Mmin[1:-1] \
-                * dMmindz / self.MF.mean_density0
+                * dMmindz / self.cosm.mean_density0
                 
             self.dfcolldz_tab -= bc_min    
                     
@@ -441,7 +441,7 @@ class HaloMassFunction(object):
                 central_difference(self.z, 10**self.logM_max)
         
             bc_max = 10**self.logM_min[1:-1] * self.dndm_Mmax[1:-1] \
-                * dMmindz / self.MF.mean_density0
+                * dMmindz / self.cosm.mean_density0
                 
             self.dfcolldz_tab += bc_max
                 
