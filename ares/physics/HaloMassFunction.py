@@ -241,9 +241,8 @@ class HaloMassFunction(object):
     @property
     def transfer_pars(self):
         if not hasattr(self, '_transfer_pars'):
-            self._transfer_pars = {'dlnk': self.pf['hmf_dlnk'],
-                'lnk_min': self.pf['hmf_lnk_min'],
-                'lnk_max': self.pf['hmf_lnk_max']}
+            self._transfer_pars = {'transfer__k_per_logint': 0.,
+                'transfer__kmax':100}
         return self._transfer_pars
 
     @property
@@ -265,7 +264,9 @@ class HaloMassFunction(object):
                 dlog10m=self.dlogM, z=self.z[0], 
                 hmf_model=self.hmf_func, cosmo_params=self.cosmo_params,
                 growth_params=self.growth_pars, sigma_8=self.cosm.sigma8, 
-                n=self.cosm.primordial_index, **self.transfer_pars)
+                n=self.cosm.primordial_index, transfer_params=self.transfer_pars,
+                dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
+                lnk_max=self.pf['hmf_lnk_max'])
                 
         return self._MF   
 
@@ -311,13 +312,6 @@ class HaloMassFunction(object):
         if rank == 0:    
             print "\nComputing %s mass function..." % self.hmf_func    
 
-        # Initialize Perturbations class
-        self.MF = MassFunction(Mmin=self.logMmin_tab, Mmax=self.logMmax_tab, 
-            dlog10m=self.dlogM, z=self.z[0], 
-            hmf_model=self.hmf_func, cosmo_params=self.cosmo_params, 
-            growth_params=self.growth_pars, sigma_8=self.cosm.sigma8, 
-            n=self.cosm.primordial_index, **self.transfer_pars)
-            
         # Masses in hmf are in units of Msun * h
         self.M = self.MF.M / self.cosm.h70
         self.logM = np.log10(self.M)
@@ -670,6 +664,12 @@ class HaloMassFunction(object):
         
         """
         
+        try:
+            import hmf
+            hmf_v = hmf.__version__
+        except AttributeError:
+            hmf_v = 'unknown'
+        
         # Do this first! (Otherwise parallel runs will be garbage)
         tab = self.fcoll_tab
         
@@ -683,8 +683,9 @@ class HaloMassFunction(object):
             if fn is None:
                 fn = '%s/%s.%s' % (destination, self.table_prefix(), format)                
             else:
-                assert format in fn, \
-                    "Suffix of provided filename does not match chosen format."
+                if format not in fn:
+                    print "Suffix of provided filename does not match chosen format."
+                    print "Will go with format indicated by filename suffix."
             
             if not clobber:
                 if os.path.exists(fn):
@@ -720,7 +721,8 @@ class HaloMassFunction(object):
                         'fcoll': self.fcoll_tab, 'dndm': self.dndm,
                         'ngtm': self.ngtm, 'mgtm': self.mgtm,
                         'pars': {'growth_pars': self.growth_pars,
-                                 'transfer_pars': self.transfer_pars}}
+                                 'transfer_pars': self.transfer_pars},
+                        'hmf-version': hmf_v}
                 np.savez(fn, **data)
                 print 'Wrote %s.' % fn
                 return
@@ -755,6 +757,7 @@ class HaloMassFunction(object):
             pickle.dump(self.mgtm, f)
             pickle.dump({'growth_pars': self.growth_pars,
                 'transfer_pars': self.transfer_pars}, f)
+            pickle.dump(dict('hmf-version', hmf_v))
             f.close()
             
             print 'Wrote %s.' % fn
