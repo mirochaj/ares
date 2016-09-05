@@ -16,6 +16,7 @@ import pickle
 import numpy as np
 import copy, os, gc, re, time
 from .ModelFit import ModelFit
+from ..simulations import Global21cm
 from ..util import GridND, ProgressBar
 from ..util.ReadData import read_pickle_file, read_pickled_dict
 
@@ -53,7 +54,6 @@ class ModelGrid(ModelFit):
     @property
     def simulator(self):
         if not hasattr(self, '_simulator'):
-            from ..simulations import Global21cm
             self._simulator = Global21cm
         return self._simulator
             

@@ -54,7 +54,31 @@ def central_difference(x, y):
         / (np.roll(x, -1) - np.roll(x, 1)))[1:-1]
     
     return x[1:-1], dydx
-
+    
+def five_pt_stencil(x, y):
+    """
+    Compute the first derivative of y wrt x using five point method.
+    """    
+    
+    h = abs(np.diff(x)[0])
+    
+    num = -np.roll(y, -2) + 8. * np.roll(y, -1) \
+          - 8. * np.roll(y, 1) + np.roll(y, 2)
+         
+    return x[2:-2], num[2:-2] / 12. / h
+    
+def smooth(x, y, kernel):
+    """
+    Smooth 1-D function `y` using boxcar of width `kernel` (in pixels).
+    """
+    s = kernel - 1
+    
+    boxcar = np.zeros_like(y)
+    boxcar[boxcar.size/2 - s/2: boxcar.size/2 + s/2+1] = \
+        np.ones(kernel) / float(kernel)
+    
+    return np.convolve(y, boxcar, mode='same')
+    
 def take_derivative(z, field, wrt='z'):
     """ Evaluate derivative of `field' with respect to `wrt' at z. """
 

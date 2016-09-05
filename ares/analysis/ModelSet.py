@@ -1114,6 +1114,7 @@ class ModelSet(BlobFactory):
         self.set_axis_labels(ax, p, is_log, take_log, un_log, cb)
         
         pl.draw()        
+        
         self._ax = ax
         return ax
         
@@ -1178,7 +1179,7 @@ class ModelSet(BlobFactory):
             polygon = point_collection.envelope
         else:
             raise ValueError('Unrecognized boundary_type=%s!' % boundary_type)        
-                
+
         x_min, y_min, x_max, y_max = polygon.bounds
         
         # Plot a Polygon using descartes
@@ -3133,7 +3134,7 @@ class ModelSet(BlobFactory):
         """
         Make nice axis labels.
         """
-                
+                        
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, 1.0, un_log, None)
 
@@ -3172,6 +3173,8 @@ class ModelSet(BlobFactory):
                 un_log=un_log[2]))
         
         pl.draw()
+        
+        return ax
 
     def _alpha_shape(self, points, alpha):
         """
