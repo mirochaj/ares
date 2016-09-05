@@ -241,8 +241,9 @@ class HaloMassFunction(object):
     @property
     def transfer_pars(self):
         if not hasattr(self, '_transfer_pars'):
-            self._transfer_pars = {'transfer__k_per_logint': 0.,
-                'transfer__kmax':100}
+            self._transfer_pars = \
+                {'transfer__k_per_logint': self.pf['hmf_transfer__k_per_logint'],
+                'transfer__kmax': self.pf['hmf_transfer__kmax']}
         return self._transfer_pars
 
     @property
@@ -679,75 +680,42 @@ class HaloMassFunction(object):
         if destination is None:
             destination = '.'
         
-        if format in ['hdf5', 'npz']:
-            if fn is None:
-                fn = '%s/%s.%s' % (destination, self.table_prefix(), format)                
-            else:
-                if format not in fn:
-                    print "Suffix of provided filename does not match chosen format."
-                    print "Will go with format indicated by filename suffix."
-            
-            if not clobber:
-                if os.path.exists(fn):
-                    overwrite = raw_input('%s exists. Overwrite? (y/n) ' % fn)
-                    if overwrite in ['n', 'no', 'False']:
-                        overwrite = False
-                    else:
-                        overwrite = True
-                else:
-                    overwrite = True
-            else:
-                overwrite = True
-            
-            if not overwrite:
-                return
-                
-            os.system('rm -f %s' % fn)    
-                
-            if format == 'hdf5':
-                f = h5py.File(fn, 'w')
-                f.create_dataset('z', data=self.z)
-                f.create_dataset('logM', data=self.logM)
-                f.create_dataset('fcoll', data=self.fcoll_tab)
-                f.create_dataset('dndm', data=self.dndm)
-                f.create_dataset('ngtm', data=self.ngtm)
-                f.create_dataset('mgtm', data=self.mgtm)            
-                f.close()
-                
-                print 'Wrote %s.' % fn
-                return
-            else:
-                data = {'z': self.z, 'logM': self.logM, 
-                        'fcoll': self.fcoll_tab, 'dndm': self.dndm,
-                        'ngtm': self.ngtm, 'mgtm': self.mgtm,
-                        'pars': {'growth_pars': self.growth_pars,
-                                 'transfer_pars': self.transfer_pars},
-                        'hmf-version': hmf_v}
-                np.savez(fn, **data)
-                print 'Wrote %s.' % fn
-                return
-                        
-        # Otherwise, pickle it!    
+        # Determine filename
         if fn is None:
-            fn = '%s/%s.pkl' % (destination, self.table_prefix())
-            
-            if not clobber:
-                if os.path.exists(fn):
-                    overwrite = raw_input('%s exists. Overwrite? (y/n) ' % fn)
-                    if overwrite in ['n', 'no', 'False']:
-                        overwrite = False
-                    else:
-                        overwrite = True
-                else:
-                    overwrite = True
+            fn = '%s/%s.%s' % (destination, self.table_prefix(), format)                
+        else:
+            if format not in fn:
+                print "Suffix of provided filename does not match chosen format."
+                print "Will go with format indicated by filename suffix."
+        
+        if os.path.exists(fn):
+            if clobber:
+                os.system('rm -f %s' % fn)
             else:
-                overwrite = True
+                raise IOError('File %s exists! Set clobber=True or remove manually.' % fn)
             
-            if not overwrite:
-                return
-                
-            os.system('rm -f %s' % fn)  
-                            
+        if format == 'hdf5':
+            f = h5py.File(fn, 'w')
+            f.create_dataset('z', data=self.z)
+            f.create_dataset('logM', data=self.logM)
+            f.create_dataset('fcoll', data=self.fcoll_tab)
+            f.create_dataset('dndm', data=self.dndm)
+            f.create_dataset('ngtm', data=self.ngtm)
+            f.create_dataset('mgtm', data=self.mgtm)
+            f.create_dataset('hmf-version', data=hmf_v)         
+            f.close()
+
+        elif format == 'npz':
+            data = {'z': self.z, 'logM': self.logM, 
+                    'fcoll': self.fcoll_tab, 'dndm': self.dndm,
+                    'ngtm': self.ngtm, 'mgtm': self.mgtm,
+                    'pars': {'growth_pars': self.growth_pars,
+                             'transfer_pars': self.transfer_pars},
+                    'hmf-version': hmf_v}
+            np.savez(fn, **data)
+
+        # Otherwise, pickle it!    
+        else:   
             f = open(fn, 'wb')            
             pickle.dump(self.z, f)
             pickle.dump(self.logM, f)
@@ -760,5 +728,6 @@ class HaloMassFunction(object):
             pickle.dump(dict('hmf-version', hmf_v))
             f.close()
             
-            print 'Wrote %s.' % fn
+        print 'Wrote %s.' % fn
+        return
         

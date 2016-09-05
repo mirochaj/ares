@@ -26,7 +26,7 @@ aux_data = \
     'optical_depth_H_400x1616_z_10-50_logE_2-4.7.npz',
     'optical_depth_He_400x1616_z_10-50_logE_2-4.7.npz',
     None],
- 'secondary_electrons': ['http://www.astro.ucla.edu/~sfurlane/docs',
+ 'secondary_electrons': ['%s/downloads' % ares_link,
     'elec_interp.tar.gz', 
     'read_FJS10.py'],
  'starburst99': ['http://www.stsci.edu/science/starburst99/data',

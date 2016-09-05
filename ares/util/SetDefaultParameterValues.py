@@ -602,10 +602,12 @@ def HaloMassFunctionParameters():
     "hmf_dz": 0.05,
     
     # to CAMB
-    'hmf_dlna': 5e-6,
+    'hmf_dlna': 2e-6,           # hmf default value is 1e-2
     'hmf_dlnk': 1e-2,
     'hmf_lnk_min': -20.,
     'hmf_lnk_max': 10.,
+    'hmf_transfer__k_per_logint': 11.,
+    'hmf_transfer__kmax': 100., # hmf default value is 5
     
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
