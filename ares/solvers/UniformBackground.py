@@ -851,7 +851,7 @@ class UniformBackground(object):
     
         kw = defkwargs.copy()
         kw.update(kwargs)
-        
+
         # Flat spectrum, no injected photons, instantaneous emission only
         if not np.any(self.solve_rte[popid]):
             norm = c * self.cosm.dtdz(z) / four_pi

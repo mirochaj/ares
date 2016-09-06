@@ -622,9 +622,6 @@ class ModelFit(BlobFactory):
                     
         # Start from last step in pre-restart calculation
         if self.checkpoint_append:
-            chain = read_pickled_chain('%s.chain.pkl' % prefix)
-        else:
-            
             if type(restart) is bool:
             
                 ct = 0 

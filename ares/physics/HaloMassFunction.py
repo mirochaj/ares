@@ -405,8 +405,6 @@ class HaloMassFunction(object):
                 else:    
                     self.logM_min[i] = np.log10(self.pf['pop_Mmin'])
                     
-            self.fcoll_Tmin[i] = self.fcoll(z, self.logM_min[i])
-        
             if Mmax_of_z:
                 self.logM_max[i] = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, mu=mu))        
                 self.dndm_Mmax[i] = 10**np.interp(self.logM_min[i], self.logM, 
@@ -415,9 +413,9 @@ class HaloMassFunction(object):
             if Mmin_of_z:
                 self.dndm_Mmin[i] = 10**np.interp(self.logM_min[i], self.logM, 
                     np.log10(self.dndm[i,:]))
-            
-            self.fcoll_Tmin[i] = self.fcoll(z, self.logM_min[i])
-            
+
+            self.fcoll_Tmin[i] = self.fcoll_2d(z, self.logM_min[i])
+
         # Main term: rate of change in collapsed fraction in halos that were
         # already above the threshold.
         self.ztab, self.dfcolldz_tab = \
@@ -461,7 +459,6 @@ class HaloMassFunction(object):
         self.dfcolldz_tab *= -1.
         
         fcoll_spline = None
-        
         self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
 
         spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
@@ -726,7 +723,7 @@ class HaloMassFunction(object):
             pickle.dump(self.mgtm, f)
             pickle.dump({'growth_pars': self.growth_pars,
                 'transfer_pars': self.transfer_pars}, f)
-            pickle.dump(dict('hmf-version', hmf_v))
+            pickle.dump(dict(('hmf-version', hmf_v)))
             f.close()
             
         print 'Wrote %s.' % fn

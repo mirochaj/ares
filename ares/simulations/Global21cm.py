@@ -257,12 +257,12 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         if self.pf['feedback_LW'] and (not self._is_converged()):
             # Compute JLW for next iteration.
             ztmp = self.history['z'][-1::-1]
-            Ja = 10.2 * erg_per_ev * self.history['Ja'][-1::-1] / 1e-21
+            Jlw = self.history['Jlw'][-1::-1] / 1e-21
             
             # Should make 50 -> first_light_redshift
             ok = ztmp < 50
             
-            f_Jlw = lambda zz: np.interp(zz, ztmp[ok], Ja[ok])
+            f_Jlw = lambda zz: np.interp(zz, ztmp[ok], Jlw[ok])
             
             f_Mmin = lambda z: 2.5 * 1e5 * pow(((1.+z)/26.),-1.5) \
                 * (1+6.96*pow(4*np.pi* (f_Jlw(z)),0.47))
@@ -271,14 +271,9 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             
             self.kwargs['pop_Mmin{%i}' % self.pf['feedback_LW']] = f_Mmin
                         
-            #self.__delattr__('pf')
-            #self.__delattr__('_medium')
-            #self.__delattr__('history')
-            
             delattr(self, '_pf')
             delattr(self, '_medium')
             delattr(self, 'history')       
-            #super(Global21cm, self).__delattr__('history')
                         
             self.__init__(**self.kwargs)
             self.run()
@@ -356,19 +351,6 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
 
             # Add derived fields to data
             data_igm.update({'Ts': Ts, 'dTb': dTb, 'Ja': Ja, 'Jlw': Jlw})
-                        
-            # Apply LW feedback
-            for i, pop in enumerate(self.medium.field.pops):
-                                
-                if not pop.pf['pop_feedback']:
-                    continue
-                    
-                # Compute new minimum mass
-                new_Mmin = 2.5 * 1e5 * pow(((1.+z)/26.),-1.5) \
-                    * (1+6.96*pow(4*np.pi* (Jlw / 1e-21),0.47)) 
-                                                                                                        
-                # Reset the minimum mass of star-forming halos
-                pop.update_Mmin(z, new_Mmin)
                         
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
