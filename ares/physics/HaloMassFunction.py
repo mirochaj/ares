@@ -725,7 +725,7 @@ class HaloMassFunction(object):
             pickle.dump(self.mgtm, f)
             pickle.dump({'growth_pars': self.growth_pars,
                 'transfer_pars': self.transfer_pars}, f)
-            pickle.dump(dict('hmf-version', hmf_v))
+            pickle.dump(dict(('hmf-version', hmf_v)))
             f.close()
             
         print 'Wrote %s.' % fn
