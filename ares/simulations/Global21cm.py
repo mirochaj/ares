@@ -16,12 +16,6 @@ from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from ..analysis.BlobFactory import BlobFactory
-<<<<<<< local
-||||||| base
-from ..physics.Constants import nu_0_mhz, E_LyA
-=======
-from ..physics.Constants import nu_0_mhz, E_LyA, erg_per_ev
->>>>>>> other
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 from ..physics.Constants import nu_0_mhz, E_LyA, E_LL, ev_per_hz, erg_per_ev
 
