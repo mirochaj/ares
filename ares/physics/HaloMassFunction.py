@@ -413,14 +413,14 @@ class HaloMassFunction(object):
             if Mmin_of_z:
                 self.dndm_Mmin[i] = 10**np.interp(self.logM_min[i], self.logM, 
                     np.log10(self.dndm[i,:]))
-            
-            self.fcoll_Tmin[i] = self.fcoll(z, self.logM_min[i])
-            
+
+            self.fcoll_Tmin[i] = self.fcoll_2d(z, self.logM_min[i])
+
         # Main term: rate of change in collapsed fraction in halos that were
         # already above the threshold.
         self.ztab, self.dfcolldz_tab = \
             central_difference(self.z, self.fcoll_Tmin)
-        
+
         # Compute boundary term(s)
         if Mmin_of_z:
             self.ztab, dMmindz = \
