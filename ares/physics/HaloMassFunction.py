@@ -413,11 +413,11 @@ class HaloMassFunction(object):
             if Mmin_of_z:
                 self.dndm_Mmin[i] = 10**np.interp(self.logM_min[i], self.logM, 
                     np.log10(self.dndm[i,:]))
-                        
-            # Main term: rate of change in collapsed fraction in halos that were
-            # already above the threshold.
+            
             self.fcoll_Tmin[i] = self.fcoll(z, self.logM_min[i])
-
+            
+        # Main term: rate of change in collapsed fraction in halos that were
+        # already above the threshold.
         self.ztab, self.dfcolldz_tab = \
             central_difference(self.z, self.fcoll_Tmin)
         
@@ -449,6 +449,7 @@ class HaloMassFunction(object):
             
             self.dfcolldz_tab = smooth(self.ztab, self.dfcolldz_tab, kern)
         
+            # Cut off edges of array?
             if self.pf['hmf_dfcolldz_trunc']:
                 self.dfcolldz_tab[0:kern] = np.zeros(kern)
                 self.dfcolldz_tab[-kern:] = np.zeros(kern)
@@ -459,7 +460,7 @@ class HaloMassFunction(object):
         self.dfcolldz_tab *= -1.
 
         fcoll_spline = None        
-
+        
         self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
 
         spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
