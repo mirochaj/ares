@@ -413,11 +413,11 @@ class HaloMassFunction(object):
             if Mmin_of_z:
                 self.dndm_Mmin[i] = 10**np.interp(self.logM_min[i], self.logM, 
                     np.log10(self.dndm[i,:]))
-            
+                        
+            # Main term: rate of change in collapsed fraction in halos that were
+            # already above the threshold.
             self.fcoll_Tmin[i] = self.fcoll(z, self.logM_min[i])
-            
-        # Main term: rate of change in collapsed fraction in halos that were
-        # already above the threshold.
+
         self.ztab, self.dfcolldz_tab = \
             central_difference(self.z, self.fcoll_Tmin)
         
@@ -457,10 +457,9 @@ class HaloMassFunction(object):
         
         # 'cuz time and redshift are different        
         self.dfcolldz_tab *= -1.
-        
-        fcoll_spline = None
 
-        # TESTING: force dfcolldz_tab > 0 [should be unnecessary]
+        fcoll_spline = None        
+
         self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
 
         spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
@@ -480,7 +479,7 @@ class HaloMassFunction(object):
     def fcoll_spline_2d(self, value):
         self._fcoll_spline_2d = value
         
-    def fcoll(self, z, logMmin):
+    def fcoll_2d(self, z, logMmin):
         """
         Return fraction of mass in halos more massive than 10**logMmin.
         Interpolation in 2D, x = redshift = z, y = logMass.

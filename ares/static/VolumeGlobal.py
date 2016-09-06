@@ -302,14 +302,13 @@ class GlobalVolume(object):
 
                 if band is None:
                     continue
-                                        
+                            
+                need_tab = self.pops[i].is_xray_src \
+                    and np.any(np.array(band) > E_LL)
+                                                                    
                 if (not self.background.solve_rte[i][j]) or \
-                   (not np.any(np.array(band) > E_LL)):
+                   (not need_tab):
                     continue
-                    #self.fheat[i][j] = None
-                    #self.flya[i][j] = None
-                    #self.fion[species][i][j] = None
-                    #self._sigma_E[species][i][j] = None
                 else:    
                     self.fheat[i][j] = \
                         [np.ones([self.background.energies[i][j].size, 

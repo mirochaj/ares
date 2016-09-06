@@ -211,9 +211,7 @@ def PhysicsParameters():
 
     # Lyman alpha sources
     "lya_nmax": 23,
-    'lya_frec_bar': 0.0,   # Neglect injected photons by default if we're
-                           # treating background in approximate way
-
+    
     "rate_source": 'fk94', # fk94, option for development here
     
     # LW feedback parameters
@@ -472,11 +470,17 @@ def PopulationParameters():
     "pop_yield_wavelength": 1500.,
 
     'pop_fXh': None,
+    
+    'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
+                           # treating background in approximate way
 
     "pop_approx_tau": True,     # shouldn't be a pop parameter?
     "pop_solve_rte": False,
     
     "pop_tau_Nz": 400,
+    
+    # Feedback! LW for now, but could be other stuff eventually (?)
+    "pop_feedback": False,
 
     # Pre-created splines
     "pop_fcoll": None,
@@ -674,7 +678,6 @@ def ControlParameters():
     "load_sim": False,
 
     # Timestepping
-    "max_dt": 1.,
     "max_dz": None,
     "max_timestep": 1.,
     "min_timestep": 1e-8,
