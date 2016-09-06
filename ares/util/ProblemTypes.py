@@ -255,11 +255,11 @@ def ReionizationProblem(ptype):
         pf = {}
 
     # Simple 3-pop model (each pop only 1 type of radiation)
-    elif ptype_mod1 in [0, 0.3]:
+    elif ptype_int == 1:
         pf = \
         {
         
-        'problem_type': 101.3,
+        'problem_type': 101,
         "grid_cells": 1,
         
         # Emits LW
@@ -321,11 +321,11 @@ def ReionizationProblem(ptype):
 
         }
         
-    elif ptype_mod1 == 0.2:
+    elif ptype_int == 2:
         pf = \
         {
         
-        'problem_type': 101.2,
+        'problem_type': 102,
         "grid_cells": 1,
         
         # Emits UV photons
@@ -371,14 +371,6 @@ def ReionizationProblem(ptype):
         "pop_solve_rte{1}": False,
         
         }    
-
-    # Global 21-cm problem w/ meta-galactic backgrounds
-    if ptype_int == 2:
-        raise NotImplemented('Have not implemented problem_type = 102 yet.')
-        
-    # HeII reionization
-    if ptype_int == 3:
-        raise NotImplemented('Have not implemented problem_type = 103 yet.')
 
     return pf  
 

@@ -630,7 +630,10 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         if not hasattr(self, '_Mmin'):
             # First, compute threshold mass vs. redshift
             if self.pf['pop_Mmin'] is not None:
-                self._Mmin = self.pf['pop_Mmin'] * np.ones(self.halos.Nz)
+                if type(self.pf['pop_Mmin']) is FunctionType:
+                    self._Mmin = np.array(map(self.pf['pop_Mmin'], self.halos.z))
+                else:    
+                    self._Mmin = self.pf['pop_Mmin'] * np.ones(self.halos.Nz)
             else:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'], 
                     z, mu=self.pf['mu'])

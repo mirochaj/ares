@@ -38,15 +38,15 @@ Simple global 21-cm signal problem in which the Ly-:math:`\alpha`, LyC, and X-ra
 
     .. note :: In earlier versions of *ares* these parameters were denoted more simply as ``Nlw``, ``fX``, ``Nion``, ``fesc``, and ``Tmin``. You can still use this approach (i.e., this shouldn't break backward compatibility), though in the future this may not be true. 
     
-101.2
-~~~~~
+102
+~~~
 Slightly more advanced global 21-cm signal problem in which the Ly-:math:`\alpha`, LyC, and X-ray production is still proportional to the rate of collapse onto all halos exceeding a minimum virial temperature threshold (``pop_Tmin``) or mass (``pop_Mmin``), but the photon production efficiencies are calculated from a stellar synthesis model. The main difference between this problem and problem 101 is that the LW and LyC efficiencies are no longer independent. As a result, there are only *two* source populations: one stellar and one for X-rays. The main parameters are slightly different as a result:
 
     + ``pop_sed{0}``: Spectral energy distribution of stellar populations. By default, this is ``eldridge2009``, i.e., the *BPASS* version 1.0 models.
     + ``pop_Z{0}``: Stellar metallicity.
     + ``pop_fesc{0}``: Escape fraction of LyC radiation.
     + ``pop_yield{1}``: Normalization of the X-ray luminosity star-formation rate relation in the 0.5-8 keV band.
-    + ``pop_Tmin{0}``: Minimum virial temperature of star-forming halos. Note that ``pop_Tmin{1}``is automatically linked to ``pop_Tmin{0}``.
+    + ``pop_Tmin{0}``: Minimum virial temperature of star-forming halos. Note that ``pop_Tmin{1}`` is automatically linked to ``pop_Tmin{0}``.
 
 
     

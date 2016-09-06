@@ -112,9 +112,9 @@ def guesses_from_priors(pars, prior_set, nwalkers):
     return np.array(guesses)    
         
 class LogLikelihood(object):
-    def __init__(self, xdata, ydata, error, parameters, is_log,\
-        base_kwargs, param_prior_set=None, blob_prior_set=None,\
-        prefix=None, blob_info=None, checkpoint_by_proc=False):
+    def __init__(self, xdata, ydata, error, parameters, is_log,
+        base_kwargs, param_prior_set=None, blob_prior_set=None,
+        prefix=None, blob_info=None, checkpoint_by_proc=True, timeout=None):
         """
         This is only to be inherited by another log-likelihood class.
 
@@ -128,6 +128,7 @@ class LogLikelihood(object):
         self.checkpoint_by_proc = checkpoint_by_proc
         
         self.base_kwargs = base_kwargs
+        self.timeout = timeout
         
         if blob_info is not None:
             self.blob_names = blob_info['blob_names']
@@ -226,8 +227,8 @@ class LogLikelihood(object):
         
     def checkpoint(self, **kwargs):
         if self.checkpoint_by_proc:
-            procid = str(rank).zfill(3)
-            fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
+            procid = str(rank).zfill(4)
+            fn = '%s.proc%s.checkpt.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
                 pickle.dump(kwargs, f)
 
@@ -570,21 +571,21 @@ class ModelFit(BlobFactory):
             
     def prep_output_files(self, restart, clobber):
         if restart:
-            pos = self._prep_from_restart()
+            pos = self._prep_from_restart(restart)
         else:
             pos = None
             self._prep_from_scratch(clobber)    
     
         return pos
     
-    def _prep_from_restart(self):
+    def _prep_from_restart(self, restart):
 
         prefix = self.prefix
-        
+
         f = open('%s.pinfo.pkl' % prefix, 'rb')
         pars, is_log = pickle.load(f)
         f.close()
-                                            
+
         if pars != self.parameters:
             if size > 1:
                 if rank == 0:
@@ -602,6 +603,14 @@ class ModelFit(BlobFactory):
         base_kwargs = pickle.load(f)
         f.close()  
         
+        f = open('%s.rinfo.pkl' % self.prefix, 'r')
+        nwalkers, save_freq, steps = pickle.load(f)
+        f.close()
+        
+        # These things CANNOT change on restart
+        assert nwalkers == self.nwalkers
+        assert save_freq == self.save_freq
+        
         #for kwarg in base_kwargs:
         #    if type(base_kwargs[kwarg])
         #if base_kwargs != self.base_kwargs:
@@ -612,12 +621,42 @@ class ModelFit(BlobFactory):
         #    raise ValueError('base_kwargs from file dont match those supplied!')   
                     
         # Start from last step in pre-restart calculation
-        chain = read_pickled_chain('%s.chain.pkl' % prefix)
-        
-        pos = chain[-self.nwalkers:,:]
+        if self.checkpoint_append:
+            chain = read_pickled_chain('%s.chain.pkl' % prefix)
+        else:
+            
+            if type(restart) is bool:
+            
+                ct = 0 
+                while True:
+                    dd = 'dd' + str(ct).zfill(4)
+                    fn = '%s.%s.chain.pkl' % (prefix, dd)
+                                        
+                    if os.path.exists(fn):
+                        ct += 1
+                        continue
+                    else:
+                        break
+                        
+                # Back up a step to file that exists
+                self.ct = ct - 1    
+
+                dd = 'dd' + str(self.ct).zfill(4)
+                fn = '%s.%s.chain.pkl' % (prefix, dd)
+            else:
+                assert type(restart) is str, \
+                    "If not True or False, restart must be filename!"
+                fn = restart
+                self.ct = int(fn.split('.')[-3][2:])
+                 
+            print "Restarting from %s." % fn
+            chain = read_pickled_chain(fn)
+            
+        (nw, sf) = (self.nwalkers, self.save_freq)
+        pos = chain[-(nw-1)*sf-1::sf,:]    
         
         return pos
-        
+
     @property
     def checkpoint_by_proc(self):
         if not hasattr(self, '_checkpoint_by_proc'):
@@ -627,6 +666,16 @@ class ModelFit(BlobFactory):
     @checkpoint_by_proc.setter
     def checkpoint_by_proc(self, value):
         self._checkpoint_by_proc = value
+    
+    @property
+    def checkpoint_append(self):
+        if not hasattr(self, '_checkpoint_append'):
+            self._checkpoint_append = True
+        return self._checkpoint_append
+    
+    @checkpoint_append.setter
+    def checkpoint_append(self, value):
+        self._checkpoint_append = value    
 
     def _prep_from_scratch(self, clobber, by_proc=False):
         if rank > 0:
@@ -646,8 +695,8 @@ class ModelFit(BlobFactory):
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
             
             os.system('rm -f %s.*.fail.pkl' % self.prefix)
-            os.system('rm -f %s.*.chain.pkl' % self.prefix)
-            os.system('rm -f %s.*.blob*.pkl' % self.prefix)
+            os.system('rm -f %s.*.chain.*pkl' % self.prefix)
+            os.system('rm -f %s.*.blob*.*pkl' % self.prefix)
             
             # Need to potentially axe a product file
             os.system('rm -f %s.fails.pkl' % self.prefix)
@@ -658,19 +707,20 @@ class ModelFit(BlobFactory):
         f.close()  
         
         # Main output: MCMC chains (flattened)
-        f = open('%s.chain.pkl' % prefix_by_proc, 'wb')
-        f.close()
+        if self.checkpoint_append:
+            f = open('%s.chain.pkl' % prefix_by_proc, 'wb')
+            f.close()
         
-        # Main output: log-likelihood
-        f = open('%s.logL.pkl' % self.prefix, 'wb')
-        f.close()
+            # Main output: log-likelihood
+            f = open('%s.logL.pkl' % self.prefix, 'wb')
+            f.close()
         
         # Store acceptance fraction
         f = open('%s.facc.pkl' % self.prefix, 'wb')
         f.close()
         
         # File for blobs themselves
-        if self.blob_names is not None:
+        if self.blob_names is not None and self.checkpoint_append:
             
             for i, group in enumerate(self.blob_names):
                 for blob in group:
@@ -732,8 +782,10 @@ class ModelFit(BlobFactory):
             Number of steps to take before writing data to disk.
         clobber : bool  
             Overwrite pre-existing files of the same prefix if one exists?
-        restart : bool
+        restart : bool, str
             Append to pre-existing files of the same prefix if one exists?
+            Can also supply the filename of the checkpoint from which to 
+            restart.
             
         """
                 
@@ -745,10 +797,11 @@ class ModelFit(BlobFactory):
                 msg += ' or set restart=True to append.' 
                 raise IOError(msg)
 
-        if not os.path.exists('%s.chain.pkl' % prefix) and restart:
-            msg = "This can't be a restart, %s*.pkl not found." % prefix
-            raise IOError(msg)
-            
+        if self.checkpoint_append:
+            if not os.path.exists('%s.chain.pkl' % prefix) and restart:
+                msg = "This can't be a restart, %s*.pkl not found." % prefix
+                raise IOError(msg)
+
         # Initialize Pool
         if size > 1:
             self.pool = MPIPool()
@@ -759,7 +812,7 @@ class ModelFit(BlobFactory):
             # Non-root processors wait for instructions until job is done,
             # at which point, they don't need to do anything below here.
             if not self.pool.is_master():
-                
+
                 if emcee_mpipool:
                     self.pool.wait()
                     
@@ -812,13 +865,25 @@ class ModelFit(BlobFactory):
 
         if rank == 0:
             print "Starting MCMC: %s" % (time.ctime())
-            
+        
+        # Need to make sure we don't overwrite previous outputs in this case    
+        if restart and (not self.checkpoint_append):
+            ct = (self.ct + 1) * save_freq
+        else:
+            ct = 0
+                        
         # Take steps, append to pickle file every save_freq steps
-        ct = 0
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
             iterations=steps, rstate0=state, storechain=False):
+            
             # Only the rank 0 processor ever makes it here
+            
+            # If we're saving each checkpoint to its own file, this is the
+            # identifier to use in the filename
+            dd = 'dd' + str(ct / save_freq).zfill(4)
+            
+            # Increment counter
             ct += 1
             
             pos_all.append(pos.copy())
@@ -840,15 +905,23 @@ class ModelFit(BlobFactory):
 
             for i, suffix in enumerate(['chain', 'logL', 'blobs']):
 
+                if self.checkpoint_append:
+                    mode = 'ab'
+                else:
+                    mode = 'wb'
+                    
                 # Blobs
                 if suffix == 'blobs':
                     if self.blob_names is None:
                         continue
-                    self.save_blobs(data[i])
+                    self.save_blobs(data[i], dd=dd)
                 # Other stuff
                 else:
-                    fn = '%s.%s.pkl' % (prefix, suffix)
-                    with open(fn, 'ab') as f:
+                    if self.checkpoint_append:
+                        fn = '%s.%s.pkl' % (prefix, suffix)
+                    else:
+                        fn = '%s.%s.%s.pkl' % (prefix, dd, suffix)
+                    with open(fn, mode) as f:
                         pickle.dump(data[i], f)
                     
             # This is a running total already so just save the end result 
@@ -857,7 +930,10 @@ class ModelFit(BlobFactory):
             pickle.dump(self.sampler.acceptance_fraction, f)
             f.close()
 
-            print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
+            if self.checkpoint_append:
+                print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
+            else:
+                print "Wrote %s.%s.*.pkl: %s" % (prefix, dd, time.ctime())
 
             del data, pos_all, prob_all, blobs_all
             gc.collect()
@@ -875,7 +951,7 @@ class ModelFit(BlobFactory):
         if rank == 0:
             print "Finished on %s" % (time.ctime())
     
-    def save_blobs(self, blobs, uncompress=True, prefix=None):
+    def save_blobs(self, blobs, uncompress=True, prefix=None, dd=None):
         """
         Write blobs to disk.
         
@@ -913,10 +989,19 @@ class ModelFit(BlobFactory):
                     # indices: walkers*steps, blob group, blob
                     barr = blobs_now[l][j][k]
                     to_write.append(barr)   
+
+                if self.checkpoint_append:
+                    mode = 'ab'
+                    bfn = '%s.blob_%id.%s.pkl' \
+                        % (prefix, self.blob_nd[j], blob)
+                else:
+                    mode = 'wb'
+                    bfn = '%s.%s.blob_%id.%s.pkl' \
+                        % (prefix, dd, self.blob_nd[j], blob)        
                     
-                bfn = '%s.blob_%id.%s.pkl' \
-                    % (prefix, self.blob_nd[j], blob)
-                with open(bfn, 'ab') as f:
+                    assert dd is not None, "checkpoint_append=False but no DDID!"        
+                            
+                with open(bfn, mode) as f:
                     pickle.dump(np.array(to_write), f) 
                     
                        

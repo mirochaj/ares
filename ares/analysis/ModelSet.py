@@ -21,6 +21,7 @@ import re, os, string, time, glob
 from .BlobFactory import BlobFactory
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
+from matplotlib.collections import PatchCollection
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
 import matplotlib.patches as patches
@@ -35,15 +36,18 @@ from ..util.ReadData import read_pickled_dict, read_pickle_file, \
     read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
     tanh_gjah_to_ares
 
-#try:
-#    import dill as pickle
-#except ImportError:
 import pickle 
 
 try:
+    from scipy.spatial import Delaunay
+except ImportError:
+    pass
+
+try:
     import shapely.geometry as geometry
+    from shapely.ops import cascaded_union, polygonize
     have_shapely = True
-except ImportError, OSError:
+except (ImportError, OSError):
     have_shapely = False
     
 try:
@@ -414,6 +418,26 @@ class ModelSet(BlobFactory):
                 self._Nd = None
         
         return self._Nd
+    
+    @property
+    def include_checkpoints(self):
+        if not hasattr(self, '_include_checkpoints'):
+            self._include_checkpoints = None
+        return self._include_checkpoints
+        
+    @include_checkpoints.setter
+    def include_checkpoints(self, value):
+        assert type(value) in [int, list, tuple, np.ndarray], \
+            "Supplied checkpoint(s) must be integer or iterable of integers!"
+            
+        if type(value) is int:
+            self._include_checkpoints = [value]
+        else:        
+            self._include_checkpoints = value
+            
+        if hasattr(self, '_chain'):
+            print "WARNING: the chain has already been read.", 
+            print "Be sure to delete `_chain` attribute before continuing."
 
     @property
     def chain(self):
@@ -442,11 +466,11 @@ class ModelSet(BlobFactory):
                 self._chain = np.ma.array(self._chain, mask=mask2d)
             
             # We might have data stored by processor
-            elif os.path.exists('%s.000.chain.pkl' % self.prefix):
+            elif os.path.exists('%s.proc0000.chain.pkl' % self.prefix):
                 i = 0
                 full_chain = []
                 full_mask = []
-                fn = '%s.000.chain.pkl' % self.prefix
+                fn = '%s.proc0000.chain.pkl' % self.prefix
                 while True:
                                         
                     if not os.path.exists(fn):
@@ -456,22 +480,73 @@ class ModelSet(BlobFactory):
                     full_chain.extend(this_chain.copy())                    
                     
                     i += 1
-                    fn = '%s.%s.chain.pkl' % (self.prefix, str(i).zfill(3))  
+                    fn = '%s.proc%s.chain.pkl' % (self.prefix, str(i).zfill(4))  
                     
                 self._chain = np.ma.array(full_chain, mask=0)
 
                 # So we don't have to stitch them together again.
                 # THIS CAN BE REALLY CONFUSING IF YOU, E.G., RUN A NEW
                 # CALCULATION AND FORGET TO CLEAR OUT OLD FILES.
+                # Hence, it is commented out (for now).
                 #if rank == 0:
                 #    f = open('%s.chain.pkl' % self.prefix, 'wb')
                 #    pickle.dump(self._chain, f)
                 #    f.close()
 
+            # If each "chunk" gets its own file.
+            elif glob.glob('%s.dd*.chain.pkl' % self.prefix):
+                
+                if self.include_checkpoints is not None:
+                    outputs_to_read = []
+                    for output_num in self.include_checkpoints:
+                        dd = str(output_num).zfill(4)
+                        fn = '%s.dd%s.chain.pkl' % (self.prefix, dd)
+                        outputs_to_read.append(fn)
+                else:
+                    outputs_to_read = \
+                        glob.glob('%s.dd*.chain.pkl' % self.prefix)
+                                
+                full_chain = []
+                for fn in outputs_to_read:
+                    if not os.path.exists(fn):
+                        print "Found no output: %s" % fn
+                        continue
+                    
+                    this_chain = read_pickled_chain(fn)                                    
+                    full_chain.extend(this_chain.copy())                    
+                    
+                self._chain = np.ma.array(full_chain, mask=0)
+
             else:
                 self._chain = None            
 
         return self._chain        
+        
+    @property
+    def checkpoints(self):
+        # Read MCMC chain
+        if not hasattr(self, '_checkpoints'):
+            i = 0
+            fail = 0
+            self._checkpoints = {}
+            fn = '%s.000.checkpt.pkl' % self.prefix
+            while True:
+            
+                if not os.path.exists(fn):
+                    fail += 1
+                    
+                    if fail > 10:
+                        break
+                else:
+                    with open(fn, 'rb') as f:
+                        kw = pickle.load(f)                 
+                    
+                    self._checkpoints[i] = kw
+            
+                i += 1
+                fn = '%s.%s.checkpt.pkl' % (self.prefix, str(i).zfill(3))
+                
+        return self._checkpoints  
     
     @property
     def logL(self):
@@ -479,6 +554,26 @@ class ModelSet(BlobFactory):
             if os.path.exists('%s.logL.pkl' % self.prefix):
                 self._logL = read_pickled_logL('%s.logL.pkl' % self.prefix)
                 self._logL = np.ma.array(self._logL, mask=self.mask)
+            elif glob.glob('%s.dd*.logL.pkl' % self.prefix):
+                if self.include_checkpoints is not None:
+                    outputs_to_read = []
+                    for output_num in self.include_checkpoints:
+                        dd = str(output_num).zfill(4)
+                        fn = '%s.dd%s.logL.pkl' % (self.prefix, dd)
+                        outputs_to_read.append(fn)
+                else:
+                    outputs_to_read = \
+                        glob.glob('%s.dd*.logL.pkl' % self.prefix)
+                
+                full_chain = []
+                for fn in outputs_to_read:
+                    if not os.path.exists(fn):
+                        print "Found no output: %s" % fn
+                        continue
+                        
+                    full_chain.extend(read_pickled_logL(fn))
+                        
+                self._logL = np.ma.array(full_chain, mask=self.mask)        
             else:
                 self._logL = None
                 
@@ -565,19 +660,19 @@ class ModelSet(BlobFactory):
         
         sf = self.save_freq
         nw = self.nwalkers
-        nchunks = int(self.steps / sf)
-        schunk = nw * sf
+        
+        assert num < nw, "Only %i walkers were used!" % nw
+        
+        steps_per_walker = self.chain.shape[0] / nw
+        nchunks = steps_per_walker / sf
+        
+        # "size" of each chunk in # of MCMC steps
+        schunk = nw * sf 
+        
         data = []
-        i = 0
-        while True:
-                    
-            try:
-                chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
-                data.extend(chunk)
-            except:
-                break
-                
-            i += 1
+        for i in range(nchunks):   
+            chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
+            data.extend(chunk)
             
         return np.array(data)
                 
@@ -1019,6 +1114,7 @@ class ModelSet(BlobFactory):
         self.set_axis_labels(ax, p, is_log, take_log, un_log, cb)
         
         pl.draw()        
+        
         self._ax = ax
         return ax
         
@@ -1035,7 +1131,7 @@ class ModelSet(BlobFactory):
     
     def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
         take_log=False, un_log=False, multiplier=1., 
-        **kwargs):
+        boundary_type='concave', alpha=0.3, **kwargs):
         """
         Basically a scatterplot but instead of plotting individual points,
         we draw lines bounding the locations of all those points.
@@ -1044,12 +1140,18 @@ class ModelSet(BlobFactory):
         ----------
         pars : list, tuple
             List of parameters that defines 2-D plane.
+        boundary_type : str
+            Options: 'convex' or 'concave' or 'envelope'
+        alpha : float
+            Only used if boundary_type == 'concave'. Making alpha smaller
+            makes the contouring more crude, but also less noisy as a result.
+        
             
         """
         
         assert have_shapely, "Need shapely installed for this to work."
         assert have_descartes, "Need descartes installed for this to work."
-        
+
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -1059,21 +1161,37 @@ class ModelSet(BlobFactory):
 
         data, is_log = \
             self.ExtractData(pars, ivar, take_log, un_log, multiplier)
-        
+
         xdata = self.xdata = data[pars[0]].compressed()
         ydata = self.ydata = data[pars[1]].compressed()
-        
+
         # Organize into (x, y) pairs
         points = zip(xdata, ydata)
-                
+
         # Create polygon object
-        point_collection = self.point_collection = geometry.MultiPoint(list(points))
-        polygon = point_collection.convex_hull
-                
-        # Plot a Polygon using descartes
+        point_collection = geometry.MultiPoint(list(points))
+        
+        if boundary_type == 'convex':
+            polygon = point_collection.convex_hull
+        elif boundary_type == 'concave':
+            polygon, edge_points = self._alpha_shape(points, alpha)
+        elif boundary_type == 'envelope':
+            polygon = point_collection.envelope
+        else:
+            raise ValueError('Unrecognized boundary_type=%s!' % boundary_type)        
+
         x_min, y_min, x_max, y_max = polygon.bounds
-        patch = PolygonPatch(polygon, **kwargs)
-        ax.add_patch(patch)
+        
+        # Plot a Polygon using descartes
+        try:        
+            patch = PolygonPatch(polygon, **kwargs)
+            ax.add_patch(patch)
+        except:
+            patches = []
+            for pgon in polygon:
+                patches.append(PolygonPatch(pgon, **kwargs))
+            
+            ax.add_collection(PatchCollection(patches, match_original=True))
         
         pl.draw()
             
@@ -1623,7 +1741,7 @@ class ModelSet(BlobFactory):
                     val = dq[par]
                 except:
                     val = None
-                    
+                                            
             # Take log [optional]    
             if val is None:
                 vin = None
@@ -1780,7 +1898,7 @@ class ModelSet(BlobFactory):
             else:
                 tohist = to_hist[skip:stop]
                 b = bins
-            
+                        
             hist, bin_edges = \
                 np.histogram(tohist, density=True, bins=b, weights=weights)
 
@@ -1799,16 +1917,6 @@ class ModelSet(BlobFactory):
         # Marginalized 2-D PDFs
         else:
             
-            #if to_hist[0].size != to_hist[1].size:
-            #    print 'Looks like calculation was terminated after chain',
-            #    print 'was written to disk, but before blobs. How unlucky!'
-            #    print 'Applying cludge to ensure shape match...'
-            #    
-            #    if to_hist[0].size > to_hist[1].size:
-            #        to_hist[0] = to_hist[0][0:to_hist[1].size]
-            #    else:
-            #        to_hist[1] = to_hist[1][0:to_hist[0].size]
-
             if type(to_hist) is dict:
                 tohist1 = to_hist[pars[0]][skip:stop]
                 tohist2 = to_hist[pars[1]][skip:stop]
@@ -3026,7 +3134,7 @@ class ModelSet(BlobFactory):
         """
         Make nice axis labels.
         """
-                
+                        
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, 1.0, un_log, None)
 
@@ -3053,19 +3161,11 @@ class ModelSet(BlobFactory):
         ax.set_ylabel(labeler.label(pars[1], take_log=take_log[pars[1]], 
             un_log=un_log[1]))
             
-        pl.draw()
-                        
-        xt = []
-        for i, x in enumerate(ax.get_xticklabels()):
-            xt.append(x.get_text())
-        
-        ax.set_xticklabels(xt, rotation=45.)
-        
-        yt = []
-        for i, x in enumerate(ax.get_yticklabels()):
-            yt.append(x.get_text())
-        
-        ax.set_yticklabels(yt, rotation=45.)
+        # Rotate ticks?
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(45.)
+        for tick in ax.get_yticklabels():
+            tick.set_rotation(45.)
             
         # colorbar
         if cb is not None and len(pars) > 2:
@@ -3073,5 +3173,70 @@ class ModelSet(BlobFactory):
                 un_log=un_log[2]))
         
         pl.draw()
+        
+        return ax
 
+    def _alpha_shape(self, points, alpha):
+        """
+        
+        Stolen from here:
+        
+        http://blog.thehumangeo.com/2014/05/12/drawing-boundaries-in-python/
+        
+        Thanks, stranger!
+        
+        Compute the alpha shape (concave hull) of a set
+        of points.
+        @param points: Iterable container of points.
+        @param alpha: alpha value to influence the
+            gooeyness of the border. Smaller numbers
+            don't fall inward as much as larger numbers.
+            Too large, and you lose everything!
+            
+        """
+        if len(points) < 4:
+            # When you have a triangle, there is no sense
+            # in computing an alpha shape.
+            return geometry.MultiPoint(list(points)).convex_hull
+
+        def add_edge(edges, edge_points, coords, i, j):
+            """
+            Add a line between the i-th and j-th points,
+            if not in the list already
+            """
+            if (i, j) in edges or (j, i) in edges:
+                # already added
+                return
+            edges.add( (i, j) )
+            edge_points.append(coords[ [i, j] ])
+            
+        coords = np.array(points)#np.array([point.coords[0] for point in points])
+        tri = Delaunay(coords)
+        edges = set()
+        edge_points = []
+        # loop over triangles:
+        # ia, ib, ic = indices of corner points of the
+        # triangle
+        for ia, ib, ic in tri.vertices:
+            pa = coords[ia]
+            pb = coords[ib]
+            pc = coords[ic]
+            # Lengths of sides of triangle
+            a = np.sqrt((pa[0]-pb[0])**2 + (pa[1]-pb[1])**2)
+            b = np.sqrt((pb[0]-pc[0])**2 + (pb[1]-pc[1])**2)
+            c = np.sqrt((pc[0]-pa[0])**2 + (pc[1]-pa[1])**2)
+            # Semiperimeter of triangle
+            s = (a + b + c)/2.0
+            # Area of triangle by Heron's formula
+            area = np.sqrt(s*(s-a)*(s-b)*(s-c))
+            circum_r = a*b*c/(4.0*area)
+            # Here's the radius filter.
+            #print circum_r
+            if circum_r < 1.0/alpha:
+                add_edge(edges, edge_points, coords, ia, ib)
+                add_edge(edges, edge_points, coords, ib, ic)
+                add_edge(edges, edge_points, coords, ic, ia)
+        m = geometry.MultiLineString(edge_points)
+        triangles = list(polygonize(m))
+        return cascaded_union(triangles), edge_points
     

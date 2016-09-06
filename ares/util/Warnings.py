@@ -216,7 +216,7 @@ def no_hmf(hmf):
     print line(separator)
     print line('ERROR: Cannot generate halo mass function')    
     print line(separator)        
-    
+
     if not have_ARES_env:
         s = \
         """
