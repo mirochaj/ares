@@ -12,12 +12,16 @@ Description:
 
 import os
 import numpy as np
+from ..util.Math import smooth, central_difference
+from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
 from ..analysis.BlobFactory import BlobFactory
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 from ..physics.Constants import nu_0_mhz, E_LyA, E_LL, ev_per_hz, erg_per_ev
+
+from scipy.misc import derivative
 
 try:
     import dill as pickle
@@ -28,6 +32,12 @@ defaults = \
 {
  'load_ics': True,
 }
+
+class _DummyClass(object):
+    def __init__(self, f):
+        self.f = f
+    def __call__(self, x):
+        return self.f(x)
 
 class Global21cm(BlobFactory,AnalyzeGlobal21cm):
     def __init__(self, **kwargs):
@@ -175,12 +185,14 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         """
         
         # If this was a tanh model, we're already done.
-        if hasattr(self, 'history'):
+        if hasattr(self, 'history') and not hasattr(self, '_suite'):
             return
 
         if not hasattr(self, '_suite'):
-            self._suite = []    
-        
+            self._suite = [] 
+        else:
+            self.reboot()
+            
         tf = self.medium.tf
         self.medium._insert_inits()
                 
@@ -218,6 +230,9 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             self.all_RC_igm.append(rc_igm.copy()) 
             self.all_RC_cgm.append(rc_cgm.copy())
             
+            if z < 5.2:
+                break
+            
             # Automatically find turning points
             if self.pf['track_extrema']:
                 if self.track.is_stopping_point(self.all_z, self.all_dTb):
@@ -251,32 +266,78 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         self.history['z'] = np.array(self.all_z)
                 
         self._count += 1
-                
-        self._suite.append(self.history.copy())
         
-        if self.pf['feedback_LW'] and (not self._is_converged()):
-            # Compute JLW for next iteration.
-            ztmp = self.history['z'][-1::-1]
-            Jlw = self.history['Jlw'][-1::-1] / 1e-21
+        ##
+        # Feedback time!
+        ##
+        if (self.pf['feedback_LW'] is not None):
+            
+            # Instance of the population that "feels" the feedback.
+            pop_fb = self.pops[self.pf['feedback_LW']]
+            
+            # Compute JLW to get estimate for Mmin^(k+1) 
+            ztmp = self.history['z']
+            Jlw = self.history['Jlw'] / 1e-21
             
             # Should make 50 -> first_light_redshift
             ok = ztmp < 50
+
+            # Interpolants for Jlw, Mmin, for this iteration
+            f_J = lambda zz: np.interp(zz, ztmp[-1::-1], Jlw[-1::-1])
+            f_M = lambda zz: 2.5 * 1e5 * pow(((1. + zz) / 26.), -1.5) \
+                * (1. + 6.96 * pow(4 * np.pi * f_J(zz), 0.47))
+          
+            # Use this on the next iteration       
+            _Mmin_next = f_M(ztmp)          
+
+            # First, get rid of nans
+            #if np.any(np.isnan(_Mmin)):
+            #    _Mmin[np.isnan(_Mmin)] = _Mmin_kp1[np.isnan(_Mmin)]
+
+            # Potentially impose ceiling on Mmin
+            Tcut = self.pf['feedback_LW_Tcut']
+            Mmin_ceil = pop_fb.halos.VirialMass(Tcut, ztmp)
+            #if self.pf['pop_Mmax{%i}' % self.pf['feedback_LW']] is not None:
+            #    Mmin_ceil = self.pf['pop_Mmax{%i}' % self.pf['feedback_LW']]
+            #elif self.pf['pop_Tmax{%i}' % self.pf['feedback_LW']] is not None:
+            #    Tmax = self.pf['pop_Tmax{%i}' % self.pf['feedback_LW']]
+            #    Mmin_ceil = pop_fb.halos.VirialMass(Tmax, ztmp)
+            #else:
+            #    Mmin_ceil = np.inf * np.ones_like(ztmp)
+
+            #Tmin = self.pf['pop_Tmin{%i}' % self.pf['feedback_LW']]
+            #if Tmin is not None:
+            #    Mmin_floor = pop_fb.halos.VirialMass(Tmin, ztmp)
+            #else:
+            #    Mmin_floor = pop_fb.halos.VirialMass(300., ztmp)
+
+            # Final answer.       
+            Mmin = np.minimum(_Mmin_next, Mmin_ceil)
             
-            f_Jlw = lambda zz: np.interp(zz, ztmp[ok], Jlw[ok])
-            
-            f_Mmin = lambda z: 2.5 * 1e5 * pow(((1.+z)/26.),-1.5) \
-                * (1+6.96*pow(4*np.pi* (f_Jlw(z)),0.47))
-            
+            if self.pf['feedback_LW_Mmin_uponly']:
+                Mmin = np.maximum.accumulate(Mmin)
+                        
+            ##
+            # Setup interpolant
+            ##
+            f_Mmin = lambda zz: 10**np.interp(zz, ztmp[-1::-1], np.log10(Mmin[-1::-1]))
+
+            # Save for prosperity
+            self._suite.append(self.history.copy())
+            self._suite[-1]['pop_Mmin{%i}' % self.pf['feedback_LW']] = Mmin
+
+            # Do it all again! Maybe.
             kw_orig = self.kwargs.copy()
-            
             self.kwargs['pop_Mmin{%i}' % self.pf['feedback_LW']] = f_Mmin
-                        
-            delattr(self, '_pf')
-            delattr(self, '_medium')
-            delattr(self, 'history')       
-                        
-            self.__init__(**self.kwargs)
-            self.run()
+            if not self._is_converged():    
+                self.run()
+
+    def reboot(self):
+        delattr(self, '_pf')
+        delattr(self, '_medium')
+        delattr(self, 'history')
+
+        self.__init__(**self.kwargs)
                                 
     def step(self):
         """
@@ -304,7 +365,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     continue
                                                     
                 if not np.any(self.medium.field.solve_rte[i]):
-                    Ja += self.medium.field.LymanAlphaFlux(z, popid=i)                    
+                    Ja += self.medium.field.LymanAlphaFlux(z, popid=i)   
                     Jlw += self.medium.field.LymanWernerFlux(z, popid=i)
                     continue
 
@@ -320,7 +381,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     Ja += self.medium.field.all_fluxes[-1][i][j][l]
 
                     ##
-                    # Feedback time
+                    # Compute JLW
                     ##
                     
                     # Find photons in LW band    
@@ -335,9 +396,10 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                     dnu = (E_LL - 11.18) / ev_per_hz
                     Jlw += np.trapz(flux, x=Earr[is_LW]) / dnu
                                         
-            # Solver requires this                                            
+            # Solver requires this
             Ja = np.atleast_1d(Ja)                                            
-                                                                    
+            Jlw = np.atleast_1d(Jlw)  
+                                                                                
             # Compute spin temperature
             n_H = self.medium.parcel_igm.grid.cosm.nH(z)
             Ts = self.medium.parcel_igm.grid.hydr.Ts(z,
@@ -354,73 +416,89 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                         
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
+    
+    @property        
+    def maxiter(self):
+        if not hasattr(self, '_maxiter'):
+            self._maxiter = self.pf['feedback_LW_maxiter']
+        return self._maxiter
+    
+    @maxiter.setter
+    def maxiter(self, value):
+        pre = self.pf['feedback_LW_maxiter']
+        post = value
+        print "Raising maxiter from %i to %i" % (pre, post)
+        self._maxiter = value
             
     def _is_converged(self):
+        
+        if self.count == 1:
+            return False
+        
+        ##
+        # Otherwise, iterate until convergence criterion is met
+        ##
+        
+        # Grab global spectra for this iteration and previous one
+        znow = self.history['z'][-1::-1]
+        dTb_now = self.history['dTb'][-1::-1]
+        
+        sim_pre = self._suite[-2]
+        zpre = sim_pre['z'][-1::-1]
+        dTb_pre = sim_pre['dTb'][-1::-1]
+        
+        ok = znow < 50
+        
+        # Interpolate to common redshift grid
+        dTb_now_interp = np.interp(zpre, znow, dTb_now)
+        
+        dTb_pre = dTb_pre[np.where(ok)]
+        dTb_now_interp = dTb_now_interp[np.where(ok)]
+        
+        err_rel = np.abs((dTb_now_interp - dTb_pre) \
+            / dTb_now_interp)
+        err_abs = np.abs(dTb_now_interp - dTb_pre)
+        
+        if self.pf['debug']:
+            print "Iteration #%i: err_rel (mean) = %.4g, err_abs (mean) = %.4g" \
+                % (self.count, err_rel.mean(), err_abs.mean())
+            print "Iteration #%i: err_rel (max)  = %.4g, err_abs (max)  = %.4g" \
+                % (self.count, err_rel.max(), err_abs.max()) 
+        
+        if self.count >= self.maxiter:
+            return True
+            
         # Perform set number of iterations
         if self.pf['feedback_LW_iter'] is not None:
             if self.count > self.pf['feedback_LW_iter']:
-                return True
-        elif self.count > self.pf['feedback_LW_maxiter']:
-            return True
-        # Iterate until convergence criterion is met
-        elif self.count > 1:
-    
-            # Grab global spectra for this iteration and previous one
-            znow = self.history['z'][-1::-1]
-            dTb_now = self.history['dTb'][-1::-1]
+                return True    
+        
+        rtol = self.pf['feedback_LW_rtol']
+        atol = self.pf['feedback_LW_atol']
+        
+        # Compute error
+        if self.pf['feedback_LW_mean_err']:
             
-            sim_pre = self._suite[-2]
-            zpre = sim_pre['z'][-1::-1]
-            dTb_pre = sim_pre['dTb'][-1::-1]
-            
-            ok = znow < 50
-            
-            # Interpolate to common redshift grid
-            dTb_now_interp = np.interp(zpre, znow, dTb_now)
-            
-            dTb_pre = dTb_pre[np.where(ok)]
-            dTb_now_interp = dTb_now_interp[np.where(ok)]
-            
-            err_rel = np.abs((dTb_now_interp - dTb_pre) \
-                / dTb_now_interp)
-            err_abs = np.abs(dTb_now_interp - dTb_pre)
-            
-            #print "Iteration #%i: err_rel (mean) = %.5g, err_abs (mean) = %.5g" \
-            #    % (self.count, err_rel.mean(), err_abs.mean())
-            #print "Iteration #%i: err_rel (max) = %.5g, err_abs (max) = %.5g" \
-            #    % (self.count, err_rel.max(), err_abs.max()) 
-            
-            rtol = self.pf['feedback_LW_rtol']
-            atol = self.pf['feedback_LW_atol']
-
-            # Compute error
-            if self.pf['feedback_LW_mean_err']:
-                
-                
-                if rtol > 0:
-                    if err_rel.mean() > rtol:
-                        return False
-                    elif err_rel.mean() < rtol and (atol == 0):
-                        return True
-                    
-                # Only make it here if rtol is satisfied or irrelevant
-                
-                if atol > 0:
-                    if err_abs.mean() < atol:
-                        return True                        
-                
-            else:  
-                converged = np.allclose(dTb_pre, dTb_now_interp,
-                    rtol=rtol, atol=atol)
-                                          
-                if converged:
+            if rtol > 0:
+                if err_rel.mean() > rtol:
+                    return False
+                elif err_rel.mean() < rtol and (atol == 0):
                     return True
-        else:
-            pass
+                
+            # Only make it here if rtol is satisfied or irrelevant
             
-            # This should only happen on iteration #1 when we're using
-            # a tolerance-based convergence criterion.
-
+            if atol > 0:
+                if err_abs.mean() < atol:
+                    return True                        
+            
+        else:  
+            converged = np.allclose(dTb_pre, dTb_now_interp,
+                rtol=rtol, atol=atol)
+                                      
+            if converged:
+                return True
+        
+        # Will only make it here if convergence criteria not satisfied
         return False
 
     def save(self, prefix, suffix='pkl', clobber=False):
@@ -452,10 +530,20 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             else: 
                 raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
     
-        if suffix == 'pkl':                        
-            f = open(fn, 'wb')
-            pickle.dump(self.history, f)
-            f.close()
+        # I/O more complicated in this case.
+        if hasattr(self, '_suite') and suffix != 'pkl':
+            raise NotImplemented('help!')
+    
+        if suffix == 'pkl':
+            if hasattr(self, '_suite'):
+                f = open(fn, 'wb')
+                for hist in self._suite:
+                    pickle.dump(hist, f)
+                f.close()
+            else:          
+                f = open(fn, 'wb')
+                pickle.dump(self.history, f)
+                f.close()
     
         elif suffix in ['hdf5', 'h5']:
             import h5py

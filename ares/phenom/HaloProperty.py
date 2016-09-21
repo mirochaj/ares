@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from types import FunctionType
 from ..util import ParameterFile
 
 def tanh_astep(M, lo, hi, logM0, logdM):
@@ -21,7 +22,7 @@ def tanh_rstep(M, lo, hi, logM0, logdM):
     return hi * lo * 0.5 * (np.tanh((logM0 - np.log10(M)) / logdM) + 1.) + hi
 
 Mh_dep_parameters = ['pop_fstar', 'pop_fesc', 'pop_L1600_per_sfr', 
-    'pop_Nion', 'pop_Nlw']
+    'pop_Nion', 'pop_Nlw', 'pop_fesc_LW']
     
 func_options = \
 {
@@ -35,7 +36,7 @@ func_options = \
  'rstep': 'p0 * p2 if x <= p1 else p2',
  'plsum': 'p[0] * (x / p[1])**p[2] + p[3] * (x / p[4])**p5',
 }
-    
+
 class ParameterizedHaloProperty(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -136,6 +137,18 @@ class ParameterizedHaloProperty(object):
                 val = p[0] * ((1. + z) / (1. + p[1]))**p[2]
                 
                 exec('p%i = val' % i)
+            elif type(par) == tuple:
+                f, v = par
+                                
+                if v == 'z':
+                    val = f(z)
+                elif v == 'mass':
+                    val = f(M)
+                else:
+                    raise NotImplementedError('help!')
+                
+                exec('p%i = val' % i)    
+                    
             else:
                 exec('p%i = par' % i)
             
@@ -169,6 +182,7 @@ class ParameterizedHaloProperty(object):
                 else:
                     f = p1
         elif func == 'astep':
+                        
             if type(x) is np.ndarray:
                 lo = x <= p2
                 hi = x > p2

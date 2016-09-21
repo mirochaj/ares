@@ -1032,6 +1032,8 @@ class UniformBackground(object):
         """
 
         Nz, Nf = len(z), len(E)
+        
+        
 
         Inu = np.zeros(Nf)
         for i in xrange(Nf): 
@@ -1042,11 +1044,41 @@ class UniformBackground(object):
 
         # Now, redshift dependent parts    
         epsilon = np.zeros([Nz, Nf])
-        for ll in xrange(Nz):
-            H = self.cosm.HubbleParameter(z[ll])
-            Lbol = pop.LuminosityDensity(z[ll])
-            epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H / erg_per_ev                
+        
+        #if Nf == 1:
+        #    return epsilon
+        
+        scalable = False
+        if hasattr(pop, 'scalable_rhoL'):
+            if pop.scalable_rhoL:
+                scalable = True
+        
+        H = np.array(map(self.cosm.HubbleParameter, z))
 
+        if scalable:
+            for ll in xrange(Nz):
+                Lbol = pop.LuminosityDensity(z[ll])
+                epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H[ll] / erg_per_ev
+        else:
+            
+            ##
+            # WARNING: This is super non-general at the moment. 
+            # Be careful!
+            ##
+                                                        
+            # Got some fixin' to do.
+            for band in [(10.2, 13.6), (13.6, 24.6)]:
+                
+                # Setup interpolant
+                rho_L = pop.rho_L(Emin=band[0], Emax=band[1])    
+                
+                in_band = np.logical_and(E >= band[0], E <= band[1])
+                
+                for ll, redshift in enumerate(z):
+                    Lband = rho_L(redshift)
+                    epsilon[ll,in_band] = Inu_hat[in_band] * Lband * ev_per_hz \
+                        / H[ll] / erg_per_ev / pop._convert_band(band[0], band[1])
+            
         return epsilon
             
     def _flux_generator_generic(self, energies, redshifts, ehat, tau=None,

@@ -17,7 +17,7 @@ tiny_frac = 1e-8
 eq_dqdt = 1e-10
 huge_dt = 1e30  # seconds
 
-class RestrictTimestep:
+class RestrictTimestep(object):
     def __init__(self, grid, epsilon=0.1, verbose=True):
         self.grid = grid
         self.epsilon = epsilon

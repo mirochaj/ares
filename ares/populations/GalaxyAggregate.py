@@ -104,13 +104,14 @@ class GalaxyAggregate(HaloPopulation):
         self._id_num = int(value)
         
     @property
-    def is_lya_src(self):
-        if not hasattr(self, '_is_lya_src'):
-            self._is_lya_src = \
-                (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
-                and self.pf['pop_lya_src']
-
-        return self._is_lya_src
+    def scalable_rhoL(self):
+        """
+        Can we just determine a luminosity density by scaling the SFRD?
+    
+        For GalaxyAggregate sources, the answer is always "yes."
+        """
+    
+        return True
 
     @property
     def _Source(self):
@@ -321,7 +322,7 @@ class GalaxyAggregate(HaloPopulation):
         if not hasattr(self, '_is_lya_src'):
             if self.pf['pop_sed_model']:
                 self._is_lya_src = \
-                    (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
+                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
                     and self.pf['pop_lya_src']
             else:
                 return self.pf['pop_lya_src']
@@ -349,7 +350,7 @@ class GalaxyAggregate(HaloPopulation):
                     and self.pf['pop_heat_src_igm']
             else:
                 self._is_xray_src = self.pf['pop_heat_src_igm']        
-    
+        
         return self._is_xray_src    
     
     def _convert_band(self, Emin, Emax):

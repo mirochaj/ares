@@ -221,7 +221,7 @@ class ParameterBundle(dict):
                 self[key] = kwargs[key]
             
     def _initialize(self, bundle, **kwargs):
-        
+
         # Clear out
         tmp = self.keys()
         for key in tmp:

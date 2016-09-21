@@ -215,12 +215,15 @@ def PhysicsParameters():
     "rate_source": 'fk94', # fk94, option for development here
     
     # LW feedback parameters
-    'feedback_LW': False,
+    'feedback_LW': None,
+    'feedback_LW_Tcut': 1e4,
     'feedback_LW_iter': None, 
     'feedback_LW_maxiter': 10,
     'feedback_LW_rtol': 0.,
     'feedback_LW_atol': 1.,
     'feedback_LW_mean_err': False,
+    'feedback_LW_Mmin_uponly': False,
+    'feedback_LW_Mmin_smooth': False,
 
     }
 
@@ -733,6 +736,7 @@ def ControlParameters():
 
     "progress_bar": True,
     "verbose": True,
+    "debug": False,
     }
 
     pf.update(rcParams)

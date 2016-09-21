@@ -18,9 +18,9 @@ from scipy.misc import derivative
 from ..util.Misc import get_hg_rev
 from ..util.Warnings import no_hmf
 from scipy.integrate import cumtrapz
-from ..util.Math import central_difference, smooth
 from ..util.ProgressBar import ProgressBar
 from ..util.ParameterFile import ParameterFile
+from ..util.Math import central_difference, smooth
 from .Constants import g_per_msun, cm_per_mpc, s_per_yr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
 
@@ -129,8 +129,9 @@ class HaloMassFunction(object):
         
         # Verify that Tmax is set correctly
         if self.pf['pop_Tmax'] is not None:
-            assert self.pf['pop_Tmax'] > self.pf['pop_Tmin'], \
-                "Tmax must exceed Tmin!"
+            if self.pf['pop_Tmin'] is not None and self.pf['pop_Mmin'] is None:
+                assert self.pf['pop_Tmax'] > self.pf['pop_Tmin'], \
+                    "Tmax must exceed Tmin!"
         
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load'] and (self.fn is None):
@@ -392,7 +393,7 @@ class HaloMassFunction(object):
             type(self.pf['pop_Mmax']) is FunctionType    
         
         self.logM_min = np.zeros_like(self.z)
-        self.logM_max = np.zeros_like(self.z)
+        self.logM_max = np.inf * np.ones_like(self.z)
         self.fcoll_Tmin = np.zeros_like(self.z)
         self.dndm_Mmin = np.zeros_like(self.z)
         self.dndm_Mmax = np.zeros_like(self.z)
@@ -436,7 +437,7 @@ class HaloMassFunction(object):
                 central_difference(self.z, 10**self.logM_max)
         
             bc_max = 10**self.logM_min[1:-1] * self.dndm_Mmax[1:-1] \
-                * dMmindz / self.cosm.mean_density0
+                * dMmaxdz / self.cosm.mean_density0
                 
             self.dfcolldz_tab += bc_max
                 
@@ -447,7 +448,7 @@ class HaloMassFunction(object):
             else:
                 kern = 3
             
-            self.dfcolldz_tab = smooth(self.ztab, self.dfcolldz_tab, kern)
+            self.dfcolldz_tab = smooth(self.dfcolldz_tab, kern)
         
             # Cut off edges of array?
             if self.pf['hmf_dfcolldz_trunc']:
@@ -460,12 +461,27 @@ class HaloMassFunction(object):
         self.dfcolldz_tab *= -1.
 
         fcoll_spline = None        
+        dfcolldz_small = self.dfcolldz_tab < tiny_dfcolldz
         
-        self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
+        if np.allclose(self.dfcolldz_tab, np.zeros_like(self.ztab), rtol=0., 
+            atol=tiny_dfcolldz):
+            self.dfcolldz_tab = np.zeros_like(self.ztab)
+            dfcolldz_spline = lambda z: 0.0
+        else:        
 
-        spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
-            kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
-        dfcolldz_spline = lambda z: 10**spline.__call__(z)
+            # Try masking all z elements lower than first occurrence
+
+            #zp = self.ztab[self.ztab <= 50]
+            #fp = self.dfcolldz_tab[self.ztab <= 50]
+            #zmax = zp[fp < tiny_dfcolldz].max()
+            #print zmax
+            #
+            self.dfcolldz_tab[self.dfcolldz_tab <= tiny_dfcolldz] = tiny_dfcolldz
+            #self.dfcolldz_tab[self.ztab <= zmax] = tiny_dfcolldz
+                        
+            spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
+                kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
+            dfcolldz_spline = lambda z: 10**spline.__call__(z)
 
         return fcoll_spline, dfcolldz_spline, None
 

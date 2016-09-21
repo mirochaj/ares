@@ -121,40 +121,70 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         elif (Emin, Emax) == (10.2, 13.6):
             self._N_per_Msun[(Emin, Emax)] = self.Nlw(None, self.halos.M) \
                 * self.cosm.b_per_g * g_per_msun #/ s_per_yr
-    
+        else:
+            s = 'Unrecognized band: (%.3g, %.3g)' % (Emin, Emax)
+            raise NotImplementedError(s)
+            
         return self._N_per_Msun[(Emin, Emax)]
 
-    #def rho_L(self, z, Emin, Emax):
-    #    """
-    #    Compute the luminosity density in some bandpass at some redshift.
-    #    
-    #    Returns
-    #    -------
-    #    Luminosity density in units of erg / s / (comoving cm)**3.
-    #    """
-    #    
-    #    if not hasattr(self, '_rho_L'):
-    #        self._rho_L = {}
-    #    
-    #    # If we've already figured it out, just return    
-    #    if (Emin, Emax) in self._rho_L:    
-    #        return self._rho_L[(Emin, Emax)]    
-    #        
-    #    tab = np.zeros(self.halos.Nz)
-    #    
-    #    for i, z in enumerate(self.halos.z):
-    #        integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
-    #            * self.L_per_SFR(Emin=Emin, Emax=Emax)
-    #    
-    #        tot = np.trapz(integrand, x=self.halos.lnM)
-    #        cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
-    #        
-    #        self._sfrd_tab[i] = tot - \
-    #            np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
-    #        
-    #    self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3    
-    #
-    #    self._rho_L[(Emin, Emax)] = interp1d(self.halos.z, tab, kind='cubic')
+    def rho_L(self, Emin=None, Emax=None):
+        """
+        Compute the luminosity density in some bandpass for all redshifts.
+
+        Returns
+        -------
+        Interpolant for luminosity density in units of erg / s / (comoving cm)**3.
+        """
+
+        if not hasattr(self, '_rho_L'):
+            self._rho_L = {}
+
+        # If nothing is supplied, compute the "full" luminosity density
+        if (Emin is None) and (Emax is None):
+            Emin = self.pf['pop_EminNorm']
+            Emax = self.pf['pop_EmaxNorm']
+        elif (Emin is not None) and (Emax is not None):
+            pass
+            # we're good here
+        else:
+            raise ValueError('help!')
+
+        # If we've already figured it out, just return    
+        if (Emin, Emax) in self._rho_L:    
+            return self._rho_L[(Emin, Emax)]    
+
+        # For all halos
+        N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
+
+        # Also need energy per photon in this case
+        erg_per_phot = self.src.erg_per_phot(Emin, Emax)
+
+        tab = np.zeros(self.halos.Nz)
+        for i, z in enumerate(self.halos.z):
+            
+            # Get an array for fesc
+            if (Emin, Emax) == (13.6, 24.6):
+                fesc = self.fesc(z, self.halos.M)
+            elif (Emin, Emax) == (10.2, 13.6):
+                fesc = self.fesc_LW(z, self.halos.M)
+            else:
+                raise NotImplemented('help!')
+            
+            integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
+                * N_per_Msun * fesc * self.fduty(z, self.halos.M) \
+                * erg_per_phot
+
+            tot = np.trapz(integrand, x=self.halos.lnM)
+            cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
+
+            tab[i] = tot - \
+                np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
+
+        tab *= 1. / s_per_yr / cm_per_mpc**3
+        
+        self._rho_L[(Emin, Emax)] = interp1d(self.halos.z, tab, kind='cubic')
+    
+        return self._rho_L[(Emin, Emax)]
     
     def rho_N(self, z, Emin, Emax):
         """
@@ -170,7 +200,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         
         # If we've already figured it out, just return    
         if (Emin, Emax) in self._rho_N:    
-            return self._rho_N[Emin, Emax](z)
+            return self._rho_N[(Emin, Emax)](z)
             
         tab = np.zeros(self.halos.Nz)
         
@@ -178,9 +208,11 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
         
         if (Emin, Emax) == (13.6, 24.6):
-            fesc = self.fesc(None, self.halos.M)
+            fesc = self.fesc(z, self.halos.M)
+        elif (Emin, Emax) == (10.2, 13.6):
+            fesc = self.fesc_LW(z, self.halos.M)
         else:
-            fesc = 1.
+            raise NotImplemented('help!')
 
         for i, z in enumerate(self.halos.z):
             integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
@@ -484,9 +516,8 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         if self.scalable_rhoL:
             rhoL = super(GalaxyCohort, self).Emissivity(z, E=E, 
                 Emin=Emin, Emax=Emax)
-            
         else:
-            raise NotImplemented('can\'t yet have Mh-dep SEDs (parametric)')
+            raise NotImplemented('help')    
 
         if E is not None:
             return rhoL * self.src.Spectrum(E)
@@ -553,6 +584,12 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         return phi_of_x
 
     def Lh(self, z):
+        """
+        This is the rest-frame UV band in which the LF is measured.
+        
+        NOT generally use-able!!!
+        
+        """
         return self.SFR(z, self.halos.M) * self.L1600_per_sfr(z, self.halos.M)
 
     def phi_of_L(self, z):
@@ -812,6 +849,19 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
                 raise ValueError('Unrecognized data type for pop_fesc!')  
     
         return self._fesc
+    
+    @property    
+    def fesc_LW(self):
+        if not hasattr(self, '_fesc_LW'):
+            if type(self.pf['pop_fesc_LW']) in [float, np.float64]:
+                self._fesc_LW = lambda z, M: self.pf['pop_fesc_LW']
+            elif self.pf['pop_fesc_LW'][0:3] == 'php':
+                pars = get_php_pars(self.pf['pop_fesc_LW'], self.pf)    
+                self._fesc_LW = ParameterizedHaloProperty(**pars)
+            else:
+                raise ValueError('Unrecognized data type for pop_fesc!')  
+    
+        return self._fesc_LW  
         
     def gamma_sfe(self, z, M):
         """
@@ -843,25 +893,25 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         
         return derivative(logphi, np.log10(L), dx=0.1)
         
-    #def LuminosityDensity(self, z, Emin=None, Emax=None):
-    #    """
-    #    Return the integrated luminosity density in the (Emin, Emax) band.
-    #    
-    #    Parameters
-    #    ----------
-    #    z : int, flot
-    #        Redshift of interest.
-    #    
-    #    Returns
-    #    -------
-    #    Luminosity density in erg / s / c-cm**3.
-    #    
-    #    """
-    #    
-    #    if self.scalable_rhoL:
-    #        return self.Emissivity(z, Emin, Emax)
-    #    else:
-    #        return self.rho_L[(Emin, Emax)](z)
+    def LuminosityDensity(self, z, Emin=None, Emax=None):
+        """
+        Return the integrated luminosity density in the (Emin, Emax) band.
+        
+        Parameters
+        ----------
+        z : int, flot
+            Redshift of interest.
+        
+        Returns
+        -------
+        Luminosity density in erg / s / c-cm**3.
+        
+        """
+        
+        #if self.scalable_rhoL:
+        return self.Emissivity(z, Emin, Emax)
+        #else:
+            #raise ValueError('this shouldnt be called in this case')
      
     def PhotonLuminosityDensity(self, z, Emin=None, Emax=None):
         """
