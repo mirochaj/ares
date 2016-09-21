@@ -272,8 +272,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         ##
         if (self.pf['feedback_LW'] is not None):
             
-            # Instance of the population that "feels" the feedback.
-            pop_fb = self.pops[self.pf['feedback_LW']]
+            
             
             # Compute JLW to get estimate for Mmin^(k+1) 
             ztmp = self.history['z']
@@ -287,8 +286,16 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             f_M = lambda zz: 2.5 * 1e5 * pow(((1. + zz) / 26.), -1.5) \
                 * (1. + 6.96 * pow(4 * np.pi * f_J(zz), 0.47))
           
-            # Use this on the next iteration       
-            _Mmin_next = f_M(ztmp)          
+            if self.count > 1:
+                hist = self._suite[-1]
+                s = 'pop_Mmin{%i}' % self.pf['feedback_LW'][0]
+                _Mmin_prev = np.interp(ztmp, hist['z'][-1::-1], 
+                    hist[s][-1::-1])
+          
+                    # Use this on the next iteration       
+                _Mmin_next = np.mean([f_M(ztmp), _Mmin_prev], axis=0)
+            else:
+                _Mmin_next = f_M(ztmp)
 
             # First, get rid of nans
             #if np.any(np.isnan(_Mmin)):
@@ -296,6 +303,9 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
 
             # Potentially impose ceiling on Mmin
             Tcut = self.pf['feedback_LW_Tcut']
+            
+            # Instance of the population that "feels" the feedback.
+            pop_fb = self.pops[self.pf['feedback_LW'][0]]
             Mmin_ceil = pop_fb.halos.VirialMass(Tcut, ztmp)
             #if self.pf['pop_Mmax{%i}' % self.pf['feedback_LW']] is not None:
             #    Mmin_ceil = self.pf['pop_Mmax{%i}' % self.pf['feedback_LW']]
@@ -324,11 +334,11 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
 
             # Save for prosperity
             self._suite.append(self.history.copy())
-            self._suite[-1]['pop_Mmin{%i}' % self.pf['feedback_LW']] = Mmin
-
+            for popid in self.pf['feedback_LW']:
+                self._suite[-1]['pop_Mmin{%i}' % popid] = Mmin
+                self.kwargs['pop_Mmin{%i}' % popid] = f_Mmin
+            
             # Do it all again! Maybe.
-            kw_orig = self.kwargs.copy()
-            self.kwargs['pop_Mmin{%i}' % self.pf['feedback_LW']] = f_Mmin
             if not self._is_converged():    
                 self.run()
 

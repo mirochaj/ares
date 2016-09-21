@@ -103,7 +103,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         
         Returns
         -------
-        In units of photons/s/Msun.
+        In units of photons/Msun.
         
         """
         if not hasattr(self, '_N_per_Msun'):
@@ -117,13 +117,14 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         if (Emin, Emax) == (13.6, 24.6):
             # Should be based on energy at this point, not photon number
             self._N_per_Msun[(Emin, Emax)] = self.Nion(None, self.halos.M) \
-                * self.cosm.b_per_g * g_per_msun #/ s_per_yr
+                * self.cosm.b_per_g * g_per_msun
         elif (Emin, Emax) == (10.2, 13.6):
             self._N_per_Msun[(Emin, Emax)] = self.Nlw(None, self.halos.M) \
-                * self.cosm.b_per_g * g_per_msun #/ s_per_yr
+                * self.cosm.b_per_g * g_per_msun
         else:
             s = 'Unrecognized band: (%.3g, %.3g)' % (Emin, Emax)
-            raise NotImplementedError(s)
+            return 0.0
+            #raise NotImplementedError(s)
             
         return self._N_per_Msun[(Emin, Emax)]
 
@@ -144,35 +145,42 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             Emin = self.pf['pop_EminNorm']
             Emax = self.pf['pop_EmaxNorm']
         elif (Emin is not None) and (Emax is not None):
-            pass
-            # we're good here
+            if Emin < self.pf['pop_Emin']:
+                return None
+            if Emax < self.pf['pop_Emin']:
+                return None
         else:
             raise ValueError('help!')
-
+            
         # If we've already figured it out, just return    
         if (Emin, Emax) in self._rho_L:    
             return self._rho_L[(Emin, Emax)]    
 
         # For all halos
-        N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
-
-        # Also need energy per photon in this case
-        erg_per_phot = self.src.erg_per_phot(Emin, Emax)
-
-        tab = np.zeros(self.halos.Nz)
-        for i, z in enumerate(self.halos.z):
+        if Emax <= 24.6:
+            N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
+            
+            # Also need energy per photon in this case
+            erg_per_phot = self.src.erg_per_phot(Emin, Emax)
             
             # Get an array for fesc
             if (Emin, Emax) == (13.6, 24.6):
-                fesc = self.fesc(z, self.halos.M)
+                fesc = lambda zz: self.fesc(zz, self.halos.M)
             elif (Emin, Emax) == (10.2, 13.6):
-                fesc = self.fesc_LW(z, self.halos.M)
-            else:
-                raise NotImplemented('help!')
+                fesc = lambda zz: self.fesc_LW(zz, self.halos.M)
+            else:                
+                return None
+                
+            yield_per_sfr = lambda zz: fesc(zz) * N_per_Msun * erg_per_phot
             
+        else:
+            yield_per_sfr = lambda zz: self.yield_per_sfr(zz, self.halos.M) \
+                * s_per_yr
+
+        tab = np.zeros(self.halos.Nz)
+        for i, z in enumerate(self.halos.z):            
             integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
-                * N_per_Msun * fesc * self.fduty(z, self.halos.M) \
-                * erg_per_phot
+                * yield_per_sfr(z) * self.fduty(z, self.halos.M)
 
             tot = np.trapz(integrand, x=self.halos.lnM)
             cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
@@ -823,6 +831,10 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
                 raise ValueError('Unrecognized data type for pop_fstar!')  
                 
         return self._fstar
+        
+    @fstar.setter
+    def fstar(self, value):
+        self._fstar = value    
 
     @property
     def fduty(self):
@@ -833,10 +845,23 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
                 pars = get_php_pars(self.pf['pop_fduty'], self.pf)
                 self._fduty = ParameterizedHaloProperty(**pars)
             else:
-                raise ValueError('Unrecognized data type for pop_fstar!')  
+                raise ValueError('Unrecognized data type for pop_fduty!')  
     
         return self._fduty   
     
+    @property    
+    def yield_per_sfr(self):
+        if not hasattr(self, '_yield_per_sfr'):
+            if type(self.pf['pop_yield']) in [float, np.float64]:
+                self._yield_per_sfr = lambda z, M: self.pf['pop_yield']
+            elif self.pf['pop_yield'][0:3] == 'php':
+                pars = get_php_pars(self.pf['pop_yield'], self.pf)    
+                self._yield_per_sfr = ParameterizedHaloProperty(**pars)
+            else:
+                raise ValueError('Unrecognized data type for pop_yield!')  
+    
+        return self._yield_per_sfr
+        
     @property    
     def fesc(self):
         if not hasattr(self, '_fesc'):

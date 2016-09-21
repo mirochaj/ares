@@ -14,7 +14,7 @@ dpl = \
  'pop_Tmin{0}': 1e4,
  'pop_Tmin{1}': 'pop_Tmin{0}',
  'pop_sfr_model{0}': 'sfe-func',
- 'pop_sfr_model{1}': 'link:0',
+ 'pop_sfr_model{1}': 'link:sfrd:0',
  'pop_MAR{0}': 'hmf',
  'pop_MAR_conserve_norm{0}': False,
  
@@ -46,7 +46,7 @@ dpl = \
  'php_func_par1{0}[0]': 2.8e11,
  'php_func_par2{0}[0]': 0.49,       
  'php_func_par3{0}[0]': -0.61,      
- 'pop_calib_L1600': 1.0185e28,      # Enforces Equation 13 in paper 
+ 'pop_calib_L1600{0}': 1.0185e28,      # Enforces Equation 13 in paper 
  ##
  #
  ##

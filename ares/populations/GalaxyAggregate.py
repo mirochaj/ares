@@ -203,9 +203,9 @@ class GalaxyAggregate(HaloPopulation):
             
     @property
     def is_link_sfrd(self):
-        if re.search('link', self.pf['pop_sfr_model']):
+        if re.search('link:sfrd', self.pf['pop_sfr_model']):
             return True
-        return False        
+        return False  
         
     @property
     def is_user_sfe(self):
