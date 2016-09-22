@@ -54,18 +54,60 @@ _keys = ('blob_names', 'blob_ivars', 'blob_funcs')
 class BlobBundle(ParameterBundle):
     def __init__(self, bundle=None, **kwargs):
         ParameterBundle.__init__(self, bundle=bundle, bset=_blobs, **kwargs)
-                
+
+    @property
+    def Nb_groups(self):
+        if not hasattr(self, '_Nb_groups'):
+            ct = 0
+            for element in self['blob_names']:
+                if type(element) is list:
+                    ct += 1
+                    
+            self._Nb_groups = max(ct, 1)
+            
+        return self._Nb_groups            
+
     def __add__(self, other):
-        
-        tmp = self.copy()
-        
-        out = {key: [] for key in _keys}
-        
-        # Make sure to not overwrite anything here!
-        for d in [self, other]:
-            for key in _keys:
-                out[key].append(d[key])
+        """
+        This ain't pretty, but it does the job.
+        """        
                 
+        if hasattr(other, 'Nb_groups'):
+            Nb_new = other.Nb_groups
+        else:
+            Nb_new = 1
+
+        Nb_next = self.Nb_groups + Nb_new
+
+        # Don't operate on self (or copy) since some elements might be None
+        # which will be a problem for append
+        out = {key: [None for i in range(Nb_next)] for key in _keys}
+                
+        # Need to add another level of nesting on the first go 'round
+        for key in _keys:
+            for j in range(self.Nb_groups):
+                if self[key] is None: 
+                    continue
+                if self[key][j] is None:
+                    continue
+                
+                if type(self[key][j]) is list:
+                    out[key][j] = self[key][j]
+                else:
+                    out[key][j] = self[key]
+
+        for key in _keys:
+            for i, j in enumerate(range(self.Nb_groups, Nb_next)):
+                if other[key] is None: 
+                    continue
+                if other[key][j] is None:
+                    continue
+                    
+                if type(other[key][j]) is list:
+                    out[key][j] = other[key][j]
+                else:
+                    out[key][j] = other[key]    
+
         return BlobBundle(**out)
         
         
