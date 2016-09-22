@@ -20,13 +20,23 @@ for tp in list('BCD'):
     for field in _gs_hist:
         _gs_ext.append('%s_%s' % (field, tp))
 
+# Add the zero-crossing even though its not an extremum
+_gs_ext.append('z_ZC')
+_gs_ext.append('tau_e')
+
 _def_z = np.arange(5, 41, 0.1)
 
-_gs_shape_n = ['hwhm_diff_C', 'hwqm_diff_C', 'fwhm_C', 'fwhm']
+_gs_shape_n = ['hwhm_diff_C', 'hwqm_diff_C', 'fwhm_C', 'fwqm_C']
+_gs_shape_n.extend(['hwhm_diff_D', 'hwqm_diff_D', 'fwhm_D', 'fwqm_D'])
+
 _gs_shape_f = ['Width(max_fraction=0.5, peak_relative=True)', 
                'Width(max_fraction=0.25, peak_relative=True)',
+               'Width(max_fraction=0.5, peak_relative=False)',
                'Width(max_fraction=0.25, peak_relative=False)',
-               'Width()'
+               'Width(absorption=False, max_fraction=0.5, peak_relative=True)', 
+               'Width(absorption=False, max_fraction=0.25, peak_relative=True)',
+               'Width(absorption=False, max_fraction=0.5, peak_relative=False)',
+               'Width(absorption=False, max_fraction=0.25, peak_relative=False)'
                ]
 
 _extrema = {'blob_names':_gs_ext, 'blob_ivars': None,  'blob_funcs': None}
@@ -35,7 +45,7 @@ _shape = {'blob_names':_gs_shape_n,'blob_ivars': None, 'blob_funcs': _gs_shape_f
 
 _blobs = \
 {
- 'gs': {'extrema': _extrema, 'history': _history, 'shape': _shape},
+ 'gs': {'basics': _extrema, 'history': _history, 'shape': _shape},
  'rb': None, # eventually 
 }
 
