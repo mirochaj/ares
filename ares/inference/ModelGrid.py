@@ -358,6 +358,8 @@ class ModelGrid(ModelFit):
 
             # Copy kwargs - may need updating with pre-existing lookup tables
             p = self.base_kwargs.copy()
+            
+            print rank, p['pop_Z{0}']
 
             # Log-ify stuff if necessary
             kw = {}
@@ -612,6 +614,17 @@ class ModelGrid(ModelFit):
                 tag=10*rank)
                    
         self.LB = 0
+        
+    @property
+    def LB(self):
+        if not hasattr(self, '_LB'):
+            self.LoadBalance()
+            
+        return self._LB
+        
+    @LB.setter
+    def LB(self, value):
+        self._LB = value
         
     def _balance_via_grouping(self, par):    
         pass
