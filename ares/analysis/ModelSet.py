@@ -660,19 +660,19 @@ class ModelSet(BlobFactory):
         
         sf = self.save_freq
         nw = self.nwalkers
-        nchunks = int(self.steps / sf)
-        schunk = nw * sf
+        
+        assert num < nw, "Only %i walkers were used!" % nw
+        
+        steps_per_walker = self.chain.shape[0] / nw
+        nchunks = steps_per_walker / sf
+        
+        # "size" of each chunk in # of MCMC steps
+        schunk = nw * sf 
+        
         data = []
-        i = 0
-        while True:
-                    
-            try:
-                chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
-                data.extend(chunk)
-            except:
-                break
-                
-            i += 1
+        for i in range(nchunks):   
+            chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
+            data.extend(chunk)
             
         return np.array(data)
                 
@@ -1114,6 +1114,7 @@ class ModelSet(BlobFactory):
         self.set_axis_labels(ax, p, is_log, take_log, un_log, cb)
         
         pl.draw()        
+        
         self._ax = ax
         return ax
         
@@ -1178,7 +1179,7 @@ class ModelSet(BlobFactory):
             polygon = point_collection.envelope
         else:
             raise ValueError('Unrecognized boundary_type=%s!' % boundary_type)        
-                
+
         x_min, y_min, x_max, y_max = polygon.bounds
         
         # Plot a Polygon using descartes
@@ -3133,7 +3134,7 @@ class ModelSet(BlobFactory):
         """
         Make nice axis labels.
         """
-                
+                        
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, 1.0, un_log, None)
 
@@ -3160,19 +3161,11 @@ class ModelSet(BlobFactory):
         ax.set_ylabel(labeler.label(pars[1], take_log=take_log[pars[1]], 
             un_log=un_log[1]))
             
-        pl.draw()
-                        
-        xt = []
-        for i, x in enumerate(ax.get_xticklabels()):
-            xt.append(x.get_text())
-        
-        ax.set_xticklabels(xt, rotation=45.)
-        
-        yt = []
-        for i, x in enumerate(ax.get_yticklabels()):
-            yt.append(x.get_text())
-        
-        ax.set_yticklabels(yt, rotation=45.)
+        # Rotate ticks?
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(45.)
+        for tick in ax.get_yticklabels():
+            tick.set_rotation(45.)
             
         # colorbar
         if cb is not None and len(pars) > 2:
@@ -3180,6 +3173,8 @@ class ModelSet(BlobFactory):
                 un_log=un_log[2]))
         
         pl.draw()
+        
+        return ax
 
     def _alpha_shape(self, points, alpha):
         """

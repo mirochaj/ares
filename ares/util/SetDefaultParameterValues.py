@@ -211,10 +211,16 @@ def PhysicsParameters():
 
     # Lyman alpha sources
     "lya_nmax": 23,
-    'lya_frec_bar': 0.0,   # Neglect injected photons by default if we're
-                           # treating background in approximate way
-
+    
     "rate_source": 'fk94', # fk94, option for development here
+    
+    # LW feedback parameters
+    'feedback_LW': False,
+    'feedback_LW_iter': None, 
+    'feedback_LW_maxiter': 10,
+    'feedback_LW_rtol': 0.,
+    'feedback_LW_atol': 1.,
+    'feedback_LW_mean_err': False,
 
     }
 
@@ -464,11 +470,17 @@ def PopulationParameters():
     "pop_yield_wavelength": 1500.,
 
     'pop_fXh': None,
+    
+    'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
+                           # treating background in approximate way
 
     "pop_approx_tau": True,     # shouldn't be a pop parameter?
     "pop_solve_rte": False,
     
     "pop_tau_Nz": 400,
+    
+    # Feedback! LW for now, but could be other stuff eventually (?)
+    "pop_feedback": False,
 
     # Pre-created splines
     "pop_fcoll": None,
@@ -593,6 +605,17 @@ def HaloMassFunctionParameters():
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
     
+    # to CAMB
+    'hmf_dlna': 2e-6,           # hmf default value is 1e-2
+    'hmf_dlnk': 1e-2,
+    'hmf_lnk_min': -20.,
+    'hmf_lnk_max': 10.,
+    'hmf_transfer__k_per_logint': 11.,
+    'hmf_transfer__kmax': 100., # hmf default value is 5
+    
+    "hmf_dfcolldz_smooth": False,
+    "hmf_dfcolldz_trunc": False,
+    
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     
@@ -655,7 +678,6 @@ def ControlParameters():
     "load_sim": False,
 
     # Timestepping
-    "max_dt": 1.,
     "max_dz": None,
     "max_timestep": 1.,
     "min_timestep": 1e-8,

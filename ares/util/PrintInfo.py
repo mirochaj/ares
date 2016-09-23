@@ -650,8 +650,8 @@ def print_21cm_sim(sim):
     else:
         print line("dzDataDump  : no regularly-spaced redshift dumps")    
 
-    if sim.pf['max_dt'] is not None:  
-        print line("max_dt      : %.2g Myr" % sim.pf['max_dt'])
+    if sim.pf['max_timestep'] is not None:  
+        print line("max_dt      : %.2g Myr" % sim.pf['max_timestep'])
     else:
         print line("max_dt      : no maximum time-step")
 

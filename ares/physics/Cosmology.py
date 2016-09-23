@@ -13,7 +13,8 @@ Description:
 import numpy as np
 from scipy.integrate import quad
 from ..util.ParameterFile import ParameterFile
-from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun
+from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
+    cm_per_mpc
 
 class Cosmology(object):
     def __init__(self, **kwargs):        
@@ -31,9 +32,13 @@ class Cosmology(object):
         self.sigma_8 = self.sigma8 = self.pf['sigma_8']
         self.primordial_index = self.pf['primordial_index']
         
-        self.CriticalDensityNow = (3 * self.hubble_0**2) / (8 * np.pi * G)
+        self.CriticalDensityNow = self.rho_crit_0 = \
+            (3 * self.hubble_0**2) / (8 * np.pi * G)
         
         self.h70 = self.pf['hubble_0']
+        
+        self.mean_density0 = self.omega_m_0 * self.rho_crit_0 \
+            * cm_per_mpc**3 / g_per_msun / self.h70**2
         
         if self.pf['helium_by_number'] is None:
             self.helium_by_mass = self.Y = self.pf['helium_by_mass']
@@ -195,7 +200,7 @@ class Cosmology(object):
         return (3.0 * self.HubbleParameter(z)**2) / (8.0 * np.pi * G)
     
     def dtdz(self, z):
-        return 1. / self.HubbleParameter(z) / (1. + z) 
+        return 1. / self.HubbleParameter(z) / (1. + z)
     
     def LuminosityDistance(self, z):
         """
