@@ -45,7 +45,7 @@ except ImportError:
 
 try:
     import shapely.geometry as geometry
-    from shapely.ops import cascaded_union, polygonize
+    from shapely.ops import cascaded_union, polygonize, unary_union
     have_shapely = True
 except (ImportError, OSError):
     have_shapely = False
@@ -857,6 +857,65 @@ class ModelSet(BlobFactory):
         
         return model_set
         
+    def SliceByPolygon(self, parameters, polygon):
+        """
+        Convert a bounding polygon to a new ModelSet instance.
+        
+        Parameters
+        ----------
+        parameters : list
+            List of parameters names / blob names defining the (x, y) plane
+            of the input polygon.
+        polygon : shapely.geometry.Polygon instance
+            Yep.
+            
+        Returns
+        -------
+        New instance of THIS VERY CLASS.
+        
+        """
+        
+        data, is_log = self.ExtractData(parameters)
+        
+        xdata = data[parameters[0]]
+        ydata = data[parameters[1]]
+        
+        assert len(xdata) == len(ydata)
+        assert len(xdata) == self.chain.shape[0]
+        
+        mask = np.zeros(self.chain.shape[0])
+        for i in range(len(xdata)):
+            pt = geometry.Point(xdata[i], ydata[i])
+            
+            if not polygon.contains(pt):
+                mask[i] = 1
+        
+        ##
+        # CREATE NEW MODELSET INSTANCE
+        ##
+        model_set = ModelSet(self.prefix)
+        
+        # Set the mask! 
+        model_set.mask = np.logical_or(mask, self.mask)
+                
+        return model_set        
+        
+    def Vennify(self, polygon1, polygon2):
+        """
+        Return a new ModelSet instance containing only models that lie 
+        within (or outside, if union==False) intersection of two polygons.
+        """
+        
+        poly = geometry.MultiPolygon([polygon1, polygon2])
+        
+        rings = [geometry.LineString(list(poly.exterior.coords)) \
+            for poly in poly]
+        
+        union = unary_union(rings)
+        result = [geom for geom in polygonize(union)]
+        
+        return result
+        
     @property
     def plot_info(self):
         if not hasattr(self, '_plot_info'):
@@ -1130,8 +1189,8 @@ class ModelSet(BlobFactory):
         return ax
     
     def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
-        take_log=False, un_log=False, multiplier=1., 
-        boundary_type='concave', alpha=0.3, **kwargs):
+        take_log=False, un_log=False, multiplier=1., add_patch=True,
+        boundary_type='concave', alpha=0.3, return_polygon=False, **kwargs):
         """
         Basically a scatterplot but instead of plotting individual points,
         we draw lines bounding the locations of all those points.
@@ -1183,19 +1242,23 @@ class ModelSet(BlobFactory):
         x_min, y_min, x_max, y_max = polygon.bounds
         
         # Plot a Polygon using descartes
-        try:        
-            patch = PolygonPatch(polygon, **kwargs)
-            ax.add_patch(patch)
-        except:
-            patches = []
-            for pgon in polygon:
-                patches.append(PolygonPatch(pgon, **kwargs))
+        if add_patch:
+            try:        
+                patch = PolygonPatch(polygon, **kwargs)
+                ax.add_patch(patch)
+            except:
+                patches = []
+                for pgon in polygon:
+                    patches.append(PolygonPatch(pgon, **kwargs))
+                
+                ax.add_collection(PatchCollection(patches, match_original=True))
             
-            ax.add_collection(PatchCollection(patches, match_original=True))
-        
-        pl.draw()
+            pl.draw()
             
-        return ax
+        if return_polygon:
+            return ax, polygon
+        else:
+            return ax
         
     def get_par_prefix(self, par):
         m = re.search(r"\{([0-9])\}", par)
