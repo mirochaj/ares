@@ -264,16 +264,15 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
-                
+           
+        count = self.count   # Just to make sure attribute exists
         self._count += 1
         
         ##
         # Feedback time!
         ##
         if (self.pf['feedback_LW'] is not None):
-            
-            
-            
+                        
             # Compute JLW to get estimate for Mmin^(k+1) 
             ztmp = self.history['z']
             Jlw = self.history['Jlw'] / 1e-21
