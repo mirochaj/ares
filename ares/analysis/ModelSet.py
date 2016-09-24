@@ -10,6 +10,7 @@ Description: For analysis of MCMC fitting.
 
 """
 
+import shutil
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as pl
@@ -384,31 +385,6 @@ class ModelSet(BlobFactory):
                 
         return self._timing
             
-    def save_hdf5(self):
-        if not have_h5py:
-            return
-        
-        if rank > 0:
-            return
-            
-        f = h5py.File('%s.blobs.hdf5' % self.prefix, 'w')
-        f.create_dataset('blobs', data=self.blobs)
-        f.create_dataset('mask', data=self._mask)
-        f.close()
-        
-        print 'Saved %s.blobs.hdf5' % self.prefix
-        
-        # Save to disk!
-        if not os.path.exists('%s.dblobs.hdf5') and have_h5py:
-            f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'w')
-            f.create_dataset('mask', data=self._mask)
-            f.create_dataset('derived_blobs', data=self._derived_blobs)
-            f.create_dataset('derived_blob_names', data=self._derived_blob_names)
-            f.close()
-        
-            if rank == 0:
-                print 'Saved %s.dblobs.hdf5' % self.prefix
-
     @property
     def Nd(self):
         if not hasattr(self, '_Nd'):
@@ -3120,16 +3096,20 @@ class ModelSet(BlobFactory):
         
         return result
         
-    def save(self, pars, z=None, path='.', fmt='hdf5', clobber=False):
+    def save(self, prefix, pars, ivar=None, path='.', fmt='hdf5', 
+        clobber=False, skip=0, skim=1, stop=None):
         """
         Extract data from chain or blobs and output to separate file(s).
+        
+        This can be a convenient way to re-package data, for instance 
+        consolidating data outputs from lots of processors into a single file.
         
         Parameters
         ----------
         pars : str, list, tuple
             Name of parameter (or list of parameters) or blob(s) to extract.
-        z : int, float, str, list, tuple
-            Redshift(s) of interest.
+        ivar : int, float, str, list, tuple
+            [optional] independent variables, if None will extract all.
         fmt : str
             Options: 'hdf5' or 'pkl'
         path : str
@@ -3139,58 +3119,62 @@ class ModelSet(BlobFactory):
         
         if type(pars) not in [list, tuple]:
             pars = [pars]
-        if type(z) not in [list, tuple]:
-            z = [z] * len(pars)
 
-        # Output to HDF5
+        data, is_log = self.ExtractData(pars, ivar=ivar)
+        
+        fn = '%s/%s.%s.%s' % (path,self.prefix, prefix, fmt)
+        
+        if os.path.exists(fn) and (not clobber):
+            raise IOError('File exists! Set clobber=True to wipe it.')
+            
+        # Output to HDF5. In this case, save each field as a new dataset
         if fmt == 'hdf5':
+            
+            f = h5py.File(fn, 'w')
 
             # Loop over parameters and save to disk
-            for i, par in enumerate(pars):
-                fn = '%s/%s.subset.%s.%s' % (path,self.fn, par, fmt)
-
-                # If the file exists, see if it already contains data for the
-                # redshifts of interest. If not append. If so, raise error.
-                if os.path.exists(fn) and (not clobber):
-
-                    if z[i] is None:
-                        raise IOError('%s exists!' % fn)
-
-                    # Check for redshift data    
-                    f = h5py.File(fn, 'r')
-                    ids, redshifts = zip(*f.attrs.items())
-                    f.close()
-
-                    ids_ints = map(int, ids)
-                    id_start = max(ids_ints) + 1
-
-                    if z[i] in redshifts:
-                        print '%s exists! As does this dataset. Continuing...' % fn
-                        continue
-                else:
-                    id_start = 0
-                    
-                idnum = str(id_start).zfill(5)
+            for par in pars:   
                 
-                if z is None:
-                    attr = -99999
-                else:
-                    attr = z[i]
-            
-                # Stick requested fields in a dictionary
-                data, is_log = self.ExtractData(par, z=z[i])
-            
-                f = h5py.File(fn, 'a')
-                f.attrs.create(idnum, attr)
-
-                ds = f.create_dataset(idnum, data=data[par])
-                ds.attrs.create('mask', data[par].mask)
-                    
-                f.close()
-                print "Wrote %s." % fn    
                 
+                # Tag ivars on as attribute if blob
+                if par in self.all_blob_names:
+                    if 'blobs' not in f:
+                        grp = f.create_group('blobs')
+                    else:
+                        grp = f['blobs']
+                    
+                    ds = grp.create_dataset(par, data=data[par][skip:stop:skim,Ellipsis])
+                    i, j, nd, dims = self.blob_info(par)
+                    ds.attrs.create('ivar', self.blob_ivars[i])
+                else:
+                    if 'axes' not in f:
+                        grp = f.create_group('axes')
+                    else:
+                        grp = f['axes']
+
+                    ds = grp.create_dataset(par, data=data[par][skip:stop:skim,Ellipsis])
+                    
+            f.close()
+            print "Wrote %s." % fn  
+            
+        elif fmt == 'pkl':
+            f = h5py.File(fn, 'w')
+
+            # Loop over parameters and save to disk
+            for i, par in enumerate(pars):   
+                f.create_dataset(par, data=data[par][skip:stop:skim,Ellipsis])
+                
+            f.close()
+            print "Wrote %s." % fn  
+            
         else:
             raise NotImplemented('Only support for hdf5 so far. Sorry!')
+            
+        # Also make a copy of the setup file with same prefix
+        # since that's generally nice to have available.  
+        out = '%s/%s.%s.setup.pkl' % (path, self.prefix, prefix)
+        shutil.copy('%s.setup.pkl' % self.prefix, out)
+        print "Wrote %s." % out    
         
     def set_axis_labels(self, ax, pars, is_log, take_log=False, un_log=False,
         cb=None, labels={}):

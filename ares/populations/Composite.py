@@ -41,9 +41,16 @@ class CompositePopulation(object):
         for i, pf in enumerate(self.pfs):
                         
             if re.search('link', pf['pop_sfr_model']):
-                junk, linkto, linkee = pf['pop_sfr_model'].split(':')
-                to_tunnel[i] = int(linkee)
-                to_quantity[i] = linkto
+                try:
+                    junk, linkto, linkee = pf['pop_sfr_model'].split(':')
+                    to_tunnel[i] = int(linkee)
+                    to_quantity[i] = linkto
+                except ValueError:
+                    # Backward compatibility issue: we used to only ever
+                    # link to the SFRD of another population
+                    junk, linkee = pf['pop_sfr_model'].split(':')
+                    to_tunnel[i] = int(linkee)
+                    to_quantity[i] = 'sfrd'
             else:
                 self.pops[i] = GalaxyPopulation(**pf)
 
