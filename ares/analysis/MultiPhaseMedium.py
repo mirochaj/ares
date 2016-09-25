@@ -100,8 +100,20 @@ class MultiPhaseMedium(object):
     def _load_data(self, data):
         try:
             f = open('%s.history.pkl' % data, 'rb')
-            history = pickle.load(f)
+            while True:
+                try:
+                    tmp = pickle.load(f)
+                except EOFError:
+                    break
+                
+                if not hasattr(self, '_suite'):
+                    self._suite = []
+                    
+                self._suite.append(tmp.copy())
+            
             f.close()
+            
+            history = self._suite[-1]
 
         except IOError: 
             if re.search('pkl', data):
