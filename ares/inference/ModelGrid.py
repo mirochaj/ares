@@ -520,34 +520,11 @@ class ModelGrid(ModelFit):
             self._Tmin_in_grid = False
             for par in self.grid.axes_names:
 
-                if par == 'Tmin':
+                if re.search('Tmin', par):
                     ct += 1
                     self._Tmin_in_grid = True
                     name = par
-                    continue
 
-                if not re.search(par, 'Tmin'):
-                    continue
-
-                # Look for populations
-                m = re.search(r"\{([0-9])\}", par)
-            
-                if m is None:
-                    continue
-            
-                # Population ID number
-                num = int(m.group(1))
-                self.Tmin_ax_popid = num
-            
-                # Pop ID including curly braces
-                prefix = par.strip(m.group(0))
-                
-                if prefix == 'Tmin':
-                    ct += 1
-                    self._Tmin_in_grid = True
-                    name = par
-                    continue
-                    
             self.Tmin_ax_name = name
             
             if ct > 1:

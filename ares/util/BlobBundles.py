@@ -55,13 +55,27 @@ class BlobBundle(ParameterBundle):
     def __init__(self, bundle=None, **kwargs):
         ParameterBundle.__init__(self, bundle=bundle, bset=_blobs, **kwargs)
 
+        self._check_shape()
+
+    def _check_shape(self):
+        # For a single blob bundle, make sure elements are lists
+        for key in _keys:
+            if type(self[key]) is not list:
+                self[key] = [self[key]]
+              
+        for key in _keys: 
+            if self[key][0] is None:
+                continue
+                
+            if type(self[key][0]) is not list:
+                self[key] = [self[key]]
+
     @property
     def Nb_groups(self):
         if not hasattr(self, '_Nb_groups'):
             ct = 0
             for element in self['blob_names']:
-                if type(element) is list:
-                    ct += 1
+                ct += 1
                     
             self._Nb_groups = max(ct, 1)
             
@@ -72,6 +86,7 @@ class BlobBundle(ParameterBundle):
         This ain't pretty, but it does the job.
         """        
                 
+        # Number of blob groups
         if hasattr(other, 'Nb_groups'):
             Nb_new = other.Nb_groups
         else:
@@ -86,28 +101,18 @@ class BlobBundle(ParameterBundle):
         # Need to add another level of nesting on the first go 'round
         for key in _keys:
             for j in range(self.Nb_groups):
-                if self[key] is None: 
-                    continue
                 if self[key][j] is None:
                     continue
-                
-                if type(self[key][j]) is list:
-                    out[key][j] = self[key][j]
-                else:
-                    out[key][j] = self[key]
-
+                                    
+                out[key][j] = self[key][j]
+        
         for key in _keys:
             for i, j in enumerate(range(self.Nb_groups, Nb_next)):
                 if other[key] is None: 
                     continue
-                if other[key][j] is None:
-                    continue
                     
-                if type(other[key][j]) is list:
-                    out[key][j] = other[key][j]
-                else:
-                    out[key][j] = other[key]    
-
+                out[key][j] = other[key][i]
+        
         return BlobBundle(**out)
         
         

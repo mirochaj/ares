@@ -978,6 +978,9 @@ class ModelFit(BlobFactory):
             blobs_now = blobs
         # We're saving one file per blob
         # The shape of the array will be just blob_nd
+        
+        if self.blob_names is None:
+            return
 
         for j, group in enumerate(self.blob_names):
             for k, blob in enumerate(group):
