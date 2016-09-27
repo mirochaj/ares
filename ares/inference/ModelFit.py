@@ -700,7 +700,6 @@ class ModelFit(BlobFactory):
     def _saved_checkpoints(self, prefix):
         ans = [int(fn[-14:-10])\
             for fn in self._saved_checkpoint_chain_files(prefix)]
-        print ans
         return ans
     
 
@@ -750,11 +749,13 @@ class ModelFit(BlobFactory):
             
             os.system('rm -f %s.*.fail.pkl' % self.prefix)
             os.system('rm -f %s.*.chain.*pkl' % self.prefix)
+            os.system('rm -f %s.*.logL.*pkl' % self.prefix)
             os.system('rm -f %s.*.blob*.*pkl' % self.prefix)
             
             # Need to potentially axe a product file
             os.system('rm -f %s.fails.pkl' % self.prefix)
             os.system('rm -f %s.chain.pkl' % self.prefix)
+            os.system('rm -f %s.rstate.pkl' % self.prefix)
                     
         # Each processor gets its own fail file
         f = open('%s.fail.pkl' % prefix_by_proc, 'wb')
@@ -913,8 +914,12 @@ class ModelFit(BlobFactory):
         elif not restart:
             pos = self.guesses
             state = None
+        elif os.path.exists('%s.rstate.pkl' % (prefix,)):
+            f = open('%s.rstate.pkl' % (prefix,), 'rb')
+            state = pickle.load(f)
+            f.close()
         else:
-            state = None # should this be saved and restarted?
+            state = None
 
         #
         ## MAIN CALCULATION BELOW
@@ -985,6 +990,12 @@ class ModelFit(BlobFactory):
             f = open('%s.facc.pkl' % prefix, 'ab')
             pickle.dump(self.sampler.acceptance_fraction, f)
             f.close()
+
+            ####################################
+            f = open('%s.rstate.pkl' % prefix, 'wb')
+            pickle.dump(state, f)
+            f.close()
+            ####################################
 
             print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
 
