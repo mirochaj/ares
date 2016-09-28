@@ -863,7 +863,7 @@ class UniformBackground(object):
             dnu_LW = (E_LL - 11.18) / ev_per_hz
             return 0.5 * (11.2 + 13.6) * erg_per_ev * norm * (1. + z)**3 \
                 * rhoLW / dnu_LW
-    
+
         # Closest Lyman line (from above)
         n = ceil(np.sqrt(E_LL / (E_LL - E)))
     

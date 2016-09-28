@@ -479,8 +479,9 @@ class ModelSet(BlobFactory):
                         fn = '%s.dd%s.chain.pkl' % (self.prefix, dd)
                         outputs_to_read.append(fn)
                 else:
+                    # Only need to use "sorted" on the second time around
                     outputs_to_read = \
-                        glob.glob('%s.dd*.chain.pkl' % self.prefix)
+                        sorted(glob.glob('%s.dd*.chain.pkl' % self.prefix))
                                 
                 full_chain = []
                 for fn in outputs_to_read:
@@ -539,7 +540,7 @@ class ModelSet(BlobFactory):
                         outputs_to_read.append(fn)
                 else:
                     outputs_to_read = \
-                        glob.glob('%s.dd*.logL.pkl' % self.prefix)
+                        sorted(glob.glob('%s.dd*.logL.pkl' % self.prefix))
                 
                 full_chain = []
                 for fn in outputs_to_read:
@@ -1597,7 +1598,7 @@ class ModelSet(BlobFactory):
             # Only derived blobs in this else block, yes?                        
             else:
                 
-                cand = glob.glob('%s*.%s.pkl' % (self.prefix, par))
+                cand = sorted(glob.glob('%s*.%s.pkl' % (self.prefix, par)))
                 
                 if len(cand) == 1:
                     f = open(cand[0], 'rb')     

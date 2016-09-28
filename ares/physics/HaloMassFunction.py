@@ -421,7 +421,7 @@ class HaloMassFunction(object):
         # already above the threshold.
         self.ztab, self.dfcolldz_tab = \
             central_difference(self.z, self.fcoll_Tmin)
-
+        
         # Compute boundary term(s)
         if Mmin_of_z:
             self.ztab, dMmindz = \
@@ -450,7 +450,6 @@ class HaloMassFunction(object):
             
             self.dfcolldz_tab = smooth(self.dfcolldz_tab, kern)
         
-            # Cut off edges of array?
             if self.pf['hmf_dfcolldz_trunc']:
                 self.dfcolldz_tab[0:kern] = np.zeros(kern)
                 self.dfcolldz_tab[-kern:] = np.zeros(kern)
@@ -460,29 +459,23 @@ class HaloMassFunction(object):
         # 'cuz time and redshift are different        
         self.dfcolldz_tab *= -1.
 
-        fcoll_spline = None        
-        dfcolldz_small = self.dfcolldz_tab < tiny_dfcolldz
+        fcoll_spline = None
+        self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
+
+        # Try masking all z elements lower than first occurrence
         
-        if np.allclose(self.dfcolldz_tab, np.zeros_like(self.ztab), rtol=0., 
-            atol=tiny_dfcolldz):
-            self.dfcolldz_tab = np.zeros_like(self.ztab)
-            dfcolldz_spline = lambda z: 0.0
-        else:        
-
-            # Try masking all z elements lower than first occurrence
-
-            #zp = self.ztab[self.ztab <= 50]
-            #fp = self.dfcolldz_tab[self.ztab <= 50]
-            #zmax = zp[fp < tiny_dfcolldz].max()
-            #print zmax
-            #
-            self.dfcolldz_tab[self.dfcolldz_tab <= tiny_dfcolldz] = tiny_dfcolldz
-            #self.dfcolldz_tab[self.ztab <= zmax] = tiny_dfcolldz
-                        
-            spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
-                kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
-            dfcolldz_spline = lambda z: 10**spline.__call__(z)
-
+        #zp = self.ztab[self.ztab <= 50]
+        #fp = self.dfcolldz_tab[self.ztab <= 50]
+        #zmax = zp[fp < tiny_dfcolldz].max()
+        #print zmax
+        #
+        self.dfcolldz_tab[self.dfcolldz_tab <= tiny_dfcolldz] = tiny_dfcolldz
+        #self.dfcolldz_tab[self.ztab <= zmax] = tiny_dfcolldz
+                    
+        spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
+            kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
+        dfcolldz_spline = lambda z: 10**spline.__call__(z)
+        
         return fcoll_spline, dfcolldz_spline, None
 
     @property
