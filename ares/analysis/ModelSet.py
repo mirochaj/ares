@@ -504,7 +504,7 @@ class ModelSet(BlobFactory):
                         outputs_to_read.append(fn)
                 else:
                     outputs_to_read = \
-                        glob.glob('%s.dd*.chain.pkl' % self.prefix)
+                        sorted(glob.glob('%s.dd*.chain.pkl' % self.prefix))
                                 
                 full_chain = []
                 for fn in outputs_to_read:
@@ -512,8 +512,8 @@ class ModelSet(BlobFactory):
                         print "Found no output: %s" % fn
                         continue
                     
-                    this_chain = read_pickled_chain(fn)                                    
-                    full_chain.extend(this_chain.copy())                    
+                    this_chain = read_pickled_chain(fn)
+                    full_chain.extend(this_chain)                    
                     
                 self._chain = np.ma.array(full_chain, mask=0)
 
