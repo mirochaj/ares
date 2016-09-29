@@ -521,7 +521,7 @@ class ModelSet(BlobFactory):
                 if rank == 0:
                     t2 = time.time()
                     print "Loaded %s.dd*.chain.pkl in %.2g s." %\
-                        (prefix, t2 - t1)
+                        (self.prefix, t2 - t1)
             else:
                 self._chain = None            
 
