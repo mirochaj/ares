@@ -507,16 +507,21 @@ class ModelSet(BlobFactory):
                         sorted(glob.glob('%s.dd*.chain.pkl' % self.prefix))
                                 
                 full_chain = []
+                if rank == 0:
+                    print "Loading %s.dd*.chain.pkl..." % (self.prefix,)
+                    t1 = time.time()
                 for fn in outputs_to_read:
                     if not os.path.exists(fn):
                         print "Found no output: %s" % fn
                         continue
                     
                     this_chain = read_pickled_chain(fn)
-                    full_chain.extend(this_chain)                    
-                    
+                    full_chain.extend(this_chain)
                 self._chain = np.ma.array(full_chain, mask=0)
-
+                if rank == 0:
+                    t2 = time.time()
+                    print "Loaded %s.dd*.chain.pkl in %.2g s." %\
+                        (self.prefix, t2 - t1)
             else:
                 self._chain = None            
 
