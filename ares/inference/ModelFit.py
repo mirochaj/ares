@@ -915,9 +915,10 @@ class ModelFit(BlobFactory):
             pos = self.guesses
             state = None
         elif os.path.exists('%s.rstate.pkl' % (prefix,)):
-            f = open('%s.rstate.pkl' % (prefix,), 'rb')
-            state = pickle.load(f)
-            f.close()
+            with open('%s.rstate.pkl' % (prefix,), 'rb') as fil:
+                state = pickle.load(fil)
+            if rank == 0:
+                print "Using pre-restart RandomState."
         else:
             state = None
 
