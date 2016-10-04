@@ -442,11 +442,11 @@ class ModelSet(BlobFactory):
                 self._chain = np.ma.array(self._chain, mask=mask2d)
             
             # We might have data stored by processor
-            elif os.path.exists('%s.proc0000.chain.pkl' % self.prefix):
+            elif os.path.exists('%s.000.chain.pkl' % self.prefix):
                 i = 0
                 full_chain = []
                 full_mask = []
-                fn = '%s.proc0000.chain.pkl' % self.prefix
+                fn = '%s.000.chain.pkl' % self.prefix
                 while True:
                                         
                     if not os.path.exists(fn):
@@ -456,7 +456,7 @@ class ModelSet(BlobFactory):
                     full_chain.extend(this_chain.copy())                    
                     
                     i += 1
-                    fn = '%s.proc%s.chain.pkl' % (self.prefix, str(i).zfill(4))  
+                    fn = '%s.%s.chain.pkl' % (self.prefix, str(i).zfill(3))  
                     
                 self._chain = np.ma.array(full_chain, mask=0)
 
