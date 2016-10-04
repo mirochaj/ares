@@ -11,6 +11,7 @@ Description:
 """
 
 import os
+import time
 import numpy as np
 from ..util.Math import smooth, central_difference
 from scipy.interpolate import interp1d
@@ -193,6 +194,8 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         else:
             self.reboot()
             
+        t1 = time.time()    
+            
         tf = self.medium.tf
         self.medium._insert_inits()
                 
@@ -340,6 +343,10 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             # Do it all again! Maybe.
             if not self._is_converged():    
                 self.run()
+                
+        t2 = time.time()        
+                
+        self.timer = t2 - t1  
 
     def reboot(self):
         delattr(self, '_pf')

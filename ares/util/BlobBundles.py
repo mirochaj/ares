@@ -42,10 +42,12 @@ _gs_shape_f = ['Width(max_fraction=0.5, peak_relative=True)',
 _extrema = {'blob_names':_gs_ext, 'blob_ivars': None,  'blob_funcs': None}
 _history = {'blob_names':_gs_hist,'blob_ivars': _def_z,'blob_funcs': None}
 _shape = {'blob_names':_gs_shape_n,'blob_ivars': None, 'blob_funcs': _gs_shape_f}
+_runtime = {'blob_names': ['count', 'timer'], 'blob_ivars': None, 'blob_funcs': None}
 
 _blobs = \
 {
- 'gs': {'basics': _extrema, 'history': _history, 'shape': _shape},
+ 'gs': {'basics': _extrema, 'history': _history, 'shape': _shape,
+        'runtime': _runtime},
  'rb': None, # eventually 
 }
 

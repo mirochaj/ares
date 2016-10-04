@@ -68,16 +68,13 @@ class ModelGrid(ModelFit):
             
         """
         
-        if os.path.exists('%s.000.chain.pkl' % prefix):
+        if os.path.exists('%s.%s.chain.pkl' % (prefix, str(rank).zfill(3))):
             save_by_proc = True
-        else:
-            save_by_proc = False
-        
-        if save_by_proc:
             prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
         else:
+            save_by_proc = False
             prefix_by_proc = prefix
-        
+
         # Read in current status of model grid
         chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
 
@@ -273,10 +270,7 @@ class ModelGrid(ModelFit):
             if (not self.save_by_proc) and (rank != (size-1)):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
                 
-            if self.grid.structured:    
-                # Re-run load-balancing
-                self.LoadBalance(self.LB)
-                
+            if self.grid.structured:
                 ct0 = self.done.sum()
             else:
                 ct0 = 0
@@ -287,7 +281,8 @@ class ModelGrid(ModelFit):
         ct = 0
         
         if restart:
-            Nleft = self.grid.size - ct0
+            tot = np.sum(self.assignments == rank)
+            Nleft = tot - ct0
         else:
             Nleft = self.grid.size
                         
@@ -297,10 +292,13 @@ class ModelGrid(ModelFit):
             return
         
         # Print out how many models we have (left) to compute
-        if rank == 0:
-            if restart and self.grid.structured:
-                print "Update: %i models down, %i to go." % (ct0, Nleft)
-            elif restart:
+        
+        if restart and self.grid.structured:
+            print "Update (processor #%i): %i models down, %i to go." \
+                % (rank, ct0, Nleft)
+        
+        elif rank == 0:
+            if restart:
                 print 'Expanding pre-existing model set with %i more models.' \
                     % self.grid.size
             else:
@@ -309,9 +307,6 @@ class ModelGrid(ModelFit):
         # Make some blank files for data output                 
         self.prep_output_files(restart, clobber)                 
 
-        if not hasattr(self, 'LB'):
-            self.LoadBalance(0)                    
-                            
         # Dictionary for hmf tables
         fcoll = {}
 
@@ -557,7 +552,7 @@ class ModelGrid(ModelFit):
     @property
     def save_by_proc(self):
         if not hasattr(self, '_save_by_proc'):
-            self._save_by_proc = False
+            self._save_by_proc = True
         return self._save_by_proc
         
     @save_by_proc.setter
@@ -643,7 +638,7 @@ class ModelGrid(ModelFit):
         
         """
         
-        self.LB = True
+        self.LB = method
         
         if size == 1:
             self.assignments = np.zeros(self.grid.shape)
@@ -651,7 +646,7 @@ class ModelGrid(ModelFit):
             
         if method > 0:
             assert par in self.grid.axes_names, \
-                "Supplied load-balancing parameter %s not in grid!"    
+                "Supplied load-balancing parameter %s not in grid!" % par  
         
             par_i = self.grid.axes_names.index(par)
             par_ax = self.grid.axes[par_i]
@@ -659,9 +654,7 @@ class ModelGrid(ModelFit):
         
         if method not in [0, 1, 2]:
             raise NotImplementedError('Unrecognized load-balancing method %i' % method)
-        
-        self.LB = method
-        
+                
         # No load balancing. Equal # of models per processor
         if method == 0 or (par_N < size):
             
