@@ -35,6 +35,7 @@ func_options = \
  'astep': 'p0 if x <= p1 else p2',
  'rstep': 'p0 * p2 if x <= p1 else p2',
  'plsum': 'p[0] * (x / p[1])**p[2] + p[3] * (x / p[4])**p5',
+ 'ramp': 'p0 if x <= p1, p2 if x >= p3, linear in between',
 }
 
 class ParameterizedHaloProperty(object):
@@ -192,7 +193,7 @@ class ParameterizedHaloProperty(object):
                 if x <= p2:
                     f = p0
                 else:
-                    f = p1            
+                    f = p1      
         elif func == 'pwpl':
             if type(x) is np.ndarray:
                 lo = x <= p4
@@ -207,6 +208,45 @@ class ParameterizedHaloProperty(object):
         elif func == 'okamoto':
             assert var == 'mass'
             f = (1. + (2.**(p0 / 3.) - 1.) * (x / p1)**-p0)**(-3. / p0)
+        elif func == 'ramp':
+            if type(x) is np.ndarray:
+                lo = x <= p1
+                hi = x >= p3
+                mi = np.logical_and(x > p1, x < p3)
+                
+                # ramp slope
+                m = (p2 - p0) / (p3 - p1)
+
+                f = lo * p0 + hi * p2 + mi * (p0 + m * (x - p1))
+                            
+            else:
+                if x <= p1:
+                    f = p0
+                elif x >= p3:
+                    f = p1
+                else:
+                    f = p0 + m * (x - p1)
+        elif func == 'logramp':
+            if type(x) is np.ndarray:
+                lo = logx <= p1
+                hi = logx >= p3
+                mi = np.logical_and(logx > p1, logx < p3)
+        
+                # ramp slope
+                alph = np.log10(p2 / p0) / (p3 - p1)
+                fmid = p0 * (x / 10**p1)**alph
+                
+                f = lo * p0 + hi * p2 + mi * fmid
+        
+            else:
+                if logx <= p2:
+                    f = p0
+                elif logx >= p3:
+                    f = p1
+                else:
+                    alph = np.log10(p2 / p0) / (p3 - p1)
+                    f = (x / 10**p1)**alph
+
         #elif func == 'user':
         #    f = self.pf['php_func_fun'](z, M)
         else:

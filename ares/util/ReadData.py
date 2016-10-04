@@ -61,6 +61,9 @@ def read_lit(prefix, path=None):
         _f, _filename, _data = _imp.find_module(prefix, 
             ['%s/.ares/' % HOME])
         mod = _imp.load_module('%s' % prefix, _f, _filename, _data)
+    elif os.path.exists('./%s.py' % prefix):
+        _f, _filename, _data = _imp.find_module(prefix, ['.'])
+        mod = _imp.load_module('%s' % prefix, _f, _filename, _data)
     else:
         mod = None
     

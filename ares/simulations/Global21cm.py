@@ -547,11 +547,11 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                 raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
     
         # I/O more complicated in this case.
-        if hasattr(self, '_suite') and suffix != 'pkl':
+        if self._suite and suffix != 'pkl':
             raise NotImplemented('help!')
     
         if suffix == 'pkl':
-            if hasattr(self, '_suite'):
+            if self._suite:
                 f = open(fn, 'wb')
                 for hist in self._suite:
                     pickle.dump(hist, f)
@@ -583,21 +583,21 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                 print >> f, '%-18s' % key,
     
             print >> f, ''
-    
+
             # Now, the data
             for i in range(len(self.history[key])):
                 s = ''
-    
+
                 for key in self.history:
                     s += '%-20.8e' % (self.history[key][i])
-    
+
                 if not s.strip():
                     continue
-    
+
                 print >> f, s
-    
+
             f.close()
-    
+
         print 'Wrote %s.history.%s' % (prefix, suffix)
     
         write_pf = True

@@ -284,7 +284,7 @@ class ModelGrid(ModelFit):
             tot = np.sum(self.assignments == rank)
             Nleft = tot - ct0
         else:
-            Nleft = self.grid.size
+            Nleft = np.sum(self.assignments == rank)
                         
         if Nleft == 0:
             if rank == 0:
@@ -333,20 +333,15 @@ class ModelGrid(ModelFit):
             else:
                 kvec = h
 
-            if restart:
-                pb_i = min(ct * size, Nleft - 1)
-            else:
-                pb_i = h
-
             # Skip if it's a restart and we've already run this model
             if restart and self.grid.structured:
                 if self.done[kvec]:
-                    pb.update(pb_i)
+                    pb.update(ct)
                     continue
 
             # Skip if this processor isn't assigned to this model        
             if self.assignments[kvec] != rank:
-                pb.update(pb_i)
+                pb.update(ct)
                 continue
 
             # Grab Tmin index

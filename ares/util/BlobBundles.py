@@ -22,6 +22,9 @@ for tp in list('BCD'):
 
 # Add the zero-crossing even though its not an extremum
 _gs_ext.append('z_ZC')
+# Add curvature of turning points too (sue me)
+_gs_ext.extend(['curvature_%s' % tp for tp in list('BCD')])
+# CMB optical depth
 _gs_ext.append('tau_e')
 
 _def_z = np.arange(5, 41, 0.1)

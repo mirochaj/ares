@@ -99,6 +99,7 @@ class MultiPhaseMedium(object):
 
     def _load_data(self, data):
         try:
+            chunks = 0
             f = open('%s.history.pkl' % data, 'rb')
             while True:
                 try:
@@ -110,10 +111,14 @@ class MultiPhaseMedium(object):
                     self._suite = []
                     
                 self._suite.append(tmp.copy())
+                chunks += 1
             
             f.close()
             
-            history = self._suite[-1]
+            if chunks == 0:
+                raise IOError('Empty history (%s.history.pkl)' % data)
+            else:    
+                history = self._suite[-1]
 
         except IOError: 
             if re.search('pkl', data):
