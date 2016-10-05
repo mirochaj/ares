@@ -71,6 +71,16 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             self._count = 0
         return self._count
             
+    @property 
+    def timer(self):
+        if not hasattr(self, '_timer'):
+            self._timer = 0.0
+        return self._timer
+    
+    @timer.setter
+    def timer(self, value):
+        self._timer = value
+            
     @property
     def info(self):
         print_sim(self)

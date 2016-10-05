@@ -234,11 +234,11 @@ class Global21cm(MultiPhaseMedium):
     def derivative_of_freq(self, freq):
         interp = interp1d(self.nu_p, self.dTbdnu, kind='linear')
         return interp(freq)
-    
+
     def curvature_of_freq(self, freq):
         interp = interp1d(self.nu_pp, self.dTb2dnu2, kind='linear')
         return interp(freq)  
-    
+
     def derivative_of_z(self, z):
         freq = nu_0_mhz / (1. + z)
         return self.derivative_of_freq(freq)

@@ -356,10 +356,10 @@ class BlobFactory(object):
         
         self._blobs = []
         for i, element in enumerate(self.blob_names):
-                        
+                                    
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                     
+                                                                                                                                                                                     
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -489,9 +489,7 @@ class BlobFactory(object):
                         tmp = "%s.dd%s.blob_%id.%s.pkl" \
                             % (self.prefix, ddid, nd, name)
                         ddf.append(tmp)
-                
-                print ddf
-                
+                                
                 # Start with the first...
                 fn = ddf[0]        
         
