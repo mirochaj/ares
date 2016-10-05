@@ -12,6 +12,7 @@ Description:
 
 import os
 import time
+import pickle
 import numpy as np
 from ..util.Math import smooth, central_difference
 from scipy.interpolate import interp1d
@@ -21,13 +22,6 @@ from ..util import ParameterFile, ProgressBar
 from ..analysis.BlobFactory import BlobFactory
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 from ..physics.Constants import nu_0_mhz, E_LyA, E_LL, ev_per_hz, erg_per_ev
-
-from scipy.misc import derivative
-
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
 
 defaults = \
 {
@@ -84,6 +78,16 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
     @property
     def info(self):
         print_sim(self)
+    
+    @property
+    def rank(self):
+        try:
+            from mpi4py import MPI
+            rank = MPI.COMM_WORLD.rank
+        except ImportError:
+            rank = 0
+        
+        return rank
 
     @property
     def pf(self):

@@ -201,11 +201,6 @@ class ModelGrid(ModelFit):
         if os.path.exists('%s.logL.pkl' % prefix) and (rank == 0):
             os.remove('%s.logL.pkl' % prefix)
 
-        # Say what processor computed which models.
-        # Really just to make sure load-balancing etc. is working
-        f = open('%s.load.pkl' % prefix_by_proc, 'wb')
-        f.close()
-
         for par in self.grid.axes_names:
             if re.search('Tmin', par):
                 f = open('%s.fcoll.pkl' % prefix_by_proc, 'wb')
@@ -319,7 +314,7 @@ class ModelGrid(ModelFit):
         else:
             use_checks = True
         
-        chain_all = []; blobs_all = []; load_all = []
+        chain_all = []; blobs_all = []
         
         t1 = time.time()
 
@@ -432,7 +427,6 @@ class ModelGrid(ModelFit):
 
             chain_all.append(chain)
             blobs_all.append(sim.blobs)
-            load_all.append(rank)
 
             ct += 1
 
@@ -463,19 +457,15 @@ class ModelGrid(ModelFit):
             
             self.save_blobs(blobs_all, False, prefix_by_proc)
             
-            f = open('%s.load.pkl' % prefix_by_proc, 'ab')
-            pickle.dump(load_all, f)
-            f.close()
-
             # Send the key to the next processor
             if (not self.save_by_proc) and (rank != (size-1)):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
 
             del p, sim
-            del chain_all, blobs_all, load_all
+            del chain_all, blobs_all
             gc.collect()
 
-            chain_all = []; blobs_all = []; load_all = []
+            chain_all = []; blobs_all = []
 
         pb.finish()
 
@@ -490,10 +480,6 @@ class ModelGrid(ModelFit):
         
         if blobs_all:
             self.save_blobs(blobs_all, False, prefix_by_proc)
-        
-        if load_all:
-            with open('%s.load.pkl' % prefix_by_proc, 'ab') as f:
-                pickle.dump(load_all, f)
         
         print "Processor %i: Wrote %s.*.pkl (%s)" \
             % (rank, prefix, time.ctime())
@@ -710,7 +696,14 @@ class ModelGrid(ModelFit):
                     self.assignments[slc] = np.reshape(arr, tmp.size)
                 else:
                     raise ValueError('No method=%i!' % method)
-
+        
+        elif method == 3:
+            # Do it randomly
+            arr = np.random.randint(low=0, high=size, size=self.grid.size, 
+                dtype=int)
+                    
+            self.assignments = np.reshape(arr, self.grid.shape)      
+                    
         else:
             raise ValueError('No method=%i!' % method)
 

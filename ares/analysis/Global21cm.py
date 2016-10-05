@@ -230,7 +230,7 @@ class Global21cm(MultiPhaseMedium):
             self._turning_points = result       
 
         return self._turning_points
-        
+
     def derivative_of_freq(self, freq):
         interp = interp1d(self.nu_p, self.dTbdnu, kind='linear')
         return interp(freq)

@@ -232,7 +232,9 @@ class ModelSet(BlobFactory):
 
     @property
     def load(self):
+        print 'hello'
         if not hasattr(self, '_load'):
+            print 'hello2'
             if os.path.exists('%s.load.pkl' % self.prefix):
                 self._load = read_pickle_file('%s.load.pkl' % self.prefix)
             else:
@@ -684,9 +686,9 @@ class ModelSet(BlobFactory):
             tmp = self.chain[0:self.blobs.shape[0]]
             self.chain = tmp
     
-    def _load(self, fn):
-        if os.path.exists(fn):
-            return read_pickle_file(fn)
+    #def _load(self, fn):
+    #    if os.path.exists(fn):
+    #        return read_pickle_file(fn)
     
     @property    
     def blob_redshifts_float(self):
