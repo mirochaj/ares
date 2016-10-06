@@ -291,7 +291,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             elif self.pf['pop_MAR'] == 'hmf':
                 self._MAR = self.halos.MAR_func
             else:
-                self._MAR = read_lit(self.pf['pop_MAR']).MAR
+                self._MAR = read_lit(self.pf['pop_MAR'], verbose=self.pf['verbose']).MAR
 
         return self._MAR
         
@@ -314,7 +314,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         """    
 
         if source is not None:
-            src = read_lit(source)
+            src = read_lit(source, verbose=self.pf['verbose'])
 
             i = np.argmin(np.abs(z - self.halos.z))
 
@@ -349,7 +349,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         """
         
         if source is not None:        
-            src = read_lit(source)
+            src = read_lit(source, verbose=self.pf['verbose'])
             MAR = src.MAR(z, self.halos.M)    
         else:
             MAR = super(GalaxyCohort, self).MAR_via_AM(z)

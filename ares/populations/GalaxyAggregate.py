@@ -125,7 +125,8 @@ class GalaxyAggregate(HaloPopulation):
             elif self.pf['pop_sed'] in _synthesis_models:    
                 self._Source_ = SynthesisModel
             else:
-                self._Source_ = read_lit(self.pf['pop_sed'])
+                self._Source_ = read_lit(self.pf['pop_sed'], 
+                    verbose=self.pf['verbose'])
 
         return self._Source_
 
@@ -241,7 +242,7 @@ class GalaxyAggregate(HaloPopulation):
                 pars = get_php_pars(self.pf['pop_sfrd'], self.pf)
                 self._sfrd_ = ParameterizedHaloProperty(**pars)    
             else:
-                tmp = read_lit(self.pf['pop_sfrd'])
+                tmp = read_lit(self.pf['pop_sfrd'], verbose=self.pf['verbose'])
                 self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
         
         return self._sfrd_

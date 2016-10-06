@@ -35,7 +35,7 @@ HOME = os.environ.get('HOME')
 ARES = os.environ.get('ARES')
 sys.path.insert(1, '%s/input/litdata' % ARES)
 
-def read_lit(prefix, path=None):
+def read_lit(prefix, path=None, verbose=True):
     """
     Read data from the literature.
     
@@ -62,7 +62,9 @@ def read_lit(prefix, path=None):
     else:
         return None
 
-    print "Loading module %s from %s" % (prefix, loc)
+    if rank == 0 and verbose:
+        print "Loading module %s from %s" % (prefix, loc)
+        
     _f, _filename, _data = _imp.find_module(prefix, [loc])
     mod = _imp.load_module(prefix, _f, _filename, _data)
     
