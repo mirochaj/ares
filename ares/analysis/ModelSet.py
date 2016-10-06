@@ -3099,6 +3099,13 @@ class ModelSet(BlobFactory):
         
         return result
         
+    def export(self, prefix, pars, ivar=None, path='.', fmt='hdf5', 
+        clobber=False, skip=0, skim=1, stop=None):
+        """
+        Just a wrapper around `save' routine.
+        """
+        self.save(prefix, pars, ivar, path, fmt, clobber, skip, skim, stop)
+        
     def save(self, prefix, pars, ivar=None, path='.', fmt='hdf5', 
         clobber=False, skip=0, skim=1, stop=None):
         """

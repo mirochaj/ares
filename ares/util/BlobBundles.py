@@ -22,8 +22,6 @@ for tp in list('BCD'):
 
 # Add the zero-crossing even though its not an extremum
 _gs_ext.append('z_ZC')
-# Add curvature of turning points too (sue me)
-_gs_ext.extend(['curvature_%s' % tp for tp in list('BCD')])
 # CMB optical depth
 _gs_ext.append('tau_e')
 
@@ -41,6 +39,10 @@ _gs_shape_f = ['Width(max_fraction=0.5, peak_relative=True)',
                'Width(absorption=False, max_fraction=0.5, peak_relative=False)',
                'Width(absorption=False, max_fraction=0.25, peak_relative=False)'
                ]
+
+# Add curvature of turning points too
+_gs_shape_n.extend(['curvature_%s' % tp for tp in list('BCD')])
+_gs_shape_f.extend([None] * 3)
 
 _extrema = {'blob_names':_gs_ext, 'blob_ivars': None,  'blob_funcs': None}
 _history = {'blob_names':_gs_hist,'blob_ivars': _def_z,'blob_funcs': None}

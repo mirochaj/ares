@@ -498,7 +498,11 @@ class ModelGrid(ModelFit):
         ##    
         if rank == 0:
             print "Calculation complete: %s" % time.ctime()
-            print "Elapsed time (min)  : %.2g" % ((t2 - t1) / 60.)
+            dt = t2 - t1
+            if dt > 3600:
+                print "Elapsed time (hr)   : %.3g" % (dt / 3600.)
+            else:    
+                print "Elapsed time (min)  : %.3g" % (dt / 60.)
                 
     @property        
     def Tmin_in_grid(self):
@@ -696,13 +700,13 @@ class ModelGrid(ModelFit):
                     self.assignments[slc] = np.reshape(arr, tmp.size)
                 else:
                     raise ValueError('No method=%i!' % method)
-        
+
         elif method == 3:
             # Do it randomly
             arr = np.random.randint(low=0, high=size, size=self.grid.size, 
                 dtype=int)
-                    
-            self.assignments = np.reshape(arr, self.grid.shape)      
+
+            self.assignments = np.reshape(arr, self.grid.shape)
                     
         else:
             raise ValueError('No method=%i!' % method)
