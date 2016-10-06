@@ -716,6 +716,7 @@ def ControlParameters():
     #"redshift_bins": None,
     "tau_Nz": 400,
     "tau_table": None,
+    "tau_arrays": None,
     "tau_prefix": tau_prefix,
     "tau_instance": None,
 

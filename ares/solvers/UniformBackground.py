@@ -447,6 +447,9 @@ class UniformBackground(object):
             self._tau_solver = self.pf['tau_instance']
             return self._tau_solver.z_fetched, self._tau_solver.E_fetched, \
                 self._tau_solver.tau_fetched
+        elif self.pf['tau_arrays'] is not None:
+            # Assumed to be (z, E, tau)
+            return self.pf['tau_arrays']
             
         # Create an ares.simulations.OpticalDepth instance    
         tau_solver = OpticalDepth(**pop.pf)
