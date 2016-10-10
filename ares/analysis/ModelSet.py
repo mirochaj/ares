@@ -440,6 +440,11 @@ class ModelSet(BlobFactory):
             print "Be sure to delete `_chain` attribute before continuing."
 
     @property
+    def largest_checkpoint(self):
+        lis = glob.glob(self.prefix + '.dd*.chain.pkl')
+        return max([int(s[-14:-10]) for s in lis])
+
+    @property
     def chain(self):
         # Read MCMC chain
         if not hasattr(self, '_chain'):
@@ -568,7 +573,7 @@ class ModelSet(BlobFactory):
                         outputs_to_read.append(fn)
                 else:
                     outputs_to_read = \
-                        glob.glob('%s.dd*.logL.pkl' % self.prefix)
+                        sorted(glob.glob('%s.dd*.logL.pkl' % self.prefix))
                 
                 full_chain = []
                 for fn in outputs_to_read:

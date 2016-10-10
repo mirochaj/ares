@@ -5,7 +5,8 @@ Author: Keith Tauscher
 Affiliation: University of Colorado at Boulder
 Created on: Thu Mar 17 12:48:00 MDT 2016
 
-Description: This file contains different useful priors. For examples, see below and the test in tests/test_priors.py.
+Description: This file contains different useful priors. For examples, see
+             below and the test in tests/test_priors.py.
 
 The included univariate priors (and their initializations, equals signs
 indicate optional parameters and their default values) are (pdf's apply only
@@ -84,11 +85,18 @@ And the following multivariate priors are included:
     (support) must be rectangular; defined through variable ranges in variables
     (mean) unknown a priori
     (variance) unknown a priori
+
+(6) EllipticalPrior(mean, cov)
+    (pdf) f(X)=1 when X is inside (X-mean)^T cov^-1 (X-mean)<= N+2
+    (support) hyperellipsoid defined above
+    (mean) mean
+    (variance) cov
 """
 
 import numpy as np
 import numpy.random as rand
 import numpy.linalg as lalg
+import scipy.linalg as slalg
 from scipy.misc import factorial
 from scipy.special import beta as beta_func
 from scipy.special import gammaln as log_gamma
@@ -353,6 +361,67 @@ class ExponentialPrior(_Prior):
                 (self.rate, self.shift)
         return "Exp(%.2g)" % (self.rate,)
 
+class EllipticalPrior(_Prior):
+    """
+    """
+    def __init__(self, mean, cov):
+        try:
+            self.mean = np.array(mean)
+        except:
+            raise TypeError("mean given to EllipticalPrior could not be " +\
+                            "cast as a numpy.ndarray.")
+        try:
+            self.cov = np.array(cov)
+        except:
+            raise TypeError("cov given to EllipticalPrior could not be " +\
+                            "cast as a numpy.ndarray.")
+        if (self.cov.shape != (2 * self.mean.shape)) or (self.mean.ndim != 1):
+            raise ValueError("The shapes of the mean and cov given to " +\
+                             "EllipticalPrior did not make sense. They " +\
+                             "should fit the following pattern: " +\
+                             "mean.shape=(rank,) and cov.shape=(rank,rank).")
+        self._numparams = self.mean.shape[0]
+        if self.numparams < 2:
+            raise NotImplementedError("The EllipticalPrior doesn't take " +\
+                                      "single variable random variates " +\
+                                      "since, in the 1D case, it is the " +\
+                                      "same as a simple uniform " +\
+                                      "distribution but using the " +\
+                                      "EllipticalPrior class would involve " +\
+                                      "far too much computational overhead.")
+        half_rank = self.numparams / 2.
+        self.invcov = lalg.inv(self.cov)
+        self.log_value = log_gamma(half_rank + 1) -\
+            (half_rank * (np.log(np.pi) + np.log(self.numparams + 2))) -\
+            (lalg.slogdet(self.cov)[1] / 2.)
+        self.sqrtcov = slalg.sqrtm(self.cov)
+
+    @property
+    def numparams(self):
+        if not hasattr(self, '_numparams'):
+            self._numparams = len(self.mean)
+        return self._numparams
+
+    def draw(self):
+        xi = _normed(rand.randn(self.numparams))
+        # xi is now random directional unit vector
+        radial_cdf = rand.rand()
+        max_z_radius = np.sqrt(self.numparams + 2)
+        fractional_radius = np.power(radial_cdf, 1. / self.numparams)
+        deviation = max_z_radius * fractional_radius * np.dot(xi, self.sqrtcov)
+        return self.mean + deviation
+    
+    def log_prior(self, value):
+        centered_value = np.array(value) - self.mean
+        matprod = np.dot(np.dot(centered_value, self.invcov), centered_value)
+        if (matprod <= (self.numparams + 2)):
+            return self.log_value
+        else:
+            return -np.inf
+
+    def to_string(self):
+        return ('%i-dim elliptical' % (self.numparams,))
+
 class UniformPrior(_Prior):
     """
     Class representing a uniform prior. Uniform distributions are
@@ -380,7 +449,6 @@ class UniformPrior(_Prior):
             raise ValueError('Either the low or high endpoint of a ' +\
                              'UniformPrior was not of a numerical type.')
         self._log_P = - np.log(self.high - self.low)
-        self.numparams = 1
 
     @property
     def numparams(self):
@@ -538,7 +606,7 @@ class GaussianPrior(_Prior):
             raise ValueError("The mean of a Gaussian prior " +\
                              "is not of a recognizable type.")
         self.invcov = lalg.inv(self.covariance)
-        self.detcov = lalg.det(self.covariance)
+        self.logdetcov = lalg.slogdet(self.covariance)[1]
     
     def _check_covariance_when_mean_has_size_1(self, true_mean, covariance):
         #
@@ -610,7 +678,7 @@ class GaussianPrior(_Prior):
                              "(should be if prior is univariate) or of a " +\
                              "list type (should be if prior is multivariate).")
         expon = np.float64(minus_mean * self.invcov * minus_mean.T) / 2.
-        return -1. * (np.log(self.detcov) / 2. + expon +\
+        return -1. * ((self.logdetcov / 2.) + expon +\
             ((self.numparams * np.log(two_pi)) / 2.))
 
     def to_string(self):

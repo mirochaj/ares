@@ -2,7 +2,8 @@ import time
 import numpy as np
 from ares.inference.Priors import GaussianPrior, UniformPrior,\
     ParallelepipedPrior, ExponentialPrior, BetaPrior, GammaPrior,\
-    TruncatedGaussianPrior, LinkedPrior, SequentialPrior, GriddedPrior
+    TruncatedGaussianPrior, LinkedPrior, SequentialPrior, GriddedPrior,\
+    EllipticalPrior
 import matplotlib.pyplot as pl
 import matplotlib.cm as cm
 
@@ -16,6 +17,7 @@ exponential_test = True
 beta_test = True
 gamma_test = True
 truncated_gaussian_test = True
+elliptical_test = True
 univariate_gaussian_test = True
 multivariate_gaussian_test = True
 parallelepiped_test = True
@@ -154,6 +156,45 @@ if truncated_gaussian_test:
     pl.ylabel('PDF', size='xx-large')
     pl.tick_params(labelsize='xx-large', width=2, length=6)
     pl.legend(fontsize='xx-large')
+
+############################ EllipticalPrior test #############################
+###############################################################################
+
+if elliptical_test:
+    ellmean = [4.76, -12.64]
+    ellcov = [[1, -0.5], [-0.5, 1]]
+    ellp = EllipticalPrior(ellmean, ellcov)
+    t0 = time.time()
+    ellp_sample = [ellp.draw() for i in range(sample_size)]
+    print (('It took %.3f s for a sample ' % (time.time()-t0)) +\
+          ('of size %i' % (sample_size,)) +\
+          ' to be drawn from a uniform multivariate elliptical prior.')
+    ellp_xs = [ellp_sample[idraw][0] for idraw in range(sample_size)]
+    ellp_ys = [ellp_sample[idraw][1] for idraw in range(sample_size)]
+    pl.figure()
+    pl.hist2d(ellp_xs, ellp_ys, bins=50, cmap=def_cm)
+    pl.title('Multivariate elliptical prior (2 dimensions) with ' +\
+             ('mean=%s and covariance=%s' % (ellmean, ellcov,)),\
+             size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+    xs = np.arange(2.7, 6.9, 0.05)
+    ys = np.arange(-14.7, -10.5, 0.05)
+    row_size = len(xs)
+    (xs, ys) = np.meshgrid(xs, ys)
+    logpriors = np.ndarray(xs.shape)
+    for ix in range(row_size):
+        for iy in range(row_size):
+            logpriors[ix,iy] = ellp.log_prior([xs[ix,iy], ys[ix,iy]])
+    pl.figure()
+    pl.imshow(np.exp(logpriors), cmap=def_cm, extent=[2.7, 6.85,-14.7,-10.45],\
+        origin='lower')
+    pl.title('e^(log_prior) for EllipticalPrior',\
+        size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
 
 ############################# GaussianPrior tests #############################
 ###############################################################################
