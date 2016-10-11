@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'Dust', 'HaloProperty', 'Old']
+    'MultiPhase', 'Dust', 'HaloProperty', 'Old', 'PowerSpectrum']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -314,6 +314,21 @@ def DustParameters():
     pf.update(rcParams)
 
     return pf
+
+def PowerSpectrumParameters():
+    pf = {}
+
+    tmp = \
+    {     
+     'powspec_redshifts': np.arange(6, 20, 1),
+     'output_wavenumbers': np.logspace(-2, 2, 51),
+    }
+
+    pf.update(tmp)
+    pf.update(rcParams)
+
+    return pf
+
     
 def PopulationParameters():
     """
@@ -452,6 +467,15 @@ def PopulationParameters():
     "pop_ion_src_igm": True,
     "pop_heat_src_cgm": False,
     "pop_heat_src_igm": True,
+    
+    "pop_lya_fluct": False,
+    "pop_ion_fluct": False,
+    "pop_heat_fluct": False,
+    
+    "pop_bubble_size": None,
+    "pop_bubble_density": None,
+    "pop_bubble_size_dist": None,
+    
     
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)

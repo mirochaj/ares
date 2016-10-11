@@ -887,7 +887,6 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             return rhoL / erg_per_phot
         else:
             return self.rho_N(z, Emin, Emax)
-<<<<<<< local
              
     def ScalingFactor(self, z):
         return (self.cosm.h70 / 0.7)**-1 * (self.cosm.omega_m_0 / 0.27)**-0.5 * ((1. + z) / 21.)**-0.5
