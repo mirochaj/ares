@@ -1103,7 +1103,7 @@ class ModelSet(BlobFactory):
         else:
             cdata = None
 
-        if hasattr(self, 'weights') and cdata is None:
+        if hasattr(self, '_weights') and cdata is None:
             scat = ax.scatter(xdata, ydata, c=self.weights, **kwargs)
         elif cdata is not None:
             scat = ax.scatter(xdata, ydata, c=cdata, **kwargs)
@@ -1222,7 +1222,7 @@ class ModelSet(BlobFactory):
     
     @property
     def weights(self):        
-        if (not self.is_mcmc) and hasattr(self, 'logL') \
+        if self.is_mcmc and hasattr(self, 'logL') \
             and (not hasattr(self, '_weights')):
             self._weights = np.exp(self.logL)
 
@@ -1269,7 +1269,7 @@ class ModelSet(BlobFactory):
             multiplier=multiplier)
 
         # Need to weight results of non-MCMC runs explicitly
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -1327,7 +1327,7 @@ class ModelSet(BlobFactory):
         if not self.is_mcmc:
             self.set_constraint(**constraints)
         
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -1883,7 +1883,7 @@ class ModelSet(BlobFactory):
         binvec = self._set_bins(pars, to_hist, take_log, bins)
 
         # We might supply weights by-hand for ModelGrid calculations
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
