@@ -419,6 +419,11 @@ class ModelSet(BlobFactory):
         
         return self._Nd
     
+    def last_n_checkpoints(self, num):
+        chain_fns = glob.glob(self.prefix + ".dd*.chain.pkl")
+        ckpts = sorted([int(fn[-14:-10]) for fn in chain_fns])
+        return ckpts[-num:]
+    
     @property
     def include_checkpoints(self):
         if not hasattr(self, '_include_checkpoints'):
