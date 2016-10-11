@@ -232,9 +232,7 @@ class ModelSet(BlobFactory):
 
     @property
     def load(self):
-        print 'hello'
         if not hasattr(self, '_load'):
-            print 'hello2'
             if os.path.exists('%s.load.pkl' % self.prefix):
                 self._load = read_pickle_file('%s.load.pkl' % self.prefix)
             else:
@@ -798,7 +796,7 @@ class ModelSet(BlobFactory):
             x1, x2 = constraints
     
         # Figure out what these values translate to.
-        data, is_log = self.ExtractData(pars, ivar, take_log, un_log, 
+        data = self.ExtractData(pars, ivar, take_log, un_log, 
             multiplier)
                         
         # Figure out elements we want
@@ -854,7 +852,7 @@ class ModelSet(BlobFactory):
         
         """
         
-        data, is_log = self.ExtractData(parameters)
+        data = self.ExtractData(parameters)
         
         xdata = data[parameters[0]]
         ydata = data[parameters[1]]
@@ -1120,7 +1118,7 @@ class ModelSet(BlobFactory):
             p = pars
             iv = ivar
                     
-        data, is_log = \
+        data = \
             self.ExtractData(p, iv, take_log, un_log, multiplier)
 
         xdata = data[p[0]]
@@ -1149,7 +1147,7 @@ class ModelSet(BlobFactory):
             'take_log': take_log, 'un_log':un_log, 'multiplier':multiplier}
             
         # Make labels
-        self.set_axis_labels(ax, p, is_log, take_log, un_log, cb)
+        self.set_axis_labels(ax, p, take_log, un_log, cb)
         
         pl.draw()        
         
@@ -1197,7 +1195,7 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
 
-        data, is_log = \
+        data = \
             self.ExtractData(pars, ivar, take_log, un_log, multiplier)
 
         xdata = self.xdata = data[pars[0]].compressed()
@@ -1298,7 +1296,7 @@ class ModelSet(BlobFactory):
         #pars, take_log, multiplier, un_log, ivar = \
         #    self._listify_common_inputs([par], take_log, multiplier, un_log, ivar)
 
-        to_hist, is_log = self.ExtractData(par, ivar=ivar, take_log=take_log, 
+        to_hist = self.ExtractData(par, ivar=ivar, take_log=take_log, 
             multiplier=multiplier)
 
         # Need to weight results of non-MCMC runs explicitly
@@ -1354,7 +1352,7 @@ class ModelSet(BlobFactory):
         Return points in dataset satisfying given confidence contour.
         """
         
-        binvec, to_hist, is_log = self._prep_plot(pars, z=z, bins=bins, 
+        binvec, to_hist = self._prep_plot(pars, z=z, bins=bins, 
             take_log=take_log)
         
         if not self.is_mcmc:
@@ -1562,7 +1560,6 @@ class ModelSet(BlobFactory):
             ivar)
 
         data = {}
-        is_log = {}
         for k, par in enumerate(pars):
                     
             # If one of our free parameters, things are easy.
@@ -1687,7 +1684,7 @@ class ModelSet(BlobFactory):
                   "chain elements ignored because of chain links with " +\
                   "inf's/nan's."
 
-        return data, is_log
+        return data
 
     def _set_bins(self, pars, to_hist, take_log=False, bins=20):
         """
@@ -1733,7 +1730,7 @@ class ModelSet(BlobFactory):
         
         return binvec
         
-    def _set_inputs(self, pars, inputs, is_log, take_log, multiplier):
+    def _set_inputs(self, pars, inputs, take_log, un_log, multiplier):
         """
         Figure out input values for x and y parameters for each panel.
         
@@ -1755,12 +1752,14 @@ class ModelSet(BlobFactory):
         else:
             inputs = list(inputs)
                         
-        if type(is_log) is dict:
-            if is_log != {}:
-                tmp = [is_log[par] for par in pars]    
-                is_log = tmp
+        is_log = []
+        for par in pars:
+            if par in self.parameters:
+                k = self.parameters.index(par)
+                is_log.append(self.is_log[k])
             else:
-                is_log = [False] * len(pars)
+                # Blobs are never log10-ified before storing to disk
+                is_log.append(False)
         
         if type(multiplier) in [int, float]:
             multiplier = [multiplier] * len(pars)    
@@ -1783,14 +1782,14 @@ class ModelSet(BlobFactory):
                     val = dq[par]
                 except:
                     val = None
-                                            
+                                                                                      
             # Take log [optional]    
             if val is None:
                 vin = None
-            elif is_log[i] or take_log[i]:
-                vin = np.log10(val * multiplier[i])                            
+            elif (is_log[i] or take_log[i]) and (not un_log[i]):
+                vin = np.log10(10**val * multiplier[i])                
             else:
-                vin = val * multiplier[i]    
+                vin = val * multiplier[i]
                 
             if type(input_output) is dict:
                 input_output[par] = vin
@@ -1837,7 +1836,7 @@ class ModelSet(BlobFactory):
     def PosteriorCDF(self, pars, bins=500, **kwargs):
         return self.PosteriorPDF(pars, bins=bins, cdf=True, **kwargs)
                
-    def PosteriorPDF(self, pars, to_hist=None, is_log=None, ivar=None, 
+    def PosteriorPDF(self, pars, to_hist=None, ivar=None, 
         ax=None, fig=1, 
         multiplier=1., like=[0.95, 0.68], cdf=False,
         color_by_like=False, filled=True, take_log=False, un_log=False,
@@ -1904,8 +1903,8 @@ class ModelSet(BlobFactory):
             gotax = True
 
         # Grab all the data we need
-        if (to_hist is None) or (is_log is None):
-            to_hist, is_log = self.ExtractData(pars, ivar=ivar, 
+        if (to_hist is None):
+            to_hist = self.ExtractData(pars, ivar=ivar, 
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
 
         pars, take_log, multiplier, un_log, ivar = \
@@ -2034,7 +2033,7 @@ class ModelSet(BlobFactory):
                 ax.set_yscale('linear')
             
         # Add nice labels (or try to)
-        self.set_axis_labels(ax, pars, is_log, take_log, un_log, None, labels)
+        self.set_axis_labels(ax, pars, take_log, un_log, None, labels)
 
         # Rotate ticks?
         for tick in ax.get_xticklabels():
@@ -2076,7 +2075,7 @@ class ModelSet(BlobFactory):
         p = list(pars) + [c]
 
         # Grab all the data we need
-        data, is_log = self.ExtractData(p, ivar=ivar, 
+        data = self.ExtractData(p, ivar=ivar, 
             take_log=take_log, un_log=un_log, multiplier=multiplier)
 
         xdata = data[p[0]]
@@ -2355,7 +2354,7 @@ class ModelSet(BlobFactory):
         newer_than_one_pt_nine =\
             ((int(np_version[0]) == 1) and (int(np_version[1])>9))
         remove_nas = (newer_than_one or newer_than_one_pt_nine)
-        to_hist, is_log = self.ExtractData(pars, ivar=ivar, take_log=take_log,
+        to_hist = self.ExtractData(pars, ivar=ivar, take_log=take_log,
             un_log=un_log, multiplier=multiplier, remove_nas=remove_nas)
             
         # Make sure all inputs are lists of the same length!
@@ -2391,8 +2390,8 @@ class ModelSet(BlobFactory):
             mp = MultiPanel(fig=fig, **mp_kw)
         
         # Apply multipliers etc. to inputs
-        inputs = self._set_inputs(pars, inputs, is_log, take_log, multiplier)
-        
+        inputs = self._set_inputs(pars, inputs, take_log, un_log, multiplier)
+                
         # Save some plot info for [optional] later tinkering
         self.plot_info = {}
         self.plot_info['kwargs'] = kwargs
@@ -2443,7 +2442,7 @@ class ModelSet(BlobFactory):
 
                     # Plot the PDF
                     ax = self.PosteriorPDF(p1, ax=mp.grid[k], 
-                        to_hist=tohist, is_log=is_log, 
+                        to_hist=tohist,
                         take_log=take_log[-1::-1][i], ivar=ivar[-1::-1][i],
                         un_log=un_log[-1::-1][i], 
                         multiplier=[multiplier[-1::-1][i]], 
@@ -2498,14 +2497,14 @@ class ModelSet(BlobFactory):
                 # 2-D PDFs elsewhere
                 if scatter:
                     ax = self.Scatter([p2, p1], ax=mp.grid[k], 
-                        to_hist=tohist, is_log=is_log, z=red, 
+                        to_hist=tohist, z=red, 
                         take_log=[take_log[j], take_log[-1::-1][i]],
                         multiplier=[multiplier[j], multiplier[-1::-1][i]], 
                         bins=[bins[j], bins[-1::-1][i]], filled=filled, 
                         skip=skip, stop=stop, **kwargs)
                 else:
                     ax = self.PosteriorPDF([p2, p1], ax=mp.grid[k], 
-                        to_hist=tohist, is_log=is_log, ivar=iv, 
+                        to_hist=tohist, ivar=iv, 
                         take_log=[take_log[j], take_log[-1::-1][i]],
                         un_log=[un_log[j], un_log[-1::-1][i]],
                         multiplier=[multiplier[j], multiplier[-1::-1][i]], 
@@ -2654,7 +2653,7 @@ class ModelSet(BlobFactory):
             # Read in the independent variable(s)
             xarr = ivars[0]
             
-            tmp, is_log = self.ExtractData(name, 
+            tmp = self.ExtractData(name, 
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
             
             data = tmp[name].squeeze()
@@ -2685,7 +2684,7 @@ class ModelSet(BlobFactory):
             y = []
             for i, value in enumerate(vector):
                 iv = [scalar, value][slc]
-                data, is_log = self.ExtractData(name, ivar=iv,
+                data = self.ExtractData(name, ivar=iv,
                     take_log=take_log, un_log=un_log, multiplier=multiplier)
                         
                 if (use_best and self.is_mcmc):
@@ -2871,7 +2870,7 @@ class ModelSet(BlobFactory):
         
         """
                 
-        data, is_log = self.ExtractData(pars, ivar=ivar)
+        data = self.ExtractData(pars, ivar=ivar)
         
         blob_vec = []
         for i in range(len(pars)):
@@ -3052,7 +3051,7 @@ class ModelSet(BlobFactory):
         """    
         
         if func is not None:
-            data, is_log = self.ExtractData(fields)
+            data = self.ExtractData(fields)
             
             # Grab ivars
             ivars = {}
@@ -3070,7 +3069,7 @@ class ModelSet(BlobFactory):
             else:
                 iv = None    
             
-            data, is_log = self.ExtractData(blobs, ivar=iv)
+            data = self.ExtractData(blobs, ivar=iv)
             
             # Assign data to variable names
             for var in varmap.keys():
@@ -3090,7 +3089,7 @@ class ModelSet(BlobFactory):
             
             if os.path.exists(fn) and (not clobber):
                 print '%s exists! Set clobber=True or remove by hand.' % fn
-                data, is_log = self.ExtractData(name)
+                data = self.ExtractData(name)
                 return data[name]
         
             f = open(fn, 'wb')
@@ -3130,7 +3129,7 @@ class ModelSet(BlobFactory):
         if type(pars) not in [list, tuple]:
             pars = [pars]
 
-        data, is_log = self.ExtractData(pars, ivar=ivar)
+        data = self.ExtractData(pars, ivar=ivar)
         
         fn = '%s/%s.%s.%s' % (path,self.prefix, prefix, fmt)
         
@@ -3186,7 +3185,7 @@ class ModelSet(BlobFactory):
         shutil.copy('%s.setup.pkl' % self.prefix, out)
         print "Wrote %s." % out    
         
-    def set_axis_labels(self, ax, pars, is_log, take_log=False, un_log=False,
+    def set_axis_labels(self, ax, pars, take_log=False, un_log=False,
         cb=None, labels={}):
         """
         Make nice axis labels.
@@ -3195,9 +3194,15 @@ class ModelSet(BlobFactory):
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, 1.0, un_log, None)
 
-        if type(is_log) != dict:
-            tmp = {par:is_log[i] for i, par in enumerate(pars)}
-            is_log = tmp
+        is_log = {}
+        for par in pars:
+            if par in self.parameters:
+                k = self.parameters.index(par)
+                is_log[par] = self.is_log[k]
+            else:
+                # Blobs are never log10-ified before storing to disk
+                is_log[par] = False
+
         if type(take_log) != dict:
             tmp = {par:take_log[i] for i, par in enumerate(pars)}
             take_log = tmp        

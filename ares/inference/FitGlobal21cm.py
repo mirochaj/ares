@@ -142,7 +142,7 @@ class loglikelihood(LogLikelihood):
 
         del sim, kw
         gc.collect()
-
+        
         return logL, blobs
 
 class FitGlobal21cm(ModelFit):
