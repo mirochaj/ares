@@ -68,16 +68,13 @@ class ModelGrid(ModelFit):
             
         """
         
-        if os.path.exists('%s.000.chain.pkl' % prefix):
+        if os.path.exists('%s.%s.chain.pkl' % (prefix, str(rank).zfill(3))):
             save_by_proc = True
-        else:
-            save_by_proc = False
-        
-        if save_by_proc:
             prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
         else:
+            save_by_proc = False
             prefix_by_proc = prefix
-        
+
         # Read in current status of model grid
         chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
 
@@ -201,13 +198,8 @@ class ModelGrid(ModelFit):
         super(ModelGrid, self)._prep_from_scratch(clobber, 
             by_proc=self.save_by_proc)
     
-        if os.path.exists('%s.logL.pkl' % prefix):
+        if os.path.exists('%s.logL.pkl' % prefix) and (rank == 0):
             os.remove('%s.logL.pkl' % prefix)
-
-        # Say what processor computed which models.
-        # Really just to make sure load-balancing etc. is working
-        f = open('%s.load.pkl' % prefix_by_proc, 'wb')
-        f.close()
 
         for par in self.grid.axes_names:
             if re.search('Tmin', par):
@@ -253,8 +245,11 @@ class ModelGrid(ModelFit):
             prefix_by_proc = prefix
                 
         if os.path.exists('%s.chain.pkl' % prefix_by_proc) and (not clobber):
-            if not restart:
-                raise IOError('%s exists! Remove manually, set clobber=True, or set restart=True to append.' 
+            # Root processor will setup files so be careful
+            if (not self.save_by_proc) and (rank > 0):
+                pass
+            elif not restart:
+                raise IOError('%s*.pkl exists! Remove manually, set clobber=True, or set restart=True to append.' 
                     % prefix_by_proc)
 
         if not os.path.exists('%s.chain.pkl' % prefix_by_proc) and restart:
@@ -270,10 +265,7 @@ class ModelGrid(ModelFit):
             if (not self.save_by_proc) and (rank != (size-1)):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
                 
-            if self.grid.structured:    
-                # Re-run load-balancing
-                self.LoadBalance(self.LB)
-                
+            if self.grid.structured:
                 ct0 = self.done.sum()
             else:
                 ct0 = 0
@@ -284,9 +276,10 @@ class ModelGrid(ModelFit):
         ct = 0
         
         if restart:
-            Nleft = self.grid.size - ct0
+            tot = np.sum(self.assignments == rank)
+            Nleft = tot - ct0
         else:
-            Nleft = self.grid.size
+            Nleft = np.sum(self.assignments == rank)
                         
         if Nleft == 0:
             if rank == 0:
@@ -294,10 +287,13 @@ class ModelGrid(ModelFit):
             return
         
         # Print out how many models we have (left) to compute
-        if rank == 0:
-            if restart and self.grid.structured:
-                print "Update: %i models down, %i to go." % (ct0, Nleft)
-            elif restart:
+        
+        if restart and self.grid.structured:
+            print "Update (processor #%i): %i models down, %i to go." \
+                % (rank, ct0, Nleft)
+        
+        elif rank == 0:
+            if restart:
                 print 'Expanding pre-existing model set with %i more models.' \
                     % self.grid.size
             else:
@@ -306,9 +302,6 @@ class ModelGrid(ModelFit):
         # Make some blank files for data output                 
         self.prep_output_files(restart, clobber)                 
 
-        if not hasattr(self, 'LB'):
-            self.LoadBalance(0)                    
-                            
         # Dictionary for hmf tables
         fcoll = {}
 
@@ -321,7 +314,9 @@ class ModelGrid(ModelFit):
         else:
             use_checks = True
         
-        chain_all = []; blobs_all = []; load_all = []
+        chain_all = []; blobs_all = []
+        
+        t1 = time.time()
 
         # Loop over models, use StellarPopulation.update routine 
         # to speed-up (don't have to re-load HMF spline as many times)
@@ -333,24 +328,19 @@ class ModelGrid(ModelFit):
             else:
                 kvec = h
 
-            if restart:
-                pb_i = min(ct * size, Nleft - 1)
-            else:
-                pb_i = h
-
             # Skip if it's a restart and we've already run this model
             if restart and self.grid.structured:
                 if self.done[kvec]:
-                    pb.update(pb_i)
+                    pb.update(ct)
                     continue
 
             # Skip if this processor isn't assigned to this model        
             if self.assignments[kvec] != rank:
-                pb.update(pb_i)
+                pb.update(ct)
                 continue
 
             # Grab Tmin index
-            if self.Tmin_in_grid and self.LB > 0:
+            if self.Tmin_in_grid and self.LB == 1:
                 Tmin_ax = self.grid.axes[self.grid.axisnum(self.Tmin_ax_name)]
                 i_Tmin = Tmin_ax.locate(kwargs[self.Tmin_ax_name])
             else:
@@ -358,7 +348,7 @@ class ModelGrid(ModelFit):
 
             # Copy kwargs - may need updating with pre-existing lookup tables
             p = self.base_kwargs.copy()
-
+            
             # Log-ify stuff if necessary
             kw = {}
             for i, par in enumerate(self.parameters):
@@ -437,7 +427,6 @@ class ModelGrid(ModelFit):
 
             chain_all.append(chain)
             blobs_all.append(sim.blobs)
-            load_all.append(rank)
 
             ct += 1
 
@@ -468,19 +457,15 @@ class ModelGrid(ModelFit):
             
             self.save_blobs(blobs_all, False, prefix_by_proc)
             
-            f = open('%s.load.pkl' % prefix_by_proc, 'ab')
-            pickle.dump(load_all, f)
-            f.close()
-
             # Send the key to the next processor
             if (not self.save_by_proc) and (rank != (size-1)):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
 
             del p, sim
-            del chain_all, blobs_all, load_all
+            del chain_all, blobs_all
             gc.collect()
 
-            chain_all = []; blobs_all = []; load_all = []
+            chain_all = []; blobs_all = []
 
         pb.finish()
 
@@ -496,16 +481,28 @@ class ModelGrid(ModelFit):
         if blobs_all:
             self.save_blobs(blobs_all, False, prefix_by_proc)
         
-        if load_all:
-            with open('%s.load.pkl' % prefix_by_proc, 'ab') as f:
-                pickle.dump(load_all, f)
-        
         print "Processor %i: Wrote %s.*.pkl (%s)" \
             % (rank, prefix, time.ctime())
-        
+
         # Send the key to the next processor
         if (not self.save_by_proc) and (rank != (size-1)):
             MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
+  
+        # You. shall. not. pass.
+        MPI.COMM_WORLD.Barrier()
+        
+        t2 = time.time()
+        
+        ##
+        # FINAL INFO 
+        ##    
+        if rank == 0:
+            print "Calculation complete: %s" % time.ctime()
+            dt = t2 - t1
+            if dt > 3600:
+                print "Elapsed time (hr)   : %.3g" % (dt / 3600.)
+            else:    
+                print "Elapsed time (min)  : %.3g" % (dt / 60.)
                 
     @property        
     def Tmin_in_grid(self):
@@ -520,34 +517,11 @@ class ModelGrid(ModelFit):
             self._Tmin_in_grid = False
             for par in self.grid.axes_names:
 
-                if par == 'Tmin':
+                if re.search('Tmin', par):
                     ct += 1
                     self._Tmin_in_grid = True
                     name = par
-                    continue
 
-                if not re.search(par, 'Tmin'):
-                    continue
-
-                # Look for populations
-                m = re.search(r"\{([0-9])\}", par)
-            
-                if m is None:
-                    continue
-            
-                # Population ID number
-                num = int(m.group(1))
-                self.Tmin_ax_popid = num
-            
-                # Pop ID including curly braces
-                prefix = par.strip(m.group(0))
-                
-                if prefix == 'Tmin':
-                    ct += 1
-                    self._Tmin_in_grid = True
-                    name = par
-                    continue
-                    
             self.Tmin_ax_name = name
             
             if ct > 1:
@@ -563,7 +537,7 @@ class ModelGrid(ModelFit):
     @property
     def save_by_proc(self):
         if not hasattr(self, '_save_by_proc'):
-            self._save_by_proc = False
+            self._save_by_proc = True
         return self._save_by_proc
         
     @save_by_proc.setter
@@ -579,15 +553,32 @@ class ModelGrid(ModelFit):
     @assignments.setter
     def assignments(self, value):
         self._assignments = value
-            
-    def LoadBalance(self, method=None, pars=None):
+        
+    @property
+    def LB(self):
+        if not hasattr(self, '_LB'):
+            self._LB = 0
+    
+        return self._LB
+    
+    @LB.setter
+    def LB(self, value):
+        self._LB = value
+    
+    def _balance_via_grouping(self, par):    
+        pass
+    
+    def _balance_via_sorting(self, par):    
+        pass
+    
+    def LoadBalance(self, method=None, par=None):
                 
         if self.grid.structured:
-            self._structured_balance(method=method)
+            self._structured_balance(method=method, par=par)
         else: 
-            self._unstructured_balance(method=method)       
+            self._unstructured_balance(method=method, par=par)
             
-    def _unstructured_balance(self, method=0):
+    def _unstructured_balance(self, method=0, par=None):
                 
         if rank == 0:
 
@@ -612,14 +603,8 @@ class ModelGrid(ModelFit):
                 tag=10*rank)
                    
         self.LB = 0
-        
-    def _balance_via_grouping(self, par):    
-        pass
-    
-    def _balance_via_sorting(self, par):    
-        pass
-                        
-    def _structured_balance(self, method=0):
+          
+    def _structured_balance(self, method=0, par=None):
         """
         Determine which processors are to run which models.
         
@@ -627,7 +612,8 @@ class ModelGrid(ModelFit):
         ----------
         method : int
             0 : OFF
-            1 : By Tmin, cleverly
+            1 : By input parameter.
+            2 : 
             
         Returns
         -------
@@ -637,21 +623,25 @@ class ModelGrid(ModelFit):
         
         """
         
-        self.LB = True
+        self.LB = method
         
         if size == 1:
             self.assignments = np.zeros(self.grid.shape)
             return
             
-        have_Tmin = self.Tmin_in_grid  
+        if method > 0:
+            assert par in self.grid.axes_names, \
+                "Supplied load-balancing parameter %s not in grid!" % par  
         
-        if have_Tmin:
-            Tmin_i = self.grid.axes_names.index(self.Tmin_ax_name)
-            Tmin_ax = self.grid.axes[Tmin_i]
-            Tmin_N = Tmin_ax.size  
+            par_i = self.grid.axes_names.index(par)
+            par_ax = self.grid.axes[par_i]
+            par_N = par_ax.size  
         
+        if method not in [0, 1, 2]:
+            raise NotImplementedError('Unrecognized load-balancing method %i' % method)
+                
         # No load balancing. Equal # of models per processor
-        if method == 0 or (not have_Tmin) or (Tmin_N < size):
+        if method == 0 or (par_N < size):
             
             k = 0
             tmp_assignments = np.zeros(self.grid.shape)
@@ -672,42 +662,52 @@ class ModelGrid(ModelFit):
             # Communicate results
             self.assignments = np.zeros(self.grid.shape)
             MPI.COMM_WORLD.Allreduce(tmp_assignments, self.assignments)
-
-            self.LB = False 
                         
         # Load balance over Tmin axis    
-        elif method == 1:
+        elif method in [1, 2]:
             
-            Tmin_slc = []
-            
-            for i in range(self.grid.Nd):
-                if i == Tmin_i:
-                    Tmin_slc.append(i)
-                else:
-                    Tmin_slc.append(Ellipsis)
-            
-            Tmin_slc = tuple(Tmin_slc)
-            
-            procs = np.arange(size)
-                
             self.assignments = np.zeros(self.grid.shape)
-            
-            sequence = np.concatenate((procs, procs[-1::-1]))
-            
+                        
             slc = [Ellipsis for i in range(self.grid.Nd)]
             
-            k = 0
-            for i in range(Tmin_N):
-                
-                slc[Tmin_i] = i
-                
-                self.assignments[slc] = k \
-                    * np.ones_like(self.assignments[slc])
+            k = 0 # only used for method 1
             
-                k += 1
-                if k == (len(sequence) / 2):
-                    k = 0
+            # Disclaimer: there's a probably a much more slick way of doing this
+                
+            # For each value of the input 'par', split up the work.
+            # If method == 1, make it so that each processor gets only a 
+            # small subset of values for that parameter (e.g., sensible
+            # for pop_Tmin), or method == 2 make it so that all processors get
+            # a variety of values of input parameter, which is useful when
+            # increasing values of this parameter slow down the calculation.
+            for i in range(par_N):
+                
+                # Ellipses in all dimensions except that corresponding to a
+                # particular value of input 'par'
+                slc[par_i] = i
+                
+                if method == 1:
+                    self.assignments[slc] = k \
+                        * np.ones_like(self.assignments[slc])
+                
+                    # Cycle through processor numbers    
+                    k += 1
+                    if k == size:
+                        k = 0
+                elif method == 2:
+                    tmp = np.ones_like(self.assignments[slc])
+                    arr = np.array([np.arange(size)] * int(tmp.size / size)).ravel()
+                    self.assignments[slc] = np.reshape(arr, tmp.size)
+                else:
+                    raise ValueError('No method=%i!' % method)
 
+        elif method == 3:
+            # Do it randomly
+            arr = np.random.randint(low=0, high=size, size=self.grid.size, 
+                dtype=int)
+
+            self.assignments = np.reshape(arr, self.grid.shape)
+                    
         else:
             raise ValueError('No method=%i!' % method)
 

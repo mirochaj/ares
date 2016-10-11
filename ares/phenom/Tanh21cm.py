@@ -202,9 +202,12 @@ class Tanh21cm(object):
          'igm_dTb': dTb,
          'igm_Tk': Tk,
          'igm_Ts': Ts,
+         'Ts': Ts,
          'Ja': Ja,
+         'Jlw': np.zeros_like(z),
          'cgm_h_2': xi,
          'igm_h_1': np.ones_like(z),
+         'igm_h_2': np.zeros_like(z),
          'igm_heat_h_1': self.heating_rate(z, Tref, zref_T, dz_T),
          'cgm_Gamma_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
         }

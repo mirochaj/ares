@@ -447,6 +447,9 @@ class UniformBackground(object):
             self._tau_solver = self.pf['tau_instance']
             return self._tau_solver.z_fetched, self._tau_solver.E_fetched, \
                 self._tau_solver.tau_fetched
+        elif self.pf['tau_arrays'] is not None:
+            # Assumed to be (z, E, tau)
+            return self.pf['tau_arrays']
             
         # Create an ares.simulations.OpticalDepth instance    
         tau_solver = OpticalDepth(**pop.pf)
@@ -863,7 +866,7 @@ class UniformBackground(object):
             dnu_LW = (E_LL - 11.18) / ev_per_hz
             return 0.5 * (11.2 + 13.6) * erg_per_ev * norm * (1. + z)**3 \
                 * rhoLW / dnu_LW
-    
+
         # Closest Lyman line (from above)
         n = ceil(np.sqrt(E_LL / (E_LL - E)))
     
@@ -1032,6 +1035,8 @@ class UniformBackground(object):
         """
 
         Nz, Nf = len(z), len(E)
+        
+        
 
         Inu = np.zeros(Nf)
         for i in xrange(Nf): 
@@ -1042,11 +1047,49 @@ class UniformBackground(object):
 
         # Now, redshift dependent parts    
         epsilon = np.zeros([Nz, Nf])
-        for ll in xrange(Nz):
-            H = self.cosm.HubbleParameter(z[ll])
-            Lbol = pop.LuminosityDensity(z[ll])
-            epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H / erg_per_ev                
+        
+        #if Nf == 1:
+        #    return epsilon
+        
+        scalable = False
+        if hasattr(pop, 'scalable_rhoL'):
+            if pop.scalable_rhoL:
+                scalable = True
+        
+        H = np.array(map(self.cosm.HubbleParameter, z))
 
+        if scalable:
+            for ll in xrange(Nz):
+                Lbol = pop.LuminosityDensity(z[ll])
+                epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H[ll] / erg_per_ev
+        else:
+            
+            ##
+            # WARNING: This is super non-general at the moment. 
+            # Be careful!
+            ##
+                                                        
+            # Got some fixin' to do.
+            for band in [(10.2, 13.6), (13.6, 24.6), None]:
+                
+                if band is None:
+                    b = (pop.pf['pop_Emin'], pop.pf['pop_Emax'])
+                else:
+                    b = band
+                
+                # Setup interpolant
+                rho_L = pop.rho_L(Emin=b[0], Emax=b[1])    
+                
+                if rho_L is None:
+                    continue
+
+                in_band = np.logical_and(E >= b[0], E <= b[1])
+                
+                for ll, redshift in enumerate(z):
+                    Lband = rho_L(redshift)
+                    epsilon[ll,in_band] = Inu_hat[in_band] * Lband * ev_per_hz \
+                        / H[ll] / erg_per_ev / pop._convert_band(b[0], b[1])
+            
         return epsilon
             
     def _flux_generator_generic(self, energies, redshifts, ehat, tau=None,

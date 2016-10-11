@@ -99,9 +99,26 @@ class MultiPhaseMedium(object):
 
     def _load_data(self, data):
         try:
+            chunks = 0
             f = open('%s.history.pkl' % data, 'rb')
-            history = pickle.load(f)
+            while True:
+                try:
+                    tmp = pickle.load(f)
+                except EOFError:
+                    break
+                
+                if not hasattr(self, '_suite'):
+                    self._suite = []
+                    
+                self._suite.append(tmp.copy())
+                chunks += 1
+            
             f.close()
+            
+            if chunks == 0:
+                raise IOError('Empty history (%s.history.pkl)' % data)
+            else:    
+                history = self._suite[-1]
 
         except IOError: 
             if re.search('pkl', data):
@@ -130,7 +147,8 @@ class MultiPhaseMedium(object):
             self.pf = pickle.load(f)
             f.close()        
                 
-        except AttributeError:
+        # The import error is really meant to catch pickling errors
+        except (AttributeError, ImportError):
             self.pf = {"final_redshift": 5., "initial_redshift": 100.,
                 'first_light_redshift': 100.}
             print 'Error loading %s.parameters.pkl.' % data

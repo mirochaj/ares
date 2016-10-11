@@ -67,17 +67,24 @@ def five_pt_stencil(x, y):
          
     return x[2:-2], num[2:-2] / 12. / h
     
-def smooth(x, y, kernel):
+def smooth(y, width, kernel='boxcar'):
     """
     Smooth 1-D function `y` using boxcar of width `kernel` (in pixels).
     """
-    s = kernel - 1
+    s = width - 1
+    kern = np.zeros_like(y)
+        
+    if kernel == 'boxcar':
+        kern[kern.size/2 - s/2: kern.size/2 + s/2+1] = \
+            np.ones(width) / float(width)
+    elif kernel == 'gaussian':
+        x0 = kern.size / 2
+        xx = np.arange(0, len(y))
+        kern = np.exp(-0.5 * (xx - x0)**2 / width**2) / width / np.sqrt(2 * np.pi)
+    else:
+        raise NotImplemented('help')
     
-    boxcar = np.zeros_like(y)
-    boxcar[boxcar.size/2 - s/2: boxcar.size/2 + s/2+1] = \
-        np.ones(kernel) / float(kernel)
-    
-    return np.convolve(y, boxcar, mode='same')
+    return np.convolve(y, kern, mode='same')
     
 def take_derivative(z, field, wrt='z'):
     """ Evaluate derivative of `field' with respect to `wrt' at z. """

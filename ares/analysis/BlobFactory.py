@@ -356,10 +356,10 @@ class BlobFactory(object):
         
         self._blobs = []
         for i, element in enumerate(self.blob_names):
-                        
+                                    
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                     
+                                                                                                                                                                                     
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -468,7 +468,7 @@ class BlobFactory(object):
         if not os.path.exists(fn):
             
             # First, look for processor-by-processor outputs
-            fn = "%s.proc0000.blob_%id.%s.pkl" % (self.prefix, nd, name)
+            fn = "%s.000.blob_%id.%s.pkl" % (self.prefix, nd, name)
             if os.path.exists(fn):
                 by_proc = True        
                 by_dd = False
@@ -489,9 +489,7 @@ class BlobFactory(object):
                         tmp = "%s.dd%s.blob_%id.%s.pkl" \
                             % (self.prefix, ddid, nd, name)
                         ddf.append(tmp)
-                
-                print ddf
-                
+                                
                 # Start with the first...
                 fn = ddf[0]        
         
@@ -526,8 +524,8 @@ class BlobFactory(object):
             fid += 1
             
             if by_proc:
-                fn = "%s.proc%s.blob_%id.%s.pkl" \
-                    % (self.prefix, str(fid).zfill(4), nd, name)
+                fn = "%s.%s.blob_%id.%s.pkl" \
+                    % (self.prefix, str(fid).zfill(3), nd, name)
             else:
                 if (fid >= len(ddf)):
                     break

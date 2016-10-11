@@ -74,21 +74,32 @@ pars_pwpl = \
 'php_func_par4': 1e11,
 }
 
+pars_ramp = \
+{
+'pop_fstar': 'php',
+'php_func': 'logramp',
+'php_func_var': 'mass',
+'php_func_par0': 1e-3,
+'php_func_par1': 9,
+'php_func_par2': 1e-1,
+'php_func_par3': 11,
+}
+
 def test():
     
     Mh = np.logspace(7, 15, 200)
     
     ls = '-', '--', ':', '-.'
-    lw = 2, 2, 4
-    labels = ['pl_w_ceil', 'dpl', 'pwpl']
-    for i, pars in enumerate([pars_pl, pars_dpl, pars_pwpl]):
+    lw = 2, 2, 4, 4
+    labels = ['pl_w_ceil', 'dpl', 'pwpl', 'ramp']
+    for i, pars in enumerate([pars_pl, pars_dpl, pars_pwpl, pars_ramp]):
         pop = ares.populations.GalaxyPopulation(pop_sfr_model='sfe-func', **pars)
         
         fnow = pop.SFE(6., Mh).copy()
         
         pl.loglog(Mh, fnow, ls=ls[i], label=labels[i], lw=lw[i])
             
-        if i > 0:
+        if (i > 0) and (labels[i] != 'ramp'):
             assert np.allclose(fnow[Mh <= 1e8], fprev[Mh <= 1e8], rtol=5e-2)
             assert np.allclose(fnow[Mh >= 1e14], fprev[Mh >= 1e14], rtol=5e-2)
     

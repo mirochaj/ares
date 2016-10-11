@@ -230,15 +230,15 @@ class Global21cm(MultiPhaseMedium):
             self._turning_points = result       
 
         return self._turning_points
-        
+
     def derivative_of_freq(self, freq):
         interp = interp1d(self.nu_p, self.dTbdnu, kind='linear')
         return interp(freq)
-    
+
     def curvature_of_freq(self, freq):
         interp = interp1d(self.nu_pp, self.dTb2dnu2, kind='linear')
         return interp(freq)  
-    
+
     def derivative_of_z(self, z):
         freq = nu_0_mhz / (1. + z)
         return self.derivative_of_freq(freq)
@@ -554,12 +554,14 @@ class Global21cm(MultiPhaseMedium):
     
     def WidthMeasure(self, max_fraction=0.5, peak_relative=False, to_freq=True,
         absorption=True):
+        # This only helps with backward compatibility between two obscure
+        # revisions that probably nobody is using...
         return self.Width(max_fraction, peak_relative, to_freq)
         
     def Width(self, max_fraction=0.5, peak_relative=False, to_freq=True,
         absorption=True):
         """
-        Return a measurement of the width of the absorption signal.
+        Return a measurement of the width of the absorption or emission signal.
         
         Parameters
         ----------
@@ -572,6 +574,8 @@ class Global21cm(MultiPhaseMedium):
         to_freq: bool
             If True, return value is in MHz. If False, it is a differential
             redshift element.
+        absorption : bool
+            If True, assume absorption signal, otherwise, use emission signal.
             
         .. note :: With default parameters, this function returns the 
             full-width at half-maximum (FWHM) of the absorption signal.
@@ -599,21 +603,26 @@ class Global21cm(MultiPhaseMedium):
         z = self.data_asc['z'][ok]
         dTb = self.data_asc['dTb'][ok]
         
+        # (closest) index corresponding to the extremum of interest
         i_max = np.argmin(np.abs(dTb - T_pt))
         
         # At what fraction of peak do we measure width?
-        h_max = max_fraction * T_pt
+        f_max = max_fraction * T_pt
         
         if len(dTb[:i_max]) < 2 or len(dTb[i_max:]) < 2:
             return -np.inf
-        
+                
         interp_l = interp1d(dTb[:i_max], z[:i_max], bounds_error=False, 
             fill_value=-np.inf)
         interp_r = interp1d(dTb[i_max:], z[i_max:], bounds_error=False, 
             fill_value=-np.inf)
         
-        l = abs(interp_l(h_max))
-        r = abs(interp_r(h_max))
+        # Interpolate to find frequencies where f_max occurs
+        l = abs(interp_l(f_max))
+        r = abs(interp_r(f_max))
+        
+        if np.any(np.isinf([l, r])):
+            return -np.inf
                 
         if to_freq:
             l = nu_0_mhz / (1. + l)

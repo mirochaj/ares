@@ -74,4 +74,13 @@ If the bundle you specify is not defined in ares.util.ParameterBundles, *ares* w
     .. note :: For this to work "out of the box" you will need a lookup table for the IGM opacity that is not included with *ares* by default. See :doc:`inits_tables`: for more info on generating these lookup tables.
 
 
+Creating your own
+-----------------
+While some parameter bundles are defined in the source code (e.g., all but those in the ``Simulations'' section above), they can also be defined in separate files. For example, the ``mirocha2016:dpl`` model is defined in the ``dpl'' dictionary in the file ``mirocha2016.py'', which lives in ``$ARES/input/litdata''. You can write your own parameter bundles in the same way, just stick them in one of the following places (searched in this order!):
+
+* ``$ARES/input/litdata''
+* ``$HOME/.ares''
+* Your current working directory.
+
+
 

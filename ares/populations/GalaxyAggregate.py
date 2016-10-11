@@ -104,13 +104,14 @@ class GalaxyAggregate(HaloPopulation):
         self._id_num = int(value)
         
     @property
-    def is_lya_src(self):
-        if not hasattr(self, '_is_lya_src'):
-            self._is_lya_src = \
-                (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
-                and self.pf['pop_lya_src']
-
-        return self._is_lya_src
+    def scalable_rhoL(self):
+        """
+        Can we just determine a luminosity density by scaling the SFRD?
+    
+        For GalaxyAggregate sources, the answer is always "yes."
+        """
+    
+        return True
 
     @property
     def _Source(self):
@@ -124,7 +125,8 @@ class GalaxyAggregate(HaloPopulation):
             elif self.pf['pop_sed'] in _synthesis_models:    
                 self._Source_ = SynthesisModel
             else:
-                self._Source_ = read_lit(self.pf['pop_sed'])
+                self._Source_ = read_lit(self.pf['pop_sed'], 
+                    verbose=self.pf['verbose'])
 
         return self._Source_
 
@@ -202,9 +204,9 @@ class GalaxyAggregate(HaloPopulation):
             
     @property
     def is_link_sfrd(self):
-        if re.search('link', self.pf['pop_sfr_model']):
+        if re.search('link:sfrd', self.pf['pop_sfr_model']):
             return True
-        return False        
+        return False  
         
     @property
     def is_user_sfe(self):
@@ -240,7 +242,7 @@ class GalaxyAggregate(HaloPopulation):
                 pars = get_php_pars(self.pf['pop_sfrd'], self.pf)
                 self._sfrd_ = ParameterizedHaloProperty(**pars)    
             else:
-                tmp = read_lit(self.pf['pop_sfrd'])
+                tmp = read_lit(self.pf['pop_sfrd'], verbose=self.pf['verbose'])
                 self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
         
         return self._sfrd_
@@ -321,7 +323,7 @@ class GalaxyAggregate(HaloPopulation):
         if not hasattr(self, '_is_lya_src'):
             if self.pf['pop_sed_model']:
                 self._is_lya_src = \
-                    (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
+                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
                     and self.pf['pop_lya_src']
             else:
                 return self.pf['pop_lya_src']
@@ -349,7 +351,7 @@ class GalaxyAggregate(HaloPopulation):
                     and self.pf['pop_heat_src_igm']
             else:
                 self._is_xray_src = self.pf['pop_heat_src_igm']        
-    
+        
         return self._is_xray_src    
     
     def _convert_band(self, Emin, Emax):

@@ -242,27 +242,28 @@ class ParameterFile(dict):
         
         # Check for stuff that'll break...stuff
         self._check_for_conflicts(**kwargs)
-    
+
     @property
     def Npops(self):
         if not hasattr(self, '_Npops'):
-            
+
             tmp = {}
             if 'problem_type' in self._kwargs:
                 tmp.update(ProblemType(self._kwargs['problem_type']))
             tmp.update(self._kwargs)
-            
+
             self._Npops = count_populations(**tmp)
 
         return self._Npops
-    
+
     @property
     def Nphps(self):
         if not hasattr(self, '_Nphps'):
-            tmp = self._kwargs.copy()
+            tmp = {}    
             if 'problem_type' in self._kwargs:
                 tmp.update(ProblemType(self._kwargs['problem_type']))
-    
+            tmp.update(self._kwargs) 
+
             self._Nphps, self._phps = count_properties(**tmp)
 
         return self._Nphps

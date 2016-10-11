@@ -35,7 +35,7 @@ HOME = os.environ.get('HOME')
 ARES = os.environ.get('ARES')
 sys.path.insert(1, '%s/input/litdata' % ARES)
 
-def read_lit(prefix, path=None):
+def read_lit(prefix, path=None, verbose=True):
     """
     Read data from the literature.
     
@@ -54,15 +54,19 @@ def read_lit(prefix, path=None):
     
     # Load custom defaults    
     if os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix)):
-        _f, _filename, _data = _imp.find_module(prefix, 
-            ['%s/input/litdata/' % ARES])
-        mod = _imp.load_module('%s' % prefix, _f, _filename, _data)
+        loc = '%s/input/litdata/' % ARES
     elif os.path.exists('%s/.ares/%s.py' % (HOME, prefix)):
-        _f, _filename, _data = _imp.find_module(prefix, 
-            ['%s/.ares/' % HOME])
-        mod = _imp.load_module('%s' % prefix, _f, _filename, _data)
+        loc = '%s/.ares/' % HOME
+    elif os.path.exists('./%s.py' % prefix):
+        loc = '.'
     else:
-        mod = None
+        return None
+
+    if rank == 0 and verbose:
+        print "Loading module %s from %s" % (prefix, loc)
+        
+    _f, _filename, _data = _imp.find_module(prefix, [loc])
+    mod = _imp.load_module(prefix, _f, _filename, _data)
     
     return mod
 

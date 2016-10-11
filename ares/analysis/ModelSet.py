@@ -10,6 +10,7 @@ Description: For analysis of MCMC fitting.
 
 """
 
+import shutil
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as pl
@@ -45,7 +46,7 @@ except ImportError:
 
 try:
     import shapely.geometry as geometry
-    from shapely.ops import cascaded_union, polygonize
+    from shapely.ops import cascaded_union, polygonize, unary_union
     have_shapely = True
 except (ImportError, OSError):
     have_shapely = False
@@ -231,7 +232,9 @@ class ModelSet(BlobFactory):
 
     @property
     def load(self):
+        print 'hello'
         if not hasattr(self, '_load'):
+            print 'hello2'
             if os.path.exists('%s.load.pkl' % self.prefix):
                 self._load = read_pickle_file('%s.load.pkl' % self.prefix)
             else:
@@ -384,31 +387,6 @@ class ModelSet(BlobFactory):
                 
         return self._timing
             
-    def save_hdf5(self):
-        if not have_h5py:
-            return
-        
-        if rank > 0:
-            return
-            
-        f = h5py.File('%s.blobs.hdf5' % self.prefix, 'w')
-        f.create_dataset('blobs', data=self.blobs)
-        f.create_dataset('mask', data=self._mask)
-        f.close()
-        
-        print 'Saved %s.blobs.hdf5' % self.prefix
-        
-        # Save to disk!
-        if not os.path.exists('%s.dblobs.hdf5') and have_h5py:
-            f = h5py.File('%s.dblobs.hdf5' % self.prefix, 'w')
-            f.create_dataset('mask', data=self._mask)
-            f.create_dataset('derived_blobs', data=self._derived_blobs)
-            f.create_dataset('derived_blob_names', data=self._derived_blob_names)
-            f.close()
-        
-            if rank == 0:
-                print 'Saved %s.dblobs.hdf5' % self.prefix
-
     @property
     def Nd(self):
         if not hasattr(self, '_Nd'):
@@ -466,11 +444,11 @@ class ModelSet(BlobFactory):
                 self._chain = np.ma.array(self._chain, mask=mask2d)
             
             # We might have data stored by processor
-            elif os.path.exists('%s.proc0000.chain.pkl' % self.prefix):
+            elif os.path.exists('%s.000.chain.pkl' % self.prefix):
                 i = 0
                 full_chain = []
                 full_mask = []
-                fn = '%s.proc0000.chain.pkl' % self.prefix
+                fn = '%s.000.chain.pkl' % self.prefix
                 while True:
                                         
                     if not os.path.exists(fn):
@@ -480,7 +458,7 @@ class ModelSet(BlobFactory):
                     full_chain.extend(this_chain.copy())                    
                     
                     i += 1
-                    fn = '%s.proc%s.chain.pkl' % (self.prefix, str(i).zfill(4))  
+                    fn = '%s.%s.chain.pkl' % (self.prefix, str(i).zfill(3))  
                     
                 self._chain = np.ma.array(full_chain, mask=0)
 
@@ -503,8 +481,9 @@ class ModelSet(BlobFactory):
                         fn = '%s.dd%s.chain.pkl' % (self.prefix, dd)
                         outputs_to_read.append(fn)
                 else:
+                    # Only need to use "sorted" on the second time around
                     outputs_to_read = \
-                        glob.glob('%s.dd*.chain.pkl' % self.prefix)
+                        sorted(glob.glob('%s.dd*.chain.pkl' % self.prefix))
                                 
                 full_chain = []
                 for fn in outputs_to_read:
@@ -563,7 +542,7 @@ class ModelSet(BlobFactory):
                         outputs_to_read.append(fn)
                 else:
                     outputs_to_read = \
-                        glob.glob('%s.dd*.logL.pkl' % self.prefix)
+                        sorted(glob.glob('%s.dd*.logL.pkl' % self.prefix))
                 
                 full_chain = []
                 for fn in outputs_to_read:
@@ -707,9 +686,9 @@ class ModelSet(BlobFactory):
             tmp = self.chain[0:self.blobs.shape[0]]
             self.chain = tmp
     
-    def _load(self, fn):
-        if os.path.exists(fn):
-            return read_pickle_file(fn)
+    #def _load(self, fn):
+    #    if os.path.exists(fn):
+    #        return read_pickle_file(fn)
     
     @property    
     def blob_redshifts_float(self):
@@ -856,6 +835,65 @@ class ModelSet(BlobFactory):
         print "Saved result to slice_%i attribute." % i
         
         return model_set
+        
+    def SliceByPolygon(self, parameters, polygon):
+        """
+        Convert a bounding polygon to a new ModelSet instance.
+        
+        Parameters
+        ----------
+        parameters : list
+            List of parameters names / blob names defining the (x, y) plane
+            of the input polygon.
+        polygon : shapely.geometry.Polygon instance
+            Yep.
+            
+        Returns
+        -------
+        New instance of THIS VERY CLASS.
+        
+        """
+        
+        data, is_log = self.ExtractData(parameters)
+        
+        xdata = data[parameters[0]]
+        ydata = data[parameters[1]]
+        
+        assert len(xdata) == len(ydata)
+        assert len(xdata) == self.chain.shape[0]
+        
+        mask = np.zeros(self.chain.shape[0])
+        for i in range(len(xdata)):
+            pt = geometry.Point(xdata[i], ydata[i])
+            
+            if not polygon.contains(pt):
+                mask[i] = 1
+        
+        ##
+        # CREATE NEW MODELSET INSTANCE
+        ##
+        model_set = ModelSet(self.prefix)
+        
+        # Set the mask! 
+        model_set.mask = np.logical_or(mask, self.mask)
+                
+        return model_set        
+        
+    def Vennify(self, polygon1, polygon2):
+        """
+        Return a new ModelSet instance containing only models that lie 
+        within (or outside, if union==False) intersection of two polygons.
+        """
+        
+        poly = geometry.MultiPolygon([polygon1, polygon2])
+        
+        rings = [geometry.LineString(list(poly.exterior.coords)) \
+            for poly in poly]
+        
+        union = unary_union(rings)
+        result = [geom for geom in polygonize(union)]
+        
+        return result
         
     @property
     def plot_info(self):
@@ -1130,8 +1168,8 @@ class ModelSet(BlobFactory):
         return ax
     
     def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
-        take_log=False, un_log=False, multiplier=1., 
-        boundary_type='concave', alpha=0.3, **kwargs):
+        take_log=False, un_log=False, multiplier=1., add_patch=True,
+        boundary_type='concave', alpha=0.3, return_polygon=False, **kwargs):
         """
         Basically a scatterplot but instead of plotting individual points,
         we draw lines bounding the locations of all those points.
@@ -1183,19 +1221,23 @@ class ModelSet(BlobFactory):
         x_min, y_min, x_max, y_max = polygon.bounds
         
         # Plot a Polygon using descartes
-        try:        
-            patch = PolygonPatch(polygon, **kwargs)
-            ax.add_patch(patch)
-        except:
-            patches = []
-            for pgon in polygon:
-                patches.append(PolygonPatch(pgon, **kwargs))
+        if add_patch:
+            try:        
+                patch = PolygonPatch(polygon, **kwargs)
+                ax.add_patch(patch)
+            except:
+                patches = []
+                for pgon in polygon:
+                    patches.append(PolygonPatch(pgon, **kwargs))
+                
+                ax.add_collection(PatchCollection(patches, match_original=True))
             
-            ax.add_collection(PatchCollection(patches, match_original=True))
-        
-        pl.draw()
+            pl.draw()
             
-        return ax
+        if return_polygon:
+            return ax, polygon
+        else:
+            return ax
         
     def get_par_prefix(self, par):
         m = re.search(r"\{([0-9])\}", par)
@@ -1558,7 +1600,7 @@ class ModelSet(BlobFactory):
             # Only derived blobs in this else block, yes?                        
             else:
                 
-                cand = glob.glob('%s*.%s.pkl' % (self.prefix, par))
+                cand = sorted(glob.glob('%s*.%s.pkl' % (self.prefix, par)))
                 
                 if len(cand) == 1:
                     f = open(cand[0], 'rb')     
@@ -3057,16 +3099,27 @@ class ModelSet(BlobFactory):
         
         return result
         
-    def save(self, pars, z=None, path='.', fmt='hdf5', clobber=False):
+    def export(self, prefix, pars, ivar=None, path='.', fmt='hdf5', 
+        clobber=False, skip=0, skim=1, stop=None):
+        """
+        Just a wrapper around `save' routine.
+        """
+        self.save(prefix, pars, ivar, path, fmt, clobber, skip, skim, stop)
+        
+    def save(self, prefix, pars, ivar=None, path='.', fmt='hdf5', 
+        clobber=False, skip=0, skim=1, stop=None):
         """
         Extract data from chain or blobs and output to separate file(s).
+        
+        This can be a convenient way to re-package data, for instance 
+        consolidating data outputs from lots of processors into a single file.
         
         Parameters
         ----------
         pars : str, list, tuple
             Name of parameter (or list of parameters) or blob(s) to extract.
-        z : int, float, str, list, tuple
-            Redshift(s) of interest.
+        ivar : int, float, str, list, tuple
+            [optional] independent variables, if None will extract all.
         fmt : str
             Options: 'hdf5' or 'pkl'
         path : str
@@ -3076,58 +3129,62 @@ class ModelSet(BlobFactory):
         
         if type(pars) not in [list, tuple]:
             pars = [pars]
-        if type(z) not in [list, tuple]:
-            z = [z] * len(pars)
 
-        # Output to HDF5
+        data, is_log = self.ExtractData(pars, ivar=ivar)
+        
+        fn = '%s/%s.%s.%s' % (path,self.prefix, prefix, fmt)
+        
+        if os.path.exists(fn) and (not clobber):
+            raise IOError('File exists! Set clobber=True to wipe it.')
+            
+        # Output to HDF5. In this case, save each field as a new dataset
         if fmt == 'hdf5':
+            
+            f = h5py.File(fn, 'w')
 
             # Loop over parameters and save to disk
-            for i, par in enumerate(pars):
-                fn = '%s/%s.subset.%s.%s' % (path,self.fn, par, fmt)
-
-                # If the file exists, see if it already contains data for the
-                # redshifts of interest. If not append. If so, raise error.
-                if os.path.exists(fn) and (not clobber):
-
-                    if z[i] is None:
-                        raise IOError('%s exists!' % fn)
-
-                    # Check for redshift data    
-                    f = h5py.File(fn, 'r')
-                    ids, redshifts = zip(*f.attrs.items())
-                    f.close()
-
-                    ids_ints = map(int, ids)
-                    id_start = max(ids_ints) + 1
-
-                    if z[i] in redshifts:
-                        print '%s exists! As does this dataset. Continuing...' % fn
-                        continue
-                else:
-                    id_start = 0
-                    
-                idnum = str(id_start).zfill(5)
+            for par in pars:   
                 
-                if z is None:
-                    attr = -99999
-                else:
-                    attr = z[i]
-            
-                # Stick requested fields in a dictionary
-                data, is_log = self.ExtractData(par, z=z[i])
-            
-                f = h5py.File(fn, 'a')
-                f.attrs.create(idnum, attr)
-
-                ds = f.create_dataset(idnum, data=data[par])
-                ds.attrs.create('mask', data[par].mask)
-                    
-                f.close()
-                print "Wrote %s." % fn    
                 
+                # Tag ivars on as attribute if blob
+                if par in self.all_blob_names:
+                    if 'blobs' not in f:
+                        grp = f.create_group('blobs')
+                    else:
+                        grp = f['blobs']
+                    
+                    ds = grp.create_dataset(par, data=data[par][skip:stop:skim,Ellipsis])
+                    i, j, nd, dims = self.blob_info(par)
+                    ds.attrs.create('ivar', self.blob_ivars[i])
+                else:
+                    if 'axes' not in f:
+                        grp = f.create_group('axes')
+                    else:
+                        grp = f['axes']
+
+                    ds = grp.create_dataset(par, data=data[par][skip:stop:skim,Ellipsis])
+                    
+            f.close()
+            print "Wrote %s." % fn  
+            
+        elif fmt == 'pkl':
+            f = h5py.File(fn, 'w')
+
+            # Loop over parameters and save to disk
+            for i, par in enumerate(pars):   
+                f.create_dataset(par, data=data[par][skip:stop:skim,Ellipsis])
+                
+            f.close()
+            print "Wrote %s." % fn  
+            
         else:
             raise NotImplemented('Only support for hdf5 so far. Sorry!')
+            
+        # Also make a copy of the setup file with same prefix
+        # since that's generally nice to have available.  
+        out = '%s/%s.%s.setup.pkl' % (path, self.prefix, prefix)
+        shutil.copy('%s.setup.pkl' % self.prefix, out)
+        print "Wrote %s." % out    
         
     def set_axis_labels(self, ax, pars, is_log, take_log=False, un_log=False,
         cb=None, labels={}):

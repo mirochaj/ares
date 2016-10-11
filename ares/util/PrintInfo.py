@@ -475,8 +475,8 @@ def print_sim(sim):
     for i, pop in enumerate(sim.pops):
         rows.append('pop #%i' % i)
         if re.search('link', pop.pf['pop_sfr_model']):
-            junk, num = pop.pf['pop_sfr_model'].split(':')
-            mod = 'link:%i' % int(num)
+            junk, quantity, num = pop.pf['pop_sfr_model'].split(':')
+            mod = 'link:%s:%i' % (quantity, int(num))
         else:
             mod = pop.pf['pop_sfr_model']
             
@@ -504,7 +504,7 @@ def print_sim(sim):
             
         data.append(tmp)    
     
-    tabulate(data, rows, cols, cwidth=[8,10,8,8,8,8,8], fmt='%s')
+    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8], fmt='%s')
     
     print line('-'*twidth)
     print line('Physics')

@@ -13,10 +13,9 @@ class instances.
 import re
 import numpy as np
 from ..util import ParameterFile
+from .GalaxyCohort import GalaxyCohort
 from .GalaxyAggregate import GalaxyAggregate
 from .GalaxyPopulation import GalaxyPopulation
-#from .Parameterized import ParametricPopulation
-
 
 class CompositePopulation(object):
     def __init__(self, **kwargs):
@@ -38,27 +37,38 @@ class CompositePopulation(object):
         
         self.pops = [None for i in range(self.Npops)]
         to_tunnel = [None for i in range(self.Npops)]
+        to_quantity = [None for i in range(self.Npops)]
         for i, pf in enumerate(self.pfs):
                         
             if re.search('link', pf['pop_sfr_model']):
-                junk, linkto = pf['pop_sfr_model'].split(':')
-                to_tunnel[i] = int(linkto)
+                try:
+                    junk, linkto, linkee = pf['pop_sfr_model'].split(':')
+                    to_tunnel[i] = int(linkee)
+                    to_quantity[i] = linkto
+                except ValueError:
+                    # Backward compatibility issue: we used to only ever
+                    # link to the SFRD of another population
+                    junk, linkee = pf['pop_sfr_model'].split(':')
+                    to_tunnel[i] = int(linkee)
+                    to_quantity[i] = 'sfrd'
             else:
                 self.pops[i] = GalaxyPopulation(**pf)
 
-        # Tunneling populations!
+        # Establish a link from one population's attribute to another
         for i, entry in enumerate(to_tunnel):
             if entry is None:
                 continue
                         
             tmp = self.pfs[i].copy()
             
-            # This is the tunnel
-            #tmp['pop_sfrd'] = self.pops[entry]._sfrd_func
-
-            # Only makes sense to tunnel to non-fcoll model
-            self.pops[i] = GalaxyAggregate(**tmp)
-            self.pops[i]._sfrd = self.pops[entry]._sfrd_func
+            if to_quantity[i] == 'sfrd':
+                self.pops[i] = GalaxyAggregate(**tmp)
+                self.pops[i]._sfrd = self.pops[entry]._sfrd_func
+            elif to_quantity[i] in ['sfe', 'fstar']:
+                self.pops[i] = GalaxyCohort(**tmp)
+                self.pops[i]._fstar = self.pops[entry].SFE
+            else:
+                raise NotImplementedError('help')
 
         # Set ID numbers (mostly for debugging purposes)
         for i, pop in enumerate(self.pops):

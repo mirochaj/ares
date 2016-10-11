@@ -221,7 +221,7 @@ class ParameterBundle(dict):
                 self[key] = kwargs[key]
             
     def _initialize(self, bundle, **kwargs):
-        
+
         # Clear out
         tmp = self.keys()
         for key in tmp:
@@ -246,16 +246,16 @@ class ParameterBundle(dict):
         if name not in self.keys():
             pass
         return self[name]
-        
+
     def __add__(self, other):
         tmp = self.copy()
-        
+
         # Make sure to not overwrite anything here!
         for key in other:
             if key in tmp:
                 raise KeyError('%s supplied more than once!' % key)
-                                
-            tmp[key] = other[key]    
+
+            tmp[key] = other[key]
                 
         return ParameterBundle(**tmp)
         
