@@ -14,11 +14,11 @@ import re
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
-from ..util.ParameterFile import par_info
 from .GalaxyAggregate import GalaxyAggregate
 from scipy.optimize import fsolve, curve_fit
 from ..phenom.DustCorrection import DustCorrection
 from scipy.integrate import quad, simps, cumtrapz, ode
+from ..util.ParameterFile import par_info, get_php_pars
 from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
@@ -71,7 +71,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
                 result = lambda z, M: self.pf[full_name] \
                         / self.pf['pop_fstar_boost']
             elif is_php:
-                tmp = self.get_php_pars(self.pf[full_name]) 
+                tmp = get_php_pars(self.pf[full_name], self.pf) 
                 
                 # Correct values that are strings:
                 if self.sed_tab:
@@ -630,7 +630,10 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         if not hasattr(self, '_Mmin'):
             # First, compute threshold mass vs. redshift
             if self.pf['pop_Mmin'] is not None:
-                self._Mmin = self.pf['pop_Mmin'] * np.ones(self.halos.Nz)
+                if type(self.pf['pop_Mmin']) is FunctionType:
+                    self._Mmin = np.array(map(self.pf['pop_Mmin'], self.halos.z))
+                else:    
+                    self._Mmin = self.pf['pop_Mmin'] * np.ones(self.halos.Nz)
             else:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'], 
                     z, mu=self.pf['mu'])
@@ -751,7 +754,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             if type(self.pf['pop_mlf']) in [float, np.float64]:
                 self._mlf = lambda z, M: self.pf['pop_mlf']
             elif self.pf['pop_mlf'][0:3] == 'php':
-                pars = self.get_php_pars(self.pf['pop_mlf'])    
+                pars = get_php_pars(self.pf['pop_mlf'], self.pf)    
                 self._mlf = ParameterizedHaloProperty(**pars)
             else:
                 raise ValueError('Unrecognized data type for pop_mlf!')  
@@ -774,7 +777,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             elif type(self.pf['pop_fstar']) in [float, np.float64]:
                 self._fstar = lambda z, M: self.pf['pop_fstar'] * boost
             elif self.pf['pop_fstar'][0:3] == 'php':
-                pars = self.get_php_pars(self.pf['pop_fstar'])
+                pars = get_php_pars(self.pf['pop_fstar'], self.pf)
                 self._fstar_inst = ParameterizedHaloProperty(**pars)
                 
                 self._fstar = lambda z, M: self._fstar_inst.__call__(z, M) \
@@ -790,7 +793,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             if type(self.pf['pop_fduty']) in [float, np.float64]:
                 self._fduty = lambda z, M: self.pf['pop_fduty']
             elif self.pf['pop_fstar'][0:3] == 'php':
-                pars = self.get_php_pars(self.pf['pop_fduty'])
+                pars = get_php_pars(self.pf['pop_fduty'], self.pf)
                 self._fduty = ParameterizedHaloProperty(**pars)
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
@@ -803,76 +806,12 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             if type(self.pf['pop_fesc']) in [float, np.float64]:
                 self._fesc = lambda z, M: self.pf['pop_fesc']
             elif self.pf['pop_fesc'][0:3] == 'php':
-                pars = self.get_php_pars(self.pf['pop_fesc'])    
+                pars = get_php_pars(self.pf['pop_fesc'], self.pf)    
                 self._fesc = ParameterizedHaloProperty(**pars)
             else:
                 raise ValueError('Unrecognized data type for pop_fesc!')  
     
         return self._fesc
-
-    @property    
-    def tdyn(self):
-        if not hasattr(self, '_tdyn'):
-            if type(self.pf['pop_tdyn']) in [float, np.float64]:
-                self._tdyn = lambda z, M: self.pf['pop_tdyn']
-            elif self.pf['pop_tdyn'][0:3] == 'php':
-                pars = self.get_php_pars(self.pf['pop_tdyn'])    
-                self._tdyn = ParameterizedHaloProperty(**pars)
-            else:
-                raise ValueError('Unrecognized data type for pop_fesc!')  
-    
-        return self._tdyn  
-    
-    def get_php_pars(self, par):
-        """
-        Find ParameterizedHaloProperty's for this parameter.
-        
-        ..note:: par isn't the name of the parameter, it is the value. Usually,
-            it's something like 'php[0]'.
-            
-        For example, if in the parameter file, you set:
-        
-            'pop_fesc{0}'='php[1]'
-            
-        This routine runs off and finds all parameters that look like:
-        
-            'php_*par?{0}[1]'
-            
-        Returns
-        -------
-        Dictionary of parameters to be used to initialize a new HaloProperty.
-            
-        """
-
-
-        prefix, popid, phpid = par_info(par)
-
-        pars = {}
-        for key in self.pf:
-            if (self.pf.Nphps != 1):
-                if not re.search('\[%i\]' % phpid, key):
-                    continue
-
-            if key[0:3] != 'php':
-                continue
-
-            p, popid, phpid_ = par_info(key)    
-
-            if (phpid is None) and (self.pf.Nphps == 1):
-                pars[p] = self.pf['%s' % p]          
-
-            # This means we probably have some parameters bracketed
-            # and some not...should make it so this doesn't happen
-            elif (phpid is not None) and (self.pf.Nphps == 1):
-                try:
-                    pars[p] = self.pf['%s[%i]' % (p, phpid)]   
-                except KeyError:
-                    # This means it's just default values
-                    pars[p] = self.pf['%s' % p]   
-            else:    
-                pars[p] = self.pf['%s[%i]' % (p, phpid)]
-
-        return pars
         
     def gamma_sfe(self, z, M):
         """
@@ -948,6 +887,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             return rhoL / erg_per_phot
         else:
             return self.rho_N(z, Emin, Emax)
+<<<<<<< local
              
     def ScalingFactor(self, z):
         return (self.cosm.h70 / 0.7)**-1 * (self.cosm.omega_m_0 / 0.27)**-0.5 * ((1. + z) / 21.)**-0.5
@@ -1000,6 +940,4 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         return np.trapz(_numerator * rarr, dx=dlogr) \
              / np.trapz(_denominator * rarr, dx=dlogr)
         
-# Backwards compatible        
-GalaxyPopulation = GalaxyCohort         
 

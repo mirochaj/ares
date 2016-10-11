@@ -31,6 +31,7 @@ try:
 except ImportError:
     rank = 0
     
+HOME = os.environ.get('HOME')
 ARES = os.environ.get('ARES')
 sys.path.insert(1, '%s/input/litdata' % ARES)
 
@@ -55,6 +56,10 @@ def read_lit(prefix, path=None):
     if os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix)):
         _f, _filename, _data = _imp.find_module(prefix, 
             ['%s/input/litdata/' % ARES])
+        mod = _imp.load_module('%s' % prefix, _f, _filename, _data)
+    elif os.path.exists('%s/.ares/%s.py' % (HOME, prefix)):
+        _f, _filename, _data = _imp.find_module(prefix, 
+            ['%s/.ares/' % HOME])
         mod = _imp.load_module('%s' % prefix, _f, _filename, _data)
     else:
         mod = None
@@ -107,6 +112,7 @@ def _sort_history(all_data, prefix='', squeeze=False):
     Returns
     -------
     Dictionary, sorted by gas properties, with entire history for each one.
+    
     """
 
     data = {}

@@ -11,17 +11,14 @@ and analyzing them.
 
 """
 
+import signal
+import pickle
 import numpy as np
 import copy, os, gc, re, time
 from .ModelFit import ModelFit
+from ..simulations import Global21cm
 from ..util import GridND, ProgressBar
 from ..util.ReadData import read_pickle_file, read_pickled_dict
-from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
-
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
 
 try:
     from mpi4py import MPI
@@ -57,7 +54,6 @@ class ModelGrid(ModelFit):
     @property
     def simulator(self):
         if not hasattr(self, '_simulator'):
-            from ..simulations import Global21cm
             self._simulator = Global21cm
         return self._simulator
             
@@ -72,9 +68,18 @@ class ModelGrid(ModelFit):
             
         """
         
+        if os.path.exists('%s.000.chain.pkl' % prefix):
+            save_by_proc = True
+        else:
+            save_by_proc = False
+        
+        if save_by_proc:
+            prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
+        else:
+            prefix_by_proc = prefix
+        
         # Read in current status of model grid
-        #fails = read_pickled_dict('%s.fail.pkl' % prefix)
-        chain = read_pickle_file('%s.chain.pkl' % prefix)
+        chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
 
         # Read parameter info
         f = open('%s.pinfo.pkl' % prefix, 'rb')
@@ -89,14 +94,23 @@ class ModelGrid(ModelFit):
             
         if len(axes_names) != chain.shape[1]:
             raise ValueError('Cannot change dimensionality on restart!')
-            
-        if axes_names != self.grid.axes_names:
-            raise ValueError('Cannot change axes variables on restart!')
+        
+        if self.grid.structured:
+            if axes_names != self.grid.axes_names:
+                raise ValueError('Cannot change axes variables on restart!')
+        else:
+            for par in axes_names:
+                if par in self.grid.axes_names:
+                    continue
+                raise ValueError('Cannot change axes variables on restart!')
         
         # Figure out axes
         axes = {}
         for i in range(chain.shape[1]):
             axes[axes_names[i]] = np.unique(chain[:,i])
+
+        if (not self.grid.structured):
+            return
 
         # Array of ones/zeros: has this model already been done?
         self.done = np.zeros(self.grid.shape)
@@ -117,15 +131,6 @@ class ModelGrid(ModelFit):
             
             self.done[kvec] = 1
             
-        #for fail in fails:
-        #    
-        #    kvec = self.grid.locate_entry(fail, tol=self.tol)
-        #    
-        #    if None in kvec:
-        #        continue
-        #    
-        #    self.done[kvec] = 1
-                
     @property            
     def axes(self):
         return self.grid.axes
@@ -173,33 +178,40 @@ class ModelGrid(ModelFit):
         self.grid.Nd = len(self.grid.axes_names)
 
         # Shortcut to parameter names
-        self.parameters = self.grid.axes_names
+        if not hasattr(self, 'parameters'):
+            self.parameters = self.grid.axes_names
 
     def prep_output_files(self, restart, clobber):
         """
         Stick this in utilities folder?
         """
         
-        if rank != 0:
-            return
-        
         if restart:
             return
+        
+        if self.save_by_proc:
+            prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
+        else:
+            prefix_by_proc = self.prefix
+        
+            if rank != 0:
+                return
             
         prefix = self.prefix
-        super(ModelGrid, self)._prep_from_scratch(clobber)
+        super(ModelGrid, self)._prep_from_scratch(clobber, 
+            by_proc=self.save_by_proc)
     
         if os.path.exists('%s.logL.pkl' % prefix):
             os.remove('%s.logL.pkl' % prefix)
 
         # Say what processor computed which models.
         # Really just to make sure load-balancing etc. is working
-        f = open('%s.load.pkl' % prefix, 'wb')
+        f = open('%s.load.pkl' % prefix_by_proc, 'wb')
         f.close()
 
         for par in self.grid.axes_names:
             if re.search('Tmin', par):
-                f = open('%s.fcoll.pkl' % prefix, 'wb')
+                f = open('%s.fcoll.pkl' % prefix_by_proc, 'wb')
                 f.close()
                 break
 
@@ -231,32 +243,40 @@ class ModelGrid(ModelFit):
         -------
 
         """
-
+        
         self.prefix = prefix
         self.save_freq = save_freq
-
-        if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
+        
+        if self.save_by_proc:
+            prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
+        else:
+            prefix_by_proc = prefix
+                
+        if os.path.exists('%s.chain.pkl' % prefix_by_proc) and (not clobber):
             if not restart:
                 raise IOError('%s exists! Remove manually, set clobber=True, or set restart=True to append.' 
-                    % prefix)
+                    % prefix_by_proc)
 
-        if not os.path.exists('%s.chain.pkl' % prefix) and restart:
-            raise IOError("This can't be a restart, %s*.pkl not found." % prefix)
+        if not os.path.exists('%s.chain.pkl' % prefix_by_proc) and restart:
+            raise IOError("This can't be a restart, %s*.pkl not found." % prefix_by_proc)
         
         # Load previous results if this is a restart
         if restart:
-            if rank != 0:
+            if (not self.save_by_proc) and (rank != 0):
                 MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
                 
             self._read_restart(prefix)
             
-            if rank != (size-1):
+            if (not self.save_by_proc) and (rank != (size-1)):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
                 
-            # Re-run load-balancing
-            self.LoadBalance(self.LB)
-
-            ct0 = self.done.sum()
+            if self.grid.structured:    
+                # Re-run load-balancing
+                self.LoadBalance(self.LB)
+                
+                ct0 = self.done.sum()
+            else:
+                ct0 = 0
 
         else:
             ct0 = 0
@@ -275,8 +295,11 @@ class ModelGrid(ModelFit):
         
         # Print out how many models we have (left) to compute
         if rank == 0:
-            if restart:
+            if restart and self.grid.structured:
                 print "Update: %i models down, %i to go." % (ct0, Nleft)
+            elif restart:
+                print 'Expanding pre-existing model set with %i more models.' \
+                    % self.grid.size
             else:
                 print 'Running %i-element model grid.' % self.grid.size
                 
@@ -292,7 +315,12 @@ class ModelGrid(ModelFit):
         # Initialize progressbar
         pb = ProgressBar(Nleft, 'grid')
         pb.start()
-
+        
+        if pb.has_pb:
+            use_checks = False
+        else:
+            use_checks = True
+        
         chain_all = []; blobs_all = []; load_all = []
 
         # Loop over models, use StellarPopulation.update routine 
@@ -311,7 +339,7 @@ class ModelGrid(ModelFit):
                 pb_i = h
 
             # Skip if it's a restart and we've already run this model
-            if restart:
+            if restart and self.grid.structured:
                 if self.done[kvec]:
                     pb.update(pb_i)
                     continue
@@ -378,37 +406,45 @@ class ModelGrid(ModelFit):
                 
             else:
                 sim = self.simulator(**p)
-
-            sim.run()
+                
+            # Write this set of parameters to disk before running 
+            # so we can troubleshoot later if the run never finishes.
+            procid = str(rank).zfill(3)
+            fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
+            with open(fn, 'wb') as f:
+                pickle.dump(kw, f)
+                
+            # Kill if model gets stuck    
+            if self.timeout is not None:
+                signal.signal(signal.SIGALRM, self._handler)
+                signal.alarm(self.timeout)
             
             # Run simulation!
             try:
                 sim.run()
-            except:         
-                # Write to "fail" file - this might cause problems in parallel
-                f = open('%s.fail.pkl' % self.prefix, 'ab')
-                pickle.dump(kwargs, f)
+            except Exception:                                 
+                # Write to "fail" file
+                f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 
+                    'ab')
+                pickle.dump(kw, f)
                 f.close()
-            
-                del p, sim
-                gc.collect()
-            
-                pb.update(pb_i)
-                ct += 1
-                continue
 
-            ct += 1
-            
+            # Disable the alarm
+            if self.timeout is not None:
+                signal.alarm(0)
+
             chain = np.array([kwargs[key] for key in self.parameters])
 
             chain_all.append(chain)
             blobs_all.append(sim.blobs)
             load_all.append(rank)
 
+            ct += 1
+
             ##
             # File I/O from here on out
             ##
-            
+
             pb.update(ct)
 
             # Only record results every save_freq steps
@@ -417,27 +453,29 @@ class ModelGrid(ModelFit):
                 gc.collect()
                 continue
 
-            # Here we wait until we get the key
-            if rank != 0:
+            if rank == 0 and use_checks:
+                print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
+
+            if (not self.save_by_proc) and (rank != 0):
+                # Here we wait until we get the key      
                 MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
-                
+                    
             # First assemble data from all processors?
             # Analogous to assembling data from all walkers in MCMC
-                
-            f = open('%s.chain.pkl' % self.prefix, 'ab')
+            f = open('%s.chain.pkl' % prefix_by_proc, 'ab')
             pickle.dump(chain_all, f)
             f.close()
             
-            self.save_blobs(blobs_all, uncompress=False)
+            self.save_blobs(blobs_all, False, prefix_by_proc)
             
-            f = open('%s.load.pkl' % self.prefix, 'ab')
+            f = open('%s.load.pkl' % prefix_by_proc, 'ab')
             pickle.dump(load_all, f)
             f.close()
 
             # Send the key to the next processor
-            if rank != (size-1):
+            if (not self.save_by_proc) and (rank != (size-1)):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
-            
+
             del p, sim
             del chain_all, blobs_all, load_all
             gc.collect()
@@ -448,24 +486,25 @@ class ModelGrid(ModelFit):
 
         # Need to make sure we write results to disk if we didn't 
         # hit the last checkpoint
-        if rank != 0:
+        if (not self.save_by_proc) and (rank != 0):
             MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
     
         if chain_all:
-            with open('%s.chain.pkl' % self.prefix, 'ab') as f:
+            with open('%s.chain.pkl' % prefix_by_proc, 'ab') as f:
                 pickle.dump(chain_all, f)
         
         if blobs_all:
-            self.save_blobs(blobs_all, uncompress=False)
+            self.save_blobs(blobs_all, False, prefix_by_proc)
         
         if load_all:
-            with open('%s.load.pkl' % self.prefix, 'ab') as f:
+            with open('%s.load.pkl' % prefix_by_proc, 'ab') as f:
                 pickle.dump(load_all, f)
         
-        print "Processor %i: Wrote %s.*.pkl" % (rank, prefix)
+        print "Processor %i: Wrote %s.*.pkl (%s)" \
+            % (rank, prefix, time.ctime())
         
         # Send the key to the next processor
-        if rank != (size-1):
+        if (not self.save_by_proc) and (rank != (size-1)):
             MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
                 
     @property        
@@ -520,10 +559,31 @@ class ModelGrid(ModelFit):
     def nwalkers(self):
         # Each processor writes its own data
         return 1
+        
+    @property
+    def save_by_proc(self):
+        if not hasattr(self, '_save_by_proc'):
+            self._save_by_proc = False
+        return self._save_by_proc
+        
+    @save_by_proc.setter
+    def save_by_proc(self, value):
+        self._save_by_proc = value
             
-    def LoadBalance(self, method=0):
+    @property
+    def assignments(self):
+        if not hasattr(self, '_assignments'):
+            self._assignments = np.zeros(self.grid.size)
+        return self._assignments
+            
+    @assignments.setter
+    def assignments(self, value):
+        self._assignments = value
+            
+    def LoadBalance(self, method=None, pars=None):
+                
         if self.grid.structured:
-            self._structured_balance(method=method)       
+            self._structured_balance(method=method)
         else: 
             self._unstructured_balance(method=method)       
             
@@ -552,6 +612,12 @@ class ModelGrid(ModelFit):
                 tag=10*rank)
                    
         self.LB = 0
+        
+    def _balance_via_grouping(self, par):    
+        pass
+    
+    def _balance_via_sorting(self, par):    
+        pass
                         
     def _structured_balance(self, method=0):
         """

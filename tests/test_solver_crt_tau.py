@@ -17,8 +17,8 @@ import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics.Constants import c, ev_per_hz, erg_per_ev
 
-def test(tol=5e-2):
 
+def test(tol=5e-2):
 
     alpha = -2.
     beta = -6.
@@ -34,7 +34,7 @@ def test(tol=5e-2):
      'initial_redshift': zi,
      'final_redshift': zf,
      
-     'pop_type': 'galaxy',
+     'pop_sfr_model': 'sfrd-func',
      'pop_sfrd': lambda z: 0.1 * (1. + z)**beta,  # for analytic solution to work this must be const
      'pop_sfrd_units': 'msun/yr/mpc^3',
      'pop_sed': 'pl',
@@ -100,7 +100,8 @@ def test(tol=5e-2):
         
             os.remove('tau_test.pkl')
         
-            assert np.allclose(f3[-1], f2[-1]), "Problem with tau I/O."
+            # Check at *lowest* redshift
+            assert np.allclose(f3[0], f2[0]), "Problem with tau I/O."
         
         # Compare to analytic solution
         if i == 0:
@@ -118,13 +119,13 @@ def test(tol=5e-2):
             pl.semilogy(E2, f_an, ls=':', color='k', label='analytic')
             
             label = 'neutral'
-            pl.semilogy(E2, f2[-1], ls='--', color=colors[i], label='ionized')
+            pl.semilogy(E2, f2[0], ls='--', color=colors[i], label='ionized')
             pl.annotate('H only', (0.05, 0.97), xycoords='axes fraction',
                 ha='left', va='top')
                 
-            # Check analytic solution
-            diff = np.abs(f_an - f2[-1]) / f_an
-            
+            # Check analytic solution at *lowest* redshift
+            diff = np.abs(f_an - f2[0]) / f_an
+    
             # Loose tolerance in this example since tau table is coarse
             assert diff[0] < tol, \
                 "Relative error between analytical and numerical solutions exceeds %.3g." % tol
@@ -135,24 +136,25 @@ def test(tol=5e-2):
                 ha='left', va='top', color='b')
         
         # Plot solution assuming neutral IGM
-        pl.semilogy(E1, f1[-1], ls='-', color=colors[i], label=label)
+        pl.semilogy(E1, f1[0], ls='-', color=colors[i], label=label)
         
         # Assert that transparent IGM -> larger fluxes in soft X-rays
-        assert np.all(f2[-1] >= f1[-1])
+        assert np.all(f2[0] >= f1[0])
             
         # Make sure X-ray background is harder when helium is included
         if i == 0:
-            f_H = f1[-1].copy()
+            f_H = f1[0].copy()
         else:
-            assert np.all(f1[-1] <= f_H), "XRB should be harder when He is included!"
+            assert np.all(f1[0] <= f_H), \
+                "XRB should be harder when He is included!"
             
     pl.xlabel(ares.util.labels['E'])
     pl.ylabel(ares.util.labels['flux'])
     pl.legend(fontsize=14)
     pl.savefig('%s.png' % __file__.rstrip('.py'))
     pl.close()
-
+    
 if __name__ == '__main__':
     test()
     
-   
+  

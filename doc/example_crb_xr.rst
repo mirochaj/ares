@@ -11,12 +11,13 @@ series of redshifts (:math:`10 \leq z \leq 40`):
     pars = \
     {
      # Source properties
-     'pop_type': 'galaxy',
+     'pop_sfr_model': 'sfrd-func',
      'pop_sfrd': lambda z: 0.1,
+     
      'pop_sed': 'pl',
      'pop_alpha': -1.5,
      'pop_Emin': 1e2,
-     'pop_Emax': 3e4,
+     'pop_Emax': 5e4,
      'pop_EminNorm': 5e2,
      'pop_EmaxNorm': 8e3,
      'pop_yield': 2.6e39,
@@ -26,14 +27,14 @@ series of redshifts (:math:`10 \leq z \leq 40`):
      'pop_solve_rte': True,
      'pop_tau_Nz': 400,
 
-     'initial_redshift': 40.,
+     'initial_redshift': 50.,
      'final_redshift': 10.,
     }
     
 To summarize these inputs, we've got:
 
 * A constant SFRD of :math:`0.1 \ M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}`, given by the ``pop_sfrd`` parameter.
-* A power-law spectrum with index :math:`\alpha=-1.5`, given by ``pop_sed`` and ``pop_alpha``, extending from 0.1 keV to 30 keV.
+* A power-law spectrum with index :math:`\alpha=-1.5`, given by ``pop_sed`` and ``pop_alpha``, extending from 0.2 keV to 30 keV.
 * A yield of :math:`2.6 \times 10^{39} \ \mathrm{erg} \ \mathrm{s}^{-1} \ (M_{\odot} \ \mathrm{yr})^{-1}` in the :math:`0.5 \leq h\nu / \mathrm{keV} \leq  8` band, set by ``pop_EminNorm``, ``pop_EmaxNorm``, ``pop_yield``, and ``pop_yield_units``. This is the :math:`L_X-\mathrm{SFR}` relation found by `Mineo et al. (2012) <http://adsabs.harvard.edu/abs/2012MNRAS.419.2095M>`_.
 
 See :doc:`params_populations` for a complete listing of parameters relevant to :class:`ares.populations.GalaxyPopulation` objects.
@@ -46,55 +47,26 @@ Now, to initialize a calculation:
 
     mgb = ares.simulations.MetaGalacticBackground(**pars)
     
-So long as ``verbose=True`` (which it is by default), you should see the following output to the screen:
-
-::
-
-    ##########################################################################
-    ####                        Galaxy Population                         ####
-    ##########################################################################
-    #### ---------------------------------------------------------------- ####
-    #### Redshift Evolution                                               ####
-    #### ---------------------------------------------------------------- ####
-    #### SFRD        : parameterized                                      ####
-    #### ---------------------------------------------------------------- ####
-    #### Radiative Output                                                 ####
-    #### ---------------------------------------------------------------- ####
-    #### yield (erg / s / SFR) : 2.6e+39                                  ####
-    #### EminNorm (eV)         : 500                                      ####
-    #### EmaxNorm (eV)         : 8000                                     ####
-    #### ---------------------------------------------------------------- ####
-    #### Spectrum                                                         ####
-    #### ---------------------------------------------------------------- ####
-    #### SED               : pl                                           ####
-    #### Emin (eV)         : 200                                          ####
-    #### Emax (eV)         : 30000                                        ####
-    #### alpha             : 1                                            ####
-    #### logN              : -inf                                         ####
-    ##########################################################################
-
-Again, as in the previous examples, this is really just to provide a sanity check.
-
 Now, let's run the thing:
 
 ::
 
     mgb.run()
     
-We'll pull out the evolution of the background just as we did in the previous two examples:
+We'll pull out the evolution of the background just as we did in the previous  example:
 
 ::
 
     z, E, flux = mgb.get_history(flatten=True)
 
-and plot up the result:
+and plot up the result (at the final redshift):
 
 ::
 
     import matplotlib.pyplot as pl
     from ares.physics.Constants import erg_per_ev
 
-    pl.semilogy(E, flux[-1] * E * erg_per_ev, color='k')
+    pl.semilogy(E, flux[0] * E * erg_per_ev, color='k')
     pl.xlabel(ares.util.labels['E'])
     pl.ylabel(ares.util.labels['flux_E'])
     
@@ -124,17 +96,17 @@ with :math:`\alpha = -1.5`, :math:`\beta = 0`, :math:`z=10`, and :math:`z_i=40`,
     e_nu *= ev_per_hz
 
     # Plot it
-    pl.semilogy(E, e_nu, color='k', ls='-')
+    pl.semilogy(E, e_nu, color='b', ls='--')
     
 Neutral Absorption by the Diffuse IGM
 -------------------------------------   
-The calculation above is basically identical to the optically-thin LW and UV background calculations performed in the previous two examples, at least in the cases where we neglected any sawtooth effects. While there is no modification to the X-ray background due to resonant absorption in the Lyman series (of Hydrogen or Helium II), bound-free absorption by intergalactic hydrogen and helium atoms acts to harden the spectrum. By default, *ares* will not include these effects.
+The calculation above is basically identical to the optically-thin UV background calculations performed in the previous example, at least in the cases where we neglected any sawtooth effects. While there is no modification to the X-ray background due to resonant absorption in the Lyman series (of Hydrogen or Helium II), bound-free absorption by intergalactic hydrogen and helium atoms acts to harden the spectrum. By default, *ares* will *not* include these effects.
 
 To "turn on" bound-free absorption in the IGM, modify the dictionary of parameters you've got already:
 
 ::
 
-    pars['approx_tau'] = 'neutral'
+    pars['pop_approx_tau'] = 'neutral'
 
 Now, initialize and run a new calculation:
 
@@ -149,7 +121,7 @@ and plot the result on the same axes:
 
     z2, E2, flux2 = mgb2.get_history(flatten=True)
 
-    pl.loglog(E2, flux2[-1] * E2 * erg_per_ev, color='k', ls=':')
+    pl.loglog(E2, flux2[0] * E2 * erg_per_ev, color='k', ls=':')
     
 The behavior at low photon energies (:math:`h\nu \lesssim 0.3 \ \mathrm{keV}`)
 is an artifact that arises due to poor redshift resolution. This is a trade
@@ -170,11 +142,7 @@ as a default. If you run with ``pop_tau_Nz=500``, you should see some improvemen
 
 Alternative Methods
 -------------------
-The technique outlined above is the fastest way to integrate the cosmological
-radiative transfer equation (RTE), but it assumes that we can tabulate the 
-optical depth ahead of time. What if instead we wanted to study the radiation background in a
-decreasingly opaque IGM? Well, we can solve the RTE at several photon energies
-in turn: ::
+The technique outlined above is the fastest way to integrate the cosmological radiative transfer equation (RTE), but it assumes that we can tabulate the optical depth ahead of time. What if instead we wanted to study the radiation background in a decreasingly opaque IGM? Well, we can solve the RTE at several photon energies in turn: ::
 
     E = np.logspace(2.5, 4.5, 100)
     
@@ -214,5 +182,5 @@ Notice how the plot of ``F2`` has been hardened by neutral absorption in the IGM
     
 Self-Consistent Meta-Galactic Background & IGM
 ----------------------------------------------
-If we don't already know the IGM optical depth *a-priori*, then the calculations above will only bracket the result expected in a more complex, evolving IGM, in which the radiation background ionizes the IGM, thus making the IGM more transparent, which then softens the meta-galactic background, and so on. To treat this interplay carefully, we need to...
+If we don't already know the IGM optical depth *a-priori*, then the calculations above will only bracket the result expected in a more complex, evolving IGM, in which the radiation background ionizes the IGM, thus making the IGM more transparent, which then softens the meta-galactic background, and so on. A dynamic background calculator that takes this into account is on the *ares* wish-list -- shoot me an email if you're so inclined.
 

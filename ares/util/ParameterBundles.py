@@ -13,12 +13,8 @@ Description:
 import numpy as np
 from .ReadData import read_lit
 from .ParameterFile import pop_id_num
-from .SetDefaultParameterValues import SetAllDefaults
+from .ProblemTypes import ProblemType
 from .PrintInfo import header, footer, separator, line
-
-defaults = SetAllDefaults()
-
-gs_options = ['4par', '2pop', 'lf']
 
 def _add_pop_tag(par, num):
     """
@@ -34,28 +30,70 @@ def _add_pop_tag(par, num):
 
 _pop_fcoll = \
 {
- 'pop_model': 'fcoll',
+ 'pop_sfr_model': 'fcoll',
  'pop_Tmin': 1e4,
  'pop_Tmax': None,
 }
 
+_pop_user_sfrd = \
+{
+
+ 'pop_sfr_model': 'sfrd-func',
+
+ 'pop_sfrd': 'php[0]',
+ 'php_func[0]': 'dpl',
+ 'php_func_var[0]': 'redshift',
+ 'php_func_par0[0]': 1e-6,
+ 'php_func_par1[0]': 15.,
+ 'php_func_par2[0]': -5.,
+ 'php_func_par3[0]': -8.,
+ 
+}
+
+_sed_toy = \
+{
+ 'pop_sed_model': False,
+ 'pop_Nion': 4e3,
+ 'pop_Nlw': 9690,
+ 'pop_fX': 1.0,
+ 'pop_fesc': 0.1,
+}
+
+_sed_xi = \
+{
+ 'pop_sed_model': False,
+ 'pop_xi_LW': 40.,
+ 'pop_xi_UV': 969.,
+ 'pop_xi_XR': 0.1,
+}
+
 _pop_sfe = \
 {
- 'pop_model': 'sfe',
+ 'pop_sfr_model': 'sfe-dpl',
  'pop_fstar': 'php',
- 'pop_MAR': 'hmf',
  'php_func': 'dpl',
  'php_func_par0': 0.1,
- 'php_func_par1': 1e12,
- 'php_func_par2': 0.67,
- 'php_func_par3': 0.5,
- 
+ 'php_func_par1': 3e11,
+ 'php_func_par2': 0.6,
+ 'php_func_par3': -0.6,
+
  # Redshift dependent parameters here
+}
+
+_pop_sfe_ext = \
+{
+ 'php_faux': 'plexp',
+ 'php_faux_var': 'mass',
+ 'php_faux_meth': 'add',
+ 'php_faux_par0': 0.005,
+ 'php_faux_par1': 1e9,
+ 'php_faux_par2': 0.01,
+ 'php_faux_par3': 1e10,
 }
 
 _pop_mlf = \
 {
- 'pop_model': 'mlf',
+ 'pop_sfr_model': 'mlf',
  'pop_fstar': None,
  'pop_mlf': 'php',
  'pop_MAR': 'hmf',
@@ -69,23 +107,30 @@ _pop_mlf = \
 
 _sed_uv = \
 {
- # Emits LW
+ # Emits LW and LyC
  "pop_lya_src": True,
  "pop_ion_src_cgm": True,
  "pop_ion_src_igm": False,
- "pop_heat_src_cgm": False,
  "pop_heat_src_igm": False,
  
  "pop_fesc": 0.1,
  "pop_fesc_LW": 1.0,
  
+ 'pop_sed': 'pl',
+ 'pop_alpha': 1.0,
  "pop_Emin": 10.2,
  "pop_Emax": 24.6,
  "pop_EminNorm": 13.6,
  "pop_EmaxNorm": 24.6,        
- "pop_yield": 3e4, 
+ "pop_yield": 4e3, 
  "pop_yield_units": 'photons/baryon',
 }
+
+_sed_lw = _sed_uv.copy()
+_sed_lw['pop_ion_src_cgm'] = False
+
+_sed_lyc = _sed_uv.copy()
+_sed_lyc['pop_lya_src'] = False
 
 _pop_synth = \
 {
@@ -95,7 +140,7 @@ _pop_synth = \
  'pop_Z': 0.02,
  'pop_Emin': 1,
  'pop_Emax': 1e2,
- 'pop_yield{0}': 'from_sed',
+ 'pop_yield': 'from_sed',
 }
 
 _sed_xr = \
@@ -148,21 +193,29 @@ _pl['pop_sed'] = 'pl'
 
 _Bundles = \
 {
- 'pop': {'fcoll': _pop_fcoll, 'xray': _pop_sfe, 'sfe': _pop_sfe, 'lf': _pop_sfe},
- 'sed': {'uv': _sed_uv, 'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 
-    'bpass': _uvsed_bpass, 's99': _uvsed_s99},
+ 'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe, 
+    'sfrd-func': _pop_user_sfrd, 'sfe-pl-ext': _pop_sfe_ext},
+ 'sed': {'uv': _sed_uv, 'lw': _sed_lw, 'lyc': _sed_lyc, 
+         'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 'toy': _sed_toy,
+         'bpass': _uvsed_bpass, 's99': _uvsed_s99, 'xi': _sed_xi},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
- 'sim': {'gs': None}, # problem types
 }
 
 class ParameterBundle(dict):
-    def __init__(self, bundle=None, **kwargs):
+    def __init__(self, bundle=None, id_num=None, bset=None, **kwargs):
         self.bundle = bundle
         self.kwargs = kwargs
+        
+        if bset is None:
+            self.bset = _Bundles
+        else:
+            self.bset = bset
         
         # data should be a string
         if bundle is not None:
             self._initialize(bundle, **kwargs)
+            if id_num is not None:
+                self.num = id_num
         else:
             for key in kwargs:
                 self[key] = kwargs[key]
@@ -177,13 +230,14 @@ class ParameterBundle(dict):
         # Assume format: "modeltype:model", e.g., "pop:fcoll" or "sed:uv"
         pre, post = bundle.split(':')
         
-        if pre in _Bundles.keys():
-            kw = _Bundles[pre][post]
-            pars = kw.keys()
-        # Assume format: "paperyear:modelname", e.g., "mirocha2016:dpl"
+        if pre in self.bset.keys():
+            kw = self.bset[pre][post]
+        elif pre == 'prob':
+            kw = ProblemType(float(post))
         else:
             kw = read_lit(pre).__dict__[post]
-            pars = kw.keys()
+        
+        pars = kw.keys()
 
         for key in pars:
             self[key] = kw[key]    
@@ -225,7 +279,7 @@ class ParameterBundle(dict):
         self._value = value
     
         for key in self.keys():
-            self[_add_pop_tag(key, value)] = self.pop(key)    
+            self[_add_pop_tag(key, value)] = self.pop(key)
     
     @property
     def Npops(self):
@@ -297,3 +351,15 @@ class ParameterBundle(dict):
                 
         return tmp        
 
+
+_PB = ParameterBundle
+_uv_pop = _PB('pop:fcoll', id_num=0) + _PB('sed:uv', id_num=0)
+_xr_pop = _PB('pop:fcoll', id_num=1) + _PB('sed:xray', id_num=1)
+
+_gs_4par = _PB('pop:fcoll', id_num=0) + _PB('sed:lw', id_num=0) \
+         + _PB('pop:fcoll', id_num=1) + _PB('sed:lyc', id_num=1) \
+         + _PB('pop:fcoll', id_num=2) + _PB('sed:xray', id_num=2)
+
+_tmp = {'gs_2pop': _uv_pop+_xr_pop, 'gs_4par': _gs_4par}
+
+_Bundles['sim'] = _tmp

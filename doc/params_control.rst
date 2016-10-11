@@ -20,17 +20,12 @@ Starting and stopping calculations
 ``initial_redshift``
     Initial redshift of calculation. 
     
-    Default: 40
+    Default: 50
     
 ``final_redshift``
     Calculation stops at this redshift.
 
-    Default: 10    
-                                         
-``first_light_redshift``
-    Redshift when astrophysical sources first "turn on."
-
-    Default: 40    
+    Default: 5    
     
 ``track_extrema``   
     Track 21-cm extrema in real-time. These are referred to as turning points

@@ -357,11 +357,6 @@ def print_pop(pop):
     if type(EmaxNorm) is not list:
         EmaxNorm = list([EmaxNorm])
 
-    if pop.pf['pop_model'] == 'fcoll':
-        header = 'Galaxy Population: fcoll'
-    else:
-        header = 'Galaxy Population: Mh-dependent'
-
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width
@@ -446,6 +441,90 @@ def print_pop(pop):
 
     for warning in warnings:
         print_warning(warning)
+        
+def print_sim(sim):
+    """
+    Print information about radiation background calculation to screen.
+    
+    Parameters
+    ----------
+    sim : ares.simulations.Global21cm instance
+    """
+    
+    if rank > 0 or not sim.pf['verbose']:
+        return 
+        
+    header = 'Global 21cm Signal Simulation: Overview'
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, header.center(twidth), post)
+    print "#"*width    
+    
+    # Check for phenomenological models
+    if sim.is_phenom:
+        print "Phenomenological model! Not much to report..."
+        print "#"*width    
+        return    
+    
+    print line('-'*twidth)
+    print line('Populations')
+    print line('-'*twidth)
+    
+    rows = []
+    cols = ['sfrd', 'sed', 'Ly-a', 'Ly-C', 'X-ray', 'RTE']
+    data = []
+    for i, pop in enumerate(sim.pops):
+        rows.append('pop #%i' % i)
+        if re.search('link', pop.pf['pop_sfr_model']):
+            junk, num = pop.pf['pop_sfr_model'].split(':')
+            mod = 'link:%i' % int(num)
+        else:
+            mod = pop.pf['pop_sfr_model']
+            
+        tmp = [mod, 'yes' if pop.pf['pop_sed_model'] else 'no']
+        
+        if pop.is_lya_src:
+            tmp.append('x')
+        else:
+            tmp.append(' ')
+        
+        if pop.is_uv_src:
+            tmp.append('x')
+        else:
+            tmp.append(' ')
+        
+        if pop.is_xray_src:
+            tmp.append('x')
+        else:
+            tmp.append(' ')     
+            
+        if pop.pf['pop_solve_rte']:
+            tmp.append('x')
+        else:
+            tmp.append(' ')               
+            
+        data.append(tmp)    
+    
+    tabulate(data, rows, cols, cwidth=[8,10,8,8,8,8,8], fmt='%s')
+    
+    print line('-'*twidth)
+    print line('Physics')
+    print line('-'*twidth)
+    
+    phys_pars = ['cgm_initial_temperature', 'clumping_factor', 
+        'secondary_ionization', 'approx_Salpha', 'include_He']
+
+    cosm_pars = ["omega_m_0", "omega_b_0", "omega_l_0", "hubble_0", 
+        "helium_by_number", "sigma_8"]
+    
+    for par in phys_pars:
+        val = sim.pf[par]
+        if type(val) in [int, float]:
+            print line('%s : %g' % (par.ljust(30), val))
+        else:
+            print line('%s : %s' % (par.ljust(30), val))
+    
+    print "#"*width
+    
 
 def print_rb(rb):
     """
@@ -571,8 +650,8 @@ def print_21cm_sim(sim):
     else:
         print line("dzDataDump  : no regularly-spaced redshift dumps")    
 
-    if sim.pf['max_dt'] is not None:  
-        print line("max_dt      : %.2g Myr" % sim.pf['max_dt'])
+    if sim.pf['max_timestep'] is not None:  
+        print line("max_dt      : %.2g Myr" % sim.pf['max_timestep'])
     else:
         print line("max_dt      : no maximum time-step")
 

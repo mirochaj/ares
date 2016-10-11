@@ -22,6 +22,7 @@ alpha = -2.
 
 plpars = \
 {
+ 'pop_sfr_model': 'sfrd-func',
  'pop_type': 'galaxy',
  'pop_sfrd': lambda z: 0.1 * (1. + z)**beta,  # for analytic solution to work this must be const
  'pop_sfrd_units': 'msun/yr/mpc^3',
@@ -67,7 +68,7 @@ def test(tol = 1e-2):
         z, E, flux = mgb.get_history()
             
         # Plot up background flux
-        ax1.loglog(E[0], flux[-1][0] * E[0] * erg_per_ev, color=colors[i], ls='-', 
+        ax1.loglog(E[0], flux[0][0] * E[0] * erg_per_ev, color=colors[i], ls='-', 
             label=label)
         
         # Check analytic solution for unabsorbed case
@@ -88,7 +89,7 @@ def test(tol = 1e-2):
             
             # Compare to analytic solution
             flux_anl = e_nu
-            flux_num = flux[-1][0] * E[0] * erg_per_ev
+            flux_num = flux[0][0] * E[0] * erg_per_ev
             
             diff = np.abs(flux_anl - flux_num) / flux_anl
             

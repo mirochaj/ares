@@ -51,7 +51,7 @@ defkwargs = \
  'energy_units':False, 
  'xavg': 0.0,
  'zxavg':0.0,   
-}       
+}
 
 barn = 1e-24
 Mbarn = 1e-18
@@ -425,7 +425,7 @@ class OpticalDepth(object):
         Read optical depth table.
         """
         
-        if rank == 0:
+        if (rank == 0) and self.pf['verbose']:
             print "Loading %s..." % fn
         
         if type(fn) is dict:
@@ -526,10 +526,10 @@ class OpticalDepth(object):
         # Return right away if we supplied a table by hand
         if self.pf['tau_table'] is not None:
             return self.pf['tau_table'], None
-    
-        if not have_h5py:
-            suffix == 'pkl'
-    
+            
+        if suffix != self.pf['preferred_format']:
+            suffix = self.pf['preferred_format']
+        
         HorHe = 'He' if self.pf['include_He'] else 'H'
     
         zf = self.pf['final_redshift']
@@ -600,12 +600,12 @@ class OpticalDepth(object):
                     continue
     
                 # Dealbreakers
-                if Nz_f != Nz:
-                    continue
                 if zmax_f < zmax:
                     continue
                 if chem_f != chem:
                     continue
+                if Nz_f < Nz:
+                    continue    
     
                 # Continue with possible matches
                 for fmt in ['pkl', 'npz', 'hdf5']:
@@ -632,7 +632,7 @@ class OpticalDepth(object):
                             perfect_matches.append(tab_name)
                         else:
                             ok_matches.append(tab_name)
-    
+                            
         if perfect_matches:
             return perfect_matches[0]
         elif ok_matches:
@@ -641,7 +641,9 @@ class OpticalDepth(object):
             return None
     
     def _parse_tab(self, fn):
+        """
         
+        """
         tmp1, tmp2 = fn.split('_z_')
         pre = tmp1[0:tmp1.rfind('x')]
         red, tmp3 = fn.split('_logE_')
@@ -681,7 +683,7 @@ class OpticalDepth(object):
         Energies and redshifts, potentially revised from Epf and zpf.
     
         """
-    
+        
         # First, look in CWD or $ARES (if it exists)
         if pop.pf['tau_table'] is None:
             self.tabname = self.find_tau(pop.pf['tau_prefix'])
@@ -752,7 +754,11 @@ class OpticalDepth(object):
             #tau[:,i_E1+1:] = np.inf
         else:
             i_E1 = None
-    
+            
+        self.z_fetched = ztab
+        self.E_fetched = Etab[i_E0:i_E1]  
+        self.tau_fetched = tau[:,i_E0:i_E1]
+            
         # We're done!
         return ztab, Etab[i_E0:i_E1], tau[:,i_E0:i_E1]
     

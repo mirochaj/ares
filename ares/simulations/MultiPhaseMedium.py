@@ -344,29 +344,47 @@ class MultiPhaseMedium(object):
                         
             # IGM rate coefficients
             if self.pf['include_igm']:
-                RC_igm = self.field.update_rate_coefficients(z, 
-                    zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
-                                                                
-                # Now, update IGM parcel
-                t1, dt1, data_igm = self.gen_igm.next()
-                                
-                # Pass rate coefficients off to the IGM parcel
-                self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
+                done = False
+                if self.pf['stop_igm_h_2'] is not None:
+                    if data_igm['h_2'] > self.pf['stop_igm_h_2']:
+                        data_igm = data_igm_pre.copy()    
+                        dt1 = 1e50
+                        done = True
+                
+                if not done:
+                    RC_igm = self.field.update_rate_coefficients(z, 
+                        zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
+                                                                                                                                                    
+                    # Now, update IGM parcel
+                    t1, dt1, data_igm = self.gen_igm.next()
+                                    
+                    # Pass rate coefficients off to the IGM parcel
+                    self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
             else:
                 dt1 = 1e50
                 RC_igm = data_igm = None
                 data_igm = {'h_1': 1.0}
                 
             if self.pf['include_cgm']:
-                # CGM rate coefficients
-                RC_cgm = self.field.update_rate_coefficients(z,
-                    zone='cgm', return_rc=True, cgm_h_1=data_cgm['h_1'])
                 
-                # Pass rate coefficients off to the CGM parcel
-                self.parcel_cgm.update_rate_coefficients(data_cgm, **RC_cgm)
+                done = False
+                if self.pf['stop_cgm_h_2'] is not None:
+                    if data_cgm['h_2'] > self.pf['stop_cgm_h_2']:
+                        data_cgm = data_cgm_pre.copy()
+                        dt2 = 1e50
+                        done = True
                 
-                # Now, update CGM parcel
-                t2, dt2, data_cgm = self.gen_cgm.next()
+                if not done:
+                
+                    # CGM rate coefficients
+                    RC_cgm = self.field.update_rate_coefficients(z,
+                        zone='cgm', return_rc=True, cgm_h_1=data_cgm['h_1'])
+                    
+                    # Pass rate coefficients off to the CGM parcel
+                    self.parcel_cgm.update_rate_coefficients(data_cgm, **RC_cgm)
+                    
+                    # Now, update CGM parcel
+                    t2, dt2, data_cgm = self.gen_cgm.next()
             else:
                 dt2 = 1e50
                 RC_cgm = data_cgm = None
@@ -374,6 +392,7 @@ class MultiPhaseMedium(object):
             # Must update timesteps in unison
             dt_pre = dt * 1.
             dt = min(dt1, dt2)
+            dt = min(dt, self.pf['max_timestep'] * self.pf['time_units'])
 
             # Might need these...
             if self.pf['include_igm']:

@@ -10,6 +10,7 @@ and optionally:
 
 * `python-progressbar <https://code.google.com/p/python-progressbar/>`_
 * `hmf <http://hmf.readthedocs.org/en/latest/>`_ 
+* `emcee <http://dan.iel.fm/emcee/current/>`_
 * `mpi4py <http://mpi4py.scipy.org>`_
 * `h5py <http://www.h5py.org/>`_
 * `setuptools <https://pypi.python.org/pypi/setuptools>`_
@@ -57,9 +58,13 @@ For a discussion of the pros and cons of different branching techniques in mercu
 
 *ares* versions
 ---------------
-The first stable release of *ares* was used in `Mirocha et al. (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_, and is tagged as `v0.1` in the revision history.
+The first stable release of *ares* was used in `Mirocha et al. (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_, and is tagged as `v0.1` in the revision history. The tag `v0.2` is associated with `Mirocha, Furlanetto, \& Sun (submitted to MNRAS) <http://arxiv.org/abs/1607.00386>`_. Note that these tags are just shortcuts to specific revisions. You can switch between them just like you would switch between branches, e.g., 
 
-If you're unsure which version is best for you, see :doc:`history`.
+::
+
+    hg update v0.2
+
+If you're unsure which version is best for you, see the :doc:`history`.
 
 Don't have Python already?
 --------------------------

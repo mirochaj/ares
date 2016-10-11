@@ -1,7 +1,7 @@
 :orphan:
 
-Analyzing Model Grids
-=====================
+Analyzing Model Grids / Monte Carlo Simulations
+===============================================
 Once you have a model grid in hand, there are a slew of built-in analysis 
 routines that you might consider using. For the rest of this example,
 we'll assume you have completed a :doc:`example_grid`, and have the associated set of files
@@ -82,7 +82,7 @@ You can also create your own derived quantities. A very simple example is to con
 ::
 
     # 1420.4057 is the rest frequency of the 21-cm line in MHz
-    anl.DeriveBlob('1420.4057 / (1. + x)', varmap={'x': 'z_D'}, name='nu_D')
+    anl.DeriveBlob(expr='1420.4057 / (1. + x)', varmap={'x': 'z_D'}, name='nu_D')
     
 This will create a new blob, called ``nu_D``, that can be used for subsequent analysis. For example,
 
@@ -142,7 +142,7 @@ If you've got models that seem to have something wrong with them, sending me the
 
     import pickle
     f = open('problematic_models.pkl', 'wb')
-    pickle.dump(kw)
+    pickle.dump(kwargs_list, f)
     f.close()
     
     

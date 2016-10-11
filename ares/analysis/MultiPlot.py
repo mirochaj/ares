@@ -40,7 +40,7 @@ defs = \
  'active_panels': None,
 }
 
-class MultiPanel:
+class MultiPanel(object):
     def __init__(self, **kwargs):
         """
         Initialize multipanel plot object.
@@ -104,6 +104,9 @@ class MultiPanel:
         self.nrows = self.J
         self.ncols = self.K
         
+        if type(padding) is float:
+            padding = tuple([padding]* 2)
+    
         self.padding = padding
                 
         # Size of an individual panel (in inches)

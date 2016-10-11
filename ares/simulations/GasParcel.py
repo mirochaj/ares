@@ -17,7 +17,7 @@ from ..solvers import Chemistry
 from ..util.ReadData import _sort_history
 from ..util import RestrictTimestep, CheckPoints, ProgressBar, ParameterFile
 
-class GasParcel:
+class GasParcel(object):
     def __init__(self, **kwargs):
         """
         Initialize a GasParcel object.
