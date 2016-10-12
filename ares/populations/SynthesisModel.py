@@ -60,7 +60,8 @@ class SynthesisModel(object):
             if self.pf['pop_sed'] == 'user':
                 self._litinst = DummyClass()
             else:    
-                self._litinst = read_lit(self.pf['pop_sed'])
+                self._litinst = read_lit(self.pf['pop_sed'], 
+                    verbose=self.pf['verbose'])
                 
         return self._litinst
     

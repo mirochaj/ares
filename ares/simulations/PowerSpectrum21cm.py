@@ -107,7 +107,7 @@ class PowerSpectrum21cm(AnalyzePS):
         
         """
         
-        self.z = np.sort(self.pf['powspec_redshifts'])[-1::-1]
+        self.redshifts = self.z = np.sort(self.pf['powspec_redshifts'])[-1::-1]
                 
         #pb = ProgressBar(self.z.size, use=self.pf['progress_bar'])
         #pb.start()
@@ -136,16 +136,26 @@ class PowerSpectrum21cm(AnalyzePS):
             ps_xx = np.zeros_like(self.k)
             ps_xd = np.zeros_like(self.k)
             ps_dd = np.zeros_like(self.k)
+            
+            cf_xx = np.zeros_like(self.k)
+            cf_xd = np.zeros_like(self.k)
+            cf_dd = np.zeros_like(self.k)
 
             for j, pop in enumerate(self.pops):
                 if pop.pf['pop_ion_fluct']:
                     ps_xx[:] = self.field.PowerSpectrum(z, self.k, 
                         field_1='h_2', field_2='h_2', popid=j)
+                    cf_xx[:] = self.field.CorrelationFunction(z, self.k, 
+                        field_1='h_2', field_2='h_2', popid=j)    
 
             # Dictionary-ify everything
-            ps = {'ps_xx': ps_xx, 'ps_xd': ps_xd, 'ps_dd': ps_dd}
+            ps = {'ps_xx': ps_xx, 'ps_xd': ps_xd, 'ps_dd': ps_dd,
+                  'cf_xx': cf_xx, 'cf_xd': cf_xd, 'cf_dd': cf_dd}
+
+            # Should also save QHII, etc
 
             # Here, add together the power spectra with various Beta weights
+            # to get 21-cm power spectrum
 
             yield z, ps
 

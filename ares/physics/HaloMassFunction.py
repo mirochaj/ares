@@ -519,14 +519,14 @@ class HaloMassFunction(object):
     @fcoll_spline_2d.setter
     def fcoll_spline_2d(self, value):
         self._fcoll_spline_2d = value
-      
+
     @property
     def bias(self):
         if not hasattr(self, '_bias'):
             self._bias = RectBivariateSpline(self.z, 
                 self.logM, self.bias_tab, kx=3, ky=3)
         return self._bias 
-    
+
     @bias.setter
     def bias(self, value):
         self._bias = value

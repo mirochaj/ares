@@ -13,6 +13,8 @@ Description:
 import numpy as np
 from types import FunctionType
 from ..util import ParameterFile
+from ..util.Math import LinearNDInterpolator
+from ..populations.Composite import CompositePopulation
 
 class FluctuatingBackground(object):
     def __init__(self, **kwargs):
@@ -39,15 +41,18 @@ class FluctuatingBackground(object):
         else:
             return 4. * np.pi * R**3 / 3. - np.pi * dr * (R**2 - dr**2 / 12.)
             
-    def spherical_overlap(slef, dr, R):
+    def spherical_overlap(self, dr, R):
         if not hasattr(self, '_spherical_overlap'):
             self._spherical_overlap = np.vectorize(self._Vo)
         return self._spherical_overlap(dr, R)
             
-    def BubbleFillingFactor(self, z, R=None):
-        if self.pf['pop_bubble_size_dist'] is None:
-            R = self.pf['pop_bubble_size']
-            V = 4. * np.pi * R**3 / 3.
+    def BubbleFillingFactor(self, z, R=None, popid=0):
+        
+        pop = self.pops[popid]
+        
+        if pop.pf['pop_bubble_size_dist'] is None:
+            R_b = pop.pf['pop_bubble_size']
+            V_b = 4. * np.pi * R_b**3 / 3.
             n_b = self.BubbleDensity(z)
             
             return 1. - np.exp(-n_b * V_b)
@@ -57,12 +62,14 @@ class FluctuatingBackground(object):
         Compute the volume density of bubbles at redshift z of given radius.
         """
         
+        pop = self.pops[popid]
+        
         # Can separate size and density artificially
-        b_size = self.pf['pop_bubble_size']
-        b_dens = self.pf['pop_bubble_density']
+        b_size = pop.pf['pop_bubble_size']
+        b_dens = pop.pf['pop_bubble_density']
         
         # This takes care of both dimensions
-        b_dist = self.pf['pop_bubble_size_dist']
+        b_dist = pop.pf['pop_bubble_size_dist']
         
         # In this case, compute the bubble size distribution from a 
         # user-supplied function, the halo mass function, or excursion set 
@@ -73,39 +80,44 @@ class FluctuatingBackground(object):
             if type(b_dist) is FunctionType:
                 return b_dist(z, R)
             # Otherwise, take from hmf or excursion set
-            elif type(b_dist) is str:
+            elif type(b_dist) == 'hmf':
                 raise NotImplementedError('help')
                 # Eventually, distinct from HMF or from excursion set
                 # Assume     
-                halos = self.pops[popid].halos
+                halos = pop.halos
                 
             else:
                 raise NotImplementedError('help')
-                
+
         # In this case, there is no bubble size distribution.
         # The density of bubbles is either given as a constant, a user-defined
         # function, or determined from the HMF.
         else:
-            
+
             if type(b_dens) in [int, float]:
                 return b_dens
             elif type(b_dens) is FunctionType:
                 return b_dens(z, R)
-            elif type(b_dens) == 'halos':
-                raise NotImplementedError('help')
-                # Eventually, distinct from HMF or from excursion set
-                # Assume
-                halos = self.pops[popid].halos
+            elif b_dens == 'hmf':
+                halos = pop.halos
+
+                logMmin = np.interp(z, halos.z, np.log10(pop.Mmin))
+                n = LinearNDInterpolator([halos.z, halos.logM], halos.ngtm)
+
+                return n([z, logMmin])
         
+        raise ValueError('Somethings not right')
         
-    def BubbleSizeDistribution(self, z, R=None):
-        if self.pf['pop_bubble_size_dist'] is None:
-            if self.pf['pop_bubble_density'] is not None:
-                return self.pf['pop_bubble_density']
+    def BubbleSizeDistribution(self, z, R=None, popid=0):
+        pop = self.pops[popid]
+        
+        if pop.pf['pop_bubble_size_dist'] is None:
+            if pop.pf['pop_bubble_density'] is not None:
+                return pop.pf['pop_bubble_density']
             
         raise NotImplementedError('can only handle const. Rbubb right now.')
 
-    def IonizationProbability(self, z, dr):
+    def IonizationProbability(self, z, dr, popid=0):
         """
         Compute the probability that two points are both ionized.
     
@@ -117,9 +129,11 @@ class FluctuatingBackground(object):
             Separation of two points in Mpc.
     
         """
+        
+        pop = self.pops[popid]
     
-        if self.pf['pop_bubble_size_dist'] is None:
-            R = self.pf['pop_bubble_size']
+        if pop.pf['pop_bubble_size_dist'] is None:
+            R = pop.pf['pop_bubble_size']
     
             V = 4. * np.pi * R**3 / 3.
             V_o = self.spherical_overlap(dr, R)
@@ -131,7 +145,7 @@ class FluctuatingBackground(object):
             oht = (1. - np.exp(-n_b * V_o))
             tht = np.exp(-n_b * V_o) * (1. - np.exp(-n_b * (V - V_o)))**2
     
-            return oht + tht
+            return oht, tht
     
         else:
             raise NotImplementedError('help')
@@ -143,9 +157,11 @@ class FluctuatingBackground(object):
             
             dr = 2. * np.pi / k
             
-            Pii = self.IonizationProbability(z, dr)
-            Qi  = self.Qbar(z)
+            Pii_oh, Pii_th = self.IonizationProbability(z, dr, popid)
+            Qi  = self.BubbleFillingFactor(z)
     
+            Pii = Pii_oh + Pii_th
+                
             return Pii - Qi**2
         
         else:
@@ -158,6 +174,6 @@ class FluctuatingBackground(object):
         """
         corr = self.CorrelationFunction(z, k, field_1, field_2, popid)
         
-        return np.fft.fftshift(np.fft.ifft(corr))
+        return np.sqrt(np.fft.fftshift(np.fft.ifft(corr))**2)
             
         

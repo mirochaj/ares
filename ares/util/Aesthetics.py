@@ -208,6 +208,7 @@ powspec = \
 {
  'k': r'$k \ [\mathrm{cMpc}^{-1}]$',
  'dpow': r'$\Delta^2(k)$',
+ 'pow': r'$P(k)$',
 
 }
 other = \
