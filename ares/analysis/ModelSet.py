@@ -251,6 +251,8 @@ class ModelSet(BlobFactory):
                 f = open('%s.setup.pkl' % self.prefix, 'rb')
                 try:
                     self._base_kwargs = pickle.load(f)
+                except ImportError as err:
+                    raise err
                 except:
                     self._base_kwargs = {}
                 f.close()

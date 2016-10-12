@@ -129,8 +129,7 @@ history_elements = \
  'igm_he_1': r'$x_{\mathrm{HeI}}$',
  'igm_he_2': r'$x_{\mathrm{HeII}}$',
  'igm_he_3': r'$x_{\mathrm{HeIII}}$',
- #'igm_dTb': r'$\delta T_b$',
- #'dTb': r'$\delta T_b$', 
+ 'dTb': r'$\delta T_b$', 
  'igm_Tk': r'$T_K$',
  'cgm_h_2': r'$Q_{\mathrm{HII}}$',
  'xavg': r'$\overline{x}_i$',
@@ -152,7 +151,7 @@ for key in history_elements:
                 r'%s_{\mathrm{%s}}$' % (history_elements[key][0:-1], tp)
         else:
             tp_parameters['%s_%s' % (key, tp)] = \
-                r'%s(z_{\mathrm{%s}})$' % (history_elements[key][0:-1], tp)
+                r'%s(\nu_{\mathrm{%s}})$' % (history_elements[key][0:-1], tp)
 
 tanh_parameters = \
 {

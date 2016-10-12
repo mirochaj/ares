@@ -27,15 +27,19 @@ _gs_ext.append('tau_e')
 
 _def_z = np.arange(5, 41, 0.1)
 
-_gs_shape_n = ['hwhm_diff_C', 'hwqm_diff_C', 'fwhm_C', 'fwqm_C']
-_gs_shape_n.extend(['hwhm_diff_D', 'hwqm_diff_D', 'fwhm_D', 'fwqm_D'])
+_gs_shape_n = ['hwtqm_diff_C', 'hwhm_diff_C', 'hwqm_diff_C', 'fwtqm_C', 'fwhm_C', 'fwqm_C']
+_gs_shape_n.extend(['hwtqm_diff_D', 'hwhm_diff_D', 'hwqm_diff_D', 'fwtqm_D', 'fwhm_D', 'fwqm_D'])
 
-_gs_shape_f = ['Width(max_fraction=0.5, peak_relative=True)', 
+_gs_shape_f = ['Width(max_fraction=0.75, peak_relative=True)', 
+               'Width(max_fraction=0.5, peak_relative=True)', 
                'Width(max_fraction=0.25, peak_relative=True)',
+               'Width(max_fraction=0.75, peak_relative=False)',
                'Width(max_fraction=0.5, peak_relative=False)',
                'Width(max_fraction=0.25, peak_relative=False)',
+               'Width(absorption=False, max_fraction=0.75, peak_relative=True)',
                'Width(absorption=False, max_fraction=0.5, peak_relative=True)', 
                'Width(absorption=False, max_fraction=0.25, peak_relative=True)',
+               'Width(absorption=False, max_fraction=0.75, peak_relative=False)',
                'Width(absorption=False, max_fraction=0.5, peak_relative=False)',
                'Width(absorption=False, max_fraction=0.25, peak_relative=False)'
                ]
