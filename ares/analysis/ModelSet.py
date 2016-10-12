@@ -1227,7 +1227,7 @@ class ModelSet(BlobFactory):
     
     @property
     def weights(self):        
-        if self.is_mcmc and hasattr(self, 'logL') \
+        if (not self.is_mcmc) and hasattr(self, 'logL') \
             and (not hasattr(self, '_weights')):
             self._weights = np.exp(self.logL)
 
