@@ -1272,7 +1272,7 @@ class ModelSet(BlobFactory):
         return nu, levels
     
     def get_1d_error(self, par, ivar=None, nu=0.68, take_log=False,
-        limit=None, un_log=False, multiplier=1., peak='median'):
+        limit=None, un_log=False, multiplier=1., peak='median', skip=0):
         """
         Compute 1-D error bar for input parameter.
         
@@ -1299,7 +1299,7 @@ class ModelSet(BlobFactory):
         #    self._listify_common_inputs([par], take_log, multiplier, un_log, ivar)
 
         to_hist = self.ExtractData(par, ivar=ivar, take_log=take_log, 
-            multiplier=multiplier)
+            multiplier=multiplier, un_log=un_log)
 
         # Need to weight results of non-MCMC runs explicitly
         if not hasattr(self, 'weights'):
@@ -1317,20 +1317,21 @@ class ModelSet(BlobFactory):
             return
 
         if peak == 'median':
-            N = len(self.logL)
-            psorted = np.sort(to_hist[par])
+            N = len(self.logL[skip:])
+            psorted = np.sort(to_hist[par][skip:])
             mu = psorted[int(N / 2.)]
         elif peak == 'mode':
-            mu = to_hist[par][np.argmax(self.logL)]
+            mu = to_hist[par][skip:][np.argmax(self.logL[skip:])]
         else:
             mu = None
-            
-        if hasattr(to_hist[par], 'compressed'):
-            to_hist[par] = to_hist[par].compressed()
         
         q1 = 0.5 * 100 * (1. - nu)    
         q2 = 100 * nu + q1
-        lo, hi = np.percentile(to_hist[par], (q1, q2))
+        
+        if hasattr(to_hist[par], 'compressed'):
+            lo, hi = np.percentile(to_hist[par][skip:].compressed(), (q1, q2))
+        else:
+            lo, hi = np.percentile(to_hist[par][skip:], (q1, q2))
         
         if mu is not None:
             sigma = (mu - lo, hi - mu)
