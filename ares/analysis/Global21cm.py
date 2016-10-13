@@ -232,11 +232,13 @@ class Global21cm(MultiPhaseMedium):
         return self._turning_points
 
     def derivative_of_freq(self, freq):
-        interp = interp1d(self.nu_p, self.dTbdnu, kind='linear')
+        interp = interp1d(self.nu_p, self.dTbdnu, kind='linear', 
+            bounds_error=False, fill_value=-np.inf)
         return interp(freq)
 
     def curvature_of_freq(self, freq):
-        interp = interp1d(self.nu_pp, self.dTb2dnu2, kind='linear')
+        interp = interp1d(self.nu_pp, self.dTb2dnu2, kind='linear',
+            bounds_error=False, fill_value=-np.inf)
         return interp(freq)  
 
     def derivative_of_z(self, z):
