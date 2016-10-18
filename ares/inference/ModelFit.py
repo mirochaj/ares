@@ -675,7 +675,7 @@ class ModelFit(BlobFactory):
         self._checkpoint_append = value    
 
     def _prep_from_scratch(self, clobber, by_proc=False):
-        if rank > 0:
+        if (rank > 0) and (not by_proc):
             return
         
         if by_proc:
