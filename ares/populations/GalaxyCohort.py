@@ -14,6 +14,7 @@ import re
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
+from ..util.Math import central_difference
 from .GalaxyAggregate import GalaxyAggregate
 from scipy.optimize import fsolve, curve_fit
 from ..phenom.DustCorrection import DustCorrection
@@ -460,18 +461,18 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         
         pre-SFR factor, hence, "pSFR"        
         """
-        if self.model == 'sfe':
-            eta = np.interp(z, self.halos.z, self.eta)
-            return self.cosm.fbar_over_fcdm * self.MAR(z, M) * eta
-        elif self.model == 'tdyn':
-            return self.cosm.fbaryon * M / self.tdyn(z, M)    
-        elif self.model == 'precip':
-            T = self.halos.VirialTemperature(M, z, mu)
-            cool = self.cooling_function(T, z)
-            pre_factor = 3. * np.pi * G * mu * m_p * k_B * T / 50. / cool                        
-            return pre_factor * M * s_per_yr
-        else:
-            raise NotImplemented('Unrecognized model: %s' % self.model)
+        #if self.model == 'sfe':
+        eta = np.interp(z, self.halos.z, self.eta)
+        return self.cosm.fbar_over_fcdm * self.MAR(z, M) * eta
+        #elif self.model == 'tdyn':
+        #    return self.cosm.fbaryon * M / self.tdyn(z, M)    
+        #elif self.model == 'precip':
+        #    T = self.halos.VirialTemperature(M, z, mu)
+        #    cool = self.cooling_function(T, z)
+        #    pre_factor = 3. * np.pi * G * mu * m_p * k_B * T / 50. / cool                        
+        #    return pre_factor * M * s_per_yr
+        #else:
+        #    raise NotImplemented('Unrecognized model: %s' % self.model)
     
     @property
     def scalable_rhoL(self):
@@ -525,14 +526,14 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             rhoL = super(GalaxyCohort, self).Emissivity(z, E=E, 
                 Emin=Emin, Emax=Emax)
         else:
-            raise NotImplemented('help')    
+            raise NotImplemented('help')
 
         if E is not None:
             return rhoL * self.src.Spectrum(E)
         else:
             return rhoL
             
-    def StellarMassFunction(self, z, sSFR, mags=True):
+    def StellarMassFunction(self, z):
         """
         Name says it all.
         
@@ -549,8 +550,6 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             
         """
         
-        assert mags
-
         mags, phi = self.phi_of_M(z)
     
         # mags corresponds to halos.M
@@ -917,11 +916,106 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         L = self.magsys.MAB_to_L(mag=Mdc, z=z)
         
         return derivative(logphi, np.log10(L), dx=0.1)
+    
+    @property
+    def fstar_tab(self):
+        if not hasattr(self, '_fstar_tab'):
+            self._fstar_tab = np.zeros_like(self.halos.dndm)
+    
+            for i, z in enumerate(self.halos.z):    
+                self._fstar_tab[i,:] = self.SFE(z, self.halos.M)
+    
+        return self._fstar_tab
+    
+    @property
+    def D_fstar_wrt_Mh_tab(self):
+        if not hasattr(self, '_D_fstar_wrt_Mh_tab'):
+            self._D_fstar_wrt_Mh_tab = np.zeros_like(self.halos.dndm)
+            
+            for i, z in enumerate(self.halos.z):
+                sfe = self.fstar_tab[i,:]
+                x, y = central_difference(self.halos.M, sfe)
+                
+                self._D_fstar_wrt_Mh_tab[i,1:-1] = y.copy()
+                
+        return self._D_fstar_wrt_Mh_tab
         
+    def _rhs(self, z, y):
+    
+        Mh, Mst, Z = y
+    
+        # Eq. 1: halo mass
+        y1p = -1. * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+    
+        # Eq. 2: stellar mass
+        Mmin = np.interp(z, self.halos.z, self.Mmin)
+        if Mh < Mmin:
+            y2p = 0.
+        else:
+            y2p = self.SFE(z, Mh) * y1p
+            
+        # Eq. 3: metal mass
+        y3p = 0.03 * y2p
+        
+        return np.array([y1p, y2p, y3p])    
+        
+    def GrowthHistory(self, Mst0=0, MZ0=0.0):
+        """
+        Evolve a halo from initial mass M0 at redshift z0 forward in time.
+        
+        Returns
+        -------
+        redshifts, halo mass, stellar mass, metallicity
+        
+        """
+
+        dz = np.diff(self.halos.z)[0]
+        zf = self.halos.z.min()
+
+        solver = ode(self._rhs).set_integrator('vode', method='bdf',
+            nsteps=1e4, order=5)
+
+        ##  
+        # Outputs have shape (z, z)
+        ##
+
+        z_all = np.zeros([self.halos.Nz]*2)
+        Mh_all = np.zeros([self.halos.Nz]*2)
+        Ms_all = np.zeros([self.halos.Nz]*2)
+        MZ_all = np.zeros([self.halos.Nz]*2)
+
+        z0 = self.halos.z.max()
+
+        # Loop over all redshifts
+
+        M0 = self.Mmin[-1]
+
+        # Initial stellar mass -> 0, initial halo mass -> Mmin
+        solver.set_initial_value(np.array([M0, Mst0, MZ0]), z0)
+
+        z = []
+        Mh_t = []
+        Mst_t = []
+        metals = []
+        while solver.t > zf:
+            solver.integrate(solver.t-dz)
+
+            z.append(solver.t)
+            Mh_t.append(solver.y[0])
+            Mst_t.append(solver.y[1])
+            metals.append(solver.y[2])
+
+        z = np.array(z)[-1::-1]
+        Mh = np.array(Mh_t)[-1::-1]
+        Ms = np.array(Mst_t)[-1::-1]
+        MZ = np.array(metals)[-1::-1]
+
+        return z, Mh, Ms, MZ
+
     def LuminosityDensity(self, z, Emin=None, Emax=None):
         """
         Return the integrated luminosity density in the (Emin, Emax) band.
-        
+
         Parameters
         ----------
         z : int, flot

@@ -1325,15 +1325,24 @@ class ModelSet(BlobFactory):
         else:
             mu = None
         
-        q1 = 0.5 * 100 * (1. - nu)    
-        q2 = 100 * nu + q1
-        
+        if limit is None:
+            q1 = 0.5 * 100 * (1. - nu)
+            q2 = 100 * nu + q1
+        elif limit == 'upper':
+            q1 = 0.0
+            q2 = 100 * nu 
+        elif limit == 'lower':
+            q1 = 100 * nu
+            q2 = 0.0
+        else:
+            raise ValueError('Unrecognized option for \'limit\': %s' % limit)
+                
         if hasattr(to_hist[par], 'compressed'):
             lo, hi = np.percentile(to_hist[par][skip:].compressed(), (q1, q2))
         else:
             lo, hi = np.percentile(to_hist[par][skip:], (q1, q2))
         
-        if mu is not None:
+        if (mu is not None) and (limit is None):
             sigma = (mu - lo, hi - mu)
         else:
             sigma = (lo, hi)
@@ -1561,7 +1570,7 @@ class ModelSet(BlobFactory):
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)
-
+        
         data = {}
         for k, par in enumerate(pars):
                     
@@ -1602,26 +1611,52 @@ class ModelSet(BlobFactory):
                 
                 cand = sorted(glob.glob('%s*.%s.pkl' % (self.prefix, par)))
                 
+                # Only one option: go for it.
                 if len(cand) == 1:
                     f = open(cand[0], 'rb')     
                     dat = pickle.load(f)
                     f.close()
                     
+                    
                     # What follows is real cludgey...sorry, future Jordan
                     nd = len(dat.shape) #- 1
-                    assert nd == 1, "Help!"
+                    dims = dat[0].shape
+                    #assert nd == 1, "Help!"
                     
-                    if ivar[k] is not None:
-                        for hh in range(len(self.blob_dims)):
-                            if len(self.blob_dims[hh]) != 1:
-                                continue
-                            if len(dat[0]) == self.blob_dims[hh][0]:
-                                loc = np.argmin(np.abs(self.blob_ivars[hh][0] - ivar[k]))
+                    # Need to figure out dimensions of derived blob,
+                    # which requires some care as that info will not simply
+                    # be stored in a binfo.pkl file.
+                    
+                    # Right now this may only work with 1-D blobs...
+                    if (nd == 2) and (ivar[k] is not None):
+                        
+                        fn_md = '%s.dbinfo.pkl' % self.prefix
+                        f = open(fn_md, 'r')
+                        dbinfo = {}
+                        while True:
+                            try:
+                                dbinfo.update(pickle.load(f))
+                            except EOFError:
                                 break
-                            
+                        
+                        # Look up the independent variables for this DB
+                        ivars = dbinfo[par]
+                        
+                        for iv in ivars:                            
+                            arr = np.array(ivars[iv]).squeeze()
+                            if arr.shape == dat[0].shape:
+                                break
+                        
+                        loc = np.argmin(np.abs(arr - ivar[k]))
+ 
                         val = dat[:,loc]
+                    elif nd > 2:
+                        raise NotImplementedError('help')
                     else:
                         val = dat
+                        
+                else:
+                    raise IOError('More than one result for %s*.%s.pkl' % (self.prefix, par))
 
             # must handle log-ifying blobs separately
             if par not in self.parameters:
@@ -2459,10 +2494,13 @@ class ModelSet(BlobFactory):
                         mp.grid[k].set_xlabel('')
 
                     if show_errors:
-                        mu, err = self.get_1d_error(p1)
-                                                 
-                        mp.grid[k].set_title(err_str(p1, mu, err, 
-                            self.is_log[i], labels), va='bottom', fontsize=18) 
+                        mu, err = self.get_1d_error(p1, ivar=ivar[-1::-1][i])
+                        mp.grid[k].plot([mu-err[0]]*2, [0, 1],
+                            color='k', ls='--')
+                        mp.grid[k].plot([mu+err[1]]*2, [0, 1],
+                            color='k', ls='--')    
+                        #mp.grid[k].set_title(err_str(p1, mu, err, 
+                        #    self.is_log[i], labels), va='bottom', fontsize=18) 
                      
                     self.plot_info[k] = {}
                     self.plot_info[k]['axes'] = [p1]
@@ -2985,12 +3023,14 @@ class ModelSet(BlobFactory):
             if ivar is None:
                 return blob
             else:
-                k = np.argmin(np.abs(self.blob_ivars[i] - ivar))
+                # Cludgey...
+                biv = np.array(self.blob_ivars[i]).squeeze()
+                k = np.argmin(np.abs(biv - ivar))
                 return blob[:,k]
         elif nd == 2:
             if ivar is None:
                 return blob
-                    
+
             assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
             k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))
             k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
@@ -3098,6 +3138,42 @@ class ModelSet(BlobFactory):
             f = open(fn, 'wb')
             pickle.dump(result, f)
             f.close()
+            
+            # 'data' contains all field used to derive this blob.
+            # Shape of new blob must be the same
+            ivars = {}
+            for key in data:
+                i, j, nd, size = self.blob_info(key)
+                ivars[key] = self.blob_ivars[i]
+            
+            # Save metadata about this derived blob
+            fn_md = '%s.dbinfo.pkl' % self.prefix
+            if (not os.path.exists(fn_md)) or clobber:                                                                     
+                f = open(fn_md, 'w')
+                pickle.dump({name: ivars}, f)
+                f.close()
+            else:                   
+                f = open(fn_md, 'r')
+                while True:
+                    
+                    pdat = None
+                    
+                    try:
+                        pdat = pickle.load(f)
+                        if name in pdat:
+                            if pdat[name] == ivars:
+                                break
+                    except EOFError:
+                        break
+                
+                f.close()
+                
+                if pdat is not None:
+                        
+                    f = open(fn_md, 'a')
+                    pickle.dump({name: ivars})
+                    f.close()
+                    
         
         return result
         

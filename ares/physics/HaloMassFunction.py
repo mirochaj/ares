@@ -624,6 +624,9 @@ class HaloMassFunction(object):
             * (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
             * ((1. + z) / 10.)**-1.
+            
+    def CollapseRedshift(self):
+        pass
                 
     def table_prefix(self):
         """

@@ -113,3 +113,7 @@ class GalaxyEnsemble(GalaxyCohort):
                 
             self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
         
+        
+    def Mstar(self, z):
+        pass
+        
