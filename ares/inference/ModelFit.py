@@ -227,8 +227,8 @@ class LogLikelihood(object):
         
     def checkpoint(self, **kwargs):
         if self.checkpoint_by_proc:
-            procid = str(rank).zfill(4)
-            fn = '%s.proc%s.checkpt.pkl' % (self.prefix, procid)
+            procid = str(rank).zfill(3)
+            fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
                 pickle.dump(kwargs, f)
 
@@ -682,6 +682,8 @@ class ModelFit(BlobFactory):
             prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
         else:
             prefix_by_proc = self.prefix
+               
+        print rank, prefix_by_proc       
                 
         if clobber:
             # Delete only the files made by this routine. Don't want to risk

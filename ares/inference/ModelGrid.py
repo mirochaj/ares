@@ -185,7 +185,7 @@ class ModelGrid(ModelFit):
         
         if restart:
             return
-        
+                
         if self.save_by_proc:
             prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
         else:
@@ -193,7 +193,7 @@ class ModelGrid(ModelFit):
         
             if rank != 0:
                 return
-            
+                        
         prefix = self.prefix
         super(ModelGrid, self)._prep_from_scratch(clobber, 
             by_proc=self.save_by_proc)
@@ -280,7 +280,7 @@ class ModelGrid(ModelFit):
             Nleft = tot - ct0
         else:
             Nleft = np.sum(self.assignments == rank)
-                        
+                                              
         if Nleft == 0:
             if rank == 0:
                 print 'This model grid is complete.'
@@ -298,7 +298,7 @@ class ModelGrid(ModelFit):
                     % self.grid.size
             else:
                 print 'Running %i-element model grid.' % self.grid.size
-                
+                                
         # Make some blank files for data output                 
         self.prep_output_files(restart, clobber)                 
 
@@ -547,7 +547,8 @@ class ModelGrid(ModelFit):
     @property
     def assignments(self):
         if not hasattr(self, '_assignments'):
-            self._assignments = np.zeros(self.grid.size)
+            self.LoadBalance()
+            
         return self._assignments
             
     @assignments.setter
