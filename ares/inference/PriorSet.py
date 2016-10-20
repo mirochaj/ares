@@ -301,7 +301,6 @@ class PriorSet(object):
         throw_error if True (default), an error is thrown if the parameter
                     is not found
         """
-        broken = False
         for iprior in range(len(self._data)):
             (this_prior, these_params, these_transforms) = self._data[iprior]
             if parameter in these_params:
