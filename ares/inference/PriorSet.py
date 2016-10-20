@@ -307,6 +307,8 @@ class PriorSet(object):
                 to_delete = iprior
                 break
         try:
+            for par in self._data[to_delete][1]:
+                self._params.remove(par)
             self._data = self._data[:to_delete] + self._data[to_delete + 1:]
         except:
             if throw_error:
