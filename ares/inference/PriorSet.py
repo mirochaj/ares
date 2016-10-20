@@ -304,12 +304,8 @@ class PriorSet(object):
         broken = False
         for iprior in range(len(self._data)):
             (this_prior, these_params, these_transforms) = self._data[iprior]
-            for iparam in range(len(these_params)):
-                if parameter == these_params[iparam]:
-                    to_delete = iprior
-                    broken = True
-                    break
-            if broken:
+            if parameter in these_params:
+                to_delete = iprior
                 break
         try:
             self._data = self._data[:to_delete] + self._data[to_delete + 1:]
