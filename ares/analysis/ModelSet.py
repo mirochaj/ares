@@ -331,6 +331,16 @@ class ModelSet(BlobFactory):
         return self._is_log
         
     @property
+    def polygon(self):
+        if not hasattr(self, '_polygon'):
+            return None
+        return self._polygon
+    
+    @polygon.setter
+    def polygon(self, value):
+        self._polygon = value
+    
+    @property
     def is_mcmc(self):
         if not hasattr(self, '_is_mcmc'):
             if os.path.exists('%s.logL.pkl' % self.prefix):
@@ -883,6 +893,42 @@ class ModelSet(BlobFactory):
         
         return model_set
         
+    def difference(self, set2):
+        """
+        Create a new ModelSet out of the elements unique to current ModelSet.
+        """
+        
+        assert self.chain.shape == set2.chain.shape
+        assert self.parameters == set2.parameters
+        
+        mask = np.ones(self.chain.shape[0])
+        for i, element in enumerate(self.chain):
+            if self.mask[i] == 0 and (set2.mask[i] == 1):
+                mask[i] = 0
+
+        model_set = ModelSet(self.prefix)
+        
+        # Set the mask! 
+        model_set.mask = mask
+                        
+        return model_set        
+    
+    def union(self, set2):
+        """
+        Create a new ModelSet out of the elements unique to input sets.
+        """
+    
+        assert self.chain.shape == set2.chain.shape
+        assert self.parameters == set2.parameters
+    
+        mask = self.mask * set2.mask
+        model_set = ModelSet(self.prefix)
+    
+        # Set the mask! 
+        model_set.mask = mask
+    
+        return model_set    
+        
     def SliceByPolygon(self, parameters, polygon):
         """
         Convert a bounding polygon to a new ModelSet instance.
@@ -913,8 +959,12 @@ class ModelSet(BlobFactory):
         for i in range(len(xdata)):
             pt = geometry.Point(xdata[i], ydata[i])
             
-            if not polygon.contains(pt):
-                mask[i] = 1             
+            pt_in_poly = polygon.contains(pt) or polygon.touches(pt) \
+                or polygon.intersects(pt)
+            
+            if not pt_in_poly:
+                mask[i] = 1                
+
         
         ##
         # CREATE NEW MODELSET INSTANCE
@@ -923,6 +973,9 @@ class ModelSet(BlobFactory):
         
         # Set the mask! 
         model_set.mask = np.logical_or(mask, self.mask)
+        
+        # Save the polygon we used
+        model_set.polygon = polygon        
                 
         return model_set        
         
@@ -932,8 +985,15 @@ class ModelSet(BlobFactory):
         within (or outside, if union==False) intersection of two polygons.
         """
         
-        return polygon1.difference(polygon2), polygon1.intersection(polygon2), \
-            polygon2.difference(polygon1)
+        overlap = polygon1.intersection(polygon2)
+        
+        p1_w_overlap = polygon1.union(overlap)
+        p2_w_overlap = polygon2.union(overlap)
+        
+        p1_unique = polygon1.difference(p2_w_overlap)
+        p2_unique = polygon2.difference(p1_w_overlap)
+        
+        return p1_unique, overlap, p2_unique
         
     @property
     def plot_info(self):
@@ -1248,7 +1308,7 @@ class ModelSet(BlobFactory):
 
         # Create polygon object
         point_collection = geometry.MultiPoint(list(points))
-        
+
         if boundary_type == 'convex':
             polygon = point_collection.convex_hull
         elif boundary_type == 'concave':
@@ -1258,22 +1318,20 @@ class ModelSet(BlobFactory):
         else:
             raise ValueError('Unrecognized boundary_type=%s!' % boundary_type)        
 
-        x_min, y_min, x_max, y_max = polygon.bounds
-        
         # Plot a Polygon using descartes
         if add_patch:
-            #try:        
-            patch = PolygonPatch(polygon, **kwargs)
-            ax.add_patch(patch)
-           #except:
-           #    patches = []
-           #    for pgon in polygon:
-           #        patches.append(PolygonPatch(pgon, **kwargs))
-           #    
-           #    ax.add_collection(PatchCollection(patches, match_original=True))
-            
+            try:        
+                patch = PolygonPatch(polygon, **kwargs)
+                ax.add_patch(patch)
+            except:
+                patches = []
+                for pgon in polygon:
+                    patches.append(PolygonPatch(pgon, **kwargs))
+
+                ax.add_collection(PatchCollection(patches, match_original=True))
+
             pl.draw()
-            
+
         if return_polygon:
             return ax, polygon
         else:
