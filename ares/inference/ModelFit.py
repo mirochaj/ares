@@ -682,9 +682,7 @@ class ModelFit(BlobFactory):
             prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
         else:
             prefix_by_proc = self.prefix
-               
-        print rank, prefix_by_proc       
-                
+                               
         if clobber:
             # Delete only the files made by this routine. Don't want to risk
             # deleting other files the user may have created with similar

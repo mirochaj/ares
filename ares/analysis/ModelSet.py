@@ -228,6 +228,10 @@ class ModelSet(BlobFactory):
     def mask(self, value):
         if self.is_mcmc:
             assert len(value) == len(self.logL)
+            
+            # Must be re-initialized to reflect new mask
+            del self._chain, self._logL
+            
         self._mask = value
 
     @property
@@ -440,7 +444,11 @@ class ModelSet(BlobFactory):
                 if rank == 0:
                     print "Loaded %s in %.2g seconds.\n" % (fn, t2-t1)
 
-                mask2d = np.array([self.mask] * self._chain.shape[1]).T
+                if self.mask.ndim == 1:
+                    mask2d = np.array([self.mask] * self._chain.shape[1]).T
+                else:
+                    mask2d = self.mask
+                    
                 self._chain = np.ma.array(self._chain, mask=mask2d)
             
             # We might have data stored by processor
@@ -501,6 +509,29 @@ class ModelSet(BlobFactory):
 
         return self._chain        
         
+    def identify_bad_walkers(self, tol=1e-2, axis=0):
+        """
+        Find trajectories that are flat. They are probably walkers stuck
+        in some "no man's land" region of parameter space. Poor guys.
+        
+        Returns
+        -------
+        Lists of walker ID numbers. First, the good walkers, then the bad.
+        """
+        
+        bad_walkers = []
+        good_walkers = []
+        mask = np.zeros_like(self.chain, dtype=int)
+        for i in range(self.nwalkers):
+            chain, elements = self.get_walker(i)
+            if np.allclose(np.diff(chain[:,axis]), 0.0, atol=tol, rtol=0):
+                bad_walkers.append(i)
+                mask += elements
+            else:
+                good_walkers.append(i)
+                        
+        return good_walkers, bad_walkers, np.minimum(mask, 1)
+        
     @property
     def checkpoints(self):
         # Read MCMC chain
@@ -532,7 +563,14 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_logL'):            
             if os.path.exists('%s.logL.pkl' % self.prefix):
                 self._logL = read_pickled_logL('%s.logL.pkl' % self.prefix)
-                self._logL = np.ma.array(self._logL, mask=self.mask)
+                
+                if self.mask.ndim == 2:
+                    N = self.chain.shape[0]
+                    mask1d = np.array([np.max(self.mask[i,:]) for i in range(N)])
+                else:
+                    mask1d = self.mask
+                self._logL = np.ma.array(self._logL, mask=mask1d)
+                
             elif glob.glob('%s.dd*.logL.pkl' % self.prefix):
                 if self.include_checkpoints is not None:
                     outputs_to_read = []
@@ -552,7 +590,12 @@ class ModelSet(BlobFactory):
                         
                     full_chain.extend(read_pickled_logL(fn))
                         
-                self._logL = np.ma.array(full_chain, mask=self.mask)        
+                if self.mask.ndim == 2:
+                    N = self.chain.shape[0]
+                    mask1d = np.array([np.max(self.mask[i,:]) for i in range(N)])
+                    self._logL = np.ma.array(full_chain, mask=mask1d)
+                else:
+                    self._logL = np.ma.array(full_chain, mask=self.mask)
             else:
                 self._logL = None
                 
@@ -633,7 +676,9 @@ class ModelSet(BlobFactory):
             
         Returns
         -------
-        2-D array with shape (nsteps, nparameters).
+        1. 2-D array with shape (nsteps, nparameters).
+        2. A mask, with the same shape as the chain, with elements == 1 
+           corresponding to those specific to the given walker.
         
         """
         
@@ -649,11 +694,13 @@ class ModelSet(BlobFactory):
         schunk = nw * sf 
         
         data = []
+        elements = np.zeros_like(self.chain, dtype=int).data
         for i in range(nchunks):   
             chunk = self.chain[i*schunk + sf*num:i*schunk + sf*(num+1)]
+            elements[i*schunk + sf*num:i*schunk + sf*(num+1)] = 1
             data.extend(chunk)
             
-        return np.array(data)
+        return np.array(data), elements
                 
     @property
     def Npops(self):
@@ -867,7 +914,7 @@ class ModelSet(BlobFactory):
             pt = geometry.Point(xdata[i], ydata[i])
             
             if not polygon.contains(pt):
-                mask[i] = 1
+                mask[i] = 1             
         
         ##
         # CREATE NEW MODELSET INSTANCE
@@ -885,15 +932,8 @@ class ModelSet(BlobFactory):
         within (or outside, if union==False) intersection of two polygons.
         """
         
-        poly = geometry.MultiPolygon([polygon1, polygon2])
-        
-        rings = [geometry.LineString(list(poly.exterior.coords)) \
-            for poly in poly]
-        
-        union = unary_union(rings)
-        result = [geom for geom in polygonize(union)]
-        
-        return result
+        return polygon1.difference(polygon2), polygon1.intersection(polygon2), \
+            polygon2.difference(polygon1)
         
     @property
     def plot_info(self):
@@ -1000,7 +1040,7 @@ class ModelSet(BlobFactory):
         if hasattr(self, '_derived_blob_names'):
             return self._derived_blob_names
             
-        dbs = self.derived_blobs
+        #self._derived_blob_names = self.derived_blobs
         
         return self._derived_blob_names
         
@@ -1222,15 +1262,15 @@ class ModelSet(BlobFactory):
         
         # Plot a Polygon using descartes
         if add_patch:
-            try:        
-                patch = PolygonPatch(polygon, **kwargs)
-                ax.add_patch(patch)
-            except:
-                patches = []
-                for pgon in polygon:
-                    patches.append(PolygonPatch(pgon, **kwargs))
-                
-                ax.add_collection(PatchCollection(patches, match_original=True))
+            #try:        
+            patch = PolygonPatch(polygon, **kwargs)
+            ax.add_patch(patch)
+           #except:
+           #    patches = []
+           #    for pgon in polygon:
+           #        patches.append(PolygonPatch(pgon, **kwargs))
+           #    
+           #    ax.add_collection(PatchCollection(patches, match_original=True))
             
             pl.draw()
             
@@ -1272,7 +1312,8 @@ class ModelSet(BlobFactory):
         return nu, levels
     
     def get_1d_error(self, par, ivar=None, nu=0.68, take_log=False,
-        limit=None, un_log=False, multiplier=1., peak='median', skip=0):
+        limit=None, un_log=False, multiplier=1., peak='median', skip=0,
+        stop=None):
         """
         Compute 1-D error bar for input parameter.
         
@@ -1315,13 +1356,23 @@ class ModelSet(BlobFactory):
             print "WARNING: error w/ %s" % par
             print "@ z=" % z
             return
+            
+        if stop is not None:
+            stop = -int(stop)
+                    
+        if hasattr(to_hist[par], 'compressed'):
+            logL = self.logL[skip:stop].compressed()
+            tohist = to_hist[par][skip:stop].compressed()
+        else:
+            logL = self.logL[skip:stop]
+            tohist = to_hist[par][skip:stop]
 
         if peak == 'median':
-            N = len(self.logL[skip:])
-            psorted = np.sort(to_hist[par][skip:])
+            N = len(logL)
+            psorted = np.sort(tohist)
             mu = psorted[int(N / 2.)]
         elif peak == 'mode':
-            mu = to_hist[par][skip:][np.argmax(self.logL[skip:])]
+            mu = tohist[np.argmax(logL)]
         else:
             mu = None
         
@@ -1332,16 +1383,14 @@ class ModelSet(BlobFactory):
             q1 = 0.0
             q2 = 100 * nu 
         elif limit == 'lower':
-            q1 = 100 * nu
-            q2 = 0.0
+            q1 = 100 * (1. - nu)
+            q2 = 100
         else:
             raise ValueError('Unrecognized option for \'limit\': %s' % limit)
-                
-        if hasattr(to_hist[par], 'compressed'):
-            lo, hi = np.percentile(to_hist[par][skip:].compressed(), (q1, q2))
-        else:
-            lo, hi = np.percentile(to_hist[par][skip:], (q1, q2))
-        
+                                
+        # Do it already            
+        lo, hi = np.percentile(tohist, (q1, q2))
+                                
         if (mu is not None) and (limit is None):
             sigma = (mu - lo, hi - mu)
         else:
@@ -1611,8 +1660,10 @@ class ModelSet(BlobFactory):
                 
                 cand = sorted(glob.glob('%s*.%s.pkl' % (self.prefix, par)))
                 
+                if len(cand) == 0:
+                    raise IOError('No results for %s*.%s.pkl' % (self.prefix, par))
                 # Only one option: go for it.
-                if len(cand) == 1:
+                elif len(cand) == 1:
                     f = open(cand[0], 'rb')     
                     dat = pickle.load(f)
                     f.close()
@@ -1662,14 +1713,20 @@ class ModelSet(BlobFactory):
             if par not in self.parameters:
                 if take_log[k]:
                     val = np.log10(val)
-                                   
+                                                          
             ##
             # OK, at this stage, 'val' is just an array. If it corresponds to
             # a parameter, it's 1-D, if a blob, it's dimensionality could
             # be different. So, we have to be a little careful with the mask.
-            ##                   
+            ##
               
-            if not np.all(np.array(val.shape) == np.array(self.mask.shape)):
+            if par in self.parameters:
+                j = self.parameters.index(par)
+                if self.mask.ndim == 2:
+                    mask = self.mask[:,j]
+                else:
+                    mask = self.mask
+            elif not np.all(np.array(val.shape) == np.array(self.mask.shape)):
                 
                 # If no masked elements, don't worry any more. Just set -> 0.
                 if not np.any(self.mask == 1):
@@ -1681,7 +1738,7 @@ class ModelSet(BlobFactory):
                 else:
                     mask = np.zeros_like(val)
                     for j, element in enumerate(self.mask):
-                        if element == 1:
+                        if np.all(element == 1):
                             mask[j].fill(1)
             else:
                 mask = self.mask
@@ -1948,7 +2005,7 @@ class ModelSet(BlobFactory):
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)
-            
+
         # Modify bins to account for log-taking, multipliers, etc.
         binvec = self._set_bins(pars, to_hist, take_log, bins)
 
@@ -1977,16 +2034,19 @@ class ModelSet(BlobFactory):
             else:
                 tohist = to_hist[skip:stop]
                 b = bins
+                                                
+            if hasattr(tohist, 'compressed'):
+                tohist = tohist.compressed()            
                         
             hist, bin_edges = \
                 np.histogram(tohist, density=True, bins=b, weights=weights)
 
             bc = rebin(bin_edges)
-            
+
             # Take CDF
             if cdf:
                 hist = np.cumsum(hist)
-                        
+
             tmp = self._get_1d_kwargs(**kw)
             
             ax.plot(bc, hist / hist.max(), drawstyle='steps-mid', **tmp)
@@ -2005,6 +2065,13 @@ class ModelSet(BlobFactory):
                 tohist2 = to_hist[1][skip:stop]
                 b = [binvec[0], binvec[1]]
 
+            # If each quantity has a different set of masked elements,
+            # we'll get an error at plot-time.
+            if hasattr(tohist1, 'compressed'):
+                tohist1 = tohist1.compressed()
+            if hasattr(tohist2, 'compressed'):
+                tohist2 = tohist2.compressed()    
+             
             # Compute 2-D histogram
             hist, xedges, yedges = \
                 np.histogram2d(tohist1, tohist2, bins=b, weights=weights)
@@ -2392,6 +2459,7 @@ class ModelSet(BlobFactory):
         newer_than_one_pt_nine =\
             ((int(np_version[0]) == 1) and (int(np_version[1])>9))
         remove_nas = (newer_than_one or newer_than_one_pt_nine)
+        
         to_hist = self.ExtractData(pars, ivar=ivar, take_log=take_log,
             un_log=un_log, multiplier=multiplier, remove_nas=remove_nas)
             
@@ -2573,11 +2641,12 @@ class ModelSet(BlobFactory):
                                                                     
                 # Plot as dotted lines
                 if xin is not None:
-                    mp.grid[k].plot([xin]*2, mp.grid[k].get_ylim(), color='k',
-                        ls=':', zorder=20)
+                    mult = np.array([0.995, 1.005])
+                    mp.grid[k].plot([xin]*2, mult * np.array(mp.grid[k].get_ylim()), 
+                        color='k',ls=':', zorder=20)
                 if yin is not None:
-                    mp.grid[k].plot(mp.grid[k].get_xlim(), [yin]*2, color='k',
-                        ls=':', zorder=20)
+                    mp.grid[k].plot(mult * np.array(mp.grid[k].get_xlim()), 
+                        [yin]*2, color='k', ls=':', zorder=20)
 
                     
         if oned:

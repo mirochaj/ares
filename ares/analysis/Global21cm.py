@@ -261,9 +261,9 @@ class Global21cm(MultiPhaseMedium):
         return ax
     
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
-        time_ax=False, z_ax=True, mask=5, scatter=False, xaxis='nu', 
+        time_ax=False, z_ax=True, mask=None, scatter=False, xaxis='nu', 
         ymin=None, ymax=50, zmax=None, rotate_xticks=False, force_draw=False,
-        **kwargs):
+        temp_unit='mK', yscale='linear', take_abs=False, **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
 
@@ -307,14 +307,28 @@ class Global21cm(MultiPhaseMedium):
         else:
             gotax = True
         
+        conv = 1.
+        if temp_unit.lower() in ['k', 'kelvin']:
+            conv = 1e-3
+        
+        if mask is not None:
+            nu_plot, dTb_plot = \
+                self.data[xaxis][mask], self.data['dTb'][mask] * conv
+        else:
+            nu_plot, dTb_plot = \
+                self.data[xaxis], self.data['dTb'] * conv
+        
+        if take_abs:
+            dTb_plot = np.abs(dTb_plot)
+        
         ##
         # Plot the stupid thing
         ##
         if scatter is False:   
-            ax.plot(self.data[xaxis], self.data['dTb'], **kwargs)
+            ax.plot(nu_plot, dTb_plot, **kwargs)
         else:
-            ax.scatter(self.data[xaxis][-1::-mask], self.data['dTb'][-1::-mask], 
-                **kwargs)
+            ax.scatter(self.data[xaxis][-1::-mask], 
+                self.data['dTb'][-1::-mask] * conv, **kwargs)
                 
         zmax = self.pf["first_light_redshift"]
         zmin = self.pf["final_redshift"] if self.pf["final_redshift"] >= 10 \
@@ -328,7 +342,7 @@ class Global21cm(MultiPhaseMedium):
             xticks = np.arange(50, 250, 50)
             xticks_minor = np.arange(10, 200, 10)
 
-        if ymin is None:
+        if ymin is None and yscale == 'linear':
             ymin = max(min(min(self.data['dTb'][np.isfinite(self.data['dTb'])]), 
                 ax.get_ylim()[0]), -500)
     
@@ -341,31 +355,33 @@ class Global21cm(MultiPhaseMedium):
         if ymax is None:
             ymax = max(max(self.data['dTb'][np.isfinite(self.data['dTb'])]), 
                 ax.get_ylim()[1])
-        
-        if (not gotax) or force_draw:
-            ax.set_yticks(np.arange(int(ymin / 50) * 50, 
-                100, 50))
+    
+        if yscale == 'linear':
+            if (not gotax) or force_draw:
+                ax.set_yticks(np.arange(int(ymin / 50) * 50, 
+                    100, 50))
                 
-        # Minor y-ticks - 10 mK increments
-        yticks = np.linspace(ymin, 50, int((50 - ymin) / 10. + 1))
-        yticks = list(yticks)      
-        
-        # Remove major ticks from minor tick list
-        for y in np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)):
-            if y in yticks:
-                yticks.remove(y) 
+            else:
+                # Minor y-ticks - 10 mK increments
+                yticks = np.linspace(ymin, 50, int((50 - ymin) / 10. + 1)) * conv
+                yticks = list(yticks)      
+                
+                # Remove major ticks from minor tick list
+                for y in np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)) * conv:
+                    if y in yticks:
+                        yticks.remove(y) 
+                        
+                ax.set_ylim(ymin, ymax)
+                ax.set_yticks(yticks, minor=True)
         
         if xaxis == 'z' and hasattr(self, 'pf'):
             ax.set_xlim(5, self.pf["initial_redshift"])
         else:
             ax.set_xlim(10, 210)
-            
-        ax.set_ylim(ymin, ymax)    
-                    
+                                
         if (not gotax) or force_draw:    
             ax.set_xticks(xticks, minor=False)
             ax.set_xticks(xticks_minor, minor=True)
-            ax.set_yticks(yticks, minor=True)
         
             if rotate_xticks:
                 xt = []
@@ -385,7 +401,10 @@ class Global21cm(MultiPhaseMedium):
                 ax.set_xlabel(labels['nu'])
         
         if ax.get_ylabel() == '':    
-            ax.set_ylabel(labels['dTb'], fontsize='x-large')    
+            if temp_unit.lower() == 'mk':
+                ax.set_ylabel(labels['dTb'], fontsize='x-large')    
+            else:
+                ax.set_ylabel(r'$T_b \ (\mathrm{K})$', fontsize='x-large')    
         
         # Twin axes along the top
         if freq_ax:

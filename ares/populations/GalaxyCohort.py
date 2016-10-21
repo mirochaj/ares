@@ -940,24 +940,53 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
                 
         return self._D_fstar_wrt_Mh_tab
         
-    def _rhs(self, z, y):
+    def _SAM(self, z, y):
+        """
+        Simple semi-analytic model for the components of galaxies.
+        
+        Really just the right-hand sides of a set of ODEs describing the
+        rate of change in the halo mass, stellar mass, and metal mass.
+        Other elements can be added quite easily.
+        
+        Parameters
+        ----------
+        z : int, float
+            current redshift
+        y : array
+            halo mass, gas mass, stellar mass, gas-phase metallicity
+        
+        Returns
+        -------
+        An updated array of y-values.
+        
+        """
+        
+        Mh, Mg, Mst, Z = y
     
-        Mh, Mst, Z = y
-    
-        # Eq. 1: halo mass
+        # Eq. 1: halo mass.
         y1p = -1. * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
     
-        # Eq. 2: stellar mass
+        # Eq. 2: gas mass
+        y2p = self.cosm.fbar_over_fcdm * y1p * (1. - self.SFE(z, Mh))
+    
+        # Add option of parameterized stifling of gas supply, and
+        # ejection of gas.
+    
+        # Eq. 3: stellar mass
         Mmin = np.interp(z, self.halos.z, self.Mmin)
         if Mh < Mmin:
-            y2p = 0.
+            y3p = 0.
         else:
-            y2p = self.SFE(z, Mh) * y1p
+            y3p = self.SFE(z, Mh) * self.cosm.fbar_over_fcdm * y1p
             
-        # Eq. 3: metal mass
-        y3p = 0.03 * y2p
+        # Eq. 4: metal mass -- constant return per unit star formation for now
+        # Could make a PHP pretty easily.
+        y4p = self.pf['pop_metal_yield'] * y3p
         
-        return np.array([y1p, y2p, y3p])    
+        # Stuff to add: parameterize metal yield, metal escape, star formation
+        # from reservoir? How to deal with Mmin(z)? Initial conditions (from PopIII)?
+        
+        return np.array([y1p, y2p, y3p, y4p])    
         
     def GrowthHistory(self, Mst0=0, MZ0=0.0):
         """
@@ -965,36 +994,36 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         
         Returns
         -------
-        redshifts, halo mass, stellar mass, metallicity
+        redshifts, halo mass, gas mass, stellar mass, metal mass
         
         """
+        
+        assert np.all(np.diff(self.Mmin) == 0), \
+            "Can only do this for constant Mmin at the moment. Sorry!"
 
         dz = np.diff(self.halos.z)[0]
         zf = self.halos.z.min()
 
-        solver = ode(self._rhs).set_integrator('vode', method='bdf',
+        solver = ode(self._SAM).set_integrator('vode', method='bdf',
             nsteps=1e4, order=5)
 
         ##  
         # Outputs have shape (z, z)
         ##
 
-        z_all = np.zeros([self.halos.Nz]*2)
-        Mh_all = np.zeros([self.halos.Nz]*2)
-        Ms_all = np.zeros([self.halos.Nz]*2)
-        MZ_all = np.zeros([self.halos.Nz]*2)
-
         z0 = self.halos.z.max()
 
         # Loop over all redshifts
 
         M0 = self.Mmin[-1]
+        Mg0 = self.cosm.fbar_over_fcdm * M0
 
         # Initial stellar mass -> 0, initial halo mass -> Mmin
-        solver.set_initial_value(np.array([M0, Mst0, MZ0]), z0)
+        solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0]), z0)
 
         z = []
         Mh_t = []
+        Mg_t = []
         Mst_t = []
         metals = []
         while solver.t > zf:
@@ -1002,15 +1031,17 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
 
             z.append(solver.t)
             Mh_t.append(solver.y[0])
-            Mst_t.append(solver.y[1])
-            metals.append(solver.y[2])
+            Mg_t.append(solver.y[1])
+            Mst_t.append(solver.y[2])
+            metals.append(solver.y[3])
 
         z = np.array(z)[-1::-1]
         Mh = np.array(Mh_t)[-1::-1]
+        Mg = np.array(Mg_t)[-1::-1]
         Ms = np.array(Mst_t)[-1::-1]
         MZ = np.array(metals)[-1::-1]
 
-        return z, Mh, Ms, MZ
+        return z, Mh, Mg, Ms, MZ
 
     def LuminosityDensity(self, z, Emin=None, Emax=None):
         """

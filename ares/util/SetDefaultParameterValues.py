@@ -460,8 +460,9 @@ def PopulationParameters():
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
     "pop_yield": 2.6e39,
     "pop_yield_units": 'erg/s/sfr',
-    
     "pop_yield_Z_index": None,
+    
+    "pop_metal_yield": 0.01,
     
     "pop_kappa_UV": 1.15e-28,
     "pop_L1600_per_sfr": None,
