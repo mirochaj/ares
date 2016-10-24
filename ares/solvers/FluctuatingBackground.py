@@ -13,6 +13,7 @@ Description:
 import numpy as np
 from types import FunctionType
 from ..util import ParameterFile
+from scipy.special import erfinv
 from ..util.Math import LinearNDInterpolator
 from ..populations.Composite import CompositePopulation
 
@@ -56,6 +57,12 @@ class FluctuatingBackground(object):
             n_b = self.BubbleDensity(z)
             
             return 1. - np.exp(-n_b * V_b)
+        elif pop.pf['pop_bubble_size_dist'] == 'excursion_set':
+            R, M, dndm = self.BubbleSizeDistribution(z, popid)
+            V = 4. * np.pi * R**3 / 3.
+            return np.trapz(dndm * V * M, x=np.log(M))
+        else:
+            raise NotImplemented('Uncrecognized option for BSD.')
         
     def BubbleDensity(self, z, R=None, popid=0):
         """
@@ -105,17 +112,60 @@ class FluctuatingBackground(object):
                 n = LinearNDInterpolator([halos.z, halos.logM], halos.ngtm)
 
                 return n([z, logMmin])
-        
+
         raise ValueError('Somethings not right')
         
-    def BubbleSizeDistribution(self, z, R=None, popid=0):
+    def _K(self, zeta):
+        return erfinv(1. - 1. / zeta)
+    
+    def _delta_c(self, z, popid=0):
+        pop = self.pops[popid]
+        return pop.cosm.delta_c0 / pop.growth_factor(z)
+        
+    def _B0(self, z, zeta=40, popid=0):
+        pop = self.pops[popid]
+        s = pop.halos.sigma_0
+        sigma_min = np.interp(pop.Mmin[0] * zeta, pop.halos.M, s)
+        return self._delta_c(z) - np.sqrt(2) * self._K(zeta) * sigma_min
+    
+    def _B1(self, z, zeta=40, popid=0):
+        pop = self.pops[popid]
+        s = pop.halos.sigma_0
+        sigma_min = np.interp(pop.Mmin[0] * zeta, pop.halos.M, s)
+        ddx_ds2 = self._K(zeta) / np.sqrt(2. * (sigma_min**2 - s**2))
+    
+        return ddx_ds2[s == s.min()]
+    
+    def _B(self, z, zeta=40., popid=0):
+        """
+        Linear barrier.
+        """
+        pop = self.pops[popid]
+        s = pop.halos.sigma_0
+        return self._B0(z, zeta, popid) + self._B1(z, zeta, popid) * s**2
+                
+    def BubbleSizeDistribution(self, z, popid=0):
         pop = self.pops[popid]
         
         if pop.pf['pop_bubble_size_dist'] is None:
             if pop.pf['pop_bubble_density'] is not None:
                 return pop.pf['pop_bubble_density']
+        elif pop.pf['pop_bubble_size_dist'] == 'excursion_set':
+            zeta = 40.
+            Mb = pop.halos.M * zeta
+            rho0 = pop.cosm.mean_density0
+            sig = pop.halos.sigma_0
+            S = sig**2
             
-        raise NotImplementedError('can only handle const. Rbubb right now.')
+            pcross = self._B0(z, zeta) / np.sqrt(2. * np.pi * S**3) \
+                * np.exp(-0.5 * self._B(z, zeta)**2 / S)
+                
+            R = ((Mb / rho0) * 0.75 / np.pi)**(1./3.)
+            dndm = rho0 * pcross * 2 * np.abs(pop.halos.dlns_dlnm) * S / Mb**2
+
+            return R, Mb, dndm
+        else:
+            raise NotImplementedError('Unrecognized option: %s' % pop.pf['pop_bubble_size_dist'])
 
     def IonizationProbability(self, z, dr, popid=0):
         """
@@ -147,6 +197,12 @@ class FluctuatingBackground(object):
     
             return oht, tht
     
+        elif pop.pf['pop_bubble_size_dist'] == 'excursion_set':
+            raise NotImplementedError('help')
+    
+        elif type(pop.pf['pop_bubble_size_dist']) is FunctionType:
+            raise NotImplementedError('help')    
+    
         else:
             raise NotImplementedError('help')
     
@@ -155,14 +211,18 @@ class FluctuatingBackground(object):
         # Ionization auto-correlation function
         if field_1 and field_2 == 'h_2':
             
-            dr = 2. * np.pi / k
-            
-            Pii_oh, Pii_th = self.IonizationProbability(z, dr, popid)
-            Qi  = self.BubbleFillingFactor(z)
-    
-            Pii = Pii_oh + Pii_th
+            if pop.pf['pop_bubble_size_dist'] is None:
+                dr = 2. * np.pi / k
+                Pii_oh, Pii_th = self.IonizationProbability(z, dr, popid)
+                Qi  = self.BubbleFillingFactor(z)
                 
-            return Pii - Qi**2
+                Pii = Pii_oh + Pii_th
+                    
+                return Pii - Qi**2
+                
+            elif pop.pf['pop_bubble_size_dist'] == 'excursion_set':
+        
+                
         
         else:
             raise NotImplementedError('sorry!')

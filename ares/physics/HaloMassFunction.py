@@ -206,6 +206,7 @@ class HaloMassFunction(object):
                 self.bias_tab = f['bias'].value
                 self.psCDM_tab = f['psCDM'].value
 
+            # Axes these?
             self.ngtm = f['ngtm'].value
             self.mgtm = f['mgtm'].value
 
@@ -219,6 +220,7 @@ class HaloMassFunction(object):
             self.dndm = f['dndm']
             self.ngtm = f['ngtm']
             self.mgtm = f['mgtm']
+            self.growth_factor = f['growth_factor']
             f.close()                        
         elif re.search('.pkl', self.fn):
             f = open(self.fn, 'rb')
@@ -234,6 +236,10 @@ class HaloMassFunction(object):
                 self.bias = pickle.load(f)
                 self.psCDM = pickle.load(f)
             
+            if self.pf['hmf_load_growth']:
+                self.growth_factor = pickle.load(f)
+            
+            # Axes these?
             self.ngtm = pickle.load(f)
             self.mgtm = pickle.load(f)
 
@@ -305,7 +311,7 @@ class HaloMassFunction(object):
     def cosmo_params(self):
         return {'Om0':self.cosm.omega_m_0,
                 'Ob0':self.cosm.omega_b_0,
-                'H0':self.cosm.h70*100}    
+                'H0':self.cosm.h70*100}                
                 
     def build_fcoll_tab(self):
         """
@@ -342,8 +348,11 @@ class HaloMassFunction(object):
         self.mgtm = np.zeros_like(self.dndm)
         self.ngtm = np.zeros_like(self.dndm)
         fcoll_tab = np.zeros_like(self.dndm)
+        
+        # Extras
         self.bias_tab = np.zeros_like(self.dndm)
         self.psCDM_tab = np.zeros([len(self.z), len(self.k)])
+        self.growth_factor = np.zeros_like(self.z)
         
         pb = ProgressBar(len(self.z), 'fcoll')
         pb.start()
@@ -358,7 +367,7 @@ class HaloMassFunction(object):
                 
             # Compute collapsed fraction
             if self.hmf_func == 'PS' and self.hmf_analytic:
-                delta_c = self.MF.delta_c / self.MF.growth.growth_factor(z)
+                delta_c = self.MF.delta_c / self.MF.growth_factor
                 fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
                 
             else:
@@ -367,15 +376,17 @@ class HaloMassFunction(object):
                 self.dndm[i] = self.MF.dndm.copy() * self.cosm.h70**4
                 self.mgtm[i] = self.MF.rho_gtm.copy()
                 self.ngtm[i] = self.MF.ngtm.copy() * self.cosm.h70**3
+                 
+                # Remember that mgtm and mean_density have factors of h**2
+                # so we're OK here dimensionally
+                fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
                 
                 # For power spectra
                 self.bias_tab[i] = 1. + (0.75 * self.MF.nu - 1.) / self.MF.delta_c + \
                     (2. * 0.3 / self.MF.delta_c) / (1. + (0.75 * self.MF.nu)**0.3)
                 self.psCDM_tab[i] = self.MF.power / self.cosm.h70**3
                 
-                # Remember that mgtm and mean_density have factors of h**2
-                # so we're OK here dimensionally
-                fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
+            self.growth_factor[i] = self.MF.growth_factor
                         
             pb.update(i)
             
@@ -403,15 +414,17 @@ class HaloMassFunction(object):
             nothing = MPI.COMM_WORLD.Allreduce(self.psCDM_tab, tmp5)
             self.psCDM_tab = tmp5
             
+            tmp6 = np.zeros_like(self.growth_factor)
+            nothing = MPI.COMM_WORLD.Allreduce(self.growth_factor, tmp6)
+            self.growth_factor = tmp6
+            
         else:
             _fcoll_tab = fcoll_tab   
                     
         # Fix NaN elements
         _fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
         self._fcoll_tab = _fcoll_tab
-                    
-                    
-                    
+                                        
     def build_1d_splines(self, Tmin, mu=0.6):
         """
         Construct splines for fcoll and its derivatives given a (fixed) 
@@ -541,6 +554,20 @@ class HaloMassFunction(object):
     @psCDM.setter
     def psCDM(self, value):
         self._psCDM = value    
+        
+    @property
+    def dlns_dlnm(self):
+        if not hasattr(self, '_dlns_dlnm'):
+            self.MF.update(z=0)
+            self._dlns_dlnm = self.MF._dlnsdlnm
+        return self._dlns_dlnm
+    
+    @property
+    def sigma_0(self):
+        if not hasattr(self, '_sigma_0'):
+            self.MF.update(z=0)
+            self._sigma_0 = self.MF._sigma_0
+        return self._sigma_0
         
     def fcoll_2d(self, z, logMmin):
         """
@@ -709,7 +736,8 @@ class HaloMassFunction(object):
                 
         return prefix           
                
-    def save(self, fn=None, clobber=True, destination=None, format='hdf5'):
+    def save(self, fn=None, clobber=True, destination=None, format='hdf5',
+        save_growth=False, save_ps=False):
         """
         Save mass function table to HDF5 or binary (via pickle).
         
@@ -724,6 +752,10 @@ class HaloMassFunction(object):
             Path to directory (other than CWD) to save table.
         format : str
             Format of output. Can be 'hdf5' or 'pkl'
+        save_growth : bool  
+            Save growth factor? Will take quite a bit longer.
+        save_ps : bool
+            Save matter power spectrum?
         
         """
         
@@ -775,12 +807,14 @@ class HaloMassFunction(object):
                     'ngtm': self.ngtm, 'mgtm': self.mgtm,
                     'pars': {'growth_pars': self.growth_pars,
                              'transfer_pars': self.transfer_pars},
+                    'growth_factor': self.growth_factor,
+                    'matter_ps': self.psCDM,
                     'hmf-version': hmf_v}
             np.savez(fn, **data)
 
         # Otherwise, pickle it!    
         else:   
-            f = open(fn, 'wb')            
+            f = open(fn, 'wb')
             pickle.dump(self.z, f)
             pickle.dump(self.logM, f)
             pickle.dump(self.fcoll_spline_2d, f)
@@ -789,6 +823,7 @@ class HaloMassFunction(object):
             pickle.dump(self.mgtm, f)
             pickle.dump(self.bias, f)
             pickle.dump(self.psCDM, f)
+            pickle.dump(self.growth_factor, f)
             pickle.dump({'growth_pars': self.growth_pars,
                 'transfer_pars': self.transfer_pars}, f)
             pickle.dump(dict(('hmf-version', hmf_v)))

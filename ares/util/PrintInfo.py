@@ -13,7 +13,8 @@ Description:
 import numpy as np
 from types import FunctionType
 import types, os, textwrap, glob, re
-from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz, g_per_msun, s_per_yr
+from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz, g_per_msun, \
+    s_per_yr
 
 try:
     from mpi4py import MPI
@@ -442,33 +443,7 @@ def print_pop(pop):
     for warning in warnings:
         print_warning(warning)
         
-def print_sim(sim):
-    """
-    Print information about radiation background calculation to screen.
-    
-    Parameters
-    ----------
-    sim : ares.simulations.Global21cm instance
-    """
-    
-    if rank > 0 or not sim.pf['verbose']:
-        return 
-        
-    header = 'Global 21cm Signal Simulation: Overview'
-    print "\n" + "#"*width
-    print "%s %s %s" % (pre, header.center(twidth), post)
-    print "#"*width    
-    
-    # Check for phenomenological models
-    if sim.is_phenom:
-        print "Phenomenological model! Not much to report..."
-        print "#"*width    
-        return    
-    
-    print line('-'*twidth)
-    print line('Populations')
-    print line('-'*twidth)
-    
+def _rad_type(sim, fluctuations=False):
     rows = []
     cols = ['sfrd', 'sed', 'Ly-a', 'Ly-C', 'X-ray', 'RTE']
     data = []
@@ -481,29 +456,69 @@ def print_sim(sim):
             mod = pop.pf['pop_sfr_model']
             
         tmp = [mod, 'yes' if pop.pf['pop_sed_model'] else 'no']
-        
-        if pop.is_lya_src:
-            tmp.append('x')
-        else:
-            tmp.append(' ')
-        
-        if pop.is_uv_src:
-            tmp.append('x')
-        else:
-            tmp.append(' ')
-        
-        if pop.is_xray_src:
-            tmp.append('x')
-        else:
-            tmp.append(' ')     
+
+        suffix = ['_fluct', '']
+        for j, fl in enumerate([True, False]):
+            if fl != fluctuations:
+                continue
+                                
+            for band in ['lya', 'ion', 'heat']:
+                is_src = pop.__getattribute__('is_src_%s%s' % (band, suffix[j]))
+                
+                if is_src:
+                    tmp.append('x')
+                else:                
+                    tmp.append(' ')
             
-        if pop.pf['pop_solve_rte']:
-            tmp.append('x')
-        else:
-            tmp.append(' ')               
-            
-        data.append(tmp)    
+            # No analog for RTE solution for fluctuations (yet)
+            if fl:
+                tmp.append(' ')
+                
+            if pop.pf['pop_solve_rte']:
+                tmp.append('x')
+            else:
+                tmp.append(' ')    
+
+        data.append(tmp)
+        
+    return data, rows, cols
+        
+def print_sim(sim):
+    """
+    Print information about simulation to screen.
     
+    Parameters
+    ----------
+    sim : ares.simulations.Global21cm or PowerSpectrum21cm instance.
+    
+    """
+    
+    if rank > 0 or not sim.pf['verbose']:
+        return 
+        
+    header = '21-cm Background Simulation: Overview'
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, header.center(twidth), post)
+    print "#"*width    
+    
+    # Check for phenomenological models
+    if sim.is_phenom:
+        print "Phenomenological model! Not much to report..."
+        print "#"*width    
+        return    
+    
+    print line('-'*twidth)
+    print line('Uniform Backgrounds')
+    print line('-'*twidth)
+    
+    data, rows, cols = _rad_type(sim)
+    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8], fmt='%s')
+    
+    print line('-'*twidth)
+    print line('Fluctuating Backgrounds')
+    print line('-'*twidth)
+    
+    data, rows, cols = _rad_type(sim, fluctuations=True)
     tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8], fmt='%s')
     
     print line('-'*twidth)

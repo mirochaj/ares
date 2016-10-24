@@ -79,7 +79,7 @@ class PowerSpectrum(Global21cm):
     def CorrelationFunction(self, z, field_1='x', field_2='x', ax=None, fig=1, 
         force_draw=False, **kwargs):
         """
-        Plot differential brightness temperature vs. redshift (nicely).
+        Plot correlation function of input fields.
     
         Parameters
         ----------
@@ -130,3 +130,90 @@ class PowerSpectrum(Global21cm):
     
         return ax
     
+    def BubbleSizeDistribution(self, z, ax=None, fig=1, force_draw=False, 
+        by_volume=False, **kwargs):
+        """
+        Plot bubble size distribution.
+    
+        Parameters
+        ----------
+        ax : matplotlib.axes.AxesSubplot instance
+            Axis on which to plot signal.
+        fig : int
+            Figure number.
+        by_volume : bool
+            If True, uses bubble volume rather than radius.
+    
+        Returns
+        -------
+        matplotlib.axes.AxesSubplot instance.
+    
+        """
+        
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+
+        iz = np.argmin(np.abs(z - self.redshifts))
+
+        R = self.history[iz]['R_b']
+        Mb = self.history[iz]['M_b']
+        bsd = self.history[iz]['bsd']
+    
+        rho0 = self.cosm.mean_density0
+        
+        R = ((Mb / rho0) * 0.75 / np.pi)**(1./3.)
+        dvdr = 4. * np.pi * R**2        
+        dmdr = rho0 * dvdr
+        dmdlnr = dmdr * R
+        dndlnR = bsd * dmdlnr
+        
+        V = 4. * np.pi * R**3 / 3.
+                
+        Q = self.history[iz]['QHII']
+                
+        if by_volume:
+            dndV = bsd * dmdr / dvdr
+            ax.loglog(V, V * dndV, **kwargs)
+            ax.set_xlabel(r'$V \ [\mathrm{Mpc}^{3}]$')
+            ax.set_ylabel(r'$V \ dn/dV$')
+            ax.set_xlim(1, 1e6)
+            ax.set_ylim(1e-8, 1e-2)
+        else:
+            ax.semilogx(R, V * dndlnR / Q, **kwargs)
+            ax.set_xlabel(r'$R \ [\mathrm{Mpc}]$')
+            ax.set_ylabel(r'$Q^{-1} V \ dn/dlnR$')
+            ax.set_ylim(0, 1)
+
+        pl.draw()
+
+        return ax
+
+    def BubbleFillingFactor(self, ax=None, fig=1, force_draw=False, 
+        **kwargs):  
+        """
+        Plot the fraction of the volume composed of ionized bubbles.
+        """
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+        
+        Qall = []
+        for i, z in enumerate(self.redshifts):
+            Qall.append(self.history[i]['QHII'])
+
+        ax.plot(self.redshifts, Qall, **kwargs)
+        ax.set_xlabel(r'$z$')
+        ax.set_ylabel(r'$Q_{\mathrm{HII}}$')
+        ax.set_ylim(0, 1)
+        
+        pl.draw()
+        
+        return ax
+        

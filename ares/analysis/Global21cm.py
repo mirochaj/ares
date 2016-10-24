@@ -33,7 +33,7 @@ class Global21cm(MultiPhaseMedium):
         This gets called anytime we try to fetch an attribute that doesn't
         exist (yet).
         """
-            
+                    
         if hasattr(MultiPhaseMedium, name):
             return MultiPhaseMedium.__dict__[name].__get__(self, MultiPhaseMedium)
                                                                               
@@ -60,8 +60,7 @@ class Global21cm(MultiPhaseMedium):
                     raise AttributeError('No attribute %s.' % name)    
     
             if pt not in ['B', 'C', 'D', 'ZC']:
-                # This'd be where e.g., zrei, should go
-                raise NotImplemented('help!')
+                raise NotImplementedError('Unrecognized attribute: %s' % pt)
 
             if pt not in self.turning_points:
                 return np.inf

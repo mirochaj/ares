@@ -142,21 +142,33 @@ class PowerSpectrum21cm(AnalyzePS):
             cf_dd = np.zeros_like(self.k)
 
             for j, pop in enumerate(self.pops):
+                
+                """
+                Possible approach: loop over pops to determine *total* 
+                zeta_ion, etc...will that make sense?
+                """
+                
                 if pop.pf['pop_ion_fluct']:
-                    ps_xx[:] = self.field.PowerSpectrum(z, self.k, 
-                        field_1='h_2', field_2='h_2', popid=j)
-                    cf_xx[:] = self.field.CorrelationFunction(z, self.k, 
-                        field_1='h_2', field_2='h_2', popid=j)    
+                    R_b, M_b, bsd = self.field.BubbleSizeDistribution(z)
+                    
+                    #ps_xx[:] = self.field.PowerSpectrum(z, self.k, 
+                    #    field_1='h_2', field_2='h_2', popid=j)
+                    #cf_xx[:] = self.field.CorrelationFunction(z, self.k, 
+                    #    field_1='h_2', field_2='h_2', popid=j)    
 
             # Dictionary-ify everything
-            ps = {'ps_xx': ps_xx, 'ps_xd': ps_xd, 'ps_dd': ps_dd,
-                  'cf_xx': cf_xx, 'cf_xd': cf_xd, 'cf_dd': cf_dd}
+            data = {'ps_xx': ps_xx, 'ps_xd': ps_xd, 'ps_dd': ps_dd,
+                    'cf_xx': cf_xx, 'cf_xd': cf_xd, 'cf_dd': cf_dd}
 
-            # Should also save QHII, etc
+            data.update({'R_b': R_b, 'M_b': M_b, 'bsd':bsd})
+
+            # Global quantities
+            QHII = self.field.BubbleFillingFactor(z)
+            data['QHII'] = QHII
 
             # Here, add together the power spectra with various Beta weights
             # to get 21-cm power spectrum
 
-            yield z, ps
+            yield z, data
 
 

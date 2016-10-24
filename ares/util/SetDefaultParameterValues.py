@@ -479,7 +479,6 @@ def PopulationParameters():
     "pop_bubble_density": None,
     "pop_bubble_size_dist": None,
     
-    
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
     "pop_yield": 2.6e39,
@@ -613,7 +612,7 @@ def BlackHoleParameters():
     pf.update(rcParams)
     
     return pf    
-    
+
 def HaloMassFunctionParameters():
     pf = \
     {
@@ -622,9 +621,10 @@ def HaloMassFunctionParameters():
     "hmf_instance": None,
     "hmf_load": True,
     "hmf_load_ps": False,
+    "hmf_load_growth": False,
     "hmf_table": None,
     "hmf_analytic": False,
-    
+
     # Table resolution
     "hmf_logMmin": 4,
     "hmf_logMmax": 16,
@@ -632,7 +632,7 @@ def HaloMassFunctionParameters():
     "hmf_zmin": 3,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
-    
+
     # to CAMB
     'hmf_dlna': 2e-6,           # hmf default value is 1e-2
     'hmf_dlnk': 1e-2,

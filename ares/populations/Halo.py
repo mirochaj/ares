@@ -15,6 +15,7 @@ from ..physics import HaloModel
 from .Population import Population
 from scipy.integrate import cumtrapz
 from ..util.PrintInfo import print_pop
+from scipy.interpolate import interp1d
 from ..util.Math import central_difference, forward_difference
 from ..physics.Constants import cm_per_mpc, s_per_yr, g_per_msun
 
@@ -71,6 +72,18 @@ class HaloPopulation(Population):
         self._fcoll, self._dfcolldz, self._d2fcolldz2 = \
             self.halos.build_1d_splines(Tmin, mu)
 
+    @property
+    def gf_spline(self):
+        if not hasattr(self, '_gf_spline'):
+            gf = self.halos.growth_factor
+            self._gf_spline = interp1d(self.halos.z, self.halos.growth_factor, 
+                kind='cubic', bounds_error=False)
+        
+        return self._gf_spline
+            
+    def growth_factor(self, z):
+        return self.gf_spline(z)
+        
     @property
     def halos(self):
         if not hasattr(self, '_halos'):
