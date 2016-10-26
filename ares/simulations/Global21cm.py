@@ -34,7 +34,7 @@ class _DummyClass(object):
     def __call__(self, x):
         return self.f(x)
 
-class Global21cm(BlobFactory,AnalyzeGlobal21cm):
+class Global21cm(AnalyzeGlobal21cm):
     def __init__(self, **kwargs):
         """
         Set up a two-zone model for the global 21-cm signal.
@@ -574,6 +574,11 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
                 f = open(fn, 'wb')
                 pickle.dump(self.history, f)
                 f.close()
+                
+            if self.blobs:
+                f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
+                pickle.dump(self.blobs, f)
+                f.close()
     
         elif suffix in ['hdf5', 'h5']:
             import h5py
@@ -587,7 +592,12 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             f = open(fn, 'w')
             np.savez(f, **self.history)
             f.close()
-    
+            
+            if self.blobs:
+                f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
+                np.savez(f, self.blobs)
+                f.close()
+
         # ASCII format
         else:            
             f = open(fn, 'w')

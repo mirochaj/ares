@@ -2245,13 +2245,22 @@ class ModelSet(BlobFactory):
         ydata = data[p[1]]    
         zdata = data[p[2]]
         
-        for level in levels:
+        
+        for i, level in enumerate(levels):
             # Find indices of appropriate elements
             cond = np.abs(zdata - level) < leveltol
             elements = np.argwhere(cond).squeeze()
             
             order = np.argsort(xdata[elements])
-            ax.plot(xdata[elements][order], ydata[elements][order], **kwargs)
+            
+            kw = {}
+            for kwarg in kwargs.keys():
+                if type(kwargs[kwarg]) == tuple:
+                    kw[kwarg] = kwargs[kwarg][i]
+                else:
+                    kw[kwarg] = kwargs[kwarg]
+            
+            ax.plot(xdata[elements][order], ydata[elements][order], **kw)
             
         pl.draw()    
             

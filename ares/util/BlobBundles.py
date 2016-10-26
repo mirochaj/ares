@@ -54,11 +54,18 @@ _shape = {'blob_names':_gs_shape_n,'blob_ivars': None, 'blob_funcs': _gs_shape_f
 _runtime = {'blob_names': ['count', 'timer', 'rank'], 
     'blob_ivars': None, 'blob_funcs': None}
 
+# General galaxy population stuff. Just create max of 3 pops?
+_sfrd = {'blob_names': ['sfrd{%i}' % i for i in range(1)],
+         'blob_ivars': _def_z,
+         'blob_funcs': ['pops[%i].SFRD' % i for i in range(1)]}
+
+
 _blobs = \
 {
  'gs': {'basics': _extrema, 'history': _history, 'shape': _shape,
         'runtime': _runtime},
  'rb': None, # eventually 
+ 'pop': {'sfrd': _sfrd}
 }
 
 _keys = ('blob_names', 'blob_ivars', 'blob_funcs')

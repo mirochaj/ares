@@ -16,7 +16,7 @@ import glob
 import numpy as np
 from inspect import ismethod
 from types import FunctionType
-from scipy.interpolate import RectBivariateSpline
+from scipy.interpolate import RectBivariateSpline, interp1d
 
 try:
     import dill as pickle
@@ -288,11 +288,27 @@ class BlobFactory(object):
             if not self.blob_names:
                 self._blobs = []
             else:
-                self._generate_blobs()
-
+                try:
+                    self._generate_blobs()
+                except AttributeError:
+                    f = open('%s.blobs.pkl' % self.prefix, 'r')
+                    self._blobs = pickle.load(f)
+                    f.close()
+                    
         return self._blobs
-
-    def get_blob(self, name, ivar=None):
+        
+    def get_ivars(self, name):
+        for i in range(self.blob_groups):
+            for j, blob in enumerate(self.blob_names[i]):
+                if blob == name:
+                    break
+            
+            if blob == name:
+                break
+                
+        return self.blob_ivars[i]
+                
+    def get_blob(self, name, ivar=None, tol=1e-2):
         """
         This is meant to recover a blob from a single simulation, i.e.,
         NOT a whole slew of them from an MCMC.
@@ -305,20 +321,27 @@ class BlobFactory(object):
             if blob == name:
                 break        
 
-        if self.blob_nd[i] > 0 and (ivar is None):
-            raise ValueError('Must provide ivar!')
-        elif self.blob_nd[i] == 0:
+        if self.blob_nd[i] == 0:
             return float(self.blobs[i][j])
         elif self.blob_nd[i] == 1:
-            
-            if len(self.blob_ivars[i]) == 1:
+            if ivar is None:
+                try:
+                    return self.blobs[i][j]
+                except:
+                    return self.blobs[i]
+            elif len(self.blob_ivars[i]) == 1:
                 iv = self.blob_ivars[i][0]
             else:
                 iv = self.blob_ivars[i]     
             
-            assert ivar in iv
-            k = list(iv).index(ivar)
-
+            # This is subject to rounding errors
+            if ivar in iv:
+                k = list(iv).index(ivar)
+            elif np.any(np.abs(iv - ivar) < tol):
+                k = np.argmin(np.abs(iv - ivar))
+            else:
+                raise IndexError("ivar=%.2g not in listed ivars!" % ivar)
+            
             return float(self.blobs[i][j][k])
 
         elif self.blob_nd[i] == 2:
@@ -384,8 +407,8 @@ class BlobFactory(object):
                     else:
                         fname = self.blob_funcs[i][j]
                         func = parse_attribute(fname, self)
-                                                
-                        if ismethod(func):
+                                                                            
+                        if ismethod(func) or isinstance(func, interp1d):
                             blob = np.array(map(func, x))
                         else:
                             blob = np.interp(x, func[0], func[1])
@@ -396,7 +419,7 @@ class BlobFactory(object):
 
                     xarr, yarr = map(np.array, self.blob_ivars[i])
 
-                    if type(tmp_f) is FunctionType:
+                    if (type(tmp_f) is FunctionType):
                         func = tmp_f
                     elif type(tmp_f) is tuple:
                         z, E, flux = tmp_f

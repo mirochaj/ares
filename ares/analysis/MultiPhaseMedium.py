@@ -93,6 +93,7 @@ class MultiPhaseMedium(object):
             
         # Read output of a simulation from disk
         elif type(data) is str:
+            self.prefix = data
             self._load_data(data)
             
         self.kwargs = kwargs    

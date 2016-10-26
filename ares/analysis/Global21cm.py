@@ -10,6 +10,7 @@ Description:
 
 """
 
+import pickle
 import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl
@@ -20,19 +21,23 @@ from .TurningPoints import TurningPoints
 from ..util.Math import central_difference
 from matplotlib.ticker import ScalarFormatter 
 from .MultiPhaseMedium import MultiPhaseMedium
+from ..analysis.BlobFactory import BlobFactory
 
 try:
     from scipy.stats import kurtosis, skew
 except ImportError:
     pass
 
-class Global21cm(MultiPhaseMedium):
+class Global21cm(MultiPhaseMedium,BlobFactory):
     
     def __getattr__(self, name):
         """
         This gets called anytime we try to fetch an attribute that doesn't
         exist (yet).
         """
+            
+        if hasattr(BlobFactory, name):
+            return BlobFactory.__dict__[name].__get__(self, BlobFactory)
             
         if hasattr(MultiPhaseMedium, name):
             return MultiPhaseMedium.__dict__[name].__get__(self, MultiPhaseMedium)
@@ -168,7 +173,7 @@ class Global21cm(MultiPhaseMedium):
         return self._track
         
     def smooth_derivative(self, sm):
-        arr = self.z_p[np.logical_and(self.z_p >= 6, self.z_p <= 25)]
+        arr = self.z_p[np.logical_and(self.z_p >= 6, self.z_p <= 45)]
         s = int(sm / np.diff(arr).mean())#self.pf['smooth_derivative']
         
         if s % 2 != 0:
@@ -178,7 +183,7 @@ class Global21cm(MultiPhaseMedium):
         boxcar[boxcar.size/2 - s/2: boxcar.size/2 + s/2] = \
             np.ones(s) / float(s)
         
-        return np.convolve(self.data['dTb'], boxcar, mode='same')
+        return np.convolve(self.dTbdnu, boxcar, mode='same')
     
     @property
     def turning_points(self):
