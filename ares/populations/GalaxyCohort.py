@@ -140,7 +140,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
 
         if not hasattr(self, '_rho_L'):
             self._rho_L = {}
-
+        
         # If nothing is supplied, compute the "full" luminosity density
         if (Emin is None) and (Emax is None):
             Emin = self.pf['pop_EminNorm']
@@ -152,7 +152,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
                 return None
         else:
             raise ValueError('help!')
-            
+
         # If we've already figured it out, just return    
         if (Emin, Emax) in self._rho_L:    
             return self._rho_L[(Emin, Emax)]    
@@ -160,7 +160,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         # For all halos
         if Emax <= 24.6:
             N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
-            
+
             # Also need energy per photon in this case
             erg_per_phot = self.src.erg_per_phot(Emin, Emax)
             
@@ -526,7 +526,7 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
             rhoL = super(GalaxyCohort, self).Emissivity(z, E=E, 
                 Emin=Emin, Emax=Emax)
         else:
-            raise NotImplemented('help')
+            rhoL = self.rho_L(Emin, Emax)(z)
 
         if E is not None:
             return rhoL * self.src.Spectrum(E)
@@ -1042,7 +1042,19 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         MZ = np.array(metals)[-1::-1]
 
         return z, Mh, Mg, Ms, MZ
+        
+    def _LuminosityDensity_LW(self, z):
+        return self.LuminosityDensity(z, Emin=10.2, Emax=13.6)
 
+    def _LuminosityDensity_LyC(self, z):
+        return self.LuminosityDensity(z, Emin=13.6, Emax=24.6)
+    
+    def _LuminosityDensity_sXR(self, z):
+        return self.LuminosityDensity(z, Emin=200., Emax=2e3)
+    
+    def _LuminosityDensity_hXR(self, z):
+        return self.LuminosityDensity(z, Emin=2e3, Emax=1e4)        
+    
     def LuminosityDensity(self, z, Emin=None, Emax=None):
         """
         Return the integrated luminosity density in the (Emin, Emax) band.
@@ -1058,11 +1070,8 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         
         """
         
-        #if self.scalable_rhoL:
-        return self.Emissivity(z, Emin, Emax)
-        #else:
-            #raise ValueError('this shouldnt be called in this case')
-     
+        return self.Emissivity(z, E=None, Emin=Emin, Emax=Emax)
+
     def PhotonLuminosityDensity(self, z, Emin=None, Emax=None):
         """
         Return the photon luminosity density in the (Emin, Emax) band.

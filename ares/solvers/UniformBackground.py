@@ -21,10 +21,11 @@ from scipy.interpolate import interp1d
 from .OpticalDepth import OpticalDepth
 from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
-from ..util.ReadData import flatten_flux, split_flux
 from ..populations.Composite import CompositePopulation
 from scipy.integrate import quad, romberg, romb, trapz, simps
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
+from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
+    flatten_emissivities
 
 try:
     import h5py
@@ -305,7 +306,11 @@ class UniformBackground(object):
         
         Parameters
         ----------
-        
+        pop : int
+            Population ID number.
+        bands : list
+            Each element of this list is a (Emin, Emax) pair defining
+            a band in which the RTE is solved.
         
         Returns
         -------
@@ -333,7 +338,7 @@ class UniformBackground(object):
         energies_by_band = []
         emissivity_by_band = []        
         for band in bands:       
-            
+                        
             E0, E1 = band
             has_sawtooth = (E0 == E_LyA) and (E1 == E_LL)
             has_sawtooth |= (E0 == 4*E_LyA) or (E1 == 4*E_LL)
@@ -355,7 +360,7 @@ class UniformBackground(object):
 
                     N = num_freq_bins(nz, zi=zi, zf=zf, Emin=Emi, Emax=Ema)
 
-                    # Create energy arrays
+                    # Create energy array
                     EofN = Emi * R**np.arange(N)
 
                     # A list of lists!                    
@@ -1031,12 +1036,12 @@ class UniformBackground(object):
         -------
         A 2-D array, first axis corresponding to redshift, second axis for
         photon energy.
+        
+        Units of emissivity are: erg / s / Hz / cMpc
             
         """
 
         Nz, Nf = len(z), len(E)
-        
-        
 
         Inu = np.zeros(Nf)
         for i in xrange(Nf): 

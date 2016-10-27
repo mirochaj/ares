@@ -10,13 +10,17 @@ Description:
 
 """
 
+import os
+import pickle
 import numpy as np
 from ..util import ParameterFile
 from scipy.interpolate import interp1d
 from ..solvers import UniformBackground
+from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
+    as AnalyzeMGB
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
 
-class MetaGalacticBackground(UniformBackground):
+class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
     def __init__(self, grid=None, **kwargs):
         """
         Initialize a MetaGalacticBackground object.    
@@ -414,4 +418,63 @@ class MetaGalacticBackground(UniformBackground):
         else:    
             return z_tr, E_tr, f_tr
 
+    def save(self, prefix, suffix='pkl', clobber=False):
+        """
+        Save results of calculation.
+    
+        Notes
+        -----
+        1) will save files as prefix.rfield.suffix.
+        2) ASCII files will fail if simulation had multiple populations.
+    
+        Parameters
+        ----------
+        prefix : str
+            Prefix of save filename
+        suffix : str
+            Suffix of save filename. Can be hdf5 (or h5), pkl, or npz. 
+            Anything else will be assumed to be ASCII format (e.g., .txt).
+        clobber : bool
+            Overwrite pre-existing files of same name?
+    
+        """
+    
+        fn_1 = '%s.fluxes.%s' % (prefix, suffix)
+        fn_2 = '%s.emissivities.%s' % (prefix, suffix)
         
+        all_fn = [fn_1, fn_2]
+        all_data = [(np.array(self.all_z).T, self.energies, self.history), 
+                    (self.redshifts, self.energies, self.emissivities)]
+                
+        for i, data in enumerate(all_data):
+            fn = all_fn[i]
+            
+            if os.path.exists(fn):
+                if clobber:
+                    os.remove(fn)
+                else: 
+                    print '%s exists! Set clobber=True to overwrite.' % fn
+                    continue
+                    
+            if suffix == 'pkl':
+                f = open(fn, 'wb')
+                pickle.dump(data, f)
+                f.close()
+                
+            elif suffix in ['hdf5', 'h5']:
+                raise NotImplementedError('no hdf5 support for this yet.')
+            
+            elif suffix == 'npz':
+                f = open(fn, 'w')
+                np.savez(f, **data)
+                f.close()
+            
+            # ASCII format
+            else:  
+                raise NotImplementedError('No ASCII support for this.')          
+                
+            print 'Wrote %s.' % fn
+    
+    
+    
+    

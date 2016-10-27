@@ -82,11 +82,62 @@ def flatten_energies(E):
                 to_return.extend(flux_seg)
         else:
             to_return.extend(band)
-    
+
     return np.array(to_return)
 
-def flatten_flux(flux):
-    return flatten_energies(flux)
+def flatten_flux(arr):
+    return flatten_energies(arr)
+
+def flatten_emissivities(arr, z, Eflat):
+    """
+    Return an array as function of redshift and (flattened) energy.
+    
+    The input 'arr' will be a nested thing that is pretty nasty to deal with.
+
+    The first dimension corresponds to band 'chunks'. Elements within each
+    chunk may be a single array (2D: function of redshift and energy), or, in
+    the case of sawtooth regions of the spectrum, another list where each
+    element is some sub-chunk of a sawtooth background.
+
+    """
+
+    to_return = np.zeros((z.size, Eflat.size))
+
+    k1 = 0
+    k2 = 0
+    for i, band in enumerate(arr):
+        if type(band) is list:
+            for j, flux_seg in enumerate(band):
+                # flux_seg will be (z, E)
+                N = len(flux_seg[0].squeeze())
+                if k2 is None:
+                    k2 = N
+                k2 += N    
+                    
+                print i, j, N, k1, k2
+                to_return[:,k1:k2] = flux_seg.squeeze()
+                k1 += N
+                
+        else:
+            # First dimension is redshift.
+            print band.shape
+            to_save = band.squeeze()
+            
+            # Rare occurence...
+            if to_save.ndim == 1:
+                if np.all(to_save == 0):
+                    continue
+            
+            N = len(band[0].squeeze())
+            if k2 is None:
+                k2 = N
+            print 'hey', i, j, N, k1, k2
+            k2 += N
+            to_return[:,k1:k2] = band.copy()
+            k1 += N
+
+
+    return to_return
 
 def split_flux(energies, fluxes):
     """

@@ -317,7 +317,7 @@ class BlobFactory(object):
             for j, blob in enumerate(self.blob_names[i]):
                 if blob == name:
                     break
-            
+
             if blob == name:
                 break        
 
@@ -332,8 +332,8 @@ class BlobFactory(object):
             elif len(self.blob_ivars[i]) == 1:
                 iv = self.blob_ivars[i][0]
             else:
-                iv = self.blob_ivars[i]     
-            
+                iv = self.blob_ivars[i]
+
             # This is subject to rounding errors
             if ivar in iv:
                 k = list(iv).index(ivar)

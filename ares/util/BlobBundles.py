@@ -55,17 +55,23 @@ _runtime = {'blob_names': ['count', 'timer', 'rank'],
     'blob_ivars': None, 'blob_funcs': None}
 
 # General galaxy population stuff. Just create max of 3 pops?
-_sfrd = {'blob_names': ['sfrd{%i}' % i for i in range(1)],
+_sfrd = {'blob_names': ['sfrd{0}'],
          'blob_ivars': _def_z,
-         'blob_funcs': ['pops[%i].SFRD' % i for i in range(1)]}
+         'blob_funcs': ['pops[0].SFRD']}
 
+
+_emiss = {'blob_names': ['rho_LW{0}', 'rho_LyC{0}', 'rho_sXR{0}', 'rho_hXR{0}'],
+          'blob_ivars': _def_z,
+          'blob_funcs': ['pops[0]._LuminosityDensity_LW',
+                         'pops[0]._LuminosityDensity_LyC',
+                         'pops[0]._LuminosityDensity_sXR',
+                         'pops[0]._LuminosityDensity_hXR']}
 
 _blobs = \
 {
  'gs': {'basics': _extrema, 'history': _history, 'shape': _shape,
         'runtime': _runtime},
- 'rb': None, # eventually 
- 'pop': {'sfrd': _sfrd}
+ 'pop': {'sfrd': _sfrd, 'emissivities': _emiss, 'fluxes': None}
 }
 
 _keys = ('blob_names', 'blob_ivars', 'blob_funcs')
