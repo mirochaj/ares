@@ -121,13 +121,13 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                 zhi, flux = gen.next()
 
                 # Increment the flux
-                _fhi[j] += flux.copy()
+                _fhi[j] += flatten_flux(flux).copy()
                 
                 # Tap generator, grab fluxes (again)
                 zlo, flux = gen.next()
                                                                     
                 # Increment the flux (again)
-                _flo[j] += flux.copy()
+                _flo[j] += flatten_flux(flux).copy()
 
             # Save fluxes for this population
             self._zhi.append([zhi for k in range(len(generator))])
@@ -204,9 +204,26 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         
         z_by_pop = [None for i in range(self.Npops)]
         
+        # Save fluxes computed directly, i.e., not via interpolation
+        if not self._is_thru_run:
+            
+            # Each time a generator is poked, we'll append the fluxes
+            # to a list within the 'fluxes_raw' dictionary.
+            
+            if not hasattr(self, 'fluxes_raw'):
+                self.fluxes_raw = {}
+                for i, pop_generator in enumerate(self.generators):
+                    self.fluxes_raw[i] = []
+                    for j, generator in enumerate(pop_generator):
+                        self.fluxes_raw[i].append([])
+   
+                # In the end, each population will have a set of lists.
+                # The first dimension will correspond to band ID #.
+                # The second will be redshift.        
+
         fluxes = {}
         for i, pop_generator in enumerate(self.generators):
-            
+
             # Skip approximate (or non-contributing) backgrounds
             if pop_generator is None:
                 fluxes[i] = None
@@ -224,8 +241,9 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                 # generator and move on
                 if self._is_thru_run:
                     z, f = generator.next()
+                    
                     z_by_pop[i] = z
-                    fluxes_by_band.append(f)
+                    fluxes_by_band.append(flatten_flux(f))
                     continue
                                         
                 # Otherwise, we potentially need to sub-cycle the background.
@@ -265,9 +283,9 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                         self._fhi[i][j] = self._flo[i][j]
                                 
                         z, f = generator.next()
-                        
+                                                
                     self._zlo[i][j] = z
-                    self._flo[i][j] = f
+                    self._flo[i][j] = flatten_flux(f)
                 else:
                     z = self.z
 
@@ -438,32 +456,37 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
             Overwrite pre-existing files of same name?
     
         """
-    
+
         fn_1 = '%s.fluxes.%s' % (prefix, suffix)
         fn_2 = '%s.emissivities.%s' % (prefix, suffix)
-        
+
         all_fn = [fn_1, fn_2]
-        all_data = [(np.array(self.all_z).T, self.energies, self.history), 
-                    (self.redshifts, self.energies, self.emissivities)]
-                
+
+        f_data = [self.get_history(i, flatten=True) for i in range(self.Npops)]
+        z = [f_data[i][0] for i in range(self.Npops)]
+        E = [f_data[i][1] for i in range(self.Npops)]
+        fl = [f_data[i][2] for i in range(self.Npops)]
+
+        all_data = [(z, E, fl), (self.redshifts, self.energies, self.emissivities)]
+
         for i, data in enumerate(all_data):
             fn = all_fn[i]
-            
+
             if os.path.exists(fn):
                 if clobber:
                     os.remove(fn)
-                else: 
+                else:
                     print '%s exists! Set clobber=True to overwrite.' % fn
                     continue
-                    
+
             if suffix == 'pkl':
                 f = open(fn, 'wb')
                 pickle.dump(data, f)
                 f.close()
-                
+
             elif suffix in ['hdf5', 'h5']:
                 raise NotImplementedError('no hdf5 support for this yet.')
-            
+
             elif suffix == 'npz':
                 f = open(fn, 'w')
                 np.savez(f, **data)

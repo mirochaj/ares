@@ -81,7 +81,10 @@ def flatten_energies(E):
             for j, flux_seg in enumerate(band):
                 to_return.extend(flux_seg)
         else:
-            to_return.extend(band)
+            try:
+                to_return.extend(band)
+            except TypeError:
+                to_return.append(band)
 
     return np.array(to_return)
 

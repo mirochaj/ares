@@ -1222,9 +1222,9 @@ class UniformBackground(object):
                 flux.append(new_flux)
 
             # Increment fluxes
-            line_flux = self._compute_line_flux(flux)
+            #line_flux = self._compute_line_flux(flux)
 
-            yield z, flatten_flux(flux) + flatten_flux(line_flux)
+            yield z, flux #+ flatten_flux(line_flux)
 
     def FluxGenerator(self, popid):
         """
