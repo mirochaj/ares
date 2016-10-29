@@ -115,11 +115,12 @@ class MetaGalacticBackground(object):
             else:
                 len_band = len(band)
                 k2 += len_band
-                flat[:,k1:k2] = data[i][0]
+                flat[:,k1:k2] = data[i]
                 k1 += len_band
                     
-        if emissivity:
-            flat /= (Eflat * erg_per_ev)
+        # Why do I keep fluxes and emissivities in different units?
+        # I'd hope there is a decent reason...
+        flat /= (Eflat * erg_per_ev)
                     
         return z, Eflat, flat
                 
@@ -267,8 +268,7 @@ class MetaGalacticBackground(object):
         
         return trapz(F, E)  # erg / s / cm^2 / deg^2
    
-    def PlotMonochromaticEvoution(self, E, **kwargs):
-        
+    def PlotMonochromaticEvoution(self, E, **kwargs):        
         return self.PlotSpectrum(E, vs_redshift=True, **kwargs)
         
     def PlotSpectrum(self, x, vs_redshift=False, ax=None, fig=1, xaxis='energy', 
