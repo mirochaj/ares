@@ -100,9 +100,6 @@ class MetaGalacticBackground(object):
             # 2. Hard case: a chunk of spectrum sub-divided into many 
             # sub-chunks, which will in general not be the same shape.
             
-            #if emissivity:
-            #    pass
-                        
             if type(data[i]) is list:
                 
                 # Create a flattened array
@@ -257,26 +254,29 @@ class MetaGalacticBackground(object):
                 + (E / (self.EB + EBerr))**(self.Gamma2 + Gamma2err))
                  
             return flux * erg_per_ev # erg / s / cm^2 / deg^2
-            
+
     def IntegratedFlux(self, Emin=2e3, Emax=1e4, Nbins=1e3, perturb=False):
         """
         Integrated flux in [Emin, Emax] (eV) band.
         """        
-        
+
         E = np.logspace(np.log10(Emin), np.log10(Emax), Nbins) 
         F = self.ResolvedFlux(E, perturb=perturb) / E
-        
+
         return trapz(F, E)  # erg / s / cm^2 / deg^2
-   
-    def PlotMonochromaticEvoution(self, E, **kwargs):        
+
+    def PlotIntegratedFlux(self, E, **kwargs):        
         return self.PlotSpectrum(E, vs_redshift=True, **kwargs)
-        
+    
+    def PlotMonochromaticFlux(self, E, **kwargs):        
+        return self.PlotSpectrum(E, vs_redshift=True, **kwargs)
+
     def PlotSpectrum(self, x, vs_redshift=False, ax=None, fig=1, xaxis='energy', 
-        overplot_edges=False, units='J21', popid=0, 
+        overplot_edges=False, band=None, units='J21', popid=0, 
         emissivity=False, **kwargs):
         """
         Plot meta-galactic background intensity at a single redshift.
-        
+
         Parameters
         ----------
         z : int, float

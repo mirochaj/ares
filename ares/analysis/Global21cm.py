@@ -36,6 +36,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         exist (yet).
         """
             
+        # Trickery
         if hasattr(BlobFactory, name):
             return BlobFactory.__dict__[name].__get__(self, BlobFactory)
             
@@ -66,7 +67,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     
             if pt not in ['B', 'C', 'D', 'ZC']:
                 # This'd be where e.g., zrei, should go
-                raise NotImplemented('help!')
+                raise NotImplementedError('Looking for attribute \'%s\'.' % name)
 
             if pt not in self.turning_points:
                 return np.inf

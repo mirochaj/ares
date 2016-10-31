@@ -69,9 +69,8 @@ def parse_attribute(blob_name, obj_base):
         ares.simulation class.
         
     """
-    
+        
     # Check for decimals
-    
     decimals = []
     for i in range(1, len(blob_name) - 1):
         if blob_name[i-1].isdigit() and blob_name[i] == '.' \

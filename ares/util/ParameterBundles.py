@@ -235,7 +235,12 @@ class ParameterBundle(dict):
         elif pre == 'prob':
             kw = ProblemType(float(post))
         else:
-            kw = read_lit(pre).__dict__[post]
+            mod = read_lit(pre) 
+            kw = mod.__dict__[post]
+            
+            # Save where we found it for future reference / sanity checking.
+            if hasattr(mod, 'path'):
+                self.path = mod.path
         
         pars = kw.keys()
 

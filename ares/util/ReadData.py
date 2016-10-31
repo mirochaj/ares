@@ -62,11 +62,11 @@ def read_lit(prefix, path=None, verbose=True):
     else:
         return None
 
-    if rank == 0 and verbose:
-        print "Loading module %s from %s" % (prefix, loc)
-        
     _f, _filename, _data = _imp.find_module(prefix, [loc])
     mod = _imp.load_module(prefix, _f, _filename, _data)
+    
+    # Save this for sanity checks later
+    mod.path = loc
     
     return mod
 

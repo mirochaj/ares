@@ -350,11 +350,11 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         else:    
             z, fluxes = self.update_fluxes()
             kwargs['fluxes'] = fluxes
-        
+
         # Run update_rate_coefficients within MultiPhaseMedium
         return super(MetaGalacticBackground, self).update_rate_coefficients(z, 
             **kwargs)
-            
+
     def get_integrated_flux(self, band, popid=0):
         """
         Return integrated flux in supplied (Emin, Emax) band at all redshifts.
