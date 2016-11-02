@@ -221,6 +221,7 @@ class HaloMassFunction(object):
             self.ngtm = f['ngtm']
             self.mgtm = f['mgtm']
             self.growth_factor = f['growth_factor']
+            self.bias_tab = f['bias']
             f.close()                        
         elif re.search('.pkl', self.fn):
             f = open(self.fn, 'rb')
@@ -233,7 +234,7 @@ class HaloMassFunction(object):
             self.mgtm = pickle.load(f)
             
             if self.pf['hmf_load_ps']:
-                self.bias = pickle.load(f)
+                self.bias_tab = pickle.load(f)
                 self.psCDM = pickle.load(f)
             
             if self.pf['hmf_load_growth']:
@@ -736,8 +737,7 @@ class HaloMassFunction(object):
                 
         return prefix           
                
-    def save(self, fn=None, clobber=True, destination=None, format='hdf5',
-        save_growth=False, save_ps=False):
+    def save(self, fn=None, clobber=True, destination=None, format='hdf5'):
         """
         Save mass function table to HDF5 or binary (via pickle).
         
@@ -752,10 +752,6 @@ class HaloMassFunction(object):
             Path to directory (other than CWD) to save table.
         format : str
             Format of output. Can be 'hdf5' or 'pkl'
-        save_growth : bool  
-            Save growth factor? Will take quite a bit longer.
-        save_ps : bool
-            Save matter power spectrum?
         
         """
         
@@ -808,6 +804,7 @@ class HaloMassFunction(object):
                     'pars': {'growth_pars': self.growth_pars,
                              'transfer_pars': self.transfer_pars},
                     'growth_factor': self.growth_factor,
+                    'bias': self.bias_tab,
                     'matter_ps': self.psCDM,
                     'hmf-version': hmf_v}
             np.savez(fn, **data)
@@ -821,7 +818,7 @@ class HaloMassFunction(object):
             pickle.dump(self.dndm, f)
             pickle.dump(self.ngtm, f)
             pickle.dump(self.mgtm, f)
-            pickle.dump(self.bias, f)
+            pickle.dump(self.bias_tab, f)
             pickle.dump(self.psCDM, f)
             pickle.dump(self.growth_factor, f)
             pickle.dump({'growth_pars': self.growth_pars,

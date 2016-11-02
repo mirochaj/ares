@@ -57,7 +57,7 @@ class FluctuatingBackground(object):
             n_b = self.BubbleDensity(z)
             
             return 1. - np.exp(-n_b * V_b)
-        elif pop.pf['pop_bubble_size_dist'] == 'excursion_set':
+        elif pop.pf['pop_bubble_size_dist'].lower() == 'fzh04':
             R, M, dndm = self.BubbleSizeDistribution(z, popid)
             V = 4. * np.pi * R**3 / 3.
             return np.trapz(dndm * V * M, x=np.log(M))
@@ -150,7 +150,7 @@ class FluctuatingBackground(object):
         if pop.pf['pop_bubble_size_dist'] is None:
             if pop.pf['pop_bubble_density'] is not None:
                 return pop.pf['pop_bubble_density']
-        elif pop.pf['pop_bubble_size_dist'] == 'excursion_set':
+        elif pop.pf['pop_bubble_size_dist'].lower() == 'fzh04':
             zeta = 40.
             Mb = pop.halos.M * zeta
             rho0 = pop.cosm.mean_density0
@@ -167,7 +167,7 @@ class FluctuatingBackground(object):
         else:
             raise NotImplementedError('Unrecognized option: %s' % pop.pf['pop_bubble_size_dist'])
 
-    def IonizationProbability(self, z, dr, popid=0):
+    def IonizationProbability(self, z, dr=None, popid=0):
         """
         Compute the probability that two points are both ionized.
     
@@ -190,50 +190,71 @@ class FluctuatingBackground(object):
     
             # Abundance of halos
             n_b = self.BubbleDensity(z)
-    
+
             # One and two halo terms, respectively
             oht = (1. - np.exp(-n_b * V_o))
             tht = np.exp(-n_b * V_o) * (1. - np.exp(-n_b * (V - V_o)))**2
-    
-            return oht, tht
-    
-        elif pop.pf['pop_bubble_size_dist'] == 'excursion_set':
-            raise NotImplementedError('help')
-    
+
+            return oht + tht
+
+        elif pop.pf['pop_bubble_size_dist'].lower() == 'fzh04':
+
+            # Should cache this for each redshift.
+            R, Mb, dndm = self.BubbleSizeDistribution(z, popid)
+                        
+            # One of these terms will be different if bias of sources
+            # is included.
+            V = 4. * np.pi * R**3 / 3.
+
+            Mmin = 1e8
+            iM = np.argmin(np.abs(pop.halos.M - 1e8))
+            
+            xi = np.zeros_like(dr)
+            for i, sep in enumerate(dr):
+                Vo = self.spherical_overlap(sep, R)
+                
+                integrand1 = dndm[iM:] * Vo[iM:]
+                exp_int1 = np.exp(-np.trapz(integrand1 * Mb[iM:], 
+                    x=np.log(Mb[iM:])))
+
+                integrand2 = dndm[iM:] * (V[iM:] - Vo[iM:])
+                if pop.pf['pop_bubble_bias']:
+                    bias = pop.halos.bias(z, pop.halos.logM[iM:]).squeeze()
+                    integrand2 *= (1. + bias)
+
+                exp_int2 = np.exp(-np.trapz(integrand2 * Mb[iM:], 
+                    x=np.log(Mb[iM:])))
+
+                xi[i] = (1. - exp_int1) + exp_int1 * (1. - exp_int2)**2
+
+            return xi
+
         elif type(pop.pf['pop_bubble_size_dist']) is FunctionType:
-            raise NotImplementedError('help')    
-    
+            raise NotImplementedError('help')
         else:
             raise NotImplementedError('help')
-    
-    def CorrelationFunction(self, z, k, field_1, field_2, popid=0):
-        
+
+    def CorrelationFunction(self, z, field_1, field_2, R=None, popid=0):
+
         # Ionization auto-correlation function
         if field_1 and field_2 == 'h_2':
-            
-            if pop.pf['pop_bubble_size_dist'] is None:
-                dr = 2. * np.pi / k
-                Pii_oh, Pii_th = self.IonizationProbability(z, dr, popid)
-                Qi  = self.BubbleFillingFactor(z)
-                
-                Pii = Pii_oh + Pii_th
-                    
-                return Pii - Qi**2
-                
-            elif pop.pf['pop_bubble_size_dist'] == 'excursion_set':
-        
-                
+            dr = R
+            Qi  = self.BubbleFillingFactor(z)
+            Pii = self.IonizationProbability(z, dr, popid)
+
+            # Interpolate to linear R grid here?
+            return Pii - Qi**2
         
         else:
             raise NotImplementedError('sorry!')
         
-    def PowerSpectrum(self, z, k, field_1, field_2, popid=0):
+    def PowerSpectrum(self, z, field_1, field_2, k=None, popid=0):
         """
         Return the power spectrum for given input fields at redshift z and
         wavenumber k.
         """
-        corr = self.CorrelationFunction(z, k, field_1, field_2, popid)
-        
+        corr = self.CorrelationFunction(z, field_1, field_2, k=k, popid=popid)
+
         return np.sqrt(np.fft.fftshift(np.fft.ifft(corr))**2)
             
         

@@ -475,9 +475,10 @@ def PopulationParameters():
     "pop_ion_fluct": False,
     "pop_heat_fluct": False,
     
+    "pop_bubble_bias": True,
     "pop_bubble_size": None,
     "pop_bubble_density": None,
-    "pop_bubble_size_dist": None,
+    "pop_bubble_size_dist": None, # or FZH04, PC14
     
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
@@ -782,7 +783,8 @@ _sampling_parameters = \
  'output_freq_min': 30.,
  'output_freq_max': 200.,
  'output_freq_res': 1.,    
- 'output_dz': None,  # Redshift sampling    
+ 'output_dz': None,  # Redshift sampling 
+ 'output_redshifts': None,   
 }
 
 # Old != Deprecated

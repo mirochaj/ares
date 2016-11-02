@@ -170,6 +170,9 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
         if self.pf['output_frequencies'] is not None:
             nu = self.pf['output_frequencies']
             z = nu_0_mhz / nu - 1.
+        elif self.pf['output_redshifts'] is not None:
+            z = self.pf['output_redshifts']
+            nu = nu_0_mhz / (1. + z)
         elif self.pf['output_dz'] is not None:
             z = np.arange(self.pf['final_redshift'] + self.pf['output_dz'],
                 self.pf['initial_redshift'], self.pf['output_dz'])[-1::-1]

@@ -4,6 +4,10 @@ from .HaloMassFunction import HaloMassFunction
 
 class HaloModel(HaloMassFunction):
     
+    @property
+    def field(self):
+        pass
+        
     def PS_OneHalo(self, z, k, profile_FT):
 
         iz = np.argmin(np.abs(z - self.z))
@@ -41,12 +45,12 @@ class HaloModel(HaloMassFunction):
             prof * self.bias(z, self.logM)
             
         return np.trapz(integrand[iM:], x=self.lnM[iM:])**2 * self.psCDM(z, k)
-        
+
     def PowerSpectrum(self, z, k, profile_FT):
         return self.PS_OneHalo(z, k, profile_FT) #\
              #+ self.PS_TwoHalo(z, k, profile_FT)
     
 
-        
+
         
         

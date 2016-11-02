@@ -83,7 +83,7 @@ class HaloPopulation(Population):
             
     def growth_factor(self, z):
         return self.gf_spline(z)
-        
+                
     @property
     def halos(self):
         if not hasattr(self, '_halos'):

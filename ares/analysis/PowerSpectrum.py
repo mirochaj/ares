@@ -21,8 +21,8 @@ class PowerSpectrum(Global21cm):
     #       
         
     
-    def PowerSpectrum(self, z, field_1='x', field_2='x', ax=None, fig=1, 
-        force_draw=False, dimensionless=False, **kwargs):
+    def PowerSpectrum(self, z, field='21', ax=None, fig=1, 
+        force_draw=False, dimensionless=True, **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
 
@@ -48,13 +48,15 @@ class PowerSpectrum(Global21cm):
         
         iz = np.argmin(np.abs(z - self.redshifts))
         
-        ps_s = 'ps_%s%s' % (field_1, field_2)
+        k = self.history[iz]['k']
+        
+        ps_s = 'ps_%s' % field
         if dimensionless:
-            ps = self.history[iz][ps_s] * self.k**3 / 2. / np.pi**2
+            ps = self.history[iz][ps_s] * k**3 / 2. / np.pi**2
         else:
             ps = self.history[iz][ps_s]
         
-        ax.loglog(self.k, ps, **kwargs)
+        ax.loglog(k, ps, **kwargs)
         
         if gotax and (ax.get_xlabel().strip()) and (not force_draw):
             return ax
