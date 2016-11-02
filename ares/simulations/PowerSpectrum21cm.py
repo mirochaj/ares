@@ -35,7 +35,8 @@ class PowerSpectrum21cm(AnalyzePS):
     @property
     def mean_history(self):
         if not hasattr(self, '_mean_history'):
-            self._mean_history = Global21cm(**self.kwargs)
+            self.gs.run()
+            self._mean_history = self.gs.history
         
         return self._mean_history
             
@@ -45,11 +46,11 @@ class PowerSpectrum21cm(AnalyzePS):
         
     @property
     def pops(self):
-        return self.mean_history.medium.field.pops
+        return self.gs.medium.field.pops
     
     @property
     def grid(self):
-        return self.mean_history.medium.field.grid
+        return self.gs.medium.field.grid
     
     @property
     def hydr(self):
@@ -116,7 +117,7 @@ class PowerSpectrum21cm(AnalyzePS):
         #pb = ProgressBar(self.z.size, use=self.pf['progress_bar'])
         #pb.start()
         
-        self.mean_history.run()
+        #self.mean_history.run()
         
         all_ps = []                        
         for i, (z, data) in enumerate(self.step()):
@@ -162,6 +163,12 @@ class PowerSpectrum21cm(AnalyzePS):
                     #cf_dd = self.field.CorrelationFunction(z,
                     #    field_1='rho', field_2='rho',  k=self.k, popid=j)    
                         
+                        
+            # Will we ever have multiple populations contributing to 
+            # different fluctuations? Or, should we require that all ionizing
+            # sources be parameterized in such a way that we only 
+            # calculate, e.g., ps_xx once.            
+                        
             # Dictionary-ify everything
             data = {'ps_xx': ps_xx, #'ps_xd': ps_xd, 'ps_dd': ps_dd,
                     'cf_xx': cf_xx, #'cf_xd': cf_xd, 'cf_dd': cf_dd,
@@ -180,7 +187,6 @@ class PowerSpectrum21cm(AnalyzePS):
                 self.mean_history['igm_Tk'][-1::-1])
             Ja = np.interp(z, self.mean_history['z'][-1::-1], 
                 self.mean_history['Ja'][-1::-1])
-            
             xHII, ne = [0] * 2
             
             

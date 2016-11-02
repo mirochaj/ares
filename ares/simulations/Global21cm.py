@@ -394,7 +394,7 @@ class Global21cm(BlobFactory,AnalyzeGlobal21cm):
             Ja = 0.0
             Jlw = 0.0
             for i, pop in enumerate(self.medium.field.pops):
-                if not pop.is_lya_src:
+                if not pop.is_src_lya:
                     continue
                                                     
                 if not np.any(self.medium.field.solve_rte[i]):

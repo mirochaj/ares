@@ -303,7 +303,7 @@ class GlobalVolume(object):
                 if band is None:
                     continue
                             
-                need_tab = self.pops[i].is_xray_src \
+                need_tab = self.pops[i].is_src_heat \
                     and np.any(np.array(band) > E_LL)
                                                                     
                 if (not self.background.solve_rte[i][j]) or \
