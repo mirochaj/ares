@@ -423,6 +423,9 @@ class ModelSet(BlobFactory):
         chain_fns = glob.glob(self.prefix + ".dd*.chain.pkl")
         ckpts = sorted([int(fn[-14:-10]) for fn in chain_fns])
         return ckpts[-num:]
+
+    def last_checkpoint(self):
+        return self.last_n_checkpoints(1)[0]
     
     @property
     def include_checkpoints(self):
