@@ -893,6 +893,23 @@ class ModelSet(BlobFactory):
         
         return model_set
         
+    def SliceByElement(self, to_keep):
+        
+        ##
+        # CREATE NEW MODELSET INSTANCE
+        ##
+        model_set = ModelSet(self.prefix)
+        
+        # Set the mask! 
+        arr = np.arange(self.chain.shape[0])
+        mask = np.ones_like(arr)
+        for i in to_keep:
+            mask[arr == i] = 0
+        
+        model_set.mask = np.logical_or(mask, self.mask)
+        
+        return model_set
+        
     def difference(self, set2):
         """
         Create a new ModelSet out of the elements unique to current ModelSet.
@@ -2265,7 +2282,7 @@ class ModelSet(BlobFactory):
         pl.draw()    
             
         return ax, xdata, ydata, zdata
-              
+
     def ContourScatter(self, x, y, c, z=None, Nscat=1e4, take_log=False, 
         cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 
         labels=None, **kwargs):
@@ -3312,6 +3329,46 @@ class ModelSet(BlobFactory):
                     
         
         return result
+        
+    def RankModels(self, **kwargs):
+        """
+        Determine how close all models in ModelSet are to parameter set
+        in kwargs.
+        """
+        
+        # This is a list of all points in the chain represented as a 
+        # dictionary of parameter:value pairs.
+        all_kwargs = self.AssembleParametersList()
+        
+        scores = np.inf * np.ones(len(all_kwargs))
+        
+        for i, element in enumerate(all_kwargs):
+            
+            # Loop over parameters and add relative difference between
+            # "reference model" parameter and that given
+
+            for j, parameter in enumerate(self.parameters):
+                if parameter not in element:
+                    continue
+                if parameter not in kwargs:
+                    continue                                
+
+                if element[parameter] is None:
+                    continue
+                if kwargs[parameter] is None:
+                    continue
+
+                if not np.isfinite(scores[i]):
+                    scores[i] = 0
+
+                score = abs(element[parameter] - kwargs[parameter]) \
+                    / kwargs[parameter]
+                scores[i] += score
+
+        sorter = np.argsort(scores)    
+        new_kw = [all_kwargs[i] for i in sorter]
+
+        return sorter, new_kw, scores
         
     def export(self, prefix, pars, ivar=None, path='.', fmt='hdf5', 
         clobber=False, skip=0, skim=1, stop=None):

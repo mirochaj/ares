@@ -68,6 +68,9 @@ class ModelGrid(ModelFit):
             
         """
         
+        # Array of ones/zeros: has this model already been done?
+        self.done = np.zeros(self.grid.shape)
+        
         if os.path.exists('%s.%s.chain.pkl' % (prefix, str(rank).zfill(3))):
             save_by_proc = True
             prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
@@ -77,6 +80,15 @@ class ModelGrid(ModelFit):
 
         # Read in current status of model grid
         chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
+        
+        # If we said this is a restart, but there are no elements in the 
+        # chain, just run the thing. It probably means the initial run never
+        # made it to the first checkpoint.
+                
+        if chain.size == 0:
+            if rank == 0:
+                print "Pre-existing chain file(s) empty. Running from beginning."
+            return
 
         # Read parameter info
         f = open('%s.pinfo.pkl' % prefix, 'rb')
@@ -88,10 +100,10 @@ class ModelGrid(ModelFit):
             f = open('%s.setup.pkl' % prefix, 'rb')
             self.pf = pickle.load(f)
             f.close()
-            
+
         if len(axes_names) != chain.shape[1]:
             raise ValueError('Cannot change dimensionality on restart!')
-        
+
         if self.grid.structured:
             if axes_names != self.grid.axes_names:
                 raise ValueError('Cannot change axes variables on restart!')
@@ -109,13 +121,10 @@ class ModelGrid(ModelFit):
         if (not self.grid.structured):
             return
 
-        # Array of ones/zeros: has this model already been done?
-        self.done = np.zeros(self.grid.shape)
-        
         # Loop over chain read-in from disk and compare to grid.
         # Which models have already been computed?
         for link in chain:
-            
+
             # Parameter set from pre-existing chain
             kw = {par:link[i] \
                 for i, par in enumerate(self.grid.axes_names)}
@@ -253,7 +262,10 @@ class ModelGrid(ModelFit):
                     % prefix_by_proc)
 
         if not os.path.exists('%s.chain.pkl' % prefix_by_proc) and restart:
-            raise IOError("This can't be a restart, %s*.pkl not found." % prefix_by_proc)
+            if rank == 0:
+                print "This can't be a restart, %s*.pkl not found." % prefix
+                print "Starting from scratch..."
+            restart = False    
         
         # Load previous results if this is a restart
         if restart:
@@ -266,15 +278,20 @@ class ModelGrid(ModelFit):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
                 
             if self.grid.structured:
-                ct0 = self.done.sum()
+                ct0 = self.done[self.done >= 0].sum()
             else:
                 ct0 = 0
-
+                
+            # Important that this goes second, otherwise this processor
+            # will count the models already run by other processors, which
+            # will mess up the 'Nleft' calculation below.
+            tmp = np.zeros(self.grid.shape)
+            MPI.COMM_WORLD.Allreduce(self.done, tmp)
+            self.done = tmp
+                
         else:
             ct0 = 0
-
-        ct = 0
-        
+            
         if restart:
             tot = np.sum(self.assignments == rank)
             Nleft = tot - ct0
@@ -287,7 +304,6 @@ class ModelGrid(ModelFit):
             return
         
         # Print out how many models we have (left) to compute
-        
         if restart and self.grid.structured:
             print "Update (processor #%i): %i models down, %i to go." \
                 % (rank, ct0, Nleft)
@@ -298,7 +314,7 @@ class ModelGrid(ModelFit):
                     % self.grid.size
             else:
                 print 'Running %i-element model grid.' % self.grid.size
-                                
+
         # Make some blank files for data output                 
         self.prep_output_files(restart, clobber)                 
 
@@ -317,6 +333,8 @@ class ModelGrid(ModelFit):
         chain_all = []; blobs_all = []
         
         t1 = time.time()
+
+        ct = 0
 
         # Loop over models, use StellarPopulation.update routine 
         # to speed-up (don't have to re-load HMF spline as many times)
@@ -568,17 +586,17 @@ class ModelGrid(ModelFit):
     
     def _balance_via_grouping(self, par):    
         pass
-    
+
     def _balance_via_sorting(self, par):    
         pass
-    
-    def LoadBalance(self, method=None, par=None):
-                
+
+    def LoadBalance(self, method=0, par=None):
+
         if self.grid.structured:
             self._structured_balance(method=method, par=par)
         else: 
             self._unstructured_balance(method=method, par=par)
-            
+
     def _unstructured_balance(self, method=0, par=None):
                 
         if rank == 0:
@@ -648,9 +666,10 @@ class ModelGrid(ModelFit):
             tmp_assignments = np.zeros(self.grid.shape)
             for loc, value in np.ndenumerate(tmp_assignments):
 
-                if hasattr(self, 'done'):
-                    if self.done[loc]:
-                        continue
+                #if hasattr(self, 'done'):
+                #    if self.done[loc]:
+                #        tmp_assignments[loc] = -99999
+                #        continue
 
                 if k % size != rank:
                     k += 1
