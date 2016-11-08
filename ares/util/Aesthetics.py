@@ -195,7 +195,7 @@ pop_parameters = \
 
 sfe_parameters = \
 {
- "galaxy_lf": r'$\phi(M_{\mathrm{UV}})$',
+ "galaxy_lf": r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
 }
 
 for i in range(6):

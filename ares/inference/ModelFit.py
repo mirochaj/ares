@@ -231,7 +231,10 @@ class LogLikelihood(object):
             fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
                 pickle.dump(kwargs, f)
-
+            fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
+            with open(fn, 'w') as f:
+                print >> f, "Checkpoint written: %s" % time.ctime()
+            
 class ModelFit(BlobFactory):
     def __init__(self, **kwargs):
         """

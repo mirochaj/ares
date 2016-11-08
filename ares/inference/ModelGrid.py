@@ -266,14 +266,14 @@ class ModelGrid(ModelFit):
                 print "This can't be a restart, %s*.pkl not found." % prefix
                 print "Starting from scratch..."
             restart = False    
-        
+
         # Load previous results if this is a restart
         if restart:
             if (not self.save_by_proc) and (rank != 0):
                 MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
-                
+
             self._read_restart(prefix)
-            
+
             if (not self.save_by_proc) and (rank != (size-1)):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
                 
@@ -281,33 +281,33 @@ class ModelGrid(ModelFit):
                 ct0 = self.done[self.done >= 0].sum()
             else:
                 ct0 = 0
-                
+
             # Important that this goes second, otherwise this processor
             # will count the models already run by other processors, which
             # will mess up the 'Nleft' calculation below.
             tmp = np.zeros(self.grid.shape)
             MPI.COMM_WORLD.Allreduce(self.done, tmp)
             self.done = tmp
-                
+
         else:
             ct0 = 0
-            
+
         if restart:
             tot = np.sum(self.assignments == rank)
             Nleft = tot - ct0
         else:
             Nleft = np.sum(self.assignments == rank)
-                                              
+
         if Nleft == 0:
             if rank == 0:
                 print 'This model grid is complete.'
             return
-        
+
         # Print out how many models we have (left) to compute
         if restart and self.grid.structured:
             print "Update (processor #%i): %i models down, %i to go." \
                 % (rank, ct0, Nleft)
-        
+
         elif rank == 0:
             if restart:
                 print 'Expanding pre-existing model set with %i more models.' \
@@ -421,6 +421,9 @@ class ModelGrid(ModelFit):
             fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
                 pickle.dump(kw, f)
+            fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
+            with open(fn, 'w') as f:
+                print >> f, "Checkpoint written: %s" % time.ctime()
                 
             # Kill if model gets stuck    
             if self.timeout is not None:
@@ -666,11 +669,6 @@ class ModelGrid(ModelFit):
             tmp_assignments = np.zeros(self.grid.shape)
             for loc, value in np.ndenumerate(tmp_assignments):
 
-                #if hasattr(self, 'done'):
-                #    if self.done[loc]:
-                #        tmp_assignments[loc] = -99999
-                #        continue
-
                 if k % size != rank:
                     k += 1
                     continue
@@ -725,6 +723,8 @@ class ModelGrid(ModelFit):
             # Do it randomly
             arr = np.random.randint(low=0, high=size, size=self.grid.size, 
                 dtype=int)
+                
+            # This might cause problems on restart.    
 
             self.assignments = np.reshape(arr, self.grid.shape)
                     

@@ -770,12 +770,18 @@ class MultiPanel(object):
     def global_xlabel(self, label, xy=(0.5, 0.025), size='x-large'):
         """ Set shared xlabel. """        
         
+        for i in self.bottom:
+            self.grid[i].set_xlabel(r'')
+        
         self.fig.text(xy[0], xy[1], label, 
             ha='center', va='center', size=size)
             
     def global_ylabel(self, label, xy=(0.025, 0.5), size='x-large'):
         """ Set shared ylabel. """        
-        
+                        
+        for i in self.left:
+            self.grid[i].set_ylabel(r'')
+                        
         self.fig.text(xy[0], xy[1], label, 
             ha='center', va='center', rotation='vertical', size=size)
     

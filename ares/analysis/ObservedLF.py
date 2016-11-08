@@ -16,12 +16,17 @@ import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
 
 all_datasets = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
-    'parsa2016', 'finkelstein2015')
-
-default_colors = {'bouwens2015': 'r', 'atek2015': 'y', 'oesch2013': 'm',
-    'oesch2014': 'c', 'parsa2016': 'g', 'finkelstein2015': 'b'}
-default_markers = {src:'o' for src in all_datasets}
-
+    'parsa2016', 'finkelstein2015', 'vanderburg2010')
+    
+colors = ['m', 'c', 'r', 'y', 'g', 'b'] * 3
+markers = ['o'] * 6 + ['s'] * 6    
+    
+default_colors = {}
+default_markers = {}    
+for i, dataset in enumerate(all_datasets):
+    default_colors[dataset] = colors[i]
+    default_markers[dataset] = markers[i]
+    
 _ulim_tick = 0.5
 
 class ObservedLF(object):
@@ -216,7 +221,7 @@ class ObservedLF(object):
         return ax
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
-        panel_size=(0.75,0.75), fig=1):
+        panel_size=(0.75,0.75), fig=1, legends=None):
         """
         Plot the luminosity function at a bunch of different redshifts.
         
@@ -227,6 +232,9 @@ class ObservedLF(object):
         ncols : int
             How many columns in multiplot? Number of rows will be determined
             automatically.
+        legends : bool, str
+            'individual' means one legend per axis, 'master' means one
+            (potentially gigantic) legend.
             
         """        
         
@@ -245,7 +253,7 @@ class ObservedLF(object):
             redshifts = np.sort(redshifts)
             
         # Create multiplot
-        mp = MultiPanel(dims=dims, panel_size=panel_size, fig=fig)
+        mp = MultiPanel(dims=dims, panel_size=panel_size, fig=fig, padding=[0.2]*2)
         
         self.redshifts_in_mp = []
         for i, z in enumerate(redshifts):
@@ -260,7 +268,7 @@ class ObservedLF(object):
             ax.annotate(r'$z \sim %i$' % (round(z)), (0.05, 0.95), 
                 ha='left', va='top', xycoords='axes fraction')
             ax.set_xlim(-24, -14.)
-            ax.set_ylim(1e-7, 5e-1)
+            ax.set_ylim(1e-7, 1e-1)
             ax.set_xticks(np.arange(-23, -13, 2), minor=True)
             ax.set_yscale('log', nonposy='clip')
             
