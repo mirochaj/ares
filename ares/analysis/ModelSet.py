@@ -1434,14 +1434,32 @@ class ModelSet(BlobFactory):
             
         if stop is not None:
             stop = -int(stop)
-                    
+                                
         if hasattr(to_hist[par], 'compressed'):
-            logL = self.logL[skip:stop].compressed()
-            tohist = to_hist[par][skip:stop].compressed()
+            #logL = self.logL[skip:stop].compressed()
+            #tohist = to_hist[par][skip:stop].compressed()
+            _mask = to_hist[par].mask
+            
+            indices = np.arange(self.logL.size)
+            
+            if stop is None:
+                stop = indices.size
+            if skip is None:
+                skip = 0
+                
+            _cond = np.logical_and(indices >= skip, indices <= stop)
+            keep = np.logical_and(_cond, _mask == 0)
+                        
+            logL = self.logL[keep]
+            tohist = to_hist[par][keep]
+            
         else:
             logL = self.logL[skip:stop]
             tohist = to_hist[par][skip:stop]
 
+        if logL.size != tohist.size:
+            raise ValueError('logL and chain have different number of elements!')
+            
         if peak == 'median':
             N = len(logL)
             psorted = np.sort(tohist)

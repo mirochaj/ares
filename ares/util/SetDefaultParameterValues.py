@@ -297,15 +297,14 @@ def DustParameters():
     
     tmp = \
     {     
-     'dustcorr_Afun': None,
+     'dustcorr_method': None,
 
-     'dustcorr_Bfun': 'constant',
-     
-     # Intrinsic scatter in the beta-mag relation (gaussian)
-     's_beta': 0.34,
+     'dustcorr_beta': 'constant',
      
      # Intrinsic scatter in the AUV-beta relation
-     's_AUV': 0.0,
+     'dustcorr_scatter_A': 0.0,
+     # Intrinsic scatter in the beta-mag relation (gaussian)
+     'dustcorr_scatter_B': 0.34,
           
      'dustcorr_Bfun_par0': -2.,
      'dustcorr_Bfun_par1': None,
