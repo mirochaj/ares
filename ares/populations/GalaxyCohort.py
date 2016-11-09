@@ -35,7 +35,13 @@ except ImportError:
     
 z0 = 9. # arbitrary
     
-class GalaxyCohort(GalaxyAggregate,DustCorrection):
+class GalaxyCohort(GalaxyAggregate):
+    
+    @property
+    def dust(self):
+        if not hasattr(self, '_dust'):
+            self._dust = DustCorrection(**self.pf)
+        return self._dust
     
     @property
     def magsys(self):
@@ -909,12 +915,12 @@ class GalaxyCohort(GalaxyAggregate,DustCorrection):
         """
         Slope in the luminosity function
         """
-        
+
         logphi = lambda logL: np.log10(self.LuminosityFunction(z, 10**logL, mags=False))
-        
-        Mdc = mag - self.AUV(z, mag)
+
+        Mdc = mag - self.dust.AUV(z, mag)
         L = self.magsys.MAB_to_L(mag=Mdc, z=z)
-        
+
         return derivative(logphi, np.log10(L), dx=0.1)
     
     @property

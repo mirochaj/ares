@@ -26,28 +26,32 @@ class DustCorrection(object):
     @property
     def method(self):
         if not hasattr(self, '_method'):
-            self._method = self.pf['dustcorr_method'].lower()
-        
+            if self.pf['dustcorr_method'] is None:
+                self._method = None
+            else:
+                self._method = self.pf['dustcorr_method'].lower()
+
         return self._method
 	
 	#   ==========   Parametrization of Auv   ==========   #
 	
     def AUV(self, z, mag):
 		''' Return non-negative mean correction <Auv> averaged over Luv assuming a normally distributed Auv '''
-		
+
+		if self.method is None:
+		    return 0.0
+
 		a, b = _coeff[self.method]
-		
+
 		beta = self.Beta(z, mag)
-		
+
 		s_a = self.pf['dustcorr_scatter_A']
 		s_b = self.pf['dustcorr_scatter_B']
 		sigma = np.sqrt(s_a**2 + (s_b * beta)**2)
 		
 		AUV = a + b * beta + 0.2 * np.log(10) * sigma
 		
-		return AUV
-		
-		
+		return np.maximum(AUV, 0.0)
 		
 		# The scatter in <Auv> can be attributed to 1. scatter in beta(Muv) 2. intrinsic scatter in Auv(beta)
 		#if self.method is None:
@@ -107,11 +111,9 @@ class DustCorrection(object):
         if type(self.pf['dustcorr_beta']) is str:
             return self._beta_fit(z, mag)
         elif type(self.pf['dustcorr_beta']) is FunctionType:    
-            return self.pf['dustcorr_Bfun_par0'](z, mag)
+            return self.pf['dustcorr_beta'](z, mag)
         else:
-            return self.pf['dustcorr_Bfun_par0']
-        
-    
+            return self.pf['dustcorr_beta']
     
     def beta0(self, z):
     	''' Get the measured UV continuum slope from Bouwens+2014 '''
@@ -162,7 +164,8 @@ class DustCorrection(object):
     	''' An linear + exponential fit to Bouwens+14 data adopted from Mason+2015 '''
     	
     	if self.pf['dustcorr_beta'].lower() == 'bouwens2012':
-    	    return -0.11 * (mag + 19.5) - 2.00
+    	    dbeta_dMUV = -0.11
+    	    return dbeta_dMUV * (mag + 19.5) - 2.00
     	
     	elif self.pf['dustcorr_beta'].lower() == 'mason2015':
     	    _M0 = -19.5; _c = -2.33

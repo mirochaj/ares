@@ -186,6 +186,12 @@ class Global21cm(AnalyzeGlobal21cm):
 
         return True
         
+    @property
+    def suite(self):
+        if not hasattr(self, '_suite'):
+            self._suite = []
+        return self._suite
+                
     def run(self):
         """
         Run a 21-cm simulation.
@@ -200,10 +206,9 @@ class Global21cm(AnalyzeGlobal21cm):
         if hasattr(self, 'history') and not hasattr(self, '_suite'):
             return
 
-        if not hasattr(self, '_suite'):
-            self._suite = [] 
-        else:
-            self.reboot()
+        if hasattr(self, '_suite'):
+            if self.suite != []:
+                self.reboot()
             
         t1 = time.time()    
             
@@ -558,7 +563,7 @@ class Global21cm(AnalyzeGlobal21cm):
                 raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
     
         # I/O more complicated in this case.
-        if self._suite and suffix != 'pkl':
+        if (self.suite != []) and suffix != 'pkl':
             raise NotImplemented('help!')
     
         if suffix == 'pkl':

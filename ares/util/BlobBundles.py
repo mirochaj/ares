@@ -13,7 +13,7 @@ Description:
 import numpy as np
 from .ParameterBundles import ParameterBundle
 
-_gs_hist = ['cgm_h_2', 'igm_h_2', 'igm_Tk', 'Ja', 'Jlw', 'Ts', 'dTb']
+_gs_hist = ['z', 'cgm_h_2', 'igm_h_2', 'igm_Tk', 'Ja', 'Jlw', 'Ts', 'dTb']
 
 _gs_ext = ['z_B', 'z_C', 'z_D']
 for tp in list('BCD'):
