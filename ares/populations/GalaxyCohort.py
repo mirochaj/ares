@@ -810,7 +810,20 @@ class GalaxyCohort(GalaxyAggregate):
                 raise ValueError('Unrecognized data type for pop_mlf!')  
     
         return self._mlf
-
+    
+    @property
+    def fshock(self):
+        if not hasattr(self, '_fshock'):
+            if type(self.pf['pop_fshock']) in [float, np.float64]:
+                self._fshock = lambda z, M: self.pf['pop_fshock']
+            elif self.pf['pop_fshock'][0:3] == 'php':
+                pars = get_php_pars(self.pf['pop_fshock'], self.pf)    
+                self._fshock = ParameterizedHaloProperty(**pars)
+            else:
+                raise ValueError('Unrecognized data type for pop_fshock!')  
+    
+        return self._fshock
+    
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
@@ -821,9 +834,10 @@ class GalaxyCohort(GalaxyAggregate):
                 assert self.pf['pop_fstar_boost'] == 1
             else:
                 boost = 1. / self.pf['pop_fstar_boost']
-            
+                        
             if self.pf['pop_mlf'] is not None:
-                self._fstar = lambda z, M: boost / (1. + self.mlf(z, M))
+                self._fstar = lambda z, M: boost * self.fshock(z, M) \
+                    / ((1. / self.pf['pop_fstar_max']) + self.mlf(z, M))
             elif type(self.pf['pop_fstar']) in [float, np.float64]:
                 self._fstar = lambda z, M: self.pf['pop_fstar'] * boost
             elif self.pf['pop_fstar'][0:3] == 'php':

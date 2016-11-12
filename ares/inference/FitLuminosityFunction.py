@@ -170,7 +170,7 @@ class loglikelihood(LogLikelihood):
             xdat = np.array(self.xdata[i])
 
             # Apply dust correction to observed data, which is uncorrected
-            M = xdat - pop.AUV(z, xdat) 
+            M = xdat - pop.dust.AUV(z, xdat) 
             
             # Generate model LF
             p = pop.LuminosityFunction(z=z, x=M, mags=True)

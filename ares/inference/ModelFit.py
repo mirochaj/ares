@@ -190,14 +190,18 @@ class LogLikelihood(object):
     def _compute_blob_prior(self, sim):
         blob_vals = {}
         for key in self.priors_B.params:
-            if key == 'z':
-                continue
-            if key == 'dTb':
-                blob_vals[key] = sim.get_blob(key)
-            else:    
-                blob_vals[key] = sim.get_blob(key)
-        
+
+            grp, i, nd, dims = sim.blob_info(key)
+            
+            #if nd == 0:
+            #    blob_vals[key] = sim.get_blob(key)
+            #elif nd == 1:    
+            blob_vals[key] = sim.get_blob(key)
+            #else:
+            #    raise NotImplementedError('help')
+
         try:
+            print blob_vals
             # will return 0 if there are no blobs
             return self.priors_B.log_prior(blob_vals)
         except:

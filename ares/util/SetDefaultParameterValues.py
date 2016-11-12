@@ -299,7 +299,10 @@ def DustParameters():
     {     
      'dustcorr_method': None,
 
-     'dustcorr_beta': 'constant',
+     'dustcorr_beta': -2.,
+     
+     # Only used if method is a list
+     'dustcorr_ztrans': None,
      
      # Intrinsic scatter in the AUV-beta relation
      'dustcorr_scatter_A': 0.0,
@@ -407,10 +410,12 @@ def PopulationParameters():
         
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
+    "pop_fstar_max": 1.0,
     
     "pop_sfe": None,
     "pop_mlf": None,
     "pop_sfr": None,
+    "pop_fshock": 1.0,
     
     "pop_tab_z": None,
     "pop_tab_Mh": None,

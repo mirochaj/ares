@@ -9,6 +9,7 @@ Description:
 
 """
 
+import glob
 import os, re, sys
 import numpy as np
 from . import Cosmology
@@ -135,16 +136,48 @@ class HaloMassFunction(object):
         
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load'] and (self.fn is None):
-            fn = '%s/input/hmf/%s' % (ARES, self.table_prefix())
+            prefix = self.table_prefix(True)
+            fn = '%s/input/hmf/%s' % (ARES, prefix)
+            # First, look for a perfect match
             if os.path.exists('%s.%s' % (fn, self.pf['preferred_format'])):
                 self.fn = '%s.%s' % (fn, self.pf['preferred_format'])
+            # Next, look for same table different format
             elif os.path.exists('%s.pkl' % fn):
                 self.fn = '%s.pkl' % fn
             elif os.path.exists('%s.hdf5' % fn):
                 self.fn = '%s.hdf5' % fn   
             elif os.path.exists('%s.npz' % fn):
-                self.fn = '%s.npz' % fn     
-             
+                self.fn = '%s.npz' % fn    
+            else:
+                # Leave resolution blank, but enforce ranges
+                prefix = self.table_prefix()
+                candidates = glob.glob('%s/input/hmf/%s*' % (ARES, prefix))
+
+                if len(candidates) == 1:
+                    self.fn = candidates[0]
+                else:
+                    
+                    # What parameter file says we need.
+                    logMmax = self.pf['hmf_logMmax']
+                    logMmin = self.pf['hmf_logMmin']
+                    logMsize = (logMmax - logMmin) / self.pf['hmf_dlogM']
+                    zmax = self.pf['hmf_zmax']
+                    zmin = self.pf['hmf_zmin']
+                    zsize = (zmax - zmin) / self.pf['hmf_dz'] + 1
+                    
+                    self.fn = None
+                    for candidate in candidates:
+                        _Nm, _logMmin, _logMmax, _Nz, _zmin, _zmax = \
+                            map(int, re.findall(r'\d+', candidate))
+                    
+                        if (_logMmin > logMmin) or (_logMmax < logMmax):
+                            continue
+                            
+                        if (_zmin > zmin) or (_zmax < zmax):
+                            continue
+                            
+                        self.fn = candidate    
+                            
         # Override switch: compute Press-Schechter function analytically
         if self.hmf_func == 'PS' and self.hmf_analytic:
             self.fn = None
@@ -628,7 +661,7 @@ class HaloMassFunction(object):
     def CollapseRedshift(self):
         pass
                 
-    def table_prefix(self):
+    def table_prefix(self, with_size=False):
         """
         What should we name this table?
         
@@ -643,22 +676,20 @@ class HaloMassFunction(object):
         
         """
         
-        try:
-            M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
-            prefix = 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.hmf_func, 
-                self.logM.size, M1, M2, self.z.size, self.zmin, self.zmax)           
-        except AttributeError:
-            M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
-            z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
+        M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
+        z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
+        
+        if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
                 / self.pf['hmf_dlogM']
             zsize = (self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
-                / self.pf['hmf_dz'] + 1 
-            return 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.hmf_func, 
-                logMsize, M1, M2, zsize, z1, z2) 
-                
-        return prefix           
-               
+                / self.pf['hmf_dz'] + 1
+            return 'hmf_%s_logM_%s_%i-%i_z_%s_%i-%i' \
+                % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
+        else:
+            return 'hmf_%s_logM_*_%i-%i_z_*_%i-%i' \
+                % (self.hmf_func, M1, M2, z1, z2) 
+                               
     def save(self, fn=None, clobber=True, destination=None, format='hdf5'):
         """
         Save mass function table to HDF5 or binary (via pickle).
@@ -694,7 +725,7 @@ class HaloMassFunction(object):
         
         # Determine filename
         if fn is None:
-            fn = '%s/%s.%s' % (destination, self.table_prefix(), format)                
+            fn = '%s/%s.%s' % (destination, self.table_prefix(True), format)                
         else:
             if format not in fn:
                 print "Suffix of provided filename does not match chosen format."

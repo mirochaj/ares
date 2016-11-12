@@ -28,6 +28,12 @@ class DustCorrection(object):
         if not hasattr(self, '_method'):
             if self.pf['dustcorr_method'] is None:
                 self._method = None
+            elif type(self.pf['dustcorr_method']) is list:
+                meth = self.pf['dustcorr_method']
+                self._method = \
+                    [meth[i].lower() for i in range(len(meth))]   
+                    
+                assert len(self._method) == len(self.pf['dustcorr_ztrans'])
             else:
                 self._method = self.pf['dustcorr_method'].lower()
 
@@ -39,9 +45,23 @@ class DustCorrection(object):
 		''' Return non-negative mean correction <Auv> averaged over Luv assuming a normally distributed Auv '''
 
 		if self.method is None:
+		    method = None
+		    
+		elif type(self.method) is list:
+		    for i, method in enumerate(self.method):
+		        if z < self.pf['dustcorr_ztrans'][i]:
+		            continue
+		        if i == (len(self.method) - 1):
+		            break    
+		        if z < self.pf['dustcorr_ztrans'][i+1]:
+		            break
+		else:
+		    method = self.method
+		    
+		if method is None:
 		    return 0.0
 
-		a, b = _coeff[self.method]
+		a, b = _coeff[method]
 
 		beta = self.Beta(z, mag)
 
@@ -53,48 +73,6 @@ class DustCorrection(object):
 		
 		return np.maximum(AUV, 0.0)
 		
-		# The scatter in <Auv> can be attributed to 1. scatter in beta(Muv) 2. intrinsic scatter in Auv(beta)
-		#if self.method is None:
-		#	return 0.0
-		#elif self.method.lower() == 'meurer1999':
-		#	sigma = np.sqrt((self.pf['s_beta']*self.MeurerDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
-		#	temp = self.MeurerDC(z, mag)[1][0] + self.MeurerDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
-		#	return np.maximum(temp, 0.0)
-		#elif self.method.lower() == 'pettini1998':
-		#	sigma = np.sqrt((self.pf['s_beta']*self.PettiniDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
-		#	temp = self.PettiniDC(z, mag)[1][0] + self.PettiniDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
-		#	return np.maximum(temp, 0.0)
-		#elif self.method.lower() == 'capakhighz':
-		#	sigma = np.sqrt((self.pf['s_beta']*self.CapakDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
-		#	temp = self.CapakDC(z, mag)[1][0] + self.CapakDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
-		#	return np.maximum(temp, 0.0)
-		#elif self.method.lower() == 'evolving':
-		#	sigma = np.sqrt((self.pf['s_beta']*self.EvolvDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
-		#	temp = self.EvolvDC(z, mag)[1][0] + self.EvolvDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
-		#	return np.maximum(temp, 0.0)					
-		#else:
-		#	raise NotImplemented('sorry!')
-	
-    #def MeurerDC(self, z, mag):
-    #	coeff = [4.43, 1.99]
-    #    val = coeff[0] + coeff[1] * self.Beta(z, mag)
-    #    val = np.maximum(val, 0.0)
-    #    return [val, coeff]
-	#
-	#
-    #def PettiniDC(self, z, mag):
-    #	coeff = [1.49, 0.68]
-    #	val =  coeff[0] + coeff[1] * self.Beta(z, mag)
-    #	val = np.maximum(val, 0.0)
-    #    return [val, coeff]
-    #
-    #def CapakDC(self, z, mag):
-    #	# Fit to Capak upper limits
-    #	coeff = [0.312, 0.176]
-    #	val =  coeff[0] + coeff[1] * self.Beta(z, mag)
-    #	val = np.maximum(val, 0.0)
-    #    return [val, coeff]
-        
     def EvolvDC(self, z, mag, z1=5.0, z2=6.0):
     	# Stepwise correction for the given thresholds z1 & z2
     	if z < z1:
@@ -116,7 +94,9 @@ class DustCorrection(object):
             return self.pf['dustcorr_beta']
     
     def beta0(self, z):
-    	''' Get the measured UV continuum slope from Bouwens+2014 '''
+    	"""
+    	Get the measured UV continuum slope from Bouwens+2014 (Table 3).
+    	"""
     	_z = np.round(z,0)
     	
     	if _z < 4.0:
@@ -164,9 +144,9 @@ class DustCorrection(object):
     	''' An linear + exponential fit to Bouwens+14 data adopted from Mason+2015 '''
     	
     	if self.pf['dustcorr_beta'].lower() == 'bouwens2012':
+    	    # This is mentioned in the caption of Smit et al. 2012 Fig 1
     	    dbeta_dMUV = -0.11
     	    return dbeta_dMUV * (mag + 19.5) - 2.00
-    	
     	elif self.pf['dustcorr_beta'].lower() == 'mason2015':
     	    _M0 = -19.5; _c = -2.33
             
