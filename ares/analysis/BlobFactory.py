@@ -164,18 +164,18 @@ class BlobFactory(object):
                 if self._blob_ivars[i] is None:
                     self._blob_nd.append(0)
                     self._blob_dims.append(0)
-                    
+
                     if self.pf['blob_funcs'] is None:
                         self._blob_funcs.append([None] * len(element))
                     elif self.pf['blob_funcs'][i] is None:
                         self._blob_funcs.append([None] * len(element))
                     else:
                         self._blob_funcs.append(self.pf['blob_funcs'][i])
-                        
+
                     continue
                 # Everything else
                 else:
-                    
+
                     # Be careful with 1-D
                     if type(self._blob_ivars[i]) is np.ndarray:
                         lenarr = len(self._blob_ivars[i].shape)
@@ -399,14 +399,26 @@ class BlobFactory(object):
                 elif self.blob_nd[i] == 1:
                     x = np.array(self.blob_ivars[i]).squeeze()
                     if (self.blob_funcs[i][j] is None) and (key in self.history):
-                        blob = np.interp(x, self.history['z'][-1::-1],
-                            self.history[key][-1::-1])
+                        
+                        try:
+                            blob = np.interp(x, self.history['z'][-1::-1],
+                                self.history[key][-1::-1])
+                        except ValueError:
+                            _blob = []
+                            N = self.history[key].shape[1]
+                            for i in range(N):
+                                tmp = np.interp(x, self.history['z'][-1::-1],
+                                    self.history[key][:,i][-1::-1])
+                                _blob.append(tmp)
+
+                            blob = np.array(_blob)    
+
                     elif self.blob_funcs[i][j] is None:
                         raise KeyError('Blob %s not in history!' % key)
                     else:
                         fname = self.blob_funcs[i][j]
                         func = parse_attribute(fname, self)
-                                                                            
+
                         if ismethod(func) or isinstance(func, interp1d):
                             blob = np.array(map(func, x))
                         else:

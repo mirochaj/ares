@@ -14,8 +14,10 @@ import numpy as np
 from .ParameterBundles import ParameterBundle
 
 _gs_hist = ['z', 'cgm_h_2', 'igm_h_2', 'igm_Tk', 'Ja', 'Jlw', 'Ts', 'dTb']
+_gs_rate = ['igm_k_ion', 'igm_k_ion2', 'igm_k_heat', 
+            'cgm_k_ion', 'cgm_k_ion2']
 
-_gs_ext = ['z_B', 'z_C', 'z_D']
+_gs_ext = []
 for tp in list('BCD'):
     for field in _gs_hist:
         _gs_ext.append('%s_%s' % (field, tp))
@@ -27,28 +29,33 @@ _gs_ext.append('tau_e')
 
 _def_z = np.arange(5, 41, 0.1)
 
-_gs_shape_n = ['hwtqm_diff_C', 'hwhm_diff_C', 'hwqm_diff_C', 'fwtqm_C', 'fwhm_C', 'fwqm_C']
-_gs_shape_n.extend(['hwtqm_diff_D', 'hwhm_diff_D', 'hwqm_diff_D', 'fwtqm_D', 'fwhm_D', 'fwqm_D'])
+_gs_shape_n = ['hwtqm_diff_C', 'hwhm_diff_C', 'hwqm_diff_C', 
+    'fwtqm_C', 'fwhm_C', 'fwqm_C']
+_gs_shape_n.extend(['hwtqm_diff_D', 'hwhm_diff_D', 'hwqm_diff_D', 
+    'fwtqm_D', 'fwhm_D', 'fwqm_D'])
 
-_gs_shape_f = ['Width(max_fraction=0.75, peak_relative=True)', 
-               'Width(max_fraction=0.5, peak_relative=True)', 
-               'Width(max_fraction=0.25, peak_relative=True)',
-               'Width(max_fraction=0.75, peak_relative=False)',
-               'Width(max_fraction=0.5, peak_relative=False)',
-               'Width(max_fraction=0.25, peak_relative=False)',
-               'Width(absorption=False, max_fraction=0.75, peak_relative=True)',
-               'Width(absorption=False, max_fraction=0.5, peak_relative=True)', 
-               'Width(absorption=False, max_fraction=0.25, peak_relative=True)',
-               'Width(absorption=False, max_fraction=0.75, peak_relative=False)',
-               'Width(absorption=False, max_fraction=0.5, peak_relative=False)',
-               'Width(absorption=False, max_fraction=0.25, peak_relative=False)'
-               ]
+_gs_shape_f = \
+[
+ 'Width(max_fraction=0.75, peak_relative=True)', 
+ 'Width(max_fraction=0.5, peak_relative=True)', 
+ 'Width(max_fraction=0.25, peak_relative=True)',
+ 'Width(max_fraction=0.75, peak_relative=False)',
+ 'Width(max_fraction=0.5, peak_relative=False)',
+ 'Width(max_fraction=0.25, peak_relative=False)',
+ 'Width(absorption=False, max_fraction=0.75, peak_relative=True)',
+ 'Width(absorption=False, max_fraction=0.5, peak_relative=True)', 
+ 'Width(absorption=False, max_fraction=0.25, peak_relative=True)',
+ 'Width(absorption=False, max_fraction=0.75, peak_relative=False)',
+ 'Width(absorption=False, max_fraction=0.5, peak_relative=False)',
+ 'Width(absorption=False, max_fraction=0.25, peak_relative=False)'
+]
 
 # Add curvature of turning points too
 _gs_shape_n.extend(['curvature_%s' % tp for tp in list('BCD')])
 _gs_shape_f.extend([None] * 3)
 
 _extrema = {'blob_names':_gs_ext, 'blob_ivars': None,  'blob_funcs': None}
+_rates = {'blob_names':_gs_rate, 'blob_ivars': _def_z,  'blob_funcs': None}
 _history = {'blob_names':_gs_hist,'blob_ivars': _def_z,'blob_funcs': None}
 _shape = {'blob_names':_gs_shape_n,'blob_ivars': None, 'blob_funcs': _gs_shape_f}
 _runtime = {'blob_names': ['count', 'timer', 'rank'], 
@@ -70,7 +77,7 @@ _emiss = {'blob_names': ['rho_LW{0}', 'rho_LyC{0}', 'rho_sXR{0}', 'rho_hXR{0}'],
 _blobs = \
 {
  'gs': {'basics': _extrema, 'history': _history, 'shape': _shape,
-        'runtime': _runtime},
+        'runtime': _runtime, 'rates': _rates},
  'pop': {'sfrd': _sfrd, 'emissivities': _emiss, 'fluxes': None}
 }
 
