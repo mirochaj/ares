@@ -12,10 +12,12 @@ Description: Container for hydrogen physics stuff.
 
 import numpy as np
 import scipy.interpolate as interpolate
+from ..util.ReadData import _load_inits
 from ..util.Math import central_difference
 from ..util.ParameterFile import ParameterFile
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
     k_B
+    
 
 try:
     from scipy.special import gamma
@@ -391,4 +393,16 @@ class Hydrogen(object):
             np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
             (1.0 - self.cosm.TCMB(z) / Ts)
             
-
+    @property
+    def inits(self):
+        if not hasattr(self, '_inits'):
+            self._inits = _load_inits()
+        return self._inits
+        
+    def saturated_limit(self, z):
+        return self.DifferentialBrightnessTemperature(z, 0.0, np.inf)
+        
+    def adiabatic_floor(self, z): 
+        Tk = np.interp(z, self.inits['z'], self.inits['Tk'])
+        Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)        
+        return self.DifferentialBrightnessTemperature(z, 0.0, Ts)
