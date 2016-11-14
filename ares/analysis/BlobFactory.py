@@ -240,6 +240,9 @@ class BlobFactory(object):
             for i in range(self.blob_groups):
                 self._all_blob_names.extend(self.blob_names[i])    
         
+            if len(set(self._all_blob_names)) != len(self._all_blob_names):
+                raise ValueError('Blobs must be unique!')
+        
         return self._all_blob_names
         
     @property
@@ -381,7 +384,7 @@ class BlobFactory(object):
                                     
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                                     
+                                                                                                                                                                                                                                            
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -398,31 +401,29 @@ class BlobFactory(object):
                 # unless a function is provided
                 elif self.blob_nd[i] == 1:
                     x = np.array(self.blob_ivars[i]).squeeze()
-                    if (self.blob_funcs[i][j] is None) and (key in self.history):
-                        
-                        try:
-                            blob = np.interp(x, self.history['z'][-1::-1],
-                                self.history[key][-1::-1])
-                        except ValueError:
-                            _blob = []
-                            N = self.history[key].shape[1]
-                            for i in range(N):
-                                tmp = np.interp(x, self.history['z'][-1::-1],
-                                    self.history[key][:,i][-1::-1])
-                                _blob.append(tmp)
-
-                            blob = np.array(_blob)    
-
+                    if (self.blob_funcs[i][j] is None) and (key in self.history):                        
+                        blob = np.interp(x, self.history['z'][-1::-1],
+                            self.history[key][-1::-1])
                     elif self.blob_funcs[i][j] is None:
                         raise KeyError('Blob %s not in history!' % key)
                     else:
                         fname = self.blob_funcs[i][j]
-                        func = parse_attribute(fname, self)
-
+                        
+                        if type(fname) is str:
+                            func = parse_attribute(fname, self)
+                        else:
+                            # fname is a slice
+                            _xx = self.history['z'][-1::-1]
+                            _yy = self.history[fname[0]][-1::-1,fname[1]]
+                            func = (_xx, _yy)
+                            
                         if ismethod(func) or isinstance(func, interp1d):
                             blob = np.array(map(func, x))
                         else:
                             blob = np.interp(x, func[0], func[1])
+                            
+                        print key, type(blob), blob.shape
+                                    
                 else:
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]

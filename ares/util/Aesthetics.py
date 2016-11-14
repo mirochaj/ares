@@ -267,6 +267,17 @@ class Labeler(object):
         
         return units
                 
+    def _find_par(self, popid, phpid):
+        kwarg = None
+        look_for_1 = '{%i}' % popid
+        look_for_2 = '[%i]' % phpid
+        for kwarg in self.base_kwargs:
+            if phpid is not None:
+                if self.base_kwargs[kwarg] == 'php[%i]' % phpid:
+                    break
+                
+        return kwarg.replace('{%i}' % popid, '')
+                
     def label(self, par, take_log=False, un_log=False):
         """
         Create a pretty label for this parameter (if possible).
@@ -275,31 +286,37 @@ class Labeler(object):
         if par in self.labels:
             return self.labels[par]
         
-        prefix, popid, redshift = par_info(par)
+        prefix, popid, phpid = par_info(par)
+        
+        hard = self._find_par(popid, phpid)
         
         units = self.units(prefix)
         
         label = None
-                
+        
         # Simplest case
-        if popid == redshift == None and (par in self.labels):
+        if popid == phpid == None and (par in self.labels):
             label = self.labels[prefix]
         # Has pop ID number
-        elif (popid is not None) and (redshift is None) and (prefix in self.labels):
+        elif (popid is not None) and (phpid is None) and (prefix in self.labels):
             label = self.labels[prefix]
-        elif redshift is not None and (prefix in self.labels):
-            label = r'$%s[%.2g]$' % (undo_mathify(self.labels[prefix]), redshift)
-        
+        elif phpid is not None and (prefix in self.labels):
+            label = r'$%s[%.2g]$' % (undo_mathify(self.labels[prefix]), phpid)
+        elif hard is not None:
+            # If all else fails, just typset the parameter decently
+            parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
+            label = r'$%s\{%i\}[%i]<%i>$' % (hard.replace('_', '\_'),
+                popid, phpid, parnum)
+
         # Troubleshoot if label not found
-        if label is None:
+        if label is None:            
+            label = prefix
             if re.search('pop_', prefix):
                 if prefix[4:] in self.labels:
                     label = self.labels[prefix[4:]]
-                else:
-                    label = prefix
             else:
-                label = prefix
-            
+                label = r'$%s$' % (par.replace('_', '\_'))
+                            
         if take_log:        
             return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
         elif self.is_log[par] and (not un_log):

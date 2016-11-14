@@ -13,10 +13,7 @@ Description:
 import numpy as np
 from .ParameterBundles import ParameterBundle
 
-_gs_hist = ['z', 'cgm_h_2', 'igm_h_2', 'igm_Tk', 'Ja', 'Jlw', 'Ts', 'dTb']
-_gs_rate = ['igm_k_ion', 'igm_k_ion2', 'igm_k_heat', 
-            'cgm_k_ion', 'cgm_k_ion2']
-
+_gs_hist = ['z', 'cgm_h_2', 'igm_h_2', 'igm_Tk', 'Ja', 'Ts', 'dTb']
 _gs_ext = []
 for tp in list('BCD'):
     for field in _gs_hist:
@@ -54,8 +51,24 @@ _gs_shape_f = \
 _gs_shape_n.extend(['curvature_%s' % tp for tp in list('BCD')])
 _gs_shape_f.extend([None] * 3)
 
+# Rate coefficients
+_rc_base = ['igm_k_ion', 'igm_k_heat', 'cgm_k_ion']
+_species = ['h_1', 'he_1', 'he_2']
+_gs_rates = []
+_rc_funcs = []
+for _name in _rc_base:
+    
+    for i, spec1 in enumerate(_species):
+    
+        _save_name = '%s_%s' % (_name, spec1)
+        _gs_rates.append(_save_name)
+        _rc_funcs.append((_name,i))
+    
+        # Don't do secondary ionization terms yet
+        #for j, spec2 in enumerate(_species):
+            
 _extrema = {'blob_names':_gs_ext, 'blob_ivars': None,  'blob_funcs': None}
-_rates = {'blob_names':_gs_rate, 'blob_ivars': _def_z,  'blob_funcs': None}
+_rates = {'blob_names':_gs_rates, 'blob_ivars': _def_z,  'blob_funcs': _rc_funcs}
 _history = {'blob_names':_gs_hist,'blob_ivars': _def_z,'blob_funcs': None}
 _shape = {'blob_names':_gs_shape_n,'blob_ivars': None, 'blob_funcs': _gs_shape_f}
 _runtime = {'blob_names': ['count', 'timer', 'rank'], 
