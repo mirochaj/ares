@@ -583,7 +583,12 @@ class GalaxyCohort(GalaxyAggregate):
 
         if mags:
             x_phi, phi = self.phi_of_M(z)
-            phi_of_x = 10**np.interp(x, x_phi[-1::-1], np.log10(phi)[-1::-1])
+            
+            # Setup interpolant
+            interp = interp1d(x_phi, np.log10(phi), kind='linear',
+                bounds_error=False, fill_value=-np.inf)
+            
+            phi_of_x = 10**interp(x)
         else:
             
             x_phi, phi = self.phi_of_L(z)

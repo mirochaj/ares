@@ -147,14 +147,13 @@ class ModelSetLF(ModelSet):
 
         phi = []
         for i, mag in enumerate(mags_disk):
-            data, is_log = self.ExtractData(name, ivar=[z, mags_disk[i]],
+            data = self.ExtractData(name, ivar=[z, mag],
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
 
             if not shade_by_like:
                 phi.append(data[name][skip:stop][loc])
             else:
-                lo, hi = np.percentile(data[name][skip:stop].compressed(), 
-                    (q1, q2))
+                lo, hi = np.percentile(data[name][skip:stop], (q1, q2))
                 phi.append((lo, hi))    
 
         if shade_by_like:

@@ -408,8 +408,7 @@ def read_pickled_chain(fn):
         return np.array(new_data)
         
     else:
-        print Nd
-        raise ValueError('unrecognized chain shape')
+        raise ValueError('Unrecognized chain shape')
         
     
     

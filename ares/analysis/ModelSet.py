@@ -471,9 +471,12 @@ class ModelSet(BlobFactory):
                                         
                     if not os.path.exists(fn):
                         break
-                                        
-                    this_chain = read_pickled_chain(fn)                                    
-                    full_chain.extend(this_chain.copy())                    
+                    
+                    try:
+                        this_chain = read_pickled_chain(fn)
+                        full_chain.extend(this_chain.copy())
+                    except ValueError:
+                        print "Error loading %s." % fn
                     
                     i += 1
                     fn = '%s.%s.chain.pkl' % (self.prefix, str(i).zfill(3))  
@@ -1191,10 +1194,17 @@ class ModelSet(BlobFactory):
         mask = np.isnan(self.logL)
 
         self.logL[mask] = -np.inf
+        
+    def LinePlot(self, pars, ivar=None, ax=None, fig=1, c=None,
+        take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
+        **kwargs):
+        return self.Scatter(pars, ivar, ax=ax, fig=fig, c=c,
+            take_log=take_log, un_log=un_log, multiplier=multiplier, 
+            use_colorbar=use_colorbar, line_plot=True, **kwargs)
 
     def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
-        **kwargs):
+        line_plot=False, **kwargs):
         """
         Plot samples as points in 2-d plane.
     
@@ -1247,13 +1257,25 @@ class ModelSet(BlobFactory):
             cdata = data[p[2]].squeeze()
         else:
             cdata = None
+            
+        if line_plot:
+            # The ordering of the points doesn't matter
+            order = np.argsort(xdata)
+            xdata = xdata[order]
+            ydata = ydata[order]
+            if cdata is not None:
+                cdata = cdata[order]
+                        
+            func = ax.__getattribute__('plot')
+        else:
+            func = ax.__getattribute__('scatter')
 
         if hasattr(self, 'weights') and cdata is None:
-            scat = ax.scatter(xdata, ydata, c=self.weights, **kwargs)
+            scat = func(xdata, ydata, c=self.weights, **kwargs)
         elif cdata is not None:
-            scat = ax.scatter(xdata, ydata, c=cdata, **kwargs)
+            scat = func(xdata, ydata, c=cdata, **kwargs)
         else:
-            scat = ax.scatter(xdata, ydata, **kwargs)
+            scat = func(xdata, ydata, **kwargs)
                            
         if (cdata is not None) and use_colorbar:
             cb = self._cb = pl.colorbar(scat)
@@ -1751,57 +1773,76 @@ class ModelSet(BlobFactory):
             # Only derived blobs in this else block, yes?                        
             else:
                 
-                cand = sorted(glob.glob('%s*.%s.pkl' % (self.prefix, par)))
+                if re.search("\[", self.prefix):
+                    print "WARNING: filenames with brackets can cause problems for glob."
+                    print "       : replacing each occurence with '?'"
+                    _pre = self.prefix.replace('[', '?').replace(']', '?')
+                else:
+                    _pre = self.prefix
+                                
+                cand = sorted(glob.glob('%s*.%s.pkl' % (_pre, par)))
                 
                 if len(cand) == 0:
                     raise IOError('No results for %s*.%s.pkl' % (self.prefix, par))
                 # Only one option: go for it.
                 elif len(cand) == 1:
-                    f = open(cand[0], 'rb')     
-                    dat = pickle.load(f)
-                    f.close()
+                    fn = cand[0]
+                elif len(cand) == 2:
+                
+                    # This, for example, could happen for files named after
+                    # a parameter, like pop_fesc and pop_fesc_LW may get
+                    # confused, or pop_yield and pop_yield_index.
+                    pre1 = cand[0].partition('.')[0]
+                    pre2 = cand[1].partition('.')[0]
                     
-                    
-                    # What follows is real cludgey...sorry, future Jordan
-                    nd = len(dat.shape) #- 1
-                    dims = dat[0].shape
-                    #assert nd == 1, "Help!"
-                    
-                    # Need to figure out dimensions of derived blob,
-                    # which requires some care as that info will not simply
-                    # be stored in a binfo.pkl file.
-                    
-                    # Right now this may only work with 1-D blobs...
-                    if (nd == 2) and (ivar[k] is not None):
-                        
-                        fn_md = '%s.dbinfo.pkl' % self.prefix
-                        f = open(fn_md, 'r')
-                        dbinfo = {}
-                        while True:
-                            try:
-                                dbinfo.update(pickle.load(f))
-                            except EOFError:
-                                break
-                        
-                        # Look up the independent variables for this DB
-                        ivars = dbinfo[par]
-                        
-                        for iv in ivars:                            
-                            arr = np.array(ivars[iv]).squeeze()
-                            if arr.shape == dat[0].shape:
-                                break
-                        
-                        loc = np.argmin(np.abs(arr - ivar[k]))
- 
-                        val = dat[:,loc]
-                    elif nd > 2:
-                        raise NotImplementedError('help')
+                    if pre1 in pre2:         
+                        fn = cand[0]
                     else:
-                        val = dat
-                        
+                        fn = cand[1]
                 else:
-                    raise IOError('More than one result for %s*.%s.pkl' % (self.prefix, par))
-
+                    raise IOError('More than 2 options for %s*%s.pkl' % (self.prefix, par))
+                    
+                f = open(fn, 'rb')     
+                dat = pickle.load(f)
+                f.close()
+                
+                # What follows is real cludgey...sorry, future Jordan
+                nd = len(dat.shape) #- 1
+                dims = dat[0].shape
+                #assert nd == 1, "Help!"
+                
+                # Need to figure out dimensions of derived blob,
+                # which requires some care as that info will not simply
+                # be stored in a binfo.pkl file.
+                
+                # Right now this may only work with 1-D blobs...
+                if (nd == 2) and (ivar[k] is not None):
+                    
+                    fn_md = '%s.dbinfo.pkl' % self.prefix
+                    f = open(fn_md, 'r')
+                    dbinfo = {}
+                    while True:
+                        try:
+                            dbinfo.update(pickle.load(f))
+                        except EOFError:
+                            break
+                    
+                    # Look up the independent variables for this DB
+                    ivars = dbinfo[par]
+                    
+                    for iv in ivars:                            
+                        arr = np.array(ivars[iv]).squeeze()
+                        if arr.shape == dat[0].shape:
+                            break
+                    
+                    loc = np.argmin(np.abs(arr - ivar[k]))
+                
+                    val = dat[:,loc]
+                elif nd > 2:
+                    raise NotImplementedError('help')
+                else:
+                    val = dat
+                    
             # must handle log-ifying blobs separately
             if par not in self.parameters:
                 if take_log[k]:

@@ -163,7 +163,7 @@ class loglikelihood(LogLikelihood):
                 continue
 
             break
-            
+                        
         # Compute the luminosity function, goodness of fit, return
         phi = []
         for i, z in enumerate(self.redshifts):
@@ -175,7 +175,7 @@ class loglikelihood(LogLikelihood):
             # Generate model LF
             p = pop.LuminosityFunction(z=z, x=M, mags=True)
             phi.append(p)
-                            
+                              
         lnL = 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
         PofD = self.const_term - lnL
                     
