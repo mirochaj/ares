@@ -466,9 +466,15 @@ def PopulationParameters():
     "pop_yield_units": 'erg/s/sfr',
     "pop_yield_Z_index": None,
     
+    # Parameters for simple galaxy SAM
     "pop_metal_yield": 0.01,
+    "pop_mass_rec": 0.0,
+    "pop_mass_escape": 0.0,
+    "pop_fstar_res": 0.0,
     
+    # deprecated?
     "pop_kappa_UV": 1.15e-28,
+    
     "pop_L1600_per_sfr": None,
     "pop_calib_L1600": None,
     
@@ -699,9 +705,7 @@ def ControlParameters():
     
     "stop_igm_h_2": None,
     "stop_cgm_h_2": None,
-    
-    
-    
+        
     "track_extrema": False,
     "delay_extrema": 5,      # Number of steps
     "smooth_derivative": 0, 
@@ -724,6 +728,8 @@ def ControlParameters():
     "tau_arrays": None,
     "tau_prefix": tau_prefix,
     "tau_instance": None,
+
+    "sam_dz": 0.05,
 
     # File format
     "preferred_format": 'npz',

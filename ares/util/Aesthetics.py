@@ -287,9 +287,7 @@ class Labeler(object):
             return self.labels[par]
         
         prefix, popid, phpid = par_info(par)
-        
-        hard = self._find_par(popid, phpid)
-        
+                
         units = self.units(prefix)
         
         label = None
@@ -302,11 +300,17 @@ class Labeler(object):
             label = self.labels[prefix]
         elif phpid is not None and (prefix in self.labels):
             label = r'$%s[%.2g]$' % (undo_mathify(self.labels[prefix]), phpid)
-        elif hard is not None:
-            # If all else fails, just typset the parameter decently
-            parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
-            label = r'$%s\{%i\}[%i]<%i>$' % (hard.replace('_', '\_'),
-                popid, phpid, parnum)
+        elif (popid is not None) and (phpid is None) and (prefix not in self.labels):
+            try:
+                hard = self._find_par(popid, phpid)
+            except:
+                hard = None
+                
+            if hard is not None:    
+                # If all else fails, just typset the parameter decently
+                parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
+                label = r'$%s\{%i\}[%i]<%i>$' % (hard.replace('_', '\_'),
+                    popid, phpid, parnum)
 
         # Troubleshoot if label not found
         if label is None:            

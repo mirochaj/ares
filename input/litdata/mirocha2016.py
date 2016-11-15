@@ -132,6 +132,9 @@ dpl_fz = dpl.copy()
 dpl_fz.update(_fz_specific)
 dpl_Mz = dpl.copy()
 dpl_Mz.update(_Mz_specific)
+dpl_fz_Mz = dpl.copy()
+dpl_fz_Mz.update(_fz_specific)
+dpl_fz_Mz.update(_Mz_specific)
 
 _steep_fz = {}
 for key in _fz_specific:
