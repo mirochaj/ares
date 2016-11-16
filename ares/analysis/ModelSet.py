@@ -821,6 +821,8 @@ class ModelSet(BlobFactory):
         self._ax.add_patch(rect)
         self._ax.figure.canvas.draw()
         
+        print (lx, lx+dx, ly, ly+dy)
+        
         self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
                 
     def Slice(self, constraints, pars, ivar=None, take_log=False, 
@@ -1197,14 +1199,14 @@ class ModelSet(BlobFactory):
         
     def LinePlot(self, pars, ivar=None, ax=None, fig=1, c=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
-        **kwargs):
+        sort=True, **kwargs):
         return self.Scatter(pars, ivar, ax=ax, fig=fig, c=c,
             take_log=take_log, un_log=un_log, multiplier=multiplier, 
-            use_colorbar=use_colorbar, line_plot=True, **kwargs)
+            use_colorbar=use_colorbar, line_plot=True, sort=sort, **kwargs)
 
     def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
-        line_plot=False, **kwargs):
+        line_plot=False, sort=True, **kwargs):
         """
         Plot samples as points in 2-d plane.
     
@@ -1260,11 +1262,12 @@ class ModelSet(BlobFactory):
             
         if line_plot:
             # The ordering of the points doesn't matter
-            order = np.argsort(xdata)
-            xdata = xdata[order]
-            ydata = ydata[order]
-            if cdata is not None:
-                cdata = cdata[order]
+            if sort:
+                order = np.argsort(xdata)
+                xdata = xdata[order]
+                ydata = ydata[order]
+                if cdata is not None:
+                    cdata = cdata[order]
                         
             func = ax.__getattribute__('plot')
         else:
@@ -1284,6 +1287,7 @@ class ModelSet(BlobFactory):
         
         self._scat = scat
             
+        # Might use this for slicing 
         self.plot_info = {'pars': pars, 'ivar': ivar,
             'take_log': take_log, 'un_log':un_log, 'multiplier':multiplier}
             

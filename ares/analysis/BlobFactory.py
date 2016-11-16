@@ -421,9 +421,7 @@ class BlobFactory(object):
                             blob = np.array(map(func, x))
                         else:
                             blob = np.interp(x, func[0], func[1])
-                            
-                        print key, type(blob), blob.shape
-                                    
+                                                                
                 else:
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]

@@ -98,7 +98,8 @@ def _load(**kwargs):
         
         _raw_data = np.zeros_like(d1)
         for i, t in enumerate(times):
-            inter = interp1d(np.log10(Zv), to_interp[:,:,i], axis=0)
+            inter = interp1d(np.log10(Zv), to_interp[:,:,i], axis=0,
+                kind='linear')
             _raw_data[:,i] = inter(np.log10(kwargs['pop_Z']))
 
         data = 10**_raw_data
