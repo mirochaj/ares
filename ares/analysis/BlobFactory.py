@@ -428,16 +428,16 @@ class BlobFactory(object):
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]
                     tmp_f = parse_attribute(fname, self)
-
+                    
                     xarr, yarr = map(np.array, self.blob_ivars[i])
-
-                    if (type(tmp_f) is FunctionType):
+                    
+                    if (type(tmp_f) is FunctionType) or ismethod(tmp_f):
                         func = tmp_f
                     elif type(tmp_f) is tuple:
                         z, E, flux = tmp_f
                         func = RectBivariateSpline(z, E, flux)
                     else:
-                        raise TypeError('Sorry: don\'t understand blob %s' % name)
+                        raise TypeError('Sorry: don\'t understand blob %s' % key)
                     
                     blob = []
                     for x in xarr:
@@ -446,7 +446,7 @@ class BlobFactory(object):
                             tmp.append(func(x, y))
 
                         blob.append(tmp)
-                        
+                                                
                 this_group.append(np.array(blob))
 
             self._blobs.append(np.array(this_group))
