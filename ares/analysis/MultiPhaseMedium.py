@@ -168,14 +168,14 @@ class MultiPhaseMedium(object):
                 approx_highz=self.pf["approx_highz"])
             
         return self._cosm
-            
+
     @property
     def hydr(self):  
         if not hasattr(self, '_hydr'):      
             self._hydr = Hydrogen(cosm=self.cosm, **self.pf)
             
         return self._hydr                    
-                
+
     @property
     def data(self):
         if not hasattr(self, '_data'):
@@ -184,10 +184,17 @@ class MultiPhaseMedium(object):
                 self._data.add_data(self.history)
 
         return self._data
-                
+
+    @property
+    def blobs(self):
+        if not hasattr(self, '_blobs'):
+            with open('%s.blobs.pkl' % self.prefix) as f:
+                self._blobs = pickle.load(f)
+        return self._blobs
+
     def close(self):
-        pl.close('all')        
-    
+        pl.close('all')
+
     def draw(self):
         pl.draw()
     

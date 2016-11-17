@@ -301,17 +301,17 @@ class Hydrogen(object):
             return S
         else:
             raise NotImplementedError('approx_Sa must be in [1,2,3].')
-            
+
     def ELyn(self, n):
         """ Return energy of Lyman-n photon in eV. """
         return E_LL * (1. - 1. / n**2)
-        
+
     def Ts(self, z, Tk, Ja, xHII, ne):
         """
         Short-hand for calling `SpinTemperature`.
         """
         return self.SpinTemperature(z, Tk, Ja, xHII, ne)
-        
+
     def SpinTemperature(self, z, Tk, Ja, xHII, ne):
         """
         Returns spin temperature of intergalactic hydrogen.

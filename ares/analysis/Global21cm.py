@@ -638,13 +638,21 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         if len(dTb[:i_max]) < 2 or len(dTb[i_max:]) < 2:
             return -np.inf
-                
-        interp_l = interp1d(dTb[:i_max], z[:i_max], bounds_error=False, 
-            fill_value=-np.inf)
-        interp_r = interp1d(dTb[i_max:], z[i_max:], bounds_error=False, 
-            fill_value=-np.inf)
+            
+        # Need to restrict range to avoid double-valued-ness...? Might as well.
+        if absorption:
+            i_hi = np.argmin(np.abs(z - self.turning_points['B'][0]))
+        else:
+            i_hi = None    
         
-        # Interpolate to find frequencies where f_max occurs
+        # Break the data into two intervals: redshifts above and below
+        # the extremum.  
+        interp_l = interp1d(dTb[:i_max], z[:i_max], bounds_error=False, 
+            fill_value=-np.inf, kind='cubic')
+        interp_r = interp1d(dTb[i_max:i_hi], z[i_max:i_hi], bounds_error=False, 
+            fill_value=-np.inf, kind='cubic')
+        
+        # Interpolate to find redshifts where f_max occurs
         l = abs(interp_l(f_max))
         r = abs(interp_r(f_max))
         

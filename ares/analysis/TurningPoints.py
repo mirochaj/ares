@@ -150,8 +150,8 @@ class TurningPoints(object):
             #    self.guess_from_signal(TP, z[k:-1], dTb[k:-1])
                                                                                                          
             # Spline interpolation to get "final" extremum redshift
-            for k in [3, 2]:
-                Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=k)
+            for ll in [3, 2]:
+                Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=ll)
                     
                 if TP in ['B', 'D']:
                     dTb_fit = lambda zz: -splev(zz, Bspl_fit1)
@@ -167,7 +167,7 @@ class TurningPoints(object):
                 # Contingencies....
                 if self.is_crazy(TP, zTP, TTP):    
                     
-                    if k == 2:
+                    if ll == 2:
                         self.turning_points[TP] = (-np.inf, -np.inf, -np.inf)
                     else:
                         continue

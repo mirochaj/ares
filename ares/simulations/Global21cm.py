@@ -578,9 +578,11 @@ class Global21cm(AnalyzeGlobal21cm):
                 f.close()
                 
             if self.blobs:
+                wrote_blobs = True
                 f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
                 pickle.dump(self.blobs, f)
                 f.close()
+                print 'Wrote %s.blobs.%s' % (prefix, suffix)
     
         elif suffix in ['hdf5', 'h5']:
             import h5py
