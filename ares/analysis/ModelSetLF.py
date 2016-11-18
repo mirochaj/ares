@@ -138,7 +138,8 @@ class ModelSetLF(ModelSet):
         ivars = self.blob_ivars[info[0]]
 
         # We assume that ivars are [redshift, magnitude]
-        mags_disk = ivars[1] + self.dc.AUV(z, ivars[1])
+        mags_disk = ivars[1]
+        mags_w_dc = mags_disk - self.dc.AUV(z, ivars[1])
         
         loc = np.argmax(self.logL[skip:stop])
 
@@ -163,13 +164,13 @@ class ModelSetLF(ModelSet):
                 for element in zeros:
                     phi[element[0],element[1]] = 1e-15
 
-            ax.fill_between(mags_disk, phi[0], phi[1], **kwargs)
+            ax.fill_between(mags_w_dc, phi[0], phi[1], **kwargs)
             ax.set_yscale('log')
         else:
             if take_log:
                 phi = 10**phi
             
-            ax.semilogy(mags_disk, phi, **kwargs)
+            ax.semilogy(mags_w_dc, phi, **kwargs)
 
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')
         ax.set_ylabel(r'$\phi(M)$')

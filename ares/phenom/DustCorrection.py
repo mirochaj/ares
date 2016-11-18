@@ -14,11 +14,13 @@ import numpy as np
 from types import FunctionType
 from ..util import ParameterFile
 
-_coeff = {'meurer1999': [4.43, 1.99],
-          'pettini1998': [1.49, 0.68],
-          'capak2015': [0.312, 0.176],
-          }
-
+_coeff = \
+{
+ 'meurer1999': [4.43, 1.99],
+ 'pettini1998': [1.49, 0.68],
+ 'capak2015': [0.312, 0.176],
+}
+          
 class DustCorrection(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
@@ -31,11 +33,11 @@ class DustCorrection(object):
             elif type(self.pf['dustcorr_method']) is list:
                 meth = self.pf['dustcorr_method']
                 self._method = \
-                    [meth[i].lower() for i in range(len(meth))]   
+                    [meth[i] for i in range(len(meth))]   
                     
                 assert len(self._method) == len(self.pf['dustcorr_ztrans'])
             else:
-                self._method = self.pf['dustcorr_method'].lower()
+                self._method = self.pf['dustcorr_method']
 
         return self._method
 	
@@ -53,7 +55,7 @@ class DustCorrection(object):
 		            continue
 		        if i == (len(self.method) - 1):
 		            break    
-		        if z < self.pf['dustcorr_ztrans'][i+1]:
+		        if z <= self.pf['dustcorr_ztrans'][i+1]:
 		            break
 		else:
 		    method = self.method
@@ -93,14 +95,14 @@ class DustCorrection(object):
         else:
             return self.pf['dustcorr_beta']
     
-    def beta0(self, z):
+    def _bouwens2014_beta0(self, z):
     	"""
     	Get the measured UV continuum slope from Bouwens+2014 (Table 3).
     	"""
     	_z = np.round(z,0)
     	
     	if _z < 4.0:
-        	raise ValueError('z is out of bounds')
+        	val = -1.70; err_rand = 0.07; err_sys = 0.15
     	elif _z == 4.0:
         	val = -1.85; err_rand = 0.01; err_sys = 0.06
     	elif _z == 5.0:
@@ -118,12 +120,12 @@ class DustCorrection(object):
     	return [val, err_rand, err_sys]
     
     
-    def dbeta0_dM0(self, z):
+    def _bouwens2014_dbeta0_dM0(self, z):
     	''' Get the measured slope of the UV continuum slope from Bouwens+2014 '''
     	_z = np.round(z,0)
     	
     	if _z < 4.0:
-        	raise ValueError('z is out of bounds')
+        	val = -0.2; err = 0.04
     	elif _z == 4.0:
         	val = -0.11; err = 0.01
     	elif _z == 5.0:
@@ -143,11 +145,17 @@ class DustCorrection(object):
     def _beta_fit(self, z, mag):
     	''' An linear + exponential fit to Bouwens+14 data adopted from Mason+2015 '''
     	
-    	if self.pf['dustcorr_beta'].lower() == 'bouwens2012':
+    	if self.pf['dustcorr_beta'] == 'bouwens2012':
     	    # This is mentioned in the caption of Smit et al. 2012 Fig 1
     	    dbeta_dMUV = -0.11
     	    return dbeta_dMUV * (mag + 19.5) - 2.00
-    	elif self.pf['dustcorr_beta'].lower() == 'mason2015':
+    	
+    	elif self.pf['dustcorr_beta'] == 'bouwens2014':
+    	    # His Table 3
+    	    beta0 = self._bouwens2014_beta0(z)[0]
+            dbeta_dMUV = self._bouwens2014_dbeta0_dM0(z)[0]
+            return dbeta_dMUV * (mag + 19.5) + beta0    
+    	elif self.pf['dustcorr_beta'] == 'mason2015':
     	    _M0 = -19.5; _c = -2.33
             
     	    # Must handle piecewise function carefully for arrays of magnitudes
@@ -155,7 +163,7 @@ class DustCorrection(object):
     	    if type(mag) == np.ndarray:
     	        assert np.all(np.diff(mag) > 0), \
     	            "Magnitude values must be increasing!"
-            
+
     	        Mlo = mag[mag < _M0]
     	        Mhi = mag[mag >= _M0]
     	        Alo = self.dbeta0_dM0(z)[0]*(Mlo - _M0) + self.beta0(z)[0]
