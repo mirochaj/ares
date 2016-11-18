@@ -52,7 +52,7 @@ rates = \
 derived = \
 {
  'Ts': r'$T_S$',
- 'dTb': r'$\delta T_b \ (\mathrm{mK})$',
+ 'dTb_w_units': r'$\delta T_b \ (\mathrm{mK})$',
 }
 
 labels = {}

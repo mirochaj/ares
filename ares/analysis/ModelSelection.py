@@ -13,6 +13,7 @@ Description:
 import numpy as np
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
+from mpl_toolkits.axes_grid import inset_locator
 
 class ModelSelection(object):
     def __init__(self, msets):
@@ -20,9 +21,10 @@ class ModelSelection(object):
         Initialize object for comparing results of different fits.
         
         ..note:: Not really model selection by any rigorous definition at 
-            this point.
+            this point. Chill out.
             
         """
+        
         self.msets = msets
         
         assert type(self.msets) is list
@@ -82,4 +84,24 @@ class ModelSelection(object):
             
         return results
             
-                
+    def ControlPanel(self, fig=1, ax=None, parameters=None, **kwargs):
+        """
+        Make a plot with a spot for 'sliders' showing parameter values.
+        """
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+            
+        for s in self.msets:
+            assert s.Nd == 1
+            
+            inset = inset_locator.inset_axes(ax, 
+                width='{0}%'.format(100 * width), 
+                height='{0}%'.format(100 * height), 
+                loc=loc, borderpad=borderpad)    
+
+
+

@@ -1798,8 +1798,11 @@ class ModelSet(BlobFactory):
                     _pre = self.prefix.replace('[', '?').replace(']', '?')
                 else:
                     _pre = self.prefix
-                                
-                cand = sorted(glob.glob('%s*.%s.pkl' % (_pre, par)))
+                
+                cand = sorted(glob.glob('%s.*.%s.pkl' % (_pre, par)))
+                
+                if len(cand) == 0:
+                    cand = sorted(glob.glob('%s*.%s.pkl' % (_pre, par)))
                 
                 if len(cand) == 0:
                     raise IOError('No results for %s*.%s.pkl' % (self.prefix, par))
@@ -1819,6 +1822,7 @@ class ModelSet(BlobFactory):
                     else:
                         fn = cand[1]
                 else:
+                    print cand
                     raise IOError('More than 2 options for %s*%s.pkl' % (self.prefix, par))
                     
                 f = open(fn, 'rb')     
