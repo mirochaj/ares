@@ -42,7 +42,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             
         if hasattr(MultiPhaseMedium, name):
             return MultiPhaseMedium.__dict__[name].__get__(self, MultiPhaseMedium)
-                                                                              
+                                                                                   
         # Indicates that this attribute is being accessed from within a 
         # property. Don't want to override that behavior!
         if (name[0] == '_'):
@@ -50,6 +50,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
 
         # Now, possibly make an attribute
         if name not in self.__dict__.keys():
+                        
             # See if this is a turning point
             spl = name.split('_')
                                                 
@@ -89,6 +90,9 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                     self.__dict__[name] = self.derivative_of_z(z)
                 elif quantity == 'curvature':
                     self.__dict__[name] = self.curvature_of_z(z)
+                elif name in self.all_blob_names:
+                    # Only works if scalar blob
+                    self.__dict__[name] = self.get_blob(name)
                 else:
                     raise KeyError('Unrecognized quantity: %s' % quantity)
 
@@ -100,7 +104,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             self._z_p, self._dTbdz = \
                 central_difference(self.data_asc['z'], self.data_asc['dTb'])
         return self._dTbdz
-    
+
     @property
     def dTbdnu(self):
         if not hasattr(self, '_dTbdnu'):
@@ -646,15 +650,28 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             i_hi = None    
         
         # Break the data into two intervals: redshifts above and below
-        # the extremum.  
-        interp_l = interp1d(dTb[:i_max], z[:i_max], bounds_error=False, 
-            fill_value=-np.inf, kind='cubic')
-        interp_r = interp1d(dTb[i_max:i_hi], z[i_max:i_hi], bounds_error=False, 
-            fill_value=-np.inf, kind='cubic')
+        # the extremum. Interpolate to find desired point.
+        # This is pretty unbreakable but there are occasionally small errors
+        for method in ['cubic', 'quadratic', 'linear']:
+            try:
+                # At this point, the signal is rising
+                interp_l = interp1d(dTb[:i_max], z[:i_max], 
+                    bounds_error=False, fill_value=-np.inf, kind=method)
+                # At this point, the signal is getting more negative
+                interp_r = interp1d(dTb[i_max:i_hi], z[i_max:i_hi],
+                    bounds_error=False, fill_value=-np.inf, kind=method)
+                break
+            except np.linalg.linalg.LinAlgError:
+                continue
         
         # Interpolate to find redshifts where f_max occurs
         l = abs(interp_l(f_max))
         r = abs(interp_r(f_max))
+        
+        #import matplotlib.pyplot as pl
+        #
+        #pl.plot(z[:i_max], dTb[:i_max])
+        #pl.plot(z[i_max:i_hi], dTb[i_max:i_hi])
         
         if np.any(np.isinf([l, r])):
             return -np.inf

@@ -1199,14 +1199,15 @@ class ModelSet(BlobFactory):
         
     def LinePlot(self, pars, ivar=None, ax=None, fig=1, c=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
-        sort=True, **kwargs):
+        sort_by='z', **kwargs):
         return self.Scatter(pars, ivar, ax=ax, fig=fig, c=c,
             take_log=take_log, un_log=un_log, multiplier=multiplier, 
-            use_colorbar=use_colorbar, line_plot=True, sort=sort, **kwargs)
+            use_colorbar=use_colorbar, line_plot=True, sort_by=sort_by, 
+            **kwargs)
 
     def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
-        line_plot=False, sort=True, **kwargs):
+        line_plot=False, sort_by='z', **kwargs):
         """
         Plot samples as points in 2-d plane.
     
@@ -1262,25 +1263,39 @@ class ModelSet(BlobFactory):
             
         if line_plot:
             # The ordering of the points doesn't matter
-            if sort:
-                order = np.argsort(xdata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                if cdata is not None:
-                    cdata = cdata[order]
-                        
+            if sort_by == 'z' and (cdata is not None):
+                    order = np.argsort(cdata)
+                    xdata = xdata[order]
+                    ydata = ydata[order]
+                    cdata = cdata[order]                    
+            elif sort_by == 'x':
+                    order = np.argsort(xdata)
+                    xdata = xdata[order]
+                    ydata = ydata[order]
+                    
+                    if cdata is not None:
+                        cdata = cdata[order]
+            
+            elif sort_by == 'y':
+                    order = np.argsort(ydata)
+                    xdata = xdata[order]
+                    ydata = ydata[order]
+            
+                    if cdata is not None:
+                        cdata = cdata[order]            
+                                            
             func = ax.__getattribute__('plot')
         else:
             func = ax.__getattribute__('scatter')
 
         if hasattr(self, 'weights') and cdata is None:
             scat = func(xdata, ydata, c=self.weights, **kwargs)
-        elif cdata is not None:
+        elif cdata is not None and (sort_by != 'z'):
             scat = func(xdata, ydata, c=cdata, **kwargs)
         else:
             scat = func(xdata, ydata, **kwargs)
                            
-        if (cdata is not None) and use_colorbar:
+        if (cdata is not None) and use_colorbar and (sort_by != 'z'):
             cb = self._cb = pl.colorbar(scat)
         else:
             cb = None

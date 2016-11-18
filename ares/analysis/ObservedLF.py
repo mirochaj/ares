@@ -14,6 +14,7 @@ import numpy as np
 from ..util import read_lit
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
+from matplotlib.patches import Patch
 
 all_datasets = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
     'parsa2016', 'finkelstein2015', 'vanderburg2010')
@@ -221,7 +222,7 @@ class ObservedLF(object):
         return ax
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
-        panel_size=(0.75,0.75), fig=1, legends=None):
+        panel_size=(0.75,0.75), fig=1, ymax=10, legends=None):
         """
         Plot the luminosity function at a bunch of different redshifts.
         
@@ -253,7 +254,8 @@ class ObservedLF(object):
             redshifts = np.sort(redshifts)
             
         # Create multiplot
-        mp = MultiPanel(dims=dims, panel_size=panel_size, fig=fig, padding=[0.2]*2)
+        mp = MultiPanel(dims=dims, panel_size=panel_size, fig=fig, 
+            padding=[0.2]*2)
         
         self.redshifts_in_mp = []
         for i, z in enumerate(redshifts):
@@ -267,13 +269,17 @@ class ObservedLF(object):
             
             ax.annotate(r'$z \sim %i$' % (round(z)), (0.05, 0.95), 
                 ha='left', va='top', xycoords='axes fraction')
+        
+        mp.fix_ticks(rotate_x=45)
+                
+        for i, z in enumerate(redshifts):
+            k = mp.elements.ravel()[i]
+            ax = mp.grid[k]
             ax.set_xlim(-24, -14.)
             ax.set_ylim(1e-7, 1e-1)
             ax.set_xticks(np.arange(-23, -13, 2), minor=True)
-            ax.set_yscale('log', nonposy='clip')
+            ax.set_yscale('log', nonposy='clip')        
             
-        mp.fix_ticks(rotate_x=45)
-        
         return mp
             
     def annotated_legend(self, ax, loc=(0.95, 0.05), sources='all'):   

@@ -34,7 +34,7 @@ class ModelSetLF(ModelSet):
     @property
     def dc(self):
         if not hasattr(self, '_dc'):
-            self._dc = DustCorrection()
+            self._dc = DustCorrection(**self.base_kwargs)
         return self._dc
     
     def get_data(self, z):
@@ -138,11 +138,8 @@ class ModelSetLF(ModelSet):
         ivars = self.blob_ivars[info[0]]
 
         # We assume that ivars are [redshift, magnitude]
-        mags_disk = ivars[1]
-        #
-        #if self.pf['pop_lf_dustcorr{%i}' % popid]:
-        #mags_disk += self.dc.AUV(z, mags_disk)
-
+        mags_disk = ivars[1] + self.dc.AUV(z, ivars[1])
+        
         loc = np.argmax(self.logL[skip:stop])
 
         phi = []

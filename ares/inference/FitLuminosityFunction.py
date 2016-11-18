@@ -169,16 +169,16 @@ class loglikelihood(LogLikelihood):
         for i, z in enumerate(self.redshifts):
             xdat = np.array(self.xdata[i])
         
-            # Apply dust correction to observed data, which is uncorrected
-            M = xdat - pop.dust.AUV(z, xdat) 
-            
+            # Evaluate LF at dust-corrected magnitudes
+            M = xdat - pop.dust.AUV(z, xdat)
+
             # Generate model LF
             p = pop.LuminosityFunction(z=z, x=M, mags=True)
             phi.append(p)
-                              
+
         lnL = 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
         PofD = self.const_term - lnL
-                                        
+
         if np.isnan(PofD):
             return -np.inf, self.blank_blob
 
