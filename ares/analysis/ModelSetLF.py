@@ -66,7 +66,7 @@ class ModelSetLF(ModelSet):
         
         sfe = []
         for i, mass in enumerate(M):
-            data, is_log = self.ExtractData(name, ivar=[z, mass],
+            data = self.ExtractData(name, ivar=[z, mass],
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
         
             if not shade_by_like:
@@ -104,7 +104,7 @@ class ModelSetLF(ModelSet):
         
     def LuminosityFunction(self, z, ax=None, fig=1, compare_to=None, popid=0, 
         name='galaxy_lf', shade_by_like=False, like=0.685, scatter_kwargs={}, 
-        Mlim=(-24, -10), N=1, take_log=False, un_log=False,
+        Mlim=(-24, -10), samples=1, take_log=False, un_log=False,
         multiplier=1, skip=0, stop=None, **kwargs):
         """
         Plot the luminosity function used to train the SFE.
@@ -139,6 +139,8 @@ class ModelSetLF(ModelSet):
 
         # We assume that ivars are [redshift, magnitude]
         mags_disk = ivars[1]
+        
+        # Apply dust correction
         mags_w_dc = mags_disk - self.dc.AUV(z, ivars[1])
         
         loc = np.argmax(self.logL[skip:stop])
@@ -149,6 +151,11 @@ class ModelSetLF(ModelSet):
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
 
             if not shade_by_like:
+                #if samples > 1:
+                #    size = len(data[name][skip:stop])
+                #    phi = [data[name][skip:stop][kk] \
+                #        for kk in np.random.randint(0, high=samples, size=size)]
+                #else:
                 phi.append(data[name][skip:stop][loc])
             else:
                 lo, hi = np.percentile(data[name][skip:stop], (q1, q2))
@@ -170,6 +177,9 @@ class ModelSetLF(ModelSet):
             if take_log:
                 phi = 10**phi
             
+            #if samples > 1:
+            #    ax.semilogy(mags_w_dc, np.array(phi).T, **kwargs)
+            #else:    
             ax.semilogy(mags_w_dc, phi, **kwargs)
 
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')
@@ -203,7 +213,7 @@ class ModelSetLF(ModelSet):
         
         alpha = []
         for i, mag in enumerate(M):
-            data, is_log = self.ExtractData(name, ivar=[z, M[i]])
+            data = self.ExtractData(name, ivar=[z, M[i]])
             
             if best_only:
                 alpha.append(data[name][loc])

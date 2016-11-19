@@ -77,6 +77,12 @@ class ModelGrid(ModelFit):
         else:
             save_by_proc = False
             prefix_by_proc = prefix
+            
+        # Need to see if we're running with the same number of processors
+        if save_by_proc:
+            fn_size_p1 = '%s.%s.chain.pkl' % (prefix, str(size+1).zfill(3))
+            if os.path.exists(fn_size_p1):
+                raise IOError('Original grid run with more processors!')
 
         # Read in current status of model grid
         chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
@@ -305,8 +311,16 @@ class ModelGrid(ModelFit):
 
         # Print out how many models we have (left) to compute
         if restart and self.grid.structured:
-            print "Update (processor #%i): %i models down, %i to go." \
-                % (rank, ct0, Nleft)
+            if rank == 0:
+                Ndone = self.done[self.done >= 0].sum()
+                Ntot = self.done.size
+                print "Update               : %i models down, %i to go." \
+                    % (Ndone, Ntot - Ndone)
+            
+            MPI.COMM_WORLD.Barrier()    
+                
+            print "Update (processor #%i): Running %i more models." \
+                % (rank, Nleft)
 
         elif rank == 0:
             if restart:
