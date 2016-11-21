@@ -75,16 +75,6 @@ class DustCorrection(object):
 		
 		return np.maximum(AUV, 0.0)
 		
-    def EvolvDC(self, z, mag, z1=5.0, z2=6.0):
-    	# Stepwise correction for the given thresholds z1 & z2
-    	if z < z1:
-    		return self.MeurerDC(z, mag)
-    	elif (z >= z1) & (z < z2):
-    		return self.PettiniDC(z, mag)
-    	else:
-    		return self.CapakDC(z, mag) 
-    	
-    
     #   ==========   Parametrization of Beta   ==========   #
     def Beta(self, z, mag):
         

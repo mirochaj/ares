@@ -214,15 +214,15 @@ class ObservedLF(object):
         ax.set_yscale('log', nonposy='clip')    
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
         ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        ax.set_xlim(-25.5, -10)
-        ax.set_xticks(np.arange(-25, -10, 1), minor=True)
+        ax.set_xlim(-26.5, -10)
+        ax.set_xticks(np.arange(-26, -10, 1), minor=True)
         
         pl.draw()
         
         return ax
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
-        panel_size=(0.75,0.75), fig=1, ymax=10, legends=None):
+        panel_size=(0.75,0.75), fig=1, ymax=10, legends=None, AUV=None):
         """
         Plot the luminosity function at a bunch of different redshifts.
         
@@ -265,7 +265,7 @@ class ObservedLF(object):
             # Where in the MultiPlot grid are we?
             self.redshifts_in_mp.append(k)
                         
-            self.Plot(z, sources=sources, round_z=round_z, ax=ax)
+            self.Plot(z, sources=sources, round_z=round_z, ax=ax, AUV=AUV)
             
             ax.annotate(r'$z \sim %i$' % (round(z)), (0.05, 0.95), 
                 ha='left', va='top', xycoords='axes fraction')

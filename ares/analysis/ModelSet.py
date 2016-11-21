@@ -218,10 +218,7 @@ class ModelSet(BlobFactory):
     @property
     def mask(self):
         if not hasattr(self, '_mask'):
-            if self.is_mcmc:
-                self._mask = np.zeros_like(self.logL)
-            else:
-                self._mask = np.zeros(self.chain.shape[0])
+            self._mask = np.zeros(self.chain.shape[0])
         return self._mask
     
     @mask.setter
@@ -345,6 +342,8 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_is_mcmc'):
             if os.path.exists('%s.logL.pkl' % self.prefix):
                 self._is_mcmc = True
+            elif glob.glob('%s.dd*.logL.pkl' % self.prefix):
+                self._is_mcmc = True    
             else:
                 self._is_mcmc = False
 
@@ -481,7 +480,8 @@ class ModelSet(BlobFactory):
                     i += 1
                     fn = '%s.%s.chain.pkl' % (self.prefix, str(i).zfill(3))  
                     
-                self._chain = np.ma.array(full_chain, mask=0)
+                self._chain = np.ma.array(full_chain, 
+                    mask=np.zeros_like(full_chain))
 
                 # So we don't have to stitch them together again.
                 # THIS CAN BE REALLY CONFUSING IF YOU, E.G., RUN A NEW
@@ -512,10 +512,16 @@ class ModelSet(BlobFactory):
                         print "Found no output: %s" % fn
                         continue
                     
+                    if rank == 0:
+                        print "Loaded %s." % fn
+                    
                     this_chain = read_pickled_chain(fn)                                    
                     full_chain.extend(this_chain.copy())                    
                     
-                self._chain = np.ma.array(full_chain, mask=0)
+                full_chain = np.array(full_chain)    
+                    
+                self._chain = np.ma.array(full_chain, 
+                    mask=np.zeros_like(full_chain))
 
             else:
                 self._chain = None            
@@ -1028,21 +1034,32 @@ class ModelSet(BlobFactory):
     def plot_info(self, value):
         self._plot_info = value
         
-    def WalkerTrajectoriesMultiPlot(self, pars=None, N=50, walkers='random', ax=None, fig=1,
-        mp_kwargs={}, **kwargs):
+    def WalkerTrajectoriesMultiPlot(self, pars=None, N=50, walkers='random', 
+        ax=None, fig=1, mp_kwargs={}, best_fit='mode', **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
         """
+        
         if pars is None:
             pars = self.parameters
         
         Npars = len(pars)
-        mp = MultiPanel(dims=(Npars, 1), **mp_kwargs)
+        mp = MultiPanel(dims=(Npars, 1), fig=fig, **mp_kwargs)
         
         w = self._get_walker_subset(N, walkers)
         
+        if best_fit == 'median':
+            N = len(self.logL)
+            loc = np.sort(self.logL)[int(N / 2.)]
+        elif best_fit == 'mode':
+            loc = np.argmax(self.logL)
+        
         for i, par in enumerate(pars):
-            self.Trajectories(par, walkers=w, ax=mp.grid[i], **kwargs)
+            self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i], **kwargs)
+            
+            mp.grid[i].plot([0, self.chain[:,i].size / float(self.nwalkers)], 
+                [self.chain[loc,i]]*2, color='k', ls='--', lw=5)
+            
             
         mp.fix_ticks()    
             
@@ -1271,16 +1288,18 @@ class ModelSet(BlobFactory):
         self.logL[mask] = -np.inf
         
     def LinePlot(self, pars, ivar=None, ax=None, fig=1, c=None,
-        take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
-        sort_by='z', **kwargs):
-        return self.Scatter(pars, ivar, ax=ax, fig=fig, c=c,
+        take_log=False, un_log=False, multiplier=1., use_colorbar=False, 
+        sort_by='z', filter_z=None, **kwargs):
+        ax = self.Scatter(pars, ivar=None, ax=ax, fig=fig, c=c,
             take_log=take_log, un_log=un_log, multiplier=multiplier, 
             use_colorbar=use_colorbar, line_plot=True, sort_by=sort_by, 
             **kwargs)
 
+        return ax
+
     def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
-        line_plot=False, sort_by='z', **kwargs):
+        line_plot=False, sort_by='z', filter_z=None, **kwargs):
         """
         Plot samples as points in 2-d plane.
     
@@ -1337,40 +1356,47 @@ class ModelSet(BlobFactory):
         if line_plot:
             # The ordering of the points doesn't matter
             if sort_by == 'z' and (cdata is not None):
-                    order = np.argsort(cdata)
-                    xdata = xdata[order]
-                    ydata = ydata[order]
-                    cdata = cdata[order]                    
+                order = np.argsort(cdata)
+                xdata = xdata[order]
+                ydata = ydata[order]
+                cdata = cdata[order]                    
             elif sort_by == 'x':
-                    order = np.argsort(xdata)
-                    xdata = xdata[order]
-                    ydata = ydata[order]
-                    
-                    if cdata is not None:
-                        cdata = cdata[order]
-            
+                order = np.argsort(xdata)
+                xdata = xdata[order]
+                ydata = ydata[order]
+                if cdata is not None:
+                    cdata = cdata[order]
             elif sort_by == 'y':
-                    order = np.argsort(ydata)
-                    xdata = xdata[order]
-                    ydata = ydata[order]
-            
-                    if cdata is not None:
-                        cdata = cdata[order]            
+                order = np.argsort(ydata)
+                xdata = xdata[order]
+                ydata = ydata[order]
+                if cdata is not None:
+                    cdata = cdata[order]            
                                             
             func = ax.__getattribute__('plot')
         else:
             func = ax.__getattribute__('scatter')
-
+            
+        if filter_z is not None:
+            _condition = np.equal(cdata, filter_z)
+            if not np.any(_condition):
+                print "No instances of %s=%.4g" % (p[2], filter_z)
+                return
+            
+            xdata = xdata[_condition]
+            ydata = ydata[_condition]
+            cdata = cdata[_condition]
+            
         if hasattr(self, 'weights') and cdata is None:
             scat = func(xdata, ydata, c=self.weights, **kwargs)
-        elif line_plot and (cdata is not None) and (sort_by != 'z'):
-            scat = func(xdata, ydata, c=cdata, **kwargs)
+        elif line_plot:
+            scat = func(xdata, ydata, **kwargs)
         elif cdata is not None:
             scat = func(xdata, ydata, c=cdata, **kwargs)
         else:
             scat = func(xdata, ydata, **kwargs)
                            
-        if (cdata is not None) and use_colorbar and (sort_by != 'z'):
+        if (cdata is not None) and use_colorbar and (not line_plot):
             cb = self._cb = pl.colorbar(scat)
         else:
             cb = None
@@ -2268,8 +2294,8 @@ class ModelSet(BlobFactory):
                 b = bins
                                                 
             if hasattr(tohist, 'compressed'):
-                tohist = tohist.compressed()            
-                        
+                tohist = tohist.compressed()    
+                                        
             hist, bin_edges = \
                 np.histogram(tohist, density=True, bins=b, weights=weights)
 
@@ -2786,7 +2812,7 @@ class ModelSet(BlobFactory):
                         tohist = [to_hist[j]]
                     except KeyError:
                         tohist = [to_hist[p2]]
-
+                        
                     # Plot the PDF
                     ax = self.PosteriorPDF(p1, ax=mp.grid[k], 
                         to_hist=tohist,

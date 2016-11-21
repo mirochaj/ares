@@ -169,8 +169,11 @@ class loglikelihood(LogLikelihood):
         for i, z in enumerate(self.redshifts):
             xdat = np.array(self.xdata[i])
         
-            # Evaluate LF at observed magnitudes
-            M = xdat + pop.dust.AUV(z, xdat)
+            # Dust correction for observed galaxies
+            AUV = pop.dust.AUV(z, xdat)
+            
+            # Compare data to model at dust-corrected magnitudes
+            M = xdat - AUV
 
             # Generate model LF
             p = pop.LuminosityFunction(z=z, x=M, mags=True)
@@ -187,8 +190,6 @@ class loglikelihood(LogLikelihood):
         #except:
         #    blobs = self.blank_blob   
             
-        #print lp + PofD 
-
         del sim, kw
         gc.collect()
         

@@ -63,17 +63,17 @@ class ModelSelection(object):
             ax = self.ms(i).TrianglePlot(pars, ax=ax, fig=fig, **kwargs)
     
         return ax  
-    
+
     def ReconstructedFunction(self, name, ivar=None, ax=None, fig=1, **kwargs):
         """
         PDFs from two different calculations.
         """
-    
+
         for i in range(self.Nsets):
             ax = self.ms(i).ReconstructedFunction(name, ivar, ax=ax, fig=fig, 
                 **kwargs)
-    
-        return ax      
+
+        return ax
         
     def DeriveBlob(self, expr, varmap, save=True, name=None, clobber=False):
         results = []

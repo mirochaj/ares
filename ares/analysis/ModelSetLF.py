@@ -140,8 +140,8 @@ class ModelSetLF(ModelSet):
         # We assume that ivars are [redshift, magnitude]
         mags_disk = ivars[1]
         
-        # Apply dust correction
-        mags_w_dc = mags_disk - self.dc.AUV(z, ivars[1])
+        # Redden the model LF. Just kidding! Don't. Seriously, don't. 
+        mags_w_dc = mags_disk
         
         if best_fit == 'mode':
             loc = np.argmax(self.logL[skip:stop])
@@ -151,15 +151,19 @@ class ModelSetLF(ModelSet):
             loc = np.argsort(self.logL[skip:stop])[int(_N/float(2))]
     
         phi = []
+        # Want to grab phi(M) values using *intrinsic* magnitudes,
+        # i.e., uncorrected for dust
         for i, mag in enumerate(mags_disk):
             data = self.ExtractData(name, ivar=[z, mag],
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
-
-            if not shade_by_like:
-                phi.append(data[name][skip:stop][loc])
-            else:
+                
+            if shade_by_like:
                 lo, hi = np.percentile(data[name][skip:stop], (q1, q2))
                 phi.append((lo, hi))    
+            elif samples > 1:
+                phi.append(data[name][skip:stop])
+            else:
+                phi.append(data[name][skip:stop][loc])
 
         if shade_by_like:
             phi = np.array(phi).T
@@ -177,15 +181,17 @@ class ModelSetLF(ModelSet):
             if take_log:
                 phi = 10**phi
             
-            #if samples > 1:
-            #    ax.semilogy(mags_w_dc, np.array(phi).T, **kwargs)
-            #else:    
-            ax.semilogy(mags_w_dc, phi, **kwargs)
+            if samples > 1:
+                p = np.array(phi)
+                for i in range(samples):
+                    ax.semilogy(mags_w_dc, p[:,i], **kwargs)
+            else:    
+                ax.semilogy(mags_w_dc, phi, **kwargs)
 
         ax.set_xlabel(r'$M_{\mathrm{UV}}$')
         ax.set_ylabel(r'$\phi(M)$')
         ax.set_ylim(1e-8, 10)
-        ax.set_xlim(-25, -10)
+        ax.set_xlim(-26, -10)
         pl.draw()
 
         return ax

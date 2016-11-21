@@ -651,27 +651,18 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         # Break the data into two intervals: redshifts above and below
         # the extremum. Interpolate to find desired point.
-        # This is pretty unbreakable but there are occasionally small errors
-        for method in ['cubic', 'quadratic', 'linear']:
-            try:
-                # At this point, the signal is rising
-                interp_l = interp1d(dTb[:i_max], z[:i_max], 
-                    bounds_error=False, fill_value=-np.inf, kind=method)
-                # At this point, the signal is getting more negative
-                interp_r = interp1d(dTb[i_max:i_hi], z[i_max:i_hi],
-                    bounds_error=False, fill_value=-np.inf, kind=method)
-                break
-            except np.linalg.linalg.LinAlgError:
-                continue
-        
+        # I've experimented with cubic/quadratic and most of the time they
+        # work fine but in some cases they give nonsensical results for no
+        # apparent reason.
+        interp_l = interp1d(dTb[:i_max], z[:i_max], 
+            bounds_error=False, fill_value=-np.inf, kind='linear')
+        # At this point, the signal is getting more negative
+        interp_r = interp1d(dTb[i_max:i_hi], z[i_max:i_hi],
+            bounds_error=False, fill_value=-np.inf, kind='linear')
+
         # Interpolate to find redshifts where f_max occurs
         l = abs(interp_l(f_max))
         r = abs(interp_r(f_max))
-        
-        #import matplotlib.pyplot as pl
-        #
-        #pl.plot(z[:i_max], dTb[:i_max])
-        #pl.plot(z[i_max:i_hi], dTb[i_max:i_hi])
         
         if np.any(np.isinf([l, r])):
             return -np.inf

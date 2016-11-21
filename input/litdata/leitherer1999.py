@@ -40,15 +40,6 @@ info = \
  'flux_units': r'$\mathrm{erg} \ \mathrm{s}^{-1} \ \AA^{-1}$',
 }
 
-pars = \
-{
- 'pop_Z': 0.04,
- 'pop_imf': 2.35,
- 'nebular': False,
- 'pop_ssp': True,
- 'pop_tsf': 500.,
-}
-
 _weights = np.array([1.] * 20 + [10.] * 8 + [100.] * 8)
 times = np.cumsum(_weights)
 
