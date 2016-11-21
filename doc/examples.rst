@@ -26,7 +26,8 @@ Parameter Studies and Inference
     * :doc:`example_mc_sampling`    
     
 * Fitting and Forecasting    
-    * :doc:`example_mcmc_I`
+    * :doc:`example_mcmc_gs`
+    * :doc:`example_mcmc_lf`
     
 .. * Simple Fitting
 ..     * :doc:`example_ham`

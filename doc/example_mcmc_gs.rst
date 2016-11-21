@@ -1,7 +1,7 @@
 :orphan:
 
-Running *ares* with *emcee*
-===========================
+Fitting the Global 21-cm Signal
+===============================
 It's relatively straightforward to call the Markov-Chain Monte Carlo code
 `emcee <http://dan.iel.fm/emcee/current/>`_ (`Foreman-Mackey et al. (2013) <http://adsabs.harvard.edu/abs/2013PASP..125..306F>`_),
 and perform a fits to:

@@ -80,9 +80,16 @@ class ModelGrid(ModelFit):
             
         # Need to see if we're running with the same number of processors
         if save_by_proc:
-            fn_size_p1 = '%s.%s.chain.pkl' % (prefix, str(size+1).zfill(3))
+            fn_by_proc = lambda proc: '%s.%s.chain.pkl' % (prefix, str(proc).zfill(3))
+            fn_size_p1 = fn_by_proc(size+1)
             if os.path.exists(fn_size_p1):
                 raise IOError('Original grid run with more processors!')
+                
+                proc_id = size + 1
+                while os.path.exists(fn_by_proc(proc_id)):
+                    proc_id += 1
+                    continue
+                
 
         # Read in current status of model grid
         chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)

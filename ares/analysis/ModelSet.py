@@ -1027,6 +1027,79 @@ class ModelSet(BlobFactory):
     @plot_info.setter
     def plot_info(self, value):
         self._plot_info = value
+        
+    def WalkerTrajectoriesMultiPlot(self, pars=None, N=50, walkers='random', ax=None, fig=1,
+        mp_kwargs={}, **kwargs):
+        """
+        Plot trajectories of `N` walkers for multiple parameters at once.
+        """
+        if pars is None:
+            pars = self.parameters
+        
+        Npars = len(pars)
+        mp = MultiPanel(dims=(Npars, 1), **mp_kwargs)
+        
+        w = self._get_walker_subset(N, walkers)
+        
+        for i, par in enumerate(pars):
+            self.Trajectories(par, walkers=w, ax=mp.grid[i], **kwargs)
+            
+        mp.fix_ticks()    
+            
+        return mp           
+                
+    def WalkerTrajectories(self, par, N=50, walkers='random', ax=None, fig=1,
+        **kwargs):
+        """
+        Plot trajectories of N walkers with time.
+        
+        Parameters
+        ----------
+        parameter : str
+            Name of parameter to show results for.
+        walkers : str
+            Which walkers to grab? By default, select `N` random walkers,
+            but can also grab `N` first or `N` last walkers.
+            
+        """
+        
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+        
+        if type(walkers) is str:
+            assert N < self.nwalkers, \
+                "Only %i walkers available!" % self.nwalkers
+
+            to_plot = self._get_walker_subset(N, walkers)
+        else:
+            to_plot = walkers
+        
+        for i in to_plot:
+            data, mask = self.get_walker(i)
+            ax.plot(data[:,self.parameters.index(par)])
+
+        self.set_axis_labels(ax, ['step', par], take_log=False, un_log=False,
+            labels={})
+            
+        return ax
+        
+    def _get_walker_subset(self, N=50, walkers='random'):
+        to_plot = np.arange(self.nwalkers)
+        if walkers == 'random':
+            np.random.shuffle(to_plot)
+            slc = slice(0, N)
+        elif walkers == 'first':
+            slc = slice(0, N)
+        elif walkers == 'last':
+            slc = slice(-N, None)
+        else:
+            raise NotImplementedError('help!')
+            
+        return to_plot[slc]
 
     def sort_by_Tmin(self):
         """
@@ -1290,7 +1363,9 @@ class ModelSet(BlobFactory):
 
         if hasattr(self, 'weights') and cdata is None:
             scat = func(xdata, ydata, c=self.weights, **kwargs)
-        elif cdata is not None and (sort_by != 'z'):
+        elif line_plot and (cdata is not None) and (sort_by != 'z'):
+            scat = func(xdata, ydata, c=cdata, **kwargs)
+        elif cdata is not None:
             scat = func(xdata, ydata, c=cdata, **kwargs)
         else:
             scat = func(xdata, ydata, **kwargs)

@@ -105,7 +105,7 @@ class ModelSetLF(ModelSet):
     def LuminosityFunction(self, z, ax=None, fig=1, compare_to=None, popid=0, 
         name='galaxy_lf', shade_by_like=False, like=0.685, scatter_kwargs={}, 
         Mlim=(-24, -10), samples=1, take_log=False, un_log=False,
-        multiplier=1, skip=0, stop=None, **kwargs):
+        multiplier=1, skip=0, stop=None, best_fit='median', **kwargs):
         """
         Plot the luminosity function used to train the SFE.
         
@@ -143,19 +143,19 @@ class ModelSetLF(ModelSet):
         # Apply dust correction
         mags_w_dc = mags_disk - self.dc.AUV(z, ivars[1])
         
-        loc = np.argmax(self.logL[skip:stop])
-
+        if best_fit == 'mode':
+            loc = np.argmax(self.logL[skip:stop])
+        elif best_fit == 'median':
+            # Figure out the median, too
+            _N = len(self.logL[skip:stop])
+            loc = np.argsort(self.logL[skip:stop])[int(_N/float(2))]
+    
         phi = []
         for i, mag in enumerate(mags_disk):
             data = self.ExtractData(name, ivar=[z, mag],
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
 
             if not shade_by_like:
-                #if samples > 1:
-                #    size = len(data[name][skip:stop])
-                #    phi = [data[name][skip:stop][kk] \
-                #        for kk in np.random.randint(0, high=samples, size=size)]
-                #else:
                 phi.append(data[name][skip:stop][loc])
             else:
                 lo, hi = np.percentile(data[name][skip:stop], (q1, q2))

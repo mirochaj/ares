@@ -633,7 +633,7 @@ class ModelFit(BlobFactory):
         #    raise ValueError('base_kwargs from file dont match those supplied!')   
                     
         # Start from last step in pre-restart calculation
-        if self.checkpoint_append:
+        if (not self.checkpoint_append):
             if type(restart) is bool:
             
                 ct = 0 
@@ -658,9 +658,12 @@ class ModelFit(BlobFactory):
                 fn = restart
                 self.ct = int(fn.split('.')[-3][2:])
                  
-            print "Restarting from %s." % fn
-            chain = read_pickled_chain(fn)
+        else:
+            fn = '%s.chain.pkl' % prefix
             
+        print "Restarting from %s." % fn
+        chain = read_pickled_chain(fn)    
+           
         (nw, sf) = (self.nwalkers, self.save_freq)
         pos = chain[-(nw-1)*sf-1::sf,:]    
         
