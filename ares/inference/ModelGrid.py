@@ -89,7 +89,6 @@ class ModelGrid(ModelFit):
                 while os.path.exists(fn_by_proc(proc_id)):
                     proc_id += 1
                     continue
-                
 
         # Read in current status of model grid
         chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
@@ -281,7 +280,7 @@ class ModelGrid(ModelFit):
             restart = False    
 
         # Load previous results if this is a restart
-        if restart:
+        if restart and self.grid.structured:
             if (not self.save_by_proc) and (rank != 0):
                 MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
 
