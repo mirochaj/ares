@@ -69,7 +69,8 @@ class ModelGrid(ModelFit):
         """
         
         # Array of ones/zeros: has this model already been done?
-        self.done = np.zeros(self.grid.shape)
+        if self.grid.structured:
+            self.done = np.zeros(self.grid.shape)
         
         if os.path.exists('%s.%s.chain.pkl' % (prefix, str(rank).zfill(3))):
             save_by_proc = True
@@ -131,6 +132,7 @@ class ModelGrid(ModelFit):
             axes[axes_names[i]] = np.unique(chain[:,i])
 
         if (not self.grid.structured):
+            self.done = np.array([chain.shape[0]])
             return
 
         # Loop over chain read-in from disk and compare to grid.
@@ -280,7 +282,7 @@ class ModelGrid(ModelFit):
             restart = False    
 
         # Load previous results if this is a restart
-        if restart and self.grid.structured:
+        if restart:
             if (not self.save_by_proc) and (rank != 0):
                 MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
 
@@ -297,10 +299,15 @@ class ModelGrid(ModelFit):
             # Important that this goes second, otherwise this processor
             # will count the models already run by other processors, which
             # will mess up the 'Nleft' calculation below.
-            tmp = np.zeros(self.grid.shape)
-            MPI.COMM_WORLD.Allreduce(self.done, tmp)
-            self.done = tmp
-
+            if self.grid.structured:
+                tmp = np.zeros(self.grid.shape)
+                MPI.COMM_WORLD.Allreduce(self.done, tmp)
+                self.done = tmp
+            else:
+                # In this case, self.done is just an integer
+                tmp = np.array([0])
+                MPI.COMM_WORLD.Allreduce(self.done, tmp)
+                self.done = tmp[0]
         else:
             ct0 = 0
 
@@ -330,8 +337,9 @@ class ModelGrid(ModelFit):
 
         elif rank == 0:
             if restart:
-                print 'Expanding pre-existing model set with %i more models.' \
-                    % self.grid.size
+                print 'Re-starting pre-existing model set (%i models done already).' \
+                    % self.done
+                print 'Running %i more models.' % self.grid.size
             else:
                 print 'Running %i-element model grid.' % self.grid.size
 
