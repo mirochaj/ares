@@ -1,5 +1,6 @@
 from .Source import Source
 from .ModelSet import ModelSet
+from .Animation import Animation
 from .MultiPlot import MultiPanel
 from .ModelSetLF import ModelSetLF
 from .RaySegment import RaySegment

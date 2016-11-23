@@ -1044,7 +1044,7 @@ class ModelSet(BlobFactory):
             pars = self.parameters
         
         Npars = len(pars)
-        mp = MultiPanel(dims=(Npars, 1), fig=fig, **mp_kwargs)
+        mp = MultiPanel(dims=(Npars, 1), fig=fig, padding=(0, 0.1), **mp_kwargs)
         
         w = self._get_walker_subset(N, walkers)
         
@@ -1059,7 +1059,6 @@ class ModelSet(BlobFactory):
             
             mp.grid[i].plot([0, self.chain[:,i].size / float(self.nwalkers)], 
                 [self.chain[loc,i]]*2, color='k', ls='--', lw=5)
-            
             
         mp.fix_ticks()    
             
