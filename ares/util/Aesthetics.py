@@ -52,7 +52,7 @@ rates = \
 derived = \
 {
  'Ts': r'$T_S$',
- 'dTb_w_units': r'$\delta T_b \ (\mathrm{mK})$',
+ 'dTb': r'$\delta T_b \ (\mathrm{mK})$',
 }
 
 labels = {}
@@ -129,7 +129,6 @@ history_elements = \
  'igm_he_1': r'$x_{\mathrm{HeI}}$',
  'igm_he_2': r'$x_{\mathrm{HeII}}$',
  'igm_he_3': r'$x_{\mathrm{HeIII}}$',
- 'dTb': r'$\delta T_b$', 
  'igm_Tk': r'$T_K$',
  'cgm_h_2': r'$Q_{\mathrm{HII}}$',
  'xavg': r'$\overline{x}_i$',

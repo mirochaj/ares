@@ -117,7 +117,7 @@ _fz_specific = \
  'php_faux_meth{0}[0]': 'multiply',
  'php_faux_par0{0}[0]': 1.,
  'php_faux_par1{0}[0]': 7.,
- 'php_faux_par2{0}[0]': 1.,
+ 'php_faux_par2{0}[0]': 0.,
 }
 
 _Mz_specific = \

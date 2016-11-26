@@ -412,7 +412,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         if ax.get_ylabel() == '':    
             if temp_unit.lower() == 'mk':
-                ax.set_ylabel(labels['dTb_w_units'], fontsize='x-large')    
+                ax.set_ylabel(labels['dTb'], fontsize='x-large')    
             else:
                 ax.set_ylabel(r'$T_b \ (\mathrm{K})$', fontsize='x-large')    
         
