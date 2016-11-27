@@ -61,46 +61,18 @@ class Animation(object):
         else:
             ma *= (1. + padding)
         
-        return mi, ma        
-        
-    def Plot1D(self, plane, par=None, pivots=None, prefix='test', plotter=None, 
-        ivar=None, take_log=False, un_log=False, multiplier=1., 
-        ax=None, fig=1, clear=True, z_to_freq=True, slider_kwargs={}, 
-        backdrop=None, backdrop_kwargs={}, squeeze_main=True, **kwargs):
-        """
-        Animate variations of a single parameter.
-        
-        Parameters
-        ----------
-        par : str
-            Parameter to vary.
-        pivots : list, tuple
-            
-        
-        
-        ..note:: should implement override for kwargs, like change color of
-            line/symbol if some condition violated (e.g., tau_e).
-            
-            
-        """
-        
-        if par is None:
-            assert len(self.model_set.parameters) == 1
-            par = self.model_set.parameters[0]
-        else:    
-            assert par in self.model_set.parameters, \
-                "Supplied parameter '%s' is unavailable!" % par
-            
-        _pars = [par]
-        _x = None
-        for _p in plane:
-            if _p in self.model_set.all_blob_names:
-                _pars.append(_p)
-            else:
-                _x = _p
+        return mi, ma    
                 
+    def build_tracks(self, plane, _pars, pivots=None, ivar=None, take_log=False, 
+        un_log=False, multiplier=1):
+        """
+        Construct array of models in the order in which we'll plot them.
+        """
+        
         data = self.model_set.ExtractData(_pars, ivar=ivar, 
             take_log=take_log, un_log=un_log, multiplier=multiplier)
+
+        par = _pars[0]
 
         N = data[par].shape[0]                
                         
@@ -143,20 +115,73 @@ class Animation(object):
                 data_assembled[p].extend(list(data_sorted[p][i:j:step]))
 
             i = 1 * j
-
+        
+        self.data = {'raw': data, 'sorted': data_sorted, 
+            'assembled': data_assembled, 'limits':limits}       
+            
+    def prepare_axis(self, ax=None, fig=1, squeeze_main=True, 
+        take_log=False, un_log=False, **kwargs):
+        
         if ax is None:
-            gotax = False
             fig = pl.figure(fig)
             fig.subplots_adjust(right=0.7)
             ax = fig.add_subplot(111)
-            
-            sax = self.add_slider(ax, limits=limits, take_log=take_log,
-                un_log=un_log, **slider_kwargs)
                 
-        else:
-            gotax = True    
+        sax = self.add_slider(ax, limits=self.data['limits'], 
+            take_log=take_log, un_log=un_log, **kwargs)
+                
+        return ax, sax
+        
+    def Plot1D(self, plane, par=None, pivots=None, prefix='test', 
+        ivar=None, take_log=False, un_log=False, multiplier=1., 
+        ax=None, sax=None, fig=1, clear=True, z_to_freq=True, slider_kwargs={}, 
+        backdrop=None, backdrop_kwargs={}, squeeze_main=True, close=False,
+        **kwargs):
+        """
+        Animate variations of a single parameter.
+
+        Parameters
+        ----------
+        par : str
+            Parameter to vary.
+        pivots : list, tuple
+        
+        ..note:: should implement override for kwargs, like change color of
+            line/symbol if some condition violated (e.g., tau_e).
             
-        labeler = Labeler(_pars, **self.model_set.base_kwargs)            
+            
+        """
+
+        if par is None:
+            assert len(self.model_set.parameters) == 1
+            par = self.model_set.parameters[0]
+        else:    
+            assert par in self.model_set.parameters, \
+                "Supplied parameter '%s' is unavailable!" % par
+
+        _pars = [par]
+        _x = None
+        for _p in plane:
+            if _p in self.model_set.all_blob_names:
+                _pars.append(_p)
+            else:
+                _x = _p
+                                
+        # This sets up all the data
+        self.build_tracks(plane, _pars, pivots=pivots, ivar=ivar, 
+            take_log=take_log, un_log=un_log, multiplier=multiplier)
+
+        if ax is None:
+            ax, sax = self.prepare_axis(ax, fig, **slider_kwargs)
+            
+        labeler = Labeler(_pars, **self.model_set.base_kwargs)        
+        
+        # What do we need to make plots?
+        # data_assembled, plane, ax, sax, take_log etc.
+        
+        data = self.data['raw']
+        limits = self.data['limits']
+        data_assembled = self.data['assembled']
         
         for i, val in enumerate(data_assembled[par]):
         
@@ -164,6 +189,8 @@ class Animation(object):
                 x = data_assembled[plane[0]][i]
             else:
                 x = _x
+
+            print i, par, val, _pars
 
             y = data_assembled[plane[1]][i]
 
@@ -202,54 +229,49 @@ class Animation(object):
             ax.set_ylabel(labeler.label(plane[1]))
         
             pl.savefig('%s_%s.png' % (prefix, str(i).zfill(4)))
-            
-            #yield ax
-            
+                        
             if clear:
                 ax.clear()
                 sax.clear()
                 
-                if backdrop is not None:
-                    ax.plot(backdrop[0], backdrop[1], **backdrop_kwargs)
-                
         if not clear:
             return ax
-        else:
+        elif close:
             pl.close()    
             
     def add_residue(self):
         pass
-        
+
     def add_marker(self):
         pass
-    
+
     def _reset_slider(self, ax, limits, take_log=False, un_log=False, **kwargs):
         ax.set_yticks([])
         ax.set_yticklabels([])
-        
+
         if take_log:
             lim = np.log10(limits)
         elif (un_log) and (self.model_set.is_log[0]):
             lim = 10**limits
         else:
             lim = limits
-        
+
         lo, hi = self._limits_w_padding(limits, take_log=take_log, un_log=un_log)
-                
+
         ax.set_xlim(lo, hi)
-        ax.tick_params(axis='x', labelsize=8, length=3, width=1, which='major')
-        
+        ax.tick_params(axis='x', labelsize=10, length=3, width=1, which='major')
+
         if 'label' in kwargs:
-            ax.set_xlabel(kwargs['label'], fontsize=10)
-                
+            ax.set_xlabel(kwargs['label'], fontsize=14)
+
         return ax
         
-    def add_slider(self, ax, limits, label=None,
-        take_log=False, un_log=False, rect=[0.75, 0.7, 0.2, 0.05], **kwargs):
+    def add_slider(self, ax, limits, take_log=False, un_log=False, 
+        rect=[0.75, 0.7, 0.2, 0.05], **kwargs):
         """
         Add inset 'slider' thing.
         """
-
+        
         inset = pl.axes(rect)
         inset = self._reset_slider(inset, limits, take_log, un_log, **kwargs) 
         pl.draw()
@@ -268,20 +290,155 @@ class AnimationSet(object):
             for prefix in self._prefix:
                 self._animations.append(Animation(prefix))
         
-        return self._animations        
-                
-    def PlotIndependentND(self, pars):
+        return self._animations
+        
+    @property
+    def parameters(self):
+        if not hasattr(self, '_parameters'):
+            self._parameters = []
+            for animation in self.animations:
+                if len(animation.model_set.parameters) == 1:
+                    self._parameters.append(animation.model_set.parameters[0])
+                else:
+                    self._parameters.append('unknown')
+                    
+        return self._parameters
+        
+    @property
+    def labels(self):
+        if not hasattr(self, '_labels'):
+            self._labels = []
+            for animation in self.animations:
+                if len(animation.model_set.parameters) == 1:
+                    self._labels.append(animation.model_set.parameters[0])
+                else:
+                    self._labels.append('unknown')
 
+        return self._labels                  
+    
+    @labels.setter
+    def labels(self, value):
+        if type(value) is dict:
+            self._labels = []
+            for par in self.parameters:
+                self._labels.append(value[par])
+        elif type(value) in [list, tuple]:
+            assert len(value) == len(self.parameters)
+            self._labels = value
+            
+    @property
+    def take_log(self):
+        if not hasattr(self, '_take_log'):
+            self._take_log = [False] * len(self.parameters)
+        return self._take_log
+        
+    @take_log.setter
+    def take_log(self, value):
+        if type(value) is dict:
+            self._take_log = []
+            for par in self.parameters:
+                self._take_log.append(value[par])
+        elif type(value) in [list, tuple]:
+            assert len(value) == len(self.parameters)
+            self._take_log = value
+        
+    @property
+    def un_log(self):
+        if not hasattr(self, '_un_log'):
+            self._un_log = [False] * len(self.parameters)
+        return self._un_log
+    
+    @un_log.setter
+    def un_log(self, value):
+        if type(value) is dict:
+            self._un_log = []
+            for par in self.parameters:
+                self._un_log.append(value[par])
+        elif type(value) in [list, tuple]:
+            assert len(value) == len(self.parameters)    
+            self._un_log = [False] * len(self.parameters)
+        
+    def Plot1D(self, plane, pars=None, ax=None, fig=1, prefix='test', **kwargs):
+        """
+        Basically run a series of Plot1D.
+        """
+        
+        if pars is None:
+            pars = self.parameters
+            
         assert type(pars) in [list, tuple]
 
         N = len(pars)
+        
+        
+        ## 
+        # First: setup axes
+        ##
 
-        for k in range(3):    
-            self.add_slider(ax, limits=limits, take_log=take_log,
-                un_log=un_log, rect=[0.75, 0.55-0.15*k, 0.2, 0.05],
-                **slider_kwargs)
-
-
+        ax = None
+        sax = []
+        for k in range(N):    
+            
+            assert len(self.animations[k].model_set.parameters) == 1
+            par = self.animations[k].model_set.parameters[0]
+            
+            _pars = [par]
+            _x = None
+            for _p in plane:
+                if _p in self.animations[k].model_set.all_blob_names:
+                    _pars.append(_p)
+                else:
+                    _x = _p
+            
+            self.animations[k].build_tracks(plane, _pars, 
+                take_log=self.take_log[k], un_log=False, multiplier=1)
+            
+            ax, _sax = self.animations[k].prepare_axis(ax=ax, fig=fig, 
+                squeeze_main=True, rect=[0.75, 0.75-0.15*k, 0.2, 0.05],
+                label=self.labels[k])
+                
+            sax.append(_sax)
+            
+        
+        ##
+        # Now do all the plotting
+        ##
+        
+        for k in range(N):
+            par = self.animations[k].model_set.parameters[0]
+            _pars = [par]
+            _x = None
+            for _p in plane:
+                if _p in self.animations[k].model_set.all_blob_names:
+                    _pars.append(_p)
+                else:
+                    _x = _p
+            
+            kw = {'label': self.labels[k]}
+            
+            # Add slider bar for all currently static parameters
+            # (i.e., grab default value)
+            for l in range(N):
+                if l == k:
+                    continue
+                    
+                _p = self.parameters[l]
+                val = self.animations[l].data['assembled'][_p][0]
+                sax[l].plot([val]*2, [0, 1], **kwargs)
+            
+            # Plot variable parameter
+            self.animations[k].Plot1D(plane, par, ax=ax, sax=sax[k],
+                take_log=self.take_log[k], un_log=self.un_log[k],
+                prefix='%s.%s' % (prefix, par), close=False,
+                slider_kwargs=kw, **kwargs)
+                
+            
+            
+            
+                
+        
+            
+            
     
 
 #
