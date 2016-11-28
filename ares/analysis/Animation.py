@@ -15,7 +15,8 @@ import numpy as np
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
 from ..util.Aesthetics import Labeler
-from ares.physics.Constants import nu_0_mhz
+from ..physics.Constants import nu_0_mhz
+from .MultiPhaseMedium import add_redshift_axis
 from mpl_toolkits.axes_grid import inset_locator
 
 try:
@@ -73,7 +74,7 @@ class Animation(object):
             take_log=take_log, un_log=un_log, multiplier=multiplier)
 
         par = _pars[0]
-
+        
         N = data[par].shape[0]                
                         
         limits = data[par].min(), data[par].max()
@@ -129,14 +130,15 @@ class Animation(object):
                 
         sax = self.add_slider(ax, limits=self.data['limits'], 
             take_log=take_log, un_log=un_log, **kwargs)
-                
+                            
         return ax, sax
         
-    def Plot1D(self, plane, par=None, pivots=None, prefix='test', 
+    def Plot1D(self, plane, par=None, pivots=None, prefix='test', twin_ax=None,
         ivar=None, take_log=False, un_log=False, multiplier=1., 
-        ax=None, sax=None, fig=1, clear=True, z_to_freq=True, slider_kwargs={}, 
-        backdrop=None, backdrop_kwargs={}, squeeze_main=True, close=False,
-        **kwargs):
+        ax=None, sax=None, fig=1, clear=True, z_to_freq=True, 
+        slider_kwargs={}, backdrop=None, backdrop_kwargs={}, squeeze_main=True, 
+        close=False, xlim=None, ylim=None, xticks=None, yticks=None, 
+        z_ax=True, **kwargs):
         """
         Animate variations of a single parameter.
 
@@ -169,16 +171,20 @@ class Animation(object):
                                 
         # This sets up all the data
         self.build_tracks(plane, _pars, pivots=pivots, ivar=ivar, 
-            take_log=take_log, un_log=un_log, multiplier=multiplier)
+            take_log=[take_log, False, False], un_log=[un_log, False, False], 
+            multiplier=multiplier)
 
         if ax is None:
             ax, sax = self.prepare_axis(ax, fig, **slider_kwargs)
             
+        if z_ax and 'z' in _pars:
+            twin_ax = add_redshift_axis(ax, twin_ax)
+
         labeler = Labeler(_pars, **self.model_set.base_kwargs)        
         
         # What do we need to make plots?
         # data_assembled, plane, ax, sax, take_log etc.
-        
+
         data = self.data['raw']
         limits = self.data['limits']
         data_assembled = self.data['assembled']
@@ -189,8 +195,6 @@ class Animation(object):
                 x = data_assembled[plane[0]][i]
             else:
                 x = _x
-
-            print i, par, val, _pars
 
             y = data_assembled[plane[1]][i]
 
@@ -208,15 +212,23 @@ class Animation(object):
             else:
                 xarr = data[plane[0]]
             
-            if _x is None:    
+            if xlim is not None:
+                xmi, xma = xlim
+            elif _x is None:    
                 _xmi, _xma = xarr.min(), xarr.max()
                 xmi, xma = self._limits_w_padding((_xmi, _xma))
-                ax.set_xlim(xmi, xma)
-                
-            _ymi, _yma = data[plane[1]].min(), data[plane[1]].max()
-            ymi, yma = self._limits_w_padding((_ymi, _yma))
-            ax.set_ylim(ymi, yma)
             
+            ax.set_xlim(xmi, xma)                
+            if twin_ax is not None:
+                twin_ax.set_xlim(xmi, xma)    
+                
+            if ylim is not None:
+                ax.set_ylim(ylim)
+            else:
+                _ymi, _yma = data[plane[1]].min(), data[plane[1]].max()
+                ymi, yma = self._limits_w_padding((_ymi, _yma))
+                ax.set_ylim(ymi, yma)
+                            
             sax.plot([val]*2, [0, 1], **kwargs)
             sax = self._reset_slider(sax, limits, take_log, un_log, 
                 **slider_kwargs)
@@ -227,17 +239,27 @@ class Animation(object):
                 ax.set_xlabel(labeler.label(plane[0]))
                 
             ax.set_ylabel(labeler.label(plane[1]))
+            
+            if xticks is not None:
+                ax.set_xticks(xticks, minor=True)
+            if yticks is not None:
+                ax.set_yticks(yticks, minor=True)    
+                
+            if ('z' in _pars) and z_to_freq:
+                if z_ax:
+                    twin_ax = add_redshift_axis(ax, twin_ax)    
+             
+            pl.draw()
         
             pl.savefig('%s_%s.png' % (prefix, str(i).zfill(4)))
                         
             if clear:
                 ax.clear()
                 sax.clear()
-                
-        if not clear:
-            return ax
-        elif close:
-            pl.close()    
+                if twin_ax is not None:
+                    twin_ax.clear()  
+                                     
+        return ax, twin_ax
             
     def add_residue(self):
         pass
@@ -358,7 +380,8 @@ class AnimationSet(object):
             assert len(value) == len(self.parameters)    
             self._un_log = [False] * len(self.parameters)
         
-    def Plot1D(self, plane, pars=None, ax=None, fig=1, prefix='test', **kwargs):
+    def Plot1D(self, plane, pars=None, ax=None, fig=1, prefix='test', 
+        xlim=None, ylim=None, xticks=None, yticks=None, **kwargs):
         """
         Basically run a series of Plot1D.
         """
@@ -403,6 +426,7 @@ class AnimationSet(object):
         ##
         # Now do all the plotting
         ##
+        twin_ax = None
         
         for k in range(N):
             par = self.animations[k].model_set.parameters[0]
@@ -413,24 +437,30 @@ class AnimationSet(object):
                     _pars.append(_p)
                 else:
                     _x = _p
-            
+
             kw = {'label': self.labels[k]}
             
             # Add slider bar for all currently static parameters
             # (i.e., grab default value)
             for l in range(N):
-                if l == k:
-                    continue
+                #if l == k:
+                #    continue
                     
                 _p = self.parameters[l]
+                limits = self.animations[l].data['limits']
                 val = self.animations[l].data['assembled'][_p][0]
                 sax[l].plot([val]*2, [0, 1], **kwargs)
+                self.animations[l]._reset_slider(sax[l], limits, 
+                    take_log=self.take_log[l], un_log=self.un_log[l],
+                    label=self.labels[l])
             
             # Plot variable parameter
-            self.animations[k].Plot1D(plane, par, ax=ax, sax=sax[k],
+            ax, twin_ax = \
+                self.animations[k].Plot1D(plane, par, ax=ax, sax=sax[k],
                 take_log=self.take_log[k], un_log=self.un_log[k],
                 prefix='%s.%s' % (prefix, par), close=False,
-                slider_kwargs=kw, **kwargs)
+                slider_kwargs=kw, xlim=xlim, ylim=ylim, 
+                xticks=xticks, yticks=yticks, twin_ax=twin_ax, **kwargs)
                 
             
             
@@ -438,7 +468,4 @@ class AnimationSet(object):
                 
         
             
-            
-    
-
-#
+        

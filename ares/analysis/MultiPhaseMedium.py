@@ -337,62 +337,7 @@ class MultiPhaseMedium(object):
             z50 = np.argmin(np.abs(self.data['z_CMB'] - 50))
             self._tau_e = self.data['tau_CMB_tot'][z50]
         
-        return self._tau_e       
-        
-    def add_redshift_axis(self, ax):
-        """
-        Take plot with frequency on x-axis and add top axis with corresponding 
-        redshift.
-    
-        Parameters
-        ----------
-        ax : matplotlib.axes.AxesSubplot instance
-            Axis on which to add a redshift scale.
-        """    
-        
-        fig = ax.xaxis.get_figure()
-        
-        #for ax in fig.axes:
-        #    if ax.get_xlabel() == '$z$':
-        #        return
-        
-        z = np.arange(10, 110, 10)[-1::-1]
-        z_minor= np.arange(15, 80, 5)[-1::-1]
-        nu = nu_0_mhz / (1. + z)
-        nu_minor = nu_0_mhz / (1. + z_minor)
-    
-        z_labels = map(str, z)
-        
-        # Add 25, 15 and 12, 8 to redshift labels
-        z_labels.insert(-1, '15')
-        z_labels.insert(-1, '12')
-        z_labels.extend(['8', '7', '6', '5'])
-        #z_labels.insert(-5, '25')
-        
-        z = np.array(map(int, z_labels))
-        
-        nu = nu_0_mhz / (1. + z)
-        nu_minor = nu_0_mhz / (1. + z_minor)
-        
-        ax_z = ax.twiny()
-        ax_z.set_xlabel(labels['z'])        
-        ax_z.set_xticks(nu)
-        ax_z.set_xticks(nu_minor, minor=True)
-            
-        # A bit hack-y
-        for i, label in enumerate(z_labels):
-            if label in ['40','50', '60', '70']:
-                z_labels[i] = ''
-        
-            if float(label) > 80:
-                z_labels[i] = ''
-    
-        ax_z.set_xticklabels(z_labels)
-        ax_z.set_xlim(ax.get_xlim())
-        
-        pl.draw()
-    
-        return ax_z    
+        return self._tau_e           
         
     def add_frequency_axis(self, ax):
         """
@@ -937,6 +882,58 @@ class MultiPhaseMedium(object):
             raise NotImplemented('help!')
             
         return float(interp(z))
+
+def add_redshift_axis(ax, twin_ax=None):
+    """
+    Take plot with frequency on x-axis and add top axis with corresponding 
+    redshift.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.AxesSubplot instance
+        Axis on which to add a redshift scale.
+    """    
+
+    fig = ax.xaxis.get_figure()
+
+    z = np.arange(10, 110, 10)[-1::-1]
+    z_minor = np.arange(15, 80, 5)[-1::-1]
+    nu = nu_0_mhz / (1. + z)
+    nu_minor = nu_0_mhz / (1. + z_minor)
+    
+    z_labels = map(str, z)
+
+    # Add 25, 15 and 12, 8 to redshift labels
+    z_labels.insert(-1, '15')
+    z_labels.insert(-1, '12')
+    z_labels.extend(['8', '7', '6', '5'])
+    #z_labels.insert(-5, '25')
+
+    z = np.array(map(int, z_labels))
+
+    nu = nu_0_mhz / (1. + z)
+    nu_minor = nu_0_mhz / (1. + z_minor)
+
+    if twin_ax is None:
+        ax_z = ax.twiny()
+    else:
+        ax_z = twin_ax
         
+    ax_z.set_xlabel(labels['z'])        
+    ax_z.set_xticks(nu)
+    ax_z.set_xticks(nu_minor, minor=True)
 
+    # A bit hack-y
+    for i, label in enumerate(z_labels):
+        if label in ['40','50', '60', '70', '80']:
+            z_labels[i] = ''
 
+        if float(label) > 80:
+            z_labels[i] = ''
+
+    ax_z.set_xticklabels(z_labels)
+    ax_z.set_xlim(ax.get_xlim())
+
+    pl.draw()
+
+    return ax_z

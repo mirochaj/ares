@@ -20,8 +20,8 @@ from ..physics.Constants import nu_0_mhz
 from .TurningPoints import TurningPoints
 from ..util.Math import central_difference
 from matplotlib.ticker import ScalarFormatter 
-from .MultiPhaseMedium import MultiPhaseMedium
 from ..analysis.BlobFactory import BlobFactory
+from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis
 
 try:
     from scipy.stats import kurtosis, skew
@@ -422,7 +422,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         elif time_ax:
             twinax = self.add_time_axis(ax)
         elif z_ax:
-            twinax = self.add_redshift_axis(ax)
+            twinax = add_redshift_axis(ax)
         else:
             twinax = None
         
