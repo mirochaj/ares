@@ -3598,17 +3598,18 @@ class ModelSet(BlobFactory):
             # Loop over parameters and save to disk
             for par in pars:   
                 
-                
                 # Tag ivars on as attribute if blob
                 if par in self.all_blob_names:
                     if 'blobs' not in f:
                         grp = f.create_group('blobs')
                     else:
                         grp = f['blobs']
-                    
+
                     ds = grp.create_dataset(par, data=data[par][skip:stop:skim,Ellipsis])
                     i, j, nd, dims = self.blob_info(par)
-                    ds.attrs.create('ivar', self.blob_ivars[i])
+                    
+                    if self.blob_ivars[i] is not None:
+                        ds.attrs.create('ivar', self.blob_ivars[i])
                 else:
                     if 'axes' not in f:
                         grp = f.create_group('axes')
