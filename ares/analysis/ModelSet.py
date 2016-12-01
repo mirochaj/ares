@@ -2845,7 +2845,6 @@ class ModelSet(BlobFactory):
         Returns vector of mean, and the covariance matrix itself.
         
         """
-                
         data, is_log = self.ExtractData(pars, ivar=ivar)
         
         blob_vec = []
@@ -2855,7 +2854,18 @@ class ModelSet(BlobFactory):
         mu  = np.ma.mean(blob_vec, axis=1)
         cov = np.ma.cov(blob_vec)
 
-        return mu, cov    
+        return mu, cov
+
+    def PlotCovarianceMatrix(self, pars, ivar=None, fig=1, ax=None):
+        mu, cov = self.CovarianceMatrix(pars, ivar=ivar)
+        if ax is None:
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+
+        cax = ax.imshow(cov, interpolation='none', cmap='RdBu_r')
+        cb = pl.colorbar(cax)
+
+        return ax
         
     def AssembleParametersList(self, N=None, ids=None, include_bkw=False):
         """
