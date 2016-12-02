@@ -128,13 +128,42 @@ _Mz_specific = \
  'php_func_par1_par2{0}[0]': -1.,
 }
 
+_flex = \
+{
+ 'php_func{0}[0]': 'dpl_arbnorm',
+ 'php_func_var{0}[0]': 'mass',
+ 
+ # Standard dpl model at 10^8 Msun
+ 'php_func_par0{0}[0]': 0.00205,
+
+ 'php_func_par2{0}[0]': 0.49,       
+ 'php_func_par3{0}[0]': -0.61,      
+ 'php_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
+ 
+ # Redshift evolution peak mass only
+ 'php_func_par1{0}[0]': 'pl',
+ 'php_func_par1_par0{0}[0]': 2.8e11,
+ 'php_func_par1_par1{0}[0]': 7.,
+ 'php_func_par1_par2{0}[0]': -1.,
+ 
+ 'pop_calib_L1600{0}': 1.0185e28,
+ 
+ # Redshift evolution in normalization of SFE
+ 'php_faux{0}[0]': 'pl',
+ 'php_faux_var{0}[0]': '1+z',
+ 'php_faux_meth{0}[0]': 'multiply',
+ 'php_faux_par0{0}[0]': 1.,
+ 'php_faux_par1{0}[0]': 7.,
+ 'php_faux_par2{0}[0]': -1.,
+
+}
+
 dpl_fz = dpl.copy()
 dpl_fz.update(_fz_specific)
 dpl_Mz = dpl.copy()
 dpl_Mz.update(_Mz_specific)
-dpl_fz_Mz = dpl.copy()
-dpl_fz_Mz.update(_fz_specific)
-dpl_fz_Mz.update(_Mz_specific)
+dpl_flex = dpl.copy()
+dpl_flex.update(_flex)
 
 _steep_fz = {}
 for key in _fz_specific:

@@ -13,6 +13,7 @@ Description:
 import numpy as np
 from types import FunctionType
 from ..util import ParameterFile
+from scipy.optimize import fsolve
 
 _coeff = \
 {
@@ -74,7 +75,19 @@ class DustCorrection(object):
 		AUV = a + b * beta + 0.2 * np.log(10) * sigma
 		
 		return np.maximum(AUV, 0.0)
-		
+	
+    def Mobs(self, z, MUV):
+        """
+        Return observed (i.e., uncorrected for dust) magnitude.
+        """
+
+        f_AUV = lambda mag: self.AUV(z, mag)
+        
+        to_min = lambda xx: xx - f_AUV(xx) - MUV
+        x = fsolve(to_min, MUV+1.)[0]
+    
+        return x
+        
     #   ==========   Parametrization of Beta   ==========   #
     def Beta(self, z, mag):
         

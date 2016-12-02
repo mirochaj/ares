@@ -133,10 +133,10 @@ class ParameterizedHaloProperty(object):
                 # fstar is not necessarily separable.
                 
                 assert par == 'pl', 'Only support for PL extensions.'
-                
+                                
                 p = pars2[i]
-                val = p[0] * ((1. + z) / (1. + p[1]))**p[2]
-                
+                val = p[0] * ((1. + z) / p[1])**p[2]
+                                
                 exec('p%i = val' % i)
             elif type(par) == tuple:
                 f, v = par

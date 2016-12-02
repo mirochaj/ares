@@ -73,7 +73,7 @@ def get_nu(sigma, nu_in, nu_out):
         
     # Integral (relative to total) from -sigma to sigma
     # Allows us to convert input sigma to 1-D error-bar
-    integral = lambda vr: quad(lambda x: pdf(x, var=var), -sigma, sigma)[0] \
+    integral = lambda vr: quad(lambda x: pdf(x, vv=var_in), -sigma, sigma)[0] \
         / (np.sqrt(abs(var_in)) * np.sqrt(2 * np.pi))
     
     # Minimize difference between integral (as function of variance) and

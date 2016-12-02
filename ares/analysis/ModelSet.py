@@ -868,7 +868,7 @@ class ModelSet(BlobFactory):
         # Figure out what these values translate to.
         data = self.ExtractData(pars, ivar, take_log, un_log, 
             multiplier)
-                        
+
         # Figure out elements we want
         xok_ = np.logical_and(data[pars[0]] >= x1, data[pars[0]] <= x2)
         xok_MP = np.logical_or(np.abs(data[pars[0]] - x1) <= MP, 

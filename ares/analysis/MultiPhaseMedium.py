@@ -925,7 +925,7 @@ def add_redshift_axis(ax, twin_ax=None):
 
     # A bit hack-y
     for i, label in enumerate(z_labels):
-        if label in ['40','50', '60', '70', '80']:
+        if label in ['40','50', '60', '70']:
             z_labels[i] = ''
 
         if float(label) > 80:

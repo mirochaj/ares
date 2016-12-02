@@ -140,8 +140,8 @@ class ModelSetLF(ModelSet):
         # We assume that ivars are [redshift, magnitude]
         mags_disk = ivars[1]
         
-        # Redden the model LF. Just kidding! Don't. Seriously, don't. 
-        mags_w_dc = mags_disk
+        # Redden the model LF. Must do iteratively in general case.
+        mags_w_dc = map(lambda mm: self.dc.Mobs(z, mm), mags_disk)
         
         if best_fit == 'mode':
             loc = np.argmax(self.logL[skip:stop])
@@ -149,17 +149,17 @@ class ModelSetLF(ModelSet):
             # Figure out the median, too
             _N = len(self.logL[skip:stop])
             loc = np.argsort(self.logL[skip:stop])[int(_N/float(2))]
-    
+
         phi = []
         # Want to grab phi(M) values using *intrinsic* magnitudes,
         # i.e., uncorrected for dust
         for i, mag in enumerate(mags_disk):
             data = self.ExtractData(name, ivar=[z, mag],
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
-                
+
             if shade_by_like:
                 lo, hi = np.percentile(data[name][skip:stop], (q1, q2))
-                phi.append((lo, hi))    
+                phi.append((lo, hi))
             elif samples > 1:
                 phi.append(data[name][skip:stop])
             else:
