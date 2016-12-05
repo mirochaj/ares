@@ -70,7 +70,7 @@ class ObservedLF(object):
                     
             else:        
                 z = redshift
-                
+
             data[source] = {}
             data[source]['wavelength'] = src.wavelength
             

@@ -80,11 +80,21 @@ class DustCorrection(object):
         """
         Return observed (i.e., uncorrected for dust) magnitude.
         """
-
-        f_AUV = lambda mag: self.AUV(z, mag)
         
-        to_min = lambda xx: xx - f_AUV(xx) - MUV
-        x = fsolve(to_min, MUV+1.)[0]
+        if type(MUV) in [np.ndarray, list, tuple]:
+            
+            x = []
+            for M in MUV:
+                f_AUV = lambda mag: self.AUV(z, mag)
+                
+                to_min = lambda xx: xx - f_AUV(xx) - M
+                x.append(fsolve(to_min, M+1.)[0])
+        else:
+
+            f_AUV = lambda mag: self.AUV(z, mag)
+            
+            to_min = lambda xx: xx - f_AUV(xx) - MUV
+            x = fsolve(to_min, MUV+1.)[0]
     
         return x
         
@@ -169,16 +179,16 @@ class DustCorrection(object):
 
     	        Mlo = mag[mag < _M0]
     	        Mhi = mag[mag >= _M0]
-    	        Alo = self.dbeta0_dM0(z)[0]*(Mlo - _M0) + self.beta0(z)[0]
-    	        Ahi = (self.beta0(z)[0] - _c) * np.exp(self.dbeta0_dM0(z)[0]*(Mhi - _M0)/(self.beta0(z)[0] - _c)) + _c
+    	        Alo = self._bouwens2014_dbeta0_dM0(z)[0]*(Mlo - _M0) + self._bouwens2014_beta0(z)[0]
+    	        Ahi = (self._bouwens2014_beta0(z)[0] - _c) * np.exp(self._bouwens2014_dbeta0_dM0(z)[0]*(Mhi - _M0)/(self._bouwens2014_beta0(z)[0] - _c)) + _c
             
                 return np.concatenate((Alo, Ahi))
             
             # Otherwise, standard if/else works
     	    if mag < _M0:
-    	    	return self.dbeta0_dM0(z)[0]*(mag - _M0) + self.beta0(z)[0]
+    	    	return self._bouwens2014_dbeta0_dM0(z)[0]*(mag - _M0) + self._bouwens2014_beta0(z)[0]
     	    else:
-    	    	return (self.beta0(z)[0] - _c) * np.exp(self.dbeta0_dM0(z)[0]*(mag - _M0)/(self.beta0(z)[0] - _c)) + _c
+    	    	return (self._bouwens2014_beta0(z)[0] - _c) * np.exp(self._bouwens2014_dbeta0_dM0(z)[0]*(mag - _M0)/(self._bouwens2014_beta0(z)[0] - _c)) + _c
     
         else:
             raise NotImplementedError('Unrecognized dustcorr: %s' % self.pf['dustcorr_beta'])

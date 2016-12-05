@@ -2904,7 +2904,7 @@ class ModelSet(BlobFactory):
                     continue
                                 
                 self.plot_info[k]['input'] = (xin, yin)
-                                                                    
+
                 # Plot as dotted lines
                 if xin is not None:
                     mult = np.array([0.995, 1.005])
@@ -2914,21 +2914,20 @@ class ModelSet(BlobFactory):
                     mp.grid[k].plot(mult * np.array(mp.grid[k].get_xlim()), 
                         [yin]*2, color='k', ls=':', zorder=20)
 
-                    
         if oned:
             mp.grid[np.intersect1d(mp.left, mp.top)[0]].set_yticklabels([])
-        
+
         if fix:
             mp.fix_ticks(oned=oned, N=ticks, rotate_x=45, rotate_y=45)
-        
+
         if not had_mp:
             mp.rescale_axes(tighten_up=tighten_up)
-    
+
         if label_panels is not None and (not had_mp):
             mp = self._label_panels(mp, label_panels)
-    
+
         return mp
-        
+
     def _label_panels(self, mp, label_panels):
         letters = list(string.ascii_lowercase)
         letters.extend([let*2 for let in list(string.ascii_lowercase)])

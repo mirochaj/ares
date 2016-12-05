@@ -191,6 +191,16 @@ _mcd['pop_sed'] = 'mcd'
 _pl = _mcd.copy()
 _pl['pop_sed'] = 'pl'
 
+_simple_dc1 = {'dustcorr_method': 'meurer1999', 'dustcorr_beta': -2}
+_simple_dc2 = {'dustcorr_method': 'meurer1999', 'dustcorr_beta': 'bouwens2014'}
+_evolve_dc = \
+{
+'dustcorr_method': ['meurer1999', 'pettini1998', 'capak2015'],
+'dustcorr_beta': 'bouwens2014',
+'dustcorr_ztrans': [0, 4, 5],
+}
+
+
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe, 
@@ -199,6 +209,8 @@ _Bundles = \
          'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 'toy': _sed_toy,
          'bpass': _uvsed_bpass, 's99': _uvsed_s99, 'xi': _sed_xi},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
+ 'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc1, 'evolving': _evolve_dc,
+    }
 }
 
 class ParameterBundle(dict):

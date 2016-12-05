@@ -717,7 +717,8 @@ class MultiPanel(object):
 
         pl.draw()          
     
-    def set_ticks(self, ticks, column=None, row=None, minor=False, round_two=False):
+    def set_ticks(self, ticks, column=None, row=None, minor=False, 
+        round_two=False, oned=True):
         """
         Replace ticks and labels for an entire column or row all at once.
         
@@ -745,8 +746,9 @@ class MultiPanel(object):
                         
             # Just apply to relevant rows, too.
             if not round_two:
-                self.set_ticks(ticks, row=self.nrows-column-1, minor=minor, 
-                    round_two=True)
+                if (column > 0) or oned:
+                    self.set_ticks(ticks, row=self.nrows-column-1*oned, minor=minor, 
+                        round_two=True, oned=oned)
         else:
             elements = self.elements_by_row
             for j, panel_set in enumerate(elements):
@@ -754,7 +756,7 @@ class MultiPanel(object):
                     if j != row:
                         continue
                         
-                    if panel in self.diag:
+                    if (panel in self.diag) and oned:
                         continue
             
                     self.grid[panel].set_yticks(ticks, minor=minor)
@@ -762,8 +764,9 @@ class MultiPanel(object):
                         self.grid[panel].set_yticklabels(map(str, ticks))
              
             if not round_two:
-                self.set_ticks(ticks, column=self.nrows-row-1, minor=minor, 
-                    round_two=True)
+                if (row > 0) or oned:
+                    self.set_ticks(ticks, column=self.nrows-row-1*oned, minor=minor, 
+                        round_two=True, oned=oned)
                                
         pl.draw()
         

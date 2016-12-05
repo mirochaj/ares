@@ -10,7 +10,7 @@ and perform a fits to:
     - The galaxy luminosity function
     - Something really cool I haven't even thought of yet!
 
-Some examples below.
+Here, we'll focus on the global signal application.
     
 Fitting Global 21-cm Extrema
 ----------------------------
@@ -88,7 +88,7 @@ and run the fit:
     
     fitter.run(prefix='test_tanh', burn=10, steps=50, save_freq=10)
 
-This will result in a series of files named ``test_tanh*.pkl``. See the example on :doc:`example_mcmc_I` to proceed with inspecting the above dataset.
+This will result in a series of files named ``test_tanh*.pkl``. See the example on :doc:`example_mcmc_analysis` to proceed with inspecting the above dataset.
 
 Fitting Global 21-cm Signal
 ---------------------------
@@ -121,7 +121,4 @@ now, we must provide errors at a specified set of frequencies:
     
 That's it!    
 
-.. Fitting the Galaxy Luminosity Function
-.. --------------------------------------
-.. Stay tuned.
 
