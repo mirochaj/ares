@@ -65,7 +65,7 @@ class Animation(object):
         return mi, ma    
                 
     def build_tracks(self, plane, _pars, pivots=None, ivar=None, take_log=False, 
-        un_log=False, multiplier=1):
+        un_log=False, multiplier=1, origin=None):
         """
         Construct array of models in the order in which we'll plot them.
         """
@@ -91,10 +91,14 @@ class Animation(object):
                 ii, jj, nd, dims = self.model_set.blob_info(p)
                 data_sorted[p] = self.model_set.blob_ivars[ii][jj]
 
+        if origin is None:
+            start = end = data_sorted[par][N / 2]
+        else:
+            start = end = origin
+
         if pivots is None:
-            pivots = [data_sorted[par][N / 2], limits[0], limits[1], 
-                      data_sorted[par][N / 2 - 1]]
-        
+            pivots = [start, limits[0], limits[1], end]
+                
         for element in pivots:
             assert limits[0] <= element <= limits[1], \
                 "Pivot point lies outside range of data!"
@@ -111,7 +115,10 @@ class Animation(object):
                 step = -1
             else:
                 step = 1
-                                    
+                
+            if step < 0 and k == (len(pivots) - 1):
+                j -= 1
+            
             for p in _pars: 
                 data_assembled[p].extend(list(data_sorted[p][i:j:step]))
 
@@ -138,7 +145,7 @@ class Animation(object):
         ax=None, sax=None, fig=1, clear=True, z_to_freq=True, 
         slider_kwargs={}, backdrop=None, backdrop_kwargs={}, squeeze_main=True, 
         close=False, xlim=None, ylim=None, xticks=None, yticks=None, 
-        z_ax=True, **kwargs):
+        z_ax=True, origin=None, **kwargs):
         """
         Animate variations of a single parameter.
 
@@ -172,7 +179,7 @@ class Animation(object):
         # This sets up all the data
         self.build_tracks(plane, _pars, pivots=pivots, ivar=ivar, 
             take_log=[take_log, False, False], un_log=[un_log, False, False], 
-            multiplier=multiplier)
+            multiplier=multiplier, origin=origin)
 
         if ax is None:
             ax, sax = self.prepare_axis(ax, fig, **slider_kwargs)
@@ -347,6 +354,33 @@ class AnimationSet(object):
         elif type(value) in [list, tuple]:
             assert len(value) == len(self.parameters)
             self._labels = value
+        
+        
+    @property
+    def origin(self):
+        if not hasattr(self, '_labels'):
+            self._origin = [None] * len(self.animations)
+        return self._origin    
+        
+    @origin.setter
+    def origin(self, value):
+        if type(value) is dict:
+            self._origin = []
+            for par in self.parameters:
+                self._origin.append(value[par])
+        elif type(value) in [list, tuple]:
+            assert len(value) == len(self.parameters)
+            self._origin = value
+    
+    @labels.setter
+    def labels(self, value):
+        if type(value) is dict:
+            self._labels = []
+            for par in self.parameters:
+                self._labels.append(value[par])
+        elif type(value) in [list, tuple]:
+            assert len(value) == len(self.parameters)
+            self._labels = value    
             
     @property
     def take_log(self):
@@ -459,13 +493,11 @@ class AnimationSet(object):
                 self.animations[k].Plot1D(plane, par, ax=ax, sax=sax[k],
                 take_log=self.take_log[k], un_log=self.un_log[k],
                 prefix='%s.%s' % (prefix, par), close=False,
-                slider_kwargs=kw, xlim=xlim, ylim=ylim, 
+                slider_kwargs=kw, xlim=xlim, ylim=ylim, origin=self.origin[k],
                 xticks=xticks, yticks=yticks, twin_ax=twin_ax, **kwargs)
                 
             
             
             
-                
-        
-            
+
         

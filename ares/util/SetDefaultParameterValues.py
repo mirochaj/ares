@@ -478,6 +478,8 @@ def PopulationParameters():
     "pop_L1600_per_sfr": None,
     "pop_calib_L1600": None,
     
+    "pop_Lh_scatter": 0.0,
+    
     "pop_fstar_boost": 1.,
 
     # If pop_yield_units == 'erg/s/sfr/hz, this is the reference wavelength

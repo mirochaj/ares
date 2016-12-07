@@ -611,7 +611,14 @@ class GalaxyCohort(GalaxyAggregate):
         return self.SFR(z, self.halos.M) * self.L1600_per_sfr(z, self.halos.M)
 
     def phi_of_L(self, z):
-
+        """
+        Compute the luminosity function at redshift z.
+        
+        Returns
+        -------
+        Number of galaxies per unit luminosity per unit volume.
+        
+        """
         if not hasattr(self, '_phi_of_L'):
             self._phi_of_L = {}
         else:
@@ -619,23 +626,55 @@ class GalaxyCohort(GalaxyAggregate):
                 return self._phi_of_L[z]
 
         Lh = self.Lh(z)
+        logL_Lh = np.log(Lh)
         
-        dMh_dLh = np.diff(self.halos.M) / np.diff(Lh)
-        dndm = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
+        dndm_func = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
 
+        dndm = dndm_func(z)
+        dMh_dLh = np.diff(self.halos.M) / np.diff(Lh)
+                
+        dMh_dlogLh = dMh_dLh * Lh[0:-1]
+        
         # Only return stuff above Mmin
         Mmin = np.interp(z, self.halos.z, self.Mmin)
+        Mmax = self.pf['pop_lf_Mmax']
+        
+        i_min = np.argmin(np.abs(Mmin - self.halos.M))
+        i_max = np.argmin(np.abs(Mmax - self.halos.M))
+
+        if self.pf['pop_Lh_scatter'] > 0:
+            sigma = self.pf['pop_Lh_scatter']
+            norm = np.sqrt(2. * np.pi) / sigma / np.log(10.)
+
+            gauss = lambda x, mu: np.exp(-(x - mu)**2 / 2. / sigma**2) / norm
+
+            phi_of_L = np.zeros_like(Lh[0:-1])
+            for k, logL in enumerate(logL_Lh[0:-1]):
+
+                # Actually a range of halo masses that can produce galaxy
+                # of luminosity Lh
+                pdf = gauss(logL_Lh[0:-1], logL_Lh[k])
+
+                integ = dndm[i_min:i_max] * pdf[i_min:i_max] * dMh_dlogLh[i_min:i_max]
+
+                phi_of_L[k] = np.trapz(integ, x=logL_Lh[i_min:i_max])
+
+                #print k, logL, self.halos.M[k], np.any(np.isnan(integ)), phi_of_L[k]
+
+            # This needs extra term now?
+            phi_of_L /= Lh[0:-1]
+
+        else:
+            phi_of_L = dndm * dMh_dLh
 
         above_Mmin = self.halos.M >= Mmin
-        below_Mmax = self.halos.M <= self.pf['pop_lf_Mmax']
+        below_Mmax = self.halos.M <= Mmax
         ok = np.logical_and(above_Mmin, below_Mmax)[0:-1]
         mask = self.mask = np.logical_not(ok)
-
-        phi_of_L = dndm(z) * self.fduty(z, self.halos.M[0:-1]) * dMh_dLh
         
         lum = np.ma.array(Lh[:-1], mask=mask)
         phi = np.ma.array(phi_of_L, mask=mask)
-        
+
         phi[mask == True] = 0.
 
         self._phi_of_L[z] = lum, phi
@@ -659,7 +698,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._phi_of_M[z]
 
-    def MUV_max(self, z): 
+    def MUV_max(self, z):
         """
         Compute the magnitude corresponding to the Tmin threshold.
         """   
@@ -1000,7 +1039,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Add option of parameterized stifling of gas supply, and
         # ejection of gas.
-    
+
         # Eq. 3: stellar mass
         Mmin = np.interp(z, self.halos.z, self.Mmin)
         if Mh < Mmin:
@@ -1018,18 +1057,75 @@ class GalaxyCohort(GalaxyAggregate):
 
         return np.array([y1p, y2p, y3p, y4p])    
         
+    @property
+    def constant_SFE(self):
+        if not hasattr(self, '_constant_SFE'):
+            self._constant_SFE = self.SFE(10, 1e11) == self.SFE(11, 1e11)
+        return self._constant_SFE    
+        
     def ScalingRelations(self):
+        if self.constant_SFE:
+            return self._ScalingRelationsStaticSFE()
+        else:
+            return self._ScalingRelationsGeneralSFE()
+            
+    def _ScalingRelationsGeneralSFE(self):
+        """
+        In this case, the formation time of a halo matters.
+        
+        Returns
+        -------
+        Dictionary of quantities, each having shape (z, z). 
+        The first dimension corresponds to formation time, the second axis
+        represents trajectories.
+        """
+        
+        
+        keys = ['Mh', 'Mg', 'Ms', 'MZ']
+                
+        results = {key:np.zeros([self.halos.z.size]*2) for key in keys}
+        
+        #results = {key:[] for key in keys}
+        zform = []
+        results['nthresh'] = np.zeros_like(self.halos.z)
+        #results['zform'] = []
+
+        for i, z in enumerate(self.halos.z):
+            if (i == 0) or (i == len(self.halos.z) - 1):
+                continue
+
+            if i % 50 != 0:
+                continue    
+
+            _zarr, _results = self._ScalingRelationsStaticSFE(z0=z)
+
+            for key in keys:
+                results[key][i,0:i+1] = _results[key].copy()
+                
+                # Must keep in mind that different redshifts have different
+                # halo mass gridding effectively
+                
+
+            #for key in keys:
+            #    results[key].append(_results[key].copy())
+            #
+            zform.append(z)
+            #results['z'].append(_zarr)
+            #
+            k = np.argmin(np.abs(self.halos.M - self.Mmin[i]))
+            results['nthresh'][i] = self.halos.dndm[i,k]
+
+        return zform, results
+        
+    def _ScalingRelationsStaticSFE(self, z0=None):
         """
         Evolve a halo from initial mass M0 at redshift z0 forward in time.
         
         Returns
         -------
         redshifts, halo mass, gas mass, stellar mass, metal mass
-        
+
         """
-        
-        assert np.all(np.diff(self.Mmin) == 0), \
-            "Can only do this for constant Mmin at the moment. Sorry!"
 
         dz = max(np.diff(self.halos.z)[0], self.pf['sam_dz'])
 
@@ -1040,15 +1136,23 @@ class GalaxyCohort(GalaxyAggregate):
         # Outputs have shape (z, z)
         ##
 
-        # Our results don't depend on this. We're a 'cohort', remember?
-        z0 = self.halos.z.max()
-        zf = self.halos.z.min()
+        # Our results don't depend on this, unless
+        if z0 is None:
+            z0 = self.halos.z.max()
+            M0 = self.Mmin[-1]
+            
+            assert np.all(np.diff(self.Mmin) == 0), \
+                "Can only do this for constant Mmin at the moment. Sorry!"
+            
+        else:
+            M0 = np.interp(z0, self.halos.z, self.Mmin)
+            
+        zf = float(self.halos.z.min())
 
-        # Boundary conditions
-        M0 = self.Mmin[-1]
+        # Boundary conditions (pristine halo)
         Mg0 = self.cosm.fbar_over_fcdm * M0
-        MZ0 = 0.
-        Mst0 = 0.
+        MZ0 = 0.0
+        Mst0 = 0.0
 
         # Initial stellar mass -> 0, initial halo mass -> Mmin
         solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0]), z0)
@@ -1058,8 +1162,7 @@ class GalaxyCohort(GalaxyAggregate):
         Mg_t = []
         Mst_t = []
         metals = []
-        while solver.t > zf:
-            solver.integrate(solver.t-dz)
+        while True:
 
             z.append(solver.t)
             Mh_t.append(solver.y[0])
@@ -1067,14 +1170,20 @@ class GalaxyCohort(GalaxyAggregate):
             Mst_t.append(solver.y[2])
             metals.append(solver.y[3])
 
+            # Annoying. Simple conditional in while was not robust.
+            if abs(solver.t - zf) < 1e-10:
+                break
+                
+            solver.integrate(solver.t-dz)
+
         z = np.array(z)[-1::-1]
         Mh = np.array(Mh_t)[-1::-1]
         Mg = np.array(Mg_t)[-1::-1]
         Ms = np.array(Mst_t)[-1::-1]
         MZ = np.array(metals)[-1::-1]
 
-        return z, Mh, Mg, Ms, MZ
-        
+        return z, {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ}
+
     def _LuminosityDensity_LW(self, z):
         return self.LuminosityDensity(z, Emin=10.2, Emax=13.6)
 
