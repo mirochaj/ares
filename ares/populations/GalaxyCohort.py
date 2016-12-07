@@ -1094,7 +1094,7 @@ class GalaxyCohort(GalaxyAggregate):
             if (i == 0) or (i == len(self.halos.z) - 1):
                 continue
 
-            if i % 50 != 0:
+            if i % 20 != 0:
                 continue    
 
             _zarr, _results = self._ScalingRelationsStaticSFE(z0=z)

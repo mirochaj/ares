@@ -645,8 +645,10 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         z = self.data_asc['z'][ok]
         dTb = self.data_asc['dTb'][ok]
         
-        # (closest) index corresponding to the extremum of interest
-        i_max = np.argmin(np.abs(dTb - T_pt))
+        # (closest) index corresponding to the extremum of interest.
+        # Using amplitude can lead to errors when heating trough is comparable
+        # in amplitude to dark ages trough
+        i_max = np.argmin(np.abs(z - z_pt))
         
         # At what fraction of peak do we measure width?
         f_max = max_fraction * T_pt
@@ -656,10 +658,22 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             
         # Need to restrict range to avoid double-valued-ness...? Might as well.
         if absorption:
-            i_hi = np.argmin(np.abs(z - self.turning_points['B'][0]))
+            if 'B' in self.turning_points:
+                i_hi = np.argmin(np.abs(z - self.turning_points['B'][0]))
+            else:
+                i_hi = np.argmin(np.abs(z - max(z)))
+                        
         else:
             i_hi = None    
-        
+            
+        if (i_hi is not None) and (i_hi < i_max):
+            print i_max, i_hi, z[i_hi], z[i_max], self.turning_points
+            
+            import matplotlib.pyplot as pl
+            
+            pl.plot(z, dTb)
+            raw_input('<enter>')
+
         # Break the data into two intervals: redshifts above and below
         # the extremum. Interpolate to find desired point.
         # I've experimented with cubic/quadratic and most of the time they
