@@ -1478,7 +1478,7 @@ class ModelSet(BlobFactory):
 
         # Plot a Polygon using descartes
         if add_patch:
-            
+
             self.Scatter(pars, ivar=ivar, take_log=take_log, un_log=un_log,
                 multiplier=multiplier, ax=ax, edgecolors='none', 
                 facecolors='none')

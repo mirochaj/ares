@@ -163,15 +163,8 @@ def _load(**kwargs):
         
         # Same for all metallicities
         wavelengths = _data[:,0]
-        
-        _raw_data = np.zeros_like(_data)
-        for i, t in enumerate(times):
-            # Data in this case is already in log10
-            interp = interp1d(np.log10(Zvals), data_3d[:,:,i], axis=0,
-                kind='linear')
-            _raw_data[:,i] = interp(np.log10(kwargs['pop_Z']))
                  
-        data = 10**_raw_data
+        data = 10**data_3d
                     
     else:        
         fn = _figure_name(**kwargs)

@@ -17,7 +17,7 @@ from ..util.ReadData import read_lit
 from scipy.interpolate import interp1d
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
-    s_per_myr, m_H, ev_per_hz
+    s_per_myr, m_H, ev_per_hz, Lsun
 
 relevant_pars = ['pop_Z', 'pop_imf', 'pop_nebular', 'pop_ssp', 'pop_tsf']
 
@@ -145,13 +145,44 @@ class SynthesisModel(object):
         
         """
         if not hasattr(self, '_data'):
-            self._wavelengths, self._data = self.litinst._load(**self.pf)
+            
+            Zall = np.sort(self.metallicities.values())
+                        
+            # Check to see dimensions of tmp. Depending on if we're 
+            # interpolating in Z, it might be multiple arrays.
+            if self.pf['pop_Z'] in Zall:
+                if self.pf['pop_sed_by_Z'] is not None:
+                    _tmp = self.pf['pop_sed_by_Z']
+                    self._data = _tmp[np.argmin(np.abs(Zall - self.pf['pop_Z']))]
+                else:
+                    self._wavelengths, self._data = \
+                        self.litinst._load(**self.pf)
+            else:
+                if self.pf['pop_sed_by_Z'] is not None:
+                    _tmp = self.pf['pop_sed_by_Z']
+                    assert len(_tmp) == len(Zall)
+                else:
+                    self._wavelengths, _tmp = \
+                        self.litinst._load(**self.pf)
+                        
+                to_interp = np.array(_tmp)
+                self._data_all_Z = to_interp.copy()                        
+
+                _raw_data = np.zeros_like(to_interp[0])
+                for i, t in enumerate(self.litinst.times):
+                    inter = interp1d(np.log10(Zall), np.log10(to_interp[:,:,i]), 
+                        axis=0, kind=self.pf['interp_Z'])
+                    _raw_data[:,i] = inter(np.log10(self.pf['pop_Z']))
+                
+                self._data = 10**_raw_data
+                
         return self._data
     
     @property
     def wavelengths(self):
         if not hasattr(self, '_wavelengths'):
-            self._wavelengths, self._data = self.litinst._load(**self.pf)
+            self._wavelengths, junk = self.litinst._load(**self.pf)
+            
         return self._wavelengths
 
     @property
@@ -405,16 +436,16 @@ class SynthesisModel(object):
     def PhotonsPerBaryon(self, Emin, Emax):    
         """
         Compute the number of photons emitted per unit stellar baryon.
-        
+
         ..note:: This integrand over the provided band, and cumulatively over time.
-        
+
         Parameters
         ----------
         Emin : int, float
             Minimum rest-frame photon energy to consider [eV].
         Emax : int, float
             Maximum rest-frame photon energy to consider [eV].
-        
+
         Returns
         -------
         An array with the same dimensions as ``self.times``, representing the 

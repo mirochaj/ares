@@ -78,7 +78,7 @@ def _load(**kwargs):
 
     # Interpolate
     if kwargs['pop_Z'] not in Zvals:
-        
+                
         assert min(Zvals) <= kwargs['pop_Z'] <= max(Zvals), \
             'Metallicity supplied lies outside range allowed.'
         
@@ -89,21 +89,16 @@ def _load(**kwargs):
         
         Zv = Zvals[i-1], Zvals[i]
         tmp = kwargs.copy()
+                
+        spectra = []
         del tmp['pop_Z']
-        (w1, d1), (w2, d2) = _load(pop_Z=Zvals[i-1], **tmp), \
-            _load(pop_Z=Zvals[i], **tmp)
-        to_interp = np.log10(np.array([d1,d2]) / Lsun)
+        for Z in Zvals:
+            _w1, _d1 = _load(pop_Z=Z, **tmp)
+            spectra.append(_d1.copy())
         
-        wavelengths = wave = w1
-        
-        _raw_data = np.zeros_like(d1)
-        for i, t in enumerate(times):
-            inter = interp1d(np.log10(Zv), to_interp[:,:,i], axis=0,
-                kind='linear')
-            _raw_data[:,i] = inter(np.log10(kwargs['pop_Z']))
+        wavelengths = wave = _w1
+        data = spectra
 
-        data = 10**_raw_data
-        
     # No interpolation necessary
     else:        
         fn = _kwargs_to_fn(**kwargs)
@@ -112,7 +107,7 @@ def _load(**kwargs):
         data = np.array(_raw_data[:,1:])
         wavelengths = _raw_data[:,0]
 
-    data *= Lsun
+        data *= Lsun
 
     return wavelengths, data    
             

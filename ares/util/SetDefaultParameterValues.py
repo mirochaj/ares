@@ -377,6 +377,7 @@ def PopulationParameters():
     "pop_psm_instance": None,
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
+    "pop_sed_by_Z": None,
 
     # Option of setting Z, t, or just supplying SSP table?
     
@@ -687,6 +688,7 @@ def ControlParameters():
     "solver_atol": 1e-8,
     "interp_method": 'cubic',
     "interp_cc": 'linear',
+    "interp_Z": 'linear',
 
     # Initialization
     "load_ics": True,
