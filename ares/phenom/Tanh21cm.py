@@ -180,11 +180,8 @@ class Tanh21cm(object):
         Tk = Tref * tanh_generic(z, zref=zref_T, dz=dz_T) + Tgas
         xi = xref * tanh_generic(z, zref=zref_x, dz=dz_x)
 
-        # Compute (proper) electron density assuming xHII = xHeII, xHeIII = 0.
-        # Needed for collisional coupling.
-
         # Spin temperature
-        Ts = self.hydr.SpinTemperature(z, Tk, Ja, xi, ne)
+        Ts = self.hydr.SpinTemperature(z, Tk, Ja, 0.0, ne)
 
         # Brightness temperature
         dTb = self.hydr.DifferentialBrightnessTemperature(z, xi, Ts)

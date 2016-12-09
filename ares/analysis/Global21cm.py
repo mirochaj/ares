@@ -631,7 +631,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         if tp not in self.turning_points:
             return -np.inf
-        
+
         z_pt = self.turning_points[tp][0]
         n_pt = nu_0_mhz / (1. + z_pt)
         T_pt = self.turning_points[tp][1]
@@ -655,18 +655,22 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         if len(dTb[:i_max]) < 2 or len(dTb[i_max:]) < 2:
             return -np.inf
-            
+                        
         # Need to restrict range to avoid double-valued-ness...? Might as well.
         if absorption:
             if 'B' in self.turning_points:
-                i_hi = np.argmin(np.abs(z - self.turning_points['B'][0]))
+                if np.isfinite(self.turning_points['B'][0]):
+                    i_hi = np.argmin(np.abs(z - self.turning_points['B'][0]))
+                else:
+                    i_hi = np.argmin(np.abs(z - max(z)))
             else:
                 i_hi = np.argmin(np.abs(z - max(z)))
                         
         else:
             i_hi = None    
-                        
+            
         if (i_hi is not None) and (i_hi < i_max):
+            print i_max, i_hi, z[i_hi], z[i_max], self.turning_points
             raise ValueError('This shouldn\'t happen!')
 
         # Break the data into two intervals: redshifts above and below

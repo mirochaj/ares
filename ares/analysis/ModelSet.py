@@ -1427,7 +1427,7 @@ class ModelSet(BlobFactory):
     
     def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
         take_log=False, un_log=False, multiplier=1., add_patch=True,
-        boundary_type='concave', alpha=0.3, return_polygon=False, **kwargs):
+        boundary_type='convex', alpha=0.3, return_polygon=False, **kwargs):
         """
         Basically a scatterplot but instead of plotting individual points,
         we draw lines bounding the locations of all those points.
@@ -1478,6 +1478,11 @@ class ModelSet(BlobFactory):
 
         # Plot a Polygon using descartes
         if add_patch:
+            
+            self.Scatter(pars, ivar=ivar, take_log=take_log, un_log=un_log,
+                multiplier=multiplier, ax=ax, edgecolors='none', 
+                facecolors='none')
+            
             try:        
                 patch = PolygonPatch(polygon, **kwargs)
                 ax.add_patch(patch)
@@ -3503,7 +3508,6 @@ class ModelSet(BlobFactory):
                 f.close()
                 
                 if pdat is not None:
-                        
                     f = open(fn_md, 'a')
                     pickle.dump({name: ivars})
                     f.close()
