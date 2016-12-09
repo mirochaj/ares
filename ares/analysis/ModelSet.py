@@ -3511,6 +3511,11 @@ class ModelSet(BlobFactory):
         
         return result
         
+    def z_to_freq(self, clobber=False):
+        for tp in list('BCD'):
+            self.DeriveBlob(expr='%.5g / (1. + x)' % nu_0_mhz, 
+                varmap={'x': 'z_%s' % tp}, name='nu_%s' % tp, clobber=clobber)
+                
     def RankModels(self, **kwargs):
         """
         Determine how close all models in ModelSet are to parameter set

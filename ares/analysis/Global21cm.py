@@ -665,14 +665,9 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                         
         else:
             i_hi = None    
-            
+                        
         if (i_hi is not None) and (i_hi < i_max):
-            print i_max, i_hi, z[i_hi], z[i_max], self.turning_points
-            
-            import matplotlib.pyplot as pl
-            
-            pl.plot(z, dTb)
-            raw_input('<enter>')
+            raise ValueError('This shouldn\'t happen!')
 
         # Break the data into two intervals: redshifts above and below
         # the extremum. Interpolate to find desired point.

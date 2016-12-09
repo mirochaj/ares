@@ -59,7 +59,13 @@ class TurningPoints(object):
         if negative and concave_up and (max(z) > 60 and 'B' not in self.TPs):
             return 'A'
         elif negative and concave_down and ('B' not in self.TPs):
-            return 'B'
+            # If WF coupling happens early enough, there will not be a 
+            # turning point A or B, and thus we're probably looking at the
+            # end of EoR "turning point" if C has already been found.
+            if 'C' in self.TPs:
+                return 'E'
+            else:
+                return 'B'
         elif negative and concave_up and ('C' not in self.TPs) \
             and (max(z) < 60 or 'B' in self.TPs):
             return 'C'
