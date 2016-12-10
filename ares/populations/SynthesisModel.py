@@ -152,28 +152,28 @@ class SynthesisModel(object):
             # interpolating in Z, it might be multiple arrays.
             if self.pf['pop_Z'] in Zall:
                 if self.pf['pop_sed_by_Z'] is not None:
-                    _tmp = self.pf['pop_sed_by_Z']
+                    _tmp = self.pf['pop_sed_by_Z'][1]
                     self._data = _tmp[np.argmin(np.abs(Zall - self.pf['pop_Z']))]
                 else:
                     self._wavelengths, self._data = \
                         self.litinst._load(**self.pf)
             else:
                 if self.pf['pop_sed_by_Z'] is not None:
-                    _tmp = self.pf['pop_sed_by_Z']
+                    _tmp = self.pf['pop_sed_by_Z'][1]
                     assert len(_tmp) == len(Zall)
                 else:
                     self._wavelengths, _tmp = \
                         self.litinst._load(**self.pf)
                         
                 to_interp = np.array(_tmp)
-                self._data_all_Z = to_interp.copy()                        
+                self._data_all_Z = to_interp             
 
                 _raw_data = np.zeros_like(to_interp[0])
                 for i, t in enumerate(self.litinst.times):
                     inter = interp1d(np.log10(Zall), np.log10(to_interp[:,:,i]), 
                         axis=0, kind=self.pf['interp_Z'])
                     _raw_data[:,i] = inter(np.log10(self.pf['pop_Z']))
-                
+                                
                 self._data = 10**_raw_data
                 
         return self._data
@@ -181,7 +181,10 @@ class SynthesisModel(object):
     @property
     def wavelengths(self):
         if not hasattr(self, '_wavelengths'):
-            self._wavelengths, junk = self.litinst._load(**self.pf)
+            if self.pf['pop_sed_by_Z'] is not None:
+                self._wavelengths, junk = self.pf['pop_sed_by_Z']
+            else:
+                self._wavelengths, junk = self.litinst._load(**self.pf)
             
         return self._wavelengths
 

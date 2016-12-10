@@ -1396,7 +1396,13 @@ class ModelSet(BlobFactory):
             scat = func(xdata, ydata, **kwargs)
                            
         if (cdata is not None) and use_colorbar and (not line_plot):
-            cb = self._cb = pl.colorbar(scat)
+            if 'facecolors' in kwargs:
+                if kwargs['facecolors'] in ['none', None]:
+                    cb = None
+                else:
+                    cb = None
+            else:
+                cb = self._cb = pl.colorbar(scat)
         else:
             cb = None
         

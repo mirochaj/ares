@@ -21,7 +21,7 @@ ls = ['-', '--']
 colors = ['k', 'g']
 for i, binaries in enumerate([False, True]):
     
-    pop = ares.populations.SynthesisModel(pop_model='eldridge2009',
+    pop = ares.populations.SynthesisModel(pop_sed='eldridge2009',
         pop_binaries=binaries)
         
     if binaries:
@@ -46,7 +46,7 @@ pl.draw()
 fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
 
 for j, model in enumerate(['eldridge2009', 'leitherer1999']):
-    pop = ares.populations.SynthesisModel(pop_model=model,
+    pop = ares.populations.SynthesisModel(pop_sed=model,
         pop_binaries=False)
  
     k = np.argmin(np.abs(pop.times - 10.))    
