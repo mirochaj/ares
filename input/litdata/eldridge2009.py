@@ -78,16 +78,6 @@ def _load(**kwargs):
 
     # Interpolate
     if kwargs['pop_Z'] not in Zvals:
-                
-        assert min(Zvals) <= kwargs['pop_Z'] <= max(Zvals), \
-            'Metallicity supplied lies outside range allowed.'
-        
-        data = []
-        i = 0
-        while Zvals[i] < kwargs['pop_Z']: 
-            i += 1
-        
-        Zv = Zvals[i-1], Zvals[i]
         tmp = kwargs.copy()
                 
         spectra = []

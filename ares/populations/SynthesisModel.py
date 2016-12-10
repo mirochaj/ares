@@ -166,13 +166,19 @@ class SynthesisModel(object):
                         self.litinst._load(**self.pf)
                         
                 to_interp = np.array(_tmp)
-                self._data_all_Z = to_interp             
-
-                _raw_data = np.zeros_like(to_interp[0])
-                for i, t in enumerate(self.litinst.times):
-                    inter = interp1d(np.log10(Zall), np.log10(to_interp[:,:,i]), 
-                        axis=0, kind=self.pf['interp_Z'])
-                    _raw_data[:,i] = inter(np.log10(self.pf['pop_Z']))
+                self._data_all_Z = to_interp
+                
+                if self.pf['pop_Z'] > max(Zall):
+                    _raw_data = np.log10(to_interp[-1])
+                elif self.pf['pop_Z'] < min(Zall):
+                    _raw_data = np.log10(to_interp[0])
+                else:
+                    _raw_data = np.zeros_like(to_interp[0])
+                    for i, t in enumerate(self.litinst.times):
+                        inter = interp1d(np.log10(Zall), 
+                            np.log10(to_interp[:,:,i]), axis=0, 
+                            kind=self.pf['interp_Z'])
+                        _raw_data[:,i] = inter(np.log10(self.pf['pop_Z']))
                                 
                 self._data = 10**_raw_data
                 

@@ -686,9 +686,12 @@ def ControlParameters():
     # Solvers
     "solver_rtol": 1e-8,
     "solver_atol": 1e-8,
-    "interp_method": 'cubic',
+    "interp_tab": 'cubic',
     "interp_cc": 'linear',
     "interp_Z": 'linear',
+    
+    # Not implemented
+    "extrap_Z": False,
 
     # Initialization
     "load_ics": True,

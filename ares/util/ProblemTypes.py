@@ -173,8 +173,6 @@ def RaySegmentProblem(ptype):
               "slab_profile": 0,
               "slab_ionization": [1.-1e-4, 1e-4],
 
-              "interp_method": 'linear',
-
              }
 
     if ptype_mod1 != 0:
