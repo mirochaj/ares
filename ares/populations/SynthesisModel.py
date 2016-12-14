@@ -150,7 +150,7 @@ class SynthesisModel(object):
                         
             # Check to see dimensions of tmp. Depending on if we're 
             # interpolating in Z, it might be multiple arrays.
-            if self.pf['pop_Z'] in Zall:
+            if (self.pf['pop_Z'] in Zall):
                 if self.pf['pop_sed_by_Z'] is not None:
                     _tmp = self.pf['pop_sed_by_Z'][1]
                     self._data = _tmp[np.argmin(np.abs(Zall - self.pf['pop_Z']))]

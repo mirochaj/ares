@@ -53,7 +53,7 @@ class GalaxyCohort(GalaxyAggregate):
     def __getattr__(self, name):
         """
         This gets called anytime we try to fetch an attribute that doesn't
-        exist (yet). Right, now this is only used for L1600, Nion, Nlw.
+        exist (yet). Right, now this is only used for L1600, pop_yield?
         """
             
         # Indicates that this attribute is being accessed from within a 
@@ -70,8 +70,29 @@ class GalaxyCohort(GalaxyAggregate):
                 is_php = self.pf[full_name][0:3] == 'php'
             except (IndexError, TypeError):
                 is_php = False
+                
+            if self.pf['pop_Z'] == 'sam':
+                tmp = []
+                Zarr = np.sort(self.src.metallicities.values())
+                for Z in Zarr:
+                    kw = self.src_kwargs.copy()
+                    kw['pop_Z'] = Z
+                    if self.sed_tab:
+                        src = self._Source(**kw)
+                        tmp.append(src.__getattribute__(name))
+                    else:
+                        # pop-yield?
+                        raise NotImplemented('help')
+                                    
+                interp = interp1d(np.log10(Zarr), tmp, 
+                    kind=self.pf['interp_Z'], bounds_error=False,
+                    fill_value=0.0)
+                
+                # Could setup a pop_metal_yield_calib...?
+                result = lambda z, M: interp(np.log10(self.Zgas(z, M))) \
+                    / self.pf['pop_fstar_boost']
     
-            if self.sed_tab and (not is_php):
+            elif self.sed_tab:    
                 result = lambda z, M: self.src.__getattribute__(name) \
                     / self.pf['pop_fstar_boost']
             elif type(self.pf[full_name]) in [float, np.float64]:
@@ -95,13 +116,33 @@ class GalaxyCohort(GalaxyAggregate):
                 inst = ParameterizedHaloProperty(**pars)
                 result = lambda z, M: inst.__call__(z, M) \
                         / self.pf['pop_fstar_boost']          
-        
+
             else:
                 raise TypeError('dunno how to handle this')
-                
+
             self.__dict__[name] = result
-    
+
         return self.__dict__[name]
+
+    def Zgas(self, z, M):
+        if not hasattr(self, '_sam_data'):
+            self._sam_z, self._sam_data = self.ScalingRelations()
+
+        if self.constant_SFE:
+            Mh = self._sam_data['Mh'][-1::-1] 
+            MZ = self._sam_data['MZ'][-1::-1] 
+            Mg = self._sam_data['Mg'][-1::-1]
+        else:
+            # guaranteed to be a grid point?    
+            k = np.argmin(np.abs(self.halos.z - z))
+
+            smhm = self._sam_data['Ms'][:,k]  / self._sam_data['Mh'][:,k]
+            mask = np.isfinite(smhm)
+            Mh = self._sam_data['Mh'][:,k][mask]
+            MZ = self._sam_data['MZ'][:,k][mask] 
+            Mg = self._sam_data['Mg'][:,k][mask]
+
+        return np.interp(M, Mh, MZ / Mg)
 
     def N_per_Msun(self, Emin, Emax):
         """
@@ -162,8 +203,11 @@ class GalaxyCohort(GalaxyAggregate):
         # If we've already figured it out, just return    
         if (Emin, Emax) in self._rho_L:    
             return self._rho_L[(Emin, Emax)]    
+            
+        need_sam = False
 
-        # For all halos
+        # For all halos. Reduce to a function of redshift only by passing
+        # in the array of halo masses stored in 'halos' attribute.
         if Emax <= 24.6:
             N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
 
@@ -172,22 +216,56 @@ class GalaxyCohort(GalaxyAggregate):
             
             # Get an array for fesc
             if (Emin, Emax) == (13.6, 24.6):
-                fesc = lambda zz: self.fesc(zz, self.halos.M)
+                fesc = lambda **kwargs: self.fesc(**kwargs)
             elif (Emin, Emax) == (10.2, 13.6):
-                fesc = lambda zz: self.fesc_LW(zz, self.halos.M)
+                fesc = lambda **kwargs: self.fesc_LW(**kwargs)
             else:                
                 return None
                 
-            yield_per_sfr = lambda zz: fesc(zz) * N_per_Msun * erg_per_phot
+            yield_per_sfr = lambda **kwargs: fesc(**kwargs) \
+                * N_per_Msun * erg_per_phot
             
         else:
-            yield_per_sfr = lambda zz: self.yield_per_sfr(zz, self.halos.M) \
+                        
+            try:
+                for v in self.yield_per_sfr.func_vars:
+                    if v not in ['z', 'Mh']:
+                        need_sam = True
+                        break
+            except AttributeError:
+                pass
+
+            if need_sam:
+                sam_z, sam_data = self.scaling_relations
+            else:
+                pass
+
+            yield_per_sfr = lambda **kwargs: self.yield_per_sfr(**kwargs) \
                 * s_per_yr
 
         tab = np.zeros(self.halos.Nz)
         for i, z in enumerate(self.halos.z):            
+
+            # Must grab stuff vs. Mh and interpolate to self.halos.M
+            # They are guaranteed to have the same redshifts.
+            if need_sam:
+                
+                kw = {'z': z, 'Mh': self.halos.M}                
+                if self.constant_SFE:
+                    for key in sam_data.keys():
+                        if key == 'Mh':
+                            continue
+                        
+                        kw[key] = np.interp(self.halos.M,
+                            sam_data['Mh'][-1::-1], sam_data[key][-1::-1])
+                else:
+                    raise NotImplemented('help')
+                
+            else:            
+                kw = {'z': z, 'Mh': self.halos.M}
+
             integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
-                * yield_per_sfr(z) * self.fduty(z, self.halos.M)
+                * yield_per_sfr(**kw)
 
             tot = np.trapz(integrand, x=self.halos.lnM)
             cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
@@ -223,15 +301,15 @@ class GalaxyCohort(GalaxyAggregate):
         N_per_Msun = self.N_per_Msun(Emin=Emin, Emax=Emax)
         
         if (Emin, Emax) == (13.6, 24.6):
-            fesc = self.fesc(z, self.halos.M)
+            fesc = self.fesc(z=z, Mh=self.halos.M)
         elif (Emin, Emax) == (10.2, 13.6):
-            fesc = self.fesc_LW(z, self.halos.M)
+            fesc = self.fesc_LW(z=z, Mh=self.halos.M)
         else:
             raise NotImplemented('help!')
 
         for i, z in enumerate(self.halos.z):
             integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
-                * N_per_Msun * fesc * self.fduty(z, self.halos.M)
+                * N_per_Msun * fesc
 
             tot = np.trapz(integrand, x=self.halos.lnM)
             cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
@@ -747,7 +825,7 @@ class GalaxyCohort(GalaxyAggregate):
             self._sfr_tab = np.zeros([self.halos.Nz, self.halos.Nm])
             for i, z in enumerate(self.halos.z):
                 self._sfr_tab[i] = self.eta[i] * self.MAR(z, self.halos.M) \
-                    * self.cosm.fbar_over_fcdm * self.SFE(z, self.halos.M)
+                    * self.cosm.fbar_over_fcdm * self.SFE(z=z, Mh=self.halos.M)
                 
                 mask = self.halos.M >= self.Mmin[i]
                 self._sfr_tab[i] *= mask
@@ -824,13 +902,13 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self._LLW_tab
 
-    def SFE(self, z, M):
+    def SFE(self, **kwargs):
         """
         Compute the star-formation efficiency.
     
         If outside the bounds, must extrapolate.
         """
-        return self.fstar(z, M)
+        return self.fstar(**kwargs)
 
     def fstar_no_boost(self, z, M, coeff):
         """
@@ -852,7 +930,7 @@ class GalaxyCohort(GalaxyAggregate):
                 self._mlf = ParameterizedHaloProperty(**pars)
             else:
                 raise ValueError('Unrecognized data type for pop_mlf!')  
-    
+
         return self._mlf
     
     @property
@@ -888,8 +966,9 @@ class GalaxyCohort(GalaxyAggregate):
                 pars = get_php_pars(self.pf['pop_fstar'], self.pf)
                 self._fstar_inst = ParameterizedHaloProperty(**pars)
                 
-                self._fstar = lambda z, M: self._fstar_inst.__call__(z, M) \
-                        * boost
+                self._fstar = \
+                    lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
+                    * boost
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
                 
@@ -897,7 +976,15 @@ class GalaxyCohort(GalaxyAggregate):
         
     @fstar.setter
     def fstar(self, value):
-        self._fstar = value    
+        self._fstar = value  
+        
+    @property    
+    def phps(self):
+        # Add to this everytime a new PHP is created.
+        if not hasattr(self, '_phps'):
+            self._phps = {}
+            
+        return self._phps
 
     @property
     def fduty(self):
@@ -909,27 +996,29 @@ class GalaxyCohort(GalaxyAggregate):
                 self._fduty = ParameterizedHaloProperty(**pars)
             else:
                 raise ValueError('Unrecognized data type for pop_fduty!')  
-    
+
         return self._fduty   
-    
+
     @property    
     def yield_per_sfr(self):
         if not hasattr(self, '_yield_per_sfr'):
             if type(self.pf['pop_yield']) in [float, np.float64]:
-                self._yield_per_sfr = lambda z, M: self.pf['pop_yield']
+                self._yield_per_sfr = lambda **kwargs: self.pf['pop_yield']
             elif self.pf['pop_yield'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_yield'], self.pf)    
+                pars = get_php_pars(self.pf['pop_yield'], self.pf)
                 self._yield_per_sfr = ParameterizedHaloProperty(**pars)
+            elif type(self.pf['pop_yield']) is FunctionType:
+                self._yield_per_sfr = lambda z, M: self.pf['pop_yield']
             else:
                 raise ValueError('Unrecognized data type for pop_yield!')  
-    
+
         return self._yield_per_sfr
-        
+
     @property    
     def fesc(self):
         if not hasattr(self, '_fesc'):
             if type(self.pf['pop_fesc']) in [float, np.float64]:
-                self._fesc = lambda z, M: self.pf['pop_fesc']
+                self._fesc = lambda **kwargs: self.pf['pop_fesc']
             elif self.pf['pop_fesc'][0:3] == 'php':
                 pars = get_php_pars(self.pf['pop_fesc'], self.pf)    
                 self._fesc = ParameterizedHaloProperty(**pars)
@@ -942,7 +1031,7 @@ class GalaxyCohort(GalaxyAggregate):
     def fesc_LW(self):
         if not hasattr(self, '_fesc_LW'):
             if type(self.pf['pop_fesc_LW']) in [float, np.float64]:
-                self._fesc_LW = lambda z, M: self.pf['pop_fesc_LW']
+                self._fesc_LW = lambda **kwargs: self.pf['pop_fesc_LW']
             elif self.pf['pop_fesc_LW'][0:3] == 'php':
                 pars = get_php_pars(self.pf['pop_fesc_LW'], self.pf)    
                 self._fesc_LW = ParameterizedHaloProperty(**pars)
@@ -1025,13 +1114,17 @@ class GalaxyCohort(GalaxyAggregate):
 
         """
 
-        Mh, Mg, Mst, Z = y
+        Mh, Mg, Mst, MZ = y
+        
+        kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg}
+        
+        fstar = self.SFE(**kw)
 
         # Eq. 1: halo mass.
         y1p = -1. * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
 
         # Eq. 2: gas mass
-        y2p = self.cosm.fbar_over_fcdm * y1p * (1. - self.SFE(z, Mh))
+        y2p = self.cosm.fbar_over_fcdm * y1p * (1. - fstar)
 
         #_sfr_res = Mg * self.pf['pop_fstar_res'] / 1e7
         #
@@ -1045,7 +1138,7 @@ class GalaxyCohort(GalaxyAggregate):
         if Mh < Mmin:
             y3p = 0.
         else:
-            y3p = self.SFE(z, Mh) * self.cosm.fbar_over_fcdm * y1p \
+            y3p = fstar * self.cosm.fbar_over_fcdm * y1p \
                 * (1. - self.pf['pop_mass_rec'])
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
@@ -1055,19 +1148,34 @@ class GalaxyCohort(GalaxyAggregate):
         # Stuff to add: parameterize metal yield, metal escape, star formation
         # from reservoir? How to deal with Mmin(z)? Initial conditions (from PopIII)?
 
-        return np.array([y1p, y2p, y3p, y4p])    
+        # How might this ultimately work?
+        # pars = [z, Mh, Mg, Mst, Z]
+        # y5p = y3p * self.L1600_per_sfr(*pars)
+        # y6p = y3p * self.LX_per_sfr(*pars)
+        
+        results = [y1p, y2p, y3p, y4p]
+        
+        # How to choose which L values to pass on?
+        # Need L1600 for luminosity function, L_X, 
+        # Can we just look for things that are halo properties?
+        
+        return np.array(results)    
         
     @property
     def constant_SFE(self):
         if not hasattr(self, '_constant_SFE'):
-            self._constant_SFE = self.SFE(10, 1e11) == self.SFE(11, 1e11)
+            self._constant_SFE = self.SFE(z=10, Mh=1e11) == self.SFE(z=11, Mh=1e11)
         return self._constant_SFE    
         
-    def ScalingRelations(self):
-        if self.constant_SFE:
-            return self._ScalingRelationsStaticSFE()
-        else:
-            return self._ScalingRelationsGeneralSFE()
+    @property
+    def scaling_relations(self):
+        if not hasattr(self, '_scaling_relations'):
+            if self.constant_SFE:
+                self._scaling_relations = self._ScalingRelationsStaticSFE()
+            else:
+                self._scaling_relations = self._ScalingRelationsGeneralSFE()
+            
+        return self._scaling_relations    
             
     def _ScalingRelationsGeneralSFE(self):
         """
@@ -1094,7 +1202,7 @@ class GalaxyCohort(GalaxyAggregate):
             if (i == 0) or (i == len(self.halos.z) - 1):
                 continue
 
-            if i % 20 != 0:
+            if i % 10 != 0:
                 continue    
 
             _zarr, _results = self._ScalingRelationsStaticSFE(z0=z)
@@ -1104,7 +1212,6 @@ class GalaxyCohort(GalaxyAggregate):
                 
                 # Must keep in mind that different redshifts have different
                 # halo mass gridding effectively
-                
 
             #for key in keys:
             #    results[key].append(_results[key].copy())
@@ -1113,13 +1220,15 @@ class GalaxyCohort(GalaxyAggregate):
             #results['z'].append(_zarr)
             #
             k = np.argmin(np.abs(self.halos.M - self.Mmin[i]))
-            results['nthresh'][i] = self.halos.dndm[i,k]
+            results['nthresh'][i] = self.halos.dndm[i,k]   
 
         return zform, results
         
     def _ScalingRelationsStaticSFE(self, z0=None):
         """
         Evolve a halo from initial mass M0 at redshift z0 forward in time.
+        
+        Really this should be invoked any time any PHP has 'z' in its vars list.
         
         Returns
         -------
@@ -1136,14 +1245,14 @@ class GalaxyCohort(GalaxyAggregate):
         # Outputs have shape (z, z)
         ##
 
-        # Our results don't depend on this, unless
+        # Our results don't depend on this, unless SFE depends on z
         if z0 is None:
             z0 = self.halos.z.max()
             M0 = self.Mmin[-1]
-            
-            assert np.all(np.diff(self.Mmin) == 0), \
-                "Can only do this for constant Mmin at the moment. Sorry!"
-            
+
+            #assert np.all(np.diff(self.Mmin) == 0), \
+            #    "Can only do this for constant Mmin at the moment. Sorry!"
+
         else:
             M0 = np.interp(z0, self.halos.z, self.Mmin)
             
@@ -1176,13 +1285,19 @@ class GalaxyCohort(GalaxyAggregate):
                 
             solver.integrate(solver.t-dz)
 
+        # Everything will be returned in order of ascending redshift,
+        # which will mean masses are (probably) declining from 0:-1
         z = np.array(z)[-1::-1]
         Mh = np.array(Mh_t)[-1::-1]
         Mg = np.array(Mg_t)[-1::-1]
         Ms = np.array(Mst_t)[-1::-1]
         MZ = np.array(metals)[-1::-1]
+        
+        # Derived
+        results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ}
+        results['Z'] = results['MZ'] / results['Mg'] / self.pf['pop_fpoll']
 
-        return z, {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ}
+        return z, results
 
     def _LuminosityDensity_LW(self, z):
         return self.LuminosityDensity(z, Emin=10.2, Emax=13.6)

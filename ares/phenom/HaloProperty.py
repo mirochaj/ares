@@ -48,7 +48,7 @@ class ParameterizedHaloProperty(object):
     
     @property
     def func_vars(self):
-        return self.pf['php_vars']
+        return self.pf['php_func_var']
 
     @property
     def faux(self):
@@ -74,7 +74,7 @@ class ParameterizedHaloProperty(object):
     def _apply_extrap(self, value):
         self._apply_extrap_ = value
 
-    def __call__(self, z, M=None, func=None):
+    def __call__(self, func=None, **kwargs):
         """
         Compute the star formation efficiency.
         """
@@ -93,9 +93,9 @@ class ParameterizedHaloProperty(object):
         
             pars2.append(tmp)
         
-        return self._call(z, M, [pars1, pars2])
+        return self._call([pars1, pars2], **kwargs)
 
-    def _call(self, z, M, pars, func=None, faux_id=''):
+    def _call(self, pars, func=None, faux_id='', **kwargs):
         """
         A higher-level version of __call__ that accepts a few more kwargs.
         """
@@ -108,15 +108,17 @@ class ParameterizedHaloProperty(object):
             s = 'faux%s' % faux_id
 
         # Determine independent variables
-        var = self.pf['php_%s_var' % s].lower()
-        if var == 'mass':
-            x = M
-        elif (var == 'redshift') or (var == 'z'):
-            x = z
-        elif var == '1+z':
-            x = 1. + z
+        var = self.pf['php_%s_var' % s]
+        
+        if var == '1+z':
+            x = 1. + kwargs['z']
         else:
-            raise ValueError('Unrecognized func_var \'%s\'.' % var)    
+            x = kwargs[var]
+            
+        if self.pf['php_var_ceil'] is not None:
+            x = np.minimum(x, self.pf['php_var_ceil'])
+        if self.pf['php_var_floor'] is not None:
+            x = np.maximum(x, self.pf['php_var_floor'])    
         
         logx = np.log10(x)
         
@@ -183,7 +185,7 @@ class ParameterizedHaloProperty(object):
                 else:
                     f = p1
         elif func == 'astep':
-                        
+
             if type(x) is np.ndarray:
                 lo = x <= p2
                 hi = x > p2
@@ -276,10 +278,10 @@ class ParameterizedHaloProperty(object):
         # Only apply floor/ceil after auxiliary function has been applied
         if self._apply_extrap:
 
-            if self.pf['php_ceil'] is not None:
-                f = np.minimum(f, self.pf['php_ceil'])
-            if self.pf['php_floor'] is not None:
-                f = np.maximum(f, self.pf['php_floor'])
+            if self.pf['php_val_ceil'] is not None:
+                f = np.minimum(f, self.pf['php_val_ceil'])
+            if self.pf['php_val_floor'] is not None:
+                f = np.maximum(f, self.pf['php_val_floor'])
 
         return f
               

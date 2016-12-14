@@ -43,6 +43,9 @@ The second command extracts only the parameters associated with population #0, w
     pop = ares.populations.GalaxyPopulation(**pars)
     
 If you glance at the contents of ``pars``, you'll notice that the parameters that define the double power-law share a ``php`` prefix. This is short for "parameterized halo property", and will be discussed more generally in the next major section.
+
+.. note::
+    You can access population objects used in a simulation via the ``pops`` attribute, which is a list of population objects that belongs to instances of  common simulation classes like ``Global21cm``, ``MetaGalacticBackground``, etc.
     
 Now, to generate a model for the luminosity function, simply define your redshift of interest and array of magnitudes (assumed to be rest-frame :math:`1600 \AA` AB magnitudes), and pass them to the aptly named ``LuminosityFunction`` function,
 

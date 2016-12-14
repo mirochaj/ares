@@ -37,7 +37,7 @@ dpl = \
  # SFE
  'pop_fstar{0}': 'php[0]',
  'php_func{0}[0]': 'dpl',
- 'php_func_var{0}[0]': 'mass',
+ 'php_func_var{0}[0]': 'Mh',
  
  ##
  # IMPORTANT
@@ -84,7 +84,7 @@ dpl = \
 _floor_specific = \
 {
 'php_faux{0}[0]': 'plexp',
-'php_faux_var{0}[0]': 'mass',
+'php_faux_var{0}[0]': 'Mh',
 'php_faux_meth{0}[0]': 'add',
 'php_faux_par0{0}[0]': 0.005,
 'php_faux_par1{0}[0]': 1e9,
@@ -98,7 +98,7 @@ floor.update(_floor_specific)
 _steep_specific = \
 {
  'php_faux{0}[0]': 'okamoto',
- 'php_faux_var{0}[0]': 'mass',
+ 'php_faux_var{0}[0]': 'Mh',
  'php_faux_meth{0}[0]': 'multiply',
  'php_faux_par0{0}[0]': 1.,
  'php_faux_par1{0}[0]': 1e9,
@@ -131,7 +131,7 @@ _Mz_specific = \
 _flex = \
 {
  'php_func{0}[0]': 'dpl_arbnorm',
- 'php_func_var{0}[0]': 'mass',
+ 'php_func_var{0}[0]': 'Mh',
  
  # Standard dpl model at 10^8 Msun
  'php_func_par0{0}[0]': 0.00205,

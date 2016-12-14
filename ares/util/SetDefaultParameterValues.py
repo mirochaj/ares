@@ -277,8 +277,10 @@ def HaloPropertyParameters():
      
      "php_boost": 1.,
      "php_iboost": 1.,
-     "php_ceil": None,
-     "php_floor": None,
+     "php_val_ceil": None,
+     "php_val_floor": None,
+     "php_var_ceil": None,
+     "php_var_floor": None,      
          
     }  
     
@@ -469,6 +471,7 @@ def PopulationParameters():
     
     # Parameters for simple galaxy SAM
     "pop_metal_yield": 0.01,
+    "pop_fpoll": 1.0, # uniform pollution
     "pop_mass_rec": 0.0,
     "pop_mass_escape": 0.0,
     "pop_fstar_res": 0.0,
