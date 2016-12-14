@@ -669,9 +669,16 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         else:
             i_hi = None    
             
+        # Don't fully understand this
         if (i_hi is not None) and (i_hi < i_max):
-            print i_max, i_hi, z[i_hi], z[i_max], self.turning_points
-            raise ValueError('This shouldn\'t happen!')
+            return -np.inf
+            
+        # I think this only happens when absorption signal is basically
+        # negligible.
+        if len(dTb[:i_max]) < 2:
+            return -np.inf
+        if len(dTb[i_max:i_hi]) < 2:
+            return -np.inf
 
         # Break the data into two intervals: redshifts above and below
         # the extremum. Interpolate to find desired point.

@@ -400,6 +400,11 @@ def PopulationParameters():
     
     # By-hand parameterizations
     "pop_Ja": None,
+    "pop_Tk": None,
+    "pop_xi": None,  
+    "pop_ne": None,  
+    
+    # 
     "pop_ion_rate": None,
     "pop_heat_rate": None,
         
@@ -470,6 +475,7 @@ def PopulationParameters():
     "pop_yield_Z_index": None,
     
     # Parameters for simple galaxy SAM
+    "pop_sam_nz": 1,
     "pop_metal_yield": 0.01,
     "pop_fpoll": 1.0, # uniform pollution
     "pop_mass_rec": 0.0,
@@ -767,6 +773,7 @@ def ControlParameters():
     
 _sampling_parameters = \
 {
+ 'parametric_model': False,
  'output_frequencies': None,
  'output_freq_min': 30.,
  'output_freq_max': 200.,

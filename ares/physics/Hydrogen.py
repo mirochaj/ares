@@ -383,8 +383,14 @@ class Hydrogen(object):
     def saturated_limit(self, z):
         return self.DifferentialBrightnessTemperature(z, 0.0, np.inf)
         
+    def ne_floor(self, z):
+        return np.interp(z, self.inits['z'], self.inits['xe']) * self.cosm.nH(z)
+        
+    def Tk_floor(self, z):
+        return np.interp(z, self.inits['z'], self.inits['Tk'])
+        
     def adiabatic_floor(self, z): 
-        Tk = np.interp(z, self.inits['z'], self.inits['Tk'])
+        Tk = self.Tk_floor(z)
         Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)        
         return self.DifferentialBrightnessTemperature(z, 0.0, Ts)
         

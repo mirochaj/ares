@@ -142,11 +142,13 @@ class Global21cm(AnalyzeGlobal21cm):
         if not kwargs:
             return False
     
-        if ('tanh_model' not in kwargs) and ('gaussian_model' not in kwargs):
+        if ('tanh_model' not in kwargs) and ('gaussian_model' not in kwargs)\
+           and ('parametric_model' not in kwargs):
             return False
             
         self.is_tanh = False
-        self.is_gauss = False    
+        self.is_gauss = False
+        self.is_param = False
 
         if 'tanh_model' in kwargs:
             if kwargs['tanh_model']:
@@ -157,8 +159,12 @@ class Global21cm(AnalyzeGlobal21cm):
             if kwargs['gaussian_model']:
                 from ..phenom.Gaussian21cm import Gaussian21cm as PhenomModel            
                 self.is_gauss = True
+        elif 'parametric_model' in kwargs:
+            if kwargs['parametric_model']:
+                from ..phenom.Parametric21cm import Parametric21cm as PhenomModel            
+                self.is_param = True        
                 
-        if (not self.is_tanh) and (not self.is_gauss):
+        if (not self.is_tanh) and (not self.is_gauss) and (not self.is_param):
             return False
                 
         model = PhenomModel(**kwargs)                
@@ -179,7 +185,9 @@ class Global21cm(AnalyzeGlobal21cm):
             nu = np.arange(nu_min, nu_max, nu_res)
             z = nu_0_mhz / nu - 1.
         
-        if self.is_gauss:
+        if self.is_param:
+            self.history = model(z)
+        elif self.is_gauss:
             self.history = model(nu, **self.pf)    
         else:
             self.history = model(z, **self.pf)

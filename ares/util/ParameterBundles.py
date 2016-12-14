@@ -297,6 +297,20 @@ class ParameterBundle(dict):
     
         for key in self.keys():
             self[_add_pop_tag(key, value)] = self.pop(key)
+            
+    @property
+    def pqid(self):
+        if not hasattr(self, '_pqid'):
+            self._pqid = None
+        return self._pqid
+    
+    @pqid.setter
+    def pqid(self, value):
+        assert value % 1 == 0
+        self._value = value
+    
+        for key in self.keys():
+            self[_add_pop_tag(key, value)] = self.pop(key)        
     
     @property
     def Npops(self):
@@ -377,6 +391,13 @@ _gs_4par = _PB('pop:fcoll', id_num=0) + _PB('sed:lw', id_num=0) \
          + _PB('pop:fcoll', id_num=1) + _PB('sed:lyc', id_num=1) \
          + _PB('pop:fcoll', id_num=2) + _PB('sed:xray', id_num=2)
 
-_tmp = {'gs_2pop': _uv_pop+_xr_pop, 'gs_4par': _gs_4par}
+_tanh_sim = {'problem_type': 100, 'tanh_model': True,
+    'output_frequencies': np.arange(30., 201.)}
 
-_Bundles['sim'] = _tmp
+_param_sim = {'problem_type': 100, 'parametric_model': True,
+    'output_frequencies': np.arange(30., 201.)}
+
+_tmp = {'2pop': _uv_pop+_xr_pop, '4par': _gs_4par,
+    'tanh': _tanh_sim, 'param': _param_sim}
+
+_Bundles['gs'] = _tmp

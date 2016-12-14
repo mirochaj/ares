@@ -137,6 +137,7 @@ history_elements = \
  'nu': r'$\nu$', 
  'Ja': r'$J_{\alpha}$', 
  'Jlw': r'$J_{\mathrm{LW}}$', 
+ 'dTb': r'$\delta T_b \ (\mathrm{mK})$',
  
  'slope': r'$\delta^{\prime} T_b \ [\mathrm{mK} \ \mathrm{MHz}^{-1}]$',
  'curvature': r'$\delta^{\prime \prime} T_b \ [\mathrm{mK}^2 \ \mathrm{MHz}^{-2}]$', 
@@ -292,7 +293,7 @@ class Labeler(object):
         label = None
         
         # Simplest case
-        if popid == phpid == None and (par in self.labels):
+        if popid == phpid == None and (prefix in self.labels):
             label = self.labels[prefix]
         # Has pop ID number
         elif (popid is not None) and (phpid is None) and (prefix in self.labels):

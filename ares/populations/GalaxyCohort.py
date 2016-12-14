@@ -1094,6 +1094,15 @@ class GalaxyCohort(GalaxyAggregate):
         return self._D_fstar_wrt_Mh_tab
         
     def _SAM(self, z, y):
+        if self.pf['pop_sam_nz'] == 1:
+            return self._SAM_1z(z, y)
+        #elif self.pf['pop_sam_nz'] == 2:
+        #    pass
+        else:
+            raise NotImplemented('No SAM with nz=%i' % self.pf['pop_sam_nz'])
+            
+        
+    def _SAM_1z(self, z, y):
         """
         Simple semi-analytic model for the components of galaxies.
 
@@ -1148,17 +1157,8 @@ class GalaxyCohort(GalaxyAggregate):
         # Stuff to add: parameterize metal yield, metal escape, star formation
         # from reservoir? How to deal with Mmin(z)? Initial conditions (from PopIII)?
 
-        # How might this ultimately work?
-        # pars = [z, Mh, Mg, Mst, Z]
-        # y5p = y3p * self.L1600_per_sfr(*pars)
-        # y6p = y3p * self.LX_per_sfr(*pars)
-        
         results = [y1p, y2p, y3p, y4p]
-        
-        # How to choose which L values to pass on?
-        # Need L1600 for luminosity function, L_X, 
-        # Can we just look for things that are halo properties?
-        
+                
         return np.array(results)    
         
     @property

@@ -38,8 +38,9 @@ func_options = \
  'ramp': 'p0 if x <= p1, p2 if x >= p3, linear in between',
 }
 
-class ParameterizedHaloProperty(object):
+class ParameterizedQuantity(object):
     def __init__(self, **kwargs):
+        # Cut this down to just PHP pars?
         self.pf = ParameterFile(**kwargs)
     
     @property
@@ -141,6 +142,7 @@ class ParameterizedHaloProperty(object):
                                 
                 exec('p%i = val' % i)
             elif type(par) == tuple:
+                raise NotImplemented('help')
                 f, v = par
                                 
                 if v == 'z':
@@ -157,7 +159,9 @@ class ParameterizedHaloProperty(object):
             
         # Actually execute the function                    
         if func == 'lognormal':
-            f = p0 * np.exp(-(logx - p1)**2 / 2. / p2**2)    
+            f = p0 * np.exp(-(logx - p1)**2 / 2. / p2**2)   
+        elif func == 'normal':
+            f = p0 * np.exp(-(x - p1)**2 / 2. / p2**2)
         elif func == 'pl':
             f = p0 * (x / p1)**p2
         elif func == 'plexp':
@@ -170,9 +174,9 @@ class ParameterizedHaloProperty(object):
         elif func == 'plsum2':
             f = p0 * (x / p1)**p2 + p3 * (x / p1)**p4
         elif func == 'tanh_abs':
-            f = tanh_astep(x, p0, p1, p2, p3)
+            f = (p0 - p1) * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1
         elif func == 'tanh_rel':
-            f = tanh_rstep(x, p0, p1, p2, p3)
+            f = p1 * p0 * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1
         elif func == 'rstep':
             if type(x) is np.ndarray:
                 lo = x <= p2
@@ -208,7 +212,7 @@ class ParameterizedHaloProperty(object):
                 else:            
                     f = p2 * (x / p4)**p3
         elif func == 'okamoto':
-            assert var == 'mass'
+            assert var == 'Mh'
             f = (1. + (2.**(p0 / 3.) - 1.) * (x / p1)**-p0)**(-3. / p0)
         elif func == 'ramp':
             if type(x) is np.ndarray:
@@ -262,9 +266,12 @@ class ParameterizedHaloProperty(object):
                                 
                 if self.pf['php_faux%s' % faux_id] is None:
                     continue
-                                
-                p = [self.pf['php_faux%s_par%s' % (faux_id, i)] for i in range(6)]
-                aug = self._call(z, M, [p,None], self.pf['php_faux%s' % faux_id], faux_id)
+                 
+                if type(self.pf['php_faux%s' % faux_id]) != str:
+                    aug = self.pf['php_faux%s' % faux_id](x)
+                else:
+                    p = [self.pf['php_faux%s_par%s' % (faux_id, i)] for i in range(6)]
+                    aug = self._call(z, M, [p,None], self.pf['php_faux%s' % faux_id], faux_id)
 
                 if self.pf['php_faux%s_meth' % faux_id] == 'multiply':
                     f *= aug
@@ -286,4 +293,6 @@ class ParameterizedHaloProperty(object):
         return f
               
 
+# Backward compatibility
+ParameterizedHaloProperty = ParameterizedQuantity
 
