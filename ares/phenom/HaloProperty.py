@@ -271,7 +271,7 @@ class ParameterizedQuantity(object):
                     aug = self.pf['php_faux%s' % faux_id](x)
                 else:
                     p = [self.pf['php_faux%s_par%s' % (faux_id, i)] for i in range(6)]
-                    aug = self._call(z, M, [p,None], self.pf['php_faux%s' % faux_id], faux_id)
+                    aug = self._call([p,None], self.pf['php_faux%s' % faux_id], faux_id, **kwargs)
 
                 if self.pf['php_faux%s_meth' % faux_id] == 'multiply':
                     f *= aug

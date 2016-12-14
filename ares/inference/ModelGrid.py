@@ -151,6 +151,14 @@ class ModelGrid(ModelFit):
             
             self.done[kvec] = 1
             
+        if save_by_proc:
+            return self.done
+        else:
+            if rank == 0:
+                return self.done
+            else:
+                return np.zeros_like(self.done)
+            
     @property            
     def axes(self):
         return self.grid.axes
