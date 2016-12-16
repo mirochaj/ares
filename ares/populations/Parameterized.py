@@ -10,74 +10,61 @@ Description:
 
 """
 
+import numpy as np
 from types import FunctionType
 from .Population import Population
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..util.ParameterFile import ParameterFile, par_info, get_pq_pars
 
-parameter_options = ['pop_Ja', 'pop_ion_rate', 'pop_heat_rate']
+parametric_options = ['pop_Ja', 'pop_ion_rate_cgm', 'pop_ion_rate_igm',
+    'pop_heat_rate']
 
 class ParametricPopulation(Population):
+
+    def __getattr__(self, name):
+        if (name[0] == '_'):
+            raise AttributeError('This will get caught. Don\'t worry!')
+            
+        # This is the name of the thing as it appears in the parameter file.
+        full_name = 'pop_' + name
         
-    @property
-    def is_lya_src(self):
-        return True if self.pf['pop_Ja'] is not None else False 
-    
-    @property
-    def is_uv_src(self):
-        return True if self.pf['pop_ion_rate'] is not None else False
-    
-    @property
-    def is_xray_src(self):
-        return True if self.pf['pop_heat_rate'] is not None else False           
-    
-    @property
-    def Ja(self):
-        if not hasattr(self, '_Ja'):
-            if self.pf['pop_Ja'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_Ja'], self.pf)
-                self._Ja = ParameterizedQuantity(**pars)
-            elif type(self.pf['pop_Ja']) is FunctionType:
-                self._Ja = self.pf['pop_Ja']
+        # Now, possibly make an attribute
+        if not hasattr(self, name):
+            try:
+                is_pq = self.pf[full_name][0:2] == 'pq'
+            except (IndexError, TypeError):
+                is_pq = False
+                
+            if type(self.pf[full_name]) in [float, np.float64]:
+                result = lambda z: self.pf[full_name]
+            elif type(self.pf[full_name]) is FunctionType:
+                result = self.pf[full_name]
+            elif is_php:
+                pars = get_pq_pars(self.pf[full_name], self.pf)            
+                result = ParameterizedQuantity(**pars)
+            elif type(self.pf[full_name]) is str:
+                x, y = np.loadtxt(self.pf[full_name], unpack=True)
+                result = interp1d(x, y, kind=self.pf['interp_hist'])
             else:
-                raise ValueError('Unrecognized data type for pop_Ja!')    
-        
-        return self._Ja
-        
+                raise NotImplemented('help!')
+                
+            self.__setattr__(name, result)
+            
+        return getattr(self, name)    
+
     def LymanAlphaFlux(self, z):
-        return self.Ja(z, None)
-        
-    @property
-    def Gamma(self):
-        if not hasattr(self, '_k_ion'):
-            if self.pf['pop_ion_rate'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_ion_rate'], self.pf)
-                self._k_ion = ParameterizedQuantity(**pars)
-            elif type(self.pf['pop_ion_rate']) is FunctionType:
-                self._k_ion = self.pf['pop_ion_rate']
-            else:
-                raise ValueError('Unrecognized data type for pop_ion_rate!')    
-    
-        return self._k_ion    
-        
+        return self.Ja(z=z)
+                
     def IonizationRateCGM(self, z):
-        return self.Gamma(z, None)
+        return self.ion_rate_cgm(z=z)
         
-    @property
-    def epsilon_X(self):
-        if not hasattr(self, '_k_heat'):
-            if self.pf['pop_heat_rate'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_heat_rate'], self.pf)
-                self._k_heat = ParameterizedQuantity(**pars)
-            elif type(self.pf['pop_heat_rate']) is FunctionType:
-                self._k_heat = self.pf['pop_heat_rate']
-            else:
-                raise ValueError('Unrecognized data type for pop_heat_rate!')    
-    
-        return self._k_heat    
-    
+    def IonizationRateIGM(self, z):
+        return self.ion_rate_igm(z=z)    
+            
     def HeatingRate(self, z):
-        return self.epsilon_X(z, None)
+        return self.heat_rate(z=z)
+        
+    
         
         
     

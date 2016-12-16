@@ -45,5 +45,54 @@ class Population(object):
                 self._cosm = grid.cosm
                 
         return self._cosm
+    
+    @property
+    def is_lya_src(self):
+        if not hasattr(self, '_is_lya_src'):
+            if self.pf['pop_lya_src']:
+                self._is_lya_src = True
+            else:
+                self._is_lya_src = False
 
+        return self._is_lya_src
+    
+    @property
+    def is_ion_src_cgm(self):
+        if not hasattr(self, '_is_ion_src_cgm'):
+            if self.pf['pop_ion_src_cgm']:
+                self._is_ion_src_cgm = True
+            else:
+                self._is_ion_src_cgm = False
+
+        return self._is_ion_src_cgm
+    
+    @property
+    def is_ion_src_igm(self):
+        if not hasattr(self, '_is_ion_src_igm'):
+            if self.pf['pop_ion_src_igm']:
+                self._ion_src_igm = True
+            else:
+                self._ion_src_igm = False
+
+        return self._ion_src_igm
+    
+    @property
+    def is_heat_src_igm(self):
+        if not hasattr(self, '_is_heat_src_igm'):
+            if self.pf['pop_heat_src_igm']:
+                self._is_heat_src_igm = True
+            else:
+                self._is_heat_src_igm = False
+
+        return self._is_heat_src_igm
+    
+    @property
+    def is_uv_src(self):
+        return True if self.is_ion_src_cgm else False
+    
+    @property
+    def is_xray_src(self):
+        return True if (self.is_heat_src_igm or self.is_ion_src_igm) else False
+        
+        
         

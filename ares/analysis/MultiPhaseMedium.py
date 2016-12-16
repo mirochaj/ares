@@ -546,7 +546,7 @@ class MultiPhaseMedium(object):
                     self.pf["initial_redshift"])
             ax.set_xlabel(r'$z$')
             
-        if not ax.get_ylabel():    
+        if not ax.get_ylabel():
             ax.set_ylabel(r'Temperature $(\mathrm{K})$') 
         
         if show_legend:

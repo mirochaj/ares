@@ -405,7 +405,8 @@ def PopulationParameters():
     "pop_ne": None,  
     
     # 
-    "pop_ion_rate": None,
+    "pop_ion_rate_cgm": None,
+    "pop_ion_rate_igm": None,
     "pop_heat_rate": None,
         
     "pop_k_ion_cgm": None,
@@ -476,6 +477,7 @@ def PopulationParameters():
     
     # Parameters for simple galaxy SAM
     "pop_sam_nz": 1,
+    "pop_mass_yield": 0.0,
     "pop_metal_yield": 0.01,
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
@@ -697,6 +699,7 @@ def ControlParameters():
     "interp_tab": 'cubic',
     "interp_cc": 'linear',
     "interp_Z": 'linear',
+    "interp_hist": 'linear',
     
     # Not implemented
     "extrap_Z": False,

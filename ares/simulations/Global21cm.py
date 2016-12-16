@@ -405,8 +405,9 @@ class Global21cm(AnalyzeGlobal21cm):
                     continue
                                                     
                 if not np.any(self.medium.field.solve_rte[i]):
-                    Ja += self.medium.field.LymanAlphaFlux(z, popid=i)   
-                    Jlw += self.medium.field.LymanWernerFlux(z, popid=i)
+                    Ja += self.medium.field.LymanAlphaFlux(z, popid=i)
+                    if self.pf['feedback_LW'] is not None:   
+                        Jlw += self.medium.field.LymanWernerFlux(z, popid=i)
                     continue
 
                 # Grab line fluxes for this population for this step

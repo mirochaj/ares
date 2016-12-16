@@ -69,33 +69,17 @@ class GalaxyCohort(GalaxyAggregate):
         # property. Don't want to override that behavior!
         if (name[0] == '_'):
             raise AttributeError('This will get caught. Don\'t worry!')
-        
+            
         # This is the name of the thing as it appears in the parameter file.
         full_name = 'pop_' + name
                 
-        #print name, self.id_num, hasattr(self, name), \
-        #    hasattr(self, '_%s' % name), name in self.__dict__.keys(),\
-        #    '_%s' % name in self.__dict__.keys()
-                
         # Now, possibly make an attribute
-        #if name not in self.__dict__.keys(): 
         if not hasattr(self, name):
             
             try:
                 is_php = self.pf[full_name][0:2] == 'pq'
             except (IndexError, TypeError):
                 is_php = False
-                
-                
-            """
-            What do we need to correct for here?
-            
-            Z-dep stellar population
-            rad_yield from src needs Emin, Emax
-            
-            """    
-                
-                
                 
             # A few special cases    
             if type(self.pf[full_name]) in [float, np.float64]:
@@ -1071,7 +1055,7 @@ class GalaxyCohort(GalaxyAggregate):
             y3p = 0.
         else:
             y3p = fstar * self.cosm.fbar_over_fcdm * y1p \
-                * (1. - self.pf['pop_mass_rec'])
+                * self.pf['pop_mass_yield']
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
         # Could make a PHP pretty easily.

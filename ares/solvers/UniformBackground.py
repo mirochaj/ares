@@ -272,7 +272,7 @@ class UniformBackground(object):
         if not hasattr(self, '_tau'):
             self._tau = []
             for i, pop in enumerate(self.pops):
-                if self.solve_rte[i]:
+                if np.any(self.solve_rte[i]):
                     bands = self.bands_by_pop[i]
                     z, nrg, tau, ehat = self._set_grid(pop, bands, 
                         compute_tau=True)
@@ -288,7 +288,7 @@ class UniformBackground(object):
         if not hasattr(self, '_emissivities'):
             self._emissivities = []
             for i, pop in enumerate(self.pops):
-                if self.solve_rte[i]:
+                if np.any(self.solve_rte[i]):
                     bands = self.bands_by_pop[i]
                     z, nrg, tau, ehat = self._set_grid(pop, bands, 
                         compute_emissivities=True)

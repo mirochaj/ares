@@ -13,7 +13,7 @@ Description:
 from .GalaxyCohort import GalaxyCohort
 from .GalaxyEnsemble import GalaxyEnsemble
 from .GalaxyAggregate import GalaxyAggregate
-from .Parameterized import ParametricPopulation, parameter_options
+from .Parameterized import ParametricPopulation, parametric_options
 
 def GalaxyPopulation(**kwargs):
     """
@@ -22,20 +22,26 @@ def GalaxyPopulation(**kwargs):
     """
     
     Npq = 0
+    Nparam = 0
     pqs = []
     for kwarg in kwargs:
-        if type(kwargs[kwarg]) != str:
-            continue
-        if kwargs[kwarg][0:2] == 'pq':
-            Npq += 1
-            pqs.append(kwarg)
-    
-    if Npq == 0:
+        
+        if type(kwargs[kwarg]) == str:
+            if kwargs[kwarg][0:2] == 'pq':
+                Npq += 1
+                pqs.append(kwarg)
+        elif (kwarg in parametric_options) and (kwargs[kwarg]) is not None:
+            Nparam += 1
+        
+    if Nparam > 0:
+        assert Npq == 0
+        model = 'rates'
+    elif Npq == 0:
         model = 'fcoll'
     elif (Npq == 1) and pqs[0] == 'pop_sfrd':
         model = 'sfrd-func'
     else:
-        if set(pqs).intersection(parameter_options):
+        if set(pqs).intersection(parametric_options):
             model = 'rates'
         else:   
             model = 'sfe-func'

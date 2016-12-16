@@ -42,7 +42,7 @@ The second command extracts only the parameters associated with population #0, w
 
     pop = ares.populations.GalaxyPopulation(**pars)
     
-If you glance at the contents of ``pars``, you'll notice that the parameters that define the double power-law share a ``php`` prefix. This is short for "parameterized halo property", and will be discussed more generally in the next major section.
+If you glance at the contents of ``pars``, you'll notice that the parameters that define the double power-law share a ``pq`` prefix. This is short for "parameterized quantity", and will be discussed more generally in the next major section.
 
 .. note::
     You can access population objects used in a simulation via the ``pops`` attribute, which is a list of population objects that belongs to instances of  common simulation classes like ``Global21cm``, ``MetaGalacticBackground``, etc.
@@ -96,12 +96,12 @@ To create the ``GalaxyPopulation`` used above by scratch, we could have just don
      'pop_sfr_model': 'sfe-func',
      'pop_sed': 'eldridge2009',
 
-     'pop_fstar': 'php',
-     'php_func': 'dpl',
-     'php_func_par0': 0.05,
-     'php_func_par1': 2.8e11,
-     'php_func_par2': 0.51,
-     'php_func_par3': -0.61,
+     'pop_fstar': 'pq',
+     'pq_func': 'dpl',
+     'pq_func_par0': 0.05,
+     'pq_func_par1': 2.8e11,
+     'pq_func_par2': 0.51,
+     'pq_func_par3': -0.61,
     }
     
     pop = ares.populations.GalaxyPopulation(**pars)
@@ -135,12 +135,12 @@ you can define an "auxiliary function" to provide this extra boost. Starting fro
     # Extra multiplicative boost with redshift, par0 * (var / par1)**par2
     new_pars = \
         {
-         'php_faux': 'pl',
-         'php_faux_var': '1+z',
-         'php_faux_meth': 'multiply',
-         'php_faux_par0': 1,
-         'php_faux_par1': 7,
-         'php_faux_par2': 1.,   # this is gamma_z
+         'pq_faux': 'pl',
+         'pq_faux_var': '1+z',
+         'pq_faux_meth': 'multiply',
+         'pq_faux_par0': 1,
+         'pq_faux_par1': 7,
+         'pq_faux_par2': 1.,   # this is gamma_z
         }
         
     pars.update(new_pars)
@@ -155,9 +155,14 @@ To verify that this has worked, let's plot the SFE as a function of redshift:
     Mh = np.logspace(8, 13)
     
     for z in redshifts:
-        fstar = pop.SFE(z, Mh)
+        fstar = pop.SFE(z=z, Mh=Mh)
         pl.loglog(Mh, fstar)
 
+
+.. note:: The only method of ParameterizedQuantity objects ever called is the 
+    ``__call__`` method, which accepts ``**kwargs``. As a result, we must 
+    always supply arguments accordingly (i.e., supplying positional arguments 
+    only will not suffice), hence the ``z=z, Mh=Mh`` usage above.
 
 
 Dust
@@ -194,18 +199,18 @@ In general, we can use the same approach outlined above to parameterize other qu
      'pop_sfr_model': 'sfe-func',
      'pop_sed': 'eldridge2009',
 
-     'pop_fstar': 'php[0]',
-     'php_func[0]': 'dpl',
-     'php_func_par0[0]': 0.05,
-     'php_func_par1[0]': 2.8e11,
-     'php_func_par2[0]': 0.5,
-     'php_func_par3[0]': -0.5,
+     'pop_fstar': 'pq[0]',
+     'pq_func[0]': 'dpl',
+     'pq_func_par0[0]': 0.05,
+     'pq_func_par1[0]': 2.8e11,
+     'pq_func_par2[0]': 0.5,
+     'pq_func_par3[0]': -0.5,
 
-     'pop_fesc': 'php[1]',
-     'php_func[1]': 'astep',
-     'php_func_par0[1]': 0.02,
-     'php_func_par1[1]': 0.2,
-     'php_func_par2[1]': 1e10,
+     'pop_fesc': 'pq[1]',
+     'pq_func[1]': 'astep',
+     'pq_func_par0[1]': 0.02,
+     'pq_func_par1[1]': 0.2,
+     'pq_func_par2[1]': 1e10,
 
     }
     

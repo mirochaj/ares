@@ -214,6 +214,11 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                 self.fluxes_raw = {}
                 for i, pop_generator in enumerate(self.generators):
                     self.fluxes_raw[i] = []
+                    
+                    if pop_generator is None:
+                        self.fluxes_raw[i].append([])
+                        continue
+                    
                     for j, generator in enumerate(pop_generator):
                         self.fluxes_raw[i].append([])
    
