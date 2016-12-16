@@ -381,27 +381,27 @@ def print_pop(pop):
         print line("HMF         : %s" % pop.pf['hmf_model'])
 
     # Parameterized halo properties
-    if pop.pf.Nphps > 0:
-        if pop.pf.Nphps > 1:
+    if pop.pf.Npqs > 0:
+        if pop.pf.Npqs > 1:
             sf = lambda x: '[%i]' % x
         else:
             sf = lambda x: ''
-                        
-        for i, par in enumerate(pop.pf.phps):
-                
+
+        for i, par in enumerate(pop.pf.pqs):
+
             pname = par.replace('pop_', '').ljust(20)
-                                
-            s = pop.pf['php_func%s' % sf(i)]
-                                
-            if 'php_faux%s' % sf(i) not in pop.pf:
+
+            s = pop.pf['pq_func%s' % sf(i)]
+
+            if 'pq_faux%s' % sf(i) not in pop.pf:
                 print line("%s   : %s" % (pname, s))
                 continue    
                 
-            if pop.pf['php_faux%s' % sf(i)] is not None:
-                if pop.pf['php_faux_meth%s' % sf(i)] == 'add':
-                    s += ' + %s' % pop.pf['php_faux%s' % sf(i)]
+            if pop.pf['pq_faux%s' % sf(i)] is not None:
+                if pop.pf['pq_faux_meth%s' % sf(i)] == 'add':
+                    s += ' + %s' % pop.pf['pq_faux%s' % sf(i)]
                 else:
-                    s += ' * %s' % pop.pf['php_faux%s' % sf(i)]
+                    s += ' * %s' % pop.pf['pq_faux%s' % sf(i)]
                 
             print line("%s: %s" % (pname, s))
                 

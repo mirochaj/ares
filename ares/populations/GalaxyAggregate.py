@@ -25,11 +25,11 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad, simps
 from ..util.Warnings import negative_SFRD
 from .SynthesisModel import SynthesisModel
-from ..util.ParameterFile import get_php_pars
+from ..util.ParameterFile import get_pq_pars
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
-from ..phenom.HaloProperty import ParameterizedHaloProperty
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
+from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL
 from ..util.SetDefaultParameterValues import StellarParameters, \
@@ -49,21 +49,22 @@ def normalize_sed(pop):
     E1 = pop.pf['pop_EminNorm']
     E2 = pop.pf['pop_EmaxNorm']
     
-    if pop.pf['pop_yield_Z_index'] is not None:
-        Zfactor = (pop.pf['pop_Z'] / 0.02)**pop.pf['pop_yield_Z_index']
+    # Deprecated? Just use ParameterizedQuantity now?
+    if pop.pf['pop_rad_yield_Z_index'] is not None:
+        Zfactor = (pop.pf['pop_Z'] / 0.02)**pop.pf['pop_rad_yield_Z_index']
     else:
         Zfactor = 1.
             
-    if pop.pf['pop_yield'] == 'from_sed':
-        return pop.src.yield_per_sfr(E1, E2)
+    if pop.pf['pop_rad_yield'] == 'from_sed':
+        return pop.src.rad_yield(E1, E2)
     else:    
         # Remove whitespace and convert everything to lower-case
-        units = pop.pf['pop_yield_units'].replace(' ', '').lower()
+        units = pop.pf['pop_rad_yield_units'].replace(' ', '').lower()
         if units == 'erg/s/sfr':
-            return Zfactor * pop.pf['pop_yield'] * s_per_yr / g_per_msun
+            return Zfactor * pop.pf['pop_rad_yield'] * s_per_yr / g_per_msun
 
     erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
-    energy_per_sfr = pop.pf['pop_yield']
+    energy_per_sfr = pop.pf['pop_rad_yield']
     
     if units == 'photons/baryon':
         energy_per_sfr *= erg_per_phot / pop.cosm.g_per_baryon
@@ -238,9 +239,9 @@ class GalaxyAggregate(HaloPopulation):
                 self._sfrd_ = self.pf['pop_sfrd']
             elif isinstance(self.pf['pop_sfrd'], interp1d):
                 self._sfrd_ = self.pf['pop_sfrd']  
-            elif self.pf['pop_sfrd'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_sfrd'], self.pf)
-                self._sfrd_ = ParameterizedHaloProperty(**pars)    
+            elif self.pf['pop_sfrd'][0:3] == 'pq':
+                pars = get_pq_pars(self.pf['pop_sfrd'], self.pf)
+                self._sfrd_ = ParameterizedQuantity(**pars)    
             else:
                 tmp = read_lit(self.pf['pop_sfrd'], verbose=self.pf['verbose'])
                 self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
@@ -403,8 +404,8 @@ class GalaxyAggregate(HaloPopulation):
     
             # If tabulated, do things differently
             if self.sed_tab:
-                factor = self.src.yield_per_sfr(Emin, Emax) \
-                    / self.src.yield_per_sfr(*self.reference_band)
+                factor = self.src.rad_yield(Emin, Emax) \
+                    / self.src.rad_yield(*self.reference_band)
             else:
                 factor = quad(self.src.Spectrum, Emin, Emax)[0] \
                     / quad(self.src.Spectrum, *self.reference_band)[0]
@@ -468,11 +469,11 @@ class GalaxyAggregate(HaloPopulation):
             integrand = lambda E: self.src.Spectrum(E) * E
             Eavg = quad(integrand, Emin, Emax)[0] \
                 / quad(self.src.Spectrum, Emin, Emax)[0]
-        
+
         self._eV_per_phot[(Emin, Emax)] = Eavg 
-        
+
         return Eavg    
-        
+
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
@@ -484,7 +485,7 @@ class GalaxyAggregate(HaloPopulation):
         Parameters
         ----------
         z : int, float
-        
+
         Returns
         -------
         Emissivity in units of erg / s / c-cm**3 [/ eV]

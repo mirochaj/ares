@@ -40,13 +40,13 @@ _pop_user_sfrd = \
 
  'pop_sfr_model': 'sfrd-func',
 
- 'pop_sfrd': 'php[0]',
- 'php_func[0]': 'dpl',
- 'php_func_var[0]': 'redshift',
- 'php_func_par0[0]': 1e-6,
- 'php_func_par1[0]': 15.,
- 'php_func_par2[0]': -5.,
- 'php_func_par3[0]': -8.,
+ 'pop_sfrd': 'pq[0]',
+ 'pq_func[0]': 'dpl',
+ 'pq_func_var[0]': 'redshift',
+ 'pq_func_par0[0]': 1e-6,
+ 'pq_func_par1[0]': 15.,
+ 'pq_func_par2[0]': -5.,
+ 'pq_func_par3[0]': -8.,
  
 }
 
@@ -69,40 +69,41 @@ _sed_xi = \
 
 _pop_sfe = \
 {
- 'pop_sfr_model': 'sfe-dpl',
- 'pop_fstar': 'php',
- 'php_func': 'dpl',
- 'php_func_par0': 0.1,
- 'php_func_par1': 3e11,
- 'php_func_par2': 0.6,
- 'php_func_par3': -0.6,
+ 'pop_sfr_model': 'sfe-func',
+ 'pop_fstar': 'pq',
+ 'pq_func': 'dpl',
+ 'pq_func_var': 'Mh',
+ 'pq_func_par0': 0.1,
+ 'pq_func_par1': 3e11,
+ 'pq_func_par2': 0.6,
+ 'pq_func_par3': -0.6,
 
  # Redshift dependent parameters here
 }
 
 _pop_sfe_ext = \
 {
- 'php_faux': 'plexp',
- 'php_faux_var': 'mass',
- 'php_faux_meth': 'add',
- 'php_faux_par0': 0.005,
- 'php_faux_par1': 1e9,
- 'php_faux_par2': 0.01,
- 'php_faux_par3': 1e10,
+ 'pq_faux': 'plexp',
+ 'pq_faux_var': 'mass',
+ 'pq_faux_meth': 'add',
+ 'pq_faux_par0': 0.005,
+ 'pq_faux_par1': 1e9,
+ 'pq_faux_par2': 0.01,
+ 'pq_faux_par3': 1e10,
 }
 
 _pop_mlf = \
 {
  'pop_sfr_model': 'mlf',
  'pop_fstar': None,
- 'pop_mlf': 'php',
+ 'pop_mlf': 'pq',
  'pop_MAR': 'hmf',
  
- 'php_func': 'dpl',
- 'php_func_par0': 0.1,
- 'php_func_par1': 1e12,
- 'php_func_par2': 0.67,
- 'php_func_par3': 0.5,
+ 'pq_func': 'dpl',
+ 'pq_func_par0': 0.1,
+ 'pq_func_par1': 1e12,
+ 'pq_func_par2': 0.67,
+ 'pq_func_par3': 0.5,
 }
 
 _sed_uv = \
@@ -122,8 +123,8 @@ _sed_uv = \
  "pop_Emax": 24.6,
  "pop_EminNorm": 13.6,
  "pop_EmaxNorm": 24.6,        
- "pop_yield": 4e3, 
- "pop_yield_units": 'photons/baryon',
+ "pop_rad_yield": 4e3, 
+ "pop_rad_yield_units": 'photons/baryon',
 }
 
 _sed_lw = _sed_uv.copy()
@@ -140,7 +141,7 @@ _pop_synth = \
  'pop_Z': 0.02,
  'pop_Emin': 1,
  'pop_Emax': 1e2,
- 'pop_yield': 'from_sed',
+ 'pop_rad_yield': 'from_sed',
 }
 
 _sed_xr = \
@@ -163,8 +164,8 @@ _sed_xr = \
  "pop_EmaxNorm": 8e3,
  
  "pop_Ex": 500.,
- "pop_yield": 2.6e39, 
- "pop_yield_units": 'erg/s/SFR',
+ "pop_rad_yield": 2.6e39, 
+ "pop_rad_yield_units": 'erg/s/SFR',
 }
 
 _crte_xrb = \
@@ -179,7 +180,7 @@ _crte_lwb['pop_solve_rte'] = (10.2, 13.6)
 _crte_lwb['pop_approx_tau'] = True
 
 # Some different spectral models
-_uvsed_toy = dict(pop_yield=4000, pop_yield_units='photons/b',
+_uvsed_toy = dict(pop_rad_yield=4000, pop_rad_yield_units='photons/b',
     pop_Emin=10.2, pop_Emax=24.6, pop_EminNorm=13.6, pop_EmaxNorm=24.6)
 _uvsed_bpass = dict(pop_sed='eldridge2009', pop_binaries=False, pop_Z=0.02,
     pop_Emin=10.2, pop_Emax=24.6, pop_EminNorm=13.6, pop_EmaxNorm=24.6)

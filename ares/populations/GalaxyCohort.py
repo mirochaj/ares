@@ -19,12 +19,11 @@ from .GalaxyAggregate import GalaxyAggregate
 from scipy.optimize import fsolve, curve_fit
 from ..phenom.DustCorrection import DustCorrection
 from scipy.integrate import quad, simps, cumtrapz, ode
-from ..util.ParameterFile import par_info, get_php_pars
+from ..util.ParameterFile import par_info, get_pq_pars
 from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
-from ..phenom.HaloProperty import ParameterizedHaloProperty, \
-    Mh_dep_parameters
+from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz
 
@@ -50,10 +49,20 @@ class GalaxyCohort(GalaxyAggregate):
     
         return self._magsys
         
+    def _update_pq_registry(self, name, obj):
+        if not hasattr(self, '_pq_registry'):
+            self._pq_registry = {}
+        
+        if name in self._pq_registry:
+            raise KeyError('%s already in registry!' % name)
+        
+        self._pq_registry[name] = obj
+        
     def __getattr__(self, name):
         """
         This gets called anytime we try to fetch an attribute that doesn't
-        exist (yet). Right, now this is only used for L1600, pop_yield?
+        exist (yet). The only special case is really L1600_per_sfr, since 
+        that requires accessing a SynthesisModel.
         """
             
         # Indicates that this attribute is being accessed from within a 
@@ -61,88 +70,127 @@ class GalaxyCohort(GalaxyAggregate):
         if (name[0] == '_'):
             raise AttributeError('This will get caught. Don\'t worry!')
         
+        # This is the name of the thing as it appears in the parameter file.
         full_name = 'pop_' + name
                 
+        #print name, self.id_num, hasattr(self, name), \
+        #    hasattr(self, '_%s' % name), name in self.__dict__.keys(),\
+        #    '_%s' % name in self.__dict__.keys()
+                
         # Now, possibly make an attribute
-        if name not in self.__dict__.keys(): 
+        #if name not in self.__dict__.keys(): 
+        if not hasattr(self, name):
             
             try:
-                is_php = self.pf[full_name][0:3] == 'php'
+                is_php = self.pf[full_name][0:2] == 'pq'
             except (IndexError, TypeError):
                 is_php = False
                 
-            if self.pf['pop_Z'] == 'sam':
-                tmp = []
-                Zarr = np.sort(self.src.metallicities.values())
-                for Z in Zarr:
-                    kw = self.src_kwargs.copy()
-                    kw['pop_Z'] = Z
-                    if self.sed_tab:
-                        src = self._Source(**kw)
-                        tmp.append(src.__getattribute__(name))
-                    else:
-                        # pop-yield?
-                        raise NotImplemented('help')
-                                    
-                interp = interp1d(np.log10(Zarr), tmp, 
-                    kind=self.pf['interp_Z'], bounds_error=False,
-                    fill_value=0.0)
                 
-                # Could setup a pop_metal_yield_calib...?
-                result = lambda z, M: interp(np.log10(self.Zgas(z, M))) \
-                    / self.pf['pop_fstar_boost']
-    
-            elif self.sed_tab:    
-                result = lambda z, M: self.src.__getattribute__(name) \
-                    / self.pf['pop_fstar_boost']
-            elif type(self.pf[full_name]) in [float, np.float64]:
-                result = lambda z, M: self.pf[full_name] \
-                        / self.pf['pop_fstar_boost']
+            """
+            What do we need to correct for here?
+            
+            Z-dep stellar population
+            rad_yield from src needs Emin, Emax
+            
+            """    
+                
+                
+                
+            # A few special cases    
+            if type(self.pf[full_name]) in [float, np.float64]:
+                result = lambda **kwargs: self.pf[full_name]
             elif is_php:
-                tmp = get_php_pars(self.pf[full_name], self.pf) 
+                tmp = get_pq_pars(self.pf[full_name], self.pf) 
                 
                 # Correct values that are strings:
                 if self.sed_tab:
                     pars = {}
                     for par in tmp:
                         if tmp[par] == 'from_sed':
-                            pars[par] = self.src.__getattribute__(name) \
-                                / self.pf['pop_fstar_boost']
+                            pars[par] = self.src.__getattribute__(name)
                         else:
-                            pars[par] = tmp[par]            
+                            pars[par] = tmp[par]  
                 else:
                     pars = tmp            
                     
-                inst = ParameterizedHaloProperty(**pars)
-                result = lambda z, M: inst.__call__(z, M) \
-                        / self.pf['pop_fstar_boost']          
+                _result = ParameterizedQuantity(**pars)
+                
+                if self.pf['pop_Z'] == 'sam' and 'Mh' == _result.func_var:
+                    result = lambda **kwargs: _result(Z=self.Zgas(z=kwargs['z'], Mh=kwargs['Mh']))
+                else:
+                    result = _result
+
+                self._update_pq_registry(name, result)
+
+            elif self.sed_tab:
+                #if name == 'L1600_per_sfr':
+                if self.pf['pop_Z'] == 'sam':
+                    tmp = []
+                    Zarr = np.sort(self.src.metallicities.values())
+                    for Z in Zarr:
+                        kw = self.src_kwargs.copy()
+                        kw['pop_Z'] = Z
+                        src = self._Source(**kw)
+                        
+                        att = src.__getattribute__(name)
+                        
+                        # Must specify band
+                        if name == 'rad_yield':
+                            val = att(self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
+                        else:
+                            val = att
+                            
+                        tmp.append(val)
+
+                    # Interpolant for 
+                    interp = interp1d(np.log10(Zarr), tmp, 
+                        kind=self.pf['interp_Z'], bounds_error=False,
+                        fill_value=0.0)
+
+                    # Could setup a pop_metal_yield_calib...?
+                    result = lambda **kwargs: interp(np.log10(self.Zgas(kwargs['z'], kwargs['Mh'])))
+                else:
+                    att = self.src.__getattribute__(name)
+                    
+                    if name == 'rad_yield':
+                        val = att(self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
+                    else:
+                        val = att
+                        
+                    result = lambda **kwargs: val
 
             else:
                 raise TypeError('dunno how to handle this')
 
-            self.__dict__[name] = result
+            # Check to see if Z?
 
-        return self.__dict__[name]
+            self.__setattr__(name, result)
 
-    def Zgas(self, z, M):
+            #self.__dict__[name] = result
+
+        return getattr(self, name)
+        #return self.__dict__[name]
+
+    def Zgas(self, z, Mh):
         if not hasattr(self, '_sam_data'):
-            self._sam_z, self._sam_data = self.ScalingRelations()
+            self._sam_z, self._sam_data = self.scaling_relations
 
         if self.constant_SFE:
-            Mh = self._sam_data['Mh'][-1::-1] 
-            MZ = self._sam_data['MZ'][-1::-1] 
-            Mg = self._sam_data['Mg'][-1::-1]
+            _Mh = self._sam_data['Mh'][-1::-1] 
+            _MZ = self._sam_data['MZ'][-1::-1] 
+            _Mg = self._sam_data['Mg'][-1::-1]
         else:
             # guaranteed to be a grid point?    
             k = np.argmin(np.abs(self.halos.z - z))
 
-            smhm = self._sam_data['Ms'][:,k]  / self._sam_data['Mh'][:,k]
-            mask = np.isfinite(smhm)
-            Mh = self._sam_data['Mh'][:,k][mask]
-            MZ = self._sam_data['MZ'][:,k][mask] 
-            Mg = self._sam_data['Mg'][:,k][mask]
+            _smhm = self._sam_data['Ms'][:,k]  / self._sam_data['Mh'][:,k]
+            _mask = np.isfinite(smhm)
+            _Mh = self._sam_data['Mh'][:,k][_mask]
+            _MZ = self._sam_data['MZ'][:,k][_mask] 
+            _Mg = self._sam_data['Mg'][:,k][_mask]
 
-        return np.interp(M, Mh, MZ / Mg)
+        return np.interp(Mh, _Mh, _MZ / _Mg)
 
     def N_per_Msun(self, Emin, Emax):
         """
@@ -164,10 +212,10 @@ class GalaxyCohort(GalaxyAggregate):
         # Otherwise, calculate what it should be
         if (Emin, Emax) == (13.6, 24.6):
             # Should be based on energy at this point, not photon number
-            self._N_per_Msun[(Emin, Emax)] = self.Nion(None, self.halos.M) \
+            self._N_per_Msun[(Emin, Emax)] = self.Nion(Mh=self.halos.M) \
                 * self.cosm.b_per_g * g_per_msun
         elif (Emin, Emax) == (10.2, 13.6):
-            self._N_per_Msun[(Emin, Emax)] = self.Nlw(None, self.halos.M) \
+            self._N_per_Msun[(Emin, Emax)] = self.Nlw(Mh=self.halos.M) \
                 * self.cosm.b_per_g * g_per_msun
         else:
             s = 'Unrecognized band: (%.3g, %.3g)' % (Emin, Emax)
@@ -226,21 +274,19 @@ class GalaxyCohort(GalaxyAggregate):
                 * N_per_Msun * erg_per_phot
             
         else:
-                        
-            try:
-                for v in self.yield_per_sfr.func_vars:
-                    if v not in ['z', 'Mh']:
-                        need_sam = True
-                        break
+            
+            try:     
+                if self.rad_yield.func_var not in ['z', 'Mh']:
+                    need_sam = True
             except AttributeError:
-                pass
+                pass        
 
             if need_sam:
                 sam_z, sam_data = self.scaling_relations
             else:
                 pass
 
-            yield_per_sfr = lambda **kwargs: self.yield_per_sfr(**kwargs) \
+            yield_per_sfr = lambda **kwargs: self.rad_yield(**kwargs) \
                 * s_per_yr
 
         tab = np.zeros(self.halos.Nz)
@@ -249,19 +295,19 @@ class GalaxyCohort(GalaxyAggregate):
             # Must grab stuff vs. Mh and interpolate to self.halos.M
             # They are guaranteed to have the same redshifts.
             if need_sam:
-                
+
                 kw = {'z': z, 'Mh': self.halos.M}                
                 if self.constant_SFE:
                     for key in sam_data.keys():
                         if key == 'Mh':
                             continue
-                        
+
                         kw[key] = np.interp(self.halos.M,
                             sam_data['Mh'][-1::-1], sam_data[key][-1::-1])
                 else:
                     raise NotImplemented('help')
-                
-            else:            
+
+            else:
                 kw = {'z': z, 'Mh': self.halos.M}
 
             integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
@@ -537,7 +583,7 @@ class GalaxyCohort(GalaxyAggregate):
         ..note:: Units should be solar masses per year at this point.
         """
         
-        return self.pSFR(z, M, mu) * self.SFE(z, M)
+        return self.pSFR(z, M, mu) * self.SFE(z=z, Mh=M)
 
     def pSFR(self, z, M, mu=0.6):
         """
@@ -569,7 +615,11 @@ class GalaxyCohort(GalaxyAggregate):
         
         if not hasattr(self, '_scalable_rhoL'):
             self._scalable_rhoL = True
-            for par in Mh_dep_parameters:
+            
+            if self.pf.Npqs == 0:
+                return self._scalable_rhoL
+            
+            for par in self.pf.pqs:
                 
                 # If this is the only Mh-dep parameter, we're still scalable.
                 if par == 'pop_fstar':
@@ -579,7 +629,7 @@ class GalaxyCohort(GalaxyAggregate):
                     self._scalable_rhoL = False
                     break
                     
-                for i in range(self.pf.Nphps):
+                for i in range(self.pf.Npqs):
                     pn = '%s[%i]' % (par,i)
                     if pn not in self.pf:
                         continue
@@ -616,29 +666,6 @@ class GalaxyCohort(GalaxyAggregate):
             return rhoL * self.src.Spectrum(E)
         else:
             return rhoL
-            
-    def StellarMassFunction(self, z):
-        """
-        Name says it all.
-        
-        Parameters
-        ----------
-        z : int, float
-            Redshift.
-        sSFR : int, float, np.ndarray
-            Specific star-formation rate
-        
-        Returns
-        -------   
-        Tuple containing (stellar masses, # density).
-            
-        """
-        
-        mags, phi = self.phi_of_M(z)
-    
-        # mags corresponds to halos.M
-        
-        return self.SFR(z, self.halos.M) * sSFR, phi
     
     def LuminosityFunction(self, z, x, mags=True):
         """
@@ -840,12 +867,13 @@ class GalaxyCohort(GalaxyAggregate):
             ..note:: Units are g/s/cm^3 (comoving).
     
         """
+                
         if not hasattr(self, '_sfrd_tab'):
             self._sfrd_tab = np.zeros(self.halos.Nz)
             
             for i, z in enumerate(self.halos.z):
                 integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
-                    * self.fduty(z, self.halos.M)
+                    * self.fduty(z=z, Mh=self.halos.M)
  
                 tot = np.trapz(integrand, x=self.halos.lnM)
                 cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
@@ -904,142 +932,51 @@ class GalaxyCohort(GalaxyAggregate):
 
     def SFE(self, **kwargs):
         """
-        Compute the star-formation efficiency.
-    
-        If outside the bounds, must extrapolate.
+        Just a wrapper around self.fstar.
         """
         return self.fstar(**kwargs)
 
-    def fstar_no_boost(self, z, M, coeff):
-        """
-        Only used in AbundanceMatching routine. Kind of a cludge.
-        """
-        if not hasattr(self, '_fstar'):
-            tmp = self.fstar
-
-        return self._fstar_inst._call(z, M, coeff)
-
     @property
-    def mlf(self):
-        if not hasattr(self, '_mlf'):
-        
-            if type(self.pf['pop_mlf']) in [float, np.float64]:
-                self._mlf = lambda z, M: self.pf['pop_mlf']
-            elif self.pf['pop_mlf'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_mlf'], self.pf)    
-                self._mlf = ParameterizedHaloProperty(**pars)
+    def yield_per_sfr(self):
+        # Need this to avoid inheritance issue with GalaxyAggregate
+        if not hasattr(self, '_yield_per_sfr'):
+            if type(self.rad_yield) is FunctionType:
+                self._yield_per_sfr = self.rad_yield()
             else:
-                raise ValueError('Unrecognized data type for pop_mlf!')  
+                self._yield_per_sfr = self.rad_yield
+            
+        return self._yield_per_sfr
 
-        return self._mlf
-    
-    @property
-    def fshock(self):
-        if not hasattr(self, '_fshock'):
-            if type(self.pf['pop_fshock']) in [float, np.float64]:
-                self._fshock = lambda z, M: self.pf['pop_fshock']
-            elif self.pf['pop_fshock'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_fshock'], self.pf)    
-                self._fshock = ParameterizedHaloProperty(**pars)
-            else:
-                raise ValueError('Unrecognized data type for pop_fshock!')  
-    
-        return self._fshock
-    
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
-            
+
             if self.pf['pop_calib_L1600'] is not None:
-                boost = self.pf['pop_calib_L1600'] \
-                    / self.L1600_per_sfr(None, None)
-                assert self.pf['pop_fstar_boost'] == 1
+                boost = self.pf['pop_calib_L1600'] / self.L1600_per_sfr()
             else:
-                boost = 1. / self.pf['pop_fstar_boost']
-                        
+                boost = 1.
+
             if self.pf['pop_mlf'] is not None:
-                self._fstar = lambda z, M: boost * self.fshock(z, M) \
-                    / ((1. / self.pf['pop_fstar_max']) + self.mlf(z, M))
+                self._fstar = lambda **kwargs: boost * self.fshock(**kwargs) \
+                    / ((1. / self.pf['pop_fstar_max']) + self.mlf(**kwargs))
             elif type(self.pf['pop_fstar']) in [float, np.float64]:
-                self._fstar = lambda z, M: self.pf['pop_fstar'] * boost
-            elif self.pf['pop_fstar'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_fstar'], self.pf)
-                self._fstar_inst = ParameterizedHaloProperty(**pars)
+                self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost
+            elif self.pf['pop_fstar'][0:2] == 'pq':
+                pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
+                self._fstar_inst = ParameterizedQuantity(**pars)
                 
                 self._fstar = \
                     lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
                     * boost
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
-                
+
         return self._fstar
         
     @fstar.setter
     def fstar(self, value):
         self._fstar = value  
-        
-    @property    
-    def phps(self):
-        # Add to this everytime a new PHP is created.
-        if not hasattr(self, '_phps'):
-            self._phps = {}
-            
-        return self._phps
-
-    @property
-    def fduty(self):
-        if not hasattr(self, '_fduty'):
-            if type(self.pf['pop_fduty']) in [float, np.float64]:
-                self._fduty = lambda z, M: self.pf['pop_fduty']
-            elif self.pf['pop_fstar'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_fduty'], self.pf)
-                self._fduty = ParameterizedHaloProperty(**pars)
-            else:
-                raise ValueError('Unrecognized data type for pop_fduty!')  
-
-        return self._fduty   
-
-    @property    
-    def yield_per_sfr(self):
-        if not hasattr(self, '_yield_per_sfr'):
-            if type(self.pf['pop_yield']) in [float, np.float64]:
-                self._yield_per_sfr = lambda **kwargs: self.pf['pop_yield']
-            elif self.pf['pop_yield'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_yield'], self.pf)
-                self._yield_per_sfr = ParameterizedHaloProperty(**pars)
-            elif type(self.pf['pop_yield']) is FunctionType:
-                self._yield_per_sfr = lambda z, M: self.pf['pop_yield']
-            else:
-                raise ValueError('Unrecognized data type for pop_yield!')  
-
-        return self._yield_per_sfr
-
-    @property    
-    def fesc(self):
-        if not hasattr(self, '_fesc'):
-            if type(self.pf['pop_fesc']) in [float, np.float64]:
-                self._fesc = lambda **kwargs: self.pf['pop_fesc']
-            elif self.pf['pop_fesc'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_fesc'], self.pf)    
-                self._fesc = ParameterizedHaloProperty(**pars)
-            else:
-                raise ValueError('Unrecognized data type for pop_fesc!')  
-    
-        return self._fesc
-    
-    @property    
-    def fesc_LW(self):
-        if not hasattr(self, '_fesc_LW'):
-            if type(self.pf['pop_fesc_LW']) in [float, np.float64]:
-                self._fesc_LW = lambda **kwargs: self.pf['pop_fesc_LW']
-            elif self.pf['pop_fesc_LW'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_fesc_LW'], self.pf)    
-                self._fesc_LW = ParameterizedHaloProperty(**pars)
-            else:
-                raise ValueError('Unrecognized data type for pop_fesc!')  
-    
-        return self._fesc_LW  
-        
+                
     def gamma_sfe(self, z, M):
         """
         This is a power-law index describing the relationship between the
@@ -1080,28 +1017,14 @@ class GalaxyCohort(GalaxyAggregate):
     
         return self._fstar_tab
     
-    @property
-    def D_fstar_wrt_Mh_tab(self):
-        if not hasattr(self, '_D_fstar_wrt_Mh_tab'):
-            self._D_fstar_wrt_Mh_tab = np.zeros_like(self.halos.dndm)
-            
-            for i, z in enumerate(self.halos.z):
-                sfe = self.fstar_tab[i,:]
-                x, y = central_difference(self.halos.M, sfe)
-                
-                self._D_fstar_wrt_Mh_tab[i,1:-1] = y.copy()
-                
-        return self._D_fstar_wrt_Mh_tab
-        
     def _SAM(self, z, y):
         if self.pf['pop_sam_nz'] == 1:
             return self._SAM_1z(z, y)
-        #elif self.pf['pop_sam_nz'] == 2:
-        #    pass
+        elif self.pf['pop_sam_nz'] == 2:
+            return self._SAM_2z(z, y)
         else:
             raise NotImplemented('No SAM with nz=%i' % self.pf['pop_sam_nz'])
             
-        
     def _SAM_1z(self, z, y):
         """
         Simple semi-analytic model for the components of galaxies.
@@ -1161,11 +1084,61 @@ class GalaxyCohort(GalaxyAggregate):
                 
         return np.array(results)    
         
+    def _SAM_2z(self, z, y):
+        raise NotImplemented('Super not done with this!')
+        
+        Mh, Mg_cgm, Mg_ism_c, Mg_ism_h, Mst, MZ_ism, MZ_cgm = y
+        
+        kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg}
+        
+        #
+        fstar = self.SFE(**kw)
+        tstar = 1e7 * s_per_yr
+        
+        Mdot_h = -1. * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+
+        # Need cooling curve here eventually.
+        Z_cgm = MZ_cgm / Mg_cgm
+        Mdot_precip = 0. # Mg_cgm
+
+        # Eq. 1: halo mass.
+        y1p = Mh_dot
+
+        # Eq. 2: CGM mass
+        # Pristine inflow + gas injected from galaxy winds / SN 
+        # - precipitation rate - losses from halo
+        y2p = y1p * self.pf['pop_fstall'] 
+
+        # Eq. 3: Hot ISM gas mass
+        # Winds and SN, gas precipitated from CGM?
+        y3p = y1p * (1. - self.pf['pop_fstall'])
+        
+        # Eq. 4: Cold ISM gas mass
+        # Pristine inflow + hot ISM cooled off - star formation
+        y4p = y1p * (1. - self.pf['pop_fstall'])
+        
+        # Eq. 5: Star formation
+        Mmin = np.interp(z, self.halos.z, self.Mmin)
+        if Mh < Mmin:
+            y5p = 0.
+        else:
+            y5p = fstar * (self.cosm.fbar_over_fcdm * y1p * (1. - self.pf['pop_fstall']) \
+                + (self.pf['pop_fstar_rec'] / fstar) * Mg_ism_c / tstar)
+
+        # Eq. 4: metal mass -- constant return per unit star formation for now
+        # Could make a PHP pretty easily.
+        y6p = self.pf['pop_metal_yield'] * y3p * (1. - self.pf['pop_mass_escape'])
+
+        results = [y1p, y2p, y3p, y4p]
+                
+        return np.array(results)    
+        
     @property
     def constant_SFE(self):
         if not hasattr(self, '_constant_SFE'):
-            self._constant_SFE = self.SFE(z=10, Mh=1e11) == self.SFE(z=11, Mh=1e11)
-        return self._constant_SFE    
+            self._constant_SFE = self.fstar(z=10, Mh=1e11) \
+                              == self.fstar(z=11, Mh=1e11)
+        return self._constant_SFE
         
     @property
     def scaling_relations(self):

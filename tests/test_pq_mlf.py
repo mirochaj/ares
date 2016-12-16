@@ -1,6 +1,6 @@
 """
 
-test_galaxy_sfe_mlf.py
+test_pq_mlf.py
 
 Author: Jordan Mirocha
 Affiliation: UCLA
@@ -18,17 +18,17 @@ def test():
     pars_sfe = \
     {
     'pop_sfr_model': 'sfe-func',
-    'pop_fstar': 'php',
+    'pop_fstar': 'pq',
     'pop_mlf': None,
     
     # Put MAR in by hand?
     
     
-    'php_func': 'pl',
-    'php_func_var': 'mass',
-    'php_func_par0': 1e-1,
-    'php_func_par1': 1e11,
-    'php_func_par2': 0.,
+    'pq_func': 'pl',
+    'pq_func_var': 'Mh',
+    'pq_func_par0': 1e-1,
+    'pq_func_par1': 1e11,
+    'pq_func_par2': 0.,
     }
     
     # Second, a population where we model the mass loading factor, and then 
@@ -37,19 +37,19 @@ def test():
     {
     'pop_sfr_model': 'sfe-func',
     'pop_fstar': None,
-    'pop_mlf': 'php',
+    'pop_mlf': 'pq',
     
-    'php_func': 'pl',
-    'php_func_var': 'mass',
-    'php_func_par0': (1. / 1e-1) - 1.,  # Compute MLF from {SFE = 1 / (1  + MLF)}
-    'php_func_par1': 1e11,
-    'php_func_par2': 0.,
+    'pq_func': 'pl',
+    'pq_func_var': 'Mh',
+    'pq_func_par0': (1. / 1e-1) - 1.,  # Compute MLF from {SFE = 1 / (1  + MLF)}
+    'pq_func_par1': 1e11,
+    'pq_func_par2': 0.,
     }
         
     pop_sfe = ares.populations.GalaxyPopulation(**pars_sfe)
     pop_mlf = ares.populations.GalaxyPopulation(**pars_mlf)
     
-    assert pop_sfe.fstar(10., 1e10) == pop_mlf.fstar(10., 1e10) == 1e-1, \
+    assert pop_sfe.fstar(Mh=1e10) == pop_mlf.fstar(Mh=1e10) == 1e-1, \
         "Mass evolution not working properly in both SFE and MLF approaches."
     
     # Third, a population where we parameterize the SFR function. Just take it
@@ -58,13 +58,13 @@ def test():
     {
     'pop_fstar': None,
     'pop_mlf': None,
-    'pop_sfr': 'php',
+    'pop_sfr': 'pq',
     
-    'php_func': 'pl',
-    'php_func_var': 'mass',
-    'php_func_par0': (1. / 1e-1) - 1.,  # Compute MLF from {SFE = 1 / (1  + MLF)}
-    'php_func_par1': 1e11,
-    'php_func_par2': 0.,
+    'pq_func': 'pl',
+    'pq_func_var': 'Mh',
+    'pq_func_par0': (1. / 1e-1) - 1.,  # Compute MLF from {SFE = 1 / (1  + MLF)}
+    'pq_func_par1': 1e11,
+    'pq_func_par2': 0.,
     }    
         
          
@@ -75,22 +75,22 @@ def test():
     pars_sfe = \
     {
     'pop_sfr_model': 'sfe-func',
-    'pop_fstar': 'php',
+    'pop_fstar': 'pq',
     
-    'php_func': 'pl',
-    'php_func_var': 'mass',
-    'php_func_par0': 1e-1,
-    'php_func_par1': 1e11,
-    'php_func_par2': 0.,
+    'pq_func': 'pl',
+    'pq_func_var': 'Mh',
+    'pq_func_par0': 1e-1,
+    'pq_func_par1': 1e11,
+    'pq_func_par2': 0.,
     
     # The php_faux will get applied to the php_func with the same pop ID
     # and php ID.
-    'php_faux': 'pl',
-    'php_faux_var': 'redshift',
-    'php_faux_meth': 'multiply',
-    'php_faux_par0': 1.,
-    'php_faux_par1': 10.,
-    'php_faux_par2': 0.5,
+    'pq_faux': 'pl',
+    'pq_faux_var': 'z',
+    'pq_faux_meth': 'multiply',
+    'pq_faux_par0': 1.,
+    'pq_faux_par1': 10.,
+    'pq_faux_par2': 0.5,
     }  
     
     z1 = 10.
@@ -98,33 +98,33 @@ def test():
     
     pop_sfe = ares.populations.GalaxyPopulation(**pars_sfe)
     
-    correction = (z2 / z1)**pars_sfe['php_faux_par2']
+    correction = (z2 / z1)**pars_sfe['pq_faux_par2']
     
-    assert pop_sfe.fstar(z1, 1e10) * correction == pop_sfe.fstar(z2, 1e10), \
+    assert pop_sfe.fstar(z=z1, Mh=1e10) * correction == pop_sfe.fstar(z=z2, Mh=1e10), \
         "Redshift evolution not working properly for SFE."
 
     """
     Last test: introduce redshift dependent parameter.
     """
     
-    pars_nest = \
-    {
-    'pop_fstar': 'php',
-    'pop_mlf': None,
-    
-    'php_func': 'dpl',
-    'php_func_var': 'mass',
-    'php_func_par0': 'prefix',
-    'php_func_par1': 1e11,
-    'php_func_par2': 0.6,
-    'php_func_par3': 0.6,
-    
-    'prefix_func': 'pl',
-    'prefix_func_var': 'pl',
-    'prefix_func_par0': 1.,
-    'prefix_func_par1': 8.,
-    'prefix_func_par2': -1.,
-    }
+    #pars_nest = \
+    #{
+    #'pop_fstar': 'pq',
+    #'pop_mlf': None,
+    #
+    #'pq_func': 'dpl',
+    #'pq_func_var': 'Mh',
+    #'pq_func_par0': 'prefix',
+    #'pq_func_par1': 1e11,
+    #'pq_func_par2': 0.6,
+    #'pq_func_par3': 0.6,
+    #
+    #'prefix_func': 'pl',
+    #'prefix_func_var': 'pl',
+    #'prefix_func_par0': 1.,
+    #'prefix_func_par1': 8.,
+    #'prefix_func_par2': -1.,
+    #}
     
 if __name__ == '__main__':
     test()    

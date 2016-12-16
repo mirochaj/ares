@@ -13,9 +13,9 @@ Description:
 import numpy as np
 from ..util import ParameterFile
 from ..physics import Hydrogen, Cosmology
-from .HaloProperty import ParameterizedQuantity
 from ..physics.Constants import k_B, J21_num, nu_0_mhz
-from ..util.ParameterFile import par_info, get_php_pars
+from ..util.ParameterFile import par_info, get_pq_pars
+from .ParameterizedQuantity import ParameterizedQuantity
 
 class Parametric21cm(object):
     def __init__(self, **kwargs):
@@ -45,12 +45,12 @@ class Parametric21cm(object):
         # Now, possibly make an attribute
         if name not in self.__dict__.keys(): 
             
-            is_php = self.pf[full_name][0:3] == 'php'
+            is_php = self.pf[full_name][0:3] == 'pq'
             
             if not is_php:
                 self.__dict__[name] = lambda z: 0.0
                 
-            pars = get_php_pars(self.pf[full_name], self.pf)     
+            pars = get_pq_pars(self.pf[full_name], self.pf)     
 
             self.__dict__[name] = ParameterizedQuantity(**pars)
             

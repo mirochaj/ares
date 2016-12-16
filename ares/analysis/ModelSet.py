@@ -1563,9 +1563,6 @@ class ModelSet(BlobFactory):
             tuple: (maximum likelihood value, negative error, positive error).
         """
 
-        #pars, take_log, multiplier, un_log, ivar = \
-        #    self._listify_common_inputs([par], take_log, multiplier, un_log, ivar)
-
         to_hist = self.ExtractData(par, ivar=ivar, take_log=take_log, 
             multiplier=multiplier, un_log=un_log)
 
@@ -1579,11 +1576,6 @@ class ModelSet(BlobFactory):
         if weights is not None and to_hist[par].shape != weights.shape:
             weights = weights[np.logical_not(mask)]
 
-        if to_hist[par] == []:
-            print "WARNING: error w/ %s" % par
-            print "@ z=" % z
-            return
-            
         if stop is not None:
             stop = -int(stop)
                                 
@@ -2973,7 +2965,7 @@ class ModelSet(BlobFactory):
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        best='maxL', fill=True, **kwargs):    
+        best='maxL', fill=True, **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -2984,13 +2976,13 @@ class ModelSet(BlobFactory):
         ivar : list, np.ndarray
             List of values (or nested list) of independent variables. If 
             blob is 2-D, only need to provide the independent variable for
-            one of the dimensions, e.g., 
-                
+            one of the dimensions, e.g.,
+
                 # If LF data, plot LF at z=3.8
                 ivar = [3.8, None]
-                
+
             or 
-            
+
                 # If LF data, plot z evolution of phi(MUV=-20)
                 ivar = [None, -20]
         

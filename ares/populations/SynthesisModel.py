@@ -98,7 +98,7 @@ class SynthesisModel(object):
     def sed_at_tsf(self):
         if not hasattr(self, '_sed_at_tsf'):
             # erg / s / Hz      
-            if self.pf['pop_yield'] == 'from_sed':  
+            if self.pf['pop_rad_yield'] == 'from_sed':  
                 self._sed_at_tsf = \
                     self.data[:,self.i_tsf] * self.dwdn / ev_per_hz
             else:
@@ -293,7 +293,7 @@ class SynthesisModel(object):
     def L1600_per_sfr(self):
         return self.L_per_sfr()   
         
-    def L_per_sfr(self, wave=1600., avg=1):   
+    def L_per_sfr(self, wave=1600., avg=1):
         """
         Specific emissivity at provided wavelength.
         
@@ -304,14 +304,11 @@ class SynthesisModel(object):
         avg : int
             Number of wavelength bins over which to average
         
-        
         Units are 
             erg / s / Hz / (Msun / yr)
         or 
             erg / s / Hz / Msun
-            
-            
-            
+
         """
         
         yield_UV = self.L_per_SFR_of_t(wave)
@@ -374,21 +371,21 @@ class SynthesisModel(object):
       
     def erg_per_phot(self, Emin, Emax):
         return self.eV_per_phot(Emin, Emax) * erg_per_ev  
-        
+
     def eV_per_phot(self, Emin, Emax):
         i0 = np.argmin(np.abs(self.energies - Emin))
         i1 = np.argmin(np.abs(self.energies - Emax))
-        
+
         it = -1
-                
+
         # Must convert units
         E_avg = np.trapz(self.data[i1:i0,it] * self.energies[i1:i0], 
             x=self.wavelengths[i1:i0]) \
             / np.trapz(self.data[i1:i0,it], x=self.wavelengths[i1:i0])
-        
+
         return E_avg
-        
-    def yield_per_sfr(self, Emin, Emax):
+
+    def rad_yield(self, Emin, Emax):
         """
         Must be in the internal units of erg / g.
         """
@@ -396,23 +393,23 @@ class SynthesisModel(object):
         # Units self-explanatory
         N = self.PhotonsPerBaryon(Emin, Emax)
 
-        # Convert to erg / g        
+        # Convert to erg / g
         return N * self.erg_per_phot(Emin, Emax) * self.cosm.b_per_g
- 
-    def IntegratedEmission(self, Emin, Emax, energy_units=False):    
+
+    def IntegratedEmission(self, Emin, Emax, energy_units=False):
         """
         Compute photons emitted integrated in some band for all times.
-        
+
         Returns
         -------
         Integrated flux between (Emin, Emax) for all times in units of 
         photons / sec / (Msun [/ yr])
         """
-        
+
         # Find band of interest -- should be more precise and interpolate
         i0 = np.argmin(np.abs(self.energies - Emin))
         i1 = np.argmin(np.abs(self.energies - Emax))
-                                     
+
         # Count up the photons in each spectral bin for all times
         flux = np.zeros_like(self.times)
         for i in range(self.times.size):

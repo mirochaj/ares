@@ -114,7 +114,7 @@ By default, *ares* will derive the mass accretion rate (MAR) onto halos from the
 * Plug-in your favorite mass accretion model as a lambda function, e.g., ``pop_MAR=lambda z, M: 1. * (M / 1e12)**1.1 * (1. + z)**2.5``.
 * Grab a model from ``litdata``. The median MAR from McBride et al. (2009) is included, and can used as ``pop_MAR='mcbride2009'``. If you'd like to add more options, use ``$ARES/input/litdata/mcbride2009.py`` as a guide.
 
-.. warning:: Note that the MAR formulae determined from numerical simulations may not have been calibrated at the redshifts most often targeted in *ares* calculations, nor are they guaranteed to be self-consistent with the HMF used in *ares*. One approach used in Sun \& Furlanetto (2016) is to re-normalize the MAR by requiring its integral to match that predicted by :math`f_{\text{coll}}(z)`, which can boost the accretion rate at high redshifts by a factor of few. Setting ``pop_MAR_conserve_norm=True`` will enforce this condition in *ares*.
+.. warning:: Note that the MAR formulae determined from numerical simulations may not have been calibrated at the redshifts most often targeted in *ares* calculations, nor are they guaranteed to be self-consistent with the HMF used in *ares*. One approach used in Sun \& Furlanetto (2016) is to re-normalize the MAR by requiring its integral to match that predicted by :math:`f_{\text{coll}}(z)`, which can boost the accretion rate at high redshifts by a factor of few. Setting ``pop_MAR_conserve_norm=True`` will enforce this condition in *ares*.
 
    
 Extrapolation options

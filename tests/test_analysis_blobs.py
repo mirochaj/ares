@@ -94,19 +94,30 @@ def test(Ns=500, Nd=4, prefix='test'):
     
     # Test data extraction
     for par in anl.parameters:
-        data, is_log = anl.ExtractData(par)
+        data = anl.ExtractData(par)
     
     # Second, finding error-bars.
     for par in anl.parameters:
         mu, bounds = anl.get_1d_error(par, nu=0.68)
     
     # Test blobs, including error-bars, extraction, and plotting.
-    for par in anl.all_blob_names:
-        mu, bounds = anl.get_1d_error(par, nu=0.68)
-    
     for blob in anl.all_blob_names:
-        data, is_log = anl.ExtractData(blob)
-    
+        data = anl.ExtractData(blob)
+        
+    for i, par in enumerate(anl.all_blob_names):
+        
+        # Must distill down to a single number to use this
+        grp, l, nd, dims = anl.blob_info(par)
+        
+        if nd > 0:
+            ivars = anl.blob_ivars[grp][l]
+            slc = np.zeros_like(dims)
+            iv = ivars[slc]
+        else:
+            iv = None
+        
+        mu, bounds = anl.get_1d_error(par, ivar=iv, nu=0.68)
+        
     # Plot test: first, determine ivars and then plot blobs against eachother.
     ivars = []
     for i, blob_grp in enumerate(setup['blob_ivars']):

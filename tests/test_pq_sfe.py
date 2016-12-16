@@ -1,6 +1,6 @@
 """
 
-test_phps_fstar.py
+test_pq_fstar.py
 
 Author: Jordan Mirocha
 Affiliation: UCLA
@@ -16,73 +16,73 @@ import matplotlib.pyplot as pl
 
 pars_pl = \
 {
-'pop_fstar': 'php',
-'php_func': 'pl',
-'php_func_var': 'mass',
-'php_func_par0': 1e-1,
-'php_func_par1': 1e11,
-'php_func_par2': 0.6,
-'php_func_par3': 0.,
-'php_ceil': 0.1,
+'pop_fstar': 'pq',
+'pq_func': 'pl',
+'pq_func_var': 'Mh',
+'pq_func_par0': 1e-1,
+'pq_func_par1': 1e11,
+'pq_func_par2': 0.6,
+'pq_func_par3': 0.,
+'pq_val_ceil': 0.1,
 }
 
 pars_pl_w_zdep = \
 {
-'php_faux': 'pl',
-'php_faux_var': '1+z',
-'php_faux_meth': 'multiply',
-'php_faux_par0': 1.,
-'php_faux_par1': 7.,
-'php_faux_par2': 1.,
+'pq_faux': 'pl',
+'pq_faux_var': '1+z',
+'pq_faux_meth': 'multiply',
+'pq_faux_par0': 1.,
+'pq_faux_par1': 7.,
+'pq_faux_par2': 1.,
 }
 
 pars_dpl = \
 {
-'pop_fstar': 'php',
-'php_func': 'dpl_arbnorm',
-'php_func_var': 'mass',
-'php_func_par0': 1e-1,
-'php_func_par1': 1e11,
-'php_func_par2': 0.6,
-'php_func_par3': 0.,
-'php_func_par4': 1e14,      # Normalization mass
+'pop_fstar': 'pq',
+'pq_func': 'dpl_arbnorm',
+'pq_func_var': 'Mh',
+'pq_func_par0': 1e-1,
+'pq_func_par1': 1e11,
+'pq_func_par2': 0.6,
+'pq_func_par3': 0.,
+'pq_func_par4': 1e14,      # Normalization mass
 }
 
 pars_dpl_Mofz = \
 {
-'pop_fstar': 'php',
-'php_func': 'dpl',
-'php_func_var': 'mass',
-'php_func_par0': 1e-1,
-'php_func_par1': 'pl',
-'php_func_par1_par0': 1e11,
-'php_func_par1_par1': 6.,
-'php_func_par1_par2': -1.,
-'php_func_par2': 0.6,
-'php_func_par3': -0.5,
+'pop_fstar': 'pq',
+'pq_func': 'dpl',
+'pq_func_var': 'Mh',
+'pq_func_par0': 1e-1,
+'pq_func_par1': 'pl',
+'pq_func_par1_par0': 1e11,
+'pq_func_par1_par1': 6.,
+'pq_func_par1_par2': -1.,
+'pq_func_par2': 0.6,
+'pq_func_par3': -0.5,
 }
 
 pars_pwpl = \
 {
-'pop_fstar': 'php',
-'php_func': 'pwpl',
-'php_func_var': 'mass',
-'php_func_par0': 1e-1,
-'php_func_par1': 0.6,
-'php_func_par2': 1e-1,
-'php_func_par3': 0.,
-'php_func_par4': 1e11,
+'pop_fstar': 'pq',
+'pq_func': 'pwpl',
+'pq_func_var': 'Mh',
+'pq_func_par0': 1e-1,
+'pq_func_par1': 0.6,
+'pq_func_par2': 1e-1,
+'pq_func_par3': 0.,
+'pq_func_par4': 1e11,
 }
 
 pars_ramp = \
 {
-'pop_fstar': 'php',
-'php_func': 'logramp',
-'php_func_var': 'mass',
-'php_func_par0': 1e-3,
-'php_func_par1': 9,
-'php_func_par2': 1e-1,
-'php_func_par3': 11,
+'pop_fstar': 'pq',
+'pq_func': 'logramp',
+'pq_func_var': 'Mh',
+'pq_func_par0': 1e-3,
+'pq_func_par1': 9,
+'pq_func_par2': 1e-1,
+'pq_func_par3': 11,
 }
 
 def test():
@@ -95,7 +95,7 @@ def test():
     for i, pars in enumerate([pars_pl, pars_dpl, pars_pwpl, pars_ramp]):
         pop = ares.populations.GalaxyPopulation(pop_sfr_model='sfe-func', **pars)
         
-        fnow = pop.SFE(6., Mh).copy()
+        fnow = pop.SFE(z=6., Mh=Mh).copy()
         
         pl.loglog(Mh, fnow, ls=ls[i], label=labels[i], lw=lw[i])
             
@@ -125,7 +125,7 @@ def test():
     labels = [r'$f_{\ast}(z)$', r'$M_p(z)$']
     for j, pop in enumerate([pop1, pop2]):
         for i, z in enumerate([6, 15, 30]):
-            pl.loglog(Mh, pop.SFE(z, Mh), color=colors[j], ls=ls[i],
+            pl.loglog(Mh, pop.SFE(z=z, Mh=Mh), color=colors[j], ls=ls[i],
                 label=labels[j] if i == 0 else None)
     
     pl.xlabel(r'$M_h / M_{\odot}$')

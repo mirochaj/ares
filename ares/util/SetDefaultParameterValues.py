@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'Dust', 'HaloProperty', 'Old']
+    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -231,63 +231,63 @@ def PhysicsParameters():
 
     return pf
 
-def HaloPropertyParameters():
+def ParameterizedQuantityParameters():
     pf = {}
 
     tmp = \
     {
-     "php_func": 'dpl',
-     "php_func_var": 'mass',
-     "php_func_par0": None,
-     "php_func_par1": None,
-     "php_func_par2": None,
-     "php_func_par3": None,
-     "php_func_par4": None,
-     "php_func_par5": None,
+     "pq_func": 'dpl',
+     "pq_func_var": 'mass',
+     "pq_func_par0": None,
+     "pq_func_par1": None,
+     "pq_func_par2": None,
+     "pq_func_par3": None,
+     "pq_func_par4": None,
+     "pq_func_par5": None,
 
-     'php_faux': None,
-     'php_faux_var': None,
-     'php_faux_meth': 'multiply',
-     'php_faux_par0': None,
-     'php_faux_par1': None,
-     'php_faux_par2': None,
-     'php_faux_par3': None,
-     'php_faux_par4': None,
-     'php_faux_par5': None,
+     'pq_faux': None,
+     'pq_faux_var': None,
+     'pq_faux_meth': 'multiply',
+     'pq_faux_par0': None,
+     'pq_faux_par1': None,
+     'pq_faux_par2': None,
+     'pq_faux_par3': None,
+     'pq_faux_par4': None,
+     'pq_faux_par5': None,
      
-     'php_faux_A': None,
-     'php_faux_A_var': None,
-     'php_faux_A_meth': 'multiply',
-     'php_faux_A_par0': None,
-     'php_faux_A_par1': None,
-     'php_faux_A_par2': None,
-     'php_faux_A_par3': None,
-     'php_faux_A_par4': None,
-     'php_faux_A_par5': None,
+     'pq_faux_A': None,
+     'pq_faux_A_var': None,
+     'pq_faux_A_meth': 'multiply',
+     'pq_faux_A_par0': None,
+     'pq_faux_A_par1': None,
+     'pq_faux_A_par2': None,
+     'pq_faux_A_par3': None,
+     'pq_faux_A_par4': None,
+     'pq_faux_A_par5': None,
      
-     'php_faux_B': None,
-     'php_faux_B_var': None,
-     'php_faux_B_meth': 'multiply',
-     'php_faux_B_par0': None,
-     'php_faux_B_par1': None,
-     'php_faux_B_par2': None,
-     'php_faux_B_par3': None,
-     'php_faux_B_par4': None,
-     'php_faux_B_par5': None,
+     'pq_faux_B': None,
+     'pq_faux_B_var': None,
+     'pq_faux_B_meth': 'multiply',
+     'pq_faux_B_par0': None,
+     'pq_faux_B_par1': None,
+     'pq_faux_B_par2': None,
+     'pq_faux_B_par3': None,
+     'pq_faux_B_par4': None,
+     'pq_faux_B_par5': None,
      
-     "php_boost": 1.,
-     "php_iboost": 1.,
-     "php_val_ceil": None,
-     "php_val_floor": None,
-     "php_var_ceil": None,
-     "php_var_floor": None,      
+     "pq_boost": 1.,
+     "pq_iboost": 1.,
+     "pq_val_ceil": None,
+     "pq_val_floor": None,
+     "pq_var_ceil": None,
+     "pq_var_floor": None,      
          
     }  
     
     # Hrm...can't remember what this is about.
     for i in range(6):
         for j in range(6):
-            tmp['php_func_par%i_par%i' % (i,j)] = None
+            tmp['pq_func_par%i_par%i' % (i,j)] = None
     
     pf.update(tmp)
     pf.update(rcParams)
@@ -470,14 +470,15 @@ def PopulationParameters():
     
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
-    "pop_yield": 2.6e39,
-    "pop_yield_units": 'erg/s/sfr',
-    "pop_yield_Z_index": None,
+    "pop_rad_yield": 2.6e39,
+    "pop_rad_yield_units": 'erg/s/sfr',
+    "pop_rad_yield_Z_index": None,
     
     # Parameters for simple galaxy SAM
     "pop_sam_nz": 1,
     "pop_metal_yield": 0.01,
-    "pop_fpoll": 1.0, # uniform pollution
+    "pop_fpoll": 1.0,         # uniform pollution
+    "pop_fstall": 0.0,
     "pop_mass_rec": 0.0,
     "pop_mass_escape": 0.0,
     "pop_fstar_res": 0.0,
@@ -490,8 +491,6 @@ def PopulationParameters():
     
     "pop_Lh_scatter": 0.0,
     
-    "pop_fstar_boost": 1.,
-
     # If pop_yield_units == 'erg/s/sfr/hz, this is the reference wavelength
     "pop_yield_wavelength": 1500.,
 

@@ -78,8 +78,8 @@ def backward_compatibility(ptype, **kwargs):
             if par_supplied('xi_LW', **kwargs):
                 y /= pf['pop_fstar{0}']
                 
-            pf['pop_yield{0}'] = y    
-            pf['pop_yield_units{0}'] = 'photons/baryon'
+            pf['pop_rad_yield{0}'] = y    
+            pf['pop_rad_yield_units{0}'] = 'photons/baryon'
             
         if par_supplied('Nion', **kwargs) or par_supplied('xi_UV', **kwargs):
             y = kwargs['Nion'] if par_supplied('Nion', **kwargs) else kwargs['xi_UV']
@@ -87,8 +87,8 @@ def backward_compatibility(ptype, **kwargs):
             if par_supplied('xi_UV', **kwargs):
                 y /= pf['pop_fstar{2}'] * pf['pop_fesc{2}']
             
-            pf['pop_yield{2}'] = y     
-            pf['pop_yield_units{2}'] = 'photons/baryon'    
+            pf['pop_rad_yield{2}'] = y     
+            pf['pop_rad_yield_units{2}'] = 'photons/baryon'    
         
         # Lx-SFR
         if par_supplied('cX', **kwargs):
@@ -96,13 +96,13 @@ def backward_compatibility(ptype, **kwargs):
             if par_supplied('fX', **kwargs):
                 yield_X *= kwargs['fX']
             
-            pf['pop_yield{1}'] = yield_X 
+            pf['pop_rad_yield{1}'] = yield_X 
             
         elif par_supplied('fX', **kwargs):
-            pf['pop_yield{1}'] = kwargs['fX'] * kwargs['pop_yield{1}']    
+            pf['pop_rad_yield{1}'] = kwargs['fX'] * kwargs['pop_rad_yield{1}']    
             
         elif par_supplied('xi_XR', **kwargs):
-            pf['pop_yield{1}'] = kwargs['xi_XR'] * kwargs['pop_yield{1}'] \
+            pf['pop_rad_yield{1}'] = kwargs['xi_XR'] * kwargs['pop_rad_yield{1}'] \
                / pf['pop_fstar{1}']
 
     else:

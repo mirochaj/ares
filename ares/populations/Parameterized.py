@@ -12,8 +12,10 @@ Description:
 
 from types import FunctionType
 from .Population import Population
-from ..phenom.HaloProperty import ParameterizedHaloProperty
-from ..util.ParameterFile import ParameterFile, par_info, get_php_pars
+from ..phenom.ParameterizedQuantity import ParameterizedQuantity
+from ..util.ParameterFile import ParameterFile, par_info, get_pq_pars
+
+parameter_options = ['pop_Ja', 'pop_ion_rate', 'pop_heat_rate']
 
 class ParametricPopulation(Population):
         
@@ -34,7 +36,7 @@ class ParametricPopulation(Population):
         if not hasattr(self, '_Ja'):
             if self.pf['pop_Ja'][0:3] == 'php':
                 pars = get_php_pars(self.pf['pop_Ja'], self.pf)
-                self._Ja = ParameterizedHaloProperty(**pars)
+                self._Ja = ParameterizedQuantity(**pars)
             elif type(self.pf['pop_Ja']) is FunctionType:
                 self._Ja = self.pf['pop_Ja']
             else:
@@ -50,7 +52,7 @@ class ParametricPopulation(Population):
         if not hasattr(self, '_k_ion'):
             if self.pf['pop_ion_rate'][0:3] == 'php':
                 pars = get_php_pars(self.pf['pop_ion_rate'], self.pf)
-                self._k_ion = ParameterizedHaloProperty(**pars)
+                self._k_ion = ParameterizedQuantity(**pars)
             elif type(self.pf['pop_ion_rate']) is FunctionType:
                 self._k_ion = self.pf['pop_ion_rate']
             else:
@@ -66,7 +68,7 @@ class ParametricPopulation(Population):
         if not hasattr(self, '_k_heat'):
             if self.pf['pop_heat_rate'][0:3] == 'php':
                 pars = get_php_pars(self.pf['pop_heat_rate'], self.pf)
-                self._k_heat = ParameterizedHaloProperty(**pars)
+                self._k_heat = ParameterizedQuantity(**pars)
             elif type(self.pf['pop_heat_rate']) is FunctionType:
                 self._k_heat = self.pf['pop_heat_rate']
             else:

@@ -21,9 +21,6 @@ def tanh_rstep(M, lo, hi, logM0, logdM):
     # NOTE: lo = value at the low-mass end
     return hi * lo * 0.5 * (np.tanh((logM0 - np.log10(M)) / logdM) + 1.) + hi
 
-Mh_dep_parameters = ['pop_fstar', 'pop_fesc', 'pop_L1600_per_sfr', 
-    'pop_Nion', 'pop_Nlw', 'pop_fesc_LW', 'pop_yield']
-    
 func_options = \
 {
  'pl': 'p[0] * (x / p[1])**p[2]',
@@ -45,11 +42,11 @@ class ParameterizedQuantity(object):
     
     @property
     def func(self):
-        return self.pf['php_func']
+        return self.pf['pq_func']
     
     @property
-    def func_vars(self):
-        return self.pf['php_func_var']
+    def func_var(self):
+        return self.pf['pq_func_var']
 
     @property
     def faux(self):
@@ -57,7 +54,7 @@ class ParameterizedQuantity(object):
             self._faux = False
             for faux_id in ['', '_A', '_B']:
                                 
-                if self.pf['php_faux%s' % faux_id] is None:
+                if self.pf['pq_faux%s' % faux_id] is None:
                     continue
                 
                 self._faux = True
@@ -80,13 +77,13 @@ class ParameterizedQuantity(object):
         Compute the star formation efficiency.
         """
 
-        pars1 = [self.pf['php_func_par%i' % i] for i in range(6)]
+        pars1 = [self.pf['pq_func_par%i' % i] for i in range(6)]
         pars2 = []
 
         for i in range(6):
             tmp = []
             for j in range(6):
-                name = 'php_func_par%i_par%i' % (i,j)
+                name = 'pq_func_par%i_par%i' % (i,j)
                 if name in self.pf:
                     tmp.append(self.pf[name])
                 else:
@@ -109,17 +106,17 @@ class ParameterizedQuantity(object):
             s = 'faux%s' % faux_id
 
         # Determine independent variables
-        var = self.pf['php_%s_var' % s]
+        var = self.pf['pq_%s_var' % s]
         
         if var == '1+z':
             x = 1. + kwargs['z']
         else:
             x = kwargs[var]
             
-        if self.pf['php_var_ceil'] is not None:
-            x = np.minimum(x, self.pf['php_var_ceil'])
-        if self.pf['php_var_floor'] is not None:
-            x = np.maximum(x, self.pf['php_var_floor'])    
+        if self.pf['pq_var_ceil'] is not None:
+            x = np.minimum(x, self.pf['pq_var_ceil'])
+        if self.pf['pq_var_floor'] is not None:
+            x = np.maximum(x, self.pf['pq_var_floor'])    
         
         logx = np.log10(x)
         
@@ -138,7 +135,7 @@ class ParameterizedQuantity(object):
                 assert par == 'pl', 'Only support for PL extensions.'
                                 
                 p = pars2[i]
-                val = p[0] * ((1. + z) / p[1])**p[2]
+                val = p[0] * ((1. + x) / p[1])**p[2]
                                 
                 exec('p%i = val' % i)
             elif type(par) == tuple:
@@ -147,7 +144,7 @@ class ParameterizedQuantity(object):
                                 
                 if v == 'z':
                     val = f(z)
-                elif v == 'mass':
+                elif v == 'Mh':
                     val = f(M)
                 else:
                     raise NotImplementedError('help!')
@@ -254,7 +251,7 @@ class ParameterizedQuantity(object):
                     f = (x / 10**p1)**alph
 
         #elif func == 'user':
-        #    f = self.pf['php_func_fun'](z, M)
+        #    f = self.pf['pq_func_fun'](z, M)
         else:
             raise NotImplementedError('Don\'t know how to treat %s function!' % func)
 
@@ -264,18 +261,18 @@ class ParameterizedQuantity(object):
 
             for k, faux_id in enumerate(['', '_A', '_B']):
                                 
-                if self.pf['php_faux%s' % faux_id] is None:
+                if self.pf['pq_faux%s' % faux_id] is None:
                     continue
                  
-                if type(self.pf['php_faux%s' % faux_id]) != str:
-                    aug = self.pf['php_faux%s' % faux_id](x)
+                if type(self.pf['pq_faux%s' % faux_id]) != str:
+                    aug = self.pf['pq_faux%s' % faux_id](x)
                 else:
-                    p = [self.pf['php_faux%s_par%s' % (faux_id, i)] for i in range(6)]
-                    aug = self._call([p,None], self.pf['php_faux%s' % faux_id], faux_id, **kwargs)
+                    p = [self.pf['pq_faux%s_par%s' % (faux_id, i)] for i in range(6)]
+                    aug = self._call([p,None], self.pf['pq_faux%s' % faux_id], faux_id, **kwargs)
 
-                if self.pf['php_faux%s_meth' % faux_id] == 'multiply':
+                if self.pf['pq_faux%s_meth' % faux_id] == 'multiply':
                     f *= aug
-                elif self.pf['php_faux%s_meth' % faux_id] == 'add':
+                elif self.pf['pq_faux%s_meth' % faux_id] == 'add':
                     f += aug
                 else:    
                     raise NotImplemented('Unknown faux_meth \'%s\'' % self.pf['%s_meth' % par_pre])
@@ -285,14 +282,12 @@ class ParameterizedQuantity(object):
         # Only apply floor/ceil after auxiliary function has been applied
         if self._apply_extrap:
 
-            if self.pf['php_val_ceil'] is not None:
-                f = np.minimum(f, self.pf['php_val_ceil'])
-            if self.pf['php_val_floor'] is not None:
-                f = np.maximum(f, self.pf['php_val_floor'])
+            if self.pf['pq_val_ceil'] is not None:
+                f = np.minimum(f, self.pf['pq_val_ceil'])
+            if self.pf['pq_val_floor'] is not None:
+                f = np.maximum(f, self.pf['pq_val_floor'])
 
         return f
               
 
-# Backward compatibility
-ParameterizedHaloProperty = ParameterizedQuantity
 
