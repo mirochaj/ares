@@ -12,7 +12,7 @@ Description:
 
 import pickle
 import numpy as np
-import os, re, types
+import os, re, types, sys
 from ..physics import Cosmology
 from scipy.integrate import quad
 from ..physics.Constants import c
@@ -334,13 +334,11 @@ class OpticalDepth(object):
             # If we made it this far, we found a table that may be suitable
             z, E, tau = self.load(self.tabname)
     
-            zmax_ok = (self.z.max() >= self.pf['initial_redshift']) or \
-                np.allclose(self.z.max(), self.pf['initial_redshift']) or \
-                (self.z.max() >= self.pf['first_light_redshift']) or \
-                np.allclose(self.z.max(), self.pf['first_light_redshift'])
+            zmax_ok = (self.z.max() >= self.pf['pop_zform']) or \
+                np.allclose(self.z.max(), self.pf['pop_zform'])
     
-            zmin_ok = (self.z.min() <= self.pf['final_redshift']) or \
-                np.allclose(self.z.min(), self.pf['final_redshift'])
+            zmin_ok = (self.z.min() <= self.pf['pop_zdead']) or \
+                np.allclose(self.z.min(), self.pf['pop_zdead'])
     
             Emin_ok = (self.E0 <= self.pf['pop_Emin']) or \
                 np.allclose(self.E0, self.pf['pop_Emin'])
@@ -354,7 +352,7 @@ class OpticalDepth(object):
             # Check redshift bounds
             if not (zmax_ok and zmin_ok):
                 if not zmax_ok:
-                    tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
+                    tau_tab_z_mismatch(self, zmin_ok, zmax_ok, self.z)
                     sys.exit(1)
                 else:
                     if self.pf['verbose']:
@@ -378,8 +376,8 @@ class OpticalDepth(object):
             self.E1 = self.pf['pop_Emax']
     
             # Set up log-grid in parameter x = 1 + z
-            self.x = np.logspace(np.log10(1+self.pf['final_redshift']),
-                np.log10(1+self.pf['initial_redshift']),
+            self.x = np.logspace(np.log10(1+self.pf['pop_zdead']),
+                np.log10(1+self.pf['pop_zform']),
                 int(self.pf['pop_tau_Nz']))
     
             self.z = self.x - 1.
@@ -392,7 +390,7 @@ class OpticalDepth(object):
     
             # Create mapping to frequency space
             self.N = num_freq_bins(self.x.size, 
-                zi=self.pf['initial_redshift'], zf=self.pf['final_redshift'], 
+                zi=self.pf['pop_zform'], zf=self.pf['pop_zdead'], 
                 Emin=self.E0, Emax=self.E1)
     
             # Create energy arrays
@@ -532,8 +530,8 @@ class OpticalDepth(object):
         
         HorHe = 'He' if self.pf['include_He'] else 'H'
     
-        zf = self.pf['final_redshift']
-        zi = self.pf['initial_redshift']
+        zf = self.pf['pop_zdead']
+        zi = self.pf['pop_zform']
     
         L, N = self.tau_shape()
     
@@ -711,7 +709,7 @@ class OpticalDepth(object):
         Emin_ok = \
             (Etab.min() <= Epf.min()) or \
             np.allclose(Etab.min(), Epf.min())
-    
+            
         # Results insensitive to Emax (so long as its relatively large)
         # so be lenient with this condition (100 eV or 1% difference
         # between parameter file and lookup table)
@@ -771,8 +769,8 @@ class OpticalDepth(object):
         """
     
         # Set up log-grid in parameter x = 1 + z
-        x = np.logspace(np.log10(1+self.pf['final_redshift']),
-            np.log10(1+self.pf['initial_redshift']),
+        x = np.logspace(np.log10(1+self.pf['pop_zdead']),
+            np.log10(1+self.pf['pop_zform']),
             int(self.pf['pop_tau_Nz']))
         z = x - 1.
         logx = np.log10(x)
@@ -795,7 +793,7 @@ class OpticalDepth(object):
         L = len(x)
     
         # Frequency grid must be index 1-based.
-        N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
+        N = num_freq_bins(L, zi=self.pf['pop_zform'], 
             zf=self.pf['final_redshift'], Emin=E0, 
             Emax=self.pf['pop_Emax'])
         N -= 1

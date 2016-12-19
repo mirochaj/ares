@@ -638,6 +638,9 @@ class GalaxyCohort(GalaxyAggregate):
         Emissivity in units of erg / s / c-cm**3 [/ eV]
 
         """
+        
+        if z > self.zform:
+            return 0.0
 
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         if self.scalable_rhoL:

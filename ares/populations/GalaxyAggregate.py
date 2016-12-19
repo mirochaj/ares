@@ -319,42 +319,6 @@ class GalaxyAggregate(HaloPopulation):
     def model(self):
         return self.pf['pop_model']
     
-    @property
-    def is_lya_src(self):
-        if not hasattr(self, '_is_lya_src'):
-            if self.pf['pop_sed_model']:
-                self._is_lya_src = \
-                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
-                    and self.pf['pop_lya_src']
-            else:
-                return self.pf['pop_lya_src']
-    
-        return self._is_lya_src
-    
-    @property
-    def is_uv_src(self):
-        if not hasattr(self, '_is_uv_src'):
-            if self.pf['pop_sed_model']:
-                self._is_uv_src = \
-                    (self.pf['pop_Emax'] > E_LL) \
-                    and self.pf['pop_ion_src_cgm']
-            else:
-                self._is_uv_src = self.pf['pop_ion_src_cgm']        
-    
-        return self._is_uv_src    
-    
-    @property
-    def is_xray_src(self):
-        if not hasattr(self, '_is_xray_src'):
-            if self.pf['pop_sed_model']:
-                self._is_xray_src = \
-                    (E_LL <= self.pf['pop_Emin']) \
-                    and self.pf['pop_heat_src_igm']
-            else:
-                self._is_xray_src = self.pf['pop_heat_src_igm']        
-        
-        return self._is_xray_src    
-    
     def _convert_band(self, Emin, Emax):
         """
         Convert from fractional luminosity in reference band to given bounds.
@@ -491,7 +455,10 @@ class GalaxyAggregate(HaloPopulation):
         Emissivity in units of erg / s / c-cm**3 [/ eV]
 
         """
-
+        
+        if z > self.zform:
+            return 0.0
+            
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         rhoL = self.SFRD(z) * self.yield_per_sfr
                 

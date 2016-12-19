@@ -323,7 +323,7 @@ class UniformBackground(object):
         """
 
         if zi is None:
-            zi = pop.pf['initial_redshift']
+            zi = pop.pf['pop_zform']
         if zf is None:    
             zf = pop.pf['final_redshift']
         if nz is None:
@@ -462,7 +462,7 @@ class UniformBackground(object):
         
         # Try to load file from disk.
         z, E, tau = tau_solver._fetch_tau(pop, z, E)
-                
+                        
         # Generate it now if no file was found.
         if tau is None:
             no_tau_table(self)

@@ -304,7 +304,8 @@ class GlobalVolume(object):
                     continue
                             
                 need_tab = self.pops[i].is_xray_src \
-                    and np.any(np.array(band) > E_LL)
+                    and np.any(np.array(band) > E_LL) \
+                    and self.background.solve_rte[i][j]
                                                                     
                 if (not self.background.solve_rte[i][j]) or \
                    (not need_tab):

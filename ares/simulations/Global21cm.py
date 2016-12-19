@@ -304,9 +304,6 @@ class Global21cm(AnalyzeGlobal21cm):
             ztmp = self.history['z']
             Jlw = self.history['Jlw'] / 1e-21
             
-            # Should make 50 -> first_light_redshift
-            ok = ztmp < 50
-
             # Interpolants for Jlw, Mmin, for this iteration
             f_J = lambda zz: np.interp(zz, ztmp[-1::-1], Jlw[-1::-1])
             f_M = lambda zz: 2.5 * 1e5 * pow(((1. + zz) / 26.), -1.5) \

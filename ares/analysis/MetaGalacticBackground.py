@@ -133,8 +133,7 @@ class MetaGalacticBackground(object):
 
         # The import error is really meant to catch pickling errors
         except (AttributeError, ImportError):
-            self.pf = {"final_redshift": 5., "initial_redshift": 100.,
-                'first_light_redshift': 100.}
+            self.pf = {"final_redshift": 5., "initial_redshift": 100.}
             print 'Error loading %s.parameters.pkl.' % data
 
         return redshifts, energies, data

@@ -12,7 +12,7 @@ Description:
 
 from ..physics import Cosmology
 from ..util import ParameterFile
-from ..physics.Constants import E_LyA
+from ..physics.Constants import E_LyA, E_LL
 
 class Population(object):
     def __init__(self, grid=None, **kwargs):
@@ -36,25 +36,15 @@ class Population(object):
                     omega_l_0=self.pf['omega_l_0'], 
                     omega_b_0=self.pf['omega_b_0'],  
                     hubble_0=self.pf['hubble_0'],  
-                    helium_by_number=self.pf['helium_by_number'], 
-                    cmb_temp_0=self.pf['cmb_temp_0'], 
-                    approx_highz=self.pf['approx_highz'], 
-                    sigma_8=self.pf['sigma_8'], 
+                    helium_by_number=self.pf['helium_by_number'],
+                    cmb_temp_0=self.pf['cmb_temp_0'],
+                    approx_highz=self.pf['approx_highz'],
+                    sigma_8=self.pf['sigma_8'],
                     primordial_index=self.pf['primordial_index'])
             else:
                 self._cosm = grid.cosm
                 
         return self._cosm
-    
-    @property
-    def is_lya_src(self):
-        if not hasattr(self, '_is_lya_src'):
-            if self.pf['pop_lya_src']:
-                self._is_lya_src = True
-            else:
-                self._is_lya_src = False
-
-        return self._is_lya_src
     
     @property
     def is_ion_src_cgm(self):
@@ -87,12 +77,38 @@ class Population(object):
         return self._is_heat_src_igm
     
     @property
+    def is_lya_src(self):
+        if not hasattr(self, '_is_lya_src'):
+            if self.pf['pop_sed_model']:
+                self._is_lya_src = \
+                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
+                    and self.pf['pop_lya_src']
+            else:
+                return self.pf['pop_lya_src']
+    
+        return self._is_lya_src
+    
+    @property
     def is_uv_src(self):
-        return True if self.is_ion_src_cgm else False
+        if not hasattr(self, '_is_uv_src'):
+            if self.pf['pop_sed_model']:
+                self._is_uv_src = \
+                    (self.pf['pop_Emax'] > E_LL) \
+                    and self.pf['pop_ion_src_cgm']
+            else:
+                self._is_uv_src = self.pf['pop_ion_src_cgm']        
+    
+        return self._is_uv_src    
     
     @property
     def is_xray_src(self):
-        return True if (self.is_heat_src_igm or self.is_ion_src_igm) else False
-        
-        
+        if not hasattr(self, '_is_xray_src'):
+            if self.pf['pop_sed_model']:
+                self._is_xray_src = \
+                    (E_LL <= self.pf['pop_Emin']) \
+                    and self.pf['pop_heat_src_igm']
+            else:
+                self._is_xray_src = self.pf['pop_heat_src_igm']        
+    
+        return self._is_xray_src
         

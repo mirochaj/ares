@@ -192,7 +192,7 @@ class InlineAnalysis:
                     raise ValueError('For some reason, eor_midpt etc. are causing problems for emcee / pickling.')
         
                     ihigh = np.argmin(np.abs(self.history['z'] \
-                          - self.pf['first_light_redshift']))
+                          - self.pf['initial_redshift']))
                     interp = interp1d(self.history['cgm_h_2'][ihigh:],
                         self.history['z'][ihigh:])
         

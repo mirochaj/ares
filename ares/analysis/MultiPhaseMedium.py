@@ -150,8 +150,7 @@ class MultiPhaseMedium(object):
                 
         # The import error is really meant to catch pickling errors
         except (AttributeError, ImportError):
-            self.pf = {"final_redshift": 5., "initial_redshift": 100.,
-                'first_light_redshift': 100.}
+            self.pf = {"final_redshift": 5., "initial_redshift": 100.}
             print 'Error loading %s.parameters.pkl.' % data
 
         self.history = history       
@@ -690,7 +689,7 @@ class MultiPhaseMedium(object):
         
         ax.semilogy(self.data['z'], rateSecondary, ls='--')
         
-        ax.set_xlim(self.pf['final_redshift'], self.pf['first_light_redshift'])
+        ax.set_xlim(self.pf['final_redshift'], self.pf['initial_redshift'])
         
         pl.draw()
         

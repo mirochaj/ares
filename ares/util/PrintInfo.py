@@ -630,8 +630,6 @@ def print_21cm_sim(sim):
     print line('-'*twidth)
 
     print line("z_initial   : %.1i" % sim.pf['initial_redshift'])
-    if sim.pf['radiative_transfer']:
-        print line("first-light : z=%.1i" % sim.pf['first_light_redshift'])
     if sim.pf['stop'] is not None:
         print line("z_final     : @ turning point %s " % sim.pf['stop'])
     else:
@@ -689,10 +687,6 @@ def print_21cm_sim(sim):
             print line("path        : $ARES%s" % path)
         else:
             print line("path        : %s" % path)
-
-        if sim.pf['initial_redshift'] > sim.pf['first_light_redshift']:
-            print line("FYI         : Can set initial_redshift=first_light_redshift for speed-up.", 
-                just='l')
 
     ##
     # PHYSICS

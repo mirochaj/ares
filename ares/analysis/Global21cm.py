@@ -351,7 +351,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             ax.scatter(self.data[xaxis][-1::-mask], 
                 self.data['dTb'][-1::-mask] * conv, **kwargs)
                 
-        zmax = self.pf["first_light_redshift"]
+        zmax = self.pf["initial_redshift"]
         zmin = self.pf["final_redshift"] if self.pf["final_redshift"] >= 10 \
             else 5
         
@@ -641,7 +641,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         # Only use low redshifts once source are "on"
         _z = self.data_asc['z']
-        ok = _z < self.pf['first_light_redshift']
+        ok = _z < self.pf['initial_redshift']
         z = self.data_asc['z'][ok]
         dTb = self.data_asc['dTb'][ok]
         
