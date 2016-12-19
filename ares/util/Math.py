@@ -54,7 +54,7 @@ def central_difference(x, y):
         / (np.roll(x, -1) - np.roll(x, 1)))[1:-1]
     
     return x[1:-1], dydx
-    
+        
 def five_pt_stencil(x, y):
     """
     Compute the first derivative of y wrt x using five point method.
@@ -304,5 +304,30 @@ class LinearNDInterpolator:
         return final
         
         
-        
-        
+class interp1d_wrapper(object):
+    """
+    Wrap interpolant and use boundaries as floor and ceiling.
+    """
+    def __init__(self, x, y, kind):
+        self._x = x
+        self._y = y
+        self._interp = interp1d(x, y, kind=kind, bounds_error=False)
+
+        self.limits = self._x.min(), self._x.max()
+
+    def __call__(self, xin):
+
+        if type(xin) in [int, float, np.float64]:
+            if xin < self.limits[0]:
+                x = self.limits[0]
+            elif xin > self.limits[1]:
+                x = self.limits[1]
+            else:
+                x = xin
+        else:
+            x = xin.copy()
+            x[x < self.limits[0]] = self.limits[0]
+            x[x > self.limits[1]] = self.limits[1]
+
+        return self._interp(x)
+

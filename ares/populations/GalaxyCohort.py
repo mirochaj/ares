@@ -14,7 +14,6 @@ import re
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
-from ..util.Math import central_difference
 from .GalaxyAggregate import GalaxyAggregate
 from scipy.optimize import fsolve, curve_fit
 from ..phenom.DustCorrection import DustCorrection
@@ -22,6 +21,7 @@ from scipy.integrate import quad, simps, cumtrapz, ode
 from ..util.ParameterFile import par_info, get_pq_pars
 from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import interp1d, RectBivariateSpline
+from ..util.Math import central_difference, interp1d_wrapper
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
@@ -33,33 +33,7 @@ except ImportError:
     pass
     
 z0 = 9. # arbitrary
-
-class interp_wrapper(object):
-    """
-    Wrap interpolant and use boundaries as floor and ceiling.
-    """
-    def __init__(self, x, y, kind):
-        self._x = x
-        self._y = y
-        self._interp = interp1d(x, y, kind=kind, bounds_error=False)
-        
-        self.limits = self._x.min(), self._x.max()
-        
-    def __call__(self, xin):
-        
-        if type(xin) in [int, float, np.float64]:
-            if xin < self.limits[0]:
-                x = self.limits[0]
-            elif xin > self.limits[1]:
-                x = self.limits[1]
-            else:
-                x = xin
-        else:
-            x = xin.copy()
-            x[x < self.limits[0]] = self.limits[0]
-            x[x > self.limits[1]] = self.limits[1]
-            
-        return self._interp(x)
+tiny_phi = 1e-18
     
 class GalaxyCohort(GalaxyAggregate):
     
@@ -149,7 +123,7 @@ class GalaxyCohort(GalaxyAggregate):
                         tmp.append(val)
 
                     # Interpolant
-                    interp = interp_wrapper(np.log10(Zarr), tmp, 
+                    interp = interp1d_wrapper(np.log10(Zarr), tmp, 
                         self.pf['interp_Z'])
 
                     result = lambda **kwargs: interp(np.log10(self.Zgas(kwargs['z'], kwargs['Mh'])))
@@ -787,7 +761,7 @@ class GalaxyCohort(GalaxyAggregate):
         lum = np.ma.array(Lh[:-1], mask=mask)
         phi = np.ma.array(phi_of_L, mask=mask)
 
-        phi[mask == True] = 0.
+        phi[mask == True] = tiny_phi
 
         self._phi_of_L[z] = lum, phi
 

@@ -223,7 +223,7 @@ class Global21cm(AnalyzeGlobal21cm):
         tf = self.medium.tf
         self.medium._insert_inits()
                 
-        pb = ProgressBar(tf, use=self.pf['progress_bar'])
+        pb = self.pb = ProgressBar(tf, use=self.pf['progress_bar'])
         
         # Lists for data in general
         self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm, \
@@ -241,11 +241,15 @@ class Global21cm(AnalyzeGlobal21cm):
                                         
         for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():
             
+            # Occasionally the progress bar breaks if we're not careful
+            if z < self.pf['final_redshift']:
+                break
+            
             # Delaying the initialization prevents progressbar from being
             # interrupted by, e.g., PrintInfo calls
             if not pb.has_pb:
                 pb.start()
-                                                    
+                        
             pb.update(t)
                     
             # Save data
@@ -256,9 +260,6 @@ class Global21cm(AnalyzeGlobal21cm):
             self.all_data_cgm.append(data_cgm.copy())
             self.all_RC_igm.append(rc_igm.copy()) 
             self.all_RC_cgm.append(rc_cgm.copy())
-            
-            if z < 5.2:
-                break
             
             # Automatically find turning points
             if self.pf['track_extrema']:

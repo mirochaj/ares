@@ -541,7 +541,7 @@ class Grid(object):
             between values in this list and values in self.species.
           
         """    
-                
+                        
         if x is not None:
 
             for j, species in enumerate(self.species):

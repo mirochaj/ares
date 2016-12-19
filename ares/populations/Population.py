@@ -49,7 +49,9 @@ class Population(object):
     @property
     def is_ion_src_cgm(self):
         if not hasattr(self, '_is_ion_src_cgm'):
-            if self.pf['pop_ion_src_cgm']:
+            if not self.pf['radiative_transfer']:
+                self._is_ion_src_cgm = False
+            elif self.pf['pop_ion_src_cgm']:
                 self._is_ion_src_cgm = True
             else:
                 self._is_ion_src_cgm = False
@@ -59,17 +61,21 @@ class Population(object):
     @property
     def is_ion_src_igm(self):
         if not hasattr(self, '_is_ion_src_igm'):
-            if self.pf['pop_ion_src_igm']:
-                self._ion_src_igm = True
+            if not self.pf['radiative_transfer']:
+                self._is_ion_src_igm = False
+            elif self.pf['pop_ion_src_igm']:
+                self._is_ion_src_igm = True
             else:
-                self._ion_src_igm = False
+                self._is_ion_src_igm = False
 
-        return self._ion_src_igm
+        return self._is_ion_src_igm
     
     @property
     def is_heat_src_igm(self):
         if not hasattr(self, '_is_heat_src_igm'):
-            if self.pf['pop_heat_src_igm']:
+            if not self.pf['radiative_transfer']:
+                self._is_heat_src_igm = False
+            elif self.pf['pop_heat_src_igm']:
                 self._is_heat_src_igm = True
             else:
                 self._is_heat_src_igm = False
@@ -79,7 +85,9 @@ class Population(object):
     @property
     def is_lya_src(self):
         if not hasattr(self, '_is_lya_src'):
-            if self.pf['pop_sed_model']:
+            if not self.pf['radiative_transfer']:
+                self._is_lya_src = False
+            elif self.pf['pop_sed_model']:
                 self._is_lya_src = \
                     (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
                     and self.pf['pop_lya_src']
@@ -91,7 +99,9 @@ class Population(object):
     @property
     def is_uv_src(self):
         if not hasattr(self, '_is_uv_src'):
-            if self.pf['pop_sed_model']:
+            if not self.pf['radiative_transfer']:
+                self._is_uv_src = False
+            elif self.pf['pop_sed_model']:
                 self._is_uv_src = \
                     (self.pf['pop_Emax'] > E_LL) \
                     and self.pf['pop_ion_src_cgm']
@@ -103,7 +113,9 @@ class Population(object):
     @property
     def is_xray_src(self):
         if not hasattr(self, '_is_xray_src'):
-            if self.pf['pop_sed_model']:
+            if not self.pf['radiative_transfer']:
+                self._is_xray_src = False
+            elif self.pf['pop_sed_model']:
                 self._is_xray_src = \
                     (E_LL <= self.pf['pop_Emin']) \
                     and self.pf['pop_heat_src_igm']

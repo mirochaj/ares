@@ -51,21 +51,21 @@ class MultiPhaseMedium(object):
                 raise ValueError('Redshifts in ICs must be in ascending order!')
                 
             Ti = np.interp(zi, inits['z'], inits['Tk'])
-            xi = np.interp(zi, inits['z'], inits['xe'])
+            xe = np.interp(zi, inits['z'], inits['xe'])
                                                     
             #if self.pf['include_He']:
             new = {'igm_initial_temperature': Ti,                                 
-                'initial_ionization': [1. - xi, xi, 1.-xi-1e-10, xi, 1e-10]}
-            self.kwargs.update(new)        
-                
+                'igm_initial_ionization': [1.-xe, xe, 1.-xe-1e-10, xe, 1e-10]}
+            self.kwargs.update(new)
+
             #else:
             #    new_pars = {'cosmological_ics': False,
             #                'igm_initial_temperature': Ti,
             #                'igm_initial_ionization': [1. - xi, xi]}
             #
                 #self.kwargs.update(new_pars)    
-            
-        return self._inits    
+
+        return self._inits
         
     @property
     def field(self):
@@ -325,7 +325,7 @@ class MultiPhaseMedium(object):
         zf = self.pf['final_redshift']
         
         # Read initial conditions
-        if self.pf['include_igm']:  
+        if self.pf['include_igm']:
             data_igm = self.parcel_igm.grid.data.copy()
         
         if self.pf['include_cgm']:
