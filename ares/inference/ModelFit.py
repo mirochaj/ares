@@ -610,10 +610,17 @@ class ModelFit(BlobFactory):
                     print 'is_log from file dont match those supplied!'
                 MPI.COMM_WORLD.Abort()
             raise ValueError('is_log from file dont match those supplied!')
-                    
-        f = open('%s.setup.pkl' % prefix, 'rb')
-        base_kwargs = pickle.load(f)
-        f.close()  
+          
+        # Identical to setup, just easier for scp'ing *info.pkl files.
+        if os.path.exists('%s.binfo.pkl' % prefix):
+            f = open('%s.binfo.pkl' % prefix, 'rb')
+            base_kwargs = pickle.load(f)
+            f.close()
+        else:
+            # Deprecate this eventually          
+            f = open('%s.setup.pkl' % prefix, 'rb')
+            base_kwargs = pickle.load(f)
+            f.close()
         
         f = open('%s.rinfo.pkl' % self.prefix, 'r')
         nwalkers, save_freq, steps = pickle.load(f)
@@ -758,7 +765,7 @@ class ModelFit(BlobFactory):
             f.close()
         
         # Constant parameters being passed to ares.simulations.Global21cm
-        f = open('%s.setup.pkl' % self.prefix, 'wb')
+        f = open('%s.binfo.pkl' % self.prefix, 'wb')
         tmp = self.base_kwargs.copy()
         to_axe = []
         for key in tmp:
@@ -776,7 +783,7 @@ class ModelFit(BlobFactory):
         pickle.dump(tmp, f)
         del tmp
         f.close()
-
+        
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=500):
         """

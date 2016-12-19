@@ -109,7 +109,11 @@ class ModelGrid(ModelFit):
         f.close()
         
         # Prepare for blobs (optional)
-        if os.path.exists('%s.setup.pkl' % prefix):
+        if os.path.exists('%s.binfo.pkl' % prefix):
+            f = open('%s.binfo.pkl' % prefix, 'rb')
+            self.pf = pickle.load(f)
+            f.close()
+        elif os.path.exists('%s.setup.pkl' % prefix):
             f = open('%s.setup.pkl' % prefix, 'rb')
             self.pf = pickle.load(f)
             f.close()

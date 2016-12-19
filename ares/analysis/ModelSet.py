@@ -247,16 +247,20 @@ class ModelSet(BlobFactory):
 
     @property
     def base_kwargs(self):
-        if not hasattr(self, '_base_kwargs'):
-            if os.path.exists('%s.setup.pkl' % self.prefix):
-                f = open('%s.setup.pkl' % self.prefix, 'rb')
-                try:
-                    self._base_kwargs = pickle.load(f)
-                except ImportError as err:
-                    raise err
-                except:
-                    self._base_kwargs = {}
-                f.close()
+        if not hasattr(self, '_base_kwargs'):            
+            if os.path.exists('%s.binfo.pkl' % self.prefix):
+                fn = '%s.binfo.pkl' % self.prefix
+            else:
+                fn = '%s.setup.pkl' % self.prefix
+                
+            f = open(fn, 'rb')
+            try:
+                self._base_kwargs = pickle.load(f)
+            except ImportError as err:
+                raise err
+            except:
+                self._base_kwargs = {}
+            f.close()
                 
             else:
                 self._base_kwargs = None    
@@ -3642,8 +3646,8 @@ class ModelSet(BlobFactory):
             
         # Also make a copy of the setup file with same prefix
         # since that's generally nice to have available.  
-        out = '%s/%s.%s.setup.pkl' % (path, self.prefix, prefix)
-        shutil.copy('%s.setup.pkl' % self.prefix, out)
+        out = '%s/%s.%s.binfo.pkl' % (path, self.prefix, prefix)
+        shutil.copy('%s.binfo.pkl' % self.prefix, out)
         print "Wrote %s." % out    
         
     def set_axis_labels(self, ax, pars, take_log=False, un_log=False,
