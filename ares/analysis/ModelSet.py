@@ -250,8 +250,11 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_base_kwargs'):            
             if os.path.exists('%s.binfo.pkl' % self.prefix):
                 fn = '%s.binfo.pkl' % self.prefix
-            else:
+            elif os.path.exists('%s.setup.pkl' % self.prefix):
                 fn = '%s.setup.pkl' % self.prefix
+            else:    
+                self._base_kwargs = None
+                return self._base_kwargs
                 
             f = open(fn, 'rb')
             try:
@@ -260,10 +263,7 @@ class ModelSet(BlobFactory):
                 raise err
             except:
                 self._base_kwargs = {}
-            f.close()
-                
-            else:
-                self._base_kwargs = None    
+            f.close()  
             
         return self._base_kwargs    
 

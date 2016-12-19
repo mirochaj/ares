@@ -33,6 +33,33 @@ except ImportError:
     pass
     
 z0 = 9. # arbitrary
+
+class interp_wrapper(object):
+    """
+    Wrap interpolant and use boundaries as floor and ceiling.
+    """
+    def __init__(self, x, y, kind):
+        self._x = x
+        self._y = y
+        self._interp = interp1d(x, y, kind=kind, bounds_error=False)
+        
+        self.limits = self._x.min(), self._x.max()
+        
+    def __call__(self, xin):
+        
+        if type(xin) in [int, float, np.float64]:
+            if xin < self.limits[0]:
+                x = self.limits[0]
+            elif xin > self.limits[1]:
+                x = self.limits[1]
+            else:
+                x = xin
+        else:
+            x = xin.copy()
+            x[x < self.limits[0]] = self.limits[0]
+            x[x > self.limits[1]] = self.limits[1]
+            
+        return self._interp(x)
     
 class GalaxyCohort(GalaxyAggregate):
     
@@ -98,17 +125,11 @@ class GalaxyCohort(GalaxyAggregate):
                 else:
                     pars = tmp            
                     
-                _result = ParameterizedQuantity(**pars)
+                result = ParameterizedQuantity(**pars)
                 
-                if self.pf['pop_Z'] == 'sam' and 'Mh' == _result.func_var:
-                    result = lambda **kwargs: _result(Z=self.Zgas(z=kwargs['z'], Mh=kwargs['Mh']))
-                else:
-                    result = _result
-
                 self._update_pq_registry(name, result)
 
             elif self.sed_tab:
-                #if name == 'L1600_per_sfr':
                 if self.pf['pop_Z'] == 'sam':
                     tmp = []
                     Zarr = np.sort(self.src.metallicities.values())
@@ -127,12 +148,10 @@ class GalaxyCohort(GalaxyAggregate):
                             
                         tmp.append(val)
 
-                    # Interpolant for 
-                    interp = interp1d(np.log10(Zarr), tmp, 
-                        kind=self.pf['interp_Z'], bounds_error=False,
-                        fill_value=0.0)
+                    # Interpolant
+                    interp = interp_wrapper(np.log10(Zarr), tmp, 
+                        self.pf['interp_Z'])
 
-                    # Could setup a pop_metal_yield_calib...?
                     result = lambda **kwargs: interp(np.log10(self.Zgas(kwargs['z'], kwargs['Mh'])))
                 else:
                     att = self.src.__getattribute__(name)
@@ -160,21 +179,22 @@ class GalaxyCohort(GalaxyAggregate):
         if not hasattr(self, '_sam_data'):
             self._sam_z, self._sam_data = self.scaling_relations
 
+        flip = self._sam_data['Mh'][0] > self._sam_data['Mh'][-1]
+        slc = slice(-1,0,-1) if flip else None
+        
         if self.constant_SFE:
-            _Mh = self._sam_data['Mh'][-1::-1] 
-            _MZ = self._sam_data['MZ'][-1::-1] 
-            _Mg = self._sam_data['Mg'][-1::-1]
+            _Mh = self._sam_data['Mh'][slc]
+            _Z = self._sam_data['Z'][slc]
         else:
             # guaranteed to be a grid point?    
             k = np.argmin(np.abs(self.halos.z - z))
 
-            _smhm = self._sam_data['Ms'][:,k]  / self._sam_data['Mh'][:,k]
+            _smhm = self._sam_data['Ms'][slc,k]  / self._sam_data['Mh'][slc,k]
             _mask = np.isfinite(smhm)
-            _Mh = self._sam_data['Mh'][:,k][_mask]
-            _MZ = self._sam_data['MZ'][:,k][_mask] 
-            _Mg = self._sam_data['Mg'][:,k][_mask]
+            _Mh = self._sam_data['Mh'][slc,k][_mask]
+            _Z = self._sam_data['Z'][slc,k][_mask]
 
-        return np.interp(Mh, _Mh, _MZ / _Mg)
+        return np.interp(Mh, _Mh, _Z)
 
     def N_per_Msun(self, Emin, Emax):
         """
@@ -700,7 +720,7 @@ class GalaxyCohort(GalaxyAggregate):
         NOT generally use-able!!!
         
         """
-        return self.SFR(z, self.halos.M) * self.L1600_per_sfr(z, self.halos.M)
+        return self.SFR(z, self.halos.M) * self.L1600_per_sfr(z=z, Mh=self.halos.M)
 
     def phi_of_L(self, z):
         """
@@ -722,7 +742,7 @@ class GalaxyCohort(GalaxyAggregate):
         
         dndm_func = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
 
-        dndm = dndm_func(z)
+        dndm = dndm_func(z) * self.focc(z=z, Mh=self.halos.M[0:-1])
         dMh_dLh = np.diff(self.halos.M) / np.diff(Lh)
                 
         dMh_dlogLh = dMh_dLh * Lh[0:-1]
@@ -860,7 +880,7 @@ class GalaxyCohort(GalaxyAggregate):
             
             for i, z in enumerate(self.halos.z):
                 integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
-                    * self.fduty(z=z, Mh=self.halos.M)
+                    * self.focc(z=z, Mh=self.halos.M)
  
                 tot = np.trapz(integrand, x=self.halos.lnM)
                 cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
@@ -1058,11 +1078,12 @@ class GalaxyCohort(GalaxyAggregate):
             y3p = 0.
         else:
             y3p = fstar * self.cosm.fbar_over_fcdm * y1p \
-                * self.pf['pop_mass_yield']
+                * (1. - self.pf['pop_mass_yield'])
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
         # Could make a PHP pretty easily.
-        y4p = self.pf['pop_metal_yield'] * y3p * (1. - self.pf['pop_mass_escape'])
+        y4p = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield'] * y3p \
+            * (1. - self.pf['pop_mass_escape'])
 
         # Stuff to add: parameterize metal yield, metal escape, star formation
         # from reservoir? How to deal with Mmin(z)? Initial conditions (from PopIII)?
@@ -1157,12 +1178,14 @@ class GalaxyCohort(GalaxyAggregate):
         zform = []
         results['nthresh'] = np.zeros_like(self.halos.z)
         #results['zform'] = []
+        
+        zfreq = int(self.pf['pop_sam_dz'] / np.diff(self.halos.z)[0])
 
         for i, z in enumerate(self.halos.z):
             if (i == 0) or (i == len(self.halos.z) - 1):
                 continue
 
-            if i % 10 != 0:
+            if i % zfreq != 0:
                 continue    
 
             _zarr, _results = self._ScalingRelationsStaticSFE(z0=z)

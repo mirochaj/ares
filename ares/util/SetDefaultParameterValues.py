@@ -237,7 +237,7 @@ def ParameterizedQuantityParameters():
     tmp = \
     {
      "pq_func": 'dpl',
-     "pq_func_var": 'mass',
+     "pq_func_var": 'Mh',
      "pq_func_par0": None,
      "pq_func_par1": None,
      "pq_func_par2": None,
@@ -363,6 +363,7 @@ def PopulationParameters():
     'pop_lf_Mmax': 1e15,
 
     "pop_fduty": 1.0,
+    "pop_focc": 1.0,
         
     # Set the emission interval and SED
     "pop_sed": 'pl',
@@ -477,7 +478,8 @@ def PopulationParameters():
     
     # Parameters for simple galaxy SAM
     "pop_sam_nz": 1,
-    "pop_mass_yield": 0.0,
+    "pop_sam_dz": 0.5,
+    "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.01,
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
