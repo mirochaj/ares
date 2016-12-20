@@ -42,7 +42,7 @@ realization of the global 21-cm signal using all default parameter values:
     sim.run()
     sim.GlobalSignature()
 
-See :doc:`example_21cm_simple` in :doc:`examples` for a more thorough 
+See :doc:`example_gs_standard` in :doc:`examples` for a more thorough 
 introduction to this type of calculation.
 
 Contents

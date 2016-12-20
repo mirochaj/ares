@@ -10,6 +10,7 @@ Description:
 
 """
 
+import re
 from .SetDefaultParameterValues import PopulationParameters
 
 pop_pars = PopulationParameters()
@@ -29,7 +30,8 @@ def backward_compatibility(ptype, **kwargs):
     Handle some conventions used in the pre "pop_*" parameter days.
     
     .. note :: Only applies to simple global 21-cm models right now, i.e., 
-        problem_type=101.
+        problem_type=101, ParameterizedQuantity parameters, and the
+        pop_yield vs. pop_rad_yield change.
         
     Parameters
     ----------
@@ -41,6 +43,8 @@ def backward_compatibility(ptype, **kwargs):
     Dictionary of parameters to subsequently be updated.
     
     """
+        
+    pf = {}    
         
     if ptype == 101:
         pf = {}
@@ -104,8 +108,31 @@ def backward_compatibility(ptype, **kwargs):
         elif par_supplied('xi_XR', **kwargs):
             pf['pop_rad_yield{1}'] = kwargs['xi_XR'] * kwargs['pop_rad_yield{1}'] \
                / pf['pop_fstar{1}']
-
-    else:
-        pf = {}
+        
+    fixes = {}
+    for element in kwargs:
+        
+        if re.search('pop_yield', element):
+            fixes[element.replace('pop_yield', 'pop_rad_yield')] = \
+                kwargs[element]
+            continue
+        
+        if element[0:3] == 'php':
+    
+            if type(kwargs[element]) is str:
+                fixes[element.replace('php', 'pq')] = \
+                    kwargs[element].replace('php', 'pq')
+            else:
+                fixes[element.replace('php', 'pq')] = kwargs[element]
+        
+        if type(kwargs[element]) is str:
+            if kwargs[element][0:3] == 'php':
+                fixes[element] = kwargs[element].replace('php', 'pq')
+    
+            if kwargs[element] == 'mass':
+                fixes[element] = 'Mh'
+    
+    pf.update(fixes)
+        
                 
     return pf

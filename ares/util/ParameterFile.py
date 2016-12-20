@@ -262,7 +262,7 @@ class ParameterFile(dict):
             tmp = {}    
             if 'problem_type' in self._kwargs:
                 tmp.update(ProblemType(self._kwargs['problem_type']))
-            tmp.update(self._kwargs) 
+            tmp.update(self) 
 
             self._Npqs, self._pqs = count_properties(**tmp)
 

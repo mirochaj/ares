@@ -10,16 +10,19 @@ Description:
 
 """
 
+from ..util import ParameterFile
 from .GalaxyCohort import GalaxyCohort
 from .GalaxyEnsemble import GalaxyEnsemble
 from .GalaxyAggregate import GalaxyAggregate
 from .Parameterized import ParametricPopulation, parametric_options
 
-def GalaxyPopulation(**kwargs):
+def GalaxyPopulation(**kw):
     """
     Return the appropriate Galaxy* instance depending on if any quantities
     are being parameterized by hand.
     """
+    
+    kwargs = ParameterFile(**kw)
     
     Npq = 0
     Nparam = 0

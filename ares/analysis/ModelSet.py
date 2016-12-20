@@ -3603,6 +3603,8 @@ class ModelSet(BlobFactory):
         # Output to HDF5. In this case, save each field as a new dataset
         if fmt == 'hdf5':
             
+            assert have_h5py, "h5py import failed."
+            
             f = h5py.File(fn, 'w')
 
             # Loop over parameters and save to disk
@@ -3630,17 +3632,7 @@ class ModelSet(BlobFactory):
                     
             f.close()
             print "Wrote %s." % fn  
-            
-        elif fmt == 'pkl':
-            f = h5py.File(fn, 'w')
-
-            # Loop over parameters and save to disk
-            for i, par in enumerate(pars):   
-                f.create_dataset(par, data=data[par][skip:stop:skim,Ellipsis])
-                
-            f.close()
-            print "Wrote %s." % fn  
-            
+                        
         else:
             raise NotImplemented('Only support for hdf5 so far. Sorry!')
             

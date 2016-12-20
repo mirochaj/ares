@@ -16,13 +16,13 @@ from ..util import read_lit
 from types import FunctionType
 from .GalaxyAggregate import GalaxyAggregate
 from scipy.optimize import fsolve, curve_fit
+from ..util import MagnitudeSystem, ProgressBar
 from ..phenom.DustCorrection import DustCorrection
 from scipy.integrate import quad, simps, cumtrapz, ode
 from ..util.ParameterFile import par_info, get_pq_pars
 from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util.Math import central_difference, interp1d_wrapper
-from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz
@@ -648,6 +648,66 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             return rhoL
     
+    def StellarMassFunction(self, z):
+        if not hasattr(self, '_phi_of_Mst'):
+            self._phi_of_Mst = {}
+        else:
+            if z in self._phi_of_Mst:
+                return self._phi_of_Mst[z]
+
+        
+        zform, data = self.scaling_relations
+
+        sorter = np.argsort(data['Mh'])
+        
+        if self.constant_SFE:
+            sorter = np.argsort(data['Mh'])
+            Mh = data['Mh'][sorter]
+            Ms = data['Ms'][sorter]
+        else:
+            k = np.argmin(np.abs(z - self.halos.z))
+            Mh = data['Mh'][:,k]
+            Ms = data['Ms'][:,k]
+            
+            sorter = np.argsort(Mh)
+            Mh = Mh[sorter]
+            Ms = Ms[sorter]
+        
+        dndm_func = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
+        dndm_z = dndm_func(z)
+
+        # Interpolate dndm to same Mh grid as SAM
+        dndm_sam = np.interp(Mh, self.halos.M[0:-1], dndm_z)
+
+        dndm = dndm_sam * self.focc(z=z, Mh=Mh)
+        dMh_dMs = np.diff(Mh) / np.diff(Ms)
+                
+        dMh_dlogMs = dMh_dMs * Ms[0:-1]
+        
+        # Only return stuff above Mmin
+        Mmin = np.interp(z, self.halos.z, self.Mmin)
+        Mmax = self.pf['pop_lf_Mmax']
+        
+        i_min = np.argmin(np.abs(Mmin - self.halos.M))
+        i_max = np.argmin(np.abs(Mmax - self.halos.M))
+
+        phi_of_Ms = dndm[0:-1] * dMh_dlogMs
+
+        above_Mmin = Mh >= Mmin
+        below_Mmax = Mh <= Mmax
+        ok = np.logical_and(above_Mmin, below_Mmax)[0:-1]
+        mask = self.mask = np.logical_not(ok)
+
+        mass = np.ma.array(Ms[:-1], mask=mask)
+        phi = np.ma.array(phi_of_Ms, mask=mask)
+
+        phi[mask == True] = tiny_phi
+
+        self._phi_of_Mst[z] = mass, phi
+
+        return self._phi_of_Mst[z]
+        
+    
     def LuminosityFunction(self, z, x, mags=True):
         """
         Reconstructed luminosity function.
@@ -1162,6 +1222,8 @@ class GalaxyCohort(GalaxyAggregate):
             if i % zfreq != 0:
                 continue    
 
+            print z, zfreq
+
             _zarr, _results = self._ScalingRelationsStaticSFE(z0=z)
 
             for key in keys:
@@ -1169,6 +1231,11 @@ class GalaxyCohort(GalaxyAggregate):
                 
                 # Must keep in mind that different redshifts have different
                 # halo mass gridding effectively
+
+            ##
+            # Could kill this once a user-defined mass and redshift
+            # interval is adequately sampled
+            ##
 
             #for key in keys:
             #    results[key].append(_results[key].copy())

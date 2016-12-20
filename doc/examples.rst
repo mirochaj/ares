@@ -5,7 +5,9 @@ Running Individual Simulations
 ------------------------------
     
 * Reionization & Global 21-cm Signal
-    * :doc:`example_21cm_simple`
+    * :doc:`example_gs_standard`
+..    * :doc:`example_gs_phenomenological`
+..    * :doc:`example_gs_hybrid`
 ..    * :doc:`example_21cm_multipop`
 ..    * :doc:`example_21cm_xrb`
 ..    * :doc:`example_21cm_lwb`

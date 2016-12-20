@@ -478,7 +478,7 @@ def PopulationParameters():
     
     # Parameters for simple galaxy SAM
     "pop_sam_nz": 1,
-    "pop_sam_dz": 0.5,
+    "pop_sam_dz": 1.0,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.01,
     "pop_fpoll": 1.0,         # uniform pollution
