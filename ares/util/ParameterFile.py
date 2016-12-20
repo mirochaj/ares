@@ -142,13 +142,15 @@ def identify_pqs(**kwargs):
         if type(kwargs[par]) is not str:
             continue
 
-        if (kwargs[par] != 'pq') and (kwargs[par][0:4] != 'pq['):
+        if (kwargs[par] != 'pq') and (kwargs[par][0:3] != 'pq['):
             continue
-
+            
         # This will NOT have a pop ID
         just_php, nothing, phpid = par_info(kwargs[par])
         
         prefix, popid, age = par_info(par)
+                
+        #print par, prefix, popid, age, phpid        
                 
         if (popid is None) and (Npops == 1):
             # I think this is guaranteed to be true
@@ -164,7 +166,7 @@ def identify_pqs(**kwargs):
     
 def get_pq_pars(par, pf):
     """
-    Find ParameterizedHaloProperty's for this parameter.
+    Find ParameterizedQuantity parameters...for this parameter.
     
     ..note:: par isn't the name of the parameter, it is the value. Usually,
         it's something like 'pq[0]'.
@@ -288,7 +290,7 @@ class ParameterFile(dict):
         If Npops > 1, all population-specific parameters *must* be associated
         with a population, i.e., have curly braces in the name.
                       
-        """    
+        """
                 
         # Start w/ problem specific parameters (always)
         if 'problem_type' not in kw:

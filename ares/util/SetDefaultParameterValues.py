@@ -495,9 +495,6 @@ def PopulationParameters():
     
     "pop_Lh_scatter": 0.0,
     
-    # If pop_yield_units == 'erg/s/sfr/hz, this is the reference wavelength
-    "pop_yield_wavelength": 1500.,
-
     'pop_fXh': None,
     
     'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're

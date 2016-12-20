@@ -16,14 +16,16 @@ from .GalaxyEnsemble import GalaxyEnsemble
 from .GalaxyAggregate import GalaxyAggregate
 from .Parameterized import ParametricPopulation, parametric_options
 
-def GalaxyPopulation(**kw):
+def GalaxyPopulation(**kwargs):
     """
     Return the appropriate Galaxy* instance depending on if any quantities
     are being parameterized by hand.
+    
+    kwargs should NOT be ParameterFile instance. Still trying to remind
+    myself why that is.
+    
     """
-    
-    kwargs = ParameterFile(**kw)
-    
+
     Npq = 0
     Nparam = 0
     pqs = []

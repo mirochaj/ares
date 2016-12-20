@@ -93,21 +93,22 @@ class ModelGrid(ModelFit):
 
         # Read in current status of model grid
         chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
-        
+
         # If we said this is a restart, but there are no elements in the 
         # chain, just run the thing. It probably means the initial run never
         # made it to the first checkpoint.
-                
+
         if chain.size == 0:
             if rank == 0:
                 print "Pre-existing chain file(s) empty. Running from beginning."
+            self.done = np.array([0])
             return
 
         # Read parameter info
         f = open('%s.pinfo.pkl' % prefix, 'rb')
         axes_names, is_log = pickle.load(f)
         f.close()
-        
+
         # Prepare for blobs (optional)
         if os.path.exists('%s.binfo.pkl' % prefix):
             f = open('%s.binfo.pkl' % prefix, 'rb')
@@ -136,7 +137,7 @@ class ModelGrid(ModelFit):
             axes[axes_names[i]] = np.unique(chain[:,i])
 
         if (not self.grid.structured):
-            self.done = np.array([chain.shape[0]])
+            self.done = 0#np.array([chain.shape[0]])
             return
 
         # Loop over chain read-in from disk and compare to grid.
@@ -291,7 +292,7 @@ class ModelGrid(ModelFit):
             if rank == 0:
                 print "This can't be a restart, %s*.pkl not found." % prefix
                 print "Starting from scratch..."
-            restart = False    
+            restart = False
 
         # Load previous results if this is a restart
         if restart:

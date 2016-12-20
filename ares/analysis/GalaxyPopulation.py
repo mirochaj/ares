@@ -317,7 +317,7 @@ class GalaxyPopulation(object):
             else:
                 ax.set_xscale('log')
                 ax.set_xlim(1e6, 1e12)
-                ax.set_ylim(1e-9, 5)
+                ax.set_ylim(1e-9, 15)
                 ax.set_yscale('log', nonposy='clip')                      
             
         if quantity == 'lf':
