@@ -139,16 +139,9 @@ class ParameterizedQuantity(object):
                                 
                 exec('p%i = val' % i)
             elif type(par) == tuple:
-                raise NotImplemented('help')
                 f, v = par
                                 
-                if v == 'z':
-                    val = f(z)
-                elif v == 'Mh':
-                    val = f(M)
-                else:
-                    raise NotImplementedError('help!')
-                
+                val = f(kwargs[v])
                 exec('p%i = val' % i)    
                     
             else:

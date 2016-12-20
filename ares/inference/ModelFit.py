@@ -710,7 +710,7 @@ class ModelFit(BlobFactory):
             # deleting other files the user may have created with similar
             # naming convention!
             
-            for suffix in ['logL', 'facc', 'pinfo', 'rinfo', 'setup', 'prior_set']:
+            for suffix in ['logL', 'facc', 'pinfo', 'rinfo', 'binfo', 'setup', 'prior_set']:
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
             
             os.system('rm -f %s.*.fail.pkl' % self.prefix)
@@ -776,6 +776,8 @@ class ModelFit(BlobFactory):
                 to_axe.append(key)
             if re.search('pop_psm_instance', key):
                 to_axe.append(key)        
+            if re.search('pop_sed_by_Z', key):
+                to_axe.append(key)
         
         for key in to_axe:
             tmp[key] = None

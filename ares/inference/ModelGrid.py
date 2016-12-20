@@ -101,7 +101,9 @@ class ModelGrid(ModelFit):
         if chain.size == 0:
             if rank == 0:
                 print "Pre-existing chain file(s) empty. Running from beginning."
-            self.done = np.array([0])
+            if not self.grid.structured:
+                self.done = np.array([0])
+            
             return
 
         # Read parameter info
@@ -308,7 +310,7 @@ class ModelGrid(ModelFit):
                 ct0 = self.done[self.done >= 0].sum()
             else:
                 ct0 = 0
-
+                
             # Important that this goes second, otherwise this processor
             # will count the models already run by other processors, which
             # will mess up the 'Nleft' calculation below.
