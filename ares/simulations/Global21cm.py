@@ -55,6 +55,9 @@ class Global21cm(AnalyzeGlobal21cm):
         # Print info to screen
         if self.pf['verbose'] and self.count == 0:
             print_sim(self)
+        
+        if not hasattr(self, '_suite'):
+            self._suite = []
             
     @property 
     def count(self):
@@ -194,12 +197,6 @@ class Global21cm(AnalyzeGlobal21cm):
 
         return True
         
-    @property
-    def suite(self):
-        if not hasattr(self, '_suite'):
-            self._suite = []
-        return self._suite
-                
     def run(self):
         """
         Run a 21-cm simulation.
@@ -215,7 +212,7 @@ class Global21cm(AnalyzeGlobal21cm):
             return
 
         if hasattr(self, '_suite'):
-            if self.suite != []:
+            if self._suite != []:
                 self.reboot()
             
         t1 = time.time()    
@@ -570,7 +567,7 @@ class Global21cm(AnalyzeGlobal21cm):
                 raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
     
         # I/O more complicated in this case.
-        if (self.suite != []) and suffix != 'pkl':
+        if (self._suite != []) and suffix != 'pkl':
             raise NotImplemented('help!')
     
         if suffix == 'pkl':

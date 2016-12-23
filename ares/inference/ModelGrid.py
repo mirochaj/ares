@@ -139,7 +139,7 @@ class ModelGrid(ModelFit):
             axes[axes_names[i]] = np.unique(chain[:,i])
 
         if (not self.grid.structured):
-            self.done = 0#np.array([chain.shape[0]])
+            self.done = np.array([chain.shape[0]])
             return
 
         # Loop over chain read-in from disk and compare to grid.
@@ -307,17 +307,19 @@ class ModelGrid(ModelFit):
                 MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
                 
             if self.grid.structured:
-                ct0 = self.done[self.done >= 0].sum()
+                ct0 = int(self.done[self.done >= 0].sum())
             else:
                 ct0 = 0
-                
+                                
             # Important that this goes second, otherwise this processor
             # will count the models already run by other processors, which
             # will mess up the 'Nleft' calculation below.
-            if self.grid.structured:
+            if self.grid.structured and self.save_by_proc:
                 tmp = np.zeros(self.grid.shape)
                 MPI.COMM_WORLD.Allreduce(self.done, tmp)
                 self.done = tmp
+            elif self.grid.structured:
+                pass
             else:
                 # In this case, self.done is just an integer
                 tmp = np.array([0])
@@ -325,12 +327,14 @@ class ModelGrid(ModelFit):
                 self.done = tmp[0]
         else:
             ct0 = 0
-
-        if restart:
+            
+        if restart and self.save_by_proc:
             tot = np.sum(self.assignments == rank)
-            Nleft = tot - ct0
+            Nleft = tot - ct0        
+        elif restart:
+            Nleft = self.done.size - ct0    
         else:
-            Nleft = np.sum(self.assignments == rank)
+            Nleft = int(np.sum(self.assignments == rank))
 
         if Nleft == 0:
             if rank == 0:
@@ -345,7 +349,7 @@ class ModelGrid(ModelFit):
                 print "Update               : %i models down, %i to go." \
                     % (Ndone, Ntot - Ndone)
             
-            MPI.COMM_WORLD.Barrier()    
+            MPI.COMM_WORLD.Barrier()
                 
             print "Update (processor #%i): Running %i more models." \
                 % (rank, Nleft)
@@ -442,12 +446,12 @@ class ModelGrid(ModelFit):
                 hmf_pars = {'pop_Tmin%s' % suffix: sim.pf['pop_Tmin%s' % suffix],
                     'fcoll%s' % suffix: copy.deepcopy(pops[loc].fcoll), 
                     'dfcolldz%s' % suffix: copy.deepcopy(pops[loc].dfcolldz)}
-
+            
                 # Save for future iterations
                 fcoll[i_Tmin] = hmf_pars.copy()
-
+            
             # If we already have matching fcoll splines, use them!
-            elif not self.tanh:        
+            elif (not self.tanh):        
                                         
                 hmf_pars = {'pop_Tmin%s' % suffix: fcoll[i_Tmin]['pop_Tmin%s' % suffix],
                     'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
@@ -457,7 +461,7 @@ class ModelGrid(ModelFit):
                 
             else:
                 sim = self.simulator(**p)
-                
+                                
             # Write this set of parameters to disk before running 
             # so we can troubleshoot later if the run never finishes.
             procid = str(rank).zfill(3)

@@ -451,7 +451,7 @@ def print_sim(sim):
     sim : ares.simulations.Global21cm instance
     """
     
-    if rank > 0 or not sim.pf['verbose']:
+    if rank > 0:
         return 
         
     header = 'Global 21cm Signal Simulation: Overview'
