@@ -442,7 +442,7 @@ class ModelGrid(ModelFit):
                     else:    
                         loc = 0
                         suffix = ''
-                                
+
                 hmf_pars = {'pop_Tmin%s' % suffix: sim.pf['pop_Tmin%s' % suffix],
                     'fcoll%s' % suffix: copy.deepcopy(pops[loc].fcoll), 
                     'dfcolldz%s' % suffix: copy.deepcopy(pops[loc].dfcolldz)}

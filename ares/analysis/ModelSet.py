@@ -22,7 +22,6 @@ import re, os, string, time, glob
 from .BlobFactory import BlobFactory
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
-from matplotlib.collections import PatchCollection
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
 import matplotlib.patches as patches
@@ -30,6 +29,7 @@ from ..util.Aesthetics import Labeler
 from ..util.PrintInfo import print_model_set
 from .DerivedQuantities import DerivedQuantities as DQ
 from ..util.ParameterFile import count_populations, par_info
+from matplotlib.collections import PatchCollection, LineCollection
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
@@ -1302,7 +1302,7 @@ class ModelSet(BlobFactory):
 
     def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
-        line_plot=False, sort_by='z', filter_z=None, **kwargs):
+        line_plot=False, sort_by='z', filter_z=None, rungs=False, **kwargs):
         """
         Plot samples as points in 2-d plane.
     
@@ -1386,20 +1386,29 @@ class ModelSet(BlobFactory):
                 print "No instances of %s=%.4g" % (p[2], filter_z)
                 return
             
-            xdata = xdata[_condition]
-            ydata = ydata[_condition]
-            cdata = cdata[_condition]
+            xd = xdata[_condition]
+            yd = ydata[_condition]
+            cd = cdata[_condition]
             
-        if hasattr(self, 'weights') and cdata is None:
-            scat = func(xdata, ydata, c=self.weights, **kwargs)
-        elif line_plot:
-            scat = func(xdata, ydata, **kwargs)
-        elif cdata is not None:
-            scat = func(xdata, ydata, c=cdata, **kwargs)
         else:
-            scat = func(xdata, ydata, **kwargs)
+            _condition = None
+            xd = xdata
+            yd = ydata
+            cd = cdata    
+            
+        if rungs:
+            scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, **kwargs)
+        elif hasattr(self, 'weights') and cdata is None:
+            scat = func(xd, yd, c=self.weights, **kwargs)
+        elif line_plot:
+            scat = func(xd, yd, **kwargs)
+        elif cdata is not None and (filter_z is None):
+            scat = func(xd, yd, c=cd, **kwargs)
+        else:
+            scat = func(xd, yd, **kwargs)
                            
-        if (cdata is not None) and use_colorbar and (not line_plot):
+        if (cdata is not None) and use_colorbar and (not line_plot) and \
+           (filter_z is None):
             if 'facecolors' in kwargs:
                 if kwargs['facecolors'] in ['none', None]:
                     cb = None
@@ -1417,7 +1426,7 @@ class ModelSet(BlobFactory):
             'take_log': take_log, 'un_log':un_log, 'multiplier':multiplier}
             
         # Make labels
-        self.set_axis_labels(ax, p, take_log, un_log, cb)
+        self.set_axis_labels(ax, p, take_log, un_log, cb)            
         
         pl.draw()        
         
@@ -1433,6 +1442,49 @@ class ModelSet(BlobFactory):
         
         pl.draw()
         
+        return ax
+    
+    def _add_rungs(self, _x, _y, c, ax, cond, **kwargs):
+        #ax.set_aspect("equal")
+    
+        assert cond.sum() == 1
+        
+        # Grab rung locations
+        _xr = _x[cond][0]
+        _yr = _y[cond][0]
+        
+        # We need to transform into the "axes fraction" coordinate system
+        xr, yr = ax.transData.transform((_xr, _yr))
+        
+        data = []
+        for i in range(len(_x)):
+            data.append(ax.transData.transform((_x[i], _y[i])))
+        
+        x, y = np.array(data).T
+
+        dy = np.roll(y, -1) - y
+        dx = np.roll(x, -1) - x
+        
+        angle = np.arctan2(dy, dx) + np.pi / 2.
+        
+        # WEIRD UNITS
+        tick_len = 10
+        
+        x2 = xr + tick_len * np.cos(angle[cond])[0]
+        x1 = xr - tick_len * np.cos(angle[cond])[0]
+        y1 = yr - tick_len * np.sin(angle[cond])[0]
+        y2 = yr + tick_len * np.sin(angle[cond])[0]
+        
+        # Transform back into data coordinates!        
+        inv = ax.transData.inverted()
+        
+        rungs = []
+        for pt in ([x1, y1], [xr, yr], [x2, y2]):
+            rungs.append(inv.transform(pt))
+                                                              
+        tick_lines = LineCollection([rungs], **kwargs)
+        ax.add_collection(tick_lines)
+                
         return ax
     
     def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
