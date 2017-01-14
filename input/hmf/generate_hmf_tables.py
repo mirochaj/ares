@@ -20,7 +20,6 @@ fit = 'ST'
 format = 'npz'
 ##
 
-
 hmf_pars = \
 {
  "hmf_model": fit,

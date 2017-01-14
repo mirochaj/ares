@@ -103,16 +103,6 @@ class GalaxyAggregate(HaloPopulation):
     @id_num.setter
     def id_num(self, value):
         self._id_num = int(value)
-        
-    @property
-    def scalable_rhoL(self):
-        """
-        Can we just determine a luminosity density by scaling the SFRD?
-    
-        For GalaxyAggregate sources, the answer is always "yes."
-        """
-    
-        return True
 
     @property
     def _Source(self):
@@ -412,21 +402,21 @@ class GalaxyAggregate(HaloPopulation):
             different_band = True
         else:
             Emin = self.pf['pop_Emin']
-    
+
         # Upper bound
         if (Emax is not None) and (self.src is not None):
             different_band = True
         else:
             Emax = self.pf['pop_Emax']
-    
+
         if (Emin, Emax) in self._eV_per_phot:
             return self._eV_per_phot[(Emin, Emax)]
-    
+
         if Emin < self.pf['pop_Emin']:
             print "WARNING: Emin < pop_Emin"
         if Emax > self.pf['pop_Emax']:
             print "WARNING: Emax > pop_Emax"    
-    
+
         if self.sed_tab:
             Eavg = self.src.eV_per_phot(Emin, Emax)
         else:
@@ -434,7 +424,7 @@ class GalaxyAggregate(HaloPopulation):
             Eavg = quad(integrand, Emin, Emax)[0] \
                 / quad(self.src.Spectrum, Emin, Emax)[0]
 
-        self._eV_per_phot[(Emin, Emax)] = Eavg 
+        self._eV_per_phot[(Emin, Emax)] = Eavg
 
         return Eavg    
 
@@ -455,9 +445,15 @@ class GalaxyAggregate(HaloPopulation):
         Emissivity in units of erg / s / c-cm**3 [/ eV]
 
         """
-        
+
         if z > self.zform:
             return 0.0
+            
+        if (Emin is not None) and (Emax is not None):
+            if (Emin > self.pf['pop_Emax']):
+                return 0.0
+            if (Emax < self.pf['pop_Emin']):
+                return 0.0    
             
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         rhoL = self.SFRD(z) * self.yield_per_sfr
@@ -466,7 +462,7 @@ class GalaxyAggregate(HaloPopulation):
             if (Emin, Emax) == (10.2, 13.6):
                 return rhoL * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
                     * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
-                    / self.cosm.g_per_baryon 
+                    / self.cosm.g_per_baryon
             elif (Emin, Emax) == (13.6, 24.6):
                 return rhoL * self.pf['pop_Nion'] * self.pf['pop_fesc'] \
                     * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
@@ -482,14 +478,14 @@ class GalaxyAggregate(HaloPopulation):
             rhoL *= self.pf['pop_fesc']
         elif Emax <= 13.6:
             rhoL *= self.pf['pop_fesc_LW']    
-                            
+                                                        
         if E is not None:
             return rhoL * self.src.Spectrum(E)
         else:
             return rhoL
 
     def NumberEmissivity(self, z, E=None, Emin=None, Emax=None):
-        return self.Emissivity(z, E, Emin, Emax) / (E * erg_per_ev)
+        return self.Emissivity(z, E=E, Emin=Emin, Emax=Emax) / (E * erg_per_ev)
 
     def LuminosityDensity(self, z, Emin=None, Emax=None):
         """

@@ -124,3 +124,47 @@ class Population(object):
     
         return self._is_xray_src
         
+    @property
+    def is_emissivity_separable(self):
+        """
+        Are the frequency and redshift-dependent components independent?
+        """
+        return True
+    
+    @property
+    def is_emissivity_scalable(self):
+        """
+        Can we just determine a luminosity density by scaling the SFRD?
+    
+        The answer will be "no" for any population with halo-mass-dependent
+        values for photon yields (per SFR), escape fractions, or spectra.
+        """
+        
+        if not hasattr(self, '_is_emissivity_scalable'):
+            self._is_emissivity_scalable = True
+    
+            if self.pf.Npqs == 0:
+                return self._is_emissivity_scalable
+    
+            for par in self.pf.pqs:
+    
+                # If this is the only Mh-dep parameter, we're still scalable.
+                if par == 'pop_fstar':
+                    continue
+    
+                if type(self.pf[par]) is str:
+                    self._is_emissivity_scalable = False
+                    break
+    
+                for i in range(self.pf.Npqs):
+                    pn = '%s[%i]' % (par,i)
+                    if pn not in self.pf:
+                        continue
+    
+                    if type(self.pf[pn]) is str:
+                        self._is_emissivity_scalable = False
+                        break
+    
+        return self._is_emissivity_scalable
+    
+        

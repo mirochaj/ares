@@ -211,10 +211,13 @@ class GalaxyPopulation(object):
             ulim = np.array(data[source]['ulim'])
                                                 
             if not kwargs:
-                kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 
-                    'mec':default_colors[source], 
-                    'fmt': default_markers[source],
-                    'color':default_colors[source], 'capthick':2}
+                try:
+                    kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 
+                        'mec':default_colors[source], 
+                        'fmt': default_markers[source],
+                        'color':default_colors[source], 'capthick':2}
+                except KeyError:
+                    kw = {}
             else:
                 kw = kwargs
             

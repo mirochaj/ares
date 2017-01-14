@@ -11,6 +11,7 @@ Description:
 """
 
 import os
+import scipy
 import pickle
 import numpy as np
 from ..util import ParameterFile
@@ -19,6 +20,14 @@ from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
+
+_scipy_ver = scipy.__version__.split('.')
+
+# This keyword didn't exist until version 0.14 
+if float(_scipy_ver[1]) >= 0.14:
+    _interp1d_kwargs = {'assume_sorted': True}
+else:
+    _interp1d_kwargs = {}
 
 class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
     def __init__(self, grid=None, **kwargs):
@@ -306,7 +315,7 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
 
                     interp = interp1d([self._zlo[i][j], self._zhi[i][j]], 
                         [self._flo[i][j], self._fhi[i][j]], 
-                         axis=0, assume_sorted=True, kind='linear')        
+                         axis=0, kind='linear', **_interp1d_kwargs)
                     
                     f = interp(z)
 
@@ -314,20 +323,20 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                     f = self._flo[i][j]
 
                 fluxes_by_band.append(f)
-            
-            if not self._is_thru_run:   
-                z_by_pop[i] = max(self._zlo[i])    
-                
+
+            if not self._is_thru_run:
+                z_by_pop[i] = max(self._zlo[i])
+
             fluxes[i] = fluxes_by_band
 
         # Set the redshift based on whichever population took the smallest
         # step. Other populations will interpolate to find flux.
         znext = max(z_by_pop)
-        
+
         if (not self._is_thru_run):
             self.all_z.append(z_by_pop)
             self.all_fluxes.append(fluxes)
-        
+
         # If being externally controlled, we can't tamper with the redshift!
         if self._is_thru_run:
             self.update_redshift(znext)

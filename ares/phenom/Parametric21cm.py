@@ -45,7 +45,7 @@ class Parametric21cm(object):
         # Now, possibly make an attribute
         if name not in self.__dict__.keys(): 
             
-            is_php = self.pf[full_name][0:3] == 'pq'
+            is_php = self.pf[full_name][0:2] == 'pq'
             
             if not is_php:
                 self.__dict__[name] = lambda z: 0.0

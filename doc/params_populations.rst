@@ -168,6 +168,26 @@ We use square brackets on this page to denote the units of parameters.
     If ``pop_sed`` is ``leitherer1999`` or ``eldridge2009``, this is the stellar metallicity assumed for the synthesis models. Can take on values in the range :math:`0.001 \leq Z \leq 0.04``.
 
     Default: 0.02 (solar)
+    
+``pop_imf``
+    If ``pop_sed`` is ``leitherer1999`` or ``eldridge2009``, this is the stellar initial mass function used.
+
+    Default: 2.35 (Salpeter)    
+    
+``pop_nebular``
+    Whether or not to include nebular emission.
+    
+    Default: ``False``
+
+``pop_ssp``
+    Whether or not to assume a "simple stellar population," i.e., an instantaneous burst of star formation. If ``False``, assumes continuous star formation.
+    
+    Default: ``False``
+
+``pop_binaries``
+    If ``pop_sed`` is ``eldridge2009``, this dictates whether binary systems are included in the model.
+    
+    Default: ``False``
 
 ``pop_Emin``
     Minimum photon energy to consider in radiative transfer calculation.

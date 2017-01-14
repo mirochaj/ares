@@ -18,7 +18,7 @@ A few papers on how it works:
 - Galaxy luminosity functions: `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_.
 
 Be warned: this code is still under active development -- use at your own
-risk! Correctness of results is not guaranteed. This documentation is as much of a work in progress as the code itself, so if you encounter gaps or errors please do let me know.
+risk! Correctness of results is not guaranteed. This documentation is as much of a work in progress as is the code itself, so if you encounter gaps or errors please do let me know.
 
 Current status:
 

@@ -657,10 +657,7 @@ class HaloMassFunction(object):
             * (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
             * ((1. + z) / 10.)**-1.
-            
-    def CollapseRedshift(self):
-        pass
-                
+              
     def table_prefix(self, with_size=False):
         """
         What should we name this table?
@@ -673,7 +670,6 @@ class HaloMassFunction(object):
         using nM mass points between logMmin and logMmax
         using nz redshift points between zmin and zmax
         
-        
         """
         
         M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
@@ -681,9 +677,15 @@ class HaloMassFunction(object):
         
         if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
-                / self.pf['hmf_dlogM']
+                / self.pf['hmf_dlogM']                
             zsize = (self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
                 / self.pf['hmf_dz'] + 1
+                
+            assert logMsize % 1 == 0
+            logMsize = int(logMsize)    
+            assert zsize % 1 == 0
+            zsize = int(zsize)    
+                
             return 'hmf_%s_logM_%s_%i-%i_z_%s_%i-%i' \
                 % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
         else:

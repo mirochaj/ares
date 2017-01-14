@@ -1,6 +1,6 @@
 Under the Hood
 ==============
-
+Super incomplete, sorry!
 
 .. Radiation Sources
 .. -----------------
@@ -28,9 +28,9 @@ Source Populations
 .. * :doc:`uth_physics_rcs`
 .. * :doc:`uth_physics_esec`
 
-Data from the literature
-------------------------
-* :doc:`uth_litdata`
+.. Data from the literature
+.. ------------------------
+.. * :doc:`uth_litdata`
 
 Solvers
 -------

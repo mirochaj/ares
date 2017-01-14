@@ -10,14 +10,14 @@ Description: Container for hydrogen physics stuff.
 
 """
 
+import scipy
 import numpy as np
-import scipy.interpolate as interpolate
+from scipy import interpolate
 from ..util.ReadData import _load_inits
 from ..util.Math import central_difference
 from ..util.ParameterFile import ParameterFile
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
     k_B
-    
 
 try:
     from scipy.special import gamma
@@ -27,6 +27,14 @@ try:
     c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
 except ImportError:
     pass
+    
+_scipy_ver = scipy.__version__.split('.')
+
+# This keyword didn't exist until version 0.14 
+if float(_scipy_ver[1]) >= 0.14:
+    _interp1d_kwargs = {'assume_sorted': True}
+else:
+    _interp1d_kwargs = {}
 
 # Rate coefficients for spin de-excitation - from Zygelman originally
 
@@ -85,7 +93,7 @@ class Hydrogen(object):
         if not hasattr(self, '_kappa_H_pre'):                            
             self._kappa_H_pre = interpolate.interp1d(T_HH, kappa_HH, 
                 kind=self.interp_method, bounds_error=False, fill_value=0.0,
-                assume_sorted=True)
+                **_interp1d_kwargs)
 
         return self._kappa_H_pre
 
@@ -94,7 +102,7 @@ class Hydrogen(object):
         if not hasattr(self, '_kappa_e_pre'):     
             self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He,
                 kind=self.interp_method, bounds_error=False, fill_value=0.0,
-                assume_sorted=True)
+                **_interp1d_kwargs)
 
         return self._kappa_e_pre
 

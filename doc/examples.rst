@@ -45,6 +45,6 @@ Extensions
 * :doc:`example_adv_RT_w_He`
 * :doc:`example_galaxypop`
 * :doc:`example_litdata`
+* :doc:`example_embed_ares`
 .. * :doc:`example_customization`
-
 

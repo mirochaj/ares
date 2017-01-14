@@ -169,35 +169,36 @@ class ParameterizedQuantity(object):
             f = p1 * p0 * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1
         elif func == 'rstep':
             if type(x) is np.ndarray:
-                lo = x <= p2
-                hi = x > p2
+                lo = x < p2
+                hi = x >= p2
         
                 f = lo * p0 * p1 + hi * p1 
             else:
-                if x <= p2:
+                if x < p2:
                     f = p0 * p1
                 else:
                     f = p1
         elif func == 'astep':
-
+            
             if type(x) is np.ndarray:
-                lo = x <= p2
-                hi = x > p2
+                lo = x < p2
+                hi = x >= p2
 
-                f = lo * p0 + hi * p1 
+                f = lo * p0 + hi * p1
+                
             else:
-                if x <= p2:
+                if x < p2:
                     f = p0
                 else:
                     f = p1      
         elif func == 'pwpl':
             if type(x) is np.ndarray:
-                lo = x <= p4
-                hi = x > p4
+                lo = x < p4
+                hi = x >= p4
 
                 f = lo * p0 * (x / p4)**p1 + hi * p2 * (x / p4)**p3
             else:
-                if x <= p4:
+                if x < p4:
                     f = p0 * (x / p4)**p1
                 else:            
                     f = p2 * (x / p4)**p3

@@ -205,6 +205,9 @@ class GalaxyCohort(GalaxyAggregate):
     def rho_L(self, Emin=None, Emax=None):
         """
         Compute the luminosity density in some bandpass for all redshifts.
+        
+        This is the most general way of computing the luminosity density as it
+        takes into account all (existing) Mh- and z-dependent quantities.
 
         Returns
         -------
@@ -213,23 +216,26 @@ class GalaxyCohort(GalaxyAggregate):
 
         if not hasattr(self, '_rho_L'):
             self._rho_L = {}
+    
+        # If we've already figured it out, just return    
+        if (Emin, Emax) in self._rho_L:    
+            return self._rho_L[(Emin, Emax)]        
         
         # If nothing is supplied, compute the "full" luminosity density
         if (Emin is None) and (Emax is None):
             Emin = self.pf['pop_EminNorm']
             Emax = self.pf['pop_EmaxNorm']
+        # Make sure we don't emit and bands...where we shouldn't be emitting
         elif (Emin is not None) and (Emax is not None):
-            if Emin < self.pf['pop_Emin']:
-                return None
-            if Emax < self.pf['pop_Emin']:
-                return None
+            if (Emin > self.pf['pop_Emax']):
+                self._rho_L[(Emin, Emax)] = lambda z: 0.0
+                return self._rho_L[(Emin, Emax)]
+            if (Emax < self.pf['pop_Emin']):
+                self._rho_L[(Emin, Emax)] = lambda z: 0.0
+                return self._rho_L[(Emin, Emax)]
         else:
             raise ValueError('help!')
 
-        # If we've already figured it out, just return    
-        if (Emin, Emax) in self._rho_L:    
-            return self._rho_L[(Emin, Emax)]    
-            
         need_sam = False
 
         # For all halos. Reduce to a function of redshift only by passing
@@ -239,7 +245,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Also need energy per photon in this case
             erg_per_phot = self.src.erg_per_phot(Emin, Emax)
-            
+
             # Get an array for fesc
             if (Emin, Emax) == (13.6, 24.6):
                 fesc = lambda **kwargs: self.fesc(**kwargs)
@@ -247,12 +253,12 @@ class GalaxyCohort(GalaxyAggregate):
                 fesc = lambda **kwargs: self.fesc_LW(**kwargs)
             else:                
                 return None
-                
+
             yield_per_sfr = lambda **kwargs: fesc(**kwargs) \
                 * N_per_Msun * erg_per_phot
-            
+
         else:
-            
+
             try:     
                 if self.rad_yield.func_var not in ['z', 'Mh']:
                     need_sam = True
@@ -268,7 +274,10 @@ class GalaxyCohort(GalaxyAggregate):
                 * s_per_yr
 
         tab = np.zeros(self.halos.Nz)
-        for i, z in enumerate(self.halos.z):            
+        for i, z in enumerate(self.halos.z):
+            
+            if z > self.zform:
+                continue      
 
             # Must grab stuff vs. Mh and interpolate to self.halos.M
             # They are guaranteed to have the same redshifts.
@@ -291,12 +300,14 @@ class GalaxyCohort(GalaxyAggregate):
             integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
                 * yield_per_sfr(**kw)
 
-            tot = np.trapz(integrand, x=self.halos.lnM)
-            cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
+            _tot = np.trapz(integrand, x=self.halos.lnM)
+            _cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
 
-            tab[i] = tot - \
-                np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
-
+            _tmp = _tot - \
+                np.interp(np.log(self.Mmin[i]), self.halos.lnM, _cumtot)
+               
+            tab[i] = _tmp
+                
         tab *= 1. / s_per_yr / cm_per_mpc**3
         
         self._rho_L[(Emin, Emax)] = interp1d(self.halos.z, tab, kind='cubic')
@@ -330,11 +341,11 @@ class GalaxyCohort(GalaxyAggregate):
             fesc = self.fesc_LW(z=z, Mh=self.halos.M)
         else:
             raise NotImplemented('help!')
-
+    
         for i, z in enumerate(self.halos.z):
             integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
                 * N_per_Msun * fesc
-
+    
             tot = np.trapz(integrand, x=self.halos.lnM)
             cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
             
@@ -344,7 +355,7 @@ class GalaxyCohort(GalaxyAggregate):
         tab *= 1. / s_per_yr / cm_per_mpc**3
         
         self._rho_N[(Emin, Emax)] = interp1d(self.halos.z, tab, kind='cubic')
-
+    
         return self._rho_N[(Emin, Emax)](z)
         
     def _sfrd_func(self, z):
@@ -496,13 +507,13 @@ class GalaxyCohort(GalaxyAggregate):
                 _rhs = np.zeros_like(self.halos.z)
                 _lhs = np.zeros_like(self.halos.z)
                 self._eta = np.ones_like(self.halos.z)
-                
+
                 for i, z in enumerate(self.halos.z):
-                
+
                     # eta = rhs / lhs
-                
+
                     Mmin = self.Mmin[i]
-                
+
                     # My Eq. 3
                     rhs = self.cosm.rho_cdm_z0 * self.dfcolldt(z)
                     rhs *= (s_per_yr / g_per_msun) * cm_per_mpc**3
@@ -566,9 +577,13 @@ class GalaxyCohort(GalaxyAggregate):
     def pSFR(self, z, M, mu=0.6):
         """
         The product of this number and the SFE gives you the SFR.
-        
+
         pre-SFR factor, hence, "pSFR"        
         """
+
+        if z > self.zform:
+            return 0.0
+        
         #if self.model == 'sfe':
         eta = np.interp(z, self.halos.z, self.eta)
         return self.cosm.fbar_over_fcdm * self.MAR(z, M) * eta
@@ -582,42 +597,6 @@ class GalaxyCohort(GalaxyAggregate):
         #else:
         #    raise NotImplemented('Unrecognized model: %s' % self.model)
     
-    @property
-    def scalable_rhoL(self):
-        """
-        Can we just determine a luminosity density by scaling the SFRD?
-        
-        The answer will be "no" for any population with halo-mass-dependent
-        values for photon yields (per SFR), escape fractions, or spectra.
-        """
-        
-        if not hasattr(self, '_scalable_rhoL'):
-            self._scalable_rhoL = True
-            
-            if self.pf.Npqs == 0:
-                return self._scalable_rhoL
-            
-            for par in self.pf.pqs:
-                
-                # If this is the only Mh-dep parameter, we're still scalable.
-                if par == 'pop_fstar':
-                    continue
-                
-                if type(self.pf[par]) is str:
-                    self._scalable_rhoL = False
-                    break
-                    
-                for i in range(self.pf.Npqs):
-                    pn = '%s[%i]' % (par,i)
-                    if pn not in self.pf:
-                        continue
-            
-                    if type(self.pf[pn]) is str:
-                        self._scalable_rhoL = False
-                        break
-
-        return self._scalable_rhoL
-            
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
@@ -632,22 +611,30 @@ class GalaxyCohort(GalaxyAggregate):
         Emissivity in units of erg / s / c-cm**3 [/ eV]
 
         """
-        
+
         if z > self.zform:
             return 0.0
 
-        # This assumes we're interested in the (EminNorm, EmaxNorm) band
-        if self.scalable_rhoL:
+        # Use GalaxyAggregate's Emissivity function
+        if self.is_emissivity_scalable:
+            # The advantage here is that the SFRD only has to be calculated
+            # once, and the radiation field strength can just be determined
+            # by scaling the SFRD.
             rhoL = super(GalaxyCohort, self).Emissivity(z, E=E, 
                 Emin=Emin, Emax=Emax)
+            #print z, rhoL, self.rho_L(Emin, Emax)(z)    
         else:
+            # Here, the radiation backgrounds cannot just be scaled. 
+            # Note that this method can always be used, it's just less 
+            # efficient because you're basically calculating the SFRD again
+            # and again.
             rhoL = self.rho_L(Emin, Emax)(z)
 
         if E is not None:
             return rhoL * self.src.Spectrum(E)
         else:
             return rhoL
-    
+
     def StellarMassFunction(self, z):
         if not hasattr(self, '_phi_of_Mst'):
             self._phi_of_Mst = {}
@@ -655,7 +642,6 @@ class GalaxyCohort(GalaxyAggregate):
             if z in self._phi_of_Mst:
                 return self._phi_of_Mst[z]
 
-        
         zform, data = self.scaling_relations
 
         sorter = np.argsort(data['Mh'])
@@ -729,16 +715,16 @@ class GalaxyCohort(GalaxyAggregate):
 
         if mags:
             x_phi, phi = self.phi_of_M(z)
-            
+
             # Setup interpolant
             interp = interp1d(x_phi, np.log10(phi), kind='linear',
                 bounds_error=False, fill_value=-np.inf)
-            
+
             phi_of_x = 10**interp(x)
         else:
-            
+
             x_phi, phi = self.phi_of_L(z)
-            
+
             # Setup interpolant
             interp = interp1d(np.log10(x_phi), np.log10(phi), kind='linear',
                 bounds_error=False, fill_value=-np.inf)
@@ -804,8 +790,6 @@ class GalaxyCohort(GalaxyAggregate):
                 integ = dndm[i_min:i_max] * pdf[i_min:i_max] * dMh_dlogLh[i_min:i_max]
 
                 phi_of_L[k] = np.trapz(integ, x=logL_Lh[i_min:i_max])
-
-                #print k, logL, self.halos.M[k], np.any(np.isnan(integ)), phi_of_L[k]
 
             # This needs extra term now?
             phi_of_L /= Lh[0:-1]
@@ -892,6 +876,10 @@ class GalaxyCohort(GalaxyAggregate):
         if not hasattr(self, '_sfr_tab'):
             self._sfr_tab = np.zeros([self.halos.Nz, self.halos.Nm])
             for i, z in enumerate(self.halos.z):
+                
+                if z > self.zform:
+                    continue
+                
                 self._sfr_tab[i] = self.eta[i] * self.MAR(z, self.halos.M) \
                     * self.cosm.fbar_over_fcdm * self.SFE(z=z, Mh=self.halos.M)
                 
@@ -913,6 +901,10 @@ class GalaxyCohort(GalaxyAggregate):
             self._sfrd_tab = np.zeros(self.halos.Nz)
             
             for i, z in enumerate(self.halos.z):
+                
+                if z > self.zform:
+                    continue
+                
                 integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
                     * self.focc(z=z, Mh=self.halos.M)
  
@@ -921,7 +913,7 @@ class GalaxyCohort(GalaxyAggregate):
                 
                 self._sfrd_tab[i] = tot - \
                     np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
-                
+                                
             self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return self._sfrd_tab
@@ -1222,8 +1214,6 @@ class GalaxyCohort(GalaxyAggregate):
             if i % zfreq != 0:
                 continue    
 
-            print z, zfreq
-
             _zarr, _results = self._ScalingRelationsStaticSFE(z0=z)
 
             for key in keys:
@@ -1334,7 +1324,7 @@ class GalaxyCohort(GalaxyAggregate):
     
     def _LuminosityDensity_hXR(self, z):
         return self.LuminosityDensity(z, Emin=2e3, Emax=1e4)        
-    
+
     def LuminosityDensity(self, z, Emin=None, Emax=None):
         """
         Return the integrated luminosity density in the (Emin, Emax) band.
@@ -1368,7 +1358,7 @@ class GalaxyCohort(GalaxyAggregate):
         """
             
         # erg / s / cm**3
-        if self.scalable_rhoL:
+        if self.is_emissivity_scalable:
             rhoL = self.Emissivity(z, E=None, Emin=Emin, Emax=Emax)
             erg_per_phot = super(GalaxyCohort, 
                 self)._get_energy_per_photon(Emin, Emax) * erg_per_ev

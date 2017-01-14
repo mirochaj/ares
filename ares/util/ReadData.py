@@ -12,7 +12,7 @@ Description:
 
 import numpy as np
 import imp as _imp
-import os, re, sys
+import os, re, sys, glob
 
 try:
     import dill as pickle
@@ -34,6 +34,11 @@ except ImportError:
 HOME = os.environ.get('HOME')
 ARES = os.environ.get('ARES')
 sys.path.insert(1, '%s/input/litdata' % ARES)
+
+_lit_options = glob.glob('%s/input/litdata/*.py' % ARES)
+lit_options = []
+for element in _lit_options:
+    lit_options.append(element.split('/')[-1].replace('.py', ''))
 
 def read_lit(prefix, path=None, verbose=True):
     """

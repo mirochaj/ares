@@ -22,6 +22,7 @@ from .OpticalDepth import OpticalDepth
 from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
 from ..populations.Composite import CompositePopulation
+from ..populations.GalaxyAggregate import GalaxyAggregate
 from scipy.integrate import quad, romberg, romb, trapz, simps
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
 from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
@@ -1025,12 +1026,12 @@ class UniformBackground(object):
         
         Parameters
         ----------
+        z : np.ndarray
+            Array of redshifts
         E : np.ndarray
             Array of photon energies [eV]
-        z : np.ndarray
-            Array of redshifts 
-        popid : int
-            Identification number for population of interest.
+        pop : object
+            Better be some kind of Galaxy population object.
             
         Returns
         -------
@@ -1056,29 +1057,30 @@ class UniformBackground(object):
         #if Nf == 1:
         #    return epsilon
         
-        scalable = False
-        if hasattr(pop, 'scalable_rhoL'):
-            if pop.scalable_rhoL:
-                scalable = True
+        scalable = pop.is_emissivity_scalable
+        separable = pop.is_emissivity_separable
         
         H = np.array(map(self.cosm.HubbleParameter, z))
 
         if scalable:
             for ll in xrange(Nz):
-                Lbol = pop.LuminosityDensity(z[ll])
-                epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H[ll] / erg_per_ev
+                Lbol = pop.Emissivity(z[ll])
+                epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H[ll] \
+                    / erg_per_ev
         else:
-            
+
             ##
             # WARNING: This is super non-general at the moment. 
             # Be careful!
             ##
+            
+            Emin, Emax = pop.pf['pop_Emin'], pop.pf['pop_Emax']
                                                         
             # Got some fixin' to do.
             for band in [(10.2, 13.6), (13.6, 24.6), None]:
                 
                 if band is None:
-                    b = (pop.pf['pop_Emin'], pop.pf['pop_Emax'])
+                    b = (Emin, Emax)
                 else:
                     b = band
                 
@@ -1088,13 +1090,26 @@ class UniformBackground(object):
                 if rho_L is None:
                     continue
 
+                # Need to re-normalize...?
+
                 in_band = np.logical_and(E >= b[0], E <= b[1])
                 
+                # By definition, rho_L integrates to unity in (b[0], b[1]) band
+                # BUT, Inu_hat is normalized in (EminNorm, EmaxNorm) band
+                
                 for ll, redshift in enumerate(z):
-                    Lband = rho_L(redshift)
-                    epsilon[ll,in_band] = Inu_hat[in_band] * Lband * ev_per_hz \
-                        / H[ll] / erg_per_ev / pop._convert_band(b[0], b[1])
-            
+                    #Lband = rho_L(redshift)
+                    #epsilon[ll,in_band] = Inu_hat[in_band] * Lband * ev_per_hz \
+                    #    / H[ll] / erg_per_ev / pop._convert_band(b[0], b[1])
+                    #for jj, nrg in enumerate(E):
+                    #    if not in_band[jj]:
+                    #        continue
+                           
+                    epsilon[ll,in_band] = \
+                        pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
+                        * ev_per_hz * Inu_hat[in_band] / H[ll] / erg_per_ev \
+                        / pop._convert_band(b[0], b[1])
+                    
         return epsilon
             
     def _flux_generator_generic(self, energies, redshifts, ehat, tau=None,

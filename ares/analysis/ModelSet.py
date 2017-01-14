@@ -1302,7 +1302,8 @@ class ModelSet(BlobFactory):
 
     def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
-        line_plot=False, sort_by='z', filter_z=None, rungs=False, **kwargs):
+        line_plot=False, sort_by='z', filter_z=None, rungs=False, 
+        rung_label=None, rung_label_top=True, **kwargs):
         """
         Plot samples as points in 2-d plane.
     
@@ -1381,7 +1382,7 @@ class ModelSet(BlobFactory):
             func = ax.__getattribute__('scatter')
             
         if filter_z is not None:
-            _condition = np.equal(cdata, filter_z)
+            _condition = np.isclose(cdata, filter_z)
             if not np.any(_condition):
                 print "No instances of %s=%.4g" % (p[2], filter_z)
                 return
@@ -1397,7 +1398,8 @@ class ModelSet(BlobFactory):
             cd = cdata    
             
         if rungs:
-            scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, **kwargs)
+            scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, 
+                label=rung_label, label_on_top=rung_label_top, **kwargs)
         elif hasattr(self, 'weights') and cdata is None:
             scat = func(xd, yd, c=self.weights, **kwargs)
         elif line_plot:
@@ -1444,8 +1446,8 @@ class ModelSet(BlobFactory):
         
         return ax
     
-    def _add_rungs(self, _x, _y, c, ax, cond, **kwargs):
-        #ax.set_aspect("equal")
+    def _add_rungs(self, _x, _y, c, ax, cond, tick_size=1, label=None, 
+        label_on_top=True, **kwargs):
     
         assert cond.sum() == 1
         
@@ -1455,6 +1457,11 @@ class ModelSet(BlobFactory):
         
         # We need to transform into the "axes fraction" coordinate system
         xr, yr = ax.transData.transform((_xr, _yr))
+        
+        # Just determine a fixed length scale in data coordinates
+        _xx1, _yy1 = ax.transData.transform((_xr, _yr))
+        _xx2, _yy2 = ax.transData.transform((_xr+1, _yr))        
+        one_in_display_units = abs(_xx2 - _xx1)
         
         data = []
         for i in range(len(_x)):
@@ -1467,13 +1474,20 @@ class ModelSet(BlobFactory):
         
         angle = np.arctan2(dy, dx) + np.pi / 2.
         
-        # WEIRD UNITS
-        tick_len = 10
+        # Set to 1 in data units * some amplification factor
+        tick_len = one_in_display_units * tick_size
         
         x2 = xr + tick_len * np.cos(angle[cond])[0]
         x1 = xr - tick_len * np.cos(angle[cond])[0]
         y1 = yr - tick_len * np.sin(angle[cond])[0]
         y2 = yr + tick_len * np.sin(angle[cond])[0]
+        
+        if label_on_top:
+            _xl = xr + 2 * tick_len * np.cos(angle[cond])[0]
+            _yl = yr + 2 * tick_len * np.sin(angle[cond])[0]
+        else:
+            _xl = xr - 2 * tick_len * np.cos(angle[cond])[0]
+            _yl = yr - 2 * tick_len * np.sin(angle[cond])[0]
         
         # Transform back into data coordinates!        
         inv = ax.transData.inverted()
@@ -1484,6 +1498,13 @@ class ModelSet(BlobFactory):
                                                               
         tick_lines = LineCollection([rungs], **kwargs)
         ax.add_collection(tick_lines)
+        
+        if label is not None:
+            xl, yl = inv.transform((_xl, _yl))
+            
+            rot = (angle[cond][0] + np.pi / 2.) * 180 / np.pi
+            pl.text(xl, yl, label, va="center", ha="center", rotation=rot,
+                fontsize=12)
                 
         return ax
     
@@ -2650,7 +2671,7 @@ class ModelSet(BlobFactory):
             
         pl.draw()
         
-        return ax, scat, cb    
+        return ax, scat, cb
         
     def ExtractPanel(self, panel, mp, ax=None, fig=99):
         """
