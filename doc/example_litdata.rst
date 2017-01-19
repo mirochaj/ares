@@ -26,10 +26,6 @@ Measured luminosity functions from the following works are included in *ares*:
     * van der Burg et al. (2010)
 
 
-
-
-
-
 Stellar population models
 -------------------------
 Currently, *ares* can handle both the *starburst99* original dataset and the *BPASS* version 1.0 models (both of which are downloaded automatically). You can access the data via, ::
@@ -69,7 +65,7 @@ A few of the models we focused on most get their own dictionary, for example our
     sim.run()
     sim.GlobalSignature()  # voila!
     
-Hopefully this results *exactly* in the solid black curve from Figure 1 of `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_, provided you're using a new enough version of *ares*. If it doesn't, please contact me! 
+Hopefully this results *exactly* in the solid black curve from Figure 2 of `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_, provided you're using a new enough version of *ares*. If it doesn't, please contact me! 
 
 Alternatively, you can use the ``ParameterBundle`` framework, which also taps into our collection of data from the literature. To access the set of parameters for the "dpl" model, you simply do: ::
 

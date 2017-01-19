@@ -516,6 +516,8 @@ def PopulationParameters():
     "source_kwargs": {},
     "pop_kwargs": {},
 
+    "pop_test_param": None,
+
     }
 
     pf.update(tmp)

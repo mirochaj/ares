@@ -17,7 +17,7 @@ from ..util.ReadData import read_lit
 from scipy.interpolate import interp1d
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
-    s_per_myr, m_H, ev_per_hz, Lsun
+    s_per_myr, m_H, ev_per_hz
 
 relevant_pars = ['pop_Z', 'pop_imf', 'pop_nebular', 'pop_ssp', 'pop_tsf']
 
@@ -373,26 +373,44 @@ class SynthesisModel(object):
         return self.eV_per_phot(Emin, Emax) * erg_per_ev  
 
     def eV_per_phot(self, Emin, Emax):
+        """
+        Compute the average energy per photon (in eV) in some band.
+        """
+        
+        if self.pf['pop_ssp']:
+            # Assume last time-bin below.
+            raise NotImplemented('help!')
+        
         i0 = np.argmin(np.abs(self.energies - Emin))
         i1 = np.argmin(np.abs(self.energies - Emax))
 
-        it = -1
+        it = -1  # time index
+        
+        # [self.data] = erg / s / A / [depends]
 
         # Must convert units
-        E_avg = np.trapz(self.data[i1:i0,it] * self.energies[i1:i0], 
-            x=self.wavelengths[i1:i0]) \
-            / np.trapz(self.data[i1:i0,it], x=self.wavelengths[i1:i0])
+        E_tot = np.trapz(self.data[i1:i0,it] * self.wavelengths[i1:i0], 
+            x=np.log(self.wavelengths[i1:i0]))
+        N_tot = np.trapz(self.data[i1:i0,it] * self.wavelengths[i1:i0] \
+            / self.energies[i1:i0] / erg_per_ev, 
+            x=np.log(self.wavelengths[i1:i0]))
 
-        return E_avg
+        return E_tot / N_tot / erg_per_ev
 
     def rad_yield(self, Emin, Emax):
         """
         Must be in the internal units of erg / g.
         """
         
+        erg_per_msun_yr = \
+           self.IntegratedEmission(Emin, Emax, energy_units=True)[-1]
+        erg_per_g = erg_per_msun_yr * s_per_yr / g_per_msun
+        
+        return erg_per_g
+        #
         # Units self-explanatory
         N = self.PhotonsPerBaryon(Emin, Emax)
-
+        
         # Convert to erg / g
         return N * self.erg_per_phot(Emin, Emax) * self.cosm.b_per_g
 
@@ -403,7 +421,8 @@ class SynthesisModel(object):
         Returns
         -------
         Integrated flux between (Emin, Emax) for all times in units of 
-        photons / sec / (Msun [/ yr])
+        photons / sec / (Msun [/ yr]), unless energy_units=True, in which
+        case its erg instead of photons.
         """
 
         # Find band of interest -- should be more precise and interpolate
@@ -420,7 +439,7 @@ class SynthesisModel(object):
                     / (self.energies[i1:i0] * erg_per_ev)
                         
             flux[i] = np.trapz(integrand, x=np.log(self.wavelengths[i1:i0]))
-            
+                
         # Current units: 
         # if pop_ssp: photons / sec / (Msun / 1e6)
         # else: photons / sec / (Msun / yr)
@@ -461,8 +480,7 @@ class SynthesisModel(object):
         """
 
         #assert self.pf['pop_ssp'], "Probably shouldn't do this for continuous SF."
-
-        photons_per_b_t = self.IntegratedEmission(Emin, Emax)    
+        photons_per_s_per_msun = self.IntegratedEmission(Emin, Emax)    
 
         # Current units: 
         # if pop_ssp: 
@@ -470,56 +488,15 @@ class SynthesisModel(object):
         # else: 
         #     photons / sec / (Msun / yr)
 
-        g_per_b = self.cosm.g_per_baryon
-
         # Integrate (cumulatively) over time
         if self.pf['pop_ssp']:
-            photons_per_b_t *= g_per_b / g_per_msun
-            return np.trapz(photons_per_b_t, x=self.times * s_per_myr) / 1e6
+            photons_per_b_t = photons_per_s_per_msun / self.cosm.b_per_msun
+            return np.trapz(photons_per_b_t, x=self.times*s_per_myr) / 1e6
         # Take steady-state result
         else:
-            photons_per_b_t *= s_per_yr
-            photons_per_b_t *= g_per_b / g_per_msun
+            photons_per_b_t = photons_per_s_per_msun * s_per_yr \
+                / self.cosm.b_per_msun
             
             # Return last element: steady state result
             return photons_per_b_t[-1]
                             
-#class Spectrum(StellarPopulation):
-#    def __init__(self, **kwargs):
-#        StellarPopulation.__init__(self, **kwargs)
-#    
-#    @property
-#    def Lbol(self):
-#        if not hasattr(self, '_Lbol'):
-#            to_int = self.intens
-#               
-#            self._Lbol = np.trapz(to_int, x=self.energies[-1::-1])
-#            
-#        return self._Lbol
-#               
-#    @property
-#    def intens(self):
-#        if not hasattr(self, '_intens'):
-#            self._intens = self.data[-1::-1,-1] * self.dlde
-#    
-#        return self._intens
-#        
-#    @property
-#    def nrg(self):
-#        if not hasattr(self, '_nrg'):
-#            self._nrg = self.energies[-1::-1]
-#
-#        return self._nrg
-#        
-#    @property
-#    def dlde(self):
-#        if not hasattr(self, '_dlde'):
-#            diff = np.diff(self.wavelengths) / np.diff(self.energies)
-#            self._dlde = np.concatenate((diff, [diff[-1]]))
-#                    
-#        return self._dlde
-#        
-#    def __call__(self, E, t=0.0):        
-#        return np.interp(E, self.nrg, self.data[-1::-1,0]) #/ self.Lbol
-#        
-#        

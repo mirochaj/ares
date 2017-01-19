@@ -83,9 +83,7 @@ class GalaxyCohort(GalaxyAggregate):
                 is_php = False
                 
             # A few special cases    
-            if type(self.pf[full_name]) in [float, np.float64]:
-                result = lambda **kwargs: self.pf[full_name]
-            elif is_php:
+            if is_php:
                 tmp = get_pq_pars(self.pf[full_name], self.pf) 
                 
                 # Correct values that are strings:
@@ -102,6 +100,9 @@ class GalaxyCohort(GalaxyAggregate):
                 result = ParameterizedQuantity(**pars)
                 
                 self._update_pq_registry(name, result)
+            
+            elif type(self.pf[full_name]) in [float, np.float64]:
+                result = lambda **kwargs: self.pf[full_name]
 
             elif self.sed_tab:
                 if self.pf['pop_Z'] == 'sam':
@@ -191,10 +192,10 @@ class GalaxyCohort(GalaxyAggregate):
         if (Emin, Emax) == (13.6, 24.6):
             # Should be based on energy at this point, not photon number
             self._N_per_Msun[(Emin, Emax)] = self.Nion(Mh=self.halos.M) \
-                * self.cosm.b_per_g * g_per_msun
+                * self.cosm.b_per_msun
         elif (Emin, Emax) == (10.2, 13.6):
             self._N_per_Msun[(Emin, Emax)] = self.Nlw(Mh=self.halos.M) \
-                * self.cosm.b_per_g * g_per_msun
+                * self.cosm.b_per_msun
         else:
             s = 'Unrecognized band: (%.3g, %.3g)' % (Emin, Emax)
             return 0.0
@@ -218,7 +219,7 @@ class GalaxyCohort(GalaxyAggregate):
             self._rho_L = {}
     
         # If we've already figured it out, just return    
-        if (Emin, Emax) in self._rho_L:    
+        if (Emin, Emax) in self._rho_L:
             return self._rho_L[(Emin, Emax)]        
         
         # If nothing is supplied, compute the "full" luminosity density
@@ -251,19 +252,21 @@ class GalaxyCohort(GalaxyAggregate):
                 fesc = lambda **kwargs: self.fesc(**kwargs)
             elif (Emin, Emax) == (10.2, 13.6):
                 fesc = lambda **kwargs: self.fesc_LW(**kwargs)
-            else:                
+            else:
                 return None
-
+                   
             yield_per_sfr = lambda **kwargs: fesc(**kwargs) \
-                * N_per_Msun * erg_per_phot
-
+                * N_per_Msun * erg_per_phot            
+            
         else:
+            # X-rays separate because we never have lookup table.
+            # could change in the future.
 
-            try:     
+            try:
                 if self.rad_yield.func_var not in ['z', 'Mh']:
                     need_sam = True
             except AttributeError:
-                pass        
+                pass
 
             if need_sam:
                 sam_z, sam_data = self.scaling_relations
@@ -275,7 +278,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         tab = np.zeros(self.halos.Nz)
         for i, z in enumerate(self.halos.z):
-            
+
             if z > self.zform:
                 continue      
 

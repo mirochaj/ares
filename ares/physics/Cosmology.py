@@ -49,9 +49,9 @@ class Cosmology(object):
         
         self.X = 1. - self.Y
         
-        self.g_per_baryon = m_H / (1. - self.Y) / (1. + self.y)
+        self.g_per_baryon = self.g_per_b = m_H / (1. - self.Y) / (1. + self.y)
         self.b_per_g = 1. / self.g_per_baryon
-        self.baryon_per_Msun = g_per_msun / self.g_per_baryon
+        self.baryon_per_Msun = self.b_per_msun = g_per_msun / self.g_per_baryon
          
         # Decoupling (gas from CMB) redshift       
         self.zdec = 150. * (self.omega_b_0 * self.h70**2 / 0.023)**0.4 - 1.
