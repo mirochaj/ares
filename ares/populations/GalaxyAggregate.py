@@ -41,7 +41,7 @@ def normalize_sed(pop):
     """
     Convert yield to erg / g.
     """
-    
+        
     # In this case, we're just using Nlw, Nion, etc.
     if not pop.pf['pop_sed_model']:
         return 1.0
@@ -301,8 +301,11 @@ class GalaxyAggregate(HaloPopulation):
     @property
     def reference_band(self):
         if not hasattr(self, '_reference_band'):
-            self._reference_band = \
-                (self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
+            if self.sed_tab:
+                self._reference_band = self.src.Emin, self.src.Emax
+            else:
+                self._reference_band = \
+                    (self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
         return self._reference_band
             
     @property
@@ -454,7 +457,7 @@ class GalaxyAggregate(HaloPopulation):
                 return 0.0
             if (Emax < self.pf['pop_Emin']):
                 return 0.0    
-            
+                        
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         rhoL = self.SFRD(z) * self.yield_per_sfr
                 

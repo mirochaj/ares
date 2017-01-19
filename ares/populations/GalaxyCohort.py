@@ -34,6 +34,7 @@ except ImportError:
     
 z0 = 9. # arbitrary
 tiny_phi = 1e-18
+_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr']
     
 class GalaxyCohort(GalaxyAggregate):
     
@@ -83,28 +84,7 @@ class GalaxyCohort(GalaxyAggregate):
                 is_php = False
                 
             # A few special cases    
-            if is_php:
-                tmp = get_pq_pars(self.pf[full_name], self.pf) 
-                
-                # Correct values that are strings:
-                if self.sed_tab:
-                    pars = {}
-                    for par in tmp:
-                        if tmp[par] == 'from_sed':
-                            pars[par] = self.src.__getattribute__(name)
-                        else:
-                            pars[par] = tmp[par]  
-                else:
-                    pars = tmp            
-                    
-                result = ParameterizedQuantity(**pars)
-                
-                self._update_pq_registry(name, result)
-            
-            elif type(self.pf[full_name]) in [float, np.float64]:
-                result = lambda **kwargs: self.pf[full_name]
-
-            elif self.sed_tab:
+            if self.sed_tab and (name in _sed_tab_attributes):
                 if self.pf['pop_Z'] == 'sam':
                     tmp = []
                     Zarr = np.sort(self.src.metallicities.values())
@@ -130,16 +110,37 @@ class GalaxyCohort(GalaxyAggregate):
                     result = lambda **kwargs: interp(np.log10(self.Zgas(kwargs['z'], kwargs['Mh'])))
                 else:
                     att = self.src.__getattribute__(name)
-                    
+                                        
                     if name == 'rad_yield':
-                        val = att(self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
+                        val = att(self.src.Emin, self.src.Emax)
                     else:
                         val = att
-                        
+                                                
                     result = lambda **kwargs: val
 
+            elif is_php:
+                tmp = get_pq_pars(self.pf[full_name], self.pf) 
+                
+                # Correct values that are strings:
+                if self.sed_tab:
+                    pars = {}
+                    for par in tmp:
+                        if tmp[par] == 'from_sed':
+                            pars[par] = self.src.__getattribute__(name)
+                        else:
+                            pars[par] = tmp[par]  
+                else:
+                    pars = tmp            
+                    
+                result = ParameterizedQuantity(**pars)
+                
+                self._update_pq_registry(name, result)
+            
+            elif type(self.pf[full_name]) in [float, np.float64]:
+                result = lambda **kwargs: self.pf[full_name]
+
             else:
-                raise TypeError('dunno how to handle this')
+                raise TypeError('dunno how to handle: %s' % name)
 
             # Check to see if Z?
 
@@ -254,10 +255,15 @@ class GalaxyCohort(GalaxyAggregate):
                 fesc = lambda **kwargs: self.fesc_LW(**kwargs)
             else:
                 return None
-                   
+                
+            #if self.pf['pop_test_param'] is not None:
+            #    yield_per_sfr = lambda **kwargs: fesc(**kwargs) \
+            #        * self.src.rad_yield(Emin, Emax) * g_per_msun
+            #    
+            #else:    
             yield_per_sfr = lambda **kwargs: fesc(**kwargs) \
                 * N_per_Msun * erg_per_phot            
-            
+
         else:
             # X-rays separate because we never have lookup table.
             # could change in the future.

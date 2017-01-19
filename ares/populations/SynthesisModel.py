@@ -201,6 +201,14 @@ class SynthesisModel(object):
         return self._energies
         
     @property
+    def Emin(self):
+        return np.min(self.energies)
+    
+    @property
+    def Emax(self):
+        return np.max(self.energies)    
+        
+    @property
     def frequencies(self):
         if not hasattr(self, '_frequencies'):
             self._frequencies = c / (self.wavelengths / 1e8)
@@ -407,12 +415,6 @@ class SynthesisModel(object):
         erg_per_g = erg_per_msun_yr * s_per_yr / g_per_msun
         
         return erg_per_g
-        #
-        # Units self-explanatory
-        N = self.PhotonsPerBaryon(Emin, Emax)
-        
-        # Convert to erg / g
-        return N * self.erg_per_phot(Emin, Emax) * self.cosm.b_per_g
 
     def IntegratedEmission(self, Emin, Emax, energy_units=False):
         """
