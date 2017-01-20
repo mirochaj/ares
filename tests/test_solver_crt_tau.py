@@ -17,7 +17,6 @@ import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics.Constants import c, ev_per_hz, erg_per_ev
 
-
 def test(tol=5e-2):
 
     alpha = -2.
@@ -61,16 +60,16 @@ def test(tol=5e-2):
         
         # Impose an ionization history: neutral for all times
         igm.ionization_history = lambda z: 0.0
-        
+
         # Tabulate tau
         tau = igm.TabulateOpticalDepth()
         igm.save(prefix='tau_test', suffix='pkl', clobber=True)
-        
+
         # Run radiation background calculation
         pars['tau_table'] = 'tau_test.pkl'
         sim_1 = ares.simulations.MetaGalacticBackground(**pars)
         sim_1.run()
-        
+
         os.remove('tau_test.pkl')
         
         # Compare to transparent IGM solution

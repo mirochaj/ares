@@ -207,7 +207,11 @@ class Global21cm(AnalyzeGlobal21cm):
         
         """
         
-        # If this was a tanh model, we're already done.
+        # If this was a tanh model or some such thing, we're already done.
+        if self.is_phenom:
+            return
+        
+        # If we're doing some iterative procedure, may be done.
         if hasattr(self, 'history') and not hasattr(self, '_suite'):
             return
 
@@ -292,7 +296,7 @@ class Global21cm(AnalyzeGlobal21cm):
            
         count = self.count   # Just to make sure attribute exists
         self._count += 1
-        
+                
         ##
         # Feedback time!
         ##
@@ -365,7 +369,7 @@ class Global21cm(AnalyzeGlobal21cm):
                 
         t2 = time.time()        
                 
-        self.timer = t2 - t1  
+        self.timer = t2 - t1
 
     def reboot(self):
         delattr(self, '_pf')

@@ -29,7 +29,7 @@ except ImportError:
     pass
 
 class Global21cm(MultiPhaseMedium,BlobFactory):
-    
+        
     def __getattr__(self, name):
         """
         This gets called anytime we try to fetch an attribute that doesn't
@@ -78,10 +78,10 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             elif quantity == 'nu':
                 self.__dict__[name] = \
                     nu_0_mhz / (1. + self.turning_points[pt][0])
-            elif quantity in self.data_asc:
+            elif quantity in self.history_asc:
                 z = self.turning_points[pt][0]
                 self.__dict__[name] = \
-                    np.interp(z, self.data_asc['z'], self.data_asc[quantity])
+                    np.interp(z, self.history_asc['z'], self.history_asc[quantity])
             else:
                 z = self.turning_points[pt][0]
                 
@@ -102,14 +102,14 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     def dTbdz(self):
         if not hasattr(self, '_dTbdz'):
             self._z_p, self._dTbdz = \
-                central_difference(self.data_asc['z'], self.data_asc['dTb'])
+                central_difference(self.history_asc['z'], self.history_asc['dTb'])
         return self._dTbdz
 
     @property
     def dTbdnu(self):
         if not hasattr(self, '_dTbdnu'):
             self._nu_p, self._dTbdnu = \
-                central_difference(self.data['nu'], self.data['dTb'])
+                central_difference(self.history['nu'], self.history['dTb'])
         return self._dTbdnu
         
     @property
@@ -154,18 +154,18 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     @property
     def kurtosis(self):
         if not hasattr(self, '_kurtosis'):
-            i1 = np.argmin(np.abs(self.nu_B - self.data['nu']))
-            i2 = np.argmin(np.abs(self.nu_D - self.data['nu']))
-            self._kurtosis = kurtosis(self.data['dTb'][i1:i2])
+            i1 = np.argmin(np.abs(self.nu_B - self.history['nu']))
+            i2 = np.argmin(np.abs(self.nu_D - self.history['nu']))
+            self._kurtosis = kurtosis(self.history['dTb'][i1:i2])
             
         return self._kurtosis
     
     @property
     def skewness(self):
         if not hasattr(self, '_skewness'):
-            i1 = np.argmin(np.abs(self.nu_B - self.data['nu']))
-            i2 = np.argmin(np.abs(self.nu_D - self.data['nu']))
-            self._skewness = skew(self.data['dTb'][i1:i2])
+            i1 = np.argmin(np.abs(self.nu_B - self.history['nu']))
+            i2 = np.argmin(np.abs(self.nu_D - self.history['nu']))
+            self._skewness = skew(self.history['dTb'][i1:i2])
         return self._skewness
     
     @property
@@ -194,7 +194,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     def turning_points(self):
         if not hasattr(self, '_turning_points'):  
             
-            _z = self.data['z']
+            _z = self.history['z']
             lowz = _z < 70
             
             # If we're here, the simulation has already been run.
@@ -203,9 +203,9 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             if self.pf['smooth_derivative'] > 0:
                 _dTb = self.smooth_derivative(self.pf['smooth_derivative'])
             else:
-                _dTb = self.data['dTb']
+                _dTb = self.history['dTb']
             
-            z = self.data['z'][lowz]
+            z = self.history['z'][lowz]
             dTb = _dTb[lowz]
 
             # Otherwise, find them. Not the most efficient, but it gets the job done
@@ -221,16 +221,16 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             if 'C' in self.track.turning_points:
                 zC = self.track.turning_points['C'][0]
                 if (zC < 0) or (zC > 50):
-                    i_min = np.argmin(self.data['dTb'])
-                    fixes['C'] = (self.data['z'][i_min], 
-                        self.data['dTb'][i_min], -99999)
+                    i_min = np.argmin(self.history['dTb'])
+                    fixes['C'] = (self.history['z'][i_min], 
+                        self.history['dTb'][i_min], -99999)
             if 'D' in self.track.turning_points:
                 zD = self.track.turning_points['D'][0]
                 TD = self.track.turning_points['D'][1]
                 if (zD < 0) or (zD > 50):
-                    i_max = np.argmax(self.data['dTb'])
-                    fixes['D'] = (self.data['z'][i_max], 
-                        self.data['dTb'][i_max], -99999)            
+                    i_max = np.argmax(self.history['dTb'])
+                    fixes['D'] = (self.history['z'][i_max], 
+                        self.history['dTb'][i_max], -99999)            
                 elif TD < 1e-4:
                     fixes['D'] = (-np.inf, -np.inf, -99999)
                 
@@ -260,22 +260,22 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         return self.curvature_of_freq(freq)
     
     def SaturatedLimit(self, ax):
-        z = nu_0_mhz / self.data['nu'] - 1.
+        z = nu_0_mhz / self.history['nu'] - 1.
         dTb = self.hydr.saturated_limit(z)
 
-        ax.plot(self.data['nu'], dTb, color='k', ls=':')
-        ax.fill_between(self.data['nu'], dTb, 500 * np.ones_like(dTb),
+        ax.plot(self.history['nu'], dTb, color='k', ls=':')
+        ax.fill_between(self.history['nu'], dTb, 500 * np.ones_like(dTb),
             color='none', hatch='X', edgecolor='k', linewidth=0.0)
         pl.draw()
         
         return ax
         
     def AdiabaticFloor(self, ax):
-        z = nu_0_mhz / self.data['nu'] - 1.
+        z = nu_0_mhz / self.history['nu'] - 1.
         dTb = self.hydr.adiabatic_floor(z)
 
-        ax.plot(self.data['nu'], dTb, color='k', ls=':')
-        ax.fill_between(self.data['nu'], -500 * np.ones_like(dTb), dTb, 
+        ax.plot(self.history['nu'], dTb, color='k', ls=':')
+        ax.fill_between(self.history['nu'], -500 * np.ones_like(dTb), dTb, 
             color='none', hatch='X', edgecolor='k', linewidth=0.0)
         pl.draw()
         
@@ -334,10 +334,10 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         if mask is not None:
             nu_plot, dTb_plot = \
-                self.data[xaxis][mask], self.data['dTb'][mask] * conv
+                self.history[xaxis][mask], self.history['dTb'][mask] * conv
         else:
             nu_plot, dTb_plot = \
-                self.data[xaxis], self.data['dTb'] * conv
+                self.history[xaxis], self.history['dTb'] * conv
         
         if take_abs:
             dTb_plot = np.abs(dTb_plot)
@@ -348,8 +348,8 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         if scatter is False:   
             ax.plot(nu_plot, dTb_plot, **kwargs)
         else:
-            ax.scatter(self.data[xaxis][-1::-mask], 
-                self.data['dTb'][-1::-mask] * conv, **kwargs)
+            ax.scatter(self.history[xaxis][-1::-mask], 
+                self.history['dTb'][-1::-mask] * conv, **kwargs)
                 
         zmax = self.pf["initial_redshift"]
         zmin = self.pf["final_redshift"] if self.pf["final_redshift"] >= 10 \
@@ -364,7 +364,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             xticks_minor = np.arange(10, 200, 10)
 
         if ymin is None and yscale == 'linear':
-            ymin = max(min(min(self.data['dTb'][np.isfinite(self.data['dTb'])]), 
+            ymin = max(min(min(self.history['dTb'][np.isfinite(self.history['dTb'])]), 
                 ax.get_ylim()[0]), -500)
     
             # Set lower y-limit by increments of 50 mK
@@ -374,7 +374,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                     break
     
         if ymax is None:
-            ymax = max(max(self.data['dTb'][np.isfinite(self.data['dTb'])]), 
+            ymax = max(max(self.history['dTb'][np.isfinite(self.history['dTb'])]), 
                 ax.get_ylim()[1])
     
         if yscale == 'linear':
@@ -526,7 +526,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             inset.set_title(r'$T_S(z=%.2g)$' % z, fontsize=16, y=1.08)
             inset.xaxis.set_tick_params(width=1, length=5, labelsize=10)
             
-        Ts = np.interp(z, self.data_asc['z'], self.data_asc['igm_Ts'])
+        Ts = np.interp(z, self.history_asc['z'], self.history_asc['igm_Ts'])
         inset.plot([Ts]*2, [0, 1], **kwargs)
         inset.set_xscale('log')
         pl.draw()
@@ -640,10 +640,10 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             return -np.inf
         
         # Only use low redshifts once source are "on"
-        _z = self.data_asc['z']
+        _z = self.history_asc['z']
         ok = _z < self.pf['initial_redshift']
-        z = self.data_asc['z'][ok]
-        dTb = self.data_asc['dTb'][ok]
+        z = self.history_asc['z'][ok]
+        dTb = self.history_asc['dTb'][ok]
         
         # (closest) index corresponding to the extremum of interest.
         # Using amplitude can lead to errors when heating trough is comparable

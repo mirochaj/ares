@@ -12,8 +12,8 @@ Description:
 
 import numpy as np
 from .ReadData import read_lit
-from .ParameterFile import pop_id_num
 from .ProblemTypes import ProblemType
+from .ParameterFile import pop_id_num, par_info
 from .PrintInfo import header, footer, separator, line
 
 def _add_pop_tag(par, num):
@@ -27,6 +27,19 @@ def _add_pop_tag(par, num):
         return '%s{%i}' % (prefix, num)
     else:
         return '%s{%i}' % (par, num)
+
+def _add_pq_tag(par, num):
+    """
+    Add a population ID tag to each parameter.
+    """
+
+    prefix, idnum = pop_id_num(par)
+
+    if idnum is not None:
+        return '%s[%i]' % (prefix, num)
+    else:
+        return '%s[%i]' % (par, num)
+
 
 _pop_fcoll = \
 {
@@ -70,10 +83,12 @@ _sed_xi = \
 _pop_sfe = \
 {
  'pop_sfr_model': 'sfe-func',
+ 'pop_sed': 'eldridge2009',
+ 'pop_Z': 0.02,
  'pop_fstar': 'pq',
  'pq_func': 'dpl',
  'pq_func_var': 'Mh',
- 'pq_func_par0': 0.1,
+ 'pq_func_par0': 0.05,
  'pq_func_par1': 3e11,
  'pq_func_par2': 0.6,
  'pq_func_par3': -0.6,
@@ -298,6 +313,31 @@ class ParameterBundle(dict):
     
         for key in self.keys():
             self[_add_pop_tag(key, value)] = self.pop(key)
+                
+    def tag_pq_id(self, par, num):
+        """
+        Find ParameterizedQuantity parameters and tag with `num`.
+        """
+        
+        if self[par] == 'pq':
+            current_tag = None
+        else:
+            m = re.search(r"\[([0-9])\]", par)
+
+            assert m is not None, "No ID found for par=%s" % par
+            
+            current_tag = int(m.group(1))
+        
+        # Figure out what all the parameters are currently
+        pars = self.pars_by_pq(current_tag, strip_id=False)
+        
+        # Delete 'em, rename 'em
+        for key in pars:
+            del self[key]
+        
+        self[par] = _add_pq_tag('pq', num)
+        for key in pars:
+            self[_add_pq_tag(key, num)] = pars[key]
             
     @property
     def pqid(self):
@@ -381,7 +421,71 @@ class ParameterBundle(dict):
                 else:    
                     tmp[par] = self[par]
                 
-        return tmp        
+        return tmp 
+        
+    @property
+    def pqs(self):
+        if not hasattr(self, '_pqs'):
+            self.pqids
+            
+        return self._pqs
+        
+    @property
+    def pqids(self):
+        if not hasattr(self, '_pqids'):
+            pqs = []
+            pqids = []
+            for par in self:                
+                if self[par] == 'pq':
+                    pqid = 'None'
+                else:
+                    prefix, popid, pqid = par_info(par)
+                
+                if pqid is None:
+                    continue
+
+                if pqid in pqids:
+                    continue
+
+                pqs.append(par)
+                
+                if pqid is 'None':
+                    pqids.append(None)
+                else:
+                    pqids.append(pqid)            
+            
+            self._pqs = pqs
+            self._pqids = pqids
+            
+        return self._pqids    
+        
+    def pars_by_pq(self, num=None, strip_id=False):
+        
+        if num == None and (self.pqids == [None]):
+            untagged = True
+        else:
+            untagged = False
+        
+        i = self.pqids.index(num)
+        tmp = {self.pqs[i]: self[self.pqs[i]]}
+        for par in self:   
+            
+            if untagged and (par[0:2] == 'pq'):
+                tmp[par] = self[par]
+                continue
+                     
+            prefix, popid, pqid = par_info(par)
+            
+            if pqid is None:
+                continue
+            
+            if pqid == num:
+                if strip_id:
+                    tmp[prefix] = self[par]
+                else:    
+                    tmp[par] = self[par]
+                
+        return tmp
 
 
 _PB = ParameterBundle

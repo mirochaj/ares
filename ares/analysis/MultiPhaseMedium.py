@@ -36,22 +36,22 @@ try:
 except ImportError:
     pass
     
-class DummyDQ(object):
+class HistoryContainer(dict):
     """
     A wrapper around DerivedQuantities.
     """
     def __init__(self, pf={}):
         self._data = {}
         self._dq = DQ(ModelSet=None, pf=pf)
-        
+
     def add_data(self, data):
         self._dq._add_data(data)
         for key in data:
             self._data[key] = data[key]
-            
+
     def keys(self):
-        return self._data.keys()    
-            
+        return self._data.keys()
+
     def __iter__(self):
         for key in self._data.keys():
             yield key        
@@ -68,6 +68,11 @@ class DummyDQ(object):
             
     def __setitem__(self, name, value):
         self._data[name] = value
+        self._dq._data[name] = value
+        
+    def update(self, data):
+        self._data.update(data)
+        self._dq._data.update(data)
     
 turning_points = ['D', 'C', 'B', 'A']
 
@@ -175,14 +180,14 @@ class MultiPhaseMedium(object):
             
         return self._hydr                    
 
-    @property
-    def data(self):
-        if not hasattr(self, '_data'):
-            if hasattr(self, 'history'):
-                self._data = DummyDQ(pf=self.pf)
-                self._data.add_data(self.history)
-
-        return self._data
+    #@property
+    #def data(self):
+    #    if not hasattr(self, '_data'):
+    #        if hasattr(self, 'history'):
+    #            self._data = HistoryContainer(pf=self.pf)
+    #            self._data.add_data(self.history)
+    #
+    #    return self._data
 
     @property
     def blobs(self):
@@ -201,18 +206,44 @@ class MultiPhaseMedium(object):
         pl.show()    
         
     @property
-    def data_asc(self):
-        if not hasattr(self, '_data_asc'):
-            if np.all(np.diff(self.data['z']) > 0):
-                data_reorder = self.data.copy()
+    def history(self):
+        return self._history
+    
+    @history.setter
+    def history(self, value):
+        if not hasattr(self, '_history'):
+            self._history = HistoryContainer(pf=self.pf)
+            self._history.add_data(value)
+        
+        return self._history
+    
+    @property
+    def history_asc(self):  
+        if not hasattr(self, '_history_asc'):
+            if np.all(np.diff(self.history['z']) > 0):
+                data_reorder = self.history.copy()
             else:
                 data_reorder = {}
-                for key in self.data.keys():
-                    data_reorder[key] = np.array(self.data[key])[-1::-1]
+                for key in self.history.keys():
+                    data_reorder[key] = np.array(self.history[key])[-1::-1]
             
-            self._data_asc = data_reorder
+            self._history_asc = data_reorder
             
-        return self._data_asc
+        return self._history_asc  
+        
+   #@property
+   #def data_asc(self):
+   #    if not hasattr(self, '_data_asc'):
+   #        if np.all(np.diff(self.history['z']) > 0):
+   #            data_reorder = self.history.copy()
+   #        else:
+   #            data_reorder = {}
+   #            for key in self.history.keys():
+   #                data_reorder[key] = np.array(self.history[key])[-1::-1]
+   #        
+   #        self._data_asc = data_reorder
+   #        
+   #    return self._data_asc
                     
     @property
     def Trei(self):
@@ -223,11 +254,11 @@ class MultiPhaseMedium(object):
     def _initialize_interpolation(self, field):
         """ Set up scipy.interpolate.interp1d instances for all fields. """            
                 
-        self.interp[field] = scipy.interpolate.interp1d(self.data_asc['z'], 
-            self.data_asc[field], kind='cubic')
+        self.interp[field] = scipy.interpolate.interp1d(self.history_asc['z'], 
+            self.history_asc[field], kind='cubic')
                        
     def field(self, z, field='igm_dTb'):  
-        """ Interpolate value of any field in self.data to redshift z. """ 
+        """ Interpolate value of any field in self.history to redshift z. """ 
                 
         if field not in self.interp:
             self._initialize_interpolation(field)
@@ -242,8 +273,8 @@ class MultiPhaseMedium(object):
         Find midpoint of reionization.
         """         
         
-        zz = self.data['z'][self.data['z'] < 40]
-        xz = self.data['cgm_h_2'][self.data['z'] < 40]
+        zz = self.history['z'][self.history['z'] < 40]
+        xz = self.history['cgm_h_2'][self.history['z'] < 40]
         
         return np.interp(0.5, xz, zz)
         
@@ -280,22 +311,22 @@ class MultiPhaseMedium(object):
         Compute CMB optical depth history.
         """
         
-        QHII = self.data_asc['cgm_h_2'] 
-        if 'igm_h_2' in self.data_asc:
-            xHII = self.data_asc['igm_h_2'] 
+        QHII = self.history_asc['cgm_h_2'] 
+        if 'igm_h_2' in self.history_asc:
+            xHII = self.history_asc['igm_h_2'] 
         else:
             xHII = 0.0
             
-        nH = self.cosm.nH(self.data_asc['z'])
-        dldz = self.cosm.dldz(self.data_asc['z'])
+        nH = self.cosm.nH(self.history_asc['z'])
+        dldz = self.cosm.dldz(self.history_asc['z'])
         
         integrand = (QHII + (1. - QHII) * xHII) * nH
         
-        if 'igm_he_1' in self.data_asc:
-            QHeII = self.data_asc['cgm_h_2'] 
-            xHeII = self.data_asc['igm_he_2'] 
-            xHeIII = self.data_asc['igm_he_3'] 
-            nHe = self.cosm.nHe(self.data_asc['z'])
+        if 'igm_he_1' in self.history_asc:
+            QHeII = self.history_asc['cgm_h_2'] 
+            xHeII = self.history_asc['igm_he_2'] 
+            xHeIII = self.history_asc['igm_he_3'] 
+            nHe = self.cosm.nHe(self.history_asc['z'])
             integrand += (QHeII + (1. - QHeII) * xHeII + 2. * xHeIII) \
                 * nHe 
         elif include_He:
@@ -303,14 +334,14 @@ class MultiPhaseMedium(object):
                     
         integrand *= sigma_T * dldz
                 
-        tau = cumtrapz(integrand, self.data_asc['z'], initial=0)
+        tau = cumtrapz(integrand, self.history_asc['z'], initial=0)
             
-        tau[self.data_asc['z'] > 100] = 0.0 
+        tau[self.history_asc['z'] > 100] = 0.0 
             
-        self.data_asc['tau_CMB'] = tau
-        self.data['tau_CMB'] = tau[-1::-1]
+        self.history_asc['tau_CMB'] = tau
+        self.history['tau_CMB'] = tau[-1::-1]
         
-        if self.data_asc['z'][0] < z_HeII_EoR:
+        if self.history_asc['z'][0] < z_HeII_EoR:
             raise ValueError('Simulation ran past assumed HeII EoR! See z_HeII_EoR parameter.')
         
         # Make no arrays that go to z=0
@@ -319,22 +350,22 @@ class MultiPhaseMedium(object):
                 
         tau_tot = tlo[-1] + tau
         
-        tau_tot[self.data_asc['z'] > 100] = 0.0 
+        tau_tot[self.history_asc['z'] > 100] = 0.0 
         
-        self.data_asc['z_CMB'] = np.concatenate((zlo, self.data_asc['z']))
-        self.data['z_CMB'] = self.data_asc['z_CMB'][-1::-1]
+        self.history_asc['z_CMB'] = np.concatenate((zlo, self.history_asc['z']))
+        self.history['z_CMB'] = self.history_asc['z_CMB'][-1::-1]
                 
-        self.data_asc['tau_CMB_tot'] = np.concatenate((tlo, tau_tot))
-        self.data['tau_CMB_tot'] = tau_tot[-1::-1]
+        self.history_asc['tau_CMB_tot'] = np.concatenate((tlo, tau_tot))
+        self.history['tau_CMB_tot'] = tau_tot[-1::-1]
                 
     @property
     def tau_e(self):
         if not hasattr(self, '_tau_e'):
-            if 'tau_CMB_tot' not in self.data:
+            if 'tau_CMB_tot' not in self.history:
                 self.tau_CMB()
                 
-            z50 = np.argmin(np.abs(self.data['z_CMB'] - 50))
-            self._tau_e = self.data['tau_CMB_tot'][z50]
+            z50 = np.argmin(np.abs(self.history['z_CMB'] - 50))
+            self._tau_e = self.history['tau_CMB_tot'][z50]
         
         return self._tau_e           
         
@@ -517,26 +548,26 @@ class MultiPhaseMedium(object):
                 
         if not scatter:
             if show_Tcmb:
-                ax.semilogy(self.data['z'], self.cosm.TCMB(self.data['z']), 
+                ax.semilogy(self.history['z'], self.cosm.TCMB(self.history['z']), 
                     label=labels[0], **kwargs)
             
             if show_Tk:
-                ax.semilogy(self.data['z'], self.data['igm_Tk'], 
+                ax.semilogy(self.history['z'], self.history['igm_Tk'], 
                     label=labels[1], **kwargs)
             
             if show_Ts:
-                ax.semilogy(self.data['z'], self.data['igm_Ts'], 
+                ax.semilogy(self.history['z'], self.history['igm_Ts'], 
                     label=labels[2], **kwargs)
         else:
             if show_Tcmb:
-                ax.scatter(self.data['z'][-1::-mask], self.cosm.TCMB(self.data['z'][-1::-mask]), 
+                ax.scatter(self.history['z'][-1::-mask], self.cosm.TCMB(self.history['z'][-1::-mask]), 
                     label=labels[0], **kwargs)
             
-            ax.scatter(self.data['z'][-1::-mask], self.data['igm_Tk'][-1::-mask], 
+            ax.scatter(self.history['z'][-1::-mask], self.history['igm_Tk'][-1::-mask], 
                 label=labels[1], **kwargs)
             
             if show_Ts:
-                ax.semilogy(self.data['z'][-1::-mask], self.data['igm_Ts'][-1::-mask], 
+                ax.semilogy(self.history['z'][-1::-mask], self.history['igm_Ts'][-1::-mask], 
                     label=labels[2], **kwargs)            
                 
         if not hasax:
@@ -579,24 +610,24 @@ class MultiPhaseMedium(object):
         if element == 'h':
             if zone is None:
                 if self.pf['include_igm']:
-                    xe = self.data['igm_%s_2' % element]
+                    xe = self.history['igm_%s_2' % element]
                 else:
-                    xe = np.zeros_like(self.data['z'])
+                    xe = np.zeros_like(self.history['z'])
                 if self.pf['include_cgm']:
-                    xi = self.data['cgm_%s_2' % element]
+                    xi = self.history['cgm_%s_2' % element]
                 else:
-                    xi = np.zeros_like(self.data['z'])
+                    xi = np.zeros_like(self.history['z'])
                     
                 xavg = xi + (1. - xi) * xe
                 
                 to_plot = [xavg, xi, xe]
                 show = [show_xibar, show_xi, show_xe]
             else:
-                to_plot = [self.data['%s_%s_2' % (zone, element)]]
+                to_plot = [self.history['%s_%s_2' % (zone, element)]]
                 show = [True] * 2           
 
         else:
-            to_plot = [self.data['igm_he_%i' % sp] for sp in [2,3]]
+            to_plot = [self.history['igm_he_%i' % sp] for sp in [2,3]]
             show = [True] * 2
                
         if 'label' not in kwargs:
@@ -621,7 +652,7 @@ class MultiPhaseMedium(object):
                 if not show[i]:
                     continue
                     
-                ax.semilogy(self.data['z'], element, ls=ls[i], label=labels[i],
+                ax.semilogy(self.history['z'], element, ls=ls[i], label=labels[i],
                     **kwargs)
         else:   
             
@@ -629,7 +660,7 @@ class MultiPhaseMedium(object):
                 if not show[i]:
                     continue
                     
-                ax.semilogy(self.data['z'][-1::-mask], element[-1::-mask], 
+                ax.semilogy(self.history['z'][-1::-mask], element[-1::-mask], 
                     label=labels[i], **kwargs)
 
         if hasattr(self, 'pf'):
@@ -661,33 +692,33 @@ class MultiPhaseMedium(object):
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
         
-        n1 = map(self.cosm.nH, self.data['z']) if species == 'h_1' \
-        else map(self.cosm.nHe, self.data['z'])
+        n1 = map(self.cosm.nH, self.history['z']) if species == 'h_1' \
+        else map(self.cosm.nHe, self.history['z'])
         
-        n1 = np.array(n1) * np.array(self.data['igm_%s' % species])
+        n1 = np.array(n1) * np.array(self.history['igm_%s' % species])
         
-        ratePrimary = np.array(self.data['igm_Gamma_%s' % species]) #* n1
+        ratePrimary = np.array(self.history['igm_Gamma_%s' % species]) #* n1
         
-        ax.semilogy(self.data['z'], ratePrimary, ls='-', **kwargs)
+        ax.semilogy(self.history['z'], ratePrimary, ls='-', **kwargs)
         
-        rateSecondary = np.zeros_like(self.data['z'])
+        rateSecondary = np.zeros_like(self.history['z'])
         
         for donor in ['h_1', 'he_1', 'he_2']: 
             
             field = 'igm_gamma_%s_%s' % (species, donor)
             
-            if field not in self.data:
+            if field not in self.history:
                 continue
                
-            n2 = map(self.cosm.nH, self.data['z']) if donor == 'h_1' \
-            else map(self.cosm.nHe, self.data['z'])
+            n2 = map(self.cosm.nH, self.history['z']) if donor == 'h_1' \
+            else map(self.cosm.nHe, self.history['z'])
         
-            n2 = np.array(n2) * np.array(self.data['igm_%s' % donor])
+            n2 = np.array(n2) * np.array(self.history['igm_%s' % donor])
         
             rateSecondary += \
-                np.array(self.data['igm_gamma_%s_%s' % (species, donor)]) * n2 / n1
+                np.array(self.history['igm_gamma_%s_%s' % (species, donor)]) * n2 / n1
         
-        ax.semilogy(self.data['z'], rateSecondary, ls='--')
+        ax.semilogy(self.history['z'], rateSecondary, ls='--')
         
         ax.set_xlim(self.pf['final_redshift'], self.pf['initial_redshift'])
         
@@ -728,17 +759,17 @@ class MultiPhaseMedium(object):
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
                 
-        if 'tau_CMB' not in self.data:
+        if 'tau_CMB' not in self.history:
             self.tau_CMB(include_He=include_He, z_HeII_EoR=z_HeII_EoR)
 
-        ax.plot(self.data_asc['z_CMB'], self.data_asc['tau_CMB_tot'], **kwargs)
+        ax.plot(self.history_asc['z_CMB'], self.history_asc['tau_CMB_tot'], **kwargs)
 
         ax.set_xlim(0, 20)
 
         ax.set_xlabel(labels['z'])
         ax.set_ylabel(r'$\tau_e$')
 
-        #ax.plot([0, self.data['z'].min()], [tau.max() + tau_post]*2, **kwargs)
+        #ax.plot([0, self.history['z'].min()], [tau.max() + tau_post]*2, **kwargs)
         
         if show_obs:
             if obs_mu is not None:
@@ -747,7 +778,7 @@ class MultiPhaseMedium(object):
             
             if annotate_obs:    
                 #ax.annotate(r'$1-\sigma$ constraint', 
-                #    [self.data['z'].min(), obs_mu], ha='left',
+                #    [self.history['z'].min(), obs_mu], ha='left',
                 #    va='center')  
                 ax.annotate(r'plus post-EoR $\tau_e$', 
                     [5, tau.max() + tau_post + 0.002], ha='left',
@@ -828,7 +859,7 @@ class MultiPhaseMedium(object):
         Post-EoR (as far as our data is concerned) optical depth.
         """    
 
-        zmin = self.data['z'].min()
+        zmin = self.history['z'].min()
         ztmp = np.linspace(0, zmin, 1000)
 
         QHII = 1.0
@@ -837,7 +868,7 @@ class MultiPhaseMedium(object):
 
         integrand = QHII * nH
 
-        if 'igm_he_1' in self.data_asc:
+        if 'igm_he_1' in self.history_asc:
             QHeII = 1.0
             xHeIII = 1.0
             nHe = self.cosm.nHe(ztmp)
@@ -874,9 +905,9 @@ class MultiPhaseMedium(object):
             z = self.turning_points[z][0]
             
         # Redshift x blobs
-        if field in self.data_asc:
-            interp = interp1d(self.data_asc['z'],
-                self.data_asc[field])
+        if field in self.history_asc:
+            interp = interp1d(self.history_asc['z'],
+                self.history_asc[field])
         else:
             raise NotImplemented('help!')
             

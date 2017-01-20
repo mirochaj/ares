@@ -324,7 +324,7 @@ class UniformBackground(object):
         """
 
         if zi is None:
-            zi = pop.pf['pop_zform']
+            zi = pop.pf['initial_redshift']
         if zf is None:    
             zf = pop.pf['final_redshift']
         if nz is None:
@@ -338,7 +338,7 @@ class UniformBackground(object):
         tau_by_band = []
         energies_by_band = []
         emissivity_by_band = []        
-        for band in bands:       
+        for band in bands: 
                         
             E0, E1 = band
             has_sawtooth = (E0 == E_LyA) and (E1 == E_LL)

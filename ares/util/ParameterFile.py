@@ -60,7 +60,7 @@ def pop_id_num(par):
 def par_info(par):
     """
     Break apart parameter name, a population ID #, and potentially another
-    identification number that corresponds to a ParameterizedHaloProperty.
+    identification number that corresponds to a ParameterizedQuantity.
     """
     
     prefix1, popid = pop_id_num(par)    
