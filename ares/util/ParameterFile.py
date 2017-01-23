@@ -90,8 +90,9 @@ def count_populations(**kwargs):
         prefix, num = pop_id_num(par)
         if num is None:
             continue
-
+            
         if num not in popIDs:
+            print par
             popIDs.append(num)
 
     return len(popIDs)
@@ -149,9 +150,7 @@ def identify_pqs(**kwargs):
         just_php, nothing, phpid = par_info(kwargs[par])
         
         prefix, popid, age = par_info(par)
-                
-        #print par, prefix, popid, age, phpid        
-                
+                                
         if (popid is None) and (Npops == 1):
             # I think this is guaranteed to be true
             if prefix not in phps[0]:
@@ -248,7 +247,7 @@ class ParameterFile(dict):
     @property
     def Npops(self):
         if not hasattr(self, '_Npops'):
-
+            
             tmp = {}
             if 'problem_type' in self._kwargs:
                 tmp.update(ProblemType(self._kwargs['problem_type']))
@@ -319,6 +318,8 @@ class ParameterFile(dict):
                       # Should have no {}'s
                     
         pf_base.update(defaults)  
+        
+        print 'hey', self.Npops
                     
         # For single-population calculations, we're done for the moment
         if self.Npops == 1:
@@ -330,17 +331,17 @@ class ParameterFile(dict):
         # Otherwise, we need to go through and make separate dictionaries
         # for each population
         else:
-            
+
             # Can't add kwargs yet (all full of curly braces)
-            
+
             # Only add non-pop-specific parameters from ProblemType defaults
             prb = ProblemType(kwargs['problem_type'])
             for par in defaults_pop_indep:
                 if par not in prb:
                     continue
-                    
+
                 pf_base[par] = prb[par]
-            
+
             # and kwargs
             for par in kwargs:
                 if par in defaults_pop_indep:
@@ -462,23 +463,23 @@ class ParameterFile(dict):
         return pfs_by_pop
 
     @property
-    def unique(self):
+    def not_default(self):
         """
         Show the parameters that are not defaults.
         """
         if not hasattr(self, '_unique'):
-            self._unique = {}
+            self._not_default = {}
             
             ptype = ProblemType(self['problem_type'])
             
             for key in self:
                 if key in defaults_pop_indep:
                     if self[key] != defaults_pop_indep[key]:
-                        self._unique[key] = self[key]
+                        self._not_default[key] = self[key]
                 
                 elif key in ptype:
                     if self[key] != ptype[key]:
-                        self._unique[key] = self[key]
+                        self._not_default[key] = self[key]
                 
                 # Additional population?
                 else:
@@ -489,9 +490,9 @@ class ParameterFile(dict):
                     
                     if prefix in defaults and (num >= self.Npops):
                         if self[key] != defaults[prefix]:
-                            self._unique[key] = self[key]
+                            self._not_default[key] = self[key]
                 
-        return self._unique
+        return self._not_default
 
     def _check_for_conflicts(self, **kwargs):
         """
