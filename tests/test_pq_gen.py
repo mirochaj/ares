@@ -11,6 +11,7 @@ Description:
 """
 
 import ares
+import numpy as np
 
 def test():
     # Make sure we can parameterize a bunch of things
@@ -43,7 +44,8 @@ def test():
         func = pop.__getattr__(par)
         val.append(func(z=6, Mh=1e12))
 
-    assert np.allclose(val), "Error in building ParameterizedQuantity!"
+    print val
+    assert np.unique(val).size == 1, "Error in building ParameterizedQuantity!"
     
 if __name__ == '__main__':
     test()

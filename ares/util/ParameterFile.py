@@ -92,7 +92,6 @@ def count_populations(**kwargs):
             continue
             
         if num not in popIDs:
-            print par
             popIDs.append(num)
 
     return len(popIDs)
@@ -318,9 +317,7 @@ class ParameterFile(dict):
                       # Should have no {}'s
                     
         pf_base.update(defaults)  
-        
-        print 'hey', self.Npops
-                    
+                            
         # For single-population calculations, we're done for the moment
         if self.Npops == 1:
             pfs_by_pop = self.update_pq_pars([pf_base], **kwargs)
