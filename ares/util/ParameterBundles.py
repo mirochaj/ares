@@ -52,10 +52,9 @@ _pop_user_sfrd = \
 {
 
  'pop_sfr_model': 'sfrd-func',
-
  'pop_sfrd': 'pq[0]',
  'pq_func[0]': 'dpl',
- 'pq_func_var[0]': 'redshift',
+ 'pq_func_var[0]': 'z',
  'pq_func_par0[0]': 1e-6,
  'pq_func_par1[0]': 15.,
  'pq_func_par2[0]': -5.,

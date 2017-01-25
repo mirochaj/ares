@@ -72,12 +72,13 @@ Let's make a power-law SFRD. For example, the following:
 
 ::
     
-    pars['pop_sfrd'] = 'php'
-    pars['pop_func'] = 'pl'
-    pars['pop_func_var'] = '1+z'
-    pars['pop_func_par0'] = 1e-2
-    pars['pop_func_par1'] = 7.
-    pars['pop_func_par2'] = -6
+    pars['pop_sfr_model'] = 'sfrd-func'
+    pars['pop_sfrd'] = 'pq'
+    pars['pq_func'] = 'pl'
+    pars['pq_func_var'] = '1+z'
+    pars['pq_func_par0'] = 1e-2
+    pars['pq_func_par1'] = 7.
+    pars['pq_func_par2'] = -6
 
 sets the SFRD to be
 

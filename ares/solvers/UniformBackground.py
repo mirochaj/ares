@@ -1024,6 +1024,12 @@ class UniformBackground(object):
         """
         Tabulate emissivity over photon energy and redshift.
         
+        For a scalable emissivity, the tabulation is done for the emissivity
+        in the (EminNorm, EmaxNorm) band because conversion to other bands
+        can simply be applied after-the-fact. However, if the emissivity is
+        NOT scalable, then it is tabulated separately in the (10.2, 13.6),
+        (13.6, 24.6), and X-ray band.
+        
         Parameters
         ----------
         z : np.ndarray
@@ -1068,55 +1074,44 @@ class UniformBackground(object):
                 epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H[ll] \
                     / erg_per_ev
         else:
-
-            ##
-            # WARNING: This is super non-general at the moment. 
-            # Be careful!
-            ##
-            
-            Emin, Emax = pop.pf['pop_Emin'], pop.pf['pop_Emax']
-                                                        
-            # Got some fixin' to do.
+                
+            # There is only a distinction here for computational
+            # convenience, really. The LWB gets solved in much more detail
+            # than the LyC or X-ray backgrounds, so it makes sense 
+            # to keep the different emissivity chunks separate.                                  
             for band in [(10.2, 13.6), (13.6, 24.6), None]:
                 
+                # Remind me of this distinction?
                 if band is None:
-                    b = (Emin, Emax)
+                    b = pop.full_band
+                    fix = 1.
                 else:
                     b = band
+                    fix = 1. / pop._convert_band(*band)
                 
                 # Setup interpolant
-                rho_L = pop.rho_L(Emin=b[0], Emax=b[1])    
+                rho_L = pop.rho_L(Emin=b[0], Emax=b[1])
                 
                 if rho_L is None:
                     continue
 
-                # Need to re-normalize...?
-
                 in_band = np.logical_and(E >= b[0], E <= b[1])
-                
+
                 # By definition, rho_L integrates to unity in (b[0], b[1]) band
                 # BUT, Inu_hat is normalized in (EminNorm, EmaxNorm) band
-                
+
                 for ll, redshift in enumerate(z):
-                    #Lband = rho_L(redshift)
-                    #epsilon[ll,in_band] = Inu_hat[in_band] * Lband * ev_per_hz \
-                    #    / H[ll] / erg_per_ev / pop._convert_band(b[0], b[1])
-                    #for jj, nrg in enumerate(E):
-                    #    if not in_band[jj]:
-                    #        continue
-                           
-                    epsilon[ll,in_band] = \
-                        pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
-                        * ev_per_hz * Inu_hat[in_band] / H[ll] / erg_per_ev \
-                        / pop._convert_band(b[0], b[1])
-                    
+                    epsilon[ll,in_band] = fix \
+                        * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
+                        * ev_per_hz * Inu_hat[in_band] / H[ll] / erg_per_ev
+
         return epsilon
-            
+
     def _flux_generator_generic(self, energies, redshifts, ehat, tau=None,
         flux0=None):
         """
         Generic flux generator.
-        
+
         Parameters
         ----------
         energies : np.ndarray

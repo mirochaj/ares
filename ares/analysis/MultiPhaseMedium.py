@@ -10,6 +10,7 @@ Description:
 
 """
 
+import pickle
 import numpy as np
 import re, scipy, os
 from ..util import labels
@@ -25,17 +26,12 @@ from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
 from mpl_toolkits.axes_grid import inset_locator
 from .DerivedQuantities import DerivedQuantities as DQ
-
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
     
 try:
     import h5py
 except ImportError:
     pass
-    
+        
 class HistoryContainer(dict):
     """
     A wrapper around DerivedQuantities.
@@ -88,22 +84,44 @@ class MultiPhaseMedium(object):
             of the files containing the history/parameters.
 
         """
-
+                
         if data is None:
             return
-        
+
         elif type(data) == dict:
             self.pf = SetAllDefaults()
             self.history = data.copy()
-            
+
         # Read output of a simulation from disk
         elif type(data) is str:
             self.prefix = data
             self._load_data(data)
-            
-        self.kwargs = kwargs    
+
+        self.kwargs = kwargs
 
     def _load_data(self, data):
+        
+        chunks = 0
+        f = open('%s.history.pkl' % data, 'rb')
+        while True:
+            try:
+                tmp = pickle.load(f)
+            except EOFError:
+                break
+            
+            if not hasattr(self, '_suite'):
+                self._suite = []
+                
+            self._suite.append(tmp.copy())
+            chunks += 1
+        
+        f.close()
+        
+        if chunks == 0:
+            raise IOError('Empty history (%s.history.pkl)' % data)
+        else:    
+            history = self._suite[-1]
+                
         try:
             chunks = 0
             f = open('%s.history.pkl' % data, 'rb')
@@ -204,19 +222,19 @@ class MultiPhaseMedium(object):
     
     def show(self):
         pl.show()    
-        
+
     @property
     def history(self):
         return self._history
-    
+
     @history.setter
     def history(self, value):
         if not hasattr(self, '_history'):
             self._history = HistoryContainer(pf=self.pf)
             self._history.add_data(value)
-        
+
         return self._history
-    
+
     @property
     def history_asc(self):  
         if not hasattr(self, '_history_asc'):

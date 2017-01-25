@@ -134,9 +134,9 @@ Creating your own
 -----------------
 As with parameter bundles, you can write your own litdata modules without modifying the *ares* source code. Just create a new ``.py`` file and stick it in one of the following places (searched in this order!):
 
-* ``$ARES/input/litdata''
-* ``$HOME/.ares''
 * Your current working directory.
+* ``$HOME/.ares''
+* ``$ARES/input/litdata''
 
 For example, if I created the following file (``junk_lf.py``; which you'll notice resembles the other LF litdata modules) in my current directory: ::
 

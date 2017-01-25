@@ -661,7 +661,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             if 'B' in self.turning_points:
                 if np.isfinite(self.turning_points['B'][0]):
                     i_hi = np.argmin(np.abs(z - self.turning_points['B'][0]))
-                else:
+                else:                    
                     i_hi = np.argmin(np.abs(z - max(z)))
             else:
                 i_hi = np.argmin(np.abs(z - max(z)))
@@ -679,18 +679,20 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             return -np.inf
         if len(dTb[i_max:i_hi]) < 2:
             return -np.inf
-
+            
         # Break the data into two intervals: redshifts above and below
         # the extremum. Interpolate to find desired point.
         # I've experimented with cubic/quadratic and most of the time they
         # work fine but in some cases they give nonsensical results for no
-        # apparent reason.
+        # apparent reason, hence the linear interpolation.
         interp_l = interp1d(dTb[:i_max], z[:i_max], 
             bounds_error=False, fill_value=-np.inf, kind='linear')
         # At this point, the signal is getting more negative
         interp_r = interp1d(dTb[i_max:i_hi], z[i_max:i_hi],
             bounds_error=False, fill_value=-np.inf, kind='linear')
 
+        # The "l" and "r" are in terms of redshift.
+        
         # Interpolate to find redshifts where f_max occurs
         l = abs(interp_l(f_max))
         r = abs(interp_r(f_max))

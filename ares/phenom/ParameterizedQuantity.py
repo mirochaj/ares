@@ -24,6 +24,7 @@ def tanh_rstep(M, lo, hi, logM0, logdM):
 func_options = \
 {
  'pl': 'p[0] * (x / p[1])**p[2]',
+ 'exp': 'p[0] * exp(-(x / p[1])**p[2])',
  'dpl': 'p[0] / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
  'dpl_arbnorm': 'p[0](p[4]) / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
  'pwpl': 'p[0] * (x / p[4])**p[1] if x <= p[4] else p[2] * (x / p[4])**p[3]',
@@ -154,8 +155,10 @@ class ParameterizedQuantity(object):
             f = p0 * np.exp(-(x - p1)**2 / 2. / p2**2)
         elif func == 'pl':
             f = p0 * (x / p1)**p2
+        elif func == 'exp':
+            f = p0 * np.exp(-(x / p1)**p2)
         elif func == 'plexp':
-            f = p0 * (x / p1)**p2 * np.exp(-x / p3)
+            f = p0 * (x / p1)**p2 * np.exp(-(x / p3)**p4)
         elif func == 'dpl':
             f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3)    
         elif func == 'dpl_arbnorm':

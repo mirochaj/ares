@@ -793,7 +793,7 @@ class OpticalDepth(object):
         L = len(x)
     
         # Frequency grid must be index 1-based.
-        N = num_freq_bins(L, zi=self.pf['pop_initial'], 
+        N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
             zf=self.pf['final_redshift'], Emin=E0, 
             Emax=self.pf['pop_Emax'])
         N -= 1

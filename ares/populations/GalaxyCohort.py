@@ -255,12 +255,7 @@ class GalaxyCohort(GalaxyAggregate):
                 fesc = lambda **kwargs: self.fesc_LW(**kwargs)
             else:
                 return None
-                
-            #if self.pf['pop_test_param'] is not None:
-            #    yield_per_sfr = lambda **kwargs: fesc(**kwargs) \
-            #        * self.src.rad_yield(Emin, Emax) * g_per_msun
-            #    
-            #else:    
+  
             yield_per_sfr = lambda **kwargs: fesc(**kwargs) \
                 * N_per_Msun * erg_per_phot            
 
@@ -631,7 +626,6 @@ class GalaxyCohort(GalaxyAggregate):
             # by scaling the SFRD.
             rhoL = super(GalaxyCohort, self).Emissivity(z, E=E, 
                 Emin=Emin, Emax=Emax)
-            #print z, rhoL, self.rho_L(Emin, Emax)(z)    
         else:
             # Here, the radiation backgrounds cannot just be scaled. 
             # Note that this method can always be used, it's just less 

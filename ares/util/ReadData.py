@@ -57,15 +57,23 @@ def read_lit(prefix, path=None, verbose=True):
     if path is not None:
         prefix = '%s/%s' % (path, prefix)
     
-    # Load custom defaults    
-    if os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix)):
-        loc = '%s/input/litdata/' % ARES
-    elif os.path.exists('%s/.ares/%s.py' % (HOME, prefix)):
+    has_local = os.path.exists('./%s.py' % prefix)
+    has_home = os.path.exists('%s/.ares/%s.py' % (HOME, prefix))
+    has_litd = os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix))
+    
+    # Load custom defaults
+    if has_local:
+        loc = '.'    
+    elif has_home:
         loc = '%s/.ares/' % HOME
-    elif os.path.exists('./%s.py' % prefix):
-        loc = '.'
+    elif has_litd:
+        loc = '%s/input/litdata/' % ARES
     else:
         return None
+
+    if has_local + has_home + has_litd > 1:
+        print "WARNING: multiple copies of %s found." % prefix
+        print "       : precedence: CWD -> $HOME -> $ARES/input/litdata"
 
     _f, _filename, _data = _imp.find_module(prefix, [loc])
     mod = _imp.load_module(prefix, _f, _filename, _data)

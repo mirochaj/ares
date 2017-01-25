@@ -578,19 +578,20 @@ class Global21cm(AnalyzeGlobal21cm):
             if self._suite:
                 f = open(fn, 'wb')
                 for hist in self._suite:
-                    pickle.dump(hist, f)
+                    pickle.dump(hist._data, f)
                 f.close()
             else:          
                 f = open(fn, 'wb')
-                pickle.dump(self.history, f)
+                pickle.dump(self.history._data, f)
                 f.close()
                 
-            if self.blobs:
-                wrote_blobs = True
+            try:
                 f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
                 pickle.dump(self.blobs, f)
                 f.close()
                 print 'Wrote %s.blobs.%s' % (prefix, suffix)
+            except AttributeError:
+                pass
     
         elif suffix in ['hdf5', 'h5']:
             import h5py
@@ -602,7 +603,7 @@ class Global21cm(AnalyzeGlobal21cm):
     
         elif suffix == 'npz':
             f = open(fn, 'w')
-            np.savez(f, **self.history)
+            np.savez(f, **self.history._data)
             f.close()
             
             if self.blobs:

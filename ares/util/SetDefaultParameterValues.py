@@ -726,6 +726,7 @@ def ControlParameters():
         
     "track_extrema": False,
     "delay_extrema": 5,      # Number of steps
+    "delay_tracking": 1.,    # dz below initial_redshift when tracking begins
     "smooth_derivative": 0, 
 
     "blob_names": None,

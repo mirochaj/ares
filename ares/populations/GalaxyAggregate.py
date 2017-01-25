@@ -229,7 +229,7 @@ class GalaxyAggregate(HaloPopulation):
                 self._sfrd_ = self.pf['pop_sfrd']
             elif isinstance(self.pf['pop_sfrd'], interp1d):
                 self._sfrd_ = self.pf['pop_sfrd']  
-            elif self.pf['pop_sfrd'][0:3] == 'pq':
+            elif self.pf['pop_sfrd'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_sfrd'], self.pf)
                 self._sfrd_ = ParameterizedQuantity(**pars)    
             else:
@@ -281,9 +281,9 @@ class GalaxyAggregate(HaloPopulation):
             return self._sfrd(z)  
         elif self.is_user_sfrd:
             if self.pf['pop_sfrd_units'] == 'internal':
-                return self._sfrd(z)
+                return self._sfrd(z=z)
             else:
-                return self._sfrd(z) / rhodot_cgs
+                return self._sfrd(z=z) / rhodot_cgs
                 
         if (not self.is_fcoll_model) and (not self.is_user_sfe):
             raise ValueError('Must be an fcoll model!')
@@ -307,7 +307,13 @@ class GalaxyAggregate(HaloPopulation):
                 self._reference_band = \
                     (self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
         return self._reference_band
-            
+    
+    @property
+    def full_band(self):
+        if not hasattr(self, '_full_band'):
+            self._full_band = (self.pf['pop_Emin'], self.pf['pop_Emax'])
+        return self._full_band    
+        
     @property
     def model(self):
         return self.pf['pop_model']
@@ -315,6 +321,8 @@ class GalaxyAggregate(HaloPopulation):
     def _convert_band(self, Emin, Emax):
         """
         Convert from fractional luminosity in reference band to given bounds.
+        
+        If limits are None, will use (pop_Emin, pop_Emax).
     
         Parameters
         ----------
@@ -353,11 +361,11 @@ class GalaxyAggregate(HaloPopulation):
                 return self._conversion_factors[(Emin, Emax)]
     
             if Emin < self.pf['pop_Emin']:
-                print "WARNING: Emin (%.2g eV) < pop_Emin (%.2g eV)" \
-                    % (Emin, self.pf['pop_Emin'])
+                print "WARNING: Emin (%.2g eV) < pop_Emin (%.2g eV) [pop_id=%i]" \
+                    % (Emin, self.pf['pop_Emin'], self.id_num)
             if Emax > self.pf['pop_Emax']:
-                print "WARNING: Emax (%.2g eV) > pop_Emax (%.2g eV)" \
-                    % (Emax, self.pf['pop_Emax'])
+                print "WARNING: Emax (%.2g eV) > pop_Emax (%.2g eV) [pop_id=%i]" \
+                    % (Emax, self.pf['pop_Emax'], self.id_num)
     
             # If tabulated, do things differently
             if self.sed_tab:

@@ -117,11 +117,15 @@ class SynthesisModel(object):
     def norm(self):
         """
         Normalization constant that forces self.Spectrum to have unity
-        integral in the (EminNorm, EmaxNorm) band.
+        integral in the (Emin, Emax) band.
         """
         if not hasattr(self, '_norm'):
-            j1 = np.argmin(np.abs(self.pf['pop_EminNorm'] - self.energies))
-            j2 = np.argmin(np.abs(self.pf['pop_EmaxNorm'] - self.energies))
+            # Note that we're not using (EminNorm, EmaxNorm) band because
+            # for SynthesisModels we don't specify luminosities by hand. By
+            # using (EminNorm, EmaxNorm), we run the risk of specifying a 
+            # range not spanned by the model.
+            j1 = np.argmin(np.abs(self.Emin - self.energies))
+            j2 = np.argmin(np.abs(self.Emax - self.energies))
             
             # Remember: energy axis in descending order
             self._norm = np.trapz(self.sed_at_tsf[j2:j1][-1::-1], 

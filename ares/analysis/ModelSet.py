@@ -1323,7 +1323,7 @@ class ModelSet(BlobFactory):
         matplotlib.axes._subplots.AxesSubplot instance.
 
         """
-        
+
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -1345,18 +1345,18 @@ class ModelSet(BlobFactory):
         else:
             p = pars
             iv = ivar
-                    
+
         data = \
             self.ExtractData(p, iv, take_log, un_log, multiplier)
 
         xdata = data[p[0]]
         ydata = data[p[1]]
-                
+
         if c is not None:
             cdata = data[p[2]].squeeze()
         else:
             cdata = None
-            
+
         if line_plot:
             # The ordering of the points doesn't matter
             if sort_by == 'z' and (cdata is not None):
@@ -1376,7 +1376,7 @@ class ModelSet(BlobFactory):
                 ydata = ydata[order]
                 if cdata is not None:
                     cdata = cdata[order]            
-                                            
+
             func = ax.__getattribute__('plot')
         else:
             func = ax.__getattribute__('scatter')
@@ -1395,7 +1395,7 @@ class ModelSet(BlobFactory):
             _condition = None
             xd = xdata
             yd = ydata
-            cd = cdata    
+            cd = cdata
             
         if rungs:
             scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, 
@@ -3042,7 +3042,7 @@ class ModelSet(BlobFactory):
     def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        best='maxL', fill=True, **kwargs):
+        best='maxL', fill=True, show_all=False, **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -3115,7 +3115,9 @@ class ModelSet(BlobFactory):
             
             y = []
             for i, x in enumerate(xarr):
-                if (use_best and self.is_mcmc):
+                if show_all:
+                    y.append(data[:,i].compressed())
+                elif (use_best and self.is_mcmc):
                     y.append(data[:,i][skip:stop][loc])
                 elif percentile:
                     lo, hi = np.percentile(data[:,i][skip:stop].compressed(), 
@@ -3176,11 +3178,13 @@ class ModelSet(BlobFactory):
             
             if fill:
                 ax.fill_between(xarr, y[0], y[1], **kwargs)
+            elif show_all:
+                for i in range(y.shape[0]):
+                    ax.plot(xarr, y[i], **kwargs)
             else:
                 ax.plot(xarr, y[0], **kwargs)
                 ax.plot(xarr, y[1], **kwargs)
                 
-        
         pl.draw()
                  
         if return_data:

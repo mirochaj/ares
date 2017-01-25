@@ -92,6 +92,11 @@ class TurningPoints(object):
         if self.step < 3 or (z[-1] > 1e3):
             self._step += 1
             return False
+            
+        # Sometimes get discontinuities when RT gets flipped on.
+        # This is kludgey...sorry.
+        if min(z) > (self.pf['initial_redshift'] - self.pf['delay_tracking']):
+            return False
 
         self._step += 1
 
@@ -169,7 +174,7 @@ class TurningPoints(object):
                 
                 if TP in ['B', 'D']:
                     TTP *= -1.
-
+                    
                 # Contingencies....
                 if self.is_crazy(TP, zTP, TTP):    
                     
