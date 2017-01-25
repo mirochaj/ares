@@ -358,7 +358,7 @@ class Global21cm(AnalyzeGlobal21cm):
             f_Mmin = lambda zz: 10**np.interp(zz, ztmp[-1::-1], np.log10(Mmin[-1::-1]))
 
             # Save for prosperity
-            self._suite.append(self.history.copy())
+            self._suite.append(self.history._data.copy())
             for popid in self.pf['feedback_LW']:
                 self._suite[-1]['pop_Mmin{%i}' % popid] = Mmin
                 self.kwargs['pop_Mmin{%i}' % popid] = f_Mmin
@@ -374,7 +374,7 @@ class Global21cm(AnalyzeGlobal21cm):
     def reboot(self):
         delattr(self, '_pf')
         delattr(self, '_medium')
-        delattr(self, 'history')
+        delattr(self, '_history')
 
         self.__init__(**self.kwargs)
                                 

@@ -1080,6 +1080,13 @@ class UniformBackground(object):
             # than the LyC or X-ray backgrounds, so it makes sense 
             # to keep the different emissivity chunks separate.                                  
             for band in [(10.2, 13.6), (13.6, 24.6), None]:
+                                
+                if band is not None:
+                    if pop.pf['pop_Emin'] > band[1]:
+                        continue
+                    
+                    if pop.pf['pop_Emax'] < band[0]:
+                        continue
                 
                 # Remind me of this distinction?
                 if band is None:
