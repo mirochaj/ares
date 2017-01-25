@@ -578,7 +578,7 @@ class Global21cm(AnalyzeGlobal21cm):
             if self._suite:
                 f = open(fn, 'wb')
                 for hist in self._suite:
-                    pickle.dump(hist._data, f)
+                    pickle.dump(hist, f)
                 f.close()
             else:          
                 f = open(fn, 'wb')
