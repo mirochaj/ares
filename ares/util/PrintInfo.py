@@ -511,14 +511,18 @@ def print_sim(sim):
     print line('-'*twidth)
     
     phys_pars = ['cgm_initial_temperature', 'clumping_factor', 
-        'secondary_ionization', 'approx_Salpha', 'include_He']
+        'secondary_ionization', 'approx_Salpha', 'include_He', 'feedback_LW']
 
     cosm_pars = ["omega_m_0", "omega_b_0", "omega_l_0", "hubble_0", 
         "helium_by_number", "sigma_8"]
     
     for par in phys_pars:
         val = sim.pf[par]
-        if type(val) in [int, float]:
+        if val is None:
+            print line('%s : None' % par.ljust(30))
+        elif type(val) in [list, tuple]:
+            print line('%s : %s' % (par.ljust(30), val,))
+        elif type(val) in [int, float]:
             print line('%s : %g' % (par.ljust(30), val))
         else:
             print line('%s : %s' % (par.ljust(30), val))

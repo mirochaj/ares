@@ -1752,7 +1752,7 @@ class ModelSet(BlobFactory):
         # Get likelihood contours (relative to peak) that enclose
         # nu-% of the area
         like, levels = self.get_levels(hist, nu=like)
-        
+
         # Grab data within this contour.
         to_keep = np.zeros(to_hist[0].size)
         

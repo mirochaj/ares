@@ -144,29 +144,46 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         if not hasattr(self, '_nu_p'):
             tmp = self.dTbdnu
         return self._nu_p
-    
+
     @property
     def nu_pp(self):
         if not hasattr(self, '_nu_pp'):
             tmp = self.dTb2dnu2
         return self._nu_pp    
-        
+
     @property
-    def kurtosis(self):
-        if not hasattr(self, '_kurtosis'):
-            i1 = np.argmin(np.abs(self.nu_B - self.history['nu']))
-            i2 = np.argmin(np.abs(self.nu_D - self.history['nu']))
-            self._kurtosis = kurtosis(self.history['dTb'][i1:i2])
+    def kurtosis_absorption(self):
+        if not hasattr(self, '_kurtosis_abs'):
+            i1 = np.argmin(np.abs(30. - self.history['nu']))
+            i2 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
+            self._kurtosis_abs = kurtosis(self.history['dTb'][i1:i2])
             
-        return self._kurtosis
-    
+        return self._kurtosis_abs
+
     @property
-    def skewness(self):
-        if not hasattr(self, '_skewness'):
-            i1 = np.argmin(np.abs(self.nu_B - self.history['nu']))
-            i2 = np.argmin(np.abs(self.nu_D - self.history['nu']))
-            self._skewness = skew(self.history['dTb'][i1:i2])
-        return self._skewness
+    def skewness_absorption(self):
+        if not hasattr(self, '_skewness_abs'):
+            i1 = np.argmin(np.abs(30. - self.history['nu']))
+            i2 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
+            self._skewness_abs = skew(self.history['dTb'][i1:i2])
+        return self._skewness_abs
+
+    @property
+    def kurtosis_emission(self):
+        if not hasattr(self, '_kurtosis_emi'):
+            i1 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
+            i2 = np.argmin(np.abs(200.0 - self.history['nu']))
+            self._kurtosis_emi = kurtosis(self.history['dTb'][i1:i2])
+
+        return self._kurtosis_emi
+
+    @property
+    def skewness_emission(self):
+        if not hasattr(self, '_skewness_emi'):
+            i1 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
+            i2 = np.argmin(np.abs(200.0 - self.history['nu']))
+            self._skewness_emi = skew(self.history['dTb'][i1:i2])
+        return self._skewness_emi    
     
     @property
     def track(self):

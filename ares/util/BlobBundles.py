@@ -50,6 +50,11 @@ _gs_shape_f = \
 # Add curvature of turning points too
 _gs_shape_n.extend(['curvature_%s' % tp for tp in list('BCD')])
 _gs_shape_f.extend([None] * 3)
+_gs_shape_n.extend(['skewness_%s' % region for region in \
+    ['absorption', 'emission']])
+_gs_shape_n.extend(['kurtosis_%s' % region for region in \
+    ['absorption', 'emission']])
+_gs_shape_f.extend([None] * 4)
 
 # Rate coefficients
 _rc_base = ['igm_k_ion', 'igm_k_heat', 'cgm_k_ion']

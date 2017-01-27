@@ -53,6 +53,10 @@ derived = \
 {
  'Ts': r'$T_S$',
  'dTb': r'$\delta T_b \ (\mathrm{mK})$',
+ 'hwhm_diff': r'$\Delta \mathrm{HWHM}$',
+ 'hwqm_diff': r'$\Delta \mathrm{HWQM}$',
+ 'fwhm': r'$\mathrm{FWHM}$',
+ 'fwqm': r'$\mathrm{FWQM}$',
 }
 
 labels = {}
@@ -65,7 +69,7 @@ labels_w_prefix = {}
 for prefix in prefixes:
     for key in labels:
         labels_w_prefix['%s%s' % (prefix, key)] = labels[key]
-        
+
 labels.update(labels_w_prefix)
 
 common = \
@@ -117,6 +121,11 @@ common = \
  
  'tau_e': r'$\tau_e$',
  'tau_tot': r'$\tau_e$', 
+ 
+ 'skewness_absorption': r'$\mu_{3, \mathrm{abs}}$',
+ 'kurtosis_absorption': r'$\mu_{4, \mathrm{abs}}$',
+ 'skewness_emission': r'$\mu_{3, \mathrm{em}}$',
+ 'kurtosis_emission': r'$\mu_{4, \mathrm{em}}$',
 }    
 ##
 #
@@ -144,14 +153,16 @@ history_elements = \
 }
 
 tp_parameters = {}
-for key in history_elements:
+hist_plus_derived = history_elements
+hist_plus_derived.update(derived)
+for key in hist_plus_derived:
     for tp in ['B', 'C', 'D', 'ZC']:
         if key in ['z', 'nu']:
             tp_parameters['%s_%s' % (key, tp)] = \
-                r'%s_{\mathrm{%s}}$' % (history_elements[key][0:-1], tp)
+                r'%s_{\mathrm{%s}}$' % (hist_plus_derived[key][0:-1], tp)
         else:
             tp_parameters['%s_%s' % (key, tp)] = \
-                r'%s(\nu_{\mathrm{%s}})$' % (history_elements[key][0:-1], tp)
+                r'%s(\nu_{\mathrm{%s}})$' % (hist_plus_derived[key][0:-1], tp)
 
 tanh_parameters = \
 {
