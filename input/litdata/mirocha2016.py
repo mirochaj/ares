@@ -89,6 +89,7 @@ _floor_specific = \
 'pq_faux_par1{0}[0]': 1e9,
 'pq_faux_par2{0}[0]': 0.01,
 'pq_faux_par3{0}[0]': 1e10,
+'pq_faux_par4{0}[0]': 1.,
 }
 
 floor = dpl.copy()

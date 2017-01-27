@@ -920,7 +920,7 @@ class GalaxyCohort(GalaxyAggregate):
             self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return self._sfrd_tab
-    
+            
     @property
     def LLyC_tab(self):
         """
