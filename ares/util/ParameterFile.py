@@ -464,7 +464,7 @@ class ParameterFile(dict):
         """
         Show the parameters that are not defaults.
         """
-        if not hasattr(self, '_unique'):
+        if not hasattr(self, '_not_default'):
             self._not_default = {}
             
             ptype = ProblemType(self['problem_type'])
@@ -481,16 +481,36 @@ class ParameterFile(dict):
                 # Additional population?
                 else:
                     prefix, num = pop_id_num(key)
-                    
-                    if num is None:
-                        continue
-                    
-                    if prefix in defaults and (num >= self.Npops):
+                         
+                    if prefix in defaults:
                         if self[key] != defaults[prefix]:
                             self._not_default[key] = self[key]
                 
         return self._not_default
 
+    @property    
+    def orphans(self):
+        """
+        Return dictionary of parameters that aren't associated with a population.
+        """
+        
+        if not hasattr(self, '_orphans'):
+        
+            if self.Npops == 1:
+                self._orphans = {}
+            else:
+                self._orphans = {}
+                for par in self._kwargs:
+                    if par[0:3] != 'pop':
+                        continue
+                        
+                    prefix, idnum = pop_id_num(par)
+                    
+                    if idnum is None:
+                        self._orphans[par] = self._kwargs[par]
+                
+        return self._orphans
+    
     def _check_for_conflicts(self, **kwargs):
         """
         Run through parsed parameter file looking for conflicts.

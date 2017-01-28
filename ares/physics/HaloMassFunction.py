@@ -161,6 +161,8 @@ class HaloMassFunction(object):
                     logMmax = self.pf['hmf_logMmax']
                     logMmin = self.pf['hmf_logMmin']
                     logMsize = (logMmax - logMmin) / self.pf['hmf_dlogM']
+                    # Get an extra bin so any derivatives will still be
+                    # sane at the boundary.
                     zmax = self.pf['hmf_zmax']
                     zmin = self.pf['hmf_zmin']
                     zsize = (zmax - zmin) / self.pf['hmf_dz'] + 1
@@ -334,12 +336,13 @@ class HaloMassFunction(object):
         
         self.logMmin_tab = self.pf['hmf_logMmin']
         self.logMmax_tab = self.pf['hmf_logMmax']
-        self.zmin = self.pf['hmf_zmin']
-        self.zmax = self.pf['hmf_zmax']
+        self.zmin = self.pf['hmf_zmin'] - 2*self.pf['hmf_dz']
+        self.zmax = self.pf['hmf_zmax'] + 2*self.pf['hmf_dz']
         self.dlogM = self.pf['hmf_dlogM']
         self.dz = self.pf['hmf_dz']
         
-        self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
+        # The 5 is really 1+the two "extra" bins padding the boundaries
+        self.Nz = int((self.zmax - self.zmin) / self.dz + 5)        
         self.z = np.linspace(self.zmin, self.zmax, self.Nz)
         
         self.Nm = np.logspace(self.logMmin_tab, self.logMmax_tab, self.dlogM).size
