@@ -332,19 +332,6 @@ class Global21cm(AnalyzeGlobal21cm):
             # Instance of the population that "feels" the feedback.
             pop_fb = self.pops[self.pf['feedback_LW'][0]]
             Mmin_ceil = pop_fb.halos.VirialMass(Tcut, ztmp)
-            #if self.pf['pop_Mmax{%i}' % self.pf['feedback_LW']] is not None:
-            #    Mmin_ceil = self.pf['pop_Mmax{%i}' % self.pf['feedback_LW']]
-            #elif self.pf['pop_Tmax{%i}' % self.pf['feedback_LW']] is not None:
-            #    Tmax = self.pf['pop_Tmax{%i}' % self.pf['feedback_LW']]
-            #    Mmin_ceil = pop_fb.halos.VirialMass(Tmax, ztmp)
-            #else:
-            #    Mmin_ceil = np.inf * np.ones_like(ztmp)
-
-            #Tmin = self.pf['pop_Tmin{%i}' % self.pf['feedback_LW']]
-            #if Tmin is not None:
-            #    Mmin_floor = pop_fb.halos.VirialMass(Tmin, ztmp)
-            #else:
-            #    Mmin_floor = pop_fb.halos.VirialMass(300., ztmp)
 
             # Final answer.       
             Mmin = np.minimum(_Mmin_next, Mmin_ceil)
@@ -366,6 +353,8 @@ class Global21cm(AnalyzeGlobal21cm):
             # Do it all again! Maybe.
             if not self._is_converged():    
                 self.run()
+                
+        # Add other feedback mechanisms here.        
                 
         t2 = time.time()        
                 
@@ -453,19 +442,19 @@ class Global21cm(AnalyzeGlobal21cm):
 
             # Add derived fields to data
             data_igm.update({'Ts': Ts, 'dTb': dTb, 'Ja': Ja, 'Jlw': Jlw})
-                        
+
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
-    
-    @property        
+
+    @property
     def maxiter(self):
         if not hasattr(self, '_maxiter'):
-            self._maxiter = self.pf['feedback_LW_maxiter']
+            self._maxiter = self.pf['feedback_maxiter']
         return self._maxiter
     
     @maxiter.setter
     def maxiter(self, value):
-        pre = self.pf['feedback_LW_maxiter']
+        pre = self.pf['feedback_maxiter']
         post = value
         print "Raising maxiter from %i to %i" % (pre, post)
         self._maxiter = value
@@ -507,12 +496,7 @@ class Global21cm(AnalyzeGlobal21cm):
         
         if self.count >= self.maxiter:
             return True
-            
-        # Perform set number of iterations
-        if self.pf['feedback_LW_iter'] is not None:
-            if self.count > self.pf['feedback_LW_iter']:
-                return True    
-        
+                    
         rtol = self.pf['feedback_LW_rtol']
         atol = self.pf['feedback_LW_atol']
         

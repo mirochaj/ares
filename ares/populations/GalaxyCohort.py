@@ -380,7 +380,7 @@ class GalaxyCohort(GalaxyAggregate):
         
     @SFRD.setter
     def SFRD(self, value):
-        self._SFRD = value    
+        self._SFRD = value 
     
     @property   
     def SMD(self):
@@ -920,7 +920,36 @@ class GalaxyCohort(GalaxyAggregate):
             self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return self._sfrd_tab
+        
+    def SFRD_between(self, T=[300, 1e4], M=None):
+        """
+        Compute the SFRD restricted to a given mass or virial temperature range.
+        
+        `T` and `M` must both be lists of two elements, the first element 
+        corresponding to the lower limit, and the second element the upper limit.
+        Alternatively, each element can be an array.
+        
+        """
+        sfrd = np.zeros(self.halos.Nz)
+        
+        for i, z in enumerate(self.halos.z):
             
+            if z > self.zform:
+                continue
+            
+            integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
+                * self.focc(z=z, Mh=self.halos.M)
+        
+            tot = np.trapz(integrand, x=self.halos.lnM)
+            cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
+            
+            sfrd[i] = tot - \
+                np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
+                            
+        sfrd *= g_per_msun / s_per_yr / cm_per_mpc**3
+
+        return self.halos.z, sfrd
+
     @property
     def LLyC_tab(self):
         """

@@ -17,7 +17,8 @@ from .MultiPlot import MultiPanel
 from matplotlib.patches import Patch
 
 datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
-    'parsa2016', 'finkelstein2015', 'vanderburg2010')
+    'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
+    'reddy2009', 'weisz2014')
 datasets_smf = ('song2016', )
 
 colors = ['m', 'c', 'r', 'y', 'g', 'b'] * 3
@@ -97,6 +98,7 @@ class GalaxyPopulation(object):
                         err = np.mean(err)
                         #raise NotImplemented('help!')
                         print "WARNING: log10 asymmetric errors not great!"
+                        
                     logphi_ML = src.data[quantity][z]['phi'][i]
                     
                     logphi_lo_tmp = logphi_ML - err   # log10 phi
@@ -312,9 +314,9 @@ class GalaxyPopulation(object):
             ax = mp.grid[k]
             
             if quantity == 'lf':
-                ax.set_xlim(-24, -14.)
-                ax.set_ylim(1e-7, 1e-1)
-                ax.set_xticks(np.arange(-23, -13, 2), minor=True)
+                ax.set_xlim(-24, 0.)
+                ax.set_ylim(1e-7, 1e1)
+                ax.set_xticks(np.arange(-23, -1, 2), minor=True)
                 ax.set_yscale('log', nonposy='clip')  
                 ax.set_ylabel('')
             else:

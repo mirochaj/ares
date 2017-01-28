@@ -214,16 +214,42 @@ def PhysicsParameters():
     
     "rate_source": 'fk94', # fk94, option for development here
     
-    # LW feedback parameters
+    # Feedback parameters
+    'feedback_maxiter': 10,
+    
+    # LW
     'feedback_LW': None,
     'feedback_LW_Tcut': 1e4,
-    'feedback_LW_iter': None, 
-    'feedback_LW_maxiter': 10,
+    
     'feedback_LW_rtol': 0.,
     'feedback_LW_atol': 1.,
     'feedback_LW_mean_err': False,
     'feedback_LW_Mmin_uponly': False,
     'feedback_LW_Mmin_smooth': False,
+    
+    'feedback_Z': None,
+    'feedback_Z_Tcut': 1e4,
+    'feedback_Z_rtol': 0.,
+    'feedback_Z_atol': 1.,
+    'feedback_Z_mean_err': False,
+    'feedback_Z_Mmin_uponly': False,
+    'feedback_Z_Mmin_smooth': False,
+    
+    'feedback_tau': None,
+    'feedback_tau_Tcut': 1e4,
+    'feedback_tau_rtol': 0.,
+    'feedback_tau_atol': 1.,
+    'feedback_tau_mean_err': False,
+    'feedback_tau_Mmin_uponly': False,
+    'feedback_tau_Mmin_smooth': False,
+    
+    'feedback_EoR': None,
+    'feedback_EoR_Tcut': 1e4,
+    'feedback_EoR_rtol': 0.,
+    'feedback_EoR_atol': 1.,
+    'feedback_EoR_mean_err': False,
+    'feedback_EoR_Mmin_uponly': False,
+    'feedback_EoR_Mmin_smooth': False,
 
     }
 
@@ -505,9 +531,6 @@ def PopulationParameters():
     
     "pop_tau_Nz": 400,
     
-    # Feedback! LW for now, but could be other stuff eventually (?)
-    "pop_feedback": False,
-
     # Pre-created splines
     "pop_fcoll": None,
     "pop_dfcolldz": None,
