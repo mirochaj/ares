@@ -356,8 +356,8 @@ class MultiPhaseMedium(object):
             
         tau[self.history_asc['z'] > 100] = 0.0 
             
-        self.history_asc['tau_CMB'] = tau
-        self.history['tau_CMB'] = tau[-1::-1]
+        self.history_asc['tau_e'] = tau
+        self.history['tau_e'] = tau[-1::-1]
         
         if self.history_asc['z'][0] < z_HeII_EoR:
             raise ValueError('Simulation ran past assumed HeII EoR! See z_HeII_EoR parameter.')
@@ -373,17 +373,17 @@ class MultiPhaseMedium(object):
         self.history_asc['z_CMB'] = np.concatenate((zlo, self.history_asc['z']))
         self.history['z_CMB'] = self.history_asc['z_CMB'][-1::-1]
                 
-        self.history_asc['tau_CMB_tot'] = np.concatenate((tlo, tau_tot))
-        self.history['tau_CMB_tot'] = tau_tot[-1::-1]
+        self.history_asc['tau_e_tot'] = np.concatenate((tlo, tau_tot))
+        self.history['tau_e_tot'] = tau_tot[-1::-1]
                 
     @property
     def tau_e(self):
         if not hasattr(self, '_tau_e'):
-            if 'tau_CMB_tot' not in self.history:
+            if 'tau_e_tot' not in self.history:
                 self.tau_CMB()
                 
             z50 = np.argmin(np.abs(self.history['z_CMB'] - 50))
-            self._tau_e = self.history['tau_CMB_tot'][z50]
+            self._tau_e = self.history['tau_e_tot'][z50]
         
         return self._tau_e           
         
@@ -777,10 +777,10 @@ class MultiPhaseMedium(object):
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
                 
-        if 'tau_CMB' not in self.history:
+        if 'tau_e' not in self.history:
             self.tau_CMB(include_He=include_He, z_HeII_EoR=z_HeII_EoR)
 
-        ax.plot(self.history_asc['z_CMB'], self.history_asc['tau_CMB_tot'], **kwargs)
+        ax.plot(self.history_asc['z_CMB'], self.history_asc['tau_e_tot'], **kwargs)
 
         ax.set_xlim(0, 20)
 
