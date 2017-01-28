@@ -188,7 +188,7 @@ By default, *ares* will assume a constant :math:`\beta=-2`. However, in general 
 
 
 
-Multiple Parameterized Halo Properties (PHPs)
+Multiple Parameterized Quantities (PQs)
 ---------------------------------------------
 In general, we can use the same approach outlined above to parameterize other quantities as a function of halo mass and/or redshift. For example, we can use a double power-law SFE model and set the escape fraction to be a step function in halo mass:
 
@@ -214,7 +214,7 @@ In general, we can use the same approach outlined above to parameterize other qu
 
     }
     
-Note that here we gave ID numbers for each PHP in square brackets, and attached the same string to each parameter specific to that quantity. To check the result:
+Note that here we gave ID numbers for each PQ in square brackets, and attached the same string to each parameter specific to that quantity. To check the result:
     
 ::
 
@@ -225,14 +225,12 @@ Note that here we gave ID numbers for each PHP in square brackets, and attached 
     pl.loglog(Mh, pop.SFE(4, Mh))
     pl.loglog(Mh, pop.fesc(4, Mh))
 
-Currently, the following parameters are supported by the PHP protocol:
+Currently, the following parameters are supported by the PQ protocol:
 
 * ``pop_fstar``
 * ``pop_fesc``
 
 
-
-.. UPDATE Are PHPs numbered on a population-by-population basis?
 
 
 

@@ -6,8 +6,6 @@ Here's an attempt to keep track of major changes to the code over time, which wi
 
 v0.3
 ----
-Not tagged yet, but a running list of updates:
-
 - Updated to work with `hmf <http://hmf.readthedocs.org/en/latest/>`_ version 2.0.1.
 - Bug fix in :math:`S_{\alpha}` calculation for Furlanetto & Pritchard (2006): sign error in higher order terms.
 - Generalized *HaloProperty* objects from version 0.2 to allow dependence on any number of arbitrary quantities. Now called *ParameterizedQuantity* object.
