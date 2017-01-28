@@ -15,7 +15,7 @@ import numpy as np
 from ..util.Math import LinearNDInterpolator
 from scipy.interpolate import interp1d, RectBivariateSpline
         
-spline_err = "interp_method == cubic and there are infs in our table!"
+spline_err = "interp_tab == cubic and there are infs in our table!"
 spline_err += "\nSpline interpolation is global, so any infs will render *all*"
 spline_err += "\ninterpolated values NaN. Try linear interpolation, or narrow"
 spline_err += "\nbounds of interpolation table."
@@ -116,7 +116,7 @@ class LookupTable:
     def _init(self):
         """ Create interpolation table. """
 
-        if self.pf['interp_method'] == 'cubic' and self.D <= 2 and \
+        if self.pf['interp_tab'] == 'cubic' and self.D <= 2 and \
             not np.all(np.isfinite(self.table)):
             raise ValueError(err_msg(self.basename))
         
@@ -124,7 +124,7 @@ class LookupTable:
         if self.D == 1:
             self.interp = \
                 interp1d(self.logN[0], self.table, 
-                    kind=self.pf['interp_method'])
+                    kind=self.pf['interp_tab'])
         elif self.D == 2:
             
             if self.adv_secondary_ionization:

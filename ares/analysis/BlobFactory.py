@@ -16,7 +16,7 @@ import glob
 import numpy as np
 from inspect import ismethod
 from types import FunctionType
-from scipy.interpolate import RectBivariateSpline
+from scipy.interpolate import RectBivariateSpline, interp1d
 
 try:
     import dill as pickle
@@ -69,9 +69,8 @@ def parse_attribute(blob_name, obj_base):
         ares.simulation class.
         
     """
-    
+        
     # Check for decimals
-    
     decimals = []
     for i in range(1, len(blob_name) - 1):
         if blob_name[i-1].isdigit() and blob_name[i] == '.' \
@@ -165,18 +164,18 @@ class BlobFactory(object):
                 if self._blob_ivars[i] is None:
                     self._blob_nd.append(0)
                     self._blob_dims.append(0)
-                    
+
                     if self.pf['blob_funcs'] is None:
                         self._blob_funcs.append([None] * len(element))
                     elif self.pf['blob_funcs'][i] is None:
                         self._blob_funcs.append([None] * len(element))
                     else:
                         self._blob_funcs.append(self.pf['blob_funcs'][i])
-                        
+
                     continue
                 # Everything else
                 else:
-                    
+
                     # Be careful with 1-D
                     if type(self._blob_ivars[i]) is np.ndarray:
                         lenarr = len(self._blob_ivars[i].shape)
@@ -241,6 +240,9 @@ class BlobFactory(object):
             for i in range(self.blob_groups):
                 self._all_blob_names.extend(self.blob_names[i])    
         
+            if len(set(self._all_blob_names)) != len(self._all_blob_names):
+                raise ValueError('Blobs must be unique!')
+        
         return self._all_blob_names
         
     @property
@@ -288,11 +290,27 @@ class BlobFactory(object):
             if not self.blob_names:
                 self._blobs = []
             else:
-                self._generate_blobs()
-
+                try:
+                    self._generate_blobs()
+                except AttributeError:
+                    f = open('%s.blobs.pkl' % self.prefix, 'r')
+                    self._blobs = pickle.load(f)
+                    f.close()
+                    
         return self._blobs
-
-    def get_blob(self, name, ivar=None):
+        
+    def get_ivars(self, name):
+        for i in range(self.blob_groups):
+            for j, blob in enumerate(self.blob_names[i]):
+                if blob == name:
+                    break
+            
+            if blob == name:
+                break
+                
+        return self.blob_ivars[i]
+                
+    def get_blob(self, name, ivar=None, tol=1e-2):
         """
         This is meant to recover a blob from a single simulation, i.e.,
         NOT a whole slew of them from an MCMC.
@@ -301,24 +319,31 @@ class BlobFactory(object):
             for j, blob in enumerate(self.blob_names[i]):
                 if blob == name:
                     break
-            
+
             if blob == name:
                 break        
 
-        if self.blob_nd[i] > 0 and (ivar is None):
-            raise ValueError('Must provide ivar!')
-        elif self.blob_nd[i] == 0:
+        if self.blob_nd[i] == 0:
             return float(self.blobs[i][j])
         elif self.blob_nd[i] == 1:
-            
-            if len(self.blob_ivars[i]) == 1:
+            if ivar is None:
+                try:
+                    return self.blobs[i][j]
+                except:
+                    return self.blobs[i]
+            elif len(self.blob_ivars[i]) == 1:
                 iv = self.blob_ivars[i][0]
             else:
-                iv = self.blob_ivars[i]     
-            
-            assert ivar in iv
-            k = list(iv).index(ivar)
+                iv = self.blob_ivars[i]
 
+            # This is subject to rounding errors
+            if ivar in iv:
+                k = list(iv).index(ivar)
+            elif np.any(np.abs(iv - ivar) < tol):
+                k = np.argmin(np.abs(iv - ivar))
+            else:
+                raise IndexError("ivar=%.2g not in listed ivars!" % ivar)
+            
             return float(self.blobs[i][j][k])
 
         elif self.blob_nd[i] == 2:
@@ -356,10 +381,10 @@ class BlobFactory(object):
         
         self._blobs = []
         for i, element in enumerate(self.blob_names):
-                        
+                                    
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                     
+                                                                                                                                                                                                                                            
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -376,33 +401,41 @@ class BlobFactory(object):
                 # unless a function is provided
                 elif self.blob_nd[i] == 1:
                     x = np.array(self.blob_ivars[i]).squeeze()
-                    if (self.blob_funcs[i][j] is None) and (key in self.history):
+                    if (self.blob_funcs[i][j] is None) and (key in self.history):                        
                         blob = np.interp(x, self.history['z'][-1::-1],
                             self.history[key][-1::-1])
                     elif self.blob_funcs[i][j] is None:
                         raise KeyError('Blob %s not in history!' % key)
                     else:
                         fname = self.blob_funcs[i][j]
-                        func = parse_attribute(fname, self)
-                                                
-                        if ismethod(func):
+                        
+                        if type(fname) is str:
+                            func = parse_attribute(fname, self)
+                        else:
+                            # fname is a slice
+                            _xx = self.history['z'][-1::-1]
+                            _yy = self.history[fname[0]][-1::-1,fname[1]]
+                            func = (_xx, _yy)
+                            
+                        if ismethod(func) or isinstance(func, interp1d):
                             blob = np.array(map(func, x))
                         else:
                             blob = np.interp(x, func[0], func[1])
+                                                                
                 else:
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]
                     tmp_f = parse_attribute(fname, self)
-
+                    
                     xarr, yarr = map(np.array, self.blob_ivars[i])
-
-                    if type(tmp_f) is FunctionType:
+                    
+                    if (type(tmp_f) is FunctionType) or ismethod(tmp_f):
                         func = tmp_f
                     elif type(tmp_f) is tuple:
                         z, E, flux = tmp_f
                         func = RectBivariateSpline(z, E, flux)
                     else:
-                        raise TypeError('Sorry: don\'t understand blob %s' % name)
+                        raise TypeError('Sorry: don\'t understand blob %s' % key)
                     
                     blob = []
                     for x in xarr:
@@ -411,7 +444,7 @@ class BlobFactory(object):
                             tmp.append(func(x, y))
 
                         blob.append(tmp)
-                        
+                                                
                 this_group.append(np.array(blob))
 
             self._blobs.append(np.array(this_group))
@@ -468,7 +501,7 @@ class BlobFactory(object):
         if not os.path.exists(fn):
             
             # First, look for processor-by-processor outputs
-            fn = "%s.proc0000.blob_%id.%s.pkl" % (self.prefix, nd, name)
+            fn = "%s.000.blob_%id.%s.pkl" % (self.prefix, nd, name)
             if os.path.exists(fn):
                 by_proc = True        
                 by_dd = False
@@ -489,9 +522,7 @@ class BlobFactory(object):
                         tmp = "%s.dd%s.blob_%id.%s.pkl" \
                             % (self.prefix, ddid, nd, name)
                         ddf.append(tmp)
-                
-                print ddf
-                
+                                
                 # Start with the first...
                 fn = ddf[0]        
         
@@ -526,8 +557,8 @@ class BlobFactory(object):
             fid += 1
             
             if by_proc:
-                fn = "%s.proc%s.blob_%id.%s.pkl" \
-                    % (self.prefix, str(fid).zfill(4), nd, name)
+                fn = "%s.%s.blob_%id.%s.pkl" \
+                    % (self.prefix, str(fid).zfill(3), nd, name)
             else:
                 if (fid >= len(ddf)):
                     break

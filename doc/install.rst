@@ -40,7 +40,10 @@ This might take a few minutes. If something goes wrong with the download, you ca
 
     python remote.py fresh
     
-to get fresh copies of everything.
+to get fresh copies of everything. If you're concerned that a download may have been interrupted and/or the file appears to be corrupted (strange I/O errors may indicate this), you can also just download fresh copies of the particular file you want to replace. For example, to grab a fresh initial conditions file, simply do ::
+
+    python remote.py fresh inits
+    
 
 *ares* branches
 ---------------

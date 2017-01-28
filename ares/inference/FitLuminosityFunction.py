@@ -163,33 +163,36 @@ class loglikelihood(LogLikelihood):
                 continue
 
             break
-
+                                    
         # Compute the luminosity function, goodness of fit, return
         phi = []
         for i, z in enumerate(self.redshifts):
             xdat = np.array(self.xdata[i])
-
-            # Apply dust correction to observed data, which is uncorrected
-            M = xdat - pop.AUV(z, xdat) 
+        
+            # Dust correction for observed galaxies
+            AUV = pop.dust.AUV(z, xdat)
             
+            # Compare data to model at dust-corrected magnitudes
+            M = xdat - AUV
+
             # Generate model LF
             p = pop.LuminosityFunction(z=z, x=M, mags=True)
-            phi.extend(p)           
-                
+            phi.append(p)
+            
         lnL = 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
         PofD = self.const_term - lnL
-                    
+
         if np.isnan(PofD):
             return -np.inf, self.blank_blob
 
-        try:
-            blobs = sim.blobs
-        except:
-            blobs = self.blank_blob    
-
+        #try:
+        blobs = sim.blobs
+        #except:
+        #    blobs = self.blank_blob   
+            
         del sim, kw
         gc.collect()
-
+        
         return lp + PofD, blobs
     
 class FitLuminosityFunction(FitGlobal21cm):
@@ -264,14 +267,14 @@ class FitLuminosityFunction(FitGlobal21cm):
                     assert 'pop_psm_instance' not in self.base_kwargs
                     self.base_kwargs['pop_psm_instance{%i}' % popid] = psm
 
-            self._loglikelihood = loglikelihood(self.xdata, 
+            self._loglikelihood = loglikelihood(self.xdata_flat, 
                 self.ydata_flat, self.error_flat, 
                 self.parameters, self.is_log, self.base_kwargs, 
                 self.prior_set_P, self.prior_set_B, 
                 self.prefix, self.blob_info, self.checkpoint_by_proc)   
             
             self._loglikelihood.runsim = self.runsim
-            self._loglikelihood.redshifts = self.redshifts
+            self._loglikelihood.redshifts = self.redshifts_flat
 
             self.info
 
@@ -288,20 +291,13 @@ class FitLuminosityFunction(FitGlobal21cm):
     def redshifts(self, value):
         # This can be used to override the redshifts in the dataset and only
         # use some subset of them
-        if not hasattr(self, '_redshifts'):
-            raise NotImplemented('you should have already set the redshifts')
+        if hasattr(self, '_redshifts'):
+            return self._redshifts
             
         if type(value) in [int, float]:
             value = [value]
             
-        tmp1 = copy.deepcopy(self._redshifts)
-        tmp2 = []
-        for redshift in value:
-            if redshift not in tmp1:
-                raise ValueError('Redshift %g not in this dataset!')        
-            tmp2.append(redshift)
-
-        self._redshifts = tmp2    
+        self._redshifts = value    
 
     @property
     def data(self):
@@ -313,8 +309,43 @@ class FitLuminosityFunction(FitGlobal21cm):
     def data(self, value):
         if type(value) == str:
             litdata = read_lit(value)
-            self._data = litdata.data['lf']
-            self._redshifts = litdata.redshifts
+            
+            if hasattr(self, '_redshifts'):
+                self._data = []
+                for z in self._redshifts:
+                    if z not in litdata.redshifts:
+                        continue
+                    self._data.append({z:litdata.data['lf'][z]})
+                    
+            else:
+                self._data = [litdata.data['lf']]
+                self._redshifts = [litdata.redshifts]
+                
+        elif type(value) in [list, tuple]:
+            self._data = []
+            
+            z_by_hand = True
+            if not hasattr(self, '_redshifts'):
+                z_by_hand = False
+                self._redshifts = []
+                
+            for src in value:
+                litdata = read_lit(src)
+                
+                if z_by_hand:
+                    for z in self._redshifts:
+                        if z not in litdata.redshifts:
+                            continue
+                        self._data.append({z:litdata.data['lf'][z]})
+                else:    
+                    self._data.append(litdata.data['lf'])
+                    self._redshifts.append(litdata.redshifts)
+                # Save wavelength too?
+                
+        elif type(value) is dict:
+            # Assume each element is a dataset:redshift pair
+            raise NotImplemented('help!')
+            
         else:
             raise NotImplemented('help!')
                                         
@@ -324,20 +355,26 @@ class FitLuminosityFunction(FitGlobal21cm):
             self._mask = []
             self._xdata_flat = []; self._ydata_flat = []
             self._error_flat = []; self._redshifts_flat = []
-            for i, redshift in enumerate(self.redshifts):
-                self._mask.extend(self.data[redshift]['M'].mask)
-                self._xdata_flat.extend(self.data[redshift]['M'])
-                self._ydata_flat.extend(self.data[redshift]['phi'])
-                
-                # Cludge for asymmetric errors
-                for j, err in enumerate(self.data[redshift]['err']):
-                    if type(err) in [tuple, list]:
-                        self._error_flat.append(np.mean(err))
+            
+            for i, dataset in enumerate(self.redshifts):
+                for j, redshift in enumerate(self.data[i]):
+                    if hasattr(self.data[i][redshift]['M'], 'mask'):
+                        self._mask.extend(self.data[i][redshift]['M'].mask)
                     else:
-                        self._error_flat.append(err)
-                
-                zlist = [redshift] * len(self.data[redshift]['M'])
-                self._redshifts_flat.extend(zlist)
+                        self._mask.extend(np.zeros_like(self.data[i][redshift]['M']))
+                        
+                    self._xdata_flat.extend(self.data[i][redshift]['M'])
+                    self._ydata_flat.extend(self.data[i][redshift]['phi'])
+
+                    # Cludge for asymmetric errors
+                    for k, err in enumerate(self.data[i][redshift]['err']):
+                        if type(err) in [tuple, list]:
+                            self._error_flat.append(np.mean(err))
+                        else:
+                            self._error_flat.append(err)
+                    
+                    zlist = [redshift] * len(self.data[i][redshift]['M'])
+                    self._redshifts_flat.extend(zlist)
                 
             self._xdata_flat = np.ma.array(self._xdata_flat, mask=self._mask)
             self._ydata_flat = np.ma.array(self._ydata_flat, mask=self._mask)
@@ -371,10 +408,11 @@ class FitLuminosityFunction(FitGlobal21cm):
         if not hasattr(self, '_xdata'):
             if hasattr(self, '_data'):
                 self._xdata = []; self._ydata = []; self._error = []
-                for i, redshift in enumerate(self.redshifts):
-                    self._xdata.append(self.data[redshift]['M'])
-                    self._ydata.append(self.data[redshift]['phi'])
-                    self._error.append(self.data[redshift]['err'])
+                for i, dataset in enumerate(self.redshifts):
+                    for j, redshift in enumerate(self.data[i]):
+                        self._xdata.append(self.data[i][redshift]['M'])
+                        self._ydata.append(self.data[i][redshift]['phi'])
+                        self._error.append(self.data[i][redshift]['err'])
                     
         return self._xdata
         

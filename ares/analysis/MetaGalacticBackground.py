@@ -10,21 +10,134 @@ Description:
 
 """
 
+import pickle
 import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl
 from scipy.integrate import trapz
-from ..simulations import MetaGalacticBackground as MGB
+from ..util.ReadData import flatten_energies
 from ..physics.Constants import erg_per_ev, J21_num, h_P, c, E_LL, E_LyA
 
-class MetaGalacticBackground:
-    def __init__(self, data=None):
+class MetaGalacticBackground(object):
+    def __init__(self, data=None, **kwargs):
+        """
+        Initialize analysis object.
         
-        if isinstance(data, MGB):
-            self.mgb = data
-        else:
-            raise NotImplemented('Dunno how to handle anything but an MGB instance.')
+        Parameters
+        ----------
+        data : dict, str
+            Either a dictionary containing the entire history or the prefix
+            of the files containing the history/parameters.
+
+        """
+
+        if data is None:
+            return
+        elif type(data) == dict:
+            self.pf = SetAllDefaults()
+            self.history = data.copy()
+        elif type(data) is str:
+            self.prefix = data
+            
+        self.kwargs = kwargs 
+        
+    @property
+    def fluxes(self):
+        if not hasattr(self, '_fluxes'):
+            self._redshifts_fl, self._energies_fl, self._fluxes = \
+                self._load_data('%s.fluxes.pkl' % self.prefix)
+        return self._redshifts_fl, self._energies_fl, self._fluxes           
     
+    @property
+    def emissivities(self):
+        if not hasattr(self, '_emissivities'):
+            self._redshifts_em, self._energies_em, self._emissivities = \
+                self._load_data('%s.emissivities.pkl' % self.prefix)
+                                
+        return self._redshifts_em, self._energies_em, self._emissivities
+        
+    def flat_flux(self, popid=0):
+        return self._flatten_data(popid)
+    
+    def flat_emissivity(self, popid=0):
+        return self._flatten_data(popid, True)
+        
+    def _flatten_data(self, popid=0, emissivity=False):
+        """
+        Re-organize background fluxes to a more easily-analyzable shape.
+        
+        Parameters
+        ----------
+        popid : int
+            Population ID number.
+        emissivity : bool
+            If True, return emissivities. If False, return fluxes.
+        """
+            
+        if not emissivity:
+            z, E, data = self.fluxes
+            Eflat = flatten_energies(E[popid])
+            
+            return z[popid], Eflat, data[popid]    
+            
+        _z, _E, _data = self.emissivities
+        E = _E[popid]
+        z = _z[popid]
+        Eflat = flatten_energies(E)
+        flat = np.zeros([z.size, Eflat.size])
+        data = _data[popid]
+
+        k1 = 0
+        k2 = 0
+
+        # Each population's spectrum is broken down into bands, which are 
+        # defined by their relation to ionization thresholds and Ly-n series'
+        for i, band in enumerate(E):
+                        
+            # OK, a few things can happen next. 
+            # 1. Easy case: a contiguous chunk of spectrum, meaning there
+            # are no sawtooth sections or any such thing.
+            # 2. Hard case: a chunk of spectrum sub-divided into many 
+            # sub-chunks, which will in general not be the same shape.
+            
+            if type(data[i]) is list:
+                
+                # Create a flattened array
+                for j, element in enumerate(band):
+                    len_el = len(element)
+                    k2 += len_el
+                    flat[:,k1:k2] = data[i][j]
+                    k1 += len_el
+                
+            else:
+                len_band = len(band)
+                k2 += len_band
+                flat[:,k1:k2] = data[i]
+                k1 += len_band
+                    
+        # Why do I keep fluxes and emissivities in different units?
+        # I'd hope there is a decent reason...
+        flat /= (Eflat * erg_per_ev)
+                    
+        return z, Eflat, flat
+                
+    def _load_data(self, fn):
+        f = open(fn, 'rb')
+        redshifts, energies, data = pickle.load(f)
+        f.close()
+        
+        try:            
+            f = open('%s.parameters.pkl' % self.prefix, 'rb')
+            self.pf = pickle.load(f)
+            f.close()        
+
+        # The import error is really meant to catch pickling errors
+        except (AttributeError, ImportError):
+            self.pf = {"final_redshift": 5., "initial_redshift": 100.}
+            print 'Error loading %s.parameters.pkl.' % data
+
+        return redshifts, energies, data
+        
     def _obs_xrb(self, fit='moretti2012'): 
         """
         Operations on the best fit to the CXRB from Moretti et al. 2009 from 2keV-2MeV.
@@ -140,41 +253,33 @@ class MetaGalacticBackground:
                 + (E / (self.EB + EBerr))**(self.Gamma2 + Gamma2err))
                  
             return flux * erg_per_ev # erg / s / cm^2 / deg^2
-            
+
     def IntegratedFlux(self, Emin=2e3, Emax=1e4, Nbins=1e3, perturb=False):
         """
         Integrated flux in [Emin, Emax] (eV) band.
         """        
-        
+
         E = np.logspace(np.log10(Emin), np.log10(Emax), Nbins) 
         F = self.ResolvedFlux(E, perturb=perturb) / E
-        
+
         return trapz(F, E)  # erg / s / cm^2 / deg^2
-   
-    def Plot(self, color = 'k'):
-        """
-        Plot measured CXRB nicely. 
-        """
-        
-        self.ax = pl.subplot(111)
-        self.ax.loglog(self.E, self.MeasuredFlux(), color = color)
-        self.ax.set_xlabel(r'Energy (eV)')
-        self.ax.set_ylabel(r'Flux Density $(\mathrm{erg / s / cm^2 / deg^2})$')
-        self.ax.set_xscale('log')
-        self.ax.set_yscale('log')        
-        pl.draw()
+
+    def PlotIntegratedFlux(self, E, **kwargs):        
+        return self.PlotSpectrum(E, vs_redshift=True, **kwargs)
     
-    @property
-    def history(self):
-        if not hasattr(self, '_history'):
-            self._history = self.mgb.get_history(flatten=True)
-        
-        return self._history
-        
-    def PlotBackground(self, z=None, ax=None, fig=1, xaxis='energy', 
-        overplot_edges=True, units='J21', **kwargs):
+    def PlotMonochromaticFlux(self, E, **kwargs):        
+        return self.PlotSpectrum(E, vs_redshift=True, **kwargs)
+
+    def PlotSpectrum(self, x, vs_redshift=False, ax=None, fig=1, xaxis='energy', 
+        overplot_edges=False, band=None, units='J21', popid=0, 
+        emissivity=False, **kwargs):
         """
         Plot meta-galactic background intensity at a single redshift.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest
         
         """
         
@@ -186,31 +291,49 @@ class MetaGalacticBackground:
             gotax = True
             
         # Read in the history
-        zarr, Earr, flux = self.history
+        zarr, Earr, flux = self._flatten_data(popid=popid, 
+            emissivity=emissivity)
         
-        if z is None:
-            i_z = -1
-        else:
-            if z < zarr.min():
-                raise ValueError("Requested z lies below provied range.")
-                
-            i_z = np.argmin(np.abs(z - zarr))
-            
-        f = flux[i_z] * Earr * erg_per_ev
+        if vs_redshift:
+            if x is None:
+                i_z = -1
+            else:
+                if (x < Earr.min()) or (x > Earr.max()):
+                    raise ValueError("Requested E lies below provied range.")
+                    
+                i_z = np.argmin(np.abs(x - Earr))
+    
+            # Convert units (native unit is photons, not energy)    
+            f = flux[:,i_z] * Earr[i_z] * erg_per_ev
+        else:    
+            if x is None:
+                i_z = -1
+            else:
+                if x < zarr.min():
+                    raise ValueError("Requested z lies below provied range.")
+                    
+                i_z = np.argmin(np.abs(x - zarr))
+    
+            # Convert units (native unit is photons, not energy)    
+            f = flux[i_z] * Earr * erg_per_ev
         
         if units.lower() == 'j21':
             f /= 1e-21
         elif units.lower() == 'nuFnu':
             f *= Earr * erg_per_ev * ev_per_hz / 1e3
-            
-        if xaxis == 'energy':
-            x = Earr
+           
+        if vs_redshift:
+            xarr = zarr 
+        elif xaxis == 'energy':
+            xarr = Earr
         else:
-            x = h_P * c * 1e8 / (Earr * erg_per_ev)
+            xarr = h_P * c * 1e8 / (Earr * erg_per_ev)
             
-        ax.loglog(x, f, **kwargs)
+        ax.plot(xarr, f, **kwargs)
         
-        if xaxis == 'energy' and not gotax:
+        if vs_redshift:
+            ax.set_xlabel(labels['z'])
+        elif xaxis == 'energy' and not gotax:
             ax.set_xlabel(labels['E'])
         elif not gotax:
             ax.set_xlabel(labels['lambda_AA'])
@@ -314,4 +437,5 @@ class MetaGalacticBackground:
     
         return ax_nrg    
     
+
     

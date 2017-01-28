@@ -8,6 +8,8 @@ import numpy as np
 
 redshifts = [7.]
 
+wavelength = 1500.
+
 fits = {}
 
 fits['lf'] = {}

@@ -113,8 +113,7 @@ def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok, ztab):
     
     print line("zmin (pf)   : %g" % igm.pf['final_redshift'])
     print line("zmin (%s)  : %g" % (which, ztab.min()))
-    print line("zmax (pf)   : %g" % \
-        (min(igm.pf['first_light_redshift'], igm.pf['initial_redshift'])))
+    print line("zmax (pf)   : %g" % igm.pf['pop_zform'])
     print line("zmax (%s)  : %g" % (which, ztab.max()))
 
     if not zmin_ok:

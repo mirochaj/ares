@@ -22,26 +22,26 @@ class GasParcel(object):
         """
         Initialize a GasParcel object.
         """
-        
+
         self.pf = ParameterFile(**kwargs)
-        
+
         self.grid = \
         Grid(
             grid_cells=self.pf['grid_cells'], 
             length_units=self.pf['length_units'], 
             start_radius=self.pf['start_radius'],
-            approx_Salpha=self.pf['approx_Salpha'], 
+            approx_Salpha=self.pf['approx_Salpha'],
             logarithmic_grid=self.pf['logarithmic_grid'],
             cosmological_ics=self.pf['cosmological_ics'],
             )
-            
+
         # Set all properties in one go
         self.grid.set_properties(**self.pf)
         self.grid.create_slab(**self.pf)
-        
+
         # Set (optional) additional stuff like radiation field, chemistry, etc.
         self._set_chemistry()
-            
+
         # For regulating time/redshift steps
         self.checkpoints = CheckPoints(pf=self.pf, 
             grid=self.grid,

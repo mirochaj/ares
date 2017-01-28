@@ -281,7 +281,7 @@ class MultiPanel(object):
                 col, row = self.axis_position(element)
                 self._rows[row].append(element)
     
-        return self._rows        
+        return self._rows
         
     def axis_position(self, i):
         """
@@ -717,15 +717,74 @@ class MultiPanel(object):
 
         pl.draw()          
     
+    def set_ticks(self, ticks, column=None, row=None, minor=False, 
+        round_two=False, oned=True):
+        """
+        Replace ticks and labels for an entire column or row all at once.
+        
+        If operating on a column, ticks are assumed to be for x axes.
+        If operating on a row, ticks are assumed to be for y axes.
+        
+        """
+        
+        assert (column is not None) or (row is not None), \
+            "Must supply column or row number!"
+        assert not ((column is not None) and (row is not None)), \
+            "Must supply column *or* row number!"
+        
+        # Could do this more compactly but who cares.
+        if column is not None:
+            elements = self.elements_by_column
+            for j, panel_set in enumerate(elements):
+                for k, panel in enumerate(panel_set):
+                    if j != column:
+                        continue
+                        
+                    self.grid[panel].set_xticks(ticks, minor=minor)
+                    if (not minor):
+                        self.grid[panel].set_xticklabels(map(str, ticks))
+                        
+            # Just apply to relevant rows, too.
+            if not round_two:
+                if (column > 0) or oned:
+                    self.set_ticks(ticks, row=self.nrows-column-1*oned, minor=minor, 
+                        round_two=True, oned=oned)
+        else:
+            elements = self.elements_by_row
+            for j, panel_set in enumerate(elements):
+                for k, panel in enumerate(panel_set):
+                    if j != row:
+                        continue
+                        
+                    if (panel in self.diag) and oned:
+                        continue
+            
+                    self.grid[panel].set_yticks(ticks, minor=minor)
+                    if (not minor):
+                        self.grid[panel].set_yticklabels(map(str, ticks))
+             
+            if not round_two:
+                if (row > 0) or oned:
+                    self.set_ticks(ticks, column=self.nrows-row-1*oned, minor=minor, 
+                        round_two=True, oned=oned)
+                               
+        pl.draw()
+        
     def global_xlabel(self, label, xy=(0.5, 0.025), size='x-large'):
         """ Set shared xlabel. """        
+        
+        for i in self.bottom:
+            self.grid[i].set_xlabel(r'')
         
         self.fig.text(xy[0], xy[1], label, 
             ha='center', va='center', size=size)
             
     def global_ylabel(self, label, xy=(0.025, 0.5), size='x-large'):
         """ Set shared ylabel. """        
-        
+                        
+        for i in self.left:
+            self.grid[i].set_ylabel(r'')
+                        
         self.fig.text(xy[0], xy[1], label, 
             ha='center', va='center', rotation='vertical', size=size)
     

@@ -304,7 +304,8 @@ class GlobalVolume(object):
                     continue
                             
                 need_tab = self.pops[i].is_xray_src \
-                    and np.any(np.array(band) > E_LL)
+                    and np.any(np.array(band) > E_LL) \
+                    and self.background.solve_rte[i][j]
                                                                     
                 if (not self.background.solve_rte[i][j]) or \
                    (not need_tab):
@@ -733,7 +734,7 @@ class GlobalVolume(object):
                 
         pop = self.pops[popid]
                                 
-        if not pop.pf['pop_heat_src_igm'] or (z >= pop.zform):
+        if (not pop.is_heat_src_igm) or (z >= pop.zform):
             return 0.0    
             
         if pop.pf['pop_heat_rate'] is not None:
@@ -744,8 +745,8 @@ class GlobalVolume(object):
         
         species_str = species_i_to_str[species]
 
-        if pop.pf['pop_k_heat_igm'] is not None:
-            return pop.pf['pop_k_heat_igm'](z)
+        if pop.pf['pop_heat_rate'] is not None:
+            return pop.pf['pop_heat_rate'](z)
             
         if band is not None:
             solve_rte = self.background.solve_rte[popid][band]
@@ -912,21 +913,21 @@ class GlobalVolume(object):
         else:
             b = [13.6, 24.6]
         
-        if (not pop.pf['pop_ion_src_cgm']) or (z > pop.zform):
+        if (not pop.is_ion_src_cgm) or (z > pop.zform):
             return 0.0
             
         # Need some guidance from 1-D calculations to do this
         if species > 0:
             return 0.0
 
-        if pop.pf['pop_ion_rate'] is not None:
+        if pop.pf['pop_ion_rate_cgm'] is not None:
             return pop.IonizationRateCGM(z)    
 
         kw = defkwargs.copy()
         kw.update(kwargs)
 
-        if pop.pf['pop_k_ion_cgm'] is not None:
-            return self.pf['pop_k_ion_cgm'](z)
+        #if pop.pf['pop_ion_rate_cgm'] is not None:
+        #    return self.pf['pop_k_ion_cgm'](z)
 
         if kw['return_rc']:
             weight = self.rate_to_coefficient(z, species, **kw)
@@ -959,7 +960,7 @@ class GlobalVolume(object):
         pop = self.pops[popid]
 
         # z between zform, zdead? must be careful for BHs
-        if (not pop.pf['pop_ion_src_igm']) or (z > pop.zform):
+        if (not pop.is_ion_src_igm) or (z > pop.zform):
             return 0.0
 
         # Grab defaults, do some patches if need be
@@ -967,8 +968,8 @@ class GlobalVolume(object):
         
         species_str = species_i_to_str[species]
 
-        if pop.pf['pop_k_ion_igm'] is not None:
-            return pop.pf['pop_k_ion_igm'](z)
+        if pop.pf['pop_ion_rate_igm'] is not None:
+            return pop.IonizationRateIGM(z)
 
         if band is not None:
             solve_rte = self.background.solve_rte[popid][band]

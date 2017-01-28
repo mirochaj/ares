@@ -59,9 +59,15 @@ class TurningPoints(object):
         if negative and concave_up and (max(z) > 60 and 'B' not in self.TPs):
             return 'A'
         elif negative and concave_down and ('B' not in self.TPs):
-            return 'B'
+            # If WF coupling happens early enough there will not be a 
+            # turning point A or B, and thus we're probably looking at the
+            # end of EoR "turning point" if C has already been found.
+            if 'C' in self.TPs:
+                return 'E'
+            else:
+                return 'B'
         elif negative and concave_up and ('C' not in self.TPs) \
-            and (max(z) < 60 or 'B' in self.TPs):
+            and (('A' in self.TPs) or (max(z) < 60) or ('B' in self.TPs)):
             return 'C'
         elif positive and concave_down and ('D' not in self.TPs):
             return 'D'
@@ -85,6 +91,11 @@ class TurningPoints(object):
         # Also: need at least 3 points to check for a turning point
         if self.step < 3 or (z[-1] > 1e3):
             self._step += 1
+            return False
+            
+        # Sometimes get discontinuities when RT gets flipped on.
+        # This is kludgey...sorry.
+        if min(z) > (self.pf['initial_redshift'] - self.pf['delay_tracking']):
             return False
 
         self._step += 1
@@ -150,8 +161,8 @@ class TurningPoints(object):
             #    self.guess_from_signal(TP, z[k:-1], dTb[k:-1])
                                                                                                          
             # Spline interpolation to get "final" extremum redshift
-            for k in [3, 2]:
-                Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=k)
+            for ll in [3, 2]:
+                Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=ll)
                     
                 if TP in ['B', 'D']:
                     dTb_fit = lambda zz: -splev(zz, Bspl_fit1)
@@ -163,11 +174,11 @@ class TurningPoints(object):
                 
                 if TP in ['B', 'D']:
                     TTP *= -1.
-
+                    
                 # Contingencies....
                 if self.is_crazy(TP, zTP, TTP):    
                     
-                    if k == 2:
+                    if ll == 2:
                         self.turning_points[TP] = (-np.inf, -np.inf, -np.inf)
                     else:
                         continue

@@ -66,15 +66,15 @@ def get_nu(sigma, nu_in, nu_out):
     if nu_in == nu_out:
         return sigma
     
-    var = sigma**2
+    var_in = sigma**2
     
     # 1-D Gaussian with variable variance
-    pdf = lambda x, var: np.exp(-x**2 / 2. / var)
+    pdf = lambda x, vv: np.exp(-x**2 / 2. / vv)
         
     # Integral (relative to total) from -sigma to sigma
     # Allows us to convert input sigma to 1-D error-bar
-    integral = lambda vr: quad(lambda x: pdf(x, var=var), -sigma, sigma)[0] \
-        / (np.sqrt(abs(var)) * np.sqrt(2 * np.pi))
+    integral = lambda vr: quad(lambda x: pdf(x, vv=var_in), -sigma, sigma)[0] \
+        / (np.sqrt(abs(var_in)) * np.sqrt(2 * np.pi))
     
     # Minimize difference between integral (as function of variance) and
     # desired area

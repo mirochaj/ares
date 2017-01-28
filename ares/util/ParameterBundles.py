@@ -12,8 +12,8 @@ Description:
 
 import numpy as np
 from .ReadData import read_lit
-from .ParameterFile import pop_id_num
 from .ProblemTypes import ProblemType
+from .ParameterFile import pop_id_num, par_info
 from .PrintInfo import header, footer, separator, line
 
 def _add_pop_tag(par, num):
@@ -28,6 +28,19 @@ def _add_pop_tag(par, num):
     else:
         return '%s{%i}' % (par, num)
 
+def _add_pq_tag(par, num):
+    """
+    Add a population ID tag to each parameter.
+    """
+
+    prefix, idnum = pop_id_num(par)
+
+    if idnum is not None:
+        return '%s[%i]' % (prefix, num)
+    else:
+        return '%s[%i]' % (par, num)
+
+
 _pop_fcoll = \
 {
  'pop_sfr_model': 'fcoll',
@@ -39,14 +52,13 @@ _pop_user_sfrd = \
 {
 
  'pop_sfr_model': 'sfrd-func',
-
- 'pop_sfrd': 'php[0]',
- 'php_func[0]': 'dpl',
- 'php_func_var[0]': 'redshift',
- 'php_func_par0[0]': 1e-6,
- 'php_func_par1[0]': 15.,
- 'php_func_par2[0]': -5.,
- 'php_func_par3[0]': -8.,
+ 'pop_sfrd': 'pq[0]',
+ 'pq_func[0]': 'dpl',
+ 'pq_func_var[0]': 'z',
+ 'pq_func_par0[0]': 1e-6,
+ 'pq_func_par1[0]': 15.,
+ 'pq_func_par2[0]': -5.,
+ 'pq_func_par3[0]': -8.,
  
 }
 
@@ -69,40 +81,43 @@ _sed_xi = \
 
 _pop_sfe = \
 {
- 'pop_sfr_model': 'sfe-dpl',
- 'pop_fstar': 'php',
- 'php_func': 'dpl',
- 'php_func_par0': 0.1,
- 'php_func_par1': 3e11,
- 'php_func_par2': 0.6,
- 'php_func_par3': -0.6,
+ 'pop_sfr_model': 'sfe-func',
+ 'pop_sed': 'eldridge2009',
+ 'pop_Z': 0.02,
+ 'pop_fstar': 'pq',
+ 'pq_func': 'dpl',
+ 'pq_func_var': 'Mh',
+ 'pq_func_par0': 0.05,
+ 'pq_func_par1': 3e11,
+ 'pq_func_par2': 0.6,
+ 'pq_func_par3': -0.6,
 
  # Redshift dependent parameters here
 }
 
 _pop_sfe_ext = \
 {
- 'php_faux': 'plexp',
- 'php_faux_var': 'mass',
- 'php_faux_meth': 'add',
- 'php_faux_par0': 0.005,
- 'php_faux_par1': 1e9,
- 'php_faux_par2': 0.01,
- 'php_faux_par3': 1e10,
+ 'pq_faux': 'plexp',
+ 'pq_faux_var': 'mass',
+ 'pq_faux_meth': 'add',
+ 'pq_faux_par0': 0.005,
+ 'pq_faux_par1': 1e9,
+ 'pq_faux_par2': 0.01,
+ 'pq_faux_par3': 1e10,
 }
 
 _pop_mlf = \
 {
  'pop_sfr_model': 'mlf',
  'pop_fstar': None,
- 'pop_mlf': 'php',
+ 'pop_mlf': 'pq',
  'pop_MAR': 'hmf',
  
- 'php_func': 'dpl',
- 'php_func_par0': 0.1,
- 'php_func_par1': 1e12,
- 'php_func_par2': 0.67,
- 'php_func_par3': 0.5,
+ 'pq_func': 'dpl',
+ 'pq_func_par0': 0.1,
+ 'pq_func_par1': 1e12,
+ 'pq_func_par2': 0.67,
+ 'pq_func_par3': 0.5,
 }
 
 _sed_uv = \
@@ -122,8 +137,8 @@ _sed_uv = \
  "pop_Emax": 24.6,
  "pop_EminNorm": 13.6,
  "pop_EmaxNorm": 24.6,        
- "pop_yield": 4e3, 
- "pop_yield_units": 'photons/baryon',
+ "pop_rad_yield": 4e3, 
+ "pop_rad_yield_units": 'photons/baryon',
 }
 
 _sed_lw = _sed_uv.copy()
@@ -140,7 +155,7 @@ _pop_synth = \
  'pop_Z': 0.02,
  'pop_Emin': 1,
  'pop_Emax': 1e2,
- 'pop_yield': 'from_sed',
+ 'pop_rad_yield': 'from_sed',
 }
 
 _sed_xr = \
@@ -163,8 +178,8 @@ _sed_xr = \
  "pop_EmaxNorm": 8e3,
  
  "pop_Ex": 500.,
- "pop_yield": 2.6e39, 
- "pop_yield_units": 'erg/s/SFR',
+ "pop_rad_yield": 2.6e39, 
+ "pop_rad_yield_units": 'erg/s/SFR',
 }
 
 _crte_xrb = \
@@ -179,7 +194,7 @@ _crte_lwb['pop_solve_rte'] = (10.2, 13.6)
 _crte_lwb['pop_approx_tau'] = True
 
 # Some different spectral models
-_uvsed_toy = dict(pop_yield=4000, pop_yield_units='photons/b',
+_uvsed_toy = dict(pop_rad_yield=4000, pop_rad_yield_units='photons/b',
     pop_Emin=10.2, pop_Emax=24.6, pop_EminNorm=13.6, pop_EmaxNorm=24.6)
 _uvsed_bpass = dict(pop_sed='eldridge2009', pop_binaries=False, pop_Z=0.02,
     pop_Emin=10.2, pop_Emax=24.6, pop_EminNorm=13.6, pop_EmaxNorm=24.6)
@@ -191,6 +206,16 @@ _mcd['pop_sed'] = 'mcd'
 _pl = _mcd.copy()
 _pl['pop_sed'] = 'pl'
 
+_simple_dc1 = {'dustcorr_method': 'meurer1999', 'dustcorr_beta': -2}
+_simple_dc2 = {'dustcorr_method': 'meurer1999', 'dustcorr_beta': 'bouwens2014'}
+_evolve_dc = \
+{
+'dustcorr_method': ['meurer1999', 'pettini1998', 'capak2015'],
+'dustcorr_beta': 'bouwens2014',
+'dustcorr_ztrans': [0, 4, 5],
+}
+
+
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe, 
@@ -199,6 +224,8 @@ _Bundles = \
          'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 'toy': _sed_toy,
          'bpass': _uvsed_bpass, 's99': _uvsed_s99, 'xi': _sed_xi},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
+ 'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc1, 'evolving': _evolve_dc,
+    }
 }
 
 class ParameterBundle(dict):
@@ -221,7 +248,7 @@ class ParameterBundle(dict):
                 self[key] = kwargs[key]
             
     def _initialize(self, bundle, **kwargs):
-        
+
         # Clear out
         tmp = self.keys()
         for key in tmp:
@@ -235,7 +262,12 @@ class ParameterBundle(dict):
         elif pre == 'prob':
             kw = ProblemType(float(post))
         else:
-            kw = read_lit(pre).__dict__[post]
+            mod = read_lit(pre) 
+            kw = mod.__dict__[post]
+            
+            # Save where we found it for future reference / sanity checking.
+            if hasattr(mod, 'path'):
+                self.path = mod.path
         
         pars = kw.keys()
 
@@ -246,16 +278,16 @@ class ParameterBundle(dict):
         if name not in self.keys():
             pass
         return self[name]
-        
+
     def __add__(self, other):
         tmp = self.copy()
-        
+
         # Make sure to not overwrite anything here!
         for key in other:
             if key in tmp:
                 raise KeyError('%s supplied more than once!' % key)
-                                
-            tmp[key] = other[key]    
+
+            tmp[key] = other[key]
                 
         return ParameterBundle(**tmp)
         
@@ -280,6 +312,45 @@ class ParameterBundle(dict):
     
         for key in self.keys():
             self[_add_pop_tag(key, value)] = self.pop(key)
+                
+    def tag_pq_id(self, par, num):
+        """
+        Find ParameterizedQuantity parameters and tag with `num`.
+        """
+        
+        if self[par] == 'pq':
+            current_tag = None
+        else:
+            m = re.search(r"\[([0-9])\]", par)
+
+            assert m is not None, "No ID found for par=%s" % par
+            
+            current_tag = int(m.group(1))
+        
+        # Figure out what all the parameters are currently
+        pars = self.pars_by_pq(current_tag, strip_id=False)
+        
+        # Delete 'em, rename 'em
+        for key in pars:
+            del self[key]
+        
+        self[par] = _add_pq_tag('pq', num)
+        for key in pars:
+            self[_add_pq_tag(key, num)] = pars[key]
+            
+    @property
+    def pqid(self):
+        if not hasattr(self, '_pqid'):
+            self._pqid = None
+        return self._pqid
+    
+    @pqid.setter
+    def pqid(self, value):
+        assert value % 1 == 0
+        self._value = value
+    
+        for key in self.keys():
+            self[_add_pop_tag(key, value)] = self.pop(key)        
     
     @property
     def Npops(self):
@@ -349,7 +420,71 @@ class ParameterBundle(dict):
                 else:    
                     tmp[par] = self[par]
                 
-        return tmp        
+        return tmp 
+        
+    @property
+    def pqs(self):
+        if not hasattr(self, '_pqs'):
+            self.pqids
+            
+        return self._pqs
+        
+    @property
+    def pqids(self):
+        if not hasattr(self, '_pqids'):
+            pqs = []
+            pqids = []
+            for par in self:                
+                if self[par] == 'pq':
+                    pqid = 'None'
+                else:
+                    prefix, popid, pqid = par_info(par)
+                
+                if pqid is None:
+                    continue
+
+                if pqid in pqids:
+                    continue
+
+                pqs.append(par)
+                
+                if pqid is 'None':
+                    pqids.append(None)
+                else:
+                    pqids.append(pqid)            
+            
+            self._pqs = pqs
+            self._pqids = pqids
+            
+        return self._pqids    
+        
+    def pars_by_pq(self, num=None, strip_id=False):
+        
+        if num == None and (self.pqids == [None]):
+            untagged = True
+        else:
+            untagged = False
+        
+        i = self.pqids.index(num)
+        tmp = {self.pqs[i]: self[self.pqs[i]]}
+        for par in self:   
+            
+            if untagged and (par[0:2] == 'pq'):
+                tmp[par] = self[par]
+                continue
+                     
+            prefix, popid, pqid = par_info(par)
+            
+            if pqid is None:
+                continue
+            
+            if pqid == num:
+                if strip_id:
+                    tmp[prefix] = self[par]
+                else:    
+                    tmp[par] = self[par]
+                
+        return tmp
 
 
 _PB = ParameterBundle
@@ -360,6 +495,13 @@ _gs_4par = _PB('pop:fcoll', id_num=0) + _PB('sed:lw', id_num=0) \
          + _PB('pop:fcoll', id_num=1) + _PB('sed:lyc', id_num=1) \
          + _PB('pop:fcoll', id_num=2) + _PB('sed:xray', id_num=2)
 
-_tmp = {'gs_2pop': _uv_pop+_xr_pop, 'gs_4par': _gs_4par}
+_tanh_sim = {'problem_type': 100, 'tanh_model': True,
+    'output_frequencies': np.arange(30., 201.)}
 
-_Bundles['sim'] = _tmp
+_param_sim = {'problem_type': 100, 'parametric_model': True,
+    'output_frequencies': np.arange(30., 201.)}
+
+_tmp = {'2pop': _uv_pop+_xr_pop, '4par': _gs_4par,
+    'tanh': _tanh_sim, 'param': _param_sim}
+
+_Bundles['gs'] = _tmp

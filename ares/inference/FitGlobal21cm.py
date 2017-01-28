@@ -133,20 +133,20 @@ class loglikelihood(LogLikelihood):
                 
         if np.any(np.isnan(yarr)):
             return -np.inf, self.blank_blob
-        
+
         like = 0.5 * (np.sum((yarr - self.ydata)**2 \
             / self.error**2 + np.log(2. * np.pi * self.error**2))) 
         logL = lp - like
-                
+
         blobs = sim.blobs
-                    
+
         del sim, kw
         gc.collect()
-                    
+        
         return logL, blobs
 
 class FitGlobal21cm(ModelFit):
-        
+
     @property
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):

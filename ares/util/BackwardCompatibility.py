@@ -10,6 +10,7 @@ Description:
 
 """
 
+import re
 from .SetDefaultParameterValues import PopulationParameters
 
 pop_pars = PopulationParameters()
@@ -29,7 +30,8 @@ def backward_compatibility(ptype, **kwargs):
     Handle some conventions used in the pre "pop_*" parameter days.
     
     .. note :: Only applies to simple global 21-cm models right now, i.e., 
-        problem_type=101.
+        problem_type=101, ParameterizedQuantity parameters, and the
+        pop_yield vs. pop_rad_yield change.
         
     Parameters
     ----------
@@ -41,6 +43,8 @@ def backward_compatibility(ptype, **kwargs):
     Dictionary of parameters to subsequently be updated.
     
     """
+        
+    pf = {}    
         
     if ptype == 101:
         pf = {}
@@ -78,8 +82,8 @@ def backward_compatibility(ptype, **kwargs):
             if par_supplied('xi_LW', **kwargs):
                 y /= pf['pop_fstar{0}']
                 
-            pf['pop_yield{0}'] = y    
-            pf['pop_yield_units{0}'] = 'photons/baryon'
+            pf['pop_rad_yield{0}'] = y    
+            pf['pop_rad_yield_units{0}'] = 'photons/baryon'
             
         if par_supplied('Nion', **kwargs) or par_supplied('xi_UV', **kwargs):
             y = kwargs['Nion'] if par_supplied('Nion', **kwargs) else kwargs['xi_UV']
@@ -87,8 +91,8 @@ def backward_compatibility(ptype, **kwargs):
             if par_supplied('xi_UV', **kwargs):
                 y /= pf['pop_fstar{2}'] * pf['pop_fesc{2}']
             
-            pf['pop_yield{2}'] = y     
-            pf['pop_yield_units{2}'] = 'photons/baryon'    
+            pf['pop_rad_yield{2}'] = y     
+            pf['pop_rad_yield_units{2}'] = 'photons/baryon'    
         
         # Lx-SFR
         if par_supplied('cX', **kwargs):
@@ -96,16 +100,39 @@ def backward_compatibility(ptype, **kwargs):
             if par_supplied('fX', **kwargs):
                 yield_X *= kwargs['fX']
             
-            pf['pop_yield{1}'] = yield_X 
+            pf['pop_rad_yield{1}'] = yield_X 
             
         elif par_supplied('fX', **kwargs):
-            pf['pop_yield{1}'] = kwargs['fX'] * kwargs['pop_yield{1}']    
+            pf['pop_rad_yield{1}'] = kwargs['fX'] * kwargs['pop_rad_yield{1}']    
             
         elif par_supplied('xi_XR', **kwargs):
-            pf['pop_yield{1}'] = kwargs['xi_XR'] * kwargs['pop_yield{1}'] \
+            pf['pop_rad_yield{1}'] = kwargs['xi_XR'] * kwargs['pop_rad_yield{1}'] \
                / pf['pop_fstar{1}']
-
-    else:
-        pf = {}
+        
+    fixes = {}
+    for element in kwargs:
+        
+        if re.search('pop_yield', element):
+            fixes[element.replace('pop_yield', 'pop_rad_yield')] = \
+                kwargs[element]
+            continue
+        
+        if element[0:3] == 'php':
+    
+            if type(kwargs[element]) is str:
+                fixes[element.replace('php', 'pq')] = \
+                    kwargs[element].replace('php', 'pq')
+            else:
+                fixes[element.replace('php', 'pq')] = kwargs[element]
+        
+        if type(kwargs[element]) is str:
+            if kwargs[element][0:3] == 'php':
+                fixes[element] = kwargs[element].replace('php', 'pq')
+    
+            if kwargs[element] == 'mass':
+                fixes[element] = 'Mh'
+    
+    pf.update(fixes)
+        
                 
     return pf

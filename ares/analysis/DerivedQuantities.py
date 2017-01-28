@@ -163,7 +163,7 @@ class DerivedQuantities(object):
             self._data.update(data)
                 
     @property
-    def _shape(self):        
+    def _shape(self):
         if not hasattr(self, '__shape'):
             # Number of samples x number of redshifts
             self.__shape = list(self._ms.blobs.shape[:-1])
@@ -173,7 +173,7 @@ class DerivedQuantities(object):
         self._data.update(data)    
         
     def __name__(self):
-        return 'DerivedQuantities'  
+        return 'DerivedQuantities'
         
     def __getitem__(self, name):
         if name in self._data:

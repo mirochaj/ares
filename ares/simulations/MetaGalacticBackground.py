@@ -10,13 +10,26 @@ Description:
 
 """
 
+import os
+import scipy
+import pickle
 import numpy as np
 from ..util import ParameterFile
 from scipy.interpolate import interp1d
 from ..solvers import UniformBackground
+from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
+    as AnalyzeMGB
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
 
-class MetaGalacticBackground(UniformBackground):
+_scipy_ver = scipy.__version__.split('.')
+
+# This keyword didn't exist until version 0.14 
+if float(_scipy_ver[1]) >= 0.14:
+    _interp1d_kwargs = {'assume_sorted': True}
+else:
+    _interp1d_kwargs = {}
+
+class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
     def __init__(self, grid=None, **kwargs):
         """
         Initialize a MetaGalacticBackground object.    
@@ -117,13 +130,13 @@ class MetaGalacticBackground(UniformBackground):
                 zhi, flux = gen.next()
 
                 # Increment the flux
-                _fhi[j] += flux.copy()
+                _fhi[j] += flatten_flux(flux).copy()
                 
                 # Tap generator, grab fluxes (again)
                 zlo, flux = gen.next()
                                                                     
                 # Increment the flux (again)
-                _flo[j] += flux.copy()
+                _flo[j] += flatten_flux(flux).copy()
 
             # Save fluxes for this population
             self._zhi.append([zhi for k in range(len(generator))])
@@ -200,9 +213,31 @@ class MetaGalacticBackground(UniformBackground):
         
         z_by_pop = [None for i in range(self.Npops)]
         
+        # Save fluxes computed directly, i.e., not via interpolation
+        if not self._is_thru_run:
+            
+            # Each time a generator is poked, we'll append the fluxes
+            # to a list within the 'fluxes_raw' dictionary.
+            
+            if not hasattr(self, 'fluxes_raw'):
+                self.fluxes_raw = {}
+                for i, pop_generator in enumerate(self.generators):
+                    self.fluxes_raw[i] = []
+                    
+                    if pop_generator is None:
+                        self.fluxes_raw[i].append([])
+                        continue
+                    
+                    for j, generator in enumerate(pop_generator):
+                        self.fluxes_raw[i].append([])
+   
+                # In the end, each population will have a set of lists.
+                # The first dimension will correspond to band ID #.
+                # The second will be redshift.        
+
         fluxes = {}
         for i, pop_generator in enumerate(self.generators):
-            
+
             # Skip approximate (or non-contributing) backgrounds
             if pop_generator is None:
                 fluxes[i] = None
@@ -220,8 +255,9 @@ class MetaGalacticBackground(UniformBackground):
                 # generator and move on
                 if self._is_thru_run:
                     z, f = generator.next()
+                    
                     z_by_pop[i] = z
-                    fluxes_by_band.append(f)
+                    fluxes_by_band.append(flatten_flux(f))
                     continue
                                         
                 # Otherwise, we potentially need to sub-cycle the background.
@@ -261,9 +297,9 @@ class MetaGalacticBackground(UniformBackground):
                         self._fhi[i][j] = self._flo[i][j]
                                 
                         z, f = generator.next()
-                        
+                                                
                     self._zlo[i][j] = z
-                    self._flo[i][j] = f
+                    self._flo[i][j] = flatten_flux(f)
                 else:
                     z = self.z
 
@@ -279,7 +315,7 @@ class MetaGalacticBackground(UniformBackground):
 
                     interp = interp1d([self._zlo[i][j], self._zhi[i][j]], 
                         [self._flo[i][j], self._fhi[i][j]], 
-                         axis=0, assume_sorted=True, kind='linear')        
+                         axis=0, kind='linear', **_interp1d_kwargs)
                     
                     f = interp(z)
 
@@ -287,20 +323,20 @@ class MetaGalacticBackground(UniformBackground):
                     f = self._flo[i][j]
 
                 fluxes_by_band.append(f)
-            
-            if not self._is_thru_run:   
-                z_by_pop[i] = max(self._zlo[i])    
-                
+
+            if not self._is_thru_run:
+                z_by_pop[i] = max(self._zlo[i])
+
             fluxes[i] = fluxes_by_band
 
         # Set the redshift based on whichever population took the smallest
         # step. Other populations will interpolate to find flux.
         znext = max(z_by_pop)
-        
+
         if (not self._is_thru_run):
             self.all_z.append(z_by_pop)
             self.all_fluxes.append(fluxes)
-        
+
         # If being externally controlled, we can't tamper with the redshift!
         if self._is_thru_run:
             self.update_redshift(znext)
@@ -328,11 +364,11 @@ class MetaGalacticBackground(UniformBackground):
         else:    
             z, fluxes = self.update_fluxes()
             kwargs['fluxes'] = fluxes
-        
+
         # Run update_rate_coefficients within MultiPhaseMedium
         return super(MetaGalacticBackground, self).update_rate_coefficients(z, 
             **kwargs)
-            
+
     def get_integrated_flux(self, band, popid=0):
         """
         Return integrated flux in supplied (Emin, Emax) band at all redshifts.
@@ -414,4 +450,68 @@ class MetaGalacticBackground(UniformBackground):
         else:    
             return z_tr, E_tr, f_tr
 
-        
+    def save(self, prefix, suffix='pkl', clobber=False):
+        """
+        Save results of calculation.
+    
+        Notes
+        -----
+        1) will save files as prefix.rfield.suffix.
+        2) ASCII files will fail if simulation had multiple populations.
+    
+        Parameters
+        ----------
+        prefix : str
+            Prefix of save filename
+        suffix : str
+            Suffix of save filename. Can be hdf5 (or h5), pkl, or npz. 
+            Anything else will be assumed to be ASCII format (e.g., .txt).
+        clobber : bool
+            Overwrite pre-existing files of same name?
+    
+        """
+
+        fn_1 = '%s.fluxes.%s' % (prefix, suffix)
+        fn_2 = '%s.emissivities.%s' % (prefix, suffix)
+
+        all_fn = [fn_1, fn_2]
+
+        f_data = [self.get_history(i, flatten=True) for i in range(self.Npops)]
+        z = [f_data[i][0] for i in range(self.Npops)]
+        E = [f_data[i][1] for i in range(self.Npops)]
+        fl = [f_data[i][2] for i in range(self.Npops)]
+
+        all_data = [(z, E, fl), (self.redshifts, self.energies, self.emissivities)]
+
+        for i, data in enumerate(all_data):
+            fn = all_fn[i]
+
+            if os.path.exists(fn):
+                if clobber:
+                    os.remove(fn)
+                else:
+                    print '%s exists! Set clobber=True to overwrite.' % fn
+                    continue
+
+            if suffix == 'pkl':
+                f = open(fn, 'wb')
+                pickle.dump(data, f)
+                f.close()
+
+            elif suffix in ['hdf5', 'h5']:
+                raise NotImplementedError('no hdf5 support for this yet.')
+
+            elif suffix == 'npz':
+                f = open(fn, 'w')
+                np.savez(f, **data)
+                f.close()
+            
+            # ASCII format
+            else:  
+                raise NotImplementedError('No ASCII support for this.')          
+                
+            print 'Wrote %s.' % fn
+    
+    
+    
+    

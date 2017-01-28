@@ -9,6 +9,7 @@ Description:
 
 """
 
+import glob
 import os, re, sys
 import numpy as np
 from . import Cosmology
@@ -18,9 +19,9 @@ from scipy.misc import derivative
 from ..util.Misc import get_hg_rev
 from ..util.Warnings import no_hmf
 from scipy.integrate import cumtrapz
-from ..util.Math import central_difference, smooth
 from ..util.ProgressBar import ProgressBar
 from ..util.ParameterFile import ParameterFile
+from ..util.Math import central_difference, smooth
 from .Constants import g_per_msun, cm_per_mpc, s_per_yr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
 
@@ -129,21 +130,54 @@ class HaloMassFunction(object):
         
         # Verify that Tmax is set correctly
         if self.pf['pop_Tmax'] is not None:
-            assert self.pf['pop_Tmax'] > self.pf['pop_Tmin'], \
-                "Tmax must exceed Tmin!"
+            if self.pf['pop_Tmin'] is not None and self.pf['pop_Mmin'] is None:
+                assert self.pf['pop_Tmax'] > self.pf['pop_Tmin'], \
+                    "Tmax must exceed Tmin!"
         
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load'] and (self.fn is None):
-            fn = '%s/input/hmf/%s' % (ARES, self.table_prefix())
+            prefix = self.table_prefix(True)
+            fn = '%s/input/hmf/%s' % (ARES, prefix)
+            # First, look for a perfect match
             if os.path.exists('%s.%s' % (fn, self.pf['preferred_format'])):
                 self.fn = '%s.%s' % (fn, self.pf['preferred_format'])
+            # Next, look for same table different format
             elif os.path.exists('%s.pkl' % fn):
                 self.fn = '%s.pkl' % fn
             elif os.path.exists('%s.hdf5' % fn):
                 self.fn = '%s.hdf5' % fn   
             elif os.path.exists('%s.npz' % fn):
-                self.fn = '%s.npz' % fn     
-             
+                self.fn = '%s.npz' % fn    
+            else:
+                # Leave resolution blank, but enforce ranges
+                prefix = self.table_prefix()
+                candidates = glob.glob('%s/input/hmf/%s*' % (ARES, prefix))
+
+                if len(candidates) == 1:
+                    self.fn = candidates[0]
+                else:
+                    
+                    # What parameter file says we need.
+                    logMmax = self.pf['hmf_logMmax']
+                    logMmin = self.pf['hmf_logMmin']
+                    logMsize = (logMmax - logMmin) / self.pf['hmf_dlogM']
+                    zmax = self.pf['hmf_zmax']
+                    zmin = self.pf['hmf_zmin']
+                    zsize = (zmax - zmin) / self.pf['hmf_dz'] + 1
+                    
+                    self.fn = None
+                    for candidate in candidates:
+                        _Nm, _logMmin, _logMmax, _Nz, _zmin, _zmax = \
+                            map(int, re.findall(r'\d+', candidate))
+                    
+                        if (_logMmin > logMmin) or (_logMmax < logMmax):
+                            continue
+                            
+                        if (_zmin > zmin) or (_zmax < zmax):
+                            continue
+                            
+                        self.fn = candidate    
+                            
         # Override switch: compute Press-Schechter function analytically
         if self.hmf_func == 'PS' and self.hmf_analytic:
             self.fn = None
@@ -392,7 +426,7 @@ class HaloMassFunction(object):
             type(self.pf['pop_Mmax']) is FunctionType    
         
         self.logM_min = np.zeros_like(self.z)
-        self.logM_max = np.zeros_like(self.z)
+        self.logM_max = np.inf * np.ones_like(self.z)
         self.fcoll_Tmin = np.zeros_like(self.z)
         self.dndm_Mmin = np.zeros_like(self.z)
         self.dndm_Mmax = np.zeros_like(self.z)
@@ -436,7 +470,7 @@ class HaloMassFunction(object):
                 central_difference(self.z, 10**self.logM_max)
         
             bc_max = 10**self.logM_min[1:-1] * self.dndm_Mmax[1:-1] \
-                * dMmindz / self.cosm.mean_density0
+                * dMmaxdz / self.cosm.mean_density0
                 
             self.dfcolldz_tab += bc_max
                 
@@ -447,7 +481,7 @@ class HaloMassFunction(object):
             else:
                 kern = 3
             
-            self.dfcolldz_tab = smooth(self.ztab, self.dfcolldz_tab, kern)
+            self.dfcolldz_tab = smooth(self.dfcolldz_tab, kern)
         
             if self.pf['hmf_dfcolldz_trunc']:
                 self.dfcolldz_tab[0:kern] = np.zeros(kern)
@@ -457,14 +491,24 @@ class HaloMassFunction(object):
         
         # 'cuz time and redshift are different        
         self.dfcolldz_tab *= -1.
-        
+
         fcoll_spline = None
         self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
 
+        # Try masking all z elements lower than first occurrence
+        
+        #zp = self.ztab[self.ztab <= 50]
+        #fp = self.dfcolldz_tab[self.ztab <= 50]
+        #zmax = zp[fp < tiny_dfcolldz].max()
+        #print zmax
+        #
+        self.dfcolldz_tab[self.dfcolldz_tab <= tiny_dfcolldz] = tiny_dfcolldz
+        #self.dfcolldz_tab[self.ztab <= zmax] = tiny_dfcolldz
+                    
         spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
             kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
         dfcolldz_spline = lambda z: 10**spline.__call__(z)
-
+        
         return fcoll_spline, dfcolldz_spline, None
 
     @property
@@ -613,8 +657,8 @@ class HaloMassFunction(object):
             * (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
             * ((1. + z) / 10.)**-1.
-                
-    def table_prefix(self):
+              
+    def table_prefix(self, with_size=False):
         """
         What should we name this table?
         
@@ -626,25 +670,28 @@ class HaloMassFunction(object):
         using nM mass points between logMmin and logMmax
         using nz redshift points between zmin and zmax
         
-        
         """
         
-        try:
-            M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
-            prefix = 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.hmf_func, 
-                self.logM.size, M1, M2, self.z.size, self.zmin, self.zmax)           
-        except AttributeError:
-            M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
-            z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
+        M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
+        z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
+        
+        if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
-                / self.pf['hmf_dlogM']
+                / self.pf['hmf_dlogM']                
             zsize = (self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
-                / self.pf['hmf_dz'] + 1 
-            return 'hmf_%s_logM_%i_%i-%i_z_%i_%i-%i' % (self.hmf_func, 
-                logMsize, M1, M2, zsize, z1, z2) 
+                / self.pf['hmf_dz'] + 1
                 
-        return prefix           
-               
+            assert logMsize % 1 == 0
+            logMsize = int(logMsize)    
+            assert zsize % 1 == 0
+            zsize = int(zsize)    
+                
+            return 'hmf_%s_logM_%s_%i-%i_z_%s_%i-%i' \
+                % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
+        else:
+            return 'hmf_%s_logM_*_%i-%i_z_*_%i-%i' \
+                % (self.hmf_func, M1, M2, z1, z2) 
+                               
     def save(self, fn=None, clobber=True, destination=None, format='hdf5'):
         """
         Save mass function table to HDF5 or binary (via pickle).
@@ -680,7 +727,7 @@ class HaloMassFunction(object):
         
         # Determine filename
         if fn is None:
-            fn = '%s/%s.%s' % (destination, self.table_prefix(), format)                
+            fn = '%s/%s.%s' % (destination, self.table_prefix(True), format)                
         else:
             if format not in fn:
                 print "Suffix of provided filename does not match chosen format."

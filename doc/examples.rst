@@ -1,22 +1,24 @@
 Examples
 ========
 
-Simple Models
--------------
+Running Individual Simulations
+------------------------------
     
 * Reionization & Global 21-cm Signal
-    * :doc:`example_21cm_simple`
+    * :doc:`example_gs_standard`
+..    * :doc:`example_gs_phenomenological`
+..    * :doc:`example_gs_hybrid`
 ..    * :doc:`example_21cm_multipop`
 ..    * :doc:`example_21cm_xrb`
 ..    * :doc:`example_21cm_lwb`
-    
-* 1-D Radiative Transfer    
-    * :doc:`example_rt06_1`
-    * :doc:`example_rt06_2`
-    
+
 * Uniform Radiation Backgrounds
     * :doc:`example_crb_uv`
     * :doc:`example_crb_xr`
+ 
+* 1-D Radiative Transfer    
+    * :doc:`example_rt06_1`
+    * :doc:`example_rt06_2` 
  
 Parameter Studies and Inference
 -------------------------------
@@ -26,7 +28,8 @@ Parameter Studies and Inference
     * :doc:`example_mc_sampling`    
     
 * Fitting and Forecasting    
-    * :doc:`example_mcmc_I`
+    * :doc:`example_mcmc_gs`
+    * :doc:`example_mcmc_lf`
     
 .. * Simple Fitting
 ..     * :doc:`example_ham`
@@ -37,11 +40,11 @@ Parameter Studies and Inference
     * :doc:`example_grid_analysis`
     * :doc:`example_mcmc_analysis`
 
-More
-----
+Extensions
+----------
 * :doc:`example_adv_RT_w_He`
 * :doc:`example_galaxypop`
 * :doc:`example_litdata`
+* :doc:`example_embed_ares`
 .. * :doc:`example_customization`
-
 

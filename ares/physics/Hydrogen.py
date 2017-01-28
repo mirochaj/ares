@@ -10,8 +10,10 @@ Description: Container for hydrogen physics stuff.
 
 """
 
+import scipy
 import numpy as np
-import scipy.interpolate as interpolate
+from scipy import interpolate
+from ..util.ReadData import _load_inits
 from ..util.Math import central_difference
 from ..util.ParameterFile import ParameterFile
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
@@ -19,8 +21,20 @@ from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
 
 try:
     from scipy.special import gamma
+    g23 = gamma(2. / 3.)
+    g13 = gamma(1. / 3.)
+    c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
+    c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
 except ImportError:
     pass
+    
+_scipy_ver = scipy.__version__.split('.')
+
+# This keyword didn't exist until version 0.14 
+if float(_scipy_ver[1]) >= 0.14:
+    _interp1d_kwargs = {'assume_sorted': True}
+else:
+    _interp1d_kwargs = {}
 
 # Rate coefficients for spin de-excitation - from Zygelman originally
 
@@ -54,12 +68,6 @@ T_He = np.array(T_He)
 
 l_LyA = h * c / E_LyA / erg_per_ev
 
-g23 = gamma(2. / 3.)
-g13 = gamma(1. / 3.)
-
-c1 = 4. * np.pi / 3. / np.sqrt(3.) / g23
-c2 = 8. * np.pi / 3. / np.sqrt(3.) / g13
-
 class Hydrogen(object):
     def __init__(self, cosm=None, **kwargs):
         
@@ -75,25 +83,7 @@ class Hydrogen(object):
         self.approx_S = self.pf['approx_Salpha']
         
         self.nmax = self.pf['lya_nmax']
-        self.fbarII = 0.72
-        self.fbarIII = 0.63
-        self.A10 = 2.85e-15 			
-        self.E10 = 5.9e-6 				
-        self.m_H = m_p + m_e     		
-        self.nu_0 = 1420.4057e6 			
-        self.T_star = 0.068 				
-        self.a_0 = 5.292e-9 				
-                
-        # Common lines, etc.
-        #self.nu_LL = 13.6 * erg_per_ev / h
-        #self.E_LyA = h * c / (1216. * 1e2 / 1e10) / erg_per_ev
-        #self.E_LyB = h * c / (1026. * 1e2 / 1e10) / erg_per_ev
-        #self.E_LL = h * self.nu_LL / erg_per_ev
-        #
-        #self.nu_alpha = self.E_LyA * erg_per_ev / h
-        #self.nu_beta = self.E_LyB * erg_per_ev / h
-        #self.dnu = self.nu_LL - self.nu_alpha
-        
+
         self.tabulated_coeff = \
             {'kappa_H': kappa_HH, 'kappa_e': kappa_He, 
              'T_H': T_HH, 'T_e': T_He}
@@ -103,7 +93,7 @@ class Hydrogen(object):
         if not hasattr(self, '_kappa_H_pre'):                            
             self._kappa_H_pre = interpolate.interp1d(T_HH, kappa_HH, 
                 kind=self.interp_method, bounds_error=False, fill_value=0.0,
-                assume_sorted=True)
+                **_interp1d_kwargs)
 
         return self._kappa_H_pre
 
@@ -112,7 +102,7 @@ class Hydrogen(object):
         if not hasattr(self, '_kappa_e_pre'):     
             self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He,
                 kind=self.interp_method, bounds_error=False, fill_value=0.0,
-                assume_sorted=True)
+                **_interp1d_kwargs)
 
         return self._kappa_e_pre
 
@@ -288,18 +278,18 @@ class Hydrogen(object):
         """
                 
         return 1.81e11 * self.Sa(z=z, Tk=Tk, xHII=xHII) * Ja / (1. + z)
-        
+
     def tauGP(self, z, xHII=0.):
         """ Gunn-Peterson optical depth. """
         return 1.5 * self.cosm.nH(z) * (1. - xHII) * l_LyA**3 * 50e6 \
             / self.cosm.HubbleParameter(z)
-    
+
     def lya_width(self, Tk):
         """
         Returns Doppler line-width of the Ly-a line in eV.
         """
         return np.sqrt(2. * k_B * Tk / m_e / c**2) * E_LyA
-        
+
     def Sa(self, z=None, Tk=None, xHII=0.0):
         """
         Account for line profile effects.
@@ -313,22 +303,23 @@ class Hydrogen(object):
             return np.exp(-0.37 * np.sqrt(1. + z) * Tk**(-2./3.)) \
                 / (1. + 0.4 / Tk)
         elif self.approx_S == 3:
-            gamma = 1. / self.tauGP(z, xHII=xHII) / (1. + 0.4 / Tk)
-            alpha = 0.717 * Tk**(-2./3.) * (1e-6 / gamma)**(1. / 3.)
-            return 1. - c1 * alpha - c2 * alpha**2 + 4. * alpha**3 / 3.
+            gamma = 1. / self.tauGP(z, xHII=xHII) / (1. + 0.4 / Tk)  # Eq. 4
+            alpha = 0.717 * Tk**(-2./3.) * (1e-6 / gamma)**(1. / 3.) # Eq. 20
+            S = 1. - c1 * alpha + c2 * alpha**2 - 4. * alpha**3 / 3. # Eq. 19
+            return S
         else:
             raise NotImplementedError('approx_Sa must be in [1,2,3].')
-            
+
     def ELyn(self, n):
         """ Return energy of Lyman-n photon in eV. """
         return E_LL * (1. - 1. / n**2)
-        
+
     def Ts(self, z, Tk, Ja, xHII, ne):
         """
         Short-hand for calling `SpinTemperature`.
         """
         return self.SpinTemperature(z, Tk, Ja, xHII, ne)
-        
+
     def SpinTemperature(self, z, Tk, Ja, xHII, ne):
         """
         Returns spin temperature of intergalactic hydrogen.
@@ -391,4 +382,24 @@ class Hydrogen(object):
             np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
             (1.0 - self.cosm.TCMB(z) / Ts)
             
-
+    @property
+    def inits(self):
+        if not hasattr(self, '_inits'):
+            self._inits = _load_inits()
+        return self._inits
+        
+    def saturated_limit(self, z):
+        return self.DifferentialBrightnessTemperature(z, 0.0, np.inf)
+        
+    def ne_floor(self, z):
+        return np.interp(z, self.inits['z'], self.inits['xe']) * self.cosm.nH(z)
+        
+    def Tk_floor(self, z):
+        return np.interp(z, self.inits['z'], self.inits['Tk'])
+        
+    def adiabatic_floor(self, z): 
+        Tk = self.Tk_floor(z)
+        Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)        
+        return self.DifferentialBrightnessTemperature(z, 0.0, Ts)
+        
+               

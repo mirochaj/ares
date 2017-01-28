@@ -190,9 +190,18 @@ class LogLikelihood(object):
     def _compute_blob_prior(self, sim):
         blob_vals = {}
         for key in self.priors_B.params:
+
+            grp, i, nd, dims = sim.blob_info(key)
+            
+            #if nd == 0:
+            #    blob_vals[key] = sim.get_blob(key)
+            #elif nd == 1:    
             blob_vals[key] = sim.get_blob(key)
-        
+            #else:
+            #    raise NotImplementedError('help')
+
         try:
+            print blob_vals
             # will return 0 if there are no blobs
             return self.priors_B.log_prior(blob_vals)
         except:
@@ -227,11 +236,14 @@ class LogLikelihood(object):
         
     def checkpoint(self, **kwargs):
         if self.checkpoint_by_proc:
-            procid = str(rank).zfill(4)
-            fn = '%s.proc%s.checkpt.pkl' % (self.prefix, procid)
+            procid = str(rank).zfill(3)
+            fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
                 pickle.dump(kwargs, f)
-
+            fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
+            with open(fn, 'w') as f:
+                print >> f, "Checkpoint written: %s" % time.ctime()
+            
 class ModelFit(BlobFactory):
     def __init__(self, **kwargs):
         """
@@ -598,10 +610,17 @@ class ModelFit(BlobFactory):
                     print 'is_log from file dont match those supplied!'
                 MPI.COMM_WORLD.Abort()
             raise ValueError('is_log from file dont match those supplied!')
-                    
-        f = open('%s.setup.pkl' % prefix, 'rb')
-        base_kwargs = pickle.load(f)
-        f.close()  
+          
+        # Identical to setup, just easier for scp'ing *info.pkl files.
+        if os.path.exists('%s.binfo.pkl' % prefix):
+            f = open('%s.binfo.pkl' % prefix, 'rb')
+            base_kwargs = pickle.load(f)
+            f.close()
+        else:
+            # Deprecate this eventually          
+            f = open('%s.setup.pkl' % prefix, 'rb')
+            base_kwargs = pickle.load(f)
+            f.close()
         
         f = open('%s.rinfo.pkl' % self.prefix, 'r')
         nwalkers, save_freq, steps = pickle.load(f)
@@ -621,7 +640,7 @@ class ModelFit(BlobFactory):
         #    raise ValueError('base_kwargs from file dont match those supplied!')   
                     
         # Start from last step in pre-restart calculation
-        if self.checkpoint_append:
+        if (not self.checkpoint_append):
             if type(restart) is bool:
             
                 ct = 0 
@@ -646,9 +665,12 @@ class ModelFit(BlobFactory):
                 fn = restart
                 self.ct = int(fn.split('.')[-3][2:])
                  
-            print "Restarting from %s." % fn
-            chain = read_pickled_chain(fn)
+        else:
+            fn = '%s.chain.pkl' % prefix
             
+        print "Restarting from %s." % fn
+        chain = read_pickled_chain(fn)    
+           
         (nw, sf) = (self.nwalkers, self.save_freq)
         pos = chain[-(nw-1)*sf-1::sf,:]    
         
@@ -675,20 +697,20 @@ class ModelFit(BlobFactory):
         self._checkpoint_append = value    
 
     def _prep_from_scratch(self, clobber, by_proc=False):
-        if rank > 0:
+        if (rank > 0) and (not by_proc):
             return
         
         if by_proc:
             prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
         else:
             prefix_by_proc = self.prefix
-                
+                               
         if clobber:
             # Delete only the files made by this routine. Don't want to risk
             # deleting other files the user may have created with similar
             # naming convention!
             
-            for suffix in ['logL', 'facc', 'pinfo', 'rinfo', 'setup', 'prior_set']:
+            for suffix in ['logL', 'facc', 'pinfo', 'rinfo', 'binfo', 'setup', 'prior_set']:
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
             
             os.system('rm -f %s.*.fail.pkl' % self.prefix)
@@ -743,17 +765,19 @@ class ModelFit(BlobFactory):
             f.close()
         
         # Constant parameters being passed to ares.simulations.Global21cm
-        f = open('%s.setup.pkl' % self.prefix, 'wb')
+        f = open('%s.binfo.pkl' % self.prefix, 'wb')
         tmp = self.base_kwargs.copy()
         to_axe = []
         for key in tmp:
             # this might be big, get rid of it
-            if re.search(key, 'tau_table'):
+            if re.search('tau_table', key):
                 to_axe.append(key)
-            if re.search(key, 'hmf_instance'):
+            if re.search('hmf_instance', key):
                 to_axe.append(key)
-            if re.search(key, 'pop_psm_instance'):
+            if re.search('pop_psm_instance', key):
                 to_axe.append(key)        
+            if re.search('pop_sed_by_Z', key):
+                to_axe.append(key)
         
         for key in to_axe:
             tmp[key] = None
@@ -761,7 +785,7 @@ class ModelFit(BlobFactory):
         pickle.dump(tmp, f)
         del tmp
         f.close()
-
+        
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=500):
         """
@@ -978,6 +1002,9 @@ class ModelFit(BlobFactory):
             blobs_now = blobs
         # We're saving one file per blob
         # The shape of the array will be just blob_nd
+        
+        if self.blob_names is None:
+            return
 
         for j, group in enumerate(self.blob_names):
             for k, blob in enumerate(group):

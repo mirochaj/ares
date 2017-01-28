@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from types import FunctionType
 from ..util import ParameterFile
 
 def tanh_astep(M, lo, hi, logM0, logdM):
@@ -20,12 +21,10 @@ def tanh_rstep(M, lo, hi, logM0, logdM):
     # NOTE: lo = value at the low-mass end
     return hi * lo * 0.5 * (np.tanh((logM0 - np.log10(M)) / logdM) + 1.) + hi
 
-Mh_dep_parameters = ['pop_fstar', 'pop_fesc', 'pop_L1600_per_sfr', 
-    'pop_Nion', 'pop_Nlw']
-    
 func_options = \
 {
  'pl': 'p[0] * (x / p[1])**p[2]',
+ 'exp': 'p[0] * exp(-(x / p[1])**p[2])',
  'dpl': 'p[0] / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
  'dpl_arbnorm': 'p[0](p[4]) / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
  'pwpl': 'p[0] * (x / p[4])**p[1] if x <= p[4] else p[2] * (x / p[4])**p[3]',
@@ -34,19 +33,21 @@ func_options = \
  'astep': 'p0 if x <= p1 else p2',
  'rstep': 'p0 * p2 if x <= p1 else p2',
  'plsum': 'p[0] * (x / p[1])**p[2] + p[3] * (x / p[4])**p5',
+ 'ramp': 'p0 if x <= p1, p2 if x >= p3, linear in between',
 }
-    
-class ParameterizedHaloProperty(object):
+
+class ParameterizedQuantity(object):
     def __init__(self, **kwargs):
+        # Cut this down to just PHP pars?
         self.pf = ParameterFile(**kwargs)
     
     @property
     def func(self):
-        return self.pf['php_func']
+        return self.pf['pq_func']
     
     @property
-    def func_vars(self):
-        return self.pf['php_vars']
+    def func_var(self):
+        return self.pf['pq_func_var']
 
     @property
     def faux(self):
@@ -54,7 +55,7 @@ class ParameterizedHaloProperty(object):
             self._faux = False
             for faux_id in ['', '_A', '_B']:
                                 
-                if self.pf['php_faux%s' % faux_id] is None:
+                if self.pf['pq_faux%s' % faux_id] is None:
                     continue
                 
                 self._faux = True
@@ -72,18 +73,18 @@ class ParameterizedHaloProperty(object):
     def _apply_extrap(self, value):
         self._apply_extrap_ = value
 
-    def __call__(self, z, M=None, func=None):
+    def __call__(self, func=None, **kwargs):
         """
         Compute the star formation efficiency.
         """
 
-        pars1 = [self.pf['php_func_par%i' % i] for i in range(6)]
+        pars1 = [self.pf['pq_func_par%i' % i] for i in range(6)]
         pars2 = []
 
         for i in range(6):
             tmp = []
             for j in range(6):
-                name = 'php_func_par%i_par%i' % (i,j)
+                name = 'pq_func_par%i_par%i' % (i,j)
                 if name in self.pf:
                     tmp.append(self.pf[name])
                 else:
@@ -91,9 +92,9 @@ class ParameterizedHaloProperty(object):
         
             pars2.append(tmp)
         
-        return self._call(z, M, [pars1, pars2])
+        return self._call([pars1, pars2], **kwargs)
 
-    def _call(self, z, M, pars, func=None, faux_id=''):
+    def _call(self, pars, func=None, faux_id='', **kwargs):
         """
         A higher-level version of __call__ that accepts a few more kwargs.
         """
@@ -106,15 +107,17 @@ class ParameterizedHaloProperty(object):
             s = 'faux%s' % faux_id
 
         # Determine independent variables
-        var = self.pf['php_%s_var' % s].lower()
-        if var == 'mass':
-            x = M
-        elif (var == 'redshift') or (var == 'z'):
-            x = z
-        elif var == '1+z':
-            x = 1. + z
+        var = self.pf['pq_%s_var' % s]
+        
+        if var == '1+z':
+            x = 1. + kwargs['z']
         else:
-            raise ValueError('Unrecognized func_var \'%s\'.' % var)    
+            x = kwargs[var]
+            
+        if self.pf['pq_var_ceil'] is not None:
+            x = np.minimum(x, self.pf['pq_var_ceil'])
+        if self.pf['pq_var_floor'] is not None:
+            x = np.maximum(x, self.pf['pq_var_floor'])    
         
         logx = np.log10(x)
         
@@ -131,21 +134,31 @@ class ParameterizedHaloProperty(object):
                 # fstar is not necessarily separable.
                 
                 assert par == 'pl', 'Only support for PL extensions.'
-                
+                                
                 p = pars2[i]
-                val = p[0] * ((1. + z) / (1. + p[1]))**p[2]
-                
+                val = p[0] * ((1. + x) / p[1])**p[2]
+                                
                 exec('p%i = val' % i)
+            elif type(par) == tuple:
+                f, v = par
+                                
+                val = f(kwargs[v])
+                exec('p%i = val' % i)    
+                    
             else:
                 exec('p%i = par' % i)
             
         # Actually execute the function                    
         if func == 'lognormal':
-            f = p0 * np.exp(-(logx - p1)**2 / 2. / p2**2)    
+            f = p0 * np.exp(-(logx - p1)**2 / 2. / p2**2)   
+        elif func == 'normal':
+            f = p0 * np.exp(-(x - p1)**2 / 2. / p2**2)
         elif func == 'pl':
             f = p0 * (x / p1)**p2
+        elif func == 'exp':
+            f = p0 * np.exp(-(x / p1)**p2)
         elif func == 'plexp':
-            f = p0 * (x / p1)**p2 * np.exp(-x / p3)
+            f = p0 * (x / p1)**p2 * np.exp(-(x / p3)**p4)
         elif func == 'dpl':
             f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3)    
         elif func == 'dpl_arbnorm':
@@ -154,47 +167,88 @@ class ParameterizedHaloProperty(object):
         elif func == 'plsum2':
             f = p0 * (x / p1)**p2 + p3 * (x / p1)**p4
         elif func == 'tanh_abs':
-            f = tanh_astep(x, p0, p1, p2, p3)
+            f = (p0 - p1) * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1
         elif func == 'tanh_rel':
-            f = tanh_rstep(x, p0, p1, p2, p3)
+            f = p1 * p0 * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1
         elif func == 'rstep':
             if type(x) is np.ndarray:
-                lo = x <= p2
-                hi = x > p2
+                lo = x < p2
+                hi = x >= p2
         
                 f = lo * p0 * p1 + hi * p1 
             else:
-                if x <= p2:
+                if x < p2:
                     f = p0 * p1
                 else:
                     f = p1
         elif func == 'astep':
+            
             if type(x) is np.ndarray:
-                lo = x <= p2
-                hi = x > p2
+                lo = x < p2
+                hi = x >= p2
 
-                f = lo * p0 + hi * p1 
+                f = lo * p0 + hi * p1
+                
             else:
-                if x <= p2:
+                if x < p2:
                     f = p0
                 else:
-                    f = p1            
+                    f = p1      
         elif func == 'pwpl':
             if type(x) is np.ndarray:
-                lo = x <= p4
-                hi = x > p4
+                lo = x < p4
+                hi = x >= p4
 
                 f = lo * p0 * (x / p4)**p1 + hi * p2 * (x / p4)**p3
             else:
-                if x <= p4:
+                if x < p4:
                     f = p0 * (x / p4)**p1
                 else:            
                     f = p2 * (x / p4)**p3
         elif func == 'okamoto':
-            assert var == 'mass'
+            assert var == 'Mh'
             f = (1. + (2.**(p0 / 3.) - 1.) * (x / p1)**-p0)**(-3. / p0)
+        elif func == 'ramp':
+            if type(x) is np.ndarray:
+                lo = x <= p1
+                hi = x >= p3
+                mi = np.logical_and(x > p1, x < p3)
+                
+                # ramp slope
+                m = (p2 - p0) / (p3 - p1)
+
+                f = lo * p0 + hi * p2 + mi * (p0 + m * (x - p1))
+                            
+            else:
+                if x <= p1:
+                    f = p0
+                elif x >= p3:
+                    f = p1
+                else:
+                    f = p0 + m * (x - p1)
+        elif func == 'logramp':
+            if type(x) is np.ndarray:
+                lo = logx <= p1
+                hi = logx >= p3
+                mi = np.logical_and(logx > p1, logx < p3)
+        
+                # ramp slope
+                alph = np.log10(p2 / p0) / (p3 - p1)
+                fmid = p0 * (x / 10**p1)**alph
+                
+                f = lo * p0 + hi * p2 + mi * fmid
+        
+            else:
+                if logx <= p2:
+                    f = p0
+                elif logx >= p3:
+                    f = p1
+                else:
+                    alph = np.log10(p2 / p0) / (p3 - p1)
+                    f = (x / 10**p1)**alph
+
         #elif func == 'user':
-        #    f = self.pf['php_func_fun'](z, M)
+        #    f = self.pf['pq_func_fun'](z, M)
         else:
             raise NotImplementedError('Don\'t know how to treat %s function!' % func)
 
@@ -204,15 +258,18 @@ class ParameterizedHaloProperty(object):
 
             for k, faux_id in enumerate(['', '_A', '_B']):
                                 
-                if self.pf['php_faux%s' % faux_id] is None:
+                if self.pf['pq_faux%s' % faux_id] is None:
                     continue
-                                
-                p = [self.pf['php_faux%s_par%s' % (faux_id, i)] for i in range(6)]
-                aug = self._call(z, M, [p,None], self.pf['php_faux%s' % faux_id], faux_id)
+                 
+                if type(self.pf['pq_faux%s' % faux_id]) != str:
+                    aug = self.pf['pq_faux%s' % faux_id](x)
+                else:
+                    p = [self.pf['pq_faux%s_par%s' % (faux_id, i)] for i in range(6)]
+                    aug = self._call([p,None], self.pf['pq_faux%s' % faux_id], faux_id, **kwargs)
 
-                if self.pf['php_faux%s_meth' % faux_id] == 'multiply':
+                if self.pf['pq_faux%s_meth' % faux_id] == 'multiply':
                     f *= aug
-                elif self.pf['php_faux%s_meth' % faux_id] == 'add':
+                elif self.pf['pq_faux%s_meth' % faux_id] == 'add':
                     f += aug
                 else:    
                     raise NotImplemented('Unknown faux_meth \'%s\'' % self.pf['%s_meth' % par_pre])
@@ -222,10 +279,10 @@ class ParameterizedHaloProperty(object):
         # Only apply floor/ceil after auxiliary function has been applied
         if self._apply_extrap:
 
-            if self.pf['php_ceil'] is not None:
-                f = np.minimum(f, self.pf['php_ceil'])
-            if self.pf['php_floor'] is not None:
-                f = np.maximum(f, self.pf['php_floor'])
+            if self.pf['pq_val_ceil'] is not None:
+                f = np.minimum(f, self.pf['pq_val_ceil'])
+            if self.pf['pq_val_floor'] is not None:
+                f = np.maximum(f, self.pf['pq_val_floor'])
 
         return f
               

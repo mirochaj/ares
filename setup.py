@@ -15,11 +15,11 @@ setup(name='ares',
       author='Jordan Mirocha',
       author_email='mirochaj@gmail.com',
       url=ares_link,
-      packages=['ares', 'ares.analysis', 'ares.simulations', 
-       'ares.populations', 'ares.util', 'ares.solvers', 'ares.static', 
+      packages=['ares', 'ares.analysis', 'ares.simulations',
+       'ares.populations', 'ares.util', 'ares.solvers', 'ares.static',
        'ares.sources', 'ares.physics', 'ares.inference', 'ares.phenom'],
      )
-     
+
 # Try to set up $HOME/.ares
 HOME = os.getenv('HOME')
 if not os.path.exists('%s/.ares' % HOME):
@@ -27,7 +27,7 @@ if not os.path.exists('%s/.ares' % HOME):
         os.mkdir('%s/.ares' % HOME)
     except:
         pass
- 
+
 # Create files for defaults and labels in HOME directory
 for fn in ['defaults', 'labels']:
     if not os.path.exists('%s/.ares/%s.py' % (HOME, fn)):

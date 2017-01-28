@@ -21,10 +21,12 @@ from scipy.interpolate import interp1d
 from .OpticalDepth import OpticalDepth
 from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
-from ..util.ReadData import flatten_flux, split_flux
 from ..populations.Composite import CompositePopulation
+from ..populations.GalaxyAggregate import GalaxyAggregate
 from scipy.integrate import quad, romberg, romb, trapz, simps
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
+from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
+    flatten_emissivities
 
 try:
     import h5py
@@ -271,7 +273,7 @@ class UniformBackground(object):
         if not hasattr(self, '_tau'):
             self._tau = []
             for i, pop in enumerate(self.pops):
-                if self.solve_rte[i]:
+                if np.any(self.solve_rte[i]):
                     bands = self.bands_by_pop[i]
                     z, nrg, tau, ehat = self._set_grid(pop, bands, 
                         compute_tau=True)
@@ -287,7 +289,7 @@ class UniformBackground(object):
         if not hasattr(self, '_emissivities'):
             self._emissivities = []
             for i, pop in enumerate(self.pops):
-                if self.solve_rte[i]:
+                if np.any(self.solve_rte[i]):
                     bands = self.bands_by_pop[i]
                     z, nrg, tau, ehat = self._set_grid(pop, bands, 
                         compute_emissivities=True)
@@ -305,7 +307,11 @@ class UniformBackground(object):
         
         Parameters
         ----------
-        
+        pop : int
+            Population ID number.
+        bands : list
+            Each element of this list is a (Emin, Emax) pair defining
+            a band in which the RTE is solved.
         
         Returns
         -------
@@ -332,8 +338,8 @@ class UniformBackground(object):
         tau_by_band = []
         energies_by_band = []
         emissivity_by_band = []        
-        for band in bands:       
-            
+        for band in bands: 
+                        
             E0, E1 = band
             has_sawtooth = (E0 == E_LyA) and (E1 == E_LL)
             has_sawtooth |= (E0 == 4*E_LyA) or (E1 == 4*E_LL)
@@ -355,7 +361,7 @@ class UniformBackground(object):
 
                     N = num_freq_bins(nz, zi=zi, zf=zf, Emin=Emi, Emax=Ema)
 
-                    # Create energy arrays
+                    # Create energy array
                     EofN = Emi * R**np.arange(N)
 
                     # A list of lists!                    
@@ -447,6 +453,9 @@ class UniformBackground(object):
             self._tau_solver = self.pf['tau_instance']
             return self._tau_solver.z_fetched, self._tau_solver.E_fetched, \
                 self._tau_solver.tau_fetched
+        elif self.pf['tau_arrays'] is not None:
+            # Assumed to be (z, E, tau)
+            return self.pf['tau_arrays']
             
         # Create an ares.simulations.OpticalDepth instance    
         tau_solver = OpticalDepth(**pop.pf)
@@ -454,7 +463,7 @@ class UniformBackground(object):
         
         # Try to load file from disk.
         z, E, tau = tau_solver._fetch_tau(pop, z, E)
-                
+                        
         # Generate it now if no file was found.
         if tau is None:
             no_tau_table(self)
@@ -1015,19 +1024,27 @@ class UniformBackground(object):
         """
         Tabulate emissivity over photon energy and redshift.
         
+        For a scalable emissivity, the tabulation is done for the emissivity
+        in the (EminNorm, EmaxNorm) band because conversion to other bands
+        can simply be applied after-the-fact. However, if the emissivity is
+        NOT scalable, then it is tabulated separately in the (10.2, 13.6),
+        (13.6, 24.6), and X-ray band.
+        
         Parameters
         ----------
+        z : np.ndarray
+            Array of redshifts
         E : np.ndarray
             Array of photon energies [eV]
-        z : np.ndarray
-            Array of redshifts 
-        popid : int
-            Identification number for population of interest.
+        pop : object
+            Better be some kind of Galaxy population object.
             
         Returns
         -------
         A 2-D array, first axis corresponding to redshift, second axis for
         photon energy.
+        
+        Units of emissivity are: erg / s / Hz / cMpc
             
         """
 
@@ -1042,18 +1059,66 @@ class UniformBackground(object):
 
         # Now, redshift dependent parts    
         epsilon = np.zeros([Nz, Nf])
-        for ll in xrange(Nz):
-            H = self.cosm.HubbleParameter(z[ll])
-            Lbol = pop.LuminosityDensity(z[ll])
-            epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H / erg_per_ev                
+        
+        #if Nf == 1:
+        #    return epsilon
+        
+        scalable = pop.is_emissivity_scalable
+        separable = pop.is_emissivity_separable
+        
+        H = np.array(map(self.cosm.HubbleParameter, z))
+
+        if scalable:
+            for ll in xrange(Nz):
+                Lbol = pop.Emissivity(z[ll])
+                epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H[ll] \
+                    / erg_per_ev
+        else:
+                
+            # There is only a distinction here for computational
+            # convenience, really. The LWB gets solved in much more detail
+            # than the LyC or X-ray backgrounds, so it makes sense 
+            # to keep the different emissivity chunks separate.                                  
+            for band in [(10.2, 13.6), (13.6, 24.6), None]:
+                                
+                if band is not None:
+                    if pop.pf['pop_Emin'] > band[1]:
+                        continue
+                    
+                    if pop.pf['pop_Emax'] < band[0]:
+                        continue
+                
+                # Remind me of this distinction?
+                if band is None:
+                    b = pop.full_band
+                    fix = 1.
+                else:
+                    b = band
+                    fix = 1. / pop._convert_band(*band)
+                
+                # Setup interpolant
+                rho_L = pop.rho_L(Emin=b[0], Emax=b[1])
+                
+                if rho_L is None:
+                    continue
+
+                in_band = np.logical_and(E >= b[0], E <= b[1])
+
+                # By definition, rho_L integrates to unity in (b[0], b[1]) band
+                # BUT, Inu_hat is normalized in (EminNorm, EmaxNorm) band
+
+                for ll, redshift in enumerate(z):
+                    epsilon[ll,in_band] = fix \
+                        * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
+                        * ev_per_hz * Inu_hat[in_band] / H[ll] / erg_per_ev
 
         return epsilon
-            
+
     def _flux_generator_generic(self, energies, redshifts, ehat, tau=None,
         flux0=None):
         """
         Generic flux generator.
-        
+
         Parameters
         ----------
         energies : np.ndarray
@@ -1174,9 +1239,9 @@ class UniformBackground(object):
                 flux.append(new_flux)
 
             # Increment fluxes
-            line_flux = self._compute_line_flux(flux)
+            #line_flux = self._compute_line_flux(flux)
 
-            yield z, flatten_flux(flux) + flatten_flux(line_flux)
+            yield z, flux #+ flatten_flux(line_flux)
 
     def FluxGenerator(self, popid):
         """

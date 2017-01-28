@@ -12,7 +12,7 @@ Description:
 
 import pickle
 import numpy as np
-import os, re, types
+import os, re, types, sys
 from ..physics import Cosmology
 from scipy.integrate import quad
 from ..physics.Constants import c
@@ -335,9 +335,7 @@ class OpticalDepth(object):
             z, E, tau = self.load(self.tabname)
     
             zmax_ok = (self.z.max() >= self.pf['initial_redshift']) or \
-                np.allclose(self.z.max(), self.pf['initial_redshift']) or \
-                (self.z.max() >= self.pf['first_light_redshift']) or \
-                np.allclose(self.z.max(), self.pf['first_light_redshift'])
+                np.allclose(self.z.max(), self.pf['initial_redshift'])
     
             zmin_ok = (self.z.min() <= self.pf['final_redshift']) or \
                 np.allclose(self.z.min(), self.pf['final_redshift'])
@@ -354,7 +352,7 @@ class OpticalDepth(object):
             # Check redshift bounds
             if not (zmax_ok and zmin_ok):
                 if not zmax_ok:
-                    tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
+                    tau_tab_z_mismatch(self, zmin_ok, zmax_ok, self.z)
                     sys.exit(1)
                 else:
                     if self.pf['verbose']:
@@ -711,7 +709,7 @@ class OpticalDepth(object):
         Emin_ok = \
             (Etab.min() <= Epf.min()) or \
             np.allclose(Etab.min(), Epf.min())
-    
+            
         # Results insensitive to Emax (so long as its relatively large)
         # so be lenient with this condition (100 eV or 1% difference
         # between parameter file and lookup table)

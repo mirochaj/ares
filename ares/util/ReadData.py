@@ -12,7 +12,7 @@ Description:
 
 import numpy as np
 import imp as _imp
-import os, re, sys
+import os, re, sys, glob
 
 try:
     import dill as pickle
@@ -35,7 +35,12 @@ HOME = os.environ.get('HOME')
 ARES = os.environ.get('ARES')
 sys.path.insert(1, '%s/input/litdata' % ARES)
 
-def read_lit(prefix, path=None):
+_lit_options = glob.glob('%s/input/litdata/*.py' % ARES)
+lit_options = []
+for element in _lit_options:
+    lit_options.append(element.split('/')[-1].replace('.py', ''))
+
+def read_lit(prefix, path=None, verbose=True):
     """
     Read data from the literature.
     
@@ -52,17 +57,29 @@ def read_lit(prefix, path=None):
     if path is not None:
         prefix = '%s/%s' % (path, prefix)
     
-    # Load custom defaults    
-    if os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix)):
-        _f, _filename, _data = _imp.find_module(prefix, 
-            ['%s/input/litdata/' % ARES])
-        mod = _imp.load_module('%s' % prefix, _f, _filename, _data)
-    elif os.path.exists('%s/.ares/%s.py' % (HOME, prefix)):
-        _f, _filename, _data = _imp.find_module(prefix, 
-            ['%s/.ares/' % HOME])
-        mod = _imp.load_module('%s' % prefix, _f, _filename, _data)
+    has_local = os.path.exists('./%s.py' % prefix)
+    has_home = os.path.exists('%s/.ares/%s.py' % (HOME, prefix))
+    has_litd = os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix))
+    
+    # Load custom defaults
+    if has_local:
+        loc = '.'    
+    elif has_home:
+        loc = '%s/.ares/' % HOME
+    elif has_litd:
+        loc = '%s/input/litdata/' % ARES
     else:
-        mod = None
+        return None
+
+    if has_local + has_home + has_litd > 1:
+        print "WARNING: multiple copies of %s found." % prefix
+        print "       : precedence: CWD -> $HOME -> $ARES/input/litdata"
+
+    _f, _filename, _data = _imp.find_module(prefix, [loc])
+    mod = _imp.load_module(prefix, _f, _filename, _data)
+    
+    # Save this for sanity checks later
+    mod.path = loc
     
     return mod
 
@@ -77,12 +94,66 @@ def flatten_energies(E):
             for j, flux_seg in enumerate(band):
                 to_return.extend(flux_seg)
         else:
-            to_return.extend(band)
-    
+            try:
+                to_return.extend(band)
+            except TypeError:
+                to_return.append(band)
+
     return np.array(to_return)
 
-def flatten_flux(flux):
-    return flatten_energies(flux)
+def flatten_flux(arr):
+    return flatten_energies(arr)
+
+def flatten_emissivities(arr, z, Eflat):
+    """
+    Return an array as function of redshift and (flattened) energy.
+    
+    The input 'arr' will be a nested thing that is pretty nasty to deal with.
+
+    The first dimension corresponds to band 'chunks'. Elements within each
+    chunk may be a single array (2D: function of redshift and energy), or, in
+    the case of sawtooth regions of the spectrum, another list where each
+    element is some sub-chunk of a sawtooth background.
+
+    """
+
+    to_return = np.zeros((z.size, Eflat.size))
+
+    k1 = 0
+    k2 = 0
+    for i, band in enumerate(arr):
+        if type(band) is list:
+            for j, flux_seg in enumerate(band):
+                # flux_seg will be (z, E)
+                N = len(flux_seg[0].squeeze())
+                if k2 is None:
+                    k2 = N
+                k2 += N    
+                    
+                print i, j, N, k1, k2
+                to_return[:,k1:k2] = flux_seg.squeeze()
+                k1 += N
+                
+        else:
+            # First dimension is redshift.
+            print band.shape
+            to_save = band.squeeze()
+            
+            # Rare occurence...
+            if to_save.ndim == 1:
+                if np.all(to_save == 0):
+                    continue
+            
+            N = len(band[0].squeeze())
+            if k2 is None:
+                k2 = N
+            print 'hey', i, j, N, k1, k2
+            k2 += N
+            to_return[:,k1:k2] = band.copy()
+            k1 += N
+
+
+    return to_return
 
 def split_flux(energies, fluxes):
     """
@@ -350,8 +421,7 @@ def read_pickled_chain(fn):
         return np.array(new_data)
         
     else:
-        print Nd
-        raise ValueError('unrecognized chain shape')
+        raise ValueError('Unrecognized chain shape')
         
     
     

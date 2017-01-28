@@ -281,10 +281,9 @@ If you've got models that seem to have something wrong with them, sending me the
 ..     pl.draw()
 ..     
 .. 
-.. Highly Dimensional Grids
-.. ------------------------
-.. For parameter studies with :math:`\gtrsim 3` dimensions, you might want to use 
-.. MCMC. See :doc:`example_mcmc_I` for an example.
-.. 
-.. 
-.. 
+Highly Dimensional Grids
+------------------------
+For parameter studies with :math:`\gtrsim 3` dimensions, you might want to use 
+Monte Carlo sampling or MCMC. See :doc:`example_mcmc_gs` for an example.
+
+

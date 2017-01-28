@@ -2,7 +2,7 @@
 
 DustCorrection.py
 
-Author: Jordan Mirocha
+Author: Jason Sun and Jordan Mirocha
 Affiliation: UCLA
 Created on: Tue Jan 19 17:55:27 PST 2016
 
@@ -11,90 +11,111 @@ Description:
 """
 
 import numpy as np
+from types import FunctionType
 from ..util import ParameterFile
+from scipy.optimize import fsolve
 
+_coeff = \
+{
+ 'meurer1999': [4.43, 1.99],
+ 'pettini1998': [1.49, 0.68],
+ 'capak2015': [0.312, 0.176],
+}
+          
 class DustCorrection(object):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
         
     @property
     def method(self):
-        return self.pf['dustcorr_Afun']
+        if not hasattr(self, '_method'):
+            if self.pf['dustcorr_method'] is None:
+                self._method = None
+            elif type(self.pf['dustcorr_method']) is list:
+                meth = self.pf['dustcorr_method']
+                self._method = \
+                    [meth[i] for i in range(len(meth))]   
+                    
+                assert len(self._method) == len(self.pf['dustcorr_ztrans'])
+            else:
+                self._method = self.pf['dustcorr_method']
+
+        return self._method
 	
 	#   ==========   Parametrization of Auv   ==========   #
 	
     def AUV(self, z, mag):
 		''' Return non-negative mean correction <Auv> averaged over Luv assuming a normally distributed Auv '''
-		
-		# The scatter in <Auv> can be attributed to 1. scatter in beta(Muv) 2. intrinsic scatter in Auv(beta)
-		if self.pf['dustcorr_Afun'] is None:
-			return 0.0
-		elif self.pf['dustcorr_Afun'].lower() == 'meurer1999':
-			sigma = np.sqrt((self.pf['s_beta']*self.MeurerDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
-			temp = self.MeurerDC(z, mag)[1][0] + self.MeurerDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
-			return np.maximum(temp, 0.0)
-		elif self.pf['dustcorr_Afun'].lower() == 'pettini1998':
-			sigma = np.sqrt((self.pf['s_beta']*self.PettiniDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
-			temp = self.PettiniDC(z, mag)[1][0] + self.PettiniDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
-			return np.maximum(temp, 0.0)
-		elif self.pf['dustcorr_Afun'].lower() == 'capakhighz':
-			sigma = np.sqrt((self.pf['s_beta']*self.CapakDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
-			temp = self.CapakDC(z, mag)[1][0] + self.CapakDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
-			return np.maximum(temp, 0.0)
-		elif self.pf['dustcorr_Afun'].lower() == 'evolving':
-			sigma = np.sqrt((self.pf['s_beta']*self.EvolvDC(z, mag)[1][1])**2 + self.pf['s_AUV']**2)
-			temp = self.EvolvDC(z, mag)[1][0] + self.EvolvDC(z, mag)[1][1] * self.Beta(z, mag) + 0.2*np.log(10)*sigma**2
-			return np.maximum(temp, 0.0)					
+
+		if self.method is None:
+		    method = None
+		    
+		elif type(self.method) is list:
+		    for i, method in enumerate(self.method):
+		        if z < self.pf['dustcorr_ztrans'][i]:
+		            continue
+		        if i == (len(self.method) - 1):
+		            break    
+		        if z <= self.pf['dustcorr_ztrans'][i+1]:
+		            break
 		else:
-			raise NotImplemented('sorry!')
+		    method = self.method
+		    
+		if method is None:
+		    return 0.0
+
+		a, b = _coeff[method]
+
+		beta = self.Beta(z, mag)
+
+		s_a = self.pf['dustcorr_scatter_A']
+		s_b = self.pf['dustcorr_scatter_B']
+		sigma = np.sqrt(s_a**2 + (s_b * beta)**2)
+		
+		AUV = a + b * beta + 0.2 * np.log(10) * sigma
+		
+		return np.maximum(AUV, 0.0)
 	
-    def MeurerDC(self, z, mag):
-    	coeff = [4.43, 1.99]    
-        val = coeff[0] + coeff[1] * self.Beta(z, mag)
-        val = np.maximum(val, 0.0)
-        return [val, coeff]
-	
-	
-    def PettiniDC(self, z, mag):
-    	coeff = [1.49, 0.68]
-    	val =  coeff[0] + coeff[1] * self.Beta(z, mag)
-    	val = np.maximum(val, 0.0)
-        return [val, coeff]
-    
-    def CapakDC(self, z, mag):
-    	# Fit to Capak upper limits
-    	coeff = [0.312, 0.176]
-    	val =  coeff[0] + coeff[1] * self.Beta(z, mag)
-    	val = np.maximum(val, 0.0)
-        return [val, coeff]
+    def Mobs(self, z, MUV):
+        """
+        Return observed (i.e., uncorrected for dust) magnitude.
+        """
         
-    def EvolvDC(self, z, mag, z1=5.0, z2=6.0):
-    	# Stepwise correction for the given thresholds z1 & z2
-    	if z < z1:
-    		return self.MeurerDC(z, mag)
-    	elif (z >= z1) & (z < z2):
-    		return self.PettiniDC(z, mag)
-    	else:
-    		return self.CapakDC(z, mag) 
-    	
+        if type(MUV) in [np.ndarray, list, tuple]:
+            
+            x = []
+            for M in MUV:
+                f_AUV = lambda mag: self.AUV(z, mag)
+                
+                to_min = lambda xx: xx - f_AUV(xx) - M
+                x.append(fsolve(to_min, M+1.)[0])
+        else:
+
+            f_AUV = lambda mag: self.AUV(z, mag)
+            
+            to_min = lambda xx: xx - f_AUV(xx) - MUV
+            x = fsolve(to_min, MUV+1.)[0]
     
+        return x
+        
     #   ==========   Parametrization of Beta   ==========   #
     def Beta(self, z, mag):
         
-        if self.pf['dustcorr_Bfun'] == 'constant':
-            return self.pf['dustcorr_Bfun_par0']
-        elif self.pf['dustcorr_Bfun'] == 'FitMason':
-        	return self.BetaFit(z, mag)
+        if type(self.pf['dustcorr_beta']) is str:
+            return self._beta_fit(z, mag)
+        elif type(self.pf['dustcorr_beta']) is FunctionType:    
+            return self.pf['dustcorr_beta'](z, mag)
         else:
-            raise NotImplemented('sorry!')
+            return self.pf['dustcorr_beta']
     
-    
-    def beta0(self, z):
-    	''' Get the measured UV continuum slope from Bouwens+2014 '''
+    def _bouwens2014_beta0(self, z):
+    	"""
+    	Get the measured UV continuum slope from Bouwens+2014 (Table 3).
+    	"""
     	_z = np.round(z,0)
     	
     	if _z < 4.0:
-        	raise ValueError('z is out of bounds')
+        	val = -1.70; err_rand = 0.07; err_sys = 0.15
     	elif _z == 4.0:
         	val = -1.85; err_rand = 0.01; err_sys = 0.06
     	elif _z == 5.0:
@@ -112,12 +133,12 @@ class DustCorrection(object):
     	return [val, err_rand, err_sys]
     
     
-    def dbeta0_dM0(self, z):
+    def _bouwens2014_dbeta0_dM0(self, z):
     	''' Get the measured slope of the UV continuum slope from Bouwens+2014 '''
     	_z = np.round(z,0)
     	
     	if _z < 4.0:
-        	raise ValueError('z is out of bounds')
+        	val = -0.2; err = 0.04
     	elif _z == 4.0:
         	val = -0.11; err = 0.01
     	elif _z == 5.0:
@@ -134,31 +155,43 @@ class DustCorrection(object):
         
         return [val, err]
     
-    
-    def BetaFit(self, z, mag):
+    def _beta_fit(self, z, mag):
     	''' An linear + exponential fit to Bouwens+14 data adopted from Mason+2015 '''
-    	_M0 = -19.5; _c = -2.33
     	
-    	# Must handle piecewise function carefully for arrays of magnitudes
-    	# lo vs. hi NOT in absolute value, i.e., lo means bright.
-    	if type(mag) == np.ndarray:
-    	    assert np.all(np.diff(mag) > 0), \
-    	        "Magnitude values must be increasing!"
+    	if self.pf['dustcorr_beta'] == 'bouwens2012':
+    	    # This is mentioned in the caption of Smit et al. 2012 Fig 1
+    	    dbeta_dMUV = -0.11
+    	    return dbeta_dMUV * (mag + 19.5) - 2.00
+    	
+    	elif self.pf['dustcorr_beta'] == 'bouwens2014':
+    	    # His Table 3
+    	    beta0 = self._bouwens2014_beta0(z)[0]
+            dbeta_dMUV = self._bouwens2014_dbeta0_dM0(z)[0]
+            return dbeta_dMUV * (mag + 19.5) + beta0    
+    	elif self.pf['dustcorr_beta'] == 'mason2015':
+    	    _M0 = -19.5; _c = -2.33
+            
+    	    # Must handle piecewise function carefully for arrays of magnitudes
+    	    # lo vs. hi NOT in absolute value, i.e., lo means bright.
+    	    if type(mag) == np.ndarray:
+    	        assert np.all(np.diff(mag) > 0), \
+    	            "Magnitude values must be increasing!"
 
-    	    Mlo = mag[mag < _M0]
-    	    Mhi = mag[mag >= _M0]
-    	    Alo = self.dbeta0_dM0(z)[0]*(Mlo - _M0) + self.beta0(z)[0]
-    	    Ahi = (self.beta0(z)[0] - _c) * np.exp(self.dbeta0_dM0(z)[0]*(Mhi - _M0)/(self.beta0(z)[0] - _c)) + _c
-
-            return np.concatenate((Alo, Ahi))
-
-        # Otherwise, standard if/else works
-    	if mag < _M0:
-    		return self.dbeta0_dM0(z)[0]*(mag - _M0) + self.beta0(z)[0]
-    	else:
-    		return (self.beta0(z)[0] - _c) * np.exp(self.dbeta0_dM0(z)[0]*(mag - _M0)/(self.beta0(z)[0] - _c)) + _c
+    	        Mlo = mag[mag < _M0]
+    	        Mhi = mag[mag >= _M0]
+    	        Alo = self._bouwens2014_dbeta0_dM0(z)[0]*(Mlo - _M0) + self._bouwens2014_beta0(z)[0]
+    	        Ahi = (self._bouwens2014_beta0(z)[0] - _c) * np.exp(self._bouwens2014_dbeta0_dM0(z)[0]*(Mhi - _M0)/(self._bouwens2014_beta0(z)[0] - _c)) + _c
+            
+                return np.concatenate((Alo, Ahi))
+            
+            # Otherwise, standard if/else works
+    	    if mag < _M0:
+    	    	return self._bouwens2014_dbeta0_dM0(z)[0]*(mag - _M0) + self._bouwens2014_beta0(z)[0]
+    	    else:
+    	    	return (self._bouwens2014_beta0(z)[0] - _c) * np.exp(self._bouwens2014_dbeta0_dM0(z)[0]*(mag - _M0)/(self._bouwens2014_beta0(z)[0] - _c)) + _c
     
-        
+        else:
+            raise NotImplementedError('Unrecognized dustcorr: %s' % self.pf['dustcorr_beta'])
 
         
         

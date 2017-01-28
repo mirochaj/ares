@@ -14,21 +14,34 @@ import numpy as np
 from ..util import read_lit
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
+from matplotlib.patches import Patch
 
-all_datasets = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
-    'parsa2016', 'finkelstein2015')
+datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
+    'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
+    'reddy2009', 'weisz2014')
+datasets_smf = ('song2016', )
 
-default_colors = {'bouwens2015': 'r', 'atek2015': 'y', 'oesch2013': 'm',
-    'oesch2014': 'c', 'parsa2016': 'g', 'finkelstein2015': 'b'}
-default_markers = {src:'o' for src in all_datasets}
+colors = ['m', 'c', 'r', 'y', 'g', 'b'] * 3
+markers = ['o'] * 6 + ['s'] * 6    
+    
+default_colors = {}
+default_markers = {}    
+for i, dataset in enumerate(datasets_lf):
+    default_colors[dataset] = colors[i]
+    default_markers[dataset] = markers[i]
+
+for i, dataset in enumerate(datasets_smf):
+    default_colors[dataset] = colors[i]
+    default_markers[dataset] = markers[i]
 
 _ulim_tick = 0.5
 
-class ObservedLF(object):
+class GalaxyPopulation(object):
     def __init__(self):
         pass
 
-    def compile_data(self, redshift, sources='all', round_z=False):
+    def compile_data(self, redshift, sources='all', round_z=False,
+        quantity='lf'):
         """
         Create a master dictionary containing the MUV points, phi points,
         and (possibly asymmetric) errorbars for all (or some) data available.
@@ -43,7 +56,10 @@ class ObservedLF(object):
         data = {}
 
         if sources == 'all':
-            sources = all_datasets
+            if quantity == 'lf':
+                sources = datasets_lf
+            else:
+                sources = datasets_smf
         elif type(sources) is str:
             sources = [sources]    
 
@@ -64,11 +80,11 @@ class ObservedLF(object):
                     
             else:        
                 z = redshift
-                
+
             data[source] = {}
             data[source]['wavelength'] = src.wavelength
             
-            M = src.data['lf'][z]['M']            
+            M = src.data[quantity][z]['M']            
             if hasattr(M, 'data'):
                 data[source]['M'] = M.data
             else:
@@ -76,12 +92,14 @@ class ObservedLF(object):
             
             if src.units['phi'] == 'log10':
                 err_lo = []; err_hi = []; uplims = []
-                for i, err in enumerate(src.data['lf'][z]['err']):
+                for i, err in enumerate(src.data[quantity][z]['err']):
                     
                     if type(err) not in [int, float]:
-                        raise NotImplemented('help!')
-                    
-                    logphi_ML = src.data['lf'][z]['phi'][i]
+                        err = np.mean(err)
+                        #raise NotImplemented('help!')
+                        print "WARNING: log10 asymmetric errors not great!"
+                        
+                    logphi_ML = src.data[quantity][z]['phi'][i]
                     
                     logphi_lo_tmp = logphi_ML - err   # log10 phi
                     logphi_hi_tmp = logphi_ML + err   # log10 phi
@@ -102,20 +120,20 @@ class ObservedLF(object):
                     uplims.append(err < 0)    
                     
                 data[source]['err'] = (err_lo, err_hi) 
-                if hasattr(src.data['lf'][z]['phi'], 'data'):       
-                    data[source]['phi'] = 10**src.data['lf'][z]['phi'].data
+                if hasattr(src.data[quantity][z]['phi'], 'data'):       
+                    data[source]['phi'] = 10**src.data[quantity][z]['phi'].data
                 else:
-                    data[source]['phi'] = 10**np.array(src.data['lf'][z]['phi'])
+                    data[source]['phi'] = 10**np.array(src.data[quantity][z]['phi'])
                 data[source]['ulim'] = uplims
             else:                
                 
-                if hasattr(src.data['lf'][z]['phi'], 'data'):
-                    data[source]['phi'] = src.data['lf'][z]['phi'].data
+                if hasattr(src.data[quantity][z]['phi'], 'data'):
+                    data[source]['phi'] = src.data[quantity][z]['phi'].data
                 else:
-                    data[source]['phi'] = np.array(src.data['lf'][z]['phi'])
+                    data[source]['phi'] = np.array(src.data[quantity][z]['phi'])
                 
                 err_lo = []; err_hi = []; uplims = []
-                for i, err in enumerate(src.data['lf'][z]['err']):
+                for i, err in enumerate(src.data[quantity][z]['err']):
                     
                     if type(err) in [list, tuple, np.ndarray]:
                         err_hi.append(err[1])
@@ -140,11 +158,20 @@ class ObservedLF(object):
                 
         return data
                 
-    def Plot1D(self):
-        pass            
+    def PlotLF(self, z, ax=None, fig=1, sources='all', round_z=False, 
+            AUV=None, wavelength=1600., sed_model=None, **kwargs):
+                
+        return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
+            AUV=AUV, wavelength=1600, sed_model=None, quantity='lf', **kwargs)  
+        
+    def PlotSMF(self, z, ax=None, fig=1, sources='all', round_z=False, 
+            AUV=None, wavelength=1600., sed_model=None, **kwargs):
+    
+        return self.Plot(z=z, ax=ax, fig=fig, sources=sources, round_z=round_z,
+            AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', **kwargs)              
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
-        AUV=None, wavelength=1600., sed_model=None, **kwargs):
+        AUV=None, wavelength=1600., sed_model=None, quantity='lf', **kwargs):
         """
         Plot the luminosity function data at a given redshift.
         
@@ -166,10 +193,13 @@ class ObservedLF(object):
         else:
             gotax = True
             
-        data = self.compile_data(z, sources, round_z=round_z)
+        data = self.compile_data(z, sources, round_z=round_z, quantity=quantity)
         
         if sources == 'all':
-            sources = all_datasets
+            if quantity == 'lf':
+                sources = datasets_lf
+            else:
+                sources = datasets_smf
         elif type(sources) is str:
             sources = [sources]
             
@@ -183,10 +213,13 @@ class ObservedLF(object):
             ulim = np.array(data[source]['ulim'])
                                                 
             if not kwargs:
-                kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 
-                    'mec':default_colors[source], 
-                    'fmt': default_markers[source],
-                    'color':default_colors[source], 'capthick':2}
+                try:
+                    kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 
+                        'mec':default_colors[source], 
+                        'fmt': default_markers[source],
+                        'color':default_colors[source], 'capthick':2}
+                except KeyError:
+                    kw = {}
             else:
                 kw = kwargs
             
@@ -206,17 +239,26 @@ class ObservedLF(object):
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, **kw)
         
         ax.set_yscale('log', nonposy='clip')    
-        ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
-        ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        ax.set_xlim(-25.5, -10)
-        ax.set_xticks(np.arange(-25, -10, 1), minor=True)
+        
+        if quantity == 'lf':
+            ax.set_xlim(-26.5, -10)
+            ax.set_xticks(np.arange(-26, -10, 1), minor=True)
+            ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
+            ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
+        elif quantity == 'smf':
+            ax.set_xscale('log')
+            ax.set_xlim(1e7, 1e13)
+            ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
+            ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+            
         
         pl.draw()
         
         return ax
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
-        panel_size=(0.75,0.75), fig=1):
+        panel_size=(0.75,0.75), fig=1, ymax=10, legends=None, AUV=None,
+        quantity='lf'):
         """
         Plot the luminosity function at a bunch of different redshifts.
         
@@ -227,6 +269,9 @@ class ObservedLF(object):
         ncols : int
             How many columns in multiplot? Number of rows will be determined
             automatically.
+        legends : bool, str
+            'individual' means one legend per axis, 'master' means one
+            (potentially gigantic) legend.
             
         """        
         
@@ -245,7 +290,8 @@ class ObservedLF(object):
             redshifts = np.sort(redshifts)
             
         # Create multiplot
-        mp = MultiPanel(dims=dims, panel_size=panel_size, fig=fig)
+        mp = MultiPanel(dims=dims, panel_size=panel_size, fig=fig, 
+            padding=[0.2]*2)
         
         self.redshifts_in_mp = []
         for i, z in enumerate(redshifts):
@@ -255,17 +301,35 @@ class ObservedLF(object):
             # Where in the MultiPlot grid are we?
             self.redshifts_in_mp.append(k)
                         
-            self.Plot(z, sources=sources, round_z=round_z, ax=ax)
+            self.Plot(z, sources=sources, round_z=round_z, ax=ax, AUV=AUV,
+                quantity=quantity)
             
             ax.annotate(r'$z \sim %i$' % (round(z)), (0.05, 0.95), 
                 ha='left', va='top', xycoords='axes fraction')
-            ax.set_xlim(-24, -14.)
-            ax.set_ylim(1e-7, 5e-1)
-            ax.set_xticks(np.arange(-23, -13, 2), minor=True)
-            ax.set_yscale('log', nonposy='clip')
-            
-        mp.fix_ticks(rotate_x=45)
         
+        mp.fix_ticks(rotate_x=45)
+                
+        for i, z in enumerate(redshifts):
+            k = mp.elements.ravel()[i]
+            ax = mp.grid[k]
+            
+            if quantity == 'lf':
+                ax.set_xlim(-24, 0.)
+                ax.set_ylim(1e-7, 1e1)
+                ax.set_xticks(np.arange(-23, -1, 2), minor=True)
+                ax.set_yscale('log', nonposy='clip')  
+                ax.set_ylabel('')
+            else:
+                ax.set_xscale('log')
+                ax.set_xlim(1e6, 1e12)
+                ax.set_ylim(1e-9, 15)
+                ax.set_yscale('log', nonposy='clip')                      
+            
+        if quantity == 'lf':
+            mp.global_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
+        else:
+            mp.global_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+            
         return mp
             
     def annotated_legend(self, ax, loc=(0.95, 0.05), sources='all'):   

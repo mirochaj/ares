@@ -175,9 +175,6 @@ class HaloPopulation(Population):
                 delattr(self, '_dfcolldz')
                 self._dfcolldz = lambda zz: abs(dfcdz_p * (zz - z_lo) + dfcdz_lo)            
                 
-        #if self._counter > 8:
-        #    raise ValueError('hey')
-        #
         self._counter += 1
         
     def _init_fcoll(self):
@@ -185,10 +182,6 @@ class HaloPopulation(Population):
         if self.pf['pop_sfrd'] is not None:
             return
 
-        #if self.pf['pop_feedback']:
-        #    # 2-D function in this case, of (redshift, logMmin)
-        #    self._fcoll = self.halos.fcoll
-        #    self._dfcolldz = self.halos.dfcolldz
         if self.pf['pop_fcoll'] is None:
             self._set_fcoll(self.pf['pop_Tmin'], self.pf['mu'])
         else:
@@ -215,13 +208,6 @@ class HaloPopulation(Population):
         return self.cosm.rho_m_z0 * self.dfcolldt(z) * cm_per_mpc**3 \
                 * s_per_yr / g_per_msun
     
-    #@property
-    #def _MAR_tab(self):
-    #    if not hasattr(self, '_MAR_tab_'):
-    #        self._MAR_tab_ = {}
-    #    return self._MAR_tab_
-    
 
-        
         
         

@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'Dust', 'HaloProperty', 'Old']
+    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -214,13 +214,42 @@ def PhysicsParameters():
     
     "rate_source": 'fk94', # fk94, option for development here
     
-    # LW feedback parameters
-    'feedback_LW': False,
-    'feedback_LW_iter': None, 
-    'feedback_LW_maxiter': 10,
+    # Feedback parameters
+    'feedback_maxiter': 10,
+    
+    # LW
+    'feedback_LW': None,
+    'feedback_LW_Tcut': 1e4,
+    
     'feedback_LW_rtol': 0.,
     'feedback_LW_atol': 1.,
     'feedback_LW_mean_err': False,
+    'feedback_LW_Mmin_uponly': False,
+    'feedback_LW_Mmin_smooth': False,
+    
+    'feedback_Z': None,
+    'feedback_Z_Tcut': 1e4,
+    'feedback_Z_rtol': 0.,
+    'feedback_Z_atol': 1.,
+    'feedback_Z_mean_err': False,
+    'feedback_Z_Mmin_uponly': False,
+    'feedback_Z_Mmin_smooth': False,
+    
+    'feedback_tau': None,
+    'feedback_tau_Tcut': 1e4,
+    'feedback_tau_rtol': 0.,
+    'feedback_tau_atol': 1.,
+    'feedback_tau_mean_err': False,
+    'feedback_tau_Mmin_uponly': False,
+    'feedback_tau_Mmin_smooth': False,
+    
+    'feedback_EoR': None,
+    'feedback_EoR_Tcut': 1e4,
+    'feedback_EoR_rtol': 0.,
+    'feedback_EoR_atol': 1.,
+    'feedback_EoR_mean_err': False,
+    'feedback_EoR_Mmin_uponly': False,
+    'feedback_EoR_Mmin_smooth': False,
 
     }
 
@@ -228,61 +257,63 @@ def PhysicsParameters():
 
     return pf
 
-def HaloPropertyParameters():
+def ParameterizedQuantityParameters():
     pf = {}
 
     tmp = \
     {
-     "php_func": 'dpl',
-     "php_func_var": 'mass',
-     "php_func_par0": None,
-     "php_func_par1": None,
-     "php_func_par2": None,
-     "php_func_par3": None,
-     "php_func_par4": None,
-     "php_func_par5": None,
+     "pq_func": 'dpl',
+     "pq_func_var": 'Mh',
+     "pq_func_par0": None,
+     "pq_func_par1": None,
+     "pq_func_par2": None,
+     "pq_func_par3": None,
+     "pq_func_par4": None,
+     "pq_func_par5": None,
 
-     'php_faux': None,
-     'php_faux_var': None,
-     'php_faux_meth': 'multiply',
-     'php_faux_par0': None,
-     'php_faux_par1': None,
-     'php_faux_par2': None,
-     'php_faux_par3': None,
-     'php_faux_par4': None,
-     'php_faux_par5': None,
+     'pq_faux': None,
+     'pq_faux_var': None,
+     'pq_faux_meth': 'multiply',
+     'pq_faux_par0': None,
+     'pq_faux_par1': None,
+     'pq_faux_par2': None,
+     'pq_faux_par3': None,
+     'pq_faux_par4': None,
+     'pq_faux_par5': None,
      
-     'php_faux_A': None,
-     'php_faux_A_var': None,
-     'php_faux_A_meth': 'multiply',
-     'php_faux_A_par0': None,
-     'php_faux_A_par1': None,
-     'php_faux_A_par2': None,
-     'php_faux_A_par3': None,
-     'php_faux_A_par4': None,
-     'php_faux_A_par5': None,
+     'pq_faux_A': None,
+     'pq_faux_A_var': None,
+     'pq_faux_A_meth': 'multiply',
+     'pq_faux_A_par0': None,
+     'pq_faux_A_par1': None,
+     'pq_faux_A_par2': None,
+     'pq_faux_A_par3': None,
+     'pq_faux_A_par4': None,
+     'pq_faux_A_par5': None,
      
-     'php_faux_B': None,
-     'php_faux_B_var': None,
-     'php_faux_B_meth': 'multiply',
-     'php_faux_B_par0': None,
-     'php_faux_B_par1': None,
-     'php_faux_B_par2': None,
-     'php_faux_B_par3': None,
-     'php_faux_B_par4': None,
-     'php_faux_B_par5': None,
+     'pq_faux_B': None,
+     'pq_faux_B_var': None,
+     'pq_faux_B_meth': 'multiply',
+     'pq_faux_B_par0': None,
+     'pq_faux_B_par1': None,
+     'pq_faux_B_par2': None,
+     'pq_faux_B_par3': None,
+     'pq_faux_B_par4': None,
+     'pq_faux_B_par5': None,
      
-     "php_boost": 1.,
-     "php_iboost": 1.,
-     "php_ceil": None,
-     "php_floor": None,
+     "pq_boost": 1.,
+     "pq_iboost": 1.,
+     "pq_val_ceil": None,
+     "pq_val_floor": None,
+     "pq_var_ceil": None,
+     "pq_var_floor": None,      
          
     }  
     
     # Hrm...can't remember what this is about.
     for i in range(6):
         for j in range(6):
-            tmp['php_func_par%i_par%i' % (i,j)] = None
+            tmp['pq_func_par%i_par%i' % (i,j)] = None
     
     pf.update(tmp)
     pf.update(rcParams)
@@ -294,15 +325,17 @@ def DustParameters():
     
     tmp = \
     {     
-     'dustcorr_Afun': None,
+     'dustcorr_method': None,
 
-     'dustcorr_Bfun': 'constant',
+     'dustcorr_beta': -2.,
      
-     # Intrinsic scatter in the beta-mag relation (gaussian)
-     's_beta': 0.34,
+     # Only used if method is a list
+     'dustcorr_ztrans': None,
      
      # Intrinsic scatter in the AUV-beta relation
-     's_AUV': 0.0,
+     'dustcorr_scatter_A': 0.0,
+     # Intrinsic scatter in the beta-mag relation (gaussian)
+     'dustcorr_scatter_B': 0.34,
           
      'dustcorr_Bfun_par0': -2.,
      'dustcorr_Bfun_par1': None,
@@ -356,6 +389,7 @@ def PopulationParameters():
     'pop_lf_Mmax': 1e15,
 
     "pop_fduty": 1.0,
+    "pop_focc": 1.0,
         
     # Set the emission interval and SED
     "pop_sed": 'pl',
@@ -372,6 +406,7 @@ def PopulationParameters():
     "pop_psm_instance": None,
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
+    "pop_sed_by_Z": None,
 
     # Option of setting Z, t, or just supplying SSP table?
     
@@ -392,7 +427,13 @@ def PopulationParameters():
     
     # By-hand parameterizations
     "pop_Ja": None,
-    "pop_ion_rate": None,
+    "pop_Tk": None,
+    "pop_xi": None,  
+    "pop_ne": None,  
+    
+    # 
+    "pop_ion_rate_cgm": None,
+    "pop_ion_rate_igm": None,
     "pop_heat_rate": None,
         
     "pop_k_ion_cgm": None,
@@ -405,10 +446,12 @@ def PopulationParameters():
         
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
+    "pop_fstar_max": 1.0,
     
     "pop_sfe": None,
     "pop_mlf": None,
     "pop_sfr": None,
+    "pop_fshock": 1.0,
     
     "pop_tab_z": None,
     "pop_tab_Mh": None,
@@ -455,20 +498,29 @@ def PopulationParameters():
     
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
-    "pop_yield": 2.6e39,
-    "pop_yield_units": 'erg/s/sfr',
+    "pop_rad_yield": 2.6e39,
+    "pop_rad_yield_units": 'erg/s/sfr',
+    "pop_rad_yield_Z_index": None,
     
-    "pop_yield_Z_index": None,
+    # Parameters for simple galaxy SAM
+    "pop_sam_nz": 1,
+    "pop_sam_dz": 1.0,
+    "pop_mass_yield": 0.5,
+    "pop_metal_yield": 0.01,
+    "pop_fpoll": 1.0,         # uniform pollution
+    "pop_fstall": 0.0,
+    "pop_mass_rec": 0.0,
+    "pop_mass_escape": 0.0,
+    "pop_fstar_res": 0.0,
     
+    # deprecated?
     "pop_kappa_UV": 1.15e-28,
+    
     "pop_L1600_per_sfr": None,
     "pop_calib_L1600": None,
     
-    "pop_fstar_boost": 1.,
-
-    # If pop_yield_units == 'erg/s/sfr/hz, this is the reference wavelength
-    "pop_yield_wavelength": 1500.,
-
+    "pop_Lh_scatter": 0.0,
+    
     'pop_fXh': None,
     
     'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
@@ -479,9 +531,6 @@ def PopulationParameters():
     
     "pop_tau_Nz": 400,
     
-    # Feedback! LW for now, but could be other stuff eventually (?)
-    "pop_feedback": False,
-
     # Pre-created splines
     "pop_fcoll": None,
     "pop_dfcolldz": None,
@@ -489,6 +538,8 @@ def PopulationParameters():
     # Get passed on to litdata instances
     "source_kwargs": {},
     "pop_kwargs": {},
+
+    "pop_test_param": None,
 
     }
 
@@ -658,7 +709,6 @@ def ControlParameters():
     
     "initial_redshift": 50.,
     "final_redshift": 6,
-    "first_light_redshift": 50.,
     
     "save_rate_coefficients": 1,
     
@@ -669,8 +719,13 @@ def ControlParameters():
     # Solvers
     "solver_rtol": 1e-8,
     "solver_atol": 1e-8,
-    "interp_method": 'cubic',
+    "interp_tab": 'cubic',
     "interp_cc": 'linear',
+    "interp_Z": 'linear',
+    "interp_hist": 'linear',
+    
+    # Not implemented
+    "extrap_Z": False,
 
     # Initialization
     "load_ics": True,
@@ -691,11 +746,10 @@ def ControlParameters():
     
     "stop_igm_h_2": None,
     "stop_cgm_h_2": None,
-    
-    
-    
+        
     "track_extrema": False,
     "delay_extrema": 5,      # Number of steps
+    "delay_tracking": 1.,    # dz below initial_redshift when tracking begins
     "smooth_derivative": 0, 
 
     "blob_names": None,
@@ -713,8 +767,11 @@ def ControlParameters():
     #"redshift_bins": None,
     "tau_Nz": 400,
     "tau_table": None,
+    "tau_arrays": None,
     "tau_prefix": tau_prefix,
     "tau_instance": None,
+
+    "sam_dz": 0.05,
 
     # File format
     "preferred_format": 'npz',
@@ -733,6 +790,7 @@ def ControlParameters():
 
     "progress_bar": True,
     "verbose": True,
+    "debug": False,
     }
 
     pf.update(rcParams)
@@ -741,6 +799,7 @@ def ControlParameters():
     
 _sampling_parameters = \
 {
+ 'parametric_model': False,
  'output_frequencies': None,
  'output_freq_min': 30.,
  'output_freq_max': 200.,

@@ -25,11 +25,11 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad, simps
 from ..util.Warnings import negative_SFRD
 from .SynthesisModel import SynthesisModel
-from ..util.ParameterFile import get_php_pars
+from ..util.ParameterFile import get_pq_pars
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
-from ..phenom.HaloProperty import ParameterizedHaloProperty
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
+from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL
 from ..util.SetDefaultParameterValues import StellarParameters, \
@@ -41,7 +41,7 @@ def normalize_sed(pop):
     """
     Convert yield to erg / g.
     """
-    
+        
     # In this case, we're just using Nlw, Nion, etc.
     if not pop.pf['pop_sed_model']:
         return 1.0
@@ -49,21 +49,22 @@ def normalize_sed(pop):
     E1 = pop.pf['pop_EminNorm']
     E2 = pop.pf['pop_EmaxNorm']
     
-    if pop.pf['pop_yield_Z_index'] is not None:
-        Zfactor = (pop.pf['pop_Z'] / 0.02)**pop.pf['pop_yield_Z_index']
+    # Deprecated? Just use ParameterizedQuantity now?
+    if pop.pf['pop_rad_yield_Z_index'] is not None:
+        Zfactor = (pop.pf['pop_Z'] / 0.02)**pop.pf['pop_rad_yield_Z_index']
     else:
         Zfactor = 1.
             
-    if pop.pf['pop_yield'] == 'from_sed':
-        return pop.src.yield_per_sfr(E1, E2)
+    if pop.pf['pop_rad_yield'] == 'from_sed':
+        return pop.src.rad_yield(E1, E2)
     else:    
         # Remove whitespace and convert everything to lower-case
-        units = pop.pf['pop_yield_units'].replace(' ', '').lower()
+        units = pop.pf['pop_rad_yield_units'].replace(' ', '').lower()
         if units == 'erg/s/sfr':
-            return Zfactor * pop.pf['pop_yield'] * s_per_yr / g_per_msun
+            return Zfactor * pop.pf['pop_rad_yield'] * s_per_yr / g_per_msun
 
     erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
-    energy_per_sfr = pop.pf['pop_yield']
+    energy_per_sfr = pop.pf['pop_rad_yield']
     
     if units == 'photons/baryon':
         energy_per_sfr *= erg_per_phot / pop.cosm.g_per_baryon
@@ -102,15 +103,6 @@ class GalaxyAggregate(HaloPopulation):
     @id_num.setter
     def id_num(self, value):
         self._id_num = int(value)
-        
-    @property
-    def is_lya_src(self):
-        if not hasattr(self, '_is_lya_src'):
-            self._is_lya_src = \
-                (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
-                and self.pf['pop_lya_src']
-
-        return self._is_lya_src
 
     @property
     def _Source(self):
@@ -124,7 +116,8 @@ class GalaxyAggregate(HaloPopulation):
             elif self.pf['pop_sed'] in _synthesis_models:    
                 self._Source_ = SynthesisModel
             else:
-                self._Source_ = read_lit(self.pf['pop_sed'])
+                self._Source_ = read_lit(self.pf['pop_sed'], 
+                    verbose=self.pf['verbose'])
 
         return self._Source_
 
@@ -202,9 +195,9 @@ class GalaxyAggregate(HaloPopulation):
             
     @property
     def is_link_sfrd(self):
-        if re.search('link', self.pf['pop_sfr_model']):
+        if re.search('link:sfrd', self.pf['pop_sfr_model']):
             return True
-        return False        
+        return False  
         
     @property
     def is_user_sfe(self):
@@ -236,11 +229,11 @@ class GalaxyAggregate(HaloPopulation):
                 self._sfrd_ = self.pf['pop_sfrd']
             elif isinstance(self.pf['pop_sfrd'], interp1d):
                 self._sfrd_ = self.pf['pop_sfrd']  
-            elif self.pf['pop_sfrd'][0:3] == 'php':
-                pars = get_php_pars(self.pf['pop_sfrd'], self.pf)
-                self._sfrd_ = ParameterizedHaloProperty(**pars)    
+            elif self.pf['pop_sfrd'][0:2] == 'pq':
+                pars = get_pq_pars(self.pf['pop_sfrd'], self.pf)
+                self._sfrd_ = ParameterizedQuantity(**pars)    
             else:
-                tmp = read_lit(self.pf['pop_sfrd'])
+                tmp = read_lit(self.pf['pop_sfrd'], verbose=self.pf['verbose'])
                 self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
         
         return self._sfrd_
@@ -288,9 +281,9 @@ class GalaxyAggregate(HaloPopulation):
             return self._sfrd(z)  
         elif self.is_user_sfrd:
             if self.pf['pop_sfrd_units'] == 'internal':
-                return self._sfrd(z)
+                return self._sfrd(z=z)
             else:
-                return self._sfrd(z) / rhodot_cgs
+                return self._sfrd(z=z) / rhodot_cgs
                 
         if (not self.is_fcoll_model) and (not self.is_user_sfe):
             raise ValueError('Must be an fcoll model!')
@@ -308,53 +301,28 @@ class GalaxyAggregate(HaloPopulation):
     @property
     def reference_band(self):
         if not hasattr(self, '_reference_band'):
-            self._reference_band = \
-                (self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
+            if self.sed_tab:
+                self._reference_band = self.src.Emin, self.src.Emax
+            else:
+                self._reference_band = \
+                    (self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
         return self._reference_band
-            
+    
+    @property
+    def full_band(self):
+        if not hasattr(self, '_full_band'):
+            self._full_band = (self.pf['pop_Emin'], self.pf['pop_Emax'])
+        return self._full_band    
+        
     @property
     def model(self):
         return self.pf['pop_model']
     
-    @property
-    def is_lya_src(self):
-        if not hasattr(self, '_is_lya_src'):
-            if self.pf['pop_sed_model']:
-                self._is_lya_src = \
-                    (self.pf['pop_Emin'] <= E_LyA <= self.pf['pop_Emax']) \
-                    and self.pf['pop_lya_src']
-            else:
-                return self.pf['pop_lya_src']
-    
-        return self._is_lya_src
-    
-    @property
-    def is_uv_src(self):
-        if not hasattr(self, '_is_uv_src'):
-            if self.pf['pop_sed_model']:
-                self._is_uv_src = \
-                    (self.pf['pop_Emax'] > E_LL) \
-                    and self.pf['pop_ion_src_cgm']
-            else:
-                self._is_uv_src = self.pf['pop_ion_src_cgm']        
-    
-        return self._is_uv_src    
-    
-    @property
-    def is_xray_src(self):
-        if not hasattr(self, '_is_xray_src'):
-            if self.pf['pop_sed_model']:
-                self._is_xray_src = \
-                    (E_LL <= self.pf['pop_Emin']) \
-                    and self.pf['pop_heat_src_igm']
-            else:
-                self._is_xray_src = self.pf['pop_heat_src_igm']        
-    
-        return self._is_xray_src    
-    
     def _convert_band(self, Emin, Emax):
         """
         Convert from fractional luminosity in reference band to given bounds.
+        
+        If limits are None, will use (pop_Emin, pop_Emax).
     
         Parameters
         ----------
@@ -393,16 +361,16 @@ class GalaxyAggregate(HaloPopulation):
                 return self._conversion_factors[(Emin, Emax)]
     
             if Emin < self.pf['pop_Emin']:
-                print "WARNING: Emin (%.2g eV) < pop_Emin (%.2g eV)" \
-                    % (Emin, self.pf['pop_Emin'])
+                print "WARNING: Emin (%.2g eV) < pop_Emin (%.2g eV) [pop_id=%i]" \
+                    % (Emin, self.pf['pop_Emin'], self.id_num)
             if Emax > self.pf['pop_Emax']:
-                print "WARNING: Emax (%.2g eV) > pop_Emax (%.2g eV)" \
-                    % (Emax, self.pf['pop_Emax'])
+                print "WARNING: Emax (%.2g eV) > pop_Emax (%.2g eV) [pop_id=%i]" \
+                    % (Emax, self.pf['pop_Emax'], self.id_num)
     
             # If tabulated, do things differently
             if self.sed_tab:
-                factor = self.src.yield_per_sfr(Emin, Emax) \
-                    / self.src.yield_per_sfr(*self.reference_band)
+                factor = self.src.rad_yield(Emin, Emax) \
+                    / self.src.rad_yield(*self.reference_band)
             else:
                 factor = quad(self.src.Spectrum, Emin, Emax)[0] \
                     / quad(self.src.Spectrum, *self.reference_band)[0]
@@ -445,32 +413,32 @@ class GalaxyAggregate(HaloPopulation):
             different_band = True
         else:
             Emin = self.pf['pop_Emin']
-    
+
         # Upper bound
         if (Emax is not None) and (self.src is not None):
             different_band = True
         else:
             Emax = self.pf['pop_Emax']
-    
+
         if (Emin, Emax) in self._eV_per_phot:
             return self._eV_per_phot[(Emin, Emax)]
-    
+
         if Emin < self.pf['pop_Emin']:
             print "WARNING: Emin < pop_Emin"
         if Emax > self.pf['pop_Emax']:
             print "WARNING: Emax > pop_Emax"    
-    
+
         if self.sed_tab:
             Eavg = self.src.eV_per_phot(Emin, Emax)
         else:
             integrand = lambda E: self.src.Spectrum(E) * E
             Eavg = quad(integrand, Emin, Emax)[0] \
                 / quad(self.src.Spectrum, Emin, Emax)[0]
-        
-        self._eV_per_phot[(Emin, Emax)] = Eavg 
-        
+
+        self._eV_per_phot[(Emin, Emax)] = Eavg
+
         return Eavg    
-        
+
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
@@ -482,13 +450,22 @@ class GalaxyAggregate(HaloPopulation):
         Parameters
         ----------
         z : int, float
-        
+
         Returns
         -------
         Emissivity in units of erg / s / c-cm**3 [/ eV]
 
         """
 
+        if z > self.zform:
+            return 0.0
+            
+        if (Emin is not None) and (Emax is not None):
+            if (Emin > self.pf['pop_Emax']):
+                return 0.0
+            if (Emax < self.pf['pop_Emin']):
+                return 0.0    
+                        
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
         rhoL = self.SFRD(z) * self.yield_per_sfr
                 
@@ -496,7 +473,7 @@ class GalaxyAggregate(HaloPopulation):
             if (Emin, Emax) == (10.2, 13.6):
                 return rhoL * self.pf['pop_Nlw'] * self.pf['pop_fesc_LW'] \
                     * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
-                    / self.cosm.g_per_baryon 
+                    / self.cosm.g_per_baryon
             elif (Emin, Emax) == (13.6, 24.6):
                 return rhoL * self.pf['pop_Nion'] * self.pf['pop_fesc'] \
                     * self._get_energy_per_photon(Emin, Emax) * erg_per_ev \
@@ -512,14 +489,14 @@ class GalaxyAggregate(HaloPopulation):
             rhoL *= self.pf['pop_fesc']
         elif Emax <= 13.6:
             rhoL *= self.pf['pop_fesc_LW']    
-                            
+                                                        
         if E is not None:
             return rhoL * self.src.Spectrum(E)
         else:
             return rhoL
 
     def NumberEmissivity(self, z, E=None, Emin=None, Emax=None):
-        return self.Emissivity(z, E, Emin, Emax) / (E * erg_per_ev)
+        return self.Emissivity(z, E=E, Emin=Emin, Emax=Emax) / (E * erg_per_ev)
 
     def LuminosityDensity(self, z, Emin=None, Emax=None):
         """
