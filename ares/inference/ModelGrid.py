@@ -40,16 +40,20 @@ class ModelGrid(ModelFit):
         return self._tol
     
     @property 
-    def tanh(self):
+    def phenomenological(self):
         if not hasattr(self, '_tanh'):
+            self._phenomenological = False
             if 'tanh_model' in self.base_kwargs:
                 if self.base_kwargs['tanh_model']:
-                    self._tanh = True
-                else:
-                    self._tanh = False
-            else:
-                self._tanh = False
-        return self._tanh                  
+                    self._phenomenological = True
+            if 'gaussian_model' in self.base_kwargs:
+                if self.base_kwargs['gaussian_model']:
+                    self._phenomenological = True 
+            if 'parametric_model' in self.base_kwargs:
+                if self.base_kwargs['parametric_model']:
+                    self._phenomenological = True           
+
+        return self._phenomenological                  
                                         
     @property
     def simulator(self):
@@ -425,7 +429,7 @@ class ModelGrid(ModelFit):
             p.update(kw)
 
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
-            if i_Tmin not in fcoll.keys() and (not self.tanh):
+            if i_Tmin not in fcoll.keys() and (not self.phenomenological):
                 sim = self.simulator(**p)
                 
                 self.sim = sim
@@ -451,7 +455,7 @@ class ModelGrid(ModelFit):
                 fcoll[i_Tmin] = hmf_pars.copy()
             
             # If we already have matching fcoll splines, use them!
-            elif (not self.tanh):        
+            elif (not self.phenomenological):        
                                         
                 hmf_pars = {'pop_Tmin%s' % suffix: fcoll[i_Tmin]['pop_Tmin%s' % suffix],
                     'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],

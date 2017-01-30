@@ -39,14 +39,14 @@ class ParametricPopulation(Population):
                 result = lambda z: self.pf[full_name]
             elif type(self.pf[full_name]) is FunctionType:
                 result = self.pf[full_name]
-            elif is_php:
+            elif is_pq:
                 pars = get_pq_pars(self.pf[full_name], self.pf)            
                 result = ParameterizedQuantity(**pars)
             elif type(self.pf[full_name]) is str:
                 x, y = np.loadtxt(self.pf[full_name], unpack=True)
                 result = interp1d(x, y, kind=self.pf['interp_hist'])
             else:
-                raise NotImplemented('help!')
+                raise NotImplementedError('Problem with: %s' % name)
                 
             self.__setattr__(name, result)
             

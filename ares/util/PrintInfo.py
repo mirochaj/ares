@@ -317,6 +317,25 @@ def print_rate_int(tab):
 
     for warning in warnings:
         print_warning(warning)
+        
+def print_hmf(hmf):
+    header = 'Halo Mass function'
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, header.center(twidth), post)
+    print "#"*width
+
+    print line('-'*twidth)
+    print line('Table Limits & Resolution')
+    print line('-'*twidth)
+    
+    print line("zmin                  : %g" % (hmf.pf['hmf_zmin']))
+    print line("zmax                  : %g" % (hmf.pf['hmf_zmax']))
+    print line("dz                    : %g" % (hmf.pf['hmf_dz']))
+    print line("Mmin (Msun)           : %g" % (10**hmf.pf['hmf_logMmin']))
+    print line("Mmax (Msun)           : %g" % (10**hmf.pf['hmf_logMmax']))
+    print line("dlogM                 : %g" % (hmf.pf['hmf_dlogM']))
+    
+    print "#"*width
 
 #@ErrorIgnore(errors=[KeyError])
 def print_pop(pop):
