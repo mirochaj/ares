@@ -347,9 +347,8 @@ class HaloMassFunction(object):
         
         self.Nm = np.logspace(self.logMmin_tab, self.logMmax_tab, self.dlogM).size
 
-        print_hmf(self)
-
-        if rank == 0:    
+        if rank == 0:
+            print_hmf(self)
             print "\nComputing %s mass function..." % self.hmf_func    
 
         # Masses in hmf are in units of Msun * h
@@ -721,6 +720,9 @@ class HaloMassFunction(object):
         except AttributeError:
             hmf_v = 'unknown'
         
+        # Do this first! (Otherwise parallel runs will be garbage)
+        tab = self.fcoll_tab    
+        
         if rank > 0:
             return
         
@@ -739,10 +741,7 @@ class HaloMassFunction(object):
             if clobber:
                 os.system('rm -f %s' % fn)
             else:
-                raise IOError('File %s exists! Set clobber=True or remove manually.' % fn)
-            
-        # Do this first! (Otherwise parallel runs will be garbage)
-        tab = self.fcoll_tab    
+                raise IOError('File %s exists! Set clobber=True or remove manually.' % fn) 
             
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
