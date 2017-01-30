@@ -19,6 +19,7 @@ from scipy.misc import derivative
 from ..util.Misc import get_hg_rev
 from ..util.Warnings import no_hmf
 from scipy.integrate import cumtrapz
+from ..util.PrintInfo import print_hmf
 from ..util.ProgressBar import ProgressBar
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, smooth
@@ -288,10 +289,10 @@ class HaloMassFunction(object):
 
             self.logMmin_tab = self.pf['hmf_logMmin']
             self.logMmax_tab = self.pf['hmf_logMmax']
-            self.zmin = self.pf['hmf_zmin']
-            self.zmax = self.pf['hmf_zmax']
-            self.dlogM = self.pf['hmf_dlogM']
             self.dz = self.pf['hmf_dz']
+            self.zmin = max(self.pf['hmf_zmin'] - 2 * self.dz, 0)
+            self.zmax = self.pf['hmf_zmax'] + 2 * self.dz
+            self.dlogM = self.pf['hmf_dlogM']
             
             self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
             self.z = np.linspace(self.zmin, self.zmax, self.Nz)             
@@ -326,7 +327,7 @@ class HaloMassFunction(object):
         return {'Om0':self.cosm.omega_m_0,
                 'Ob0':self.cosm.omega_b_0,
                 'H0':self.cosm.h70*100}    
-                
+                                
     def build_fcoll_tab(self):
         """
         Build a lookup table for the halo mass function / collapsed fraction.
@@ -336,18 +337,18 @@ class HaloMassFunction(object):
         
         self.logMmin_tab = self.pf['hmf_logMmin']
         self.logMmax_tab = self.pf['hmf_logMmax']
-        self.zmin = self.pf['hmf_zmin'] - 2*self.pf['hmf_dz']
+        self.zmin = max(self.pf['hmf_zmin'] - 2*self.pf['hmf_dz'], 0.0)
         self.zmax = self.pf['hmf_zmax'] + 2*self.pf['hmf_dz']
         self.dlogM = self.pf['hmf_dlogM']
         self.dz = self.pf['hmf_dz']
         
-        # The 5 is really 1+the two "extra" bins padding the boundaries
-        self.Nz = int((self.zmax - self.zmin) / self.dz + 5)        
+        self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
         self.z = np.linspace(self.zmin, self.zmax, self.Nz)
         
         self.Nm = np.logspace(self.logMmin_tab, self.logMmax_tab, self.dlogM).size
 
-        if rank == 0:    
+        if rank == 0:
+            print_hmf(self)
             print "\nComputing %s mass function..." % self.hmf_func    
 
         # Masses in hmf are in units of Msun * h
@@ -712,7 +713,7 @@ class HaloMassFunction(object):
             Format of output. Can be 'hdf5' or 'pkl'
         
         """
-        
+
         try:
             import hmf
             hmf_v = hmf.__version__
@@ -720,7 +721,7 @@ class HaloMassFunction(object):
             hmf_v = 'unknown'
         
         # Do this first! (Otherwise parallel runs will be garbage)
-        tab = self.fcoll_tab
+        tab = self.fcoll_tab    
         
         if rank > 0:
             return
@@ -740,7 +741,7 @@ class HaloMassFunction(object):
             if clobber:
                 os.system('rm -f %s' % fn)
             else:
-                raise IOError('File %s exists! Set clobber=True or remove manually.' % fn)
+                raise IOError('File %s exists! Set clobber=True or remove manually.' % fn) 
             
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
