@@ -687,7 +687,43 @@ class ModelSet(BlobFactory):
                 self._fails = None
             
         return self._fails
-        
+    
+    @property
+    def timeouts(self):
+        if not hasattr(self, '_timeouts'):
+            if os.path.exists('%s.timeout.pkl' % self.prefix):
+                with open('%s.timeout.pkl' % self.prefix, 'rb') as f:
+                    self._fails = pickle.load(f)
+            elif os.path.exists('%s.000.timeout.pkl' % self.prefix):
+                i = 0
+                timeout = []
+                fn = '%s.%s.timeout.pkl' % (self.prefix, str(i).zfill(3))
+                while True:
+    
+                    if not os.path.exists(fn):
+                        break
+    
+                    f = open(fn, 'rb')
+                    data = []
+                    while True:
+                        try:
+                            data.append(pickle.load(f))
+                        except EOFError:
+                            break
+                    f.close()
+    
+                    timeout.extend(data)                 
+    
+                    i += 1
+                    fn = '%s.%s.timeout.pkl' % (self.prefix, str(i).zfill(3))
+    
+                self._timeout = timeout    
+    
+            else:
+                self._timeout = None
+    
+        return self._timeout    
+    
     def get_walker(self, num):
         """
         Return chain elements corresponding to specific walker.
