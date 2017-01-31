@@ -883,73 +883,85 @@ class GalaxyCohort(GalaxyAggregate):
                 if z > self.zform:
                     continue
                 
-                self._sfr_tab[i] = self.eta[i] * self.MAR(z, self.halos.M) \
-                    * self.cosm.fbar_over_fcdm * self.SFE(z=z, Mh=self.halos.M)
+                # SF fueld by accretion onto halos already above threshold
+                if self.pf['pop_sfr_above_threshold']:
+                    self._sfr_tab[i] = self.eta[i] * self.cosm.fbar_over_fcdm \
+                        * self.MAR(z, self.halos.M) \
+                        * self.SFE(z=z, Mh=self.halos.M)
                 
-                mask = self.halos.M >= self.Mmin[i]
-                self._sfr_tab[i] *= mask
-    
+                    # zero-out star-formation in halos below our threshold
+                    mask = self.halos.M >= self.Mmin[i]
+                    self._sfr_tab[i] *= mask
+
         return self._sfr_tab
-                
+        
+    @property
+    def sfrd_bc(self):
+        """
+        Star formation rate density from halos just crossing threshold.
+        
+        Essentially the second term of Equation A1 from Furlanetto+ 2017.
+        """
+        if not hasattr(self, '_sfrd_bc'):            
+            n_func = RectBivariateSpline(self.halos.z, self.halos.lnM, 
+                    self.halos.dndm)
+            MAR = np.array([self.MAR(self.halos.z[i], self.Mmin[i]) \
+                for i in range(self.halos.Nz)])
+            n = np.array([n_func(self.halos.z[i], np.log(self.Mmin[i])) \
+                for i in range(self.halos.Nz)]).squeeze()
+            SFE = self.SFE(z=self.halos.z, Mh=self.Mmin)    
+
+            self._sfrd_bc = self.eta * self.cosm.fbar_over_fcdm \
+                * MAR * SFE * self.Mmin * n
+
+            # Don't count this "new" star formation once the minimum mass
+            # exceeds some value. At this point, it will (probably, hopefully)
+            # be included in the star-formation of some other population.
+            if np.isfinite(self.pf['pop_sfr_cross_upto_Tmin']):
+                Tlim = self.pf['pop_sfr_cross_upto_Tmin']
+                Mlim = self.halos.VirialMass(T=Tlim, z=self.halos.z)
+
+                mask = self.halos.Mmin < Mlim
+                self._sfrd_bc *= mask
+
+        return self._sfrd_bc
+
     @property
     def sfrd_tab(self):
         """
         SFRD as a function of redshift.
     
             ..note:: Units are g/s/cm^3 (comoving).
-    
+
         """
-                
+
         if not hasattr(self, '_sfrd_tab'):
             self._sfrd_tab = np.zeros(self.halos.Nz)
-            
+
             for i, z in enumerate(self.halos.z):
                 
+                if not self.pf['pop_sfr_above_threshold']:
+                    break
+
                 if z > self.zform:
                     continue
-                
+
                 integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
                     * self.focc(z=z, Mh=self.halos.M)
- 
+
                 tot = np.trapz(integrand, x=self.halos.lnM)
                 cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
                 
                 self._sfrd_tab[i] = tot - \
                     np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
                                 
+            if self.pf['pop_sfr_cross_threshold']:
+                self._sfrd_tab += self.sfrd_bc
+                                
             self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return self._sfrd_tab
         
-    def SFRD_between(self, T=[300, 1e4], M=None):
-        """
-        Compute the SFRD restricted to a given mass or virial temperature range.
-        
-        `T` and `M` must both be lists of two elements, the first element 
-        corresponding to the lower limit, and the second element the upper limit.
-        Alternatively, each element can be an array.
-        
-        """
-        sfrd = np.zeros(self.halos.Nz)
-        
-        for i, z in enumerate(self.halos.z):
-            
-            if z > self.zform:
-                continue
-            
-            integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
-                * self.focc(z=z, Mh=self.halos.M)
-        
-            tot = np.trapz(integrand, x=self.halos.lnM)
-            cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
-            
-            sfrd[i] = tot - \
-                np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
-                            
-        sfrd *= g_per_msun / s_per_yr / cm_per_mpc**3
-
-        return self.halos.z, sfrd
-
     @property
     def LLyC_tab(self):
         """
@@ -960,7 +972,6 @@ class GalaxyCohort(GalaxyAggregate):
             fesc = self.fesc(None, M)
             
             dnu = (24.6 - 13.6) / ev_per_hz
-            #nrg_per_phot = 25. * erg_per_ev
 
             Nion_per_L1600 = self.Nion(None, M) / (1. / dnu)
             

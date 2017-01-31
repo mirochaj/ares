@@ -218,7 +218,9 @@ def PhysicsParameters():
     'feedback_maxiter': 10,
     
     # LW
-    'feedback_LW': None,
+    'feedback_LW_Mmin': None,        # 'visbal2014'
+    'feedback_LW_fsh': None,
+    'feedback_LW_felt_by': None,
     'feedback_LW_Tcut': 1e4,
     
     'feedback_LW_rtol': 0.,
@@ -370,6 +372,10 @@ def PopulationParameters():
 
     "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,
     "pop_sed_model": True,    # or False
+    
+    "pop_sfr_above_threshold": True,
+    "pop_sfr_cross_threshold": True,
+    "pop_sfr_cross_upto_Tmin": np.inf,
     
     # Mass accretion rate
     "pop_MAR": 'hmf',
