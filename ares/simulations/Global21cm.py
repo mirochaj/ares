@@ -14,6 +14,7 @@ import os
 import time
 import pickle
 import numpy as np
+from types import FunctionType
 from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
@@ -300,20 +301,49 @@ class Global21cm(AnalyzeGlobal21cm):
         ##
         # Feedback time!
         ##
-        if (self.pf['feedback_LW'] is not None):
+        if (self.pf['feedback_LW_Mmin'] is not None):
                         
             # Compute JLW to get estimate for Mmin^(k+1) 
             ztmp = self.history['z']
             Jlw = self.history['Jlw'] / 1e-21
             
+            # Self-shielding. Function of redshift only!
+            if self.pf['feedback_LW_fsh'] is not None:
+                def NH2(z, Mh, fH2=3.5e-4):
+                    return 1e17 * (fH2 / 3.5e-4) * (Mh / 1e6)**(1. / 3.) * ((1. + z) / 20.)**2.
+                
+                def f_sh(z):
+                    popid = self.pf['feedback_LW_felt_by'][0]
+                    if self.count > 1:
+                        s = 'pop_Mmin{%i}' % popid
+                        Mmin = lambda z: np.interp(z, self._suite[-1]['z'][-1::-1], 
+                            self._suite[-1][s][-1::-1])
+                    else:
+                        Mmin = lambda z: np.interp(z, self.pops[popid].halos.z,
+                            self.pops[popid].Mmin)
+           
+                    return np.minimum(1, (NH2(z, Mh=Mmin(z)) / 1e14)**-0.75)
+
+            elif type(self.pf['feedback_LW_fsh']) is FunctionType:
+                f_sh = self.pf['feedback_LW_fsh']    
+            else:
+                f_sh = lambda z: 1.0
+
             # Interpolants for Jlw, Mmin, for this iteration
-            f_J = lambda zz: np.interp(zz, ztmp[-1::-1], Jlw[-1::-1])
-            f_M = lambda zz: 2.5 * 1e5 * pow(((1. + zz) / 26.), -1.5) \
-                * (1. + 6.96 * pow(4 * np.pi * f_J(zz), 0.47))
+            # This is Eq. 4 from Visbal+ 2014
+            f_J = lambda zz: f_sh(zz) * np.interp(zz, ztmp[-1::-1], Jlw[-1::-1])
+            
+            if self.pf['feedback_LW_Mmin'] is 'visbal2015':
+                f_M = lambda zz: 2.5 * 1e5 * pow(((1. + zz) / 26.), -1.5) \
+                    * (1. + 6.96 * pow(4 * np.pi * f_J(zz), 0.47))
+            elif type(self.pf['feedback_LW_Mmin']) is FunctionType:
+                f_M = self.pf['feedback_LW_Mmin']
+            else:
+                raise NotImplementedError('Unrecognized Mmin option: %s' % self.pf['feedback_LW_Mmin'])
           
             if self.count > 1:
                 hist = self._suite[-1]
-                s = 'pop_Mmin{%i}' % self.pf['feedback_LW'][0]
+                s = 'pop_Mmin{%i}' % self.pf['feedback_LW_felt_by'][0]
                 _Mmin_prev = np.interp(ztmp, hist['z'][-1::-1], 
                     hist[s][-1::-1])
           
@@ -330,7 +360,7 @@ class Global21cm(AnalyzeGlobal21cm):
             Tcut = self.pf['feedback_LW_Tcut']
             
             # Instance of the population that "feels" the feedback.
-            pop_fb = self.pops[self.pf['feedback_LW'][0]]
+            pop_fb = self.pops[self.pf['feedback_LW_felt_by'][0]]
             Mmin_ceil = pop_fb.halos.VirialMass(Tcut, ztmp)
 
             # Final answer.       
@@ -346,7 +376,7 @@ class Global21cm(AnalyzeGlobal21cm):
 
             # Save for prosperity
             self._suite.append(self.history._data.copy())
-            for popid in self.pf['feedback_LW']:
+            for popid in self.pf['feedback_LW_felt_by']:
                 self._suite[-1]['pop_Mmin{%i}' % popid] = Mmin
                 self.kwargs['pop_Mmin{%i}' % popid] = f_Mmin
             
@@ -361,11 +391,27 @@ class Global21cm(AnalyzeGlobal21cm):
         self.timer = t2 - t1
 
     def reboot(self):
+        
+        # Only need to do this after 0th iteration
+        if self.count == 1:
+            self.kwargs.update(self.carryover_kwargs)
+        
         delattr(self, '_pf')
         delattr(self, '_medium')
-        delattr(self, '_history')
-
+        delattr(self, '_history')    
+            
         self.__init__(**self.kwargs)
+
+    @property
+    def carryover_kwargs(self):
+        if not hasattr(self, '_carryover_kwargs'):
+            self._carryover_kwargs = {}
+            
+            if hasattr(self.medium.field, 'tau'):
+                self._carryover_kwargs['tau_instance'] = \
+                    self.medium.field._tau_solver
+                
+        return self._carryover_kwargs
                                 
     def step(self):
         """
@@ -394,7 +440,7 @@ class Global21cm(AnalyzeGlobal21cm):
                                                     
                 if not np.any(self.medium.field.solve_rte[i]):
                     Ja += self.medium.field.LymanAlphaFlux(z, popid=i)
-                    if self.pf['feedback_LW'] is not None:   
+                    if self.pf['feedback_LW_Mmin'] is not None:   
                         Jlw += self.medium.field.LymanWernerFlux(z, popid=i)
                     continue
 

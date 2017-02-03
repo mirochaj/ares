@@ -167,7 +167,7 @@ To verify that this has worked, let's plot the SFE as a function of redshift:
 
 Dust
 ~~~~
-Correcting for reddening due to the presence of dust in star-forming galaxies can be extremely important, especially in massive galaxies. When calling upon the ``LuminosityFunction`` method as in the above example, be aware that **all magnitudes returned are *not* corrected for dust.** That has been implemented as a separate step, so that one can generate a physical model first and still have the option of changing the dust correction afterward.
+Correcting for reddening due to the presence of dust in star-forming galaxies can be extremely important, especially in massive galaxies. When calling upon the ``LuminosityFunction`` method as in the above example, be aware that **all magnitudes returned are not corrected for dust.** That has been implemented as a separate step, so that one can generate a physical model first and still have the option of changing the dust correction afterward.
 
 At its simplest, the dust correction looks as follows (e.g., Meurer et al. 1999)
 
@@ -185,7 +185,6 @@ Some common dust corrections can be accessed by name and passed in via the ``dus
 By default, *ares* will assume a constant :math:`\beta=-2`. However, in general this is a poor approximation: fainter galaxies are known to suffer less from dust reddening than bright galaxies. Simply set ``dustcorr_beta='bouwens2014'``, for example, to adopt the Bouwens et al. 2014 :math:`M_{\text{UV}}-\beta` relation.
 
 .. UPDATE Evolving dust
-
 
 
 Multiple Parameterized Quantities (PQs)
@@ -229,6 +228,7 @@ Currently, the following parameters are supported by the PQ protocol:
 
 * ``pop_fstar``
 * ``pop_fesc``
+* ``pop_focc``
 
 
 

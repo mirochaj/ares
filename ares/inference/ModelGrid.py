@@ -250,6 +250,41 @@ class ModelGrid(ModelFit):
                 break
 
     @property
+    def blank_blob(self):
+        if not hasattr(self, '_blank_blob'):
+            
+            blob_names = self.base_kwargs['blob_names']
+    
+            if blob_names is None:
+                self._blank_blob = []
+                return []
+    
+            blob_ivars = self.base_kwargs['blob_ivars']
+            blob_funcs = self.base_kwargs['blob_funcs']
+            blob_nd = [len(grp) if grp is not None else 0 \
+                for grp in blob_ivars]
+            blob_dims = [map(len, grp) if grp is not None else None \
+                for grp in blob_ivars]
+    
+            self._blank_blob = []
+            for i, group in enumerate(blob_names):
+                if blob_ivars[i] is None:
+                    self._blank_blob.append([np.inf] * len(group))
+                else:
+                    if blob_nd[i] == 0:
+                        self._blank_blob.append([np.inf] * len(group))
+                    elif blob_nd[i] == 1:
+                        arr = np.ones([len(group), blob_dims[i][0]])
+                        self._blank_blob.append(arr * np.inf)
+                    elif blob_nd[i] == 2:
+                        dims = len(group), blob_dims[i][0], \
+                            blob_dims[i][1]
+                        arr = np.ones(dims)
+                        self._blank_blob.append(arr * np.inf)
+    
+        return self._blank_blob
+    
+    @property
     def simulator(self):
         if not hasattr(self, '_simulator'):
             from ..simulations import Global21cm
@@ -474,8 +509,8 @@ class ModelGrid(ModelFit):
                 pickle.dump(kw, f)
             fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
             with open(fn, 'w') as f:
-                print >> f, "Checkpoint written: %s" % time.ctime()
-                
+                print >> f, "Simulation began: %s" % time.ctime()
+                                
             # Kill if model gets stuck    
             if self.timeout is not None:
                 signal.signal(signal.SIGALRM, self._handler)
@@ -484,21 +519,36 @@ class ModelGrid(ModelFit):
             # Run simulation!
             try:
                 sim.run()
+                blobs = sim.blobs
+            except ValueError:
+                f = open('%s.%s.timeout.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
+                pickle.dump(kw, f)
+                f.close()   
+                
+                blobs = self.blank_blob
+                
             except Exception:                                 
                 # Write to "fail" file
                 f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 
                     'ab')
                 pickle.dump(kw, f)
                 f.close()
-
+                
+                blobs = self.blank_blob
+                
             # Disable the alarm
             if self.timeout is not None:
                 signal.alarm(0)
+                
+            # If this is missing from a file, we'll know where things went south.
+            fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
+            with open(fn, 'a') as f:
+                print >> f, "Simulation finished: %s" % time.ctime()
 
             chain = np.array([kwargs[key] for key in self.parameters])
 
             chain_all.append(chain)
-            blobs_all.append(sim.blobs)
+            blobs_all.append(blobs)
 
             ct += 1
 

@@ -126,10 +126,10 @@ class LogLikelihood(object):
         self.parameters = parameters # important that they are in order?
         self.is_log = is_log
         self.checkpoint_by_proc = checkpoint_by_proc
-        
+
         self.base_kwargs = base_kwargs
         self.timeout = timeout
-        
+
         if blob_info is not None:
             self.blob_names = blob_info['blob_names']
             self.blob_ivars = blob_info['blob_ivars']
@@ -139,7 +139,7 @@ class LogLikelihood(object):
         else:
             self.blob_names = self.blob_ivars = self.blob_funcs = \
                 self.blob_nd = self.blob_dims = None
-        
+
         ##
         # Note: you might think using np.array is innocuous, but we have to be
         # a little careful below since sometimes xdata, ydata, etc. are
@@ -240,9 +240,16 @@ class LogLikelihood(object):
             fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
                 pickle.dump(kwargs, f)
+            
             fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
             with open(fn, 'w') as f:
-                print >> f, "Checkpoint written: %s" % time.ctime()
+                print >> f, "Simulation began: %s" % time.ctime()
+            
+    def checkpoint_on_completion(self, **kwargs):
+        if self.checkpoint_by_proc:
+            fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
+            with open(fn, 'a') as f:
+                print >> f, "Simulation finished: %s" % time.ctime() 
             
 class ModelFit(BlobFactory):
     def __init__(self, **kwargs):
@@ -433,8 +440,8 @@ class ModelFit(BlobFactory):
         self._nw = int(value)
         
     def _handler(self, signum, frame):
-        raise Exception("Calculation took too long!")
-    
+        raise ValueError('timeout!')
+            
     @property
     def timeout(self):
         if not hasattr(self, '_timeout'):

@@ -10,6 +10,7 @@ Description:
 """
 
 import glob
+import pickle
 import os, re, sys
 import numpy as np
 from . import Cosmology
@@ -25,8 +26,6 @@ from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, smooth
 from .Constants import g_per_msun, cm_per_mpc, s_per_yr
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
-
-import pickle
     
 try:
     from scipy.special import erfc
@@ -458,17 +457,17 @@ class HaloMassFunction(object):
         # already above the threshold.
         self.ztab, self.dfcolldz_tab = \
             central_difference(self.z, self.fcoll_Tmin)
-        
+
         # Compute boundary term(s)
         if Mmin_of_z:
             self.ztab, dMmindz = \
                 central_difference(self.z, 10**self.logM_min)
-                    
+
             bc_min = 10**self.logM_min[1:-1] * self.dndm_Mmin[1:-1] \
                 * dMmindz / self.cosm.mean_density0
-                
+
             self.dfcolldz_tab -= bc_min    
-                    
+
         if Mmax_of_z:
             self.ztab, dMmaxdz = \
                 central_difference(self.z, 10**self.logM_max)
@@ -477,14 +476,14 @@ class HaloMassFunction(object):
                 * dMmaxdz / self.cosm.mean_density0
                 
             self.dfcolldz_tab += bc_max
-                
+
         # Maybe smooth things
         if self.pf['hmf_dfcolldz_smooth']:
             if int(self.pf['hmf_dfcolldz_smooth']) > 1:
                 kern = self.pf['hmf_dfcolldz_smooth']
             else:
                 kern = 3
-            
+
             self.dfcolldz_tab = smooth(self.dfcolldz_tab, kern)
         
             if self.pf['hmf_dfcolldz_trunc']:
@@ -592,7 +591,7 @@ class HaloMassFunction(object):
         dz = self.z[k] - self.z[k-1]
         dt = dz * abs(self.cosm.dtdz(z)) / s_per_yr
     
-        return (M_2 - self.M) / dt
+        return np.maximum((M_2 - self.M) / dt, 0.0)
         
     @property
     def MAR_func(self):

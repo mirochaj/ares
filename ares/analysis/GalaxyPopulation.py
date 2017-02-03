@@ -236,7 +236,8 @@ class GalaxyPopulation(object):
             #else:
             shift = 0.    
               
-            ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, **kw)
+            ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
+                label=source, **kw)
         
         ax.set_yscale('log', nonposy='clip')    
         
@@ -251,10 +252,30 @@ class GalaxyPopulation(object):
             ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
             ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
             
-        
         pl.draw()
         
         return ax
+        
+    def add_master_legend(self, mp, **kwargs):
+        """
+        Make a big legend!
+        """
+        
+        handles, labels = [], []
+        for ax in mp.grid:
+            h, l = ax.get_legend_handles_labels()
+            
+            for i, lab in enumerate(l):
+                if lab in labels:
+                    continue
+                
+                handles.append(h[i])
+                labels.append(l[i])
+                
+        mp.fig.legend(handles, labels, loc='upper center', 
+            bbox_to_anchor=(0.5, 1.0), **kwargs)
+                  
+        return mp
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
         panel_size=(0.75,0.75), fig=1, ymax=10, legends=None, AUV=None,
@@ -316,6 +337,7 @@ class GalaxyPopulation(object):
             if quantity == 'lf':
                 ax.set_xlim(-24, 0.)
                 ax.set_ylim(1e-7, 1e1)
+                ax.set_xticks(np.arange(-20, 5, 5), minor=False)
                 ax.set_xticks(np.arange(-23, -1, 2), minor=True)
                 ax.set_yscale('log', nonposy='clip')  
                 ax.set_ylabel('')

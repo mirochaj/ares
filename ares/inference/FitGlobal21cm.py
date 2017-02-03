@@ -10,6 +10,7 @@ Description:
 
 """
 
+import signal
 import numpy as np
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
@@ -72,6 +73,7 @@ class loglikelihood(LogLikelihood):
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
         
+        self._tmp_kwargs = kwargs
         self.checkpoint(**kwargs)
         
         if self.timeout is not None:
@@ -86,12 +88,13 @@ class loglikelihood(LogLikelihood):
                                                                                 
         # Timestep weird (happens when xi ~ 1)
         except SystemExit:
-            
             tps = sim.turning_points
-            
+
         # Disable the alarm
         if self.timeout is not None:
-            signal.alarm(0)    
+            signal.alarm(0)
+             
+        self.checkpoint_on_completion(**kwargs) 
              
         # most likely: no (or too few) turning pts
         #except ValueError:                     

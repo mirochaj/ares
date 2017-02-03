@@ -455,7 +455,8 @@ class UniformBackground(object):
                 self._tau_solver.tau_fetched
         elif self.pf['tau_arrays'] is not None:
             # Assumed to be (z, E, tau)
-            return self.pf['tau_arrays']
+            z, E, tau = self.pf['tau_arrays']
+            return z, E, tau
             
         # Create an ares.simulations.OpticalDepth instance    
         tau_solver = OpticalDepth(**pop.pf)
@@ -1160,7 +1161,7 @@ class UniformBackground(object):
         ll = self._ll = L - 1
 
         otf = False
-
+        
         # Loop over redshift - this is the generator                    
         z = redshifts[-1]
         while z >= redshifts[0]:

@@ -48,13 +48,13 @@ def normalize_sed(pop):
     
     E1 = pop.pf['pop_EminNorm']
     E2 = pop.pf['pop_EmaxNorm']
-    
+
     # Deprecated? Just use ParameterizedQuantity now?
     if pop.pf['pop_rad_yield_Z_index'] is not None:
         Zfactor = (pop.pf['pop_Z'] / 0.02)**pop.pf['pop_rad_yield_Z_index']
     else:
         Zfactor = 1.
-            
+
     if pop.pf['pop_rad_yield'] == 'from_sed':
         return pop.src.rad_yield(E1, E2)
     else:    
