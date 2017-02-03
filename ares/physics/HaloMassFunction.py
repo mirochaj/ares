@@ -591,7 +591,7 @@ class HaloMassFunction(object):
         dz = self.z[k] - self.z[k-1]
         dt = dz * abs(self.cosm.dtdz(z)) / s_per_yr
     
-        return (M_2 - self.M) / dt
+        return np.maximum((M_2 - self.M) / dt, 0.0)
         
     @property
     def MAR_func(self):

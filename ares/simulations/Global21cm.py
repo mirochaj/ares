@@ -391,11 +391,27 @@ class Global21cm(AnalyzeGlobal21cm):
         self.timer = t2 - t1
 
     def reboot(self):
+        
+        # Only need to do this after 0th iteration
+        if self.count == 1:
+            self.kwargs.update(self.carryover_kwargs)
+        
         delattr(self, '_pf')
         delattr(self, '_medium')
-        delattr(self, '_history')
-
+        delattr(self, '_history')    
+            
         self.__init__(**self.kwargs)
+
+    @property
+    def carryover_kwargs(self):
+        if not hasattr(self, '_carryover_kwargs'):
+            self._carryover_kwargs = {}
+            
+            if hasattr(self.medium.field, 'tau'):
+                self._carryover_kwargs['tau_instance'] = \
+                    self.medium.field._tau_solver
+                
+        return self._carryover_kwargs
                                 
     def step(self):
         """

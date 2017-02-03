@@ -58,10 +58,10 @@ OK, now let's set the free parameters and priors:
 
     free_pars = \
       [
-       'php_func_par0{0}[0]',
-       'php_func_par1{0}[0]', 
-       'php_func_par2{0}[0]',
-       'php_func_par3{0}[0]',
+       'pq_func_par0{0}[0]',
+       'pq_func_par1{0}[0]', 
+       'pq_func_par2{0}[0]',
+       'pq_func_par3{0}[0]',
       ]
     
     is_log = [True, True, False, False]
@@ -79,10 +79,10 @@ Some initial guesses (optional?):
     
     guesses = \
     {
-     'php_func_par0{0}[0]': -1,
-     'php_func_par1{0}[0]': 11.5,
-     'php_func_par2{0}[0]': 0.5,
-     'php_func_par3{0}[0]': -0.5,
+     'pq_func_par0{0}[0]': -1,
+     'pq_func_par1{0}[0]': 11.5,
+     'pq_func_par2{0}[0]': 0.5,
+     'pq_func_par3{0}[0]': -0.5,
     }
     
 Initialize the fitter object, and go!

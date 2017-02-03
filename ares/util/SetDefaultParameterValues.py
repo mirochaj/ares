@@ -441,15 +441,15 @@ def PopulationParameters():
     "pop_ion_rate_cgm": None,
     "pop_ion_rate_igm": None,
     "pop_heat_rate": None,
-        
+
     "pop_k_ion_cgm": None,
     "pop_k_ion_igm": None,
     "pop_k_heat_igm": None,
-    
+
     # Set time interval over which emission occurs
     "pop_zform": 50.,
     "pop_zdead": 0.0,
-        
+
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
     "pop_fstar_max": 1.0,
@@ -458,6 +458,9 @@ def PopulationParameters():
     "pop_mlf": None,
     "pop_sfr": None,
     "pop_fshock": 1.0,
+    
+    "pop_fobsc": 0.0,
+    "pop_fgrowth": 1.0,
     
     "pop_tab_z": None,
     "pop_tab_Mh": None,
