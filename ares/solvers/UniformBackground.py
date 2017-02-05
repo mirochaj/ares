@@ -517,7 +517,7 @@ class UniformBackground(object):
         self._atol = self.pf["integrator_atol"]
         self._divmax = int(self.pf["integrator_divmax"])
     
-    def update_rate_coefficients(self, z, **kwargs):
+    def update_rate_coefficients(self, z, popid=None, **kwargs):
         """
         Compute ionization and heating rate coefficients.
 
@@ -541,6 +541,10 @@ class UniformBackground(object):
             ##
             ## What to do for approximate RTE populations?
             ##
+            
+            if popid is not None:
+                if i != popid:
+                    continue
             
             # Loop over absorbing species
             for j, species in enumerate(self.grid.absorbers):

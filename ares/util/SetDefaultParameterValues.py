@@ -750,6 +750,8 @@ def ControlParameters():
     "tau_ifront": 0.5,
     "restricted_timestep": ['ions', 'neutrals', 'electrons', 'temperature'],
     
+    "compute_fluxes_at_start":False,
+    
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     

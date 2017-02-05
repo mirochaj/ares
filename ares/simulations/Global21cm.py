@@ -404,13 +404,25 @@ class Global21cm(AnalyzeGlobal21cm):
 
     @property
     def carryover_kwargs(self):
+        """
+        Grab a few things that can take time to load but are always the same.
+        """
         if not hasattr(self, '_carryover_kwargs'):
             self._carryover_kwargs = {}
             
             if hasattr(self.medium.field, 'tau'):
                 self._carryover_kwargs['tau_instance'] = \
                     self.medium.field._tau_solver
+
+            for i, pop in enumerate(self.pops):
+                if pop.sed_tab:
+                    self._carryover_kwargs['pop_psm_instance{%i}' % i] = \
+                        pop.src
                 
+                if i == 0:
+                    self._carryover_kwargs['hmf_instance'] = \
+                        pop.halos
+
         return self._carryover_kwargs
                                 
     def step(self):

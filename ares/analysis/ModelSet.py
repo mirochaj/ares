@@ -959,7 +959,29 @@ class ModelSet(BlobFactory):
         
         model_set.mask = np.logical_or(mask, self.mask)
         
-        return model_set
+        return model_set                                       
+        
+    def SliceByParameters(self, to_keep):
+        
+        elements = []
+        for kw in to_keep:
+            tmp = []
+            for i, par in enumerate(self.parameters):
+                if self.is_log[i]:
+                    tmp.append(np.log10(kw[par]))
+                else:
+                    tmp.append(kw[par])
+                    
+            tmp = np.array(tmp)
+            loc = np.argwhere(self.chain == tmp)[:,0]
+            
+            if not loc:
+                continue
+            
+            assert np.all(np.diff(loc) == 0)
+            elements.append(loc[0])
+        
+        return self.SliceByElement(elements)        
         
     def difference(self, set2):
         """
@@ -3376,7 +3398,8 @@ class ModelSet(BlobFactory):
 
         return mu, cov    
         
-    def AssembleParametersList(self, N=None, ids=None, include_bkw=False):
+    def AssembleParametersList(self, N=None, ids=None, include_bkw=False, 
+        **update_kwargs):
         """
         Return dictionaries of parameters corresponding to elements of the
         chain. Really just a convenience thing -- converting 1-D arrays 
@@ -3395,6 +3418,9 @@ class ModelSet(BlobFactory):
         loc : int
             If supplied, only the dictionary of parameters associated with
             link `loc` in the chain will be returned.
+        update_kwargs : dict
+            New kwargs that you want added to each set of parameters. Will
+            override pre-existing keys.
             
         Returns
         -------
@@ -3432,6 +3458,7 @@ class ModelSet(BlobFactory):
                     else:
                         kwargs[parameter] = self.chain[i,j]
                                         
+            kwargs.update(update_kwargs)
             all_kwargs.append(kwargs.copy())
 
         return all_kwargs

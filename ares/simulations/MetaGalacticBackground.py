@@ -34,8 +34,10 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         """
         Initialize a MetaGalacticBackground object.    
         """
-
+        
+        # This MUST go first.
         self._is_thru_run = False
+        self._has_fluxes = False
         
         UniformBackground.__init__(self, grid=grid, **kwargs)
         
@@ -53,8 +55,10 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
 
         """
 
-        self._is_thru_run = True
+        assert self.Npops == 1
 
+        self._is_thru_run = True
+        
         all_z = []         # sometimes not deterministic
         all_fluxes = []
         for (z, fluxes) in self.step():
@@ -66,7 +70,7 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         self.all_fluxes = all_fluxes
 
         self._history = _sort_history(all_fluxes)
-
+        
     def _init_stepping(self):
         """
         Initialize lists which bracket radiation background fluxes.
@@ -202,8 +206,8 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         
         """
                         
-        if (not self._is_thru_run) and (not self.approx_all_pops) and \
-            not hasattr(self, '_fhi'):
+        if ((not self._is_thru_run) and (not self.approx_all_pops) and \
+            not hasattr(self, '_fhi')):
             
             self._init_stepping()
                         
@@ -213,27 +217,9 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         
         z_by_pop = [None for i in range(self.Npops)]
         
-        # Save fluxes computed directly, i.e., not via interpolation
-        if not self._is_thru_run:
-            
-            # Each time a generator is poked, we'll append the fluxes
-            # to a list within the 'fluxes_raw' dictionary.
-            
-            if not hasattr(self, 'fluxes_raw'):
-                self.fluxes_raw = {}
-                for i, pop_generator in enumerate(self.generators):
-                    self.fluxes_raw[i] = []
-                    
-                    if pop_generator is None:
-                        self.fluxes_raw[i].append([])
-                        continue
-                    
-                    for j, generator in enumerate(pop_generator):
-                        self.fluxes_raw[i].append([])
-   
-                # In the end, each population will have a set of lists.
-                # The first dimension will correspond to band ID #.
-                # The second will be redshift.        
+        # In the end, each population will have a set of lists.
+        # The first dimension will correspond to band ID #.
+        # The second will be redshift.        
 
         fluxes = {}
         for i, pop_generator in enumerate(self.generators):
@@ -242,7 +228,7 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
             if pop_generator is None:
                 fluxes[i] = None
                 continue
-                                    
+     
             fluxes_by_band = []
 
             # For each population, the band is broken up into pieces
@@ -252,8 +238,10 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                                                             
                 # If not being run as part of another simulation, there are 
                 # no external time-stepping constraints, so just poke the 
-                # generator and move on
-                if self._is_thru_run:
+                # generator and move on. 
+                if self._is_thru_run :
+                    
+                    # Only append new fluxes/redshifts if they are actually new...
                     z, f = generator.next()
                     
                     z_by_pop[i] = z
@@ -324,7 +312,8 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
 
                 fluxes_by_band.append(f)
 
-            if not self._is_thru_run:
+            # Save results
+            if (not self._is_thru_run):
                 z_by_pop[i] = max(self._zlo[i])
 
             fluxes[i] = fluxes_by_band
@@ -333,13 +322,12 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         # step. Other populations will interpolate to find flux.
         znext = max(z_by_pop)
 
-        if (not self._is_thru_run):
-            self.all_z.append(z_by_pop)
-            self.all_fluxes.append(fluxes)
-
         # If being externally controlled, we can't tamper with the redshift!
         if self._is_thru_run:
             self.update_redshift(znext)
+        else:
+            self.all_z.append(z_by_pop)
+            self.all_fluxes.append(fluxes)
 
         return znext, fluxes
 
@@ -357,17 +345,136 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         Dictionary of rate coefficients.
 
         """
+        
+        # In this case, use interpolants.
+        if self.pf['compute_fluxes_at_start']:
+            
+            if self._has_fluxes:
                 
-        # Must compute rate coefficients from fluxes     
-        if self.approx_all_pops:
-            kwargs['fluxes'] = [None] * self.Npops
-        else:    
-            z, fluxes = self.update_fluxes()
-            kwargs['fluxes'] = fluxes
+                to_return = \
+                {
+                 'k_ion': np.zeros((1,self.grid.N_absorbers)),
+                 'k_ion2': np.zeros((1,self.grid.N_absorbers, self.grid.N_absorbers)),
+                 'k_heat': np.zeros((1,self.grid.N_absorbers)),
+                }
+                
+                for i, pop in enumerate(self.pops):
+                    fset = self._interp[i]             
+                    
+                    # Call interpolants, add 'em all up.
+                    this_pop = \
+                    {
+                     'k_ion':  np.array([[fset['k_ion'][j](z) for j in range(3)]]),
+                     'k_heat': np.array([[fset['k_heat'][j](z) for j in range(3)]]),
+                    }
+                    
+                    tmp = np.zeros((self.grid.N_absorbers, self.grid.N_absorbers))
+                    for j in range(self.grid.N_absorbers):
+                        for k in range(self.grid.N_absorbers):
+                            tmp[j,k] = fset['k_ion2'][j][k](z)
+                            
+                    this_pop['k_ion2'] = np.array([tmp])
+                    
+                    for key in to_return:
+                        to_return[key] += this_pop[key]
+                                                                        
+                return to_return
+            else:
+                
+                # This chunk only gets executed once
 
-        # Run update_rate_coefficients within MultiPhaseMedium
-        return super(MetaGalacticBackground, self).update_rate_coefficients(z, 
-            **kwargs)
+                self._rc_tabs = [{} for i in range(self.Npops)]
+                
+                # very similar chunk of code lives in update_fluxes...
+                # could structure better, but i'm tired.
+
+                fluxes = {i:None for i in range(self.Npops)}
+                for i, pop_generator in enumerate(self.generators):
+                    
+                    zarr = self.redshifts[i]
+                    Nz = len(zarr)
+                    self._rc_tabs[i]['k_ion'] = np.zeros((len(zarr),
+                            self.grid.N_absorbers))
+                    self._rc_tabs[i]['k_ion2'] = np.zeros((len(zarr),
+                            self.grid.N_absorbers, self.grid.N_absorbers))
+                    self._rc_tabs[i]['k_heat'] = np.zeros((len(zarr),
+                            self.grid.N_absorbers))
+
+                    # Skip approximate (or non-contributing) backgrounds
+                    if pop_generator is None:
+                        fluxes[i] = None
+                        continue
+
+                    # Need to cycle through redshift here
+                    for _iz in range(Nz):
+   
+                        fluxes_by_band = []
+                        for j, generator in enumerate(pop_generator):
+                            
+                            _z, _f = generator.next()
+                            
+                            fluxes_by_band.append(flatten_flux(_f))
+                        
+                        fluxes[i] = fluxes_by_band
+                        kwargs['fluxes'] = fluxes  
+                    
+                        # This routine expects fluxes to be a dictionary, with
+                        # the keys being population ID # and the elements lists
+                        # of fluxes in each (sub-) band.
+                        coeff = super(MetaGalacticBackground, 
+                            self).update_rate_coefficients(_z, popid=i, 
+                            **kwargs)
+
+                        self._rc_tabs[i]['k_ion'][Nz-_iz-1,:] = \
+                            coeff['k_ion'].copy()
+                        self._rc_tabs[i]['k_ion2'][Nz-_iz-1,:] = \
+                            coeff['k_ion2'].copy()
+                        self._rc_tabs[i]['k_heat'][Nz-_iz-1,:] = \
+                            coeff['k_heat'].copy()
+
+                self._interp = [{} for i in range(self.Npops)]
+                for i, pop in enumerate(self.pops):
+                    zarr = self.redshifts[i]
+                    
+                    # Create functions
+                    self._interp[i]['k_ion'] = \
+                        [None for _i in range(self.grid.N_absorbers)]
+                    self._interp[i]['k_ion2'] = \
+                        [[None,None,None] for _i in range(self.grid.N_absorbers)]
+                    self._interp[i]['k_heat'] = \
+                        [None for _i in range(self.grid.N_absorbers)]
+
+                    for j in range(self.grid.N_absorbers):
+                        self._interp[i]['k_ion'][j] = \
+                            interp1d(zarr, self._rc_tabs[i]['k_ion'][:,j], 
+                                bounds_error=False, fill_value=0.0)    
+                        self._interp[i]['k_heat'][j] = \
+                            interp1d(zarr, self._rc_tabs[i]['k_heat'][:,j], 
+                                bounds_error=False, fill_value=0.0)    
+                        
+                        for k in range(self.grid.N_absorbers):
+                            self._interp[i]['k_ion2'][j][k] = \
+                                interp1d(zarr, self._rc_tabs[i]['k_ion2'][:,j,k],
+                                    bounds_error=False, fill_value=0.0)
+            
+            self._has_fluxes = True
+            
+            return self.update_rate_coefficients(z, **kwargs)               
+                           
+        # Otherwise, retrieve fluxes as needed, interpolate between grid points
+        # as well.                            
+        else:           
+
+            # Must compute rate coefficients from fluxes     
+            if self.approx_all_pops:
+                kwargs['fluxes'] = [None] * self.Npops
+            else:    
+                z, fluxes = self.update_fluxes()
+                kwargs['fluxes'] = fluxes
+
+            # Run update_rate_coefficients within MultiPhaseMedium
+            return super(MetaGalacticBackground, self).update_rate_coefficients(z, 
+                **kwargs)
 
     def get_integrated_flux(self, band, popid=0):
         """
@@ -415,7 +522,7 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
             
         # First, get redshifts. If not run "thru run", then they will
         # be in descending order so flip 'em.
-        if self._is_thru_run:
+        if self._is_thru_run or self.pf['compute_fluxes_at_start']:
             z = self.redshifts[popid]
         else:
             # This may change on the fly due to sub-cycling and such

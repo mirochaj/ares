@@ -200,28 +200,7 @@ class MultiPhaseMedium(object):
                 else self.parcel_cgm
                 
         return self._default_parcel
-
-    @property
-    def dynamic_tau(self):
-        return self.pf['tau_dynamic']
-
-    def update_optical_depth(self):
-        """
-        Dynamically update optical depth as simulation runs.
-        """
         
-        # Recall that self.field.tau is a list with as many elements as there
-        # are distinct populations
-        
-        
-        tau = []
-        for i in range(self.field.Npops):
-            pass
-            
-        
-        self.field.tau = tau
-        
-
     def subcycle(self):
         """
         See if we need to re-do the previous timestep.
@@ -347,26 +326,25 @@ class MultiPhaseMedium(object):
                 done = False
                 if self.pf['stop_igm_h_2'] is not None:
                     if data_igm['h_2'] > self.pf['stop_igm_h_2']:
-                        data_igm = data_igm_pre.copy()    
+                        data_igm = data_igm_pre.copy()
                         dt1 = 1e50
                         done = True
-                
                 if not done:
                     RC_igm = self.field.update_rate_coefficients(z, 
                         zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
-                                                                                                                                                    
+                                                                                                                 
                     # Now, update IGM parcel
                     t1, dt1, data_igm = self.gen_igm.next()
-                                    
+
                     # Pass rate coefficients off to the IGM parcel
                     self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
             else:
                 dt1 = 1e50
                 RC_igm = data_igm = None
                 data_igm = {'h_1': 1.0}
-                
+
             if self.pf['include_cgm']:
-                
+
                 done = False
                 if self.pf['stop_cgm_h_2'] is not None:
                     if data_cgm['h_2'] > self.pf['stop_cgm_h_2']:
@@ -375,11 +353,11 @@ class MultiPhaseMedium(object):
                         done = True
                 
                 if not done:
-                
+
                     # CGM rate coefficients
                     RC_cgm = self.field.update_rate_coefficients(z,
                         zone='cgm', return_rc=True, cgm_h_1=data_cgm['h_1'])
-                    
+
                     # Pass rate coefficients off to the CGM parcel
                     self.parcel_cgm.update_rate_coefficients(data_cgm, **RC_cgm)
                     
