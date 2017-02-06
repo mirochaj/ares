@@ -59,7 +59,7 @@ If you're interested in reproducing a model from a paper exactly, you can either
 
     m16 = ares.util.read_lit('mirocha2016')
     
-A few of the models we focused on most get their own dictionary, for example our reference double power law model for the star-formation efficiency is stored in the "dpl" variable: ::
+A few of the models we focused on most get their own dictionary, for example our reference double power law model for the star-formation efficiency is stored in the ``dpl`` variable: ::
 
     sim = ares.simulations.Global21cm(**m16.dpl)
     sim.run()
@@ -78,11 +78,11 @@ This tells *ares* to retrieve the ``dpl`` variable within the ``mirocha2016`` mo
 This model has a few sub-options: ``dpl``, ``floor``, and ``steep``, as explored in the paper. 
 
 Non-standard pre-requisites:
-    * High resolution optical depth table for X-ray background.
+    * High resolution optical depth table for X-ray background. To generate one for yourself, navigate to ``$ARES/input/optical_depth`` and open the ``generate_optical_depth_tables.py`` file. Between lines 35 and 45 there are a block of parameters that set the resolution of the table. Make sure that ``helium=1``, ``zi=50``, ``zf=5``, and ``Nz=[1e3]``. It should only take a few minutes to generate this table.
     
 The following parameters are uncertain and typically treated as free parameters:
 
-    * ``pop_Z{0}``, :math:`[1e-3, 0.04]`
+    * ``pop_Z{0}``, :math:`[0.001, 0.04]`
     * ``pop_Tmin{0}`` (``pop_Tmin{1}`` is tied to this value by default).
     * ``pop_fesc{0}``, :math:`[0, 1]`
     * ``pop_fesc_LW{0}``, :math:`[0, 1]`
@@ -117,7 +117,7 @@ The only difference is the assumed slope of the star formation efficiency in low
 All the parameters from ``mirocha2016`` are fair game, in addition to the following ones:
 
     * ``pop_fstar_max{0}``
-    * ``pq_func_par0{0}[0]`` (in units of epsilon_K * omega_49)
+    * ``pq_func_par0{0}[0]`` (in units of :math:`\epsilon_K \omega_{49}`)
     * ``pq_func_par1{0}[0]``
     * ``pq_func_par2{0}[0]``
     
@@ -135,8 +135,8 @@ Creating your own
 As with parameter bundles, you can write your own litdata modules without modifying the *ares* source code. Just create a new ``.py`` file and stick it in one of the following places (searched in this order!):
 
 * Your current working directory.
-* ``$HOME/.ares''
-* ``$ARES/input/litdata''
+* ``$HOME/.ares``
+* ``$ARES/input/litdata``
 
 For example, if I created the following file (``junk_lf.py``; which you'll notice resembles the other LF litdata modules) in my current directory: ::
 
