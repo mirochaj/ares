@@ -526,7 +526,7 @@ class UniformBackground(object):
         Dictionary containing ionization and heating rate coefficients.
 
         """
-
+        
         # Setup arrays for results - sorted by sources and absorbers
         # The middle dimension of length 1 is the number of cells
         # which is always 1 for these kinds of calculations
@@ -545,17 +545,17 @@ class UniformBackground(object):
             if popid is not None:
                 if i != popid:
                     continue
-            
+
             # Loop over absorbing species
             for j, species in enumerate(self.grid.absorbers):
-                
+
                 if not np.any(self.solve_rte[i]):
                     self._update_by_band_and_species(z, i, j, None, **kwargs)
                     continue
-                
+
                 # Sum over bands
                 for k, band in enumerate(self.energies[i]):
-                    
+                                        
                     # Still may not necessarily solve the RTE
                     if self.solve_rte[i][k]:
                         self._update_by_band_and_species(z, i, j, k, 
@@ -579,6 +579,7 @@ class UniformBackground(object):
         return to_return
 
     def _update_by_band_and_species(self, z, i, j, k, **kwargs):
+                
         if kwargs['zone'] == 'igm':
             self.k_ion[i,0,j] += \
                 self.volume.IonizationRateIGM(z, species=j, popid=i,

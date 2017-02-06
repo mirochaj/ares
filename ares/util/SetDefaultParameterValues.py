@@ -717,7 +717,7 @@ def ControlParameters():
     "stop_time": 500,
     
     "initial_redshift": 50.,
-    "final_redshift": 6,
+    "final_redshift": 5,
     
     "save_rate_coefficients": 1,
     
@@ -750,7 +750,7 @@ def ControlParameters():
     "tau_ifront": 0.5,
     "restricted_timestep": ['ions', 'neutrals', 'electrons', 'temperature'],
     
-    "compute_fluxes_at_start":False,
+    "compute_fluxes_at_start": False,
     
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'

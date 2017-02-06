@@ -461,27 +461,18 @@ class Global21cm(AnalyzeGlobal21cm):
                     E0, E1 = band
                     if not (E0 <= E_LyA < E1):
                         continue
-                    
-                    Earr = np.concatenate(self.medium.field.energies[i][j])
-                    l = np.argmin(np.abs(Earr - E_LyA))     # should be 0
-                    
-                    Ja += self.medium.field.all_fluxes[-1][i][j][l]
-
-                    ##
-                    # Compute JLW
-                    ##
-                    
-                    # Find photons in LW band    
-                    is_LW = np.logical_and(Earr >= 11.18, Earr <= E_LL)
-                    
-                    # And corresponding fluxes
-                    flux = self.medium.field.all_fluxes[-1][i][j][is_LW]
-                    
-                    # Convert to energy units, and per eV to prep for integral
-                    flux *= Earr[is_LW] * erg_per_ev / ev_per_hz
-                    
-                    dnu = (E_LL - 11.18) / ev_per_hz
-                    Jlw += np.trapz(flux, x=Earr[is_LW]) / dnu
+                        
+                    if self.pf['compute_fluxes_at_start']:
+                        this_Ja = self.medium.field._interp[i]['Ja'](z)
+                        this_Jlw = self.medium.field._interp[i]['Jlw'](z)
+                    else:
+                        fluxes = self.medium.field.all_fluxes[-1]
+                        
+                        this_Ja, this_Jlw = \
+                            self.medium.field.update_Jlw(i, j, fluxes)    
+                        
+                    Ja += this_Ja
+                    Jlw += this_Jlw
                                         
             # Solver requires this
             Ja = np.atleast_1d(Ja)                                            

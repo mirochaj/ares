@@ -353,7 +353,7 @@ class MultiPhaseMedium(object):
                         done = True
                 
                 if not done:
-
+                    
                     # CGM rate coefficients
                     RC_cgm = self.field.update_rate_coefficients(z,
                         zone='cgm', return_rc=True, cgm_h_1=data_cgm['h_1'])

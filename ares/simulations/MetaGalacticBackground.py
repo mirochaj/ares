@@ -19,6 +19,7 @@ from scipy.interpolate import interp1d
 from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
+from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
 
 _scipy_ver = scipy.__version__.split('.')
@@ -91,9 +92,9 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         Several attributes:
         (1) _zhi, _zlo
         (2) _fhi, _flo
-        
+
         """
-                
+
         # For "smart" time-stepping
         self._zhi = []; self._zlo = []
         self._fhi = []; self._flo = []
@@ -348,7 +349,7 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         
         # In this case, use interpolants.
         if self.pf['compute_fluxes_at_start']:
-            
+                        
             if self._has_fluxes:
                 
                 to_return = \
@@ -357,8 +358,12 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                  'k_ion2': np.zeros((1,self.grid.N_absorbers, self.grid.N_absorbers)),
                  'k_heat': np.zeros((1,self.grid.N_absorbers)),
                 }
-                
+
                 for i, pop in enumerate(self.pops):
+                    
+                    if pop.zone != kwargs['zone']:
+                        continue
+                    
                     fset = self._interp[i]             
                     
                     # Call interpolants, add 'em all up.
@@ -366,8 +371,16 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                     {
                      'k_ion':  np.array([[fset['k_ion'][j](z) for j in range(3)]]),
                      'k_heat': np.array([[fset['k_heat'][j](z) for j in range(3)]]),
+                     'Ja': fset['Ja'](z),
+                     'Jlw': fset['Jlw'](z),
                     }
                     
+                    #if pop.zone == 'cgm':
+                    #    n0 = self.cosm.nH(z)
+                    #    x = kwargs['%s_h_1' % pop.zone]
+                    #    n = 1. / (n0 * x)
+                    #    this_pop['k_ion'][0] *= n
+                        
                     tmp = np.zeros((self.grid.N_absorbers, self.grid.N_absorbers))
                     for j in range(self.grid.N_absorbers):
                         for k in range(self.grid.N_absorbers):
@@ -380,7 +393,9 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                                                                         
                 return to_return
             else:
-                
+
+                kwargs['return_rc'] = True
+
                 # This chunk only gets executed once
 
                 self._rc_tabs = [{} for i in range(self.Npops)]
@@ -391,6 +406,8 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                 fluxes = {i:None for i in range(self.Npops)}
                 for i, pop_generator in enumerate(self.generators):
                     
+                    kwargs['zone'] = self.pops[i].zone
+                    
                     zarr = self.redshifts[i]
                     Nz = len(zarr)
                     self._rc_tabs[i]['k_ion'] = np.zeros((len(zarr),
@@ -399,32 +416,47 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                             self.grid.N_absorbers, self.grid.N_absorbers))
                     self._rc_tabs[i]['k_heat'] = np.zeros((len(zarr),
                             self.grid.N_absorbers))
-
-                    # Skip approximate (or non-contributing) backgrounds
-                    if pop_generator is None:
-                        fluxes[i] = None
-                        continue
+                    self._rc_tabs[i]['Ja'] = np.zeros(len(zarr))
+                    self._rc_tabs[i]['Jlw'] = np.zeros(len(zarr))
 
                     # Need to cycle through redshift here
                     for _iz in range(Nz):
-   
-                        fluxes_by_band = []
-                        for j, generator in enumerate(pop_generator):
-                            
-                            _z, _f = generator.next()
-                            
-                            fluxes_by_band.append(flatten_flux(_f))
+                        
+                        # Get fluxes if need be
+                        if pop_generator is None:
+                            kwargs['fluxes'] = None
+                        else:
+                            fluxes_by_band = []
+                            for j, generator in enumerate(pop_generator):
+                                
+                                if not self.solve_rte[i][j]:
+                                    fluxes_by_band.append(None)
+                                    continue
+                                    
+                                E0, E1 = self.bands_by_pop[i][j]
+
+                                _z, _f = generator.next()
+
+                                fluxes_by_band.append(flatten_flux(_f))
+
+                                if not (E0 <= E_LyA < E1):
+                                    continue
+
+                                this_Ja, this_Jlw = self.update_Jlw(i, j, _f, 
+                                    fluxes_nested=False)
+                                self._rc_tabs[i]['Ja'][Nz-_iz-1] = this_Ja
+                                self._rc_tabs[i]['Jlw'][Nz-_iz-1] = this_Jlw
                         
                         fluxes[i] = fluxes_by_band
-                        kwargs['fluxes'] = fluxes  
-                    
+                        kwargs['fluxes'] = fluxes
+
                         # This routine expects fluxes to be a dictionary, with
                         # the keys being population ID # and the elements lists
                         # of fluxes in each (sub-) band.
                         coeff = super(MetaGalacticBackground, 
                             self).update_rate_coefficients(_z, popid=i, 
                             **kwargs)
-
+                        
                         self._rc_tabs[i]['k_ion'][Nz-_iz-1,:] = \
                             coeff['k_ion'].copy()
                         self._rc_tabs[i]['k_ion2'][Nz-_iz-1,:] = \
@@ -443,6 +475,13 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                         [[None,None,None] for _i in range(self.grid.N_absorbers)]
                     self._interp[i]['k_heat'] = \
                         [None for _i in range(self.grid.N_absorbers)]
+
+                    self._interp[i]['Ja'] = interp1d(zarr, 
+                        self._rc_tabs[i]['Ja'], 
+                        bounds_error=False, fill_value=0.0)
+                    self._interp[i]['Jlw'] = interp1d(zarr, 
+                        self._rc_tabs[i]['Jlw'], 
+                        bounds_error=False, fill_value=0.0)    
 
                     for j in range(self.grid.N_absorbers):
                         self._interp[i]['k_ion'][j] = \
@@ -475,7 +514,42 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
             # Run update_rate_coefficients within MultiPhaseMedium
             return super(MetaGalacticBackground, self).update_rate_coefficients(z, 
                 **kwargs)
-
+                
+    def update_Jlw(self, popid, bandid, fluxes_in, fluxes_nested=True):
+        """
+        Get new Ja and Jlw.
+        """
+        
+        i, j = popid, bandid
+        
+        Earr = np.concatenate(self.energies[i][j])
+        l = np.argmin(np.abs(Earr - E_LyA))     # should be 0
+        
+        if fluxes_nested:
+            fluxes = fluxes_in[i][j]
+        else:
+            fluxes = flatten_flux(fluxes_in)
+        
+        Ja = fluxes[l]
+        
+        ##
+        # Compute JLW
+        ##
+        
+        # Find photons in LW band    
+        is_LW = np.logical_and(Earr >= 11.18, Earr <= E_LL)
+        
+        # And corresponding fluxes
+        flux = fluxes[is_LW]
+        
+        # Convert to energy units, and per eV to prep for integral
+        flux *= Earr[is_LW] * erg_per_ev / ev_per_hz
+        
+        dnu = (E_LL - 11.18) / ev_per_hz
+        Jlw = np.trapz(flux, x=Earr[is_LW]) / dnu
+        
+        return Ja, Jlw
+        
     def get_integrated_flux(self, band, popid=0):
         """
         Return integrated flux in supplied (Emin, Emax) band at all redshifts.
