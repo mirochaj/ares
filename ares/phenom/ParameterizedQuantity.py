@@ -25,6 +25,7 @@ func_options = \
 {
  'pl': 'p[0] * (x / p[1])**p[2]',
  'exp': 'p[0] * exp(-(x / p[1])**p[2])',
+ 'exp_flip': 'p[0] * exp(-(x / p[1])**p[2])', 
  'dpl': 'p[0] / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
  'dpl_arbnorm': 'p[0](p[4]) / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
  'pwpl': 'p[0] * (x / p[4])**p[1] if x <= p[4] else p[2] * (x / p[4])**p[3]',
@@ -37,9 +38,11 @@ func_options = \
 }
 
 class ParameterizedQuantity(object):
-    def __init__(self, **kwargs):
+    def __init__(self, deps={}, **kwargs):
         # Cut this down to just PHP pars?
         self.pf = ParameterFile(**kwargs)
+        
+        self.deps = deps
 
     @property
     def func(self):
@@ -140,9 +143,15 @@ class ParameterizedQuantity(object):
                                 
                 exec('p%i = val' % i)
             elif type(par) == tuple:
-                f, v = par
-                                
-                val = f(kwargs[v])
+                f, v, mult = par
+                
+                if f in self.deps:
+                    val = mult * self.deps[f](kwargs[v])
+                elif type(f) is FunctionType:
+                    val = f(kwargs[v])    
+                else:
+                    raise NotImplementedError('help')
+                    
                 exec('p%i = val' % i)    
                     
             else:
@@ -157,6 +166,8 @@ class ParameterizedQuantity(object):
             f = p0 * (x / p1)**p2
         elif func == 'exp':
             f = p0 * np.exp(-(x / p1)**p2)
+        elif func == 'exp_flip':
+            f = 1. - p0 * np.exp(-(x / p1)**p2)    
         elif func == 'plexp':
             f = p0 * (x / p1)**p2 * np.exp(-(x / p3)**p4)
         elif func == 'dpl':

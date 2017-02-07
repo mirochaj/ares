@@ -679,9 +679,16 @@ class Global21cm(AnalyzeGlobal21cm):
                 print 'WARNING: %s.parameters.pkl exists! Set clobber=True to overwrite.' % prefix
 
         if write_pf:
+
+            pf = {}
+            for key in self.pf:
+                if key in self.carryover_kwargs:
+                    continue
+                pf[key] = self.pf
+            
             # Save parameter file
             f = open('%s.parameters.pkl' % prefix, 'wb')
-            pickle.dump(self.pf, f)
+            pickle.dump(pf, f, -1)
             f.close()
     
             print 'Wrote %s.parameters.pkl' % prefix
