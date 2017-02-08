@@ -149,7 +149,6 @@ class RateCoefficients(object):
                         alpha[T < 2.2e4] *= (1.11 - 0.044 * np.log(T[T < 2.2e4]))   # To n >= 2
                         alpha[T >= 2.2e4] *= (1.43 - 0.076 * np.log(T[T >= 2.2e4])) # To n >= 2
                         
-                        
                     return alpha
             else:
                 raise ValueError('Unrecognized RecombinationMethod.  Should be A or B.')

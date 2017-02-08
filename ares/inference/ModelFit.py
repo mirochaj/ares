@@ -776,6 +776,8 @@ class ModelFit(BlobFactory):
         to_axe = []
         for key in tmp:
             # this might be big, get rid of it
+            if re.search('tau_instance', key):
+                to_axe.append(key)
             if re.search('tau_table', key):
                 to_axe.append(key)
             if re.search('hmf_instance', key):
