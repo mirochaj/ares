@@ -287,9 +287,7 @@ class ChemicalNetwork(object):
             
             dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton - hubcool \
                 - q[-1] * n_H * dqdt['e'] / ntot
-                
-            print z, t, time, q, heat, n_e * cool, compton, hubcool, dqdt['e'], ntot
-                
+                                
         else:
             dqdt['Tk'] = 0.0
             
