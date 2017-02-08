@@ -414,6 +414,14 @@ class ModelSet(BlobFactory):
         
         return self._Nd
     
+    def last_n_checkpoints(self, num):
+        chain_fns = glob.glob(self.prefix + ".dd*.chain.pkl")
+        ckpts = sorted([int(fn[-14:-10]) for fn in chain_fns])
+        return ckpts[-num:]
+
+    def last_checkpoint(self):
+        return self.last_n_checkpoints(1)[0]
+    
     @property
     def include_checkpoints(self):
         if not hasattr(self, '_include_checkpoints'):
@@ -433,6 +441,11 @@ class ModelSet(BlobFactory):
         if hasattr(self, '_chain'):
             print "WARNING: the chain has already been read.", 
             print "Be sure to delete `_chain` attribute before continuing."
+
+    @property
+    def largest_checkpoint(self):
+        lis = glob.glob(self.prefix + '.dd*.chain.pkl')
+        return max([int(s[-14:-10]) for s in lis])
 
     @property
     def chain(self):
@@ -511,22 +524,20 @@ class ModelSet(BlobFactory):
                         sorted(glob.glob('%s.dd*.chain.pkl' % self.prefix))
                                 
                 full_chain = []
+                if rank == 0:
+                    print "Loading %s.dd*.chain.pkl..." % (self.prefix,)
+                    t1 = time.time()
                 for fn in outputs_to_read:
                     if not os.path.exists(fn):
                         print "Found no output: %s" % fn
                         continue
-                    
-                    if rank == 0:
-                        print "Loaded %s." % fn
-                    
-                    this_chain = read_pickled_chain(fn)                                    
-                    full_chain.extend(this_chain.copy())                    
-                    
-                full_chain = np.array(full_chain)    
-                    
-                self._chain = np.ma.array(full_chain, 
-                    mask=np.zeros_like(full_chain))
-
+                    this_chain = read_pickled_chain(fn)
+                    full_chain.extend(this_chain)
+                self._chain = np.ma.array(full_chain, mask=0)
+                if rank == 0:
+                    t2 = time.time()
+                    print "Loaded %s.dd*.chain.pkl in %.2g s." %\
+                        (self.prefix, t2 - t1)
             else:
                 self._chain = None            
 
@@ -1393,27 +1404,10 @@ class ModelSet(BlobFactory):
         else:
             cdata = None
 
-        if line_plot:
-            # The ordering of the points doesn't matter
-            if sort_by == 'z' and (cdata is not None):
-                order = np.argsort(cdata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                cdata = cdata[order]                    
-            elif sort_by == 'x':
-                order = np.argsort(xdata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                if cdata is not None:
-                    cdata = cdata[order]
-            elif sort_by == 'y':
-                order = np.argsort(ydata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                if cdata is not None:
-                    cdata = cdata[order]            
-
-            func = ax.__getattribute__('plot')
+        if hasattr(self, '_weights') and cdata is None:
+            scat = ax.scatter(xdata, ydata, c=self.weights, **kwargs)
+        elif cdata is not None:
+            scat = ax.scatter(xdata, ydata, c=cdata, **kwargs)
         else:
             func = ax.__getattribute__('scatter')
             
@@ -1680,7 +1674,7 @@ class ModelSet(BlobFactory):
             multiplier=multiplier, un_log=un_log)
 
         # Need to weight results of non-MCMC runs explicitly
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -1769,7 +1763,7 @@ class ModelSet(BlobFactory):
         if not self.is_mcmc:
             self.set_constraint(**constraints)
         
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -2383,7 +2377,7 @@ class ModelSet(BlobFactory):
         binvec = self._set_bins(pars, to_hist, take_log, bins)
 
         # We might supply weights by-hand for ModelGrid calculations
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -3364,7 +3358,6 @@ class ModelSet(BlobFactory):
         Returns vector of mean, and the covariance matrix itself.
         
         """
-                
         data = self.ExtractData(pars, ivar=ivar)
         
         blob_vec = []
@@ -3374,7 +3367,18 @@ class ModelSet(BlobFactory):
         mu  = np.ma.mean(blob_vec, axis=1)
         cov = np.ma.cov(blob_vec)
 
-        return mu, cov    
+        return mu, cov
+
+    def PlotCovarianceMatrix(self, pars, ivar=None, fig=1, ax=None):
+        mu, cov = self.CovarianceMatrix(pars, ivar=ivar)
+        if ax is None:
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+
+        cax = ax.imshow(cov, interpolation='none', cmap='RdBu_r')
+        cb = pl.colorbar(cax)
+
+        return ax
         
     def AssembleParametersList(self, N=None, ids=None, include_bkw=False):
         """

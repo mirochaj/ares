@@ -25,7 +25,7 @@ tanh_kwargs = TanhParameters()
 
 tanh_pars = ['tanh_J0', 'tanh_Jz0', 'tanh_Jdz', 
     'tanh_T0', 'tanh_Tz0', 'tanh_Tdz', 'tanh_x0', 'tanh_xz0', 'tanh_xdz',
-    'tanh_bias_temp', 'tanh_bias_freq']
+    'tanh_bias_temp', 'tanh_bias_freq', 'tanh_scale_temp', 'tanh_scale_freq']
 
 def tanh_generic(z, zref, dz):
     return 0.5 * (np.tanh((zref - z) / dz) + 1.)
@@ -36,9 +36,9 @@ alpha_A = rc.RadiativeRecombinationRate(0, 1e4)
 z_to_mhz = lambda z: nu_0_mhz / (1. + z)
 freq_to_z = lambda nu: nu_0_mhz / nu - 1.
 
-def shift_z(z, nu_bias):
+def shift_z(z, nu_bias, nu_scale):
     nu = np.array(map(z_to_mhz, z))
-    nu += nu_bias
+    nu = ((nu_scale * nu) + nu_bias)
 
     return freq_to_z(nu)
     
@@ -168,7 +168,7 @@ class Tanh21cm(object):
 
         # Unpack parameters
         Jref, zref_J, dz_J, Tref, zref_T, dz_T, xref, zref_x, dz_x, \
-            bias_T, bias_freq = theta
+            bias_T, bias_freq, scale_T, scale_freq = theta
 
         Jref *= J21_num
 
@@ -186,10 +186,10 @@ class Tanh21cm(object):
         # Brightness temperature
         dTb = self.hydr.DifferentialBrightnessTemperature(z, xi, Ts)
 
-        if bias_T != 0:
-            dTb += bias_T
-        if bias_freq != 0:
-            z = shift_z(z, bias_freq)
+        if (bias_T != 0) or (scale_T != 1):
+            dTb = ((scale_T * dTb) + bias_T)
+        if (bias_freq != 0) or (scale_freq != 1):
+            z = shift_z(z, bias_freq, scale_freq)
 
         # Save some stuff
         hist = \

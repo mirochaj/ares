@@ -295,6 +295,29 @@ class PriorSet(object):
         raise ValueError(("The parameter searched for (%s)" % (parameter,)) +\
                          "in a PriorSet was not found.")
 
+    def delete_prior(self, parameter, throw_error=True):
+        """
+        Deletes a prior from this PriorSet.
+        
+        parameter a parameter in the prior
+        throw_error if True (default), an error is thrown if the parameter
+                    is not found
+        """
+        for iprior in range(len(self._data)):
+            (this_prior, these_params, these_transforms) = self._data[iprior]
+            if parameter in these_params:
+                to_delete = iprior
+                break
+        try:
+            for par in self._data[to_delete][1]:
+                self._params.remove(par)
+            self._data = self._data[:to_delete] + self._data[to_delete + 1:]
+        except:
+            if throw_error:
+                raise ValueError('The parameter given to ' +\
+                                 'PriorSet.delete_prior was not in ' +\
+                                 'the PriorSet.')
+
     def parameter_strings(self, parameter):
         """
         Makes an informative string about this parameter's place in this
