@@ -27,7 +27,19 @@ try:
     from scipy.stats import kurtosis, skew
 except ImportError:
     pass
-
+    
+def add_master_legend(ax, **kwargs):
+    """
+    Make a big legend!
+    """
+    
+    h, l = ax.get_legend_handles_labels()
+    
+    ax.legend(h, l, loc='upper center', 
+        bbox_to_anchor=(0.5, 1.3), **kwargs)
+              
+    return ax
+    
 class Global21cm(MultiPhaseMedium,BlobFactory):
         
     def __getattr__(self, name):

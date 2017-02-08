@@ -159,6 +159,12 @@ class UniformBackground(object):
                                 
         return self._solve_rte
         
+    def _needs_tau(self, popid):
+        if self.solve_rte[popid] and self.pops[popid].pf['pop_Emin'] >= E_LL:
+            return True
+        else:
+            return False
+            
     def _get_bands(self, pop):
         """
         Break radiation field into chunks we know how to deal with.
@@ -407,6 +413,22 @@ class UniformBackground(object):
                 emissivity_by_band.append(ehat)
 
         return z, energies_by_band, tau_by_band, emissivity_by_band
+
+    #@property
+    #def tau_solver(self):
+    #    if not hasattr(self, '_tau_solver'):
+    #        # Create an ares.simulations.OpticalDepth instance
+    #        for i, pop in enumerate(self.pops):
+    #            if not self._needs_tau(i):
+    #                continue
+    #                
+    #            self._tau_solver = OpticalDepth(**pop.pf)
+    #            
+    #    return self._tau_solver
+
+    #def _check_for_tau(self, z, E, pop):
+    #    z, E, tau = self.tau_solver._fetch_tau(pop, z, E)
+    #    return z, E, tau
 
     def _set_tau(self, z, E, pop):
         """

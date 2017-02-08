@@ -145,10 +145,15 @@ class ParameterizedQuantity(object):
             elif type(par) == tuple:
                 f, v, mult = par
                 
+                if type(mult) is str:
+                    m = self.pf[mult]
+                else:
+                    m = mult
+                
                 if f in self.deps:
-                    val = mult * self.deps[f](kwargs[v])
+                    val = m * self.deps[f](kwargs[v])
                 elif type(f) is FunctionType:
-                    val = f(kwargs[v])    
+                    val = m * f(kwargs[v])    
                 else:
                     raise NotImplementedError('help')
                     

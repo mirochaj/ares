@@ -684,7 +684,7 @@ class Global21cm(AnalyzeGlobal21cm):
             for key in self.pf:
                 if key in self.carryover_kwargs:
                     continue
-                pf[key] = self.pf
+                pf[key] = self.pf[key]
             
             # Save parameter file
             f = open('%s.parameters.pkl' % prefix, 'wb')

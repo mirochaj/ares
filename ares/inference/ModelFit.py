@@ -201,7 +201,6 @@ class LogLikelihood(object):
             #    raise NotImplementedError('help')
 
         try:
-            print blob_vals
             # will return 0 if there are no blobs
             return self.priors_B.log_prior(blob_vals)
         except:
@@ -440,7 +439,7 @@ class ModelFit(BlobFactory):
         self._nw = int(value)
         
     def _handler(self, signum, frame):
-        raise ValueError('timeout!')
+        raise RuntimeError('timeout!')
             
     @property
     def timeout(self):
@@ -450,23 +449,23 @@ class ModelFit(BlobFactory):
     
     @timeout.setter
     def timeout(self, value):
-        self._timeout = value
+        self._timeout = int(value)
         
     @property
     def Nd(self):
         if not hasattr(self, '_Nd'):
             self._Nd = len(self.parameters)
         return self._Nd
-        
+
     @property
     def guesses(self):
         """
         Generate initial position vectors for all walkers.
         """
-        
+
         if hasattr(self, '_guesses'):
             return self._guesses
-        
+
         # Set using priors
         if (not hasattr(self, '_guesses')) and hasattr(self, '_prior_set'):            
             self._guesses = guesses_from_priors(self.parameters, 

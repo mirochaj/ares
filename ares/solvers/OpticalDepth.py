@@ -753,7 +753,11 @@ class OpticalDepth(object):
         else:
             i_E1 = None
             
-        self.z_fetched = ztab
+        
+        #zok = np.logical_and(ztab >= self.pf['final_redshift'],
+        #                     ztab <= self.pf['initial_redshift'])
+            
+        self.z_fetched = ztab#[zok]
         self.E_fetched = Etab[i_E0:i_E1]  
         self.tau_fetched = tau[:,i_E0:i_E1]
             

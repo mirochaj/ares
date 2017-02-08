@@ -520,14 +520,14 @@ class ModelGrid(ModelFit):
             try:
                 sim.run()
                 blobs = sim.blobs
-            except ValueError:
+            except RuntimeError:
                 f = open('%s.%s.timeout.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
                 pickle.dump(kw, f)
                 f.close()   
                 
                 blobs = self.blank_blob
                 
-            except Exception:                                 
+            except Exception: 
                 # Write to "fail" file
                 f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 
                     'ab')
