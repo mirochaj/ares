@@ -404,13 +404,25 @@ class Global21cm(AnalyzeGlobal21cm):
 
     @property
     def carryover_kwargs(self):
+        """
+        Grab a few things that can take time to load but are always the same.
+        """
         if not hasattr(self, '_carryover_kwargs'):
             self._carryover_kwargs = {}
             
             if hasattr(self.medium.field, 'tau'):
                 self._carryover_kwargs['tau_instance'] = \
                     self.medium.field._tau_solver
+
+            for i, pop in enumerate(self.pops):
+                if pop.sed_tab:
+                    self._carryover_kwargs['pop_psm_instance{%i}' % i] = \
+                        pop.src
                 
+                if i == 0:
+                    self._carryover_kwargs['hmf_instance'] = \
+                        pop.halos
+
         return self._carryover_kwargs
                                 
     def step(self):
@@ -449,27 +461,18 @@ class Global21cm(AnalyzeGlobal21cm):
                     E0, E1 = band
                     if not (E0 <= E_LyA < E1):
                         continue
-                    
-                    Earr = np.concatenate(self.medium.field.energies[i][j])
-                    l = np.argmin(np.abs(Earr - E_LyA))     # should be 0
-                    
-                    Ja += self.medium.field.all_fluxes[-1][i][j][l]
-
-                    ##
-                    # Compute JLW
-                    ##
-                    
-                    # Find photons in LW band    
-                    is_LW = np.logical_and(Earr >= 11.18, Earr <= E_LL)
-                    
-                    # And corresponding fluxes
-                    flux = self.medium.field.all_fluxes[-1][i][j][is_LW]
-                    
-                    # Convert to energy units, and per eV to prep for integral
-                    flux *= Earr[is_LW] * erg_per_ev / ev_per_hz
-                    
-                    dnu = (E_LL - 11.18) / ev_per_hz
-                    Jlw += np.trapz(flux, x=Earr[is_LW]) / dnu
+                        
+                    if self.pf['compute_fluxes_at_start']:
+                        this_Ja = self.medium.field._interp[i]['Ja'](z)
+                        this_Jlw = self.medium.field._interp[i]['Jlw'](z)
+                    else:
+                        fluxes = self.medium.field.all_fluxes[-1]
+                        
+                        this_Ja, this_Jlw = \
+                            self.medium.field.update_Jlw(i, j, fluxes)    
+                        
+                    Ja += this_Ja
+                    Jlw += this_Jlw
                                         
             # Solver requires this
             Ja = np.atleast_1d(Ja)                                            
@@ -676,9 +679,16 @@ class Global21cm(AnalyzeGlobal21cm):
                 print 'WARNING: %s.parameters.pkl exists! Set clobber=True to overwrite.' % prefix
 
         if write_pf:
+
+            pf = {}
+            for key in self.pf:
+                if key in self.carryover_kwargs:
+                    continue
+                pf[key] = self.pf[key]
+            
             # Save parameter file
             f = open('%s.parameters.pkl' % prefix, 'wb')
-            pickle.dump(self.pf, f)
+            pickle.dump(pf, f, -1)
             f.close()
     
             print 'Wrote %s.parameters.pkl' % prefix

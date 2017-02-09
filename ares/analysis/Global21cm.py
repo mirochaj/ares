@@ -23,11 +23,18 @@ from matplotlib.ticker import ScalarFormatter
 from ..analysis.BlobFactory import BlobFactory
 from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis
 
-try:
-    from scipy.stats import kurtosis, skew
-except ImportError:
-    pass
-
+def add_master_legend(ax, **kwargs):
+    """
+    Make a big legend!
+    """
+    
+    h, l = ax.get_legend_handles_labels()
+    
+    ax.legend(h, l, loc='upper center', 
+        bbox_to_anchor=(0.5, 1.3), **kwargs)
+              
+    return ax
+    
 class Global21cm(MultiPhaseMedium,BlobFactory):
         
     def __getattr__(self, name):
@@ -156,7 +163,9 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         if not hasattr(self, '_kurtosis_abs'):
             i1 = np.argmin(np.abs(30. - self.history['nu']))
             i2 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
-            self._kurtosis_abs = kurtosis(self.history['dTb'][i1:i2])
+            data = np.abs(self.history['dTb'][i1:i2])
+            self._kurtosis_abs = np.sum((data - np.mean(data))**4) \
+                / float(data.size) / np.std(data)**4
             
         return self._kurtosis_abs
 
@@ -165,7 +174,9 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         if not hasattr(self, '_skewness_abs'):
             i1 = np.argmin(np.abs(30. - self.history['nu']))
             i2 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
-            self._skewness_abs = skew(self.history['dTb'][i1:i2])
+            data = np.abs(self.history['dTb'][i1:i2])
+            self._skewness_abs = np.sum((data - np.mean(data))**3) \
+                / float(data.size) / np.std(data)**3
         return self._skewness_abs
 
     @property
@@ -173,7 +184,9 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         if not hasattr(self, '_kurtosis_emi'):
             i1 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
             i2 = np.argmin(np.abs(200.0 - self.history['nu']))
-            self._kurtosis_emi = kurtosis(self.history['dTb'][i1:i2])
+            data = self.history['dTb'][i1:i2]
+            self._kurtosis_emi = np.sum((data - np.mean(data))**4) \
+                / float(data.size) / np.std(data)**4
 
         return self._kurtosis_emi
 
@@ -182,7 +195,9 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         if not hasattr(self, '_skewness_emi'):
             i1 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
             i2 = np.argmin(np.abs(200.0 - self.history['nu']))
-            self._skewness_emi = skew(self.history['dTb'][i1:i2])
+            data = self.history['dTb'][i1:i2]
+            self._skewness_emi = np.sum((data - np.mean(data))**3) \
+                / float(data.size) / np.std(data)**3
         return self._skewness_emi    
     
     @property
@@ -279,10 +294,16 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     def SaturatedLimit(self, ax):
         z = nu_0_mhz / self.history['nu'] - 1.
         dTb = self.hydr.saturated_limit(z)
+        
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()            
 
         ax.plot(self.history['nu'], dTb, color='k', ls=':')
         ax.fill_between(self.history['nu'], dTb, 500 * np.ones_like(dTb),
             color='none', hatch='X', edgecolor='k', linewidth=0.0)
+            
+        ax.set_xlim(xlim)    
+        ax.set_ylim(ylim)
         pl.draw()
         
         return ax
@@ -290,10 +311,17 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     def AdiabaticFloor(self, ax):
         z = nu_0_mhz / self.history['nu'] - 1.
         dTb = self.hydr.adiabatic_floor(z)
+        
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
 
         ax.plot(self.history['nu'], dTb, color='k', ls=':')
         ax.fill_between(self.history['nu'], -500 * np.ones_like(dTb), dTb, 
             color='none', hatch='X', edgecolor='k', linewidth=0.0)
+            
+        ax.set_xlim(xlim)    
+        ax.set_ylim(ylim)
+            
         pl.draw()
         
         return ax

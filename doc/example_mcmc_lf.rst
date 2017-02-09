@@ -17,15 +17,20 @@ OK, each of these quantities has a different independent variable, but we may as
 
     # blob #1: the LF. Give it a name, and the function needed to calculate it.
     blob_n1 = ['galaxy_lf']
-    blob_i1 = [redshifts, MUV]
+    blob_i1 = [('z', redshifts), ('x', MUV)]
     blob_f1 = ['pops[0].LuminosityFunction']
    
    # blob #2: SFE. 
     blob_n2 = ['fstar']
-    blob_i2 = [redshifts, Mh]
+    blob_i2 = [('z', redshifts), ('Mh', Mh)]
     blob_f2 = ['pops[0].fstar']
+  
+.. note :: For the independent variables, we must also supply the name of the argument (positional or keyword) expected by the provided function.
     
-    # Stick this all in a dictionary
+Stick this all in a dictionary:
+
+::
+    
     blob_pars = \
     { 
      'blob_names': [blob_n1, blob_n2],
@@ -39,8 +44,6 @@ Now, let's make our master dictionary of parameters, with one important addition
         
 ::
 
-        
-            
     base_pars = ares.util.ParameterBundle('mirocha2016:dpl')
     base_pars.update(blob_pars)
     
@@ -72,10 +75,10 @@ OK, now let's set the free parameters and priors:
     ps.add_prior(ares.inference.Priors.UniformPrior(-2, 0),   'pq_func_par3{0}[0]')
     
     
-Some initial guesses (optional?):
+Some initial guesses (optional: will draw initial walker positions from priors by default):
 
 ::
-    
+
     guesses = \
     {
      'pq_func_par0{0}[0]': -1,
@@ -94,10 +97,10 @@ Initialize the fitter object, and go!
     fitter.parameters = free_pars
     fitter.is_log = is_log
     fitter.prior_set = ps
-    
+
     # Setup # of walkers and initial guesses for them
     fitter.nwalkers = 192 
-    
+
     # The data can also be provided more explicitly
     fitter.data = 'bouwens2015'
     
@@ -108,14 +111,15 @@ Initialize the fitter object, and go!
     fitter.save_hmf = True  # cache HMF for a speed-up!
     fitter.save_psm = True  # cache source SED model (e.g., BPASS, S99)
     
-    # Setting this flag will make *ares* generate new files for each checkpoint. 
+    # Setting this flag to False will make *ares* generate new files for each checkpoint. 
     # 2-D blobs can get large, so this allows us to just download a single
     # snapshot or two if we'd like (useful if running on remote machine)
     fitter.checkpoint_append = False
     
     # Run the thing
-    fitter.run('test_lfcal', burn=100, steps=200, save_freq=20, clobber=True)
+    fitter.run('test_lfcal', burn=20, steps=100, save_freq=20, clobber=True)
 
+This will take awhile. For something quick, reduce the number of walkers and/or number of steps.
 
 See :doc:`example_mcmc_analysis` for general instructions for dealing with the outputs of MCMC calculations.
 

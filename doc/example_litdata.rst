@@ -65,7 +65,7 @@ A few of the models we focused on most get their own dictionary, for example our
     sim.run()
     sim.GlobalSignature()  # voila!
     
-Hopefully this results *exactly* in the solid black curve from Figure 2 of `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_, provided you're using a new enough version of *ares*. If it doesn't, please contact me! 
+Hopefully this results *exactly* in the solid black curve from Figure 2 of `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_, provided you're using *ares* version 0.2. If it doesn't, please contact me! 
 
 Alternatively, you can use the ``ParameterBundle`` framework, which also taps into our collection of data from the literature. To access the set of parameters for the "dpl" model, you simply do: ::
 
@@ -74,20 +74,20 @@ Alternatively, you can use the ``ParameterBundle`` framework, which also taps in
 This tells *ares* to retrieve the ``dpl`` variable within the ``mirocha2016`` module. See :doc:`param_bundles` for more on these objects.
 
 `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_ (``mirocha2016``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 This model has a few sub-options: ``dpl``, ``floor``, and ``steep``, as explored in the paper. 
 
 Non-standard pre-requisites:
     * High resolution optical depth table for X-ray background. To generate one for yourself, navigate to ``$ARES/input/optical_depth`` and open the ``generate_optical_depth_tables.py`` file. Between lines 35 and 45 there are a block of parameters that set the resolution of the table. Make sure that ``helium=1``, ``zi=50``, ``zf=5``, and ``Nz=[1e3]``. It should only take a few minutes to generate this table.
     
-The following parameters are uncertain and typically treated as free parameters:
+The following parameters are uncertain and typically treated as free parameters within the ranges denoted by brackets (not all of which are hard limits):
 
     * ``pop_Z{0}``, :math:`[0.001, 0.04]`
-    * ``pop_Tmin{0}`` (``pop_Tmin{1}`` is tied to this value by default).
+    * ``pop_Tmin{0}``, :math:`[300, \sim \mathrm{few} \times 10^5]`  (``pop_Tmin{1}`` is tied to this value by default).
     * ``pop_fesc{0}``, :math:`[0, 1]`
     * ``pop_fesc_LW{0}``, :math:`[0, 1]`
-    * ``pop_rad_yield{1}``, :math:`2.6 \times 10^{39}`
-    * ``pop_logN{1}``, :math:`-\infty` by default, values of 19-22 are reasonable.
+    * ``pop_rad_yield{1}``, :math:`[10^{38}, 10^{42}]` :math:`2.6 \times 10^{39}` by default
+    * ``pop_logN{1}``, :math:`[18, 23]`, :math:`-\infty` by default.
 
 .. note :: Changes in the metallicity (``pop_Z{0}``) in general affect the luminosity function (LF). However, by default, the normalization of the star formation efficiency will automatically be adjusted to guarantee that the LF does *not* change upon changes to ``pop_Z{0}``. Set the ``pop_calib_L1600{0}`` parameter to ``None`` to remove this behavior.
 
@@ -106,7 +106,7 @@ For more thorough parameter space explorations, you might want to consider using
 
 
 `Furlanetto et al., submitted <https://arxiv.org/abs/1611.01169>`_ ``furlanetto2017``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 The main options in this model are whether to use momentum-driven or energy-driven feedback, what are accessible separately via, e.g., ::
 
     E = ares.util.ParameterBundle('furlanetto2017:energy')

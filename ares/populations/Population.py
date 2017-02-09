@@ -45,6 +45,30 @@ class Population(object):
                 self._cosm = grid.cosm
                 
         return self._cosm
+        
+    @property
+    def zone(self):
+        if not hasattr(self, '_zone'):
+            if self.affects_cgm and (not self.affects_igm):
+                self._zone = 'cgm'
+            elif self.affects_igm and (not self.affects_cgm):
+                self._zone = 'igm'
+            else:
+                raise ValueError("Populations should only affect one zone!")
+                
+        return self._zone    
+            
+    @property
+    def affects_cgm(self):
+        if not hasattr(self, '_affects_cgm'):
+            self._affects_cgm = self.is_ion_src_cgm 
+        return self._affects_cgm
+    
+    @property
+    def affects_igm(self):
+        if not hasattr(self, '_affects_igm'):
+            self._affects_igm = self.is_ion_src_igm or self.is_heat_src_igm
+        return self._affects_igm    
     
     @property
     def is_ion_src_cgm(self):

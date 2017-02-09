@@ -287,7 +287,7 @@ class ChemicalNetwork(object):
             
             dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton - hubcool \
                 - q[-1] * n_H * dqdt['e'] / ntot
-                
+                                
         else:
             dqdt['Tk'] = 0.0
             
@@ -300,10 +300,13 @@ class ChemicalNetwork(object):
                     dqdt['he_1'] = 0.0
                 if x['he_2'] <= self.monotonic_EoR:
                     dqdt['he_2'] = 0.0
-            
+                        
         self.dqdt = self.zeros_q.copy()
         for i, sp in enumerate(self.grid.qmap):
             self.dqdt[i] = dqdt[sp]
+
+        if np.any(np.isnan(self.dqdt)):
+            raise ValueError('NaN encountered in RateEquations!')
 
         return self.dqdt
                           

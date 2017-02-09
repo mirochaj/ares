@@ -132,7 +132,8 @@ class GalaxyCohort(GalaxyAggregate):
                 else:
                     pars = tmp            
                     
-                result = ParameterizedQuantity(**pars)
+                Mmin = lambda z: np.interp(z, self.halos.z, self.Mmin)    
+                result = ParameterizedQuantity({'pop_Mmin': Mmin}, **pars)
                 
                 self._update_pq_registry(name, result)
             
@@ -1042,7 +1043,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 self._yield_per_sfr = self.rad_yield
             
-        return self._yield_per_sfr
+        return self._yield_per_sfr    
 
     @property
     def fstar(self):
@@ -1060,7 +1061,8 @@ class GalaxyCohort(GalaxyAggregate):
                 self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost
             elif self.pf['pop_fstar'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
-                self._fstar_inst = ParameterizedQuantity(**pars)
+                Mmin = lambda z: np.interp(z, self.halos.z, self.Mmin)
+                self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, **pars)
                 
                 self._fstar = \
                     lambda **kwargs: self._fstar_inst.__call__(**kwargs) \

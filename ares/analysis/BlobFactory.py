@@ -43,7 +43,7 @@ class default_blobs(object):
                 blobs_scalar.append('%s_%s' % (key, tp))
                 
         self.blob_names = [blobs_scalar, blobs_1d]
-        self.blob_ivars = [None, np.arange(5, 41, 1)]
+        self.blob_ivars = [None, ('z', np.arange(5, 41, 1))]
     
     
 def get_k(s):
@@ -151,7 +151,27 @@ class BlobFactory(object):
                 if self.pf['blob_ivars'] is None:
                     self._blob_ivars = [None] * len(names)
                 else:
-                    self._blob_ivars = self.pf['blob_ivars']
+                    self._blob_ivarn = []
+                    self._blob_ivars = []
+                    raw = self.pf['blob_ivars']
+                    
+                    assert type(raw) in [list, tuple], \
+                        "Must supply blob_ivars as (variable, values)!"
+                                        
+                    # k corresponds to ivar group
+                    for k, element in enumerate(raw):
+                        if element is None:
+                            self._blob_ivarn.append(None)
+                            self._blob_ivars.append(None)
+                            continue
+                        else:    
+                            self._blob_ivarn.append([])
+                            self._blob_ivars.append([])
+                                                        
+                        for l, pair in enumerate(element):
+                            self._blob_ivarn[k].append(pair[0])
+                            self._blob_ivars[k].append(pair[1])
+                            
             else:
                 self._blob_ivars = [None] * len(names)
 
@@ -175,7 +195,7 @@ class BlobFactory(object):
                     continue
                 # Everything else
                 else:
-
+                    
                     # Be careful with 1-D
                     if type(self._blob_ivars[i]) is np.ndarray:
                         lenarr = len(self._blob_ivars[i].shape)
@@ -212,6 +232,7 @@ class BlobFactory(object):
         self._blob_dims = tuple(self._blob_dims)            
         self._blob_names = tuple(self._blob_names)
         self._blob_ivars = tuple(self._blob_ivars)
+        self._blob_ivarn = tuple(self._blob_ivarn)
         self._blob_funcs = tuple(self._blob_funcs)
         
     @property
@@ -277,7 +298,13 @@ class BlobFactory(object):
         if not hasattr(self, '_blob_ivars'):
             self._parse_blobs()
         return self._blob_ivars
-        
+    
+    @property
+    def blob_ivarn(self):
+        if not hasattr(self, '_blob_ivarn'):
+            self._parse_blobs()
+        return self._blob_ivarn
+
     @property
     def blob_funcs(self):
         if not hasattr(self, '_blob_funcs'):
@@ -332,7 +359,7 @@ class BlobFactory(object):
                 except:
                     return self.blobs[i]
             elif len(self.blob_ivars[i]) == 1:
-                iv = self.blob_ivars[i][0]
+                iv = self.blob_ivars[i][1]
             else:
                 iv = self.blob_ivars[i]
 
@@ -400,7 +427,9 @@ class BlobFactory(object):
                 # 1-D blobs. Assume the independent variable is redshift 
                 # unless a function is provided
                 elif self.blob_nd[i] == 1:
-                    x = np.array(self.blob_ivars[i]).squeeze()
+                    # The 0 index is because ivars are kept in a list no
+                    # matter what
+                    x = np.array(self.blob_ivars[i][0]).squeeze()
                     if (self.blob_funcs[i][j] is None) and (key in self.history):                        
                         blob = np.interp(x, self.history['z'][-1::-1],
                             self.history[key][-1::-1])
@@ -409,12 +438,15 @@ class BlobFactory(object):
                     else:
                         fname = self.blob_funcs[i][j]
                         
+                        xn = self.blob_ivarn[i] # don't need it actually
+                        
                         if type(fname) is str:
                             func = parse_attribute(fname, self)
                         else:
                             # fname is a slice
                             _xx = self.history['z'][-1::-1]
                             _yy = self.history[fname[0]][-1::-1,fname[1]]
+                                                        
                             func = (_xx, _yy)
                             
                         if ismethod(func) or isinstance(func, interp1d):
@@ -436,12 +468,17 @@ class BlobFactory(object):
                         func = RectBivariateSpline(z, E, flux)
                     else:
                         raise TypeError('Sorry: don\'t understand blob %s' % key)
-                    
+                                      
+                    xn, yn = self.blob_ivarn[i]
+                                                            
                     blob = []
+                    # Need nested loop because supplied function is not 
+                    # guaranteed to be vectorized
                     for x in xarr:
                         tmp = []
-                        for y in yarr:                            
-                            tmp.append(func(x, y))
+                        for y in yarr:
+                            kw = {xn:x, yn:y}  
+                            tmp.append(func(**kw))
 
                         blob.append(tmp)
                                                 
