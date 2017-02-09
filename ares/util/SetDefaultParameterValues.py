@@ -718,6 +718,7 @@ def ControlParameters():
     
     "initial_redshift": 50.,
     "final_redshift": 5,
+    "kill_redshift": 0.0,
     
     "save_rate_coefficients": 1,
     

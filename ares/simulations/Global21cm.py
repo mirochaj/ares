@@ -246,6 +246,8 @@ class Global21cm(AnalyzeGlobal21cm):
             # Occasionally the progress bar breaks if we're not careful
             if z < self.pf['final_redshift']:
                 break
+            if z < self.pf['kill_redshift']:
+                break    
             
             # Delaying the initialization prevents progressbar from being
             # interrupted by, e.g., PrintInfo calls
