@@ -138,7 +138,7 @@ class ModelSet(BlobFactory):
             else:
                 self._prefix_is_chain = False
                 self.prefix = prefix = data
-            
+
             i = prefix.rfind('/') # forward slash index
 
             # This means we're sitting in the right directory already
@@ -155,17 +155,6 @@ class ModelSet(BlobFactory):
                 except:
                     pass
                     
-            #if not self.is_mcmc:
-            #    
-            #    self.grid = ModelGrid(**self.base_kwargs)
-                
-                #self.axes = {}
-                #for i in range(self.chain.shape[1]):
-                #    self.axes[self.parameters[i]] = np.unique(self.chain[:,i])
-                #
-                #self.grid.set_axes(**self.axes)
-                #
-            
         elif isinstance(data, ModelSubSet):
             self._chain = data.chain
             self._is_log = data.is_log

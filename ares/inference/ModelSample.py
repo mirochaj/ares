@@ -112,6 +112,7 @@ class ModelSample(ModelGrid):
 
         Returns
         -------
+        
         """
         
         models = self.get_models()

@@ -39,7 +39,7 @@ Now, we’ll make a dictionary full of parameters that will get passed to every 
      'problem_type': 101,
      'tanh_model': True,
      'blob_names': [blobs_scalar, blobs_1d],
-     'blob_ivars': [None, blobs_1d_z],
+     'blob_ivars': [None, [('z', blobs_1d_z)]],
      'blob_funcs': None,
     }
     

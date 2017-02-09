@@ -5,7 +5,7 @@ Analyzing Model Grids / Monte Carlo Simulations
 Once you have a model grid in hand, there are a slew of built-in analysis 
 routines that you might consider using. For the rest of this example,
 we'll assume you have completed a :doc:`example_grid`, and have the associated set of files
-with prefix ``test_2d_grid``. If not, you can download a tarball of that model grid `here <https://bitbucket.org/mirochaj/ares/downloads/ares_example_grid.tar.gz>`_.
+with prefix ``test_2d_grid``. If not, you can download a tarball of that model grid `here <https://bitbucket.org/mirochaj/ares/downloads/test_2d_grid.tar.gz>`_.
 
 To begin, initialize an instance of the analysis class, ``ModelSet``: 
 
