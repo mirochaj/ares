@@ -307,6 +307,8 @@ class ChemicalNetwork(object):
 
         if np.any(np.isnan(self.dqdt)):
             raise ValueError('NaN encountered in RateEquations!')
+        if np.any(self.q < 0):
+            raise ValueError('Something < 0')
 
         return self.dqdt
                           
