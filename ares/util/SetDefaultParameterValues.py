@@ -718,6 +718,7 @@ def ControlParameters():
     
     "initial_redshift": 50.,
     "final_redshift": 5,
+    "kill_redshift": 0.0,
     
     "save_rate_coefficients": 1,
     
@@ -755,8 +756,8 @@ def ControlParameters():
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     
-    "stop_igm_h_2": None,
-    "stop_cgm_h_2": None,
+    "stop_igm_h_2": 0.999,
+    "stop_cgm_h_2": 0.999,
         
     "track_extrema": False,
     "delay_extrema": 5,      # Number of steps

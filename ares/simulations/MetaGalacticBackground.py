@@ -62,7 +62,7 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         
         all_z = []         # sometimes not deterministic
         all_fluxes = []
-        for (z, fluxes) in self.step():
+        for (z, fluxes) in self.step():            
             all_z.append(z)
             all_fluxes.append(fluxes)
 
@@ -422,6 +422,9 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                     # Need to cycle through redshift here
                     for _iz in range(Nz):
                         
+                        if zarr[Nz-_iz] < self.pf['final_redshift']:
+                            break
+                        
                         # Get fluxes if need be
                         if pop_generator is None:
                             kwargs['fluxes'] = None
@@ -467,6 +470,9 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                 self._interp = [{} for i in range(self.Npops)]
                 for i, pop in enumerate(self.pops):
                     zarr = self.redshifts[i]
+                    
+                    if zarr[Nz-_iz] < self.pf['final_redshift']:
+                        raise NotImplementedError('deal with this sometime')
                     
                     # Create functions
                     self._interp[i]['k_ion'] = \

@@ -312,6 +312,9 @@ class MultiPhaseMedium(object):
 
         # Evolve in time!
         while z > zf:
+            
+            if z < self.pf['kill_redshift']:
+                break
 
             # Increment time / redshift
             dtdz = self.default_parcel.grid.cosm.dtdz(z)

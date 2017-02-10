@@ -898,12 +898,16 @@ class GalaxyCohort(GalaxyAggregate):
             ..note:: Units are Msun/yr.
     
         """
-        if not hasattr(self, '_sfr_tab'):
+        if not hasattr(self, '_sfr_tab'):            
             self._sfr_tab = np.zeros([self.halos.Nz, self.halos.Nm])
             for i, z in enumerate(self.halos.z):
                 
                 if z > self.zform:
                     continue
+                #if (z < self.zdead) or (z < self.pf['final_redshift']):
+                #    break
+                # Should be a little careful here: need to go one or two
+                # steps past edge to avoid interpolation problems in SFRD.
                 
                 # SF fueld by accretion onto halos already above threshold
                 if self.pf['pop_sfr_above_threshold']:

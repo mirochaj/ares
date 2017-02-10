@@ -328,7 +328,7 @@ class UniformBackground(object):
         Haardt, F. & Madau, P. 1996, ApJ, 461, 20
         
         """
-
+        
         if zi is None:
             zi = pop.pf['initial_redshift']
         if zf is None:    
@@ -338,8 +338,8 @@ class UniformBackground(object):
             
         x = np.logspace(np.log10(1 + zf), np.log10(1 + zi), nz)
         z = x - 1.   
-        R = x[1] / x[0]   
-                
+        R = x[1] / x[0]
+                        
         # Loop over bands, build energy arrays
         tau_by_band = []
         energies_by_band = []
@@ -397,7 +397,30 @@ class UniformBackground(object):
                                 
                 # Tabulate optical depth
                 if compute_tau:
-                    z, E, tau = self._set_tau(z, E, pop)
+                    _z, _E, tau = self._set_tau(z, E, pop)
+                    
+                    #new_zf = False
+                    #new_zi = False
+                    #if min(_z) != zf:
+                    #    _zf = min(_z)
+                    #    new_zf = True
+                    #if max(_z) != zi:
+                    #    _zi = max(_z)
+                    #    new_zi = True
+                    #
+                    #if new_zf or new_zi and (not np.all(tau == 0)):
+                    #    print _zf, _zi, np.all(tau == 0)
+                    #    print z.size, _z.size
+                    #    #raise ValueError('oh hey there')
+                    #    self._set_grid(pop, bands, zi=_zi, zf=_zf,
+                    #        nz=nz, compute_tau=compute_tau, 
+                    #        compute_emissivities=compute_emissivities)
+                    #    
+                    #    # Fix!
+                    #    z = _z
+                    #    E = _E
+                    #    __z, __E, tau = self._set_tau(z, E, pop)
+                    
                 else:
                     tau = None
 
@@ -411,24 +434,28 @@ class UniformBackground(object):
                 tau_by_band.append(tau)
                 energies_by_band.append(E)
                 emissivity_by_band.append(ehat)
-
+        
         return z, energies_by_band, tau_by_band, emissivity_by_band
 
-    #@property
-    #def tau_solver(self):
-    #    if not hasattr(self, '_tau_solver'):
-    #        # Create an ares.simulations.OpticalDepth instance
-    #        for i, pop in enumerate(self.pops):
-    #            if not self._needs_tau(i):
-    #                continue
-    #                
-    #            self._tau_solver = OpticalDepth(**pop.pf)
-    #            
-    #    return self._tau_solver
-
-    #def _check_for_tau(self, z, E, pop):
-    #    z, E, tau = self.tau_solver._fetch_tau(pop, z, E)
-    #    return z, E, tau
+    @property
+    def tau_solver(self):
+        if not hasattr(self, '_tau_solver'):
+            # Create an ares.simulations.OpticalDepth instance
+            for i, pop in enumerate(self.pops):
+                if not self._needs_tau(i):
+                    continue
+                    
+                self._tau_solver = OpticalDepth(**pop.pf)
+                
+        return self._tau_solver
+        
+    @tau_solver.setter
+    def tau_solver(self, value):
+        self._tau_solver = value
+    
+    def _check_for_tau(self, z, E, pop):
+        z, E, tau = self.tau_solver._fetch_tau(pop, z, E)
+        return z, E, tau
 
     def _set_tau(self, z, E, pop):
         """
@@ -461,7 +488,7 @@ class UniformBackground(object):
         A 2-D array of optical depths, of shape (len(z), len(E)).    
             
         """
-                
+                                
         # Default to optically thin if nothing is supplied
         if pop.pf['pop_approx_tau'] == True:
             return z, E, np.zeros([len(z), len(E)])
@@ -472,20 +499,20 @@ class UniformBackground(object):
                     
         # See if we've got an instance of OpticalDepth already handy
         if self.pf['tau_instance'] is not None:
-            self._tau_solver = self.pf['tau_instance']
-            return self._tau_solver.z_fetched, self._tau_solver.E_fetched, \
-                self._tau_solver.tau_fetched
+            self.tau_solver = self.pf['tau_instance']
+            return self.tau_solver.z_fetched, self.tau_solver.E_fetched, \
+                self.tau_solver.tau_fetched
         elif self.pf['tau_arrays'] is not None:
             # Assumed to be (z, E, tau)
             z, E, tau = self.pf['tau_arrays']
             return z, E, tau
             
-        # Create an ares.simulations.OpticalDepth instance    
-        tau_solver = OpticalDepth(**pop.pf)
-        self._tau_solver = tau_solver
+        # Create an ares.simulations.OpticalDepth instance
+        # (if we don't have one already)
+        tau_solver = self.tau_solver
         
         # Try to load file from disk.
-        z, E, tau = tau_solver._fetch_tau(pop, z, E)
+        _z, _E, tau = tau_solver._fetch_tau(pop, z, E)
                         
         # Generate it now if no file was found.
         if tau is None:
@@ -502,7 +529,8 @@ class UniformBackground(object):
 
             tau = tau_solver.TabulateOpticalDepth()   
 
-        return z, E, tau
+        # Return what we got, not what we asked for
+        return _z, _E, tau
 
     @property
     def generators(self):
@@ -1136,6 +1164,12 @@ class UniformBackground(object):
                 # BUT, Inu_hat is normalized in (EminNorm, EmaxNorm) band
 
                 for ll, redshift in enumerate(z):
+                    
+                    if redshift < self.pf['final_redshift']:
+                        break    
+                    if redshift < self.pf['kill_redshift']:
+                        break    
+                    
                     epsilon[ll,in_band] = fix \
                         * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
                         * ev_per_hz * Inu_hat[in_band] / H[ll] / erg_per_ev
@@ -1192,7 +1226,7 @@ class UniformBackground(object):
         # Loop over redshift - this is the generator                    
         z = redshifts[-1]
         while z >= redshifts[0]:
-                        
+             
             # First iteration: no time for there to be flux yet
             # (will use argument flux0 if the EoR just started)
             if ll == (L - 1):

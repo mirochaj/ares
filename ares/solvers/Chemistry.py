@@ -52,9 +52,9 @@ class Chemistry(object):
             self.rcs = {}
             
         self.solver = ode(self.chemnet.RateEquations, 
-            jac=self.chemnet.Jacobian).set_integrator('vode',
-            method='bdf', nsteps=1e4, order=5, atol=atol, rtol=rtol)
-            
+            jac=self.chemnet.Jacobian).set_integrator('lsoda',
+            nsteps=1e4, atol=atol, rtol=rtol)
+        
         self.solver._integrator.iwork[2] = -1
             
         # Empty arrays in the shapes we often need
