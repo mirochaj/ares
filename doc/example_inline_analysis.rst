@@ -31,11 +31,11 @@ Now, for the 1-D blobs we also need to provide a sequence of redshifts at which 
 
 ::
 
-    blob_ivars = [None, np.arange(6, 21)]
+    blob_ivars = [None, [('z', np.arange(6, 21))]]
     
-Notice that ``blob_ivars`` is a 2-element list (ivars is short for "independent variables," since in general they need not be redshifts): one element for each blob group (scalar and 1-D). Since the scalars are just numbers, the first element in this list is just ``None``, while the second indicates that we'll save the desired quantities at redshifts :math:`z=6,7,...,20`.
+Notice that ``blob_ivars`` is a 2-element list (``ivars`` is short for "independent variables," since in general they need not be redshifts): one element for each blob group (scalar and 1-D). Since the scalars are just numbers, the first element in this list is just ``None``, while the second indicates that we'll save the desired quantities at redshifts (``'z'``) :math:`z=6,7,...,20`.
 
-.. note :: *ares* works with redshift internally, which is why the independent variable is assumed to be :math:`z` for the most common fields like ``cgm_h_2``, ``igm_Tk``, etc. So, if you wanted to sample equally over some frequency range, simply define that array first and convert to redshifts via :math:`z = (\nu_0 / \nu) - 1` where :math:`\nu_0 = 1420.4057` MHz.
+.. note :: *ares* works with redshift internally, so, if you wanted to sample equally over some frequency range, simply define that array first and convert to redshifts via :math:`z = (\nu_0 / \nu) - 1` where :math:`\nu_0 = 1420.4057` MHz.
 
 We supply these lists via parameters of the same name:
 
@@ -96,7 +96,7 @@ To build on our previous example:
 
     # Note the addition of 'fwhm' and 'slope'
     blob_names = [['tau_e', 'z_C', 'dTb_C'], ['fwhm'], ['slope']]
-    blob_ivars = [None, None, [np.arange(40, 151, 1)]]
+    blob_ivars = [None, None, [('freq', np.arange(40, 151, 1))]]
     
 The ``'fwhm'`` blob is just a number, while ``'slope'`` here will be saved at integer frequencies between 40 and 150 MHz.
 

@@ -204,7 +204,6 @@ class LogLikelihood(object):
             #    raise NotImplementedError('help')
 
         try:
-            print blob_vals
             # will return 0 if there are no blobs
             return self.priors_B.log_prior(blob_vals)
         except:
@@ -496,7 +495,7 @@ class ModelFit(BlobFactory):
         self._nw = int(value)
         
     def _handler(self, signum, frame):
-        raise ValueError('timeout!')
+        raise RuntimeError('timeout!')
             
     @property
     def timeout(self):
@@ -506,14 +505,14 @@ class ModelFit(BlobFactory):
     
     @timeout.setter
     def timeout(self, value):
-        self._timeout = value
+        self._timeout = int(value)
         
     @property
     def Nd(self):
         if not hasattr(self, '_Nd'):
             self._Nd = len(self.parameters)
         return self._Nd
-        
+
     @property
     def guesses(self):
         """
@@ -839,6 +838,8 @@ class ModelFit(BlobFactory):
         to_axe = []
         for key in tmp:
             # this might be big, get rid of it
+            if re.search('tau_instance', key):
+                to_axe.append(key)
             if re.search('tau_table', key):
                 to_axe.append(key)
             if re.search('hmf_instance', key):

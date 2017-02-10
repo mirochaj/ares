@@ -273,7 +273,7 @@ class GalaxyPopulation(object):
                 labels.append(l[i])
                 
         mp.fig.legend(handles, labels, loc='upper center', 
-            bbox_to_anchor=(0.5, 1.0), **kwargs)
+            bbox_to_anchor=(0.5, 0.97), **kwargs)
                   
         return mp
             

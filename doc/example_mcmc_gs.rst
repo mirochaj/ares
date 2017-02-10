@@ -26,7 +26,7 @@ The fastest model to fit is one treating the Lyman-:math:`\alpha`, ionization, a
      'problem_type': 101,
      'tanh_model': True,
      'blob_names': [['tau_e'], ['cgm_h_2', 'igm_Tk', 'igm_dTb']],
-     'blob_ivars': [None, np.arange(6, 21)],
+     'blob_ivars': [None, [('z', np.arange(6, 21))]],
      'blob_funcs': None,
     }
     

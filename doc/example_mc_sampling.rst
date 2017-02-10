@@ -26,7 +26,7 @@ To facilitate a comparison between the model grid results, let's start by choosi
      'problem_type': 101,
      'tanh_model': True,
      'blob_names': [blobs_scalar, blobs_1d],
-     'blob_ivars': [None, blobs_1d_z],
+     'blob_ivars': [None, [('z', blobs_1d_z)]],
      'blob_funcs': None,
     }
     

@@ -159,6 +159,12 @@ class UniformBackground(object):
                                 
         return self._solve_rte
         
+    def _needs_tau(self, popid):
+        if self.solve_rte[popid] and self.pops[popid].pf['pop_Emin'] >= E_LL:
+            return True
+        else:
+            return False
+            
     def _get_bands(self, pop):
         """
         Break radiation field into chunks we know how to deal with.
@@ -408,6 +414,22 @@ class UniformBackground(object):
 
         return z, energies_by_band, tau_by_band, emissivity_by_band
 
+    #@property
+    #def tau_solver(self):
+    #    if not hasattr(self, '_tau_solver'):
+    #        # Create an ares.simulations.OpticalDepth instance
+    #        for i, pop in enumerate(self.pops):
+    #            if not self._needs_tau(i):
+    #                continue
+    #                
+    #            self._tau_solver = OpticalDepth(**pop.pf)
+    #            
+    #    return self._tau_solver
+
+    #def _check_for_tau(self, z, E, pop):
+    #    z, E, tau = self.tau_solver._fetch_tau(pop, z, E)
+    #    return z, E, tau
+
     def _set_tau(self, z, E, pop):
         """
         Tabulate the optical depth.
@@ -517,7 +539,7 @@ class UniformBackground(object):
         self._atol = self.pf["integrator_atol"]
         self._divmax = int(self.pf["integrator_divmax"])
     
-    def update_rate_coefficients(self, z, **kwargs):
+    def update_rate_coefficients(self, z, popid=None, **kwargs):
         """
         Compute ionization and heating rate coefficients.
 
@@ -526,7 +548,7 @@ class UniformBackground(object):
         Dictionary containing ionization and heating rate coefficients.
 
         """
-
+        
         # Setup arrays for results - sorted by sources and absorbers
         # The middle dimension of length 1 is the number of cells
         # which is always 1 for these kinds of calculations
@@ -542,16 +564,20 @@ class UniformBackground(object):
             ## What to do for approximate RTE populations?
             ##
             
+            if popid is not None:
+                if i != popid:
+                    continue
+
             # Loop over absorbing species
             for j, species in enumerate(self.grid.absorbers):
-                
+
                 if not np.any(self.solve_rte[i]):
                     self._update_by_band_and_species(z, i, j, None, **kwargs)
                     continue
-                
+
                 # Sum over bands
                 for k, band in enumerate(self.energies[i]):
-                    
+                                        
                     # Still may not necessarily solve the RTE
                     if self.solve_rte[i][k]:
                         self._update_by_band_and_species(z, i, j, k, 
@@ -575,6 +601,7 @@ class UniformBackground(object):
         return to_return
 
     def _update_by_band_and_species(self, z, i, j, k, **kwargs):
+                
         if kwargs['zone'] == 'igm':
             self.k_ion[i,0,j] += \
                 self.volume.IonizationRateIGM(z, species=j, popid=i,
