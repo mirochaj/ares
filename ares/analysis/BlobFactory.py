@@ -448,8 +448,9 @@ class BlobFactory(object):
                             _yy = self.history[fname[0]][-1::-1,fname[1]]
                                                         
                             func = (_xx, _yy)
-                            
-                        if ismethod(func) or isinstance(func, interp1d):
+                                                        
+                        if ismethod(func) or isinstance(func, interp1d) or \
+                            (type(func) == FunctionType):
                             blob = np.array(map(func, x))
                         else:
                             blob = np.interp(x, func[0], func[1])

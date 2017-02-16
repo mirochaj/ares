@@ -189,7 +189,6 @@ def get_pq_pars(par, pf):
         
     """
 
-
     prefix, popid, phpid = par_info(par)
 
     pars = {}

@@ -446,6 +446,7 @@ class HaloMassFunction(object):
                 self.logM_max[i] = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, mu=mu))        
                 self.dndm_Mmax[i] = 10**np.interp(self.logM_min[i], self.logM, 
                     np.log10(self.dndm[i,:]))
+                    
             # For boundary term
             if Mmin_of_z:
                 self.dndm_Mmin[i] = 10**np.interp(self.logM_min[i], self.logM, 

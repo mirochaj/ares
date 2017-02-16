@@ -340,7 +340,7 @@ class Hydrogen(object):
             
         Returns
         -------
-        Spin temperature in Kelvin.   
+        Spin temperature in Kelvin.
          
         """
         

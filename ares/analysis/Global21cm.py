@@ -294,14 +294,14 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     def SaturatedLimit(self, ax):
         z = nu_0_mhz / self.history['nu'] - 1.
         dTb = self.hydr.saturated_limit(z)
-        
+
         xlim = ax.get_xlim()
         ylim = ax.get_ylim()            
 
         ax.plot(self.history['nu'], dTb, color='k', ls=':')
         ax.fill_between(self.history['nu'], dTb, 500 * np.ones_like(dTb),
             color='none', hatch='X', edgecolor='k', linewidth=0.0)
-            
+
         ax.set_xlim(xlim)    
         ax.set_ylim(ylim)
         pl.draw()

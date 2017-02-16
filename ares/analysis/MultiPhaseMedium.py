@@ -483,7 +483,7 @@ class MultiPhaseMedium(object):
         
         pl.draw()
         
-    def add_tau_inset(self, ax, inset=None, width=0.3, height=0.15, loc=3,
+    def add_tau_inset(self, ax, inset=None, width=0.25, height=0.15, loc=4,
             mu=0.055, sig1=0.009, padding=0.02, borderpad=1, 
             ticklabels=None, fmt='%.2g', **kwargs):
 
