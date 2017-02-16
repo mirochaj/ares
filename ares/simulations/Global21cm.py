@@ -386,8 +386,8 @@ class Global21cm(AnalyzeGlobal21cm):
             if not self._is_converged():    
                 self.run()
                 
-        # Add other feedback mechanisms here.        
-                
+        # Add other feedback mechanisms here.
+
         t2 = time.time()        
                 
         self.timer = t2 - t1

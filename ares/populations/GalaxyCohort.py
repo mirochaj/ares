@@ -854,7 +854,6 @@ class GalaxyCohort(GalaxyAggregate):
         MAB, phi = self.phi_of_M(z)
 
         return np.interp(MUV, MAB[-1::-1], self.halos.M[-1:1:-1])
-
         
     @property
     def Mmax_active(self):
@@ -873,18 +872,10 @@ class GalaxyCohort(GalaxyAggregate):
         
     @property
     def Mmin_func(self):
-        if not hasattr(self, '_Mmin_func'):
-            # First, compute threshold mass vs. redshift
-            if self.pf['pop_Mmin'] is not None:
-                if type(self.pf['pop_Mmin']) is FunctionType:
-                    self._Mmin_func = self.pf['pop_Mmin']
-                else:    
-                    self._Mmin_func = lambda z: \
-                        np.interp(z, self.halos.z, self.pf['pop_Mmin'])
-            else:
-                self._Mmin_func = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'], 
-                    z, mu=self.pf['mu'])
-                    
+        if not hasattr(self, '_Mmin_func'):  
+            self._Mmin_func = lambda z: \
+                np.interp(z, self.halos.z, self.Mmin)
+
         return self._Mmin_func
 
     @property
