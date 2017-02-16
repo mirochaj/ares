@@ -116,11 +116,11 @@ class ParameterizedQuantity(object):
             x = 1. + kwargs['z']
         else:
             x = kwargs[var]
-            
+
         if self.pf['pq_var_ceil'] is not None:
             x = np.minimum(x, self.pf['pq_var_ceil'])
         if self.pf['pq_var_floor'] is not None:
-            x = np.maximum(x, self.pf['pq_var_floor'])    
+            x = np.maximum(x, self.pf['pq_var_floor'])
         
         logx = np.log10(x)
         

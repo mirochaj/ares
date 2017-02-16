@@ -55,7 +55,7 @@ dpl = \
  'pop_Z{1}': 'pop_Z{0}',
  'pop_rad_yield{1}': 2.6e39,
  'pop_rad_yield_Z_index{1}': None,
- 'pop_alpha{1}': -1.5,
+ 'pop_alpha{1}': -1.5, # not used unless fesc > 0
  'pop_Emin{1}': 2e2,
  'pop_Emax{1}': 3e4,
  'pop_EminNorm{1}': 5e2,
@@ -145,9 +145,9 @@ _flex = \
  'pq_func_par1_par0{0}[0]': 2.8e11,
  'pq_func_par1_par1{0}[0]': 7.,
  'pq_func_par1_par2{0}[0]': -1.,
- 
+
  'pop_calib_L1600{0}': 1.0185e28,
- 
+
  # Redshift evolution in normalization of SFE
  'pq_faux{0}[0]': 'pl',
  'pq_faux_var{0}[0]': '1+z',
@@ -155,7 +155,6 @@ _flex = \
  'pq_faux_par0{0}[0]': 1.,
  'pq_faux_par1{0}[0]': 7.,
  'pq_faux_par2{0}[0]': -1.,
-
 }
 
 dpl_fz = dpl.copy()

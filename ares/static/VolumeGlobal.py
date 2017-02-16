@@ -444,6 +444,7 @@ class GlobalVolume(object):
                         * (kw['igm_e'] - self.esec.x[i_x]) \
                         / (self.esec.x[j] - self.esec.x[i_x])                
             elif self.esec.method > 1:
+                print "popid=%i" % popid
                 raise ValueError('Only know how to do advanced secondary ionization with solve_rte=True')
             else:
                 fheat = self.esec.DepositionFraction(kw['igm_e'])[0]

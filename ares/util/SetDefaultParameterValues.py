@@ -453,6 +453,7 @@ def PopulationParameters():
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
     "pop_fstar_max": 1.0,
+    "pop_fstar_negligible": 1e-5, # relative to maximum
     
     "pop_sfe": None,
     "pop_mlf": None,
@@ -521,6 +522,9 @@ def PopulationParameters():
     "pop_mass_rec": 0.0,
     "pop_mass_escape": 0.0,
     "pop_fstar_res": 0.0,
+    
+    # Transition mass
+    "pop_transition": 0,
     
     # deprecated?
     "pop_kappa_UV": 1.15e-28,
@@ -776,8 +780,6 @@ def ControlParameters():
                              # 2 = neutral approx, approx cross sections
 
     # Discretizing integration
-    #"redshift_bins": None,
-    "tau_Nz": 400,
     "tau_table": None,
     "tau_arrays": None,
     "tau_prefix": tau_prefix,
