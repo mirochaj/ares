@@ -864,6 +864,7 @@ class GalaxyCohort(GalaxyAggregate):
                 lim = 1e-5
                 fstar_max = self.fstar_tab[i].max()
                 immsfh = np.argmin(np.abs(self.fstar_tab[i] - fstar_max * lim))
+
                 tmp[i] = self.halos.M[immsfh]
             
             self._Mmax_active = lambda z: np.interp(z, self.halos.z, tmp)
@@ -877,6 +878,13 @@ class GalaxyCohort(GalaxyAggregate):
                 np.interp(z, self.halos.z, self.Mmin)
 
         return self._Mmin_func
+        
+    @property
+    def M_atom(self):
+        if not hasattr(self, '_Matom'):
+            Mvir = lambda z: self.halos.VirialMass(1e4, z, mu=self.pf['mu'])
+            self._Matom = np.array(map(Mvir, self.halos.z))
+        return self._Matom    
 
     @property
     def Mmin(self):
@@ -891,7 +899,9 @@ class GalaxyCohort(GalaxyAggregate):
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'], 
                     z, mu=self.pf['mu'])
                 self._Mmin = np.array(map(Mvir, self.halos.z))
-
+                
+            self._Mmin = self._apply_Mmin_lim(self._Mmin)
+                
         return self._Mmin
     
     @Mmin.setter
@@ -899,8 +909,34 @@ class GalaxyCohort(GalaxyAggregate):
         if type(value) is FunctionType:
             self._Mmin = np.array(map(value, self.halos.z))
         else:    
-            self._Mmin = value * np.ones(self.halos.Nz)    
+            self._Mmin = value * np.ones(self.halos.Nz) 
+            
+        self._Mmin = self._apply_Mmin_lim(self._Mmin)    
+            
+    def _apply_Mmin_lim(self, arr):
+        out = None
 
+        # Might need these if Mmin is being set dynamically
+        if self.pf['pop_Mmin_ceil'] is not None:
+            out = np.minimum(arr, self.pf['pop_Mmin_ceil'])
+        if self.pf['pop_Mmin_floor'] is not None:
+            out = np.maximum(arr, self.pf['pop_Mmin_floor'])
+        if self.pf['pop_Tmin_ceil'] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_Tmin_ceil'], 
+                z, mu=self.pf['mu'])
+            _MofT = np.array(map(_f, self.halos.z))
+            out = np.minimum(arr, _MofT)
+        if self.pf['pop_Tmin_floor'] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_Tmin_floor'], 
+                z, mu=self.pf['mu'])
+            _MofT = np.array(map(_f, self.halos.z))
+            out = np.maximum(arr, _MofT)
+        
+        if out is None:
+            out = arr.copy()
+        
+        return out
+        
     @property
     def Mmax(self):
         if not hasattr(self, '_Mmax'):
@@ -916,7 +952,7 @@ class GalaxyCohort(GalaxyAggregate):
                 self._Mmax = np.array(map(Mvir, self.halos.z))
             else:
                 # A suitably large number for (I think) any purpose
-                self._Mmax = 1e18
+                self._Mmax = 1e18 * np.ones_like(self.halos.z)
     
         return self._Mmax
     
@@ -973,6 +1009,8 @@ class GalaxyCohort(GalaxyAggregate):
             self._sfrd_bc = self.eta * self.cosm.fbar_over_fcdm \
                 * MAR * SFE * self.Mmin * n
 
+            self._sfrd_bc *= g_per_msun / s_per_yr / cm_per_mpc**3
+
             # Don't count this "new" star formation once the minimum mass
             # exceeds some value. At this point, it will (probably, hopefully)
             # be included in the star-formation of some other population.
@@ -984,6 +1022,13 @@ class GalaxyCohort(GalaxyAggregate):
                 self._sfrd_bc *= mask
 
         return self._sfrd_bc
+        
+    @property
+    def SFRD_at_boundary(self):
+        if not hasattr(self, '_SFRD_at_boundary'):
+            self._SFRD_at_boundary = \
+                lambda z: np.interp(z, self.halos.z, self.sfrd_bc)
+        return self._SFRD_at_boundary
 
     @property
     def sfrd_tab(self):
@@ -996,6 +1041,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         if not hasattr(self, '_sfrd_tab'):
             self._sfrd_tab = np.zeros(self.halos.Nz)
+            
+            min_gt_max = self.Mmin >= self.Mmax
 
             for i, z in enumerate(self.halos.z):
                 
@@ -1003,6 +1050,9 @@ class GalaxyCohort(GalaxyAggregate):
                     break
 
                 if z > self.zform:
+                    continue
+                    
+                if min_gt_max[i]:
                     continue
 
                 integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
@@ -1014,10 +1064,9 @@ class GalaxyCohort(GalaxyAggregate):
                 self._sfrd_tab[i] = tot - \
                     np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
                                 
+            self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
             if self.pf['pop_sfr_cross_threshold']:
                 self._sfrd_tab += self.sfrd_bc
-                                
-            self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return self._sfrd_tab
         

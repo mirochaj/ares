@@ -546,11 +546,11 @@ class Global21cm(AnalyzeGlobal21cm):
         if self.count >= self.maxiter:
             return True
                     
-        rtol = self.pf['feedback_LW_rtol']
-        atol = self.pf['feedback_LW_atol']
+        rtol = self.pf['feedback_rtol']
+        atol = self.pf['feedback_atol']
         
         # Compute error
-        if self.pf['feedback_LW_mean_err']:
+        if self.pf['feedback_mean_err']:
             
             if rtol > 0:
                 if err_rel.mean() > rtol:
