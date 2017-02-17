@@ -53,7 +53,7 @@ files = []
 if (len(options) > 0) and ('clean' not in options):
     if 'minimal' in options:
         to_download = ['inits', 'secondary_electrons', 'hmf']
-        files = [None, None]
+        files = [None, None, None]
     elif 'clean' in options:
         to_download = aux_data.keys()
         files = [None] * len(to_download)

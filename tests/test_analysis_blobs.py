@@ -44,7 +44,8 @@ def test(Ns=500, Nd=4, prefix='test'):
     setup = \
     {
      'blob_names': [['blob_0'], ['blob_1'], ['blob_2', 'blob_3']], 
-     'blob_ivars': [None, [np.arange(10)], [np.arange(10), np.arange(10,20)]],
+     'blob_ivars': [None, [('x', np.arange(10))],
+        [('x', np.arange(10)), ('y', np.arange(10,20))]],
      'blob_funcs': None,
     }
     
@@ -58,13 +59,15 @@ def test(Ns=500, Nd=4, prefix='test'):
         if setup['blob_ivars'][i] is None:
             nd = 0
         else:
-            nd = len(np.array(setup['blob_ivars'][i]).squeeze().shape)
+            # ivar names, ivar values
+            ivn, ivv = zip(*setup['blob_ivars'][i])
+            nd = len(np.array(ivv).squeeze().shape)
     
         for blob in blob_grp:
             
             dims = [Ns]
             if nd > 0:
-                dims.extend(map(len, setup['blob_ivars'][i]))
+                dims.extend(map(len, ivv))
             
             size = np.product(dims)
             data = np.reshape(np.random.normal(size=size), dims)
@@ -124,16 +127,20 @@ def test(Ns=500, Nd=4, prefix='test'):
         if setup['blob_ivars'][i] is None:
             nd = 0
         else:
-            nd = len(np.array(setup['blob_ivars'][i]).squeeze().shape)
+            ivn, ivv = zip(*setup['blob_ivars'][i])
+            nd = len(np.array(ivv).squeeze().shape)
             
         if nd == 0:
             ivars.append(None)
         elif nd == 1:
-            ivars.append(setup['blob_ivars'][i][0][0])
+            ivn, ivv = zip(*setup['blob_ivars'][i])
+            ivars.append(ivv[0][0])
         else:
-            ivars.append([setup['blob_ivars'][i][0][0], setup['blob_ivars'][i][1][0]])
-        
-    ivars.append([setup['blob_ivars'][i][0][0], setup['blob_ivars'][i][1][0]])    
+            ivn, ivv = zip(*setup['blob_ivars'][i])
+            ivars.append([ivv[0][0], ivv[1][0]])
+    
+    # Last set of ivars (remember: there are 2 2-D blobs)    
+    ivars.append([ivv[0][1], ivv[1][1]])    
         
     anl.TrianglePlot(anl.all_blob_names, ivar=ivars, fig=4)
     
@@ -152,7 +159,8 @@ def test(Ns=500, Nd=4, prefix='test'):
         if setup['blob_ivars'][i] is None:
             nd = 0
         else:
-            nd = len(np.array(setup['blob_ivars'][i]).squeeze().shape)
+            ivn, ivv = zip(*setup['blob_ivars'][i])
+            nd = len(np.array(ivv).squeeze().shape)
     
         for blob in blob_grp:
             os.remove('%s.blob_%id.%s.pkl' % (prefix, nd, blob))

@@ -17,6 +17,12 @@ from .BackwardCompatibility import backward_compatibility
 from .CheckForParameterConflicts import CheckForParameterConflicts
 from .SetDefaultParameterValues import ParameterizedQuantityParameters
 
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+except ImportError:
+    rank = 0
+
 old_pars = ['fX', 'cX', 'fstar', 'fesc', 'Nion', 'Nlw']
 
 def bracketify(**kwargs):
@@ -183,7 +189,6 @@ def get_pq_pars(par, pf):
         
     """
 
-
     prefix, popid, phpid = par_info(par)
 
     pars = {}
@@ -242,6 +247,11 @@ class ParameterFile(dict):
         
         # Check for stuff that'll break...stuff
         self._check_for_conflicts(**kwargs)
+        
+        if self.orphans:
+            if (rank == 0) and self['verbose']:
+                for key in self.orphans:
+                    print "WARNING: %s is an `orphan` parameter." % key
 
     @property
     def Npops(self):

@@ -323,7 +323,7 @@ class Hydrogen(object):
     def SpinTemperature(self, z, Tk, Ja, xHII, ne):
         """
         Returns spin temperature of intergalactic hydrogen.
-        
+
         Parameters
         ----------
         z : float, np.ndarray
@@ -339,7 +339,7 @@ class Hydrogen(object):
             
         Returns
         -------
-        Spin temperature in Kelvin.   
+        Spin temperature in Kelvin.
          
         """
         

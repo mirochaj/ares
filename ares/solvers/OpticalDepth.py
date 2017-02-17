@@ -555,6 +555,9 @@ class OpticalDepth(object):
         """
     
         fn, fn_func = self.tau_name()
+        
+        if rank == 0 and self.pf['verbose']:
+            print "Looking for optical depth table equivalent to %s..." % fn
     
         if prefix is None:
             ares_dir = os.environ.get('ARES')
@@ -752,12 +755,8 @@ class OpticalDepth(object):
             #tau[:,i_E1+1:] = np.inf
         else:
             i_E1 = None
-            
-        
-        #zok = np.logical_and(ztab >= self.pf['final_redshift'],
-        #                     ztab <= self.pf['initial_redshift'])
-            
-        self.z_fetched = ztab#[zok]
+                        
+        self.z_fetched = ztab
         self.E_fetched = Etab[i_E0:i_E1]  
         self.tau_fetched = tau[:,i_E0:i_E1]
             

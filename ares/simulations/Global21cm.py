@@ -18,8 +18,8 @@ from types import FunctionType
 from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..util import ParameterFile, ProgressBar
+from ..physics.Constants import nu_0_mhz, E_LyA
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
-from ..physics.Constants import nu_0_mhz, E_LyA, E_LL, ev_per_hz, erg_per_ev
 
 defaults = \
 {
@@ -114,32 +114,32 @@ class Global21cm(AnalyzeGlobal21cm):
     @property
     def grid(self):
         return self.medium.field.grid
-    
+
     def _init_dTb(self):
         """
         Compute differential brightness temperature for initial conditions.
         """
         z = self.all_z
-        
+
         dTb = []
         for i, data_igm in enumerate(self.all_data_igm):
-            
+
             n_H = self.medium.parcel_igm.grid.cosm.nH(z[i])
             Ts = \
                 self.medium.parcel_igm.grid.hydr.Ts(
                     z[i], data_igm['Tk'], 0.0, data_igm['h_2'],
                     data_igm['e'] * n_H)
-            
+
             # Compute volume-averaged ionized fraction
             QHII = self.all_data_cgm[i]['h_2']
             xavg = QHII + (1. - QHII) * data_igm['h_2']        
-            
+
             # Derive brightness temperature
             Tb = self.medium.parcel_igm.grid.hydr.dTb(z[i], xavg, Ts)
             self.all_data_igm[i]['dTb'] = float(Tb)
             self.all_data_igm[i]['Ts'] = Ts
             dTb.append(Tb)
-            
+
         return dTb
         
     def _check_if_phenom(self, **kwargs):
@@ -246,6 +246,8 @@ class Global21cm(AnalyzeGlobal21cm):
             # Occasionally the progress bar breaks if we're not careful
             if z < self.pf['final_redshift']:
                 break
+            if z < self.pf['kill_redshift']:
+                break    
             
             # Delaying the initialization prevents progressbar from being
             # interrupted by, e.g., PrintInfo calls
@@ -340,7 +342,7 @@ class Global21cm(AnalyzeGlobal21cm):
                 f_M = self.pf['feedback_LW_Mmin']
             else:
                 raise NotImplementedError('Unrecognized Mmin option: %s' % self.pf['feedback_LW_Mmin'])
-          
+
             if self.count > 1:
                 hist = self._suite[-1]
                 s = 'pop_Mmin{%i}' % self.pf['feedback_LW_felt_by'][0]
@@ -384,8 +386,8 @@ class Global21cm(AnalyzeGlobal21cm):
             if not self._is_converged():    
                 self.run()
                 
-        # Add other feedback mechanisms here.        
-                
+        # Add other feedback mechanisms here.
+
         t2 = time.time()        
                 
         self.timer = t2 - t1
@@ -394,7 +396,7 @@ class Global21cm(AnalyzeGlobal21cm):
         
         # Only need to do this after 0th iteration
         if self.count == 1:
-            self.kwargs.update(self.carryover_kwargs)
+            self.kwargs.update(self.carryover_kwargs())
         
         delattr(self, '_pf')
         delattr(self, '_medium')
@@ -402,28 +404,26 @@ class Global21cm(AnalyzeGlobal21cm):
             
         self.__init__(**self.kwargs)
 
-    @property
     def carryover_kwargs(self):
         """
         Grab a few things that can take time to load but are always the same.
         """
-        if not hasattr(self, '_carryover_kwargs'):
-            self._carryover_kwargs = {}
+        _carryover_kwargs = {}
             
-            if hasattr(self.medium.field, 'tau'):
-                self._carryover_kwargs['tau_instance'] = \
-                    self.medium.field._tau_solver
+        if hasattr(self.medium.field, 'tau'):
+            _carryover_kwargs['tau_instance'] = \
+                self.medium.field._tau_solver
+        
+        for i, pop in enumerate(self.pops):
+            if pop.sed_tab:
+                _carryover_kwargs['pop_psm_instance{%i}' % i] = \
+                    pop.src
+            
+            if i == 0:
+                _carryover_kwargs['hmf_instance'] = \
+                    pop.halos
 
-            for i, pop in enumerate(self.pops):
-                if pop.sed_tab:
-                    self._carryover_kwargs['pop_psm_instance{%i}' % i] = \
-                        pop.src
-                
-                if i == 0:
-                    self._carryover_kwargs['hmf_instance'] = \
-                        pop.halos
-
-        return self._carryover_kwargs
+        return _carryover_kwargs
                                 
     def step(self):
         """
@@ -546,11 +546,11 @@ class Global21cm(AnalyzeGlobal21cm):
         if self.count >= self.maxiter:
             return True
                     
-        rtol = self.pf['feedback_LW_rtol']
-        atol = self.pf['feedback_LW_atol']
+        rtol = self.pf['feedback_rtol']
+        atol = self.pf['feedback_atol']
         
         # Compute error
-        if self.pf['feedback_LW_mean_err']:
+        if self.pf['feedback_mean_err']:
             
             if rtol > 0:
                 if err_rel.mean() > rtol:
@@ -682,7 +682,7 @@ class Global21cm(AnalyzeGlobal21cm):
 
             pf = {}
             for key in self.pf:
-                if key in self.carryover_kwargs:
+                if key in self.carryover_kwargs():
                     continue
                 pf[key] = self.pf[key]
             

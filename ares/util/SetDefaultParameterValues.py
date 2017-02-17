@@ -216,16 +216,15 @@ def PhysicsParameters():
     
     # Feedback parameters
     'feedback_maxiter': 10,
+    'feedback_rtol': 0.,
+    'feedback_atol': 1.,
+    'feedback_mean_err': False,
     
     # LW
     'feedback_LW_Mmin': None,        # 'visbal2014'
     'feedback_LW_fsh': None,
     'feedback_LW_felt_by': None,
-    'feedback_LW_Tcut': 1e4,
-    
-    'feedback_LW_rtol': 0.,
-    'feedback_LW_atol': 1.,
-    'feedback_LW_mean_err': False,
+    'feedback_LW_Tcut': 1e4,    
     'feedback_LW_Mmin_uponly': False,
     'feedback_LW_Mmin_smooth': False,
     
@@ -453,6 +452,7 @@ def PopulationParameters():
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
     "pop_fstar_max": 1.0,
+    "pop_fstar_negligible": 1e-5, # relative to maximum
     
     "pop_sfe": None,
     "pop_mlf": None,
@@ -470,6 +470,10 @@ def PopulationParameters():
     "pop_Tmin": 1e4,
     "pop_Tmax": None,
     "pop_Mmin": None,
+    "pop_Mmin_ceil": None,
+    "pop_Mmin_floor": None,
+    "pop_Tmin_ceil": None,
+    "pop_Tmin_floor": None,
     "pop_Mmax": None,
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
@@ -521,6 +525,9 @@ def PopulationParameters():
     "pop_mass_rec": 0.0,
     "pop_mass_escape": 0.0,
     "pop_fstar_res": 0.0,
+    
+    # Transition mass
+    "pop_transition": 0,
     
     # deprecated?
     "pop_kappa_UV": 1.15e-28,
@@ -718,6 +725,7 @@ def ControlParameters():
     
     "initial_redshift": 50.,
     "final_redshift": 5,
+    "kill_redshift": 0.0,
     
     "save_rate_coefficients": 1,
     
@@ -755,8 +763,8 @@ def ControlParameters():
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     
-    "stop_igm_h_2": None,
-    "stop_cgm_h_2": None,
+    "stop_igm_h_2": 0.999,
+    "stop_cgm_h_2": 0.999,
         
     "track_extrema": False,
     "delay_extrema": 5,      # Number of steps
@@ -775,8 +783,6 @@ def ControlParameters():
                              # 2 = neutral approx, approx cross sections
 
     # Discretizing integration
-    #"redshift_bins": None,
-    "tau_Nz": 400,
     "tau_table": None,
     "tau_arrays": None,
     "tau_prefix": tau_prefix,

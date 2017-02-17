@@ -14,8 +14,8 @@ import re
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
+from scipy.optimize import fsolve, minimize
 from .GalaxyAggregate import GalaxyAggregate
-from scipy.optimize import fsolve, curve_fit
 from ..util import MagnitudeSystem, ProgressBar
 from ..phenom.DustCorrection import DustCorrection
 from scipy.integrate import quad, simps, cumtrapz, ode
@@ -854,6 +854,37 @@ class GalaxyCohort(GalaxyAggregate):
         MAB, phi = self.phi_of_M(z)
 
         return np.interp(MUV, MAB[-1::-1], self.halos.M[-1:1:-1])
+        
+    @property
+    def Mmax_active(self):
+        """ most massive star-forming halo. """
+        if not hasattr(self, '_Mmax_active'):
+            tmp = np.zeros_like(self.halos.z)
+            for i, z in enumerate(self.halos.z):
+                lim = 1e-5
+                fstar_max = self.fstar_tab[i].max()
+                immsfh = np.argmin(np.abs(self.fstar_tab[i] - fstar_max * lim))
+
+                tmp[i] = self.halos.M[immsfh]
+            
+            self._Mmax_active = lambda z: np.interp(z, self.halos.z, tmp)
+            
+        return self._Mmax_active
+        
+    @property
+    def Mmin_func(self):
+        if not hasattr(self, '_Mmin_func'):  
+            self._Mmin_func = lambda z: \
+                np.interp(z, self.halos.z, self.Mmin)
+
+        return self._Mmin_func
+        
+    @property
+    def M_atom(self):
+        if not hasattr(self, '_Matom'):
+            Mvir = lambda z: self.halos.VirialMass(1e4, z, mu=self.pf['mu'])
+            self._Matom = np.array(map(Mvir, self.halos.z))
+        return self._Matom    
 
     @property
     def Mmin(self):
@@ -868,9 +899,44 @@ class GalaxyCohort(GalaxyAggregate):
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'], 
                     z, mu=self.pf['mu'])
                 self._Mmin = np.array(map(Mvir, self.halos.z))
+                
+            self._Mmin = self._apply_Mmin_lim(self._Mmin)
+                
+        return self._Mmin
+    
+    @Mmin.setter
+    def Mmin(self, value):
+        if type(value) is FunctionType:
+            self._Mmin = np.array(map(value, self.halos.z))
+        else:    
+            self._Mmin = value * np.ones(self.halos.Nz) 
+            
+        self._Mmin = self._apply_Mmin_lim(self._Mmin)    
+            
+    def _apply_Mmin_lim(self, arr):
+        out = None
 
-        return self._Mmin    
-
+        # Might need these if Mmin is being set dynamically
+        if self.pf['pop_Mmin_ceil'] is not None:
+            out = np.minimum(arr, self.pf['pop_Mmin_ceil'])
+        if self.pf['pop_Mmin_floor'] is not None:
+            out = np.maximum(arr, self.pf['pop_Mmin_floor'])
+        if self.pf['pop_Tmin_ceil'] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_Tmin_ceil'], 
+                z, mu=self.pf['mu'])
+            _MofT = np.array(map(_f, self.halos.z))
+            out = np.minimum(arr, _MofT)
+        if self.pf['pop_Tmin_floor'] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_Tmin_floor'], 
+                z, mu=self.pf['mu'])
+            _MofT = np.array(map(_f, self.halos.z))
+            out = np.maximum(arr, _MofT)
+        
+        if out is None:
+            out = arr.copy()
+        
+        return out
+        
     @property
     def Mmax(self):
         if not hasattr(self, '_Mmax'):
@@ -885,7 +951,8 @@ class GalaxyCohort(GalaxyAggregate):
                     z, mu=self.pf['mu'])
                 self._Mmax = np.array(map(Mvir, self.halos.z))
             else:
-                self._Mmax = np.inf
+                # A suitably large number for (I think) any purpose
+                self._Mmax = 1e18 * np.ones_like(self.halos.z)
     
         return self._Mmax
     
@@ -898,12 +965,18 @@ class GalaxyCohort(GalaxyAggregate):
             ..note:: Units are Msun/yr.
     
         """
-        if not hasattr(self, '_sfr_tab'):
+        if not hasattr(self, '_sfr_tab'):            
             self._sfr_tab = np.zeros([self.halos.Nz, self.halos.Nm])
+            
+            
             for i, z in enumerate(self.halos.z):
                 
                 if z > self.zform:
                     continue
+                #if (z < self.zdead) or (z < self.pf['final_redshift']):
+                #    break
+                # Should be a little careful here: need to go one or two
+                # steps past edge to avoid interpolation problems in SFRD.
                 
                 # SF fueld by accretion onto halos already above threshold
                 if self.pf['pop_sfr_above_threshold']:
@@ -936,6 +1009,8 @@ class GalaxyCohort(GalaxyAggregate):
             self._sfrd_bc = self.eta * self.cosm.fbar_over_fcdm \
                 * MAR * SFE * self.Mmin * n
 
+            self._sfrd_bc *= g_per_msun / s_per_yr / cm_per_mpc**3
+
             # Don't count this "new" star formation once the minimum mass
             # exceeds some value. At this point, it will (probably, hopefully)
             # be included in the star-formation of some other population.
@@ -947,6 +1022,13 @@ class GalaxyCohort(GalaxyAggregate):
                 self._sfrd_bc *= mask
 
         return self._sfrd_bc
+        
+    @property
+    def SFRD_at_boundary(self):
+        if not hasattr(self, '_SFRD_at_boundary'):
+            self._SFRD_at_boundary = \
+                lambda z: np.interp(z, self.halos.z, self.sfrd_bc)
+        return self._SFRD_at_boundary
 
     @property
     def sfrd_tab(self):
@@ -959,6 +1041,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         if not hasattr(self, '_sfrd_tab'):
             self._sfrd_tab = np.zeros(self.halos.Nz)
+            
+            min_gt_max = self.Mmin >= self.Mmax
 
             for i, z in enumerate(self.halos.z):
                 
@@ -966,6 +1050,9 @@ class GalaxyCohort(GalaxyAggregate):
                     break
 
                 if z > self.zform:
+                    continue
+                    
+                if min_gt_max[i]:
                     continue
 
                 integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
@@ -977,13 +1064,155 @@ class GalaxyCohort(GalaxyAggregate):
                 self._sfrd_tab[i] = tot - \
                     np.interp(np.log(self.Mmin[i]), self.halos.lnM, cumtot)
                                 
+            self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
             if self.pf['pop_sfr_cross_threshold']:
                 self._sfrd_tab += self.sfrd_bc
-                                
-            self._sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         return self._sfrd_tab
         
+    def SFRD_within(self, z, Mlo, Mhi):
+        """
+        Compute SFRD within given mass range, [Mlo, Mhi].
+        """
+        
+        if not hasattr(self, '_sfrd_within'):
+            self._sfrd_within = {}
+        
+        if (Mlo, Mhi) in self._sfrd_within.keys():
+            return self._sfrd_within[(Mlo, Mhi)](z)
+        
+        _sfrd_tab = np.zeros(self.halos.Nz)
+
+        for i, zz in enumerate(self.halos.z):
+            
+            if not self.pf['pop_sfr_above_threshold']:
+                break
+
+            if zz > self.zform:
+                continue
+
+            integrand = self.sfr_tab[i] * self.halos.dndlnm[i] \
+                * self.focc(z=zz, Mh=self.halos.M)
+
+            # Crudely for now
+            if Mlo == 'Mmin':
+                _Mlo = self.Mmin_func(zz)
+            else:
+                _Mlo = Mlo
+                    
+            ilo = np.argmin(np.abs(self.halos.M - _Mlo))
+            ihi = np.argmin(np.abs(self.halos.M - Mhi))
+            
+            _sfrd_tab[i] = np.trapz(integrand[ilo:ihi+1], 
+                x=self.halos.lnM[ilo:ihi+1])
+                            
+        if self.pf['pop_sfr_cross_threshold'] and (Mlo == 'Mmin'):
+            _sfrd_tab += self.sfrd_bc
+                            
+        _sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
+
+        _sfrd_func = lambda zz: np.interp(zz, self.halos.z, _sfrd_tab)
+        
+        self._sfrd_within[(Mlo, Mhi)] = _sfrd_func
+        
+        return _sfrd_func(z)
+
+    def SFRD_above_valley(self, z):
+        M_at_min = np.interp(z, self.halos.z, self.SFE_M_at_min)
+        return self.SFRD_within(z, M_at_min, self.Mmax)
+    
+    def SFRD_above_peak(self, z):
+        M_at_max = self.SFE_M_at_max
+        return self.SFRD_within(z, M_at_max, self.Mmax)
+
+    def SFRD_below_valley(self, z):
+        M_at_min = np.interp(z, self.halos.z, self.SFE_M_at_min)
+        return self.SFRD_within(z, 'Mmin', M_at_min)
+                                           
+    def SFRD_below_peak(self, z):   
+        M_at_max = self.SFE_M_at_max
+        return self.SFRD_within(z, 'Mmin', M_at_max)
+
+    def SFE_min(self, z):
+        M_at_min = np.interp(z, self.halos.z, self.SFE_M_at_min)
+        return self.SFE(z=z, Mh=M_at_min)
+
+    def SFE_max(self, z):
+        M_at_max = self.SFE_M_at_max
+        return self.SFE(z=z, Mh=M_at_max) 
+        
+    @property
+    def SFE_M_at_min(self):
+        """
+        Return the halo mass at which the SFE reaches its minimum.
+        
+        .. note :: Restricted to low-mass end of SFE curve to avoid just 
+            finding the upper boundary of the lookup table.
+            
+        """
+        
+        if not hasattr(self, '_SFE_M_at_min'):
+            if self.constant_SFE:
+                
+                # Need to worry about case where SFE is perfectly flat 
+                # before rise. We want the inflection point, in that case.
+                
+                Mmax = self.SFE_M_at_max
+                imax = np.argmin(np.abs(Mmax - self.halos.M))
+                imin = np.argmin(np.abs(self.fstar_tab[0] \
+                                      - self.fstar_tab[0,0:imax].min()))
+                
+                # PL index of SFE curve
+                gamma = self.gamma_sfe(z=None, Mh=self.halos.M)
+                
+                # If the SFE is just (e.g.) a DPL, the minimum is dumb, 
+                # but it's better to return a number than nan or inf.
+                self._SFE_M_at_min = self.halos.M[imin] \
+                    * np.ones_like(self.halos.z)
+            else:
+
+                # Never redshift dependent
+                Mmax = self.SFE_M_at_max
+                imax = np.argmin(np.abs(Mmax - self.halos.M))
+
+                # Redshift-dependent in general
+                # Find indices of halo masses corresponding to SFE minimum.
+                # Recall: SFE is (z, Mh)
+                minvals = np.min(self.fstar_tab[:,0:imax], axis=1)
+                
+                self._SFE_M_at_min = np.zeros_like(self.halos.z)
+                for i, z in enumerate(self.halos.z):
+                    imin = np.argmin(np.abs(self.fstar_tab[i,:] - minvals[i]))
+                    self._SFE_M_at_min[i] = self.halos.M[imin]
+
+        return self._SFE_M_at_min
+
+    @property
+    def SFE_M_at_max(self):
+        if not hasattr(self, '_SFE_M_at_max'):
+            if True:
+                # self.constant_SFE
+                # Sometimes we know it already
+                if 'pop_fstar' in self.pf.pqs:
+                    pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
+                    
+                    if pars['pq_func'] == 'dpl':
+                        self._SFE_M_at_max = pars['pq_func_par1']
+                    else:
+                        raise NotImplementedError('help!')
+                        
+                else:
+                    raise NotImplementedError('help!')
+                    fstar = lambda M: 1. / self.SFE(z=None, Mh=M)
+                    #Mmin = np.interp(z, self.halos.z, self.Mmin)
+               
+                    self._SFE_M_at_max = \
+                        float(minimize(fstar, 1e12, method='powell').x)
+            else:
+                raise NotImplementedError('help!')
+                
+        return self._SFE_M_at_max
+
     @property
     def LLyC_tab(self):
         """
@@ -1033,7 +1262,7 @@ class GalaxyCohort(GalaxyAggregate):
         Just a wrapper around self.fstar.
         """
         return self.fstar(**kwargs)
-
+        
     @property
     def yield_per_sfr(self):
         # Need this to avoid inheritance issue with GalaxyAggregate
@@ -1076,7 +1305,7 @@ class GalaxyCohort(GalaxyAggregate):
     def fstar(self, value):
         self._fstar = value  
                 
-    def gamma_sfe(self, z, M):
+    def gamma_sfe(self, z, Mh):
         """
         This is a power-law index describing the relationship between the
         SFE and and halo mass.
@@ -1090,9 +1319,9 @@ class GalaxyCohort(GalaxyAggregate):
             
         """
         
-        fst = lambda MM: self.SFE(z, MM)
+        fst = lambda MM: self.SFE(z=z, Mh=MM)
         
-        return derivative(fst, M, dx=1e6) * M / fst(M)
+        return derivative(fst, Mh, dx=1e6) * Mh / fst(Mh)
             
     def alpha_lf(self, z, mag):
         """
@@ -1112,7 +1341,10 @@ class GalaxyCohort(GalaxyAggregate):
             self._fstar_tab = np.zeros_like(self.halos.dndm)
     
             for i, z in enumerate(self.halos.z):    
-                self._fstar_tab[i,:] = self.SFE(z, self.halos.M)
+                if i > 0 and self.constant_SFE:
+                    self._fstar_tab[i,:] = self._fstar_tab[0]
+                    continue
+                self._fstar_tab[i,:] = self.SFE(z=z, Mh=self.halos.M)
     
         return self._fstar_tab
     
@@ -1236,8 +1468,13 @@ class GalaxyCohort(GalaxyAggregate):
     @property
     def constant_SFE(self):
         if not hasattr(self, '_constant_SFE'):
-            self._constant_SFE = self.fstar(z=10, Mh=1e11) \
-                              == self.fstar(z=11, Mh=1e11)
+            self._constant_SFE = 1
+            for mass in [1e7, 1e8, 1e9, 1e10, 1e11, 1e12]:
+                self._constant_SFE *= self.fstar(z=10, Mh=mass) \
+                                   == self.fstar(z=20, Mh=mass)
+                                   
+            self._constant_SFE = bool(self._constant_SFE)    
+                               
         return self._constant_SFE
         
     @property
