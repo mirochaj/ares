@@ -9,5 +9,5 @@ pipelines:
   default:
     - step:
         script: # Modify the commands below to build your repository.
-          - bash run_pipeline.sh
+          - bash run_bbp.sh
           
