@@ -9,8 +9,8 @@ pipelines:
   default:
     - step:
         script: # Modify the commands below to build your repository.
-          pip install numpy
-          pip install matplotlib
-          pip install scipy
-          python remote.py minimal
-          py.test -v test_*.py
+          - pip install numpy
+          - pip install matplotlib
+          - pip install scipy
+          - python remote.py minimal
+          - py.test -v test_*.py
