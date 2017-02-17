@@ -14,4 +14,5 @@ pipelines:
           - pip install scipy
           - pip install pytest
           - python remote.py minimal
+          - cd tests
           - py.test -v test_*.py
