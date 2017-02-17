@@ -13,6 +13,8 @@ pipelines:
           - pip install matplotlib
           - pip install scipy
           - pip install pytest
+          - export ARES=.
+          - echo $PWD
           - python setup.py install
           - python remote.py minimal
           - cd tests
