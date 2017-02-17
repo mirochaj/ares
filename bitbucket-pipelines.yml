@@ -12,5 +12,6 @@ pipelines:
           - pip install numpy
           - pip install matplotlib
           - pip install scipy
+          - pip install pytest
           - python remote.py minimal
           - py.test -v test_*.py
