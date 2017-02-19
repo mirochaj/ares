@@ -33,11 +33,14 @@ have_ARES_env = ARES is not None
 separator = '|'*twidth
 separator2 = '-'*twidth
 
-def dt_error(grid, z, q, dqdt, new_dt, cell, method):
+dt_msg = 'WARNING: something wrong with the time-step.'
+gen_msg = 'WARNING: something wrong with solver.'
+    
+def dt_error(grid, z, q, dqdt, new_dt, cell, method, msg=dt_msg):
     
     print ""    
     print line(separator)
-    print line('WARNING: something wrong with the time-step')    
+    print line(msg)    
     print line(separator)
     
     print line(separator2)    
@@ -72,6 +75,9 @@ def dt_error(grid, z, q, dqdt, new_dt, cell, method):
     print ""
     
     sys.exit(1)
+    
+def solver_error(grid, z, q, dqdt, new_dt, cell, method, msg=gen_msg):
+    dt_error(grid, z, q, dqdt, new_dt, cell, method, msg=gen_msg)
     
     
 tab_warning = \

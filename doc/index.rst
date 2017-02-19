@@ -22,9 +22,6 @@ risk! Correctness of results is not guaranteed. This documentation is as much of
 
 Current status:
 
-.. image:: https://drone.io/bitbucket.org/mirochaj/ares-dev/status.png
-   :target: https://drone.io/bitbucket.org/mirochaj/ares-dev/latest
-
 .. image:: https://readthedocs.org/projects/ares/badge/?version=latest
    :target: http://ares.readthedocs.io/en/latest/?badge=latest
 

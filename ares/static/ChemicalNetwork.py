@@ -13,6 +13,7 @@ Description: ChemicalNetwork object just needs to have methods called
 
 import copy, sys
 import numpy as np
+from ..util.Warnings import solver_error
 from ..physics.RateCoefficients import RateCoefficients
 from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h  
         
@@ -308,7 +309,8 @@ class ChemicalNetwork(object):
         if np.any(np.isnan(self.dqdt)):
             raise ValueError('NaN encountered in RateEquations!')
         if np.any(self.q < 0):
-            raise ValueError('Something < 0')
+            solver_error(self.grid, -1000, [self.q], [self.dqdt], -1000, cell, -1000)
+            raise ValueError('Something < 0.')
 
         return self.dqdt
                           

@@ -9,12 +9,5 @@ pipelines:
   default:
     - step:
         script: # Modify the commands below to build your repository.
-          - pip install numpy
-          - pip install matplotlib
-          - pip install scipy
-          - pip install pytest
-          - export ARES=$BITBUCKET_CLONE_DIR
-          - python setup.py install
-          - python remote.py minimal
-          - cd tests
-          - py.test -v test_*.py
+          - bash run_bbp.sh
+          
