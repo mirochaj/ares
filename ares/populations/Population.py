@@ -28,6 +28,16 @@ class Population(object):
         self.zdead = self.pf['pop_zdead']
         
     @property
+    def id_num(self):
+        if not hasattr(self, '_id_num'):
+            self._id_num = None
+        return self._id_num
+    
+    @id_num.setter
+    def id_num(self, value):
+        self._id_num = int(value)    
+    
+    @property
     def cosm(self):
         if not hasattr(self, '_cosm'):    
             if self.grid is None:

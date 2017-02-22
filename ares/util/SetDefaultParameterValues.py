@@ -395,6 +395,8 @@ def PopulationParameters():
 
     "pop_fduty": 1.0,
     "pop_focc": 1.0,
+    
+    "pop_fsup": 0.0,  # Suppression of star-formation at threshold
         
     # Set the emission interval and SED
     "pop_sed": 'pl',

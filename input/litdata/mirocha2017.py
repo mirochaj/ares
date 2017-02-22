@@ -144,8 +144,8 @@ sfrd_blobs = \
  'blob_names': ['sfrd{0}', 'sfrd{2}', 'sfrd_bc{0}', 'sfrd_bc{2}', 
     'Mmin{0}', 'Mmin{2}'],
  'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
- 'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD', 'pops[0].SFRD_at_boundary',
-    'pops[2].SFRD_at_boundary', 'pops[0].Mmin_func', 'pops[2].Mmin_func'],
+ 'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD', 'pops[0].SFRD_at_threshold',
+    'pops[2].SFRD_at_threshold', 'pops[0].Mmin', 'pops[2].Mmin'],
 }
 
 

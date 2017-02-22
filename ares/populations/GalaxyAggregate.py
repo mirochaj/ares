@@ -95,16 +95,6 @@ class GalaxyAggregate(HaloPopulation):
             pass
 
     @property
-    def id_num(self):
-        if not hasattr(self, '_id_num'):
-            self._id_num = None
-        return self._id_num
-        
-    @id_num.setter
-    def id_num(self, value):
-        self._id_num = int(value)
-
-    @property
     def _Source(self):
         if not hasattr(self, '_Source_'):
             if self.pf['pop_sed'] == 'bb':
@@ -287,7 +277,7 @@ class GalaxyAggregate(HaloPopulation):
                 
         if (not self.is_fcoll_model) and (not self.is_user_sfe):
             raise ValueError('Must be an fcoll model!')
-                   
+                                      
         # SFRD computed via fcoll parameterization
         sfrd = self.pf['pop_fstar'] * self.cosm.rho_b_z0 * self.dfcolldt(z)
                 

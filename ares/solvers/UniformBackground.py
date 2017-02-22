@@ -1118,10 +1118,10 @@ class UniformBackground(object):
         
         #if Nf == 1:
         #    return epsilon
-        
+
         scalable = pop.is_emissivity_scalable
         separable = pop.is_emissivity_separable
-        
+
         H = np.array(map(self.cosm.HubbleParameter, z))
 
         if scalable:
@@ -1169,7 +1169,7 @@ class UniformBackground(object):
                         break    
                     if redshift < self.pf['kill_redshift']:
                         break    
-                    
+                                            
                     epsilon[ll,in_band] = fix \
                         * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \
                         * ev_per_hz * Inu_hat[in_band] / H[ll] / erg_per_ev

@@ -187,7 +187,7 @@ class ParameterizedQuantity(object):
         elif func == 'tanh_rel':
             f = p1 * p0 * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1  
         elif func == 'log_tanh_abs':
-            f = (p0 - p1) * 0.5 * (np.tanh((p2 - logx) / p3) + 1.) + p1    
+            f = (p0 - p1) * 0.5 * (np.tanh((p2 - logx) / p3) + 1.) + p1
         elif func == 'log_tanh_rel':                                        
             f = p1 * p0 * 0.5 * (np.tanh((p2 - logx) / p3) + 1.) + p1      
         elif func == 'rstep':
