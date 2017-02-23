@@ -216,16 +216,15 @@ def PhysicsParameters():
     
     # Feedback parameters
     'feedback_maxiter': 10,
+    'feedback_rtol': 0.,
+    'feedback_atol': 1.,
+    'feedback_mean_err': False,
     
     # LW
     'feedback_LW_Mmin': None,        # 'visbal2014'
     'feedback_LW_fsh': None,
     'feedback_LW_felt_by': None,
-    'feedback_LW_Tcut': 1e4,
-    
-    'feedback_LW_rtol': 0.,
-    'feedback_LW_atol': 1.,
-    'feedback_LW_mean_err': False,
+    'feedback_LW_Tcut': 1e4,    
     'feedback_LW_Mmin_uponly': False,
     'feedback_LW_Mmin_smooth': False,
     
@@ -471,6 +470,10 @@ def PopulationParameters():
     "pop_Tmin": 1e4,
     "pop_Tmax": None,
     "pop_Mmin": None,
+    "pop_Mmin_ceil": None,
+    "pop_Mmin_floor": None,
+    "pop_Tmin_ceil": None,
+    "pop_Tmin_floor": None,
     "pop_Mmax": None,
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
