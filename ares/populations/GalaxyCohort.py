@@ -230,17 +230,17 @@ class GalaxyCohort(GalaxyAggregate):
     def _tab_fstar_at_Mmin(self):
         if not hasattr(self, '_tab_fstar_at_Mmin_'):
             self._tab_fstar_at_Mmin_ = \
-                self.SFE(z=self.halos.z, Mh=self._tab_Mmin) 
-        return self._tab_fstar_at_Mmin_ 
-            
+                self.SFE(z=self.halos.z, Mh=self._tab_Mmin)
+        return self._tab_fstar_at_Mmin_
+
     @property
     def _tab_sfrd_at_threshold(self):
         """
         Star formation rate density from halos just crossing threshold.
-        
+
         Essentially the second term of Equation A1 from Furlanetto+ 2017.
         """
-        if not hasattr(self, '_tab_sfrd_at_threshold_'):  
+        if not hasattr(self, '_tab_sfrd_at_threshold_'):
             if not self.pf['pop_sfr_cross_threshold']:
                 self._tab_sfrd_at_threshold_ = np.zeros_like(self.halos.z)
                 return self._tab_sfrd_at_threshold_
@@ -974,11 +974,14 @@ class GalaxyCohort(GalaxyAggregate):
                 if type(self.pf['pop_Mmin']) is FunctionType:
                     self._tab_Mmin_ = \
                         np.array(map(self.pf['pop_Mmin'], self.halos.z))
+                elif type(self.pf['pop_Mmin']) is np.ndarray:
+                    self._tab_Mmin_ = self.pf['pop_Mmin']
+                    assert self._tab_Mmin.size == self.halos.z.size
                 else:    
                     self._tab_Mmin_ = self.pf['pop_Mmin'] \
                         * np.ones(self.halos.Nz)
             else:
-                Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'], 
+                Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'],
                     z, mu=self.pf['mu'])
                 self._tab_Mmin_ = np.array(map(Mvir, self.halos.z))
                 
@@ -1078,7 +1081,7 @@ class GalaxyCohort(GalaxyAggregate):
     def SFRD_at_threshold(self):
         if not hasattr(self, '_SFRD_at_threshold'):
             self._SFRD_at_threshold = \
-                lambda z: np.interp(z, self.halos.z, self._tab_sfrd_at_threshold_)
+                lambda z: np.interp(z, self.halos.z, self._tab_sfrd_at_threshold)
         return self._SFRD_at_threshold
 
     @property

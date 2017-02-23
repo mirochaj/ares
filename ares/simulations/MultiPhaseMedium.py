@@ -82,16 +82,16 @@ class MultiPhaseMedium(object):
     @property
     def pops(self):
         return self.field.pops
-        
+
     @property
     def grid(self):
         return self.field.grid        
-        
+
     @property
     def parcels(self):
         if not hasattr(self, '_parcels'):
             self._initialize_zones()
-        return self._parcels 
+        return self._parcels
 
     @property
     def parcel_igm(self):
@@ -200,27 +200,7 @@ class MultiPhaseMedium(object):
                 else self.parcel_cgm
                 
         return self._default_parcel
-        
-    def subcycle(self):
-        """
-        See if we need to re-do the previous timestep.
-        
-        This mean:
-            (1) Re-compute the IGM optical depth.
-            (2)
-        """
 
-        return False
-
-        # Check IGM ionization state between last two steps. 
-        # Converged to desired tolerance?
-        
-        #self.
-        
-        
-    def _stop_criteria_met(self):
-        pass    
-        
     def run(self):
         """
         Run simulation from start to finish.
@@ -312,7 +292,7 @@ class MultiPhaseMedium(object):
 
         # Evolve in time!
         while z > zf:
-            
+                        
             if z < self.pf['kill_redshift']:
                 break
 
@@ -320,9 +300,6 @@ class MultiPhaseMedium(object):
             dtdz = self.default_parcel.grid.cosm.dtdz(z)
             t += dt
             z -= dt / dtdz
-                        
-            # The (potential) generators need this
-            self.field.update_redshift(z)
                         
             # IGM rate coefficients
             if self.pf['include_igm']:
@@ -369,7 +346,7 @@ class MultiPhaseMedium(object):
             else:
                 dt2 = 1e50
                 RC_cgm = data_cgm = None
-
+                
             # Must update timesteps in unison
             dt_pre = dt * 1.
             dt = min(dt1, dt2)
@@ -381,32 +358,15 @@ class MultiPhaseMedium(object):
             if self.pf['include_cgm']:    
                 data_cgm_pre = data_cgm.copy()
 
-            # If we're computing the IGM optical depth dynamically, we may
-            # need to "re-do" this step to ensure convergence.
-
-            redo = self.subcycle()
-            
-            if not redo:    
+            # Changing attribute! A little scary, but we must make sure
+            # these parcels are evolved in unison
+            if self.pf['include_igm']:
+                self.parcel_igm.dt = dt
+            if self.pf['include_cgm']:
+                self.parcel_cgm.dt = dt
+                            
+            yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
                 
-                # Changing attribute! A little scary, but we must make sure
-                # these parcels are evolved in unison
-                if self.pf['include_igm']:
-                    self.parcel_igm.dt = dt
-                if self.pf['include_cgm']:
-                    self.parcel_cgm.dt = dt
-
-                yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
-                
-                continue
-
-            # If we've made it here, we need to trick our generators a bit
-            
-            # "undo" this time-step
-            t -= dt_pre
-            z += dt_pre / dtdz
-
-            self.update_optical_depth()
-
     def _insert_inits(self):
         """
         Prepend provided initial conditions to the data storage lists.

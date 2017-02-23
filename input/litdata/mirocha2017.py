@@ -122,10 +122,10 @@ exp_Mtr_rel = \
   'pop_Tmax{2}': 1e4,
 
   # Feedback
-  'feedback_maxiter': 15,
-  'feedback_rtol': 0,
-  'feedback_atol': 1.,
-  'feedback_mean_err': False, 
+  'feedback_LW_maxiter': 15,
+  'feedback_LW_mean_err': False, 
+  'feedback_LW_Mmin_rtol': 0,
+  'feedback_LW_Mmin_atol': 1.,
 
   'feedback_LW_Mmin': 'visbal2015',
   'feedback_LW_felt_by': [2,3],

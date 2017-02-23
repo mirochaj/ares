@@ -183,7 +183,7 @@ def _sort_history(all_data, prefix='', squeeze=False):
     Returns
     -------
     Dictionary, sorted by gas properties, with entire history for each one.
-    
+
     """
 
     data = {}
@@ -192,9 +192,9 @@ def _sort_history(all_data, prefix='', squeeze=False):
             name = int(key)
         else:
             name = '%s%s' % (prefix, key)
-        
+
         data[name] = []
-        
+
     # Loop over time snapshots
     for element in all_data:
 
