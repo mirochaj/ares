@@ -215,19 +215,19 @@ def PhysicsParameters():
     "rate_source": 'fk94', # fk94, option for development here
     
     # Feedback parameters
-    'feedback_maxiter': 10,
-    'feedback_rtol': 0.,
-    'feedback_atol': 1.,
-    'feedback_mean_err': False,
-    
+
     # LW
     'feedback_LW_Mmin': None,        # 'visbal2014'
     'feedback_LW_fsh': None,
     'feedback_LW_felt_by': None,
     'feedback_LW_Tcut': 1e4,    
+    'feedback_LW_mean_err': False,
+    'feedback_LW_maxiter': 50,
     'feedback_LW_Mmin_uponly': False,
     'feedback_LW_Mmin_smooth': False,
-    
+    'feedback_LW_Mmin_rtol': 1e-2,
+    'feedback_LW_Mmin_atol': 0.0,
+
     'feedback_Z': None,
     'feedback_Z_Tcut': 1e4,
     'feedback_Z_rtol': 0.,
@@ -395,6 +395,8 @@ def PopulationParameters():
 
     "pop_fduty": 1.0,
     "pop_focc": 1.0,
+    
+    "pop_fsup": 0.0,  # Suppression of star-formation at threshold
         
     # Set the emission interval and SED
     "pop_sed": 'pl',

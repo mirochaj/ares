@@ -27,10 +27,10 @@ def add_master_legend(ax, **kwargs):
     """
     Make a big legend!
     """
-    
+
     h, l = ax.get_legend_handles_labels()
-    
-    ax.legend(h, l, loc='upper center', 
+
+    ax.legend(h, l, loc='upper center',
         bbox_to_anchor=(0.5, 1.3), **kwargs)
               
     return ax

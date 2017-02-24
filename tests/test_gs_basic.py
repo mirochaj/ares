@@ -11,10 +11,14 @@ Description:
 """
 
 import ares
+import matplotlib.pyplot as pl
 
 def test():
     sim = ares.simulations.Global21cm()
     sim.run()
+    
+    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.close()
     
     assert True
     

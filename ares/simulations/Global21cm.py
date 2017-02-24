@@ -106,10 +106,16 @@ class Global21cm(AnalyzeGlobal21cm):
             from .MultiPhaseMedium import MultiPhaseMedium
             self._medium = MultiPhaseMedium(**self.kwargs)
         return self._medium
+        
+    @property
+    def field(self):
+        if not hasattr(self, '_field'):
+            self._field = self.medium.field
+        return self._field    
 
     @property
     def pops(self):
-        return self.medium.field.pops
+        return self.medium.field.solver.pops
         
     @property
     def grid(self):
@@ -198,6 +204,10 @@ class Global21cm(AnalyzeGlobal21cm):
 
         return True
         
+    @property
+    def include_feedback(self):
+        return self.pf['feedback_LW_Mmin'] is not None
+
     def run(self):
         """
         Run a 21-cm simulation.
@@ -205,28 +215,26 @@ class Global21cm(AnalyzeGlobal21cm):
         Returns
         -------
         Nothing: sets `history` attribute.
-        
+
         """
-        
+
         # If this was a tanh model or some such thing, we're already done.
         if self.is_phenom:
             return
-        
-        # If we're doing some iterative procedure, may be done.
-        if hasattr(self, 'history') and not hasattr(self, '_suite'):
-            return
 
-        if hasattr(self, '_suite'):
-            if self._suite != []:
-                self.reboot()
-            
-        t1 = time.time()    
+        # Need to generate radiation backgrounds first.
+        self.medium.field.run()
+        self._f_Ja = self.medium.field._f_Ja
+        self._f_Jlw = self.medium.field._f_Jlw   
+
+        # Start timer
+        t1 = time.time()
             
         tf = self.medium.tf
         self.medium._insert_inits()
-                
+
         pb = self.pb = ProgressBar(tf, use=self.pf['progress_bar'])
-        
+
         # Lists for data in general
         self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm, \
             self.all_RC_igm, self.all_RC_cgm = \
@@ -237,12 +245,12 @@ class Global21cm(AnalyzeGlobal21cm):
         for element in self.all_data_igm:
             element['Ja'] = 0.0
             element['Jlw'] = 0.0
-        
-        # List for extrema-finding    
+
+        # List for extrema-finding
         self.all_dTb = self._init_dTb()
-                                        
+                                                
         for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():
-            
+                        
             # Occasionally the progress bar breaks if we're not careful
             if z < self.pf['final_redshift']:
                 break
@@ -296,135 +304,11 @@ class Global21cm(AnalyzeGlobal21cm):
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
-           
-        count = self.count   # Just to make sure attribute exists
-        self._count += 1
-                
-        ##
-        # Feedback time!
-        ##
-        if (self.pf['feedback_LW_Mmin'] is not None):
-                        
-            # Compute JLW to get estimate for Mmin^(k+1) 
-            ztmp = self.history['z']
-            Jlw = self.history['Jlw'] / 1e-21
-            
-            # Self-shielding. Function of redshift only!
-            if self.pf['feedback_LW_fsh'] is not None:
-                def NH2(z, Mh, fH2=3.5e-4):
-                    return 1e17 * (fH2 / 3.5e-4) * (Mh / 1e6)**(1. / 3.) * ((1. + z) / 20.)**2.
-                
-                def f_sh(z):
-                    popid = self.pf['feedback_LW_felt_by'][0]
-                    if self.count > 1:
-                        s = 'pop_Mmin{%i}' % popid
-                        Mmin = lambda z: np.interp(z, self._suite[-1]['z'][-1::-1], 
-                            self._suite[-1][s][-1::-1])
-                    else:
-                        Mmin = lambda z: np.interp(z, self.pops[popid].halos.z,
-                            self.pops[popid].Mmin)
-           
-                    return np.minimum(1, (NH2(z, Mh=Mmin(z)) / 1e14)**-0.75)
-
-            elif type(self.pf['feedback_LW_fsh']) is FunctionType:
-                f_sh = self.pf['feedback_LW_fsh']    
-            else:
-                f_sh = lambda z: 1.0
-
-            # Interpolants for Jlw, Mmin, for this iteration
-            # This is Eq. 4 from Visbal+ 2014
-            f_J = lambda zz: f_sh(zz) * np.interp(zz, ztmp[-1::-1], Jlw[-1::-1])
-            
-            if self.pf['feedback_LW_Mmin'] is 'visbal2015':
-                f_M = lambda zz: 2.5 * 1e5 * pow(((1. + zz) / 26.), -1.5) \
-                    * (1. + 6.96 * pow(4 * np.pi * f_J(zz), 0.47))
-            elif type(self.pf['feedback_LW_Mmin']) is FunctionType:
-                f_M = self.pf['feedback_LW_Mmin']
-            else:
-                raise NotImplementedError('Unrecognized Mmin option: %s' % self.pf['feedback_LW_Mmin'])
-
-            if self.count > 1:
-                hist = self._suite[-1]
-                s = 'pop_Mmin{%i}' % self.pf['feedback_LW_felt_by'][0]
-                _Mmin_prev = np.interp(ztmp, hist['z'][-1::-1], 
-                    hist[s][-1::-1])
-          
-                    # Use this on the next iteration       
-                _Mmin_next = np.mean([f_M(ztmp), _Mmin_prev], axis=0)
-            else:
-                _Mmin_next = f_M(ztmp)
-
-            # First, get rid of nans
-            #if np.any(np.isnan(_Mmin)):
-            #    _Mmin[np.isnan(_Mmin)] = _Mmin_kp1[np.isnan(_Mmin)]
-
-            # Potentially impose ceiling on Mmin
-            Tcut = self.pf['feedback_LW_Tcut']
-            
-            # Instance of the population that "feels" the feedback.
-            pop_fb = self.pops[self.pf['feedback_LW_felt_by'][0]]
-            Mmin_ceil = pop_fb.halos.VirialMass(Tcut, ztmp)
-
-            # Final answer.       
-            Mmin = np.minimum(_Mmin_next, Mmin_ceil)
-            
-            if self.pf['feedback_LW_Mmin_uponly']:
-                Mmin = np.maximum.accumulate(Mmin)
-                        
-            ##
-            # Setup interpolant
-            ##
-            f_Mmin = lambda zz: 10**np.interp(zz, ztmp[-1::-1], np.log10(Mmin[-1::-1]))
-
-            # Save for prosperity
-            self._suite.append(self.history._data.copy())
-            for popid in self.pf['feedback_LW_felt_by']:
-                self._suite[-1]['pop_Mmin{%i}' % popid] = Mmin
-                self.kwargs['pop_Mmin{%i}' % popid] = f_Mmin
-            
-            # Do it all again! Maybe.
-            if not self._is_converged():    
-                self.run()
-                
-        # Add other feedback mechanisms here.
 
         t2 = time.time()        
                 
         self.timer = t2 - t1
 
-    def reboot(self):
-        
-        # Only need to do this after 0th iteration
-        if self.count == 1:
-            self.kwargs.update(self.carryover_kwargs())
-        
-        delattr(self, '_pf')
-        delattr(self, '_medium')
-        delattr(self, '_history')    
-            
-        self.__init__(**self.kwargs)
-
-    def carryover_kwargs(self):
-        """
-        Grab a few things that can take time to load but are always the same.
-        """
-        _carryover_kwargs = {}
-            
-        if hasattr(self.medium.field, 'tau'):
-            _carryover_kwargs['tau_instance'] = \
-                self.medium.field._tau_solver
-        
-        for i, pop in enumerate(self.pops):
-            if pop.sed_tab:
-                _carryover_kwargs['pop_psm_instance{%i}' % i] = \
-                    pop.src
-            
-            if i == 0:
-                _carryover_kwargs['hmf_instance'] = \
-                    pop.halos
-
-        return _carryover_kwargs
-                                
     def step(self):
         """
         Generator for the 21-cm signal.
@@ -442,41 +326,9 @@ class Global21cm(AnalyzeGlobal21cm):
         """
                         
         for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
-                                                                                       
-            # Grab Lyman alpha flux
-            Ja = 0.0
-            Jlw = 0.0
-            for i, pop in enumerate(self.medium.field.pops):
-                if not pop.is_lya_src:
-                    continue
-                                                    
-                if not np.any(self.medium.field.solve_rte[i]):
-                    Ja += self.medium.field.LymanAlphaFlux(z, popid=i)
-                    if self.pf['feedback_LW_Mmin'] is not None:   
-                        Jlw += self.medium.field.LymanWernerFlux(z, popid=i)
-                    continue
 
-                # Grab line fluxes for this population for this step
-                for j, band in enumerate(self.medium.field.bands_by_pop[i]):
-                    E0, E1 = band
-                    if not (E0 <= E_LyA < E1):
-                        continue
-                        
-                    if self.pf['compute_fluxes_at_start']:
-                        this_Ja = self.medium.field._interp[i]['Ja'](z)
-                        this_Jlw = self.medium.field._interp[i]['Jlw'](z)
-                    else:
-                        fluxes = self.medium.field.all_fluxes[-1]
-                        
-                        this_Ja, this_Jlw = \
-                            self.medium.field.update_Jlw(i, j, fluxes)    
-                        
-                    Ja += this_Ja
-                    Jlw += this_Jlw
-                                        
-            # Solver requires this
-            Ja = np.atleast_1d(Ja)                                            
-            Jlw = np.atleast_1d(Jlw)  
+            Ja = np.atleast_1d(self._f_Ja(z))
+            Jlw = np.atleast_1d(self._f_Jlw(z))
                                                                                 
             # Compute spin temperature
             n_H = self.medium.parcel_igm.grid.cosm.nH(z)
@@ -494,85 +346,6 @@ class Global21cm(AnalyzeGlobal21cm):
 
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
-
-    @property
-    def maxiter(self):
-        if not hasattr(self, '_maxiter'):
-            self._maxiter = self.pf['feedback_maxiter']
-        return self._maxiter
-    
-    @maxiter.setter
-    def maxiter(self, value):
-        pre = self.pf['feedback_maxiter']
-        post = value
-        print "Raising maxiter from %i to %i" % (pre, post)
-        self._maxiter = value
-            
-    def _is_converged(self):
-        
-        if self.count == 1:
-            return False
-        
-        ##
-        # Otherwise, iterate until convergence criterion is met
-        ##
-        
-        # Grab global spectra for this iteration and previous one
-        znow = self.history['z'][-1::-1]
-        dTb_now = self.history['dTb'][-1::-1]
-        
-        sim_pre = self._suite[-2]
-        zpre = sim_pre['z'][-1::-1]
-        dTb_pre = sim_pre['dTb'][-1::-1]
-        
-        ok = znow < 50
-        
-        # Interpolate to common redshift grid
-        dTb_now_interp = np.interp(zpre, znow, dTb_now)
-        
-        dTb_pre = dTb_pre[np.where(ok)]
-        dTb_now_interp = dTb_now_interp[np.where(ok)]
-        
-        err_rel = np.abs((dTb_now_interp - dTb_pre) \
-            / dTb_now_interp)
-        err_abs = np.abs(dTb_now_interp - dTb_pre)
-        
-        if self.pf['debug']:
-            print "Iteration #%i: err_rel (mean) = %.4g, err_abs (mean) = %.4g" \
-                % (self.count, err_rel.mean(), err_abs.mean())
-            print "Iteration #%i: err_rel (max)  = %.4g, err_abs (max)  = %.4g" \
-                % (self.count, err_rel.max(), err_abs.max()) 
-        
-        if self.count >= self.maxiter:
-            return True
-                    
-        rtol = self.pf['feedback_rtol']
-        atol = self.pf['feedback_atol']
-        
-        # Compute error
-        if self.pf['feedback_mean_err']:
-            
-            if rtol > 0:
-                if err_rel.mean() > rtol:
-                    return False
-                elif err_rel.mean() < rtol and (atol == 0):
-                    return True
-                
-            # Only make it here if rtol is satisfied or irrelevant
-            
-            if atol > 0:
-                if err_abs.mean() < atol:
-                    return True                        
-            
-        else:  
-            converged = np.allclose(dTb_pre, dTb_now_interp,
-                rtol=rtol, atol=atol)
-                                      
-            if converged:
-                return True
-        
-        # Will only make it here if convergence criteria not satisfied
-        return False
 
     def save(self, prefix, suffix='pkl', clobber=False):
         """
@@ -624,7 +397,7 @@ class Global21cm(AnalyzeGlobal21cm):
                 f.close()
                 print 'Wrote %s.blobs.%s' % (prefix, suffix)
             except AttributeError:
-                pass
+                print 'Error writing %s.blobs.%s' % (prefix, suffix)
     
         elif suffix in ['hdf5', 'h5']:
             import h5py

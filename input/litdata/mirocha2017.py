@@ -45,9 +45,9 @@ step = \
  'feedback_LW_Mmin': 'visbal2015',
  'feedback_LW_felt_by': [0,1],
  'feedback_LW_Tcut': 1e4,
- 'feedback_maxiter': 15,
- 'feedback_LW_rtol': 0,
- 'feedback_LW_atol': 1.,
+ 'feedback_LW_maxiter': 15,
+ 'feedback_LW_Mmin_rtol': 0,
+ 'feedback_LW_Mmin_atol': 1.,
  'feedback_LW_mean_err': False,
  'feedback_LW_Mmin_uponly': False,
  'feedback_LW_Mmin_smooth': False,
@@ -122,10 +122,10 @@ exp_Mtr_rel = \
   'pop_Tmax{2}': 1e4,
 
   # Feedback
-  'feedback_maxiter': 15,
-  'feedback_rtol': 0,
-  'feedback_atol': 1.,
-  'feedback_mean_err': False, 
+  'feedback_LW_maxiter': 15,
+  'feedback_LW_mean_err': False, 
+  'feedback_LW_Mmin_rtol': 0,
+  'feedback_LW_Mmin_atol': 1.,
 
   'feedback_LW_Mmin': 'visbal2015',
   'feedback_LW_felt_by': [2,3],
@@ -144,8 +144,8 @@ sfrd_blobs = \
  'blob_names': ['sfrd{0}', 'sfrd{2}', 'sfrd_bc{0}', 'sfrd_bc{2}', 
     'Mmin{0}', 'Mmin{2}'],
  'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
- 'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD', 'pops[0].SFRD_at_boundary',
-    'pops[2].SFRD_at_boundary', 'pops[0].Mmin_func', 'pops[2].Mmin_func'],
+ 'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD', 'pops[0].SFRD_at_threshold',
+    'pops[2].SFRD_at_threshold', 'pops[0].Mmin', 'pops[2].Mmin'],
 }
 
 

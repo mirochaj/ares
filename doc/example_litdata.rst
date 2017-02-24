@@ -84,7 +84,7 @@ The following parameters are uncertain and typically treated as free parameters 
 
     * ``pop_Z{0}``, :math:`[0.001, 0.04]`
     * ``pop_Tmin{0}``, :math:`[300, \sim \mathrm{few} \times 10^5]`  (``pop_Tmin{1}`` is tied to this value by default).
-    * ``pop_fesc{0}``, :math:`[0, 1]`
+    * ``pop_fesc{0}``, in general can lie in range :math:`[0, 1]`, but for consistency with observational constraints on :math:`\tau_e` (from, e.g., *Planck*), it's probably best to limit values to :math:`\lesssim 0.2`.
     * ``pop_fesc_LW{0}``, :math:`[0, 1]`
     * ``pop_rad_yield{1}``, :math:`[10^{38}, 10^{42}]` :math:`2.6 \times 10^{39}` by default
     * ``pop_logN{1}``, :math:`[18, 23]`, :math:`-\infty` by default.

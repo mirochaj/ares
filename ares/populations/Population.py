@@ -28,6 +28,16 @@ class Population(object):
         self.zdead = self.pf['pop_zdead']
         
     @property
+    def id_num(self):
+        if not hasattr(self, '_id_num'):
+            self._id_num = None
+        return self._id_num
+    
+    @id_num.setter
+    def id_num(self, value):
+        self._id_num = int(value)    
+    
+    @property
     def cosm(self):
         if not hasattr(self, '_cosm'):    
             if self.grid is None:
@@ -120,6 +130,20 @@ class Population(object):
     
         return self._is_lya_src
     
+    @property
+    def is_lw_src(self):
+        if not hasattr(self, '_is_lw_src'):
+            if not self.pf['radiative_transfer']:
+                self._is_lw_src = False
+            elif self.pf['pop_sed_model']:
+                self._is_lw_src = \
+                    (self.pf['pop_Emin'] <= 11.2 <= self.pf['pop_Emax']) and \
+                    (self.pf['pop_Emin'] <= E_LL <= self.pf['pop_Emax'])
+            else:
+                raise NotImplementedError('help')
+    
+        return self._is_lw_src    
+
     @property
     def is_uv_src(self):
         if not hasattr(self, '_is_uv_src'):

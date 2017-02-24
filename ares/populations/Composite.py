@@ -84,7 +84,7 @@ class CompositePopulation(object):
                 self.pops[i]._fstar = self.pops[entry].SFE
             elif to_quantity[i] in ['Mmax_active']:
                 self.pops[i] = GalaxyCohort(**tmp)
-                self.pops[i].Mmin = self.pops[entry].Mmax_active
+                self.pops[i]._tab_Mmin = self.pops[entry]._tab_Mmax_active
             else:
                 raise NotImplementedError('help')
 

@@ -485,22 +485,21 @@ class ModelGrid(ModelFit):
                 hmf_pars = {'pop_Tmin%s' % suffix: sim.pf['pop_Tmin%s' % suffix],
                     'fcoll%s' % suffix: copy.deepcopy(pops[loc].fcoll), 
                     'dfcolldz%s' % suffix: copy.deepcopy(pops[loc].dfcolldz)}
-            
+
                 # Save for future iterations
                 fcoll[i_Tmin] = hmf_pars.copy()
-            
+
             # If we already have matching fcoll splines, use them!
-            elif (not self.phenomenological):        
+            elif (not self.phenomenological):
                                         
                 hmf_pars = {'pop_Tmin%s' % suffix: fcoll[i_Tmin]['pop_Tmin%s' % suffix],
                     'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
                     'dfcolldz%s' % suffix: fcoll[i_Tmin]['dfcolldz%s' % suffix]}
                 p.update(hmf_pars)
                 sim = self.simulator(**p)
-                
             else:
                 sim = self.simulator(**p)
-                                
+
             # Write this set of parameters to disk before running 
             # so we can troubleshoot later if the run never finishes.
             procid = str(rank).zfill(3)
@@ -510,12 +509,12 @@ class ModelGrid(ModelFit):
             fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
             with open(fn, 'w') as f:
                 print >> f, "Simulation began: %s" % time.ctime()
-                                
-            # Kill if model gets stuck    
+
+            # Kill if model gets stuck
             if self.timeout is not None:
                 signal.signal(signal.SIGALRM, self._handler)
                 signal.alarm(self.timeout)
-            
+
             # Run simulation!
             try:
                 sim.run()

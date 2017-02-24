@@ -11,9 +11,12 @@ Description:
 """
 
 import os
+import time
 import scipy
 import pickle
 import numpy as np
+from ..static import Grid
+from types import FunctionType
 from ..util import ParameterFile
 from scipy.interpolate import interp1d
 from ..solvers import UniformBackground
@@ -29,20 +32,139 @@ if float(_scipy_ver[1]) >= 0.14:
     _interp1d_kwargs = {'assume_sorted': True}
 else:
     _interp1d_kwargs = {}
+    
+    
+def NH2(z, Mh, fH2=3.5e-4):
+    return 1e17 * (fH2 / 3.5e-4) * (Mh / 1e6)**(1. / 3.) * ((1. + z) / 20.)**2.
 
-class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
+def f_sh_fl13(zz, Mmin):
+    return np.minimum(1, (NH2(zz, Mh=Mmin) / 1e14)**-0.75)    
+
+def get_Mmin_func(zarr, Jlw, Mmin_prev, **kwargs):
+    
+    # Self-shielding. Function of redshift only!
+    if kwargs['feedback_LW_fsh'] is not None:
+        f_sh = f_sh_fl13
+    elif type(kwargs['feedback_LW_fsh']) is FunctionType:
+        f_sh = kwargs['feedback_LW_fsh']    
+    else:
+        f_sh = lambda z, Mmin: 1.0
+    
+    # Interpolants for Jlw, Mmin, for this iteration
+    # This is Eq. 4 from Visbal+ 2014
+    Mmin = lambda zz: np.interp(zz, zarr, Mmin_prev)
+    f_J = lambda zz: f_sh(zz, Mmin(zz)) * np.interp(zz, zarr, Jlw)
+    
+    if kwargs['feedback_LW_Mmin'] is 'visbal2015':
+        f_M = lambda zz: 2.5 * 1e5 * pow(((1. + zz) / 26.), -1.5) \
+            * (1. + 6.96 * pow(4 * np.pi * f_J(zz), 0.47))
+    elif type(kwargs['feedback_LW_Mmin']) is FunctionType:
+        f_M = kwargs['feedback_LW_Mmin']
+    else:
+        raise NotImplementedError('Unrecognized Mmin option: %s' % kwargs['feedback_LW_Mmin'])
+        
+    return f_M
+        
+class MetaGalacticBackground(AnalyzeMGB):
     def __init__(self, grid=None, **kwargs):
         """
         Initialize a MetaGalacticBackground object.    
         """
         
-        # This MUST go first.
-        self._is_thru_run = False
+        self._grid = grid
         self._has_fluxes = False
+        self._has_coeff = False
         
-        UniformBackground.__init__(self, grid=grid, **kwargs)
+        self.kwargs = kwargs
         
-    def run(self):
+        if not hasattr(self, '_suite'):
+            self._suite = []
+            
+    @property
+    def pf(self):
+        if not hasattr(self, '_pf'):
+            self._pf = ParameterFile(**self.kwargs)
+        return self._pf        
+            
+    @property
+    def solver(self):
+        if not hasattr(self, '_solver'):
+            self._solver = UniformBackground(grid=self.grid, **self.kwargs)
+        return self._solver
+        
+    @property
+    def pops(self):
+        return self.solver.pops
+            
+    @property 
+    def count(self):
+        if not hasattr(self, '_count'):
+            self._count = 0
+        return self._count     
+        
+    @property
+    def grid(self):
+        if self._grid is None:
+            self._grid = Grid(
+                grid_cells=self.pf['grid_cells'], 
+                length_units=self.pf['length_units'], 
+                start_radius=self.pf['start_radius'],
+                approx_Salpha=self.pf['approx_Salpha'],
+                logarithmic_grid=self.pf['logarithmic_grid'],
+                cosmological_ics=self.pf['cosmological_ics'],
+                )
+            self._grid.set_properties(**self.pf)    
+                
+        return self._grid
+    
+    def run(self, include_pops=None):
+        
+        if include_pops is None:
+            include_pops = range(self.solver.Npops)
+        
+        data = {}
+        for i in include_pops:
+            t1 = time.time()
+            z, fluxes = self.run_pop(popid=i)
+            t2 = time.time()
+
+            print "pop %i, iteration #%i took %.2g sec" % (i, self.count, t2 -t1)
+
+            data[i] = fluxes
+                    
+        # Each element of the history is series of lists.
+        # The first axis corresponds to redshift, while the second
+        # dimension has as many chunks as there are sub-bands for RTE solutions.    
+        # Also: redshifts are *descending* at this point
+        self._history = data.copy()
+        self._suite.append(data.copy())
+
+        count = self.count   # Just to make sure attribute exists
+        self._count += 1
+
+        ## 
+        # Feedback
+        ##
+        if not self._is_Mmin_converged(include_pops):
+            self.reboot()
+            self.run(include_pops=include_pops)
+
+        self._has_fluxes = True
+
+        self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
+        self._f_Jlw = lambda z: np.interp(z,self._zarr, self._Jlw)
+        
+    @property    
+    def _lwb_sources(self):
+        if not hasattr(self, '_lwb_sources_'):
+            self._lwb_sources_ = []
+            for i, pop in enumerate(self.pops):
+                if pop.is_lw_src:
+                    self._lwb_sources_.append(i)
+        
+        return self._lwb_sources_
+        
+    def run_pop(self, popid=0):
         """
         Evolve radiation background in time.
 
@@ -55,132 +177,165 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         of the background for each population.
 
         """
-
-        assert self.Npops == 1
-
-        self._is_thru_run = True
         
-        all_z = []         # sometimes not deterministic
-        all_fluxes = []
-        for (z, fluxes) in self.step():            
-            all_z.append(z)
-            all_fluxes.append(fluxes)
-
-        # At this stage, redshift is in descending order
-        self.all_z = all_z
-        self.all_fluxes = all_fluxes
-
-        self._history = _sort_history(all_fluxes)
+        if self.solver.approx_all_pops:
+            return None, None
         
-    def _init_stepping(self):
-        """
-        Initialize lists which bracket radiation background fluxes.
-        
-        The structure of these lists is as follows:
-        (1) Each list contains one element per source population.
-        (2) If that population will approximate the RTE, this entry will be 
-            None.
-        (3) The redshift lists, _zlo and _zhi, will just be a sequences of 
-            floats. 
-        (4) The flux entires, if not None, will be lists, since in general an
-            emission band can be broken up into several pieces. In this case,
-            the number of entries (for each source population) will be equal
-            to the number of bands, which you can find in self.bands_by_pop.
-        
-        Sets
-        ----
-        Several attributes:
-        (1) _zhi, _zlo
-        (2) _fhi, _flo
-
-        """
-
-        # For "smart" time-stepping
-        self._zhi = []; self._zlo = []
-        self._fhi = []; self._flo = []
-        
-        # Looping over populations.
-        z_by_pop = []
-        for i, generator in enumerate(self.generators):
-
-            # Recall that each generator may actually be a list of generators,
-            # one for each (sub-)band.
-            
-            if (generator == [None]) or (generator is None):
-                self._zhi.append(None)
-                self._zlo.append(None)
-                self._fhi.append(None)
-                self._flo.append(None)
-                continue
-
-            # Only make it here when real RT is happenin'
-
-            # Setup arrays (or lists) for flux solutions
-            _fhi = []
-            _flo = []
-            for j, gen in enumerate(generator):
-                if gen.__name__ == '_flux_generator_generic':
-                    _fhi.append(np.zeros_like(self.energies[i][j]))
-                    _flo.append(np.zeros_like(self.energies[i][j]))
-                    continue
-
-                # Otherwise, there are sub-bands (i.e., sawtooth)
-                _fhi.append(np.zeros_like(np.concatenate(self.energies[i][j])))
-                _flo.append(np.zeros_like(np.concatenate(self.energies[i][j])))
-
-            # Loop over sub-bands and retrieve fluxes
-            for j, gen in enumerate(generator):
-
-                # Tap generator, grab fluxes
-                zhi, flux = gen.next()
-
-                # Increment the flux
-                _fhi[j] += flatten_flux(flux).copy()
-                
-                # Tap generator, grab fluxes (again)
-                zlo, flux = gen.next()
-                                                                    
-                # Increment the flux (again)
-                _flo[j] += flatten_flux(flux).copy()
-
-            # Save fluxes for this population
-            self._zhi.append([zhi for k in range(len(generator))])
-            self._zlo.append([zlo for k in range(len(generator))])
-            
-            self._fhi.append(_fhi)
-            self._flo.append(_flo)
-            
-            z_by_pop.append(zlo)
-                
-        # Set the redshift based on whichever population took the smallest
-        # step. Other populations will interpolate to find flux.
-        self.update_redshift(max(z_by_pop))
-        
-    def step(self):
-        """
-        Initialize generator for the meta-galactic radiation background.
-        
-        ..note:: This can run asynchronously with a MultiPhaseMedium object.
-
-        Returns
-        -------
-        Generator for the background radiation field. Yields the flux for 
-        each population.
-
-        """
-
         t = 0.0
         z = self.pf['initial_redshift']
         zf = self.pf['final_redshift']
-        
-        # Start the generator
-        while z > zf:     
-            z, fluxes = self.update_fluxes()            
-                        
-            yield z, fluxes
+                
+        all_fluxes = []
+        for z in self.solver.redshifts[popid][-1::-1]:
+            _z, fluxes = self.update_fluxes(popid=popid)            
+            all_fluxes.append(fluxes)
+            
+        return self.solver.redshifts[popid][-1::-1], all_fluxes
 
-    def update_redshift(self, z):
-        self.z = z
+    def reboot(self):
+        delattr(self, '_history')
+        delattr(self.solver, '_generators')
+        delattr(self.solver, '_emissivities')
+        
+        # All quantities that depend on Mmin.
+        to_del = ['_tab_Mmin_', '_Mmin', '_tab_sfrd_total_',
+            '_tab_sfrd_at_threshold_', '_tab_fstar_at_Mmin_',
+            '_tab_nh_at_Mmin_', '_tab_MAR_at_Mmin_']
+
+        ## Reset Mmin for feedback-susceptible populations
+        for popid in self.pf['feedback_LW_felt_by']:
+            pop = self.pops[popid]
+
+            #for key in to_del:
+            #    try:
+            #        delattr(pop, key)
+            #    except AttributeError:
+            #        print "Attribute %s didn't exist." % key
+            #        continue
+
+            pop._tab_Mmin = np.interp(pop.halos.z, self._zarr, self._Mmin_now)
+
+            self.kwargs['pop_Mmin{%i}' % popid] = self._Mmin_now
+
+            # Only want to re-compute emissivity of LW populations!
+            #ehat = self.solver.TabulateEmissivity(self.solver.redshifts[popid],
+            #    self.solver.energies[popid], pop)
+            #    
+            #k = range(self.solver.Npops).index(popid)
+            #self.solver._emissivities[k] = ehat
+            
+        # May not need to do this -- just execute loop just above?
+        self.__init__(**self.kwargs)
+
+    #def _init_stepping(self):
+    #    """
+    #    Initialize lists which bracket radiation background fluxes.
+    #
+    #    The structure of these lists is as follows:
+    #    (1) Each list contains one element per source population.
+    #    (2) If that population will approximate the RTE, this entry will be 
+    #        None.
+    #    (3) The redshift lists, _zlo and _zhi, will just be a sequences of 
+    #        floats. 
+    #    (4) The flux entries, if not None, will be lists, since in general an
+    #        emission band can be broken up into several pieces. In this case,
+    #        the number of entries (for each source population) will be equal
+    #        to the number of bands, which you can find in self.bands_by_pop.
+    #
+    #    Sets
+    #    ----
+    #    Several attributes:
+    #    (1) _zhi, _zlo
+    #    (2) _fhi, _flo
+    #
+    #    """
+    #
+    #    # For "smart" time-stepping
+    #    self._zhi = []; self._zlo = []
+    #    self._fhi = []; self._flo = []
+    #    
+    #    # Looping over populations.
+    #    z_by_pop = []
+    #    for i, generator in enumerate(self.generators):
+    #
+    #        # Recall that each generator may actually be a list of generators,
+    #        # one for each (sub-)band.
+    #        
+    #        if (generator == [None]) or (generator is None):
+    #            self._zhi.append(None)
+    #            self._zlo.append(None)
+    #            self._fhi.append(None)
+    #            self._flo.append(None)
+    #            continue
+    #
+    #        # Only make it here when real RT is happenin'
+    #
+    #        # Setup arrays (or lists) for flux solutions
+    #        _fhi = []
+    #        _flo = []
+    #        for j, gen in enumerate(generator):
+    #            if gen.__name__ == '_flux_generator_generic':
+    #                _fhi.append(np.zeros_like(self.energies[i][j]))
+    #                _flo.append(np.zeros_like(self.energies[i][j]))
+    #                continue
+    #
+    #            # Otherwise, there are sub-bands (i.e., sawtooth)
+    #            _fhi.append(np.zeros_like(np.concatenate(self.energies[i][j])))
+    #            _flo.append(np.zeros_like(np.concatenate(self.energies[i][j])))
+    #
+    #        # Loop over sub-bands and retrieve fluxes
+    #        for j, gen in enumerate(generator):
+    #
+    #            # Tap generator, grab fluxes
+    #            zhi, flux = gen.next()
+    #
+    #            # Increment the flux
+    #            _fhi[j] += flatten_flux(flux).copy()
+    #            
+    #            # Tap generator, grab fluxes (again)
+    #            zlo, flux = gen.next()
+    #                                                                
+    #            # Increment the flux (again)
+    #            _flo[j] += flatten_flux(flux).copy()
+    #
+    #        # Save fluxes for this population
+    #        self._zhi.append([zhi for k in range(len(generator))])
+    #        self._zlo.append([zlo for k in range(len(generator))])
+    #        
+    #        self._fhi.append(_fhi)
+    #        self._flo.append(_flo)
+    #
+    #        z_by_pop.append(zlo)
+    #
+    #    # Set the redshift based on whichever population took the smallest
+    #    # step. Other populations will interpolate to find flux.
+    #    self.update_redshift(max(z_by_pop))
+
+    #def step(self, popid=0):
+    #    """
+    #    Initialize generator for the meta-galactic radiation background.
+    #    
+    #    ..note:: This can run asynchronously with a MultiPhaseMedium object.
+    #
+    #    Returns
+    #    -------
+    #    Generator for the background radiation field. Yields the flux for 
+    #    each population.
+    #
+    #    """
+    #
+    #    t = 0.0
+    #    z = self.pf['initial_redshift']
+    #    zf = self.pf['final_redshift']
+    #            
+    #    # Start the generator
+    #    while z > zf:     
+    #        z, fluxes = self.update_fluxes(popid=popid)            
+    #                    
+    #        yield z, fluxes
+
+    #def update_redshift(self, z):
+    #    self.z = z
 
     @property
     def history(self):
@@ -193,144 +348,34 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
     
         return self._history
         
-    def update_fluxes(self):
+    def update_fluxes(self, popid=0):
         """
         Loop over flux generators and retrieve the next values.
-        
+
         ..note:: Populations need not have identical redshift sampling.
-        
+
         Returns
         -------
         Current redshift and dictionary of fluxes. Each element of the flux
         dictionary corresponds to a single population, and within that, there
         are separate lists for each sub-band over which we solve the RTE.
-        
+
         """
-                        
-        if ((not self._is_thru_run) and (not self.approx_all_pops) and \
-            not hasattr(self, '_fhi')):
-            
-            self._init_stepping()
-                        
-            # Save fluxes by pop as simulations run
-            self.all_z = []
-            self.all_fluxes = []
-        
-        z_by_pop = [None for i in range(self.Npops)]
-        
-        # In the end, each population will have a set of lists.
-        # The first dimension will correspond to band ID #.
-        # The second will be redshift.        
 
-        fluxes = {}
-        for i, pop_generator in enumerate(self.generators):
+        pop_generator = self.solver.generators[popid]
 
-            # Skip approximate (or non-contributing) backgrounds
-            if pop_generator is None:
-                fluxes[i] = None
-                continue
-     
-            fluxes_by_band = []
+        # Skip approximate (or non-contributing) backgrounds
+        if pop_generator is None:
+            return None, None
 
-            # For each population, the band is broken up into pieces
-            for j, generator in enumerate(pop_generator):
-                                
-                # Those pieces might have a sawtooth component!
-                                                            
-                # If not being run as part of another simulation, there are 
-                # no external time-stepping constraints, so just poke the 
-                # generator and move on. 
-                if self._is_thru_run :
-                    
-                    # Only append new fluxes/redshifts if they are actually new...
-                    z, f = generator.next()
-                    
-                    z_by_pop[i] = z
-                    fluxes_by_band.append(flatten_flux(f))
-                    continue
-                                        
-                # Otherwise, we potentially need to sub-cycle the background.
-                # This may happen if (1) the time-step is being regulated
-                # from the simulation in which this background is embedded 
-                # (i.e., epsilon_dt requires smaller timestep than redshift
-                # step allowed by this population) or (2) if other populations
-                # have a different requirement for the redshift sampling, 
-                # such that this population must interpolate between its
-                # (larger) redshift steps while other populations churn away.
+        fluxes_by_band = []
 
-                # For redshifts before this background turns on...
-                # (this should only happen once)
-                if self.z > self._zhi[i][j]:
-                    if generator.__name__ == '_flux_generator_generic':
-                        z, f = self.z, np.zeros_like(self.energies[i][j])
-                    else:
-                        z = self.z 
-                        f = np.zeros_like(flatten_energies(self.energies[i][j]))
+        # For each population, the band is broken up into pieces
+        for j, generator in enumerate(pop_generator):
+            z, f = generator.next()
+            fluxes_by_band.append(flatten_flux(f))
 
-                    fluxes_by_band.append(f)
-                    continue
-
-                # If we've surpassed the lower redshift bound, poke the 
-                # generator
-                elif self.z <= self._zlo[i][j]:
-
-                    self._zhi[i][j] = self._zlo[i][j]
-                    self._fhi[i][j] = self._flo[i][j]
-                    z, f = generator.next()
-                    
-                    # Sometimes the generator's redshift sampling will be finer
-                    # than needed by e.g., a MultiPhaseMedium, so we cycle
-                    # multiple times before exiting.
-                    while z > self.z:
-                        self._zhi[i][j] = self._zlo[i][j]
-                        self._fhi[i][j] = self._flo[i][j]
-                                
-                        z, f = generator.next()
-                                                
-                    self._zlo[i][j] = z
-                    self._flo[i][j] = flatten_flux(f)
-                else:
-                    z = self.z
-
-                # If zlo < z <= self.zhi, we'll interpolate
-
-                # If we're between redshift steps, interpolate to find the 
-                # background flux
-                if self.z == self._zhi[i][j]:
-                    f = self._fhi[i][j]
-                elif self.z > self._zlo[i][j]:
-                    
-                    z = self.z
-
-                    interp = interp1d([self._zlo[i][j], self._zhi[i][j]], 
-                        [self._flo[i][j], self._fhi[i][j]], 
-                         axis=0, kind='linear', **_interp1d_kwargs)
-                    
-                    f = interp(z)
-
-                elif self.z == self._zlo[i][j]:
-                    f = self._flo[i][j]
-
-                fluxes_by_band.append(f)
-
-            # Save results
-            if (not self._is_thru_run):
-                z_by_pop[i] = max(self._zlo[i])
-
-            fluxes[i] = fluxes_by_band
-
-        # Set the redshift based on whichever population took the smallest
-        # step. Other populations will interpolate to find flux.
-        znext = max(z_by_pop)
-
-        # If being externally controlled, we can't tamper with the redshift!
-        if self._is_thru_run:
-            self.update_redshift(znext)
-        else:
-            self.all_z.append(z_by_pop)
-            self.all_fluxes.append(fluxes)
-
-        return znext, fluxes
+        return z, fluxes_by_band
 
     def update_rate_coefficients(self, z, **kwargs):
         """
@@ -347,180 +392,342 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
 
         """
         
-        # In this case, use interpolants.
-        if self.pf['compute_fluxes_at_start']:
-                        
-            if self._has_fluxes:
+        # Must compute rate coefficients from fluxes     
+        if self.solver.approx_all_pops:
+            kwargs['fluxes'] = [None] * self.solver.Npops
+            return self.solver.update_rate_coefficients(z, **kwargs)
                 
-                to_return = \
-                {
-                 'k_ion': np.zeros((1,self.grid.N_absorbers)),
-                 'k_ion2': np.zeros((1,self.grid.N_absorbers, self.grid.N_absorbers)),
-                 'k_heat': np.zeros((1,self.grid.N_absorbers)),
-                }
-
-                for i, pop in enumerate(self.pops):
-                    
-                    if pop.zone != kwargs['zone']:
-                        continue
-                    
-                    fset = self._interp[i]             
-                    
-                    # Call interpolants, add 'em all up.
-                    this_pop = \
-                    {
-                     'k_ion':  np.array([[fset['k_ion'][j](z) for j in range(3)]]),
-                     'k_heat': np.array([[fset['k_heat'][j](z) for j in range(3)]]),
-                     'Ja': fset['Ja'](z),
-                     'Jlw': fset['Jlw'](z),
-                    }
-                    
-                    #if pop.zone == 'cgm':
-                    #    n0 = self.cosm.nH(z)
-                    #    x = kwargs['%s_h_1' % pop.zone]
-                    #    n = 1. / (n0 * x)
-                    #    this_pop['k_ion'][0] *= n
-                        
-                    tmp = np.zeros((self.grid.N_absorbers, self.grid.N_absorbers))
-                    for j in range(self.grid.N_absorbers):
-                        for k in range(self.grid.N_absorbers):
-                            tmp[j,k] = fset['k_ion2'][j][k](z)
-                            
-                    this_pop['k_ion2'] = np.array([tmp])
-                    
-                    for key in to_return:
-                        to_return[key] += this_pop[key]
-                                                                        
-                return to_return
-            else:
-
-                kwargs['return_rc'] = True
-
-                # This chunk only gets executed once
-
-                self._rc_tabs = [{} for i in range(self.Npops)]
+        if not self._has_fluxes:
+            self.run()
+        
+        if not self._has_coeff:
+            
+            kw = kwargs.copy()
+            
+            kw['return_rc'] = True
+            
+            # This chunk only gets executed once
+            self._rc_tabs = [{} for i in range(self.solver.Npops)]
+            
+            # very similar chunk of code lives in update_fluxes...
+            # could structure better, but i'm tired.
+            
+            fluxes = {i:None for i in range(self.solver.Npops)}
+            for i, pop_generator in enumerate(self.solver.generators):
                 
-                # very similar chunk of code lives in update_fluxes...
-                # could structure better, but i'm tired.
+                kw['zone'] = self.pops[i].zone
+                also = {}
+                for sp in self.grid.absorbers:
+                    also['%s_%s' % (self.pops[i].zone, sp)] = 1.0
+                kw.update(also)     
+                
+                zarr = self.solver.redshifts[i]
+                Nz = len(zarr)
 
-                fluxes = {i:None for i in range(self.Npops)}
-                for i, pop_generator in enumerate(self.generators):
-                    
-                    kwargs['zone'] = self.pops[i].zone
-                    
-                    zarr = self.redshifts[i]
-                    Nz = len(zarr)
-                    self._rc_tabs[i]['k_ion'] = np.zeros((len(zarr),
-                            self.grid.N_absorbers))
-                    self._rc_tabs[i]['k_ion2'] = np.zeros((len(zarr),
-                            self.grid.N_absorbers, self.grid.N_absorbers))
-                    self._rc_tabs[i]['k_heat'] = np.zeros((len(zarr),
-                            self.grid.N_absorbers))
-                    self._rc_tabs[i]['Ja'] = np.zeros(len(zarr))
-                    self._rc_tabs[i]['Jlw'] = np.zeros(len(zarr))
-
-                    # Need to cycle through redshift here
-                    for _iz in range(Nz):
-                        
-                        if zarr[Nz-_iz] < self.pf['final_redshift']:
-                            break
-                        
-                        # Get fluxes if need be
-                        if pop_generator is None:
-                            kwargs['fluxes'] = None
-                        else:
-                            fluxes_by_band = []
-                            for j, generator in enumerate(pop_generator):
-                                
-                                if not self.solve_rte[i][j]:
-                                    fluxes_by_band.append(None)
-                                    continue
-                                    
-                                E0, E1 = self.bands_by_pop[i][j]
-
-                                _z, _f = generator.next()
-
-                                fluxes_by_band.append(flatten_flux(_f))
-
-                                if not (E0 <= E_LyA < E1):
-                                    continue
-
-                                this_Ja, this_Jlw = self.update_Jlw(i, j, _f, 
-                                    fluxes_nested=False)
-                                self._rc_tabs[i]['Ja'][Nz-_iz-1] = this_Ja
-                                self._rc_tabs[i]['Jlw'][Nz-_iz-1] = this_Jlw
-                        
-                        fluxes[i] = fluxes_by_band
-                        kwargs['fluxes'] = fluxes
-
-                        # This routine expects fluxes to be a dictionary, with
-                        # the keys being population ID # and the elements lists
-                        # of fluxes in each (sub-) band.
-                        coeff = super(MetaGalacticBackground, 
-                            self).update_rate_coefficients(_z, popid=i, 
-                            **kwargs)
-                        
-                        self._rc_tabs[i]['k_ion'][Nz-_iz-1,:] = \
-                            coeff['k_ion'].copy()
-                        self._rc_tabs[i]['k_ion2'][Nz-_iz-1,:] = \
-                            coeff['k_ion2'].copy()
-                        self._rc_tabs[i]['k_heat'][Nz-_iz-1,:] = \
-                            coeff['k_heat'].copy()
-
-                self._interp = [{} for i in range(self.Npops)]
-                for i, pop in enumerate(self.pops):
-                    zarr = self.redshifts[i]
-                    
-                    if zarr[Nz-_iz] < self.pf['final_redshift']:
-                        raise NotImplementedError('deal with this sometime')
-                    
-                    # Create functions
-                    self._interp[i]['k_ion'] = \
-                        [None for _i in range(self.grid.N_absorbers)]
-                    self._interp[i]['k_ion2'] = \
-                        [[None,None,None] for _i in range(self.grid.N_absorbers)]
-                    self._interp[i]['k_heat'] = \
-                        [None for _i in range(self.grid.N_absorbers)]
-
-                    self._interp[i]['Ja'] = interp1d(zarr, 
-                        self._rc_tabs[i]['Ja'], 
-                        bounds_error=False, fill_value=0.0)
-                    self._interp[i]['Jlw'] = interp1d(zarr, 
-                        self._rc_tabs[i]['Jlw'], 
-                        bounds_error=False, fill_value=0.0)    
-
-                    for j in range(self.grid.N_absorbers):
-                        self._interp[i]['k_ion'][j] = \
-                            interp1d(zarr, self._rc_tabs[i]['k_ion'][:,j], 
-                                bounds_error=False, fill_value=0.0)    
-                        self._interp[i]['k_heat'][j] = \
-                            interp1d(zarr, self._rc_tabs[i]['k_heat'][:,j], 
-                                bounds_error=False, fill_value=0.0)    
-                        
-                        for k in range(self.grid.N_absorbers):
-                            self._interp[i]['k_ion2'][j][k] = \
-                                interp1d(zarr, self._rc_tabs[i]['k_ion2'][:,j,k],
-                                    bounds_error=False, fill_value=0.0)
+                self._rc_tabs[i]['k_ion'] = np.zeros((Nz,
+                        self.grid.N_absorbers))
+                self._rc_tabs[i]['k_ion2'] = np.zeros((Nz,
+                        self.grid.N_absorbers, self.grid.N_absorbers))
+                self._rc_tabs[i]['k_heat'] = np.zeros((Nz,
+                        self.grid.N_absorbers))
+                self._rc_tabs[i]['Ja'] = np.zeros(Nz)
+                self._rc_tabs[i]['Jlw'] = np.zeros(Nz)
             
-            self._has_fluxes = True
+                # Need to cycle through redshift here
+                for _iz, redshift in enumerate(zarr):
+                          
+                    if redshift < self.pf['final_redshift']:
+                        break
+                        
+                    if redshift < self.pf['kill_redshift']:
+                        break    
+                    
+                    # Get fluxes if need be
+                    if pop_generator is None:
+                        kw['fluxes'] = None
+                    else:
+                        self._rc_tabs[i]['Ja'][_iz] = self._f_Ja(redshift)
+                        self._rc_tabs[i]['Jlw'][_iz] = self._f_Jlw(redshift)
+                        
+                        # Fluxes are in order of *descending* redshift!
+                        fluxes[i] = self.history[i][Nz-_iz-1]
+                        kw['fluxes'] = fluxes
+                        
+                    # This routine expects fluxes to be a dictionary, with
+                    # the keys being population ID # and the elements lists
+                    # of fluxes in each (sub-) band.    
+                    coeff = self.solver.update_rate_coefficients(redshift, 
+                        popid=i, **kw)
+                    
+                    self._rc_tabs[i]['k_ion'][_iz,:] = \
+                        coeff['k_ion'].copy()
+                    self._rc_tabs[i]['k_ion2'][_iz,:] = \
+                        coeff['k_ion2'].copy()
+                    self._rc_tabs[i]['k_heat'][_iz,:] = \
+                        coeff['k_heat'].copy()
+                        
+            self._interp = [{} for i in range(self.solver.Npops)]
+            for i, pop in enumerate(self.pops):
+                zarr = self.solver.redshifts[i]
+
+                # Create functions
+                self._interp[i]['k_ion'] = \
+                    [None for _i in range(self.grid.N_absorbers)]
+                self._interp[i]['k_ion2'] = \
+                    [[None,None,None] for _i in range(self.grid.N_absorbers)]
+                self._interp[i]['k_heat'] = \
+                    [None for _i in range(self.grid.N_absorbers)]
             
-            return self.update_rate_coefficients(z, **kwargs)               
+                self._interp[i]['Ja'] = interp1d(zarr, 
+                    self._rc_tabs[i]['Ja'], 
+                    bounds_error=False, fill_value=0.0)
+                self._interp[i]['Jlw'] = interp1d(zarr, 
+                    self._rc_tabs[i]['Jlw'], 
+                    bounds_error=False, fill_value=0.0)    
+            
+                for j in range(self.grid.N_absorbers):
+                    self._interp[i]['k_ion'][j] = \
+                        interp1d(zarr, self._rc_tabs[i]['k_ion'][:,j], 
+                            bounds_error=False, fill_value=0.0)    
+                    self._interp[i]['k_heat'][j] = \
+                        interp1d(zarr, self._rc_tabs[i]['k_heat'][:,j], 
+                            bounds_error=False, fill_value=0.0)    
+                    
+                    for k in range(self.grid.N_absorbers):
+                        self._interp[i]['k_ion2'][j][k] = \
+                            interp1d(zarr, self._rc_tabs[i]['k_ion2'][:,j,k],
+                                bounds_error=False, fill_value=0.0)
+                     
+            self._has_coeff = True  
                            
-        # Otherwise, retrieve fluxes as needed, interpolate between grid points
-        # as well.                            
-        else:           
+            return self.update_rate_coefficients(z, **kwargs)                    
+            
+        else:
+                        
+            to_return = \
+            {
+             'k_ion': np.zeros((1,self.grid.N_absorbers)),
+             'k_ion2': np.zeros((1,self.grid.N_absorbers, self.grid.N_absorbers)),
+             'k_heat': np.zeros((1,self.grid.N_absorbers)),
+            }
+        
+            for i, pop in enumerate(self.pops):
+        
+                if pop.zone != kwargs['zone']:
+                    continue
+        
+                fset = self._interp[i]             
+        
+                # Call interpolants, add 'em all up.
+                this_pop = \
+                {
+                 'k_ion':  np.array([[fset['k_ion'][j](z) \
+                    for j in range(self.grid.N_absorbers)]]),
+                 'k_heat': np.array([[fset['k_heat'][j](z) \
+                    for j in range(self.grid.N_absorbers)]]),
+                 'Ja': fset['Ja'](z),
+                 'Jlw': fset['Jlw'](z),
+                }
+                                
+                # Convert to rate coefficient                
+                for j, absorber in enumerate(self.grid.absorbers):
+                    x = kwargs['%s_%s' % (pop.zone, absorber)]
+                    this_pop['k_ion'][0][j] /= x
+                    
+                    # No helium for cgm, at least not this carefully
+                    if pop.zone == 'cgm':
+                        break
 
-            # Must compute rate coefficients from fluxes     
-            if self.approx_all_pops:
-                kwargs['fluxes'] = [None] * self.Npops
-            else:    
-                z, fluxes = self.update_fluxes()
-                kwargs['fluxes'] = fluxes
+                tmp = np.zeros((self.grid.N_absorbers, self.grid.N_absorbers))
+                for j in range(self.grid.N_absorbers):
+                    for k in range(self.grid.N_absorbers):
+                        tmp[j,k] = fset['k_ion2'][j][k](z)
 
-            # Run update_rate_coefficients within MultiPhaseMedium
-            return super(MetaGalacticBackground, self).update_rate_coefficients(z, 
-                **kwargs)
+                this_pop['k_ion2'] = np.array([tmp])
+
+                for key in to_return:
+                    to_return[key] += this_pop[key]
+
+            return to_return
+                          
+    @property
+    def z_unique(self):
+        if not hasattr(self, '_z_unique'):
+            _allz = [self.solver.redshifts[i] for i in range(self.solver.Npops)]
+            self._z_unique = np.unique(np.concatenate(_allz))
+        return self._z_unique        
                 
+    def get_uvb_tot(self, include_pops=None):
+        
+        if include_pops is None:
+            include_pops = range(self.solver.Npops)
+        
+        # Compute JLW to get estimate for Mmin^(k+1) 
+        _allz = []
+        _f_Ja = []
+        _f_Jlw = []
+        for i, popid in enumerate(include_pops):
+            
+            _z, _Ja, _Jlw = self.get_uvb(popid)
+            
+            _allz.append(_z)
+            _f_Jlw.append(interp1d(_z, _Jlw, kind='linear'))
+            _f_Ja.append(interp1d(_z, _Ja, kind='linear'))
+        
+        zarr = np.unique(np.concatenate(_allz))
+        
+        Jlw = np.zeros_like(zarr)
+        Ja = np.zeros_like(zarr)
+        for i, popid in enumerate(include_pops):
+            Jlw += _f_Jlw[i](zarr)
+            Ja += _f_Ja[i](zarr)
+            
+        return zarr, Ja, Jlw
+
+    def _is_Mmin_converged(self, include_pops):
+
+        if include_pops is None:
+            include_pops = range(self.solver.Npops)
+
+        # Otherwise, grab all the fluxes
+        zarr, Ja, Jlw = self.get_uvb_tot(include_pops)
+        self._zarr = zarr
+        self._Ja = Ja
+        self._Jlw = Jlw
+        
+        # Return right away if feedback is OFF.
+        if self.pf['feedback_LW_Mmin'] is None:
+            return True
+
+        # Instance of the population that "feels" the feedback.
+        # Need for (1) initial _Mmin_pre value, and (2) setting ceiling
+        pop_fb = self.pops[self.pf['feedback_LW_felt_by'][0]]
+
+        if self.count == 1:
+            self._Mmin_pre = pop_fb.Mmin(zarr)
+            
+        # Function to compute the next Mmin(z) curve
+        f_M = get_Mmin_func(zarr, Jlw / 1e-21, self._Mmin_pre, **self.pf)
+
+        # Use this on the next iteration
+        if self.count > 1:
+            _Mmin_next = np.mean([f_M(zarr), self._Mmin_pre], axis=0)
+        else:
+            _Mmin_next = f_M(zarr)
+
+        # Potentially impose ceiling on Mmin
+        Tcut = self.pf['feedback_LW_Tcut']
+
+        # Instance of the population that "feels" the feedback.
+        pop_fb = self.pops[self.pf['feedback_LW_felt_by'][0]]
+        Mmin_ceil = pop_fb.halos.VirialMass(Tcut, zarr)
+
+        # Final answer.
+        Mmin = np.minimum(_Mmin_next, Mmin_ceil)
+
+        ##
+        # Setup interpolant
+        ##
+        #f_Mmin = lambda zz: 10**np.interp(zz, zarr, np.log10(Mmin))
+        
+        if self.count == 1:
+            self._Mmin_pre = pop_fb.Mmin(zarr)
+            self._Mmin_bank = [self._Mmin_pre.copy()]
+        else:    
+            self._Mmin_pre = self._Mmin_now.copy()
+            
+        self._Mmin_now = Mmin.copy()
+        
+        # Save for prosperity
+        self._Mmin_bank.append(self._Mmin_now.copy())
+        
+        # Compare Mmin of last two iterations.
+        # Can't be converged after 1 iteration!
+        if self.count == 1:
+            return False
+        
+        if self.count >= self.pf['feedback_LW_maxiter']:
+            return True 
+        
+        rtol = self.pf['feedback_LW_Mmin_rtol']
+        atol = self.pf['feedback_LW_Mmin_atol']       
+        
+        # Less stringent requirement, that mean error meet tolerance.
+        if self.pf['feedback_LW_mean_err']:
+            err_rel = np.abs((self._Mmin_pre - self._Mmin_now) \
+                / self._Mmin_now)
+            err_abs = np.abs(self._Mmin_now - self._Mmin_pre)
+        
+            if rtol > 0:
+                if err_rel.mean() > rtol:
+                    return False
+                elif err_rel.mean() < rtol and (atol == 0):
+                    return True
+        
+            # Only make it here if rtol is satisfied or irrelevant
+        
+            if atol > 0:
+                if err_abs.mean() < atol:
+                    return True    
+        # More stringent: that all Mmin values must have converged independently            
+        else:
+            converged = np.allclose(self._Mmin_pre, self._Mmin_now,
+                rtol=rtol, atol=atol)    
+        
+        return converged
+            
+    def get_uvb(self, popid):
+        """
+        Return Ly-a and LW background flux in units of erg/s/cm^2/Hz/sr.
+        """
+        
+        k = range(self.solver.Npops).index(popid)
+
+        # Approximate sources
+        if np.any(self.solver.solve_rte[k]):
+            z, E, flux = self.get_history(popid=popid, flatten=True)
+            
+            l = np.argmin(np.abs(E - E_LyA))     # should be 0
+                                                            
+            # Redshift is first dimension!
+            Ja = flux[:,l]
+                    
+            # Find photons in LW band    
+            is_LW = np.logical_and(E >= 11.18, E <= E_LL)
+            
+            dnu = (E_LL - 11.18) / ev_per_hz
+
+            # Need to do an integral to finish this one.
+            Jlw = np.zeros_like(z)
+        
+        else:
+            # Need a redshift array!
+            dz = 0.1
+            z = np.arange(self.pf['final_redshift'], 
+                self.pf['initial_redshift']+dz, dz)
+            Ja = np.zeros_like(z)
+            Jlw = np.zeros_like(z)
+        
+        ##
+        # Loop over redshift
+        ##
+        for i, redshift in enumerate(z): 
+            
+            if not np.any(self.solver.solve_rte[k]):
+                Ja[i] = self.solver.LymanAlphaFlux(redshift, popid=popid)
+                if self.pf['feedback_LW_Mmin'] is not None:   
+                    Jlw[i] = self.solver.LymanWernerFlux(redshift, popid=popid)
+                continue
+                       
+            LW_flux = flux[i,is_LW]
+            
+            # Convert to energy units, and per eV to prep for integral
+            LW_flux *= E[is_LW] * erg_per_ev / ev_per_hz
+            
+            Jlw[i] = np.trapz(LW_flux, x=E[is_LW]) / dnu
+        
+        return z, Ja, Jlw
+            
     def update_Jlw(self, popid, bandid, fluxes_in, fluxes_nested=True):
         """
         Get new Ja and Jlw.
@@ -528,7 +735,7 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         
         i, j = popid, bandid
         
-        Earr = np.concatenate(self.energies[i][j])
+        Earr = np.concatenate(self.solver.energies[i][j])
         l = np.argmin(np.abs(Earr - E_LyA))     # should be 0
         
         if fluxes_nested:
@@ -568,7 +775,7 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
                 
         return zarr, np.trapz(flux[:,i1:i2], x=Earr[i1:i2], axis=1)
 
-    def get_history(self, popid=0, flatten=False, uniquify=True):
+    def get_history(self, popid=0, flatten=False):
         """
         Grab data associated with a single population.
 
@@ -598,54 +805,49 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
         
         """
         
-        hist = self.history
+        hist = self.history[popid]
             
         # First, get redshifts. If not run "thru run", then they will
         # be in descending order so flip 'em.
-        if self._is_thru_run or self.pf['compute_fluxes_at_start']:
-            z = self.redshifts[popid]
-        else:
-            # This may change on the fly due to sub-cycling and such
-            z = np.array(self.all_z).T[popid][-1::-1]
+        #if self._is_thru_run or self.pf['compute_fluxes_at_start']:
+        z = self.solver.redshifts[popid]
+        #else:
+        #    # This may change on the fly due to sub-cycling and such
+        #    z = np.array(self.all_z).T[popid][-1::-1]
 
         if flatten:
-            E = flatten_energies(self.energies[popid])
+            E = flatten_energies(self.solver.energies[popid])
 
             f = np.zeros([len(z), E.size])
-            for i, flux in enumerate(hist[popid]):
+            for i, flux in enumerate(hist):
                 fzflat = []
-                for j in range(len(self.energies[popid])):
+                for j in range(len(self.solver.energies[popid])):
                     fzflat.extend(flux[j])
 
                 f[i] = np.array(fzflat)
-    
+
             # "tr" = "to return"
             z_tr = z
             E_tr = E
             f_tr = np.array(f)[-1::-1,:]
         else:
             z_tr = z
-            E_tr = self.energies[popid]
-            f_tr = hist[popid][-1::-1,:]
+            E_tr = self.solver.energies[popid]
+            f_tr = hist[-1::-1][:]
             
         # We've flipped the fluxes too since they are inherently in 
         # order of descending redshift.    
-        
-        if uniquify:
-            z_uni, indi = np.unique(z_tr, return_index=True)
-            return z_uni, E_tr, f_tr[indi,:]
-        else:    
-            return z_tr, E_tr, f_tr
+        return z_tr, E_tr, f_tr
 
     def save(self, prefix, suffix='pkl', clobber=False):
         """
         Save results of calculation.
-    
+
         Notes
         -----
         1) will save files as prefix.rfield.suffix.
         2) ASCII files will fail if simulation had multiple populations.
-    
+
         Parameters
         ----------
         prefix : str
@@ -663,12 +865,13 @@ class MetaGalacticBackground(UniformBackground,AnalyzeMGB):
 
         all_fn = [fn_1, fn_2]
 
-        f_data = [self.get_history(i, flatten=True) for i in range(self.Npops)]
-        z = [f_data[i][0] for i in range(self.Npops)]
-        E = [f_data[i][1] for i in range(self.Npops)]
-        fl = [f_data[i][2] for i in range(self.Npops)]
+        f_data = [self.get_history(i, flatten=True) for i in range(self.solver.Npops)]
+        z = [f_data[i][0] for i in range(self.solver.Npops)]
+        E = [f_data[i][1] for i in range(self.solver.Npops)]
+        fl = [f_data[i][2] for i in range(self.solver.Npops)]
 
-        all_data = [(z, E, fl), (self.redshifts, self.energies, self.emissivities)]
+        all_data = [(z, E, fl), 
+            (self.solver.redshifts, self.solver.energies, self.solver.emissivities)]
 
         for i, data in enumerate(all_data):
             fn = all_fn[i]

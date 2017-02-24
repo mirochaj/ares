@@ -38,7 +38,7 @@ gen_msg = 'WARNING: something wrong with solver.'
     
 def dt_error(grid, z, q, dqdt, new_dt, cell, method, msg=dt_msg):
     
-    print ""    
+    print ""
     print line(separator)
     print line(msg)    
     print line(separator)

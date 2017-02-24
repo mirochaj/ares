@@ -102,8 +102,8 @@ def test(tol = 1e-2):
         for j, redshift in enumerate(z):
             # We have to add brackets because volume.*Rate routines expect
             # fluxes in the form (Npops, Nbands, Nfreq)
-            heat[j] = mgb.volume.HeatingRate(redshift, fluxes=[flux[j]])
-            ioniz[j] = mgb.volume.IonizationRateIGM(redshift, fluxes=[flux[j]])
+            heat[j] = mgb.solver.volume.HeatingRate(redshift, fluxes=[flux[j]])
+            ioniz[j] = mgb.solver.volume.IonizationRateIGM(redshift, fluxes=[flux[j]])
             
         ax2.semilogy(z, heat, color=colors[i], ls='-', label=label)
         ax3.semilogy(z, ioniz, color=colors[i], ls='-', label=label)
@@ -124,7 +124,7 @@ def test(tol = 1e-2):
     for i in range(3):
         pl.figure(i)
         pl.savefig('%s_%i.png' % (__file__.rstrip('.py'), i))
-
+    
     pl.close('all')    
     assert True
 

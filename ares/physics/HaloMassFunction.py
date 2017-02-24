@@ -325,7 +325,7 @@ class HaloMassFunction(object):
     def cosmo_params(self):
         return {'Om0':self.cosm.omega_m_0,
                 'Ob0':self.cosm.omega_b_0,
-                'H0':self.cosm.h70*100}    
+                'H0':self.cosm.h70*100}
                                 
     def build_fcoll_tab(self):
         """
