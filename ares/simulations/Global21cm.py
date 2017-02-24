@@ -222,12 +222,10 @@ class Global21cm(AnalyzeGlobal21cm):
         if self.is_phenom:
             return
 
-        # If feedback is on, we might need to do some iterative solutions
-        # for, e.g., Mmin(z), before we begin.
-        if self.include_feedback:
-            self.medium.field.run()
-            self._f_Ja = self.medium.field._f_Ja
-            self._f_Jlw = self.medium.field._f_Jlw   
+        # Need to generate radiation backgrounds first.
+        self.medium.field.run()
+        self._f_Ja = self.medium.field._f_Ja
+        self._f_Jlw = self.medium.field._f_Jlw   
 
         # Start timer
         t1 = time.time()

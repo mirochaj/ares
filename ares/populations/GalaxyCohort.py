@@ -942,14 +942,14 @@ class GalaxyCohort(GalaxyAggregate):
     def dMmin_dt(self, z):
         """ Solar masses per year. """
         return -1. * derivative(self.Mmin, z) * s_per_yr / self.cosm.dtdz(z)
-    
+
     @property
     def M_atom(self):
         if not hasattr(self, '_Matom'):
             Mvir = lambda z: self.halos.VirialMass(1e4, z, mu=self.pf['mu'])
             self._Matom = np.array(map(Mvir, self.halos.z))
         return self._Matom    
-    
+
     @property
     def Mmin(self):
         if not hasattr(self, '_Mmin'):  
@@ -957,7 +957,7 @@ class GalaxyCohort(GalaxyAggregate):
                 np.interp(z, self.halos.z, self._tab_Mmin)
 
         return self._Mmin
-    
+
     @Mmin.setter
     def Mmin(self, value):
         if type(value) is FunctionType:

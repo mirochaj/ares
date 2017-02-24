@@ -310,8 +310,12 @@ class MultiPhaseMedium(object):
                         dt1 = 1e50
                         done = True
                 if not done:
+                    also = {}
+                    for sp in self.field.grid.absorbers:
+                        also['igm_%s' % sp] = data_igm[sp]
+                    
                     RC_igm = self.field.update_rate_coefficients(z, 
-                        zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
+                        zone='igm', return_rc=True, **also)
                                                                                                                  
                     # Now, update IGM parcel
                     t1, dt1, data_igm = self.gen_igm.next()

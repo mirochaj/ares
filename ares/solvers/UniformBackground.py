@@ -93,9 +93,6 @@ class UniformBackground(object):
 
         self._set_integrator()
         
-        #self._set_populations()
-        #self._set_generators()
-        
     @property
     def OpticalDepth(self):
         if not hasattr(self, '_OpticalDepth'):

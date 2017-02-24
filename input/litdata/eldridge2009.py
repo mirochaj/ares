@@ -47,7 +47,7 @@ def _kwargs_to_fn(**kwargs):
     """
 
     # All files share this prefix
-    fn = 'sed.bpass'  
+    fn = 'sed.bpass'
     
     if kwargs['pop_ssp']:
         fn += '.instant'

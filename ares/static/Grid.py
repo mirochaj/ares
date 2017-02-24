@@ -543,6 +543,9 @@ class Grid(object):
         """    
                         
         if x is not None:
+            
+            assert len(x) >= len(self.species), \
+                "Too few elements in initial_ionization."
 
             for j, species in enumerate(self.species):
                 element, state = species.split('_')
