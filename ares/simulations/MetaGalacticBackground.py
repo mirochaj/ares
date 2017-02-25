@@ -33,7 +33,6 @@ if float(_scipy_ver[1]) >= 0.14:
 else:
     _interp1d_kwargs = {}
     
-    
 def NH2(z, Mh, fH2=3.5e-4):
     return 1e17 * (fH2 / 3.5e-4) * (Mh / 1e6)**(1. / 3.) * ((1. + z) / 20.)**2.
 
@@ -117,27 +116,47 @@ class MetaGalacticBackground(AnalyzeMGB):
                 
         return self._grid
     
-    def run(self, include_pops=None):
+    @property
+    def _pops_to_rerun(self):
+        if not hasattr(self, '_pops_to_rerun_'):
+            self._pops_to_rerun_ = self.pf['feedback_LW_felt_by']
+        return self._pops_to_rerun_
         
+    @property
+    def rank(self):
+        try:
+            from mpi4py import MPI
+            rank = MPI.COMM_WORLD.rank
+        except ImportError:
+            rank = 0
+    
+        return rank    
+    
+    def run(self, include_pops=None):
+            
         if include_pops is None:
             include_pops = range(self.solver.Npops)
         
-        data = {}
+        if not hasattr(self, '_data_'):
+            self._data_ = {}
+        
+        if self.pf['verbose'] and self.rank == 0:
+            print "Evolving radiation backgrounds. Iteration #%i." % self.count
+        
         for i in include_pops:
+            
             t1 = time.time()
             z, fluxes = self.run_pop(popid=i)
             t2 = time.time()
 
-            print "pop %i, iteration #%i took %.2g sec" % (i, self.count, t2 -t1)
-
-            data[i] = fluxes
+            self._data_[i] = fluxes
                     
         # Each element of the history is series of lists.
         # The first axis corresponds to redshift, while the second
         # dimension has as many chunks as there are sub-bands for RTE solutions.    
         # Also: redshifts are *descending* at this point
-        self._history = data.copy()
-        self._suite.append(data.copy())
+        self._history = self._data_.copy()
+        self._suite.append(self._data_.copy())
 
         count = self.count   # Just to make sure attribute exists
         self._count += 1
@@ -145,9 +164,9 @@ class MetaGalacticBackground(AnalyzeMGB):
         ## 
         # Feedback
         ##
-        if not self._is_Mmin_converged(include_pops):
+        if not self._is_Mmin_converged(self._pops_to_rerun):
             self.reboot()
-            self.run(include_pops=include_pops)
+            self.run(include_pops=self._pops_to_rerun)
 
         self._has_fluxes = True
 
@@ -195,7 +214,6 @@ class MetaGalacticBackground(AnalyzeMGB):
     def reboot(self):
         delattr(self, '_history')
         delattr(self.solver, '_generators')
-        delattr(self.solver, '_emissivities')
         
         # All quantities that depend on Mmin.
         to_del = ['_tab_Mmin_', '_Mmin', '_tab_sfrd_total_',
@@ -218,124 +236,15 @@ class MetaGalacticBackground(AnalyzeMGB):
             self.kwargs['pop_Mmin{%i}' % popid] = self._Mmin_now
 
             # Only want to re-compute emissivity of LW populations!
-            #ehat = self.solver.TabulateEmissivity(self.solver.redshifts[popid],
-            #    self.solver.energies[popid], pop)
-            #    
-            #k = range(self.solver.Npops).index(popid)
-            #self.solver._emissivities[k] = ehat
+            bands = self.solver.bands_by_pop[popid]
+            z, nrg, tau, ehat = self.solver._set_grid(pop, bands, 
+                compute_emissivities=True)
+   
+            k = range(self.solver.Npops).index(popid)
+            self.solver._emissivities[k] = ehat
             
         # May not need to do this -- just execute loop just above?
         self.__init__(**self.kwargs)
-
-    #def _init_stepping(self):
-    #    """
-    #    Initialize lists which bracket radiation background fluxes.
-    #
-    #    The structure of these lists is as follows:
-    #    (1) Each list contains one element per source population.
-    #    (2) If that population will approximate the RTE, this entry will be 
-    #        None.
-    #    (3) The redshift lists, _zlo and _zhi, will just be a sequences of 
-    #        floats. 
-    #    (4) The flux entries, if not None, will be lists, since in general an
-    #        emission band can be broken up into several pieces. In this case,
-    #        the number of entries (for each source population) will be equal
-    #        to the number of bands, which you can find in self.bands_by_pop.
-    #
-    #    Sets
-    #    ----
-    #    Several attributes:
-    #    (1) _zhi, _zlo
-    #    (2) _fhi, _flo
-    #
-    #    """
-    #
-    #    # For "smart" time-stepping
-    #    self._zhi = []; self._zlo = []
-    #    self._fhi = []; self._flo = []
-    #    
-    #    # Looping over populations.
-    #    z_by_pop = []
-    #    for i, generator in enumerate(self.generators):
-    #
-    #        # Recall that each generator may actually be a list of generators,
-    #        # one for each (sub-)band.
-    #        
-    #        if (generator == [None]) or (generator is None):
-    #            self._zhi.append(None)
-    #            self._zlo.append(None)
-    #            self._fhi.append(None)
-    #            self._flo.append(None)
-    #            continue
-    #
-    #        # Only make it here when real RT is happenin'
-    #
-    #        # Setup arrays (or lists) for flux solutions
-    #        _fhi = []
-    #        _flo = []
-    #        for j, gen in enumerate(generator):
-    #            if gen.__name__ == '_flux_generator_generic':
-    #                _fhi.append(np.zeros_like(self.energies[i][j]))
-    #                _flo.append(np.zeros_like(self.energies[i][j]))
-    #                continue
-    #
-    #            # Otherwise, there are sub-bands (i.e., sawtooth)
-    #            _fhi.append(np.zeros_like(np.concatenate(self.energies[i][j])))
-    #            _flo.append(np.zeros_like(np.concatenate(self.energies[i][j])))
-    #
-    #        # Loop over sub-bands and retrieve fluxes
-    #        for j, gen in enumerate(generator):
-    #
-    #            # Tap generator, grab fluxes
-    #            zhi, flux = gen.next()
-    #
-    #            # Increment the flux
-    #            _fhi[j] += flatten_flux(flux).copy()
-    #            
-    #            # Tap generator, grab fluxes (again)
-    #            zlo, flux = gen.next()
-    #                                                                
-    #            # Increment the flux (again)
-    #            _flo[j] += flatten_flux(flux).copy()
-    #
-    #        # Save fluxes for this population
-    #        self._zhi.append([zhi for k in range(len(generator))])
-    #        self._zlo.append([zlo for k in range(len(generator))])
-    #        
-    #        self._fhi.append(_fhi)
-    #        self._flo.append(_flo)
-    #
-    #        z_by_pop.append(zlo)
-    #
-    #    # Set the redshift based on whichever population took the smallest
-    #    # step. Other populations will interpolate to find flux.
-    #    self.update_redshift(max(z_by_pop))
-
-    #def step(self, popid=0):
-    #    """
-    #    Initialize generator for the meta-galactic radiation background.
-    #    
-    #    ..note:: This can run asynchronously with a MultiPhaseMedium object.
-    #
-    #    Returns
-    #    -------
-    #    Generator for the background radiation field. Yields the flux for 
-    #    each population.
-    #
-    #    """
-    #
-    #    t = 0.0
-    #    z = self.pf['initial_redshift']
-    #    zf = self.pf['final_redshift']
-    #            
-    #    # Start the generator
-    #    while z > zf:     
-    #        z, fluxes = self.update_fluxes(popid=popid)            
-    #                    
-    #        yield z, fluxes
-
-    #def update_redshift(self, z):
-    #    self.z = z
 
     @property
     def history(self):
@@ -610,7 +519,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         f_M = get_Mmin_func(zarr, Jlw / 1e-21, self._Mmin_pre, **self.pf)
 
         # Use this on the next iteration
-        if self.count > 1:
+        if self.count > 1 and self.pf['feedback_LW_softening']:
             _Mmin_next = np.mean([f_M(zarr), self._Mmin_pre], axis=0)
         else:
             _Mmin_next = f_M(zarr)
@@ -727,53 +636,6 @@ class MetaGalacticBackground(AnalyzeMGB):
             Jlw[i] = np.trapz(LW_flux, x=E[is_LW]) / dnu
         
         return z, Ja, Jlw
-            
-    def update_Jlw(self, popid, bandid, fluxes_in, fluxes_nested=True):
-        """
-        Get new Ja and Jlw.
-        """
-        
-        i, j = popid, bandid
-        
-        Earr = np.concatenate(self.solver.energies[i][j])
-        l = np.argmin(np.abs(Earr - E_LyA))     # should be 0
-        
-        if fluxes_nested:
-            fluxes = fluxes_in[i][j]
-        else:
-            fluxes = flatten_flux(fluxes_in)
-        
-        Ja = fluxes[l]
-        
-        ##
-        # Compute JLW
-        ##
-        
-        # Find photons in LW band    
-        is_LW = np.logical_and(Earr >= 11.18, Earr <= E_LL)
-        
-        # And corresponding fluxes
-        flux = fluxes[is_LW]
-        
-        # Convert to energy units, and per eV to prep for integral
-        flux *= Earr[is_LW] * erg_per_ev / ev_per_hz
-        
-        dnu = (E_LL - 11.18) / ev_per_hz
-        Jlw = np.trapz(flux, x=Earr[is_LW]) / dnu
-        
-        return Ja, Jlw
-        
-    def get_integrated_flux(self, band, popid=0):
-        """
-        Return integrated flux in supplied (Emin, Emax) band at all redshifts.
-        """
-        
-        zarr, Earr, flux = self.get_history(popid, True, True)
-        
-        i1 = np.argmin(np.abs(Earr - band[0]))
-        i2 = np.argmin(np.abs(Earr - band[1]))
-                
-        return zarr, np.trapz(flux[:,i1:i2], x=Earr[i1:i2], axis=1)
 
     def get_history(self, popid=0, flatten=False):
         """
