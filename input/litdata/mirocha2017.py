@@ -53,27 +53,34 @@ step = \
  'feedback_LW_Mmin_smooth': False,
 }
 
-exp_Mtr_rel = \
+# Is there an advantage in keeping this as a single population?
+# Yeah, it's so that the transition mass doesn't need to get passed
+# between populations. That would make a lot of things easier, though...
+exp = \
+{
+ 'pq_faux{0}[0]': 'exp',
+ 'pq_faux_var{0}[0]': 'Mh',
+ 'pq_faux_meth{0}[0]': 'add',
+ 'pq_faux_par0{0}[0]': 1e-2,
+ 'pq_faux_par1{0}[0]': 1e8,
+ 'pq_faux_par2{0}[0]': 1.,
+}
+
+exp_newpop = \
 {
   'initial_redshift': 60,
   'pop_zform{0}': 60,
   'pop_zform{1}': 60,
   'pop_zform{2}': 60,
-  'pop_zform{3}': 60,
   
   'pop_sfr_model{2}': 'sfe-func',
   'pop_fstar{2}': 'pq[1]',
   'pop_fstar_negligible{2}': 1e-5, 
-  
   'pq_func{2}[1]': 'exp',
   'pq_func_var{2}[1]': 'Mh',
   
   'pq_func_par0{2}[1]': 1e-2,
-  
-  ##
-  # Might want to change this
-  ##
-  'pq_func_par1{2}[1]': ('pop_Mmin', 'z', 1),
+  'pq_func_par1{2}[1]': 1e8, # ('Mmin', 'z', 10),
   'pq_func_par2{2}[1]': 1.,
   
   'pop_sed{2}': 'eldridge2009',
@@ -91,13 +98,12 @@ exp_Mtr_rel = \
    # Solve LWB!
   'pop_solve_rte{2}': (10.2, 13.6),
 
-  # Radiative knobs
+  # UV
   'pop_fesc_LW{2}': 1.,
   'pop_fesc{2}': 0.0,
-  'pop_rad_yield{3}': 1. * 2.6e39,
-
-  # Other stuff needed for X-rays
+  # XR
   'pop_sfr_model{3}': 'link:sfrd:2',
+  'pop_rad_yield{3}': 100. * 2.6e39,
   'pop_sed{3}': 'mcd',
   'pop_Z{3}': 'pop_Z{0}',
   'pop_rad_yield_Z_index{3}': None,
@@ -107,45 +113,25 @@ exp_Mtr_rel = \
   'pop_EmaxNorm{3}': 8e3,
   'pop_ion_src_cgm{3}': False,
   'pop_logN{3}': -np.inf,
-
+  
   'pop_solve_rte{3}': True,
   'pop_tau_Nz{3}': 1e3,
   'pop_approx_tau{3}': 'neutral',
 
-  ##
-  # THIS PART IS NEW AND IMPORTANT
-  ##
+  # THIS PART IS IMPORTANT
   'pop_Tmin{0}': None,
-  'pop_Tmin_ceil{0}': 1e4,
   'pop_Mmin{0}': 'link:Mmax_active:2',
   'pop_Tmin{2}': 500.,
-  'pop_Tmax{2}': 1e4,
-
-  # Feedback
-  'feedback_maxiter': 15,
-  'feedback_rtol': 0,
-  'feedback_atol': 1.,
-  'feedback_mean_err': False, 
-
+  
+  # Yeahyeahyeah feedback
   'feedback_LW_Mmin': 'visbal2015',
-  'feedback_LW_felt_by': [2,3],
+  'feedback_LW_felt_by': [0,1,2,3],
   'feedback_LW_Tcut': 1e4,
+  'feedback_maxiter': 15,
+  'feedback_LW_rtol': 0,
+  'feedback_LW_atol': 1.,
+  'feedback_LW_mean_err': False,
   'feedback_LW_Mmin_uponly': False,
   'feedback_LW_Mmin_smooth': False,
+  
 }
-
-exp_Mtr_fix = exp_Mtr_rel.copy()
-exp_Mtr_fix['pq_func_par1{2}[1]'] = 1e7
-
-exp = exp_Mtr_rel
-
-sfrd_blobs = \
-{
- 'blob_names': ['sfrd{0}', 'sfrd{2}', 'sfrd_bc{0}', 'sfrd_bc{2}', 
-    'Mmin{0}', 'Mmin{2}'],
- 'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
- 'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD', 'pops[0].SFRD_at_boundary',
-    'pops[2].SFRD_at_boundary', 'pops[0].Mmin_func', 'pops[2].Mmin_func'],
-}
-
-
