@@ -433,8 +433,23 @@ class ModelSet(BlobFactory):
 
     @property
     def largest_checkpoint(self):
-        lis = glob.glob(self.prefix + '.dd*.chain.pkl')
-        return max([int(s[-14:-10]) for s in lis])
+        if not hasattr(self, '_largest_checkpoint'):
+            self._largest_checkpoint = max(self.saved_checkpoints())
+        return self._largest_checkpoint
+    
+    @property
+    def saved_checkpoints(self):
+        """
+        The sorted checkpoint numbers of data files saved in the prefix
+        associated with this ModelSet. This property uses the counting
+        convention which starts with zero.
+        """
+        if not hasattr(self, '_saved_checkpoints'):
+            fns = glob.glob(self.prefix + 'dd.*.chain.pkl')
+            self._saved_checkpoints = [(int(fn[-14:-10])) for fn in fns]
+            self._saved_checkpoints = sorted(self._saved_checkpoints)
+            self._saved_checkpoints = np.array(self._saved_checkpoints)
+        return self._saved_checkpoints
 
     @property
     def chain(self):
@@ -3622,7 +3637,7 @@ class ModelSet(BlobFactory):
             
             # Save metadata about this derived blob
             fn_md = '%s.dbinfo.pkl' % self.prefix
-            if (not os.path.exists(fn_md)) or clobber:                                                                     
+            if (not os.path.exists(fn_md)) or clobber:
                 f = open(fn_md, 'w')
                 pickle.dump({name: ivars}, f)
                 f.close()
