@@ -658,14 +658,14 @@ class ModelFit(BlobFactory):
             
     def prep_output_files(self, restart, clobber):
         if restart:
-            pos = self._prep_from_restart(restart)
+            pos = self._prep_from_restart()
         else:
             pos = None
             self._prep_from_scratch(clobber)    
     
         return pos
     
-    def _prep_from_restart(self, restart):
+    def _prep_from_restart(self):
 
         prefix = self.prefix
 
