@@ -443,7 +443,7 @@ class ModelSet(BlobFactory):
         convention which starts with zero.
         """
         if not hasattr(self, '_saved_checkpoints'):
-            fns = glob.glob(self.prefix + 'dd.*.chain.pkl')
+            fns = glob.glob(self.prefix + '.dd*.chain.pkl')
             self._saved_checkpoints = [(int(fn[-14:-10])) for fn in fns]
             self._saved_checkpoints = sorted(self._saved_checkpoints)
             self._saved_checkpoints = np.array(self._saved_checkpoints)
