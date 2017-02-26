@@ -29,7 +29,7 @@ step = \
  'pq_func_par1{0}[2]': 0.1,
  'pq_func_par2{0}[2]': (barrier_A, 'z', 1),
 
- 'pop_Tmin{0}': 300.,
+ 'pop_Tmin{0}': 500.,
 
  # X-ray sources
  'pop_sfr_model{1}': 'link:sfe:0',
@@ -112,6 +112,8 @@ exp_Mtr_rel = \
   'pop_Tmin_ceil{0}': 1e4,
   'pop_Mmin{0}': 'link:Mmax_active:2',
   'pop_Tmin{2}': 500.,
+  'pop_Mmin{3}': 'pop_Mmin{2}',
+  'pop_Tmin{3}': None,
   'pop_Tmax{2}': 1e4,
 
   # Feedback
