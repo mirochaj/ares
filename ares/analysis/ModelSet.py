@@ -404,12 +404,10 @@ class ModelSet(BlobFactory):
         return self._Nd
     
     def last_n_checkpoints(self, num):
-        chain_fns = glob.glob(self.prefix + ".dd*.chain.pkl")
-        ckpts = sorted([int(fn[-14:-10]) for fn in chain_fns])
-        return ckpts[-num:]
+        return self.saved_checkpoints[-num:]
 
     def last_checkpoint(self):
-        return self.last_n_checkpoints(1)[0]
+        return self.saved_checkpoints[-1]
     
     @property
     def include_checkpoints(self):
@@ -434,7 +432,7 @@ class ModelSet(BlobFactory):
     @property
     def largest_checkpoint(self):
         if not hasattr(self, '_largest_checkpoint'):
-            self._largest_checkpoint = max(self.saved_checkpoints())
+            self._largest_checkpoint = max(self.saved_checkpoints)
         return self._largest_checkpoint
     
     @property
