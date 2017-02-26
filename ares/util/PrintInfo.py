@@ -531,7 +531,7 @@ def print_sim(sim):
     
     phys_pars = ['cgm_initial_temperature', 'clumping_factor', 
         'secondary_ionization', 'approx_Salpha', 'include_He', 
-        'feedback_LW_Mmin', 'feedback_LW_fsh', 'feedback_LW_felt_by']
+        'feedback_LW_Mmin', 'feedback_LW_fsh']
 
     cosm_pars = ["omega_m_0", "omega_b_0", "omega_l_0", "hubble_0", 
         "helium_by_number", "sigma_8"]

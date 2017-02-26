@@ -217,9 +217,10 @@ def PhysicsParameters():
     # Feedback parameters
 
     # LW
-    'feedback_LW_Mmin': None,       # 'visbal2014'
+    'feedback_clear_solver': False,
+    'feedback_LW': False,
+    'feedback_LW_Mmin': 'visbal2015',
     'feedback_LW_fsh': None,
-    'feedback_LW_felt_by': None,
     'feedback_LW_Tcut': 1e4,
     'feedback_LW_mean_err': False,
     'feedback_LW_maxiter': 50,
