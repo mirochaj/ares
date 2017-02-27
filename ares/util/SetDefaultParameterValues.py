@@ -228,7 +228,7 @@ def PhysicsParameters():
     'feedback_LW_Mmin_smooth': False,
     'feedback_LW_Mmin_rtol': 1e-2,
     'feedback_LW_Mmin_atol': 0.0,
-    'feedback_LW_softening': False,
+    'feedback_LW_softening': True,
 
     'feedback_Z': None,
     'feedback_Z_Tcut': 1e4,
@@ -729,6 +729,7 @@ def ControlParameters():
     
     "initial_redshift": 50.,
     "final_redshift": 5,
+    "fallback_dz": 0.1, # only used when no other constraints 
     "kill_redshift": 0.0,
     
     "save_rate_coefficients": 1,
@@ -754,7 +755,6 @@ def ControlParameters():
     "load_sim": False,
 
     # Timestepping
-    "max_dz": None,
     "max_timestep": 1.,
     "min_timestep": 1e-8,
     "epsilon_dt": 0.05,

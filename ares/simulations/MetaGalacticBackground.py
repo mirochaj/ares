@@ -207,7 +207,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     self._lwb_sources_.append(i)
         
         return self._lwb_sources_
-                
+                        
     def run_pop(self, popid=0):
         """
         Evolve radiation background in time.
@@ -500,7 +500,13 @@ class MetaGalacticBackground(AnalyzeMGB):
     def z_unique(self):
         if not hasattr(self, '_z_unique'):
             _allz = [self.solver.redshifts[i] for i in range(self.solver.Npops)]
-            self._z_unique = np.unique(np.concatenate(_allz))
+            if sum([item is not None for item in _allz]) == 0:
+                dz = self.pf['fallback_dz']
+                self._z_unique = np.arange(self.pf['final_redshift'],
+                    self.pf['initial_redshift']+dz, dz)
+            else:
+                self._z_unique = np.unique(np.concatenate(_allz))
+                
         return self._z_unique        
                 
     def get_uvb_tot(self, include_pops=None):
@@ -576,13 +582,15 @@ class MetaGalacticBackground(AnalyzeMGB):
         if not self.pf['feedback_LW']:
             return True
 
-        # Instance of the population that "feels" the feedback.
+        # Instance of a population that "feels" the feedback.
         # Need for (1) initial _Mmin_pre value, and (2) setting ceiling
-        pop_fb = self.pops[self._LW_felt_by[0]]
+        pop_fb = self.pops[self._lwb_sources[0]]
 
         # Save last iteration's solution for Mmin(z)
         if self.count == 1:
-            self._Mmin_pre = pop_fb.Mmin(zarr)
+            # For a guess, take the minimum Mmin of all LW-producing pops
+            self._Mmin_pre = np.min([self.pops[idnum].Mmin(zarr) \
+                for idnum in self._lwb_sources], axis=0)
             self._Mmin_bank = [self._Mmin_pre.copy()]
             self._Jlw_bank = [Jlw]
         else:
@@ -604,7 +612,6 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         # Instance of a population that "feels" the feedback.
         # Just need access to a few HMF routines.
-        pop_fb = self.pops[self._LW_felt_by[0]]
         Mmin_ceil = pop_fb.halos.VirialMass(Tcut, zarr)
 
         # Final answer.
@@ -676,9 +683,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         else:
             # Need a redshift array!
-            dz = 0.1
-            z = np.arange(self.pf['final_redshift'], 
-                self.pf['initial_redshift']+dz, dz)
+            z = self.z_unique
             Ja = np.zeros_like(z)
             Jlw = np.zeros_like(z)
         

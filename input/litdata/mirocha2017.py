@@ -117,15 +117,8 @@ exp_Mtr_rel = \
   'pop_Tmax{2}': 1e4,
 
   # Feedback
-  'feedback_LW_maxiter': 15,
-  'feedback_LW_mean_err': False, 
-  'feedback_LW_Mmin_rtol': 0,
-  'feedback_LW_Mmin_atol': 1.,
-
   'feedback_LW_Mmin': 'visbal2015',
   'feedback_LW_Tcut': 1e4,
-  'feedback_LW_Mmin_uponly': False,
-  'feedback_LW_Mmin_smooth': False,
 }
 
 exp_Mtr_fix = exp_Mtr_rel.copy()
