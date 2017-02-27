@@ -29,7 +29,7 @@ step = \
  'pq_func_par1{0}[2]': 0.1,
  'pq_func_par2{0}[2]': (barrier_A, 'z', 1),
 
- 'pop_Tmin{0}': 300.,
+ 'pop_Tmin{0}': 500.,
 
  # X-ray sources
  'pop_sfr_model{1}': 'link:sfe:0',
@@ -42,15 +42,8 @@ step = \
  'pq_func_par1{1}[3]': 2.6e39,
  'pq_func_par2{1}[3]': (barrier_A, 'z', 1),
 
- 'feedback_LW_Mmin': 'visbal2015',
- 'feedback_LW_felt_by': [0,1],
- 'feedback_LW_Tcut': 1e4,
- 'feedback_LW_maxiter': 15,
- 'feedback_LW_Mmin_rtol': 0,
- 'feedback_LW_Mmin_atol': 1.,
- 'feedback_LW_mean_err': False,
- 'feedback_LW_Mmin_uponly': False,
- 'feedback_LW_Mmin_smooth': False,
+ # By default, no feedback
+ 'feedback_LW': False,
 }
 
 exp_Mtr_rel = \
@@ -78,7 +71,7 @@ exp_Mtr_rel = \
   
   'pop_sed{2}': 'eldridge2009',
   'pop_binaries{2}': False,
-  'pop_Z{2}': 0.02,
+  'pop_Z{2}': 1e-3,
   'pop_Emin{2}': 10.19,
   'pop_Emax{2}': 24.6,
   'pop_rad_yield{2}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
@@ -99,7 +92,7 @@ exp_Mtr_rel = \
   # Other stuff needed for X-rays
   'pop_sfr_model{3}': 'link:sfrd:2',
   'pop_sed{3}': 'mcd',
-  'pop_Z{3}': 'pop_Z{0}',
+  'pop_Z{3}': 1e-3,
   'pop_rad_yield_Z_index{3}': None,
   'pop_Emin{3}': 2e2,
   'pop_Emax{3}': 3e4,
@@ -119,19 +112,14 @@ exp_Mtr_rel = \
   'pop_Tmin_ceil{0}': 1e4,
   'pop_Mmin{0}': 'link:Mmax_active:2',
   'pop_Tmin{2}': 500.,
+  'pop_Mmin{3}': 'pop_Mmin{2}',
+  'pop_Tmin{3}': None,
   'pop_Tmax{2}': 1e4,
 
   # Feedback
-  'feedback_LW_maxiter': 15,
-  'feedback_LW_mean_err': False, 
-  'feedback_LW_Mmin_rtol': 0,
-  'feedback_LW_Mmin_atol': 1.,
-
+  'feedback_LW': True,
   'feedback_LW_Mmin': 'visbal2015',
-  'feedback_LW_felt_by': [2,3],
-  'feedback_LW_Tcut': 1e4,
-  'feedback_LW_Mmin_uponly': False,
-  'feedback_LW_Mmin_smooth': False,
+  'feedback_LW_Tcut': 1e4, 
 }
 
 exp_Mtr_fix = exp_Mtr_rel.copy()

@@ -168,23 +168,31 @@ class SynthesisModel(object):
                 else:
                     self._wavelengths, _tmp = \
                         self.litinst._load(**self.pf)
-                        
+
+                # Shape is (Z, wavelength, time)?
                 to_interp = np.array(_tmp)
                 self._data_all_Z = to_interp
                 
+                # If outside table's range, just use endpoints
                 if self.pf['pop_Z'] > max(Zall):
                     _raw_data = np.log10(to_interp[-1])
                 elif self.pf['pop_Z'] < min(Zall):
                     _raw_data = np.log10(to_interp[0])
                 else:
+                    # If within range, interpolate
                     _raw_data = np.zeros_like(to_interp[0])
                     for i, t in enumerate(self.litinst.times):
                         inter = interp1d(np.log10(Zall), 
                             np.log10(to_interp[:,:,i]), axis=0, 
                             kind=self.pf['interp_Z'])
                         _raw_data[:,i] = inter(np.log10(self.pf['pop_Z']))
-                                
+                                                                
                 self._data = 10**_raw_data
+                
+                # By doing the interpolation in log-space we sometimes
+                # get ourselves into trouble in bins with zero flux. 
+                # Gotta correct for that!
+                self._data[np.argwhere(np.isnan(self._data))] = 0.0
                 
         return self._data
     
