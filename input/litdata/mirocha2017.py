@@ -117,8 +117,9 @@ exp_Mtr_rel = \
   'pop_Tmax{2}': 1e4,
 
   # Feedback
+  'feedback_LW': True,
   'feedback_LW_Mmin': 'visbal2015',
-  'feedback_LW_Tcut': 1e4,
+  'feedback_LW_Tcut': 1e4, 
 }
 
 exp_Mtr_fix = exp_Mtr_rel.copy()

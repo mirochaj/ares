@@ -453,15 +453,15 @@ class Global21cm(AnalyzeGlobal21cm):
 
         if write_pf:
 
-            pf = {}
-            for key in self.pf:
-                if key in self.carryover_kwargs():
-                    continue
-                pf[key] = self.pf[key]
+            #pf = {}
+            #for key in self.pf:
+            #    if key in self.carryover_kwargs():
+            #        continue
+            #    pf[key] = self.pf[key]
             
             # Save parameter file
             f = open('%s.parameters.pkl' % prefix, 'wb')
-            pickle.dump(pf, f, -1)
+            pickle.dump(self.pf, f, -1)
             f.close()
     
             print 'Wrote %s.parameters.pkl' % prefix

@@ -245,6 +245,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         if self.pf['feedback_clear_solver']:
             delattr(self, '_solver')
+            delattr(self, '_pops')
         else:
             delattr(self.solver, '_generators')
             #delattr(self.solver, '_emissivities')
