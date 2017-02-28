@@ -1,9 +1,10 @@
 """
-Priors.py
+File: $ARES/ares/inference/Priors.py
 
 Author: Keith Tauscher
 Affiliation: University of Colorado at Boulder
 Created on: Thu Mar 17 12:48:00 MDT 2016
+Updated on: Tue Feb 28 01:45:00 MDT 2017
 
 Description: This file contains different useful priors. For examples, see
              below and the test in tests/test_priors.py.
@@ -12,17 +13,17 @@ The included univariate priors (and their initializations, equals signs
 indicate optional parameters and their default values) are (pdf's apply only
 in support):
 
-(1) BetaPrior(alpha, beta)
-    (pdf) --- f(x) = x^(alpha - 1) * (1 - x)^(beta - 1) / Beta(alpha, beta)
-    (support) --- 0 < x < 1
-    (mean) --- alpha / (alpha+beta)
-    (variance) (alpha * beta) / (alpha + beta)^2 / (alpha + beta + 1)
-
-(2) GammaPrior(shape, scale=1)
+(1) GammaPrior(shape, scale=1)
     (pdf) --- f(x) = (x/scale)^(shape-1) * e^(-x/scale) / scale / Gamma(shape)
     (support) --- x > 0
     (mean) --- shape * scale
     (variance) --- shape * scale^2
+
+(2) BetaPrior(alpha, beta)
+    (pdf) --- f(x) = x^(alpha - 1) * (1 - x)^(beta - 1) / Beta(alpha, beta)
+    (support) --- 0 < x < 1
+    (mean) --- alpha / (alpha+beta)
+    (variance) (alpha * beta) / (alpha + beta)^2 / (alpha + beta + 1)
 
 (3) ExponentialPrior(rate, shift=0)
     (pdf) --- f(x) = rate * e^(-rate * (x - shift))
@@ -92,7 +93,6 @@ And the following multivariate priors are included:
     (mean) mean
     (variance) cov
 """
-
 import numpy as np
 import numpy.random as rand
 import numpy.linalg as lalg
@@ -133,11 +133,11 @@ def search_sorted(array, value):
         if (range_max - range_min) == 1:
             if (range_max == range_max_0) or (range_min == 0):
                 raise LookupError("For some reason, range_max-" +\
-                                          "range_min reached 1 before " +\
-                                          "the element was found. The " +\
-                                          "element being searched for " +\
-                                          ("was %s. (min,max)" % (value,) +\
-                                          ("=%s" % ((range_min, range_max),))))
+                                  "range_min reached 1 before " +\
+                                  "the element was found. The " +\
+                                  "element being searched for " +\
+                                  ("was %s. (min,max)" % (value,) +\
+                                  ("=%s" % ((range_min, range_max),))))
             else:
                 high_index = range_max
         else:
@@ -153,7 +153,7 @@ def search_sorted(array, value):
                 return high_index
             else:
                 return high_index - 1
-    raise NotImplementedError("Something went wrong! I " +\
+    raise NotImplementedError("Something went wrong! I got " +\
                               "caught a pseudo-infinite loop!")
 
 class _Prior():
@@ -168,6 +168,7 @@ class _Prior():
     self.log_prior(point) --- evaluates the log_prior at the given point
     self.numparams --- property, not function
     self.to_string() --- string summary of this prior
+    self.__eq__(other) --- checks for equality with another object
     
     In both of these functions, point is a configuration. It could be a
     single number for a univariate prior or a numpy.ndarray for a multivariate
@@ -224,6 +225,21 @@ class GammaPrior(_Prior):
         Finds and returns the string representation of this GammaPrior.
         """
         return "Gamma(%.2g, %.2g)" % (self.shape, self.scale)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality between other and this object. Returns True if
+        if other is a GammaPrior with nearly the same shape and scale (up to
+        dynamic range of 10^9) and False otherwise.
+        """
+        if isinstance(other, GammaPrior):
+            shape_close =\
+                np.isclose(self.shape, other.shape, rtol=1e-9, atol=0)
+            scale_close =\
+                np.isclose(self.scale, other.scale, rtol=1e-9, atol=0)
+            return shape_close and scale_close
+        else:
+            return False
 
     def _check_if_greater_than_zero(self, value, name):
         #
@@ -297,6 +313,20 @@ class BetaPrior(_Prior):
         Finds and returns a string representation of this BetaPrior.
         """
         return "Beta(%.2g, %.2g)" % (self.alpha, self.beta)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this object with other. Returns True if other is
+        a BetaPrior with nearly the same alpha and beta (down to 10^-9 level)
+        and False otherwise.
+        """
+        if isinstance(other, BetaPrior):
+            alpha_close =\
+                np.isclose(self.alpha, other.alpha, rtol=1e-9, atol=0)
+            beta_close = np.isclose(self.beta, other.beta, rtol=1e-9, atol=0)
+            return alpha_close and beta_close
+        else:
+            return False
 
 class ExponentialPrior(_Prior):
     """
@@ -360,11 +390,38 @@ class ExponentialPrior(_Prior):
             return "Exp(%.2g, shift=%.2g)" %\
                 (self.rate, self.shift)
         return "Exp(%.2g)" % (self.rate,)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        an ExponentialPrior with the same rate (to 10^9 dynamic range) and
+        shift (down to 1e-9) and False otherwise.
+        """
+        if isinstance(other, ExponentialPrior):
+            rate_close = np.isclose(self.rate, other.rate, rtol=1e-9, atol=0)
+            shift_close =\
+                np.isclose(self.shift, other.shift, rtol=0, atol=1e-9)
+            return rate_close and shift_close
+        else:
+            return False
 
 class EllipticalPrior(_Prior):
     """
+    Prior on a set of variables where the variables are equally likely to be
+    at any point within an ellipsoid (defined by mean and cov). It is a uniform
+    prior over an arbitrary ellipsoid.
     """
     def __init__(self, mean, cov):
+        """
+        Initializes this UniformPrior using properties of the ellipsoid
+        defining it.
+        
+        mean the center of the ellipse defining this prior
+        cov the covariance describing the ellipse defining this prior. A
+            consequence of this definition is that, in order for a point, x, to
+            be in the ellipse, (x-mean)^T*cov^-1*(x-mean) < N+2 must be
+            satisfied
+        """
         try:
             self.mean = np.array(mean)
         except:
@@ -398,11 +455,21 @@ class EllipticalPrior(_Prior):
 
     @property
     def numparams(self):
+        """
+        The number of parameters which are represented in this prior.
+        """
         if not hasattr(self, '_numparams'):
             self._numparams = len(self.mean)
         return self._numparams
 
     def draw(self):
+        """
+        Draws a random vector from this uniform elliptical distribution. By the
+        definition of this class, the point it draws is equally likely to lie
+        anywhere inside the ellipse defining this prior.
+        
+        returns numpy.ndarray of containing random variates for each parameter
+        """
         xi = _normed(rand.randn(self.numparams))
         # xi is now random directional unit vector
         radial_cdf = rand.rand()
@@ -412,6 +479,16 @@ class EllipticalPrior(_Prior):
         return self.mean + deviation
     
     def log_prior(self, value):
+        """
+        Evaluates the log of this prior at the given value.
+        
+        value the vector value of parameters at which to calculate the
+              numerical value of this prior
+        
+        returns if value is inside ellipse, ln(V) where V is volume of
+                                            ellipsoid
+                if value is outside ellipse, -np.inf
+        """
         centered_value = np.array(value) - self.mean
         matprod = np.dot(np.dot(centered_value, self.invcov), centered_value)
         if (matprod <= (self.numparams + 2)):
@@ -420,7 +497,29 @@ class EllipticalPrior(_Prior):
             return -np.inf
 
     def to_string(self):
+        """
+        Gives a simple string (of the form: "N-dim elliptical" where N is the
+        number of parameters) summary of this prior.
+        """
         return ('%i-dim elliptical' % (self.numparams,))
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        an EllipticalPrior of the same dimension with the same mean (down to
+        10^-9 level) and covariance (down to dynamic range of 10^-12) and False
+        otherwise.
+        """
+        if isinstance(other, EllipticalPrior):
+            if self.numparams == other.numparams:
+                mean_close =\
+                    np.allclose(self.mean, other.mean, rtol=0, atol=1e-9)
+                cov_close = np.allclose(self.cov, other.cov, rtol=1e-12, atol=0)
+                return mean_close and cov_close
+            else:
+                return False
+        else:
+            return False
 
 class UniformPrior(_Prior):
     """
@@ -480,6 +579,19 @@ class UniformPrior(_Prior):
         Finds and returns a string representation of this UniformPrior.
         """
         return "Unif(%.2g, %.2g)" % (self.low, self.high)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a UniformPrior with the same high and low (down to 1e-9 level) and
+        False otherwise.
+        """
+        if isinstance(other, UniformPrior):
+            low_close = np.isclose(self.low, other.low, rtol=0, atol=1e-9)
+            high_close = np.isclose(self.high, other.high, rtol=0, atol=1e-9)
+            return low_close and high_close
+        else:
+            return False
 
 class TruncatedGaussianPrior(_Prior):
     """
@@ -554,6 +666,33 @@ class TruncatedGaussianPrior(_Prior):
             high_string = "%.1g" % (self.hi,)
         return "Normal(%.2g, %.2g) on [%s,%s]" %\
             (self.mean, self.var, low_string, high_string)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior to other. Returns True if other is a
+        TruncatedGaussianPrior with the same mean (down to 10^-9 level) and
+        variance (down to 10^-12 dynamic range), and hi and lo (down to 10^-9
+        level) and False otherwise.
+        """
+        if isinstance(other, TruncatedGaussianPrior):
+            mean_close = np.isclose(self.mean, other.mean, rtol=0, atol=1e-9)
+            var_close = np.isclose(self.var, other.var, rtol=1e-12, atol=0)
+            if self.hi is None:
+                hi_close = (other.hi is None)
+            elif other.hi is not None:
+                hi_close = np.isclose(self.hi, other.hi, rtol=0, atol=1e-9)
+            else:
+                # since self.hi is not None in this block, just return False
+                return False
+            if self.lo is None:
+                lo_close = (other.lo is None)
+            elif other.lo is not None:
+                lo_close = np.isclose(self.lo, other.lo, rtol=0, atol=1e-9)
+            else:
+                return False
+            return mean_close and var_close and hi_close and lo_close
+        else:
+            return False
 
 ########### Multivariate priors (Gaussian can also be univariate) #############
 
@@ -690,6 +829,22 @@ class GaussianPrior(_Prior):
                 (self.mean.A[0,0], self.covariance.A[0,0])
         else:
             return "%i-dim Normal" % (len(self.mean.A[0]),)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a GaussianPrior with the same mean (down to 10^-9 level) and variance
+        (down to 10^-12 dynamic range) and False otherwise.
+        """
+        if isinstance(other, GaussianPrior):
+            if self.numparams == other.numparams:
+                mean_close =\
+                    np.allclose(self.mean.A, other.mean.A, rtol=0, atol=1e-9)
+                covariance_close = np.allclose(self.covariance.A,\
+                    other.covariance.A, rtol=1e-12, atol=0)
+            return mean_close and covariance_close
+        else:
+            return False
 
 
 class ParallelepipedPrior(_Prior):
@@ -869,14 +1024,31 @@ class ParallelepipedPrior(_Prior):
             return_val =\
                 (return_val and (np.abs(dotp) <= np.abs(self.distances[i])))
         return return_val
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a ParallelepipedPrior with the same center, face_directions, and
+        distances (to a dynamic range of 10^-9) and False otherwise.
+        """
+        if isinstance(other, ParallelepipedPrior):
+            center_close =\
+                np.allclose(self.center, other.center, rtol=1e-9, atol=0)
+            face_directions_close = np.allclose(self.face_directions.A,\
+                other.face_directions.A, rtol=1e-9, atol=0)
+            distances_close =\
+                np.allclose(self.distances, other.distances, rtol=1e-9, atol=0)
+            return center_close and face_directions_close and distances_close
+        else:
+            return False
 
 
 class LinkedPrior(_Prior):
     """
     Class representing a prior which is shared by an arbitrary number of
-    parameters. It piggybacks on another prior (called the "shared_prior") by
-    drawing from it and evaluating its log_prior while ensuring that the
-    variables linked by this prior must be identical.
+    parameters. It piggybacks on another (univariate) prior (called the
+    "shared_prior") by drawing from it and evaluating its log_prior while
+    ensuring that the variables linked by this prior must be identical.
     """
     def __init__(self, shared_prior, numpars):
         """
@@ -954,6 +1126,16 @@ class LinkedPrior(_Prior):
         Finds and returns a string representation of this LinkedPrior.
         """
         return "Linked(%s)" % (self.shared_prior.to_string(),)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a LinkedPrior with the same number of parameters and the same shared
+        prior distribution and False otherwise.
+        """
+        numparams_equal = (self.numparams == other.numparams)
+        shared_prior_equal = (self.shared_prior == other.shared_prior)
+        return numparams_equal and shared_prior_equal
 
 
 class SequentialPrior(_Prior):
@@ -1037,6 +1219,16 @@ class SequentialPrior(_Prior):
         Finds and returns a string representation of this SequentialPrior.
         """
         return "Sequential(%s)" % (self.shared_prior.to_string(),)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a SequentialPrior with the same number of parameters and the same
+        shared prior distribution and False otherwise.
+        """
+        numparams_equal = (self.numparams == other.numparams)
+        shared_prior_equal = (self.shared_prior == other.shared_prior)
+        return numparams_equal and shared_prior_equal
 
 class GriddedPrior(_Prior):
     """
@@ -1048,7 +1240,7 @@ class GriddedPrior(_Prior):
         Initializes a new GriddedPrior using the given variables.
         
         variables list of variable ranges (i.e. len(variables) == ndim
-                  and variables[i] is the range of the ith variable)
+                  and variables[i] is the set of the ith variables)
         pdf numpy.ndarray with same ndim as number of parameters and with
               the ith axis having the same length as the ith variables range
         """
@@ -1123,6 +1315,27 @@ class GriddedPrior(_Prior):
         Finds and returns a string representation of this GriddedPrior.
         """
         return "Gridded(user defined)"
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a GriddedPrior with the same variable ranges and pdf and False
+        otherwise.
+        """
+        if isinstance(other, GriddedPrior):
+            if self.numparams == other.numparams:
+                vars_close =\
+                    np.allclose(self.vars, other.vars, rtol=0, atol=1e-9)
+                if self.shape == other.shape:
+                    pdf_close =\
+                        np.allclose(self.pdf, other.pdf, rtol=0, atol=1e-12)
+                    return vars_close and pdf_close
+                else:
+                    return False
+            else:
+                return False
+        else:
+            return False
 
     def _make_cdf(self):
         #

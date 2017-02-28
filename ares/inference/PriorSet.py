@@ -1,9 +1,10 @@
 """
-PriorSet.py
+File: $ARES/ares/inference/PriorSet.py
 
 Author: Keith Tauscher
 Affiliation: University of Colorado at Boulder
 Created on: Sat Mar 19 15:01:00 2016
+Updated on: Tue Feb 28 00:37:34 2017
 
 Description: A container which can hold an arbitrary number of priors, each of
              which can have any number of parameters which it describes (as
@@ -21,9 +22,9 @@ import numpy as np
 from .Priors import _Prior
 
 list_types = [list, tuple, np.ndarray]
-valid_transforms = ['log', 'log10', 'square', 'arcsin']
+valid_transforms = ['log', 'log10', 'square', 'arcsin', 'logistic']
 
-lnln10 = np.log(np.log(10))
+ln10 = np.log(10)
 
 def _check_if_valid_transform(transform):
     #
@@ -49,11 +50,13 @@ def _log_prior_addition(value, transform):
     elif transform == 'log':
         return -1. * np.log(value)
     elif transform == 'log10':
-        return -1. * np.log(value) - lnln10
+        return -1. * np.log(ln10 * value)
     elif transform == 'square':
         return np.log(2 * value)
     elif transform == 'arcsin':
         return -np.log(1.-np.power(value, 2.)) / 2.
+    elif transform == 'logistic':
+        return -np.log(value * (1. - value))
     else:
         raise ValueError("For some reason the _log_prior_addition " +\
                          "function wasn't implemented for the transform " +\
@@ -73,6 +76,8 @@ def _apply_transform(value, transform):
         return np.power(value, 2.)
     elif transform == 'arcsin':
         return np.arcsin(value)
+    elif transform == 'logistic':
+        return np.log(value / (1. - value))
     else:
         raise ValueError("Something went wrong and an attempt to evaluate " +\
                          "an invalid transform was made. This should " +\
@@ -93,6 +98,8 @@ def _apply_inverse_transform(value, transform):
         return np.sqrt(value)
     elif transform == 'arcsin':
         return np.sin(value)
+    elif transform == 'logistic':
+        return 1 / (1. + (np.e ** (-value)))
     else:
         raise ValueError("Something went wrong and an attempt to evaluate" +\
                          " an invalid (inverse) transform was made. This" +\
@@ -175,8 +182,8 @@ class PriorSet(object):
                                      "prior being provided was multivariate.")
             elif type(transforms) in list_types:
                 if len(transforms) == prior.numparams:
-                    for itran in range(len(transforms)):
-                        _check_if_valid_transform(transforms[itran])
+                    for itransform in range(len(transforms)):
+                        _check_if_valid_transform(transforms[itransform])
                 else:
                     raise ValueError("The list of transforms applied to " +\
                                      "parameters in a PriorSet was not " +\
@@ -292,8 +299,14 @@ class PriorSet(object):
             for iparam in range(len(these_params)):
                 if parameter == these_params[iparam]:
                     return (this_prior, iparam, these_transforms[iparam])
-        raise ValueError(("The parameter searched for (%s)" % (parameter,)) +\
+        raise ValueError(("The parameter searched for (%s) " % (parameter,)) +\
                          "in a PriorSet was not found.")
+    
+    def __getitem__(self, parameter):
+        """
+        Returns the same thing as: self.find_prior(parameter)
+        """
+        return self.find_prior(parameter)
 
     def delete_prior(self, parameter, throw_error=True):
         """
@@ -317,7 +330,14 @@ class PriorSet(object):
                 raise ValueError('The parameter given to ' +\
                                  'PriorSet.delete_prior was not in ' +\
                                  'the PriorSet.')
-
+    
+    def __delitem__(self, parameter):
+        """
+        Deletes the prior associated with the given parameter. For
+        documentation, see delete_prior function.
+        """
+        self.delete_prior(parameter, throw_error=True)
+    
     def parameter_strings(self, parameter):
         """
         Makes an informative string about this parameter's place in this
@@ -333,12 +353,55 @@ class PriorSet(object):
             string += (self._numerical_adjective(index) + ' param of ')
         string += prior.to_string()
         return (string, transform)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this PriorSet with other. Returns True if other
+        has the same prior_tuples (though they need not be internally stored in
+        the same order) and False otherwise.
+        """
+        def prior_tuples_equal(first, second):
+            #
+            # Checks whether two prior_tuple's are equal. Returns True if the
+            # prior, params, and transforms stored in first are the same as
+            # those stored in second and False otherwise.
+            #
+            fprior, fparams, ftfms = first
+            sprior, sparams, stfms = second
+            numparams = fprior.numparams
+            if sprior.numparams == numparams:
+                for iparam in range(numparams):
+                    if fparams[iparam] != sparams[iparam]:
+                        return False
+                    if ftfms[iparam] != sparams[iparam]:
+                        return False
+                return (fprior == sprior)
+            else:
+                return False
+        if isinstance(other, PriorSet):
+            numtuples = len(self._data)
+            if len(other._data) == numtuples:
+                for iprior_tuple in range(numtuples):
+                    match = False
+                    prior_tuple = self._data[iprior_tuple]
+                    for other_prior_tuple in other._data:
+                        if prior_tuples_equal(prior_tuple, other_prior_tuple):
+                            match = True
+                            break
+                    if not match:
+                        return False
+                return True
+            else:
+                return False        
+        else:
+            return False
 
     def _numerical_adjective(self, num):
         #
         # Creates a numerical adjective, such as '1st', '2nd', '6th' and so on.
         #
-        if (type(num) in [int, np.int32, np.int64]) and (num >= 0):
+        if (type(num) in [int, np.int8, np.int16, np.int32, np.int64]) and\
+            (num >= 0):
             base_string = str(num)
             if num == 0:
                 return '0th'
