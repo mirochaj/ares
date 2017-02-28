@@ -30,7 +30,6 @@ def symmetrize_errors(mu, err):
     err1 = 10**logphi_ML - phi_lo
     err2 = phi_hi - 10**logphi_ML
     
-    print mu, 10**mu, err1, err2, np.mean([err1, err2])
     return err1, err2
 
 def Gauss1D(x, pars):
