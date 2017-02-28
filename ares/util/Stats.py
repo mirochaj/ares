@@ -18,7 +18,7 @@ from scipy.interpolate import griddata
 def symmetrize_errors(mu, err):
     
     if type(err) not in [int, float]:
-        err = np.mean(err)
+        err = np.mean(np.abs(err))
 
     logphi_ML = mu
     logphi_lo_tmp = logphi_ML - err   # log10 phi
@@ -30,6 +30,7 @@ def symmetrize_errors(mu, err):
     err1 = 10**logphi_ML - phi_lo
     err2 = phi_hi - 10**logphi_ML
     
+    print mu, 10**mu, err1, err2, np.mean([err1, err2])
     return err1, err2
 
 def Gauss1D(x, pars):

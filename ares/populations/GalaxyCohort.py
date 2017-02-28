@@ -643,14 +643,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
         return self._tab_eta_
 
-    def SFR(self, z, M, mu=0.6):
+    def SFR(self, z, Mh, mu=0.6):
         """
         Star formation rate at redshift z in a halo of mass M.
         
         ..note:: Units should be solar masses per year at this point.
         """
         
-        return self.pSFR(z, M, mu) * self.SFE(z=z, Mh=M)
+        return self.pSFR(z, Mh, mu) * self.SFE(z=z, Mh=Mh)
 
     def pSFR(self, z, M, mu=0.6):
         """
@@ -712,26 +712,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             return rhoL
             
-    def SMHM(self, z, M):
-        zform, data = self.scaling_relations
-        
-        sorter = np.argsort(data['Mh'])
-        
-        # Can't remember what this is all about.
-        if self.constant_SFE:
-            sorter = np.argsort(data['Mh'])
-            Mh = data['Mh'][sorter]
-            Ms = data['Ms'][sorter]
-        else:
-            k = np.argmin(np.abs(z - self.halos.z))
-            Mh = data['Mh'][:,k]
-            Ms = data['Ms'][:,k]
-            
-            sorter = np.argsort(Mh)
-            Mh = Mh[sorter]
-            Ms = Ms[sorter]
-        
+    def StellarMass(self, z, Mh):
+        data = self.scaling_relations_sorted
+        return np.interp(Mh, data['Mh'], data['Ms'])
+    
+    def MetalMass(self, z, Mh):
+        data = self.scaling_relations_sorted
+        return np.interp(Mh, data['Mh'], data['MZ'])
 
+    def GasMass(self, z, Mh):
+        data = self.scaling_relations_sorted
+        return np.interp(Mh, data['Mh'], data['Mg'])
+        
     def StellarMassFunction(self, z, M):
         Marr, phi = self.SMF(z)
         return np.interp(M, Marr, phi)
@@ -1372,7 +1364,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         Mh, Mg, Mst, MZ = y
         
-        kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg}
+        kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg, 'MZ': MZ}
         
         fstar = self.SFE(**kw)
 
@@ -1479,6 +1471,37 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._scaling_relations = self._ScalingRelationsGeneralSFE()
             
         return self._scaling_relations    
+    
+    @property
+    def scaling_relations_sorted(self):
+        """
+        
+        """
+        if not hasattr(self, '_scaling_relations_sorted'):
+            zform, data = self.scaling_relations
+            
+            sorter = np.argsort(data['Mh'])
+            
+            new_data = {}
+            
+            # Can't remember what this is all about.
+            if self.constant_SFE:
+                sorter = np.argsort(data['Mh'])
+                for key in data.keys():
+                    new_data[key] = data[key][sorter]
+            else:
+                raise NotImplementedError('sorry dude')
+                #k = np.argmin(np.abs(z - self.halos.z))
+                #Mh = data['Mh'][:,k]
+                #Ms = data['Ms'][:,k]
+                #
+                #sorter = np.argsort(Mh)
+                #Mh = Mh[sorter]
+                #Ms = Ms[sorter]
+                
+            self._scaling_relations_sorted = new_data
+            
+        return self._scaling_relations_sorted
             
     def _ScalingRelationsGeneralSFE(self):
         """

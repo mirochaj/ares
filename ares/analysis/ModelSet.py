@@ -1086,7 +1086,7 @@ class ModelSet(BlobFactory):
         self._plot_info = value
         
     def WalkerTrajectoriesMultiPlot(self, pars=None, N=50, walkers='random', 
-        ax=None, fig=1, mp_kwargs={}, best_fit='mode', **kwargs):
+        ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
         """
@@ -1095,7 +1095,8 @@ class ModelSet(BlobFactory):
             pars = self.parameters
         
         Npars = len(pars)
-        mp = MultiPanel(dims=(Npars, 1), fig=fig, padding=(0, 0.1), **mp_kwargs)
+        mp = MultiPanel(dims=(Npars/ncols, ncols), fig=fig, 
+            padding=(0.3, 0.1), **mp_kwargs)
         
         w = self._get_walker_subset(N, walkers)
         
@@ -1147,7 +1148,7 @@ class ModelSet(BlobFactory):
         
         for i in to_plot:
             data, mask = self.get_walker(i)
-            ax.plot(data[:,self.parameters.index(par)])
+            ax.plot(data[:,self.parameters.index(par)], **kwargs)
 
         self.set_axis_labels(ax, ['step', par], take_log=False, un_log=False,
             labels={})
@@ -3086,7 +3087,7 @@ class ModelSet(BlobFactory):
         
         return mp
         
-    def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
+    def ReconstructedFunction(self, names, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
         best='maxL', fill=True, show_all=False, **kwargs):
@@ -3096,7 +3097,7 @@ class ModelSet(BlobFactory):
         Parameters
         ----------
         name : str
-            Name of blob you're interested in.
+            Name of blob(s) you're interested in.
         ivar : list, np.ndarray
             List of values (or nested list) of independent variables. If 
             blob is 2-D, only need to provide the independent variable for
@@ -3127,27 +3128,31 @@ class ModelSet(BlobFactory):
         
         if percentile:    
             q1 = 0.5 * 100 * (1. - percentile)    
-            q2 = 100 * percentile + q1    
-        
-        info = self.blob_info(name)
-        nd = info[2]
-        
-        if nd == 1:
-            ivars = np.atleast_2d(self.blob_ivars[info[0]])
-        else:
-            ivars = self.blob_ivars[info[0]]
-        
-        if nd != 1 and (ivar is None):
-            raise NotImplemented('If not 1-D blob, must supply one ivar!')
-                
-        # Grab the maximum likelihood point 'cuz why not
-        if self.is_mcmc:
-            if best == 'median':
-                N = len(self.logL)
-                psorted = np.argsort(self.logL)
-                loc = psorted[int(N / 2.)]
+            q2 = 100 * percentile + q1   
+            
+        if type(names) is str:
+            names = [names]
+            
+        for name in names:
+            info = self.blob_info(name)
+            nd = info[2]
+            
+            if nd == 1:
+                ivars = np.atleast_2d(self.blob_ivars[info[0]])
             else:
-                loc = np.argmax(self.logL[skip:stop])
+                ivars = self.blob_ivars[info[0]]
+            
+            if nd != 1 and (ivar is None):
+                raise NotImplemented('If not 1-D blob, must supply one ivar!')
+                    
+            # Grab the maximum likelihood point 'cuz why not
+            if self.is_mcmc:
+                if best == 'median':
+                    N = len(self.logL)
+                    psorted = np.argsort(self.logL)
+                    loc = psorted[int(N / 2.)]
+                else:
+                    loc = np.argmax(self.logL[skip:stop])
         
         # 1-D case 
         if nd == 1:
@@ -3196,7 +3201,7 @@ class ModelSet(BlobFactory):
                 elif percentile:
                     lo, hi = np.percentile(data[name][skip:stop].compressed(),
                         (q1, q2))
-                    y.append((lo, hi))    
+                    y.append((lo, hi))
                 else:
                     dat = data[name][skip:stop].compressed()
                     lo, hi = dat.min(), dat.max()
@@ -3236,7 +3241,7 @@ class ModelSet(BlobFactory):
                  
         if return_data:
             return ax, xarr, y
-        else:            
+        else:
             return ax
         
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
@@ -3244,18 +3249,18 @@ class ModelSet(BlobFactory):
         plot_bands=False, limit=None, **kwargs):
         """
         Plot constraints on the redshift evolution of given quantity.
-        
+
         Parameters
         ----------
         blob : str
-            
+
         Note
         ----
         If you get a "ValueError: attempt to get argmin of an empty sequence"
         you might consider setting take_log=True.    
-            
+
         """    
-        
+
         if plot_bands and (limit is not None):
             raise ValueError('Choose bands or a limit, not both!')
         

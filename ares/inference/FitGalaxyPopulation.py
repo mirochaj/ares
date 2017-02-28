@@ -67,7 +67,7 @@ class loglikelihood(LogLikelihood):
             if type(self.xdata) is np.ma.core.MaskedArray:
                 self._mask = self.xdata.mask
             else:
-                self._mask = np.zeros(len(self.xdata))    
+                self._mask = np.zeros(len(self.xdata))
 
         return self._mask
 
@@ -132,7 +132,7 @@ class loglikelihood(LogLikelihood):
         lnL = 0.0        
         
         t1 = time.time()
-        
+                
         # Loop over all data points individually.
         phi = np.zeros_like(self.ydata)
         for i, quantity in enumerate(self.metadata):
@@ -346,7 +346,7 @@ class FitGalaxyPopulation(ModelFit):
                             
                         self._xdata_flat.extend(M)
                         
-                        if self.units[quantity][i] == 'log10':
+                        if self.units[quantity] == 'log10':
                             self._ydata_flat.extend(10**phi)
                         else:    
                             self._ydata_flat.extend(phi)
@@ -354,8 +354,8 @@ class FitGalaxyPopulation(ModelFit):
                         # Cludge for asymmetric errors
                         for k, _err in enumerate(err):
                         
-                            if self.units[quantity][i] == 'log10':
-                                _err_ = np.mean(symmetrize_errors(phi, _err))
+                            if self.units[quantity] == 'log10':
+                                _err_ = np.mean(symmetrize_errors(phi[k], _err))
                             else:
                                 _err_ = _err
                             
