@@ -25,5 +25,5 @@ data['lf'] = \
       },               
 }
 
-units = {'phi': 1.}
+units = {'lf': 1.}
 

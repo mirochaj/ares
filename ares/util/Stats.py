@@ -15,6 +15,23 @@ from scipy.optimize import fmin
 from scipy.integrate import quad
 from scipy.interpolate import griddata
 
+def symmetrize_errors(mu, err):
+    
+    if type(err) not in [int, float]:
+        err = np.mean(err)
+
+    logphi_ML = mu
+    logphi_lo_tmp = logphi_ML - err   # log10 phi
+    logphi_hi_tmp = logphi_ML + err   # log10 phi
+    
+    phi_lo = 10**logphi_lo_tmp
+    phi_hi = 10**logphi_hi_tmp
+    
+    err1 = 10**logphi_ML - phi_lo
+    err2 = phi_hi - 10**logphi_ML
+    
+    return err1, err2
+
 def Gauss1D(x, pars):
     """
     Parameters

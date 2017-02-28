@@ -202,11 +202,15 @@ pop_parameters = \
 {
  'pop_Z': r'$Z/Z_{\odot}$',
  'pop_lf_beta': r'$\Beta_{\mathrm{UV}}$',
+ 'pop_fstar': r'$f_{\ast}$',
+ 'pop_fobsc': r'$f_{\mathrm{obsc}}$',
 }
 
 sfe_parameters = \
 {
+ "lf": r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
  "galaxy_lf": r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ "smf": r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$',
 }
 
 for i in range(6):
@@ -299,6 +303,17 @@ class Labeler(object):
         
         prefix, popid, phpid = par_info(par)
                 
+        # Correct prefix is phpid is not None
+        if phpid is not None:
+            s = 'pq[%i]' % phpid
+                
+            for _par in self.base_kwargs:
+                if self.base_kwargs[_par] != s:
+                    continue
+                break
+                
+            prefix = _par        
+                
         units = self.units(prefix)
         
         label = None
@@ -310,7 +325,8 @@ class Labeler(object):
         elif (popid is not None) and (phpid is None) and (prefix in self.labels):
             label = self.labels[prefix]
         elif phpid is not None and (prefix in self.labels):
-            label = r'$%s[%.2g]$' % (undo_mathify(self.labels[prefix]), phpid)
+            parnum = int(re.findall(r'\d+', par)[0])
+            label = r'$%s^{\mathrm{par}\ %i}$' % (undo_mathify(self.labels[prefix]), parnum)
         elif (popid is not None) and (phpid is None) and (prefix not in self.labels):
             try:
                 hard = self._find_par(popid, phpid)

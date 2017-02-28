@@ -15,6 +15,7 @@ from ..util import read_lit
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
 from matplotlib.patches import Patch
+from ..util.Stats import symmetrize_errors
 
 datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
     'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
@@ -90,14 +91,12 @@ class GalaxyPopulation(object):
             else:
                 data[source]['M'] = np.array(M)
             
-            if src.units['phi'] == 'log10':
+            if src.units[quantity] == 'log10':
                 err_lo = []; err_hi = []; uplims = []
                 for i, err in enumerate(src.data[quantity][z]['err']):
                     
                     if type(err) not in [int, float]:
                         err = np.mean(err)
-                        #raise NotImplemented('help!')
-                        print "WARNING: log10 asymmetric errors not great!"
                         
                     logphi_ML = src.data[quantity][z]['phi'][i]
                     

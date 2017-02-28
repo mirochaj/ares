@@ -200,14 +200,14 @@ class BlobFactory(object):
                     if type(self._blob_ivars[i]) is np.ndarray:
                         lenarr = len(self._blob_ivars[i].shape)
                         assert lenarr == 1
-                        
+
                         self._blob_nd.append(1)
                         dims = len(self._blob_ivars[i]),
                         self._blob_dims.append(dims)
                     else:
 
                         self._blob_nd.append(len(self._blob_ivars[i]))
-                        
+
                         dims = tuple([len(element2) \
                             for element2 in self._blob_ivars[i]])
                         self._blob_dims.append(dims)
@@ -450,7 +450,8 @@ class BlobFactory(object):
                             func = (_xx, _yy)
                                                         
                         if ismethod(func) or isinstance(func, interp1d) or \
-                            (type(func) == FunctionType):
+                            (type(func) == FunctionType) \
+                            or hasattr(func, '__call__'):
                             blob = np.array(map(func, x))
                         else:
                             blob = np.interp(x, func[0], func[1])
@@ -459,10 +460,11 @@ class BlobFactory(object):
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]
                     tmp_f = parse_attribute(fname, self)
-                    
+
                     xarr, yarr = map(np.array, self.blob_ivars[i])
-                    
-                    if (type(tmp_f) is FunctionType) or ismethod(tmp_f):
+
+                    if (type(tmp_f) is FunctionType) or ismethod(tmp_f) \
+                        or hasattr(func, '__call__'):
                         func = tmp_f
                     elif type(tmp_f) is tuple:
                         z, E, flux = tmp_f

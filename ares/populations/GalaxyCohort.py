@@ -16,6 +16,7 @@ from ..util import read_lit
 from types import FunctionType
 from scipy.optimize import fsolve, minimize
 from .GalaxyAggregate import GalaxyAggregate
+from ..analysis.BlobFactory import BlobFactory
 from ..util import MagnitudeSystem, ProgressBar
 from ..phenom.DustCorrection import DustCorrection
 from scipy.integrate import quad, simps, cumtrapz, ode
@@ -36,7 +37,7 @@ z0 = 9. # arbitrary
 tiny_phi = 1e-18
 _sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr']
     
-class GalaxyCohort(GalaxyAggregate):
+class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
     @property
     def dust(self):
@@ -710,8 +711,32 @@ class GalaxyCohort(GalaxyAggregate):
             return rhoL * self.src.Spectrum(E)
         else:
             return rhoL
+            
+    def SMHM(self, z, M):
+        zform, data = self.scaling_relations
+        
+        sorter = np.argsort(data['Mh'])
+        
+        # Can't remember what this is all about.
+        if self.constant_SFE:
+            sorter = np.argsort(data['Mh'])
+            Mh = data['Mh'][sorter]
+            Ms = data['Ms'][sorter]
+        else:
+            k = np.argmin(np.abs(z - self.halos.z))
+            Mh = data['Mh'][:,k]
+            Ms = data['Ms'][:,k]
+            
+            sorter = np.argsort(Mh)
+            Mh = Mh[sorter]
+            Ms = Ms[sorter]
+        
 
-    def StellarMassFunction(self, z):
+    def StellarMassFunction(self, z, M):
+        Marr, phi = self.SMF(z)
+        return np.interp(M, Marr, phi)
+
+    def SMF(self, z):
         if not hasattr(self, '_phi_of_Mst'):
             self._phi_of_Mst = {}
         else:
@@ -722,6 +747,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         sorter = np.argsort(data['Mh'])
         
+        # Can't remember what this is all about.
         if self.constant_SFE:
             sorter = np.argsort(data['Mh'])
             Mh = data['Mh'][sorter]

@@ -98,7 +98,7 @@ for redshift in tmp_data['lf'].keys():
         tmp_data['lf'][redshift]['err'][i] = \
             tuple(tmp_data['lf'][redshift]['err'][i])
 
-units = {'phi': 1.}
+units = {'lf': 1.}
 
 data = {}
 data['lf'] = {}

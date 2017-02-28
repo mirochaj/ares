@@ -42,7 +42,7 @@ data['lf'] = \
 }
 
 
-units = {'phi': 'log10'}
+units = {'lf': 'log10'}
 
 
 

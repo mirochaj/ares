@@ -65,7 +65,7 @@ tmp_data['smf'] = \
       },
 }
 
-units = {'phi': 'log10'}
+units = {'smf': 'log10'}
 
 data = {}
 data['smf'] = {}

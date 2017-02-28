@@ -10,28 +10,16 @@ Description:
 
 """
 
+import time
+import pickle
 import numpy as np
 from ..util import read_lit
-from .ModelFit import LogLikelihood
 from ..util.PrintInfo import print_fit
-from .FitGlobal21cm import FitGlobal21cm
 import gc, os, sys, copy, types, time, re
 from ..util.ParameterFile import par_info
-from ..simulations import Global21cm as simG21
-from ..simulations import MultiPhaseMedium as simMPM
-from ..analysis.InlineAnalysis import InlineAnalysis
-from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts, \
-    SetAllDefaults
-
-try:
-    import dill as pickle
-except:
-    import pickle
-
-try:
-    from emcee.utils import sample_ball
-except ImportError:
-    pass
+from ..populations import GalaxyPopulation
+from ..util.Stats import symmetrize_errors
+from .ModelFit import LogLikelihood, ModelFit
 
 try:
     from mpi4py import MPI
@@ -43,31 +31,7 @@ except ImportError:
     
 twopi = 2. * np.pi
 
-defaults = SetAllDefaults()
-
-def _which_sim_inst(**kw):
-    if 'include_igm' in kw:
-        if kw['include_igm']:
-            _sim_class = simG21
-        else:
-            _sim_class = simMPM
-    elif defaults['include_igm']:
-        _sim_class = simG21
-    else:
-        _sim_class = simMPM
-    
-    return _sim_class
-
 class loglikelihood(LogLikelihood):
-
-    @property
-    def runsim(self):
-        if not hasattr(self, '_runsim'):
-            self._runsim = True
-        return self._runsim
-    @runsim.setter
-    def runsim(self, value):
-        self._runsim = value
 
     @property
     def redshifts(self):
@@ -75,20 +39,52 @@ class loglikelihood(LogLikelihood):
     @redshifts.setter
     def redshifts(self, value):
         self._redshifts = value
-
+    
     @property
-    def sim_class(self):
-        if not hasattr(self, '_sim_class'):
-            self._sim_class = _which_sim_inst(**self.base_kwargs)        
-                
-        return self._sim_class
-        
+    def metadata(self):
+        return self._metadata
+    @metadata.setter
+    def metadata(self, value):
+        self._metadata = value   
+    
+    @property
+    def units(self):
+        return self._units
+    @units.setter
+    def units(self, value):
+        self._units = value     
+    
     @property
     def const_term(self):
         if not hasattr(self, '_const_term'):
             self._const_term = -np.log(np.sqrt(twopi)) \
                              -  np.sum(np.log(self.error))
-        return self._const_term                     
+        return self._const_term
+        
+    @property
+    def mask(self):
+        if not hasattr(self, '_mask'):
+            if type(self.xdata) is np.ma.core.MaskedArray:
+                self._mask = self.xdata.mask
+            else:
+                self._mask = np.zeros(len(self.xdata))    
+
+        return self._mask
+
+    @property
+    def include(self):
+        if not hasattr(self, '_include'):
+
+            assert self.metadata is not None
+            
+            self._include = []
+            for item in self.metadata:
+                if item in self._include:
+                    continue
+                
+                self._include.append(item)
+                
+        return self._include
 
     def __call__(self, pars, blobs=None):
         """
@@ -108,113 +104,88 @@ class loglikelihood(LogLikelihood):
             else:
                 kwargs[par] = pars[i]
 
-        # Apply prior on model parameters first (dont need to generate signal)
+        # Apply prior on model parameters first (dont need to generate model)
         point = {}
         for i in range(len(self.parameters)):
             point[self.parameters[i]] = pars[i]
-        
+
         lp = self.priors_P.log_prior(point)
         if not np.isfinite(lp):
             return -np.inf, self.blank_blob
 
-        # Run a model and retrieve turning points
+        # Update kwargs
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
-        
+
         # Don't save base_kwargs for each proc! Needlessly expensive I/O-wise.
         self.checkpoint(**kwargs)
 
-        sim = self.sim = self.sim_class(**kw)
+        pop = GalaxyPopulation(**kw)
 
-        if isinstance(sim, simG21):
-            medium = sim.medium
-        else:
-            medium = sim
-
-        # If we're only fitting the LF, no need to run simulation
-        if self.runsim:
-
-            try:
-                sim.run()                
-            except (ValueError, IndexError):
-                # Seems to happen if Tmin goes crazy big 
-                # (IndexError in integration)
-                
-                f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 
-                    'ab')
-                pickle.dump(kwargs, f)
-                f.close()
-                
-                del sim, kw, f
-                gc.collect()
-                
-                return -np.inf, self.blank_blob
-        
-        if self.priors_B.params != []:
-            lp += self._compute_blob_prior(sim)
+        #if self.priors_B.params != []:
+        #    lp += self._compute_blob_prior(sim)
 
         # emcee will crash if this returns NaN. OK if it's inf though.
-        if np.isnan(lp):
-            return -np.inf, self.blank_blob
+        #if np.isnan(lp):
+        #    return -np.inf, self.blank_blob
 
-        # Figre out which population is the one with the LF
-        for popid, pop in enumerate(medium.field.pops):
-            if pop.is_fcoll_model:
-                continue
-
-            break
-                                    
-        # Compute the luminosity function, goodness of fit, return
-        phi = []
-        for i, z in enumerate(self.redshifts):
-            xdat = np.array(self.xdata[i])
+        lnL = 0.0        
         
-            # Dust correction for observed galaxies
-            AUV = pop.dust.AUV(z, xdat)
+        t1 = time.time()
+        
+        # Loop over all data points individually.
+        phi = np.zeros_like(self.ydata)
+        for i, quantity in enumerate(self.metadata):
             
-            # Compare data to model at dust-corrected magnitudes
-            M = xdat - AUV
-
+            if self.mask[i]:
+                continue
+                
+            xdat = self.xdata[i]
+            z = self.redshifts[i]
+                        
             # Generate model LF
-            p = pop.LuminosityFunction(z=z, x=M, mags=True)
-            phi.append(p)
+            if quantity == 'lf':
+                # Dust correction for observed galaxies
+                AUV = pop.dust.AUV(z, xdat)
+
+                # Compare data to model at dust-corrected magnitudes
+                M = xdat - AUV
+                
+                # Compute LF
+                p = pop.LuminosityFunction(z=z, x=M, mags=True)
+            elif quantity == 'smf':
+                M = xdat
+                p = pop.StellarMassFunction(z, M)
+            else:
+                raise ValueError('Unrecognized quantity: %s' % quantity)
+                
+            phi[i] = p
             
-        lnL = 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
+        t2 = time.time()
+        
+        #print t2 - t1    
+            
+        phi = np.ma.array(phi, mask=self.mask)
+        
+        lnL += 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
+            
+        # Final posterior calculation
         PofD = self.const_term - lnL
 
         if np.isnan(PofD):
             return -np.inf, self.blank_blob
 
         #try:
-        blobs = sim.blobs
+        blobs = pop.blobs
         #except:
         #    blobs = self.blank_blob   
             
-        del sim, kw
+        del pop, kw
         gc.collect()
         
         return lp + PofD, blobs
     
-class FitLuminosityFunction(FitGlobal21cm):
-    """
-    Basically a Global21cm fit except we might not actually press "run" on
-    any of the simulations. By default, we don't.
-    """
-    
-    def __init__(self, **kwargs):
-        FitGlobal21cm.turning_points = False
-        FitGlobal21cm.__init__(self, **kwargs)
-            
-    @property
-    def runsim(self):
-        if not hasattr(self, '_runsim'):
-            self._runsim = False
-        return self._runsim
-    
-    @runsim.setter
-    def runsim(self, value):
-        self._runsim = value
-        
+class FitGalaxyPopulation(ModelFit):
     @property 
     def save_hmf(self):
         if not hasattr(self, '_save_hmf'):
@@ -239,24 +210,9 @@ class FitLuminosityFunction(FitGlobal21cm):
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
 
-            if (self.save_hmf or self.save_psm):
-                sim_class = _which_sim_inst(**self.base_kwargs)
-                
-                sim = sim_class(**self.base_kwargs)
-                
-                if isinstance(sim, simG21):
-                    medium = sim.medium
-                else:
-                    medium = sim
-                    
-                for popid, pop in enumerate(medium.field.pops):
-                    if pop.is_fcoll_model:
-                        continue
-                
-                    break
-                
-                self.pops = medium.field.pops
-                    
+            if (self.save_hmf or self.save_psm):        
+                pop = GalaxyPopulation(**self.base_kwargs)
+
                 if self.save_hmf:
                     hmf = pop.halos
                     assert 'hmf_instance' not in self.base_kwargs
@@ -265,16 +221,16 @@ class FitLuminosityFunction(FitGlobal21cm):
                     #raise NotImplemented('help')
                     psm = pop.src
                     assert 'pop_psm_instance' not in self.base_kwargs
-                    self.base_kwargs['pop_psm_instance{%i}' % popid] = psm
+                    self.base_kwargs['pop_psm_instance'] = psm
 
             self._loglikelihood = loglikelihood(self.xdata_flat, 
                 self.ydata_flat, self.error_flat, 
                 self.parameters, self.is_log, self.base_kwargs, 
                 self.prior_set_P, self.prior_set_B, 
-                self.prefix, self.blob_info, self.checkpoint_by_proc)   
+                self.prefix, self.blob_info, self.checkpoint_by_proc)
             
-            self._loglikelihood.runsim = self.runsim
             self._loglikelihood.redshifts = self.redshifts_flat
+            self._loglikelihood.metadata = self.metadata_flat
 
             self.info
 
@@ -284,20 +240,22 @@ class FitLuminosityFunction(FitGlobal21cm):
     def redshifts(self):
         if not hasattr(self, '_redshifts'):
             raise ValueError('Set by hand or include in litdata.')
-            
+
         return self._redshifts
-                    
+
     @redshifts.setter
     def redshifts(self, value):
         # This can be used to override the redshifts in the dataset and only
         # use some subset of them
-        if hasattr(self, '_redshifts'):
-            return self._redshifts
-            
+
+        # Need to be ready for 'lf' or 'smf' designation.
+        if len(self.include) > 1:
+            assert type(value) is dict
+
         if type(value) in [int, float]:
             value = [value]
             
-        self._redshifts = value    
+        self._redshifts = value
 
     @property
     def data(self):
@@ -307,74 +265,109 @@ class FitLuminosityFunction(FitGlobal21cm):
                 
     @data.setter
     def data(self, value):
+        """
+        Set the data (duh).
+        
+        The structure is as follows. The highest level division is between
+        different quantities (e.g., 'lf' vs. 'smf'). Each of these quantities
+        is an element of the returned dictionary. For each, there is a list
+        of dictionaries, one per redshift. Each redshift dictionary contains
+        the magnitudes (or masses) along with number density measurements
+        and error-bars.
+        
+        """
+        
         if type(value) == str:
-            litdata = read_lit(value)
-            
-            if hasattr(self, '_redshifts'):
-                self._data = []
-                for z in self._redshifts:
-                    if z not in litdata.redshifts:
-                        continue
-                    self._data.append({z:litdata.data['lf'][z]})
-                    
-            else:
-                self._data = [litdata.data['lf']]
-                self._redshifts = [litdata.redshifts]
-                
-        elif type(value) in [list, tuple]:
-            self._data = []
-            
+            value = [value]
+
+        if type(value) in [list, tuple]:
+            self._data = {quantity:[] for quantity in self.include}
+            self._units = {quantity:[] for quantity in self.include}
+
             z_by_hand = True
             if not hasattr(self, '_redshifts'):
                 z_by_hand = False
-                self._redshifts = []
-                
+                self._redshifts = {quantity:[] for quantity in self.include}
+                                
             for src in value:
                 litdata = read_lit(src)
-                
-                if z_by_hand:
-                    for z in self._redshifts:
-                        if z not in litdata.redshifts:
-                            continue
-                        self._data.append({z:litdata.data['lf'][z]})
-                else:    
-                    self._data.append(litdata.data['lf'])
-                    self._redshifts.append(litdata.redshifts)
-                # Save wavelength too?
-                
-        elif type(value) is dict:
-            # Assume each element is a dataset:redshift pair
-            raise NotImplemented('help!')
-            
+
+                for quantity in self.include:
+                    if quantity not in litdata.data.keys():
+                        continue
+
+                    data = litdata.data[quantity]
+                    self._units[quantity].append(litdata.units[quantity])
+                    
+                    if z_by_hand:
+                        for z in self._redshifts[quantity]:
+                            if z not in litdata.redshifts:
+                                continue
+                            self._data[quantity].append({z:data[z]})
+                    else:
+                        self._data[quantity].append(data)
+                        self._redshifts[quantity].append(litdata.redshifts)
+
         else:
             raise NotImplemented('help!')
-                                        
+
+    @property
+    def include(self):
+        if not hasattr(self, '_include'):
+            self._include = ['lf', 'smf']
+        return self._include
+                                 
+    @include.setter
+    def include(self, value):
+        self._include = value
+
     @property
     def xdata_flat(self):
         if not hasattr(self, '_xdata_flat'):
             self._mask = []
             self._xdata_flat = []; self._ydata_flat = []
             self._error_flat = []; self._redshifts_flat = []
+            self._metadata_flat = []; self._units_flat = []
             
-            for i, dataset in enumerate(self.redshifts):
-                for j, redshift in enumerate(self.data[i]):
-                    if hasattr(self.data[i][redshift]['M'], 'mask'):
-                        self._mask.extend(self.data[i][redshift]['M'].mask)
-                    else:
-                        self._mask.extend(np.zeros_like(self.data[i][redshift]['M']))
+            for quantity in self.include:
+            
+                for i, dataset in enumerate(self.redshifts[quantity]):
+                    for j, redshift in enumerate(self.data[quantity][i]):
+                        M = self.data[quantity][i][redshift]['M']
                         
-                    self._xdata_flat.extend(self.data[i][redshift]['M'])
-                    self._ydata_flat.extend(self.data[i][redshift]['phi'])
-
-                    # Cludge for asymmetric errors
-                    for k, err in enumerate(self.data[i][redshift]['err']):
-                        if type(err) in [tuple, list]:
-                            self._error_flat.append(np.mean(err))
+                        # These could still be in log10 units
+                        phi = self.data[quantity][i][redshift]['phi']
+                        err = self.data[quantity][i][redshift]['err']
+                        
+                        if hasattr(M, 'mask'):
+                            self._mask.extend(M.mask)
                         else:
-                            self._error_flat.append(err)
-                    
-                    zlist = [redshift] * len(self.data[i][redshift]['M'])
-                    self._redshifts_flat.extend(zlist)
+                            self._mask.extend(np.zeros_like(M))
+                            
+                        self._xdata_flat.extend(M)
+                        
+                        if self.units[quantity][i] == 'log10':
+                            self._ydata_flat.extend(10**phi)
+                        else:    
+                            self._ydata_flat.extend(phi)
+                
+                        # Cludge for asymmetric errors
+                        for k, _err in enumerate(err):
+                        
+                            if self.units[quantity][i] == 'log10':
+                                _err_ = np.mean(symmetrize_errors(phi, _err))
+                            else:
+                                _err_ = _err
+                            
+                            if type(_err_) in [tuple, list]:
+                                self._error_flat.append(np.mean(_err_))
+                            else:
+                                self._error_flat.append(_err_)
+                        
+                        zlist = [redshift] * len(M)
+                        self._redshifts_flat.extend(zlist)
+                        self._metadata_flat.extend([quantity] * len(M))
+                        self._units_flat.append(self.units[quantity])
                 
             self._xdata_flat = np.ma.array(self._xdata_flat, mask=self._mask)
             self._ydata_flat = np.ma.array(self._ydata_flat, mask=self._mask)
@@ -401,7 +394,21 @@ class FitLuminosityFunction(FitGlobal21cm):
         if not hasattr(self, '_redshifts_flat'):
             xdata_flat = self.xdata_flat
     
-        return self._redshifts_flat      
+        return self._redshifts_flat
+        
+    @property
+    def metadata_flat(self):
+        if not hasattr(self, '_metadata_flat'):
+            xdata_flat = self.xdata_flat
+    
+        return self._metadata_flat
+    
+    @property
+    def units(self):
+        if not hasattr(self, '_units'):
+            xdata_flat = self.xdata_flat
+    
+        return self._units    
     
     @property
     def xdata(self):
