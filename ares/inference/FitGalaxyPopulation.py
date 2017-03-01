@@ -126,10 +126,8 @@ class loglikelihood(LogLikelihood):
         #    lp += self._compute_blob_prior(sim)
 
         # emcee will crash if this returns NaN. OK if it's inf though.
-        #if np.isnan(lp):
-        #    return -np.inf, self.blank_blob
-
-        lnL = 0.0        
+        if np.isnan(lp):
+            return -np.inf, self.blank_blob
         
         t1 = time.time()
                 
@@ -165,25 +163,25 @@ class loglikelihood(LogLikelihood):
         
         #print t2 - t1    
             
-        phi = np.ma.array(phi, mask=self.mask)
+        #phi = np.ma.array(_phi, mask=self.mask)
         
-        lnL += 0.5 * np.sum((np.array(phi) - self.ydata)**2 / self.error**2)    
+        lnL = 0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)    
             
         # Final posterior calculation
-        PofD = self.const_term - lnL
+        PofD = lp + self.const_term - lnL
 
-        if np.isnan(PofD):
+        if np.isnan(PofD) or (type(phi) == np.ma.core.MaskedConstant):
             return -np.inf, self.blank_blob
 
         #try:
         blobs = pop.blobs
         #except:
-        #    blobs = self.blank_blob   
+        #    blobs = self.blank_blob
             
         del pop, kw
         gc.collect()
-        
-        return lp + PofD, blobs
+                
+        return PofD, blobs
     
 class FitGalaxyPopulation(ModelFit):
     @property 
@@ -346,7 +344,7 @@ class FitGalaxyPopulation(ModelFit):
                             
                         self._xdata_flat.extend(M)
                         
-                        if self.units[quantity] == 'log10':
+                        if self.units[quantity][i] == 'log10':
                             self._ydata_flat.extend(10**phi)
                         else:    
                             self._ydata_flat.extend(phi)
@@ -354,7 +352,7 @@ class FitGalaxyPopulation(ModelFit):
                         # Cludge for asymmetric errors
                         for k, _err in enumerate(err):
                         
-                            if self.units[quantity] == 'log10':
+                            if self.units[quantity][i] == 'log10':
                                 _err_ = np.mean(symmetrize_errors(phi[k], _err))
                             else:
                                 _err_ = _err
