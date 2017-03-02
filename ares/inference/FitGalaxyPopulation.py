@@ -325,7 +325,7 @@ class FitGalaxyPopulation(ModelFit):
             self._mask = []
             self._xdata_flat = []; self._ydata_flat = []
             self._error_flat = []; self._redshifts_flat = []
-            self._metadata_flat = []; self._units_flat = []
+            self._metadata_flat = []
             
             for quantity in self.include:
             
@@ -353,7 +353,8 @@ class FitGalaxyPopulation(ModelFit):
                         for k, _err in enumerate(err):
                         
                             if self.units[quantity][i] == 'log10':
-                                _err_ = np.mean(symmetrize_errors(phi[k], _err))
+                                _err_ = symmetrize_errors(phi[k], _err,
+                                    operation='min')
                             else:
                                 _err_ = _err
                             
@@ -365,7 +366,6 @@ class FitGalaxyPopulation(ModelFit):
                         zlist = [redshift] * len(M)
                         self._redshifts_flat.extend(zlist)
                         self._metadata_flat.extend([quantity] * len(M))
-                        self._units_flat.append(self.units[quantity])
                 
             self._xdata_flat = np.ma.array(self._xdata_flat, mask=self._mask)
             self._ydata_flat = np.ma.array(self._ydata_flat, mask=self._mask)

@@ -170,7 +170,8 @@ class GalaxyPopulation(object):
             AUV=AUV, wavelength=1600, sed_model=None, quantity='smf', **kwargs)              
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
-        AUV=None, wavelength=1600., sed_model=None, quantity='lf', **kwargs):
+        AUV=None, wavelength=1600., sed_model=None, quantity='lf', 
+        take_log=False, **kwargs):
         """
         Plot the luminosity function data at a given redshift.
         
@@ -237,9 +238,9 @@ class GalaxyPopulation(object):
               
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
                 label=source, **kw)
-        
-        ax.set_yscale('log', nonposy='clip')    
-        
+                
+        ax.set_yscale('log', nonposy='clip')
+
         if quantity == 'lf':
             ax.set_xlim(-26.5, -10)
             ax.set_xticks(np.arange(-26, -10, 1), minor=True)
@@ -278,7 +279,7 @@ class GalaxyPopulation(object):
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
         panel_size=(0.75,0.75), fig=1, ymax=10, legends=None, AUV=None,
-        quantity='lf'):
+        quantity='lf', annotate_z='left'):
         """
         Plot the luminosity function at a bunch of different redshifts.
         
@@ -324,8 +325,13 @@ class GalaxyPopulation(object):
             self.Plot(z, sources=sources, round_z=round_z, ax=ax, AUV=AUV,
                 quantity=quantity)
             
-            ax.annotate(r'$z \sim %i$' % (round(z)), (0.05, 0.95), 
-                ha='left', va='top', xycoords='axes fraction')
+            if annotate_z == 'left':
+                _xannot = 0.05
+            else:
+                _xannot = 0.95
+                
+            ax.annotate(r'$z \sim %i$' % (round(z)), (_xannot, 0.95), 
+                ha=annotate_z, va='top', xycoords='axes fraction')
         
         mp.fix_ticks(rotate_x=45)
                 
