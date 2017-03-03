@@ -20,7 +20,19 @@ from ..util.Stats import symmetrize_errors
 datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
     'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
     'reddy2009', 'weisz2014')
-datasets_smf = ('song2016', )
+datasets_smf = ('song2016', 'tomczak2014')
+
+groups_lf = \
+{
+ 'dropouts': ('oesch2013', 'oesch2014', 'bouwens2015', 'parsa2016', 
+    'finkelstein2015', 'vanderburg2010'),
+ 'lensing': ('alavi2016', 'atek2015'),
+ 'local': ('weisz2014,'),
+ 'all': datasets_lf,
+}
+
+groups_smf = {'all': datasets_smf}
+groups = {'lf': groups_lf, 'smf': groups_smf}
 
 colors = ['m', 'c', 'r', 'y', 'g', 'b'] * 3
 markers = ['o'] * 6 + ['s'] * 6    
@@ -53,19 +65,15 @@ class GalaxyPopulation(object):
             Redshift, dummy!
 
         """
-
+        
         data = {}
-
-        if sources == 'all':
-            if quantity == 'lf':
-                sources = datasets_lf
-            else:
-                sources = datasets_smf
+        
+        if sources in groups[quantity]:
+            srcs = groups[quantity][sources]
         elif type(sources) is str:
-            sources = [sources]    
-
-        for source in sources:
-
+            srcs = [sources]
+                
+        for source in srcs:
             src = read_lit(source)
 
             if redshift not in src.redshifts and (not round_z):
@@ -81,10 +89,10 @@ class GalaxyPopulation(object):
                     
             else:        
                 z = redshift
-
+                
             data[source] = {}
             data[source]['wavelength'] = src.wavelength
-            
+                        
             M = src.data[quantity][z]['M']            
             if hasattr(M, 'data'):
                 data[source]['M'] = M.data
@@ -195,15 +203,12 @@ class GalaxyPopulation(object):
             
         data = self.compile_data(z, sources, round_z=round_z, quantity=quantity)
         
-        if sources == 'all':
-            if quantity == 'lf':
-                sources = datasets_lf
-            else:
-                sources = datasets_smf
+        if sources in groups[quantity]:
+            srcs = groups[quantity][sources]
         elif type(sources) is str:
-            sources = [sources]
+            srcs = [sources]
             
-        for source in sources:
+        for source in srcs:
             if source not in data:
                 continue
                                         
@@ -278,7 +283,7 @@ class GalaxyPopulation(object):
         return mp
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
-        panel_size=(0.75,0.75), fig=1, ymax=10, legends=None, AUV=None,
+        panel_size=(0.75,0.75), fig=1, xmax=-15, ymax=10, legends=None, AUV=None,
         quantity='lf', annotate_z='left'):
         """
         Plot the luminosity function at a bunch of different redshifts.
@@ -340,8 +345,8 @@ class GalaxyPopulation(object):
             ax = mp.grid[k]
             
             if quantity == 'lf':
-                ax.set_xlim(-24, 0.)
-                ax.set_ylim(1e-7, 1e1)
+                ax.set_xlim(-24, xmax)
+                ax.set_ylim(1e-7, ymax)
                 ax.set_xticks(np.arange(-20, 5, 5), minor=False)
                 ax.set_xticks(np.arange(-23, -1, 2), minor=True)
                 ax.set_yscale('log', nonposy='clip')  
@@ -349,7 +354,7 @@ class GalaxyPopulation(object):
             else:
                 ax.set_xscale('log')
                 ax.set_xlim(1e6, 1e12)
-                ax.set_ylim(1e-9, 15)
+                ax.set_ylim(1e-7, ymax)
                 ax.set_yscale('log', nonposy='clip')                      
             
         if quantity == 'lf':
@@ -363,10 +368,12 @@ class GalaxyPopulation(object):
         """
         Annotate sources properly color-coded.
         """     
-        if sources == 'all':
-            sources = all_datasets
+        if sources in groups[quantity]:
+            srcs = groups[quantity][sources]
+        elif type(sources) is str:
+            srcs = [sources]
                     
-        for i, source in enumerate(sources):
+        for i, source in enumerate(srcs):
             coord = (loc[0], loc[1] + 0.05 * i)    
             ax.annotate(source, coord, fontsize=14, 
                 color=default_colors[source], ha='right', va='bottom',

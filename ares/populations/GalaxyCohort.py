@@ -713,15 +713,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return rhoL
             
     def StellarMass(self, z, Mh):
-        data = self.scaling_relations_sorted
+        data = self.scaling_relations_sorted(z=z)
         return np.interp(Mh, data['Mh'], data['Ms'])
     
     def MetalMass(self, z, Mh):
-        data = self.scaling_relations_sorted
+        data = self.scaling_relations_sorted(z=z)
         return np.interp(Mh, data['Mh'], data['MZ'])
 
     def GasMass(self, z, Mh):
-        data = self.scaling_relations_sorted
+        data = self.scaling_relations_sorted(z=z)
         return np.interp(Mh, data['Mh'], data['Mg'])
         
     def StellarMassFunction(self, z, M):
@@ -1472,36 +1472,43 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         return self._scaling_relations    
     
-    @property
-    def scaling_relations_sorted(self):
+    def scaling_relations_sorted(self, z=None):
         """
-        
+
         """
         if not hasattr(self, '_scaling_relations_sorted'):
-            zform, data = self.scaling_relations
+            self._scaling_relations_sorted = {}
+
+        if z in self._scaling_relations_sorted:
+            return self._scaling_relations_sorted[z]    
             
-            sorter = np.argsort(data['Mh'])
-            
-            new_data = {}
-            
-            # Can't remember what this is all about.
-            if self.constant_SFE:
-                sorter = np.argsort(data['Mh'])
-                for key in data.keys():
-                    new_data[key] = data[key][sorter]
-            else:
-                raise NotImplementedError('sorry dude')
-                #k = np.argmin(np.abs(z - self.halos.z))
-                #Mh = data['Mh'][:,k]
-                #Ms = data['Ms'][:,k]
-                #
-                #sorter = np.argsort(Mh)
-                #Mh = Mh[sorter]
-                #Ms = Ms[sorter]
+        zform, data = self.scaling_relations
                 
-            self._scaling_relations_sorted = new_data
+        new_data = {}
+        
+        # Can't remember what this is all about.
+        if self.constant_SFE:
+            sorter = np.argsort(data['Mh'])
+            for key in data.keys():
+                new_data[key] = data[key][sorter]
+        else:
             
-        return self._scaling_relations_sorted
+            assert z is not None
+            
+            tmp = {}
+            k = np.argmin(np.abs(z - self.halos.z))
+            for key in data.keys():
+                if key == 'nthresh':
+                    continue
+                tmp[key] = data[key][:,k]
+                
+            sorter = np.argsort(tmp['Mh'])
+            for key in tmp.keys():
+                new_data[key] = tmp[key][sorter]
+                
+        self._scaling_relations_sorted[z] = new_data    
+            
+        return self._scaling_relations_sorted[z]
             
     def _ScalingRelationsGeneralSFE(self):
         """
@@ -1571,8 +1578,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         dz = max(np.diff(self.halos.z)[0], self.pf['sam_dz'])
 
-        solver = ode(self._SAM).set_integrator('vode', method='bdf',
-            nsteps=1e4, order=5)
+        #atol = 0.; rtol = 1e-3
+        solver = ode(self._SAM).set_integrator('lsoda', 
+            nsteps=1e4, atol=1e2, rtol=1e-3)
 
         ##  
         # Outputs have shape (z, z)

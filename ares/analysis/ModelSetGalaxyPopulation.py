@@ -1,6 +1,6 @@
 """
 
-GLFSet.py
+ModelSetGalaxyPopulation.py
 
 Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
@@ -25,7 +25,7 @@ phi_of_M = lambda M, pstar, Mstar, alpha: 0.4 * ln10 * pstar \
     * (10**(0.4 * (Mstar - M)*(1. + alpha))) \
     * np.exp(-10**(0.4 * (Mstar - M)))
 
-class ModelSetLF(ModelSet):
+class ModelSetGalaxyPopulation(ModelSet):
     """
     Basically a ModelSet instance with routines specific to the high-z
     galaxy luminosity function.
@@ -103,9 +103,10 @@ class ModelSetLF(ModelSet):
         return ax
         
     def LuminosityFunction(self, z, ax=None, fig=1, compare_to=None, popid=0, 
-        name='galaxy_lf', shade_by_like=False, like=0.685, scatter_kwargs={}, 
+        name='lf', shade_by_like=False, percentile=0.685, scatter_kwargs={}, 
         Mlim=(-24, -10), samples=1, take_log=False, un_log=False,
-        multiplier=1, skip=0, stop=None, best_fit='median', **kwargs):
+        multiplier=1, skip=0, stop=None, use_best=False, best='median',
+        **kwargs):
         """
         Plot the luminosity function used to train the SFE.
         
@@ -118,8 +119,8 @@ class ModelSetLF(ModelSet):
             gotax = True
             
         if shade_by_like:
-            q1 = 0.5 * 100 * (1. - like)    
-            q2 = 100 * like + q1
+            q1 = 0.5 * 100 * (1. - percentile)    
+            q2 = 100 * percentile + q1
             
         # Plot fits compared to observational data
         M = np.arange(Mlim[0], Mlim[1], 0.05)
@@ -143,9 +144,9 @@ class ModelSetLF(ModelSet):
         # Redden the model LF. Must do iteratively in general case.
         mags_w_dc = map(lambda mm: self.dc.Mobs(z, mm), mags_disk)
         
-        if best_fit == 'mode':
+        if best == 'mode':
             loc = np.argmax(self.logL[skip:stop])
-        elif best_fit == 'median':
+        elif best == 'median':
             # Figure out the median, too
             _N = len(self.logL[skip:stop])
             loc = np.argsort(self.logL[skip:stop])[int(_N/float(2))]
@@ -188,10 +189,12 @@ class ModelSetLF(ModelSet):
             else:    
                 ax.semilogy(mags_w_dc, phi, **kwargs)
 
-        ax.set_xlabel(r'$M_{\mathrm{UV}}$')
-        ax.set_ylabel(r'$\phi(M)$')
-        ax.set_ylim(1e-8, 10)
-        ax.set_xlim(-26, -10)
+        if not gotax:
+            ax.set_xlabel(r'$M_{\mathrm{UV}}$')
+            ax.set_ylabel(r'$\phi(M)$') 
+            ax.set_ylim(1e-8, 10)
+            ax.set_xlim(Mlim)
+            
         pl.draw()
 
         return ax

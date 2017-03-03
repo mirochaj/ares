@@ -136,12 +136,23 @@ class ParameterizedQuantity(object):
                 # Parameters that are...parameterized! Things are nested, i.e,
                 # fstar is not necessarily separable.
                 
-                assert par == 'pl', 'Only support for PL extensions.'
-                                
                 p = pars2[i]
-                val = p[0] * ((1. + x) / p[1])**p[2]
-                                
-                exec('p%i = val' % i)
+                
+                if par == 'pl':    
+                    # Only can do with redshift right now!
+                    val = p[0] * ((1. + kwargs['z']) / p[1])**p[2]           
+                    exec('p%i = val' % i)
+                elif par == 'quadratic_hi':
+                    val = p[1] \
+                        + p[2] * (p[0] / kwargs['z']) \
+                        + p[3] * (p[0] / kwargs['z'])**2    
+                        
+                    # Only can do with redshift right now!
+                    val = p[0] + ((1. + kwargs['z']) / p[1])**p[2]           
+                    exec('p%i = val' % i)
+                else:
+                    raise NotImplementedError('help!')
+                        
             elif type(par) == tuple:
                 f, v, mult = par
                 
@@ -169,10 +180,16 @@ class ParameterizedQuantity(object):
             f = p0 * np.exp(-(x - p1)**2 / 2. / p2**2)
         elif func == 'pl':
             f = p0 * (x / p1)**p2
+        # 'quadratic_lo' means higher order terms vanish when x << p0
+        elif func == 'quadratic_lo':
+            f = p1 + p2 * (x / p0) + p3 * (x / p0)**2
+        # 'quadratic_hi' means higher order terms vanish when x >> p0
+        elif func == 'quadratic_hi':
+            f = p1 + p2 * (p0 / x) + p3 * (p0 / x)**2
         elif func == 'exp':
             f = p0 * np.exp(-(x / p1)**p2)
         elif func == 'exp_flip':
-            f = 1. - p0 * np.exp(-(x / p1)**p2)    
+            f = 1. - p0 * np.exp(-(x / p1)**p2)
         elif func == 'plexp':
             f = p0 * (x / p1)**p2 * np.exp(-(x / p3)**p4)
         elif func == 'dpl':

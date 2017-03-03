@@ -145,7 +145,7 @@ _flex = \
  'pq_func_par1{0}[0]': 'pl',
  'pq_func_par1_par0{0}[0]': 2.8e11,
  'pq_func_par1_par1{0}[0]': 7.,
- 'pq_func_par1_par2{0}[0]': -1.,
+ 'pq_func_par1_par2{0}[0]': 0.,
 
  'pop_calib_L1600{0}': 1.0185e28,
 
