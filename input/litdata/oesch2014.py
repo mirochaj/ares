@@ -11,6 +11,7 @@ info = \
 }
 
 redshifts = [10]
+wavelength = 1600. # I think?
 
 ULIM = -1e10
 

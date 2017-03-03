@@ -261,9 +261,7 @@ def PhysicsParameters():
     return pf
 
 def ParameterizedQuantityParameters():
-    pf = {}
-
-    tmp = \
+    pf = \
     {
      "pq_func": 'dpl',
      "pq_func_var": 'Mh',
@@ -273,36 +271,6 @@ def ParameterizedQuantityParameters():
      "pq_func_par3": None,
      "pq_func_par4": None,
      "pq_func_par5": None,
-
-     'pq_faux': None,
-     'pq_faux_var': None,
-     'pq_faux_meth': 'multiply',
-     'pq_faux_par0': None,
-     'pq_faux_par1': None,
-     'pq_faux_par2': None,
-     'pq_faux_par3': None,
-     'pq_faux_par4': None,
-     'pq_faux_par5': None,
-     
-     'pq_faux_A': None,
-     'pq_faux_A_var': None,
-     'pq_faux_A_meth': 'multiply',
-     'pq_faux_A_par0': None,
-     'pq_faux_A_par1': None,
-     'pq_faux_A_par2': None,
-     'pq_faux_A_par3': None,
-     'pq_faux_A_par4': None,
-     'pq_faux_A_par5': None,
-     
-     'pq_faux_B': None,
-     'pq_faux_B_var': None,
-     'pq_faux_B_meth': 'multiply',
-     'pq_faux_B_par0': None,
-     'pq_faux_B_par1': None,
-     'pq_faux_B_par2': None,
-     'pq_faux_B_par3': None,
-     'pq_faux_B_par4': None,
-     'pq_faux_B_par5': None,
      
      "pq_boost": 1.,
      "pq_iboost": 1.,
@@ -313,12 +281,6 @@ def ParameterizedQuantityParameters():
          
     }  
     
-    # Hrm...can't remember what this is about.
-    for i in range(6):
-        for j in range(6):
-            tmp['pq_func_par%i_par%i' % (i,j)] = None
-    
-    pf.update(tmp)
     pf.update(rcParams)
 
     return pf

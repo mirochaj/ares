@@ -325,17 +325,13 @@ class Labeler(object):
         elif (popid is not None) and (phpid is None) and (prefix in self.labels):
             label = self.labels[prefix]
         elif phpid is not None and (prefix in self.labels):
-            if 'faux' in par:
-                pre = 'aux'
-            else:
-                pre = 'par'
             parnum = map(int, re.findall(r'\d+', par.replace('[%i]' % phpid,'')))
             if len(parnum) == 1:
-                label = r'$%s^{\mathrm{%s}\ %i}$' % \
-                    (undo_mathify(self.labels[prefix]), pre, parnum[0])
+                label = r'$%s^{\mathrm{par}\ %i}$' % \
+                    (undo_mathify(self.labels[prefix]), parnum[0])
             else:
-                label = r'$%s^{\mathrm{%s}\ %i,%i}$' \
-                    % (undo_mathify(self.labels[prefix]), pre, parnum[0], parnum[1])
+                label = r'$%s^{\mathrm{par}\ %i,%i}$' \
+                    % (undo_mathify(self.labels[prefix]), parnum[0], parnum[1])
         elif (popid is not None) and (phpid is None) and (prefix not in self.labels):
             try:
                 hard = self._find_par(popid, phpid)

@@ -286,7 +286,7 @@ class FitGalaxyPopulation(ModelFit):
             if not hasattr(self, '_redshifts'):
                 z_by_hand = False
                 self._redshifts = {quantity:[] for quantity in self.include}
-                                
+
             for src in value:
                 litdata = read_lit(src)
 

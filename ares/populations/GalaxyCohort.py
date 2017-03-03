@@ -111,12 +111,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     result = lambda **kwargs: interp(np.log10(self.Zgas(kwargs['z'], kwargs['Mh'])))
                 else:
                     att = self.src.__getattribute__(name)
-                                        
+
                     if name == 'rad_yield':
                         val = att(self.src.Emin, self.src.Emax)
                     else:
                         val = att
-                                                
+
                     result = lambda **kwargs: val
 
             elif is_php:
@@ -134,7 +134,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     pars = tmp            
                     
                 Mmin = lambda z: self.Mmin
-                result = ParameterizedQuantity({'pop_Mmin': Mmin}, **pars)
+                result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, 
+                    **pars)
                 
                 self._update_pq_registry(name, result)
             
@@ -1275,7 +1276,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             elif self.pf['pop_fstar'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
                 Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
-                self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, **pars)
+                self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
+                    self.pf, **pars)
                 
                 self._fstar = \
                     lambda **kwargs: self._fstar_inst.__call__(**kwargs) \

@@ -25,7 +25,7 @@ datasets_smf = ('song2016', 'tomczak2014')
 groups_lf = \
 {
  'dropouts': ('oesch2013', 'oesch2014', 'bouwens2015', 'parsa2016', 
-    'finkelstein2015', 'vanderburg2010'),
+    'finkelstein2015', 'vanderburg2010', 'reddy2009'),
  'lensing': ('alavi2016', 'atek2015'),
  'local': ('weisz2014,'),
  'all': datasets_lf,

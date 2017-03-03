@@ -83,14 +83,7 @@ dpl = \
 
 _floor_specific = \
 {
-'pq_faux{0}[0]': 'plexp',
-'pq_faux_var{0}[0]': 'Mh',
-'pq_faux_meth{0}[0]': 'add',
-'pq_faux_par0{0}[0]': 0.005,
-'pq_faux_par1{0}[0]': 1e9,
-'pq_faux_par2{0}[0]': 0.01,
-'pq_faux_par3{0}[0]': 1e10,
-'pq_faux_par4{0}[0]': 1.,
+'pq_val_floor{0}[0]': 0.005,
 }
 
 floor = dpl.copy()
@@ -98,11 +91,11 @@ floor.update(_floor_specific)
 
 _steep_specific = \
 {
- 'pq_faux{0}[0]': 'okamoto',
- 'pq_faux_var{0}[0]': 'Mh',
- 'pq_faux_meth{0}[0]': 'multiply',
- 'pq_faux_par0{0}[0]': 1.,
- 'pq_faux_par1{0}[0]': 1e9,
+ 'pq_focc{0}': 'pq[1]',
+ 'pq_func{0}[1]': 'okamoto',
+ 'pq_func_var{0}[1]': 'Mh',
+ 'pq_func_par0{0}[1]': 1.,
+ 'pq_func_par1{0}[1]': 1e9,
 }
 
 steep = dpl.copy()
@@ -111,82 +104,33 @@ steep.update(_steep_specific)
 """
 Redshift-dependent options.
 """
-_fz_specific = \
-{
- 'pq_faux{0}[0]': 'pl',
- 'pq_faux_var{0}[0]': '1+z',
- 'pq_faux_meth{0}[0]': 'multiply',
- 'pq_faux_par0{0}[0]': 1.,
- 'pq_faux_par1{0}[0]': 7.,
- 'pq_faux_par2{0}[0]': 0.,
-}
-
-_Mz_specific = \
-{
- 'pq_func_par1{0}[0]': 'pl',
- 'pq_func_par1_par0{0}[0]': dpl['pq_func_par1{0}[0]'],
- 'pq_func_par1_par1{0}[0]': 5.9,
- 'pq_func_par1_par2{0}[0]': -1.,
-}
 
 _flex = \
 {
  'pq_func{0}[0]': 'dpl_arbnorm',
- 'pq_func_var{0}[0]': 'Mh',
- 
- # Standard dpl model at 10^8 Msun
- 'pq_func_par0{0}[0]': 0.00205,
+  'pq_func_var{0}[0]': 'Mh',
 
- 'pq_func_par2{0}[0]': 0.49,       
- 'pq_func_par3{0}[0]': -0.61,      
- 'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
- 
- # Redshift evolution peak mass only
- 'pq_func_par1{0}[0]': 'pl',
- 'pq_func_par1_par0{0}[0]': 2.8e11,
- 'pq_func_par1_par1{0}[0]': 7.,
- 'pq_func_par1_par2{0}[0]': 0.,
+  # Standard dpl model at 10^8 Msun
+  'pq_func_par0{0}[0]': 'pq[1]',
+  'pq_func_par1{0}[0]': 'pq[2]',
+  'pq_func_par2{0}[0]': 0.49,       
+  'pq_func_par3{0}[0]': -0.61,      
+  'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
 
- 'pop_calib_L1600{0}': 1.0185e28,
+  # Evolving part
+  'pq_func{0}[1]': 'pl',
+  'pq_func_var{0}[1]': '1+z',
+  'pq_func_par0{0}[1]': 0.00205,
+  'pq_func_par1{0}[1]': 7.,
+  'pq_func_par2{0}[1]': 0.,   # power-law index!
 
- # Redshift evolution in normalization of SFE
- 'pq_faux{0}[0]': 'pl',
- 'pq_faux_var{0}[0]': '1+z',
- 'pq_faux_meth{0}[0]': 'multiply',
- 'pq_faux_par0{0}[0]': 1.,
- 'pq_faux_par1{0}[0]': 7.,
- 'pq_faux_par2{0}[0]': -1.,
+  'pq_func{0}[2]': 'pl',
+  'pq_func_var{0}[2]': '1+z',
+  'pq_func_par0{0}[2]': 2.8e11,
+  'pq_func_par1{0}[2]': 7.,
+  'pq_func_par2{0}[2]': 0.,   # power-law index!
 }
 
-dpl_fz = dpl.copy()
-dpl_fz.update(_fz_specific)
-dpl_Mz = dpl.copy()
-dpl_Mz.update(_Mz_specific)
 dpl_flex = dpl.copy()
 dpl_flex.update(_flex)
-
-_steep_fz = {}
-for key in _fz_specific:
-    new_key = 'pq_faux%s' % key.split('faux')[1]
-    _steep_fz[new_key] = _fz_specific[key]
-
-for key in _steep_specific:
-    new_key = 'pq_faux_A%s' % key.split('faux')[1]
-    _steep_fz[new_key] = _steep_specific[key]
-
-steep_fz = dpl.copy()
-steep_fz.update(_steep_fz)
-
-_floor_fz = {}
-
-for key in _fz_specific:
-    new_key = 'pq_faux%s' % key.split('faux')[1]
-    _floor_fz[new_key] = _fz_specific[key]
-
-for key in _floor_specific:
-    new_key = 'pq_faux_A%s' % key.split('faux')[1]
-    _floor_fz[new_key] = _floor_specific[key]
-
-floor_fz = dpl.copy()
-floor_fz.update(_floor_fz)
 
