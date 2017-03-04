@@ -136,8 +136,8 @@ def identify_pqs(**kwargs):
     
     Returns
     -------
-    List of lists: parameterized halo properties for each population.
-    NOTE: they are not in order
+    List of lists: ParameterizedQuantity ID numbers for each population.
+    NOTE: they are not in order.
     """
     
     Npops = count_populations(**kwargs)
@@ -154,20 +154,24 @@ def identify_pqs(**kwargs):
         # This will NOT have a pop ID
         just_php, nothing, phpid = par_info(kwargs[par])
         
+        # This might have a popid
         prefix, popid, age = par_info(par)
-                                
+                                        
         if (popid is None) and (Npops == 1):
             # I think this is guaranteed to be true
             if prefix not in phps[0]:
-                phps[0].append(prefix) 
-        else:
+                phps[0].append(prefix)
+        elif (popid is not None):
             if prefix in phps[popid]:
                 continue
                 
             phps[popid].append(prefix)
-            
+        else:
+            # Not clear why this happens...
+            continue
+
     return phps
-    
+
 def get_pq_pars(par, pf):
     """
     Find ParameterizedQuantity parameters...for this parameter.
@@ -327,7 +331,7 @@ class ParameterFile(dict):
                       # Should have no {}'s
                     
         pf_base.update(defaults)  
-                            
+                                    
         # For single-population calculations, we're done for the moment
         if self.Npops == 1:
             pfs_by_pop = self.update_pq_pars([pf_base], **kwargs)
