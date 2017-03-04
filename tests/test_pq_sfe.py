@@ -28,12 +28,20 @@ pars_pl = \
 
 pars_pl_w_zdep = \
 {
-'pq_faux': 'pl',
-'pq_faux_var': '1+z',
-'pq_faux_meth': 'multiply',
-'pq_faux_par0': 1.,
-'pq_faux_par1': 7.,
-'pq_faux_par2': 1.,
+'pop_fstar': 'pq[0]',
+'pq_func[0]': 'pl',
+'pq_func_var[0]': 'Mh',
+'pq_func_par0[0]': 'pq[1]',
+'pq_func_par1[0]': 1e11,
+'pq_func_par2[0]': 0.6,
+'pq_func_par3[0]': 0.,
+'pq_val_ceil[0]': 0.1,
+
+'pq_func[1]': 'pl',
+'pq_func_var[1]': '1+z',
+'pq_func_par0[1]': 1e-1,
+'pq_func_par1[1]': 7.,
+'pq_func_par2[1]': 1.,
 }
 
 pars_dpl = \
@@ -50,16 +58,19 @@ pars_dpl = \
 
 pars_dpl_Mofz = \
 {
-'pop_fstar': 'pq',
-'pq_func': 'dpl',
-'pq_func_var': 'Mh',
-'pq_func_par0': 1e-1,
-'pq_func_par1': 'pl',
-'pq_func_par1_par0': 1e11,
-'pq_func_par1_par1': 6.,
-'pq_func_par1_par2': -1.,
-'pq_func_par2': 0.6,
-'pq_func_par3': -0.5,
+'pop_fstar': 'pq[0]',
+'pq_func[0]': 'dpl',
+'pq_func_var[0]': 'Mh',
+'pq_func_par0[0]': 1e-1,
+'pq_func_par1[0]': 'pq[1]',
+'pq_func_par2[0]': 0.6,
+'pq_func_par3[0]': -0.5,
+
+'pq_func[1]': 'pl',
+'pq_func_var[1]': '1+z',
+'pq_func_par0[1]': 1e11,
+'pq_func_par1[1]': 6.,
+'pq_func_par2[1]': -1.,
 }
 
 pars_pwpl = \
@@ -113,10 +124,8 @@ def test():
     pl.savefig('%s_1.png' % (__file__.rstrip('.py')))     
     pl.close()
     
-    p1 = pars_pl.copy()
-    p1.update(pars_pl_w_zdep)
     pop1 = ares.populations.GalaxyPopulation(pop_sfr_model='sfe-func', 
-        **p1)
+        **pars_pl_w_zdep)
     pop2 = ares.populations.GalaxyPopulation(pop_sfr_model='sfe-func', 
         **pars_dpl_Mofz)
     
