@@ -110,7 +110,7 @@ exp_Mtr_rel = \
   ##
   'pop_Tmin{0}': None,
   'pop_Tmin_ceil{0}': 1e4,
-  'pop_Mmin{0}': 'link:Mmax_active:2',
+  'pop_Mmin{0}': 'link:Mmax_active:2', # 'pop_Mmin{2}'?
   'pop_Tmin{2}': 500.,
   'pop_Mmin{3}': 'pop_Mmin{2}',
   'pop_Tmin{3}': None,
