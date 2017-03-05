@@ -176,5 +176,5 @@ _flex2 = \
 }
 
 dpl_evol = dpl.copy()
-dpl_evol.update(_flex)
+dpl_evol.update(_flex2)
 
