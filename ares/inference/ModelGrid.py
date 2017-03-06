@@ -539,13 +539,12 @@ class ModelGrid(ModelFit):
                 
             except Exception: 
                 # Write to "fail" file
-                f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 
-                    'ab')
+                f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
                 pickle.dump(kw, f)
                 f.close()
                 
                 blobs = self.blank_blob
-                
+
             # Disable the alarm
             if self.timeout is not None:
                 signal.alarm(0)

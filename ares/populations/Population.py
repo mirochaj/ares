@@ -14,25 +14,31 @@ from ..physics import Cosmology
 from ..util import ParameterFile
 from ..physics.Constants import E_LyA, E_LL
 
+_multi_pop_error_msg = "Parameters for more than one population detected! "
+_multi_pop_error_msg += "Population objects are by definition for single populations."
+
 class Population(object):
     def __init__(self, grid=None, **kwargs):
-        
+
         # why is this necessary?
         if 'problem_type' in kwargs:
             del kwargs['problem_type']
 
         self.pf = ParameterFile(**kwargs)
+        
+        assert self.pf.Npops == 1, _multi_pop_error_msg
+        
         self.grid = grid
 
         self.zform = self.pf['pop_zform']
         self.zdead = self.pf['pop_zdead']
-        
+
     @property
     def id_num(self):
         if not hasattr(self, '_id_num'):
             self._id_num = None
         return self._id_num
-    
+
     @id_num.setter
     def id_num(self, value):
         self._id_num = int(value)    
