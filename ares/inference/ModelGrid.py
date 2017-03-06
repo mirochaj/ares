@@ -290,6 +290,16 @@ class ModelGrid(ModelFit):
             from ..simulations import Global21cm
             self._simulator = Global21cm
         return self._simulator
+        
+    @property
+    def reuse_splines(self):
+        if not hasattr(self, '_reuse_splines'):
+            self._reuse_splines = True
+            if 'feedback_LW' in self.base_kwargs:
+                if self.base_kwargs['feedback_LW']:
+                    self._reuse_splines = False
+                    
+        return self._reuse_splines        
     
     def run(self, prefix, clobber=False, restart=False, save_freq=500):
         """
@@ -464,7 +474,8 @@ class ModelGrid(ModelFit):
             p.update(kw)
 
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
-            if i_Tmin not in fcoll.keys() and (not self.phenomenological):
+            if self.reuse_splines and \
+                i_Tmin not in fcoll.keys() and (not self.phenomenological):
                 sim = self.simulator(**p)
                 
                 self.sim = sim
@@ -490,7 +501,7 @@ class ModelGrid(ModelFit):
                 fcoll[i_Tmin] = hmf_pars.copy()
 
             # If we already have matching fcoll splines, use them!
-            elif (not self.phenomenological):
+            elif self.reuse_splines and (not self.phenomenological):
                                         
                 hmf_pars = {'pop_Tmin%s' % suffix: fcoll[i_Tmin]['pop_Tmin%s' % suffix],
                     'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
