@@ -173,10 +173,10 @@ class loglikelihood(LogLikelihood):
         if np.isnan(PofD) or (type(phi) == np.ma.core.MaskedConstant):
             return -np.inf, self.blank_blob
 
-        #try:
-        blobs = pop.blobs
-        #except:
-        #    blobs = self.blank_blob
+        try:
+            blobs = pop.blobs
+        except:
+            blobs = self.blank_blob
             
         del pop, kw
         gc.collect()

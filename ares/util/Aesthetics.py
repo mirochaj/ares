@@ -332,6 +332,23 @@ class Labeler(object):
             else:
                 label = r'$%s^{\mathrm{par}\ %i,%i}$' \
                     % (undo_mathify(self.labels[prefix]), parnum[0], parnum[1])
+        #elif phpid is not None and par[0:7] == 'pq_func':
+        #    
+        #    # Happens when PQs are nested
+        #    parnum = map(int, re.findall(r'\d+', par.replace('[%i]' % phpid,'')))[0]
+        #    s = 'pq[%i]' % parnum
+        #    for _par in self.base_kwargs:
+        #        if self.base_kwargs[_par] == s:
+        #            break
+        #            
+        #    orig_num = map(int, re.findall(r'\d+', _par.replace('[%i]' % parnum,'')))[0]        
+        #            
+        #            
+        #    print par, phpid, parnum, _par
+        #
+        #    label = r'$%s^{\mathrm{par}\ %i,%i}$' \
+        #        % (undo_mathify(self.labels[_par]), phpid, parnum)       
+        #            
         elif (popid is not None) and (phpid is None) and (prefix not in self.labels):
             try:
                 hard = self._find_par(popid, phpid)
@@ -343,6 +360,9 @@ class Labeler(object):
                 parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
                 label = r'$%s\{%i\}[%i]<%i>$' % (hard.replace('_', '\_'),
                     popid, phpid, parnum)
+
+        else:
+            return r'par #%i' % self.pars.index(par)
 
         # Troubleshoot if label not found
         if label is None:            
