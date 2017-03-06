@@ -683,7 +683,7 @@ def ControlParameters():
     {
     
     # Start/stop/IO
-    "dtDataDump": 1,
+    "dtDataDump": 1.,
     "dzDataDump": None,
     'logdtDataDump': None,
     'logdzDataDump': None,

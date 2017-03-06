@@ -64,7 +64,7 @@ dpl = \
  'pop_logN{1}': -inf,
 
  'pop_solve_rte{1}': True,
- 'pop_tau_Nz{1}': 1e3,
+ 'pop_tau_Nz{1}': 1000,
  'pop_approx_tau{1}': 'neutral',
 
  # Control parameters
