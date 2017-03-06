@@ -132,32 +132,35 @@ class loglikelihood(LogLikelihood):
         t1 = time.time()
                 
         # Loop over all data points individually.
-        phi = np.zeros_like(self.ydata)
-        for i, quantity in enumerate(self.metadata):
+        try:
+            phi = np.zeros_like(self.ydata)
+            for i, quantity in enumerate(self.metadata):
+                
+                if self.mask[i]:
+                    continue
+                    
+                xdat = self.xdata[i]
+                z = self.redshifts[i]
+                            
+                # Generate model LF
+                if quantity == 'lf':
+                    # Dust correction for observed galaxies
+                    AUV = pop.dust.AUV(z, xdat)
             
-            if self.mask[i]:
-                continue
-                
-            xdat = self.xdata[i]
-            z = self.redshifts[i]
-                        
-            # Generate model LF
-            if quantity == 'lf':
-                # Dust correction for observed galaxies
-                AUV = pop.dust.AUV(z, xdat)
-
-                # Compare data to model at dust-corrected magnitudes
-                M = xdat - AUV
-                
-                # Compute LF
-                p = pop.LuminosityFunction(z=z, x=M, mags=True)
-            elif quantity == 'smf':
-                M = xdat
-                p = pop.StellarMassFunction(z, M)
-            else:
-                raise ValueError('Unrecognized quantity: %s' % quantity)
-                
-            phi[i] = p
+                    # Compare data to model at dust-corrected magnitudes
+                    M = xdat - AUV
+                    
+                    # Compute LF
+                    p = pop.LuminosityFunction(z=z, x=M, mags=True)
+                elif quantity == 'smf':
+                    M = xdat
+                    p = pop.StellarMassFunction(z, M)
+                else:
+                    raise ValueError('Unrecognized quantity: %s' % quantity)
+                    
+                phi[i] = p
+        except:
+            return -np.inf, self.blank_blob        
             
         t2 = time.time()
         

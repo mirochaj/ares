@@ -2774,7 +2774,7 @@ class ModelSet(BlobFactory):
         multiplier=1, fig=1, mp=None, inputs={}, tighten_up=0.0, ticks=5, 
         bins=20, skip=0, scatter=False,
         skim=1, oned=True, twod=True, filled=True, show_errors=False, 
-        label_panels='upper right', 
+        label_panels=None, 
         fix=True, skip_panels=[], stop=None, mp_kwargs={},
         **kwargs):
         """
@@ -3822,6 +3822,13 @@ class ModelSet(BlobFactory):
         shutil.copy('%s.binfo.pkl' % self.prefix, out)
         print "Wrote %s." % out    
         
+    @property
+    def labeler(self):
+        if not hasattr(self, '_labeler'):
+            self._labeler = Labeler(self.parameters, self.is_log, 
+                **self.base_kwargs)
+        return self._labeler
+        
     def set_axis_labels(self, ax, pars, take_log=False, un_log=False,
         cb=None, labels={}):
         """
@@ -3845,8 +3852,8 @@ class ModelSet(BlobFactory):
             take_log = tmp        
             
         # Prep for label making
-        labeler = self.labeler = Labeler(pars, is_log, extra_labels=labels,
-            **self.base_kwargs)
+        labeler = self.labeler #= Labeler(pars, is_log, extra_labels=labels,
+            #**self.base_kwargs)
 
         # x-axis first
         ax.set_xlabel(labeler.label(pars[0], take_log=take_log[pars[0]], 

@@ -256,7 +256,7 @@ def mathify_str(s):
             
 class Labeler(object):
     def __init__(self, pars, is_log=False, extra_labels={}, **kwargs):
-        self.pars = pars
+        self.pars = self.parameters = pars
         self.base_kwargs = kwargs
         self.extras = extra_labels
         
@@ -264,12 +264,16 @@ class Labeler(object):
         self.labels.update(self.extras)
         
         if type(is_log) == bool:
-            self.is_log = [is_log] * len(pars)
+            self.is_log = {par:is_log for par in pars}
         else:
-            if is_log == {}:
-                self.is_log = {key:False for key in self.pars}
-            else:
-                self.is_log = is_log
+            self.is_log = {}
+            for par in pars:
+                if par in self.parameters:
+                    k = self.parameters.index(par)
+                    self.is_log[par] = is_log[k]
+                else:
+                    # Blobs are never log10-ified before storing to disk
+                    self.is_log[par] = False        
         
     def units(self, prefix):
         units = None
@@ -318,12 +322,25 @@ class Labeler(object):
         
         label = None
         
-        # Simplest case
+        # Simplest case. Not popid, not a PQ, label found.
         if popid == phpid == None and (prefix in self.labels):
             label = self.labels[prefix]
-        # Has pop ID number
+        # Has pop ID number but is not a PQ, label found.
         elif (popid is not None) and (phpid is None) and (prefix in self.labels):
             label = self.labels[prefix]
+        # Has Pop ID, not a PQ, no label found.      
+        elif (popid is not None) and (phpid is None) and (prefix not in self.labels):
+            try:
+                hard = self._find_par(popid, phpid)
+            except:
+                hard = None
+        
+            if hard is not None:    
+                # If all else fails, just typset the parameter decently
+                parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
+                label = r'$%s\{%i\}[%i]<%i>$' % (hard.replace('_', '\_'),
+                    popid, phpid, parnum)    
+        # Is PQ, label found. Just need to parse []s.
         elif phpid is not None and (prefix in self.labels):
             parnum = map(int, re.findall(r'\d+', par.replace('[%i]' % phpid,'')))
             if len(parnum) == 1:
@@ -332,53 +349,26 @@ class Labeler(object):
             else:
                 label = r'$%s^{\mathrm{par}\ %i,%i}$' \
                     % (undo_mathify(self.labels[prefix]), parnum[0], parnum[1])
-        #elif phpid is not None and par[0:7] == 'pq_func':
-        #    
-        #    # Happens when PQs are nested
-        #    parnum = map(int, re.findall(r'\d+', par.replace('[%i]' % phpid,'')))[0]
-        #    s = 'pq[%i]' % parnum
-        #    for _par in self.base_kwargs:
-        #        if self.base_kwargs[_par] == s:
-        #            break
-        #            
-        #    orig_num = map(int, re.findall(r'\d+', _par.replace('[%i]' % parnum,'')))[0]        
-        #            
-        #            
-        #    print par, phpid, parnum, _par
-        #
-        #    label = r'$%s^{\mathrm{par}\ %i,%i}$' \
-        #        % (undo_mathify(self.labels[_par]), phpid, parnum)       
-        #            
-        elif (popid is not None) and (phpid is None) and (prefix not in self.labels):
-            try:
-                hard = self._find_par(popid, phpid)
-            except:
-                hard = None
-                
-            if hard is not None:    
-                # If all else fails, just typset the parameter decently
-                parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
-                label = r'$%s\{%i\}[%i]<%i>$' % (hard.replace('_', '\_'),
-                    popid, phpid, parnum)
-
-        else:
-            return r'par #%i' % self.pars.index(par)
-
+        # Otherwise, just use number. Not worth the trouble right now.
+        elif (popid is None) and (phpid is not None) and par.startswith('pq_'):
+            label = 'par %i' % (self.parameters.index(par))
+            
         # Troubleshoot if label not found
-        if label is None:            
+        if label is None:         
             label = prefix
             if re.search('pop_', prefix):
                 if prefix[4:] in self.labels:
                     label = self.labels[prefix[4:]]
             else:
                 label = r'$%s$' % (par.replace('_', '\_'))
-                            
-        if take_log:        
-            return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
-        elif self.is_log[par] and (not un_log):
-            return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
-        else:
-            return label    
+        
+        if par in self.parameters:                    
+            if take_log:        
+                return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+            elif self.is_log[par] and (not un_log):
+                return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+            else:
+                return label    
         
         return label
         
