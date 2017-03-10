@@ -536,7 +536,8 @@ class ModelGrid(ModelFit):
                 f.close()   
                 
                 blobs = self.blank_blob
-                
+            except MemoryError:
+                raise MemoryError('This cannot be tolerated!')
             except Exception: 
                 # Write to "fail" file
                 f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
@@ -623,7 +624,7 @@ class ModelGrid(ModelFit):
         MPI.COMM_WORLD.Barrier()
         
         t2 = time.time()
-        
+
         ##
         # FINAL INFO 
         ##    

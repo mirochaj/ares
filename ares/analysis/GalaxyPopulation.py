@@ -21,6 +21,7 @@ datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015',
     'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
     'reddy2009', 'weisz2014')
 datasets_smf = ('song2016', 'tomczak2014')
+datasets_mzr = ('sanders2015',)
 
 groups_lf = \
 {
@@ -32,7 +33,7 @@ groups_lf = \
 }
 
 groups_smf = {'all': datasets_smf}
-groups = {'lf': groups_lf, 'smf': groups_smf}
+groups = {'lf': groups_lf, 'smf': groups_smf, 'mzr': {'all': datasets_mzr}}
 
 colors = ['m', 'c', 'r', 'y', 'g', 'b'] * 3
 markers = ['o'] * 6 + ['s'] * 6    
@@ -46,6 +47,10 @@ for i, dataset in enumerate(datasets_lf):
 for i, dataset in enumerate(datasets_smf):
     default_colors[dataset] = colors[i]
     default_markers[dataset] = markers[i]
+
+for i, dataset in enumerate(datasets_mzr):
+    default_colors[dataset] = colors[i]
+    default_markers[dataset] = markers[i]    
 
 _ulim_tick = 0.5
 
@@ -91,7 +96,9 @@ class GalaxyPopulation(object):
                 z = redshift
                 
             data[source] = {}
-            data[source]['wavelength'] = src.wavelength
+            
+            if quantity in ['lf']:
+                data[source]['wavelength'] = src.wavelength
                         
             M = src.data[quantity][z]['M']            
             if hasattr(M, 'data'):
@@ -234,17 +241,19 @@ class GalaxyPopulation(object):
                 dc = 0
                 
             # Shift band [optional]
-            if data[source]['wavelength'] != wavelength:
-                #shift = sed_model.
-                print "WARNING: %s wavelength=%iA, not %iA!" \
-                    % (source, data[source]['wavelength'], wavelength)
+            if quantity in ['lf']:
+                if data[source]['wavelength'] != wavelength:
+                    #shift = sed_model.
+                    print "WARNING: %s wavelength=%iA, not %iA!" \
+                        % (source, data[source]['wavelength'], wavelength)
             #else:
             shift = 0.    
               
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
                 label=source, **kw)
                 
-        ax.set_yscale('log', nonposy='clip')
+        if quantity in ['lf', 'smf']:
+            ax.set_yscale('log', nonposy='clip')
 
         if quantity == 'lf':
             ax.set_xlim(-26.5, -10)
@@ -256,6 +265,11 @@ class GalaxyPopulation(object):
             ax.set_xlim(1e7, 1e13)
             ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
             ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
+        elif quantity == 'mzr':
+            ax.set_xlabel(r'$\dot{M}_{\ast} / M_{\odot}$')
+            ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
+            ax.set_xlim(1e8, 1e12)
+            ax.set_ylim(7, 9.5)
             
         pl.draw()
         

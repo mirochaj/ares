@@ -2058,7 +2058,7 @@ class ModelSet(BlobFactory):
                 f.close()
                 
                 # What follows is real cludgey...sorry, future Jordan
-                nd = len(dat.shape) #- 1
+                nd = len(dat.shape) - 1
                 dims = dat[0].shape
                 #assert nd == 1, "Help!"
                 
@@ -2080,7 +2080,7 @@ class ModelSet(BlobFactory):
                     
                     # Look up the independent variables for this DB
                     ivars = dbinfo[par]
-                    
+
                     for iv in ivars:                            
                         arr = np.array(ivars[iv]).squeeze()
                         if arr.shape == dat[0].shape:
@@ -3582,7 +3582,7 @@ class ModelSet(BlobFactory):
         save=True, ivar=None, name=None, clobber=False):
         """
         Derive new blob from pre-existing ones.
-        
+
         Parameters
         ----------
         Either supply the first two arguments:
@@ -3611,20 +3611,20 @@ class ModelSet(BlobFactory):
             to call it up later.
         clobber : bool
             If file with same ``name`` exists, overwrite it?
-        
+
         """    
-        
+
         if func is not None:
             data = self.ExtractData(fields)
-            
+
             # Grab ivars
             ivars = {}
             for key in data:
                 i, j, nd, size = self.blob_info(key)
                 ivars[key] = self.blob_ivars[i]
-                
+
             result = func(data, ivars)
-        
+
         else:
         
             blobs = varmap.values()

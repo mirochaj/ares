@@ -25,7 +25,7 @@ step = \
  'pop_fesc{0}': 'pq[2]',
  'pq_func{0}[2]': 'astep',
  'pq_func_var{0}[2]': 'Mh',
- 'pq_func_par0{0}[2]': 0.1,
+ 'pq_func_par0{0}[2]': 0., # No LyC from minihalos by default
  'pq_func_par1{0}[2]': 0.1,
  'pq_func_par2{0}[2]': (barrier_A, 'z', 1),
 

@@ -68,6 +68,16 @@ class ParameterizedQuantity(object):
             self._sub_pqs[val] = PQ
 
     @property
+    def idnum(self):
+        if not hasatrr(self, '_idnum'):
+            self._idnum = None
+        return self._idnum
+        
+    @idnum.setter
+    def idnum(self, value):
+        self._idnum = int(value)
+
+    @property
     def func(self):
         return self.pf['pq_func']
     
@@ -151,17 +161,18 @@ class ParameterizedQuantity(object):
         elif func == 'normal':
             f = p0 * np.exp(-(x - p1)**2 / 2. / p2**2)
         elif func == 'pl':
+            #print x, kwargs['z'], p0, p1, p2
             f = p0 * (x / p1)**p2
         # 'quadratic_lo' means higher order terms vanish when x << p0
         elif func == 'quadratic_lo':
-            f = p1 * (1. +  p2 * (x / p0) + p3 * (x / p0)**2)
+            f = p0 * (1. +  p1 * (x / p3) + p2 * (x / p3)**2)
         # 'quadratic_hi' means higher order terms vanish when x >> p0
         elif func == 'quadratic_hi':
-            f = p1 * (1. +  p2 * (p0 / x) + p3 * (p0 / x)**2)
+            f = p0 * (1. +  p1 * (p3 / x) + p2 * (p3 / x)**2)
         #elif func == 'cubic_lo':
         #    f = p1 * (1. +  p2 * (x / p0) + p3 * (x / p0)**2)
         #elif func == 'cubic_hi':
-        #    f = p1 * (1. +  p2 * (p0 / x) + p3 * (p0 / x)**2)    
+        #    f = p1 * (1. +  p2 * (p0 / x) + p3 * (p0 / x)**2)
         elif func == 'exp':
             f = p0 * np.exp(-(x / p1)**p2)
         elif func == 'exp_flip':

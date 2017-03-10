@@ -420,14 +420,23 @@ def PopulationParameters():
     "pop_fstar_max": 1.0,
     "pop_fstar_negligible": 1e-5, # relative to maximum
     
+    "pop_facc": 0.0,
+    
+    "pop_fsmooth": 1.0,
+
+    # Next 3: relative to fraction of halo acquiring the material
+    'pop_acc_frac_metals': 1.0,
+    'pop_acc_frac_stellar': 1.0,
+    'pop_acc_frac_gas': 1.0,
+    'pop_metal_retention': 1.0,
+
     "pop_sfe": None,
     "pop_mlf": None,
     "pop_sfr": None,
     "pop_fshock": 1.0,
-    
+
     "pop_fobsc": 0.0,
-    "pop_fgrowth": 1.0,
-    
+
     "pop_tab_z": None,
     "pop_tab_Mh": None,
     "pop_tab_sfe": None,
@@ -483,7 +492,6 @@ def PopulationParameters():
     
     # Parameters for simple galaxy SAM
     "pop_sam_nz": 1,
-    "pop_sam_dz": 1.0,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.01,
     "pop_fpoll": 1.0,         # uniform pollution
@@ -754,7 +762,7 @@ def ControlParameters():
     "tau_prefix": tau_prefix,
     "tau_instance": None,
 
-    "sam_dz": 0.05,
+    "sam_dz": 2., # Usually good enough!
 
     # File format
     "preferred_format": 'npz',

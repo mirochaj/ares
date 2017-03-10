@@ -8,7 +8,8 @@ info = \
 {
  'reference': 'Song et al., 2016, ApJ, 825, 5',
  'data': 'Table 2', 
- 'fits': 'Table 1', 
+ 'fits': 'Table 1',
+ 'imf': ('salpeter', (0.1, 100)),
 }
 
 redshifts = [4, 5, 6, 7, 8]
