@@ -721,15 +721,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return rhoL
             
     def StellarMass(self, z, Mh):
-        data = self.scaling_relations_sorted(z=z)
+        zform, data = self.scaling_relations_sorted(z=z)
         return np.interp(Mh, data['Mh'], data['Ms'])
     
     def MetalMass(self, z, Mh):
-        data = self.scaling_relations_sorted(z=z)
+        zform, data = self.scaling_relations_sorted(z=z)
         return np.interp(Mh, data['Mh'], data['MZ'])
 
     def GasMass(self, z, Mh):
-        data = self.scaling_relations_sorted(z=z)
+        zform, data = self.scaling_relations_sorted(z=z)
         return np.interp(Mh, data['Mh'], data['Mg'])
         
     def StellarMassFunction(self, z, M):
@@ -1523,9 +1523,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 new_data[key] = tmp[key][sorter]
                 
         self._scaling_relations_sorted[z] = zform, new_data    
-        
+
         return self._scaling_relations_sorted[z]
-            
+
     def _ScalingRelationsGeneralSFE(self):
         """
         In this case, the formation time of a halo matters.

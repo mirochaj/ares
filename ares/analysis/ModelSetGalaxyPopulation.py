@@ -106,7 +106,7 @@ class ModelSetGalaxyPopulation(ModelSet):
         name='lf', shade_by_like=False, percentile=0.685, scatter_kwargs={}, 
         Mlim=(-24, -10), samples=1, take_log=False, un_log=False,
         multiplier=1, skip=0, stop=None, use_best=False, best='median',
-        **kwargs):
+        show_all=False, **kwargs):
         """
         Plot the luminosity function used to train the SFE.
         

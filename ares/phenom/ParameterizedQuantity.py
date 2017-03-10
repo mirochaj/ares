@@ -104,7 +104,7 @@ class ParameterizedQuantity(object):
         
         # Determine independent variables
         var = self.pf['pq_func_var']
-        
+                
         if var == '1+z':
             x = 1. + kwargs['z']
         else:
