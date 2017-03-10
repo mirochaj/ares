@@ -171,22 +171,31 @@ class MetaGalacticBackground(AnalyzeMGB):
         ## 
         # Feedback
         ##
-        if self._is_Mmin_converged(self._lwb_sources):
-            self._has_fluxes = True
+        if self.pf['feedback_LW']:
+            if self._is_Mmin_converged(self._lwb_sources):
+                self._has_fluxes = True
+                self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
+                self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw)
+                
+                # Now that feedback is done, evolve all non-LW sources to get
+                # final background.
+                if include_pops == self._lwb_sources:
+                    self.reboot(include_pops=self._not_lwb_sources)
+                    self.run(include_pops=self._not_lwb_sources)
+                
+            else:
+                self.reboot()
+                self.run(include_pops=self._lwb_sources)
+        else:
+            # Otherwise, just grab all the fluxes and setup interpolants
+            zarr, Ja, Jlw = self.get_uvb_tot()
+            self._zarr = zarr
+            self._Ja = Ja
+            self._Jlw = Jlw
+
             self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
             self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw)
-            
-            # Now that feedback is done, evolve all non-LW sources to get
-            # final background.
-            if include_pops == self._lwb_sources:
-                self.reboot(include_pops=self._not_lwb_sources)
-                self.run(include_pops=self._not_lwb_sources)
-            
-        else:
-            self.reboot()
-            self.run(include_pops=self._lwb_sources)
                             
-        
     @property
     def _not_lwb_sources(self):
         if not hasattr(self, '_not_lwb_sources_'):
@@ -579,10 +588,6 @@ class MetaGalacticBackground(AnalyzeMGB):
         self._Ja = Ja
         self._Jlw = Jlw
         
-        # Return right away if feedback is OFF.
-        if not self.pf['feedback_LW']:
-            return True
-
         # Instance of a population that "feels" the feedback.
         # Need for (1) initial _Mmin_pre value, and (2) setting ceiling
         pop_fb = self.pops[self._lwb_sources[0]]
