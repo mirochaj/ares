@@ -261,9 +261,7 @@ def PhysicsParameters():
     return pf
 
 def ParameterizedQuantityParameters():
-    pf = {}
-
-    tmp = \
+    pf = \
     {
      "pq_func": 'dpl',
      "pq_func_var": 'Mh',
@@ -273,36 +271,6 @@ def ParameterizedQuantityParameters():
      "pq_func_par3": None,
      "pq_func_par4": None,
      "pq_func_par5": None,
-
-     'pq_faux': None,
-     'pq_faux_var': None,
-     'pq_faux_meth': 'multiply',
-     'pq_faux_par0': None,
-     'pq_faux_par1': None,
-     'pq_faux_par2': None,
-     'pq_faux_par3': None,
-     'pq_faux_par4': None,
-     'pq_faux_par5': None,
-     
-     'pq_faux_A': None,
-     'pq_faux_A_var': None,
-     'pq_faux_A_meth': 'multiply',
-     'pq_faux_A_par0': None,
-     'pq_faux_A_par1': None,
-     'pq_faux_A_par2': None,
-     'pq_faux_A_par3': None,
-     'pq_faux_A_par4': None,
-     'pq_faux_A_par5': None,
-     
-     'pq_faux_B': None,
-     'pq_faux_B_var': None,
-     'pq_faux_B_meth': 'multiply',
-     'pq_faux_B_par0': None,
-     'pq_faux_B_par1': None,
-     'pq_faux_B_par2': None,
-     'pq_faux_B_par3': None,
-     'pq_faux_B_par4': None,
-     'pq_faux_B_par5': None,
      
      "pq_boost": 1.,
      "pq_iboost": 1.,
@@ -313,12 +281,6 @@ def ParameterizedQuantityParameters():
          
     }  
     
-    # Hrm...can't remember what this is about.
-    for i in range(6):
-        for j in range(6):
-            tmp['pq_func_par%i_par%i' % (i,j)] = None
-    
-    pf.update(tmp)
     pf.update(rcParams)
 
     return pf
@@ -458,14 +420,23 @@ def PopulationParameters():
     "pop_fstar_max": 1.0,
     "pop_fstar_negligible": 1e-5, # relative to maximum
     
+    "pop_facc": 0.0,
+    
+    "pop_fsmooth": 1.0,
+
+    # Next 3: relative to fraction of halo acquiring the material
+    'pop_acc_frac_metals': 1.0,
+    'pop_acc_frac_stellar': 1.0,
+    'pop_acc_frac_gas': 1.0,
+    'pop_metal_retention': 1.0,
+
     "pop_sfe": None,
     "pop_mlf": None,
     "pop_sfr": None,
     "pop_fshock": 1.0,
-    
+
     "pop_fobsc": 0.0,
-    "pop_fgrowth": 1.0,
-    
+
     "pop_tab_z": None,
     "pop_tab_Mh": None,
     "pop_tab_sfe": None,
@@ -521,7 +492,6 @@ def PopulationParameters():
     
     # Parameters for simple galaxy SAM
     "pop_sam_nz": 1,
-    "pop_sam_dz": 1.0,
     "pop_mass_yield": 0.5,
     "pop_metal_yield": 0.01,
     "pop_fpoll": 1.0,         # uniform pollution
@@ -721,7 +691,7 @@ def ControlParameters():
     {
     
     # Start/stop/IO
-    "dtDataDump": 1,
+    "dtDataDump": 1.,
     "dzDataDump": None,
     'logdtDataDump': None,
     'logdzDataDump': None,
@@ -792,7 +762,7 @@ def ControlParameters():
     "tau_prefix": tau_prefix,
     "tau_instance": None,
 
-    "sam_dz": 0.05,
+    "sam_dz": 2., # Usually good enough!
 
     # File format
     "preferred_format": 'npz',

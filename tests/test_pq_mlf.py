@@ -75,22 +75,19 @@ def test():
     pars_sfe = \
     {
     'pop_sfr_model': 'sfe-func',
-    'pop_fstar': 'pq',
+    'pop_fstar': 'pq[0]',
+    'pq_func[0]': 'pl',
+    'pq_func_var[0]': 'Mh',
+    'pq_func_par0[0]': 'pq[1]',
+    'pq_func_par1[0]': 1e11,
+    'pq_func_par2[0]': 0.6,
+
+    'pq_func[1]': 'pl',
+    'pq_func_var[1]': 'z',
+    'pq_func_par0[1]': 1e-1,
+    'pq_func_par1[1]': 7.,
+    'pq_func_par2[1]': 1.,
     
-    'pq_func': 'pl',
-    'pq_func_var': 'Mh',
-    'pq_func_par0': 1e-1,
-    'pq_func_par1': 1e11,
-    'pq_func_par2': 0.,
-    
-    # The php_faux will get applied to the php_func with the same pop ID
-    # and php ID.
-    'pq_faux': 'pl',
-    'pq_faux_var': 'z',
-    'pq_faux_meth': 'multiply',
-    'pq_faux_par0': 1.,
-    'pq_faux_par1': 10.,
-    'pq_faux_par2': 0.5,
     }  
     
     z1 = 10.
@@ -98,33 +95,11 @@ def test():
     
     pop_sfe = ares.populations.GalaxyPopulation(**pars_sfe)
     
-    correction = (z2 / z1)**pars_sfe['pq_faux_par2']
+    correction = (z2 / z1)**pars_sfe['pq_func_par2[1]']
     
-    assert pop_sfe.fstar(z=z1, Mh=1e10) * correction == pop_sfe.fstar(z=z2, Mh=1e10), \
+    assert pop_sfe.fstar(z=z1, Mh=1e11) * correction == pop_sfe.fstar(z=z2, Mh=1e11), \
         "Redshift evolution not working properly for SFE."
 
-    """
-    Last test: introduce redshift dependent parameter.
-    """
-    
-    #pars_nest = \
-    #{
-    #'pop_fstar': 'pq',
-    #'pop_mlf': None,
-    #
-    #'pq_func': 'dpl',
-    #'pq_func_var': 'Mh',
-    #'pq_func_par0': 'prefix',
-    #'pq_func_par1': 1e11,
-    #'pq_func_par2': 0.6,
-    #'pq_func_par3': 0.6,
-    #
-    #'prefix_func': 'pl',
-    #'prefix_func_var': 'pl',
-    #'prefix_func_par0': 1.,
-    #'prefix_func_par1': 8.,
-    #'prefix_func_par2': -1.,
-    #}
     
 if __name__ == '__main__':
     test()    

@@ -42,6 +42,9 @@ aux_data = \
  #'bpass_v2': ['https://drive.google.com/file/d/'] + \
  #    ['bpassv2-imf%i-300tar.gz' % IMF for IMF in [100, 135]] + \
  #     [None],    
+ 'behroozi2013': ['http://www.peterbehroozi.com/uploads/6/5/4/8/6548418/',
+    'sfh_z0_z8.tar.gz', 'observational-data.tar.gz', None]
+ 
 }
 
 if not os.path.exists('input'):

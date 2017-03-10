@@ -16,6 +16,7 @@ from ..util import read_lit
 from types import FunctionType
 from scipy.optimize import fsolve, minimize
 from .GalaxyAggregate import GalaxyAggregate
+from ..analysis.BlobFactory import BlobFactory
 from ..util import MagnitudeSystem, ProgressBar
 from ..phenom.DustCorrection import DustCorrection
 from scipy.integrate import quad, simps, cumtrapz, ode
@@ -36,7 +37,7 @@ z0 = 9. # arbitrary
 tiny_phi = 1e-18
 _sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr']
     
-class GalaxyCohort(GalaxyAggregate):
+class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
     @property
     def dust(self):
@@ -66,7 +67,7 @@ class GalaxyCohort(GalaxyAggregate):
         exist (yet). The only special case is really L1600_per_sfr, since 
         that requires accessing a SynthesisModel.
         """
-            
+                                
         # Indicates that this attribute is being accessed from within a 
         # property. Don't want to override that behavior!
         if (name[0] == '_'):
@@ -110,12 +111,12 @@ class GalaxyCohort(GalaxyAggregate):
                     result = lambda **kwargs: interp(np.log10(self.Zgas(kwargs['z'], kwargs['Mh'])))
                 else:
                     att = self.src.__getattribute__(name)
-                                        
+
                     if name == 'rad_yield':
                         val = att(self.src.Emin, self.src.Emax)
                     else:
                         val = att
-                                                
+
                     result = lambda **kwargs: val
 
             elif is_php:
@@ -133,7 +134,8 @@ class GalaxyCohort(GalaxyAggregate):
                     pars = tmp            
                     
                 Mmin = lambda z: self.Mmin
-                result = ParameterizedQuantity({'pop_Mmin': Mmin}, **pars)
+                result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, 
+                    **pars)
                 
                 self._update_pq_registry(name, result)
             
@@ -481,7 +483,7 @@ class GalaxyCohort(GalaxyAggregate):
         return self._SMD
     
     @property
-    def MAR(self):
+    def MGR(self):
         """
         Mass accretion rate onto halos of mass M at redshift z.
     
@@ -502,6 +504,13 @@ class GalaxyCohort(GalaxyAggregate):
                 self._MAR = read_lit(self.pf['pop_MAR'], verbose=self.pf['verbose']).MAR
 
         return self._MAR
+        
+    def MAR(self, z, Mh):
+        return self.cosm.fbar_over_fcdm * self.MGR(z, Mh) * self.fsmooth(z=z, Mh=Mh)
+    
+    def MDR(self, z, Mh):
+        # Mass "delivery" rate
+        return self.cosm.fbar_over_fcdm * self.MGR(z, Mh) * (1. - self.fsmooth(z=z, Mh=Mh))
         
     def iMAR(self, z, source=None):
         """
@@ -642,14 +651,14 @@ class GalaxyCohort(GalaxyAggregate):
     
         return self._tab_eta_
 
-    def SFR(self, z, M, mu=0.6):
+    def SFR(self, z, Mh, mu=0.6):
         """
         Star formation rate at redshift z in a halo of mass M.
         
         ..note:: Units should be solar masses per year at this point.
         """
         
-        return self.pSFR(z, M, mu) * self.SFE(z=z, Mh=M)
+        return self.pSFR(z, Mh, mu) * self.SFE(z=z, Mh=Mh)
 
     def pSFR(self, z, M, mu=0.6):
         """
@@ -710,30 +719,34 @@ class GalaxyCohort(GalaxyAggregate):
             return rhoL * self.src.Spectrum(E)
         else:
             return rhoL
+            
+    def StellarMass(self, z, Mh):
+        zform, data = self.scaling_relations_sorted(z=z)
+        return np.interp(Mh, data['Mh'], data['Ms'])
+    
+    def MetalMass(self, z, Mh):
+        zform, data = self.scaling_relations_sorted(z=z)
+        return np.interp(Mh, data['Mh'], data['MZ'])
 
-    def StellarMassFunction(self, z):
+    def GasMass(self, z, Mh):
+        zform, data = self.scaling_relations_sorted(z=z)
+        return np.interp(Mh, data['Mh'], data['Mg'])
+        
+    def StellarMassFunction(self, z, M):
+        Marr, phi = self.SMF(z)
+        return np.interp(M, Marr, phi)
+
+    def SMF(self, z):
         if not hasattr(self, '_phi_of_Mst'):
             self._phi_of_Mst = {}
         else:
             if z in self._phi_of_Mst:
                 return self._phi_of_Mst[z]
 
-        zform, data = self.scaling_relations
+        zform, data = self.scaling_relations_sorted(z)
 
-        sorter = np.argsort(data['Mh'])
-        
-        if self.constant_SFE:
-            sorter = np.argsort(data['Mh'])
-            Mh = data['Mh'][sorter]
-            Ms = data['Ms'][sorter]
-        else:
-            k = np.argmin(np.abs(z - self.halos.z))
-            Mh = data['Mh'][:,k]
-            Ms = data['Ms'][:,k]
-            
-            sorter = np.argsort(Mh)
-            Mh = Mh[sorter]
-            Ms = Ms[sorter]
+        Mh = data['Mh']
+        Ms = data['Ms']
         
         dndm_func = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
         dndm_z = dndm_func(z)
@@ -1257,7 +1270,8 @@ class GalaxyCohort(GalaxyAggregate):
             elif self.pf['pop_fstar'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
                 Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
-                self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, **pars)
+                self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
+                    self.pf, **pars)
                 
                 self._fstar = \
                     lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
@@ -1345,20 +1359,33 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         Mh, Mg, Mst, MZ = y
+
+        kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg, 'MZ': MZ}
+
+        # Assume that MZ, Mg, and Mstell acquired *not* by smooth inflow
+        # is same fraction of accreted mass as fractions in this halo
+        # right now
         
-        kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg}
-        
+        # Measured relative to baryonic inflow
+        Mb = Mh * self.cosm.fbar_over_fcdm
+        Zfrac = self.pf['pop_acc_frac_metals'] * (MZ / Mb)
+        Sfrac = self.pf['pop_acc_frac_stellar'] * (Mst / Mb)
+        Gfrac = self.pf['pop_acc_frac_gas'] * (Mg / Mb)
+                
         fstar = self.SFE(**kw)
 
+        # "Quiet" mass growth
+        fsmooth = self.fsmooth(**kw)
+
         # Eq. 1: halo mass.
-        y1p = -1. * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        y1p = -1. * self.MGR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+
+        # Splitting up the inflow. P = pristine, 
+        PIR = -1. * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        NPIR = -1. * self.MDR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
 
         # Eq. 2: gas mass
-        y2p = self.cosm.fbar_over_fcdm * y1p * (1. - fstar)
-
-        #_sfr_res = Mg * self.pf['pop_fstar_res'] / 1e7
-        #
-        #y2p -= min(m_sfr_res, y2p)
+        y2p = PIR * (1. - fstar) + NPIR * Gfrac
 
         # Add option of parameterized stifling of gas supply, and
         # ejection of gas.
@@ -1366,23 +1393,23 @@ class GalaxyCohort(GalaxyAggregate):
         # Eq. 3: stellar mass
         Mmin = self.Mmin(z)
         if Mh < Mmin:
-            y3p = 0.
+            y3p = SFR = 0.
         else:
-            y3p = fstar * self.cosm.fbar_over_fcdm * y1p \
-                * (1. - self.pf['pop_mass_yield']) * self.fgrowth(**kw)
+            SFR = PIR * fstar
+            y3p = SFR * (1. - self.pf['pop_mass_yield']) + NPIR * Sfrac
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
-        # Could make a PHP pretty easily.
-        y4p = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield'] * y3p \
-            * (1. - self.pf['pop_mass_escape'])
+        y4p = self.pf['pop_mass_yield'] * self.pf['pop_metal_yield'] * SFR \
+            * (1. - self.pf['pop_mass_escape']) \
+            + NPIR * Zfrac
 
         # Stuff to add: parameterize metal yield, metal escape, star formation
         # from reservoir? How to deal with Mmin(z)? Initial conditions (from PopIII)?
 
         results = [y1p, y2p, y3p, y4p]
-                
-        return np.array(results)    
         
+        return np.array(results)
+
     def _SAM_2z(self, z, y):
         raise NotImplemented('Super not done with this!')
         
@@ -1453,7 +1480,52 @@ class GalaxyCohort(GalaxyAggregate):
                 self._scaling_relations = self._ScalingRelationsGeneralSFE()
             
         return self._scaling_relations    
+    
+    def scaling_relations_sorted(self, z=None):
+        """
+
+        """
+        if not hasattr(self, '_scaling_relations_sorted'):
+            self._scaling_relations_sorted = {}
+
+        if z in self._scaling_relations_sorted:
+            return self._scaling_relations_sorted[z]    
+                        
+        zform, data = self.scaling_relations
+                
+        new_data = {}
+        
+        # Can't remember what this is all about.
+        if self.constant_SFE:
+            sorter = np.argsort(data['Mh'])
+            for key in data.keys():
+                new_data[key] = data[key][sorter]
+        else:
             
+            assert z is not None
+            
+            zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
+
+            if self.pf['sam_dz'] is not None:
+                zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.z)[0], 0))
+            else:
+                zfreq = 1
+
+            zarr = self.halos.z[self.halos.z >= zf][::zfreq]
+                        
+            tmp = {}
+            k = np.argmin(np.abs(z - zarr))
+            for key in data.keys():
+                tmp[key] = data[key][:,k]
+                
+            sorter = np.argsort(tmp['Mh'])
+            for key in tmp.keys():
+                new_data[key] = tmp[key][sorter]
+                
+        self._scaling_relations_sorted[z] = zform, new_data    
+
+        return self._scaling_relations_sorted[z]
+
     def _ScalingRelationsGeneralSFE(self):
         """
         In this case, the formation time of a halo matters.
@@ -1463,26 +1535,27 @@ class GalaxyCohort(GalaxyAggregate):
         Dictionary of quantities, each having shape (z, z). 
         The first dimension corresponds to formation time, the second axis
         represents trajectories.
+        
         """
         
         
         keys = ['Mh', 'Mg', 'Ms', 'MZ']
                 
-        results = {key:np.zeros([self.halos.z.size]*2) for key in keys}
-        
-        #results = {key:[] for key in keys}
+        zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
+
+        if self.pf['sam_dz'] is not None:
+            zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.z)[0], 0))
+        else:
+            zfreq = 1
+
+        zarr = self.halos.z[self.halos.z >= zf][::zfreq]
+        results = {key:np.zeros([zarr.size]*2) for key in keys}
+                                
         zform = []
-        results['nthresh'] = np.zeros_like(self.halos.z)
-        #results['zform'] = []
-        
-        zfreq = int(self.pf['pop_sam_dz'] / np.diff(self.halos.z)[0])
-
-        for i, z in enumerate(self.halos.z):
-            if (i == 0) or (i == len(self.halos.z) - 1):
+                
+        for i, z in enumerate(zarr):
+            if (i == 0) or (i == len(zarr) - 1):
                 continue
-
-            if i % zfreq != 0:
-                continue    
 
             _zarr, _results = self._ScalingRelationsStaticSFE(z0=z)
 
@@ -1492,19 +1565,7 @@ class GalaxyCohort(GalaxyAggregate):
                 # Must keep in mind that different redshifts have different
                 # halo mass gridding effectively
 
-            ##
-            # Could kill this once a user-defined mass and redshift
-            # interval is adequately sampled
-            ##
-
-            #for key in keys:
-            #    results[key].append(_results[key].copy())
-            #
             zform.append(z)
-            #results['z'].append(_zarr)
-            #
-            k = np.argmin(np.abs(self.halos.M - self._tab_Mmin[i]))
-            results['nthresh'][i] = self.halos.dndm[i,k]   
 
         return zform, results
         
@@ -1519,12 +1580,20 @@ class GalaxyCohort(GalaxyAggregate):
         redshifts, halo mass, gas mass, stellar mass, metal mass
 
         """
+        
+        zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
 
-        dz = max(np.diff(self.halos.z)[0], self.pf['sam_dz'])
+        if self.pf['sam_dz'] is not None:
+            dz = self.pf['sam_dz']
+            zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.z)[0], 0))
+        else:
+            dz = np.diff(self.halos.z)[0]
+            zfreq = 1
 
-        solver = ode(self._SAM).set_integrator('vode', method='bdf',
-            nsteps=1e4, order=5)
-
+        #atol = 0.; rtol = 1e-3
+        solver = ode(self._SAM).set_integrator('lsoda', 
+            nsteps=1e4, atol=1e2, rtol=1e-2)
+            
         ##  
         # Outputs have shape (z, z)
         ##
@@ -1533,45 +1602,43 @@ class GalaxyCohort(GalaxyAggregate):
         if z0 is None:
             z0 = self.halos.z.max()
             M0 = self._tab_Mmin[-1]
-
-            #assert np.all(np.diff(self.Mmin) == 0), \
-            #    "Can only do this for constant Mmin at the moment. Sorry!"
-
         else:
             M0 = np.interp(z0, self.halos.z, self._tab_Mmin)
-            
-        zf = float(self.halos.z.min())
-
+                                  
+        in_range = np.logical_and(self.halos.z >= zf, self.halos.z <= z0)
+        zarr = self.halos.z[in_range][::zfreq]
+        Nz = zarr.size
+                                        
         # Boundary conditions (pristine halo)
         Mg0 = self.cosm.fbar_over_fcdm * M0
         MZ0 = 0.0
         Mst0 = 0.0
-
+        
         # Initial stellar mass -> 0, initial halo mass -> Mmin
         solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0]), z0)
 
-        z = []
         Mh_t = []
         Mg_t = []
         Mst_t = []
         metals = []
-        while True:
+        for i in range(Nz):
 
-            z.append(solver.t)
             Mh_t.append(solver.y[0])
             Mg_t.append(solver.y[1])
             Mst_t.append(solver.y[2])
             metals.append(solver.y[3])
-
+                        
             # Annoying. Simple conditional in while was not robust.
-            if abs(solver.t - zf) < 1e-10:
-                break
-                
+            #if (abs(solver.t - zf) < 1e-4):
+            #    break
+            #if (abs(solver.t - dz) < zf):
+            #    break    
+            
             solver.integrate(solver.t-dz)
 
         # Everything will be returned in order of ascending redshift,
         # which will mean masses are (probably) declining from 0:-1
-        z = np.array(z)[-1::-1]
+        z = zarr[-1::-1]
         Mh = np.array(Mh_t)[-1::-1]
         Mg = np.array(Mg_t)[-1::-1]
         Ms = np.array(Mst_t)[-1::-1]
@@ -1579,7 +1646,11 @@ class GalaxyCohort(GalaxyAggregate):
         
         # Derived
         results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ}
-        results['Z'] = results['MZ'] / results['Mg'] / self.pf['pop_fpoll']
+        results['Z'] = self.pf['pop_metal_retention'] \
+            * (results['MZ'] / results['Mg'])
+            
+        for key in results:
+            results[key] = np.maximum(results[key], 0.0)
 
         return z, results
 

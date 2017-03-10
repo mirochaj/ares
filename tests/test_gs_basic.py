@@ -16,6 +16,7 @@ import matplotlib.pyplot as pl
 def test():
     sim = ares.simulations.Global21cm()
     sim.run()
+    sim.GlobalSignature()
     
     pl.savefig('%s.png' % (__file__.rstrip('.py')))
     pl.close()

@@ -52,8 +52,8 @@ class CheckPoints:
         self.time_dumps = False    
         if dtDataDump is not None:
             self.time_dumps = True
-            self.DDtimes = np.linspace(0, self.stop_time, 
-                max(stop_time / dtDataDump, 1) + 1)
+            NDD = max(int(float(stop_time) / float(dtDataDump)), 1)
+            self.DDtimes = np.linspace(0., self.stop_time, NDD + 1)
         else:
             self.DDtimes = np.array([self.stop_time])
         

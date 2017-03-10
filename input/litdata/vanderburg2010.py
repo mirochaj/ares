@@ -47,5 +47,5 @@ data['lf'] = \
        },
 }
 
-units = {'phi': 1., 'wavelength': 1500.}
+units = {'lf': 1., 'wavelength': 1500.}
 

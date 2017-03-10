@@ -11,6 +11,7 @@ info = \
 }
 
 redshifts = [10]
+wavelength = 1600. # I think?
 
 ULIM = -1e10
 
@@ -24,5 +25,5 @@ data['lf'] = \
       },               
 }
 
-units = {'phi': 1.}
+units = {'lf': 1.}
 

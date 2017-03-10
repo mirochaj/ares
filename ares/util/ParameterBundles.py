@@ -224,7 +224,8 @@ _Bundles = \
          'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 'toy': _sed_toy,
          'bpass': _uvsed_bpass, 's99': _uvsed_s99, 'xi': _sed_xi},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
- 'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc1, 'evolving': _evolve_dc,
+ 'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2, 
+    'evolving': _evolve_dc,
     }
 }
 

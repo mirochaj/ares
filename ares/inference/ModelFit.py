@@ -162,7 +162,7 @@ class LogLikelihood(object):
             self.error = np.array(error)
         else:
             self.error = error
-        
+                    
         self.prefix = prefix
 
         self.priors_P = param_prior_set

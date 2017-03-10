@@ -25,7 +25,7 @@ step = \
  'pop_fesc{0}': 'pq[2]',
  'pq_func{0}[2]': 'astep',
  'pq_func_var{0}[2]': 'Mh',
- 'pq_func_par0{0}[2]': 0.1,
+ 'pq_func_par0{0}[2]': 0., # No LyC from minihalos by default
  'pq_func_par1{0}[2]': 0.1,
  'pq_func_par2{0}[2]': (barrier_A, 'z', 1),
 
@@ -110,7 +110,7 @@ exp_Mtr_rel = \
   ##
   'pop_Tmin{0}': None,
   'pop_Tmin_ceil{0}': 1e4,
-  'pop_Mmin{0}': 'link:Mmax_active:2',
+  'pop_Mmin{0}': 'link:Mmax_active:2', # 'pop_Mmin{2}'?
   'pop_Tmin{2}': 500.,
   'pop_Mmin{3}': 'pop_Mmin{2}',
   'pop_Tmin{3}': None,
@@ -135,5 +135,8 @@ sfrd_blobs = \
  'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD', 'pops[0].SFRD_at_threshold',
     'pops[2].SFRD_at_threshold', 'pops[0].Mmin', 'pops[2].Mmin'],
 }
+
+# Distillation of PopIII SFH
+
 
 

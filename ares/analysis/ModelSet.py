@@ -1086,7 +1086,7 @@ class ModelSet(BlobFactory):
         self._plot_info = value
         
     def WalkerTrajectoriesMultiPlot(self, pars=None, N=50, walkers='random', 
-        ax=None, fig=1, mp_kwargs={}, best_fit='mode', **kwargs):
+        ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
         """
@@ -1095,7 +1095,8 @@ class ModelSet(BlobFactory):
             pars = self.parameters
         
         Npars = len(pars)
-        mp = MultiPanel(dims=(Npars, 1), fig=fig, padding=(0, 0.1), **mp_kwargs)
+        mp = MultiPanel(dims=(Npars/ncols, ncols), fig=fig, 
+            padding=(0.3, 0.3), **mp_kwargs)
         
         w = self._get_walker_subset(N, walkers)
         
@@ -1111,7 +1112,7 @@ class ModelSet(BlobFactory):
             mp.grid[i].plot([0, self.chain[:,i].size / float(self.nwalkers)], 
                 [self.chain[loc,i]]*2, color='k', ls='--', lw=5)
             
-        mp.fix_ticks()    
+        mp.fix_ticks()
             
         return mp           
                 
@@ -1147,7 +1148,7 @@ class ModelSet(BlobFactory):
         
         for i in to_plot:
             data, mask = self.get_walker(i)
-            ax.plot(data[:,self.parameters.index(par)])
+            ax.plot(data[:,self.parameters.index(par)], **kwargs)
 
         self.set_axis_labels(ax, ['step', par], take_log=False, un_log=False,
             labels={})
@@ -2057,7 +2058,7 @@ class ModelSet(BlobFactory):
                 f.close()
                 
                 # What follows is real cludgey...sorry, future Jordan
-                nd = len(dat.shape) #- 1
+                nd = len(dat.shape) - 1
                 dims = dat[0].shape
                 #assert nd == 1, "Help!"
                 
@@ -2079,7 +2080,7 @@ class ModelSet(BlobFactory):
                     
                     # Look up the independent variables for this DB
                     ivars = dbinfo[par]
-                    
+
                     for iv in ivars:                            
                         arr = np.array(ivars[iv]).squeeze()
                         if arr.shape == dat[0].shape:
@@ -2773,7 +2774,7 @@ class ModelSet(BlobFactory):
         multiplier=1, fig=1, mp=None, inputs={}, tighten_up=0.0, ticks=5, 
         bins=20, skip=0, scatter=False,
         skim=1, oned=True, twod=True, filled=True, show_errors=False, 
-        label_panels='upper right', 
+        label_panels=None, 
         fix=True, skip_panels=[], stop=None, mp_kwargs={},
         **kwargs):
         """
@@ -3086,17 +3087,17 @@ class ModelSet(BlobFactory):
         
         return mp
         
-    def ReconstructedFunction(self, name, ivar=None, fig=1, ax=None,
+    def ReconstructedFunction(self, names, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        best='maxL', fill=True, show_all=False, **kwargs):
+        best='maxL', fill=True, show_all=False, samples=None, **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
         Parameters
         ----------
         name : str
-            Name of blob you're interested in.
+            Name of blob(s) you're interested in.
         ivar : list, np.ndarray
             List of values (or nested list) of independent variables. If 
             blob is 2-D, only need to provide the independent variable for
@@ -3127,9 +3128,15 @@ class ModelSet(BlobFactory):
         
         if percentile:    
             q1 = 0.5 * 100 * (1. - percentile)    
-            q2 = 100 * percentile + q1    
-        
-        info = self.blob_info(name)
+            q2 = 100 * percentile + q1
+            
+        if type(names) is str:
+            names = [names]
+            
+        # Step 1: figure out ivars
+        # If plotting two blobs against eachother, they better have the
+        # same blobs!    
+        info = self.blob_info(names[0])
         nd = info[2]
         
         if nd == 1:
@@ -3143,37 +3150,54 @@ class ModelSet(BlobFactory):
         # Grab the maximum likelihood point 'cuz why not
         if self.is_mcmc:
             if best == 'median':
-                N = len(self.logL)
-                psorted = np.argsort(self.logL)
+                N = len(self.logL[skip:stop])
+                psorted = np.argsort(self.logL[skip:stop])
                 loc = psorted[int(N / 2.)]
             else:
                 loc = np.argmax(self.logL[skip:stop])
+                
+        ##
+        # Real work starts here.
+        ##
         
-        # 1-D case 
+        # First, read-in data from disk. Slice it up depending on if 
+        # skip or stop were provided. Squeeze arrays to remove NaNs etc.
+        
+        # 1-D case. Don't need to specify ivar by hand.
         if nd == 1:
             
-            # Read in the independent variable(s)
-            xarr = ivars[0]
-            
-            tmp = self.ExtractData(name, 
-                take_log=take_log, un_log=un_log, multiplier=multiplier)
-            
-            data = tmp[name].squeeze()
+            # Read in the independent variable(s) and data itself
+
+            xarr = ivars[0]            
+        
+            if len(names) == 1:
+                tmp = self.ExtractData(names[0], 
+                    take_log=take_log, un_log=un_log, multiplier=multiplier)
+                data = tmp[names[0]].squeeze()
+            else:
+                tmp = self.ExtractData(names, 
+                    take_log=take_log, un_log=un_log, multiplier=multiplier)
+                xblob = tmp[names[0]].squeeze()
+                yblob = tmp[names[1]].squeeze()
+                
+                # In this case, xarr is 2-D. Need to be more careful...
+                assert use_best
             
             y = []
             for i, x in enumerate(xarr):
                 if show_all:
-                    y.append(data[:,i].compressed())
+                    y.append(yblob[:,i].compressed())
                 elif (use_best and self.is_mcmc):
-                    y.append(data[:,i][skip:stop][loc])
+                    y.append(yblob[:,i][skip:stop][loc])
                 elif percentile:
-                    lo, hi = np.percentile(data[:,i][skip:stop].compressed(), 
+                    lo, hi = np.percentile(yblob[:,i][skip:stop].compressed(), 
                         (q1, q2))
                     y.append((lo, hi))
                 else:
                     dat = data[:,i][skip:stop].compressed()
                     lo, hi = dat.min(), dat.max()
                     y.append((lo, hi))
+
         elif nd == 2:
             if ivar[0] is None:
                 scalar = ivar[1]
@@ -3188,43 +3212,70 @@ class ModelSet(BlobFactory):
             y = []
             for i, value in enumerate(vector):
                 iv = [scalar, value][slc]
-                data = self.ExtractData(name, ivar=iv,
+                
+                tmp = self.ExtractData(names, ivar=[iv]*len(names),
                     take_log=take_log, un_log=un_log, multiplier=multiplier)
+                 
+                if len(names) == 1:
+                    yblob = tmp[names[0]].squeeze() 
+                else:    
+                    xblob = tmp[names[0]].squeeze()
+                    yblob = tmp[names[1]].squeeze() 
                         
                 if (use_best and self.is_mcmc):
-                    y.append(data[name][skip:stop][loc])        
+                    #x.append(xblob[name][skip:stop][loc])        
+                    y.append(yblob[skip:stop][loc]) 
+                elif samples is not None:
+                    y.append(yblob[skip:stop]) 
                 elif percentile:
-                    lo, hi = np.percentile(data[name][skip:stop].compressed(),
+                    lo, hi = np.percentile(yblob[skip:stop].compressed(),
                         (q1, q2))
-                    y.append((lo, hi))    
+                    y.append((lo, hi))
                 else:
-                    dat = data[name][skip:stop].compressed()
+                    dat = yblob[skip:stop].compressed()
                     lo, hi = dat.min(), dat.max()
                     y.append((lo, hi))
-                    
+
+        y = np.array(y)
+        
+        # At this stage, shape of y is (Nsamples, xarr)?
+
         # Convert redshifts to frequencies    
         if z_to_freq:
-            xarr = nu_0_mhz / (1. + xarr)
-                        
-        # Where y is zero, set to small number?                
-                        
-        if use_best and self.is_mcmc:
+            x = nu_0_mhz / (1. + x)
+
+        # Limit number of realizations
+        if samples is not None:
+            M = len(y)
+            elements = np.random.randint(0, M, size=samples)
+            to_keep = np.zeros(M)
+            for i, element in enumerate(range(M)):
+                if element not in elements:
+                    continue
+
+                ax.plot(xarr, y.T[element], **kwargs)
+  
+        ##
+        # Do the actual plotting
+        ##
+        elif use_best and self.is_mcmc:
             if take_log:
                 y = 10**y
-        
+
+            # Don't need to transpose in this case
             ax.plot(xarr, y, **kwargs)
         else:
-            y = np.array(y).T
         
             if take_log:
                 y = 10**y
             else:
+                # Where y is zero, set to small number?
                 zeros = np.argwhere(y == 0)
                 for element in zeros:
                     y[element[0],element[1]] = 1e-15
             
             if fill:
-                ax.fill_between(xarr, y[0], y[1], **kwargs)
+                ax.fill_between(xarr, y.T[0], y.T[1], **kwargs)
             elif show_all:
                 for i in range(y.shape[0]):
                     ax.plot(xarr, y[i], **kwargs)
@@ -3236,7 +3287,7 @@ class ModelSet(BlobFactory):
                  
         if return_data:
             return ax, xarr, y
-        else:            
+        else:
             return ax
         
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
@@ -3244,18 +3295,18 @@ class ModelSet(BlobFactory):
         plot_bands=False, limit=None, **kwargs):
         """
         Plot constraints on the redshift evolution of given quantity.
-        
+
         Parameters
         ----------
         blob : str
-            
+
         Note
         ----
         If you get a "ValueError: attempt to get argmin of an empty sequence"
         you might consider setting take_log=True.    
-            
+
         """    
-        
+
         if plot_bands and (limit is not None):
             raise ValueError('Choose bands or a limit, not both!')
         
@@ -3531,7 +3582,7 @@ class ModelSet(BlobFactory):
         save=True, ivar=None, name=None, clobber=False):
         """
         Derive new blob from pre-existing ones.
-        
+
         Parameters
         ----------
         Either supply the first two arguments:
@@ -3560,20 +3611,20 @@ class ModelSet(BlobFactory):
             to call it up later.
         clobber : bool
             If file with same ``name`` exists, overwrite it?
-        
+
         """    
-        
+
         if func is not None:
             data = self.ExtractData(fields)
-            
+
             # Grab ivars
             ivars = {}
             for key in data:
                 i, j, nd, size = self.blob_info(key)
                 ivars[key] = self.blob_ivars[i]
-                
+
             result = func(data, ivars)
-        
+
         else:
         
             blobs = varmap.values()
@@ -3771,6 +3822,13 @@ class ModelSet(BlobFactory):
         shutil.copy('%s.binfo.pkl' % self.prefix, out)
         print "Wrote %s." % out    
         
+    @property
+    def labeler(self):
+        if not hasattr(self, '_labeler'):
+            self._labeler = Labeler(self.parameters, self.is_log, 
+                **self.base_kwargs)
+        return self._labeler
+        
     def set_axis_labels(self, ax, pars, take_log=False, un_log=False,
         cb=None, labels={}):
         """
@@ -3794,8 +3852,8 @@ class ModelSet(BlobFactory):
             take_log = tmp        
             
         # Prep for label making
-        labeler = self.labeler = Labeler(pars, is_log, extra_labels=labels,
-            **self.base_kwargs)
+        labeler = self.labeler #= Labeler(pars, is_log, extra_labels=labels,
+            #**self.base_kwargs)
 
         # x-axis first
         ax.set_xlabel(labeler.label(pars[0], take_log=take_log[pars[0]], 
