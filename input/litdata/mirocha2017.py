@@ -1,13 +1,13 @@
-import ares
+#import ares
 import numpy as np
 
-halos = ares.physics.HaloMassFunction()
-
-barrier_M = lambda zz: halos.VirialMass(300, zz)
-barrier_A = lambda zz: halos.VirialMass(1e4, zz)
-    
-log_barrier_M = lambda zz: np.log10(barrier_M(zz))    
-log_barrier_A = lambda zz: np.log10(barrier_A(zz))
+#halos = ares.physics.HaloMassFunction()
+#
+#barrier_M = lambda zz: halos.VirialMass(300, zz)
+#barrier_A = lambda zz: halos.VirialMass(1e4, zz)
+#    
+#log_barrier_M = lambda zz: np.log10(barrier_M(zz))    
+#log_barrier_A = lambda zz: np.log10(barrier_A(zz))
 
 step = \
 {
@@ -20,27 +20,32 @@ step = \
  'pq_func_var{0}[1]': 'Mh',
  'pq_func_par0{0}[1]': 1.,
  'pq_func_par1{0}[1]': 1.,
- 'pq_func_par2{0}[1]': (barrier_A, 'z', 1),
+ 'pq_func_par2{0}[1]': 1e8,
+ #'pq_func_par2{0}[1]': (barrier_A, 'z', 1),
  
  'pop_fesc{0}': 'pq[2]',
  'pq_func{0}[2]': 'astep',
  'pq_func_var{0}[2]': 'Mh',
  'pq_func_par0{0}[2]': 0., # No LyC from minihalos by default
  'pq_func_par1{0}[2]': 0.1,
- 'pq_func_par2{0}[2]': (barrier_A, 'z', 1),
+ 'pq_func_par2{0}[2]': 1e8,
+ #'pq_func_par2{0}[2]': (barrier_A, 'z', 1),
 
- 'pop_Tmin{0}': 500.,
+ #'pop_Tmin{0}': 500.,
+ 'pop_Mmin{0}': 1e8,
 
  # X-ray sources
  'pop_sfr_model{1}': 'link:sfe:0',
- 'pop_Tmin{1}': 'pop_Tmin{0}',
+ #'pop_Tmin{1}': 'pop_Tmin{0}',
+ 'pop_Mmin{1}': 'pop_Mmin{0}',
 
  'pop_rad_yield{1}': 'pq[3]',
  'pq_func{1}[3]': 'astep',
  'pq_func_var{1}[3]': 'Mh',
  'pq_func_par0{1}[3]': 2.6e39,
  'pq_func_par1{1}[3]': 2.6e39,
- 'pq_func_par2{1}[3]': (barrier_A, 'z', 1),
+ 'pq_func_par2{1}[3]': 1e8,
+ #'pq_func_par2{1}[3]': (barrier_A, 'z', 1),
 
  # By default, no feedback
  'feedback_LW': False,

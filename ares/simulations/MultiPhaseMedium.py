@@ -289,7 +289,7 @@ class MultiPhaseMedium(object):
         
         if self.pf['include_cgm']:
             data_cgm = self.parcel_cgm.grid.data.copy()
-
+            
         # Evolve in time!
         while z > zf:
                         
@@ -300,7 +300,7 @@ class MultiPhaseMedium(object):
             dtdz = self.default_parcel.grid.cosm.dtdz(z)
             t += dt
             z -= dt / dtdz
-                        
+                                                
             # IGM rate coefficients
             if self.pf['include_igm']:
                 done = False
@@ -316,7 +316,7 @@ class MultiPhaseMedium(object):
                     
                     RC_igm = self.field.update_rate_coefficients(z, 
                         zone='igm', return_rc=True, **also)
-                                                                                                                 
+
                     # Now, update IGM parcel
                     t1, dt1, data_igm = self.gen_igm.next()
 
@@ -350,7 +350,7 @@ class MultiPhaseMedium(object):
             else:
                 dt2 = 1e50
                 RC_cgm = data_cgm = None
-                
+                                
             # Must update timesteps in unison
             dt_pre = dt * 1.
             dt = min(dt1, dt2)
@@ -368,7 +368,7 @@ class MultiPhaseMedium(object):
                 self.parcel_igm.dt = dt
             if self.pf['include_cgm']:
                 self.parcel_cgm.dt = dt
-                            
+                                            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
                 
     def _insert_inits(self):

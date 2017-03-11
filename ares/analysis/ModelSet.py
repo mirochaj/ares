@@ -3290,6 +3290,52 @@ class ModelSet(BlobFactory):
         else:
             return ax
         
+    def ReconstructedRelation(self, names, ivar, xgrid, samples=None, **kwargs):
+        """
+        This is different from ReconstructedFunction because we're essentially
+        plotting two reconstructed quantities against eachother.
+        
+        This just results in some gridding issues.
+        
+        Parameters
+        ----------
+        names : list, tuple
+            
+        
+        """
+
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+        
+        # Extract data
+        data = self.ExtractData(names, ivar=ivar)
+        
+        # Pull out samples
+        xs = data[names[0]]
+        ys = data[names[1]]
+        
+        # Now, each sample will have a different array of x values, which is
+        # where 'xgrid' comes into play
+        
+        
+        
+        """
+        Should really hack out plotting piece of ReconstructedFunction, and
+        make it so it accepts arrays of samples.
+        """
+        
+        if samples is not None:
+            if type(samples) is int:
+                for i in range(samples):
+                    ax.plot(xs[i], ys[i], **kwargs)
+        
+        return ax    
+        
+        
     def RedshiftEvolution(self, blob, ax=None, redshifts=None, fig=1,
         like=0.68, take_log=False, bins=20, label=None,
         plot_bands=False, limit=None, **kwargs):
@@ -3537,7 +3583,7 @@ class ModelSet(BlobFactory):
                         
         i, j, nd, dims = self.blob_info(name)
         blob = self.get_blob_from_disk(name)
-        
+                
         if nd == 0:
             return blob
         elif nd == 1:
@@ -3554,8 +3600,12 @@ class ModelSet(BlobFactory):
 
             assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
             k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))
-            k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
-            return blob[:,k1,k2]    
+            
+            if ivar[1] is None:
+                return blob[:,k1,:]
+            else:
+                k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
+                return blob[:,k1,k2]    
     
     def max_likelihood_parameters(self, method='median'):
         """

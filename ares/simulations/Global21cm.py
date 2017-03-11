@@ -240,7 +240,7 @@ class Global21cm(AnalyzeGlobal21cm):
             self.all_RC_igm, self.all_RC_cgm = \
             self.medium.all_t, self.medium.all_z, self.medium.all_data_igm, \
             self.medium.all_data_cgm, self.medium.all_RCs_igm, self.medium.all_RCs_cgm
-        
+
         # Add zeros for Ja
         for element in self.all_data_igm:
             element['Ja'] = 0.0
@@ -248,15 +248,15 @@ class Global21cm(AnalyzeGlobal21cm):
 
         # List for extrema-finding
         self.all_dTb = self._init_dTb()
-                                                
-        for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():
-                        
+
+        for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():            
+
             # Occasionally the progress bar breaks if we're not careful
             if z < self.pf['final_redshift']:
                 break
             if z < self.pf['kill_redshift']:
                 break    
-            
+
             # Delaying the initialization prevents progressbar from being
             # interrupted by, e.g., PrintInfo calls
             if not pb.has_pb:
@@ -324,7 +324,7 @@ class Global21cm(AnalyzeGlobal21cm):
         tracked.
 
         """
-                        
+                                
         for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
 
             Ja = np.atleast_1d(self._f_Ja(z))

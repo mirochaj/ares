@@ -1,5 +1,5 @@
 """
-Mirocha, Sun, and Furlanetto (2016), in prep.
+Mirocha, Furlanetto, and Sun (2017).
 
 Parameters defining the fiducial model (see Table 1).
 """

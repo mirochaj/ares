@@ -126,7 +126,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         except ImportError:
             rank = 0
     
-        return rank    
+        return rank
     
     def run(self, include_pops=None):
         """
@@ -150,12 +150,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         if not hasattr(self, '_data_'):
             self._data_ = {}
         
-        for i, popid in enumerate(include_pops):
-            
-            t1 = time.time()
+        for i, popid in enumerate(include_pops):            
             z, fluxes = self.run_pop(popid=popid)
-            t2 = time.time()
-            
             self._data_[popid] = fluxes
                     
         # Each element of the history is series of lists.
@@ -171,30 +167,31 @@ class MetaGalacticBackground(AnalyzeMGB):
         ## 
         # Feedback
         ##
-        if self.pf['feedback_LW']:
-            if self._is_Mmin_converged(self._lwb_sources):
-                self._has_fluxes = True
-                self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
-                self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw)
-                
-                # Now that feedback is done, evolve all non-LW sources to get
-                # final background.
-                if include_pops == self._lwb_sources:
-                    self.reboot(include_pops=self._not_lwb_sources)
-                    self.run(include_pops=self._not_lwb_sources)
-                
-            else:
-                self.reboot()
-                self.run(include_pops=self._lwb_sources)
-        else:
-            # Otherwise, just grab all the fluxes and setup interpolants
-            zarr, Ja, Jlw = self.get_uvb_tot()
-            self._zarr = zarr
-            self._Ja = Ja
-            self._Jlw = Jlw
-
+        #if self.pf['feedback_LW']:
+        if self._is_Mmin_converged(self._lwb_sources):
+            self._has_fluxes = True
             self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
             self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw)
+            
+            # Now that feedback is done, evolve all non-LW sources to get
+            # final background.
+            if include_pops == self._lwb_sources:
+                self.reboot(include_pops=self._not_lwb_sources)
+                self.run(include_pops=self._not_lwb_sources)
+            
+        else:
+            self.reboot()
+            self.run(include_pops=self._lwb_sources)
+        #else:
+        #    # Otherwise, just grab all the fluxes and setup interpolants
+        #    zarr, Ja, Jlw = self.get_uvb_tot()
+        #                
+        #    self._zarr = zarr
+        #    self._Ja = Ja
+        #    self._Jlw = Jlw
+        #
+        #    self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
+        #    self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw)
                             
     @property
     def _not_lwb_sources(self):
@@ -587,6 +584,9 @@ class MetaGalacticBackground(AnalyzeMGB):
         self._zarr = zarr
         self._Ja = Ja
         self._Jlw = Jlw
+        
+        if not self.pf['feedback_LW']: 
+            return True
         
         # Instance of a population that "feels" the feedback.
         # Need for (1) initial _Mmin_pre value, and (2) setting ceiling
