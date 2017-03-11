@@ -485,7 +485,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def MGR(self):
         """
-        Mass accretion rate onto halos of mass M at redshift z.
+        Mass growth rate of halos of mass M at redshift z.
     
         ..note:: This is the *DM* mass accretion rate. To obtain the baryonic 
             accretion rate, multiply by Cosmology.fbaryon.
@@ -1366,8 +1366,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # is same fraction of accreted mass as fractions in this halo
         # right now
         
+        fb = self.cosm.fbar_over_fcdm
+        
         # Measured relative to baryonic inflow
-        Mb = Mh * self.cosm.fbar_over_fcdm
+        Mb = fb * Mh
         Zfrac = self.pf['pop_acc_frac_metals'] * (MZ / Mb)
         Sfrac = self.pf['pop_acc_frac_stellar'] * (Mst / Mb)
         Gfrac = self.pf['pop_acc_frac_gas'] * (Mg / Mb)
@@ -1381,8 +1383,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         y1p = -1. * self.MGR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
 
         # Splitting up the inflow. P = pristine, 
-        PIR = -1. * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
-        NPIR = -1. * self.MDR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        PIR = -1. * fb * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        NPIR = -1. * fb * self.MDR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
 
         # Eq. 2: gas mass
         y2p = PIR * (1. - fstar) + NPIR * Gfrac

@@ -565,9 +565,12 @@ class MetaGalacticBackground(AnalyzeMGB):
 
     def _is_Mmin_converged(self, include_pops):
 
-        if include_pops is None:
+        # Need better long-term fix: Lya sources aren't necessarily LW 
+        # sources, if (for example) approx_all_pops = True. 
+        if not self.pf['feedback_LW']:
+            include_pops = None
+        elif include_pops is None:
             include_pops = range(self.solver.Npops)
-            
 
         # Otherwise, grab all the fluxes
         zarr, Ja, Jlw = self.get_uvb_tot(include_pops)
