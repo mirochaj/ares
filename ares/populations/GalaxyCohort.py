@@ -506,11 +506,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._MAR
         
     def MAR(self, z, Mh):
-        return self.cosm.fbar_over_fcdm * self.MGR(z, Mh) * self.fsmooth(z=z, Mh=Mh)
+        return self.MGR(z, Mh) * self.fsmooth(z=z, Mh=Mh)
     
     def MDR(self, z, Mh):
         # Mass "delivery" rate
-        return self.cosm.fbar_over_fcdm * self.MGR(z, Mh) * (1. - self.fsmooth(z=z, Mh=Mh))
+        return self.MGR(z, Mh) * (1. - self.fsmooth(z=z, Mh=Mh))
         
     def iMAR(self, z, source=None):
         """

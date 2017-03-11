@@ -167,7 +167,6 @@ class MetaGalacticBackground(AnalyzeMGB):
         ## 
         # Feedback
         ##
-        #if self.pf['feedback_LW']:
         if self._is_Mmin_converged(self._lwb_sources):
             self._has_fluxes = True
             self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
@@ -182,17 +181,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         else:
             self.reboot()
             self.run(include_pops=self._lwb_sources)
-        #else:
-        #    # Otherwise, just grab all the fluxes and setup interpolants
-        #    zarr, Ja, Jlw = self.get_uvb_tot()
-        #                
-        #    self._zarr = zarr
-        #    self._Ja = Ja
-        #    self._Jlw = Jlw
-        #
-        #    self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
-        #    self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw)
-                            
+                           
     @property
     def _not_lwb_sources(self):
         if not hasattr(self, '_not_lwb_sources_'):
@@ -578,14 +567,15 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         if include_pops is None:
             include_pops = range(self.solver.Npops)
+            
 
         # Otherwise, grab all the fluxes
-        zarr, Ja, Jlw = self.get_uvb_tot(include_pops=include_pops)
+        zarr, Ja, Jlw = self.get_uvb_tot(include_pops)
         self._zarr = zarr
         self._Ja = Ja
         self._Jlw = Jlw
         
-        if not self.pf['feedback_LW']: 
+        if not self.pf['feedback_LW']:
             return True
         
         # Instance of a population that "feels" the feedback.
