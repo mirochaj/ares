@@ -607,6 +607,7 @@ class ModelSet(BlobFactory):
                     mask1d = np.array([np.max(self.mask[i,:]) for i in range(N)])
                     self._logL = np.ma.array(full_chain, mask=mask1d)
                 else:
+                    print np.array(full_chain).shape, self.mask.shape
                     self._logL = np.ma.array(full_chain, mask=self.mask)
             else:
                 self._logL = None
@@ -3148,7 +3149,7 @@ class ModelSet(BlobFactory):
             raise NotImplemented('If not 1-D blob, must supply one ivar!')
                 
         # Grab the maximum likelihood point 'cuz why not
-        if self.is_mcmc:
+        if use_best and self.is_mcmc:
             if best == 'median':
                 N = len(self.logL[skip:stop])
                 psorted = np.argsort(self.logL[skip:stop])

@@ -18,10 +18,10 @@ from inspect import ismethod
 from types import FunctionType
 from scipy.interpolate import RectBivariateSpline, interp1d
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
+#try:
+#    import dill as pickle
+#except ImportError:
+import pickle
     
 try:
     from mpi4py import MPI
@@ -30,22 +30,7 @@ try:
 except ImportError:
     rank = 0
     size = 1    
-    
-# Some standard blobs    
-    
-class default_blobs(object):
-    def __init__(self):
-        blobs_1d = ['dTb', 'igm_Ts', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 
-            'igm_k_heat_h_1', 'cgm_k_ion_h_1']
-        blobs_scalar = ['z_B', 'z_C', 'z_D']
-        for key in blobs_1d:    
-            for tp in list('BCD'):
-                blobs_scalar.append('%s_%s' % (key, tp))
-                
-        self.blob_names = [blobs_scalar, blobs_1d]
-        self.blob_ivars = [None, ('z', np.arange(5, 41, 1))]
-    
-    
+        
 def get_k(s):
     m = re.search(r"\[(\d+(\.\d*)?)\]", s)
     return int(m.group(1))
@@ -457,6 +442,7 @@ class BlobFactory(object):
                             blob = np.interp(x, func[0], func[1])
                                                                 
                 else:
+                                        
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]
                     tmp_f = parse_attribute(fname, self)
@@ -479,12 +465,14 @@ class BlobFactory(object):
                     # guaranteed to be vectorized
                     for x in xarr:
                         tmp = []
-                        for y in yarr:
-                            kw = {xn:x, yn:y}  
-                            tmp.append(func(**kw))
+                        
+                        # We're assuming that the functions are vectorized.
+                        # Didn't used to, but it speeds things up (a lot).
+                        kw = {xn:x, yn:yarr}  
+                        tmp.extend(func(**kw))
 
                         blob.append(tmp)
-                                                
+                                                                        
                 this_group.append(np.array(blob))
 
             self._blobs.append(np.array(this_group))

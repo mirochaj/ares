@@ -117,16 +117,12 @@ class ParameterizedQuantity(object):
         
         logx = np.log10(x)
         
-        # [optional] Modify parameters as function of redshift
-        #pars1, = pars
-        
         # Read-in parameters to more convenient names
         # I don't usually use exec, but when I do, it's to do garbage like this
         for i, par in enumerate(pars):
             
             # It's possible that a parameter will itself be a PQ object.            
             if type(par) == str:
-                _pq_pars = get_pq_pars(par, self.raw_pf)
                                 
                 # Could call recursively. Implement __getattr__?
                 PQ = self._sub_pqs[par]
@@ -146,7 +142,7 @@ class ParameterizedQuantity(object):
                 if f in self.deps:
                     val = m * self.deps[f](kwargs[v])
                 elif type(f) is FunctionType:
-                    val = m * f(kwargs[v])    
+                    val = m * f(kwargs[v])
                 else:
                     raise NotImplementedError('help')
                     

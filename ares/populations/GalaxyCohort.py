@@ -11,6 +11,7 @@ Description:
 """
 
 import re
+import time
 import numpy as np
 from ..util import read_lit
 from types import FunctionType
@@ -33,6 +34,7 @@ try:
 except ImportError:
     pass
     
+ztol = 1e-4
 z0 = 9. # arbitrary
 tiny_phi = 1e-18
 _sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr']
@@ -211,6 +213,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 RectBivariateSpline(self.halos.z, self.halos.lnM, 
                     self.halos.dndm)
         return self._spline_nh_
+    
+    @property
+    def _tab_MAR(self):
+        if not hasattr(self, '_tab_MAR_'):
+            self._tab_MAR_ = \
+                np.array([self.MAR(self.halos.z[i], self.halos.M) \
+                    for i in range(self.halos.Nz)])      
+        return self._tab_MAR_
     
     @property
     def _tab_MAR_at_Mmin(self):
@@ -623,7 +633,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
                     # Accretion onto all halos (of mass M) at this redshift
                     # This is *matter*, not *baryons*
-                    MAR = self.MAR(z, self.halos.M)
+                    MAR = self._tab_MAR[i]
                 
                     # Find Mmin in self.halos.M
                     j1 = np.argmin(np.abs(Mmin - self.halos.M))
@@ -651,37 +661,27 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
         return self._tab_eta_
 
-    def SFR(self, z, Mh, mu=0.6):
+    def SFR(self, z, Mh=None):
         """
-        Star formation rate at redshift z in a halo of mass M.
+        Star formation rate at redshift z in a halo of mass Mh.
         
-        ..note:: Units should be solar masses per year at this point.
+        If Mh is not supplied
+        
+        
         """
         
-        return self.pSFR(z, Mh, mu) * self.SFE(z=z, Mh=Mh)
+        # If Mh is None, it triggers use of _tab_sfr, which spans all
+        # halo masses in self.halos.M
+        if Mh is None:
+            k = np.argmin(np.abs(z - self.halos.z))
+            if abs(z - self.halos.z[k]) < ztol:
+                return self._tab_sfr[k]
+            else:
+                Mh = self.halos.M
 
-    def pSFR(self, z, M, mu=0.6):
-        """
-        The product of this number and the SFE gives you the SFR.
+        return self.cosm.fbar_over_fcdm * self.MAR(z, Mh) * self.eta(z) \
+            * self.SFE(z=z, Mh=Mh)
 
-        pre-SFR factor, hence, "pSFR"        
-        """
-
-        if z > self.zform:
-            return 0.0
-        
-        #if self.model == 'sfe':
-        return self.cosm.fbar_over_fcdm * self.MAR(z, M) * self.eta(z)
-        #elif self.model == 'tdyn':
-        #    return self.cosm.fbaryon * M / self.tdyn(z, M)    
-        #elif self.model == 'precip':
-        #    T = self.halos.VirialTemperature(M, z, mu)
-        #    cool = self.cooling_function(T, z)
-        #    pre_factor = 3. * np.pi * G * mu * m_p * k_B * T / 50. / cool                        
-        #    return pre_factor * M * s_per_yr
-        #else:
-        #    raise NotImplemented('Unrecognized model: %s' % self.model)
-    
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
         Compute the emissivity of this population as a function of redshift
@@ -829,8 +829,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         NOT generally use-able!!!
         
         """
-        return self.SFR(z, self.halos.M) \
-            * self.L1600_per_sfr(z=z, Mh=self.halos.M)
+        return self.SFR(z) * self.L1600_per_sfr(z=z, Mh=self.halos.M)
 
     def phi_of_L(self, z):
         """
@@ -1087,9 +1086,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
                 # SF fueld by accretion onto halos already above threshold
                 if self.pf['pop_sfr_above_threshold']:
-                    self._tab_sfr_[i] = self._tab_eta[i] * self.cosm.fbar_over_fcdm \
-                        * self.MAR(z, self.halos.M) \
-                        * self.SFE(z=z, Mh=self.halos.M)
+                    self._tab_sfr_[i] = self._tab_eta[i] \
+                        * self.cosm.fbar_over_fcdm \
+                        * self._tab_MAR[i] * self._tab_fstar[i]
                 
                     # zero-out star-formation in halos below our threshold
                     mask = self.halos.M >= self._tab_Mmin[i]
