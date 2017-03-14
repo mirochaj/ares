@@ -20,6 +20,7 @@ from ..physics import Cosmology
 from .MultiPlot import MultiPanel
 import re, os, string, time, glob
 from .BlobFactory import BlobFactory
+from matplotlib.colors import Normalize
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
@@ -607,7 +608,6 @@ class ModelSet(BlobFactory):
                     mask1d = np.array([np.max(self.mask[i,:]) for i in range(N)])
                     self._logL = np.ma.array(full_chain, mask=mask1d)
                 else:
-                    print np.array(full_chain).shape, self.mask.shape
                     self._logL = np.ma.array(full_chain, mask=self.mask)
             else:
                 self._logL = None
@@ -1086,41 +1086,47 @@ class ModelSet(BlobFactory):
     def plot_info(self, value):
         self._plot_info = value
         
-    def WalkerTrajectoriesMultiPlot(self, pars=None, N=50, walkers='random', 
+    def WalkerTrajectoriesMultiPlot(self, pars=None, N=50, walkers='first', 
         ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
         """
-        
+
         if pars is None:
             pars = self.parameters
-        
+
         Npars = len(pars)
         mp = MultiPanel(dims=(Npars/ncols, ncols), fig=fig, 
             padding=(0.3, 0.3), **mp_kwargs)
-        
+
         w = self._get_walker_subset(N, walkers)
-        
-        if best_fit == 'median':
+
+        if not best_fit:
+            loc = None
+        elif best_fit == 'median':
             N = len(self.logL)
             loc = np.sort(self.logL)[int(N / 2.)]
         elif best_fit == 'mode':
             loc = np.argmax(self.logL)
-        
+
         for i, par in enumerate(pars):
             self.WalkerTrajectories(par, walkers=w, ax=mp.grid[i], **kwargs)
-            
-            mp.grid[i].plot([0, self.chain[:,i].size / float(self.nwalkers)], 
-                [self.chain[loc,i]]*2, color='k', ls='--', lw=5)
+
+            if loc is None:
+                continue
+
+            k = self.parameters.index(par)
+            mp.grid[i].plot([0, self.chain[:,k].size / float(self.nwalkers)], 
+                [self.chain[loc,k]]*2, color='k', ls='--', lw=5)
             
         mp.fix_ticks()
             
         return mp           
                 
-    def WalkerTrajectories(self, par, N=50, walkers='random', ax=None, fig=1,
+    def WalkerTrajectories(self, par, N=50, walkers='first', ax=None, fig=1,
         **kwargs):
         """
-        Plot trajectories of N walkers with time.
+        Plot 1-D trajectories of N walkers (i.e., vs. step number).
         
         Parameters
         ----------
@@ -1154,6 +1160,54 @@ class ModelSet(BlobFactory):
         self.set_axis_labels(ax, ['step', par], take_log=False, un_log=False,
             labels={})
             
+        return ax
+        
+    def WalkerTrajectory2D(self, pars, N=50, walkers='first', ax=None, fig=1,
+        scale_by_step=True, scatter=False, **kwargs):
+        
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+            
+        assert type(pars) in [list, tuple]
+        par1, par2 = pars
+        
+        if type(walkers) is str:
+            assert N < self.nwalkers, \
+                "Only %i walkers available!" % self.nwalkers
+
+            to_plot = self._get_walker_subset(N, walkers)
+        else:
+            to_plot = walkers
+        
+        for i in to_plot:
+            data, mask = self.get_walker(i)
+            
+            if scale_by_step:
+                if scatter:
+                    c = np.arange(0, data[:,0].size, 1)
+                else:
+                    raise NotImplementedError('dunno how to do this correctly')
+                    carr = np.arange(data[:,0].size)
+                    c = pl.cm.jet(carr)
+                    #cmap = colormap(Normalize(carr.min(), carr.max()))
+            else:
+                c = None
+                
+            if scatter:
+                ax.scatter(data[:,self.parameters.index(par1)],
+                    data[:,self.parameters.index(par2)], c=c, **kwargs)
+            else:
+                ax.plot(data[:,self.parameters.index(par1)],
+                    data[:,self.parameters.index(par2)], color=c, **kwargs)
+                
+            
+        self.set_axis_labels(ax, [par1, par2], take_log=False, un_log=False,
+            labels={})
+        
         return ax
         
     def _get_walker_subset(self, N=50, walkers='random'):
@@ -3091,7 +3145,8 @@ class ModelSet(BlobFactory):
     def ReconstructedFunction(self, names, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        best='maxL', fill=True, show_all=False, samples=None, **kwargs):
+        best='maxL', fill=True, show_all=False, samples=None, 
+        apply_dc=False, **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -3209,7 +3264,11 @@ class ModelSet(BlobFactory):
                 scalar = ivar[0]
                 vector = xarr = ivars[1]
                 slc = slice(0, None, 1)
-                                                
+                
+            # This assumes scalar is z!
+            if apply_dc:
+                vector = xarr = self.dc.Mobs(scalar, xarr)
+                   
             y = []
             for i, value in enumerate(vector):
                 iv = [scalar, value][slc]

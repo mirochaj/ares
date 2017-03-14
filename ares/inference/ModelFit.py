@@ -585,6 +585,7 @@ class ModelFit(BlobFactory):
         if type(value) is bool:
             self._is_log = [value] * self.Nd
         else:
+            assert len(value) == self.Nd
             self._is_log = value
             
     def prep_output_files(self, restart, clobber):

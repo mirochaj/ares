@@ -110,6 +110,8 @@ _flex = \
  'pq_func{0}[0]': 'dpl_arbnorm',
  'pq_func_var{0}[0]': 'Mh',
  
+ 'pq_val_ceil{0}[0]': 1.0,
+ 
  # Standard dpl model at 10^8 Msun
  'pq_func_par0{0}[0]': 'pq[1]',
  'pq_func_par1{0}[0]': 'pq[2]',

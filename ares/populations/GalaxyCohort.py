@@ -1250,7 +1250,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 self._yield_per_sfr = self.rad_yield
             
-        return self._yield_per_sfr    
+        return self._yield_per_sfr
 
     @property
     def fstar(self):

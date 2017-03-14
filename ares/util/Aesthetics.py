@@ -204,6 +204,10 @@ pop_parameters = \
  'pop_lf_beta': r'$\Beta_{\mathrm{UV}}$',
  'pop_fstar': r'$f_{\ast}$',
  'pop_fobsc': r'$f_{\mathrm{obsc}}$',
+ 'pop_acc_frac_stellar': r'$f_{\ast}^{\mathrm{acc}}$',
+ 'pop_acc_frac_metals': r'$f_Z^{\mathrm{acc}}$',
+ 'pop_acc_frac_gas': r'$f_g^{\mathrm{acc}}$',
+ 'pop_metal_retention': r'$f_{\mathrm{ret,Z}}$',
 }
 
 sfe_parameters = \

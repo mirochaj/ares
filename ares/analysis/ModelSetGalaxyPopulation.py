@@ -55,10 +55,10 @@ class ModelSetGalaxyPopulation(ModelSet):
         """
 
         if quantity in ['lf', 'smf']:
-            self.ReconstructedFunction(quantity, ivar=[z, None], ax=ax, 
-                percentile=percentile, **kwargs)
+            return self.ReconstructedFunction(quantity, ivar=[z, None], ax=ax, 
+                percentile=percentile, apply_dc=quantity=='lf', **kwargs)
         elif type(quantity) in [tuple, list]:
-            self.ReconstructedRelation(quantity, ivar=[z, None], ax=ax,
+            return self.ReconstructedRelation(quantity, ivar=[z, None], ax=ax,
                 percentile=percentile, **kwargs)
         else:
             raise NotImplementedError('help me!')
@@ -93,7 +93,7 @@ class ModelSetGalaxyPopulation(ModelSet):
             else:
                 k = self.obsdata.redshifts_in_mp[i]
                 ax = mp.grid[k]
-                
+
             # Need to apply DC if quantity == 'lf'
             self._Recovered_Function(redshift, quantity=quantity, ax=ax,
                 percentile=percentile,

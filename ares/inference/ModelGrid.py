@@ -431,6 +431,7 @@ class ModelGrid(ModelFit):
         t1 = time.time()
 
         ct = 0
+        failct = 0
 
         # Loop over models, use StellarPopulation.update routine 
         # to speed-up (don't have to re-load HMF spline as many times)
@@ -538,11 +539,16 @@ class ModelGrid(ModelFit):
                 blobs = self.blank_blob
             except MemoryError:
                 raise MemoryError('This cannot be tolerated!')
-            except Exception: 
+            except:
+                # For some reason "except Exception"  doesn't catch everything...
                 # Write to "fail" file
                 f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
                 pickle.dump(kw, f)
                 f.close()
+                
+                print "FAILURE: Processor #%i, Model %i." % (rank, ct)
+                
+                failct += 1
                 
                 blobs = self.blank_blob
 
@@ -598,6 +604,11 @@ class ModelGrid(ModelFit):
             gc.collect()
 
             chain_all = []; blobs_all = []
+            
+            # If, after the first checkpoint, we only have 'failed' models,
+            # raise an error.
+            if ct == failct:
+                raise ValueError('Only failed models up to first checkpoint!')
 
         pb.finish()
 

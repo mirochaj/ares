@@ -120,7 +120,7 @@ class loglikelihood(LogLikelihood):
         # Don't save base_kwargs for each proc! Needlessly expensive I/O-wise.
         self.checkpoint(**kwargs)
 
-        pop = GalaxyPopulation(**kw)
+        pop = self.pop = GalaxyPopulation(**kw)
 
         #if self.priors_B.params != []:
         #    lp += self._compute_blob_prior(sim)
@@ -138,10 +138,10 @@ class loglikelihood(LogLikelihood):
             
             if self.mask[i]:
                 continue
-                
+
             xdat = self.xdata[i]
             z = self.redshifts[i]
-                        
+
             # Generate model LF
             if quantity == 'lf':
                 # Dust correction for observed galaxies
@@ -154,17 +154,17 @@ class loglikelihood(LogLikelihood):
                 p = pop.LuminosityFunction(z=z, x=M, mags=True)
             elif quantity == 'smf':
                 M = xdat
-                p = pop.StellarMassFunction(z, M)
+                p = pop.StellarMassFunction(z, M)                
             else:
                 raise ValueError('Unrecognized quantity: %s' % quantity)
-                
+
             phi[i] = p
         #except:
-        #    return -np.inf, self.blank_blob        
-                    
+        #    return -np.inf, self.blank_blob
+
         #phi = np.ma.array(_phi, mask=self.mask)
-        
-        lnL = 0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)    
+
+        lnL = 0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
             
         # Final posterior calculation
         PofD = lp + self.const_term - lnL
