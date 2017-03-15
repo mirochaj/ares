@@ -56,7 +56,8 @@ class ModelSetGalaxyPopulation(ModelSet):
 
         if quantity in ['lf', 'smf']:
             return self.ReconstructedFunction(quantity, ivar=[z, None], ax=ax, 
-                percentile=percentile, apply_dc=quantity=='lf', **kwargs)
+                percentile=percentile, apply_dc=quantity=='lf', 
+                use_best=use_best, best=best, skip=skip, stop=stop, **kwargs)
         elif type(quantity) in [tuple, list]:
             return self.ReconstructedRelation(quantity, ivar=[z, None], ax=ax,
                 percentile=percentile, **kwargs)
@@ -96,8 +97,8 @@ class ModelSetGalaxyPopulation(ModelSet):
 
             # Need to apply DC if quantity == 'lf'
             self._Recovered_Function(redshift, quantity=quantity, ax=ax,
-                percentile=percentile,
-                samples=samples, skip=skip, stop=stop, use_best=use_best, best=best,
+                percentile=percentile, use_best=use_best, best=best,
+                samples=samples, skip=skip, stop=stop, 
                 show_all=show_all, **kwargs)    
         
         pl.draw()

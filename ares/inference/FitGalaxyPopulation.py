@@ -165,21 +165,23 @@ class loglikelihood(LogLikelihood):
         #phi = np.ma.array(_phi, mask=self.mask)
 
         lnL = 0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
-            
+
         # Final posterior calculation
         PofD = lp + self.const_term - lnL
 
+        print PofD, phi
+
         if np.isnan(PofD) or (type(phi) == np.ma.core.MaskedConstant):
             return -np.inf, self.blank_blob
-            
+
         try:
             blobs = pop.blobs
         except:
             blobs = self.blank_blob
-            
+
         del pop, kw
         gc.collect()
-                
+
         return PofD, blobs
     
 class FitGalaxyPopulation(ModelFit):

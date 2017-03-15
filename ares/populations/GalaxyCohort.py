@@ -1272,6 +1272,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
                     self.pf, **pars)
                 
+                self._update_pq_registry('fstar', self._fstar_inst)    
+                
                 self._fstar = \
                     lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
                     * boost

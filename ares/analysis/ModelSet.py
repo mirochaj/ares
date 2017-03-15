@@ -430,7 +430,7 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_chain'):
             have_chain_f = os.path.exists('%s.chain.pkl' % self.prefix)
             have_f = os.path.exists('%s.pkl' % self.prefix)
-            
+
             if have_chain_f or have_f:
                 if have_chain_f:
                     fn = '%s.chain.pkl' % self.prefix

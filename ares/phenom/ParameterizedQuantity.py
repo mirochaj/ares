@@ -53,11 +53,16 @@ class ParameterizedQuantity(object):
         """
         Determine if there are any nested ParameterizedQuantity objects.
         """
-        
+                
         self._sub_pqs = {}
         for i in range(6):
             par = 'pq_func_par%i' % i
+            
+            if par not in self.pf:
+                continue
+            
             val = self.pf[par]
+                
             if type(val) != str:
                 continue
                 
@@ -66,7 +71,7 @@ class ParameterizedQuantity(object):
             PQ = ParameterizedQuantity(**pq_pars)
             
             self._sub_pqs[val] = PQ
-
+            
     @property
     def idnum(self):
         if not hasatrr(self, '_idnum'):
@@ -84,46 +89,91 @@ class ParameterizedQuantity(object):
     @property
     def func_var(self):
         return self.pf['pq_func_var']
+    
+    @property
+    def var_ceil(self):
+        if not hasattr(self, '_var_ceil'):
+            if 'pq_var_ceil' in self.pf:
+                self._var_ceil = self.pf['pq_var_ceil']
+            else:
+                self._var_ceil = None
+                
+        return self._var_ceil        
+    
+    @property
+    def var_floor(self):
+        if not hasattr(self, '_var_floor'):
+            if 'pq_var_floor' in self.pf:
+                self._var_floor = self.pf['pq_var_floor']
+            else:
+                self._var_floor = None
+    
+        return self._var_floor  
+    
+    @property
+    def ceil(self):
+        if not hasattr(self, '_ceil'):
+            if 'pq_val_ceil' in self.pf:
+                self._ceil = self.pf['pq_val_ceil']
+            else:
+                self._ceil = None
+    
+        return self._ceil        
+        
+    @property
+    def floor(self):
+        if not hasattr(self, '_floor'):
+            if 'pq_val_floor' in self.pf:
+                self._floor = self.pf['pq_val_floor']
+            else:
+                self._floor = None
+    
+        return self._floor
+    
+    @property
+    def pars_list(self):
+        if not hasattr(self, '_pars_list'):
+            self._pars_list = []
+            for i in range(6):
+                name = 'pq_func_par%i' % i
+                if name in self.pf:
+                    self._pars_list.append(self.pf[name])
+                else:
+                    self._pars_list.append(None)
+        return self._pars_list
 
     def __call__(self, **kwargs):
-        """
-        Compute the star formation efficiency.
-        """
-
-        pars = [self.pf['pq_func_par%i' % i] for i in range(6)]
-
-        return self._call(pars, **kwargs)
+        return self._call(self.pars_list, **kwargs)
 
     def _call(self, pars, **kwargs):
         """
         A higher-level version of __call__ that accepts a few more kwargs.
         """
 
-
         func = self.func
         
         # Determine independent variables
-        var = self.pf['pq_func_var']
+        var = self.func_var
                 
         if var == '1+z':
             x = 1. + kwargs['z']
         else:
             x = kwargs[var]
 
-        if self.pf['pq_var_ceil'] is not None:
-            x = np.minimum(x, self.pf['pq_var_ceil'])
-        if self.pf['pq_var_floor'] is not None:
-            x = np.maximum(x, self.pf['pq_var_floor'])
-        
+        if self.var_ceil is not None:
+            x = np.minimum(x, self.var_ceil)
+        if self.var_floor is not None:
+            x = np.maximum(x, self.var_floor)
+
         logx = np.log10(x)
-        
+
         # Read-in parameters to more convenient names
         # I don't usually use exec, but when I do, it's to do garbage like this
         for i, par in enumerate(pars):
-            
+
             # It's possible that a parameter will itself be a PQ object.            
             if type(par) == str:
-                                
+                         
                 # Could call recursively. Implement __getattr__?
                 PQ = self._sub_pqs[par]
                                 
@@ -146,14 +196,14 @@ class ParameterizedQuantity(object):
                 else:
                     raise NotImplementedError('help')
                     
-                exec('p%i = val' % i)    
+                exec('p%i = val' % i)
                     
             else:
                 exec('p%i = par' % i)
-            
-        # Actually execute the function                    
+
+        # Actually execute the function
         if func == 'lognormal':
-            f = p0 * np.exp(-(logx - p1)**2 / 2. / p2**2)   
+            f = p0 * np.exp(-(logx - p1)**2 / 2. / p2**2)
         elif func == 'normal':
             f = p0 * np.exp(-(x - p1)**2 / 2. / p2**2)
         elif func == 'pl':
@@ -238,7 +288,7 @@ class ParameterizedQuantity(object):
                 m = (p2 - p0) / (p3 - p1)
 
                 f = lo * p0 + hi * p2 + mi * (p0 + m * (x - p1))
-                            
+
             else:
                 if x <= p1:
                     f = p0
@@ -251,13 +301,13 @@ class ParameterizedQuantity(object):
                 lo = logx <= p1
                 hi = logx >= p3
                 mi = np.logical_and(logx > p1, logx < p3)
-        
+
                 # ramp slope
                 alph = np.log10(p2 / p0) / (p3 - p1)
                 fmid = p0 * (x / 10**p1)**alph
-                
+
                 f = lo * p0 + hi * p2 + mi * fmid
-        
+
             else:
                 if logx <= p2:
                     f = p0
@@ -272,10 +322,10 @@ class ParameterizedQuantity(object):
         else:
             raise NotImplementedError('Don\'t know how to treat %s function!' % func)
 
-        if self.pf['pq_val_ceil'] is not None:
-            f = np.minimum(f, self.pf['pq_val_ceil'])
-        if self.pf['pq_val_floor'] is not None:
-            f = np.maximum(f, self.pf['pq_val_floor'])
+        if self.ceil is not None:
+            f = np.minimum(f, self.ceil)
+        if self.floor is not None:
+            f = np.maximum(f, self.floor)
         
         return f
               
