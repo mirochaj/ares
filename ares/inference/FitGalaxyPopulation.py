@@ -169,8 +169,6 @@ class loglikelihood(LogLikelihood):
         # Final posterior calculation
         PofD = lp + self.const_term - lnL
 
-        print PofD, phi
-
         if np.isnan(PofD) or (type(phi) == np.ma.core.MaskedConstant):
             return -np.inf, self.blank_blob
 
