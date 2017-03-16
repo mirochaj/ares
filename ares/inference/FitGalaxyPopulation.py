@@ -147,6 +147,12 @@ class loglikelihood(LogLikelihood):
                 # Dust correction for observed galaxies
                 AUV = pop.dust.AUV(z, xdat)
         
+                # The input magnitudes are assumed to be *not* yet
+                # corrected for dust, i.e., they are the observed magnitudes.
+                # So, we need to apply a dust correction to those magnitudes
+                # before passing them to the model, which assumes the input
+                # magnitudes of interest are the intrinsic magnitudes.
+        
                 # Compare data to model at dust-corrected magnitudes
                 M = xdat - AUV
                 

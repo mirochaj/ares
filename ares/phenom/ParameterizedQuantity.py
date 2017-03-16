@@ -55,7 +55,7 @@ class ParameterizedQuantity(object):
         """
                 
         self._sub_pqs = {}
-        for i in range(6):
+        for i in range(8):
             par = 'pq_func_par%i' % i
             
             if par not in self.pf:
@@ -134,7 +134,7 @@ class ParameterizedQuantity(object):
     def pars_list(self):
         if not hasattr(self, '_pars_list'):
             self._pars_list = []
-            for i in range(6):
+            for i in range(8):
                 name = 'pq_func_par%i' % i
                 if name in self.pf:
                     self._pars_list.append(self.pf[name])
@@ -230,21 +230,29 @@ class ParameterizedQuantity(object):
         elif func == 'dpl_arbnorm':
             normcorr = (((p4 / p1)**-p2 + (p4 / p1)**-p3))
             f = p0 * normcorr / ((x / p1)**-p2 + (x / p1)**-p3)
+        elif func == 'ddpl':
+            f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3) \
+              + 2. * p4 / ((x / p5)**-p6 + (x / p5)**-p7)
+        elif func == 'ddpl_arbnorm':
+            normcorr1 = (((p4 / p1)**-p2 + (p4 / p1)**-p3))
+            normcorr2 = (((p4 / p1)**-p2 + (p4 / p1)**-p3))
+            f1 = p0 * normcorr / ((x / p1)**-p2 + (x / p1)**-p3)
+            f1 = p5 * normcorr / ((x / p1)**-p2 + (x / p1)**-p3)
         elif func == 'plsum2':
             f = p0 * (x / p1)**p2 + p3 * (x / p1)**p4
         elif func == 'tanh_abs':
             f = (p0 - p1) * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1
         elif func == 'tanh_rel':
-            f = p1 * p0 * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1  
+            f = p1 * p0 * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1
         elif func == 'log_tanh_abs':
             f = (p0 - p1) * 0.5 * (np.tanh((p2 - logx) / p3) + 1.) + p1
-        elif func == 'log_tanh_rel':                                        
+        elif func == 'log_tanh_rel':                                       
             f = p1 * p0 * 0.5 * (np.tanh((p2 - logx) / p3) + 1.) + p1
         elif func == 'rstep':
             if type(x) is np.ndarray:
                 lo = x < p2
                 hi = x >= p2
-        
+
                 f = lo * p0 * p1 + hi * p1 
             else:
                 if x < p2:
@@ -252,7 +260,7 @@ class ParameterizedQuantity(object):
                 else:
                     f = p1
         elif func == 'astep':
-            
+
             if type(x) is np.ndarray:
                 lo = x < p2
                 hi = x >= p2

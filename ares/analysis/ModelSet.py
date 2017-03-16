@@ -3268,6 +3268,7 @@ class ModelSet(BlobFactory):
             # This assumes scalar is z!
             if apply_dc:
                 vector = xarr = self.dc.Mobs(scalar, xarr)
+                #vector = xarr = xarr + self.dc.AUV(scalar, xarr)
                    
             y = []
             for i, value in enumerate(vector):
@@ -3277,7 +3278,7 @@ class ModelSet(BlobFactory):
                     take_log=take_log, un_log=un_log, multiplier=multiplier)
                  
                 if len(names) == 1:
-                    yblob = tmp[names[0]].squeeze() 
+                    yblob = tmp[names[0]].squeeze()
                 else:    
                     xblob = tmp[names[0]].squeeze()
                     yblob = tmp[names[1]].squeeze() 

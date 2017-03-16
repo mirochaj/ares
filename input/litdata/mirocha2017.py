@@ -1,6 +1,6 @@
-#import ares
 import numpy as np
 
+# This can lead to pickling issues...argh
 #halos = ares.physics.HaloMassFunction()
 #
 #barrier_M = lambda zz: halos.VirialMass(300, zz)
@@ -15,21 +15,21 @@ step = \
  'pop_zform{0}': 60,
  'pop_zform{1}': 60,
  
- 'pop_fesc_LW{0}': 'pq[1]',
- 'pq_func{0}[1]': 'astep',
- 'pq_func_var{0}[1]': 'Mh',
- 'pq_func_par0{0}[1]': 1.,
- 'pq_func_par1{0}[1]': 1.,
- 'pq_func_par2{0}[1]': 1e8,
- #'pq_func_par2{0}[1]': (barrier_A, 'z', 1),
+ 'pop_fesc_LW{0}': 'pq[101]',
+ 'pq_func{0}[101]': 'astep',
+ 'pq_func_var{0}[101]': 'Mh',
+ 'pq_func_par0{0}[101]': 1.,
+ 'pq_func_par1{0}[101]': 1.,
+ 'pq_func_par2{0}[101]': 1e8,
+ #'pq_func_par2{0}[101]': (barrier_A, 'z', 1),
  
- 'pop_fesc{0}': 'pq[2]',
- 'pq_func{0}[2]': 'astep',
- 'pq_func_var{0}[2]': 'Mh',
- 'pq_func_par0{0}[2]': 0., # No LyC from minihalos by default
- 'pq_func_par1{0}[2]': 0.1,
- 'pq_func_par2{0}[2]': 1e8,
- #'pq_func_par2{0}[2]': (barrier_A, 'z', 1),
+ 'pop_fesc{0}': 'pq[102]',
+ 'pq_func{0}[102]': 'astep',
+ 'pq_func_var{0}[102]': 'Mh',
+ 'pq_func_par0{0}[102]': 0., # No LyC from minihalos by default
+ 'pq_func_par1{0}[102]': 0.1,
+ 'pq_func_par2{0}[102]': 1e8,
+ #'pq_func_par2{0}[102]': (barrier_A, 'z', 1),
 
  #'pop_Tmin{0}': 500.,
  'pop_Mmin{0}': 1e8,
@@ -39,16 +39,16 @@ step = \
  #'pop_Tmin{1}': 'pop_Tmin{0}',
  'pop_Mmin{1}': 'pop_Mmin{0}',
 
- 'pop_rad_yield{1}': 'pq[3]',
- 'pq_func{1}[3]': 'astep',
- 'pq_func_var{1}[3]': 'Mh',
- 'pq_func_par0{1}[3]': 2.6e39,
- 'pq_func_par1{1}[3]': 2.6e39,
- 'pq_func_par2{1}[3]': 1e8,
- #'pq_func_par2{1}[3]': (barrier_A, 'z', 1),
+ 'pop_rad_yield{1}': 'pq[103]',
+ 'pq_func{1}[103]': 'astep',
+ 'pq_func_var{1}[103]': 'Mh',
+ 'pq_func_par0{1}[103]': 2.6e39,
+ 'pq_func_par1{1}[103]': 2.6e39,
+ 'pq_func_par2{1}[103]': 1e8,
+ #'pq_func_par2{1}[103]': (barrier_A, 'z', 1),
 
- # By default, no feedback
- 'feedback_LW': False,
+ # By default, feedback is on
+ 'feedback_LW': True,
 }
 
 exp_Mtr_rel = \
@@ -60,19 +60,18 @@ exp_Mtr_rel = \
   'pop_zform{3}': 60,
   
   'pop_sfr_model{2}': 'sfe-func',
-  'pop_fstar{2}': 'pq[1]',
+  'pop_fstar{2}': 'pq[101]',
   'pop_fstar_negligible{2}': 1e-5, 
   
-  'pq_func{2}[1]': 'exp',
-  'pq_func_var{2}[1]': 'Mh',
-  
-  'pq_func_par0{2}[1]': 1e-2,
+  'pq_func{2}[101]': 'exp',
+  'pq_func_var{2}[101]': 'Mh',
+  'pq_func_par0{2}[101]': 1e-2,
   
   ##
   # Might want to change this
   ##
-  'pq_func_par1{2}[1]': ('pop_Mmin', 'z', 1),
-  'pq_func_par2{2}[1]': 1.,
+  'pq_func_par1{2}[101]': ('pop_Mmin', 'z', 1),
+  'pq_func_par2{2}[101]': 1.,
   
   'pop_sed{2}': 'eldridge2009',
   'pop_binaries{2}': False,
@@ -82,7 +81,6 @@ exp_Mtr_rel = \
   'pop_rad_yield{2}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
                                    # should make this automatic
   
-  'pop_fesc{2}': 0.1,
   'pop_heat_src_igm{2}': False,
   'pop_ion_src_igm{2}': False,
 
@@ -115,7 +113,7 @@ exp_Mtr_rel = \
   ##
   'pop_Tmin{0}': None,
   'pop_Tmin_ceil{0}': 1e4,
-  'pop_Mmin{0}': 'link:Mmax_active:2', # 'pop_Mmin{2}'?
+  'pop_Mmin{0}': 'link:Mmax_active:2',
   'pop_Tmin{2}': 500.,
   'pop_Mmin{3}': 'pop_Mmin{2}',
   'pop_Tmin{3}': None,
@@ -128,20 +126,30 @@ exp_Mtr_rel = \
 }
 
 exp_Mtr_fix = exp_Mtr_rel.copy()
-exp_Mtr_fix['pq_func_par1{2}[1]'] = 1e7
+exp_Mtr_fix['pq_func_par1{2}[101]'] = 1e7
 
 exp = exp_Mtr_rel
 
-sfrd_blobs = \
+exp_blobs = \
 {
- 'blob_names': ['sfrd{0}', 'sfrd{2}', 'sfrd_bc{0}', 'sfrd_bc{2}', 
-    'Mmin{0}', 'Mmin{2}'],
+ 'blob_names': ['popII_sfrd_tot', 'popIII_sfrd_tot', 
+                'popII_sfrd_bc',  'popIII_sfrd_bc', 
+                'popII_Mmin', 'popIII_Mmin'],
  'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
  'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD', 'pops[0].SFRD_at_threshold',
     'pops[2].SFRD_at_threshold', 'pops[0].Mmin', 'pops[2].Mmin'],
 }
 
-# Distillation of PopIII SFH
+# This is a little trickier
+step_blobs = \
+{
+ 'blob_names': ['popII_sfrd_tot', #'popIII_sfrd_tot', 
+                'popII_sfrd_bc',  #'popIII_sfrd_bc', 
+                'popII_Mmin'],
+ 'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
+ 'blob_funcs': ['pops[0].SFRD', 'pops[0].SFRD_at_threshold', 'pops[0].Mmin'],
+}
+
 
 
 

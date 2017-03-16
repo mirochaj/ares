@@ -109,29 +109,29 @@ _flex = \
 {
  'pq_func{0}[0]': 'dpl_arbnorm',
  'pq_func_var{0}[0]': 'Mh',
- 
+
  'pq_val_ceil{0}[0]': 1.0,
- 
+
  # Standard dpl model at 10^8 Msun
  'pq_func_par0{0}[0]': 'pq[1]',
  'pq_func_par1{0}[0]': 'pq[2]',
  'pq_func_par2{0}[0]': 0.49,
  'pq_func_par3{0}[0]': -0.61,
  'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
- 
+
  # Evolving part
  'pq_func{0}[1]': 'pl',
  'pq_func_var{0}[1]': '1+z',
  'pq_func_par0{0}[1]': 0.00205,
  'pq_func_par1{0}[1]': 7.,
  'pq_func_par2{0}[1]': 0.,   # power-law index!
- 
+
  'pq_func{0}[2]': 'pl',
  'pq_func_var{0}[2]': '1+z',
  'pq_func_par0{0}[2]': 2.8e11,
  'pq_func_par1{0}[2]': 7.,
  'pq_func_par2{0}[2]': 0.,   # power-law index!
-  
+
 }
 
 dpl_flex = dpl.copy()
@@ -141,29 +141,29 @@ _flex2 = \
 {
  'pq_func{0}[0]': 'dpl_arbnorm',
  'pq_func_var{0}[0]': 'Mh',
- 
+
  'pq_val_ceil{0}[0]': 1.0,
- 
+
  # Standard dpl model at 10^8 Msun
  'pq_func_par0{0}[0]': 'pq[1]',
  'pq_func_par1{0}[0]': 'pq[2]',
  'pq_func_par2{0}[0]': 'pq[3]',
  'pq_func_par3{0}[0]': 'pq[4]',
  'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
- 
+
  # Evolving part
  'pq_func{0}[1]': 'pl',
  'pq_func_var{0}[1]': '1+z',
  'pq_func_par0{0}[1]': 0.00205,
  'pq_func_par1{0}[1]': 7.,
  'pq_func_par2{0}[1]': 0.,   # power-law index!
- 
+
  'pq_func{0}[2]': 'pl',
  'pq_func_var{0}[2]': '1+z',
  'pq_func_par0{0}[2]': 2.8e11,
  'pq_func_par1{0}[2]': 7.,
  'pq_func_par2{0}[2]': 0.,   # power-law index!
- 
+
  'pq_func{0}[3]': 'pl',
  'pq_func_var{0}[3]': '1+z',
  'pq_func_par0{0}[3]': 0.49,
