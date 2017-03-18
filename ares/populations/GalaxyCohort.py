@@ -263,7 +263,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_sfrd_at_threshold_ = active * self._tab_eta \
                 * self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
                 * self._tab_fstar_at_Mmin * self._tab_Mmin \
-                * self._tab_nh_at_Mmin
+                * self._tab_nh_at_Mmin \
+                * self.focc(z=self.halos.z, Mh=self._tab_Mmin)
                 
             #self._tab_sfrd_at_threshold_ -= * self.Mmin * n * self.dMmin_dt(self.halos.z)    
 

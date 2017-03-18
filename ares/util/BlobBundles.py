@@ -66,9 +66,9 @@ for _name in _rc_base:
     for i, spec1 in enumerate(_species):
     
         _save_name = '%s_%s' % (_name, spec1)
-        _gs_rates.append(_save_name)
+        _gs_rates.append(_save_name)        
         _rc_funcs.append((_name,i))
-    
+
         # Don't do secondary ionization terms yet
         #for j, spec2 in enumerate(_species):
             

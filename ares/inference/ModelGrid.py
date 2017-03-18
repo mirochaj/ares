@@ -252,7 +252,6 @@ class ModelGrid(ModelFit):
     @property
     def blank_blob(self):
         if not hasattr(self, '_blank_blob'):
-            
             blob_names = self.base_kwargs['blob_names']
     
             if blob_names is None:
@@ -263,9 +262,24 @@ class ModelGrid(ModelFit):
             blob_funcs = self.base_kwargs['blob_funcs']
             blob_nd = [len(grp) if grp is not None else 0 \
                 for grp in blob_ivars]
-            blob_dims = [map(len, grp) if grp is not None else None \
-                for grp in blob_ivars]
-    
+
+            ##
+            # Need to be a little careful with blob ivars due to
+            # new-ish (ivar name, ivar values) approach.
+            ##
+            blob_dims = []
+            for grp in blob_ivars:
+                if grp is None:
+                    blob_dims.append(None)
+                    continue
+                
+                dims = []
+                for element in grp:
+                    ivarn, ivars = element
+                    dims.append(len(ivars))
+
+                blob_dims.append(tuple(dims))
+
             self._blank_blob = []
             for i, group in enumerate(blob_names):
                 if blob_ivars[i] is None:
@@ -281,16 +295,16 @@ class ModelGrid(ModelFit):
                             blob_dims[i][1]
                         arr = np.ones(dims)
                         self._blank_blob.append(arr * np.inf)
-    
+
         return self._blank_blob
-    
+
     @property
     def simulator(self):
         if not hasattr(self, '_simulator'):
             from ..simulations import Global21cm
             self._simulator = Global21cm
         return self._simulator
-        
+
     @property
     def reuse_splines(self):
         if not hasattr(self, '_reuse_splines'):
@@ -534,7 +548,7 @@ class ModelGrid(ModelFit):
             except RuntimeError:
                 f = open('%s.%s.timeout.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
                 pickle.dump(kw, f)
-                f.close()   
+                f.close()
                 
                 blobs = self.blank_blob
             except MemoryError:

@@ -428,7 +428,8 @@ class BlobFactory(object):
                         if type(fname) is str:
                             func = parse_attribute(fname, self)
                         else:
-                            # fname is a slice
+                            # fname is a slice, like ('igm_k_heat', 0)
+                            # to retrieve heating rate from H ionizations
                             _xx = self.history['z'][-1::-1]
                             _yy = self.history[fname[0]][-1::-1,fname[1]]
                                                         
@@ -461,16 +462,21 @@ class BlobFactory(object):
                     xn, yn = self.blob_ivarn[i]
                                                             
                     blob = []
-                    # Need nested loop because supplied function is not 
-                    # guaranteed to be vectorized
+                    # We're assuming that the functions are vectorized.
+                    # Didn't used to, but it speeds things up (a lot).
                     for x in xarr:
                         tmp = []
                         
-                        # We're assuming that the functions are vectorized.
-                        # Didn't used to, but it speeds things up (a lot).
                         kw = {xn:x, yn:yarr}  
-                        tmp.extend(func(**kw))
-
+                        result = func(**kw)
+                        
+                        # Happens when we save a blob that isn't actually
+                        # a PQ (i.e., just a constant). Need to kludge so it
+                        # doesn't crash.
+                        if type(result) in [int, float, np.float64]:
+                            result = result * np.ones_like(yarr)
+                        
+                        tmp.extend(result)
                         blob.append(tmp)
                                                                         
                 this_group.append(np.array(blob))
@@ -563,6 +569,7 @@ class BlobFactory(object):
         
             f = open(fn, 'rb')
                 
+            # Why the while loop? Remember?
             all_data = []
             while True:
                 try:

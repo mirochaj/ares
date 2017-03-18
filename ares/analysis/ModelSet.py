@@ -3727,10 +3727,14 @@ class ModelSet(BlobFactory):
 
         if func is not None:
             data = self.ExtractData(fields)
-
+            
             # Grab ivars
             ivars = {}
             for key in data:
+                # Don't need ivars if we're manipulating parameters!
+                if key in self.parameters:
+                    continue
+                    
                 i, j, nd, size = self.blob_info(key)
                 ivars[key] = self.blob_ivars[i]
 
@@ -3775,6 +3779,9 @@ class ModelSet(BlobFactory):
             # Shape of new blob must be the same
             ivars = {}
             for key in data:
+                # Don't need ivars if we're manipulating parameters!
+                if key in self.parameters:
+                    continue
                 i, j, nd, size = self.blob_info(key)
                 ivars[key] = self.blob_ivars[i]
             
@@ -3784,7 +3791,7 @@ class ModelSet(BlobFactory):
                 f = open(fn_md, 'w')
                 pickle.dump({name: ivars}, f)
                 f.close()
-            else:                   
+            else:
                 f = open(fn_md, 'r')
                 while True:
                     
@@ -3797,14 +3804,13 @@ class ModelSet(BlobFactory):
                                 break
                     except EOFError:
                         break
-                
+
                 f.close()
-                
+
                 if pdat is not None:
                     f = open(fn_md, 'a')
                     pickle.dump({name: ivars})
                     f.close()
-                    
         
         return result
         

@@ -44,6 +44,9 @@ class Global21cm(AnalyzeGlobal21cm):
             may be used.
             
         """
+        
+        self.is_complete = False
+        
         # See if this is a tanh model calculation
         is_phenom = self.is_phenom = self._check_if_phenom(**kwargs)
 
@@ -54,18 +57,9 @@ class Global21cm(AnalyzeGlobal21cm):
         self.kwargs = kwargs
         
         # Print info to screen
-        if self.pf['verbose'] and self.count == 0:
+        if self.pf['verbose']:
             print_sim(self)
         
-        if not hasattr(self, '_suite'):
-            self._suite = []
-            
-    @property 
-    def count(self):
-        if not hasattr(self, '_count'):
-            self._count = 0
-        return self._count
-            
     @property 
     def timer(self):
         if not hasattr(self, '_timer'):
@@ -221,6 +215,9 @@ class Global21cm(AnalyzeGlobal21cm):
         # If this was a tanh model or some such thing, we're already done.
         if self.is_phenom:
             return
+        if self.is_complete:
+            print "Already ran simulation!"
+            return    
 
         # Need to generate radiation backgrounds first.
         self.medium.field.run()
@@ -308,6 +305,8 @@ class Global21cm(AnalyzeGlobal21cm):
         t2 = time.time()        
                 
         self.timer = t2 - t1
+        
+        self.is_complete = True
 
     def step(self):
         """
@@ -376,20 +375,10 @@ class Global21cm(AnalyzeGlobal21cm):
             else: 
                 raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
     
-        # I/O more complicated in this case.
-        if (self._suite != []) and suffix != 'pkl':
-            raise NotImplemented('help!')
-    
-        if suffix == 'pkl':
-            if self._suite:
-                f = open(fn, 'wb')
-                for hist in self._suite:
-                    pickle.dump(hist, f)
-                f.close()
-            else:          
-                f = open(fn, 'wb')
-                pickle.dump(self.history._data, f)
-                f.close()
+        if suffix == 'pkl':         
+            f = open(fn, 'wb')
+            pickle.dump(self.history._data, f)
+            f.close()
                 
             try:
                 f = open('%s.blobs.%s' % (prefix, suffix), 'wb')

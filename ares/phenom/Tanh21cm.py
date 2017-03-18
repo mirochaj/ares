@@ -204,8 +204,15 @@ class Tanh21cm(object):
          'cgm_h_2': xi,
          'igm_h_1': np.ones_like(z),
          'igm_h_2': np.zeros_like(z),
-         'igm_heat_h_1': self.heating_rate(z, Tref, zref_T, dz_T),
-         'cgm_Gamma_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
+         'cgm_k_ion_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
+         'cgm_k_ion_he_1': np.zeros_like(z),
+         'cgm_k_ion_he_2': np.zeros_like(z),
+         'igm_k_ion_h_1': np.zeros_like(z),
+         'igm_k_ion_he_1': np.zeros_like(z),
+         'igm_k_ion_he_2': np.zeros_like(z),
+         'igm_k_heat_h_1': self.heating_rate(z, Tref, zref_T, dz_T),
+         'igm_k_heat_he_1': np.zeros_like(z),
+         'igm_k_heat_he_2': np.zeros_like(z),
         }
 
         return hist
