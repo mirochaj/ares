@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from ..physics.Constants import nu_0_mhz
 from .ParameterBundles import ParameterBundle
 
 _gs_hist = ['z', 'cgm_h_2', 'igm_h_2', 'igm_Tk', 'Ja', 'Ts', 'dTb']
@@ -25,6 +26,7 @@ _gs_ext.append('z_ZC')
 _gs_ext.append('tau_e')
 
 _def_z = ('z', np.arange(5, 51, 0.1))
+_z_from_freq = ('z', nu_0_mhz / np.arange(25., 210, 1.)[-1::-1] - 1.)
 
 _gs_shape_n = ['hwtqm_diff_C', 'hwhm_diff_C', 'hwqm_diff_C', 
     'fwtqm_C', 'fwhm_C', 'fwqm_C']

@@ -209,10 +209,10 @@ class ParameterizedQuantity(object):
         elif func == 'pl':
             #print x, kwargs['z'], p0, p1, p2
             f = p0 * (x / p1)**p2
-        # 'quadratic_lo' means higher order terms vanish when x << p0
+        # 'quadratic_lo' means higher order terms vanish when x << p3
         elif func == 'quadratic_lo':
             f = p0 * (1. +  p1 * (x / p3) + p2 * (x / p3)**2)
-        # 'quadratic_hi' means higher order terms vanish when x >> p0
+        # 'quadratic_hi' means higher order terms vanish when x >> p3
         elif func == 'quadratic_hi':
             f = p0 * (1. +  p1 * (p3 / x) + p2 * (p3 / x)**2)
         #elif func == 'cubic_lo':

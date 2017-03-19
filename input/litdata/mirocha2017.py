@@ -1,13 +1,14 @@
+import ares
 import numpy as np
 
 # This can lead to pickling issues...argh
-#halos = ares.physics.HaloMassFunction()
-#
-#barrier_M = lambda zz: halos.VirialMass(300, zz)
-#barrier_A = lambda zz: halos.VirialMass(1e4, zz)
-#    
-#log_barrier_M = lambda zz: np.log10(barrier_M(zz))    
-#log_barrier_A = lambda zz: np.log10(barrier_A(zz))
+halos = ares.physics.HaloMassFunction()
+
+barrier_M = lambda zz: halos.VirialMass(300, zz)
+barrier_A = lambda zz: halos.VirialMass(1e4, zz)
+    
+log_barrier_M = lambda zz: np.log10(barrier_M(zz))    
+log_barrier_A = lambda zz: np.log10(barrier_A(zz))
 
 step = \
 {
@@ -20,35 +21,30 @@ step = \
  'pq_func_var{0}[101]': 'Mh',
  'pq_func_par0{0}[101]': 1.,
  'pq_func_par1{0}[101]': 1.,
- 'pq_func_par2{0}[101]': 1e8,
- #'pq_func_par2{0}[101]': (barrier_A, 'z', 1),
+ 'pq_func_par2{0}[101]': (barrier_A, 'z', 1),
  
  'pop_fesc{0}': 'pq[102]',
  'pq_func{0}[102]': 'astep',
  'pq_func_var{0}[102]': 'Mh',
  'pq_func_par0{0}[102]': 0., # No LyC from minihalos by default
  'pq_func_par1{0}[102]': 0.1,
- 'pq_func_par2{0}[102]': 1e8,
- #'pq_func_par2{0}[102]': (barrier_A, 'z', 1),
+ 'pq_func_par2{0}[102]': (barrier_A, 'z', 1),
 
- #'pop_Tmin{0}': 500.,
- 'pop_Mmin{0}': 1e8,
+ 'pop_Tmin{0}': 500.,
 
  # X-ray sources
  'pop_sfr_model{1}': 'link:sfe:0',
- #'pop_Tmin{1}': 'pop_Tmin{0}',
- 'pop_Mmin{1}': 'pop_Mmin{0}',
+ 'pop_Tmin{1}': 'pop_Tmin{0}',
 
  'pop_rad_yield{1}': 'pq[103]',
  'pq_func{1}[103]': 'astep',
  'pq_func_var{1}[103]': 'Mh',
  'pq_func_par0{1}[103]': 2.6e39,
  'pq_func_par1{1}[103]': 2.6e39,
- 'pq_func_par2{1}[103]': 1e8,
- #'pq_func_par2{1}[103]': (barrier_A, 'z', 1),
+ 'pq_func_par2{1}[103]': (barrier_A, 'z', 1),
 
- # By default, feedback is on
- 'feedback_LW': True,
+ # By default, feedback is OFF
+ 'feedback_LW': False,
 }
 
 exp_Mtr_rel = \

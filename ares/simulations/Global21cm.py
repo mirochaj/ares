@@ -17,8 +17,8 @@ import numpy as np
 from types import FunctionType
 from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
-from ..util import ParameterFile, ProgressBar
 from ..physics.Constants import nu_0_mhz, E_LyA
+from ..util import ParameterFile, ProgressBar, get_hg_rev
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 
 defaults = \
@@ -447,6 +447,9 @@ class Global21cm(AnalyzeGlobal21cm):
             #    if key in self.carryover_kwargs():
             #        continue
             #    pf[key] = self.pf[key]
+            
+            if 'revision' not in self.pf:
+                self.pf['revision'] = get_hg_rev()
             
             # Save parameter file
             f = open('%s.parameters.pkl' % prefix, 'wb')

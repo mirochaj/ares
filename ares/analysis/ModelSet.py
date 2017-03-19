@@ -3145,15 +3145,14 @@ class ModelSet(BlobFactory):
     def ReconstructedFunction(self, names, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        best='maxL', fill=True, show_all=False, samples=None, 
-        apply_dc=False, **kwargs):
+        best='mode', fill=True, samples=None, apply_dc=False, **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
         Parameters
         ----------
-        name : str
-            Name of blob(s) you're interested in.
+        names : str
+            Name of quantity you're interested in.
         ivar : list, np.ndarray
             List of values (or nested list) of independent variables. If 
             blob is 2-D, only need to provide the independent variable for
@@ -3172,6 +3171,9 @@ class ModelSet(BlobFactory):
         use_best : bool
             If True, will plot the maximum likelihood reconstructed
             function. Otherwise, will use `percentile` and plot shaded region.
+        samples : int, str
+            If 'all', will plot all realizations individually. If an integer,
+            will plot only that many realizations, drawn randomly.
             
         """
         
@@ -3189,9 +3191,7 @@ class ModelSet(BlobFactory):
         if type(names) is str:
             names = [names]
             
-        # Step 1: figure out ivars
-        # If plotting two blobs against eachother, they better have the
-        # same blobs!    
+        # Step 1: figure out ivars  
         info = self.blob_info(names[0])
         nd = info[2]
         
@@ -3203,7 +3203,7 @@ class ModelSet(BlobFactory):
         if nd != 1 and (ivar is None):
             raise NotImplemented('If not 1-D blob, must supply one ivar!')
                 
-        # Grab the maximum likelihood point 'cuz why not
+        # Grab the maximum likelihood point
         if use_best and self.is_mcmc:
             if best == 'median':
                 N = len(self.logL[skip:stop])
@@ -3223,13 +3223,12 @@ class ModelSet(BlobFactory):
         if nd == 1:
             
             # Read in the independent variable(s) and data itself
-
             xarr = ivars[0]            
         
             if len(names) == 1:
                 tmp = self.ExtractData(names[0], 
                     take_log=take_log, un_log=un_log, multiplier=multiplier)
-                data = tmp[names[0]].squeeze()
+                data = yblob = tmp[names[0]].squeeze()
             else:
                 tmp = self.ExtractData(names, 
                     take_log=take_log, un_log=un_log, multiplier=multiplier)
@@ -3241,7 +3240,7 @@ class ModelSet(BlobFactory):
             
             y = []
             for i, x in enumerate(xarr):
-                if show_all:
+                if (samples is not None):
                     y.append(yblob[:,i].compressed())
                 elif (use_best and self.is_mcmc):
                     y.append(yblob[:,i][skip:stop][loc])
@@ -3305,20 +3304,25 @@ class ModelSet(BlobFactory):
         if z_to_freq:
             x = nu_0_mhz / (1. + x)
 
+        ##
+        # Do the actual plotting
+        ##
+
         # Limit number of realizations
         if samples is not None:
             M = len(y)
-            elements = np.random.randint(0, M, size=samples)
-            to_keep = np.zeros(M)
+            
+            if samples == 'all':
+                elements = np.arange(0, M)
+            else:    
+                elements = np.random.randint(0, M, size=samples)
+                
             for i, element in enumerate(range(M)):
                 if element not in elements:
                     continue
 
                 ax.plot(xarr, y.T[element], **kwargs)
   
-        ##
-        # Do the actual plotting
-        ##
         elif use_best and self.is_mcmc:
             if take_log:
                 y = 10**y
@@ -3337,9 +3341,6 @@ class ModelSet(BlobFactory):
             
             if fill:
                 ax.fill_between(xarr, y.T[0], y.T[1], **kwargs)
-            elif show_all:
-                for i in range(y.shape[0]):
-                    ax.plot(xarr, y[i], **kwargs)
             else:
                 ax.plot(xarr, y[0], **kwargs)
                 ax.plot(xarr, y[1], **kwargs)
@@ -3589,6 +3590,7 @@ class ModelSet(BlobFactory):
                     break
                 
             if include_bkw:
+                print "WARNING: Any un-pickleable kwargs will not have been saved in %s.binfo.pkl!" % self.prefix
                 kwargs = self.base_kwargs.copy()    
             else:
                 kwargs = {}

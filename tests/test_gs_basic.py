@@ -11,6 +11,7 @@ Description:
 """
 
 import ares
+import numpy as np
 import matplotlib.pyplot as pl
 
 def test():
@@ -21,8 +22,12 @@ def test():
     pl.savefig('%s.png' % (__file__.rstrip('.py')))
     pl.close()
     
-    assert True
-    
+    # Make sure it's not a null signal.
+    z = sim.history['z']
+    dTb = sim.history['dTb'][z < 50]
+    assert len(np.unique(np.sign(dTb))) == 2
+    assert max(dTb) > 5 and min(dTb) < -5
+        
 if __name__ == '__main__':
     test()
 

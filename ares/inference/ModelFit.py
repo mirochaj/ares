@@ -12,6 +12,7 @@ Description:
 
 import pickle
 import numpy as np
+from ..util import get_hg_rev
 from .PriorSet import PriorSet
 from ..util.Stats import get_nu
 from ..util.MPIPool import MPIPool
@@ -711,26 +712,26 @@ class ModelFit(BlobFactory):
             prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
         else:
             prefix_by_proc = self.prefix
-                               
+
         if clobber:
             # Delete only the files made by this routine. Don't want to risk
             # deleting other files the user may have created with similar
             # naming convention!
-            
+
             for suffix in ['logL', 'facc', 'pinfo', 'rinfo', 'binfo', 'setup', 'prior_set']:
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
-            
+
             os.system('rm -f %s.*.fail.pkl' % self.prefix)
             os.system('rm -f %s.*.chain.*pkl' % self.prefix)
             os.system('rm -f %s.*.blob*.*pkl' % self.prefix)
-            
+            os.system('rm -f %s.*.logL*.*pkl' % self.prefix)
+
             # Need to potentially axe a product file
-            os.system('rm -f %s.fails.pkl' % self.prefix)
-            os.system('rm -f %s.chain.pkl' % self.prefix)
-                    
+            #os.system('rm -f %s.chain.pkl' % self.prefix)
+   
         # Each processor gets its own fail file
         f = open('%s.fail.pkl' % prefix_by_proc, 'wb')
-        f.close()  
+        f.close()
         
         # Main output: MCMC chains (flattened)
         if self.checkpoint_append:
@@ -776,7 +777,7 @@ class ModelFit(BlobFactory):
         tmp = self.base_kwargs.copy()
         to_axe = []
         for key in tmp:
-            # this might be big, get rid of it
+            # these might be big, get rid of it
             if re.search('tau_instance', key):
                 to_axe.append(key)
             if re.search('tau_table', key):
@@ -787,10 +788,24 @@ class ModelFit(BlobFactory):
                 to_axe.append(key)        
             if re.search('pop_sed_by_Z', key):
                 to_axe.append(key)
+            
+            # Apparently functions of any kind cause problems everywhere
+            # but my laptop
+            if type(tmp[key]) in [FunctionType, InstanceType]:
+                to_axe.append(key)
+            elif type(tmp[key]) is tuple:
+                for element in tmp[key]:
+                    if type(element) in [FunctionType, InstanceType]:
+                        to_axe.append(key)
+                        break
         
         for key in to_axe:
             tmp[key] = None
             
+        # If possible, include ares revision used to run this fit.
+        tmp['revision'] = get_hg_rev()
+            
+        # Write to disk.
         pickle.dump(tmp, f)
         del tmp
         f.close()

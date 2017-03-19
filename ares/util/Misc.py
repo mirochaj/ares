@@ -28,6 +28,25 @@ except ImportError:
 
 logbx = lambda b, x: np.log10(x) / np.log10(b)
 
+def get_cmd_line_kwargs(argv):
+    
+    cmd_line_kwargs = {}
+    
+    for arg in argv[1:]:
+        pre, post = arg.split('=')
+
+        print "Setting %s=%s" % (pre, post)
+
+        # Need to do some type-casting
+        if post.isdigit():
+            cmd_line_kwargs[pre] = bool(post)
+        elif post.isalpha():
+            cmd_line_kwargs[pre] = str(post)
+        else:
+            cmd_line_kwargs[pre] = float(post)
+    
+    return cmd_line_kwargs
+
 def get_hg_rev():
     import subprocess
     try:

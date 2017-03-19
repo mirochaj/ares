@@ -182,3 +182,16 @@ _flex2 = \
 dpl_evol = dpl.copy()
 dpl_evol.update(_flex2)
 
+dpl_pl = dpl_evol
+
+dpl_quad = dpl.copy()
+for j, i in enumerate(range(1, 5)):
+    dpl_quad['pq_func_par%i{0}[0]' % j] = 'pq[%i]' % i
+    dpl_quad['pq_func{0}[%i]' % i] = 'quadratic_hi'
+    dpl_quad['pq_func_var{0}[%i]' % i] = '1+z'
+    dpl_quad['pq_func_par0{0}[%i]' % i] = dpl['pq_func_par%i{0}[0]' % j]
+    dpl_quad['pq_func_par1{0}[%i]' % i] = 0.
+    dpl_quad['pq_func_par2{0}[%i]' % i] = 0.
+    dpl_quad['pq_func_par3{0}[%i]' % i] = 4. # Normalize to z=3
+
+

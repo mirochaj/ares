@@ -67,7 +67,7 @@ class ModelSetGalaxyPopulation(ModelSet):
     def RecoveredModel(self, z, mp=None, fig=1, quantity='lf', compare_to=None, 
         percentile=0.685,
         samples=1, skip=0, stop=None, use_best=False, best='median',
-        show_all=False, data_kwargs={'ncols': 3}, **kwargs):
+        show_all=False, data_kwargs={}, **kwargs):
         """
         Plot the luminosity function used to train the SFE.
         """
@@ -78,13 +78,19 @@ class ModelSetGalaxyPopulation(ModelSet):
         # First, plot observational data [optional]
         if mp is None:
             if compare_to is not None:
-                mp = self.obsdata.MultiPlot(z, fig=fig, 
-                    quantity=quantity, sources=compare_to, **data_kwargs)
+                if len(z) > 1:
+                    mp = self.obsdata.MultiPlot(z, fig=fig, 
+                        quantity=quantity, sources=compare_to, **data_kwargs)
+                else:
+                    mp = self.obsdata.Plot(z[0], fig=fig, 
+                        quantity=quantity, sources=compare_to, **data_kwargs)
+                
                 self.obsdata.add_master_legend(mp, scatterpoints=1, numpoints=1, 
                     ncol=4, fontsize=14, handletextpad=0.5, columnspacing=0.5)
+                        
             else:
                 mp = None   
-            
+        
         ##
         # Now, loop over redshift and plot reconstructed model
         ##
@@ -96,14 +102,17 @@ class ModelSetGalaxyPopulation(ModelSet):
                 ax = mp.grid[k]
 
             # Need to apply DC if quantity == 'lf'
-            self._Recovered_Function(redshift, quantity=quantity, ax=ax,
+            ax = self._Recovered_Function(redshift, quantity=quantity, ax=ax,
                 percentile=percentile, use_best=use_best, best=best,
                 samples=samples, skip=skip, stop=stop, 
                 show_all=show_all, **kwargs)    
         
         pl.draw()
 
-        return mp
+        if len(z) == 1:
+            return ax
+        else:
+            return mp
     
        
             

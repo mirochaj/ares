@@ -423,7 +423,8 @@ class BlobFactory(object):
                     else:
                         fname = self.blob_funcs[i][j]
                         
-                        xn = self.blob_ivarn[i] # don't need it actually
+                        # Name of independent variable
+                        xn = self.blob_ivarn[i][0]
                         
                         if type(fname) is str:
                             func = parse_attribute(fname, self)
@@ -438,7 +439,10 @@ class BlobFactory(object):
                         if ismethod(func) or isinstance(func, interp1d) or \
                             (type(func) == FunctionType) \
                             or hasattr(func, '__call__'):
-                            blob = np.array(map(func, x))
+                            
+                            func_kw = lambda xx: func(**{xn:xx})
+                            blob = np.array(map(func_kw, x))
+                            
                         else:
                             blob = np.interp(x, func[0], func[1])
                                                                 

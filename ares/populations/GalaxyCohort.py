@@ -1305,17 +1305,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         return derivative(fst, Mh, dx=1e6) * Mh / fst(Mh)
             
-    def alpha_lf(self, z, mag):
-        """
-        Slope in the luminosity function
-        """
-
-        logphi = lambda logL: np.log10(self.LuminosityFunction(z, 10**logL, mags=False))
-
-        Mdc = mag - self.dust.AUV(z, mag)
-        L = self.magsys.MAB_to_L(mag=Mdc, z=z)
-
-        return derivative(logphi, np.log10(L), dx=0.1)
+    #def slope_lf(self, z, mag):
+    #    logphi = lambda logL: np.log10(self.LuminosityFunction(z, 10**logL, mags=False))
+    #
+    #    Mdc = mag - self.dust.AUV(z, mag)
+    #    L = self.magsys.MAB_to_L(mag=Mdc, z=z)
+    #
+    #    return derivative(logphi, np.log10(L), dx=0.1)
+    #
+    #def slope_smf(self, z, M):
+    #    logphi = lambda logM: np.log10(self.StellarMassFunction(z, 10**logM))
+    #
+    #    
+    #
+    #    return derivative(logphi, np.log10(L), dx=0.1)    
     
     @property
     def _tab_fstar(self):

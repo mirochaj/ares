@@ -73,10 +73,13 @@ class GalaxyPopulation(object):
         
         data = {}
         
-        if sources in groups[quantity]:
-            srcs = groups[quantity][sources]
-        elif type(sources) is str:
-            srcs = [sources]
+        if type(sources) is str:
+            if sources in groups[quantity]:
+                srcs = groups[quantity][sources]
+            else:
+                srcs = [sources]
+        else:
+            srcs = sources
                 
         for source in srcs:
             src = read_lit(source)
@@ -210,11 +213,14 @@ class GalaxyPopulation(object):
             
         data = self.compile_data(z, sources, round_z=round_z, quantity=quantity)
         
-        if sources in groups[quantity]:
-            srcs = groups[quantity][sources]
-        elif type(sources) is str:
-            srcs = [sources]
-            
+        if type(sources) is str:
+            if sources in groups[quantity]:
+                srcs = groups[quantity][sources]
+            else:
+                srcs = [sources]
+        else:
+            srcs = sources
+        
         for source in srcs:
             if source not in data:
                 continue
@@ -281,8 +287,23 @@ class GalaxyPopulation(object):
         """
         
         handles, labels = [], []
-        for ax in mp.grid:
-            h, l = ax.get_legend_handles_labels()
+        
+        if isinstance(mp, MultiPanel):
+            for ax in mp.grid:
+                h, l = ax.get_legend_handles_labels()
+                
+                for i, lab in enumerate(l):
+                    if lab in labels:
+                        continue
+                    
+                    handles.append(h[i])
+                    labels.append(l[i])
+                    
+            mp.fig.legend(handles, labels, loc='upper center', 
+                bbox_to_anchor=(0.5, 0.97), **kwargs)        
+                
+        else:
+            h, l = mp.get_legend_handles_labels()
             
             for i, lab in enumerate(l):
                 if lab in labels:
@@ -290,10 +311,10 @@ class GalaxyPopulation(object):
                 
                 handles.append(h[i])
                 labels.append(l[i])
-                
-        mp.fig.legend(handles, labels, loc='upper center', 
-            bbox_to_anchor=(0.5, 0.97), **kwargs)
-                  
+            
+            mp.legend(handles, labels, loc='upper center', 
+                bbox_to_anchor=(0.5, 0.97), **kwargs)            
+
         return mp
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
