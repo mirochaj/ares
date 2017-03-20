@@ -35,15 +35,17 @@ def get_cmd_line_kwargs(argv):
     for arg in argv[1:]:
         pre, post = arg.split('=')
 
-        print "Setting %s=%s" % (pre, post)
-
         # Need to do some type-casting
         if post.isdigit():
             cmd_line_kwargs[pre] = bool(post)
         elif post.isalpha():
             cmd_line_kwargs[pre] = str(post)
         else:
-            cmd_line_kwargs[pre] = float(post)
+            try:
+                cmd_line_kwargs[pre] = float(post)
+            except ValueError:
+                # strings with underscores will return False from isalpha
+                cmd_line_kwargs[pre] = str(post)
     
     return cmd_line_kwargs
 

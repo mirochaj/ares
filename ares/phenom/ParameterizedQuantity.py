@@ -213,7 +213,7 @@ class ParameterizedQuantity(object):
         elif func == 'quadratic_lo':
             f = p0 * (1. +  p1 * (x / p3) + p2 * (x / p3)**2)
         # 'quadratic_hi' means higher order terms vanish when x >> p3
-        elif func == 'quadratic_hi':
+        elif func in ['quadratic_hi', 'quad']:
             f = p0 * (1. +  p1 * (p3 / x) + p2 * (p3 / x)**2)
         #elif func == 'cubic_lo':
         #    f = p1 * (1. +  p2 * (x / p0) + p3 * (x / p0)**2)
@@ -226,7 +226,7 @@ class ParameterizedQuantity(object):
         elif func == 'plexp':
             f = p0 * (x / p1)**p2 * np.exp(-(x / p3)**p4)
         elif func == 'dpl':
-            f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3)    
+            f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3)
         elif func == 'dpl_arbnorm':
             normcorr = (((p4 / p1)**-p2 + (p4 / p1)**-p3))
             f = p0 * normcorr / ((x / p1)**-p2 + (x / p1)**-p3)

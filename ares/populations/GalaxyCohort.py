@@ -797,6 +797,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             Redshift. Will interpolate between values in halos.z if necessary.
         mags : bool
             If True, x-values will be in absolute (AB) magnitudes
+            
         Returns
         -------
         Number density.
@@ -820,7 +821,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 bounds_error=False, fill_value=-np.inf)
             
             phi_of_x = 10**interp(np.log10(x))
-                                                                
+
         return phi_of_x
 
     def Lh(self, z):
@@ -895,8 +896,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         lum = np.ma.array(Lh[:-1], mask=mask)
         phi = np.ma.array(phi_of_L, mask=mask, fill_value=tiny_phi)
-
-        phi[mask == True] = tiny_phi
 
         self._phi_of_L[z] = lum, phi
 

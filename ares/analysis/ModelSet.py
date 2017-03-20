@@ -3267,7 +3267,6 @@ class ModelSet(BlobFactory):
             # This assumes scalar is z!
             if apply_dc:
                 vector = xarr = self.dc.Mobs(scalar, xarr)
-                #vector = xarr = xarr + self.dc.AUV(scalar, xarr)
                    
             y = []
             for i, value in enumerate(vector):

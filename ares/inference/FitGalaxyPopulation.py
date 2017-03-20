@@ -152,7 +152,7 @@ class loglikelihood(LogLikelihood):
                 # So, we need to apply a dust correction to those magnitudes
                 # before passing them to the model, which assumes the input
                 # magnitudes of interest are the intrinsic magnitudes.
-        
+
                 # Compare data to model at dust-corrected magnitudes
                 M = xdat - AUV
                 
@@ -177,7 +177,7 @@ class loglikelihood(LogLikelihood):
 
         if np.isnan(PofD) or (type(phi) == np.ma.core.MaskedConstant):
             return -np.inf, self.blank_blob
-
+ 
         try:
             blobs = pop.blobs
         except:
@@ -377,18 +377,23 @@ class FitGalaxyPopulation(ModelFit):
                         # These could still be in log10 units
                         phi = self.data[quantity][i][redshift]['phi']
                         err = self.data[quantity][i][redshift]['err']
-                        
+
                         if hasattr(M, 'mask'):
                             self._mask.extend(M.mask)
+                            self._xdata_flat.extend(M.data)
                         else:
                             self._mask.extend(np.zeros_like(M))
-                            
-                        self._xdata_flat.extend(M)
+                            self._xdata_flat.extend(M)                        
                         
                         if self.units[quantity][i] == 'log10':
-                            self._ydata_flat.extend(10**phi)
+                            _phi = 10**phi
                         else:    
-                            self._ydata_flat.extend(phi)
+                            _phi = phi
+                            
+                        if hasattr(M, 'mask'):
+                            self._ydata_flat.extend(_phi.data)
+                        else:
+                            self._ydata_flat.extend(_phi)
                 
                         # Cludge for asymmetric errors
                         for k, _err in enumerate(err):
@@ -408,6 +413,7 @@ class FitGalaxyPopulation(ModelFit):
                         self._redshifts_flat.extend(zlist)
                         self._metadata_flat.extend([quantity] * len(M))
                 
+            self._mask = np.array(self._mask)
             self._xdata_flat = np.ma.array(self._xdata_flat, mask=self._mask)
             self._ydata_flat = np.ma.array(self._ydata_flat, mask=self._mask)
             self._error_flat = np.ma.array(self._error_flat, mask=self._mask)
