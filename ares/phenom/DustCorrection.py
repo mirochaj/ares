@@ -89,6 +89,8 @@ class DustCorrection(object):
                 
                 to_min = lambda xx: xx - f_AUV(xx) - M
                 x.append(fsolve(to_min, M+1.)[0])
+                
+            x = np.array(x)    
         else:
 
             f_AUV = lambda mag: self.AUV(z, mag)

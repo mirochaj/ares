@@ -318,7 +318,7 @@ class GalaxyPopulation(object):
         return mp
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
-        panel_size=(0.75,0.75), fig=1, xmax=-15, ymax=10, legends=None, AUV=None,
+        panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
         quantity='lf', annotate_z='left'):
         """
         Plot the luminosity function at a bunch of different redshifts.

@@ -141,7 +141,7 @@ class loglikelihood(LogLikelihood):
 
             xdat = self.xdata[i]
             z = self.redshifts[i]
-
+            
             # Generate model LF
             if quantity == 'lf':
                 # Dust correction for observed galaxies
@@ -156,6 +156,8 @@ class loglikelihood(LogLikelihood):
                 # Compare data to model at dust-corrected magnitudes
                 M = xdat - AUV
                 
+                print M, AUV
+                
                 # Compute LF
                 p = pop.LuminosityFunction(z=z, x=M, mags=True)
             elif quantity == 'smf':
@@ -165,6 +167,9 @@ class loglikelihood(LogLikelihood):
                 raise ValueError('Unrecognized quantity: %s' % quantity)
 
             phi[i] = p
+            
+            print z, quantity, xdat, p
+            
         #except:
         #    return -np.inf, self.blank_blob
 

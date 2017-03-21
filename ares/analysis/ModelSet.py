@@ -3263,11 +3263,7 @@ class ModelSet(BlobFactory):
                 scalar = ivar[0]
                 vector = xarr = ivars[1]
                 slc = slice(0, None, 1)
-                
-            # This assumes scalar is z!
-            if apply_dc:
-                vector = xarr = self.dc.Mobs(scalar, xarr)
-                   
+                                   
             y = []
             for i, value in enumerate(vector):
                 iv = [scalar, value][slc]
@@ -3294,6 +3290,10 @@ class ModelSet(BlobFactory):
                     dat = yblob[skip:stop].compressed()
                     lo, hi = dat.min(), dat.max()
                     y.append((lo, hi))
+
+        # This assumes scalar is z!
+        if apply_dc:
+            xarr = self.dc.Mobs(scalar, xarr)
 
         y = np.array(y)
         

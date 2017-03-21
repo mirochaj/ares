@@ -176,7 +176,6 @@ _flex2 = \
  'pq_func_par1{0}[4]': 7.,
  'pq_func_par2{0}[4]': 0.,   # power-law index!
  
- 
 }
 
 dpl_evol = dpl.copy()
