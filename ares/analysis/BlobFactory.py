@@ -440,8 +440,11 @@ class BlobFactory(object):
                             (type(func) == FunctionType) \
                             or hasattr(func, '__call__'):
                             
-                            func_kw = lambda xx: func(**{xn:xx})
-                            blob = np.array(map(func_kw, x))
+                            try:
+                                func_kw = lambda xx: func(**{xn:xx})
+                                blob = np.array(map(func_kw, x))
+                            except TypeError:
+                                blob = np.array(map(func, x))
                             
                         else:
                             blob = np.interp(x, func[0], func[1])

@@ -223,7 +223,7 @@ def PhysicsParameters():
     'feedback_LW_fsh': None,
     'feedback_LW_Tcut': 1e4,
     'feedback_LW_mean_err': False,
-    'feedback_LW_maxiter': 50,
+    'feedback_LW_maxiter': 20,
     'feedback_LW_Mmin_uponly': False,
     'feedback_LW_Mmin_smooth': False,
     'feedback_LW_Mmin_rtol': 1e-2,
@@ -342,6 +342,8 @@ def PopulationParameters():
     "pop_sfr_cross_threshold": True,
     "pop_sfr_cross_upto_Tmin": np.inf,
     
+    "pop_threshold_sfr": None,
+    
     # Mass accretion rate
     "pop_MAR": 'hmf',
     "pop_MAR_conserve_norm": False,
@@ -422,8 +424,9 @@ def PopulationParameters():
     "pop_fstar_max": 1.0,
     "pop_fstar_negligible": 1e-5, # relative to maximum
     
-    "pop_facc": 0.0,
+    "pop_sfr": None,
     
+    "pop_facc": 0.0,
     "pop_fsmooth": 1.0,
 
     # Next 3: relative to fraction of halo acquiring the material

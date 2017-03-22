@@ -57,7 +57,8 @@ class ModelSetGalaxyPopulation(ModelSet):
         if quantity in ['lf', 'smf']:
             return self.ReconstructedFunction(quantity, ivar=[z, None], ax=ax, 
                 percentile=percentile, apply_dc=quantity=='lf', 
-                use_best=use_best, best=best, skip=skip, stop=stop, **kwargs)
+                use_best=use_best, best=best, skip=skip, stop=stop, 
+                samples=samples, **kwargs)
         elif type(quantity) in [tuple, list]:
             return self.ReconstructedRelation(quantity, ivar=[z, None], ax=ax,
                 percentile=percentile, **kwargs)
@@ -65,8 +66,8 @@ class ModelSetGalaxyPopulation(ModelSet):
             raise NotImplementedError('help me!')
 
     def RecoveredModel(self, z, mp=None, fig=1, quantity='lf', compare_to=None, 
-        percentile=0.685,
-        samples=1, skip=0, stop=None, use_best=False, best='median',
+        percentile=0.685, 
+        samples=None, skip=0, stop=None, use_best=False, best='median',
         show_all=False, data_kwargs={}, **kwargs):
         """
         Plot the luminosity function used to train the SFE.

@@ -257,15 +257,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if not self.pf['pop_sfr_cross_threshold']:
                 self._tab_sfrd_at_threshold_ = np.zeros_like(self.halos.z)
                 return self._tab_sfrd_at_threshold_
-                
-            active = 1. - self.fsup(z=self.halos.z) 
 
-            self._tab_sfrd_at_threshold_ = active * self._tab_eta \
-                * self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
-                * self._tab_fstar_at_Mmin * self._tab_Mmin \
-                * self._tab_nh_at_Mmin \
-                * self.focc(z=self.halos.z, Mh=self._tab_Mmin)
-                
+            # Model: const SFR in threshold-crossing halos.    
+            if self.pf['pop_threshold_sfr']:
+                self._tab_sfrd_at_threshold_ = self.pf['pop_threshold_sfr'] \
+                    * self._tab_nh_at_Mmin * self._tab_Mmin
+            else:
+                active = 1. - self.fsup(z=self.halos.z) 
+                self._tab_sfrd_at_threshold_ = active * self._tab_eta \
+                    * self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
+                    * self._tab_fstar_at_Mmin * self._tab_Mmin \
+                    * self._tab_nh_at_Mmin \
+                    * self.focc(z=self.halos.z, Mh=self._tab_Mmin)
+                            
             #self._tab_sfrd_at_threshold_ -= * self.Mmin * n * self.dMmin_dt(self.halos.z)    
 
             self._tab_sfrd_at_threshold_ *= g_per_msun / s_per_yr / cm_per_mpc**3
@@ -398,15 +402,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         tab *= 1. / s_per_yr / cm_per_mpc**3
         
         if self.pf['pop_sfr_cross_threshold']:
-            active = 1. - self.fsup(z=self.halos.z)  
             
             y = yield_per_sfr(z=self.halos.z, Mh=self._tab_Mmin)
             
-            thresh = active * self._tab_eta * \
-                self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
-                * self._tab_fstar_at_Mmin * self._tab_Mmin \
-                * self._tab_nh_at_Mmin * y \
-                / s_per_yr / cm_per_mpc**3
+            if self.pf['pop_threshold_sfr']:
+                thresh = self.pf['pop_threshold_sfr'] \
+                    * self._tab_nh_at_Mmin * self._tab_Mmin \
+                    * y / s_per_yr / cm_per_mpc**3
+            else:
+                active = 1. - self.fsup(z=self.halos.z)  
+                thresh = active * self._tab_eta * \
+                    self.cosm.fbar_over_fcdm * self._tab_MAR_at_Mmin \
+                    * self._tab_fstar_at_Mmin * self._tab_Mmin \
+                    * self._tab_nh_at_Mmin * y \
+                    / s_per_yr / cm_per_mpc**3
         
             tab += thresh
         
@@ -668,7 +677,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         If Mh is not supplied
         
-        
         """
         
         # If Mh is None, it triggers use of _tab_sfr, which spans all
@@ -679,9 +687,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 return self._tab_sfr[k]
             else:
                 Mh = self.halos.M
-
-        return self.cosm.fbar_over_fcdm * self.MAR(z, Mh) * self.eta(z) \
-            * self.SFE(z=z, Mh=Mh)
+        else:
+            # Create interpolant to be self-consistent
+            # with _tab_sfr. Note that this is slower than it needs to be
+            # in cases where we just want to know the SFR at a few redshifts
+            # and/or halo masses. But, we're rarely doing such things.
+            if not hasattr(self, '_spline_sfr'):
+                self._spline_sfr = RectBivariateSpline(self.halos.z, 
+                    self.halos.M, self._tab_sfr)
+            
+            return self._spline_sfr(z, Mh).squeeze()
+            
+        #return self.cosm.fbar_over_fcdm * self.MAR(z, Mh) * self.eta(z) \
+        #    * self.SFE(z=z, Mh=Mh)
 
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
@@ -1083,19 +1101,26 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 #    break
                 # Should be a little careful here: need to go one or two
                 # steps past edge to avoid interpolation problems in SFRD.
-                
+
                 # SF fueld by accretion onto halos already above threshold
                 if self.pf['pop_sfr_above_threshold']:
-                    self._tab_sfr_[i] = self._tab_eta[i] \
-                        * self.cosm.fbar_over_fcdm \
-                        * self._tab_MAR[i] * self._tab_fstar[i]
-                
+
+                    if self.pf['pop_sfr'] is not None:
+                        self._tab_sfr_[i] = self.pf['pop_sfr']
+                    else:                            
+                        self._tab_sfr_[i] = self._tab_eta[i] \
+                            * self.cosm.fbar_over_fcdm \
+                            * self._tab_MAR[i] * self._tab_fstar[i]
+
                     # zero-out star-formation in halos below our threshold
-                    mask = self.halos.M >= self._tab_Mmin[i]
-                    self._tab_sfr_[i] *= mask
+                    ok = self.halos.M >= self._tab_Mmin[i]
+                    self._tab_sfr_[i] *= ok
+                    # zero-out star-formation in halos above our threshold
+                    ok = self.halos.M <= self._tab_Mmax[i]
+                    self._tab_sfr_[i] *= ok
 
         return self._tab_sfr_
-        
+
     @property
     def SFRD_at_threshold(self):
         if not hasattr(self, '_SFRD_at_threshold'):
@@ -1545,7 +1570,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         
         
-        keys = ['Mh', 'Mg', 'Ms', 'MZ']
+        keys = ['Mh', 'Mg', 'Ms', 'MZ', 'Z']
                 
         zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
 

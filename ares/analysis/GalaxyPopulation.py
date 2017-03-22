@@ -261,18 +261,18 @@ class GalaxyPopulation(object):
         if quantity in ['lf', 'smf']:
             ax.set_yscale('log', nonposy='clip')
 
-        if quantity == 'lf':
+        if quantity == 'lf' and (not gotax):
             ax.set_xlim(-26.5, -10)
             ax.set_xticks(np.arange(-26, -10, 1), minor=True)
             ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
             ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        elif quantity == 'smf':
+        elif quantity == 'smf' and (not gotax):
             ax.set_xscale('log')
             ax.set_xlim(1e7, 1e13)
             ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
             ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        elif quantity == 'mzr':
-            ax.set_xlabel(r'$\dot{M}_{\ast} / M_{\odot}$')
+        elif quantity == 'mzr' and (not gotax):
+            ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
             ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
             ax.set_xlim(1e8, 1e12)
             ax.set_ylim(7, 9.5)
