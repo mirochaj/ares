@@ -260,7 +260,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             #    except AttributeError:
             #        print "Attribute %s didn't exist." % key
             #        continue
-            
+                        
             self.kwargs['pop_Mmin{%i}' % popid] = \
                 np.interp(pop.halos.z, self.z_unique, self._Mmin_now)
             
@@ -378,11 +378,15 @@ class MetaGalacticBackground(AnalyzeMGB):
                 # Need to cycle through redshift here
                 for _iz, redshift in enumerate(zarr):
                           
+                    # The use of "continue", rather than "break", is
+                    # VERY important because redshifts are in ascending order
+                    # at this point.
                     if redshift < self.pf['final_redshift']:
-                        break
+                        # This shouldn't ever happen...
+                        continue
                         
                     if redshift < self.pf['kill_redshift']:
-                        break    
+                        continue    
                     
                     # Get fluxes if need be
                     if pop_generator is None:

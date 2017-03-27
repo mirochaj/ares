@@ -197,10 +197,6 @@ class Global21cm(AnalyzeGlobal21cm):
             self.history = model(z, **self.pf)
 
         return True
-        
-    @property
-    def include_feedback(self):
-        return self.pf['feedback_LW_Mmin'] is not None
 
     def run(self):
         """

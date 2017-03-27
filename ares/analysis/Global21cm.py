@@ -73,7 +73,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                 except ValueError:
                     raise AttributeError('No attribute %s.' % name)    
     
-            if pt not in ['B', 'C', 'D', 'ZC']:
+            if pt not in ['B', 'C', 'D', 'ZC', 'Bp', 'Cp', 'Dp']:
                 # This'd be where e.g., zrei, should go
                 raise NotImplementedError('Looking for attribute \'%s\'.' % name)
 

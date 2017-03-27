@@ -2590,13 +2590,17 @@ class ModelSet(BlobFactory):
         
         return ax
               
-    def Contour(self, pars, c, levels, leveltol=1e-6, ivar=None, take_log=False,
+    def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
         un_log=False, multiplier=1., ax=None, fig=1, filled=False, **kwargs):         
         """
         Draw contours that are NOT associated with confidence levels.
         
         ..note:: To draw many contours in same plane, just call this 
             function repeatedly.
+        
+        Should use pl.contour if we're plotting on a regular grid, i.e.,
+        the parameter space of a 2-D model grid with the color axis 
+        some derived quantity.
         
         Parameters
         ----------
@@ -2616,34 +2620,45 @@ class ModelSet(BlobFactory):
             ax = fig.add_subplot(111)
         else:
             gotax = True
+            
+        if (pars[0] in self.parameters) and (pars[1] in self.parameters):
+            xdata, ydata, zdata = self._reshape_data(pars, c, ivar=ivar, 
+                take_log=take_log, un_log=un_log, multiplier=multiplier)
+                
+            if filled:
+                CS = ax.contourf(xdata, ydata, zdata.T, **kwargs) 
+                cb = pl.colorbar(CS, extend='neither')
+            else:    
+                CS = ax.contour(xdata, ydata, zdata.T, **kwargs) 
+                pl.clabel(CS, ineline=1, fontsize=10) 
+                
+        else:
+            p = list(pars) + [c]
 
-        p = list(pars) + [c]
-
-        # Grab all the data we need
-        data = self.ExtractData(p, ivar=ivar, 
-            take_log=take_log, un_log=un_log, multiplier=multiplier)
-
-        xdata = data[p[0]]
-        ydata = data[p[1]]    
-        zdata = data[p[2]]
-        
-        
-        for i, level in enumerate(levels):
-            # Find indices of appropriate elements
-            cond = np.abs(zdata - level) < leveltol
-            elements = np.argwhere(cond).squeeze()
+            # Grab all the data we need
+            data = self.ExtractData(p, ivar=ivar, 
+                take_log=take_log, un_log=un_log, multiplier=multiplier)
             
-            order = np.argsort(xdata[elements])
+            xdata = data[p[0]]
+            ydata = data[p[1]]    
+            zdata = data[p[2]]
             
-            kw = {}
-            for kwarg in kwargs.keys():
-                if type(kwargs[kwarg]) == tuple:
-                    kw[kwarg] = kwargs[kwarg][i]
-                else:
-                    kw[kwarg] = kwargs[kwarg]
-            
-            ax.plot(xdata[elements][order], ydata[elements][order], **kw)
-            
+            for i, level in enumerate(levels):
+                # Find indices of appropriate elements
+                cond = np.abs(zdata - level) < leveltol
+                elements = np.argwhere(cond).squeeze()
+                
+                order = np.argsort(xdata[elements])
+                
+                kw = {}
+                for kwarg in kwargs.keys():
+                    if type(kwargs[kwarg]) == tuple:
+                        kw[kwarg] = kwargs[kwarg][i]
+                    else:
+                        kw[kwarg] = kwargs[kwarg]
+                
+                ax.plot(xdata[elements][order], ydata[elements][order], **kw)
+                
         pl.draw()    
             
         return ax, xdata, ydata, zdata
@@ -3142,6 +3157,44 @@ class ModelSet(BlobFactory):
         
         return mp
         
+    def _reshape_data(self, pars, c, ivar=None, take_log=False,
+        un_log=False, multiplier=1.):
+        """
+        Prepare datasets to make a contour plot.
+        """
+        
+        assert len(pars) == 2
+        assert pars[0] in self.parameters and pars[1] in self.parameters
+        
+        p = list(pars) + [c]        
+
+        # Grab all the data we need
+        data = self.ExtractData(p, ivar=ivar, 
+            take_log=take_log, un_log=un_log, multiplier=multiplier)
+            
+        x = np.unique(data[pars[0]])
+        y = np.unique(data[pars[1]])
+        
+        # Don't do this: grid may be incomplete!
+        #assert x * y == data[c].size
+        
+        flat = data[c]
+        zarr = np.inf * np.ones([len(x), len(y)])
+        for i, xx in enumerate(x):
+            for j, yy in enumerate(y):
+                xok = xx == data[pars[0]]
+                yok = yy == data[pars[1]]
+                gotit = np.logical_and(xok, yok)
+                
+                if gotit.sum() == 0:
+                    continue
+                
+                k = np.argwhere(gotit == True)
+                
+                zarr[i,j] = flat[k]
+        
+        return x, y, zarr
+        
     def ReconstructedFunction(self, names, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
@@ -3190,6 +3243,10 @@ class ModelSet(BlobFactory):
             
         if type(names) is str:
             names = [names]
+            
+        if samples is not None:
+            if type(samples) == int:
+                samples = min(self.chain.shape[0], samples)
             
         # Step 1: figure out ivars  
         info = self.blob_info(names[0])
@@ -3309,12 +3366,14 @@ class ModelSet(BlobFactory):
 
         # Limit number of realizations
         if samples is not None:
-            M = len(y)
+            M = self.chain.shape[0]
             
             if samples == 'all':
                 elements = np.arange(0, M)
-            else:    
+            elif type(samples) == int:    
                 elements = np.random.randint(0, M, size=samples)
+            else:    
+                elements = samples
                 
             for i, element in enumerate(range(M)):
                 if element not in elements:

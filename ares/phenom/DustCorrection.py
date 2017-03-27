@@ -97,9 +97,9 @@ class DustCorrection(object):
             
             to_min = lambda xx: xx - f_AUV(xx) - MUV
             x = fsolve(to_min, MUV+1.)[0]
-    
+
         return x
-        
+
     #   ==========   Parametrization of Beta   ==========   #
     def Beta(self, z, mag):
         
@@ -108,8 +108,8 @@ class DustCorrection(object):
         elif type(self.pf['dustcorr_beta']) is FunctionType:    
             return self.pf['dustcorr_beta'](z, mag)
         else:
-            return self.pf['dustcorr_beta']
-    
+            return self.pf['dustcorr_beta'] * np.ones_like(mag)
+
     def _bouwens2014_beta0(self, z):
     	"""
     	Get the measured UV continuum slope from Bouwens+2014 (Table 3).

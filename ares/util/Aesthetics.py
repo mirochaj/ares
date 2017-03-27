@@ -201,6 +201,7 @@ lf_parameters = \
 pop_parameters = \
 {
  'pop_Z': r'$Z/Z_{\odot}$',
+ 'pop_sfr': r'$\dot{M}_{\ast}$',
  'pop_lf_beta': r'$\Beta_{\mathrm{UV}}$',
  'pop_fstar': r'$f_{\ast}$',
  'pop_fobsc': r'$f_{\mathrm{obsc}}$',

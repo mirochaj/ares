@@ -71,6 +71,9 @@ def smooth(y, width, kernel='boxcar'):
     """
     Smooth 1-D function `y` using boxcar of width `kernel` (in pixels).
     """
+    
+    assert width % 2 == 1
+    
     s = width - 1
     kern = np.zeros_like(y)
         

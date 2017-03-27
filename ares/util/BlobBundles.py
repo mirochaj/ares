@@ -16,7 +16,7 @@ from .ParameterBundles import ParameterBundle
 
 _gs_hist = ['z', 'cgm_h_2', 'igm_h_2', 'igm_Tk', 'Ja', 'Ts', 'dTb']
 _gs_ext = []
-for tp in list('BCD'):
+for tp in ['B', 'C', 'D', 'Bp', 'Cp', 'Dp']:
     for field in _gs_hist:
         _gs_ext.append('%s_%s' % (field, tp))
 
