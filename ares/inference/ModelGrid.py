@@ -787,15 +787,17 @@ class ModelGrid(ModelFit):
             self.assignments = np.zeros(self.grid.shape)
             return
             
-        if method > 0:
+        if method in [1, 2]:
             assert par in self.grid.axes_names, \
                 "Supplied load-balancing parameter %s not in grid!" % par  
         
             par_i = self.grid.axes_names.index(par)
             par_ax = self.grid.axes[par_i]
             par_N = par_ax.size  
+        else:
+            par_N = np.inf    
         
-        if method not in [0, 1, 2]:
+        if method not in [0, 1, 2, 3]:
             raise NotImplementedError('Unrecognized load-balancing method %i' % method)
                 
         # No load balancing. Equal # of models per processor
@@ -817,7 +819,7 @@ class ModelGrid(ModelFit):
             self.assignments = np.zeros(self.grid.shape)
             MPI.COMM_WORLD.Allreduce(tmp_assignments, self.assignments)
                         
-        # Load balance over Tmin axis    
+        # Load balance over expensive axis    
         elif method in [1, 2]:
             
             self.assignments = np.zeros(self.grid.shape)
@@ -850,20 +852,38 @@ class ModelGrid(ModelFit):
                         k = 0
                 elif method == 2:
                     tmp = np.ones_like(self.assignments[slc])
-                    arr = np.array([np.arange(size)] * int(tmp.size / size)).ravel()
+                    
+                    leftovers = tmp.size % size
+                    
+                    assign = np.arange(size)
+                    arr = np.array([assign] * int(tmp.size / size)).ravel()
+                    if leftovers != 0:
+                        # This could be a little more efficient
+                        arr = np.concatenate((arr, assign[0:leftovers]))
+                        
                     self.assignments[slc] = np.reshape(arr, tmp.size)
                 else:
                     raise ValueError('No method=%i!' % method)
 
         elif method == 3:
-            # Do it randomly
-            arr = np.random.randint(low=0, high=size, size=self.grid.size, 
-                dtype=int)
-                
-            # This might cause problems on restart.    
-
-            self.assignments = np.reshape(arr, self.grid.shape)
-                    
+            
+            # Do it randomly. Need to be careful in parallel.
+            print 'WARNING: Not sure LB method=3 works on restart!'
+            
+            if rank != 0:
+                buff = np.zeros(self.grid.dims, dtype=int)
+            else:
+                # Could do the assignment 100 times and pick the realization
+                # with the most even distribution of work (as far as we
+                # can tell a-priori), but eh.
+                arr = np.random.randint(low=0, high=size, size=self.grid.size, 
+                    dtype=int)
+                        
+                buff = np.reshape(arr, self.grid.dims)    
+            
+            self.assignments = np.zeros(self.grid.dims, dtype=int)
+            nothing = MPI.COMM_WORLD.Allreduce(buff, self.assignments)
+            
         else:
             raise ValueError('No method=%i!' % method)
 
