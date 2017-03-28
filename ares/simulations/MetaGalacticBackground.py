@@ -54,7 +54,7 @@ def get_Mmin_func(zarr, Jlw, Mmin_prev, **kwargs):
     Mmin = lambda zz: np.interp(zz, zarr, Mmin_prev)
     f_J = lambda zz: f_sh(zz, Mmin(zz)) * np.interp(zz, zarr, Jlw)
     
-    if kwargs['feedback_LW_Mmin'] is 'visbal2015':
+    if kwargs['feedback_LW_Mmin'] == 'visbal2015':
         f_M = lambda zz: 2.5 * 1e5 * pow(((1. + zz) / 26.), -1.5) \
             * (1. + 6.96 * pow(4 * np.pi * f_J(zz), 0.47))
     elif type(kwargs['feedback_LW_Mmin']) is FunctionType:
