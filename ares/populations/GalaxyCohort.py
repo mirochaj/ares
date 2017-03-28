@@ -963,7 +963,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_Mmax_active_'):
             self._tab_Mmax_active_ = np.zeros_like(self.halos.z)
             for i, z in enumerate(self.halos.z):
-                lim = 1e-5
+                lim = self.pf['pop_fstar_negligible']
                 fstar_max = self._tab_fstar[i].max()
                 immsfh = np.argmin(np.abs(self._tab_fstar[i] - fstar_max * lim))
                 self._tab_Mmax_active_[i] = self.halos.M[immsfh]
@@ -1280,6 +1280,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def fstar(self):
         if not hasattr(self, '_fstar'):
+            
+            assert self.pf['pop_sfr'] is None
 
             if self.pf['pop_calib_L1600'] is not None:
                 boost = self.pf['pop_calib_L1600'] / self.L1600_per_sfr()

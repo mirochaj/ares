@@ -226,6 +226,25 @@ class ModelGrid(ModelFit):
         """
         
         if restart:
+            
+            if rank == 0:
+                                
+                # Reshape assignments so it's Nlinks long.
+                assignments = np.zeros(self.grid.size, dtype=int)
+                for h, kwargs in enumerate(self.grid.all_kwargs):
+
+                    # Where does this model live in the grid?
+                    if self.grid.structured:
+                        kvec = self.grid.locate_entry(kwargs)
+                    else:
+                        kvec = h
+                        
+                    assignments[h] = self.assignments[kvec]
+                
+                f = open('%s.load.pkl' % self.prefix, 'ab')
+                pickle.dump(assignments, f)
+                f.close()
+            
             return
                 
         if self.save_by_proc:
@@ -239,7 +258,25 @@ class ModelGrid(ModelFit):
         prefix = self.prefix
         super(ModelGrid, self)._prep_from_scratch(clobber, 
             by_proc=self.save_by_proc)
+            
+        if rank == 0:
+            # Reshape assignments so it's Nlinks long.
+            assignments = np.zeros(self.grid.size, dtype=int)
+            for h, kwargs in enumerate(self.grid.all_kwargs):
+
+                # Where does this model live in the grid?
+                if self.grid.structured:
+                    kvec = self.grid.locate_entry(kwargs)
+                else:
+                    kvec = h
+                    
+                assignments[h] = self.assignments[kvec]
+            
+            f = open('%s.load.pkl' % self.prefix, 'ab')
+            pickle.dump(assignments, f)
+            f.close()
     
+        # ModelFit makes this file by default but grids don't use it.
         if os.path.exists('%s.logL.pkl' % prefix) and (rank == 0):
             os.remove('%s.logL.pkl' % prefix)
 
@@ -626,10 +663,14 @@ class ModelGrid(ModelFit):
 
         pb.finish()
 
+        #print "Proc %i, made it to end (almost)." % rank
+
         # Need to make sure we write results to disk if we didn't 
         # hit the last checkpoint
         if (not self.save_by_proc) and (rank != 0):
-            MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
+            #print "Proc %i, waiting for key..." % rank
+            MPI.COMM_WORLD.Recv(np.zeros(1), source=rank-1, tag=rank-1)
+            #print "Proc %i, got key!" % rank
     
         if chain_all:
             with open('%s.chain.pkl' % prefix_by_proc, 'ab') as f:
@@ -643,9 +684,14 @@ class ModelGrid(ModelFit):
 
         # Send the key to the next processor
         if (not self.save_by_proc) and (rank != (size-1)):
-            MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
-  
+            
+            # Tell the next processor to go ahead and write to disk
+            #print "Proc %i, sending key to %i." % (rank, rank+1)
+            MPI.COMM_WORLD.Send(np.zeros(1), dest=rank+1, tag=rank)
+            #print "Proc %i, sent key to %i" % (rank, rank+1)
+            
         # You. shall. not. pass.
+        # Maybe unnecessary?
         MPI.COMM_WORLD.Barrier()
         
         t2 = time.time()
@@ -784,7 +830,7 @@ class ModelGrid(ModelFit):
         self.LB = method
         
         if size == 1:
-            self.assignments = np.zeros(self.grid.shape)
+            self.assignments = np.zeros(self.grid.shape, dtype=int)
             return
             
         if method in [1, 2]:
@@ -804,7 +850,7 @@ class ModelGrid(ModelFit):
         if method == 0 or (par_N < size):
             
             k = 0
-            tmp_assignments = np.zeros(self.grid.shape)
+            tmp_assignments = np.zeros(self.grid.shape, dtype=int)
             for loc, value in np.ndenumerate(tmp_assignments):
 
                 if k % size != rank:
@@ -816,13 +862,13 @@ class ModelGrid(ModelFit):
                 k += 1
 
             # Communicate results
-            self.assignments = np.zeros(self.grid.shape)
+            self.assignments = np.zeros(self.grid.shape, dtype=int)
             MPI.COMM_WORLD.Allreduce(tmp_assignments, self.assignments)
                         
         # Load balance over expensive axis    
         elif method in [1, 2]:
             
-            self.assignments = np.zeros(self.grid.shape)
+            self.assignments = np.zeros(self.grid.shape, dtype=int)
                         
             slc = [Ellipsis for i in range(self.grid.Nd)]
             
@@ -844,14 +890,14 @@ class ModelGrid(ModelFit):
                 
                 if method == 1:
                     self.assignments[slc] = k \
-                        * np.ones_like(self.assignments[slc])
+                        * np.ones_like(self.assignments[slc], dtype=int)
                 
                     # Cycle through processor numbers    
                     k += 1
                     if k == size:
                         k = 0
                 elif method == 2:
-                    tmp = np.ones_like(self.assignments[slc])
+                    tmp = np.ones_like(self.assignments[slc], dtype=int)
                     
                     leftovers = tmp.size % size
                     
@@ -867,23 +913,20 @@ class ModelGrid(ModelFit):
 
         elif method == 3:
             
-            # Do it randomly. Need to be careful in parallel.
-            print 'WARNING: Not sure LB method=3 works on restart!'
-            
+            # Do it randomly. Need to be careful in parallel.            
             if rank != 0:
                 buff = np.zeros(self.grid.dims, dtype=int)
             else:
                 # Could do the assignment 100 times and pick the realization
                 # with the most even distribution of work (as far as we
                 # can tell a-priori), but eh.
-                arr = np.random.randint(low=0, high=size, size=self.grid.size, 
-                    dtype=int)
+                arr = np.random.randint(low=0, high=size, size=self.grid.size)
                         
-                buff = np.reshape(arr, self.grid.dims)    
-            
+                buff = np.reshape(arr, self.grid.dims)
+                            
             self.assignments = np.zeros(self.grid.dims, dtype=int)
             nothing = MPI.COMM_WORLD.Allreduce(buff, self.assignments)
-            
+                        
         else:
             raise ValueError('No method=%i!' % method)
 

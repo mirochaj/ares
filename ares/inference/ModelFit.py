@@ -718,13 +718,17 @@ class ModelFit(BlobFactory):
             # deleting other files the user may have created with similar
             # naming convention!
 
-            for suffix in ['logL', 'facc', 'pinfo', 'rinfo', 'binfo', 'setup', 'prior_set']:
+            for suffix in ['logL', 'chain', 'facc', 'pinfo', 'rinfo', 
+                'binfo', 'setup', 'prior_set', 'load']:
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
 
-            os.system('rm -f %s.*.fail.pkl' % self.prefix)
-            os.system('rm -f %s.*.chain.*pkl' % self.prefix)
-            os.system('rm -f %s.*.blob*.*pkl' % self.prefix)
-            os.system('rm -f %s.*.logL*.*pkl' % self.prefix)
+            os.system('rm -f %s.blob*.pkl' % self.prefix)
+                
+            #os.system('rm -f %s.*.fail.pkl' % self.prefix)
+            #os.system('rm -f %s.*.chain.*pkl' % self.prefix)
+            #os.system('rm -f %s.*.blob*.*pkl' % self.prefix)
+            #os.system('rm -f %s.*.logL*.*pkl' % self.prefix)
+            #os.system('rm -f %s.*.load*.*pkl' % self.prefix)
 
             # Need to potentially axe a product file
             #os.system('rm -f %s.chain.pkl' % self.prefix)

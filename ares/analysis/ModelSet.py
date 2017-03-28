@@ -2072,6 +2072,9 @@ class ModelSet(BlobFactory):
                 # Blobs are never stored as log10 of their true values
                 val *= multiplier[k]
                 
+            elif par == 'load':
+                val = self.load
+                
             # Only derived blobs in this else block, yes?                        
             else:
                 
