@@ -224,6 +224,7 @@ class ModelSet(BlobFactory):
     @property
     def load(self):
         if not hasattr(self, '_load'):
+            print "WARNING: if this run was restarted, the `load` values are probably wrong."
             if os.path.exists('%s.load.pkl' % self.prefix):
                 self._load = read_pickle_file('%s.load.pkl' % self.prefix)
             else:

@@ -220,33 +220,25 @@ class ModelGrid(ModelFit):
         if not hasattr(self, 'parameters'):
             self.parameters = self.grid.axes_names
 
+    def _reshape_assignments(self, assignments):
+        assign = np.zeros(self.grid.size, dtype=int)
+        for h, kwargs in enumerate(self.grid.all_kwargs):
+
+            # Where does this model live in the grid?
+            if self.grid.structured:
+                kvec = self.grid.locate_entry(kwargs)
+            else:
+                kvec = h
+                
+            assign[h] = assignments[kvec]
+            
+        return assign
+            
     def prep_output_files(self, restart, clobber):
         """
         Stick this in utilities folder?
         """
-        
-        if restart:
-            
-            if rank == 0:
-                                
-                # Reshape assignments so it's Nlinks long.
-                assignments = np.zeros(self.grid.size, dtype=int)
-                for h, kwargs in enumerate(self.grid.all_kwargs):
-
-                    # Where does this model live in the grid?
-                    if self.grid.structured:
-                        kvec = self.grid.locate_entry(kwargs)
-                    else:
-                        kvec = h
                         
-                    assignments[h] = self.assignments[kvec]
-                
-                f = open('%s.load.pkl' % self.prefix, 'ab')
-                pickle.dump(assignments, f)
-                f.close()
-            
-            return
-                
         if self.save_by_proc:
             prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
         else:
@@ -255,30 +247,30 @@ class ModelGrid(ModelFit):
             if rank != 0:
                 return
                         
-        prefix = self.prefix
+        # Reshape assignments so it's Nlinks long.
+        assignments = self._reshape_assignments(self.assignments)
+                
+        if restart:
+            if rank == 0:
+                f = open('%s.load.pkl' % self.prefix, 'ab')
+                pickle.dump(assignments, f)
+                f.close()
+            
+            return
+        
+        if rank > 0:
+            return
+                        
         super(ModelGrid, self)._prep_from_scratch(clobber, 
             by_proc=self.save_by_proc)
             
-        if rank == 0:
-            # Reshape assignments so it's Nlinks long.
-            assignments = np.zeros(self.grid.size, dtype=int)
-            for h, kwargs in enumerate(self.grid.all_kwargs):
-
-                # Where does this model live in the grid?
-                if self.grid.structured:
-                    kvec = self.grid.locate_entry(kwargs)
-                else:
-                    kvec = h
-                    
-                assignments[h] = self.assignments[kvec]
-            
-            f = open('%s.load.pkl' % self.prefix, 'ab')
-            pickle.dump(assignments, f)
-            f.close()
+        f = open('%s.load.pkl' % self.prefix, 'wb')
+        pickle.dump(assignments, f)
+        f.close()
     
         # ModelFit makes this file by default but grids don't use it.
-        if os.path.exists('%s.logL.pkl' % prefix) and (rank == 0):
-            os.remove('%s.logL.pkl' % prefix)
+        if os.path.exists('%s.logL.pkl' % self.prefix) and (rank == 0):
+            os.remove('%s.logL.pkl' % self.prefix)
 
         for par in self.grid.axes_names:
             if re.search('Tmin', par):
@@ -434,7 +426,7 @@ class ModelGrid(ModelFit):
         elif restart:
             Nleft = self.done.size - ct0    
         else:
-            Nleft = int(np.sum(self.assignments == rank))
+            Nleft = self.load[rank] + 1 # dunno why this 1 is needed
 
         if Nleft == 0:
             if rank == 0:
@@ -630,25 +622,35 @@ class ModelGrid(ModelFit):
                 del p, sim
                 gc.collect()
                 continue
+                
+            # Not all processors will hit the final checkpoint exactly, 
+            # which can make collective I/O difficult. Hence the existence
+            # of the will_hit_final_checkpoint and wont_hit_final_checkpoint
+            # attributes
 
             if rank == 0 and use_checks:
                 print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
+                
+                
+            is_last_checkpt = ct / save_freq == self.Ncheckpoints[rank]
 
+            # Make sure it's OK to write to disk
             if (not self.save_by_proc) and (rank != 0):
                 # Here we wait until we get the key      
-                MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
-                    
+                MPI.COMM_WORLD.Recv(np.zeros(1), 0, tag=12)
+
             # First assemble data from all processors?
             # Analogous to assembling data from all walkers in MCMC
             f = open('%s.chain.pkl' % prefix_by_proc, 'ab')
             pickle.dump(chain_all, f)
             f.close()
-            
+
             self.save_blobs(blobs_all, False, prefix_by_proc)
-            
+
             # Send the key to the next processor
-            if (not self.save_by_proc) and (rank != (size-1)):
-                MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
+            if (not self.save_by_proc) and rank == 0:
+                for i in range(1, size):
+                    MPI.COMM_WORLD.Send(np.zeros(1), i, tag=12)
 
             del p, sim
             del chain_all, blobs_all
@@ -662,15 +664,20 @@ class ModelGrid(ModelFit):
                 raise ValueError('Only failed models up to first checkpoint!')
 
         pb.finish()
-
-        #print "Proc %i, made it to end (almost)." % rank
-
+        
+        # Whatever processor gets here first, send out some messages
+        # to make sure other processors don't get stuck waiting for the OK
+        # to write to disk.
+        #if (not self.save_by_proc):
+        #    for i in range(1, size):
+        #        if i == rank:
+        #            continue
+        #        MPI.COMM_WORLD.Send(np.zeros(1), i, tag=12)
+                        
         # Need to make sure we write results to disk if we didn't 
         # hit the last checkpoint
         if (not self.save_by_proc) and (rank != 0):
-            #print "Proc %i, waiting for key..." % rank
-            MPI.COMM_WORLD.Recv(np.zeros(1), source=rank-1, tag=rank-1)
-            #print "Proc %i, got key!" % rank
+            MPI.COMM_WORLD.Recv(np.zeros(1), source=0, tag=13)
     
         if chain_all:
             with open('%s.chain.pkl' % prefix_by_proc, 'ab') as f:
@@ -683,13 +690,10 @@ class ModelGrid(ModelFit):
             % (rank, prefix, time.ctime())
 
         # Send the key to the next processor
-        if (not self.save_by_proc) and (rank != (size-1)):
-            
-            # Tell the next processor to go ahead and write to disk
-            #print "Proc %i, sending key to %i." % (rank, rank+1)
-            MPI.COMM_WORLD.Send(np.zeros(1), dest=rank+1, tag=rank)
-            #print "Proc %i, sent key to %i" % (rank, rank+1)
-            
+        if (not self.save_by_proc) and rank == 0:
+            for i in range(1, size):
+                MPI.COMM_WORLD.Send(np.zeros(1), i, tag=13)
+
         # You. shall. not. pass.
         # Maybe unnecessary?
         MPI.COMM_WORLD.Barrier()
@@ -746,6 +750,9 @@ class ModelGrid(ModelFit):
     @save_by_proc.setter
     def save_by_proc(self, value):
         self._save_by_proc = value
+        
+        if not value:
+            raise ValueError('Setting save_by_proc=False is bound to cause problems. Sorry!')
             
     @property
     def assignments(self):
@@ -757,6 +764,36 @@ class ModelGrid(ModelFit):
     @assignments.setter
     def assignments(self, value):
         self._assignments = value
+        
+    @property
+    def load(self):
+        if not hasattr(self, '_load'):
+            self._load = [np.array(self.assignments == i).sum() \
+                for i in range(size)]
+                
+            self._load = np.array(self._load)    
+        
+        return self._load
+        
+    @property
+    def will_hit_final_checkpoint(self):
+        if not hasattr(self, '_will_hit_final_checkpoint'):
+            self._will_hit_final_checkpoint = self.load % self.save_freq == 0
+        
+        return self._will_hit_final_checkpoint
+    
+    @property
+    def wont_hit_final_checkpoint(self):
+        if not hasattr(self, '_will_hit_final_checkpoint'):
+            self._wont_hit_final_checkpoint = self.load % self.save_freq != 0
+    
+        return self._wont_hit_final_checkpoint
+    
+    @property
+    def Ncheckpoints(self):
+        if not hasattr(self, '_Ncheckpoints'):
+            self._Ncheckpoints = self.load / self.save_freq
+        return self._Ncheckpoints
         
     @property
     def LB(self):
@@ -921,7 +958,6 @@ class ModelGrid(ModelFit):
                 # with the most even distribution of work (as far as we
                 # can tell a-priori), but eh.
                 arr = np.random.randint(low=0, high=size, size=self.grid.size)
-                        
                 buff = np.reshape(arr, self.grid.dims)
                             
             self.assignments = np.zeros(self.grid.dims, dtype=int)
