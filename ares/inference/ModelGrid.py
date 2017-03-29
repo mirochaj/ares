@@ -65,6 +65,8 @@ class ModelGrid(ModelFit):
         """
         Figure out which models have already been run.
         
+        Note that how this works depends on if the gridding has been changed.
+        
         Parameters
         ----------
         prefix : str
@@ -73,29 +75,29 @@ class ModelGrid(ModelFit):
         """
         
         # Array of ones/zeros: has this model already been done?
+        # This is only the *new* grid points.
         if self.grid.structured:
             self.done = np.zeros(self.grid.shape)
         
         if os.path.exists('%s.%s.chain.pkl' % (prefix, str(rank).zfill(3))):
-            save_by_proc = True
             prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
         else:
-            save_by_proc = False
-            prefix_by_proc = prefix
+            raise ValueError('This shouldn\'t happen anymore.')
             
         # Need to see if we're running with the same number of processors
-        if save_by_proc:
-            fn_by_proc = lambda proc: '%s.%s.chain.pkl' % (prefix, str(proc).zfill(3))
-            fn_size_p1 = fn_by_proc(size+1)
-            if os.path.exists(fn_size_p1):
-                raise IOError('Original grid run with more processors!')
-                
-                proc_id = size + 1
-                while os.path.exists(fn_by_proc(proc_id)):
-                    proc_id += 1
-                    continue
+        # We could probably set things up such that this isn't a problem.
+        fn_by_proc = lambda proc: '%s.%s.chain.pkl' % (prefix, str(proc).zfill(3))
+        fn_size_p1 = fn_by_proc(size+1)
+        if os.path.exists(fn_size_p1):
+            raise IOError('Original grid run with more processors!')
+            
+            proc_id = size + 1
+            while os.path.exists(fn_by_proc(proc_id)):
+                proc_id += 1
+                continue
 
-        # Read in current status of model grid
+        # Read in current status of model grid, i.e., the old 
+        # grid points.
         chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
 
         # If we said this is a restart, but there are no elements in the 
@@ -137,11 +139,7 @@ class ModelGrid(ModelFit):
                     continue
                 raise ValueError('Cannot change axes variables on restart!')
         
-        # Figure out axes
-        axes = {}
-        for i in range(chain.shape[1]):
-            axes[axes_names[i]] = np.unique(chain[:,i])
-
+        # What follows is irrelevant for unstructured grids.
         if (not self.grid.structured):
             self.done = np.array([chain.shape[0]])
             return
@@ -162,13 +160,7 @@ class ModelGrid(ModelFit):
             
             self.done[kvec] = 1
             
-        if save_by_proc:
-            return self.done
-        else:
-            if rank == 0:
-                return self.done
-            else:
-                return np.zeros_like(self.done)
+        return self.done
             
     @property            
     def axes(self):
@@ -221,7 +213,7 @@ class ModelGrid(ModelFit):
             self.parameters = self.grid.axes_names
 
     def _reshape_assignments(self, assignments):
-        assign = np.zeros(self.grid.size, dtype=int)
+        assign = []#np.zeros(self.grid.size, dtype=int)
         for h, kwargs in enumerate(self.grid.all_kwargs):
 
             # Where does this model live in the grid?
@@ -229,24 +221,22 @@ class ModelGrid(ModelFit):
                 kvec = self.grid.locate_entry(kwargs)
             else:
                 kvec = h
-                
-            assign[h] = assignments[kvec]
             
-        return assign
+            if self.is_restart:
+                if self.done[kvec]:
+                    continue
+
+            assign.append(assignments[kvec])
+
+        return np.array(assign, dtype=int)
             
     def prep_output_files(self, restart, clobber):
         """
         Stick this in utilities folder?
         """
                         
-        if self.save_by_proc:
-            prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
-        else:
-            prefix_by_proc = self.prefix
-        
-            if rank != 0:
-                return
-                        
+        prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
+
         # Reshape assignments so it's Nlinks long.
         assignments = self._reshape_assignments(self.assignments)
                 
@@ -261,8 +251,7 @@ class ModelGrid(ModelFit):
         if rank > 0:
             return
                         
-        super(ModelGrid, self)._prep_from_scratch(clobber, 
-            by_proc=self.save_by_proc)
+        super(ModelGrid, self)._prep_from_scratch(clobber, by_proc=True)
             
         f = open('%s.load.pkl' % self.prefix, 'wb')
         pickle.dump(assignments, f)
@@ -343,6 +332,16 @@ class ModelGrid(ModelFit):
                     self._reuse_splines = False
                     
         return self._reuse_splines        
+        
+    @property
+    def is_restart(self):
+        if not hasattr(self, '_is_restart'):
+            self._is_restart = False
+        return self._is_restart
+        
+    @is_restart.setter
+    def is_restart(self, value):
+        self._is_restart = value
     
     def run(self, prefix, clobber=False, restart=False, save_freq=500):
         """
@@ -367,21 +366,18 @@ class ModelGrid(ModelFit):
         """
         
         self.prefix = prefix
+        self.is_restart = restart
         self.save_freq = save_freq
         
-        if self.save_by_proc:
-            prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
-        else:
-            prefix_by_proc = prefix
+        prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
                 
+        # Kill this thing if we're about to delete files and we haven't 
+        # set clobber=True        
         if os.path.exists('%s.chain.pkl' % prefix_by_proc) and (not clobber):
-            # Root processor will setup files so be careful
-            if (not self.save_by_proc) and (rank > 0):
-                pass
-            elif not restart:
+            if not restart:
                 raise IOError('%s*.pkl exists! Remove manually, set clobber=True, or set restart=True to append.' 
                     % prefix_by_proc)
-
+                    
         if not os.path.exists('%s.chain.pkl' % prefix_by_proc) and restart:
             if rank == 0:
                 print "This can't be a restart, %s*.pkl not found." % prefix
@@ -390,43 +386,38 @@ class ModelGrid(ModelFit):
 
         # Load previous results if this is a restart
         if restart:
-            if (not self.save_by_proc) and (rank != 0):
-                MPI.COMM_WORLD.Recv(np.zeros(1), rank-1, tag=rank-1)
-
             self._read_restart(prefix)
-
-            if (not self.save_by_proc) and (rank != (size-1)):
-                MPI.COMM_WORLD.Send(np.zeros(1), rank+1, tag=rank)
-                
+            
             if self.grid.structured:
-                ct0 = int(self.done[self.done >= 0].sum())
+                done = int(self.done[self.done >= 0].sum())
             else:
-                ct0 = 0
+                done = 0
                                 
             # Important that this goes second, otherwise this processor
             # will count the models already run by other processors, which
             # will mess up the 'Nleft' calculation below.
-            if self.grid.structured and self.save_by_proc:
+            
+            # Figure out what models have been run by *any* processor
+            # in the old grid.
+            if self.grid.structured:
                 tmp = np.zeros(self.grid.shape)
                 MPI.COMM_WORLD.Allreduce(self.done, tmp)
                 self.done = tmp
-            elif self.grid.structured:
-                pass
             else:
                 # In this case, self.done is just an integer
                 tmp = np.array([0])
                 MPI.COMM_WORLD.Allreduce(self.done, tmp)
                 self.done = tmp[0]
         else:
-            ct0 = 0
+            done = 0
+        
+        if restart:
+            mine_and_done = np.logical_and(self.assignments == rank,
+                                           self.done >= 1)
             
-        if restart and self.save_by_proc:
-            tot = np.sum(self.assignments == rank)
-            Nleft = tot - ct0        
-        elif restart:
-            Nleft = self.done.size - ct0    
+            Nleft = self.load[rank] - np.sum(mine_and_done)
         else:
-            Nleft = self.load[rank] + 1 # dunno why this 1 is needed
+            Nleft = self.load[rank]
 
         if Nleft == 0:
             if rank == 0:
@@ -632,13 +623,6 @@ class ModelGrid(ModelFit):
                 print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
                 
                 
-            is_last_checkpt = ct / save_freq == self.Ncheckpoints[rank]
-
-            # Make sure it's OK to write to disk
-            if (not self.save_by_proc) and (rank != 0):
-                # Here we wait until we get the key      
-                MPI.COMM_WORLD.Recv(np.zeros(1), 0, tag=12)
-
             # First assemble data from all processors?
             # Analogous to assembling data from all walkers in MCMC
             f = open('%s.chain.pkl' % prefix_by_proc, 'ab')
@@ -646,11 +630,6 @@ class ModelGrid(ModelFit):
             f.close()
 
             self.save_blobs(blobs_all, False, prefix_by_proc)
-
-            # Send the key to the next processor
-            if (not self.save_by_proc) and rank == 0:
-                for i in range(1, size):
-                    MPI.COMM_WORLD.Send(np.zeros(1), i, tag=12)
 
             del p, sim
             del chain_all, blobs_all
@@ -664,21 +643,9 @@ class ModelGrid(ModelFit):
                 raise ValueError('Only failed models up to first checkpoint!')
 
         pb.finish()
-        
-        # Whatever processor gets here first, send out some messages
-        # to make sure other processors don't get stuck waiting for the OK
-        # to write to disk.
-        #if (not self.save_by_proc):
-        #    for i in range(1, size):
-        #        if i == rank:
-        #            continue
-        #        MPI.COMM_WORLD.Send(np.zeros(1), i, tag=12)
-                        
+           
         # Need to make sure we write results to disk if we didn't 
         # hit the last checkpoint
-        if (not self.save_by_proc) and (rank != 0):
-            MPI.COMM_WORLD.Recv(np.zeros(1), source=0, tag=13)
-    
         if chain_all:
             with open('%s.chain.pkl' % prefix_by_proc, 'ab') as f:
                 pickle.dump(chain_all, f)
@@ -688,11 +655,6 @@ class ModelGrid(ModelFit):
         
         print "Processor %i: Wrote %s.*.pkl (%s)" \
             % (rank, prefix, time.ctime())
-
-        # Send the key to the next processor
-        if (not self.save_by_proc) and rank == 0:
-            for i in range(1, size):
-                MPI.COMM_WORLD.Send(np.zeros(1), i, tag=13)
 
         # You. shall. not. pass.
         # Maybe unnecessary?
@@ -740,20 +702,7 @@ class ModelGrid(ModelFit):
     def nwalkers(self):
         # Each processor writes its own data
         return 1
-        
-    @property
-    def save_by_proc(self):
-        if not hasattr(self, '_save_by_proc'):
-            self._save_by_proc = True
-        return self._save_by_proc
-        
-    @save_by_proc.setter
-    def save_by_proc(self, value):
-        self._save_by_proc = value
-        
-        if not value:
-            raise ValueError('Setting save_by_proc=False is bound to cause problems. Sorry!')
-            
+ 
     @property
     def assignments(self):
         if not hasattr(self, '_assignments'):
@@ -813,7 +762,7 @@ class ModelGrid(ModelFit):
         pass
 
     def LoadBalance(self, method=0, par=None):
-
+        
         if self.grid.structured:
             self._structured_balance(method=method, par=par)
         else: 
