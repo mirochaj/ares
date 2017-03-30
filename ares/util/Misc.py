@@ -34,10 +34,10 @@ def get_cmd_line_kwargs(argv):
     
     for arg in argv[1:]:
         pre, post = arg.split('=')
-
+        
         # Need to do some type-casting
         if post.isdigit():
-            cmd_line_kwargs[pre] = bool(post)
+            cmd_line_kwargs[pre] = int(post)
         elif post.isalpha():
             cmd_line_kwargs[pre] = str(post)
         else:

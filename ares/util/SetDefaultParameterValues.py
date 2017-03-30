@@ -223,7 +223,7 @@ def PhysicsParameters():
     'feedback_LW_fsh': None,
     'feedback_LW_Tcut': 1e4,
     'feedback_LW_mean_err': False,
-    'feedback_LW_maxiter': 20,
+    'feedback_LW_maxiter': 10,
     'feedback_LW_Mmin_uponly': False,
     'feedback_LW_Mmin_smooth': False,
     'feedback_LW_Mmin_rtol': 1e-2,

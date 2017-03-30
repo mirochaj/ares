@@ -579,6 +579,10 @@ class MetaGalacticBackground(AnalyzeMGB):
         # Otherwise, grab all the fluxes
         zarr, Ja, Jlw = self.get_uvb_tot(include_pops)
         self._zarr = zarr
+        
+        Ja = np.maximum(Ja, 0.)
+        Jlw = np.maximum(Jlw, 0.)
+        
         self._Ja = Ja
         self._Jlw = Jlw
         
@@ -598,6 +602,13 @@ class MetaGalacticBackground(AnalyzeMGB):
             self._Jlw_bank = [Jlw]
         else:
             self._Mmin_pre = self._Mmin_now.copy()
+            
+        if np.any(np.isnan(Jlw)):
+            Jlw[np.argwhere(np.isnan(Jlw))] = 0.0
+            print 'HEY WTF'
+        
+        if np.any(Jlw < 0):
+            print 'HEY WTF other kind'    
             
         # Function to compute the next Mmin(z) curve
         # Use of Mmin here is for shielding prescription (if used), 

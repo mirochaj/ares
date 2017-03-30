@@ -213,7 +213,7 @@ class ModelGrid(ModelFit):
             self.parameters = self.grid.axes_names
 
     def _reshape_assignments(self, assignments):
-        assign = []#np.zeros(self.grid.size, dtype=int)
+        assign = []
         for h, kwargs in enumerate(self.grid.all_kwargs):
 
             # Where does this model live in the grid?
@@ -223,8 +223,9 @@ class ModelGrid(ModelFit):
                 kvec = h
             
             if self.is_restart:
-                if self.done[kvec]:
-                    continue
+                if hasattr(self, 'done'):
+                    if self.done[kvec]:
+                        continue
 
             assign.append(assignments[kvec])
 
@@ -446,7 +447,7 @@ class ModelGrid(ModelFit):
                 print 'Running %i-element model grid.' % self.grid.size
 
         # Make some blank files for data output                 
-        self.prep_output_files(restart, clobber)                 
+        self.prep_output_files(restart, clobber)        
 
         # Dictionary for hmf tables
         fcoll = {}

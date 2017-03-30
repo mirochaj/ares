@@ -204,7 +204,7 @@ class ModelSet(BlobFactory):
         #    self._fix_up()
         #except AttributeError:
         #    pass
-            
+                    
     @property
     def mask(self):
         if not hasattr(self, '_mask'):
@@ -903,8 +903,11 @@ class ModelSet(BlobFactory):
         # Figure out elements we want
         xok_ = np.logical_and(data[pars[0]] >= x1, data[pars[0]] <= x2)
         xok_MP = np.logical_or(np.abs(data[pars[0]] - x1) <= MP, 
-            np.abs(data[pars[0]] - x2) <= MP)
-        xok = np.logical_or(xok_, xok_MP)
+            np.abs(data[pars[0]].data - x2) <= MP)
+        xok_pre = np.logical_or(xok_, xok_MP)
+        
+        unmasked = np.logical_not(data[pars[0]].mask == 1)
+        xok = np.logical_and(xok_pre, unmasked)
 
         if Nd == 2:
             yok_ = np.logical_and(data[pars[1]] >= y1, data[pars[1]] <= y2)
@@ -913,7 +916,7 @@ class ModelSet(BlobFactory):
             yok = np.logical_or(yok_, yok_MP)
             to_keep = np.logical_and(xok, yok)
         else:
-            to_keep = xok
+            to_keep = np.array(xok)
 
         mask = np.logical_not(to_keep)
         
@@ -924,7 +927,7 @@ class ModelSet(BlobFactory):
         
         # Set the mask! 
         model_set.mask = np.logical_or(mask, self.mask)
-        
+                
         i = 0
         while hasattr(self, 'slice_%i' % i):
             i += 1
@@ -1718,6 +1721,49 @@ class ModelSet(BlobFactory):
         nu, levels = _error_2D_crude(L, nu=nu)
                                                                       
         return nu, levels
+        
+    def PruneSet(self, pars, bin_edges, N, ivar=None, take_log=False,
+        un_log=False, multiplier=1.):
+        """
+        Take `N` models from each 2-D bin in space `pars`.
+        """
+        
+        data = self.ExtractData(pars, ivar=ivar, 
+            take_log=take_log, un_log=un_log, multiplier=multiplier)
+        
+        be = bin_edges
+        ct = np.zeros([len(be[0]) - 1, len(be[1]) - 1])
+        out = np.zeros([len(be[0]) - 1, len(be[1]) - 1, N])
+        
+        for h in range(self.chain.shape[0]):
+            x = data[pars[0]][h]
+            y = data[pars[1]][h]
+            
+            if (x < be[0][0]) or (x > be[0][-1]):
+                continue
+            if (y < be[1][0]) or (y > be[1][-1]):
+                continue    
+                
+            # Find bin where this model lives.
+            i = np.argmin(np.abs(x - be[0]))
+            j = np.argmin(np.abs(y - be[1]))
+            
+            if i == len(be[0]) - 1:
+                i -= 1
+            if j == len(be[1]) - 1:
+                j -= 1
+            
+            # This bin is already full
+            if ct[i,j] == N:
+                continue
+                
+            k = ct[i,j]
+            out[i,j,k] = h    
+            ct[i,j] += 1
+        
+        # Create a new object
+        to_keep = out.ravel()
+        return self.SliceByElement(to_keep)
     
     def get_1d_error(self, par, ivar=None, nu=0.68, take_log=False,
         limit=None, un_log=False, multiplier=1., peak='median', skip=0,
@@ -3248,9 +3294,10 @@ class ModelSet(BlobFactory):
         if type(names) is str:
             names = [names]
             
+        max_samples = min(self.chain.shape[0], self.mask.size - self.mask.sum())    
         if samples is not None:
             if type(samples) == int:
-                samples = min(self.chain.shape[0], samples)
+                samples = min(max_samples, samples)
             
         # Step 1: figure out ivars  
         info = self.blob_info(names[0])
@@ -3362,7 +3409,7 @@ class ModelSet(BlobFactory):
 
         # Convert redshifts to frequencies    
         if z_to_freq:
-            x = nu_0_mhz / (1. + x)
+            xarr = nu_0_mhz / (1. + xarr)
 
         ##
         # Do the actual plotting
@@ -3370,7 +3417,7 @@ class ModelSet(BlobFactory):
 
         # Limit number of realizations
         if samples is not None:
-            M = self.chain.shape[0]
+            M = min(self.chain.shape[0], max_samples)
             
             if samples == 'all':
                 elements = np.arange(0, M)

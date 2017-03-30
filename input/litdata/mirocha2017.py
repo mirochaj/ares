@@ -13,14 +13,12 @@ _generic_updates = \
 
 # This can lead to pickling issues...argh
 halos = ares.physics.HaloMassFunction()
-
-barrier_M = lambda zz: halos.VirialMass(300, zz)
 barrier_A = lambda zz: halos.VirialMass(1e4, zz)
-    
-log_barrier_M = lambda zz: np.log10(barrier_M(zz))    
-log_barrier_A = lambda zz: np.log10(barrier_A(zz))
 
-_csfr = \
+"""
+First model: constant SFR in minihalos.
+"""
+_csfr_specific = \
 {
 
  'pop_zform{0}': 60,
@@ -28,6 +26,7 @@ _csfr = \
  'pop_zform{2}': 60,
  'pop_zform{3}': 60,
  
+ 'pop_Tmin{0}': 1e4,
  'pop_Tmin_ceil{0}': 1e4,
 
  'pop_sfr_model{2}': 'sfr-func',
@@ -69,26 +68,41 @@ _csfr = \
  'pop_tau_Nz{3}': 1e3,
  'pop_approx_tau{3}': 'neutral',
  
- 'pop_Tmin{0}': 1e4,
- #'pop_Tmin_ceil{0}': 1e4,
  #'pop_Mmin{0}': 'link:Mmax_active:2',
  
  # Tmin here just an initial guess -- will get modified by feedback.
  'pop_Tmin{2}': 500.,
- 'pop_Mmin{3}': 'pop_Mmin{2}',
- 'pop_Tmin{3}': None,
  'pop_Tmax{2}': 1e4,
+ #'pop_Mmin{3}': 'pop_Mmin{2}',
+ #'pop_Tmin{3}': None,
+ 
 
 }
 
 
 csfr = dpl.copy()
 csfr.update(_generic_updates)
-csfr.update(_csfr)
+csfr.update(_csfr_specific)
 
-xsfe = dpl.copy()
+"""
+Second model: constant SFE in minihalos.
+"""
+_csfe_specific = \
+{
+ 'pop_sfr_model{2}': 'sfe-func',
+ 'pop_sfr{2}': None,
+ 'pop_fstar{2}': 1e-4,
+}
 
-_step_specific = \
+csfe = dpl.copy()
+csfe.update(_generic_updates)
+csfe.update(_csfr_specific)
+csfe.update(_csfe_specific)
+
+"""
+Third model: extrapolated SFE in minihalos (i.e., same SFE as atomic halos).
+"""
+_xsfe_specific = \
 {
  
  'pop_fesc_LW{0}': 'pq[101]',
@@ -106,6 +120,9 @@ _step_specific = \
  'pq_func_par2{0}[102]': (barrier_A, 'z', 1),
 
  'pop_Tmin{0}': 500.,
+ 'pop_Mmin{1}': 'pop_Mmin{0}',
+ 
+ 'pop_sfr_model{1}': 'link:sfe:0',
 
  # X-ray sources
  'pop_rad_yield{1}': 'pq[103]',
@@ -116,9 +133,11 @@ _step_specific = \
  'pq_func_par2{1}[103]': (barrier_A, 'z', 1),
 }
 
-step = dpl.copy()
-step.update(_step_specific)
-step.update(_generic_updates)
+xsfe = dpl.copy()
+xsfe.update(_generic_updates)
+xsfe.update(_xsfe_specific)
+
+
 
 _exp_specific = \
 {
@@ -197,7 +216,7 @@ _exp_specific = \
 exp = dpl.copy()
 exp.update(_exp_specific)
 
-exp_blobs = \
+csfr_blobs = \
 {
  'blob_names': ['popII_sfrd_tot', 'popIII_sfrd_tot', 
                 'popII_sfrd_bc',  'popIII_sfrd_bc', 
@@ -206,6 +225,8 @@ exp_blobs = \
  'blob_funcs': ['pops[0].SFRD', 'pops[2].SFRD', 'pops[0].SFRD_at_threshold',
     'pops[2].SFRD_at_threshold', 'pops[0].Mmin', 'pops[2].Mmin'],
 }
+
+csfe_blobs = csfr_blobs
 
 # This is a little trickier
 step_blobs = \
