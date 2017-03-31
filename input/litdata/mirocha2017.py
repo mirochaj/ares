@@ -137,8 +137,6 @@ xsfe = dpl.copy()
 xsfe.update(_generic_updates)
 xsfe.update(_xsfe_specific)
 
-
-
 _exp_specific = \
 {
   'initial_redshift': 60,
@@ -229,7 +227,7 @@ csfr_blobs = \
 csfe_blobs = csfr_blobs
 
 # This is a little trickier
-step_blobs = \
+xsfe_blobs = \
 {
  'blob_names': ['popII_sfrd_tot', #'popIII_sfrd_tot', 
                 'popII_sfrd_bc',  #'popIII_sfrd_bc', 

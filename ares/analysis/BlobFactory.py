@@ -527,7 +527,7 @@ class BlobFactory(object):
                         
         if not found:
             raise KeyError('Blob %s not found.' % name)        
-                
+
         return i, j, self.blob_nd[i], self.blob_dims[i]
     
     def _get_item(self, name):

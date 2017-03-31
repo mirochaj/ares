@@ -1452,7 +1452,7 @@ class ModelSet(BlobFactory):
         else:
             p = pars
             iv = ivar
-
+        
         data = \
             self.ExtractData(p, iv, take_log, un_log, multiplier)
 
@@ -1503,7 +1503,7 @@ class ModelSet(BlobFactory):
             xd = xdata
             yd = ydata
             cd = cdata
-            
+                        
         if rungs:
             scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, 
                 label=rung_label, label_on_top=rung_label_top, **kwargs)
@@ -1535,9 +1535,9 @@ class ModelSet(BlobFactory):
             'take_log': take_log, 'un_log':un_log, 'multiplier':multiplier}
             
         # Make labels
-        self.set_axis_labels(ax, p, take_log, un_log, cb)            
-        
-        pl.draw()        
+        self.set_axis_labels(ax, p, take_log, un_log, cb)
+
+        pl.draw()
         
         self._ax = ax
         return ax
@@ -3454,6 +3454,8 @@ class ModelSet(BlobFactory):
                 ax.plot(xarr, y[0], **kwargs)
                 ax.plot(xarr, y[1], **kwargs)
                 
+        ax.set_ylabel(self.labeler.label(names[0]))
+                
         pl.draw()
                  
         if return_data:
@@ -3975,15 +3977,16 @@ class ModelSet(BlobFactory):
 
         return sorter, new_kw, scores
         
-    def export(self, prefix, pars, ivar=None, path='.', fmt='hdf5', 
-        clobber=False, skip=0, skim=1, stop=None):
+    def export(self, pars, prefix=None, fn=None, ivar=None, path='.', 
+        fmt='hdf5', clobber=False):
         """
         Just a wrapper around `save' routine.
         """
-        self.save(prefix, pars, ivar, path, fmt, clobber, skip, skim, stop)
+        self.save(pars, prefix=prefix, fn=fn, ivar=ivar, 
+            path=path, fmt=fmt, clobber=clobber)
         
-    def save(self, prefix, pars, ivar=None, path='.', fmt='hdf5', 
-        clobber=False, skip=0, skim=1, stop=None):
+    def save(self, pars, prefix=None, fn=None, ivar=None, path='.', fmt='hdf5', 
+        clobber=False):
         """
         Extract data from chain or blobs and output to separate file(s).
         
@@ -4008,7 +4011,9 @@ class ModelSet(BlobFactory):
 
         data = self.ExtractData(pars, ivar=ivar)
         
-        fn = '%s/%s.%s.%s' % (path,self.prefix, prefix, fmt)
+        if fn is None:
+            assert prefix is not None
+            fn = '%s/%s.%s.%s' % (path,self.prefix, prefix, fmt)
         
         if os.path.exists(fn) and (not clobber):
             raise IOError('File exists! Set clobber=True to wipe it.')
@@ -4030,7 +4035,8 @@ class ModelSet(BlobFactory):
                     else:
                         grp = f['blobs']
 
-                    ds = grp.create_dataset(par, data=data[par][skip:stop:skim,Ellipsis])
+                    dat = data[par]#[skip:stop:skim,Ellipsis]
+                    ds = grp.create_dataset(par, data=dat[self.mask == 0])
                     i, j, nd, dims = self.blob_info(par)
                     
                     if self.blob_ivars[i] is not None:
@@ -4041,7 +4047,8 @@ class ModelSet(BlobFactory):
                     else:
                         grp = f['axes']
 
-                    ds = grp.create_dataset(par, data=data[par][skip:stop:skim,Ellipsis])
+                    dat = data[par]#[skip:stop:skim,Ellipsis]
+                    ds = grp.create_dataset(par, data=dat[self.mask == 0])
                     
             f.close()
             print "Wrote %s." % fn  

@@ -239,24 +239,29 @@ class ModelGrid(ModelFit):
         prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
 
         # Reshape assignments so it's Nlinks long.
-        assignments = self._reshape_assignments(self.assignments)
+        if self.grid.structured:
+            assignments = self._reshape_assignments(self.assignments)
                 
-        if restart:
-            if rank == 0:
-                f = open('%s.load.pkl' % self.prefix, 'ab')
-                pickle.dump(assignments, f)
-                f.close()
-            
-            return
+            if restart:
+                if rank == 0:
+                    f = open('%s.load.pkl' % self.prefix, 'ab')
+                    pickle.dump(assignments, f)
+                    f.close()
+                
+                return
+        else:
+            if restart:
+                return
         
         if rank > 0:
             return
                         
         super(ModelGrid, self)._prep_from_scratch(clobber, by_proc=True)
             
-        f = open('%s.load.pkl' % self.prefix, 'wb')
-        pickle.dump(assignments, f)
-        f.close()
+        if self.grid.structured:    
+            f = open('%s.load.pkl' % self.prefix, 'wb')
+            pickle.dump(assignments, f)
+            f.close()
     
         # ModelFit makes this file by default but grids don't use it.
         if os.path.exists('%s.logL.pkl' % self.prefix) and (rank == 0):
@@ -412,7 +417,7 @@ class ModelGrid(ModelFit):
         else:
             done = 0
         
-        if restart:
+        if restart and self.grid.structured:
             mine_and_done = np.logical_and(self.assignments == rank,
                                            self.done >= 1)
             
