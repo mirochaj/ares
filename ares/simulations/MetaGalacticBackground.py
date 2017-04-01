@@ -253,6 +253,13 @@ class MetaGalacticBackground(AnalyzeMGB):
         ## Reset Mmin for feedback-susceptible populations
         for popid in include_pops:
             pop = self.pops[popid]
+            
+            if not pop.feels_feedback:
+                continue
+                
+            if pop.pf['pop_Tmin'] is not None:
+                if pop.pf['pop_Tmin'] >= 1e4:
+                    continue
 
             #for key in to_del:
             #    try:

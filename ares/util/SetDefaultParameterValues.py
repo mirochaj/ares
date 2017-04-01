@@ -341,6 +341,8 @@ def PopulationParameters():
     "pop_sfr_above_threshold": True,
     "pop_sfr_cross_threshold": True,
     "pop_sfr_cross_upto_Tmin": np.inf,
+
+    "pop_feels_feedback": True,
     
     "pop_threshold_sfr": None,
     
