@@ -74,6 +74,7 @@ as well as the priors on the parameters, which in this case we'll take to be uni
     ps.add_prior(UniformPrior(0.1, 20), 'tanh_xdz')
     ps.add_prior(UniformPrior(5, 20), 'tanh_Tz0')
     ps.add_prior(UniformPrior(0.1, 20), 'tanh_Tdz')
+    
     fitter.prior_set = ps
     
 Finally, we set the number of Goodman-Weare walkers 

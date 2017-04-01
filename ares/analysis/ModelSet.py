@@ -238,11 +238,18 @@ class ModelSet(BlobFactory):
 
     @property
     def base_kwargs(self):
-        if not hasattr(self, '_base_kwargs'):            
-            if os.path.exists('%s.binfo.pkl' % self.prefix):
-                fn = '%s.binfo.pkl' % self.prefix
-            elif os.path.exists('%s.setup.pkl' % self.prefix):
-                fn = '%s.setup.pkl' % self.prefix
+        if not hasattr(self, '_base_kwargs'):  
+            
+            burn = self.prefix.endswith('.burn')
+            if burn:
+                pre = self.prefix.replace('.burn', '')
+            else:
+                pre = self.prefix
+                      
+            if os.path.exists('%s.binfo.pkl' % pre):
+                fn = '%s.binfo.pkl' % pre
+            elif os.path.exists('%s.setup.pkl' % pre):
+                fn = '%s.setup.pkl' % pre
             else:    
                 self._base_kwargs = None
                 return self._base_kwargs
@@ -262,8 +269,15 @@ class ModelSet(BlobFactory):
     def parameters(self):
         # Read parameter names and info
         if not hasattr(self, '_parameters'):
-            if os.path.exists('%s.pinfo.pkl' % self.prefix):
-                f = open('%s.pinfo.pkl' % self.prefix, 'rb')
+            
+            burn = self.prefix.endswith('.burn')
+            if burn:
+                pre = self.prefix.replace('.burn', '')
+            else:
+                pre = self.prefix
+            
+            if os.path.exists('%s.pinfo.pkl' % pre):
+                f = open('%s.pinfo.pkl' % pre, 'rb')
                 self._parameters, self._is_log = pickle.load(f)
                 f.close()
                 self._parameters = patch_pinfo(self._parameters)

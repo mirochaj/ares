@@ -247,6 +247,7 @@ class LogLikelihood(object):
             
     def checkpoint_on_completion(self, **kwargs):
         if self.checkpoint_by_proc:
+            procid = str(rank).zfill(3)
             fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
             with open(fn, 'a') as f:
                 print >> f, "Simulation finished: %s" % time.ctime() 
@@ -879,23 +880,41 @@ class ModelFit(BlobFactory):
         # Burn in, prep output files     
         if (burn > 0) and (not restart):
             
-            if rank == 0:
-                print "Starting burn-in: %s" % (time.ctime())
+            print "Starting burn-in: %s" % (time.ctime())
             
             t1 = time.time()
             pos, prob, state, blobs = \
                 self.sampler.run_mcmc(self.guesses, burn, rstate0=state)
-            self.sampler.reset()
             t2 = time.time()
 
-            if rank == 0:
-                print "Burn-in complete in %.3g seconds." % (t2 - t1)
+            print "Burn-in complete in %.3g seconds." % (t2 - t1)
 
-            # Find maximum likelihood point
+            # Save burn-in
+            burn_prefix = prefix + '.burn'
+            name = ['chain', 'logL', 'blobs']
+            for i, attrib in enumerate(['chain', 'lnprobability', 'blobs']):
+
+                data = self.sampler.__getattribute__(attrib)
+
+                # Blobs
+                if name[i] == 'blobs':
+                    if self.blob_names is None:
+                        continue
+                    self.save_blobs(data, prefix=burn_prefix)
+                # Other stuff
+                else:
+                    fn = '%s.%s.pkl' % (burn_prefix, name[i])
+                    with open(fn, 'wb') as f:
+                        pickle.dump(data, f)
+                        print "Wrote %s." % fn
+                        
+            # Find walker at highest likelihood point at end of burn
             mlpt = pos[np.argmax(prob)]
 
             pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
             #pos = self._fix_guesses(pos)
+            
+            self.sampler.reset()
             
         elif not restart:
             pos = self.guesses

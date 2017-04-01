@@ -605,11 +605,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             
         if np.any(np.isnan(Jlw)):
             Jlw[np.argwhere(np.isnan(Jlw))] = 0.0
-            print 'HEY WTF'
-        
-        if np.any(Jlw < 0):
-            print 'HEY WTF other kind'    
-            
+                    
         # Function to compute the next Mmin(z) curve
         # Use of Mmin here is for shielding prescription (if used), 
         # but implicitly used since it set Jlw for this iteration.
