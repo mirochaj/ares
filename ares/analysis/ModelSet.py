@@ -2655,7 +2655,8 @@ class ModelSet(BlobFactory):
         return ax
               
     def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
-        un_log=False, multiplier=1., ax=None, fig=1, filled=False, **kwargs):         
+        un_log=False, multiplier=1., ax=None, fig=1, filled=False, 
+        inline_labels=False, cax=None, use_colorbar=True, **kwargs):         
         """
         Draw contours that are NOT associated with confidence levels.
         
@@ -2685,16 +2686,28 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
             
+        cb = None    
         if (pars[0] in self.parameters) and (pars[1] in self.parameters):
             xdata, ydata, zdata = self._reshape_data(pars, c, ivar=ivar, 
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
-                
+                                
             if filled:
-                CS = ax.contourf(xdata, ydata, zdata.T, **kwargs) 
-                cb = pl.colorbar(CS, extend='neither')
+                if levels is not None:
+                    CS = ax.contourf(xdata, ydata, zdata.T, levels, **kwargs)
+                else:
+                    CS = ax.contourf(xdata, ydata, zdata.T, **kwargs)
+                
+                if use_colorbar:
+                    cb = pl.colorbar(CS, cax=cax, orientation='horizontal', 
+                        extend='neither', ticks=None)
             else:    
-                CS = ax.contour(xdata, ydata, zdata.T, **kwargs) 
-                pl.clabel(CS, ineline=1, fontsize=10) 
+                if levels is not None:
+                    CS = ax.contour(xdata, ydata, zdata.T, levels, **kwargs) 
+                else:
+                    CS = ax.contour(xdata, ydata, zdata.T, **kwargs) 
+                    
+                if inline_labels:
+                    pl.clabel(CS, ineline=1, fontsize=10) 
                 
         else:
             p = list(pars) + [c]
@@ -2725,7 +2738,7 @@ class ModelSet(BlobFactory):
                 
         pl.draw()    
             
-        return ax, xdata, ydata, zdata
+        return ax, cb
 
     def ContourScatter(self, x, y, c, z=None, Nscat=1e4, take_log=False, 
         cmap='jet', alpha=1.0, bins=20, vmin=None, vmax=None, zbins=None, 

@@ -1367,7 +1367,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return self._SAM_2z(z, y)
         else:
             raise NotImplemented('No SAM with nz=%i' % self.pf['pop_sam_nz'])
-            
+                        
     def _SAM_1z(self, z, y):
         """
         Simple semi-analytic model for the components of galaxies.
@@ -1405,7 +1405,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Sfrac = self.pf['pop_acc_frac_stellar'] * (Mst / Mb)
         Gfrac = self.pf['pop_acc_frac_gas'] * (Mg / Mb)
                 
-        fstar = self.SFE(**kw)
+        if self.pf['pop_sfr'] is None:
+            fstar = self.SFE(**kw)
+        else:
+            fstar = 1.
 
         # "Quiet" mass growth
         fsmooth = self.fsmooth(**kw)
@@ -1505,6 +1508,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._constant_SFE
         
     @property
+    def constant_SFR(self):
+        if not hasattr(self, '_constant_SFR'):
+            if self.pf['pop_sfr'] is not None:
+                self._constant_SFR = 1
+            else:
+                self._constant_SFR = 0
+        return self._constant_SFR
+            
+    @property
     def scaling_relations(self):
         if not hasattr(self, '_scaling_relations'):
             if self.constant_SFE:
@@ -1512,8 +1524,45 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 self._scaling_relations = self._ScalingRelationsGeneralSFE()
             
-        return self._scaling_relations    
-    
+        return self._scaling_relations
+        
+    def MassAfter(self, dt):
+        """
+        Compute the final mass of a halos that begin at Mmin and grow for dt.
+        
+        Parameters
+        ----------
+        dt : int, float
+            Growth time [years]
+        
+        Returns
+        -------
+        Array of redshifts and final masses
+            
+        """
+        
+        raise NotImplementedError('not done with this')
+        
+        # This loops over a bunch of formation redshifts
+        # and computes the trajectories for all SAM fields
+        zform, data = self._ScalingRelationsGeneralSFE(dt=dt)
+        
+        zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
+
+        if self.pf['sam_dz'] is not None:
+            zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.z)[0], 0))
+        else:
+            zfreq = 1
+
+        zarr = self.halos.z[self.halos.z >= zf][::zfreq]
+                 
+        Mf = []    
+        for z in zarr:
+            # z here is the formation redshift
+            new_data = self._sort_sam(z, zarr, data)
+            Mf.append(new_data['Mh'][-1])
+        return zarr, Mf
+        
     def scaling_relations_sorted(self, z=None):
         """
 
@@ -1525,11 +1574,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return self._scaling_relations_sorted[z]    
                         
         zform, data = self.scaling_relations
-                
-        new_data = {}
-        
+                        
         # Can't remember what this is all about.
         if self.constant_SFE:
+            new_data = {}
             sorter = np.argsort(data['Mh'])
             for key in data.keys():
                 new_data[key] = data[key][sorter]
@@ -1546,20 +1594,26 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             zarr = self.halos.z[self.halos.z >= zf][::zfreq]
                         
-            tmp = {}
-            k = np.argmin(np.abs(z - zarr))
-            for key in data.keys():
-                tmp[key] = data[key][:,k]
-                
-            sorter = np.argsort(tmp['Mh'])
-            for key in tmp.keys():
-                new_data[key] = tmp[key][sorter]
-                
+            new_data = self._sort_sam(z, zarr, data)            
+                          
         self._scaling_relations_sorted[z] = zform, new_data    
 
         return self._scaling_relations_sorted[z]
-
-    def _ScalingRelationsGeneralSFE(self):
+        
+    def _sort_sam(self, z, zarr, data):
+        tmp = {}
+        k = np.argmin(np.abs(z - zarr))
+        for key in data.keys():
+            tmp[key] = data[key][:,k]
+            
+        new_data = {}    
+        sorter = np.argsort(tmp['Mh'])
+        for key in tmp.keys():
+            new_data[key] = tmp[key][sorter]
+            
+        return new_data
+        
+    def _ScalingRelationsGeneralSFE(self, dt=None):
         """
         In this case, the formation time of a halo matters.
         
@@ -1590,7 +1644,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if (i == 0) or (i == len(zarr) - 1):
                 continue
 
-            _zarr, _results = self._ScalingRelationsStaticSFE(z0=z)
+            _zarr, _results = self._ScalingRelationsStaticSFE(z0=z, dt=dt)
 
             for key in keys:
                 results[key][i,0:i+1] = _results[key].copy()
@@ -1602,7 +1656,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return zform, results
         
-    def _ScalingRelationsStaticSFE(self, z0=None):
+    def _ScalingRelationsStaticSFE(self, z0=None, dt=None):
         """
         Evolve a halo from initial mass M0 at redshift z0 forward in time.
         
@@ -1668,6 +1722,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             #    break    
             
             solver.integrate(solver.t-dz)
+            
+            if dt is not None and zarr[i] > 10:
+                if (self.cosm.LookbackTime(z0, zarr[i]) / s_per_yr) > dt:
+                    
+                    print z0, zf, zarr[i], dt, self.cosm.LookbackTime(z0, zarr[i]) / s_per_yr / dt 
+                    
+                    break
 
         # Everything will be returned in order of ascending redshift,
         # which will mean masses are (probably) declining from 0:-1

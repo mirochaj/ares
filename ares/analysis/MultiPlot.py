@@ -238,6 +238,28 @@ class MultiPanel(object):
 
                 self.grid[i] = self.fig.add_axes(rect)
             
+    def add_cbar(self, axes=None, position='top', padding=0.05,
+        width=0.05):
+                
+        caxes = {}
+        for ax in self.elements.ravel(): 
+            
+            if ax not in axes:
+                caxes[ax] = None
+                continue
+            
+            l, b, r, t = np.array(self.grid[ax].get_position()).ravel()
+            
+            if position == 'top':
+                cax = self.fig.add_axes([l, t+padding, r-l, width]) 
+            else:
+                raise NotImplementedError('sorry!')
+                
+            caxes[ax] = cax
+        
+        return caxes
+
+            
     @property
     def active_elements(self):
         if not hasattr(self, '_active_elements'):

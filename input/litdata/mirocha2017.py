@@ -137,6 +137,9 @@ xsfe = dpl.copy()
 xsfe.update(_generic_updates)
 xsfe.update(_xsfe_specific)
 
+csfd = csfr.copy()
+csfd['feedback_LW'] = False
+
 _exp_specific = \
 {
   'initial_redshift': 60,
@@ -210,6 +213,8 @@ _exp_specific = \
   'feedback_LW_Mmin': 'visbal2015',
   'feedback_LW_Tcut': 1e4, 
 }
+
+
 
 exp = dpl.copy()
 exp.update(_exp_specific)

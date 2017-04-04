@@ -619,10 +619,19 @@ class MetaGalacticBackground(AnalyzeMGB):
         f_M = get_Mmin_func(zarr, Jlw / 1e-21, self._Mmin_pre, **self.pf)
 
         # Use this on the next iteration
-        if (self.count > 1) and self.pf['feedback_LW_softening']:
-            _Mmin_next = np.mean([f_M(zarr), self._Mmin_pre], axis=0)
+        Mnext = f_M(zarr)
+        if (self.count > 1) and self.pf['feedback_LW_softening'] is not None:
+            if self.pf['feedback_LW_softening'] == 'sqrt':
+                _Mmin_next = np.sqrt(Mnext * self._Mmin_pre)
+            elif self.pf['feedback_LW_softening'] == 'mean':
+                _Mmin_next = np.mean([Mnext, self._Mmin_pre], axis=0)
+            elif self.pf['feedback_LW_softening'] == 'log10_mean':
+                _Mmin_next = 10**np.mean([np.log10(Mnext), 
+                    np.log10(self._Mmin_pre)], axis=0)
+            else:
+                raise NotImplementedError('help')
         else:
-            _Mmin_next = f_M(zarr)
+            _Mmin_next = Mnext
 
         # Potentially impose ceiling on Mmin
         Tcut = self.pf['feedback_LW_Tcut']
@@ -633,18 +642,18 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         # Final answer.
         Mmin = np.minimum(_Mmin_next, Mmin_ceil)
-                
-        # Set new solution    
+
+        # Set new solution
         self._Mmin_now = Mmin.copy()
         # Save for prosperity
         self._Mmin_bank.append(self._Mmin_now.copy())
         self._Jlw_bank.append(Jlw)
-        
+
         # Compare Mmin of last two iterations.
         # Can't be converged after 1 iteration!
         if self.count == 1:
             return False
-        
+
         if self.count >= self.pf['feedback_LW_maxiter']:
             return True 
         
@@ -673,6 +682,14 @@ class MetaGalacticBackground(AnalyzeMGB):
         else:
             converged = np.allclose(self._Mmin_pre, self._Mmin_now,
                 rtol=rtol, atol=atol)
+                
+            perfect = np.all(np.equal(self._Mmin_pre, self._Mmin_now))
+            
+            # Nobody is perfect. Something is weird. Keep on keepin' on.
+            # This is happening at iteration 3 for some reason...
+            if perfect:
+                print 'HEY'
+                converged = False    
 
         return converged
             
