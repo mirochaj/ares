@@ -179,6 +179,9 @@ class MetaGalacticBackground(AnalyzeMGB):
                 self.run(include_pops=self._not_lwb_sources)
             
         else:
+            if self.pf['verbose']:
+                print "LWB: iteration #%i..." % (self.count+1)
+                
             self.reboot()
             self.run(include_pops=self._lwb_sources)
                            
@@ -688,9 +691,8 @@ class MetaGalacticBackground(AnalyzeMGB):
             # Nobody is perfect. Something is weird. Keep on keepin' on.
             # This is happening at iteration 3 for some reason...
             if perfect:
-                print 'HEY'
                 converged = False    
-
+                
         return converged
             
     def get_uvb(self, popid):

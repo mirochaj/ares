@@ -343,9 +343,7 @@ def PopulationParameters():
     "pop_sfr_cross_upto_Tmin": np.inf,
 
     "pop_feels_feedback": True,
-    
-    "pop_threshold_sfr": None,
-    
+        
     # Mass accretion rate
     "pop_MAR": 'hmf',
     "pop_MAR_conserve_norm": False,
@@ -456,7 +454,12 @@ def PopulationParameters():
     "pop_Mmin_floor": None,
     "pop_Tmin_ceil": None,
     "pop_Tmin_floor": None,
+    "pop_Tmax_ceil": None,
+    "pop_Tmax_floor": None,
+    "pop_Mmax_ceil": None,
+    "pop_Mmax_floor": None,
     "pop_Mmax": None,
+    "pop_age_limit": None,
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
     
