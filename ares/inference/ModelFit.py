@@ -12,6 +12,7 @@ Description:
 
 import pickle
 import numpy as np
+from ..util import get_hg_rev
 from .PriorSet import PriorSet
 from ..util.Stats import get_nu
 from ..util.MPIPool import MPIPool
@@ -246,6 +247,7 @@ class LogLikelihood(object):
             
     def checkpoint_on_completion(self, **kwargs):
         if self.checkpoint_by_proc:
+            procid = str(rank).zfill(3)
             fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
             with open(fn, 'a') as f:
                 print >> f, "Simulation finished: %s" % time.ctime() 
@@ -585,6 +587,7 @@ class ModelFit(BlobFactory):
         if type(value) is bool:
             self._is_log = [value] * self.Nd
         else:
+            assert len(value) == self.Nd
             self._is_log = value
             
     def prep_output_files(self, restart, clobber):
@@ -710,27 +713,26 @@ class ModelFit(BlobFactory):
             prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
         else:
             prefix_by_proc = self.prefix
-                               
+
         if clobber:
             # Delete only the files made by this routine. Don't want to risk
             # deleting other files the user may have created with similar
             # naming convention!
-            
-            for suffix in ['logL', 'facc', 'pinfo', 'rinfo', 'binfo', 'setup', 'prior_set']:
+
+            # These suffixes are always the same
+            for suffix in ['logL', 'chain', 'facc', 'pinfo', 'rinfo', 
+                'binfo', 'setup', 'prior_set', 'load']:
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
+                os.system('rm -f %s.*.%s.pkl' % (self.prefix, suffix))
             
-            os.system('rm -f %s.*.fail.pkl' % self.prefix)
-            os.system('rm -f %s.*.chain.*pkl' % self.prefix)
-            os.system('rm -f %s.*.blob*.*pkl' % self.prefix)
+            # These suffixes have their own suffixes
+            os.system('rm -f %s.blob_*.pkl' % self.prefix)
+            os.system('rm -f %s.*.blob_*.pkl' % self.prefix)
             
-            # Need to potentially axe a product file
-            os.system('rm -f %s.fails.pkl' % self.prefix)
-            os.system('rm -f %s.chain.pkl' % self.prefix)
-                    
         # Each processor gets its own fail file
         f = open('%s.fail.pkl' % prefix_by_proc, 'wb')
-        f.close()  
-        
+        f.close()
+
         # Main output: MCMC chains (flattened)
         if self.checkpoint_append:
             f = open('%s.chain.pkl' % prefix_by_proc, 'wb')
@@ -775,7 +777,7 @@ class ModelFit(BlobFactory):
         tmp = self.base_kwargs.copy()
         to_axe = []
         for key in tmp:
-            # this might be big, get rid of it
+            # these might be big, get rid of it
             if re.search('tau_instance', key):
                 to_axe.append(key)
             if re.search('tau_table', key):
@@ -786,10 +788,24 @@ class ModelFit(BlobFactory):
                 to_axe.append(key)        
             if re.search('pop_sed_by_Z', key):
                 to_axe.append(key)
+            
+            # Apparently functions of any kind cause problems everywhere
+            # but my laptop
+            if type(tmp[key]) in [FunctionType, InstanceType]:
+                to_axe.append(key)
+            elif type(tmp[key]) is tuple:
+                for element in tmp[key]:
+                    if type(element) in [FunctionType, InstanceType]:
+                        to_axe.append(key)
+                        break
         
         for key in to_axe:
             tmp[key] = None
             
+        # If possible, include ares revision used to run this fit.
+        tmp['revision'] = get_hg_rev()
+            
+        # Write to disk.
         pickle.dump(tmp, f)
         del tmp
         f.close()
@@ -864,23 +880,41 @@ class ModelFit(BlobFactory):
         # Burn in, prep output files     
         if (burn > 0) and (not restart):
             
-            if rank == 0:
-                print "Starting burn-in: %s" % (time.ctime())
+            print "Starting burn-in: %s" % (time.ctime())
             
             t1 = time.time()
             pos, prob, state, blobs = \
                 self.sampler.run_mcmc(self.guesses, burn, rstate0=state)
-            self.sampler.reset()
             t2 = time.time()
 
-            if rank == 0:
-                print "Burn-in complete in %.3g seconds." % (t2 - t1)
+            print "Burn-in complete in %.3g seconds." % (t2 - t1)
 
-            # Find maximum likelihood point
+            # Save burn-in
+            burn_prefix = prefix + '.burn'
+            name = ['chain', 'logL', 'blobs']
+            for i, attrib in enumerate(['chain', 'lnprobability', 'blobs']):
+
+                data = self.sampler.__getattribute__(attrib)
+
+                # Blobs
+                if name[i] == 'blobs':
+                    if self.blob_names is None:
+                        continue
+                    self.save_blobs(data, prefix=burn_prefix)
+                # Other stuff
+                else:
+                    fn = '%s.%s.pkl' % (burn_prefix, name[i])
+                    with open(fn, 'wb') as f:
+                        pickle.dump(data, f)
+                        print "Wrote %s." % fn
+                        
+            # Find walker at highest likelihood point at end of burn
             mlpt = pos[np.argmax(prob)]
 
             pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
             #pos = self._fix_guesses(pos)
+            
+            self.sampler.reset()
             
         elif not restart:
             pos = self.guesses

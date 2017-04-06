@@ -54,7 +54,7 @@ def get_Mmin_func(zarr, Jlw, Mmin_prev, **kwargs):
     Mmin = lambda zz: np.interp(zz, zarr, Mmin_prev)
     f_J = lambda zz: f_sh(zz, Mmin(zz)) * np.interp(zz, zarr, Jlw)
     
-    if kwargs['feedback_LW_Mmin'] is 'visbal2015':
+    if kwargs['feedback_LW_Mmin'] == 'visbal2015':
         f_M = lambda zz: 2.5 * 1e5 * pow(((1. + zz) / 26.), -1.5) \
             * (1. + 6.96 * pow(4 * np.pi * f_J(zz), 0.47))
     elif type(kwargs['feedback_LW_Mmin']) is FunctionType:
@@ -126,7 +126,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         except ImportError:
             rank = 0
     
-        return rank    
+        return rank
     
     def run(self, include_pops=None):
         """
@@ -150,12 +150,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         if not hasattr(self, '_data_'):
             self._data_ = {}
         
-        for i, popid in enumerate(include_pops):
-            
-            t1 = time.time()
+        for i, popid in enumerate(include_pops):            
             z, fluxes = self.run_pop(popid=popid)
-            t2 = time.time()
-            
             self._data_[popid] = fluxes
                     
         # Each element of the history is series of lists.
@@ -171,31 +167,24 @@ class MetaGalacticBackground(AnalyzeMGB):
         ## 
         # Feedback
         ##
-        if self.pf['feedback_LW']:
-            if self._is_Mmin_converged(self._lwb_sources):
-                self._has_fluxes = True
-                self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
-                self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw)
-                
-                # Now that feedback is done, evolve all non-LW sources to get
-                # final background.
-                if include_pops == self._lwb_sources:
-                    self.reboot(include_pops=self._not_lwb_sources)
-                    self.run(include_pops=self._not_lwb_sources)
-                
-            else:
-                self.reboot()
-                self.run(include_pops=self._lwb_sources)
-        else:
-            # Otherwise, just grab all the fluxes and setup interpolants
-            zarr, Ja, Jlw = self.get_uvb_tot()
-            self._zarr = zarr
-            self._Ja = Ja
-            self._Jlw = Jlw
-
+        if self._is_Mmin_converged(self._lwb_sources):
+            self._has_fluxes = True
             self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
             self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw)
-                            
+            
+            # Now that feedback is done, evolve all non-LW sources to get
+            # final background.
+            if include_pops == self._lwb_sources:
+                self.reboot(include_pops=self._not_lwb_sources)
+                self.run(include_pops=self._not_lwb_sources)
+            
+        else:
+            if self.pf['verbose']:
+                print "LWB: iteration #%i..." % (self.count+1)
+                
+            self.reboot()
+            self.run(include_pops=self._lwb_sources)
+                           
     @property
     def _not_lwb_sources(self):
         if not hasattr(self, '_not_lwb_sources_'):
@@ -267,6 +256,13 @@ class MetaGalacticBackground(AnalyzeMGB):
         ## Reset Mmin for feedback-susceptible populations
         for popid in include_pops:
             pop = self.pops[popid]
+            
+            if not pop.feels_feedback:
+                continue
+                
+            if pop.pf['pop_Tmin'] is not None:
+                if pop.pf['pop_Tmin'] >= 1e4:
+                    continue
 
             #for key in to_del:
             #    try:
@@ -274,7 +270,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             #    except AttributeError:
             #        print "Attribute %s didn't exist." % key
             #        continue
-            
+                        
             self.kwargs['pop_Mmin{%i}' % popid] = \
                 np.interp(pop.halos.z, self.z_unique, self._Mmin_now)
             
@@ -392,11 +388,15 @@ class MetaGalacticBackground(AnalyzeMGB):
                 # Need to cycle through redshift here
                 for _iz, redshift in enumerate(zarr):
                           
+                    # The use of "continue", rather than "break", is
+                    # VERY important because redshifts are in ascending order
+                    # at this point.
                     if redshift < self.pf['final_redshift']:
-                        break
+                        # This shouldn't ever happen...
+                        continue
                         
                     if redshift < self.pf['kill_redshift']:
-                        break    
+                        continue    
                     
                     # Get fluxes if need be
                     if pop_generator is None:
@@ -579,14 +579,25 @@ class MetaGalacticBackground(AnalyzeMGB):
 
     def _is_Mmin_converged(self, include_pops):
 
-        if include_pops is None:
+        # Need better long-term fix: Lya sources aren't necessarily LW 
+        # sources, if (for example) approx_all_pops = True. 
+        if not self.pf['feedback_LW']:
+            include_pops = None
+        elif include_pops is None:
             include_pops = range(self.solver.Npops)
 
         # Otherwise, grab all the fluxes
-        zarr, Ja, Jlw = self.get_uvb_tot(include_pops=include_pops)
+        zarr, Ja, Jlw = self.get_uvb_tot(include_pops)
         self._zarr = zarr
+        
+        Ja = np.maximum(Ja, 0.)
+        Jlw = np.maximum(Jlw, 0.)
+        
         self._Ja = Ja
         self._Jlw = Jlw
+        
+        if not self.pf['feedback_LW']:
+            return True
         
         # Instance of a population that "feels" the feedback.
         # Need for (1) initial _Mmin_pre value, and (2) setting ceiling
@@ -602,16 +613,28 @@ class MetaGalacticBackground(AnalyzeMGB):
         else:
             self._Mmin_pre = self._Mmin_now.copy()
             
+        if np.any(np.isnan(Jlw)):
+            Jlw[np.argwhere(np.isnan(Jlw))] = 0.0
+                    
         # Function to compute the next Mmin(z) curve
         # Use of Mmin here is for shielding prescription (if used), 
         # but implicitly used since it set Jlw for this iteration.
         f_M = get_Mmin_func(zarr, Jlw / 1e-21, self._Mmin_pre, **self.pf)
 
         # Use this on the next iteration
-        if (self.count > 1) and self.pf['feedback_LW_softening']:
-            _Mmin_next = np.mean([f_M(zarr), self._Mmin_pre], axis=0)
+        Mnext = f_M(zarr)
+        if (self.count > 1) and self.pf['feedback_LW_softening'] is not None:
+            if self.pf['feedback_LW_softening'] == 'sqrt':
+                _Mmin_next = np.sqrt(Mnext * self._Mmin_pre)
+            elif self.pf['feedback_LW_softening'] == 'mean':
+                _Mmin_next = np.mean([Mnext, self._Mmin_pre], axis=0)
+            elif self.pf['feedback_LW_softening'] == 'log10_mean':
+                _Mmin_next = 10**np.mean([np.log10(Mnext), 
+                    np.log10(self._Mmin_pre)], axis=0)
+            else:
+                raise NotImplementedError('help')
         else:
-            _Mmin_next = f_M(zarr)
+            _Mmin_next = Mnext
 
         # Potentially impose ceiling on Mmin
         Tcut = self.pf['feedback_LW_Tcut']
@@ -622,18 +645,18 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         # Final answer.
         Mmin = np.minimum(_Mmin_next, Mmin_ceil)
-                
-        # Set new solution    
+
+        # Set new solution
         self._Mmin_now = Mmin.copy()
         # Save for prosperity
         self._Mmin_bank.append(self._Mmin_now.copy())
         self._Jlw_bank.append(Jlw)
-        
+
         # Compare Mmin of last two iterations.
         # Can't be converged after 1 iteration!
         if self.count == 1:
             return False
-        
+
         if self.count >= self.pf['feedback_LW_maxiter']:
             return True 
         
@@ -662,7 +685,14 @@ class MetaGalacticBackground(AnalyzeMGB):
         else:
             converged = np.allclose(self._Mmin_pre, self._Mmin_now,
                 rtol=rtol, atol=atol)
-
+                
+            perfect = np.all(np.equal(self._Mmin_pre, self._Mmin_now))
+            
+            # Nobody is perfect. Something is weird. Keep on keepin' on.
+            # This is happening at iteration 3 for some reason...
+            if perfect:
+                converged = False    
+                
         return converged
             
     def get_uvb(self, popid):

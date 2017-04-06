@@ -172,7 +172,7 @@ class Hydrogen(object):
         """
         Rate coefficient for spin-exchange via H-H collsions.
         """
-        if type(Tk) in [float, np.float64]:            
+        if type(Tk) in [int, float, np.float64]:            
             return self._kappa(Tk, T_HH, self.kappa_H_pre)
         else:
             tmp = np.zeros_like(Tk)
@@ -184,7 +184,7 @@ class Hydrogen(object):
         """
         Rate coefficient for spin-exchange via H-electron collsions.
         """                            
-        if type(Tk) in [float, np.float64]:
+        if type(Tk) in [int, float, np.float64]:
             return self._kappa(Tk, T_He, self.kappa_e_pre)
         else:
             tmp = np.zeros_like(Tk)

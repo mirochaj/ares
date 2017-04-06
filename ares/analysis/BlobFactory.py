@@ -18,10 +18,10 @@ from inspect import ismethod
 from types import FunctionType
 from scipy.interpolate import RectBivariateSpline, interp1d
 
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
+#try:
+#    import dill as pickle
+#except ImportError:
+import pickle
     
 try:
     from mpi4py import MPI
@@ -30,22 +30,7 @@ try:
 except ImportError:
     rank = 0
     size = 1    
-    
-# Some standard blobs    
-    
-class default_blobs(object):
-    def __init__(self):
-        blobs_1d = ['dTb', 'igm_Ts', 'igm_Tk', 'cgm_h_2', 'igm_h_1', 
-            'igm_k_heat_h_1', 'cgm_k_ion_h_1']
-        blobs_scalar = ['z_B', 'z_C', 'z_D']
-        for key in blobs_1d:    
-            for tp in list('BCD'):
-                blobs_scalar.append('%s_%s' % (key, tp))
-                
-        self.blob_names = [blobs_scalar, blobs_1d]
-        self.blob_ivars = [None, ('z', np.arange(5, 41, 1))]
-    
-    
+        
 def get_k(s):
     m = re.search(r"\[(\d+(\.\d*)?)\]", s)
     return int(m.group(1))
@@ -438,12 +423,14 @@ class BlobFactory(object):
                     else:
                         fname = self.blob_funcs[i][j]
                         
-                        xn = self.blob_ivarn[i] # don't need it actually
+                        # Name of independent variable
+                        xn = self.blob_ivarn[i][0]
                         
                         if type(fname) is str:
                             func = parse_attribute(fname, self)
                         else:
-                            # fname is a slice
+                            # fname is a slice, like ('igm_k_heat', 0)
+                            # to retrieve heating rate from H ionizations
                             _xx = self.history['z'][-1::-1]
                             _yy = self.history[fname[0]][-1::-1,fname[1]]
                                                         
@@ -452,11 +439,18 @@ class BlobFactory(object):
                         if ismethod(func) or isinstance(func, interp1d) or \
                             (type(func) == FunctionType) \
                             or hasattr(func, '__call__'):
-                            blob = np.array(map(func, x))
+                            
+                            try:
+                                func_kw = lambda xx: func(**{xn:xx})
+                                blob = np.array(map(func_kw, x))
+                            except TypeError:
+                                blob = np.array(map(func, x))
+                            
                         else:
                             blob = np.interp(x, func[0], func[1])
                                                                 
                 else:
+                                        
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]
                     tmp_f = parse_attribute(fname, self)
@@ -475,16 +469,23 @@ class BlobFactory(object):
                     xn, yn = self.blob_ivarn[i]
                                                             
                     blob = []
-                    # Need nested loop because supplied function is not 
-                    # guaranteed to be vectorized
+                    # We're assuming that the functions are vectorized.
+                    # Didn't used to, but it speeds things up (a lot).
                     for x in xarr:
                         tmp = []
-                        for y in yarr:
-                            kw = {xn:x, yn:y}  
-                            tmp.append(func(**kw))
-
+                        
+                        kw = {xn:x, yn:yarr}  
+                        result = func(**kw)
+                        
+                        # Happens when we save a blob that isn't actually
+                        # a PQ (i.e., just a constant). Need to kludge so it
+                        # doesn't crash.
+                        if type(result) in [int, float, np.float64]:
+                            result = result * np.ones_like(yarr)
+                        
+                        tmp.extend(result)
                         blob.append(tmp)
-                                                
+                                                                        
                 this_group.append(np.array(blob))
 
             self._blobs.append(np.array(this_group))
@@ -526,7 +527,7 @@ class BlobFactory(object):
                         
         if not found:
             raise KeyError('Blob %s not found.' % name)        
-                
+
         return i, j, self.blob_nd[i], self.blob_dims[i]
     
     def _get_item(self, name):
@@ -575,6 +576,7 @@ class BlobFactory(object):
         
             f = open(fn, 'rb')
                 
+            # Why the while loop? Remember?
             all_data = []
             while True:
                 try:

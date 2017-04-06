@@ -10,7 +10,7 @@ info = \
  'data': 'Table 5', 
 }
 
-redshifts = [10]
+redshifts = [10.]
 wavelength = 1600. # I think?
 
 ULIM = -1e10

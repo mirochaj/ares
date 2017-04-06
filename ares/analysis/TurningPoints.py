@@ -58,19 +58,30 @@ class TurningPoints(object):
         # determine which turning point we've found.
         if negative and concave_up and (max(z) > 60 and 'B' not in self.TPs):
             return 'A'
-        elif negative and concave_down and ('B' not in self.TPs):
+        elif negative and concave_down:
             # If WF coupling happens early enough there will not be a 
             # turning point A or B, and thus we're probably looking at the
             # end of EoR "turning point" if C has already been found.
-            if 'C' in self.TPs:
-                return 'E'
-            else:
+            if 'B' in self.TPs:
+                return 'Bp'
+            elif 'B' not in self.TPs:
                 return 'B'
-        elif negative and concave_up and ('C' not in self.TPs) \
+            elif 'C' in self.TPs:
+                # Preferably this is zero within tolerances?
+                assert dTb < 1e-2
+                return 'E'
+            
+        elif negative and concave_up \
             and (('A' in self.TPs) or (max(z) < 60) or ('B' in self.TPs)):
-            return 'C'
-        elif positive and concave_down and ('D' not in self.TPs):
-            return 'D'
+            if ('C' not in self.TPs):
+                return 'C'
+            else:
+                return 'Cp'
+        elif positive and concave_down:
+            if ('D' not in self.TPs):
+                return 'D'
+            else:
+                return 'Dp'
         else:
             return 'unknown'
         
@@ -164,7 +175,7 @@ class TurningPoints(object):
             for ll in [3, 2]:
                 Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=ll)
                     
-                if TP in ['B', 'D']:
+                if ('B' in TP) or ('D' in TP):
                     dTb_fit = lambda zz: -splev(zz, Bspl_fit1)
                 else:
                     dTb_fit = lambda zz: splev(zz, Bspl_fit1)
@@ -172,7 +183,7 @@ class TurningPoints(object):
                 zTP = float(minimize(dTb_fit, zTP_guess, tol=1e-4).x[0])
                 TTP = float(dTb_fit(zTP))
                 
-                if TP in ['B', 'D']:
+                if ('B' in TP) or ('D' in TP):
                     TTP *= -1.
                     
                 # Contingencies....

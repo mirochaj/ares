@@ -569,7 +569,7 @@ class HaloMassFunction(object):
         masses in self.M.
     
         """
-    
+            
         k = np.argmin(np.abs(z - self.z))
     
         if z not in self.z:

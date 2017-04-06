@@ -423,8 +423,8 @@ class OpticalDepth(object):
         Read optical depth table.
         """
         
-        if (rank == 0) and self.pf['verbose']:
-            print "Loading %s..." % fn
+        #if (rank == 0) and self.pf['verbose']:
+        #    print "Loading %s..." % fn
         
         if type(fn) is dict:
     
@@ -556,8 +556,8 @@ class OpticalDepth(object):
     
         fn, fn_func = self.tau_name()
         
-        if rank == 0 and self.pf['verbose']:
-            print "Looking for optical depth table equivalent to %s..." % fn
+        #if rank == 0 and self.pf['verbose']:
+        #    print "Looking for optical depth table equivalent to %s..." % fn
     
         if prefix is None:
             ares_dir = os.environ.get('ARES')
@@ -577,7 +577,7 @@ class OpticalDepth(object):
         if os.path.exists(guess):
             return guess
     
-        ## Find exactly what table should be
+        # Find exactly what table should be
         zmin, zmax, Nz, lEmin, lEmax, chem, pre, post = self._parse_tab(fn)
     
         ok_matches = []

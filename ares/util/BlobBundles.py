@@ -11,11 +11,12 @@ Description:
 """
 
 import numpy as np
+from ..physics.Constants import nu_0_mhz
 from .ParameterBundles import ParameterBundle
 
 _gs_hist = ['z', 'cgm_h_2', 'igm_h_2', 'igm_Tk', 'Ja', 'Ts', 'dTb']
 _gs_ext = []
-for tp in list('BCD'):
+for tp in ['B', 'C', 'D', 'Bp', 'Cp', 'Dp']:
     for field in _gs_hist:
         _gs_ext.append('%s_%s' % (field, tp))
 
@@ -25,6 +26,7 @@ _gs_ext.append('z_ZC')
 _gs_ext.append('tau_e')
 
 _def_z = ('z', np.arange(5, 51, 0.1))
+_z_from_freq = ('z', nu_0_mhz / np.arange(25., 210, 1.)[-1::-1] - 1.)
 
 _gs_shape_n = ['hwtqm_diff_C', 'hwhm_diff_C', 'hwqm_diff_C', 
     'fwtqm_C', 'fwhm_C', 'fwqm_C']
@@ -66,9 +68,9 @@ for _name in _rc_base:
     for i, spec1 in enumerate(_species):
     
         _save_name = '%s_%s' % (_name, spec1)
-        _gs_rates.append(_save_name)
+        _gs_rates.append(_save_name)        
         _rc_funcs.append((_name,i))
-    
+
         # Don't do secondary ionization terms yet
         #for j, spec2 in enumerate(_species):
             

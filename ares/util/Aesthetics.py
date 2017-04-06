@@ -156,13 +156,23 @@ tp_parameters = {}
 hist_plus_derived = history_elements
 hist_plus_derived.update(derived)
 for key in hist_plus_derived:
-    for tp in ['B', 'C', 'D', 'ZC']:
+    for tp in ['B', 'C', 'D', 'ZC']:        
         if key in ['z', 'nu']:
             tp_parameters['%s_%s' % (key, tp)] = \
                 r'%s_{\mathrm{%s}}$' % (hist_plus_derived[key][0:-1], tp)
         else:
             tp_parameters['%s_%s' % (key, tp)] = \
                 r'%s(\nu_{\mathrm{%s}})$' % (hist_plus_derived[key][0:-1], tp)
+
+for key in hist_plus_derived:
+    for tp in ['B', 'C', 'D']:        
+        if key in ['z', 'nu']:
+            tp_parameters['%s_%sp' % (key, tp)] = \
+                r'%s_{\mathrm{%s}}^{\prime}$' % (hist_plus_derived[key][0:-1], tp)
+        else:
+            tp_parameters['%s_%sp' % (key, tp)] = \
+                r'%s(\nu_{\mathrm{%s}}^{\prime})$' % (hist_plus_derived[key][0:-1], tp)
+
 
 tanh_parameters = \
 {
@@ -201,9 +211,14 @@ lf_parameters = \
 pop_parameters = \
 {
  'pop_Z': r'$Z/Z_{\odot}$',
+ 'pop_sfr': r'$\dot{M}_{\ast}$',
  'pop_lf_beta': r'$\Beta_{\mathrm{UV}}$',
  'pop_fstar': r'$f_{\ast}$',
  'pop_fobsc': r'$f_{\mathrm{obsc}}$',
+ 'pop_acc_frac_stellar': r'$f_{\ast}^{\mathrm{acc}}$',
+ 'pop_acc_frac_metals': r'$f_Z^{\mathrm{acc}}$',
+ 'pop_acc_frac_gas': r'$f_g^{\mathrm{acc}}$',
+ 'pop_metal_retention': r'$f_{\mathrm{ret,Z}}$',
 }
 
 sfe_parameters = \

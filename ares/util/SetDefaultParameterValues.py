@@ -223,12 +223,12 @@ def PhysicsParameters():
     'feedback_LW_fsh': None,
     'feedback_LW_Tcut': 1e4,
     'feedback_LW_mean_err': False,
-    'feedback_LW_maxiter': 50,
+    'feedback_LW_maxiter': 30,
     'feedback_LW_Mmin_uponly': False,
     'feedback_LW_Mmin_smooth': False,
     'feedback_LW_Mmin_rtol': 1e-2,
     'feedback_LW_Mmin_atol': 0.0,
-    'feedback_LW_softening': True,
+    'feedback_LW_softening': 'sqrt',
 
     'feedback_Z': None,
     'feedback_Z_Tcut': 1e4,
@@ -271,6 +271,8 @@ def ParameterizedQuantityParameters():
      "pq_func_par3": None,
      "pq_func_par4": None,
      "pq_func_par5": None,
+     "pq_func_par6": None,
+     "pq_func_par7": None,
      
      "pq_boost": 1.,
      "pq_iboost": 1.,
@@ -339,7 +341,9 @@ def PopulationParameters():
     "pop_sfr_above_threshold": True,
     "pop_sfr_cross_threshold": True,
     "pop_sfr_cross_upto_Tmin": np.inf,
-    
+
+    "pop_feels_feedback": True,
+        
     # Mass accretion rate
     "pop_MAR": 'hmf',
     "pop_MAR_conserve_norm": False,
@@ -420,8 +424,9 @@ def PopulationParameters():
     "pop_fstar_max": 1.0,
     "pop_fstar_negligible": 1e-5, # relative to maximum
     
-    "pop_facc": 0.0,
+    "pop_sfr": None,
     
+    "pop_facc": 0.0,
     "pop_fsmooth": 1.0,
 
     # Next 3: relative to fraction of halo acquiring the material
@@ -449,7 +454,12 @@ def PopulationParameters():
     "pop_Mmin_floor": None,
     "pop_Tmin_ceil": None,
     "pop_Tmin_floor": None,
+    "pop_Tmax_ceil": None,
+    "pop_Tmax_floor": None,
+    "pop_Mmax_ceil": None,
+    "pop_Mmax_floor": None,
     "pop_Mmax": None,
+    "pop_age_limit": None,
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
     

@@ -1163,9 +1163,9 @@ class UniformBackground(object):
                 for ll, redshift in enumerate(z):
                     
                     if redshift < self.pf['final_redshift']:
-                        break    
+                        continue    
                     if redshift < self.pf['kill_redshift']:
-                        break    
+                        continue    
                                             
                     epsilon[ll,in_band] = fix \
                         * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \

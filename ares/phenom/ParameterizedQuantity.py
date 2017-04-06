@@ -53,11 +53,16 @@ class ParameterizedQuantity(object):
         """
         Determine if there are any nested ParameterizedQuantity objects.
         """
-        
+                
         self._sub_pqs = {}
-        for i in range(6):
+        for i in range(8):
             par = 'pq_func_par%i' % i
+            
+            if par not in self.pf:
+                continue
+            
             val = self.pf[par]
+                
             if type(val) != str:
                 continue
                 
@@ -66,7 +71,7 @@ class ParameterizedQuantity(object):
             PQ = ParameterizedQuantity(**pq_pars)
             
             self._sub_pqs[val] = PQ
-
+            
     @property
     def idnum(self):
         if not hasatrr(self, '_idnum'):
@@ -84,50 +89,91 @@ class ParameterizedQuantity(object):
     @property
     def func_var(self):
         return self.pf['pq_func_var']
+    
+    @property
+    def var_ceil(self):
+        if not hasattr(self, '_var_ceil'):
+            if 'pq_var_ceil' in self.pf:
+                self._var_ceil = self.pf['pq_var_ceil']
+            else:
+                self._var_ceil = None
+                
+        return self._var_ceil        
+    
+    @property
+    def var_floor(self):
+        if not hasattr(self, '_var_floor'):
+            if 'pq_var_floor' in self.pf:
+                self._var_floor = self.pf['pq_var_floor']
+            else:
+                self._var_floor = None
+    
+        return self._var_floor  
+    
+    @property
+    def ceil(self):
+        if not hasattr(self, '_ceil'):
+            if 'pq_val_ceil' in self.pf:
+                self._ceil = self.pf['pq_val_ceil']
+            else:
+                self._ceil = None
+    
+        return self._ceil        
+        
+    @property
+    def floor(self):
+        if not hasattr(self, '_floor'):
+            if 'pq_val_floor' in self.pf:
+                self._floor = self.pf['pq_val_floor']
+            else:
+                self._floor = None
+    
+        return self._floor
+    
+    @property
+    def pars_list(self):
+        if not hasattr(self, '_pars_list'):
+            self._pars_list = []
+            for i in range(8):
+                name = 'pq_func_par%i' % i
+                if name in self.pf:
+                    self._pars_list.append(self.pf[name])
+                else:
+                    self._pars_list.append(None)
+        return self._pars_list
 
     def __call__(self, **kwargs):
-        """
-        Compute the star formation efficiency.
-        """
-
-        pars = [self.pf['pq_func_par%i' % i] for i in range(6)]
-
-        return self._call(pars, **kwargs)
+        return self._call(self.pars_list, **kwargs)
 
     def _call(self, pars, **kwargs):
         """
         A higher-level version of __call__ that accepts a few more kwargs.
         """
 
-
         func = self.func
         
         # Determine independent variables
-        var = self.pf['pq_func_var']
+        var = self.func_var
                 
         if var == '1+z':
             x = 1. + kwargs['z']
         else:
             x = kwargs[var]
 
-        if self.pf['pq_var_ceil'] is not None:
-            x = np.minimum(x, self.pf['pq_var_ceil'])
-        if self.pf['pq_var_floor'] is not None:
-            x = np.maximum(x, self.pf['pq_var_floor'])
-        
+        if self.var_ceil is not None:
+            x = np.minimum(x, self.var_ceil)
+        if self.var_floor is not None:
+            x = np.maximum(x, self.var_floor)
+
         logx = np.log10(x)
-        
-        # [optional] Modify parameters as function of redshift
-        #pars1, = pars
-        
+
         # Read-in parameters to more convenient names
         # I don't usually use exec, but when I do, it's to do garbage like this
         for i, par in enumerate(pars):
-            
+
             # It's possible that a parameter will itself be a PQ object.            
             if type(par) == str:
-                _pq_pars = get_pq_pars(par, self.raw_pf)
-                                
+                         
                 # Could call recursively. Implement __getattr__?
                 PQ = self._sub_pqs[par]
                                 
@@ -146,28 +192,28 @@ class ParameterizedQuantity(object):
                 if f in self.deps:
                     val = m * self.deps[f](kwargs[v])
                 elif type(f) is FunctionType:
-                    val = m * f(kwargs[v])    
+                    val = m * f(kwargs[v])
                 else:
                     raise NotImplementedError('help')
                     
-                exec('p%i = val' % i)    
+                exec('p%i = val' % i)
                     
             else:
                 exec('p%i = par' % i)
-            
-        # Actually execute the function                    
+
+        # Actually execute the function
         if func == 'lognormal':
-            f = p0 * np.exp(-(logx - p1)**2 / 2. / p2**2)   
+            f = p0 * np.exp(-(logx - p1)**2 / 2. / p2**2)
         elif func == 'normal':
             f = p0 * np.exp(-(x - p1)**2 / 2. / p2**2)
         elif func == 'pl':
             #print x, kwargs['z'], p0, p1, p2
             f = p0 * (x / p1)**p2
-        # 'quadratic_lo' means higher order terms vanish when x << p0
+        # 'quadratic_lo' means higher order terms vanish when x << p3
         elif func == 'quadratic_lo':
             f = p0 * (1. +  p1 * (x / p3) + p2 * (x / p3)**2)
-        # 'quadratic_hi' means higher order terms vanish when x >> p0
-        elif func == 'quadratic_hi':
+        # 'quadratic_hi' means higher order terms vanish when x >> p3
+        elif func in ['quadratic_hi', 'quad']:
             f = p0 * (1. +  p1 * (p3 / x) + p2 * (p3 / x)**2)
         #elif func == 'cubic_lo':
         #    f = p1 * (1. +  p2 * (x / p0) + p3 * (x / p0)**2)
@@ -180,25 +226,33 @@ class ParameterizedQuantity(object):
         elif func == 'plexp':
             f = p0 * (x / p1)**p2 * np.exp(-(x / p3)**p4)
         elif func == 'dpl':
-            f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3)    
+            f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3)
         elif func == 'dpl_arbnorm':
             normcorr = (((p4 / p1)**-p2 + (p4 / p1)**-p3))
             f = p0 * normcorr / ((x / p1)**-p2 + (x / p1)**-p3)
+        elif func == 'ddpl':
+            f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3) \
+              + 2. * p4 / ((x / p5)**-p6 + (x / p5)**-p7)
+        elif func == 'ddpl_arbnorm':
+            normcorr1 = (((p4 / p1)**-p2 + (p4 / p1)**-p3))
+            normcorr2 = (((p4 / p1)**-p2 + (p4 / p1)**-p3))
+            f1 = p0 * normcorr / ((x / p1)**-p2 + (x / p1)**-p3)
+            f1 = p5 * normcorr / ((x / p1)**-p2 + (x / p1)**-p3)
         elif func == 'plsum2':
             f = p0 * (x / p1)**p2 + p3 * (x / p1)**p4
         elif func == 'tanh_abs':
             f = (p0 - p1) * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1
         elif func == 'tanh_rel':
-            f = p1 * p0 * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1  
+            f = p1 * p0 * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1
         elif func == 'log_tanh_abs':
             f = (p0 - p1) * 0.5 * (np.tanh((p2 - logx) / p3) + 1.) + p1
-        elif func == 'log_tanh_rel':                                        
+        elif func == 'log_tanh_rel':                                       
             f = p1 * p0 * 0.5 * (np.tanh((p2 - logx) / p3) + 1.) + p1
         elif func == 'rstep':
             if type(x) is np.ndarray:
                 lo = x < p2
                 hi = x >= p2
-        
+
                 f = lo * p0 * p1 + hi * p1 
             else:
                 if x < p2:
@@ -206,7 +260,7 @@ class ParameterizedQuantity(object):
                 else:
                     f = p1
         elif func == 'astep':
-            
+
             if type(x) is np.ndarray:
                 lo = x < p2
                 hi = x >= p2
@@ -242,7 +296,7 @@ class ParameterizedQuantity(object):
                 m = (p2 - p0) / (p3 - p1)
 
                 f = lo * p0 + hi * p2 + mi * (p0 + m * (x - p1))
-                            
+
             else:
                 if x <= p1:
                     f = p0
@@ -255,13 +309,13 @@ class ParameterizedQuantity(object):
                 lo = logx <= p1
                 hi = logx >= p3
                 mi = np.logical_and(logx > p1, logx < p3)
-        
+
                 # ramp slope
                 alph = np.log10(p2 / p0) / (p3 - p1)
                 fmid = p0 * (x / 10**p1)**alph
-                
+
                 f = lo * p0 + hi * p2 + mi * fmid
-        
+
             else:
                 if logx <= p2:
                     f = p0
@@ -276,10 +330,10 @@ class ParameterizedQuantity(object):
         else:
             raise NotImplementedError('Don\'t know how to treat %s function!' % func)
 
-        if self.pf['pq_val_ceil'] is not None:
-            f = np.minimum(f, self.pf['pq_val_ceil'])
-        if self.pf['pq_val_floor'] is not None:
-            f = np.maximum(f, self.pf['pq_val_floor'])
+        if self.ceil is not None:
+            f = np.minimum(f, self.ceil)
+        if self.floor is not None:
+            f = np.maximum(f, self.floor)
         
         return f
               

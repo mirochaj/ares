@@ -120,7 +120,7 @@ class loglikelihood(LogLikelihood):
         # Don't save base_kwargs for each proc! Needlessly expensive I/O-wise.
         self.checkpoint(**kwargs)
 
-        pop = GalaxyPopulation(**kw)
+        pop = self.pop = GalaxyPopulation(**kw)
 
         #if self.priors_B.params != []:
         #    lp += self._compute_blob_prior(sim)
@@ -130,7 +130,7 @@ class loglikelihood(LogLikelihood):
             return -np.inf, self.blank_blob
         
         t1 = time.time()
-                
+                        
         # Loop over all data points individually.
         #try:
         phi = np.zeros_like(self.ydata)
@@ -138,57 +138,55 @@ class loglikelihood(LogLikelihood):
             
             if self.mask[i]:
                 continue
-                
+
             xdat = self.xdata[i]
             z = self.redshifts[i]
-                        
+            
             # Generate model LF
             if quantity == 'lf':
                 # Dust correction for observed galaxies
                 AUV = pop.dust.AUV(z, xdat)
         
+                # The input magnitudes are assumed to be *not* yet
+                # corrected for dust, i.e., they are the observed magnitudes.
+                # So, we need to apply a dust correction to those magnitudes
+                # before passing them to the model, which assumes the input
+                # magnitudes of interest are the intrinsic magnitudes.
+
                 # Compare data to model at dust-corrected magnitudes
                 M = xdat - AUV
-                
+                                
                 # Compute LF
                 p = pop.LuminosityFunction(z=z, x=M, mags=True)
             elif quantity == 'smf':
                 M = xdat
-                p = pop.StellarMassFunction(z, M)
+                p = pop.StellarMassFunction(z, M)                
             else:
                 raise ValueError('Unrecognized quantity: %s' % quantity)
-                
+
             phi[i] = p
+                        
         #except:
-        #    return -np.inf, self.blank_blob        
-            
-        t2 = time.time()
-        
-        #print t2 - t1
-        
+        #    return -np.inf, self.blank_blob
+
         #phi = np.ma.array(_phi, mask=self.mask)
-        
-        lnL = 0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)    
-            
+
+        lnL = 0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
+
         # Final posterior calculation
         PofD = lp + self.const_term - lnL
 
         if np.isnan(PofD) or (type(phi) == np.ma.core.MaskedConstant):
             return -np.inf, self.blank_blob
-
-        t3 = time.time()
-            
+ 
         try:
             blobs = pop.blobs
         except:
             blobs = self.blank_blob
-            
-        t4 = time.time()
-        #print t4 - t3
-            
+
         del pop, kw
         gc.collect()
-                
+
         return PofD, blobs
     
 class FitGalaxyPopulation(ModelFit):
@@ -243,25 +241,38 @@ class FitGalaxyPopulation(ModelFit):
         return self._loglikelihood
 
     @property
+    def redshift_bounds(self):
+        if not hasattr(self, '_redshift_bounds'):
+            raise ValueError('Set by hand or include in litdata.')
+
+        return self._redshift_bounds
+        
+    @redshift_bounds.setter
+    def redshift_bounds(self, value):
+        assert len(value) == 2
+        
+        self._redshift_bounds = tuple(value)
+
+    @property
     def redshifts(self):
         if not hasattr(self, '_redshifts'):
             raise ValueError('Set by hand or include in litdata.')
 
         return self._redshifts
 
-    @redshifts.setter
-    def redshifts(self, value):
-        # This can be used to override the redshifts in the dataset and only
-        # use some subset of them
-
-        # Need to be ready for 'lf' or 'smf' designation.
-        if len(self.include) > 1:
-            assert type(value) is dict
-
-        if type(value) in [int, float]:
-            value = [value]
-            
-        self._redshifts = value
+    #@redshifts.setter
+    #def redshifts(self, value):
+    #    # This can be used to override the redshifts in the dataset and only
+    #    # use some subset of them
+    #
+    #    # Need to be ready for 'lf' or 'smf' designation.
+    #    if len(self.include) > 1:
+    #        assert type(value) is dict
+    #
+    #    if type(value) in [int, float]:
+    #        value = [value]
+    #        
+    #    self._redshifts = value
 
     @property
     def data(self):
@@ -290,10 +301,10 @@ class FitGalaxyPopulation(ModelFit):
             self._data = {quantity:[] for quantity in self.include}
             self._units = {quantity:[] for quantity in self.include}
 
-            z_by_hand = True
-            if not hasattr(self, '_redshifts'):
-                z_by_hand = False
-                self._redshifts = {quantity:[] for quantity in self.include}
+            z_by_range = hasattr(self, '_redshift_bounds')
+            z_by_hand = hasattr(self, '_redshifts')
+
+            self._redshifts = {quantity:[] for quantity in self.include}
 
             for src in value:
                 litdata = read_lit(src)
@@ -301,18 +312,41 @@ class FitGalaxyPopulation(ModelFit):
                 for quantity in self.include:
                     if quantity not in litdata.data.keys():
                         continue
-
+                        
+                    # Short hand
                     data = litdata.data[quantity]
+                    redshifts = litdata.redshifts
+                    
+                    # This is always just a number or str, i.e.,
+                    # no need to breakdown by redshift so just do it now
                     self._units[quantity].append(litdata.units[quantity])
                     
-                    if z_by_hand:
-                        for z in self._redshifts[quantity]:
-                            if z not in litdata.redshifts:
-                                continue
-                            self._data[quantity].append({z:data[z]})
+                    # Now, be careful about what redshifts to include.
+                    if not (z_by_range or z_by_hand):
+                        srcdata = data
+                        srczarr = redshifts
                     else:
-                        self._data[quantity].append(data)
-                        self._redshifts[quantity].append(litdata.redshifts)
+                        srczarr = []
+                        srcdata = {}   
+                        for z in redshifts:
+                            
+                            if z_by_range:
+                                zb = self.redshift_bounds
+                                if (zb[0] <= z <= zb[1]):
+                                    srczarr.append(z)
+                                    srcdata[z] = data[z]
+                                    continue
+                            
+                            # z by hand from here down.
+                            if z not in self._redshifts:
+                                continue
+                                
+                            srczarr.append(z)
+                            srcdata[z] = data[z]   
+                                                    
+                    self._data[quantity].append(srcdata)
+                    self._redshifts[quantity].append(srczarr)
+                            
 
         else:
             raise NotImplemented('help!')
@@ -344,18 +378,23 @@ class FitGalaxyPopulation(ModelFit):
                         # These could still be in log10 units
                         phi = self.data[quantity][i][redshift]['phi']
                         err = self.data[quantity][i][redshift]['err']
-                        
+
                         if hasattr(M, 'mask'):
                             self._mask.extend(M.mask)
+                            self._xdata_flat.extend(M.data)
                         else:
                             self._mask.extend(np.zeros_like(M))
-                            
-                        self._xdata_flat.extend(M)
+                            self._xdata_flat.extend(M)                        
                         
                         if self.units[quantity][i] == 'log10':
-                            self._ydata_flat.extend(10**phi)
+                            _phi = 10**phi
                         else:    
-                            self._ydata_flat.extend(phi)
+                            _phi = phi
+                            
+                        if hasattr(M, 'mask'):
+                            self._ydata_flat.extend(_phi.data)
+                        else:
+                            self._ydata_flat.extend(_phi)
                 
                         # Cludge for asymmetric errors
                         for k, _err in enumerate(err):
@@ -375,6 +414,7 @@ class FitGalaxyPopulation(ModelFit):
                         self._redshifts_flat.extend(zlist)
                         self._metadata_flat.extend([quantity] * len(M))
                 
+            self._mask = np.array(self._mask)
             self._xdata_flat = np.ma.array(self._xdata_flat, mask=self._mask)
             self._ydata_flat = np.ma.array(self._ydata_flat, mask=self._mask)
             self._error_flat = np.ma.array(self._error_flat, mask=self._mask)

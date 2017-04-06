@@ -73,10 +73,13 @@ class GalaxyPopulation(object):
         
         data = {}
         
-        if sources in groups[quantity]:
-            srcs = groups[quantity][sources]
-        elif type(sources) is str:
-            srcs = [sources]
+        if type(sources) is str:
+            if sources in groups[quantity]:
+                srcs = groups[quantity][sources]
+            else:
+                srcs = [sources]
+        else:
+            srcs = sources
                 
         for source in srcs:
             src = read_lit(source)
@@ -210,11 +213,14 @@ class GalaxyPopulation(object):
             
         data = self.compile_data(z, sources, round_z=round_z, quantity=quantity)
         
-        if sources in groups[quantity]:
-            srcs = groups[quantity][sources]
-        elif type(sources) is str:
-            srcs = [sources]
-            
+        if type(sources) is str:
+            if sources in groups[quantity]:
+                srcs = groups[quantity][sources]
+            else:
+                srcs = [sources]
+        else:
+            srcs = sources
+        
         for source in srcs:
             if source not in data:
                 continue
@@ -255,18 +261,18 @@ class GalaxyPopulation(object):
         if quantity in ['lf', 'smf']:
             ax.set_yscale('log', nonposy='clip')
 
-        if quantity == 'lf':
+        if quantity == 'lf' and (not gotax):
             ax.set_xlim(-26.5, -10)
             ax.set_xticks(np.arange(-26, -10, 1), minor=True)
             ax.set_xlabel(r'$M_{\mathrm{UV}}$')    
             ax.set_ylabel(r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        elif quantity == 'smf':
+        elif quantity == 'smf' and (not gotax):
             ax.set_xscale('log')
             ax.set_xlim(1e7, 1e13)
             ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')    
             ax.set_ylabel(r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$')
-        elif quantity == 'mzr':
-            ax.set_xlabel(r'$\dot{M}_{\ast} / M_{\odot}$')
+        elif quantity == 'mzr' and (not gotax):
+            ax.set_xlabel(r'$M_{\ast} / M_{\odot}$')
             ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
             ax.set_xlim(1e8, 1e12)
             ax.set_ylim(7, 9.5)
@@ -281,8 +287,23 @@ class GalaxyPopulation(object):
         """
         
         handles, labels = [], []
-        for ax in mp.grid:
-            h, l = ax.get_legend_handles_labels()
+        
+        if isinstance(mp, MultiPanel):
+            for ax in mp.grid:
+                h, l = ax.get_legend_handles_labels()
+                
+                for i, lab in enumerate(l):
+                    if lab in labels:
+                        continue
+                    
+                    handles.append(h[i])
+                    labels.append(l[i])
+                    
+            mp.fig.legend(handles, labels, loc='upper center', 
+                bbox_to_anchor=(0.5, 0.97), **kwargs)        
+                
+        else:
+            h, l = mp.get_legend_handles_labels()
             
             for i, lab in enumerate(l):
                 if lab in labels:
@@ -290,14 +311,14 @@ class GalaxyPopulation(object):
                 
                 handles.append(h[i])
                 labels.append(l[i])
-                
-        mp.fig.legend(handles, labels, loc='upper center', 
-            bbox_to_anchor=(0.5, 0.97), **kwargs)
-                  
+            
+            mp.legend(handles, labels, loc='upper center', 
+                bbox_to_anchor=(0.5, 0.97), **kwargs)            
+
         return mp
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
-        panel_size=(0.75,0.75), fig=1, xmax=-15, ymax=10, legends=None, AUV=None,
+        panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
         quantity='lf', annotate_z='left'):
         """
         Plot the luminosity function at a bunch of different redshifts.

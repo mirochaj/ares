@@ -42,7 +42,7 @@ def GalaxyPopulation(**kwargs):
         assert Npq == 0
         model = 'rates'
     elif Npq == 0:
-        model = 'fcoll'
+        model = kwargs['pop_sfr_model']
     elif (Npq == 1) and pqs[0] == 'pop_sfrd':
         model = 'sfrd-func'
     else:
@@ -51,7 +51,7 @@ def GalaxyPopulation(**kwargs):
         else:   
             model = 'sfe-func'
     
-    if model in ['sfe-func']:
+    if model in ['sfe-func', 'sfr-func']:
         return GalaxyCohort(**kwargs)
     elif model in ['fcoll', 'sfrd-func']:
         return GalaxyAggregate(**kwargs)

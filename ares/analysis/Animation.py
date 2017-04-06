@@ -26,12 +26,11 @@ try:
 except ImportError:
     rank = 0
     size = 1
-    
-                    
+
 class Animation(object):
     def __init__(self, prefix=None):
         self._prefix = prefix
-        
+
     @property
     def model_set(self):
         if not hasattr(self, '_model_set'):
@@ -41,9 +40,9 @@ class Animation(object):
                 self._model_set = ModelSet(self._prefix)
             elif type(self._prefix) in [list, tuple]:
                 raise NotImplementedError('help!')
-            
+
         return self._model_set
-        
+
     def _limits_w_padding(self, limits, take_log=False, un_log=False, 
         padding=0.1):
         mi, ma = limits

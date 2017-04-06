@@ -17,8 +17,8 @@ import numpy as np
 from types import FunctionType
 from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
-from ..util import ParameterFile, ProgressBar
 from ..physics.Constants import nu_0_mhz, E_LyA
+from ..util import ParameterFile, ProgressBar, get_hg_rev
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 
 defaults = \
@@ -44,6 +44,9 @@ class Global21cm(AnalyzeGlobal21cm):
             may be used.
             
         """
+        
+        self.is_complete = False
+        
         # See if this is a tanh model calculation
         is_phenom = self.is_phenom = self._check_if_phenom(**kwargs)
 
@@ -54,18 +57,9 @@ class Global21cm(AnalyzeGlobal21cm):
         self.kwargs = kwargs
         
         # Print info to screen
-        if self.pf['verbose'] and self.count == 0:
+        if self.pf['verbose']:
             print_sim(self)
         
-        if not hasattr(self, '_suite'):
-            self._suite = []
-            
-    @property 
-    def count(self):
-        if not hasattr(self, '_count'):
-            self._count = 0
-        return self._count
-            
     @property 
     def timer(self):
         if not hasattr(self, '_timer'):
@@ -203,10 +197,6 @@ class Global21cm(AnalyzeGlobal21cm):
             self.history = model(z, **self.pf)
 
         return True
-        
-    @property
-    def include_feedback(self):
-        return self.pf['feedback_LW_Mmin'] is not None
 
     def run(self):
         """
@@ -221,6 +211,9 @@ class Global21cm(AnalyzeGlobal21cm):
         # If this was a tanh model or some such thing, we're already done.
         if self.is_phenom:
             return
+        if self.is_complete:
+            print "Already ran simulation!"
+            return    
 
         # Need to generate radiation backgrounds first.
         self.medium.field.run()
@@ -240,7 +233,7 @@ class Global21cm(AnalyzeGlobal21cm):
             self.all_RC_igm, self.all_RC_cgm = \
             self.medium.all_t, self.medium.all_z, self.medium.all_data_igm, \
             self.medium.all_data_cgm, self.medium.all_RCs_igm, self.medium.all_RCs_cgm
-        
+
         # Add zeros for Ja
         for element in self.all_data_igm:
             element['Ja'] = 0.0
@@ -248,15 +241,15 @@ class Global21cm(AnalyzeGlobal21cm):
 
         # List for extrema-finding
         self.all_dTb = self._init_dTb()
-                                                
-        for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():
-                        
+
+        for t, z, data_igm, data_cgm, rc_igm, rc_cgm in self.step():            
+
             # Occasionally the progress bar breaks if we're not careful
             if z < self.pf['final_redshift']:
                 break
             if z < self.pf['kill_redshift']:
                 break    
-            
+
             # Delaying the initialization prevents progressbar from being
             # interrupted by, e.g., PrintInfo calls
             if not pb.has_pb:
@@ -308,6 +301,8 @@ class Global21cm(AnalyzeGlobal21cm):
         t2 = time.time()        
                 
         self.timer = t2 - t1
+        
+        self.is_complete = True
 
     def step(self):
         """
@@ -324,7 +319,7 @@ class Global21cm(AnalyzeGlobal21cm):
         tracked.
 
         """
-                        
+                                
         for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
 
             Ja = np.atleast_1d(self._f_Ja(z))
@@ -376,20 +371,10 @@ class Global21cm(AnalyzeGlobal21cm):
             else: 
                 raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
     
-        # I/O more complicated in this case.
-        if (self._suite != []) and suffix != 'pkl':
-            raise NotImplemented('help!')
-    
-        if suffix == 'pkl':
-            if self._suite:
-                f = open(fn, 'wb')
-                for hist in self._suite:
-                    pickle.dump(hist, f)
-                f.close()
-            else:          
-                f = open(fn, 'wb')
-                pickle.dump(self.history._data, f)
-                f.close()
+        if suffix == 'pkl':         
+            f = open(fn, 'wb')
+            pickle.dump(self.history._data, f)
+            f.close()
                 
             try:
                 f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
@@ -458,6 +443,9 @@ class Global21cm(AnalyzeGlobal21cm):
             #    if key in self.carryover_kwargs():
             #        continue
             #    pf[key] = self.pf[key]
+            
+            if 'revision' not in self.pf:
+                self.pf['revision'] = get_hg_rev()
             
             # Save parameter file
             f = open('%s.parameters.pkl' % prefix, 'wb')

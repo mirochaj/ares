@@ -73,6 +73,12 @@ class Population(object):
                 raise ValueError("Populations should only affect one zone!")
                 
         return self._zone    
+        
+    @property
+    def feels_feedback(self):
+        if not hasattr(self, '_feels_feedback'):
+            self._feels_feedback = self.pf['pop_feels_feedback'] 
+        return self._feels_feedback
             
     @property
     def affects_cgm(self):

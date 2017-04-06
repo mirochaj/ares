@@ -131,7 +131,7 @@ class loglikelihood(LogLikelihood):
             assert len(yarr) == len(self.ydata)
                     
         else:
-            yarr = np.interp(self.xdata, sim.data['nu'],            
+            yarr = np.interp(self.xdata, sim.history['nu'],            
                 sim.history['igm_dTb'])                             
                 
         if np.any(np.isnan(yarr)):
@@ -238,8 +238,8 @@ class FitGlobal21cm(ModelFit):
             
             self.xdata = self.frequencies
             if hasattr(self, 'sim'):
-                nu = self.sim.data['nu']
-                dTb = self.sim.data['igm_dTb']
+                nu = self.sim.history['nu']
+                dTb = self.sim.history['dTb']
                 self.ydata = np.interp(self.xdata, nu, dTb).copy() \
                     + self.noise
 

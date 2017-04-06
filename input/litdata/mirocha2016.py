@@ -1,5 +1,5 @@
 """
-Mirocha, Sun, and Furlanetto (2016), in prep.
+Mirocha, Furlanetto, and Sun (2017).
 
 Parameters defining the fiducial model (see Table 1).
 """
@@ -109,27 +109,29 @@ _flex = \
 {
  'pq_func{0}[0]': 'dpl_arbnorm',
  'pq_func_var{0}[0]': 'Mh',
- 
+
+ 'pq_val_ceil{0}[0]': 1.0,
+
  # Standard dpl model at 10^8 Msun
  'pq_func_par0{0}[0]': 'pq[1]',
  'pq_func_par1{0}[0]': 'pq[2]',
  'pq_func_par2{0}[0]': 0.49,
  'pq_func_par3{0}[0]': -0.61,
  'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
- 
+
  # Evolving part
  'pq_func{0}[1]': 'pl',
  'pq_func_var{0}[1]': '1+z',
  'pq_func_par0{0}[1]': 0.00205,
  'pq_func_par1{0}[1]': 7.,
  'pq_func_par2{0}[1]': 0.,   # power-law index!
- 
+
  'pq_func{0}[2]': 'pl',
  'pq_func_var{0}[2]': '1+z',
  'pq_func_par0{0}[2]': 2.8e11,
  'pq_func_par1{0}[2]': 7.,
  'pq_func_par2{0}[2]': 0.,   # power-law index!
-  
+
 }
 
 dpl_flex = dpl.copy()
@@ -139,27 +141,29 @@ _flex2 = \
 {
  'pq_func{0}[0]': 'dpl_arbnorm',
  'pq_func_var{0}[0]': 'Mh',
- 
+
+ 'pq_val_ceil{0}[0]': 1.0,
+
  # Standard dpl model at 10^8 Msun
  'pq_func_par0{0}[0]': 'pq[1]',
  'pq_func_par1{0}[0]': 'pq[2]',
  'pq_func_par2{0}[0]': 'pq[3]',
  'pq_func_par3{0}[0]': 'pq[4]',
  'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
- 
+
  # Evolving part
  'pq_func{0}[1]': 'pl',
  'pq_func_var{0}[1]': '1+z',
  'pq_func_par0{0}[1]': 0.00205,
  'pq_func_par1{0}[1]': 7.,
  'pq_func_par2{0}[1]': 0.,   # power-law index!
- 
+
  'pq_func{0}[2]': 'pl',
  'pq_func_var{0}[2]': '1+z',
  'pq_func_par0{0}[2]': 2.8e11,
  'pq_func_par1{0}[2]': 7.,
  'pq_func_par2{0}[2]': 0.,   # power-law index!
- 
+
  'pq_func{0}[3]': 'pl',
  'pq_func_var{0}[3]': '1+z',
  'pq_func_par0{0}[3]': 0.49,
@@ -172,9 +176,21 @@ _flex2 = \
  'pq_func_par1{0}[4]': 7.,
  'pq_func_par2{0}[4]': 0.,   # power-law index!
  
- 
 }
 
 dpl_evol = dpl.copy()
 dpl_evol.update(_flex2)
+
+dpl_pl = dpl_evol
+
+dpl_quad = dpl.copy()
+for j, i in enumerate(range(1, 5)):
+    dpl_quad['pq_func_par%i{0}[0]' % j] = 'pq[%i]' % i
+    dpl_quad['pq_func{0}[%i]' % i] = 'quad'
+    dpl_quad['pq_func_var{0}[%i]' % i] = '1+z'
+    dpl_quad['pq_func_par0{0}[%i]' % i] = dpl['pq_func_par%i{0}[0]' % j]
+    dpl_quad['pq_func_par1{0}[%i]' % i] = 0.
+    dpl_quad['pq_func_par2{0}[%i]' % i] = 0.
+    dpl_quad['pq_func_par3{0}[%i]' % i] = 4. # Normalize to z=3
+
 
