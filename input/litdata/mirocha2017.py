@@ -143,16 +143,15 @@ csfd['pop_age_limit{2}'] = 1e8
 csfd['pop_Tmin{0}'] = None
 csfd['pop_Mmin{0}'] = 'link:Mmax:2'
 csfd['pop_Tmax_ceil{2}'] = 1e4
+csfd['pop_sfr_cross_threshold{2}'] = False
 
 vsfd = csfd.copy()
 vsfd['pop_age_limit{2}'] = 'pq[2]'
 vsfd['pq_func{2}[2]'] = 'pl'
 vsfd['pq_func_var{2}[2]'] = 'Mh'
-vsfd['pq_func_par0{2}[2]'] = 2e8
-vsfd['pq_func_par1{2}[2]'] = 1e8
-vsfd['pq_func_par2{2}[2]'] = -0.5
-
-
+vsfd['pq_func_par0{2}[2]'] = 0.5e8
+vsfd['pq_func_par1{2}[2]'] = 1e7
+vsfd['pq_func_par2{2}[2]'] = 0.5
 
 csfr_blobs = \
 {

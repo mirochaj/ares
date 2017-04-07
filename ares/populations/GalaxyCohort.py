@@ -1012,6 +1012,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._Mmax
     
     @property
+    def _tab_logMmin(self):
+        if not hasattr(self, '_tab_logMmin_'):
+            self._tab_logMmin_ = np.log(self._tab_Mmin)
+        return self._tab_logMmin_
+        
+    @property
+    def _tab_logMmax(self):
+        if not hasattr(self, '_tab_logMmax_'):
+            self._tab_logMmax_ = np.log(self._tab_Mmax)
+        return self._tab_logMmax_    
+    
+    @property
     def _tab_Mmin(self):
         if not hasattr(self, '_tab_Mmin_'):
             # First, compute threshold mass vs. redshift
@@ -1123,6 +1135,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         SFR as a function of redshift and halo mass.
 
             ..note:: Units are Msun/yr.
+            
+        This does NOT set the SFR to zero in halos with M < Mmin or M > Mmax!    
 
         """
         if not hasattr(self, '_tab_sfr_'):            
@@ -1148,11 +1162,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                             * self._tab_MAR[i] * self._tab_fstar[i]
 
                     # zero-out star-formation in halos below our threshold
-                    ok = self.halos.M >= self._tab_Mmin[i]
-                    self._tab_sfr_[i] *= ok
-                    # zero-out star-formation in halos above our threshold
-                    ok = self.halos.M <= self._tab_Mmax[i]
-                    self._tab_sfr_[i] *= ok
+                    #ok = self.halos.M >= self._tab_Mmin[i]
+                    #self._tab_sfr_[i] *= ok
+                    ## zero-out star-formation in halos above our threshold
+                    #ok = self.halos.M <= self._tab_Mmax[i]
+                    #self._tab_sfr_[i] *= ok
 
         return self._tab_sfr_
 
@@ -1175,8 +1189,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_sfrd_total_'):
             self._tab_sfrd_total_ = np.zeros(self.halos.Nz)
 
-            min_gt_max = self._tab_Mmin >= self._tab_Mmax
-
             for i, z in enumerate(self.halos.z):
 
                 if not self.pf['pop_sfr_above_threshold']:
@@ -1185,17 +1197,51 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if z > self.zform:
                     continue
 
-                if min_gt_max[i]:
-                    continue
-
                 integrand = self._tab_sfr[i] * self.halos.dndlnm[i] \
                     * self.focc(z=z, Mh=self.halos.M)
 
-                tot = np.trapz(integrand, x=self.halos.lnM)
-                cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
+                # Mmin and Mmax will never be exactly on Mh grid points 
+                # so we interpolate to more precisely determine SFRD.    
 
-                self._tab_sfrd_total_[i] = tot - \
-                    np.interp(np.log(self._tab_Mmin[i]), self.halos.lnM, cumtot)
+                c1 = self.halos.M >= self._tab_Mmin[i]
+                c2 = self.halos.M <= self._tab_Mmax[i]
+                ok = np.logical_and(c1, c2)
+                
+                if ok.sum() == 0:
+                    self._tab_sfrd_total_[i] = 0
+                    continue
+
+                if ok.sum() == 1:
+                    iok = [np.argwhere(ok).squeeze()]
+                else:
+                    iok = np.argwhere(ok).squeeze()
+                                                                
+                Mlo1 = min(iok)
+                Mhi1 = max(iok)
+                Mlo2 = Mlo1 - 1
+                Mhi2 = Mhi1 + 1
+                
+                if ok.sum() == 1:
+                    b = self.halos.lnM[Mlo1+1] - self.halos.lnM[Mlo1]
+                    h = abs(integrand[Mlo1+1] - integrand[Mlo1])
+                    tot = 0.5 * b * h
+                else:
+                    # This is essentially an integral from Mlo1 to Mhi1
+                    tot = np.trapz(integrand[ok], x=self.halos.lnM[ok])
+                                
+                integ_lo = np.trapz(integrand[Mlo2:Mhi1+1], x=self.halos.lnM[Mlo2:Mhi1+1])
+                                
+                # Interpolating over lower integral bound
+                sfrd_lo = np.interp(self._tab_logMmin[i], 
+                    [self.halos.lnM[Mlo2], self.halos.lnM[Mlo1]], [integ_lo, tot]) - tot
+                                                
+                if Mhi2 >= self.halos.Nz:    
+                    sfrd_hi = 0.0
+                else:
+                    integ_hi = np.trapz(integrand[Mlo1:Mhi2+1], x=self.halos.lnM[Mlo1:Mhi2+1])    
+                    sfrd_hi = np.interp(self._tab_logMmax[i], 
+                        [self.halos.lnM[Mhi1], self.halos.lnM[Mhi2]], [tot, integ_hi]) - tot
+                self._tab_sfrd_total_[i] = tot + sfrd_lo + sfrd_hi
 
             self._tab_sfrd_total_ *= g_per_msun / s_per_yr / cm_per_mpc**3
 

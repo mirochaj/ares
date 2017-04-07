@@ -220,7 +220,7 @@ class ParameterizedQuantity(object):
         #elif func == 'cubic_hi':
         #    f = p1 * (1. +  p2 * (p0 / x) + p3 * (p0 / x)**2)
         elif func == 'exp':
-            f = p0 * np.exp(-(x / p1)**p2)
+            f = p0 * np.exp((x / p1)**p2)
         elif func == 'exp_flip':
             f = 1. - p0 * np.exp(-(x / p1)**p2)
         elif func == 'plexp':

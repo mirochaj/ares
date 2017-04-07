@@ -721,7 +721,7 @@ class ModelFit(BlobFactory):
 
             # These suffixes are always the same
             for suffix in ['logL', 'chain', 'facc', 'pinfo', 'rinfo', 
-                'binfo', 'setup', 'prior_set', 'load']:
+                'binfo', 'setup', 'prior_set', 'load', 'fail', 'timeout']:
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
                 os.system('rm -f %s.*.%s.pkl' % (self.prefix, suffix))
             
