@@ -94,6 +94,7 @@ common = \
  'xi_LW': r'$\xi_{\mathrm{LW}}$',
  'xi_UV': r'$\xi_{\mathrm{ion}}$',
  'sfrd': r'$\dot{\rho}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ 'nh': r'$n_h \ [\mathrm{cMpc}^{-3}]$',
  'extinction_redshift': r'$z_{\mathrm{ext}}$',
  
  'source_logN': r'$\log_{10} N_{\mathrm{H}}$',

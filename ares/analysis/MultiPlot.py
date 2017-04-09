@@ -129,8 +129,8 @@ class MultiPanel(object):
 
         self.diagonal = diagonal
         self.keep_diagonal = keep_diagonal
-        self.share_x = self.padding[1] == 0
-        self.share_y = self.padding[0] == 0        
+        self.share_x = self.padding[1] <= 0.05
+        self.share_y = self.padding[0] <= 0.05        
         self.share_all = self.share_x and self.share_y
 
         self.dx = shift_x
@@ -450,9 +450,9 @@ class MultiPanel(object):
                 continue
 
             self.grid[i].set_ylim(row_tmp)
-    
-        pl.draw()         
-    
+
+        pl.draw()
+
     def fix_axes_ticks(self, axis='x', style=None, dtype=float, N=None, 
         rotate_x=False, rotate_y=False):
         """

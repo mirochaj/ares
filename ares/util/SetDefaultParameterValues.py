@@ -229,6 +229,9 @@ def PhysicsParameters():
     'feedback_LW_Mmin_rtol': 1e-2,
     'feedback_LW_Mmin_atol': 0.0,
     'feedback_LW_softening': 'sqrt',
+    
+    'feedback_streaming': False,
+    'feedback_vel_at_rec': 30.,
 
     'feedback_Z': None,
     'feedback_Z_Tcut': 1e4,

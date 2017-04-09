@@ -17,6 +17,7 @@ from . import Cosmology
 from types import FunctionType
 from ..util import ParameterFile
 from scipy.misc import derivative
+from scipy.optimize import fsolve
 from ..util.Misc import get_hg_rev
 from ..util.Warnings import no_hmf
 from scipy.integrate import cumtrapz
@@ -133,7 +134,7 @@ class HaloMassFunction(object):
             if self.pf['pop_Tmin'] is not None and self.pf['pop_Mmin'] is None:
                 assert self.pf['pop_Tmax'] > self.pf['pop_Tmin'], \
                     "Tmax must exceed Tmin!"
-        
+                
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load'] and (self.fn is None):
             prefix = self.table_prefix(True)
@@ -228,7 +229,7 @@ class HaloMassFunction(object):
             
     def load_table(self):
         """ Load table from HDF5 or binary. """
-        
+                            
         if re.search('.hdf5', self.fn) or re.search('.h5', self.fn):
             f = h5py.File(self.fn, 'r')
             self.z = f['z'].value
@@ -662,6 +663,39 @@ class HaloMassFunction(object):
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
             * ((1. + z) / 10.)**-1.
               
+    def MassFromVc(self, Vc, z):
+        cterm = (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
+            / self.cosm.OmegaMatter(z) / 18. / np.pi**2)
+        return (1e8 / self.cosm.h70) \
+            *  (Vc / 23.4)**3 / cterm**0.5 / ((1. + z) / 10)**1.5
+            
+    def _tegmark(self, z):
+        fH2s = lambda T: 3.5e-4 * (T / 1e3)**1.52
+        fH2c = lambda T: 1.6e-4 * ((1. + z) / 20.)**-1.5 \
+            * (1. + (10. * (T / 1e3)**3.5) / (60. + (T / 1e3)**4))**-1. \
+            * np.exp(512. / T)
+    
+        to_min = lambda T: abs(fH2s(T) - fH2c(T)) 
+        Tcrit = fsolve(to_min, 2e3)[0]
+    
+        M = self.VirialMass(Tcrit, z)
+    
+        return M
+    
+    def Mmin_floor(self, zarr):
+        if self.pf['feedback_streaming']:
+            vbc = self.pf['feedback_vel_at_rec'] * (1. + zarr) / 1100.
+            # Anastasia's "optimal fit"
+            Vcool = np.sqrt(3.714**2 + (4.015 * vbc)**2)
+            Mmin_vbc = self.MassFromVc(Vcool, zarr)
+        else:
+            Mmin_vbc = np.zeros_like(zarr)
+        
+        Mmin_H2 = np.array(map(self._tegmark, zarr))
+                
+        #return np.maximum(Mmin_vbc, Mmin_H2)      
+        return Mmin_vbc + Mmin_H2
+      
     def table_prefix(self, with_size=False):
         """
         What should we name this table?
