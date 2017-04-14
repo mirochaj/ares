@@ -101,14 +101,13 @@ _csff_specific = \
  'pop_sfr{2}': 'pq[2]',
  'pq_func{2}[2]': 'pl',
  'pq_func_var{2}[2]': 'Mh',
- 'pq_func_par0{2}[2]': 1e-6,
- 'pq_func_par1{2}[2]': 1e8,
+ 'pq_func_par0{2}[2]': 1e-4,
+ 'pq_func_par1{2}[2]': 1e6,
  'pq_func_par2{2}[2]': 1.,
 }
 
 csff = csfr.copy()
 csff.update(_csff_specific)
-
 
 """
 Third model: extrapolated SFE in minihalos (i.e., same SFE as atomic halos).
