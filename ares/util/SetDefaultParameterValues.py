@@ -467,6 +467,7 @@ def PopulationParameters():
     "pop_time_limit": None,
     "pop_mass_limit": None,
     "pop_bind_limit": None,
+    "pop_temp_limit": None,
     
     "pop_min_epoch": 10.,
     
