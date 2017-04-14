@@ -73,6 +73,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                                         
         # Indicates that this attribute is being accessed from within a 
         # property. Don't want to override that behavior!
+        # This is in general pretty dangerous but I don't have any better
+        # ideas right now. It makes debugging hard but it's SO convenient...
         if (name[0] == '_'):
             raise AttributeError('Couldn\'t find attribute: %s' % name)
                     
@@ -1127,7 +1129,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     dt = None
                 else:
                     dt = dm = None
-
+                    
                 M0x = self.pf['pop_initial_Mh']
                 if (M0x == 0) or (M0x == 1):
                     zform, zfin, Mfin, raw = self.MassAfter(dt=dt, dm=dm)
@@ -1135,28 +1137,27 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         zform, raw, sort_by='form')
                 else:
                     zform, zfin, Mfin, raw = self.MassAfter(dt=dt, dm=dm,
-                        M0=M0x*self._tab_Mmin)
+                        M0=M0x)
                     new_data = self._sort_sam(self.pf['initial_redshift'], 
                         zform, raw, sort_by='form') 
-                            
+                                                        
                 # This is the redshift at which the first star-forming halo,
                 # formed at (zi, M0), transitions to PopII.
                 zmax = max(zfin)
-                        
+                
                 # This is the mass trajectory of a halo that forms at
-                # initial_redshift. 
-                # Should we include halos well above Mmin?
+                # initial_redshift with initial mass pop_initial_Mh 
+                # (in units of Mmin, defaults to 1).
                 Moft_zi = lambda z: np.interp(z, zform, new_data['Mh'])
-
-                # For each redshift, determine Mmax based on potentially
-                # a few criteria.
+                
+                # For each redshift, determine Mmax based on several factors.
                 Mmax = np.zeros_like(self.halos.z)
                 for i, z in enumerate(self.halos.z):
                     
                     # If we've specified a maximum initial mass halo, and
                     # we're at a redshift before that halo hits its limit.
                     # Or, we're using a time-limited model.
-                    if ((M0x > 0) and (z > zmax)) or (t_limit is not None):
+                    if ((M0x > 0) and (z > zmax)):
                         Mmax[i] = Moft_zi(z)
                     elif M0x > 0:
                         Mmax[i] = np.interp(z, zfin, Mfin)
@@ -1948,7 +1949,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._scaling_relations
 
-    def MassAfter(self, dt=None, dm=None, M0=None):
+    def MassAfter(self, dt=None, dm=None, M0=0):
         """
         Compute the final mass of a halos that begin at Mmin and grow for dt.
 
@@ -1962,7 +1963,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Array of formation redshifts, final redshifts, and final masses.
 
         """
-        
+
         #if type(dt) in [int, float]:
         #    dt = lambda **kwargs: dt
 
@@ -1972,15 +1973,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # At this moment, all data is in order of ascending redshift
         # Each element in `data` is 2-D: (zform, zarr)
-                
+
         # Figure out the final mass (after `dt`) of halos formed at each
         # formation redshift, and the redshift at which they reach that mass
-        Mfin = []  
+        Mfin = []
         zfin = []
         for k, z in enumerate(zarr):
             # z here is the formation redshift
             new_data = self._sort_sam(z, zarr, data, sort_by='form')
-                        
+
             # This is the redshift at which the mass peaked
             if not np.isfinite(new_data['zmax']):
                 zfin.append(z)
@@ -2082,7 +2083,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         return new_data
         
-    def _ScalingRelationsGeneralSFE(self, dt=None, dm=None, M0=None):
+    def _ScalingRelationsGeneralSFE(self, dt=None, dm=None, M0=0):
         """
         In this case, the formation time of a halo matters.
         
@@ -2142,7 +2143,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return np.array(zform), results
         
-    def _ScalingRelationsStaticSFE(self, z0=None, dt=None, dm=None, M0=None):
+    def _ScalingRelationsStaticSFE(self, z0=None, dt=None, dm=None, M0=0):
         """
         Evolve a halo from initial mass M0 at redshift z0 forward in time.
         
@@ -2181,17 +2182,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ##  
         # Outputs have shape (z, z)
         ##
-
+        
         # Our results don't depend on this, unless SFE depends on z
-        if (z0 is None) and (M0 is None):
+        if (z0 is None) and (M0 == 0):
             z0 = self.halos.z.max()
             M0 = self._tab_Mmin[-1]
-        elif M0 is None:
+        elif (M0 <= 1):
             M0 = np.interp(z0, self.halos.z, self._tab_Mmin)
-        elif M0 is not None:
-            assert M0.size == self.halos.Nz
-            M0 = np.interp(z0, self.halos.z, M0)
-          
+        elif (M0 > 1):
+            if z0 >= self.pf['initial_redshift']:
+                M0 = np.interp(z0, self.halos.z, M0 * self._tab_Mmin)
+            else:
+                M0 = np.interp(z0, self.halos.z, self._tab_Mmin)
+
         in_range = np.logical_and(self.halos.z >= zf, self.halos.z <= z0)
         zarr = self.halos.z[in_range][::zfreq]
         Nz = zarr.size
@@ -2226,14 +2229,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             z = redshifts[-1]
 
             if dt is not None:
-                lbtime_yr = self.cosm.LookbackTime(redshifts[-1], z0) \
+                lbtime_myr = self.cosm.LookbackTime(redshifts[-1], z0) \
                     / s_per_yr / 1e6
-                if lbtime_yr >= dt(z=z, Mh=M0):
+                if lbtime_myr >= dt(z=z, Mh=M0):
                     hit_dt = True
                     
-                    lbtime_yr_prev = self.cosm.LookbackTime(redshifts[-2], z0) / s_per_yr / 1e6
+                    lbtime_myr_prev = self.cosm.LookbackTime(redshifts[-2], z0) \
+                        / s_per_yr / 1e6
 
-                    zmax = np.interp(dt(z=z, Mh=M0), [lbtime_yr_prev, lbtime_yr], 
+                    zmax = np.interp(dt(z=z, Mh=M0), [lbtime_myr_prev, lbtime_myr], 
                         redshifts[-2:])
 
                     break
@@ -2243,7 +2247,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if Mnow >= dm(z=z, Mh=M0):
                     hit_dm = True
 
-                    zmax = np.interp(dm(z=z, Mh=M0), [Mst_t[-2], Mnow], 
+                    zmax = np.interp(dm(z=z, Mh=M0), Mst_t[-2:], 
                         redshifts[-2:])
 
                     break      
