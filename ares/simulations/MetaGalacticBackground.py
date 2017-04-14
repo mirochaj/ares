@@ -42,10 +42,10 @@ def f_sh_fl13(zz, Mmin):
 def get_Mmin_func(zarr, Jlw, Mmin_prev, **kwargs):
     
     # Self-shielding. Function of redshift only!
-    if kwargs['feedback_LW_fsh'] is not None:
+    if kwargs['feedback_LW_fsh']:
         f_sh = f_sh_fl13
-    elif type(kwargs['feedback_LW_fsh']) is FunctionType:
-        f_sh = kwargs['feedback_LW_fsh']    
+    #elif type(kwargs['feedback_LW_fsh']) is FunctionType:
+    #    f_sh = kwargs['feedback_LW_fsh']    
     else:
         f_sh = lambda z, Mmin: 1.0
     
@@ -246,16 +246,16 @@ class MetaGalacticBackground(AnalyzeMGB):
         #    '_tab_sfrd_at_threshold_', '_tab_fstar_at_Mmin_',
         #    '_tab_nh_at_Mmin_', '_tab_MAR_at_Mmin_']
 
-        ## Reset Mmin for feedback-susceptible populations
+        # Reset Mmin for feedback-susceptible populations
         for popid in include_pops:
             #pop = self.pops[popid]
             #
             #if not pop.feels_feedback:
             #    continue
             #    
-            if self.pf['pop_Tmin{%i}' % popid] is not None:
-                if self.pf['pop_Tmin{%i}' % popid] >= 1e4:
-                    continue
+            #if self.pf['pop_Tmin{%i}' % popid] is not None:
+            #    if self.pf['pop_Tmin{%i}' % popid] >= 1e4:
+            #        continue
 
             #for key in to_del:
             #    try:

@@ -31,7 +31,6 @@ _csfr_specific = \
 
  'pop_sfr_model{2}': 'sfr-func',
  'pop_sfr{2}': 1e-6,
- 'pop_Tmax{2}': 1e4,
  'pop_sfr_cross_threshold{2}': False,
  'pop_sed{2}': 'eldridge2009',
  'pop_binaries{2}': False,
@@ -72,13 +71,11 @@ _csfr_specific = \
  
  # Tmin here just an initial guess -- will get modified by feedback.
  'pop_Tmin{2}': 500.,
- 'pop_Tmax{2}': 1e4,
- #'pop_Mmin{3}': 'pop_Mmin{2}',
- #'pop_Tmin{3}': None,
- 
-
+ 'pop_Tmin{0}': None,
+ 'pop_Mmin{0}': 'link:Mmax:2',
+ 'pop_Tmax_ceil{2}': 1e8,
+ 'pop_sfr_cross_threshold{2}': False,
 }
-
 
 csfr = dpl.copy()
 csfr.update(_generic_updates)
@@ -98,6 +95,20 @@ csfe = dpl.copy()
 csfe.update(_generic_updates)
 csfe.update(_csfr_specific)
 csfe.update(_csfe_specific)
+
+_csff_specific = \
+{
+ 'pop_sfr{2}': 'pq[2]',
+ 'pq_func{2}[2]': 'pl',
+ 'pq_func_var{2}[2]': 'Mh',
+ 'pq_func_par0{2}[2]': 1e-6,
+ 'pq_func_par1{2}[2]': 1e8,
+ 'pq_func_par2{2}[2]': 1.,
+}
+
+csff = csfr.copy()
+csff.update(_csff_specific)
+
 
 """
 Third model: extrapolated SFE in minihalos (i.e., same SFE as atomic halos).
@@ -137,22 +148,6 @@ xsfe = dpl.copy()
 xsfe.update(_generic_updates)
 xsfe.update(_xsfe_specific)
 
-csfd = csfr.copy()
-# Try Mh-dependent age_limit: limit ~ 1e8 * (Mh / 1e6)^-0.5
-csfd['pop_age_limit{2}'] = 1e8
-csfd['pop_Tmin{0}'] = None
-csfd['pop_Mmin{0}'] = 'link:Mmax:2'
-csfd['pop_Tmax_ceil{2}'] = 1e4
-csfd['pop_sfr_cross_threshold{2}'] = False
-
-vsfd = csfd.copy()
-vsfd['pop_age_limit{2}'] = 'pq[2]'
-vsfd['pq_func{2}[2]'] = 'pl'
-vsfd['pq_func_var{2}[2]'] = 'Mh'
-vsfd['pq_func_par0{2}[2]'] = 0.5e8
-vsfd['pq_func_par1{2}[2]'] = 1e7
-vsfd['pq_func_par2{2}[2]'] = 0.5
-
 csfr_blobs = \
 {
  'blob_names': ['popII_sfrd_tot', 'popIII_sfrd_tot', 
@@ -167,7 +162,7 @@ csfr_blobs = \
 }
 
 csfe_blobs = csfr_blobs
-csfd_blobs = csfr_blobs
+csff_blobs = csfr_blobs
 
 dpl_blobs = \
 {

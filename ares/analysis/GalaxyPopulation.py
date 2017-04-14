@@ -280,42 +280,6 @@ class GalaxyPopulation(object):
         pl.draw()
         
         return ax
-        
-    def add_master_legend(self, mp, **kwargs):
-        """
-        Make a big legend!
-        """
-        
-        handles, labels = [], []
-        
-        if isinstance(mp, MultiPanel):
-            for ax in mp.grid:
-                h, l = ax.get_legend_handles_labels()
-                
-                for i, lab in enumerate(l):
-                    if lab in labels:
-                        continue
-                    
-                    handles.append(h[i])
-                    labels.append(l[i])
-                    
-            mp.fig.legend(handles, labels, loc='upper center', 
-                bbox_to_anchor=(0.5, 0.97), **kwargs)        
-                
-        else:
-            h, l = mp.get_legend_handles_labels()
-            
-            for i, lab in enumerate(l):
-                if lab in labels:
-                    continue
-                
-                handles.append(h[i])
-                labels.append(l[i])
-            
-            mp.legend(handles, labels, loc='upper center', 
-                bbox_to_anchor=(0.5, 0.97), **kwargs)            
-
-        return mp
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
         panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,

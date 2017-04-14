@@ -40,6 +40,43 @@ defs = \
  'active_panels': None,
 }
 
+def add_master_legend(mp, **kwargs):
+    """
+    Make a big legend!
+    """
+
+    handles, labels = [], []
+
+    if isinstance(mp, MultiPanel):
+        for ax in mp.grid:
+            h, l = ax.get_legend_handles_labels()
+
+            for i, lab in enumerate(l):
+                if lab in labels:
+                    continue
+
+                handles.append(h[i])
+                labels.append(l[i])
+
+        mp.fig.legend(handles, labels, loc='upper center', 
+            bbox_to_anchor=(0.5, 0.97), **kwargs)        
+
+    else:
+        h, l = mp.get_legend_handles_labels()
+
+        for i, lab in enumerate(l):
+            if lab in labels:
+                continue
+
+            handles.append(h[i])
+            labels.append(l[i])
+
+        mp.legend(handles, labels, loc='upper center', 
+            bbox_to_anchor=(0.5, 0.97), **kwargs)            
+
+    return mp    
+
+
 class MultiPanel(object):
     def __init__(self, **kwargs):
         """
@@ -479,7 +516,7 @@ class MultiPanel(object):
             for i in self.left:
                 ticks_by_row.append(self.grid[i].get_xticks())
             
-        # Figure out if axes are shared or not    
+        # Figure out if axes are shared or not
         if axis == 'x':
             j = 0
             if shared:
@@ -557,7 +594,7 @@ class MultiPanel(object):
                 rotate = rotate_y
             else:
                 rotate = False
-                        
+                                                
             if ul is None:
                 eval("self.grid[%i].%s(ticks[0:])" % (i, set_ticks))
                                 
@@ -820,4 +857,4 @@ class MultiPanel(object):
     def save(self, fn):
         pl.savefig(fn)    
         
-        
+    

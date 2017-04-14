@@ -340,6 +340,7 @@ class BlobFactory(object):
         elif self.blob_nd[i] == 1:
             if ivar is None:
                 try:
+                    # When would this NOT be the case?
                     return self.blobs[i][j]
                 except:
                     return self.blobs[i]
@@ -396,7 +397,7 @@ class BlobFactory(object):
                                     
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                                            
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -448,7 +449,7 @@ class BlobFactory(object):
                             
                         else:
                             blob = np.interp(x, func[0], func[1])
-                                                                
+                                                                                                                                  
                 else:
                                         
                     # Must have blob_funcs for this case

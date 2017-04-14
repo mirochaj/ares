@@ -25,7 +25,7 @@ from ..util.PrintInfo import print_hmf
 from ..util.ProgressBar import ProgressBar
 from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, smooth
-from .Constants import g_per_msun, cm_per_mpc, s_per_yr
+from .Constants import g_per_msun, cm_per_mpc, s_per_yr, G, cm_per_kpc, m_H, k_B
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
     
 try:
@@ -200,16 +200,16 @@ class HaloMassFunction(object):
                 'hmf_dfcolldz_smooth must be odd!'
                         
     @property
-    def Mmax(self):
-        if not hasattr(self, '_Mmax'):
-            self._Mmax = self.pf['pop_Mmax']
-        return self._Mmax
+    def Mmax_ceil(self):
+        if not hasattr(self, '_Mmax_ceil'):
+            self._Mmax_ceil= 1e18
+        return self._Mmax_ceil
     
     @property
-    def logMmax(self):
+    def logMmax_ceil(self):
         if not hasattr(self, '_logMmax'):
-            self._logMmax = np.log10(self.Mmax)
-        return self._logMmax 
+            self._logMmax_ceil = np.log10(self.Mmax_ceil)
+        return self._logMmax_ceil
                
     @property
     def cosm(self):
@@ -533,9 +533,9 @@ class HaloMassFunction(object):
         Interpolation in 2D, x = redshift = z, y = logMass.
         """ 
         
-        if self.Mmax is not None:
+        if self.Mmax_ceil is not None:
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
-                 - np.squeeze(self.fcoll_spline_2d(z, self.logMmax))
+                 - np.squeeze(self.fcoll_spline_2d(z, self.logMmax_ceil))
         elif self.pf['pop_Tmax'] is not None:
             logMmax = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, 
                 mu=self.pf['mu']))
@@ -669,6 +669,23 @@ class HaloMassFunction(object):
         return (1e8 / self.cosm.h70) \
             *  (Vc / 23.4)**3 / cterm**0.5 / ((1. + z) / 10)**1.5
             
+    def BindingEnergy(self, M, z, mu=0.6):
+        return 0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(M, z, mu) \
+            * self.cosm.fbaryon / cm_per_kpc
+            
+    def MeanDensity(self, M, z, mu=0.6):
+        V = 4. * np.pi * self.VirialRadius(M, z, mu)**3 / 3.
+        return (M / V) * g_per_msun / cm_per_kpc**3
+        
+    def JeansMass(self, M, z, mu=0.6):
+        rho = self.MeanDensity(M, z, mu)
+        T = self.VirialTemperature(M, z, mu)
+        cs = np.sqrt(k_B * T / m_H)
+        
+        l = np.sqrt(np.pi * cs**2 / G / rho)
+        return 4. * np.pi * rho * (0.5 * l)**3 / 3. / g_per_msun
+        
+            
     def _tegmark(self, z):
         fH2s = lambda T: 3.5e-4 * (T / 1e3)**1.52
         fH2c = lambda T: 1.6e-4 * ((1. + z) / 20.)**-1.5 \
@@ -677,9 +694,9 @@ class HaloMassFunction(object):
     
         to_min = lambda T: abs(fH2s(T) - fH2c(T)) 
         Tcrit = fsolve(to_min, 2e3)[0]
-    
+
         M = self.VirialMass(Tcrit, z)
-    
+
         return M
     
     def Mmin_floor(self, zarr):
