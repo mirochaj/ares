@@ -21,6 +21,9 @@ First model: constant SFR in minihalos.
 _csfr_specific = \
 {
 
+ 'kill_redshift': 5.6,
+ 'sam_dz': 0.1,
+
  'pop_zform{0}': 60,
  'pop_zform{1}': 60,
  'pop_zform{2}': 60,
@@ -45,6 +48,14 @@ _csfr_specific = \
  
   # Solve LWB!
  'pop_solve_rte{2}': (10.2, 13.6),
+
+ 'pop_sed{2}': 'bb',
+ #'pop_alpha{2}'] = 0.
+ 'pop_temperature{2}': 1e5,
+ 'pop_rad_yield{2}': 3e3,
+ 'pop_EminNorm{2}': 10.2,
+ 'pop_EmaxNorm{2}': 13.6,
+ 'pop_rad_yield_units{2}': 'photons/baryon',
  
  # Radiative knobs
  'pop_fesc_LW{2}': 1.,
