@@ -1853,7 +1853,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if self.pf['pop_sfr'] is None:
                 SFR = PIR * fstar
             else:
-                SFR = self.sfr(**kw)
+                SFR = -self.sfr(**kw) * self.cosm.dtdz(z) / s_per_yr
                 
             y3p = SFR * (1. - self.pf['pop_mass_yield']) + NPIR * Sfrac
 
@@ -2243,7 +2243,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     break
             if dm is not None:
                 Mnow = solver.y[2]
-                                
+                                                
                 if Mnow >= dm(z=z, Mh=M0):
                     hit_dm = True
 

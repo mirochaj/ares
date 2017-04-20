@@ -305,7 +305,7 @@ class BlackHole(Source):
         Mnow = self.Mass(t)
         if M is not None:
             Mnow = M
-        
+
         return self.epsilon * 4.0 * np.pi * G * Mnow * g_per_msun * m_p \
             * c / sigma_T
 
@@ -323,15 +323,15 @@ class BlackHole(Source):
         else:
             M0 = self.M0
             dt = t
-        
+
         return M0 * np.exp(((1.0 - self.epsilon) / self.epsilon) * dt / t_edd)         
-    
+
     def Age(self, M):
         """
         Compute age of black hole based on current time, current mass, and initial mass.
         """            
                     
         return np.log(M / self.M0) * (self.epsilon / (1. - self.epsilon)) * t_edd
-        
+
 
         
