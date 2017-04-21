@@ -48,9 +48,6 @@ _csfr_specific = \
  'pop_zform{2}': 60,
  'pop_zform{3}': 60,
 
- 'pop_Tmin{0}': 1e4,
- 'pop_Tmin_ceil{0}': 1e4,
-
  'pop_sfr_model{2}': 'sfr-func',
  'pop_sfr{2}': 2e-5,
  'pop_sfr_cross_threshold{2}': False,
@@ -233,10 +230,10 @@ popIII_sfr_vals_hires = \
 
 popIII_trans_vals = \
 {
- 'bind': [1e51, 1e52, 1e53],
- 'time': [1e1, 1e2, 1e3],
- 'mass': [1e2, 1e3, 1e4],
- 'temp': [1e3, 1e4, 1e5],
+ 'bind': [1e51, 1e52],
+ 'time': [1e1, 1e2],
+ 'mass': [1e2, 1e3],
+ 'temp': [1e3, 1e4],
 }
 
 popIII_trans_vals_hires = \

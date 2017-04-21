@@ -1117,27 +1117,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             t_limit = self.pf['pop_time_limit']
             m_limit = self.pf['pop_mass_limit'] 
             e_limit = self.pf['pop_bind_limit']
+            T_limit = self.pf['pop_temp_limit']
 
             if (t_limit is not None) or (m_limit is not None) or \
-               (e_limit is not None):
-
-                if t_limit is not None:
-                    dm = None
-                    dt = lambda **kw: self.time_limit(**kw)
-                elif m_limit is not None:
-                    dm = lambda **kw: self.mass_limit(**kw)
-                    dt = None
-                else:
-                    dt = dm = None
-                    
+               (e_limit is not None) or (T_limit is not None):
+               
                 M0x = self.pf['pop_initial_Mh']
                 if (M0x == 0) or (M0x == 1):
-                    zform, zfin, Mfin, raw = self.MassAfter(dt=dt, dm=dm)
+                    zform, zfin, Mfin, raw = self.MassAfter()
                     new_data = self._sort_sam(self.pf['initial_redshift'], 
                         zform, raw, sort_by='form')
                 else:
-                    zform, zfin, Mfin, raw = self.MassAfter(dt=dt, dm=dm,
-                        M0=M0x)
+                    zform, zfin, Mfin, raw = self.MassAfter(M0=M0x)
                     new_data = self._sort_sam(self.pf['initial_redshift'], 
                         zform, raw, sort_by='form') 
                                                         
@@ -1159,18 +1150,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     # Or, we're using a time-limited model.
                     if ((M0x > 0) and (z > zmax)):
                         Mmax[i] = Moft_zi(z)
-                    elif M0x > 0:
-                        Mmax[i] = np.interp(z, zfin, Mfin)
-                    elif e_limit is not None:
-                        to_min = lambda M: self.halos.BindingEnergy(M, z) \
-                            - e_limit
-                        M1 = fsolve(to_min, 1e7)[0]
-                        M2 = np.interp(z, zfin, Mfin)
-
-                        if z <= zmax:
-                            Mmax[i] = np.maximum(M1, M2)
-                        else:
-                            Mmax[i] = M2
+                    #elif M0x > 0:
+                    #    Mmax[i] = np.interp(z, zfin, Mfin)
+                    #elif e_limit is not None:
+                    #    to_min = lambda M: self.halos.BindingEnergy(M, z) \
+                    #        - e_limit
+                    #    M1 = fsolve(to_min, 1e7)[0]
+                    #    M2 = np.interp(z, zfin, Mfin)
+                    #
+                    #    if z <= zmax:
+                    #        Mmax[i] = np.maximum(M1, M2)
+                    #    else:
+                    #        Mmax[i] = M2
                     else:
                         Mmax[i] = np.interp(z, zfin, Mfin)
 
@@ -1949,7 +1940,35 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._scaling_relations
 
-    def MassAfter(self, dt=None, dm=None, M0=0):
+    def duration(self, zend=6.):
+        """
+        Calculate the duration of this population, i.e., time it takes to get
+        from formation redshift to Mmax.
+        """
+        
+        zform, zfin, Mfin, raw = self.MassAfter(M0=self.pf['pop_initial_Mh'])
+
+        duration = []
+        for i, zf in enumerate(zfin):
+            duration.append(self.cosm.LookbackTime(zf, zform[i]) / s_per_yr / 1e6)
+
+        duration = np.array(duration)
+
+        # This is not quite what Rick typically plots -- his final masses are
+        # those at z=6, and many of those halos will have been forming PopII 
+        # stars for awhile.
+
+        # So, compute the final halo mass, including time spent after Mh > Mmax.
+        Mend = []
+        for i, z in enumerate(zform):
+            
+            new_data = self._sort_sam(z, zform, raw, sort_by='form')
+           
+            Mend.append(np.interp(zend, zform, new_data['Mh']))
+        
+        return zform, zfin, Mfin, duration#, np.array(Mend)
+
+    def MassAfter(self, M0=0):
         """
         Compute the final mass of a halos that begin at Mmin and grow for dt.
 
@@ -1964,12 +1983,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        #if type(dt) in [int, float]:
-        #    dt = lambda **kwargs: dt
-
         # This loops over a bunch of formation redshifts
         # and computes the trajectories for all SAM fields.
-        zarr, data = self._ScalingRelationsGeneralSFE(dt=dt, dm=dm, M0=M0)
+        zarr, data = self._ScalingRelationsGeneralSFE(M0=M0)
 
         # At this moment, all data is in order of ascending redshift
         # Each element in `data` is 2-D: (zform, zarr)
@@ -1983,20 +1999,20 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             new_data = self._sort_sam(z, zarr, data, sort_by='form')
 
             # This is the redshift at which the mass peaked
-            if not np.isfinite(new_data['zmax']):
-                zfin.append(z)
-                Mfin.append(1e10)
-            else:
-                zmax = new_data['zmax']
-                zfin.append(zmax)
-                
-                # Interpolate in mass trajectory to find maximum mass
-                # more precisely. Reminder: already interpolated to 
-                # find 'zmax' in call to _ScalingRelations
-                Mmax = np.interp(zmax, zarr, new_data['Mh'])
-
-                # We just want the final mass (before dt killed SAM)
-                Mfin.append(Mmax)
+            #if not np.isfinite(new_data['zmax']):
+            #    zfin.append(z)
+            #    Mfin.append(1e10)
+            #else:
+            zmax = new_data['zmax']
+            zfin.append(zmax)
+            
+            # Interpolate in mass trajectory to find maximum mass
+            # more precisely. Reminder: already interpolated to 
+            # find 'zmax' in call to _ScalingRelations
+            Mmax = np.interp(zmax, zarr, new_data['Mh'])
+            
+            # We just want the final mass (before dt killed SAM)
+            Mfin.append(Mmax)
                     
         Mfin = self._apply_lim(Mfin, 'max', zarr)
         
@@ -2083,7 +2099,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         return new_data
         
-    def _ScalingRelationsGeneralSFE(self, dt=None, dm=None, M0=0):
+    def _ScalingRelationsGeneralSFE(self, M0=0):
         """
         In this case, the formation time of a halo matters.
         
@@ -2119,8 +2135,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             #    zform.append(z)
             #    continue
 
-            _zarr, _results = self._ScalingRelationsStaticSFE(z0=z, dt=dt,
-                dm=dm, M0=M0)
+            _zarr, _results = self._ScalingRelationsStaticSFE(z0=z, M0=M0)
 
             #print z, len(_zarr), len(_results['Mh'])
             #print _zarr
@@ -2143,7 +2158,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return np.array(zform), results
         
-    def _ScalingRelationsStaticSFE(self, z0=None, dt=None, dm=None, M0=0):
+    def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
         """
         Evolve a halo from initial mass M0 at redshift z0 forward in time.
         
@@ -2178,8 +2193,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         #atol = 0.; rtol = 1e-3
         solver = ode(self._SAM).set_integrator('lsoda', 
             nsteps=1e4, atol=1e2, rtol=1e-2)
-
-        ##  
+            
+        has_e_limit = self.pf['pop_bind_limit'] is not None    
+        has_T_limit = self.pf['pop_temp_limit'] is not None    
+        has_t_limit = self.pf['pop_time_limit'] is not None    
+        has_m_limit = self.pf['pop_mass_limit'] is not None
+        
+        ##
         # Outputs have shape (z, z)
         ##
         
@@ -2209,8 +2229,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # Only used occasionally
         zmax = None
-        hit_dt = False
-        hit_dm = False
+        zmax_t = None
+        zmax_m = None
+        zmax_T = None
+        zmax_e = None
 
         Mh_t = []
         Mg_t = []
@@ -2228,83 +2250,80 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             z = redshifts[-1]
 
-            if dt is not None:
-                lbtime_myr = self.cosm.LookbackTime(redshifts[-1], z0) \
-                    / s_per_yr / 1e6
-                if lbtime_myr >= dt(z=z, Mh=M0):
+            lbtime_myr = self.cosm.LookbackTime(z, z0) \
+                / s_per_yr / 1e6
+                        
+            if has_t_limit:
+                if lbtime_myr >= self.time_limit(z=z, Mh=M0):
                     hit_dt = True
                     
                     lbtime_myr_prev = self.cosm.LookbackTime(redshifts[-2], z0) \
                         / s_per_yr / 1e6
 
-                    zmax = np.interp(dt(z=z, Mh=M0), [lbtime_myr_prev, lbtime_myr], 
-                        redshifts[-2:])
-
-                    break
-            if dm is not None:
+                    zmax_t = np.interp(self.time_limit(z=z, Mh=M0), 
+                        [lbtime_myr_prev, lbtime_myr], redshifts[-2:])
+            
+            if has_m_limit:
                 Mnow = solver.y[2]
-                                                
-                if Mnow >= dm(z=z, Mh=M0):
-                    hit_dm = True
 
-                    zmax = np.interp(dm(z=z, Mh=M0), Mst_t[-2:], 
+                if Mnow >= self.mass_limit(z=z, Mh=M0):
+                    zmax_m = np.interp(self.mass_limit(z=z, Mh=M0), Mst_t[-2:], 
                         redshifts[-2:])
 
-                    break      
-
-            if self.pf['pop_bind_limit'] is not None:
+            # These next two are different because the condition might
+            # be satisfied *at the formation time*, which cannot (by definition)
+            # occur for time or mass-limited sources.
+            if has_T_limit:
+                Mtemp = self.halos.VirialMass(self.pf['pop_temp_limit'], z)
+                                
+                if solver.y[0] >= Mtemp:
+                    zmax_T = np.interp(Mtemp, Mh_t[-2:], redshifts[-2:])
+                    
+            if has_e_limit:
                 
                 Eblim = self.pf['pop_bind_limit']
                 Ebnow = self.halos.BindingEnergy(Mh_t[-1], redshifts[-1])
                 Ehist.append(Ebnow)
-                
-                # Even if already exceed critical binding energy, 
-                # form stars for a little while.            
-                shortest_burst = self.pf['pop_min_epoch']
-                tsince_form = self.cosm.LookbackTime(redshifts[-1], z0) / s_per_yr / 1e6
-                                               
-                # Also make sure the halo forms PopIII stars for min_epoch
-                # after it hits the critical binding energy.
-                # This could be tackled differently, but it helps to preserve
-                # continuity if we do it this way.
-                z_cross = np.interp(Eblim, Ehist, redshifts)
-                tsince_cross = self.cosm.LookbackTime(redshifts[-1], z_cross) / s_per_yr / 1e6
-                                                         
-                # We're going from high-z to low                     
-                if (Ebnow >= Eblim) and (tsince_form >= shortest_burst) and \
-                   (tsince_cross >= shortest_burst):
+
+                if (Ebnow >= Eblim):
                     
-                    hit_dm = True
-                    Ebpre = self.halos.BindingEnergy(Mh_t[-2], redshifts[-2])
-                                     
-                    # This means it just hasn't been long enough
-                    if (Ebpre >= Eblim) and (Ebnow >= Eblim):
-                        
-                        # This makes sure a halo will always form at least one 
-                        # generation of PopIII stars, even if its binding 
-                        # energy has always exceeded our threshold.
-                        lbtime_yr_now = self.cosm.LookbackTime(redshifts[-1], z0) / s_per_yr
-                        lbtime_yr_prev = self.cosm.LookbackTime(redshifts[-2], z0) / s_per_yr
-
-                        zmax = np.interp(shortest_burst * 1e6, 
-                            [lbtime_yr_prev, lbtime_yr_now], 
-                            redshifts[-2:])
-                        
+                    if i == 0:
+                        zmax_e = z0
                     else:
-                        zmax = np.interp(Eblim, [Ebpre, Ebnow], redshifts[-2:])
-                                                
-                    break
-
+                        Ebpre = self.halos.BindingEnergy(Mh_t[-2], redshifts[-2])
+                        zmax_e = np.interp(Eblim, [Ebpre, Ebnow], redshifts[-2:]) 
+            
+            if zmax is None:
+            
+                # If binding energy or Virial temperature are a limiter             
+                if (zmax_e is not None and has_e_limit) or \
+                   (zmax_T is not None and has_T_limit):
+                    
+                    # Only transition if time/mass is ALSO satisfied
+                    if (self.pf['pop_limit_logic'] == 'and') and (has_t_limit or has_m_limit):
+                        if (zmax_t is not None):
+                            zmax = zmax_t
+                            #break
+                        if (zmax_m is not None):
+                            zmax = zmax_m
+                            #break                    
+                    else:
+                        zmax = zmax_e if has_e_limit else zmax_T
+                        #break
+                
+                # If no binding or temperature arguments, use time or mass
+                if not (has_e_limit or has_T_limit):
+                    if (zmax_t is not None):
+                        zmax = zmax_t
+                        #break
+                    if (zmax_m is not None):
+                        zmax = zmax_m
+                        #break        
+                                                        
             solver.integrate(solver.t-dz)
-
-        # This means that halos formed at z0 are still younger than `dt`
-        # at zf.
-        if (dt is not None) and (not hit_dt):
-            zmax = -np.inf
-        
-        if ((dm is not None) or (self.pf['pop_bind_limit'] is not None)) \
-            and (not hit_dm):
-            zmax = -np.inf
+  
+        if zmax is None:
+            zmax = self.pf['final_redshift']#-np.inf
   
         # Everything will be returned in order of ascending redshift,
         # which will mean masses are (probably) declining from 0:-1
