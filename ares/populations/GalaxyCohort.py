@@ -14,8 +14,9 @@ import re
 import time
 import numpy as np
 from ..util import read_lit
-from types import FunctionType
+from inspect import ismethod
 from scipy.optimize import fsolve, minimize
+from types import FunctionType, InstanceType
 from .GalaxyAggregate import GalaxyAggregate
 from ..analysis.BlobFactory import BlobFactory
 from ..util import MagnitudeSystem, ProgressBar
@@ -69,12 +70,14 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         exist (yet). The only special case is really L1600_per_sfr, since 
         that requires accessing a SynthesisModel.
         """
-                                
+                                        
         # Indicates that this attribute is being accessed from within a 
         # property. Don't want to override that behavior!
+        # This is in general pretty dangerous but I don't have any better
+        # ideas right now. It makes debugging hard but it's SO convenient...
         if (name[0] == '_'):
-            raise AttributeError('This will get caught. Don\'t worry!')
-            
+            raise AttributeError('Couldn\'t find attribute: %s' % name)
+                    
         # This is the name of the thing as it appears in the parameter file.
         full_name = 'pop_' + name
                 
@@ -122,8 +125,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     result = lambda **kwargs: val
 
             elif is_php:
-                tmp = get_pq_pars(self.pf[full_name], self.pf) 
-                
+                tmp = get_pq_pars(self.pf[full_name], self.pf)
+
                 # Correct values that are strings:
                 if self.sed_tab:
                     pars = {}
@@ -134,11 +137,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                             pars[par] = tmp[par]  
                 else:
                     pars = tmp            
-                    
+
                 Mmin = lambda z: self.Mmin
                 result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, 
                     **pars)
-                
+
                 self._update_pq_registry(name, result)
             
             elif type(self.pf[full_name]) in [int, float, np.float64]:
@@ -219,7 +222,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_MAR_'):
             self._tab_MAR_ = \
                 np.array([self.MAR(self.halos.z[i], self.halos.M) \
-                    for i in range(self.halos.Nz)])      
+                    for i in range(self.halos.Nz)]) 
+                    
+            self._tab_MAR_ = np.maximum(self._tab_MAR_, 0.0)
+            
         return self._tab_MAR_
     
     @property
@@ -487,6 +493,18 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @SFRD.setter
     def SFRD(self, value):
         self._SFRD = value 
+    
+    @property   
+    def nactive(self):
+        """
+        Compute star-formation rate density (SFRD).
+        """
+    
+        if not hasattr(self, '_nactive'):
+            self._nactive = interp1d(self.halos.z, self._tab_nh_active, 
+                kind='cubic')
+    
+        return self._nactive
     
     @property   
     def SMD(self):
@@ -997,26 +1015,35 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
     @Mmin.setter
     def Mmin(self, value):
-        if type(value) is FunctionType:
+        if ismethod(value):
             self._Mmin = value
         else:
             self._tab_Mmin = value
             self._Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
     
-    @property
-    def Mmax(self):
-        if not hasattr(self, '_Mmax'):  
-            self._Mmax = lambda z: \
-                np.interp(z, self.halos.z, self._tab_Mmax)
+    def Mmax(self, z):
+        # Doesn't have a setter because of how we do things in Composite.
+        # Long story.
+        return np.interp(z, self.halos.z, self._tab_Mmax)
     
-        return self._Mmax
+    @property
+    def _tab_logMmin(self):
+        if not hasattr(self, '_tab_logMmin_'):
+            self._tab_logMmin_ = np.log(self._tab_Mmin)
+        return self._tab_logMmin_
+        
+    @property
+    def _tab_logMmax(self):
+        if not hasattr(self, '_tab_logMmax_'):
+            self._tab_logMmax_ = np.log(self._tab_Mmax)
+        return self._tab_logMmax_    
     
     @property
     def _tab_Mmin(self):
         if not hasattr(self, '_tab_Mmin_'):
             # First, compute threshold mass vs. redshift
             if self.pf['pop_Mmin'] is not None:
-                if type(self.pf['pop_Mmin']) is FunctionType:
+                if ismethod(self.pf['pop_Mmin']):
                     self._tab_Mmin_ = \
                         np.array(map(self.pf['pop_Mmin'], self.halos.z))
                 elif type(self.pf['pop_Mmin']) is np.ndarray:
@@ -1036,9 +1063,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
     @_tab_Mmin.setter
     def _tab_Mmin(self, value):
-        if type(value) is FunctionType:
+        if ismethod(value):
             self.Mmin = value
-            self._tab_Mmin_ = np.array(map(value, self.halos.z))
+            self._tab_Mmin_ = np.array(map(value, self.halos.z), dtype=float)
         elif type(value) in [int, float, np.float64]:    
             self._tab_Mmin_ = value * np.ones(self.halos.Nz) 
         else:
@@ -1046,9 +1073,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, s='min')
             
+    @property    
+    def _tab_Mmin_floor(self):
+        if not hasattr(self, '_tab_Mmin_floor_'):
+            self._tab_Mmin_floor_ = self.halos.Mmin_floor(self.halos.z)
+        return self._tab_Mmin_floor_
+            
     def _apply_lim(self, arr, s='min', zarr=None):
         out = None
-        
+
         if zarr is None:
             zarr = self.halos.z
 
@@ -1067,35 +1100,87 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 z, mu=self.pf['mu'])
             _MofT = np.array(map(_f, zarr))
             out = np.maximum(arr, _MofT)
-        
+
         if out is None:
             out = arr.copy()
-        
+
+        if s == 'min':
+            out = np.maximum(out, self._tab_Mmin_floor)
+                
         return out
         
     @property
     def _tab_Mmax(self):
         if not hasattr(self, '_tab_Mmax_'):
+                                    
             # First, compute threshold mass vs. redshift
-            if self.pf['pop_age_limit'] is not None:
-                dt = self.pf['pop_age_limit']
-                zform, zfin, Mfin = self.MassAfter(dt=self.age_limit)
+            t_limit = self.pf['pop_time_limit']
+            m_limit = self.pf['pop_mass_limit'] 
+            e_limit = self.pf['pop_bind_limit']
+            T_limit = self.pf['pop_temp_limit']
+
+            if (t_limit is not None) or (m_limit is not None) or \
+               (e_limit is not None) or (T_limit is not None):
+               
+                M0x = self.pf['pop_initial_Mh']
+                if (M0x == 0) or (M0x == 1):
+                    zform, zfin, Mfin, raw = self.MassAfter()
+                    new_data = self._sort_sam(self.pf['initial_redshift'], 
+                        zform, raw, sort_by='form')
+                else:
+                    zform, zfin, Mfin, raw = self.MassAfter(M0=M0x)
+                    new_data = self._sort_sam(self.pf['initial_redshift'], 
+                        zform, raw, sort_by='form') 
+                                                        
+                # This is the redshift at which the first star-forming halo,
+                # formed at (zi, M0), transitions to PopII.
                 zmax = max(zfin)
+                
+                # This is the mass trajectory of a halo that forms at
+                # initial_redshift with initial mass pop_initial_Mh 
+                # (in units of Mmin, defaults to 1).
+                Moft_zi = lambda z: np.interp(z, zform, new_data['Mh'])
+                
+                # For each redshift, determine Mmax based on several factors.
                 Mmax = np.zeros_like(self.halos.z)
                 for i, z in enumerate(self.halos.z):
-                    if z > zmax:
-                        Mmax[i] = 1e18
-                        continue
-                        
-                    Mmax[i] = np.interp(z, zfin, Mfin)
                     
+                    # If we've specified a maximum initial mass halo, and
+                    # we're at a redshift before that halo hits its limit.
+                    # Or, we're using a time-limited model.
+                    if ((M0x > 0) and (z > zmax)):
+                        Mmax[i] = Moft_zi(z)
+                    #elif M0x > 0:
+                    #    Mmax[i] = np.interp(z, zfin, Mfin)
+                    #elif e_limit is not None:
+                    #    to_min = lambda M: self.halos.BindingEnergy(M, z) \
+                    #        - e_limit
+                    #    M1 = fsolve(to_min, 1e7)[0]
+                    #    M2 = np.interp(z, zfin, Mfin)
+                    #
+                    #    if z <= zmax:
+                    #        Mmax[i] = np.maximum(M1, M2)
+                    #    else:
+                    #        Mmax[i] = M2
+                    else:
+                        Mmax[i] = np.interp(z, zfin, Mfin)
+
                 self._tab_Mmax_ = Mmax
-                  
+
             elif self.pf['pop_Mmax'] is not None:
                 if type(self.pf['pop_Mmax']) is FunctionType:
                     self._tab_Mmax_ = np.array(map(self.pf['pop_Mmax'], self.halos.z))
+                elif type(self.pf['pop_Mmax']) is tuple:
+                    extra = self.pf['pop_Mmax'][0]
+                    assert self.pf['pop_Mmax'][1] == 'Mmin'
+
+                    if type(extra) is FunctionType:
+                        self._tab_Mmax_ = np.array(map(extra, self.halos.z)) \
+                            * self._tab_Mmin
+                    else:
+                        self._tab_Mmax_ = extra * self._tab_Mmin
                 else:    
-                    self._tab_Mmax_ = self.pf['pop_Mmax'] * np.ones(self.halos.Nz)    
+                    self._tab_Mmax_ = self.pf['pop_Mmax'] * np.ones(self.halos.Nz)
             elif self.pf['pop_Tmax'] is not None:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmax'], 
                     z, mu=self.pf['mu'])
@@ -1108,7 +1193,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_Mmax_ = np.maximum(self._tab_Mmax_, self._tab_Mmin)
     
         return self._tab_Mmax_
-    
     
     @_tab_Mmax.setter
     def _tab_Mmax(self, value):
@@ -1123,6 +1207,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         SFR as a function of redshift and halo mass.
 
             ..note:: Units are Msun/yr.
+            
+        This does NOT set the SFR to zero in halos with M < Mmin or M > Mmax!    
 
         """
         if not hasattr(self, '_tab_sfr_'):            
@@ -1140,19 +1226,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 # SF fueld by accretion onto halos already above threshold
                 if self.pf['pop_sfr_above_threshold']:
 
-                    if self.pf['pop_sfr'] is not None:
-                        self._tab_sfr_[i] = self.pf['pop_sfr']
+                    if self.pf['pop_sfr_model'] == 'sfr-func':
+                        self._tab_sfr_[i] = self.sfr(z=z, Mh=self.halos.M)
                     else:                            
                         self._tab_sfr_[i] = self._tab_eta[i] \
                             * self.cosm.fbar_over_fcdm \
                             * self._tab_MAR[i] * self._tab_fstar[i]
 
                     # zero-out star-formation in halos below our threshold
-                    ok = self.halos.M >= self._tab_Mmin[i]
-                    self._tab_sfr_[i] *= ok
-                    # zero-out star-formation in halos above our threshold
-                    ok = self.halos.M <= self._tab_Mmax[i]
-                    self._tab_sfr_[i] *= ok
+                    #ok = self.halos.M >= self._tab_Mmin[i]
+                    #self._tab_sfr_[i] *= ok
+                    ## zero-out star-formation in halos above our threshold
+                    #ok = self.halos.M <= self._tab_Mmax[i]
+                    #self._tab_sfr_[i] *= ok
 
         return self._tab_sfr_
 
@@ -1162,7 +1248,231 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._SFRD_at_threshold = \
                 lambda z: np.interp(z, self.halos.z, self._tab_sfrd_at_threshold)
         return self._SFRD_at_threshold
+        
+    @property
+    def _tab_nh_active(self):
+        if not hasattr(self, '_tab_nh_active_'):
+            self._tab_nh_active_ = np.zeros(self.halos.Nz)
 
+            # Loop from high-z to low-z
+            for k, z in enumerate(self.halos.z[-1::-1]):
+
+                i = self.halos.Nz - k - 1
+                
+                if not self.pf['pop_sfr_above_threshold']:
+                    break
+
+                if z > self.zform:
+                    continue
+
+                integrand = self.halos.dndlnm[i] \
+                    * self.focc(z=z, Mh=self.halos.M)
+
+                # Mmin and Mmax will never be exactly on Mh grid points 
+                # so we interpolate to more precisely determine SFRD.    
+
+                c1 = self.halos.M >= self._tab_Mmin[i]
+                c2 = self.halos.M <= self._tab_Mmax[i]
+                ok = np.logical_and(c1, c2)
+                
+                if self._tab_Mmin[i] == self._tab_Mmax[i]:
+                    self._tab_nh_active_[i] = 0
+                    
+                    # We 'break' here because once Mmax = Mmin, PopIII
+                    # should be gone forever.
+                    
+                    if z < self.pf['initial_redshift']:
+                        break
+                    else:
+                        continue
+                    
+                # This can happen if Mmin and Mmax are within the same mass bin,
+                # or if they straddle a single mass bin. Need to be a bit careful.
+                if ok.sum() in [0, 1]:                                        
+                    i1 = np.argmin(np.abs(self.halos.M - self._tab_Mmin[i]))
+                    if self.halos.M[i1] > self._tab_Mmin[i]:
+                        i1 -= 1
+                    i2 = i1 + 1
+                    
+                    # Trapezoid here we come
+                    b = self._tab_logMmax[i] - self._tab_logMmin[i]
+                    
+                    M1 = self._tab_logMmin[i]
+                    M2 = self._tab_logMmax[i]
+                    y1 = np.interp(M1, [self.halos.lnM[i1], self.halos.lnM[i2]],
+                        [integrand[i1], integrand[i2]])
+                    y2 = np.interp(M2, [self.halos.lnM[i1], self.halos.lnM[i2]],
+                        [integrand[i1], integrand[i2]])
+                    
+                    h = abs(y2 - y1)
+                    
+                    self._tab_nh_active_[i] = 0.5 * b * (y1 + y2)
+
+                    continue
+
+                # Otherwise, do the normal thing.
+                #if ok.sum() == 1:
+                #    iok = [np.argwhere(ok).squeeze()]
+                #else:
+                iok = np.argwhere(ok).squeeze()
+
+                Mlo1 = min(iok)
+                Mhi1 = max(iok)
+                Mlo2 = Mlo1 - 1
+                Mhi2 = Mhi1 + 1
+
+                # This happens if Mmin and Mmax straddle a mass bin
+                if ok.sum() == 1:
+                    raise ValueError('help')
+                    b = self.halos.lnM[Mlo1+1] - self.halos.lnM[Mlo1]
+                    #h = abs(integrand[Mlo1+1] - integrand[Mlo1])
+                    #b = self.halos.lnM[Mlo1] - self.self.halos.lnM[Mlo1+1]
+                    
+                    M1 = self._tab_logMmin[i]
+                    M2 = self._tab_logMmax[i]
+                    y1 = np.interp(M1, [self.halos.logM[i1], self.halos.logM[i2]],
+                        [integrand[i1], integrand[i2]])
+                    y2 = np.interp(M2, [self.halos.logM[i1], self.halos.logM[i2]],
+                        [integrand[i1], integrand[i2]])
+                    
+                    h = abs(y2 - y1)
+                    
+                    tot = 0.5 * b * h
+                else:
+                    # This is essentially an integral from Mlo1 to Mhi1
+                    tot = np.trapz(integrand[ok], x=self.halos.lnM[ok])
+                                
+                integ_lo = np.trapz(integrand[Mlo2:Mhi1+1], 
+                    x=self.halos.lnM[Mlo2:Mhi1+1])
+                                
+                # Interpolating over lower integral bound
+                sfrd_lo = np.interp(self._tab_logMmin[i], 
+                    [self.halos.lnM[Mlo2], self.halos.lnM[Mlo1]], 
+                    [integ_lo, tot]) - tot
+                                                
+                if Mhi2 >= self.halos.Nm:    
+                    sfrd_hi = 0.0
+                else:
+                    integ_hi = np.trapz(integrand[Mlo1:Mhi2+1], 
+                        x=self.halos.lnM[Mlo1:Mhi2+1])    
+                    sfrd_hi = np.interp(self._tab_logMmax[i], 
+                        [self.halos.lnM[Mhi1], self.halos.lnM[Mhi2]], 
+                        [tot, integ_hi]) - tot
+                
+                self._tab_nh_active_[i] = tot + sfrd_lo + sfrd_hi
+
+            self._tab_nh_active_ *= 1. / cm_per_mpc**3
+
+            #if self.pf['pop_sfr_cross_threshold']:
+            #    self._tab_sfrd_total_ += self._tab_sfrd_at_threshold
+
+        return self._tab_nh_active_
+        
+    #def _dndlnm_weighted_integral(self, iz, quantity):
+    #    
+    #    z = self.halos.z[iz]
+    #    Mmin = self._tab_Mmin[iz]
+    #    Mmax = self._tab_Mmax[iz]
+    #    logMmin = self._tab_logMmin[iz]
+    #    logMmax = self._tab_logMmax[iz]
+    #    
+    #    focc = self.focc(z=z, Mh=self.halos.M) 
+    #    integrand = quantity * self.halos.dndlnm[iz] * focc
+    #
+    #    # Mmin and Mmax will never be exactly on Mh grid points 
+    #    # so we interpolate to more precisely determine SFRD.    
+    #    c1 = self.halos.M >= self._tab_Mmin[iz]
+    #    c2 = self.halos.M <= self._tab_Mmax[iz]
+    #    ok = np.logical_and(c1, c2)
+    #    
+    #    #
+    #    if self._tab_Mmin[iz] == self._tab_Mmax[iz]:
+    #        integral = 0
+    #        
+    #        # We 'break' here because once Mmax = Mmin, PopIII
+    #        # should be gone forever.
+    #        
+    #       #if z < self.pf['initial_redshift']:
+    #       #    break
+    #       #else:
+    #       #    continue
+    #        
+    #    # This can happen if Mmin and Mmax are within the same mass bin,
+    #    # or if they straddle a single mass bin. Need to be a bit careful.
+    #    if ok.sum() in [0, 1]:                       
+    #        
+    #        # Find grid point just lower than Mmin
+    #        i1 = np.argmin(np.abs(self.halos.M - Mmin))
+    #        if self.halos.M[i1] > Mmin:
+    #            i1 -= 1
+    #            
+    #        # And upper grid point
+    #        i2 = i1 + 1
+    #        
+    #        # Let's re-compute the integral as a function of Mmin and
+    #        # then interpolate to find answer more precisely.
+    #        
+    #        integral = []
+    #        for k in range(5, -1, -1):
+    #            
+    #            result = np.trapz(integrand[i1-k:i2+1], 
+    #                x=self.halos.lnM[Mlo2:i2+1])
+    #        
+    #        
+    #        
+    #        
+    #        
+    #                         
+    #        i1 = np.argmin(np.abs(self.halos.M - Mmin))
+    #        if self.halos.M[i1] > Mmin:
+    #            i1 -= 1
+    #        i2 = i1 + 1
+    #        
+    #        # Trapezoid here we come
+    #        b = logMmax - logMmin
+    #        
+    #        M1 = logMmin
+    #        M2 = logMmax
+    #        y1 = np.interp(logMmin, [self.halos.lnM[i1], self.halos.lnM[i2]],
+    #            [integrand[i1], integrand[i2]])
+    #        y2 = np.interp(logMmax, [self.halos.lnM[i1], self.halos.lnM[i2]],
+    #            [integrand[i1], integrand[i2]])
+    #        
+    #        h = abs(y2 - y1)
+    #        
+    #        self._tab_sfrd_total_[i] = 0.5 * b * h
+    #
+    #        continue
+    #
+    #    iok = np.argwhere(ok).squeeze()
+    #
+    #    Mlo1 = min(iok)
+    #    Mhi1 = max(iok)
+    #    Mlo2 = Mlo1 - 1
+    #    Mhi2 = Mhi1 + 1
+    #
+    #    # This is essentially an integral from Mlo1 to Mhi1
+    #    tot = np.trapz(integrand[ok], x=self.halos.lnM[ok])
+    #                    
+    #    integ_lo = np.trapz(integrand[Mlo2:Mhi1+1], 
+    #        x=self.halos.lnM[Mlo2:Mhi1+1])
+    #                    
+    #    # Interpolating over lower integral bound
+    #    sfrd_lo = np.interp(self._tab_logMmin[i], 
+    #        [self.halos.lnM[Mlo2], self.halos.lnM[Mlo1]], 
+    #        [integ_lo, tot]) - tot
+    #                                    
+    #    if Mhi2 >= self.halos.Nm:    
+    #        sfrd_hi = 0.0
+    #    else:
+    #        integ_hi = np.trapz(integrand[Mlo1:Mhi2+1], 
+    #            x=self.halos.lnM[Mlo1:Mhi2+1])
+    #        sfrd_hi = np.interp(self._tab_logMmax[i], 
+    #            [self.halos.lnM[Mhi1], self.halos.lnM[Mhi2]], 
+    #            [tot, integ_hi]) - tot
+    #    
+    #    self._tab_sfrd_total_[i] = tot + sfrd_lo + sfrd_hi
+        
     @property
     def _tab_sfrd_total(self):
         """
@@ -1175,27 +1485,92 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_sfrd_total_'):
             self._tab_sfrd_total_ = np.zeros(self.halos.Nz)
 
-            min_gt_max = self._tab_Mmin >= self._tab_Mmax
+            # Loop from high-z to low-z
+            for k, z in enumerate(self.halos.z[-1::-1]):
 
-            for i, z in enumerate(self.halos.z):
-
+                i = self.halos.Nz - k - 1
+                
                 if not self.pf['pop_sfr_above_threshold']:
                     break
 
                 if z > self.zform:
                     continue
 
-                if min_gt_max[i]:
-                    continue
-
                 integrand = self._tab_sfr[i] * self.halos.dndlnm[i] \
                     * self.focc(z=z, Mh=self.halos.M)
 
-                tot = np.trapz(integrand, x=self.halos.lnM)
-                cumtot = cumtrapz(integrand, x=self.halos.lnM, initial=0.0)
+                # Mmin and Mmax will never be exactly on Mh grid points 
+                # so we interpolate to more precisely determine SFRD.    
 
-                self._tab_sfrd_total_[i] = tot - \
-                    np.interp(np.log(self._tab_Mmin[i]), self.halos.lnM, cumtot)
+                c1 = self.halos.M >= self._tab_Mmin[i]
+                c2 = self.halos.M <= self._tab_Mmax[i]
+                ok = np.logical_and(c1, c2)
+                
+                if self._tab_Mmin[i] == self._tab_Mmax[i]:
+                    self._tab_sfrd_total_[i] = 0
+                    
+                    # We 'break' here because once Mmax = Mmin, PopIII
+                    # should be gone forever.
+                    
+                    if z < self.pf['initial_redshift']:
+                        break
+                    else:
+                        continue
+                    
+                # This can happen if Mmin and Mmax are within the same mass bin,
+                # or if they straddle a single mass bin. Need to be a bit careful.
+                if ok.sum() in [0, 1]:                                        
+                    i1 = np.argmin(np.abs(self.halos.M - self._tab_Mmin[i]))
+                    if self.halos.M[i1] > self._tab_Mmin[i]:
+                        i1 -= 1
+                    i2 = i1 + 1
+                    
+                    # Trapezoid here we come
+                    b = self._tab_logMmax[i] - self._tab_logMmin[i]
+                    
+                    M1 = self._tab_logMmin[i]
+                    M2 = self._tab_logMmax[i]
+                    y1 = np.interp(M1, [self.halos.lnM[i1], self.halos.lnM[i2]],
+                        [integrand[i1], integrand[i2]])
+                    y2 = np.interp(M2, [self.halos.lnM[i1], self.halos.lnM[i2]],
+                        [integrand[i1], integrand[i2]])
+                    
+                    h = abs(y2 - y1)
+                    
+                    self._tab_sfrd_total_[i] = 0.5 * b * (y1 + y2)
+
+                    #print z, ok.sum()
+
+                    continue
+
+                iok = np.argwhere(ok).squeeze()
+
+                Mlo1 = min(iok)
+                Mhi1 = max(iok)
+                Mlo2 = Mlo1 - 1
+                Mhi2 = Mhi1 + 1
+
+                # This is essentially an integral from Mlo1 to Mhi1
+                tot = np.trapz(integrand[ok], x=self.halos.lnM[ok])
+                                
+                integ_lo = np.trapz(integrand[Mlo2:Mhi1+1], 
+                    x=self.halos.lnM[Mlo2:Mhi1+1])
+                                
+                # Interpolating over lower integral bound
+                sfrd_lo = np.interp(self._tab_logMmin[i], 
+                    [self.halos.lnM[Mlo2], self.halos.lnM[Mlo1]], 
+                    [integ_lo, tot]) - tot
+                                                
+                if Mhi2 >= self.halos.Nm:    
+                    sfrd_hi = 0.0
+                else:
+                    integ_hi = np.trapz(integrand[Mlo1:Mhi2+1], 
+                        x=self.halos.lnM[Mlo1:Mhi2+1])
+                    sfrd_hi = np.interp(self._tab_logMmax[i], 
+                        [self.halos.lnM[Mhi1], self.halos.lnM[Mhi2]], 
+                        [tot, integ_hi]) - tot
+                
+                self._tab_sfrd_total_[i] = tot + sfrd_lo + sfrd_hi
 
             self._tab_sfrd_total_ *= g_per_msun / s_per_yr / cm_per_mpc**3
 
@@ -1466,7 +1841,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if Mh < Mmin:
             y3p = SFR = 0.
         else:
-            SFR = PIR * fstar
+            if self.pf['pop_sfr'] is None:
+                SFR = PIR * fstar
+            else:
+                SFR = -self.sfr(**kw) * self.cosm.dtdz(z) / s_per_yr
+                
             y3p = SFR * (1. - self.pf['pop_mass_yield']) + NPIR * Sfrac
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
@@ -1561,7 +1940,35 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._scaling_relations
 
-    def MassAfter(self, dt):
+    def duration(self, zend=6.):
+        """
+        Calculate the duration of this population, i.e., time it takes to get
+        from formation redshift to Mmax.
+        """
+        
+        zform, zfin, Mfin, raw = self.MassAfter(M0=self.pf['pop_initial_Mh'])
+
+        duration = []
+        for i, zf in enumerate(zfin):
+            duration.append(self.cosm.LookbackTime(zf, zform[i]) / s_per_yr / 1e6)
+
+        duration = np.array(duration)
+
+        # This is not quite what Rick typically plots -- his final masses are
+        # those at z=6, and many of those halos will have been forming PopII 
+        # stars for awhile.
+
+        # So, compute the final halo mass, including time spent after Mh > Mmax.
+        Mend = []
+        for i, z in enumerate(zform):
+            
+            new_data = self._sort_sam(z, zform, raw, sort_by='form')
+           
+            Mend.append(np.interp(zend, zform, new_data['Mh']))
+        
+        return zform, zfin, Mfin, duration#, np.array(Mend)
+
+    def MassAfter(self, M0=0):
         """
         Compute the final mass of a halos that begin at Mmin and grow for dt.
 
@@ -1575,42 +1982,41 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Array of formation redshifts, final redshifts, and final masses.
 
         """
-        
-        if type(dt) in [int, float]:
-            dt = lambda **kwargs: dt
 
         # This loops over a bunch of formation redshifts
         # and computes the trajectories for all SAM fields.
-        zarr, data = self._ScalingRelationsGeneralSFE(dt=dt)
-                
+        zarr, data = self._ScalingRelationsGeneralSFE(M0=M0)
+
         # At this moment, all data is in order of ascending redshift
         # Each element in `data` is 2-D: (zform, zarr)
-                
-                
+
         # Figure out the final mass (after `dt`) of halos formed at each
         # formation redshift, and the redshift at which they reach that mass
-        Mfin = []  
+        Mfin = []
         zfin = []
         for k, z in enumerate(zarr):
             # z here is the formation redshift
             new_data = self._sort_sam(z, zarr, data, sort_by='form')
-                        
-            # This is the redshift at which the mass peaked
-            if not np.isfinite(new_data['zmax']):
-                zfin.append(z)
-                Mfin.append(1e10)
-            else:
-                zmax = new_data['zmax']
-                zfin.append(zmax)
-                
-                Mmax = np.interp(zmax, zarr, new_data['Mh'])
 
-                # We just want the final mass (before dt killed SAM)
-                Mfin.append(Mmax)
-                
+            # This is the redshift at which the mass peaked
+            #if not np.isfinite(new_data['zmax']):
+            #    zfin.append(z)
+            #    Mfin.append(1e10)
+            #else:
+            zmax = new_data['zmax']
+            zfin.append(zmax)
+            
+            # Interpolate in mass trajectory to find maximum mass
+            # more precisely. Reminder: already interpolated to 
+            # find 'zmax' in call to _ScalingRelations
+            Mmax = np.interp(zmax, zarr, new_data['Mh'])
+            
+            # We just want the final mass (before dt killed SAM)
+            Mfin.append(Mmax)
+                    
         Mfin = self._apply_lim(Mfin, 'max', zarr)
         
-        return zarr, zfin, np.array(Mfin)
+        return zarr, zfin, np.array(Mfin), data
         
     def scaling_relations_sorted(self, z=None):
         """
@@ -1693,7 +2099,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         return new_data
         
-    def _ScalingRelationsGeneralSFE(self, dt=None):
+    def _ScalingRelationsGeneralSFE(self, M0=0):
         """
         In this case, the formation time of a halo matters.
         
@@ -1729,7 +2135,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             #    zform.append(z)
             #    continue
 
-            _zarr, _results = self._ScalingRelationsStaticSFE(z0=z, dt=dt)
+            _zarr, _results = self._ScalingRelationsStaticSFE(z0=z, M0=M0)
 
             #print z, len(_zarr), len(_results['Mh'])
             #print _zarr
@@ -1747,12 +2153,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zform.append(z)
             
             zmax.append(_results['zmax'])
-            
+
         results['zmax'] = np.array(zmax)
 
         return np.array(zform), results
         
-    def _ScalingRelationsStaticSFE(self, z0=None, dt=None):
+    def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
         """
         Evolve a halo from initial mass M0 at redshift z0 forward in time.
         
@@ -1774,7 +2180,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         number of elements.
 
         """
-        
+
         zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
 
         if self.pf['sam_dz'] is not None:
@@ -1788,17 +2194,27 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         solver = ode(self._SAM).set_integrator('lsoda', 
             nsteps=1e4, atol=1e2, rtol=1e-2)
             
-        ##  
+        has_e_limit = self.pf['pop_bind_limit'] is not None    
+        has_T_limit = self.pf['pop_temp_limit'] is not None    
+        has_t_limit = self.pf['pop_time_limit'] is not None    
+        has_m_limit = self.pf['pop_mass_limit'] is not None
+        
+        ##
         # Outputs have shape (z, z)
         ##
-
+        
         # Our results don't depend on this, unless SFE depends on z
-        if z0 is None:
+        if (z0 is None) and (M0 == 0):
             z0 = self.halos.z.max()
             M0 = self._tab_Mmin[-1]
-        else:
+        elif (M0 <= 1):
             M0 = np.interp(z0, self.halos.z, self._tab_Mmin)
-                                  
+        elif (M0 > 1):
+            if z0 >= self.pf['initial_redshift']:
+                M0 = np.interp(z0, self.halos.z, M0 * self._tab_Mmin)
+            else:
+                M0 = np.interp(z0, self.halos.z, self._tab_Mmin)
+
         in_range = np.logical_and(self.halos.z >= zf, self.halos.z <= z0)
         zarr = self.halos.z[in_range][::zfreq]
         Nz = zarr.size
@@ -1813,43 +2229,102 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # Only used occasionally
         zmax = None
-        hit_dt = False
+        zmax_t = None
+        zmax_m = None
+        zmax_T = None
+        zmax_e = None
 
         Mh_t = []
         Mg_t = []
         Mst_t = []
         metals = []
+        Ehist = []
         redshifts = []
         for i in range(Nz):
-            
-            #print z0, zarr[-1::-1][i]
-            
+                        
             redshifts.append(zarr[-1::-1][i])
             Mh_t.append(solver.y[0])
             Mg_t.append(solver.y[1])
             Mst_t.append(solver.y[2])
             metals.append(solver.y[3])
+            
+            z = redshifts[-1]
 
-            if dt is not None:
-                lbtime_yr = self.cosm.LookbackTime(redshifts[-1], z0) \
-                    / s_per_yr
-                if lbtime_yr >= dt(Mh=M0):
+            lbtime_myr = self.cosm.LookbackTime(z, z0) \
+                / s_per_yr / 1e6
+                        
+            if has_t_limit:
+                if lbtime_myr >= self.time_limit(z=z, Mh=M0):
                     hit_dt = True
                     
-                    lbtime_yr_prev = self.cosm.LookbackTime(redshifts[-2], z0) / s_per_yr
+                    lbtime_myr_prev = self.cosm.LookbackTime(redshifts[-2], z0) \
+                        / s_per_yr / 1e6
 
-                    zmax = np.interp(dt(Mh=M0), [lbtime_yr_prev, lbtime_yr], 
+                    zmax_t = np.interp(self.time_limit(z=z, Mh=M0), 
+                        [lbtime_myr_prev, lbtime_myr], redshifts[-2:])
+            
+            if has_m_limit:
+                Mnow = solver.y[2]
+
+                if Mnow >= self.mass_limit(z=z, Mh=M0):
+                    zmax_m = np.interp(self.mass_limit(z=z, Mh=M0), Mst_t[-2:], 
                         redshifts[-2:])
 
-                    break
+            # These next two are different because the condition might
+            # be satisfied *at the formation time*, which cannot (by definition)
+            # occur for time or mass-limited sources.
+            if has_T_limit:
+                Mtemp = self.halos.VirialMass(self.pf['pop_temp_limit'], z)
+                                
+                if solver.y[0] >= Mtemp:
+                    zmax_T = np.interp(Mtemp, Mh_t[-2:], redshifts[-2:])
+                    
+            if has_e_limit:
+                
+                Eblim = self.pf['pop_bind_limit']
+                Ebnow = self.halos.BindingEnergy(Mh_t[-1], redshifts[-1])
+                Ehist.append(Ebnow)
 
+                if (Ebnow >= Eblim):
+                    
+                    if i == 0:
+                        zmax_e = z0
+                    else:
+                        Ebpre = self.halos.BindingEnergy(Mh_t[-2], redshifts[-2])
+                        zmax_e = np.interp(Eblim, [Ebpre, Ebnow], redshifts[-2:]) 
+            
+            if zmax is None:
+            
+                # If binding energy or Virial temperature are a limiter             
+                if (zmax_e is not None and has_e_limit) or \
+                   (zmax_T is not None and has_T_limit):
+                    
+                    # Only transition if time/mass is ALSO satisfied
+                    if (self.pf['pop_limit_logic'] == 'and') and (has_t_limit or has_m_limit):
+                        if (zmax_t is not None):
+                            zmax = zmax_t
+                            #break
+                        if (zmax_m is not None):
+                            zmax = zmax_m
+                            #break                    
+                    else:
+                        zmax = zmax_e if has_e_limit else zmax_T
+                        #break
+                
+                # If no binding or temperature arguments, use time or mass
+                if not (has_e_limit or has_T_limit):
+                    if (zmax_t is not None):
+                        zmax = zmax_t
+                        #break
+                    if (zmax_m is not None):
+                        zmax = zmax_m
+                        #break        
+                                                        
             solver.integrate(solver.t-dz)
-
-        # This means that halos formed at z0 are still younger than `dt`
-        # at zf.              
-        if (dt is not None) and (not hit_dt):
-            zmax = -np.inf
- 
+  
+        if zmax is None:
+            zmax = self.pf['final_redshift']#-np.inf
+  
         # Everything will be returned in order of ascending redshift,
         # which will mean masses are (probably) declining from 0:-1
         z = np.array(redshifts)[-1::-1]

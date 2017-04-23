@@ -361,6 +361,22 @@ class Source(object):
             hnu_bar = self.hnu_bar
             
         return self._qdot_bar_all   
+        
+    def erg_per_phot(self, Emin, Emax):
+        return self.eV_per_phot(Emin, Emax) * erg_per_ev  
+    
+    def eV_per_phot(self, Emin, Emax):
+        """
+        Compute the average energy per photon (in eV) in some band.
+        """
+    
+        i1 = lambda E: self.Spectrum(E)
+        i2 = lambda E: self.Spectrum(E) / E
+    
+        # Must convert units
+        final = quad(i1, Emin, Emax)[0] / quad(i2, Emin, Emax)[0]
+    
+        return final
     
     @property
     def sigma_bar(self):

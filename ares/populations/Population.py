@@ -147,6 +147,8 @@ class Population(object):
         if not hasattr(self, '_is_lw_src'):
             if not self.pf['radiative_transfer']:
                 self._is_lw_src = False
+            elif not self.pf['pop_lw_src']:
+                self._is_lw_src = False
             elif self.pf['pop_sed_model']:
                 self._is_lw_src = \
                     (self.pf['pop_Emin'] <= 11.2 <= self.pf['pop_Emax']) and \

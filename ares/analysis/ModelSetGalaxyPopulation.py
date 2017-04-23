@@ -16,6 +16,7 @@ import numpy as np
 from ..util import read_lit
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
+from .MultiPlot import add_master_legend
 from .GalaxyPopulation import GalaxyPopulation
 from ..phenom.DustCorrection import DustCorrection
 from ..util.SetDefaultParameterValues import SetAllDefaults
@@ -86,7 +87,7 @@ class ModelSetGalaxyPopulation(ModelSet):
                     mp = self.obsdata.Plot(z[0], fig=fig, 
                         quantity=quantity, sources=compare_to, **data_kwargs)
                 
-                self.obsdata.add_master_legend(mp, scatterpoints=1, numpoints=1, 
+                add_master_legend(mp, scatterpoints=1, numpoints=1, 
                     ncol=4, fontsize=14, handletextpad=0.5, columnspacing=0.5)
                         
             else:

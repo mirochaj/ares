@@ -223,12 +223,15 @@ def PhysicsParameters():
     'feedback_LW_fsh': None,
     'feedback_LW_Tcut': 1e4,
     'feedback_LW_mean_err': False,
-    'feedback_LW_maxiter': 30,
+    'feedback_LW_maxiter': 15,
     'feedback_LW_Mmin_uponly': False,
     'feedback_LW_Mmin_smooth': False,
     'feedback_LW_Mmin_rtol': 1e-2,
     'feedback_LW_Mmin_atol': 0.0,
     'feedback_LW_softening': 'sqrt',
+    
+    'feedback_streaming': False,
+    'feedback_vel_at_rec': 30.,
 
     'feedback_Z': None,
     'feedback_Z_Tcut': 1e4,
@@ -414,6 +417,7 @@ def PopulationParameters():
     "pop_k_ion_cgm": None,
     "pop_k_ion_igm": None,
     "pop_k_heat_igm": None,
+    
 
     # Set time interval over which emission occurs
     "pop_zform": 50.,
@@ -423,7 +427,7 @@ def PopulationParameters():
     "pop_fstar": 0.1,
     "pop_fstar_max": 1.0,
     "pop_fstar_negligible": 1e-5, # relative to maximum
-    
+
     "pop_sfr": None,
     
     "pop_facc": 0.0,
@@ -459,17 +463,27 @@ def PopulationParameters():
     "pop_Mmax_ceil": None,
     "pop_Mmax_floor": None,
     "pop_Mmax": None,
-    "pop_age_limit": None,
+
+    "pop_time_limit": None,
+    "pop_mass_limit": None,
+    "pop_bind_limit": None,
+    "pop_temp_limit": None,
+    "pop_limit_logic": 'and',
+    
+    "pop_min_epoch": 10.,
+    
+    "pop_initial_Mh": 0.0, # In units of Mmin. Zero means unused
+
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
-    
+
     # Scales SFRD
     "pop_Nlw": 9690.,
     "pop_Nion": 4e3,
     "pop_fesc": 0.1,
     "pop_fX": 1.0,
     "pop_cX": 2.6e39,
-    
+
     # Should
     "pop_fesc_LW": 1.,
     "pop_fesc_LyC": 0.1,
@@ -488,6 +502,7 @@ def PopulationParameters():
 
     # What radiation does this population emit?
     # Should these be deprecated?
+    "pop_lw_src": True,
     "pop_lya_src": True,
     "pop_ion_src_cgm": True,
     "pop_ion_src_igm": True,

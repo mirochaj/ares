@@ -42,10 +42,10 @@ def f_sh_fl13(zz, Mmin):
 def get_Mmin_func(zarr, Jlw, Mmin_prev, **kwargs):
     
     # Self-shielding. Function of redshift only!
-    if kwargs['feedback_LW_fsh'] is not None:
+    if kwargs['feedback_LW_fsh']:
         f_sh = f_sh_fl13
-    elif type(kwargs['feedback_LW_fsh']) is FunctionType:
-        f_sh = kwargs['feedback_LW_fsh']    
+    #elif type(kwargs['feedback_LW_fsh']) is FunctionType:
+    #    f_sh = kwargs['feedback_LW_fsh']    
     else:
         f_sh = lambda z, Mmin: 1.0
     
@@ -241,28 +241,21 @@ class MetaGalacticBackground(AnalyzeMGB):
         if include_pops is None:
             include_pops = range(self.solver.Npops)
         
-        if self.pf['feedback_clear_solver']:
-            delattr(self, '_solver')
-            delattr(self, '_pops')
-        else:
-            delattr(self.solver, '_generators')
-            #delattr(self.solver, '_emissivities')
-        
-        # All quantities that depend on Mmin.
-        to_del = ['_tab_Mmin_', '_Mmin', '_tab_sfrd_total_',
-            '_tab_sfrd_at_threshold_', '_tab_fstar_at_Mmin_',
-            '_tab_nh_at_Mmin_', '_tab_MAR_at_Mmin_']
+        ## All quantities that depend on Mmin.
+        #to_del = ['_tab_Mmin_', '_Mmin', '_tab_sfrd_total_',
+        #    '_tab_sfrd_at_threshold_', '_tab_fstar_at_Mmin_',
+        #    '_tab_nh_at_Mmin_', '_tab_MAR_at_Mmin_']
 
-        ## Reset Mmin for feedback-susceptible populations
+        # Reset Mmin for feedback-susceptible populations
         for popid in include_pops:
-            pop = self.pops[popid]
-            
-            if not pop.feels_feedback:
-                continue
-                
-            if pop.pf['pop_Tmin'] is not None:
-                if pop.pf['pop_Tmin'] >= 1e4:
-                    continue
+            #pop = self.pops[popid]
+            #
+            #if not pop.feels_feedback:
+            #    continue
+            #    
+            #if self.pf['pop_Tmin{%i}' % popid] is not None:
+            #    if self.pf['pop_Tmin{%i}' % popid] >= 1e4:
+            #        continue
 
             #for key in to_del:
             #    try:
@@ -270,21 +263,31 @@ class MetaGalacticBackground(AnalyzeMGB):
             #    except AttributeError:
             #        print "Attribute %s didn't exist." % key
             #        continue
+            
+            # Linked populations will get 
+            if type(self.pf['pop_Mmin{%i}' % popid]) is str:
+                continue
                         
             self.kwargs['pop_Mmin{%i}' % popid] = \
-                np.interp(pop.halos.z, self.z_unique, self._Mmin_now)
-            
+                np.interp(self.pops[popid].halos.z, self.z_unique, self._Mmin_now)
+                            
             # Need to make sure, if any populations are linked to this Mmin,
             # that they get updated too.
 
-            if not self.pf['feedback_clear_solver']:
-                pop._tab_Mmin = np.interp(pop.halos.z, self._zarr, self._Mmin_now)
-                bands = self.solver.bands_by_pop[popid]
-                z, nrg, tau, ehat = self.solver._set_grid(pop, bands, 
-                    compute_emissivities=True)
+            #if not self.pf['feedback_clear_solver']:
+            #    pop._tab_Mmin = np.interp(pop.halos.z, self._zarr, self._Mmin_now)
+            #    bands = self.solver.bands_by_pop[popid]
+            #    z, nrg, tau, ehat = self.solver._set_grid(pop, bands, 
+            #        compute_emissivities=True)
+            #    
+            #    k = range(self.solver.Npops).index(popid)
+            #    self.solver._emissivities[k] = ehat
                 
-                k = range(self.solver.Npops).index(popid)
-                self.solver._emissivities[k] = ehat
+        if self.pf['feedback_clear_solver']:
+            delattr(self, '_solver')
+            delattr(self, '_pops')
+        else:
+            delattr(self.solver, '_generators')        
 
         # May not need to do this -- just execute loop just above?
         self.__init__(**self.kwargs)
@@ -608,10 +611,14 @@ class MetaGalacticBackground(AnalyzeMGB):
             # For a guess, take the minimum Mmin of all LW-producing pops
             self._Mmin_pre = np.min([self.pops[idnum].Mmin(zarr) \
                 for idnum in self._lwb_sources], axis=0)
+                
             self._Mmin_bank = [self._Mmin_pre.copy()]
             self._Jlw_bank = [Jlw]
         else:
             self._Mmin_pre = self._Mmin_now.copy()
+            
+        self._Mmin_pre = np.maximum(self._Mmin_pre, 
+            pop_fb.halos.Mmin_floor(zarr))    
             
         if np.any(np.isnan(Jlw)):
             Jlw[np.argwhere(np.isnan(Jlw))] = 0.0
@@ -635,6 +642,9 @@ class MetaGalacticBackground(AnalyzeMGB):
                 raise NotImplementedError('help')
         else:
             _Mmin_next = Mnext
+            
+        # Need to apply Mmin floor
+        _Mmin_next = np.maximum(_Mmin_next, pop_fb.halos.Mmin_floor(zarr))
 
         # Potentially impose ceiling on Mmin
         Tcut = self.pf['feedback_LW_Tcut']
@@ -648,7 +658,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         # Set new solution
         self._Mmin_now = Mmin.copy()
-        # Save for prosperity
+        # Save for our records (read: debugging)
         self._Mmin_bank.append(self._Mmin_now.copy())
         self._Jlw_bank.append(Jlw)
 
