@@ -342,7 +342,7 @@ class Global21cm(AnalyzeGlobal21cm):
             # Yield!            
             yield t, z, data_igm, data_cgm, RC_igm, RC_cgm 
 
-    def save(self, prefix, suffix='pkl', clobber=False):
+    def save(self, prefix, suffix='pkl', clobber=False, fields=None):
         """
         Save results of calculation. Pickle parameter file dict.
     
@@ -389,6 +389,9 @@ class Global21cm(AnalyzeGlobal21cm):
             
             f = h5py.File(fn, 'w')
             for key in self.history:
+                if fields is not None:
+                    if key not in fields:
+                        continue
                 f.create_dataset(key, data=np.array(self.history[key]))
             f.close()
     
@@ -408,6 +411,9 @@ class Global21cm(AnalyzeGlobal21cm):
             print >> f, "#",
     
             for key in self.history:
+                if fields is not None:
+                    if key not in fields:
+                        continue
                 print >> f, '%-18s' % key,
     
             print >> f, ''
@@ -417,6 +423,10 @@ class Global21cm(AnalyzeGlobal21cm):
                 s = ''
 
                 for key in self.history:
+                    if fields is not None:
+                        if key not in fields:
+                            continue
+                            
                     s += '%-20.8e' % (self.history[key][i])
 
                 if not s.strip():

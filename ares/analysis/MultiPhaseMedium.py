@@ -100,9 +100,49 @@ class MultiPhaseMedium(object):
         self.kwargs = kwargs
 
     def _load_data(self, data):
+        if os.path.exists('%s.history.pkl'):
+            history = self._load_pkl(data)
+        else:
+            history = self._load_txt(data)
+            
+        self._load_pf(data)    
+        self.history = history
+            
+    def _load_pf(self, data):        
+        try:            
+            f = open('%s.parameters.pkl' % data, 'rb')
+            self.pf = pickle.load(f)
+            f.close()        
+                
+        # The import error is really meant to catch pickling errors
+        except (AttributeError, ImportError):
+            self.pf = {"final_redshift": 5., "initial_redshift": 100.}
+            print 'Error loading %s.parameters.pkl.' % data    
+            
+    def _load_txt(self, data):
+        found = False
+        for suffix in ['txt', 'dat']:
+            fn = '%s.history.%s' % (data, suffix)
+            if os.path.exists(fn):
+                found = True
+                break
+                
+        if not found:
+            raise IOError('Couldn\'t find file of form %s.history*' % data)        
+                
+        with open(fn, 'r') as f:
+            cols = f.readline()[1:].split()
+            
+        data = np.loadtxt(fn, unpack=True)
         
+        return {key:data[i] for i, key in enumerate(cols)}
+
+    def _load_pkl(self, data):
+                   
+        fn = '%s.history.pkl' % data           
+                         
         chunks = 0
-        f = open('%s.history.pkl' % data, 'rb')
+        f = open(fn, 'rb')
         while True:
             try:
                 tmp = pickle.load(f)
@@ -166,17 +206,7 @@ class MultiPhaseMedium(object):
                     history[col] = _data[:,i]
                 f.close()  
 
-        try:            
-            f = open('%s.parameters.pkl' % data, 'rb')
-            self.pf = pickle.load(f)
-            f.close()        
-                
-        # The import error is really meant to catch pickling errors
-        except (AttributeError, ImportError):
-            self.pf = {"final_redshift": 5., "initial_redshift": 100.}
-            print 'Error loading %s.parameters.pkl.' % data
-
-        self.history = history       
+        return history       
 
     @property
     def cosm(self):
