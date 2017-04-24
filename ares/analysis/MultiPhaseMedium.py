@@ -100,7 +100,7 @@ class MultiPhaseMedium(object):
         self.kwargs = kwargs
 
     def _load_data(self, data):
-        if os.path.exists('%s.history.pkl'):
+        if os.path.exists('%s.history.pkl' % data):
             history = self._load_pkl(data)
         else:
             history = self._load_txt(data)
