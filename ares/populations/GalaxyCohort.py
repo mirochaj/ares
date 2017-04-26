@@ -2277,11 +2277,22 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if Mnow >= self.mass_limit(z=z, Mh=M0) and (zmax_m is None):
                     zmax_m = np.interp(self.mass_limit(z=z, Mh=M0), Mst_t[-2:], 
                         redshifts[-2:])
-                
+
             if has_a_limit and (zmax_a is None):
-                Znow = solver.y[3] / solver.y[1]
-                                                                                                          
-                if Znow >= self.abun_limit(z=z, Mh=M0):                    
+                                
+                # Subtract off metals accrued before crossing Eb limit?
+                #if (zmax_e is not None) and self.pf['pop_lose_metals'] and i > 0:
+                #    MZ_e = np.interp(zmax_e, redshifts[-1::-1], metals[-1::-1])
+                #    Mg_e = np.interp(zmax_e, redshifts[-1::-1], Mg_t[-1::-1])
+                #                        
+                #    Zpre = (metals[-2] - MZ_e) / solver.y[1]
+                #    Znow = (solver.y[3] - MZ_e) / solver.y[1]
+                #elif self.pf['pop_lose_metals']:
+                #    Zpre = Znow = 0.0
+                #else:                                      
+                    
+                Znow = solver.y[3] / solver.y[1]                                                                                          
+                if Znow >= self.abun_limit(z=z, Mh=M0) and i > 0:                    
                     Zpre = metals[-2] / Mg_t[-2]
                     Z_t = [Zpre, Znow]                           
                     zmax_a = np.interp(self.abun_limit(z=z, Mh=M0), Z_t,

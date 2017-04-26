@@ -1,25 +1,54 @@
 import numpy as np
 from mirocha2016 import dpl, dpl_flex
 
-_popII_models = \
+_popII_models = {}
+for model in ['fall', 'strong_fall', 'weak_fall']:
+    _popII_models[model] = dpl_flex.copy()
+    _popII_models[model]['pq_func_par2{0}[1]'] = 1
+
+for model in ['rise', 'strong_rise', 'weak_rise']:
+    _popII_models[model] = dpl_flex.copy()
+    _popII_models[model]['pq_func_par2{0}[1]'] = -1
+
+for model in ['dpl', 'strong', 'weak', 'strong_weak']:
+    _popII_models[model] = {}
+
+_popII_updates = \
 {
  'dpl': {},
- 'shallow': {'pop_Z{0}': 1e-3, 'pop_rad_yield_Z_index{1}': -0.6},
- 'deep': {'pop_logN{1}': 22.},
- 'late': {'pop_Tmin{0}': 1e5},
+ 'fall': {},
+ 'rise': {},
+ 'strong': {'pop_Z{0}': 1e-3, 'pop_rad_yield_Z_index{1}': -0.6},
+ 'strong_rise': {'pop_Z{0}': 1e-3, 'pop_rad_yield_Z_index{1}': -0.6},
+ 'strong_fall': {'pop_Z{0}': 1e-3, 'pop_rad_yield_Z_index{1}': -0.6},
+ 'weak': {'pop_logN{1}': 22.5},
+ 'weak_rise': {'pop_logN{1}': 22.5},
+ 'weak_fall': {'pop_logN{1}': 22.5},
+ 'strong_weak': {'pop_Z{0}': 1e-3, 'pop_rad_yield_Z_index{1}': -0.6, 'pop_logN{1}': 22.5},
 }
 
-_popII_models['early'] = dpl_flex
-_popII_models['early']['pq_func_par2{0}[1]'] = 1.
+for _update in _popII_updates.keys():
+    _popII_models[_update].update(_popII_updates[_update])
 
-popII_pars = _popII_models#{}
-#for model in _popII_models:
-#    p = dpl.copy()
-#    p.update(_popII_models[model])
-#    popII_pars[model] = p.copy()
-#    
-popII_markers = {'dpl': 's', 'shallow': '^', 'deep': 'v', 'early': '<', 'late': '>'}
-popII_models = ['dpl', 'shallow', 'deep', 'late', 'early']
+popII_pars = _popII_models
+
+popII_markers = \
+{
+'dpl': 's', 'strong': '^', 'weak': 'v',
+'fall': '<', 'rise': '>', 'strong_weak': 'D',
+'strong_fall': '^', 'weak_rise': 'v', 
+'strong_rise': '^', 'weak_fall': 'v', 
+}
+
+# Lotta trouble just to get 'dpl' first in the list...
+_amp =  ['weak', 'strong']
+_timing = ['rise', 'fall']
+_all = _amp + _timing
+popII_models = ['dpl'] + _all + ['strong_weak']
+
+for e1 in _amp:
+    for e2 in _timing:
+        popII_models.append('%s_%s' % (e1, e2))
 
 # relative to mirocha2016:dpl
 _generic_updates = \

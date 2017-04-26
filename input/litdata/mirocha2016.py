@@ -86,8 +86,7 @@ _floor_specific = \
 'pq_val_floor{0}[0]': 0.005,
 }
 
-floor = dpl.copy()
-floor.update(_floor_specific)
+floor = _floor_specific
 
 _steep_specific = \
 {
@@ -98,8 +97,7 @@ _steep_specific = \
  'pq_func_par1{0}[1]': 1e9,
 }
 
-steep = dpl.copy()
-steep.update(_steep_specific)
+steep = _steep_specific
 
 """
 Redshift-dependent options.
@@ -134,8 +132,7 @@ _flex = \
 
 }
 
-dpl_flex = dpl.copy()
-dpl_flex.update(_flex)
+dpl_flex = _flex
 
 _flex2 = \
 {
@@ -178,12 +175,9 @@ _flex2 = \
  
 }
 
-dpl_evol = dpl.copy()
-dpl_evol.update(_flex2)
-
+dpl_evol = _flex2
 dpl_pl = dpl_evol
-
-dpl_quad = dpl.copy()
+dpl_quad = {}
 for j, i in enumerate(range(1, 5)):
     dpl_quad['pq_func_par%i{0}[0]' % j] = 'pq[%i]' % i
     dpl_quad['pq_func{0}[%i]' % i] = 'quad'
