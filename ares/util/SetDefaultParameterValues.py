@@ -466,13 +466,14 @@ def PopulationParameters():
 
     "pop_time_limit": None,
     "pop_mass_limit": None,
+    "pop_abun_limit": None,
     "pop_bind_limit": None,
     "pop_temp_limit": None,
     "pop_limit_logic": 'and',
     
     "pop_min_epoch": 10.,
     
-    "pop_initial_Mh": 0.0, # In units of Mmin. Zero means unused
+    "pop_initial_Mh": 1, # In units of Mmin. Zero means unused
 
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
