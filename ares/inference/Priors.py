@@ -170,11 +170,12 @@ class _Prior():
     self.to_string() --- string summary of this prior
     self.__eq__(other) --- checks for equality with another object
     
-    In both of these functions, point is a configuration. It could be a
+    In draw() and log_prior(), point is a configuration. It could be a
     single number for a univariate prior or a numpy.ndarray for a multivariate
     prior.
     """
-    pass
+    def __ne__(self, other):
+        return (not self.__eq__(other))
 
 ############################# Univariate Priors ###############################
 
