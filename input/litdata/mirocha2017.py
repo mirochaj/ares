@@ -13,6 +13,38 @@ for model in ['rise', 'strong_rise', 'weak_rise']:
 for model in ['dpl', 'strong', 'weak', 'strong_weak']:
     _popII_models[model] = {}
 
+_popII_models['soft'] = {}
+
+_sed_soft = \
+{
+
+ # Emits X-rays
+ "pop_lya_src{2}": False,
+ "pop_ion_src_cgm{2}": False,
+ "pop_ion_src_igm{2}": True,
+ "pop_heat_src_cgm{2}": False,
+ "pop_heat_src_igm{2}": True,
+
+ "pop_sed{2}": 'pl',
+ "pop_alpha{2}": -1.5,
+ 'pop_logN{2}': -np.inf,
+
+ "pop_Emin{2}": 2e2,
+ "pop_Emax{2}": 3e4,
+ "pop_EminNorm{2}": 5e2,
+ "pop_EmaxNorm{2}": 8e3,
+
+ "pop_Ex{2}": 500.,
+ "pop_rad_yield{2}": 2.6e40, 
+ "pop_rad_yield_units{2}": 'erg/s/SFR',
+}
+
+_sed_soft['pop_sfr_model{2}'] = 'link:sfrd:0'
+_sed_soft['pop_alpha{2}'] = -2.5
+_sed_soft['pop_solve_rte{2}'] = True
+_sed_soft['pop_tau_Nz{2}'] = 1000
+_sed_soft['pop_approx_tau{2}'] = 'neutral'
+
 _popII_updates = \
 {
  'dpl': {},
@@ -25,6 +57,7 @@ _popII_updates = \
  'weak_rise': {'pop_logN{1}': 22.5},
  'weak_fall': {'pop_logN{1}': 22.5},
  'strong_weak': {'pop_Z{0}': 1e-3, 'pop_rad_yield_Z_index{1}': -0.6, 'pop_logN{1}': 22.5},
+ 'soft': _sed_soft,
 }
 
 for _update in _popII_updates.keys():
@@ -37,7 +70,7 @@ popII_markers = \
 'dpl': 's', 'strong': '^', 'weak': 'v',
 'fall': '<', 'rise': '>', 'strong_weak': 'D',
 'strong_fall': '^', 'weak_rise': 'v', 
-'strong_rise': '^', 'weak_fall': 'v', 
+'strong_rise': '^', 'weak_fall': 'v', 'soft': 's',
 }
 
 # Lotta trouble just to get 'dpl' first in the list...
@@ -49,6 +82,8 @@ popII_models = ['dpl'] + _all + ['strong_weak']
 for e1 in _amp:
     for e2 in _timing:
         popII_models.append('%s_%s' % (e1, e2))
+
+popII_models.append('soft')
 
 # relative to mirocha2016:dpl
 _generic_updates = \

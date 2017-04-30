@@ -295,7 +295,6 @@ class MultiPanel(object):
             caxes[ax] = cax
         
         return caxes
-
             
     @property
     def active_elements(self):

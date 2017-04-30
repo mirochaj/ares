@@ -717,6 +717,8 @@ def ControlParameters():
     pf = \
     {
     
+    'revision': None,
+    
     # Start/stop/IO
     "dtDataDump": 1.,
     "dzDataDump": None,

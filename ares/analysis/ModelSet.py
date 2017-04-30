@@ -875,6 +875,29 @@ class ModelSet(BlobFactory):
         print (lx, lx+dx, ly, ly+dy)
         
         self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
+    
+    def SliceIteratively(self, par):
+        assert self.Nd == 3 # for now
+        
+        k = list(self.parameters).index(par)
+        vals = np.sort(np.unique(self.chain[:,k]))
+        
+        slices = []
+        for i, val in enumerate(vals):
+                        
+            if i == 0:
+                lo = 0
+                hi = np.mean([val, vals[i+1]])
+            elif i == len(vals) - 1:
+                lo = np.mean([val, vals[i-1]])
+                hi = max(vals) * 1.1
+            else:
+                lo = np.mean([vals[i-1], val])  
+                hi = np.mean([vals[i+1], val])  
+                
+            slices.append(self.Slice([lo, hi], [par]))
+        
+        return vals, slices
                 
     def Slice(self, constraints, pars, ivar=None, take_log=False, 
         un_log=False, multiplier=1.):
@@ -1424,7 +1447,8 @@ class ModelSet(BlobFactory):
     def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
         line_plot=False, sort_by='z', filter_z=None, rungs=False, 
-        rung_label=None, rung_label_top=True, **kwargs):
+        rung_label=None, rung_label_top=True, return_cb=False, cax=None,
+        cb_kwargs={}, **kwargs):
         """
         Plot samples as points in 2-d plane.
     
@@ -1467,8 +1491,7 @@ class ModelSet(BlobFactory):
             p = pars
             iv = ivar
         
-        data = \
-            self.ExtractData(p, iv, take_log, un_log, multiplier)
+        data = self.ExtractData(p, iv, take_log, un_log, multiplier)
 
         xdata = data[p[0]]
         ydata = data[p[1]]
@@ -1538,7 +1561,7 @@ class ModelSet(BlobFactory):
                 else:
                     cb = None
             else:
-                cb = self._cb = pl.colorbar(scat)
+                cb = self._cb = pl.colorbar(scat, cax=cax, **cb_kwargs)
         else:
             cb = None
         
@@ -1554,7 +1577,11 @@ class ModelSet(BlobFactory):
         pl.draw()
         
         self._ax = ax
-        return ax
+        
+        if return_cb:
+            return ax, cb
+        else:    
+            return ax
         
     def _fix_tick_labels(self, ax):
         tx = map(int, ax.get_xticks())
@@ -3441,10 +3468,10 @@ class ModelSet(BlobFactory):
         ##
         # Do the actual plotting
         ##
-
+        
         # Limit number of realizations
         if samples is not None:
-            M = min(self.chain.shape[0], max_samples)
+            M = min(min(self.chain.shape[0], max_samples), len(y.T))            
             
             if samples == 'all':
                 elements = np.arange(0, M)
@@ -3880,8 +3907,14 @@ class ModelSet(BlobFactory):
                 if key in self.parameters:
                     continue
                     
-                i, j, nd, size = self.blob_info(key)
-                ivars[key] = self.blob_ivars[i]
+                # Might be a derived blob of derived blobs!
+                # Just err on the side of no ivars for now.  
+        
+                try: 
+                    i, j, nd, size = self.blob_info(key)
+                    ivars[key] = self.blob_ivars[i]
+                except KeyError:
+                    ivars[key] = None
 
             result = func(data, ivars)
 
@@ -3927,8 +3960,12 @@ class ModelSet(BlobFactory):
                 # Don't need ivars if we're manipulating parameters!
                 if key in self.parameters:
                     continue
-                i, j, nd, size = self.blob_info(key)
-                ivars[key] = self.blob_ivars[i]
+                    
+                try:    
+                    i, j, nd, size = self.blob_info(key)
+                    ivars[key] = self.blob_ivars[i]
+                except KeyError:
+                    ivars[key] = None
             
             # Save metadata about this derived blob
             fn_md = '%s.dbinfo.pkl' % self.prefix

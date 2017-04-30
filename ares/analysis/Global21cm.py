@@ -588,10 +588,10 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     
         for i, sim in enumerate(sims):
     
-            nu.append(sim.data['nu'])
-            dTb.append(sim.data['dTb'])
+            nu.append(sim.history['nu'])
+            dTb.append(sim.history['dTb'])
     
-            ax = sim.GlobalSignature(ax=ax, **kwargs)
+            #ax = sim.GlobalSignature(ax=ax, **kwargs)
     
             C.append(sim.turning_points['C'])
             D.append(sim.turning_points['D'])
@@ -599,34 +599,34 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         y1_w_x0 = np.interp(nu[0], nu[1], dTb[1])
         ax.fill_between(nu[0], dTb[0], y1_w_x0, **kwargs)
     
-        for tp in [C, D]:
-            nu_C_0 = nu_0_mhz / (1. + tp[0][0])
-            nu_C_1 = nu_0_mhz / (1. + tp[1][0])
-            T_C_0 = tp[0][1]
-            T_C_1 = tp[1][1]
-    
-            nu_min = min(nu_C_0, nu_C_1)    
-    
-            # Line connecting turning points
-            def y_min(nu):
-    
-                dnu = abs(nu_C_0 - nu_C_1)
-                dT = abs(T_C_0 - T_C_1)
-                m = dT / dnu
-    
-                return m * (nu - nu_min) + min(T_C_0, T_C_1)
-    
-            new_nu = np.linspace(min(nu_C_0, nu_C_1), max(nu_C_0, nu_C_1))
-    
-            new_T0 = np.interp(new_nu, nu[0], dTb[0])
-            new_T1 = np.interp(new_nu, nu[1], dTb[1])
-    
-            if tp == C:
-                ax.fill_between(new_nu, y_min(new_nu), np.minimum(new_T0, new_T1), 
-                    **kwargs)
-            else:
-                ax.fill_between(new_nu, y_min(new_nu), np.maximum(new_T0, new_T1), 
-                    **kwargs)
+        #for tp in [C, D]:
+        #    nu_C_0 = nu_0_mhz / (1. + tp[0][0])
+        #    nu_C_1 = nu_0_mhz / (1. + tp[1][0])
+        #    T_C_0 = tp[0][1]
+        #    T_C_1 = tp[1][1]
+        #
+        #    nu_min = min(nu_C_0, nu_C_1)    
+        #
+        #    # Line connecting turning points
+        #    def y_min(nu):
+        #
+        #        dnu = abs(nu_C_0 - nu_C_1)
+        #        dT = abs(T_C_0 - T_C_1)
+        #        m = dT / dnu
+        #
+        #        return m * (nu - nu_min) + min(T_C_0, T_C_1)
+        #
+        #    new_nu = np.linspace(min(nu_C_0, nu_C_1), max(nu_C_0, nu_C_1))
+        #
+        #    new_T0 = np.interp(new_nu, nu[0], dTb[0])
+        #    new_T1 = np.interp(new_nu, nu[1], dTb[1])
+        #
+        #    if tp == C:
+        #        ax.fill_between(new_nu, y_min(new_nu), np.minimum(new_T0, new_T1), 
+        #            **kwargs)
+        #    else:
+        #        ax.fill_between(new_nu, y_min(new_nu), np.maximum(new_T0, new_T1), 
+        #            **kwargs)
     
         pl.draw()
     
