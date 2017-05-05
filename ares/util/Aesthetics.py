@@ -53,10 +53,10 @@ derived = \
 {
  'Ts': r'$T_S$',
  'dTb': r'$\delta T_b \ (\mathrm{mK})$',
- 'hwhm_diff': r'$\Delta \mathrm{HWHM}$',
- 'hwqm_diff': r'$\Delta \mathrm{HWQM}$',
+ 'hwhm_diff': r'$\Delta \nu_{\min}$',
  'fwhm': r'$\mathrm{FWHM}$',
  'fwqm': r'$\mathrm{FWQM}$',
+ 'mean_slope': r'$\langle \delta T_b^{\prime} \rangle$'
 }
 
 labels = {}

@@ -20,6 +20,8 @@ for tp in ['B', 'C', 'D', 'Bp', 'Cp', 'Dp']:
     for field in _gs_hist:
         _gs_ext.append('%s_%s' % (field, tp))
 
+_gs_min1d = ['z', 'dTb']
+
 # Add the zero-crossing even though its not an extremum
 _gs_ext.append('z_ZC')
 # CMB optical depth

@@ -238,6 +238,15 @@ class MultiPanel(object):
             if k == self.ncols - 1:
                 self.right.append(i)       
 
+        self.interior = []
+        for i in xrange(self.N):
+            if i in self.left:
+                continue
+            if i in self.bottom:
+                continue
+                
+            self.interior.append(i)
+
         # Create subplots
         e_fl = self.elements.flatten()
         self.grid = [None for i in xrange(self.N)]
@@ -544,31 +553,50 @@ class MultiPanel(object):
             
             if self.grid[i] is None:
                 continue
-            
+
             # Retrieve current ticks, tick-spacings, and axis limits
             ticks = eval("list(self.grid[%i].%s())" % (i, get_ticks))
-            
+
             if not ticks:
                 continue
             
+            # Get all the info for current set of ticks
             ticklabels = eval("[tick for tick in self.grid[%i].%s()]" \
                 % (i, get_ticklabels))
-            #ticklabels = eval("list(self.grid[%i].%s())" % (i, get_ticklabels))
+             
+            labels = []    
+            for tick in ticklabels:    
+                l = tick.get_text()
+                
+                # Minus signs are weird in unicode...
+                if type(l) == unicode:
+                    if u'\u2212' in l:
+                        new = '-' + l.encode('ascii', 'ignore')
+                    else:
+                        new = l.encode('ascii', 'ignore')
+                else:
+                    new = l    
+                    
+                labels.append(new)
+                
+            Nticks = len(labels)    
+            dt = np.diff(ticks)[0]            
             
-            dt = np.diff(ticks)[0]
+            # Axes limits
             limits = eval("self.grid[%i].%s()" % (i, get_lim))
             
+            # column or row number. Need this to know whether or not to...?
             pos = self.axis_position(i)[j]
 
-            # Mess with upper limits
+            # Determine if we're chopping off the first and/or last tick mark
+            # e.g., if the axes are adjoined
             ul = None
             if shared and pos < (self.dims[int(not j)] - 1):
                 ul = -1
-                
-            labels = [tick.get_text() for tick in ticklabels]
-                                           
-            Nticks = len(labels)
             
+            ll = 0    
+            
+            # If number of ticks was specified by hand              
             if N is not None:
                 mi, ma = round(limits[0], 1), round(limits[1], 1)
                 
@@ -595,33 +623,35 @@ class MultiPanel(object):
                 rotate = False
                                                 
             if ul is None:
-                eval("self.grid[%i].%s(ticks[0:])" % (i, set_ticks))
+                eval("self.grid[%i].%s(ticks)" % (i, set_ticks))
                                 
                 if rotate:
                     if type(rotate) == bool:
-                        eval("self.grid[%i].%s(labels[0:], rotation=90)" \
+                        eval("self.grid[%i].%s(labels, rotation=90)" \
                             % (i, set_ticklabels))
                     else:
-                        eval("self.grid[%i].%s(labels[0:], rotation=%g)" \
+                        eval("self.grid[%i].%s(labels, rotation=%g)" \
                                 % (i, set_ticklabels, rotate))        
                 else:
-                    eval("self.grid[%i].%s(labels[0:])" % (i, set_ticklabels))
+                    eval("self.grid[%i].%s(labels)" % (i, set_ticklabels))
+
             else:
-                eval("self.grid[%i].%s(ticks[0:%i])" % (i, set_ticks, ul))
-                
+                eval("self.grid[%i].%s(ticks[%i:%i])" % (i, set_ticks, ll, ul))
+
                 if rotate:
                     if type(rotate) == bool:
-                        eval("self.grid[%i].%s(labels[0:%i], rotation=90)" \
-                            % (i, set_ticklabels, ul))
+                        eval("self.grid[%i].%s(labels[%i:%i], rotation=90)" \
+                            % (i, set_ticklabels, ll, ul))
                     else:
-                        eval("self.grid[%i].%s(labels[0:%i], rotation=%g)" \
-                            % (i, set_ticklabels, ul, rotate))      
+                        eval("self.grid[%i].%s(labels[%i:%i], rotation=%g)" \
+                            % (i, set_ticklabels, ll, ul, rotate))      
                 else:
-                    eval("self.grid[%i].%s(labels[0:%i])" % (i, set_ticklabels, ul))
+                    eval("self.grid[%i].%s(labels[%i:%i])" \
+                        % (i, set_ticklabels, ll, ul))
     
             if style is not None: 
                 self.grid[i].ticklabel_format(style=style)
-                
+                                
         # Loop over columns, force those not in row 0 to share ticks with 
         # whatever tick marks there are in row #0
         if axis == 'x':
@@ -684,27 +714,10 @@ class MultiPanel(object):
             if k > 0:
                 self.grid[i].set_xlabel('')
 
-    def fix_ticks(self, noxticks=False, noyticks=False, style=None, N=None,
-        rotate_x=False, rotate_y=False, xticklabels=None, yticklabels=None, 
-        oned=True):
-        """
-        Call once all plotting is done, will eliminate redundant tick marks 
-        and what not.
+    def remove_all_ticks(self, noxticks=False, noyticks=False):
         
-        Parameters
-        ----------
-        
-        """
-        
-        pl.draw()
-        
-        self.fix_axes_labels()
-        
-        self.fix_axes_ticks(axis='x', N=N, rotate_x=rotate_x)
-        self.fix_axes_ticks(axis='y', N=N, rotate_y=rotate_y)
-        
-        if self.diagonal == 'lower' and oned:
-            self.grid[np.intersect1d(self.left, self.top)[0]].set_yticklabels([])
+        if (noxticks == False) and (noyticks == False):
+            return
         
         # Remove ticks alltogether (optionally)            
         for j in xrange(self.dims[0]):
@@ -741,7 +754,33 @@ class MultiPanel(object):
                     bins = np.arange(round(min(y), 1), round(max(y), 1), 
                         yticklabels)
                     self.grid[i].set_yticks(bins)    
-                
+        
+        pl.draw()
+
+    def fix_ticks(self, noxticks=False, noyticks=False, style=None, N=None,
+        rotate_x=False, rotate_y=False, xticklabels=None, yticklabels=None, 
+        oned=True):
+        """
+        Call once all plotting is done, will eliminate redundant tick marks 
+        and what not.
+        
+        Parameters
+        ----------
+        
+        """
+        
+        pl.draw()
+        
+        self.fix_axes_labels()
+        
+        self.fix_axes_ticks(axis='x', N=N, rotate_x=rotate_x)
+        self.fix_axes_ticks(axis='y', N=N, rotate_y=rotate_y)
+        
+        if self.diagonal == 'lower' and oned:
+            self.grid[np.intersect1d(self.left, self.top)[0]].set_yticklabels([])
+        
+        self.remove_all_ticks(noxticks, noyticks)
+        
         pl.draw()     
         
     def fix_auto(self):

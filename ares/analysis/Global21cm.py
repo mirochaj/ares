@@ -593,8 +593,8 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     
             #ax = sim.GlobalSignature(ax=ax, **kwargs)
     
-            C.append(sim.turning_points['C'])
-            D.append(sim.turning_points['D'])
+            #C.append(sim.turning_points['C'])
+            #D.append(sim.turning_points['D'])
     
         y1_w_x0 = np.interp(nu[0], nu[1], dTb[1])
         ax.fill_between(nu[0], dTb[0], y1_w_x0, **kwargs)
@@ -745,6 +745,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         if np.any(np.isinf([l, r])):
             return -np.inf
                 
+        # "l" and "r" are now backwards since we're going to frequency
         if to_freq:
             l = nu_0_mhz / (1. + l)
             r = nu_0_mhz / (1. + r)
@@ -757,7 +758,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                 l = abs(z_pt[i] - l)
                 r = abs(z_pt[i] - r)
         
-            val = r - l
+            val = -(r - l)
         else:
             val = abs(r - l)
         
