@@ -601,8 +601,10 @@ def SourceParameters():
     "source_rmax": 1e3,
     "source_alpha": -1.5,
     
+    # SIMPL
     "source_fsc": 0.1,
     "source_uponly": True,
+    "source_dlogE": 0.1,
     
     "source_Lbol": None,
     "source_mass": 10,  

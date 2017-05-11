@@ -86,7 +86,7 @@ class Source(object):
         #self.Lbol = self.Lbol0 = self.BolometricLuminosity(0.0)
 
         # Create lookup tables for integral quantities
-        if init_tabs and grid is not None:
+        if init_tabs and (grid is not None):
             self._create_integral_table(logN=logN)
     
     @property

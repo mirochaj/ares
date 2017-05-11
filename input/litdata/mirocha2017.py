@@ -1,13 +1,13 @@
 import numpy as np
-from mirocha2016 import dpl, dpl_flex
+from mirocha2016 import dpl, flex
 
 _popII_models = {}
 for model in ['fall', 'strong_fall', 'weak_fall']:
-    _popII_models[model] = dpl_flex.copy()
+    _popII_models[model] = flex.copy()
     _popII_models[model]['pq_func_par2{0}[1]'] = 1
 
 for model in ['rise', 'strong_rise', 'weak_rise']:
-    _popII_models[model] = dpl_flex.copy()
+    _popII_models[model] = flex.copy()
     _popII_models[model]['pq_func_par2{0}[1]'] = -1
 
 for model in ['dpl', 'strong', 'weak', 'strong_weak']:
@@ -34,7 +34,7 @@ _sed_soft = \
  "pop_EminNorm{2}": 5e2,
  "pop_EmaxNorm{2}": 8e3,
 
- "pop_Ex{2}": 500.,
+ #"pop_Ex{2}": 500.,
  "pop_rad_yield{2}": 2.6e40, 
  "pop_rad_yield_units{2}": 'erg/s/SFR',
 }

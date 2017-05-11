@@ -22,7 +22,8 @@ from scipy.interpolate import interp1d
 from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
-from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev
+from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev, \
+    sqdeg_per_std
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
 
 _scipy_ver = scipy.__version__.split('.')
@@ -184,6 +185,72 @@ class MetaGalacticBackground(AnalyzeMGB):
                 
             self.reboot()
             self.run(include_pops=self._lwb_sources)
+    
+    @property        
+    def today(self):
+        """
+        Take background intensity at final redshift and evolve to z=0.
+        """
+        
+        _fluxes_today = []
+        _energies_today = []
+        
+        for popid, pop in enumerate(self.pops):
+            if not self.solver.solve_rte[popid]:
+                _fluxes_today.append(None)
+                _energies_today.append(None)
+                continue
+                
+            z, E, flux = self.get_history(popid=popid, flatten=True)    
+                
+            Et = E / (1. + z[0])
+            ft = flux[0] / (1. + z[0])**3
+            
+            _energies_today.append(Et)
+            _fluxes_today.append(ft)
+            
+        return _energies_today, _fluxes_today
+                           
+    @property        
+    def jsxb(self):
+        if not hasattr(self, '_jsxb'):
+            self._jsxb = self.jxrb(band='soft')
+        return self._jsxb
+
+    @property        
+    def jhxb(self):
+        if not hasattr(self, '_jhxb'):
+            self._jhxb = self.jxrb(band='hard')
+        return self._jhxb
+
+    def jxrb(self, band='soft'):
+        """
+        Compute soft X-ray background flux at z=0.
+        """
+
+        jx = 0.0
+        Ef, ff = self.today
+        for popid, pop in enumerate(self.pops):
+            if Ef[popid] is None:
+                continue
+                
+            flux_today = ff[popid] * Ef[popid] \
+                * erg_per_ev / sqdeg_per_std / ev_per_hz
+                
+            if band == 'soft':
+                Eok = np.logical_and(Ef[popid] >= 5e2, Ef[popid] <= 2e3)
+            elif band == 'hard':
+                Eok = np.logical_and(Ef[popid] >= 2e3, Ef[popid] <= 1e4)
+            else:
+                raise ValueError('Unrecognized band! Only know \'hard\' and \'soft\'')
+        
+            Earr = Ef[popid][Eok]
+            # Find integrated 0.5-2 keV flux
+            dlogE = np.diff(np.log10(Earr))
+            
+            jx += np.trapz(flux_today[Eok] * Earr, dx=dlogE) * np.log(10.)
+                          
+        return jx          
                            
     @property
     def _not_lwb_sources(self):
