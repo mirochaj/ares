@@ -685,7 +685,6 @@ class HaloMassFunction(object):
         l = np.sqrt(np.pi * cs**2 / G / rho)
         return 4. * np.pi * rho * (0.5 * l)**3 / 3. / g_per_msun
         
-            
     def _tegmark(self, z):
         fH2s = lambda T: 3.5e-4 * (T / 1e3)**1.52
         fH2c = lambda T: 1.6e-4 * ((1. + z) / 20.)**-1.5 \

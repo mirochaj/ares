@@ -190,6 +190,8 @@ class MetaGalacticBackground(AnalyzeMGB):
     def today(self):
         """
         Take background intensity at final redshift and evolve to z=0.
+        
+        This is just the second term of Eq. 25 in Mirocha (2014).
         """
         
         _fluxes_today = []
@@ -204,7 +206,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             z, E, flux = self.get_history(popid=popid, flatten=True)    
                 
             Et = E / (1. + z[0])
-            ft = flux[0] / (1. + z[0])**3
+            ft = flux[0] / (1. + z[0])**2
             
             _energies_today.append(Et)
             _fluxes_today.append(ft)
@@ -217,7 +219,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             self._jsxb = self.jxrb(band='soft')
         return self._jsxb
 
-    @property        
+    @property
     def jhxb(self):
         if not hasattr(self, '_jhxb'):
             self._jhxb = self.jxrb(band='hard')
