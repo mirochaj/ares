@@ -592,7 +592,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         return self._z_unique        
                 
     def get_uvb_tot(self, include_pops=None):
-        
+                
         if include_pops is None:
             include_pops = range(self.solver.Npops)
         
@@ -601,7 +601,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         _f_Ja = []
         _f_Jlw = []
         for i, popid in enumerate(include_pops):
-            
+                        
             _z, _Ja, _Jlw = self.get_uvb(popid)
             
             _allz.append(_z)
@@ -654,6 +654,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         # Need better long-term fix: Lya sources aren't necessarily LW 
         # sources, if (for example) approx_all_pops = True. 
         if not self.pf['feedback_LW']:
+            # Will use all then
             include_pops = None
         elif include_pops is None:
             include_pops = range(self.solver.Npops)
@@ -740,7 +741,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             return True 
         
         rtol = self.pf['feedback_LW_Mmin_rtol']
-        atol = self.pf['feedback_LW_Mmin_atol']      
+        atol = self.pf['feedback_LW_Mmin_atol']
         
         # Less stringent requirement, that mean error meet tolerance.
         if self.pf['feedback_LW_mean_err']:
@@ -783,43 +784,47 @@ class MetaGalacticBackground(AnalyzeMGB):
         if np.any(self.solver.solve_rte[popid]):
             z, E, flux = self.get_history(popid=popid, flatten=True)
             
-            l = np.argmin(np.abs(E - E_LyA))     # should be 0
-                                                            
-            # Redshift is first dimension!
-            Ja = flux[:,l]
-                    
-            # Find photons in LW band    
+            if self.pf['secondary_lya'] and self.pops[popid].is_ion_src_igm:
+                Ja = np.zeros_like(z) # placeholder
+            else:
+                l = np.argmin(np.abs(E - E_LyA))     # should be 0
+                                                                
+                # Redshift is first dimension!
+                Ja = flux[:,l]
+                        
+            # Find photons in LW band
             is_LW = np.logical_and(E >= 11.18, E <= E_LL)
             
             dnu = (E_LL - 11.18) / ev_per_hz
-
+            
             # Need to do an integral to finish this one.
             Jlw = np.zeros_like(z)
-        
+
         else:
             # Need a redshift array!
             z = self.z_unique
             Ja = np.zeros_like(z)
             Jlw = np.zeros_like(z)
-        
+
         ##
         # Loop over redshift
         ##
-        for i, redshift in enumerate(z): 
-            
+        for i, redshift in enumerate(z):
             if not np.any(self.solver.solve_rte[popid]):
                 Ja[i] = self.solver.LymanAlphaFlux(redshift, popid=popid)
-                if self.pf['feedback_LW']:   
+                if self.pf['feedback_LW']:
                     Jlw[i] = self.solver.LymanWernerFlux(redshift, popid=popid)
+
                 continue
-                       
-            LW_flux = flux[i,is_LW]
-            
+            elif self.pf['secondary_lya'] and (self.pops[popid].is_ion_src_igm):
+                Ja[i] = self.solver.volume.SecondaryLymanAlphaFlux(redshift, 
+                    popid=popid, fluxes={popid:flux[i]})
+
             # Convert to energy units, and per eV to prep for integral
-            LW_flux *= E[is_LW] * erg_per_ev / ev_per_hz
-            
+            LW_flux = flux[i,is_LW] * E[is_LW] * erg_per_ev / ev_per_hz
+
             Jlw[i] = np.trapz(LW_flux, x=E[is_LW]) / dnu
-        
+
         return z, Ja, Jlw
 
     def get_history(self, popid=0, flatten=False):

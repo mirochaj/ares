@@ -17,7 +17,6 @@ from ..util import read_lit
 from inspect import ismethod
 from scipy.optimize import fsolve, minimize
 from types import FunctionType, InstanceType
-from .GalaxyAggregate import GalaxyAggregate
 from ..analysis.BlobFactory import BlobFactory
 from ..util import MagnitudeSystem, ProgressBar
 from ..phenom.DustCorrection import DustCorrection
@@ -25,6 +24,7 @@ from scipy.integrate import quad, simps, cumtrapz, ode
 from ..util.ParameterFile import par_info, get_pq_pars
 from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import interp1d, RectBivariateSpline
+from .GalaxyAggregate import GalaxyAggregate, normalize_sed
 from ..util.Math import central_difference, interp1d_wrapper
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
@@ -80,7 +80,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     
         # This is the name of the thing as it appears in the parameter file.
         full_name = 'pop_' + name
-                
+                                
         # Now, possibly make an attribute
         if not hasattr(self, name):
             
@@ -145,13 +145,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._update_pq_registry(name, result)
             
             elif type(self.pf[full_name]) in [int, float, np.float64]:
-                result = lambda **kwargs: self.pf[full_name]
-
+                
+                # Need to be careful here: has user-specified units!
+                # We've assumed that this cannot be parameterized...
+                # i.e., previous elif won't ever catch rad_yield
+                if name == 'rad_yield':
+                    result = lambda **kwargs: normalize_sed(self)
+                else:
+                    result = lambda **kwargs: self.pf[full_name]
+                
             else:
                 raise TypeError('dunno how to handle: %s' % name)
 
             # Check to see if Z?
-
             self.__setattr__(name, result)
 
         return getattr(self, name)
@@ -1669,6 +1675,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def yield_per_sfr(self):
         # Need this to avoid inheritance issue with GalaxyAggregate
         if not hasattr(self, '_yield_per_sfr'):
+                        
             if type(self.rad_yield) is FunctionType:
                 self._yield_per_sfr = self.rad_yield()
             else:
@@ -1798,6 +1805,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         fb = self.cosm.fbar_over_fcdm
         
+        # Splitting up the inflow. P = pristine, 
+        PIR = -1. * fb * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        NPIR = -1. * fb * self.MDR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        
         # Measured relative to baryonic inflow
         Mb = fb * Mh
         Zfrac = self.pf['pop_acc_frac_metals'] * (MZ / Mb)
@@ -1816,10 +1827,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # Eq. 1: halo mass.
         y1p = -1. * self.MGR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
-
-        # Splitting up the inflow. P = pristine, 
-        PIR = -1. * fb * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
-        NPIR = -1. * fb * self.MDR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
 
         # Eq. 2: gas mass
         if self.pf['pop_sfr'] is None:
@@ -1901,6 +1908,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def constant_SFE(self):
         if not hasattr(self, '_constant_SFE'):
+            
+            if self.constant_SFR:
+                self._constant_SFE = 0
+                return self._constant_SFE
+            
             self._constant_SFE = 1
             for mass in [1e7, 1e8, 1e9, 1e10, 1e11, 1e12]:
                 self._constant_SFE *= self.fstar(z=10, Mh=mass) \

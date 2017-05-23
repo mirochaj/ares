@@ -2,11 +2,11 @@ import numpy as np
 from mirocha2016 import dpl, flex
 
 _popII_models = {}
-for model in ['fall', 'strong_fall', 'weak_fall']:
+for model in ['fall', 'strong_fall', 'weak_fall', 'soft_fall']:
     _popII_models[model] = flex.copy()
     _popII_models[model]['pq_func_par2{0}[1]'] = 1
 
-for model in ['rise', 'strong_rise', 'weak_rise']:
+for model in ['rise', 'strong_rise', 'weak_rise', 'soft_rise']:
     _popII_models[model] = flex.copy()
     _popII_models[model]['pq_func_par2{0}[1]'] = -1
 
@@ -58,6 +58,8 @@ _popII_updates = \
  'weak_fall': {'pop_logN{1}': 22.5},
  'strong_weak': {'pop_Z{0}': 1e-3, 'pop_rad_yield_Z_index{1}': -0.6, 'pop_logN{1}': 22.5},
  'soft': _sed_soft,
+ 'soft_rise': _sed_soft,
+ 'soft_fall': _sed_soft,
 }
 
 for _update in _popII_updates.keys():
@@ -71,6 +73,7 @@ popII_markers = \
 'fall': '<', 'rise': '>', 'strong_weak': 'D',
 'strong_fall': '^', 'weak_rise': 'v', 
 'strong_rise': '^', 'weak_fall': 'v', 'soft': 's',
+'soft_fall': '<', 'soft_rise': '>',
 }
 
 # Lotta trouble just to get 'dpl' first in the list...
@@ -83,7 +86,7 @@ for e1 in _amp:
     for e2 in _timing:
         popII_models.append('%s_%s' % (e1, e2))
 
-popII_models.append('soft')
+popII_models.extend(['soft', 'soft_fall', 'soft_rise'])
 
 # relative to mirocha2016:dpl
 _generic_updates = \
@@ -165,6 +168,10 @@ _csfr_specific = \
  'pop_Mmin{0}': 'link:Mmax:2',
  'pop_Tmax_ceil{2}': 1e8,
  'pop_sfr_cross_threshold{2}': False,
+ 
+ 'pop_bind_limit{2}': 1e51,
+ 'pop_abun_limit{2}': 1e-6,
+ 
 }
 
 csfr = dpl.copy()

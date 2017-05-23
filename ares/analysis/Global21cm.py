@@ -328,7 +328,8 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
 
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=None, scatter=False, xaxis='nu', 
-        ymin=None, ymax=50, zmax=None, rotate_xticks=False, force_draw=False,
+        ymin=None, ymax=50, zmax=None, rotate_xticks=False, rotate_yticks=False,
+        force_draw=False,
         temp_unit='mK', yscale='linear', take_abs=False, **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
@@ -444,17 +445,23 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             ax.set_xlim(5, self.pf["initial_redshift"])
         else:
             ax.set_xlim(10, 210)
-                                
+
         if (not gotax) or force_draw:    
             ax.set_xticks(xticks, minor=False)
             ax.set_xticks(xticks_minor, minor=True)
-        
+
             if rotate_xticks:
                 xt = []
                 for x in ax.get_xticklabels():
                     xt.append(x.get_text())
-                
+
                 ax.set_xticklabels(xt, rotation=45.)
+            if rotate_yticks:
+                yt = []
+                for y in ax.get_yticklabels():
+                    yt.append(y.get_text())
+            
+                ax.set_yticklabels(yt, rotation=45.)    
         
         if gotax and (ax.get_xlabel().strip()) and (not force_draw):
             pl.draw()

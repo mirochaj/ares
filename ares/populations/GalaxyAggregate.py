@@ -54,7 +54,7 @@ def normalize_sed(pop):
         Zfactor = (pop.pf['pop_Z'] / 0.02)**pop.pf['pop_rad_yield_Z_index']
     else:
         Zfactor = 1.
-
+        
     if pop.pf['pop_rad_yield'] == 'from_sed':
         return pop.src.rad_yield(E1, E2)
     else:    
@@ -65,7 +65,7 @@ def normalize_sed(pop):
 
     erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
     energy_per_sfr = pop.pf['pop_rad_yield']
-    
+        
     if units == 'photons/baryon':
         energy_per_sfr *= erg_per_phot / pop.cosm.g_per_baryon
     elif units == 'photons/msun':

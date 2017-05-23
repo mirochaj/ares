@@ -96,11 +96,15 @@ _emiss = {'blob_names': ['rho_LW{0}', 'rho_LyC{0}', 'rho_sXR{0}', 'rho_hXR{0}'],
                          'pops[0]._LuminosityDensity_sXR',
                          'pops[0]._LuminosityDensity_hXR']}
 
+_cxrb = {'blob_names': ['jsxb', 'jhxb'], 
+         'blob_ivars': None,
+         'blob_funcs': ['medium.field.jxrb(\'soft\')', 'medium.field.jxrb(\'hard\')']}
+
 _blobs = \
 {
  'gs': {'basics': _extrema, 'history': _history, 'shape': _shape,
         'runtime': _runtime, 'rates': _rates},
- 'pop': {'sfrd': _sfrd, 'emissivities': _emiss, 'fluxes': None}
+ 'pop': {'sfrd': _sfrd, 'emissivities': _emiss, 'fluxes': None, 'cxrb': _cxrb}
 }
 
 _keys = ('blob_names', 'blob_ivars', 'blob_funcs')

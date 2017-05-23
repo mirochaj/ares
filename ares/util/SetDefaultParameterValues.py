@@ -183,7 +183,7 @@ def PhysicsParameters():
     "radiative_transfer": 1,
     "photon_conserving": 1, 
     "plane_parallel": 0,   
-    "infinite_c": 1,  
+    "infinite_c": 1,
     
     "collisional_ionization": 1,
     
@@ -344,8 +344,6 @@ def PopulationParameters():
     "pop_sfr_above_threshold": True,
     "pop_sfr_cross_threshold": True,
     "pop_sfr_cross_upto_Tmin": np.inf,
-
-    "pop_feels_feedback": True,
         
     # Mass accretion rate
     "pop_MAR": 'hmf',
