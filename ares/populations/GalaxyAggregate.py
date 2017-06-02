@@ -19,15 +19,13 @@ from ..physics import Cosmology
 from .Halo import HaloPopulation
 from .Population import Population
 from collections import namedtuple
-from ..sources.Source import Source
-from ..sources import Star, BlackHole
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, simps
 from ..util.Warnings import negative_SFRD
-from .SynthesisModel import SynthesisModel
 from ..util.ParameterFile import get_pq_pars
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
+from ..sources import Star, BlackHole, StarQS, SynthesisModel
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
@@ -37,6 +35,7 @@ from ..util.SetDefaultParameterValues import StellarParameters, \
     
 _synthesis_models = ['leitherer1999', 'eldridge2009']
 _single_star_models = ['schaerer2002']
+_sed_tabs = ['leitherer1999', 'eldridge2009', 'schaerer2002']
 
 def normalize_sed(pop):
     """
@@ -107,7 +106,7 @@ class GalaxyAggregate(HaloPopulation):
             elif self.pf['pop_sed'] in _synthesis_models:    
                 self._Source_ = SynthesisModel
             elif self.pf['pop_sed'] in _single_star_models:
-                self._Source = SingleStarModel
+                self._Source_ = StarQS
             else:
                 self._Source_ = read_lit(self.pf['pop_sed'], 
                     verbose=self.pf['verbose'])
@@ -130,7 +129,7 @@ class GalaxyAggregate(HaloPopulation):
                 return {}
             
             self._src_kwargs = {}
-            if self._Source is Star:
+            if self._Source in [Star, StarQS]:
                 spars = StellarParameters()
                 for par in spars:
                     
@@ -199,7 +198,7 @@ class GalaxyAggregate(HaloPopulation):
     @property
     def sed_tab(self):
         if not hasattr(self, '_sed_tab'):
-            if self.pf['pop_sed'] in ['leitherer1999', 'eldridge2009']:
+            if self.pf['pop_sed'] in _sed_tabs:
                 self._sed_tab = True
             else:
                 self._sed_tab = False

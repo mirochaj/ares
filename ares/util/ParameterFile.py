@@ -245,18 +245,20 @@ class ParameterFile(dict):
         Build parameter file instance.
         """
 
-        # Keep user-supplied kwargs as attribute  
+        # Keep user-supplied kwargs as attribute 
         self._kwargs = kwargs.copy()
         
-        for par in self._kwargs:
-            if par not in _cosmo_params:
-                continue
-                
-            if self._kwargs[par] == _cosmo_params[par]:
-                continue
-            
-            print "WARNING: %s is cosmological parameter." % par
-            print "       : Must update initial conditions and HMF tables!"
+        #print len(kwargs.keys()), len(defaults.keys())
+        #if len(kwargs.keys()) < 0.5 * len(defaults.keys()):
+        #    for par in self._kwargs:
+        #        if par not in _cosmo_params:
+        #            continue
+        #            
+        #        if self._kwargs[par] == _cosmo_params[par]:
+        #            continue
+        #        
+        #        print "WARNING: %s is cosmological parameter." % par
+        #        print "       : Must update initial conditions and HMF tables!"
         
         
         # Fix up everything

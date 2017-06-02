@@ -570,6 +570,10 @@ def SourceParameters():
     "source_sed": 'bb',
     "source_position": 0.0,
     
+    # only for schaerer2002 right now        
+    "source_piecewise": True,
+    "source_model": 'tavg_nms', # or "zams" or None
+    
     "source_tbirth": 0,
     "source_lifetime": 1e10,
     

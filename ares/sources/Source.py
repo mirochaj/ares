@@ -230,7 +230,7 @@ class Source(object):
                     self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
                 
         return self._normL_          
-              
+
     #def _load_spectrum(self):
     #    """ Modify a few parameters if spectrum_file provided. """
     #    

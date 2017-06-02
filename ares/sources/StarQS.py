@@ -17,8 +17,8 @@ from .Star import Star
 from .Source import Source
 from scipy.integrate import quad
 from ..util.ReadData import read_lit
-from ..physics.Constants import erg_per_ev
 from ..util.ParameterFile import ParameterFile
+from ..physics.Constants import erg_per_ev, s_per_yr, g_per_msun
 
 class StarQS(Source):
     def __init__(self, **kwargs):
@@ -61,11 +61,10 @@ class StarQS(Source):
     @property
     def Elo(self):
         if not hasattr(self, '_Elo'):
-            self._Elo = []
+            _Elo = []
             for i, pt in enumerate(self.bands):
-                self._Elo.append(pt[0])
-            self._Elo = np.array(self._Elo)
-    
+                _Elo.append(pt[0])
+            self._Elo = np.array(_Elo)
         return self._Elo
         
     @property
@@ -115,45 +114,43 @@ class StarQS(Source):
         self._lifetime = value    
     
     def _load(self):
-        self._Q, self._Teff, self.lifetime = self.litinst._load(**self.pf)
+        self._Q, self._Teff, self._lifetime = self.litinst._load(**self.pf)
     
     @property
-    def norm(self):
+    def norm_(self):
         if not hasattr(self, '_norm'):
             
             if self.pf['source_piecewise']:
                 self._norm = []
                 for i, band in enumerate(self.bands):
-                    Q = quad(lambda E: self.ideal.Spectrum(E) / E, *band)[0]
-                    self._norm.append(self.Q[i] / Q)
+                    F = quad(lambda E: self.ideal.Spectrum(E), *band)[0]
+                    self._norm.append(self.I[i] / F)
                 self._norm = np.array(self._norm)  
             else:
                 band = (13.6, self.pf['source_Emax'])
-                Q = quad(lambda E: self.ideal.Spectrum(E) / E, *band)[0]
-                self._norm = np.array([np.sum(self.Q[1:]) / Q]*4)
+                F = quad(lambda E: self.ideal.Spectrum(E), *band)[0]
+                self._norm = np.array([np.sum(self.I[1:]) / F]*4)
             
         return self._norm
         
-    def _Spectrum(self, E):
-        #for i, band in enumerate(self.bands):
-        #    if band[0] <= E < band[1]:
-        
+    def _SpectrumPiecewise(self, E):
+
         if E < self.bands[0][1]:
-            return self.norm[0] * self.ideal.Spectrum(E)
+            return self.norm_[0] * self.ideal.Spectrum(E)
         elif self.bands[1][0] <= E < self.bands[1][1]:
-            return self.norm[1] * self.ideal.Spectrum(E)    
+            return self.norm_[1] * self.ideal.Spectrum(E)    
         elif self.bands[2][0] <= E < self.bands[2][1]:
-            return self.norm[2] * self.ideal.Spectrum(E)
+            return self.norm_[2] * self.ideal.Spectrum(E)
         else:
-            return self.norm[3] * self.ideal.Spectrum(E)
+            return self.norm_[3] * self.ideal.Spectrum(E)
             
     @property    
     def _spec_f(self):
         if not hasattr(self, '_spec_f_'):
-            self._spec_f_ = np.vectorize(self._Spectrum)
+            self._spec_f_ = np.vectorize(self._SpectrumPiecewise)
         return self._spec_f_
         
-    def Spectrum(self, E, t=None):
+    def _Intensity(self, E, t=None):
         """
         Return quantity *proportional* to fraction of bolometric luminosity.
     
@@ -165,4 +162,32 @@ class StarQS(Source):
         """
         
         return self._spec_f(E)
+        
+    @property    
+    def norm(self):
+        if not hasattr(self, '_norm_'):
+            # Need 
+            integrand = lambda EE: self._Intensity(EE)
+            self._norm_ = 1. / quad(integrand, *self.bands[0])[0]
+        return self._norm_
+        
+    def Spectrum(self, E):
+        return self.norm * self._Intensity(E)
+        
+    def rad_yield(self, Emin, Emax):
+        """
+        Must be in the internal units of erg / g.
+        """
+    
+        return np.sum(self.I) * self.lifetime * s_per_yr \
+            / (self.pf['source_mass'] * g_per_msun)
+        
+    @property
+    def Emin(self):
+        return self.Elo[0]
+    
+    @property
+    def Emax(self):
+        return self.bands[-1][1]
+        
         
