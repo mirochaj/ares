@@ -75,13 +75,17 @@ for _name in _rc_base:
 
         # Don't do secondary ionization terms yet
         #for j, spec2 in enumerate(_species):
-            
+                    
 _extrema = {'blob_names':_gs_ext, 'blob_ivars': None,  'blob_funcs': None}
 _rates = {'blob_names':_gs_rates, 'blob_ivars': _def_z,  'blob_funcs': _rc_funcs}
 _history = {'blob_names':_gs_hist,'blob_ivars': _def_z,'blob_funcs': None}
 _shape = {'blob_names':_gs_shape_n,'blob_ivars': None, 'blob_funcs': _gs_shape_f}
 _runtime = {'blob_names': ['count', 'timer', 'rank'], 
     'blob_ivars': None, 'blob_funcs': None}
+
+_He = {'blob_names':['igm_he_1', 'igm_he_2', 'igm_he_3'], 
+       'blob_ivars': _def_z,  
+       'blob_funcs': None}
 
 # Not a great default way of doing this, since we may have multiple populations, etc.
 _sfrd = {'blob_names': ['sfrd{0}'],
@@ -103,7 +107,7 @@ _cxrb = {'blob_names': ['jsxb', 'jhxb'],
 _blobs = \
 {
  'gs': {'basics': _extrema, 'history': _history, 'shape': _shape,
-        'runtime': _runtime, 'rates': _rates},
+        'runtime': _runtime, 'rates': _rates, 'helium': _He},
  'pop': {'sfrd': _sfrd, 'emissivities': _emiss, 'fluxes': None, 'cxrb': _cxrb}
 }
 

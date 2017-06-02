@@ -88,6 +88,15 @@ class Source(object):
         # Create lookup tables for integral quantities
         if init_tabs and (grid is not None):
             self._create_integral_table(logN=logN)
+        
+    @property        
+    def info(self):
+        """
+        Print info like Nlw etc in various units!
+        """
+        pass
+        
+        
     
     @property
     def cosm(self):

@@ -36,6 +36,7 @@ from ..util.SetDefaultParameterValues import StellarParameters, \
     BlackHoleParameters
     
 _synthesis_models = ['leitherer1999', 'eldridge2009']
+_single_star_models = ['schaerer2002']
 
 def normalize_sed(pop):
     """
@@ -105,6 +106,8 @@ class GalaxyAggregate(HaloPopulation):
                 self._Source_ = None
             elif self.pf['pop_sed'] in _synthesis_models:    
                 self._Source_ = SynthesisModel
+            elif self.pf['pop_sed'] in _single_star_models:
+                self._Source = SingleStarModel
             else:
                 self._Source_ = read_lit(self.pf['pop_sed'], 
                     verbose=self.pf['verbose'])

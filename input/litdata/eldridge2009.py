@@ -99,5 +99,5 @@ def _load(**kwargs):
 
         data *= Lsun
 
-    return wavelengths, data    
+    return wavelengths, data
             

@@ -2702,7 +2702,7 @@ class ModelSet(BlobFactory):
               
     def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
         un_log=False, multiplier=1., ax=None, fig=1, filled=False, 
-        inline_labels=False, cax=None, use_colorbar=True, **kwargs):         
+        inline_labels=False, manual=None, cax=None, use_colorbar=True, **kwargs):         
         """
         Draw contours that are NOT associated with confidence levels.
         
@@ -2753,7 +2753,7 @@ class ModelSet(BlobFactory):
                     CS = ax.contour(xdata, ydata, zdata.T, **kwargs) 
                     
                 if inline_labels:
-                    pl.clabel(CS, ineline=1, fontsize=10) 
+                    pl.clabel(CS, ineline=1, fontsize=10, manual=manual) 
                 
         else:
             p = list(pars) + [c]
