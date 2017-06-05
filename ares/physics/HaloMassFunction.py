@@ -801,7 +801,7 @@ class HaloMassFunction(object):
             f.create_dataset('dndm', data=self.dndm)
             f.create_dataset('ngtm', data=self.ngtm)
             f.create_dataset('mgtm', data=self.mgtm)
-            f.create_dataset('hmf-version', data=hmf_v)         
+            f.create_dataset('hmf-version', data=hmf_v)
             f.close()
 
         elif format == 'npz':
@@ -815,7 +815,7 @@ class HaloMassFunction(object):
 
         # Otherwise, pickle it!    
         else:   
-            f = open(fn, 'wb')            
+            f = open(fn, 'wb')
             pickle.dump(self.z, f)
             pickle.dump(self.logM, f)
             pickle.dump(self.fcoll_spline_2d, f)

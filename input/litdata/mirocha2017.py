@@ -104,7 +104,7 @@ _generic_updates = \
 """
 First model: constant SFR in minihalos.
 """
-_csfr_specific = \
+_low = \
 {
 
  'kill_redshift': 5.6,
@@ -128,12 +128,9 @@ _csfr_specific = \
   # Solve LWB!
  'pop_solve_rte{2}': (10.2, 13.6),
 
- 'pop_sed{2}': 'bb',
- 'pop_temperature{2}': 1e5,
- 'pop_rad_yield{2}': 3e3,
- 'pop_EminNorm{2}': 10.2,
- 'pop_EmaxNorm{2}': 13.6,
- 'pop_rad_yield_units{2}': 'photons/baryon',
+ 'pop_sed{2}': 'eldridge2009',
+ 'pop_rad_yield{2}': 'from_sed',
+ 'pop_Z{2}': 0.02,
  
  # Radiative knobs
  'pop_fesc_LW{2}': 1.,
@@ -155,52 +152,62 @@ _csfr_specific = \
  'pop_solve_rte{3}': True,
  'pop_tau_Nz{3}': 1e3,
  'pop_approx_tau{3}': 'neutral',
- 
+
  #'pop_Mmin{0}': 'link:Mmax_active:2',
- 
+
  # Tmin here just an initial guess -- will get modified by feedback.
  'pop_Tmin{2}': 500.,
  'pop_Tmin{0}': None,
  'pop_Mmin{0}': 'link:Mmax:2',
- 'pop_Tmax_ceil{2}': 1e8,
+ 'pop_Tmax_ceil{2}': 1e5,
  'pop_sfr_cross_threshold{2}': False,
- 
+
  'pop_bind_limit{2}': 1e51,
  'pop_abun_limit{2}': 1e-6,
  
+ # these are just fudge parameters anyways
+ 'pop_mass_yield{2}': 1.0,
+ 'pop_metal_yield{2}': 1.0,
 }
 
-csfr = dpl.copy()
-csfr.update(_generic_updates)
-csfr.update(_csfr_specific)
+low = _generic_updates.copy()
+low.update(_low)
+
+high = low.copy()
+high['pop_sed{2}'] = 'schaerer2002'
+high['pop_mass{2}'] = 120
+
+med = low.copy()
+med['pop_sed{2}'] = 'schaerer2002'
+med['pop_mass{2}'] = 5
 
 """
 Second model: constant SFE in minihalos.
 """
-_csfe_specific = \
-{
- 'pop_sfr_model{2}': 'sfe-func',
- 'pop_sfr{2}': None,
- 'pop_fstar{2}': 1e-4,
-}
-
-csfe = dpl.copy()
-csfe.update(_generic_updates)
-csfe.update(_csfr_specific)
-csfe.update(_csfe_specific)
-
-_csff_specific = \
-{
- 'pop_sfr{2}': 'pq[2]',
- 'pq_func{2}[2]': 'pl',
- 'pq_func_var{2}[2]': 'Mh',
- 'pq_func_par0{2}[2]': 1e-4,
- 'pq_func_par1{2}[2]': 1e8,
- 'pq_func_par2{2}[2]': 1.,
-}
-
-csff = csfr.copy()
-csff.update(_csff_specific)
+#_csfe_specific = \
+#{
+# 'pop_sfr_model{2}': 'sfe-func',
+# 'pop_sfr{2}': None,
+# 'pop_fstar{2}': 1e-4,
+#}
+#
+#csfe = dpl.copy()
+#csfe.update(_generic_updates)
+#csfe.update(_csfr_specific)
+#csfe.update(_csfe_specific)
+#
+#_csff_specific = \
+#{
+# 'pop_sfr{2}': 'pq[2]',
+# 'pq_func{2}[2]': 'pl',
+# 'pq_func_var{2}[2]': 'Mh',
+# 'pq_func_par0{2}[2]': 1e-4,
+# 'pq_func_par1{2}[2]': 1e8,
+# 'pq_func_par2{2}[2]': 1.,
+#}
+#
+#csff = csfr.copy()
+#csff.update(_csff_specific)
 
 """
 Third model: extrapolated SFE in minihalos (i.e., same SFE as atomic halos).
@@ -262,76 +269,6 @@ dpl_blobs = \
  'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
  'blob_funcs': ['pops[0].SFRD', 'pops[0].Mmin', 'pops[0].Mmax'],
 }
-
-"""
-From here on out are the parameters that govern the PopIII space surveyed.
-"""
-
-#_dplpb = ares.util.ParameterBundle('mirocha2016:dpl')
-#pop_dpl = ares.populations.GalaxyPopulation(**_dplpb.pars_by_pop(0,1))
-#SFR_ref = float(pop_dpl.SFR(z=20, Mh=1e8))
-#SFE_ref = float(pop_dpl.SFE(z=20, Mh=1e8))
-#SFF_ref = float(pop_dpl.SFR(z=20, Mh=1e8))
-# This one depends on our CSFF pivot occurring at 1e8 Msun!
-
-SFR_ref = 0.0010497749824767248
-SFE_ref = 0.0020455358405117763
-SFF_ref = SFR_ref
-
-popIII_sfr_methods = ['csfr', 'csfe', 'csff']
-popIII_trans_methods = ['bind', 'time', 'mass', 'temp']
-
-popIII_sfr_vals = \
-{
- 'csfr': 10**np.arange(-2., 0., 1) * SFR_ref,
- 'csfe': 10**np.arange(-2., 0., 1) * SFE_ref,
- 'csff': 10**np.arange(-2., 0., 1) * SFF_ref,
-}
-
-popIII_sfr_vals_hires = \
-{
- 'csfr': 10**np.arange(-3., 0.5, 0.5) * SFR_ref,
- 'csfe': 10**np.arange(-2., 1.5, 0.5) * SFE_ref,
- 'csff': 10**np.arange(-2., 1.5, 0.5) * SFF_ref,
-}
-
-popIII_trans_vals = \
-{
- 'bind': [1e51, 1e52],
- 'time': [1e1, 1e2],
- 'mass': [1e2, 1e3],
- 'temp': [1e3, 1e4],
-}
-
-popIII_trans_vals_hires = \
-{
- 'bind': np.arange(1e51, 1e52, 2e51),
- 'time': np.arange(20, 120, 20),
- 'mass': np.arange(100, 1e3, 200),
- 'temp': np.arange(1e3, 1e4, 2e3),
-}
-
-def popIII_prefix_maker(reg, trans, hp1=None, hp2=None, XRIII=1., 
-    lwfb=1, M0=0, t0=10, popII='dpl'):
-    """
-    Make a prefix duh.
-    """
-    
-    if (hp1 is not None) and (hp2 is not None):
-        prefix = '%s_%.1e_%s_%.1e_XR_%i_lwfb_%i_M0_%i_t0_%i_popII_%s' \
-            % (reg, hp1, trans, hp2, XRIII, lwfb, M0, t0, popII)
-    else:
-        prefix = '%s_%s_XR_%i_lwfb_%i_M0_%i_t0_%i_popII_%s' \
-            % (reg, trans, XRIII, lwfb, M0, t0, popII)
-
-    return prefix
-
-
-
-
-
-
-
 
 
 
