@@ -110,8 +110,6 @@ _csfr_specific = \
  'kill_redshift': 5.6,
  'sam_dz': 0.1,
 
- 'pop_zform{0}': 60,
- 'pop_zform{1}': 60,
  'pop_zform{2}': 60,
  'pop_zform{3}': 60,
 
@@ -123,8 +121,6 @@ _csfr_specific = \
  'pop_Z{2}': 1e-3,
  'pop_Emin{2}': 10.19,
  'pop_Emax{2}': 24.6,
- 'pop_rad_yield{2}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
-                                  # should make this automatic
 
  'pop_heat_src_igm{2}': False,
  'pop_ion_src_igm{2}': False,

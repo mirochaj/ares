@@ -62,6 +62,7 @@ def _load(**kwargs):
     if kwargs['source_model'] == 'zams':
         tab = tab3
         kmax = 6
+        raise ValueError('No \'liftime\' here!')
     elif kwargs['source_model'] == 'tavg_nms':
         tab = tab4
         kmax = 5
@@ -81,7 +82,7 @@ def _load(**kwargs):
     else:
         raise NotImplemented('must interpolate!')
     
-    return y, 10**tab3[k,2], tab3[k,1]
+    return y, 10**tab3[k,2], tab[k,1]
     
     
 

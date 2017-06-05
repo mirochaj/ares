@@ -15,6 +15,7 @@ spectrum to be used in RT calculations.
 import numpy as np
 from .Star import Star
 from .Source import Source
+from ..physics import Cosmology
 from scipy.integrate import quad
 from ..util.ReadData import read_lit
 from ..util.ParameterFile import ParameterFile
@@ -23,6 +24,21 @@ from ..physics.Constants import erg_per_ev, s_per_yr, g_per_msun
 class StarQS(Source):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
+        
+    @property
+    def cosm(self):
+        if not hasattr(self, '_cosm'):
+            self._cosm = Cosmology(**self.pf)
+        return self._cosm
+    
+    @property
+    def N(self):
+        return self.PhotonsPerBaryon
+        
+    @property
+    def PhotonsPerBaryon(self):
+        return self.Q * self.lifetime * s_per_yr \
+            / (self.pf['source_mass'] * g_per_msun * self.cosm.b_per_g)
 
     @property
     def ideal(self):
@@ -30,7 +46,7 @@ class StarQS(Source):
             self._ideal = Star(source_temperature=self.Teff,
                 source_Emin=1, source_Emax=2e2)
         return self._ideal
-                    
+  
     @property
     def name(self):
         return self.pf['source_sed']
