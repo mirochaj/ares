@@ -90,11 +90,11 @@ floor = _floor_specific
 
 _steep_specific = \
 {
- 'pq_focc{0}': 'pq[1]',
- 'pq_func{0}[1]': 'okamoto',
- 'pq_func_var{0}[1]': 'Mh',
- 'pq_func_par0{0}[1]': 1.,
- 'pq_func_par1{0}[1]': 1e9,
+ 'pop_focc{0}': 'pq[5]',
+ 'pq_func{0}[5]': 'okamoto',
+ 'pq_func_var{0}[5]': 'Mh',
+ 'pq_func_par0{0}[5]': 1.,
+ 'pq_func_par1{0}[5]': 1e9,
 }
 
 steep = _steep_specific

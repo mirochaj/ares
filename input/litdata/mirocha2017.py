@@ -165,7 +165,8 @@ _low = \
  'pop_bind_limit{2}': 1e51,
  'pop_abun_limit{2}': 1e-6,
  
- # these are just fudge parameters anyways
+ # Acknowledging that our mean metallicity is kludgey
+ # Note that this renders the stellar mass meaningless (it'll be zero)
  'pop_mass_yield{2}': 1.0,
  'pop_metal_yield{2}': 1.0,
 }

@@ -468,9 +468,9 @@ def PopulationParameters():
     "pop_bind_limit": None,
     "pop_temp_limit": None,
     "pop_lose_metals": False, 
-    "pop_limit_logic": 'and',
+    "pop_limit_logic": 'and', 
     
-    "pop_min_epoch": 10.,
+    "pop_time_ceil": None,
     
     "pop_initial_Mh": 1, # In units of Mmin. Zero means unused
 

@@ -2215,6 +2215,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         has_m_limit = self.pf['pop_mass_limit'] is not None
         has_a_limit = self.pf['pop_abun_limit'] is not None
         
+        has_t_ceil = self.pf['pop_time_ceil'] is not None
+                
         ##
         # Outputs have shape (z, z)
         ##
@@ -2273,14 +2275,22 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             lbtime_myr = self.cosm.LookbackTime(z, z0) \
                 / s_per_yr / 1e6
                         
-            if has_t_limit:
-                if lbtime_myr >= self.time_limit(z=z, Mh=M0):
+            # t_ceil is a trump card.
+            # For example, in some cases the critical metallicity will never
+            # be met due to high inflow rates.                     
+            if has_t_limit or has_t_ceil:     
+                if has_t_ceil:
+                    tlim = self.time_ceil(z=z, Mh=M0)
+                else:
+                    tlim = self.time_limit(z=z, Mh=M0)           
+                           
+                if lbtime_myr >= tlim:
                     hit_dt = True
                     
                     lbtime_myr_prev = self.cosm.LookbackTime(redshifts[-2], z0) \
                         / s_per_yr / 1e6
 
-                    zmax_t = np.interp(self.time_limit(z=z, Mh=M0),
+                    zmax_t = np.interp(tlim,
                         [lbtime_myr_prev, lbtime_myr], redshifts[-2:])
             
             if has_m_limit:
@@ -2383,7 +2393,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mh = np.array(Mh_t)[-1::-1]
         Mg = np.array(Mg_t)[-1::-1]
         Ms = np.array(Mst_t)[-1::-1]
-        MZ = np.array(metals)[-1::-1] 
+        MZ = np.array(metals)[-1::-1]
 
         # Derived
         results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'zmax': zmax}

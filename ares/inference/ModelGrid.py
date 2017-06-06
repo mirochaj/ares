@@ -90,7 +90,7 @@ class ModelGrid(ModelFit):
         fn_size_p1 = fn_by_proc(size+1)
         if os.path.exists(fn_size_p1):
             raise IOError('Original grid run with more processors!')
-            
+
             proc_id = size + 1
             while os.path.exists(fn_by_proc(proc_id)):
                 proc_id += 1
@@ -476,7 +476,7 @@ class ModelGrid(ModelFit):
         # Loop over models, use StellarPopulation.update routine 
         # to speed-up (don't have to re-load HMF spline as many times)
         for h, kwargs in enumerate(self.grid.all_kwargs):
-
+            
             # Where does this model live in the grid?
             if self.grid.structured:
                 kvec = self.grid.locate_entry(kwargs)
@@ -513,7 +513,7 @@ class ModelGrid(ModelFit):
                     kw[par] = kwargs[par]
             
             p.update(kw)
-
+            
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
             if self.reuse_splines and \
                 i_Tmin not in fcoll.keys() and (not self.phenomenological):
