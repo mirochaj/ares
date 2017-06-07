@@ -2274,7 +2274,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             lbtime_myr = self.cosm.LookbackTime(z, z0) \
                 / s_per_yr / 1e6
-                        
+
             # t_ceil is a trump card.
             # For example, in some cases the critical metallicity will never
             # be met due to high inflow rates.                     
@@ -2283,16 +2283,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     tlim = self.time_ceil(z=z, Mh=M0)
                 else:
                     tlim = self.time_limit(z=z, Mh=M0)           
-                           
+
                 if lbtime_myr >= tlim:
                     hit_dt = True
-                    
+
                     lbtime_myr_prev = self.cosm.LookbackTime(redshifts[-2], z0) \
                         / s_per_yr / 1e6
 
                     zmax_t = np.interp(tlim,
                         [lbtime_myr_prev, lbtime_myr], redshifts[-2:])
-            
+
             if has_m_limit:
                 Mnow = solver.y[2]
 
@@ -2370,6 +2370,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                             else:
                                 zmax = min(zmax, zmax_T)
                             
+                    elif has_t_ceil:
+                        zmax = zmax_t
                     else:
                         zmax = zmax_e if has_e_limit else zmax_T
                 
