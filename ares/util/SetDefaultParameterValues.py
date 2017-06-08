@@ -183,7 +183,7 @@ def PhysicsParameters():
     "radiative_transfer": 1,
     "photon_conserving": 1, 
     "plane_parallel": 0,   
-    "infinite_c": 1,  
+    "infinite_c": 1,
     
     "collisional_ionization": 1,
     
@@ -226,9 +226,11 @@ def PhysicsParameters():
     'feedback_LW_maxiter': 15,
     'feedback_LW_Mmin_uponly': False,
     'feedback_LW_Mmin_smooth': False,
+    'feedback_LW_Mmin_fit': False,    
     'feedback_LW_Mmin_rtol': 1e-2,
     'feedback_LW_Mmin_atol': 0.0,
     'feedback_LW_softening': 'sqrt',
+    'feedback_LW_guesses': None,
     
     'feedback_streaming': False,
     'feedback_vel_at_rec': 30.,
@@ -344,8 +346,6 @@ def PopulationParameters():
     "pop_sfr_above_threshold": True,
     "pop_sfr_cross_threshold": True,
     "pop_sfr_cross_upto_Tmin": np.inf,
-
-    "pop_feels_feedback": True,
         
     # Mass accretion rate
     "pop_MAR": 'hmf',
@@ -466,13 +466,15 @@ def PopulationParameters():
 
     "pop_time_limit": None,
     "pop_mass_limit": None,
+    "pop_abun_limit": None,
     "pop_bind_limit": None,
     "pop_temp_limit": None,
-    "pop_limit_logic": 'and',
+    "pop_lose_metals": False, 
+    "pop_limit_logic": 'and', 
     
-    "pop_min_epoch": 10.,
+    "pop_time_ceil": None,
     
-    "pop_initial_Mh": 0.0, # In units of Mmin. Zero means unused
+    "pop_initial_Mh": 1, # In units of Mmin. Zero means unused
 
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
@@ -518,7 +520,7 @@ def PopulationParameters():
     # Parameters for simple galaxy SAM
     "pop_sam_nz": 1,
     "pop_mass_yield": 0.5,
-    "pop_metal_yield": 0.01,
+    "pop_metal_yield": 0.1,
     "pop_fpoll": 1.0,         # uniform pollution
     "pop_fstall": 0.0,
     "pop_mass_rec": 0.0,
@@ -570,6 +572,10 @@ def SourceParameters():
     "source_sed": 'bb',
     "source_position": 0.0,
     
+    # only for schaerer2002 right now        
+    "source_piecewise": True,
+    "source_model": 'tavg_nms', # or "zams" or None
+    
     "source_tbirth": 0,
     "source_lifetime": 1e10,
     
@@ -599,8 +605,10 @@ def SourceParameters():
     "source_rmax": 1e3,
     "source_alpha": -1.5,
     
+    # SIMPL
     "source_fsc": 0.1,
     "source_uponly": True,
+    "source_dlogE": 0.1,
     
     "source_Lbol": None,
     "source_mass": 10,  
@@ -685,6 +693,8 @@ def HaloMassFunctionParameters():
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     
+    "hmf_database": None,
+    
     }
     
     pf.update(rcParams)
@@ -714,6 +724,8 @@ def CosmologyParameters():
 def ControlParameters():
     pf = \
     {
+    
+    'revision': None,
     
     # Start/stop/IO
     "dtDataDump": 1.,

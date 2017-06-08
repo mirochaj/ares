@@ -397,7 +397,7 @@ class BlobFactory(object):
                                     
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                                                            
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -430,6 +430,10 @@ class BlobFactory(object):
                         if type(fname) is str:
                             func = parse_attribute(fname, self)
                         else:
+                            
+                            print fname
+                            raise ValueError('pretty sure this is broken!')
+                            
                             # fname is a slice, like ('igm_k_heat', 0)
                             # to retrieve heating rate from H ionizations
                             _xx = self.history['z'][-1::-1]

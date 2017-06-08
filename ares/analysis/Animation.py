@@ -77,7 +77,7 @@ class Animation(object):
         N = data[par].shape[0]                
                         
         limits = data[par].min(), data[par].max()
-        
+                
         # Re-order the data.
         order = np.argsort(data[par])
         
@@ -89,42 +89,50 @@ class Animation(object):
             else:
                 ii, jj, nd, dims = self.model_set.blob_info(p)
                 data_sorted[p] = self.model_set.blob_ivars[ii][jj]
-
+             
         if origin is None:
             start = end = data_sorted[par][N / 2]
         else:
             start = end = origin
 
+        # By default, scan to lower values, then all the way up, then return
+        # to start point
         if pivots is None:
-            pivots = [start, limits[0], limits[1], end]
+            pivots = map(lambda v: round(v, 4), 
+                [start, limits[0], limits[1], end])
                 
         for element in pivots:
             assert limits[0] <= element <= limits[1], \
                 "Pivot point lies outside range of data!"
-                                                                                              
+                                                                                                        
         data_assembled = {p:[] for p in _pars}
         i = np.argmin(np.abs(pivots[0] - data_sorted[par]))
         for k, pivot in enumerate(pivots):
             if k == 0:
                 continue
-                
+
             j = np.argmin(np.abs(pivot - data_sorted[par]))
+            
+            #if par == 'pop_logN{1}':
+            #    print i, j, k
             
             if j < i: 
                 step = -1
             else:
                 step = 1
                 
-            if step < 0 and k == (len(pivots) - 1):
-                j -= 1
-            
-            for p in _pars: 
+            for p in _pars:
                 data_assembled[p].extend(list(data_sorted[p][i:j:step]))
 
             i = 1 * j
         
+        # Add start point!
+        data_assembled[p].append(start)
+        
+        data_assembled[par] = np.array(data_assembled[par])
+                
         self.data = {'raw': data, 'sorted': data_sorted, 
-            'assembled': data_assembled, 'limits':limits}       
+            'assembled': data_assembled, 'limits':limits}    
             
     def prepare_axis(self, ax=None, fig=1, squeeze_main=True, 
         take_log=False, un_log=False, **kwargs):
@@ -144,7 +152,7 @@ class Animation(object):
         ax=None, sax=None, fig=1, clear=True, z_to_freq=True, 
         slider_kwargs={}, backdrop=None, backdrop_kwargs={}, squeeze_main=True, 
         close=False, xlim=None, ylim=None, xticks=None, yticks=None, 
-        z_ax=True, origin=None, **kwargs):
+        z_ax=True, origin=None, sticks=None, slims=None, **kwargs):
         """
         Animate variations of a single parameter.
 
@@ -174,7 +182,12 @@ class Animation(object):
                 _pars.append(_p)
             else:
                 _x = _p
-                                
+                
+        if type(sticks) is dict:
+            sticks = sticks[par]
+        if type(slims) is dict:
+            slims = slims[par]            
+                                        
         # This sets up all the data
         self.build_tracks(plane, _pars, pivots=pivots, ivar=ivar, 
             take_log=[take_log, False, False], un_log=[un_log, False, False], 
@@ -237,7 +250,7 @@ class Animation(object):
                             
             sax.plot([val]*2, [0, 1], **kwargs)
             sax = self._reset_slider(sax, limits, take_log, un_log, 
-                **slider_kwargs)
+                sticks=sticks, slims=slims, **slider_kwargs)      
             
             if ('z' in _pars) and z_to_freq:
                 ax.set_xlabel(labeler.label('nu'))
@@ -254,7 +267,7 @@ class Animation(object):
             if ('z' in _pars) and z_to_freq:
                 if z_ax:
                     twin_ax = add_redshift_axis(ax, twin_ax)    
-             
+                         
             pl.draw()
         
             pl.savefig('%s_%s.png' % (prefix, str(i).zfill(4)))
@@ -264,33 +277,33 @@ class Animation(object):
                 sax.clear()
                 if twin_ax is not None:
                     twin_ax.clear()  
-                                     
+
         return ax, twin_ax
-            
+
     def add_residue(self):
         pass
 
     def add_marker(self):
         pass
 
-    def _reset_slider(self, ax, limits, take_log=False, un_log=False, **kwargs):
+    def _reset_slider(self, ax, limits, take_log=False, un_log=False, 
+        sticks=None, slims=None, **kwargs):
         ax.set_yticks([])
         ax.set_yticklabels([])
 
-        if take_log:
-            lim = np.log10(limits)
-        elif (un_log) and (self.model_set.is_log[0]):
-            lim = 10**limits
+        if slims is None:
+            lo, hi = self._limits_w_padding(limits, take_log=take_log, un_log=un_log)
         else:
-            lim = limits
-
-        lo, hi = self._limits_w_padding(limits, take_log=take_log, un_log=un_log)
-
+            lo, hi = slims
+            
         ax.set_xlim(lo, hi)
         ax.tick_params(axis='x', labelsize=10, length=3, width=1, which='major')
 
         if 'label' in kwargs:
             ax.set_xlabel(kwargs['label'], fontsize=14)
+        
+        if sticks is not None:
+            ax.set_xticks(sticks)    
 
         return ax
         
@@ -299,7 +312,7 @@ class Animation(object):
         """
         Add inset 'slider' thing.
         """
-        
+                
         inset = pl.axes(rect)
         inset = self._reset_slider(inset, limits, take_log, un_log, **kwargs) 
         pl.draw()
@@ -357,7 +370,7 @@ class AnimationSet(object):
         
     @property
     def origin(self):
-        if not hasattr(self, '_labels'):
+        if not hasattr(self, '_origin'):
             self._origin = [None] * len(self.animations)
         return self._origin    
         
@@ -414,7 +427,8 @@ class AnimationSet(object):
             self._un_log = [False] * len(self.parameters)
         
     def Plot1D(self, plane, pars=None, ax=None, fig=1, prefix='test', 
-        xlim=None, ylim=None, xticks=None, yticks=None, **kwargs):
+        xlim=None, ylim=None, xticks=None, yticks=None, sticks=None, 
+        slims=None, top_sax=0.75, **kwargs):
         """
         Basically run a series of Plot1D.
         """
@@ -426,6 +440,10 @@ class AnimationSet(object):
 
         N = len(pars)
         
+        if sticks is None:
+            sticks = {par:None for par in pars}
+        if slims is None:
+            slims = {par:None for par in pars}    
         
         ## 
         # First: setup axes
@@ -447,10 +465,11 @@ class AnimationSet(object):
                     _x = _p
             
             self.animations[k].build_tracks(plane, _pars, 
-                take_log=self.take_log[k], un_log=False, multiplier=1)
+                take_log=self.take_log[k], un_log=False, multiplier=1,
+                origin=self.origin[k])
             
             ax, _sax = self.animations[k].prepare_axis(ax=ax, fig=fig, 
-                squeeze_main=True, rect=[0.75, 0.75-0.15*k, 0.2, 0.05],
+                squeeze_main=True, rect=[0.75, top_sax-0.15*k, 0.2, 0.05],
                 label=self.labels[k])
                 
             sax.append(_sax)
@@ -476,16 +495,15 @@ class AnimationSet(object):
             # Add slider bar for all currently static parameters
             # (i.e., grab default value)
             for l in range(N):
-                #if l == k:
-                #    continue
+                if l == k:
+                    continue
                     
                 _p = self.parameters[l]
                 limits = self.animations[l].data['limits']
-                val = self.animations[l].data['assembled'][_p][0]
-                sax[l].plot([val]*2, [0, 1], **kwargs)
+                sax[l].plot([self.origin[l]]*2, [0, 1], **kwargs)
                 self.animations[l]._reset_slider(sax[l], limits, 
                     take_log=self.take_log[l], un_log=self.un_log[l],
-                    label=self.labels[l])
+                    label=self.labels[l], sticks=sticks[_p], slims=slims[_p])
             
             # Plot variable parameter
             ax, twin_ax = \
@@ -493,7 +511,8 @@ class AnimationSet(object):
                 take_log=self.take_log[k], un_log=self.un_log[k],
                 prefix='%s.%s' % (prefix, par), close=False,
                 slider_kwargs=kw, xlim=xlim, ylim=ylim, origin=self.origin[k],
-                xticks=xticks, yticks=yticks, twin_ax=twin_ax, **kwargs)
+                xticks=xticks, yticks=yticks, twin_ax=twin_ax, 
+                sticks=sticks, slims=slims, **kwargs)
                 
             
             

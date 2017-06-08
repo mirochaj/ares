@@ -16,7 +16,8 @@ from ..util import labels
 import matplotlib.pyplot as pl
 from scipy.integrate import trapz
 from ..util.ReadData import flatten_energies
-from ..physics.Constants import erg_per_ev, J21_num, h_P, c, E_LL, E_LyA
+from ..physics.Constants import erg_per_ev, J21_num, h_P, c, E_LL, E_LyA, \
+    sqdeg_per_std
 
 class MetaGalacticBackground(object):
     def __init__(self, data=None, **kwargs):

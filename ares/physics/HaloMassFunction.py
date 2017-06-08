@@ -685,7 +685,6 @@ class HaloMassFunction(object):
         l = np.sqrt(np.pi * cs**2 / G / rho)
         return 4. * np.pi * rho * (0.5 * l)**3 / 3. / g_per_msun
         
-            
     def _tegmark(self, z):
         fH2s = lambda T: 3.5e-4 * (T / 1e3)**1.52
         fH2c = lambda T: 1.6e-4 * ((1. + z) / 20.)**-1.5 \
@@ -802,7 +801,7 @@ class HaloMassFunction(object):
             f.create_dataset('dndm', data=self.dndm)
             f.create_dataset('ngtm', data=self.ngtm)
             f.create_dataset('mgtm', data=self.mgtm)
-            f.create_dataset('hmf-version', data=hmf_v)         
+            f.create_dataset('hmf-version', data=hmf_v)
             f.close()
 
         elif format == 'npz':
@@ -816,7 +815,7 @@ class HaloMassFunction(object):
 
         # Otherwise, pickle it!    
         else:   
-            f = open(fn, 'wb')            
+            f = open(fn, 'wb')
             pickle.dump(self.z, f)
             pickle.dump(self.logM, f)
             pickle.dump(self.fcoll_spline_2d, f)

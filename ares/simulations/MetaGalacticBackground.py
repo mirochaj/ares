@@ -16,13 +16,15 @@ import scipy
 import pickle
 import numpy as np
 from ..static import Grid
+from ..util.Math import smooth
 from types import FunctionType
 from ..util import ParameterFile
 from scipy.interpolate import interp1d
 from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
-from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev
+from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev, \
+    sqdeg_per_std
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
 
 _scipy_ver = scipy.__version__.split('.')
@@ -184,6 +186,74 @@ class MetaGalacticBackground(AnalyzeMGB):
                 
             self.reboot()
             self.run(include_pops=self._lwb_sources)
+    
+    @property        
+    def today(self):
+        """
+        Take background intensity at final redshift and evolve to z=0.
+        
+        This is just the second term of Eq. 25 in Mirocha (2014).
+        """
+        
+        _fluxes_today = []
+        _energies_today = []
+        
+        for popid, pop in enumerate(self.pops):
+            if not self.solver.solve_rte[popid]:
+                _fluxes_today.append(None)
+                _energies_today.append(None)
+                continue
+                
+            z, E, flux = self.get_history(popid=popid, flatten=True)    
+                
+            Et = E / (1. + z[0])
+            ft = flux[0] / (1. + z[0])**2
+            
+            _energies_today.append(Et)
+            _fluxes_today.append(ft)
+            
+        return _energies_today, _fluxes_today
+                           
+    @property        
+    def jsxb(self):
+        if not hasattr(self, '_jsxb'):
+            self._jsxb = self.jxrb(band='soft')
+        return self._jsxb
+
+    @property
+    def jhxb(self):
+        if not hasattr(self, '_jhxb'):
+            self._jhxb = self.jxrb(band='hard')
+        return self._jhxb
+
+    def jxrb(self, band='soft'):
+        """
+        Compute soft X-ray background flux at z=0.
+        """
+
+        jx = 0.0
+        Ef, ff = self.today
+        for popid, pop in enumerate(self.pops):
+            if Ef[popid] is None:
+                continue
+                
+            flux_today = ff[popid] * Ef[popid] \
+                * erg_per_ev / sqdeg_per_std / ev_per_hz
+                
+            if band == 'soft':
+                Eok = np.logical_and(Ef[popid] >= 5e2, Ef[popid] <= 2e3)
+            elif band == 'hard':
+                Eok = np.logical_and(Ef[popid] >= 2e3, Ef[popid] <= 1e4)
+            else:
+                raise ValueError('Unrecognized band! Only know \'hard\' and \'soft\'')
+        
+            Earr = Ef[popid][Eok]
+            # Find integrated 0.5-2 keV flux
+            dlogE = np.diff(np.log10(Earr))
+            
+            jx += np.trapz(flux_today[Eok] * Earr, dx=dlogE) * np.log(10.)
+                          
+        return jx          
                            
     @property
     def _not_lwb_sources(self):
@@ -523,7 +593,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         return self._z_unique        
                 
     def get_uvb_tot(self, include_pops=None):
-        
+                
         if include_pops is None:
             include_pops = range(self.solver.Npops)
         
@@ -532,7 +602,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         _f_Ja = []
         _f_Jlw = []
         for i, popid in enumerate(include_pops):
-            
+                        
             _z, _Ja, _Jlw = self.get_uvb(popid)
             
             _allz.append(_z)
@@ -585,6 +655,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         # Need better long-term fix: Lya sources aren't necessarily LW 
         # sources, if (for example) approx_all_pops = True. 
         if not self.pf['feedback_LW']:
+            # Will use all then
             include_pops = None
         elif include_pops is None:
             include_pops = range(self.solver.Npops)
@@ -643,6 +714,17 @@ class MetaGalacticBackground(AnalyzeMGB):
         else:
             _Mmin_next = Mnext
             
+        # Detect ripples first and only do this if we see some?
+        if self.pf['feedback_LW_Mmin_smooth']:
+            ztmp = np.arange(zarr.min(), zarr.max(), 0.1)
+            Mtmp = np.interp(ztmp, zarr, np.log10(_Mmin_next))
+            Ms = smooth(Mtmp, 21, kernel='boxcar')
+
+            _Mmin_next = 10**np.interp(zarr, ztmp, Ms)
+            
+        if self.pf['feedback_LW_Mmin_fit']:
+            _Mmin_next = 10**np.polyval(np.polyfit(zarr, np.log10(_Mmin_next), 5), zarr)
+
         # Need to apply Mmin floor
         _Mmin_next = np.maximum(_Mmin_next, pop_fb.halos.Mmin_floor(zarr))
 
@@ -671,7 +753,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             return True 
         
         rtol = self.pf['feedback_LW_Mmin_rtol']
-        atol = self.pf['feedback_LW_Mmin_atol']      
+        atol = self.pf['feedback_LW_Mmin_atol']
         
         # Less stringent requirement, that mean error meet tolerance.
         if self.pf['feedback_LW_mean_err']:
@@ -684,7 +766,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     return False
                 elif err_rel.mean() < rtol and (atol == 0):
                     return True
-        
+
             # Only make it here if rtol is satisfied or irrelevant
         
             if atol > 0:
@@ -714,43 +796,47 @@ class MetaGalacticBackground(AnalyzeMGB):
         if np.any(self.solver.solve_rte[popid]):
             z, E, flux = self.get_history(popid=popid, flatten=True)
             
-            l = np.argmin(np.abs(E - E_LyA))     # should be 0
-                                                            
-            # Redshift is first dimension!
-            Ja = flux[:,l]
-                    
-            # Find photons in LW band    
+            if self.pf['secondary_lya'] and self.pops[popid].is_ion_src_igm:
+                Ja = np.zeros_like(z) # placeholder
+            else:
+                l = np.argmin(np.abs(E - E_LyA))     # should be 0
+                                                                
+                # Redshift is first dimension!
+                Ja = flux[:,l]
+                        
+            # Find photons in LW band
             is_LW = np.logical_and(E >= 11.18, E <= E_LL)
             
             dnu = (E_LL - 11.18) / ev_per_hz
-
+            
             # Need to do an integral to finish this one.
             Jlw = np.zeros_like(z)
-        
+
         else:
             # Need a redshift array!
             z = self.z_unique
             Ja = np.zeros_like(z)
             Jlw = np.zeros_like(z)
-        
+
         ##
         # Loop over redshift
         ##
-        for i, redshift in enumerate(z): 
-            
+        for i, redshift in enumerate(z):
             if not np.any(self.solver.solve_rte[popid]):
                 Ja[i] = self.solver.LymanAlphaFlux(redshift, popid=popid)
-                if self.pf['feedback_LW']:   
+                if self.pf['feedback_LW']:
                     Jlw[i] = self.solver.LymanWernerFlux(redshift, popid=popid)
+
                 continue
-                       
-            LW_flux = flux[i,is_LW]
-            
+            elif self.pf['secondary_lya'] and (self.pops[popid].is_ion_src_igm):
+                Ja[i] = self.solver.volume.SecondaryLymanAlphaFlux(redshift, 
+                    popid=popid, fluxes={popid:flux[i]})
+
             # Convert to energy units, and per eV to prep for integral
-            LW_flux *= E[is_LW] * erg_per_ev / ev_per_hz
-            
+            LW_flux = flux[i,is_LW] * E[is_LW] * erg_per_ev / ev_per_hz
+
             Jlw[i] = np.trapz(LW_flux, x=E[is_LW]) / dnu
-        
+
         return z, Ja, Jlw
 
     def get_history(self, popid=0, flatten=False):

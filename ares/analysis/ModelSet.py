@@ -156,22 +156,23 @@ class ModelSet(BlobFactory):
                 except:
                     pass
                     
-        elif isinstance(data, ModelSubSet):
+        elif isinstance(data, ModelSet):
+            self.prefix = data.prefix
             self._chain = data.chain
             self._is_log = data.is_log
             self._base_kwargs = data.base_kwargs
             #self._fails = data.fails
             
-            self.mask = np.zeros_like(data.blobs)    
-            self.mask[np.isinf(data.blobs)] = 1
-            self.mask[np.isnan(data.blobs)] = 1
+            #self.mask = np.zeros_like(data.blobs)
+            #self.mask[np.isinf(data.blobs)] = 1
+            #self.mask[np.isnan(data.blobs)] = 1
             #self._blobs = np.ma.masked_array(data.blobs, mask=self.mask)
 
             #self._blob_names = data.blob_names
             #self._blob_redshifts = data.blob_redshifts
             #self._parameters = data.parameters
             #self._is_mcmc = data.is_mcmc
-            
+
             #if self.is_mcmc:
             #    self.logL = data.logL
             #else:
@@ -188,23 +189,23 @@ class ModelSet(BlobFactory):
             #    except AttributeError:
             #        pass
 
-            #self.Nd = int(self.chain.shape[-1])       
-                
+            #self.Nd = int(self.chain.shape[-1])
+
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
     
-        self.have_all_blobs = os.path.exists('%s.blobs.pkl' % self.prefix)
-    
+        #self.have_all_blobs = os.path.exists('%s.blobs.pkl' % self.prefix)
+
         #self._pf = ModelSubSet()
         #self._pf.Npops = self.Npops
-        
+
         self.derived_blobs = DQ(self)
-    
+
         #try:
         #    self._fix_up()
         #except AttributeError:
         #    pass
-                    
+
     @property
     def mask(self):
         if not hasattr(self, '_mask'):
@@ -875,6 +876,29 @@ class ModelSet(BlobFactory):
         print (lx, lx+dx, ly, ly+dy)
         
         self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
+    
+    def SliceIteratively(self, par):
+        assert self.Nd == 3 # for now
+        
+        k = list(self.parameters).index(par)
+        vals = np.sort(np.unique(self.chain[:,k]))
+        
+        slices = []
+        for i, val in enumerate(vals):
+                        
+            if i == 0:
+                lo = 0
+                hi = np.mean([val, vals[i+1]])
+            elif i == len(vals) - 1:
+                lo = np.mean([val, vals[i-1]])
+                hi = max(vals) * 1.1
+            else:
+                lo = np.mean([vals[i-1], val])  
+                hi = np.mean([vals[i+1], val])  
+                
+            slices.append(self.Slice([lo, hi], [par]))
+        
+        return vals, slices
                 
     def Slice(self, constraints, pars, ivar=None, take_log=False, 
         un_log=False, multiplier=1.):
@@ -939,7 +963,7 @@ class ModelSet(BlobFactory):
         ##
         model_set = ModelSet(self.prefix)
         
-        # Set the mask! 
+        # Set the mask!
         model_set.mask = np.logical_or(mask, self.mask)
                 
         i = 0
@@ -1424,7 +1448,8 @@ class ModelSet(BlobFactory):
     def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
         line_plot=False, sort_by='z', filter_z=None, rungs=False, 
-        rung_label=None, rung_label_top=True, **kwargs):
+        rung_label=None, rung_label_top=True, return_cb=False, cax=None,
+        cb_kwargs={}, **kwargs):
         """
         Plot samples as points in 2-d plane.
     
@@ -1467,8 +1492,7 @@ class ModelSet(BlobFactory):
             p = pars
             iv = ivar
         
-        data = \
-            self.ExtractData(p, iv, take_log, un_log, multiplier)
+        data = self.ExtractData(p, iv, take_log, un_log, multiplier)
 
         xdata = data[p[0]]
         ydata = data[p[1]]
@@ -1538,7 +1562,7 @@ class ModelSet(BlobFactory):
                 else:
                     cb = None
             else:
-                cb = self._cb = pl.colorbar(scat)
+                cb = self._cb = pl.colorbar(scat, cax=cax, **cb_kwargs)
         else:
             cb = None
         
@@ -1554,7 +1578,11 @@ class ModelSet(BlobFactory):
         pl.draw()
         
         self._ax = ax
-        return ax
+        
+        if return_cb:
+            return ax, cb
+        else:    
+            return ax
         
     def _fix_tick_labels(self, ax):
         tx = map(int, ax.get_xticks())
@@ -1652,7 +1680,7 @@ class ModelSet(BlobFactory):
         assert have_shapely, "Need shapely installed for this to work."
         assert have_descartes, "Need descartes installed for this to work."
 
-        if ax is None:
+        if (ax is None) and add_patch:
             gotax = False
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
@@ -1681,8 +1709,9 @@ class ModelSet(BlobFactory):
             raise ValueError('Unrecognized boundary_type=%s!' % boundary_type)        
 
         # Plot a Polygon using descartes
-        if add_patch:
-
+        if add_patch and (polygon is not None):
+            # This basically just gets the axis object in order without
+            # actually plotting anything (effectively)
             self.Scatter(pars, ivar=ivar, take_log=take_log, un_log=un_log,
                 multiplier=multiplier, ax=ax, edgecolors='none', 
                 facecolors='none')
@@ -1694,16 +1723,21 @@ class ModelSet(BlobFactory):
                 patches = []
                 for pgon in polygon:
                     patches.append(PolygonPatch(pgon, **kwargs))
-
-                ax.add_collection(PatchCollection(patches, match_original=True))
+                
+                try:
+                    ax.add_collection(PatchCollection(patches, match_original=True))
+                except TypeError:
+                    print patches
 
             pl.draw()
 
-        if return_polygon:
+        if return_polygon and add_patch:
             return ax, polygon
+        elif return_polygon:
+            return polygon
         else:
             return ax
-        
+
     def get_par_prefix(self, par):
         m = re.search(r"\{([0-9])\}", par)
 
@@ -2053,6 +2087,18 @@ class ModelSet(BlobFactory):
                     binvec.append(self.axes[par])
         
         return pars, to_hist, is_log, binvec
+      
+    def Limits(self, pars, ivar=None, take_log=False, un_log=False, 
+        multiplier=1., remove_nas=False):
+        
+        data = self.ExtractData(pars, ivar=ivar, take_log=take_log,
+            un_log=un_log, multiplier=multiplier, remove_nas=remove_nas)
+            
+        lims = {}
+        for par in pars:
+            lims[par] = (min(data[par]), max(data[par]))
+            
+        return lims
       
     def ExtractData(self, pars, ivar=None, take_log=False, un_log=False, 
         multiplier=1., remove_nas=False):
@@ -2656,7 +2702,7 @@ class ModelSet(BlobFactory):
               
     def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
         un_log=False, multiplier=1., ax=None, fig=1, filled=False, 
-        inline_labels=False, cax=None, use_colorbar=True, **kwargs):         
+        inline_labels=False, manual=None, cax=None, use_colorbar=True, **kwargs):         
         """
         Draw contours that are NOT associated with confidence levels.
         
@@ -2687,7 +2733,7 @@ class ModelSet(BlobFactory):
             gotax = True
             
         cb = None    
-        if (pars[0] in self.parameters) and (pars[1] in self.parameters):
+        if (pars[0] in self.parameters) and (pars[1] in self.parameters):            
             xdata, ydata, zdata = self._reshape_data(pars, c, ivar=ivar, 
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
                                 
@@ -2707,7 +2753,7 @@ class ModelSet(BlobFactory):
                     CS = ax.contour(xdata, ydata, zdata.T, **kwargs) 
                     
                 if inline_labels:
-                    pl.clabel(CS, ineline=1, fontsize=10) 
+                    pl.clabel(CS, ineline=1, fontsize=10, manual=manual) 
                 
         else:
             p = list(pars) + [c]
@@ -3266,6 +3312,9 @@ class ModelSet(BlobFactory):
                 if gotit.sum() == 0:
                     continue
                 
+                if type(gotit.sum()) == np.ma.core.MaskedConstant:
+                    continue
+                
                 k = np.argwhere(gotit == True)
                 
                 zarr[i,j] = flat[k]
@@ -3441,10 +3490,10 @@ class ModelSet(BlobFactory):
         ##
         # Do the actual plotting
         ##
-
+        
         # Limit number of realizations
         if samples is not None:
-            M = min(self.chain.shape[0], max_samples)
+            M = min(min(self.chain.shape[0], max_samples), len(y.T))            
             
             if samples == 'all':
                 elements = np.arange(0, M)
@@ -3880,8 +3929,14 @@ class ModelSet(BlobFactory):
                 if key in self.parameters:
                     continue
                     
-                i, j, nd, size = self.blob_info(key)
-                ivars[key] = self.blob_ivars[i]
+                # Might be a derived blob of derived blobs!
+                # Just err on the side of no ivars for now.  
+        
+                try: 
+                    i, j, nd, size = self.blob_info(key)
+                    ivars[key] = self.blob_ivars[i]
+                except KeyError:
+                    ivars[key] = None
 
             result = func(data, ivars)
 
@@ -3927,8 +3982,12 @@ class ModelSet(BlobFactory):
                 # Don't need ivars if we're manipulating parameters!
                 if key in self.parameters:
                     continue
-                i, j, nd, size = self.blob_info(key)
-                ivars[key] = self.blob_ivars[i]
+                    
+                try:    
+                    i, j, nd, size = self.blob_info(key)
+                    ivars[key] = self.blob_ivars[i]
+                except KeyError:
+                    ivars[key] = None
             
             # Save metadata about this derived blob
             fn_md = '%s.dbinfo.pkl' % self.prefix
@@ -4167,11 +4226,14 @@ class ModelSet(BlobFactory):
             Too large, and you lose everything!
             
         """
-        if len(points) < 4:
+        
+        if 1 <= len(points) < 4:
             # When you have a triangle, there is no sense
             # in computing an alpha shape.
             return geometry.MultiPoint(list(points)).convex_hull
-
+        else:
+            return None, None
+            
         def add_edge(edges, edge_points, coords, i, j):
             """
             Add a line between the i-th and j-th points,

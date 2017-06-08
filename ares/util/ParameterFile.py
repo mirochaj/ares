@@ -12,10 +12,10 @@ Description:
 
 import re
 from .ProblemTypes import ProblemType
-from .SetDefaultParameterValues import SetAllDefaults
 from .BackwardCompatibility import backward_compatibility
 from .CheckForParameterConflicts import CheckForParameterConflicts
 from .SetDefaultParameterValues import ParameterizedQuantityParameters
+from .SetDefaultParameterValues import SetAllDefaults, CosmologyParameters
 
 try:
     from mpi4py import MPI
@@ -24,6 +24,8 @@ except ImportError:
     rank = 0
 
 old_pars = ['fX', 'cX', 'fstar', 'fesc', 'Nion', 'Nlw']
+
+_cosmo_params = CosmologyParameters()
 
 def bracketify(**kwargs):
     """
@@ -243,8 +245,21 @@ class ParameterFile(dict):
         Build parameter file instance.
         """
 
-        # Keep user-supplied kwargs as attribute  
+        # Keep user-supplied kwargs as attribute 
         self._kwargs = kwargs.copy()
+        
+        #print len(kwargs.keys()), len(defaults.keys())
+        #if len(kwargs.keys()) < 0.5 * len(defaults.keys()):
+        #    for par in self._kwargs:
+        #        if par not in _cosmo_params:
+        #            continue
+        #            
+        #        if self._kwargs[par] == _cosmo_params[par]:
+        #            continue
+        #        
+        #        print "WARNING: %s is cosmological parameter." % par
+        #        print "       : Must update initial conditions and HMF tables!"
+        
         
         # Fix up everything
         self._parse(**kwargs)

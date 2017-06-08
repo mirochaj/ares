@@ -86,20 +86,18 @@ _floor_specific = \
 'pq_val_floor{0}[0]': 0.005,
 }
 
-floor = dpl.copy()
-floor.update(_floor_specific)
+floor = _floor_specific
 
 _steep_specific = \
 {
- 'pq_focc{0}': 'pq[1]',
- 'pq_func{0}[1]': 'okamoto',
- 'pq_func_var{0}[1]': 'Mh',
- 'pq_func_par0{0}[1]': 1.,
- 'pq_func_par1{0}[1]': 1e9,
+ 'pop_focc{0}': 'pq[5]',
+ 'pq_func{0}[5]': 'okamoto',
+ 'pq_func_var{0}[5]': 'Mh',
+ 'pq_func_par0{0}[5]': 1.,
+ 'pq_func_par1{0}[5]': 1e9,
 }
 
-steep = dpl.copy()
-steep.update(_steep_specific)
+steep = _steep_specific
 
 """
 Redshift-dependent options.
@@ -134,8 +132,7 @@ _flex = \
 
 }
 
-dpl_flex = dpl.copy()
-dpl_flex.update(_flex)
+flex = _flex
 
 _flex2 = \
 {
@@ -178,19 +175,16 @@ _flex2 = \
  
 }
 
-dpl_evol = dpl.copy()
-dpl_evol.update(_flex2)
-
-dpl_pl = dpl_evol
-
-dpl_quad = dpl.copy()
-for j, i in enumerate(range(1, 5)):
-    dpl_quad['pq_func_par%i{0}[0]' % j] = 'pq[%i]' % i
-    dpl_quad['pq_func{0}[%i]' % i] = 'quad'
-    dpl_quad['pq_func_var{0}[%i]' % i] = '1+z'
-    dpl_quad['pq_func_par0{0}[%i]' % i] = dpl['pq_func_par%i{0}[0]' % j]
-    dpl_quad['pq_func_par1{0}[%i]' % i] = 0.
-    dpl_quad['pq_func_par2{0}[%i]' % i] = 0.
-    dpl_quad['pq_func_par3{0}[%i]' % i] = 4. # Normalize to z=3
+#dpl_evol = _flex2
+#dpl_pl = dpl_evol
+#dpl_quad = {}
+#for j, i in enumerate(range(1, 5)):
+#    dpl_quad['pq_func_par%i{0}[0]' % j] = 'pq[%i]' % i
+#    dpl_quad['pq_func{0}[%i]' % i] = 'quad'
+#    dpl_quad['pq_func_var{0}[%i]' % i] = '1+z'
+#    dpl_quad['pq_func_par0{0}[%i]' % i] = dpl['pq_func_par%i{0}[0]' % j]
+#    dpl_quad['pq_func_par1{0}[%i]' % i] = 0.
+#    dpl_quad['pq_func_par2{0}[%i]' % i] = 0.
+#    dpl_quad['pq_func_par3{0}[%i]' % i] = 4. # Normalize to z=3
 
 

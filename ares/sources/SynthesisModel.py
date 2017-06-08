@@ -98,7 +98,7 @@ class SynthesisModel(object):
     def sed_at_tsf(self):
         if not hasattr(self, '_sed_at_tsf'):
             # erg / s / Hz      
-            if self.pf['pop_rad_yield'] == 'from_sed':  
+            if self.pf['pop_rad_yield'] == 'from_sed':
                 self._sed_at_tsf = \
                     self.data[:,self.i_tsf] * self.dwdn / ev_per_hz
             else:

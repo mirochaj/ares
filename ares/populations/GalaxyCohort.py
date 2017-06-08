@@ -17,7 +17,6 @@ from ..util import read_lit
 from inspect import ismethod
 from scipy.optimize import fsolve, minimize
 from types import FunctionType, InstanceType
-from .GalaxyAggregate import GalaxyAggregate
 from ..analysis.BlobFactory import BlobFactory
 from ..util import MagnitudeSystem, ProgressBar
 from ..phenom.DustCorrection import DustCorrection
@@ -25,6 +24,7 @@ from scipy.integrate import quad, simps, cumtrapz, ode
 from ..util.ParameterFile import par_info, get_pq_pars
 from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import interp1d, RectBivariateSpline
+from .GalaxyAggregate import GalaxyAggregate, normalize_sed
 from ..util.Math import central_difference, interp1d_wrapper
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
@@ -80,7 +80,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     
         # This is the name of the thing as it appears in the parameter file.
         full_name = 'pop_' + name
-                
+                                
         # Now, possibly make an attribute
         if not hasattr(self, name):
             
@@ -145,13 +145,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._update_pq_registry(name, result)
             
             elif type(self.pf[full_name]) in [int, float, np.float64]:
-                result = lambda **kwargs: self.pf[full_name]
-
+                
+                # Need to be careful here: has user-specified units!
+                # We've assumed that this cannot be parameterized...
+                # i.e., previous elif won't ever catch rad_yield
+                if name == 'rad_yield':
+                    result = lambda **kwargs: normalize_sed(self)
+                else:
+                    result = lambda **kwargs: self.pf[full_name]
+                
             else:
                 raise TypeError('dunno how to handle: %s' % name)
 
             # Check to see if Z?
-
             self.__setattr__(name, result)
 
         return getattr(self, name)
@@ -1116,11 +1122,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # First, compute threshold mass vs. redshift
             t_limit = self.pf['pop_time_limit']
             m_limit = self.pf['pop_mass_limit'] 
+            a_limit = self.pf['pop_abun_limit'] 
             e_limit = self.pf['pop_bind_limit']
             T_limit = self.pf['pop_temp_limit']
 
             if (t_limit is not None) or (m_limit is not None) or \
-               (e_limit is not None) or (T_limit is not None):
+               (e_limit is not None) or (T_limit is not None) or (a_limit is not None):
                
                 M0x = self.pf['pop_initial_Mh']
                 if (M0x == 0) or (M0x == 1):
@@ -1141,7 +1148,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 # (in units of Mmin, defaults to 1).
                 Moft_zi = lambda z: np.interp(z, zform, new_data['Mh'])
                 
-                # For each redshift, determine Mmax based on several factors.
+                # For each redshift, determine Mmax.
                 Mmax = np.zeros_like(self.halos.z)
                 for i, z in enumerate(self.halos.z):
                     
@@ -1150,21 +1157,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     # Or, we're using a time-limited model.
                     if ((M0x > 0) and (z > zmax)):
                         Mmax[i] = Moft_zi(z)
-                    #elif M0x > 0:
-                    #    Mmax[i] = np.interp(z, zfin, Mfin)
-                    #elif e_limit is not None:
-                    #    to_min = lambda M: self.halos.BindingEnergy(M, z) \
-                    #        - e_limit
-                    #    M1 = fsolve(to_min, 1e7)[0]
-                    #    M2 = np.interp(z, zfin, Mfin)
-                    #
-                    #    if z <= zmax:
-                    #        Mmax[i] = np.maximum(M1, M2)
-                    #    else:
-                    #        Mmax[i] = M2
                     else:
-                        Mmax[i] = np.interp(z, zfin, Mfin)
-
+                        Mmax[i] = 10**np.interp(z, zfin, np.log10(Mfin))
+                        
                 self._tab_Mmax_ = Mmax
 
             elif self.pf['pop_Mmax'] is not None:
@@ -1680,6 +1675,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def yield_per_sfr(self):
         # Need this to avoid inheritance issue with GalaxyAggregate
         if not hasattr(self, '_yield_per_sfr'):
+                        
             if type(self.rad_yield) is FunctionType:
                 self._yield_per_sfr = self.rad_yield()
             else:
@@ -1809,6 +1805,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         fb = self.cosm.fbar_over_fcdm
         
+        # Splitting up the inflow. P = pristine, 
+        PIR = -1. * fb * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        NPIR = -1. * fb * self.MDR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        
         # Measured relative to baryonic inflow
         Mb = fb * Mh
         Zfrac = self.pf['pop_acc_frac_metals'] * (MZ / Mb)
@@ -1817,8 +1817,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
         if self.pf['pop_sfr'] is None:
             fstar = self.SFE(**kw)
+            SFR = PIR * fstar
         else:
             fstar = 1e-10
+            SFR = -self.sfr(**kw) * self.cosm.dtdz(z) / s_per_yr
 
         # "Quiet" mass growth
         fsmooth = self.fsmooth(**kw)
@@ -1826,12 +1828,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Eq. 1: halo mass.
         y1p = -1. * self.MGR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
 
-        # Splitting up the inflow. P = pristine, 
-        PIR = -1. * fb * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
-        NPIR = -1. * fb * self.MDR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
-
         # Eq. 2: gas mass
-        y2p = PIR * (1. - fstar) + NPIR * Gfrac
+        if self.pf['pop_sfr'] is None:
+            y2p = PIR * (1. - SFR/PIR) + NPIR * Gfrac
+        else:
+            y2p = PIR * (1. - fstar) + NPIR * Gfrac
 
         # Add option of parameterized stifling of gas supply, and
         # ejection of gas.
@@ -1841,11 +1842,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if Mh < Mmin:
             y3p = SFR = 0.
         else:
-            if self.pf['pop_sfr'] is None:
-                SFR = PIR * fstar
-            else:
-                SFR = -self.sfr(**kw) * self.cosm.dtdz(z) / s_per_yr
-                
             y3p = SFR * (1. - self.pf['pop_mass_yield']) + NPIR * Sfrac
 
         # Eq. 4: metal mass -- constant return per unit star formation for now
@@ -1912,6 +1908,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property
     def constant_SFE(self):
         if not hasattr(self, '_constant_SFE'):
+            
+            if self.constant_SFR:
+                self._constant_SFE = 0
+                return self._constant_SFE
+            
             self._constant_SFE = 1
             for mass in [1e7, 1e8, 1e9, 1e10, 1e11, 1e12]:
                 self._constant_SFE *= self.fstar(z=10, Mh=mass) \
@@ -1997,12 +1998,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         for k, z in enumerate(zarr):
             # z here is the formation redshift
             new_data = self._sort_sam(z, zarr, data, sort_by='form')
-
-            # This is the redshift at which the mass peaked
-            #if not np.isfinite(new_data['zmax']):
-            #    zfin.append(z)
-            #    Mfin.append(1e10)
-            #else:
+            
+            # Redshift when whatever transition-triggering event was reached
             zmax = new_data['zmax']
             zfin.append(zmax)
             
@@ -2010,11 +2007,29 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # more precisely. Reminder: already interpolated to 
             # find 'zmax' in call to _ScalingRelations
             Mmax = np.interp(zmax, zarr, new_data['Mh'])
-            
+
             # We just want the final mass (before dt killed SAM)
             Mfin.append(Mmax)
-                    
+
         Mfin = self._apply_lim(Mfin, 'max', zarr)
+        
+        zfin = np.array(zfin)  
+        
+        # Check for double-valued-ness
+        # Just kludge and take largest value.
+        
+        zrev = zfin[-1::-1]
+        for i, z in enumerate(zrev):
+            if i == 0:
+                continue
+                                
+            if z == self.pf['final_redshift']:
+                break
+        
+        Nz = len(zfin)
+            
+        zfin[0:Nz-i] = self.pf['final_redshift']
+        Mfin[0:Nz-i] = max(Mfin)
         
         return zarr, zfin, np.array(Mfin), data
         
@@ -2198,7 +2213,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         has_T_limit = self.pf['pop_temp_limit'] is not None    
         has_t_limit = self.pf['pop_time_limit'] is not None    
         has_m_limit = self.pf['pop_mass_limit'] is not None
+        has_a_limit = self.pf['pop_abun_limit'] is not None
         
+        has_t_ceil = self.pf['pop_time_ceil'] is not None
+                
         ##
         # Outputs have shape (z, z)
         ##
@@ -2231,8 +2249,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         zmax = None
         zmax_t = None
         zmax_m = None
+        zmax_a = None
         zmax_T = None
         zmax_e = None
+        
+        # zmax really means the highest redshift where a certain
+        # transition criterion is satisfied.
 
         Mh_t = []
         Mg_t = []
@@ -2241,7 +2263,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Ehist = []
         redshifts = []
         for i in range(Nz):
-                        
+            # In descending order
             redshifts.append(zarr[-1::-1][i])
             Mh_t.append(solver.y[0])
             Mg_t.append(solver.y[1])
@@ -2252,24 +2274,52 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             lbtime_myr = self.cosm.LookbackTime(z, z0) \
                 / s_per_yr / 1e6
-                        
-            if has_t_limit:
-                if lbtime_myr >= self.time_limit(z=z, Mh=M0):
+
+            # t_ceil is a trump card.
+            # For example, in some cases the critical metallicity will never
+            # be met due to high inflow rates.                     
+            if has_t_limit or has_t_ceil:     
+                if has_t_limit:
+                    tlim = self.time_limit(z=z, Mh=M0)
+                elif has_t_ceil:
+                    tlim = self.time_ceil(z=z, Mh=M0)
+                  
+                if lbtime_myr >= tlim:
                     hit_dt = True
-                    
+
                     lbtime_myr_prev = self.cosm.LookbackTime(redshifts[-2], z0) \
                         / s_per_yr / 1e6
 
-                    zmax_t = np.interp(self.time_limit(z=z, Mh=M0), 
+                    zmax_t = np.interp(tlim,
                         [lbtime_myr_prev, lbtime_myr], redshifts[-2:])
-            
+
             if has_m_limit:
                 Mnow = solver.y[2]
 
-                if Mnow >= self.mass_limit(z=z, Mh=M0):
+                if Mnow >= self.mass_limit(z=z, Mh=M0) and (zmax_m is None):
                     zmax_m = np.interp(self.mass_limit(z=z, Mh=M0), Mst_t[-2:], 
                         redshifts[-2:])
 
+            if has_a_limit and (zmax_a is None):
+                                
+                # Subtract off metals accrued before crossing Eb limit?
+                #if (zmax_e is not None) and self.pf['pop_lose_metals'] and i > 0:
+                #    MZ_e = np.interp(zmax_e, redshifts[-1::-1], metals[-1::-1])
+                #    Mg_e = np.interp(zmax_e, redshifts[-1::-1], Mg_t[-1::-1])
+                #                        
+                #    Zpre = (metals[-2] - MZ_e) / solver.y[1]
+                #    Znow = (solver.y[3] - MZ_e) / solver.y[1]
+                #elif self.pf['pop_lose_metals']:
+                #    Zpre = Znow = 0.0
+                #else:                                      
+                    
+                Znow = solver.y[3] / solver.y[1]                                                                                          
+                if Znow >= self.abun_limit(z=z, Mh=M0) and i > 0:                    
+                    Zpre = metals[-2] / Mg_t[-2]
+                    Z_t = [Zpre, Znow]                           
+                    zmax_a = np.interp(self.abun_limit(z=z, Mh=M0), Z_t,
+                        redshifts[-2:])
+                                    
             # These next two are different because the condition might
             # be satisfied *at the formation time*, which cannot (by definition)
             # occur for time or mass-limited sources.
@@ -2279,7 +2329,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if solver.y[0] >= Mtemp:
                     zmax_T = np.interp(Mtemp, Mh_t[-2:], redshifts[-2:])
                     
-            if has_e_limit:
+            if has_e_limit and (zmax_e is None):
                 
                 Eblim = self.pf['pop_bind_limit']
                 Ebnow = self.halos.BindingEnergy(Mh_t[-1], redshifts[-1])
@@ -2287,44 +2337,60 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                 if (Ebnow >= Eblim):
                     
+                    # i == 0 means we satisfied this criterion at the
+                    # formation redshift.
                     if i == 0:
                         zmax_e = z0
                     else:
-                        Ebpre = self.halos.BindingEnergy(Mh_t[-2], redshifts[-2])
-                        zmax_e = np.interp(Eblim, [Ebpre, Ebnow], redshifts[-2:]) 
+                        zmax_e = np.interp(Eblim, Ehist[-2:], redshifts[-2:]) 
             
+            # Once zmax is set, keep solving the rate equations but don't adjust
+            # zmax.
             if zmax is None:
             
                 # If binding energy or Virial temperature are a limiter             
-                if (zmax_e is not None and has_e_limit) or \
-                   (zmax_T is not None and has_T_limit):
+                if ((zmax_e is not None) and has_e_limit) or \
+                   ((zmax_T is not None) and has_T_limit):
                     
-                    # Only transition if time/mass is ALSO satisfied
-                    if (self.pf['pop_limit_logic'] == 'and') and (has_t_limit or has_m_limit):
+                    # Only transition if time/mass/Z is ALSO satisfied
+                    if (self.pf['pop_limit_logic'] == 'and') and \
+                       (has_t_limit or has_m_limit or has_a_limit):
+                                                
                         if (zmax_t is not None):
                             zmax = zmax_t
-                            #break
                         if (zmax_m is not None):
                             zmax = zmax_m
-                            #break                    
+                        if (zmax_a is not None):
+                            zmax = zmax_a
+                        
+                        # Take the *lowest* redshift.
+                        if zmax is not None:
+                            if has_e_limit:
+                                zmax = min(zmax, zmax_e)
+                            else:
+                                zmax = min(zmax, zmax_T)
+                            
                     else:
                         zmax = zmax_e if has_e_limit else zmax_T
-                        #break
                 
                 # If no binding or temperature arguments, use time or mass
                 if not (has_e_limit or has_T_limit):
                     if (zmax_t is not None):
                         zmax = zmax_t
-                        #break
                     if (zmax_m is not None):
                         zmax = zmax_m
-                        #break        
-                                                        
+                    if (zmax_a is not None):
+                        zmax = zmax_a 
+
+                # play the trump card
+                if has_t_ceil and (not has_t_limit):
+                    zmax = max(zmax, zmax_t)
+
             solver.integrate(solver.t-dz)
-  
+
         if zmax is None:
-            zmax = self.pf['final_redshift']#-np.inf
-  
+            zmax = self.pf['final_redshift']
+
         # Everything will be returned in order of ascending redshift,
         # which will mean masses are (probably) declining from 0:-1
         z = np.array(redshifts)[-1::-1]
@@ -2332,12 +2398,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mg = np.array(Mg_t)[-1::-1]
         Ms = np.array(Mst_t)[-1::-1]
         MZ = np.array(metals)[-1::-1]
-        
+
         # Derived
         results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'zmax': zmax}
         results['Z'] = self.pf['pop_metal_retention'] \
             * (results['MZ'] / results['Mg'])
-            
+
         for key in results:
             results[key] = np.maximum(results[key], 0.0)
 

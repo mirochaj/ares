@@ -86,8 +86,17 @@ class Source(object):
         #self.Lbol = self.Lbol0 = self.BolometricLuminosity(0.0)
 
         # Create lookup tables for integral quantities
-        if init_tabs and grid is not None:
+        if init_tabs and (grid is not None):
             self._create_integral_table(logN=logN)
+        
+    @property        
+    def info(self):
+        """
+        Print info like Nlw etc in various units!
+        """
+        pass
+        
+        
     
     @property
     def cosm(self):
@@ -221,7 +230,7 @@ class Source(object):
                     self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
                 
         return self._normL_          
-              
+
     #def _load_spectrum(self):
     #    """ Modify a few parameters if spectrum_file provided. """
     #    

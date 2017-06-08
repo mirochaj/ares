@@ -53,10 +53,10 @@ derived = \
 {
  'Ts': r'$T_S$',
  'dTb': r'$\delta T_b \ (\mathrm{mK})$',
- 'hwhm_diff': r'$\Delta \mathrm{HWHM}$',
- 'hwqm_diff': r'$\Delta \mathrm{HWQM}$',
+ 'hwhm_diff': r'$\Delta \nu_{\min}$',
  'fwhm': r'$\mathrm{FWHM}$',
  'fwqm': r'$\mathrm{FWQM}$',
+ 'mean_slope': r'$\langle \delta T_b^{\prime} \rangle$'
 }
 
 labels = {}
@@ -94,6 +94,7 @@ common = \
  'xi_LW': r'$\xi_{\mathrm{LW}}$',
  'xi_UV': r'$\xi_{\mathrm{ion}}$',
  'sfrd': r'$\dot{\rho}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ 'emissivity': r'$\epsilon \ [\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cMpc}^{-3}]$',
  'nh': r'$n_h \ [\mathrm{cMpc}^{-3}]$',
  'extinction_redshift': r'$z_{\mathrm{ext}}$',
  
@@ -220,6 +221,8 @@ pop_parameters = \
  'pop_acc_frac_metals': r'$f_Z^{\mathrm{acc}}$',
  'pop_acc_frac_gas': r'$f_g^{\mathrm{acc}}$',
  'pop_metal_retention': r'$f_{\mathrm{ret,Z}}$',
+ 'pop_abun_limit': r'$\mathcal{Z}_c$',
+ 'pop_bind_limit': r'$\mathcal{E}_c$',
 }
 
 sfe_parameters = \
@@ -230,7 +233,7 @@ sfe_parameters = \
 }
 
 for i in range(6):
-    sfe_parameters['php_Mfun_par%i' % i] = r'$p_{%i}$' %i
+    sfe_parameters['php_Mfun_par%i' % i] = r'$p_{%i}$' % i
     for j in range(6):
         sfe_parameters['php_Mfun_par%i_par%i' % (i,j)] = r'$p_{%i,%i}$' % (i,j)
         

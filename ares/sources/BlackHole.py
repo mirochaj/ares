@@ -168,6 +168,7 @@ class BlackHole(Source):
         References
         ----------
         Steiner et al. (2009). Thanks Greg Salvesen for the code!
+        
         """
 
         # Input photon distribution
@@ -179,13 +180,25 @@ class BlackHole(Source):
         fsc = self.pf['source_fsc']
 
         # Output photon distribution - integrate in log-space         
-        integrand = lambda E0: nin(10**E0) \
-            * self._GreensFunctionSIMPL(10**E0, E) * 10**E0
+        #integrand = lambda E0: nin(10**E0) \
+        #    * self._GreensFunctionSIMPL(10**E0, E) * 10**E0
 
+        #nout = (1.0 - fsc) * nin(E) + fsc \
+        #    * quad(integrand, np.log10(self.Emin),
+        #        np.log10(self.Emax))[0] * np.log(10.)  
+        
+        dlogE = self.pf['source_dlogE']
+        ma = np.log10(self.Emax)
+        mi = np.log10(self.Emin)
+        N = (ma - mi) / dlogE + 1
+        Earr = 10**np.arange(mi, ma+dlogE, dlogE)
+        
+        gf = map(lambda EE: self._GreensFunctionSIMPL(EE, E), Earr)
+        integrand = np.array(map(nin, Earr)) * np.array(gf) * Earr
+        
         nout = (1.0 - fsc) * nin(E) + fsc \
-            * quad(integrand, np.log10(self.Emin),
-                np.log10(self.Emax))[0] * np.log(10.)
-                                
+            * np.trapz(integrand, dx=dlogE) * np.log(10.)
+         
         # Output spectrum
         return nout * E
     

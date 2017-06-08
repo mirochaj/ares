@@ -200,7 +200,7 @@ class GalaxyPopulation(object):
         wavelength : int, float 
             Wavelength (in Angstroms) of LF. 
         sed_model : instance
-            ares.populations.SynthesisModel
+            ares.sources.SynthesisModel
             
         """
         

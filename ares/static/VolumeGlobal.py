@@ -835,26 +835,36 @@ class GlobalVolume(object):
         
         return ion
         
-    def DiffuseLymanAlphaFlux(self, z, **kwargs):
+    def SecondaryLymanAlphaFlux(self, z, popid=0, **kwargs):
         """
         Flux of Lyman-alpha photons induced by photo-electron collisions.
         
+        Can only be sourced by X-ray populations.
+        
         """
         
-        raise NotImplemented('hey fix me')
-            
+        pop = self.pops[popid]
+                
         if not self.pf['secondary_lya']:
             return 0.0
         
-        #return 1e-25
-        
+        if not pop.is_ion_src_igm:
+            return 0.0
+                
+        species = 0
+        species_str = species_i_to_str[species]
+        band = 0        
+                
+                
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
+                
+        E = self.E        
                 
         # Compute fraction of photo-electron energy deposited as Lya excitation
         if self.esec.method > 1 and (kw['fluxes'][popid] is not None):
             if kw['igm_e'] == 0:
-                flya = self.flya[:,0]
+                flya = self.flya[popid][band][:,0]
             else:
                 i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
                 if self.esec.x[i_x] > kw['igm_e']:
@@ -862,53 +872,62 @@ class GlobalVolume(object):
                     
                 j = i_x + 1    
                 
-                flya = self.flya[:,i_x] \
-                    + (self.flya[:,j] - self.flya[:,i_x]) \
+                flya = self.flya[popid][band][:,i_x] \
+                    + (self.flya[popid][band][:,j] - self.flya[popid][band][:,i_x]) \
                     * (kw['igm_e'] - self.esec.x[i_x]) \
-                    / (self.esec.x[j] - self.esec.x[i_x])                
+                    / (self.esec.x[j] - self.esec.x[i_x])
         else:
             return 0.0
                 
-        # Re-normalize to help integrator
-        norm = J21_num * self.sigma0
+        norm = J21_num * self.sigma0        
+
+        integrand = self.sigma_E[species_str][popid][band] \
+            * (self._E[popid][band] - E_th[species])
+        
+        if self.approx_He:
+            integrand += self.cosm.y * self.sigma_E['he_1'][popid][band] \
+                * (self._E[popid][band] - E_th[1])
                 
-        # Compute integrand
-        integrand = self.sigma_E[species_str] * (self.E - E_th[species])
-       
-        integrand *= kw['fluxes'] * flya / norm / ev_per_hz
+        integrand *= kw['fluxes'][popid][band] * flya / norm / ev_per_hz
                          
+
         if kw['Emax'] is not None:
-            imax = np.argmin(np.abs(self.E - kw['Emax']))
+            imax = np.argmin(np.abs(self._E[popid][band] - kw['Emax']))
             if imax == 0:
                 return 0.0
-                
+            elif imax == (len(self._E[popid][band]) - 1):  
+                imax = None 
+                                    
             if self.sampled_integrator == 'romb':
                 raise ValueError("Romberg's method cannot be used for integrating subintervals.")
-                heat = romb(integrand[0:imax] * self.E[0:imax], dx=self.dlogE[0:imax])[0] * log10
+                heat = romb(integrand[0:imax] * self.E[0:imax], 
+                    dx=self.dlogE[0:imax])[0] * log10
             else:
-                heat = simps(integrand[0:imax] * self.E[0:imax], x=self.logE[0:imax]) * log10
+                heat = simps(integrand[0:imax] * self._E[popid][band][0:imax], 
+                    x=self.logE[popid][band][0:imax]) * log10
         
         else:
-            imin = np.argmin(np.abs(self.E - self.pop.pf['source_Emin']))
+            imin = np.argmin(np.abs(self._E[popid][band] - pop.pf['pop_Emin']))
             
             if self.sampled_integrator == 'romb':
-                heat = romb(integrand[imin:] * self.E[imin:], 
-                    dx=self.dlogE[imin:])[0] * log10
+                heat = romb(integrand[imin:] * self._E[popid][band][imin:], 
+                    dx=self.dlogE[popid][band][imin:])[0] * log10
             elif self.sampled_integrator == 'trapz':
-                heat = np.trapz(integrand[imin:] * self.E[imin:], 
-                    x=self.logE[imin:]) * log10
+                heat = np.trapz(integrand[imin:] * self._E[popid][band][imin:], 
+                    x=self.logE[popid][band][imin:]) * log10
             else:
-                heat = simps(integrand[imin:] * self.E[imin:], 
-                    x=self.logE[imin:]) * log10
+                heat = simps(integrand[imin:] * self._E[popid][band][imin:], 
+                    x=self.logE[popid][band][imin:]) * log10
           
-        # Re-normalize, get rid of per steradian units
-        heat *= 4. * np.pi * norm * erg_per_ev
+        # Re-normalize, get rid of per steradian units, convert from
+        # energy in Lya photons to photon number
+        heat *= 4. * np.pi * norm / E_LyA
 
         # Currently a rate coefficient, returned value depends on return_rc                                      
         if kw['return_rc']:
             pass
         else:
             heat *= self.coefficient_to_rate(z, species, **kw)
-
+            
         return heat
         
