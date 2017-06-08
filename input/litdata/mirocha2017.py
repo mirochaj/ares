@@ -159,7 +159,7 @@ _low = \
  'pop_Tmin{2}': 500.,
  'pop_Tmin{0}': None,
  'pop_Mmin{0}': 'link:Mmax:2',
- 'pop_Tmax_ceil{2}': 1e5,
+ 'pop_Tmax_ceil{2}': 1e6,
  'pop_sfr_cross_threshold{2}': False,
 
  'pop_bind_limit{2}': 1e51,
@@ -176,11 +176,11 @@ low.update(_low)
 
 high = low.copy()
 high['pop_sed{2}'] = 'schaerer2002'
-high['pop_mass{2}'] = 120
+high['pop_mass{2}'] = 120.
 
 med = low.copy()
 med['pop_sed{2}'] = 'schaerer2002'
-med['pop_mass{2}'] = 5
+med['pop_mass{2}'] = 5.
 
 """
 Second model: constant SFE in minihalos.

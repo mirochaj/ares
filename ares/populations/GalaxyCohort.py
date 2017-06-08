@@ -2279,11 +2279,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # For example, in some cases the critical metallicity will never
             # be met due to high inflow rates.                     
             if has_t_limit or has_t_ceil:     
-                if has_t_ceil:
+                if has_t_limit:
+                    tlim = self.time_limit(z=z, Mh=M0)
+                elif has_t_ceil:
                     tlim = self.time_ceil(z=z, Mh=M0)
-                else:
-                    tlim = self.time_limit(z=z, Mh=M0)           
-
+                  
                 if lbtime_myr >= tlim:
                     hit_dt = True
 
@@ -2370,8 +2370,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                             else:
                                 zmax = min(zmax, zmax_T)
                             
-                    elif has_t_ceil:
-                        zmax = zmax_t
                     else:
                         zmax = zmax_e if has_e_limit else zmax_T
                 
@@ -2383,12 +2381,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         zmax = zmax_m
                     if (zmax_a is not None):
                         zmax = zmax_a 
-                                                        
+
+                # play the trump card
+                if has_t_ceil and (not has_t_limit):
+                    zmax = max(zmax, zmax_t)
+
             solver.integrate(solver.t-dz)
-  
+
         if zmax is None:
             zmax = self.pf['final_redshift']
-  
+
         # Everything will be returned in order of ascending redshift,
         # which will mean masses are (probably) declining from 0:-1
         z = np.array(redshifts)[-1::-1]

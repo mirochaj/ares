@@ -87,7 +87,11 @@ def smooth(y, width, kernel='boxcar'):
     else:
         raise NotImplemented('help')
     
-    return np.convolve(y, kern, mode='same')
+    result = np.convolve(y, kern, mode='same')
+    result[0:width] = y[0:width]
+    result[-width:] = y[-width:]
+    
+    return result
     
 def take_derivative(z, field, wrt='z'):
     """ Evaluate derivative of `field' with respect to `wrt' at z. """

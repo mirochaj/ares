@@ -16,6 +16,7 @@ import scipy
 import pickle
 import numpy as np
 from ..static import Grid
+from ..util.Math import smooth
 from types import FunctionType
 from ..util import ParameterFile
 from scipy.interpolate import interp1d
@@ -713,6 +714,18 @@ class MetaGalacticBackground(AnalyzeMGB):
         else:
             _Mmin_next = Mnext
             
+        # Detect ripples first and only do this if we see some?
+        if self.pf['feedback_LW_Mmin_smooth']:
+            ztmp = np.arange(zarr.min(), zarr.max(), 0.1)
+            Mtmp = np.interp(ztmp, zarr, np.log10(_Mmin_next))
+            Ms = smooth(Mtmp, 51, kernel='boxcar')
+                        
+            _Mmin_next = 10**np.interp(zarr, ztmp, Ms)
+            
+        
+        if self.pf['feedback_LW_Mmin_fit']:
+            _Mmin_next = 10**np.polyval(np.polyfit(zarr, np.log10(_Mmin_next), 5), zarr)
+
         # Need to apply Mmin floor
         _Mmin_next = np.maximum(_Mmin_next, pop_fb.halos.Mmin_floor(zarr))
 
@@ -754,7 +767,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     return False
                 elif err_rel.mean() < rtol and (atol == 0):
                     return True
-        
+
             # Only make it here if rtol is satisfied or irrelevant
         
             if atol > 0:
