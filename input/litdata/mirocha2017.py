@@ -148,7 +148,7 @@ _low = \
  'pop_EmaxNorm{3}': 8e3,
  'pop_ion_src_cgm{3}': False,
  'pop_logN{3}': -np.inf,
- 
+
  'pop_solve_rte{3}': True,
  'pop_tau_Nz{3}': 1e3,
  'pop_approx_tau{3}': 'neutral',
@@ -181,6 +181,9 @@ high['pop_mass{2}'] = 120.
 med = low.copy()
 med['pop_sed{2}'] = 'schaerer2002'
 med['pop_mass{2}'] = 5.
+
+LWoff = low.copy()
+LWoff['pop_fesc_LW{2}'] = 0
 
 """
 Second model: constant SFE in minihalos.

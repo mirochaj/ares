@@ -718,11 +718,10 @@ class MetaGalacticBackground(AnalyzeMGB):
         if self.pf['feedback_LW_Mmin_smooth']:
             ztmp = np.arange(zarr.min(), zarr.max(), 0.1)
             Mtmp = np.interp(ztmp, zarr, np.log10(_Mmin_next))
-            Ms = smooth(Mtmp, 51, kernel='boxcar')
-                        
+            Ms = smooth(Mtmp, 21, kernel='boxcar')
+
             _Mmin_next = 10**np.interp(zarr, ztmp, Ms)
             
-        
         if self.pf['feedback_LW_Mmin_fit']:
             _Mmin_next = 10**np.polyval(np.polyfit(zarr, np.log10(_Mmin_next), 5), zarr)
 
