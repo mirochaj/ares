@@ -57,10 +57,10 @@ class SynthesisModel(object):
     @property
     def litinst(self):
         if not hasattr(self, '_litinst'):
-            if self.pf['pop_sed'] == 'user':
+            if self.pf['source_sed'] == 'user':
                 self._litinst = DummyClass()
             else:    
-                self._litinst = read_lit(self.pf['pop_sed'])
+                self._litinst = read_lit(self.pf['source_sed'])
                 
         return self._litinst
     
@@ -98,7 +98,7 @@ class SynthesisModel(object):
     def sed_at_tsf(self):
         if not hasattr(self, '_sed_at_tsf'):
             # erg / s / Hz      
-            if self.pf['pop_rad_yield'] == 'from_sed':
+            if self.pf['source_rad_yield'] == 'from_sed':
                 self._sed_at_tsf = \
                     self.data[:,self.i_tsf] * self.dwdn / ev_per_hz
             else:
@@ -136,7 +136,7 @@ class SynthesisModel(object):
     @property
     def i_tsf(self):
         if not hasattr(self, '_i_tsf'):
-            self._i_tsf = np.argmin(np.abs(self.pf['pop_tsf'] - self.times))
+            self._i_tsf = np.argmin(np.abs(self.pf['source_tsf'] - self.times))
         return self._i_tsf
     
     @property
@@ -154,16 +154,16 @@ class SynthesisModel(object):
                         
             # Check to see dimensions of tmp. Depending on if we're 
             # interpolating in Z, it might be multiple arrays.
-            if (self.pf['pop_Z'] in Zall):
-                if self.pf['pop_sed_by_Z'] is not None:
-                    _tmp = self.pf['pop_sed_by_Z'][1]
-                    self._data = _tmp[np.argmin(np.abs(Zall - self.pf['pop_Z']))]
+            if (self.pf['source_Z'] in Zall):
+                if self.pf['source_sed_by_Z'] is not None:
+                    _tmp = self.pf['source_sed_by_Z'][1]
+                    self._data = _tmp[np.argmin(np.abs(Zall - self.pf['source_Z']))]
                 else:
                     self._wavelengths, self._data = \
                         self.litinst._load(**self.pf)
             else:
-                if self.pf['pop_sed_by_Z'] is not None:
-                    _tmp = self.pf['pop_sed_by_Z'][1]
+                if self.pf['source_sed_by_Z'] is not None:
+                    _tmp = self.pf['source_sed_by_Z'][1]
                     assert len(_tmp) == len(Zall)
                 else:
                     self._wavelengths, _tmp = \
@@ -174,9 +174,9 @@ class SynthesisModel(object):
                 self._data_all_Z = to_interp
                 
                 # If outside table's range, just use endpoints
-                if self.pf['pop_Z'] > max(Zall):
+                if self.pf['source_Z'] > max(Zall):
                     _raw_data = np.log10(to_interp[-1])
-                elif self.pf['pop_Z'] < min(Zall):
+                elif self.pf['source_Z'] < min(Zall):
                     _raw_data = np.log10(to_interp[0])
                 else:
                     # If within range, interpolate
@@ -185,7 +185,7 @@ class SynthesisModel(object):
                         inter = interp1d(np.log10(Zall), 
                             np.log10(to_interp[:,:,i]), axis=0, 
                             kind=self.pf['interp_Z'])
-                        _raw_data[:,i] = inter(np.log10(self.pf['pop_Z']))
+                        _raw_data[:,i] = inter(np.log10(self.pf['source_Z']))
                                                                 
                 self._data = 10**_raw_data
                 
@@ -199,8 +199,8 @@ class SynthesisModel(object):
     @property
     def wavelengths(self):
         if not hasattr(self, '_wavelengths'):
-            if self.pf['pop_sed_by_Z'] is not None:
-                self._wavelengths, junk = self.pf['pop_sed_by_Z']
+            if self.pf['source_sed_by_Z'] is not None:
+                self._wavelengths, junk = self.pf['source_sed_by_Z']
             else:
                 self._wavelengths, junk = self.litinst._load(**self.pf)
             
@@ -255,7 +255,7 @@ class SynthesisModel(object):
             for i in range(self.times.size):
                 self._E_per_M[:,i] = self.data[:,i] / (self.energies * erg_per_ev)    
 
-            if self.pf['pop_ssp']:
+            if self.pf['source_ssp']:
                 self._E_per_M /= 1e6
             else:
                 pass
@@ -298,7 +298,7 @@ class SynthesisModel(object):
         #     erg / sec / Hz / (Msun / yr)
                     
         # to erg / s / A / Msun
-        if self.pf['pop_ssp']:
+        if self.pf['source_ssp']:
             yield_UV /= 1e6
         # or erg / s / A / (Msun / yr)
         else:
@@ -334,17 +334,17 @@ class SynthesisModel(object):
         yield_UV = self.L_per_SFR_of_t(wave)
             
         # Interpolate in time to obtain final LUV
-        if self.pf['pop_tsf'] in self.times:
-            return yield_UV[np.argmin(np.abs(self.times - self.pf['pop_tsf']))]
+        if self.pf['source_tsf'] in self.times:
+            return yield_UV[np.argmin(np.abs(self.times - self.pf['source_tsf']))]
             
-        k = np.argmin(np.abs(self.pf['pop_tsf'] - self.times))    
-        if self.times[k] > self.pf['pop_tsf']:
+        k = np.argmin(np.abs(self.pf['source_tsf'] - self.times))
+        if self.times[k] > self.pf['source_tsf']:
             k -= 1
             
         if not hasattr(self, '_LUV_interp'):
             self._LUV_interp = interp1d(self.times, yield_UV, kind='linear')
             
-        return self._LUV_interp(self.pf['pop_tsf'])
+        return self._LUV_interp(self.pf['source_tsf'])
         
     def kappa_UV_of_t(self):        
         return 1. / self.LUV_of_t()
@@ -397,7 +397,7 @@ class SynthesisModel(object):
         Compute the average energy per photon (in eV) in some band.
         """
         
-        if self.pf['pop_ssp']:
+        if self.pf['source_ssp']:
             # Assume last time-bin below.
             raise NotImplemented('help!')
         
@@ -503,7 +503,7 @@ class SynthesisModel(object):
         #     photons / sec / (Msun / yr)
 
         # Integrate (cumulatively) over time
-        if self.pf['pop_ssp']:
+        if self.pf['source_ssp']:
             photons_per_b_t = photons_per_s_per_msun / self.cosm.b_per_msun
             return np.trapz(photons_per_b_t, x=self.times*s_per_myr) / 1e6
         # Take steady-state result

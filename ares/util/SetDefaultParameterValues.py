@@ -225,8 +225,8 @@ def PhysicsParameters():
     'feedback_LW_mean_err': False,
     'feedback_LW_maxiter': 15,
     'feedback_LW_Mmin_uponly': False,
-    'feedback_LW_Mmin_smooth': False,
-    'feedback_LW_Mmin_fit': False,    
+    'feedback_LW_Mmin_smooth': None,
+    'feedback_LW_Mmin_fit': None,
     'feedback_LW_Mmin_rtol': 1e-2,
     'feedback_LW_Mmin_atol': 0.0,
     'feedback_LW_softening': 'sqrt',
@@ -595,6 +595,18 @@ def SourceParameters():
     
     "source_logN": -inf,
     "source_hardening": 'extrinsic',
+
+    # Synthesis models
+    "source_sfh": None,
+    "source_Z": 0.02,
+    "source_imf": 2.35,
+    "source_nebular": False,
+    "source_ssp": False,             # a.k.a., continuous SF
+    "source_psm_instance": None,
+    "source_tsf": 100.,
+    "source_binaries": False,        # for BPASS
+    "source_sed_by_Z": None,
+    "source_rad_yield": 'from_sed',
     
     # Stellar
     "source_temperature": 1e5,  
@@ -659,8 +671,26 @@ def BlackHoleParameters():
     pf.update(SourceParameters())
     pf.update(rcParams)
     
-    return pf    
-    
+    return pf
+
+def SynthesisParameters():
+    pf = \
+    {
+    # For synthesis models
+    "source_sed": None,
+    "source_Z": 0.02,
+    "source_imf": 2.35,
+    "source_nebular": False,
+    "source_ssp": False,             # a.k.a., continuous SF
+    "source_psm_instance": None,
+    "source_tsf": 100.,
+    "source_binaries": False,        # for BPASS
+    "source_sed_by_Z": None,
+    "source_rad_yield": 'from_sed',
+    }
+
+    return pf
+
 def HaloMassFunctionParameters():
     pf = \
     {

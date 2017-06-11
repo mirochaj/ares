@@ -49,23 +49,23 @@ def _kwargs_to_fn(**kwargs):
     # All files share this prefix
     fn = 'sed.bpass'
     
-    if kwargs['pop_ssp']:
+    if kwargs['source_ssp']:
         fn += '.instant'
     else:
         fn += '.constant'
     
-    if kwargs['pop_nebular']:
+    if kwargs['source_nebular']:
         fn += '.cloudy'
     else:
         fn += '.nocont'
     
-    if kwargs['pop_binaries']:
+    if kwargs['source_binaries']:
         fn += '.bin'
     else:
         fn += '.sin'
     
     # Metallicity
-    fn += '.z%s' % str(int(kwargs['pop_Z'] * 1e3)).zfill(3)   
+    fn += '.z%s' % str(int(kwargs['source_Z'] * 1e3)).zfill(3)
             
     return _input + '/' + fn    
             
@@ -77,13 +77,13 @@ def _load(**kwargs):
     Zvals = np.sort(metallicities.values())
 
     # Interpolate
-    if kwargs['pop_Z'] not in Zvals:
+    if kwargs['source_Z'] not in Zvals:
         tmp = kwargs.copy()
                 
         spectra = []
-        del tmp['pop_Z']
+        del tmp['source_Z']
         for Z in Zvals:
-            _w1, _d1 = _load(pop_Z=Z, **tmp)
+            _w1, _d1 = _load(source_Z=Z, **tmp)
             spectra.append(_d1.copy())
         
         wavelengths = wave = _w1

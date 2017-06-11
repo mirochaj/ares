@@ -31,7 +31,7 @@ from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL
 from ..util.SetDefaultParameterValues import StellarParameters, \
-    BlackHoleParameters
+    BlackHoleParameters, SynthesisParameters
     
 _synthesis_models = ['leitherer1999', 'eldridge2009']
 _single_star_models = ['schaerer2002']
@@ -144,6 +144,16 @@ class GalaxyAggregate(HaloPopulation):
                 for par in bpars:
                     par_pop = par.replace('source', 'pop')
                     
+                    if par_pop in self.pf:
+                        self._src_kwargs[par] = self.pf[par_pop]
+                    else:
+                        self._src_kwargs[par] = bpars[par]
+
+            elif self._Source is SynthesisModel:
+                bpars = SynthesisParameters()
+                for par in bpars:
+                    par_pop = par.replace('source', 'pop')
+
                     if par_pop in self.pf:
                         self._src_kwargs[par] = self.pf[par_pop]
                     else:
