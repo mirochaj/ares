@@ -786,7 +786,98 @@ class GaussianPrior(_Prior):
             raise AttributeError("For some reason, I don't know how" +\
                                  " many parameters this GaussianPrior has!")
         return self._numparams
+    
+    def __add__(self, other):
+        """
+        Adds other to this Gaussian variate. The result of this operation is a
+        Gaussian with a shifted mean but identical covariance.
+        
+        other: must be castable to the 1D array shape of the Gaussian variate
+               described by this prior
+        """
+        return GaussianPrior(self.mean.A[0] + other, self.covariance.A)
+    
+    def __radd__(self, other):
+        """
+        Returns the same thing as __add__ (this makes addition commutative).
+        """
+        return self.__add__(other)
+    
+    def __mul__(self, other):
+        """
+        Multiplies the Gaussian random variate described by this prior by the
+        given object.
 
+        other: if other is a constant, the returned GaussianPrior is the same
+                                       as this one with the mean multiplied by
+                                       other and the covariance multiplied by
+                                       other**2
+               if other is a 1D numpy.ndarray, it must be of the same length
+                                               as the dimension of this
+                                               Gaussian. In this case, the
+                                               returned Gaussian is the
+                                               distribution of the dot product
+                                               of the this Gaussian variate
+                                               with other
+               if other is a 2D numpy.ndarray, it must have shape
+                                               (newparams, self.numparams)
+                                               where newparams<=self.numparams
+                                               The returned Gaussian is the
+                                               distribution of other (matrix)
+                                               multiplied with this Gaussian
+                                               variate
+        
+        returns: GaussianPrior representing the multiplication of this Gaussian
+                 variate by other
+        """
+        if type(other) in [list, tuple, np.ndarray]:
+            other = np.array(other)
+            if other.ndim == 1:
+                if len(other) == self.numparams:
+                    new_mean = np.dot(self.mean.A[0], other)
+                    new_covariance =\
+                        np.dot(np.dot(self.covariance.A, other), other)
+                else:
+                    raise ValueError("Cannot multiply Gaussian distributed " +\
+                                     "random vector by a vector of " +\
+                                     "different size.")
+            elif other.ndim == 2:
+                if other.shape[1] == self.numparams:
+                    if other.shape[0] <= self.numparams:
+                        # other is a matrix with self.numparams columns
+                        new_mean = np.dot(other, self.mean.A[0])
+                        new_covariance =\
+                            np.dot(other, np.dot(self.covariance.A, other.T))
+                    else:
+                        raise ValueError("Cannot multiply Gaussian " +\
+                                         "distributed random vector by " +\
+                                         "matrix which will expand the " +\
+                                         "number of parameters because the " +\
+                                         "covariance matrix of the result " +\
+                                         "would be singular.")
+                else:
+                    raise ValueError("Cannot multiply given matrix with " +\
+                                     "Gaussian distributed random vector " +\
+                                     "because the axis of its second " +\
+                                     "dimension is not the same length as " +\
+                                     "the random vector.")
+            else:
+                raise ValueError("Cannot multiply Gaussian distributed " +\
+                                 "random vector by a tensor with more than " +\
+                                 "3 indices.")
+        else:
+            # assume other is a constant
+            new_mean = self.mean.A[0] * other
+            new_covariance = self.covariance.A * (other ** 2)
+        return GaussianPrior(new_mean, new_covariance)
+        
+    
+    def __rmul__(self, other):
+        """
+        Returns the same thing as __mul__ (this makes multiplication
+        commutative).
+        """
+        return self.__mul__(other)
 
     def draw(self):
         """

@@ -3393,16 +3393,17 @@ class ModelSet(BlobFactory):
 
         return mu, cov
 
-    def PlotCovarianceMatrix(self, pars, ivar=None, fig=1, ax=None):
+    def PlotCovarianceMatrix(self, pars, ivar=None, fig=1, ax=None,\
+        cmap='RdBu_r'):
         mu, cov = self.CovarianceMatrix(pars, ivar=ivar)
         if ax is None:
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
 
-        cax = ax.imshow(cov, interpolation='none', cmap='RdBu_r')
+        cax = ax.imshow(cov, interpolation='none', cmap=cmap)
         cb = pl.colorbar(cax)
 
-        return ax
+        return ax, cb
         
     def AssembleParametersList(self, N=None, ids=None, include_bkw=False, 
         **update_kwargs):
