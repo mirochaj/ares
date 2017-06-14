@@ -473,7 +473,7 @@ def print_sim(sim):
     if rank > 0:
         return 
         
-    header = 'Global 21cm Signal Simulation: Overview'
+    header = 'ARES Simulation: Overview'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width    

@@ -10,6 +10,8 @@ Description: Wrapper for Python progressbar.
 
 """
 
+from .PrintInfo import width
+
 try:
     import progressbar
     pb = True
@@ -24,7 +26,7 @@ except ImportError:
     rank = 0
     size = 1    
 
-class ProgressBar:
+class ProgressBar(object):
     def __init__(self, maxval, name='ares', use=True):
         self.maxval = maxval            
         self.use = use
@@ -32,14 +34,14 @@ class ProgressBar:
         self.has_pb = False
         if pb and rank == 0 and use:
             self.widget = ["%s: " % name, progressbar.Percentage(), ' ', \
-              progressbar.Bar(marker = progressbar.RotatingMarker()), ' ', \
+              progressbar.Bar(marker='#'), ' ', \
               progressbar.ETA(), ' ']
 
     def start(self):
         if pb and rank == 0 and self.use:
             self.pbar = progressbar.ProgressBar(widgets=self.widget,
-                maxval=self.maxval).start()                
-            self.has_pb = True    
+                max_value=self.maxval, redirect_stdout=True, term_width=width).start()                
+            self.has_pb = True
 
     def update(self, value):
         if self.has_pb:
