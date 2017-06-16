@@ -385,6 +385,8 @@ def PopulationParameters():
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
+    
+    "pop_sfh": False,             # account for SFH in spectrum modeling
 
     # Option of setting Z, t, or just supplying SSP table?
     
@@ -599,6 +601,9 @@ def SourceParameters():
     # Stellar
     "source_temperature": 1e5,  
     "source_qdot": 5e48,
+    
+    # SFH
+    "source_sfh": None,
     
     # BH
     "source_mass": 1e5,

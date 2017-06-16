@@ -69,7 +69,7 @@ class SynthesisModel(object):
         if not hasattr(self, '_cosm'):
             self._cosm = Cosmology(**self.pf)
         return self._cosm
-    
+        
     def AveragePhotonEnergy(self, Emin, Emax):
         """
         Return average photon energy in supplied band.
