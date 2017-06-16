@@ -8,7 +8,7 @@ Installation
 
 and optionally:
 
-* `python-progressbar <https://code.google.com/p/python-progressbar/>`_
+* `progressbar2 <http://progressbar-2.readthedocs.io/en/latest/>`_
 * `hmf <http://hmf.readthedocs.org/en/latest/>`_ 
 * `emcee <http://dan.iel.fm/emcee/current/>`_
 * `mpi4py <http://mpi4py.scipy.org>`_

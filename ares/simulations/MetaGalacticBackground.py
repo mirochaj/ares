@@ -715,15 +715,22 @@ class MetaGalacticBackground(AnalyzeMGB):
             _Mmin_next = Mnext
             
         # Detect ripples first and only do this if we see some?
-        if self.pf['feedback_LW_Mmin_smooth']:
+        if self.pf['feedback_LW_Mmin_smooth'] > 0:
+
+            s = self.pf['feedback_LW_Mmin_smooth']
+            bc = int(s / 0.1)
+            if bc % 2 == 0:
+                bc += 1
+
             ztmp = np.arange(zarr.min(), zarr.max(), 0.1)
             Mtmp = np.interp(ztmp, zarr, np.log10(_Mmin_next))
-            Ms = smooth(Mtmp, 21, kernel='boxcar')
+            Ms = smooth(Mtmp, bc, kernel='boxcar')
 
             _Mmin_next = 10**np.interp(zarr, ztmp, Ms)
             
-        if self.pf['feedback_LW_Mmin_fit']:
-            _Mmin_next = 10**np.polyval(np.polyfit(zarr, np.log10(_Mmin_next), 5), zarr)
+        if self.pf['feedback_LW_Mmin_fit'] > 0:
+            ord = self.pf['feedback_LW_Mmin_fit']
+            _Mmin_next = 10**np.polyval(np.polyfit(zarr, np.log10(_Mmin_next), ord), zarr)
 
         # Need to apply Mmin floor
         _Mmin_next = np.maximum(_Mmin_next, pop_fb.halos.Mmin_floor(zarr))

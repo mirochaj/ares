@@ -849,8 +849,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if mags:
             x_phi, phi = self.phi_of_M(z)
 
+            ok = phi.mask == False
+
             # Setup interpolant
-            interp = interp1d(x_phi, np.log10(phi), kind='linear',
+            interp = interp1d(x_phi[ok], np.log10(phi[ok]), kind='linear',
                 bounds_error=False, fill_value=-np.inf)
 
             phi_of_x = 10**interp(x)
@@ -858,8 +860,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             x_phi, phi = self.phi_of_L(z)
 
+            ok = phi.mask == False
+
             # Setup interpolant
-            interp = interp1d(np.log10(x_phi), np.log10(phi), kind='linear',
+            interp = interp1d(np.log10(x_phi[ok]), np.log10(phi[ok]), kind='linear',
                 bounds_error=False, fill_value=-np.inf)
             
             phi_of_x = 10**interp(np.log10(x))
