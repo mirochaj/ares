@@ -337,7 +337,35 @@ class ModelGrid(ModelFit):
                 if self.base_kwargs['feedback_LW']:
                     self._reuse_splines = False
                     
-        return self._reuse_splines        
+        return self._reuse_splines
+    
+    @property
+    def tricks(self):
+        if not hasattr(self, '_tricks'):
+            self._tricks = []
+        return self._tricks
+        
+    @tricks.setter
+    def tricks(self, value):
+        if not hasattr(self, '_tricks'):
+            assert type(value) is str
+            self._tricks = [value]
+        else:
+            self._tricks.append(value)
+            
+    @property
+    def trick_data(self):
+        if not hasattr(self, '_trick_data'):
+            self._trick_data = {}
+        return self._trick_data
+    
+    @trick_data.setter
+    def trick_data(self, value):
+        if not hasattr(self, '_tricks'):
+            assert type(value) is dict
+            self._tricks = value
+        else:
+            self._tricks.update(value)
         
     @property
     def is_restart(self):
@@ -513,14 +541,13 @@ class ModelGrid(ModelFit):
                     kw[par] = kwargs[par]
             
             p.update(kw)
+            p.update(self.trick_data)
             
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
             if self.reuse_splines and \
                 i_Tmin not in fcoll.keys() and (not self.phenomenological):
-                sim = self.simulator(**p)
-                
-                self.sim = sim
-                
+                sim = self.sim = self.simulator(**p)
+                                
                 pops = sim.pops
                 
                 if hasattr(self, 'Tmin_ax_popid'):
@@ -548,9 +575,9 @@ class ModelGrid(ModelFit):
                     'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
                     'dfcolldz%s' % suffix: fcoll[i_Tmin]['dfcolldz%s' % suffix]}
                 p.update(hmf_pars)
-                sim = self.simulator(**p)
+                sim = self.sim = self.simulator(**p)
             else:
-                sim = self.simulator(**p)
+                sim = self.sim = self.simulator(**p)
 
             # Write this set of parameters to disk before running 
             # so we can troubleshoot later if the run never finishes.
@@ -579,18 +606,18 @@ class ModelGrid(ModelFit):
                 blobs = self.blank_blob
             except MemoryError:
                 raise MemoryError('This cannot be tolerated!')
-            except:
-                # For some reason "except Exception"  doesn't catch everything...
-                # Write to "fail" file
-                f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
-                pickle.dump(kw, f)
-                f.close()
-                
-                print "FAILURE: Processor #%i, Model %i." % (rank, ct)
-                
-                failct += 1
-                
-                blobs = self.blank_blob
+            #except:
+            #    # For some reason "except Exception"  doesn't catch everything...
+            #    # Write to "fail" file
+            #    f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
+            #    pickle.dump(kw, f)
+            #    f.close()
+            #    
+            #    print "FAILURE: Processor #%i, Model %i." % (rank, ct)
+            #    
+            #    failct += 1
+            #    
+            #    blobs = self.blank_blob
 
             # Disable the alarm
             if self.timeout is not None:
@@ -607,6 +634,11 @@ class ModelGrid(ModelFit):
             blobs_all.append(blobs)
 
             ct += 1
+            
+            if 'feedback_LW_guess' in self.tricks:
+                self.trick_data['pop_Mmin{2}'] = \
+                    np.interp(sim.pops[2].halos.z, 
+                        sim.medium.field._zarr, sim.medium.field._Mmin_now)
 
             ##
             # File I/O from here on out
@@ -808,8 +840,10 @@ class ModelGrid(ModelFit):
         ----------
         method : int
             0 : OFF
-            1 : By input parameter.
-            2 : 
+            1 : Minimize the number of values of `par' each processor gets. 
+                Good for, e.g., Tmin.
+            2 : Maximize the number of values of `par' each processor gets.
+                Useful if increasing `par' slows down the calculation.
             
         Returns
         -------

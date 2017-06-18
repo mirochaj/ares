@@ -14,6 +14,8 @@ for model in ['dpl', 'strong', 'weak', 'strong_weak']:
     _popII_models[model] = {}
 
 _popII_models['soft'] = {}
+_popII_models['early'] = flex.copy()
+_popII_models['strong_early'] = flex.copy()
 
 _sed_soft = \
 {
@@ -60,6 +62,8 @@ _popII_updates = \
  'soft': _sed_soft,
  'soft_rise': _sed_soft,
  'soft_fall': _sed_soft,
+ 'early': {'pop_Tmin{0}': 500.},
+ 'strong_early': {'pop_Tmin{0}': 500., 'pop_Z{0}': 1e-3, 'pop_rad_yield_Z_index{1}': -0.6},
 }
 
 for _update in _popII_updates.keys():
@@ -74,13 +78,14 @@ popII_markers = \
 'strong_fall': '^', 'weak_rise': 'v', 
 'strong_rise': '^', 'weak_fall': 'v', 'soft': 's',
 'soft_fall': '<', 'soft_rise': '>',
+'early': '<', 'strong_early': '<',
 }
 
 # Lotta trouble just to get 'dpl' first in the list...
 _amp =  ['weak', 'strong']
 _timing = ['rise', 'fall']
 _all = _amp + _timing
-popII_models = ['dpl'] + _all + ['strong_weak']
+popII_models = ['dpl'] + _all + ['strong_weak'] + ['early', 'strong_early']
 
 for e1 in _amp:
     for e2 in _timing:
@@ -184,6 +189,16 @@ med['pop_mass{2}'] = 5.
 
 LWoff = low.copy()
 LWoff['pop_fesc_LW{2}'] = 0
+
+bb = low.copy()
+bb['pop_sed{2}'] = 'bb'
+bb['pop_rad_yield{2}'] = 1e5
+bb['pop_rad_yield_units{2}'] = 'photons/baryon'
+bb['pop_EminNorm{2}'] = 11.2
+bb['pop_EmaxNorm{2}'] = 13.6
+bb['pop_Emin{2}'] = 1.
+bb['pop_Emax{2}'] = 1e2
+bb['pop_temperature{2}'] = 1e5
 
 """
 Second model: constant SFE in minihalos.

@@ -648,7 +648,51 @@ class MetaGalacticBackground(AnalyzeMGB):
                     if np.any(T < 1e4):
                         self._LW_felt_by_.append(popid)  
                         
-        return self._LW_felt_by_                                      
+        return self._LW_felt_by_    
+        
+    def _guess_Mmin(self):
+        """
+        Go looking for a good guess for these parameters.
+        """
+        
+        guesses = self.pf['feedback_LW_guess']
+        
+        if guesses is None:
+            return None
+        
+        if type(guesses) is tuple:
+            # Assumes (z, Mmin)
+            assert len(guesses) == 2
+            assert len(guesses[0]) == len(guesses[1])
+            print 'Used guesses'
+            return np.interp(self.halos)
+        
+        # First, determine whether the thing the user provided is a 
+        # set of models or a single one.
+        from ..analysis import ModelSet
+        
+        try:
+            anl = ModelSet(guesses)
+            
+            assert len(anl.chain) > 0
+            
+        except:
+            anl = Global21cm(guesses)
+            
+            for blob in anl.blob_names:
+                if 'popIII' not in blob:
+                    continue
+                if 'Mmin' not in blob:
+                    continue
+                break
+            
+            z = sim.get_ivars(blob)[0]                    
+            Mmin = sim.get_blob(blob)
+
+            return z, Mmin
+        
+        # If we're here, the input was garbage.
+        raise IOError('The supplied guesses (%s) were not useful, sorry!' % guesses)
 
     def _is_Mmin_converged(self, include_pops):
 
@@ -680,8 +724,15 @@ class MetaGalacticBackground(AnalyzeMGB):
         # Save last iteration's solution for Mmin(z)
         if self.count == 1:
             # For a guess, take the minimum Mmin of all LW-producing pops
-            self._Mmin_pre = np.min([self.pops[idnum].Mmin(zarr) \
-                for idnum in self._lwb_sources], axis=0)
+            
+            guess = None#self._guess_Mmin()
+            
+            if guess is None:
+                self._Mmin_pre = np.min([self.pops[idnum].Mmin(zarr) \
+                    for idnum in self._lwb_sources], axis=0)
+            else:
+                _z_guess, _Mmin_guess = guess
+                self._Mmin_pre = np.interp(zarr, _z_guess, _Mmin_guess)
                 
             self._Mmin_bank = [self._Mmin_pre.copy()]
             self._Jlw_bank = [Jlw]
