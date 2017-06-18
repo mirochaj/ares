@@ -2156,7 +2156,7 @@ class ModelSet(BlobFactory):
                     val = 10**self.chain[:,j].copy()
                 else:
                     val = self.chain[:,j].copy()
-        
+                            
                 if self.is_log[j] and (not un_log[k]):
                     val += np.log10(multiplier[k])
                 else:

@@ -636,9 +636,12 @@ class ModelGrid(ModelFit):
             ct += 1
             
             if 'feedback_LW_guess' in self.tricks:
-                self.trick_data['pop_Mmin{2}'] = \
-                    np.interp(sim.pops[2].halos.z, 
-                        sim.medium.field._zarr, sim.medium.field._Mmin_now)
+                try:
+                    self.trick_data['pop_Mmin{2}'] = \
+                        np.interp(sim.pops[2].halos.z, 
+                            sim.medium.field._zarr, sim.medium.field._Mmin_now)
+                except AttributeError:
+                    del self.trick_data['pop_Mmin{2}']
 
             ##
             # File I/O from here on out

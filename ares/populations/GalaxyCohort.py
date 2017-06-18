@@ -1129,6 +1129,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             a_limit = self.pf['pop_abun_limit'] 
             e_limit = self.pf['pop_bind_limit']
             T_limit = self.pf['pop_temp_limit']
+            
+            if t_limit == 0:
+                t_limit = None
 
             if (t_limit is not None) or (m_limit is not None) or \
                (e_limit is not None) or (T_limit is not None) or (a_limit is not None):
@@ -2220,6 +2223,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         has_a_limit = self.pf['pop_abun_limit'] is not None
         
         has_t_ceil = self.pf['pop_time_ceil'] is not None
+                
+        if has_t_limit == 0:
+            has_t_limit = None        
                 
         ##
         # Outputs have shape (z, z)
