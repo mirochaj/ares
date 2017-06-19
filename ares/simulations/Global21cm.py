@@ -380,7 +380,9 @@ class Global21cm(AnalyzeGlobal21cm):
                 f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
                 pickle.dump(self.blobs, f)
                 f.close()
-                print 'Wrote %s.blobs.%s' % (prefix, suffix)
+                
+                if self.pf['verbose']:
+                    print 'Wrote %s.blobs.%s' % (prefix, suffix)
             except AttributeError:
                 print 'Error writing %s.blobs.%s' % (prefix, suffix)
     
@@ -436,7 +438,8 @@ class Global21cm(AnalyzeGlobal21cm):
 
             f.close()
 
-        print 'Wrote %s.history.%s' % (prefix, suffix)
+        if self.pf['verbose']:
+            print 'Wrote %s.history.%s' % (prefix, suffix)
     
         write_pf = True
         if os.path.exists('%s.parameters.pkl' % prefix):
@@ -462,6 +465,7 @@ class Global21cm(AnalyzeGlobal21cm):
             pickle.dump(self.pf, f, -1)
             f.close()
     
-            print 'Wrote %s.parameters.pkl' % prefix
+            if self.pf['verbose']:
+                print 'Wrote %s.parameters.pkl' % prefix
         
     

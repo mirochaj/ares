@@ -14,10 +14,11 @@ and analyzing them.
 import signal
 import pickle
 import numpy as np
-import copy, os, gc, re, time, sys
+import copy, os, gc, re, time
 from .ModelFit import ModelFit
 from ..simulations import Global21cm
 from ..util import GridND, ProgressBar
+from ..analysis import Global21cm as _AnalyzeGlobal21cm
 from ..util.ReadData import read_pickle_file, read_pickled_dict
 
 try:
@@ -27,16 +28,6 @@ try:
 except ImportError:
     rank = 0
     size = 1
-
-#try:
-#    from concurrent.futures import ProcessPoolExecutor
-#except ImportError:
-#    pass
-                                                       
-try:
-    from pathos.multiprocessing import ProcessingPool as Pool
-except ImportError:
-    pass
     
 class ModelGrid(ModelFit):
     """Create an object for setting up and running model grids."""
@@ -390,8 +381,19 @@ class ModelGrid(ModelFit):
         failct = 0
         sim = self.simulator(**p)
         
+        print "child process about to run sim"
+        
+        sim.run()
+        
+        print "child ran sim"
+        
+        return self.blank_blob, 0
+        
         try:
             sim.run()
+            
+            print "child process ran sim"
+            
             blobs = copy.deepcopy(sim.blobs)
         except RuntimeError:
             f = open('%s.%s.timeout.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
@@ -408,7 +410,7 @@ class ModelGrid(ModelFit):
             pickle.dump(kw, f)
             f.close()
             
-            print "FAILURE: Processor #%i, Model %i." % (rank, ct)
+            print "FAILURE: Processor #%i." % rank
             
             failct += 1
             
@@ -647,8 +649,38 @@ class ModelGrid(ModelFit):
             ##
             # Run simulation!
             ##
-            blobs, _failct = self._run_sim(kw, p)
-            failct += _failct
+            if long_run:
+                ##
+                # Let's just say that this feature is experimental...
+                ##
+                pid = os.fork()
+
+                pfn = '%s_fork_par' % prefix_by_proc
+                sfn = '%s_fork_sim' % prefix_by_proc
+                
+                if pid == 0:
+                    
+                    with open(pfn, 'wb') as f:
+                        pickle.dump(p, f)
+                    
+                    s = "f = open(\'%s\', \'rb\'); " % pfn
+                    s += "import pickle; pars = pickle.load(f); f.close(); "
+                    s += "import ares; sim = ares.simulations.Global21cm(**pars); "
+                    s += "sim.run(); sim.save(\'%s\', clobber=True)" % sfn
+                    
+                    os.system('python -c \"%s\"' % s)
+                    os._exit(0)                                    
+                                                        
+                else:
+                    # This is the parent.
+                    os.waitpid(pid, 0)
+                    
+                    sim = _AnalyzeGlobal21cm(sfn)
+                    blobs = sim.blobs
+                    
+            else:    
+                blobs, _failct = self._run_sim(kw, p)
+                failct += _failct
 
             # Disable the alarm
             if self.timeout is not None:
@@ -693,7 +725,7 @@ class ModelGrid(ModelFit):
 
             self.save_blobs(blobs_all, False, prefix_by_proc)
 
-            del p, sim, chain, blobs
+            del p, chain, blobs
             del chain_all, blobs_all
             gc.collect()
 
@@ -780,7 +812,7 @@ class ModelGrid(ModelFit):
     def load(self):
         if not hasattr(self, '_load'):
             self._load = [np.array(self.assignments == i).sum() \
-                for i in range(size)]
+                for i in xrange(size)]
                 
             self._load = np.array(self._load)    
         
@@ -846,7 +878,7 @@ class ModelGrid(ModelFit):
                 return
             
             # Communicate assignments to workers
-            for i in range(1, size):    
+            for i in xrange(1, size):    
                 MPI.COMM_WORLD.Send(self.assignments, dest=i, tag=10*i)    
 
         else:
@@ -920,7 +952,7 @@ class ModelGrid(ModelFit):
             
             self.assignments = np.zeros(self.grid.shape, dtype=int)
                         
-            slc = [Ellipsis for i in range(self.grid.Nd)]
+            slc = [Ellipsis for i in xrange(self.grid.Nd)]
             
             k = 0 # only used for method 1
             
@@ -932,7 +964,7 @@ class ModelGrid(ModelFit):
             # for pop_Tmin), or method == 2 make it so that all processors get
             # a variety of values of input parameter, which is useful when
             # increasing values of this parameter slow down the calculation.
-            for i in range(par_N):
+            for i in xrange(par_N):
                 
                 # Ellipses in all dimensions except that corresponding to a
                 # particular value of input 'par'

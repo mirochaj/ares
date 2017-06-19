@@ -55,7 +55,7 @@ class ParameterizedQuantity(object):
         """
                 
         self._sub_pqs = {}
-        for i in range(8):
+        for i in xrange(8):
             par = 'pq_func_par%i' % i
             
             if par not in self.pf:
@@ -134,7 +134,7 @@ class ParameterizedQuantity(object):
     def pars_list(self):
         if not hasattr(self, '_pars_list'):
             self._pars_list = []
-            for i in range(8):
+            for i in xrange(8):
                 name = 'pq_func_par%i' % i
                 if name in self.pf:
                     self._pars_list.append(self.pf[name])

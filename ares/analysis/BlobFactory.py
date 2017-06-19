@@ -57,7 +57,7 @@ def parse_attribute(blob_name, obj_base):
         
     # Check for decimals
     decimals = []
-    for i in range(1, len(blob_name) - 1):
+    for i in xrange(1, len(blob_name) - 1):
         if blob_name[i-1].isdigit() and blob_name[i] == '.' \
            and blob_name[i+1].isdigit():
             decimals.append(i)
@@ -82,7 +82,7 @@ def parse_attribute(blob_name, obj_base):
     # Nested attribute
     blob_attr = None
     obj_list = [obj_base]
-    for i in range(len(attr_split)):
+    for i in xrange(len(attr_split)):
         
         # One particular chunk of the attribute name
         s = attr_split[i]
@@ -228,7 +228,7 @@ class BlobFactory(object):
                 
         if not hasattr(self, '_blob_nbytes'):
             nvalues = 0.
-            for i in range(self.blob_groups):
+            for i in xrange(self.blob_groups):
                 if self.blob_nd[i] == 0:
                     nvalues += len(self.blob_names[i])
                 else:
@@ -243,7 +243,7 @@ class BlobFactory(object):
     def all_blob_names(self):
         if not hasattr(self, '_all_blob_names'):
             self._all_blob_names = []
-            for i in range(self.blob_groups):
+            for i in xrange(self.blob_groups):
                 self._all_blob_names.extend(self.blob_names[i])    
         
             if len(set(self._all_blob_names)) != len(self._all_blob_names):
@@ -312,7 +312,7 @@ class BlobFactory(object):
         return self._blobs
         
     def get_ivars(self, name):
-        for i in range(self.blob_groups):
+        for i in xrange(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
                 if blob == name:
                     break
@@ -327,7 +327,7 @@ class BlobFactory(object):
         This is meant to recover a blob from a single simulation, i.e.,
         NOT a whole slew of them from an MCMC.
         """
-        for i in range(self.blob_groups):
+        for i in xrange(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
                 if blob == name:
                     break
@@ -365,7 +365,7 @@ class BlobFactory(object):
             # Actually, we don't have to abide by that. As long as a function
             # is provided we can evaluate the blob anywhere (with interp)
 
-            for n in range(2):
+            for n in xrange(2):
                 assert ivar[n] in self.blob_ivars[i][n]
 
             k = list(self.blob_ivars[i][0]).index(ivar[0])
