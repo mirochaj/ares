@@ -406,7 +406,7 @@ class MultiPhaseMedium(object):
         # Don't mess with the CGM (much)
         if self.pf['include_cgm']:
             tmp = self.parcel_cgm.grid.data
-            self.all_data_cgm = [tmp.copy() for i in range(len(self.all_z))]
+            self.all_data_cgm = [tmp.copy() for i in xrange(len(self.all_z))]
             for i, cgm_data in enumerate(self.all_data_cgm):
                 self.all_data_cgm[i]['rho'] = \
                     self.parcel_cgm.grid.cosm.MeanBaryonDensity(self.all_z[i])

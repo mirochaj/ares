@@ -248,9 +248,9 @@ class UniformBackground(object):
         if not hasattr(self, '_bands_by_pop'):
             # Figure out which band each population emits in
             if self.approx_all_pops:
-                self._energies = [[None] for i in range(self.Npops)]
-                self._redshifts = [None for i in range(self.Npops)]
-                self._bands_by_pop = [[None] for i in range(self.Npops)]   
+                self._energies = [[None] for i in xrange(self.Npops)]
+                self._redshifts = [None for i in xrange(self.Npops)]
+                self._bands_by_pop = [[None] for i in xrange(self.Npops)]   
             else:    
                 # Really just need to know if it emits ionizing photons, 
                 # or has any sawtooths we need to care about
@@ -1273,7 +1273,7 @@ class UniformBackground(object):
         
         """     
         
-        line_flux = [np.zeros_like(fluxes[i]) for i in range(len(fluxes))]
+        line_flux = [np.zeros_like(fluxes[i]) for i in xrange(len(fluxes))]
 
         # Compute Lyman-alpha flux
         if self.pf['include_injected_lya']:
@@ -1291,7 +1291,7 @@ class UniformBackground(object):
             gens.append(self._flux_generator_generic(nrg, z, ehat[i], tau[i]))
 
         # Generator over redshift
-        for i in range(z.size):  
+        for i in xrange(z.size):  
             flux = []
             for gen in gens:
                 z, new_flux = gen.next()

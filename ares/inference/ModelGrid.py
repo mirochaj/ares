@@ -14,7 +14,7 @@ and analyzing them.
 import signal
 import pickle
 import numpy as np
-import copy, os, gc, re, time
+import copy, os, gc, re, time, sys
 from .ModelFit import ModelFit
 from ..simulations import Global21cm
 from ..util import GridND, ProgressBar
@@ -27,8 +27,6 @@ try:
 except ImportError:
     rank = 0
     size = 1
-
-def_kwargs = {'verbose': False, 'progress_bar': False}    
 
 class ModelGrid(ModelFit):
     """Create an object for setting up and running model grids."""
@@ -377,7 +375,8 @@ class ModelGrid(ModelFit):
     def is_restart(self, value):
         self._is_restart = value
     
-    def run(self, prefix, clobber=False, restart=False, save_freq=500):
+    def run(self, prefix, clobber=False, restart=False, save_freq=500,
+        use_pb=True):
         """
         Run model grid, for each realization thru a given turning point.
 
@@ -486,7 +485,7 @@ class ModelGrid(ModelFit):
         fcoll = {}
 
         # Initialize progressbar
-        pb = ProgressBar(Nleft, 'grid')
+        pb = ProgressBar(Nleft, 'grid', use_pb)
         pb.start()
         
         if pb.has_pb:
@@ -597,13 +596,13 @@ class ModelGrid(ModelFit):
             # Run simulation!
             try:
                 sim.run()
-                blobs = sim.blobs
+                blobs = copy.deepcopy(sim.blobs)
             except RuntimeError:
                 f = open('%s.%s.timeout.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
                 pickle.dump(kw, f)
                 f.close()
                 
-                blobs = self.blank_blob
+                blobs = copy.deepcopy(self.blank_blob)
             except MemoryError:
                 raise MemoryError('This cannot be tolerated!')
             except:
@@ -617,7 +616,7 @@ class ModelGrid(ModelFit):
                 
                 failct += 1
                 
-                blobs = self.blank_blob
+                blobs = copy.deepcopy(self.blank_blob)
 
             # Disable the alarm
             if self.timeout is not None:
@@ -653,6 +652,7 @@ class ModelGrid(ModelFit):
             if ct % save_freq != 0:
                 del p, sim, chain, blobs
                 gc.collect()
+                print "Size of blobs: ", sys.getsizeof(blobs_all)
                 continue
                 
             # Not all processors will hit the final checkpoint exactly, 

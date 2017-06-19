@@ -6,7 +6,7 @@ Author: Jordan Mirocha
 Affiliation: University of Colorado at Boulder
 Created on: Thu Dec 27 16:27:51 2012
 
-Description: Wrapper for Python progressbar.
+Description: Wrapper for progressbar2.
 
 """
 
