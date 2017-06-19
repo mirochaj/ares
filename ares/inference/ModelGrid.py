@@ -28,6 +28,16 @@ except ImportError:
     rank = 0
     size = 1
 
+#try:
+#    from concurrent.futures import ProcessPoolExecutor
+#except ImportError:
+#    pass
+                                                       
+try:
+    from pathos.multiprocessing import ProcessingPool as Pool
+except ImportError:
+    pass
+    
 class ModelGrid(ModelFit):
     """Create an object for setting up and running model grids."""
     
@@ -374,9 +384,50 @@ class ModelGrid(ModelFit):
     @is_restart.setter
     def is_restart(self, value):
         self._is_restart = value
+        
+    def _run_sim(self, kw, p):
+        
+        failct = 0
+        sim = self.simulator(**p)
+        
+        try:
+            sim.run()
+            blobs = copy.deepcopy(sim.blobs)
+        except RuntimeError:
+            f = open('%s.%s.timeout.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
+            pickle.dump(kw, f)
+            f.close()
+            
+            blobs = copy.deepcopy(self.blank_blob)
+        except MemoryError:
+            raise MemoryError('This cannot be tolerated!')
+        except:
+            # For some reason "except Exception"  doesn't catch everything...
+            # Write to "fail" file
+            f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
+            pickle.dump(kw, f)
+            f.close()
+            
+            print "FAILURE: Processor #%i, Model %i." % (rank, ct)
+            
+            failct += 1
+            
+            blobs = copy.deepcopy(self.blank_blob)
+            
+        if 'feedback_LW_guess' in self.tricks:
+            try:
+                self.trick_data['pop_Mmin{2}'] = \
+                    np.interp(sim.pops[2].halos.z, 
+                        sim.medium.field._zarr, sim.medium.field._Mmin_now)
+            except AttributeError:
+                del self.trick_data['pop_Mmin{2}']    
+            
+        del sim    
+            
+        return blobs, failct
     
     def run(self, prefix, clobber=False, restart=False, save_freq=500,
-        use_pb=True):
+        use_pb=True, long_run=False):
         """
         Run model grid, for each realization thru a given turning point.
 
@@ -545,27 +596,28 @@ class ModelGrid(ModelFit):
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
             if self.reuse_splines and \
                 i_Tmin not in fcoll.keys() and (not self.phenomenological):
-                sim = self.simulator(**p)
+                raise NotImplementedError('help')
+                #sim = self.simulator(**p)
                                 
-                pops = sim.pops
-                
-                if hasattr(self, 'Tmin_ax_popid'):
-                    loc = self.Tmin_ax_popid
-                    suffix = '{%i}' % loc
-                else:
-                    if sim.pf.Npops > 1:
-                        loc = 0
-                        suffix = '{0}'
-                    else:    
-                        loc = 0
-                        suffix = ''
-
-                hmf_pars = {'pop_Tmin%s' % suffix: sim.pf['pop_Tmin%s' % suffix],
-                    'fcoll%s' % suffix: copy.deepcopy(pops[loc].fcoll), 
-                    'dfcolldz%s' % suffix: copy.deepcopy(pops[loc].dfcolldz)}
-
-                # Save for future iterations
-                fcoll[i_Tmin] = hmf_pars.copy()
+                #pops = sim.pops
+                #
+                #if hasattr(self, 'Tmin_ax_popid'):
+                #    loc = self.Tmin_ax_popid
+                #    suffix = '{%i}' % loc
+                #else:
+                #    if sim.pf.Npops > 1:
+                #        loc = 0
+                #        suffix = '{0}'
+                #    else:    
+                #        loc = 0
+                #        suffix = ''
+                #
+                #hmf_pars = {'pop_Tmin%s' % suffix: sim.pf['pop_Tmin%s' % suffix],
+                #    'fcoll%s' % suffix: copy.deepcopy(pops[loc].fcoll), 
+                #    'dfcolldz%s' % suffix: copy.deepcopy(pops[loc].dfcolldz)}
+                #
+                ## Save for future iterations
+                #fcoll[i_Tmin] = hmf_pars.copy()
 
             # If we already have matching fcoll splines, use them!
             elif self.reuse_splines and (not self.phenomenological):
@@ -574,10 +626,9 @@ class ModelGrid(ModelFit):
                     'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
                     'dfcolldz%s' % suffix: fcoll[i_Tmin]['dfcolldz%s' % suffix]}
                 p.update(hmf_pars)
-                sim = self.simulator(**p)
             else:
-                sim = self.simulator(**p)
-
+                pass
+                
             # Write this set of parameters to disk before running 
             # so we can troubleshoot later if the run never finishes.
             procid = str(rank).zfill(3)
@@ -593,30 +644,11 @@ class ModelGrid(ModelFit):
                 signal.signal(signal.SIGALRM, self._handler)
                 signal.alarm(self.timeout)
 
+            ##
             # Run simulation!
-            try:
-                sim.run()
-                blobs = copy.deepcopy(sim.blobs)
-            except RuntimeError:
-                f = open('%s.%s.timeout.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
-                pickle.dump(kw, f)
-                f.close()
-                
-                blobs = copy.deepcopy(self.blank_blob)
-            except MemoryError:
-                raise MemoryError('This cannot be tolerated!')
-            except:
-                # For some reason "except Exception"  doesn't catch everything...
-                # Write to "fail" file
-                f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
-                pickle.dump(kw, f)
-                f.close()
-                
-                print "FAILURE: Processor #%i, Model %i." % (rank, ct)
-                
-                failct += 1
-                
-                blobs = copy.deepcopy(self.blank_blob)
+            ##
+            blobs, _failct = self._run_sim(kw, p)
+            failct += _failct
 
             # Disable the alarm
             if self.timeout is not None:
@@ -628,19 +660,10 @@ class ModelGrid(ModelFit):
                 print >> f, "Simulation finished: %s" % time.ctime()
 
             chain = np.array([kwargs[key] for key in self.parameters])
-
             chain_all.append(chain)
             blobs_all.append(blobs)
 
             ct += 1
-            
-            if 'feedback_LW_guess' in self.tricks:
-                try:
-                    self.trick_data['pop_Mmin{2}'] = \
-                        np.interp(sim.pops[2].halos.z, 
-                            sim.medium.field._zarr, sim.medium.field._Mmin_now)
-                except AttributeError:
-                    del self.trick_data['pop_Mmin{2}']
 
             ##
             # File I/O from here on out
@@ -650,9 +673,8 @@ class ModelGrid(ModelFit):
 
             # Only record results every save_freq steps
             if ct % save_freq != 0:
-                del p, sim, chain, blobs
+                del p, chain, blobs
                 gc.collect()
-                print "Size of blobs: ", sys.getsizeof(blobs_all)
                 continue
                 
             # Not all processors will hit the final checkpoint exactly, 
