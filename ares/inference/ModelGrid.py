@@ -546,7 +546,7 @@ class ModelGrid(ModelFit):
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
             if self.reuse_splines and \
                 i_Tmin not in fcoll.keys() and (not self.phenomenological):
-                sim = self.sim = self.simulator(**p)
+                sim = self.simulator(**p)
                                 
                 pops = sim.pops
                 
@@ -575,9 +575,9 @@ class ModelGrid(ModelFit):
                     'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
                     'dfcolldz%s' % suffix: fcoll[i_Tmin]['dfcolldz%s' % suffix]}
                 p.update(hmf_pars)
-                sim = self.sim = self.simulator(**p)
+                sim = self.simulator(**p)
             else:
-                sim = self.sim = self.simulator(**p)
+                sim = self.simulator(**p)
 
             # Write this set of parameters to disk before running 
             # so we can troubleshoot later if the run never finishes.
@@ -606,18 +606,18 @@ class ModelGrid(ModelFit):
                 blobs = self.blank_blob
             except MemoryError:
                 raise MemoryError('This cannot be tolerated!')
-            #except:
-            #    # For some reason "except Exception"  doesn't catch everything...
-            #    # Write to "fail" file
-            #    f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
-            #    pickle.dump(kw, f)
-            #    f.close()
-            #    
-            #    print "FAILURE: Processor #%i, Model %i." % (rank, ct)
-            #    
-            #    failct += 1
-            #    
-            #    blobs = self.blank_blob
+            except:
+                # For some reason "except Exception"  doesn't catch everything...
+                # Write to "fail" file
+                f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
+                pickle.dump(kw, f)
+                f.close()
+                
+                print "FAILURE: Processor #%i, Model %i." % (rank, ct)
+                
+                failct += 1
+                
+                blobs = self.blank_blob
 
             # Disable the alarm
             if self.timeout is not None:
@@ -651,7 +651,7 @@ class ModelGrid(ModelFit):
 
             # Only record results every save_freq steps
             if ct % save_freq != 0:
-                del p, sim
+                del p, sim, chain, blobs
                 gc.collect()
                 continue
                 
@@ -663,7 +663,6 @@ class ModelGrid(ModelFit):
             if rank == 0 and use_checks:
                 print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
                 
-                
             # First assemble data from all processors?
             # Analogous to assembling data from all walkers in MCMC
             f = open('%s.chain.pkl' % prefix_by_proc, 'ab')
@@ -672,7 +671,7 @@ class ModelGrid(ModelFit):
 
             self.save_blobs(blobs_all, False, prefix_by_proc)
 
-            del p, sim
+            del p, sim, chain, blobs
             del chain_all, blobs_all
             gc.collect()
 

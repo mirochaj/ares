@@ -2224,8 +2224,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         has_t_ceil = self.pf['pop_time_ceil'] is not None
                 
-        if has_t_limit == 0:
-            has_t_limit = None        
+        if self.pf['pop_time_limit'] == 0:
+            has_t_limit = False
                 
         ##
         # Outputs have shape (z, z)
