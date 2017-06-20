@@ -13,6 +13,7 @@ and analyzing them.
 
 import signal
 import pickle
+import subprocess
 import numpy as np
 import copy, os, gc, re, time
 from .ModelFit import ModelFit
@@ -28,6 +29,22 @@ try:
 except ImportError:
     rank = 0
     size = 1
+    
+#from multiprocessing import Pool
+from concurrent.futures import ProcessPoolExecutor as Pool
+    
+def run_prog(prefix):
+    
+    pfn = '%s.fork_par.pkl' % prefix
+    sfn = '%s.fork_sim' % prefix
+        
+    s = "f = open(\'%s\', \'rb\'); " % pfn
+    s += "import pickle; pars = pickle.load(f); f.close(); "
+    s += "import ares; sim = ares.simulations.Global21cm(**pars); "
+    s += "sim.run(); sim.save(\'%s\', clobber=True)" % sfn
+    
+    #subprocess.call(s)
+    os.system('python -c \"%s\"' % s)    
     
 class ModelGrid(ModelFit):
     """Create an object for setting up and running model grids."""
@@ -379,21 +396,10 @@ class ModelGrid(ModelFit):
     def _run_sim(self, kw, p):
         
         failct = 0
-        sim = self.simulator(**p)
-        
-        print "child process about to run sim"
-        
-        sim.run()
-        
-        print "child ran sim"
-        
-        return self.blank_blob, 0
-        
+        sim = self.simulator(**p)        
+                
         try:
-            sim.run()
-            
-            print "child process ran sim"
-            
+            sim.run()            
             blobs = copy.deepcopy(sim.blobs)
         except RuntimeError:
             f = open('%s.%s.timeout.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
@@ -429,7 +435,7 @@ class ModelGrid(ModelFit):
         return blobs, failct
     
     def run(self, prefix, clobber=False, restart=False, save_freq=500,
-        use_pb=True, long_run=False):
+        use_pb=True, use_checks=True, long_run=False, exit_after=None):
         """
         Run model grid, for each realization thru a given turning point.
 
@@ -541,11 +547,6 @@ class ModelGrid(ModelFit):
         pb = ProgressBar(Nleft, 'grid', use_pb)
         pb.start()
         
-        if pb.has_pb:
-            use_checks = False
-        else:
-            use_checks = True
-        
         chain_all = []; blobs_all = []
         
         t1 = time.time()
@@ -648,40 +649,10 @@ class ModelGrid(ModelFit):
 
             ##
             # Run simulation!
-            ##
-            if long_run:
-                ##
-                # Let's just say that this feature is experimental...
-                ##
-                pid = os.fork()
-
-                pfn = '%s_fork_par' % prefix_by_proc
-                sfn = '%s_fork_sim' % prefix_by_proc
-                
-                if pid == 0:
-                    
-                    with open(pfn, 'wb') as f:
-                        pickle.dump(p, f)
-                    
-                    s = "f = open(\'%s\', \'rb\'); " % pfn
-                    s += "import pickle; pars = pickle.load(f); f.close(); "
-                    s += "import ares; sim = ares.simulations.Global21cm(**pars); "
-                    s += "sim.run(); sim.save(\'%s\', clobber=True)" % sfn
-                    
-                    os.system('python -c \"%s\"' % s)
-                    os._exit(0)                                    
-                                                        
-                else:
-                    # This is the parent.
-                    os.waitpid(pid, 0)
-                    
-                    sim = _AnalyzeGlobal21cm(sfn)
-                    blobs = sim.blobs
-                    
-            else:    
-                blobs, _failct = self._run_sim(kw, p)
-                failct += _failct
-
+            ##   
+            blobs, _failct = self._run_sim(kw, p)
+            failct += _failct
+            
             # Disable the alarm
             if self.timeout is not None:
                 signal.alarm(0)
@@ -735,6 +706,16 @@ class ModelGrid(ModelFit):
             # raise an error.
             if ct == failct:
                 raise ValueError('Only failed models up to first checkpoint!')
+                
+            # This is meant to prevent crashes due to memory fragmentation. 
+            # For it to work (when we run for a really long time), we need
+            # to write a shell script that calls the .py script that
+            # executes ModelGrid.run many times, with each call setting
+            # exit_after to 1 or perhaps a few, depending on the amount
+            # of memory on hand. This is apparently less of an issue in Python 3.3
+            if exit_after is not None:
+                if exit_after == ct / save_freq:
+                    break
 
         pb.finish()
            
@@ -952,7 +933,7 @@ class ModelGrid(ModelFit):
             
             self.assignments = np.zeros(self.grid.shape, dtype=int)
                         
-            slc = [Ellipsis for i in xrange(self.grid.Nd)]
+            slc = [slice(0,None,1) for i in xrange(self.grid.Nd)]
             
             k = 0 # only used for method 1
             
