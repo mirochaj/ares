@@ -29,10 +29,7 @@ try:
 except ImportError:
     rank = 0
     size = 1
-    
-#from multiprocessing import Pool
-from concurrent.futures import ProcessPoolExecutor as Pool
-    
+        
 def run_prog(prefix):
     
     pfn = '%s.fork_par.pkl' % prefix
