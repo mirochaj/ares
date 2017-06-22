@@ -24,7 +24,7 @@ from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
 from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev, \
-    sqdeg_per_std
+    sqdeg_per_std, s_per_myr, rhodot_cgs
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
 
 _scipy_ver = scipy.__version__.split('.')
@@ -736,8 +736,17 @@ class MetaGalacticBackground(AnalyzeMGB):
                 
             self._Mmin_bank = [self._Mmin_pre.copy()]
             self._Jlw_bank = [Jlw]
+                        
         else:
             self._Mmin_pre = self._Mmin_now.copy()
+        
+        
+        if self.pf['feedback_LW_sfrd_popid'] is not None:
+            pid = self.pf['feedback_LW_sfrd_popid']
+            if self.count == 1:
+                self._sfrd_bank = [self.pops[pid]._tab_sfrd_total]
+            else:
+                self._sfrd_bank.append(self.pops[pid]._tab_sfrd_total.copy())
             
         self._Mmin_pre = np.maximum(self._Mmin_pre, 
             pop_fb.halos.Mmin_floor(zarr))    
@@ -745,10 +754,38 @@ class MetaGalacticBackground(AnalyzeMGB):
         if np.any(np.isnan(Jlw)):
             Jlw[np.argwhere(np.isnan(Jlw))] = 0.0
                     
+        # Introduce time delay between Jlw and Mmin?
+        # This doesn't really help with stability. In fact, it can make it worse.
+        if self.pf['feedback_LW_dt'] > 0:
+            dt = self.pf['feedback_LW_dt']
+            
+            Jlw_dt = []
+            for i, z in enumerate(zarr):
+                
+                J = 0.0
+                for j, z2 in enumerate(zarr[i:]):
+                    tlb = self.grid.cosm.LookbackTime(z, z2) / s_per_myr
+                    
+                    if tlb < dt:
+                        continue
+                    z2p = zarr[i+j-1]
+                    tlb_p = self.grid.cosm.LookbackTime(z, z2p) / s_per_myr
+                    zdt = np.interp(dt, [tlb_p, tlb], [z2p, z2])
+                    
+                    J = np.interp(zdt, zarr, Jlw)
+                                            
+                    break
+                        
+                Jlw_dt.append(J)
+                    
+            Jlw_dt = np.array(Jlw_dt)
+        else:
+            Jlw_dt = Jlw
+
         # Function to compute the next Mmin(z) curve
         # Use of Mmin here is for shielding prescription (if used), 
-        # but implicitly used since it set Jlw for this iteration.
-        f_M = get_Mmin_func(zarr, Jlw / 1e-21, self._Mmin_pre, **self.pf)
+        # but implicitly used since it set Jlw for this iteration.        
+        f_M = get_Mmin_func(zarr, Jlw_dt / 1e-21, self._Mmin_pre, **self.pf)
 
         # Use this on the next iteration
         Mnext = f_M(zarr)
@@ -766,7 +803,8 @@ class MetaGalacticBackground(AnalyzeMGB):
             _Mmin_next = Mnext
             
         # Detect ripples first and only do this if we see some?
-        if self.pf['feedback_LW_Mmin_smooth'] > 0:
+        if (self.pf['feedback_LW_Mmin_smooth'] > 0) and \
+           (self.count % self.pf['feedback_LW_Mmin_afreq'] == 0):
 
             s = self.pf['feedback_LW_Mmin_smooth']
             bc = int(s / 0.1)
@@ -779,7 +817,8 @@ class MetaGalacticBackground(AnalyzeMGB):
 
             _Mmin_next = 10**np.interp(zarr, ztmp, Ms)
             
-        if self.pf['feedback_LW_Mmin_fit'] > 0:
+        if (self.pf['feedback_LW_Mmin_fit'] > 0) and \
+           (self.count % self.pf['feedback_LW_Mmin_afreq'] == 0):
             order = self.pf['feedback_LW_Mmin_fit']
             _Mmin_next = 10**np.polyval(np.polyfit(zarr, np.log10(_Mmin_next), order), zarr)
 
@@ -799,9 +838,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         # Set new solution
         self._Mmin_now = Mmin.copy()
         # Save for our records (read: debugging)
-        self._Mmin_bank.append(self._Mmin_now.copy())
-        self._Jlw_bank.append(Jlw)
-
+        
         # Compare Mmin of last two iterations.
         # Can't be converged after 1 iteration!
         if self.count == 1:
@@ -813,38 +850,63 @@ class MetaGalacticBackground(AnalyzeMGB):
         if self.count >= self.pf['feedback_LW_maxiter']:
             return True 
         
-        rtol = self.pf['feedback_LW_Mmin_rtol']
-        atol = self.pf['feedback_LW_Mmin_atol']
-        
-        # Less stringent requirement, that mean error meet tolerance.
-        if self.pf['feedback_LW_mean_err']:
-            err_rel = np.abs((self._Mmin_pre - self._Mmin_now) \
-                / self._Mmin_now)
-            err_abs = np.abs(self._Mmin_now - self._Mmin_pre)
-        
-            if rtol > 0:
-                if err_rel.mean() > rtol:
-                    return False
-                elif err_rel.mean() < rtol and (atol == 0):
-                    return True
-
-            # Only make it here if rtol is satisfied or irrelevant
-        
-            if atol > 0:
-                if err_abs.mean() < atol:
-                    return True    
-
-        # More stringent: that all Mmin values must have converged independently            
-        else:
-            converged = np.allclose(self._Mmin_pre, self._Mmin_now,
-                rtol=rtol, atol=atol)
-                
-            perfect = np.all(np.equal(self._Mmin_pre, self._Mmin_now))
+        converged = 1
+        for quantity in ['Mmin', 'sfrd']:
             
-            # Nobody is perfect. Something is weird. Keep on keepin' on.
-            # This is happening at iteration 3 for some reason...
-            if perfect:
-                converged = False    
+            rtol = self.pf['feedback_LW_%s_rtol' % quantity]
+            atol = self.pf['feedback_LW_%s_atol' % quantity]
+            
+            if rtol == atol == 0:
+                continue
+        
+            if quantity == 'Mmin':
+                pre, post = self._Mmin_pre, self._Mmin_now
+            elif quantity == 'sfrd':
+                pre, post = np.array(self._sfrd_bank[-2:]) * rhodot_cgs
+                
+            # Less stringent requirement, that mean error meet tolerance.
+            if self.pf['feedback_LW_mean_err']:
+                err_rel = np.abs((pre - post) / post)
+                err_abs = np.abs(post - pre)
+                
+                if rtol > 0:
+                    if err_rel.mean() > rtol:
+                        converged *= 0
+                    elif err_rel.mean() < rtol and (atol == 0):
+                        converged *= 1
+            
+                # Only make it here if rtol is satisfied or irrelevant
+            
+                if atol > 0:
+                    if err_abs.mean() < atol:
+                        converged *= 1
+            
+            # More stringent: that all Mmin values must have converged independently            
+            else:
+                # Be a little careful: zeros will throw this off.
+                gt0 = np.logical_and(pre > 0, post > 0)
+                
+                # Check for convergence
+                converged = np.allclose(pre[gt0], post[gt0], rtol=rtol, atol=atol)
+                    
+                perfect = np.all(np.equal(pre[gt0], post[gt0]))
+                
+                # Nobody is perfect. Something is weird. Keep on keepin' on.
+                # This was happening at one point on iteration 3...
+                # maybe now it's OK.
+                if perfect:
+                    pass
+                    #print "Got a perfect iteration here! Count %i (%s)" \
+                    #    % (self.count, quantity)
+                        
+                    #converged *= 0
+                    # Remember: we're going to run through this all again
+                    # after we've converged since not all radiation
+                    # backgrounds are evolved on each LWB iteration.
+                
+        if not converged:
+            self._Mmin_bank.append(self._Mmin_now.copy())
+            self._Jlw_bank.append(Jlw)        
                 
         return converged
             

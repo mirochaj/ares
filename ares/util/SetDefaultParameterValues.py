@@ -219,6 +219,7 @@ def PhysicsParameters():
     # LW
     'feedback_clear_solver': True,
     'feedback_LW': False,
+    'feedback_LW_dt': 0.0,  # instantaneous response
     'feedback_LW_Mmin': 'visbal2015',
     'feedback_LW_fsh': None,
     'feedback_LW_Tcut': 1e4,
@@ -229,6 +230,7 @@ def PhysicsParameters():
     
     'feedback_LW_Mmin_smooth': 0,
     'feedback_LW_Mmin_fit': 0,
+    'feedback_LW_Mmin_afreq': 3,
     'feedback_LW_Mmin_rtol': 1e-2,
     'feedback_LW_Mmin_atol': 0.0,
     'feedback_LW_sfrd_rtol': 0.0,

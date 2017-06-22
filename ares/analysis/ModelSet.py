@@ -3606,11 +3606,11 @@ class ModelSet(BlobFactory):
             else:
                 ax.plot(xarr, y[0], **kwargs)
                 ax.plot(xarr, y[1], **kwargs)
-                
+
         ax.set_ylabel(self.labeler.label(names[0]))
-                
+
         pl.draw()
-                 
+
         if return_data:
             return ax, xarr, y
         else:
