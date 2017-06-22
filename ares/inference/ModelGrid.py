@@ -17,6 +17,7 @@ import subprocess
 import numpy as np
 import copy, os, gc, re, time
 from .ModelFit import ModelFit
+from ..analysis import ModelSet
 from ..simulations import Global21cm
 from ..util import GridND, ProgressBar
 from ..analysis import Global21cm as _AnalyzeGlobal21cm
@@ -390,11 +391,40 @@ class ModelGrid(ModelFit):
     def is_restart(self, value):
         self._is_restart = value
         
+    #def _prep_tricks(self):
+    #    """
+    #    Super non-general at the moment sorry.
+    #    """
+    #    if 'feedback_LW_guess' in self.base_kwargs:
+    #        fn, blob_name = self.base_kwargs['feedback_LW_guess']
+    #        if fn is not None:
+    #            anl = ModelSet(fn)
+    #            if not anl.chain:
+    #                return
+    #            
+    #            Mmin = anl.ExtractData(blob_name)
+    #            zarr = anl.get_ivar(blob_name)
+    #            
+    #            # parameters that matter
+    #            i1 = list(anl.parameters).index('pop_time_limit{2}')
+    #            i2 = list(anl.parameters).index('pop_bind_limit{2}')
+    #            p1 = anl.chain[:,i1]
+    #            p2 = anl.chain[:,i2]
+    #            
+    #            def func(**kw):
+    #                score = np.abs(p1 - kw['pop_time_limit{2}']) \
+    #                      + np.abs(p1 - kw['pop_bind_limit{2}'])
+    #                
+    #                best = np.argmin(score)
+                    
+                    
+                    
+            
     def _run_sim(self, kw, p):
         
         failct = 0
-        sim = self.simulator(**p)        
-                
+        sim = self.simulator(**p)
+                        
         try:
             sim.run()            
             blobs = copy.deepcopy(sim.blobs)
@@ -419,7 +449,7 @@ class ModelGrid(ModelFit):
             
             blobs = copy.deepcopy(self.blank_blob)
             
-        if 'feedback_LW_guess' in self.tricks:
+        if 'feedback_LW_guess' in self.tricks:            
             try:
                 self.trick_data['pop_Mmin{2}'] = \
                     np.interp(sim.pops[2].halos.z, 
@@ -539,6 +569,9 @@ class ModelGrid(ModelFit):
 
         # Dictionary for hmf tables
         fcoll = {}
+        
+        # Yep
+        #self._prep_tricks()
 
         # Initialize progressbar
         pb = ProgressBar(Nleft, 'grid', use_pb)

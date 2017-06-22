@@ -1132,7 +1132,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             if t_limit == 0:
                 t_limit = None
-
+            if e_limit == 0:
+                e_limit = None
+            
             if (t_limit is not None) or (m_limit is not None) or \
                (e_limit is not None) or (T_limit is not None) or (a_limit is not None):
                
@@ -2226,6 +2228,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
         if self.pf['pop_time_limit'] == 0:
             has_t_limit = False
+        if self.pf['pop_bind_limit'] == 0:
+            has_e_limit = False    
                 
         ##
         # Outputs have shape (z, z)
@@ -2353,6 +2357,25 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         zmax_e = z0
                     else:
                         zmax_e = np.interp(Eblim, Ehist[-2:], redshifts[-2:]) 
+            
+                    # Potentially require a halo to keep growing
+                    # for pop_time_limit *after* crossing this barrier.
+                    if has_t_limit and self.pf['pop_time_limit_delay']:
+                        tlim = self.time_limit(z=z, Mh=M0)
+                        
+                        lbtime_myr = self.cosm.LookbackTime(z, zmax_e) \
+                            / s_per_yr / 1e6
+                    
+                        if lbtime_myr >= tlim:
+                            hit_dt = True
+                        
+                            lbtime_myr_prev = self.cosm.LookbackTime(redshifts[-2], z0) \
+                                / s_per_yr / 1e6
+                        
+                            zmax_e = np.interp(tlim,
+                                [lbtime_myr_prev, lbtime_myr], redshifts[-2:])
+                        
+            
             
             # Once zmax is set, keep solving the rate equations but don't adjust
             # zmax.

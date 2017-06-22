@@ -421,6 +421,13 @@ class ModelSet(BlobFactory):
         return self._Nd
     
     @property
+    def unique_samples(self):
+        if not hasattr(self, '_unique_samples'):
+            self._unique_samples = \
+                [np.unique(self.chain[:,i].data) for i in range(self.Nd)]
+        return self._unique_samples
+    
+    @property
     def include_checkpoints(self):
         if not hasattr(self, '_include_checkpoints'):
             self._include_checkpoints = None
@@ -877,28 +884,38 @@ class ModelSet(BlobFactory):
         
         self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
     
-    def SliceIteratively(self, par):
-        assert self.Nd == 3 # for now
+    def SliceIteratively(self, pars):
+        #assert self.Nd == 3 # for now
         
-        k = list(self.parameters).index(par)
-        vals = np.sort(np.unique(self.chain[:,k]))
-        
-        slices = []
-        for i, val in enumerate(vals):
+        if type(pars) != list:
                         
-            if i == 0:
-                lo = 0
-                hi = np.mean([val, vals[i+1]])
-            elif i == len(vals) - 1:
-                lo = np.mean([val, vals[i-1]])
-                hi = max(vals) * 1.1
-            else:
-                lo = np.mean([vals[i-1], val])  
-                hi = np.mean([vals[i+1], val])  
+            par = pars
+            k = list(self.parameters).index(par)
+            vals = np.sort(np.unique(self.chain[:,k]))
+            
+            slices = []
+            for i, val in enumerate(vals):
+                            
+                if i == 0:
+                    lo = 0
+                    hi = np.mean([val, vals[i+1]])
+                elif i == len(vals) - 1:
+                    lo = np.mean([val, vals[i-1]])
+                    hi = max(vals) * 1.1
+                else:
+                    lo = np.mean([vals[i-1], val])  
+                    hi = np.mean([vals[i+1], val])  
+                    
+                slices.append(self.Slice([lo, hi], [par]))
+            
+            return vals, slices
+        else:
+            vals
+            for par in pars:
+                k = list(self.parameters).index(par)
+                vals.append(np.sort(np.unique(self.chain[:,k])))
                 
-            slices.append(self.Slice([lo, hi], [par]))
-        
-        return vals, slices
+                
                 
     def Slice(self, constraints, pars, ivar=None, take_log=False, 
         un_log=False, multiplier=1.):
@@ -1445,11 +1462,11 @@ class ModelSet(BlobFactory):
 
         return ax
 
-    def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
+    def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None, aux=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
         line_plot=False, sort_by='z', filter_z=None, rungs=False, 
         rung_label=None, rung_label_top=True, return_cb=False, cax=None,
-        cb_kwargs={}, **kwargs):
+        cb_kwargs={}, operation=None, **kwargs):
         """
         Plot samples as points in 2-d plane.
     
@@ -1496,9 +1513,69 @@ class ModelSet(BlobFactory):
 
         xdata = data[p[0]]
         ydata = data[p[1]]
+        
+        if aux is not None:
+            adata = self.ExtractData(aux)[aux]
 
         if c is not None:
-            cdata = data[p[2]].squeeze()
+            _cdata = data[p[2]].squeeze()
+            
+            if operation is None:
+                cdata = _cdata
+            elif type(operation) is str:
+                assert self.Nd > 2
+                
+                # There's gotta be a faster way to do this...
+                
+                xu = np.unique(xdata[np.isfinite(xdata)])
+                yu = np.unique(ydata[np.isfinite(ydata)])
+                
+                ids = []
+                for i, val in enumerate(_cdata):
+                    x = xdata[i]
+                    y = ydata[i]
+                    
+                    i = np.argmin(np.abs(x - xu))
+                    j = np.argmin(np.abs(y - yu))
+                    
+                    ids.append(i * len(yu) + j)
+                                
+                ids = np.array(ids)
+                cdata = np.zeros_like(_cdata)
+                for i, idnum in enumerate(np.unique(ids)):
+                                        
+                    #if type(operation) is str:   
+                    tmp = _cdata[ids == idnum]
+                    if operation == 'mean':
+                        cdata[ids == idnum] = np.mean(tmp)
+                    elif operation == 'stdev':
+                        cdata[ids == idnum] = np.std(tmp)
+                    elif operation == 'diff':
+                        cdata[ids == idnum] = np.max(tmp) - np.min(tmp)
+                    elif operation == 'max':
+                        cdata[ids == idnum] = np.max(tmp) 
+                    elif operation == 'min':
+                        cdata[ids == idnum] = np.min(tmp) 
+                        
+                    # The next two could be accomplished by slicing
+                    # along third dimension    
+                    elif operation == 'first':
+                        val = min(adata[adata.mask == 0])
+                        cond = np.logical_and(ids == idnum, adata == val)
+                        cdata[ids == idnum] = _cdata[cond]
+                    elif operation == 'last':
+                        val = max(adata[adata.mask == 0])
+                        cond = np.logical_and(ids == idnum, adata == val)
+                        cdata[ids == idnum] = _cdata[cond]
+                    else:
+                        raise NotImplementedError('help')
+                    #else:
+                        
+                        #cond = np.ma.logical_and(ids == idnum, adata == operation)
+                        #print np.any(adata == operation), np.unique(adata), operation, np.ma.sum(cond)
+                        #cdata[ids == idnum] = _cdata[cond]
+            else:
+                cdata = _cdata        
         else:
             cdata = None
 
@@ -2701,7 +2778,7 @@ class ModelSet(BlobFactory):
         return ax
               
     def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
-        un_log=False, multiplier=1., ax=None, fig=1, filled=False, 
+        un_log=False, multiplier=1., ax=None, fig=1, filled=True, 
         inline_labels=False, manual=None, cax=None, use_colorbar=True, **kwargs):         
         """
         Draw contours that are NOT associated with confidence levels.
@@ -4022,6 +4099,9 @@ class ModelSet(BlobFactory):
         for tp in list('BCD'):
             self.DeriveBlob(expr='%.5g / (1. + x)' % nu_0_mhz, 
                 varmap={'x': 'z_%s' % tp}, name='nu_%s' % tp, clobber=clobber)
+            self.DeriveBlob(expr='%.5g / (1. + x)' % nu_0_mhz, 
+                varmap={'x': 'z_%sp' % tp}, name='nu_%sp' % tp, clobber=clobber)      
+                    
                 
     def RankModels(self, **kwargs):
         """

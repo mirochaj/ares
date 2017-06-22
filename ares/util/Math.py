@@ -87,6 +87,7 @@ def smooth(y, width, kernel='boxcar'):
     else:
         raise NotImplemented('help')
     
+    # Chop off regions within boxcar size of edges
     result = np.convolve(y, kern, mode='same')
     result[0:width] = y[0:width]
     result[-width:] = y[-width:]

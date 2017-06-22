@@ -167,8 +167,9 @@ _low = \
  'pop_Tmax_ceil{2}': 1e6,
  'pop_sfr_cross_threshold{2}': False,
 
+ 'pop_time_limit{2}': 5.,
  'pop_bind_limit{2}': 1e51,
- 'pop_abun_limit{2}': 1e-6,
+ 'pop_abun_limit{2}': None,
  
  # Acknowledging that our mean metallicity is kludgey
  # Note that this renders the stellar mass meaningless (it'll be zero)

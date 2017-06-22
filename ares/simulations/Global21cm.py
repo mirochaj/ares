@@ -69,7 +69,16 @@ class Global21cm(AnalyzeGlobal21cm):
     @timer.setter
     def timer(self, value):
         self._timer = value
-            
+        
+    @property 
+    def count(self):
+        if not hasattr(self, '_count'):
+            try:
+                self._count = self.medium.field.count
+            except AttributeError:
+                self._count = 1
+        return self._count   
+        
     @property
     def info(self):
         print_sim(self)

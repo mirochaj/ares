@@ -223,6 +223,7 @@ pop_parameters = \
  'pop_metal_retention': r'$f_{\mathrm{ret,Z}}$',
  'pop_abun_limit': r'$\mathcal{Z}_c$',
  'pop_bind_limit': r'$\mathcal{E}_c$',
+ 'pop_time_limit': r'$\mathcal{T}_c$',
 }
 
 sfe_parameters = \

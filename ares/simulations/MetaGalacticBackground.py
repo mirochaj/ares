@@ -780,8 +780,8 @@ class MetaGalacticBackground(AnalyzeMGB):
             _Mmin_next = 10**np.interp(zarr, ztmp, Ms)
             
         if self.pf['feedback_LW_Mmin_fit'] > 0:
-            ord = self.pf['feedback_LW_Mmin_fit']
-            _Mmin_next = 10**np.polyval(np.polyfit(zarr, np.log10(_Mmin_next), ord), zarr)
+            order = self.pf['feedback_LW_Mmin_fit']
+            _Mmin_next = 10**np.polyval(np.polyfit(zarr, np.log10(_Mmin_next), order), zarr)
 
         # Need to apply Mmin floor
         _Mmin_next = np.maximum(_Mmin_next, pop_fb.halos.Mmin_floor(zarr))
@@ -806,7 +806,10 @@ class MetaGalacticBackground(AnalyzeMGB):
         # Can't be converged after 1 iteration!
         if self.count == 1:
             return False
-
+        
+        if self.count < self.pf['feedback_LW_miniter']:
+            return False
+        
         if self.count >= self.pf['feedback_LW_maxiter']:
             return True 
         
