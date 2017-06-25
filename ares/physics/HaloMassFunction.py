@@ -294,7 +294,7 @@ class HaloMassFunction(object):
             self.zmax = self.pf['hmf_zmax'] + 2 * self.dz
             self.dlogM = self.pf['hmf_dlogM']
             
-            self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
+            self.Nz = int(round(((self.zmax - self.zmin) / self.dz) + 1, 1))
             self.z = np.linspace(self.zmin, self.zmax, self.Nz)             
                          
             # Initialize Perturbations class
@@ -342,7 +342,7 @@ class HaloMassFunction(object):
         self.dlogM = self.pf['hmf_dlogM']
         self.dz = self.pf['hmf_dz']
         
-        self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
+        self.Nz = int(round(((self.zmax - self.zmin) / self.dz) + 1, 1))
         self.z = np.linspace(self.zmin, self.zmax, self.Nz)
         
         self.Nm = np.logspace(self.logMmin_tab, self.logMmax_tab, self.dlogM).size
@@ -670,7 +670,7 @@ class HaloMassFunction(object):
             *  (Vc / 23.4)**3 / cterm**0.5 / ((1. + z) / 10)**1.5
             
     def BindingEnergy(self, M, z, mu=0.6):
-        return 0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(M, z, mu) \
+        return (0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(M, z, mu)) \
             * self.cosm.fbaryon / cm_per_kpc
             
     def MeanDensity(self, M, z, mu=0.6):
@@ -732,13 +732,13 @@ class HaloMassFunction(object):
         if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
                 / self.pf['hmf_dlogM']                
-            zsize = (self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
-                / self.pf['hmf_dz'] + 1
+            zsize = ((self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
+                / self.pf['hmf_dz']) + 1
                 
             assert logMsize % 1 == 0
             logMsize = int(logMsize)    
             assert zsize % 1 == 0
-            zsize = int(zsize)    
+            zsize = int(round(zsize, 1))    
                 
             return 'hmf_%s_logM_%s_%i-%i_z_%s_%i-%i' \
                 % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2)

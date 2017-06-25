@@ -24,7 +24,7 @@ from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
 from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev, \
-    sqdeg_per_std, s_per_myr, rhodot_cgs
+    sqdeg_per_std, s_per_myr, rhodot_cgs, cm_per_mpc, c
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
 
 _scipy_ver = scipy.__version__.split('.')
@@ -745,8 +745,14 @@ class MetaGalacticBackground(AnalyzeMGB):
             pid = self.pf['feedback_LW_sfrd_popid']
             if self.count == 1:
                 self._sfrd_bank = [self.pops[pid]._tab_sfrd_total]
+                self._sfrd_rerr = []
             else:
                 self._sfrd_bank.append(self.pops[pid]._tab_sfrd_total.copy())
+                pre = self._sfrd_bank[-2]
+                now = self._sfrd_bank[-1]
+                gt0 = np.logical_and(now > 0, pre > 0)
+                err = np.abs(pre[gt0] - now[gt0]) / now[gt0]
+                self._sfrd_rerr.append(err)
             
         self._Mmin_pre = np.maximum(self._Mmin_pre, 
             pop_fb.halos.Mmin_floor(zarr))    
@@ -784,12 +790,37 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         # Function to compute the next Mmin(z) curve
         # Use of Mmin here is for shielding prescription (if used), 
-        # but implicitly used since it set Jlw for this iteration.        
+        # but implicitly used since it set Jlw for this iteration.      
+        if self.pf['feedback_LW_zstart'] is not None:
+            Jlw_dt[zarr > self.pf['feedback_LW_zstart']] = 0
+                    
+        if self.pf['feedback_LW_ramp']:
+            nh = 0.0
+            for i in self._lwb_sources:
+                pop = self.pops[i]
+                nh += pop._tab_nh_active 
+                
+            nh *= cm_per_mpc**3
+            
+            # Interpolate to same redshift array as fluxes
+            nh = np.interp(zarr, pop.halos.z, nh)
+            
+            # Compute typical separation of halos
+            ravg = nh**(-1./3.)
+            tavg = ravg / (c / cm_per_mpc)
+            tH = self.grid.cosm.HubbleTime(zarr)
+            
+            # A number from [0, 1] that quantifies how uniform the background is
+            f_uni = 1. - np.maximum(np.minimum(tavg / tH, 1.), 0)
+            
+            Jlw_dt *= f_uni
+                    
         f_M = get_Mmin_func(zarr, Jlw_dt / 1e-21, self._Mmin_pre, **self.pf)
 
         # Use this on the next iteration
         Mnext = f_M(zarr)
-        if (self.count > 1) and self.pf['feedback_LW_softening'] is not None:
+        
+        if (self.count > 1) and (self.pf['feedback_LW_softening'] is not None):   
             if self.pf['feedback_LW_softening'] == 'sqrt':
                 _Mmin_next = np.sqrt(Mnext * self._Mmin_pre)
             elif self.pf['feedback_LW_softening'] == 'mean':
@@ -801,6 +832,9 @@ class MetaGalacticBackground(AnalyzeMGB):
                 raise NotImplementedError('help')
         else:
             _Mmin_next = Mnext
+            
+        if self.count % self.pf['feedback_LW_mixup_freq'] == 0:
+            _Mmin_next = np.sqrt(np.product(self._Mmin_bank[-2:], axis=0))    
             
         # Detect ripples first and only do this if we see some?
         if (self.pf['feedback_LW_Mmin_smooth'] > 0) and \
@@ -839,7 +873,10 @@ class MetaGalacticBackground(AnalyzeMGB):
         self._Mmin_now = Mmin.copy()
         # Save for our records (read: debugging)
         
+        ##
         # Compare Mmin of last two iterations.
+        ## 
+        
         # Can't be converged after 1 iteration!
         if self.count == 1:
             return False
@@ -868,6 +905,9 @@ class MetaGalacticBackground(AnalyzeMGB):
             if self.pf['feedback_LW_mean_err']:
                 err_rel = np.abs((pre - post) / post)
                 err_abs = np.abs(post - pre)
+                
+                if quantity == 'Mmin':
+                    self._err_rel = err_rel
                 
                 if rtol > 0:
                     if err_rel.mean() > rtol:

@@ -449,7 +449,24 @@ class Global21cm(AnalyzeGlobal21cm):
 
         if self.pf['verbose']:
             print 'Wrote %s.history.%s' % (prefix, suffix)
-    
+            
+        # Save histories for Mmin and SFRD if we're doing iterative stuff
+        if self.count > 1:
+            f = open('%s.Mmin.pkl', 'wb')
+            pickle.dump(self.medium.field._zarr, f)
+            pickle.dump(self.medium.field._Mmin_bank, f)
+            f.close()
+            if self.pf['verbose']:
+                print 'Wrote %s.Mmin.pkl' % prefix
+            
+            if self.pf['feedback_LW_sfrd_popid'] is not None:
+                f = open('%s.sfrd.pkl', 'wb')
+                pickle.dump(self.medium.field._zarr, f)
+                pickle.dump(self.medium.field._sfrd_bank, f)
+                f.close()
+                if self.pf['verbose']:
+                    print 'Wrote %s.sfrd.pkl' % prefix
+            
         write_pf = True
         if os.path.exists('%s.parameters.pkl' % prefix):
             if clobber:

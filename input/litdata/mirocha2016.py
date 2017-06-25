@@ -26,7 +26,7 @@ dpl = \
  'pop_Emin{0}': 10.19,
  'pop_Emax{0}': 24.6,
  'pop_rad_yield{0}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
-                             # should make this automatic
+                                 # should make this automatic
 
  'pop_fesc{0}': 0.1,
  

@@ -100,6 +100,8 @@ _generic_updates = \
  'pop_zform{0}': 60,
  'pop_zform{1}': 60,
  'feedback_LW': True,
+ 'sam_dz': 0.1,
+ 'kill_redshift': 5.6,
 }
 
 # This can lead to pickling issues...argh
@@ -111,9 +113,6 @@ First model: constant SFR in minihalos.
 """
 _low = \
 {
-
- 'kill_redshift': 5.6,
- 'sam_dz': 0.1,
 
  'pop_zform{2}': 60,
  'pop_zform{3}': 60,
@@ -200,6 +199,10 @@ bb['pop_EmaxNorm{2}'] = 13.6
 bb['pop_Emin{2}'] = 1.
 bb['pop_Emax{2}'] = 1e2
 bb['pop_temperature{2}'] = 1e5
+
+popII_like = low.copy()
+popII_like['pop_sed{2}'] = 'eldridge2009'
+popII_like['pop_Z{2}'] = 1e-3
 
 """
 Second model: constant SFE in minihalos.
