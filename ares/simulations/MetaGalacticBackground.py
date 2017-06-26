@@ -56,7 +56,7 @@ def get_Mmin_func(zarr, Jlw, Mmin_prev, **kwargs):
     Mmin = lambda zz: np.interp(zz, zarr, Mmin_prev)
     f_J = lambda zz: f_sh(zz, Mmin(zz)) * np.interp(zz, zarr, Jlw)
     
-    if kwargs['feedback_LW_Mmin'] == 'visbal2015':
+    if kwargs['feedback_LW_Mmin'] == 'visbal2014':
         f_M = lambda zz: 2.5 * 1e5 * pow(((1. + zz) / 26.), -1.5) \
             * (1. + 6.96 * pow(4 * np.pi * f_J(zz), 0.47))
     elif type(kwargs['feedback_LW_Mmin']) is FunctionType:
@@ -740,7 +740,6 @@ class MetaGalacticBackground(AnalyzeMGB):
         else:
             self._Mmin_pre = self._Mmin_now.copy()
         
-        
         if self.pf['feedback_LW_sfrd_popid'] is not None:
             pid = self.pf['feedback_LW_sfrd_popid']
             if self.count == 1:
@@ -817,10 +816,22 @@ class MetaGalacticBackground(AnalyzeMGB):
                     
         f_M = get_Mmin_func(zarr, Jlw_dt / 1e-21, self._Mmin_pre, **self.pf)
 
-        # Use this on the next iteration
+        # Use this on the next iteration, unless the 'mixup' parameters
+        # are being used.
         Mnext = f_M(zarr)
         
-        if (self.count > 1) and (self.pf['feedback_LW_softening'] is not None):   
+        if self.pf['feedback_LW_mixup_freq'] > 0 and \
+           self.count > self.pf['feedback_LW_mixup_delay'] and \
+           self.count % self.pf['feedback_LW_mixup_freq'] == 0:
+            _Mmin_next = np.zeros_like(Mnext)
+            pre, now = self._Mmin_bank[-2:]
+            gt0 = np.logical_and(pre > 0, now > 0)
+            ngt0 = np.logical_not(gt0)
+            _Mmin_next[gt0] = np.sqrt(pre[gt0] * now[gt0])
+            _Mmin_next[ngt0] = now[ngt0]
+           #_Mmin_next = np.sqrt(np.product(self._Mmin_bank[-2:], axis=0))
+
+        elif (self.count > 1) and (self.pf['feedback_LW_softening'] is not None):   
             if self.pf['feedback_LW_softening'] == 'sqrt':
                 _Mmin_next = np.sqrt(Mnext * self._Mmin_pre)
             elif self.pf['feedback_LW_softening'] == 'mean':
@@ -832,9 +843,6 @@ class MetaGalacticBackground(AnalyzeMGB):
                 raise NotImplementedError('help')
         else:
             _Mmin_next = Mnext
-            
-        if self.count % self.pf['feedback_LW_mixup_freq'] == 0:
-            _Mmin_next = np.sqrt(np.product(self._Mmin_bank[-2:], axis=0))    
             
         # Detect ripples first and only do this if we see some?
         if (self.pf['feedback_LW_Mmin_smooth'] > 0) and \
@@ -906,8 +914,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                 err_rel = np.abs((pre - post) / post)
                 err_abs = np.abs(post - pre)
                 
-                if quantity == 'Mmin':
-                    self._err_rel = err_rel
+                #if quantity == 'Mmin':
+                #    self._err_rel = err_rel
                 
                 if rtol > 0:
                     if err_rel.mean() > rtol:
@@ -924,6 +932,9 @@ class MetaGalacticBackground(AnalyzeMGB):
             # More stringent: that all Mmin values must have converged independently            
             else:
                 # Be a little careful: zeros will throw this off.
+                # This is a little sketchy because some grid points
+                # may go from 0 to >0 on back-to-back iterations, but in practice
+                # there are so few that this isn't a real concern.
                 gt0 = np.logical_and(pre > 0, post > 0)
                 
                 # Check for convergence
@@ -943,6 +954,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                     # Remember: we're going to run through this all again
                     # after we've converged since not all radiation
                     # backgrounds are evolved on each LWB iteration.
+                    # So, this is guaranteed to happen once: on the final
+                    # iteration of every simulation.
                 
         if not converged:
             self._Mmin_bank.append(self._Mmin_now.copy())

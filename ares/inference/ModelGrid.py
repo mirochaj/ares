@@ -395,6 +395,7 @@ class ModelGrid(ModelFit):
     #    """
     #    Super non-general at the moment sorry.
     #    """
+    #    
     #    if 'feedback_LW_guess' in self.base_kwargs:
     #        fn, blob_name = self.base_kwargs['feedback_LW_guess']
     #        if fn is not None:
@@ -405,20 +406,36 @@ class ModelGrid(ModelFit):
     #            Mmin = anl.ExtractData(blob_name)
     #            zarr = anl.get_ivar(blob_name)
     #            
-    #            # parameters that matter
-    #            i1 = list(anl.parameters).index('pop_time_limit{2}')
-    #            i2 = list(anl.parameters).index('pop_bind_limit{2}')
-    #            p1 = anl.chain[:,i1]
-    #            p2 = anl.chain[:,i2]
     #            
     #            def func(**kw):
+    #                
+    #                ind = []
+    #                for k, par in enumerate(anl.parameters):
+    #                    try:
+    #                        i = list(anl.parameters).index(kw[par])
+    #                    except ValueError:
+    #                        i = np.argmin(np.abs(kw[par] - anl.unique_samples[k]))
+    #                    
+    #                    ind.append(i)
+    #                    
+    #                    
+    #                # parameters that matter
+    #                i1 = 
+    #                i2 = list(anl.parameters).index(kw['pop_bind_limit{2}'])
+    #
+    #                p1 = anl.chain[:,i1]
+    #                p2 = anl.chain[:,i2]
+    #                
+    #                
+    #                
+    #                
+    #                
+    #                
     #                score = np.abs(p1 - kw['pop_time_limit{2}']) \
     #                      + np.abs(p1 - kw['pop_bind_limit{2}'])
     #                
     #                best = np.argmin(score)
-                    
-                    
-                    
+    #
             
     def _run_sim(self, kw, p):
         
