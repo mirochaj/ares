@@ -234,7 +234,7 @@ def PhysicsParameters():
     'feedback_LW_Mmin_afreq': 3,
     'feedback_LW_Mmin_rtol': 0.0,
     'feedback_LW_Mmin_atol': 0.0,
-    'feedback_LW_sfrd_rtol': 1e-2,
+    'feedback_LW_sfrd_rtol': 1e-1,
     'feedback_LW_sfrd_atol': 0.0,
     'feedback_LW_sfrd_popid': None,
     'feedback_LW_guess': None,

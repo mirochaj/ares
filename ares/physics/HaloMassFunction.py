@@ -673,10 +673,15 @@ class HaloMassFunction(object):
         return (0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(M, z, mu)) \
             * self.cosm.fbaryon / cm_per_kpc
             
+    def MassFromEb(self, z, Eb, mu=0.6):
+        # Could do this analytically but I'm lazy
+        func = lambda M: abs(np.log10(self.BindingEnergy(10**M, z=z, mu=mu)) - np.log10(Eb))
+        return 10**fsolve(func, x0=7.)[0]
+            
     def MeanDensity(self, M, z, mu=0.6):
         V = 4. * np.pi * self.VirialRadius(M, z, mu)**3 / 3.
         return (M / V) * g_per_msun / cm_per_kpc**3
-        
+
     def JeansMass(self, M, z, mu=0.6):
         rho = self.MeanDensity(M, z, mu)
         T = self.VirialTemperature(M, z, mu)

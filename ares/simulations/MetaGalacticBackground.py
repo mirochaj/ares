@@ -130,6 +130,13 @@ class MetaGalacticBackground(AnalyzeMGB):
     
         return rank
     
+    def extend(self, N):
+        """
+        Run this simulation for `N' more iterations.
+        """
+        
+        raise NotImplemented('sorry')
+    
     def run(self, include_pops=None):
         """
         Loop over populations, determine background intensity.
@@ -808,12 +815,12 @@ class MetaGalacticBackground(AnalyzeMGB):
             ravg = nh**(-1./3.)
             tavg = ravg / (c / cm_per_mpc)
             tH = self.grid.cosm.HubbleTime(zarr)
-            
+
             # A number from [0, 1] that quantifies how uniform the background is
             f_uni = 1. - np.maximum(np.minimum(tavg / tH, 1.), 0)
-            
+
             Jlw_dt *= f_uni
-                    
+
         f_M = get_Mmin_func(zarr, Jlw_dt / 1e-21, self._Mmin_pre, **self.pf)
 
         # Use this on the next iteration, unless the 'mixup' parameters
@@ -823,13 +830,13 @@ class MetaGalacticBackground(AnalyzeMGB):
         if self.pf['feedback_LW_mixup_freq'] > 0 and \
            self.count > self.pf['feedback_LW_mixup_delay'] and \
            self.count % self.pf['feedback_LW_mixup_freq'] == 0:
-            _Mmin_next = np.zeros_like(Mnext)
-            pre, now = self._Mmin_bank[-2:]
-            gt0 = np.logical_and(pre > 0, now > 0)
-            ngt0 = np.logical_not(gt0)
-            _Mmin_next[gt0] = np.sqrt(pre[gt0] * now[gt0])
-            _Mmin_next[ngt0] = now[ngt0]
-           #_Mmin_next = np.sqrt(np.product(self._Mmin_bank[-2:], axis=0))
+            #_Mmin_next = np.zeros_like(Mnext)
+            #pre, now = self._Mmin_bank[-2:]
+            #gt0 = np.logical_and(pre > 0, now > 0)
+            #ngt0 = np.logical_not(gt0)
+            #_Mmin_next[gt0] = np.sqrt(pre[gt0] * now[gt0])
+            #_Mmin_next[ngt0] = now[ngt0]
+            _Mmin_next = np.sqrt(np.product(self._Mmin_bank[-2:], axis=0))
 
         elif (self.count > 1) and (self.pf['feedback_LW_softening'] is not None):   
             if self.pf['feedback_LW_softening'] == 'sqrt':
@@ -900,35 +907,34 @@ class MetaGalacticBackground(AnalyzeMGB):
             
             rtol = self.pf['feedback_LW_%s_rtol' % quantity]
             atol = self.pf['feedback_LW_%s_atol' % quantity]
-            
+
             if rtol == atol == 0:
                 continue
-        
+
             if quantity == 'Mmin':
                 pre, post = self._Mmin_pre, self._Mmin_now
             elif quantity == 'sfrd':
                 pre, post = np.array(self._sfrd_bank[-2:]) * rhodot_cgs
-                
+
             # Less stringent requirement, that mean error meet tolerance.
             if self.pf['feedback_LW_mean_err']:
                 err_rel = np.abs((pre - post) / post)
                 err_abs = np.abs(post - pre)
-                
+
                 #if quantity == 'Mmin':
                 #    self._err_rel = err_rel
-                
+
                 if rtol > 0:
                     if err_rel.mean() > rtol:
                         converged *= 0
                     elif err_rel.mean() < rtol and (atol == 0):
                         converged *= 1
-            
+
                 # Only make it here if rtol is satisfied or irrelevant
-            
                 if atol > 0:
                     if err_abs.mean() < atol:
                         converged *= 1
-            
+
             # More stringent: that all Mmin values must have converged independently            
             else:
                 # Be a little careful: zeros will throw this off.
