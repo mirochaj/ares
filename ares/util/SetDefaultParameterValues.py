@@ -237,10 +237,12 @@ def PhysicsParameters():
     'feedback_LW_sfrd_rtol': 1e-1,
     'feedback_LW_sfrd_atol': 1e-10,
     'feedback_LW_sfrd_popid': None,
-    'feedback_LW_guess': None,
     'feedback_LW_zstart': None,
     'feedback_LW_mixup_freq': 5,
     'feedback_LW_mixup_delay': 20,
+    'feedback_LW_guesses': None,
+    'feedback_LW_guesses_from': None,
+    'feedback_LW_guesses_perfect': False,
     
     # Assume that uniform background only emerges gradually as 
     # the typical separation of halos becomes << Hubble length

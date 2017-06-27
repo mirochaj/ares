@@ -362,24 +362,32 @@ class ModelGrid(ModelFit):
     @tricks.setter
     def tricks(self, value):
         if not hasattr(self, '_tricks'):
-            assert type(value) is str
+            assert type(value) is tuple
             self._tricks = [value]
         else:
             self._tricks.append(value)
             
     @property
-    def trick_data(self):
-        if not hasattr(self, '_trick_data'):
-            self._trick_data = {}
-        return self._trick_data
+    def trick_names(self):
+        return zip(*self.tricks)[0]
     
-    @trick_data.setter
-    def trick_data(self, value):
-        if not hasattr(self, '_tricks'):
-            assert type(value) is dict
-            self._tricks = value
-        else:
-            self._tricks.update(value)
+    @property
+    def trick_files(self):
+        return zip(*self.tricks)[1]    
+            
+    #@property
+    #def trick_data(self):
+    #    if not hasattr(self, '_trick_data'):
+    #        self._trick_data = {}
+    #    return self._trick_data
+    #
+    #@trick_data.setter
+    #def trick_data(self, value):
+    #    if not hasattr(self, '_tricks'):
+    #        assert type(value) is dict
+    #        self._tricks = value
+    #    else:
+    #        self._tricks.update(value)
         
     @property
     def is_restart(self):
@@ -391,56 +399,89 @@ class ModelGrid(ModelFit):
     def is_restart(self, value):
         self._is_restart = value
         
-    #def _prep_tricks(self):
-    #    """
-    #    Super non-general at the moment sorry.
-    #    """
-    #    
-    #    if 'feedback_LW_guess' in self.base_kwargs:
-    #        fn, blob_name = self.base_kwargs['feedback_LW_guess']
-    #        if fn is not None:
-    #            anl = ModelSet(fn)
-    #            if not anl.chain:
-    #                return
-    #            
-    #            Mmin = anl.ExtractData(blob_name)
-    #            zarr = anl.get_ivar(blob_name)
-    #            
-    #            
-    #            def func(**kw):
-    #                
-    #                ind = []
-    #                for k, par in enumerate(anl.parameters):
-    #                    try:
-    #                        i = list(anl.parameters).index(kw[par])
-    #                    except ValueError:
-    #                        i = np.argmin(np.abs(kw[par] - anl.unique_samples[k]))
-    #                    
-    #                    ind.append(i)
-    #                    
-    #                    
-    #                # parameters that matter
-    #                i1 = 
-    #                i2 = list(anl.parameters).index(kw['pop_bind_limit{2}'])
-    #
-    #                p1 = anl.chain[:,i1]
-    #                p2 = anl.chain[:,i2]
-    #                
-    #                
-    #                
-    #                
-    #                
-    #                
-    #                score = np.abs(p1 - kw['pop_time_limit{2}']) \
-    #                      + np.abs(p1 - kw['pop_bind_limit{2}'])
-    #                
-    #                best = np.argmin(score)
-    #
+    def _prep_tricks(self):
+        """
+        Super non-general at the moment sorry.
+        """
+        
+        if 'guess_popIII_sfrds' in self.trick_names:
+            
+            i = self.trick_names.index('guess_popIII_sfrds')
+            fn = self.trick_files[i]
+            if fn is not None:
+                anl = ModelSet(fn)
+                #if not anl.chain:
+                #    return
+                    
+                print "Ready to cheat!"    
+                    
+                # HARD CODING FOR NOW
+                blob_name = 'popIII_Mmin'
+                Mmin = anl.ExtractData(blob_name)[blob_name]
+                zarr = anl.get_ivars(blob_name)[0]
+                
+                def func(**kw):
+                    
+                    # First, figure out where (if anywhere) the parameters
+                    # in hand live in the lookup table.
+                    
+                    ind = []
+                    for k, par in enumerate(anl.parameters):
+                        
+                        if par not in kw:
+                            ind.append(None)
+                            continue
+                        
+                        try:
+                            i = list(anl.parameters).index(kw[par])
+                        except ValueError:
+                            i = np.argmin(np.abs(kw[par] - anl.unique_samples[k]))
+                        
+                        ind.append(i)
+                        
+                    score = 0.0
+                    for k, par in enumerate(anl.parameters):
+                        if ind[k] is None:
+                            continue
+                        
+                        vals = anl.chain[:,ind[k]]    
+
+                        print k, par, kw[par]
+
+                        score += np.abs(vals - kw[par])
+                    
+                    best = np.argmin(score)
+                    
+                    print zarr.shape, Mmin.shape, best
+                    
+                    f = lambda zz: np.interp(zz, zarr, Mmin[best])
+                    return {'pop_Mmin{2}': f}
+                    
+                    #if np.min(score) == 0:
+                        
+                    
+                    
+                self.trick_funcs['guess_popIII_sfrds'] = func
+            
+    @property
+    def trick_funcs(self):
+        if not hasattr(self, '_trick_funcs'):
+            self._trick_funcs = {}
+        return self._trick_funcs
+        
+    @trick_funcs.setter
+    def trick_funcs(self, value):
+        if not hasattr(self, '_trick_funcs'):
+            self._trick_funcs = {}
+            
+        assert type(value) is dict
+        self._trick_funcs.update(value)
             
     def _run_sim(self, kw, p):
         
         failct = 0
         sim = self.simulator(**p)
+        sim.run()   
                         
         try:
             sim.run()            
@@ -641,7 +682,20 @@ class ModelGrid(ModelFit):
                     kw[par] = kwargs[par]
             
             p.update(kw)
-            p.update(self.trick_data)
+            
+            #if 'guess_popIII_sfrds' in self.trick_names:
+            #    trick = self.trick_funcs['guess_popIII_sfrds'](**kw)
+            #                    
+            #    import matplotlib.pyplot as pl
+            #    print trick
+            #    zarr = np.arange(6, 50)
+            #    pl.semilogy(zarr, trick['pop_Mmin{2}'](zarr))
+            #    raw_input('<enter>')
+            #    
+            #    #if score > 0:
+            #    #    trick['feedback_LW_assume_perfect_guesses'] = False 
+            #    #
+            #    p.update(trick)
             
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
             if self.reuse_splines and \

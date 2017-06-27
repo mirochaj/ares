@@ -1052,8 +1052,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_Mmin(self):
         if not hasattr(self, '_tab_Mmin_'):
             # First, compute threshold mass vs. redshift
+            if self.pf['feedback_LW_guesses'] is not None:
+                guess = self._guess_Mmin()
+                if guess is not None:
+                    self._tab_Mmin = guess
+                    return self._tab_Mmin_
+            
             if self.pf['pop_Mmin'] is not None:
-                if ismethod(self.pf['pop_Mmin']):
+                if ismethod(self.pf['pop_Mmin']) or \
+                   type(self.pf['pop_Mmin']) == FunctionType:
                     self._tab_Mmin_ = \
                         np.array(map(self.pf['pop_Mmin'], self.halos.z))
                 elif type(self.pf['pop_Mmin']) is np.ndarray:
@@ -2496,3 +2503,67 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             return self.rho_N(z, Emin, Emax)
                  
+    def _guess_Mmin(self):
+        """
+        Super non-general at the moment sorry.
+        """
+        
+        fn = self.pf['feedback_LW_guesses']
+        
+        if fn is None:
+            return None
+        
+        if type(fn) is str:
+            anl = ModelSet(fn)
+        else: 
+            anl = fn
+        
+        # HARD CODING FOR NOW
+        blob_name = 'popIII_Mmin'
+        Mmin = anl.ExtractData(blob_name)[blob_name]
+        zarr = anl.get_ivars(blob_name)[0]
+        
+        ##
+        # Remember: ModelSet will have {}'s and guesses_from will not.
+        ##                
+        kw = {par: self.pf[par] \
+            for par in self.pf['feedback_LW_guesses_from']}
+        
+        print kw
+        
+        ind = []
+        pid = self.pf['feedback_LW_sfrd_popid']
+        for k, par in enumerate(anl.parameters):
+        
+            p_w_id = '%s{%i}' % (par, pid)
+        
+            if par not in kw:
+                ind.append(None)
+                continue
+        
+            try:
+                i = list(anl.parameters).index(kw[p_w_id])
+            except ValueError:
+                i = np.argmin(np.abs(kw[p_w_id] - anl.unique_samples[k]))
+        
+            ind.append(i)
+        
+        score = 0.0
+        for k, par in enumerate(anl.parameters):
+            if ind[k] is None:
+                continue
+        
+            p_w_id = '%s{%i}' % (par, pid)
+        
+            vals = anl.chain[:,ind[k]]    
+        
+            print k, par, kw[par]
+        
+            score += np.abs(vals - kw[p_w_id])
+        
+        best = np.argmin(score)
+        
+        print zarr.shape, Mmin.shape, best
+        
+        return np.interp(self.halos.z, zarr, Mmin[best])
+        
