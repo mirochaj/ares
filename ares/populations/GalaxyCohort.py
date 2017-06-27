@@ -2528,42 +2528,22 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ##                
         kw = {par: self.pf[par] \
             for par in self.pf['feedback_LW_guesses_from']}
-        
-        print kw
-        
-        ind = []
-        pid = self.pf['feedback_LW_sfrd_popid']
-        for k, par in enumerate(anl.parameters):
-        
-            p_w_id = '%s{%i}' % (par, pid)
-        
-            if par not in kw:
-                ind.append(None)
-                continue
-        
-            try:
-                i = list(anl.parameters).index(kw[p_w_id])
-            except ValueError:
-                i = np.argmin(np.abs(kw[p_w_id] - anl.unique_samples[k]))
-        
-            ind.append(i)
-        
+                
         score = 0.0
-        for k, par in enumerate(anl.parameters):
-            if ind[k] is None:
+        pid = self.pf['feedback_LW_sfrd_popid']
+        for k, par in enumerate(self.pf['feedback_LW_guesses_from']):
+            p_w_id = '%s{%i}' % (par, pid)
+            
+            if p_w_id not in anl.parameters:
                 continue
         
-            p_w_id = '%s{%i}' % (par, pid)
+            ind = list(anl.parameters).index(p_w_id)
         
-            vals = anl.chain[:,ind[k]]    
-        
-            print k, par, kw[par]
-        
-            score += np.abs(vals - kw[p_w_id])
+            vals = anl.chain[:,ind]    
+                            
+            score += np.abs(np.log10(vals) - np.log10(kw[par]))
         
         best = np.argmin(score)
-        
-        print zarr.shape, Mmin.shape, best
-        
+                
         return np.interp(self.halos.z, zarr, Mmin[best])
         

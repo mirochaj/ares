@@ -481,7 +481,6 @@ class ModelGrid(ModelFit):
         
         failct = 0
         sim = self.simulator(**p)
-        sim.run()   
                         
         try:
             sim.run()            
