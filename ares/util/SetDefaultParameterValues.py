@@ -231,11 +231,11 @@ def PhysicsParameters():
     
     'feedback_LW_Mmin_smooth': 0,
     'feedback_LW_Mmin_fit': 0,
-    'feedback_LW_Mmin_afreq': 3,
+    'feedback_LW_Mmin_afreq': 0,
     'feedback_LW_Mmin_rtol': 0.0,
     'feedback_LW_Mmin_atol': 0.0,
     'feedback_LW_sfrd_rtol': 1e-1,
-    'feedback_LW_sfrd_atol': 0.0,
+    'feedback_LW_sfrd_atol': 1e-10,
     'feedback_LW_sfrd_popid': None,
     'feedback_LW_guess': None,
     'feedback_LW_zstart': None,
@@ -481,7 +481,7 @@ def PopulationParameters():
     "pop_Mmax": None,
 
     "pop_time_limit": None,
-    "pop_time_limit_delay": False,
+    "pop_time_limit_delay": True,
     "pop_mass_limit": None,
     "pop_abun_limit": None,
     "pop_bind_limit": None,

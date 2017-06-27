@@ -35,6 +35,8 @@ if float(_scipy_ver[1]) >= 0.14:
 else:
     _interp1d_kwargs = {}
     
+_tiny_sfrd = 1e-12
+    
 def NH2(z, Mh, fH2=3.5e-4):
     return 1e17 * (fH2 / 3.5e-4) * (Mh / 1e6)**(1. / 3.) * ((1. + z) / 20.)**2.
 
@@ -189,8 +191,15 @@ class MetaGalacticBackground(AnalyzeMGB):
             
         else:
             if self.pf['verbose']:
-                print "LWB: iteration #%i..." % (self.count+1)
-                
+                if hasattr(self, '_sfrd_bank') and self.count >= 2:
+                    pid = self.pf['feedback_LW_sfrd_popid']
+                    z_maxerr = self.pops[pid].halos.z[self._ok][np.argmax(self._sfrd_rerr[self._ok])]
+                    print "LWB iteration #%i complete: mean_err=%.3e, max_err=%.3e, z_max_err=%.3f" \
+                        % (self.count, np.mean(self._sfrd_rerr[self._ok]), 
+                           np.max(self._sfrd_rerr[self._ok]), z_maxerr)
+                else:
+                    print "LWB iteration #%i complete." % self.count
+                            
             self.reboot()
             self.run(include_pops=self._lwb_sources)
     
@@ -751,14 +760,17 @@ class MetaGalacticBackground(AnalyzeMGB):
             pid = self.pf['feedback_LW_sfrd_popid']
             if self.count == 1:
                 self._sfrd_bank = [self.pops[pid]._tab_sfrd_total]
-                self._sfrd_rerr = []
             else:
                 self._sfrd_bank.append(self.pops[pid]._tab_sfrd_total.copy())
-                pre = self._sfrd_bank[-2]
-                now = self._sfrd_bank[-1]
-                gt0 = np.logical_and(now > 0, pre > 0)
-                err = np.abs(pre[gt0] - now[gt0]) / now[gt0]
-                self._sfrd_rerr.append(err)
+                pre = self._sfrd_bank[-2] * rhodot_cgs
+                now = self._sfrd_bank[-1] * rhodot_cgs
+                gt0 = np.logical_and(now > _tiny_sfrd, pre > _tiny_sfrd)
+                
+                zmin = max(self.pf['final_redshift'], self.pf['kill_redshift'])
+                err = np.abs(pre - now) / now
+                
+                self._ok = np.logical_and(gt0, self.pops[pid].halos.z > zmin)                
+                self._sfrd_rerr = err
             
         self._Mmin_pre = np.maximum(self._Mmin_pre, 
             pop_fb.halos.Mmin_floor(zarr))    
@@ -827,16 +839,25 @@ class MetaGalacticBackground(AnalyzeMGB):
         # are being used.
         Mnext = f_M(zarr)
         
-        if self.pf['feedback_LW_mixup_freq'] > 0 and \
-           self.count > self.pf['feedback_LW_mixup_delay'] and \
-           self.count % self.pf['feedback_LW_mixup_freq'] == 0:
+        mfreq = self.pf['feedback_LW_mixup_freq']
+        mdel = self.pf['feedback_LW_mixup_delay']
+        
+        if mfreq > 0 and self.count >= mdel and \
+           (self.count - mdel) % mfreq == 0:
             #_Mmin_next = np.zeros_like(Mnext)
             #pre, now = self._Mmin_bank[-2:]
             #gt0 = np.logical_and(pre > 0, now > 0)
             #ngt0 = np.logical_not(gt0)
             #_Mmin_next[gt0] = np.sqrt(pre[gt0] * now[gt0])
             #_Mmin_next[ngt0] = now[ngt0]
+            
             _Mmin_next = np.sqrt(np.product(self._Mmin_bank[-2:], axis=0))
+            #weights = np.reshape([1, 1, 2, 2]*len(self._Mmin_bank[-1]),
+            #    (len(self._Mmin_bank[-1]), 4)).T
+            #_Mmin_next = np.average(self._Mmin_bank[-4:],
+            #    weights=weights, axis=0)
+                
+            #_Mmin_next = np.maximum.accumulate(_Mmin_next[-1::-1])[-1::-1]
 
         elif (self.count > 1) and (self.pf['feedback_LW_softening'] is not None):   
             if self.pf['feedback_LW_softening'] == 'sqrt':
@@ -918,12 +939,9 @@ class MetaGalacticBackground(AnalyzeMGB):
 
             # Less stringent requirement, that mean error meet tolerance.
             if self.pf['feedback_LW_mean_err']:
-                err_rel = np.abs((pre - post) / post)
+                err_rel = np.abs((pre - post)) / post
                 err_abs = np.abs(post - pre)
-
-                #if quantity == 'Mmin':
-                #    self._err_rel = err_rel
-
+                
                 if rtol > 0:
                     if err_rel.mean() > rtol:
                         converged *= 0
@@ -941,12 +959,21 @@ class MetaGalacticBackground(AnalyzeMGB):
                 # This is a little sketchy because some grid points
                 # may go from 0 to >0 on back-to-back iterations, but in practice
                 # there are so few that this isn't a real concern.
-                gt0 = np.logical_and(pre > 0, post > 0)
-                
+                gt0 = np.logical_and(pre > _tiny_sfrd, post > _tiny_sfrd)
+                zmin = max(self.pf['final_redshift'], self.pf['kill_redshift'])
+
+                pid = self.pf['feedback_LW_sfrd_popid']
+                zarr = self.pops[pid].halos.z
+
+                if quantity == 'sfrd':
+                    ok = np.logical_and(gt0, zarr > zmin)
+                else:
+                    ok = gt0
+                                
                 # Check for convergence
-                converged = np.allclose(pre[gt0], post[gt0], rtol=rtol, atol=atol)
+                converged = np.allclose(pre[ok], post[ok], rtol=rtol, atol=atol)
                     
-                perfect = np.all(np.equal(pre[gt0], post[gt0]))
+                perfect = np.all(np.equal(pre[ok], post[ok]))
                 
                 # Nobody is perfect. Something is weird. Keep on keepin' on.
                 # This was happening at one point on iteration 3...
