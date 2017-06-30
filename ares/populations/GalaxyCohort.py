@@ -15,6 +15,7 @@ import time
 import numpy as np
 from ..util import read_lit
 from inspect import ismethod
+from ..analysis import ModelSet
 from scipy.optimize import fsolve, minimize
 from types import FunctionType, InstanceType
 from ..analysis.BlobFactory import BlobFactory

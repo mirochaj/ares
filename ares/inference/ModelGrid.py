@@ -699,29 +699,30 @@ class ModelGrid(ModelFit):
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
             if self.reuse_splines and \
                 i_Tmin not in fcoll.keys() and (not self.phenomenological):
-                raise NotImplementedError('help')
-                #sim = self.simulator(**p)
-                                
-                #pops = sim.pops
-                #
-                #if hasattr(self, 'Tmin_ax_popid'):
-                #    loc = self.Tmin_ax_popid
-                #    suffix = '{%i}' % loc
-                #else:
-                #    if sim.pf.Npops > 1:
-                #        loc = 0
-                #        suffix = '{0}'
-                #    else:    
-                #        loc = 0
-                #        suffix = ''
-                #
-                #hmf_pars = {'pop_Tmin%s' % suffix: sim.pf['pop_Tmin%s' % suffix],
-                #    'fcoll%s' % suffix: copy.deepcopy(pops[loc].fcoll), 
-                #    'dfcolldz%s' % suffix: copy.deepcopy(pops[loc].dfcolldz)}
-                #
-                ## Save for future iterations
-                #fcoll[i_Tmin] = hmf_pars.copy()
+                #raise NotImplementedError('help')
+                sim = self.simulator(**p)
+                               
+                pops = sim.pops
+                
+                if hasattr(self, 'Tmin_ax_popid'):
+                    loc = self.Tmin_ax_popid
+                    suffix = '{%i}' % loc
+                else:
+                    if sim.pf.Npops > 1:
+                        loc = 0
+                        suffix = '{0}'
+                    else:    
+                        loc = 0
+                        suffix = ''
+                
+                hmf_pars = {'pop_Tmin%s' % suffix: sim.pf['pop_Tmin%s' % suffix],
+                    'fcoll%s' % suffix: copy.deepcopy(pops[loc].fcoll), 
+                    'dfcolldz%s' % suffix: copy.deepcopy(pops[loc].dfcolldz)}
+                
+                # Save for future iterations
+                fcoll[i_Tmin] = hmf_pars.copy()
 
+                p.update(hmf_pars)
             # If we already have matching fcoll splines, use them!
             elif self.reuse_splines and (not self.phenomenological):
                                         

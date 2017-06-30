@@ -197,6 +197,8 @@ class MultiPanel(object):
             self.fig.subplots_adjust(left=l, right=r, bottom=b, top=t, 
                 wspace=self.padding[0], hspace=self.padding[1])
         
+        self.l, self.r, self.b, self.t = l, r, b, t
+        
         # Important attributes for identifying individual panels
         self.N = int(np.prod(self.dims))
         self.elements = list(np.reshape(np.arange(self.N), self.dims))
@@ -283,6 +285,23 @@ class MultiPanel(object):
                 rect = [lef, bot, self.panel_size_rel[0], self.panel_size_rel[1]]
 
                 self.grid[i] = self.fig.add_axes(rect)
+            
+    def activate_null_axis(self, i):
+        j, k = self.axis_position(i)
+        e_fl = self.elements.flatten()
+        
+        self.grid[i] = AxisConstructor(self.fig, self.J, self.K, e_fl[i]+1)
+        
+        #lef = self.l + j * self.panel_size_rel[0] \
+        #    + self.padding[0] + self.dx
+        #bot = self.b + k * self.panel_size_rel[1] \
+        #    + self.padding[1] + self.dy
+        #
+        #rect = [lef, bot, self.panel_size_rel[0], self.panel_size_rel[1]]
+        #
+        #self.grid[i] = self.fig.add_axes(rect)                         
+        #      
+        #return self.grid[i]    
             
     def add_cbar(self, axes=None, position='top', padding=0.05,
         width=0.05):

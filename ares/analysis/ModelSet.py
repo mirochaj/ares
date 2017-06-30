@@ -1466,6 +1466,7 @@ class ModelSet(BlobFactory):
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
         line_plot=False, sort_by='z', filter_z=None, rungs=False, 
         rung_label=None, rung_label_top=True, return_cb=False, cax=None,
+        skip=0, skim=1, stop=None,
         cb_kwargs={}, operation=None, **kwargs):
         """
         Plot samples as points in 2-d plane.
@@ -1736,6 +1737,7 @@ class ModelSet(BlobFactory):
     
     def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
         take_log=False, un_log=False, multiplier=1., add_patch=True,
+        skip=0, skim=1, stop=None,
         boundary_type='convex', alpha=0.3, return_polygon=False, **kwargs):
         """
         Basically a scatterplot but instead of plotting individual points,
@@ -1764,8 +1766,7 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
 
-        data = \
-            self.ExtractData(pars, ivar, take_log, un_log, multiplier)
+        data = self.ExtractData(pars, ivar, take_log, un_log, multiplier)
 
         xdata = self.xdata = data[pars[0]].compressed()
         ydata = self.ydata = data[pars[1]].compressed()
@@ -1788,10 +1789,13 @@ class ModelSet(BlobFactory):
         # Plot a Polygon using descartes
         if add_patch and (polygon is not None):
             # This basically just gets the axis object in order without
-            # actually plotting anything (effectively)
+            # actually plotting anything
             self.Scatter(pars, ivar=ivar, take_log=take_log, un_log=un_log,
                 multiplier=multiplier, ax=ax, edgecolors='none', 
                 facecolors='none')
+            
+            patch = PolygonPatch(polygon, **kwargs)
+            ax.add_patch(patch)
             
             try:        
                 patch = PolygonPatch(polygon, **kwargs)
@@ -1804,7 +1808,7 @@ class ModelSet(BlobFactory):
                 try:
                     ax.add_collection(PatchCollection(patches, match_original=True))
                 except TypeError:
-                    print patches
+                    print 'Patches:', patches
 
             pl.draw()
 
@@ -2561,7 +2565,7 @@ class ModelSet(BlobFactory):
     def PosteriorPDF(self, pars, to_hist=None, ivar=None, 
         ax=None, fig=1, 
         multiplier=1., like=[0.95, 0.68], cdf=False,
-        color_by_like=False, filled=True, take_log=False, un_log=False,
+        color_by_like=False, fill=True, take_log=False, un_log=False,
         bins=20, skip=0, skim=1, 
         contour_method='raw', excluded=False, stop=None, **kwargs):
         """
@@ -2596,7 +2600,7 @@ class ModelSet(BlobFactory):
         skim : int
             Only take every skim'th step from the chain.
         excluded : bool
-            If True, and filled == True, fill the area *beyond* the given contour with
+            If True, and fill == True, fill the area *beyond* the given contour with
             cross-hatching, rather than the area interior to it.
 
         Returns
@@ -2723,7 +2727,7 @@ class ModelSet(BlobFactory):
                     nu, levels = error_2D(to_hist[0], to_hist[1], self.L / self.L.max(), 
                         bins=[binvec[0], binvec[1]], nu=nu, method=contour_method)
         
-                if filled:
+                if fill:
                     if excluded and len(nu) == 1:
                         # Fill the entire window with cross-hatching
                         x1, x2 = ax.get_xlim()
@@ -2752,7 +2756,7 @@ class ModelSet(BlobFactory):
                         levels, zorder=4, **kwargs)
                 
             else:
-                if filled:
+                if fill:
                     cs = ax.contourf(bc[0], bc[1], hist / hist.max(), 
                         zorder=3, **kw)
                 else:
@@ -2778,7 +2782,7 @@ class ModelSet(BlobFactory):
         return ax
               
     def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
-        un_log=False, multiplier=1., ax=None, fig=1, filled=True, 
+        un_log=False, multiplier=1., ax=None, fig=1, fill=True, 
         inline_labels=False, manual=None, cax=None, use_colorbar=True, 
         cb_kwargs={}, **kwargs):         
         """
@@ -2815,11 +2819,15 @@ class ModelSet(BlobFactory):
             xdata, ydata, zdata = self._reshape_data(pars, c, ivar=ivar, 
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
                                 
-            if filled:
+            if fill:
+                
+                kw = kwargs.copy()
+                kw.update(cb_kwargs)
+                
                 if levels is not None:
-                    CS = ax.contourf(xdata, ydata, zdata.T, levels, **kwargs)
+                    CS = ax.contourf(xdata, ydata, zdata.T, levels, **kw)
                 else:
-                    CS = ax.contourf(xdata, ydata, zdata.T, **kwargs)
+                    CS = ax.contourf(xdata, ydata, zdata.T, **kw)
                 
                 if use_colorbar:
                     cb = pl.colorbar(CS, cax=cax, **cb_kwargs)
@@ -2944,7 +2952,7 @@ class ModelSet(BlobFactory):
             zax = np.log10(zax)    
             
         z.pop(-1)
-        ax = self.PosteriorPDF(pars, z=z, take_log=take_log, filled=False, 
+        ax = self.PosteriorPDF(pars, z=z, take_log=take_log, fill=False, 
             bins=bins, **kwargs)
         
         # Pick out Nscat random points to plot
@@ -3042,10 +3050,10 @@ class ModelSet(BlobFactory):
                 
     def TrianglePlot(self, pars=None, ivar=None, take_log=False, un_log=False, 
         multiplier=1, fig=1, mp=None, inputs={}, tighten_up=0.0, ticks=5, 
-        bins=20, skip=0, scatter=False,
-        skim=1, oned=True, twod=True, filled=True, show_errors=False, 
-        label_panels=None, 
-        fix=True, skip_panels=[], stop=None, mp_kwargs={},
+        bins=20,  scatter=False, polygons=False, 
+        skip=0, skim=1, stop=None, oned=True, twod=True, fill=True, 
+        show_errors=False, label_panels=None, 
+        fix=True, skip_panels=[], mp_kwargs={},
         **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -3091,7 +3099,7 @@ class ModelSet(BlobFactory):
             Only take every skim'th step from the chain.
         oned : bool    
             Include the 1-D marginalized PDFs?
-        filled : bool
+        fill : bool
             Use filled contours? If False, will use open contours instead.
         color_by_like : bool
             If True, set contour levels by confidence regions enclosing nu-%
@@ -3101,6 +3109,9 @@ class ModelSet(BlobFactory):
             like=[0.68, 0.95])
         skip_panels : list
             List of panel numbers to skip over.
+        polygons : bool
+            If True, will just plot bounding polygons around samples rather
+            than plotting the posterior PDF.
         mp_kwargs : dict 
             panel_size : list, tuple (2 elements)
                 Multiplicative factor in (x, y) to be applied to the default 
@@ -3139,6 +3150,9 @@ class ModelSet(BlobFactory):
             bins = [binvec[par] for par in pars]      
         else:
             bins = binvec    
+            
+        if polygons:
+            oned = False    
                  
         # Can opt to exclude 1-D panels along diagonal                
         if oned:
@@ -3270,10 +3284,15 @@ class ModelSet(BlobFactory):
                 # 2-D PDFs elsewhere
                 if scatter:
                     ax = self.Scatter([p2, p1], ax=mp.grid[k], 
-                        to_hist=tohist, z=red, 
                         take_log=[take_log[j], take_log[-1::-1][i]],
                         multiplier=[multiplier[j], multiplier[-1::-1][i]], 
-                        bins=[bins[j], bins[-1::-1][i]], filled=filled, 
+                        skip=skip, stop=stop, **kwargs)
+                elif polygons:       
+                    ax = self.BoundingPolygon([p2, p1], ax=mp.grid[k], 
+                        #to_hist=tohist,
+                        take_log=[take_log[j], take_log[-1::-1][i]],
+                        multiplier=[multiplier[j], multiplier[-1::-1][i]], 
+                        fill=fill, 
                         skip=skip, stop=stop, **kwargs)
                 else:
                     ax = self.PosteriorPDF([p2, p1], ax=mp.grid[k], 
@@ -3281,7 +3300,7 @@ class ModelSet(BlobFactory):
                         take_log=[take_log[j], take_log[-1::-1][i]],
                         un_log=[un_log[j], un_log[-1::-1][i]],
                         multiplier=[multiplier[j], multiplier[-1::-1][i]], 
-                        bins=[bins[j], bins[-1::-1][i]], filled=filled, 
+                        bins=[bins[j], bins[-1::-1][i]], fill=fill, 
                         skip=skip, stop=stop, **kwargs)
 
                 if row != 0:
@@ -3377,6 +3396,9 @@ class ModelSet(BlobFactory):
         
         # Don't do this: grid may be incomplete!
         #assert x * y == data[c].size
+        
+        print pars, c
+        print data[c].shape
         
         flat = data[c]
         zarr = np.inf * np.ones([len(x), len(y)])

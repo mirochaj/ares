@@ -268,8 +268,26 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                 
             result = self.track.turning_points
             result.update(fixes)
-
+            
             self._turning_points = result       
+            
+            ## 
+            # If there are multiple extrema (e.g, C and C'), fix order.
+            ##
+            
+            # Don't do this just yet. Going to break compatibility with
+            # some recent datasets.
+            
+            #for tp in list('BCD'):
+            #    if '%sp' % tp in self.turning_points:
+            #        tmp_p = self.turning_points['%sp' % tp]
+            #        tmp = self.turning_points[tp]
+            #    
+            #        del self.turning_points['%sp' % tp]
+            #        del self.turning_points[tp]
+            #        
+            #        self.turning_points[tp] = tmp_p
+            #        self.turning_points['%sp' % tp] = tmp
 
         return self._turning_points
 

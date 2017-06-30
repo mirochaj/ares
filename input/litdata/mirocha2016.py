@@ -83,7 +83,7 @@ dpl = \
 
 _floor_specific = \
 {
-'pq_val_floor{0}[0]': 0.005,
+ 'pq_val_floor{0}[0]': 0.005,
 }
 
 floor = _floor_specific

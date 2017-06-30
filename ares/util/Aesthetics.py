@@ -53,10 +53,15 @@ derived = \
 {
  'Ts': r'$T_S$',
  'dTb': r'$\delta T_b \ (\mathrm{mK})$',
- 'hwhm_diff': r'$\Delta \nu_{\min}$',
+ #'hwhm_diff': r'$\Delta \nu_{\min}$',
+ #'squash': r'$\delta T_b(\nu_{\min}) / \mathrm{FWHM}$',
+ 'hwhm_diff': r'$\mathcal{A} \ (\mathrm{MHz})$',
+ 'squash': r'$\mathcal{W} \ (\mathrm{mK} \ \mathrm{MHz}^{-1})$',
  'fwhm': r'$\mathrm{FWHM}$',
  'fwqm': r'$\mathrm{FWQM}$',
- 'mean_slope': r'$\langle \delta T_b^{\prime} \rangle$'
+ 'mean_slope': r'$\langle \delta T_b^{\prime} \rangle$',
+ 'mean_slope_hi': r'$\langle \delta T_b^{\prime} \rangle_{\mathrm{hi}}$',
+ 'mean_slope_lo': r'$\langle \delta T_b^{\prime} \rangle_{\mathrm{lo}}$',
 }
 
 labels = {}
