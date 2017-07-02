@@ -481,9 +481,9 @@ class ModelSet(BlobFactory):
 
             elif os.path.exists('%s.hdf5' % self.prefix):
                 f = h5py.File('%s.hdf5' % self.prefix)
-                chain = f['chain']
-                self.mask = chain.attrs.get('mask')
-                self._chain = np.ma.array(chain.value, mask=self.mask)
+                chain = f['chain'].value
+                self.mask = f['mask'].value
+                self._chain = np.ma.array(chain, mask=self.mask)
                 f.close()
 
             # If each "chunk" gets its own file.
@@ -4204,8 +4204,8 @@ class ModelSet(BlobFactory):
             
             if include_chain:
                 ds = f.create_dataset('chain', data=self.chain)
-                ds.attrs.create('mask', data=self.mask)
                 ds.attrs.create('names', data=self.parameters)
+		f.create_dataset('mask', data=self.mask)
             else:
                 # raise a warning? eh.
                 pass
