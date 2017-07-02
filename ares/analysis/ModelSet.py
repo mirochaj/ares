@@ -161,43 +161,9 @@ class ModelSet(BlobFactory):
             self._chain = data.chain
             self._is_log = data.is_log
             self._base_kwargs = data.base_kwargs
-            #self._fails = data.fails
-            
-            #self.mask = np.zeros_like(data.blobs)
-            #self.mask[np.isinf(data.blobs)] = 1
-            #self.mask[np.isnan(data.blobs)] = 1
-            #self._blobs = np.ma.masked_array(data.blobs, mask=self.mask)
-
-            #self._blob_names = data.blob_names
-            #self._blob_redshifts = data.blob_redshifts
-            #self._parameters = data.parameters
-            #self._is_mcmc = data.is_mcmc
-
-            #if self.is_mcmc:
-            #    self.logL = data.logL
-            #else:
-            #    try:
-            #        self.load = data.load
-            #    except AttributeError:
-            #        pass
-            #    try:            
-            #        self.axes = data.axes
-            #    except AttributeError:
-            #        pass
-            #    try:
-            #        self.grid = data.grid
-            #    except AttributeError:
-            #        pass
-
-            #self.Nd = int(self.chain.shape[-1])
 
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
-    
-        #self.have_all_blobs = os.path.exists('%s.blobs.pkl' % self.prefix)
-
-        #self._pf = ModelSubSet()
-        #self._pf.Npops = self.Npops
 
         self.derived_blobs = DQ(self)
 
@@ -282,6 +248,10 @@ class ModelSet(BlobFactory):
                 self._parameters, self._is_log = pickle.load(f)
                 f.close()
                 self._parameters = patch_pinfo(self._parameters)
+            elif os.path.exists('%s.hdf5' % self.prefix):
+                f = h5py.File('%s.hdf5' % self.prefix)
+                self._parameters = f['chain'].attrs.get('names')
+                f.close()
             else:
                 self._is_log = [False] * self.chain.shape[-1]
                 self._parameters = ['p%i' % i \
@@ -508,6 +478,13 @@ class ModelSet(BlobFactory):
                 #    f = open('%s.chain.pkl' % self.prefix, 'wb')
                 #    pickle.dump(self._chain, f)
                 #    f.close()
+
+            elif os.path.exists('%s.hdf5' % self.prefix):
+                f = h5py.File('%s.hdf5' % self.prefix)
+                chain = f['chain']
+                self.mask = chain.attrs.get('mask')
+                self._chain = np.ma.array(chain.value, mask=self.mask)
+                f.close()
 
             # If each "chunk" gets its own file.
             elif glob.glob('%s.dd*.chain.pkl' % self.prefix):
@@ -4174,13 +4151,15 @@ class ModelSet(BlobFactory):
             path=path, fmt=fmt, clobber=clobber)
         
     def save(self, pars, prefix=None, fn=None, ivar=None, path='.', fmt='hdf5', 
-        clobber=False):
+        clobber=False, include_chain=True, restructure_grid=False):
         """
         Extract data from chain or blobs and output to separate file(s).
         
         This can be a convenient way to re-package data, for instance 
-        consolidating data outputs from lots of processors into a single file.
-        
+        consolidating data outputs from lots of processors into a single file,
+        or simply reducing the size of a file for easy transport when we 
+        don't need absolutely everything.
+                
         Parameters
         ----------
         pars : str, list, tuple
@@ -4191,11 +4170,21 @@ class ModelSet(BlobFactory):
             Options: 'hdf5' or 'pkl'
         path : str
             By default, will save files to CWD. Can modify this if you'd like.
+        include_chain : bool
+            By default, include the chain, which in the case of a ModelGrid,
+            is just the axes of the grid.
+        restructure_grid : bool
+            Not implemented yet, but would be nice to restructure model grid
+            data into an ordered mesh to be nice.
                 
         """
         
         if type(pars) not in [list, tuple]:
             pars = [pars]
+            
+            for par in pars:
+                if par in self.parameters:
+                    print "FYI: %s is a free parameter, so there's no need to include it explicitly." % par
 
         data = self.ExtractData(pars, ivar=ivar)
         
@@ -4212,31 +4201,30 @@ class ModelSet(BlobFactory):
             assert have_h5py, "h5py import failed."
             
             f = h5py.File(fn, 'w')
+            
+            if include_chain:
+                ds = f.create_dataset('chain', data=self.chain)
+                ds.attrs.create('mask', data=self.mask)
+                ds.attrs.create('names', data=self.parameters)
+            else:
+                # raise a warning? eh.
+                pass
 
             # Loop over parameters and save to disk
             for par in pars:   
                 
                 # Tag ivars on as attribute if blob
-                if par in self.all_blob_names:
-                    if 'blobs' not in f:
-                        grp = f.create_group('blobs')
-                    else:
-                        grp = f['blobs']
-
-                    dat = data[par]#[skip:stop:skim,Ellipsis]
-                    ds = grp.create_dataset(par, data=dat[self.mask == 0])
-                    i, j, nd, dims = self.blob_info(par)
-                    
-                    if self.blob_ivars[i] is not None:
-                        ds.attrs.create('ivar', self.blob_ivars[i])
+                if 'blobs' not in f:
+                    grp = f.create_group('blobs')
                 else:
-                    if 'axes' not in f:
-                        grp = f.create_group('axes')
-                    else:
-                        grp = f['axes']
-
-                    dat = data[par]#[skip:stop:skim,Ellipsis]
-                    ds = grp.create_dataset(par, data=dat[self.mask == 0])
+                    grp = f['blobs']
+                
+                dat = data[par]#[skip:stop:skim,Ellipsis]
+                ds = grp.create_dataset(par, data=dat[self.mask == 0])
+                i, j, nd, dims = self.blob_info(par)
+                
+                if self.blob_ivars[i] is not None:
+                    ds.attrs.create('ivar', self.blob_ivars[i])
                     
             f.close()
             print "Wrote %s." % fn  
