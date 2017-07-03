@@ -775,7 +775,10 @@ class MetaGalacticBackground(AnalyzeMGB):
         if self.pf['feedback_LW_zstart'] is not None:
             Jlw_dt[zarr > self.pf['feedback_LW_zstart']] = 0
                     
-        if self.pf['feedback_LW_ramp']:
+        # Experimental            
+        if self.pf['feedback_LW_ramp'] > 0:
+            ramp = self.pf['feedback_LW_ramp']
+            
             nh = 0.0
             for i in self._lwb_sources:
                 pop = self.pops[i]
@@ -788,8 +791,14 @@ class MetaGalacticBackground(AnalyzeMGB):
             
             # Compute typical separation of halos
             ravg = nh**(-1./3.)
-            tavg = ravg / (c / cm_per_mpc)
+            tavg = ramp * ravg / (c / cm_per_mpc)
             tH = self.grid.cosm.HubbleTime(zarr)
+            
+            # Basically making the argument that the LW background
+            # becomes uniform once the typical spacing between halos
+            # is << the light travel time between halos. 
+            # Could introduce a multiplicative factor to control 
+            # this more finely...
 
             # A number from [0, 1] that quantifies how uniform the background is
             f_uni = 1. - np.maximum(np.minimum(tavg / tH, 1.), 0)
@@ -807,21 +816,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         if mfreq > 0 and self.count >= mdel and \
            (self.count - mdel) % mfreq == 0:
-            #_Mmin_next = np.zeros_like(Mnext)
-            #pre, now = self._Mmin_bank[-2:]
-            #gt0 = np.logical_and(pre > 0, now > 0)
-            #ngt0 = np.logical_not(gt0)
-            #_Mmin_next[gt0] = np.sqrt(pre[gt0] * now[gt0])
-            #_Mmin_next[ngt0] = now[ngt0]
-            
             _Mmin_next = np.sqrt(np.product(self._Mmin_bank[-2:], axis=0))
-            #weights = np.reshape([1, 1, 2, 2]*len(self._Mmin_bank[-1]),
-            #    (len(self._Mmin_bank[-1]), 4)).T
-            #_Mmin_next = np.average(self._Mmin_bank[-4:],
-            #    weights=weights, axis=0)
-                
-            #_Mmin_next = np.maximum.accumulate(_Mmin_next[-1::-1])[-1::-1]
-
         elif (self.count > 1) and (self.pf['feedback_LW_softening'] is not None):   
             if self.pf['feedback_LW_softening'] == 'sqrt':
                 _Mmin_next = np.sqrt(Mnext * self._Mmin_pre)

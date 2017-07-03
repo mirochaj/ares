@@ -482,7 +482,8 @@ class ModelSet(BlobFactory):
             elif os.path.exists('%s.hdf5' % self.prefix):
                 f = h5py.File('%s.hdf5' % self.prefix)
                 chain = f['chain'].value
-                self.mask = f['mask'].value
+                mask = f['mask'].value
+                self.mask = np.array([mask] * chain.shape[1]).T
                 self._chain = np.ma.array(chain, mask=self.mask)
                 f.close()
 
@@ -4205,7 +4206,7 @@ class ModelSet(BlobFactory):
             if include_chain:
                 ds = f.create_dataset('chain', data=self.chain)
                 ds.attrs.create('names', data=self.parameters)
-		f.create_dataset('mask', data=self.mask)
+                f.create_dataset('mask', data=self.mask)
             else:
                 # raise a warning? eh.
                 pass
@@ -4221,10 +4222,15 @@ class ModelSet(BlobFactory):
                 
                 dat = data[par]#[skip:stop:skim,Ellipsis]
                 ds = grp.create_dataset(par, data=dat[self.mask == 0])
-                i, j, nd, dims = self.blob_info(par)
                 
-                if self.blob_ivars[i] is not None:
-                    ds.attrs.create('ivar', self.blob_ivars[i])
+                try:
+                    i, j, nd, dims = self.blob_info(par)
+                    
+                    if self.blob_ivars[i] is not None:
+                        # This might cause problems if the ivars are real big.
+                        ds.attrs.create('ivar', self.blob_ivars[i])
+                except KeyError:
+                    print "Missing ivar info for %s!" % par    
                     
             f.close()
             print "Wrote %s." % fn  
@@ -4232,11 +4238,17 @@ class ModelSet(BlobFactory):
         else:
             raise NotImplemented('Only support for hdf5 so far. Sorry!')
             
-        # Also make a copy of the setup file with same prefix
+        # Also make a copy of the info files with same prefix
         # since that's generally nice to have available.  
-        out = '%s/%s.%s.binfo.pkl' % (path, self.prefix, prefix)
-        shutil.copy('%s.binfo.pkl' % self.prefix, out)
-        print "Wrote %s." % out    
+        # Well, it gives you a false sense of what data is available,
+        # so sorry! Not doing that anymore.
+        #out = '%s/%s.%s.binfo.pkl' % (path, self.prefix, prefix)
+        #shutil.copy('%s.binfo.pkl' % self.prefix, out)
+        #print "Wrote %s." % out    
+        #
+        #out = '%s/%s.%s.pinfo.pkl' % (path, self.prefix, prefix)
+        #shutil.copy('%s.pinfo.pkl' % self.prefix, out)
+        #print "Wrote %s." % out
         
     @property
     def labeler(self):

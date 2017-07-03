@@ -102,6 +102,14 @@ _generic_updates = \
  'feedback_LW': True,
  'sam_dz': 0.1,
  'kill_redshift': 5.6,
+ 
+ 'feedback_LW_Mmin_rtol': 0,
+ 'feedback_LW_sfrd_rtol': 5e-2,
+ 'feedback_LW_sfrd_popid': 2,
+ 'feedback_LW_maxiter': 50,
+ 'feedback_LW_mixup_freq': 5,
+ 'feedback_LW_mixup_delay': 10,
+ 'pop_time_limit_delay{2}': True,
 }
 
 # This can lead to pickling issues...argh
@@ -118,7 +126,7 @@ _low = \
  'pop_zform{3}': 60,
 
  'pop_sfr_model{2}': 'sfr-func',
- 'pop_sfr{2}': 2e-5,
+ 'pop_sfr{2}': 1e-5,
  'pop_sfr_cross_threshold{2}': False,
  'pop_sed{2}': 'eldridge2009',
  'pop_binaries{2}': False,
@@ -166,12 +174,12 @@ _low = \
  'pop_Tmax_ceil{2}': 1e6,
  'pop_sfr_cross_threshold{2}': False,
 
- 'pop_time_limit{2}': 5.,
+ 'pop_time_limit{2}': 2.5,
  'pop_bind_limit{2}': 1e51,
  'pop_abun_limit{2}': None,
  
  # Acknowledging that our mean metallicity is kludgey
- # Note that this renders the stellar mass meaningless (it'll be zero)
+ # Note that this renders the stellar mass meaningless (it'll be zero).
  'pop_mass_yield{2}': 1.0,
  'pop_metal_yield{2}': 1.0,
 }
