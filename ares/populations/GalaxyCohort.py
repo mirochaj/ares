@@ -2516,8 +2516,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         if type(fn) is str:
             anl = ModelSet(fn)
-        else: 
+        elif isinstance(fn, ModelSet): 
             anl = fn
+        else:
+            zarr, Mmin = fn
+            return np.interp(self.halos.z, zarr, Mmin)
         
         # HARD CODING FOR NOW
         blob_name = 'popIII_Mmin'

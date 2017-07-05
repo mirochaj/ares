@@ -1100,7 +1100,7 @@ class UniformBackground(object):
         Units of emissivity are: erg / s / Hz / cMpc
             
         """
-
+        
         Nz, Nf = len(z), len(E)
 
         Inu = np.zeros(Nf)

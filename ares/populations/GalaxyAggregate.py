@@ -107,6 +107,10 @@ class GalaxyAggregate(HaloPopulation):
                 self._Source_ = SynthesisModel
             elif self.pf['pop_sed'] in _single_star_models:
                 self._Source_ = StarQS
+            elif type(self.pf['pop_sed']) is FunctionType or \
+                 inspect.ismethod(self.pf['pop_sed']) or \
+                 isinstance(self.pf['pop_sed'], interp1d):
+                 self._Source_ = BlackHole
             else:
                 self._Source_ = read_lit(self.pf['pop_sed'], 
                     verbose=self.pf['verbose'])
