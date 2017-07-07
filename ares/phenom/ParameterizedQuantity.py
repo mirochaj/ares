@@ -325,8 +325,8 @@ class ParameterizedQuantity(object):
                     alph = np.log10(p2 / p0) / (p3 - p1)
                     f = (x / 10**p1)**alph
 
-        #elif func == 'user':
-        #    f = self.pf['pq_func_fun'](z, M)
+        elif func == 'user':
+            f = self.pf['pq_func_fun'](**kwargs)
         else:
             raise NotImplementedError('Don\'t know how to treat %s function!' % func)
 

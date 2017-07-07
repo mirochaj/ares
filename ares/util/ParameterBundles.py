@@ -421,7 +421,7 @@ class ParameterBundle(dict):
                 else:    
                     tmp[par] = self[par]
                 
-        return tmp 
+        return ParameterBundle(**tmp)
         
     @property
     def pqs(self):

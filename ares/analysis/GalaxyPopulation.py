@@ -13,9 +13,9 @@ Description:
 import numpy as np
 from ..util import read_lit
 import matplotlib.pyplot as pl
-from .MultiPlot import MultiPanel
 from matplotlib.patches import Patch
 from ..util.Stats import symmetrize_errors
+from .MultiPlot import MultiPanel, add_master_legend
 
 datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
     'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
@@ -381,4 +381,9 @@ class GalaxyPopulation(object):
         pl.draw()
         
         return ax
+        
+    def add_master_legend(self, mp, **kwargs):
+        return add_master_legend(mp, **kwargs)
+        
+        
             

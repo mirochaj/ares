@@ -2085,6 +2085,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             new_data = {}
             sorter = np.argsort(data['Mh'])
             for key in data.keys():
+                if key == 'zmax':
+                    continue
                 new_data[key] = data[key][sorter]
         else:
             

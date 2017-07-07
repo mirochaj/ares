@@ -285,6 +285,7 @@ def ParameterizedQuantityParameters():
     pf = \
     {
      "pq_func": 'dpl',
+     "pq_func_fun": None,  # only used if pq_func == 'user'
      "pq_func_var": 'Mh',
      "pq_func_par0": None,
      "pq_func_par1": None,
