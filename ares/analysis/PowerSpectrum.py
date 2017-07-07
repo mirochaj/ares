@@ -108,7 +108,11 @@ class PowerSpectrum(Global21cm):
         cf_s = 'cf_%s%s' % (field_1, field_2)
         cf = self.history[iz][cf_s]
         
-        d = 2. * np.pi / self.k
+        k = self.history[iz]['k']
+        
+        d = 2. * np.pi / k
+    
+        print d.size, cf.size
     
         ax.loglog(d, cf, **kwargs)
     
@@ -145,11 +149,11 @@ class PowerSpectrum(Global21cm):
             Figure number.
         by_volume : bool
             If True, uses bubble volume rather than radius.
-    
+
         Returns
         -------
         matplotlib.axes.AxesSubplot instance.
-    
+
         """
         
         if ax is None:
@@ -172,9 +176,9 @@ class PowerSpectrum(Global21cm):
         dmdr = rho0 * dvdr
         dmdlnr = dmdr * R
         dndlnR = bsd * dmdlnr
-        
+
         V = 4. * np.pi * R**3 / 3.
-                
+
         Q = self.history[iz]['QHII']
                 
         if by_volume:

@@ -496,7 +496,7 @@ def print_sim(sim):
     if rank > 0 or not sim.pf['verbose']:
         return 
         
-    header = '21-cm Background Simulation: Overview'
+    header = 'ARES Simulation: Overview'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width    

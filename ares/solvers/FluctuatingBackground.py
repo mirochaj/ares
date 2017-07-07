@@ -14,6 +14,7 @@ import numpy as np
 from types import FunctionType
 from ..util import ParameterFile
 from scipy.special import erfinv
+from ..physics.Constants import g_per_msun
 from ..util.Math import LinearNDInterpolator
 from ..populations.Composite import CompositePopulation
 
@@ -149,7 +150,9 @@ class FluctuatingBackground(object):
         
         if pop.pf['pop_bubble_size_dist'] is None:
             if pop.pf['pop_bubble_density'] is not None:
-                return pop.pf['pop_bubble_density']
+                Rb = pop.pf['pop_bubble_size']
+                Mb = (4. * np.pi * Rb**3 / 3.) * pop.cosm.mean_density0 / g_per_msun
+                return Rb, Mb, pop.pf['pop_bubble_density']
         elif pop.pf['pop_bubble_size_dist'].lower() == 'fzh04':
             zeta = 40.
             Mb = pop.halos.M * zeta

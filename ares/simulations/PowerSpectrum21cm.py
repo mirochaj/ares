@@ -137,8 +137,13 @@ class PowerSpectrum21cm(AnalyzePS):
         Generator for the power spectrum.
         """
         
-        #ps = np.zeros_like(k)
+        # Setup linear grid of radii
+        R = np.linspace(0.1, 1e2, 1e3)
+        k = np.fft.fftfreq(R.size, np.diff(R)[0])
+        
         for i, z in enumerate(self.z):
+                        
+            data = {}            
                         
             for j, pop in enumerate(self.pops):
                 
@@ -150,31 +155,26 @@ class PowerSpectrum21cm(AnalyzePS):
                 if pop.pf['pop_ion_fluct']:
                     R_b, M_b, bsd = self.field.BubbleSizeDistribution(z)
                     
-                    # Setup linear grid of radii
-                    R = np.linspace(R_b.min(), 1e2, 500)    
-                    k = np.fft.fftfreq(R.size, np.diff(R)[0])
-                    
                     #ps_xx = self.field.PowerSpectrum(z, 
                     #    field_1='h_2', field_2='h_2', k=self.k, popid=j)
                     cf_xx = self.field.CorrelationFunction(z,
                         field_1='h_2', field_2='h_2', R=R, popid=j)
                     ps_xx = np.fft.fft(cf_xx)    
-                        
-                    #cf_dd = self.field.CorrelationFunction(z,
-                    #    field_1='rho', field_2='rho',  k=self.k, popid=j)    
-                        
-                        
+
+                    data['ps_xx'] = ps_xx
+                    data['cf_xx'] = cf_xx
+                    data.update({'R_b': R_b, 'M_b': M_b, 'bsd':bsd})
+                    data['k'] = k
+
+                if pop.pf['pop_dens_fluct']:
+                    pass
+
+                # Cross-correlation terms...
+
             # Will we ever have multiple populations contributing to 
             # different fluctuations? Or, should we require that all ionizing
             # sources be parameterized in such a way that we only 
-            # calculate, e.g., ps_xx once.            
-                        
-            # Dictionary-ify everything
-            data = {'ps_xx': ps_xx, #'ps_xd': ps_xd, 'ps_dd': ps_dd,
-                    'cf_xx': cf_xx, #'cf_xd': cf_xd, 'cf_dd': cf_dd,
-                    'k': k}
-
-            data.update({'R_b': R_b, 'M_b': M_b, 'bsd':bsd})
+            # calculate, e.g., ps_xx once.
 
             # Global quantities
             QHII = self.field.BubbleFillingFactor(z)
@@ -188,13 +188,6 @@ class PowerSpectrum21cm(AnalyzePS):
             Ja = np.interp(z, self.mean_history['z'][-1::-1], 
                 self.mean_history['Ja'][-1::-1])
             xHII, ne = [0] * 2
-            
-            
-            # FZH04 Equation 11
-            #xHbar = 1. - QHII
-            #cf_psi = data['cf_xx'] * (1. + data['cf_dd']) \
-            #       + xHbar**2 * data['cf_dd'] \
-            #       + data['cf_xd'] * (2. * xHbar + data['cf_xd'])
             
             # Add beta factors to dictionary
             for f1 in ['x', 'd']:

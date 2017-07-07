@@ -474,6 +474,7 @@ def PopulationParameters():
     "pop_lya_fluct": False,
     "pop_ion_fluct": False,
     "pop_heat_fluct": False,
+    "pop_dens_fluct": False,
     
     "pop_bubble_bias": True,
     "pop_bubble_size": None,

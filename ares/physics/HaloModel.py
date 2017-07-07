@@ -4,8 +4,14 @@ from .HaloMassFunction import HaloMassFunction
 
 class HaloModel(HaloMassFunction):
     
-    @property
-    def field(self):
+    def _nfw(self, M, r):
+        """
+        Compute the density at radius r for a halo of mass M for an NFW profile.
+        """
+        
+        pass
+    
+    def _nfw_ft(self):
         pass
         
     def PS_OneHalo(self, z, k, profile_FT):
