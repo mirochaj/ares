@@ -742,6 +742,9 @@ def HaloMassFunctionParameters():
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
     
+    # For, e.g., fcoll, etc
+    "hmf_interp": 'cubic',
+    
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
     

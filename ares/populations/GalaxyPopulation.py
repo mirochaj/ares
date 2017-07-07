@@ -14,7 +14,10 @@ from ..util import ParameterFile
 from .GalaxyCohort import GalaxyCohort
 from .GalaxyEnsemble import GalaxyEnsemble
 from .GalaxyAggregate import GalaxyAggregate
+from ..util.SetDefaultParameterValues import PopulationParameters
 from .Parameterized import ParametricPopulation, parametric_options
+
+default_model = PopulationParameters()['pop_sfr_model']
 
 def GalaxyPopulation(**kwargs):
     """
@@ -42,7 +45,10 @@ def GalaxyPopulation(**kwargs):
         assert Npq == 0
         model = 'rates'
     elif Npq == 0:
-        model = kwargs['pop_sfr_model']
+        if 'pop_sfr_model' in kwargs:
+            model = kwargs['pop_sfr_model']
+        else:
+            model = default_model
     elif (Npq == 1) and pqs[0] == 'pop_sfrd':
         model = 'sfrd-func'
     else:

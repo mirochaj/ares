@@ -75,7 +75,7 @@ This tells *ares* to retrieve the ``dpl`` variable within the ``mirocha2016`` mo
 
 `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_ (``mirocha2016``)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This model has a few sub-options: ``dpl``, ``floor``, and ``steep``, as explored in the paper. 
+This model has a few options: ``dpl``, and the extensions ``floor`` and ``steep``, as explored in the paper. 
 
 Non-standard pre-requisites:
     * High resolution optical depth table for X-ray background. To generate one for yourself, navigate to ``$ARES/input/optical_depth`` and open the ``generate_optical_depth_tables.py`` file. Between lines 35 and 45 there are a block of parameters that set the resolution of the table. Make sure that ``helium=1``, ``zi=50``, ``zf=5``, and ``Nz=[1e3]``. It should only take a few minutes to generate this table.
@@ -95,36 +95,44 @@ To re-make the right-hand panel of Figure 1 from the paper, you could do somethi
 
     import ares
     
+    dpl = ares.util.ParameterBundle('mirocha2016:dpl')
+    
     ax = None
     for model in ['floor', 'dpl', 'steep']:
-        pars = ares.util.ParameterBundle('mirocha2016:%s' % model)
+        pars = dpl + ares.util.ParameterBundle('mirocha2016:%s' % model)
+        pars.update()
         sim = ares.simulations.Global21cm(**pars)
         sim.run()
         ax = sim.GlobalSignature(ax=ax)
 
 For more thorough parameter space explorations, you might want to consider using the ``ModelGrid`` (:doc:`example_grid`) or ``ModelSample`` (:doc:`example_mc_sampling`) machinery. If you'd like to do some forecasting or fitting with these models, check out :doc:`example_mcmc_gs` and :doc:`example_mcmc_lf`.
 
+.. note :: Notice that the ``floor`` and ``steep`` options are defined *relative* to the ``dpl`` model, i.e., they only contain the parameters that are different from the ``dpl`` model, which is why we updated the parameter dictionary rather than creating a new one just with the ``steep`` or ``floor`` parameters.
 
 `Furlanetto et al., submitted <https://arxiv.org/abs/1611.01169>`_ ``furlanetto2017``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The main options in this model are whether to use momentum-driven or energy-driven feedback, what are accessible separately via, e.g., ::
+The main options in this model are whether to use momentum-driven or energy-driven feedback, what are accessible separately via, e.g., 
+
+::
 
     E = ares.util.ParameterBundle('furlanetto2017:energy')
     p = ares.util.ParameterBundle('furlanetto2017:momentum')
+    fshock = ares.util.ParameterBundle('furlanetto2017:fshock')
 
-The only difference is the assumed slope of the star formation efficiency in low-mass halos, which is defined in the parameter ``pq_func_par2{0}[0]``, i.e., the third parameter (``par2``) of the first parameterized quantity (``[0]``) of the first galaxy population (``{0}``).
+The only difference is the assumed slope of the star formation efficiency in low-mass halos, which is defined in the parameter ``'pq_func_par2[0]'``, i.e., the third parameter (``par2``) of the first parameterized quantity (``[0]``), in addition to a power-law index that describes the rate of redshift evolution, ``pq_func_par2[1]``.
 
-All the parameters from ``mirocha2016`` are fair game, in addition to the following ones:
+To do a quick comparison, you could simply do: 
 
-    * ``pop_fstar_max{0}``
-    * ``pq_func_par0{0}[0]`` (in units of :math:`\epsilon_K \omega_{49}`)
-    * ``pq_func_par1{0}[0]``
-    * ``pq_func_par2{0}[0]``
+::
+
+    import ares
     
-    * ``pq_func_par0{0}[1]``
-    * ``pq_func_par1{0}[1]``
-    * ``pq_func_par2{0}[1]``
-
+    ls = ['-', '--']
+    for i, model in enumerate([E, p]):
+        pars = model + fshock
+        pop = ares.populations.GalaxyPopulation(**pars)
+        M = np.logspace(7, 13)
+        pl.loglog(M, pop.fstar(z=6, Mh=M), ls=ls[i])
 
 .. in prep. (``mirocha2017``)
 .. ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

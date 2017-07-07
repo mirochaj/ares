@@ -1712,21 +1712,39 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 boost = 1.
 
             if self.pf['pop_mlf'] is not None:
-                self._fstar = lambda **kwargs: boost * self.fshock(**kwargs) \
-                    / ((1. / self.pf['pop_fstar_max']) + self.mlf(**kwargs))
-            elif type(self.pf['pop_fstar']) in [float, np.float64]:
-                self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost
-            elif self.pf['pop_fstar'][0:2] == 'pq':
-                pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
-                Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
-                self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
-                    self.pf, **pars)
+                if type(self.pf['pop_mlf']) in [float, np.float64]:
+                    self._fstar = lambda **kwargs: boost * self.fshock(**kwargs) \
+                        / ((1. / self.pf['pop_fstar_max']) + self.pf['pop_mlf'])
+                elif self.pf['pop_mlf'][0:2] == 'pq':
+                    pars = get_pq_pars(self.pf['pop_mlf'], self.pf)
+                    Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
                 
-                self._update_pq_registry('fstar', self._fstar_inst)    
+                    self._mlf_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
+                        self.pf, **pars)
                 
-                self._fstar = \
-                    lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
-                    * boost
+                    self._update_pq_registry('mlf', self._mlf_inst)    
+                
+                    self._fstar = \
+                        lambda **kwargs: boost * self.fshock(**kwargs) \
+                            / ((1. / self.pf['pop_fstar_max']) + self._mlf_inst(**kwargs))
+            
+            elif self.pf['pop_fstar'] is not None:
+                if type(self.pf['pop_fstar']) in [float, np.float64]:
+                    self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost    
+                
+                elif self.pf['pop_fstar'][0:2] == 'pq':
+                    pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
+                    Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
+                    self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
+                        self.pf, **pars)
+                    
+                    self._update_pq_registry('fstar', self._fstar_inst)    
+                    
+                    self._fstar = \
+                        lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
+                            * boost
+            
+                
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
 

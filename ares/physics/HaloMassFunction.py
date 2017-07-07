@@ -290,6 +290,9 @@ class HaloMassFunction(object):
             self.logMmin_tab = self.pf['hmf_logMmin']
             self.logMmax_tab = self.pf['hmf_logMmax']
             self.dz = self.pf['hmf_dz']
+            
+            # Introduce ghost zones so that the derivative is defined
+            # at the boundaries.
             self.zmin = max(self.pf['hmf_zmin'] - 2 * self.dz, 0)
             self.zmax = self.pf['hmf_zmax'] + 2 * self.dz
             self.dlogM = self.pf['hmf_dlogM']
@@ -306,7 +309,7 @@ class HaloMassFunction(object):
                 dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
                 lnk_max=self.pf['hmf_lnk_max'])
                 
-        return self._MF   
+        return self._MF
 
     @MF.setter
     def MF(self, value):
@@ -389,7 +392,7 @@ class HaloMassFunction(object):
                 # Remember that mgtm and mean_density have factors of h**2
                 # so we're OK here dimensionally
                 fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
-                        
+
             pb.update(i)
             
         pb.finish()
@@ -407,10 +410,10 @@ class HaloMassFunction(object):
             tmp3 = np.zeros_like(self.ngtm)
             nothing = MPI.COMM_WORLD.Allreduce(self.ngtm, tmp3)
             self.ngtm = tmp3
-            #
-            #tmp4 = np.zeros_like(self.mgtm)
-            #nothing = MPI.COMM_WORLD.Allreduce(self.mgtm, tmp4)
-            #self.mgtm = tmp4
+            
+            tmp4 = np.zeros_like(self.mgtm)
+            nothing = MPI.COMM_WORLD.Allreduce(self.mgtm, tmp4)
+            self.mgtm = tmp4
         else:
             _fcoll_tab = fcoll_tab   
                     
@@ -418,7 +421,8 @@ class HaloMassFunction(object):
         _fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
         self._fcoll_tab = _fcoll_tab
                     
-    def build_1d_splines(self, Tmin, mu=0.6):
+    def build_1d_splines(self, Tmin, mu=0.6, return_fcoll=False, 
+        return_fcoll_p=True, return_fcoll_pp=False):
         """
         Construct splines for fcoll and its derivatives given a (fixed) 
         minimum virial temperature.
@@ -497,18 +501,14 @@ class HaloMassFunction(object):
         # 'cuz time and redshift are different        
         self.dfcolldz_tab *= -1.
 
-        fcoll_spline = None
-        self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
-
-        # Try masking all z elements lower than first occurrence
-        
-        #zp = self.ztab[self.ztab <= 50]
-        #fp = self.dfcolldz_tab[self.ztab <= 50]
-        #zmax = zp[fp < tiny_dfcolldz].max()
-        #print zmax
-        #
+        if return_fcoll:
+            fcoll_spline = interp1d(self.z, self.fcoll_Tmin, 
+                kind=self.pf['hmf_interp'], bounds_error=False,
+                fill_value=0.0)
+        else:
+            fcoll_spline = None
+            
         self.dfcolldz_tab[self.dfcolldz_tab <= tiny_dfcolldz] = tiny_dfcolldz
-        #self.dfcolldz_tab[self.ztab <= zmax] = tiny_dfcolldz
                     
         spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
             kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))

@@ -331,8 +331,8 @@ def print_hmf(hmf):
     print line("zmin                  : %g" % (hmf.pf['hmf_zmin']))
     print line("zmax                  : %g" % (hmf.pf['hmf_zmax']))
     print line("dz                    : %g" % (hmf.pf['hmf_dz']))
-    print line("Mmin (Msun)           : %g" % (10**hmf.pf['hmf_logMmin']))
-    print line("Mmax (Msun)           : %g" % (10**hmf.pf['hmf_logMmax']))
+    print line("Mmin (Msun)           : %e" % (10**hmf.pf['hmf_logMmin']))
+    print line("Mmax (Msun)           : %e" % (10**hmf.pf['hmf_logMmax']))
     print line("dlogM                 : %g" % (hmf.pf['hmf_dlogM']))
     
     print "#"*width
