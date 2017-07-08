@@ -251,7 +251,8 @@ class ModelSet(BlobFactory):
             elif os.path.exists('%s.hdf5' % self.prefix):
                 f = h5py.File('%s.hdf5' % self.prefix)
                 self._parameters = list(f['chain'].attrs.get('names'))
-                self._is_log = list(f['chain'].attrs.get('is_log'))
+                #self._is_log = list(f['chain'].attrs.get('is_log'))
+                self._is_log = [False] * len(self._parameters)
                 f.close()                
             else:
                 self._is_log = [False] * self.chain.shape[-1]
@@ -3898,10 +3899,6 @@ class ModelSet(BlobFactory):
 
         return ax
         
-    @property
-    def blob_names(self):
-        
-    
     def get_blob(self, name, ivar=None):
         """
         Extract an array of values for a given quantity.
@@ -3919,6 +3916,11 @@ class ModelSet(BlobFactory):
         """
                         
         i, j, nd, dims = self.blob_info(name)
+        
+        if (i is None) and (j is None):
+            f = h5py.File('%s.hdf5' % self.fn, 'r')
+            return f['blobs'][name].value
+        
         blob = self.get_blob_from_disk(name)
                 
         if nd == 0:
@@ -4105,8 +4107,7 @@ class ModelSet(BlobFactory):
             self.DeriveBlob(expr='%.5g / (1. + x)' % nu_0_mhz, 
                 varmap={'x': 'z_%s' % tp}, name='nu_%s' % tp, clobber=clobber)
             self.DeriveBlob(expr='%.5g / (1. + x)' % nu_0_mhz, 
-                varmap={'x': 'z_%sp' % tp}, name='nu_%sp' % tp, clobber=clobber)      
-                    
+                varmap={'x': 'z_%sp' % tp}, name='nu_%sp' % tp, clobber=clobber)
                 
     def RankModels(self, **kwargs):
         """
