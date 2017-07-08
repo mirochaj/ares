@@ -889,6 +889,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Number of galaxies per unit luminosity per unit volume.
         
         """
+
         if not hasattr(self, '_phi_of_L'):
             self._phi_of_L = {}
         else:

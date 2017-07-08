@@ -317,7 +317,7 @@ class Labeler(object):
         look_for_2 = '[%i]' % phpid
         for kwarg in self.base_kwargs:
             if phpid is not None:
-                if self.base_kwargs[kwarg] == 'php[%i]' % phpid:
+                if self.base_kwargs[kwarg] == 'pq[%i]' % phpid:
                     break
                 
         return kwarg.replace('{%i}' % popid, '')
@@ -332,6 +332,7 @@ class Labeler(object):
         
         prefix, popid, phpid = par_info(par)
                 
+        _par = par        
         # Correct prefix is phpid is not None
         if phpid is not None:
             s = 'pq[%i]' % phpid

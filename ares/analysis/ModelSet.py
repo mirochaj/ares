@@ -250,8 +250,9 @@ class ModelSet(BlobFactory):
                 self._parameters = patch_pinfo(self._parameters)
             elif os.path.exists('%s.hdf5' % self.prefix):
                 f = h5py.File('%s.hdf5' % self.prefix)
-                self._parameters = f['chain'].attrs.get('names')
-                f.close()
+                self._parameters = list(f['chain'].attrs.get('names'))
+                self._is_log = list(f['chain'].attrs.get('is_log'))
+                f.close()                
             else:
                 self._is_log = [False] * self.chain.shape[-1]
                 self._parameters = ['p%i' % i \
@@ -3896,6 +3897,10 @@ class ModelSet(BlobFactory):
         cb = pl.colorbar(cax)
 
         return ax
+        
+    @property
+    def blob_names(self):
+        
     
     def get_blob(self, name, ivar=None):
         """
@@ -4206,6 +4211,7 @@ class ModelSet(BlobFactory):
             if include_chain:
                 ds = f.create_dataset('chain', data=self.chain)
                 ds.attrs.create('names', data=self.parameters)
+                ds.attrs.create('is_log', data=self.is_log)
                 f.create_dataset('mask', data=self.mask)
             else:
                 # raise a warning? eh.
@@ -4253,8 +4259,8 @@ class ModelSet(BlobFactory):
     @property
     def labeler(self):
         if not hasattr(self, '_labeler'):
-            self._labeler = Labeler(self.parameters, self.is_log, 
-                **self.base_kwargs)
+            kw = self.base_kwargs if self.base_kwargs is not None else {}
+            self._labeler = Labeler(self.parameters, self.is_log, **kw)
         return self._labeler
         
     def set_axis_labels(self, ax, pars, take_log=False, un_log=False,
