@@ -75,7 +75,7 @@ class ModelGrid(ModelFit):
             self._simulator = Global21cm
         return self._simulator
             
-    def _read_restart(self, prefix):
+    def _read_restart(self, prefix, procid=None):
         """
         Figure out which models have already been run.
         
@@ -91,12 +91,15 @@ class ModelGrid(ModelFit):
         # Array of ones/zeros: has this model already been done?
         # This is only the *new* grid points.
         if self.grid.structured:
-            self.done = np.zeros(self.grid.shape)
+            done = np.zeros(self.grid.shape)
+
+        if procid is None:
+            procid = rank
         
-        if os.path.exists('%s.%s.chain.pkl' % (prefix, str(rank).zfill(3))):
-            prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
+        if os.path.exists('%s.%s.chain.pkl' % (prefix, str(procid).zfill(3))):
+            prefix_by_proc = prefix + '.%s' % (str(procid).zfill(3))
         else:
-            return 
+            return done
             #raise ValueError('This shouldn\'t happen anymore.')
             
         # Need to see if we're running with the same number of processors
@@ -115,19 +118,18 @@ class ModelGrid(ModelFit):
         # grid points.
         chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
         
-        print "Processor %i, restarting from %s.chain.pkl" % (rank, prefix_by_proc)
-
         # If we said this is a restart, but there are no elements in the 
         # chain, just run the thing. It probably means the initial run never
         # made it to the first checkpoint.
 
         if chain.size == 0:
             if rank == 0:
-                print "Pre-existing chain file(s) empty. Running from beginning."
+                print "Pre-existing chain file(s) empty for proc #%i." % rank,
+                print "Running from beginning."
             if not self.grid.structured:
                 self.done = np.array([0])
             
-            return
+            return done
 
         # Read parameter info
         f = open('%s.pinfo.pkl' % prefix, 'rb')
@@ -159,7 +161,7 @@ class ModelGrid(ModelFit):
         # What follows is irrelevant for unstructured grids.
         if (not self.grid.structured):
             self.done = np.array([chain.shape[0]])
-            return
+            return done
 
         # Loop over chain read-in from disk and compare to grid.
         # Which models have already been computed?
@@ -175,9 +177,9 @@ class ModelGrid(ModelFit):
             if None in kvec:
                 continue
             
-            self.done[kvec] = 1
+            done[kvec] = 1
                         
-        return self.done
+        return done
             
     @property            
     def axes(self):
@@ -550,6 +552,9 @@ class ModelGrid(ModelFit):
         prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
         prefix_next_proc = prefix + '.%s' % (str(rank+1).zfill(3))
                 
+        if rank == 0:
+            print "Starting %i-element model grid." % self.grid.size
+                
         # Kill this thing if we're about to delete files and we haven't 
         # set clobber=True        
         if os.path.exists('%s.chain.pkl' % prefix_by_proc) and (not clobber):
@@ -579,27 +584,6 @@ class ModelGrid(ModelFit):
             _tmp = np.zeros(size)
             MPI.COMM_WORLD.Allreduce(_restart_np1, _tmp)
             fewer_procs = sum(_tmp) >= size
-                        
-        if fewer_procs:
-            if rank == 0:
-                # Determine what the most number of processors to have
-                # run this grid (at some point) is
-                fn_by_proc = lambda proc: '%s.%s.chain.pkl' \
-                    % (prefix, str(proc).zfill(3))
-                fn_size_p1 = fn_by_proc(size+1)                                                           
-                if os.path.exists(fn_size_p1):
-                
-                    proc_id = size + 1
-                    while os.path.exists(fn_by_proc(proc_id)):
-                        proc_id += 1
-                        continue
-
-                print "This grid has been run with as many as %i processors" % proc_id, 
-                print "up to this point."
-
-            #MPI.COMM_WORLD.Barrier()
-
-            raise NotImplemented('dunno how to deal with this yet!')
             
         # Need to communicate results of restart_actual across all procs
         if size > 1:
@@ -614,12 +598,12 @@ class ModelGrid(ModelFit):
                 
         # Load previous results if this is a restart
         if any_restart:
-            self._read_restart(prefix)
+            done = self._read_restart(prefix)
             
             if self.grid.structured:
-                done = int(self.done[self.done >= 0].sum())
+                Ndone = int(done[done >= 0].sum())
             else:
-                done = 0
+                Ndone = 0
                                 
             # Important that this goes second, otherwise this processor
             # will count the models already run by other processors, which
@@ -629,16 +613,53 @@ class ModelGrid(ModelFit):
             # in the old grid.
             if self.grid.structured:
                 tmp = np.zeros(self.grid.shape)
-                MPI.COMM_WORLD.Allreduce(self.done, tmp)
+                MPI.COMM_WORLD.Allreduce(done, tmp)
                 self.done = tmp
             else:
                 # In this case, self.done is just an integer.
                 # And apparently, we don't need to know which models are done?
                 tmp = np.array([0])
-                MPI.COMM_WORLD.Allreduce(self.done, tmp)
+                MPI.COMM_WORLD.Allreduce(done, tmp)
                 self.done = tmp[0]
+                
+            # Find outputs from processors beyond those that we're currently
+            # using. 
+            if fewer_procs:
+                if rank == 0:
+                    # Determine what the most number of processors to have
+                    # run this grid (at some point) is
+                    fn_by_proc = lambda proc: '%s.%s.chain.pkl' \
+                        % (prefix, str(proc).zfill(3))
+                    fn_size_p1 = fn_by_proc(size+1)
+                    
+                    _done_extra = np.zeros(self.grid.shape)
+                    if os.path.exists(fn_size_p1):
+            
+                        proc_id = size + 1
+                        while os.path.exists(fn_by_proc(proc_id)):
+                            
+                            _done_extra += self._read_restart(prefix, proc_id)
+                            
+                            proc_id += 1
+                            continue
+                                        
+                    print "This grid has been run with as many as %i processors" % proc_id, 
+                    print "previously. Collectively, these processors ran %i models." % _done_extra.sum()
+
+                    _done_all = self.done.copy()
+                    _done_all += _done_extra
+                    for i in xrange(1, size):    
+                        MPI.COMM_WORLD.Send(_done_all, dest=i, tag=10*i)    
+
+                else:
+                    self.done = np.zeros(self.grid.shape)
+                    MPI.COMM_WORLD.Recv(self.done, source=0, tag=10*rank)
+                                    
+                #raise NotImplemented('dunno how to deal with this yet!')
+                
+                
         else:
-            done = self.done = 0
+            Ndone = 0
                 
         if any_restart and self.grid.structured:
             mine_and_done = np.logical_and(self.assignments == rank,
