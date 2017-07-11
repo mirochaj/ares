@@ -538,6 +538,12 @@ def print_sim(sim):
     
     for par in phys_pars:
         val = sim.pf[par]
+        
+        
+        if ('feedback_LW' in par) and (par != 'feedback_LW'):
+            if not sim.pf['feedback_LW']:
+                continue        
+        
         if val is None:
             print line('%s : None' % par.ljust(30))
         elif type(val) in [list, tuple]:

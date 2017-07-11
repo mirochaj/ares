@@ -96,23 +96,26 @@ class ModelGrid(ModelFit):
         if os.path.exists('%s.%s.chain.pkl' % (prefix, str(rank).zfill(3))):
             prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
         else:
-            raise ValueError('This shouldn\'t happen anymore.')
+            return 
+            #raise ValueError('This shouldn\'t happen anymore.')
             
         # Need to see if we're running with the same number of processors
         # We could probably set things up such that this isn't a problem.
-        fn_by_proc = lambda proc: '%s.%s.chain.pkl' % (prefix, str(proc).zfill(3))
-        fn_size_p1 = fn_by_proc(size+1)
-        if os.path.exists(fn_size_p1):
-            raise IOError('Original grid run with more processors!')
-
-            proc_id = size + 1
-            while os.path.exists(fn_by_proc(proc_id)):
-                proc_id += 1
-                continue
+        #fn_by_proc = lambda proc: '%s.%s.chain.pkl' % (prefix, str(proc).zfill(3))
+        #fn_size_p1 = fn_by_proc(size+1)
+        #if os.path.exists(fn_size_p1):
+        #    raise IOError('Original grid run with more processors!')
+        #
+        #    proc_id = size + 1
+        #    while os.path.exists(fn_by_proc(proc_id)):
+        #        proc_id += 1
+        #        continue
 
         # Read in current status of model grid, i.e., the old 
         # grid points.
         chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
+        
+        print "Processor %i, restarting from %s.chain.pkl" % (rank, prefix_by_proc)
 
         # If we said this is a restart, but there are no elements in the 
         # chain, just run the thing. It probably means the initial run never
@@ -173,7 +176,7 @@ class ModelGrid(ModelFit):
                 continue
             
             self.done[kvec] = 1
-            
+                        
         return self.done
             
     @property            
@@ -542,10 +545,10 @@ class ModelGrid(ModelFit):
         """
         
         self.prefix = prefix
-        self.is_restart = restart
         self.save_freq = save_freq
         
         prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
+        prefix_next_proc = prefix + '.%s' % (str(rank+1).zfill(3))
                 
         # Kill this thing if we're about to delete files and we haven't 
         # set clobber=True        
@@ -553,15 +556,48 @@ class ModelGrid(ModelFit):
             if not restart:
                 raise IOError('%s*.pkl exists! Remove manually, set clobber=True, or set restart=True to append.' 
                     % prefix_by_proc)
-                    
-        if not os.path.exists('%s.chain.pkl' % prefix_by_proc) and restart:
+              
+        restart_actual = True      
+        _restart_actual = np.zeros(size)
+        if not os.path.exists('%s.chain.pkl' % prefix_by_proc):
+            print "This can't be a restart (for proc #%i), %s*.pkl not found." % (rank, prefix),
+            print "Starting from scratch..."
+            # Note: this can occur if restarting with fewer processors
+            # than we originally ran with.
+        else:    
+            _restart_actual[rank] = 1
+            restart_actual = True
+        
+        # Figure out if we're running with fewer processors than 
+        # pre-restart
+        fewer_procs = False
+        if size > 1:
+            _restart_np1 = np.zeros(size)   
+            if os.path.exists('%s.chain.pkl' % prefix_next_proc):
+                _restart_np1[rank] = 1
+            
+            _tmp = np.zeros(size)
+            MPI.COMM_WORLD.Allreduce(_restart_np1, _tmp)
+            fewer_procs = sum(_tmp) > size
+            
+        if fewer_procs:
             if rank == 0:
-                print "This can't be a restart, %s*.pkl not found." % prefix
-                print "Starting from scratch..."
-            restart = False
-
+                print "Running with fewer processors than previous run."    
+                raise NotImplemented('dunno how to deal with this yet!')
+            
+        # Need to communicate results of restart_actual across all procs
+        if size > 1:
+            _all_restart = np.zeros(size)
+            MPI.COMM_WORLD.Allreduce(_restart_actual, _all_restart)
+            all_restart = bool(sum(_all_restart) == size)
+            any_restart = bool(sum(_all_restart) > 0)            
+        else:
+            all_restart = any_restart = _all_restart = _restart_actual
+                
+        self.is_restart = any_restart        
+                
         # Load previous results if this is a restart
-        if restart:
+        if any_restart:
             self._read_restart(prefix)
             
             if self.grid.structured:
@@ -585,13 +621,14 @@ class ModelGrid(ModelFit):
                 MPI.COMM_WORLD.Allreduce(self.done, tmp)
                 self.done = tmp[0]
         else:
-            done = 0
-        
-        if restart and self.grid.structured:
+            done = self.done = 0
+                
+        if any_restart and self.grid.structured:
             mine_and_done = np.logical_and(self.assignments == rank,
                                            self.done >= 1)
             
             Nleft = self.load[rank] - np.sum(mine_and_done)
+            
         else:
             Nleft = self.load[rank]
 
@@ -601,7 +638,7 @@ class ModelGrid(ModelFit):
             return
 
         # Print out how many models we have (left) to compute
-        if restart and self.grid.structured:
+        if any_restart and self.grid.structured:
             if rank == 0:
                 Ndone = self.done[self.done >= 0].sum()
                 Ntot = self.done.size
@@ -614,22 +651,19 @@ class ModelGrid(ModelFit):
                 % (rank, Nleft)
 
         elif rank == 0:
-            if restart:
+            if any_restart:
                 print 'Re-starting pre-existing model set (%i models done already).' \
                     % self.done
                 print 'Running %i more models.' % self.grid.size
             else:
                 print 'Running %i-element model grid.' % self.grid.size
-
+            
         # Make some blank files for data output                 
-        self.prep_output_files(restart, clobber)        
+        self.prep_output_files(any_restart, clobber)
 
         # Dictionary for hmf tables
         fcoll = {}
         
-        # Yep
-        #self._prep_tricks()
-
         # Initialize progressbar
         pb = ProgressBar(Nleft, 'grid', use_pb)
         pb.start()
@@ -652,7 +686,7 @@ class ModelGrid(ModelFit):
                 kvec = h
 
             # Skip if it's a restart and we've already run this model
-            if restart and self.grid.structured:
+            if any_restart and self.grid.structured:
                 if self.done[kvec]:
                     pb.update(ct)
                     continue
@@ -882,7 +916,7 @@ class ModelGrid(ModelFit):
     @property
     def assignments(self):
         if not hasattr(self, '_assignments'):
-            self.LoadBalance()
+            raise AttributeError('Must set assignments by hand')
             
         return self._assignments
             
@@ -990,7 +1024,7 @@ class ModelGrid(ModelFit):
         that particular model.
         
         """
-        
+                
         self.LB = method
         
         if size == 1:

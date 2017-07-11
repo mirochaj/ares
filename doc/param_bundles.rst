@@ -69,7 +69,7 @@ Simulations
 If the bundle you specify is not defined in ares.util.ParameterBundles, *ares* will search for a module of the same name in ares/input/litdata. For more on these kinds of modules, see :doc:`uth_litdata`.
 
 * ``mirocha2016:dpl``
-    Parameters to initialize a simulation of the global 21-cm signal using a halo-mass-dependent star formation efficiency (a double power law (DPL) by default), as in `Mirocha, Furlanetto, \& Sun (2016) <http://arxiv.org/abs/1607.00386>`_. Changing the suffixed from ``dpl`` to ``steep`` or ``floor`` will instead use those models from the paper (see Figures 1 and 2). If you want to explore deviations from these models, check out the :doc:`params_populations` listing, especially the bit about parameterized halo properties.
+    Parameters to initialize a simulation of the global 21-cm signal using a halo-mass-dependent star formation efficiency (a double power law (DPL) by default), as in `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_. Changing the suffixed from ``dpl`` to ``steep`` or ``floor`` will instead use those models from the paper (see Figures 1 and 2). If you want to explore deviations from these models, check out the :doc:`params_populations` listing, especially the bit about parameterized halo properties.
     
     .. note :: For this to work "out of the box" you will need a lookup table for the IGM opacity that is not included with *ares* by default. See :doc:`inits_tables`: for more info on generating these lookup tables.
 
