@@ -856,8 +856,8 @@ def ControlParameters():
     "tau_instance": None,
 
     "sam_dz": 2., # Usually good enough!
-    "sam_atol": 0.,
-    "sam_rtol": 1e-3,
+    "sam_atol": 1e-2,
+    "sam_rtol": 1e-2,
     
     # File format
     "preferred_format": 'npz',

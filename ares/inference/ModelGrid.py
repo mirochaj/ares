@@ -578,12 +578,28 @@ class ModelGrid(ModelFit):
             
             _tmp = np.zeros(size)
             MPI.COMM_WORLD.Allreduce(_restart_np1, _tmp)
-            fewer_procs = sum(_tmp) > size
-            
+            fewer_procs = sum(_tmp) >= size
+                        
         if fewer_procs:
             if rank == 0:
-                print "Running with fewer processors than previous run."    
-                raise NotImplemented('dunno how to deal with this yet!')
+                # Determine what the most number of processors to have
+                # run this grid (at some point) is
+                fn_by_proc = lambda proc: '%s.%s.chain.pkl' \
+                    % (prefix, str(proc).zfill(3))
+                fn_size_p1 = fn_by_proc(size+1)                                                           
+                if os.path.exists(fn_size_p1):
+                
+                    proc_id = size + 1
+                    while os.path.exists(fn_by_proc(proc_id)):
+                        proc_id += 1
+                        continue
+
+                print "This grid has been run with as many as %i processors" % proc_id, 
+                print "up to this point."
+
+            #MPI.COMM_WORLD.Barrier()
+
+            raise NotImplemented('dunno how to deal with this yet!')
             
         # Need to communicate results of restart_actual across all procs
         if size > 1:
@@ -616,7 +632,8 @@ class ModelGrid(ModelFit):
                 MPI.COMM_WORLD.Allreduce(self.done, tmp)
                 self.done = tmp
             else:
-                # In this case, self.done is just an integer
+                # In this case, self.done is just an integer.
+                # And apparently, we don't need to know which models are done?
                 tmp = np.array([0])
                 MPI.COMM_WORLD.Allreduce(self.done, tmp)
                 self.done = tmp[0]
@@ -715,20 +732,6 @@ class ModelGrid(ModelFit):
                     kw[par] = kwargs[par]
             
             p.update(kw)
-            
-            #if 'guess_popIII_sfrds' in self.trick_names:
-            #    trick = self.trick_funcs['guess_popIII_sfrds'](**kw)
-            #                    
-            #    import matplotlib.pyplot as pl
-            #    print trick
-            #    zarr = np.arange(6, 50)
-            #    pl.semilogy(zarr, trick['pop_Mmin{2}'](zarr))
-            #    raw_input('<enter>')
-            #    
-            #    #if score > 0:
-            #    #    trick['feedback_LW_assume_perfect_guesses'] = False 
-            #    #
-            #    p.update(trick)
             
             # Create new splines if we haven't hit this Tmin yet in our model grid.    
             if self.reuse_splines and \

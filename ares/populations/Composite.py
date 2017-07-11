@@ -39,7 +39,7 @@ class CompositePopulation(object):
         to_tunnel = [None for i in xrange(self.Npops)]
         to_quantity = [None for i in xrange(self.Npops)]
         for i, pf in enumerate(self.pfs):
-            
+                        
             ct = 0            
             # Only link options that are OK at this stage.
             for option in ['pop_sfr_model', 'pop_Mmin']:
@@ -75,7 +75,7 @@ class CompositePopulation(object):
                 continue
                         
             tmp = self.pfs[i].copy()
-            
+                        
             if to_quantity[i] == 'sfrd':
                 self.pops[i] = GalaxyAggregate(**tmp)
                 self.pops[i]._sfrd = self.pops[entry]._sfrd_func
