@@ -657,7 +657,6 @@ class ModelGrid(ModelFit):
                                     
                 #raise NotImplemented('dunno how to deal with this yet!')
                 
-                
         else:
             Ndone = 0
                 
@@ -671,10 +670,8 @@ class ModelGrid(ModelFit):
             Nleft = self.load[rank]
 
         if Nleft == 0:
-            if rank == 0:
-                print 'This model grid is complete.'
-            return
-
+            print "Processor %i is done already!" % rank
+        
         # Print out how many models we have (left) to compute
         if any_restart and self.grid.structured:
             if rank == 0:
@@ -684,6 +681,10 @@ class ModelGrid(ModelFit):
                     % (Ndone, Ntot - Ndone)
             
             MPI.COMM_WORLD.Barrier()
+            
+            # Is everybody done?
+            if np.all(self.done == 1):
+                return
                 
             print "Update (processor #%i): Running %i more models." \
                 % (rank, Nleft)

@@ -145,7 +145,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                 self._update_pq_registry(name, result)
             
-            elif type(self.pf[full_name]) in [int, float, np.float64]:
+            elif type(self.pf[full_name]) in [int, float, np.int64, np.float64]:
                 
                 # Need to be careful here: has user-specified units!
                 # We've assumed that this cannot be parameterized...
@@ -2364,7 +2364,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 Mnow = solver.y[2]
 
                 if Mnow >= self.mass_limit(z=z, Mh=M0) and (zmax_m is None):
-                    zmax_m = np.interp(self.mass_limit(z=z, Mh=M0), Mst_t[-2:], 
+                    zmax_m = np.interp(self.mass_limit(z=z, Mh=M0), cMst_t[-2:], 
                         redshifts[-2:])
 
             if has_a_limit and (zmax_a is None):
