@@ -481,6 +481,16 @@ class ModelGrid(ModelFit):
             
         assert type(value) is dict
         self._trick_funcs.update(value)
+        
+    @property
+    def exit_if_fail_streak(self):
+        if not hasattr(self, '_exit_if_fail_streak'):
+            self._exit_if_fail_streak = False
+        return self._exit_if_fail_streak
+        
+    @exit_if_fail_streak.setter
+    def exit_if_fail_streak(self, value):
+        self._exit_if_fail_streak = bool(value)
             
     def _run_sim(self, kw, p):
         
@@ -864,7 +874,7 @@ class ModelGrid(ModelFit):
             
             # If, after the first checkpoint, we only have 'failed' models,
             # raise an error.
-            if ct == failct:
+            if (ct == failct) and self.exit_if_fail_streak:
                 raise ValueError('Only failed models up to first checkpoint!')
                 
             # This is meant to prevent crashes due to memory fragmentation. 

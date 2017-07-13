@@ -2567,6 +2567,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             anl = fn
         else:
             zarr, Mmin = fn
+            
+            if np.all(np.logical_or(np.isinf(Mmin), np.isnan(Mmin))):
+                print "Provided Mmin guesses are all infinite or NaN."
+                return None
+            
             return np.interp(self.halos.z, zarr, Mmin)
         
         # HARD CODING FOR NOW
