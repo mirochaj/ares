@@ -50,7 +50,11 @@ class ModelGrid(ModelFit):
     @property
     def tol(self):
         if not hasattr(self, '_tol'):
-            self._tol = 1e-3
+            if self.grid.structured:
+                self._tol = 1e-6
+            else:    
+                self._tol = 1e-3
+                
         return self._tol
     
     @property 
@@ -160,7 +164,7 @@ class ModelGrid(ModelFit):
         
         # What follows is irrelevant for unstructured grids.
         if (not self.grid.structured):
-            self.done = np.array([chain.shape[0]])
+            self.done = done = np.array([chain.shape[0]])
             return done
 
         # Loop over chain read-in from disk and compare to grid.
@@ -178,6 +182,9 @@ class ModelGrid(ModelFit):
                 continue
             
             done[kvec] = 1
+            
+        if done.sum() != len(chain):
+            print "WARNING: Some chain elements not found."
                         
         return done
             
@@ -190,6 +197,10 @@ class ModelGrid(ModelFit):
         """
         Create GridND instance, construct N-D parameter space.
         """
+        
+        for kwarg in kwargs:
+            assert kwargs[kwarg].size == np.unique(kwargs[kwarg]).size, \
+                "Redundant elements detected for parameter=%s" % kwarg
 
         self.grid = GridND()
 
@@ -237,7 +248,7 @@ class ModelGrid(ModelFit):
 
             # Where does this model live in the grid?
             if self.grid.structured:
-                kvec = self.grid.locate_entry(kwargs)
+                kvec = self.grid.locate_entry(kwargs, tol=self.tol)
             else:
                 kvec = h
             
@@ -624,7 +635,7 @@ class ModelGrid(ModelFit):
             if self.grid.structured:
                 tmp = np.zeros(self.grid.shape)
                 MPI.COMM_WORLD.Allreduce(done, tmp)
-                self.done = tmp
+                self.done = np.minimum(tmp, 1)
             else:
                 # In this case, self.done is just an integer.
                 # And apparently, we don't need to know which models are done?
@@ -664,15 +675,13 @@ class ModelGrid(ModelFit):
                 else:
                     self.done = np.zeros(self.grid.shape)
                     MPI.COMM_WORLD.Recv(self.done, source=0, tag=10*rank)
-                                    
-                #raise NotImplemented('dunno how to deal with this yet!')
                 
         else:
             Ndone = 0
                 
         if any_restart and self.grid.structured:
             mine_and_done = np.logical_and(self.assignments == rank,
-                                           self.done >= 1)
+                                           self.done == 1)
             
             Nleft = self.load[rank] - np.sum(mine_and_done)
             
@@ -685,7 +694,7 @@ class ModelGrid(ModelFit):
         # Print out how many models we have (left) to compute
         if any_restart and self.grid.structured:
             if rank == 0:
-                Ndone = self.done[self.done >= 0].sum()
+                Ndone = self.done.sum()
                 Ntot = self.done.size
                 print "Update               : %i models down, %i to go." \
                     % (Ndone, Ntot - Ndone)
@@ -722,6 +731,7 @@ class ModelGrid(ModelFit):
         t1 = time.time()
 
         ct = 0
+        was_done = 0
         failct = 0
 
         # Loop over models, use StellarPopulation.update routine 
@@ -730,17 +740,19 @@ class ModelGrid(ModelFit):
             
             # Where does this model live in the grid?
             if self.grid.structured:
-                kvec = self.grid.locate_entry(kwargs)
+                kvec = self.grid.locate_entry(kwargs, tol=self.tol)
             else:
                 kvec = h
 
             # Skip if it's a restart and we've already run this model
             if any_restart and self.grid.structured:
                 if self.done[kvec]:
+                    was_done += 1
                     pb.update(ct)
                     continue
 
-            # Skip if this processor isn't assigned to this model        
+            # Skip if this processor isn't assigned to this model     
+            # This could be moved above the previous check   
             if self.assignments[kvec] != rank:
                 pb.update(ct)
                 continue
@@ -951,7 +963,10 @@ class ModelGrid(ModelFit):
     @property
     def assignments(self):
         if not hasattr(self, '_assignments'):
-            raise AttributeError('Must set assignments by hand')
+            if hasattr(self, 'grid'):
+                if self.grid.structured:
+                    raise AttributeError('Must set assignments by hand')
+            self._unstructured_balance(method=0)
             
         return self._assignments
             

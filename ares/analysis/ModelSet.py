@@ -3860,7 +3860,7 @@ class ModelSet(BlobFactory):
                 if ct == 0:
                     # Only print first time...could be thousands of iterations
                     print "WARNING: Any un-pickleable kwargs will not have been saved in %s.binfo.pkl!" % self.prefix
-                kwargs = self.base_kwargs.copy()    
+                kwargs = self.base_kwargs.copy()
             else:
                 kwargs = {}
                 

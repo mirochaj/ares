@@ -69,11 +69,18 @@ class GridAxis(object):
         
         if tol == 0:
             if val in self.values:
-                return np.argmin(np.abs(val - self.values))    
+                return np.argmin(np.abs(val - self.values))
             else:
                 return None
         else:
-            diff = np.abs(val - self.values)
+            
+            if val in self.values:
+                return np.argmin(np.abs(val - self.values))
+            elif val == 0:
+                diff = np.abs((val - self.values))
+            else:    
+                diff = np.abs((val - self.values) / val)
+
             amin = np.argmin(diff)
 
             if diff[amin] <= tol:
