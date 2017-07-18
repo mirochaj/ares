@@ -121,13 +121,13 @@ class GridND(defaultdict):
                     self._structured = False
             else:
                 self._structured = False
-                
+
         return self._structured
-    
+
     @structured.setter
     def structured(self, value):
         self._structured = value
-    
+
     @property
     def axes(self):
         """ List of all GridAxis instances. """
@@ -136,9 +136,9 @@ class GridND(defaultdict):
             for key in self:
                 if isinstance(self[key], GridAxis):
                     self._axes[self[key].num] = self[key]
-        
+
         return self._axes    
-        
+
     @property    
     def axes_names(self):    
         """ Names of all axes. """

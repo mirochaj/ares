@@ -1774,9 +1774,6 @@ class ModelSet(BlobFactory):
                 multiplier=multiplier, ax=ax, edgecolors='none', 
                 facecolors='none')
             
-            patch = PolygonPatch(polygon, **kwargs)
-            ax.add_patch(patch)
-            
             try:        
                 patch = PolygonPatch(polygon, **kwargs)
                 ax.add_patch(patch)
@@ -2207,7 +2204,7 @@ class ModelSet(BlobFactory):
         
         data = {}
         for k, par in enumerate(pars):
-                    
+                                
             # If one of our free parameters, things are easy.
             if par in self.parameters:
                 
@@ -3377,9 +3374,6 @@ class ModelSet(BlobFactory):
         # Don't do this: grid may be incomplete!
         #assert x * y == data[c].size
         
-        print pars, c
-        print data[c].shape
-        
         flat = data[c]
         zarr = np.inf * np.ones([len(x), len(y)])
         for i, xx in enumerate(x):
@@ -3393,10 +3387,16 @@ class ModelSet(BlobFactory):
                 
                 if type(gotit.sum()) == np.ma.core.MaskedConstant:
                     continue
-                
+                                
                 k = np.argwhere(gotit == True)
                 
-                zarr[i,j] = flat[k]
+                # If multiple elements, means this grid had redundant
+                # elements. Shouldn't happen in the future!
+                if len(k.shape) == 2:
+                    # Just pick one
+                    zarr[i,j] = flat[k].min()
+                else:
+                    zarr[i,j] = flat[k]
         
         return x, y, zarr
         
@@ -4340,8 +4340,8 @@ class ModelSet(BlobFactory):
             # When you have a triangle, there is no sense
             # in computing an alpha shape.
             return geometry.MultiPoint(list(points)).convex_hull
-        else:
-            return None, None
+        #else:
+        #    return None, None
             
         def add_edge(edges, edge_points, coords, i, j):
             """
