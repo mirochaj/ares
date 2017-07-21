@@ -328,10 +328,20 @@ class Labeler(object):
         """
         
         if par in self.labels:
-            return self.labels[par]
-        
+            label = self.labels[par]
+            
+            if par in self.parameters:
+                if take_log:        
+                    return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+                elif self.is_log[par] and (not un_log):
+                    return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+                else:
+                    return label
+            else:
+                return label
+
         prefix, popid, phpid = par_info(par)
-                
+
         _par = par        
         # Correct prefix is phpid is not None
         if phpid is not None:
@@ -388,7 +398,8 @@ class Labeler(object):
             else:
                 label = r'$%s$' % (par.replace('_', '\_'))
         
-        if par in self.parameters:                    
+        if par in self.parameters: 
+            print par, take_log, self.is_log[par], un_log
             if take_log:        
                 return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
             elif self.is_log[par] and (not un_log):

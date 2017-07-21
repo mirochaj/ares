@@ -835,12 +835,16 @@ class ModelFit(BlobFactory):
         """
                 
         self.prefix = prefix
-
-        if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
-            if not restart:
-                msg = '%s exists! Remove manually, set clobber=True,' % prefix
-                msg += ' or set restart=True to append.' 
-                raise IOError(msg)
+        
+        if rank == 0:
+            if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
+                if not restart:
+                    msg = '%s exists! Remove manually, set clobber=True,' % prefix
+                    msg += ' or set restart=True to append.' 
+                    raise IOError(msg)
+        
+        if size > 1:
+            MPI.COMM_WORLD.Barrier()
 
         if self.checkpoint_append:
             if not os.path.exists('%s.chain.pkl' % prefix) and restart:
