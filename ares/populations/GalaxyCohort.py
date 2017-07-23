@@ -2188,7 +2188,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         
         
-        keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Z']
+        keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Z', 't']
                 
         zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
         zi = min(float(self.halos.z.max()), self.pf['initial_redshift'])
@@ -2237,8 +2237,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
         """
         Evolve a halo from initial mass M0 at redshift z0 forward in time.
-        
-        Really this should be invoked any time any PHP has 'z' in its vars list.
+
+        Really this should be invoked any time any PQ has 'z' in its vars list.
         
         Parameters
         ----------
@@ -2326,6 +2326,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mst_t = []
         cMst_t = []
         metals = []
+        lbtime = []
         Ehist = []
         redshifts = []
         for i in xrange(Nz):
@@ -2341,6 +2342,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             lbtime_myr = self.cosm.LookbackTime(z, z0) \
                 / s_per_yr / 1e6
+
+            lbtime.append(lbtime_myr)
 
             # t_ceil is a trump card.
             # For example, in some cases the critical metallicity will never
@@ -2485,10 +2488,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Ms = np.array(Mst_t)[-1::-1]
         MZ = np.array(metals)[-1::-1]
         cMs = np.array(cMst_t)[-1::-1]
+        tlb = np.array(lbtime)[-1::-1]
 
         # Derived
         results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'cMs': cMs,
-            'zmax': zmax}
+            'zmax': zmax, 't': tlb}
         results['Z'] = self.pf['pop_metal_retention'] \
             * (results['MZ'] / results['Mg'])
 

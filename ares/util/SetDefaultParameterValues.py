@@ -628,12 +628,16 @@ def SourceParameters():
     "source_sed_by_Z": None,
     "source_rad_yield": 'from_sed',
     
+    "source_degradation": None,      # Degrade spectra to this \AA resolution
+    "source_aging": True,
+    
     # Stellar
     "source_temperature": 1e5,  
     "source_qdot": 5e48,
     
     # SFH
     "source_sfh": None,
+    "source_meh": None,
     
     # BH
     "source_mass": 1e5,
