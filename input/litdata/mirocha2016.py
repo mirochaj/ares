@@ -26,7 +26,7 @@ dpl = \
  'pop_Emin{0}': 10.19,
  'pop_Emax{0}': 24.6,
  'pop_rad_yield{0}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
-                             # should make this automatic
+                                 # should make this automatic
 
  'pop_fesc{0}': 0.1,
  
@@ -83,7 +83,7 @@ dpl = \
 
 _floor_specific = \
 {
-'pq_val_floor{0}[0]': 0.005,
+ 'pq_val_floor{0}[0]': 0.005,
 }
 
 floor = _floor_specific

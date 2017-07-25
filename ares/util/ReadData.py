@@ -257,6 +257,7 @@ def _load_npz(fn):
 def _load_inits(fn=None):
 
     if fn is None:
+        assert ARES is not None, "$ARES environment variable has not been set!"
         fn = '%s/input/inits/initial_conditions.npz' % ARES
         inits = _load_npz(fn)
 

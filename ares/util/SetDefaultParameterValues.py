@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old']
+    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old', 'PowerSpectrum']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -218,19 +218,35 @@ def PhysicsParameters():
 
     # LW
     'feedback_clear_solver': True,
+    
     'feedback_LW': False,
-    'feedback_LW_Mmin': 'visbal2015',
+    'feedback_LW_dt': 0.0,  # instantaneous response
+    'feedback_LW_Mmin': 'visbal2014',
     'feedback_LW_fsh': None,
     'feedback_LW_Tcut': 1e4,
     'feedback_LW_mean_err': False,
     'feedback_LW_maxiter': 15,
-    'feedback_LW_Mmin_uponly': False,
-    'feedback_LW_Mmin_smooth': False,
-    'feedback_LW_Mmin_fit': False,    
-    'feedback_LW_Mmin_rtol': 1e-2,
-    'feedback_LW_Mmin_atol': 0.0,
+    'feedback_LW_miniter': 0,
     'feedback_LW_softening': 'sqrt',
+    
+    'feedback_LW_Mmin_smooth': 0,
+    'feedback_LW_Mmin_fit': 0,
+    'feedback_LW_Mmin_afreq': 0,
+    'feedback_LW_Mmin_rtol': 0.0,
+    'feedback_LW_Mmin_atol': 0.0,
+    'feedback_LW_sfrd_rtol': 1e-1,
+    'feedback_LW_sfrd_atol': 1e-10,
+    'feedback_LW_sfrd_popid': None,
+    'feedback_LW_zstart': None,
+    'feedback_LW_mixup_freq': 5,
+    'feedback_LW_mixup_delay': 20,
     'feedback_LW_guesses': None,
+    'feedback_LW_guesses_from': None,
+    'feedback_LW_guesses_perfect': False,
+    
+    # Assume that uniform background only emerges gradually as 
+    # the typical separation of halos becomes << Hubble length
+    "feedback_LW_ramp": 0,
     
     'feedback_streaming': False,
     'feedback_vel_at_rec': 30.,
@@ -269,6 +285,7 @@ def ParameterizedQuantityParameters():
     pf = \
     {
      "pq_func": 'dpl',
+     "pq_func_fun": None,  # only used if pq_func == 'user'
      "pq_func_var": 'Mh',
      "pq_func_par0": None,
      "pq_func_par1": None,
@@ -319,6 +336,24 @@ def DustParameters():
     pf.update(rcParams)
 
     return pf
+
+def PowerSpectrumParameters():
+    pf = {}
+
+    tmp = \
+    {     
+     'powspec_redshifts': np.arange(6, 20, 1),
+     'output_wavenumbers': np.logspace(-2, 2, 51),
+     
+     'include_auto_correlations': True,
+     'include_cross_correlations': True,
+    }
+
+    pf.update(tmp)
+    pf.update(rcParams)
+
+    return pf
+
     
 def PopulationParameters():
     """
@@ -385,6 +420,8 @@ def PopulationParameters():
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
+    
+    "pop_sfh": False,             # account for SFH in spectrum modeling
 
     # Option of setting Z, t, or just supplying SSP table?
     
@@ -465,6 +502,7 @@ def PopulationParameters():
     "pop_Mmax": None,
 
     "pop_time_limit": None,
+    "pop_time_limit_delay": True,
     "pop_mass_limit": None,
     "pop_abun_limit": None,
     "pop_bind_limit": None,
@@ -510,6 +548,18 @@ def PopulationParameters():
     "pop_ion_src_igm": True,
     "pop_heat_src_cgm": False,
     "pop_heat_src_igm": True,
+    
+    "pop_biased": False,
+    "pop_lya_fluct": False,
+    "pop_ion_fluct": False,
+    "pop_heat_fluct": False,
+    "pop_dens_fluct": False,
+    "pop_one_halo_term": True,
+    "pop_two_halo_term": True,
+    
+    "pop_bubble_size": None,
+    "pop_bubble_density": None,
+    "pop_bubble_size_dist": None, # or FZH04, PC14
     
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
@@ -595,10 +645,29 @@ def SourceParameters():
     
     "source_logN": -inf,
     "source_hardening": 'extrinsic',
+
+    # Synthesis models
+    "source_sfh": None,
+    "source_Z": 0.02,
+    "source_imf": 2.35,
+    "source_nebular": False,
+    "source_ssp": False,             # a.k.a., continuous SF
+    "source_psm_instance": None,
+    "source_tsf": 100.,
+    "source_binaries": False,        # for BPASS
+    "source_sed_by_Z": None,
+    "source_rad_yield": 'from_sed',
+    
+    "source_degradation": None,      # Degrade spectra to this \AA resolution
+    "source_aging": True,
     
     # Stellar
     "source_temperature": 1e5,  
     "source_qdot": 5e48,
+    
+    # SFH
+    "source_sfh": None,
+    "source_meh": None,
     
     # BH
     "source_mass": 1e5,
@@ -659,8 +728,26 @@ def BlackHoleParameters():
     pf.update(SourceParameters())
     pf.update(rcParams)
     
-    return pf    
-    
+    return pf
+
+def SynthesisParameters():
+    pf = \
+    {
+    # For synthesis models
+    "source_sed": None,
+    "source_Z": 0.02,
+    "source_imf": 2.35,
+    "source_nebular": False,
+    "source_ssp": False,             # a.k.a., continuous SF
+    "source_psm_instance": None,
+    "source_tsf": 100.,
+    "source_binaries": False,        # for BPASS
+    "source_sed_by_Z": None,
+    "source_rad_yield": 'from_sed',
+    }
+
+    return pf
+
 def HaloMassFunctionParameters():
     pf = \
     {
@@ -668,9 +755,11 @@ def HaloMassFunctionParameters():
     
     "hmf_instance": None,
     "hmf_load": True,
+    "hmf_load_ps": False,
+    "hmf_load_growth": False,
     "hmf_table": None,
     "hmf_analytic": False,
-    
+
     # Table resolution
     "hmf_logMmin": 4,
     "hmf_logMmax": 16,
@@ -678,7 +767,7 @@ def HaloMassFunctionParameters():
     "hmf_zmin": 3,
     "hmf_zmax": 60,
     "hmf_dz": 0.05,
-    
+
     # to CAMB
     'hmf_dlna': 2e-6,           # hmf default value is 1e-2
     'hmf_dlnk': 1e-2,
@@ -689,6 +778,9 @@ def HaloMassFunctionParameters():
     
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
+    
+    # For, e.g., fcoll, etc
+    "hmf_interp": 'cubic',
     
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
@@ -799,8 +891,17 @@ def ControlParameters():
     "tau_prefix": tau_prefix,
     "tau_instance": None,
 
-    "sam_dz": 2., # Usually good enough!
+    # Power spectrum stuff
+    "powspec_logkmin": -3,
+    "powspec_logkmax": 2,
+    "powspec_dlogk": 0.5,    
+    "powspec_dlogr": 0.1,
+    "powspec_band": (11.2, 13.6),
 
+    "sam_dz": 2., # Usually good enough!
+    "sam_atol": 1e-2,
+    "sam_rtol": 1e-2,
+    
     # File format
     "preferred_format": 'npz',
 
@@ -832,7 +933,8 @@ _sampling_parameters = \
  'output_freq_min': 30.,
  'output_freq_max': 200.,
  'output_freq_res': 1.,    
- 'output_dz': None,  # Redshift sampling    
+ 'output_dz': None,  # Redshift sampling 
+ 'output_redshifts': None,   
 }
 
 # Old != Deprecated

@@ -69,7 +69,16 @@ class Global21cm(AnalyzeGlobal21cm):
     @timer.setter
     def timer(self, value):
         self._timer = value
-            
+        
+    @property 
+    def count(self):
+        if not hasattr(self, '_count'):
+            try:
+                self._count = self.medium.field.count
+            except AttributeError:
+                self._count = 1
+        return self._count   
+        
     @property
     def info(self):
         print_sim(self)
@@ -177,6 +186,9 @@ class Global21cm(AnalyzeGlobal21cm):
         if self.pf['output_frequencies'] is not None:
             nu = self.pf['output_frequencies']
             z = nu_0_mhz / nu - 1.
+        elif self.pf['output_redshifts'] is not None:
+            z = self.pf['output_redshifts']
+            nu = nu_0_mhz / (1. + z)
         elif self.pf['output_dz'] is not None:
             z = np.arange(self.pf['final_redshift'] + self.pf['output_dz'],
                 self.pf['initial_redshift'], self.pf['output_dz'])[-1::-1]
@@ -320,7 +332,7 @@ class Global21cm(AnalyzeGlobal21cm):
 
         """
                                 
-        for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
+        for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():
 
             Ja = np.atleast_1d(self._f_Ja(z))
             Jlw = np.atleast_1d(self._f_Jlw(z))
@@ -380,7 +392,9 @@ class Global21cm(AnalyzeGlobal21cm):
                 f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
                 pickle.dump(self.blobs, f)
                 f.close()
-                print 'Wrote %s.blobs.%s' % (prefix, suffix)
+                
+                if self.pf['verbose']:
+                    print 'Wrote %s.blobs.%s' % (prefix, suffix)
             except AttributeError:
                 print 'Error writing %s.blobs.%s' % (prefix, suffix)
     
@@ -419,7 +433,7 @@ class Global21cm(AnalyzeGlobal21cm):
             print >> f, ''
 
             # Now, the data
-            for i in range(len(self.history[key])):
+            for i in xrange(len(self.history[key])):
                 s = ''
 
                 for key in self.history:
@@ -436,8 +450,27 @@ class Global21cm(AnalyzeGlobal21cm):
 
             f.close()
 
-        print 'Wrote %s.history.%s' % (prefix, suffix)
-    
+        if self.pf['verbose']:
+            print 'Wrote %s.history.%s' % (prefix, suffix)
+            
+        # Save histories for Mmin and SFRD if we're doing iterative stuff
+        if self.count > 1:
+            f = open('%s.Mmin.pkl' % prefix, 'wb')
+            pickle.dump(self.medium.field._zarr, f)
+            pickle.dump(self.medium.field._Mmin_bank, f)
+            f.close()
+            if self.pf['verbose']:
+                print 'Wrote %s.Mmin.pkl' % prefix
+            
+            if self.pf['feedback_LW_sfrd_popid'] is not None:
+                pid = self.pf['feedback_LW_sfrd_popid']
+                f = open('%s.sfrd.pkl' % prefix, 'wb')
+                pickle.dump(self.medium.field.pops[pid].halos.z, f)
+                pickle.dump(self.medium.field._sfrd_bank, f)
+                f.close()
+                if self.pf['verbose']:
+                    print 'Wrote %s.sfrd.pkl' % prefix
+            
         write_pf = True
         if os.path.exists('%s.parameters.pkl' % prefix):
             if clobber:
@@ -462,6 +495,7 @@ class Global21cm(AnalyzeGlobal21cm):
             pickle.dump(self.pf, f, -1)
             f.close()
     
-            print 'Wrote %s.parameters.pkl' % prefix
+            if self.pf['verbose']:
+                print 'Wrote %s.parameters.pkl' % prefix
         
     

@@ -26,7 +26,7 @@ By default, ares generates tables assuming the IGM is fully neutral, but that is
 
 Tables for ``mirocha2016``-like calculations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-To generate the table used for the calculations in `Mirocha, Furlanetto, \& Sun (2016) <http://arxiv.org/abs/1607.00386>`_, modify the following lines of ``$ARES/examples/generate_optical_depth_tables.py``:
+To generate the table used for the calculations in `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_, modify the following lines of ``$ARES/examples/generate_optical_depth_tables.py``:
 
 :: 
 

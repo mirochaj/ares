@@ -286,7 +286,7 @@ class ParameterBundle(dict):
         # Make sure to not overwrite anything here!
         for key in other:
             if key in tmp:
-                raise KeyError('%s supplied more than once!' % key)
+                print "WARNING: Setting {0}->{1}".format(key, other[key])
 
             tmp[key] = other[key]
                 
@@ -421,7 +421,7 @@ class ParameterBundle(dict):
                 else:    
                     tmp[par] = self[par]
                 
-        return tmp 
+        return ParameterBundle(**tmp)
         
     @property
     def pqs(self):

@@ -49,9 +49,14 @@ class TurningPoints(object):
         # Compute second derivative
         zpp, dTb2dz2 = central_difference(zp, dTbdz)   
         
-        negative = np.all(dTb < 0)
+        # Must strictly all elements be of the same sign and concavity?
+        # Leads to misidentification of turning points on rare occasions 
+        # when a single point has the wrong concavity.
+        #negative = np.all(dTb < 0)
+        negative = len(dTb[dTb < 0]) > len(dTb[dTb > 0])
         positive = not negative
-        concave_up = np.all(dTb2dz2 > 0)
+        #concave_up = np.all(dTb2dz2 > 0)
+        concave_up = len(dTb2dz2[dTb2dz2 > 0]) > len(dTb2dz2[dTb2dz2 < 0])
         concave_down = not concave_up
         
         # Based on sign of brightness temperature and concavity,
@@ -64,7 +69,7 @@ class TurningPoints(object):
             # end of EoR "turning point" if C has already been found.
             if 'B' in self.TPs:
                 return 'Bp'
-            elif 'B' not in self.TPs:
+            elif ('B' not in self.TPs):
                 return 'B'
             elif 'C' in self.TPs:
                 # Preferably this is zero within tolerances?
@@ -161,9 +166,6 @@ class TurningPoints(object):
             TP = self.which_extremum(zbracketed, Tbracketed, zz, dT)
             self.TPs.append(TP)
             
-            #if TP not in list('ABCDE'):
-            #    raise ValueError('Unrecognized turning point!')
-             
             # Crude guess at turning pt. position
             zTP_guess = zz[np.argmin(np.abs(dT))]    
             TTP_guess = np.interp(zTP_guess, z[k:-1], dTb[k:-1]) 
@@ -172,13 +174,19 @@ class TurningPoints(object):
             #    self.guess_from_signal(TP, z[k:-1], dTb[k:-1])
                                                                                                          
             # Spline interpolation to get "final" extremum redshift
-            for ll in [3, 2]:
-                Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=ll)
-                    
-                if ('B' in TP) or ('D' in TP):
-                    dTb_fit = lambda zz: -splev(zz, Bspl_fit1)
+            for ll in [3, 2, 1]:
+                if ll > 1:
+                    Bspl_fit1 = splrep(z[k:-1][-1::-1], dTb[k:-1][-1::-1], k=ll)
+                        
+                    if ('B' in TP) or ('D' in TP):
+                        dTb_fit = lambda zz: -splev(zz, Bspl_fit1)
+                    else:
+                        dTb_fit = lambda zz: splev(zz, Bspl_fit1)
                 else:
-                    dTb_fit = lambda zz: splev(zz, Bspl_fit1)
+                    dTb_fit = lambda zz: np.interp(zz, z[k:-1][-1::-1], 
+                        dTb[k:-1][-1::-1])
+                
+                    #print 'linear', z[k:-1][-1::-1], dTb[k:-1][-1::-1]
                 
                 zTP = float(minimize(dTb_fit, zTP_guess, tol=1e-4).x[0])
                 TTP = float(dTb_fit(zTP))
@@ -188,8 +196,8 @@ class TurningPoints(object):
                     
                 # Contingencies....
                 if self.is_crazy(TP, zTP, TTP):    
-                    
-                    if ll == 2:
+                                        
+                    if ll == 1:
                         self.turning_points[TP] = (-np.inf, -np.inf, -np.inf)
                     else:
                         continue

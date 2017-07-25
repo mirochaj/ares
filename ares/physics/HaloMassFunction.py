@@ -237,8 +237,15 @@ class HaloMassFunction(object):
             self.M = 10**self.logM
             self.fcoll_tab = f['fcoll'].value
             self.dndm = f['dndm'].value
+
+            if self.pf['hmf_load_ps']:
+                self.bias_tab = f['bias'].value
+                self.psCDM_tab = f['psCDM'].value
+
+            # Axes these?
             self.ngtm = f['ngtm'].value
             self.mgtm = f['mgtm'].value
+
             f.close()
         elif re.search('.npz', self.fn):
             f = np.load(self.fn)
@@ -249,6 +256,8 @@ class HaloMassFunction(object):
             self.dndm = f['dndm']
             self.ngtm = f['ngtm']
             self.mgtm = f['mgtm']
+            self.growth_factor = f['growth_factor']
+            self.bias_tab = f['bias']
             f.close()                        
         elif re.search('.pkl', self.fn):
             f = open(self.fn, 'rb')
@@ -256,9 +265,21 @@ class HaloMassFunction(object):
             self.logM = pickle.load(f)
             self.M = 10**self.logM
             self.fcoll_spline_2d = pickle.load(f)
-            self.dndm = pickle.load(f)
+            self.dndm = pickle.load(f)            
             self.ngtm = pickle.load(f)
             self.mgtm = pickle.load(f)
+            
+            if self.pf['hmf_load_ps']:
+                self.bias_tab = pickle.load(f)
+                self.psCDM = pickle.load(f)
+            
+            if self.pf['hmf_load_growth']:
+                self.growth_factor = pickle.load(f)
+            
+            # Axes these?
+            self.ngtm = pickle.load(f)
+            self.mgtm = pickle.load(f)
+
             f.close()
 
         else:
@@ -290,14 +311,18 @@ class HaloMassFunction(object):
             self.logMmin_tab = self.pf['hmf_logMmin']
             self.logMmax_tab = self.pf['hmf_logMmax']
             self.dz = self.pf['hmf_dz']
+            
+            # Introduce ghost zones so that the derivative is defined
+            # at the boundaries.
             self.zmin = max(self.pf['hmf_zmin'] - 2 * self.dz, 0)
             self.zmax = self.pf['hmf_zmax'] + 2 * self.dz
             self.dlogM = self.pf['hmf_dlogM']
             
-            self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
+            self.Nz = int(round(((self.zmax - self.zmin) / self.dz) + 1, 1))
             self.z = np.linspace(self.zmin, self.zmax, self.Nz)             
-                         
+
             # Initialize Perturbations class
+
             self._MF = MassFunction(Mmin=self.logMmin_tab, Mmax=self.logMmax_tab, 
                 dlog10m=self.dlogM, z=self.z[0], 
                 hmf_model=self.hmf_func, cosmo_params=self.cosmo_params,
@@ -306,7 +331,7 @@ class HaloMassFunction(object):
                 dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
                 lnk_max=self.pf['hmf_lnk_max'])
                 
-        return self._MF   
+        return self._MF
 
     @MF.setter
     def MF(self, value):
@@ -342,7 +367,7 @@ class HaloMassFunction(object):
         self.dlogM = self.pf['hmf_dlogM']
         self.dz = self.pf['hmf_dz']
         
-        self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
+        self.Nz = int(round(((self.zmax - self.zmin) / self.dz) + 1, 1))
         self.z = np.linspace(self.zmin, self.zmax, self.Nz)
         
         self.Nm = np.logspace(self.logMmin_tab, self.logMmax_tab, self.dlogM).size
@@ -357,11 +382,18 @@ class HaloMassFunction(object):
         self.lnM = np.log(self.M)
         
         self.Nm = self.M.size
+
+        self.k = self.MF.k * self.cosm.hubble_0
         
         self.dndm = np.zeros([self.Nz, self.Nm])
         self.mgtm = np.zeros_like(self.dndm)
         self.ngtm = np.zeros_like(self.dndm)
         fcoll_tab = np.zeros_like(self.dndm)
+        
+        # Extras
+        self.bias_tab = np.zeros_like(self.dndm)
+        self.psCDM_tab = np.zeros([len(self.z), len(self.k)])
+        self.growth_factor = np.zeros_like(self.z)
         
         pb = ProgressBar(len(self.z), 'fcoll')
         pb.start()
@@ -376,7 +408,7 @@ class HaloMassFunction(object):
                 
             # Compute collapsed fraction
             if self.hmf_func == 'PS' and self.hmf_analytic:
-                delta_c = self.MF.delta_c / self.MF.growth.growth_factor(z)
+                delta_c = self.MF.delta_c / self.MF.growth_factor
                 fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
                 
             else:
@@ -385,10 +417,17 @@ class HaloMassFunction(object):
                 self.dndm[i] = self.MF.dndm.copy() * self.cosm.h70**4
                 self.mgtm[i] = self.MF.rho_gtm.copy()
                 self.ngtm[i] = self.MF.ngtm.copy() * self.cosm.h70**3
-                
+                 
                 # Remember that mgtm and mean_density have factors of h**2
                 # so we're OK here dimensionally
                 fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
+                
+                # For power spectra
+                self.bias_tab[i] = 1. + (0.75 * self.MF.nu - 1.) / self.MF.delta_c + \
+                    (2. * 0.3 / self.MF.delta_c) / (1. + (0.75 * self.MF.nu)**0.3)
+                self.psCDM_tab[i] = self.MF.power / self.cosm.h70**3
+                
+            self.growth_factor[i] = self.MF.growth_factor
                         
             pb.update(i)
             
@@ -396,9 +435,9 @@ class HaloMassFunction(object):
                 
         # Collect results!
         if size > 1:
-            tmp = np.zeros_like(fcoll_tab)
-            nothing = MPI.COMM_WORLD.Allreduce(fcoll_tab, tmp)
-            _fcoll_tab = tmp
+            tmp1 = np.zeros_like(fcoll_tab)
+            nothing = MPI.COMM_WORLD.Allreduce(fcoll_tab, tmp1)
+            _fcoll_tab = tmp1
             
             tmp2 = np.zeros_like(self.dndm)
             nothing = MPI.COMM_WORLD.Allreduce(self.dndm, tmp2)
@@ -407,18 +446,32 @@ class HaloMassFunction(object):
             tmp3 = np.zeros_like(self.ngtm)
             nothing = MPI.COMM_WORLD.Allreduce(self.ngtm, tmp3)
             self.ngtm = tmp3
-            #
-            #tmp4 = np.zeros_like(self.mgtm)
-            #nothing = MPI.COMM_WORLD.Allreduce(self.mgtm, tmp4)
-            #self.mgtm = tmp4
+            
+            tmp4 = np.zeros_like(self.mgtm)
+            nothing = MPI.COMM_WORLD.Allreduce(self.mgtm, tmp4)
+            self.mgtm = tmp4
+            
+            tmp5 = np.zeros_like(self.bias_tab)
+            nothing = MPI.COMM_WORLD.Allreduce(self.bias_tab, tmp5)
+            self.bias_tab = tmp5
+            
+            tmp6 = np.zeros_like(self.psCDM_tab)
+            nothing = MPI.COMM_WORLD.Allreduce(self.psCDM_tab, tmp6)
+            self.psCDM_tab = tmp6
+            
+            tmp7 = np.zeros_like(self.growth_factor)
+            nothing = MPI.COMM_WORLD.Allreduce(self.growth_factor, tmp7)
+            self.growth_factor = tmp7
+            
         else:
             _fcoll_tab = fcoll_tab   
                     
         # Fix NaN elements
         _fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
         self._fcoll_tab = _fcoll_tab
-                    
-    def build_1d_splines(self, Tmin, mu=0.6):
+ 
+    def build_1d_splines(self, Tmin, mu=0.6, return_fcoll=False, 
+        return_fcoll_p=True, return_fcoll_pp=False):
         """
         Construct splines for fcoll and its derivatives given a (fixed) 
         minimum virial temperature.
@@ -497,18 +550,14 @@ class HaloMassFunction(object):
         # 'cuz time and redshift are different        
         self.dfcolldz_tab *= -1.
 
-        fcoll_spline = None
-        self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
-
-        # Try masking all z elements lower than first occurrence
-        
-        #zp = self.ztab[self.ztab <= 50]
-        #fp = self.dfcolldz_tab[self.ztab <= 50]
-        #zmax = zp[fp < tiny_dfcolldz].max()
-        #print zmax
-        #
+        if return_fcoll:
+            fcoll_spline = interp1d(self.z, self.fcoll_Tmin, 
+                kind=self.pf['hmf_interp'], bounds_error=False,
+                fill_value=0.0)
+        else:
+            fcoll_spline = None
+            
         self.dfcolldz_tab[self.dfcolldz_tab <= tiny_dfcolldz] = tiny_dfcolldz
-        #self.dfcolldz_tab[self.ztab <= zmax] = tiny_dfcolldz
                     
         spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
             kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
@@ -526,6 +575,42 @@ class HaloMassFunction(object):
     @fcoll_spline_2d.setter
     def fcoll_spline_2d(self, value):
         self._fcoll_spline_2d = value
+
+    @property
+    def bias(self):
+        if not hasattr(self, '_bias'):
+            self._bias = RectBivariateSpline(self.z, 
+                self.logM, self.bias_tab, kx=3, ky=3)
+        return self._bias 
+
+    @bias.setter
+    def bias(self, value):
+        self._bias = value
+    
+    @property
+    def psCDM(self):
+        if not hasattr(self, '_psCDM'):
+            self._psCDM = RectBivariateSpline(self.z, 
+                self.k, self.psCDM_tab, kx=3, ky=3)
+        return self._psCDM
+        
+    @psCDM.setter
+    def psCDM(self, value):
+        self._psCDM = value    
+        
+    @property
+    def dlns_dlnm(self):
+        if not hasattr(self, '_dlns_dlnm'):
+            self.MF.update(z=0)
+            self._dlns_dlnm = self.MF._dlnsdlnm
+        return self._dlns_dlnm
+    
+    @property
+    def sigma_0(self):
+        if not hasattr(self, '_sigma_0'):
+            self.MF.update(z=0)
+            self._sigma_0 = self.MF._sigma_0
+        return self._sigma_0
         
     def fcoll_2d(self, z, logMmin):
         """
@@ -670,13 +755,18 @@ class HaloMassFunction(object):
             *  (Vc / 23.4)**3 / cterm**0.5 / ((1. + z) / 10)**1.5
             
     def BindingEnergy(self, M, z, mu=0.6):
-        return 0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(M, z, mu) \
+        return (0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(M, z, mu)) \
             * self.cosm.fbaryon / cm_per_kpc
+            
+    def MassFromEb(self, z, Eb, mu=0.6):
+        # Could do this analytically but I'm lazy
+        func = lambda M: abs(np.log10(self.BindingEnergy(10**M, z=z, mu=mu)) - np.log10(Eb))
+        return 10**fsolve(func, x0=7.)[0]
             
     def MeanDensity(self, M, z, mu=0.6):
         V = 4. * np.pi * self.VirialRadius(M, z, mu)**3 / 3.
         return (M / V) * g_per_msun / cm_per_kpc**3
-        
+
     def JeansMass(self, M, z, mu=0.6):
         rho = self.MeanDensity(M, z, mu)
         T = self.VirialTemperature(M, z, mu)
@@ -732,13 +822,13 @@ class HaloMassFunction(object):
         if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
                 / self.pf['hmf_dlogM']                
-            zsize = (self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
-                / self.pf['hmf_dz'] + 1
+            zsize = ((self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
+                / self.pf['hmf_dz']) + 1
                 
             assert logMsize % 1 == 0
             logMsize = int(logMsize)    
             assert zsize % 1 == 0
-            zsize = int(zsize)    
+            zsize = int(round(zsize, 1))    
                 
             return 'hmf_%s_logM_%s_%i-%i_z_%s_%i-%i' \
                 % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
@@ -800,8 +890,10 @@ class HaloMassFunction(object):
             f.create_dataset('fcoll', data=self.fcoll_tab)
             f.create_dataset('dndm', data=self.dndm)
             f.create_dataset('ngtm', data=self.ngtm)
-            f.create_dataset('mgtm', data=self.mgtm)
-            f.create_dataset('hmf-version', data=hmf_v)
+            f.create_dataset('mgtm', data=self.mgtm)            
+            f.create_dataset('bias', data=self.bias_tab)            
+            f.create_dataset('psCDM', data=self.psCDM_tab)            
+            f.create_dataset('hmf-version', data=hmf_v)         
             f.close()
 
         elif format == 'npz':
@@ -810,6 +902,9 @@ class HaloMassFunction(object):
                     'ngtm': self.ngtm, 'mgtm': self.mgtm,
                     'pars': {'growth_pars': self.growth_pars,
                              'transfer_pars': self.transfer_pars},
+                    'growth_factor': self.growth_factor,
+                    'bias': self.bias_tab,
+                    'matter_ps': self.psCDM,
                     'hmf-version': hmf_v}
             np.savez(fn, **data)
 
@@ -822,6 +917,9 @@ class HaloMassFunction(object):
             pickle.dump(self.dndm, f)
             pickle.dump(self.ngtm, f)
             pickle.dump(self.mgtm, f)
+            pickle.dump(self.bias_tab, f)
+            pickle.dump(self.psCDM, f)
+            pickle.dump(self.growth_factor, f)
             pickle.dump({'growth_pars': self.growth_pars,
                 'transfer_pars': self.transfer_pars}, f)
             pickle.dump(dict(('hmf-version', hmf_v)))

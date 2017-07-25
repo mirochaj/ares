@@ -2,6 +2,12 @@ Under the Hood
 ==============
 Super incomplete, sorry!
 
+Parameters, Fields, and Data Structures
+---------------------------------------
+* :doc:`params`
+* :doc:`fields`
+* :doc:`inits_tables`
+
 .. Radiation Sources
 .. -----------------
 .. 

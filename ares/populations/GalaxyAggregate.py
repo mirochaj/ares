@@ -31,7 +31,7 @@ from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL
 from ..util.SetDefaultParameterValues import StellarParameters, \
-    BlackHoleParameters
+    BlackHoleParameters, SynthesisParameters
     
 _synthesis_models = ['leitherer1999', 'eldridge2009']
 _single_star_models = ['schaerer2002']
@@ -107,6 +107,10 @@ class GalaxyAggregate(HaloPopulation):
                 self._Source_ = SynthesisModel
             elif self.pf['pop_sed'] in _single_star_models:
                 self._Source_ = StarQS
+            elif type(self.pf['pop_sed']) is FunctionType or \
+                 inspect.ismethod(self.pf['pop_sed']) or \
+                 isinstance(self.pf['pop_sed'], interp1d):
+                 self._Source_ = BlackHole
             else:
                 self._Source_ = read_lit(self.pf['pop_sed'], 
                     verbose=self.pf['verbose'])
@@ -144,6 +148,16 @@ class GalaxyAggregate(HaloPopulation):
                 for par in bpars:
                     par_pop = par.replace('source', 'pop')
                     
+                    if par_pop in self.pf:
+                        self._src_kwargs[par] = self.pf[par_pop]
+                    else:
+                        self._src_kwargs[par] = bpars[par]
+
+            elif self._Source is SynthesisModel:
+                bpars = SynthesisParameters()
+                for par in bpars:
+                    par_pop = par.replace('source', 'pop')
+
                     if par_pop in self.pf:
                         self._src_kwargs[par] = self.pf[par_pop]
                     else:
@@ -270,7 +284,7 @@ class GalaxyAggregate(HaloPopulation):
         # SFRD given by some function  
         if self.is_link_sfrd:    
             # Already in the right units
-            return self._sfrd(z)  
+            return self._sfrd(z)
         elif self.is_user_sfrd:
             if self.pf['pop_sfrd_units'] == 'internal':
                 return self._sfrd(z=z)
@@ -289,7 +303,7 @@ class GalaxyAggregate(HaloPopulation):
             sys.exit(1)
 
         return sfrd                           
-            
+
     @property
     def reference_band(self):
         if not hasattr(self, '_reference_band'):
@@ -299,7 +313,7 @@ class GalaxyAggregate(HaloPopulation):
                 self._reference_band = \
                     (self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
         return self._reference_band
-    
+
     @property
     def full_band(self):
         if not hasattr(self, '_full_band'):
@@ -309,7 +323,134 @@ class GalaxyAggregate(HaloPopulation):
     @property
     def model(self):
         return self.pf['pop_model']
+        
+    @property
+    def is_src_lya(self):
+        if not hasattr(self, '_is_src_lya'):
+            if self.pf['pop_sed_model']:
+                self._is_src_lya = \
+                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
+                    and self.pf['pop_lya_src']
+            else:
+                self._is_src_lya = self.pf['pop_lya_src']
     
+        return self._is_src_lya
+
+    @property
+    def is_src_lya_fluct(self):
+        if not hasattr(self, '_is_src_lya_fluct'):
+            self._is_src_lya_fluct = False
+            if not self.is_src_lya:
+                pass
+            else:
+                if self.pf['pop_lya_fluct']:
+                    self._is_src_lya_fluct = True
+
+        return self._is_src_lya_fluct
+    
+    @property
+    def is_src_ion(self):
+        if not hasattr(self, '_is_src_ion'):
+            if self.pf['pop_sed_model']:
+                self._is_src_ion = \
+                    (self.pf['pop_Emax'] > E_LL) \
+                    and self.pf['pop_ion_src_cgm']
+            else:
+                self._is_src_ion = self.pf['pop_ion_src_cgm']        
+    
+        return self._is_src_ion
+        
+    @property
+    def is_src_ion_fluct(self):
+        if not hasattr(self, '_is_src_ion_fluct'):
+            self._is_src_ion_fluct = False
+            if not self.is_src_ion:
+                pass
+            else:
+                if self.pf['pop_ion_fluct']:
+                    self._is_src_ion_fluct = True
+    
+        return self._is_src_ion_fluct    
+        
+    @property
+    def is_src_heat(self):
+        if not hasattr(self, '_is_src_heat'):
+            if self.pf['pop_sed_model']:
+                self._is_src_heat = \
+                    (E_LL <= self.pf['pop_Emin']) \
+                    and self.pf['pop_heat_src_igm']
+            else:
+                self._is_src_heat = self.pf['pop_heat_src_igm']        
+    
+        return self._is_src_heat
+        
+    @property
+    def is_src_heat_fluct(self):
+        if not hasattr(self, '_is_src_heat_fluct'):
+            self._is_src_heat_fluct = False
+            if not self.is_src_heat:
+                pass
+            else:
+                if self.pf['pop_heat_fluct']:
+                    self._is_src_heat_fluct = True
+    
+        return self._is_src_heat_fluct
+    
+    @property
+    def is_uv_src(self):
+        # Delete this eventually but right now doing so will break stuff
+        if not hasattr(self, '_is_uv_src'):
+            if self.pf['pop_sed_model']:
+                self._is_uv_src = \
+                    (self.pf['pop_Emax'] > E_LL) \
+                    and self.pf['pop_ion_src_cgm']
+            else:
+                self._is_uv_src = self.pf['pop_ion_src_cgm']        
+    
+        return self._is_uv_src
+    
+    
+||||||| base
+    
+    @property
+    def is_lya_src(self):
+        if not hasattr(self, '_is_lya_src'):
+            if self.pf['pop_sed_model']:
+                self._is_lya_src = \
+                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
+                    and self.pf['pop_lya_src']
+            else:
+                return self.pf['pop_lya_src']
+    
+        return self._is_lya_src
+    
+    @property
+    def is_uv_src(self):
+        if not hasattr(self, '_is_uv_src'):
+            if self.pf['pop_sed_model']:
+                self._is_uv_src = \
+                    (self.pf['pop_Emax'] > E_LL) \
+                    and self.pf['pop_ion_src_cgm']
+            else:
+                self._is_uv_src = self.pf['pop_ion_src_cgm']        
+    
+        return self._is_uv_src    
+    
+    @property
+    def is_xray_src(self):
+        if not hasattr(self, '_is_xray_src'):
+            if self.pf['pop_sed_model']:
+                self._is_xray_src = \
+                    (E_LL <= self.pf['pop_Emin']) \
+                    and self.pf['pop_heat_src_igm']
+            else:
+                self._is_xray_src = self.pf['pop_heat_src_igm']        
+        
+        return self._is_xray_src    
+    
+=======
+    
+>>>>>>> other
     def _convert_band(self, Emin, Emax):
         """
         Convert from fractional luminosity in reference band to given bounds.

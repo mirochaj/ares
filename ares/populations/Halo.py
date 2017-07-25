@@ -11,10 +11,11 @@ Description:
 """
 
 import numpy as np
+from ..physics import HaloModel
 from .Population import Population
 from scipy.integrate import cumtrapz
-from ..physics import HaloMassFunction
 from ..util.PrintInfo import print_pop
+from scipy.interpolate import interp1d
 from ..util.Math import central_difference, forward_difference
 from ..physics.Constants import cm_per_mpc, s_per_yr, g_per_msun
 
@@ -53,7 +54,7 @@ class HaloPopulation(Population):
     @property
     def fcoll(self):
         if not hasattr(self, '_fcoll'):
-            self._init_fcoll()
+            self._init_fcoll(return_fcoll=True)
     
         return self._fcoll
 
@@ -67,27 +68,40 @@ class HaloPopulation(Population):
     def dfcolldt(self, z):
         return self.dfcolldz(z) / self.cosm.dtdz(z)    
 
-    def _set_fcoll(self, Tmin, mu):
+    def _set_fcoll(self, Tmin, mu, return_fcoll=False):
         self._fcoll, self._dfcolldz, self._d2fcolldz2 = \
-            self.halos.build_1d_splines(Tmin, mu)
+            self.halos.build_1d_splines(Tmin, mu, return_fcoll=return_fcoll)
 
+    @property
+    def gf_spline(self):
+        if not hasattr(self, '_gf_spline'):
+            gf = self.halos.growth_factor
+            self._gf_spline = interp1d(self.halos.z, self.halos.growth_factor, 
+                kind='cubic', bounds_error=False)
+        
+        return self._gf_spline
+            
+    def growth_factor(self, z):
+        return self.gf_spline(z)
+                
     @property
     def halos(self):
         if not hasattr(self, '_halos'):
             if self.pf['hmf_instance'] is not None:
                 self._halos = self.pf['hmf_instance']
             else:
-                self._halos = HaloMassFunction(**self.pf)
+                self._halos = HaloModel(**self.pf)
                 
         return self._halos
         
-    def _init_fcoll(self):
+    def _init_fcoll(self, return_fcoll=False):
         # Halo stuff
         if self.pf['pop_sfrd'] is not None:
             return
 
         if self.pf['pop_fcoll'] is None:
-            self._set_fcoll(self.pf['pop_Tmin'], self.pf['mu'])
+            self._set_fcoll(self.pf['pop_Tmin'], self.pf['mu'],
+                return_fcoll=return_fcoll)
         else:
             self._fcoll, self._dfcolldz = \
                 self.pf['pop_fcoll'], self.pf['pop_dfcolldz']

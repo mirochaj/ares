@@ -227,9 +227,9 @@ class OpticalDepth(object):
         pb.start()     
     
         # Loop over redshift, photon energy
-        for l in range(self.L):
+        for l in xrange(self.L):
     
-            for n in range(self.N):
+            for n in xrange(self.N):
                 m = l * self.N + n + 1
     
                 if m % size != rank:

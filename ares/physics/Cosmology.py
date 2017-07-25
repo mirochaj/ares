@@ -51,6 +51,7 @@ class Cosmology(object):
         
         self.g_per_baryon = self.g_per_b = m_H / (1. - self.Y) / (1. + self.y)
         self.b_per_g = 1. / self.g_per_baryon
+
         self.baryon_per_Msun = self.b_per_msun = g_per_msun / self.g_per_baryon
          
         # Decoupling (gas from CMB) redshift       
@@ -72,6 +73,9 @@ class Cosmology(object):
         self.nHe0 = self.y * self.nH0
         self.ne0 = self.nH0 + 2. * self.nHe0
         #self.n0 = self.nH0 + self.nHe0 + self.ne0
+        
+        # Mean density in Msun / Mpc**3
+        self.mean_density0 = self.rho_m_z0 * cm_per_mpc**3 / g_per_msun
         
         self.nH = lambda z: self.nH0 * (1. + z)**3
         self.nHe = lambda z: self.nHe0 * (1. + z)**3
