@@ -14,7 +14,7 @@ increasingly absorbed power-law X-ray emission.
 import ares
 import numpy as np
 import matplotlib.pyplot as pl
-from ares.physics.Constants import erg_per_ev, c, ev_per_hz
+from ares.physics.Constants import erg_per_ev, c, ev_per_hz, sqdeg_per_std
 
 # Unabsorbed power-law
 beta = -6.
@@ -52,6 +52,7 @@ def test(tol = 1e-2):
     fig1 = pl.figure(0); ax1 = fig1.add_subplot(111)
     fig2 = pl.figure(1); ax2 = fig2.add_subplot(111)
     fig3 = pl.figure(2); ax3 = fig3.add_subplot(111)
+    fig4 = pl.figure(3); ax4 = fig4.add_subplot(111)
     
     # Loop over sources and plot CXRB
     colors = ['k', 'b']
@@ -70,6 +71,16 @@ def test(tol = 1e-2):
         # Plot up background flux
         ax1.loglog(E[0], flux[0][0] * E[0] * erg_per_ev, color=colors[i], ls='-', 
             label=label)
+            
+        Ef, ff = mgb.today
+        flux_today = ff[0] * Ef[0] * erg_per_ev / sqdeg_per_std**2
+        Eok = np.logical_and(Ef[0] >= 5e2, Ef[0] <= 2e3)
+        ax4.loglog(Ef[0], flux_today)
+        
+        # Find integrated 0.5-2 keV flux
+        sxb = np.trapz(flux_today[Eok] / ev_per_hz, x=Ef[0][Eok])
+        ax4.annotate(r'$j_x = %.2e$' % sxb, (0.95, 0.95), xycoords='axes fraction',
+            ha='right', va='top')
         
         # Check analytic solution for unabsorbed case
         if i == 0:
@@ -102,8 +113,8 @@ def test(tol = 1e-2):
         for j, redshift in enumerate(z):
             # We have to add brackets because volume.*Rate routines expect
             # fluxes in the form (Npops, Nbands, Nfreq)
-            heat[j] = mgb.volume.HeatingRate(redshift, fluxes=[flux[j]])
-            ioniz[j] = mgb.volume.IonizationRateIGM(redshift, fluxes=[flux[j]])
+            heat[j] = mgb.solver.volume.HeatingRate(redshift, fluxes=[flux[j]])
+            ioniz[j] = mgb.solver.volume.IonizationRateIGM(redshift, fluxes=[flux[j]])
             
         ax2.semilogy(z, heat, color=colors[i], ls='-', label=label)
         ax3.semilogy(z, ioniz, color=colors[i], ls='-', label=label)
@@ -117,14 +128,14 @@ def test(tol = 1e-2):
     ax3.set_ylabel(r'$\Gamma_{\mathrm{HI}}$')
     #ax1.set_ylim(1e-21, 1e-14)
     
-    for ax in [ax1, ax2, ax3]:
+    for ax in [ax1, ax2, ax3, ax4]:
         ax.legend(loc='best', fontsize=14)
     
     pl.show()
-    for i in range(3):
+    for i in range(4):
         pl.figure(i)
         pl.savefig('%s_%i.png' % (__file__.rstrip('.py'), i))
-
+    
     pl.close('all')    
     assert True
 

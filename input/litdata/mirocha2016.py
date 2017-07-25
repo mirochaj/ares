@@ -1,5 +1,5 @@
 """
-Mirocha, Sun, and Furlanetto (2016), in prep.
+Mirocha, Furlanetto, and Sun (2017).
 
 Parameters defining the fiducial model (see Table 1).
 """
@@ -10,6 +10,7 @@ from ares.physics.Constants import E_LyA
 # Calibration set!
 dpl = \
 {
+
  # Halos, MAR, etc.
  'pop_Tmin{0}': 1e4,
  'pop_Tmin{1}': 'pop_Tmin{0}',
@@ -24,28 +25,27 @@ dpl = \
  'pop_Z{0}': 0.02,
  'pop_Emin{0}': 10.19,
  'pop_Emax{0}': 24.6,
- 'pop_yield{0}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
-                             # should make this automatic
+ 'pop_rad_yield{0}': 'from_sed', # EminNorm and EmaxNorm arbitrary now
+                                 # should make this automatic
 
  'pop_fesc{0}': 0.1,
  
  # Solve LWB!
  'pop_solve_rte{0}': (10.2, 13.6),
- 'pop_tau_Nz{1}': 1e3,
 
  
  # SFE
- 'pop_fstar{0}': 'php[0]',
- 'php_func{0}[0]': 'dpl',
- 'php_func_var{0}[0]': 'mass',
+ 'pop_fstar{0}': 'pq[0]',
+ 'pq_func{0}[0]': 'dpl',
+ 'pq_func_var{0}[0]': 'Mh',
  
  ##
  # IMPORTANT
  ##
- 'php_func_par0{0}[0]': 0.05,       # Table 1 in paper (last 4 rows)
- 'php_func_par1{0}[0]': 2.8e11,
- 'php_func_par2{0}[0]': 0.49,       
- 'php_func_par3{0}[0]': -0.61,      
+ 'pq_func_par0{0}[0]': 0.05,       # Table 1 in paper (last 4 rows)
+ 'pq_func_par1{0}[0]': 2.8e11,
+ 'pq_func_par2{0}[0]': 0.49,       
+ 'pq_func_par3{0}[0]': -0.61,      
  'pop_calib_L1600{0}': 1.0185e28,      # Enforces Equation 13 in paper 
  ##
  #
@@ -54,9 +54,9 @@ dpl = \
  # Careful with X-ray heating
  'pop_sed{1}': 'mcd',
  'pop_Z{1}': 'pop_Z{0}',
- 'pop_yield{1}': 2.6e39,
- 'pop_yield_Z_index{1}': None,
- 'pop_alpha{1}': -1.5,
+ 'pop_rad_yield{1}': 2.6e39,
+ 'pop_rad_yield_Z_index{1}': None,
+ 'pop_alpha{1}': -1.5, # not used unless fesc > 0
  'pop_Emin{1}': 2e2,
  'pop_Emax{1}': 3e4,
  'pop_EminNorm{1}': 5e2,
@@ -64,7 +64,7 @@ dpl = \
  'pop_logN{1}': -inf,
 
  'pop_solve_rte{1}': True,
- 'pop_tau_Nz{1}': 1e3,
+ 'pop_tau_Nz{1}': 1000,
  'pop_approx_tau{1}': 'neutral',
 
  # Control parameters
@@ -83,78 +83,108 @@ dpl = \
 
 _floor_specific = \
 {
-'php_faux{0}[0]': 'plexp',
-'php_faux_var{0}[0]': 'mass',
-'php_faux_meth{0}[0]': 'add',
-'php_faux_par0{0}[0]': 0.005,
-'php_faux_par1{0}[0]': 1e9,
-'php_faux_par2{0}[0]': 0.01,
-'php_faux_par3{0}[0]': 1e10,
+ 'pq_val_floor{0}[0]': 0.005,
 }
 
-floor = dpl.copy()
-floor.update(_floor_specific)
+floor = _floor_specific
 
 _steep_specific = \
 {
- 'php_faux{0}[0]': 'okamoto',
- 'php_faux_var{0}[0]': 'mass',
- 'php_faux_meth{0}[0]': 'multiply',
- 'php_faux_par0{0}[0]': 1.,
- 'php_faux_par1{0}[0]': 1e9,
+ 'pop_focc{0}': 'pq[5]',
+ 'pq_func{0}[5]': 'okamoto',
+ 'pq_func_var{0}[5]': 'Mh',
+ 'pq_func_par0{0}[5]': 1.,
+ 'pq_func_par1{0}[5]': 1e9,
 }
 
-steep = dpl.copy()
-steep.update(_steep_specific)
+steep = _steep_specific
 
 """
 Redshift-dependent options.
 """
-_fz_specific = \
+
+_flex = \
 {
- 'php_faux{0}[0]': 'pl',
- 'php_faux_var{0}[0]': '1+z',
- 'php_faux_meth{0}[0]': 'multiply',
- 'php_faux_par0{0}[0]': 1.,
- 'php_faux_par1{0}[0]': 7.,
- 'php_faux_par2{0}[0]': 1.,
+ 'pq_func{0}[0]': 'dpl_arbnorm',
+ 'pq_func_var{0}[0]': 'Mh',
+
+ 'pq_val_ceil{0}[0]': 1.0,
+
+ # Standard dpl model at 10^8 Msun
+ 'pq_func_par0{0}[0]': 'pq[1]',
+ 'pq_func_par1{0}[0]': 'pq[2]',
+ 'pq_func_par2{0}[0]': 0.49,
+ 'pq_func_par3{0}[0]': -0.61,
+ 'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
+
+ # Evolving part
+ 'pq_func{0}[1]': 'pl',
+ 'pq_func_var{0}[1]': '1+z',
+ 'pq_func_par0{0}[1]': 0.00205,
+ 'pq_func_par1{0}[1]': 7.,
+ 'pq_func_par2{0}[1]': 0.,   # power-law index!
+
+ 'pq_func{0}[2]': 'pl',
+ 'pq_func_var{0}[2]': '1+z',
+ 'pq_func_par0{0}[2]': 2.8e11,
+ 'pq_func_par1{0}[2]': 7.,
+ 'pq_func_par2{0}[2]': 0.,   # power-law index!
+
 }
 
-_Mz_specific = \
+flex = _flex
+
+_flex2 = \
 {
- 'php_func_par1{0}[0]': 'pl',
- 'php_func_par1_par0{0}[0]': dpl['php_func_par1{0}[0]'],
- 'php_func_par1_par1{0}[0]': 5.9,
- 'php_func_par1_par2{0}[0]': -1.,
+ 'pq_func{0}[0]': 'dpl_arbnorm',
+ 'pq_func_var{0}[0]': 'Mh',
+
+ 'pq_val_ceil{0}[0]': 1.0,
+
+ # Standard dpl model at 10^8 Msun
+ 'pq_func_par0{0}[0]': 'pq[1]',
+ 'pq_func_par1{0}[0]': 'pq[2]',
+ 'pq_func_par2{0}[0]': 'pq[3]',
+ 'pq_func_par3{0}[0]': 'pq[4]',
+ 'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
+
+ # Evolving part
+ 'pq_func{0}[1]': 'pl',
+ 'pq_func_var{0}[1]': '1+z',
+ 'pq_func_par0{0}[1]': 0.00205,
+ 'pq_func_par1{0}[1]': 7.,
+ 'pq_func_par2{0}[1]': 0.,   # power-law index!
+
+ 'pq_func{0}[2]': 'pl',
+ 'pq_func_var{0}[2]': '1+z',
+ 'pq_func_par0{0}[2]': 2.8e11,
+ 'pq_func_par1{0}[2]': 7.,
+ 'pq_func_par2{0}[2]': 0.,   # power-law index!
+
+ 'pq_func{0}[3]': 'pl',
+ 'pq_func_var{0}[3]': '1+z',
+ 'pq_func_par0{0}[3]': 0.49,
+ 'pq_func_par1{0}[3]': 7.,
+ 'pq_func_par2{0}[3]': 0.,   # power-law index!
+ 
+ 'pq_func{0}[4]': 'pl',
+ 'pq_func_var{0}[4]': '1+z',
+ 'pq_func_par0{0}[4]': -0.61,
+ 'pq_func_par1{0}[4]': 7.,
+ 'pq_func_par2{0}[4]': 0.,   # power-law index!
+ 
 }
 
-dpl_fz = dpl.copy()
-dpl_fz.update(_fz_specific)
-dpl_Mz = dpl.copy()
-dpl_Mz.update(_Mz_specific)
+#dpl_evol = _flex2
+#dpl_pl = dpl_evol
+#dpl_quad = {}
+#for j, i in enumerate(range(1, 5)):
+#    dpl_quad['pq_func_par%i{0}[0]' % j] = 'pq[%i]' % i
+#    dpl_quad['pq_func{0}[%i]' % i] = 'quad'
+#    dpl_quad['pq_func_var{0}[%i]' % i] = '1+z'
+#    dpl_quad['pq_func_par0{0}[%i]' % i] = dpl['pq_func_par%i{0}[0]' % j]
+#    dpl_quad['pq_func_par1{0}[%i]' % i] = 0.
+#    dpl_quad['pq_func_par2{0}[%i]' % i] = 0.
+#    dpl_quad['pq_func_par3{0}[%i]' % i] = 4. # Normalize to z=3
 
-_steep_fz = {}
-for key in _fz_specific:
-    new_key = 'php_faux%s' % key.split('faux')[1]
-    _steep_fz[new_key] = _fz_specific[key]
-
-for key in _steep_specific:
-    new_key = 'php_faux_A%s' % key.split('faux')[1]
-    _steep_fz[new_key] = _steep_specific[key]
-
-steep_fz = dpl.copy()
-steep_fz.update(_steep_fz)
-
-_floor_fz = {}
-
-for key in _fz_specific:
-    new_key = 'php_faux%s' % key.split('faux')[1]
-    _floor_fz[new_key] = _fz_specific[key]
-
-for key in _floor_specific:
-    new_key = 'php_faux_A%s' % key.split('faux')[1]
-    _floor_fz[new_key] = _floor_specific[key]
-
-floor_fz = dpl.copy()
-floor_fz.update(_floor_fz)
 

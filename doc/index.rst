@@ -14,14 +14,13 @@ A few papers on how it works:
 
 - 1-D radiative transfer: `Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_.
 - Uniform backgrounds \& global 21-cm signal: `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_.
+- Parameter inference: `Mirocha, Harker, & Burns (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_.
+- Galaxy luminosity functions: `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_.
 
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed. This documentation is as much of a work in progress as the code itself, so if you encounter gaps or errors please do let me know.
 
 Current status:
-
-.. image:: https://drone.io/bitbucket.org/mirochaj/ares-dev/status.png
-   :target: https://drone.io/bitbucket.org/mirochaj/ares-dev/latest
 
 .. image:: https://readthedocs.org/projects/ares/badge/?version=latest
    :target: http://ares.readthedocs.io/en/latest/?badge=latest
@@ -40,7 +39,7 @@ realization of the global 21-cm signal using all default parameter values:
     sim.run()
     sim.GlobalSignature()
 
-See :doc:`example_21cm_simple` in :doc:`examples` for a more thorough 
+See :doc:`example_gs_standard` in :doc:`examples` for a more thorough 
 introduction to this type of calculation.
 
 Contents
@@ -51,18 +50,15 @@ Contents
     Home <self>
     install
     examples
-    params
-    fields
-    .. inits_tables
     uth
     troubleshooting
     updates
     contributing
     history
 
-Indices and tables
-==================
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. Indices and tables
+.. ==================
+.. * :ref:`genindex`
+.. * :ref:`modindex`
+.. * :ref:`search`
 

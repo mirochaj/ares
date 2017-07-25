@@ -22,7 +22,7 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'Dust', 'HaloProperty', 'Old', 'PowerSpectrum']
+    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old', 'PowerSpectrum']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -183,7 +183,7 @@ def PhysicsParameters():
     "radiative_transfer": 1,
     "photon_conserving": 1, 
     "plane_parallel": 0,   
-    "infinite_c": 1,  
+    "infinite_c": 1,
     
     "collisional_ionization": 1,
     
@@ -214,16 +214,66 @@ def PhysicsParameters():
     
     "rate_source": 'fk94', # fk94, option for development here
     
-    # LW feedback parameters
-    'feedback_LW': None,
+    # Feedback parameters
+
+    # LW
+    'feedback_clear_solver': True,
+    
+    'feedback_LW': False,
+    'feedback_LW_dt': 0.0,  # instantaneous response
+    'feedback_LW_Mmin': 'visbal2014',
+    'feedback_LW_fsh': None,
     'feedback_LW_Tcut': 1e4,
-    'feedback_LW_iter': None, 
-    'feedback_LW_maxiter': 10,
-    'feedback_LW_rtol': 0.,
-    'feedback_LW_atol': 1.,
     'feedback_LW_mean_err': False,
-    'feedback_LW_Mmin_uponly': False,
-    'feedback_LW_Mmin_smooth': False,
+    'feedback_LW_maxiter': 15,
+    'feedback_LW_miniter': 0,
+    'feedback_LW_softening': 'sqrt',
+    
+    'feedback_LW_Mmin_smooth': 0,
+    'feedback_LW_Mmin_fit': 0,
+    'feedback_LW_Mmin_afreq': 0,
+    'feedback_LW_Mmin_rtol': 0.0,
+    'feedback_LW_Mmin_atol': 0.0,
+    'feedback_LW_sfrd_rtol': 1e-1,
+    'feedback_LW_sfrd_atol': 1e-10,
+    'feedback_LW_sfrd_popid': None,
+    'feedback_LW_zstart': None,
+    'feedback_LW_mixup_freq': 5,
+    'feedback_LW_mixup_delay': 20,
+    'feedback_LW_guesses': None,
+    'feedback_LW_guesses_from': None,
+    'feedback_LW_guesses_perfect': False,
+    
+    # Assume that uniform background only emerges gradually as 
+    # the typical separation of halos becomes << Hubble length
+    "feedback_LW_ramp": 0,
+    
+    'feedback_streaming': False,
+    'feedback_vel_at_rec': 30.,
+
+    'feedback_Z': None,
+    'feedback_Z_Tcut': 1e4,
+    'feedback_Z_rtol': 0.,
+    'feedback_Z_atol': 1.,
+    'feedback_Z_mean_err': False,
+    'feedback_Z_Mmin_uponly': False,
+    'feedback_Z_Mmin_smooth': False,
+    
+    'feedback_tau': None,
+    'feedback_tau_Tcut': 1e4,
+    'feedback_tau_rtol': 0.,
+    'feedback_tau_atol': 1.,
+    'feedback_tau_mean_err': False,
+    'feedback_tau_Mmin_uponly': False,
+    'feedback_tau_Mmin_smooth': False,
+    
+    'feedback_EoR': None,
+    'feedback_EoR_Tcut': 1e4,
+    'feedback_EoR_rtol': 0.,
+    'feedback_EoR_atol': 1.,
+    'feedback_EoR_mean_err': False,
+    'feedback_EoR_Mmin_uponly': False,
+    'feedback_EoR_Mmin_smooth': False,
 
     }
 
@@ -231,63 +281,30 @@ def PhysicsParameters():
 
     return pf
 
-def HaloPropertyParameters():
-    pf = {}
-
-    tmp = \
+def ParameterizedQuantityParameters():
+    pf = \
     {
-     "php_func": 'dpl',
-     "php_func_var": 'mass',
-     "php_func_par0": None,
-     "php_func_par1": None,
-     "php_func_par2": None,
-     "php_func_par3": None,
-     "php_func_par4": None,
-     "php_func_par5": None,
-
-     'php_faux': None,
-     'php_faux_var': None,
-     'php_faux_meth': 'multiply',
-     'php_faux_par0': None,
-     'php_faux_par1': None,
-     'php_faux_par2': None,
-     'php_faux_par3': None,
-     'php_faux_par4': None,
-     'php_faux_par5': None,
+     "pq_func": 'dpl',
+     "pq_func_fun": None,  # only used if pq_func == 'user'
+     "pq_func_var": 'Mh',
+     "pq_func_par0": None,
+     "pq_func_par1": None,
+     "pq_func_par2": None,
+     "pq_func_par3": None,
+     "pq_func_par4": None,
+     "pq_func_par5": None,
+     "pq_func_par6": None,
+     "pq_func_par7": None,
      
-     'php_faux_A': None,
-     'php_faux_A_var': None,
-     'php_faux_A_meth': 'multiply',
-     'php_faux_A_par0': None,
-     'php_faux_A_par1': None,
-     'php_faux_A_par2': None,
-     'php_faux_A_par3': None,
-     'php_faux_A_par4': None,
-     'php_faux_A_par5': None,
-     
-     'php_faux_B': None,
-     'php_faux_B_var': None,
-     'php_faux_B_meth': 'multiply',
-     'php_faux_B_par0': None,
-     'php_faux_B_par1': None,
-     'php_faux_B_par2': None,
-     'php_faux_B_par3': None,
-     'php_faux_B_par4': None,
-     'php_faux_B_par5': None,
-     
-     "php_boost": 1.,
-     "php_iboost": 1.,
-     "php_ceil": None,
-     "php_floor": None,
+     "pq_boost": 1.,
+     "pq_iboost": 1.,
+     "pq_val_ceil": None,
+     "pq_val_floor": None,
+     "pq_var_ceil": None,
+     "pq_var_floor": None,      
          
     }  
     
-    # Hrm...can't remember what this is about.
-    for i in range(6):
-        for j in range(6):
-            tmp['php_func_par%i_par%i' % (i,j)] = None
-    
-    pf.update(tmp)
     pf.update(rcParams)
 
     return pf
@@ -297,15 +314,17 @@ def DustParameters():
     
     tmp = \
     {     
-     'dustcorr_Afun': None,
+     'dustcorr_method': None,
 
-     'dustcorr_Bfun': 'constant',
+     'dustcorr_beta': -2.,
      
-     # Intrinsic scatter in the beta-mag relation (gaussian)
-     's_beta': 0.34,
+     # Only used if method is a list
+     'dustcorr_ztrans': None,
      
      # Intrinsic scatter in the AUV-beta relation
-     's_AUV': 0.0,
+     'dustcorr_scatter_A': 0.0,
+     # Intrinsic scatter in the beta-mag relation (gaussian)
+     'dustcorr_scatter_B': 0.34,
           
      'dustcorr_Bfun_par0': -2.,
      'dustcorr_Bfun_par1': None,
@@ -359,6 +378,10 @@ def PopulationParameters():
     "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,
     "pop_sed_model": True,    # or False
     
+    "pop_sfr_above_threshold": True,
+    "pop_sfr_cross_threshold": True,
+    "pop_sfr_cross_upto_Tmin": np.inf,
+        
     # Mass accretion rate
     "pop_MAR": 'hmf',
     "pop_MAR_conserve_norm": False,
@@ -377,6 +400,9 @@ def PopulationParameters():
     'pop_lf_Mmax': 1e15,
 
     "pop_fduty": 1.0,
+    "pop_focc": 1.0,
+    
+    "pop_fsup": 0.0,  # Suppression of star-formation at threshold
         
     # Set the emission interval and SED
     "pop_sed": 'pl',
@@ -393,6 +419,9 @@ def PopulationParameters():
     "pop_psm_instance": None,
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
+    "pop_sed_by_Z": None,
+    
+    "pop_sfh": False,             # account for SFH in spectrum modeling
 
     # Option of setting Z, t, or just supplying SSP table?
     
@@ -413,24 +442,47 @@ def PopulationParameters():
     
     # By-hand parameterizations
     "pop_Ja": None,
-    "pop_ion_rate": None,
+    "pop_Tk": None,
+    "pop_xi": None,  
+    "pop_ne": None,  
+    
+    # 
+    "pop_ion_rate_cgm": None,
+    "pop_ion_rate_igm": None,
     "pop_heat_rate": None,
-        
+
     "pop_k_ion_cgm": None,
     "pop_k_ion_igm": None,
     "pop_k_heat_igm": None,
     
+
     # Set time interval over which emission occurs
     "pop_zform": 50.,
     "pop_zdead": 0.0,
-        
+
     # Main parameters in our typical global 21-cm models
     "pop_fstar": 0.1,
+    "pop_fstar_max": 1.0,
+    "pop_fstar_negligible": 1e-5, # relative to maximum
+
+    "pop_sfr": None,
     
+    "pop_facc": 0.0,
+    "pop_fsmooth": 1.0,
+
+    # Next 3: relative to fraction of halo acquiring the material
+    'pop_acc_frac_metals': 1.0,
+    'pop_acc_frac_stellar': 1.0,
+    'pop_acc_frac_gas': 1.0,
+    'pop_metal_retention': 1.0,
+
     "pop_sfe": None,
     "pop_mlf": None,
     "pop_sfr": None,
-    
+    "pop_fshock": 1.0,
+
+    "pop_fobsc": 0.0,
+
     "pop_tab_z": None,
     "pop_tab_Mh": None,
     "pop_tab_sfe": None,
@@ -439,17 +491,39 @@ def PopulationParameters():
     "pop_Tmin": 1e4,
     "pop_Tmax": None,
     "pop_Mmin": None,
+    "pop_Mmin_ceil": None,
+    "pop_Mmin_floor": None,
+    "pop_Tmin_ceil": None,
+    "pop_Tmin_floor": None,
+    "pop_Tmax_ceil": None,
+    "pop_Tmax_floor": None,
+    "pop_Mmax_ceil": None,
+    "pop_Mmax_floor": None,
     "pop_Mmax": None,
+
+    "pop_time_limit": None,
+    "pop_time_limit_delay": True,
+    "pop_mass_limit": None,
+    "pop_abun_limit": None,
+    "pop_bind_limit": None,
+    "pop_temp_limit": None,
+    "pop_lose_metals": False, 
+    "pop_limit_logic": 'and', 
+    
+    "pop_time_ceil": None,
+    
+    "pop_initial_Mh": 1, # In units of Mmin. Zero means unused
+
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
-    
+
     # Scales SFRD
     "pop_Nlw": 9690.,
     "pop_Nion": 4e3,
     "pop_fesc": 0.1,
     "pop_fX": 1.0,
     "pop_cX": 2.6e39,
-    
+
     # Should
     "pop_fesc_LW": 1.,
     "pop_fesc_LyC": 0.1,
@@ -468,6 +542,7 @@ def PopulationParameters():
 
     # What radiation does this population emit?
     # Should these be deprecated?
+    "pop_lw_src": True,
     "pop_lya_src": True,
     "pop_ion_src_cgm": True,
     "pop_ion_src_igm": True,
@@ -488,20 +563,31 @@ def PopulationParameters():
     
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
-    "pop_yield": 2.6e39,
-    "pop_yield_units": 'erg/s/sfr',
+    "pop_rad_yield": 2.6e39,
+    "pop_rad_yield_units": 'erg/s/sfr',
+    "pop_rad_yield_Z_index": None,
     
-    "pop_yield_Z_index": None,
+    # Parameters for simple galaxy SAM
+    "pop_sam_nz": 1,
+    "pop_mass_yield": 0.5,
+    "pop_metal_yield": 0.1,
+    "pop_fpoll": 1.0,         # uniform pollution
+    "pop_fstall": 0.0,
+    "pop_mass_rec": 0.0,
+    "pop_mass_escape": 0.0,
+    "pop_fstar_res": 0.0,
     
+    # Transition mass
+    "pop_transition": 0,
+    
+    # deprecated?
     "pop_kappa_UV": 1.15e-28,
+    
     "pop_L1600_per_sfr": None,
     "pop_calib_L1600": None,
     
-    "pop_fstar_boost": 1.,
-
-    # If pop_yield_units == 'erg/s/sfr/hz, this is the reference wavelength
-    "pop_yield_wavelength": 1500.,
-
+    "pop_Lh_scatter": 0.0,
+    
     'pop_fXh': None,
     
     'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
@@ -512,9 +598,6 @@ def PopulationParameters():
     
     "pop_tau_Nz": 400,
     
-    # Feedback! LW for now, but could be other stuff eventually (?)
-    "pop_feedback": False,
-
     # Pre-created splines
     "pop_fcoll": None,
     "pop_dfcolldz": None,
@@ -522,6 +605,8 @@ def PopulationParameters():
     # Get passed on to litdata instances
     "source_kwargs": {},
     "pop_kwargs": {},
+
+    "pop_test_param": None,
 
     }
 
@@ -536,6 +621,10 @@ def SourceParameters():
     "source_type": 'star',
     "source_sed": 'bb',
     "source_position": 0.0,
+    
+    # only for schaerer2002 right now        
+    "source_piecewise": True,
+    "source_model": 'tavg_nms', # or "zams" or None
     
     "source_tbirth": 0,
     "source_lifetime": 1e10,
@@ -556,18 +645,39 @@ def SourceParameters():
     
     "source_logN": -inf,
     "source_hardening": 'extrinsic',
+
+    # Synthesis models
+    "source_sfh": None,
+    "source_Z": 0.02,
+    "source_imf": 2.35,
+    "source_nebular": False,
+    "source_ssp": False,             # a.k.a., continuous SF
+    "source_psm_instance": None,
+    "source_tsf": 100.,
+    "source_binaries": False,        # for BPASS
+    "source_sed_by_Z": None,
+    "source_rad_yield": 'from_sed',
+    
+    "source_degradation": None,      # Degrade spectra to this \AA resolution
+    "source_aging": True,
     
     # Stellar
     "source_temperature": 1e5,  
     "source_qdot": 5e48,
+    
+    # SFH
+    "source_sfh": None,
+    "source_meh": None,
     
     # BH
     "source_mass": 1e5,
     "source_rmax": 1e3,
     "source_alpha": -1.5,
     
+    # SIMPL
     "source_fsc": 0.1,
     "source_uponly": True,
+    "source_dlogE": 0.1,
     
     "source_Lbol": None,
     "source_mass": 10,  
@@ -618,7 +728,25 @@ def BlackHoleParameters():
     pf.update(SourceParameters())
     pf.update(rcParams)
     
-    return pf    
+    return pf
+
+def SynthesisParameters():
+    pf = \
+    {
+    # For synthesis models
+    "source_sed": None,
+    "source_Z": 0.02,
+    "source_imf": 2.35,
+    "source_nebular": False,
+    "source_ssp": False,             # a.k.a., continuous SF
+    "source_psm_instance": None,
+    "source_tsf": 100.,
+    "source_binaries": False,        # for BPASS
+    "source_sed_by_Z": None,
+    "source_rad_yield": 'from_sed',
+    }
+
+    return pf
 
 def HaloMassFunctionParameters():
     pf = \
@@ -651,8 +779,13 @@ def HaloMassFunctionParameters():
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
     
+    # For, e.g., fcoll, etc
+    "hmf_interp": 'cubic',
+    
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
+    
+    "hmf_database": None,
     
     }
     
@@ -684,16 +817,19 @@ def ControlParameters():
     pf = \
     {
     
+    'revision': None,
+    
     # Start/stop/IO
-    "dtDataDump": 1,
+    "dtDataDump": 1.,
     "dzDataDump": None,
     'logdtDataDump': None,
     'logdzDataDump': None,
     "stop_time": 500,
     
     "initial_redshift": 50.,
-    "final_redshift": 6,
-    "first_light_redshift": 50.,
+    "final_redshift": 5,
+    "fallback_dz": 0.1, # only used when no other constraints 
+    "kill_redshift": 0.0,
     
     "save_rate_coefficients": 1,
     
@@ -704,8 +840,13 @@ def ControlParameters():
     # Solvers
     "solver_rtol": 1e-8,
     "solver_atol": 1e-8,
-    "interp_method": 'cubic',
+    "interp_tab": 'cubic',
     "interp_cc": 'linear',
+    "interp_Z": 'linear',
+    "interp_hist": 'linear',
+    
+    # Not implemented
+    "extrap_Z": False,
 
     # Initialization
     "load_ics": True,
@@ -713,7 +854,6 @@ def ControlParameters():
     "load_sim": False,
 
     # Timestepping
-    "max_dz": None,
     "max_timestep": 1.,
     "min_timestep": 1e-8,
     "epsilon_dt": 0.05,
@@ -721,16 +861,17 @@ def ControlParameters():
     "tau_ifront": 0.5,
     "restricted_timestep": ['ions', 'neutrals', 'electrons', 'temperature'],
     
+    "compute_fluxes_at_start": False,
+    
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     
-    "stop_igm_h_2": None,
-    "stop_cgm_h_2": None,
-    
-    
-    
+    "stop_igm_h_2": 0.999,
+    "stop_cgm_h_2": 0.999,
+        
     "track_extrema": False,
     "delay_extrema": 5,      # Number of steps
+    "delay_tracking": 1.,    # dz below initial_redshift when tracking begins
     "smooth_derivative": 0, 
 
     "blob_names": None,
@@ -745,8 +886,6 @@ def ControlParameters():
                              # 2 = neutral approx, approx cross sections
 
     # Discretizing integration
-    #"redshift_bins": None,
-    "tau_Nz": 400,
     "tau_table": None,
     "tau_arrays": None,
     "tau_prefix": tau_prefix,
@@ -759,6 +898,10 @@ def ControlParameters():
     "powspec_dlogr": 0.1,
     "powspec_band": (11.2, 13.6),
 
+    "sam_dz": 2., # Usually good enough!
+    "sam_atol": 1e-2,
+    "sam_rtol": 1e-2,
+    
     # File format
     "preferred_format": 'npz',
 
@@ -785,6 +928,7 @@ def ControlParameters():
     
 _sampling_parameters = \
 {
+ 'parametric_model': False,
  'output_frequencies': None,
  'output_freq_min': 30.,
  'output_freq_max': 200.,

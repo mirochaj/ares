@@ -76,12 +76,12 @@ class BlackHole(Source):
 
         if self.pf['source_sed'] in sptypes:
             pass
-        elif type(self.pf['source_sed']) is FunctionType:
-            self._UserDefined = self.pf['source_sed']
-        else:
+        elif type(self.pf['source_sed']) is str:
             from_lit = read_lit(self.pf['source_sed'])
             src = from_lit.Source()
             self._UserDefined = src.Spectrum
+        else:
+            self._UserDefined = self.pf['source_sed']    
             
         # Convert spectral types to strings
         #self.N = len(self.spec_pars['type'])
@@ -168,6 +168,7 @@ class BlackHole(Source):
         References
         ----------
         Steiner et al. (2009). Thanks Greg Salvesen for the code!
+        
         """
 
         # Input photon distribution
@@ -179,13 +180,25 @@ class BlackHole(Source):
         fsc = self.pf['source_fsc']
 
         # Output photon distribution - integrate in log-space         
-        integrand = lambda E0: nin(10**E0) \
-            * self._GreensFunctionSIMPL(10**E0, E) * 10**E0
+        #integrand = lambda E0: nin(10**E0) \
+        #    * self._GreensFunctionSIMPL(10**E0, E) * 10**E0
 
+        #nout = (1.0 - fsc) * nin(E) + fsc \
+        #    * quad(integrand, np.log10(self.Emin),
+        #        np.log10(self.Emax))[0] * np.log(10.)  
+        
+        dlogE = self.pf['source_dlogE']
+        ma = np.log10(self.Emax)
+        mi = np.log10(self.Emin)
+        N = (ma - mi) / dlogE + 1
+        Earr = 10**np.arange(mi, ma+dlogE, dlogE)
+        
+        gf = map(lambda EE: self._GreensFunctionSIMPL(EE, E), Earr)
+        integrand = np.array(map(nin, Earr)) * np.array(gf) * Earr
+        
         nout = (1.0 - fsc) * nin(E) + fsc \
-            * quad(integrand, np.log10(self.Emin),
-                np.log10(self.Emax))[0] * np.log(10.)
-                                
+            * np.trapz(integrand, dx=dlogE) * np.log(10.)
+         
         # Output spectrum
         return nout * E
     
@@ -271,7 +284,8 @@ class BlackHole(Source):
         elif self.pf['source_sed'] == 'zebra':
             Lnu = self._SIMPL(E, t)            
         else:
-            Lnu = 0.0
+            Lnu = self._UserDefined(E, t)
+            #Lnu = 0.0
             
         if self.pf['source_logN'] > 0 and absorb:
             Lnu *= self._hardening_factor(E)
@@ -305,7 +319,7 @@ class BlackHole(Source):
         Mnow = self.Mass(t)
         if M is not None:
             Mnow = M
-        
+
         return self.epsilon * 4.0 * np.pi * G * Mnow * g_per_msun * m_p \
             * c / sigma_T
 
@@ -323,15 +337,15 @@ class BlackHole(Source):
         else:
             M0 = self.M0
             dt = t
-        
+
         return M0 * np.exp(((1.0 - self.epsilon) / self.epsilon) * dt / t_edd)         
-    
+
     def Age(self, M):
         """
         Compute age of black hole based on current time, current mass, and initial mass.
         """            
                     
         return np.log(M / self.M0) * (self.epsilon / (1. - self.epsilon)) * t_edd
-        
+
 
         

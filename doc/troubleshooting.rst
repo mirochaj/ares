@@ -62,3 +62,15 @@ This is a bit of a red herring. If you're running an MCMC fit and saving 2-D blo
 ----------------------------------------------------------------------------
 Turns out this parameter didn't exist prior to scipy version 0.14. If you update to scipy version >= 0.14, you should be set. If you're worried that upgrading scipy might break other codes of yours, you can also simply navigate to ``ares/physics/Hydrogen.py`` and delete each occurrence of ``assume_sorted=True``, which should have no real effect (except for perhaps a very slight slowdown).
 
+``Failed to interpret file '<some-file>.npz' as a pickle``
+----------------------------------------------------------
+This is a strange one, which might arise due to differences in the Python and/or pickle version used to read/write lookup tables *ares* uses. First, try to download new lookup tables via: ::
+
+    python remote.py fresh
+    
+If that doesn't magically fix it, please email me and I'll do what I can to help!
+
+General Mysteriousness
+----------------------
+- If you're running *ares* from within an iPython (or Jupyter) notebook, be wary of initializing class instances in one notebook cell and modifying attributes in a separate cell. If you re-run the the second cell *without* re-running the first cell, this can cause problems because changes to attributes will not automatically propagate back up to any parent classes (should they exist). This is known to happen (at least) when using the ``ModelGrid`` and ``ModelSamples`` classes in the inference sub-module.
+

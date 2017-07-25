@@ -12,6 +12,7 @@ Description:
 
 import pickle
 import numpy as np
+from ..util import get_hg_rev
 from .PriorSet import PriorSet
 from ..util.Stats import get_nu
 from ..util.MPIPool import MPIPool
@@ -126,10 +127,10 @@ class LogLikelihood(object):
         self.parameters = parameters # important that they are in order?
         self.is_log = is_log
         self.checkpoint_by_proc = checkpoint_by_proc
-        
+
         self.base_kwargs = base_kwargs
         self.timeout = timeout
-        
+
         if blob_info is not None:
             self.blob_names = blob_info['blob_names']
             self.blob_ivars = blob_info['blob_ivars']
@@ -139,7 +140,7 @@ class LogLikelihood(object):
         else:
             self.blob_names = self.blob_ivars = self.blob_funcs = \
                 self.blob_nd = self.blob_dims = None
-        
+
         ##
         # Note: you might think using np.array is innocuous, but we have to be
         # a little careful below since sometimes xdata, ydata, etc. are
@@ -162,7 +163,7 @@ class LogLikelihood(object):
             self.error = np.array(error)
         else:
             self.error = error
-        
+                    
         self.prefix = prefix
 
         self.priors_P = param_prior_set
@@ -190,8 +191,16 @@ class LogLikelihood(object):
     def _compute_blob_prior(self, sim):
         blob_vals = {}
         for key in self.priors_B.params:
+
+            grp, i, nd, dims = sim.blob_info(key)
+            
+            #if nd == 0:
+            #    blob_vals[key] = sim.get_blob(key)
+            #elif nd == 1:    
             blob_vals[key] = sim.get_blob(key)
-        
+            #else:
+            #    raise NotImplementedError('help')
+
         try:
             # will return 0 if there are no blobs
             return self.priors_B.log_prior(blob_vals)
@@ -227,11 +236,22 @@ class LogLikelihood(object):
         
     def checkpoint(self, **kwargs):
         if self.checkpoint_by_proc:
-            procid = str(rank).zfill(4)
-            fn = '%s.proc%s.checkpt.pkl' % (self.prefix, procid)
+            procid = str(rank).zfill(3)
+            fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
             with open(fn, 'wb') as f:
                 pickle.dump(kwargs, f)
-
+            
+            fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
+            with open(fn, 'w') as f:
+                print >> f, "Simulation began: %s" % time.ctime()
+            
+    def checkpoint_on_completion(self, **kwargs):
+        if self.checkpoint_by_proc:
+            procid = str(rank).zfill(3)
+            fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
+            with open(fn, 'a') as f:
+                print >> f, "Simulation finished: %s" % time.ctime() 
+            
 class ModelFit(BlobFactory):
     def __init__(self, **kwargs):
         """
@@ -421,8 +441,8 @@ class ModelFit(BlobFactory):
         self._nw = int(value)
         
     def _handler(self, signum, frame):
-        raise Exception("Calculation took too long!")
-    
+        raise RuntimeError('timeout!')
+            
     @property
     def timeout(self):
         if not hasattr(self, '_timeout'):
@@ -431,23 +451,23 @@ class ModelFit(BlobFactory):
     
     @timeout.setter
     def timeout(self, value):
-        self._timeout = value
+        self._timeout = int(value)
         
     @property
     def Nd(self):
         if not hasattr(self, '_Nd'):
             self._Nd = len(self.parameters)
         return self._Nd
-        
+
     @property
     def guesses(self):
         """
         Generate initial position vectors for all walkers.
         """
-        
+
         if hasattr(self, '_guesses'):
             return self._guesses
-        
+
         # Set using priors
         if (not hasattr(self, '_guesses')) and hasattr(self, '_prior_set'):            
             self._guesses = guesses_from_priors(self.parameters, 
@@ -567,6 +587,7 @@ class ModelFit(BlobFactory):
         if type(value) is bool:
             self._is_log = [value] * self.Nd
         else:
+            assert len(value) == self.Nd
             self._is_log = value
             
     def prep_output_files(self, restart, clobber):
@@ -598,10 +619,17 @@ class ModelFit(BlobFactory):
                     print 'is_log from file dont match those supplied!'
                 MPI.COMM_WORLD.Abort()
             raise ValueError('is_log from file dont match those supplied!')
-                    
-        f = open('%s.setup.pkl' % prefix, 'rb')
-        base_kwargs = pickle.load(f)
-        f.close()  
+          
+        # Identical to setup, just easier for scp'ing *info.pkl files.
+        if os.path.exists('%s.binfo.pkl' % prefix):
+            f = open('%s.binfo.pkl' % prefix, 'rb')
+            base_kwargs = pickle.load(f)
+            f.close()
+        else:
+            # Deprecate this eventually          
+            f = open('%s.setup.pkl' % prefix, 'rb')
+            base_kwargs = pickle.load(f)
+            f.close()
         
         f = open('%s.rinfo.pkl' % self.prefix, 'r')
         nwalkers, save_freq, steps = pickle.load(f)
@@ -621,7 +649,7 @@ class ModelFit(BlobFactory):
         #    raise ValueError('base_kwargs from file dont match those supplied!')   
                     
         # Start from last step in pre-restart calculation
-        if self.checkpoint_append:
+        if (not self.checkpoint_append):
             if type(restart) is bool:
             
                 ct = 0 
@@ -646,9 +674,12 @@ class ModelFit(BlobFactory):
                 fn = restart
                 self.ct = int(fn.split('.')[-3][2:])
                  
-            print "Restarting from %s." % fn
-            chain = read_pickled_chain(fn)
+        else:
+            fn = '%s.chain.pkl' % prefix
             
+        print "Restarting from %s." % fn
+        chain = read_pickled_chain(fn)    
+           
         (nw, sf) = (self.nwalkers, self.save_freq)
         pos = chain[-(nw-1)*sf-1::sf,:]    
         
@@ -675,34 +706,33 @@ class ModelFit(BlobFactory):
         self._checkpoint_append = value    
 
     def _prep_from_scratch(self, clobber, by_proc=False):
-        if rank > 0:
+        if (rank > 0) and (not by_proc):
             return
         
         if by_proc:
             prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
         else:
             prefix_by_proc = self.prefix
-                
+
         if clobber:
             # Delete only the files made by this routine. Don't want to risk
             # deleting other files the user may have created with similar
             # naming convention!
-            
-            for suffix in ['logL', 'facc', 'pinfo', 'rinfo', 'setup', 'prior_set']:
+
+            # These suffixes are always the same
+            for suffix in ['logL', 'chain', 'facc', 'pinfo', 'rinfo', 
+                'binfo', 'setup', 'prior_set', 'load', 'fail', 'timeout']:
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
+                os.system('rm -f %s.*.%s.pkl' % (self.prefix, suffix))
             
-            os.system('rm -f %s.*.fail.pkl' % self.prefix)
-            os.system('rm -f %s.*.chain.*pkl' % self.prefix)
-            os.system('rm -f %s.*.blob*.*pkl' % self.prefix)
+            # These suffixes have their own suffixes
+            os.system('rm -f %s.blob_*.pkl' % self.prefix)
+            os.system('rm -f %s.*.blob_*.pkl' % self.prefix)
             
-            # Need to potentially axe a product file
-            os.system('rm -f %s.fails.pkl' % self.prefix)
-            os.system('rm -f %s.chain.pkl' % self.prefix)
-                    
         # Each processor gets its own fail file
         f = open('%s.fail.pkl' % prefix_by_proc, 'wb')
-        f.close()  
-        
+        f.close()
+
         # Main output: MCMC chains (flattened)
         if self.checkpoint_append:
             f = open('%s.chain.pkl' % prefix_by_proc, 'wb')
@@ -743,25 +773,43 @@ class ModelFit(BlobFactory):
             f.close()
         
         # Constant parameters being passed to ares.simulations.Global21cm
-        f = open('%s.setup.pkl' % self.prefix, 'wb')
+        f = open('%s.binfo.pkl' % self.prefix, 'wb')
         tmp = self.base_kwargs.copy()
         to_axe = []
         for key in tmp:
-            # this might be big, get rid of it
+            # these might be big, get rid of it
+            if re.search('tau_instance', key):
+                to_axe.append(key)
             if re.search('tau_table', key):
                 to_axe.append(key)
             if re.search('hmf_instance', key):
                 to_axe.append(key)
             if re.search('pop_psm_instance', key):
                 to_axe.append(key)        
+            if re.search('pop_sed_by_Z', key):
+                to_axe.append(key)
+            
+            # Apparently functions of any kind cause problems everywhere
+            # but my laptop
+            if type(tmp[key]) in [FunctionType, InstanceType]:
+                to_axe.append(key)
+            elif type(tmp[key]) is tuple:
+                for element in tmp[key]:
+                    if type(element) in [FunctionType, InstanceType]:
+                        to_axe.append(key)
+                        break
         
         for key in to_axe:
             tmp[key] = None
             
+        # If possible, include ares revision used to run this fit.
+        tmp['revision'] = get_hg_rev()
+            
+        # Write to disk.
         pickle.dump(tmp, f)
         del tmp
         f.close()
-
+        
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=500):
         """
@@ -787,12 +835,16 @@ class ModelFit(BlobFactory):
         """
                 
         self.prefix = prefix
-
-        if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
-            if not restart:
-                msg = '%s exists! Remove manually, set clobber=True,' % prefix
-                msg += ' or set restart=True to append.' 
-                raise IOError(msg)
+        
+        if rank == 0:
+            if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
+                if not restart:
+                    msg = '%s exists! Remove manually, set clobber=True,' % prefix
+                    msg += ' or set restart=True to append.' 
+                    raise IOError(msg)
+        
+        if size > 1:
+            MPI.COMM_WORLD.Barrier()
 
         if self.checkpoint_append:
             if not os.path.exists('%s.chain.pkl' % prefix) and restart:
@@ -832,23 +884,41 @@ class ModelFit(BlobFactory):
         # Burn in, prep output files     
         if (burn > 0) and (not restart):
             
-            if rank == 0:
-                print "Starting burn-in: %s" % (time.ctime())
+            print "Starting burn-in: %s" % (time.ctime())
             
             t1 = time.time()
             pos, prob, state, blobs = \
                 self.sampler.run_mcmc(self.guesses, burn, rstate0=state)
-            self.sampler.reset()
             t2 = time.time()
 
-            if rank == 0:
-                print "Burn-in complete in %.3g seconds." % (t2 - t1)
+            print "Burn-in complete in %.3g seconds." % (t2 - t1)
 
-            # Find maximum likelihood point
+            # Save burn-in
+            burn_prefix = prefix + '.burn'
+            name = ['chain', 'logL', 'blobs']
+            for i, attrib in enumerate(['chain', 'lnprobability', 'blobs']):
+
+                data = self.sampler.__getattribute__(attrib)
+
+                # Blobs
+                if name[i] == 'blobs':
+                    if self.blob_names is None:
+                        continue
+                    self.save_blobs(data, prefix=burn_prefix)
+                # Other stuff
+                else:
+                    fn = '%s.%s.pkl' % (burn_prefix, name[i])
+                    with open(fn, 'wb') as f:
+                        pickle.dump(data, f)
+                        print "Wrote %s." % fn
+                        
+            # Find walker at highest likelihood point at end of burn
             mlpt = pos[np.argmax(prob)]
 
             pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
             #pos = self._fix_guesses(pos)
+            
+            self.sampler.reset()
             
         elif not restart:
             pos = self.guesses

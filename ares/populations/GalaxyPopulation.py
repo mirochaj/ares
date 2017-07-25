@@ -10,23 +10,54 @@ Description:
 
 """
 
+from ..util import ParameterFile
 from .GalaxyCohort import GalaxyCohort
 from .GalaxyEnsemble import GalaxyEnsemble
 from .GalaxyAggregate import GalaxyAggregate
-from .Parameterized import ParametricPopulation
+from ..util.SetDefaultParameterValues import PopulationParameters
+from .Parameterized import ParametricPopulation, parametric_options
+
+default_model = PopulationParameters()['pop_sfr_model']
 
 def GalaxyPopulation(**kwargs):
     """
-    Return the appropriate Galaxy* instance depending on the value of 
-    `pop_sfr_model`.
+    Return the appropriate Galaxy* instance depending on if any quantities
+    are being parameterized by hand.
+    
+    kwargs should NOT be ParameterFile instance. Still trying to remind
+    myself why that is.
+    
     """
-    
-    if 'pop_sfr_model' not in kwargs:
-        model = 'fcoll'
+
+    Npq = 0
+    Nparam = 0
+    pqs = []
+    for kwarg in kwargs:
+        
+        if type(kwargs[kwarg]) == str:
+            if kwargs[kwarg][0:2] == 'pq':
+                Npq += 1
+                pqs.append(kwarg)
+        elif (kwarg in parametric_options) and (kwargs[kwarg]) is not None:
+            Nparam += 1
+        
+    if Nparam > 0:
+        assert Npq == 0
+        model = 'rates'
+    elif Npq == 0:
+        if 'pop_sfr_model' in kwargs:
+            model = kwargs['pop_sfr_model']
+        else:
+            model = default_model
+    elif (Npq == 1) and pqs[0] == 'pop_sfrd':
+        model = 'sfrd-func'
     else:
-        model = kwargs['pop_sfr_model']
+        if set(pqs).intersection(parametric_options):
+            model = 'rates'
+        else:   
+            model = 'sfe-func'
     
-    if model in ['sfe-func']:
+    if model in ['sfe-func', 'sfr-func']:
         return GalaxyCohort(**kwargs)
     elif model in ['fcoll', 'sfrd-func']:
         return GalaxyAggregate(**kwargs)

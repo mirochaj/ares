@@ -26,7 +26,7 @@ To facilitate a comparison between the model grid results, let's start by choosi
      'problem_type': 101,
      'tanh_model': True,
      'blob_names': [blobs_scalar, blobs_1d],
-     'blob_ivars': [None, blobs_1d_z],
+     'blob_ivars': [None, [('z', blobs_1d_z)]],
      'blob_funcs': None,
     }
     
@@ -36,7 +36,7 @@ Now, instead of creating a ``ModelGrid`` instance, we make a ``ModelSample`` ins
 
     mc = ares.inference.ModelSample(**base_pars)
     
-At this point we have yet to specify which parameters will to sample. Because we are now doing Monte Carlo simulations, we must define the *distributions* from which to draw samples in each parameter of interest, rather than the grid of values to sample. To do this we use the ``PriorSet``, which is important to :doc:`example_mcmc_I` as well:
+At this point we have yet to specify which parameters will to sample. Because we are now doing Monte Carlo simulations, we must define the *distributions* from which to draw samples in each parameter of interest, rather than the grid of values to sample. To do this we use the ``PriorSet``, which is used in MCMC calculations (e.g., :doc:`example_mcmc_gs`) as well:
 
 ::
 

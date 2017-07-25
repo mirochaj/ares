@@ -56,8 +56,7 @@ class Tanh21cm(object):
             approx_highz=self.pf["approx_highz"])
         
         # Create instance of Hydrogen class
-        self.hydr = Hydrogen(cosm=self.cosm,
-            approx_Salpha=self.pf['approx_Salpha'], **kwargs)
+        self.hydr = Hydrogen(cosm=self.cosm, **kwargs)
 
         if self.pf['load_ics']:
             CR = _load_inits()
@@ -180,11 +179,8 @@ class Tanh21cm(object):
         Tk = Tref * tanh_generic(z, zref=zref_T, dz=dz_T) + Tgas
         xi = xref * tanh_generic(z, zref=zref_x, dz=dz_x)
 
-        # Compute (proper) electron density assuming xHII = xHeII, xHeIII = 0.
-        # Needed for collisional coupling.
-
         # Spin temperature
-        Ts = self.hydr.SpinTemperature(z, Tk, Ja, xi, ne)
+        Ts = self.hydr.SpinTemperature(z, Tk, Ja, 0.0, ne)
 
         # Brightness temperature
         dTb = self.hydr.DifferentialBrightnessTemperature(z, xi, Ts)
@@ -208,8 +204,15 @@ class Tanh21cm(object):
          'cgm_h_2': xi,
          'igm_h_1': np.ones_like(z),
          'igm_h_2': np.zeros_like(z),
-         'igm_heat_h_1': self.heating_rate(z, Tref, zref_T, dz_T),
-         'cgm_Gamma_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
+         'cgm_k_ion_h_1': self.ionization_rate(z, xref, zref_x, dz_x),
+         'cgm_k_ion_he_1': np.zeros_like(z),
+         'cgm_k_ion_he_2': np.zeros_like(z),
+         'igm_k_ion_h_1': np.zeros_like(z),
+         'igm_k_ion_he_1': np.zeros_like(z),
+         'igm_k_ion_he_2': np.zeros_like(z),
+         'igm_k_heat_h_1': self.heating_rate(z, Tref, zref_T, dz_T),
+         'igm_k_heat_he_1': np.zeros_like(z),
+         'igm_k_heat_he_2': np.zeros_like(z),
         }
 
         return hist

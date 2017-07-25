@@ -62,7 +62,7 @@ class InlineAnalysis:
         
         if not self.pf['tanh_model']:
             blob_names = []
-            for i, pop in enumerate(range(self.pf.Npops)):
+            for i in xrange(self.pf.Npops):
                 
                 if hasattr(self.sim, 'pops'):
                     pop = self.sim.pops[i]
@@ -166,7 +166,7 @@ class InlineAnalysis:
 
             delay = self.pf['stop_delay']
             
-            for i in range(len(self.history['z'])):
+            for i in xrange(len(self.history['z'])):
                 if i < 10:
                     continue
 
@@ -192,7 +192,7 @@ class InlineAnalysis:
                     raise ValueError('For some reason, eor_midpt etc. are causing problems for emcee / pickling.')
         
                     ihigh = np.argmin(np.abs(self.history['z'] \
-                          - self.pf['first_light_redshift']))
+                          - self.pf['initial_redshift']))
                     interp = interp1d(self.history['cgm_h_2'][ihigh:],
                         self.history['z'][ihigh:])
         

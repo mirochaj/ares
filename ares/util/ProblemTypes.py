@@ -54,7 +54,7 @@ def RaySegmentProblem(ptype):
               "dtDataDump": 1., 
               "dzDataDump": 0.1,
               "initial_redshift": 1e3,
-              "initial_ionization": [1.-0.049, 0.049],
+              "initial_ionization": [1.-0.049, 0.049, 1-2e-8, 1e-8, 1e-8],
               "final_redshift": 10,
               "stop_time": 500.,
               "restricted_timestep": ['electrons', 'ions', 'temperature',
@@ -81,7 +81,7 @@ def RaySegmentProblem(ptype):
               "restricted_timestep": ['ions', 'electrons', 'temperature'],
 
               "initial_temperature": 1e2,
-              "initial_ionization": [1.-1e-6, 1e-6],
+              "initial_ionization": [1. - 1e-6, 1e-6, 1.-2e-6, 1e-6, 1e-6],
 
               "source_type": 'star',
               "source_qdot": 1e12,
@@ -108,7 +108,7 @@ def RaySegmentProblem(ptype):
               "isothermal": 1,
               "secondary_ionization": 0,
               "initial_temperature": 1e4,
-              "initial_ionization": [1.-1.2e-3, 1.2e-3],
+              "initial_ionization": [1.-1.2e-3, 1.2e-3, 1-2e-8, 1e-8, 1e-8],
               "source_type": 'toy',
               "source_qdot": 5e48,
               "source_E": [13.6],
@@ -126,7 +126,7 @@ def RaySegmentProblem(ptype):
               "isothermal": 0,
               "restricted_timestep": ['ions', 'temperature'],
               "initial_temperature": 1e2,
-              "initial_ionization": [1.-1.2e-3, 1.2e-3],
+              "initial_ionization": [1.-1.2e-3, 1.2e-3, 1.-2e-8, 1e-8, 1e-8],
               "source_type": 'star', 
               "source_temperature": 1e5,
               "spectrum_type": 'bb',
@@ -152,7 +152,7 @@ def RaySegmentProblem(ptype):
               "dtDataDump": 1.0,
               "isothermal": 0,  
               "initial_temperature": 8e3,
-              "initial_ionization": [1e-4,1.-1e-4],
+              "initial_ionization": [1.-1e-4, 1e-4, 1.-2e-4, 1e-4, 1e-4],
               "source_type": 'star', 
               "source_qdot": 1e6,
               "spectrum_type": 'bb',
@@ -173,8 +173,6 @@ def RaySegmentProblem(ptype):
               "slab_profile": 0,
               "slab_ionization": [1.-1e-4, 1e-4],
 
-              "interp_method": 'linear',
-
              }
 
     if ptype_mod1 != 0:
@@ -193,7 +191,6 @@ def RaySegmentProblem(ptype):
         helium_pars = \
             {
              'include_He': True,
-             'initial_ionization': [pf['initial_ionization'][0]]*2,
              'tables_dlogN': defs['tables_dlogN']*3,
              'tables_xmin': defs["tables_xmin"]*3,
              'tables_logNmin': defs['tables_logNmin']*3,
@@ -236,8 +233,8 @@ def ReionizationProblem(ptype):
          'pop_Emax': 24.6,
          'pop_EminNorm': 13.6,
          'pop_EmaxNorm': 24.6,
-         'pop_yield': 10**53.14,
-         'pop_yield_units': 'photons/s/sfr',
+         'pop_rad_yield': 10**53.14,
+         'pop_rad_yield_units': 'photons/s/sfr',
          'initial_redshift': 30.,
          'final_redshift': 4.,
          'include_igm': False,                   # single-zone model
@@ -274,8 +271,8 @@ def ReionizationProblem(ptype):
         "pop_Emax{0}": 13.6,
         "pop_EminNorm{0}": 10.2,
         "pop_EmaxNorm{0}": 13.6,        
-        "pop_yield{0}": 9690., 
-        "pop_yield_units{0}": 'photons/baryon',
+        "pop_rad_yield{0}": 9690., 
+        "pop_rad_yield_units{0}": 'photons/baryon',
         "pop_solve_rte{0}": False,
         
         # Emits X-rays
@@ -296,8 +293,8 @@ def ReionizationProblem(ptype):
         "pop_EmaxNorm{1}": 8e3,
 
         "pop_Ex{1}": 500.,
-        "pop_yield{1}": 2.6e39, 
-        "pop_yield_units{1}": 'erg/s/SFR',
+        "pop_rad_yield{1}": 2.6e39, 
+        "pop_rad_yield_units{1}": 'erg/s/SFR',
         "pop_solve_rte{1}": False,
         
         # Emits ionizing photons
@@ -315,8 +312,8 @@ def ReionizationProblem(ptype):
         "pop_Emax{2}": 1e2,
         "pop_EminNorm{2}": 13.6,
         "pop_EmaxNorm{2}": 1e2,        
-        "pop_yield{2}": 4000., 
-        "pop_yield_units{2}": 'photons/baryon',
+        "pop_rad_yield{2}": 4000., 
+        "pop_rad_yield_units{2}": 'photons/baryon',
         "pop_solve_rte{2}": False,
 
         }
@@ -366,8 +363,8 @@ def ReionizationProblem(ptype):
         "pop_EmaxNorm{1}": 8e3,
 
         "pop_Ex": 500.,
-        "pop_yield{1}": 2.6e39, 
-        "pop_yield_units{1}": 'erg/s/SFR',
+        "pop_rad_yield{1}": 2.6e39, 
+        "pop_rad_yield_units{1}": 'erg/s/SFR',
         "pop_solve_rte{1}": False,
         
         }    

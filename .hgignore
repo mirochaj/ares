@@ -32,3 +32,9 @@ input/starburst99/README
 input/bpass*
 *.tar.gz
 input/wmbasic
+input/behroozi2013
+input/inits/CosmoRec
+input/starburst99/data/README
+*.bak
+*.backup
+doc/example_*.py

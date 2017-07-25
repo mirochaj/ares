@@ -318,6 +318,25 @@ def print_rate_int(tab):
 
     for warning in warnings:
         print_warning(warning)
+        
+def print_hmf(hmf):
+    header = 'Halo Mass function'
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, header.center(twidth), post)
+    print "#"*width
+
+    print line('-'*twidth)
+    print line('Table Limits & Resolution')
+    print line('-'*twidth)
+    
+    print line("zmin                  : %g" % (hmf.pf['hmf_zmin']))
+    print line("zmax                  : %g" % (hmf.pf['hmf_zmax']))
+    print line("dz                    : %g" % (hmf.pf['hmf_dz']))
+    print line("Mmin (Msun)           : %e" % (10**hmf.pf['hmf_logMmin']))
+    print line("Mmax (Msun)           : %e" % (10**hmf.pf['hmf_logMmax']))
+    print line("dlogM                 : %g" % (hmf.pf['hmf_dlogM']))
+    
+    print "#"*width
 
 #@ErrorIgnore(errors=[KeyError])
 def print_pop(pop):
@@ -382,27 +401,27 @@ def print_pop(pop):
         print line("HMF         : %s" % pop.pf['hmf_model'])
 
     # Parameterized halo properties
-    if pop.pf.Nphps > 0:
-        if pop.pf.Nphps > 1:
+    if pop.pf.Npqs > 0:
+        if pop.pf.Npqs > 1:
             sf = lambda x: '[%i]' % x
         else:
             sf = lambda x: ''
-                        
-        for i, par in enumerate(pop.pf.phps):
-                
+
+        for i, par in enumerate(pop.pf.pqs):
+
             pname = par.replace('pop_', '').ljust(20)
-                                
-            s = pop.pf['php_func%s' % sf(i)]
-                                
-            if 'php_faux%s' % sf(i) not in pop.pf:
+
+            s = pop.pf['pq_func%s' % sf(i)]
+
+            if 'pq_faux%s' % sf(i) not in pop.pf:
                 print line("%s   : %s" % (pname, s))
                 continue    
                 
-            if pop.pf['php_faux%s' % sf(i)] is not None:
-                if pop.pf['php_faux_meth%s' % sf(i)] == 'add':
-                    s += ' + %s' % pop.pf['php_faux%s' % sf(i)]
+            if pop.pf['pq_faux%s' % sf(i)] is not None:
+                if pop.pf['pq_faux_meth%s' % sf(i)] == 'add':
+                    s += ' + %s' % pop.pf['pq_faux%s' % sf(i)]
                 else:
-                    s += ' * %s' % pop.pf['php_faux%s' % sf(i)]
+                    s += ' * %s' % pop.pf['pq_faux%s' % sf(i)]
                 
             print line("%s: %s" % (pname, s))
                 
@@ -443,7 +462,33 @@ def print_pop(pop):
     for warning in warnings:
         print_warning(warning)
         
-def _rad_type(sim, fluctuations=False):
+def print_sim(sim):
+    """
+    Print information about radiation background calculation to screen.
+    
+    Parameters
+    ----------
+    sim : ares.simulations.Global21cm instance
+    """
+    
+    if rank > 0:
+        return 
+        
+    header = 'ARES Simulation: Overview'
+    print "\n" + "#"*width
+    print "%s %s %s" % (pre, header.center(twidth), post)
+    print "#"*width    
+    
+    # Check for phenomenological models
+    if sim.is_phenom:
+        print "Phenomenological model! Not much to report..."
+        print "#"*width    
+        return    
+    
+    print line('-'*twidth)
+    print line('Populations')
+    print line('-'*twidth)
+    
     rows = []
     cols = ['sfrd', 'sed', 'Ly-a', 'Ly-C', 'X-ray', 'RTE']
     data = []
@@ -526,14 +571,25 @@ def print_sim(sim):
     print line('-'*twidth)
     
     phys_pars = ['cgm_initial_temperature', 'clumping_factor', 
-        'secondary_ionization', 'approx_Salpha', 'include_He']
+        'secondary_ionization', 'approx_Salpha', 'include_He', 
+        'feedback_LW', 'feedback_LW_Mmin', 'feedback_LW_fsh']
 
     cosm_pars = ["omega_m_0", "omega_b_0", "omega_l_0", "hubble_0", 
         "helium_by_number", "sigma_8"]
     
     for par in phys_pars:
         val = sim.pf[par]
-        if type(val) in [int, float]:
+        
+        
+        if ('feedback_LW' in par) and (par != 'feedback_LW'):
+            if not sim.pf['feedback_LW']:
+                continue        
+        
+        if val is None:
+            print line('%s : None' % par.ljust(30))
+        elif type(val) in [list, tuple]:
+            print line('%s : %s' % (par.ljust(30), val,))
+        elif type(val) in [int, float]:
             print line('%s : %g' % (par.ljust(30), val))
         else:
             print line('%s : %s' % (par.ljust(30), val))
@@ -645,8 +701,6 @@ def print_21cm_sim(sim):
     print line('-'*twidth)
 
     print line("z_initial   : %.1i" % sim.pf['initial_redshift'])
-    if sim.pf['radiative_transfer']:
-        print line("first-light : z=%.1i" % sim.pf['first_light_redshift'])
     if sim.pf['stop'] is not None:
         print line("z_final     : @ turning point %s " % sim.pf['stop'])
     else:
@@ -704,10 +758,6 @@ def print_21cm_sim(sim):
             print line("path        : $ARES%s" % path)
         else:
             print line("path        : %s" % path)
-
-        if sim.pf['initial_redshift'] > sim.pf['first_light_redshift']:
-            print line("FYI         : Can set initial_redshift=first_light_redshift for speed-up.", 
-                just='l')
 
     ##
     # PHYSICS

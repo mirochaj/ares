@@ -1,6 +1,12 @@
 Under the Hood
 ==============
+Super incomplete, sorry!
 
+Parameters, Fields, and Data Structures
+---------------------------------------
+* :doc:`params`
+* :doc:`fields`
+* :doc:`inits_tables`
 
 .. Radiation Sources
 .. -----------------
@@ -28,9 +34,9 @@ Source Populations
 .. * :doc:`uth_physics_rcs`
 .. * :doc:`uth_physics_esec`
 
-Data from the literature
-------------------------
-* :doc:`uth_litdata`
+.. Data from the literature
+.. ------------------------
+.. * :doc:`uth_litdata`
 
 Solvers
 -------

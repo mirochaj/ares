@@ -47,25 +47,25 @@ def _kwargs_to_fn(**kwargs):
     """
 
     # All files share this prefix
-    fn = 'sed.bpass'  
+    fn = 'sed.bpass'
     
-    if kwargs['pop_ssp']:
+    if kwargs['source_ssp']:
         fn += '.instant'
     else:
         fn += '.constant'
     
-    if kwargs['pop_nebular']:
+    if kwargs['source_nebular']:
         fn += '.cloudy'
     else:
         fn += '.nocont'
     
-    if kwargs['pop_binaries']:
+    if kwargs['source_binaries']:
         fn += '.bin'
     else:
         fn += '.sin'
     
     # Metallicity
-    fn += '.z%s' % str(int(kwargs['pop_Z'] * 1e3)).zfill(3)   
+    fn += '.z%s' % str(int(kwargs['source_Z'] * 1e3)).zfill(3)
             
     return _input + '/' + fn    
             
@@ -77,32 +77,18 @@ def _load(**kwargs):
     Zvals = np.sort(metallicities.values())
 
     # Interpolate
-    if kwargs['pop_Z'] not in Zvals:
-        
-        assert min(Zvals) <= kwargs['pop_Z'] <= max(Zvals), \
-            'Metallicity supplied lies outside range allowed.'
-        
-        data = []
-        i = 0
-        while Zvals[i] < kwargs['pop_Z']: 
-            i += 1
-        
-        Zv = Zvals[i-1], Zvals[i]
+    if kwargs['source_Z'] not in Zvals:
         tmp = kwargs.copy()
-        del tmp['pop_Z']
-        (w1, d1), (w2, d2) = _load(pop_Z=Zvals[i-1], **tmp), \
-            _load(pop_Z=Zvals[i], **tmp)
-        to_interp = np.log10(np.array([d1,d2]) / Lsun)
+                
+        spectra = []
+        del tmp['source_Z']
+        for Z in Zvals:
+            _w1, _d1 = _load(source_Z=Z, **tmp)
+            spectra.append(_d1.copy())
         
-        wavelengths = wave = w1
-        
-        _raw_data = np.zeros_like(d1)
-        for i, t in enumerate(times):
-            inter = interp1d(np.log10(Zv), to_interp[:,:,i], axis=0)
-            _raw_data[:,i] = inter(np.log10(kwargs['pop_Z']))
+        wavelengths = wave = _w1
+        data = spectra
 
-        data = 10**_raw_data
-        
     # No interpolation necessary
     else:        
         fn = _kwargs_to_fn(**kwargs)
@@ -111,7 +97,7 @@ def _load(**kwargs):
         data = np.array(_raw_data[:,1:])
         wavelengths = _raw_data[:,0]
 
-    data *= Lsun
+        data *= Lsun
 
-    return wavelengths, data    
+    return wavelengths, data
             

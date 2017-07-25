@@ -8,7 +8,7 @@ Installation
 
 and optionally:
 
-* `python-progressbar <https://code.google.com/p/python-progressbar/>`_
+* `progressbar2 <http://progressbar-2.readthedocs.io/en/latest/>`_
 * `hmf <http://hmf.readthedocs.org/en/latest/>`_ 
 * `emcee <http://dan.iel.fm/emcee/current/>`_
 * `mpi4py <http://mpi4py.scipy.org>`_
@@ -40,7 +40,10 @@ This might take a few minutes. If something goes wrong with the download, you ca
 
     python remote.py fresh
     
-to get fresh copies of everything.
+to get fresh copies of everything. If you're concerned that a download may have been interrupted and/or the file appears to be corrupted (strange I/O errors may indicate this), you can also just download fresh copies of the particular file you want to replace. For example, to grab a fresh initial conditions file, simply do ::
+
+    python remote.py fresh inits
+    
 
 *ares* branches
 ---------------
@@ -58,7 +61,7 @@ For a discussion of the pros and cons of different branching techniques in mercu
 
 *ares* versions
 ---------------
-The first stable release of *ares* was used in `Mirocha et al. (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_, and is tagged as `v0.1` in the revision history. The tag `v0.2` is associated with `Mirocha, Furlanetto, \& Sun (submitted to MNRAS) <http://arxiv.org/abs/1607.00386>`_. Note that these tags are just shortcuts to specific revisions. You can switch between them just like you would switch between branches, e.g., 
+The first stable release of *ares* was used in `Mirocha et al. (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_, and is tagged as `v0.1` in the revision history. The tag `v0.2` is associated with `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_. Note that these tags are just shortcuts to specific revisions. You can switch between them just like you would switch between branches, e.g., 
 
 ::
 

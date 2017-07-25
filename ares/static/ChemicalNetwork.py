@@ -13,10 +13,11 @@ Description: ChemicalNetwork object just needs to have methods called
 
 import copy, sys
 import numpy as np
+from ..util.Warnings import solver_error
 from ..physics.RateCoefficients import RateCoefficients
 from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h  
         
-rad_const = (8. * sigma_T / 3. / m_e / c)        
+rad_const = (8. * sigma_T / 3. / m_e / c)
         
 class ChemicalNetwork(object):
     def __init__(self, grid, rate_src='fk94', recombination='B'):
@@ -287,7 +288,7 @@ class ChemicalNetwork(object):
             
             dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton - hubcool \
                 - q[-1] * n_H * dqdt['e'] / ntot
-                
+                                
         else:
             dqdt['Tk'] = 0.0
             
@@ -300,10 +301,16 @@ class ChemicalNetwork(object):
                     dqdt['he_1'] = 0.0
                 if x['he_2'] <= self.monotonic_EoR:
                     dqdt['he_2'] = 0.0
-            
+                        
         self.dqdt = self.zeros_q.copy()
         for i, sp in enumerate(self.grid.qmap):
             self.dqdt[i] = dqdt[sp]
+
+        if np.any(np.isnan(self.dqdt)):
+            raise ValueError('NaN encountered in RateEquations!')
+        if np.any(self.q < 0):
+            solver_error(self.grid, -1000, [self.q], [self.dqdt], -1000, cell, -1000)
+            raise ValueError('Something < 0.')
 
         return self.dqdt
                           

@@ -14,7 +14,7 @@ import ares
 import numpy as np
 import matplotlib.pyplot as pl
 
-pop = ares.populations.SynthesisModel(pop_model='leitherer1999')
+pop = ares.populations.SynthesisModel(pop_sed='leitherer1999')
     
 # Stellar SED at 1,50 Myr
 fig1 = pl.figure(1); ax1 = fig1.add_subplot(111)
@@ -33,7 +33,7 @@ pl.draw()
 
 fig2 = pl.figure(2); ax2 = fig2.add_subplot(111)
 for Z in pop.metallicities.values():
-    pop = ares.populations.SynthesisModel(pop_model='leitherer1999',
+    pop = ares.populations.SynthesisModel(pop_sed='leitherer1999',
         pop_ssp=False, pop_Z=Z)
     
     Nion = pop.PhotonsPerBaryon(13.6, 24.6)
@@ -46,16 +46,16 @@ ax2.set_xlabel(r'$N_{\mathrm{LW}}$')
 # Test interpolation
 fig3 = pl.figure(3); ax3 = fig3.add_subplot(111)
 
-pop1 = ares.populations.SynthesisModel(pop_model='leitherer1999',
+pop1 = ares.populations.SynthesisModel(pop_sed='leitherer1999',
     pop_ssp=True, pop_Z=0.001)
-pop2 = ares.populations.SynthesisModel(pop_model='leitherer1999',
+pop2 = ares.populations.SynthesisModel(pop_sed='leitherer1999',
     pop_ssp=True, pop_Z=0.04)
 
 ax3.loglog(pop1.wavelengths, pop1.data[:,9], color='k', ls='-')
 ax3.loglog(pop1.wavelengths, pop2.data[:,9], color='k', ls='--')
 
 for Z in np.logspace(np.log10(0.002), np.log10(0.02), 3):
-    pop = ares.populations.SynthesisModel(pop_model='leitherer1999',
+    pop = ares.populations.SynthesisModel(pop_sed='leitherer1999',
         pop_ssp=True, pop_Z=Z)
     
     ax3.loglog(pop.wavelengths, pop.data[:,9])

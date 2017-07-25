@@ -5,7 +5,7 @@ Analyzing Model Grids / Monte Carlo Simulations
 Once you have a model grid in hand, there are a slew of built-in analysis 
 routines that you might consider using. For the rest of this example,
 we'll assume you have completed a :doc:`example_grid`, and have the associated set of files
-with prefix ``test_2d_grid``. If not, you can download a tarball of that model grid `here <https://bitbucket.org/mirochaj/ares/downloads/ares_example_grid.tar.gz>`_.
+with prefix ``test_2d_grid``. If not, you can download a tarball of that model grid `here <https://bitbucket.org/mirochaj/ares/downloads/test_2d_grid.tar.gz>`_.
 
 To begin, initialize an instance of the analysis class, ``ModelSet``: 
 
@@ -281,10 +281,9 @@ If you've got models that seem to have something wrong with them, sending me the
 ..     pl.draw()
 ..     
 .. 
-.. Highly Dimensional Grids
-.. ------------------------
-.. For parameter studies with :math:`\gtrsim 3` dimensions, you might want to use 
-.. MCMC. See :doc:`example_mcmc_I` for an example.
-.. 
-.. 
-.. 
+High Dimensional Grids
+----------------------
+For parameter studies with :math:`\gtrsim 3` dimensions, you might want to use 
+Monte Carlo sampling or MCMC. See :doc:`example_mcmc_gs` for an example.
+
+

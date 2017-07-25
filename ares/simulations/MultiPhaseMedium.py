@@ -51,21 +51,21 @@ class MultiPhaseMedium(object):
                 raise ValueError('Redshifts in ICs must be in ascending order!')
                 
             Ti = np.interp(zi, inits['z'], inits['Tk'])
-            xi = np.interp(zi, inits['z'], inits['xe'])
+            xe = np.interp(zi, inits['z'], inits['xe'])
                                                     
             #if self.pf['include_He']:
             new = {'igm_initial_temperature': Ti,                                 
-                'initial_ionization': [1. - xi, xi, 1.-xi-1e-10, xi, 1e-10]}
-            self.kwargs.update(new)        
-                
+                'igm_initial_ionization': [1.-xe, xe, 1.-xe-1e-10, xe, 1e-10]}
+            self.kwargs.update(new)
+
             #else:
             #    new_pars = {'cosmological_ics': False,
             #                'igm_initial_temperature': Ti,
             #                'igm_initial_ionization': [1. - xi, xi]}
             #
                 #self.kwargs.update(new_pars)    
-            
-        return self._inits    
+
+        return self._inits
         
     @property
     def field(self):
@@ -82,16 +82,16 @@ class MultiPhaseMedium(object):
     @property
     def pops(self):
         return self.field.pops
-        
+
     @property
     def grid(self):
         return self.field.grid        
-        
+
     @property
     def parcels(self):
         if not hasattr(self, '_parcels'):
             self._initialize_zones()
-        return self._parcels 
+        return self._parcels
 
     @property
     def parcel_igm(self):
@@ -201,47 +201,6 @@ class MultiPhaseMedium(object):
                 
         return self._default_parcel
 
-    @property
-    def dynamic_tau(self):
-        return self.pf['tau_dynamic']
-
-    def update_optical_depth(self):
-        """
-        Dynamically update optical depth as simulation runs.
-        """
-        
-        # Recall that self.field.tau is a list with as many elements as there
-        # are distinct populations
-        
-        
-        tau = []
-        for i in range(self.field.Npops):
-            pass
-            
-        
-        self.field.tau = tau
-        
-
-    def subcycle(self):
-        """
-        See if we need to re-do the previous timestep.
-        
-        This mean:
-            (1) Re-compute the IGM optical depth.
-            (2)
-        """
-
-        return False
-
-        # Check IGM ionization state between last two steps. 
-        # Converged to desired tolerance?
-        
-        #self.
-        
-        
-    def _stop_criteria_met(self):
-        pass    
-        
     def run(self):
         """
         Run simulation from start to finish.
@@ -325,48 +284,51 @@ class MultiPhaseMedium(object):
         zf = self.pf['final_redshift']
         
         # Read initial conditions
-        if self.pf['include_igm']:  
+        if self.pf['include_igm']:
             data_igm = self.parcel_igm.grid.data.copy()
         
         if self.pf['include_cgm']:
             data_cgm = self.parcel_cgm.grid.data.copy()
-
+            
         # Evolve in time!
         while z > zf:
+                        
+            if z < self.pf['kill_redshift']:
+                break
 
             # Increment time / redshift
             dtdz = self.default_parcel.grid.cosm.dtdz(z)
             t += dt
             z -= dt / dtdz
-                        
-            # The (potential) generators need this
-            self.field.update_redshift(z)
-                        
+                                                
             # IGM rate coefficients
             if self.pf['include_igm']:
                 done = False
                 if self.pf['stop_igm_h_2'] is not None:
                     if data_igm['h_2'] > self.pf['stop_igm_h_2']:
-                        data_igm = data_igm_pre.copy()    
+                        data_igm = data_igm_pre.copy()
                         dt1 = 1e50
                         done = True
-                
                 if not done:
+                    also = {}
+                    for sp in self.field.grid.absorbers:
+                        also['igm_%s' % sp] = data_igm[sp]
+                    
                     RC_igm = self.field.update_rate_coefficients(z, 
-                        zone='igm', return_rc=True, igm_h_1=data_igm['h_1'])
-                                                                                                                                                    
+                        zone='igm', return_rc=True, **also)
+
                     # Now, update IGM parcel
                     t1, dt1, data_igm = self.gen_igm.next()
-                                    
+
                     # Pass rate coefficients off to the IGM parcel
                     self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
             else:
                 dt1 = 1e50
                 RC_igm = data_igm = None
                 data_igm = {'h_1': 1.0}
-                
+
             if self.pf['include_cgm']:
-                
+
                 done = False
                 if self.pf['stop_cgm_h_2'] is not None:
                     if data_cgm['h_2'] > self.pf['stop_cgm_h_2']:
@@ -375,11 +337,11 @@ class MultiPhaseMedium(object):
                         done = True
                 
                 if not done:
-                
+                    
                     # CGM rate coefficients
                     RC_cgm = self.field.update_rate_coefficients(z,
                         zone='cgm', return_rc=True, cgm_h_1=data_cgm['h_1'])
-                    
+
                     # Pass rate coefficients off to the CGM parcel
                     self.parcel_cgm.update_rate_coefficients(data_cgm, **RC_cgm)
                     
@@ -388,7 +350,7 @@ class MultiPhaseMedium(object):
             else:
                 dt2 = 1e50
                 RC_cgm = data_cgm = None
-
+                                
             # Must update timesteps in unison
             dt_pre = dt * 1.
             dt = min(dt1, dt2)
@@ -400,32 +362,15 @@ class MultiPhaseMedium(object):
             if self.pf['include_cgm']:    
                 data_cgm_pre = data_cgm.copy()
 
-            # If we're computing the IGM optical depth dynamically, we may
-            # need to "re-do" this step to ensure convergence.
-
-            redo = self.subcycle()
-            
-            if not redo:    
+            # Changing attribute! A little scary, but we must make sure
+            # these parcels are evolved in unison
+            if self.pf['include_igm']:
+                self.parcel_igm.dt = dt
+            if self.pf['include_cgm']:
+                self.parcel_cgm.dt = dt
+                                            
+            yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
                 
-                # Changing attribute! A little scary, but we must make sure
-                # these parcels are evolved in unison
-                if self.pf['include_igm']:
-                    self.parcel_igm.dt = dt
-                if self.pf['include_cgm']:
-                    self.parcel_cgm.dt = dt
-
-                yield t, z, data_igm, data_cgm, RC_igm, RC_cgm
-                
-                continue
-
-            # If we've made it here, we need to trick our generators a bit
-            
-            # "undo" this time-step
-            t -= dt_pre
-            z += dt_pre / dtdz
-
-            self.update_optical_depth()
-
     def _insert_inits(self):
         """
         Prepend provided initial conditions to the data storage lists.
@@ -461,7 +406,7 @@ class MultiPhaseMedium(object):
         # Don't mess with the CGM (much)
         if self.pf['include_cgm']:
             tmp = self.parcel_cgm.grid.data
-            self.all_data_cgm = [tmp.copy() for i in range(len(self.all_z))]
+            self.all_data_cgm = [tmp.copy() for i in xrange(len(self.all_z))]
             for i, cgm_data in enumerate(self.all_data_cgm):
                 self.all_data_cgm[i]['rho'] = \
                     self.parcel_cgm.grid.cosm.MeanBaryonDensity(self.all_z[i])

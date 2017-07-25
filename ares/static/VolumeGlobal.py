@@ -119,106 +119,6 @@ class GlobalVolume(object):
 
         return self._rates_no_RT
 
-    #def _fetch_tau(self, pop, zpf, Epf):
-    #    """
-    #    Look for optical depth tables. Supply corrected energy and redshift
-    #    arrays if there is a mistmatch between those generated from information
-    #    in the parameter file and those found in the optical depth table.
-    #    
-    #    .. note:: This will only be called from UniformBackground, and on
-    #        populations which are using the generator framework.
-    #    
-    #    Parameters
-    #    ----------
-    #    popid : int
-    #        ID # for population of interest.
-    #    zpf : np.ndarray
-    #        What the redshifts should be according to the parameter file.    
-    #    Epf : np.ndarray
-    #        What the energies should be according to the parameter file.
-    #    
-    #    Returns
-    #    -------
-    #    Energies and redshifts, potentially revised from Epf and zpf.
-    #    
-    #    """
-    #    
-    #    for i in range(self.Npops):
-    #        if pop == self.pops[i]:
-    #            band = self.background.bands_by_pop[i]
-    #            break
-    #        
-    #    # First, look in CWD or $ARES (if it exists)
-    #    self.tabname = self._load_tau(pop, pop.pf['tau_prefix'])
-    #            
-    #    if not self.tabname:
-    #        return zpf, Epf, None
-    #    
-    #    # If we made it this far, we found a table that may be suitable
-    #    ztab, Etab, tau = self._read_tau(self.tabname)
-    #            
-    #    # Return right away if there's no potential for conflict
-    #    if (zpf is None) and (Epf is None):
-    #        return ztab, Etab, tau
-    #        
-    #    # Figure out if the tables need fixing    
-    #    zmax_ok = \
-    #        (ztab.max() >= zpf.max()) or \
-    #        np.allclose(ztab.max(), zpf.max())
-    #    zmin_ok = \
-    #        (ztab.min() <= zpf.min()) or \
-    #        np.allclose(ztab.min(), zpf.min())
-    #                            
-    #    Emin_ok = \
-    #        (Etab.min() <= Epf.min()) or \
-    #        np.allclose(Etab.min(), Epf.min())
-    #    
-    #    # Results insensitive to Emax (so long as its relatively large)
-    #    # so be lenient with this condition (100 eV or 1% difference
-    #    # between parameter file and lookup table)
-    #    Emax_ok = np.allclose(Etab.max(), Epf.max(), atol=100., rtol=1e-2)
-    #            
-    #    # Check redshift bounds
-    #    if not (zmax_ok and zmin_ok):
-    #        if not zmax_ok:
-    #            tau_tab_z_mismatch(self, zmin_ok, zmax_ok, ztab)
-    #            sys.exit(1)
-    #        else:
-    #            if self.pf['verbose']:
-    #                tau_tab_z_mismatch(self, zmin_ok, zmax_ok, ztab)
-    #    
-    #    if not (Emax_ok and Emin_ok):
-    #        if self.pf['verbose']:
-    #            tau_tab_E_mismatch(pop, self.tabname, Emin_ok, Emax_ok, Etab)
-    #            
-    #        if Etab.max() < Epf.max():
-    #            sys.exit(1)
-    #                                                        
-    #    # Correct for inconsistencies between parameter file and table
-    #    # By effectively masking out those elements with tau -> inf
-    #    if Epf.min() > Etab.min():
-    #        Ediff = Etab - Epf.min()
-    #        i_E0 = np.argmin(np.abs(Ediff))
-    #        if Ediff[i_E0] < 0:
-    #            i_E0 += 1
-    #    
-    #        #tau[:,0:i_E0+1] = np.inf
-    #    else:
-    #        i_E0 = 0
-    #    
-    #    if Epf.max() < Etab.max():
-    #        Ediff = Etab - Epf.max()
-    #        i_E1 = np.argmin(np.abs(Ediff))
-    #        if Ediff[i_E1] < 0:
-    #            i_E1 += 1
-    #    
-    #        #tau[:,i_E1+1:] = np.inf
-    #    else:
-    #        i_E1 = None
-    #        
-    #    # We're done!
-    #    return ztab, Etab[i_E0:i_E1], tau[:,i_E0:i_E1]
-
     @property
     def E(self):
         if not hasattr(self, '_E'):
@@ -303,8 +203,9 @@ class GlobalVolume(object):
                 if band is None:
                     continue
                             
-                need_tab = self.pops[i].is_src_heat \
-                    and np.any(np.array(band) > E_LL)
+                need_tab = self.pops[i].is_xray_src \
+                    and np.any(np.array(band) > E_LL) \
+                    and self.background.solve_rte[i][j]
                                                                     
                 if (not self.background.solve_rte[i][j]) or \
                    (not need_tab):
@@ -505,7 +406,7 @@ class GlobalVolume(object):
                 
         pop = self.pops[popid]
                                 
-        if not pop.pf['pop_heat_src_igm'] or (z >= pop.zform):
+        if (not pop.is_heat_src_igm) or (z >= pop.zform):
             return 0.0    
             
         if pop.pf['pop_heat_rate'] is not None:
@@ -516,8 +417,8 @@ class GlobalVolume(object):
         
         species_str = species_i_to_str[species]
 
-        if pop.pf['pop_k_heat_igm'] is not None:
-            return pop.pf['pop_k_heat_igm'](z)
+        if pop.pf['pop_heat_rate'] is not None:
+            return pop.pf['pop_heat_rate'](z)
             
         if band is not None:
             solve_rte = self.background.solve_rte[popid][band]
@@ -543,6 +444,7 @@ class GlobalVolume(object):
                         * (kw['igm_e'] - self.esec.x[i_x]) \
                         / (self.esec.x[j] - self.esec.x[i_x])                
             elif self.esec.method > 1:
+                print "popid=%i" % popid
                 raise ValueError('Only know how to do advanced secondary ionization with solve_rte=True')
             else:
                 fheat = self.esec.DepositionFraction(kw['igm_e'])[0]
@@ -674,7 +576,7 @@ class GlobalVolume(object):
         """
             
         pop = self.pops[popid]
-        
+                
         if band is not None:
             b = self.background.bands_by_pop[popid][band]
             if not np.any(np.array(b) > E_LL):
@@ -684,21 +586,21 @@ class GlobalVolume(object):
         else:
             b = [13.6, 24.6]
         
-        if (not pop.pf['pop_ion_src_cgm']) or (z > pop.zform):
+        if (not pop.is_ion_src_cgm) or (z > pop.zform):
             return 0.0
             
         # Need some guidance from 1-D calculations to do this
         if species > 0:
             return 0.0
 
-        if pop.pf['pop_ion_rate'] is not None:
+        if pop.pf['pop_ion_rate_cgm'] is not None:
             return pop.IonizationRateCGM(z)    
 
         kw = defkwargs.copy()
         kw.update(kwargs)
 
-        if pop.pf['pop_k_ion_cgm'] is not None:
-            return self.pf['pop_k_ion_cgm'](z)
+        #if pop.pf['pop_ion_rate_cgm'] is not None:
+        #    return self.pf['pop_k_ion_cgm'](z)
 
         if kw['return_rc']:
             weight = self.rate_to_coefficient(z, species, **kw)
@@ -706,7 +608,7 @@ class GlobalVolume(object):
             weight = 1.0
             
         Qdot = pop.PhotonLuminosityDensity(z, Emin=13.6, Emax=24.6)
-                                                                                                               
+        
         return weight * Qdot * (1. + z)**3
             
     def IonizationRateIGM(self, z, species=0, popid=0, band=0, **kwargs):
@@ -731,7 +633,7 @@ class GlobalVolume(object):
         pop = self.pops[popid]
 
         # z between zform, zdead? must be careful for BHs
-        if (not pop.pf['pop_ion_src_igm']) or (z > pop.zform):
+        if (not pop.is_ion_src_igm) or (z > pop.zform):
             return 0.0
 
         # Grab defaults, do some patches if need be
@@ -739,8 +641,8 @@ class GlobalVolume(object):
         
         species_str = species_i_to_str[species]
 
-        if pop.pf['pop_k_ion_igm'] is not None:
-            return pop.pf['pop_k_ion_igm'](z)
+        if pop.pf['pop_ion_rate_igm'] is not None:
+            return pop.IonizationRateIGM(z)
 
         if band is not None:
             solve_rte = self.background.solve_rte[popid][band]
@@ -933,26 +835,36 @@ class GlobalVolume(object):
         
         return ion
         
-    def DiffuseLymanAlphaFlux(self, z, **kwargs):
+    def SecondaryLymanAlphaFlux(self, z, popid=0, **kwargs):
         """
         Flux of Lyman-alpha photons induced by photo-electron collisions.
         
+        Can only be sourced by X-ray populations.
+        
         """
         
-        raise NotImplemented('hey fix me')
-            
+        pop = self.pops[popid]
+                
         if not self.pf['secondary_lya']:
             return 0.0
         
-        #return 1e-25
-        
+        if not pop.is_ion_src_igm:
+            return 0.0
+                
+        species = 0
+        species_str = species_i_to_str[species]
+        band = 0        
+                
+                
         # Grab defaults, do some patches if need be    
         kw = self._fix_kwargs(**kwargs)
+                
+        E = self.E        
                 
         # Compute fraction of photo-electron energy deposited as Lya excitation
         if self.esec.method > 1 and (kw['fluxes'][popid] is not None):
             if kw['igm_e'] == 0:
-                flya = self.flya[:,0]
+                flya = self.flya[popid][band][:,0]
             else:
                 i_x = np.argmin(np.abs(kw['igm_e'] - self.esec.x))
                 if self.esec.x[i_x] > kw['igm_e']:
@@ -960,53 +872,62 @@ class GlobalVolume(object):
                     
                 j = i_x + 1    
                 
-                flya = self.flya[:,i_x] \
-                    + (self.flya[:,j] - self.flya[:,i_x]) \
+                flya = self.flya[popid][band][:,i_x] \
+                    + (self.flya[popid][band][:,j] - self.flya[popid][band][:,i_x]) \
                     * (kw['igm_e'] - self.esec.x[i_x]) \
-                    / (self.esec.x[j] - self.esec.x[i_x])                
+                    / (self.esec.x[j] - self.esec.x[i_x])
         else:
             return 0.0
                 
-        # Re-normalize to help integrator
-        norm = J21_num * self.sigma0
+        norm = J21_num * self.sigma0        
+
+        integrand = self.sigma_E[species_str][popid][band] \
+            * (self._E[popid][band] - E_th[species])
+        
+        if self.approx_He:
+            integrand += self.cosm.y * self.sigma_E['he_1'][popid][band] \
+                * (self._E[popid][band] - E_th[1])
                 
-        # Compute integrand
-        integrand = self.sigma_E[species_str] * (self.E - E_th[species])
-       
-        integrand *= kw['fluxes'] * flya / norm / ev_per_hz
+        integrand *= kw['fluxes'][popid][band] * flya / norm / ev_per_hz
                          
+
         if kw['Emax'] is not None:
-            imax = np.argmin(np.abs(self.E - kw['Emax']))
+            imax = np.argmin(np.abs(self._E[popid][band] - kw['Emax']))
             if imax == 0:
                 return 0.0
-                
+            elif imax == (len(self._E[popid][band]) - 1):  
+                imax = None 
+                                    
             if self.sampled_integrator == 'romb':
                 raise ValueError("Romberg's method cannot be used for integrating subintervals.")
-                heat = romb(integrand[0:imax] * self.E[0:imax], dx=self.dlogE[0:imax])[0] * log10
+                heat = romb(integrand[0:imax] * self.E[0:imax], 
+                    dx=self.dlogE[0:imax])[0] * log10
             else:
-                heat = simps(integrand[0:imax] * self.E[0:imax], x=self.logE[0:imax]) * log10
+                heat = simps(integrand[0:imax] * self._E[popid][band][0:imax], 
+                    x=self.logE[popid][band][0:imax]) * log10
         
         else:
-            imin = np.argmin(np.abs(self.E - self.pop.pf['source_Emin']))
+            imin = np.argmin(np.abs(self._E[popid][band] - pop.pf['pop_Emin']))
             
             if self.sampled_integrator == 'romb':
-                heat = romb(integrand[imin:] * self.E[imin:], 
-                    dx=self.dlogE[imin:])[0] * log10
+                heat = romb(integrand[imin:] * self._E[popid][band][imin:], 
+                    dx=self.dlogE[popid][band][imin:])[0] * log10
             elif self.sampled_integrator == 'trapz':
-                heat = np.trapz(integrand[imin:] * self.E[imin:], 
-                    x=self.logE[imin:]) * log10
+                heat = np.trapz(integrand[imin:] * self._E[popid][band][imin:], 
+                    x=self.logE[popid][band][imin:]) * log10
             else:
-                heat = simps(integrand[imin:] * self.E[imin:], 
-                    x=self.logE[imin:]) * log10
+                heat = simps(integrand[imin:] * self._E[popid][band][imin:], 
+                    x=self.logE[popid][band][imin:]) * log10
           
-        # Re-normalize, get rid of per steradian units
-        heat *= 4. * np.pi * norm * erg_per_ev
+        # Re-normalize, get rid of per steradian units, convert from
+        # energy in Lya photons to photon number
+        heat *= 4. * np.pi * norm / E_LyA
 
         # Currently a rate coefficient, returned value depends on return_rc                                      
         if kw['return_rc']:
             pass
         else:
             heat *= self.coefficient_to_rate(z, species, **kw)
-
+            
         return heat
         

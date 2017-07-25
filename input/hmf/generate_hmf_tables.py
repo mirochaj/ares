@@ -20,13 +20,13 @@ fit = 'ST'
 format = 'npz'
 ##
 
-
 hmf_pars = \
 {
  "hmf_model": fit,
  "hmf_dlogM": 0.01,
  "hmf_zmin": 3.,
  "hmf_dz": 0.05,
+ "hmf_zmax": 60.,
 }
 ##
 

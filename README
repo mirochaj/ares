@@ -9,7 +9,9 @@ global radiation background calculator.
 A few papers on how it works:
 
 - 1-D radiative transfer: `Mirocha et al. (2012) <http://adsabs.harvard.edu/abs/2012ApJ...756...94M>`_.
-- Uniform backgrounds \& global 21-cm signal: `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014arXiv1406.4120M>`_.
+- Uniform backgrounds \& global 21-cm signal: `Mirocha (2014) <http://adsabs.harvard.edu/abs/2014MNRAS.443.1211M>`_.
+- Parameter inference: `Mirocha, Harker, & Burns (2015) <http://adsabs.harvard.edu/abs/2015ApJ...813...11M>`_.
+- Galaxy luminosity functions: `Mirocha, Furlanetto, & Sun (2016) <http://adsabs.harvard.edu/abs/2016arXiv160700386M>`_.
 
 Be warned: this code is still under active development -- use at your own
 risk! Correctness of results is not guaranteed.
@@ -19,11 +21,6 @@ If you'd like to live on the bleeding edge, check out the ares-dev branch! Once 
     hg up ares-dev
 
 The `docs <http://ares.readthedocs.org/en/latest/>`_ are still a work in progress.
-
-Current status of default branch:
-
-.. image:: https://drone.io/bitbucket.org/mirochaj/ares/status.png
-   :target: https://drone.io/bitbucket.org/mirochaj/ares/latest
 
 .. image:: https://readthedocs.org/projects/ares/badge/?version=latest
    :target: http://ares.readthedocs.io/en/latest/?badge=latest
@@ -64,7 +61,7 @@ and optionally,
 - `h5py <http://www.h5py.org/>`_
 - `mpi4py <http://mpi4py.scipy.org>`_
 - `emcee <http://dan.iel.fm/emcee/current/>`_
-- `python-progressbar <https://code.google.com/p/python-progressbar/>`_
+- `progressbar2 <http://progressbar-2.readthedocs.io/en/latest/>`_
 - `setuptools <https://pypi.python.org/pypi/setuptools>`_
 - `mpmath <http://mpmath.googlecode.com/svn-history/r1229/trunk/doc/build/setup.html>`_
 - `shapely <https://pypi.python.org/pypi/Shapely>`_
@@ -124,7 +121,7 @@ Primary author: `Jordan Mirocha <https://sites.google.com/site/jordanmirocha/hom
 
 Additional contributions / corrections / suggestions from:
     
-- `Geraint Harker <http://zuserver2.star.ucl.ac.uk/~harkerg/>`_ (UCL)
+- Geraint Harker
 - Jacob Jost (CU-Boulder)
 - `Greg Salvesen <http://jila.colorado.edu/~salvesen/>`_ (CU-Boulder)
 - `Adrian Liu <http://w.astro.berkeley.edu/~acliu/>`_ (UC-Berkeley)
@@ -134,3 +131,7 @@ Additional contributions / corrections / suggestions from:
 - Krishma Singal (Georgia Tech)
 - Donald Trinh (UC-Irvine)
 - Omar Ruiz Macias (INAOE)
+- Arnab Chakraborty (IIT)
+- Saul Kohn (UPenn)
+
+

@@ -53,6 +53,15 @@ derived = \
 {
  'Ts': r'$T_S$',
  'dTb': r'$\delta T_b \ (\mathrm{mK})$',
+ #'hwhm_diff': r'$\Delta \nu_{\min}$',
+ #'squash': r'$\delta T_b(\nu_{\min}) / \mathrm{FWHM}$',
+ 'hwhm_diff': r'$\mathcal{A} \ (\mathrm{MHz})$',
+ 'squash': r'$\mathcal{W} \ (\mathrm{mK} \ \mathrm{MHz}^{-1})$',
+ 'fwhm': r'$\mathrm{FWHM}$',
+ 'fwqm': r'$\mathrm{FWQM}$',
+ 'mean_slope': r'$\langle \delta T_b^{\prime} \rangle$',
+ 'mean_slope_hi': r'$\langle \delta T_b^{\prime} \rangle_{\mathrm{hi}}$',
+ 'mean_slope_lo': r'$\langle \delta T_b^{\prime} \rangle_{\mathrm{lo}}$',
 }
 
 labels = {}
@@ -65,7 +74,7 @@ labels_w_prefix = {}
 for prefix in prefixes:
     for key in labels:
         labels_w_prefix['%s%s' % (prefix, key)] = labels[key]
-        
+
 labels.update(labels_w_prefix)
 
 common = \
@@ -90,6 +99,8 @@ common = \
  'xi_LW': r'$\xi_{\mathrm{LW}}$',
  'xi_UV': r'$\xi_{\mathrm{ion}}$',
  'sfrd': r'$\dot{\rho}_{\ast} \ [M_{\odot} \ \mathrm{yr}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ 'emissivity': r'$\epsilon \ [\mathrm{erg} \ \mathrm{s}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ 'nh': r'$n_h \ [\mathrm{cMpc}^{-3}]$',
  'extinction_redshift': r'$z_{\mathrm{ext}}$',
  
  'source_logN': r'$\log_{10} N_{\mathrm{H}}$',
@@ -117,6 +128,11 @@ common = \
  
  'tau_e': r'$\tau_e$',
  'tau_tot': r'$\tau_e$', 
+ 
+ 'skewness_absorption': r'$\mu_{3, \mathrm{abs}}$',
+ 'kurtosis_absorption': r'$\mu_{4, \mathrm{abs}}$',
+ 'skewness_emission': r'$\mu_{3, \mathrm{em}}$',
+ 'kurtosis_emission': r'$\mu_{4, \mathrm{em}}$',
 }    
 ##
 #
@@ -129,8 +145,6 @@ history_elements = \
  'igm_he_1': r'$x_{\mathrm{HeI}}$',
  'igm_he_2': r'$x_{\mathrm{HeII}}$',
  'igm_he_3': r'$x_{\mathrm{HeIII}}$',
- #'igm_dTb': r'$\delta T_b$',
- #'dTb': r'$\delta T_b$', 
  'igm_Tk': r'$T_K$',
  'cgm_h_2': r'$Q_{\mathrm{HII}}$',
  'xavg': r'$\overline{x}_i$',
@@ -139,20 +153,33 @@ history_elements = \
  'nu': r'$\nu$', 
  'Ja': r'$J_{\alpha}$', 
  'Jlw': r'$J_{\mathrm{LW}}$', 
+ 'dTb': r'$\delta T_b \ (\mathrm{mK})$',
  
  'slope': r'$\delta^{\prime} T_b \ [\mathrm{mK} \ \mathrm{MHz}^{-1}]$',
  'curvature': r'$\delta^{\prime \prime} T_b \ [\mathrm{mK}^2 \ \mathrm{MHz}^{-2}]$', 
 }
 
 tp_parameters = {}
-for key in history_elements:
-    for tp in ['B', 'C', 'D', 'ZC']:
+hist_plus_derived = history_elements
+hist_plus_derived.update(derived)
+for key in hist_plus_derived:
+    for tp in ['B', 'C', 'D', 'ZC']:        
         if key in ['z', 'nu']:
             tp_parameters['%s_%s' % (key, tp)] = \
-                r'%s_{\mathrm{%s}}$' % (history_elements[key][0:-1], tp)
+                r'%s_{\mathrm{%s}}$' % (hist_plus_derived[key][0:-1], tp)
         else:
             tp_parameters['%s_%s' % (key, tp)] = \
-                r'%s(z_{\mathrm{%s}})$' % (history_elements[key][0:-1], tp)
+                r'%s(\nu_{\mathrm{%s}})$' % (hist_plus_derived[key][0:-1], tp)
+
+for key in hist_plus_derived:
+    for tp in ['B', 'C', 'D']:        
+        if key in ['z', 'nu']:
+            tp_parameters['%s_%sp' % (key, tp)] = \
+                r'%s_{\mathrm{%s}}^{\prime}$' % (hist_plus_derived[key][0:-1], tp)
+        else:
+            tp_parameters['%s_%sp' % (key, tp)] = \
+                r'%s(\nu_{\mathrm{%s}}^{\prime})$' % (hist_plus_derived[key][0:-1], tp)
+
 
 tanh_parameters = \
 {
@@ -191,18 +218,28 @@ lf_parameters = \
 pop_parameters = \
 {
  'pop_Z': r'$Z/Z_{\odot}$',
+ 'pop_sfr': r'$\dot{M}_{\ast}$',
  'pop_lf_beta': r'$\Beta_{\mathrm{UV}}$',
+ 'pop_fstar': r'$f_{\ast}$',
+ 'pop_fobsc': r'$f_{\mathrm{obsc}}$',
+ 'pop_acc_frac_stellar': r'$f_{\ast}^{\mathrm{acc}}$',
+ 'pop_acc_frac_metals': r'$f_Z^{\mathrm{acc}}$',
+ 'pop_acc_frac_gas': r'$f_g^{\mathrm{acc}}$',
+ 'pop_metal_retention': r'$f_{\mathrm{ret,Z}}$',
+ 'pop_abun_limit': r'$\mathcal{Z}_c$',
+ 'pop_bind_limit': r'$\mathcal{E}_c$',
+ 'pop_time_limit': r'$\mathcal{T}_c$',
 }
 
 sfe_parameters = \
 {
- "galaxy_lf": r'$\phi(M_{\mathrm{UV}})$',
+ "lf": r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ "galaxy_lf": r'$\phi(M_{\mathrm{UV}}) \ [\mathrm{mag}^{-1} \ \mathrm{cMpc}^{-3}]$',
+ "smf": r'$\phi(M_{\ast}) \ [\mathrm{dex}^{-1} \ \mathrm{cMpc}^{-3}]$',
 }
 
 for i in range(6):
-    sfe_parameters['php_func_par%i' % i] = r'$p_{%i}$' %i
-    for j in range(6):
-        sfe_parameters['php_func_par%i_par%i' % (i,j)] = r'$p_{%i,%i}$' % (i,j)
+    sfe_parameters['pq_func_par%i' % i] = r'$p_{%i}$' % i
         
 powspec = \
 {
@@ -249,7 +286,7 @@ def mathify_str(s):
             
 class Labeler(object):
     def __init__(self, pars, is_log=False, extra_labels={}, **kwargs):
-        self.pars = pars
+        self.pars = self.parameters = pars
         self.base_kwargs = kwargs
         self.extras = extra_labels
         
@@ -257,12 +294,16 @@ class Labeler(object):
         self.labels.update(self.extras)
         
         if type(is_log) == bool:
-            self.is_log = [is_log] * len(pars)
+            self.is_log = {par:is_log for par in pars}
         else:
-            if is_log == {}:
-                self.is_log = {key:False for key in self.pars}
-            else:
-                self.is_log = is_log
+            self.is_log = {}
+            for par in pars:
+                if par in self.parameters:
+                    k = self.parameters.index(par)
+                    self.is_log[par] = is_log[k]
+                else:
+                    # Blobs are never log10-ified before storing to disk
+                    self.is_log[par] = False        
         
     def units(self, prefix):
         units = None
@@ -275,45 +316,101 @@ class Labeler(object):
         
         return units
                 
+    def _find_par(self, popid, phpid):
+        kwarg = None
+        look_for_1 = '{%i}' % popid
+        look_for_2 = '[%i]' % phpid
+        for kwarg in self.base_kwargs:
+            if phpid is not None:
+                if self.base_kwargs[kwarg] == 'pq[%i]' % phpid:
+                    break
+                
+        return kwarg.replace('{%i}' % popid, '')
+                
     def label(self, par, take_log=False, un_log=False):
         """
         Create a pretty label for this parameter (if possible).
         """
         
         if par in self.labels:
-            return self.labels[par]
-        
-        prefix, popid, redshift = par_info(par)
-        
+            label = self.labels[par]
+            
+            if par in self.parameters:
+                if take_log:        
+                    return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+                elif self.is_log[par] and (not un_log):
+                    return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+                else:
+                    return label
+            else:
+                return label
+
+        prefix, popid, phpid = par_info(par)
+
+        _par = par        
+        # Correct prefix is phpid is not None
+        if phpid is not None:
+            s = 'pq[%i]' % phpid
+                
+            for _par in self.base_kwargs:
+                if self.base_kwargs[_par] != s:
+                    continue
+                break
+                
+            prefix = _par        
+                
         units = self.units(prefix)
         
         label = None
-                
-        # Simplest case
-        if popid == redshift == None and (par in self.labels):
-            label = self.labels[prefix]
-        # Has pop ID number
-        elif (popid is not None) and (redshift is None) and (prefix in self.labels):
-            label = self.labels[prefix]
-        elif redshift is not None and (prefix in self.labels):
-            label = r'$%s[%.2g]$' % (undo_mathify(self.labels[prefix]), redshift)
         
+        # Simplest case. Not popid, not a PQ, label found.
+        if popid == phpid == None and (prefix in self.labels):
+            label = self.labels[prefix]
+        # Has pop ID number but is not a PQ, label found.
+        elif (popid is not None) and (phpid is None) and (prefix in self.labels):
+            label = self.labels[prefix]
+        # Has Pop ID, not a PQ, no label found.      
+        elif (popid is not None) and (phpid is None) and (prefix not in self.labels):
+            try:
+                hard = self._find_par(popid, phpid)
+            except:
+                hard = None
+        
+            if hard is not None:    
+                # If all else fails, just typset the parameter decently
+                parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
+                label = r'$%s\{%i\}[%i]<%i>$' % (hard.replace('_', '\_'),
+                    popid, phpid, parnum)    
+        # Is PQ, label found. Just need to parse []s.
+        elif phpid is not None and (prefix in self.labels):
+            parnum = map(int, re.findall(r'\d+', par.replace('[%i]' % phpid,'')))
+            if len(parnum) == 1:
+                label = r'$%s^{\mathrm{par}\ %i}$' % \
+                    (undo_mathify(self.labels[prefix]), parnum[0])
+            else:
+                label = r'$%s^{\mathrm{par}\ %i,%i}$' \
+                    % (undo_mathify(self.labels[prefix]), parnum[0], parnum[1])
+        # Otherwise, just use number. Not worth the trouble right now.
+        elif (popid is None) and (phpid is not None) and par.startswith('pq_'):
+            label = 'par %i' % (self.parameters.index(par))
+            
         # Troubleshoot if label not found
-        if label is None:
+        if label is None:         
+            label = prefix
             if re.search('pop_', prefix):
                 if prefix[4:] in self.labels:
                     label = self.labels[prefix[4:]]
-                else:
-                    label = prefix
             else:
-                label = prefix
-            
-        if take_log:        
-            return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
-        elif self.is_log[par] and (not un_log):
-            return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
-        else:
-            return label    
+                label = r'$%s$' % (par.replace('_', '\_'))
+        
+        if par in self.parameters: 
+            print par, take_log, self.is_log[par], un_log
+            if take_log:        
+                return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+            elif self.is_log[par] and (not un_log):
+                return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+            else:
+                return label    
         
         return label
         

@@ -42,6 +42,9 @@ aux_data = \
  #'bpass_v2': ['https://drive.google.com/file/d/'] + \
  #    ['bpassv2-imf%i-300tar.gz' % IMF for IMF in [100, 135]] + \
  #     [None],    
+ 'behroozi2013': ['http://www.peterbehroozi.com/uploads/6/5/4/8/6548418/',
+    'sfh_z0_z8.tar.gz', 'observational-data.tar.gz', None]
+ 
 }
 
 if not os.path.exists('input'):
@@ -52,8 +55,8 @@ os.chdir('input')
 files = []
 if (len(options) > 0) and ('clean' not in options):
     if 'minimal' in options:
-        to_download = ['inits', 'secondary_electrons']
-        files = [None, None]
+        to_download = ['inits', 'secondary_electrons', 'hmf']
+        files = [None, None, None]
     elif 'clean' in options:
         to_download = aux_data.keys()
         files = [None] * len(to_download)

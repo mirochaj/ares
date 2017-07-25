@@ -98,7 +98,7 @@ The following parameters control the star-formation history of a population. See
     Default: ``g/s/cm^3``
     
 ``pop_calib_L1600``
-    If not ``None``, this parameter will guarantee that the :math:`1600\AA` luminosity (per unit star formation) is fixed at the provided value. This can be useful if, for example, you're modeling the galaxy luminosity function (LF) and want to change the stellar population model while preserving the LF. See Section 3.4 of `Mirocha, Furlanetto, \& Sun (2016) <http://arxiv.org/abs/1607.00386>`_ for further discussion of this.
+    If not ``None``, this parameter will guarantee that the :math:`1600\AA` luminosity (per unit star formation) is fixed at the provided value. This can be useful if, for example, you're modeling the galaxy luminosity function (LF) and want to change the stellar population model while preserving the LF. See Section 3.4 of `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_ for further discussion of this.
     
 Radiation Fields
 ----------------
@@ -168,6 +168,26 @@ We use square brackets on this page to denote the units of parameters.
     If ``pop_sed`` is ``leitherer1999`` or ``eldridge2009``, this is the stellar metallicity assumed for the synthesis models. Can take on values in the range :math:`0.001 \leq Z \leq 0.04``.
 
     Default: 0.02 (solar)
+    
+``pop_imf``
+    If ``pop_sed`` is ``leitherer1999`` or ``eldridge2009``, this is the stellar initial mass function used.
+
+    Default: 2.35 (Salpeter)    
+    
+``pop_nebular``
+    Whether or not to include nebular emission.
+    
+    Default: ``False``
+
+``pop_ssp``
+    Whether or not to assume a "simple stellar population," i.e., an instantaneous burst of star formation. If ``False``, assumes continuous star formation.
+    
+    Default: ``False``
+
+``pop_binaries``
+    If ``pop_sed`` is ``eldridge2009``, this dictates whether binary systems are included in the model.
+    
+    Default: ``False``
 
 ``pop_Emin``
     Minimum photon energy to consider in radiative transfer calculation.

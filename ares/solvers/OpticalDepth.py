@@ -12,7 +12,7 @@ Description:
 
 import pickle
 import numpy as np
-import os, re, types
+import os, re, types, sys
 from ..physics import Cosmology
 from scipy.integrate import quad
 from ..physics.Constants import c
@@ -227,9 +227,9 @@ class OpticalDepth(object):
         pb.start()     
     
         # Loop over redshift, photon energy
-        for l in range(self.L):
+        for l in xrange(self.L):
     
-            for n in range(self.N):
+            for n in xrange(self.N):
                 m = l * self.N + n + 1
     
                 if m % size != rank:
@@ -335,9 +335,7 @@ class OpticalDepth(object):
             z, E, tau = self.load(self.tabname)
     
             zmax_ok = (self.z.max() >= self.pf['initial_redshift']) or \
-                np.allclose(self.z.max(), self.pf['initial_redshift']) or \
-                (self.z.max() >= self.pf['first_light_redshift']) or \
-                np.allclose(self.z.max(), self.pf['first_light_redshift'])
+                np.allclose(self.z.max(), self.pf['initial_redshift'])
     
             zmin_ok = (self.z.min() <= self.pf['final_redshift']) or \
                 np.allclose(self.z.min(), self.pf['final_redshift'])
@@ -354,7 +352,7 @@ class OpticalDepth(object):
             # Check redshift bounds
             if not (zmax_ok and zmin_ok):
                 if not zmax_ok:
-                    tau_tab_z_mismatch(self, zmin_ok, zmax_ok)
+                    tau_tab_z_mismatch(self, zmin_ok, zmax_ok, self.z)
                     sys.exit(1)
                 else:
                     if self.pf['verbose']:
@@ -425,8 +423,8 @@ class OpticalDepth(object):
         Read optical depth table.
         """
         
-        if (rank == 0) and self.pf['verbose']:
-            print "Loading %s..." % fn
+        #if (rank == 0) and self.pf['verbose']:
+        #    print "Loading %s..." % fn
         
         if type(fn) is dict:
     
@@ -557,6 +555,9 @@ class OpticalDepth(object):
         """
     
         fn, fn_func = self.tau_name()
+        
+        #if rank == 0 and self.pf['verbose']:
+        #    print "Looking for optical depth table equivalent to %s..." % fn
     
         if prefix is None:
             ares_dir = os.environ.get('ARES')
@@ -576,7 +577,7 @@ class OpticalDepth(object):
         if os.path.exists(guess):
             return guess
     
-        ## Find exactly what table should be
+        # Find exactly what table should be
         zmin, zmax, Nz, lEmin, lEmax, chem, pre, post = self._parse_tab(fn)
     
         ok_matches = []
@@ -711,7 +712,7 @@ class OpticalDepth(object):
         Emin_ok = \
             (Etab.min() <= Epf.min()) or \
             np.allclose(Etab.min(), Epf.min())
-    
+            
         # Results insensitive to Emax (so long as its relatively large)
         # so be lenient with this condition (100 eV or 1% difference
         # between parameter file and lookup table)
@@ -754,7 +755,7 @@ class OpticalDepth(object):
             #tau[:,i_E1+1:] = np.inf
         else:
             i_E1 = None
-            
+                        
         self.z_fetched = ztab
         self.E_fetched = Etab[i_E0:i_E1]  
         self.tau_fetched = tau[:,i_E0:i_E1]

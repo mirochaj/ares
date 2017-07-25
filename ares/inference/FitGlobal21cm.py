@@ -10,6 +10,7 @@ Description:
 
 """
 
+import signal
 import numpy as np
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
@@ -72,6 +73,7 @@ class loglikelihood(LogLikelihood):
         kw = self.base_kwargs.copy()
         kw.update(kwargs)
         
+        self._tmp_kwargs = kwargs
         self.checkpoint(**kwargs)
         
         if self.timeout is not None:
@@ -86,12 +88,13 @@ class loglikelihood(LogLikelihood):
                                                                                 
         # Timestep weird (happens when xi ~ 1)
         except SystemExit:
-            
             tps = sim.turning_points
-            
+
         # Disable the alarm
         if self.timeout is not None:
-            signal.alarm(0)    
+            signal.alarm(0)
+             
+        self.checkpoint_on_completion(**kwargs) 
              
         # most likely: no (or too few) turning pts
         #except ValueError:                     
@@ -128,7 +131,7 @@ class loglikelihood(LogLikelihood):
             assert len(yarr) == len(self.ydata)
                     
         else:
-            yarr = np.interp(self.xdata, sim.data['nu'],            
+            yarr = np.interp(self.xdata, sim.history['nu'],            
                 sim.history['igm_dTb'])                             
                 
         if np.any(np.isnan(yarr)):
@@ -142,7 +145,7 @@ class loglikelihood(LogLikelihood):
 
         del sim, kw
         gc.collect()
-
+        
         return logL, blobs
 
 class FitGlobal21cm(ModelFit):
@@ -221,6 +224,7 @@ class FitGlobal21cm(ModelFit):
         else:
             assert len(value) == len(self.frequencies)            
             assert not self.turning_points
+            self.xdata = self.frequencies
             self.ydata = value
             return
 
@@ -235,8 +239,8 @@ class FitGlobal21cm(ModelFit):
             
             self.xdata = self.frequencies
             if hasattr(self, 'sim'):
-                nu = self.sim.data['nu']
-                dTb = self.sim.data['igm_dTb']
+                nu = self.sim.history['nu']
+                dTb = self.sim.history['dTb']
                 self.ydata = np.interp(self.xdata, nu, dTb).copy() \
                     + self.noise
 

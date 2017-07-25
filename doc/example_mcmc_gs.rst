@@ -1,7 +1,7 @@
 :orphan:
 
-Running *ares* with *emcee*
-===========================
+Fitting the Global 21-cm Signal
+===============================
 It's relatively straightforward to call the Markov-Chain Monte Carlo code
 `emcee <http://dan.iel.fm/emcee/current/>`_ (`Foreman-Mackey et al. (2013) <http://adsabs.harvard.edu/abs/2013PASP..125..306F>`_),
 and perform a fits to:
@@ -10,7 +10,7 @@ and perform a fits to:
     - The galaxy luminosity function
     - Something really cool I haven't even thought of yet!
 
-Some examples below.
+Here, we'll focus on the global signal application.
     
 Fitting Global 21-cm Extrema
 ----------------------------
@@ -26,7 +26,7 @@ The fastest model to fit is one treating the Lyman-:math:`\alpha`, ionization, a
      'problem_type': 101,
      'tanh_model': True,
      'blob_names': [['tau_e'], ['cgm_h_2', 'igm_Tk', 'igm_dTb']],
-     'blob_ivars': [None, np.arange(6, 21)],
+     'blob_ivars': [None, [('z', np.arange(6, 21))]],
      'blob_funcs': None,
     }
     
@@ -74,6 +74,7 @@ as well as the priors on the parameters, which in this case we'll take to be uni
     ps.add_prior(UniformPrior(0.1, 20), 'tanh_xdz')
     ps.add_prior(UniformPrior(5, 20), 'tanh_Tz0')
     ps.add_prior(UniformPrior(0.1, 20), 'tanh_Tdz')
+    
     fitter.prior_set = ps
     
 Finally, we set the number of Goodman-Weare walkers 
@@ -88,7 +89,7 @@ and run the fit:
     
     fitter.run(prefix='test_tanh', burn=10, steps=50, save_freq=10)
 
-This will result in a series of files named ``test_tanh*.pkl``. See the example on :doc:`example_mcmc_I` to proceed with inspecting the above dataset.
+This will result in a series of files named ``test_tanh*.pkl``. See the example on :doc:`example_mcmc_analysis` to proceed with inspecting the above dataset.
 
 Fitting Global 21-cm Signal
 ---------------------------
@@ -121,7 +122,4 @@ now, we must provide errors at a specified set of frequencies:
     
 That's it!    
 
-.. Fitting the Galaxy Luminosity Function
-.. --------------------------------------
-.. Stay tuned.
 

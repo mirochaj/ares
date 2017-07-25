@@ -86,8 +86,17 @@ class Source(object):
         #self.Lbol = self.Lbol0 = self.BolometricLuminosity(0.0)
 
         # Create lookup tables for integral quantities
-        if init_tabs and grid is not None:
+        if init_tabs and (grid is not None):
             self._create_integral_table(logN=logN)
+        
+    @property        
+    def info(self):
+        """
+        Print info like Nlw etc in various units!
+        """
+        pass
+        
+        
     
     @property
     def cosm(self):
@@ -221,7 +230,7 @@ class Source(object):
                     self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
                 
         return self._normL_          
-              
+
     #def _load_spectrum(self):
     #    """ Modify a few parameters if spectrum_file provided. """
     #    
@@ -361,6 +370,22 @@ class Source(object):
             hnu_bar = self.hnu_bar
             
         return self._qdot_bar_all   
+        
+    def erg_per_phot(self, Emin, Emax):
+        return self.eV_per_phot(Emin, Emax) * erg_per_ev  
+    
+    def eV_per_phot(self, Emin, Emax):
+        """
+        Compute the average energy per photon (in eV) in some band.
+        """
+    
+        i1 = lambda E: self.Spectrum(E)
+        i2 = lambda E: self.Spectrum(E) / E
+    
+        # Must convert units
+        final = quad(i1, Emin, Emax)[0] / quad(i2, Emin, Emax)[0]
+    
+        return final
     
     @property
     def sigma_bar(self):

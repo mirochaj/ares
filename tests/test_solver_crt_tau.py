@@ -17,7 +17,6 @@ import numpy as np
 import matplotlib.pyplot as pl
 from ares.physics.Constants import c, ev_per_hz, erg_per_ev
 
-
 def test(tol=5e-2):
 
     alpha = -2.
@@ -61,16 +60,16 @@ def test(tol=5e-2):
         
         # Impose an ionization history: neutral for all times
         igm.ionization_history = lambda z: 0.0
-        
+    
         # Tabulate tau
         tau = igm.TabulateOpticalDepth()
         igm.save(prefix='tau_test', suffix='pkl', clobber=True)
-        
+    
         # Run radiation background calculation
         pars['tau_table'] = 'tau_test.pkl'
         sim_1 = ares.simulations.MetaGalacticBackground(**pars)
         sim_1.run()
-        
+    
         os.remove('tau_test.pkl')
         
         # Compare to transparent IGM solution
@@ -117,12 +116,12 @@ def test(tol=5e-2):
             f_an *= ((1. + zi)**(alpha + beta - 1.5) - (1. + zf)**(alpha + beta - 1.5))
             f_an *= c * ev_per_hz / E / erg_per_ev
             pl.semilogy(E2, f_an, ls=':', color='k', label='analytic')
-            
+    
             label = 'neutral'
             pl.semilogy(E2, f2[0], ls='--', color=colors[i], label='ionized')
             pl.annotate('H only', (0.05, 0.97), xycoords='axes fraction',
                 ha='left', va='top')
-                
+    
             # Check analytic solution at *lowest* redshift
             diff = np.abs(f_an - f2[0]) / f_an
     
@@ -134,20 +133,20 @@ def test(tol=5e-2):
             label = None
             pl.annotate('H+He', (0.05, 0.9), xycoords='axes fraction',
                 ha='left', va='top', color='b')
-        
+    
         # Plot solution assuming neutral IGM
         pl.semilogy(E1, f1[0], ls='-', color=colors[i], label=label)
-        
+    
         # Assert that transparent IGM -> larger fluxes in soft X-rays
         assert np.all(f2[0] >= f1[0])
-            
+    
         # Make sure X-ray background is harder when helium is included
         if i == 0:
             f_H = f1[0].copy()
         else:
             assert np.all(f1[0] <= f_H), \
                 "XRB should be harder when He is included!"
-            
+    
     pl.xlabel(ares.util.labels['E'])
     pl.ylabel(ares.util.labels['flux'])
     pl.legend(fontsize=14)
