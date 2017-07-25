@@ -154,7 +154,7 @@ class FluctuatingBackground(object):
                 Mb = (4. * np.pi * Rb**3 / 3.) * pop.cosm.mean_density0 / g_per_msun
                 return Rb, Mb, pop.pf['pop_bubble_density']
         elif pop.pf['pop_bubble_size_dist'].lower() == 'fzh04':
-            zeta = 40.
+            zeta = 80.
             Mb = pop.halos.M * zeta
             rho0 = pop.cosm.mean_density0
             sig = pop.halos.sigma_0
@@ -195,8 +195,15 @@ class FluctuatingBackground(object):
             n_b = self.BubbleDensity(z)
 
             # One and two halo terms, respectively
-            oht = (1. - np.exp(-n_b * V_o))
-            tht = np.exp(-n_b * V_o) * (1. - np.exp(-n_b * (V - V_o)))**2
+            if self.pf['pop_one_halo_term']:
+                oht = (1. - np.exp(-n_b * V_o))
+            else:
+                oht = 0.0
+            
+            if self.pf['pop_two_halo_term']:
+                tht = np.exp(-n_b * V_o) * (1. - np.exp(-n_b * (V - V_o)))**2
+            else:
+                tht = 0.0
 
             return oht + tht
 
@@ -218,17 +225,20 @@ class FluctuatingBackground(object):
                 
                 integrand1 = dndm[iM:] * Vo[iM:]
                 exp_int1 = np.exp(-np.trapz(integrand1 * Mb[iM:], 
-                    x=np.log(Mb[iM:])))
+                    x=np.log(Mb[iM:])))                    
+                
+                if self.pf['pop_one_halo_term']:
+                    xi[i] += (1. - exp_int1) 
+                if self.pf['pop_two_halo_term']:
+                    integrand2 = dndm[iM:] * (V[iM:] - Vo[iM:])
+                    if pop.pf['pop_biased']:
+                        bias = pop.halos.bias(z, pop.halos.logM[iM:]).squeeze()
+                        integrand2 *= (1. + bias)
 
-                integrand2 = dndm[iM:] * (V[iM:] - Vo[iM:])
-                if pop.pf['pop_bubble_bias']:
-                    bias = pop.halos.bias(z, pop.halos.logM[iM:]).squeeze()
-                    integrand2 *= (1. + bias)
-
-                exp_int2 = np.exp(-np.trapz(integrand2 * Mb[iM:], 
-                    x=np.log(Mb[iM:])))
-
-                xi[i] = (1. - exp_int1) + exp_int1 * (1. - exp_int2)**2
+                    exp_int2 = np.exp(-np.trapz(integrand2 * Mb[iM:], 
+                        x=np.log(Mb[iM:])))
+                        
+                    xi[i] += exp_int1 * (1. - exp_int2)**2
 
             return xi
 
@@ -237,17 +247,17 @@ class FluctuatingBackground(object):
         else:
             raise NotImplementedError('help')
 
-    def CorrelationFunction(self, z, field_1, field_2, R=None, popid=0):
+    def CorrelationFunction(self, z, field_1, field_2, dr=None, popid=0):
 
         # Ionization auto-correlation function
-        if field_1 and field_2 == 'h_2':
-            dr = R
+        if field_1 == field_2 == 'h_2':
             Qi  = self.BubbleFillingFactor(z)
             Pii = self.IonizationProbability(z, dr, popid)
 
             # Interpolate to linear R grid here?
             return Pii - Qi**2
-        
+        elif field_1 == field_2 == 'd':
+            pass
         else:
             raise NotImplementedError('sorry!')
         

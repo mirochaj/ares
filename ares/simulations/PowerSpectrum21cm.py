@@ -138,8 +138,10 @@ class PowerSpectrum21cm(AnalyzePS):
         """
         
         # Setup linear grid of radii
-        R = np.linspace(0.1, 1e2, 1e3)
-        k = np.fft.fftfreq(R.size, np.diff(R)[0])
+        #R = np.linspace(0.1, 1e2, 1e3)
+        #k = np.fft.fftfreq(R.size, np.diff(R)[0])
+        k = self.k
+        dr = 2. * np.pi / k
         
         for i, z in enumerate(self.z):
                         
@@ -158,17 +160,31 @@ class PowerSpectrum21cm(AnalyzePS):
                     #ps_xx = self.field.PowerSpectrum(z, 
                     #    field_1='h_2', field_2='h_2', k=self.k, popid=j)
                     cf_xx = self.field.CorrelationFunction(z,
-                        field_1='h_2', field_2='h_2', R=R, popid=j)
-                    ps_xx = np.fft.fft(cf_xx)    
+                        field_1='h_2', field_2='h_2', dr=dr, popid=j)
+                    ps_xx = np.fft.fft(cf_xx)
+                    
 
                     data['ps_xx'] = ps_xx
                     data['cf_xx'] = cf_xx
                     data.update({'R_b': R_b, 'M_b': M_b, 'bsd':bsd})
                     data['k'] = k
-
+                #else:
+                #    data['ps_xx'] = np.zeros_like(k)
+                    
                 if pop.pf['pop_dens_fluct']:
-                    pass
+                    #cf_dd = self.field.CorrelationFunction(z,
+                    #    field_1='d', field_2='d', R=R, popid=j)
+                    #data['cf_dd'] = cf_dd
+                    
+                    MF = pop.halos.MF
+                    MF.update(z=z)
 
+                    ps_mm = MF.power
+                    lnk = np.log(MF.k)
+                    data['ps_dd'] = np.interp(np.log(k), lnk, ps_mm)
+                #else:
+                #    data['ps_dd'] = np.zeros_like(k)                 
+                                        
                 # Cross-correlation terms...
 
             # Will we ever have multiple populations contributing to 
@@ -198,9 +214,23 @@ class PowerSpectrum21cm(AnalyzePS):
             # ensemble averaged brightness temperature fluctuation,
             # FT{<d_21(k) d_21(k')>}
             data['ps_21'] = np.zeros_like(k)
-            for i, f1 in enumerate(['x']):
-                for j, f2 in enumerate(['x']):                    
-                    coeff = data['beta_%s' % f1] * data['beta_%s' % f2]    
+            for i, f1 in enumerate(['x', 'd']):
+                for j, f2 in enumerate(['x', 'd']):
+                    
+                    if 'ps_%s%s' % (f1, f2) not in data:
+                        continue
+                    
+                    # No double counting please
+                    if j > i:
+                        continue
+                    
+                    if f1 != f2 and (not self.pf['include_cross_correlations']):
+                        continue
+                    if f1 == f2 and (not self.pf['include_auto_correlations']):
+                        continue 
+                                      
+                    #coeff = data['beta_%s' % f1] * data['beta_%s' % f2]    
+                    coeff = 1.
                     data['ps_21'] += coeff * data['ps_%s%s' % (f1, f2)].real
 
             yield z, data

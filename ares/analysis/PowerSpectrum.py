@@ -110,11 +110,9 @@ class PowerSpectrum(Global21cm):
         
         k = self.history[iz]['k']
         
-        d = 2. * np.pi / k
-    
-        print d.size, cf.size
-    
-        ax.loglog(d, cf, **kwargs)
+        dr = 2. * np.pi / k
+        
+        ax.loglog(dr, cf, **kwargs)
     
         if gotax and (ax.get_xlabel().strip()) and (not force_draw):
             return ax

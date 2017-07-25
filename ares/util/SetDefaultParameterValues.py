@@ -325,6 +325,9 @@ def PowerSpectrumParameters():
     {     
      'powspec_redshifts': np.arange(6, 20, 1),
      'output_wavenumbers': np.logspace(-2, 2, 51),
+     
+     'include_auto_correlations': True,
+     'include_cross_correlations': True,
     }
 
     pf.update(tmp)
@@ -471,12 +474,14 @@ def PopulationParameters():
     "pop_heat_src_cgm": False,
     "pop_heat_src_igm": True,
     
+    "pop_biased": False,
     "pop_lya_fluct": False,
     "pop_ion_fluct": False,
     "pop_heat_fluct": False,
     "pop_dens_fluct": False,
+    "pop_one_halo_term": True,
+    "pop_two_halo_term": True,
     
-    "pop_bubble_bias": True,
     "pop_bubble_size": None,
     "pop_bubble_density": None,
     "pop_bubble_size_dist": None, # or FZH04, PC14
