@@ -863,6 +863,12 @@ def ControlParameters():
     
     "compute_fluxes_at_start": False,
     
+    # k-space resolution
+    "powspec_logkmin": -3,
+    "powspec_logkmax": 2.,
+    "powspec_dlogk": 0.1,
+    "powspec_z": 10.,
+    
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     
