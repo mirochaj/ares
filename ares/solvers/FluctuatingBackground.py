@@ -61,7 +61,17 @@ class FluctuatingBackground(object):
         elif pop.pf['pop_bubble_size_dist'].lower() == 'fzh04':
             R, M, dndm = self.BubbleSizeDistribution(z, popid)
             V = 4. * np.pi * R**3 / 3.
-            return np.trapz(dndm * V * M, x=np.log(M))
+            
+            QHII = 1. - np.exp(-np.trapz(dndm * V * M, x=np.log(M)))
+            
+            #print z, Q
+            #
+            #import matplotlib.pyplot as pl
+            #pl.figure(10)
+            #pl.loglog(R, dndm)
+            #raw_input('<enter>')
+            
+            return QHII
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
         
@@ -126,13 +136,13 @@ class FluctuatingBackground(object):
     def _B0(self, z, zeta=40, popid=0):
         pop = self.pops[popid]
         s = pop.halos.sigma_0
-        sigma_min = np.interp(pop.Mmin[0] * zeta, pop.halos.M, s)
+        sigma_min = np.interp(pop.Mmin(z) * zeta, pop.halos.M, s)
         return self._delta_c(z) - np.sqrt(2) * self._K(zeta) * sigma_min
     
     def _B1(self, z, zeta=40, popid=0):
         pop = self.pops[popid]
         s = pop.halos.sigma_0
-        sigma_min = np.interp(pop.Mmin[0] * zeta, pop.halos.M, s)
+        sigma_min = np.interp(pop.Mmin(z) * zeta, pop.halos.M, s)
         ddx_ds2 = self._K(zeta) / np.sqrt(2. * (sigma_min**2 - s**2))
     
         return ddx_ds2[s == s.min()]
@@ -195,12 +205,12 @@ class FluctuatingBackground(object):
             n_b = self.BubbleDensity(z)
 
             # One and two halo terms, respectively
-            if self.pf['pop_one_halo_term']:
+            if pop.pf['pop_one_halo_term']:
                 oht = (1. - np.exp(-n_b * V_o))
             else:
                 oht = 0.0
             
-            if self.pf['pop_two_halo_term']:
+            if pop.pf['pop_two_halo_term']:
                 tht = np.exp(-n_b * V_o) * (1. - np.exp(-n_b * (V - V_o)))**2
             else:
                 tht = 0.0
@@ -216,8 +226,9 @@ class FluctuatingBackground(object):
             # is included.
             V = 4. * np.pi * R**3 / 3.
 
-            Mmin = 1e8
-            iM = np.argmin(np.abs(pop.halos.M - 1e8))
+            iz = np.argmin(np.abs(z - pop.halos.z))
+            Mmin = pop._tab_Mmin[iz]
+            iM = np.argmin(np.abs(pop.halos.M - Mmin))
             
             xi = np.zeros_like(dr)
             for i, sep in enumerate(dr):
@@ -227,9 +238,9 @@ class FluctuatingBackground(object):
                 exp_int1 = np.exp(-np.trapz(integrand1 * Mb[iM:], 
                     x=np.log(Mb[iM:])))                    
                 
-                if self.pf['pop_one_halo_term']:
+                if pop.pf['pop_one_halo_term']:
                     xi[i] += (1. - exp_int1) 
-                if self.pf['pop_two_halo_term']:
+                if pop.pf['pop_two_halo_term']:
                     integrand2 = dndm[iM:] * (V[iM:] - Vo[iM:])
                     if pop.pf['pop_biased']:
                         bias = pop.halos.bias(z, pop.halos.logM[iM:]).squeeze()

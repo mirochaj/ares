@@ -527,6 +527,46 @@ def print_sim(sim):
         data.append(tmp)
         
     return data, rows, cols
+    
+def _rad_type(sim, fluctuations=False):
+    rows = []
+    cols = ['sfrd', 'sed', 'Ly-a', 'Ly-C', 'X-ray', 'RTE']
+    data = []
+    for i, pop in enumerate(sim.pops):
+        rows.append('pop #%i' % i)
+        if re.search('link', pop.pf['pop_sfr_model']):
+            junk, quantity, num = pop.pf['pop_sfr_model'].split(':')
+            mod = 'link:%s:%i' % (quantity, int(num))
+        else:
+            mod = pop.pf['pop_sfr_model']
+
+        tmp = [mod, 'yes' if pop.pf['pop_sed_model'] else 'no']
+
+        suffix = ['_fluct', '']
+        for j, fl in enumerate([True, False]):
+            if fl != fluctuations:
+                continue
+
+            for band in ['lya', 'ion', 'heat']:
+                is_src = pop.__getattribute__('is_src_%s%s' % (band, suffix[j]))
+
+                if is_src:
+                    tmp.append('x')
+                else:                
+                    tmp.append(' ')
+
+            # No analog for RTE solution for fluctuations (yet)
+            if fl:
+                tmp.append(' ')
+
+            if pop.pf['pop_solve_rte']:
+                tmp.append('x')
+            else:
+                tmp.append(' ')    
+
+        data.append(tmp)
+
+    return data, rows, cols
         
 def print_sim(sim):
     """

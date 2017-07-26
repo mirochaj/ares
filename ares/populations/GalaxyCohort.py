@@ -2657,4 +2657,3 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         best = np.argmin(score)
                 
         return np.interp(self.halos.z, zarr, Mmin[best])
-        >>>>>>> other

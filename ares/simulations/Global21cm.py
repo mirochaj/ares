@@ -19,7 +19,7 @@ from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..physics.Constants import nu_0_mhz, E_LyA
 from ..util import ParameterFile, ProgressBar, get_hg_rev
-from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
+from ..analysis.Global21cm import Global21cm as AnalyzeGS
 
 defaults = \
 {
@@ -32,7 +32,7 @@ class _DummyClass(object):
     def __call__(self, x):
         return self.f(x)
 
-class Global21cm(AnalyzeGlobal21cm):
+class Global21cm(AnalyzeGS):
     def __init__(self, **kwargs):
         """
         Set up a two-zone model for the global 21-cm signal.
@@ -238,7 +238,8 @@ class Global21cm(AnalyzeGlobal21cm):
         tf = self.medium.tf
         self.medium._insert_inits()
 
-        pb = self.pb = ProgressBar(tf, use=self.pf['progress_bar'])
+        pb = self.pb = ProgressBar(tf, use=self.pf['progress_bar'], 
+            name='gs-21cm')
 
         # Lists for data in general
         self.all_t, self.all_z, self.all_data_igm, self.all_data_cgm, \

@@ -76,7 +76,7 @@ class HaloPopulation(Population):
     def gf_spline(self):
         if not hasattr(self, '_gf_spline'):
             gf = self.halos.growth_factor
-            self._gf_spline = interp1d(self.halos.z, self.halos.growth_factor, 
+            self._gf_spline = interp1d(self.halos.z, gf, 
                 kind='cubic', bounds_error=False)
         
         return self._gf_spline

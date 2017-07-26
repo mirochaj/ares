@@ -48,13 +48,13 @@ class PowerSpectrum(Global21cm):
         
         iz = np.argmin(np.abs(z - self.redshifts))
         
-        k = self.history[iz]['k']
+        k = self.history['k'][iz]
         
         ps_s = 'ps_%s' % field
         if dimensionless:
-            ps = self.history[iz][ps_s] * k**3 / 2. / np.pi**2
+            ps = self.history[ps_s][iz] * k**3 / 2. / np.pi**2
         else:
-            ps = self.history[iz][ps_s]
+            ps = self.history[ps_s][iz]
         
         ax.loglog(k, ps, **kwargs)
         
@@ -106,9 +106,9 @@ class PowerSpectrum(Global21cm):
         iz = np.argmin(np.abs(z - self.redshifts))
     
         cf_s = 'cf_%s%s' % (field_1, field_2)
-        cf = self.history[iz][cf_s]
+        cf = self.history[cf_s][iz]
         
-        k = self.history[iz]['k']
+        k = self.history['k'][iz]
         
         dr = 2. * np.pi / k
         
@@ -163,9 +163,9 @@ class PowerSpectrum(Global21cm):
 
         iz = np.argmin(np.abs(z - self.redshifts))
 
-        R = self.history[iz]['R_b']
-        Mb = self.history[iz]['M_b']
-        bsd = self.history[iz]['bsd']
+        R = self.history['R_b'][iz]
+        Mb = self.history['M_b'][iz]
+        bsd = self.history['bsd'][iz]
     
         rho0 = self.cosm.mean_density0
         
@@ -177,7 +177,7 @@ class PowerSpectrum(Global21cm):
 
         V = 4. * np.pi * R**3 / 3.
 
-        Q = self.history[iz]['QHII']
+        Q = self.history['QHII'][iz]
                 
         if by_volume:
             dndV = bsd * dmdr / dvdr
@@ -210,7 +210,7 @@ class PowerSpectrum(Global21cm):
         
         Qall = []
         for i, z in enumerate(self.redshifts):
-            Qall.append(self.history[i]['QHII'])
+            Qall.append(self.history['QHII'][i])
 
         ax.plot(self.redshifts, Qall, **kwargs)
         ax.set_xlabel(r'$z$')

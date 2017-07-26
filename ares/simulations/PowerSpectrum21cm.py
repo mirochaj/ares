@@ -37,13 +37,13 @@ class PowerSpectrum21cm(AnalyzePS):
         if not hasattr(self, '_mean_history'):
             self.gs.run()
             self._mean_history = self.gs.history
-        
+
         return self._mean_history
-            
+
     @mean_history.setter
     def mean_history(self, value):
         self._mean_history = value
-        
+
     @property
     def pops(self):
         return self.gs.medium.field.pops
@@ -112,25 +112,56 @@ class PowerSpectrum21cm(AnalyzePS):
         
         """
         
-        self.redshifts = self.z = np.sort(self.pf['powspec_redshifts'])[-1::-1]
+        self.redshifts = self.z = \
+            np.array(np.sort(self.pf['powspec_redshifts'])[-1::-1], dtype=np.float64)
+        
                 
         #pb = ProgressBar(self.z.size, use=self.pf['progress_bar'])
         #pb.start()
         
         #self.mean_history.run()
         
+        N = self.z.size
+        pb = self.pb = ProgressBar(N, use=self.pf['progress_bar'], 
+            name='ps-21cm')
+        pb.start()
+
+
         all_ps = []                        
         for i, (z, data) in enumerate(self.step()):
-                          
-            #pb.update(i)
-                    
+
             # Do stuff
             all_ps.append(data)
 
-        #pb.finish()
+            if i == 0:
+                keys = data.keys()
+
+            pb.update(i)
+
+        pb.finish()
         
-        # Will be (z, k)
-        self.history = np.array(all_ps)
+        # Re-organize to look like Global21cm outputs, i.e., dictionary
+        # with one key per quantity of interest, and in this case a 2-D
+        # array of shape (z, k)
+        data_proc = {}
+        for key in keys:
+                                                
+            twod = False
+            if type(all_ps[0][key]) == np.ndarray:
+                twod = True
+                                        
+            # Second dimension is usually k
+            if twod:
+                tmp = np.zeros((len(self.z), all_ps[0][key].shape[0]))
+            else:
+                tmp = np.zeros_like(self.z)
+                
+            for i, z in enumerate(self.z):
+                tmp[i] = all_ps[i][key]
+                
+            data_proc[key] = tmp
+        
+        self.history = data_proc
         
     def step(self):
         """
@@ -166,8 +197,8 @@ class PowerSpectrum21cm(AnalyzePS):
 
                     data['ps_xx'] = ps_xx
                     data['cf_xx'] = cf_xx
-                    data.update({'R_b': R_b, 'M_b': M_b, 'bsd':bsd})
                     data['k'] = k
+                    data.update({'R_b': R_b, 'M_b': M_b, 'bsd':bsd})
                 #else:
                 #    data['ps_xx'] = np.zeros_like(k)
                     

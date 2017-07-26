@@ -408,10 +408,7 @@ class GalaxyAggregate(HaloPopulation):
                 self._is_uv_src = self.pf['pop_ion_src_cgm']        
     
         return self._is_uv_src
-    
-    
-||||||| base
-    
+        
     @property
     def is_lya_src(self):
         if not hasattr(self, '_is_lya_src'):
@@ -448,9 +445,6 @@ class GalaxyAggregate(HaloPopulation):
         
         return self._is_xray_src    
     
-=======
-    
->>>>>>> other
     def _convert_band(self, Emin, Emax):
         """
         Convert from fractional luminosity in reference band to given bounds.
