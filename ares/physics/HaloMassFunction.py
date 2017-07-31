@@ -239,13 +239,15 @@ class HaloMassFunction(object):
             self.dndm = f['dndm'].value
 
             if self.pf['hmf_load_ps']:
+                self.k = f['k'].value
                 self.bias_tab = f['bias'].value
                 self.psCDM_tab = f['psCDM'].value
 
             # Axes these?
             self.ngtm = f['ngtm'].value
             self.mgtm = f['mgtm'].value
-
+            self.growth_factor = f['growth_factor']
+            
             f.close()
         elif re.search('.npz', self.fn):
             f = np.load(self.fn)
@@ -258,6 +260,8 @@ class HaloMassFunction(object):
             self.mgtm = f['mgtm']
             self.growth_factor = f['growth_factor']
             self.bias_tab = f['bias']
+            self.psCDM_tab = f['psCDM']
+            self.k = f['k']
             f.close()                        
         elif re.search('.pkl', self.fn):
             f = open(self.fn, 'rb')
@@ -271,7 +275,8 @@ class HaloMassFunction(object):
             
             if self.pf['hmf_load_ps']:
                 self.bias_tab = pickle.load(f)
-                self.psCDM = pickle.load(f)
+                self.psCDM_tab = pickle.load(f)
+                self.k = pickle.load(f)
             
             if self.pf['hmf_load_growth']:
                 self.growth_factor = pickle.load(f)
@@ -383,7 +388,7 @@ class HaloMassFunction(object):
         
         self.Nm = self.M.size
 
-        self.k = self.MF.k * self.cosm.hubble_0
+        self.k = self.MF.k * self.cosm.h70
         
         self.dndm = np.zeros([self.Nz, self.Nm])
         self.mgtm = np.zeros_like(self.dndm)
@@ -469,6 +474,16 @@ class HaloMassFunction(object):
         # Fix NaN elements
         _fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
         self._fcoll_tab = _fcoll_tab
+ 
+    @property
+    def logM_min(self):
+        if not hasattr(self, '_logM_min'):
+            self.build_1d_splines(Tmin=self.pf['pop_Tmin'], mu=self.pf['mu'])
+        return self._logM_min
+        
+    @logM_min.setter
+    def logM_min(self, value):
+        self._logM_min = value
  
     def build_1d_splines(self, Tmin, mu=0.6, return_fcoll=False, 
         return_fcoll_p=True, return_fcoll_pp=False):
@@ -892,7 +907,9 @@ class HaloMassFunction(object):
             f.create_dataset('ngtm', data=self.ngtm)
             f.create_dataset('mgtm', data=self.mgtm)            
             f.create_dataset('bias', data=self.bias_tab)            
-            f.create_dataset('psCDM', data=self.psCDM_tab)            
+            f.create_dataset('psCDM', data=self.psCDM_tab)
+            f.create_dataset('growth_factor', data=self.growth_factor)
+            f.create_dataset('k', data=self.k)
             f.create_dataset('hmf-version', data=hmf_v)         
             f.close()
 
@@ -904,7 +921,8 @@ class HaloMassFunction(object):
                              'transfer_pars': self.transfer_pars},
                     'growth_factor': self.growth_factor,
                     'bias': self.bias_tab,
-                    'matter_ps': self.psCDM,
+                    'psCDM': self.psCDM_tab,
+                    'k': self.k,
                     'hmf-version': hmf_v}
             np.savez(fn, **data)
 
@@ -918,7 +936,8 @@ class HaloMassFunction(object):
             pickle.dump(self.ngtm, f)
             pickle.dump(self.mgtm, f)
             pickle.dump(self.bias_tab, f)
-            pickle.dump(self.psCDM, f)
+            pickle.dump(self.psCDM_tab, f)
+            pickle.dump(self.k)
             pickle.dump(self.growth_factor, f)
             pickle.dump({'growth_pars': self.growth_pars,
                 'transfer_pars': self.transfer_pars}, f)

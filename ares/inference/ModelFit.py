@@ -864,7 +864,7 @@ class ModelFit(BlobFactory):
 
                 if emcee_mpipool:
                     self.pool.wait()
-                    
+
                 sys.exit(0)
 
         else:

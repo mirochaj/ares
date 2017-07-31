@@ -115,6 +115,7 @@ class PowerSpectrum21cm(AnalyzePS):
         self.redshifts = self.z = \
             np.array(np.sort(self.pf['powspec_redshifts'])[-1::-1], dtype=np.float64)
         
+           
                 
         #pb = ProgressBar(self.z.size, use=self.pf['progress_bar'])
         #pb.start()
@@ -162,61 +163,143 @@ class PowerSpectrum21cm(AnalyzePS):
             data_proc[key] = tmp
         
         self.history = data_proc
+
+    def _regrid_and_fft(self, x, y, k, N=1000000):
+        # Here, x is dr, and is supplied in descending order
+        x_g = np.linspace(x.min(), x.max(), N)
+        y_g = np.interp(x_g, x[-1::-1], y[-1::-1].real)
+                
+        # y_g is gridded, corresponds to ascending dr's, i.e., descending k
+        ft_g = np.fft.fft(y_g).real
         
+        # Flip just so interpolation works, otherwise we're good because
+        # output should corresponding to ascending k values.
+        ft_o = np.interp(k, 2. * np.pi / x_g[-1::-1], ft_g[-1::-1])
+
+        return ft_o
+
+    def _regrid_and_ifft(self, x, y, dr, N=1000000):
+        if np.allclose(np.diff(np.diff(x)), 0):
+            x_g = x#
+            y_g = y#
+            
+            ft_o = np.fft.ifft(y_g)
+        else:
+            # This is really k, assured to be in ascending order
+            x_g = np.linspace(x.min(), x.max(), N)
+            # power spectrum interpolated onto new grid of k.
+            # Assumed that k is ascending
+            y_g = np.interp(x_g, x, y.real)
+            
+            # Corresponds to ascending k-values, i.e., descending dr values          
+            ft_g = np.fft.ifft(y_g).real
+            
+            # These dr values are descending
+            dr_from_k = 2. * np.pi / x_g
+                        
+            # Must flip for interpolation to work, but flip back after
+            # because dr values are provided in descending order
+            ft_o = np.interp(dr, dr_from_k[-1::-1], ft_g[-1::-1])[-1::-1]
+
+        return ft_o
+
     def step(self):
         """
         Generator for the power spectrum.
         """
-        
+
         # Setup linear grid of radii
         #R = np.linspace(0.1, 1e2, 1e3)
         #k = np.fft.fftfreq(R.size, np.diff(R)[0])
         k = self.k
-        dr = 2. * np.pi / k
+        dr = self.dr = 2. * np.pi / k
         
         for i, z in enumerate(self.z):
                         
             data = {}            
+                
+            data['k'] = k
+            data['z'] = z
+            data['cf_xx'] = np.zeros_like(k)
+            data['cf_dd'] = np.zeros_like(k)
+            data['cf_xd'] = np.zeros_like(k)            
                         
+            zeta = 0.0            
             for j, pop in enumerate(self.pops):
                 
                 """
                 Possible approach: loop over pops to determine *total* 
                 zeta_ion, etc...will that make sense? THEN compute PS.
-                """
+                """                
                 
-                if pop.pf['pop_ion_fluct']:
+                # Ionization fluctuations
+                if pop.pf['pop_ion_fluct'] and self.pf['include_xcorr']:
                     R_b, M_b, bsd = self.field.BubbleSizeDistribution(z)
-                    
-                    #ps_xx = self.field.PowerSpectrum(z, 
-                    #    field_1='h_2', field_2='h_2', k=self.k, popid=j)
+
                     cf_xx = self.field.CorrelationFunction(z,
-                        field_1='h_2', field_2='h_2', dr=dr, popid=j)
-                    ps_xx = np.fft.fft(cf_xx)
-                    
-
-                    data['ps_xx'] = ps_xx
-                    data['cf_xx'] = cf_xx
-                    data['k'] = k
+                        field_1='x', field_2='x', dr=dr, popid=j)
+                                        
+                    data['cf_xx'] += cf_xx
                     data.update({'R_b': R_b, 'M_b': M_b, 'bsd':bsd})
-                #else:
-                #    data['ps_xx'] = np.zeros_like(k)
-                    
-                if pop.pf['pop_dens_fluct']:
-                    #cf_dd = self.field.CorrelationFunction(z,
-                    #    field_1='d', field_2='d', R=R, popid=j)
-                    #data['cf_dd'] = cf_dd
-                    
-                    MF = pop.halos.MF
-                    MF.update(z=z)
+                else:
+                    pass
+                    #ps_xx = xi_xx = 0.0
 
-                    ps_mm = MF.power
-                    lnk = np.log(MF.k)
-                    data['ps_dd'] = np.interp(np.log(k), lnk, ps_mm)
-                #else:
-                #    data['ps_dd'] = np.zeros_like(k)                 
+                # Density fluctuations
+                if self.pf['include_density_fl'] and self.pf['include_acorr']:
+                    # Halo model
+                    #ps_dd = pop.halos.PowerSpectrum(z, k)
+                    ps_dd = pop.halos.PowerSpectrum(z, k)
+                    data['ps_dd'] = ps_dd
+                    
+                    #data['cf_dd'] = xi_dd = np.fft.fftshift(np.fft.ifft(ps_dd))
+                    xi_dd = self._regrid_and_ifft(k, ps_dd, dr)
+                    #xi_dd = np.fft.ifft(ps_dd)
+                    data['cf_dd'] += xi_dd.real
+                else:
+                    pass
+                    #ps_dd = 0.0
+
+                    
+                
+                if self.pf['include_temp_fl'] and self.pf['include_acorr']:
+                    cf_TT = self.field.CorrelationFunction(z,
+                        field_1='c', field_2='c', dr=dr, popid=j)
+                                        
+                    data['cf_TT'] = cf_TT
+                    
+                    # Must convert from temperature perturbation 
+                    # to contrast perturbation                
+                
+                if not self.pf['include_xcorr']:
+                    break
+                
+                                        
+                if self.pf['include_temp_fl'] and self.pf['include_ion_fl']:
+                    cf_xT = self.field.CorrelationFunction(z,
+                        field_1='x', field_2='c', dr=dr, popid=j)
+                                        
+                    data['cf_xT'] = cf_xT
                                         
                 # Cross-correlation terms...
+                # Density-ionization cross correlation
+                if (self.pf['include_density_fl'] and pop.pf['pop_ion_fluct']) and \
+                    self.pf['include_xcorr']:
+                    pass
+                else:
+                    pass
+                    #data['cf_xd'] += 0.0
+                    #ps_xd = xi_xd = 0.0
+                    
+                #else:
+                #    data['ps_dd'] = np.zeros_like(k)
+                
+                
+                
+                
+                
+                
+                break
 
             # Will we ever have multiple populations contributing to 
             # different fluctuations? Or, should we require that all ionizing
@@ -225,6 +308,8 @@ class PowerSpectrum21cm(AnalyzePS):
 
             # Global quantities
             QHII = self.field.BubbleFillingFactor(z)
+            #QHII = np.interp(z, self.mean_history['z'][-1::-1], 
+            #    self.mean_history['cgm_h_2'][-1::-1])
             data['QHII'] = QHII
 
             # Here, add together the power spectra with various Beta weights
@@ -232,38 +317,40 @@ class PowerSpectrum21cm(AnalyzePS):
             
             Tk = np.interp(z, self.mean_history['z'][-1::-1], 
                 self.mean_history['igm_Tk'][-1::-1])
-            Ja = np.interp(z, self.mean_history['z'][-1::-1], 
+            Ja = np.interp(z, self.mean_history['z'][-1::-1],
                 self.mean_history['Ja'][-1::-1])
             xHII, ne = [0] * 2
             
+            # Assumes saturation
+            Ts = Tk
+            Tcmb = self.cosm.TCMB(z)
+            data['cf_cc'] = (Ts / (Ts - Tcmb)) \
+                - (Tcmb / (Ts - Tcmb)) / (1. + data['cf_TT'])
+            
             # Add beta factors to dictionary
-            for f1 in ['x', 'd']:
-                func = self.hydr.__getattribute__('beta_%s' % f1)
-                data['beta_%s' % f1] = func(z, Tk, xHII, ne, Ja)
+            #for f1 in ['x', 'd']:
+            #    func = self.hydr.__getattribute__('beta_%s' % f1)
+            #    data['beta_%s' % f1] = func(z, Tk, xHII, ne, Ja)
             
             # This is just expanding out the terms for the 
             # ensemble averaged brightness temperature fluctuation,
             # FT{<d_21(k) d_21(k')>}
-            data['ps_21'] = np.zeros_like(k)
-            for i, f1 in enumerate(['x', 'd']):
-                for j, f2 in enumerate(['x', 'd']):
-                    
-                    if 'ps_%s%s' % (f1, f2) not in data:
-                        continue
-                    
-                    # No double counting please
-                    if j > i:
-                        continue
-                    
-                    if f1 != f2 and (not self.pf['include_cross_correlations']):
-                        continue
-                    if f1 == f2 and (not self.pf['include_auto_correlations']):
-                        continue 
-                                      
-                    #coeff = data['beta_%s' % f1] * data['beta_%s' % f2]    
-                    coeff = 1.
-                    data['ps_21'] += coeff * data['ps_%s%s' % (f1, f2)].real
-
+            
+            Tbar = np.interp(z, self.gs.history['z'][-1::-1], 
+                self.gs.history['dTb'][-1::-1])
+                
+            xi_xx = data['cf_xx']
+            xi_dd = data['cf_dd']
+            xi_xd = data['cf_xd']
+            data['cf_21'] = xi_xx * (1. + xi_dd) + QHII**2 * xi_dd + \
+                xi_xd * (xi_xd + 2. * QHII) 
+            
+            data['dTb'] = Tbar
+            #data['cf_21'] -= QHII**2
+            #data['cf_21'] *= self.hydr.T0(z)**2
+                                                              
+            data['ps_21'] = self._regrid_and_fft(dr, data['cf_21'], self.k)
+            
             yield z, data
 
 

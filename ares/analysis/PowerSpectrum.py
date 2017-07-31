@@ -220,4 +220,41 @@ class PowerSpectrum(Global21cm):
         pl.draw()
         
         return ax
+
+    def RedshiftEvolution(self, field='21', k=0.2, ax=None, fig=1, 
+        dimensionless=True, **kwargs):
+        """
+        Plot the fraction of the volume composed of ionized bubbles.
+        """
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True
+            
+        p = []
+        for i, z in enumerate(self.redshifts):
+            pow_z = self.history['ps_%s' % field][i]
+            p.append(np.interp(k, self.history['k'][i], pow_z))
+            
+        p = np.array(p)    
+        
+        if dimensionless:
+            ps = p * k**3 / 2. / np.pi**2
+        else:
+            ps = p
+            
+        ax.plot(self.redshifts, p, label=r'$k=%.2f$' % k, **kwargs)
+        ax.set_xlim(min(self.redshifts), max(self.redshifts))
+        ax.set_yscale('log')
+        ax.set_ylim(1, 1e2)
+        ax.set_xlabel(r'$z$')
+        ax.set_ylabel(r'$\Delta_{21}^2 \ \left[\mathrm{mK}^2 \right]$')
+        
+        pl.draw()
+        
+        return ax    
+            
+        
         

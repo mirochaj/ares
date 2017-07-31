@@ -22,7 +22,8 @@ tau_prefix = os.path.join(ARES,'input','optical_depth') \
     
 pgroups = ['Grid', 'Physics', 'Cosmology', 'Source', 'Population', 
     'Control', 'HaloMassFunction', 'Tanh', 'Gaussian', 'Slab',
-    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old', 'PowerSpectrum']
+    'MultiPhase', 'Dust', 'ParameterizedQuantity', 'Old', 'PowerSpectrum',
+    'Halo']
 
 # Blob stuff
 _blob_redshifts = list('BCD')
@@ -345,8 +346,13 @@ def PowerSpectrumParameters():
      'powspec_redshifts': np.arange(6, 20, 1),
      'output_wavenumbers': np.logspace(-2, 2, 51),
      
-     'include_auto_correlations': True,
-     'include_cross_correlations': True,
+     'include_acorr': True,
+     'include_xcorr': True,
+     
+     'include_density_fl': True,
+     'include_ion_fl': True,
+     'include_temp_fl': False,
+     'include_lya_fl': False,
     }
 
     pf.update(tmp)
@@ -553,11 +559,12 @@ def PopulationParameters():
     "pop_lya_fluct": False,
     "pop_ion_fluct": False,
     "pop_heat_fluct": False,
-    "pop_dens_fluct": False,
     "pop_one_halo_term": True,
     "pop_two_halo_term": True,
     
     "pop_bubble_size": None,
+    "pop_bubble_shell_size": None,
+    "pop_bubble_shell_temp": None,
     "pop_bubble_density": None,
     "pop_bubble_size_dist": None, # or FZH04, PC14
     
@@ -755,7 +762,7 @@ def HaloMassFunctionParameters():
     
     "hmf_instance": None,
     "hmf_load": True,
-    "hmf_load_ps": False,
+    "hmf_load_ps": True,
     "hmf_load_growth": False,
     "hmf_table": None,
     "hmf_analytic": False,
@@ -812,6 +819,19 @@ def CosmologyParameters():
     pf.update(rcParams)
 
     return pf
+    
+def HaloParameters():
+    # Last column of Table 4 in Planck XIII. Cosmological Parameters (2015)
+    pf = \
+    {
+     "halo_profile": 'nfw',
+     "halo_cmr": 'duffy',
+     "halo_delta": 200.,
+    }
+
+    pf.update(rcParams)
+
+    return pf    
     
 def ControlParameters():
     pf = \

@@ -75,10 +75,12 @@ class PowerSpectrum(analyzePS):
         self.z = z        
                 
         pb = ProgressBar(self.k.size, use=self.pf['progress_bar'])
-        pb.start()
         
         all_ps = []                        
         for i, (k, data) in enumerate(self.step()):
+                          
+            if not pb.has_pb:
+                pb.start()              
                           
             pb.update(i)
                     

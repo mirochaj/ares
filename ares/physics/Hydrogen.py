@@ -406,6 +406,10 @@ class Hydrogen(object):
         """
         return self.DifferentialBrightnessTemperature(z, xavg, Ts)
         
+    def T0(self, z):
+        return 27. * (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
+            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.)
+        
     def DifferentialBrightnessTemperature(self, z, xavg, Ts):
         """
         Global 21-cm signature relative to cosmic microwave background in mK.
@@ -427,10 +431,7 @@ class Hydrogen(object):
         
         """
         
-        return 27. * (1. - xavg) * \
-            (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
-            np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
-            (1.0 - self.cosm.TCMB(z) / Ts)
+        return self.T0(z) * (1. - xavg) * (1.0 - self.cosm.TCMB(z) / Ts)
             
     @property
     def inits(self):
