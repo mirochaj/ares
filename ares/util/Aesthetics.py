@@ -244,7 +244,7 @@ for i in range(6):
 powspec = \
 {
  'k': r'$k \ [\mathrm{cMpc}^{-1}]$',
- 'dpow': r'$\Delta^2(k)$',
+ 'dpow': r'$\overline{\delta T_b}^2 \Delta^2(k)$',
  'pow': r'$P(k)$',
 
 }

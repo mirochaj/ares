@@ -365,7 +365,7 @@ def read_pickle_file(fn):
         try:
             data = pickle.load(f)
             results.extend(data)
-            ct +=1
+            ct += 1
         except EOFError:
             break
 

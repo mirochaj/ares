@@ -73,7 +73,7 @@ class HaloModel(HaloMassFunction):
         return (np.sin(K) * (asi - bs) - np.sin(c * K) / ((1 + c) * K) \
             + np.cos(K) * (ac - bc)) / (np.log(1 + c) - c / (1 + c))
         
-    def PS_OneHalo(self, z, k, profile_ft=None, profile=None):
+    def PS_OneHalo(self, z, k, profile_ft=None):
         """
         Compute the one halo term of the halo model for given input profile.
         """
@@ -102,7 +102,7 @@ class HaloModel(HaloMassFunction):
         
         return result
         
-    def PS_TwoHalo(self, z, k, profile_ft=None, profile=None):
+    def PS_TwoHalo(self, z, k, profile_ft=None):
         """
         Compute the two halo term of the halo model for given input profile.
         

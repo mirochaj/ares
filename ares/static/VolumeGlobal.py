@@ -203,7 +203,7 @@ class GlobalVolume(object):
                 if band is None:
                     continue
                             
-                need_tab = self.pops[i].is_xray_src \
+                need_tab = self.pops[i].is_src_xray \
                     and np.any(np.array(band) > E_LL) \
                     and self.background.solve_rte[i][j]
                                                                     
@@ -406,7 +406,7 @@ class GlobalVolume(object):
                 
         pop = self.pops[popid]
                                 
-        if (not pop.is_heat_src_igm) or (z >= pop.zform):
+        if (not pop.is_src_heat_igm) or (z >= pop.zform):
             return 0.0    
             
         if pop.pf['pop_heat_rate'] is not None:
@@ -586,7 +586,7 @@ class GlobalVolume(object):
         else:
             b = [13.6, 24.6]
         
-        if (not pop.is_ion_src_cgm) or (z > pop.zform):
+        if (not pop.is_src_ion_cgm) or (z > pop.zform):
             return 0.0
             
         # Need some guidance from 1-D calculations to do this
@@ -633,7 +633,7 @@ class GlobalVolume(object):
         pop = self.pops[popid]
 
         # z between zform, zdead? must be careful for BHs
-        if (not pop.is_ion_src_igm) or (z > pop.zform):
+        if (not pop.is_src_ion_igm) or (z > pop.zform):
             return 0.0
 
         # Grab defaults, do some patches if need be
@@ -848,7 +848,7 @@ class GlobalVolume(object):
         if not self.pf['secondary_lya']:
             return 0.0
         
-        if not pop.is_ion_src_igm:
+        if not pop.is_src_ion_igm:
             return 0.0
                 
         species = 0

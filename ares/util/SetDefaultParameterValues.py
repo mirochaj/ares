@@ -344,7 +344,11 @@ def PowerSpectrumParameters():
     tmp = \
     {     
      'powspec_redshifts': np.arange(6, 20, 1),
-     'output_wavenumbers': np.logspace(-2, 2, 51),
+     'fft_scales': np.arange(1e-2, 100., 1e-4),
+
+     # Ultimately we'll interpolate beyond these
+     'powspec_dlogk': 0.05,
+     'powspec_dlogr': 0.05,
      
      'include_acorr': True,
      'include_xcorr': True,
@@ -353,6 +357,15 @@ def PowerSpectrumParameters():
      'include_ion_fl': True,
      'include_temp_fl': False,
      'include_lya_fl': False,
+     'include_bias': False,
+          
+     "bubble_size": None,
+     "bubble_shell_size": None,
+     "bubble_shell_temp": None,
+     "bubble_density": None,
+     "bubble_density_rescale": False,
+     
+     "bubble_size_dist": 'fzh04', # or FZH04, PC14
     }
 
     pf.update(tmp)
@@ -555,19 +568,12 @@ def PopulationParameters():
     "pop_heat_src_cgm": False,
     "pop_heat_src_igm": True,
     
-    "pop_biased": False,
-    "pop_lya_fluct": False,
-    "pop_ion_fluct": False,
-    "pop_heat_fluct": False,
+    "pop_lya_fl": False,
+    "pop_ion_fl": False,
+    "pop_temp_fl": False,
     "pop_one_halo_term": True,
     "pop_two_halo_term": True,
-    
-    "pop_bubble_size": None,
-    "pop_bubble_shell_size": None,
-    "pop_bubble_shell_temp": None,
-    "pop_bubble_density": None,
-    "pop_bubble_size_dist": None, # or FZH04, PC14
-    
+        
     # Generalized normalization    
     # Mineo et al. (2012) (from revised 0.5-8 keV L_X-SFR)
     "pop_rad_yield": 2.6e39,

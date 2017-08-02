@@ -6,9 +6,11 @@ from .Global21cm import Global21cm
 from scipy.interpolate import interp1d
 from ..physics.Constants import nu_0_mhz
 from matplotlib.ticker import ScalarFormatter 
+from ..analysis.BlobFactory import BlobFactory
+from .MultiPhaseMedium import MultiPhaseMedium
 
 # Distinguish between mean history and fluctuations?
-class PowerSpectrum(Global21cm):
+class PowerSpectrum(MultiPhaseMedium,BlobFactory):
     
     
     #def IonizationHistory(self, ax=None, fig=1, **kwargs):
@@ -22,7 +24,7 @@ class PowerSpectrum(Global21cm):
         
     
     def PowerSpectrum(self, z, field='21', ax=None, fig=1, 
-        force_draw=False, dimensionless=True, **kwargs):
+        force_draw=False, dimensionless=True, take_sqrt=False, **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
 
@@ -48,11 +50,15 @@ class PowerSpectrum(Global21cm):
         
         iz = np.argmin(np.abs(z - self.redshifts))
         
-        k = self.history['k'][iz]
+        k = self.history['k']
         
         ps_s = 'ps_%s' % field
         if dimensionless:
-            ps = self.history[ps_s][iz] * k**3 / 2. / np.pi**2
+            norm = self.history['dTb0'][iz]**2
+            ps = norm * self.history[ps_s][iz] * k**3 / 2. / np.pi**2
+            
+            if take_sqrt:
+                ps = np.sqrt(ps)
         else:
             ps = self.history[ps_s][iz]
         
@@ -65,8 +71,11 @@ class PowerSpectrum(Global21cm):
             ax.set_xlabel(labels['k'], fontsize='x-large')
         
         if ax.get_ylabel() == '':  
-            if dimensionless:  
-                ax.set_ylabel(labels['dpow'], fontsize='x-large')    
+            if dimensionless: 
+                if take_sqrt:
+                    ax.set_ylabel(r'$\Delta_{21}(k)$', fontsize='x-large')    
+                else: 
+                    ax.set_ylabel(labels['dpow'], fontsize='x-large')    
             else:
                 ax.set_ylabel(labels['pow'], fontsize='x-large')    
         
@@ -108,9 +117,9 @@ class PowerSpectrum(Global21cm):
         cf_s = 'cf_%s%s' % (field_1, field_2)
         cf = self.history[cf_s][iz]
         
-        k = self.history['k'][iz]
+        k = self.history['k']
         
-        dr = 2. * np.pi / k
+        dr = 1. / k
         
         ax.loglog(dr, cf, **kwargs)
     
@@ -236,19 +245,20 @@ class PowerSpectrum(Global21cm):
         p = []
         for i, z in enumerate(self.redshifts):
             pow_z = self.history['ps_%s' % field][i]
-            p.append(np.interp(k, self.history['k'][i], pow_z))
+            p.append(np.interp(k, self.history['k'], pow_z))
             
         p = np.array(p)    
         
         if dimensionless:
-            ps = p * k**3 / 2. / np.pi**2
+            norm = self.history['dTb0']**2
+            ps = norm * p * k**3 / 2. / np.pi**2
         else:
             ps = p
             
-        ax.plot(self.redshifts, p, label=r'$k=%.2f$' % k, **kwargs)
+        ax.plot(self.redshifts, ps, label=r'$k=%.2f$' % k, **kwargs)
         ax.set_xlim(min(self.redshifts), max(self.redshifts))
         ax.set_yscale('log')
-        ax.set_ylim(1, 1e2)
+        ax.set_ylim(1e-2, 1e4)
         ax.set_xlabel(r'$z$')
         ax.set_ylabel(r'$\Delta_{21}^2 \ \left[\mathrm{mK}^2 \right]$')
         

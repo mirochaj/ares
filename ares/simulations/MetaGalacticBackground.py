@@ -276,7 +276,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         if not hasattr(self, '_not_lwb_sources_'):
             self._not_lwb_sources_ = []
             for i, pop in enumerate(self.pops):
-                if pop.is_lw_src:
+                if pop.is_src_lw:
                     continue
                 self._not_lwb_sources_.append(i)
         
@@ -287,7 +287,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         if not hasattr(self, '_lwb_sources_'):
             self._lwb_sources_ = []
             for i, pop in enumerate(self.pops):
-                if pop.is_lw_src:
+                if pop.is_src_lw:
                     self._lwb_sources_.append(i)
         
         return self._lwb_sources_

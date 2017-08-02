@@ -77,109 +77,173 @@ class Population(object):
     @property
     def affects_cgm(self):
         if not hasattr(self, '_affects_cgm'):
-            self._affects_cgm = self.is_ion_src_cgm 
+            self._affects_cgm = self.is_src_ion_cgm 
         return self._affects_cgm
     
     @property
     def affects_igm(self):
         if not hasattr(self, '_affects_igm'):
-            self._affects_igm = self.is_ion_src_igm or self.is_heat_src_igm
+            self._affects_igm = self.is_src_ion_igm or self.is_src_heat_igm
         return self._affects_igm    
     
     @property
-    def is_ion_src_cgm(self):
-        if not hasattr(self, '_is_ion_src_cgm'):
-            if not self.pf['radiative_transfer']:
-                self._is_ion_src_cgm = False
-            elif self.pf['pop_ion_src_cgm']:
-                self._is_ion_src_cgm = True
+    def is_src_lya(self):
+        if not hasattr(self, '_is_src_lya'):
+            if self.pf['pop_sed_model']:
+                self._is_src_lya = \
+                    (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
+                    and self.pf['pop_lya_src']
             else:
-                self._is_ion_src_cgm = False
-
-        return self._is_ion_src_cgm
+                self._is_src_lya = self.pf['pop_lya_src']
+    
+        return self._is_src_lya
     
     @property
-    def is_ion_src_igm(self):
-        if not hasattr(self, '_is_ion_src_igm'):
-            if not self.pf['radiative_transfer']:
-                self._is_ion_src_igm = False
-            elif self.pf['pop_ion_src_igm']:
-                self._is_ion_src_igm = True
+    def is_src_lya_fl(self):
+        if not hasattr(self, '_is_src_lya_fl'):
+            self._is_src_lya_fl = False
+            if not self.is_src_lya:
+                pass
             else:
-                self._is_ion_src_igm = False
-
-        return self._is_ion_src_igm
+                if self.pf['pop_lya_fl']:
+                    self._is_src_lya_fl = True
+    
+        return self._is_src_lya_fl
     
     @property
-    def is_heat_src_igm(self):
-        if not hasattr(self, '_is_heat_src_igm'):
-            if not self.pf['radiative_transfer']:
-                self._is_heat_src_igm = False
-            elif self.pf['pop_heat_src_igm']:
-                self._is_heat_src_igm = True
+    def is_src_ion_cgm(self):
+        if not hasattr(self, '_is_src_ion_cgm'):
+            if self.pf['pop_sed_model']:
+                self._is_src_ion_cgm = \
+                    (self.pf['pop_Emax'] > E_LL) \
+                    and self.pf['pop_ion_src_cgm']
             else:
-                self._is_heat_src_igm = False
-
-        return self._is_heat_src_igm
+                self._is_src_ion_cgm = self.pf['pop_ion_src_cgm']        
+    
+        return self._is_src_ion_cgm
+        
+    @property
+    def is_src_ion_igm(self):
+        if not hasattr(self, '_is_src_ion_igm'):
+            if self.pf['pop_sed_model']:
+                self._is_src_ion_igm = \
+                    (self.pf['pop_Emax'] > E_LL) \
+                    and self.pf['pop_ion_src_igm']
+            else:
+                self._is_src_ion_igm = self.pf['pop_ion_src_igm']        
+    
+        return self._is_src_ion_igm
+        
+    @property
+    def is_src_ion(self):
+        if not hasattr(self, '_is_src_ion'):    
+            self._is_src_ion = self.is_src_ion_cgm #or self.is_src_ion_igm
+        return self._is_src_ion
+        
+    @property
+    def is_src_ion_fl(self):
+        if not hasattr(self, '_is_src_ion_fl'):
+            self._is_src_ion_fl = False
+            if not self.is_src_ion:
+                pass
+            else:
+                if self.pf['pop_ion_fl']:
+                    self._is_src_ion_fl = True
+    
+        return self._is_src_ion_fl    
+        
+    @property
+    def is_src_heat(self):
+        return self.is_src_heat_igm
+        
+    @property
+    def is_src_heat_igm(self):
+        if not hasattr(self, '_is_src_heat_igm'):
+            if self.pf['pop_sed_model']:
+                self._is_src_heat_igm = \
+                    (E_LL <= self.pf['pop_Emin']) \
+                    and self.pf['pop_heat_src_igm']
+            else:
+                self._is_src_heat_igm = self.pf['pop_heat_src_igm']        
+    
+        return self._is_src_heat_igm
+        
+    @property
+    def is_src_heat_fl(self):
+        if not hasattr(self, '_is_src_heat_fl'):
+            self._is_src_heat_fl = False
+            if not self.is_src_heat:
+                pass
+            else:
+                if self.pf['pop_temp_fl']:
+                    self._is_src_heat_fl = True
+    
+        return self._is_src_heat_fl
     
     @property
-    def is_lya_src(self):
-        if not hasattr(self, '_is_lya_src'):
-            if not self.pf['radiative_transfer']:
-                self._is_lya_src = False
-            elif self.pf['pop_sed_model']:
-                self._is_lya_src = \
+    def is_src_uv(self):
+        # Delete this eventually but right now doing so will break stuff
+        if not hasattr(self, '_is_src_uv'):
+            if self.pf['pop_sed_model']:
+                self._is_src_uv = \
+                    (self.pf['pop_Emax'] > E_LL) \
+                    and self.pf['pop_ion_src_cgm']
+            else:
+                self._is_src_uv = self.pf['pop_ion_src_cgm']        
+    
+        return self._is_src_uv
+        
+    @property
+    def is_src_lya(self):
+        if not hasattr(self, '_is_src_lya'):
+            if self.pf['pop_sed_model']:
+                self._is_src_lya = \
                     (self.pf['pop_Emin'] <= 10.2 <= self.pf['pop_Emax']) \
                     and self.pf['pop_lya_src']
             else:
                 return self.pf['pop_lya_src']
     
-        return self._is_lya_src
+        return self._is_src_lya
     
     @property
-    def is_lw_src(self):
-        if not hasattr(self, '_is_lw_src'):
+    def is_src_uv(self):
+        if not hasattr(self, '_is_src_uv'):
+            if self.pf['pop_sed_model']:
+                self._is_src_uv = \
+                    (self.pf['pop_Emax'] > E_LL) \
+                    and self.pf['pop_ion_src_cgm']
+            else:
+                self._is_src_uv = self.pf['pop_ion_src_cgm']        
+    
+        return self._is_src_uv    
+    
+    @property
+    def is_src_xray(self):
+        if not hasattr(self, '_is_src_xray'):
+            if self.pf['pop_sed_model']:
+                self._is_src_xray = \
+                    (E_LL <= self.pf['pop_Emin']) \
+                    and self.pf['pop_heat_src_igm']
+            else:
+                self._is_src_xray = self.pf['pop_heat_src_igm']        
+        
+        return self._is_src_xray    
+
+    def is_src_lw(self):
+        if not hasattr(self, '_is_src_lw'):
             if not self.pf['radiative_transfer']:
-                self._is_lw_src = False
+                self._is_src_lw = False
             elif not self.pf['pop_lw_src']:
-                self._is_lw_src = False
+                self._is_src_lw = False
             elif self.pf['pop_sed_model']:
-                self._is_lw_src = \
+                self._is_src_lw = \
                     (self.pf['pop_Emin'] <= 11.2 <= self.pf['pop_Emax']) and \
                     (self.pf['pop_Emin'] <= E_LL <= self.pf['pop_Emax'])
             else:
                 raise NotImplementedError('help')
     
-        return self._is_lw_src    
+        return self._is_src_lw    
 
-    @property
-    def is_uv_src(self):
-        if not hasattr(self, '_is_uv_src'):
-            if not self.pf['radiative_transfer']:
-                self._is_uv_src = False
-            elif self.pf['pop_sed_model']:
-                self._is_uv_src = \
-                    (self.pf['pop_Emax'] > E_LL) \
-                    and self.pf['pop_ion_src_cgm']
-            else:
-                self._is_uv_src = self.pf['pop_ion_src_cgm']        
-    
-        return self._is_uv_src    
-    
-    @property
-    def is_xray_src(self):
-        if not hasattr(self, '_is_xray_src'):
-            if not self.pf['radiative_transfer']:
-                self._is_xray_src = False
-            elif self.pf['pop_sed_model']:
-                self._is_xray_src = \
-                    (E_LL <= self.pf['pop_Emin']) \
-                    and self.pf['pop_heat_src_igm']
-            else:
-                self._is_xray_src = self.pf['pop_heat_src_igm']        
-    
-        return self._is_xray_src
-        
     @property
     def is_emissivity_separable(self):
         """

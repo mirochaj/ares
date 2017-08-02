@@ -446,7 +446,7 @@ class ModelSet(BlobFactory):
                     mask2d = np.array([self.mask] * self._chain.shape[1]).T
                 else:
                     mask2d = self.mask
-                    
+
                 self._chain = np.ma.array(self._chain, mask=mask2d)
             
             # We might have data stored by processor
