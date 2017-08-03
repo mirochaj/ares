@@ -463,3 +463,22 @@ class PriorSet(object):
         self.fill_hdf5_group(hdf5_file)
         hdf5_file.close()
 
+def load_prior_set_from_hdf5_group(group):
+    """
+    Loads PriorSet object from the given hdf5 group.
+    
+    group: hdf5 file group from which to read data about the PriorSet
+    
+    returns: PriorSet object
+    """
+    ituple = 0
+    prior_tuples = []
+    while ('prior_%i' % (ituple,)) in group:
+        subgroup = group['prior_%i' % (ituple,)]
+        prior = load_prior_from_hdf5_group(subgroup)
+        params = subgroup.attrs['params']
+        transforms = subgroup.attrs['transforms']
+        prior_tuples.append((prior, params, transforms))
+        ituple += 1
+    return PriorSet(prior_tuples=prior_tuples)
+
