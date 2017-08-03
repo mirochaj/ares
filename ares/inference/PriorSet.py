@@ -17,7 +17,7 @@ Description: A container which can hold an arbitrary number of priors, each of
              PriorSet.log_prior(point). See documentation of individual
              functions for further details.
 """
-
+import h5py
 import numpy as np
 from .Priors import _Prior
 
@@ -429,7 +429,7 @@ class PriorSet(object):
             raise ValueError("A parameter provided to a " +\
                              "PriorSet was not a string.")
         broken = False
-        for iprior in range(len(self._data)):
+        for iprior in xrange(len(self._data)):
             for param in self._data[iprior]:
                 if name == param:
                     broken = True
@@ -439,4 +439,27 @@ class PriorSet(object):
         if broken:
             raise ValueError("The name of a parameter provided" +\
                              " to a PriorSet is already taken.")
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this PriorSet. Each
+        prior tuple is saved as a subgroup in the hdf5 file.
+        
+        group: the hdf5 file group to fill
+        """
+        for (ituple, (prior, params, transforms)) in self._data:
+            subgroup = group.create_group('prior_%i' % (ituple,))
+            prior.fill_hdf5_group(subgroup)
+            subgroup.attrs['params'] = params
+            subgroup.attrs['transforms'] = transforms
+
+    def save(self, file_name):
+        """
+        Saves PriorSet in hdf5 file using the fill_hdf5_file group function.
+        
+        file_name: name of hdf5 file to write
+        """
+        hdf5_file = h5py.File(file_name, 'w')
+        self.fill_hdf5_group(hdf5_file)
+        hdf5_file.close()
 

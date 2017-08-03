@@ -93,6 +93,7 @@ And the following multivariate priors are included:
     (mean) mean
     (variance) cov
 """
+import h5py
 import numpy as np
 import numpy.random as rand
 import numpy.linalg as lalg
@@ -169,13 +170,29 @@ class _Prior():
     self.numparams --- property, not function
     self.to_string() --- string summary of this prior
     self.__eq__(other) --- checks for equality with another object
+    self.fill_hdf5_group(group) --- fills given hdf5 group with data from prior
     
     In draw() and log_prior(), point is a configuration. It could be a
     single number for a univariate prior or a numpy.ndarray for a multivariate
     prior.
     """
     def __ne__(self, other):
+        """
+        This merely enforces that (a!=b) equals (not (a==b)) for all prior
+        objects a and b.
+        """
         return (not self.__eq__(other))
+    
+    def save(self, file_name):
+        """
+        Saves this prior in an hdf5 file using the prior's fill_hdf5_group
+        function.
+        
+        file_name: name of hdf5 file to write
+        """
+        hdf5_file = h5py.File(file_name, 'w')
+        self.fill_hdf5_group(hdf5_file)
+        hdf5_file.close()
 
 ############################# Univariate Priors ###############################
 
@@ -241,6 +258,17 @@ class GammaPrior(_Prior):
             return shape_close and scale_close
         else:
             return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. Only things
+        to save are shape, scale, and class name.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'GammaPrior'
+        group.attrs['shape'] = self.shape
+        group.attrs['scale'] = self.scale
 
     def _check_if_greater_than_zero(self, value, name):
         #
@@ -255,6 +283,7 @@ class GammaPrior(_Prior):
         else:
             raise ValueError(("The %s given to a " % (name,)) +\
                              "GammaPrior wasn't of a numerical type.")
+
 
 class BetaPrior(_Prior):
     """
@@ -328,6 +357,17 @@ class BetaPrior(_Prior):
             return alpha_close and beta_close
         else:
             return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 group with data from this prior. All that is to be
+        saved is the class name, alpha, and beta.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'BetaPrior'
+        group.attrs['alpha'] = self.alpha
+        group.attrs['beta'] = self.beta
 
 class ExponentialPrior(_Prior):
     """
@@ -405,6 +445,18 @@ class ExponentialPrior(_Prior):
             return rate_close and shift_close
         else:
             return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this prior. The only
+        things to save are the class name, rate, and shift.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'ExponentialPrior'
+        group.attrs['rate'] = self.rate
+        group.attrs['shift'] = self.shift
+
 
 class EllipticalPrior(_Prior):
     """
@@ -521,6 +573,17 @@ class EllipticalPrior(_Prior):
                 return False
         else:
             return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this prior. The data to
+        be saved includes the class name, mean, and covariance of this prior.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'EllipticalPrior'
+        group.create_dataset('mean', data=self.mean)
+        group.create_dataset('covariance', data=self.cov)
 
 class UniformPrior(_Prior):
     """
@@ -593,6 +656,17 @@ class UniformPrior(_Prior):
             return low_close and high_close
         else:
             return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. All that
+        needs to be saved is the class name and high and low values.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'UniformPrior'
+        group.attrs['low'] = self.low
+        group.attrs['high'] = self.high
 
 class TruncatedGaussianPrior(_Prior):
     """
@@ -694,6 +768,19 @@ class TruncatedGaussianPrior(_Prior):
             return mean_close and var_close and hi_close and lo_close
         else:
             return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. The low, 
+        high, mean, and variance values need to be saved along with the class
+        name.
+        """
+        group.attrs['class'] = 'TruncatedGaussianPrior'
+        group.attrs['low'] = self.lo
+        group.attrs['high'] = self.hi
+        group.attrs['mean'] = self.mean
+        group.attrs['variance'] = self.var
+
 
 ########### Multivariate priors (Gaussian can also be univariate) #############
 
@@ -937,6 +1024,17 @@ class GaussianPrior(_Prior):
             return mean_close and covariance_close
         else:
             return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. The fact
+        that this is a Gaussian is saved along with the mean and covariance.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'GaussianPrior'
+        group.create_dataset('mean', data=self.mean.A[0])
+        group.create_dataset('covariance', data=self.covariance.A)
 
 
 class ParallelepipedPrior(_Prior):
@@ -1133,6 +1231,19 @@ class ParallelepipedPrior(_Prior):
             return center_close and face_directions_close and distances_close
         else:
             return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. The class
+        name of the prior is saved along with the center, face_directions, and
+        distances.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'ParallelepipedPrior'
+        group.create_dataset('center', data=self.center)
+        group.create_dataset('face_directions', data=self.face_directions)
+        group.create_dataset('distances', data=self.distances)
 
 
 class LinkedPrior(_Prior):
@@ -1225,9 +1336,23 @@ class LinkedPrior(_Prior):
         a LinkedPrior with the same number of parameters and the same shared
         prior distribution and False otherwise.
         """
-        numparams_equal = (self.numparams == other.numparams)
-        shared_prior_equal = (self.shared_prior == other.shared_prior)
-        return numparams_equal and shared_prior_equal
+        if isinstance(other, LinkedPrior):
+            numparams_equal = (self.numparams == other.numparams)
+            shared_prior_equal = (self.shared_prior == other.shared_prior)
+            return numparams_equal and shared_prior_equal
+        return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. The class
+        name is saved alongside the component priors and the number of
+        parameters.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'LinkedPrior'
+        group.attrs['numparams'] = self.numparams
+        self.shared_prior.fill_hdf5_group(group.create_group('shared_prior'))
 
 
 class SequentialPrior(_Prior):
@@ -1318,9 +1443,25 @@ class SequentialPrior(_Prior):
         a SequentialPrior with the same number of parameters and the same
         shared prior distribution and False otherwise.
         """
-        numparams_equal = (self.numparams == other.numparams)
-        shared_prior_equal = (self.shared_prior == other.shared_prior)
-        return numparams_equal and shared_prior_equal
+        if isinstance(other, SequentialPrior):
+            numparams_equal = (self.numparams == other.numparams)
+            shared_prior_equal = (self.shared_prior == other.shared_prior)
+            return numparams_equal and shared_prior_equal
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. That data
+        includes the class name, the number of parameters, and the shared
+        prior.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'SequentialPrior'
+        group.attrs['numparams'] = self.numparams
+        self.shared_prior.fill_hdf5_group(group.create_group('shared_prior'))
+        
 
 class GriddedPrior(_Prior):
     """
@@ -1416,9 +1557,9 @@ class GriddedPrior(_Prior):
         """
         if isinstance(other, GriddedPrior):
             if self.numparams == other.numparams:
-                vars_close =\
-                    np.allclose(self.vars, other.vars, rtol=0, atol=1e-9)
                 if self.shape == other.shape:
+                    vars_close =\
+                        np.allclose(self.vars, other.vars, rtol=0, atol=1e-9)
                     pdf_close =\
                         np.allclose(self.pdf, other.pdf, rtol=0, atol=1e-12)
                     return vars_close and pdf_close
@@ -1549,4 +1690,83 @@ class GriddedPrior(_Prior):
         # Finds the index where the cdf has the given value.
         #
         return search_sorted(self.cdf, value)
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. The class
+        name, variables list, and pdf values.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'GriddedPrior'
+        group.attrs['numparams'] = self.numparams
+        for ivar in xrange(len(self.vars)):
+            group.attrs['variable_%i' % (ivar,)] = self.vars[ivar]
+        group.create_dataset('pdf', data=self.pdf)
+
+def load_prior_from_hdf5_group(group):
+    """
+    Loads a prior from the given hdf5 group.
+    
+    group: the hdf5 file group from which to load the prior
+    
+    returns: Prior object of the correct type
+    """
+    try:
+        class_name = group.attrs['class']
+    except KeyError:
+        raise ValueError("group given does not appear to contain a prior.")
+    if class_name == 'GammaPrior':
+        shape = group.attrs['shape']
+        scale = group.attrs['scale']
+        return GammaPrior(shape, scale=scale)
+    elif class_name == 'BetaPrior':
+        alpha = group.attrs['alpha']
+        beta = group.attrs['beta']
+        return BetaPrior(alpha, beta)
+    elif class_name == 'ExponentialPrior':
+        rate = group.attrs['rate']
+        shift = group.attrs['shift']
+        return ExponentialPrior(rate, shift=shift)
+    elif class_name == 'EllipticalPrior':
+        mean = group['mean'].value
+        covariance = group['covariance'].value
+        return EllipticalPrior(mean, covariance)
+    elif class_name == 'UniformPrior':
+        low = group.attrs['low']
+        high = group.attrs['high']
+        return UniformPrior(low=low, high=high)
+    elif class_name == 'TruncatedGaussianPrior':
+        mean = group.attrs['mean']
+        variance = group.attrs['variance']
+        low = group.attrs['low']
+        high = group.attrs['high']
+        return TruncatedGaussianPrior(mean, variance, low=low, high=high)
+    elif class_name == 'GaussianPrior':
+        mean = group['mean'].value
+        covariance = group['covariance'].value
+        return GaussianPrior(mean, covariance)
+    elif class_name == 'ParallelepipedPrior':
+        center = group['center'].value
+        face_directions = group['face_directions'].value
+        distances = group['distances'].value
+        return ParallelepipedPrior(center, face_directions, distances)
+    elif class_name == 'LinkedPrior':
+        numparams = group.attrs['numparams']
+        shared_prior = load_prior_from_hdf5_group(group['shared_prior'])
+        return LinkedPrior(shared_prior, numparams)
+    elif class_name == 'SequentialPrior':
+        numparams = group.attrs['numparams']
+        shared_prior = load_prior_from_hdf5_group(group['shared_prior'])
+        return SequentialPrior(shared_prior=shared_prior, numpars=numparams)
+    elif class_name == 'GriddedPrior':
+        variables = []
+        ivar = 0
+        while ('variable_%i' % (ivar,)) in group.attrs:
+            variables.append(group.attrs['variable_%i' % (ivar,)])
+            ivar += 1
+        pdf = group['pdf'].value
+        return GriddedPrior(variables=variables, pdf=pdf)
+    else:
+        raise ValueError("The class of the prior was not recognized.")
 
