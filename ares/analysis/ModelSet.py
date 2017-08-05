@@ -420,6 +420,12 @@ class ModelSet(BlobFactory):
         
         return self._Nd
     
+    def last_n_checkpoints(self, num):
+        return self.saved_checkpoints[-num:]
+
+    def last_checkpoint(self):
+        return self.saved_checkpoints[-1]
+    
     @property
     def include_checkpoints(self):
         if not hasattr(self, '_include_checkpoints'):
@@ -439,6 +445,26 @@ class ModelSet(BlobFactory):
         if hasattr(self, '_chain'):
             print "WARNING: the chain has already been read.", 
             print "Be sure to delete `_chain` attribute before continuing."
+
+    @property
+    def largest_checkpoint(self):
+        if not hasattr(self, '_largest_checkpoint'):
+            self._largest_checkpoint = max(self.saved_checkpoints)
+        return self._largest_checkpoint
+    
+    @property
+    def saved_checkpoints(self):
+        """
+        The sorted checkpoint numbers of data files saved in the prefix
+        associated with this ModelSet. This property uses the counting
+        convention which starts with zero.
+        """
+        if not hasattr(self, '_saved_checkpoints'):
+            fns = glob.glob(self.prefix + '.dd*.chain.pkl')
+            self._saved_checkpoints = [(int(fn[-14:-10])) for fn in fns]
+            self._saved_checkpoints = sorted(self._saved_checkpoints)
+            self._saved_checkpoints = np.array(self._saved_checkpoints)
+        return self._saved_checkpoints
 
     @property
     def chain(self):
@@ -517,22 +543,20 @@ class ModelSet(BlobFactory):
                         sorted(glob.glob('%s.dd*.chain.pkl' % self.prefix))
                                 
                 full_chain = []
+                if rank == 0:
+                    print "Loading %s.dd*.chain.pkl..." % (self.prefix,)
+                    t1 = time.time()
                 for fn in outputs_to_read:
                     if not os.path.exists(fn):
                         print "Found no output: %s" % fn
                         continue
-                    
-                    if rank == 0:
-                        print "Loaded %s." % fn
-                    
-                    this_chain = read_pickled_chain(fn)                                    
-                    full_chain.extend(this_chain.copy())                    
-                    
-                full_chain = np.array(full_chain)    
-                    
-                self._chain = np.ma.array(full_chain, 
-                    mask=np.zeros_like(full_chain))
-
+                    this_chain = read_pickled_chain(fn)
+                    full_chain.extend(this_chain)
+                self._chain = np.ma.array(full_chain, mask=0)
+                if rank == 0:
+                    t2 = time.time()
+                    print "Loaded %s.dd*.chain.pkl in %.2g s." %\
+                        (self.prefix, t2 - t1)
             else:
                 self._chain = None            
 
@@ -1502,27 +1526,10 @@ class ModelSet(BlobFactory):
         else:
             cdata = None
 
-        if line_plot:
-            # The ordering of the points doesn't matter
-            if sort_by == 'z' and (cdata is not None):
-                order = np.argsort(cdata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                cdata = cdata[order]                    
-            elif sort_by == 'x':
-                order = np.argsort(xdata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                if cdata is not None:
-                    cdata = cdata[order]
-            elif sort_by == 'y':
-                order = np.argsort(ydata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                if cdata is not None:
-                    cdata = cdata[order]            
-
-            func = ax.__getattribute__('plot')
+        if hasattr(self, '_weights') and cdata is None:
+            scat = ax.scatter(xdata, ydata, c=self.weights, **kwargs)
+        elif cdata is not None:
+            scat = ax.scatter(xdata, ydata, c=cdata, **kwargs)
         else:
             func = ax.__getattribute__('scatter')
             
@@ -1842,7 +1849,7 @@ class ModelSet(BlobFactory):
             multiplier=multiplier, un_log=un_log)
 
         # Need to weight results of non-MCMC runs explicitly
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -1931,7 +1938,7 @@ class ModelSet(BlobFactory):
         if not self.is_mcmc:
             self.set_constraint(**constraints)
         
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -2560,7 +2567,7 @@ class ModelSet(BlobFactory):
         binvec = self._set_bins(pars, to_hist, take_log, bins)
 
         # We might supply weights by-hand for ModelGrid calculations
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -3721,7 +3728,6 @@ class ModelSet(BlobFactory):
         Returns vector of mean, and the covariance matrix itself.
         
         """
-                
         data = self.ExtractData(pars, ivar=ivar)
         
         blob_vec = []
@@ -3731,7 +3737,19 @@ class ModelSet(BlobFactory):
         mu  = np.ma.mean(blob_vec, axis=1)
         cov = np.ma.cov(blob_vec)
 
-        return mu, cov    
+        return mu, cov
+
+    def PlotCovarianceMatrix(self, pars, ivar=None, fig=1, ax=None,\
+        cmap='RdBu_r'):
+        mu, cov = self.CovarianceMatrix(pars, ivar=ivar)
+        if ax is None:
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+
+        cax = ax.imshow(cov, interpolation='none', cmap=cmap)
+        cb = pl.colorbar(cax)
+
+        return ax, cb
         
     def AssembleParametersList(self, N=None, ids=None, include_bkw=False, 
         **update_kwargs):
@@ -3991,7 +4009,7 @@ class ModelSet(BlobFactory):
             
             # Save metadata about this derived blob
             fn_md = '%s.dbinfo.pkl' % self.prefix
-            if (not os.path.exists(fn_md)) or clobber:                                                                     
+            if (not os.path.exists(fn_md)) or clobber:
                 f = open(fn_md, 'w')
                 pickle.dump({name: ivars}, f)
                 f.close()

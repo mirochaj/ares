@@ -109,7 +109,6 @@ _low = \
 
  'kill_redshift': 5.6,
  'sam_dz': 0.1,
-
  'pop_zform{2}': 60,
  'pop_zform{3}': 60,
 
@@ -273,6 +272,4 @@ dpl_blobs = \
  'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
  'blob_funcs': ['pops[0].SFRD', 'pops[0].Mmin', 'pops[0].Mmax'],
 }
-
-
 

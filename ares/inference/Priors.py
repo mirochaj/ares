@@ -1,47 +1,61 @@
 """
-Priors.py
+File: $ARES/ares/inference/Priors.py
 
 Author: Keith Tauscher
 Affiliation: University of Colorado at Boulder
 Created on: Thu Mar 17 12:48:00 MDT 2016
+Updated on: Tue Feb 28 01:45:00 MDT 2017
 
-Description: This file contains different useful priors. For examples, see below and the test in tests/test_priors.py.
+Description: This file contains different useful priors. For examples, see
+             below and the test in tests/test_priors.py.
 
 The included univariate priors (and their initializations, equals signs
 indicate optional parameters and their default values) are (pdf's apply only
 in support):
 
-(1) BetaPrior(alpha, beta)
-    (pdf) --- f(x) = x^(alpha - 1) * (1 - x)^(beta - 1) / Beta(alpha, beta)
-    (support) --- 0 < x < 1
-    (mean) --- alpha / (alpha+beta)
-    (variance) (alpha * beta) / (alpha + beta)^2 / (alpha + beta + 1)
-
-(2) GammaPrior(shape, scale=1)
+(1) GammaPrior(shape, scale=1)
     (pdf) --- f(x) = (x/scale)^(shape-1) * e^(-x/scale) / scale / Gamma(shape)
     (support) --- x > 0
     (mean) --- shape * scale
     (variance) --- shape * scale^2
 
-(3) ExponentialPrior(rate, shift=0)
+(2) BetaPrior(alpha, beta)
+    (pdf) --- f(x) = x^(alpha - 1) * (1 - x)^(beta - 1) / Beta(alpha, beta)
+    (support) --- 0 < x < 1
+    (mean) --- alpha / (alpha+beta)
+    (variance) (alpha * beta) / (alpha + beta)^2 / (alpha + beta + 1)
+
+(3) PoissonPrior(scale)
+    (pdf) --  f(k) = scale^k * e^(-scale) / k!
+    (support) --- non-negative integer k
+    (mean) --- scale
+    (variance) --- scale
+
+(4) ExponentialPrior(rate, shift=0)
     (pdf) --- f(x) = rate * e^(-rate * (x - shift))
     (support) --- x>0
     (mean) --- 1 / rate
     (variance) --- 1 / rate^2
 
-(4) UniformPrior(low, high)
+(5) DoubleSidedExponentialPrior(mean, variance)
+    (pdf) --- f(x) = e^(-|(x - mean) / sqrt(variance/2)|) / (sqrt(2*variance))
+    (support) --- real x
+    (mean) --- mean
+    (variance) --- variance
+
+(6) UniformPrior(low, high)
     (pdf) --- f(x) = 1 / (high - low)
     (support) --- low < x < high
     (mean) --- (low + high) / 2
     (variance) --- (high - low)^2 / 12
 
-(5) GaussianPrior(mean, variance)
+(7) GaussianPrior(mean, variance)
     (pdf) --- f(x) = e^(- (x - mean)^2 / (2 * variance)) / sqrt(2pi * variance)
     (support) --- -infty < x < infty
     (mean) --- mean
     (variance) --- variance
 
-(6) TruncatedGaussianPrior(mean, variance, low, high)
+(8) TruncatedGaussianPrior(mean, variance, low, high)
     (pdf) --- rescaled and truncated version of pdf of GaussianPrior
     (support) --- low < x < high
     (mean) --- no convenient expression; in limit, approaches mean
@@ -84,17 +98,26 @@ And the following multivariate priors are included:
     (support) must be rectangular; defined through variable ranges in variables
     (mean) unknown a priori
     (variance) unknown a priori
-"""
 
+(6) EllipticalPrior(mean, cov)
+    (pdf) f(X)=1 when X is inside (X-mean)^T cov^-1 (X-mean)<= N+2
+    (support) hyperellipsoid defined above
+    (mean) mean
+    (variance) cov
+"""
+import h5py
 import numpy as np
 import numpy.random as rand
 import numpy.linalg as lalg
+import scipy.linalg as slalg
 from scipy.misc import factorial
 from scipy.special import beta as beta_func
 from scipy.special import gammaln as log_gamma
 from scipy.special import erf, erfinv
 
-numerical_types = [int, float, np.int32, np.int64, np.float32, np.float64]
+int_types = [int, np.int16, np.int32, np.int64]
+float_types = [float, np.float32, np.float64]
+numerical_types = int_types + float_types
 list_types = [list, tuple, np.ndarray, np.matrix]
 
 two_pi = 2 * np.pi
@@ -125,11 +148,11 @@ def search_sorted(array, value):
         if (range_max - range_min) == 1:
             if (range_max == range_max_0) or (range_min == 0):
                 raise LookupError("For some reason, range_max-" +\
-                                          "range_min reached 1 before " +\
-                                          "the element was found. The " +\
-                                          "element being searched for " +\
-                                          ("was %s. (min,max)" % (value,) +\
-                                          ("=%s" % ((range_min, range_max),))))
+                                  "range_min reached 1 before " +\
+                                  "the element was found. The " +\
+                                  "element being searched for " +\
+                                  ("was %s. (min,max)" % (value,) +\
+                                  ("=%s" % ((range_min, range_max),))))
             else:
                 high_index = range_max
         else:
@@ -145,7 +168,7 @@ def search_sorted(array, value):
                 return high_index
             else:
                 return high_index - 1
-    raise NotImplementedError("Something went wrong! I " +\
+    raise NotImplementedError("Something went wrong! I got " +\
                               "caught a pseudo-infinite loop!")
 
 class _Prior():
@@ -160,12 +183,30 @@ class _Prior():
     self.log_prior(point) --- evaluates the log_prior at the given point
     self.numparams --- property, not function
     self.to_string() --- string summary of this prior
+    self.__eq__(other) --- checks for equality with another object
+    self.fill_hdf5_group(group) --- fills given hdf5 group with data from prior
     
-    In both of these functions, point is a configuration. It could be a
+    In draw() and log_prior(), point is a configuration. It could be a
     single number for a univariate prior or a numpy.ndarray for a multivariate
     prior.
     """
-    pass
+    def __ne__(self, other):
+        """
+        This merely enforces that (a!=b) equals (not (a==b)) for all prior
+        objects a and b.
+        """
+        return (not self.__eq__(other))
+    
+    def save(self, file_name):
+        """
+        Saves this prior in an hdf5 file using the prior's fill_hdf5_group
+        function.
+        
+        file_name: name of hdf5 file to write
+        """
+        hdf5_file = h5py.File(file_name, 'w')
+        self.fill_hdf5_group(hdf5_file)
+        hdf5_file.close()
 
 ############################# Univariate Priors ###############################
 
@@ -216,6 +257,32 @@ class GammaPrior(_Prior):
         Finds and returns the string representation of this GammaPrior.
         """
         return "Gamma(%.2g, %.2g)" % (self.shape, self.scale)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality between other and this object. Returns True if
+        if other is a GammaPrior with nearly the same shape and scale (up to
+        dynamic range of 10^9) and False otherwise.
+        """
+        if isinstance(other, GammaPrior):
+            shape_close =\
+                np.isclose(self.shape, other.shape, rtol=1e-9, atol=0)
+            scale_close =\
+                np.isclose(self.scale, other.scale, rtol=1e-9, atol=0)
+            return shape_close and scale_close
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. Only things
+        to save are shape, scale, and class name.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'GammaPrior'
+        group.attrs['shape'] = self.shape
+        group.attrs['scale'] = self.scale
 
     def _check_if_greater_than_zero(self, value, name):
         #
@@ -230,6 +297,7 @@ class GammaPrior(_Prior):
         else:
             raise ValueError(("The %s given to a " % (name,)) +\
                              "GammaPrior wasn't of a numerical type.")
+
 
 class BetaPrior(_Prior):
     """
@@ -289,6 +357,106 @@ class BetaPrior(_Prior):
         Finds and returns a string representation of this BetaPrior.
         """
         return "Beta(%.2g, %.2g)" % (self.alpha, self.beta)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this object with other. Returns True if other is
+        a BetaPrior with nearly the same alpha and beta (down to 10^-9 level)
+        and False otherwise.
+        """
+        if isinstance(other, BetaPrior):
+            alpha_close =\
+                np.isclose(self.alpha, other.alpha, rtol=1e-9, atol=0)
+            beta_close = np.isclose(self.beta, other.beta, rtol=1e-9, atol=0)
+            return alpha_close and beta_close
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 group with data from this prior. All that is to be
+        saved is the class name, alpha, and beta.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'BetaPrior'
+        group.attrs['alpha'] = self.alpha
+        group.attrs['beta'] = self.beta
+
+class PoissonPrior(_Prior):
+    """
+    Prior with support on the nonnegative integers. It has only one parameter,
+    the scale, which is both its mean and its variance.
+    """
+    def __init__(self, scale):
+        """
+        Initializes new PoissonPrior with given scale.
+        
+        scale: mean and variance of distribution (must be positive)
+        """
+        if type(scale) in numerical_types:
+            if scale > 0:
+                self.scale = (scale * 1.)
+            else:
+                raise ValueError("scale given to PoissonPrior was not " +\
+                                 "positive.")
+        else:
+            raise ValueError("scale given to PoissonPrior was not a number.")
+    
+    @property
+    def numparams(self):
+        """
+        Poisson pdf is univariate so numparams always returns 1.
+        """
+        return 1
+    
+    def draw(self):
+        """
+        Draws and returns a value from this distribution using numpy.random.
+        """
+        return rand.poisson(lam=self.scale)
+    
+    def log_prior(self, value):
+        """
+        Evaluates and returns the log of this prior when the variable is value.
+        
+        value: numerical value of the variable
+        """
+        if type(value) in int_types:
+            if value >= 0:
+                return (value * np.log(self.scale)) - self.scale -\
+                    log_gamma(value + 1)
+            else:
+                return -np.inf
+        else:
+            raise TypeError("value given to PoissonPrior was not an integer.")
+
+    def to_string(self):
+        """
+        Finds and returns a string version of this PoissonPrior.
+        """
+        return "Poisson(%.4g)" % (self.scale,)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a PoissonPrior with the same scale.
+        """
+        if isinstance(other, PoissonPrior):
+            return np.isclose(self.scale, other.scale, rtol=1e-6, atol=1e-6)
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this prior. The only
+        thing to save is the scale.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'PoissonPrior'
+        group.attrs['scale'] = self.scale
+        
 
 class ExponentialPrior(_Prior):
     """
@@ -352,6 +520,250 @@ class ExponentialPrior(_Prior):
             return "Exp(%.2g, shift=%.2g)" %\
                 (self.rate, self.shift)
         return "Exp(%.2g)" % (self.rate,)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        an ExponentialPrior with the same rate (to 10^9 dynamic range) and
+        shift (down to 1e-9) and False otherwise.
+        """
+        if isinstance(other, ExponentialPrior):
+            rate_close = np.isclose(self.rate, other.rate, rtol=1e-9, atol=0)
+            shift_close =\
+                np.isclose(self.shift, other.shift, rtol=0, atol=1e-9)
+            return rate_close and shift_close
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this prior. The only
+        things to save are the class name, rate, and shift.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'ExponentialPrior'
+        group.attrs['rate'] = self.rate
+        group.attrs['shift'] = self.shift
+
+
+class DoubleSidedExponentialPrior(_Prior):
+    """
+    Prior on a single distribution with a double-sided exponential
+    distribution. Double sided exponential distributions are "peak"ier than
+    Gaussians.
+    """
+    def __init__(self, mean, variance):
+        """
+        Initializes a new DoubleSidedExponentialPrior with the given
+        parameters.
+        
+        mean: mean, mode and median of the distribution
+        variance: variance of distribution
+        """
+        if type(mean) in numerical_types:
+            self.mean = (mean * 1.)
+        else:
+            raise ValueError('The mean parameter given to a ' +\
+                             'DoubleSidedExponentialPrior was not of a ' +\
+                             'numerical type.')
+        if type(variance) in numerical_types:
+            if variance > 0:
+                self.variance = (1. * variance)
+            else:
+                raise ValueError("The variance given to a " +\
+                                 "DoubleSidedExponentialPrior was not " +\
+                                 "positive.")
+        else:
+            raise ValueError("The variance given to a " +\
+                             "DoubleSidedExponentialPrior was not of " +\
+                             "numerical type.")
+        self._const_lp_term = (np.log(2) + np.log(self.variance)) / (-2)
+    
+    @property
+    def numparams(self):
+        """
+        Exponential pdf is univariate so numparams always returns 1.
+        """
+        return 1
+    
+    @property
+    def root_half_variance(self):
+        if not hasattr(self, '_root_half_variance'):
+            self._root_half_variance = np.sqrt(self.variance / 2.)
+        return self._root_half_variance
+    
+    def draw(self):
+        """
+        Draws and returns a value from this distribution using numpy.random.
+        """
+        return rand.laplace(loc=self.mean, scale=self.root_half_variance)
+    
+    def log_prior(self, value):
+        """
+        Evaluates and returns the log of this prior when the variable is value.
+        
+        value numerical value of the variable
+        """
+        return self._const_lp_term -\
+            (np.abs(value - self.mean) / self.root_half_variance)
+
+    def to_string(self):
+        """
+        Finds and returns a string version of this DoubleSidedExponentialPrior.
+        """
+        return "DSExp(%.2g, %.2g)" % (self.mean, self.variance)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        an DoubleSidedExponentialPrior with the same mean and sigma and False
+        otherwise.
+        """
+        if isinstance(other, DoubleSidedExponentialPrior):
+            return np.allclose([self.mean, self.variance],\
+                [other.mean, other.variance], rtol=1e-6, atol=1e-9)
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this prior. The only
+        things to save are the class name, rate, and shift.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'DoubleSidedExponentialPrior'
+        group.attrs['mean'] = self.rate
+        group.attrs['variance'] = self.variance
+
+
+class EllipticalPrior(_Prior):
+    """
+    Prior on a set of variables where the variables are equally likely to be
+    at any point within an ellipsoid (defined by mean and cov). It is a uniform
+    prior over an arbitrary ellipsoid.
+    """
+    def __init__(self, mean, cov):
+        """
+        Initializes this UniformPrior using properties of the ellipsoid
+        defining it.
+        
+        mean the center of the ellipse defining this prior
+        cov the covariance describing the ellipse defining this prior. A
+            consequence of this definition is that, in order for a point, x, to
+            be in the ellipse, (x-mean)^T*cov^-1*(x-mean) < N+2 must be
+            satisfied
+        """
+        try:
+            self.mean = np.array(mean)
+        except:
+            raise TypeError("mean given to EllipticalPrior could not be " +\
+                            "cast as a numpy.ndarray.")
+        try:
+            self.cov = np.array(cov)
+        except:
+            raise TypeError("cov given to EllipticalPrior could not be " +\
+                            "cast as a numpy.ndarray.")
+        if (self.cov.shape != (2 * self.mean.shape)) or (self.mean.ndim != 1):
+            raise ValueError("The shapes of the mean and cov given to " +\
+                             "EllipticalPrior did not make sense. They " +\
+                             "should fit the following pattern: " +\
+                             "mean.shape=(rank,) and cov.shape=(rank,rank).")
+        self._numparams = self.mean.shape[0]
+        if self.numparams < 2:
+            raise NotImplementedError("The EllipticalPrior doesn't take " +\
+                                      "single variable random variates " +\
+                                      "since, in the 1D case, it is the " +\
+                                      "same as a simple uniform " +\
+                                      "distribution but using the " +\
+                                      "EllipticalPrior class would involve " +\
+                                      "far too much computational overhead.")
+        half_rank = self.numparams / 2.
+        self.invcov = lalg.inv(self.cov)
+        self.log_value = log_gamma(half_rank + 1) -\
+            (half_rank * (np.log(np.pi) + np.log(self.numparams + 2))) -\
+            (lalg.slogdet(self.cov)[1] / 2.)
+        self.sqrtcov = slalg.sqrtm(self.cov)
+
+    @property
+    def numparams(self):
+        """
+        The number of parameters which are represented in this prior.
+        """
+        if not hasattr(self, '_numparams'):
+            self._numparams = len(self.mean)
+        return self._numparams
+
+    def draw(self):
+        """
+        Draws a random vector from this uniform elliptical distribution. By the
+        definition of this class, the point it draws is equally likely to lie
+        anywhere inside the ellipse defining this prior.
+        
+        returns numpy.ndarray of containing random variates for each parameter
+        """
+        xi = _normed(rand.randn(self.numparams))
+        # xi is now random directional unit vector
+        radial_cdf = rand.rand()
+        max_z_radius = np.sqrt(self.numparams + 2)
+        fractional_radius = np.power(radial_cdf, 1. / self.numparams)
+        deviation = max_z_radius * fractional_radius * np.dot(xi, self.sqrtcov)
+        return self.mean + deviation
+    
+    def log_prior(self, value):
+        """
+        Evaluates the log of this prior at the given value.
+        
+        value the vector value of parameters at which to calculate the
+              numerical value of this prior
+        
+        returns if value is inside ellipse, ln(V) where V is volume of
+                                            ellipsoid
+                if value is outside ellipse, -np.inf
+        """
+        centered_value = np.array(value) - self.mean
+        matprod = np.dot(np.dot(centered_value, self.invcov), centered_value)
+        if (matprod <= (self.numparams + 2)):
+            return self.log_value
+        else:
+            return -np.inf
+
+    def to_string(self):
+        """
+        Gives a simple string (of the form: "N-dim elliptical" where N is the
+        number of parameters) summary of this prior.
+        """
+        return ('%i-dim elliptical' % (self.numparams,))
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        an EllipticalPrior of the same dimension with the same mean (down to
+        10^-9 level) and covariance (down to dynamic range of 10^-12) and False
+        otherwise.
+        """
+        if isinstance(other, EllipticalPrior):
+            if self.numparams == other.numparams:
+                mean_close =\
+                    np.allclose(self.mean, other.mean, rtol=0, atol=1e-9)
+                cov_close = np.allclose(self.cov, other.cov, rtol=1e-12, atol=0)
+                return mean_close and cov_close
+            else:
+                return False
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this prior. The data to
+        be saved includes the class name, mean, and covariance of this prior.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'EllipticalPrior'
+        group.create_dataset('mean', data=self.mean)
+        group.create_dataset('covariance', data=self.cov)
 
 class UniformPrior(_Prior):
     """
@@ -380,7 +792,6 @@ class UniformPrior(_Prior):
             raise ValueError('Either the low or high endpoint of a ' +\
                              'UniformPrior was not of a numerical type.')
         self._log_P = - np.log(self.high - self.low)
-        self.numparams = 1
 
     @property
     def numparams(self):
@@ -412,6 +823,30 @@ class UniformPrior(_Prior):
         Finds and returns a string representation of this UniformPrior.
         """
         return "Unif(%.2g, %.2g)" % (self.low, self.high)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a UniformPrior with the same high and low (down to 1e-9 level) and
+        False otherwise.
+        """
+        if isinstance(other, UniformPrior):
+            low_close = np.isclose(self.low, other.low, rtol=0, atol=1e-9)
+            high_close = np.isclose(self.high, other.high, rtol=0, atol=1e-9)
+            return low_close and high_close
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. All that
+        needs to be saved is the class name and high and low values.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'UniformPrior'
+        group.attrs['low'] = self.low
+        group.attrs['high'] = self.high
 
 class TruncatedGaussianPrior(_Prior):
     """
@@ -486,6 +921,46 @@ class TruncatedGaussianPrior(_Prior):
             high_string = "%.1g" % (self.hi,)
         return "Normal(%.2g, %.2g) on [%s,%s]" %\
             (self.mean, self.var, low_string, high_string)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior to other. Returns True if other is a
+        TruncatedGaussianPrior with the same mean (down to 10^-9 level) and
+        variance (down to 10^-12 dynamic range), and hi and lo (down to 10^-9
+        level) and False otherwise.
+        """
+        if isinstance(other, TruncatedGaussianPrior):
+            mean_close = np.isclose(self.mean, other.mean, rtol=0, atol=1e-9)
+            var_close = np.isclose(self.var, other.var, rtol=1e-12, atol=0)
+            if self.hi is None:
+                hi_close = (other.hi is None)
+            elif other.hi is not None:
+                hi_close = np.isclose(self.hi, other.hi, rtol=0, atol=1e-9)
+            else:
+                # since self.hi is not None in this block, just return False
+                return False
+            if self.lo is None:
+                lo_close = (other.lo is None)
+            elif other.lo is not None:
+                lo_close = np.isclose(self.lo, other.lo, rtol=0, atol=1e-9)
+            else:
+                return False
+            return mean_close and var_close and hi_close and lo_close
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. The low, 
+        high, mean, and variance values need to be saved along with the class
+        name.
+        """
+        group.attrs['class'] = 'TruncatedGaussianPrior'
+        group.attrs['low'] = self.lo
+        group.attrs['high'] = self.hi
+        group.attrs['mean'] = self.mean
+        group.attrs['variance'] = self.var
+
 
 ########### Multivariate priors (Gaussian can also be univariate) #############
 
@@ -538,7 +1013,7 @@ class GaussianPrior(_Prior):
             raise ValueError("The mean of a Gaussian prior " +\
                              "is not of a recognizable type.")
         self.invcov = lalg.inv(self.covariance)
-        self.detcov = lalg.det(self.covariance)
+        self.logdetcov = lalg.slogdet(self.covariance)[1]
     
     def _check_covariance_when_mean_has_size_1(self, true_mean, covariance):
         #
@@ -578,7 +1053,98 @@ class GaussianPrior(_Prior):
             raise AttributeError("For some reason, I don't know how" +\
                                  " many parameters this GaussianPrior has!")
         return self._numparams
+    
+    def __add__(self, other):
+        """
+        Adds other to this Gaussian variate. The result of this operation is a
+        Gaussian with a shifted mean but identical covariance.
+        
+        other: must be castable to the 1D array shape of the Gaussian variate
+               described by this prior
+        """
+        return GaussianPrior(self.mean.A[0] + other, self.covariance.A)
+    
+    def __radd__(self, other):
+        """
+        Returns the same thing as __add__ (this makes addition commutative).
+        """
+        return self.__add__(other)
+    
+    def __mul__(self, other):
+        """
+        Multiplies the Gaussian random variate described by this prior by the
+        given object.
 
+        other: if other is a constant, the returned GaussianPrior is the same
+                                       as this one with the mean multiplied by
+                                       other and the covariance multiplied by
+                                       other**2
+               if other is a 1D numpy.ndarray, it must be of the same length
+                                               as the dimension of this
+                                               Gaussian. In this case, the
+                                               returned Gaussian is the
+                                               distribution of the dot product
+                                               of the this Gaussian variate
+                                               with other
+               if other is a 2D numpy.ndarray, it must have shape
+                                               (newparams, self.numparams)
+                                               where newparams<=self.numparams
+                                               The returned Gaussian is the
+                                               distribution of other (matrix)
+                                               multiplied with this Gaussian
+                                               variate
+        
+        returns: GaussianPrior representing the multiplication of this Gaussian
+                 variate by other
+        """
+        if type(other) in [list, tuple, np.ndarray]:
+            other = np.array(other)
+            if other.ndim == 1:
+                if len(other) == self.numparams:
+                    new_mean = np.dot(self.mean.A[0], other)
+                    new_covariance =\
+                        np.dot(np.dot(self.covariance.A, other), other)
+                else:
+                    raise ValueError("Cannot multiply Gaussian distributed " +\
+                                     "random vector by a vector of " +\
+                                     "different size.")
+            elif other.ndim == 2:
+                if other.shape[1] == self.numparams:
+                    if other.shape[0] <= self.numparams:
+                        # other is a matrix with self.numparams columns
+                        new_mean = np.dot(other, self.mean.A[0])
+                        new_covariance =\
+                            np.dot(other, np.dot(self.covariance.A, other.T))
+                    else:
+                        raise ValueError("Cannot multiply Gaussian " +\
+                                         "distributed random vector by " +\
+                                         "matrix which will expand the " +\
+                                         "number of parameters because the " +\
+                                         "covariance matrix of the result " +\
+                                         "would be singular.")
+                else:
+                    raise ValueError("Cannot multiply given matrix with " +\
+                                     "Gaussian distributed random vector " +\
+                                     "because the axis of its second " +\
+                                     "dimension is not the same length as " +\
+                                     "the random vector.")
+            else:
+                raise ValueError("Cannot multiply Gaussian distributed " +\
+                                 "random vector by a tensor with more than " +\
+                                 "3 indices.")
+        else:
+            # assume other is a constant
+            new_mean = self.mean.A[0] * other
+            new_covariance = self.covariance.A * (other ** 2)
+        return GaussianPrior(new_mean, new_covariance)
+        
+    
+    def __rmul__(self, other):
+        """
+        Returns the same thing as __mul__ (this makes multiplication
+        commutative).
+        """
+        return self.__mul__(other)
 
     def draw(self):
         """
@@ -610,7 +1176,7 @@ class GaussianPrior(_Prior):
                              "(should be if prior is univariate) or of a " +\
                              "list type (should be if prior is multivariate).")
         expon = np.float64(minus_mean * self.invcov * minus_mean.T) / 2.
-        return -1. * (np.log(self.detcov) / 2. + expon +\
+        return -1. * ((self.logdetcov / 2.) + expon +\
             ((self.numparams * np.log(two_pi)) / 2.))
 
     def to_string(self):
@@ -622,6 +1188,33 @@ class GaussianPrior(_Prior):
                 (self.mean.A[0,0], self.covariance.A[0,0])
         else:
             return "%i-dim Normal" % (len(self.mean.A[0]),)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a GaussianPrior with the same mean (down to 10^-9 level) and variance
+        (down to 10^-12 dynamic range) and False otherwise.
+        """
+        if isinstance(other, GaussianPrior):
+            if self.numparams == other.numparams:
+                mean_close =\
+                    np.allclose(self.mean.A, other.mean.A, rtol=0, atol=1e-9)
+                covariance_close = np.allclose(self.covariance.A,\
+                    other.covariance.A, rtol=1e-12, atol=0)
+            return mean_close and covariance_close
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. The fact
+        that this is a Gaussian is saved along with the mean and covariance.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'GaussianPrior'
+        group.create_dataset('mean', data=self.mean.A[0])
+        group.create_dataset('covariance', data=self.covariance.A)
 
 
 class ParallelepipedPrior(_Prior):
@@ -801,14 +1394,44 @@ class ParallelepipedPrior(_Prior):
             return_val =\
                 (return_val and (np.abs(dotp) <= np.abs(self.distances[i])))
         return return_val
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a ParallelepipedPrior with the same center, face_directions, and
+        distances (to a dynamic range of 10^-9) and False otherwise.
+        """
+        if isinstance(other, ParallelepipedPrior):
+            center_close =\
+                np.allclose(self.center, other.center, rtol=1e-9, atol=0)
+            face_directions_close = np.allclose(self.face_directions.A,\
+                other.face_directions.A, rtol=1e-9, atol=0)
+            distances_close =\
+                np.allclose(self.distances, other.distances, rtol=1e-9, atol=0)
+            return center_close and face_directions_close and distances_close
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. The class
+        name of the prior is saved along with the center, face_directions, and
+        distances.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'ParallelepipedPrior'
+        group.create_dataset('center', data=self.center)
+        group.create_dataset('face_directions', data=self.face_directions)
+        group.create_dataset('distances', data=self.distances)
 
 
 class LinkedPrior(_Prior):
     """
     Class representing a prior which is shared by an arbitrary number of
-    parameters. It piggybacks on another prior (called the "shared_prior") by
-    drawing from it and evaluating its log_prior while ensuring that the
-    variables linked by this prior must be identical.
+    parameters. It piggybacks on another (univariate) prior (called the
+    "shared_prior") by drawing from it and evaluating its log_prior while
+    ensuring that the variables linked by this prior must be identical.
     """
     def __init__(self, shared_prior, numpars):
         """
@@ -886,6 +1509,30 @@ class LinkedPrior(_Prior):
         Finds and returns a string representation of this LinkedPrior.
         """
         return "Linked(%s)" % (self.shared_prior.to_string(),)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a LinkedPrior with the same number of parameters and the same shared
+        prior distribution and False otherwise.
+        """
+        if isinstance(other, LinkedPrior):
+            numparams_equal = (self.numparams == other.numparams)
+            shared_prior_equal = (self.shared_prior == other.shared_prior)
+            return numparams_equal and shared_prior_equal
+        return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. The class
+        name is saved alongside the component priors and the number of
+        parameters.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'LinkedPrior'
+        group.attrs['numparams'] = self.numparams
+        self.shared_prior.fill_hdf5_group(group.create_group('shared_prior'))
 
 
 class SequentialPrior(_Prior):
@@ -969,6 +1616,32 @@ class SequentialPrior(_Prior):
         Finds and returns a string representation of this SequentialPrior.
         """
         return "Sequential(%s)" % (self.shared_prior.to_string(),)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a SequentialPrior with the same number of parameters and the same
+        shared prior distribution and False otherwise.
+        """
+        if isinstance(other, SequentialPrior):
+            numparams_equal = (self.numparams == other.numparams)
+            shared_prior_equal = (self.shared_prior == other.shared_prior)
+            return numparams_equal and shared_prior_equal
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. That data
+        includes the class name, the number of parameters, and the shared
+        prior.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'SequentialPrior'
+        group.attrs['numparams'] = self.numparams
+        self.shared_prior.fill_hdf5_group(group.create_group('shared_prior'))
+        
 
 class GriddedPrior(_Prior):
     """
@@ -980,7 +1653,7 @@ class GriddedPrior(_Prior):
         Initializes a new GriddedPrior using the given variables.
         
         variables list of variable ranges (i.e. len(variables) == ndim
-                  and variables[i] is the range of the ith variable)
+                  and variables[i] is the set of the ith variables)
         pdf numpy.ndarray with same ndim as number of parameters and with
               the ith axis having the same length as the ith variables range
         """
@@ -1055,6 +1728,27 @@ class GriddedPrior(_Prior):
         Finds and returns a string representation of this GriddedPrior.
         """
         return "Gridded(user defined)"
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a GriddedPrior with the same variable ranges and pdf and False
+        otherwise.
+        """
+        if isinstance(other, GriddedPrior):
+            if self.numparams == other.numparams:
+                if self.shape == other.shape:
+                    vars_close =\
+                        np.allclose(self.vars, other.vars, rtol=0, atol=1e-9)
+                    pdf_close =\
+                        np.allclose(self.pdf, other.pdf, rtol=0, atol=1e-12)
+                    return vars_close and pdf_close
+                else:
+                    return False
+            else:
+                return False
+        else:
+            return False
 
     def _make_cdf(self):
         #
@@ -1176,4 +1870,90 @@ class GriddedPrior(_Prior):
         # Finds the index where the cdf has the given value.
         #
         return search_sorted(self.cdf, value)
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. The class
+        name, variables list, and pdf values.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'GriddedPrior'
+        group.attrs['numparams'] = self.numparams
+        for ivar in xrange(len(self.vars)):
+            group.attrs['variable_%i' % (ivar,)] = self.vars[ivar]
+        group.create_dataset('pdf', data=self.pdf)
+
+def load_prior_from_hdf5_group(group):
+    """
+    Loads a prior from the given hdf5 group.
+    
+    group: the hdf5 file group from which to load the prior
+    
+    returns: Prior object of the correct type
+    """
+    try:
+        class_name = group.attrs['class']
+    except KeyError:
+        raise ValueError("group given does not appear to contain a prior.")
+    if class_name == 'GammaPrior':
+        shape = group.attrs['shape']
+        scale = group.attrs['scale']
+        return GammaPrior(shape, scale=scale)
+    elif class_name == 'BetaPrior':
+        alpha = group.attrs['alpha']
+        beta = group.attrs['beta']
+        return BetaPrior(alpha, beta)
+    elif class_name == 'PoissonPrior':
+        scale = group.attrs['scale']
+        return PoissonPrior(scale)
+    elif class_name == 'ExponentialPrior':
+        rate = group.attrs['rate']
+        shift = group.attrs['shift']
+        return ExponentialPrior(rate, shift=shift)
+    elif class_name == 'DoubleSidedExponentialPrior':
+        mean = group.attrs['mean']
+        variance = group.attrs['variance']
+        return DoubleSidedExponentialPrior(mean, variance)
+    elif class_name == 'EllipticalPrior':
+        mean = group['mean'].value
+        covariance = group['covariance'].value
+        return EllipticalPrior(mean, covariance)
+    elif class_name == 'UniformPrior':
+        low = group.attrs['low']
+        high = group.attrs['high']
+        return UniformPrior(low=low, high=high)
+    elif class_name == 'TruncatedGaussianPrior':
+        mean = group.attrs['mean']
+        variance = group.attrs['variance']
+        low = group.attrs['low']
+        high = group.attrs['high']
+        return TruncatedGaussianPrior(mean, variance, low=low, high=high)
+    elif class_name == 'GaussianPrior':
+        mean = group['mean'].value
+        covariance = group['covariance'].value
+        return GaussianPrior(mean, covariance)
+    elif class_name == 'ParallelepipedPrior':
+        center = group['center'].value
+        face_directions = group['face_directions'].value
+        distances = group['distances'].value
+        return ParallelepipedPrior(center, face_directions, distances)
+    elif class_name == 'LinkedPrior':
+        numparams = group.attrs['numparams']
+        shared_prior = load_prior_from_hdf5_group(group['shared_prior'])
+        return LinkedPrior(shared_prior, numparams)
+    elif class_name == 'SequentialPrior':
+        numparams = group.attrs['numparams']
+        shared_prior = load_prior_from_hdf5_group(group['shared_prior'])
+        return SequentialPrior(shared_prior=shared_prior, numpars=numparams)
+    elif class_name == 'GriddedPrior':
+        variables = []
+        ivar = 0
+        while ('variable_%i' % (ivar,)) in group.attrs:
+            variables.append(group.attrs['variable_%i' % (ivar,)])
+            ivar += 1
+        pdf = group['pdf'].value
+        return GriddedPrior(variables=variables, pdf=pdf)
+    else:
+        raise ValueError("The class of the prior was not recognized.")
 

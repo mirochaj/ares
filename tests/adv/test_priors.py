@@ -1,8 +1,9 @@
 import time
 import numpy as np
 from ares.inference.Priors import GaussianPrior, UniformPrior,\
-    ParallelepipedPrior, ExponentialPrior, BetaPrior, GammaPrior,\
-    TruncatedGaussianPrior, LinkedPrior, SequentialPrior, GriddedPrior
+    ParallelepipedPrior, ExponentialPrior, DoubleSidedExponentialPrior,\
+    BetaPrior, GammaPrior, TruncatedGaussianPrior, LinkedPrior,\
+    SequentialPrior, GriddedPrior, EllipticalPrior, PoissonPrior
 import matplotlib.pyplot as pl
 import matplotlib.cm as cm
 
@@ -12,10 +13,13 @@ t00 = time.time()
 sample_size = int(1e5)
 
 uniform_test = True
+poisson_test = True
 exponential_test = True
+double_sided_exponential_test = True
 beta_test = True
 gamma_test = True
 truncated_gaussian_test = True
+elliptical_test = True
 univariate_gaussian_test = True
 multivariate_gaussian_test = True
 parallelepiped_test = True
@@ -54,6 +58,26 @@ if uniform_test:
 ###############################################################################
 ###############################################################################
 
+if poisson_test:
+    pp = PoissonPrior(10.)
+    assert pp.numparams == 1
+    t0 = time.time()
+    pp_sample = [pp.draw() for i in range(sample_size)]
+    print ('It took %.5f s to draw %i ' % (time.time() - t0, sample_size)) +\
+          'points from a double-sided exponential distribution.'
+    pl.figure()
+    pl.hist(pp_sample, bins=np.arange(-49.5, 51, 1), histtype='step',\
+        color='b', linewidth=2, normed=True, label='sampled')
+    (start, end) = (-20, 20)
+    xs = np.linspace(start, end, end - start + 1).astype(int)
+    pl.plot(xs, map((lambda x : np.exp(pp.log_prior(x))), xs), linewidth=2,\
+        color='r', label='e^(log_prior)')
+    pl.legend(fontsize='xx-large', loc='upper right')
+    pl.title('Poisson prior test', size='xx-large')
+    pl.xlabel('Value', size='xx-large')
+    pl.ylabel('PDF', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+
 
 ############################# ExponentialPrior test ###########################
 ###############################################################################
@@ -63,7 +87,7 @@ if exponential_test:
     assert ep.numparams == 1
     t0 = time.time()
     expon_sample = [ep.draw() for i in range(sample_size)]
-    print ('It took %.5f s to draw %i ' % (time.time()-t0, sample_size)) +\
+    print ('It took %.5f s to draw %i ' % (time.time() - t0, sample_size)) +\
           'points from an exponential distribution.'
     pl.figure()
     pl.hist(expon_sample, bins=100, histtype='step', color='b', linewidth=2,\
@@ -79,6 +103,25 @@ if exponential_test:
 
 ###############################################################################
 ###############################################################################
+
+if double_sided_exponential_test:
+    dsep = DoubleSidedExponentialPrior(0., 1.)
+    assert dsep.numparams == 1
+    t0 = time.time()
+    dsexpon_sample = [dsep.draw() for i in range(sample_size)]
+    print ('It took %.5f s to draw %i ' % (time.time() - t0, sample_size)) +\
+          'points from a double-sided exponential distribution.'
+    pl.figure()
+    pl.hist(dsexpon_sample, bins=100, histtype='step', color='b', linewidth=2,\
+        normed=True, label='sampled')
+    xs = np.arange(-9., 9., 0.01)
+    pl.plot(xs, map((lambda x : np.exp(dsep.log_prior(x))), xs), linewidth=2,\
+        color='r', label='e^(log_prior)')
+    pl.legend(fontsize='xx-large', loc='upper right')
+    pl.title('Double-sided exponential sample test', size='xx-large')
+    pl.xlabel('Value', size='xx-large')
+    pl.ylabel('PDF', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
 
 
 ############################### BetaPrior test ################################
@@ -154,6 +197,45 @@ if truncated_gaussian_test:
     pl.ylabel('PDF', size='xx-large')
     pl.tick_params(labelsize='xx-large', width=2, length=6)
     pl.legend(fontsize='xx-large')
+
+############################ EllipticalPrior test #############################
+###############################################################################
+
+if elliptical_test:
+    ellmean = [4.76, -12.64]
+    ellcov = [[1, -0.5], [-0.5, 1]]
+    ellp = EllipticalPrior(ellmean, ellcov)
+    t0 = time.time()
+    ellp_sample = [ellp.draw() for i in range(sample_size)]
+    print (('It took %.3f s for a sample ' % (time.time()-t0)) +\
+          ('of size %i' % (sample_size,)) +\
+          ' to be drawn from a uniform multivariate elliptical prior.')
+    ellp_xs = [ellp_sample[idraw][0] for idraw in range(sample_size)]
+    ellp_ys = [ellp_sample[idraw][1] for idraw in range(sample_size)]
+    pl.figure()
+    pl.hist2d(ellp_xs, ellp_ys, bins=50, cmap=def_cm)
+    pl.title('Multivariate elliptical prior (2 dimensions) with ' +\
+             ('mean=%s and covariance=%s' % (ellmean, ellcov,)),\
+             size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+    xs = np.arange(2.7, 6.9, 0.05)
+    ys = np.arange(-14.7, -10.5, 0.05)
+    row_size = len(xs)
+    (xs, ys) = np.meshgrid(xs, ys)
+    logpriors = np.ndarray(xs.shape)
+    for ix in range(row_size):
+        for iy in range(row_size):
+            logpriors[ix,iy] = ellp.log_prior([xs[ix,iy], ys[ix,iy]])
+    pl.figure()
+    pl.imshow(np.exp(logpriors), cmap=def_cm, extent=[2.7, 6.85,-14.7,-10.45],\
+        origin='lower')
+    pl.title('e^(log_prior) for EllipticalPrior',\
+        size='xx-large')
+    pl.xlabel('x', size='xx-large')
+    pl.ylabel('y', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
 
 ############################# GaussianPrior tests #############################
 ###############################################################################

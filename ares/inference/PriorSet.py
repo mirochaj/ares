@@ -1,9 +1,10 @@
 """
-PriorSet.py
+File: $ARES/ares/inference/PriorSet.py
 
 Author: Keith Tauscher
 Affiliation: University of Colorado at Boulder
 Created on: Sat Mar 19 15:01:00 2016
+Updated on: Tue Feb 28 00:37:34 2017
 
 Description: A container which can hold an arbitrary number of priors, each of
              which can have any number of parameters which it describes (as
@@ -16,12 +17,14 @@ Description: A container which can hold an arbitrary number of priors, each of
              PriorSet.log_prior(point). See documentation of individual
              functions for further details.
 """
-
+import h5py
 import numpy as np
-from .Priors import _Prior
+from .Priors import _Prior, load_prior_from_hdf5_group
 
 list_types = [list, tuple, np.ndarray]
-valid_transforms = ['log', 'square', 'arcsin']
+valid_transforms = ['log', 'log10', 'square', 'arcsin', 'logistic']
+
+ln10 = np.log(10)
 
 def _check_if_valid_transform(transform):
     #
@@ -46,10 +49,14 @@ def _log_prior_addition(value, transform):
         return 0.
     elif transform == 'log':
         return -1. * np.log(value)
+    elif transform == 'log10':
+        return -1. * np.log(ln10 * value)
     elif transform == 'square':
         return np.log(2 * value)
     elif transform == 'arcsin':
         return -np.log(1.-np.power(value, 2.)) / 2.
+    elif transform == 'logistic':
+        return -np.log(value * (1. - value))
     else:
         raise ValueError("For some reason the _log_prior_addition " +\
                          "function wasn't implemented for the transform " +\
@@ -63,10 +70,14 @@ def _apply_transform(value, transform):
         return value
     elif transform == 'log':
         return np.log(value)
+    elif transform == 'log10':
+        return np.log10(value)
     elif transform == 'square':
         return np.power(value, 2.)
     elif transform == 'arcsin':
         return np.arcsin(value)
+    elif transform == 'logistic':
+        return np.log(value / (1. - value))
     else:
         raise ValueError("Something went wrong and an attempt to evaluate " +\
                          "an invalid transform was made. This should " +\
@@ -80,11 +91,15 @@ def _apply_inverse_transform(value, transform):
     if transform is None:
         return value
     elif transform == 'log':
-        return np.exp(value)
+        return np.e ** value
+    elif transform == 'log10':
+        return 10. ** value
     elif transform == 'square':
         return np.sqrt(value)
     elif transform == 'arcsin':
         return np.sin(value)
+    elif transform == 'logistic':
+        return 1 / (1. + (np.e ** (-value)))
     else:
         raise ValueError("Something went wrong and an attempt to evaluate" +\
                          " an invalid (inverse) transform was made. This" +\
@@ -167,8 +182,8 @@ class PriorSet(object):
                                      "prior being provided was multivariate.")
             elif type(transforms) in list_types:
                 if len(transforms) == prior.numparams:
-                    for itran in range(len(transforms)):
-                        _check_if_valid_transform(transforms[itran])
+                    for itransform in range(len(transforms)):
+                        _check_if_valid_transform(transforms[itransform])
                 else:
                     raise ValueError("The list of transforms applied to " +\
                                      "parameters in a PriorSet was not " +\
@@ -284,9 +299,45 @@ class PriorSet(object):
             for iparam in range(len(these_params)):
                 if parameter == these_params[iparam]:
                     return (this_prior, iparam, these_transforms[iparam])
-        raise ValueError(("The parameter searched for (%s)" % (parameter,)) +\
+        raise ValueError(("The parameter searched for (%s) " % (parameter,)) +\
                          "in a PriorSet was not found.")
+    
+    def __getitem__(self, parameter):
+        """
+        Returns the same thing as: self.find_prior(parameter)
+        """
+        return self.find_prior(parameter)
 
+    def delete_prior(self, parameter, throw_error=True):
+        """
+        Deletes a prior from this PriorSet.
+        
+        parameter a parameter in the prior
+        throw_error if True (default), an error is thrown if the parameter
+                    is not found
+        """
+        for iprior in range(len(self._data)):
+            (this_prior, these_params, these_transforms) = self._data[iprior]
+            if parameter in these_params:
+                to_delete = iprior
+                break
+        try:
+            for par in self._data[to_delete][1]:
+                self._params.remove(par)
+            self._data = self._data[:to_delete] + self._data[to_delete + 1:]
+        except:
+            if throw_error:
+                raise ValueError('The parameter given to ' +\
+                                 'PriorSet.delete_prior was not in ' +\
+                                 'the PriorSet.')
+    
+    def __delitem__(self, parameter):
+        """
+        Deletes the prior associated with the given parameter. For
+        documentation, see delete_prior function.
+        """
+        self.delete_prior(parameter, throw_error=True)
+    
     def parameter_strings(self, parameter):
         """
         Makes an informative string about this parameter's place in this
@@ -302,12 +353,58 @@ class PriorSet(object):
             string += (self._numerical_adjective(index) + ' param of ')
         string += prior.to_string()
         return (string, transform)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this PriorSet with other. Returns True if other
+        has the same prior_tuples (though they need not be internally stored in
+        the same order) and False otherwise.
+        """
+        def prior_tuples_equal(first, second):
+            #
+            # Checks whether two prior_tuple's are equal. Returns True if the
+            # prior, params, and transforms stored in first are the same as
+            # those stored in second and False otherwise.
+            #
+            fprior, fparams, ftfms = first
+            sprior, sparams, stfms = second
+            numparams = fprior.numparams
+            if sprior.numparams == numparams:
+                for iparam in range(numparams):
+                    if fparams[iparam] != sparams[iparam]:
+                        return False
+                    if ftfms[iparam] != sparams[iparam]:
+                        return False
+                return (fprior == sprior)
+            else:
+                return False
+        if isinstance(other, PriorSet):
+            numtuples = len(self._data)
+            if len(other._data) == numtuples:
+                for iprior_tuple in range(numtuples):
+                    match = False
+                    prior_tuple = self._data[iprior_tuple]
+                    for other_prior_tuple in other._data:
+                        if prior_tuples_equal(prior_tuple, other_prior_tuple):
+                            match = True
+                            break
+                    if not match:
+                        return False
+                return True
+            else:
+                return False        
+        else:
+            return False
+    
+    def __ne__(self, other):
+        return (not self.__eq__(other))
 
     def _numerical_adjective(self, num):
         #
         # Creates a numerical adjective, such as '1st', '2nd', '6th' and so on.
         #
-        if (type(num) in [int, np.int32, np.int64]) and (num >= 0):
+        if (type(num) in [int, np.int8, np.int16, np.int32, np.int64]) and\
+            (num >= 0):
             base_string = str(num)
             if num == 0:
                 return '0th'
@@ -332,7 +429,7 @@ class PriorSet(object):
             raise ValueError("A parameter provided to a " +\
                              "PriorSet was not a string.")
         broken = False
-        for iprior in range(len(self._data)):
+        for iprior in xrange(len(self._data)):
             for param in self._data[iprior]:
                 if name == param:
                     broken = True
@@ -342,4 +439,46 @@ class PriorSet(object):
         if broken:
             raise ValueError("The name of a parameter provided" +\
                              " to a PriorSet is already taken.")
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this PriorSet. Each
+        prior tuple is saved as a subgroup in the hdf5 file.
+        
+        group: the hdf5 file group to fill
+        """
+        for (ituple, (prior, params, transforms)) in self._data:
+            subgroup = group.create_group('prior_%i' % (ituple,))
+            prior.fill_hdf5_group(subgroup)
+            subgroup.attrs['params'] = params
+            subgroup.attrs['transforms'] = transforms
+
+    def save(self, file_name):
+        """
+        Saves PriorSet in hdf5 file using the fill_hdf5_file group function.
+        
+        file_name: name of hdf5 file to write
+        """
+        hdf5_file = h5py.File(file_name, 'w')
+        self.fill_hdf5_group(hdf5_file)
+        hdf5_file.close()
+
+def load_prior_set_from_hdf5_group(group):
+    """
+    Loads PriorSet object from the given hdf5 group.
+    
+    group: hdf5 file group from which to read data about the PriorSet
+    
+    returns: PriorSet object
+    """
+    ituple = 0
+    prior_tuples = []
+    while ('prior_%i' % (ituple,)) in group:
+        subgroup = group['prior_%i' % (ituple,)]
+        prior = load_prior_from_hdf5_group(subgroup)
+        params = subgroup.attrs['params']
+        transforms = subgroup.attrs['transforms']
+        prior_tuples.append((prior, params, transforms))
+        ituple += 1
+    return PriorSet(prior_tuples=prior_tuples)
 
