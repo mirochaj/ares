@@ -3,7 +3,7 @@ import numpy as np
 from ares.inference.Priors import GaussianPrior, UniformPrior,\
     ParallelepipedPrior, ExponentialPrior, DoubleSidedExponentialPrior,\
     BetaPrior, GammaPrior, TruncatedGaussianPrior, LinkedPrior,\
-    SequentialPrior, GriddedPrior, EllipticalPrior
+    SequentialPrior, GriddedPrior, EllipticalPrior, PoissonPrior
 import matplotlib.pyplot as pl
 import matplotlib.cm as cm
 
@@ -13,6 +13,7 @@ t00 = time.time()
 sample_size = int(1e5)
 
 uniform_test = True
+poisson_test = True
 exponential_test = True
 double_sided_exponential_test = True
 beta_test = True
@@ -56,6 +57,26 @@ if uniform_test:
 
 ###############################################################################
 ###############################################################################
+
+if poisson_test:
+    pp = PoissonPrior(10.)
+    assert pp.numparams == 1
+    t0 = time.time()
+    pp_sample = [pp.draw() for i in range(sample_size)]
+    print ('It took %.5f s to draw %i ' % (time.time() - t0, sample_size)) +\
+          'points from a double-sided exponential distribution.'
+    pl.figure()
+    pl.hist(pp_sample, bins=np.arange(-49.5, 51, 1), histtype='step',\
+        color='b', linewidth=2, normed=True, label='sampled')
+    (start, end) = (-20, 20)
+    xs = np.linspace(start, end, end - start + 1).astype(int)
+    pl.plot(xs, map((lambda x : np.exp(pp.log_prior(x))), xs), linewidth=2,\
+        color='r', label='e^(log_prior)')
+    pl.legend(fontsize='xx-large', loc='upper right')
+    pl.title('Poisson prior test', size='xx-large')
+    pl.xlabel('Value', size='xx-large')
+    pl.ylabel('PDF', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
 
 
 ############################# ExponentialPrior test ###########################

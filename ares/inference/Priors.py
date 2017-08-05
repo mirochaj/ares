@@ -25,31 +25,37 @@ in support):
     (mean) --- alpha / (alpha+beta)
     (variance) (alpha * beta) / (alpha + beta)^2 / (alpha + beta + 1)
 
-(3) ExponentialPrior(rate, shift=0)
+(3) PoissonPrior(scale)
+    (pdf) --  f(k) = scale^k * e^(-scale) / k!
+    (support) --- non-negative integer k
+    (mean) --- scale
+    (variance) --- scale
+
+(4) ExponentialPrior(rate, shift=0)
     (pdf) --- f(x) = rate * e^(-rate * (x - shift))
     (support) --- x>0
     (mean) --- 1 / rate
     (variance) --- 1 / rate^2
 
-(4) DoubleSidedExponentialPrior(mean, variance)
+(5) DoubleSidedExponentialPrior(mean, variance)
     (pdf) --- f(x) = e^(-|(x - mean) / sqrt(variance/2)|) / (sqrt(2*variance))
     (support) --- real x
     (mean) --- mean
     (variance) --- variance
 
-(5) UniformPrior(low, high)
+(6) UniformPrior(low, high)
     (pdf) --- f(x) = 1 / (high - low)
     (support) --- low < x < high
     (mean) --- (low + high) / 2
     (variance) --- (high - low)^2 / 12
 
-(6) GaussianPrior(mean, variance)
+(7) GaussianPrior(mean, variance)
     (pdf) --- f(x) = e^(- (x - mean)^2 / (2 * variance)) / sqrt(2pi * variance)
     (support) --- -infty < x < infty
     (mean) --- mean
     (variance) --- variance
 
-(7) TruncatedGaussianPrior(mean, variance, low, high)
+(8) TruncatedGaussianPrior(mean, variance, low, high)
     (pdf) --- rescaled and truncated version of pdf of GaussianPrior
     (support) --- low < x < high
     (mean) --- no convenient expression; in limit, approaches mean
@@ -109,7 +115,9 @@ from scipy.special import beta as beta_func
 from scipy.special import gammaln as log_gamma
 from scipy.special import erf, erfinv
 
-numerical_types = [int, float, np.int32, np.int64, np.float32, np.float64]
+int_types = [int, np.int16, np.int32, np.int64]
+float_types = [float, np.float32, np.float64]
+numerical_types = int_types + float_types
 list_types = [list, tuple, np.ndarray, np.matrix]
 
 two_pi = 2 * np.pi
@@ -375,6 +383,81 @@ class BetaPrior(_Prior):
         group.attrs['alpha'] = self.alpha
         group.attrs['beta'] = self.beta
 
+class PoissonPrior(_Prior):
+    """
+    Prior with support on the nonnegative integers. It has only one parameter,
+    the scale, which is both its mean and its variance.
+    """
+    def __init__(self, scale):
+        """
+        Initializes new PoissonPrior with given scale.
+        
+        scale: mean and variance of distribution (must be positive)
+        """
+        if type(scale) in numerical_types:
+            if scale > 0:
+                self.scale = (scale * 1.)
+            else:
+                raise ValueError("scale given to PoissonPrior was not " +\
+                                 "positive.")
+        else:
+            raise ValueError("scale given to PoissonPrior was not a number.")
+    
+    @property
+    def numparams(self):
+        """
+        Poisson pdf is univariate so numparams always returns 1.
+        """
+        return 1
+    
+    def draw(self):
+        """
+        Draws and returns a value from this distribution using numpy.random.
+        """
+        return rand.poisson(lam=self.scale)
+    
+    def log_prior(self, value):
+        """
+        Evaluates and returns the log of this prior when the variable is value.
+        
+        value: numerical value of the variable
+        """
+        if type(value) in int_types:
+            if value >= 0:
+                return (value * np.log(self.scale)) - self.scale -\
+                    log_gamma(value + 1)
+            else:
+                return -np.inf
+        else:
+            raise TypeError("value given to PoissonPrior was not an integer.")
+
+    def to_string(self):
+        """
+        Finds and returns a string version of this PoissonPrior.
+        """
+        return "Poisson(%.4g)" % (self.scale,)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a PoissonPrior with the same scale.
+        """
+        if isinstance(other, PoissonPrior):
+            return np.isclose(self.scale, other.scale, rtol=1e-6, atol=1e-6)
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this prior. The only
+        thing to save is the scale.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'PoissonPrior'
+        group.attrs['scale'] = self.scale
+        
+
 class ExponentialPrior(_Prior):
     """
     Prior on a single distribution with exponential distribution. Exponential
@@ -514,12 +597,7 @@ class DoubleSidedExponentialPrior(_Prior):
         """
         Draws and returns a value from this distribution using numpy.random.
         """
-        random_value = rand.rand()
-        if random_value < 0.5:
-            to_log = random_value * 2
-        else:
-            to_log = 0.5 / (1 - random_value)
-        return self.mean + (self.root_half_variance * np.log(to_log))
+        return rand.laplace(loc=self.mean, scale=self.root_half_variance)
     
     def log_prior(self, value):
         """
@@ -1826,6 +1904,9 @@ def load_prior_from_hdf5_group(group):
         alpha = group.attrs['alpha']
         beta = group.attrs['beta']
         return BetaPrior(alpha, beta)
+    elif class_name == 'PoissonPrior':
+        scale = group.attrs['scale']
+        return PoissonPrior(scale)
     elif class_name == 'ExponentialPrior':
         rate = group.attrs['rate']
         shift = group.attrs['shift']
