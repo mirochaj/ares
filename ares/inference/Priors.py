@@ -31,19 +31,25 @@ in support):
     (mean) --- 1 / rate
     (variance) --- 1 / rate^2
 
-(4) UniformPrior(low, high)
+(4) DoubleSidedExponentialPrior(mean, variance)
+    (pdf) --- f(x) = e^(-|(x - mean) / sqrt(variance/2)|) / (sqrt(2*variance))
+    (support) --- real x
+    (mean) --- mean
+    (variance) --- variance
+
+(5) UniformPrior(low, high)
     (pdf) --- f(x) = 1 / (high - low)
     (support) --- low < x < high
     (mean) --- (low + high) / 2
     (variance) --- (high - low)^2 / 12
 
-(5) GaussianPrior(mean, variance)
+(6) GaussianPrior(mean, variance)
     (pdf) --- f(x) = e^(- (x - mean)^2 / (2 * variance)) / sqrt(2pi * variance)
     (support) --- -infty < x < infty
     (mean) --- mean
     (variance) --- variance
 
-(6) TruncatedGaussianPrior(mean, variance, low, high)
+(7) TruncatedGaussianPrior(mean, variance, low, high)
     (pdf) --- rescaled and truncated version of pdf of GaussianPrior
     (support) --- low < x < high
     (mean) --- no convenient expression; in limit, approaches mean
@@ -456,6 +462,102 @@ class ExponentialPrior(_Prior):
         group.attrs['class'] = 'ExponentialPrior'
         group.attrs['rate'] = self.rate
         group.attrs['shift'] = self.shift
+
+
+class DoubleSidedExponentialPrior(_Prior):
+    """
+    Prior on a single distribution with a double-sided exponential
+    distribution. Double sided exponential distributions are "peak"ier than
+    Gaussians.
+    """
+    def __init__(self, mean, variance):
+        """
+        Initializes a new DoubleSidedExponentialPrior with the given
+        parameters.
+        
+        mean: mean, mode and median of the distribution
+        variance: variance of distribution
+        """
+        if type(mean) in numerical_types:
+            self.mean = (mean * 1.)
+        else:
+            raise ValueError('The mean parameter given to a ' +\
+                             'DoubleSidedExponentialPrior was not of a ' +\
+                             'numerical type.')
+        if type(variance) in numerical_types:
+            if variance > 0:
+                self.variance = (1. * variance)
+            else:
+                raise ValueError("The variance given to a " +\
+                                 "DoubleSidedExponentialPrior was not " +\
+                                 "positive.")
+        else:
+            raise ValueError("The variance given to a " +\
+                             "DoubleSidedExponentialPrior was not of " +\
+                             "numerical type.")
+        self._const_lp_term = (np.log(2) + np.log(self.variance)) / (-2)
+    
+    @property
+    def numparams(self):
+        """
+        Exponential pdf is univariate so numparams always returns 1.
+        """
+        return 1
+    
+    @property
+    def root_half_variance(self):
+        if not hasattr(self, '_root_half_variance'):
+            self._root_half_variance = np.sqrt(self.variance / 2.)
+        return self._root_half_variance
+    
+    def draw(self):
+        """
+        Draws and returns a value from this distribution using numpy.random.
+        """
+        random_value = rand.rand()
+        if random_value < 0.5:
+            to_log = random_value * 2
+        else:
+            to_log = 0.5 / (1 - random_value)
+        return self.mean + (self.root_half_variance * np.log(to_log))
+    
+    def log_prior(self, value):
+        """
+        Evaluates and returns the log of this prior when the variable is value.
+        
+        value numerical value of the variable
+        """
+        return self._const_lp_term -\
+            (np.abs(value - self.mean) / self.root_half_variance)
+
+    def to_string(self):
+        """
+        Finds and returns a string version of this DoubleSidedExponentialPrior.
+        """
+        return "DSExp(%.2g, %.2g)" % (self.mean, self.variance)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        an DoubleSidedExponentialPrior with the same mean and sigma and False
+        otherwise.
+        """
+        if isinstance(other, DoubleSidedExponentialPrior):
+            return np.allclose([self.mean, self.variance],\
+                [other.mean, other.variance], rtol=1e-6, atol=1e-9)
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this prior. The only
+        things to save are the class name, rate, and shift.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'DoubleSidedExponentialPrior'
+        group.attrs['mean'] = self.rate
+        group.attrs['variance'] = self.variance
 
 
 class EllipticalPrior(_Prior):
@@ -1728,6 +1830,10 @@ def load_prior_from_hdf5_group(group):
         rate = group.attrs['rate']
         shift = group.attrs['shift']
         return ExponentialPrior(rate, shift=shift)
+    elif class_name == 'DoubleSidedExponentialPrior':
+        mean = group.attrs['mean']
+        variance = group.attrs['variance']
+        return DoubleSidedExponentialPrior(mean, variance)
     elif class_name == 'EllipticalPrior':
         mean = group['mean'].value
         covariance = group['covariance'].value

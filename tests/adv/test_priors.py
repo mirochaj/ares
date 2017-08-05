@@ -1,9 +1,9 @@
 import time
 import numpy as np
 from ares.inference.Priors import GaussianPrior, UniformPrior,\
-    ParallelepipedPrior, ExponentialPrior, BetaPrior, GammaPrior,\
-    TruncatedGaussianPrior, LinkedPrior, SequentialPrior, GriddedPrior,\
-    EllipticalPrior
+    ParallelepipedPrior, ExponentialPrior, DoubleSidedExponentialPrior,\
+    BetaPrior, GammaPrior, TruncatedGaussianPrior, LinkedPrior,\
+    SequentialPrior, GriddedPrior, EllipticalPrior
 import matplotlib.pyplot as pl
 import matplotlib.cm as cm
 
@@ -14,6 +14,7 @@ sample_size = int(1e5)
 
 uniform_test = True
 exponential_test = True
+double_sided_exponential_test = True
 beta_test = True
 gamma_test = True
 truncated_gaussian_test = True
@@ -65,7 +66,7 @@ if exponential_test:
     assert ep.numparams == 1
     t0 = time.time()
     expon_sample = [ep.draw() for i in range(sample_size)]
-    print ('It took %.5f s to draw %i ' % (time.time()-t0, sample_size)) +\
+    print ('It took %.5f s to draw %i ' % (time.time() - t0, sample_size)) +\
           'points from an exponential distribution.'
     pl.figure()
     pl.hist(expon_sample, bins=100, histtype='step', color='b', linewidth=2,\
@@ -81,6 +82,25 @@ if exponential_test:
 
 ###############################################################################
 ###############################################################################
+
+if double_sided_exponential_test:
+    dsep = DoubleSidedExponentialPrior(0., 1.)
+    assert dsep.numparams == 1
+    t0 = time.time()
+    dsexpon_sample = [dsep.draw() for i in range(sample_size)]
+    print ('It took %.5f s to draw %i ' % (time.time() - t0, sample_size)) +\
+          'points from a double-sided exponential distribution.'
+    pl.figure()
+    pl.hist(dsexpon_sample, bins=100, histtype='step', color='b', linewidth=2,\
+        normed=True, label='sampled')
+    xs = np.arange(-9., 9., 0.01)
+    pl.plot(xs, map((lambda x : np.exp(dsep.log_prior(x))), xs), linewidth=2,\
+        color='r', label='e^(log_prior)')
+    pl.legend(fontsize='xx-large', loc='upper right')
+    pl.title('Double-sided exponential sample test', size='xx-large')
+    pl.xlabel('Value', size='xx-large')
+    pl.ylabel('PDF', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
 
 
 ############################### BetaPrior test ################################

@@ -19,7 +19,7 @@ Description: A container which can hold an arbitrary number of priors, each of
 """
 import h5py
 import numpy as np
-from .Priors import _Prior
+from .Priors import _Prior, load_prior_from_hdf5_group
 
 list_types = [list, tuple, np.ndarray]
 valid_transforms = ['log', 'log10', 'square', 'arcsin', 'logistic']
