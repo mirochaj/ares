@@ -11,19 +11,40 @@ from .MultiPhaseMedium import MultiPhaseMedium
 
 # Distinguish between mean history and fluctuations?
 class PowerSpectrum(MultiPhaseMedium,BlobFactory):
-    
-    
-    #def IonizationHistory(self, ax=None, fig=1, **kwargs):
-    #    if ax is None:
-    #        gotax = False
-    #        fig = pl.figure(fig)
-    #        ax = fig.add_subplot(111)
-    #    else:
-    #        gotax = True
-    #       
+    def __init__(self, data=None, suffix='fluctuations', **kwargs):
+        """
+        Initialize analysis object.
         
-    
-    def PowerSpectrum(self, z, field='21', ax=None, fig=1, 
+        Parameters
+        ----------
+        data : dict, str
+            Either a dictionary containing the entire history or the prefix
+            of the files containing the history/parameters.
+
+        """
+                
+        MultiPhaseMedium.__init__(self, data=data, suffix=suffix, **kwargs)
+        
+    @property
+    def redshifts(self):
+        if not hasattr(self, '_redshifts'):
+            self._redshifts = self.history['z']
+        return self._redshifts
+        
+    @property
+    def gs(self):
+        if not hasattr(self, '_gs'):
+            if hasattr(self, 'prefix'):
+                self._gs = Global21cm(data=self.prefix)
+            elif 'dTb' in self.history:
+                hist = {'z': self.history['z'], 'dTb': self.history['dTb']}
+                self._gs = Global21cm(data=hist)
+            else:
+                raise AttributeError('Cannot initialize Global21cm instance!')
+                
+        return self._gs
+        
+    def PowerSpectrum(self, z, field='21', ax=None, fig=1,
         force_draw=False, dimensionless=True, take_sqrt=False, **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
@@ -34,11 +55,11 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             Axis on which to plot signal.
         fig : int
             Figure number.
-        
+
         Returns
         -------
         matplotlib.axes.AxesSubplot instance.
-        
+
         """
         
         if ax is None:
@@ -53,7 +74,12 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         k = self.history['k']
         
         ps_s = 'ps_%s' % field
-        if dimensionless:
+        if dimensionless and 'ps_21_dl' in self.history:
+            ps = self.history['ps_21_dl'][iz]
+            if take_sqrt:
+                ps = np.sqrt(ps)
+                
+        elif dimensionless:
             norm = self.history['dTb0'][iz]**2
             ps = norm * self.history[ps_s][iz] * k**3 / 2. / np.pi**2
             
@@ -71,17 +97,18 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             ax.set_xlabel(labels['k'], fontsize='x-large')
         
         if ax.get_ylabel() == '':  
-            if dimensionless: 
+            if dimensionless and 'ps_21_dl' in self.history:
+                ps = self.history['ps_21_dl']
+            elif dimensionless:
                 if take_sqrt:
                     ax.set_ylabel(r'$\Delta_{21}(k)$', fontsize='x-large')    
                 else: 
                     ax.set_ylabel(labels['dpow'], fontsize='x-large')    
             else:
                 ax.set_ylabel(labels['pow'], fontsize='x-large')    
-        
-        if 'label' in kwargs:
-            if kwargs['label'] is not None:
-                ax.legend(loc='best')
+                         
+        ax.set_xlim(1e-2, 10)
+        ax.set_ylim(1e-3, 1e4)
                  
         pl.draw()
         
@@ -186,7 +213,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
         V = 4. * np.pi * R**3 / 3.
 
-        Q = self.history['QHII'][iz]
+        Q = self.history['Qbar'][iz]
                 
         if by_volume:
             dndV = bsd * dmdr / dvdr
@@ -199,6 +226,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             ax.semilogx(R, V * dndlnR / Q, **kwargs)
             ax.set_xlabel(r'$R \ [\mathrm{Mpc}]$')
             ax.set_ylabel(r'$Q^{-1} V \ dn/dlnR$')
+            ax.set_yscale('linear')
             ax.set_ylim(0, 1)
 
         pl.draw()
@@ -219,7 +247,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         
         Qall = []
         for i, z in enumerate(self.redshifts):
-            Qall.append(self.history['QHII'][i])
+            Qall.append(self.history['Qbar'][i])
 
         ax.plot(self.redshifts, Qall, **kwargs)
         ax.set_xlabel(r'$z$')
@@ -231,40 +259,77 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         return ax
 
     def RedshiftEvolution(self, field='21', k=0.2, ax=None, fig=1, 
-        dimensionless=True, **kwargs):
+        dimensionless=True, show_gs=False, mp_kwargs={}, **kwargs):
         """
         Plot the fraction of the volume composed of ionized bubbles.
         """
+        
         if ax is None:
-            gotax = False
-            fig = pl.figure(fig)
-            ax = fig.add_subplot(111)
+            if show_gs:
+                if mp_kwargs == {}:
+                    mp_kwargs = {'padding': (0, 0.1)}
+                    
+                mp = MultiPanel(dims=(2, 1), **mp_kwargs)
+            else:    
+                gotax = False
+                fig = pl.figure(fig)
+                ax = fig.add_subplot(111)
         else:
             gotax = True
             
+            if show_gs:
+                assert isinstance(ax, MultiPanel)
+
+            mp = ax
+                    
         p = []
         for i, z in enumerate(self.redshifts):
-            pow_z = self.history['ps_%s' % field][i]
+            if dimensionless and 'ps_21_dl' in self.history:
+                pow_z = self.history['ps_21_dl'][i]
+            else:
+                pow_z = self.history['ps_%s' % field][i]
+            
             p.append(np.interp(k, self.history['k'], pow_z))
             
-        p = np.array(p)    
+        p = np.array(p)
         
-        if dimensionless:
+        if dimensionless and 'ps_21_dl' in self.history:
+            ps = p
+        elif dimensionless:
             norm = self.history['dTb0']**2
             ps = norm * p * k**3 / 2. / np.pi**2
         else:
             ps = p
-            
-        ax.plot(self.redshifts, ps, label=r'$k=%.2f$' % k, **kwargs)
-        ax.set_xlim(min(self.redshifts), max(self.redshifts))
-        ax.set_yscale('log')
-        ax.set_ylim(1e-2, 1e4)
-        ax.set_xlabel(r'$z$')
-        ax.set_ylabel(r'$\Delta_{21}^2 \ \left[\mathrm{mK}^2 \right]$')
+        
+        if show_gs or isinstance(ax, MultiPanel):
+            ax1 = mp.grid[0]
+        else:
+            ax1 = ax
+        
+        ax1.plot(self.redshifts, ps, **kwargs)
+        ax1.set_xlim(min(self.redshifts), max(self.redshifts))
+        ax1.set_yscale('log')
+        ax1.set_xlim(6, 30)
+        ax1.set_ylim(1e-2, 1e4)
+        ax1.set_xlabel(r'$z$')
+        
+        if dimensionless:
+            ax1.set_ylabel(labels['dpow'])
+        else:
+            ax1.set_ylabel(labels['pow'])
+        
+        if show_gs:
+            self.gs.GlobalSignature(ax=mp.grid[1], xaxis='z', **kwargs)
+            mp.grid[1].set_xlim(6, 30)
+            mp.grid[1].set_xticklabels([])
+            mp.grid[1].set_xlabel('')
         
         pl.draw()
         
-        return ax    
+        if show_gs or isinstance(ax, MultiPanel):
+            return mp
+        else:
+            return ax1
             
         
         

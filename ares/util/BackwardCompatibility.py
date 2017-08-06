@@ -58,6 +58,9 @@ def backward_compatibility(ptype, **kwargs):
             for i in range(3):
                 pf['pop_Mmin{%i}' % i] = kwargs['Mmin']
                 pf['pop_Tmin{%i}' % i] = None
+        
+        if par_supplied('fXh', **kwargs):    
+            pf['pop_fXh{1}'] = kwargs['fXh']
             
         # Fetch star formation efficiency. If xi_* kwargs are passed, must
         # 'undo' this as it will be applied later.

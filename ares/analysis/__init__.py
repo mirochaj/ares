@@ -4,6 +4,7 @@ from .MultiPlot import MultiPanel
 from .RaySegment import RaySegment
 from .Population import Population
 from .Global21cm import Global21cm
+from .PowerSpectrum import PowerSpectrum
 from .ModelSelection import ModelSelection
 from .InlineAnalysis import InlineAnalysis
 from .GalaxyPopulation import GalaxyPopulation

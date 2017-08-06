@@ -73,7 +73,7 @@ class HistoryContainer(dict):
 turning_points = ['D', 'C', 'B', 'A']
 
 class MultiPhaseMedium(object):
-    def __init__(self, data=None, **kwargs):
+    def __init__(self, data=None, suffix='history', **kwargs):
         """
         Initialize analysis object.
         
@@ -84,7 +84,7 @@ class MultiPhaseMedium(object):
             of the files containing the history/parameters.
 
         """
-                
+                                
         if data is None:
             return
 
@@ -95,34 +95,34 @@ class MultiPhaseMedium(object):
         # Read output of a simulation from disk
         elif type(data) is str:
             self.prefix = data
-            self._load_data(data)
+            self._load_data(data, suffix)
 
         self.kwargs = kwargs
 
-    def _load_data(self, data):
-        if os.path.exists('%s.history.pkl' % data):
-            history = self._load_pkl(data)
+    def _load_data(self, data, suffix='history'):
+        if os.path.exists('%s.%s.pkl' % (data, suffix)):
+            history = self._load_pkl(data, suffix)
         else:
-            history = self._load_txt(data)
-            
-        self._load_pf(data)    
+            history = self._load_txt(data, suffix)
+
+        self._load_pf(data)
         self.history = history
-            
+
     def _load_pf(self, data):        
-        try:            
+        try:   
             f = open('%s.parameters.pkl' % data, 'rb')
             self.pf = pickle.load(f)
-            f.close()        
+            f.close()
                 
         # The import error is really meant to catch pickling errors
         except (AttributeError, ImportError):
             self.pf = {"final_redshift": 5., "initial_redshift": 100.}
             print 'Error loading %s.parameters.pkl.' % data    
             
-    def _load_txt(self, data):
+    def _load_txt(self, data, histsuffix):
         found = False
         for suffix in ['txt', 'dat']:
-            fn = '%s.history.%s' % (data, suffix)
+            fn = '%s.%s.%s' % (data, histsuffix, suffix)
             if os.path.exists(fn):
                 found = True
                 break
@@ -137,9 +137,9 @@ class MultiPhaseMedium(object):
         
         return {key:data[i] for i, key in enumerate(cols)}
 
-    def _load_pkl(self, data):
+    def _load_pkl(self, data, suffix):
                    
-        fn = '%s.history.pkl' % data           
+        fn = '%s.%s.pkl' % (data, suffix)
                          
         chunks = 0
         f = open(fn, 'rb')
@@ -158,13 +158,13 @@ class MultiPhaseMedium(object):
         f.close()
         
         if chunks == 0:
-            raise IOError('Empty history (%s.history.pkl)' % data)
+            raise IOError('Empty history (%s.%s.pkl)' % (data, suffix))
         else:    
             history = self._suite[-1]
                 
         try:
             chunks = 0
-            f = open('%s.history.pkl' % data, 'rb')
+            f = open('%s.%s.pkl' % (data, suffix), 'rb')
             while True:
                 try:
                     tmp = pickle.load(f)
@@ -191,7 +191,7 @@ class MultiPhaseMedium(object):
                 f.close()
             else:
                 import glob
-                fns = glob.glob('./%s.history*' % data)
+                fns = glob.glob('./%s.%s*' % (data, suffix))
                 if not fns:
                     raise IOError('No files with prefix %s.' % data)
                 else:

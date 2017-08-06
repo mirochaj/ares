@@ -1,4 +1,5 @@
-#import os
+import os
+import pickle
 import numpy as np
 from .Global21cm import Global21cm
 #from ..util.ReadData import _sort_history
@@ -112,14 +113,12 @@ class PowerSpectrum21cm(AnalyzePS):
         
         """
         
-        self.redshifts = self.z = \
-            np.array(np.sort(self.pf['powspec_redshifts'])[-1::-1], dtype=np.float64)
+        self.z = np.array(np.sort(self.pf['powspec_redshifts'])[-1::-1], 
+            dtype=np.float64)
                    
         N = self.z.size
         pb = self.pb = ProgressBar(N, use=self.pf['progress_bar'], 
             name='ps-21cm')
-        pb.start()
-
 
         all_ps = []                        
         for i, (z, data) in enumerate(self.step()):
@@ -129,6 +128,9 @@ class PowerSpectrum21cm(AnalyzePS):
 
             if i == 0:
                 keys = data.keys()
+                
+            if not pb.has_pb:
+                pb.start()
 
             pb.update(i)
 
@@ -199,13 +201,25 @@ class PowerSpectrum21cm(AnalyzePS):
         Convert a temperature to a contrast
         """
         
-        # Grab mean temperature
-        Tk = Ts = np.interp(z, self.mean_history['z'][-1::-1], 
-            self.mean_history['igm_Tk'][-1::-1])
+        # Grab mean spin temperature
+        Ts = np.interp(z, self.mean_history['z'][-1::-1], 
+            self.mean_history['igm_Ts'][-1::-1])
         Tcmb = self.cosm.TCMB(z)
         
-        delta_T = Ts / T - 1.
+        # The actual spin temperature anywhere is the mean * (1 + delta_T)
+        delta_T = T / Ts - 1.
+                
+        # Don't allow negative contrasts! That would imply that the heated
+        # shell around an HII region is *colder* than the temperature of the
+        # bulk IGM.
+        if not self.pf['include_lya_fl']:
+            # This is really an indication that the modeled temperature
+            # in heated regions is unrealistic
+            delta_T = max(delta_T, 0.)
+        #if not self.pf['include_temp_fl']:
+        #    delta_T = min(delta_T, 0.)
         
+        # Convert temperature perturbation to contrast perturbation.
         delta_C = (Ts / (Ts - Tcmb)) \
             - (Tcmb / (Ts - Tcmb)) / (1. + delta_T) - 1.
 
@@ -249,34 +263,83 @@ class PowerSpectrum21cm(AnalyzePS):
             ##          
             
             # Prepare for the general case of Mh-dependent things
-            zeta = 0.0#np.zeros_like(self.pops[0].halos.M)
+            Nion = np.zeros_like(self.field.halos.M)
+            Nlya = np.zeros_like(self.field.halos.M)
+            zeta = np.zeros_like(self.field.halos.M)
+            zeta_lya = np.zeros_like(self.field.halos.M)
             #Tpro = None           
             for j, pop in enumerate(self.pops):
-                if pop.pf['pop_ion_fl']:
-                    erg_per_ph = pop.src.erg_per_phot(13.6, 24.6)
-                    Nion = pop.yield_per_sfr * self.cosm.g_per_b / erg_per_ph
-                    zeta += Nion * pop.pf['pop_fesc'] * pop.pf['pop_fstar']
-                                       
-                    print j, zeta                   
+                pop_zeta = pop.IonizingEfficiency(z=z)
 
-                if pop.pf['pop_temp_fl']:
+                if pop.is_src_ion_fl:
+
+                    if type(pop_zeta) is tuple:
+                        _Mh, _zeta = pop_zeta
+                        zeta += np.interp(self.field.halos.M, _Mh, _zeta)
+                        Nion += pop.src.Nion
+                    else:
+                        zeta += pop_zeta
+                        Nion += pop.pf['pop_Nion']
+                        Nlya += pop.pf['pop_Nlw']
+                        
+                    zeta = np.maximum(zeta, 1.)    
+                            
+                if pop.is_src_heat_fl:
                     pass
-                
-                if pop.pf['pop_lya_fl']:
-                    pass
-                                
+
+                if pop.is_src_lya_fl:
+                    Nlya += pop.pf['pop_Nlw']
+                    #Nlya += pop.src.Nlw
+
+            zeta_lya += zeta * (Nlya / Nion) * self.pf['bubble_shell_Nsc']
+            
+            ##
+            # First: some global quantities we'll need
+            ##
+            Tkbar = np.interp(z, self.mean_history['z'][-1::-1],
+                self.mean_history['igm_Tk'][-1::-1])
+            Qbar = self.field.BubbleFillingFactor(z, zeta)
+            xibar = np.interp(z, self.mean_history['z'][-1::-1],
+                self.mean_history['cgm_h_2'][-1::-1])
+            xbar = 1. - xibar
+            data['Qbar'] = Qbar
+            data['xibar'] = xibar
+            
+
             data['k'] = k
+            data['dr'] = dr
             data['k_cr'] = self.k_coarse
             data['z'] = z
             
-            data['cf_xd'] = np.zeros_like(k)
+            data['zeta'] = zeta
+            
+            ##
+            # Density fluctuations
+            ##
+            if self.pf['include_density_fl'] and self.pf['include_acorr']:
+                # Halo model
+                ps_posk = self.pops[0].halos.PowerSpectrum(z, self.k_pos)                
                 
+                # Must interpolate to uniformly (in real space) sampled
+                # grid points to do inverse FFT
+                ps_fold = np.concatenate((ps_posk[-1::-1], [0], ps_posk))
+                #ps_fold = np.concatenate(([0], ps_posk, ps_posk[-1::-1]))
+                #ps_dd = np.interp(self.k, self.k_coarse, ps_fold)
+                ps_dd = np.interp(np.abs(self.k), self.k_pos, ps_posk)
+                #ps_dd = self.field.halos.PowerSpectrum(z, np.abs(self.k))
+                data['ps_dd'] = ps_dd
+                data['cf_dd'] = np.fft.ifft(data['ps_dd'])
+            else:
+                data['cf_dd'] = data['ps_dd'] = np.zeros_like(dr)
+                
+            ##    
             # Ionization fluctuations
+            ##
             if self.pf['include_ion_fl'] and self.pf['include_acorr']:
                 R_b, M_b, bsd = self.field.BubbleSizeDistribution(z, zeta)
             
                 p_ii = self.field.JointProbability(z, self.dr_coarse, 
-                    zeta, term='ii', Tprof=None)
+                    zeta, term='ii', Tprof=None, data=data)
                                     
                 # Interpolate onto fine grid                
                 data['jp_ii'] = np.interp(dr, self.dr_coarse, p_ii)
@@ -285,54 +348,59 @@ class PowerSpectrum21cm(AnalyzePS):
                 data.update({'R_b': R_b, 'M_b': M_b, 'bsd':bsd})
             else:
                 p_ii = data['jp_ii'] = np.zeros_like(dr)
-            
-            # Density fluctuations
-            if self.pf['include_density_fl'] and self.pf['include_acorr']:
-                # Halo model
-                ps_posk = self.pops[0].halos.PowerSpectrum(z, self.k_pos)
-                
-                #data['ps_dd_cr'] = ps_dd
-                
-                # Must interpolate to uniformly (in real space) sampled
-                # grid points to do inverse FFT
-                ps_fold = np.concatenate((ps_posk[-1::-1], [0], ps_posk))
-                ps_dd = np.interp(self.k, self.k_coarse, ps_fold)
-                data['ps_dd'] = ps_dd
-                data['cf_dd'] = np.fft.ifft(data['ps_dd'])
-            else:
-                data['cf_dd'] = data['ps_dd'] = np.zeros_like(dr)
-            
+                        
+            ##
             # Temperature fluctuations                
+            ##
             if self.pf['include_temp_fl'] and self.pf['include_acorr']:
                 p_hh = self.field.JointProbability(z, self.dr_coarse, 
-                    zeta, term='hh', Tprof=None)
+                    zeta, term='hh', Tprof=None, data=data)
                                     
                 data['jp_hh'] = np.interp(dr, self.dr_coarse, p_hh)
-                
-                # Must convert from temperature perturbation 
-                # to contrast perturbation                
+              
             else:
                 p_hh = data['jp_hh'] = np.zeros_like(dr)
-            
+                
+            ##
+            # Lyman-alpha fluctuations                
+            ##    
+            if self.pf['include_lya_fl'] and self.pf['include_acorr']:
+                p_aa = self.field.JointProbability(z, self.dr_coarse, 
+                    zeta, term='aa', Tprof=None, data=data, zeta_lya=zeta_lya)
+                                    
+                data['jp_aa'] = np.interp(dr, self.dr_coarse, p_aa)
+                         
+            else:
+                p_aa = data['jp_aa'] = np.zeros_like(dr)
+                
             ##
             # Cross-correlations
             ##
             if self.pf['include_xcorr']:
-            
+
                 # Cross-correlation terms...
                 # Density-ionization cross correlation
                 if (self.pf['include_density_fl'] and self.pf['include_ion_fl']):
-                    pass
+                    data['jp_id'] = self.field.JointProbability(z, self.dr_coarse, 
+                        zeta, term='id', data=data)
                 else:
-                    pass
-            
+                    data['jp_id'] = np.zeros_like(k)
+
                 if self.pf['include_temp_fl'] and self.pf['include_ion_fl']:
                     p_ih = self.field.JointProbability(z, self.dr_coarse, 
-                        zeta, term='ih')
+                        zeta, term='ih', data=data)
                     data['jp_ih'] = np.interp(dr, self.dr_coarse, p_ih)
                 else:
                     data['jp_ih'] = np.zeros_like(k)
+                
+                if self.pf['include_lya_fl'] and self.pf['include_ion_fl']:
+                    p_ia = self.field.JointProbability(z, self.dr_coarse, 
+                        zeta, term='ia', data=data, zeta_lya=zeta_lya)
+                    data['jp_ia'] = np.interp(dr, self.dr_coarse, p_ia)
+                else:
+                    data['jp_ia'] = np.zeros_like(k)    
             else:
+                p_id = data['jp_id'] = np.zeros_like(k)
                 p_ih = data['jp_ih'] = np.zeros_like(k)
 
             ##
@@ -340,24 +408,52 @@ class PowerSpectrum21cm(AnalyzePS):
             # and finish up.
             ##
 
-            # Global quantities
-            QHII = self.field.BubbleFillingFactor(z, zeta)
-            #QHII = np.interp(z, self.mean_history['z'][-1::-1],
-            #    self.mean_history['cgm_h_2'][-1::-1])
-            data['QHII'] = QHII
-            
             if self.pf['include_temp_fl']:
                 Qhot = self.field.BubbleShellFillingFactor(z, zeta)
                 data['Qhot'] = Qhot
-                Cbar = self._temp_to_contrast(z, self.pf['bubble_shell_temp'])
-                data['Tbar'] = Qhot * Cbar
+                Chot = self._temp_to_contrast(z, self.pf['bubble_shell_temp'])
+                data['Chot'] = Chot
+                data['Chot_bar'] = Chot_bar = Qhot * Chot
             else:
-                data['Qhot'] = Qhot = Cbar = 0.0
+                data['Qhot'] = Qhot = Chot = Chot_bar = 0.
+                
+            if self.pf['include_lya_fl']:
+                Qlya = self.field.BubbleShellFillingFactor(z, zeta_lya)
+                data['Qlya'] = Qlya
+                Clya = self._temp_to_contrast(z, Tkbar)
+                data['Clya'] = Clya
+                data['Clya_bar'] = Clya_bar = Qlya * Clya
+            else:
+                data['Qlya'] = Qlya = Clya = Clya_bar = 0.0
 
-            data['cf_xx'] = data['jp_ii'] - QHII**2
-            data['jp_cc'] = data['jp_hh'] * Cbar**2
-            data['cf_cc'] = data['jp_cc'] - Cbar**2 * Qhot**2
-            data['cf_xc'] = data['jp_ih'] - Cbar * Qhot * QHII
+            ##
+            # Construct correlation functions from joint probabilities
+            ##
+
+            # correlation function of ionized fraction and neutral fraction
+            # are equivalent
+            data['cf_xx'] = data['jp_ii'] - xibar**2
+            
+            # Minus sign difference for cross term with density.
+            data['cf_xd'] = -data['jp_id']
+            
+            # Contrast terms
+            data['jp_cc'] = np.zeros_like(dr)
+            data['cf_cc'] = np.zeros_like(dr)
+            data['cf_xc'] = np.zeros_like(dr)
+            
+            if self.pf['include_temp_fl']:
+                data['jp_cc'] += data['jp_hh'] * Chot**2
+                data['cf_cc'] += data['jp_cc'] - Chot_bar**2
+                
+                if self.pf['include_xcorr']:
+                    data['cf_xc'] += -(data['jp_ih'] - Chot_bar * xibar)
+            
+            if self.pf['include_lya_fl']:
+                data['jp_cc'] += data['jp_aa'] * Clya**2
+                data['cf_cc'] += data['jp_cc'] - Clya_bar**2
+                if self.pf['include_xcorr']:
+                    data['cf_xc'] += -(data['jp_ia'] - Clya_bar * xibar)
 
             # Here, add together the power spectra with various Beta weights
             # to get 21-cm power spectrum
@@ -367,7 +463,7 @@ class PowerSpectrum21cm(AnalyzePS):
             Ja = np.interp(z, self.mean_history['z'][-1::-1],
                 self.mean_history['Ja'][-1::-1])
             xHII, ne = [0] * 2
-            
+
             # Assumes strong coupling. Mapping between temperature 
             # fluctuations and contrast fluctuations.
             Ts = Tk
@@ -386,28 +482,72 @@ class PowerSpectrum21cm(AnalyzePS):
             
             xavg = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['cgm_h_2'][-1::-1])
+                
+            # Mean brightness temperature outside bubbles    
             Tbar = np.interp(z, self.gs.history['z'][-1::-1], 
                 self.gs.history['dTb'][-1::-1]) / (1. - xavg)
-                
+                                
+            # Short-hand
             xi_xx = data['cf_xx']
             xi_dd = data['cf_dd']
             xi_xd = data['cf_xd']
                         
             # This is Eq. 11 in FZH04
-            xbar = 1. - QHII
-            data['cf_21_sat'] = xi_xx * (1. + xi_dd) + xbar**2 * xi_dd + \
-                xi_xd * (xi_xd + 2. * xbar) 
-                
+            data['cf_21_s'] = xi_xx * (1. + xi_dd) + xbar**2 * xi_dd + \
+                xi_xd * (xi_xd + 2. * xbar)
+                                                  
             ##
-            # MODIFY CORRELATION FUNCTION depending on saturation
+            # MODIFY CORRELATION FUNCTION depending on Ts fluctuations
             ##    
-            if not self.pf['include_temp_fl']:
-                data['cf_21'] = data['cf_21_sat']
-            else:
-                # Simplified for now
-                data['cf_21'] = data['cf_21_sat'] + QHII**2 + 2 * data['cf_xc']
-                
             
+            if (self.pf['include_temp_fl'] or self.pf['include_lya_fl']):
+                # First term: just the correlation function in the saturated
+                # limit.
+                data['cf_21'] = data['cf_21_s'] + xbar**2
+
+                ##
+                # Let's start with low-order terms and build up from there.
+                ##
+                
+                # short-cuts
+                xi_xc = data['cf_xc']
+                xi_cc = data['cf_cc']
+
+                # This is the lowest-order term in the expansion. It is 
+                # formally a 3-pt term but we reduced it to a 2-pt term
+                # using the fact that x is binary and assuming 
+                # independence of x and c.
+                #if self.pf['include_xcorr']:
+                xxc = 2 * xbar * (xi_xc + xbar * Chot + xbar * Clya)
+                
+                data['cf_3pt'] = xxc
+                data['cf_21'] += xxc
+
+                #if self.pf['include_4pt_terms']:
+
+                # Next, we've got a bunch of four-point terms that we broke
+                # down using Isserlis' theorem. These are all joint 
+                # probabilities still
+                jp_xx = data['cf_xx'] + xbar**2
+                jp_xd = 0.0
+                jp_cd = 0.0
+                jp_cc = data['jp_cc']
+                jp_xc = data['cf_xc'] + xbar * Chot + xbar * Clya
+
+                x_xp_c_d  = 0.0#Cbar * jp_xd
+                x_xp_c_dp = 0.0#jp_xx * jp_cd + jp_xd * jp_xc
+                x_xp_c_cp = jp_xx * xi_cc + Clya_bar**2 + 2. * xi_xc**2
+                
+                data['cf_4pt'] = 2. * (x_xp_c_d + x_xp_c_dp) + x_xp_c_cp
+                
+                data['cf_21'] += 2. * (x_xp_c_d + x_xp_c_dp) + x_xp_c_cp
+                
+                # Subtract off new <psi><psi'> term.
+                data['cf_21'] -= (xbar + Chot_bar + Clya_bar)**2
+
+            else:
+                data['cf_21'] = data['cf_21_s']
+
             data['dTb0'] = Tbar
             #data['cf_21'] -= QHII**2
             #data['cf_21'] *= self.hydr.T0(z)**2
@@ -420,4 +560,131 @@ class PowerSpectrum21cm(AnalyzePS):
             
             yield z, data
 
+    def save(self, prefix, suffix='pkl', clobber=False, fields=None):
+        """
+        Save results of calculation. Pickle parameter file dict.
+    
+        Notes
+        -----
+        1) will save files as prefix.history.suffix and prefix.parameters.pkl.
+        2) ASCII files will fail if simulation had multiple populations.
+    
+        Parameters
+        ----------
+        prefix : str
+            Prefix of save filename
+        suffix : str
+            Suffix of save filename. Can be hdf5 (or h5), pkl, or npz. 
+            Anything else will be assumed to be ASCII format (e.g., .txt).
+        clobber : bool
+            Overwrite pre-existing files of same name?
 
+        """
+
+        self.gs.save(prefix, clobber=clobber, fields=fields)
+    
+        fn = '%s.fluctuations.%s' % (prefix, suffix)
+    
+        if os.path.exists(fn):
+            if clobber:
+                os.remove(fn)
+            else: 
+                raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
+    
+        if suffix == 'pkl':         
+            f = open(fn, 'wb')
+            pickle.dump(self.history._data, f)
+            f.close()
+    
+            try:
+                f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
+                pickle.dump(self.blobs, f)
+                f.close()
+    
+                if self.pf['verbose']:
+                    print 'Wrote %s.blobs.%s' % (prefix, suffix)
+            except AttributeError:
+                print 'Error writing %s.blobs.%s' % (prefix, suffix)
+    
+        elif suffix in ['hdf5', 'h5']:
+            import h5py
+    
+            f = h5py.File(fn, 'w')
+            for key in self.history:
+                if fields is not None:
+                    if key not in fields:
+                        continue
+                f.create_dataset(key, data=np.array(self.history[key]))
+            f.close()
+    
+        elif suffix == 'npz':
+            f = open(fn, 'w')
+            np.savez(f, **self.history._data)
+            f.close()
+    
+            if self.blobs:
+                f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
+                np.savez(f, self.blobs)
+                f.close()
+    
+        # ASCII format
+        else:            
+            f = open(fn, 'w')
+            print >> f, "#",
+    
+            for key in self.history:
+                if fields is not None:
+                    if key not in fields:
+                        continue
+                print >> f, '%-18s' % key,
+    
+            print >> f, ''
+    
+            # Now, the data
+            for i in xrange(len(self.history[key])):
+                s = ''
+    
+                for key in self.history:
+                    if fields is not None:
+                        if key not in fields:
+                            continue
+    
+                    s += '%-20.8e' % (self.history[key][i])
+    
+                if not s.strip():
+                    continue
+    
+                print >> f, s
+    
+            f.close()
+    
+        if self.pf['verbose']:
+            print 'Wrote %s.fluctuations.%s' % (prefix, suffix)
+        
+        #write_pf = True
+        #if os.path.exists('%s.parameters.pkl' % prefix):
+        #    if clobber:
+        #        os.remove('%s.parameters.pkl' % prefix)
+        #    else: 
+        #        write_pf = False
+        #        print 'WARNING: %s.parameters.pkl exists! Set clobber=True to overwrite.' % prefix
+    
+        #if write_pf:
+        #
+        #    #pf = {}
+        #    #for key in self.pf:
+        #    #    if key in self.carryover_kwargs():
+        #    #        continue
+        #    #    pf[key] = self.pf[key]
+        #
+        #    if 'revision' not in self.pf:
+        #        self.pf['revision'] = get_hg_rev()
+        #
+        #    # Save parameter file
+        #    f = open('%s.parameters.pkl' % prefix, 'wb')
+        #    pickle.dump(self.pf, f, -1)
+        #    f.close()
+        #
+        #    if self.pf['verbose']:
+        #        print 'Wrote %s.parameters.pkl' % prefix
+        #

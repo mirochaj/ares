@@ -105,7 +105,7 @@ class Population(object):
             if not self.is_src_lya:
                 pass
             else:
-                if self.pf['pop_lya_fl']:
+                if self.pf['pop_lya_fl'] and self.pf['include_lya_fl']:
                     self._is_src_lya_fl = True
     
         return self._is_src_lya_fl
@@ -147,7 +147,7 @@ class Population(object):
             if not self.is_src_ion:
                 pass
             else:
-                if self.pf['pop_ion_fl']:
+                if self.pf['pop_ion_fl'] and self.pf['include_ion_fl']:
                     self._is_src_ion_fl = True
     
         return self._is_src_ion_fl    
@@ -175,7 +175,7 @@ class Population(object):
             if not self.is_src_heat:
                 pass
             else:
-                if self.pf['pop_temp_fl']:
+                if self.pf['pop_temp_fl'] and self.pf['include_temp_fl']:
                     self._is_src_heat_fl = True
     
         return self._is_src_heat_fl

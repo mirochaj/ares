@@ -173,8 +173,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         self._suite.append(self._data_.copy())
 
         count = self.count   # Just to make sure attribute exists
-        self._count += 1
-
+        
         ## 
         # Feedback
         ##
@@ -202,6 +201,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                             
             self.reboot()
             self.run(include_pops=self._lwb_sources)
+
+        self._count += 1
     
     @property        
     def today(self):

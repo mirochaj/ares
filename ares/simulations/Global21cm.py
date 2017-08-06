@@ -455,7 +455,7 @@ class Global21cm(AnalyzeGS):
             print 'Wrote %s.history.%s' % (prefix, suffix)
             
         # Save histories for Mmin and SFRD if we're doing iterative stuff
-        if self.count > 1:
+        if self.count > 1 and hasattr(self, '_Mmin_bank'):
             f = open('%s.Mmin.pkl' % prefix, 'wb')
             pickle.dump(self.medium.field._zarr, f)
             pickle.dump(self.medium.field._Mmin_bank, f)

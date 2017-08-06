@@ -29,7 +29,7 @@ from .GalaxyAggregate import GalaxyAggregate, normalize_sed
 from ..util.Math import central_difference, interp1d_wrapper
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
-    k_B, h_p, erg_per_ev, ev_per_hz, c
+    k_B, h_p, erg_per_ev, ev_per_hz, c, m_H, s_per_myr
 
 try:
     from scipy.misc import derivative
@@ -1814,21 +1814,24 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
         return self._tab_fstar_
     
-    def _SAM(self, z, y):
+    def _SAM(self, t, y):
         if self.pf['pop_sam_nz'] == 1:
-            return self._SAM_1z(z, y)
+            return self._SAM_1z(t, y)
         elif self.pf['pop_sam_nz'] == 2:
-            return self._SAM_2z(z, y)
+            return self._SAM_2z(t, y)
         else:
             raise NotImplemented('No SAM with nz=%i' % self.pf['pop_sam_nz'])
                         
-    def _SAM_1z(self, z, y):
+    def _SAM_1z(self, t, y):
         """
         Simple semi-analytic model for the components of galaxies.
 
         Really just the right-hand sides of a set of ODEs describing the
         rate of change in the halo mass, stellar mass, and metal mass.
         Other elements can be added quite easily.
+        
+        All terms have units of per year. The last equation is simply
+        the evolution of time wrt redshift.
 
         Parameters
         ----------
@@ -1843,7 +1846,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        Mh, Mg, Mst, MZ, cMst = y
+        Mh, Mg, Mst, MZ, cMst, z = y
+        
+        #print 'y vec'
+        #print t / 1e6, z, [Mh, Mg, Mst, MZ, cMst]
 
         kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg, 'MZ': MZ,
             'cMst': cMst}
@@ -1855,8 +1861,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         fb = self.cosm.fbar_over_fcdm
         
         # Splitting up the inflow. P = pristine, 
-        PIR = -1. * fb * self.MAR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
-        NPIR = -1. * fb * self.MDR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        PIR = fb * self.MAR(z, Mh)
+        NPIR = fb * self.MDR(z, Mh)
         
         # Measured relative to baryonic inflow
         Mb = fb * Mh
@@ -1869,13 +1875,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             SFR = PIR * fstar
         else:
             fstar = 1e-10
-            SFR = -self.sfr(**kw) * self.cosm.dtdz(z) / s_per_yr
+            SFR = self.sfr(**kw)
 
         # "Quiet" mass growth
         fsmooth = self.fsmooth(**kw)
 
         # Eq. 1: halo mass.
-        y1p = -1. * self.MGR(z, Mh) * self.cosm.dtdz(z) / s_per_yr
+        y1p = self.MGR(z, Mh)
 
         # Eq. 2: gas mass
         if self.pf['pop_sfr'] is None:
@@ -1903,6 +1909,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             * (1. - self.pf['pop_mass_escape']) \
             + NPIR * Zfrac
 
+        # Eq. 5: cumulative stellar mass growth
         if (Mh < Mmin) or (Mh > Mmax):
             y5p = 0.
         else:
@@ -1911,9 +1918,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Stuff to add: parameterize metal yield, metal escape, star formation
         # from reservoir? How to deal with Mmin(z)? Initial conditions (from PopIII)?
 
-        results = [y1p, y2p, y3p, y4p, y5p]
+        # dzdt
+        y6p = 1. / (self.cosm.dtdz(z) / s_per_yr)
+
+        results = [y1p, y2p, y3p, y4p, y5p, -1. * y6p]
         
-        return np.array(results)
+        #print 'rates'
+        #print t / 1e6, z, results
+        
+        return np.array(results) 
 
     def _SAM_2z(self, z, y):
         raise NotImplemented('Super not done with this!')
@@ -1962,7 +1975,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         results = [y1p, y2p, y3p, y4p]
                 
-        return np.array(results)    
+        return np.array(results)
         
     @property
     def constant_SFE(self):
@@ -2028,7 +2041,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         return zform, zfin, Mfin, duration#, np.array(Mend)
 
-    def MassAfter(self, M0=0):
+    def MassAfter(self, M0=None):
         """
         Compute the final mass of a halos that begin at Mmin and grow for dt.
 
@@ -2175,7 +2188,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         return new_data
         
-    def _ScalingRelationsGeneralSFE(self, M0=0):
+    def _ScalingRelationsGeneralSFE(self, M0=None):
         """
         In this case, the formation time of a halo matters.
         
@@ -2234,7 +2247,40 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return np.array(zform), results
         
-    def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
+    def Trajectory(self, z0, M0):
+        
+        zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
+        
+        #in_range = np.logical_and(self.halos.z >= zf, self.halos.z <= z0)
+        #zarr = self.halos.z[in_range][::zfreq]
+        #Nz = zarr.size
+        #
+        #dz = np.diff(self.halos.z)
+        #assert np.allclose(np.diff(dz), 0)
+        #dz = dz[0]
+
+        # Boundary conditions (pristine halo)
+        Mg0 = self.cosm.fbar_over_fcdm * M0
+        MZ0 = 0.0
+        Mst0 = 0.0
+
+        solver = self.solver = ode(self._SAM).set_integrator('lsoda', nsteps=1e4, 
+            atol=self.pf['sam_atol'], rtol=self.pf['sam_rtol'])
+
+        # Initial stellar mass -> 0, initial halo mass -> Mmin
+        t0 = self.cosm.t_of_z(z0) / s_per_yr
+        solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0, Mst0, z0]), t0)
+        
+        dt = self.pf['sam_dt'] * 1e6
+        tf = t0 + self.cosm.LookbackTime(zf, z0) / s_per_yr
+        results = []
+        while solver.successful() and solver.t < tf:
+            solver.integrate(solver.t+dt)
+            results.append(solver.y.copy())            
+        
+        return np.array(results)
+        
+    def _ScalingRelationsStaticSFE(self, z0=None, M0=None):
         """
         Evolve a halo from initial mass M0 at redshift z0 forward in time.
 
@@ -2250,21 +2296,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Returns
         -------
         redshifts, halo mass, gas mass, stellar mass, metal mass
-        
-        If dt is provided, the calculation will be truncated `dt` years
-        after `z0`, so the resultant arrays will not have the expected
-        number of elements.
-
+    
         """
 
         zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
 
-        if self.pf['sam_dz'] is not None:
-            dz = self.pf['sam_dz']
-            zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.z)[0], 0))
-        else:
-            dz = np.diff(self.halos.z)[0]
-            zfreq = 1
+        #if self.pf['sam_dz'] is not None:
+        #    dz = self.pf['sam_dz']
+        #    zfreq = int(round(self.pf['sam_dz'] / np.diff(self.halos.z)[0], 0))
+        #else:
+        #    dz = np.diff(self.halos.z)[0]
+        #    zfreq = 1
 
         solver = ode(self._SAM).set_integrator('lsoda', nsteps=1e4, 
             atol=self.pf['sam_atol'], rtol=self.pf['sam_rtol'])
@@ -2287,20 +2329,31 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ##
         
         # Our results don't depend on this, unless SFE depends on z
-        if (z0 is None) and (M0 == 0):
+        if (z0 is None) and (M0 is None):
             z0 = self.halos.z.max()
             M0 = self._tab_Mmin[-1]
-        elif (M0 <= 1):
+        #elif (M0 <= 1):
+        #    M0 = np.interp(z0, self.halos.z, self._tab_Mmin)
+        #elif (M0 > 1):
+        elif (z0 is not None) and (M0 is not None):
+            pass
+        elif (z0 is not None) and (M0 is None):
             M0 = np.interp(z0, self.halos.z, self._tab_Mmin)
-        elif (M0 > 1):
-            if z0 >= self.pf['initial_redshift']:
-                M0 = np.interp(z0, self.halos.z, M0 * self._tab_Mmin)
-            else:
-                M0 = np.interp(z0, self.halos.z, self._tab_Mmin)
+        else:   
+            #if z0 >= self.pf['initial_redshift']:
+            #    M0 = np.interp(z0, self.halos.z, M0 * self._tab_Mmin)
+            #else:
+            #    raise NotImplementedError('cant remember why this block')
+            z0 = self.pf['initial_redshift']
+            M0 = np.interp(z0, self.halos.z, self._tab_Mmin)
 
-        in_range = np.logical_and(self.halos.z >= zf, self.halos.z <= z0)
-        zarr = self.halos.z[in_range][::zfreq]
-        Nz = zarr.size
+        #in_range = np.logical_and(self.halos.z >= zf, self.halos.z <= z0)
+        #zarr = self.halos.z[in_range][::zfreq]
+        #Nz = zarr.size
+        #
+        #dz = np.diff(self.halos.z)
+        #assert np.allclose(np.diff(dz), 0)
+        #dz = dz[0]
 
         # Boundary conditions (pristine halo)
         Mg0 = self.cosm.fbar_over_fcdm * M0
@@ -2308,7 +2361,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mst0 = 0.0
 
         # Initial stellar mass -> 0, initial halo mass -> Mmin
-        solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0, Mst0]), z0)
+        t0 = self.cosm.t_of_z(z0) / s_per_yr
+        solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0, Mst0, z0]), t0)
+        dt = self.pf['sam_dt'] * 1e6
+        tf = t0 + self.cosm.LookbackTime(zf, z0) / s_per_yr
 
         # Only used occasionally
         zmax = None
@@ -2329,14 +2385,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         lbtime = []
         Ehist = []
         redshifts = []
-        for i in xrange(Nz):
+        #for i in xrange(Nz):
+        while solver.successful() and solver.t < tf:
+
             # In descending order
-            redshifts.append(zarr[-1::-1][i])
             Mh_t.append(solver.y[0])
             Mg_t.append(solver.y[1])
             Mst_t.append(solver.y[2])
             metals.append(solver.y[3])
             cMst_t.append(solver.y[4])
+            redshifts.append(solver.y[5])
             
             z = redshifts[-1]
 
@@ -2475,7 +2533,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if has_t_ceil and (not has_t_limit):
                     zmax = max(zmax, zmax_t)
 
-            solver.integrate(solver.t-dz)
+            ##
+            # EVOLVE
+            ##
+            solver.integrate(solver.t+dt)
 
         if zmax is None:
             zmax = self.pf['final_redshift']
@@ -2492,7 +2553,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # Derived
         results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'cMs': cMs,
-            'zmax': zmax, 't': tlb}
+            'zmax': zmax, 't': tlb, 'z': z}
         results['Z'] = self.pf['pop_metal_retention'] \
             * (results['MZ'] / results['Mg'])
 
@@ -2544,7 +2605,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Photon luminosity density in photons / s / c-cm**3.
     
         """
-            
+
         # erg / s / cm**3
         if self.is_emissivity_scalable:
             rhoL = self.Emissivity(z, E=None, Emin=Emin, Emax=Emax)
@@ -2554,7 +2615,24 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return rhoL / erg_per_phot
         else:
             return self.rho_N(z, Emin, Emax)
-             
+
+    def IonizingEfficiency(self, z):
+        """
+        Compute the ionizing efficiency.
+        
+        This only ever gets used to calculate the bubble size distribution
+        using the excursion set approach. There, it really only gets used
+        to translate halo masses to bubble masses.
+        
+        """
+
+        z, data = self.scaling_relations_sorted(z=z)
+        Mh = data['Mh']
+        fstar = data['cMs'] / data['Mh']
+
+        const = self.cosm.b_per_g * m_H / self.cosm.fbaryon
+        return Mh, const * fstar * self.src.Nion * self.fesc(Mh=Mh, z=z)
+
     def ScalingFactor(self, z):
         return (self.cosm.h70 / 0.7)**-1 * (self.cosm.omega_m_0 / 0.27)**-0.5 * ((1. + z) / 21.)**-0.5
     
@@ -2567,7 +2645,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         :param z: the redshift (whose LW intensity is) of interest
         :param r: the distance from the source in cMpc
         :lc: True or False, including the light cone effect
-    
+
         :return:
         """
         if z != None and r == None:
@@ -2576,6 +2654,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             r_comov = r
         else:
             raise ValueError('Must specify either "z" or "r".')
+
         alpha = self.ScalingFactor(z0)
         _a = 0.167
         r_star = c * _a * self.cosm.HubbleTime(z0) * (1.+z0) / cm_per_mpc

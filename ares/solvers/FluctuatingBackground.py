@@ -97,16 +97,19 @@ class FluctuatingBackground(object):
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
             Rb, Mb, dndm = self.BubbleSizeDistribution(z, zeta)
             
-            Rs = self.pf['bubble_shell_size']
-            Tk = self.pf['bubble_shell_temp']
+            if self.pf['bubble_shell_size_rel'] is not None:
+                Rs = Rb * (1. + self.pf['bubble_shell_size_rel'])
+            else:
+                Rs = Rb + self.pf['bubble_shell_size_abs']
+                
             Vsh = 4. * np.pi * (Rs - Rb)**3 / 3.
         
-            Qhot = 1. - np.exp(-np.trapz(dndm * Vsh * Mb, x=np.log(Mb)))
+            Qhot = np.trapz(dndm * Vsh * Mb, x=np.log(Mb))
         
             return Qhot
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
-            
+
     def BubbleFillingFactor(self, z, zeta):
                 
         if self.pf['bubble_size_dist'] is None:
@@ -116,14 +119,14 @@ class FluctuatingBackground(object):
             
             return 1. - np.exp(-n_b * V_b)
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
+            
+            #return self.pops[0].halos.fcoll
+            
             R, M, dndm = self.BubbleSizeDistribution(z, zeta)
             V = 4. * np.pi * R**3 / 3.
             
-            if self.pf['bubble_density_rescale']:
-                Qbar = np.mean(dndm * V)
-                dndm *= -np.log(1. - Qbar) / Qbar
-            
-            QHII = 1. - np.exp(-np.trapz(dndm * V * M, x=np.log(M)))
+            dndlnm = dndm * M
+            QHII = np.trapz(dndlnm * V, x=np.log(M))
             
             return QHII
         else:
@@ -202,36 +205,41 @@ class FluctuatingBackground(object):
         pop = self.pops[popid]
         return pop.cosm.delta_c0 / pop.growth_factor(z)
         
-    def _B0(self, z, zeta=40, popid=0):
-        pop = self.pops[popid]
+    def _B0(self, z, zeta=40.):
+        
+        pop = self.pops[0]
+        
         s = pop.halos.sigma_0
-        sigma_min = np.interp(self.Mmin(z) * zeta, pop.halos.M, s)
-        return self._delta_c(z) - np.sqrt(2) * self._K(zeta) * sigma_min
+        Mmin = self.Mmin(z)
+        
+        sigma_min = np.interp(Mmin * zeta, pop.halos.M, s)
+        return self._delta_c(z) - np.sqrt(2.) * self._K(zeta) * sigma_min
     
-    def _B1(self, z, zeta=40, popid=0):
-        pop = self.pops[popid]
+    def _B1(self, z, zeta=40):
+        pop = self.pops[0]
         s = pop.halos.sigma_0
         sigma_min = np.interp(self.Mmin(z) * zeta, pop.halos.M, s)
         ddx_ds2 = self._K(zeta) / np.sqrt(2. * (sigma_min**2 - s**2))
     
         return ddx_ds2[s == s.min()]
     
-    def _B(self, z, zeta=40., popid=0):
+    def _B(self, z, zeta, zeta_min):
         """
         Linear barrier.
         """
-        pop = self.pops[popid]
+        pop = self.pops[0]
         s = pop.halos.sigma_0
-        return self._B0(z, zeta, popid) + self._B1(z, zeta, popid) * s**2
-                
+
+        return self._B0(z, zeta_min) + self._B1(z, zeta) * s**2
+
     def BubbleSizeDistribution(self, z, zeta):
-        
+
         if not hasattr(self, '_bsd_cache'):
             self._bsd_cache = {}
-            
+
         if z in self._bsd_cache:
             return self._bsd_cache[z]
-                
+
         if self.pf['bubble_size_dist'] is None:
             if self.pf['bubble_density'] is not None:
                 Rb = self.pf['bubble_size']
@@ -239,7 +247,7 @@ class FluctuatingBackground(object):
                     / g_per_msun
                 
                 self._bsd_cache[z] = Rb, Mb, self.pf['bubble_density']
-                
+
             else:
                 raise NotImplementedError('help')
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
@@ -248,10 +256,20 @@ class FluctuatingBackground(object):
             sig = self.pops[0].halos.sigma_0
             S = sig**2
             
-            pcross = self._B0(z, zeta) / np.sqrt(2. * np.pi * S**3) \
-                * np.exp(-0.5 * self._B(z, zeta)**2 / S)
+            Mmin = self.Mmin(z)
+            if type(zeta) == np.ndarray:
+                zeta_min = np.interp(Mmin, self.pops[0].halos.M, zeta)
+            else:
+                zeta_min = zeta
+            
+            # Shouldn't there be a correction factor here to account for the
+            # fact that some of the mass is He?
+            
+            pcross = self._B0(z, zeta_min) / np.sqrt(2. * np.pi * S**3) \
+                * np.exp(-0.5 * self._B(z, zeta, zeta_min)**2 / S)
                 
             R = ((Mb / rho0) * 0.75 / np.pi)**(1./3.)
+            
             dndm = rho0 * pcross * 2 * np.abs(self.pops[0].halos.dlns_dlnm) \
                 * S / Mb**2
 
@@ -261,7 +279,14 @@ class FluctuatingBackground(object):
 
         return self._bsd_cache[z]
 
-    def JointProbability(self, z, dr, zeta, Tprof=None, term='ii'):
+    @property
+    def halos(self):
+        if not hasattr(self, '_halos'):
+            self._halos = self.pops[0].halos
+        return self._halos
+
+    def JointProbability(self, z, dr, zeta, Tprof=None, term='ii', data=None,
+        zeta_lya=None):
         """
         Compute the joint probability that two points are ionized, heated, etc.
         
@@ -281,11 +306,20 @@ class FluctuatingBackground(object):
             Rb, Mb, dndm = self.BubbleSizeDistribution(z, zeta)
             Vb = 4. * np.pi * Rb**3 / 3.
 
+            # More descriptive subscripts for Vsh
             if 'h' in term:
-                Rs = self.pf['bubble_shell_size']
-                Tk = self.pf['bubble_shell_temp']
-                Vsh = 4. * np.pi * (Rs - Rb)**3 / 3.
-
+                if self.pf['bubble_shell_size_rel'] is not None:
+                    Rh = Rb * (1. + self.pf['bubble_shell_size_rel'])
+                else:
+                    Rh = Rb + self.pf['bubble_shell_size_abs']
+                    
+                Vsh = 4. * np.pi * (Rh - Rb)**3 / 3.
+                
+            if 'a' in term:
+                Ma = Mb * (zeta_lya / zeta)
+                Ra = ((Ma / self.cosm.mean_density0) * 0.75 / np.pi)**(1./3.)
+                Vsh = 4. * np.pi * (Ra - Rb)**3 / 3.    
+            
             Mmin = self.Mmin(z)
             
             # Should tighten this up. Well, will Mmin ever NOT be in the grid?
@@ -299,18 +333,74 @@ class FluctuatingBackground(object):
                     integrand1 = dndm[iM:] * Vo_sph[iM:]
                     integrand2 = dndm[iM:] * (Vb[iM:] - Vo_sph[iM:])
                 elif term == 'hh':
-                    Vo_sh_r1, Vo_sh_r2 = self.overlap_region_shell(sep, Rb, Rs)
+                    Vo_sh_r1, Vo_sh_r2 = self.overlap_region_shell(sep, Rb, Rh-Rb)
                     Vo_hh = Vo_sh_r1 - 2. * Vo_sh_r2
-                    Vo_tot = self.overlap_region_sphere(sep, Rb+Rs)
+                    Vo_tot = self.overlap_region_sphere(sep, Rb+Rh)
                     integrand1 = dndm[iM:] * Vo_hh[iM:]
                     integrand2 = 0.0
                     #integrand2 = dndm[iM:] * (Vsh[iM:] - Vo_tot[iM:])
+                elif term == 'aa':
+                    Vo_sh_r1, Vo_sh_r2 = self.overlap_region_shell(sep, Rb, Ra-Rb)
+                    Vo_aa = Vo_sh_r1 - 2. * Vo_sh_r2
+                    Vo_tot = self.overlap_region_sphere(sep, Rb+Ra)
+                    integrand1 = dndm[iM:] * Vo_aa[iM:]
+                    integrand2 = 0.0
+                    #integrand2 = dndm[iM:] * (Vsh[iM:] - Vo_tot[iM:])    
                 elif term == 'ih':
-                    Vo_sh_r1, Vo_sh_r2 = self.overlap_region_shell(sep, Rb, Rs)
+                    Vo_sh_r1, Vo_sh_r2 = self.overlap_region_shell(sep, Rb, Rh-Rb)
                     Vo_hi = 2 * Vo_sh_r2
-                    Vo_tot = self.overlap_region_sphere(sep, Rb+Rs)
+                    Vo_tot = self.overlap_region_sphere(sep, Rh)
                     integrand1 = dndm[iM:] * Vo_hi[iM:]
                     integrand2 = 0.0
+                elif term == 'ia':
+                    Vo_sh_r1, Vo_sh_r2 = self.overlap_region_shell(sep, Rb, Ra-Rb)
+                    Vo_ai = 2 * Vo_sh_r2
+                    Vo_tot = self.overlap_region_sphere(sep, Ra)
+                    integrand1 = dndm[iM:] * Vo_ai[iM:]
+                    integrand2 = 0.0    
+                elif term == 'id':
+                    
+                    #b = #self.halos.bias(z, np.log10(Mmin)).squeeze()
+                    iz = np.argmin(np.abs(z - self.halos.z))
+                    b = self.halos.bias_tab[iz]
+                    dndm = self.halos.dndm[iz]
+                    Mh = self.halos.M
+                    
+                    rho0 = self.cosm.mean_density0
+                    
+                    dndlnm = dndm * Mh
+                    
+                    corr_t1 = np.trapz(dndlnm * b, x=np.log(Mh))
+                    
+                    xi_dd = data['cf_dd']
+                    
+                    
+                    
+                    corr_t2 = 1e-5#np.trapz(xi_dd, x=data['dr'])
+                    
+                    corr = corr_t1 * corr_t2
+                    
+                    #import matplotlib.pyplot as pl
+                    #
+                    #print z, corr_t1, corr_t2, corr
+                    #pl.loglog(self.halos.M, b)
+                    #
+                    #pl.loglog(data['dr'], np.abs(xi_dd))
+                    #
+                    #raw_input('<enter>')
+                    
+                    
+                    
+                    
+                    
+                    # Joint probability of ionization and density fields
+                    # (simplified as in FZH04 (their Eq. 24)
+                    integrand = dndlnm * np.exp(-b * corr) / rho0
+                    integral = np.trapz(integrand, x=np.log(Mh))
+                    
+                    #print z, corr_t1, integral
+                    
+                    return (1. - data['xibar']) * (1. - integral)
                 else:
                     raise NotImplementedError('help!')
                     
@@ -322,7 +412,7 @@ class FluctuatingBackground(object):
                 
                 # Two halo term
                 if self.pf['include_bias']:
-                    ep = self.excess_probability(z, dr)
+                    ep = self.excess_probability(z, sep, data)
                     integrand2 *= (1. + ep)
                 
                 exp_int2 = np.exp(-np.trapz(integrand2 * Mb[iM:], 
@@ -358,18 +448,18 @@ class FluctuatingBackground(object):
         #
         #    return oht + tht
     
-    def excess_probability(self, z, r):
+    def excess_probability(self, z, r, data):
         pop = self.pops[0] # any one will do
         
-        #iz = np.argmin(np.abs(z - pop.halos.z))
+        iz = np.argmin(np.abs(z - pop.halos.z))
         #Mmin = pop._tab_Mmin[iz]
         Mmin = self.Mmin(z)
         iM = np.argmin(np.abs(pop.halos.M - Mmin))
         
-        b = pop.halos.bias(z, pop.halos.logM[iM:]).squeeze()
-        bbar = 1.
+        #b = pop.halos.bias(z, pop.halos.logM[iM:]).squeeze()
+        bbar = np.trapz(b)
         
-        xi_dd = pop.halos.CorrelationFunction(z, r)
+        xi_dd = np.interp(r, data['dr'], data['cf_dd'].real)        
         
         return b * bbar * np.array(xi_dd)
 

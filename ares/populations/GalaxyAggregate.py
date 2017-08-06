@@ -541,7 +541,8 @@ class GalaxyAggregate(HaloPopulation):
         
         return rhoL / (eV_per_phot * erg_per_ev)
     
-    
+    def IonizingEfficiency(self, z):
+        return self.pf['pop_Nion'] * self.pf['pop_fesc'] * self.pf['pop_fstar']
     
     
           

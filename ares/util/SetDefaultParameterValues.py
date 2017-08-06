@@ -344,7 +344,7 @@ def PowerSpectrumParameters():
     tmp = \
     {     
      'powspec_redshifts': np.arange(6, 20, 1),
-     'fft_scales': np.arange(1e-2, 100., 1e-4),
+     'fft_scales': np.arange(1e-4, 100., 1e-4),
 
      # Ultimately we'll interpolate beyond these
      'powspec_dlogk': 0.05,
@@ -357,11 +357,16 @@ def PowerSpectrumParameters():
      'include_ion_fl': True,
      'include_temp_fl': False,
      'include_lya_fl': False,
+     
+     'include_4pt_terms': False,
+     
      'include_bias': False,
           
      "bubble_size": None,
-     "bubble_shell_size": None,
+     "bubble_shell_size_rel": None,
+     "bubble_shell_size_abs": None,
      "bubble_shell_temp": None,
+     "bubble_shell_Nsc": 1e3,
      "bubble_density": None,
      "bubble_density_rescale": False,
      
@@ -930,9 +935,10 @@ def ControlParameters():
     "powspec_dlogr": 0.1,
     "powspec_band": (11.2, 13.6),
 
+    "sam_dt": 1., # Myr
     "sam_dz": 2., # Usually good enough!
-    "sam_atol": 1e-2,
-    "sam_rtol": 1e-2,
+    "sam_atol": 1e-8,
+    "sam_rtol": 1e-8,
     
     # File format
     "preferred_format": 'npz',
