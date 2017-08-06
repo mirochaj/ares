@@ -4,7 +4,7 @@ File: $ARES/ares/inference/Priors.py
 Author: Keith Tauscher
 Affiliation: University of Colorado at Boulder
 Created on: Thu Mar 17 12:48:00 MDT 2016
-Updated on: Tue Feb 28 01:45:00 MDT 2017
+Updated on: Sat Aug 5  20:24:23 MDT 2017
 
 Description: This file contains different useful priors. For examples, see
              below and the test in tests/test_priors.py.
@@ -37,31 +37,37 @@ in support):
     (mean) --- common_ratio / (1 - common_ratio)
     (variance) --- common_ratio / (1 - common_ratio)^2
 
-(5) ExponentialPrior(rate, shift=0)
+(5) BinomialPrior(p, n)
+    (pdf) --- f(x) = (n choose k) p^k (1-p)^(n-k)
+    (support) --- integer k satisfying (0 <= k <= n)
+    (mean) --- np
+    (variance) --- np(1-p)
+
+(6) ExponentialPrior(rate, shift=0)
     (pdf) --- f(x) = rate * e^(-rate * (x - shift))
     (support) --- x>0
     (mean) --- 1 / rate
     (variance) --- 1 / rate^2
 
-(6) DoubleSidedExponentialPrior(mean, variance)
+(7) DoubleSidedExponentialPrior(mean, variance)
     (pdf) --- f(x) = e^(-|(x - mean) / sqrt(variance/2)|) / (sqrt(2*variance))
     (support) --- real x
     (mean) --- mean
     (variance) --- variance
 
-(7) UniformPrior(low, high)
+(8) UniformPrior(low, high)
     (pdf) --- f(x) = 1 / (high - low)
     (support) --- low < x < high
     (mean) --- (low + high) / 2
     (variance) --- (high - low)^2 / 12
 
-(8) GaussianPrior(mean, variance)
+(9) GaussianPrior(mean, variance)
     (pdf) --- f(x) = e^(- (x - mean)^2 / (2 * variance)) / sqrt(2pi * variance)
     (support) --- -infty < x < infty
     (mean) --- mean
     (variance) --- variance
 
-(9) TruncatedGaussianPrior(mean, variance, low, high)
+(10) TruncatedGaussianPrior(mean, variance, low, high)
     (pdf) --- rescaled and truncated version of pdf of GaussianPrior
     (support) --- low < x < high
     (mean) --- no convenient expression; in limit, approaches mean
