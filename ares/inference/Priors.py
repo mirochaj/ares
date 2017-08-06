@@ -544,6 +544,103 @@ class GeometricPrior(_Prior):
         """
         group.attrs['class'] = 'GeometricPrior'
         group.attrs['common_ratio'] = self.common_ratio
+
+class BinomialPrior(_Prior):
+    """
+    Prior with support on the non-negative integers up to a maximum numbers. It
+    has only two parameters, probability of sucess and number of trials. When
+    probability of success is 1/2, this is the distribution of the number of
+    heads flipped in the number of trials given.
+    """
+    def __init__(self, probability_of_success, number_of_trials):
+        """
+        Initializes new BinomialPrior with given scale.
+        
+        probability_of_success: real number in (0, 1)
+        number_of_trials: maximum integer in the support of this distribution
+        """
+        if type(probability_of_success) in numerical_types:
+            if (probability_of_success > 0.) and (probability_of_success < 1.):
+                self.probability_of_success = probability_of_success
+            else:
+                raise ValueError("probability_of_success given to " +\
+                                 "BinomialPrior was not between 0 and 1.")
+        else:
+            raise ValueError("probability_of_success given to " +\
+                             "BinomialPrior was not a number.")
+        if type(number_of_trials) in int_types:
+            if number_of_trials > 0:
+                self.number_of_trials = number_of_trials
+            else:
+                raise ValueError("number_of_trials given to BinomialPrior " +\
+                                 "was not positive.")
+        else:
+            raise ValueError("number_of_trials given to BinomialPrior was " +\
+                             "not a number.")
+    
+    @property
+    def numparams(self):
+        """
+        Binomial pdf is univariate so numparams always returns 1.
+        """
+        return 1
+    
+    def draw(self):
+        """
+        Draws and returns a value from this distribution using numpy.random.
+        """
+        return\
+            rand.binomial(self.number_of_trials, self.probability_of_success)
+    
+    def log_prior(self, value):
+        """
+        Evaluates and returns the log of this prior when the variable is value.
+        
+        value: numerical value of the variable
+        """
+        if type(value) in int_types:
+            if (value >= 0) and (value <= self.number_of_trials):
+                n_minus_k = self.number_of_trials - value
+                return log_gamma(self.number_of_trials + 1) -\
+                    log_gamma(value + 1) - log_gamma(n_minus_k + 1) +\
+                    (value * np.log(self.probability_of_success)) +\
+                    (n_minus_k * np.log(1 - self.probability_of_success))
+            else:
+                return -np.inf
+        else:
+            raise TypeError("value given to BinomialPrior was not an integer.")
+
+    def to_string(self):
+        """
+        Finds and returns a string version of this BinomialPrior.
+        """
+        return "Binomial(%.2g,%.i)" %\
+            (self.probability_of_success, self.number_of_trials)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a BinomialPrior with the same probability_of_success and
+        number_of_trials.
+        """
+        if isinstance(other, BinomialPrior):
+            p_close = np.isclose(self.probability_of_success,\
+                other.probability_of_success, rtol=0, atol=1e-6)
+            n_equal = (self.number_of_trials == other.number_of_trials)
+            return p_close and n_equal
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this prior. The only
+        thing to save is the common_ratio.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'BinomialPrior'
+        group.attrs['number_of_trials'] = self.number_of_trials
+        group.attrs['probability_of_success'] = self.probability_of_success
         
 
 class ExponentialPrior(_Prior):
@@ -1998,6 +2095,10 @@ def load_prior_from_hdf5_group(group):
     elif class_name == 'GeometricPrior':
         common_ratio = group.attrs['common_ratio']
         return GeometricPrior(common_ratio)
+    elif class_name == 'BinomialPrior':
+        probability_of_success = group.attrs['probability_of_success']
+        number_of_trials = group.attrs['number_of_trials']
+        return BinomialPrior(probability_of_success, number_of_trials)
     elif class_name == 'ExponentialPrior':
         rate = group.attrs['rate']
         shift = group.attrs['shift']

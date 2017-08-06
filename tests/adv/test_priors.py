@@ -3,7 +3,8 @@ import numpy as np
 from ares.inference.Priors import GaussianPrior, UniformPrior, GeometricPrior,\
     ParallelepipedPrior, ExponentialPrior, DoubleSidedExponentialPrior,\
     BetaPrior, GammaPrior, TruncatedGaussianPrior, LinkedPrior,\
-    SequentialPrior, GriddedPrior, EllipticalPrior, PoissonPrior
+    SequentialPrior, GriddedPrior, EllipticalPrior, PoissonPrior,\
+    BinomialPrior
 import matplotlib.pyplot as pl
 import matplotlib.cm as cm
 
@@ -15,6 +16,7 @@ sample_size = int(1e5)
 uniform_test = True
 poisson_test = True
 geometric_test = True
+binomial_test = True
 exponential_test = True
 double_sided_exponential_test = True
 beta_test = True
@@ -98,6 +100,30 @@ if geometric_test:
         color='r', label='e^(log_prior)')
     pl.legend(fontsize='xx-large', loc='upper right')
     pl.title('Geometric prior test', size='xx-large')
+    pl.xlabel('Value', size='xx-large')
+    pl.ylabel('PDF', size='xx-large')
+    pl.xlim((0, 10))
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+
+###############################################################################
+###############################################################################
+
+if binomial_test:
+    bp = BinomialPrior(0.4, 10)
+    assert bp.numparams == 1
+    t0 = time.time()
+    bp_sample = [bp.draw() for i in range(sample_size)]
+    print ('It took %.5f s to draw %i ' % (time.time() - t0, sample_size)) +\
+          'points from a binomial distribution.'
+    pl.figure()
+    pl.hist(bp_sample, bins=np.arange(-0.5, 11, 1), histtype='step',\
+        color='b', linewidth=2, normed=True, label='sampled')
+    (start, end) = (0, 10)
+    xs = np.linspace(start, end, end - start + 1).astype(int)
+    pl.plot(xs, map((lambda x : np.exp(bp.log_prior(x))), xs), linewidth=2,\
+        color='r', label='e^(log_prior)')
+    pl.legend(fontsize='xx-large', loc='upper right')
+    pl.title('Binomial prior test', size='xx-large')
     pl.xlabel('Value', size='xx-large')
     pl.ylabel('PDF', size='xx-large')
     pl.xlim((0, 10))
