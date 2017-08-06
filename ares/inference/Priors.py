@@ -26,36 +26,42 @@ in support):
     (variance) (alpha * beta) / (alpha + beta)^2 / (alpha + beta + 1)
 
 (3) PoissonPrior(scale)
-    (pdf) --  f(k) = scale^k * e^(-scale) / k!
+    (pdf) ---  f(k) = scale^k * e^(-scale) / k!
     (support) --- non-negative integer k
     (mean) --- scale
     (variance) --- scale
 
-(4) ExponentialPrior(rate, shift=0)
+(4) GeometricPrior(common_ratio)
+    (pdf) --- f(k) = (1 - common_ratio) * common_ratio^k
+    (support) --- non-negative integer k
+    (mean) --- common_ratio / (1 - common_ratio)
+    (variance) --- common_ratio / (1 - common_ratio)^2
+
+(5) ExponentialPrior(rate, shift=0)
     (pdf) --- f(x) = rate * e^(-rate * (x - shift))
     (support) --- x>0
     (mean) --- 1 / rate
     (variance) --- 1 / rate^2
 
-(5) DoubleSidedExponentialPrior(mean, variance)
+(6) DoubleSidedExponentialPrior(mean, variance)
     (pdf) --- f(x) = e^(-|(x - mean) / sqrt(variance/2)|) / (sqrt(2*variance))
     (support) --- real x
     (mean) --- mean
     (variance) --- variance
 
-(6) UniformPrior(low, high)
+(7) UniformPrior(low, high)
     (pdf) --- f(x) = 1 / (high - low)
     (support) --- low < x < high
     (mean) --- (low + high) / 2
     (variance) --- (high - low)^2 / 12
 
-(7) GaussianPrior(mean, variance)
+(8) GaussianPrior(mean, variance)
     (pdf) --- f(x) = e^(- (x - mean)^2 / (2 * variance)) / sqrt(2pi * variance)
     (support) --- -infty < x < infty
     (mean) --- mean
     (variance) --- variance
 
-(8) TruncatedGaussianPrior(mean, variance, low, high)
+(9) TruncatedGaussianPrior(mean, variance, low, high)
     (pdf) --- rescaled and truncated version of pdf of GaussianPrior
     (support) --- low < x < high
     (mean) --- no convenient expression; in limit, approaches mean
@@ -456,6 +462,88 @@ class PoissonPrior(_Prior):
         """
         group.attrs['class'] = 'PoissonPrior'
         group.attrs['scale'] = self.scale
+
+class GeometricPrior(_Prior):
+    """
+    Prior with support on the non-negative integers. It has only one parameter,
+    the common ratio between successive probabilities.
+    """
+    def __init__(self, common_ratio):
+        """
+        Initializes new GeometricPrior with given scale.
+        
+        common_ratio: ratio between successive probabilities
+        """
+        if type(common_ratio) in numerical_types:
+            if (common_ratio > 0.) and (common_ratio < 1.):
+                self.common_ratio = common_ratio
+            else:
+                raise ValueError("scale given to PoissonPrior was not " +\
+                                 "between 0 and 1.")
+        else:
+            raise ValueError("common_ratio given to GeometricPrior was not " +\
+                             "a number.")
+        self.const_lp_term = np.log(1 - self.common_ratio)
+    
+    @property
+    def numparams(self):
+        """
+        Geometric pdf is univariate so numparams always returns 1.
+        """
+        return 1
+    
+    @property
+    def log_common_ratio(self):
+        if not hasattr(self, '_log_common_ratio'):
+            self._log_common_ratio = np.log(self.common_ratio)
+        return self._log_common_ratio
+    
+    def draw(self):
+        """
+        Draws and returns a value from this distribution using numpy.random.
+        """
+        return int(np.floor(np.log(rand.rand()) / self.log_common_ratio))
+    
+    def log_prior(self, value):
+        """
+        Evaluates and returns the log of this prior when the variable is value.
+        
+        value: numerical value of the variable
+        """
+        if type(value) in int_types:
+            if value >= 0:
+                return self.const_lp_term + (value * self.log_common_ratio)
+            else:
+                return -np.inf
+        else:
+            raise TypeError("value given to PoissonPrior was not an integer.")
+
+    def to_string(self):
+        """
+        Finds and returns a string version of this GeometricPrior.
+        """
+        return "Geometric(%.4g)" % (self.common_ratio,)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality of this prior with other. Returns True if other is
+        a PoissonPrior with the same scale.
+        """
+        if isinstance(other, GeometricPrior):
+            return np.isclose(self.common_ratio, other.common_ratio, rtol=0,\
+                atol=1e-6)
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data about this prior. The only
+        thing to save is the common_ratio.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'GeometricPrior'
+        group.attrs['common_ratio'] = self.common_ratio
         
 
 class ExponentialPrior(_Prior):
@@ -1907,6 +1995,9 @@ def load_prior_from_hdf5_group(group):
     elif class_name == 'PoissonPrior':
         scale = group.attrs['scale']
         return PoissonPrior(scale)
+    elif class_name == 'GeometricPrior':
+        common_ratio = group.attrs['common_ratio']
+        return GeometricPrior(common_ratio)
     elif class_name == 'ExponentialPrior':
         rate = group.attrs['rate']
         shift = group.attrs['shift']

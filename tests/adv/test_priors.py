@@ -1,6 +1,6 @@
 import time
 import numpy as np
-from ares.inference.Priors import GaussianPrior, UniformPrior,\
+from ares.inference.Priors import GaussianPrior, UniformPrior, GeometricPrior,\
     ParallelepipedPrior, ExponentialPrior, DoubleSidedExponentialPrior,\
     BetaPrior, GammaPrior, TruncatedGaussianPrior, LinkedPrior,\
     SequentialPrior, GriddedPrior, EllipticalPrior, PoissonPrior
@@ -14,6 +14,7 @@ sample_size = int(1e5)
 
 uniform_test = True
 poisson_test = True
+geometric_test = True
 exponential_test = True
 double_sided_exponential_test = True
 beta_test = True
@@ -64,7 +65,7 @@ if poisson_test:
     t0 = time.time()
     pp_sample = [pp.draw() for i in range(sample_size)]
     print ('It took %.5f s to draw %i ' % (time.time() - t0, sample_size)) +\
-          'points from a double-sided exponential distribution.'
+          'points from a Poisson distribution.'
     pl.figure()
     pl.hist(pp_sample, bins=np.arange(-49.5, 51, 1), histtype='step',\
         color='b', linewidth=2, normed=True, label='sampled')
@@ -76,6 +77,30 @@ if poisson_test:
     pl.title('Poisson prior test', size='xx-large')
     pl.xlabel('Value', size='xx-large')
     pl.ylabel('PDF', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+
+###############################################################################
+###############################################################################
+
+if geometric_test:
+    gp = GeometricPrior(0.5)
+    assert gp.numparams == 1
+    t0 = time.time()
+    gp_sample = [gp.draw() for i in range(sample_size)]
+    print ('It took %.5f s to draw %i ' % (time.time() - t0, sample_size)) +\
+          'points from a geometric distribution.'
+    pl.figure()
+    pl.hist(gp_sample, bins=np.arange(-0.5, 11, 1), histtype='step',\
+        color='b', linewidth=2, normed=True, label='sampled')
+    (start, end) = (0, 10)
+    xs = np.linspace(start, end, end - start + 1).astype(int)
+    pl.plot(xs, map((lambda x : np.exp(gp.log_prior(x))), xs), linewidth=2,\
+        color='r', label='e^(log_prior)')
+    pl.legend(fontsize='xx-large', loc='upper right')
+    pl.title('Geometric prior test', size='xx-large')
+    pl.xlabel('Value', size='xx-large')
+    pl.ylabel('PDF', size='xx-large')
+    pl.xlim((0, 10))
     pl.tick_params(labelsize='xx-large', width=2, length=6)
 
 
