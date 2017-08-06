@@ -19,55 +19,61 @@ in support):
     (mean) --- shape * scale
     (variance) --- shape * scale^2
 
-(2) BetaPrior(alpha, beta)
+(2) ChiSquaredPrior(dof)
+    (pdf) --- f(x) = ((1/2)^(dof/2) / gamma(dof/2)) * x^((dof/2)-1) * e^(-x/2)
+    (support) --- x > 0
+    (mean) --- dof
+    (variance) --- 2 * dof
+
+(3) BetaPrior(alpha, beta)
     (pdf) --- f(x) = x^(alpha - 1) * (1 - x)^(beta - 1) / Beta(alpha, beta)
     (support) --- 0 < x < 1
     (mean) --- alpha / (alpha+beta)
     (variance) (alpha * beta) / (alpha + beta)^2 / (alpha + beta + 1)
 
-(3) PoissonPrior(scale)
+(4) PoissonPrior(scale)
     (pdf) ---  f(k) = scale^k * e^(-scale) / k!
     (support) --- non-negative integer k
     (mean) --- scale
     (variance) --- scale
 
-(4) GeometricPrior(common_ratio)
+(5) GeometricPrior(common_ratio)
     (pdf) --- f(k) = (1 - common_ratio) * common_ratio^k
     (support) --- non-negative integer k
     (mean) --- common_ratio / (1 - common_ratio)
     (variance) --- common_ratio / (1 - common_ratio)^2
 
-(5) BinomialPrior(p, n)
+(6) BinomialPrior(p, n)
     (pdf) --- f(x) = (n choose k) p^k (1-p)^(n-k)
     (support) --- integer k satisfying (0 <= k <= n)
-    (mean) --- np
-    (variance) --- np(1-p)
+    (mean) --- n * p
+    (variance) --- n * p * (1-p)
 
-(6) ExponentialPrior(rate, shift=0)
+(7) ExponentialPrior(rate, shift=0)
     (pdf) --- f(x) = rate * e^(-rate * (x - shift))
     (support) --- x>0
     (mean) --- 1 / rate
     (variance) --- 1 / rate^2
 
-(7) DoubleSidedExponentialPrior(mean, variance)
+(8) DoubleSidedExponentialPrior(mean, variance)
     (pdf) --- f(x) = e^(-|(x - mean) / sqrt(variance/2)|) / (sqrt(2*variance))
     (support) --- real x
     (mean) --- mean
     (variance) --- variance
 
-(8) UniformPrior(low, high)
+(9) UniformPrior(low, high)
     (pdf) --- f(x) = 1 / (high - low)
     (support) --- low < x < high
     (mean) --- (low + high) / 2
     (variance) --- (high - low)^2 / 12
 
-(9) GaussianPrior(mean, variance)
+(10) GaussianPrior(mean, variance)
     (pdf) --- f(x) = e^(- (x - mean)^2 / (2 * variance)) / sqrt(2pi * variance)
     (support) --- -infty < x < infty
     (mean) --- mean
     (variance) --- variance
 
-(10) TruncatedGaussianPrior(mean, variance, low, high)
+(11) TruncatedGaussianPrior(mean, variance, low, high)
     (pdf) --- rescaled and truncated version of pdf of GaussianPrior
     (support) --- low < x < high
     (mean) --- no convenient expression; in limit, approaches mean
@@ -309,6 +315,80 @@ class GammaPrior(_Prior):
         else:
             raise ValueError(("The %s given to a " % (name,)) +\
                              "GammaPrior wasn't of a numerical type.")
+
+class ChiSquaredPrior(_Prior):
+    """
+    A prior having a chi-squared distribution. This is useful for variables
+    variables which are naturally or are representable as the sum of squared
+    gaussian-distributed variables. Its only parameter is the number of degrees
+    of freedom, a positive integer.
+    """
+    def __init__(self, degrees_of_freedom):
+        """
+        Initializes a new gamma prior with the given parameters.
+        
+        degrees_of_freedom: positive integer
+        """
+        if type(degrees_of_freedom) in int_types:
+            if degrees_of_freedom > 0:
+                self.degrees_of_freedom = degrees_of_freedom
+            else:
+                raise ValueError("degrees_of_freedom_given to " +\
+                                 "ChiSquaredPrior was not positive.")
+        else:
+            raise ValueError("degrees_of_freedom given to ChiSquaredPrior " +\
+                             "was not an integer.")
+        self.const_lp_term = -(self.degrees_of_freedom * (np.log(2) / 2)) -\
+            log_gamma(self.degrees_of_freedom / 2.)
+    
+    @property
+    def numparams(self):
+        """
+        Chi-squared pdf is univariate, so numparams always returns 1.
+        """
+        return 1
+
+    def draw(self):
+        """
+        Draws and returns a value from this distribution using numpy.random.
+        """
+        return rand.chisquare(self.degrees_of_freedom)
+
+    def log_prior(self, value):
+        """
+        Evaluates and returns the log of this prior when the variable is value.
+        
+        value: numerical value of the variable
+        """
+        return self.const_lp_term - (value / 2) +\
+            (((self.degrees_of_freedom / 2.) - 1) * np.log(value))
+    
+    def to_string(self):
+        """
+        Finds and returns the string representation of this ChiSquaredPrior.
+        """
+        return "ChiSquared(%i)" % (self.degrees_of_freedom,)
+    
+    def __eq__(self, other):
+        """
+        Checks for equality between other and this object. Returns True if
+        if other is a ChiSquaredPrior with the same number of degrees of
+        freedom.
+        """
+        if isinstance(other, ChiSquaredPrior):
+            return self.degrees_of_freedom == other.degrees_of_freedom
+        else:
+            return False
+    
+    def fill_hdf5_group(self, group):
+        """
+        Fills the given hdf5 file group with data from this prior. Only thing
+        to save is the number of degrees of freedom.
+        
+        group: hdf5 file group to fill
+        """
+        group.attrs['class'] = 'ChiSquaredPrior'
+        group.attrs['degrees_of_freedom'] = self.degrees_of_freedom
 
 
 class BetaPrior(_Prior):

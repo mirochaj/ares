@@ -4,7 +4,7 @@ from ares.inference.Priors import GaussianPrior, UniformPrior, GeometricPrior,\
     ParallelepipedPrior, ExponentialPrior, DoubleSidedExponentialPrior,\
     BetaPrior, GammaPrior, TruncatedGaussianPrior, LinkedPrior,\
     SequentialPrior, GriddedPrior, EllipticalPrior, PoissonPrior,\
-    BinomialPrior
+    BinomialPrior, ChiSquaredPrior
 import matplotlib.pyplot as pl
 import matplotlib.cm as cm
 
@@ -21,6 +21,7 @@ exponential_test = True
 double_sided_exponential_test = True
 beta_test = True
 gamma_test = True
+chi_squared_test = True
 truncated_gaussian_test = True
 elliptical_test = True
 univariate_gaussian_test = True
@@ -218,6 +219,29 @@ if gamma_test:
     pl.plot(xs, map((lambda x : np.exp(gp.log_prior(x))), xs), linewidth=2,\
         color='r', label='e^(log_prior)')
     pl.title('Gamma distribution test', size='xx-large')
+    pl.xlabel('Value', size='xx-large')
+    pl.ylabel('PDF', size='xx-large')
+    pl.tick_params(labelsize='xx-large', width=2, length=6)
+    pl.legend(fontsize='xx-large')
+
+
+############################# ChiSquaredPrior test ############################
+###############################################################################
+
+if chi_squared_test:
+    csp = ChiSquaredPrior(5)
+    assert csp.numparams == 1
+    t0 = time.time()
+    chi_squared_sample = [csp.draw() for i in range(sample_size)]
+    print 'It took %.5f s to draw %i points from a chisquared distribution.' %\
+        (time.time()-t0,sample_size,)
+    pl.figure()
+    pl.hist(chi_squared_sample, bins=100, linewidth=2, color='b',\
+        histtype='step', label='sampled', normed=True)
+    xs = np.arange(0., 30., 0.01)
+    pl.plot(xs, map((lambda x : np.exp(csp.log_prior(x))), xs), linewidth=2,\
+        color='r', label='e^(log_prior)')
+    pl.title('Chi-squared distribution test', size='xx-large')
     pl.xlabel('Value', size='xx-large')
     pl.ylabel('PDF', size='xx-large')
     pl.tick_params(labelsize='xx-large', width=2, length=6)
