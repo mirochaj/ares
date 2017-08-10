@@ -213,7 +213,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
         V = 4. * np.pi * R**3 / 3.
 
-        Q = self.history['Qbar'][iz]
+        Q = self.history['Qi'][iz]
                 
         if by_volume:
             dndV = bsd * dmdr / dvdr
@@ -247,7 +247,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         
         Qall = []
         for i, z in enumerate(self.redshifts):
-            Qall.append(self.history['Qbar'][i])
+            Qall.append(self.history['Qi'][i])
 
         ax.plot(self.redshifts, Qall, **kwargs)
         ax.set_xlabel(r'$z$')
@@ -278,6 +278,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             gotax = True
             
             if show_gs:
+                print ax
                 assert isinstance(ax, MultiPanel)
 
             mp = ax

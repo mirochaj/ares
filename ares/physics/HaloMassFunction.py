@@ -242,11 +242,12 @@ class HaloMassFunction(object):
                 self.k = f['k'].value
                 self.bias_tab = f['bias'].value
                 self.psCDM_tab = f['psCDM'].value
+                self.sigma_tab = f['sigma'].value
 
             # Axes these?
             self.ngtm = f['ngtm'].value
             self.mgtm = f['mgtm'].value
-            self.growth_factor = f['growth_factor']
+            self.growth_tab = f['growth'].value
             
             f.close()
         elif re.search('.npz', self.fn):
@@ -258,7 +259,8 @@ class HaloMassFunction(object):
             self.dndm = f['dndm']
             self.ngtm = f['ngtm']
             self.mgtm = f['mgtm']
-            self.growth_factor = f['growth_factor']
+            self.growth_tab = f['growth']
+            self.sigma_tab = f['sigma']
             self.bias_tab = f['bias']
             self.psCDM_tab = f['psCDM']
             self.k = f['k']
@@ -276,10 +278,11 @@ class HaloMassFunction(object):
             if self.pf['hmf_load_ps']:
                 self.bias_tab = pickle.load(f)
                 self.psCDM_tab = pickle.load(f)
+                self.sigma_tab = pickle.load(f)
                 self.k = pickle.load(f)
             
             if self.pf['hmf_load_growth']:
-                self.growth_factor = pickle.load(f)
+                self.growth_tab = pickle.load(f)
             
             # Axes these?
             self.ngtm = pickle.load(f)
@@ -398,7 +401,8 @@ class HaloMassFunction(object):
         # Extras
         self.bias_tab = np.zeros_like(self.dndm)
         self.psCDM_tab = np.zeros([len(self.z), len(self.k)])
-        self.growth_factor = np.zeros_like(self.z)
+        self.growth_tab = np.zeros_like(self.z)
+        self.sigma_tab = np.zeros_like(self.M)
         
         pb = ProgressBar(len(self.z), 'fcoll')
         pb.start()
@@ -431,12 +435,15 @@ class HaloMassFunction(object):
                 self.bias_tab[i] = 1. + (0.75 * self.MF.nu - 1.) / self.MF.delta_c + \
                     (2. * 0.3 / self.MF.delta_c) / (1. + (0.75 * self.MF.nu)**0.3)
                 self.psCDM_tab[i] = self.MF.power / self.cosm.h70**3
-                
-            self.growth_factor[i] = self.MF.growth_factor
                         
+            self.growth_tab[i] = self.MF.growth_factor            
+                                    
             pb.update(i)
             
         pb.finish()
+        
+        # All processors will have this.
+        self.sigma_tab = self.MF._sigma_0
                 
         # Collect results!
         if size > 1:
@@ -464,9 +471,9 @@ class HaloMassFunction(object):
             nothing = MPI.COMM_WORLD.Allreduce(self.psCDM_tab, tmp6)
             self.psCDM_tab = tmp6
             
-            tmp7 = np.zeros_like(self.growth_factor)
-            nothing = MPI.COMM_WORLD.Allreduce(self.growth_factor, tmp7)
-            self.growth_factor = tmp7
+            tmp7 = np.zeros_like(self.growth_tab)
+            nothing = MPI.COMM_WORLD.Allreduce(self.growth_tab, tmp7)
+            self.growth_tab = tmp7
             
         else:
             _fcoll_tab = fcoll_tab   
@@ -622,11 +629,12 @@ class HaloMassFunction(object):
     
     @property
     def sigma_0(self):
-        if not hasattr(self, '_sigma_0'):
-            self.MF.update(z=0)
-            self._sigma_0 = self.MF._sigma_0
-        return self._sigma_0
-        
+        return self.sigma_tab
+                            
+    @property
+    def growth_factor(self):
+        return self.growth_tab
+    
     def fcoll_2d(self, z, logMmin):
         """
         Return fraction of mass in halos more massive than 10**logMmin.
@@ -644,7 +652,7 @@ class HaloMassFunction(object):
                 return tiny_fcoll
 
             return np.squeeze(self.fcoll_spline_2d(z, logMmin)) \
-                 - np.squeeze(self.fcoll_spline_2d(z, logMmax))             
+                 - np.squeeze(self.fcoll_spline_2d(z, logMmax))
         else:
             return np.squeeze(self.fcoll_spline_2d(z, logMmin))
 
@@ -908,7 +916,8 @@ class HaloMassFunction(object):
             f.create_dataset('mgtm', data=self.mgtm)            
             f.create_dataset('bias', data=self.bias_tab)            
             f.create_dataset('psCDM', data=self.psCDM_tab)
-            f.create_dataset('growth_factor', data=self.growth_factor)
+            f.create_dataset('growth', data=self.growth_tab)
+            f.create_dataset('sigma', data=self.sigma_tab)
             f.create_dataset('k', data=self.k)
             f.create_dataset('hmf-version', data=hmf_v)         
             f.close()
@@ -919,9 +928,10 @@ class HaloMassFunction(object):
                     'ngtm': self.ngtm, 'mgtm': self.mgtm,
                     'pars': {'growth_pars': self.growth_pars,
                              'transfer_pars': self.transfer_pars},
-                    'growth_factor': self.growth_factor,
+                    'growth': self.growth_tab,
                     'bias': self.bias_tab,
                     'psCDM': self.psCDM_tab,
+                    'sigma': self.sigma_tab,
                     'k': self.k,
                     'hmf-version': hmf_v}
             np.savez(fn, **data)
@@ -937,8 +947,9 @@ class HaloMassFunction(object):
             pickle.dump(self.mgtm, f)
             pickle.dump(self.bias_tab, f)
             pickle.dump(self.psCDM_tab, f)
+            pickle.dump(self.sigma_tab, f)
             pickle.dump(self.k)
-            pickle.dump(self.growth_factor, f)
+            pickle.dump(self.growth_tab, f)
             pickle.dump({'growth_pars': self.growth_pars,
                 'transfer_pars': self.transfer_pars}, f)
             pickle.dump(dict(('hmf-version', hmf_v)))
