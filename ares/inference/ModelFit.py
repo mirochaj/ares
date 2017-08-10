@@ -12,8 +12,8 @@ Description:
 
 import pickle
 import numpy as np
+from distpy import DistributionSet
 from ..util import get_hg_rev
-from .PriorSet import PriorSet
 from ..util.Stats import get_nu
 from ..util.MPIPool import MPIPool
 from ..util.PrintInfo import print_fit
@@ -98,13 +98,13 @@ def guesses_from_priors(pars, prior_set, nwalkers):
     ----------
     pars : list 
         Names of parameters
-    prior_set : PriorSet object
+    prior_set : DistributionSet object
 
     nwalkers : int
         Number of walkers
 
     """
-    print "Making guesses from PriorSet..."
+    print "Making guesses from prior_set..."
     guesses = []
     for i in range(nwalkers):
         draw = prior_set.draw()
@@ -176,19 +176,20 @@ class LogLikelihood(object):
                              ("(%i)." % (len(self.parameters),)))
         
         if blob_info is None:
-            self.priors_B = PriorSet()
-        elif isinstance(blob_prior_set, PriorSet):
+            self.priors_B = DistributionSet()
+        elif isinstance(blob_prior_set, DistributionSet):
             self.priors_B = blob_prior_set
         else:
             try:
                 # perhaps the prior tuples
                 # (prior, params, transformations) were given
-                self.priors_B = PriorSet(prior_tuples=blob_prior_set)
+                self.priors_B =\
+                    DistributionSet(distribution_tuples=blob_prior_set)
             except:
                 raise ValueError("The value given as the blob_prior_set " +\
                                  "argument to the initializer of a " +\
                                  "Loglikelihood could not be cast " +\
-                                 "into a PriorSet.")
+                                 "into a DistributionSet.")
 
 
     def _compute_blob_prior(self, sim):
@@ -206,7 +207,7 @@ class LogLikelihood(object):
 
         try:
             # will return 0 if there are no blobs
-            return self.priors_B.log_prior(blob_vals)
+            return self.priors_B.log_value(blob_vals)
         except:
             # some of the blobs were not retrieved (then they are Nones)!
             return -np.inf
@@ -362,13 +363,12 @@ class ModelFit(BlobFactory):
     def prior_set_P(self):
         if not hasattr(self, '_prior_set_P'):
             ps = self.prior_set
-            subset = PriorSet()
+            subset = DistributionSet()
             for (prior, params, transforms) in ps._data:
                 are_pars_P = [(par in self.parameters) for par in params]
                 are_pars_P = np.array(are_pars_P)
-
                 if np.all(are_pars_P):
-                    subset.add_prior(prior, params, transforms)
+                    subset.add_distribution(prior, params, transforms)
                 elif not np.all(are_pars_P == False):
                     raise AttributeError("Blob priors and parameter " +\
                                          "priors are coupled!")
@@ -379,13 +379,13 @@ class ModelFit(BlobFactory):
     def prior_set_B(self):
         if not hasattr(self, '_prior_set_B'):
             ps = self.prior_set
-            subset = PriorSet()
+            subset = DistributionSet()
             for (prior, params, transforms) in ps._data:
                 are_pars_B = [(par in self.all_blob_names) for par in params]
                 are_pars_B = np.array(are_pars_B)
                 
                 if np.all(are_pars_B):
-                    subset.add_prior(prior, params, transforms)
+                    subset.add_distribution(prior, params, transforms)
                 elif not np.all(are_pars_B == False):
                     raise AttributeError("Blob priors and parameter " +\
                                          "priors are coupled!")
@@ -401,7 +401,7 @@ class ModelFit(BlobFactory):
 
     @prior_set.setter
     def prior_set(self, value):
-        if isinstance(value, PriorSet):
+        if isinstance(value, DistributionSet):
             # could do more error catching but it would enforce certain
             # attributes being set before others which could complicate things
             self._prior_set = value
@@ -423,11 +423,11 @@ class ModelFit(BlobFactory):
                     MPI.COMM_WORLD.Abort()
         else:
             try:
-                self._prior_set = PriorSet(prior_tuples=value)
+                self._prior_set = DistributionSet(distribution_tuples=value)
             except:
                 err_msg = "The prior_set property was set to something " +\
-                          "which was not a PriorSet and could not be cast " +\
-                          "as a PriorSet."
+                          "which was not a DistributionSet and could not " +\
+                          "be cast as a DistributionSet."
                 if size == 1:
                     raise ValueError(err_msg)
                 else:
@@ -437,10 +437,10 @@ class ModelFit(BlobFactory):
     @property
     def guesses_prior_set(self):
         """
-        The PriorSet object which is used to initialize the walkers. If
-        self.guesses_prior_set is set, it will be used here. Otherwise, the same
-        PriorSet which will be used in the likelihood calculation will be used
-        to initialize the walkers.
+        The DistributionSet object which is used to initialize the walkers. If
+        self.guesses_prior_set is set, it will be used here. Otherwise, the
+        same DistributionSet which will be used in the likelihood calculation
+        will be used to initialize the walkers.
         """
         if hasattr(self, '_guesses_prior_set'):
             return self._guesses_prior_set
@@ -451,12 +451,13 @@ class ModelFit(BlobFactory):
     def guesses_prior_set(self, value):
         """
         A setter for the PriorSet which will be used to initialize the walkers.
-        This attribute is optional. If it is not set, the PriorSet which is
-        used in the likelihood calculation is used to initialize the walkers.
+        This attribute is optional. If it is not set, the DistributionSet which
+        is used in the likelihood calculation is used to initialize the
+        walkers.
         
-        value a PriorSet object
+        value a DistributionSet object
         """
-        if isinstance(value, PriorSet):
+        if isinstance(value, DistributionSet):
             self._guesses_prior_set = value
             
             for param in self._guesses_prior_set.params:
@@ -471,11 +472,12 @@ class ModelFit(BlobFactory):
                     MPI.COMM_WORLD.Abort()
         else:
             try:
-                self._guesses_prior_set = PriorSet(prior_tuples=value)
+                self._guesses_prior_set =\
+                    DistributionSet(distribution_tuples=value)
             except:
                 err_msg = "The guesses_prior_set property was set to " +\
-                          "something which was not a PriorSet and could " +\
-                          "not be cast as a PriorSet."
+                          "something which was not a DistributionSet and " +\
+                          "could not be cast as a DistributionSet."
                 if size == 1:
                     raise ValueError(err_msg)
                 else:
@@ -570,7 +572,7 @@ class ModelFit(BlobFactory):
             this_guess_dict = {}
             for iparam in range(len(self.parameters)):
                 this_guess_dict[self.parameters[iparam]] = guess_list[iparam]
-            return not np.isfinite(self.prior_set_P.log_prior(this_guess_dict))
+            return not np.isfinite(self.prior_set_P.log_value(this_guess_dict))
         for iguess in range(newpos.shape[0]):
             while is_outside_prior(newpos[iguess]):
                 newpos[iguess] = sample_ball(mlpt, std, size=1)[0]
@@ -780,9 +782,10 @@ class ModelFit(BlobFactory):
             # naming convention!
             # These suffixes are always the same
             for suffix in ['logL', 'chain', 'facc', 'pinfo', 'rinfo', 
-                'binfo', 'setup', 'prior_set', 'load', 'fail', 'timeout']:
+                'binfo', 'setup', 'load', 'fail', 'timeout']:
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
                 os.system('rm -f %s.*.%s.pkl' % (self.prefix, suffix))
+            os.system('rm -f %s.prior_set.hdf5' % (self.prefix,))
             # These suffixes have their own suffixes
             os.system('rm -f %s.blob_*.pkl' % self.prefix)
             os.system('rm -f %s.*.blob_*.pkl' % self.prefix)
@@ -824,10 +827,7 @@ class ModelFit(BlobFactory):
             f.close()
         
         # Priors!
-        if hasattr(self, '_prior_set'):
-            f = open('%s.prior_set.pkl' % self.prefix, 'wb')
-            pickle.dump(self.prior_set, f)
-            f.close()
+        self.prior_set.save(self.prefix + '.prior_set.hdf5')
         
         # Constant parameters being passed to ares.simulations.Global21cm
         f = open('%s.binfo.pkl' % self.prefix, 'wb')
