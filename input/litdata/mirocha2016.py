@@ -32,7 +32,6 @@ dpl = \
  
  # Solve LWB!
  'pop_solve_rte{0}': (10.2, 13.6),
-
  
  # SFE
  'pop_fstar{0}': 'pq[0]',
@@ -64,8 +63,8 @@ dpl = \
  'pop_logN{1}': -inf,
 
  'pop_solve_rte{1}': True,
- 'pop_tau_Nz{1}': 1000,
- 'pop_approx_tau{1}': 'neutral',
+ 'tau_redshift_bins': 1000,
+ 'tau_approx': 'neutral',
 
  # Control parameters
  'include_He': True,

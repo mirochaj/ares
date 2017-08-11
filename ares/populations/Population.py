@@ -42,7 +42,7 @@ class Population(object):
     @id_num.setter
     def id_num(self, value):
         self._id_num = int(value)    
-    
+
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):    
@@ -59,9 +59,9 @@ class Population(object):
                     primordial_index=self.pf['primordial_index'])
             else:
                 self._cosm = grid.cosm
-                
+
         return self._cosm
-        
+
     @property
     def zone(self):
         if not hasattr(self, '_zone'):
@@ -70,7 +70,9 @@ class Population(object):
             elif self.affects_igm and (not self.affects_cgm):
                 self._zone = 'igm'
             else:
-                raise ValueError("Populations should only affect one zone!")
+                self._zone = 'both'
+                # Can't remember why I do this...
+                #raise ValueError("Populations should only affect one zone!")
                 
         return self._zone    
         
@@ -147,7 +149,7 @@ class Population(object):
                 self._is_lw_src = \
                     (self.pf['pop_Emin'] <= 11.2 <= self.pf['pop_Emax']) and \
                     (self.pf['pop_Emin'] <= E_LL <= self.pf['pop_Emax'])
-            else:
+            else:                
                 raise NotImplementedError('help')
     
         return self._is_lw_src    

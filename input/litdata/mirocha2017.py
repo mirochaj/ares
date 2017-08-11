@@ -44,8 +44,7 @@ _sed_soft = \
 _sed_soft['pop_sfr_model{2}'] = 'link:sfrd:0'
 _sed_soft['pop_alpha{2}'] = -2.5
 _sed_soft['pop_solve_rte{2}'] = True
-_sed_soft['pop_tau_Nz{2}'] = 1000
-_sed_soft['pop_approx_tau{2}'] = 'neutral'
+_sed_soft['tau_approx'] = 'neutral'
 
 _popII_updates = \
 {
@@ -162,8 +161,6 @@ _low = \
  'pop_logN{3}': -np.inf,
 
  'pop_solve_rte{3}': True,
- 'pop_tau_Nz{3}': 1e3,
- 'pop_approx_tau{3}': 'neutral',
 
  #'pop_Mmin{0}': 'link:Mmax_active:2',
 

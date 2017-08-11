@@ -563,11 +563,8 @@ def PopulationParameters():
     'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
                            # treating background in approximate way
 
-    "pop_approx_tau": True,     # shouldn't be a pop parameter?
     "pop_solve_rte": False,
-    
-    "pop_tau_Nz": 400,
-    
+        
     # Pre-created splines
     "pop_fcoll": None,
     "pop_dfcolldz": None,
@@ -828,9 +825,7 @@ def ControlParameters():
     "initial_timestep": 1e-2,
     "tau_ifront": 0.5,
     "restricted_timestep": ['ions', 'neutrals', 'electrons', 'temperature'],
-    
-    "compute_fluxes_at_start": False,
-    
+        
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     
@@ -858,6 +853,10 @@ def ControlParameters():
     "tau_arrays": None,
     "tau_prefix": tau_prefix,
     "tau_instance": None,
+    "tau_redshift_bins": 400,
+    "tau_approx": True,
+    "tau_Emin": 2e2,
+    "tau_Emax": 3e4,
 
     "sam_dz": 2., # Usually good enough!
     "sam_atol": 1e-2,

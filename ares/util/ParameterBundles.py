@@ -39,6 +39,17 @@ def _add_pq_tag(par, num):
         return '%s[%i]' % (prefix, num)
     else:
         return '%s[%i]' % (par, num)
+        
+
+
+class PreBundle(dict):
+    @property
+    def typical_free_parameters(self):
+        return self._typical_free_parameters
+        
+    @typical_free_parameters.setter
+    def typical_free_parameters(self, value):
+        self._typical_free_parameters = value
 
 
 _pop_fcoll = \
@@ -67,8 +78,14 @@ _sed_toy = \
  'pop_sed_model': False,
  'pop_Nion': 4e3,
  'pop_Nlw': 9690,
- 'pop_fX': 1.0,
+ 'pop_rad_yield': 2.6e39,
  'pop_fesc': 0.1,
+ 'pop_lya_src': True,
+ 'pop_lw_src': False,
+ 'pop_ion_src_cgm': True,
+ 'pop_ion_src_igm': False,
+ 'pop_heat_src_igm': True,
+ 
 }
 
 _sed_xi = \
@@ -185,13 +202,13 @@ _sed_xr = \
 _crte_xrb = \
 {
  "pop_solve_rte": True, 
- "pop_tau_Nz": 400,
- "pop_approx_tau": 'neutral',
+ "tau_redshift_bins": 400,
+ "tau_approx": 'neutral',
 }
 
 _crte_lwb = _crte_xrb.copy()
 _crte_lwb['pop_solve_rte'] = (10.2, 13.6)
-_crte_lwb['pop_approx_tau'] = True
+_crte_lwb['tau_approx'] = True
 
 # Some different spectral models
 _uvsed_toy = dict(pop_rad_yield=4000, pop_rad_yield_units='photons/b',

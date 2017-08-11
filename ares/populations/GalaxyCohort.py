@@ -1726,6 +1726,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             if self.pf['pop_mlf'] is not None:
                 if type(self.pf['pop_mlf']) in [float, np.float64]:
+                    # Note that fshock is really fcool
                     self._fstar = lambda **kwargs: boost * self.fshock(**kwargs) \
                         / ((1. / self.pf['pop_fstar_max']) + self.pf['pop_mlf'])
                 elif self.pf['pop_mlf'][0:2] == 'pq':
@@ -1736,7 +1737,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         self.pf, **pars)
                 
                     self._update_pq_registry('mlf', self._mlf_inst)    
-                
                     self._fstar = \
                         lambda **kwargs: boost * self.fshock(**kwargs) \
                             / ((1. / self.pf['pop_fstar_max']) + self._mlf_inst(**kwargs))

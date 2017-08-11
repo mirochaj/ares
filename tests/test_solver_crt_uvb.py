@@ -29,13 +29,13 @@ pars = \
  'pop_Emax': 1e2,
  'pop_EminNorm': 13.6,
  'pop_EmaxNorm': 1e2,
- 'pop_yield': 1e57,
- 'pop_yield_units': 'photons/msun',
+ 'pop_rad_yield': 1e57,
+ 'pop_rad_yield_units': 'photons/msun',
 
  # Solution method
  "lya_nmax": 8,
  'pop_solve_rte': True,
- 'pop_tau_Nz': 400,
+ 'tau_redshift_bins': 400,
 
  'initial_redshift': 40.,
  'final_redshift': 10.,

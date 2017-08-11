@@ -325,13 +325,13 @@ class UniformBackground(object):
         Haardt, F. & Madau, P. 1996, ApJ, 461, 20
         
         """
-        
+
         if zi is None:
             zi = pop.pf['initial_redshift']
         if zf is None:    
             zf = pop.pf['final_redshift']
         if nz is None:
-            nz = pop.pf['pop_tau_Nz']
+            nz = pop.pf['tau_redshift_bins']
             
         x = np.logspace(np.log10(1 + zf), np.log10(1 + zi), nz)
         z = x - 1.   
@@ -341,12 +341,12 @@ class UniformBackground(object):
         tau_by_band = []
         energies_by_band = []
         emissivity_by_band = []        
-        for band in bands: 
+        for j, band in enumerate(bands):
                         
             E0, E1 = band
             has_sawtooth = (E0 == E_LyA) and (E1 == E_LL)
             has_sawtooth |= (E0 == 4*E_LyA) or (E1 == 4*E_LL)
-            
+                        
             # Special treatment if LWB or UVB
             if has_sawtooth:
 
@@ -371,12 +371,13 @@ class UniformBackground(object):
                     E.append(EofN)
                 
                 if compute_tau:
-                    if band == (E_LyA, E_LL) or (4 * E_LyA, 4 * E_LL):
-                        tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
-                    else:
-                        tau = [self._set_tau(z, Earr, pop) for Earr in E]
+                    # Don't allow optical depth in this region 
+                    #if band == (E_LyA, E_LL) or (4 * E_LyA, 4 * E_LL):
+                    tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
+                    #else:
+                    #    tau = [self._set_tau(z, Earr, pop) for Earr in E]
                 else:
-                    tau = None
+                    tau = [np.zeros([len(z), len(Earr)]) for Earr in E]
                 
                 if compute_emissivities:    
                     ehat = [self.TabulateEmissivity(z, Earr, pop) for Earr in E]
@@ -393,31 +394,8 @@ class UniformBackground(object):
                 E = E0 * R**np.arange(N)
                                 
                 # Tabulate optical depth
-                if compute_tau:
-                    _z, _E, tau = self._set_tau(z, E, pop)
-                    
-                    #new_zf = False
-                    #new_zi = False
-                    #if min(_z) != zf:
-                    #    _zf = min(_z)
-                    #    new_zf = True
-                    #if max(_z) != zi:
-                    #    _zi = max(_z)
-                    #    new_zi = True
-                    #
-                    #if new_zf or new_zi and (not np.all(tau == 0)):
-                    #    print _zf, _zi, np.all(tau == 0)
-                    #    print z.size, _z.size
-                    #    #raise ValueError('oh hey there')
-                    #    self._set_grid(pop, bands, zi=_zi, zf=_zf,
-                    #        nz=nz, compute_tau=compute_tau, 
-                    #        compute_emissivities=compute_emissivities)
-                    #    
-                    #    # Fix!
-                    #    z = _z
-                    #    E = _E
-                    #    __z, __E, tau = self._set_tau(z, E, pop)
-                    
+                if compute_tau and self.solve_rte[pop.id_num][j]:
+                    _z, _E, tau = self._set_tau(z, E, pop)                    
                 else:
                     tau = None
 
@@ -449,10 +427,6 @@ class UniformBackground(object):
     @tau_solver.setter
     def tau_solver(self, value):
         self._tau_solver = value
-    
-    def _check_for_tau(self, z, E, pop):
-        z, E, tau = self.tau_solver._fetch_tau(pop, z, E)
-        return z, E, tau
 
     def _set_tau(self, z, E, pop):
         """
@@ -460,16 +434,16 @@ class UniformBackground(object):
         
         The results of this function depend on a few global parameters.
         
-        If pop_approx_tau is True, then the optical depth will be assumed to be
+        If tau_approx is True, then the optical depth will be assumed to be
         zero for all redshifts and energies.
         
-        If pop_approx_tau == 'neutral', then the optical depth will be computed 
+        If tau_approx == 'neutral', then the optical depth will be computed 
         assuming a neutral medium for all times (including HeI).
         
-        If pop_approx_tau is a function, it is assumed to describe the ionized 
+        If tau_approx is a function, it is assumed to describe the ionized 
         hydrogen fraction as a function of redshift.
         
-        If pop_approx_tau is 'post_EoR', we assume the only species left that
+        If tau_approx is 'post_EoR', we assume the only species left that
         isn't fully ionized is helium, with 100% of helium having been
         ionized once. That is, xHI = xHeI = 0, xHeII = 1.
         
@@ -487,7 +461,7 @@ class UniformBackground(object):
         """
                                 
         # Default to optically thin if nothing is supplied
-        if pop.pf['pop_approx_tau'] == True:
+        if self.pf['tau_approx'] == True:
             return z, E, np.zeros([len(z), len(E)])
             
         # Not necessarily true in the future if we include H2 opacity    
@@ -515,12 +489,12 @@ class UniformBackground(object):
         if tau is None:
             no_tau_table(self)
             
-            if pop.pf['pop_approx_tau'] is 'neutral':
+            if self.pf['tau_approx'] is 'neutral':
                 tau_solver.ionization_history = lambda z: 0.0
-            elif pop.pf['pop_approx_tau'] is 'post_EoR':
+            elif self.pf['tau_approx'] is 'post_EoR':
                 tau_solver.ionization_history = lambda z: 1.0
-            elif type(pop.pf['pop_approx_tau']) is types.FunctionType:
-                tau_solver.ionization_history = pop.pf['pop_approx_tau']
+            elif type(self.pf['tau_approx']) is types.FunctionType:
+                tau_solver.ionization_history = self.pf['tau_approx']
             else:                                                          
                 raise NotImplemented('Unrecognized approx_tau option.')
 
@@ -627,7 +601,7 @@ class UniformBackground(object):
 
     def _update_by_band_and_species(self, z, i, j, k, **kwargs):
                 
-        if kwargs['zone'] == 'igm':
+        if kwargs['zone'] in ['igm', 'both']:
             self.k_ion[i,0,j] += \
                 self.volume.IonizationRateIGM(z, species=j, popid=i,
                 band=k, **kwargs)
@@ -640,7 +614,7 @@ class UniformBackground(object):
                     self.volume.SecondaryIonizationRateIGM(z, 
                     species=j, donor=h, popid=i, band=k, **kwargs)
     
-        else:
+        elif kwargs['zone'] in ['cgm', 'both']:
             self.k_ion[i,0,j] += \
                 self.volume.IonizationRateCGM(z, species=j, popid=i,
                 band=k, **kwargs)
@@ -1199,7 +1173,7 @@ class UniformBackground(object):
         xsq = x**2
         R = x[1] / x[0]     
         Rsq = R**2
-        
+                
         # Shorthand
         zarr = redshifts
 
@@ -1324,7 +1298,9 @@ class UniformBackground(object):
         
         generators_by_band = []
         for i, band in enumerate(bands):
-            if type(self.energies[popid][i]) is list:   
+            if not self.solve_rte[popid][i]:
+                gen = None
+            elif type(self.energies[popid][i]) is list:   
                 gen = self._flux_generator_sawtooth(E=self.energies[popid][i],
                     z=self.redshifts[popid], ehat=self.emissivities[popid][i],
                     tau=self.tau[popid][i])                    

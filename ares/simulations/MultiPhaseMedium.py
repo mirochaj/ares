@@ -300,7 +300,7 @@ class MultiPhaseMedium(object):
             dtdz = self.default_parcel.grid.cosm.dtdz(z)
             t += dt
             z -= dt / dtdz
-                                                
+
             # IGM rate coefficients
             if self.pf['include_igm']:
                 done = False
@@ -313,7 +313,7 @@ class MultiPhaseMedium(object):
                     also = {}
                     for sp in self.field.grid.absorbers:
                         also['igm_%s' % sp] = data_igm[sp]
-                    
+
                     RC_igm = self.field.update_rate_coefficients(z, 
                         zone='igm', return_rc=True, **also)
 

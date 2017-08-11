@@ -143,16 +143,16 @@ class Galaxy(object):
         
         # Loop over time
         for i_t1, t1 in enumerate(times):
-            
+
             if t1 == 0:
                 continue
-                
+
             # Light from new stars
             sed[i_t1] += interp_t(t0) * self.SFR(t1) * dt 
-            
+
             if not self.src.pf['source_aging']:
                 continue
-            
+
             # On each timestep, need to include new emission and 
             # the evolved emission from previous star formation
 
@@ -164,12 +164,12 @@ class Galaxy(object):
                         continue
                     if t2 >= t1:
                         break
-                    
+
                     # Light from old stars. Grab the SFR from the appropriate
                     # moment in the past, multiply by dt (to get mass formed),
                     # and add flux from those stars aged by t1-t2
                     sed[i_t1] += interp_t(t1-t2) * self.SFR(t2) * dt
-                                    
+
             elif band is not None:
                 raise NotImplemented('help')
                 

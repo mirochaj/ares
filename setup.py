@@ -37,7 +37,7 @@ for fn in ['defaults', 'labels']:
             f.close()
         except:
             pass
-              
+
 ##
 # TELL PEOPLE TO SET ENVIRONMENT VARIABLE
 ##
