@@ -10,8 +10,7 @@ Description: Setup priors etc. in some semi-automated way.
 
 """
 
-from .PriorSet import PriorSet
-from .Priors import UniformPrior
+from distpy import DistributionSet, UniformDistribution
 from ..util.ParameterFile import par_info
 from ..util.SetDefaultPriorValues import *
 
@@ -28,7 +27,7 @@ class FitHelper(object):
     @property
     def prior_set(self):
         if not hasattr(self, '_prior_set'):
-            self._prior_set = PriorSet()
+            self._prior_set = DistributionSet()
         return self._prior_set
     
     @property
@@ -55,7 +54,8 @@ class FitHelper(object):
             
             if par in default_priors:
                 prior, _is_log = default_priors[prior]
-                self.prior_set.add_prior(UniformPrior(prior), par)
+                distribution = UniformDistribution(*prior)
+                self.prior_set.add_distribution(distribution, par)
                 self.is_log.append(_is_log)
                 continue
                 
@@ -95,7 +95,7 @@ class FitHelper(object):
                 default_prior(func, var, parnum, pfunc, pvar, pparnum)
                         
             self.is_log.append(_is_log)
-            self.prior_set.add_prior(UniformPrior(*prior), par)
+            self.prior_set.add_distribution(UniformDistribution(*prior), par)
             
             
             

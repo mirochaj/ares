@@ -12,14 +12,14 @@ Description:
 
 import pickle
 import numpy as np
+from distpy import DistributionSet
 from ..util import get_hg_rev
-from .PriorSet import PriorSet
 from ..util.Stats import get_nu
 from ..util.MPIPool import MPIPool
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
 from ..util.ParameterFile import par_info
-import gc, os, sys, copy, types, time, re
+import gc, os, sys, copy, types, time, re, glob
 from ..analysis import Global21cm as anlG21
 from types import FunctionType, InstanceType
 from ..analysis.BlobFactory import BlobFactory
@@ -98,13 +98,13 @@ def guesses_from_priors(pars, prior_set, nwalkers):
     ----------
     pars : list 
         Names of parameters
-    prior_set : PriorSet object
+    prior_set : DistributionSet object
 
     nwalkers : int
         Number of walkers
 
     """
-
+    print "Making guesses from prior_set..."
     guesses = []
     for i in range(nwalkers):
         draw = prior_set.draw()
@@ -169,23 +169,27 @@ class LogLikelihood(object):
         self.priors_P = param_prior_set
         if len(self.priors_P.params) != len(self.parameters):
             raise ValueError("The number of parameters of the priors given " +\
-                             "to a loglikelihood object is not equal to " +\
-                             "the number of parameters given to the object.")
+                             "to a loglikelihood object " +\
+                             ("(%i) " % (len(self.priors_P.params),)) +\
+                             "is not equal to the number of parameters " +\
+                             "given to the object " +\
+                             ("(%i)." % (len(self.parameters),)))
         
         if blob_info is None:
-            self.priors_B = PriorSet()
-        elif isinstance(blob_prior_set, PriorSet):
+            self.priors_B = DistributionSet()
+        elif isinstance(blob_prior_set, DistributionSet):
             self.priors_B = blob_prior_set
         else:
             try:
                 # perhaps the prior tuples
                 # (prior, params, transformations) were given
-                self.priors_B = PriorSet(prior_tuples=blob_prior_set)
+                self.priors_B =\
+                    DistributionSet(distribution_tuples=blob_prior_set)
             except:
                 raise ValueError("The value given as the blob_prior_set " +\
                                  "argument to the initializer of a " +\
                                  "Loglikelihood could not be cast " +\
-                                 "into a PriorSet.")
+                                 "into a DistributionSet.")
 
 
     def _compute_blob_prior(self, sim):
@@ -203,7 +207,7 @@ class LogLikelihood(object):
 
         try:
             # will return 0 if there are no blobs
-            return self.priors_B.log_prior(blob_vals)
+            return self.priors_B.log_value(blob_vals)
         except:
             # some of the blobs were not retrieved (then they are Nones)!
             return -np.inf
@@ -359,13 +363,12 @@ class ModelFit(BlobFactory):
     def prior_set_P(self):
         if not hasattr(self, '_prior_set_P'):
             ps = self.prior_set
-            subset = PriorSet()
+            subset = DistributionSet()
             for (prior, params, transforms) in ps._data:
                 are_pars_P = [(par in self.parameters) for par in params]
                 are_pars_P = np.array(are_pars_P)
-
                 if np.all(are_pars_P):
-                    subset.add_prior(prior, params, transforms)
+                    subset.add_distribution(prior, params, transforms)
                 elif not np.all(are_pars_P == False):
                     raise AttributeError("Blob priors and parameter " +\
                                          "priors are coupled!")
@@ -376,13 +379,13 @@ class ModelFit(BlobFactory):
     def prior_set_B(self):
         if not hasattr(self, '_prior_set_B'):
             ps = self.prior_set
-            subset = PriorSet()
+            subset = DistributionSet()
             for (prior, params, transforms) in ps._data:
                 are_pars_B = [(par in self.all_blob_names) for par in params]
                 are_pars_B = np.array(are_pars_B)
                 
                 if np.all(are_pars_B):
-                    subset.add_prior(prior, params, transforms)
+                    subset.add_distribution(prior, params, transforms)
                 elif not np.all(are_pars_B == False):
                     raise AttributeError("Blob priors and parameter " +\
                                          "priors are coupled!")
@@ -398,7 +401,7 @@ class ModelFit(BlobFactory):
 
     @prior_set.setter
     def prior_set(self, value):
-        if isinstance(value, PriorSet):
+        if isinstance(value, DistributionSet):
             # could do more error catching but it would enforce certain
             # attributes being set before others which could complicate things
             self._prior_set = value
@@ -420,11 +423,66 @@ class ModelFit(BlobFactory):
                     MPI.COMM_WORLD.Abort()
         else:
             try:
-                self._prior_set = PriorSet(prior_tuples=value)
+                self._prior_set = DistributionSet(distribution_tuples=value)
             except:
-                raise ValueError("The prior_set property was set to " +\
-                                 "something which was not a PriorSet " +\
-                                 "and could not be cast as a PriorSet.")
+                err_msg = "The prior_set property was set to something " +\
+                          "which was not a DistributionSet and could not " +\
+                          "be cast as a DistributionSet."
+                if size == 1:
+                    raise ValueError(err_msg)
+                else:
+                    print err_msg
+                    MPI.COMM_WORLD.Abort()
+
+    @property
+    def guesses_prior_set(self):
+        """
+        The DistributionSet object which is used to initialize the walkers. If
+        self.guesses_prior_set is set, it will be used here. Otherwise, the
+        same DistributionSet which will be used in the likelihood calculation
+        will be used to initialize the walkers.
+        """
+        if hasattr(self, '_guesses_prior_set'):
+            return self._guesses_prior_set
+        else:
+            return self.prior_set_P
+    
+    @guesses_prior_set.setter
+    def guesses_prior_set(self, value):
+        """
+        A setter for the PriorSet which will be used to initialize the walkers.
+        This attribute is optional. If it is not set, the DistributionSet which
+        is used in the likelihood calculation is used to initialize the
+        walkers.
+        
+        value a DistributionSet object
+        """
+        if isinstance(value, DistributionSet):
+            self._guesses_prior_set = value
+            
+            for param in self._guesses_prior_set.params:
+                if param in self.parameters:
+                    continue
+                warn = "Setting prior on %s but %s not in parameters!" %\
+                    ((param,) * 2)
+                if size == 1:
+                    raise KeyError(warn)
+                else:
+                    print warn
+                    MPI.COMM_WORLD.Abort()
+        else:
+            try:
+                self._guesses_prior_set =\
+                    DistributionSet(distribution_tuples=value)
+            except:
+                err_msg = "The guesses_prior_set property was set to " +\
+                          "something which was not a DistributionSet and " +\
+                          "could not be cast as a DistributionSet."
+                if size == 1:
+                    raise ValueError(err_msg)
+                else:
+                    print err_msg
+                    MPI.COMM_WORLD.Abort()
 
     @property
     def nwalkers(self):
@@ -464,17 +522,13 @@ class ModelFit(BlobFactory):
         """
         Generate initial position vectors for all walkers.
         """
-
-        if hasattr(self, '_guesses'):
-            return self._guesses
-
         # Set using priors
-        if (not hasattr(self, '_guesses')) and hasattr(self, '_prior_set'):            
-            self._guesses = guesses_from_priors(self.parameters, 
-                self.prior_set, self.nwalkers)
-        else:
-            raise AttributeError('Must set guesses or prior_set by hand!')
-                     
+        if (not hasattr(self, '_guesses')):
+            if hasattr(self, '_prior_set'):
+                self._guesses = guesses_from_priors(self.parameters,
+                    self.guesses_prior_set, self.nwalkers)
+            else:
+                raise AttributeError('Must set guesses or prior_set by hand!')
         return self._guesses
 
     @guesses.setter
@@ -507,6 +561,23 @@ class ModelFit(BlobFactory):
             self._guesses = guesses_tmp
         else:
             raise ValueError('Dunno about this shape')
+
+    def _adjust_guesses(self, pos, mlpt):
+        if rank > 0:
+            return
+        std = np.std(pos, axis=0)
+        pos = sample_ball(mlpt, std, size=self.nwalkers)
+        newpos = pos.copy()
+        def is_outside_prior(guess_list):
+            this_guess_dict = {}
+            for iparam in range(len(self.parameters)):
+                this_guess_dict[self.parameters[iparam]] = guess_list[iparam]
+            return not np.isfinite(self.prior_set_P.log_value(this_guess_dict))
+        for iguess in range(newpos.shape[0]):
+            while is_outside_prior(newpos[iguess]):
+                newpos[iguess] = sample_ball(mlpt, std, size=1)[0]
+        return newpos
+            
                         
     # I don't know how to integrate this using the new prior system
     # Can you help, Jordan?
@@ -592,14 +663,14 @@ class ModelFit(BlobFactory):
             
     def prep_output_files(self, restart, clobber):
         if restart:
-            pos = self._prep_from_restart(restart)
+            pos = self._prep_from_restart()
         else:
             pos = None
             self._prep_from_scratch(clobber)    
     
         return pos
     
-    def _prep_from_restart(self, restart):
+    def _prep_from_restart(self):
 
         prefix = self.prefix
 
@@ -649,42 +720,33 @@ class ModelFit(BlobFactory):
         #    raise ValueError('base_kwargs from file dont match those supplied!')   
                     
         # Start from last step in pre-restart calculation
-        if (not self.checkpoint_append):
-            if type(restart) is bool:
-            
-                ct = 0 
-                while True:
-                    dd = 'dd' + str(ct).zfill(4)
-                    fn = '%s.%s.chain.pkl' % (prefix, dd)
-                                        
-                    if os.path.exists(fn):
-                        ct += 1
-                        continue
-                    else:
-                        break
-                        
-                # Back up a step to file that exists
-                self.ct = ct - 1    
-
-                dd = 'dd' + str(self.ct).zfill(4)
-                fn = '%s.%s.chain.pkl' % (prefix, dd)
-            else:
-                assert type(restart) is str, \
-                    "If not True or False, restart must be filename!"
-                fn = restart
-                self.ct = int(fn.split('.')[-3][2:])
-                 
+        if self.checkpoint_append:
+            chain = read_pickled_chain('%s.chain.pkl' % prefix)
         else:
-            fn = '%s.chain.pkl' % prefix
-            
-        print "Restarting from %s." % fn
-        chain = read_pickled_chain(fn)    
-           
-        (nw, sf) = (self.nwalkers, self.save_freq)
-        pos = chain[-(nw-1)*sf-1::sf,:]    
+            # lec = largest existing checkpoint
+            chain =\
+                read_pickled_chain(self._latest_checkpoint_chain_file(prefix))
+        
+        pos = chain[-((self.nwalkers-1)*self.save_freq)-1::self.save_freq,:]
         
         return pos
 
+    def _saved_checkpoint_chain_files(self, prefix):
+        return glob.glob(prefix + ".dd*.chain.pkl")
+    
+
+    def _saved_checkpoints(self, prefix):
+        ans = [int(fn[-14:-10])\
+            for fn in self._saved_checkpoint_chain_files(prefix)]
+        return ans
+    
+
+    def _latest_checkpoint_chain_file(self, prefix):
+        all_chain_fns = self._saved_checkpoint_chain_files(prefix)
+        ckpt_numbers = [int(fn[-14:-10]) for fn in all_chain_fns]
+        return all_chain_fns[np.argmax(ckpt_numbers)]
+
+    
     @property
     def checkpoint_by_proc(self):
         if not hasattr(self, '_checkpoint_by_proc'):
@@ -718,17 +780,15 @@ class ModelFit(BlobFactory):
             # Delete only the files made by this routine. Don't want to risk
             # deleting other files the user may have created with similar
             # naming convention!
-
             # These suffixes are always the same
             for suffix in ['logL', 'chain', 'facc', 'pinfo', 'rinfo', 
-                'binfo', 'setup', 'prior_set', 'load', 'fail', 'timeout']:
+                'binfo', 'setup', 'load', 'fail', 'timeout']:
                 os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
                 os.system('rm -f %s.*.%s.pkl' % (self.prefix, suffix))
-            
+            os.system('rm -f %s.prior_set.hdf5' % (self.prefix,))
             # These suffixes have their own suffixes
             os.system('rm -f %s.blob_*.pkl' % self.prefix)
             os.system('rm -f %s.*.blob_*.pkl' % self.prefix)
-            
         # Each processor gets its own fail file
         f = open('%s.fail.pkl' % prefix_by_proc, 'wb')
         f.close()
@@ -767,10 +827,7 @@ class ModelFit(BlobFactory):
             f.close()
         
         # Priors!
-        if hasattr(self, '_prior_set'):
-            f = open('%s.prior_set.pkl' % self.prefix, 'wb')
-            pickle.dump(self.prior_set, f)
-            f.close()
+        self.prior_set.save(self.prefix + '.prior_set.hdf5')
         
         # Constant parameters being passed to ares.simulations.Global21cm
         f = open('%s.binfo.pkl' % self.prefix, 'wb')
@@ -846,10 +903,22 @@ class ModelFit(BlobFactory):
         if size > 1:
             MPI.COMM_WORLD.Barrier()
 
-        if self.checkpoint_append:
-            if not os.path.exists('%s.chain.pkl' % prefix) and restart:
-                msg = "This can't be a restart, %s*.pkl not found." % prefix
-                raise IOError(msg)
+        #if self.checkpoint_append:
+        #    if not os.path.exists('%s.chain.pkl' % prefix) and restart:
+        #        msg = "This can't be a restart, %s*.pkl not found." % prefix
+        #        raise IOError(msg)
+        
+        if restart:
+            # below checks for checkpoint_append==True failure
+            cptapdtrfl = (self.checkpoint_append and\
+                (not os.path.exists('%s.chain.pkl' % (prefix,))))
+            # below checks for checkpoint_append==False failure
+            cptapdflsfl = ((not self.checkpoint_append) and\
+                (not glob.glob('%s.dd*.pkl' % (prefix,))))
+            # either way, produce error
+            if cptapdtrfl or cptapdflsfl:
+                raise IOError("This can't be a restart, " +\
+                              ("%s*.pkl not found." % (prefix,)))
 
         # Initialize Pool
         if size > 1:
@@ -879,7 +948,7 @@ class ModelFit(BlobFactory):
                 
         pos = self.prep_output_files(restart, clobber)    
         
-        state = None#np.random.RandomState(self.seed)
+        state = None #np.random.RandomState(self.seed)
                         
         # Burn in, prep output files     
         if (burn > 0) and (not restart):
@@ -923,8 +992,13 @@ class ModelFit(BlobFactory):
         elif not restart:
             pos = self.guesses
             state = None
+        elif os.path.exists('%s.rstate.pkl' % (prefix,)):
+            with open('%s.rstate.pkl' % (prefix,), 'rb') as fil:
+                state = pickle.load(fil)
+            if rank == 0:
+                print "Using pre-restart RandomState."
         else:
-            state = None # should this be saved and restarted?
+            state = None
 
         #
         ## MAIN CALCULATION BELOW
@@ -935,10 +1009,10 @@ class ModelFit(BlobFactory):
         
         # Need to make sure we don't overwrite previous outputs in this case    
         if restart and (not self.checkpoint_append):
-            ct = (self.ct + 1) * save_freq
+            ct = save_freq * (1 + max(self._saved_checkpoints(prefix)))
         else:
             ct = 0
-                        
+
         # Take steps, append to pickle file every save_freq steps
         pos_all = []; prob_all = []; blobs_all = []
         for pos, prob, state, blobs in self.sampler.sample(pos, 
@@ -996,11 +1070,16 @@ class ModelFit(BlobFactory):
             f = open('%s.facc.pkl' % prefix, 'ab')
             pickle.dump(self.sampler.acceptance_fraction, f)
             f.close()
-
+            
             if self.checkpoint_append:
                 print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
             else:
                 print "Wrote %s.%s.*.pkl: %s" % (prefix, dd, time.ctime())
+            ####################################
+            f = open('%s.rstate.pkl' % prefix, 'wb')
+            pickle.dump(state, f)
+            f.close()
+            ####################################
 
             del data, pos_all, prob_all, blobs_all
             gc.collect()

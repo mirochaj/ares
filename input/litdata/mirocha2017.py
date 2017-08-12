@@ -298,5 +298,3 @@ dpl_blobs = \
  'blob_funcs': ['pops[0].SFRD', 'pops[0].Mmin', 'pops[0].Mmax'],
 }
 
-
-
