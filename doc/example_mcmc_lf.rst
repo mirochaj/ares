@@ -68,11 +68,14 @@ OK, now let's set the free parameters and priors:
     
     is_log = [True, True, False, False]
     
-    ps = ares.inference.PriorSet()
-    ps.add_prior(ares.inference.Priors.UniformPrior(-3, 0.), 'pq_func_par0{0}[0]')
-    ps.add_prior(ares.inference.Priors.UniformPrior(9, 13),  'pq_func_par1{0}[0]')
-    ps.add_prior(ares.inference.Priors.UniformPrior(0, 2),   'pq_func_par2{0}[0]')
-    ps.add_prior(ares.inference.Priors.UniformPrior(-2, 0),   'pq_func_par3{0}[0]')
+    from distpy import DistributionSet
+    from distpy import UniformDistribution
+    
+    ps = DistributionSet()
+    ps.add_distribution(UniformDistribution(-3, 0.), 'pq_func_par0{0}[0]')
+    ps.add_distribution(UniformDistribution(9, 13),  'pq_func_par1{0}[0]')
+    ps.add_distribution(UniformDistribution(0, 2),   'pq_func_par2{0}[0]')
+    ps.add_distribution(UniformDistribution(-2, 0),   'pq_func_par3{0}[0]')
     
     
 Some initial guesses (optional: will draw initial walker positions from priors by default):

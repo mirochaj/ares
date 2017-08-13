@@ -36,24 +36,24 @@ Now, instead of creating a ``ModelGrid`` instance, we make a ``ModelSample`` ins
 
     mc = ares.inference.ModelSample(**base_pars)
     
-At this point we have yet to specify which parameters will to sample. Because we are now doing Monte Carlo simulations, we must define the *distributions* from which to draw samples in each parameter of interest, rather than the grid of values to sample. To do this we use the ``PriorSet``, which is used in MCMC calculations (e.g., :doc:`example_mcmc_gs`) as well:
+At this point we have yet to specify which parameters will to sample. Because we are now doing Monte Carlo simulations, we must define the *distributions* from which to draw samples in each parameter of interest, rather than the grid of values to sample. To do this we need Keith Tauscher's `distpy <https://bitbucket.org/ktausch/distpy>` package, which is used in MCMC calculations (e.g., :doc:`example_mcmc_gs`) as well:
 
 ::
 
-    from ares.inference.PriorSet import PriorSet
+    from distpy import DistributionSet
 
-    ps = PriorSet()
+    ps = DistributionSet()
     
 Now, let's study the same parameters as :doc:`example_grid` with one addition: the duration of "reheating":
 
 ::
 
-    from ares.inference.Priors import UniformPrior
+    from distpy import UniformDistribution
 
     # Draw samples from a uniform distribution between supplied (min, max) values for each parameter
-    ps.add_prior(UniformPrior(6, 12), 'tanh_xz0')
-    ps.add_prior(UniformPrior(0.1, 8), 'tanh_xdz')
-    ps.add_prior(UniformPrior(0.1, 8), 'tanh_Tdz')
+    ps.add_distribution(UniformDistribution(6, 12), 'tanh_xz0')
+    ps.add_distribution(UniformDistribution(0.1, 8), 'tanh_xdz')
+    ps.add_distribution(UniformDistribution(0.1, 8), 'tanh_Tdz')
     
     # Give distributions to the ModelSample instance
     mc.prior_set = ps

@@ -12,7 +12,6 @@ Description:
 
 import pickle
 import numpy as np
-from distpy import DistributionSet
 from ..util import get_hg_rev
 from ..util.Stats import get_nu
 from ..util.MPIPool import MPIPool
@@ -29,6 +28,11 @@ from ..util.Stats import Gauss1D, GaussND, rebin, get_nu
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain
+
+try:
+    from distpy import DistributionSet
+except ImportError:
+    pass
 
 try:
     import emcee

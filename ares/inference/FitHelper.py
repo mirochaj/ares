@@ -10,9 +10,13 @@ Description: Setup priors etc. in some semi-automated way.
 
 """
 
-from distpy import DistributionSet, UniformDistribution
 from ..util.ParameterFile import par_info
 from ..util.SetDefaultPriorValues import *
+
+try:
+    from distpy import DistributionSet, UniformDistribution
+except ImportError:
+    pass
 
 class FitHelper(object):
     """

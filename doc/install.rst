@@ -11,6 +11,7 @@ and optionally:
 * `progressbar2 <http://progressbar-2.readthedocs.io/en/latest/>`_
 * `hmf <http://hmf.readthedocs.org/en/latest/>`_ 
 * `emcee <http://dan.iel.fm/emcee/current/>`_
+* `distpy <https://bitbucket.org/ktausch/distpy>`_
 * `mpi4py <http://mpi4py.scipy.org>`_
 * `h5py <http://www.h5py.org/>`_
 * `setuptools <https://pypi.python.org/pypi/setuptools>`_
