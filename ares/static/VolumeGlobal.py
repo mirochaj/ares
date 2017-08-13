@@ -18,7 +18,6 @@ import types, os, re, sys, pickle
 from ..util.Misc import num_freq_bins
 from ..physics import SecondaryElectrons
 from scipy.integrate import dblquad, romb, simps, quad, trapz
-from ..util.Warnings import tau_tab_z_mismatch, tau_tab_E_mismatch
 
 try:
     import h5py

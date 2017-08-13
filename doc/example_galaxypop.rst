@@ -117,34 +117,44 @@ By default, *ares* will derive the mass accretion rate (MAR) onto halos from the
 .. warning:: Note that the MAR formulae determined from numerical simulations may not have been calibrated at the redshifts most often targeted in *ares* calculations, nor are they guaranteed to be self-consistent with the HMF used in *ares*. One approach used in Sun \& Furlanetto (2016) is to re-normalize the MAR by requiring its integral to match that predicted by :math:`f_{\text{coll}}(z)`, which can boost the accretion rate at high redshifts by a factor of few. Setting ``pop_MAR_conserve_norm=True`` will enforce this condition in *ares*.
 
    
-Extrapolation options
-~~~~~~~~~~~~~~~~~~~~~
-It's fairly easy to augment the double power-law used in the previous example.  For example, if you want to allow the normalization of the SFE to evolve with redshift, e.g., 
+Parameterize a ParameterizedQuantity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+It is also possible to allow components of a ParameterizedQuantity to themselves be parameterized. For example, say we wanted to allow the normalization of the SFE to evolve with redshift, i.e.,
 
 .. math::
 
-    f_{\ast}(M_h) = \frac{f_{\ast,p} \left(\frac{1+z}{7}\right)^{\gamma_z}} {\left(\frac{M_h}{M_{\text{p}}} \right)^{\gamma_{\text{lo}}} + \left(\frac{M_h}{M_{\text{p}}}  \right)^{\gamma_{\text{hi}}}}
+    f_{\ast}(M_h) = \frac{2 f_{\ast,0} \left(\frac{1+z}{7}\right)^{\gamma_z}} {\left(\frac{M_h}{M_{\text{p}}} \right)^{\gamma_{\text{lo}}} + \left(\frac{M_h}{M_{\text{p}}}  \right)^{\gamma_{\text{hi}}}}
     
-you can define an "auxiliary function" to provide this extra boost. Starting from the pure ``dpl`` model,
+Starting from the pure ``dpl`` model above, we can make a few modifications:
 
 ::
-
-    p = ares.util.ParameterBundle('mirocha2016:dpl')
-    pars = p.pars_by_pop(0, strip_id=True)
     
     # Extra multiplicative boost with redshift, par0 * (var / par1)**par2
-    new_pars = \
-        {
-         'pq_faux': 'pl',
-         'pq_faux_var': '1+z',
-         'pq_faux_meth': 'multiply',
-         'pq_faux_par0': 1,
-         'pq_faux_par1': 7,
-         'pq_faux_par2': 1.,   # this is gamma_z
-        }
-        
-    pars.update(new_pars)
+    pars = \
+    {
+     'pop_sfr_model': 'sfe-func',
+     'pop_sed': 'eldridge2009',
+
+     'pop_fstar': 'pq[0]',      # Give it an ID this time, since we'll add another
+     'pq_func[0]': 'dpl',       
+     
+     # NEW PARAMETERS
+     'pq_func_par0[0]': 'pq[1]',   # Note the change!
+     'pq_func[1]': 'pl',
+     'pq_func_var[1]': '1+z',
+     'pq_func_par0[1]': 0.05,
+     'pq_func_par1[1]': 7.,
+     'pq_func_par2[1]': 1.,    # This is gamma_z
+     #
+     
+     # Old parameters that we still need
+     'pq_func_par1[0]': 2.8e11,
+     'pq_func_par2[0]': 0.51,
+     'pq_func_par3[0]': -0.61,
+          
+    }
     
+        
 To verify that this has worked, let's plot the SFE as a function of redshift:
 
 ::

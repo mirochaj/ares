@@ -19,10 +19,11 @@ from ..util.SetDefaultParameterValues import GaussianParameters
 # Default parameters
 gauss_kwargs = GaussianParameters()
 
-gauss_pars = ['gaussian_A', 'gaussian_nu', 'gaussian_sigma']
+gauss_pars = ['gaussian_A', 'gaussian_nu', 'gaussian_sigma',\
+    'gaussian_bias_temp']
 
-def gauss_generic(nu, A, nu0, sigma):
-    return A * np.exp(-(nu - nu0)**2 / 2. / sigma**2)
+def gauss_generic(nu, A, nu0, sigma, offset):
+    return (A * np.exp(-(nu - nu0)**2 / 2. / sigma**2) + offset)
 
 class Gaussian21cm(object):
     def __init__(self, **kwargs):
@@ -55,7 +56,7 @@ class Gaussian21cm(object):
     
         Input parameters assumed to be in the following order:
     
-        A, nu, sigma
+        A, nu, sigma, bias_temp
     
         where Jref, Tref, and xref are the step heights, zref_? are the step
         locations, and dz_? are the step-widths.
@@ -71,9 +72,8 @@ class Gaussian21cm(object):
         """
     
         # Unpack parameters
-        A, nu0, sigma = theta
-        
-        dTb = gauss_generic(nu, A, nu0, sigma)
+        A, nu0, sigma, offset = theta
+        dTb = gauss_generic(nu, A, nu0, sigma, offset)
     
         # Save some stuff
         hist = \

@@ -31,7 +31,7 @@ from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL
 from ..util.SetDefaultParameterValues import StellarParameters, \
-    BlackHoleParameters
+    BlackHoleParameters, SynthesisParameters
     
 _synthesis_models = ['leitherer1999', 'eldridge2009']
 _single_star_models = ['schaerer2002']
@@ -107,6 +107,10 @@ class GalaxyAggregate(HaloPopulation):
                 self._Source_ = SynthesisModel
             elif self.pf['pop_sed'] in _single_star_models:
                 self._Source_ = StarQS
+            elif type(self.pf['pop_sed']) is FunctionType or \
+                 inspect.ismethod(self.pf['pop_sed']) or \
+                 isinstance(self.pf['pop_sed'], interp1d):
+                 self._Source_ = BlackHole
             else:
                 self._Source_ = read_lit(self.pf['pop_sed'], 
                     verbose=self.pf['verbose'])
@@ -144,6 +148,16 @@ class GalaxyAggregate(HaloPopulation):
                 for par in bpars:
                     par_pop = par.replace('source', 'pop')
                     
+                    if par_pop in self.pf:
+                        self._src_kwargs[par] = self.pf[par_pop]
+                    else:
+                        self._src_kwargs[par] = bpars[par]
+
+            elif self._Source is SynthesisModel:
+                bpars = SynthesisParameters()
+                for par in bpars:
+                    par_pop = par.replace('source', 'pop')
+
                     if par_pop in self.pf:
                         self._src_kwargs[par] = self.pf[par_pop]
                     else:
@@ -452,7 +466,7 @@ class GalaxyAggregate(HaloPopulation):
         if z > self.zform:
             return 0.0
             
-        if (Emin is not None) and (Emax is not None):
+        if self.pf['pop_sed_model'] and (Emin is not None) and (Emax is not None):
             if (Emin > self.pf['pop_Emax']):
                 return 0.0
             if (Emax < self.pf['pop_Emin']):

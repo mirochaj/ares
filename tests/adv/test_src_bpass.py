@@ -1,6 +1,6 @@
 """
 
-test_src_bpass.py
+test_sed_bpass.py
 
 Author: Jordan Mirocha
 Affiliation: UCLA
@@ -16,9 +16,9 @@ import numpy as np
 # Test metallicity interpolation, energy interpolation at fixed tsf
 def test():
     # Test metallicity interpolation
-    pop1 = ares.populations.SynthesisModel(pop_sed='eldridge2009', pop_Z=0.02)
-    pop2 = ares.populations.SynthesisModel(pop_sed='eldridge2009', pop_Z=0.03)
-    pop3 = ares.populations.SynthesisModel(pop_sed='eldridge2009', pop_Z=0.04)
+    pop1 = ares.sources.SynthesisModel(source_sed='eldridge2009', source_Z=0.02)
+    pop2 = ares.sources.SynthesisModel(source_sed='eldridge2009', source_Z=0.03)
+    pop3 = ares.sources.SynthesisModel(source_sed='eldridge2009', source_Z=0.04)
     
     for i, E in enumerate([1,5,10,20]):
         fnu = np.array([pop1.Spectrum(E), pop3.Spectrum(E)])

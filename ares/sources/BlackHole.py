@@ -76,12 +76,12 @@ class BlackHole(Source):
 
         if self.pf['source_sed'] in sptypes:
             pass
-        elif type(self.pf['source_sed']) is FunctionType:
-            self._UserDefined = self.pf['source_sed']
-        else:
+        elif type(self.pf['source_sed']) is str:
             from_lit = read_lit(self.pf['source_sed'])
             src = from_lit.Source()
             self._UserDefined = src.Spectrum
+        else:
+            self._UserDefined = self.pf['source_sed']    
             
         # Convert spectral types to strings
         #self.N = len(self.spec_pars['type'])
@@ -284,7 +284,8 @@ class BlackHole(Source):
         elif self.pf['source_sed'] == 'zebra':
             Lnu = self._SIMPL(E, t)            
         else:
-            Lnu = 0.0
+            Lnu = self._UserDefined(E, t)
+            #Lnu = 0.0
             
         if self.pf['source_logN'] > 0 and absorb:
             Lnu *= self._hardening_factor(E)

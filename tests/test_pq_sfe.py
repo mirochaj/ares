@@ -143,6 +143,7 @@ def test():
     pl.legend(loc='upper left', fontsize=14)
     
     pl.savefig('%s_2.png' % (__file__.rstrip('.py')))     
+    pl.close()
     
 if __name__ == '__main__':
     test()

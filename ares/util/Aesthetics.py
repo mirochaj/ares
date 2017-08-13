@@ -53,10 +53,15 @@ derived = \
 {
  'Ts': r'$T_S$',
  'dTb': r'$\delta T_b \ (\mathrm{mK})$',
- 'hwhm_diff': r'$\Delta \nu_{\min}$',
+ #'hwhm_diff': r'$\Delta \nu_{\min}$',
+ #'squash': r'$\delta T_b(\nu_{\min}) / \mathrm{FWHM}$',
+ 'hwhm_diff': r'$\mathcal{A} \ (\mathrm{MHz})$',
+ 'squash': r'$\mathcal{W} \ (\mathrm{mK} \ \mathrm{MHz}^{-1})$',
  'fwhm': r'$\mathrm{FWHM}$',
  'fwqm': r'$\mathrm{FWQM}$',
- 'mean_slope': r'$\langle \delta T_b^{\prime} \rangle$'
+ 'mean_slope': r'$\langle \delta T_b^{\prime} \rangle$',
+ 'mean_slope_hi': r'$\langle \delta T_b^{\prime} \rangle_{\mathrm{hi}}$',
+ 'mean_slope_lo': r'$\langle \delta T_b^{\prime} \rangle_{\mathrm{lo}}$',
 }
 
 labels = {}
@@ -223,6 +228,7 @@ pop_parameters = \
  'pop_metal_retention': r'$f_{\mathrm{ret,Z}}$',
  'pop_abun_limit': r'$\mathcal{Z}_c$',
  'pop_bind_limit': r'$\mathcal{E}_c$',
+ 'pop_time_limit': r'$\mathcal{T}_c$',
 }
 
 sfe_parameters = \
@@ -311,7 +317,7 @@ class Labeler(object):
         look_for_2 = '[%i]' % phpid
         for kwarg in self.base_kwargs:
             if phpid is not None:
-                if self.base_kwargs[kwarg] == 'php[%i]' % phpid:
+                if self.base_kwargs[kwarg] == 'pq[%i]' % phpid:
                     break
                 
         return kwarg.replace('{%i}' % popid, '')
@@ -322,10 +328,21 @@ class Labeler(object):
         """
         
         if par in self.labels:
-            return self.labels[par]
-        
+            label = self.labels[par]
+            
+            if par in self.parameters:
+                if take_log:        
+                    return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+                elif self.is_log[par] and (not un_log):
+                    return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
+                else:
+                    return label
+            else:
+                return label
+
         prefix, popid, phpid = par_info(par)
-                
+
+        _par = par        
         # Correct prefix is phpid is not None
         if phpid is not None:
             s = 'pq[%i]' % phpid
@@ -381,7 +398,8 @@ class Labeler(object):
             else:
                 label = r'$%s$' % (par.replace('_', '\_'))
         
-        if par in self.parameters:                    
+        if par in self.parameters: 
+            print par, take_log, self.is_log[par], un_log
             if take_log:        
                 return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
             elif self.is_log[par] and (not un_log):

@@ -98,12 +98,12 @@ The following parameters control the star-formation history of a population. See
     Default: ``g/s/cm^3``
     
 ``pop_calib_L1600``
-    If not ``None``, this parameter will guarantee that the :math:`1600\AA` luminosity (per unit star formation) is fixed at the provided value. This can be useful if, for example, you're modeling the galaxy luminosity function (LF) and want to change the stellar population model while preserving the LF. See Section 3.4 of `Mirocha, Furlanetto, \& Sun (2016) <http://arxiv.org/abs/1607.00386>`_ for further discussion of this.
+    If not ``None``, this parameter will guarantee that the :math:`1600\AA` luminosity (per unit star formation) is fixed at the provided value. This can be useful if, for example, you're modeling the galaxy luminosity function (LF) and want to change the stellar population model while preserving the LF. See Section 3.4 of `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_ for further discussion of this.
     
 Radiation Fields
 ----------------
 ``pop_sed_model``
-    Treat the SED of this source population in detail?
+    Treat the SED of this source population in detail? If `True`, it means that we use parameters like ``pop_sed``, ``pop_Emin``, ``pop_Emax``, etc. in order to set the overall normalization of the emission. If False, parameters like ``pop_Nlw``, ``pop_Nion``, and ``pop_fX`` are used instead of ``pop_rad_yield``.
 
     See :doc:`uth_pop_radiation` for more information.
 

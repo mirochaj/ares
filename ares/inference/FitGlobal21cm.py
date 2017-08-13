@@ -65,7 +65,7 @@ class loglikelihood(LogLikelihood):
         for i in range(len(self.parameters)):
             point[self.parameters[i]] = pars[i]
         
-        lp = self.priors_P.log_prior(point)
+        lp = self.priors_P.log_value(point)
         if not np.isfinite(lp):
             return -np.inf, self.blank_blob
 
@@ -224,6 +224,7 @@ class FitGlobal21cm(ModelFit):
         else:
             assert len(value) == len(self.frequencies)            
             assert not self.turning_points
+            self.xdata = self.frequencies
             self.ydata = value
             return
 

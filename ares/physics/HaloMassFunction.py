@@ -290,11 +290,14 @@ class HaloMassFunction(object):
             self.logMmin_tab = self.pf['hmf_logMmin']
             self.logMmax_tab = self.pf['hmf_logMmax']
             self.dz = self.pf['hmf_dz']
+            
+            # Introduce ghost zones so that the derivative is defined
+            # at the boundaries.
             self.zmin = max(self.pf['hmf_zmin'] - 2 * self.dz, 0)
             self.zmax = self.pf['hmf_zmax'] + 2 * self.dz
             self.dlogM = self.pf['hmf_dlogM']
             
-            self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
+            self.Nz = int(round(((self.zmax - self.zmin) / self.dz) + 1, 1))
             self.z = np.linspace(self.zmin, self.zmax, self.Nz)             
                          
             # Initialize Perturbations class
@@ -306,7 +309,7 @@ class HaloMassFunction(object):
                 dlnk=self.pf['hmf_dlnk'], lnk_min=self.pf['hmf_lnk_min'],
                 lnk_max=self.pf['hmf_lnk_max'])
                 
-        return self._MF   
+        return self._MF
 
     @MF.setter
     def MF(self, value):
@@ -342,7 +345,7 @@ class HaloMassFunction(object):
         self.dlogM = self.pf['hmf_dlogM']
         self.dz = self.pf['hmf_dz']
         
-        self.Nz = int((self.zmax - self.zmin) / self.dz + 1)        
+        self.Nz = int(round(((self.zmax - self.zmin) / self.dz) + 1, 1))
         self.z = np.linspace(self.zmin, self.zmax, self.Nz)
         
         self.Nm = np.logspace(self.logMmin_tab, self.logMmax_tab, self.dlogM).size
@@ -389,7 +392,7 @@ class HaloMassFunction(object):
                 # Remember that mgtm and mean_density have factors of h**2
                 # so we're OK here dimensionally
                 fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
-                        
+
             pb.update(i)
             
         pb.finish()
@@ -407,10 +410,10 @@ class HaloMassFunction(object):
             tmp3 = np.zeros_like(self.ngtm)
             nothing = MPI.COMM_WORLD.Allreduce(self.ngtm, tmp3)
             self.ngtm = tmp3
-            #
-            #tmp4 = np.zeros_like(self.mgtm)
-            #nothing = MPI.COMM_WORLD.Allreduce(self.mgtm, tmp4)
-            #self.mgtm = tmp4
+            
+            tmp4 = np.zeros_like(self.mgtm)
+            nothing = MPI.COMM_WORLD.Allreduce(self.mgtm, tmp4)
+            self.mgtm = tmp4
         else:
             _fcoll_tab = fcoll_tab   
                     
@@ -418,7 +421,8 @@ class HaloMassFunction(object):
         _fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
         self._fcoll_tab = _fcoll_tab
                     
-    def build_1d_splines(self, Tmin, mu=0.6):
+    def build_1d_splines(self, Tmin, mu=0.6, return_fcoll=False, 
+        return_fcoll_p=True, return_fcoll_pp=False):
         """
         Construct splines for fcoll and its derivatives given a (fixed) 
         minimum virial temperature.
@@ -497,18 +501,14 @@ class HaloMassFunction(object):
         # 'cuz time and redshift are different        
         self.dfcolldz_tab *= -1.
 
-        fcoll_spline = None
-        self.dfcolldz_tab[self.dfcolldz_tab < tiny_dfcolldz] = tiny_dfcolldz
-
-        # Try masking all z elements lower than first occurrence
-        
-        #zp = self.ztab[self.ztab <= 50]
-        #fp = self.dfcolldz_tab[self.ztab <= 50]
-        #zmax = zp[fp < tiny_dfcolldz].max()
-        #print zmax
-        #
+        if return_fcoll:
+            fcoll_spline = interp1d(self.z, self.fcoll_Tmin, 
+                kind=self.pf['hmf_interp'], bounds_error=False,
+                fill_value=0.0)
+        else:
+            fcoll_spline = None
+            
         self.dfcolldz_tab[self.dfcolldz_tab <= tiny_dfcolldz] = tiny_dfcolldz
-        #self.dfcolldz_tab[self.ztab <= zmax] = tiny_dfcolldz
                     
         spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
             kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
@@ -670,13 +670,18 @@ class HaloMassFunction(object):
             *  (Vc / 23.4)**3 / cterm**0.5 / ((1. + z) / 10)**1.5
             
     def BindingEnergy(self, M, z, mu=0.6):
-        return 0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(M, z, mu) \
+        return (0.5 * G * (M * g_per_msun)**2 / self.VirialRadius(M, z, mu)) \
             * self.cosm.fbaryon / cm_per_kpc
+            
+    def MassFromEb(self, z, Eb, mu=0.6):
+        # Could do this analytically but I'm lazy
+        func = lambda M: abs(np.log10(self.BindingEnergy(10**M, z=z, mu=mu)) - np.log10(Eb))
+        return 10**fsolve(func, x0=7.)[0]
             
     def MeanDensity(self, M, z, mu=0.6):
         V = 4. * np.pi * self.VirialRadius(M, z, mu)**3 / 3.
         return (M / V) * g_per_msun / cm_per_kpc**3
-        
+
     def JeansMass(self, M, z, mu=0.6):
         rho = self.MeanDensity(M, z, mu)
         T = self.VirialTemperature(M, z, mu)
@@ -732,13 +737,13 @@ class HaloMassFunction(object):
         if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
                 / self.pf['hmf_dlogM']                
-            zsize = (self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
-                / self.pf['hmf_dz'] + 1
+            zsize = ((self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
+                / self.pf['hmf_dz']) + 1
                 
             assert logMsize % 1 == 0
             logMsize = int(logMsize)    
             assert zsize % 1 == 0
-            zsize = int(zsize)    
+            zsize = int(round(zsize, 1))    
                 
             return 'hmf_%s_logM_%s_%i-%i_z_%s_%i-%i' \
                 % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2)

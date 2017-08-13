@@ -14,6 +14,8 @@ for model in ['dpl', 'strong', 'weak', 'strong_weak']:
     _popII_models[model] = {}
 
 _popII_models['soft'] = {}
+_popII_models['early'] = flex.copy()
+_popII_models['strong_early'] = flex.copy()
 
 _sed_soft = \
 {
@@ -42,8 +44,7 @@ _sed_soft = \
 _sed_soft['pop_sfr_model{2}'] = 'link:sfrd:0'
 _sed_soft['pop_alpha{2}'] = -2.5
 _sed_soft['pop_solve_rte{2}'] = True
-_sed_soft['pop_tau_Nz{2}'] = 1000
-_sed_soft['pop_approx_tau{2}'] = 'neutral'
+_sed_soft['tau_approx'] = 'neutral'
 
 _popII_updates = \
 {
@@ -60,6 +61,8 @@ _popII_updates = \
  'soft': _sed_soft,
  'soft_rise': _sed_soft,
  'soft_fall': _sed_soft,
+ 'early': {'pop_Tmin{0}': 500.},
+ 'strong_early': {'pop_Tmin{0}': 500., 'pop_Z{0}': 1e-3, 'pop_rad_yield_Z_index{1}': -0.6},
 }
 
 for _update in _popII_updates.keys():
@@ -74,13 +77,14 @@ popII_markers = \
 'strong_fall': '^', 'weak_rise': 'v', 
 'strong_rise': '^', 'weak_fall': 'v', 'soft': 's',
 'soft_fall': '<', 'soft_rise': '>',
+'early': '<', 'strong_early': '<',
 }
 
 # Lotta trouble just to get 'dpl' first in the list...
 _amp =  ['weak', 'strong']
 _timing = ['rise', 'fall']
 _all = _amp + _timing
-popII_models = ['dpl'] + _all + ['strong_weak']
+popII_models = ['dpl'] + _all + ['strong_weak'] + ['early', 'strong_early']
 
 for e1 in _amp:
     for e2 in _timing:
@@ -95,6 +99,16 @@ _generic_updates = \
  'pop_zform{0}': 60,
  'pop_zform{1}': 60,
  'feedback_LW': True,
+ 'sam_dz': 0.1,
+ 'kill_redshift': 5.6,
+ 
+ 'feedback_LW_Mmin_rtol': 0,
+ 'feedback_LW_sfrd_rtol': 5e-2,
+ 'feedback_LW_sfrd_popid': 2,
+ 'feedback_LW_maxiter': 50,
+ 'feedback_LW_mixup_freq': 5,
+ 'feedback_LW_mixup_delay': 10,
+ 'pop_time_limit_delay{2}': True,
 }
 
 # This can lead to pickling issues...argh
@@ -107,14 +121,11 @@ First model: constant SFR in minihalos.
 _low = \
 {
 
- 'kill_redshift': 5.6,
- 'sam_dz': 0.1,
-
  'pop_zform{2}': 60,
  'pop_zform{3}': 60,
 
  'pop_sfr_model{2}': 'sfr-func',
- 'pop_sfr{2}': 2e-5,
+ 'pop_sfr{2}': 1e-5,
  'pop_sfr_cross_threshold{2}': False,
  'pop_sed{2}': 'eldridge2009',
  'pop_binaries{2}': False,
@@ -150,8 +161,6 @@ _low = \
  'pop_logN{3}': -np.inf,
 
  'pop_solve_rte{3}': True,
- 'pop_tau_Nz{3}': 1e3,
- 'pop_approx_tau{3}': 'neutral',
 
  #'pop_Mmin{0}': 'link:Mmax_active:2',
 
@@ -162,11 +171,12 @@ _low = \
  'pop_Tmax_ceil{2}': 1e6,
  'pop_sfr_cross_threshold{2}': False,
 
+ 'pop_time_limit{2}': 2.5,
  'pop_bind_limit{2}': 1e51,
- 'pop_abun_limit{2}': 1e-6,
+ 'pop_abun_limit{2}': None,
  
  # Acknowledging that our mean metallicity is kludgey
- # Note that this renders the stellar mass meaningless (it'll be zero)
+ # Note that this renders the stellar mass meaningless (it'll be zero).
  'pop_mass_yield{2}': 1.0,
  'pop_metal_yield{2}': 1.0,
 }
@@ -184,6 +194,20 @@ med['pop_mass{2}'] = 5.
 
 LWoff = low.copy()
 LWoff['pop_fesc_LW{2}'] = 0
+
+bb = low.copy()
+bb['pop_sed{2}'] = 'bb'
+bb['pop_rad_yield{2}'] = 1e5
+bb['pop_rad_yield_units{2}'] = 'photons/baryon'
+bb['pop_EminNorm{2}'] = 11.2
+bb['pop_EmaxNorm{2}'] = 13.6
+bb['pop_Emin{2}'] = 1.
+bb['pop_Emax{2}'] = 1e2
+bb['pop_temperature{2}'] = 1e5
+
+popII_like = low.copy()
+popII_like['pop_sed{2}'] = 'eldridge2009'
+popII_like['pop_Z{2}'] = 1e-3
 
 """
 Second model: constant SFE in minihalos.
@@ -273,6 +297,4 @@ dpl_blobs = \
  'blob_ivars': ('z', np.arange(5, 60.1, 0.1)),
  'blob_funcs': ['pops[0].SFRD', 'pops[0].Mmin', 'pops[0].Mmax'],
 }
-
-
 

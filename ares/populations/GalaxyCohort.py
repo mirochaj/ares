@@ -15,6 +15,7 @@ import time
 import numpy as np
 from ..util import read_lit
 from inspect import ismethod
+from ..analysis import ModelSet
 from scipy.optimize import fsolve, minimize
 from types import FunctionType, InstanceType
 from ..analysis.BlobFactory import BlobFactory
@@ -144,7 +145,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                 self._update_pq_registry(name, result)
             
-            elif type(self.pf[full_name]) in [int, float, np.float64]:
+            elif type(self.pf[full_name]) in [int, float, np.int64, np.float64]:
                 
                 # Need to be careful here: has user-specified units!
                 # We've assumed that this cannot be parameterized...
@@ -228,7 +229,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_MAR_'):
             self._tab_MAR_ = \
                 np.array([self.MAR(self.halos.z[i], self.halos.M) \
-                    for i in range(self.halos.Nz)]) 
+                    for i in xrange(self.halos.Nz)]) 
                     
             self._tab_MAR_ = np.maximum(self._tab_MAR_, 0.0)
             
@@ -239,7 +240,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_MAR_at_Mmin_'):
             self._tab_MAR_at_Mmin_ = \
                 np.array([self.MAR(self.halos.z[i], self._tab_Mmin[i]) \
-                    for i in range(self.halos.Nz)])                    
+                    for i in xrange(self.halos.Nz)])                    
         return self._tab_MAR_at_Mmin_ 
     
     @property
@@ -248,7 +249,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_nh_at_Mmin_ = \
                 np.array([self._spline_nh(self.halos.z[i], 
                     np.log(self._tab_Mmin[i])) \
-                    for i in range(self.halos.Nz)]).squeeze()
+                    for i in xrange(self.halos.Nz)]).squeeze()
         return self._tab_nh_at_Mmin_
         
     @property
@@ -849,8 +850,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if mags:
             x_phi, phi = self.phi_of_M(z)
 
+            ok = phi.mask == False
+
             # Setup interpolant
-            interp = interp1d(x_phi, np.log10(phi), kind='linear',
+            interp = interp1d(x_phi[ok], np.log10(phi[ok]), kind='linear',
                 bounds_error=False, fill_value=-np.inf)
 
             phi_of_x = 10**interp(x)
@@ -858,8 +861,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             x_phi, phi = self.phi_of_L(z)
 
+            ok = phi.mask == False
+
             # Setup interpolant
-            interp = interp1d(np.log10(x_phi), np.log10(phi), kind='linear',
+            interp = interp1d(np.log10(x_phi[ok]), np.log10(phi[ok]), kind='linear',
                 bounds_error=False, fill_value=-np.inf)
             
             phi_of_x = 10**interp(np.log10(x))
@@ -884,6 +889,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Number of galaxies per unit luminosity per unit volume.
         
         """
+
         if not hasattr(self, '_phi_of_L'):
             self._phi_of_L = {}
         else:
@@ -1048,8 +1054,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_Mmin(self):
         if not hasattr(self, '_tab_Mmin_'):
             # First, compute threshold mass vs. redshift
+            if self.pf['feedback_LW_guesses'] is not None:
+                guess = self._guess_Mmin()
+                if guess is not None:
+                    self._tab_Mmin = guess
+                    return self._tab_Mmin_
+            
             if self.pf['pop_Mmin'] is not None:
-                if ismethod(self.pf['pop_Mmin']):
+                if ismethod(self.pf['pop_Mmin']) or \
+                   type(self.pf['pop_Mmin']) == FunctionType:
                     self._tab_Mmin_ = \
                         np.array(map(self.pf['pop_Mmin'], self.halos.z))
                 elif type(self.pf['pop_Mmin']) is np.ndarray:
@@ -1116,6 +1129,16 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return out
         
     @property
+    def _done_setting_Mmax(self):
+        if not hasattr(self, '_done_setting_Mmax_'):
+            self._done_setting_Mmax_ = False
+        return self._done_setting_Mmax_
+    
+    @_done_setting_Mmax.setter
+    def _done_setting_Mmax(self, value):
+        self._done_setting_Mmax_ = value
+        
+    @property
     def _tab_Mmax(self):
         if not hasattr(self, '_tab_Mmax_'):
                                     
@@ -1125,7 +1148,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             a_limit = self.pf['pop_abun_limit'] 
             e_limit = self.pf['pop_bind_limit']
             T_limit = self.pf['pop_temp_limit']
-
+            
+            if t_limit == 0:
+                t_limit = None
+            if e_limit == 0:
+                e_limit = None
+            
             if (t_limit is not None) or (m_limit is not None) or \
                (e_limit is not None) or (T_limit is not None) or (a_limit is not None):
                
@@ -1161,6 +1189,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         Mmax[i] = 10**np.interp(z, zfin, np.log10(Mfin))
                         
                 self._tab_Mmax_ = Mmax
+                
+                self._done_setting_Mmax = True
 
             elif self.pf['pop_Mmax'] is not None:
                 if type(self.pf['pop_Mmax']) is FunctionType:
@@ -1695,21 +1725,39 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 boost = 1.
 
             if self.pf['pop_mlf'] is not None:
-                self._fstar = lambda **kwargs: boost * self.fshock(**kwargs) \
-                    / ((1. / self.pf['pop_fstar_max']) + self.mlf(**kwargs))
-            elif type(self.pf['pop_fstar']) in [float, np.float64]:
-                self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost
-            elif self.pf['pop_fstar'][0:2] == 'pq':
-                pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
-                Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
-                self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
-                    self.pf, **pars)
+                if type(self.pf['pop_mlf']) in [float, np.float64]:
+                    # Note that fshock is really fcool
+                    self._fstar = lambda **kwargs: boost * self.fshock(**kwargs) \
+                        / ((1. / self.pf['pop_fstar_max']) + self.pf['pop_mlf'])
+                elif self.pf['pop_mlf'][0:2] == 'pq':
+                    pars = get_pq_pars(self.pf['pop_mlf'], self.pf)
+                    Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
                 
-                self._update_pq_registry('fstar', self._fstar_inst)    
+                    self._mlf_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
+                        self.pf, **pars)
                 
-                self._fstar = \
-                    lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
-                    * boost
+                    self._update_pq_registry('mlf', self._mlf_inst)    
+                    self._fstar = \
+                        lambda **kwargs: boost * self.fshock(**kwargs) \
+                            / ((1. / self.pf['pop_fstar_max']) + self._mlf_inst(**kwargs))
+            
+            elif self.pf['pop_fstar'] is not None:
+                if type(self.pf['pop_fstar']) in [float, np.float64]:
+                    self._fstar = lambda **kwargs: self.pf['pop_fstar'] * boost    
+                
+                elif self.pf['pop_fstar'][0:2] == 'pq':
+                    pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
+                    Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
+                    self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
+                        self.pf, **pars)
+                    
+                    self._update_pq_registry('fstar', self._fstar_inst)    
+                    
+                    self._fstar = \
+                        lambda **kwargs: self._fstar_inst.__call__(**kwargs) \
+                            * boost
+            
+                
             else:
                 raise ValueError('Unrecognized data type for pop_fstar!')  
 
@@ -1795,9 +1843,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        Mh, Mg, Mst, MZ = y
+        Mh, Mg, Mst, MZ, cMst = y
 
-        kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg, 'MZ': MZ}
+        kw = {'z':z, 'Mh': Mh, 'Ms': Mst, 'Mg': Mg, 'MZ': MZ,
+            'cMst': cMst}
 
         # Assume that MZ, Mg, and Mstell acquired *not* by smooth inflow
         # is same fraction of accreted mass as fractions in this halo
@@ -1836,10 +1885,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # Add option of parameterized stifling of gas supply, and
         # ejection of gas.
-
+        
+        if self._done_setting_Mmax:
+            Mmax = self.Mmax(z)
+        else:
+            Mmax = np.inf
+        
         # Eq. 3: stellar mass
         Mmin = self.Mmin(z)
-        if Mh < Mmin:
+        if (Mh < Mmin) or (Mh > Mmax):
             y3p = SFR = 0.
         else:
             y3p = SFR * (1. - self.pf['pop_mass_yield']) + NPIR * Sfrac
@@ -1849,10 +1903,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             * (1. - self.pf['pop_mass_escape']) \
             + NPIR * Zfrac
 
+        if (Mh < Mmin) or (Mh > Mmax):
+            y5p = 0.
+        else:
+            y5p = SFR + NPIR * Sfrac
+
         # Stuff to add: parameterize metal yield, metal escape, star formation
         # from reservoir? How to deal with Mmin(z)? Initial conditions (from PopIII)?
 
-        results = [y1p, y2p, y3p, y4p]
+        results = [y1p, y2p, y3p, y4p, y5p]
         
         return np.array(results)
 
@@ -2050,6 +2109,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             new_data = {}
             sorter = np.argsort(data['Mh'])
             for key in data.keys():
+                if key == 'zmax':
+                    continue
                 new_data[key] = data[key][sorter]
         else:
             
@@ -2127,7 +2188,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         
         
-        keys = ['Mh', 'Mg', 'Ms', 'MZ', 'Z']
+        keys = ['Mh', 'Mg', 'Ms', 'MZ', 'cMs', 'Z', 't']
                 
         zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
         zi = min(float(self.halos.z.max()), self.pf['initial_redshift'])
@@ -2176,8 +2237,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
         """
         Evolve a halo from initial mass M0 at redshift z0 forward in time.
-        
-        Really this should be invoked any time any PHP has 'z' in its vars list.
+
+        Really this should be invoked any time any PQ has 'z' in its vars list.
         
         Parameters
         ----------
@@ -2205,9 +2266,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             dz = np.diff(self.halos.z)[0]
             zfreq = 1
 
-        #atol = 0.; rtol = 1e-3
-        solver = ode(self._SAM).set_integrator('lsoda', 
-            nsteps=1e4, atol=1e2, rtol=1e-2)
+        solver = ode(self._SAM).set_integrator('lsoda', nsteps=1e4, 
+            atol=self.pf['sam_atol'], rtol=self.pf['sam_rtol'])
             
         has_e_limit = self.pf['pop_bind_limit'] is not None    
         has_T_limit = self.pf['pop_temp_limit'] is not None    
@@ -2216,6 +2276,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         has_a_limit = self.pf['pop_abun_limit'] is not None
         
         has_t_ceil = self.pf['pop_time_ceil'] is not None
+                
+        if self.pf['pop_time_limit'] == 0:
+            has_t_limit = False
+        if self.pf['pop_bind_limit'] == 0:
+            has_e_limit = False    
                 
         ##
         # Outputs have shape (z, z)
@@ -2243,7 +2308,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mst0 = 0.0
 
         # Initial stellar mass -> 0, initial halo mass -> Mmin
-        solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0]), z0)
+        solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0, Mst0]), z0)
 
         # Only used occasionally
         zmax = None
@@ -2259,21 +2324,26 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mh_t = []
         Mg_t = []
         Mst_t = []
+        cMst_t = []
         metals = []
+        lbtime = []
         Ehist = []
         redshifts = []
-        for i in range(Nz):
+        for i in xrange(Nz):
             # In descending order
             redshifts.append(zarr[-1::-1][i])
             Mh_t.append(solver.y[0])
             Mg_t.append(solver.y[1])
             Mst_t.append(solver.y[2])
             metals.append(solver.y[3])
+            cMst_t.append(solver.y[4])
             
             z = redshifts[-1]
 
             lbtime_myr = self.cosm.LookbackTime(z, z0) \
                 / s_per_yr / 1e6
+
+            lbtime.append(lbtime_myr)
 
             # t_ceil is a trump card.
             # For example, in some cases the critical metallicity will never
@@ -2297,7 +2367,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 Mnow = solver.y[2]
 
                 if Mnow >= self.mass_limit(z=z, Mh=M0) and (zmax_m is None):
-                    zmax_m = np.interp(self.mass_limit(z=z, Mh=M0), Mst_t[-2:], 
+                    zmax_m = np.interp(self.mass_limit(z=z, Mh=M0), cMst_t[-2:], 
                         redshifts[-2:])
 
             if has_a_limit and (zmax_a is None):
@@ -2343,6 +2413,25 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         zmax_e = z0
                     else:
                         zmax_e = np.interp(Eblim, Ehist[-2:], redshifts[-2:]) 
+            
+                    # Potentially require a halo to keep growing
+                    # for pop_time_limit *after* crossing this barrier.
+                    if has_t_limit and self.pf['pop_time_limit_delay']:
+                        tlim = self.time_limit(z=z, Mh=M0)
+                        
+                        lbtime_myr = self.cosm.LookbackTime(z, zmax_e) \
+                            / s_per_yr / 1e6
+                    
+                        if lbtime_myr >= tlim:
+                            hit_dt = True
+                        
+                            lbtime_myr_prev = self.cosm.LookbackTime(redshifts[-2], z0) \
+                                / s_per_yr / 1e6
+                        
+                            zmax_e = np.interp(tlim,
+                                [lbtime_myr_prev, lbtime_myr], redshifts[-2:])
+                        
+            
             
             # Once zmax is set, keep solving the rate equations but don't adjust
             # zmax.
@@ -2398,9 +2487,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mg = np.array(Mg_t)[-1::-1]
         Ms = np.array(Mst_t)[-1::-1]
         MZ = np.array(metals)[-1::-1]
+        cMs = np.array(cMst_t)[-1::-1]
+        tlb = np.array(lbtime)[-1::-1]
 
         # Derived
-        results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'zmax': zmax}
+        results = {'Mh': Mh, 'Mg': Mg, 'Ms': Ms, 'MZ': MZ, 'cMs': cMs,
+            'zmax': zmax, 't': tlb}
         results['Z'] = self.pf['pop_metal_retention'] \
             * (results['MZ'] / results['Mg'])
 
@@ -2463,3 +2555,55 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         else:
             return self.rho_N(z, Emin, Emax)
                  
+    def _guess_Mmin(self):
+        """
+        Super non-general at the moment sorry.
+        """
+        
+        fn = self.pf['feedback_LW_guesses']
+        
+        if fn is None:
+            return None
+        
+        if type(fn) is str:
+            anl = ModelSet(fn)
+        elif isinstance(fn, ModelSet): 
+            anl = fn
+        else:
+            zarr, Mmin = fn
+            
+            if np.all(np.logical_or(np.isinf(Mmin), np.isnan(Mmin))):
+                print "Provided Mmin guesses are all infinite or NaN."
+                return None
+            
+            return np.interp(self.halos.z, zarr, Mmin)
+        
+        # HARD CODING FOR NOW
+        blob_name = 'popIII_Mmin'
+        Mmin = anl.ExtractData(blob_name)[blob_name]
+        zarr = anl.get_ivars(blob_name)[0]
+        
+        ##
+        # Remember: ModelSet will have {}'s and guesses_from will not.
+        ##                
+        kw = {par: self.pf[par] \
+            for par in self.pf['feedback_LW_guesses_from']}
+                
+        score = 0.0
+        pid = self.pf['feedback_LW_sfrd_popid']
+        for k, par in enumerate(self.pf['feedback_LW_guesses_from']):
+            p_w_id = '%s{%i}' % (par, pid)
+            
+            if p_w_id not in anl.parameters:
+                continue
+        
+            ind = list(anl.parameters).index(p_w_id)
+        
+            vals = anl.chain[:,ind]    
+                            
+            score += np.abs(np.log10(vals) - np.log10(kw[par]))
+        
+        best = np.argmin(score)
+                
+        return np.interp(self.halos.z, zarr, Mmin[best])
+        

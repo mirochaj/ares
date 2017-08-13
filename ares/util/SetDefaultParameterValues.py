@@ -218,19 +218,35 @@ def PhysicsParameters():
 
     # LW
     'feedback_clear_solver': True,
+    
     'feedback_LW': False,
-    'feedback_LW_Mmin': 'visbal2015',
+    'feedback_LW_dt': 0.0,  # instantaneous response
+    'feedback_LW_Mmin': 'visbal2014',
     'feedback_LW_fsh': None,
     'feedback_LW_Tcut': 1e4,
     'feedback_LW_mean_err': False,
     'feedback_LW_maxiter': 15,
-    'feedback_LW_Mmin_uponly': False,
-    'feedback_LW_Mmin_smooth': False,
-    'feedback_LW_Mmin_fit': False,    
-    'feedback_LW_Mmin_rtol': 1e-2,
-    'feedback_LW_Mmin_atol': 0.0,
+    'feedback_LW_miniter': 0,
     'feedback_LW_softening': 'sqrt',
+    
+    'feedback_LW_Mmin_smooth': 0,
+    'feedback_LW_Mmin_fit': 0,
+    'feedback_LW_Mmin_afreq': 0,
+    'feedback_LW_Mmin_rtol': 0.0,
+    'feedback_LW_Mmin_atol': 0.0,
+    'feedback_LW_sfrd_rtol': 1e-1,
+    'feedback_LW_sfrd_atol': 1e-10,
+    'feedback_LW_sfrd_popid': None,
+    'feedback_LW_zstart': None,
+    'feedback_LW_mixup_freq': 5,
+    'feedback_LW_mixup_delay': 20,
     'feedback_LW_guesses': None,
+    'feedback_LW_guesses_from': None,
+    'feedback_LW_guesses_perfect': False,
+    
+    # Assume that uniform background only emerges gradually as 
+    # the typical separation of halos becomes << Hubble length
+    "feedback_LW_ramp": 0,
     
     'feedback_streaming': False,
     'feedback_vel_at_rec': 30.,
@@ -269,6 +285,7 @@ def ParameterizedQuantityParameters():
     pf = \
     {
      "pq_func": 'dpl',
+     "pq_func_fun": None,  # only used if pq_func == 'user'
      "pq_func_var": 'Mh',
      "pq_func_par0": None,
      "pq_func_par1": None,
@@ -385,6 +402,8 @@ def PopulationParameters():
     "pop_tsf": 100.,
     "pop_binaries": False,        # for BPASS
     "pop_sed_by_Z": None,
+    
+    "pop_sfh": False,             # account for SFH in spectrum modeling
 
     # Option of setting Z, t, or just supplying SSP table?
     
@@ -465,6 +484,7 @@ def PopulationParameters():
     "pop_Mmax": None,
 
     "pop_time_limit": None,
+    "pop_time_limit_delay": True,
     "pop_mass_limit": None,
     "pop_abun_limit": None,
     "pop_bind_limit": None,
@@ -543,11 +563,8 @@ def PopulationParameters():
     'pop_frec_bar': 0.0,   # Neglect injected photons by default if we're
                            # treating background in approximate way
 
-    "pop_approx_tau": True,     # shouldn't be a pop parameter?
     "pop_solve_rte": False,
-    
-    "pop_tau_Nz": 400,
-    
+        
     # Pre-created splines
     "pop_fcoll": None,
     "pop_dfcolldz": None,
@@ -595,10 +612,29 @@ def SourceParameters():
     
     "source_logN": -inf,
     "source_hardening": 'extrinsic',
+
+    # Synthesis models
+    "source_sfh": None,
+    "source_Z": 0.02,
+    "source_imf": 2.35,
+    "source_nebular": False,
+    "source_ssp": False,             # a.k.a., continuous SF
+    "source_psm_instance": None,
+    "source_tsf": 100.,
+    "source_binaries": False,        # for BPASS
+    "source_sed_by_Z": None,
+    "source_rad_yield": 'from_sed',
+    
+    "source_degradation": None,      # Degrade spectra to this \AA resolution
+    "source_aging": True,
     
     # Stellar
     "source_temperature": 1e5,  
     "source_qdot": 5e48,
+    
+    # SFH
+    "source_sfh": None,
+    "source_meh": None,
     
     # BH
     "source_mass": 1e5,
@@ -659,8 +695,26 @@ def BlackHoleParameters():
     pf.update(SourceParameters())
     pf.update(rcParams)
     
-    return pf    
-    
+    return pf
+
+def SynthesisParameters():
+    pf = \
+    {
+    # For synthesis models
+    "source_sed": None,
+    "source_Z": 0.02,
+    "source_imf": 2.35,
+    "source_nebular": False,
+    "source_ssp": False,             # a.k.a., continuous SF
+    "source_psm_instance": None,
+    "source_tsf": 100.,
+    "source_binaries": False,        # for BPASS
+    "source_sed_by_Z": None,
+    "source_rad_yield": 'from_sed',
+    }
+
+    return pf
+
 def HaloMassFunctionParameters():
     pf = \
     {
@@ -689,6 +743,9 @@ def HaloMassFunctionParameters():
     
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
+    
+    # For, e.g., fcoll, etc
+    "hmf_interp": 'cubic',
     
     # Mean molecular weight of collapsing gas
     "mu": 0.61,
@@ -768,9 +825,7 @@ def ControlParameters():
     "initial_timestep": 1e-2,
     "tau_ifront": 0.5,
     "restricted_timestep": ['ions', 'neutrals', 'electrons', 'temperature'],
-    
-    "compute_fluxes_at_start": False,
-    
+        
     # Real-time analysis junk
     "stop": None,           # 'B', 'C', 'trans', or 'D'
     
@@ -798,9 +853,15 @@ def ControlParameters():
     "tau_arrays": None,
     "tau_prefix": tau_prefix,
     "tau_instance": None,
+    "tau_redshift_bins": 400,
+    "tau_approx": True,
+    "tau_Emin": 2e2,
+    "tau_Emax": 3e4,
 
     "sam_dz": 2., # Usually good enough!
-
+    "sam_atol": 1e-2,
+    "sam_rtol": 1e-2,
+    
     # File format
     "preferred_format": 'npz',
 
@@ -861,6 +922,8 @@ def TanhParameters():
     'tanh_xdz': 2.,
     'tanh_bias_temp': 0.0,   # in mK
     'tanh_bias_freq': 0.0,   # in MHz
+    'tanh_scale_temp': 1.0,
+    'tanh_scale_freq': 1.0
     }
 
     pf.update(rcParams)
@@ -875,6 +938,7 @@ def GaussianParameters():
      'gaussian_A': -100., 
      'gaussian_nu': 70.,
      'gaussian_sigma': 10.,
+     'gaussian_bias_temp': 0
     }
     
     pf.update(rcParams)

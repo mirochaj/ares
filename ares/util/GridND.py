@@ -69,11 +69,18 @@ class GridAxis(object):
         
         if tol == 0:
             if val in self.values:
-                return np.argmin(np.abs(val - self.values))    
+                return np.argmin(np.abs(val - self.values))
             else:
                 return None
         else:
-            diff = np.abs(val - self.values)
+            
+            if val in self.values:
+                return np.argmin(np.abs(val - self.values))
+            elif val == 0:
+                diff = np.abs((val - self.values))
+            else:    
+                diff = np.abs((val - self.values) / val)
+
             amin = np.argmin(diff)
 
             if diff[amin] <= tol:
@@ -114,13 +121,13 @@ class GridND(defaultdict):
                     self._structured = False
             else:
                 self._structured = False
-                
+
         return self._structured
-    
+
     @structured.setter
     def structured(self, value):
         self._structured = value
-    
+
     @property
     def axes(self):
         """ List of all GridAxis instances. """
@@ -129,9 +136,9 @@ class GridND(defaultdict):
             for key in self:
                 if isinstance(self[key], GridAxis):
                     self._axes[self[key].num] = self[key]
-        
+
         return self._axes    
-        
+
     @property    
     def axes_names(self):    
         """ Names of all axes. """

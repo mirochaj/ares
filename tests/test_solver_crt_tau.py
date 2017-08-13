@@ -44,8 +44,8 @@ def test(tol=5e-2):
      'pop_EmaxNorm': 3e4,
      'pop_logN': -np.inf,
      'pop_solve_rte': True,
-     'pop_approx_tau': False,
-     'pop_tau_Nz': 1e2,
+     'tau_approx': False,
+     'tau_redshift_bins': 1e2,
     }
     
     colors = 'k', 'b'
@@ -53,7 +53,9 @@ def test(tol=5e-2):
         
         pars['include_He'] = include_He
         pars['approx_He'] = include_He
-        pars['pop_approx_tau'] = False
+        pars['tau_approx'] = False
+        pars['tau_Emin'] = pars['pop_Emin']
+        pars['tau_Emax'] = pars['pop_Emax']
     
         # Create OpticalDepth instance
         igm = ares.solvers.OpticalDepth(**pars)
@@ -73,7 +75,7 @@ def test(tol=5e-2):
         os.remove('tau_test.pkl')
         
         # Compare to transparent IGM solution
-        pars['pop_approx_tau'] = True
+        pars['tau_approx'] = True
         sim_2 = ares.simulations.MetaGalacticBackground(**pars)
         sim_2.run()
         
@@ -91,7 +93,7 @@ def test(tol=5e-2):
             igm.save(prefix='tau_test', suffix='pkl', clobber=True)
             
             pars['tau_table'] = 'tau_test.pkl'
-            pars['pop_approx_tau'] = False
+            pars['tau_approx'] = False
             sim_3 = ares.simulations.MetaGalacticBackground(**pars)
             sim_3.run()
         

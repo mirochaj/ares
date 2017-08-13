@@ -12,12 +12,13 @@ Description: Container for hydrogen physics stuff.
 
 import scipy
 import numpy as np
-from scipy import interpolate
+import scipy.interpolate as interpolate
 from ..util.ReadData import _load_inits
 from ..util.Math import central_difference
 from ..util.ParameterFile import ParameterFile
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
     k_B
+    
 
 try:
     from scipy.special import gamma
@@ -390,16 +391,9 @@ class Hydrogen(object):
         
     def saturated_limit(self, z):
         return self.DifferentialBrightnessTemperature(z, 0.0, np.inf)
-        
-    def ne_floor(self, z):
-        return np.interp(z, self.inits['z'], self.inits['xe']) * self.cosm.nH(z)
-        
-    def Tk_floor(self, z):
-        return np.interp(z, self.inits['z'], self.inits['Tk'])
-        
+    
     def adiabatic_floor(self, z): 
-        Tk = self.Tk_floor(z)
+        Tk = np.interp(z, self.inits['z'], self.inits['Tk'])
         Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)        
         return self.DifferentialBrightnessTemperature(z, 0.0, Ts)
-        
-               
+

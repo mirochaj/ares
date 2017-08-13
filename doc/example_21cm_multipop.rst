@@ -11,16 +11,19 @@ one of PopIII stars:
 
     pars = \
     {
-     'Tmin{0}': 1e4,               # atomic cooling halos
-     'fstar{0}': 1e-1,
-     'Nion{0}': 4e3,
-     'Nlw{0}': 9600.,
+     'pop_Tmin{0}': 1e4,               # atomic cooling halos
+     'pop_type{0}': 'toy', #?
+     'pop_fstar{0}': 1e-1,
+     'pop_Nion{0}': 4e3,
+     'pop_Nlw{0}': 9600.,
+     'pop_fX{0}': 1.
      
-     'Tmin{1}': 300.,              # molecular cooling halos
-     'Tmax{1}': 1e4,             
-     'fstar{1}': 1e-4,
-     'Nion{1}': 30e3,
-     'Nlw{1}': 4800.,
+     'pop_Tmin{1}': 300.,              # molecular cooling halos
+     'pop_Tmax{1}': 1e4,             
+     'pop_fstar{1}': 1e-4,
+     'pop_Nion{1}': 30e3,
+     'pop_Nlw{1}': 4800.,
+     'pop_fX{0}': 10.,
     }
 
 Now, initialize the simulation class in the usual way:

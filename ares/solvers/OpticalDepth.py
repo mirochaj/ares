@@ -227,9 +227,9 @@ class OpticalDepth(object):
         pb.start()     
     
         # Loop over redshift, photon energy
-        for l in range(self.L):
+        for l in xrange(self.L):
     
-            for n in range(self.N):
+            for n in xrange(self.N):
                 m = l * self.N + n + 1
     
                 if m % size != rank:
@@ -293,18 +293,18 @@ class OpticalDepth(object):
     
         """
     
-        if self.pf['pop_tau_Nz'] is None and self.pf['tau_table'] is None:
+        if self.pf['tau_redshift_bins'] is None and self.pf['tau_table'] is None:
     
             # Set bounds in frequency/energy space
-            self.E0 = self.pf['pop_Emin']
-            self.E1 = self.pf['pop_Emax']    
+            self.E0 = self.pf['tau_Emin']
+            self.E1 = self.pf['tau_Emax']    
     
             return
     
         self.tabname = None
     
         # Use Haardt & Madau (1996) Appendix C technique for z, nu grids
-        if not ((self.pf['pop_tau_Nz'] is not None or \
+        if not ((self.pf['tau_redshift_bins'] is not None or \
             self.pf['tau_table'] is not None)):
             #  and (not self.pf['approx_xrb'])?
     
@@ -340,15 +340,15 @@ class OpticalDepth(object):
             zmin_ok = (self.z.min() <= self.pf['final_redshift']) or \
                 np.allclose(self.z.min(), self.pf['final_redshift'])
     
-            Emin_ok = (self.E0 <= self.pf['pop_Emin']) or \
-                np.allclose(self.E0, self.pf['pop_Emin'])
+            Emin_ok = (self.E0 <= self.pf['tau_Emin']) or \
+                np.allclose(self.E0, self.pf['tau_Emin'])
     
             # Results insensitive to Emax (so long as its relatively large)
             # so be lenient with this condition (100 eV or 1% difference
             # between parameter file and lookup table)
-            Emax_ok = np.allclose(self.E1, self.pf['pop_Emax'],
+            Emax_ok = np.allclose(self.E1, self.pf['tau_Emax'],
                 atol=100., rtol=1e-2)
-    
+        
             # Check redshift bounds
             if not (zmax_ok and zmin_ok):
                 if not zmax_ok:
@@ -362,7 +362,7 @@ class OpticalDepth(object):
                 if self.pf['verbose']:
                     tau_tab_E_mismatch(self, Emin_ok, Emax_ok)
     
-                if self.E1 < self.pf['pop_Emax']:
+                if self.E1 < self.pf['tau_Emax']:
                     sys.exit(1)
     
             dlogx = np.diff(self.logx)
@@ -372,13 +372,13 @@ class OpticalDepth(object):
         else:
     
             # Set bounds in frequency/energy space
-            self.E0 = self.pf['pop_Emin']
-            self.E1 = self.pf['pop_Emax']
+            self.E0 = self.pf['tau_Emin']
+            self.E1 = self.pf['tau_Emax']
     
             # Set up log-grid in parameter x = 1 + z
             self.x = np.logspace(np.log10(1+self.pf['final_redshift']),
                 np.log10(1+self.pf['initial_redshift']),
-                int(self.pf['pop_tau_Nz']))
+                int(self.pf['tau_redshift_bins']))
     
             self.z = self.x - 1.
             self.logx = np.log10(self.x)
@@ -495,16 +495,16 @@ class OpticalDepth(object):
             self.E = np.logspace(np.log10(self.E0), np.log10(self.E1), self.N)
     
         # Correct for inconsistencies between parameter file and table
-        if self.pf['pop_Emin'] > self.E0:
-            Ediff = self.E - self.pf['pop_Emin']
+        if self.pf['tau_Emin'] > self.E0:
+            Ediff = self.E - self.pf['tau_Emin']
             i_E0 = np.argmin(np.abs(Ediff))
             if Ediff[i_E0] < 0:
                 i_E0 += 1
     
             self.tau[:,0:i_E0] = np.inf
     
-        if self.pf['pop_Emax'] < self.E1:
-            Ediff = self.E - self.pf['pop_Emax']
+        if self.pf['tau_Emax'] < self.E1:
+            Ediff = self.E - self.pf['tau_Emax']
             i_E0 = np.argmin(np.abs(Ediff))
             if Ediff[i_E0] < 0:
                 i_E0 += 1
@@ -535,8 +535,8 @@ class OpticalDepth(object):
     
         L, N = self.tau_shape()
     
-        E0 = self.pf['pop_Emin']
-        E1 = self.pf['pop_Emax']
+        E0 = self.pf['tau_Emin']
+        E1 = self.pf['tau_Emax']
         
         #if self.ionization_history is not None:
         #    fn = lambda z1, z2, E1, E2: \
@@ -686,10 +686,10 @@ class OpticalDepth(object):
         """
         
         # First, look in CWD or $ARES (if it exists)
-        if pop.pf['tau_table'] is None:
-            self.tabname = self.find_tau(pop.pf['tau_prefix'])
+        if self.pf['tau_table'] is None:
+            self.tabname = self.find_tau(self.pf['tau_prefix'])
         else:
-            self.tabname = pop.pf['tau_table']
+            self.tabname = self.pf['tau_table']
             
         if not self.tabname:
             return zpf, Epf, None
@@ -717,7 +717,7 @@ class OpticalDepth(object):
         # so be lenient with this condition (100 eV or 1% difference
         # between parameter file and lookup table)
         Emax_ok = np.allclose(Etab.max(), Epf.max(), atol=100., rtol=1e-2)
-    
+        
         # Check redshift bounds
         if not (zmax_ok and zmin_ok):
             if not zmax_ok:
@@ -726,7 +726,7 @@ class OpticalDepth(object):
             else:
                 if self.pf['verbose']:
                     tau_tab_z_mismatch(self, zmin_ok, zmax_ok, ztab)
-    
+        
         if not (Emax_ok and Emin_ok):
             if self.pf['verbose']:
                 tau_tab_E_mismatch(pop, self.tabname, Emin_ok, Emax_ok, Etab)
@@ -774,7 +774,7 @@ class OpticalDepth(object):
         # Set up log-grid in parameter x = 1 + z
         x = np.logspace(np.log10(1+self.pf['final_redshift']),
             np.log10(1+self.pf['initial_redshift']),
-            int(self.pf['pop_tau_Nz']))
+            int(self.pf['tau_redshift_bins']))
         z = x - 1.
         logx = np.log10(x)
         logz = np.log10(z)
@@ -783,12 +783,12 @@ class OpticalDepth(object):
         R = x[1] / x[0]
         logR = np.log10(R)
     
-        E0 = self.pf['pop_Emin']
+        E0 = self.pf['tau_Emin']
     
         # Create mapping to frequency space
         E = 1. * E0
         n = 1
-        while E < self.pf['pop_Emax']:
+        while E < self.pf['tau_Emax']:
             E = E0 * R**(n - 1)
             n += 1    
     
@@ -798,7 +798,7 @@ class OpticalDepth(object):
         # Frequency grid must be index 1-based.
         N = num_freq_bins(L, zi=self.pf['initial_redshift'], 
             zf=self.pf['final_redshift'], Emin=E0, 
-            Emax=self.pf['pop_Emax'])
+            Emax=self.pf['tau_Emax'])
         N -= 1
     
         return L, N

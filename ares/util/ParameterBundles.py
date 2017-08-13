@@ -39,8 +39,44 @@ def _add_pq_tag(par, num):
         return '%s[%i]' % (prefix, num)
     else:
         return '%s[%i]' % (par, num)
+        
 
 
+class PreBundle(dict):
+    
+    @property
+    def typical_free_parameters(self):
+        return self._typical_free_parameters
+        
+    @typical_free_parameters.setter
+    def typical_free_parameters(self, value):
+        if type(value) in [list, tuple]:
+            self._typical_free_parameters = value
+        elif type(value) == dict:
+            self._typical_free_parameters = []
+            for key in value:
+                self._typical_free_parameters.append(key)
+                self._common_names = {key: value}
+
+    @property
+    def common_names(self):
+        return self._common_names
+        
+    @common_names.setter
+    def common_names(self, value):
+        if not hasattr(self, '_common_names'):
+            self._common_names = {}
+            
+        assert type(value) is dict
+            
+        for key in value:
+            if key in self._common_names:
+                print "Overwriting common name for %s: %s->%s" \
+                    % (key, self._common_names[key], value[key])
+            
+            self._common_names[key] = value[key]
+
+        
 _pop_fcoll = \
 {
  'pop_sfr_model': 'fcoll',
@@ -62,13 +98,63 @@ _pop_user_sfrd = \
  
 }
 
+_src_lya = \
+{
+ 'pop_Nlw': 1e4,
+ 'pop_lw_src': False,
+ 'pop_lya_src': True,
+ 'pop_heat_src_igm': False,
+ 'pop_ion_src_cgm': False,
+ 'pop_ion_src_igm': False,
+ 'pop_sed_model': False,
+}
+
+_src_ion = \
+{
+ 'pop_sfr_model': 'fcoll',
+ 'pop_Nion': 4000.,
+ 'pop_fesc': 0.1,
+ 'pop_lw_src': False,
+ 'pop_lya_src': False,
+ 'pop_heat_src_igm': False,
+ 'pop_ion_src_cgm': True,
+ 'pop_ion_src_igm': False,
+ 'pop_sed_model': False,
+}
+
+_src_xray = \
+{
+ 'pop_rad_yield': 2.6e39,
+ 'pop_rad_yield_units': 'erg/s/sfr',
+ 'pop_Emin': 2e2, 
+ 'pop_Emax': 5e4,
+ 'pop_EminNorm': 5e2, 
+ 'pop_EmaxNorm': 8e3,
+ 'pop_sed': 'pl',
+ 'pop_alpha': -1.5,
+ 'pop_lw_src': False,
+ 'pop_lya_src': False,
+ 'pop_heat_src_igm': True,
+ 'pop_ion_src_cgm': False,
+ 'pop_ion_src_igm': False,
+ 'pop_sed_model': True,
+ 'pop_fXh': 0.2,
+}
+
+
 _sed_toy = \
 {
  'pop_sed_model': False,
  'pop_Nion': 4e3,
  'pop_Nlw': 9690,
- 'pop_fX': 1.0,
+ 'pop_rad_yield': 2.6e39,
  'pop_fesc': 0.1,
+ 'pop_lya_src': True,
+ 'pop_lw_src': False,
+ 'pop_ion_src_cgm': True,
+ 'pop_ion_src_igm': False,
+ 'pop_heat_src_igm': True,
+ 
 }
 
 _sed_xi = \
@@ -185,13 +271,13 @@ _sed_xr = \
 _crte_xrb = \
 {
  "pop_solve_rte": True, 
- "pop_tau_Nz": 400,
- "pop_approx_tau": 'neutral',
+ "tau_redshift_bins": 400,
+ "tau_approx": 'neutral',
 }
 
 _crte_lwb = _crte_xrb.copy()
 _crte_lwb['pop_solve_rte'] = (10.2, 13.6)
-_crte_lwb['pop_approx_tau'] = True
+_crte_lwb['tau_approx'] = True
 
 # Some different spectral models
 _uvsed_toy = dict(pop_rad_yield=4000, pop_rad_yield_units='photons/b',
@@ -223,6 +309,7 @@ _Bundles = \
  'sed': {'uv': _sed_uv, 'lw': _sed_lw, 'lyc': _sed_lyc, 
          'xray':_sed_xr, 'pl': _pl, 'mcd': _mcd, 'toy': _sed_toy,
          'bpass': _uvsed_bpass, 's99': _uvsed_s99, 'xi': _sed_xi},
+ 'src': {'toy-lya': _src_lya, 'toy-xray': _src_xray, 'toy-ion': _src_ion},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2, 
     'evolving': _evolve_dc, 'none': {},
@@ -286,7 +373,7 @@ class ParameterBundle(dict):
         # Make sure to not overwrite anything here!
         for key in other:
             if key in tmp:
-                raise KeyError('%s supplied more than once!' % key)
+                print "WARNING: Setting {0}->{1}".format(key, other[key])
 
             tmp[key] = other[key]
                 
@@ -298,7 +385,10 @@ class ParameterBundle(dict):
         for key in other:    
             del tmp1[key]
     
-        return ParameterBundle(**tmp1)    
+        return ParameterBundle(**tmp1)
+        
+    def copy(self):
+        return ParameterBundle(**self)
     
     @property
     def num(self):
@@ -374,11 +464,11 @@ class ParameterBundle(dict):
             self['pop_tunnel{%i}' % self.num] = num
         else:
             self['pop_tunnel'] = num
-   
+
     @property    
     def info(self):
         """ Print out info about this bundle. """
-        
+
         header('Bundle Info')
         for key in self.kwargs.keys():
             if key == self.bundle:
@@ -421,7 +511,7 @@ class ParameterBundle(dict):
                 else:    
                     tmp[par] = self[par]
                 
-        return tmp 
+        return ParameterBundle(**tmp)
         
     @property
     def pqs(self):
@@ -495,6 +585,19 @@ _xr_pop = _PB('pop:fcoll', id_num=1) + _PB('sed:xray', id_num=1)
 _gs_4par = _PB('pop:fcoll', id_num=0) + _PB('sed:lw', id_num=0) \
          + _PB('pop:fcoll', id_num=1) + _PB('sed:lyc', id_num=1) \
          + _PB('pop:fcoll', id_num=2) + _PB('sed:xray', id_num=2)
+         
+         
+# Build a template four-parameter model
+_lw = _PB('pop:fcoll') + _PB('src:toy-lya')
+_lw.num = 0
+_xr = _PB('src:toy-xray')
+_xr.num = 1
+_xr.link_sfrd_to = 0
+_uv = _PB('src:toy-ion')
+_uv.num = 2
+_uv.link_sfrd_to = 0
+         
+_gs_4par = _lw + _xr + _uv         
 
 _tanh_sim = {'problem_type': 100, 'tanh_model': True,
     'output_frequencies': np.arange(30., 201.)}

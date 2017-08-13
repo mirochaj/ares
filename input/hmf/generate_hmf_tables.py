@@ -26,7 +26,7 @@ hmf_pars = \
  "hmf_dlogM": 0.01,
  "hmf_zmin": 3.,
  "hmf_dz": 0.05,
- "hmf_zmax": 80.,
+ "hmf_zmax": 60.,
 }
 ##
 

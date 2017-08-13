@@ -31,6 +31,11 @@ except ImportError:
     rank = 0
     size = 1    
         
+try:
+    import h5py
+except ImportError:
+    pass        
+        
 def get_k(s):
     m = re.search(r"\[(\d+(\.\d*)?)\]", s)
     return int(m.group(1))
@@ -57,7 +62,7 @@ def parse_attribute(blob_name, obj_base):
         
     # Check for decimals
     decimals = []
-    for i in range(1, len(blob_name) - 1):
+    for i in xrange(1, len(blob_name) - 1):
         if blob_name[i-1].isdigit() and blob_name[i] == '.' \
            and blob_name[i+1].isdigit():
             decimals.append(i)
@@ -82,7 +87,7 @@ def parse_attribute(blob_name, obj_base):
     # Nested attribute
     blob_attr = None
     obj_list = [obj_base]
-    for i in range(len(attr_split)):
+    for i in xrange(len(attr_split)):
         
         # One particular chunk of the attribute name
         s = attr_split[i]
@@ -114,11 +119,17 @@ class BlobFactory(object):
     """
 
     def _parse_blobs(self):
-                        
+        
+        hdf5_situation = False                                        
         try:
             names = self.pf['blob_names']
         except KeyError:
             names = None
+        except TypeError:
+            hdf5_situation = True
+            f = h5py.File('%s.hdf5' % self.prefix, 'r')
+            names = f['blobs'].keys()
+            f.close()
 
         if names is None:
             self._blob_names = self._blob_ivars = None
@@ -131,8 +142,30 @@ class BlobFactory(object):
             assert type(names) in [list, tuple], \
                 "Must supply blob_names as list or tuple!"
 
-            self._blob_names = names
-            if 'blob_ivars' in self.pf:
+            if hdf5_situation:
+                f = h5py.File('%s.hdf5' % self.prefix, 'r')
+                
+                _blob_ivars = []  
+                _blob_ivarn = []              
+                _blob_names = names
+                for name in names:
+                    ivar = f['blobs'][name].attrs.get('ivar')
+                    
+                    if ivar is None:
+                        _blob_ivars.append(ivar)
+                    else:
+                        _blob_ivarn.append('unknown')
+                        _blob_ivars.append(ivar.squeeze())
+                
+                f.close()
+                
+                # Re-organize...maybe eventually
+                self._blob_ivars = _blob_ivars
+                self._blob_ivarn = _blob_ivarn
+                self._blob_names = _blob_names
+                
+            elif 'blob_ivars' in self.pf:
+                self._blob_names = names
                 if self.pf['blob_ivars'] is None:
                     self._blob_ivars = [None] * len(names)
                 else:
@@ -156,8 +189,9 @@ class BlobFactory(object):
                         for l, pair in enumerate(element):
                             self._blob_ivarn[k].append(pair[0])
                             self._blob_ivars[k].append(pair[1])
-                            
+                                        
             else:
+                self._blob_names = names
                 self._blob_ivars = [None] * len(names)
 
             self._blob_nd = []
@@ -169,7 +203,10 @@ class BlobFactory(object):
                 if self._blob_ivars[i] is None:
                     self._blob_nd.append(0)
                     self._blob_dims.append(0)
-
+                    
+                    if hdf5_situation:
+                        continue
+                    
                     if self.pf['blob_funcs'] is None:
                         self._blob_funcs.append([None] * len(element))
                     elif self.pf['blob_funcs'][i] is None:
@@ -228,7 +265,7 @@ class BlobFactory(object):
                 
         if not hasattr(self, '_blob_nbytes'):
             nvalues = 0.
-            for i in range(self.blob_groups):
+            for i in xrange(self.blob_groups):
                 if self.blob_nd[i] == 0:
                     nvalues += len(self.blob_names[i])
                 else:
@@ -242,10 +279,16 @@ class BlobFactory(object):
     @property 
     def all_blob_names(self):
         if not hasattr(self, '_all_blob_names'):
-            self._all_blob_names = []
-            for i in range(self.blob_groups):
-                self._all_blob_names.extend(self.blob_names[i])    
-        
+            
+            
+            if self.blob_groups is not None:
+                self._all_blob_names = []
+                for i in xrange(self.blob_groups):
+                    self._all_blob_names.extend(self.blob_names[i])    
+            
+            else:
+                self._all_blob_names = self._blob_names
+                
             if len(set(self._all_blob_names)) != len(self._all_blob_names):
                 raise ValueError('Blobs must be unique!')
         
@@ -254,10 +297,17 @@ class BlobFactory(object):
     @property
     def blob_groups(self):
         if not hasattr(self, '_blob_groups'):
-            if self.blob_nd is not None:
-                self._blob_groups = len(self.blob_nd)
+            
+            nested = any(isinstance(i, list) for i in self.blob_names)
+            
+            if nested:
+                if self.blob_nd is not None:
+                    self._blob_groups = len(self.blob_nd)
+                else:
+                    self._blob_groups = 0
             else:
-                self._blob_groups = 0
+                self._blob_groups = None
+                
         return self._blob_groups
                 
     @property
@@ -312,7 +362,7 @@ class BlobFactory(object):
         return self._blobs
         
     def get_ivars(self, name):
-        for i in range(self.blob_groups):
+        for i in xrange(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
                 if blob == name:
                     break
@@ -327,7 +377,7 @@ class BlobFactory(object):
         This is meant to recover a blob from a single simulation, i.e.,
         NOT a whole slew of them from an MCMC.
         """
-        for i in range(self.blob_groups):
+        for i in xrange(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
                 if blob == name:
                     break
@@ -365,7 +415,7 @@ class BlobFactory(object):
             # Actually, we don't have to abide by that. As long as a function
             # is provided we can evaluate the blob anywhere (with interp)
 
-            for n in range(2):
+            for n in xrange(2):
                 assert ivar[n] in self.blob_ivars[i][n]
 
             k = list(self.blob_ivars[i][0]).index(ivar[0])
@@ -521,19 +571,27 @@ class BlobFactory(object):
         index of blob group, index of element within group, dimensionality, 
         and exact dimensions of blob.
         """
-        found = False
-        for i, group in enumerate(self.blob_names):
-            for j, element in enumerate(group):
+        
+        nested = any(isinstance(i, list) for i in self.blob_names)
+        
+        if nested:
+        
+            found = False
+            for i, group in enumerate(self.blob_names):
+                for j, element in enumerate(group):
+                    if element == name:
+                        found = True
+                        break            
                 if element == name:
-                    found = True
-                    break            
-            if element == name:
-                break
-                        
-        if not found:
-            raise KeyError('Blob %s not found.' % name)        
-
-        return i, j, self.blob_nd[i], self.blob_dims[i]
+                    break
+                            
+            if not found:
+                raise KeyError('Blob %s not found.' % name)        
+            
+            return i, j, self.blob_nd[i], self.blob_dims[i]
+        else:
+            i = self.blob_names.index(name)
+            return None, None, self.blob_nd[i], self.blob_dims[i]
     
     def _get_item(self, name):
         

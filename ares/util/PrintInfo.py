@@ -331,8 +331,8 @@ def print_hmf(hmf):
     print line("zmin                  : %g" % (hmf.pf['hmf_zmin']))
     print line("zmax                  : %g" % (hmf.pf['hmf_zmax']))
     print line("dz                    : %g" % (hmf.pf['hmf_dz']))
-    print line("Mmin (Msun)           : %g" % (10**hmf.pf['hmf_logMmin']))
-    print line("Mmax (Msun)           : %g" % (10**hmf.pf['hmf_logMmax']))
+    print line("Mmin (Msun)           : %e" % (10**hmf.pf['hmf_logMmin']))
+    print line("Mmax (Msun)           : %e" % (10**hmf.pf['hmf_logMmax']))
     print line("dlogM                 : %g" % (hmf.pf['hmf_dlogM']))
     
     print "#"*width
@@ -473,7 +473,7 @@ def print_sim(sim):
     if rank > 0:
         return 
         
-    header = 'Global 21cm Signal Simulation: Overview'
+    header = 'ARES Simulation: Overview'
     print "\n" + "#"*width
     print "%s %s %s" % (pre, header.center(twidth), post)
     print "#"*width    
@@ -538,6 +538,12 @@ def print_sim(sim):
     
     for par in phys_pars:
         val = sim.pf[par]
+        
+        
+        if ('feedback_LW' in par) and (par != 'feedback_LW'):
+            if not sim.pf['feedback_LW']:
+                continue        
+        
         if val is None:
             print line('%s : None' % par.ljust(30))
         elif type(val) in [list, tuple]:

@@ -1,4 +1,3 @@
-from .PriorSet import PriorSet
 from .ModelGrid import ModelGrid
 from .FitHelper import FitHelper
 from .ModelSample import ModelSample

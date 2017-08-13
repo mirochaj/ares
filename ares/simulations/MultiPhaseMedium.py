@@ -300,7 +300,7 @@ class MultiPhaseMedium(object):
             dtdz = self.default_parcel.grid.cosm.dtdz(z)
             t += dt
             z -= dt / dtdz
-                                                
+
             # IGM rate coefficients
             if self.pf['include_igm']:
                 done = False
@@ -313,7 +313,7 @@ class MultiPhaseMedium(object):
                     also = {}
                     for sp in self.field.grid.absorbers:
                         also['igm_%s' % sp] = data_igm[sp]
-                    
+
                     RC_igm = self.field.update_rate_coefficients(z, 
                         zone='igm', return_rc=True, **also)
 
@@ -406,7 +406,7 @@ class MultiPhaseMedium(object):
         # Don't mess with the CGM (much)
         if self.pf['include_cgm']:
             tmp = self.parcel_cgm.grid.data
-            self.all_data_cgm = [tmp.copy() for i in range(len(self.all_z))]
+            self.all_data_cgm = [tmp.copy() for i in xrange(len(self.all_z))]
             for i, cgm_data in enumerate(self.all_data_cgm):
                 self.all_data_cgm[i]['rho'] = \
                     self.parcel_cgm.grid.cosm.MeanBaryonDensity(self.all_z[i])

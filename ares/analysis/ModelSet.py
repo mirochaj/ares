@@ -161,43 +161,9 @@ class ModelSet(BlobFactory):
             self._chain = data.chain
             self._is_log = data.is_log
             self._base_kwargs = data.base_kwargs
-            #self._fails = data.fails
-            
-            #self.mask = np.zeros_like(data.blobs)
-            #self.mask[np.isinf(data.blobs)] = 1
-            #self.mask[np.isnan(data.blobs)] = 1
-            #self._blobs = np.ma.masked_array(data.blobs, mask=self.mask)
-
-            #self._blob_names = data.blob_names
-            #self._blob_redshifts = data.blob_redshifts
-            #self._parameters = data.parameters
-            #self._is_mcmc = data.is_mcmc
-
-            #if self.is_mcmc:
-            #    self.logL = data.logL
-            #else:
-            #    try:
-            #        self.load = data.load
-            #    except AttributeError:
-            #        pass
-            #    try:            
-            #        self.axes = data.axes
-            #    except AttributeError:
-            #        pass
-            #    try:
-            #        self.grid = data.grid
-            #    except AttributeError:
-            #        pass
-
-            #self.Nd = int(self.chain.shape[-1])
 
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
-    
-        #self.have_all_blobs = os.path.exists('%s.blobs.pkl' % self.prefix)
-
-        #self._pf = ModelSubSet()
-        #self._pf.Npops = self.Npops
 
         self.derived_blobs = DQ(self)
 
@@ -282,6 +248,12 @@ class ModelSet(BlobFactory):
                 self._parameters, self._is_log = pickle.load(f)
                 f.close()
                 self._parameters = patch_pinfo(self._parameters)
+            elif os.path.exists('%s.hdf5' % self.prefix):
+                f = h5py.File('%s.hdf5' % self.prefix)
+                self._parameters = list(f['chain'].attrs.get('names'))
+                #self._is_log = list(f['chain'].attrs.get('is_log'))
+                self._is_log = [False] * len(self._parameters)
+                f.close()                
             else:
                 self._is_log = [False] * self.chain.shape[-1]
                 self._parameters = ['p%i' % i \
@@ -420,6 +392,19 @@ class ModelSet(BlobFactory):
         
         return self._Nd
     
+    def last_n_checkpoints(self, num):
+        return self.saved_checkpoints[-num:]
+
+    def last_checkpoint(self):
+        return self.saved_checkpoints[-1]
+    
+    @property
+    def unique_samples(self):
+        if not hasattr(self, '_unique_samples'):
+            self._unique_samples = \
+                [np.unique(self.chain[:,i].data) for i in range(self.Nd)]
+        return self._unique_samples
+    
     @property
     def include_checkpoints(self):
         if not hasattr(self, '_include_checkpoints'):
@@ -439,6 +424,26 @@ class ModelSet(BlobFactory):
         if hasattr(self, '_chain'):
             print "WARNING: the chain has already been read.", 
             print "Be sure to delete `_chain` attribute before continuing."
+
+    @property
+    def largest_checkpoint(self):
+        if not hasattr(self, '_largest_checkpoint'):
+            self._largest_checkpoint = max(self.saved_checkpoints)
+        return self._largest_checkpoint
+    
+    @property
+    def saved_checkpoints(self):
+        """
+        The sorted checkpoint numbers of data files saved in the prefix
+        associated with this ModelSet. This property uses the counting
+        convention which starts with zero.
+        """
+        if not hasattr(self, '_saved_checkpoints'):
+            fns = glob.glob(self.prefix + '.dd*.chain.pkl')
+            self._saved_checkpoints = [(int(fn[-14:-10])) for fn in fns]
+            self._saved_checkpoints = sorted(self._saved_checkpoints)
+            self._saved_checkpoints = np.array(self._saved_checkpoints)
+        return self._saved_checkpoints
 
     @property
     def chain(self):
@@ -502,6 +507,14 @@ class ModelSet(BlobFactory):
                 #    pickle.dump(self._chain, f)
                 #    f.close()
 
+            elif os.path.exists('%s.hdf5' % self.prefix):
+                f = h5py.File('%s.hdf5' % self.prefix)
+                chain = f['chain'].value
+                mask = f['mask'].value
+                self.mask = np.array([mask] * chain.shape[1]).T
+                self._chain = np.ma.array(chain, mask=self.mask)
+                f.close()
+
             # If each "chunk" gets its own file.
             elif glob.glob('%s.dd*.chain.pkl' % self.prefix):
                 
@@ -517,22 +530,20 @@ class ModelSet(BlobFactory):
                         sorted(glob.glob('%s.dd*.chain.pkl' % self.prefix))
                                 
                 full_chain = []
+                if rank == 0:
+                    print "Loading %s.dd*.chain.pkl..." % (self.prefix,)
+                    t1 = time.time()
                 for fn in outputs_to_read:
                     if not os.path.exists(fn):
                         print "Found no output: %s" % fn
                         continue
-                    
-                    if rank == 0:
-                        print "Loaded %s." % fn
-                    
-                    this_chain = read_pickled_chain(fn)                                    
-                    full_chain.extend(this_chain.copy())                    
-                    
-                full_chain = np.array(full_chain)    
-                    
-                self._chain = np.ma.array(full_chain, 
-                    mask=np.zeros_like(full_chain))
-
+                    this_chain = read_pickled_chain(fn)
+                    full_chain.extend(this_chain)
+                self._chain = np.ma.array(full_chain, mask=0)
+                if rank == 0:
+                    t2 = time.time()
+                    print "Loaded %s.dd*.chain.pkl in %.2g s." %\
+                        (self.prefix, t2 - t1)
             else:
                 self._chain = None            
 
@@ -877,28 +888,38 @@ class ModelSet(BlobFactory):
         
         self.Slice((lx, lx+dx, ly, ly+dy), **self.plot_info)
     
-    def SliceIteratively(self, par):
-        assert self.Nd == 3 # for now
+    def SliceIteratively(self, pars):
+        #assert self.Nd == 3 # for now
         
-        k = list(self.parameters).index(par)
-        vals = np.sort(np.unique(self.chain[:,k]))
-        
-        slices = []
-        for i, val in enumerate(vals):
+        if type(pars) != list:
                         
-            if i == 0:
-                lo = 0
-                hi = np.mean([val, vals[i+1]])
-            elif i == len(vals) - 1:
-                lo = np.mean([val, vals[i-1]])
-                hi = max(vals) * 1.1
-            else:
-                lo = np.mean([vals[i-1], val])  
-                hi = np.mean([vals[i+1], val])  
+            par = pars
+            k = list(self.parameters).index(par)
+            vals = np.sort(np.unique(self.chain[:,k]))
+            
+            slices = []
+            for i, val in enumerate(vals):
+                            
+                if i == 0:
+                    lo = 0
+                    hi = np.mean([val, vals[i+1]])
+                elif i == len(vals) - 1:
+                    lo = np.mean([val, vals[i-1]])
+                    hi = max(vals) * 1.1
+                else:
+                    lo = np.mean([vals[i-1], val])  
+                    hi = np.mean([vals[i+1], val])  
+                    
+                slices.append(self.Slice([lo, hi], [par]))
+            
+            return vals, slices
+        else:
+            vals
+            for par in pars:
+                k = list(self.parameters).index(par)
+                vals.append(np.sort(np.unique(self.chain[:,k])))
                 
-            slices.append(self.Slice([lo, hi], [par]))
-        
-        return vals, slices
+                
                 
     def Slice(self, constraints, pars, ivar=None, take_log=False, 
         un_log=False, multiplier=1.):
@@ -1445,11 +1466,12 @@ class ModelSet(BlobFactory):
 
         return ax
 
-    def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None,
+    def Scatter(self, pars, ivar=None, ax=None, fig=1, c=None, aux=None,
         take_log=False, un_log=False, multiplier=1., use_colorbar=True, 
         line_plot=False, sort_by='z', filter_z=None, rungs=False, 
         rung_label=None, rung_label_top=True, return_cb=False, cax=None,
-        cb_kwargs={}, **kwargs):
+        skip=0, skim=1, stop=None,
+        cb_kwargs={}, operation=None, **kwargs):
         """
         Plot samples as points in 2-d plane.
     
@@ -1496,33 +1518,76 @@ class ModelSet(BlobFactory):
 
         xdata = data[p[0]]
         ydata = data[p[1]]
+        
+        if aux is not None:
+            adata = self.ExtractData(aux)[aux]
 
         if c is not None:
-            cdata = data[p[2]].squeeze()
+            _cdata = data[p[2]].squeeze()
+            
+            if operation is None:
+                cdata = _cdata
+            elif type(operation) is str:
+                assert self.Nd > 2
+                
+                # There's gotta be a faster way to do this...
+                
+                xu = np.unique(xdata[np.isfinite(xdata)])
+                yu = np.unique(ydata[np.isfinite(ydata)])
+                
+                ids = []
+                for i, val in enumerate(_cdata):
+                    x = xdata[i]
+                    y = ydata[i]
+                    
+                    i = np.argmin(np.abs(x - xu))
+                    j = np.argmin(np.abs(y - yu))
+                    
+                    ids.append(i * len(yu) + j)
+                                
+                ids = np.array(ids)
+                cdata = np.zeros_like(_cdata)
+                for i, idnum in enumerate(np.unique(ids)):
+                                        
+                    #if type(operation) is str:   
+                    tmp = _cdata[ids == idnum]
+                    if operation == 'mean':
+                        cdata[ids == idnum] = np.mean(tmp)
+                    elif operation == 'stdev':
+                        cdata[ids == idnum] = np.std(tmp)
+                    elif operation == 'diff':
+                        cdata[ids == idnum] = np.max(tmp) - np.min(tmp)
+                    elif operation == 'max':
+                        cdata[ids == idnum] = np.max(tmp) 
+                    elif operation == 'min':
+                        cdata[ids == idnum] = np.min(tmp) 
+                        
+                    # The next two could be accomplished by slicing
+                    # along third dimension    
+                    elif operation == 'first':
+                        val = min(adata[adata.mask == 0])
+                        cond = np.logical_and(ids == idnum, adata == val)
+                        cdata[ids == idnum] = _cdata[cond]
+                    elif operation == 'last':
+                        val = max(adata[adata.mask == 0])
+                        cond = np.logical_and(ids == idnum, adata == val)
+                        cdata[ids == idnum] = _cdata[cond]
+                    else:
+                        raise NotImplementedError('help')
+                    #else:
+                        
+                        #cond = np.ma.logical_and(ids == idnum, adata == operation)
+                        #print np.any(adata == operation), np.unique(adata), operation, np.ma.sum(cond)
+                        #cdata[ids == idnum] = _cdata[cond]
+            else:
+                cdata = _cdata        
         else:
             cdata = None
 
-        if line_plot:
-            # The ordering of the points doesn't matter
-            if sort_by == 'z' and (cdata is not None):
-                order = np.argsort(cdata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                cdata = cdata[order]                    
-            elif sort_by == 'x':
-                order = np.argsort(xdata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                if cdata is not None:
-                    cdata = cdata[order]
-            elif sort_by == 'y':
-                order = np.argsort(ydata)
-                xdata = xdata[order]
-                ydata = ydata[order]
-                if cdata is not None:
-                    cdata = cdata[order]            
-
-            func = ax.__getattribute__('plot')
+        if hasattr(self, '_weights') and cdata is None:
+            scat = ax.scatter(xdata, ydata, c=self.weights, **kwargs)
+        elif cdata is not None:
+            scat = ax.scatter(xdata, ydata, c=cdata, **kwargs)
         else:
             func = ax.__getattribute__('scatter')
             
@@ -1659,6 +1724,7 @@ class ModelSet(BlobFactory):
     
     def BoundingPolygon(self, pars, ivar=None, ax=None, fig=1,
         take_log=False, un_log=False, multiplier=1., add_patch=True,
+        skip=0, skim=1, stop=None,
         boundary_type='convex', alpha=0.3, return_polygon=False, **kwargs):
         """
         Basically a scatterplot but instead of plotting individual points,
@@ -1687,8 +1753,7 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
 
-        data = \
-            self.ExtractData(pars, ivar, take_log, un_log, multiplier)
+        data = self.ExtractData(pars, ivar, take_log, un_log, multiplier)
 
         xdata = self.xdata = data[pars[0]].compressed()
         ydata = self.ydata = data[pars[1]].compressed()
@@ -1711,7 +1776,7 @@ class ModelSet(BlobFactory):
         # Plot a Polygon using descartes
         if add_patch and (polygon is not None):
             # This basically just gets the axis object in order without
-            # actually plotting anything (effectively)
+            # actually plotting anything
             self.Scatter(pars, ivar=ivar, take_log=take_log, un_log=un_log,
                 multiplier=multiplier, ax=ax, edgecolors='none', 
                 facecolors='none')
@@ -1727,7 +1792,7 @@ class ModelSet(BlobFactory):
                 try:
                     ax.add_collection(PatchCollection(patches, match_original=True))
                 except TypeError:
-                    print patches
+                    print 'Patches:', patches
 
             pl.draw()
 
@@ -1842,7 +1907,7 @@ class ModelSet(BlobFactory):
             multiplier=multiplier, un_log=un_log)
 
         # Need to weight results of non-MCMC runs explicitly
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -1931,7 +1996,7 @@ class ModelSet(BlobFactory):
         if not self.is_mcmc:
             self.set_constraint(**constraints)
         
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -2146,7 +2211,7 @@ class ModelSet(BlobFactory):
         
         data = {}
         for k, par in enumerate(pars):
-                    
+                                
             # If one of our free parameters, things are easy.
             if par in self.parameters:
                 
@@ -2156,7 +2221,7 @@ class ModelSet(BlobFactory):
                     val = 10**self.chain[:,j].copy()
                 else:
                     val = self.chain[:,j].copy()
-        
+                            
                 if self.is_log[j] and (not un_log[k]):
                     val += np.log10(multiplier[k])
                 else:
@@ -2484,7 +2549,7 @@ class ModelSet(BlobFactory):
     def PosteriorPDF(self, pars, to_hist=None, ivar=None, 
         ax=None, fig=1, 
         multiplier=1., like=[0.95, 0.68], cdf=False,
-        color_by_like=False, filled=True, take_log=False, un_log=False,
+        color_by_like=False, fill=True, take_log=False, un_log=False,
         bins=20, skip=0, skim=1, 
         contour_method='raw', excluded=False, stop=None, **kwargs):
         """
@@ -2519,7 +2584,7 @@ class ModelSet(BlobFactory):
         skim : int
             Only take every skim'th step from the chain.
         excluded : bool
-            If True, and filled == True, fill the area *beyond* the given contour with
+            If True, and fill == True, fill the area *beyond* the given contour with
             cross-hatching, rather than the area interior to it.
 
         Returns
@@ -2560,7 +2625,7 @@ class ModelSet(BlobFactory):
         binvec = self._set_bins(pars, to_hist, take_log, bins)
 
         # We might supply weights by-hand for ModelGrid calculations
-        if not hasattr(self, 'weights'):
+        if not hasattr(self, '_weights'):
             weights = None
         else:
             weights = self.weights
@@ -2646,7 +2711,7 @@ class ModelSet(BlobFactory):
                     nu, levels = error_2D(to_hist[0], to_hist[1], self.L / self.L.max(), 
                         bins=[binvec[0], binvec[1]], nu=nu, method=contour_method)
         
-                if filled:
+                if fill:
                     if excluded and len(nu) == 1:
                         # Fill the entire window with cross-hatching
                         x1, x2 = ax.get_xlim()
@@ -2675,7 +2740,7 @@ class ModelSet(BlobFactory):
                         levels, zorder=4, **kwargs)
                 
             else:
-                if filled:
+                if fill:
                     cs = ax.contourf(bc[0], bc[1], hist / hist.max(), 
                         zorder=3, **kw)
                 else:
@@ -2701,8 +2766,9 @@ class ModelSet(BlobFactory):
         return ax
               
     def Contour(self, pars, c, levels=None, leveltol=1e-6, ivar=None, take_log=False,
-        un_log=False, multiplier=1., ax=None, fig=1, filled=False, 
-        inline_labels=False, manual=None, cax=None, use_colorbar=True, **kwargs):         
+        un_log=False, multiplier=1., ax=None, fig=1, fill=True, 
+        inline_labels=False, manual=None, cax=None, use_colorbar=True, 
+        cb_kwargs={}, **kwargs):         
         """
         Draw contours that are NOT associated with confidence levels.
         
@@ -2737,15 +2803,18 @@ class ModelSet(BlobFactory):
             xdata, ydata, zdata = self._reshape_data(pars, c, ivar=ivar, 
                 take_log=take_log, un_log=un_log, multiplier=multiplier)
                                 
-            if filled:
+            if fill:
+                
+                kw = kwargs.copy()
+                kw.update(cb_kwargs)
+                
                 if levels is not None:
-                    CS = ax.contourf(xdata, ydata, zdata.T, levels, **kwargs)
+                    CS = ax.contourf(xdata, ydata, zdata.T, levels, **kw)
                 else:
-                    CS = ax.contourf(xdata, ydata, zdata.T, **kwargs)
+                    CS = ax.contourf(xdata, ydata, zdata.T, **kw)
                 
                 if use_colorbar:
-                    cb = pl.colorbar(CS, cax=cax, orientation='horizontal', 
-                        extend='neither', ticks=None)
+                    cb = pl.colorbar(CS, cax=cax, **cb_kwargs)
             else:    
                 if levels is not None:
                     CS = ax.contour(xdata, ydata, zdata.T, levels, **kwargs) 
@@ -2867,7 +2936,7 @@ class ModelSet(BlobFactory):
             zax = np.log10(zax)    
             
         z.pop(-1)
-        ax = self.PosteriorPDF(pars, z=z, take_log=take_log, filled=False, 
+        ax = self.PosteriorPDF(pars, z=z, take_log=take_log, fill=False, 
             bins=bins, **kwargs)
         
         # Pick out Nscat random points to plot
@@ -2965,10 +3034,10 @@ class ModelSet(BlobFactory):
                 
     def TrianglePlot(self, pars=None, ivar=None, take_log=False, un_log=False, 
         multiplier=1, fig=1, mp=None, inputs={}, tighten_up=0.0, ticks=5, 
-        bins=20, skip=0, scatter=False,
-        skim=1, oned=True, twod=True, filled=True, show_errors=False, 
-        label_panels=None, 
-        fix=True, skip_panels=[], stop=None, mp_kwargs={},
+        bins=20,  scatter=False, polygons=False, 
+        skip=0, skim=1, stop=None, oned=True, twod=True, fill=True, 
+        show_errors=False, label_panels=None, 
+        fix=True, skip_panels=[], mp_kwargs={},
         **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -3014,7 +3083,7 @@ class ModelSet(BlobFactory):
             Only take every skim'th step from the chain.
         oned : bool    
             Include the 1-D marginalized PDFs?
-        filled : bool
+        fill : bool
             Use filled contours? If False, will use open contours instead.
         color_by_like : bool
             If True, set contour levels by confidence regions enclosing nu-%
@@ -3024,6 +3093,9 @@ class ModelSet(BlobFactory):
             like=[0.68, 0.95])
         skip_panels : list
             List of panel numbers to skip over.
+        polygons : bool
+            If True, will just plot bounding polygons around samples rather
+            than plotting the posterior PDF.
         mp_kwargs : dict 
             panel_size : list, tuple (2 elements)
                 Multiplicative factor in (x, y) to be applied to the default 
@@ -3062,6 +3134,9 @@ class ModelSet(BlobFactory):
             bins = [binvec[par] for par in pars]      
         else:
             bins = binvec    
+            
+        if polygons:
+            oned = False    
                  
         # Can opt to exclude 1-D panels along diagonal                
         if oned:
@@ -3193,10 +3268,15 @@ class ModelSet(BlobFactory):
                 # 2-D PDFs elsewhere
                 if scatter:
                     ax = self.Scatter([p2, p1], ax=mp.grid[k], 
-                        to_hist=tohist, z=red, 
                         take_log=[take_log[j], take_log[-1::-1][i]],
                         multiplier=[multiplier[j], multiplier[-1::-1][i]], 
-                        bins=[bins[j], bins[-1::-1][i]], filled=filled, 
+                        skip=skip, stop=stop, **kwargs)
+                elif polygons:       
+                    ax = self.BoundingPolygon([p2, p1], ax=mp.grid[k], 
+                        #to_hist=tohist,
+                        take_log=[take_log[j], take_log[-1::-1][i]],
+                        multiplier=[multiplier[j], multiplier[-1::-1][i]], 
+                        fill=fill, 
                         skip=skip, stop=stop, **kwargs)
                 else:
                     ax = self.PosteriorPDF([p2, p1], ax=mp.grid[k], 
@@ -3204,7 +3284,7 @@ class ModelSet(BlobFactory):
                         take_log=[take_log[j], take_log[-1::-1][i]],
                         un_log=[un_log[j], un_log[-1::-1][i]],
                         multiplier=[multiplier[j], multiplier[-1::-1][i]], 
-                        bins=[bins[j], bins[-1::-1][i]], filled=filled, 
+                        bins=[bins[j], bins[-1::-1][i]], fill=fill, 
                         skip=skip, stop=stop, **kwargs)
 
                 if row != 0:
@@ -3314,10 +3394,16 @@ class ModelSet(BlobFactory):
                 
                 if type(gotit.sum()) == np.ma.core.MaskedConstant:
                     continue
-                
+                                
                 k = np.argwhere(gotit == True)
                 
-                zarr[i,j] = flat[k]
+                # If multiple elements, means this grid had redundant
+                # elements. Shouldn't happen in the future!
+                if len(k.shape) == 2:
+                    # Just pick one
+                    zarr[i,j] = flat[k].min()
+                else:
+                    zarr[i,j] = flat[k]
         
         return x, y, zarr
         
@@ -3529,11 +3615,11 @@ class ModelSet(BlobFactory):
             else:
                 ax.plot(xarr, y[0], **kwargs)
                 ax.plot(xarr, y[1], **kwargs)
-                
+
         ax.set_ylabel(self.labeler.label(names[0]))
-                
+
         pl.draw()
-                 
+
         if return_data:
             return ax, xarr, y
         else:
@@ -3721,7 +3807,6 @@ class ModelSet(BlobFactory):
         Returns vector of mean, and the covariance matrix itself.
         
         """
-                
         data = self.ExtractData(pars, ivar=ivar)
         
         blob_vec = []
@@ -3731,7 +3816,19 @@ class ModelSet(BlobFactory):
         mu  = np.ma.mean(blob_vec, axis=1)
         cov = np.ma.cov(blob_vec)
 
-        return mu, cov    
+        return mu, cov
+
+    def PlotCovarianceMatrix(self, pars, ivar=None, fig=1, ax=None,\
+        cmap='RdBu_r'):
+        mu, cov = self.CovarianceMatrix(pars, ivar=ivar)
+        if ax is None:
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+
+        cax = ax.imshow(cov, interpolation='none', cmap=cmap)
+        cb = pl.colorbar(cax)
+
+        return ax, cb
         
     def AssembleParametersList(self, N=None, ids=None, include_bkw=False, 
         **update_kwargs):
@@ -3781,7 +3878,7 @@ class ModelSet(BlobFactory):
                 if ct == 0:
                     # Only print first time...could be thousands of iterations
                     print "WARNING: Any un-pickleable kwargs will not have been saved in %s.binfo.pkl!" % self.prefix
-                kwargs = self.base_kwargs.copy()    
+                kwargs = self.base_kwargs.copy()
             else:
                 kwargs = {}
                 
@@ -3819,7 +3916,7 @@ class ModelSet(BlobFactory):
         cb = pl.colorbar(cax)
 
         return ax
-    
+        
     def get_blob(self, name, ivar=None):
         """
         Extract an array of values for a given quantity.
@@ -3837,6 +3934,11 @@ class ModelSet(BlobFactory):
         """
                         
         i, j, nd, dims = self.blob_info(name)
+        
+        if (i is None) and (j is None):
+            f = h5py.File('%s.hdf5' % self.fn, 'r')
+            return f['blobs'][name].value
+        
         blob = self.get_blob_from_disk(name)
                 
         if nd == 0:
@@ -3991,7 +4093,7 @@ class ModelSet(BlobFactory):
             
             # Save metadata about this derived blob
             fn_md = '%s.dbinfo.pkl' % self.prefix
-            if (not os.path.exists(fn_md)) or clobber:                                                                     
+            if (not os.path.exists(fn_md)) or clobber:
                 f = open(fn_md, 'w')
                 pickle.dump({name: ivars}, f)
                 f.close()
@@ -4022,6 +4124,8 @@ class ModelSet(BlobFactory):
         for tp in list('BCD'):
             self.DeriveBlob(expr='%.5g / (1. + x)' % nu_0_mhz, 
                 varmap={'x': 'z_%s' % tp}, name='nu_%s' % tp, clobber=clobber)
+            self.DeriveBlob(expr='%.5g / (1. + x)' % nu_0_mhz, 
+                varmap={'x': 'z_%sp' % tp}, name='nu_%sp' % tp, clobber=clobber)
                 
     def RankModels(self, **kwargs):
         """
@@ -4072,13 +4176,15 @@ class ModelSet(BlobFactory):
             path=path, fmt=fmt, clobber=clobber)
         
     def save(self, pars, prefix=None, fn=None, ivar=None, path='.', fmt='hdf5', 
-        clobber=False):
+        clobber=False, include_chain=True, restructure_grid=False):
         """
         Extract data from chain or blobs and output to separate file(s).
         
         This can be a convenient way to re-package data, for instance 
-        consolidating data outputs from lots of processors into a single file.
-        
+        consolidating data outputs from lots of processors into a single file,
+        or simply reducing the size of a file for easy transport when we 
+        don't need absolutely everything.
+                
         Parameters
         ----------
         pars : str, list, tuple
@@ -4089,11 +4195,21 @@ class ModelSet(BlobFactory):
             Options: 'hdf5' or 'pkl'
         path : str
             By default, will save files to CWD. Can modify this if you'd like.
+        include_chain : bool
+            By default, include the chain, which in the case of a ModelGrid,
+            is just the axes of the grid.
+        restructure_grid : bool
+            Not implemented yet, but would be nice to restructure model grid
+            data into an ordered mesh to be nice.
                 
         """
         
         if type(pars) not in [list, tuple]:
             pars = [pars]
+            
+            for par in pars:
+                if par in self.parameters:
+                    print "FYI: %s is a free parameter, so there's no need to include it explicitly." % par
 
         data = self.ExtractData(pars, ivar=ivar)
         
@@ -4110,31 +4226,36 @@ class ModelSet(BlobFactory):
             assert have_h5py, "h5py import failed."
             
             f = h5py.File(fn, 'w')
+            
+            if include_chain:
+                ds = f.create_dataset('chain', data=self.chain)
+                ds.attrs.create('names', data=self.parameters)
+                ds.attrs.create('is_log', data=self.is_log)
+                f.create_dataset('mask', data=self.mask)
+            else:
+                # raise a warning? eh.
+                pass
 
             # Loop over parameters and save to disk
             for par in pars:   
                 
                 # Tag ivars on as attribute if blob
-                if par in self.all_blob_names:
-                    if 'blobs' not in f:
-                        grp = f.create_group('blobs')
-                    else:
-                        grp = f['blobs']
-
-                    dat = data[par]#[skip:stop:skim,Ellipsis]
-                    ds = grp.create_dataset(par, data=dat[self.mask == 0])
+                if 'blobs' not in f:
+                    grp = f.create_group('blobs')
+                else:
+                    grp = f['blobs']
+                
+                dat = data[par]#[skip:stop:skim,Ellipsis]
+                ds = grp.create_dataset(par, data=dat[self.mask == 0])
+                
+                try:
                     i, j, nd, dims = self.blob_info(par)
                     
                     if self.blob_ivars[i] is not None:
+                        # This might cause problems if the ivars are real big.
                         ds.attrs.create('ivar', self.blob_ivars[i])
-                else:
-                    if 'axes' not in f:
-                        grp = f.create_group('axes')
-                    else:
-                        grp = f['axes']
-
-                    dat = data[par]#[skip:stop:skim,Ellipsis]
-                    ds = grp.create_dataset(par, data=dat[self.mask == 0])
+                except KeyError:
+                    print "Missing ivar info for %s!" % par    
                     
             f.close()
             print "Wrote %s." % fn  
@@ -4142,17 +4263,23 @@ class ModelSet(BlobFactory):
         else:
             raise NotImplemented('Only support for hdf5 so far. Sorry!')
             
-        # Also make a copy of the setup file with same prefix
+        # Also make a copy of the info files with same prefix
         # since that's generally nice to have available.  
-        out = '%s/%s.%s.binfo.pkl' % (path, self.prefix, prefix)
-        shutil.copy('%s.binfo.pkl' % self.prefix, out)
-        print "Wrote %s." % out    
+        # Well, it gives you a false sense of what data is available,
+        # so sorry! Not doing that anymore.
+        #out = '%s/%s.%s.binfo.pkl' % (path, self.prefix, prefix)
+        #shutil.copy('%s.binfo.pkl' % self.prefix, out)
+        #print "Wrote %s." % out    
+        #
+        #out = '%s/%s.%s.pinfo.pkl' % (path, self.prefix, prefix)
+        #shutil.copy('%s.pinfo.pkl' % self.prefix, out)
+        #print "Wrote %s." % out
         
     @property
     def labeler(self):
         if not hasattr(self, '_labeler'):
-            self._labeler = Labeler(self.parameters, self.is_log, 
-                **self.base_kwargs)
+            kw = self.base_kwargs if self.base_kwargs is not None else {}
+            self._labeler = Labeler(self.parameters, self.is_log, **kw)
         return self._labeler
         
     def set_axis_labels(self, ax, pars, take_log=False, un_log=False,
@@ -4231,8 +4358,8 @@ class ModelSet(BlobFactory):
             # When you have a triangle, there is no sense
             # in computing an alpha shape.
             return geometry.MultiPoint(list(points)).convex_hull
-        else:
-            return None, None
+        #else:
+        #    return None, None
             
         def add_edge(edges, edge_points, coords, i, j):
             """

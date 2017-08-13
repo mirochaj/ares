@@ -14,8 +14,8 @@ import numpy as np
 import matplotlib.pyplot as pl
 from scipy.integrate import cumtrapz
 from ..util.ReadData import read_lit
-from ..physics.Constants import s_per_yr
 from ..util.Aesthetics import labels
+from ..physics.Constants import s_per_yr
 
 class Population(object):
     def __init__(self, pop):
