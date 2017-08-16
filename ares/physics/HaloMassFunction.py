@@ -431,9 +431,29 @@ class HaloMassFunction(object):
                 # so we're OK here dimensionally
                 fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
                 
-                # For power spectra
-                self.bias_tab[i] = 1. + (0.75 * self.MF.nu - 1.) / self.MF.delta_c + \
-                    (2. * 0.3 / self.MF.delta_c) / (1. + (0.75 * self.MF.nu)**0.3)
+                # Eq. 3.53 and 3.54 in Steve's book
+                #delta_b = 1. #?
+                #delta_b0 = delta_b / self.growth_factor
+                #nu_c = (self.delta_c - delta_b) / self.sigma
+                #delta_c = self.delta_c - delta_b0
+                
+                delta_sc = (1. + z) * (3. / 5.) * (3. * np.pi / 2.)**(2./3.)
+                # Not positive that this shouldn't just be sigma
+                nu = (delta_sc / self.MF._sigma_0)**2
+                
+                # Cooray & Sheth (2002) Equations 68-69
+                if self.hmf_func == 'PS':
+                    self.bias_tab[i] = 1. + (nu - 1.) / delta_sc
+                        
+                elif self.hmf_func == 'ST':
+                    ap, qp = 0.707, 0.3
+                    
+                    self.bias_tab[i] = 1. \
+                        + (ap * nu - 1.) / delta_sc \
+                        + (2. * qp / delta_sc) / (1. + (ap * nu)**qp)
+                else:
+                    raise NotImplemented('No bias for non-PS non-ST MF yet!')
+
                 self.psCDM_tab[i] = self.MF.power / self.cosm.h70**3
                         
             self.growth_tab[i] = self.MF.growth_factor            
@@ -598,16 +618,63 @@ class HaloMassFunction(object):
     def fcoll_spline_2d(self, value):
         self._fcoll_spline_2d = value
 
-    @property
-    def bias(self):
-        if not hasattr(self, '_bias'):
-            self._bias = RectBivariateSpline(self.z, 
-                self.logM, self.bias_tab, kx=3, ky=3)
-        return self._bias 
+    #@property
+    #def bias(self):
+    #    if not hasattr(self, '_bias'):
+    #        self._bias = RectBivariateSpline(self.z, 
+    #            self.logM, self.bias_tab, kx=3, ky=3)
+    #    return self._bias 
+    #
+    #@bias.setter
+    #def bias(self, value):
+    #    self._bias = value
+        
+    def bias_of_M(self, z):
+        
+        #if not hasattr(self, '_bias_tab'):
+        #    self._bias_tab = {}
+        #
+        #if z in self._bias_tab:
+        #    return self._bias_tab[z]
+        
+        iz = np.argmin(np.abs(self.z - z))
+               
+        # What the Cooray & Sheth paper seems to say
+        # Cannot reproduce Steve's Figure 3.14
+        #delta_sc = (1. + z) * (3. / 5.) * (3. * np.pi / 2.)**(2./3.)
+        #nu = (delta_sc / self.sigma_0)**2
 
-    @bias.setter
-    def bias(self, value):
-        self._bias = value
+        # This one gets Steve's Figure 3.14 ~right, but the density
+        # power spectrum doesn't line up between halo model and HMF.
+        # There's a systematic offset as well as an odd non-monotonic 
+        # ordering in redshift.
+        # Note also that this is also HMF's definition of nu
+        delta_sc = 1.686
+        nu = (delta_sc / self.sigma_0 / self.growth_factor[iz])**2  
+
+        # Halos way too biased way too early.
+        #delta_sc = (1. + z) * (3. / 5.) * (3. * np.pi / 2.)**(2./3.)
+        #nu = (delta_sc / self.sigma_0 / self.growth_factor[iz])**2
+
+        # This combo is complete garbage
+        #delta_sc = 1.686
+        #nu = (delta_sc / self.sigma_0)**2
+        
+        # Cooray & Sheth (2002) Equations 68-69
+        if self.hmf_func == 'PS':
+            bias = 1. + (nu - 1.) / delta_sc
+                
+        elif self.hmf_func == 'ST':
+            ap, qp = 0.707, 0.3
+            
+            bias = 1. \
+                + (ap * nu - 1.) / delta_sc \
+                + (2. * qp / delta_sc) / (1. + (ap * nu)**qp)
+        else:
+            raise NotImplemented('No bias for non-PS non-ST MF yet!')
+    
+        #self._bias_tab[z] = bias
+        return bias
     
     @property
     def psCDM(self):

@@ -278,7 +278,6 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             gotax = True
             
             if show_gs:
-                print ax
                 assert isinstance(ax, MultiPanel)
 
             mp = ax
@@ -332,5 +331,154 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         else:
             return ax1
             
+    def _split_cf(self, z, key):
+        """
+        Split apart a correlation function into its positive and negative
+        chunks.
+        """
+        iz = np.argmin(np.abs(z - self.redshifts))
+        # Might be multiple sign changes
+        data = self.history[key][iz]
+        splitter = np.diff(np.sign(data))
+        
+        dr = self.history['dr']
+
+        if np.all(splitter == 0):
+            chunks = [data]
+            dr_ch = [dr]
+        else:
+            splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
+            chunks = np.split(data, splits)
+            dr_ch = np.split(dr, splits)
+            
+        return dr_ch, chunks
+            
+    def CheckCorrelationFunctions(self, redshifts, include_xcorr=True,
+        mp_kwargs={}):
+        
+        mp = MultiPanel(dims=(1+include_xcorr, len(redshifts)), 
+            padding=(0.25, 0.15), **mp_kwargs)
+
+        for h, redshift in enumerate(redshifts):
+
+            iz = np.argmin(np.abs(redshift - self.redshifts))
+            dr = self.history['dr']
+
+            # Auto correlations in top row, cross terms on bottom
+            # z=8 on top, z=12 on bottom
+            ax = mp.grid[mp.axis_number(include_xcorr, h)]
+
+            # Plot auto-correlation functions
+            ls = ':', '--', '-.', '-', '-'
+            colors = ['k'] * 4 + ['b']
+            for i, cf in enumerate(['dd', 'xx', 'coco', '21_s', '21']):
+                s = 'cf_%s' % cf
+
+                if s not in self.history:
+                    continue
+
+                # Might be multiple sign changes
+                #data = self.history[s][iz]
+                #splitter = np.diff(np.sign(data))
+                #
+                #if np.all(splitter == 0):
+                #    chunks = [data]
+                #    dr_ch = [dr]
+                #else:
+                #    splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
+                #    chunks = np.split(data, splits)
+                #    dr_ch = np.split(dr, splits)
+                
+                if np.all(self.history[s][iz] == 0):
+                    continue
+
+                dr_ch, chunks = self._split_cf(redshift, s)
+
+                for j, chunk in enumerate(chunks):
+                    if np.all(chunk < 0):
+                        lw = 1
+                    else:
+                        lw = 3
+
+                    if j == 0:
+                        label = r'$\xi_{%s}$' % cf
+                    else:
+                        label = None
+
+                    ax.loglog(dr_ch[j], np.abs(chunk), color=colors[i], 
+                        ls=ls[i], alpha=0.5, lw=lw, label=label)
+
+            if h == 0:
+                ax.legend(loc='lower left', fontsize=14, ncol=2)
+
+            ax.set_ylim(1e-7, 10)
+            ax.annotate(r'$z=%i$' % redshift, (0.05, 0.95), xycoords='axes fraction',
+                ha='left', va='top')
+            ax.annotate(r'$\bar{Q}=%.2f$' % self.history['Qi'][iz], (0.95, 0.95), 
+                xycoords='axes fraction',
+                ha='right', va='top')
+
+            if not include_xcorr:
+                continue    
+
+            ax = mp.grid[mp.axis_number(0, h)]    
+
+            # Plot cross-correlations
+            ls = ':', '--', '-.', '-'
+            for i, cf in enumerate(['xd', 'cd', 'xco']):
+
+                s = 'cf_%s' % cf
+
+                if s not in self.history:
+                    continue
+
+                # Might be multiple sign changes
+                #data = self.history[s][iz]
+                #splitter = np.diff(np.sign(data))
+                #
+                #if np.all(splitter == 0):
+                #    chunks = [data]
+                #    dr_ch = [dr]
+                #else:
+                #    splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
+                #    chunks = np.split(data, splits)
+                #    dr_ch = np.split(dr, splits)
+                
+                if np.all(self.history[s][iz] == 0):
+                    continue
+                
+                dr_ch, chunks = self._split_cf(redshift, s)
+
+                for j, chunk in enumerate(chunks):
+                    if np.all(chunk < 0):
+                        lw = 1
+                    else:
+                        lw = 3
+
+                    if j == 0:
+                        label = r'$\xi_{%s}$' % cf
+                    else:
+                        label = None
+
+                    ax.loglog(dr_ch[j], np.abs(chunk), color=colors[i], 
+                        ls=ls[i], alpha=0.5, lw=lw, label=label)
+
+            if h == 0:
+                ax.legend(loc='lower left', fontsize=14)
+
+            ax.set_ylim(1e-7, 10)     
+
+
+        mp.grid[mp.upperleft].set_ylabel(r'$\xi_{\mathrm{auto}}$')
+        mp.grid[mp.lowerleft].set_ylabel(r'$\xi_{\mathrm{cross}}$')
+
+        for i in range(len(redshifts)):
+            mp.grid[i].set_xlabel(r'$R \ [\mathrm{cMpc}]$')
+
+        #mp.fix_ticks()
+        pl.show()
+        
+        return mp
+
         
         

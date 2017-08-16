@@ -353,6 +353,8 @@ def PowerSpectrumParameters():
      'include_acorr': True,
      'include_xcorr': True,
      
+     'include_xcorr_wrt': None,
+     
      'include_density_fl': True,
      'include_ion_fl': True,
      'include_temp_fl': False,

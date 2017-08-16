@@ -497,11 +497,23 @@ class FluctuatingBackground(object):
 
                 elif term == 'id':
                 
-                    delta_B = self._B(z, zeta, zeta)[iM:]
                     P1 = np.trapz(dndm[iM:] * Vo_sph[iM:] * Mb[iM:], 
                         x=np.log(Mb[iM:]))
-                    Pin = np.trapz(dndm[iM:] * Vo_sph[iM:] * Mb[iM:] * (1. + delta_B), 
-                        x=np.log(Mb[iM:]))
+                    
+                    #P1_delta = 
+                    
+                    #integrand1 = dndm[iM:] * Vo_sph[iM:]
+                    #
+                    #exp_int1 = np.exp(-np.trapz(integrand1 * Mb[iM:], 
+                    #    x=np.log(Mb[iM:])))
+                    #
+                    ## One halo term
+                    #P1 = (1. - exp_int1)
+                             
+                    delta_B = self._B(z, zeta, zeta)[iM:]              
+                    _Pin_int = dndm[iM:] * Vo_sph[iM:] * Mb[iM:] \
+                        * (1. + delta_B)                    
+                    Pin = np.trapz(_Pin_int, x=np.log(Mb[iM:]))
                 
                     iz = np.argmin(np.abs(z - self.halos.z))
                     #b = self.halos.bias_tab[iz]
@@ -512,8 +524,10 @@ class FluctuatingBackground(object):
                     Pout = data['Qi'] - np.trapz(dndm[iM:] * Vo_sph[iM:], x=Mb[iM:]) \
                          + np.trapz(dndm[iM:] * xi_dd * bHII[iM:], x=Mb[iM:])
 
+                    #AA[i] = P1
                     if data['Qi'] <= 0.5:
                         AA[i] = Pin - P1
+                        # Really just Pii times mean density of bubble stuff
                     else:
                         AA[i] += Pin + Pout - data['Qi']        
                         
