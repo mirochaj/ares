@@ -240,6 +240,10 @@ def no_hmf(hmf):
     if not (have_pycamb and have_hmf):
         s = \
         """
+        If you've made no attempt to use non-default cosmological or HMF 
+        parameters, it could just be that you forgot to run the remote.py script,
+        which will download a default HMF lookup table.
+
         If you'd like to generate halo mass function lookup tables of your
         own, e.g., using fits other than the Sheth-Tormen form, or with 
         non-default cosmological parameters, you'll need to install hmf and
