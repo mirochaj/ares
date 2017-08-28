@@ -93,8 +93,8 @@ class HaloModel(HaloMassFunction):
         
         iz = np.argmin(np.abs(z - self.z))
         logMmin = self.logM_min[iz]
-        iM = np.argmin(np.abs(logMmin - self.logM))
-        #iM = 0
+        #iM = np.argmin(np.abs(logMmin - self.logM))
+        iM = 0
                         
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_ft is None:
@@ -105,15 +105,10 @@ class HaloModel(HaloMassFunction):
         #if mass_dependence is not None:
         #    prof *= mass_dependence(Mh=self.M, z=z)                
                         
-        #rho_bar = self.cosm.mean_density0 #* self.fcoll_Tmin[iz]
-        rho_bar = self.mgtm[iz,0]
-        
-        # Small halo correction
-        #rho_bar += (1. - rho_bar)
+        dndlnm = self.dndm[iz,:] * self.M
+        rho_bar = self.mgtm[iz,iM]
                         
-        dndlnm = self.dndm[iz] * self.M
-        integrand = dndlnm * \
-            (self.M / rho_bar)**2 * prof**2
+        integrand = dndlnm * (self.M / rho_bar)**2 * prof**2
          
         result = np.trapz(integrand[iM:], x=self.lnM[iM:]) 
         
@@ -131,7 +126,7 @@ class HaloModel(HaloMassFunction):
         """
         iz = np.argmin(np.abs(z - self.z))
         logMmin = self.logM_min[iz]
-        iM = np.argmin(np.abs(logMmin - self.logM))
+        #iM = np.argmin(np.abs(logMmin - self.logM))
         #iM = 0
         
         # Can plug-in any profile, but will default to dark matter halo profile
@@ -145,21 +140,22 @@ class HaloModel(HaloMassFunction):
         #    norm = np.trapz(Mterm, x=self.M)
         #    
         #    prof *= Mterm / norm
-        
-        # Should be equal to cosmic mean density * fcoll
-        #rho_bar = self.cosm.mean_density0 #* self.fcoll_Tmin[iz]
-        rho_bar = self.mgtm[iz,0]
-        
-        # Small halo correction
-        #rho_bar += (1. - rho_bar)
-        
+                
+        # Short-cuts
         dndlnm = self.dndm[iz,:] * self.M
         bias = self.bias_of_M(z)
-
+        rho_bar = self.mgtm[iz,0] # Should be equal to cosmic mean density * fcoll
+        
+        # Small halo correction.
+        # Make use of Cooray & Sheth Eq. 71
+        _integrand = dndlnm * (self.M / rho_bar) * bias
+        correction = 1. - np.trapz(_integrand, x=self.lnM)
+        
+        # Compute two-halo integral with profile in there
         integrand = dndlnm * (self.M / rho_bar) * \
             prof * bias
             
-        return np.trapz(integrand[iM:], x=self.lnM[iM:])**2 \
+        return (np.trapz(integrand, x=self.lnM) + correction)**2 \
             * float(self.psCDM(z, k))
 
     def PowerSpectrum(self, z, k, profile_ft=None):

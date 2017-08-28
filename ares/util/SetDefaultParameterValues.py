@@ -371,6 +371,7 @@ def PowerSpectrumParameters():
      "bubble_density": None,
      "bubble_density_rescale": False,
      
+     "bubble_shell_dist": None,
      "bubble_size_dist": 'fzh04', # or FZH04, PC14
     }
 

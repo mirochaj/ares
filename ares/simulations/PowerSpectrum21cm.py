@@ -102,20 +102,20 @@ class PowerSpectrum21cm(AnalyzePS):
             self._field = FluctuatingBackground(**self.kwargs)
                 
         return self._field
-    
-    def run(self):
+
+    def run(self): 
         """
         Run a simulation, compute power spectrum at each redshift.
-        
+
         Returns
         -------
         Nothing: sets `history` attribute.
-        
+
         """
-        
+
         self.z = np.array(np.sort(self.pf['powspec_redshifts'])[-1::-1], 
             dtype=np.float64)
-                   
+
         N = self.z.size
         pb = self.pb = ProgressBar(N, use=self.pf['progress_bar'], 
             name='ps-21cm')
