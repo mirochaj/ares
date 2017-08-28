@@ -39,7 +39,7 @@ class HaloModel(HaloMassFunction):
             return c, rvir / c
         else:
             return c
-            
+
     def _dc_nfw(self, c):
         return c** 3. / (4. * np.pi) / (np.log(1 + c) - c / (1 + c))
 
@@ -62,7 +62,17 @@ class HaloModel(HaloMassFunction):
                 return 0.0
 
     def u_nfw(self, k, m, z):
-        """ Normalized Fourier Transform of rho """
+        """
+        Normalized Fourier Transform of rho.
+        
+        ..note:: This is Equation 81 from Cooray & Sheth (2002).
+        
+        Parameters
+        ----------
+        k : int, float
+            Wavenumber
+        m : 
+        """
         c, r_s = self.cm_relation(m, z, get_rs=True)
 
         K = k * r_s
@@ -70,6 +80,9 @@ class HaloModel(HaloMassFunction):
         asi, ac = sp.sici((1 + c) * K)
         bs, bc = sp.sici(K)
 
+        # The extra factor of np.log(1 + c) - c / (1 + c)) comes in because
+        # there's really a normalization factor of 4 pi rho_s r_s^3 / m, 
+        # and m = 4 pi rho_s r_s^3 * the log term
         return (np.sin(K) * (asi - bs) - np.sin(c * K) / ((1 + c) * K) \
             + np.cos(K) * (ac - bc)) / (np.log(1 + c) - c / (1 + c))
         
@@ -81,9 +94,8 @@ class HaloModel(HaloMassFunction):
         iz = np.argmin(np.abs(z - self.z))
         logMmin = self.logM_min[iz]
         iM = np.argmin(np.abs(logMmin - self.logM))
-        
-        #fcoll = self.fcoll_Tmin[iz]
-                
+        #iM = 0
+                        
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_ft is None:
             profile_ft = self.u_nfw
@@ -93,7 +105,11 @@ class HaloModel(HaloMassFunction):
         #if mass_dependence is not None:
         #    prof *= mass_dependence(Mh=self.M, z=z)                
                         
-        rho_bar = self.cosm.mean_density0 * self.fcoll_Tmin[iz]
+        #rho_bar = self.cosm.mean_density0 #* self.fcoll_Tmin[iz]
+        rho_bar = self.mgtm[iz,0]
+        
+        # Small halo correction
+        #rho_bar += (1. - rho_bar)
                         
         dndlnm = self.dndm[iz] * self.M
         integrand = dndlnm * \
@@ -116,9 +132,8 @@ class HaloModel(HaloMassFunction):
         iz = np.argmin(np.abs(z - self.z))
         logMmin = self.logM_min[iz]
         iM = np.argmin(np.abs(logMmin - self.logM))
-
-        #fcoll = self.fcoll_Tmin[iz]
-
+        #iM = 0
+        
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_ft is None:
             profile_ft = self.u_nfw
@@ -131,8 +146,12 @@ class HaloModel(HaloMassFunction):
         #    
         #    prof *= Mterm / norm
         
-        # Should be equal to cosmic mean density * fcoll?
-        rho_bar = self.cosm.mean_density0 * self.fcoll_Tmin[iz]
+        # Should be equal to cosmic mean density * fcoll
+        #rho_bar = self.cosm.mean_density0 #* self.fcoll_Tmin[iz]
+        rho_bar = self.mgtm[iz,0]
+        
+        # Small halo correction
+        #rho_bar += (1. - rho_bar)
         
         dndlnm = self.dndm[iz,:] * self.M
         bias = self.bias_of_M(z)

@@ -425,7 +425,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
             # Plot cross-correlations
             ls = ':', '--', '-.', '-'
-            for i, cf in enumerate(['xd', 'cd', 'xco']):
+            for i, cf in enumerate(['xd', 'cd', 'xco', 'dco']):
 
                 s = 'cf_%s' % cf
 

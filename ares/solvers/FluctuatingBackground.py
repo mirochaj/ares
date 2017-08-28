@@ -15,9 +15,10 @@ from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.special import erfinv
-from ..physics.Constants import g_per_msun
 from ..util.Math import LinearNDInterpolator
+from ..physics.Constants import g_per_msun, cm_per_mpc
 from ..populations.Composite import CompositePopulation
+from ..physics.CrossSections import PhotoIonizationCrossSection
 
 class FluctuatingBackground(object):
     def __init__(self, grid=None, **kwargs):
@@ -211,11 +212,8 @@ class FluctuatingBackground(object):
             return 1. - np.exp(-n_b * V_b)
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
             Rb, Mb, dndm = self.BubbleSizeDistribution(z, zeta)
-            
-            if self.pf['bubble_shell_size_rel'] is not None:
-                Rs = Rb * (1. + self.pf['bubble_shell_size_rel'])
-            else:
-                Rs = Rb + self.pf['bubble_shell_size_abs']
+                
+            Rs = self.BubbleShellRadius(z, Rb)    
                 
             Vsh = 4. * np.pi * (Rs - Rb)**3 / 3.
                     
@@ -420,6 +418,32 @@ class FluctuatingBackground(object):
         if not hasattr(self, '_halos'):
             self._halos = self.pops[0].halos
         return self._halos
+        
+    def BubbleShellRadius(self, z, Rb):
+        """
+        Given a bubble radius (or array of them), convert to size of
+        heated regions.
+        """
+        
+        # More descriptive subscripts for Vsh
+        if self.pf['bubble_shell_size_rel'] is not None:
+            return Rb * (1. + self.pf['bubble_shell_size_rel'])
+        elif self.pf['bubble_shell_size_abs'] is not None:
+            return Rb + self.pf['bubble_shell_size_abs']
+        elif self.pf['bubble_shell_size_func'] is None:
+            return None
+            
+        ##
+        # If we made it here, we're doing something fancy.
+        ##
+            
+        Ebar = 500. # 0.5 keV
+        sigma = PhotoIonizationCrossSection(Ebar, species=0)
+        lmfp_p = 1. / self.cosm.nH(z) / sigma / cm_per_mpc
+        lmfp_c = lmfp_p * (1. + z)
+                
+        return lmfp_c / 100.
+        
 
     def JointProbability(self, z, dr, zeta, Tprof=None, term='ii', data=None,
         zeta_lya=None):
@@ -442,13 +466,7 @@ class FluctuatingBackground(object):
             Rb, Mb, dndm = self.BubbleSizeDistribution(z, zeta)
             Vb = 4. * np.pi * Rb**3 / 3.
 
-            # More descriptive subscripts for Vsh
-            if self.pf['bubble_shell_size_rel'] is not None:
-                Rh = Rb * (1. + self.pf['bubble_shell_size_rel'])
-            elif self.pf['bubble_shell_size_abs'] is not None:
-                Rh = Rb + self.pf['bubble_shell_size_abs']
-            else:
-                Rh = None
+            Rh = self.BubbleShellRadius(z, Rb)
                 
             if 'c' in term:
                 Mc = Mb * (zeta_lya / zeta)
@@ -613,7 +631,12 @@ class FluctuatingBackground(object):
                     #Vo_tot = self.overlap_region_sphere(sep, Ra)
                     #integrand1 = dndm[iM:] * Vo_ai[iM:]
                     #integrand2 = 0.0    
-
+                elif term == 'dh':
+                    pass
+                elif term == 'dc':
+                    pass    
+                elif term == 'xdco':
+                    pass    
                     
                 else:
                     raise NotImplementedError('help!')

@@ -359,14 +359,13 @@ def PowerSpectrumParameters():
      'include_ion_fl': True,
      'include_temp_fl': False,
      'include_lya_fl': False,
-     
-     'include_4pt_terms': False,
-     
+               
      'include_bias': False,
           
      "bubble_size": None,
      "bubble_shell_size_rel": None,
      "bubble_shell_size_abs": None,
+     "bubble_shell_size_func": None,
      "bubble_shell_temp": None,
      "bubble_shell_Nsc": 1e3,
      "bubble_density": None,

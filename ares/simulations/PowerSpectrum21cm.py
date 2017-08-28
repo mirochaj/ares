@@ -460,7 +460,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 ##
                 # Cross-terms between ionization and contrast
                 ##
-                if self.pf['include_ion_fl'] and self.include_con_fl:
+                if self.include_con_fl and self.pf['include_ion_fl']:
                     if self.pf['include_temp_fl']:
                         p_ih = self.field.JointProbability(z, self.dr_coarse, 
                             zeta, term='ih', data=data)
@@ -481,13 +481,45 @@ class PowerSpectrum21cm(AnalyzePS):
                     data['jp_ih'] = np.zeros_like(k)
                     data['jp_ic'] = np.zeros_like(k)
                     data['ev_ico'] = np.zeros_like(k)
+                   
+                ##
+                # Cross-terms between density and contrast
+                ##  
+                if self.include_con_fl and self.pf['include_density_fl']:
+                    #if self.pf['include_temp_fl']:
+                    #    p_dh = self.field.JointProbability(z, self.dr_coarse, 
+                    #        zeta, term='dh', data=data)
+                    #    data['jp_dh'] = np.interp(dr, self.dr_coarse, p_dh)
+                    #else:
+                    #    data['jp_dh'] = np.zeros_like(dr)
+                    #
+                    #if self.pf['include_lya_fl']:
+                    #    p_dc = self.field.JointProbability(z, self.dr_coarse, 
+                    #        zeta, term='dc', data=data, zeta_lya=zeta_lya)
+                    #    data['jp_dc'] = np.interp(dr, self.dr_coarse, p_dc)
+                    #else:
+                    #    data['jp_dc'] = np.zeros_like(dr)
+                    #
+                    #data['ev_dco'] = data['Ch'] * data['jp_ih'] \
+                    #               + data['Cc'] * data['jp_ic']
+                    
+                    
+                    data['ev_dco'] = data['ev_ico'] * data['ev_id'] # times delta
+                    
+                else:
+                    data['jp_dh'] = np.zeros_like(k)
+                    data['jp_dc'] = np.zeros_like(k)
+                    data['ev_dco'] = np.zeros_like(k)                        
                     
             else:
                 p_id = data['jp_id'] = data['ev_id'] = np.zeros_like(k)
                 p_ih = data['jp_ih'] = data['ev_ih'] = np.zeros_like(k)
-                p_ih = data['jp_ic'] = data['ev_ic'] = np.zeros_like(k)
+                p_ic = data['jp_ic'] = data['ev_ic'] = np.zeros_like(k)
+                p_dh = data['jp_dh'] = data['ev_dh'] = np.zeros_like(k)
+                p_dc = data['jp_dc'] = data['ev_dc'] = np.zeros_like(k)
                 data['ev_ico'] = np.zeros_like(k)
-                
+                data['ev_dco'] = np.zeros_like(k)
+
             ##
             # Construct correlation functions from expectation values
             ##
@@ -508,6 +540,8 @@ class PowerSpectrum21cm(AnalyzePS):
             
             # Correlation between neutral fraction and contrast fields
             data['cf_xco'] = data['avg_C'] - data['ev_ico']
+            
+            data['cf_dco'] = data['ev_dco']
 
             # Here, add together the power spectra with various Beta weights
             # to get 21-cm power spectrum
@@ -569,6 +603,10 @@ class PowerSpectrum21cm(AnalyzePS):
                 xxcc = data['ev_coco']
                 
                 data['cf_21'] = psi_s_psi_sp + 2. * xxc + xxcc
+                
+                x_xp_C_d = 0.0
+                
+                data['cf_21'] += data['ev_dco'] #- data['ev_xdco']
 
                 #P_id = self.field.JointProbability(z, np.zeros(1),
                 #    zeta, term='id', data=data)[0]

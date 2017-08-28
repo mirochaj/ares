@@ -235,7 +235,7 @@ class HaloMassFunction(object):
             self.z = f['z'].value
             self.logM = f['logM'].value
             self.M = 10**self.logM
-            self.fcoll_tab = f['fcoll'].value
+            #self.fcoll_tab = f['fcoll'].value
             self.dndm = f['dndm'].value
 
             if self.pf['hmf_load_ps']:
@@ -255,7 +255,7 @@ class HaloMassFunction(object):
             self.z = f['z']
             self.logM = f['logM']
             self.M = 10**self.logM
-            self.fcoll_tab = f['fcoll']
+            #self.fcoll_tab = f['fcoll']
             self.dndm = f['dndm']
             self.ngtm = f['ngtm']
             self.mgtm = f['mgtm']
@@ -345,15 +345,15 @@ class HaloMassFunction(object):
     def MF(self, value):
         self._MF = value     
 
-    @property
-    def fcoll_tab(self):
-        if not hasattr(self, '_fcoll_tab'):
-            self.build_fcoll_tab()
-        return self._fcoll_tab    
-
-    @fcoll_tab.setter
-    def fcoll_tab(self, value):
-        self._fcoll_tab = value
+    #@property
+    #def fcoll_tab(self):
+    #    if not hasattr(self, '_fcoll_tab'):
+    #        self.build_fcoll_tab()
+    #    return self._fcoll_tab    
+    #
+    #@fcoll_tab.setter
+    #def fcoll_tab(self, value):
+    #    self._fcoll_tab = value
 
     @property
     def cosmo_params(self):
@@ -361,7 +361,7 @@ class HaloMassFunction(object):
                 'Ob0':self.cosm.omega_b_0,
                 'H0':self.cosm.h70*100}
                                 
-    def build_fcoll_tab(self):
+    def tabulate_hmf(self):
         """
         Build a lookup table for the halo mass function / collapsed fraction.
         
@@ -396,7 +396,7 @@ class HaloMassFunction(object):
         self.dndm = np.zeros([self.Nz, self.Nm])
         self.mgtm = np.zeros_like(self.dndm)
         self.ngtm = np.zeros_like(self.dndm)
-        fcoll_tab = np.zeros_like(self.dndm)
+        #fcoll_tab = np.zeros_like(self.dndm)
         
         # Extras
         self.bias_tab = np.zeros_like(self.dndm)
@@ -416,45 +416,45 @@ class HaloMassFunction(object):
                 continue
                 
             # Compute collapsed fraction
-            if self.hmf_func == 'PS' and self.hmf_analytic:
-                delta_c = self.MF.delta_c / self.MF.growth_factor
-                fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
+            #if self.hmf_func == 'PS' and self.hmf_analytic:
+            #    delta_c = self.MF.delta_c / self.MF.growth_factor
+            #    #fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
+            #    
+            #else:
                 
-            else:
-                
-                # Has units of h**4 / cMpc**3 / Msun
-                self.dndm[i] = self.MF.dndm.copy() * self.cosm.h70**4
-                self.mgtm[i] = self.MF.rho_gtm.copy()
-                self.ngtm[i] = self.MF.ngtm.copy() * self.cosm.h70**3
-                 
-                # Remember that mgtm and mean_density have factors of h**2
-                # so we're OK here dimensionally
-                fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
-                
-                # Eq. 3.53 and 3.54 in Steve's book
-                #delta_b = 1. #?
-                #delta_b0 = delta_b / self.growth_factor
-                #nu_c = (self.delta_c - delta_b) / self.sigma
-                #delta_c = self.delta_c - delta_b0
-                
-                delta_sc = (1. + z) * (3. / 5.) * (3. * np.pi / 2.)**(2./3.)
-                # Not positive that this shouldn't just be sigma
-                nu = (delta_sc / self.MF._sigma_0)**2
-                
-                # Cooray & Sheth (2002) Equations 68-69
-                if self.hmf_func == 'PS':
-                    self.bias_tab[i] = 1. + (nu - 1.) / delta_sc
-                        
-                elif self.hmf_func == 'ST':
-                    ap, qp = 0.707, 0.3
+            # Has units of h**4 / cMpc**3 / Msun
+            self.dndm[i] = self.MF.dndm.copy() * self.cosm.h70**4
+            self.mgtm[i] = self.MF.rho_gtm.copy() * self.cosm.h70**2
+            self.ngtm[i] = self.MF.ngtm.copy() * self.cosm.h70**3
+             
+            # Remember that mgtm and mean_density have factors of h**2
+            # so we're OK here dimensionally
+            #fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
+            
+            # Eq. 3.53 and 3.54 in Steve's book
+            #delta_b = 1. #?
+            #delta_b0 = delta_b / self.growth_factor
+            #nu_c = (self.delta_c - delta_b) / self.sigma
+            #delta_c = self.delta_c - delta_b0
+            
+            delta_sc = (1. + z) * (3. / 5.) * (3. * np.pi / 2.)**(2./3.)
+            # Not positive that this shouldn't just be sigma
+            nu = (delta_sc / self.MF._sigma_0)**2
+            
+            # Cooray & Sheth (2002) Equations 68-69
+            if self.hmf_func == 'PS':
+                self.bias_tab[i] = 1. + (nu - 1.) / delta_sc
                     
-                    self.bias_tab[i] = 1. \
-                        + (ap * nu - 1.) / delta_sc \
-                        + (2. * qp / delta_sc) / (1. + (ap * nu)**qp)
-                else:
-                    raise NotImplemented('No bias for non-PS non-ST MF yet!')
-
-                self.psCDM_tab[i] = self.MF.power / self.cosm.h70**3
+            elif self.hmf_func == 'ST':
+                ap, qp = 0.707, 0.3
+                
+                self.bias_tab[i] = 1. \
+                    + (ap * nu - 1.) / delta_sc \
+                    + (2. * qp / delta_sc) / (1. + (ap * nu)**qp)
+            else:
+                raise NotImplemented('No bias for non-PS non-ST MF yet!')
+            
+            self.psCDM_tab[i] = self.MF.power / self.cosm.h70**3
                         
             self.growth_tab[i] = self.MF.growth_factor            
                                     
@@ -467,9 +467,9 @@ class HaloMassFunction(object):
                 
         # Collect results!
         if size > 1:
-            tmp1 = np.zeros_like(fcoll_tab)
-            nothing = MPI.COMM_WORLD.Allreduce(fcoll_tab, tmp1)
-            _fcoll_tab = tmp1
+            #tmp1 = np.zeros_like(fcoll_tab)
+            #nothing = MPI.COMM_WORLD.Allreduce(fcoll_tab, tmp1)
+            #_fcoll_tab = tmp1
             
             tmp2 = np.zeros_like(self.dndm)
             nothing = MPI.COMM_WORLD.Allreduce(self.dndm, tmp2)
@@ -495,13 +495,13 @@ class HaloMassFunction(object):
             nothing = MPI.COMM_WORLD.Allreduce(self.growth_tab, tmp7)
             self.growth_tab = tmp7
             
-        else:
-            _fcoll_tab = fcoll_tab   
+        #else:
+        #    _fcoll_tab = fcoll_tab   
                     
         # Fix NaN elements
-        _fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
-        self._fcoll_tab = _fcoll_tab
- 
+        #_fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
+        #self._fcoll_tab = _fcoll_tab
+        #
     @property
     def logM_min(self):
         if not hasattr(self, '_logM_min'):
@@ -608,10 +608,20 @@ class HaloMassFunction(object):
         return fcoll_spline, dfcolldz_spline, None
 
     @property
+    def tab_fcoll_2d(self):
+        if not hasattr(self, '_tab_fcoll_2d'):
+            self._tab_fcoll_2d = self.mgtm / self.cosm.mean_density0
+            
+            # May be unnecessary these days
+            self._tab_fcoll_2d[np.isnan(self._tab_fcoll_2d)] = 0.0
+            
+        return self._tab_fcoll_2d
+        
+    @property
     def fcoll_spline_2d(self):
         if not hasattr(self, '_fcoll_spline_2d'):
             self._fcoll_spline_2d = RectBivariateSpline(self.z, 
-                self.logM, self.fcoll_tab, kx=3, ky=3)
+                self.logM, self.tab_fcoll_2d, kx=3, ky=3)
         return self._fcoll_spline_2d
         
     @fcoll_spline_2d.setter
@@ -951,7 +961,7 @@ class HaloMassFunction(object):
             hmf_v = 'unknown'
         
         # Do this first! (Otherwise parallel runs will be garbage)
-        tab = self.fcoll_tab    
+        self.tabulate_hmf()    
         
         if rank > 0:
             return
@@ -977,7 +987,7 @@ class HaloMassFunction(object):
             f = h5py.File(fn, 'w')
             f.create_dataset('z', data=self.z)
             f.create_dataset('logM', data=self.logM)
-            f.create_dataset('fcoll', data=self.fcoll_tab)
+            #f.create_dataset('fcoll', data=self.tab_fcoll_2d)
             f.create_dataset('dndm', data=self.dndm)
             f.create_dataset('ngtm', data=self.ngtm)
             f.create_dataset('mgtm', data=self.mgtm)            
@@ -991,7 +1001,7 @@ class HaloMassFunction(object):
 
         elif format == 'npz':
             data = {'z': self.z, 'logM': self.logM, 
-                    'fcoll': self.fcoll_tab, 'dndm': self.dndm,
+                    'dndm': self.dndm,
                     'ngtm': self.ngtm, 'mgtm': self.mgtm,
                     'pars': {'growth_pars': self.growth_pars,
                              'transfer_pars': self.transfer_pars},

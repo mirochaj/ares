@@ -30,8 +30,7 @@ hmf_pars = \
 }
 ##
 
-hmf = ares.physics.HaloMassFunction(hmf_analytic=False, 
-    hmf_load=False, **hmf_pars)
+hmf = ares.physics.HaloMassFunction(hmf_load=False, **hmf_pars)
 
 hmf.save(format=format, clobber=True)
 
