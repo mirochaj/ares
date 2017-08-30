@@ -330,7 +330,6 @@ class PowerSpectrum21cm(AnalyzePS):
             data['Qi'] = Qi
             data['xibar'] = xibar
             
-
             data['k'] = k
             data['dr'] = dr
             data['dr_cr'] = self.dr_coarse
@@ -345,7 +344,7 @@ class PowerSpectrum21cm(AnalyzePS):
             if self.pf['include_density_fl'] and self.pf['include_acorr']:
                 # Halo model
                 ps_posk = self.pops[0].halos.PowerSpectrum(z, self.k_pos)                
-                
+
                 # Must interpolate to uniformly (in real space) sampled
                 # grid points to do inverse FFT
                 ps_fold = np.concatenate((ps_posk[-1::-1], [0], ps_posk))
@@ -355,14 +354,14 @@ class PowerSpectrum21cm(AnalyzePS):
                 #ps_dd = self.field.halos.PowerSpectrum(z, np.abs(self.k))
                 data['ps_dd'] = ps_dd
                 data['cf_dd'] = np.fft.ifft(data['ps_dd'])
-                
+
                 # Interpolate onto coarser grid
                 data['xi_dd_c'] = np.interp(self.dr_coarse, dr, 
                     data['cf_dd'].real)
-                
+
             else:
                 data['cf_dd'] = data['ps_dd'] = np.zeros_like(dr)
-                
+
             ##    
             # Ionization fluctuations
             ##
@@ -398,6 +397,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     zeta, term='hh', Tprof=None, data=data)
                                     
                 data['jp_hh'] = np.interp(dr, self.dr_coarse, p_hh)
+                data['jp_hh'] = np.minimum(1., data['jp_hh'])
               
                 data['ev_coco'] += Ch**2 * data['jp_hh']
               
@@ -427,8 +427,6 @@ class PowerSpectrum21cm(AnalyzePS):
                 # Should this be necessary?
                 data['jp_cc'] = np.minimum(1., data['jp_cc'])
                 
-                print z, Cc, data['jp_cc'], Cc**2 * data['jp_cc']#, data['avg_Cc'], Qc, Qh
-
                 data['ev_coco'] += Cc**2 * data['jp_cc']
                 data['avg_C'] += data['avg_Cc']
 

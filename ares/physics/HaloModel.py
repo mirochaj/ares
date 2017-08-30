@@ -169,15 +169,10 @@ class HaloModel(HaloMassFunction):
             return self.PS_OneHalo(z, k, profile_ft=profile_ft) \
                  + self.PS_TwoHalo(z, k, profile_ft=profile_ft)
     
-    #@property
-    #def _tab_ps_dd(self):
-    #    if not hasattr(self, '_tab_ps_dd'):
-    #        
-    #        _z = 'powspec_redshifts'
-    #        _r = 'fft_scales'
-    #        
-    #        self._tab_ps_dd
-    
+    def CorrelationFunction(self, z, k):
+        ps = self.PowerSpectrum(z, k)
+        
+        
     def table_prefix_hm(self, with_size=False):
         """
         What should we name this table?
@@ -197,17 +192,16 @@ class HaloModel(HaloMassFunction):
         
         rarr = self.pf['fft_scales']
         
-        
         if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
                 / self.pf['hmf_dlogM']                
             zsize = ((self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
                 / self.pf['hmf_dz']) + 1
-                
+
             assert logMsize % 1 == 0
-            logMsize = int(logMsize)    
+            logMsize = int(logMsize)
             assert zsize % 1 == 0
-            zsize = int(round(zsize, 1))    
+            zsize = int(round(zsize, 1))
                 
             return 'ps_%s_logM_%s_%i-%i_z_%s_%i-%i' \
                 % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
@@ -215,7 +209,7 @@ class HaloModel(HaloMassFunction):
             return 'ps_%s_logM_*_%i-%i_z_*_%i-%i' \
                 % (self.hmf_func, M1, M2, z1, z2)
     
-    def tabulate_ps(self, z, k):
+    def tabulate_ps(self):
         """
         Tabulate the (density) power spectrum.
         """
@@ -230,6 +224,8 @@ class HaloModel(HaloMassFunction):
         
             if i % size != rank:
                 continue
+                
+            self.ps[i] = self.PowerSpectrum(z, k, profile_ft=None)
         
             # Compute collapsed fraction
             #if self.hmf_func == 'PS' and self.hmf_analytic:
@@ -317,3 +313,104 @@ class HaloModel(HaloMassFunction):
         # Fix NaN elements
         #_fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
         #self._fcoll_tab = _fcoll_tab    
+        
+    def save_ps(self, fn=None, clobber=True, destination=None, format='hdf5'):
+        """
+        Save mass function table to HDF5 or binary (via pickle).
+    
+        Parameters
+        ----------
+        fn : str (optional)
+            Name of file to save results to. If None, will use 
+            self.table_prefix and value of format parameter to make one up.
+        clobber : bool 
+            Overwrite pre-existing files of the same name?
+        destination : str
+            Path to directory (other than CWD) to save table.
+        format : str
+            Format of output. Can be 'hdf5' or 'pkl'
+    
+        """
+    
+        try:
+            import hmf
+            hmf_v = hmf.__version__
+        except AttributeError:
+            hmf_v = 'unknown'
+    
+        # Do this first! (Otherwise parallel runs will be garbage)
+        self.tabulate_hmf()
+    
+        if rank > 0:
+            return
+    
+        if destination is None:
+            destination = '.'
+    
+        # Determine filename
+        if fn is None:
+            fn = '%s/%s.%s' % (destination, self.table_prefix(True), format)                
+        else:
+            if format not in fn:
+                print "Suffix of provided filename does not match chosen format."
+                print "Will go with format indicated by filename suffix."
+    
+        if os.path.exists(fn):
+            if clobber:
+                os.system('rm -f %s' % fn)
+            else:
+                raise IOError('File %s exists! Set clobber=True or remove manually.' % fn) 
+    
+        if format == 'hdf5':
+            f = h5py.File(fn, 'w')
+            f.create_dataset('z', data=self.z)
+            f.create_dataset('logM', data=self.logM)
+            #f.create_dataset('fcoll', data=self.tab_fcoll_2d)
+            f.create_dataset('dndm', data=self.dndm)
+            f.create_dataset('ngtm', data=self.ngtm)
+            f.create_dataset('mgtm', data=self.mgtm)            
+            f.create_dataset('bias', data=self.bias_tab)            
+            f.create_dataset('psCDM', data=self.psCDM_tab)
+            f.create_dataset('growth', data=self.growth_tab)
+            f.create_dataset('sigma', data=self.sigma_tab)
+            f.create_dataset('k', data=self.k)
+            f.create_dataset('hmf-version', data=hmf_v)       
+            f.close()
+    
+        elif format == 'npz':
+            data = {'z': self.z, 'logM': self.logM, 
+                    'dndm': self.dndm,
+                    'ngtm': self.ngtm, 'mgtm': self.mgtm,
+                    'pars': {'growth_pars': self.growth_pars,
+                             'transfer_pars': self.transfer_pars},
+                    'growth': self.growth_tab,
+                    'bias': self.bias_tab,
+                    'psCDM': self.psCDM_tab,
+                    'sigma': self.sigma_tab,
+                    'k': self.k,
+                    'hmf-version': hmf_v}
+            np.savez(fn, **data)
+    
+        # Otherwise, pickle it!    
+        else:   
+            f = open(fn, 'wb')
+            pickle.dump(self.z, f)
+            pickle.dump(self.logM, f)
+            pickle.dump(self.fcoll_spline_2d, f)
+            pickle.dump(self.dndm, f)
+            pickle.dump(self.ngtm, f)
+            pickle.dump(self.mgtm, f)
+            pickle.dump(self.bias_tab, f)
+            pickle.dump(self.psCDM_tab, f)
+            pickle.dump(self.sigma_tab, f)
+            pickle.dump(self.k)
+            pickle.dump(self.growth_tab, f)
+            pickle.dump({'growth_pars': self.growth_pars,
+                'transfer_pars': self.transfer_pars}, f)
+            pickle.dump(dict(('hmf-version', hmf_v)))
+            f.close()
+    
+        print 'Wrote %s.' % fn
+        return
+    
+    

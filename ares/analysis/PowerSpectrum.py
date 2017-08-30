@@ -376,18 +376,6 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
                 if s not in self.history:
                     continue
-
-                # Might be multiple sign changes
-                #data = self.history[s][iz]
-                #splitter = np.diff(np.sign(data))
-                #
-                #if np.all(splitter == 0):
-                #    chunks = [data]
-                #    dr_ch = [dr]
-                #else:
-                #    splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
-                #    chunks = np.split(data, splits)
-                #    dr_ch = np.split(dr, splits)
                 
                 if np.all(self.history[s][iz] == 0):
                     continue
@@ -480,5 +468,73 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         
         return mp
 
+    def CheckJointProbabilities(self, redshifts, weights=False, mp_kwargs={}):
+    
+        mp = MultiPanel(dims=(1, len(redshifts)), 
+            padding=(0.25, 0.15), **mp_kwargs)
+    
+        all_weights = [(1. - self.history['xibar'])**2, self.history['avg_Ch']**2, 
+            self.history['avg_Cc']**2,
+            self.history['avg_Ch'] * self.history['avg_Cc']]
+    
+        for h, redshift in enumerate(redshifts):
+    
+            iz = np.argmin(np.abs(redshift - self.redshifts))
+            dr = self.history['dr']
+    
+            ax = mp.grid[mp.axis_number(0, h)]    
+                
+            # Plot auto-correlation functions
+            ls = ':', '--', '-.', '-', '-'
+            colors = ['k'] * 4 + ['b']
+            for i, cf in enumerate(['ii', 'hh', 'cc', 'hc']):
+                s = 'jp_%s' % cf
+
+                if s not in self.history:
+                    continue
+
+                if np.all(self.history[s][iz] == 0):
+                    continue
+
+                dr_ch, chunks = self._split_cf(redshift, s)
+                
+                w = all_weights[i]
+
+                for j, chunk in enumerate(chunks):
+                    if np.all(chunk < 0):
+                        lw = 1
+                    else:
+                        lw = 3
+
+                    if j == 0:
+                        label = r'$P_{%s}$' % cf
+                    else:
+                        label = None
+
+                    if weights:
+                        y = np.abs(chunk) * w[iz]
+                    else: 
+                        y = np.abs(chunk)
+                           
+                    ax.loglog(dr_ch[j], y, color=colors[i],
+                        ls=ls[i], alpha=0.5, lw=lw, label=label)
+            
+            if h == 0:
+                ax.legend(loc='lower left', fontsize=14)
+                
+            ax.annotate(r'$z=%i$' % redshift, (0.05, 0.95), xycoords='axes fraction',
+                ha='left', va='top')
+            ax.annotate(r'$\bar{Q}=%.2f$' % self.history['Qi'][iz], (0.95, 0.95), 
+                xycoords='axes fraction',
+                ha='right', va='top')    
+            
+        mp.grid[0].set_ylabel('Joint Probability')
+        for i in range(len(redshifts)):
+            mp.grid[i].set_xlabel(r'$R \ [\mathrm{cMpc}]$')
+            mp.grid[i].set_ylim(1e-8, 10)
         
+        #mp.fix_ticks()
+        pl.show()
         
+        return mp
+            

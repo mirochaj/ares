@@ -328,8 +328,12 @@ class FluctuatingBackground(object):
         Rb, Mb, dndm = self.BubbleSizeDistribution(z, zeta)
         Vb = 4. * np.pi * Rb**3 / 3.
         
+        Mmin = self.Mmin(z) * zeta
+        iM = np.argmin(np.abs(Mmin - self.halos.M))
         bHII = self.bubble_bias(z, zeta)
-        return np.trapz(dndm * Vb * bHII, x=Mb)
+        
+        return np.trapz(dndm[iM:] * Vb[iM:] * bHII[iM:] * Mb[iM:], 
+            x=np.log(Mb[iM:]))
 
     def bubble_bias(self, z, zeta):
         iz = np.argmin(np.abs(z - self.halos.z))
@@ -340,30 +344,41 @@ class FluctuatingBackground(object):
         
     def _B0(self, z, zeta=40.):
 
-        pop = self.pops[0]
-
         iz = np.argmin(np.abs(z - self.halos.z))
         s = self.halos.sigma_0 #* self.halos.growth_factor[iz]
 
-        Mmin = self.Mmin(z) * zeta
-
-        sigma_min = np.interp(Mmin, pop.halos.M, s)
+        Mmin = self.Mmin(z)
+        
+        # Variance on scale of smallest collapsed object
+        sigma_min = np.interp(Mmin, self.halos.M * zeta, s)
         return self._delta_c(z) - np.sqrt(2.) * self._K(zeta) * sigma_min
     
-    def _B1(self, z, zeta=40):
+    def _B1(self, z, zeta=40.):
         iz = np.argmin(np.abs(z - self.halos.z))
         s = self.halos.sigma_0 #* self.halos.growth_factor[iz]
         
-        sigma_min = np.interp(self.Mmin(z) * zeta, self.halos.M, s)
+        Mmin = self.Mmin(z)
+        sigma_min = np.interp(Mmin, self.halos.M * zeta, s)
         ddx_ds2 = self._K(zeta) / np.sqrt(2. * (sigma_min**2 - s**2))
     
         return ddx_ds2[s == s.min()]
+    
+    def LinearBarrier(self, z, zeta):
+        return self._B(z, zeta, zeta)
     
     def _B(self, z, zeta, zeta_min):
         """
         Linear barrier.
         """
 
+        Mmin = self.Mmin(z)
+        s = self.halos.sigma_0
+        sigma_min = np.interp(Mmin, self.halos.M / zeta, s)
+        
+        #
+        #return self._delta_c(z) - np.sqrt(2.) * self._K(zeta) \
+        #    * np.sqrt(sigma_min**2 - s**2)
+        
         iz = np.argmin(np.abs(z - self.halos.z))
         s = self.halos.sigma_0 #* self.halos.growth_factor[iz]
         
@@ -395,7 +410,7 @@ class FluctuatingBackground(object):
 
             S = sig**2
 
-            Mmin = self.Mmin(z) * zeta
+            Mmin = self.Mmin(z) #* zeta
             if type(zeta) == np.ndarray:
                 zeta_min = np.interp(Mmin, self.pops[0].halos.M, zeta)
             else:
@@ -409,6 +424,7 @@ class FluctuatingBackground(object):
 
             Ri = ((Mi / rho0) * 0.75 / np.pi)**(1./3.)
 
+            # This is Eq. 9.38 from Steve's book
             dndm = rho0 * pcross * 2 * np.abs(self.pops[0].halos.dlns_dlnm) \
                 * S / Mi**2
             
@@ -493,31 +509,33 @@ class FluctuatingBackground(object):
             if 'c' in term:
                 Rc, Mc, dndm = \
                     self.BubbleSizeDistribution(z, zeta, zeta_lya, lya=True)                
-                        
+            
+            # Minimum bubble size            
             Mmin = self.Mmin(z) * zeta
 
             # Should tighten this up. Well, will Mmin ever NOT be in the grid?
-            iM = np.argmin(np.abs(self.pops[0].halos.M - Mmin))
+            iM = np.argmin(np.abs(self.halos.M - Mmin))
 
             # Loop over scales
             AA = np.zeros_like(dr)
             for i, sep in enumerate(dr):
-                                
-                ##
-                # For each zone, figure out volume of region where a
-                # single source can ionize/heat/couple both points, as well
-                # as the region where a single source is not enough (Vss_ne)
-                ##
+                                                
+                # For two-halo terms, need bias of sources.
                 if self.pf['include_bias']:
                     ep = self.excess_probability(z, sep, data, zeta)
                 else:
-                    ep = 0.0
+                    ep = np.zeros_like(self.halos.M)
                     
                 # Correction factor for two-halo term. Occassionally must
                 # be adapted which is why we introduce it here, rather than 
                 # much lower.
                 corr = (1. + ep)
                 
+                ##
+                # For each zone, figure out volume of region where a
+                # single source can ionize/heat/couple both points, as well
+                # as the region where a single source is not enough (Vss_ne)
+                ##
                 if term == 'ii':
                     Vo = self.overlap_region_sphere(sep, Ri)
                     Vss_ne = 4. * np.pi * Ri**3 / 3.
@@ -550,17 +568,15 @@ class FluctuatingBackground(object):
                         Vss_ne = 4. * np.pi * Rc**3 / 3.
                     
                     limiter = 'c'
-                    
-                    #print Vo[iM:], dndm[iM:]
-                    
+                                        
                 #elif term == 'hc':
                 #    r1, r2 = self.overlap_region_shell_x2(sep, Ri, Rh, Rc)
                 #    Vo = r1
                 #    
-                #    # One point in cold annulus of one bubble, another in
-                #    # heated region of completely separate bubble.
+                #    # One point in cold shell of one bubble, another in
+                #    # heated shell of completely separate bubble.
                 #    # Need to be a little careful here!
-                #    Vss_ne = 4. * np.pi * (Rc - np.maximum(Ri, Rh))**3 / 3.
+                #    Vss_ne = 4. * np.pi * (Rc - Rh)**3 / 3.
                 #    
                 #    # Get rid of volume of cold region around second
                 #    # bubble, replace with excess heated volume
@@ -589,8 +605,14 @@ class FluctuatingBackground(object):
                     x=np.log(Mi[iM:])))
                 exp_int2_ex = np.exp(-np.trapz(integrand2[iM:] * Mi[iM:] \
                     * corr[iM:], x=np.log(Mi[iM:])))
-
-                P2 = exp_int1 * (1. - exp_int2) * (1. - exp_int2_ex)
+                    
+                ##
+                # Second integral sometimes is very neary (but just in excess)
+                # of unity. Don't allow it! Better solution pending...
+                P2 = exp_int1 * (1. - exp_int2) * min(1. - exp_int2_ex, 0.0)
+                
+                #if P2 < 0:
+                #    print term, z, i, exp_int2 > 1, exp_int2_ex > 1, exp_int2_ex
                 
                 # Add optional correction to ensure limiting behavior?
                 if limiter is None:
@@ -839,16 +861,10 @@ class FluctuatingBackground(object):
         we already know another point (at distance r) is ionized.
         """
         
-        iz = np.argmin(np.abs(z - self.halos.z))
-        #Mmin = self.pops[0]._tab_Mmin[iz]
-        Mmin = self.Mmin(z)
-        iM = np.argmin(np.abs(self.halos.M - Mmin))
-        
-        #b = pop.halos.bias(z, pop.halos.logM[iM:]).squeeze()
         bHII = self.bubble_bias(z, zeta)
         bbar = self.mean_bubble_bias(z, zeta) / data['Qi']
 
-        xi_dd = np.interp(r, data['dr'], data['cf_dd'].real) 
+        xi_dd = np.interp(r, data['dr'], data['cf_dd'].real)
 
         return bHII * bbar * np.array(xi_dd)
 
