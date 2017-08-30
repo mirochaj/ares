@@ -169,4 +169,151 @@ class HaloModel(HaloMassFunction):
             return self.PS_OneHalo(z, k, profile_ft=profile_ft) \
                  + self.PS_TwoHalo(z, k, profile_ft=profile_ft)
     
+    #@property
+    #def _tab_ps_dd(self):
+    #    if not hasattr(self, '_tab_ps_dd'):
+    #        
+    #        _z = 'powspec_redshifts'
+    #        _r = 'fft_scales'
+    #        
+    #        self._tab_ps_dd
+    
+    def table_prefix_hm(self, with_size=False):
+        """
+        What should we name this table?
         
+        Convention:
+        ps_FIT_logM_nM_logMmin_logMmax_z_nz_
+        
+        Read:
+        halo mass function using FIT form of the mass function
+        using nM mass points between logMmin and logMmax
+        using nz redshift points between zmin and zmax
+        
+        """
+        
+        M1, M2 = self.pf['hmf_logMmin'], self.pf['hmf_logMmax']
+        z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
+        
+        rarr = self.pf['fft_scales']
+        
+        
+        if with_size:
+            logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
+                / self.pf['hmf_dlogM']                
+            zsize = ((self.pf['hmf_zmax'] - self.pf['hmf_zmin']) \
+                / self.pf['hmf_dz']) + 1
+                
+            assert logMsize % 1 == 0
+            logMsize = int(logMsize)    
+            assert zsize % 1 == 0
+            zsize = int(round(zsize, 1))    
+                
+            return 'ps_%s_logM_%s_%i-%i_z_%s_%i-%i' \
+                % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
+        else:
+            return 'ps_%s_logM_*_%i-%i_z_*_%i-%i' \
+                % (self.hmf_func, M1, M2, z1, z2)
+    
+    def tabulate_ps(self, z, k):
+        """
+        Tabulate the (density) power spectrum.
+        """
+        
+        pb = ProgressBar(len(z), 'ps_dd')
+        pb.start()
+        
+        for i, z in enumerate(self.z):
+        
+            if i > 0:
+                self.MF.update(z=z)
+        
+            if i % size != rank:
+                continue
+        
+            # Compute collapsed fraction
+            #if self.hmf_func == 'PS' and self.hmf_analytic:
+            #    delta_c = self.MF.delta_c / self.MF.growth_factor
+            #    #fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
+            #    
+            #else:
+        
+            # Has units of h**4 / cMpc**3 / Msun
+            self.dndm[i] = self.MF.dndm.copy() * self.cosm.h70**4
+            self.mgtm[i] = self.MF.rho_gtm.copy() * self.cosm.h70**2
+            self.ngtm[i] = self.MF.ngtm.copy() * self.cosm.h70**3
+        
+            # Remember that mgtm and mean_density have factors of h**2
+            # so we're OK here dimensionally
+            #fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
+        
+            # Eq. 3.53 and 3.54 in Steve's book
+            #delta_b = 1. #?
+            #delta_b0 = delta_b / self.growth_factor
+            #nu_c = (self.delta_c - delta_b) / self.sigma
+            #delta_c = self.delta_c - delta_b0
+        
+            delta_sc = (1. + z) * (3. / 5.) * (3. * np.pi / 2.)**(2./3.)
+            # Not positive that this shouldn't just be sigma
+            nu = (delta_sc / self.MF._sigma_0)**2
+        
+            # Cooray & Sheth (2002) Equations 68-69
+            if self.hmf_func == 'PS':
+                self.bias_tab[i] = 1. + (nu - 1.) / delta_sc
+        
+            elif self.hmf_func == 'ST':
+                ap, qp = 0.707, 0.3
+        
+                self.bias_tab[i] = 1. \
+                    + (ap * nu - 1.) / delta_sc \
+                    + (2. * qp / delta_sc) / (1. + (ap * nu)**qp)
+            else:
+                raise NotImplemented('No bias for non-PS non-ST MF yet!')
+        
+            self.psCDM_tab[i] = self.MF.power / self.cosm.h70**3
+        
+            self.growth_tab[i] = self.MF.growth_factor            
+        
+            pb.update(i)
+        
+        pb.finish()
+        
+        # All processors will have this.
+        self.sigma_tab = self.MF._sigma_0
+        
+        # Collect results!
+        if size > 1:
+            #tmp1 = np.zeros_like(fcoll_tab)
+            #nothing = MPI.COMM_WORLD.Allreduce(fcoll_tab, tmp1)
+            #_fcoll_tab = tmp1
+        
+            tmp2 = np.zeros_like(self.dndm)
+            nothing = MPI.COMM_WORLD.Allreduce(self.dndm, tmp2)
+            self.dndm = tmp2
+        
+            tmp3 = np.zeros_like(self.ngtm)
+            nothing = MPI.COMM_WORLD.Allreduce(self.ngtm, tmp3)
+            self.ngtm = tmp3
+        
+            tmp4 = np.zeros_like(self.mgtm)
+            nothing = MPI.COMM_WORLD.Allreduce(self.mgtm, tmp4)
+            self.mgtm = tmp4
+        
+            tmp5 = np.zeros_like(self.bias_tab)
+            nothing = MPI.COMM_WORLD.Allreduce(self.bias_tab, tmp5)
+            self.bias_tab = tmp5
+        
+            tmp6 = np.zeros_like(self.psCDM_tab)
+            nothing = MPI.COMM_WORLD.Allreduce(self.psCDM_tab, tmp6)
+            self.psCDM_tab = tmp6
+        
+            tmp7 = np.zeros_like(self.growth_tab)
+            nothing = MPI.COMM_WORLD.Allreduce(self.growth_tab, tmp7)
+            self.growth_tab = tmp7
+        
+        #else:
+        #    _fcoll_tab = fcoll_tab   
+        
+        # Fix NaN elements
+        #_fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
+        #self._fcoll_tab = _fcoll_tab    

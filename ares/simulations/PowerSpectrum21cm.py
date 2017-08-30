@@ -301,6 +301,16 @@ class PowerSpectrum21cm(AnalyzePS):
             zeta_lya += zeta * (Nlya / Nion) * self.pf['bubble_shell_Nsc']
             
             ##
+            # Make scalar if it's a simple model
+            ##
+            if np.all(np.diff(zeta) == 0):
+                zeta = zeta[0]
+            if np.all(np.diff(zeta_lya) == 0):
+                zeta_lya = zeta_lya[0]
+
+            print zeta, zeta_lya
+
+            ##
             # First: some global quantities we'll need
             ##
             avg_Tk = np.interp(z, self.mean_history['z'][-1::-1],
@@ -392,17 +402,19 @@ class PowerSpectrum21cm(AnalyzePS):
                 data['ev_coco'] += Ch**2 * data['jp_hh']
               
                 data['avg_C'] = data['avg_Ch']
-              
+
             else:
                 p_hh = data['jp_hh'] = np.zeros_like(dr)
-                data['Ch'] = data['Qh'] = Ch = Qh = data['avg_Ch'] \
-                    = data['avg_C'] = 0.0
-                
+                data['Ch'] = Ch = 0.0
+                data['Qh'] = Qh = 0.0
+                data['avg_Ch'] = 0.0
+                data['avg_C'] = 0.0
+
             ##
             # Lyman-alpha fluctuations                
             ##    
             if self.pf['include_lya_fl'] and self.pf['include_acorr']:
-                Qc = self.field.BubbleShellFillingFactor(z, zeta_lya)
+                Qc = self.field.BubbleFillingFactor(z, zeta, zeta_lya, lya=True)
                 Cc = self._temp_to_contrast(z, avg_Tk)
                 data['Cc'] = Cc
                 data['Qc'] = Qc
@@ -410,14 +422,20 @@ class PowerSpectrum21cm(AnalyzePS):
                 p_cc = self.field.JointProbability(z, self.dr_coarse, 
                     zeta, term='cc', Tprof=None, data=data, zeta_lya=zeta_lya)
 
-                data['jp_cc'] = np.interp(dr, self.dr_coarse, p_cc)
+                data['jp_cc'] = np.interp(dr, self.dr_coarse, p_cc)             
+
+                # Should this be necessary?
+                data['jp_cc'] = np.minimum(1., data['jp_cc'])
+                
+                print z, Cc, data['jp_cc'], Cc**2 * data['jp_cc']#, data['avg_Cc'], Qc, Qh
+
                 data['ev_coco'] += Cc**2 * data['jp_cc']
                 data['avg_C'] += data['avg_Cc']
 
                 if self.pf['include_temp_fl']:
                     p_hc = self.field.JointProbability(z, self.dr_coarse, 
                         zeta, term='hc', Tprof=None, data=data, zeta_lya=zeta_lya)
-                    
+
                     data['jp_hc'] = np.interp(dr, self.dr_coarse, p_hc)
                     data['ev_coco'] += Cc * Ch * data['jp_hc'] * (Qh + Qc)
                 else:
@@ -426,7 +444,6 @@ class PowerSpectrum21cm(AnalyzePS):
                 data['jp_cc'] = data['jp_hc'] = data['ev_cc'] = \
                     np.zeros_like(dr)
                 data['Cc'] = data['Qc'] = Cc = Qc = np.zeros_like(dr)
-                    
 
             ##
             # Cross-correlations
@@ -532,7 +549,6 @@ class PowerSpectrum21cm(AnalyzePS):
             data['cf_xd'] = -data['ev_id']
             
             # Contrast terms
-            data['jp_cc'] = np.zeros_like(dr)
             data['cf_coco'] = np.zeros_like(dr)
             
             # Construct correlation function (just subtract off exp. value sq.)
@@ -546,7 +562,7 @@ class PowerSpectrum21cm(AnalyzePS):
             # Here, add together the power spectra with various Beta weights
             # to get 21-cm power spectrum
             
-            Tk = np.interp(z, self.mean_history['z'][-1::-1], 
+            Tk = np.interp(z, self.mean_history['z'][-1::-1],
                 self.mean_history['igm_Tk'][-1::-1])
             Ja = np.interp(z, self.mean_history['z'][-1::-1],
                 self.mean_history['Ja'][-1::-1])
