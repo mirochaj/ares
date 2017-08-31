@@ -298,6 +298,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     Nlya += pop.pf['pop_Nlw']
                     #Nlya += pop.src.Nlw
 
+            # Only used if...powspec_lya_method==0?
             zeta_lya += zeta * (Nlya / Nion) * self.pf['bubble_shell_Nsc']
             
             ##
@@ -307,8 +308,6 @@ class PowerSpectrum21cm(AnalyzePS):
                 zeta = zeta[0]
             if np.all(np.diff(zeta_lya) == 0):
                 zeta_lya = zeta_lya[0]
-
-            print zeta, zeta_lya
 
             ##
             # First: some global quantities we'll need
@@ -413,24 +412,26 @@ class PowerSpectrum21cm(AnalyzePS):
             ##
             # Lyman-alpha fluctuations                
             ##    
-            if self.pf['include_lya_fl'] and self.pf['include_acorr']:
-                Qc = self.field.BubbleFillingFactor(z, zeta, zeta_lya, lya=True)
-                Cc = self._temp_to_contrast(z, avg_Tk)
-                data['Cc'] = Cc
-                data['Qc'] = Qc
-                data['avg_Cc'] = avg_Cc = Qc * Cc
-                p_cc = self.field.JointProbability(z, self.dr_coarse, 
-                    zeta, term='cc', Tprof=None, data=data, zeta_lya=zeta_lya)
+            if self.pf['include_lya_fl']:
+                if self.pf['include_acorr']:
+                    Qc = self.field.BubbleFillingFactor(z, zeta, zeta_lya, lya=True)
+                    Cc = self._temp_to_contrast(z, avg_Tk)
+                    data['Cc'] = Cc
+                    data['Qc'] = Qc
+                    data['avg_Cc'] = avg_Cc = Qc * Cc
+                    p_cc = self.field.JointProbability(z, self.dr_coarse, 
+                        zeta, term='cc', Tprof=None, data=data, zeta_lya=zeta_lya)
+                    
+                    data['jp_cc'] = np.interp(dr, self.dr_coarse, p_cc)             
+                    
+                    # Should this be necessary?
+                    data['jp_cc'] = np.minimum(1., data['jp_cc'])
+                    
+                    data['ev_coco'] += Cc**2 * data['jp_cc']
+                    data['avg_C'] += data['avg_Cc']
 
-                data['jp_cc'] = np.interp(dr, self.dr_coarse, p_cc)             
-
-                # Should this be necessary?
-                data['jp_cc'] = np.minimum(1., data['jp_cc'])
-                
-                data['ev_coco'] += Cc**2 * data['jp_cc']
-                data['avg_C'] += data['avg_Cc']
-
-                if self.pf['include_temp_fl']:
+                # This should maybe be moved elsewhere.
+                if self.pf['include_temp_fl'] and self.pf['include_xcorr']:
                     p_hc = self.field.JointProbability(z, self.dr_coarse, 
                         zeta, term='hc', Tprof=None, data=data, zeta_lya=zeta_lya)
 

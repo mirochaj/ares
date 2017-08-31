@@ -16,9 +16,9 @@ from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.special import erfinv
 from ..util.Math import LinearNDInterpolator
-from ..physics.Constants import g_per_msun, cm_per_mpc
 from ..populations.Composite import CompositePopulation
 from ..physics.CrossSections import PhotoIonizationCrossSection
+from ..physics.Constants import g_per_msun, cm_per_mpc, dnu, s_per_yr
 
 class FluctuatingBackground(object):
     def __init__(self, grid=None, **kwargs):
@@ -240,13 +240,23 @@ class FluctuatingBackground(object):
             Vi = 4. * np.pi * Ri**3 / 3.
             
             dndlnm = dndm * Mi
-            Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
+            #Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
+            
+            Qi = min(zeta * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
+            
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
         
-        if lya and self.pf['powspec_lya_method'] == 0:
-            return np.minimum(Qi * (zeta_lya / zeta), 1.)
-        elif lya and self.pf['powspec_lya_method'] == 1:
+        if lya and self.pf['powspec_lya_method'] < 2:
+            Rc = self.BubblePodRadius(z, Ri, zeta, zeta_lya)
+            Vc = 4. * np.pi * Rc**3 / 3.
+            
+            Qc = np.trapz(dndlnm[iM:] * Vc[iM:], x=np.log(Mi[iM:]))
+            print 'z=%g, Qc=%g' % (z, Qc)
+                        
+            return min(Qc, 1.0)
+            
+        elif lya and self.pf['powspec_lya_method'] == 2:
             return self.BubbleFillingFactor(z, zeta_lya, None, lya=False)
         else:
             return Qi    
@@ -350,7 +360,7 @@ class FluctuatingBackground(object):
         Mmin = self.Mmin(z)
         
         # Variance on scale of smallest collapsed object
-        sigma_min = np.interp(Mmin, self.halos.M * zeta, s)
+        sigma_min = np.interp(Mmin, self.halos.M, s)
         return self._delta_c(z) - np.sqrt(2.) * self._K(zeta) * sigma_min
     
     def _B1(self, z, zeta=40.):
@@ -358,32 +368,31 @@ class FluctuatingBackground(object):
         s = self.halos.sigma_0 #* self.halos.growth_factor[iz]
         
         Mmin = self.Mmin(z)
-        sigma_min = np.interp(Mmin, self.halos.M * zeta, s)
+        sigma_min = np.interp(Mmin, self.halos.M, s)
         ddx_ds2 = self._K(zeta) / np.sqrt(2. * (sigma_min**2 - s**2))
     
         return ddx_ds2[s == s.min()]
     
-    def LinearBarrier(self, z, zeta):
-        return self._B(z, zeta, zeta)
-    
     def _B(self, z, zeta, zeta_min):
+        return self.LinearBarrier(z, zeta, zeta_min)
+        
+    def LinearBarrier(self, z, zeta, zeta_min):
+        s = self.halos.sigma_0
+        
+        return self._B0(z, zeta_min) + self._B1(z, zeta) * s**2
+    
+    def Barrier(self, z, zeta, zeta_min):
         """
-        Linear barrier.
+        Full barrier.
         """
 
         Mmin = self.Mmin(z)
         s = self.halos.sigma_0
-        sigma_min = np.interp(Mmin, self.halos.M / zeta, s)
+        sigma_min = np.interp(Mmin, self.halos.M, s)
         
-        #
-        #return self._delta_c(z) - np.sqrt(2.) * self._K(zeta) \
-        #    * np.sqrt(sigma_min**2 - s**2)
+        return self._delta_c(z) - np.sqrt(2.) * self._K(zeta) \
+            * np.sqrt(sigma_min**2 - s**2)
         
-        iz = np.argmin(np.abs(z - self.halos.z))
-        s = self.halos.sigma_0 #* self.halos.growth_factor[iz]
-        
-        return self._B0(z, zeta_min) + self._B1(z, zeta) * s**2
-
     def BubbleSizeDistribution(self, z, zeta, zeta_lya=None, lya=False):
 
         #if not hasattr(self, '_bsd_cache'):
@@ -395,14 +404,13 @@ class FluctuatingBackground(object):
         if self.pf['bubble_size_dist'] is None:
             if self.pf['bubble_density'] is not None:
                 Ri = self.pf['bubble_size']
-                Mi = (4. * np.pi * Rb**3 / 3.) * self.cosm.mean_density0 \
-                    / g_per_msun
+                Mi = (4. * np.pi * Rb**3 / 3.) * self.cosm.mean_density0
                 dndm = self.pf['bubble_density']
             else:
                 raise NotImplementedError('help')
 
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
-            Mi = self.pops[0].halos.M
+            Mi = self.halos.M
             rho0 = self.cosm.mean_density0
 
             iz = np.argmin(np.abs(z - self.halos.z))
@@ -410,9 +418,9 @@ class FluctuatingBackground(object):
 
             S = sig**2
 
-            Mmin = self.Mmin(z) #* zeta
+            Mmin = self.Mmin(z) #* zeta # doesn't matter for zeta=const
             if type(zeta) == np.ndarray:
-                zeta_min = np.interp(Mmin, self.pops[0].halos.M, zeta)
+                zeta_min = np.interp(Mmin, self.halos.M, zeta)
             else:
                 zeta_min = zeta
 
@@ -420,27 +428,32 @@ class FluctuatingBackground(object):
             # fact that some of the mass is He?
 
             pcross = self._B0(z, zeta_min) / np.sqrt(2. * np.pi * S**3) \
-                * np.exp(-0.5 * self._B(z, zeta, zeta_min)**2 / S)
+                * np.exp(-0.5 * self.LinearBarrier(z, zeta, zeta_min)**2 / S)
 
             Ri = ((Mi / rho0) * 0.75 / np.pi)**(1./3.)
 
-            # This is Eq. 9.38 from Steve's book
-            dndm = rho0 * pcross * 2 * np.abs(self.pops[0].halos.dlns_dlnm) \
+            # This is Eq. 9.38 from Steve's book.
+            # The factor of 2 is from using dlns instead of dS (where S=s^2)
+            dndm = rho0 * pcross * 2 * np.abs(self.halos.dlns_dlnm) \
                 * S / Mi**2
             
         else:
             raise NotImplementedError('Unrecognized option: %s' % self.pf['bubble_size_dist'])
 
-        if lya and self.pf['powspec_lya_method'] == 0:
-            Mc = Mi * (zeta_lya / zeta)
-            Rc = ((Mc / self.cosm.mean_density0) * 0.75 / np.pi)**(1./3.)
-        
-            return Rc, Mc, dndm
-        elif lya and self.pf['powspec_lya_method'] == 1:
-            Rc, Mc, dndm = self.BubbleSizeDistribution(z, zeta_lya, zeta_lya=None, lya=False)
-            return Rc, Mc, dndm
-        elif lya:
-            raise NotImplemented('help please')
+        #if lya and self.pf['powspec_lya_method'] == 0:
+        #    Mc = Mi * (zeta_lya / zeta)
+        #    Rc = ((Mc / self.cosm.mean_density0) * 0.75 / np.pi)**(1./3.)
+        #
+        #    return Rc, Mc, dndm
+        #elif lya and self.pf['powspec_lya_method'] == 1:
+        #    Rc = self.BubblePodRadius(z, Ri, zeta)
+        #    Mc = (4. * np.pi * Rc**3 / 3.) * self.cosm.mean_density0
+        #    return Rc, Mc, dndm
+        #elif lya and self.pf['powspec_lya_method'] == 2:
+        #    Rc, Mc, dndm = self.BubbleSizeDistribution(z, zeta_lya, zeta_lya=None, lya=False)
+        #    return Rc, Mc, dndm
+        #elif lya:
+        #    raise NotImplemented('help please')
             
         #if (z, lya) not in self._bsd_cache:
         #    self._bsd_cache[(z,lya)] = Ri, Mi, dndm
@@ -462,6 +475,9 @@ class FluctuatingBackground(object):
         ##
         # If we made it here, we're doing something fancy.
         ##
+        
+        if not self.pf['include_temp_fl']:
+            return np.zeros_like(Rb)
 
         if self.pf['bubble_shell_size_dist'] == 'mfp':
             
@@ -481,7 +497,51 @@ class FluctuatingBackground(object):
             return Rb + self.pf['bubble_shell_size_abs']
         elif self.pf['bubble_shell_size_func'] is None:
             return None
+
+    def BubblePodRadius(self, z, Ri, zeta=40., zeta_lya=1.):
+        """
+        Calling this a 'pod' since it may one day contain multiple bubbles.
+        """
         
+        if self.pf['powspec_lya_method'] == 0:
+            Mi = (4. * np.pi * Ri**3 / 3.) * self.cosm.mean_density0
+            Mc = Mi * (zeta_lya / zeta) 
+            Rc = ((Mc / self.cosm.mean_density0) * 0.75 / np.pi)**(1./3.)
+        
+        elif self.pf['powspec_lya_method'] == 1:
+        
+            ##
+            # Option 1: Use current (estimated) SFR to determine critical R.
+            #           This should overestimate size of coupled regions.
+            # Option 2: Use history of SFR (again, estimated) to determine Rc.
+            #           This should be closer to the 'real' size.
+            
+            if self.pf['powspec_lya_approx_sfr'] == 'exp':
+                Mi = (4. * np.pi * Ri**3 / 3.) * self.cosm.mean_density0
+                Ng = Mi / m_H
+                
+                
+                
+                raise NotImplemented('help')
+            elif type(self.pf['powspec_lya_approx_sfr']) in [int, float]:
+                SFR = self.pf['powspec_lya_approx_sfr'] * \
+                    np.ones_like(self.halos.M)
+            else:
+                raise NotImplemented('help please')
+                
+            Jc = (1. + z) / 1.81e11
+            
+            rsq = (SFR / s_per_yr) * 9690. * self.cosm.b_per_msun \
+                / dnu / 4. / np.pi / Jc
+                    
+            Rc = np.sqrt(rsq) * (1. + z) / cm_per_mpc
+            
+            print 'z=%g, Rc=%g' % (z, np.mean(Rc))
+
+        else:
+            raise NotImplemented('help')        
+                
+        return Rc
 
     def JointProbability(self, z, dr, zeta, Tprof=None, term='ii', data=None,
         zeta_lya=None):
@@ -507,14 +567,14 @@ class FluctuatingBackground(object):
                 Rh = self.BubbleShellRadius(z, Ri)
                 
             if 'c' in term:
-                Rc, Mc, dndm = \
-                    self.BubbleSizeDistribution(z, zeta, zeta_lya, lya=True)                
-            
+                #Rc, Mc, dndm = \
+                #    self.BubbleSizeDistribution(z, zeta, zeta_lya, lya=True)                
+                
+                Rc = self.BubblePodRadius(z, Ri=Ri, zeta=zeta, zeta_lya=zeta_lya)
+                
             # Minimum bubble size            
-            Mmin = self.Mmin(z) * zeta
-
-            # Should tighten this up. Well, will Mmin ever NOT be in the grid?
-            iM = np.argmin(np.abs(self.halos.M - Mmin))
+            Mmin = self.Mmin(z)
+            iM = np.argmin(np.abs(self.halos.M / 40. - Mmin))
 
             # Loop over scales
             AA = np.zeros_like(dr)
@@ -556,7 +616,7 @@ class FluctuatingBackground(object):
                     limiter = 'h'
 
                 elif term == 'cc':
-                    if self.pf['powspec_lya_method'] == 0:
+                    if self.pf['powspec_lya_method'] < 2:
                         Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
                             self.overlap_region_shell(sep, np.maximum(Ri, Rh), Rc)
                         
@@ -611,8 +671,14 @@ class FluctuatingBackground(object):
                 # of unity. Don't allow it! Better solution pending...
                 P2 = exp_int1 * (1. - exp_int2) * min(1. - exp_int2_ex, 0.0)
                 
-                #if P2 < 0:
-                #    print term, z, i, exp_int2 > 1, exp_int2_ex > 1, exp_int2_ex
+                if np.isnan(P1):
+                    print 'hey P1', term, z, i
+                if np.isnan(P2):
+                    print 'hey P2', term, z, i    
+                
+                
+                if P2 < 0:
+                    print term, z, i, exp_int2 > 1, exp_int2_ex > 1, exp_int2_ex
                 
                 # Add optional correction to ensure limiting behavior?
                 if limiter is None:

@@ -372,6 +372,7 @@ def PowerSpectrumParameters():
      "bubble_density_rescale": False,
      
      "powspec_lya_method": 0,
+     "powspec_lya_approx_sfr": 'exp',
      "powspec_ion_method": None,  # unused
      "powspec_temp_method": None, # unused
      

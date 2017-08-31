@@ -224,7 +224,7 @@ class Cosmology(object):
                 
         # Otherwise, do the integral - normalize to H0 for numerical reasons
         integrand = lambda z: self.hubble_0 / self.HubbleParameter(z)
-        return c * quad(integrand, z0, z)[0] / self.hubble_0        
+        return c * quad(integrand, z0, z)[0] / self.hubble_0
             
     def ProperRadialDistance(self, z0, z):
         return self.ComovingRadialDistance(z0, z) / (1. + z0)    
