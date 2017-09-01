@@ -361,6 +361,9 @@ def PowerSpectrumParameters():
      'include_lya_fl': False,
                
      'include_bias': False,
+     
+     "powspec_rescale_Qion": False,
+     "powspec_rescale_Qlya": False,
           
      "bubble_size": None,
      "bubble_shell_size_rel": None,
@@ -369,7 +372,6 @@ def PowerSpectrumParameters():
      "bubble_shell_temp": None,
      "bubble_shell_Nsc": 1e3,
      "bubble_density": None,
-     "bubble_density_rescale": False,
      
      "powspec_lya_method": 0,
      "powspec_lya_approx_sfr": 'exp',

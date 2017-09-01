@@ -240,9 +240,11 @@ class FluctuatingBackground(object):
             Vi = 4. * np.pi * Ri**3 / 3.
             
             dndlnm = dndm * Mi
-            #Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
             
-            Qi = min(zeta * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
+            if self.pf['powspec_rescale_Qion']:
+                Qi = min(zeta * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
+            else:
+                Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))    
             
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
@@ -251,8 +253,12 @@ class FluctuatingBackground(object):
             Rc = self.BubblePodRadius(z, Ri, zeta, zeta_lya)
             Vc = 4. * np.pi * Rc**3 / 3.
             
-            Qc = np.trapz(dndlnm[iM:] * Vc[iM:], x=np.log(Mi[iM:]))
-            print 'z=%g, Qc=%g' % (z, Qc)
+            if self.pf['powspec_rescale_Qlya']:
+                Qc = min(zeta_lya * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)            
+            else:
+                Qc = np.trapz(dndlnm[iM:] * Vc[iM:], x=np.log(Mi[iM:])) 
+                        
+            print 'z=%g, Qc=%g' % (z, Qc)            
                         
             return min(Qc, 1.0)
             
@@ -436,7 +442,13 @@ class FluctuatingBackground(object):
             # The factor of 2 is from using dlns instead of dS (where S=s^2)
             dndm = rho0 * pcross * 2 * np.abs(self.halos.dlns_dlnm) \
                 * S / Mi**2
-            
+             
+            # Not sure I understand how this works. Infinitely recursive at this
+            # point.
+            #if self.pf['powspec_rescale_Qion']:
+            #    Qbar = self.BubbleFillingFactor(z, zeta)
+            #    dndm *= - np.log(1. - Qbar) / Qbar
+                
         else:
             raise NotImplementedError('Unrecognized option: %s' % self.pf['bubble_size_dist'])
 
