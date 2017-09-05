@@ -3936,7 +3936,7 @@ class ModelSet(BlobFactory):
         i, j, nd, dims = self.blob_info(name)
         
         if (i is None) and (j is None):
-            f = h5py.File('%s.hdf5' % self.fn, 'r')
+            f = h5py.File('%s.hdf5' % self.prefix, 'r')
             return f['blobs'][name].value
         
         blob = self.get_blob_from_disk(name)
@@ -4008,9 +4008,9 @@ class ModelSet(BlobFactory):
             Relates variables in `expr` to blobs. For example, 
             
             varmap = {'x': 'nu_D', 'y': 'nu_C'}
-        
+
         The remaining parameters are:
-        
+
         save : bool
             Save to disk? If not, just returns array.
         name : str
@@ -4019,7 +4019,7 @@ class ModelSet(BlobFactory):
         clobber : bool
             If file with same ``name`` exists, overwrite it?
 
-        """    
+        """
 
         if func is not None:
             data = self.ExtractData(fields)

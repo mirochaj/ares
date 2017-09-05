@@ -627,6 +627,8 @@ class BlobFactory(object):
                             % (self.prefix, ddid, nd, name)
                         ddf.append(tmp)
                                 
+                print ddf            
+                                
                 # Start with the first...
                 fn = ddf[0]        
         
