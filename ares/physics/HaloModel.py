@@ -1,9 +1,26 @@
 # Thanks, Jason Sun, for most of this!
 
+import os, re
 import numpy as np
 import scipy.special as sp
 from scipy.integrate import quad
+from ..util.ProgressBar import ProgressBar
 from .HaloMassFunction import HaloMassFunction
+
+try:
+    import h5py
+except ImportError:
+    pass
+    
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1
+    
+ARES = os.getenv("ARES")    
 
 class HaloModel(HaloMassFunction):
     
@@ -92,9 +109,6 @@ class HaloModel(HaloMassFunction):
         """
         
         iz = np.argmin(np.abs(z - self.z))
-        logMmin = self.logM_min[iz]
-        #iM = np.argmin(np.abs(logMmin - self.logM))
-        iM = 0
                         
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_ft is None:
@@ -106,11 +120,11 @@ class HaloModel(HaloMassFunction):
         #    prof *= mass_dependence(Mh=self.M, z=z)                
                         
         dndlnm = self.dndm[iz,:] * self.M
-        rho_bar = self.mgtm[iz,iM]
+        rho_bar = self.mgtm[iz,0]
                         
         integrand = dndlnm * (self.M / rho_bar)**2 * prof**2
          
-        result = np.trapz(integrand[iM:], x=self.lnM[iM:]) 
+        result = np.trapz(integrand, x=self.lnM) 
         
         return result
         
@@ -124,11 +138,9 @@ class HaloModel(HaloMassFunction):
         ----------
         
         """
-        iz = np.argmin(np.abs(z - self.z))
-        logMmin = self.logM_min[iz]
-        #iM = np.argmin(np.abs(logMmin - self.logM))
-        #iM = 0
         
+        iz = np.argmin(np.abs(z - self.z))
+
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_ft is None:
             profile_ft = self.u_nfw
@@ -159,6 +171,14 @@ class HaloModel(HaloMassFunction):
             * float(self.psCDM(z, k))
 
     def PowerSpectrum(self, z, k, profile_ft=None):
+        
+        if self.pf['hmf_load_ps']:
+            iz = np.argmin(np.abs(z - self.z))
+            assert abs(z - self.z[iz]) < 1e-2, \
+                'Supplied redshift (%g) not in table!' % z
+            assert np.allclose(k, self.k_pos)
+            return self.ps_dd[iz]
+                    
         if type(k) == np.ndarray:
             f1 = lambda kk: self.PS_OneHalo(z, kk, profile_ft=profile_ft)
             f2 = lambda kk: self.PS_TwoHalo(z, kk, profile_ft=profile_ft)
@@ -169,11 +189,65 @@ class HaloModel(HaloMassFunction):
             return self.PS_OneHalo(z, k, profile_ft=profile_ft) \
                  + self.PS_TwoHalo(z, k, profile_ft=profile_ft)
     
-    def CorrelationFunction(self, z, k):
-        ps = self.PowerSpectrum(z, k)
+    def CorrelationFunction(self, z, dr):
+        if self.pf['hmf_load_ps']:
+            iz = np.argmin(np.abs(z - self.z))
+            assert abs(z - self.z[iz]) < 1e-2, \
+                'Supplied redshift (%g) not in table!' % z
+            assert np.allclose(dr, self.dr_coarse)
+            return self.cf_dd[iz]
+                
+        raise NotImplemented('help')
         
+    def __getattr__(self, name):
+                
+        if hasattr(HaloMassFunction, name):
+            return HaloMassFunction.__dict__[name].__get__(self, HaloMassFunction)
         
-    def table_prefix_hm(self, with_size=False):
+        if (name[0] == '_'):
+            raise AttributeError('This will get caught. Don\'t worry!')
+    
+        if name not in self.__dict__.keys():
+            self.load_hmf()
+            
+            if name not in self.__dict__.keys():
+                self.load_ps()
+    
+        return self.__dict__[name]
+    
+    def load_ps(self, suffix='npz'):
+        """ Load table from HDF5 or binary. """
+        
+        fn = '%s/input/hmf/%s.%s' % (ARES, self.table_prefix_ps(), suffix)
+    
+        if re.search('.hdf5', fn) or re.search('.h5', fn):
+            f = h5py.File(fn, 'r')
+            self.z = f['z'].value
+            self.dr_coarse = f['r'].value
+            self.k_pos = f['k'].value
+            self.ps_dd = f['ps'].value
+            self.cf_dd = f['cf'].value
+            f.close()
+        elif re.search('.npz', fn):
+            f = np.load(fn)
+            self.z = f['z']
+            self.dr_coarse = f['r']
+            self.k_pos = f['k']
+            self.ps_dd = f['ps']
+            self.cf_dd = f['cf']    
+            f.close()                        
+        elif re.search('.pkl', fn):
+            f = open(fn, 'rb')
+            self.z = pickle.load(f)
+            self.dr_coarse = pickle.load(f)
+            self.k_pos = pickle.load(f)
+            self.ps_dd = pickle.load(f)
+            self.cf_dd = pickle.load(f)    
+            f.close()
+        else:
+            raise IOError('Unrecognized format for mps_table.')    
+
+    def table_prefix_ps(self, with_size=True):
         """
         What should we name this table?
         
@@ -191,7 +265,7 @@ class HaloModel(HaloMassFunction):
         z1, z2 = self.pf['hmf_zmin'], self.pf['hmf_zmax']
         
         rarr = self.pf['fft_scales']
-        
+                
         if with_size:
             logMsize = (self.pf['hmf_logMmax'] - self.pf['hmf_logMmin']) \
                 / self.pf['hmf_dlogM']                
@@ -203,120 +277,83 @@ class HaloModel(HaloMassFunction):
             assert zsize % 1 == 0
             zsize = int(round(zsize, 1))
                 
-            return 'ps_%s_logM_%s_%i-%i_z_%s_%i-%i' \
-                % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
+            # Should probably save NFW information etc. too
+            return 'mps_%s_logM_%s_%i-%i_z_%s_%i-%i_logR_%i-%i_dlogr_%.2f_dlogk_%.2f' \
+                % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2,
+                   np.log10(min(rarr)), np.log10(max(rarr)), 
+                   self.pf['powspec_dlogr'],
+                   self.pf['powspec_dlogk'])
         else:
-            return 'ps_%s_logM_*_%i-%i_z_*_%i-%i' \
-                % (self.hmf_func, M1, M2, z1, z2)
+            raise NotImplementedError('help')
+            #return 'ps_%s_logM_*_%i-%i_z_*_%i-%i' \
+            #    % (self.hmf_func, M1, M2, z1, z2)
     
     def tabulate_ps(self):
         """
         Tabulate the (density) power spectrum.
         """
         
-        pb = ProgressBar(len(z), 'ps_dd')
+        pb = ProgressBar(len(self.z), 'ps_dd')
         pb.start()
         
-        for i, z in enumerate(self.z):
+        step = np.diff(self.pf['fft_scales'])[0]
+        dr = self.pf['fft_scales']
+        k = np.fft.fftfreq(dr.size, step)
         
-            if i > 0:
-                self.MF.update(z=z)
+        k_mi, k_ma = k.min(), k.max()
+        dlogk = self.pf['powspec_dlogk']
+        k_pos = 10**np.arange(np.log10(k[k>0].min()), np.log10(k_ma)+dlogk, dlogk)
+        self.k_coarse = np.concatenate((-1 * k_pos[-1::-1], [0], k_pos))
+        self.k_pos = k_pos
+        
+        r_mi, r_ma = dr.min(), dr.max()
+        dlogr = self.pf['powspec_dlogr']
+        self.dr_coarse = 10**np.arange(np.log10(r_mi), np.log10(r_ma)+dlogr, dlogr)
+        
+        # Must tabulate onto coarse grid otherwise we'll run out of memory.
+        self.ps_dd = np.zeros((len(self.z), len(self.k_pos)))
+        self.cf_dd = np.zeros((len(self.z), len(self.dr_coarse)))
+        for i, z in enumerate(self.z):
         
             if i % size != rank:
                 continue
-                
-            self.ps[i] = self.PowerSpectrum(z, k, profile_ft=None)
-        
-            # Compute collapsed fraction
-            #if self.hmf_func == 'PS' and self.hmf_analytic:
-            #    delta_c = self.MF.delta_c / self.MF.growth_factor
-            #    #fcoll_tab[i] = erfc(delta_c / sqrt2 / self.MF._sigma_0)
-            #    
-            #else:
-        
-            # Has units of h**4 / cMpc**3 / Msun
-            self.dndm[i] = self.MF.dndm.copy() * self.cosm.h70**4
-            self.mgtm[i] = self.MF.rho_gtm.copy() * self.cosm.h70**2
-            self.ngtm[i] = self.MF.ngtm.copy() * self.cosm.h70**3
-        
-            # Remember that mgtm and mean_density have factors of h**2
-            # so we're OK here dimensionally
-            #fcoll_tab[i] = self.mgtm[i] / self.cosm.mean_density0
-        
-            # Eq. 3.53 and 3.54 in Steve's book
-            #delta_b = 1. #?
-            #delta_b0 = delta_b / self.growth_factor
-            #nu_c = (self.delta_c - delta_b) / self.sigma
-            #delta_c = self.delta_c - delta_b0
-        
-            delta_sc = (1. + z) * (3. / 5.) * (3. * np.pi / 2.)**(2./3.)
-            # Not positive that this shouldn't just be sigma
-            nu = (delta_sc / self.MF._sigma_0)**2
-        
-            # Cooray & Sheth (2002) Equations 68-69
-            if self.hmf_func == 'PS':
-                self.bias_tab[i] = 1. + (nu - 1.) / delta_sc
-        
-            elif self.hmf_func == 'ST':
-                ap, qp = 0.707, 0.3
-        
-                self.bias_tab[i] = 1. \
-                    + (ap * nu - 1.) / delta_sc \
-                    + (2. * qp / delta_sc) / (1. + (ap * nu)**qp)
-            else:
-                raise NotImplemented('No bias for non-PS non-ST MF yet!')
-        
-            self.psCDM_tab[i] = self.MF.power / self.cosm.h70**3
-        
-            self.growth_tab[i] = self.MF.growth_factor            
-        
+
+            #ps_posk = np.zeros_like(k_pos)
+            #for j, _k in enumerate(k_pos):
+            ps_posk = self.PowerSpectrum(z, k_pos, profile_ft=None)
+
+            # Must interpolate to uniformly (in real space) sampled
+            # grid points to do inverse FFT
+
+            #ps_fold = np.concatenate((ps_posk[-1::-1], [0], ps_posk))
+            #ps_fold = np.concatenate(([0], ps_posk, ps_posk[-1::-1]))
+            #ps_dd = np.interp(self.k, self.k_coarse, ps_fold)
+            ps_dd = np.interp(np.abs(k), self.k_pos, ps_posk)
+            #ps_dd = self.field.halos.PowerSpectrum(z, np.abs(self.k))
+            self.ps_dd[i] = ps_posk.copy()
+
+            cf_dd = np.fft.ifft(ps_dd)
+
+            # Interpolate onto coarser grid
+            self.cf_dd[i] = np.interp(self.dr_coarse, dr, cf_dd.real)
+
             pb.update(i)
-        
+
         pb.finish()
-        
-        # All processors will have this.
-        self.sigma_tab = self.MF._sigma_0
-        
+
         # Collect results!
         if size > 1:
-            #tmp1 = np.zeros_like(fcoll_tab)
-            #nothing = MPI.COMM_WORLD.Allreduce(fcoll_tab, tmp1)
-            #_fcoll_tab = tmp1
+            tmp1 = np.zeros_like(self.ps_dd)
+            nothing = MPI.COMM_WORLD.Allreduce(self.ps_dd, tmp1)
+            self.ps_dd = tmp1
         
-            tmp2 = np.zeros_like(self.dndm)
-            nothing = MPI.COMM_WORLD.Allreduce(self.dndm, tmp2)
-            self.dndm = tmp2
-        
-            tmp3 = np.zeros_like(self.ngtm)
-            nothing = MPI.COMM_WORLD.Allreduce(self.ngtm, tmp3)
-            self.ngtm = tmp3
-        
-            tmp4 = np.zeros_like(self.mgtm)
-            nothing = MPI.COMM_WORLD.Allreduce(self.mgtm, tmp4)
-            self.mgtm = tmp4
-        
-            tmp5 = np.zeros_like(self.bias_tab)
-            nothing = MPI.COMM_WORLD.Allreduce(self.bias_tab, tmp5)
-            self.bias_tab = tmp5
-        
-            tmp6 = np.zeros_like(self.psCDM_tab)
-            nothing = MPI.COMM_WORLD.Allreduce(self.psCDM_tab, tmp6)
-            self.psCDM_tab = tmp6
-        
-            tmp7 = np.zeros_like(self.growth_tab)
-            nothing = MPI.COMM_WORLD.Allreduce(self.growth_tab, tmp7)
-            self.growth_tab = tmp7
-        
-        #else:
-        #    _fcoll_tab = fcoll_tab   
-        
-        # Fix NaN elements
-        #_fcoll_tab[np.isnan(_fcoll_tab)] = 0.0
-        #self._fcoll_tab = _fcoll_tab    
-        
+            tmp2 = np.zeros_like(self.cf_dd)
+            nothing = MPI.COMM_WORLD.Allreduce(self.cf_dd, tmp2)
+            self.cf_dd = tmp2
+
     def save_ps(self, fn=None, clobber=True, destination=None, format='hdf5'):
         """
-        Save mass function table to HDF5 or binary (via pickle).
+        Save matter power spectrum table to HDF5 or binary (via pickle).
     
         Parameters
         ----------
@@ -339,7 +376,7 @@ class HaloModel(HaloMassFunction):
             hmf_v = 'unknown'
     
         # Do this first! (Otherwise parallel runs will be garbage)
-        self.tabulate_hmf()
+        self.tabulate_ps()
     
         if rank > 0:
             return
@@ -349,7 +386,7 @@ class HaloModel(HaloMassFunction):
     
         # Determine filename
         if fn is None:
-            fn = '%s/%s.%s' % (destination, self.table_prefix(True), format)                
+            fn = '%s/%s.%s' % (destination, self.table_prefix_ps(True), format)                
         else:
             if format not in fn:
                 print "Suffix of provided filename does not match chosen format."
@@ -364,30 +401,19 @@ class HaloModel(HaloMassFunction):
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
             f.create_dataset('z', data=self.z)
-            f.create_dataset('logM', data=self.logM)
-            #f.create_dataset('fcoll', data=self.tab_fcoll_2d)
-            f.create_dataset('dndm', data=self.dndm)
-            f.create_dataset('ngtm', data=self.ngtm)
-            f.create_dataset('mgtm', data=self.mgtm)            
-            f.create_dataset('bias', data=self.bias_tab)            
-            f.create_dataset('psCDM', data=self.psCDM_tab)
-            f.create_dataset('growth', data=self.growth_tab)
-            f.create_dataset('sigma', data=self.sigma_tab)
-            f.create_dataset('k', data=self.k)
-            f.create_dataset('hmf-version', data=hmf_v)       
+            f.create_dataset('r', data=self.dr_coarse)
+            f.create_dataset('k', data=self.k_pos)
+            f.create_dataset('ps', data=self.ps_dd)
+            f.create_dataset('cf', data=self.cf_dd)
+  
             f.close()
     
         elif format == 'npz':
-            data = {'z': self.z, 'logM': self.logM, 
-                    'dndm': self.dndm,
-                    'ngtm': self.ngtm, 'mgtm': self.mgtm,
-                    'pars': {'growth_pars': self.growth_pars,
-                             'transfer_pars': self.transfer_pars},
-                    'growth': self.growth_tab,
-                    'bias': self.bias_tab,
-                    'psCDM': self.psCDM_tab,
-                    'sigma': self.sigma_tab,
-                    'k': self.k,
+            data = {'z': self.z, 
+                    'r': self.dr_coarse,
+                    'k': self.k_pos,
+                    'ps': self.ps_dd,
+                    'cf': self.cf_dd,
                     'hmf-version': hmf_v}
             np.savez(fn, **data)
     
@@ -395,18 +421,10 @@ class HaloModel(HaloMassFunction):
         else:   
             f = open(fn, 'wb')
             pickle.dump(self.z, f)
-            pickle.dump(self.logM, f)
-            pickle.dump(self.fcoll_spline_2d, f)
-            pickle.dump(self.dndm, f)
-            pickle.dump(self.ngtm, f)
-            pickle.dump(self.mgtm, f)
-            pickle.dump(self.bias_tab, f)
-            pickle.dump(self.psCDM_tab, f)
-            pickle.dump(self.sigma_tab, f)
-            pickle.dump(self.k)
-            pickle.dump(self.growth_tab, f)
-            pickle.dump({'growth_pars': self.growth_pars,
-                'transfer_pars': self.transfer_pars}, f)
+            pickle.dump(self.r, f)
+            pickle.dump(self.k_pos, f)
+            pickle.dump(self.ps, f)
+            pickle.dump(self.cf, f)
             pickle.dump(dict(('hmf-version', hmf_v)))
             f.close()
     

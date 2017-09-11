@@ -35,7 +35,7 @@ try:
     from scipy.misc import derivative
 except ImportError:
     pass
-    
+
 ztol = 1e-4
 z0 = 9. # arbitrary
 tiny_phi = 1e-18

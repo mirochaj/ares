@@ -192,8 +192,10 @@ class HaloMassFunction(object):
             else:
                 no_hmf(self)
                 sys.exit()
-        else:
-            self.load_table()
+        #else:
+        #    self.load_hmf()
+        
+        self._is_loaded = False
             
         if self.pf['hmf_dfcolldz_smooth']:
             assert self.pf['hmf_dfcolldz_smooth'] % 2 != 0, \
@@ -227,8 +229,22 @@ class HaloMassFunction(object):
 
         return self._cosm
             
-    def load_table(self):
+    def __getattr__(self, name):
+        
+        if (name[0] == '_'):
+            raise AttributeError('This will get caught. Don\'t worry!')
+            
+        if name not in self.__dict__.keys():
+            if self.pf['hmf_load']:
+                self.load_hmf()
+
+        return self.__dict__[name]
+
+    def load_hmf(self):
         """ Load table from HDF5 or binary. """
+                  
+        if self._is_loaded:
+            return     
                             
         if re.search('.hdf5', self.fn) or re.search('.h5', self.fn):
             f = h5py.File(self.fn, 'r')
@@ -297,6 +313,8 @@ class HaloMassFunction(object):
         self.dndlnm = self.M * self.dndm        
         self.Nz = self.z.size
         self.Nm = self.M.size
+        
+        self._is_loaded = True
         
     @property
     def growth_pars(self):
@@ -511,7 +529,17 @@ class HaloMassFunction(object):
     @logM_min.setter
     def logM_min(self, value):
         self._logM_min = value
- 
+    
+    @property
+    def fcoll_Tmin(self):
+        if not hasattr(self, '_fcoll_Tmin'):
+            self.build_1d_splines(Tmin=self.pf['pop_Tmin'], mu=self.pf['mu'])
+        return self._fcoll_Tmin
+        
+    @fcoll_Tmin.setter
+    def fcoll_Tmin(self, value):
+        self._fcoll_Tmin = value    
+    
     def build_1d_splines(self, Tmin, mu=0.6, return_fcoll=False, 
         return_fcoll_p=True, return_fcoll_pp=False):
         """

@@ -15,10 +15,12 @@ from types import FunctionType
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.special import erfinv
+from scipy.optimize import fsolve
 from ..util.Math import LinearNDInterpolator
 from ..populations.Composite import CompositePopulation
 from ..physics.CrossSections import PhotoIonizationCrossSection
-from ..physics.Constants import g_per_msun, cm_per_mpc, dnu, s_per_yr
+from ..physics.Constants import g_per_msun, cm_per_mpc, dnu, s_per_yr, c, \
+    s_per_myr, erg_per_ev, k_B, m_p, dnu
 
 class FluctuatingBackground(object):
     def __init__(self, grid=None, **kwargs):
@@ -127,7 +129,7 @@ class FluctuatingBackground(object):
     
         """
     
-        # For large enough separations, there can be no overlap
+        # For large enough separations there is no overlap
         if dr >= (2. * Ro):
             return 0.0, 0.0
         else:
@@ -185,21 +187,21 @@ class FluctuatingBackground(object):
             # (ii) same source lya-couples one point and ionizes the other
             
             return 0.0, 0.0
-    
+
     def overlap_region_sphere(self, dr, R):
         if not hasattr(self, '_overlap_region_sphere'):
             self._overlap_region_sphere = np.vectorize(self._Vo_sphere_SS)
         return self._overlap_region_sphere(dr, R)
-    
+
     def overlap_region_shell(self, dr, Ri, Ro):
         if not hasattr(self, '_overlap_region_shell'):
             self._overlap_region_shell = np.vectorize(self._Vo_shell)
-        return self._overlap_region_shell(dr, Ri, Ro)    
+        return self._overlap_region_shell(dr, Ri, Ro)
     
     def overlap_region_shell_x2(self, dr, Ri, Rm, Ro):
         if not hasattr(self, '_overlap_region_shell_x2'):
             self._overlap_region_shell_x2 = np.vectorize(self._Vo_shell_x2)
-        return self._overlap_region_shell_x2(dr, Ri, Rm, Ro)    
+        return self._overlap_region_shell_x2(dr, Ri, Rm, Ro)
             
     def BubbleShellFillingFactor(self, z, zeta):
         if self.pf['bubble_size_dist'] is None:
@@ -233,8 +235,8 @@ class FluctuatingBackground(object):
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
             
             # Smallest bubble is one around smallest halo.
-            Mi_min = self.Mmin(z) * zeta
-            iM = np.argmin(np.abs(Mi_min - self.halos.M))
+            Mmin = self.Mmin(z)
+            iM = np.argmin(np.abs(Mmin * zeta - self.halos.M))
             
             Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
             Vi = 4. * np.pi * Ri**3 / 3.
@@ -242,14 +244,14 @@ class FluctuatingBackground(object):
             dndlnm = dndm * Mi
             
             if self.pf['powspec_rescale_Qion']:
-                Qi = min(zeta * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
+                Qi = min(zeta * self.halos.fcoll_2d(z, np.log10(Mmin)), 1)
             else:
                 Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))    
             
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
         
-        if lya and self.pf['powspec_lya_method'] < 2:
+        if lya and self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
             Rc = self.BubblePodRadius(z, Ri, zeta, zeta_lya)
             Vc = 4. * np.pi * Rc**3 / 3.
             
@@ -258,20 +260,20 @@ class FluctuatingBackground(object):
             else:
                 Qc = np.trapz(dndlnm[iM:] * Vc[iM:], x=np.log(Mi[iM:])) 
                         
-            print 'z=%g, Qc=%g' % (z, Qc)            
+            print 'z=%g, Qc=%g' % (z, Qc)
                         
             return min(Qc, 1.0)
             
-        elif lya and self.pf['powspec_lya_method'] == 2:
+        elif lya and self.pf['bubble_pod_size_func'] == 'fzh04':
             return self.BubbleFillingFactor(z, zeta_lya, None, lya=False)
         else:
-            return Qi    
-            
+            return min(Qi, 1.)
+
     def BubbleDensity(self, z, R=None, popid=0):
         """
         Compute the volume density of bubbles at redshift z of given radius.
         """
-                
+     
         # Can separate size and density artificially
         b_size = self.pf['bubble_size']
         b_dens = self.pf['bubble_density']
@@ -477,8 +479,29 @@ class FluctuatingBackground(object):
         if not hasattr(self, '_halos'):
             self._halos = self.pops[0].halos
         return self._halos
+        
+    @property
+    def Emin_X(self):
+        if not hasattr(self, '_Emin_X'):
+            xrpop = None
+            for i, pop in enumerate(self.pops):
+                if not pop.is_src_heat_fl:
+                    continue
+                    
+                if xrpop is not None:
+                    raise AttributeError('help! can only handle 1 X-ray pop right now')
+                    
+                xrpop = pop
+                
+            self._Emin_X = pop.src.Emin
+            
+        return self._Emin_X
 
-    def BubbleShellRadius(self, z, Rb):
+    def get_Nion(self, z, Ri):
+        return 4. * np.pi * (Ri * cm_per_mpc / (1. + z))**3 \
+            * self.cosm.nH(z) / 3.
+    
+    def BubbleShellRadius(self, z, Ri):
         """
         Given a bubble radius (or array of them), convert to size of
         heated regions.
@@ -489,24 +512,40 @@ class FluctuatingBackground(object):
         ##
         
         if not self.pf['include_temp_fl']:
-            return np.zeros_like(Rb)
+            return np.zeros_like(Ri)
 
-        if self.pf['bubble_shell_size_dist'] == 'mfp':
-            
-            Ebar = 1e3
-            sigma = PhotoIonizationCrossSection(Ebar, species=0)
+        if self.pf['bubble_shell_size_func'] == 'mfp':
+
+            sigma = PhotoIonizationCrossSection(self.Emin_X, species=0)
             lmfp_p = 1. / self.cosm.nH(z) / sigma / cm_per_mpc
             lmfp_c = lmfp_p * (1. + z)
-                    
-            return lmfp_c
+            
+            # Return value expected to be shell *radius*, not thickness, so
+            # add bubble size back in.
+            return Ri + lmfp_c
+            
+        elif self.pf['bubble_shell_size_func'] == 'const':
+            Nlyc = 4. * np.pi * (Ri * cm_per_mpc / (1. + z))**3 * self.cosm.nH(z) / 3.
+            NX   = 1e-4 * Nlyc
+            
+            nrg_flux = NX * self.Emin_X * erg_per_ev
+            Jx = nrg_flux * 0.2 
+            
+            #Rh = Ri \
+            #   + (3 * Jx / self.cosm.adiabatic_cooling_rate(z) / 4. / np.pi)**(1./3.) \
+            #   * (1. + z) / cm_per_mpc
+
+            return Rh
+
         #else:
         #    raise NotImplemented('help')
-        
-        # More descriptive subscripts for Vsh
+
+        # Just scale the heated region relative to the ionized region
+        # in an even simpler way.
         if self.pf['bubble_shell_size_rel'] is not None:
-            return Rb * (1. + self.pf['bubble_shell_size_rel'])
+            return Ri * (1. + self.pf['bubble_shell_size_rel'])
         elif self.pf['bubble_shell_size_abs'] is not None:
-            return Rb + self.pf['bubble_shell_size_abs']
+            return Ri + self.pf['bubble_shell_size_abs']
         elif self.pf['bubble_shell_size_func'] is None:
             return None
 
@@ -515,44 +554,104 @@ class FluctuatingBackground(object):
         Calling this a 'pod' since it may one day contain multiple bubbles.
         """
         
-        if self.pf['powspec_lya_method'] == 0:
-            Mi = (4. * np.pi * Ri**3 / 3.) * self.cosm.mean_density0
-            Mc = Mi * (zeta_lya / zeta) 
-            Rc = ((Mc / self.cosm.mean_density0) * 0.75 / np.pi)**(1./3.)
+        if not self.pf['include_lya_fl']:
+            return np.zeros_like(Ri)
         
-        elif self.pf['powspec_lya_method'] == 1:
-        
-            ##
-            # Option 1: Use current (estimated) SFR to determine critical R.
-            #           This should overestimate size of coupled regions.
-            # Option 2: Use history of SFR (again, estimated) to determine Rc.
-            #           This should be closer to the 'real' size.
-            
-            if self.pf['powspec_lya_approx_sfr'] == 'exp':
-                Mi = (4. * np.pi * Ri**3 / 3.) * self.cosm.mean_density0
-                Ng = Mi / m_H
-                
-                
-                
-                raise NotImplemented('help')
-            elif type(self.pf['powspec_lya_approx_sfr']) in [int, float]:
-                SFR = self.pf['powspec_lya_approx_sfr'] * \
-                    np.ones_like(self.halos.M)
+        # This is basically assuming self-similarity
+        if self.pf['bubble_pod_size_func'] is None:
+            if self.pf['bubble_pod_size_rel'] is not None:
+                return Ri * (1. + self.pf['bubble_pod_size_rel'])
+            elif self.pf['bubble_pod_size_abs'] is not None:
+                return Ri + self.pf['bubble_pod_size_abs']
             else:
-                raise NotImplemented('help please')
+                Mi = (4. * np.pi * Ri**3 / 3.) * self.cosm.mean_density0
+                Mc = Mi * (zeta_lya / zeta) * self.pf['bubble_pod_Nsc']
+                Rc = ((Mc / self.cosm.mean_density0) * 0.75 / np.pi)**(1./3.)
+
+        # 
+        elif self.pf['bubble_pod_size_func'] == 'const':
+            # Number of ionizing photons in this region, i.e.,
+            # integral of photon production over time.
+            Nlyc = 4. * np.pi * (Ri * cm_per_mpc / (1. + z))**3 * self.cosm.nH(z) / 3.
+            Nlya = (zeta_lya / zeta) * Nlyc
+            
+            tmax = self.cosm.LookbackTime(z, 50.)
+            Ndot = Nlya / tmax
+
+            # This is the radius at which the number density of Ly-a photons is
+            # equal to the number density of hydrogen atoms.
+            #r_p = np.sqrt(Ndot / c / self.cosm.nH(z) / 4. / np.pi) / cm_per_mpc
+            #r_c = r_p * (1. + z)
+            #
+            #Rc = r_c#max(Ri, r_c)
+            
+            # Cast in terms of flux
+            Ndot /= dnu
+            Sa = 1.
+            Jc = 5.5e-12 * (1. + z) / Sa
+            #Tk = 10.
+            #lw = np.sqrt(8. * k_B * Tk * np.log(2.) / m_p / c**2)
+            r_p = np.sqrt(Ndot / 4. / np.pi / Jc) / cm_per_mpc
+            Rc = r_p * (1. + z)
+            
+            
+        elif self.pf['bubble_pod_size_func'] == 'linear':
+            
+            Nlyc = 4. * np.pi * (Ri * cm_per_mpc / (1. + z))**3 * self.cosm.nH(z) / 3.
+            Nlya = (zeta_lya / zeta) * Nlyc
+
+            t0 = self.cosm.t_of_z(50.)
+            t = self.cosm.t_of_z(z)
+            
+            dt = t - t0
+            r_lt = c * dt / cm_per_mpc
+            
+            Rc = []
+            for k, _Nlya in enumerate(Nlya):
+            
+                norm = _Nlya / (((t - t0)**2 - t0**2) / 2.)
                 
-            Jc = (1. + z) / 1.81e11
+                Ndot = lambda t: norm * (t - t0)
+                
+                # This is the radius at which the number of Ly-a photons i
+                # equal to the number of hydrogen atoms.
+                Sa = 1.
+                Jc = 5.5e-12 * (1. + z) / Sa
             
-            rsq = (SFR / s_per_yr) * 9690. * self.cosm.b_per_msun \
-                / dnu / 4. / np.pi / Jc
+                # 
+                to_solve = lambda r: np.abs(Ndot(t - r * cm_per_mpc / c) / dnu \
+                    / 4. / np.pi / (r * cm_per_mpc)**2 - Jc)
+                r_p = fsolve(to_solve, Ri[k]*(1.+z), factor=0.1, maxfev=10000)[0]
+                r_c = np.minimum(r_p, r_lt) * (1. + z)
+            
+                Rc.append(r_c)
+            
+            Rc = np.array(Rc)
+                        
+        elif self.pf['bubble_pod_size_func'] == 'exp':
+
+            Nlyc = 4. * np.pi * (Ri * cm_per_mpc)**3 * self.cosm.nH(z) / 3.
+            Nlya = (zeta_lya / zeta) * Nlyc
+            
+            # This is defined to guarantee that the integrated Nalpha history
+            # recovers the total number.
+            tmax = Ri / c / s_per_myr
+            t0 = self.cosm.t_of_z(50.) / s_per_myr
+            t = self.cosm.LookbackTime(z, 50.) / s_per_myr
+            N0 = Nlya / (np.exp(tmax / t0) - 1.)
+            Ndot = lambda tt: N0 * np.exp(tt / t0)
+            
+            Nofr = lambda r: Ndot(t - r * s_per_myr / cm_per_mpc / c) \
+                / 4. / np.pi / (r * cm_per_mpc)**2 / c
+            
+            nH = self.cosm.nH(z)
+            r_p = fsolve(lambda rr: Nofr(rr) - nH, 1.)
                     
-            Rc = np.sqrt(rsq) * (1. + z) / cm_per_mpc
-            
-            print 'z=%g, Rc=%g' % (z, np.mean(Rc))
+            r_c = r_p * (1. + z)
 
         else:
-            raise NotImplemented('help')        
-                
+            raise NotImplemented('help')
+
         return Rc
 
     def JointProbability(self, z, dr, zeta, Tprof=None, term='ii', data=None,
@@ -570,28 +669,32 @@ class FluctuatingBackground(object):
         term : str
             
         """
+        
+        if term[0] != term[1]:
+            is_xcorr = True
+        else:
+            is_xcorr = False
             
         if self.pf['bubble_size_dist'].lower() == 'fzh04':
             
-            Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta, zeta_lya, lya=False)
+            Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta,
+                zeta_lya, lya=False)
 
             if ('h' in term) or ('c' in term):
                 Rh = self.BubbleShellRadius(z, Ri)
-                
+
             if 'c' in term:
-                #Rc, Mc, dndm = \
-                #    self.BubbleSizeDistribution(z, zeta, zeta_lya, lya=True)                
-                
-                Rc = self.BubblePodRadius(z, Ri=Ri, zeta=zeta, zeta_lya=zeta_lya)
-                
+                Rc = self.BubblePodRadius(z, Ri=Ri, zeta=zeta, 
+                    zeta_lya=zeta_lya)
+
             # Minimum bubble size            
-            Mmin = self.Mmin(z)
-            iM = np.argmin(np.abs(self.halos.M / 40. - Mmin))
+            Mmin = self.Mmin(z) * zeta
+            iM = np.argmin(np.abs(self.halos.M - Mmin))
 
             # Loop over scales
             AA = np.zeros_like(dr)
             for i, sep in enumerate(dr):
-                                                
+                            
                 # For two-halo terms, need bias of sources.
                 if self.pf['include_bias']:
                     ep = self.excess_probability(z, sep, data, zeta)
@@ -610,52 +713,119 @@ class FluctuatingBackground(object):
                 ##
                 if term == 'ii':
                     Vo = self.overlap_region_sphere(sep, Ri)
-                    Vss_ne = 4. * np.pi * Ri**3 / 3.
+                    Vss_ne = 4. * np.pi * Ri**3 / 3. - Vo
                     
                     limiter = 'i'
                 
                 elif term == 'hh':
                     Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
                         self.overlap_region_shell(sep, Ri, Rh)
+                        
                     # Region 1 is the full overlap region between two spheres
                     # of radius Rh, and region 2 is the region in which a 
                     # single source would ionize one of the points, so we 
                     # need to subtract it off.
                     Vo = Vo_sh_r1 - 2. * Vo_sh_r2 + Vo_sh_r3
 
-                    Vss_ne = 4. * np.pi * (Rh - Ri)**3 / 3.
+                    Vss_ne = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
                     
                     limiter = 'h'
 
                 elif term == 'cc':
-                    if self.pf['powspec_lya_method'] < 2:
+                    if self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
                         Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
                             self.overlap_region_shell(sep, np.maximum(Ri, Rh), Rc)
                         
                         Vo = Vo_sh_r1 - 2. * Vo_sh_r2 + Vo_sh_r3
                         
-                        Vss_ne = 4. * np.pi * (Rc - np.maximum(Ri, Rh))**3 / 3.
-                    else:
+                        Vss_ne = 4. * np.pi * (Rc - np.maximum(Ri, Rh))**3 / 3. - Vo
+                    elif self.pf['bubble_pod_size_func'] == 'approx_sfh':
+                        raise NotImplemented('sorry!')
+                    elif self.pf['bubble_pod_size_func'] == 'fzh04':
                         Vo = self.overlap_region_sphere(sep, Rc)
-                        Vss_ne = 4. * np.pi * Rc**3 / 3.
-                    
+                        Vss_ne = 4. * np.pi * Rc**3 / 3. - Vo
+                    else:
+                        raise NotImplemented('sorry!')
+
                     limiter = 'c'
-                                        
-                #elif term == 'hc':
-                #    r1, r2 = self.overlap_region_shell_x2(sep, Ri, Rh, Rc)
-                #    Vo = r1
-                #    
-                #    # One point in cold shell of one bubble, another in
-                #    # heated shell of completely separate bubble.
-                #    # Need to be a little careful here!
-                #    Vss_ne = 4. * np.pi * (Rc - Rh)**3 / 3.
-                #    
-                #    # Get rid of volume of cold region around second
-                #    # bubble, replace with excess heated volume
-                #    _corr = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
-                #    corr *= _corr / (Vss_ne - Vo)
+                    
+                elif term == 'id':
+                    Vo = self.overlap_region_sphere(sep, Ri)
+                    
+                    delta_B = self._B(z, zeta, zeta)
+                    _Pin_int = dndm * Vo * Mi * (1. + delta_B)
+                    Pin = np.trapz(_Pin_int[iM:], x=np.log(Mi[iM:]))
+                    
+                    Vss_ne = 0.0
+
+                    #xi_dd = data['xi_dd_c'][i]
+                    #
+                    #bHII = self.bubble_bias(z, zeta)
+
+                elif term == 'hc':
+                    r1, r2 = self.overlap_region_shell_x2(sep, Ri, Rh, Rc)
+                    Vo = r1
+
+                    # One point in cold shell of one bubble, another in
+                    # heated shell of completely separate bubble.
+                    # Need to be a little careful here!
+                    Vss_ne = 4. * np.pi * (Rc - Rh)**3 / 3. - Vo
+                    
+                    # Get rid of volume of cold region around second
+                    # bubble, replace with excess heated volume
+                    _corr = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
+                    corr *= _corr / (Vss_ne - Vo)
+                    
+                    limiter = None
+                    
+                #elif term == 'ih':
+                #    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
+                #        self.overlap_region_shell(sep, Ri, Rh)
+                #    Vo = 2. * Vo_sh_r2 - Vo_sh_r3
+                #                        
+                #    Vss_ne = Vo
+                #    #Vo_tot = self.overlap_region_sphere(sep, Rh)
+                #    #P1 = np.trapz(dndm[iM:] * Vo_ih[iM:] * Mb[iM:], 
+                #    #    x=np.log(Mb[iM:]))
+                #    #
+                #    #AA[i] = P1
+                #    #integrand2 = 0.0    
                 #    
                 #    limiter = None
+                
+                elif term == 'hc':
+                    # This is tricky!
+                    # reg_ii, reg_mm, reg_oo, reg_im, reg_io, reg_mo
+                    r1, r2 = self.overlap_region_shell_x2(sep, Ri, Rh, Rc)
+                    
+                    Vo = r1
+                    Vss_ne = 0.0
+                    
+                    limiter = None
+                 
+                elif term == 'ih':
+                    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
+                        self.overlap_region_shell(sep, Ri, Rh)
+                    Vo = 2. * Vo_sh_r2 - Vo_sh_r3
+                                        
+                    Vss_ne = self.overlap_region_sphere(sep, Rh) - Vo
+                    
+                    limiter = None
+                    
+                #elif term == 'ic':
+                #    
+                #    # May get rid of this once general case works
+                #    if not self.pf['include_temp_fl']:
+                #        Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
+                #            self.overlap_region_shell(sep, Rb, Rc)
+                #        Vo_ic = 2. * Vo_sh_r2 - Vo_sh_r3
+                #
+                #        Vo_tot = self.overlap_region_sphere(sep, Rc)
+                #        P1 = np.trapz(dndm[iM:] * Vo_ic[iM:] * Mb[iM:], 
+                #            x=np.log(Mb[iM:]))
+                #
+                #        AA[i] = P1
+                #        continue
                     
                 else:
                     print 'Skipping %s term for now' % term
@@ -671,26 +841,29 @@ class FluctuatingBackground(object):
                 P1 = (1. - exp_int1)
 
                 # Start chugging along on two-halo term                    
-                integrand2 = dndm * (Vss_ne - Vo)
-            
+                integrand2 = dndm * Vss_ne
+
                 exp_int2 = np.exp(-np.trapz(integrand2[iM:] * Mi[iM:], 
                     x=np.log(Mi[iM:])))
                 exp_int2_ex = np.exp(-np.trapz(integrand2[iM:] * Mi[iM:] \
                     * corr[iM:], x=np.log(Mi[iM:])))
-                    
+
                 ##
-                # Second integral sometimes is very neary (but just in excess)
+                # Second integral sometimes is very nearly (but just in excess)
                 # of unity. Don't allow it! Better solution pending...
                 P2 = exp_int1 * (1. - exp_int2) * min(1. - exp_int2_ex, 0.0)
+
+                #if np.isnan(P1):
+                #    print 'hey P1', term, z, i
+                #if np.isnan(P2):
+                #    print 'hey P2', term, z, i    
                 
-                if np.isnan(P1):
-                    print 'hey P1', term, z, i
-                if np.isnan(P2):
-                    print 'hey P2', term, z, i    
+                #if P2 < 0:
+                #    print term, z, i, exp_int2 > 1, exp_int2_ex > 1, exp_int2_ex
                 
-                
-                if P2 < 0:
-                    print term, z, i, exp_int2 > 1, exp_int2_ex > 1, exp_int2_ex
+                if term == 'id':
+                    AA[i] = P1 - Pin
+                    continue
                 
                 # Add optional correction to ensure limiting behavior?
                 if limiter is None:
@@ -735,10 +908,10 @@ class FluctuatingBackground(object):
                         AA[i] += P1 + P2
 
                 elif term == 'id':
-                
+
                     P1 = np.trapz(dndm[iM:] * Vo_sph[iM:] * Mb[iM:], 
                         x=np.log(Mb[iM:]))
-                    
+
                     #P1_delta = 
                     
                     #integrand1 = dndm[iM:] * Vo_sph[iM:]
@@ -749,7 +922,7 @@ class FluctuatingBackground(object):
                     ## One halo term
                     #P1 = (1. - exp_int1)
                              
-                    delta_B = self._B(z, zeta, zeta)[iM:]              
+                    delta_B = self._B(z, zeta, zeta)[iM:]
                     _Pin_int = dndm[iM:] * Vo_sph[iM:] * Mb[iM:] \
                         * (1. + delta_B)                    
                     Pin = np.trapz(_Pin_int, x=np.log(Mb[iM:]))

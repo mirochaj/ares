@@ -344,7 +344,7 @@ def PowerSpectrumParameters():
     tmp = \
     {     
      'powspec_redshifts': np.arange(6, 20, 1),
-     'fft_scales': np.arange(1e-4, 100., 1e-4),
+     'fft_scales': np.arange(1e-4, 100.+1e-4, 1e-4),
 
      # Ultimately we'll interpolate beyond these
      'powspec_dlogk': 0.05,
@@ -370,8 +370,14 @@ def PowerSpectrumParameters():
      "bubble_shell_size_abs": None,
      "bubble_shell_size_func": None,
      "bubble_shell_temp": None,
-     "bubble_shell_Nsc": 1e3,
      "bubble_density": None,
+     
+     "bubble_pod_size": None,
+     "bubble_pod_size_rel": None,
+     "bubble_pod_size_abs": None,
+     "bubble_pod_size_func": None,
+     "bubble_pod_temp": None,
+     "bubble_pod_Nsc": 1e3,
      
      "powspec_lya_method": 0,
      "powspec_lya_approx_sfr": 'exp',

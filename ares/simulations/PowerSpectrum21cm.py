@@ -171,6 +171,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     mask = self.k > 0
                     x = self.k
                     size = kfin.size
+                    # Already down-sampled?
                     down_sample = True
                 else:
                     size = all_ps[i][key].size
@@ -243,7 +244,7 @@ class PowerSpectrum21cm(AnalyzePS):
         #k = self.k
         #dr = self.dr = 1. / k
         
-        step = 1e-4
+        step = np.diff(self.pf['fft_scales'])[0]
         #self.dr = dr = np.arange(1e-3, 1e2+step, step)
         self.dr = dr = self.pf['fft_scales']
         self.k = k = np.fft.fftfreq(dr.size, step)
@@ -299,7 +300,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     #Nlya += pop.src.Nlw
 
             # Only used if...powspec_lya_method==0?
-            zeta_lya += zeta * (Nlya / Nion) * self.pf['bubble_shell_Nsc']
+            zeta_lya += zeta * (Nlya / Nion)
             
             ##
             # Make scalar if it's a simple model
@@ -342,21 +343,34 @@ class PowerSpectrum21cm(AnalyzePS):
             ##
             if self.pf['include_density_fl'] and self.pf['include_acorr']:
                 # Halo model
-                ps_posk = self.pops[0].halos.PowerSpectrum(z, self.k_pos)                
-
-                # Must interpolate to uniformly (in real space) sampled
-                # grid points to do inverse FFT
-                ps_fold = np.concatenate((ps_posk[-1::-1], [0], ps_posk))
-                #ps_fold = np.concatenate(([0], ps_posk, ps_posk[-1::-1]))
-                #ps_dd = np.interp(self.k, self.k_coarse, ps_fold)
-                ps_dd = np.interp(np.abs(self.k), self.k_pos, ps_posk)
-                #ps_dd = self.field.halos.PowerSpectrum(z, np.abs(self.k))
-                data['ps_dd'] = ps_dd
-                data['cf_dd'] = np.fft.ifft(data['ps_dd'])
-
-                # Interpolate onto coarser grid
-                data['xi_dd_c'] = np.interp(self.dr_coarse, dr, 
-                    data['cf_dd'].real)
+                #ps_posk = self.pops[0].halos.PowerSpectrum(z, self.k_pos)
+                #
+                ## Must interpolate to uniformly (in real space) sampled
+                ## grid points to do inverse FFT
+                #ps_fold = np.concatenate((ps_posk[-1::-1], [0], ps_posk))
+                ##ps_fold = np.concatenate(([0], ps_posk, ps_posk[-1::-1]))
+                ##ps_dd = np.interp(self.k, self.k_coarse, ps_fold)
+                #ps_dd = np.interp(np.abs(self.k), self.k_pos, ps_posk)
+                ##ps_dd = self.field.halos.PowerSpectrum(z, np.abs(self.k))
+                #data['ps_dd'] = ps_dd
+                #data['cf_dd'] = np.fft.ifft(data['ps_dd'])
+                #
+                ## Interpolate onto coarser grid
+                #data['xi_dd_c'] = np.interp(self.dr_coarse, dr, 
+                #    data['cf_dd'].real)
+                
+                #iz = np.argmin(np.abs(z - self.pops[0].halos.z))
+                ps_dd = self.pops[0].halos.PowerSpectrum(z, self.k_pos)
+                data['ps_dd'] = np.interp(np.abs(self.k), self.k_pos, ps_dd)
+                
+                # If this isn't tabulated, need to send in full dr array
+                cf_c = self.pops[0].halos.CorrelationFunction(z, self.dr_coarse)
+                
+                # Need finer-grain resolution for this. Should probably
+                # interpolate in log-space
+                data['cf_dd'] = np.interp(dr, self.dr_coarse, cf_c)
+                #data['ps_dd'] =
+                #data['cf_dd'] =
 
             else:
                 data['cf_dd'] = data['ps_dd'] = np.zeros_like(dr)
@@ -442,8 +456,9 @@ class PowerSpectrum21cm(AnalyzePS):
             else:
                 data['jp_cc'] = data['jp_hc'] = data['ev_cc'] = \
                     np.zeros_like(dr)
-                data['Cc'] = data['Qc'] = Cc = Qc = np.zeros_like(dr)
-
+                data['Cc'] = data['Qc'] = Cc = Qc = 0.0
+                data['avg_Cc'] = 0.0
+                
             ##
             # Cross-correlations
             ##

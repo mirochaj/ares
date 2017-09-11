@@ -259,7 +259,8 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         return ax
 
     def RedshiftEvolution(self, field='21', k=0.2, ax=None, fig=1, 
-        dimensionless=True, show_gs=False, mp_kwargs={}, **kwargs):
+        dimensionless=True, show_gs=False, mp_kwargs={}, scatter=False,
+        scatter_kwargs={}, **kwargs):
         """
         Plot the fraction of the volume composed of ionized bubbles.
         """
@@ -267,7 +268,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         if ax is None:
             if show_gs:
                 if mp_kwargs == {}:
-                    mp_kwargs = {'padding': (0, 0.1)}
+                    mp_kwargs = {'padding': (0, 0.1), 'fig': fig}
                     
                 mp = MultiPanel(dims=(2, 1), **mp_kwargs)
             else:    
@@ -306,7 +307,11 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         else:
             ax1 = ax
         
-        ax1.plot(self.redshifts, ps, **kwargs)
+        if scatter:
+            ax1.scatter(self.redshifts, ps, **scatter_kwargs)
+        else:
+            ax1.plot(self.redshifts, ps, **kwargs)
+            
         ax1.set_xlim(min(self.redshifts), max(self.redshifts))
         ax1.set_yscale('log')
         ax1.set_xlim(6, 30)

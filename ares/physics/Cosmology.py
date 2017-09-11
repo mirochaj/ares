@@ -14,7 +14,7 @@ import numpy as np
 from scipy.integrate import quad
 from ..util.ParameterFile import ParameterFile
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
-    cm_per_mpc
+    cm_per_mpc, k_B
 
 class Cosmology(object):
     def __init__(self, **kwargs):        
@@ -255,4 +255,10 @@ class Cosmology(object):
         d = self.OmegaMatter(z) - 1.
         return 18. * np.pi**2 + 82. * d - 39. * d**2
     
+    def adiabatic_cooling_rate(self, z):
+        # Approximate
+        n = self.nH(z)
+        Tk = self.Tgas(z)
+   
+        return 7.5 * n * k_B * Tk / self.dtdz(z) / (1. + z)
             
