@@ -91,7 +91,7 @@ print('xEoR         ', end='')
 things = ['z', 'T', 'curv']
 for tp in ['B', 'C', 'D', 'trans']:
     for j, element in enumerate(sim.turning_points[tp]):
-        print '{0!s}_{1!s}           '.format(things[j], tp),
+        print('{0!s}_{1!s}           '.format(things[j], tp), end='')
 print('')
 print('-' * 200)
 
