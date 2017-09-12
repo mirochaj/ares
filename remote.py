@@ -116,7 +116,6 @@ for i, direc in enumerate(to_download):
         try:
             urlretrieve('{0!s}/{1!s}'.format(web, fn), fn)
         except:
-            raise
             print("WARNING: Error downloading {0!s}/{1!s}".format(web, fn))
             continue
         
