@@ -173,7 +173,7 @@ class Animation(object):
             par = self.model_set.parameters[0]
         else:    
             assert par in self.model_set.parameters, \
-                "Supplied parameter '%s' is unavailable!" % par
+                "Supplied parameter '{!s}' is unavailable!".format(par)
 
         _pars = [par]
         _x = None
@@ -270,8 +270,8 @@ class Animation(object):
                          
             pl.draw()
         
-            pl.savefig('%s_%s.png' % (prefix, str(i).zfill(4)))
-                        
+            pl.savefig('{0!s}_{1!s}.png'.format(prefix, str(i).zfill(4)))
+            
             if clear:
                 ax.clear()
                 sax.clear()
@@ -509,7 +509,7 @@ class AnimationSet(object):
             ax, twin_ax = \
                 self.animations[k].Plot1D(plane, par, ax=ax, sax=sax[k],
                 take_log=self.take_log[k], un_log=self.un_log[k],
-                prefix='%s.%s' % (prefix, par), close=False,
+                prefix='{0!s}.{1!s}'.format(prefix, par), close=False,
                 slider_kwargs=kw, xlim=xlim, ylim=ylim, origin=self.origin[k],
                 xticks=xticks, yticks=yticks, twin_ax=twin_ax, 
                 sticks=sticks, slims=slims, **kwargs)

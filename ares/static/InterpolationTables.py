@@ -20,7 +20,7 @@ spline_err += "\nSpline interpolation is global, so any infs will render *all*"
 spline_err += "\ninterpolated values NaN. Try linear interpolation, or narrow"
 spline_err += "\nbounds of interpolation table."
 
-err_msg = lambda s: "%s\n\n# Table: %s" % (spline_err, s)
+err_msg = (lambda s: ("{0!s}\n\n# Table: {1!s}".format(spline_err, s)))
 
 class LookupTable:
     def __init__(self, pf, name, logN, table, logx=None, t=None):

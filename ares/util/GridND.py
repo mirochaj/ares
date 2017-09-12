@@ -59,7 +59,7 @@ class GridAxis(object):
                 self.id = ''    
             else:
                 if split_name[-1].isdigit():
-                    self.id = ',%s' % split_name[-1]
+                    self.id = ',{!s}'.format(split_name[-1])
                 else:
                     self.id = ''
                     self.basename = self.name
@@ -217,14 +217,14 @@ class GridND(defaultdict):
         if name not in self:
             self[name] = GridAxis(name=name, num=np.nan, values=values)
         else:
-            print '%s exists!' % name
+            print('{!s} exists!'.format(name))
             
     def new_field(self, name, clobber=False):
         if name in self.keys():
             if clobber:
                 del self[name]
             else:
-                print '%s already exists! %s' % (name, clobber_msg)
+                print('{0!s} already exists! {1!s}'.format(name, clobber_msg))
                 return
             
         self[name] = np.zeros(self.dims)        
@@ -336,8 +336,9 @@ class GridND(defaultdict):
             slc[axis.num] = axis.locate(slices[axis.name])
             
             if self.verbose:
-                print 'Slice through %s = %g' % (axis.name, axis.values[slc[axis.num]])
-                    
+                print('Slice through {0!s} = {1:g}'.format(axis.name,\
+                    axis.values[slc[axis.num]]))
+        
         # Retrieve non-sliced axes information
         xyax = []
         for axis in self.axes:
@@ -354,7 +355,7 @@ class GridND(defaultdict):
         """
         
         if self.verbose:
-            print "Computing prior in %i-D..." % self.Nd
+            print("Computing prior in {}-D...".format(self.Nd))
         
         if hasattr(self, 'NDprior'):
             return self.NDprior
@@ -443,7 +444,7 @@ class GridND(defaultdict):
         likelihood greater than some threshold.
         """    
         
-        print 'Filtering by likelihood threshold...'
+        print('Filtering by likelihood threshold...')
         
         Lmax = np.max(data)
         filtered = []
@@ -488,7 +489,8 @@ class GridND(defaultdict):
                 del self[name]
             else:
                 if self.verbose:
-                    print '%s already exists! %s' % (name, clobber_msg)
+                    print('{0!s} already exists! {1!s}'.format(name,\
+                        clobber_msg))
                 return
         
         self[name] = data    
@@ -595,7 +597,7 @@ class GridND(defaultdict):
         
         f = h5py.File(fn, 'r')
         
-        print "Loaded %s." % fn
+        print("Loaded {!s}.".format(fn))
         
         self.kwargs = {}
         self.const_kwargs = {}
@@ -638,8 +640,8 @@ class GridND(defaultdict):
         rw = 'w'
         if os.path.exists(fn):
             if clobber:
-                os.system('rm -f %s' % fn)
-                print "Over-writing contents of %s." % fn
+                os.system('rm -f {!s}'.format(fn))
+                print("Over-writing contents of {!s}.".format(fn))
                 rw = 'w'
             else:
                 rw = 'a'
@@ -659,7 +661,7 @@ class GridND(defaultdict):
                     f.__delitem__(key)
                 else:
                     if self.verbose:
-                        print '%s exists. %s' % (key, clobber_msg)
+                        print('{0!s} exists. {1!s}'.format(key, clobber_msg))
                     continue
                 
             # See if this dataset is an axis.
@@ -672,13 +674,16 @@ class GridND(defaultdict):
                         hasvalues = True
                     else:
                         if self.verbose:
-                            print 'Pre-existing axis %s exists with different values. ' % axis.name,
-                            
+                            print_string = (('Pre-existing axis {!s} ' +\
+                                'exists with different values. ').format(\
+                                axis.name))
+                        
                         if clobber:
-                            pass
+                            if self.verbose:
+                                print(print_string)
                         else:    
                             if self.verbose:
-                                print clobber_msg
+                                print(print_string + clobber_msg)
                             continue
                                                     
                 if hasvalues:
@@ -707,7 +712,7 @@ class GridND(defaultdict):
             try:
                 ck.create_dataset(key, data=self.const_kwargs[key])
             except: # could be a function - no hdf5 equivalent, or None
-                print 'Failed to write constant kwarg %s.' % key
+                print('Failed to write constant kwarg {!s}.'.format(key))
         
         if self.higher_dimensions is not None:
             f.create_dataset('higher_dimensions', data=self.higher_dimensions)

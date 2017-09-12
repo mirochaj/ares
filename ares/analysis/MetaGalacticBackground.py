@@ -46,14 +46,14 @@ class MetaGalacticBackground(object):
     def fluxes(self):
         if not hasattr(self, '_fluxes'):
             self._redshifts_fl, self._energies_fl, self._fluxes = \
-                self._load_data('%s.fluxes.pkl' % self.prefix)
+                self._load_data('{!s}.fluxes.pkl'.format(self.prefix))
         return self._redshifts_fl, self._energies_fl, self._fluxes           
     
     @property
     def emissivities(self):
         if not hasattr(self, '_emissivities'):
             self._redshifts_em, self._energies_em, self._emissivities = \
-                self._load_data('%s.emissivities.pkl' % self.prefix)
+                self._load_data('{!s}.emissivities.pkl'.format(self.prefix))
                                 
         return self._redshifts_em, self._energies_em, self._emissivities
         
@@ -128,14 +128,14 @@ class MetaGalacticBackground(object):
         f.close()
         
         try:            
-            f = open('%s.parameters.pkl' % self.prefix, 'rb')
+            f = open('{!s}.parameters.pkl'.format(self.prefix), 'rb')
             self.pf = pickle.load(f)
             f.close()        
 
         # The import error is really meant to catch pickling errors
         except (AttributeError, ImportError):
             self.pf = {"final_redshift": 5., "initial_redshift": 100.}
-            print 'Error loading %s.parameters.pkl.' % data
+            print('Error loading {!s}.parameters.pkl.'.format(data))
 
         return redshifts, energies, data
         

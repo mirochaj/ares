@@ -10,7 +10,7 @@ Description: For working with big model grids. Setting them up, running them,
 and analyzing them.
 
 """
-
+from __future__ import print_function
 import signal
 import pickle
 import subprocess
@@ -33,16 +33,16 @@ except ImportError:
         
 def run_prog(prefix):
     
-    pfn = '%s.fork_par.pkl' % prefix
-    sfn = '%s.fork_sim' % prefix
+    pfn = '{!s}.fork_par.pkl'.format(prefix)
+    sfn = '{!s}.fork_sim'.format(prefix)
         
-    s = "f = open(\'%s\', \'rb\'); " % pfn
+    s = "f = open(\'{!s}\', \'rb\'); ".format(pfn)
     s += "import pickle; pars = pickle.load(f); f.close(); "
     s += "import ares; sim = ares.simulations.Global21cm(**pars); "
-    s += "sim.run(); sim.save(\'%s\', clobber=True)" % sfn
+    s += "sim.run(); sim.save(\'{!s}\', clobber=True)".format(sfn)
     
     #subprocess.call(s)
-    os.system('python -c \"%s\"' % s)    
+    os.system('python -c \"{!s}\"'.format(s))    
     
 class ModelGrid(ModelFit):
     """Create an object for setting up and running model grids."""
@@ -100,15 +100,15 @@ class ModelGrid(ModelFit):
         if procid is None:
             procid = rank
         
-        if os.path.exists('%s.%s.chain.pkl' % (prefix, str(procid).zfill(3))):
-            prefix_by_proc = prefix + '.%s' % (str(procid).zfill(3))
+        if os.path.exists('{0!s}.{1!s}.chain.pkl'.format(prefix, str(procid).zfill(3))):
+            prefix_by_proc = '{0!s}.{1!s}'.format(prefix, str(procid).zfill(3))
         else:
             return done
             #raise ValueError('This shouldn\'t happen anymore.')
             
         # Need to see if we're running with the same number of processors
         # We could probably set things up such that this isn't a problem.
-        #fn_by_proc = lambda proc: '%s.%s.chain.pkl' % (prefix, str(proc).zfill(3))
+        #fn_by_proc = lambda proc: '{0!s}.{1!s}.chain.pkl'.format(prefix, str(proc).zfill(3))
         #fn_size_p1 = fn_by_proc(size+1)
         #if os.path.exists(fn_size_p1):
         #    raise IOError('Original grid run with more processors!')
@@ -120,7 +120,7 @@ class ModelGrid(ModelFit):
 
         # Read in current status of model grid, i.e., the old 
         # grid points.
-        chain = read_pickle_file('%s.chain.pkl' % prefix_by_proc)
+        chain = read_pickle_file('{!s}.chain.pkl'.format(prefix_by_proc))
         
         # If we said this is a restart, but there are no elements in the 
         # chain, just run the thing. It probably means the initial run never
@@ -128,25 +128,25 @@ class ModelGrid(ModelFit):
 
         if chain.size == 0:
             if rank == 0:
-                print "Pre-existing chain file(s) empty for proc #%i." % rank,
-                print "Running from beginning."
+                print(("Pre-existing chain file(s) empty for proc #{}. " +\
+                    "Running from beginning.").format(rank))
             if not self.grid.structured:
                 self.done = np.array([0])
             
             return done
 
         # Read parameter info
-        f = open('%s.pinfo.pkl' % prefix, 'rb')
+        f = open('{!s}.pinfo.pkl'.format(prefix), 'rb')
         axes_names, is_log = pickle.load(f)
         f.close()
 
         # Prepare for blobs (optional)
-        if os.path.exists('%s.binfo.pkl' % prefix):
-            f = open('%s.binfo.pkl' % prefix, 'rb')
+        if os.path.exists('{!s}.binfo.pkl'.format(prefix)):
+            f = open('{!s}.binfo.pkl'.format(prefix), 'rb')
             self.pf = pickle.load(f)
             f.close()
-        elif os.path.exists('%s.setup.pkl' % prefix):
-            f = open('%s.setup.pkl' % prefix, 'rb')
+        elif os.path.exists('{!s}.setup.pkl'.format(prefix)):
+            f = open('{!s}.setup.pkl'.format(prefix), 'rb')
             self.pf = pickle.load(f)
             f.close()
 
@@ -184,7 +184,7 @@ class ModelGrid(ModelFit):
             done[kvec] = 1
             
         if done.sum() != len(chain):
-            print "WARNING: Some chain elements not found."
+            print("WARNING: Some chain elements not found.")
                         
         return done
             
@@ -200,7 +200,7 @@ class ModelGrid(ModelFit):
         
         for kwarg in kwargs:
             assert kwargs[kwarg].size == np.unique(kwargs[kwarg]).size, \
-                "Redundant elements detected for parameter=%s" % kwarg
+                "Redundant elements detected for parameter={!s}".format(kwarg)
 
         self.grid = GridND()
 
@@ -266,7 +266,7 @@ class ModelGrid(ModelFit):
         Stick this in utilities folder?
         """
                         
-        prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
+        prefix_by_proc = '{0!s}.{1!s}'.format(self.prefix, str(rank).zfill(3))
 
         # Reshape assignments so it's Nlinks long.
         if self.grid.structured:
@@ -274,7 +274,7 @@ class ModelGrid(ModelFit):
                 
             if restart:
                 if rank == 0:
-                    f = open('%s.load.pkl' % self.prefix, 'ab')
+                    f = open('{!s}.load.pkl'.format(self.prefix), 'ab')
                     pickle.dump(assignments, f)
                     f.close()
                 
@@ -289,17 +289,17 @@ class ModelGrid(ModelFit):
         super(ModelGrid, self)._prep_from_scratch(clobber, by_proc=True)
             
         if self.grid.structured:    
-            f = open('%s.load.pkl' % self.prefix, 'wb')
+            f = open('{!s}.load.pkl'.format(self.prefix), 'wb')
             pickle.dump(assignments, f)
             f.close()
     
         # ModelFit makes this file by default but grids don't use it.
-        if os.path.exists('%s.logL.pkl' % self.prefix) and (rank == 0):
-            os.remove('%s.logL.pkl' % self.prefix)
+        if os.path.exists('{!s}.logL.pkl'.format(self.prefix)) and (rank == 0):
+            os.remove('{!s}.logL.pkl'.format(self.prefix))
 
         for par in self.grid.axes_names:
             if re.search('Tmin', par):
-                f = open('%s.fcoll.pkl' % prefix_by_proc, 'wb')
+                f = open('{!s}.fcoll.pkl'.format(prefix_by_proc), 'wb')
                 f.close()
                 break
 
@@ -428,8 +428,8 @@ class ModelGrid(ModelFit):
                 anl = ModelSet(fn)
                 #if not anl.chain:
                 #    return
-                    
-                print "Ready to cheat!"    
+                
+                print("Ready to cheat!")
                     
                 # HARD CODING FOR NOW
                 blob_name = 'popIII_Mmin'
@@ -462,13 +462,14 @@ class ModelGrid(ModelFit):
                         
                         vals = anl.chain[:,ind[k]]    
 
-                        print k, par, kw[par]
+                        print("{0!s} {1!s} {2!s}".format(k, par, kw[par]))
 
                         score += np.abs(vals - kw[par])
                     
                     best = np.argmin(score)
                     
-                    print zarr.shape, Mmin.shape, best
+                    print("{0!s} {1!s} {2!s}".format(zarr.shape, Mmin.shape,\
+                        best))
                     
                     f = lambda zz: np.interp(zz, zarr, Mmin[best])
                     return {'pop_Mmin{2}': f}
@@ -512,7 +513,7 @@ class ModelGrid(ModelFit):
             sim.run()            
             blobs = copy.deepcopy(sim.blobs)
         except RuntimeError:
-            f = open('%s.%s.timeout.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
+            f = open('{0!s}.{1!s}.timeout.pkl'.format(self.prefix, str(rank).zfill(3)), 'ab')
             pickle.dump(kw, f)
             f.close()
             
@@ -522,11 +523,11 @@ class ModelGrid(ModelFit):
         except:
             # For some reason "except Exception"  doesn't catch everything...
             # Write to "fail" file
-            f = open('%s.%s.fail.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
+            f = open('{0!s}.{1!s}.fail.pkl'.format(self.prefix, str(rank).zfill(3)), 'ab')
             pickle.dump(kw, f)
             f.close()
             
-            print "FAILURE: Processor #%i." % rank
+            print("FAILURE: Processor #{}.".format(rank))
             
             failct += 1
             
@@ -570,24 +571,25 @@ class ModelGrid(ModelFit):
         self.prefix = prefix
         self.save_freq = save_freq
         
-        prefix_by_proc = prefix + '.%s' % (str(rank).zfill(3))
-        prefix_next_proc = prefix + '.%s' % (str(rank+1).zfill(3))
+        prefix_by_proc = '{0!s}.{1!s}'.format(prefix, str(rank).zfill(3))
+        prefix_next_proc = '{0!s}.{1!s}'.format(prefix, str(rank+1).zfill(3))
                 
         if rank == 0:
-            print "Starting %i-element model grid." % self.grid.size
-                
+            print("Starting {}-element model grid.".format(self.grid.size))
+        
         # Kill this thing if we're about to delete files and we haven't 
         # set clobber=True        
-        if os.path.exists('%s.chain.pkl' % prefix_by_proc) and (not clobber):
+        if os.path.exists('{!s}.chain.pkl'.format(prefix_by_proc)) and (not clobber):
             if not restart:
-                raise IOError('%s*.pkl exists! Remove manually, set clobber=True, or set restart=True to append.' 
-                    % prefix_by_proc)
+                raise IOError(('{!s}*.pkl exists! Remove manually, set ' +\
+                    'clobber=True, or set restart=True to append.').format(\
+                    prefix_by_proc))
               
         restart_actual = True      
         _restart_actual = np.zeros(size)
-        if not os.path.exists('%s.chain.pkl' % prefix_by_proc):
-            print "This can't be a restart (for proc #%i), %s*.pkl not found." % (rank, prefix),
-            print "Starting from scratch..."
+        if not os.path.exists('{!s}.chain.pkl'.format(prefix_by_proc)):
+            print(("This can't be a restart (for proc #{0}), {1!s}*.pkl " +\
+                "not found. Starting from scratch...").format(rank, prefix))
             # Note: this can occur if restarting with fewer processors
             # than we originally ran with.
         else:    
@@ -599,7 +601,7 @@ class ModelGrid(ModelFit):
         fewer_procs = False
         if size > 1:
             _restart_np1 = np.zeros(size)   
-            if os.path.exists('%s.chain.pkl' % prefix_next_proc):
+            if os.path.exists('{!s}.chain.pkl'.format(prefix_next_proc)):
                 _restart_np1[rank] = 1
             
             _tmp = np.zeros(size)
@@ -649,8 +651,8 @@ class ModelGrid(ModelFit):
                 if rank == 0:
                     # Determine what the most number of processors to have
                     # run this grid (at some point) is
-                    fn_by_proc = lambda proc: '%s.%s.chain.pkl' \
-                        % (prefix, str(proc).zfill(3))
+                    fn_by_proc = lambda proc: '{0!s}.{1!s}.chain.pkl'.format(\
+                        prefix, str(proc).zfill(3))
                     fn_size_p1 = fn_by_proc(size+1)
                     
                     _done_extra = np.zeros(self.grid.shape)
@@ -664,9 +666,10 @@ class ModelGrid(ModelFit):
                             proc_id += 1
                             continue
                                         
-                    print "This grid has been run with as many as %i processors" % proc_id, 
-                    print "previously. Collectively, these processors ran %i models." % _done_extra.sum()
-
+                    print(("This grid has been run with as many as {} " +\
+                        "processors previously. Collectively, these " +\
+                        "processors ran {1} models.").format(proc_id,\
+                        _done_extra.sum()))
                     _done_all = self.done.copy()
                     _done_all += _done_extra
                     for i in xrange(1, size):    
@@ -689,15 +692,15 @@ class ModelGrid(ModelFit):
             Nleft = self.load[rank]
 
         if Nleft == 0:
-            print "Processor %i is done already!" % rank
+            print("Processor {} is done already!".format(rank))
         
         # Print out how many models we have (left) to compute
         if any_restart and self.grid.structured:
             if rank == 0:
                 Ndone = self.done.sum()
                 Ntot = self.done.size
-                print "Update               : %i models down, %i to go." \
-                    % (Ndone, Ntot - Ndone)
+                print(("Update               : {0} models down, {1} to " +\
+                    "go.").format(Ndone, Ntot - Ndone))
             
             MPI.COMM_WORLD.Barrier()
             
@@ -705,16 +708,15 @@ class ModelGrid(ModelFit):
             if np.all(self.done == 1):
                 return
                 
-            print "Update (processor #%i): Running %i more models." \
-                % (rank, Nleft)
+            print(("Update (processor #{0}): Running {1} more " +\
+                "models.").format(rank, Nleft))
 
         elif rank == 0:
             if any_restart:
-                print 'Re-starting pre-existing model set (%i models done already).' \
-                    % self.done
-                print 'Running %i more models.' % self.grid.size
+                print('Re-starting pre-existing model set ({} models done already).'.format(self.done))
+                print('Running {} more models.'.format(self.grid.size))
             else:
-                print 'Running %i-element model grid.' % self.grid.size
+                print('Running {}-element model grid.'.format(self.grid.size))
             
         # Make some blank files for data output                 
         self.prep_output_files(any_restart, clobber)
@@ -787,7 +789,7 @@ class ModelGrid(ModelFit):
                 
                 if hasattr(self, 'Tmin_ax_popid'):
                     loc = self.Tmin_ax_popid
-                    suffix = '{%i}' % loc
+                    suffix = '{{{}}}'.format(loc)
                 else:
                     if sim.pf.Npops > 1:
                         loc = 0
@@ -796,9 +798,9 @@ class ModelGrid(ModelFit):
                         loc = 0
                         suffix = ''
                 
-                hmf_pars = {'pop_Tmin%s' % suffix: sim.pf['pop_Tmin%s' % suffix],
-                    'fcoll%s' % suffix: copy.deepcopy(pops[loc].fcoll), 
-                    'dfcolldz%s' % suffix: copy.deepcopy(pops[loc].dfcolldz)}
+                hmf_pars = {'pop_Tmin{!s}'.format(suffix): sim.pf['pop_Tmin{!s}'.format(suffix)],
+                    'fcoll{!s}'.format(suffix): copy.deepcopy(pops[loc].fcoll), 
+                    'dfcolldz{!s}'.format(suffix): copy.deepcopy(pops[loc].dfcolldz)}
                 
                 # Save for future iterations
                 fcoll[i_Tmin] = hmf_pars.copy()
@@ -807,9 +809,9 @@ class ModelGrid(ModelFit):
             # If we already have matching fcoll splines, use them!
             elif self.reuse_splines and (not self.phenomenological):
                                         
-                hmf_pars = {'pop_Tmin%s' % suffix: fcoll[i_Tmin]['pop_Tmin%s' % suffix],
-                    'fcoll%s' % suffix: fcoll[i_Tmin]['fcoll%s' % suffix],
-                    'dfcolldz%s' % suffix: fcoll[i_Tmin]['dfcolldz%s' % suffix]}
+                hmf_pars = {'pop_Tmin{!s}'.format(suffix): fcoll[i_Tmin]['pop_Tmin{!s}'.format(suffix)],
+                    'fcoll{!s}'.format(suffix): fcoll[i_Tmin]['fcoll{!s}'.format(suffix)],
+                    'dfcolldz{!s}'.format(suffix): fcoll[i_Tmin]['dfcolldz{!s}'.format(suffix)]}
                 p.update(hmf_pars)
             else:
                 pass
@@ -817,12 +819,12 @@ class ModelGrid(ModelFit):
             # Write this set of parameters to disk before running 
             # so we can troubleshoot later if the run never finishes.
             procid = str(rank).zfill(3)
-            fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
+            fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix, procid)
             with open(fn, 'wb') as f:
                 pickle.dump(kw, f)
-            fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
+            fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
             with open(fn, 'w') as f:
-                print >> f, "Simulation began: %s" % time.ctime()
+                print("Simulation began: {!s}".format(time.ctime()), file=f)
 
             # Kill if model gets stuck
             if self.timeout is not None:
@@ -840,9 +842,9 @@ class ModelGrid(ModelFit):
                 signal.alarm(0)
                 
             # If this is missing from a file, we'll know where things went south.
-            fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
+            fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
             with open(fn, 'a') as f:
-                print >> f, "Simulation finished: %s" % time.ctime()
+                print("Simulation finished: {!s}".format(time.ctime()), file=f)
 
             chain = np.array([kwargs[key] for key in self.parameters])
             chain_all.append(chain)
@@ -868,11 +870,12 @@ class ModelGrid(ModelFit):
             # attributes
 
             if rank == 0 and use_checks:
-                print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
+                print("Checkpoint #{0}: {1!s}".format(ct / save_freq,\
+                    time.ctime()))
                 
             # First assemble data from all processors?
             # Analogous to assembling data from all walkers in MCMC
-            f = open('%s.chain.pkl' % prefix_by_proc, 'ab')
+            f = open('{!s}.chain.pkl'.format(prefix_by_proc), 'ab')
             pickle.dump(chain_all, f)
             f.close()
 
@@ -904,14 +907,14 @@ class ModelGrid(ModelFit):
         # Need to make sure we write results to disk if we didn't 
         # hit the last checkpoint
         if chain_all:
-            with open('%s.chain.pkl' % prefix_by_proc, 'ab') as f:
+            with open('{!s}.chain.pkl'.format(prefix_by_proc), 'ab') as f:
                 pickle.dump(chain_all, f)
         
         if blobs_all:
             self.save_blobs(blobs_all, False, prefix_by_proc)
         
-        print "Processor %i: Wrote %s.*.pkl (%s)" \
-            % (rank, prefix, time.ctime())
+        print("Processor {0}: Wrote {1!s}.*.pkl ({2!s})".format(rank, prefix,\
+            time.ctime()))
 
         # You. shall. not. pass.
         # Maybe unnecessary?
@@ -923,12 +926,12 @@ class ModelGrid(ModelFit):
         # FINAL INFO 
         ##    
         if rank == 0:
-            print "Calculation complete: %s" % time.ctime()
+            print("Calculation complete: {!s}".format(time.ctime()))
             dt = t2 - t1
             if dt > 3600:
-                print "Elapsed time (hr)   : %.3g" % (dt / 3600.)
-            else:    
-                print "Elapsed time (min)  : %.3g" % (dt / 60.)
+                print("Elapsed time (hr)   : {0:.3g}".format(dt / 3600.))
+            else:
+                print("Elapsed time (min)  : {0:.3g}".format(dt / 60.))
                 
     @property        
     def Tmin_in_grid(self):
@@ -1083,7 +1086,7 @@ class ModelGrid(ModelFit):
             
         if method in [1, 2]:
             assert par in self.grid.axes_names, \
-                "Supplied load-balancing parameter %s not in grid!" % par  
+                "Supplied load-balancing parameter {!s} not in grid!".format(par)
         
             par_i = self.grid.axes_names.index(par)
             par_ax = self.grid.axes[par_i]
@@ -1092,7 +1095,7 @@ class ModelGrid(ModelFit):
             par_N = np.inf    
         
         if method not in [0, 1, 2, 3]:
-            raise NotImplementedError('Unrecognized load-balancing method %i' % method)
+            raise NotImplementedError('Unrecognized load-balancing method {}'.format(method))
                 
         # No load balancing. Equal # of models per processor
         if method == 0 or (par_N < size):
@@ -1157,7 +1160,7 @@ class ModelGrid(ModelFit):
                         
                     self.assignments[slc] = np.reshape(arr, tmp.size)
                 else:
-                    raise ValueError('No method=%i!' % method)
+                    raise ValueError('No method={}!'.format(method))
 
         elif method == 3:
             
@@ -1175,5 +1178,5 @@ class ModelGrid(ModelFit):
             nothing = MPI.COMM_WORLD.Allreduce(buff, self.assignments)
                         
         else:
-            raise ValueError('No method=%i!' % method)
+            raise ValueError('No method={}!'.format(method))
 

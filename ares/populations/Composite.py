@@ -60,7 +60,7 @@ class CompositePopulation(object):
                         to_tunnel[i] = int(linkee)
                         to_quantity[i] = 'sfrd'
                         assert option == 'pop_sfr_model'
-                        print 'HELLO help please'
+                        print('HELLO help please')
                         
                     ct += 1    
             

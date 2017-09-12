@@ -64,8 +64,9 @@ def get_Mmin_func(zarr, Jlw, Mmin_prev, **kwargs):
     elif type(kwargs['feedback_LW_Mmin']) is FunctionType:
         f_M = kwargs['feedback_LW_Mmin']
     else:
-        raise NotImplementedError('Unrecognized Mmin option: %s' % kwargs['feedback_LW_Mmin'])
-        
+        raise NotImplementedError('Unrecognized Mmin option: {!s}'.format(\
+            kwargs['feedback_LW_Mmin']))
+    
     return f_M
         
 class MetaGalacticBackground(AnalyzeMGB):
@@ -194,11 +195,12 @@ class MetaGalacticBackground(AnalyzeMGB):
                 if hasattr(self, '_sfrd_bank') and self.count >= 2:
                     pid = self.pf['feedback_LW_sfrd_popid']
                     z_maxerr = self.pops[pid].halos.z[self._ok][np.argmax(self._sfrd_rerr[self._ok])]
-                    print "LWB cycle #%i complete: mean_err=%.2e, max_err=%.2e, z(max_err)=%.1f" \
-                        % (self.count, np.mean(self._sfrd_rerr[self._ok]), 
-                           np.max(self._sfrd_rerr[self._ok]), z_maxerr)
+                    print(("LWB cycle #{0} complete: mean_err={1:.2e}, " +\
+                        "max_err={2:.2e}, z(max_err)={3:.1f}").format(\
+                        self.count, np.mean(self._sfrd_rerr[self._ok]),\
+                        np.max(self._sfrd_rerr[self._ok]), z_maxerr))
                 else:
-                    print "LWB cycle #%i complete." % self.count
+                    print("LWB cycle #{} complete.".format(self.count))
                             
             self.reboot()
             self.run(include_pops=self._lwb_sources)
@@ -342,22 +344,22 @@ class MetaGalacticBackground(AnalyzeMGB):
             #if not pop.feels_feedback:
             #    continue
             #    
-            #if self.pf['pop_Tmin{%i}' % popid] is not None:
-            #    if self.pf['pop_Tmin{%i}' % popid] >= 1e4:
+            #if self.pf['pop_Tmin{{{}}}'.format(popid)] is not None:
+            #    if self.pf['pop_Tmin{{{}}}'.format(popid)] >= 1e4:
             #        continue
 
             #for key in to_del:
             #    try:
             #        delattr(pop, key)
             #    except AttributeError:
-            #        print "Attribute %s didn't exist." % key
+            #        print("Attribute {!s} didn't exist.".format(key))
             #        continue
             
             # Linked populations will get 
-            if type(self.pf['pop_Mmin{%i}' % popid]) is str:
+            if type(self.pf['pop_Mmin{{{}}}'.format(popid)]) is str:
                 continue
                         
-            self.kwargs['pop_Mmin{%i}' % popid] = \
+            self.kwargs['pop_Mmin{{{}}}'.format(popid)] = \
                 np.interp(self.pops[popid].halos.z, self.z_unique, self._Mmin_now)
                             
             # Need to make sure, if any populations are linked to this Mmin,
@@ -465,7 +467,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                 kw['zone'] = self.pops[i].zone
                 also = {}
                 for sp in self.grid.absorbers:
-                    also['%s_%s' % (self.pops[i].zone, sp)] = 1.0
+                    also['{0!s}_{1!s}'.format(self.pops[i].zone, sp)] = 1.0
                 kw.update(also)     
                 
                 ##
@@ -592,7 +594,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                                 
                 # Convert to rate coefficient                
                 for j, absorber in enumerate(self.grid.absorbers):
-                    x = kwargs['%s_%s' % (pop.zone, absorber)]
+                    x = kwargs['{0!s}_{1!s}'.format(pop.zone, absorber)]
                     this_pop['k_ion'][0][j] /= x
                     
                     # No helium for cgm, at least not this carefully
@@ -906,8 +908,8 @@ class MetaGalacticBackground(AnalyzeMGB):
         converged = 1
         for quantity in ['Mmin', 'sfrd']:
             
-            rtol = self.pf['feedback_LW_%s_rtol' % quantity]
-            atol = self.pf['feedback_LW_%s_atol' % quantity]
+            rtol = self.pf['feedback_LW_{!s}_rtol'.format(quantity)]
+            atol = self.pf['feedback_LW_{!s}_atol'.format(quantity)]
 
             if rtol == atol == 0:
                 continue
@@ -960,8 +962,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                 # maybe now it's OK.
                 if perfect:
                     pass
-                    #print "Got a perfect iteration here! Count %i (%s)" \
-                    #    % (self.count, quantity)
+                    #print(("Got a perfect iteration here! Count {0} " +\
+                    #    "({1!s})").format(self.count, quantity))
                         
                     #converged *= 0
                     # Remember: we're going to run through this all again
@@ -1117,8 +1119,8 @@ class MetaGalacticBackground(AnalyzeMGB):
     
         """
 
-        fn_1 = '%s.fluxes.%s' % (prefix, suffix)
-        fn_2 = '%s.emissivities.%s' % (prefix, suffix)
+        fn_1 = '{0!s}.fluxes.{1!s}'.format(prefix, suffix)
+        fn_2 = '{0!s}.emissivities.{1!s}'.format(prefix, suffix)
 
         all_fn = [fn_1, fn_2]
 
@@ -1137,7 +1139,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                 if clobber:
                     os.remove(fn)
                 else:
-                    print '%s exists! Set clobber=True to overwrite.' % fn
+                    print(('{!s} exists! Set clobber=True to ' +\
+                        'overwrite.').format(fn))
                     continue
 
             if suffix == 'pkl':
@@ -1157,7 +1160,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             else:  
                 raise NotImplementedError('No ASCII support for this.')          
                 
-            print 'Wrote %s.' % fn
+            print('Wrote {!s}.'.format(fn))
     
     
     

@@ -46,7 +46,7 @@ class ParametricPopulation(Population):
                 x, y = np.loadtxt(self.pf[full_name], unpack=True)
                 result = interp1d(x, y, kind=self.pf['interp_hist'])
             else:
-                raise NotImplementedError('Problem with: %s' % name)
+                raise NotImplementedError('Problem with: {!s}'.format(name))
                 
             self.__setattr__(name, result)
             

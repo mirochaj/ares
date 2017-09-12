@@ -361,7 +361,7 @@ class RaySegment:
         """    
         
         if field not in self.data.keys():
-            raise KeyError('No field %s in dataset.' % field)
+            raise KeyError('No field {!s} in dataset.'.format(field))
         
         if redshift:
             raise NotImplemented('sorry about redshift=True!')
@@ -398,11 +398,11 @@ class RaySegment:
             nion = self.data[dd]['h_2'] * self.grid.x_to_n[absorber]
               
             if 'Gamma_0' in self.data[dd].keys():
-                Gamma = self.data[dd]['Gamma_%i' % src][...,i] * nabs
+                Gamma = self.data[dd]['Gamma_{}'.format(src)][...,i] * nabs
                 
                 gamma = 0.0
                 for j, donor in enumerate(self.grid.absorbers):
-                    gamma += self.data[dd]['gamma_%i' % src][...,i,j] * \
+                    gamma += self.data[dd]['gamma_{}'.format(src)][...,i,j] * \
                         self.data[dd][donor] * self.grid.x_to_n[donor]
             
             else:
@@ -498,7 +498,8 @@ class RaySegment:
                             
                 # Photo-heating
                 if 'Heat_0' in self.data[dd].keys():
-                    heat = heat + self.data[dd]['Heat_%i' % src][...,i] * nabs
+                    heat = heat +\
+                        self.data[dd]['Heat_{}'.format(src)][...,i] * nabs
                 else:
                     heat = heat + self.data[dd]['Heat'][...,i] * nabs
                 

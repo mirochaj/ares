@@ -48,7 +48,7 @@ class Population(object):
         
         data = read_lit(source)
         
-        assert z in data.redshifts, "Requested redshift not in source %s" % source
+        assert z in data.redshifts, "Requested redshift not in source {!s}".format(source)
         
         uplims = np.array(data.data['lf'][z]['err']) < 0
         

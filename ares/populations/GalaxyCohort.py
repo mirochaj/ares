@@ -17,7 +17,7 @@ from ..util import read_lit
 from inspect import ismethod
 from ..analysis import ModelSet
 from scipy.optimize import fsolve, minimize
-from types import FunctionType, InstanceType
+from types import FunctionType
 from ..analysis.BlobFactory import BlobFactory
 from ..util import MagnitudeSystem, ProgressBar
 from ..phenom.DustCorrection import DustCorrection
@@ -61,7 +61,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._pq_registry = {}
         
         if name in self._pq_registry:
-            raise KeyError('%s already in registry!' % name)
+            raise KeyError('{!s} already in registry!'.format(name))
         
         self._pq_registry[name] = obj
         
@@ -77,7 +77,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # This is in general pretty dangerous but I don't have any better
         # ideas right now. It makes debugging hard but it's SO convenient...
         if (name[0] == '_'):
-            raise AttributeError('Couldn\'t find attribute: %s' % name)
+            raise AttributeError('Couldn\'t find attribute: {!s}'.format(name))
                     
         # This is the name of the thing as it appears in the parameter file.
         full_name = 'pop_' + name
@@ -156,7 +156,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     result = lambda **kwargs: self.pf[full_name]
                 
             else:
-                raise TypeError('dunno how to handle: %s' % name)
+                raise TypeError('dunno how to handle: {!s}'.format(name))
 
             # Check to see if Z?
             self.__setattr__(name, result)
@@ -210,7 +210,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._N_per_Msun[(Emin, Emax)] = self.Nlw(Mh=self.halos.M) \
                 * self.cosm.b_per_msun
         else:
-            s = 'Unrecognized band: (%.3g, %.3g)' % (Emin, Emax)
+            s = 'Unrecognized band: ({0:.3g}, {1:.3g})'.format(Emin, Emax)
             return 0.0
             #raise NotImplementedError(s)
             
@@ -1105,17 +1105,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zarr = self.halos.z
 
         # Might need these if Mmin is being set dynamically
-        if self.pf['pop_M%s_ceil' % s] is not None:
-            out = np.minimum(arr, self.pf['pop_M%s_ceil'] % s)
-        if self.pf['pop_M%s_floor' % s] is not None:
-            out = np.maximum(arr, self.pf['pop_M%s_floor'] % s)
-        if self.pf['pop_T%s_ceil' % s] is not None:
-            _f = lambda z: self.halos.VirialMass(self.pf['pop_T%s_ceil' % s], 
+        if self.pf['pop_M{!s}_ceil'.format(s)] is not None:
+            out = np.minimum(arr, self.pf['pop_M{!s}_ceil'.format(s)])
+        if self.pf['pop_M{!s}_floor'.format(s)] is not None:
+            out = np.maximum(arr, self.pf['pop_M{!s}_floor'.format(s)])
+        if self.pf['pop_T{!s}_ceil'.format(s)] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_T{!s}_ceil'.format(s)], 
                 z, mu=self.pf['mu'])
             _MofT = np.array(map(_f, zarr))
             out = np.minimum(arr, _MofT)
-        if self.pf['pop_T%s_floor' % s] is not None:
-            _f = lambda z: self.halos.VirialMass(self.pf['pop_T%s_floor' % s], 
+        if self.pf['pop_T{!s}_floor'.format(s)] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_T{!s}_floor'.format(s)], 
                 z, mu=self.pf['mu'])
             _MofT = np.array(map(_f, zarr))
             out = np.maximum(arr, _MofT)
@@ -1820,7 +1820,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         elif self.pf['pop_sam_nz'] == 2:
             return self._SAM_2z(z, y)
         else:
-            raise NotImplemented('No SAM with nz=%i' % self.pf['pop_sam_nz'])
+            raise NotImplementedError('No SAM with nz={}'.format(\
+                self.pf['pop_sam_nz']))
                         
     def _SAM_1z(self, z, y):
         """
@@ -2573,7 +2574,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zarr, Mmin = fn
             
             if np.all(np.logical_or(np.isinf(Mmin), np.isnan(Mmin))):
-                print "Provided Mmin guesses are all infinite or NaN."
+                print("Provided Mmin guesses are all infinite or NaN.")
                 return None
             
             return np.interp(self.halos.z, zarr, Mmin)
@@ -2592,7 +2593,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         score = 0.0
         pid = self.pf['feedback_LW_sfrd_popid']
         for k, par in enumerate(self.pf['feedback_LW_guesses_from']):
-            p_w_id = '%s{%i}' % (par, pid)
+            p_w_id = '{0!s}{{{1}}}'.format(par, pid)
             
             if p_w_id not in anl.parameters:
                 continue

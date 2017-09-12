@@ -33,9 +33,9 @@ except ImportError:
     
 HOME = os.environ.get('HOME')
 ARES = os.environ.get('ARES')
-sys.path.insert(1, '%s/input/litdata' % ARES)
+sys.path.insert(1, '{!s}/input/litdata'.format(ARES))
 
-_lit_options = glob.glob('%s/input/litdata/*.py' % ARES)
+_lit_options = glob.glob('{!s}/input/litdata/*.py'.format(ARES))
 lit_options = []
 for element in _lit_options:
     lit_options.append(element.split('/')[-1].replace('.py', ''))
@@ -55,25 +55,25 @@ def read_lit(prefix, path=None, verbose=True):
     """
 
     if path is not None:
-        prefix = '%s/%s' % (path, prefix)
+        prefix = '{0!s}/{1!s}'.format(path, prefix)
     
-    has_local = os.path.exists('./%s.py' % prefix)
-    has_home = os.path.exists('%s/.ares/%s.py' % (HOME, prefix))
-    has_litd = os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix))
+    has_local = os.path.exists('./{!s}.py'.format(prefix))
+    has_home = os.path.exists('{0!s}/.ares/{1!s}.py'.format(HOME, prefix))
+    has_litd = os.path.exists('{0!s}/input/litdata/{1!s}.py'.format(ARES, prefix))
     
     # Load custom defaults
     if has_local:
         loc = '.'    
     elif has_home:
-        loc = '%s/.ares/' % HOME
+        loc = '{!s}/.ares/'.format(HOME)
     elif has_litd:
-        loc = '%s/input/litdata/' % ARES
+        loc = '{!s}/input/litdata/'.format(ARES)
     else:
         return None
 
     if has_local + has_home + has_litd > 1:
-        print "WARNING: multiple copies of %s found." % prefix
-        print "       : precedence: CWD -> $HOME -> $ARES/input/litdata"
+        print("WARNING: multiple copies of {!s} found.".format(prefix))
+        print("       : precedence: CWD -> $HOME -> $ARES/input/litdata")
 
     _f, _filename, _data = _imp.find_module(prefix, [loc])
     mod = _imp.load_module(prefix, _f, _filename, _data)
@@ -130,13 +130,13 @@ def flatten_emissivities(arr, z, Eflat):
                     k2 = N
                 k2 += N    
                     
-                print i, j, N, k1, k2
+                print('{} {} {} {} {}'.format(i, j, N, k1, k2))
                 to_return[:,k1:k2] = flux_seg.squeeze()
                 k1 += N
                 
         else:
             # First dimension is redshift.
-            print band.shape
+            print('{!s}'.format(band.shape))
             to_save = band.squeeze()
             
             # Rare occurence...
@@ -147,7 +147,7 @@ def flatten_emissivities(arr, z, Eflat):
             N = len(band[0].squeeze())
             if k2 is None:
                 k2 = N
-            print 'hey', i, j, N, k1, k2
+            print('{} {} {} {} {} {}'.format('hey', i, j, N, k1, k2))
             k2 += N
             to_return[:,k1:k2] = band.copy()
             k1 += N
@@ -191,7 +191,7 @@ def _sort_history(all_data, prefix='', squeeze=False):
         if type(key) is int and not prefix.strip():
             name = int(key)
         else:
-            name = '%s%s' % (prefix, key)
+            name = '{0!s}{1!s}'.format(prefix, key)
 
         data[name] = []
 
@@ -203,7 +203,7 @@ def _sort_history(all_data, prefix='', squeeze=False):
             if type(key) is int and not prefix.strip():
                 name = int(key)
             else:
-                name = '%s%s' % (prefix, key)
+                name = '{0!s}{1!s}'.format(prefix, key)
                 
             data[name].append(element[key])
 
@@ -258,7 +258,7 @@ def _load_inits(fn=None):
 
     if fn is None:
         assert ARES is not None, "$ARES environment variable has not been set!"
-        fn = '%s/input/inits/initial_conditions.npz' % ARES
+        fn = '{!s}/input/inits/initial_conditions.npz'.format(ARES)
         inits = _load_npz(fn)
 
     else:
@@ -369,7 +369,7 @@ def read_pickle_file(fn):
         except EOFError:
             break
 
-    #print "Read %i chunks from %s." % (ct, fn)
+    #print "Read {0} chunks from {1!s}.".format(ct, fn)
 
     f.close()
     

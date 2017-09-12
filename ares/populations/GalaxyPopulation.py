@@ -64,6 +64,6 @@ def GalaxyPopulation(**kwargs):
     elif model in ['rates']:
         return ParametricPopulation(**kwargs)
     else:
-        raise ValueError('Unrecognized sfrd_model %s' % model)
+        raise ValueError('Unrecognized sfrd_model {!s}'.format(model))
 
 

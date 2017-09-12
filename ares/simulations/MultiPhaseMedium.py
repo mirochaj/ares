@@ -138,18 +138,18 @@ class MultiPhaseMedium(object):
                         
         self._parcels = []
         for zone in ['igm', 'cgm']:
-            if not self.pf['include_%s' % zone]:
+            if not self.pf['include_{!s}'.format(zone)]:
                 continue
                 
             kw = self.pf.copy()
             
             # Loop over defaults, pull out the ones for this zone                
             for key in _mpm_defs:
-                if key[0:4] != '%s_' % zone:
+                if key[0:4] != '{!s}_'.format(zone):
                     continue
 
                 # Have to rename variables so Grid class will know them
-                grid_key = key.replace('%s_' % zone, '')
+                grid_key = key.replace('{!s}_'.format(zone), '')
 
                 if key in self.kwargs:
                     kw[grid_key] = self.kwargs[key]
@@ -312,7 +312,7 @@ class MultiPhaseMedium(object):
                 if not done:
                     also = {}
                     for sp in self.field.grid.absorbers:
-                        also['igm_%s' % sp] = data_igm[sp]
+                        also['igm_{!s}'.format(sp)] = data_igm[sp]
 
                     RC_igm = self.field.update_rate_coefficients(z, 
                         zone='igm', return_rc=True, **also)

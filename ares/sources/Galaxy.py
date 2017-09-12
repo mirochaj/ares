@@ -50,7 +50,7 @@ class Galaxy(object):
         if not hasattr(self, '_sfr_func_'):
             if self.pf['source_sfh'] is None:
                 self._sfr_func_ = lambda t: 1.0
-                print "Defaulting to 1 Msun/yr"
+                print("Defaulting to 1 Msun/yr")
             else:
                 self._sfr_func_ = self.pf['source_sfh']
                 
@@ -74,7 +74,8 @@ class Galaxy(object):
         if not hasattr(self, '_Z_func_'):
             if self.pf['source_meh'] is None:
                 self._Z_func_ = lambda t: self.pf['source_Z']
-                print "Defaulting to constant Z=%f" % self.pf['source_Z']
+                print("Defaulting to constant Z={0:f}".format(\
+                    self.pf['source_Z']))
             else:
                 self._Z_func_ = self.pf['source_meh']
     

@@ -38,13 +38,13 @@ default_blobs = (_blob_names, _blob_names)
 defaults = []
 
 for grp in pgroups:
-    defaults.append('%sParameters()' % grp)
+    defaults.append('{!s}Parameters()'.format(grp))
 
 def SetAllDefaults():
     pf = {'problem_type': 1}
     
     for pset in defaults:
-        exec('pf.update(%s)' % pset)
+        exec('pf.update({!s})'.format(pset))
         
     return pf
     

@@ -85,7 +85,7 @@ class GalaxyPopulation(object):
             src = read_lit(source)
 
             if redshift not in src.redshifts and (not round_z):
-                print "No z=%g data in %s" % (redshift, source)
+                print("No z={0:g} data in {1!s}.".format(redshift, source))
                 continue
                 
             if redshift not in src.redshifts:
@@ -250,8 +250,8 @@ class GalaxyPopulation(object):
             if quantity in ['lf']:
                 if data[source]['wavelength'] != wavelength:
                     #shift = sed_model.
-                    print "WARNING: %s wavelength=%iA, not %iA!" \
-                        % (source, data[source]['wavelength'], wavelength)
+                    print("WARNING: {0!s} wavelength={1}A, not {2}A!".format(\
+                        source, data[source]['wavelength'], wavelength))
             #else:
             shift = 0.    
               
@@ -334,7 +334,7 @@ class GalaxyPopulation(object):
             else:
                 _xannot = 0.95
                 
-            ax.annotate(r'$z \sim %i$' % (round(z)), (_xannot, 0.95), 
+            ax.annotate(r'$z \sim {}$'.format(round(z)), (_xannot, 0.95), 
                 ha=annotate_z, va='top', xycoords='axes fraction')
         
         mp.fix_ticks(rotate_x=45)

@@ -98,9 +98,9 @@ class AbundanceMatching(GalaxyCohort):
             
             # Also, must override litdata if appropriate pars are passed.
             
-            Mname = 'pop_lf_Mstar[%g]' % z
-            pname = 'pop_lf_pstar[%g]' % z
-            aname = 'pop_lf_alpha[%g]' % z
+            Mname = 'pop_lf_Mstar[{0:g}]'.format(z)
+            pname = 'pop_lf_pstar[{0:g}]'.format(z)
+            aname = 'pop_lf_alpha[{0:g}]'.format(z)
             if Mname in self.pf:
                 self._constraints['Mstar'].append(self.pf[Mname])
             elif type(value) == str:

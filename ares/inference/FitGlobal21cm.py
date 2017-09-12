@@ -100,7 +100,7 @@ class loglikelihood(LogLikelihood):
         #except ValueError:                     
         #    # Write to "fail" file
         #    if not self.burn:
-        #        f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
+        #        f = open('{0!s}.fail.{1!s}.pkl'.format(self.prefix, str(rank).zfill(3)), 'ab')
         #        pickle.dump(kwargs, f)
         #        f.close()
         #

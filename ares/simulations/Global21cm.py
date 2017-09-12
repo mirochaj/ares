@@ -9,7 +9,7 @@ Created on: Wed Sep 24 14:55:35 MDT 2014
 Description: 
 
 """
-
+from __future__ import print_function
 import os
 import time
 import pickle
@@ -221,7 +221,7 @@ class Global21cm(AnalyzeGlobal21cm):
         if self.is_phenom:
             return
         if self.is_complete:
-            print "Already ran simulation!"
+            print("Already ran simulation!")
             return    
 
         # Need to generate radiation backgrounds first.
@@ -372,13 +372,13 @@ class Global21cm(AnalyzeGlobal21cm):
     
         """
     
-        fn = '%s.history.%s' % (prefix, suffix)
+        fn = '{0!s}.history.{1!s}'.format(prefix, suffix)
     
         if os.path.exists(fn):
             if clobber:
                 os.remove(fn)
             else: 
-                raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
+                raise IOError('{!s} exists! Set clobber=True to overwrite.'.format(fn))
     
         if suffix == 'pkl':         
             f = open(fn, 'wb')
@@ -386,14 +386,14 @@ class Global21cm(AnalyzeGlobal21cm):
             f.close()
                 
             try:
-                f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
+                f = open('{0!s}.blobs.{1!s}'.format(prefix, suffix), 'wb')
                 pickle.dump(self.blobs, f)
                 f.close()
                 
                 if self.pf['verbose']:
-                    print 'Wrote %s.blobs.%s' % (prefix, suffix)
+                    print('Wrote {0!s}.blobs.{1!s}'.format(prefix, suffix))
             except AttributeError:
-                print 'Error writing %s.blobs.%s' % (prefix, suffix)
+                print('Error writing {0!s}.blobs.{1!s}'.format(prefix, suffix))
     
         elif suffix in ['hdf5', 'h5']:
             import h5py
@@ -412,22 +412,21 @@ class Global21cm(AnalyzeGlobal21cm):
             f.close()
             
             if self.blobs:
-                f = open('%s.blobs.%s' % (prefix, suffix), 'wb')
+                f = open('{0!s}.blobs.{1!s}'.format(prefix, suffix), 'wb')
                 np.savez(f, self.blobs)
                 f.close()
 
         # ASCII format
         else:            
             f = open(fn, 'w')
-            print >> f, "#",
+            print("#", end='', file=f)
     
             for key in self.history:
                 if fields is not None:
                     if key not in fields:
                         continue
-                print >> f, '%-18s' % key,
-    
-            print >> f, ''
+                print('{0:-18s}'.format(key), end='', file=f)
+            print('', file=f)
 
             # Now, the data
             for i in xrange(len(self.history[key])):
@@ -438,43 +437,44 @@ class Global21cm(AnalyzeGlobal21cm):
                         if key not in fields:
                             continue
                             
-                    s += '%-20.8e' % (self.history[key][i])
+                    s += '{:-20.8e}'.format(self.history[key][i])
 
                 if not s.strip():
                     continue
 
-                print >> f, s
+                print(s, file=f)
 
             f.close()
 
         if self.pf['verbose']:
-            print 'Wrote %s.history.%s' % (prefix, suffix)
+            print('Wrote {0!s}.history.{1!s}'.format(prefix, suffix))
             
         # Save histories for Mmin and SFRD if we're doing iterative stuff
         if self.count > 1:
-            f = open('%s.Mmin.pkl' % prefix, 'wb')
+            f = open('{!s}.Mmin.pkl'.format(prefix), 'wb')
             pickle.dump(self.medium.field._zarr, f)
             pickle.dump(self.medium.field._Mmin_bank, f)
             f.close()
             if self.pf['verbose']:
-                print 'Wrote %s.Mmin.pkl' % prefix
+                print('Wrote {!s}.Mmin.pkl'.format(prefix))
             
             if self.pf['feedback_LW_sfrd_popid'] is not None:
                 pid = self.pf['feedback_LW_sfrd_popid']
-                f = open('%s.sfrd.pkl' % prefix, 'wb')
+                f = open('{!s}.sfrd.pkl'.format(prefix), 'wb')
                 pickle.dump(self.medium.field.pops[pid].halos.z, f)
                 pickle.dump(self.medium.field._sfrd_bank, f)
                 f.close()
                 if self.pf['verbose']:
-                    print 'Wrote %s.sfrd.pkl' % prefix
-            
+                    print('Wrote {!s}.sfrd.pkl'.format(prefix))
+        
         write_pf = True
-        if os.path.exists('%s.parameters.pkl' % prefix):
+        if os.path.exists('{!s}.parameters.pkl'.format(prefix)):
             if clobber:
-                os.remove('%s.parameters.pkl' % prefix)
+                os.remove('{!s}.parameters.pkl'.format(prefix))
             else: 
                 write_pf = False
-                print 'WARNING: %s.parameters.pkl exists! Set clobber=True to overwrite.' % prefix
+                print(('WARNING: {!s}.parameters.pkl exists! Set ' +\
+                    'clobber=True to overwrite.').format(prefix))
 
         if write_pf:
 
@@ -488,11 +488,11 @@ class Global21cm(AnalyzeGlobal21cm):
                 self.pf['revision'] = get_hg_rev()
             
             # Save parameter file
-            f = open('%s.parameters.pkl' % prefix, 'wb')
+            f = open('{!s}.parameters.pkl'.format(prefix), 'wb')
             pickle.dump(self.pf, f, -1)
             f.close()
     
             if self.pf['verbose']:
-                print 'Wrote %s.parameters.pkl' % prefix
+                print('Wrote {!s}.parameters.pkl'.format(prefix))
         
     

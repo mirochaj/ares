@@ -242,9 +242,9 @@ class CheckPoints:
         dd, rd = self.dd(t=t, z=z)
         
         if dd is not None:
-            return '%s%s' % (self.t_basename, str(int(dd)).zfill(self.fill))
+            return '{0!s}{1!s}'.format(self.t_basename, str(int(dd)).zfill(self.fill))
         else:
-            return '%s%s' % (self.z_basename, str(int(rd)).zfill(self.fill))
+            return '{0!s}{1!s}'.format(self.z_basename, str(int(rd)).zfill(self.fill))
         
     def dump(self, fn):
         """ Write out data to file. """

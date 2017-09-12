@@ -56,7 +56,8 @@ class Composite(object):
             elif sf['source_type'][i] == 'toy':
                 rs = Toy(**sf)
             else:
-                msg = 'Unrecognized source_type: %s' % sf['source_type'][i]
+                msg = 'Unrecognized source_type: {!s}'.format(\
+                    sf['source_type'][i])
                 raise ValueError(msg)
             
             rs.grid = self.grid

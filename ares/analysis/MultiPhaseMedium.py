@@ -100,7 +100,7 @@ class MultiPhaseMedium(object):
         self.kwargs = kwargs
 
     def _load_data(self, data):
-        if os.path.exists('%s.history.pkl' % data):
+        if os.path.exists('{!s}.history.pkl'.format(data)):
             history = self._load_pkl(data)
         else:
             history = self._load_txt(data)
@@ -110,26 +110,27 @@ class MultiPhaseMedium(object):
             
     def _load_pf(self, data):        
         try:            
-            f = open('%s.parameters.pkl' % data, 'rb')
+            f = open('{!s}.parameters.pkl'.format(data), 'rb')
             self.pf = pickle.load(f)
             f.close()        
                 
         # The import error is really meant to catch pickling errors
         except (AttributeError, ImportError):
             self.pf = {"final_redshift": 5., "initial_redshift": 100.}
-            print 'Error loading %s.parameters.pkl.' % data    
+            print('Error loading {!s}.parameters.pkl.'.format(data))
             
     def _load_txt(self, data):
         found = False
         for suffix in ['txt', 'dat']:
-            fn = '%s.history.%s' % (data, suffix)
+            fn = '{0!s}.history.{1!s}'.format(data, suffix)
             if os.path.exists(fn):
                 found = True
                 break
                 
         if not found:
-            raise IOError('Couldn\'t find file of form %s.history*' % data)        
-                
+            raise IOError('Couldn\'t find file of form {!s}.history*'.format(\
+                data))
+        
         with open(fn, 'r') as f:
             cols = f.readline()[1:].split()
             
@@ -139,8 +140,8 @@ class MultiPhaseMedium(object):
 
     def _load_pkl(self, data):
                    
-        fn = '%s.history.pkl' % data           
-                         
+        fn = '{!s}.history.pkl'.format(data)
+        
         chunks = 0
         f = open(fn, 'rb')
         while True:
@@ -158,13 +159,13 @@ class MultiPhaseMedium(object):
         f.close()
         
         if chunks == 0:
-            raise IOError('Empty history (%s.history.pkl)' % data)
+            raise IOError('Empty history ({!s}.history.pkl)'.format(data))
         else:    
             history = self._suite[-1]
                 
         try:
             chunks = 0
-            f = open('%s.history.pkl' % data, 'rb')
+            f = open('{!s}.history.pkl'.format(data), 'rb')
             while True:
                 try:
                     tmp = pickle.load(f)
@@ -180,7 +181,7 @@ class MultiPhaseMedium(object):
             f.close()
             
             if chunks == 0:
-                raise IOError('Empty history (%s.history.pkl)' % data)
+                raise IOError('Empty history ({!s}.history.pkl)'.format(data))
             else:    
                 history = self._suite[-1]
 
@@ -191,9 +192,9 @@ class MultiPhaseMedium(object):
                 f.close()
             else:
                 import glob
-                fns = glob.glob('./%s.history*' % data)
+                fns = glob.glob('./{!s}.history*'.format(data))
                 if not fns:
-                    raise IOError('No files with prefix %s.' % data)
+                    raise IOError('No files with prefix {!s}.'.format(data))
                 else:
                     fn = fns[0]
                     
@@ -240,7 +241,7 @@ class MultiPhaseMedium(object):
     @property
     def blobs(self):
         if not hasattr(self, '_blobs'):
-            with open('%s.blobs.pkl' % self.prefix) as f:
+            with open('{!s}.blobs.pkl'.format(self.prefix)) as f:
                 self._blobs = pickle.load(f)
         return self._blobs
 
@@ -506,8 +507,8 @@ class MultiPhaseMedium(object):
         ax.invert_xaxis()
         
         if twinax is None:
-            print "If you have a twinx axis, be sure to re-run add_time_axis or add_frequency_axis!"
-            print "OR: pass that axis object as a keyword argument to this function!"
+            print("If you have a twinx axis, be sure to re-run add_time_axis or add_frequency_axis!")
+            print("OR: pass that axis object as a keyword argument to this function!")
         else:
             twinax.invert_xaxis()
         
@@ -515,7 +516,7 @@ class MultiPhaseMedium(object):
         
     def add_tau_inset(self, ax, inset=None, width=0.25, height=0.15, loc=4,
             mu=0.055, sig1=0.009, padding=0.02, borderpad=1, 
-            ticklabels=None, fmt='%.2g', **kwargs):
+            ticklabels=None, **kwargs):
 
         sig2 = get_nu(sig1, 0.68, 0.95)
 
@@ -658,11 +659,11 @@ class MultiPhaseMedium(object):
         if element == 'h':
             if zone is None:
                 if self.pf['include_igm']:
-                    xe = self.history['igm_%s_2' % element]
+                    xe = self.history['igm_{!s}_2'.format(element)]
                 else:
                     xe = np.zeros_like(self.history['z'])
                 if self.pf['include_cgm']:
-                    xi = self.history['cgm_%s_2' % element]
+                    xi = self.history['cgm_{!s}_2'.format(element)]
                 else:
                     xi = np.zeros_like(self.history['z'])
                     
@@ -671,11 +672,11 @@ class MultiPhaseMedium(object):
                 to_plot = [xavg, xi, xe]
                 show = [show_xibar, show_xi, show_xe]
             else:
-                to_plot = [self.history['%s_%s_2' % (zone, element)]]
+                to_plot = [self.history['{0!s}_{1!s}_2'.format(zone, element)]]
                 show = [True] * 2           
 
         else:
-            to_plot = [self.history['igm_he_%i' % sp] for sp in [2,3]]
+            to_plot = [self.history['igm_he_{}'.format(sp)] for sp in [2,3]]
             show = [True] * 2
                
         if 'label' not in kwargs:
@@ -743,9 +744,9 @@ class MultiPhaseMedium(object):
         n1 = map(self.cosm.nH, self.history['z']) if species == 'h_1' \
         else map(self.cosm.nHe, self.history['z'])
         
-        n1 = np.array(n1) * np.array(self.history['igm_%s' % species])
+        n1 = np.array(n1) * np.array(self.history['igm_{!s}'.format(species)])
         
-        ratePrimary = np.array(self.history['igm_Gamma_%s' % species]) #* n1
+        ratePrimary = np.array(self.history['igm_Gamma_{!s}'.format(species)]) #* n1
         
         ax.semilogy(self.history['z'], ratePrimary, ls='-', **kwargs)
         
@@ -753,7 +754,7 @@ class MultiPhaseMedium(object):
         
         for donor in ['h_1', 'he_1', 'he_2']: 
             
-            field = 'igm_gamma_%s_%s' % (species, donor)
+            field = 'igm_gamma_{0!s}_{1!s}'.format(species, donor)
             
             if field not in self.history:
                 continue
@@ -761,10 +762,10 @@ class MultiPhaseMedium(object):
             n2 = map(self.cosm.nH, self.history['z']) if donor == 'h_1' \
             else map(self.cosm.nHe, self.history['z'])
         
-            n2 = np.array(n2) * np.array(self.history['igm_%s' % donor])
+            n2 = np.array(n2) * np.array(self.history['igm_{!s}'.format(donor)])
         
             rateSecondary += \
-                np.array(self.history['igm_gamma_%s_%s' % (species, donor)]) * n2 / n1
+                np.array(self.history['igm_gamma_{0!s}_{1!s}'.format(species, donor)]) * n2 / n1
         
         ax.semilogy(self.history['z'], rateSecondary, ls='--')
         

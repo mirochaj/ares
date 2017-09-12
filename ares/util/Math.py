@@ -110,7 +110,7 @@ def take_derivative(z, field, wrt='z'):
     elif wrt == 'z':
         pass
     else:
-        print 'Unrecognized option for wrt.'
+        print('Unrecognized option for wrt.')
 
     # x-values must be monotonically increasing - fix dep. on 'wrt'
     if not np.all(np.diff(xp) > 0):

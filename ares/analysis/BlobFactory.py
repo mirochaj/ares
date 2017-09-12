@@ -82,7 +82,7 @@ def parse_attribute(blob_name, obj_base):
                                 
     if len(attr_split) == 1: 
         s = attr_split[0]
-        return eval('obj_base.%s' % s)
+        return eval('obj_base.{!s}'.format(s))
 
     # Nested attribute
     blob_attr = None
@@ -92,7 +92,7 @@ def parse_attribute(blob_name, obj_base):
         # One particular chunk of the attribute name
         s = attr_split[i]
 
-        new_obj = eval('obj_base.%s' % s)
+        new_obj = eval('obj_base.{!s}'.format(s))
         obj_list.append(new_obj)
 
         obj_base = obj_list[-1]
@@ -127,7 +127,7 @@ class BlobFactory(object):
             names = None
         except TypeError:
             hdf5_situation = True
-            f = h5py.File('%s.hdf5' % self.prefix, 'r')
+            f = h5py.File('{!s}.hdf5'.format(self.prefix), 'r')
             names = f['blobs'].keys()
             f.close()
 
@@ -143,7 +143,7 @@ class BlobFactory(object):
                 "Must supply blob_names as list or tuple!"
 
             if hdf5_situation:
-                f = h5py.File('%s.hdf5' % self.prefix, 'r')
+                f = h5py.File('{!s}.hdf5'.format(self.prefix), 'r')
                 
                 _blob_ivars = []  
                 _blob_ivarn = []              
@@ -355,7 +355,7 @@ class BlobFactory(object):
                 try:
                     self._generate_blobs()
                 except AttributeError:
-                    f = open('%s.blobs.pkl' % self.prefix, 'r')
+                    f = open('{!s}.blobs.pkl'.format(self.prefix), 'r')
                     self._blobs = pickle.load(f)
                     f.close()
                     
@@ -405,7 +405,8 @@ class BlobFactory(object):
             elif np.any(np.abs(iv - ivar) < tol):
                 k = np.argmin(np.abs(iv - ivar))
             else:
-                raise IndexError("ivar=%.2g not in listed ivars!" % ivar)
+                raise IndexError("ivar={0:.2g} not in listed ivars!".format(\
+                    ivar))
             
             return float(self.blobs[i][j][k])
 
@@ -470,7 +471,7 @@ class BlobFactory(object):
                         blob = np.interp(x, self.history['z'][-1::-1],
                             self.history[key][-1::-1])
                     elif self.blob_funcs[i][j] is None:
-                        raise KeyError('Blob %s not in history!' % key)
+                        raise KeyError('Blob {!s} not in history!'.format(key))
                     else:
                         fname = self.blob_funcs[i][j]
                         
@@ -481,7 +482,7 @@ class BlobFactory(object):
                             func = parse_attribute(fname, self)
                         else:
                             
-                            print fname
+                            print('{!s}'.format(fname))
                             raise ValueError('pretty sure this is broken!')
                             
                             # fname is a slice, like ('igm_k_heat', 0)
@@ -519,7 +520,7 @@ class BlobFactory(object):
                         z, E, flux = tmp_f
                         func = RectBivariateSpline(z, E, flux)
                     else:
-                        raise TypeError('Sorry: don\'t understand blob %s' % key)
+                        raise TypeError('Sorry: don\'t understand blob {!s}'.format(key))
                                       
                     xn, yn = self.blob_ivarn[i]
                                                             
@@ -586,7 +587,7 @@ class BlobFactory(object):
                     break
                             
             if not found:
-                raise KeyError('Blob %s not found.' % name)        
+                raise KeyError('Blob {!s} not found.'.format(name))
             
             return i, j, self.blob_nd[i], self.blob_dims[i]
         else:
@@ -597,7 +598,7 @@ class BlobFactory(object):
         
         i, j, nd, dims = self.blob_info(name)
     
-        fn = "%s.blob_%id.%s.pkl" % (self.prefix, nd, name)
+        fn = "{0!s}.blob_{1}d.{2!s}.pkl".format(self.prefix, nd, name)
                 
         # Might have data split up among processors or checkpoints
         by_proc = False
@@ -605,7 +606,7 @@ class BlobFactory(object):
         if not os.path.exists(fn):
             
             # First, look for processor-by-processor outputs
-            fn = "%s.000.blob_%id.%s.pkl" % (self.prefix, nd, name)
+            fn = "{0!s}.000.blob_{1}d.{2!s}.pkl".format(self.prefix, nd, name)
             if os.path.exists(fn):
                 by_proc = True        
                 by_dd = False
@@ -614,7 +615,8 @@ class BlobFactory(object):
                 by_proc = False
                 by_dd = True
                 
-                search_for = "%s.dd????.blob_%id.%s.pkl" % (self.prefix, nd, name)
+                search_for = "{0!s}.dd????.blob_{1}d.{2!s}.pkl".format(\
+                    self.prefix, nd, name)
                 _ddf = glob.glob(search_for)
                         
                 if self.include_checkpoints is None:
@@ -623,11 +625,11 @@ class BlobFactory(object):
                     ddf = []
                     for dd in self.include_checkpoints:
                         ddid = str(dd).zfill(4)
-                        tmp = "%s.dd%s.blob_%id.%s.pkl" \
-                            % (self.prefix, ddid, nd, name)
+                        tmp = "{0!s}.dd{1!s}.blob_{2}d.{3!s}.pkl".format(\
+                            self.prefix, ddid, nd, name)
                         ddf.append(tmp)
                                 
-                print ddf            
+                print('{!s}'.format(ddf))
                                 
                 # Start with the first...
                 fn = ddf[0]        
@@ -664,8 +666,8 @@ class BlobFactory(object):
             fid += 1
             
             if by_proc:
-                fn = "%s.%s.blob_%id.%s.pkl" \
-                    % (self.prefix, str(fid).zfill(3), nd, name)
+                fn = "{0!s}.{1!s}.blob_{2}d.{3!s}.pkl".format(self.prefix,\
+                    str(fid).zfill(3), nd, name)
             else:
                 if (fid >= len(ddf)):
                     break
@@ -677,7 +679,7 @@ class BlobFactory(object):
         
         # CAN BE VERY CONFUSING
         #if by_proc and rank == 0:
-        #    f = open("%s.blob_%id.%s.pkl" % (self.prefix, nd, name), 'wb')
+        #    f = open("{0!s}.blob_{1}d.{2!s}.pkl".format(self.prefix, nd, name), 'wb')
         #    pickle.dump(masked_data, f)
         #    f.close()
         

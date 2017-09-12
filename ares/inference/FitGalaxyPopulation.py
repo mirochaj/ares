@@ -162,7 +162,8 @@ class loglikelihood(LogLikelihood):
                 M = xdat
                 p = pop.StellarMassFunction(z, M)                
             else:
-                raise ValueError('Unrecognized quantity: %s' % quantity)
+                raise ValueError('Unrecognized quantity: {!s}'.format(\
+                    quantity))
 
             phi[i] = p
                         
@@ -514,10 +515,10 @@ class FitGalaxyPopulation(ModelFit):
         if rank > 0:
             return
             
-        fn = '%s.data.pkl' % prefix
+        fn = '{!s}.data.pkl'.format(prefix)
         
         if os.path.exists(fn) and (not clobber):
-            print "%s exists! Set clobber=True to overwrite." % fn
+            print("{!s} exists! Set clobber=True to overwrite.".format(fn))
             return
                 
         f = open(fn, 'wb')

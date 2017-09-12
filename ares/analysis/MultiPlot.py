@@ -115,7 +115,7 @@ class MultiPanel(object):
         tmp.update(kwargs)
 
         for kw in tmp:
-            exec('%s = tmp[\'%s\']' % (kw, kw))
+            exec('{0!s} = tmp[\'{1!s}\']'.format(kw, kw))
         
         if left is None:
             left = pl.rcParams['figure.subplot.left']
@@ -524,12 +524,12 @@ class MultiPanel(object):
         """
         
         # Grab functions we need by name
-        get_lim = "get_%slim" % axis
-        get_ticks = "get_%sticks" % axis
-        get_ticklabels = "get_%sticklabels" % axis
-        set_ticks = "set_%sticks" % axis
-        set_ticklabels = "set_%sticklabels" % axis
-        shared = eval("self.share_%s" % axis)
+        get_lim = "get_{!s}lim".format(axis)
+        get_ticks = "get_{!s}ticks".format(axis)
+        get_ticklabels = "get_{!s}ticklabels".format(axis)
+        set_ticks = "set_{!s}ticks".format(axis)
+        set_ticklabels = "set_{!s}ticklabels".format(axis)
+        shared = eval("self.share_{!s}".format(axis))
         
         # Get locations of ticks on bottom row
         if axis is 'x':
@@ -574,14 +574,14 @@ class MultiPanel(object):
                 continue
 
             # Retrieve current ticks, tick-spacings, and axis limits
-            ticks = eval("list(self.grid[%i].%s())" % (i, get_ticks))
+            ticks = eval("list(self.grid[{0}].{1!s}())".format(i, get_ticks))
 
             if not ticks:
                 continue
             
             # Get all the info for current set of ticks
-            ticklabels = eval("[tick for tick in self.grid[%i].%s()]" \
-                % (i, get_ticklabels))
+            ticklabels = eval(("[tick for tick in " +\
+                "self.grid[{0}].{1!s}()]").format(i, get_ticklabels))
              
             labels = []    
             for tick in ticklabels:    
@@ -602,7 +602,7 @@ class MultiPanel(object):
             dt = np.diff(ticks)[0]            
             
             # Axes limits
-            limits = eval("self.grid[%i].%s()" % (i, get_lim))
+            limits = eval("self.grid[{0}].{1!s}()".format(i, get_lim))
             
             # column or row number. Need this to know whether or not to...?
             pos = self.axis_position(i)[j]
@@ -632,7 +632,7 @@ class MultiPanel(object):
                 else:
                     ticks = np.round(np.linspace(mi, ma, N), 1)
                 
-                labels = ['%g' % val for val in ticks]
+                labels = ['{0:g}'.format(val) for val in ticks]
                                               
             if (axis == 'x' and rotate_x):
                 rotate = rotate_x
@@ -642,31 +642,34 @@ class MultiPanel(object):
                 rotate = False
                                                 
             if ul is None:
-                eval("self.grid[%i].%s(ticks)" % (i, set_ticks))
+                eval("self.grid[{0}].{1!s}(ticks)".format(i, set_ticks))
                                 
                 if rotate:
                     if type(rotate) == bool:
-                        eval("self.grid[%i].%s(labels, rotation=90)" \
-                            % (i, set_ticklabels))
+                        eval(("self.grid[{0}].{1!s}(labels, " +\
+                            "rotation=90)").format(i, set_ticklabels))
                     else:
-                        eval("self.grid[%i].%s(labels, rotation=%g)" \
-                                % (i, set_ticklabels, rotate))        
+                        eval(("self.grid[{0}].{1!s}(labels, " +\
+                            "rotation={2:g})").format(i, set_ticklabels,\
+                            rotate))        
                 else:
-                    eval("self.grid[%i].%s(labels)" % (i, set_ticklabels))
-
+                    eval("self.grid[{0}].{1!s}(labels)".format(i,\
+                        set_ticklabels))
             else:
-                eval("self.grid[%i].%s(ticks[%i:%i])" % (i, set_ticks, ll, ul))
+                eval("self.grid[{0}].{1!s}(ticks[{2}:{3}])".format(i,\
+                    set_ticks, ll, ul))
 
                 if rotate:
                     if type(rotate) == bool:
-                        eval("self.grid[%i].%s(labels[%i:%i], rotation=90)" \
-                            % (i, set_ticklabels, ll, ul))
+                        eval(("self.grid[{0}].{1!s}(labels[{2}:{3}], " +\
+                            "rotation=90)").format(i, set_ticklabels, ll, ul))
                     else:
-                        eval("self.grid[%i].%s(labels[%i:%i], rotation=%g)" \
-                            % (i, set_ticklabels, ll, ul, rotate))      
+                        eval(("self.grid[{0}].{1!s}(labels[{2}:{3}], " +\
+                            "rotation={4:g})").format(i, set_ticklabels, ll,\
+                            ul, rotate))      
                 else:
-                    eval("self.grid[%i].%s(labels[%i:%i])" \
-                        % (i, set_ticklabels, ll, ul))
+                    eval("self.grid[{0}].{1!s}(labels[{2}:{3}])".format(i,\
+                        set_ticklabels, ll, ul))
     
             if style is not None: 
                 self.grid[i].ticklabel_format(style=style)
@@ -715,7 +718,7 @@ class MultiPanel(object):
                         continue
                     
                 if i not in axes:
-                    eval("self.grid[%i].%s([])" % (i, set_ticklabels))
+                    eval("self.grid[{0}].{1!s}([])".format(i, set_ticklabels))
                 
         pl.draw()
 

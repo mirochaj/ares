@@ -172,7 +172,7 @@ class SpectrumOptimization(object):
     def run(self, steps=1, **kwargs):
         
         if rank == 0:
-            print 'Finding optimal %i-bin discrete SED...' % self.nfreq
+            print('Finding optimal {0}-bin discrete SED...'.format(self.nfreq))
         
         logL = []
         results = []
@@ -185,7 +185,7 @@ class SpectrumOptimization(object):
         self.all_results = results
         
         if rank == 0:
-            print 'Optimization complete.'    
+            print('Optimization complete.')
     
     def __call__(self, **kwargs):
         """
@@ -250,7 +250,7 @@ class SpectrumOptimization(object):
         return cost
     
     def tab_name(self, integral, absorber):
-        return 'log%s_%s' % (integral, absorber)
+        return 'log{0!s}_{1!s}'.format(integral, absorber)
 
     def discrete_tabs(self, E, LE, tau=None):
         """
@@ -333,8 +333,8 @@ class SpectrumOptimization(object):
         else:
             f.create_dataset('cost', data=self.sampler.cost)
         
-        print 'Wrote chain to %s.' % fn    
+        print('Wrote chain to {!s}.'.format(fn))    
         f.close()
         
-            
-                
+    
+

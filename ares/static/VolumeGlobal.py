@@ -340,11 +340,11 @@ class GlobalVolume(object):
             prefix = 'igm'
         
         if species == 0:     
-            weight = 1. / self.cosm.nH(z) / kw['%s_h_1' % prefix]
+            weight = 1. / self.cosm.nH(z) / kw['{!s}_h_1'.format(prefix)]
         elif species == 1:
-            weight = 1. / self.cosm.nHe(z) / kw['%s_he_1' % prefix]
+            weight = 1. / self.cosm.nHe(z) / kw['{!s}_he_1'.format(prefix)]
         elif species == 2:
-            weight = 1. / self.cosm.nHe(z) / kw['%s_he_2' % prefix]
+            weight = 1. / self.cosm.nHe(z) / kw['{!s}_he_2'.format(prefix)]
 
         return weight
 
@@ -443,7 +443,7 @@ class GlobalVolume(object):
                         * (kw['igm_e'] - self.esec.x[i_x]) \
                         / (self.esec.x[j] - self.esec.x[i_x])                
             elif self.esec.method > 1:
-                print "popid=%i" % popid
+                print("popid={}".format(popid))
                 raise ValueError('Only know how to do advanced secondary ionization with solve_rte=True')
             else:
                 fheat = self.esec.DepositionFraction(kw['igm_e'])[0]

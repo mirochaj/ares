@@ -215,7 +215,7 @@ class Population(object):
                     break
     
                 for i in xrange(self.pf.Npqs):
-                    pn = '%s[%i]' % (par,i)
+                    pn = '{0!s}[{1}]'.format(par,i)
                     if pn not in self.pf:
                         continue
     

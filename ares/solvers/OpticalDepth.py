@@ -424,7 +424,7 @@ class OpticalDepth(object):
         """
         
         #if (rank == 0) and self.pf['verbose']:
-        #    print "Loading %s..." % fn
+        #    print("Loading {!s}...".format(fn))
         
         if type(fn) is dict:
     
@@ -540,12 +540,11 @@ class OpticalDepth(object):
         
         #if self.ionization_history is not None:
         #    fn = lambda z1, z2, E1, E2: \
-        #        'optical_depth_%s_%ix%i_z_%i-%i_logE_%.2g-%.2g.%s' \
-        #        % (HorHe, L, N, z1, z2, E1, E2, suffix)
+        #        ('optical_depth_{0!s}_{1}x{2}_z_{3}-{4}_logE_{5:.2g}-' +\
+        #        '{6:.2g}.{7!s}').format(HorHe, L, N, z1, z2, E1, E2, suffix)
         #else:
         fn = lambda z1, z2, E1, E2: \
-            'optical_depth_%s_%ix%i_z_%i-%i_logE_%.2g-%.2g.%s' \
-            % (HorHe, L, N, z1, z2, E1, E2, suffix)
+            'optical_depth_{0!s}_{1}x{2}_z_{3}-{4}_logE_{5:.2g}-{6:.2g}.{7!s}'.format(HorHe, L, N, z1, z2, E1, E2, suffix)
         
         return fn(zf, zi, np.log10(E0), np.log10(E1)), fn
     
@@ -557,15 +556,16 @@ class OpticalDepth(object):
         fn, fn_func = self.tau_name()
         
         #if rank == 0 and self.pf['verbose']:
-        #    print "Looking for optical depth table equivalent to %s..." % fn
+        #    print(("Looking for optical depth table equivalent to " +\
+        #        "{!s}...").format(fn))
     
         if prefix is None:
             ares_dir = os.environ.get('ARES')
             if not ares_dir:
-                print "No ARES environment variable."
+                print("No ARES environment variable.")
                 return None
     
-            input_dirs = ['%s/input/optical_depth' % ares_dir]
+            input_dirs = ['{!s}/input/optical_depth'.format(ares_dir)]
     
         else:
             if type(prefix) is str:
@@ -573,7 +573,7 @@ class OpticalDepth(object):
             else:
                 input_dirs = prefix
     
-        guess = '%s/%s' % (input_dirs[0], fn)
+        guess = '{0!s}/{1!s}'.format(input_dirs[0], fn)
         if os.path.exists(guess):
             return guess
     
@@ -592,7 +592,7 @@ class OpticalDepth(object):
                 if re.search('hdf5', fn1) and (not have_h5py):
                     continue
     
-                tab_name = '%s/%s' % (input_dir, fn1)
+                tab_name = '{0!s}/{1!s}'.format(input_dir, fn1)
     
                 try:
                     zmin_f, zmax_f, Nz_f, lEmin_f, lEmax_f, chem_f, p1, p2 = \
@@ -827,7 +827,8 @@ class OpticalDepth(object):
             suffix = fn[fn.rfind('.')+1:]
 
         if os.path.exists(fn) and (not clobber):
-            raise IOError('%s exists! Set clobber=True to overwrite.' % fn)
+            raise IOError(('{!s} exists! Set clobber=True to ' +\
+                'overwrite.').format(fn))
 
         if suffix == 'hdf5':
             f = h5py.File(fn, 'w')
@@ -849,11 +850,13 @@ class OpticalDepth(object):
             f.close()    
 
         else:
-            print 'Unrecognized suffix \'%s\'. Using np.savetxt...' % suffix
+            print('Unrecognized suffix \'{!s}\'. Using np.savetxt...'.format(\
+                suffix))
             f = open(fn, 'w')
-            hdr = "zmin=%.4g zmax=%.4g Emin=%.8e Emax=%.8e" % \
-                (self.z.min(), self.z.max(), self.E.min(), self.E.max())
+            hdr = ("zmin={0:.4g} zmax={1:.4g} Emin={2:.8e} " +\
+                "Emax={3:.8e}").format(self.z.min(), self.z.max(),\
+                self.E.min(), self.E.max())
             np.savetxt(fn, self.tau, header=hdr, fmt='%.8e')
 
-        print 'Wrote %s.' % fn
+        print('Wrote {!s}.'.format(fn))
     

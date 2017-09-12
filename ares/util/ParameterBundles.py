@@ -24,9 +24,9 @@ def _add_pop_tag(par, num):
     prefix, idnum = pop_id_num(par)
     
     if idnum is not None:
-        return '%s{%i}' % (prefix, num)
+        return '{0!s}{{{1}}}'.format(prefix, num)
     else:
-        return '%s{%i}' % (par, num)
+        return '{0!s}{{{1}}}'.format(par, num)
 
 def _add_pq_tag(par, num):
     """
@@ -36,9 +36,9 @@ def _add_pq_tag(par, num):
     prefix, idnum = pop_id_num(par)
 
     if idnum is not None:
-        return '%s[%i]' % (prefix, num)
+        return '{0!s}[{1}]'.format(prefix, num)
     else:
-        return '%s[%i]' % (par, num)
+        return '{0!s}[{1}]'.format(par, num)
         
 
 
@@ -71,8 +71,8 @@ class PreBundle(dict):
             
         for key in value:
             if key in self._common_names:
-                print "Overwriting common name for %s: %s->%s" \
-                    % (key, self._common_names[key], value[key])
+                print(("Overwriting common name for {0!s}: {1!s}->" +\
+                    "{2!s}").format(key, self._common_names[key], value[key]))
             
             self._common_names[key] = value[key]
 
@@ -373,7 +373,7 @@ class ParameterBundle(dict):
         # Make sure to not overwrite anything here!
         for key in other:
             if key in tmp:
-                print "WARNING: Setting {0}->{1}".format(key, other[key])
+                print("WARNING: Setting {0}->{1}".format(key, other[key]))
 
             tmp[key] = other[key]
                 
@@ -414,7 +414,7 @@ class ParameterBundle(dict):
         else:
             m = re.search(r"\[([0-9])\]", par)
 
-            assert m is not None, "No ID found for par=%s" % par
+            assert m is not None, "No ID found for par={!s}".format(par)
             
             current_tag = int(m.group(1))
         
@@ -461,7 +461,7 @@ class ParameterBundle(dict):
     
     def link_sfrd_to(self, num):
         if self.num is not None:
-            self['pop_tunnel{%i}' % self.num] = num
+            self['pop_tunnel{{{}}}'.format(self.num)] = num
         else:
             self['pop_tunnel'] = num
 
@@ -473,16 +473,16 @@ class ParameterBundle(dict):
         for key in self.kwargs.keys():
             if key == self.bundle:
                 found = True
-                print line('*%s*' % self.base)
+                print(line('*{!s}*'.format(self.base)))
             else:
                 found = False
-                print line(key)
+                print(line(key))
             
         if not found:
-            print line('*%s*' % self.base)
-            
+            print(line('*{!s}*'.format(self.base)))
+        
         separator()
-        print line('Run \'reinitialize\' with one of the above as argument to change.')
+        print(line('Run \'reinitialize\' with one of the above as argument to change.'))
         footer()
     
     @property    

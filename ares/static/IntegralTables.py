@@ -168,8 +168,8 @@ class IntegralTable:
             tmp.append(np.arange(dims))
                 
         if rank == 0:
-            print "Setting up integral table..."
-                    
+            print("Setting up integral table...")
+        
         # Values that correspond to indices
         logNarr = []
         for item in itertools.product(*self.logN):
@@ -189,7 +189,7 @@ class IntegralTable:
         self.axes = copy.copy(self.logN)
         self.axes_names = []
         for absorber in self.grid.absorbers:
-            self.axes_names.append('logN_%s' % absorber)
+            self.axes_names.append('logN_{!s}'.format(absorber))
         
         # Determine indices for ionized fraction and time.
         if self.pf['secondary_ionization'] > 1:
@@ -208,11 +208,11 @@ class IntegralTable:
         """    
         
         if integral in ['PhiWiggle', 'PsiWiggle']:
-            return "log%s_%s_%s" % (integral, absorber, donor)
+            return "log{0!s}_{1!s}_{2!s}".format(integral, absorber, donor)
         elif integral == 'Tau':
-            return 'log%s' % integral
+            return 'log{!s}'.format(integral)
         else:
-            return "log%s_%s" % (integral, absorber)       
+            return "log{0!s}_{1!s}".format(integral, absorber)       
               
     def TabulateRateIntegrals(self):
         """
@@ -221,11 +221,11 @@ class IntegralTable:
         """
         
         if rank == 0:
-            print 'Tabulating integral quantities...'   
-            
+            print('Tabulating integral quantities...')
+        
         if self.pf['tables_discrete_gen'] and size > 1:
             self._tabulate_tau_E_N()
-                
+        
         # Loop over integrals
         h = 0
         tabs = {}
@@ -302,8 +302,8 @@ class IntegralTable:
                 i_donor = 0
                        
         if rank == 0:                        
-            print 'Integral tabulation complete.'
-            
+            print('Integral tabulation complete.')
+        
         # Collect results from all processors    
         if size > 1:        
             collected_tabs = {}
@@ -341,7 +341,8 @@ class IntegralTable:
             for j, actual_absorber in enumerate(self.grid.absorbers):
 
                 pb = ProgressBar(self.elements_per_table, 
-                    'tau(E, N; %s, %s)' % (absorber, actual_absorber))
+                    'tau(E, N; {0!s}, {1!s})'.format(absorber,\
+                    actual_absorber))
                 pb.start()
 
                 sigma = self.sigma_E[actual_absorber]
@@ -848,12 +849,13 @@ class IntegralTable:
         have_h5py = False # testing
         
         if prefix is None:
-            prefix = 'rt1d_integral_table.%s' % (time.ctime().replace(' ', '_'))    
+            prefix = 'rt1d_integral_table.{!s}'.format(\
+                time.ctime().replace(' ', '_'))    
             
         if have_h5py:
-            fn = '%s.hdf5' % prefix
+            fn = '{!s}.hdf5'.format(prefix)
         else:
-            fn = '%s.npz' % prefix
+            fn = '{!s}.npz'.format(prefix)
         
         if have_h5py:
         
@@ -904,11 +906,11 @@ class IntegralTable:
             # Save parameters
             import pickle
             
-            f = open('%s.pars.pkl' % prefix, 'wb')
+            f = open('{!s}.pars.pkl'.format(prefix), 'wb')
             pickle.dump(self.pf, f)
             f.close()
             if rank == 0:
-                print 'Wrote %s and %s.pars.pkl' % (fn, prefix)  
+                print('Wrote {!s} and {!s}.pars.pkl'.format(fn, prefix))
 
     def load(self, fn):
         """
@@ -959,7 +961,7 @@ class IntegralTable:
             
             f.close()
         
-        print 'Read integral table from %s.' % fn
+        print('Read integral table from {!s}.'.format(fn))
         
         axis_nums, axis_names, values = zip(*axes)
 
@@ -968,14 +970,15 @@ class IntegralTable:
         for i, axis in enumerate(axis_names):
 
             if axis not in self.axes_names:
-                print "WARNING: Axis \'%s\' not expected." % axis
+                print("WARNING: Axis \'{!s}\' not expected.".format(axis))
                 continue
 
             if np.all(np.array(values[i]) == self.axes[i]):
                 continue
             
-            print 'WARNING: Axis \'%s\' has %i elements. Expected %i.' \
-                % (axis, np.array(values[i]).size, self.axes[i].size)
+            print(('WARNING: Axis \'{0!s}\' has {1} elements. ' +\
+                'Expected {2}.').format(axis, np.array(values[i]).size,\
+                self.axes[i].size))
             ok = False
             
         if not ok:

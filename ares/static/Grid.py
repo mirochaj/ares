@@ -145,7 +145,7 @@ class Grid(object):
         if not hasattr(self, '_neutral_species'):
             self._neutral_species = []
             for element in self.elements:
-                self._neutral_species.append('%s_1' % element)
+                self._neutral_species.append('{!s}_1'.format(element))
 
         return self._neutral_species
                     

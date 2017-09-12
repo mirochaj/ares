@@ -74,17 +74,17 @@ class InlineAnalysis:
                     pop = self.sim
                 
                 if self.pf.Npops > 1:
-                    suffix = '{%i}' % i
+                    suffix = '{{{}}}'.format(i)
                 else:
                     suffix = ''
                     
                 # Lyman-alpha emission                
                 if pop.pf['pop_lya_src']:
-                    blob_names.append('igm_Ja%s' % suffix)
+                    blob_names.append('igm_Ja{!s}'.format(suffix))
                     
                 # SFRD
                 if not pop.pf['tanh_model']:
-                    blob_names.append('sfrd%s' % suffix)
+                    blob_names.append('sfrd{!s}'.format(suffix))
                                 
                 species = ['h_1', 'he_1', 'he_2']
                 for j, sp1 in enumerate(species):
@@ -95,7 +95,7 @@ class InlineAnalysis:
                     if j > 0:
                         raise NotImplemented('need to fix this')    
                 
-                    blob_names.append('igm_%s' % sp1)
+                    blob_names.append('igm_{!s}'.format(sp1))
                     
                     if pop.pf['pop_ion_src_cgm'] and j == 0:
                         blob_names.append('cgm_k_ion')

@@ -31,7 +31,7 @@ def total_heat(data):
     heat = np.zeros_like(data['z'])
     for i, sp in enumerate(['h_1', 'he_1', 'he_2']):
 
-        if i > 0 and (data['igm_%s' % sp] is None):
+        if i > 0 and (data['igm_{!s}'.format(sp)] is None):
             continue
 
         for k in range(pf.Npops):
@@ -39,14 +39,14 @@ def total_heat(data):
             if pf.Npops == 1:
                 suffix = ''
             else:
-                suffix = '{%i}' % k
+                suffix = '{{{}}}'.format(k)
 
-            heat_by_pop = 'igm_heat_%s%s' % (sp, suffix)
+            heat_by_pop = 'igm_heat_{0!s}{1!s}'.format(sp, suffix)
 
             if data[heat_by_pop] is None:
                 continue
 
-            n = data['igm_n_%s' % sp]
+            n = data['igm_n_{!s}'.format(sp)]
 
             # Multiply by number density of absorbers, convert to 
             # co-moving units
@@ -57,12 +57,12 @@ def total_heat(data):
 def total_gamma(data, sp):
 
     pf = data.pf
-    n1 = data['igm_n_%s' % sp]
+    n1 = data['igm_n_{!s}'.format(sp)]
 
     gamma = np.zeros_like(data['z'])
     for donor in ['h_1', 'he_1', 'he_2']:
         
-        if data['igm_n_%s' % donor] is None:
+        if data['igm_n_{!s}'.format(donor)] is None:
             continue
             
         for k in range(pf.Npops):
@@ -70,14 +70,15 @@ def total_gamma(data, sp):
             if pf.Npops == 1:
                 suffix = ''
             else:
-                suffix = '{%i}' % k
+                suffix = '{{{}}}'.format(k)
         
-            gamma_by_donor_by_pop = 'igm_gamma_%s_%s%s' % (sp, donor, suffix)
+            gamma_by_donor_by_pop =\
+                'igm_gamma_{0!s}_{1!s}{2!s}'.format(sp, donor, suffix)
             
             if data[gamma_by_donor_by_pop] is None:
                 continue
                 
-            n2 = data['igm_n_%s' % donor] 
+            n2 = data['igm_n_{!s}'.format(donor)] 
             gamma += data[gamma_by_donor_by_pop] * n2 / n1
     
     return gamma
@@ -195,7 +196,8 @@ class DerivedQuantities(object):
             raise NotImplemented('havent done registry_special_Q yet.')
         else:
             return None
-            #raise ValueError('Unrecognized derived quantity: %s' % name)
+            #raise ValueError(('Unrecognized derived quantity: {!s}').format(\
+            #    name))
         
         return self._data[name]
         
@@ -235,8 +237,8 @@ class DerivedQuantities(object):
             raise NotImplemented('havent done registry_special_Q yet.')
         else:
             return None
-        #else:
-        #    raise ValueError('Unrecognized derived quantity: %s' % name)    
+            #raise ValueError('Unrecognized derived quantity: {!s}'.format(\
+            #    name))    
             
         return self._data[name]
                 

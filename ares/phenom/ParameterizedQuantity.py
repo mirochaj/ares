@@ -56,7 +56,7 @@ class ParameterizedQuantity(object):
                 
         self._sub_pqs = {}
         for i in xrange(8):
-            par = 'pq_func_par%i' % i
+            par = 'pq_func_par{}'.format(i)
             
             if par not in self.pf:
                 continue
@@ -135,7 +135,7 @@ class ParameterizedQuantity(object):
         if not hasattr(self, '_pars_list'):
             self._pars_list = []
             for i in xrange(8):
-                name = 'pq_func_par%i' % i
+                name = 'pq_func_par{}'.format(i)
                 if name in self.pf:
                     self._pars_list.append(self.pf[name])
                 else:
@@ -179,7 +179,7 @@ class ParameterizedQuantity(object):
                                 
                 val = PQ.__call__(**kwargs)
                 
-                exec('p%i = val' % i)
+                exec('p{} = val'.format(i))
                 
             elif type(par) == tuple:
                 f, v, mult = par
@@ -196,10 +196,10 @@ class ParameterizedQuantity(object):
                 else:
                     raise NotImplementedError('help')
                     
-                exec('p%i = val' % i)
+                exec('p{} = val'.format(i))
                     
             else:
-                exec('p%i = par' % i)
+                exec('p{} = par'.format(i))
 
         # Actually execute the function
         if func == 'lognormal':
@@ -207,7 +207,7 @@ class ParameterizedQuantity(object):
         elif func == 'normal':
             f = p0 * np.exp(-(x - p1)**2 / 2. / p2**2)
         elif func == 'pl':
-            #print x, kwargs['z'], p0, p1, p2
+            #print('{0} {1} {2} {3} {4}'.format(x, kwargs['z'], p0, p1, p2))
             f = p0 * (x / p1)**p2
         # 'quadratic_lo' means higher order terms vanish when x << p3
         elif func == 'quadratic_lo':
@@ -328,7 +328,7 @@ class ParameterizedQuantity(object):
         elif func == 'user':
             f = self.pf['pq_func_fun'](**kwargs)
         else:
-            raise NotImplementedError('Don\'t know how to treat %s function!' % func)
+            raise NotImplementedError('Don\'t know how to treat {!s} function!'.format(func))
 
         if self.ceil is not None:
             f = np.minimum(f, self.ceil)
