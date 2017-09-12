@@ -54,7 +54,7 @@ for i, fn in enumerate(xi_files):
           
     # Read data 
     nrg, f_ion, f_heat, f_exc, n_Lya, n_ionHI, n_ionHeI, n_ionHeII, \
-        shull_heat = np.loadtxt('x_int_tables/%s' % fn, skiprows=3,
+        shull_heat = np.loadtxt('x_int_tables/{!s}'.format(fn), skiprows=3,
         unpack=True)
        
     if i == 0:          
@@ -71,13 +71,13 @@ for i, fn in enumerate(xi_files):
         fHeII[i][j] = (n_ionHeII[j] * E_th[2]) / energies[j]      
           
 # We also want the heating as a function of ionized fraction for each photon energy.        
-heat_xi = np.array(zip(*heat))
-fion_xi = np.array(zip(*fion))
-fexc_xi = np.array(zip(*fexc))
-fLya_xi = np.array(zip(*fLya))
-fHI_xi = np.array(zip(*fHI))
-fHeI_xi = np.array(zip(*fHeI))
-fHeII_xi = np.array(zip(*fHeII))
+heat_xi = np.array(list(zip(*heat)))
+fion_xi = np.array(list(zip(*fion)))
+fexc_xi = np.array(list(zip(*fexc)))
+fLya_xi = np.array(list(zip(*fLya)))
+fHI_xi = np.array(list(zip(*fHI)))
+fHeI_xi = np.array(list(zip(*fHeI)))
+fHeII_xi = np.array(list(zip(*fHeII)))
           
 # Make pickle file
 f = open('secondary_electron_data.pkl', 'wb')

@@ -49,10 +49,10 @@ for i, alpha in enumerate([-2.5, -2, -1.5, -1, -0.5, -0.25]):
         if k % size != rank:
             continue
         
-        fn = 'simpl_M_%i_fsc_%.2f_alpha_%.2f.txt' % (mass, fsc, alpha)
+        fn = 'simpl_M_{0}_fsc_{1:.2f}_alpha_{2:.2f}.txt'.format(mass, fsc, alpha)
         
         if os.path.exists(fn):
-            print "%s already exists." % fn
+            print("{!s} already exists.".format(fn))
             continue
         
         simpl['source_alpha'] = alpha

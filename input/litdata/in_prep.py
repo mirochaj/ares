@@ -14,12 +14,12 @@ fsmooth = \
 
 fsmooth_evol = fsmooth.copy()
 for j, i in enumerate(range(6, 10)):
-    fsmooth_evol['pq_func_par%i[5]' % j] = 'pq[%i]' % i
-    fsmooth_evol['pq_func[%i]' % i] = 'pl'
-    fsmooth_evol['pq_func_var[%i]' % i] = '1+z'
-    fsmooth_evol['pq_func_par0[%i]' % i] = fsmooth['pq_func_par%i[5]' % j]
-    fsmooth_evol['pq_func_par1[%i]' % i] = 7.
-    fsmooth_evol['pq_func_par2[%i]' % i] = 0.
+    fsmooth_evol['pq_func_par{}[5]'.format(j)] = 'pq[{}]'.format(i)
+    fsmooth_evol['pq_func[{}]'.format(i)] = 'pl'
+    fsmooth_evol['pq_func_var[{}]'.format(i)] = '1+z'
+    fsmooth_evol['pq_func_par0[{}]'.format(i)] = fsmooth['pq_func_par{}[5]'.format(j)]
+    fsmooth_evol['pq_func_par1[{}]'.format(i)] = 7.
+    fsmooth_evol['pq_func_par2[{}]'.format(i)] = 0.
 
 # Giving fsmooth 10 <= PQs < 15
 fobsc = \
@@ -35,12 +35,12 @@ fobsc = \
 
 fobsc_evol = fobsc.copy()
 for j, i in enumerate(range(11, 15)):
-    fobsc_evol['pq_func_par%i[10]' % j] = 'pq[%i]' % i
-    fobsc_evol['pq_func[%i]' % i] = 'pl'
-    fobsc_evol['pq_func_var[%i]' % i] = '1+z'
-    fobsc_evol['pq_func_par0[%i]' % i] = fobsc['pq_func_par%i[10]' % j]
-    fobsc_evol['pq_func_par1[%i]' % i] = 7.
-    fobsc_evol['pq_func_par2[%i]' % i] = 0.
+    fobsc_evol['pq_func_par{}[10]'.format(j)] = 'pq[{}]'.format(i)
+    fobsc_evol['pq_func[{}]'.format(i)] = 'pl'
+    fobsc_evol['pq_func_var[{}]'.format(i)] = '1+z'
+    fobsc_evol['pq_func_par0[{}]'.format(i)] = fobsc['pq_func_par{}[10]'.format(j)]
+    fobsc_evol['pq_func_par1[{}]'.format(i)] = 7.
+    fobsc_evol['pq_func_par2[{}]'.format(i)] = 0.
 
 """
 Saves some disk space since redshift is irrelevant for scaling laws.
