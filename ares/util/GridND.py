@@ -521,7 +521,7 @@ class GridND(defaultdict):
                        
         # Figure out all combinations of parameters
         pranges = [None] * self.Nd
-        for i in xrange(self.Nd):
+        for i in range(self.Nd):
             if names[i] in self:
                 ax = self.axis(names[i])
                 pranges[ax.num] = ax.values

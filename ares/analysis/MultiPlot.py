@@ -228,7 +228,7 @@ class MultiPanel(object):
         self.right = []
         self.bottom = []
         self.top = []
-        for i in xrange(self.N):
+        for i in range(self.N):
             k, j = self.axis_position(i)  # col, row
             
             if j == 0:
@@ -241,7 +241,7 @@ class MultiPanel(object):
                 self.right.append(i)       
 
         self.interior = []
-        for i in xrange(self.N):
+        for i in range(self.N):
             if i in self.left:
                 continue
             if i in self.bottom:
@@ -251,8 +251,8 @@ class MultiPanel(object):
 
         # Create subplots
         e_fl = self.elements.flatten()
-        self.grid = [None for i in xrange(self.N)]
-        for i in xrange(self.N):                
+        self.grid = [None for i in range(self.N)]
+        for i in range(self.N):                
             j, k = self.axis_position(i)
             
             if diagonal == 'lower':
@@ -463,11 +463,11 @@ class MultiPanel(object):
         """                               
         
         # First, figure out what limits should be
-        col_xlim = [[1e10, -1e10] for i in xrange(self.dims[0])]
-        row_ylim = [[1e10, -1e10] for i in xrange(self.dims[1])]
+        col_xlim = [[1e10, -1e10] for i in range(self.dims[0])]
+        row_ylim = [[1e10, -1e10] for i in range(self.dims[1])]
         
         # Loop over axes
-        for i in xrange(self.N):
+        for i in range(self.N):
             if self.grid[i] is None:
                 continue
             
@@ -495,7 +495,7 @@ class MultiPanel(object):
                 row_ylim[k][1] = ylim[1]    
                 
         # Apply limits    
-        for i in xrange(self.N):
+        for i in range(self.N):
             if self.grid[i] is None:
                 continue
                 
@@ -709,7 +709,7 @@ class MultiPanel(object):
                                   
         # Remove ticklabels of interior panels completely
         if shared:
-            for i in xrange(self.N):
+            for i in range(self.N):
                 if self.grid[i] is None:
                     continue
                 
@@ -723,7 +723,7 @@ class MultiPanel(object):
         pl.draw()
 
     def fix_axes_labels(self):
-        for i in xrange(self.N):
+        for i in range(self.N):
 
             if self.grid[i] is None:
                 continue
@@ -742,8 +742,8 @@ class MultiPanel(object):
             return
         
         # Remove ticks alltogether (optionally)            
-        for j in xrange(self.dims[0]):
-            for k in xrange(self.dims[1]):
+        for j in range(self.dims[0]):
+            for k in range(self.dims[1]):
                 i = self.axis_number(j,k)  
                 
                 if i is None:

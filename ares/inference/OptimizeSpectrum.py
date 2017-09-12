@@ -132,7 +132,7 @@ class SpectrumOptimization(object):
     def guess(self):
         if not hasattr(self, '_guess'):
             self._guess = []
-            for i in xrange(self.nfreq * 2):
+            for i in range(self.nfreq * 2):
                 if i < self.nfreq:
                     self._guess.append(np.random.rand() * \
                     (self.limits[i][1] - self.limits[i][0]) + self.limits[i][0])
@@ -140,7 +140,7 @@ class SpectrumOptimization(object):
                     self._guess.append(self.rs.Spectrum(self._guess[i - self.nfreq]))
     
             tot = np.sum(self._guess[self.nfreq:])
-            for i in xrange(self.nfreq, self.nfreq * 2):
+            for i in range(self.nfreq, self.nfreq * 2):
                 self._guess[i] /= tot
             
             self._guess = np.array(self._guess)
@@ -304,7 +304,7 @@ class SpectrumOptimization(object):
         E = np.atleast_1d(E)
         tau_E = np.zeros(self.tau_dims)
         
-        for i in xrange(self.rs.tab.elements_per_table):
+        for i in range(self.rs.tab.elements_per_table):
             for j, absorber in enumerate(self.grid.absorbers):
                 
                 loc = list(self.rs.tab.indices_N[i])

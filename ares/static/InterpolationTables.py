@@ -75,7 +75,7 @@ class LookupTable:
         """
         
         # If we are beyond bounds of integral table, fix    
-        for i in xrange(self.Nd):
+        for i in range(self.Nd):
             logN[...,i][logN[...,i] < self.logNmin[i]] = self.logNmin[i]
             logN[...,i][logN[...,i] > self.logNmax[i]] = self.logNmax[i]
             
@@ -89,7 +89,7 @@ class LookupTable:
         elif self.D == 2:
             ax2 = self._extra_axis(logx, t)
             logresult = np.zeros_like(logN[...,0])
-            for i in xrange(logN.shape[0]):
+            for i in range(logN.shape[0]):
                 if self.adv_secondary_ionization and \
                     not (re.search('Wiggle', self.basename) or 
                     re.search('Hat', self.basename)):

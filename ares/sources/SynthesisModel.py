@@ -249,7 +249,7 @@ class SynthesisModel(object):
         """
         if not hasattr(self, '_E_per_M'):
             self._E_per_M = np.zeros_like(self.data)
-            for i in xrange(self.times.size):
+            for i in range(self.times.size):
                 self._E_per_M[:,i] = self.data[:,i] / (self.energies * erg_per_ev)    
 
             if self.pf['source_ssp']:
@@ -263,7 +263,7 @@ class SynthesisModel(object):
     def uvslope(self):
         if not hasattr(self, '_uvslope'):
             self._uvslope = np.zeros_like(self.data)
-            for i in xrange(self.times.size):
+            for i in range(self.times.size):
                 self._uvslope[1:,i] = np.diff(np.log(self.data[:,i])) \
                     / np.diff(np.log(self.wavelengths))
 
@@ -380,7 +380,7 @@ class SynthesisModel(object):
         
         # Count up the photons in each spectral bin for all times
         photons_per_b_t = np.zeros_like(self.times)
-        for i in xrange(self.times.size):
+        for i in range(self.times.size):
             photons_per_b_t[i] = np.trapz(self.emissivity_per_sfr[i1:i0,i], 
                 x=x[i1:i0])
                 
@@ -442,7 +442,7 @@ class SynthesisModel(object):
 
         # Count up the photons in each spectral bin for all times
         flux = np.zeros_like(self.times)
-        for i in xrange(self.times.size):
+        for i in range(self.times.size):
             if energy_units:
                 integrand = self.data[i1:i0,i] * self.wavelengths[i1:i0]
             else:

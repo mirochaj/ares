@@ -456,12 +456,12 @@ class MetaGalacticBackground(AnalyzeMGB):
             kw['return_rc'] = True
 
             # This chunk only gets executed once
-            self._rc_tabs = [{} for i in xrange(self.solver.Npops)]
+            self._rc_tabs = [{} for i in range(self.solver.Npops)]
 
             # very similar chunk of code lives in update_fluxes...
             # could structure better, but i'm tired.
 
-            fluxes = {i:None for i in xrange(self.solver.Npops)}
+            fluxes = {i:None for i in range(self.solver.Npops)}
             for i, pop_generator in enumerate(self.solver.generators):
                 
                 kw['zone'] = self.pops[i].zone
@@ -526,7 +526,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     self._rc_tabs[i]['k_heat'][_iz,:] = \
                         coeff['k_heat'].copy()
                         
-            self._interp = [{} for i in xrange(self.solver.Npops)]
+            self._interp = [{} for i in range(self.solver.Npops)]
             for i, pop in enumerate(self.pops):
                 if self.solver.redshifts[i] is None:
                     zarr = self.z_unique
@@ -535,11 +535,11 @@ class MetaGalacticBackground(AnalyzeMGB):
 
                 # Create functions
                 self._interp[i]['k_ion'] = \
-                    [None for _i in xrange(self.grid.N_absorbers)]
+                    [None for _i in range(self.grid.N_absorbers)]
                 self._interp[i]['k_ion2'] = \
-                    [[None,None,None] for _i in xrange(self.grid.N_absorbers)]
+                    [[None,None,None] for _i in range(self.grid.N_absorbers)]
                 self._interp[i]['k_heat'] = \
-                    [None for _i in xrange(self.grid.N_absorbers)]
+                    [None for _i in range(self.grid.N_absorbers)]
             
                 self._interp[i]['Ja'] = interp1d(zarr, 
                     self._rc_tabs[i]['Ja'], 
@@ -548,7 +548,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     self._rc_tabs[i]['Jlw'], 
                     bounds_error=False, fill_value=0.0)    
             
-                for j in xrange(self.grid.N_absorbers):
+                for j in range(self.grid.N_absorbers):
                     self._interp[i]['k_ion'][j] = \
                         interp1d(zarr, self._rc_tabs[i]['k_ion'][:,j], 
                             bounds_error=False, fill_value=0.0)    
@@ -556,7 +556,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                         interp1d(zarr, self._rc_tabs[i]['k_heat'][:,j], 
                             bounds_error=False, fill_value=0.0)    
                     
-                    for k in xrange(self.grid.N_absorbers):
+                    for k in range(self.grid.N_absorbers):
                         self._interp[i]['k_ion2'][j][k] = \
                             interp1d(zarr, self._rc_tabs[i]['k_ion2'][:,j,k],
                                 bounds_error=False, fill_value=0.0)
@@ -585,9 +585,9 @@ class MetaGalacticBackground(AnalyzeMGB):
                 this_pop = \
                 {
                  'k_ion':  np.array([[fset['k_ion'][j](z) \
-                    for j in xrange(self.grid.N_absorbers)]]),
+                    for j in range(self.grid.N_absorbers)]]),
                  'k_heat': np.array([[fset['k_heat'][j](z) \
-                    for j in xrange(self.grid.N_absorbers)]]),
+                    for j in range(self.grid.N_absorbers)]]),
                  'Ja': fset['Ja'](z),
                  'Jlw': fset['Jlw'](z),
                 }
@@ -602,8 +602,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                         break
 
                 tmp = np.zeros((self.grid.N_absorbers, self.grid.N_absorbers))
-                for j in xrange(self.grid.N_absorbers):
-                    for k in xrange(self.grid.N_absorbers):
+                for j in range(self.grid.N_absorbers):
+                    for k in range(self.grid.N_absorbers):
                         tmp[j,k] = fset['k_ion2'][j][k](z)
 
                 this_pop['k_ion2'] = np.array([tmp])
@@ -617,7 +617,7 @@ class MetaGalacticBackground(AnalyzeMGB):
     def z_unique(self):
         if not hasattr(self, '_z_unique'):
             _allz = []
-            for i in xrange(self.solver.Npops):
+            for i in range(self.solver.Npops):
                 if self.solver.redshifts[i] is None:
                     continue
 
@@ -1077,7 +1077,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             f = np.zeros([len(z), E.size])
             for i, flux in enumerate(hist):
                 fzflat = []
-                for j in xrange(len(self.solver.energies[popid])):
+                for j in range(len(self.solver.energies[popid])):
                     if not self.solver.solve_rte[popid][j]:
                         fzflat.extend(np.zeros_like(self.solver.energies[popid][j]))
                     else:
@@ -1124,10 +1124,10 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         all_fn = [fn_1, fn_2]
 
-        f_data = [self.get_history(i, flatten=True) for i in xrange(self.solver.Npops)]
-        z = [f_data[i][0] for i in xrange(self.solver.Npops)]
-        E = [f_data[i][1] for i in xrange(self.solver.Npops)]
-        fl = [f_data[i][2] for i in xrange(self.solver.Npops)]
+        f_data = [self.get_history(i, flatten=True) for i in range(self.solver.Npops)]
+        z = [f_data[i][0] for i in range(self.solver.Npops)]
+        E = [f_data[i][1] for i in range(self.solver.Npops)]
+        fl = [f_data[i][2] for i in range(self.solver.Npops)]
 
         all_data = [(z, E, fl), 
             (self.solver.redshifts, self.solver.energies, self.solver.emissivities)]

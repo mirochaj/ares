@@ -42,7 +42,7 @@ class Composite(object):
         """ Construct list of RadiationSource class instances. """    
         
         sources = []
-        for i in xrange(self.Ns):
+        for i in range(self.Ns):
 
             sf = self.pf.copy()
                                                 

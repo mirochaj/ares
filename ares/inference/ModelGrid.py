@@ -672,7 +672,7 @@ class ModelGrid(ModelFit):
                         _done_extra.sum()))
                     _done_all = self.done.copy()
                     _done_all += _done_extra
-                    for i in xrange(1, size):    
+                    for i in range(1, size):    
                         MPI.COMM_WORLD.Send(_done_all, dest=i, tag=10*i)    
 
                 else:
@@ -981,7 +981,7 @@ class ModelGrid(ModelFit):
     def load(self):
         if not hasattr(self, '_load'):
             self._load = [np.array(self.assignments == i).sum() \
-                for i in xrange(size)]
+                for i in range(size)]
                 
             self._load = np.array(self._load)    
         
@@ -1047,7 +1047,7 @@ class ModelGrid(ModelFit):
                 return
             
             # Communicate assignments to workers
-            for i in xrange(1, size):    
+            for i in range(1, size):    
                 MPI.COMM_WORLD.Send(self.assignments, dest=i, tag=10*i)    
 
         else:
@@ -1121,7 +1121,7 @@ class ModelGrid(ModelFit):
             
             self.assignments = np.zeros(self.grid.shape, dtype=int)
                         
-            slc = [slice(0,None,1) for i in xrange(self.grid.Nd)]
+            slc = [slice(0,None,1) for i in range(self.grid.Nd)]
             
             k = 0 # only used for method 1
             
@@ -1133,7 +1133,7 @@ class ModelGrid(ModelFit):
             # for pop_Tmin), or method == 2 make it so that all processors get
             # a variety of values of input parameter, which is useful when
             # increasing values of this parameter slow down the calculation.
-            for i in xrange(par_N):
+            for i in range(par_N):
                 
                 # Ellipses in all dimensions except that corresponding to a
                 # particular value of input 'par'

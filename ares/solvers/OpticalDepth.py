@@ -227,9 +227,9 @@ class OpticalDepth(object):
         pb.start()     
     
         # Loop over redshift, photon energy
-        for l in xrange(self.L):
+        for l in range(self.L):
     
-            for n in xrange(self.N):
+            for n in range(self.N):
                 m = l * self.N + n + 1
     
                 if m % size != rank:
@@ -415,7 +415,7 @@ class OpticalDepth(object):
     
         # Pre-compute cross-sections
         self.sigma_E = np.array([np.array(map(lambda E: self.sigma(E, i), 
-            self.E)) for i in xrange(3)])
+            self.E)) for i in range(3)])
         self.log_sigma_E = np.log10(self.sigma_E)
     
     def load(self, fn):

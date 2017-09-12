@@ -62,7 +62,7 @@ class InlineAnalysis:
         
         if not self.pf['tanh_model']:
             blob_names = []
-            for i in xrange(self.pf.Npops):
+            for i in range(self.pf.Npops):
                 
                 if hasattr(self.sim, 'pops'):
                     pop = self.sim.pops[i]
@@ -166,7 +166,7 @@ class InlineAnalysis:
 
             delay = self.pf['stop_delay']
             
-            for i in xrange(len(self.history['z'])):
+            for i in range(len(self.history['z'])):
                 if i < 10:
                     continue
 

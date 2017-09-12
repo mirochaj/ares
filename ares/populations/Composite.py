@@ -35,9 +35,9 @@ class CompositePopulation(object):
         Construct list of *Population class instances.
         """
         
-        self.pops = [None for i in xrange(self.Npops)]
-        to_tunnel = [None for i in xrange(self.Npops)]
-        to_quantity = [None for i in xrange(self.Npops)]
+        self.pops = [None for i in range(self.Npops)]
+        to_tunnel = [None for i in range(self.Npops)]
+        to_quantity = [None for i in range(self.Npops)]
         for i, pf in enumerate(self.pfs):
                         
             ct = 0            

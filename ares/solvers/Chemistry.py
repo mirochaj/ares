@@ -105,7 +105,7 @@ class Chemistry(object):
         self.dqdt_grid = np.zeros_like(self.zeros_gridxq)
                               
         # Loop over grid and solve chemistry
-        for cell in xrange(self.grid.dims):
+        for cell in range(self.grid.dims):
 
             # Construct q vector
             q = np.zeros(len(self.grid.evolving_fields))
@@ -145,7 +145,7 @@ class Chemistry(object):
         
         # Organize by cell                        
         kwargs_by_cell = []
-        for cell in xrange(self.grid.dims):
+        for cell in range(self.grid.dims):
             new_kwargs = {}
             for key in kwargs.keys():
                 new_kwargs[key] = kwargs[key][cell]

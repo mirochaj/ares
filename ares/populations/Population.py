@@ -214,7 +214,7 @@ class Population(object):
                     self._is_emissivity_scalable = False
                     break
     
-                for i in xrange(self.pf.Npqs):
+                for i in range(self.pf.Npqs):
                     pn = '{0!s}[{1}]'.format(par,i)
                     if pn not in self.pf:
                         continue

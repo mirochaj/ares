@@ -229,7 +229,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_MAR_'):
             self._tab_MAR_ = \
                 np.array([self.MAR(self.halos.z[i], self.halos.M) \
-                    for i in xrange(self.halos.Nz)]) 
+                    for i in range(self.halos.Nz)]) 
                     
             self._tab_MAR_ = np.maximum(self._tab_MAR_, 0.0)
             
@@ -240,7 +240,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_MAR_at_Mmin_'):
             self._tab_MAR_at_Mmin_ = \
                 np.array([self.MAR(self.halos.z[i], self._tab_Mmin[i]) \
-                    for i in xrange(self.halos.Nz)])                    
+                    for i in range(self.halos.Nz)])                    
         return self._tab_MAR_at_Mmin_ 
     
     @property
@@ -249,7 +249,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_nh_at_Mmin_ = \
                 np.array([self._spline_nh(self.halos.z[i], 
                     np.log(self._tab_Mmin[i])) \
-                    for i in xrange(self.halos.Nz)]).squeeze()
+                    for i in range(self.halos.Nz)]).squeeze()
         return self._tab_nh_at_Mmin_
         
     @property
@@ -2330,7 +2330,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         lbtime = []
         Ehist = []
         redshifts = []
-        for i in xrange(Nz):
+        for i in range(Nz):
             # In descending order
             redshifts.append(zarr[-1::-1][i])
             Mh_t.append(solver.y[0])

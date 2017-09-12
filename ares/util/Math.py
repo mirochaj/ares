@@ -219,7 +219,7 @@ class LinearNDInterpolator:
         self.axes_min = np.array([np.min(axis) for axis in self.axes])
 
         tmp = np.zeros(self.Nd)
-        for i in xrange(self.Nd):
+        for i in range(self.Nd):
             if not np.allclose(self.daxes[i] - self.daxes[i][0], 
                 np.zeros_like(self.daxes[i])):
                 raise ValueError('Values must be evenly spaced!')
