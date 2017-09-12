@@ -27,7 +27,7 @@ for i, prefix in enumerate(files):
         continue
         
     assert np.allclose(z_C_pre, z_C_now), \
-        "Detected difference between %s*.pkl and previous!" % prefix
+        "Detected difference between {!s}*.pkl and previous!".format(prefix)
         
 
 

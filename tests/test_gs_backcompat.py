@@ -26,11 +26,11 @@ def test():
         
         # Plot the global signal
         ax = sim.GlobalSignature(ax=ax,
-            label=r'$f_X=%.2g$' % (fX))
+            label=r'$f_X={:.2g}$'.format(fX))
         
     ax.legend(loc='lower right', fontsize=14)
     pl.draw()
-    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
     pl.close()
     
     # Most common problem: breaking backward compatibility means the 

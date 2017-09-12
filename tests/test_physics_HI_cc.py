@@ -57,17 +57,17 @@ def test():
     ok = 1
     for suffix in ['H', 'e']:
     
-        tab = hydr.tabulated_coeff['kappa_%s' % suffix]
+        tab = hydr.tabulated_coeff['kappa_{!s}'.format(suffix)]
         
         if suffix == 'H':
-            interp = hydr.kappa_H(hydr.tabulated_coeff['T_%s' % suffix])
+            interp = hydr.kappa_H(hydr.tabulated_coeff['T_{!s}'.format(suffix)])
         else:
-            interp = hydr.kappa_e(hydr.tabulated_coeff['T_%s' % suffix])
+            interp = hydr.kappa_e(hydr.tabulated_coeff['T_{!s}'.format(suffix)])
                     
         # Numbers small so ignore absolute tolerance
         ok *= np.allclose(tab, interp, atol=0.0)
         
-    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
     pl.close()        
         
     assert ok, "Error in computation of coupling coefficients."

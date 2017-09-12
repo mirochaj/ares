@@ -28,16 +28,16 @@ def test(Ns=500, Nd=4, prefix='test'):
     logL = np.random.rand(Ns)
     
     # Info about the parameters
-    pars = ['par_%i' % i for i in range(Nd)]
+    pars = ['par_{}'.format(i) for i in range(Nd)]
     is_log = [False] * Nd
     pinfo = pars, is_log
     
     # Write to disk.
-    with open('%s.chain.pkl' % prefix, 'wb') as f:
+    with open('{!s}.chain.pkl'.format(prefix), 'wb') as f:
         pickle.dump(chain, f)
-    with open('%s.pinfo.pkl' % prefix, 'wb') as f:
+    with open('{!s}.pinfo.pkl'.format(prefix), 'wb') as f:
         pickle.dump(pinfo, f)    
-    with open('%s.logL.pkl' % prefix, 'wb') as f:
+    with open('{!s}.logL.pkl'.format(prefix), 'wb') as f:
         pickle.dump(logL, f)    
     
     # Make some blobs. 0-D, 1-D, and 2-D.
@@ -49,7 +49,7 @@ def test(Ns=500, Nd=4, prefix='test'):
      'blob_funcs': None,
     }
     
-    with open('%s.setup.pkl' % prefix, 'wb') as f:
+    with open('{!s}.setup.pkl'.format(prefix), 'wb') as f:
         pickle.dump(setup, f)
     
     # Blobs
@@ -60,14 +60,14 @@ def test(Ns=500, Nd=4, prefix='test'):
             nd = 0
         else:
             # ivar names, ivar values
-            ivn, ivv = zip(*setup['blob_ivars'][i])
+            ivn, ivv = list(zip(*setup['blob_ivars'][i]))
             nd = len(np.array(ivv).squeeze().shape)
     
         for blob in blob_grp:
             
             dims = [Ns]
             if nd > 0:
-                dims.extend(map(len, ivv))
+                dims.extend(list(map(len, ivv)))
             
             size = np.product(dims)
             data = np.reshape(np.random.normal(size=size), dims)
@@ -82,7 +82,7 @@ def test(Ns=500, Nd=4, prefix='test'):
             
                 data *= np.reshape(mask_inf, dims)
                     
-            with open('%s.blob_%id.%s.pkl' % (prefix, nd, blob), 'wb') as f:
+            with open('{0!s}.blob_{1}d.{2!s}.pkl'.format(prefix, nd, blob), 'wb') as f:
                 pickle.dump(data, f)
             
     # Now, read stuff back in and make sure ExtractData works. Plotting routines?    
@@ -127,16 +127,16 @@ def test(Ns=500, Nd=4, prefix='test'):
         if setup['blob_ivars'][i] is None:
             nd = 0
         else:
-            ivn, ivv = zip(*setup['blob_ivars'][i])
+            ivn, ivv = list(zip(*setup['blob_ivars'][i]))
             nd = len(np.array(ivv).squeeze().shape)
             
         if nd == 0:
             ivars.append(None)
         elif nd == 1:
-            ivn, ivv = zip(*setup['blob_ivars'][i])
+            ivn, ivv = list(zip(*setup['blob_ivars'][i]))
             ivars.append(ivv[0][0])
         else:
-            ivn, ivv = zip(*setup['blob_ivars'][i])
+            ivn, ivv = list(zip(*setup['blob_ivars'][i]))
             ivars.append([ivv[0][0], ivv[1][0]])
     
     # Last set of ivars (remember: there are 2 2-D blobs)    
@@ -146,24 +146,24 @@ def test(Ns=500, Nd=4, prefix='test'):
     
     for i in range(1, 5):
         pl.figure(i)
-        pl.savefig('%s_%i.png' % (__file__.rstrip('.py'), i))     
+        pl.savefig('{0!s}_{1}.png'.format(__file__.rstrip('.py'), i))     
     
     pl.close('all')
     
     # Cleanup
     for suffix in ['chain', 'logL', 'pinfo', 'setup']:
-        os.remove('%s.%s.pkl' % (prefix, suffix))
+        os.remove('{0!s}.{1!s}.pkl'.format(prefix, suffix))
     
     for i, blob_grp in enumerate(setup['blob_names']):
     
         if setup['blob_ivars'][i] is None:
             nd = 0
         else:
-            ivn, ivv = zip(*setup['blob_ivars'][i])
+            ivn, ivv = list(zip(*setup['blob_ivars'][i]))
             nd = len(np.array(ivv).squeeze().shape)
     
         for blob in blob_grp:
-            os.remove('%s.blob_%id.%s.pkl' % (prefix, nd, blob))
+            os.remove('{0!s}.blob_{1}d.{2!s}.pkl'.format(prefix, nd, blob))
     
     assert True
     

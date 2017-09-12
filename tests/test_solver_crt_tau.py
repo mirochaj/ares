@@ -112,7 +112,7 @@ def test(tol=5e-2):
             
             # Cosmologically-limited solution to the RTE
             # [Equation A1 in Mirocha (2014)]
-            f_an = np.array(map(lambda E: pop.Emissivity(zf, E), E))
+            f_an = np.array([pop.Emissivity(zf, EE) for EE in E])
             f_an *= (1. + zf)**(4.5 - (alpha + beta)) / 4. / np.pi \
                 / pop.cosm.HubbleParameter(zf) / (alpha + beta - 1.5)
             f_an *= ((1. + zi)**(alpha + beta - 1.5) - (1. + zf)**(alpha + beta - 1.5))
@@ -129,7 +129,7 @@ def test(tol=5e-2):
     
             # Loose tolerance in this example since tau table is coarse
             assert diff[0] < tol, \
-                "Relative error between analytical and numerical solutions exceeds %.3g." % tol
+                "Relative error between analytical and numerical solutions exceeds {:.3g}.".format(tol)
     
         else:
             label = None
@@ -152,7 +152,7 @@ def test(tol=5e-2):
     pl.xlabel(ares.util.labels['E'])
     pl.ylabel(ares.util.labels['flux'])
     pl.legend(fontsize=14)
-    pl.savefig('%s.png' % __file__.rstrip('.py'))
+    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
     pl.close()
     
 if __name__ == '__main__':

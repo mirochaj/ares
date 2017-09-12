@@ -33,7 +33,7 @@ def test():
     
     for channel in ['heat', 'h_1', 'he_1', 'lya', 'exc']:
         func = lambda EE: esec3.DepositionFraction(E=EE, channel=channel, xHII=0.01)
-        ax1.semilogx(E, map(func, E), label=channel)
+        ax1.semilogx(E, list(map(func, E)), label=channel)
     
     ax1.set_xlabel(r'$E \ (\mathrm{eV})$')
     ax1.set_ylabel('Fraction')
@@ -55,9 +55,9 @@ def test():
                     
             if j == 1:
                 if x < 0.5:
-                    label = r'$x_e = 10^{%i}$' % (np.log10(x))
+                    label = r'$x_e = 10^{{{}}}$'.format(int(np.log10(x)))
                 else:
-                    label = r'$x_e = %.2g$' % x
+                    label = r'$x_e = {:.2g}$'.format(x)
             else:
                 label = None                   
             
@@ -66,12 +66,12 @@ def test():
             
             # Compare to high-energy limit from Ricotti et al.
             if channel not in ['exc', 'lya']:                  
-                f2 = map(lambda EE: esec2.DepositionFraction(xHII=x, E=EE, 
-                    channel=channel), E)
+                f2 = list(map(lambda EE: esec2.DepositionFraction(xHII=x, E=EE, 
+                    channel=channel)), E)
                 mp.grid[l].semilogx(E, f2, color=colors[k], ls='--')
                 
-            f3 = np.array(map(lambda EE: esec3.DepositionFraction(xHII=x, E=EE, 
-                channel=channel), E))
+            f3 = np.array(list(map(lambda EE: esec3.DepositionFraction(xHII=x, E=EE, 
+                channel=channel), E)))
                 
             if channel == 'lya':
                 last = np.array(results['exc'][k])
@@ -90,7 +90,7 @@ def test():
                 [esec1.DepositionFraction(xHII=x, channel=channel)]*2, 
                 color=colors[k], ls=':')
                 
-        mp.grid[l].set_ylabel(r'$f_{\mathrm{%s}}$' % channel)
+        mp.grid[l].set_ylabel(r'$f_{{\mathrm{{{!s}}}}}$'.format(channel))
         mp.grid[l].set_yscale('linear')
         mp.grid[l].set_ylim(0, 1.05)
         mp.grid[l].set_xlim(10, 1e4)
@@ -105,7 +105,7 @@ def test():
     
     for i in range(1,3):
         pl.figure(i)
-        pl.savefig('%s_%i.png' % (__file__.rstrip('.py'), i))
+        pl.savefig('{0!s}_{1}.png'.format(__file__.rstrip('.py'), i))
         
     pl.close('all')
         

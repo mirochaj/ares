@@ -42,8 +42,8 @@ def test():
 
     # Check the emissivities too 
     
-    #print pop_fcoll.PhotonLuminosityDensity(20., Emin=10.2, Emax=13.6)
-    #print pop_sfrd.PhotonLuminosityDensity(20., Emin=10.2, Emax=13.6)
+    #print(pop_fcoll.PhotonLuminosityDensity(20., Emin=10.2, Emax=13.6))
+    #print(pop_sfrd.PhotonLuminosityDensity(20., Emin=10.2, Emax=13.6))
     
     #assert pop_fcoll.PhotonLuminosityDensity(20., Emin=10.2, Emax=13.6) \
     #    == pop_sfrd.PhotonLuminosityDensity(20., Emin=10.2, Emax=13.6), \

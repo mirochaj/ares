@@ -25,8 +25,8 @@ def test():
         pop_yield=2.6e39, pop_yield_units='erg/s/SFR')
         
     # Compute the luminosity density in two bands
-    Lx1 = np.array(map(pop.LuminosityDensity, z)) * cm_per_mpc**3
-    Lx2 = np.array(map(lambda z: pop.LuminosityDensity(z, 2e2, 5e2), z)) * cm_per_mpc**3
+    Lx1 = np.array(list(map(pop.LuminosityDensity, z))) * cm_per_mpc**3
+    Lx2 = np.array([pop.LuminosityDensity(zz, 2e2, 5e2) for zz in z]) * cm_per_mpc**3
     
     # Plot 'em
     pl.semilogy(z, Lx1, color='k')
@@ -40,8 +40,8 @@ def test():
         pop_yield=y, pop_yield_units='photons/Msun')
     
     # Compute the luminosity density in two bands
-    Lx1 = np.array(map(pop.LuminosityDensity, z)) * cm_per_mpc**3
-    Lx2 = np.array(map(lambda z: pop.LuminosityDensity(z, 2e2, 5e2), z)) * cm_per_mpc**3
+    Lx1 = np.array(list(map(pop.LuminosityDensity, z))) * cm_per_mpc**3
+    Lx2 = np.array([pop.LuminosityDensity(zz, 2e2, 5e2) for zz in z]) * cm_per_mpc**3
     
     # Plot 'em
     pl.scatter(z, Lx1, s=100, facecolors='none', color='k')

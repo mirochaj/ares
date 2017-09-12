@@ -62,7 +62,7 @@ def test(tol = 1e-2):
         mgb.run()
         
         if np.isfinite(mgb.pf['pop_logN']):
-            label = r'$N = 10^{%i} \ \mathrm{cm}^{-2}$' % (mgb.pf['pop_logN'])
+            label = r'$N = 10^{{{}}} \ \mathrm{{cm}}^{{-2}}$'.format(int(mgb.pf['pop_logN']))
         else:
             label = r'$N = 0 \ \mathrm{cm}^{-2}$'
             
@@ -79,7 +79,7 @@ def test(tol = 1e-2):
         
         # Find integrated 0.5-2 keV flux
         sxb = np.trapz(flux_today[Eok] / ev_per_hz, x=Ef[0][Eok])
-        ax4.annotate(r'$j_x = %.2e$' % sxb, (0.95, 0.95), xycoords='axes fraction',
+        ax4.annotate(r'$j_x = {:.2e}$'.format(sxb), (0.95, 0.95), xycoords='axes fraction',
             ha='right', va='top')
         
         # Check analytic solution for unabsorbed case
@@ -90,7 +90,7 @@ def test(tol = 1e-2):
             # Cosmologically-limited solution to the RTE
             # [Equation A1 in Mirocha (2014)]
             zi, zf = 40., 10.
-            e_nu = np.array(map(lambda E: pop.Emissivity(zf, E), E[0]))
+            e_nu = np.array([pop.Emissivity(zf, EE) for EE in E[0]])
             e_nu *= (1. + zf)**(4.5 - (alpha + beta)) / 4. / np.pi \
                 / pop.cosm.HubbleParameter(zf) / (alpha + beta - 1.5)
             e_nu *= ((1. + zi)**(alpha + beta - 1.5) - (1. + zf)**(alpha + beta - 1.5))
@@ -105,7 +105,7 @@ def test(tol = 1e-2):
             diff = np.abs(flux_anl - flux_num) / flux_anl
             
             assert diff[0] < tol, \
-                "Relative error between analytical and numerical solutions exceeds %.3g." % tol
+                "Relative error between analytical and numerical solutions exceeds {:.3g}.".format(tol)
         
         # Plot up heating rate evolution
         heat = np.zeros_like(z)
@@ -134,7 +134,7 @@ def test(tol = 1e-2):
     pl.show()
     for i in range(4):
         pl.figure(i)
-        pl.savefig('%s_%i.png' % (__file__.rstrip('.py'), i))
+        pl.savefig('{0!s}_{1}.png'.format(__file__.rstrip('.py'), i))
     
     pl.close('all')    
     assert True

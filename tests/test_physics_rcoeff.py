@@ -40,9 +40,9 @@ def test():
             recombination='A')
         
         # First: collisional ionization, recombination
-        CI = map(lambda TT: coeff.CollisionalIonizationRate(species, TT), T)
-        RRB = map(lambda TT: coeff.RadiativeRecombinationRate(species, TT), T)    
-        RRA = map(lambda TT: coeffA.RadiativeRecombinationRate(species, TT), T)    
+        CI = [coeff.CollisionalIonizationRate(species, TT) for TT in T]
+        RRB = [coeff.RadiativeRecombinationRate(species, TT) for TT in T]
+        RRA = [coeffA.RadiativeRecombinationRate(species, TT) for TT in T]
         
         if i == 0:
             labels = [r'$\beta$', r'$\alpha_{\mathrm{B}}$', 
@@ -55,9 +55,9 @@ def test():
         ax1.loglog(T, RRA, color=colors[i], ls=':', label=labels[2])
         
         # Second: Cooling processes
-        CIC = map(lambda TT: coeff.CollisionalIonizationCoolingRate(species, TT), T)
-        CEC = map(lambda TT: coeff.CollisionalExcitationCoolingRate(species, TT), T)
-        RRC = map(lambda TT: coeff.RecombinationCoolingRate(species, TT), T)
+        CIC = [coeff.CollisionalIonizationCoolingRate(species, TT) for TT in T]
+        CEC = [coeff.CollisionalExcitationCoolingRate(species, TT) for TT in T]
+        RRC = [coeff.RecombinationCoolingRate(species, TT) for TT in T]
     
         if i == 0:
             labels = [r'$\zeta$', r'$\psi$', r'$\eta$']

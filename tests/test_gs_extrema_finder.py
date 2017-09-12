@@ -39,7 +39,7 @@ def test():
             if -500 <= element <= 100:
                 continue
     
-            print 'Absurd turning point! %s of %s' % (things[i], element)
+            print('Absurd turning point! {0!s} of {1!s}'.format(things[i], element))
             no_nonsense *= 0
     
     # Now, check the turning-point-finding on the tanh model
