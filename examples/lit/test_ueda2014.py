@@ -36,7 +36,7 @@ for i, redshift in enumerate(z):
     lf_pde = u14.LuminosityFunction(L, redshift, evolution='ldde')
     
     ax1.loglog(L, lf_ple, color=colors[i], ls='--')
-    ax1.loglog(L, lf_pde, color=colors[i], ls='-', label=r'$z=%i$' % redshift)
+    ax1.loglog(L, lf_pde, color=colors[i], ls='-', label=r'$z={}$'.format(redshift))
     ax1.loglog(L, lf_ldde, color=colors[i], ls=':')
     
 ax1.set_xlabel(r'$L_X$')    
@@ -60,7 +60,7 @@ ax1.legend(loc='best')
 #
 #for i, j in enumerate(models):
 #    pl.loglog(L, models[i], alpha = 0.25)
-#    pl.title(r'The 2-10 KeV Band at $z$ ~ $%.1f - %.1f$' % (r[0], r[-1]))
+#    pl.title(r'The 2-10 KeV Band at $z$ ~ ${0:.1f} - {1:.1f}$'.format(r[0], r[-1]))
 #    pl.ylim(10**-12, 10**-2)
 #    pl.xlim(L[0], L[-23])
 #
@@ -115,7 +115,7 @@ ax1.legend(loc='best')
 #for i, j in enumerate(integrand):
 #    pl.semilogy(z, integrand[i], color = 'k', alpha = 0.25)
 #
-#pl.title(r'The 2-10 KeV Band at $z$ ~ $%.1f - %.1f$' % (r[0], r[-1]))
+#pl.title(r'The 2-10 KeV Band at $z$ ~ ${0:.1f} - {1:.1f}$'.format(r[0], r[-1]))
 #
 #ax2.set_xlabel(r'$z$')    
 #ax2.set_ylabel(r'$\phi(L_X)$')
@@ -160,7 +160,7 @@ ax1.legend(loc='best')
 #for i, j in enumerate(results):
 #    pl.loglog(L, results[i], color = 'r', alpha = 0.25)
 #
-#pl.title(r'The 2-10 KeV Band at $z$ ~ $%.1f - %.1f$' % (r[0], r[-1]))
+#pl.title(r'The 2-10 KeV Band at $z$ ~ ${0:.1f} - {1:.1f}$'.format(r[0], r[-1]))
 #pl.ylim(10**-12, 10**-4)
 #pl.xlim(L[0], L[-23])
 #ax1.set_xlabel(r'$L_X$')    

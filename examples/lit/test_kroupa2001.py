@@ -19,5 +19,5 @@ imf = k01.InitialMassFunction()
 
 m = np.logspace(-2, 2)
 
-pl.loglog(m, map(imf, m))
+pl.loglog(m, list(map(imf, m)))
 

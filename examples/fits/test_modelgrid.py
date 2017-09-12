@@ -40,7 +40,7 @@ t1 = time.time()
 mg.run('test_grid', clobber=True, save_freq=10)
 t2 = time.time()
 
-print "Run complete in %.4g minutes.\n" % ((t2 - t1) / 60.)
+print("Run complete in {:.4g} minutes.\n".format((t2 - t1) / 60.))
 
 
 

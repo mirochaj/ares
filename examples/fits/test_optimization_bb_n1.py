@@ -47,7 +47,7 @@ for i in xrange(len(E)):
 
 # Plot contours of cost function, analytic solution, optimal solution
 pl.contour(E, LE, lnL.T, 3, colors='k', linestyles=[':', '--', '-'])
-pl.scatter(zip(*sedop.all_results)[0], zip(*sedop.all_results)[1],
+pl.scatter(list(zip(*sedop.all_results))[0], list(zip(*sedop.all_results))[1],
     c=sedop.all_logL)
 
 
@@ -65,12 +65,12 @@ pl.ylabel(r'$L_{\nu} / L_{\mathrm{bol}}$')
 
 # Plot optimal Phi and Psi functions vs. HI column density
 Eopt, LEopt = sedop.pars
-print sedop.pars
+print('{!s}'.format(sedop.pars))
 
 mp = MultiPanel(dims=(2,1), fig=2)
 
 for i, integ in enumerate(sedop.integrals):
-    integral = 'log%s_h_1' % integ
+    integral = 'log{!s}_h_1'.format(integ)
     best_int = sedop.discrete_tabs(Eopt, LEopt)[integral]
     mp.grid[i].loglog(10**sedop.logN[0], 10**sedop.rs.tabs[integral], color='k')
     mp.grid[i].loglog(10**sedop.logN[0], 10**best_int, color='b')
@@ -87,7 +87,7 @@ mp.fix_ticks()
 raw_input('click <enter> to proceed with verification of solution')
 pl.close()
 
-print 'Verifying optimal discrete SED with ARES...\n'
+print('Verifying optimal discrete SED with ARES...\n')
 
 """
 Run ARES to see how this solution works.

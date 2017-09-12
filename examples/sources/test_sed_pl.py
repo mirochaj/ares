@@ -30,7 +30,7 @@ for i, alpha in enumerate([-0.5, -1.5, -2.5]):
     bh = ares.analysis.Source(src)
     
     ax = bh.PlotSpectrum(ls=ls[i], 
-        label=r'$\alpha = %.2g$' % alpha)
+        label=r'$\alpha = {:.2g}$'.format(alpha))
 
 ax.legend(loc='upper right')
 ax.set_ylim(1e-8, 1)

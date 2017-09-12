@@ -20,5 +20,5 @@ for z in b15.redshifts:
     data = b15.data['lf'][z]
     
     pl.errorbar(data['M'], data['phi'], yerr=data['err'], 
-        fmt='o', label=r'$z=%.2g$' % z)
+        fmt='o', label=r'$z={:.2g}$'.format(z))
 
