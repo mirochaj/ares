@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
-import os, re, urllib, sys, tarfile
+import os, re, sys, tarfile
+try:
+    from urllib.request import urlretrieve # this option only true with Python3
+except:
+    from urllib import urlretrieve
 
 options = sys.argv[1:]
 
@@ -16,17 +20,17 @@ ares_link = 'https://bitbucket.org/mirochaj/ares'
 #
 aux_data = \
 {
- 'hmf': ['%s/downloads' % ares_link, 
+ 'hmf': ['{!s}/downloads'.format(ares_link), 
     'hmf_ST_logM_1200_4-16_z_1141_3-60.npz',
     None],
- 'inits': ['%s/downloads' % ares_link, 
+ 'inits': ['{!s}/downloads'.format(ares_link), 
      'initial_conditions.npz',
      None],    
- 'optical_depth': ['%s/downloads' % ares_link,
+ 'optical_depth': ['{!s}/downloads'.format(ares_link),
     'optical_depth_H_400x1616_z_10-50_logE_2-4.7.npz',
     'optical_depth_He_400x1616_z_10-50_logE_2-4.7.npz',
     None],
- 'secondary_electrons': ['%s/downloads' % ares_link,
+ 'secondary_electrons': ['{!s}/downloads'.format(ares_link),
     'elec_interp.tar.gz', 
     'read_FJS10.py'],
  'starburst99': ['http://www.stsci.edu/science/starburst99/data',
@@ -37,10 +41,10 @@ aux_data = \
  #   'emissivity.out', 
  #   None],
  'bpass_v1': ['http://bpass.auckland.ac.nz/2/files'] + \
-    ['sed_bpass_z%s_tar.gz' % Z for Z in ['001', '004', '008', '020', '040']] + \
+    ['sed_bpass_z{!s}_tar.gz'.format(Z) for Z in ['001', '004', '008', '020', '040']] + \
     [None],
  #'bpass_v2': ['https://drive.google.com/file/d/'] + \
- #    ['bpassv2-imf%i-300tar.gz' % IMF for IMF in [100, 135]] + \
+ #    ['bpassv2-imf{}-300tar.gz'.format(IMF) for IMF in [100, 135]] + \
  #     [None],    
  #'behroozi2013': ['http://www.peterbehroozi.com/uploads/6/5/4/8/6548418/',
  #   'sfh_z0_z8.tar.gz', 'observational-data.tar.gz', None]
@@ -107,12 +111,13 @@ for i, direc in enumerate(to_download):
         if 'clean' in options:
             continue
     
-        print "Downloading %s/%s..." % (web, fn)
+        print("Downloading {0!s}/{1!s}...".format(web, fn))
         
         try:
-            urllib.urlretrieve('%s/%s' % (web, fn), fn)
+            urlretrieve('{0!s}/{1!s}'.format(web, fn), fn)
         except:
-            print "WARNING: Error downloading %s/%s" % (web, fn)
+            raise
+            print("WARNING: Error downloading {0!s}/{1!s}".format(web, fn))
             continue
         
         # If it's not a tarball, move on
@@ -125,14 +130,14 @@ for i, direc in enumerate(to_download):
             tar.extractall()
             tar.close()
         except:
-            print "WARNING: Error unpacking %s/%s" % (web, fn)
+            print("WARNING: Error unpacking {0!s}/{1!s}".format(web, fn))
     
     # Run a script [optional]
     if aux_data[direc][-1] is not None:
         try:
             execfile(aux_data[direc][-1])
         except:
-            print "WARNING: Error running %s" % aux_data[direc][-1] 
+            print("WARNING: Error running {!s}".format(aux_data[direc][-1])) 
     
     os.chdir('..')
 
