@@ -414,8 +414,7 @@ class OpticalDepth(object):
         self.dlogE = np.diff(self.logE)
     
         # Pre-compute cross-sections
-        self.sigma_E = np.array([np.array(map(lambda E: self.sigma(E, i), 
-            self.E)) for i in range(3)])
+        self.sigma_E = np.array([np.array([self.sigma(E, i) for E in self.E]) for i in range(3)])
         self.log_sigma_E = np.log10(self.sigma_E)
     
     def load(self, fn):
@@ -651,8 +650,8 @@ class OpticalDepth(object):
         post = '_logE_' + tmp3.replace('.hdf5', '')
     
         # Find exactly what table should be
-        zmin, zmax = map(float, red[red.rfind('z')+2:].partition('-')[0::2])
-        logEmin, logEmax = map(float, tmp3[tmp3.rfind('E')+1:tmp3.rfind('.')].partition('-')[0::2])
+        zmin, zmax = list(map(float, red[red.rfind('z')+2:].partition('-')[0::2]))
+        logEmin, logEmax = list(map(float, tmp3[tmp3.rfind('E')+1:tmp3.rfind('.')].partition('-')[0::2]))
     
         Nz = pre[pre.rfind('_')+1:]
     

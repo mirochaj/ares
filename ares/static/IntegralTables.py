@@ -495,8 +495,8 @@ class IntegralTable:
             self._sigma_E = {}
             for absorber in self.grid.absorbers:
                 self._sigma_E[absorber] = \
-                    np.array(map(self.grid.bf_cross_sections[absorber],
-                    self.E[absorber]))
+                    np.array(list(map(self.grid.bf_cross_sections[absorber],
+                    self.E[absorber])))
                 
         return self._sigma_E
         
@@ -506,7 +506,7 @@ class IntegralTable:
             self._I_E = {}
             for absorber in self.grid.absorbers:
                 E = self.E[absorber]
-                self._I_E[absorber] = np.array(map(self.src.Spectrum, E))
+                self._I_E[absorber] = np.array(list(map(self.src.Spectrum, E)))
                         
         return self._I_E
         
@@ -521,7 +521,7 @@ class IntegralTable:
                 func = lambda E: \
                     self.esec.DepositionFraction(x,E=E-Ei, channel='heat')    
             
-                self._fheat[absorber] = np.array(map(func, self.E))
+                self._fheat[absorber] = np.array(list(map(func, self.E)))
                 
         return self._fheat
     
@@ -536,7 +536,7 @@ class IntegralTable:
                 func = lambda E: \
                     self.esec.DepositionFraction(x,E=E-Ei, channel=absorber)    
     
-                self._fion[absorber] = np.array(map(func, self.E))
+                self._fion[absorber] = np.array(list(map(func, self.E)))
     
         return self._fheat    
         
@@ -963,7 +963,7 @@ class IntegralTable:
         
         print('Read integral table from {!s}.'.format(fn))
         
-        axis_nums, axis_names, values = zip(*axes)
+        axis_nums, axis_names, values = list(zip(*axes))
 
         # See if parameter file and integral table are consistent
         ok = True

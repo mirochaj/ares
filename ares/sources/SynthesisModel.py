@@ -147,7 +147,7 @@ class SynthesisModel(object):
         """
         if not hasattr(self, '_data'):
             
-            Zall = np.sort(self.metallicities.values())
+            Zall = np.sort(list(self.metallicities.values()))
                         
             # Check to see dimensions of tmp. Depending on if we're 
             # interpolating in Z, it might be multiple arrays.

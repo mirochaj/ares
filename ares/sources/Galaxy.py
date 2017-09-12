@@ -93,7 +93,7 @@ class Galaxy(object):
             i_lam = np.argmin(np.abs(wavelength - self.src.wavelengths))
             
             if self.pf['source_meh'] is not None:                
-                Zarr = np.sort(self._synth_model.metallicities.values())
+                Zarr = np.sort(list(self._synth_model.metallicities.values()))
                 tarr = self._synth_model.times
                 
                 interp2d = RectBivariateSpline(Zarr, tarr, 

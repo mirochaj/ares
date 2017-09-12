@@ -386,7 +386,7 @@ class MetaGalacticBackground(object):
         ax_freq.set_xticks(znu_minor, minor=True)
         ax_freq.set_xlim(ax.get_xlim())
     
-        freq_labels = map(str, nu)
+        freq_labels = list(map(str, nu))
     
         # A bit hack-y
         for i, label in enumerate(freq_labels):
@@ -430,7 +430,7 @@ class MetaGalacticBackground(object):
                
         #ax_nrg.set_xticks(wave_minor, minor=True)
         
-        #ax_nrg.set_xticklabels(map(str, E))
+        #ax_nrg.set_xticklabels(list(map(str, E)))
         ax_nrg.set_xlim(ax.get_xlim())
         ax_nrg.set_xscale('log')
         

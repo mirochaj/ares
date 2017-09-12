@@ -235,7 +235,7 @@ class ModelGrid(ModelFit):
 
         # Build parameter space
         self.grid.all_kwargs = models
-        self.grid.axes_names = models[0].keys()
+        self.grid.axes_names = list(models[0].keys())
         self.grid.Nd = len(self.grid.axes_names)
 
         # Shortcut to parameter names
@@ -385,11 +385,11 @@ class ModelGrid(ModelFit):
             
     @property
     def trick_names(self):
-        return zip(*self.tricks)[0]
+        return list(zip(*self.tricks))[0]
     
     @property
     def trick_files(self):
-        return zip(*self.tricks)[1]    
+        return list(zip(*self.tricks))[1]    
             
     #@property
     #def trick_data(self):

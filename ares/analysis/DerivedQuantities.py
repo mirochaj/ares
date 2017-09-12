@@ -102,7 +102,7 @@ registry_cosm_Q = \
  'nH': lambda data, cosm: cosm.nH(data['z']),
  'nHe': lambda data, cosm: cosm.nHe(data['z']), 
  't': lambda data, cosm: 2. / 3. \
-    / np.array(map(cosm.HubbleParameter, data['z'])),
+    / np.array(list(map(cosm.HubbleParameter, data['z']))),
  'logt': lambda data, cosm: np.log10(data['t']),
 }    
     

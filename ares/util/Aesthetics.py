@@ -379,7 +379,7 @@ class Labeler(object):
                     popid, phpid, parnum)    
         # Is PQ, label found. Just need to parse []s.
         elif phpid is not None and (prefix in self.labels):
-            parnum = map(int, re.findall(r'\d+', par.replace('[{}]'.format(phpid),'')))
+            parnum = list(map(int, re.findall(r'\d+', par.replace('[{}]'.format(phpid),''))))
             if len(parnum) == 1:
                 label = r'${0!s}^{{\mathrm{{par}}\ {1}}}$'.format(\
                     undo_mathify(self.labels[prefix]), parnum[0])

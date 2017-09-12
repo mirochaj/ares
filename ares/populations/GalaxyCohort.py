@@ -94,7 +94,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if self.sed_tab and (name in _sed_tab_attributes):
                 if self.pf['pop_Z'] == 'sam':
                     tmp = []
-                    Zarr = np.sort(self.src.metallicities.values())
+                    Zarr = np.sort(list(self.src.metallicities.values()))
                     for Z in Zarr:
                         kw = self.src_kwargs.copy()
                         kw['pop_Z'] = Z
@@ -520,7 +520,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
     
         if not hasattr(self, '_SMD'):
-            dtdz = np.array(map(self.cosm.dtdz, self.halos.z))
+            dtdz = np.array(list(map(self.cosm.dtdz, self.halos.z)))
             self._smd_tab = cumtrapz(self._tab_sfrd[-1::-1] * dtdz[-1::-1], 
                 dx=np.abs(np.diff(self.halos.z[-1::-1])), initial=0.)[-1::-1]
             self._SMD = interp1d(self.halos.z, self._smd_tab, kind='cubic')
@@ -1014,7 +1014,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def M_atom(self):
         if not hasattr(self, '_Matom'):
             Mvir = lambda z: self.halos.VirialMass(1e4, z, mu=self.pf['mu'])
-            self._Matom = np.array(map(Mvir, self.halos.z))
+            self._Matom = np.array(list(map(Mvir, self.halos.z)))
         return self._Matom    
 
     @property
@@ -1064,7 +1064,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if ismethod(self.pf['pop_Mmin']) or \
                    type(self.pf['pop_Mmin']) == FunctionType:
                     self._tab_Mmin_ = \
-                        np.array(map(self.pf['pop_Mmin'], self.halos.z))
+                        np.array(list(map(self.pf['pop_Mmin'], self.halos.z)))
                 elif type(self.pf['pop_Mmin']) is np.ndarray:
                     self._tab_Mmin_ = self.pf['pop_Mmin']
                     assert self._tab_Mmin.size == self.halos.z.size
@@ -1074,7 +1074,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'],
                     z, mu=self.pf['mu'])
-                self._tab_Mmin_ = np.array(map(Mvir, self.halos.z))
+                self._tab_Mmin_ = np.array(list(map(Mvir, self.halos.z)))
                 
             self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, 'min')
                 
@@ -1084,7 +1084,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_Mmin(self, value):
         if ismethod(value):
             self.Mmin = value
-            self._tab_Mmin_ = np.array(map(value, self.halos.z), dtype=float)
+            self._tab_Mmin_ = np.array(list(map(value, self.halos.z)), dtype=float)
         elif type(value) in [int, float, np.float64]:    
             self._tab_Mmin_ = value * np.ones(self.halos.Nz) 
         else:
@@ -1112,12 +1112,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if self.pf['pop_T{!s}_ceil'.format(s)] is not None:
             _f = lambda z: self.halos.VirialMass(self.pf['pop_T{!s}_ceil'.format(s)], 
                 z, mu=self.pf['mu'])
-            _MofT = np.array(map(_f, zarr))
+            _MofT = np.array(list(map(_f, zarr)))
             out = np.minimum(arr, _MofT)
         if self.pf['pop_T{!s}_floor'.format(s)] is not None:
             _f = lambda z: self.halos.VirialMass(self.pf['pop_T{!s}_floor'.format(s)], 
                 z, mu=self.pf['mu'])
-            _MofT = np.array(map(_f, zarr))
+            _MofT = np.array(list(map(_f, zarr)))
             out = np.maximum(arr, _MofT)
 
         if out is None:
@@ -1194,13 +1194,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             elif self.pf['pop_Mmax'] is not None:
                 if type(self.pf['pop_Mmax']) is FunctionType:
-                    self._tab_Mmax_ = np.array(map(self.pf['pop_Mmax'], self.halos.z))
+                    self._tab_Mmax_ = np.array(list(map(self.pf['pop_Mmax'], self.halos.z)))
                 elif type(self.pf['pop_Mmax']) is tuple:
                     extra = self.pf['pop_Mmax'][0]
                     assert self.pf['pop_Mmax'][1] == 'Mmin'
 
                     if type(extra) is FunctionType:
-                        self._tab_Mmax_ = np.array(map(extra, self.halos.z)) \
+                        self._tab_Mmax_ = np.array(list(map(extra, self.halos.z))) \
                             * self._tab_Mmin
                     else:
                         self._tab_Mmax_ = extra * self._tab_Mmin
@@ -1209,7 +1209,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             elif self.pf['pop_Tmax'] is not None:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmax'], 
                     z, mu=self.pf['mu'])
-                self._tab_Mmax_ = np.array(map(Mvir, self.halos.z))    
+                self._tab_Mmax_ = np.array(list(map(Mvir, self.halos.z)))
             else:
                 # A suitably large number for (I think) any purpose
                 self._tab_Mmax_ = 1e18 * np.ones_like(self.halos.z)

@@ -273,7 +273,7 @@ class ModelSet(BlobFactory):
             if os.path.exists('{!s}.rinfo.pkl'.format(self.prefix)):
                 f = open('{!s}.rinfo.pkl'.format(self.prefix), 'rb')
                 self._nwalkers, self._save_freq, self._steps = \
-                    map(int, pickle.load(f))
+                    list(map(int, pickle.load(f)))
                 f.close()
             else:
                 self._nwalkers = self._save_freq = self._steps = None
@@ -1663,11 +1663,11 @@ class ModelSet(BlobFactory):
             return ax
         
     def _fix_tick_labels(self, ax):
-        tx = map(int, ax.get_xticks())
-        ax.set_xticklabels(map(str, tx))
+        tx = list(map(int, ax.get_xticks()))
+        ax.set_xticklabels(list(map(str, tx)))
         
-        ty = map(int, ax.get_yticks())
-        ax.set_yticklabels(map(str, ty))
+        ty = list(map(int, ax.get_yticks()))
+        ax.set_yticklabels(list(map(str, ty)))
         
         pl.draw()
         
@@ -1772,7 +1772,7 @@ class ModelSet(BlobFactory):
         ydata = self.ydata = data[pars[1]].compressed()
 
         # Organize into (x, y) pairs
-        points = zip(xdata, ydata)
+        points = list(zip(xdata, ydata))
 
         # Create polygon object
         point_collection = geometry.MultiPoint(list(points))
@@ -2388,7 +2388,7 @@ class ModelSet(BlobFactory):
 
         if remove_nas:
             to_remove = []
-            length = len(data[data.keys()[0]])
+            length = len(data[list(data.keys())[0]])
             for ilink in range(length):
                 for par in data:
                     elem = data[par][ilink]
@@ -4063,7 +4063,7 @@ class ModelSet(BlobFactory):
 
         else:
         
-            blobs = varmap.values()
+            blobs = list(varmap.values())
             if ivar is not None:
                 iv = [ivar[blob] for blob in blobs]
             else:

@@ -123,7 +123,7 @@ class InlineAnalysis:
             tmp1.extend(blob_names)
         
         tmp11 = list(np.unique(tmp1))
-        names = map(str, tmp11)
+        names = list(map(str, tmp11))
         
         tmp2 = []
         for i, z in enumerate(_blob_redshifts):
@@ -329,7 +329,7 @@ class InlineAnalysis:
             output.append(tmp)
 
         # Reshape output so it's (redshift x blobs)
-        self.blobs = np.array(zip(*output))
+        self.blobs = np.array(list(zip(*output)))
         
     def get_igm_quantity(self):
         pass    

@@ -160,7 +160,7 @@ def split_flux(energies, fluxes):
     Take flattened fluxes and re-sort into band-grouped fluxes.
     """
     
-    i_E = np.cumsum(map(len, energies))
+    i_E = np.cumsum(list(map(len, energies)))
     fluxes_split = np.hsplit(fluxes, i_E)
 
     return fluxes_split

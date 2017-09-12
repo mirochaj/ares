@@ -554,18 +554,18 @@ class GridND(defaultdict):
         """
         
         # Determine all parameters used in this set of models
-        allnames = all_kwargs[0].keys()
+        allnames = list(all_kwargs[0].keys())
         
         # Figure out all values of all parameters
         allvals = []
         for kwargs in all_kwargs:
-            allvals.append(kwargs.values())
+            allvals.append(list(kwargs.values()))
                     
         # Figure out which parameters vary from model to model            
         axes_values = []
         const_kwargs = {}
         for i, par in enumerate(allnames):
-            parvals = zip(*allvals)[i] 
+            parvals = list(zip(*allvals))[i] 
             
             if not np.all(np.diff(parvals) == 0):
                 unique_vals = np.unique(parvals)

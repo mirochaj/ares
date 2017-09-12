@@ -247,7 +247,7 @@ class GlobalVolume(object):
                 # 
                 for k, species in enumerate(['h_1', 'he_1', 'he_2']):
                     self._sigma_E[species][i][j] = \
-                        np.array(map(lambda E: self.sigma(E, k), E))
+                        np.array([self.sigma(Eval, k) for Eval in E])
 
                 # Pre-compute secondary ionization and heating factors
                 if self.esec.method > 1:

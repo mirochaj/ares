@@ -310,8 +310,7 @@ class SpectrumOptimization(object):
                 loc = list(self.rs.tab.indices_N[i])
                 loc.append(j)
                     
-                tmp = np.array(map(lambda EE: self.rs.tab.PartialOpticalDepth(EE, 
-                    float(self.rs.tab.Nall[i]), absorber), E))
+                tmp = np.array([self.rs.tab.PartialOpticalDepth(EE, float(self.rs.tab.Nall[i]), absorber) for EE in E]
                                 
                 tau_E[tuple(loc)] = tmp
                     

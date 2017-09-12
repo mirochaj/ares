@@ -163,7 +163,7 @@ class RaySegment:
         else:
             E = np.linspace(self.rs.Emin, self.rs.Emax)
         
-        F = np.array(map(self.rs.Spectrum, E))
+        F = np.array(list(map(self.rs.Spectrum, E)))
         
         for dd in self.data: 
             if self.data[dd]['time'] / s_per_myr != t:

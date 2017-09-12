@@ -210,7 +210,7 @@ class MultiPanel(object):
         #    'bottom': b, 'pane': ((r-l) / float(dims[0]), (t-b) / float(dims[1]))}
         
         self.xaxes = self.elements[-1]
-        self.yaxes = zip(*self.elements)[0]                  
+        self.yaxes = list(zip(*self.elements))[0]                  
         self.lowerleft = self.elements[-1][0]
         self.lowerright = self.elements[-1][-1]
         self.upperleft = self.elements[0][0]
@@ -861,7 +861,7 @@ class MultiPanel(object):
                         
                     self.grid[panel].set_xticks(ticks, minor=minor)
                     if (not minor):
-                        self.grid[panel].set_xticklabels(map(str, ticks))
+                        self.grid[panel].set_xticklabels(list(map(str, ticks)))
                         
             # Just apply to relevant rows, too.
             if not round_two:
@@ -880,7 +880,7 @@ class MultiPanel(object):
             
                     self.grid[panel].set_yticks(ticks, minor=minor)
                     if (not minor):
-                        self.grid[panel].set_yticklabels(map(str, ticks))
+                        self.grid[panel].set_yticklabels(list(map(str, ticks)))
              
             if not round_two:
                 if (row > 0) or oned:

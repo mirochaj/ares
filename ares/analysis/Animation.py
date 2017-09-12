@@ -98,8 +98,7 @@ class Animation(object):
         # By default, scan to lower values, then all the way up, then return
         # to start point
         if pivots is None:
-            pivots = map(lambda v: round(v, 4), 
-                [start, limits[0], limits[1], end])
+            pivots = [round(v, 4) for v in [start, limits[0], limits[1], end]]
                 
         for element in pivots:
             assert limits[0] <= element <= limits[1], \

@@ -173,7 +173,7 @@ class HaloMassFunction(object):
                     self.fn = None
                     for candidate in candidates:
                         _Nm, _logMmin, _logMmax, _Nz, _zmin, _zmax = \
-                            map(int, re.findall(r'\d+', candidate))
+                            list(map(int, re.findall(r'\d+', candidate)))
                     
                         if (_logMmin > logMmin) or (_logMmax < logMmax):
                             continue
@@ -715,7 +715,7 @@ class HaloMassFunction(object):
         else:
             Mmin_vbc = np.zeros_like(zarr)
         
-        Mmin_H2 = np.array(map(self._tegmark, zarr))
+        Mmin_H2 = np.array(list(map(self._tegmark, zarr)))
                 
         #return np.maximum(Mmin_vbc, Mmin_H2)      
         return Mmin_vbc + Mmin_H2

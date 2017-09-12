@@ -320,12 +320,12 @@ class Population(object):
 
         # Handle non-vectorized case
         try:
-            return np.array(map(lambda xx: func(xx, **kw), x))
+            return np.array(list(map(lambda xx: func(xx, **kw), x)))
         except ValueError:
             arr = np.zeros((len(x), Ns))
             for i in range(int(Ns)):
                 new_kw = {key:kw[key][i] for key in kw}
-                arr[:,i] = map(lambda xx: func(xx, **new_kw), x)
+                arr[:,i] = list(map(lambda xx: func(xx, **new_kw), x))
 
             return arr
 

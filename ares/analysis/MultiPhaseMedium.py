@@ -439,7 +439,7 @@ class MultiPhaseMedium(object):
         ax_freq.set_xticks(znu_minor, minor=True)
         ax_freq.set_xlim(ax.get_xlim())
         
-        freq_labels = map(str, nu)
+        freq_labels = list(map(str, nu))
         
         # A bit hack-y
         for i, label in enumerate(freq_labels):
@@ -473,10 +473,10 @@ class MultiPhaseMedium(object):
         t = np.arange(100, 1e3, 100) # in Myr
         t_minor = np.arange(0, 1e3, 50)[1::2]
         
-        zt = map(lambda tt: self.cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
-            np.inf), t)
-        zt_minor = map(lambda tt: self.cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
-            np.inf), t_minor)
+        zt = list(map(lambda tt: self.cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
+            np.inf), t))
+        zt_minor = list(map(lambda tt: self.cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
+            np.inf), t_minor))
         
         ax_time = ax.twiny()
         ax_time.set_xlabel(labels['t_myr'])        
@@ -485,7 +485,7 @@ class MultiPhaseMedium(object):
         ax_time.set_xlim(ax.get_xlim())
         
         # A bit hack-y
-        time_labels = map(str, map(int, t))
+        time_labels = list(map(str, list(map(int, t))))
         for i, label in enumerate(time_labels):
             tnow = float(label)
             if (tnow in [400, 600, 700]) or (tnow > 800):
@@ -741,8 +741,8 @@ class MultiPhaseMedium(object):
             fig = pl.figure(fig)
             ax = fig.add_subplot(111)
         
-        n1 = map(self.cosm.nH, self.history['z']) if species == 'h_1' \
-        else map(self.cosm.nHe, self.history['z'])
+        n1 = list(map(self.cosm.nH, self.history['z'])) if species == 'h_1' \
+        else list(map(self.cosm.nHe, self.history['z']))
         
         n1 = np.array(n1) * np.array(self.history['igm_{!s}'.format(species)])
         
@@ -759,8 +759,8 @@ class MultiPhaseMedium(object):
             if field not in self.history:
                 continue
                
-            n2 = map(self.cosm.nH, self.history['z']) if donor == 'h_1' \
-            else map(self.cosm.nHe, self.history['z'])
+            n2 = list(map(self.cosm.nH, self.history['z'])) if donor == 'h_1' \
+            else list(map(self.cosm.nHe, self.history['z']))
         
             n2 = np.array(n2) * np.array(self.history['igm_{!s}'.format(donor)])
         
@@ -980,7 +980,7 @@ def add_redshift_axis(ax, twin_ax=None):
     nu = nu_0_mhz / (1. + z)
     nu_minor = nu_0_mhz / (1. + z_minor)
     
-    z_labels = map(str, z)
+    z_labels = list(map(str, z))
 
     # Add 25, 15 and 12, 8 to redshift labels
     z_labels.insert(-1, '15')
@@ -988,7 +988,7 @@ def add_redshift_axis(ax, twin_ax=None):
     z_labels.extend(['8', '7', '6', '5'])
     #z_labels.insert(-5, '25')
 
-    z = np.array(map(int, z_labels))
+    z = np.array(list(map(int, z_labels)))
 
     nu = nu_0_mhz / (1. + z)
     nu_minor = nu_0_mhz / (1. + z_minor)

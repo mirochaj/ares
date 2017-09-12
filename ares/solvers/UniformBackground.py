@@ -718,9 +718,9 @@ class UniformBackground(object):
         integrand = lambda zu: self.AngleAveragedFluxSlice(z, E, zu,
             xavg=kw['xavg']) / Jc
         #else:
-        #    integrand = np.array(map(lambda zu: \
+        #    integrand = np.array(list(map(lambda zu: \
         #        self.AngleAveragedFluxSlice(z, E, zu,
-        #        xavg=kw['xavg'], zxavg=kw['zxavg']), kw['zxavg'])) / Jc
+        #        xavg=kw['xavg'], zxavg=kw['zxavg']), kw['zxavg']))) / Jc
         #else:
         #    # Assume neutral medium
         #    integrand = lambda zu: self.AngleAveragedFluxSlice(z, E, zu,
@@ -941,7 +941,7 @@ class UniformBackground(object):
     def frec(self):
         if not hasattr(self, '_frec'):
             n = np.arange(2, self.pf['lya_nmax'])
-            self._frec = np.array(map(self.hydr.frec, n)) 
+            self._frec = np.array(list(map(self.hydr.frec, n))) 
     
         return self._frec
         
@@ -1093,7 +1093,7 @@ class UniformBackground(object):
         scalable = pop.is_emissivity_scalable
         separable = pop.is_emissivity_separable
 
-        H = np.array(map(self.cosm.HubbleParameter, z))
+        H = np.array(list(map(self.cosm.HubbleParameter, z)))
 
         if scalable:
             for ll in range(Nz):

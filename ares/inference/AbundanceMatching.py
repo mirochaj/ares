@@ -323,7 +323,7 @@ class AbundanceMatching(GalaxyCohort):
         # M is the initial mass of a halo
         # Macc_of_z is its MAR as a function of redshift
         Macc_of_z = self.Macc(self.halos.z, M)
-        fstar_of_z = map(lambda z: self.SFE(z, Macc_of_z), self.halos.z)
+        fstar_of_z = [self.SFE(z, Macc_of_z) for z in self.halos.z]
         
         dtdz = self.cosm.dtdz(self.halos.z)
         Mh_of_z = cumtrapz(Macc_of_z[-1::-1] * dtdz / s_per_yr,

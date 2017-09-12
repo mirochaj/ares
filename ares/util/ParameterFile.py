@@ -248,8 +248,8 @@ class ParameterFile(dict):
         # Keep user-supplied kwargs as attribute 
         self._kwargs = kwargs.copy()
         
-        #print len(kwargs.keys()), len(defaults.keys())
-        #if len(kwargs.keys()) < 0.5 * len(defaults.keys()):
+        #print len(kwargs), len(defaults)
+        #if len(kwargs) < 0.5 * len(defaults):
         #    for par in self._kwargs:
         #        if par not in _cosmo_params:
         #            continue

@@ -128,7 +128,7 @@ class BlobFactory(object):
         except TypeError:
             hdf5_situation = True
             f = h5py.File('{!s}.hdf5'.format(self.prefix), 'r')
-            names = f['blobs'].keys()
+            names = list(f['blobs'].keys())
             f.close()
 
         if names is None:
@@ -498,9 +498,9 @@ class BlobFactory(object):
                             
                             try:
                                 func_kw = lambda xx: func(**{xn:xx})
-                                blob = np.array(map(func_kw, x))
+                                blob = np.array(list(map(func_kw, x)))
                             except TypeError:
-                                blob = np.array(map(func, x))
+                                blob = np.array(list(map(func, x)))
                             
                         else:
                             blob = np.interp(x, func[0], func[1])
@@ -511,7 +511,7 @@ class BlobFactory(object):
                     fname = self.blob_funcs[i][j]
                     tmp_f = parse_attribute(fname, self)
 
-                    xarr, yarr = map(np.array, self.blob_ivars[i])
+                    xarr, yarr = list(map(np.array, self.blob_ivars[i]))
 
                     if (type(tmp_f) is FunctionType) or ismethod(tmp_f) \
                         or hasattr(func, '__call__'):

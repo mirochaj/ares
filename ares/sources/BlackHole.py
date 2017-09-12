@@ -102,7 +102,7 @@ class BlackHole(Source):
         #        continue
         #    
         #    self.type_by_num.append(sptype)
-        #    self.type_by_name.append(sptypes.keys()[sptypes.values().index(sptype)])                
+        #    self.type_by_name.append(list(sptypes.keys())[list(sptypes.values()).index(sptype)])                
                 
     def _SchwartzchildRadius(self, M):
         return 2. * self._GravitationalRadius(M)
@@ -193,8 +193,8 @@ class BlackHole(Source):
         N = (ma - mi) / dlogE + 1
         Earr = 10**np.arange(mi, ma+dlogE, dlogE)
         
-        gf = map(lambda EE: self._GreensFunctionSIMPL(EE, E), Earr)
-        integrand = np.array(map(nin, Earr)) * np.array(gf) * Earr
+        gf = [self._GreensFunctionSIMPL(EE, E) for EE in Earr]
+        integrand = np.array(list(map(nin, Earr))) * np.array(gf) * Earr
         
         nout = (1.0 - fsc) * nin(E) + fsc \
             * np.trapz(integrand, dx=dlogE) * np.log(10.)

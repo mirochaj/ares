@@ -37,7 +37,7 @@ z_to_mhz = lambda z: nu_0_mhz / (1. + z)
 freq_to_z = lambda nu: nu_0_mhz / nu - 1.
 
 def shift_z(z, nu_bias, nu_scale):
-    nu = np.array(map(z_to_mhz, z))
+    nu = np.array(list(map(z_to_mhz, z)))
     nu = ((nu_scale * nu) + nu_bias)
 
     return freq_to_z(nu)

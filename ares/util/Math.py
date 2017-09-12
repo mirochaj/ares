@@ -235,7 +235,7 @@ class LinearNDInterpolator:
     def _interp_2d(self, points):
         """ Interpolate in 2D. """
 
-        i_n, i_m = map(int, (points - self.axes_min) / self.daxes)
+        i_n, i_m = list(map(int, (points - self.axes_min) / self.daxes))
 
         x1 = self.axes[0][i_n]
         x2 = self.axes[0][i_n+1]
@@ -256,7 +256,7 @@ class LinearNDInterpolator:
 
     def _get_indices_3d(self, points):
         # Smaller indices
-        i_s, j_s, k_s = map(int, (points - self.axes_min) / self.daxes)
+        i_s, j_s, k_s = list(map(int, (points - self.axes_min) / self.daxes))
 
         # Bracketing coordinates
         if i_s < 0: 

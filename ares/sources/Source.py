@@ -187,9 +187,9 @@ class Source(object):
             return None
         
         n = np.arange(2, self.hydr.nmax)
-        En = np.array(map(self.hydr.ELyn, n))
-        In = np.array(map(self.Spectrum, En)) / En
-        fr = np.array(map(self.hydr.frec, n))
+        En = np.array(list(map(self.hydr.ELyn, n)))
+        In = np.array(list(map(self.Spectrum, En))) / En
+        fr = np.array(list(map(self.hydr.frec, n)))
         
         return np.sum(fr * In) / np.sum(In)
 
@@ -323,7 +323,7 @@ class Source(object):
         if not self.discrete:
             return None
         if not hasattr(self, '_sigma_all'):
-            self._sigma_all = np.array(map(sigma_E, self.E))
+            self._sigma_all = np.array(list(map(sigma_E, self.E)))
         
         return self._sigma_all
         
@@ -596,8 +596,8 @@ class Source(object):
             out = 'hdf5'
         else:
             out = 'ascii'
-            
-        LE = map(self.Spectrum, E)    
+        
+        LE = list(map(self.Spectrum, E))
             
         if out == 'hdf5':
             f = h5py.File(fn, 'w')    
