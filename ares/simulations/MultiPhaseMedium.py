@@ -318,7 +318,7 @@ class MultiPhaseMedium(object):
                         zone='igm', return_rc=True, **also)
 
                     # Now, update IGM parcel
-                    t1, dt1, data_igm = self.gen_igm.next()
+                    t1, dt1, data_igm = next(self.gen_igm)
 
                     # Pass rate coefficients off to the IGM parcel
                     self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
@@ -346,7 +346,7 @@ class MultiPhaseMedium(object):
                     self.parcel_cgm.update_rate_coefficients(data_cgm, **RC_cgm)
                     
                     # Now, update CGM parcel
-                    t2, dt2, data_cgm = self.gen_cgm.next()
+                    t2, dt2, data_cgm = next(self.gen_cgm)
             else:
                 dt2 = 1e50
                 RC_cgm = data_cgm = None

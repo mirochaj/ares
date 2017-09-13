@@ -492,8 +492,9 @@ class GalaxyAggregate(HaloPopulation):
                                 
         # Convert from reference band to arbitrary band
         rhoL *= self._convert_band(Emin, Emax)
-       
-        if Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
+        if (Emax is None) or (Emin is None):
+            pass
+        elif Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
             rhoL *= self.pf['pop_fesc']
         elif Emax <= 13.6:
             rhoL *= self.pf['pop_fesc_LW']    

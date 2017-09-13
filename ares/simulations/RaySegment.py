@@ -133,7 +133,7 @@ class RaySegment(object):
         
 
         while t < tf:
-            yield self.gen.next()
+            yield next(self.gen)
             
 
 

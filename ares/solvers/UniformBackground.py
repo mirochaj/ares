@@ -1268,7 +1268,7 @@ class UniformBackground(object):
         for i in range(z.size):  
             flux = []
             for gen in gens:
-                z, new_flux = gen.next()
+                z, new_flux = next(gen)
                 flux.append(new_flux)
 
             # Increment fluxes

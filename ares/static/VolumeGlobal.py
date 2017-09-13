@@ -368,7 +368,7 @@ class GlobalVolume(object):
         if not self.background.solve_rte[popid][band]:
             pass
         elif (kw['Emax'] is None) and self.background.solve_rte[popid][band] and \
-            np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
+            np.any(np.array(self.background.bands_by_pop[popid]) > pop.pf['pop_EminX']):
             
             kw['Emax'] = self.background.energies[popid][band][-1]
                         
@@ -649,7 +649,7 @@ class GlobalVolume(object):
             solve_rte = False
 
         if (not solve_rte) or \
-            (not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX'])):
+            (not np.any(np.array(self.background.bands_by_pop[popid]) > pop.pf['pop_EminX'])):
             
             Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 
                 Emax=pop.pf['pop_Emax'])

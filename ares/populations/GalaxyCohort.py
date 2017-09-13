@@ -83,8 +83,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         full_name = 'pop_' + name
                                 
         # Now, possibly make an attribute
-        if not hasattr(self, name):
-            
+        try:
+            return getattr(self, name)
+        except:
             try:
                 is_php = self.pf[full_name][0:2] == 'pq'
             except (IndexError, TypeError):
@@ -157,9 +158,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
             else:
                 raise TypeError('dunno how to handle: {!s}'.format(name))
-
             # Check to see if Z?
-            self.__setattr__(name, result)
+            setattr(self, name, result)
+        else:
+            pass
 
         return getattr(self, name)
 

@@ -421,7 +421,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             if generator is None:
                 fluxes_by_band.append(None)
             else:    
-                z, f = generator.next()
+                z, f = next(generator)
                 fluxes_by_band.append(flatten_flux(f))
 
         return z, fluxes_by_band
