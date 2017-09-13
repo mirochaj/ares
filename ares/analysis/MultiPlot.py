@@ -583,13 +583,15 @@ class MultiPanel(object):
                 l = tick.get_text()
                 
                 # Minus signs are weird in unicode...
-                if type(l) == unicode:
+                try:
+                    assert isinstance(l, unicode)
+                except:
+                    new = l
+                else:
                     if u'\u2212' in l:
                         new = '-' + l.encode('ascii', 'ignore')
                     else:
-                        new = l.encode('ascii', 'ignore')
-                else:
-                    new = l    
+                        new = l.encode('ascii', 'ignore')  
                     
                 labels.append(new)
                 
