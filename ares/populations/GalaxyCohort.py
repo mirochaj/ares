@@ -84,86 +84,76 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                                 
         # Now, possibly make an attribute
         try:
-            return getattr(self, name)
-        except:
-            try:
-                is_php = self.pf[full_name][0:2] == 'pq'
-            except (IndexError, TypeError):
-                is_php = False
-                
-            # A few special cases    
-            if self.sed_tab and (name in _sed_tab_attributes):
-                if self.pf['pop_Z'] == 'sam':
-                    tmp = []
-                    Zarr = np.sort(list(self.src.metallicities.values()))
-                    for Z in Zarr:
-                        kw = self.src_kwargs.copy()
-                        kw['pop_Z'] = Z
-                        src = self._Source(**kw)
-                        
-                        att = src.__getattribute__(name)
-                        
-                        # Must specify band
-                        if name == 'rad_yield':
-                            val = att(self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
-                        else:
-                            val = att
-                            
-                        tmp.append(val)
-
-                    # Interpolant
-                    interp = interp1d_wrapper(np.log10(Zarr), tmp, 
-                        self.pf['interp_Z'])
-
-                    result = lambda **kwargs: interp(np.log10(self.Zgas(kwargs['z'], kwargs['Mh'])))
-                else:
-                    att = self.src.__getattribute__(name)
-
+            is_php = self.pf[full_name][0:2] == 'pq'
+        except (IndexError, TypeError):
+            is_php = False
+            
+        # A few special cases    
+        if self.sed_tab and (name in _sed_tab_attributes):
+            if self.pf['pop_Z'] == 'sam':
+                tmp = []
+                Zarr = np.sort(list(self.src.metallicities.values()))
+                for Z in Zarr:
+                    kw = self.src_kwargs.copy()
+                    kw['pop_Z'] = Z
+                    src = self._Source(**kw)
+                    
+                    att = src.__getattribute__(name)
+                    
+                    # Must specify band
                     if name == 'rad_yield':
-                        val = att(self.src.Emin, self.src.Emax)
+                        val = att(self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
                     else:
                         val = att
+                        
+                    tmp.append(val)
+                # Interpolant
+                interp = interp1d_wrapper(np.log10(Zarr), tmp, 
+                    self.pf['interp_Z'])
 
-                    result = lambda **kwargs: val
-
-            elif is_php:
-                tmp = get_pq_pars(self.pf[full_name], self.pf)
-
-                # Correct values that are strings:
-                if self.sed_tab:
-                    pars = {}
-                    for par in tmp:
-                        if tmp[par] == 'from_sed':
-                            pars[par] = self.src.__getattribute__(name)
-                        else:
-                            pars[par] = tmp[par]  
-                else:
-                    pars = tmp            
-
-                Mmin = lambda z: self.Mmin
-                result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, 
-                    **pars)
-
-                self._update_pq_registry(name, result)
-            
-            elif type(self.pf[full_name]) in [int, float, np.int64, np.float64]:
-                
-                # Need to be careful here: has user-specified units!
-                # We've assumed that this cannot be parameterized...
-                # i.e., previous elif won't ever catch rad_yield
-                if name == 'rad_yield':
-                    result = lambda **kwargs: normalize_sed(self)
-                else:
-                    result = lambda **kwargs: self.pf[full_name]
-                
+                result = lambda **kwargs: interp(np.log10(self.Zgas(kwargs['z'], kwargs['Mh'])))
             else:
-                raise TypeError('dunno how to handle: {!s}'.format(name))
-            # Check to see if Z?
-            setattr(self, name, result)
-        else:
-            pass
+                att = self.src.__getattribute__(name)
 
-        return getattr(self, name)
+                if name == 'rad_yield':
+                    val = att(self.src.Emin, self.src.Emax)
+                else:
+                    val = att
+
+                result = lambda **kwargs: val
+
+        elif is_php:
+            tmp = get_pq_pars(self.pf[full_name], self.pf)
+            # Correct values that are strings:
+            if self.sed_tab:
+                pars = {}
+                for par in tmp:
+                    if tmp[par] == 'from_sed':
+                        pars[par] = self.src.__getattribute__(name)
+                    else:
+                        pars[par] = tmp[par]  
+            else:
+                pars = tmp            
+            Mmin = lambda z: self.Mmin
+            result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, **pars)
+
+            self._update_pq_registry(name, result)
+            
+        elif type(self.pf[full_name]) in [int, float, np.int64, np.float64]:
+                
+            # Need to be careful here: has user-specified units!
+            # We've assumed that this cannot be parameterized...
+            # i.e., previous elif won't ever catch rad_yield
+            if name == 'rad_yield':
+                result = lambda **kwargs: normalize_sed(self)
+            else:
+                result = lambda **kwargs: self.pf[full_name]
+            
+        else:
+            raise TypeError('dunno how to handle: {!s}'.format(name))
+        # Check to see if Z?
+        setattr(self, name, result)
+        return result
 
     def Zgas(self, z, Mh):
         if not hasattr(self, '_sam_data'):
