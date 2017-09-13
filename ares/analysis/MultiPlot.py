@@ -172,8 +172,8 @@ class MultiPanel(object):
         # Create figure
         if type(self.fig) is not int:
             new_fig = False
-            l, r = fig.subplotpars.left, fig.subplotpars.right
-            b, t = fig.subplotpars.bottom, fig.subplotpars.top
+            l, r = self.fig.subplotpars.left, self.fig.subplotpars.right
+            b, t = self.fig.subplotpars.bottom, self.fig.subplotpars.top
         else:
             self.fig = pl.figure(self.fig, self.panel_size)
             new_fig = True
