@@ -67,7 +67,7 @@ def test():
             # Compare to high-energy limit from Ricotti et al.
             if channel not in ['exc', 'lya']:                  
                 f2 = list(map(lambda EE: esec2.DepositionFraction(xHII=x, E=EE, 
-                    channel=channel)), E)
+                    channel=channel), E))
                 mp.grid[l].semilogx(E, f2, color=colors[k], ls='--')
                 
             f3 = np.array(list(map(lambda EE: esec3.DepositionFraction(xHII=x, E=EE, 
