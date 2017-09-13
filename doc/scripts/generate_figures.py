@@ -21,5 +21,5 @@ scripts = \
 
 for script in scripts:
     with open(script) as script_file:
-        exec(compile(script_file, script, 'exec'))
+        exec(compile(script_file.read(), script, 'exec'))
     
