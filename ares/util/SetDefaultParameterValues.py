@@ -44,7 +44,7 @@ def SetAllDefaults():
     pf = {'problem_type': 1}
     
     for pset in defaults:
-        exec('pf.update({!s})'.format(pset))
+        pf.update(eval('{!s}'.format(pset)))
         
     return pf
     

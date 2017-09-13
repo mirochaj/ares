@@ -20,5 +20,6 @@ scripts = \
 
 
 for script in scripts:
-    execfile(script)
+    with open(script) as script_file:
+        exec(compile(script_file, script, 'exec'))
     

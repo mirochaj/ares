@@ -4070,15 +4070,7 @@ class ModelSet(BlobFactory):
                 iv = None    
             
             data = self.ExtractData(blobs, ivar=iv)
-            
-            # Assign data to variable names
-            for var in varmap.keys():
-                exec('{0!s} = data[\'{1!s}\']'.format(var, varmap[var]))
-            
-            result = eval(expr)
-            
-            # Delete newly created local variables?
-        
+            result = eval(expr, {var: data[varmap[var]] for var in varmap.keys()})
         if save:
             assert name is not None, "Must supply name for new blob!"
             

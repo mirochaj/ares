@@ -179,7 +179,7 @@ class ParameterizedQuantity(object):
                                 
                 val = PQ.__call__(**kwargs)
                 
-                exec('p{} = val'.format(i))
+                setattr(self, 'p{}'.format(i), val)
                 
             elif type(par) == tuple:
                 f, v, mult = par
@@ -196,134 +196,134 @@ class ParameterizedQuantity(object):
                 else:
                     raise NotImplementedError('help')
                     
-                exec('p{} = val'.format(i))
+                setattr(self, 'p{}'.format(i), val)
                     
             else:
-                exec('p{} = par'.format(i))
+                setattr(self, 'p{}'.format(i), par)
 
         # Actually execute the function
         if func == 'lognormal':
-            f = p0 * np.exp(-(logx - p1)**2 / 2. / p2**2)
+            f = self.p0 * np.exp(-(logx - self.p1)**2 / 2. / self.p2**2)
         elif func == 'normal':
-            f = p0 * np.exp(-(x - p1)**2 / 2. / p2**2)
+            f = self.p0 * np.exp(-(x - self.p1)**2 / 2. / self.p2**2)
         elif func == 'pl':
             #print('{0} {1} {2} {3} {4}'.format(x, kwargs['z'], p0, p1, p2))
-            f = p0 * (x / p1)**p2
+            f = self.p0 * (x / self.p1)**self.p2
         # 'quadratic_lo' means higher order terms vanish when x << p3
         elif func == 'quadratic_lo':
-            f = p0 * (1. +  p1 * (x / p3) + p2 * (x / p3)**2)
+            f = self.p0 * (1. +  self.p1 * (x / self.p3) + self.p2 * (x / self.p3)**2)
         # 'quadratic_hi' means higher order terms vanish when x >> p3
         elif func in ['quadratic_hi', 'quad']:
-            f = p0 * (1. +  p1 * (p3 / x) + p2 * (p3 / x)**2)
+            f = self.p0 * (1. +  self.p1 * (self.p3 / x) + self.p2 * (self.p3 / x)**2)
         #elif func == 'cubic_lo':
-        #    f = p1 * (1. +  p2 * (x / p0) + p3 * (x / p0)**2)
+        #    f = self.p1 * (1. + self.p2 * (x / self.p0) + self.p3 * (x / self.p0)**2)
         #elif func == 'cubic_hi':
-        #    f = p1 * (1. +  p2 * (p0 / x) + p3 * (p0 / x)**2)
+        #    f = self.p1 * (1. +  self.p2 * (self.p0 / x) + self.p3 * (self.p0 / x)**2)
         elif func == 'exp':
-            f = p0 * np.exp((x / p1)**p2)
+            f = self.p0 * np.exp((x / self.p1)**self.p2)
         elif func == 'exp_flip':
-            f = 1. - p0 * np.exp(-(x / p1)**p2)
+            f = 1. - self.p0 * np.exp(-(x / self.p1)**self.p2)
         elif func == 'plexp':
-            f = p0 * (x / p1)**p2 * np.exp(-(x / p3)**p4)
+            f = self.p0 * (x / self.p1)**self.p2 * np.exp(-(x / self.p3)**self.p4)
         elif func == 'dpl':
-            f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3)
+            f = 2. * self.p0 / ((x / self.p1)**-self.p2 + (x / self.p1)**-self.p3)
         elif func == 'dpl_arbnorm':
-            normcorr = (((p4 / p1)**-p2 + (p4 / p1)**-p3))
-            f = p0 * normcorr / ((x / p1)**-p2 + (x / p1)**-p3)
+            normcorr = (((self.p4 / self.p1)**-self.p2 + (self.p4 / self.p1)**-self.p3))
+            f = self.p0 * normcorr / ((x / self.p1)**-self.p2 + (x / self.p1)**-self.p3)
         elif func == 'ddpl':
-            f = 2. * p0 / ((x / p1)**-p2 + (x / p1)**-p3) \
-              + 2. * p4 / ((x / p5)**-p6 + (x / p5)**-p7)
+            f = 2. * self.p0 / ((x / self.p1)**-self.p2 + (x / self.p1)**-self.p3) \
+              + 2. * self.p4 / ((x / self.p5)**-self.p6 + (x / self.p5)**-self.p7)
         elif func == 'ddpl_arbnorm':
-            normcorr1 = (((p4 / p1)**-p2 + (p4 / p1)**-p3))
-            normcorr2 = (((p4 / p1)**-p2 + (p4 / p1)**-p3))
-            f1 = p0 * normcorr / ((x / p1)**-p2 + (x / p1)**-p3)
-            f1 = p5 * normcorr / ((x / p1)**-p2 + (x / p1)**-p3)
+            normcorr1 = (((self.p4 / self.p1)**-self.p2 + (self.p4 / self.p1)**-self.p3))
+            normcorr2 = (((self.p4 / self.p1)**-self.p2 + (self.p4 / self.p1)**-self.p3))
+            f1 = self.p0 * normcorr / ((x / self.p1)**-self.p2 + (x / self.p1)**-self.p3)
+            f1 = self.p5 * normcorr / ((x / self.p1)**-self.p2 + (x / self.p1)**-self.p3)
         elif func == 'plsum2':
-            f = p0 * (x / p1)**p2 + p3 * (x / p1)**p4
+            f = self.p0 * (x / self.p1)**self.p2 + self.p3 * (x / self.p1)**self.p4
         elif func == 'tanh_abs':
-            f = (p0 - p1) * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1
+            f = (self.p0 - self.p1) * 0.5 * (np.tanh((self.p2 - x) / self.p3) + 1.) + self.p1
         elif func == 'tanh_rel':
-            f = p1 * p0 * 0.5 * (np.tanh((p2 - x) / p3) + 1.) + p1
+            f = self.p1 * self.p0 * 0.5 * (np.tanh((self.p2 - x) / self.p3) + 1.) + self.p1
         elif func == 'log_tanh_abs':
-            f = (p0 - p1) * 0.5 * (np.tanh((p2 - logx) / p3) + 1.) + p1
+            f = (self.p0 - self.p1) * 0.5 * (np.tanh((self.p2 - logx) / self.p3) + 1.) + self.p1
         elif func == 'log_tanh_rel':                                       
-            f = p1 * p0 * 0.5 * (np.tanh((p2 - logx) / p3) + 1.) + p1
+            f = self.p1 * self.p0 * 0.5 * (np.tanh((self.p2 - logx) / self.p3) + 1.) + self.p1
         elif func == 'rstep':
             if type(x) is np.ndarray:
-                lo = x < p2
-                hi = x >= p2
+                lo = x < self.p2
+                hi = x >= self.p2
 
-                f = lo * p0 * p1 + hi * p1 
+                f = lo * self.p0 * self.p1 + hi * self.p1 
             else:
                 if x < p2:
-                    f = p0 * p1
+                    f = self.p0 * self.p1
                 else:
-                    f = p1
+                    f = self.p1
         elif func == 'astep':
 
             if type(x) is np.ndarray:
-                lo = x < p2
-                hi = x >= p2
+                lo = x < self.p2
+                hi = x >= self.p2
 
-                f = lo * p0 + hi * p1
+                f = lo * self.p0 + hi * self.p1
                 
             else:
-                if x < p2:
-                    f = p0
+                if x < self.p2:
+                    f = self.p0
                 else:
-                    f = p1      
+                    f = self.p1
         elif func == 'pwpl':
             if type(x) is np.ndarray:
-                lo = x < p4
-                hi = x >= p4
+                lo = x < self.p4
+                hi = x >= self.p4
 
-                f = lo * p0 * (x / p4)**p1 + hi * p2 * (x / p4)**p3
+                f = lo * self.p0 * (x / self.p4)**self.p1 + hi * self.p2 * (x / self.p4)**self.p3
             else:
-                if x < p4:
-                    f = p0 * (x / p4)**p1
+                if x < self.p4:
+                    f = self.p0 * (x / self.p4)**self.p1
                 else:            
-                    f = p2 * (x / p4)**p3
+                    f = self.p2 * (x / self.p4)**self.p3
         elif func == 'okamoto':
             assert var == 'Mh'
-            f = (1. + (2.**(p0 / 3.) - 1.) * (x / p1)**-p0)**(-3. / p0)
+            f = (1. + (2.**(self.p0 / 3.) - 1.) * (x / self.p1)**-self.p0)**(-3. / self.p0)
         elif func == 'ramp':
             if type(x) is np.ndarray:
-                lo = x <= p1
-                hi = x >= p3
-                mi = np.logical_and(x > p1, x < p3)
+                lo = x <= self.p1
+                hi = x >= self.p3
+                mi = np.logical_and(x > self.p1, x < self.p3)
                 
                 # ramp slope
-                m = (p2 - p0) / (p3 - p1)
+                m = (self.p2 - self.p0) / (self.p3 - self.p1)
 
-                f = lo * p0 + hi * p2 + mi * (p0 + m * (x - p1))
+                f = lo * self.p0 + hi * self.p2 + mi * (self.p0 + m * (x - self.p1))
 
             else:
-                if x <= p1:
-                    f = p0
-                elif x >= p3:
-                    f = p1
+                if x <= self.p1:
+                    f = self.p0
+                elif x >= self.p3:
+                    f = self.p1
                 else:
-                    f = p0 + m * (x - p1)
+                    f = self.p0 + m * (x - self.p1)
         elif func == 'logramp':
             if type(x) is np.ndarray:
-                lo = logx <= p1
-                hi = logx >= p3
-                mi = np.logical_and(logx > p1, logx < p3)
+                lo = logx <= self.p1
+                hi = logx >= self.p3
+                mi = np.logical_and(logx > self.p1, logx < self.p3)
 
                 # ramp slope
-                alph = np.log10(p2 / p0) / (p3 - p1)
-                fmid = p0 * (x / 10**p1)**alph
+                alph = np.log10(self.p2 / self.p0) / (self.p3 - self.p1)
+                fmid = self.p0 * (x / 10**self.p1)**alph
 
-                f = lo * p0 + hi * p2 + mi * fmid
+                f = lo * self.p0 + hi * self.p2 + mi * fmid
 
             else:
-                if logx <= p2:
-                    f = p0
-                elif logx >= p3:
-                    f = p1
+                if logx <= self.p2:
+                    f = self.p0
+                elif logx >= self.p3:
+                    f = self.p1
                 else:
-                    alph = np.log10(p2 / p0) / (p3 - p1)
-                    f = (x / 10**p1)**alph
+                    alph = np.log10(self.p2 / self.p0) / (self.p3 - self.p1)
+                    f = (x / 10**self.p1)**alph
 
         elif func == 'user':
             f = self.pf['pq_func_fun'](**kwargs)
