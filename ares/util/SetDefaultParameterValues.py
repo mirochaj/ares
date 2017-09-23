@@ -359,19 +359,21 @@ def PowerSpectrumParameters():
      'include_ion_fl': True,
      'include_temp_fl': False,
      'include_lya_fl': False,
-               
+           
      'include_bias': False,
-     
+
      "powspec_rescale_Qion": False,
      "powspec_rescale_Qlya": False,
-          
+     "powspec_rescale_Qhot": False,
+     "powspec_rescale_dTb": False,
+
      "bubble_size": None,
      "bubble_shell_size_rel": None,
      "bubble_shell_size_abs": None,
      "bubble_shell_size_func": None,
      "bubble_shell_temp": None,
      "bubble_density": None,
-     
+
      "bubble_pod_size": None,
      "bubble_pod_size_rel": None,
      "bubble_pod_size_abs": None,

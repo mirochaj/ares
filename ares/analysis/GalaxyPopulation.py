@@ -189,7 +189,7 @@ class GalaxyPopulation(object):
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', 
-        take_log=False, **kwargs):
+        take_log=False, labels=True, **kwargs):
         """
         Plot the luminosity function data at a given redshift.
         
@@ -256,7 +256,7 @@ class GalaxyPopulation(object):
             shift = 0.    
               
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
-                label=source, **kw)
+                label=source if labels else None, **kw)
                 
         if quantity in ['lf', 'smf']:
             ax.set_yscale('log', nonposy='clip')
@@ -276,11 +276,11 @@ class GalaxyPopulation(object):
             ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
             ax.set_xlim(1e8, 1e12)
             ax.set_ylim(7, 9.5)
-            
+
         pl.draw()
-        
+
         return ax
-            
+
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
         panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
         quantity='lf', annotate_z='left'):

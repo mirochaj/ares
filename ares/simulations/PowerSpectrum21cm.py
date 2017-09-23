@@ -206,13 +206,20 @@ class PowerSpectrum21cm(AnalyzePS):
 
     def _temp_to_contrast(self, z, T):
         """
-        Convert a temperature to a contrast
+        Convert a temperature to a contrast.
+        
+        ..note:: For coupled regions, T will be the mean *kinetic* temperature.
+        
         """
         
         # Grab mean spin temperature
         Ts = np.interp(z, self.mean_history['z'][-1::-1], 
             self.mean_history['igm_Ts'][-1::-1])
+        Tk = np.interp(z, self.mean_history['z'][-1::-1], 
+            self.mean_history['igm_Tk'][-1::-1])    
         Tcmb = self.cosm.TCMB(z)
+        
+        T = max(T, Tk)
         
         # The actual spin temperature anywhere is the mean * (1 + delta_T)
         delta_T = T / Ts - 1.
@@ -319,12 +326,24 @@ class PowerSpectrum21cm(AnalyzePS):
             #    self.mean_history['cgm_h_2'][-1::-1])
             #Qi = xibar
             
-            if self.pf['include_ion_fl']:
-                Qi = self.field.BubbleFillingFactor(z, zeta)
-            else:
-                Qi = 0.
-                
-            xibar = 1. - np.exp(-Qi)
+            #if self.pf['include_ion_fl']:
+            #    if self.pf['powspec_rescale_Qion']:
+            #        xibar = min(np.interp(z, self.pops[0].halos.z,
+            #            self.pops[0].halos.fcoll_Tmin) * zeta, 1.)
+            #        Qi = xibar
+            #        
+            #        xibar = np.interp(z, self.mean_history['z'][-1::-1],
+            #            self.mean_history['cgm_h_2'][-1::-1])
+            #        
+            #    else:
+            #        Qi = self.field.BubbleFillingFactor(z, zeta)
+            #        xibar = 1. - np.exp(-Qi)
+            #else:
+            #    Qi = 0.
+            
+            Qi = self.field.BubbleFillingFactor(z, zeta)
+            xibar = np.interp(z, self.mean_history['z'][-1::-1],
+                self.mean_history['cgm_h_2'][-1::-1])
                 
             xbar = 1. - xibar
             data['Qi'] = Qi
@@ -381,11 +400,13 @@ class PowerSpectrum21cm(AnalyzePS):
             if self.pf['include_ion_fl'] and self.pf['include_acorr']:
                 R_b, M_b, bsd = self.field.BubbleSizeDistribution(z, zeta)
             
-                p_ii = self.field.JointProbability(z, self.dr_coarse, 
-                    zeta, term='ii', Tprof=None, data=data)
+                p_ii, p_ii_1, p_ii_2 = self.field.JointProbability(z, 
+                    self.dr_coarse, zeta, term='ii', Tprof=None, data=data)
                 
                 # Interpolate onto fine grid
                 data['jp_ii'] = np.interp(dr, self.dr_coarse, p_ii)
+                data['jp_ii_1'] = np.interp(dr, self.dr_coarse, p_ii_1)
+                data['jp_ii_2'] = np.interp(dr, self.dr_coarse, p_ii_2)
 
                 data['ev_ii'] = data['jp_ii']
 
@@ -393,24 +414,25 @@ class PowerSpectrum21cm(AnalyzePS):
                 data.update({'R_b': R_b, 'M_b': M_b, 'bsd':bsd})
             else:
                 p_ii = data['jp_ii'] = data['ev_ii'] = np.zeros_like(dr)
-                        
+
             ##
             # Temperature fluctuations                
             ##
             data['ev_coco'] = np.zeros_like(dr)
             if self.pf['include_temp_fl'] and self.pf['include_acorr']:
-                
-                Qh = self.field.BubbleShellFillingFactor(z, zeta)
+                Qh = self.field.BubbleShellFillingFactor(z, zeta, zeta_lya)
                 Ch = self._temp_to_contrast(z, self.pf['bubble_shell_temp'])
                 data['Ch'] = Ch
                 data['Qh'] = Qh
                 data['avg_Ch'] = avg_Ch = Qh * Ch
-                
-                p_hh = self.field.JointProbability(z, self.dr_coarse, 
-                    zeta, term='hh', Tprof=None, data=data)
-                                    
+
+                p_hh, p_hh_1, p_hh_2 = self.field.JointProbability(z, 
+                    self.dr_coarse, zeta, term='hh', Tprof=None, data=data)
+
                 data['jp_hh'] = np.interp(dr, self.dr_coarse, p_hh)
-                data['jp_hh'] = np.minimum(1., data['jp_hh'])
+                #data['jp_hh'] = np.minimum(1., data['jp_hh'])
+                data['jp_hh_1'] = np.interp(dr, self.dr_coarse, p_hh_1)
+                data['jp_hh_2'] = np.interp(dr, self.dr_coarse, p_hh_2)
               
                 data['ev_coco'] += Ch**2 * data['jp_hh']
               
@@ -429,14 +451,16 @@ class PowerSpectrum21cm(AnalyzePS):
             if self.pf['include_lya_fl']:
                 if self.pf['include_acorr']:
                     Qc = self.field.BubbleFillingFactor(z, zeta, zeta_lya, lya=True)
+                    
                     Cc = self._temp_to_contrast(z, avg_Tk)
                     data['Cc'] = Cc
                     data['Qc'] = Qc
                     data['avg_Cc'] = avg_Cc = Qc * Cc
-                    p_cc = self.field.JointProbability(z, self.dr_coarse, 
-                        zeta, term='cc', Tprof=None, data=data, zeta_lya=zeta_lya)
+                    p_cc, p_cc_1, p_cc_2 = self.field.JointProbability(z, 
+                        self.dr_coarse, zeta, term='cc', Tprof=None, data=data, 
+                        zeta_lya=zeta_lya)
                     
-                    data['jp_cc'] = np.interp(dr, self.dr_coarse, p_cc)             
+                    data['jp_cc'] = np.interp(dr, self.dr_coarse, p_cc)
                     
                     # Should this be necessary?
                     data['jp_cc'] = np.minimum(1., data['jp_cc'])
@@ -446,11 +470,16 @@ class PowerSpectrum21cm(AnalyzePS):
 
                 # This should maybe be moved elsewhere.
                 if self.pf['include_temp_fl'] and self.pf['include_xcorr']:
-                    p_hc = self.field.JointProbability(z, self.dr_coarse, 
-                        zeta, term='hc', Tprof=None, data=data, zeta_lya=zeta_lya)
+                    p_hc, p_hc_1, p_hc_2 = self.field.JointProbability(z, 
+                        self.dr_coarse, zeta, term='hc', Tprof=None, data=data, 
+                        zeta_lya=zeta_lya)
 
                     data['jp_hc'] = np.interp(dr, self.dr_coarse, p_hc)
-                    data['ev_coco'] += Cc * Ch * data['jp_hc'] * (Qh + Qc)
+                    data['ev_coco'] += Cc * Ch * data['jp_hc'] * min(Qh + Qc, 1.)
+                    
+                    if (Qh + Qc) > 1:
+                        print "WARNING: Qh+Qc > 1"
+                    
                 else:
                     data['jp_hc'] = np.zeros_like(dr)
             else:
@@ -472,15 +501,15 @@ class PowerSpectrum21cm(AnalyzePS):
                 else:
                     do_xcorr_xd = (self.pf['include_xcorr_wrt'] is not None) and \
                        ('density' in self.pf['include_xcorr_wrt']) and \
-                       ('ion' in self.pf['include_xcorr_wrt']) 
+                       ('ion' in self.pf['include_xcorr_wrt'])
                 
                 if do_xcorr_xd:
 
                     # Cross-correlation terms...
                     # Density-ionization cross correlation
                     if (self.pf['include_density_fl'] and self.pf['include_ion_fl']):
-                        p_id = self.field.JointProbability(z, self.dr_coarse, 
-                            zeta, term='id', data=data)
+                        p_id, p_id_1, p_id_2 = self.field.JointProbability(z, 
+                            self.dr_coarse, zeta, term='id', data=data)
                         data['jp_id'] = np.interp(dr, self.dr_coarse, p_id)
                         data['ev_id'] = data['jp_id']
                     else:
@@ -493,15 +522,16 @@ class PowerSpectrum21cm(AnalyzePS):
                 ##
                 if self.include_con_fl and self.pf['include_ion_fl']:
                     if self.pf['include_temp_fl']:
-                        p_ih = self.field.JointProbability(z, self.dr_coarse, 
-                            zeta, term='ih', data=data)
+                        p_ih, p_ih_1, p_ih_2 = self.field.JointProbability(z, 
+                            self.dr_coarse, zeta, term='ih', data=data)
                         data['jp_ih'] = np.interp(dr, self.dr_coarse, p_ih)
                     else:
                         data['jp_ih'] = np.zeros_like(dr)
                         
                     if self.pf['include_lya_fl']:
-                        p_ic = self.field.JointProbability(z, self.dr_coarse, 
-                            zeta, term='ic', data=data, zeta_lya=zeta_lya)
+                        p_ic, p_ic_1, p_ic_2 = self.field.JointProbability(z, 
+                            self.dr_coarse, zeta, term='ic', data=data, 
+                            zeta_lya=zeta_lya)
                         data['jp_ic'] = np.interp(dr, self.dr_coarse, p_ic)
                     else:
                         data['jp_ic'] = np.zeros_like(dr)
@@ -610,52 +640,43 @@ class PowerSpectrum21cm(AnalyzePS):
 
             # This is Eq. 11 in FZH04
             data['cf_21_s'] = xi_xx * (1. + xi_dd) + xbar**2 * xi_dd + \
-                xi_xd**2 + 2. * xi_xd * xbar
+                xi_xd * (xi_xd + 2. * xbar)
 
             ##
             # MODIFY CORRELATION FUNCTION depending on Ts fluctuations
             ##    
             
             if (self.pf['include_temp_fl'] or self.pf['include_lya_fl']):
-                # First term: just <psi psi'> in the saturated limit
-                psi_s_psi_sp = data['cf_21_s'] + xbar**2
 
                 ##
                 # Let's start with low-order terms and build up from there.
                 ##
                 
+                avg_xC = data['avg_C'] # ??
+
                 # The two easiest terms in the unsaturated limit are those
                 # not involving the density, <x x' C'> and <x x' C C'>.
                 # Under the binary field(s) approach, we can just write
                 # each of these terms down
                 ev_xi_cop = Ch * data['jp_ih'] + Cc * data['jp_ic']
-                xxc = data['avg_C'] - ev_xi_cop
-                xxcc = data['ev_coco']
                 
-                data['cf_21'] = psi_s_psi_sp + 2. * xxc + xxcc
+                cc = data['ev_coco']
+                xx = 1. - 2. * xibar + data['ev_ii']
+                xc = data['avg_C'] - ev_xi_cop
+                xxc = xbar * data['avg_C'] - ev_xi_cop
+                xxcc = xx * cc + avg_xC**2 + xc**2
                 
-                x_xp_C_d = 0.0
+                phi_u = 2. * xxc + xxcc
+                    
+                data['cf_21'] = data['cf_21_s'] + phi_u \
+                    - 2. * xbar * avg_xC
                 
-                data['cf_21'] += data['ev_dco'] #- data['ev_xdco']
-
-                #P_id = self.field.JointProbability(z, np.zeros(1),
-                #    zeta, term='id', data=data)[0]
-                #print z, P_id
-                data['cf_21'] -= (xbar + data['avg_C'])**2
-
             else:
                 data['cf_21'] = data['cf_21_s']
 
             data['dTb0'] = Tbar
-            #data['cf_21'] -= QHII**2
-            #data['cf_21'] *= self.hydr.T0(z)**2
-                         
-            #data['ps_21_sat'] = self._regrid_and_fft(dr, data['cf_21_sat'], self.k)                                                  
-            #data['ps_21'] = self._regrid_and_fft(dr, data['cf_21'], self.k)
-            #
             data['ps_21'] = np.fft.fft(data['cf_21'])
-            
-            
+
             yield z, data
 
     def save(self, prefix, suffix='pkl', clobber=False, fields=None):

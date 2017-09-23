@@ -48,180 +48,79 @@ class FluctuatingBackground(object):
             self._pops = CompositePopulation(**self._kwargs).pops
     
         return self._pops
-    
-    def _Vo_sphere_SS(self, dr, R):
-        if dr >= (2 * R):
-            return 0.0
-        else:
-            return np.pi * (4. * R + dr) * (2. * R - dr)**2 / 12.
-            #return 4. * np.pi * R**3 / 3. - np.pi * dr * (R**2 - dr**2 / 12.)
-        
-    def _Vo_sphere_DS(self, dr, Ri, Ro):
-        if dr >= (Ri + Ro):
+            
+    def _overlap_region(self, dr, R1, R2):
+        """
+        Volume of intersection between two spheres of radii R1 < R2.
+        """
+        if dr >= (R1 + R2):
             return 0.0         
-        elif dr <= (Ro - Ri):
+        elif dr <= (R2 - R1):
             # This means the points are so close that the overlap region
-            # of the outer spheres completely engulfs the inner sphere
-            return 4. * np.pi * Ri**3 / 3.
+            # of the outer spheres completely engulfs the inner sphere.
+            # Not obvious why the general formula doesn't recover this limit.
+            return 4. * np.pi * R1**3 / 3.
         else:
-            return np.pi * (Ri + Ro - dr)**2 \
-                * (dr**2 + 2. * dr * (Ri + Ro) - 3. * (Ri - Ro)**2) / 12. / dr
-        
-    def _Vo_shell(self, dr, Ri, Ro):
+            return np.pi * (R2 + R1 - dr)**2 \
+                * (dr**2 + 2. * dr * R1 - 3. * R1**2 \
+                 + 2. * dr * R2 + 6. * R1 * R2 - 3. * R2**2) / 12. / dr
+    
+    def IV(self, *args):
+        if not hasattr(self, '_IV'):
+            self._IV = np.vectorize(self._overlap_region)
+        return self._IV(*args)
+    
+    def overlap_volumes(self, dr, R1, R2, R3):
         """
-        Return the overlap region between two spherical shells.
-        
-        Parameters
-        ----------
-        dr : int, float
-            Separation
-        Ri : int, float
-            Inner radius (i.e., ionized bubble radius)
-        Ro : int, float 
-            Outer radius (i.e., radius of heated region, including ionized zone)
-        
+        This will yield 6 terms.
+    
+        V11, V22, V33
+        V12, V13, V23
         """
         
-        # For large enough separations, there can be no overlap
-        if dr >= (2. * Ro):
-            return 0.0, 0.0, 0.0
-        else:
+        IV = self.IV
+    
+        V11 = IV(dr, R1, R1)
+        V12 = 2 * IV(dr, R1, R2) - IV(dr, R1, R1)
+        
+        # When dr < (R3 - R2) and dr < (R2 - R1), terms cancel
+        V13 = 2 * IV(dr, R1, R3) - 2 * IV(dr, R1, R2)
+    
+        V22 = IV(dr, R2, R2) - 2. * IV(dr, R1, R2) + IV(dr, R1, R1)
+        V23 = 2. * IV(dr, R2, R3) - IV(dr, R2, R2) \
+            - 2. * IV(dr, R1, R3) + 2. * IV(dr, R1, R2) - IV(dr, R1, R1)
+        V33 = IV(dr, R3, R3) - 2. * IV(dr, R2, R3) + IV(dr, R2, R2)
 
-            # Full overlap region of two spheres the size of our 
-            # bubble plus its shell. The biggest football shape.
-            reg1 = self._Vo_sphere_SS(dr, Ro)
-            
-            # The overlap region between spheres of radius Ri and Ro. 
-            # We need to subtract off twice this area (minus a slight 
-            # correction in some cases, see below), since sources in this
-            # region will ionize one of the points
-            reg2 = self._Vo_sphere_DS(dr, Ri, Ro)
-            
-            # Avoid double-counting for closely separated points
-            reg3 = self._Vo_sphere_SS(dr, Ri)
-
-            # We return in three pieces because we can use the second part
-            # for the ionization/contrast cross correlation terms.
-            return reg1, reg2, reg3
+        return V11, V12, V13, V22, V23, V33
     
-    def _Vo_shell_x2(self, dr, Ri, Rm, Ro):
-        """
-        Return two overlap regions:
-            (i) region in which a single source would cause two points
-            separated by 'dr' to sit in different shells.
-            (ii) region in which a single source would cause two points
-            separated by 'dr' to sit one in the outer shell, one in the
-            inner sphere.
-            
-        I should generalize this to return overlap regions in which a source
-        is positioned so as to (i) put both points in the core, 
-        (ii) both points in the middle shell, (iii) both points in the outer
-        shell, etc.s
-    
-        Parameters
-        ----------
-        dr : int, float
-            Separation
-        Ri : int, float
-            Inner radius (i.e., ionized bubble radius)
-        Ro : int, float 
-            Outer radius (i.e., radius of heated region, including ionized zone)
-    
-        """
-    
-        # For large enough separations there is no overlap
-        if dr >= (2. * Ro):
-            return 0.0, 0.0
-        else:
-            
-            dRi = Rm - Ri
-            dRo = Ro - Rm
-            dRt = Ro - Ri
-    
-            # Full overlap region of two spheres the size of our 
-            # bubble plus its shell. The biggest football shape.
-            # This must be > 0 otherwise the 'if' block would've been taken
-            reg_oo = self._Vo_sphere_SS(dr, Ro)
-            
-            # Next three overlap regions zooming in. This one must come next.
-            reg_mo = self._Vo_sphere_DS(dr, Rm, Ro)
-            
-            if reg_mo == 0:
-                return 0.0, 0.0
-            
-            # Not obvious which of these will come next
-            reg_io = self._Vo_sphere_DS(dr, Ri, Ro)
-            reg_mm = self._Vo_sphere_DS(dr, Rm, Rm)
-            
-            # Only overlap between outer two shells
-            if reg_io == reg_mm == 0:
-                return reg_mo, 0.0
-            
-            if reg_mm > 0 and reg_io == 0:
-                return reg_oo - reg_mm, 0.0
-            if reg_io > 0 and reg_mm == 0:
-                return 2. * reg_io, 0.0
-            
-            reg_im = self._Vo_sphere_DS(dr, Ri, Rm)   # must be first  
-            reg_ii = self._Vo_sphere_SS(dr, Ri)
-            
-            # Next up: overlap between middle and inner shells.
-            # Now we have to worry about stuff like whether the ionized region 
-            # fits entirely within a shell
-            if reg_im > 0 and reg_ii == 0:
-                cap_n_laces_i = reg_mm - 2. * reg_im
-                cap_o = reg_oo - 2. * reg_mo + reg_mm
-                return reg_oo - 2 * reg_io - cap_n_laces_i - cap_o, \
-                    2. * (reg_io - reg_im)
-                
-            #elif reg_ii > 0:
-            #    cap_n_laces_i = reg_mm - 2. * reg_im
-            #    cap_o = reg_oo - 2. * reg_mo + reg_mm
-            #    return reg_oo - 2 * reg_io - cap_n_laces_i - cap_o, \
-            #        2. * (reg_io - reg_im)    
-                
-            # Last option: innermost regions are overlapping.    
-                
-            # Want overlap volumes where:
-            # (i) same source heats one point and lya-couples the other
-            # (ii) same source lya-couples one point and ionizes the other
-            
-            return 0.0, 0.0
-
-    def overlap_region_sphere(self, dr, R):
-        if not hasattr(self, '_overlap_region_sphere'):
-            self._overlap_region_sphere = np.vectorize(self._Vo_sphere_SS)
-        return self._overlap_region_sphere(dr, R)
-
-    def overlap_region_shell(self, dr, Ri, Ro):
-        if not hasattr(self, '_overlap_region_shell'):
-            self._overlap_region_shell = np.vectorize(self._Vo_shell)
-        return self._overlap_region_shell(dr, Ri, Ro)
-    
-    def overlap_region_shell_x2(self, dr, Ri, Rm, Ro):
-        if not hasattr(self, '_overlap_region_shell_x2'):
-            self._overlap_region_shell_x2 = np.vectorize(self._Vo_shell_x2)
-        return self._overlap_region_shell_x2(dr, Ri, Rm, Ro)
-            
-    def BubbleShellFillingFactor(self, z, zeta):
+    def BubbleShellFillingFactor(self, z, zeta, zeta_lya):
         if self.pf['bubble_size_dist'] is None:
             R_b = self.pf['bubble_size']
             V_b = 4. * np.pi * R_b**3 / 3.
             n_b = self.BubbleDensity(z)
         
-            return 1. - np.exp(-n_b * V_b)
+            Qh = 1. - np.exp(-n_b * V_b)
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
-            Rb, Mb, dndm = self.BubbleSizeDistribution(z, zeta)
+            Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
+
+            Rs = self.BubbleShellRadius(z, Ri)
+
+            Vi = 4. * np.pi * Ri**3 / 3.   
+            Vsh = 4. * np.pi * (Rs - Ri)**3 / 3.
+
+            Qi = np.trapz(dndm * Vi * Mi, x=np.log(Mi))
+            Qh = np.trapz(dndm * Vsh * Mi, x=np.log(Mi))
+
+            if self.pf['powspec_rescale_Qion'] and self.pf['powspec_rescale_Qhot']:
+                norm = min(zeta * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
                 
-            Rs = self.BubbleShellRadius(z, Rb)    
-                
-            Vsh = 4. * np.pi * (Rs - Rb)**3 / 3.
-                    
-            Qhot = np.trapz(dndm * Vsh * Mb, x=np.log(Mb))
-        
-            return Qhot
+                corr = (norm / Qi)
+                Qh *= corr
+
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
+         
+        return min(Qh, 1.)
 
     def BubbleFillingFactor(self, z, zeta, zeta_lya=None, lya=False):
                                 
@@ -229,41 +128,46 @@ class FluctuatingBackground(object):
             Ri = self.pf['bubble_size']
             Vi = 4. * np.pi * R_b**3 / 3.
             ni = self.BubbleDensity(z)
-            
+
             Qi = 1. - np.exp(-ni * Vi)
-            
+
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
-            
+
             # Smallest bubble is one around smallest halo.
             Mmin = self.Mmin(z)
             iM = np.argmin(np.abs(Mmin * zeta - self.halos.M))
-            
+
             Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
             Vi = 4. * np.pi * Ri**3 / 3.
-            
+
             dndlnm = dndm * Mi
-            
+
             if self.pf['powspec_rescale_Qion']:
                 Qi = min(zeta * self.halos.fcoll_2d(z, np.log10(Mmin)), 1)
             else:
-                Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))    
+                Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
             
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
         
+        # Grab heated phase to enforce BC
+        #Rs = self.BubbleShellRadius(z, Ri)        
+        #Vsh = 4. * np.pi * (Rs - Ri)**3 / 3.
+        #Qh = np.trapz(dndm * Vsh * Mi, x=np.log(Mi))   
+        
         if lya and self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
             Rc = self.BubblePodRadius(z, Ri, zeta, zeta_lya)
-            Vc = 4. * np.pi * Rc**3 / 3.
+            Vc = 4. * np.pi * (Rc - Ri)**3 / 3.
             
             if self.pf['powspec_rescale_Qlya']:
-                Qc = min(zeta_lya * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)            
+                # This isn't actually correct since we care about fluxes
+                # not number of photons, but fine for now.
+                Qc = min(zeta_lya * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
             else:
-                Qc = np.trapz(dndlnm[iM:] * Vc[iM:], x=np.log(Mi[iM:])) 
-                        
-            print 'z=%g, Qc=%g' % (z, Qc)
-                        
-            return min(Qc, 1.0)
-            
+                Qc = np.trapz(dndlnm[iM:] * Vc[iM:], x=np.log(Mi[iM:]))
+
+            return min(Qc, 1.)    
+
         elif lya and self.pf['bubble_pod_size_func'] == 'fzh04':
             return self.BubbleFillingFactor(z, zeta_lya, None, lya=False)
         else:
@@ -342,24 +246,57 @@ class FluctuatingBackground(object):
         pop = self.pops[popid]
         return pop.cosm.delta_c0 / pop.growth_factor(z)
         
-    def mean_bubble_bias(self, z, zeta):
-        Rb, Mb, dndm = self.BubbleSizeDistribution(z, zeta)
-        Vb = 4. * np.pi * Rb**3 / 3.
+    def mean_bubble_bias(self, z, zeta, zeta_lya, term):
+        Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
+                
+        if ('h' in term):
+            R = self.BubbleShellRadius(z, Ri)
+        elif 'c' in term:
+            R = self.BubblePodRadius(z, Ri=Ri, zeta=zeta, 
+                    zeta_lya=zeta_lya)
+        else:
+            R = Ri
+        
+        V = 4. * np.pi * R**3 / 3.
         
         Mmin = self.Mmin(z) * zeta
         iM = np.argmin(np.abs(Mmin - self.halos.M))
         bHII = self.bubble_bias(z, zeta)
-        
-        return np.trapz(dndm[iM:] * Vb[iM:] * bHII[iM:] * Mb[iM:], 
-            x=np.log(Mb[iM:]))
+
+        return np.trapz(dndm[iM:] * V[iM:] * bHII[iM:] * Mi[iM:],
+            x=np.log(Mi[iM:]))
 
     def bubble_bias(self, z, zeta):
         iz = np.argmin(np.abs(z - self.halos.z))
         s = self.halos.sigma_0 #* self.halos.growth_factor[iz]
 
+        Mmin = self.Mmin(z) * zeta
+
+        #return 1. + self._B0(z, zeta)**2 / s**2 \
+        #    / self.LinearBarrier(z, zeta, zeta * Mmin)
         return 1. + ((self._B(z, zeta, zeta)**2 / s**2 - (1. / self._B0(z, zeta))) \
             / self.halos.growth_factor[iz])
-        
+
+    def excess_probability(self, z, r, data, zeta, zeta_lya, term='ii'):
+        """
+        This is the excess probability that a point is ionized given that 
+        we already know another point (at distance r) is ionized.
+        """
+
+        if term == 'ii':
+            Q = data['Qi']
+        elif term == 'cc':
+            Q = data['Qc']
+        else: 
+            Q = data['Qh']
+
+        bHII = self.bubble_bias(z, zeta)
+        bbar = self.mean_bubble_bias(z, zeta, zeta_lya, term) / Q
+
+        xi_dd = np.interp(r, data['dr'], data['cf_dd'].real)
+
+        return bHII * bbar * np.array(xi_dd)
+
     def _B0(self, z, zeta=40.):
 
         iz = np.argmin(np.abs(z - self.halos.z))
@@ -368,7 +305,7 @@ class FluctuatingBackground(object):
         Mmin = self.Mmin(z)
         
         # Variance on scale of smallest collapsed object
-        sigma_min = np.interp(Mmin, self.halos.M, s)
+        sigma_min = np.interp(Mmin * zeta, self.halos.M, s)
         return self._delta_c(z) - np.sqrt(2.) * self._K(zeta) * sigma_min
     
     def _B1(self, z, zeta=40.):
@@ -376,7 +313,7 @@ class FluctuatingBackground(object):
         s = self.halos.sigma_0 #* self.halos.growth_factor[iz]
         
         Mmin = self.Mmin(z)
-        sigma_min = np.interp(Mmin, self.halos.M, s)
+        sigma_min = np.interp(Mmin * zeta, self.halos.M, s)
         ddx_ds2 = self._K(zeta) / np.sqrt(2. * (sigma_min**2 - s**2))
     
         return ddx_ds2[s == s.min()]
@@ -396,7 +333,7 @@ class FluctuatingBackground(object):
 
         Mmin = self.Mmin(z)
         s = self.halos.sigma_0
-        sigma_min = np.interp(Mmin, self.halos.M, s)
+        sigma_min = np.interp(Mmin * zeta, self.halos.M, s)
         
         return self._delta_c(z) - np.sqrt(2.) * self._K(zeta) \
             * np.sqrt(sigma_min**2 - s**2)
@@ -653,7 +590,7 @@ class FluctuatingBackground(object):
             raise NotImplemented('help')
 
         return Rc
-
+        
     def JointProbability(self, z, dr, zeta, Tprof=None, term='ii', data=None,
         zeta_lya=None):
         """
@@ -680,75 +617,129 @@ class FluctuatingBackground(object):
             Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta,
                 zeta_lya, lya=False)
 
-            if ('h' in term) or ('c' in term):
-                Rh = self.BubbleShellRadius(z, Ri)
+            #if ('h' in term) or ('c' in term):
+            Rh = self.BubbleShellRadius(z, Ri)
 
-            if 'c' in term:
-                Rc = self.BubblePodRadius(z, Ri=Ri, zeta=zeta, 
-                    zeta_lya=zeta_lya)
+            #if 'c' in term:
+            Rc = self.BubblePodRadius(z, Ri=Ri, zeta=zeta, 
+                zeta_lya=zeta_lya)
 
+            Rmax = Rc
+                
             # Minimum bubble size            
             Mmin = self.Mmin(z) * zeta
             iM = np.argmin(np.abs(self.halos.M - Mmin))
-
+            
             # Loop over scales
-            AA = np.zeros_like(dr)
+            B1 = np.zeros_like(dr)
+            B2 = np.zeros_like(dr)
+            BT = np.zeros_like(dr)
             for i, sep in enumerate(dr):
-                            
+                # Could do this once externally, i.e., not for each term.
+                
+                all_V = self.overlap_volumes(sep, Ri, Rh, Rc)
+
                 # For two-halo terms, need bias of sources.
                 if self.pf['include_bias']:
-                    ep = self.excess_probability(z, sep, data, zeta)
+                    ep = self.excess_probability(z, sep, data, zeta, zeta_lya, 
+                        term)
                 else:
                     ep = np.zeros_like(self.halos.M)
-                    
+
                 # Correction factor for two-halo term. Occassionally must
                 # be adapted which is why we introduce it here, rather than 
                 # much lower.
                 corr = (1. + ep)
-                
+
                 ##
                 # For each zone, figure out volume of region where a
                 # single source can ionize/heat/couple both points, as well
                 # as the region where a single source is not enough (Vss_ne)
                 ##
                 if term == 'ii':
-                    Vo = self.overlap_region_sphere(sep, Ri)
-                    Vss_ne = 4. * np.pi * Ri**3 / 3. - Vo
+                    Vo = all_V[0]#self.overlap_region_sphere(sep, Ri)
+                    #Vss_ne = 
+                    Vss_ne_1 = 4. * np.pi * Ri**3 / 3. - Vo
+                    Vss_ne_2 = Vss_ne_1
                     
                     limiter = 'i'
-                
-                elif term == 'hh':
-                    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
-                        self.overlap_region_shell(sep, Ri, Rh)
-                        
-                    # Region 1 is the full overlap region between two spheres
-                    # of radius Rh, and region 2 is the region in which a 
-                    # single source would ionize one of the points, so we 
-                    # need to subtract it off.
-                    Vo = Vo_sh_r1 - 2. * Vo_sh_r2 + Vo_sh_r3
 
-                    Vss_ne = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
+                elif term == 'hh':
+                    #Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
+                    #    self.overlap_region_shell(sep, Ri, Rh)
+                    #    
+                    ## Region 1 is the full overlap region between two spheres
+                    ## of radius Rh, and region 2 is the region in which a 
+                    ## single source would ionize one of the points, so we 
+                    ## need to subtract it off.
+                    #Vo = Vo_sh_r1 - 2. * Vo_sh_r2 + Vo_sh_r3
+                    Vo = all_V[3]
+
+                    Vss_ne_1 = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
+                    Vss_ne_2 = Vss_ne_1
                     
                     limiter = 'h'
 
                 elif term == 'cc':
-                    if self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
-                        Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
-                            self.overlap_region_shell(sep, np.maximum(Ri, Rh), Rc)
-                        
-                        Vo = Vo_sh_r1 - 2. * Vo_sh_r2 + Vo_sh_r3
-                        
-                        Vss_ne = 4. * np.pi * (Rc - np.maximum(Ri, Rh))**3 / 3. - Vo
-                    elif self.pf['bubble_pod_size_func'] == 'approx_sfh':
-                        raise NotImplemented('sorry!')
-                    elif self.pf['bubble_pod_size_func'] == 'fzh04':
-                        Vo = self.overlap_region_sphere(sep, Rc)
-                        Vss_ne = 4. * np.pi * Rc**3 / 3. - Vo
-                    else:
-                        raise NotImplemented('sorry!')
+                    
+                    Vo = all_V[-1]
+                    Vss_ne_1 = 4. * np.pi * (Rc - np.maximum(Ri, Rh))**3 / 3. - Vo
+                    Vss_ne_2 = Vss_ne_1
+                    
+                    #if self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
+                    #    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
+                    #        self.overlap_region_shell(sep, np.maximum(Ri, Rh), Rc)
+                    #    
+                    #    Vo = Vo_sh_r1 - 2. * Vo_sh_r2 + Vo_sh_r3
+                    #    
+                    #    Vss_ne = 4. * np.pi * (Rc - np.maximum(Ri, Rh))**3 / 3. - Vo
+                    #elif self.pf['bubble_pod_size_func'] == 'approx_sfh':
+                    #    raise NotImplemented('sorry!')
+                    #elif self.pf['bubble_pod_size_func'] == 'fzh04':
+                    #    Vo = self.overlap_region_sphere(sep, Rc)
+                    #    Vss_ne = 4. * np.pi * Rc**3 / 3. - Vo
+                    #else:
+                    #    raise NotImplemented('sorry!')
 
                     limiter = 'c'
                     
+                elif term == 'hc':
+                    #r1, r2 = self.overlap_region_shell_x2(sep, Ri, Rh, Rc)
+                    #Vo = r1
+                    Vo = all_V[-2]
+
+                    # One point in cold shell of one bubble, another in
+                    # heated shell of completely separate bubble.
+                    # Need to be a little careful here!
+                    Vss_ne_1 = 4. * np.pi * (Rc - Rh)**3 / 3. - Vo
+                    Vss_ne_2 = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
+
+                    # Get rid of volume of cold region around second
+                    # bubble, replace with excess heated volume
+                    #_corr = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
+                    #corr *= _corr / (Vss_ne - Vo)
+
+                    limiter = None
+                
+                elif term == 'ih':
+                    #Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
+                    #    self.overlap_region_shell(sep, Ri, Rh)
+                    #Vo = 2. * Vo_sh_r2 - Vo_sh_r3
+                    Vo = all_V[1]
+                                        
+                    Vss_ne_1 = 4. * np.pi * Ri**3 / 3. - Vo
+                    Vss_ne_2 = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
+                    
+                    limiter = None
+                
+                    
+                elif term == 'ic':
+                    Vo = all_V[2]
+                    Vss_ne_1 = 4. * np.pi * Ri**3 / 3. - Vo
+                    Vss_ne_2 = 4. * np.pi * (Rc - Ri)**3 / 3. - Vo
+                    
+                    limiter = None
+                
                 elif term == 'id':
                     Vo = self.overlap_region_sphere(sep, Ri)
                     
@@ -760,396 +751,109 @@ class FluctuatingBackground(object):
 
                     #xi_dd = data['xi_dd_c'][i]
                     #
-                    #bHII = self.bubble_bias(z, zeta)
-
-                elif term == 'hc':
-                    r1, r2 = self.overlap_region_shell_x2(sep, Ri, Rh, Rc)
-                    Vo = r1
-
-                    # One point in cold shell of one bubble, another in
-                    # heated shell of completely separate bubble.
-                    # Need to be a little careful here!
-                    Vss_ne = 4. * np.pi * (Rc - Rh)**3 / 3. - Vo
-                    
-                    # Get rid of volume of cold region around second
-                    # bubble, replace with excess heated volume
-                    _corr = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
-                    corr *= _corr / (Vss_ne - Vo)
-                    
-                    limiter = None
-                    
-                #elif term == 'ih':
-                #    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
-                #        self.overlap_region_shell(sep, Ri, Rh)
-                #    Vo = 2. * Vo_sh_r2 - Vo_sh_r3
-                #                        
-                #    Vss_ne = Vo
-                #    #Vo_tot = self.overlap_region_sphere(sep, Rh)
-                #    #P1 = np.trapz(dndm[iM:] * Vo_ih[iM:] * Mb[iM:], 
-                #    #    x=np.log(Mb[iM:]))
-                #    #
-                #    #AA[i] = P1
-                #    #integrand2 = 0.0    
-                #    
-                #    limiter = None
-                
-                elif term == 'hc':
-                    # This is tricky!
-                    # reg_ii, reg_mm, reg_oo, reg_im, reg_io, reg_mo
-                    r1, r2 = self.overlap_region_shell_x2(sep, Ri, Rh, Rc)
-                    
-                    Vo = r1
-                    Vss_ne = 0.0
-                    
-                    limiter = None
-                 
-                elif term == 'ih':
-                    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
-                        self.overlap_region_shell(sep, Ri, Rh)
-                    Vo = 2. * Vo_sh_r2 - Vo_sh_r3
-                                        
-                    Vss_ne = self.overlap_region_sphere(sep, Rh) - Vo
-                    
-                    limiter = None
-                    
-                #elif term == 'ic':
-                #    
-                #    # May get rid of this once general case works
-                #    if not self.pf['include_temp_fl']:
-                #        Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
-                #            self.overlap_region_shell(sep, Rb, Rc)
-                #        Vo_ic = 2. * Vo_sh_r2 - Vo_sh_r3
-                #
-                #        Vo_tot = self.overlap_region_sphere(sep, Rc)
-                #        P1 = np.trapz(dndm[iM:] * Vo_ic[iM:] * Mb[iM:], 
-                #            x=np.log(Mb[iM:]))
-                #
-                #        AA[i] = P1
-                #        continue
+                    #bHII = self.bubble_bias(z, zeta)    
                     
                 else:
                     print 'Skipping %s term for now' % term
                     #raise NotImplemented('under construction')
                     break
                     
-                # Compute the one bubble term
+                # Compute the one-bubble term
                 integrand1 = dndm * Vo
                 
                 exp_int1 = np.exp(-np.trapz(integrand1[iM:] * Mi[iM:], 
                     x=np.log(Mi[iM:])))
                 
                 P1 = (1. - exp_int1)
+                
+                B1[i] = P1
 
-                # Start chugging along on two-halo term                    
-                integrand2 = dndm * Vss_ne
+                # Start chugging along on two-bubble term                    
+                integrand2_1 = dndm * Vss_ne_1
+                integrand2_2 = dndm * Vss_ne_2
 
-                exp_int2 = np.exp(-np.trapz(integrand2[iM:] * Mi[iM:], 
+                exp_int2 = np.exp(-np.trapz(integrand2_1[iM:] * Mi[iM:], 
                     x=np.log(Mi[iM:])))
-                exp_int2_ex = np.exp(-np.trapz(integrand2[iM:] * Mi[iM:] \
+                exp_int2_ex = np.exp(-np.trapz(integrand2_2[iM:] * Mi[iM:] \
                     * corr[iM:], x=np.log(Mi[iM:])))
 
                 ##
                 # Second integral sometimes is very nearly (but just in excess)
                 # of unity. Don't allow it! Better solution pending...
-                P2 = exp_int1 * (1. - exp_int2) * min(1. - exp_int2_ex, 0.0)
+                ##
+                P2 =  exp_int1 * (1. - exp_int2) * max(1. - exp_int2_ex, 0.0)
+
+                B1[i] = P1
+                B2[i] = P2
+
+                print z, term, sep, np.any(Vss_ne_1 < 0), np.any(Vss_ne_2 < 0)
+
+                #if term == 'cc' and z > 20:
+                    #P2 *= 1e6 * (1. + z)**3
+                    #print z, sep, P1, P2
 
                 #if np.isnan(P1):
                 #    print 'hey P1', term, z, i
                 #if np.isnan(P2):
                 #    print 'hey P2', term, z, i    
-                
+
                 #if P2 < 0:
                 #    print term, z, i, exp_int2 > 1, exp_int2_ex > 1, exp_int2_ex
-                
+
                 if term == 'id':
-                    AA[i] = P1 - Pin
+                    BT[i] = P1 - Pin
                     continue
-                
+
                 # Add optional correction to ensure limiting behavior?
                 if limiter is None:
-                    AA[i] = P1 + P2
+                    BT[i] = P1 + P2
                     continue
-                
+
                 Q = data['Q%s' % limiter]
                 if Q < 0.5:
-                    AA[i] = P1 + P2
+                    BT[i] = P1 + P2
                 else:
-                    AA[i] = (1. - Q) * P1 + Q**2
-                
+                    BT[i] = (1. - Q) * P1 + Q**2
+
                 continue
-                
-                ##
-                # Deprecating below
-                ##
-                
-                # Probability that two points are both ionized
-                if term == 'ii':
-                    integrand1 = dndm[iM:] * Vo_sph[iM:]
-                    
-                    exp_int1 = np.exp(-np.trapz(integrand1 * Mb[iM:], 
-                        x=np.log(Mb[iM:])))
 
-                    # One halo term
-                    P1 = (1. - exp_int1)
-                    
-                    if data['Qi'] > 0.5:
-                        AA[i] += (1. - data['Qi']) * P1 + data['Qi']**2
-                    else:
-                        integrand2 = dndm[iM:] * (Vb[iM:] - Vo_sph[iM:])
-                    
-                        exp_int2 = np.exp(-np.trapz(integrand2 * Mb[iM:], 
-                            x=np.log(Mb[iM:])))
-                        
-                        exp_int2_ex = np.exp(-np.trapz(integrand2 * Mb[iM:] * (1. + ep), 
-                            x=np.log(Mb[iM:])))
-
-                        P2 = exp_int1 * (1. - exp_int2) * (1. - exp_int2_ex)
-
-                        AA[i] += P1 + P2
-
-                elif term == 'id':
-
-                    P1 = np.trapz(dndm[iM:] * Vo_sph[iM:] * Mb[iM:], 
-                        x=np.log(Mb[iM:]))
-
-                    #P1_delta = 
-                    
-                    #integrand1 = dndm[iM:] * Vo_sph[iM:]
-                    #
-                    #exp_int1 = np.exp(-np.trapz(integrand1 * Mb[iM:], 
-                    #    x=np.log(Mb[iM:])))
-                    #
-                    ## One halo term
-                    #P1 = (1. - exp_int1)
-                             
-                    delta_B = self._B(z, zeta, zeta)[iM:]
-                    _Pin_int = dndm[iM:] * Vo_sph[iM:] * Mb[iM:] \
-                        * (1. + delta_B)                    
-                    Pin = np.trapz(_Pin_int, x=np.log(Mb[iM:]))
-                
-                    iz = np.argmin(np.abs(z - self.halos.z))
-                    #b = self.halos.bias_tab[iz]
-
-                    xi_dd = data['xi_dd_c'][i]
-
-                    bHII = self.bubble_bias(z, zeta)
-                    Pout = data['Qi'] - np.trapz(dndm[iM:] * Vo_sph[iM:], x=Mb[iM:]) \
-                         + np.trapz(dndm[iM:] * xi_dd * bHII[iM:], x=Mb[iM:])
-
-                    #AA[i] = P1
-                    if data['Qi'] <= 0.5:
-                        AA[i] = Pin - P1
-                        # Really just Pii times mean density of bubble stuff
-                    else:
-                        AA[i] += Pin + Pout - data['Qi']        
-                        
-                elif term == 'hh':
-                    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
-                        self.overlap_region_shell(sep, Rb, Rh)
-                    # Region 1 is the full overlap region between two spheres
-                    # of radius Rh, and region 2 is the region in which a 
-                    # single source would ionize one of the points, so we 
-                    # need to subtract it off.
-                    Vo_hh = Vo_sh_r1 - 2. * Vo_sh_r2 + Vo_sh_r3
-                    integrand1 = dndm[iM:] * Vo_hh[iM:]
-                    exp_int1 = np.exp(-np.trapz(integrand1 * Mb[iM:], 
-                        x=np.log(Mb[iM:])))
-                    P1 = 1. - exp_int1
-                    
-                    AA[i] = max(P1, 0)
-                    
-                    not_Vo = np.maximum(Vh - Vo_hh, 0.0)
-                    integrand2 = dndm * not_Vo
-                
-                    exp_int2 = np.exp(-np.trapz(integrand2 * Mb[iM:], 
-                        x=np.log(Mb[iM:])))
-
-                    exp_int2_ex = np.exp(-np.trapz(integrand2 * Mb[iM:] * (1. + ep), 
-                        x=np.log(Mb[iM:])))
-
-                    P2 = exp_int1 * (1. - exp_int2) * (1. - exp_int2_ex)
-
-                    AA[i] += max(P2, 0)
-                    
-                elif term == 'cc':
-                    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
-                        self.overlap_region_shell(sep, np.maximum(Rb, Rh), Rc)
-
-                    Vo_cc = Vo_sh_r1 - 2. * Vo_sh_r2 + Vo_sh_r3
-                    integrand1 = dndm_c * Vo_cc
-
-                    exp_int1 = np.exp(-np.trapz(integrand1[iM:] * Mc[iM:],
-                        x=np.log(Mc[iM:])))
-                    P1 = 1. - exp_int1
-
-                    AA[i] = max(P1, 0)
-
-                    #print z, i, sep, exp_int1#, P1, Vo_tot[iM], Vo_tot[iM]
-
-                    # This is the two bubble term
-                    not_Vo = np.maximum(Vc - Vo_cc, 0.0)
-                    integrand2 = dndm_c * not_Vo
-                
-                    exp_int2 = np.exp(-np.trapz(integrand2[iM:] * Mc[iM:],
-                        x=np.log(Mc[iM:])))
-
-                    exp_int2_ex = np.exp(-np.trapz(integrand2[iM:] * Mc[iM:] * (1. + ep), 
-                        x=np.log(Mc[iM:])))
-
-                    P2 = exp_int1 * (1. - exp_int2) * (1. - exp_int2_ex)
-
-                    print z, i, P1, P2
-
-                    AA[i] += max(P2, 0)
-
-                elif term == 'hc':
-                    # This is tricky!
-                    # reg_ii, reg_mm, reg_oo, reg_im, reg_io, reg_mo
-                    r1, r2 = self.overlap_region_shell_x2(sep, Rb, Rh, Rc)
-                    
-                    P1 = np.trapz(dndm[iM:] * r1[iM:] * Mb[iM:],
-                        x=np.log(Mb[iM:]))
-                    
-                    AA[i] = P1
-                 
-                elif term == 'ih':
-                    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
-                        self.overlap_region_shell(sep, Rb, Rh)
-                    Vo_ih = 2. * Vo_sh_r2 - Vo_sh_r3
-                                        
-                    Vo_tot = self.overlap_region_sphere(sep, Rh)
-                    P1 = np.trapz(dndm[iM:] * Vo_ih[iM:] * Mb[iM:], 
-                        x=np.log(Mb[iM:]))
-                    
-                    AA[i] = P1
-                    integrand2 = 0.0
-                    
-                elif term == 'ic':
-                    
-                    # May get rid of this once general case works
-                    if not self.pf['include_temp_fl']:
-                        Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
-                            self.overlap_region_shell(sep, Rb, Rc)
-                        Vo_ic = 2. * Vo_sh_r2 - Vo_sh_r3
-
-                        Vo_tot = self.overlap_region_sphere(sep, Rc)
-                        P1 = np.trapz(dndm[iM:] * Vo_ic[iM:] * Mb[iM:], 
-                            x=np.log(Mb[iM:]))
-
-                        AA[i] = P1
-                        continue
-                        
-                    ##
-                    # General case
-                    ##    
-                    r1, r2 = self.overlap_region_shell_x2(sep, Rb, Rh, Rc)
-                    
-                    P1 = np.trapz(dndm[iM:] * r2[iM:] * Mb[iM:],
-                        x=np.log(Mb[iM:]))
-                    
-                    AA[i] = P1
-                    
-                    
-                    #Vo_sh_r1, Vo_sh_r2 = self.overlap_region_shell(sep, Rb, Ra-Rb)
-                    #Vo_ai = 2 * Vo_sh_r2
-                    #Vo_tot = self.overlap_region_sphere(sep, Ra)
-                    #integrand1 = dndm[iM:] * Vo_ai[iM:]
-                    #integrand2 = 0.0    
-                elif term == 'dh':
-                    pass
-                elif term == 'dc':
-                    pass    
-                elif term == 'xdco':
-                    pass    
-                    
-                else:
-                    raise NotImplementedError('help!')
-
-                ##
-                # This stuff: only for auto-correlations?
-                ##
-
-                
-
-                    #integrand2 *= (1. + ep[iM:])
-
-                #exp_int2 = np.exp(-np.trapz(integrand2 * Mb[iM:], 
-                #    x=np.log(Mb[iM:])))
-                #
-                #AA[i] += exp_int1 * (1. - exp_int2)**2
-
-            return AA
+            return BT, B1, B2
             
-        ##
-        # Phenomenological from here down.
-        ##    
-        #if self.pf['bubble_size_dist'] is None:
-        #    R = self.pf['bubble_size']
-        #    Rs = self.pf['bubble_shell_size']
-        #
-        #    V = 4. * np.pi * (R+Rs)**3 / 3.
-        #    V_o = self.overlap_region_shell(dr, R, Rs)
-        #
-        #    # Abundance of halos
-        #    n_b = self.BubbleDensity(z)
-        #
-        #    # One and two halo terms, respectively
-        #    if pop.pf['pop_one_halo_term']:
-        #        oht = (1. - np.exp(-n_b * V_o))
-        #    else:
-        #        oht = 0.0
-        #
-        #    if pop.pf['pop_two_halo_term']:
-        #        tht = np.exp(-n_b * V_o) * (1. - np.exp(-n_b * (V - V_o)))**2
-        #    else:
-        #        tht = 0.0
-        #
-        #    return oht + tht
-    
-    def excess_probability(self, z, r, data, zeta):
-        """
-        This is the excess probability that a point is ionized given that 
-        we already know another point (at distance r) is ionized.
-        """
+    #def CorrelationFunction(self, z, field_1, field_2, dr=None, popid=0):
+    #
+    #    # Ionization auto-correlation function
+    #    if field_1 == field_2 == 'x':
+    #        #Qi  = self.BubbleFillingFactor(z, )
+    #        Pii = self.IonizationProbability(z, dr, popid)
+    #        return Pii #- Qi**2
+    #    elif field_1 == field_2 == 'd':
+    #        return pop.halos.CorrelationFunction(z, dr)
+    #    elif field_1 == field_2 == 'c':
+    #        Phh = self.HeatedProbability(z, dr, popid)
+    #        #Phc = self.HeatedProbability(z, dr, popid)
+    #        #Pcc = self.HeatedProbability(z, dr, popid)
+    #        #
+    #        return Phh
+    #    elif field_1 in ['x', 'd'] and field_2 in ['x', 'd']:
+    #        raise NotImplementedError('no cross terms yet')
+    #    elif field_1 in ['x', 'T'] and field_2 in ['x', 'T']:
+    #        raise NotImplementedError('no cross terms yet')    
+    #    elif field_1 in ['d', 'T'] and field_2 in ['d', 'T']:
+    #        raise NotImplementedError('no cross terms yet')    
+    #    else:
+    #        raise NotImplementedError('sorry!')
+    #    
+    #def PowerSpectrum(self, z, field_1, field_2, k=None, popid=0):
+    #    """
+    #    Return the power spectrum for given input fields at redshift z and
+    #    wavenumber k.
+    #    """
+    #    corr = self.CorrelationFunction(z, field_1, field_2, k=k, popid=popid)
+    #
+    #    return np.sqrt(np.fft.fftshift(np.fft.ifft(corr))**2)
+    #        
         
-        bHII = self.bubble_bias(z, zeta)
-        bbar = self.mean_bubble_bias(z, zeta) / data['Qi']
-
-        xi_dd = np.interp(r, data['dr'], data['cf_dd'].real)
-
-        return bHII * bbar * np.array(xi_dd)
-
-    def CorrelationFunction(self, z, field_1, field_2, dr=None, popid=0):
-
-        # Ionization auto-correlation function
-        if field_1 == field_2 == 'x':
-            #Qi  = self.BubbleFillingFactor(z, )
-            Pii = self.IonizationProbability(z, dr, popid)
-            return Pii #- Qi**2
-        elif field_1 == field_2 == 'd':
-            return pop.halos.CorrelationFunction(z, dr)
-        elif field_1 == field_2 == 'c':
-            Phh = self.HeatedProbability(z, dr, popid)
-            #Phc = self.HeatedProbability(z, dr, popid)
-            #Pcc = self.HeatedProbability(z, dr, popid)
-            #
-            return Phh
-        elif field_1 in ['x', 'd'] and field_2 in ['x', 'd']:
-            raise NotImplementedError('no cross terms yet')
-        elif field_1 in ['x', 'T'] and field_2 in ['x', 'T']:
-            raise NotImplementedError('no cross terms yet')    
-        elif field_1 in ['d', 'T'] and field_2 in ['d', 'T']:
-            raise NotImplementedError('no cross terms yet')    
-        else:
-            raise NotImplementedError('sorry!')
         
-    def PowerSpectrum(self, z, field_1, field_2, k=None, popid=0):
-        """
-        Return the power spectrum for given input fields at redshift z and
-        wavenumber k.
-        """
-        corr = self.CorrelationFunction(z, field_1, field_2, k=k, popid=popid)
-
-        return np.sqrt(np.fft.fftshift(np.fft.ifft(corr))**2)
-            
+        
+        
         
