@@ -1032,7 +1032,7 @@ class ModelFit(BlobFactory):
             
             # If we're saving each checkpoint to its own file, this is the
             # identifier to use in the filename
-            dd = 'dd' + str(ct / save_freq).zfill(4)
+            dd = 'dd' + str(ct // save_freq).zfill(4)
             
             # Increment counter
             ct += 1
@@ -1082,7 +1082,7 @@ class ModelFit(BlobFactory):
             f.close()
             
             if self.checkpoint_append:
-                print("Checkpoint #{0}: {1!s}".format(ct / save_freq,\
+                print("Checkpoint #{0}: {1!s}".format(ct // save_freq,\
                     time.ctime()))
             else:
                 print("Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\

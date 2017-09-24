@@ -62,7 +62,8 @@ class CheckPoints:
             self.redshift_dumps = True 
             # Ordered in increasing time, decreasing redshift 
             self.DDredshifts = np.linspace(initial_redshift, final_redshift, 
-                max((initial_redshift - final_redshift) / dzDataDump, 1) + 1)
+                max(int((initial_redshift - final_redshift) / dzDataDump), 1)\
+                + 1)
         else:
             self.DDredshifts = np.array([final_redshift])    
             
@@ -72,7 +73,7 @@ class CheckPoints:
             self.logti = np.log10(initial_timestep)
             self.logtf = np.log10(stop_time)
             self.logDDt = time_units * np.logspace(self.logti, self.logtf, 
-                (self.logtf - self.logti) / self.logdtDD + 1)[0:-1]
+                int((self.logtf - self.logti) / self.logdtDD) + 1)[0:-1]
                 
             self.DDtimes = np.sort(np.concatenate((self.DDtimes, self.logDDt)))
             
@@ -82,7 +83,7 @@ class CheckPoints:
             self.logzi = np.log10(initial_redshift)
             self.logzf = np.log10(final_redshift)
             self.logDDz = np.logspace(self.logzi, self.logzf, 
-                (self.logzf - self.logzi) / self.logdzDD + 1)[0:-1]
+                int((self.logzf - self.logzi) / self.logdzDD) + 1)[0:-1]
                 
             self.DDredshifts = np.sort(np.concatenate((self.DDredshifts, 
                 self.logDDz)))    

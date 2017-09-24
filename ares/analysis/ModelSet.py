@@ -775,8 +775,8 @@ class ModelSet(BlobFactory):
         
         assert num < nw, "Only {} walkers were used!".format(nw)
         
-        steps_per_walker = self.chain.shape[0] / nw
-        nchunks = steps_per_walker / sf
+        steps_per_walker = self.chain.shape[0] // nw
+        nchunks = steps_per_walker // sf
         
         # "size" of each chunk in # of MCMC steps
         schunk = nw * sf 
@@ -1171,7 +1171,7 @@ class ModelSet(BlobFactory):
             pars = self.parameters
 
         Npars = len(pars)
-        mp = MultiPanel(dims=(Npars/ncols, ncols), fig=fig, 
+        mp = MultiPanel(dims=(Npars//ncols, ncols), fig=fig, 
             padding=(0.3, 0.3), **mp_kwargs)
 
         w = self._get_walker_subset(N, walkers)

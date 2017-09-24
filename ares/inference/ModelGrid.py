@@ -870,7 +870,7 @@ class ModelGrid(ModelFit):
             # attributes
 
             if rank == 0 and use_checks:
-                print("Checkpoint #{0}: {1!s}".format(ct / save_freq,\
+                print("Checkpoint #{0}: {1!s}".format(ct // save_freq,\
                     time.ctime()))
                 
             # First assemble data from all processors?
@@ -899,7 +899,7 @@ class ModelGrid(ModelFit):
             # exit_after to 1 or perhaps a few, depending on the amount
             # of memory on hand. This is apparently less of an issue in Python 3.3
             if exit_after is not None:
-                if exit_after == ct / save_freq:
+                if exit_after == (ct // save_freq):
                     break
 
         pb.finish()
@@ -1004,7 +1004,7 @@ class ModelGrid(ModelFit):
     @property
     def Ncheckpoints(self):
         if not hasattr(self, '_Ncheckpoints'):
-            self._Ncheckpoints = self.load / self.save_freq
+            self._Ncheckpoints = self.load // self.save_freq
         return self._Ncheckpoints
         
     @property
@@ -1153,7 +1153,7 @@ class ModelGrid(ModelFit):
                     leftovers = tmp.size % size
                     
                     assign = np.arange(size)
-                    arr = np.array([assign] * int(tmp.size / size)).ravel()
+                    arr = np.array([assign] * int(tmp.size // size)).ravel()
                     if leftovers != 0:
                         # This could be a little more efficient
                         arr = np.concatenate((arr, assign[0:leftovers]))

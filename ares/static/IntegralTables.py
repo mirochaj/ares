@@ -88,10 +88,10 @@ class IntegralTable:
             if self.pf['secondary_ionization'] == 2:
                 self.logx = np.linspace(self.pf['tables_logxmin'], 0,
                     abs(self.pf['tables_logxmin']) \
-                    / self.pf['tables_dlogx'] + 1)
+                    // self.pf['tables_dlogx'] + 1)
                 self.E = np.linspace(self.src.Emin, self.src.Emax,
                     (self.src.Emax - self.src.Emin) \
-                    / self.pf['tables_dE'] + 1)
+                    // self.pf['tables_dE'] + 1)
             elif self.pf['secondary_ionization'] == 3:
                 self.logx = self.esec.logx
                 self.E = self.esec.E
@@ -102,7 +102,7 @@ class IntegralTable:
         if False:#self.pf['spectrum_evolving']:
             if self.pf['tables_times'] is None:
                 stop = self.pf['stop_time'] * self.pf['time_units']
-                self.t = np.linspace(0, stop, 1 + stop / self.pf['tables_dt'])
+                self.t = np.linspace(0, stop, 1 + stop // self.pf['tables_dt'])
             else:
                 self.t = self.pf['tables_times']  
         else:

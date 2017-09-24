@@ -365,7 +365,11 @@ class ParameterBundle(dict):
     def __getattr__(self, name):
         if name not in self.keys():
             pass
-        return self[name]
+        try:
+            return self[name]
+        except KeyError as e:
+            # this is needed for hasattr to work as expected in python 3!
+            raise AttributeError('{!s}'.format(e.args))
 
     def __add__(self, other):
         tmp = self.copy()

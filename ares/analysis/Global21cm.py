@@ -219,7 +219,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             s += 1
         
         boxcar = np.zeros_like(self.dTbdz)
-        boxcar[boxcar.size/2 - s/2: boxcar.size/2 + s/2] = \
+        boxcar[boxcar.size//2 - s//2: boxcar.size//2 + s//2] = \
             np.ones(s) / float(s)
         
         return np.convolve(self.dTbdnu, boxcar, mode='same')

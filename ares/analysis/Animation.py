@@ -91,7 +91,7 @@ class Animation(object):
                 data_sorted[p] = self.model_set.blob_ivars[ii][jj]
              
         if origin is None:
-            start = end = data_sorted[par][N / 2]
+            start = end = data_sorted[par][N // 2]
         else:
             start = end = origin
 

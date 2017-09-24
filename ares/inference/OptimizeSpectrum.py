@@ -38,7 +38,7 @@ except ImportError:
     
 def halve_list(li):
     N = len(li)
-    return li[0:N/2], li[N/2:]    
+    return li[0:N//2], li[N//2:]    
     
 class SpectrumOptimization(object):
     def __init__(self, **kwargs):

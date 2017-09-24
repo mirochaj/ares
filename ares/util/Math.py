@@ -78,10 +78,10 @@ def smooth(y, width, kernel='boxcar'):
     kern = np.zeros_like(y)
         
     if kernel == 'boxcar':
-        kern[kern.size/2 - s/2: kern.size/2 + s/2+1] = \
+        kern[kern.size//2 - s//2: kern.size//2 + s//2+1] = \
             np.ones(width) / float(width)
     elif kernel == 'gaussian':
-        x0 = kern.size / 2
+        x0 = kern.size // 2
         xx = np.arange(0, len(y))
         kern = np.exp(-0.5 * (xx - x0)**2 / width**2) / width / np.sqrt(2 * np.pi)
     else:

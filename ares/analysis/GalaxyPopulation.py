@@ -303,7 +303,7 @@ class GalaxyPopulation(object):
         if ncols == 1:
             nrows = len(redshifts)
         else:
-            nrows = len(redshifts) / ncols
+            nrows = len(redshifts) // ncols
             
         if nrows * ncols != len(redshifts):
             nrows += 1
