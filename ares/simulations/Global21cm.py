@@ -449,9 +449,8 @@ class Global21cm(AnalyzeGlobal21cm):
         if self.count > 1:
             write_pickle_file((self.medium.field._zarr,\
                 self.medium.field._Mmin_bank), '{!s}.Mmin.pkl'.format(prefix),\
-                ndumps=2, open_mode='w', safe_mode=False, verbose=False)
-            if self.pf['verbose']:
-                print('Wrote {!s}.Mmin.pkl'.format(prefix))
+                ndumps=2, open_mode='w', safe_mode=False,\
+                verbose=self.pf['verbose'])
             
             if self.pf['feedback_LW_sfrd_popid'] is not None:
                 pid = self.pf['feedback_LW_sfrd_popid']
