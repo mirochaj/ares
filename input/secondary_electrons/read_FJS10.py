@@ -16,7 +16,8 @@ important, and will be used when secondary_ionization = 3.
 """
 
 import numpy as np
-import pickle, os, urllib
+import os, urllib
+from ares.util.Pickling import write_pickle_file
 
 try:
     import h5py
@@ -80,17 +81,10 @@ fHeI_xi = np.array(list(zip(*fHeI)))
 fHeII_xi = np.array(list(zip(*fHeII)))
           
 # Make pickle file
-f = open('secondary_electron_data.pkl', 'wb')
-pickle.dump(np.array(energies), f)
-pickle.dump(np.array(x), f)
-pickle.dump(heat_xi, f)
-pickle.dump(fexc_xi, f)
-pickle.dump(fLya_xi, f)
-pickle.dump(fHI_xi, f)
-pickle.dump(fHeI_xi, f)
-pickle.dump(fHeII_xi, f)
-pickle.dump(fion_xi, f)
-f.close()
+to_write = [np.array(energies), np.array(x), heat_xi, fexc_xi, fLya_xi,\
+    fHI_xi, fHeI_xi, fHeII_xi, fion_xi]
+write_pickle_file(to_write, 'secondary_electron_data.pkl',\
+    ndumps=len(to_write), open_mode='w', safe_mode=False, verbose=False)
          
 # Make npz file
 data = {'electron_energy': np.array(energies), 'ionized_fraction': np.array(x),

@@ -17,11 +17,7 @@ import numpy as np
 from inspect import ismethod
 from types import FunctionType
 from scipy.interpolate import RectBivariateSpline, interp1d
-
-#try:
-#    import dill as pickle
-#except ImportError:
-import pickle
+from ..util.Pickling import read_pickle_file, write_pickle_file
     
 try:
     from mpi4py import MPI
@@ -355,9 +351,9 @@ class BlobFactory(object):
                 try:
                     self._generate_blobs()
                 except AttributeError:
-                    f = open('{!s}.blobs.pkl'.format(self.prefix), 'r')
-                    self._blobs = pickle.load(f)
-                    f.close()
+                    self._blobs =\
+                        read_pickle_file('{!s}.blobs.pkl'.format(self.prefix),\
+                        nloads=1, verbose=False)
                     
         return self._blobs
         
@@ -641,19 +637,11 @@ class BlobFactory(object):
             if not os.path.exists(fn):
                 break
         
-            f = open(fn, 'rb')
-                
-            # Why the while loop? Remember?
             all_data = []
-            while True:
-                try:
-                    data = pickle.load(f)
-                except EOFError:
-                    break
-                
-                all_data.extend(data)
-                
-            f.close()    
+            data_chunks = read_pickle_file(fn, nloads=None, verbose=False)
+            for data_chunk in data_chunks:
+                all_data.extend(data_chunk)
+            del data_chunks
                 
             # Used to have a squeeze() here for no apparent reason...
             # somehow it resolved itself.
@@ -679,9 +667,9 @@ class BlobFactory(object):
         
         # CAN BE VERY CONFUSING
         #if by_proc and rank == 0:
-        #    f = open("{0!s}.blob_{1}d.{2!s}.pkl".format(self.prefix, nd, name), 'wb')
-        #    pickle.dump(masked_data, f)
-        #    f.close()
+        #    fn = "{0!s}.blob_{1}d.{2!s}.pkl".format(self.prefix, nd, name)
+        #    write_pickle_file(masked_data, fn, ndumps=1, open_mode='w',\
+        #        safe_mode=False, verbose=False)
         
         self.blob_data = {name: masked_data}
         

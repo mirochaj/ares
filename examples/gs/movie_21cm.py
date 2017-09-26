@@ -14,7 +14,7 @@ Note: Can run this in parallel.
 """
 
 import numpy as np
-import ares, pickle
+import ares
 import matplotlib.pyplot as pl
 
 try:

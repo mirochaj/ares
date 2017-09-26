@@ -9,8 +9,6 @@ Created on: Sat Oct  3 14:57:31 PDT 2015
 Description: 
 
 """
-
-import pickle
 import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl

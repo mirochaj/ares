@@ -13,7 +13,7 @@ Description:
 import sys
 import numpy as np
 from ..util import read_lit
-import os, pickle, inspect, re
+import os, inspect, re
 from types import FunctionType
 from ..physics import Cosmology
 from .Halo import HaloPopulation

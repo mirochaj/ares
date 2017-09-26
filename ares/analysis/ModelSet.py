@@ -25,6 +25,7 @@ from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
+from ..util.Pickling import read_pickle_file, write_pickle_file
 import matplotlib.patches as patches
 from ..util.Aesthetics import Labeler
 from ..util.PrintInfo import print_model_set
@@ -34,11 +35,8 @@ from matplotlib.collections import PatchCollection, LineCollection
 from ..util.SetDefaultParameterValues import SetAllDefaults, TanhParameters
 from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
-from ..util.ReadData import read_pickled_dict, read_pickle_file, \
-    read_pickled_chain, read_pickled_logL, fcoll_gjah_to_ares, \
-    tanh_gjah_to_ares
-
-import pickle 
+from ..util.ReadData import concatenate, read_pickled_chain,\
+    read_pickled_logL, fcoll_gjah_to_ares, tanh_gjah_to_ares
 
 try:
     from scipy.spatial import Delaunay
@@ -194,8 +192,9 @@ class ModelSet(BlobFactory):
             print("WARNING: if this run was restarted, the `load` values " +\
                 "are probably wrong.")
             if os.path.exists('{!s}.load.pkl'.format(self.prefix)):
-                self._load =\
-                    read_pickle_file('{!s}.load.pkl'.format(self.prefix))
+                self._load = concatenate(read_pickle_file(\
+                    '{!s}.load.pkl'.format(self.prefix), nloads=None,\
+                    verbose=False))
             else:
                 self._load = None
 
@@ -222,15 +221,14 @@ class ModelSet(BlobFactory):
             else:    
                 self._base_kwargs = None
                 return self._base_kwargs
-                
-            f = open(fn, 'rb')
+            
             try:
-                self._base_kwargs = pickle.load(f)
+                self._base_kwargs =\
+                    read_pickle_file(fn, nloads=1, verbose=False)
             except ImportError as err:
                 raise err
             except:
                 self._base_kwargs = {}
-            f.close()  
             
         return self._base_kwargs    
 
@@ -246,9 +244,9 @@ class ModelSet(BlobFactory):
                 pre = self.prefix
             
             if os.path.exists('{!s}.pinfo.pkl'.format(pre)):
-                f = open('{!s}.pinfo.pkl'.format(pre), 'rb')
-                self._parameters, self._is_log = pickle.load(f)
-                f.close()
+                (self._parameters, self._is_log) =\
+                    read_pickle_file('{!s}.pinfo.pkl'.format(pre), nloads=1,\
+                    verbose=False)
                 self._parameters = patch_pinfo(self._parameters)
             elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                 f = h5py.File('{!s}.hdf5'.format(self.prefix))
@@ -271,10 +269,11 @@ class ModelSet(BlobFactory):
         # Read parameter names and info
         if not hasattr(self, '_nwalkers'):
             if os.path.exists('{!s}.rinfo.pkl'.format(self.prefix)):
-                f = open('{!s}.rinfo.pkl'.format(self.prefix), 'rb')
+                loaded =\
+                    read_pickle_file('{!s}.rinfo.pkl'.format(self.prefix),\
+                    nloads=1, verbose=False)
                 self._nwalkers, self._save_freq, self._steps = \
-                    list(map(int, pickle.load(f)))
-                f.close()
+                    list(map(int, loaded))
             else:
                 self._nwalkers = self._save_freq = self._steps = None
     
@@ -296,9 +295,9 @@ class ModelSet(BlobFactory):
     def priors(self):
         if not hasattr(self, '_priors'):   
             if os.path.exists('{!s}.priors.pkl'.format(self.prefix)):
-                f = open('{!s}.priors.pkl'.format(self.prefix), 'rb')
-                self._priors = pickle.load(f)
-                f.close() 
+                self._priors =\
+                    read_pickle_file('{!s}.priors.pkl'.format(self.prefix),\
+                    nloads=1, verbose=False)
             else:
                 self._priors = {}
                 
@@ -337,14 +336,9 @@ class ModelSet(BlobFactory):
     def facc(self):
         if not hasattr(self, '_facc'):
             if os.path.exists('{!s}.facc.pkl'.format(self.prefix)):
-                f = open('{!s}.facc.pkl'.format(self.prefix), 'rb')
-                self._facc = []
-                while True:
-                    try:
-                        self._facc.append(pickle.load(f))
-                    except EOFError:
-                        break
-                f.close()
+                self._facc =\
+                    read_pickle_file('{!s}.facc.pkl'.format(self.prefix),\
+                    nloads=None, verbose=False)
                 self._facc = np.array(self._facc)
             else:
                 self._facc = None
@@ -369,15 +363,8 @@ class ModelSet(BlobFactory):
             i = 1
             fn = '{0!s}.timing_{1!s}.pkl'.format(self.prefix, str(i).zfill(4))
             while os.path.exists(fn):
-                f = open(fn, 'rb')
-                while True:
-                    try:
-                        t, kw = pickle.load(f)
-                        self._timing.append((t, kw))
-                    except EOFError:
-                        break
-                        
-                f.close()
+                self._timing.extend(\
+                    read_pickle_file(fn, nloads=None, verbose=False))
                 i += 1
                 fn = '{0!s}.timing_{1!s}.pkl'.format(self.prefix,\
                     str(i).zfill(4))  
@@ -508,9 +495,9 @@ class ModelSet(BlobFactory):
                 # CALCULATION AND FORGET TO CLEAR OUT OLD FILES.
                 # Hence, it is commented out (for now).
                 #if rank == 0:
-                #    f = open('{0!s}.chain.pkl'.format(self.prefix), 'wb')
-                #    pickle.dump(self._chain, f)
-                #    f.close()
+                #    write_pickle_file(self._chain,\
+                #        '{!s}.chain.pkl'.format(self.prefix), ndumps=1,\
+                #        open_mode='w', safe_mode=False, verbose=False)
 
             elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                 f = h5py.File('{!s}.hdf5'.format(self.prefix))
@@ -593,10 +580,8 @@ class ModelSet(BlobFactory):
                     if fail > 10:
                         break
                 else:
-                    with open(fn, 'rb') as f:
-                        kw = pickle.load(f)                 
-                    
-                    self._checkpoints[i] = kw
+                    self._checkpoints[i] =\
+                        read_pickle_file(fn, nloads=1, verbose=False)
             
                 i += 1
                 fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix,\
@@ -674,8 +659,9 @@ class ModelSet(BlobFactory):
     def fails(self):
         if not hasattr(self, '_fails'):
             if os.path.exists('{!s}.fails.pkl'.format(self.prefix)):
-                with open('{!s}.fails.pkl'.format(self.prefix), 'rb') as f:
-                    self._fails = pickle.load(f)
+                self._fails =\
+                    read_pickle_file('{!s}.fails.pkl'.format(self.prefix),\
+                    nloads=1, verbose=False)
             elif os.path.exists('{!s}.000.fail.pkl'.format(self.prefix)):
                 i = 0
                 fails = []
@@ -686,14 +672,7 @@ class ModelSet(BlobFactory):
                     if not os.path.exists(fn):
                         break
             
-                    f = open(fn, 'rb')
-                    data = []
-                    while True:
-                        try:
-                            data.append(pickle.load(f))
-                        except EOFError:
-                            break
-                    f.close()
+                    data = read_pickle_file(fn, nloads=None, verbose=False)
                     
                     fails.extend(data)                 
             
@@ -704,9 +683,9 @@ class ModelSet(BlobFactory):
                 # So we don't have to stitch them together again.
                 # AVOIDING CONFUSION
                 #if rank == 0:
-                #    f = open('{!s}.fails.pkl'.format(self.prefix), 'wb')
-                #    pickle.dump(fails, f)
-                #    f.close()
+                #    write_pickle_file(fails,\
+                #        '{!s}.fails.pkl'.format(self.prefix), ndumps=1,\
+                #        open_mode='w', safe_mode=False, verbose=False)
                     
                 self._fails = fails    
                 
@@ -719,8 +698,9 @@ class ModelSet(BlobFactory):
     def timeouts(self):
         if not hasattr(self, '_timeouts'):
             if os.path.exists('{!s}.timeout.pkl'.format(self.prefix)):
-                with open('{!s}.timeout.pkl'.format(self.prefix), 'rb') as f:
-                    self._fails = pickle.load(f)
+                self._fails =\
+                    read_pickle_file('{!s}.timeout.pkl'.format(self.prefix),\
+                    nloads=1, verbose=False)
             elif os.path.exists('{!s}.000.timeout.pkl'.format(self.prefix)):
                 i = 0
                 timeout = []
@@ -731,15 +711,7 @@ class ModelSet(BlobFactory):
                     if not os.path.exists(fn):
                         break
     
-                    f = open(fn, 'rb')
-                    data = []
-                    while True:
-                        try:
-                            data.append(pickle.load(f))
-                        except EOFError:
-                            break
-                    f.close()
-    
+                    data = read_pickle_file(fn, nloads=None, verbose=False)
                     timeout.extend(data)                 
     
                     i += 1
@@ -823,7 +795,7 @@ class ModelSet(BlobFactory):
     
     #def _load(self, fn):
     #    if os.path.exists(fn):
-    #        return read_pickle_file(fn)
+    #        return read_pickle_file(fn, nloads=1, verbose=False)
     
     @property    
     def blob_redshifts_float(self):
@@ -2300,10 +2272,8 @@ class ModelSet(BlobFactory):
                     print('{!s}'.format(cand))
                     raise IOError(('More than 2 options for ' +\
                         '{0!s}*{1!s}.pkl').format(self.prefix, par))
-                    
-                f = open(fn, 'rb')     
-                dat = pickle.load(f)
-                f.close()
+                
+                dat = read_pickle_file(fn, nloads=1, verbose=False)
                 
                 # What follows is real cludgey...sorry, future Jordan
                 nd = len(dat.shape) - 1
@@ -2318,13 +2288,12 @@ class ModelSet(BlobFactory):
                 if (nd == 2) and (ivar[k] is not None):
                     
                     fn_md = '{!s}.dbinfo.pkl'.format(self.prefix)
-                    f = open(fn_md, 'r')
                     dbinfo = {}
-                    while True:
-                        try:
-                            dbinfo.update(pickle.load(f))
-                        except EOFError:
-                            break
+                    dbinfos =\
+                        read_pickle_file(fn_md, nloads=None, verbose=False)
+                    for info in dbinfos:
+                        dbinfo.update(info)
+                    del dbinfos
                     
                     # Look up the independent variables for this DB
                     ivars = dbinfo[par]
@@ -4085,9 +4054,8 @@ class ModelSet(BlobFactory):
                 data = self.ExtractData(name)
                 return data[name]
         
-            f = open(fn, 'wb')
-            pickle.dump(result, f)
-            f.close()
+            write_pickle_file(result, fn, open_mode='w', ndumps=1,\
+                safe_mode=False, verbose=False)
             
             # 'data' contains all field used to derive this blob.
             # Shape of new blob must be the same
@@ -4106,29 +4074,17 @@ class ModelSet(BlobFactory):
             # Save metadata about this derived blob
             fn_md = '{!s}.dbinfo.pkl'.format(self.prefix)
             if (not os.path.exists(fn_md)) or clobber:
-                f = open(fn_md, 'w')
-                pickle.dump({name: ivars}, f)
-                f.close()
+                write_pickle_file({name: ivars}, fn_md, open_mode='w',\
+                    ndumps=1, safe_mode=False, verbose=False)
             else:
-                f = open(fn_md, 'r')
-                while True:
-                    
-                    pdat = None
-                    
-                    try:
-                        pdat = pickle.load(f)
-                        if name in pdat:
-                            if pdat[name] == ivars:
-                                break
-                    except EOFError:
-                        break
-
-                f.close()
-
+                pdats = read_pickle_file(fn_md, nloads=None, verbose=False)
+                for pdat in pdats:
+                    if name in pdat:
+                        if pdat[name] == ivars:
+                            break
                 if pdat is not None:
-                    f = open(fn_md, 'a')
-                    pickle.dump({name: ivars})
-                    f.close()
+                    write_pickle_file({name: ivars}, fn_md, open_mode='a',\
+                        ndumps=1, safe_mode=False, verbose=False)
         
         return result
         

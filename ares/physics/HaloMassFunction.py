@@ -10,12 +10,12 @@ Description:
 """
 
 import glob
-import pickle
 import os, re, sys
 import numpy as np
 from . import Cosmology
 from types import FunctionType
 from ..util import ParameterFile
+from ..util.Pickling import read_pickle_file, write_pickle_file
 from scipy.misc import derivative
 from scipy.optimize import fsolve
 from ..util.Misc import get_hg_rev
@@ -253,16 +253,10 @@ class HaloMassFunction(object):
             self.mgtm = f['mgtm']
             f.close()                        
         elif re.search('.pkl', self.fn):
-            f = open(self.fn, 'rb')
-            self.z = pickle.load(f)
-            self.logM = pickle.load(f)
+            loaded = read_pickle_file(self.fn, nloads=6, verbose=False)
+            (self.z, self.logM, self.fcoll_spline_2d) = loaded[0:3]
+            (self.dndm, self.ngtm, self.mgtm) = loaded[3:6]
             self.M = 10**self.logM
-            self.fcoll_spline_2d = pickle.load(f)
-            self.dndm = pickle.load(f)
-            self.ngtm = pickle.load(f)
-            self.mgtm = pickle.load(f)
-            f.close()
-
         else:
             raise IOError('Unrecognized format for hmf_table.')    
                 
@@ -824,18 +818,20 @@ class HaloMassFunction(object):
             np.savez(fn, **data)
 
         # Otherwise, pickle it!    
-        else:   
-            f = open(fn, 'wb')
-            pickle.dump(self.z, f)
-            pickle.dump(self.logM, f)
-            pickle.dump(self.fcoll_spline_2d, f)
-            pickle.dump(self.dndm, f)
-            pickle.dump(self.ngtm, f)
-            pickle.dump(self.mgtm, f)
-            pickle.dump({'growth_pars': self.growth_pars,
-                'transfer_pars': self.transfer_pars}, f)
-            pickle.dump(dict(('hmf-version', hmf_v)))
-            f.close()
+        else:
+            growth_and_transfer_pars =\
+            {\
+                'growth_pars': self.growth_pars,
+                'transfer_pars': self.transfer_pars\
+            }
+            to_pickle =\
+            [\
+                self.z, self.logM, self.fcoll_splide_2d, self.dndm, self.ngtm,\
+                self.mgtm, growth_and_transfer_pars,\
+                dict(('hmf-version', hmf_v))\
+            ]
+            write_pickle_file(to_pickle, fn, ndumps=len(to_pickle),\
+                open_mode='w', safe_mode=False, verbose=False)
             
         print('Wrote {!s}.'.format(fn))
         return

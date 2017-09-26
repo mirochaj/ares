@@ -9,10 +9,9 @@ Created on: Sat Feb 21 11:26:50 MST 2015
 Description: 
 
 """
-
-import pickle
 import numpy as np
 import os, re, types, sys
+from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..physics import Cosmology
 from scipy.integrate import quad
 from ..physics.Constants import c
@@ -456,11 +455,11 @@ class OpticalDepth(object):
     
         elif re.search('npz', fn) or re.search('pkl', fn):    
             if re.search('pkl', fn):
-                f = open(fn, 'rb')
-                data = pickle.load(f)
+                data = read_pickle_file(fn, nloads=1, verbose=False)
             else:
                 f = open(fn, 'r')
                 data = dict(np.load(f))
+                f.close()
     
             self.E0 = data['E'].min()
             self.E1 = data['E'].max()            
@@ -472,7 +471,6 @@ class OpticalDepth(object):
             self.R = self.x[1] / self.x[0]
     
             self.tau = self._tau = data['tau']
-            f.close()
     
         else:
             f = open(self.tabname, 'r')
@@ -843,10 +841,8 @@ class OpticalDepth(object):
             f.close()
 
         elif suffix == 'pkl':
-
-            f = open(fn, 'wb')
-            pickle.dump({'tau': self.tau, 'z': self.z, 'E': self.E}, f)
-            f.close()    
+            write_pickle_file({'tau': self.tau, 'z': self.z, 'E': self.E}, fn,\
+                ndumps=1, open_mode='w', safe_mode=False, verbose=False)
 
         else:
             print('Unrecognized suffix \'{!s}\'. Using np.savetxt...'.format(\

@@ -13,6 +13,7 @@ Description:
 import signal
 import numpy as np
 from ..util.PrintInfo import print_fit
+from ..util.Pickling import write_pickle_file
 from ..physics.Constants import nu_0_mhz
 import gc, os, sys, copy, types, time, re
 from .ModelFit import ModelFit, LogLikelihood
@@ -100,9 +101,9 @@ class loglikelihood(LogLikelihood):
         #except ValueError:                     
         #    # Write to "fail" file
         #    if not self.burn:
-        #        f = open('{0!s}.fail.{1!s}.pkl'.format(self.prefix, str(rank).zfill(3)), 'ab')
-        #        pickle.dump(kwargs, f)
-        #        f.close()
+        #        write_pickle_file(kwargs, '{0!s}.fail.{1!s}.pkl'.format(\
+        #            self.prefix, str(rank).zfill(3)), ndumps=1,\
+        #            open_mode='a', safe_mode=False, verbose=False)
         #
         #    del sim, kw, f
         #    gc.collect()

@@ -11,9 +11,9 @@ Description:
 """
 
 import time
-import pickle
 import numpy as np
 from ..util import read_lit
+from ..util.Pickling import write_pickle_file
 from ..util.PrintInfo import print_fit
 import gc, os, sys, copy, types, time, re
 from ..util.ParameterFile import par_info
@@ -521,8 +521,8 @@ class FitGalaxyPopulation(ModelFit):
             print("{!s} exists! Set clobber=True to overwrite.".format(fn))
             return
                 
-        f = open(fn, 'wb')
-        pickle.dump((self.xdata, self.ydata, self.redshifts, self.error), f)
-        f.close()
+        write_pickle_file((self.xdata, self.ydata, self.redshifts,\
+            self.error), fn, ndumps=1, open_mode='w', safe_mode=False,\
+            verbose=False)
      
     

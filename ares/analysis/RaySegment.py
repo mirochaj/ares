@@ -47,7 +47,6 @@ class RaySegment:
         
         # Load contents of hdf5 file
         elif type(data) is str:
-            import pickle
             f = h5py.File(data, 'r')
             
             self.pf = {}

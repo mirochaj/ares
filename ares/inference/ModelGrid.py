@@ -12,16 +12,16 @@ and analyzing them.
 """
 from __future__ import print_function
 import signal
-import pickle
 import subprocess
 import numpy as np
 import copy, os, gc, re, time
+from ..util.Pickling import read_pickle_file, write_pickle_file
 from .ModelFit import ModelFit
 from ..analysis import ModelSet
 from ..simulations import Global21cm
 from ..util import GridND, ProgressBar
 from ..analysis import Global21cm as _AnalyzeGlobal21cm
-from ..util.ReadData import read_pickle_file, read_pickled_dict
+from ..util.ReadData import concatenate
 
 try:
     from mpi4py import MPI
@@ -35,9 +35,9 @@ def run_prog(prefix):
     
     pfn = '{!s}.fork_par.pkl'.format(prefix)
     sfn = '{!s}.fork_sim'.format(prefix)
-        
-    s = "f = open(\'{!s}\', \'rb\'); ".format(pfn)
-    s += "import pickle; pars = pickle.load(f); f.close(); "
+    
+    s += "from ares.util.Pickling import read_pickle_file; pars = "
+    s += "read_pickle_file(\'{!s}\', nloads=1, verbose=False);".format(pfn)
     s += "import ares; sim = ares.simulations.Global21cm(**pars); "
     s += "sim.run(); sim.save(\'{!s}\', clobber=True)".format(sfn)
     
@@ -120,7 +120,8 @@ class ModelGrid(ModelFit):
 
         # Read in current status of model grid, i.e., the old 
         # grid points.
-        chain = read_pickle_file('{!s}.chain.pkl'.format(prefix_by_proc))
+        chain = concatenate(read_pickle_file('{!s}.chain.pkl'.format(\
+            prefix_by_proc), nloads=None, verbose=False))
         
         # If we said this is a restart, but there are no elements in the 
         # chain, just run the thing. It probably means the initial run never
@@ -136,19 +137,16 @@ class ModelGrid(ModelFit):
             return done
 
         # Read parameter info
-        f = open('{!s}.pinfo.pkl'.format(prefix), 'rb')
-        axes_names, is_log = pickle.load(f)
-        f.close()
+        (axes_names, is_log) = read_pickle_file(\
+            '{!s}.pinfo.pkl'.format(prefix), nloads=1, verbose=False)
 
         # Prepare for blobs (optional)
         if os.path.exists('{!s}.binfo.pkl'.format(prefix)):
-            f = open('{!s}.binfo.pkl'.format(prefix), 'rb')
-            self.pf = pickle.load(f)
-            f.close()
+            self.pf = read_pickle_file('{!s}.binfo.pkl'.format(prefix),\
+                nloads=1, verbose=False)
         elif os.path.exists('{!s}.setup.pkl'.format(prefix)):
-            f = open('{!s}.setup.pkl'.format(prefix), 'rb')
-            self.pf = pickle.load(f)
-            f.close()
+            self.pf = read_pickle_file('{!s}.setup.pkl'.format(prefix),\
+                nloads=1, verbose=False)
 
         if len(axes_names) != chain.shape[1]:
             raise ValueError('Cannot change dimensionality on restart!')
@@ -274,9 +272,9 @@ class ModelGrid(ModelFit):
                 
             if restart:
                 if rank == 0:
-                    f = open('{!s}.load.pkl'.format(self.prefix), 'ab')
-                    pickle.dump(assignments, f)
-                    f.close()
+                    write_pickle_file(assignments,\
+                        '{!s}.load.pkl'.format(self.prefix), ndumps=1,\
+                        open_mode='a', safe_mode=False, verbose=False)
                 
                 return
         else:
@@ -288,10 +286,10 @@ class ModelGrid(ModelFit):
                         
         super(ModelGrid, self)._prep_from_scratch(clobber, by_proc=True)
             
-        if self.grid.structured:    
-            f = open('{!s}.load.pkl'.format(self.prefix), 'wb')
-            pickle.dump(assignments, f)
-            f.close()
+        if self.grid.structured:
+            write_pickle_file(assignments,\
+                '{!s}.load.pkl'.format(self.prefix), ndumps=1, open_mode='w',\
+                safe_mode=False, verbose=False)
     
         # ModelFit makes this file by default but grids don't use it.
         if os.path.exists('{!s}.logL.pkl'.format(self.prefix)) and (rank == 0):
@@ -513,9 +511,9 @@ class ModelGrid(ModelFit):
             sim.run()            
             blobs = copy.deepcopy(sim.blobs)
         except RuntimeError:
-            f = open('{0!s}.{1!s}.timeout.pkl'.format(self.prefix, str(rank).zfill(3)), 'ab')
-            pickle.dump(kw, f)
-            f.close()
+            write_pickle_file(kw, '{0!s}.{1!s}.timeout.pkl'.format(\
+                self.prefix, str(rank).zfill(3)), ndumps=1, open_mode='a',\
+                safe_mode=False, verbose=False)
             
             blobs = copy.deepcopy(self.blank_blob)
         except MemoryError:
@@ -523,9 +521,9 @@ class ModelGrid(ModelFit):
         except:
             # For some reason "except Exception"  doesn't catch everything...
             # Write to "fail" file
-            f = open('{0!s}.{1!s}.fail.pkl'.format(self.prefix, str(rank).zfill(3)), 'ab')
-            pickle.dump(kw, f)
-            f.close()
+            write_pickle_file(kw, '{0!s}.{1!s}.fail.pkl'.format(self.prefix,\
+                str(rank).zfill(3)), ndumps=1, open_mode='a', safe_mode=False,\
+                verbose=False)
             
             print("FAILURE: Processor #{}.".format(rank))
             
@@ -820,8 +818,8 @@ class ModelGrid(ModelFit):
             # so we can troubleshoot later if the run never finishes.
             procid = str(rank).zfill(3)
             fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix, procid)
-            with open(fn, 'wb') as f:
-                pickle.dump(kw, f)
+            write_pickle_file(kw, fn, ndumps=1, open_mode='w',\
+                safe_mode=False, verbose=False)
             fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
             with open(fn, 'w') as f:
                 print("Simulation began: {!s}".format(time.ctime()), file=f)
@@ -875,9 +873,9 @@ class ModelGrid(ModelFit):
                 
             # First assemble data from all processors?
             # Analogous to assembling data from all walkers in MCMC
-            f = open('{!s}.chain.pkl'.format(prefix_by_proc), 'ab')
-            pickle.dump(chain_all, f)
-            f.close()
+            write_pickle_file(chain_all,\
+                '{!s}.chain.pkl'.format(prefix_by_proc), ndumps=1,\
+                open_mode='a', safe_mode=False, verbose=False)
 
             self.save_blobs(blobs_all, False, prefix_by_proc)
 
@@ -907,8 +905,9 @@ class ModelGrid(ModelFit):
         # Need to make sure we write results to disk if we didn't 
         # hit the last checkpoint
         if chain_all:
-            with open('{!s}.chain.pkl'.format(prefix_by_proc), 'ab') as f:
-                pickle.dump(chain_all, f)
+            write_pickle_file(chain_all,\
+                '{!s}.chain.pkl'.format(prefix_by_proc), ndumps=1,\
+                open_mode='a', safe_mode=False, verbose=False)
         
         if blobs_all:
             self.save_blobs(blobs_all, False, prefix_by_proc)

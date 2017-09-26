@@ -9,8 +9,6 @@ Created on: Wed Nov 23 09:32:17 PST 2016
 Description: 
 
 """
-
-import pickle
 import numpy as np
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet

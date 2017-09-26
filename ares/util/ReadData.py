@@ -13,11 +13,7 @@ Description:
 import numpy as np
 import imp as _imp
 import os, re, sys, glob
-
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
+from .Pickling import read_pickle_file
 
 try:
     import h5py
@@ -339,48 +335,19 @@ def flatten_logL(data):
         new.extend(data[:,i])
 
     return new
-
-def read_pickled_dict(fn):
-    f = open(fn, 'rb')
-    
-    results = []
-    
-    while True:
-        try:
-            # This array should be (nsteps, ndims)
-            results.append(pickle.load(f))
-        except EOFError:
-            break
-    
-    f.close()
-    
-    return results
             
-def read_pickle_file(fn):
-    f = open(fn, 'rb')
-
-    ct = 0
-    results = []
-    while True:
-        try:
-            data = pickle.load(f)
-            results.extend(data)
-            ct +=1
-        except EOFError:
-            break
-
-    #print "Read {0} chunks from {1!s}.".format(ct, fn)
-
-    f.close()
-    
-    return np.array(results)
+def concatenate(lists):
+    return_val = []
+    for element in lists:
+        return_val = return_val + element
+    return np.array(return_val)
 
 def read_pickled_blobs(fn):
-    return read_pickle_file(fn)    
+    return concatenate(read_pickle_file(fn, nloads=None, verbose=False))
     
 def read_pickled_logL(fn):    
     # Removes chunks dimension
-    data = read_pickle_file(fn)
+    data = concatenate(read_pickle_file(fn, nloads=None, verbose=False))
     
     Nd = len(data.shape)
     
@@ -405,7 +372,7 @@ def read_pickled_logL(fn):
 def read_pickled_chain(fn):
     
     # Removes chunks dimension
-    data = read_pickle_file(fn)
+    data = concatenate(read_pickle_file(fn, nloads=None, verbose=False))
     
     Nd = len(data.shape)
 

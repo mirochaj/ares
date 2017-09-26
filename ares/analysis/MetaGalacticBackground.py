@@ -10,9 +10,9 @@ Description:
 
 """
 
-import pickle
 import numpy as np
 from ..util import labels
+from ..util.Pickling import read_pickle_file
 import matplotlib.pyplot as pl
 from scipy.integrate import trapz
 from ..util.ReadData import flatten_energies
@@ -123,14 +123,12 @@ class MetaGalacticBackground(object):
         return z, Eflat, flat
                 
     def _load_data(self, fn):
-        f = open(fn, 'rb')
-        redshifts, energies, data = pickle.load(f)
-        f.close()
+        (redshifts, energies, data) =\
+            read_pickle_file(fn, nloads=1, verbose=False)
         
-        try:            
-            f = open('{!s}.parameters.pkl'.format(self.prefix), 'rb')
-            self.pf = pickle.load(f)
-            f.close()        
+        try:
+            parameters_fn = '{!s}.parameters.pkl'.format(self.prefix)
+            self.pf = read_pickle_file(parameters_fn, nloads=1, verbose=False)     
 
         # The import error is really meant to catch pickling errors
         except (AttributeError, ImportError):

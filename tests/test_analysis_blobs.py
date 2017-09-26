@@ -12,9 +12,9 @@ Description:
 
 import os
 import ares
-import pickle
 import numpy as np
 import matplotlib.pyplot as pl
+from ares.util.Pickling import write_pickle_file
 
 def test(Ns=500, Nd=4, prefix='test'):
 
@@ -33,12 +33,12 @@ def test(Ns=500, Nd=4, prefix='test'):
     pinfo = pars, is_log
     
     # Write to disk.
-    with open('{!s}.chain.pkl'.format(prefix), 'wb') as f:
-        pickle.dump(chain, f)
-    with open('{!s}.pinfo.pkl'.format(prefix), 'wb') as f:
-        pickle.dump(pinfo, f)    
-    with open('{!s}.logL.pkl'.format(prefix), 'wb') as f:
-        pickle.dump(logL, f)    
+    write_pickle_file(chain, '{!s}.chain.pkl'.format(prefix), ndumps=1,\
+        open_mode='w', safe_mode=False, verbose=False)
+    write_pickle_file(pinfo, '{!s}.pinfo.pkl'.format(prefix), ndumps=1,\
+        open_mode='w', safe_mode=False, verbose=False)
+    write_pickle_file(logL, '{!s}.logL.pkl'.format(prefix), ndumps=1,\
+        open_mode='w', safe_mode=False, verbose=False)
     
     # Make some blobs. 0-D, 1-D, and 2-D.
     setup = \
@@ -49,8 +49,8 @@ def test(Ns=500, Nd=4, prefix='test'):
      'blob_funcs': None,
     }
     
-    with open('{!s}.setup.pkl'.format(prefix), 'wb') as f:
-        pickle.dump(setup, f)
+    write_pickle_file(setup, '{!s}.setup.pkl'.format(prefix), ndumps=1,\
+        open_mode='w', safe_mode=False, verbose=False)
     
     # Blobs
     blobs = {}
@@ -82,8 +82,9 @@ def test(Ns=500, Nd=4, prefix='test'):
             
                 data *= np.reshape(mask_inf, dims)
                     
-            with open('{0!s}.blob_{1}d.{2!s}.pkl'.format(prefix, nd, blob), 'wb') as f:
-                pickle.dump(data, f)
+            write_pickle_file(data,\
+                '{0!s}.blob_{1}d.{2!s}.pkl'.format(prefix, nd, blob),\
+                ndumps=1, open_mode='w', safe_mode=False, verbose=False)
             
     # Now, read stuff back in and make sure ExtractData works. Plotting routines?    
     anl = ares.analysis.ModelSet(prefix)    

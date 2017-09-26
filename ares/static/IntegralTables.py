@@ -12,6 +12,7 @@ Description: Tabulate integrals that appear in the rate equations.
 
 import time
 import numpy as np
+from ..util.Pickling import write_pickle_file
 from ..util.ProgressBar import ProgressBar
 from ..physics.Constants import erg_per_ev
 from ..physics.SecondaryElectrons import *
@@ -901,14 +902,10 @@ class IntegralTable:
                 
             np.savez(f, **kw)
                 
-            f.close()  
-            
-            # Save parameters
-            import pickle
-            
-            f = open('{!s}.pars.pkl'.format(prefix), 'wb')
-            pickle.dump(self.pf, f)
             f.close()
+            
+            write_pickle_file(self.pf, '{!s}.pars.pkl'.format(prefix),\
+                safe_mode=False, open_mode='w', verbose=False)
             if rank == 0:
                 print('Wrote {!s} and {!s}.pars.pkl'.format(fn, prefix))
 

@@ -9,13 +9,12 @@ Created on: Thu Oct  4 12:59:46 2012
 Description: 
 
 """
-
-import pickle
 import numpy as np
 import re, scipy, os
 from ..util import labels
 import matplotlib.pyplot as pl
 from ..util.Stats import get_nu
+from ..util.Pickling import read_pickle_file
 from .MultiPlot import MultiPanel
 from scipy.misc import derivative
 from scipy.optimize import fsolve
@@ -109,10 +108,9 @@ class MultiPhaseMedium(object):
         self.history = history
             
     def _load_pf(self, data):        
-        try:            
-            f = open('{!s}.parameters.pkl'.format(data), 'rb')
-            self.pf = pickle.load(f)
-            f.close()        
+        try:   
+            self.pf = read_pickle_file('{!s}.parameters.pkl'.format(data),\
+                nloads=1, verbose=False)
                 
         # The import error is really meant to catch pickling errors
         except (AttributeError, ImportError):
@@ -139,57 +137,19 @@ class MultiPhaseMedium(object):
         return {key:data[i] for i, key in enumerate(cols)}
 
     def _load_pkl(self, data):
-                   
-        fn = '{!s}.history.pkl'.format(data)
-        
-        chunks = 0
-        f = open(fn, 'rb')
-        while True:
-            try:
-                tmp = pickle.load(f)
-            except EOFError:
-                break
-            
+        try:
             if not hasattr(self, '_suite'):
                 self._suite = []
-                
-            self._suite.append(tmp.copy())
-            chunks += 1
-        
-        f.close()
-        
-        if chunks == 0:
-            raise IOError('Empty history ({!s}.history.pkl)'.format(data))
-        else:    
-            history = self._suite[-1]
-                
-        try:
-            chunks = 0
-            f = open('{!s}.history.pkl'.format(data), 'rb')
-            while True:
-                try:
-                    tmp = pickle.load(f)
-                except EOFError:
-                    break
-                
-                if not hasattr(self, '_suite'):
-                    self._suite = []
-                    
-                self._suite.append(tmp.copy())
-                chunks += 1
-            
-            f.close()
-            
-            if chunks == 0:
+            fn = '{!s}.history.pkl'.format(data)
+            loaded_chunks = read_pickle_file(fn, nloads=None, verbose=False)
+            self._suite.extend(loaded_chunks)
+            if len(loaded_chunks) == 0:
                 raise IOError('Empty history ({!s}.history.pkl)'.format(data))
             else:    
                 history = self._suite[-1]
-
         except IOError: 
             if re.search('pkl', data):
-                f = open(data, 'rb')
-                history = pickle.load(f)
-                f.close()
+                history = read_pickle_file(data, nloads=1, verbose=False)
             else:
                 import glob
                 fns = glob.glob('./{!s}.history*'.format(data))
@@ -241,8 +201,9 @@ class MultiPhaseMedium(object):
     @property
     def blobs(self):
         if not hasattr(self, '_blobs'):
-            with open('{!s}.blobs.pkl'.format(self.prefix)) as f:
-                self._blobs = pickle.load(f)
+            self._blobs =\
+                read_pickle_file('{!s}.blobs.pkl'.format(self.prefix),\
+                nloads=1, verbose=False)
         return self._blobs
 
     def close(self):

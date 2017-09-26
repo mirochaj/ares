@@ -12,9 +12,9 @@ Description:
 from __future__ import print_function
 import os
 import time
-import pickle
 import numpy as np
 from types import FunctionType
+from ..util.Pickling import write_pickle_file
 from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..physics.Constants import nu_0_mhz, E_LyA
@@ -381,17 +381,13 @@ class Global21cm(AnalyzeGlobal21cm):
                 raise IOError('{!s} exists! Set clobber=True to overwrite.'.format(fn))
     
         if suffix == 'pkl':         
-            f = open(fn, 'wb')
-            pickle.dump(self.history._data, f)
-            f.close()
+            write_pickle_file(self.history._data, fn, ndumps=1, open_mode='w',\
+                safe_mode=False, verbose=False)
                 
             try:
-                f = open('{0!s}.blobs.{1!s}'.format(prefix, suffix), 'wb')
-                pickle.dump(self.blobs, f)
-                f.close()
-                
-                if self.pf['verbose']:
-                    print('Wrote {0!s}.blobs.{1!s}'.format(prefix, suffix))
+                write_pickle_file(self.blobs, '{0!s}.blobs.{1!s}'.format(\
+                    prefix, suffix), ndumps=1, open_mode='w', safe_mode=False,\
+                    verbose=self.pf['verbose'])
             except AttributeError:
                 print('Error writing {0!s}.blobs.{1!s}'.format(prefix, suffix))
     
@@ -451,21 +447,18 @@ class Global21cm(AnalyzeGlobal21cm):
             
         # Save histories for Mmin and SFRD if we're doing iterative stuff
         if self.count > 1:
-            f = open('{!s}.Mmin.pkl'.format(prefix), 'wb')
-            pickle.dump(self.medium.field._zarr, f)
-            pickle.dump(self.medium.field._Mmin_bank, f)
-            f.close()
+            write_pickle_file((self.medium.field._zarr,\
+                self.medium.field._Mmin_bank), '{!s}.Mmin.pkl'.format(prefix),\
+                ndumps=2, open_mode='w', safe_mode=False, verbose=False)
             if self.pf['verbose']:
                 print('Wrote {!s}.Mmin.pkl'.format(prefix))
             
             if self.pf['feedback_LW_sfrd_popid'] is not None:
                 pid = self.pf['feedback_LW_sfrd_popid']
-                f = open('{!s}.sfrd.pkl'.format(prefix), 'wb')
-                pickle.dump(self.medium.field.pops[pid].halos.z, f)
-                pickle.dump(self.medium.field._sfrd_bank, f)
-                f.close()
-                if self.pf['verbose']:
-                    print('Wrote {!s}.sfrd.pkl'.format(prefix))
+                write_pickle_file((self.medium.field.pops[pid].halos.z,\
+                    self.medium.field._sfrd_bank), '{!s}.sfrd.pkl'.format(\
+                    prefix), ndumps=1, open_mode='w', safe_mode=False,\
+                    verbose=self.pf['verbose'])
         
         write_pf = True
         if os.path.exists('{!s}.parameters.pkl'.format(prefix)):
@@ -488,11 +481,8 @@ class Global21cm(AnalyzeGlobal21cm):
                 self.pf['revision'] = get_hg_rev()
             
             # Save parameter file
-            f = open('{!s}.parameters.pkl'.format(prefix), 'wb')
-            pickle.dump(self.pf, f, -1)
-            f.close()
-    
-            if self.pf['verbose']:
-                print('Wrote {!s}.parameters.pkl'.format(prefix))
+            write_pickle_file(self.pf, '{!s}.parameters.pkl'.format(prefix),\
+                ndumps=1, open_mode='w', safe_mode=False,\
+                verbose=self.pf['verbose'])
         
     

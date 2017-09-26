@@ -13,10 +13,10 @@ Description:
 import os
 import time
 import scipy
-import pickle
 import numpy as np
 from ..static import Grid
 from ..util.Math import smooth
+from ..util.Pickling import write_pickle_file
 from types import FunctionType
 from ..util import ParameterFile
 from scipy.interpolate import interp1d
@@ -1144,9 +1144,8 @@ class MetaGalacticBackground(AnalyzeMGB):
                     continue
 
             if suffix == 'pkl':
-                f = open(fn, 'wb')
-                pickle.dump(data, f)
-                f.close()
+                write_pickle_file(data, fn, ndumps=1, open_mode='w',\
+                    safe_mode=False, verbose=False)
 
             elif suffix in ['hdf5', 'h5']:
                 raise NotImplementedError('no hdf5 support for this yet.')
