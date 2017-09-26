@@ -16,6 +16,12 @@ import matplotlib.pyplot as pl
 from matplotlib.patches import Patch
 from ..util.Stats import symmetrize_errors
 from .MultiPlot import MultiPanel, add_master_legend
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
     'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
@@ -73,7 +79,7 @@ class GalaxyPopulation(object):
         
         data = {}
         
-        if type(sources) is str:
+        if isinstance(sources, basestring):
             if sources in groups[quantity]:
                 srcs = groups[quantity][sources]
             else:
@@ -213,7 +219,7 @@ class GalaxyPopulation(object):
             
         data = self.compile_data(z, sources, round_z=round_z, quantity=quantity)
         
-        if type(sources) is str:
+        if isinstance(sources, basestring):
             if sources in groups[quantity]:
                 srcs = groups[quantity][sources]
             else:
@@ -369,7 +375,7 @@ class GalaxyPopulation(object):
         """     
         if sources in groups[quantity]:
             srcs = groups[quantity][sources]
-        elif type(sources) is str:
+        elif isinstance(sources, basestring):
             srcs = [sources]
                     
         for i, source in enumerate(srcs):

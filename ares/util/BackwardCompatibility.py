@@ -12,6 +12,12 @@ Description:
 
 import re
 from .SetDefaultParameterValues import PopulationParameters
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 pop_pars = PopulationParameters()
 
@@ -119,13 +125,13 @@ def backward_compatibility(ptype, **kwargs):
         
         if element[0:3] == 'php':
     
-            if type(kwargs[element]) is str:
+            if isinstance(kwargs[element], basestring):
                 fixes[element.replace('php', 'pq')] = \
                     kwargs[element].replace('php', 'pq')
             else:
                 fixes[element.replace('php', 'pq')] = kwargs[element]
         
-        if type(kwargs[element]) is str:
+        if isinstance(kwargs[element], basestring):
             if kwargs[element][0:3] == 'php':
                 fixes[element] = kwargs[element].replace('php', 'pq')
     

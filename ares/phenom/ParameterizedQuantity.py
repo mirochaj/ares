@@ -14,6 +14,12 @@ import numpy as np
 from types import FunctionType
 from ..util import ParameterFile
 from ..util.ParameterFile import get_pq_pars
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 def tanh_astep(M, lo, hi, logM0, logdM):
     # NOTE: lo = value at the low-mass end
@@ -63,7 +69,7 @@ class ParameterizedQuantity(object):
             
             val = self.pf[par]
                 
-            if type(val) != str:
+            if not isinstance(val, basestring):
                 continue
                 
             pq_pars = get_pq_pars(val, self.raw_pf)
@@ -172,7 +178,7 @@ class ParameterizedQuantity(object):
         for i, par in enumerate(pars):
 
             # It's possible that a parameter will itself be a PQ object.            
-            if type(par) == str:
+            if isinstance(par, basestring):
                          
                 # Could call recursively. Implement __getattr__?
                 PQ = self._sub_pqs[par]
@@ -184,7 +190,7 @@ class ParameterizedQuantity(object):
             elif type(par) == tuple:
                 f, v, mult = par
                 
-                if type(mult) is str:
+                if isinstance(mult, basestring):
                     m = self.pf[mult]
                 else:
                     m = mult

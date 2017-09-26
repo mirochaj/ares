@@ -16,6 +16,12 @@ from ..util.Aesthetics import Labeler
 from ..physics.Constants import nu_0_mhz
 from .MultiPhaseMedium import add_redshift_axis
 from mpl_toolkits.axes_grid import inset_locator
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     from mpi4py import MPI
@@ -34,7 +40,7 @@ class Animation(object):
         if not hasattr(self, '_model_set'):
             if isinstance(self._prefix, ModelSet):
                 self._model_set = self._prefix
-            elif type(self._prefix) is str:
+            elif isinstance(self._prefix, basestring):
                 self._model_set = ModelSet(self._prefix)
             elif type(self._prefix) in [list, tuple]:
                 raise NotImplementedError('help!')

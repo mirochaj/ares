@@ -18,6 +18,12 @@ from scipy.integrate import trapz
 from ..util.ReadData import flatten_energies
 from ..physics.Constants import erg_per_ev, J21_num, h_P, c, E_LL, E_LyA, \
     sqdeg_per_std
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 class MetaGalacticBackground(object):
     def __init__(self, data=None, **kwargs):
@@ -37,7 +43,7 @@ class MetaGalacticBackground(object):
         elif type(data) == dict:
             self.pf = SetAllDefaults()
             self.history = data.copy()
-        elif type(data) is str:
+        elif isinstance(data, basestring):
             self.prefix = data
             
         self.kwargs = kwargs 

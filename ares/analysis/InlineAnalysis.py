@@ -18,6 +18,12 @@ from .TurningPoints import TurningPoints
 from ..util.ParameterFile import par_info
 from ..physics.Constants import ev_per_hz, rhodot_cgs
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 class InlineAnalysis:
     def __init__(self, sim):
@@ -127,7 +133,7 @@ class InlineAnalysis:
         
         tmp2 = []
         for i, z in enumerate(_blob_redshifts):
-            if type(z) is str:
+            if isinstance(z, basestring):
                 tmp2.append(_blob_redshifts[i])
                 continue
                 
@@ -186,7 +192,7 @@ class InlineAnalysis:
         for element in self.blob_redshifts:
             
             # Some "special" redshifts -- handle separately
-            if type(element) is str:
+            if isinstance(element, basestring):
                 if element in ['eor_midpt', 'eor_overlap']:
         
                     raise ValueError('For some reason, eor_midpt etc. are causing problems for emcee / pickling.')
@@ -275,7 +281,7 @@ class InlineAnalysis:
                         tmp.append(np.inf)
                         continue
 
-                    if (type(element)) == str and (element != 'trans'):
+                    if isinstance(element, basestring) and (element != 'trans'):
                         tmp.append(self.turning_points[element][-1])
                     else:
                         tmp.append(np.inf)

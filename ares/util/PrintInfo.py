@@ -14,6 +14,12 @@ import numpy as np
 from types import FunctionType
 import types, os, textwrap, glob, re
 from ..physics.Constants import cm_per_kpc, m_H, nu_0_mhz, g_per_msun, s_per_yr
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     from mpi4py import MPI
@@ -149,7 +155,7 @@ def tabulate(data, rows, cols, cwidth=12, fmt='{:.4e}'):
         # Loop over columns
         numbers = ''
         for j in range(len(cols)):
-            if type(data[i][j]) is str:
+            if isinstance(data[i][j], basestring):
                 numbers += data[i][j].center(cwidth[j+1])
                 continue
             elif type(data[i][j]) is bool:
@@ -392,7 +398,7 @@ def print_pop(pop):
 
     # Redshift evolution stuff
     if pop.pf['pop_sfrd'] is not None:
-        if type(pop.pf['pop_sfrd']) is str:
+        if isinstance(pop.pf['pop_sfrd'], basestring):
             print(line("SFRD        : {!s}".format(pop.pf['pop_sfrd'])))
         else:
             print(line("SFRD        : parameterized"))

@@ -19,6 +19,12 @@ from scipy.integrate import quad, simps, cumtrapz, ode
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     import mpmath
@@ -74,7 +80,7 @@ class AbundanceMatching(GalaxyCohort):
         self._constraints = {}
         
         # Read constraints from litdata
-        if type(value) == str:                
+        if isinstance(value, basestring):                
             self.constraints_source = value
             data = read_lit(value)
             fits = data.fits['lf']['pars']
@@ -103,17 +109,17 @@ class AbundanceMatching(GalaxyCohort):
             aname = 'pop_lf_alpha[{0:g}]'.format(z)
             if Mname in self.pf:
                 self._constraints['Mstar'].append(self.pf[Mname])
-            elif type(value) == str:
+            elif isinstance(value, basestring):
                 j = data.redshifts.index(z)
                 self._constraints['Mstar'].append(fits['Mstar'][j])
             if pname in self.pf:   
                 self._constraints['pstar'].append(self.pf[pname])
-            elif type(value) == str:
+            elif isinstance(value, basestring):
                 j = data.redshifts.index(z)
                 self._constraints['pstar'].append(fits['pstar'][j])
             if aname in self.pf:
                 self._constraints['alpha'].append(self.pf[aname])
-            elif type(value) == str:
+            elif isinstance(value, basestring):
                 j = data.redshifts.index(z)
                 self._constraints['alpha'].append(fits['alpha'][j])
         

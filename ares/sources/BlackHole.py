@@ -20,6 +20,12 @@ from ..util.SetDefaultParameterValues import BlackHoleParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
 from ..physics.Constants import s_per_myr, G, g_per_msun, c, t_edd, m_p, \
     sigma_T, sigma_SB
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 sptypes = ['pl', 'mcd', 'simpl']
 
@@ -76,7 +82,7 @@ class BlackHole(Source):
 
         if self.pf['source_sed'] in sptypes:
             pass
-        elif type(self.pf['source_sed']) is str:
+        elif isinstance(self.pf['source_sed'], basestring):
             from_lit = read_lit(self.pf['source_sed'])
             src = from_lit.Source()
             self._UserDefined = src.Spectrum

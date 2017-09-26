@@ -37,6 +37,12 @@ from ..util.Stats import Gauss1D, GaussND, error_2D, _error_2D_crude, \
     rebin, correlation_matrix
 from ..util.ReadData import concatenate, read_pickled_chain,\
     read_pickled_logL, fcoll_gjah_to_ares, tanh_gjah_to_ares
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     from scipy.spatial import Delaunay
@@ -127,7 +133,7 @@ class ModelSet(BlobFactory):
         self.subset = subset
                 
         # Read in data from file (assumed to be pickled)
-        if type(data) == str:
+        if isinstance(data, basestring):
             
             # Check to see if perhaps this is just the chain
             if re.search('pkl', data):
@@ -802,7 +808,7 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_blob_redshifts_float'):
             self._blob_redshifts_float = []
             for i, redshift in enumerate(self.blob_redshifts):
-                if type(redshift) is str:
+                if isinstance(redshift, basestring):
                     self._blob_redshifts_float.append(None)
                 else:
                     self._blob_redshifts_float.append(round(redshift, 3))
@@ -814,7 +820,7 @@ class ModelSet(BlobFactory):
         if not hasattr(self, '_blob_redshifts_float'):
             self._blob_redshifts_float = []
             for i, redshift in enumerate(self.blob_redshifts):
-                if type(redshift) is str:
+                if isinstance(redshift, basestring):
                     z = None
                 else:
                     z = redshift
@@ -1192,7 +1198,7 @@ class ModelSet(BlobFactory):
         else:
             gotax = True
         
-        if type(walkers) is str:
+        if isinstance(walkers, basestring):
             assert N < self.nwalkers, \
                 "Only {} walkers available!".format(self.nwalkers)
 
@@ -1222,7 +1228,7 @@ class ModelSet(BlobFactory):
         assert type(pars) in [list, tuple]
         par1, par2 = pars
         
-        if type(walkers) is str:
+        if isinstance(walkers, basestring):
             assert N < self.nwalkers, \
                 "Only {} walkers available!".format(self.nwalkers)
 
@@ -1512,7 +1518,7 @@ class ModelSet(BlobFactory):
             
             if operation is None:
                 cdata = _cdata
-            elif type(operation) is str:
+            elif isinstance(operation, basestring):
                 assert self.Nd > 2
                 
                 # There's gotta be a faster way to do this...
@@ -1534,7 +1540,7 @@ class ModelSet(BlobFactory):
                 cdata = np.zeros_like(_cdata)
                 for i, idnum in enumerate(np.unique(ids)):
                                         
-                    #if type(operation) is str:   
+                    #if isinstance(operation, basestring):   
                     tmp = _cdata[ids == idnum]
                     if operation == 'mean':
                         cdata[ids == idnum] = np.mean(tmp)
@@ -2986,7 +2992,7 @@ class ModelSet(BlobFactory):
         letters.extend([let*2 for let in list(string.ascii_lowercase)])
         
         
-        if type(panel) is str:
+        if isinstance(panel, basestring):
             panel = letters.index(panel)
         
         info = self.plot_info[panel]
@@ -3439,7 +3445,7 @@ class ModelSet(BlobFactory):
             q1 = 0.5 * 100 * (1. - percentile)    
             q2 = 100 * percentile + q1
             
-        if type(names) is str:
+        if isinstance(names, basestring):
             names = [names]
             
         max_samples = min(self.chain.shape[0], self.mask.size - self.mask.sum())    
@@ -3698,7 +3704,7 @@ class ModelSet(BlobFactory):
         for i, z in enumerate(redshifts):
             
             # Skip turning points for banded plots
-            if type(z) == str and plot_bands:
+            if isinstance(z, basestring) and plot_bands:
                 continue
             
             # Only plot label once
@@ -3718,7 +3724,7 @@ class ModelSet(BlobFactory):
                 continue    
             
             # Error on redshift
-            if type(z) == str and not plot_bands:
+            if isinstance(z, basestring) and not plot_bands:
                 if blob == 'dTb':
                     mu_z, (z_err1, z_err2) = \
                         self.get_1d_error('nu', ivar=z, nu=like, bins=bins)

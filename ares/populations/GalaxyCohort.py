@@ -30,6 +30,12 @@ from ..util.Math import central_difference, interp1d_wrapper
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     from scipy.misc import derivative
@@ -2558,7 +2564,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if fn is None:
             return None
         
-        if type(fn) is str:
+        if isinstance(fn, basestring):
             anl = ModelSet(fn)
         elif isinstance(fn, ModelSet): 
             anl = fn

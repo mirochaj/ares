@@ -14,6 +14,12 @@ import numpy as np
 from types import FunctionType
 from ..util import ParameterFile
 from scipy.optimize import fsolve
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 _coeff = \
 {
@@ -98,7 +104,7 @@ class DustCorrection(object):
     #   ==========   Parametrization of Beta   ==========   #
     def Beta(self, z, mag):
         
-        if type(self.pf['dustcorr_beta']) is str:
+        if isinstance(self.pf['dustcorr_beta'], basestring):
             return self._beta_fit(z, mag)
         elif type(self.pf['dustcorr_beta']) is FunctionType:    
             return self.pf['dustcorr_beta'](z, mag)

@@ -22,6 +22,12 @@ from ..util import ProgressBar, ParameterFile
 from ..physics.CrossSections import PhotoIonizationCrossSection, \
     ApproximatePhotoIonizationCrossSection
 from ..util.Warnings import tau_tab_z_mismatch, tau_tab_E_mismatch
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     import h5py
@@ -565,7 +571,7 @@ class OpticalDepth(object):
             input_dirs = ['{!s}/input/optical_depth'.format(ares_dir)]
     
         else:
-            if type(prefix) is str:
+            if isinstance(prefix, basestring):
                 input_dirs = [prefix]
             else:
                 input_dirs = prefix

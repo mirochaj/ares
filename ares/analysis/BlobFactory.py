@@ -18,6 +18,12 @@ from inspect import ismethod
 from types import FunctionType
 from scipy.interpolate import RectBivariateSpline, interp1d
 from ..util.Pickling import read_pickle_file, write_pickle_file
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
     
 try:
     from mpi4py import MPI
@@ -474,7 +480,7 @@ class BlobFactory(object):
                         # Name of independent variable
                         xn = self.blob_ivarn[i][0]
                         
-                        if type(fname) is str:
+                        if isinstance(fname, basestring):
                             func = parse_attribute(fname, self)
                         else:
                             

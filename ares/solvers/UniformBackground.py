@@ -27,6 +27,12 @@ from scipy.integrate import quad, romberg, romb, trapz, simps
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
 from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
     flatten_emissivities
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     import h5py
@@ -1018,7 +1024,7 @@ class UniformBackground(object):
             input_dirs = ['{!s}/input/seds'.format(ARES)]
     
         else:
-            if type(prefix) is str:
+            if isinstance(prefix, basestring):
                 input_dirs = [prefix]
             else:
                 input_dirs = prefix

@@ -16,6 +16,13 @@ from ..util import ParameterFile
 from .GalaxyCohort import GalaxyCohort
 from .GalaxyAggregate import GalaxyAggregate
 from .GalaxyPopulation import GalaxyPopulation
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
+
 
 class CompositePopulation(object):
     def __init__(self, **kwargs):
@@ -44,7 +51,7 @@ class CompositePopulation(object):
             # Only link options that are OK at this stage.
             for option in ['pop_sfr_model', 'pop_Mmin']:
                                 
-                if (pf[option] is None) or (type(pf[option]) is not str):
+                if (pf[option] is None) or (not isinstance(pf[option], basestring)):
                     # Only can happen for pop_Mmin
                     continue
                                 

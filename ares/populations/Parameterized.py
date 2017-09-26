@@ -15,6 +15,12 @@ from types import FunctionType
 from .Population import Population
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..util.ParameterFile import ParameterFile, par_info, get_pq_pars
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 parametric_options = ['pop_Ja', 'pop_ion_rate_cgm', 'pop_ion_rate_igm',
     'pop_heat_rate']
@@ -42,7 +48,7 @@ class ParametricPopulation(Population):
             elif is_pq:
                 pars = get_pq_pars(self.pf[full_name], self.pf)            
                 result = ParameterizedQuantity(**pars)
-            elif type(self.pf[full_name]) is str:
+            elif isinstance(self.pf[full_name], basestring):
                 x, y = np.loadtxt(self.pf[full_name], unpack=True)
                 result = interp1d(x, y, kind=self.pf['interp_hist'])
             else:

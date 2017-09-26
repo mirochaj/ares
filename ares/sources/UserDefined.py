@@ -3,6 +3,12 @@ from inspect import ismethod
 from types import FunctionType
 from scipy.interpolate import interp1d
 from ..util.SetDefaultParameterValues import SourceParameters
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 class UserDefined(Source):
     def __init__(self, **kwargs):
@@ -39,7 +45,7 @@ class UserDefined(Source):
             elif type(sed) is tuple:
                 E, L = sed
         
-        elif type(sed) is str:
+        elif isinstance(sed, basestring):
             E, L = np.loadtxt(sed, unpack=True)
         elif (E is not None) and (L is not None):
             assert len(E) == len(L)

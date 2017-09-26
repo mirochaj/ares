@@ -26,6 +26,12 @@ from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
 from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev, \
     sqdeg_per_std, s_per_myr, rhodot_cgs, cm_per_mpc, c
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 _scipy_ver = scipy.__version__.split('.')
 
@@ -356,7 +362,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             #        continue
             
             # Linked populations will get 
-            if type(self.pf['pop_Mmin{{{}}}'.format(popid)]) is str:
+            if isinstance(self.pf['pop_Mmin{{{}}}'.format(popid)], basestring):
                 continue
                         
             self.kwargs['pop_Mmin{{{}}}'.format(popid)] = \
@@ -667,12 +673,12 @@ class MetaGalacticBackground(AnalyzeMGB):
                 
                 Mmin = pop.pf['pop_Mmin']
                 
-                if type(Mmin) is str:
+                if isinstance(Mmin, basestring):
                     self._LW_felt_by_.append(popid)
                     continue
                                 
                 Tmin = pop.pf['pop_Tmin']
-                if type(Tmin) is str:
+                if isinstance(Tmin, basestring):
                     pass
                 
                 if Mmin is None: 

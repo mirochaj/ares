@@ -20,6 +20,12 @@ from ..util.ParameterFile import par_info
 from ..populations import GalaxyPopulation
 from ..util.Stats import symmetrize_errors
 from .ModelFit import LogLikelihood, ModelFit
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     from mpi4py import MPI
@@ -295,7 +301,7 @@ class FitGalaxyPopulation(ModelFit):
         
         """
         
-        if type(value) == str:
+        if isinstance(value, basestring):
             value = [value]
 
         if type(value) in [list, tuple]:

@@ -25,6 +25,12 @@ from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
 from mpl_toolkits.axes_grid import inset_locator
 from .DerivedQuantities import DerivedQuantities as DQ
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
     
 try:
     import h5py
@@ -92,7 +98,7 @@ class MultiPhaseMedium(object):
             self.history = data.copy()
 
         # Read output of a simulation from disk
-        elif type(data) is str:
+        elif isinstance(data, basestring):
             self.prefix = data
             self._load_data(data)
 
@@ -911,7 +917,7 @@ class MultiPhaseMedium(object):
         """
 
         # Convert turning points to actual redshifts
-        if type(z) is str:
+        if isinstance(z, basestring):
             z = self.turning_points[z][0]
             
         # Redshift x blobs

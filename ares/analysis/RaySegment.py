@@ -18,6 +18,12 @@ from ..static.Grid import Grid
 from ..physics.Constants import *
 from .MultiPlot import MultiPanel
 from ..simulations import RaySegment as simRS
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     import h5py
@@ -46,7 +52,7 @@ class RaySegment:
             self.grid = data.parcel.grid
         
         # Load contents of hdf5 file
-        elif type(data) is str:
+        elif isinstance(data, basestring):
             f = h5py.File(data, 'r')
             
             self.pf = {}

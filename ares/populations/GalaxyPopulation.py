@@ -16,6 +16,12 @@ from .GalaxyEnsemble import GalaxyEnsemble
 from .GalaxyAggregate import GalaxyAggregate
 from ..util.SetDefaultParameterValues import PopulationParameters
 from .Parameterized import ParametricPopulation, parametric_options
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 default_model = PopulationParameters()['pop_sfr_model']
 
@@ -34,7 +40,7 @@ def GalaxyPopulation(**kwargs):
     pqs = []
     for kwarg in kwargs:
         
-        if type(kwargs[kwarg]) == str:
+        if isinstance(kwargs[kwarg], basestring):
             if kwargs[kwarg][0:2] == 'pq':
                 Npq += 1
                 pqs.append(kwarg)
