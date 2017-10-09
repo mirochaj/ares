@@ -28,7 +28,7 @@ for j, mass in enumerate(s03.masses):
         source_Emax=5e2)
 
     E = np.linspace(1, 1e2, 100)
-    F = np.array(map(src.Spectrum, E)) / E
+    F = np.array(list(map(src.Spectrum, E))) / E
     
     Emin = []
     Earr = []

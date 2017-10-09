@@ -45,7 +45,7 @@ for j, injected in enumerate([False, True]):
         sim.run()
 
         if j == 0:
-            label = r'$T_{\ast} = 10^{%.3g} \ \mathrm{K}$' % (logT)
+            label = r'$T_{{\ast}} = 10^{{{:.3g}}} \ \mathrm{{K}}$'.format(logT)
         else:
             label = None
 

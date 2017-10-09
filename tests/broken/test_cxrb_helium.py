@@ -42,13 +42,13 @@ rad_he = ares.solvers.UniformBackground(**pars2)
 
 E = np.logspace(2, 4)
 
-flux_h = map(lambda E: rad_h.AngleAveragedFlux(10, E, xavg=lambda z: 0.0), E)
-flux_he = map(lambda E: rad_he.AngleAveragedFlux(10, E, xavg=lambda z: 0.0), E)
+flux_h = list(map(lambda E: rad_h.AngleAveragedFlux(10, E, xavg=lambda z: 0.0), E))
+flux_he = list(map(lambda E: rad_he.AngleAveragedFlux(10, E, xavg=lambda z: 0.0), E))
 
 pl.loglog(E, flux_h, color='k', label='H-only')
 pl.loglog(E, flux_he, color='b', label='H+He')
 pl.xlabel(ares.util.labels['E'])
 pl.ylabel(ares.util.labels['flux'])
 pl.legend(loc='best', frameon=False)
-pl.title('X-ray Background at z = %g' % zi)
+pl.title('X-ray Background at z = {:g}'.format(zi))
 pl.ylim(1e-30, 1e-18)

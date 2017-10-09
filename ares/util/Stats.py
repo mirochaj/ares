@@ -293,8 +293,8 @@ def correlation_matrix(cov):
 
     rho = np.zeros_like(cov)
     N = rho.shape[0]
-    for i in xrange(N):
-        for j in xrange(N):
+    for i in range(N):
+        for j in range(N):
             rho[i,j] = cov[i,j] / np.sqrt(cov[i,i] * cov[j,j])
 
     return rho

@@ -33,7 +33,7 @@ class ProgressBar(object):
         
         self.has_pb = False
         if pb and rank == 0 and use:
-            self.widget = ["%s: " % name, progressbar.Percentage(), ' ', \
+            self.widget = ["{!s}: ".format(name), progressbar.Percentage(), ' ', \
               progressbar.Bar(marker='#'), ' ', \
               progressbar.ETA(), ' ']
 

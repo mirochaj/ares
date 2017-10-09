@@ -12,6 +12,7 @@ Description: Tabulate integrals that appear in the rate equations.
 
 import time
 import numpy as np
+from ..util.Pickling import write_pickle_file
 from ..util.ProgressBar import ProgressBar
 from ..physics.Constants import erg_per_ev
 from ..physics.SecondaryElectrons import *
@@ -88,10 +89,10 @@ class IntegralTable:
             if self.pf['secondary_ionization'] == 2:
                 self.logx = np.linspace(self.pf['tables_logxmin'], 0,
                     abs(self.pf['tables_logxmin']) \
-                    / self.pf['tables_dlogx'] + 1)
+                    // self.pf['tables_dlogx'] + 1)
                 self.E = np.linspace(self.src.Emin, self.src.Emax,
                     (self.src.Emax - self.src.Emin) \
-                    / self.pf['tables_dE'] + 1)
+                    // self.pf['tables_dE'] + 1)
             elif self.pf['secondary_ionization'] == 3:
                 self.logx = self.esec.logx
                 self.E = self.esec.E
@@ -102,7 +103,7 @@ class IntegralTable:
         if False:#self.pf['spectrum_evolving']:
             if self.pf['tables_times'] is None:
                 stop = self.pf['stop_time'] * self.pf['time_units']
-                self.t = np.linspace(0, stop, 1 + stop / self.pf['tables_dt'])
+                self.t = np.linspace(0, stop, 1 + stop // self.pf['tables_dt'])
             else:
                 self.t = self.pf['tables_times']  
         else:
@@ -168,8 +169,8 @@ class IntegralTable:
             tmp.append(np.arange(dims))
                 
         if rank == 0:
-            print "Setting up integral table..."
-                    
+            print("Setting up integral table...")
+        
         # Values that correspond to indices
         logNarr = []
         for item in itertools.product(*self.logN):
@@ -189,7 +190,7 @@ class IntegralTable:
         self.axes = copy.copy(self.logN)
         self.axes_names = []
         for absorber in self.grid.absorbers:
-            self.axes_names.append('logN_%s' % absorber)
+            self.axes_names.append('logN_{!s}'.format(absorber))
         
         # Determine indices for ionized fraction and time.
         if self.pf['secondary_ionization'] > 1:
@@ -208,11 +209,11 @@ class IntegralTable:
         """    
         
         if integral in ['PhiWiggle', 'PsiWiggle']:
-            return "log%s_%s_%s" % (integral, absorber, donor)
+            return "log{0!s}_{1!s}_{2!s}".format(integral, absorber, donor)
         elif integral == 'Tau':
-            return 'log%s' % integral
+            return 'log{!s}'.format(integral)
         else:
-            return "log%s_%s" % (integral, absorber)       
+            return "log{0!s}_{1!s}".format(integral, absorber)       
               
     def TabulateRateIntegrals(self):
         """
@@ -221,11 +222,11 @@ class IntegralTable:
         """
         
         if rank == 0:
-            print 'Tabulating integral quantities...'   
-            
+            print('Tabulating integral quantities...')
+        
         if self.pf['tables_discrete_gen'] and size > 1:
             self._tabulate_tau_E_N()
-                
+        
         # Loop over integrals
         h = 0
         tabs = {}
@@ -302,8 +303,8 @@ class IntegralTable:
                 i_donor = 0
                        
         if rank == 0:                        
-            print 'Integral tabulation complete.'
-            
+            print('Integral tabulation complete.')
+        
         # Collect results from all processors    
         if size > 1:        
             collected_tabs = {}
@@ -341,7 +342,8 @@ class IntegralTable:
             for j, actual_absorber in enumerate(self.grid.absorbers):
 
                 pb = ProgressBar(self.elements_per_table, 
-                    'tau(E, N; %s, %s)' % (absorber, actual_absorber))
+                    'tau(E, N; {0!s}, {1!s})'.format(absorber,\
+                    actual_absorber))
                 pb.start()
 
                 sigma = self.sigma_E[actual_absorber]
@@ -494,8 +496,8 @@ class IntegralTable:
             self._sigma_E = {}
             for absorber in self.grid.absorbers:
                 self._sigma_E[absorber] = \
-                    np.array(map(self.grid.bf_cross_sections[absorber],
-                    self.E[absorber]))
+                    np.array(list(map(self.grid.bf_cross_sections[absorber],
+                    self.E[absorber])))
                 
         return self._sigma_E
         
@@ -505,7 +507,7 @@ class IntegralTable:
             self._I_E = {}
             for absorber in self.grid.absorbers:
                 E = self.E[absorber]
-                self._I_E[absorber] = np.array(map(self.src.Spectrum, E))
+                self._I_E[absorber] = np.array(list(map(self.src.Spectrum, E)))
                         
         return self._I_E
         
@@ -520,7 +522,7 @@ class IntegralTable:
                 func = lambda E: \
                     self.esec.DepositionFraction(x,E=E-Ei, channel='heat')    
             
-                self._fheat[absorber] = np.array(map(func, self.E))
+                self._fheat[absorber] = np.array(list(map(func, self.E)))
                 
         return self._fheat
     
@@ -535,7 +537,7 @@ class IntegralTable:
                 func = lambda E: \
                     self.esec.DepositionFraction(x,E=E-Ei, channel=absorber)    
     
-                self._fion[absorber] = np.array(map(func, self.E))
+                self._fion[absorber] = np.array(list(map(func, self.E)))
     
         return self._fheat    
         
@@ -848,12 +850,13 @@ class IntegralTable:
         have_h5py = False # testing
         
         if prefix is None:
-            prefix = 'rt1d_integral_table.%s' % (time.ctime().replace(' ', '_'))    
+            prefix = 'rt1d_integral_table.{!s}'.format(\
+                time.ctime().replace(' ', '_'))    
             
         if have_h5py:
-            fn = '%s.hdf5' % prefix
+            fn = '{!s}.hdf5'.format(prefix)
         else:
-            fn = '%s.npz' % prefix
+            fn = '{!s}.npz'.format(prefix)
         
         if have_h5py:
         
@@ -899,16 +902,12 @@ class IntegralTable:
                 
             np.savez(f, **kw)
                 
-            f.close()  
-            
-            # Save parameters
-            import pickle
-            
-            f = open('%s.pars.pkl' % prefix, 'wb')
-            pickle.dump(self.pf, f)
             f.close()
+            
+            write_pickle_file(self.pf, '{!s}.pars.pkl'.format(prefix),\
+                safe_mode=False, open_mode='w', verbose=False)
             if rank == 0:
-                print 'Wrote %s and %s.pars.pkl' % (fn, prefix)  
+                print('Wrote {!s} and {!s}.pars.pkl'.format(fn, prefix))
 
     def load(self, fn):
         """
@@ -959,23 +958,24 @@ class IntegralTable:
             
             f.close()
         
-        print 'Read integral table from %s.' % fn
+        print('Read integral table from {!s}.'.format(fn))
         
-        axis_nums, axis_names, values = zip(*axes)
+        axis_nums, axis_names, values = list(zip(*axes))
 
         # See if parameter file and integral table are consistent
         ok = True
         for i, axis in enumerate(axis_names):
 
             if axis not in self.axes_names:
-                print "WARNING: Axis \'%s\' not expected." % axis
+                print("WARNING: Axis \'{!s}\' not expected.".format(axis))
                 continue
 
             if np.all(np.array(values[i]) == self.axes[i]):
                 continue
             
-            print 'WARNING: Axis \'%s\' has %i elements. Expected %i.' \
-                % (axis, np.array(values[i]).size, self.axes[i].size)
+            print(('WARNING: Axis \'{0!s}\' has {1} elements. ' +\
+                'Expected {2}.').format(axis, np.array(values[i]).size,\
+                self.axes[i].size))
             ok = False
             
         if not ok:

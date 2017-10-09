@@ -19,6 +19,12 @@ from scipy.integrate import quad, simps, cumtrapz, ode
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..util import ParameterFile, MagnitudeSystem, ProgressBar
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     import mpmath
@@ -74,7 +80,7 @@ class AbundanceMatching(GalaxyCohort):
         self._constraints = {}
         
         # Read constraints from litdata
-        if type(value) == str:                
+        if isinstance(value, basestring):                
             self.constraints_source = value
             data = read_lit(value)
             fits = data.fits['lf']['pars']
@@ -98,22 +104,22 @@ class AbundanceMatching(GalaxyCohort):
             
             # Also, must override litdata if appropriate pars are passed.
             
-            Mname = 'pop_lf_Mstar[%g]' % z
-            pname = 'pop_lf_pstar[%g]' % z
-            aname = 'pop_lf_alpha[%g]' % z
+            Mname = 'pop_lf_Mstar[{0:g}]'.format(z)
+            pname = 'pop_lf_pstar[{0:g}]'.format(z)
+            aname = 'pop_lf_alpha[{0:g}]'.format(z)
             if Mname in self.pf:
                 self._constraints['Mstar'].append(self.pf[Mname])
-            elif type(value) == str:
+            elif isinstance(value, basestring):
                 j = data.redshifts.index(z)
                 self._constraints['Mstar'].append(fits['Mstar'][j])
             if pname in self.pf:   
                 self._constraints['pstar'].append(self.pf[pname])
-            elif type(value) == str:
+            elif isinstance(value, basestring):
                 j = data.redshifts.index(z)
                 self._constraints['pstar'].append(fits['pstar'][j])
             if aname in self.pf:
                 self._constraints['alpha'].append(self.pf[aname])
-            elif type(value) == str:
+            elif isinstance(value, basestring):
                 j = data.redshifts.index(z)
                 self._constraints['alpha'].append(fits['alpha'][j])
         
@@ -323,7 +329,7 @@ class AbundanceMatching(GalaxyCohort):
         # M is the initial mass of a halo
         # Macc_of_z is its MAR as a function of redshift
         Macc_of_z = self.Macc(self.halos.z, M)
-        fstar_of_z = map(lambda z: self.SFE(z, Macc_of_z), self.halos.z)
+        fstar_of_z = [self.SFE(z, Macc_of_z) for z in self.halos.z]
         
         dtdz = self.cosm.dtdz(self.halos.z)
         Mh_of_z = cumtrapz(Macc_of_z[-1::-1] * dtdz / s_per_yr,

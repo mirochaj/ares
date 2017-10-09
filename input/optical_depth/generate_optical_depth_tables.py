@@ -16,7 +16,7 @@ Note: This can be run in parallel, e.g.,
 
 import ares
 import numpy as np
-import os, time, pickle
+import os, time
 from ares.physics.Constants import E_LL, E_LyA
 
 try:

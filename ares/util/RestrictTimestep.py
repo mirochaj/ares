@@ -66,7 +66,7 @@ class RestrictTimestep(object):
             elif mth == 'hubble' and self.grid.expansion:
                 min_dt = self.epsilon * self.grid.cosm.HubbleTime(z)
             else:
-                raise ValueError('Unrecognized dt restriction method: %s' % mth)
+                raise ValueError('Unrecognized dt restriction method: {!s}'.format(mth))
 
             if mth != 'hubble':
                 min_dt = np.min(dt[..., j])

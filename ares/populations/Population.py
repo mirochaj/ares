@@ -13,6 +13,12 @@ Description:
 from ..physics import Cosmology
 from ..util import ParameterFile
 from ..physics.Constants import E_LyA, E_LL
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 _multi_pop_error_msg = "Parameters for more than one population detected! "
 _multi_pop_error_msg += "Population objects are by definition for single populations."
@@ -210,16 +216,16 @@ class Population(object):
                 if par == 'pop_fstar':
                     continue
     
-                if type(self.pf[par]) is str:
+                if isinstance(self.pf[par], basestring):
                     self._is_emissivity_scalable = False
                     break
     
-                for i in xrange(self.pf.Npqs):
-                    pn = '%s[%i]' % (par,i)
+                for i in range(self.pf.Npqs):
+                    pn = '{0!s}[{1}]'.format(par,i)
                     if pn not in self.pf:
                         continue
     
-                    if type(self.pf[pn]) is str:
+                    if isinstance(self.pf[pn], basestring):
                         self._is_emissivity_scalable = False
                         break
     

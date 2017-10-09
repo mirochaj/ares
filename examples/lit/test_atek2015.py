@@ -21,7 +21,7 @@ for z in atek15.redshifts:
     data = atek15.data['lf'][z]
     
     pl.errorbar(data['M'], np.array(data['phi']), yerr=data['err'], 
-        fmt='o', label=r'$z=%.2g$ (Atek)' % z)
+        fmt='o', label=r'$z={:.2g}$ (Atek)'.format(z))
 
 pl.xlabel(r'$M_{\mathrm{UV}}$')
 pl.ylabel(r'$\log_{10} \phi \ (\mathrm{cMpc}^{-3} \ \mathrm{mag}^{-1})$')

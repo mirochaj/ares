@@ -38,7 +38,7 @@ class Global21cmSet(ModelSet):
             tmp = {}
             for par in self._inputs:
                 for i in range(self.Npops):
-                    tmp['%s{%i}' % (par, i)] = self._inputs[par]
+                    tmp['{0!s}{{{1}}}'.format(par, i)] = self._inputs[par]
 
             self._inputs.update(tmp)
     
@@ -171,7 +171,7 @@ class Global21cmSet(ModelSet):
          'igm_Tk': r'$T_{\mathrm{K}} / \mathrm{K}$',
          'cgm_h_2': r'$Q_{\mathrm{HII}}$',
          'igm_heat': r'$\epsilon_X$',
-         'cgm_Gamma_h_1': r'$\Gamma_{-%i}$' % np.log10(mult[1]),
+         'cgm_Gamma_h_1': r'$\Gamma_{-{}}$'.format(np.log10(mult[1])),
         }
         
         mp_inset = None

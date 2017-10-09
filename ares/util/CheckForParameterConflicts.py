@@ -47,9 +47,9 @@ def CheckForParameterConflicts(pf):
         for i, con in enumerate(probs):
             for element in con:
                 try:
-                    errmsg.append('%s = %g' % (element[0], element[1]))
+                    errmsg.append('{0!s} = {1:g}'.format(element[0], element[1]))
                 except TypeError:
-                    errmsg.append('%s = %s' % (element[0], element[1]))
+                    errmsg.append('{0!s} = {1!s}'.format(element[0], element[1]))
             
             if len(probs) > 1 and i != len(probs):
                 errmsg.append('\nAND\n')
@@ -59,10 +59,10 @@ def CheckForParameterConflicts(pf):
         conflicts = False
             
     if conflicts:
-        print 'ERROR -- PARAMETER VALUES IN CONFLICT:'
+        print('ERROR -- PARAMETER VALUES IN CONFLICT:')
         for msg in errmsg:
-            print msg
-        print '\n'    
+            print(msg)
+        print('\n')    
     
     return conflicts
             

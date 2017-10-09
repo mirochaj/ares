@@ -76,7 +76,7 @@ anl = ares.analysis.ModelSet('test_generic_mcmc')
 # Best-fit model
 pars = anl.max_likelihood_parameters()
 
-best_fit = map(lambda x: model_func(x, pars['A'], pars['mu'], pars['sigma']), x)
+best_fit = [model_func(xx, pars['A'], pars['mu'], pars['sigma']) for xx in x]
 pl.plot(x, best_fit, color='b', label='best fit')
 pl.legend(fontsize=14)
 

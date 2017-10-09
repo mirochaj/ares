@@ -35,7 +35,7 @@ simpl['source_sed'] = 'simpl'
 E = np.logspace(0, 4.5)
 
 src = ares.sources.BlackHole(**mcd)
-pl.loglog(E, map(src.Spectrum, E), color='k')
+pl.loglog(E, list(map(src.Spectrum, E)), color='k')
 
 ls = [':', '--', '-']
 colors = ['m', 'c', 'b', 'k']
@@ -48,9 +48,9 @@ for i, alpha in enumerate([-1, 0., 0.5]):
         src2 = ares.sources.BlackHole(**simpl)
         
         t1 = time.time()
-        pl.loglog(E, map(src2.Spectrum, E), color=colors[j], ls=ls[i])
+        pl.loglog(E, list(map(src2.Spectrum, E)), color=colors[j], ls=ls[i])
         t2 = time.time()
-        print 'simpl took %.2g sec' % (t2 - t1)
+        print('simpl took {:.2g} sec'.format(t2 - t1))
     
 pl.xlim(10, 3e4)
 pl.ylim(1e-6, 1e-3)

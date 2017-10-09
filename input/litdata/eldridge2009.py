@@ -65,7 +65,7 @@ def _kwargs_to_fn(**kwargs):
         fn += '.sin'
     
     # Metallicity
-    fn += '.z%s' % str(int(kwargs['source_Z'] * 1e3)).zfill(3)
+    fn += '.z{!s}'.format(str(int(kwargs['source_Z'] * 1e3)).zfill(3))
             
     return _input + '/' + fn    
             
@@ -74,7 +74,7 @@ def _load(**kwargs):
     Return wavelengths, fluxes, for given set of parameters (at all times).
     """
     
-    Zvals = np.sort(metallicities.values())
+    Zvals = np.sort(list(metallicities.values()))
 
     # Interpolate
     if kwargs['source_Z'] not in Zvals:

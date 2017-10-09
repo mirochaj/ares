@@ -1,6 +1,6 @@
-from .GasParcel import GasParcel
-from .RaySegment import RaySegment
-from .Global21cm import Global21cm
-from .MultiPhaseMedium import MultiPhaseMedium
-from .MetaGalacticBackground import MetaGalacticBackground
+from ares.simulations.GasParcel import GasParcel
+from ares.simulations.RaySegment import RaySegment
+from ares.simulations.Global21cm import Global21cm
+from ares.simulations.MultiPhaseMedium import MultiPhaseMedium
+from ares.simulations.MetaGalacticBackground import MetaGalacticBackground
 

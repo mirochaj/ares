@@ -9,7 +9,7 @@ Created on: Sun Nov  9 15:04:52 MST 2014
 Description: 
 
 """
-
+from __future__ import print_function
 import ares
 import numpy as np
 import matplotlib.pyplot as pl
@@ -66,7 +66,7 @@ for i, xswitch in enumerate(xEoR):
     sim.run()    
     
     mp.grid[0].semilogy(sim.history['z'], sim.history['igm_Tk'], color='k', 
-        ls=ls[i], label=r'$x_{\mathrm{EoR}} = %.2e$' % xswitch)
+        ls=ls[i], label=r'$x_{\mathrm{EoR}} = {:.2e}$'.format(xswitch))
     mp.grid[1].semilogy(sim.history['z'], sim.history['igm_h_2'], color='k', 
         ls=ls[i])
     mp.grid[2].plot(sim.history['z'], sim.history['dTb'], color='k', 
@@ -87,21 +87,21 @@ mp.fix_ticks()
 pl.draw()
 
 # Print header
-print 'xEoR         ',
+print('xEoR         ', end='')
 things = ['z', 'T', 'curv']
 for tp in ['B', 'C', 'D', 'trans']:
     for j, element in enumerate(sim.turning_points[tp]):
-        print '%s_%s           ' % (things[j], tp),
-print ''
-print '-'* 200    
+        print('{0!s}_{1!s}           '.format(things[j], tp), end='')
+print('')
+print('-' * 200)
 
 for i, sim in enumerate(sims):
 
-    s = "%.2e " % xEoR[i]
+    s = "{:.2e} ".format(xEoR[i])
     for tp in ['B', 'C', 'D', 'trans']:
         for element in sim.turning_points[tp]:
             s += str(element)
             s += ' '
             
-    print s        
+    print(s)
     

@@ -88,7 +88,7 @@ popII_models = ['dpl'] + _all + ['strong_weak'] + ['early', 'strong_early']
 
 for e1 in _amp:
     for e2 in _timing:
-        popII_models.append('%s_%s' % (e1, e2))
+        popII_models.append('{0!s}_{1!s}'.format(e1, e2))
 
 popII_models.extend(['soft', 'soft_fall', 'soft_rise'])
 

@@ -59,7 +59,7 @@ def test(tol=1e-2):
     # Cosmologically-limited solution to the RTE
     # [Equation A1 in Mirocha (2014)]
     zi, zf = 40., 10.
-    e_nu = np.array(map(lambda E: pop.Emissivity(zf, E), E))
+    e_nu = np.array([pop.Emissivity(zf, EE) for EE in E])
     e_nu *= (1. + zf)**(4.5 - (alpha + beta)) / 4. / np.pi \
         / pop.cosm.HubbleParameter(zf) / (alpha + beta - 1.5)
     e_nu *= ((1. + zi)**(alpha + beta - 1.5) - (1. + zf)**(alpha + beta - 1.5))
@@ -72,7 +72,7 @@ def test(tol=1e-2):
     diff = np.abs(flux_anl - flux_num) / flux_anl
     
     assert diff[0] < tol, \
-        "Relative error between analytical and numerical solutions exceeds %.3g." % tol
+        "Relative error between analytical and numerical solutions exceeds {:.3g}.".format(tol)
     
     # Plot it
     ax1.semilogy(E, e_nu, color='k', ls='-')
@@ -99,10 +99,10 @@ def test(tol=1e-2):
     ax2.semilogy(z, flux[:,k] * E[k] * erg_per_ev, color='k', ls='--')
     
     pl.figure(1)
-    pl.savefig('%s_1.png' % (__file__.rstrip('.py')))
+    pl.savefig('{!s}_1.png'.format(__file__.rstrip('.py')))
     
     pl.figure(2)
-    pl.savefig('%s_2.png' % (__file__.rstrip('.py')))
+    pl.savefig('{!s}_2.png'.format(__file__.rstrip('.py')))
     
     pl.close('all')    
     

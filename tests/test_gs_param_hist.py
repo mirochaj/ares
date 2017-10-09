@@ -36,13 +36,13 @@ def test():
     mp = MultiPanel(dims=(2, 1), panel_size=(1, 0.5))
 
     # Plot temperatures
-    mp.grid[1].loglog(z, map(hydr.cosm.TCMB, z), color='k', ls=':')
-    mp.grid[1].loglog(z, map(Tk, z), color='k', ls='--')
-    mp.grid[1].loglog(z, map(Ts, z), color='k', ls='-')
+    mp.grid[1].loglog(z, list(map(hydr.cosm.TCMB, z)), color='k', ls=':')
+    mp.grid[1].loglog(z, list(map(Tk, z)), color='k', ls='--')
+    mp.grid[1].loglog(z, list(map(Ts, z)), color='k', ls='-')
     mp.grid[1].set_ylim(1, 1e4)
 
     # Plot 21-cm signature
-    mp.grid[0].semilogx(z, map(dTb, z), color='k', label='analytic')
+    mp.grid[0].semilogx(z, list(map(dTb, z)), color='k', label='analytic')
     
     CR = ares.util.ReadData._load_inits()
     
@@ -67,7 +67,7 @@ def test():
 
     pl.draw()
     
-    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
     pl.close()
     
     assert True

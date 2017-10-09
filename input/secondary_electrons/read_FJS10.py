@@ -16,7 +16,8 @@ important, and will be used when secondary_ionization = 3.
 """
 
 import numpy as np
-import pickle, os, urllib
+import os, urllib
+from ares.util.Pickling import write_pickle_file
 
 try:
     import h5py
@@ -54,7 +55,7 @@ for i, fn in enumerate(xi_files):
           
     # Read data 
     nrg, f_ion, f_heat, f_exc, n_Lya, n_ionHI, n_ionHeI, n_ionHeII, \
-        shull_heat = np.loadtxt('x_int_tables/%s' % fn, skiprows=3,
+        shull_heat = np.loadtxt('x_int_tables/{!s}'.format(fn), skiprows=3,
         unpack=True)
        
     if i == 0:          
@@ -71,26 +72,19 @@ for i, fn in enumerate(xi_files):
         fHeII[i][j] = (n_ionHeII[j] * E_th[2]) / energies[j]      
           
 # We also want the heating as a function of ionized fraction for each photon energy.        
-heat_xi = np.array(zip(*heat))
-fion_xi = np.array(zip(*fion))
-fexc_xi = np.array(zip(*fexc))
-fLya_xi = np.array(zip(*fLya))
-fHI_xi = np.array(zip(*fHI))
-fHeI_xi = np.array(zip(*fHeI))
-fHeII_xi = np.array(zip(*fHeII))
+heat_xi = np.array(list(zip(*heat)))
+fion_xi = np.array(list(zip(*fion)))
+fexc_xi = np.array(list(zip(*fexc)))
+fLya_xi = np.array(list(zip(*fLya)))
+fHI_xi = np.array(list(zip(*fHI)))
+fHeI_xi = np.array(list(zip(*fHeI)))
+fHeII_xi = np.array(list(zip(*fHeII)))
           
 # Make pickle file
-f = open('secondary_electron_data.pkl', 'wb')
-pickle.dump(np.array(energies), f)
-pickle.dump(np.array(x), f)
-pickle.dump(heat_xi, f)
-pickle.dump(fexc_xi, f)
-pickle.dump(fLya_xi, f)
-pickle.dump(fHI_xi, f)
-pickle.dump(fHeI_xi, f)
-pickle.dump(fHeII_xi, f)
-pickle.dump(fion_xi, f)
-f.close()
+to_write = [np.array(energies), np.array(x), heat_xi, fexc_xi, fLya_xi,\
+    fHI_xi, fHeI_xi, fHeII_xi, fion_xi]
+write_pickle_file(to_write, 'secondary_electron_data.pkl',\
+    ndumps=len(to_write), open_mode='w', safe_mode=False, verbose=False)
          
 # Make npz file
 data = {'electron_energy': np.array(energies), 'ionized_fraction': np.array(x),

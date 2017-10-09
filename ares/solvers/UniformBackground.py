@@ -27,6 +27,12 @@ from scipy.integrate import quad, romberg, romb, trapz, simps
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
 from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
     flatten_emissivities
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     import h5py
@@ -248,9 +254,9 @@ class UniformBackground(object):
         if not hasattr(self, '_bands_by_pop'):
             # Figure out which band each population emits in
             if self.approx_all_pops:
-                self._energies = [[None] for i in xrange(self.Npops)]
-                self._redshifts = [None for i in xrange(self.Npops)]
-                self._bands_by_pop = [[None] for i in xrange(self.Npops)]   
+                self._energies = [[None] for i in range(self.Npops)]
+                self._redshifts = [None for i in range(self.Npops)]
+                self._bands_by_pop = [[None] for i in range(self.Npops)]   
             else:    
                 # Really just need to know if it emits ionizing photons, 
                 # or has any sawtooths we need to care about
@@ -718,9 +724,9 @@ class UniformBackground(object):
         integrand = lambda zu: self.AngleAveragedFluxSlice(z, E, zu,
             xavg=kw['xavg']) / Jc
         #else:
-        #    integrand = np.array(map(lambda zu: \
+        #    integrand = np.array(list(map(lambda zu: \
         #        self.AngleAveragedFluxSlice(z, E, zu,
-        #        xavg=kw['xavg'], zxavg=kw['zxavg']), kw['zxavg'])) / Jc
+        #        xavg=kw['xavg'], zxavg=kw['zxavg']), kw['zxavg']))) / Jc
         #else:
         #    # Assume neutral medium
         #    integrand = lambda zu: self.AngleAveragedFluxSlice(z, E, zu,
@@ -738,8 +744,8 @@ class UniformBackground(object):
                 flux = romberg(integrand, zi, zf,
                     tol=self._atol, divmax=self._divmax)
             else:
-                raise ValueError('Uncrecognized integrator \'%s\'' \
-                    % self._integrator)
+                raise ValueError('Uncrecognized integrator \'{!s}\''.format(\
+                    self._integrator))
         else:
             if self._sampled_integrator == 'simps':
                 flux = simps(integrand, x=kw['zxavg'], even='first')
@@ -752,8 +758,8 @@ class UniformBackground(object):
     
                 flux = romb(integrand, dx=np.diff(kw['zxavg'])[0])   
             else:
-                raise ValueError('Uncrecognized integrator \'%s\'' \
-                    % self._sampled_integrator)
+                raise ValueError('Uncrecognized integrator \'{!s}\''.format(\
+                    self._sampled_integrator))
     
         # Flux in units of photons s^-1 cm^-2 Hz^-1 sr^-1                                        
         flux *= Jc
@@ -941,7 +947,7 @@ class UniformBackground(object):
     def frec(self):
         if not hasattr(self, '_frec'):
             n = np.arange(2, self.pf['lya_nmax'])
-            self._frec = np.array(map(self.hydr.frec, n)) 
+            self._frec = np.array(list(map(self.hydr.frec, n))) 
     
         return self._frec
         
@@ -1012,18 +1018,18 @@ class UniformBackground(object):
     
         if prefix is None:
             if not ARES:
-                print "No $ARES environment variable."
+                print("No $ARES environment variable.")
                 return None
     
-            input_dirs = ['%s/input/seds' % ARES]
+            input_dirs = ['{!s}/input/seds'.format(ARES)]
     
         else:
-            if type(prefix) is str:
+            if isinstance(prefix, basestring):
                 input_dirs = [prefix]
             else:
                 input_dirs = prefix
     
-        guess = '%s/%s.txt' % (input_dirs[0], fn)
+        guess = '{0!s}/{1!s}.txt'.format(input_dirs[0], fn)
         self.tabname = guess
         if os.path.exists(guess):
             return guess         
@@ -1037,11 +1043,11 @@ class UniformBackground(object):
     
                 # If source properties are right
                 if re.search(pre, fn1):
-                    good_tab = '%s/%s' % (input_dir, fn1)    
+                    good_tab = '{0!s}/{1!s}'.format(input_dir, fn1)    
     
                 # If number of redshift bins and energy range right...
                 if re.search(pre, fn1) and re.search(post, fn1):
-                    good_tab = '%s/%s' % (input_dir, fn1)
+                    good_tab = '{0!s}/{1!s}'.format(input_dir, fn1)
                     break
     
         self.tabname = good_tab
@@ -1078,7 +1084,7 @@ class UniformBackground(object):
         Nz, Nf = len(z), len(E)
 
         Inu = np.zeros(Nf)
-        for i in xrange(Nf): 
+        for i in range(Nf): 
             Inu[i] = pop.src.Spectrum(E[i])
 
         # Convert to photon energy (well, something proportional to it)
@@ -1093,10 +1099,10 @@ class UniformBackground(object):
         scalable = pop.is_emissivity_scalable
         separable = pop.is_emissivity_separable
 
-        H = np.array(map(self.cosm.HubbleParameter, z))
+        H = np.array(list(map(self.cosm.HubbleParameter, z)))
 
         if scalable:
-            for ll in xrange(Nz):
+            for ll in range(Nz):
                 Lbol = pop.Emissivity(z[ll])
                 epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H[ll] \
                     / erg_per_ev
@@ -1247,7 +1253,7 @@ class UniformBackground(object):
         
         """     
         
-        line_flux = [np.zeros_like(fluxes[i]) for i in xrange(len(fluxes))]
+        line_flux = [np.zeros_like(fluxes[i]) for i in range(len(fluxes))]
 
         # Compute Lyman-alpha flux
         if self.pf['include_injected_lya']:
@@ -1265,10 +1271,10 @@ class UniformBackground(object):
             gens.append(self._flux_generator_generic(nrg, z, ehat[i], tau[i]))
 
         # Generator over redshift
-        for i in xrange(z.size):  
+        for i in range(z.size):  
             flux = []
             for gen in gens:
-                z, new_flux = gen.next()
+                z, new_flux = next(gen)
                 flux.append(new_flux)
 
             # Increment fluxes

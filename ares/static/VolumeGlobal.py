@@ -14,7 +14,7 @@ import numpy as np
 from ..util.Warnings import *
 from ..util import ProgressBar
 from ..physics.Constants import *
-import types, os, re, sys, pickle
+import types, os, re, sys
 from ..util.Misc import num_freq_bins
 from ..physics import SecondaryElectrons
 from scipy.integrate import dblquad, romb, simps, quad, trapz
@@ -247,7 +247,7 @@ class GlobalVolume(object):
                 # 
                 for k, species in enumerate(['h_1', 'he_1', 'he_2']):
                     self._sigma_E[species][i][j] = \
-                        np.array(map(lambda E: self.sigma(E, k), E))
+                        np.array([self.sigma(Eval, k) for Eval in E])
 
                 # Pre-compute secondary ionization and heating factors
                 if self.esec.method > 1:
@@ -340,11 +340,11 @@ class GlobalVolume(object):
             prefix = 'igm'
         
         if species == 0:     
-            weight = 1. / self.cosm.nH(z) / kw['%s_h_1' % prefix]
+            weight = 1. / self.cosm.nH(z) / kw['{!s}_h_1'.format(prefix)]
         elif species == 1:
-            weight = 1. / self.cosm.nHe(z) / kw['%s_he_1' % prefix]
+            weight = 1. / self.cosm.nHe(z) / kw['{!s}_he_1'.format(prefix)]
         elif species == 2:
-            weight = 1. / self.cosm.nHe(z) / kw['%s_he_2' % prefix]
+            weight = 1. / self.cosm.nHe(z) / kw['{!s}_he_2'.format(prefix)]
 
         return weight
 
@@ -368,7 +368,7 @@ class GlobalVolume(object):
         if not self.background.solve_rte[popid][band]:
             pass
         elif (kw['Emax'] is None) and self.background.solve_rte[popid][band] and \
-            np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX']):
+            np.any(np.array(self.background.bands_by_pop[popid]) > pop.pf['pop_EminX']):
             
             kw['Emax'] = self.background.energies[popid][band][-1]
                         
@@ -443,7 +443,7 @@ class GlobalVolume(object):
                         * (kw['igm_e'] - self.esec.x[i_x]) \
                         / (self.esec.x[j] - self.esec.x[i_x])                
             elif self.esec.method > 1:
-                print "popid=%i" % popid
+                print("popid={}".format(popid))
                 raise ValueError('Only know how to do advanced secondary ionization with solve_rte=True')
             else:
                 fheat = self.esec.DepositionFraction(kw['igm_e'])[0]
@@ -649,7 +649,7 @@ class GlobalVolume(object):
             solve_rte = False
 
         if (not solve_rte) or \
-            (not np.any(self.background.bands_by_pop[popid] > pop.pf['pop_EminX'])):
+            (not np.any(np.array(self.background.bands_by_pop[popid]) > pop.pf['pop_EminX'])):
             
             Lx = pop.LuminosityDensity(z, Emin=pop.pf['pop_Emin_xray'], 
                 Emax=pop.pf['pop_Emax'])

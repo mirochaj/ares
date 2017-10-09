@@ -24,7 +24,7 @@ def test():
     sim.run()
     sim.GlobalSignature()
     
-    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
     pl.close()
 
     assert True

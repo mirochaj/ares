@@ -90,7 +90,7 @@ sim.run()
 anl = ares.analysis.MultiPhaseMedium(sim)
 
 ax1 = anl.TemperatureHistory(fig=1, label='numerical')
-ax1.scatter(zarr, map(Tk, zarr), color='b', label='analytic', s=100,
+ax1.scatter(zarr, list(map(Tk, zarr)), color='b', label='analytic', s=100,
     facecolors='none')
 ax1.plot(zarr, 2.725 * (1. + zarr), color='k', ls=':', label=r'$T_{\gamma}$')
 
@@ -104,7 +104,7 @@ ax1.set_ylim(0, 40)
 pl.draw()
 
 ax2 = anl.IonizationHistory(fig=2, color='k', label='numerical', zone='igm')
-ax2.scatter(zarr, map(xi, zarr), color='b', label='analytic',
+ax2.scatter(zarr, list(map(xi, zarr)), color='b', label='analytic',
     facecolors='none', s=100)
 ax2.legend(loc='lower left', fontsize=14)
 ax2.set_ylim(1e-4, 1.5)

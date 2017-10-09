@@ -13,6 +13,7 @@ Description:
 import signal
 import numpy as np
 from ..util.PrintInfo import print_fit
+from ..util.Pickling import write_pickle_file
 from ..physics.Constants import nu_0_mhz
 import gc, os, sys, copy, types, time, re
 from .ModelFit import ModelFit, LogLikelihood
@@ -20,6 +21,12 @@ from ..simulations import Global21cm as simG21
 from ..analysis import Global21cm as anlGlobal21cm
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..simulations import Global21cm as simGlobal21cm
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
  
 def_kwargs = {'verbose': False, 'progress_bar': False}
 
@@ -100,9 +107,9 @@ class loglikelihood(LogLikelihood):
         #except ValueError:                     
         #    # Write to "fail" file
         #    if not self.burn:
-        #        f = open('%s.fail.%s.pkl' % (self.prefix, str(rank).zfill(3)), 'ab')
-        #        pickle.dump(kwargs, f)
-        #        f.close()
+        #        write_pickle_file(kwargs, '{0!s}.fail.{1!s}.pkl'.format(\
+        #            self.prefix, str(rank).zfill(3)), ndumps=1,\
+        #            open_mode='a', safe_mode=False, verbose=False)
         #
         #    del sim, kw, f
         #    gc.collect()
@@ -179,7 +186,7 @@ class FitGlobal21cm(ModelFit):
             self._turning_points = list(value)
         elif type(value) == list:
             self._turning_points = value
-        elif type(value) == str:
+        elif isinstance(value, basestring):
             if len(value) == 1:
                 self._turning_points = [value]            
             else:

@@ -145,7 +145,7 @@ class Grid(object):
         if not hasattr(self, '_neutral_species'):
             self._neutral_species = []
             for element in self.elements:
-                self._neutral_species.append('%s_1' % element)
+                self._neutral_species.append('{!s}_1'.format(element))
 
         return self._neutral_species
                     
@@ -450,7 +450,7 @@ class Grid(object):
                 
             self.ions_by_parent[element_name] = []
             self.elements.append(element_name)
-            for ion in xrange(element + 1):
+            for ion in range(element + 1):
                 name = util.zion2name(element, ion + 1)
                 self.all_ions.append(name)
                 self.ions_by_parent[element_name].append(name)

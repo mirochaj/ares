@@ -9,8 +9,7 @@ Created on: Fri Oct 23 19:02:38 PDT 2015
 Description: 
 
 """
-
-import pickle
+from __future__ import print_function
 import numpy as np
 from ..util import get_hg_rev
 from ..util.Stats import get_nu
@@ -20,11 +19,12 @@ from ..physics.Constants import nu_0_mhz
 from ..util.ParameterFile import par_info
 import gc, os, sys, copy, types, time, re, glob
 from ..analysis import Global21cm as anlG21
-from types import FunctionType, InstanceType
+from types import FunctionType#, InstanceType # InstanceType not in Python3
 from ..analysis.BlobFactory import BlobFactory
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
 from ..util.Stats import Gauss1D, GaussND, rebin, get_nu
+from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain
@@ -92,7 +92,7 @@ def _str_to_val(p, par, pvals, pars):
     # Pop ID including curly braces
     prefix = p.split(m.group(0))[0]
 
-    return pvals[pars.index('%s{%i}' % (prefix, num))]
+    return pvals[pars.index('{0!s}{{{1}}}'.format(prefix, num))]
         
 def guesses_from_priors(pars, prior_set, nwalkers):
     """
@@ -108,7 +108,7 @@ def guesses_from_priors(pars, prior_set, nwalkers):
         Number of walkers
 
     """
-    print "Making guesses from prior_set..."
+    print("Making guesses from prior_set...")
     guesses = []
     for i in range(nwalkers):
         draw = prior_set.draw()
@@ -172,12 +172,10 @@ class LogLikelihood(object):
 
         self.priors_P = param_prior_set
         if len(self.priors_P.params) != len(self.parameters):
-            raise ValueError("The number of parameters of the priors given " +\
-                             "to a loglikelihood object " +\
-                             ("(%i) " % (len(self.priors_P.params),)) +\
-                             "is not equal to the number of parameters " +\
-                             "given to the object " +\
-                             ("(%i)." % (len(self.parameters),)))
+            raise ValueError(("The number of parameters of the priors " +\
+                "given to a loglikelihood object ({0}) is not equal to the " +\
+                "number of parameters given to the object ({1}).").format(\
+                len(self.priors_P.params), len(self.parameters)))
         
         if blob_info is None:
             self.priors_B = DistributionSet()
@@ -245,20 +243,20 @@ class LogLikelihood(object):
     def checkpoint(self, **kwargs):
         if self.checkpoint_by_proc:
             procid = str(rank).zfill(3)
-            fn = '%s.%s.checkpt.pkl' % (self.prefix, procid)
-            with open(fn, 'wb') as f:
-                pickle.dump(kwargs, f)
+            fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix, procid)
+            write_pickle_file(kwargs, fn, ndumps=1, open_mode='w',\
+                safe_mode=False, verbose=False)
             
-            fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
+            fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
             with open(fn, 'w') as f:
-                print >> f, "Simulation began: %s" % time.ctime()
+                print("Simulation began: {!s}".format(time.ctime()), file=f)
             
     def checkpoint_on_completion(self, **kwargs):
         if self.checkpoint_by_proc:
             procid = str(rank).zfill(3)
-            fn = '%s.%s.checkpt.txt' % (self.prefix, procid)
+            fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
             with open(fn, 'a') as f:
-                print >> f, "Simulation finished: %s" % time.ctime() 
+                print("Simulation finished: {!s}".format(time.ctime()), file=f)
             
 class ModelFit(BlobFactory):
     def __init__(self, **kwargs):
@@ -417,13 +415,13 @@ class ModelFit(BlobFactory):
                 if param in self.all_blob_names:
                     continue
                 
-                warn = ("Setting prior on %s but %s " % (param, param,)) +\
-                        "not in parameters or blobs!"
-            
+                warn = ("Setting prior on {0!s} but {1!s} not in " +\
+                    "parameters or blobs!").format(param, param)
+                
                 if size == 1:
                     raise KeyError(warn)
                 else:
-                    print warn
+                    print(warn)
                     MPI.COMM_WORLD.Abort()
         else:
             try:
@@ -435,7 +433,7 @@ class ModelFit(BlobFactory):
                 if size == 1:
                     raise ValueError(err_msg)
                 else:
-                    print err_msg
+                    print(err_msg)
                     MPI.COMM_WORLD.Abort()
 
     @property
@@ -467,12 +465,12 @@ class ModelFit(BlobFactory):
             for param in self._guesses_prior_set.params:
                 if param in self.parameters:
                     continue
-                warn = "Setting prior on %s but %s not in parameters!" %\
-                    ((param,) * 2)
+                warn = ("Setting prior on {0!s} but {1!s} not in " +\
+                    "parameters!").format(param, param)
                 if size == 1:
                     raise KeyError(warn)
                 else:
-                    print warn
+                    print(warn)
                     MPI.COMM_WORLD.Abort()
         else:
             try:
@@ -485,7 +483,7 @@ class ModelFit(BlobFactory):
                 if size == 1:
                     raise ValueError(err_msg)
                 else:
-                    print err_msg
+                    print(err_msg)
                     MPI.COMM_WORLD.Abort()
 
     @property
@@ -494,7 +492,7 @@ class ModelFit(BlobFactory):
             self._nw = self.Nd * 2
             
             if rank == 0:
-                print "Defaulting to nwalkers=2*Nd=%i." % self._nw
+                print("Defaulting to nwalkers=2*Nd={}.".format(self._nw))
             
         return self._nw
         
@@ -618,9 +616,10 @@ class ModelFit(BlobFactory):
     #        bad_mask = np.argwhere(not_ok)
     #        
     #        for j in bad_mask:
-    #            #print "Fixing guess for walker %i parameter %s" % (j[0], par)
+    #            print ("Fixing guess for walker {0} parameter " +\
+    #                "{1!s}").format(j[0], par)
     #            guesses[j[0],i] = np.random.uniform(mi, ma)
-    #            
+    #    
     #    return guesses
         
     @property 
@@ -678,37 +677,34 @@ class ModelFit(BlobFactory):
 
         prefix = self.prefix
 
-        f = open('%s.pinfo.pkl' % prefix, 'rb')
-        pars, is_log = pickle.load(f)
-        f.close()
+        (pars, is_log) = read_pickle_file('{!s}.pinfo.pkl'.format(prefix),\
+            nloads=1, verbose=False)
 
         if pars != self.parameters:
             if size > 1:
                 if rank == 0:
-                    print 'parameters from file dont match those supplied!'
+                    print('parameters from file dont match those supplied!')
                 MPI.COMM_WORLD.Abort()
             raise ValueError('parameters from file dont match those supplied!')
         if is_log != self.is_log:
             if size > 1:
                 if rank == 0:
-                    print 'is_log from file dont match those supplied!'
+                    print('is_log from file dont match those supplied!')
                 MPI.COMM_WORLD.Abort()
             raise ValueError('is_log from file dont match those supplied!')
           
         # Identical to setup, just easier for scp'ing *info.pkl files.
-        if os.path.exists('%s.binfo.pkl' % prefix):
-            f = open('%s.binfo.pkl' % prefix, 'rb')
-            base_kwargs = pickle.load(f)
-            f.close()
+        if os.path.exists('{!s}.binfo.pkl'.format(prefix)):
+            base_kwargs = read_pickle_file('{!s}.binfo.pkl'.format(prefix),\
+                nloads=1, verbose=False)
         else:
             # Deprecate this eventually          
-            f = open('%s.setup.pkl' % prefix, 'rb')
-            base_kwargs = pickle.load(f)
-            f.close()
+            base_kwargs = read_pickle_file('{!s}.setup.pkl'.format(prefix),\
+                nloads=1, verbose=False)
         
-        f = open('%s.rinfo.pkl' % self.prefix, 'r')
-        nwalkers, save_freq, steps = pickle.load(f)
-        f.close()
+        (nwalkers, save_freq, steps) =\
+            read_pickle_file('{!s}.rinfo.pkl'.format(self.prefix), nloads=1,\
+            verbose=False)
         
         # These things CANNOT change on restart
         assert nwalkers == self.nwalkers
@@ -725,7 +721,7 @@ class ModelFit(BlobFactory):
                     
         # Start from last step in pre-restart calculation
         if self.checkpoint_append:
-            chain = read_pickled_chain('%s.chain.pkl' % prefix)
+            chain = read_pickled_chain('{!s}.chain.pkl'.format(prefix))
         else:
             # lec = largest existing checkpoint
             chain =\
@@ -776,7 +772,8 @@ class ModelFit(BlobFactory):
             return
         
         if by_proc:
-            prefix_by_proc = self.prefix + '.%s' % (str(rank).zfill(3))
+            prefix_by_proc =\
+                '{0!s}.{1!s}'.format(self.prefix, str(rank).zfill(3))
         else:
             prefix_by_proc = self.prefix
 
@@ -787,27 +784,28 @@ class ModelFit(BlobFactory):
             # These suffixes are always the same
             for suffix in ['logL', 'chain', 'facc', 'pinfo', 'rinfo', 
                 'binfo', 'setup', 'load', 'fail', 'timeout']:
-                os.system('rm -f %s.%s.pkl' % (self.prefix, suffix))
-                os.system('rm -f %s.*.%s.pkl' % (self.prefix, suffix))
-            os.system('rm -f %s.prior_set.hdf5' % (self.prefix,))
+                os.system('rm -f {0!s}.{1!s}.pkl'.format(self.prefix, suffix))
+                os.system('rm -f {0!s}.*.{1!s}.pkl'.format(self.prefix,\
+                    suffix))
+            os.system('rm -f {!s}.prior_set.hdf5'.format(self.prefix))
             # These suffixes have their own suffixes
-            os.system('rm -f %s.blob_*.pkl' % self.prefix)
-            os.system('rm -f %s.*.blob_*.pkl' % self.prefix)
+            os.system('rm -f {!s}.blob_*.pkl'.format(self.prefix))
+            os.system('rm -f {!s}.*.blob_*.pkl'.format(self.prefix))
         # Each processor gets its own fail file
-        f = open('%s.fail.pkl' % prefix_by_proc, 'wb')
+        f = open('{!s}.fail.pkl'.format(prefix_by_proc), 'wb')
         f.close()
 
         # Main output: MCMC chains (flattened)
         if self.checkpoint_append:
-            f = open('%s.chain.pkl' % prefix_by_proc, 'wb')
+            f = open('{!s}.chain.pkl'.format(prefix_by_proc), 'wb')
             f.close()
         
             # Main output: log-likelihood
-            f = open('%s.logL.pkl' % self.prefix, 'wb')
+            f = open('{!s}.logL.pkl'.format(self.prefix), 'wb')
             f.close()
         
         # Store acceptance fraction
-        f = open('%s.facc.pkl' % self.prefix, 'wb')
+        f = open('{!s}.facc.pkl'.format(self.prefix), 'wb')
         f.close()
         
         # File for blobs themselves
@@ -816,25 +814,24 @@ class ModelFit(BlobFactory):
             for i, group in enumerate(self.blob_names):
                 for blob in group:
                     fntup = (prefix_by_proc, self.blob_nd[i], blob)
-                    f = open('%s.blob_%id.%s.pkl' % fntup, 'wb')
+                    f = open('{0!s}.blob_{1}d.{2!s}.pkl'.format(*fntup), 'wb')
                     f.close()
         
         # Parameter names and list saying whether they are log10 or not
-        f = open('%s.pinfo.pkl' % self.prefix, 'wb')
-        pickle.dump((self.parameters, self.is_log), f)
-        f.close()
+        write_pickle_file((self.parameters, self.is_log),\
+            '{!s}.pinfo.pkl'.format(self.prefix), ndumps=1, open_mode='w',\
+            safe_mode=False, verbose=False)
         
         # "Run" info (MCMC only)
         if hasattr(self, 'steps'):
-            f = open('%s.rinfo.pkl' % self.prefix, 'wb')
-            pickle.dump((self.nwalkers, self.save_freq, self.steps), f)
-            f.close()
+            write_pickle_file((self.nwalkers, self.save_freq, self.steps),\
+                '{!s}.rinfo.pkl'.format(self.prefix), ndumps=1, open_mode='w',\
+                safe_mode=False, verbose=False)
         
         # Priors!
         self.prior_set.save(self.prefix + '.prior_set.hdf5')
         
         # Constant parameters being passed to ares.simulations.Global21cm
-        f = open('%s.binfo.pkl' % self.prefix, 'wb')
         tmp = self.base_kwargs.copy()
         to_axe = []
         for key in tmp:
@@ -852,11 +849,16 @@ class ModelFit(BlobFactory):
             
             # Apparently functions of any kind cause problems everywhere
             # but my laptop
-            if type(tmp[key]) in [FunctionType, InstanceType]:
+            # 
+            # NOTE from KT: InstanceType class was checked for along with
+            # FunctionType class but, since InstanceType class is deprecated in
+            # Python 3 and KT's purpose in editing is to port to Python 3,
+            # references to InstanceType were removed.
+            if type(tmp[key]) is FunctionType:
                 to_axe.append(key)
             elif type(tmp[key]) is tuple:
                 for element in tmp[key]:
-                    if type(element) in [FunctionType, InstanceType]:
+                    if type(element) is FunctionType:
                         to_axe.append(key)
                         break
         
@@ -867,9 +869,9 @@ class ModelFit(BlobFactory):
         tmp['revision'] = get_hg_rev()
             
         # Write to disk.
-        pickle.dump(tmp, f)
+        write_pickle_file(tmp, '{!s}.binfo.pkl'.format(self.prefix), ndumps=1,\
+            open_mode='w', safe_mode=False, verbose=False)
         del tmp
-        f.close()
         
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
         save_freq=500):
@@ -898,31 +900,31 @@ class ModelFit(BlobFactory):
         self.prefix = prefix
         
         if rank == 0:
-            if os.path.exists('%s.chain.pkl' % prefix) and (not clobber):
+            if os.path.exists('{!s}.chain.pkl'.format(prefix)) and (not clobber):
                 if not restart:
-                    msg = '%s exists! Remove manually, set clobber=True,' % prefix
-                    msg += ' or set restart=True to append.' 
-                    raise IOError(msg)
+                    raise IOError(('{!s} exists! Remove manually, set ' +\
+                        'clobber=True, or set restart=True to ' +\
+                        'append.').format(prefix))
         
         if size > 1:
             MPI.COMM_WORLD.Barrier()
 
         #if self.checkpoint_append:
-        #    if not os.path.exists('%s.chain.pkl' % prefix) and restart:
-        #        msg = "This can't be a restart, %s*.pkl not found." % prefix
-        #        raise IOError(msg)
+        #    if not os.path.exists('{!s}.chain.pkl'.format(prefix)) and restart:
+        #        raise IOError(("This can't be a restart, {!s}*.pkl not " +\
+        #            "found.").format(prefix))
         
         if restart:
             # below checks for checkpoint_append==True failure
             cptapdtrfl = (self.checkpoint_append and\
-                (not os.path.exists('%s.chain.pkl' % (prefix,))))
+                (not os.path.exists('{!s}.chain.pkl'.format(prefix))))
             # below checks for checkpoint_append==False failure
             cptapdflsfl = ((not self.checkpoint_append) and\
-                (not glob.glob('%s.dd*.pkl' % (prefix,))))
+                (not glob.glob('{!s}.dd*.pkl'.format(prefix))))
             # either way, produce error
             if cptapdtrfl or cptapdflsfl:
-                raise IOError("This can't be a restart, " +\
-                              ("%s*.pkl not found." % (prefix,)))
+                raise IOError(("This can't be a restart, {!s}*.pkl not " +\
+                    "found.").format(prefix))
 
         # Initialize Pool
         if size > 1:
@@ -957,14 +959,14 @@ class ModelFit(BlobFactory):
         # Burn in, prep output files     
         if (burn > 0) and (not restart):
             
-            print "Starting burn-in: %s" % (time.ctime())
+            print("Starting burn-in: {!s}".format(time.ctime()))
             
             t1 = time.time()
             pos, prob, state, blobs = \
                 self.sampler.run_mcmc(self.guesses, burn, rstate0=state)
             t2 = time.time()
 
-            print "Burn-in complete in %.3g seconds." % (t2 - t1)
+            print("Burn-in complete in {0:.3g} seconds.".format(t2 - t1))
 
             # Save burn-in
             burn_prefix = prefix + '.burn'
@@ -980,10 +982,9 @@ class ModelFit(BlobFactory):
                     self.save_blobs(data, prefix=burn_prefix)
                 # Other stuff
                 else:
-                    fn = '%s.%s.pkl' % (burn_prefix, name[i])
-                    with open(fn, 'wb') as f:
-                        pickle.dump(data, f)
-                        print "Wrote %s." % fn
+                    fn = '{0!s}.{1!s}.pkl'.format(burn_prefix, name[i])
+                    write_pickle_file(data, fn, ndumps=1, open_mode='w',\
+                        safe_mode=False, verbose=True)
                         
             # Find walker at highest likelihood point at end of burn
             mlpt = pos[np.argmax(prob)]
@@ -996,11 +997,11 @@ class ModelFit(BlobFactory):
         elif not restart:
             pos = self.guesses
             state = None
-        elif os.path.exists('%s.rstate.pkl' % (prefix,)):
-            with open('%s.rstate.pkl' % (prefix,), 'rb') as fil:
-                state = pickle.load(fil)
+        elif os.path.exists('{!s}.rstate.pkl'.format(prefix)):
+            state = read_pickle_file('{!s}.rstate.pkl'.format(prefix),\
+                nloads=1, verbose=False)
             if rank == 0:
-                print "Using pre-restart RandomState."
+                print("Using pre-restart RandomState.")
         else:
             state = None
 
@@ -1009,7 +1010,7 @@ class ModelFit(BlobFactory):
         #
 
         if rank == 0:
-            print "Starting MCMC: %s" % (time.ctime())
+            print("Starting MCMC: {!s}".format(time.ctime()))
         
         # Need to make sure we don't overwrite previous outputs in this case    
         if restart and (not self.checkpoint_append):
@@ -1026,7 +1027,7 @@ class ModelFit(BlobFactory):
             
             # If we're saving each checkpoint to its own file, this is the
             # identifier to use in the filename
-            dd = 'dd' + str(ct / save_freq).zfill(4)
+            dd = 'dd' + str(ct // save_freq).zfill(4)
             
             # Increment counter
             ct += 1
@@ -1063,26 +1064,27 @@ class ModelFit(BlobFactory):
                 # Other stuff
                 else:
                     if self.checkpoint_append:
-                        fn = '%s.%s.pkl' % (prefix, suffix)
+                        fn = '{0!s}.{1!s}.pkl'.format(prefix, suffix)
                     else:
-                        fn = '%s.%s.%s.pkl' % (prefix, dd, suffix)
-                    with open(fn, mode) as f:
-                        pickle.dump(data[i], f)
+                        fn = '{0!s}.{1!s}.{2!s}.pkl'.format(prefix, dd, suffix)
+                    write_pickle_file(data[i], fn, ndumps=1,\
+                        open_mode=mode[0], safe_mode=False, verbose=False)
                     
             # This is a running total already so just save the end result 
             # for this set of steps
-            f = open('%s.facc.pkl' % prefix, 'ab')
-            pickle.dump(self.sampler.acceptance_fraction, f)
-            f.close()
+            write_pickle_file(self.sampler.acceptance_fraction,\
+                '{!s}.facc.pkl'.format(prefix), ndumps=1, open_mode='a',\
+                safe_mode=False, verbose=False)
             
             if self.checkpoint_append:
-                print "Checkpoint #%i: %s" % (ct / save_freq, time.ctime())
+                print("Checkpoint #{0}: {1!s}".format(ct // save_freq,\
+                    time.ctime()))
             else:
-                print "Wrote %s.%s.*.pkl: %s" % (prefix, dd, time.ctime())
+                print("Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
+                    time.ctime()))
             ####################################
-            f = open('%s.rstate.pkl' % prefix, 'wb')
-            pickle.dump(state, f)
-            f.close()
+            write_pickle_file(state, '{!s}.rstate.pkl'.format(prefix),\
+                ndumps=1, open_mode='w', safe_mode=False, verbose=False)
             ####################################
 
             del data, pos_all, prob_all, blobs_all
@@ -1099,7 +1101,7 @@ class ModelFit(BlobFactory):
             self.pool.stop()
 
         if rank == 0:
-            print "Finished on %s" % (time.ctime())
+            print("Finished on {!s}".format(time.ctime()))
     
     def save_blobs(self, blobs, uncompress=True, prefix=None, dd=None):
         """
@@ -1145,16 +1147,15 @@ class ModelFit(BlobFactory):
 
                 if self.checkpoint_append:
                     mode = 'ab'
-                    bfn = '%s.blob_%id.%s.pkl' \
-                        % (prefix, self.blob_nd[j], blob)
+                    bfn = '{0!s}.blob_{1}d.{2!s}.pkl'.format(prefix,\
+                        self.blob_nd[j], blob)
                 else:
                     mode = 'wb'
-                    bfn = '%s.%s.blob_%id.%s.pkl' \
-                        % (prefix, dd, self.blob_nd[j], blob)        
+                    bfn = '{0!s}.{1!s}.blob_{2}d.{3!s}.pkl'.format(prefix, dd,\
+                        self.blob_nd[j], blob)        
                     
                     assert dd is not None, "checkpoint_append=False but no DDID!"        
                             
-                with open(bfn, mode) as f:
-                    pickle.dump(np.array(to_write), f) 
-                    
-                       
+                write_pickle_file(np.array(to_write), bfn, ndumps=1,\
+                    open_mode=mode[0], safe_mode=False, verbose=False)
+        

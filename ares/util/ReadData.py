@@ -13,11 +13,7 @@ Description:
 import numpy as np
 import imp as _imp
 import os, re, sys, glob
-
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
+from .Pickling import read_pickle_file
 
 try:
     import h5py
@@ -33,9 +29,9 @@ except ImportError:
     
 HOME = os.environ.get('HOME')
 ARES = os.environ.get('ARES')
-sys.path.insert(1, '%s/input/litdata' % ARES)
+sys.path.insert(1, '{!s}/input/litdata'.format(ARES))
 
-_lit_options = glob.glob('%s/input/litdata/*.py' % ARES)
+_lit_options = glob.glob('{!s}/input/litdata/*.py'.format(ARES))
 lit_options = []
 for element in _lit_options:
     lit_options.append(element.split('/')[-1].replace('.py', ''))
@@ -55,25 +51,25 @@ def read_lit(prefix, path=None, verbose=True):
     """
 
     if path is not None:
-        prefix = '%s/%s' % (path, prefix)
+        prefix = '{0!s}/{1!s}'.format(path, prefix)
     
-    has_local = os.path.exists('./%s.py' % prefix)
-    has_home = os.path.exists('%s/.ares/%s.py' % (HOME, prefix))
-    has_litd = os.path.exists('%s/input/litdata/%s.py' % (ARES, prefix))
+    has_local = os.path.exists('./{!s}.py'.format(prefix))
+    has_home = os.path.exists('{0!s}/.ares/{1!s}.py'.format(HOME, prefix))
+    has_litd = os.path.exists('{0!s}/input/litdata/{1!s}.py'.format(ARES, prefix))
     
     # Load custom defaults
     if has_local:
         loc = '.'    
     elif has_home:
-        loc = '%s/.ares/' % HOME
+        loc = '{!s}/.ares/'.format(HOME)
     elif has_litd:
-        loc = '%s/input/litdata/' % ARES
+        loc = '{!s}/input/litdata/'.format(ARES)
     else:
         return None
 
     if has_local + has_home + has_litd > 1:
-        print "WARNING: multiple copies of %s found." % prefix
-        print "       : precedence: CWD -> $HOME -> $ARES/input/litdata"
+        print("WARNING: multiple copies of {!s} found.".format(prefix))
+        print("       : precedence: CWD -> $HOME -> $ARES/input/litdata")
 
     _f, _filename, _data = _imp.find_module(prefix, [loc])
     mod = _imp.load_module(prefix, _f, _filename, _data)
@@ -130,13 +126,13 @@ def flatten_emissivities(arr, z, Eflat):
                     k2 = N
                 k2 += N    
                     
-                print i, j, N, k1, k2
+                print('{} {} {} {} {}'.format(i, j, N, k1, k2))
                 to_return[:,k1:k2] = flux_seg.squeeze()
                 k1 += N
                 
         else:
             # First dimension is redshift.
-            print band.shape
+            print('{!s}'.format(band.shape))
             to_save = band.squeeze()
             
             # Rare occurence...
@@ -147,7 +143,7 @@ def flatten_emissivities(arr, z, Eflat):
             N = len(band[0].squeeze())
             if k2 is None:
                 k2 = N
-            print 'hey', i, j, N, k1, k2
+            print('{} {} {} {} {} {}'.format('hey', i, j, N, k1, k2))
             k2 += N
             to_return[:,k1:k2] = band.copy()
             k1 += N
@@ -160,7 +156,7 @@ def split_flux(energies, fluxes):
     Take flattened fluxes and re-sort into band-grouped fluxes.
     """
     
-    i_E = np.cumsum(map(len, energies))
+    i_E = np.cumsum(list(map(len, energies)))
     fluxes_split = np.hsplit(fluxes, i_E)
 
     return fluxes_split
@@ -191,7 +187,7 @@ def _sort_history(all_data, prefix='', squeeze=False):
         if type(key) is int and not prefix.strip():
             name = int(key)
         else:
-            name = '%s%s' % (prefix, key)
+            name = '{0!s}{1!s}'.format(prefix, key)
 
         data[name] = []
 
@@ -203,7 +199,7 @@ def _sort_history(all_data, prefix='', squeeze=False):
             if type(key) is int and not prefix.strip():
                 name = int(key)
             else:
-                name = '%s%s' % (prefix, key)
+                name = '{0!s}{1!s}'.format(prefix, key)
                 
             data[name].append(element[key])
 
@@ -258,7 +254,7 @@ def _load_inits(fn=None):
 
     if fn is None:
         assert ARES is not None, "$ARES environment variable has not been set!"
-        fn = '%s/input/inits/initial_conditions.npz' % ARES
+        fn = '{!s}/input/inits/initial_conditions.npz'.format(ARES)
         inits = _load_npz(fn)
 
     else:
@@ -339,48 +335,16 @@ def flatten_logL(data):
         new.extend(data[:,i])
 
     return new
-
-def read_pickled_dict(fn):
-    f = open(fn, 'rb')
-    
-    results = []
-    
-    while True:
-        try:
-            # This array should be (nsteps, ndims)
-            results.append(pickle.load(f))
-        except EOFError:
-            break
-    
-    f.close()
-    
-    return results
             
-def read_pickle_file(fn):
-    f = open(fn, 'rb')
-
-    ct = 0
-    results = []
-    while True:
-        try:
-            data = pickle.load(f)
-            results.extend(data)
-            ct +=1
-        except EOFError:
-            break
-
-    #print "Read %i chunks from %s." % (ct, fn)
-
-    f.close()
-    
-    return np.array(results)
+def concatenate(lists):
+    return np.concatenate(lists, axis=0)
 
 def read_pickled_blobs(fn):
-    return read_pickle_file(fn)    
+    return concatenate(read_pickle_file(fn, nloads=None, verbose=False))
     
 def read_pickled_logL(fn):    
     # Removes chunks dimension
-    data = read_pickle_file(fn)
+    data = concatenate(read_pickle_file(fn, nloads=None, verbose=False))
     
     Nd = len(data.shape)
     
@@ -405,7 +369,7 @@ def read_pickled_logL(fn):
 def read_pickled_chain(fn):
     
     # Removes chunks dimension
-    data = read_pickle_file(fn)
+    data = concatenate(read_pickle_file(fn, nloads=None, verbose=False))
     
     Nd = len(data.shape)
 

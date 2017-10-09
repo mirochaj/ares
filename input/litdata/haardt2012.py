@@ -33,7 +33,7 @@ def _read_UVB():
     fn = 'UVB.out'
     skip = 20
     
-    f = open('%s/%s' % (_input, fn), 'r')
+    f = open('{0!s}/{1!s}'.format(_input, fn), 'r')
 
     data = []
     for i, line in enumerate(f):
@@ -41,10 +41,10 @@ def _read_UVB():
             continue
         
         if i == 20:
-            z = np.array(map(float, line.split()))
+            z = np.array(list(map(float, line.split())))
             continue
             
-        data.append(map(float, line.split()))
+        data.append(list(map(float, line.split())))
 
     return z, np.array(data)
 

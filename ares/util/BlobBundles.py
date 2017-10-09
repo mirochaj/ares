@@ -18,7 +18,7 @@ _gs_hist = ['z', 'cgm_h_2', 'igm_h_2', 'igm_Tk', 'Ja', 'Jlw', 'Ts', 'dTb']
 _gs_ext = []
 for tp in ['B', 'C', 'D', 'Bp', 'Cp', 'Dp']:
     for field in _gs_hist:
-        _gs_ext.append('%s_%s' % (field, tp))
+        _gs_ext.append('{0!s}_{1!s}'.format(field, tp))
 
 _gs_min1d = ['z', 'dTb']
 
@@ -52,11 +52,11 @@ _gs_shape_f = \
 ]
 
 # Add curvature of turning points too
-_gs_shape_n.extend(['curvature_%s' % tp for tp in list('BCD')])
+_gs_shape_n.extend(['curvature_{!s}'.format(tp) for tp in list('BCD')])
 _gs_shape_f.extend([None] * 3)
-_gs_shape_n.extend(['skewness_%s' % region for region in \
+_gs_shape_n.extend(['skewness_{!s}'.format(region) for region in \
     ['absorption', 'emission']])
-_gs_shape_n.extend(['kurtosis_%s' % region for region in \
+_gs_shape_n.extend(['kurtosis_{!s}'.format(region) for region in \
     ['absorption', 'emission']])
 _gs_shape_f.extend([None] * 4)
 
@@ -69,7 +69,7 @@ for _name in _rc_base:
     
     for i, spec1 in enumerate(_species):
     
-        _save_name = '%s_%s' % (_name, spec1)
+        _save_name = '{0!s}_{1!s}'.format(_name, spec1)
         _gs_rates.append(_save_name)        
         _rc_funcs.append((_name,i))
 
