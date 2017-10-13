@@ -9,14 +9,14 @@ Created on: Fri Mar  6 14:11:53 MST 2015
 Description: Supply path to CosmoRec executable via command-line.
 
 """
-
+from __future__ import print_function
 import numpy as np
 import ares, sys, os, re
 
 try:
     to_CR = sys.argv[1]
 except IndexError:
-    print "Supply path to CosmoRec executable via command-line!"
+    print("Supply path to CosmoRec executable via command-line!")
     sys.exit(1)
 
 pf = ares.util.SetDefaultParameterValues.CosmologyParameters()
@@ -72,21 +72,21 @@ for par in pf:
 # Create parameter file for reference
 f = open('CosmoRec.parameters.dat', 'w')
 for element in CR_pars:
-    print >> f, element
+    print(element, file=f)
 f.close()
 
 if not os.path.exists('outputs'):
     os.mkdir('outputs')
 
 # Run the thing
-os.system('%s CosmoRec.parameters.dat' % to_CR)
+os.system('{!s} CosmoRec.parameters.dat'.format(to_CR))
     
 for fn in os.listdir('outputs'):
     if re.search('final', fn):
         break
     
 # Convert it to ares format   
-data = np.loadtxt('outputs/%s' % fn) 
+data = np.loadtxt('outputs/{!s}'.format(fn))
 
 new_data = \
  {'z': data[:,0][-1::-1], 
@@ -95,4 +95,5 @@ new_data = \
  }
 
 np.savez('initial_conditions.npz', **new_data)
-print "Wrote initial_conditions.npz."
+print("Wrote initial_conditions.npz.")
+

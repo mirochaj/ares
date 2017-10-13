@@ -11,15 +11,21 @@ Description:
 """
 
 import time
-import pickle
 import numpy as np
 from ..util import read_lit
+from ..util.Pickling import write_pickle_file
 from ..util.PrintInfo import print_fit
 import gc, os, sys, copy, types, time, re
 from ..util.ParameterFile import par_info
 from ..populations import GalaxyPopulation
 from ..util.Stats import symmetrize_errors
 from .ModelFit import LogLikelihood, ModelFit
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     from mpi4py import MPI
@@ -162,7 +168,8 @@ class loglikelihood(LogLikelihood):
                 M = xdat
                 p = pop.StellarMassFunction(z, M)                
             else:
-                raise ValueError('Unrecognized quantity: %s' % quantity)
+                raise ValueError('Unrecognized quantity: {!s}'.format(\
+                    quantity))
 
             phi[i] = p
                         
@@ -294,7 +301,7 @@ class FitGalaxyPopulation(ModelFit):
         
         """
         
-        if type(value) == str:
+        if isinstance(value, basestring):
             value = [value]
 
         if type(value) in [list, tuple]:
@@ -514,14 +521,14 @@ class FitGalaxyPopulation(ModelFit):
         if rank > 0:
             return
             
-        fn = '%s.data.pkl' % prefix
+        fn = '{!s}.data.pkl'.format(prefix)
         
         if os.path.exists(fn) and (not clobber):
-            print "%s exists! Set clobber=True to overwrite." % fn
+            print("{!s} exists! Set clobber=True to overwrite.".format(fn))
             return
                 
-        f = open(fn, 'wb')
-        pickle.dump((self.xdata, self.ydata, self.redshifts, self.error), f)
-        f.close()
+        write_pickle_file((self.xdata, self.ydata, self.redshifts,\
+            self.error), fn, ndumps=1, open_mode='w', safe_mode=False,\
+            verbose=False)
      
     

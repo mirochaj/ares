@@ -37,7 +37,7 @@ def test(rtol=1e-3):
     H_n = cosm.HubbleParameter(30.)
     H_a = cosm.hubble_0 * np.sqrt(cosm.omega_m_0) * (1. + 30.)**1.5
     assert abs(H_n - H_a) / H_a < rtol, \
-        "Hubble parameter @ high-z not accurate to < %.3g %." % rtol
+        "Hubble parameter @ high-z not accurate to < {:.3g}%.".format(rtol)
         
 if __name__ == '__main__':
     test()    

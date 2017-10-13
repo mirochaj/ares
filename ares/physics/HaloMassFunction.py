@@ -10,12 +10,12 @@ Description:
 """
 
 import glob
-import pickle
 import os, re, sys
 import numpy as np
 from . import Cosmology
 from types import FunctionType
 from ..util import ParameterFile
+from ..util.Pickling import read_pickle_file, write_pickle_file
 from scipy.misc import derivative
 from scipy.optimize import fsolve
 from ..util.Misc import get_hg_rev
@@ -138,21 +138,23 @@ class HaloMassFunction(object):
         # Look for tables in input directory
         if ARES is not None and self.pf['hmf_load'] and (self.fn is None):
             prefix = self.table_prefix(True)
-            fn = '%s/input/hmf/%s' % (ARES, prefix)
+            fn = '{0!s}/input/hmf/{1!s}'.format(ARES, prefix)
             # First, look for a perfect match
-            if os.path.exists('%s.%s' % (fn, self.pf['preferred_format'])):
-                self.fn = '%s.%s' % (fn, self.pf['preferred_format'])
+            if os.path.exists('{0!s}.{1!s}'.format(fn,\
+                self.pf['preferred_format'])):
+                self.fn = '{0!s}.{1!s}'.format(fn, self.pf['preferred_format'])
             # Next, look for same table different format
-            elif os.path.exists('%s.pkl' % fn):
-                self.fn = '%s.pkl' % fn
-            elif os.path.exists('%s.hdf5' % fn):
-                self.fn = '%s.hdf5' % fn   
-            elif os.path.exists('%s.npz' % fn):
-                self.fn = '%s.npz' % fn    
+            elif os.path.exists('{!s}.pkl'.format(fn)):
+                self.fn = '{!s}.pkl'.format(fn)
+            elif os.path.exists('{!s}.hdf5'.format(fn)):
+                self.fn = '{!s}.hdf5'.format(fn)
+            elif os.path.exists('{!s}.npz'.format(fn)):
+                self.fn = '{!s}.npz'.format(fn)
             else:
                 # Leave resolution blank, but enforce ranges
                 prefix = self.table_prefix()
-                candidates = glob.glob('%s/input/hmf/%s*' % (ARES, prefix))
+                candidates =\
+                    glob.glob('{0!s}/input/hmf/{1!s}*'.format(ARES, prefix))
 
                 if len(candidates) == 1:
                     self.fn = candidates[0]
@@ -171,7 +173,7 @@ class HaloMassFunction(object):
                     self.fn = None
                     for candidate in candidates:
                         _Nm, _logMmin, _logMmax, _Nz, _zmin, _zmax = \
-                            map(int, re.findall(r'\d+', candidate))
+                            list(map(int, re.findall(r'\d+', candidate)))
                     
                         if (_logMmin > logMmin) or (_logMmax < logMmax):
                             continue
@@ -251,16 +253,10 @@ class HaloMassFunction(object):
             self.mgtm = f['mgtm']
             f.close()                        
         elif re.search('.pkl', self.fn):
-            f = open(self.fn, 'rb')
-            self.z = pickle.load(f)
-            self.logM = pickle.load(f)
+            loaded = read_pickle_file(self.fn, nloads=6, verbose=False)
+            (self.z, self.logM, self.fcoll_spline_2d) = loaded[0:3]
+            (self.dndm, self.ngtm, self.mgtm) = loaded[3:6]
             self.M = 10**self.logM
-            self.fcoll_spline_2d = pickle.load(f)
-            self.dndm = pickle.load(f)
-            self.ngtm = pickle.load(f)
-            self.mgtm = pickle.load(f)
-            f.close()
-
         else:
             raise IOError('Unrecognized format for hmf_table.')    
                 
@@ -352,7 +348,7 @@ class HaloMassFunction(object):
 
         if rank == 0:
             print_hmf(self)
-            print "\nComputing %s mass function..." % self.hmf_func    
+            print("\nComputing {!s} mass function...".format(self.hmf_func))    
 
         # Masses in hmf are in units of Msun * h
         self.M = self.MF.M / self.cosm.h70
@@ -574,7 +570,8 @@ class HaloMassFunction(object):
         k = np.argmin(np.abs(z - self.z))
     
         if z not in self.z:
-            print "WARNING: Rounding to nearest redshift z=%.3g" % self.z[k]
+            print("WARNING: Rounding to nearest redshift z={0:.3g}".format(\
+                self.z[k]))
     
         # For some reason flipping the order is necessary for non-bogus results
         dn_gtm_1t = cumtrapz(self.dndlnm[k][-1::-1], 
@@ -712,7 +709,7 @@ class HaloMassFunction(object):
         else:
             Mmin_vbc = np.zeros_like(zarr)
         
-        Mmin_H2 = np.array(map(self._tegmark, zarr))
+        Mmin_H2 = np.array(list(map(self._tegmark, zarr)))
                 
         #return np.maximum(Mmin_vbc, Mmin_H2)      
         return Mmin_vbc + Mmin_H2
@@ -745,11 +742,11 @@ class HaloMassFunction(object):
             assert zsize % 1 == 0
             zsize = int(round(zsize, 1))    
                 
-            return 'hmf_%s_logM_%s_%i-%i_z_%s_%i-%i' \
-                % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
+            return 'hmf_{0!s}_logM_{1!s}_{2}-{3}_z_{4!s}_{5}-{6}'.format(\
+                self.hmf_func, logMsize, M1, M2, zsize, z1, z2)
         else:
-            return 'hmf_%s_logM_*_%i-%i_z_*_%i-%i' \
-                % (self.hmf_func, M1, M2, z1, z2) 
+            return 'hmf_{0!s}_logM_*_{1}-{2}_z_*_{3}-{4}'.format(\
+                self.hmf_func, M1, M2, z1, z2) 
                                
     def save(self, fn=None, clobber=True, destination=None, format='hdf5'):
         """
@@ -786,18 +783,20 @@ class HaloMassFunction(object):
         
         # Determine filename
         if fn is None:
-            fn = '%s/%s.%s' % (destination, self.table_prefix(True), format)                
+            fn = '{0!s}/{1!s}.{2!s}'.format(destination,\
+                self.table_prefix(True), format)                
         else:
             if format not in fn:
-                print "Suffix of provided filename does not match chosen format."
-                print "Will go with format indicated by filename suffix."
+                print("Suffix of provided filename does not match chosen format.")
+                print("Will go with format indicated by filename suffix.")
         
         if os.path.exists(fn):
             if clobber:
-                os.system('rm -f %s' % fn)
+                os.system('rm -f {!s}'.format(fn))
             else:
-                raise IOError('File %s exists! Set clobber=True or remove manually.' % fn) 
-            
+                raise IOError(('File {!s} exists! Set clobber=True or ' +\
+                    'remove manually.').format(fn)) 
+        
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
             f.create_dataset('z', data=self.z)
@@ -819,19 +818,21 @@ class HaloMassFunction(object):
             np.savez(fn, **data)
 
         # Otherwise, pickle it!    
-        else:   
-            f = open(fn, 'wb')
-            pickle.dump(self.z, f)
-            pickle.dump(self.logM, f)
-            pickle.dump(self.fcoll_spline_2d, f)
-            pickle.dump(self.dndm, f)
-            pickle.dump(self.ngtm, f)
-            pickle.dump(self.mgtm, f)
-            pickle.dump({'growth_pars': self.growth_pars,
-                'transfer_pars': self.transfer_pars}, f)
-            pickle.dump(dict(('hmf-version', hmf_v)))
-            f.close()
+        else:
+            growth_and_transfer_pars =\
+            {\
+                'growth_pars': self.growth_pars,
+                'transfer_pars': self.transfer_pars\
+            }
+            to_pickle =\
+            [\
+                self.z, self.logM, self.fcoll_splide_2d, self.dndm, self.ngtm,\
+                self.mgtm, growth_and_transfer_pars,\
+                dict(('hmf-version', hmf_v))\
+            ]
+            write_pickle_file(to_pickle, fn, ndumps=len(to_pickle),\
+                open_mode='w', safe_mode=False, verbose=False)
             
-        print 'Wrote %s.' % fn
+        print('Wrote {!s}.'.format(fn))
         return
         

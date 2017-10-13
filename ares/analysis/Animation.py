@@ -9,8 +9,6 @@ Created on: Wed Nov 23 09:32:17 PST 2016
 Description: 
 
 """
-
-import pickle
 import numpy as np
 import matplotlib.pyplot as pl
 from .ModelSet import ModelSet
@@ -18,6 +16,12 @@ from ..util.Aesthetics import Labeler
 from ..physics.Constants import nu_0_mhz
 from .MultiPhaseMedium import add_redshift_axis
 from mpl_toolkits.axes_grid import inset_locator
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     from mpi4py import MPI
@@ -36,7 +40,7 @@ class Animation(object):
         if not hasattr(self, '_model_set'):
             if isinstance(self._prefix, ModelSet):
                 self._model_set = self._prefix
-            elif type(self._prefix) is str:
+            elif isinstance(self._prefix, basestring):
                 self._model_set = ModelSet(self._prefix)
             elif type(self._prefix) in [list, tuple]:
                 raise NotImplementedError('help!')
@@ -91,15 +95,14 @@ class Animation(object):
                 data_sorted[p] = self.model_set.blob_ivars[ii][jj]
              
         if origin is None:
-            start = end = data_sorted[par][N / 2]
+            start = end = data_sorted[par][N // 2]
         else:
             start = end = origin
 
         # By default, scan to lower values, then all the way up, then return
         # to start point
         if pivots is None:
-            pivots = map(lambda v: round(v, 4), 
-                [start, limits[0], limits[1], end])
+            pivots = [round(v, 4) for v in [start, limits[0], limits[1], end]]
                 
         for element in pivots:
             assert limits[0] <= element <= limits[1], \
@@ -173,7 +176,7 @@ class Animation(object):
             par = self.model_set.parameters[0]
         else:    
             assert par in self.model_set.parameters, \
-                "Supplied parameter '%s' is unavailable!" % par
+                "Supplied parameter '{!s}' is unavailable!".format(par)
 
         _pars = [par]
         _x = None
@@ -270,8 +273,8 @@ class Animation(object):
                          
             pl.draw()
         
-            pl.savefig('%s_%s.png' % (prefix, str(i).zfill(4)))
-                        
+            pl.savefig('{0!s}_{1!s}.png'.format(prefix, str(i).zfill(4)))
+            
             if clear:
                 ax.clear()
                 sax.clear()
@@ -509,7 +512,7 @@ class AnimationSet(object):
             ax, twin_ax = \
                 self.animations[k].Plot1D(plane, par, ax=ax, sax=sax[k],
                 take_log=self.take_log[k], un_log=self.un_log[k],
-                prefix='%s.%s' % (prefix, par), close=False,
+                prefix='{0!s}.{1!s}'.format(prefix, par), close=False,
                 slider_kwargs=kw, xlim=xlim, ylim=ylim, origin=self.origin[k],
                 xticks=xticks, yticks=yticks, twin_ax=twin_ax, 
                 sticks=sticks, slims=slims, **kwargs)

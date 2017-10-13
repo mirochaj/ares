@@ -9,8 +9,6 @@ Created on: Sat Oct  3 14:57:31 PDT 2015
 Description: 
 
 """
-
-import pickle
 import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl
@@ -64,18 +62,19 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             if len(spl) > 2:
                 quantity = ''
                 for item in spl[0:-1]:
-                    quantity += '%s_' % item
+                    quantity += '{!s}_'.format(item)
                 quantity = quantity.rstrip('_')
                 pt = spl[-1]
             else:
                 try:
                     quantity, pt = spl
                 except ValueError:
-                    raise AttributeError('No attribute %s.' % name)    
+                    raise AttributeError('No attribute {!s}.'.format(name))    
     
             if pt not in ['B', 'C', 'D', 'ZC', 'Bp', 'Cp', 'Dp']:
                 # This'd be where e.g., zrei, should go
-                raise NotImplementedError('Looking for attribute \'%s\'.' % name)
+                raise NotImplementedError(('Looking for attribute ' +\
+                    '\'{!s}\'.').format(name))
 
             if pt not in self.turning_points:
                 return np.inf
@@ -101,7 +100,8 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                     # Only works if scalar blob
                     self.__dict__[name] = self.get_blob(name)
                 else:
-                    raise KeyError('Unrecognized quantity: %s' % quantity)
+                    raise KeyError('Unrecognized quantity: {!s}'.format(\
+                        quantity))
 
         return self.__dict__[name]
     
@@ -217,7 +217,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             s += 1
         
         boxcar = np.zeros_like(self.dTbdz)
-        boxcar[boxcar.size/2 - s/2: boxcar.size/2 + s/2] = \
+        boxcar[boxcar.size//2 - s//2: boxcar.size//2 + s//2] = \
             np.ones(s) / float(s)
         
         return np.convolve(self.dTbdnu, boxcar, mode='same')
@@ -279,15 +279,15 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             # some recent datasets.
             
             #for tp in list('BCD'):
-            #    if '%sp' % tp in self.turning_points:
-            #        tmp_p = self.turning_points['%sp' % tp]
+            #    if '{!s}p'.format(tp) in self.turning_points:
+            #        tmp_p = self.turning_points['{!s}p'.format(tp)]
             #        tmp = self.turning_points[tp]
             #    
-            #        del self.turning_points['%sp' % tp]
+            #        del self.turning_points['{!s}p'.format(tp)]
             #        del self.turning_points[tp]
             #        
             #        self.turning_points[tp] = tmp_p
-            #        self.turning_points['%sp' % tp] = tmp
+            #        self.turning_points['{!s}p'.format(tp)] = tmp
 
         return self._turning_points
 
@@ -573,8 +573,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             return ax
     
     def add_Ts_inset(self, ax, inset=None, width=0.3, height=0.15, loc=3,
-            z=8.4, lo=1.9, hi=None, padding=0.02, borderpad=0.5, 
-            fmt='%.2g', **kwargs):
+            z=8.4, lo=1.9, hi=None, padding=0.02, borderpad=0.5, **kwargs):
         
         if inset is None:
             inset = self.add_inset(ax, inset=inset, width=width, height=height, 
@@ -593,7 +592,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             inset.set_xticks(xticks)
             inset.set_xlim(0.8, hi)
     
-            inset.set_title(r'$T_S(z=%.2g)$' % z, fontsize=16, y=1.08)
+            inset.set_title(r'$T_S(z={0:.2g})$'.format(z), fontsize=16, y=1.08)
             inset.xaxis.set_tick_params(width=1, length=5, labelsize=10)
             
         Ts = np.interp(z, self.history_asc['z'], self.history_asc['igm_Ts'])

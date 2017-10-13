@@ -12,6 +12,12 @@ Description:
 
 import re
 from .SetDefaultParameterValues import PopulationParameters
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 pop_pars = PopulationParameters()
 
@@ -51,25 +57,25 @@ def backward_compatibility(ptype, **kwargs):
                 
         if par_supplied('Tmin', **kwargs):
             for i in range(3):
-                pf['pop_Tmin{%i}' % i] = kwargs['Tmin']
+                pf['pop_Tmin{{{}}}'.format(i)] = kwargs['Tmin']
         
         if par_supplied('Mmin', **kwargs):
             assert not par_supplied('Tmin'), "Must only supply Tmin OR Mmin!"
             for i in range(3):
-                pf['pop_Mmin{%i}' % i] = kwargs['Mmin']
-                pf['pop_Tmin{%i}' % i] = None
+                pf['pop_Mmin{{{}}}'.format(i)] = kwargs['Mmin']
+                pf['pop_Tmin{{{}}}'.format(i)] = None
             
         # Fetch star formation efficiency. If xi_* kwargs are passed, must
         # 'undo' this as it will be applied later.
         if par_supplied('fstar', **kwargs):
             for i in range(3):
-                pf['pop_fstar{%i}' % i] = kwargs['fstar']
+                pf['pop_fstar{{{}}}'.format(i)] = kwargs['fstar']
         else:
             for i in range(3):
                 if 'pop_fstar' in pf:
-                    pf['pop_fstar{%i}' % i] = pf['pop_fstar']
+                    pf['pop_fstar{{{}}}'.format(i)] = pf['pop_fstar']
                 else:
-                    pf['pop_fstar{%i}' % i] = fstar_default    
+                    pf['pop_fstar{{{}}}'.format(i)] = fstar_default    
                 
         if par_supplied('fesc', **kwargs):
             pf['pop_fesc{2}'] = kwargs['fesc']
@@ -119,13 +125,13 @@ def backward_compatibility(ptype, **kwargs):
         
         if element[0:3] == 'php':
     
-            if type(kwargs[element]) is str:
+            if isinstance(kwargs[element], basestring):
                 fixes[element.replace('php', 'pq')] = \
                     kwargs[element].replace('php', 'pq')
             else:
                 fixes[element.replace('php', 'pq')] = kwargs[element]
         
-        if type(kwargs[element]) is str:
+        if isinstance(kwargs[element], basestring):
             if kwargs[element][0:3] == 'php':
                 fixes[element] = kwargs[element].replace('php', 'pq')
     

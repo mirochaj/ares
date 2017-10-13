@@ -13,7 +13,7 @@ Description:
 import sys
 import numpy as np
 from ..util import read_lit
-import os, pickle, inspect, re
+import os, inspect, re
 from types import FunctionType
 from ..physics import Cosmology
 from .Halo import HaloPopulation
@@ -73,7 +73,7 @@ def normalize_sed(pop):
     elif units == 'photons/s/sfr':
         energy_per_sfr *= erg_per_phot * s_per_yr / g_per_msun
     else:
-        raise ValueError('Unrecognized yield units: %s' % units)
+        raise ValueError('Unrecognized yield units: {!s}'.format(units))
 
     return energy_per_sfr * Zfactor
 
@@ -367,11 +367,13 @@ class GalaxyAggregate(HaloPopulation):
                 return self._conversion_factors[(Emin, Emax)]
     
             if Emin < self.pf['pop_Emin']:
-                print "WARNING: Emin (%.2g eV) < pop_Emin (%.2g eV) [pop_id=%i]" \
-                    % (Emin, self.pf['pop_Emin'], self.id_num)
+                print(("WARNING: Emin ({0:.2g} eV) < pop_Emin ({1:.2g} eV) " +\
+                    "[pop_id={2}]").format(Emin, self.pf['pop_Emin'],\
+                    self.id_num))
             if Emax > self.pf['pop_Emax']:
-                print "WARNING: Emax (%.2g eV) > pop_Emax (%.2g eV) [pop_id=%i]" \
-                    % (Emax, self.pf['pop_Emax'], self.id_num)
+                print(("WARNING: Emax ({0:.2g} eV) > pop_Emax ({1:.2g} eV) " +\
+                    "[pop_id={2}]").format(Emax, self.pf['pop_Emax'],\
+                    self.id_num))
     
             # If tabulated, do things differently
             if self.sed_tab:
@@ -430,9 +432,9 @@ class GalaxyAggregate(HaloPopulation):
             return self._eV_per_phot[(Emin, Emax)]
 
         if Emin < self.pf['pop_Emin']:
-            print "WARNING: Emin < pop_Emin"
+            print("WARNING: Emin < pop_Emin")
         if Emax > self.pf['pop_Emax']:
-            print "WARNING: Emax > pop_Emax"    
+            print("WARNING: Emax > pop_Emax")
 
         if self.sed_tab:
             Eavg = self.src.eV_per_phot(Emin, Emax)
@@ -490,8 +492,9 @@ class GalaxyAggregate(HaloPopulation):
                                 
         # Convert from reference band to arbitrary band
         rhoL *= self._convert_band(Emin, Emax)
-       
-        if Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
+        if (Emax is None) or (Emin is None):
+            pass
+        elif Emax > 13.6 and Emin < self.pf['pop_Emin_xray']:
             rhoL *= self.pf['pop_fesc']
         elif Emax <= 13.6:
             rhoL *= self.pf['pop_fesc_LW']    

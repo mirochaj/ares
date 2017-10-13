@@ -24,7 +24,7 @@ def test():
     sim2.GlobalSignature(ax=ax, label='gaussian')
     
     ax.legend(loc='lower right', fontsize=14)
-    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
     pl.close()        
         
     assert True

@@ -21,14 +21,10 @@ def test():
     sigma = PhotoIonizationCrossSection
     sigma_approx = ApproximatePhotoIonizationCrossSection
     
-    pl.loglog(E, map(lambda EE: sigma(EE, 0), E),
-        color='k', ls='-', label=r'H')
-    pl.loglog(E, map(lambda EE: sigma(EE, 1), E),
-        color='k', ls='--', label=r'HeI')
-    pl.loglog(E, map(lambda EE: sigma_approx(EE, 0), E),
-        color='b', ls='-')
-    pl.loglog(E, map(lambda EE: sigma_approx(EE, 1), E),
-        color='b', ls='--')
+    pl.loglog(E, [sigma(EE, 0) for EE in E], color='k', ls='-', label=r'H')
+    pl.loglog(E, [sigma(EE, 1) for EE in E], color='k', ls='--', label=r'HeI')
+    pl.loglog(E, [sigma_approx(EE, 0) for EE in E], color='b', ls='-')
+    pl.loglog(E, [sigma_approx(EE, 1) for EE in E], color='b', ls='--')
     
     pl.legend(frameon=False)
     
@@ -38,7 +34,7 @@ def test():
     pl.annotate(r'Verner & Ferland (1996)', (20, 1e-24), ha='left')
     pl.annotate(r'Approximate', (20, 1e-25), color='b', ha='left')
     
-    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
     pl.close()    
     
     assert True

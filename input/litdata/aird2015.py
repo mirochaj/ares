@@ -219,7 +219,7 @@ def _parse_kwargs(**kwargs):
     elif band == 'hard':
         kwargs_by_evolution = kwargs_by_evolution_hard
     else:
-        raise ValueError('\'%s\' band not recognized' % band)
+        raise ValueError('\'{!s}\' band not recognized'.format(band))
     
     kwargs = kwargs_by_evolution[evolution]
     kwargs.update(kw)

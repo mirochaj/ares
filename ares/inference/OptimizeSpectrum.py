@@ -38,7 +38,7 @@ except ImportError:
     
 def halve_list(li):
     N = len(li)
-    return li[0:N/2], li[N/2:]    
+    return li[0:N//2], li[N//2:]    
     
 class SpectrumOptimization(object):
     def __init__(self, **kwargs):
@@ -132,7 +132,7 @@ class SpectrumOptimization(object):
     def guess(self):
         if not hasattr(self, '_guess'):
             self._guess = []
-            for i in xrange(self.nfreq * 2):
+            for i in range(self.nfreq * 2):
                 if i < self.nfreq:
                     self._guess.append(np.random.rand() * \
                     (self.limits[i][1] - self.limits[i][0]) + self.limits[i][0])
@@ -140,7 +140,7 @@ class SpectrumOptimization(object):
                     self._guess.append(self.rs.Spectrum(self._guess[i - self.nfreq]))
     
             tot = np.sum(self._guess[self.nfreq:])
-            for i in xrange(self.nfreq, self.nfreq * 2):
+            for i in range(self.nfreq, self.nfreq * 2):
                 self._guess[i] /= tot
             
             self._guess = np.array(self._guess)
@@ -172,7 +172,7 @@ class SpectrumOptimization(object):
     def run(self, steps=1, **kwargs):
         
         if rank == 0:
-            print 'Finding optimal %i-bin discrete SED...' % self.nfreq
+            print('Finding optimal {0}-bin discrete SED...'.format(self.nfreq))
         
         logL = []
         results = []
@@ -185,7 +185,7 @@ class SpectrumOptimization(object):
         self.all_results = results
         
         if rank == 0:
-            print 'Optimization complete.'    
+            print('Optimization complete.')
     
     def __call__(self, **kwargs):
         """
@@ -250,7 +250,7 @@ class SpectrumOptimization(object):
         return cost
     
     def tab_name(self, integral, absorber):
-        return 'log%s_%s' % (integral, absorber)
+        return 'log{0!s}_{1!s}'.format(integral, absorber)
 
     def discrete_tabs(self, E, LE, tau=None):
         """
@@ -304,14 +304,13 @@ class SpectrumOptimization(object):
         E = np.atleast_1d(E)
         tau_E = np.zeros(self.tau_dims)
         
-        for i in xrange(self.rs.tab.elements_per_table):
+        for i in range(self.rs.tab.elements_per_table):
             for j, absorber in enumerate(self.grid.absorbers):
                 
                 loc = list(self.rs.tab.indices_N[i])
                 loc.append(j)
                     
-                tmp = np.array(map(lambda EE: self.rs.tab.PartialOpticalDepth(EE, 
-                    float(self.rs.tab.Nall[i]), absorber), E))
+                tmp = np.array([self.rs.tab.PartialOpticalDepth(EE, float(self.rs.tab.Nall[i]), absorber) for EE in E])
                                 
                 tau_E[tuple(loc)] = tmp
                     
@@ -333,8 +332,8 @@ class SpectrumOptimization(object):
         else:
             f.create_dataset('cost', data=self.sampler.cost)
         
-        print 'Wrote chain to %s.' % fn    
+        print('Wrote chain to {!s}.'.format(fn))    
         f.close()
         
-            
-                
+    
+

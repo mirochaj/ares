@@ -27,7 +27,7 @@ def test():
     
     for field in sim_N.history:
         assert np.allclose(sim_N.history[field], sim_x.history[field]), \
-            "Backward compatibility issue w/ field '%s'." % field
+            "Backward compatibility issue w/ field '{!s}'.".format(field)
 
 if __name__ == '__main__':
     test()

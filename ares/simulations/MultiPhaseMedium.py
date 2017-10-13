@@ -138,18 +138,18 @@ class MultiPhaseMedium(object):
                         
         self._parcels = []
         for zone in ['igm', 'cgm']:
-            if not self.pf['include_%s' % zone]:
+            if not self.pf['include_{!s}'.format(zone)]:
                 continue
                 
             kw = self.pf.copy()
             
             # Loop over defaults, pull out the ones for this zone                
             for key in _mpm_defs:
-                if key[0:4] != '%s_' % zone:
+                if key[0:4] != '{!s}_'.format(zone):
                     continue
 
                 # Have to rename variables so Grid class will know them
-                grid_key = key.replace('%s_' % zone, '')
+                grid_key = key.replace('{!s}_'.format(zone), '')
 
                 if key in self.kwargs:
                     kw[grid_key] = self.kwargs[key]
@@ -312,13 +312,13 @@ class MultiPhaseMedium(object):
                 if not done:
                     also = {}
                     for sp in self.field.grid.absorbers:
-                        also['igm_%s' % sp] = data_igm[sp]
+                        also['igm_{!s}'.format(sp)] = data_igm[sp]
 
                     RC_igm = self.field.update_rate_coefficients(z, 
                         zone='igm', return_rc=True, **also)
 
                     # Now, update IGM parcel
-                    t1, dt1, data_igm = self.gen_igm.next()
+                    t1, dt1, data_igm = next(self.gen_igm)
 
                     # Pass rate coefficients off to the IGM parcel
                     self.parcel_igm.update_rate_coefficients(data_igm, **RC_igm)
@@ -346,7 +346,7 @@ class MultiPhaseMedium(object):
                     self.parcel_cgm.update_rate_coefficients(data_cgm, **RC_cgm)
                     
                     # Now, update CGM parcel
-                    t2, dt2, data_cgm = self.gen_cgm.next()
+                    t2, dt2, data_cgm = next(self.gen_cgm)
             else:
                 dt2 = 1e50
                 RC_cgm = data_cgm = None
@@ -406,7 +406,7 @@ class MultiPhaseMedium(object):
         # Don't mess with the CGM (much)
         if self.pf['include_cgm']:
             tmp = self.parcel_cgm.grid.data
-            self.all_data_cgm = [tmp.copy() for i in xrange(len(self.all_z))]
+            self.all_data_cgm = [tmp.copy() for i in range(len(self.all_z))]
             for i, cgm_data in enumerate(self.all_data_cgm):
                 self.all_data_cgm[i]['rho'] = \
                     self.parcel_cgm.grid.cosm.MeanBaryonDensity(self.all_z[i])

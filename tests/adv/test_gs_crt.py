@@ -56,5 +56,5 @@ pl.show()
     
 for i in range(1,3):
     pl.figure(i)
-    pl.savefig('%s_%i.png' % (__file__.rstrip('.py'), i))
+    pl.savefig('{0!s}_{1}.png'.format(__file__.rstrip('.py'), i))
 #pl.close()

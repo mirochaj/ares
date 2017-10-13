@@ -60,7 +60,7 @@ def test(Ecomp=8e3, tol=1e-2):
     # Cosmologically-limited solution to the RTE
     # [Equation A1 in Mirocha (2014)]
     zi, zf = 40., 10.
-    e_nu = np.array(map(lambda E: pop.Emissivity(10., E), E))
+    e_nu = np.array([pop.Emissivity(10., EE) for EE in E])
     e_nu *= c / 4. / np.pi / pop.cosm.HubbleParameter(10.) 
     e_nu *= (1. + 10.)**6. / -3.
     e_nu *= ((1. + 40.)**-3. - (1. + 10.)**-3.)
@@ -99,21 +99,21 @@ def test(Ecomp=8e3, tol=1e-2):
     thick_OK = abs((flux_comp_thick - flux_comp_anl) / flux_comp_anl) \
         < tol    
     
-    print "\n# Analytic (thin) ; Numerical (thin) ; Numerical (neutral)"
-    print "----------------------------------------------------------"
-    print "%.8e    ; %.8e   ; %.8e" %\
-        (flux_comp_anl, flux_comp_thin, flux_comp_thick)
-    print "----------------------------------------------------------"
-    print "relative error    : %.12f   ; %.12f" % \
-       (abs((flux_comp_thin - flux_comp_anl) / flux_comp_anl),
-        abs((flux_comp_thick - flux_comp_anl) / flux_comp_anl))
-    print "----------------------------------------------------------"
+    print("\n# Analytic (thin) ; Numerical (thin) ; Numerical (neutral)")
+    print("----------------------------------------------------------")
+    print("{0:.8e}    ; {1:.8e}   ; {2:.8e}".format(\
+        flux_comp_anl, flux_comp_thin, flux_comp_thick))
+    print("----------------------------------------------------------")
+    print("relative error    : {0:.12f}   ; {1:.12f}".format(\
+        abs((flux_comp_thin - flux_comp_anl) / flux_comp_anl),
+        abs((flux_comp_thick - flux_comp_anl) / flux_comp_anl)))
+    print("----------------------------------------------------------")
     
-    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
     pl.close()    
 
     assert thin_OK and thick_OK, \
-        "Relative error between analytical and numerical solutions exceeds %.3g." % tol
+        "Relative error between analytical and numerical solutions exceeds {:.3g}.".format(tol)
 
 if __name__ == '__main__':
     test()

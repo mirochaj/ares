@@ -50,7 +50,8 @@ class RateCoefficients(object):
                 self._init_chianti()
                 
         if rate_src not in rate_sources:
-            raise ValueError('Unrecognized rate coefficient source \'%s\'' % rate_src)
+            raise ValueError(('Unrecognized rate coefficient source ' +\
+                '\'{!s}\'').format(rate_src))
         
     def _init_chianti(self):  
         """

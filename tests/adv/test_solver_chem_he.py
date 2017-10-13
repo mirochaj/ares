@@ -43,7 +43,7 @@ def test():
     pl.loglog(data['Tk'][0], data['he_3'][-1,:], color='b', ls=':')
     pl.ylim(1e-8, 1)
 
-    pl.savefig('%s.png' % (__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
     pl.close()
 
 if __name__ == '__main__':

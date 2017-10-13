@@ -23,7 +23,7 @@ colors = ['k', 'g']
 for j, t in enumerate([1, 50]):
     k = np.argmin(np.abs(pop.times - t))
     ax1.loglog(pop.wavelengths, pop.data[:,k], color=colors[j],
-        label=r'$t=%i$ Myr' % pop.times[k])
+        label=r'$t={}$ Myr'.format(pop.times[k]))
         
 ax1.set_xlabel(ares.util.labels['lambda_AA'])
 ax1.set_ylabel(ares.util.labels['intensity_AA'])

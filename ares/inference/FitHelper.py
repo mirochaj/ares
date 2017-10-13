@@ -75,13 +75,13 @@ class FitHelper(object):
                                                 
             # Need to know function and independent variable
             parnum = int(par[11])
-            func = self.base_kwargs['pq_func[%i]' % pqid]
-            var  = self.base_kwargs['pq_func_var[%i]' % pqid]
+            func = self.base_kwargs['pq_func[{}]'.format(pqid)]
+            var  = self.base_kwargs['pq_func_var[{}]'.format(pqid)]
             
             # See if this is nested
             parent = None
             for kw in self.base_kwargs:
-                if self.base_kwargs[kw] == 'pq[%i]' % pqid:
+                if self.base_kwargs[kw] == 'pq[{}]'.format(pqid):
                     parent = kw
                     break
                         
@@ -91,8 +91,8 @@ class FitHelper(object):
             else:
                 pparnum = int(parent[11])
                 pprefix, ppopid, ppqid = par_info(parent)
-                pfunc = self.base_kwargs['pq_func[%i]' % ppqid]
-                pvar  = self.base_kwargs['pq_func_var[%i]' % ppqid]
+                pfunc = self.base_kwargs['pq_func[{}]'.format(ppqid)]
+                pvar  = self.base_kwargs['pq_func_var[{}]'.format(ppqid)]
             
             
             prior, _is_log = \

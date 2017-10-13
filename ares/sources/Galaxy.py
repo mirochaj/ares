@@ -50,7 +50,7 @@ class Galaxy(object):
         if not hasattr(self, '_sfr_func_'):
             if self.pf['source_sfh'] is None:
                 self._sfr_func_ = lambda t: 1.0
-                print "Defaulting to 1 Msun/yr"
+                print("Defaulting to 1 Msun/yr")
             else:
                 self._sfr_func_ = self.pf['source_sfh']
                 
@@ -74,7 +74,8 @@ class Galaxy(object):
         if not hasattr(self, '_Z_func_'):
             if self.pf['source_meh'] is None:
                 self._Z_func_ = lambda t: self.pf['source_Z']
-                print "Defaulting to constant Z=%f" % self.pf['source_Z']
+                print("Defaulting to constant Z={0:f}".format(\
+                    self.pf['source_Z']))
             else:
                 self._Z_func_ = self.pf['source_meh']
     
@@ -92,7 +93,7 @@ class Galaxy(object):
             i_lam = np.argmin(np.abs(wavelength - self.src.wavelengths))
             
             if self.pf['source_meh'] is not None:                
-                Zarr = np.sort(self._synth_model.metallicities.values())
+                Zarr = np.sort(list(self._synth_model.metallicities.values()))
                 tarr = self._synth_model.times
                 
                 interp2d = RectBivariateSpline(Zarr, tarr, 

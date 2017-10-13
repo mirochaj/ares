@@ -54,11 +54,11 @@ for h, s_beta in enumerate(s_betas):
         best = ham.fit_fstar()
 
         if h > 0:
-            #label = r'$z=%.2g, \beta=%.2g$' % (z, beta)
-            label = r'$z=%.2g, \sigma_{\beta}=%s$, %s' % (z, s_beta, method[h])
+            #label = r'$z={0:.2g}, \beta={1:.2g}$'.format(z, beta)
+            label = r'$z={0:.2g}, \sigma_{{\beta}}={1!s}$, {2!s}'.format(z, s_beta, method[h])
         else:
             #label = 'no DC'
-            label = r'$z=%.2g, \sigma_{\beta}=%s$, %s' % (z, s_beta, method[h])
+            label = r'$z={0:.2g}, \sigma_{{\beta}}={1!s}$, {2!s}'.format(z, s_beta, method[h])
 
         pl.scatter(ham.MofL_tab[0], ham.fstar_tab[0], color=colors[i],
             label=label, marker=markers[h], facecolors='none', s=50)

@@ -9,7 +9,7 @@ Created on: Sun Jul 22 16:28:08 2012
 Description: Initialize a radiation source.
 
 """
-
+from __future__ import print_function
 import re, os
 import numpy as np
 from scipy.integrate import quad
@@ -187,9 +187,9 @@ class Source(object):
             return None
         
         n = np.arange(2, self.hydr.nmax)
-        En = np.array(map(self.hydr.ELyn, n))
-        In = np.array(map(self.Spectrum, En)) / En
-        fr = np.array(map(self.hydr.frec, n))
+        En = np.array(list(map(self.hydr.ELyn, n)))
+        In = np.array(list(map(self.Spectrum, En))) / En
+        fr = np.array(list(map(self.hydr.frec, n)))
         
         return np.sum(fr * In) / np.sum(In)
 
@@ -323,7 +323,7 @@ class Source(object):
         if not self.discrete:
             return None
         if not hasattr(self, '_sigma_all'):
-            self._sigma_all = np.array(map(sigma_E, self.E))
+            self._sigma_all = np.array(list(map(sigma_E, self.E)))
         
         return self._sigma_all
         
@@ -590,14 +590,14 @@ class Source(object):
         """
 
         if os.path.exists(fn) and (clobber == False):
-            raise OSError('%s exists!')
+            raise OSError('{!s} exists!'.format(fn))
 
         if re.search('.hdf5', fn) or re.search('.h5', fn):
             out = 'hdf5'
         else:
             out = 'ascii'
-            
-        LE = map(self.Spectrum, E)    
+        
+        LE = list(map(self.Spectrum, E))
             
         if out == 'hdf5':
             f = h5py.File(fn, 'w')    
@@ -606,23 +606,23 @@ class Source(object):
             f.close()
         else:
             f = open(fn, 'w')
-            print >> f, "# E     LE"
+            print("# E     LE", file=f)
             for i, nrg in enumerate(E):
-                print >> f, "%.8e %.8e" % (nrg, LE[i])
+                print("{0:.8e} {1:.8e}".format(nrg, LE[i]), file=f)
             f.close()    
     
-        print "Wrote %s." % fn    
+        print("Wrote {!s}.".format(fn))    
     
     def sed_name(self, i=0):
         """
         Return name of output file based on SED properties.
         """
             
-        name = '%s_logM_%.2g_Gamma_%.3g_fsc_%.3g_logE_%.2g-%.2g' % \
-            (self.SpectrumPars['type'][i], np.log10(self.src.M0), 
-             self.src.spec_pars['alpha'][i], 
-             self.src.spec_pars['fsc'][i], self.logEmin, self.logEmax)
-
+        name = ('{0!s}_logM_{1:.2g}_Gamma_{2:.3g}_fsc_{3:.3g}_' +\
+            'logE_{4:.2g}-{5:.2g}').format(self.SpectrumPars['type'][i],\
+            np.log10(self.src.M0), self.src.spec_pars['alpha'][i], 
+            self.src.spec_pars['fsc'][i], self.logEmin, self.logEmax)
+        
         return name
         
         

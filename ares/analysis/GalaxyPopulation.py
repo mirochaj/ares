@@ -16,6 +16,12 @@ import matplotlib.pyplot as pl
 from matplotlib.patches import Patch
 from ..util.Stats import symmetrize_errors
 from .MultiPlot import MultiPanel, add_master_legend
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
     'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
@@ -73,7 +79,7 @@ class GalaxyPopulation(object):
         
         data = {}
         
-        if type(sources) is str:
+        if isinstance(sources, basestring):
             if sources in groups[quantity]:
                 srcs = groups[quantity][sources]
             else:
@@ -85,7 +91,7 @@ class GalaxyPopulation(object):
             src = read_lit(source)
 
             if redshift not in src.redshifts and (not round_z):
-                print "No z=%g data in %s" % (redshift, source)
+                print("No z={0:g} data in {1!s}.".format(redshift, source))
                 continue
                 
             if redshift not in src.redshifts:
@@ -213,7 +219,7 @@ class GalaxyPopulation(object):
             
         data = self.compile_data(z, sources, round_z=round_z, quantity=quantity)
         
-        if type(sources) is str:
+        if isinstance(sources, basestring):
             if sources in groups[quantity]:
                 srcs = groups[quantity][sources]
             else:
@@ -250,8 +256,8 @@ class GalaxyPopulation(object):
             if quantity in ['lf']:
                 if data[source]['wavelength'] != wavelength:
                     #shift = sed_model.
-                    print "WARNING: %s wavelength=%iA, not %iA!" \
-                        % (source, data[source]['wavelength'], wavelength)
+                    print("WARNING: {0!s} wavelength={1}A, not {2}A!".format(\
+                        source, data[source]['wavelength'], wavelength))
             #else:
             shift = 0.    
               
@@ -303,7 +309,7 @@ class GalaxyPopulation(object):
         if ncols == 1:
             nrows = len(redshifts)
         else:
-            nrows = len(redshifts) / ncols
+            nrows = len(redshifts) // ncols
             
         if nrows * ncols != len(redshifts):
             nrows += 1
@@ -334,7 +340,7 @@ class GalaxyPopulation(object):
             else:
                 _xannot = 0.95
                 
-            ax.annotate(r'$z \sim %i$' % (round(z)), (_xannot, 0.95), 
+            ax.annotate(r'$z \sim {}$'.format(round(z)), (_xannot, 0.95), 
                 ha=annotate_z, va='top', xycoords='axes fraction')
         
         mp.fix_ticks(rotate_x=45)
@@ -369,7 +375,7 @@ class GalaxyPopulation(object):
         """     
         if sources in groups[quantity]:
             srcs = groups[quantity][sources]
-        elif type(sources) is str:
+        elif isinstance(sources, basestring):
             srcs = [sources]
                     
         for i, source in enumerate(srcs):

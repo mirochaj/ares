@@ -102,15 +102,15 @@ class LocalVolume:
         # Unpack source-specific rates if necessary            
         if len(self.srcs) > 1:
             for i, src in enumerate(self.srcs):
-                self.kwargs.update({'k_ion_%i' % i: k_ion_src[i], 
-                    'k_ion2_%i' % i: k_ion2_src[i],
-                    'k_heat_%i' % i: k_heat_src[i]})
+                self.kwargs.update({'k_ion_{}'.format(i): k_ion_src[i], 
+                    'k_ion2_{}'.format(i): k_ion2_src[i],
+                    'k_heat_{}'.format(i): k_heat_src[i]})
                     
                 if False:
-                    self.kwargs.update({'Ja_%i' % i: Ja_src[i]})
+                    self.kwargs.update({'Ja_{}'.format(i): Ja_src[i]})
         
                     #if self.pf['secondary_lya']:
-                    #    self.kwargs.update({'Ja_X_%i' % i: Ja_src[i]})
+                    #    self.kwargs.update({'Ja_X_{}'.format(i): Ja_src[i]})
         
         # Sum over sources
         k_ion = np.sum(k_ion_src, axis=0)
@@ -265,63 +265,63 @@ class LocalVolume:
             for i, absorber in enumerate(self.grid.absorbers):
                                            
                 self.PhiN[absorber] = \
-                    10**self.src.tables["logPhi_%s" % absorber](self.logN_by_cell,
+                    10**self.src.tables["logPhi_{!s}".format(absorber)](self.logN_by_cell,
                     self.logx, t)
                 
                 if (not self.pf['isothermal']) and (self.pf['secondary_ionization'] < 2):
                     self.PsiN[absorber] = \
-                        10**self.src.tables["logPsi_%s" % absorber](self.logN_by_cell,
+                        10**self.src.tables["logPsi_{!s}".format(absorber)](self.logN_by_cell,
                         self.logx, t)
                     
                 if self.pf['photon_conserving']:
                     self.PhiNdN[absorber] = \
-                        10**self.src.tables["logPhi_%s" % absorber](self.logNdN[i],
+                        10**self.src.tables["logPhi_{!s}".format(absorber)](self.logNdN[i],
                         self.logx, t)
                     
                     if (not self.pf['isothermal']) and (self.pf['secondary_ionization'] < 2):
                         self.PsiNdN[absorber] = \
-                            10**self.src.tables["logPsi_%s" % absorber](self.logNdN[i],
+                            10**self.src.tables["logPsi_{!s}".format(absorber)](self.logNdN[i],
                             self.logx, t)
             
                 if self.pf['secondary_ionization'] > 1:
                     
                     self.PhiHatN[absorber] = \
-                        10**self.src.tables["logPhiHat_%s" % absorber](self.logN_by_cell,
+                        10**self.src.tables["logPhiHat_{!s}".format(absorber)](self.logN_by_cell,
                         self.logx, t)    
                                         
                     if not self.pf['isothermal']:
                         self.PsiHatN[absorber] = \
-                            10**self.src.tables["logPsiHat_%s" % absorber](self.logN_by_cell,
+                            10**self.src.tables["logPsiHat_{!s}".format(absorber)](self.logN_by_cell,
                             self.logx, t)  
                                                 
                         if self.pf['photon_conserving']:    
                             self.PhiHatNdN[absorber] = \
-                                10**self.src.tables["logPhiHat_%s" % absorber](self.logNdN[i],
+                                10**self.src.tables["logPhiHat_{!s}".format(absorber)](self.logNdN[i],
                                 self.logx, t)
                             self.PsiHatNdN[absorber] = \
-                                10**self.src.tables["logPsiHat_%s" % absorber](self.logNdN[i],
+                                10**self.src.tables["logPsiHat_{!s}".format(absorber)](self.logNdN[i],
                                 self.logx, t)     
                     
                     for j, donor in enumerate(self.grid.absorbers):
                         
-                        suffix = '%s_%s' % (absorber, donor)
+                        suffix = '{0!s}_{1!s}'.format(absorber, donor)
                         
                         self.PhiWiggleN[absorber][donor] = \
-                            10**self.src.tables["logPhiWiggle_%s" % suffix](self.logN_by_cell,
+                            10**self.src.tables["logPhiWiggle_{!s}".format(suffix)](self.logN_by_cell,
                                 self.logx, t)    
                         
                         self.PsiWiggleN[absorber][donor] = \
-                            10**self.src.tables["logPsiWiggle_%s" % suffix](self.logN_by_cell,
+                            10**self.src.tables["logPsiWiggle_{!s}".format(suffix)](self.logN_by_cell,
                             self.logx, t)
                             
                         if not self.pf['photon_conserving']:
                             continue
                         
                         self.PhiWiggleNdN[absorber][donor] = \
-                            10**self.src.tables["logPhiWiggle_%s" % suffix](self.logNdN[j],
+                            10**self.src.tables["logPhiWiggle_{!s}".format(suffix)](self.logNdN[j],
                             self.logx, t)
                         self.PsiWiggleNdN[absorber][donor] = \
-                            10**self.src.tables["logPsiWiggle_%s" % suffix](self.logNdN[j],
+                            10**self.src.tables["logPsiWiggle_{!s}".format(suffix)](self.logNdN[j],
                             self.logx, t)
 
             # Now, go ahead and calculate the rate coefficients

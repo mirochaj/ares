@@ -109,7 +109,7 @@ class MPIPool(object):
 #    if pool.is_master():
 #
 #        tic = MPI.Wtime()
-#        res = pool.map(sq, range(100))
+#        res = list(pool.map(sq, range(100)))
 #        toc = MPI.Wtime()
 #
 #        for y, x in zip(res, range(100)):

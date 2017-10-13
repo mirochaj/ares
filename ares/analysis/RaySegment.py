@@ -18,6 +18,12 @@ from ..static.Grid import Grid
 from ..physics.Constants import *
 from .MultiPlot import MultiPanel
 from ..simulations import RaySegment as simRS
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     import h5py
@@ -46,8 +52,7 @@ class RaySegment:
             self.grid = data.parcel.grid
         
         # Load contents of hdf5 file
-        elif type(data) is str:
-            import pickle
+        elif isinstance(data, basestring):
             f = h5py.File(data, 'r')
             
             self.pf = {}
@@ -163,7 +168,7 @@ class RaySegment:
         else:
             E = np.linspace(self.rs.Emin, self.rs.Emax)
         
-        F = np.array(map(self.rs.Spectrum, E))
+        F = np.array(list(map(self.rs.Spectrum, E)))
         
         for dd in self.data: 
             if self.data[dd]['time'] / s_per_myr != t:
@@ -361,7 +366,7 @@ class RaySegment:
         """    
         
         if field not in self.data.keys():
-            raise KeyError('No field %s in dataset.' % field)
+            raise KeyError('No field {!s} in dataset.'.format(field))
         
         if redshift:
             raise NotImplemented('sorry about redshift=True!')
@@ -398,11 +403,11 @@ class RaySegment:
             nion = self.data[dd]['h_2'] * self.grid.x_to_n[absorber]
               
             if 'Gamma_0' in self.data[dd].keys():
-                Gamma = self.data[dd]['Gamma_%i' % src][...,i] * nabs
+                Gamma = self.data[dd]['Gamma_{}'.format(src)][...,i] * nabs
                 
                 gamma = 0.0
                 for j, donor in enumerate(self.grid.absorbers):
-                    gamma += self.data[dd]['gamma_%i' % src][...,i,j] * \
+                    gamma += self.data[dd]['gamma_{}'.format(src)][...,i,j] * \
                         self.data[dd][donor] * self.grid.x_to_n[donor]
             
             else:
@@ -498,7 +503,8 @@ class RaySegment:
                             
                 # Photo-heating
                 if 'Heat_0' in self.data[dd].keys():
-                    heat = heat + self.data[dd]['Heat_%i' % src][...,i] * nabs
+                    heat = heat +\
+                        self.data[dd]['Heat_{}'.format(src)][...,i] * nabs
                 else:
                     heat = heat + self.data[dd]['Heat'][...,i] * nabs
                 

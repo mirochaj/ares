@@ -17,7 +17,7 @@ from ..util import read_lit
 from inspect import ismethod
 from ..analysis import ModelSet
 from scipy.optimize import fsolve, minimize
-from types import FunctionType, InstanceType
+from types import FunctionType
 from ..analysis.BlobFactory import BlobFactory
 from ..util import MagnitudeSystem, ProgressBar
 from ..phenom.DustCorrection import DustCorrection
@@ -30,6 +30,12 @@ from ..util.Math import central_difference, interp1d_wrapper
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz
+try:
+    # this runs with no issues in python 2 but raises error in python 3
+    basestring
+except:
+    # this try/except allows for python 2/3 compatible string type checking
+    basestring = str
 
 try:
     from scipy.misc import derivative
@@ -61,7 +67,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._pq_registry = {}
         
         if name in self._pq_registry:
-            raise KeyError('%s already in registry!' % name)
+            raise KeyError('{!s} already in registry!'.format(name))
         
         self._pq_registry[name] = obj
         
@@ -77,91 +83,83 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # This is in general pretty dangerous but I don't have any better
         # ideas right now. It makes debugging hard but it's SO convenient...
         if (name[0] == '_'):
-            raise AttributeError('Couldn\'t find attribute: %s' % name)
+            raise AttributeError('Couldn\'t find attribute: {!s}'.format(name))
                     
         # This is the name of the thing as it appears in the parameter file.
         full_name = 'pop_' + name
                                 
         # Now, possibly make an attribute
-        if not hasattr(self, name):
+        try:
+            is_php = self.pf[full_name][0:2] == 'pq'
+        except (IndexError, TypeError):
+            is_php = False
             
-            try:
-                is_php = self.pf[full_name][0:2] == 'pq'
-            except (IndexError, TypeError):
-                is_php = False
-                
-            # A few special cases    
-            if self.sed_tab and (name in _sed_tab_attributes):
-                if self.pf['pop_Z'] == 'sam':
-                    tmp = []
-                    Zarr = np.sort(self.src.metallicities.values())
-                    for Z in Zarr:
-                        kw = self.src_kwargs.copy()
-                        kw['pop_Z'] = Z
-                        src = self._Source(**kw)
-                        
-                        att = src.__getattribute__(name)
-                        
-                        # Must specify band
-                        if name == 'rad_yield':
-                            val = att(self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
-                        else:
-                            val = att
-                            
-                        tmp.append(val)
-
-                    # Interpolant
-                    interp = interp1d_wrapper(np.log10(Zarr), tmp, 
-                        self.pf['interp_Z'])
-
-                    result = lambda **kwargs: interp(np.log10(self.Zgas(kwargs['z'], kwargs['Mh'])))
-                else:
-                    att = self.src.__getattribute__(name)
-
+        # A few special cases    
+        if self.sed_tab and (name in _sed_tab_attributes):
+            if self.pf['pop_Z'] == 'sam':
+                tmp = []
+                Zarr = np.sort(list(self.src.metallicities.values()))
+                for Z in Zarr:
+                    kw = self.src_kwargs.copy()
+                    kw['pop_Z'] = Z
+                    src = self._Source(**kw)
+                    
+                    att = src.__getattribute__(name)
+                    
+                    # Must specify band
                     if name == 'rad_yield':
-                        val = att(self.src.Emin, self.src.Emax)
+                        val = att(self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
                     else:
                         val = att
+                        
+                    tmp.append(val)
+                # Interpolant
+                interp = interp1d_wrapper(np.log10(Zarr), tmp, 
+                    self.pf['interp_Z'])
 
-                    result = lambda **kwargs: val
-
-            elif is_php:
-                tmp = get_pq_pars(self.pf[full_name], self.pf)
-
-                # Correct values that are strings:
-                if self.sed_tab:
-                    pars = {}
-                    for par in tmp:
-                        if tmp[par] == 'from_sed':
-                            pars[par] = self.src.__getattribute__(name)
-                        else:
-                            pars[par] = tmp[par]  
-                else:
-                    pars = tmp            
-
-                Mmin = lambda z: self.Mmin
-                result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, 
-                    **pars)
-
-                self._update_pq_registry(name, result)
-            
-            elif type(self.pf[full_name]) in [int, float, np.int64, np.float64]:
-                
-                # Need to be careful here: has user-specified units!
-                # We've assumed that this cannot be parameterized...
-                # i.e., previous elif won't ever catch rad_yield
-                if name == 'rad_yield':
-                    result = lambda **kwargs: normalize_sed(self)
-                else:
-                    result = lambda **kwargs: self.pf[full_name]
-                
+                result = lambda **kwargs: interp(np.log10(self.Zgas(kwargs['z'], kwargs['Mh'])))
             else:
-                raise TypeError('dunno how to handle: %s' % name)
+                att = self.src.__getattribute__(name)
 
-            # Check to see if Z?
-            self.__setattr__(name, result)
+                if name == 'rad_yield':
+                    val = att(self.src.Emin, self.src.Emax)
+                else:
+                    val = att
 
-        return getattr(self, name)
+                result = lambda **kwargs: val
+
+        elif is_php:
+            tmp = get_pq_pars(self.pf[full_name], self.pf)
+            # Correct values that are strings:
+            if self.sed_tab:
+                pars = {}
+                for par in tmp:
+                    if tmp[par] == 'from_sed':
+                        pars[par] = self.src.__getattribute__(name)
+                    else:
+                        pars[par] = tmp[par]  
+            else:
+                pars = tmp            
+            Mmin = lambda z: self.Mmin
+            result = ParameterizedQuantity({'pop_Mmin': Mmin}, self.pf, **pars)
+
+            self._update_pq_registry(name, result)
+            
+        elif type(self.pf[full_name]) in [int, float, np.int64, np.float64]:
+                
+            # Need to be careful here: has user-specified units!
+            # We've assumed that this cannot be parameterized...
+            # i.e., previous elif won't ever catch rad_yield
+            if name == 'rad_yield':
+                result = lambda **kwargs: normalize_sed(self)
+            else:
+                result = lambda **kwargs: self.pf[full_name]
+            
+        else:
+            raise TypeError('dunno how to handle: {!s}'.format(name))
+        # Check to see if Z?
+        setattr(self, name, result)
+        return result
 
     def Zgas(self, z, Mh):
         if not hasattr(self, '_sam_data'):
@@ -210,7 +208,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._N_per_Msun[(Emin, Emax)] = self.Nlw(Mh=self.halos.M) \
                 * self.cosm.b_per_msun
         else:
-            s = 'Unrecognized band: (%.3g, %.3g)' % (Emin, Emax)
+            s = 'Unrecognized band: ({0:.3g}, {1:.3g})'.format(Emin, Emax)
             return 0.0
             #raise NotImplementedError(s)
             
@@ -229,7 +227,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_MAR_'):
             self._tab_MAR_ = \
                 np.array([self.MAR(self.halos.z[i], self.halos.M) \
-                    for i in xrange(self.halos.Nz)]) 
+                    for i in range(self.halos.Nz)]) 
                     
             self._tab_MAR_ = np.maximum(self._tab_MAR_, 0.0)
             
@@ -240,7 +238,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if not hasattr(self, '_tab_MAR_at_Mmin_'):
             self._tab_MAR_at_Mmin_ = \
                 np.array([self.MAR(self.halos.z[i], self._tab_Mmin[i]) \
-                    for i in xrange(self.halos.Nz)])                    
+                    for i in range(self.halos.Nz)])                    
         return self._tab_MAR_at_Mmin_ 
     
     @property
@@ -249,7 +247,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             self._tab_nh_at_Mmin_ = \
                 np.array([self._spline_nh(self.halos.z[i], 
                     np.log(self._tab_Mmin[i])) \
-                    for i in xrange(self.halos.Nz)]).squeeze()
+                    for i in range(self.halos.Nz)]).squeeze()
         return self._tab_nh_at_Mmin_
         
     @property
@@ -520,7 +518,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
     
         if not hasattr(self, '_SMD'):
-            dtdz = np.array(map(self.cosm.dtdz, self.halos.z))
+            dtdz = np.array(list(map(self.cosm.dtdz, self.halos.z)))
             self._smd_tab = cumtrapz(self._tab_sfrd[-1::-1] * dtdz[-1::-1], 
                 dx=np.abs(np.diff(self.halos.z[-1::-1])), initial=0.)[-1::-1]
             self._SMD = interp1d(self.halos.z, self._smd_tab, kind='cubic')
@@ -1014,7 +1012,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def M_atom(self):
         if not hasattr(self, '_Matom'):
             Mvir = lambda z: self.halos.VirialMass(1e4, z, mu=self.pf['mu'])
-            self._Matom = np.array(map(Mvir, self.halos.z))
+            self._Matom = np.array(list(map(Mvir, self.halos.z)))
         return self._Matom    
 
     @property
@@ -1064,7 +1062,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if ismethod(self.pf['pop_Mmin']) or \
                    type(self.pf['pop_Mmin']) == FunctionType:
                     self._tab_Mmin_ = \
-                        np.array(map(self.pf['pop_Mmin'], self.halos.z))
+                        np.array(list(map(self.pf['pop_Mmin'], self.halos.z)))
                 elif type(self.pf['pop_Mmin']) is np.ndarray:
                     self._tab_Mmin_ = self.pf['pop_Mmin']
                     assert self._tab_Mmin.size == self.halos.z.size
@@ -1074,7 +1072,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmin'],
                     z, mu=self.pf['mu'])
-                self._tab_Mmin_ = np.array(map(Mvir, self.halos.z))
+                self._tab_Mmin_ = np.array(list(map(Mvir, self.halos.z)))
                 
             self._tab_Mmin_ = self._apply_lim(self._tab_Mmin_, 'min')
                 
@@ -1084,7 +1082,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def _tab_Mmin(self, value):
         if ismethod(value):
             self.Mmin = value
-            self._tab_Mmin_ = np.array(map(value, self.halos.z), dtype=float)
+            self._tab_Mmin_ = np.array(list(map(value, self.halos.z)), dtype=float)
         elif type(value) in [int, float, np.float64]:    
             self._tab_Mmin_ = value * np.ones(self.halos.Nz) 
         else:
@@ -1105,19 +1103,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zarr = self.halos.z
 
         # Might need these if Mmin is being set dynamically
-        if self.pf['pop_M%s_ceil' % s] is not None:
-            out = np.minimum(arr, self.pf['pop_M%s_ceil'] % s)
-        if self.pf['pop_M%s_floor' % s] is not None:
-            out = np.maximum(arr, self.pf['pop_M%s_floor'] % s)
-        if self.pf['pop_T%s_ceil' % s] is not None:
-            _f = lambda z: self.halos.VirialMass(self.pf['pop_T%s_ceil' % s], 
+        if self.pf['pop_M{!s}_ceil'.format(s)] is not None:
+            out = np.minimum(arr, self.pf['pop_M{!s}_ceil'.format(s)])
+        if self.pf['pop_M{!s}_floor'.format(s)] is not None:
+            out = np.maximum(arr, self.pf['pop_M{!s}_floor'.format(s)])
+        if self.pf['pop_T{!s}_ceil'.format(s)] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_T{!s}_ceil'.format(s)], 
                 z, mu=self.pf['mu'])
-            _MofT = np.array(map(_f, zarr))
+            _MofT = np.array(list(map(_f, zarr)))
             out = np.minimum(arr, _MofT)
-        if self.pf['pop_T%s_floor' % s] is not None:
-            _f = lambda z: self.halos.VirialMass(self.pf['pop_T%s_floor' % s], 
+        if self.pf['pop_T{!s}_floor'.format(s)] is not None:
+            _f = lambda z: self.halos.VirialMass(self.pf['pop_T{!s}_floor'.format(s)], 
                 z, mu=self.pf['mu'])
-            _MofT = np.array(map(_f, zarr))
+            _MofT = np.array(list(map(_f, zarr)))
             out = np.maximum(arr, _MofT)
 
         if out is None:
@@ -1194,13 +1192,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             elif self.pf['pop_Mmax'] is not None:
                 if type(self.pf['pop_Mmax']) is FunctionType:
-                    self._tab_Mmax_ = np.array(map(self.pf['pop_Mmax'], self.halos.z))
+                    self._tab_Mmax_ = np.array(list(map(self.pf['pop_Mmax'], self.halos.z)))
                 elif type(self.pf['pop_Mmax']) is tuple:
                     extra = self.pf['pop_Mmax'][0]
                     assert self.pf['pop_Mmax'][1] == 'Mmin'
 
                     if type(extra) is FunctionType:
-                        self._tab_Mmax_ = np.array(map(extra, self.halos.z)) \
+                        self._tab_Mmax_ = np.array(list(map(extra, self.halos.z))) \
                             * self._tab_Mmin
                     else:
                         self._tab_Mmax_ = extra * self._tab_Mmin
@@ -1209,7 +1207,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             elif self.pf['pop_Tmax'] is not None:
                 Mvir = lambda z: self.halos.VirialMass(self.pf['pop_Tmax'], 
                     z, mu=self.pf['mu'])
-                self._tab_Mmax_ = np.array(map(Mvir, self.halos.z))    
+                self._tab_Mmax_ = np.array(list(map(Mvir, self.halos.z)))
             else:
                 # A suitably large number for (I think) any purpose
                 self._tab_Mmax_ = 1e18 * np.ones_like(self.halos.z)
@@ -1820,7 +1818,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         elif self.pf['pop_sam_nz'] == 2:
             return self._SAM_2z(z, y)
         else:
-            raise NotImplemented('No SAM with nz=%i' % self.pf['pop_sam_nz'])
+            raise NotImplementedError('No SAM with nz={}'.format(\
+                self.pf['pop_sam_nz']))
                         
     def _SAM_1z(self, z, y):
         """
@@ -2329,7 +2328,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         lbtime = []
         Ehist = []
         redshifts = []
-        for i in xrange(Nz):
+        for i in range(Nz):
             # In descending order
             redshifts.append(zarr[-1::-1][i])
             Mh_t.append(solver.y[0])
@@ -2565,7 +2564,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         if fn is None:
             return None
         
-        if type(fn) is str:
+        if isinstance(fn, basestring):
             anl = ModelSet(fn)
         elif isinstance(fn, ModelSet): 
             anl = fn
@@ -2573,7 +2572,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             zarr, Mmin = fn
             
             if np.all(np.logical_or(np.isinf(Mmin), np.isnan(Mmin))):
-                print "Provided Mmin guesses are all infinite or NaN."
+                print("Provided Mmin guesses are all infinite or NaN.")
                 return None
             
             return np.interp(self.halos.z, zarr, Mmin)
@@ -2592,7 +2591,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         score = 0.0
         pid = self.pf['feedback_LW_sfrd_popid']
         for k, par in enumerate(self.pf['feedback_LW_guesses_from']):
-            p_w_id = '%s{%i}' % (par, pid)
+            p_w_id = '{0!s}{{{1}}}'.format(par, pid)
             
             if p_w_id not in anl.parameters:
                 continue

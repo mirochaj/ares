@@ -128,14 +128,14 @@ class Hydrogen(object):
     @property
     def kH_hi(self):
         if not hasattr(self, '_kH_hi'):
-            self._kH_hi = np.array(map(self.kappa_H, self.Tk_hi_H))
+            self._kH_hi = np.array(list(map(self.kappa_H, self.Tk_hi_H)))
     
         return self._kH_hi
 
     @property
     def ke_hi(self):
         if not hasattr(self, '_ke_hi'):
-            self._ke_hi = np.array(map(self.kappa_e, self.Tk_hi_e))
+            self._ke_hi = np.array(list(map(self.kappa_e, self.Tk_hi_e)))
 
         return self._ke_hi
 
@@ -143,7 +143,7 @@ class Hydrogen(object):
     def dlogkH_dlogT(self):  
         if not hasattr(self, '_dlogkH_dlogT'):
             Tk_p_H, dkHdT = central_difference(self.Tk_hi_H, self.kH_hi)
-            dlogkH_dlogT = dkHdT * Tk_p_H / np.array(map(self.kappa_H, Tk_p_H))
+            dlogkH_dlogT = dkHdT * Tk_p_H / np.array(list(map(self.kappa_H, Tk_p_H)))
             
             _kH_spline = interpolate.interp1d(Tk_p_H, dlogkH_dlogT)
             self._dlogkH_dlogT = lambda T: _kH_spline(T)
@@ -154,7 +154,7 @@ class Hydrogen(object):
     def dlogke_dlogT(self):
         if not hasattr(self, '_dlogke_dlogT'):
             Tk_p_e, dkedT = central_difference(self.Tk_hi_e, self.ke_hi)
-            dlogke_dlogT = dkedT * Tk_p_e / np.array(map(self.kappa_e, Tk_p_e))
+            dlogke_dlogT = dkedT * Tk_p_e / np.array(list(map(self.kappa_e, Tk_p_e)))
             
             _ke_spline = interpolate.interp1d(Tk_p_e, dlogke_dlogT)
             self._dlogke_dlogT = lambda T: _ke_spline(T)

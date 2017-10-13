@@ -15,12 +15,8 @@ Gnedin, & Shull (2002) also available.
 import os
 import numpy as np
 from collections import Iterable
+from ..util.Pickling import read_pickle_file
 from ..util.Math import LinearNDInterpolator
-
-try:
-    import dill as pickle
-except ImportError:
-    import pickle
     
 try:
     import h5py
@@ -72,20 +68,11 @@ class SecondaryElectrons(object):
             f.close()
         else:
             try:
-                f = open(self.fn, 'rb')
-                
-                self.E = pickle.load(f)
-                self._x = pickle.load(f)
-                
-                self.fh_tab = pickle.load(f)
-                self.fexc_tab = pickle.load(f)
-                self.flya_tab = pickle.load(f)
-                self.fionHI_tab = pickle.load(f)
-                self.fionHeI_tab = pickle.load(f)
-                self.fionHeII_tab = pickle.load(f)
-                self.fion_tab = pickle.load(f)
-                
-                f.close()
+                loaded = read_pickle_file(self.fn, nloads=9, verbose=False)
+                (self.E, self._x, self.fh_tab, self.fexc_tab) = loaded[0:4]
+                (self.flya_tab, self.fionHI_tab) = loaded[4:6]
+                (self.fionHeI_tab, self.fionHeII_tab) = loaded[6:8]
+                self.fion_tab = loaded[8]
             except:
                 self.fn = os.path.join(ARES,prefix,'secondary_electron_data.npz')
                 f = np.load(self.fn)

@@ -53,7 +53,7 @@ class RaySegment(object):
         
         Ns = len(self.field.sources)
         if Ns > 1:
-            p = ['%s_src_%i' % (prefix, str(i).zfill(2)) for i in range(Ns)]
+            p = ['{0!s}_src_{1}'.format(prefix, str(i).zfill(2)) for i in range(Ns)]
         else:
             p = [prefix]
             
@@ -133,7 +133,7 @@ class RaySegment(object):
         
 
         while t < tf:
-            yield self.gen.next()
+            yield next(self.gen)
             
 
 
