@@ -189,7 +189,7 @@ class ModelSet(BlobFactory):
             
             # Must be re-initialized to reflect new mask
             del self._chain, self._logL
-            
+        
         self._mask = value
 
     @property
@@ -464,11 +464,14 @@ class ModelSet(BlobFactory):
                 if rank == 0:
                     print("Loaded {0!s} in {1:.2g} seconds.\n".format(fn,\
                         t2-t1))
-
-                if self.mask.ndim == 1:
-                    mask2d = np.array([self.mask] * self._chain.shape[1]).T
+                        
+                if hasattr(self, '_mask'):
+                    if self.mask.ndim == 1:
+                        mask2d = np.array([self.mask] * self._chain.shape[1]).T
+                    else:
+                        mask2d = np.zeros_like(self._chain)
                 else:
-                    mask2d = self.mask
+                    mask2d = 0        
                     
                 self._chain = np.ma.array(self._chain, mask=mask2d)
             
@@ -508,9 +511,17 @@ class ModelSet(BlobFactory):
             elif os.path.exists('{!s}.hdf5'.format(self.prefix)):
                 f = h5py.File('{!s}.hdf5'.format(self.prefix))
                 chain = f['chain'].value
-                mask = f['mask'].value
-                self.mask = np.array([mask] * chain.shape[1]).T
-                self._chain = np.ma.array(chain, mask=self.mask)
+                    
+                if hasattr(self, '_mask'):
+                    if self.mask.ndim == 1:
+                        mask2d = np.array([self.mask] * chain.shape[1]).T
+                    else:
+                        mask2d = self.mask#np.zeros_like(self._chain)
+                else:
+                    mask2d = np.zeros(chain.shape)    
+                    self.mask = mask2d
+                                                                    
+                self._chain = np.ma.array(chain, mask=mask2d)
                 f.close()
 
             # If each "chunk" gets its own file.
@@ -537,7 +548,9 @@ class ModelSet(BlobFactory):
                         continue
                     this_chain = read_pickled_chain(fn)
                     full_chain.extend(this_chain)
+                    
                 self._chain = np.ma.array(full_chain, mask=0)
+                
                 if rank == 0:
                     t2 = time.time()
                     print("Loaded {0!s}.dd*.chain.pkl in {1:.2g} s.".format(\
@@ -885,7 +898,7 @@ class ModelSet(BlobFactory):
                         
             par = pars
             k = list(self.parameters).index(par)
-            vals = np.sort(np.unique(self.chain[:,k]))
+            vals = self.unique_samples[k]
             
             slices = []
             for i, val in enumerate(vals):
@@ -907,9 +920,7 @@ class ModelSet(BlobFactory):
             vals
             for par in pars:
                 k = list(self.parameters).index(par)
-                vals.append(np.sort(np.unique(self.chain[:,k])))
-                
-                
+                vals.append(np.sort(np.unique(self.chain[:,k])))    
                 
     def Slice(self, constraints, pars, ivar=None, take_log=False, 
         un_log=False, multiplier=1.):
@@ -960,7 +971,7 @@ class ModelSet(BlobFactory):
 
         if Nd == 2:
             yok_ = np.logical_and(data[pars[1]] >= y1, data[pars[1]] <= y2)
-            yok_MP = np.logical_or(np.abs(data[pars[1]] - y1) <= MP, 
+            yok_MP = np.logical_or(np.abs(data[pars[1]] - y1) <= MP,
                 np.abs(data[pars[1]] - y2) <= MP)
             yok = np.logical_or(yok_, yok_MP)
             to_keep = np.logical_and(xok, yok)
@@ -975,16 +986,17 @@ class ModelSet(BlobFactory):
         model_set = ModelSet(self.prefix)
         
         # Set the mask!
-        model_set.mask = np.logical_or(mask, self.mask)
+        mask2d = np.array([mask] * self.chain.shape[1]).T
+        model_set.mask = np.logical_or(mask2d, self.mask)
                 
         i = 0
         while hasattr(self, 'slice_{}'.format(i)):
             i += 1
-    
+
         setattr(self, 'slice_{}'.format(i), model_set)
-        
+
         print("Saved result to slice_{} attribute.".format(i))
-        
+
         return model_set
         
     def SliceByElement(self, to_keep):
@@ -995,13 +1007,14 @@ class ModelSet(BlobFactory):
         model_set = ModelSet(self.prefix)
         
         # Set the mask! 
-        arr = np.arange(self.chain.shape[0])
-        mask = np.ones_like(arr)
+        keep = np.zeros(self.chain.shape[0])
         for i in to_keep:
-            mask[arr == i] = 0
-        
-        model_set.mask = np.logical_or(mask, self.mask)
-        
+            keep[i] = 1
+                                
+        old_keep = np.logical_not(self.mask)[:,0]    
+                
+        model_set.mask = np.logical_not(np.logical_and(keep, old_keep))
+                
         return model_set                                       
         
     def SliceByParameters(self, to_keep):
@@ -1575,12 +1588,8 @@ class ModelSet(BlobFactory):
         else:
             cdata = None
 
-        if hasattr(self, '_weights') and cdata is None:
-            scat = ax.scatter(xdata, ydata, c=self.weights, **kwargs)
-        elif cdata is not None:
-            scat = ax.scatter(xdata, ydata, c=cdata, **kwargs)
-        else:
-            func = ax.__getattribute__('scatter')
+        # Seems unecessary...a method inherited from days past?
+        func = ax.__getattribute__('scatter')
             
         if filter_z is not None:
             _condition = np.isclose(cdata, filter_z)
@@ -1594,9 +1603,13 @@ class ModelSet(BlobFactory):
             
         else:
             _condition = None
-            xd = xdata
-            yd = ydata
-            cd = cdata
+            xd = xdata.compressed()
+            yd = ydata.compressed()
+            
+            if cdata is not None:
+                cd = cdata.compressed()
+            else:
+                cd = cdata
                         
         if rungs:
             scat = self._add_rungs(xdata, ydata, cdata, ax, _condition, 
@@ -1605,7 +1618,7 @@ class ModelSet(BlobFactory):
             scat = func(xd, yd, c=self.weights, **kwargs)
         elif line_plot:
             scat = func(xd, yd, **kwargs)
-        elif cdata is not None and (filter_z is None):
+        elif (cdata is not None) and (filter_z is None):
             scat = func(xd, yd, c=cd, **kwargs)
         else:
             scat = func(xd, yd, **kwargs)
@@ -1623,11 +1636,11 @@ class ModelSet(BlobFactory):
             cb = None
         
         self._scat = scat
-            
+
         # Might use this for slicing 
         self.plot_info = {'pars': pars, 'ivar': ivar,
             'take_log': take_log, 'un_log':un_log, 'multiplier':multiplier}
-            
+
         # Make labels
         self.set_axis_labels(ax, p, take_log, un_log, cb)
 
@@ -3096,14 +3109,13 @@ class ModelSet(BlobFactory):
         ..note:: If you set take_log = True AND supply bins by hand, use the
             log10 values of the bins you want.
         
-            
         Returns
         -------
         ares.analysis.MultiPlot.MultiPanel instance. Also saves a bunch of 
         information to the `plot_info` attribute.
-        
+
         """    
-        
+
         # Grab data that will be histogrammed
         np_version = np.__version__.split('.')
         newer_than_one = (int(np_version[0]) > 1)
@@ -3447,21 +3459,27 @@ class ModelSet(BlobFactory):
             
         if isinstance(names, basestring):
             names = [names]
-            
-        max_samples = min(self.chain.shape[0], self.mask.size - self.mask.sum())    
+
+        max_samples = min(self.chain.shape[0], self.mask.size - self.mask.sum())
+                
         if samples is not None:
             if type(samples) == int:
                 samples = min(max_samples, samples)
-            
+                            
         # Step 1: figure out ivars  
         info = self.blob_info(names[0])
         nd = info[2]
-        
+                
         if nd == 1:
-            ivars = np.atleast_2d(self.blob_ivars[info[0]])
+            # This first case happens when reading from hdf5 since the
+            # blobs there aren't nested.
+            if info[0] is None:
+                ivars = np.atleast_2d(self.blob_ivars[0])
+            else:    
+                ivars = np.atleast_2d(self.blob_ivars[info[0]])
         else:
             ivars = self.blob_ivars[info[0]]
-        
+                
         if nd != 1 and (ivar is None):
             raise NotImplemented('If not 1-D blob, must supply one ivar!')
                 
@@ -3477,7 +3495,7 @@ class ModelSet(BlobFactory):
         ##
         # Real work starts here.
         ##
-        
+                
         # First, read-in data from disk. Slice it up depending on if 
         # skip or stop were provided. Squeeze arrays to remove NaNs etc.
         
@@ -3499,7 +3517,7 @@ class ModelSet(BlobFactory):
                 
                 # In this case, xarr is 2-D. Need to be more careful...
                 assert use_best
-            
+                        
             y = []
             for i, x in enumerate(xarr):
                 if (samples is not None):
@@ -3568,23 +3586,28 @@ class ModelSet(BlobFactory):
         ##
         # Do the actual plotting
         ##
-        
+                
         # Limit number of realizations
         if samples is not None:
             M = min(min(self.chain.shape[0], max_samples), len(y.T))            
             
             if samples == 'all':
-                elements = np.arange(0, M)
-            elif type(samples) == int:    
-                elements = np.random.randint(0, M, size=samples)
-            else:    
-                elements = samples
+                # Unmasked elements only
+                elements = np.argwhere(self.mask == 0).squeeze()
+                for i, element in enumerate(elements):
+                    ax.plot(xarr, y.T[i], **kwargs)
+            else:
+                # Choose randomly 
+                if type(samples) == int:    
+                    elements = np.random.randint(0, M, size=samples)
+                # Or take from list
+                else:    
+                    elements = samples
                 
-            for i, element in enumerate(range(M)):
-                if element not in elements:
-                    continue
-
-                ax.plot(xarr, y.T[element], **kwargs)
+                for element in range(M):
+                    if element not in elements:
+                        continue
+                    ax.plot(xarr, y.T[element], **kwargs)
   
         elif use_best and self.is_mcmc:
             if take_log:
