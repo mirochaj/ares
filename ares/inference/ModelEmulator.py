@@ -18,7 +18,7 @@ import matplotlib.pyplot as pl
 import matplotlib.pyplot as plt
 from ..physics.Constants import nu_0_mhz
 from ..analysis import Global21cm as aGS
-from ..analysis.Aesthetics import labels
+from ..util.Aesthetics import labels
 from ..analysis import ModelSet, MultiPanel
 from ..analysis.MultiPlot import add_master_legend
 
@@ -319,9 +319,7 @@ class ModelEmulator(object):
                  
                  # Must find index 'll' that maps to reduced ivar array
                  ll = np.argmin(np.abs(raw_ivars[self.ivar_slc == 1] - ivar))
-                 
-                 print ivar, raw_ivars[self.ivar_slc == 1][ll], ll
-                 
+                                  
                  y = dat[keep == 1,ll]
                  s = np.argsort(x)
                  mp.grid[m].plot(x[s], y[s], color='k', ls='-')
@@ -376,13 +374,15 @@ class ModelEmulator(object):
 
         samples = np.random.randint(0, self.vset.chain.shape[0], size=N)
 
-        colors = ['b', 'r', 'g', 'c', 'k', 'm', 'y', 'c'] * 5
+        colors = ['b', 'r', 'g', 'c', 'k', 'm', 'y', 'c']
+        lc = len(colors)
+        
         for k, i in enumerate(samples):
             if z_to_freq:
                 ax.plot(nu_0_mhz / (1. + zarr), dTb[i], 
                     color=colors[k], ls='-', alpha=0.5)
             else:    
-                ax.plot(zarr, dTb[i], color=colors[k], ls='-', alpha=0.5)
+                ax.plot(zarr, dTb[i], color=colors[k%lc], ls='-', alpha=0.5)
 
             # Training set and validation set parameters in different order!
             chain = []
@@ -394,10 +394,10 @@ class ModelEmulator(object):
             
             if z_to_freq:
                 ax.plot(nu_0_mhz / (1. + self.ivar_arr), self.predict(chain)[0], 
-                    color=colors[k], ls='--')
+                    color=colors[k%lc], ls='--')
             else:    
                 ax.plot(self.ivar_arr, self.predict(chain)[0],
-                    color=colors[k], ls='--')
+                    color=colors[k%lc], ls='--')
             
         ax.set_ylabel(labels[field])    
 
