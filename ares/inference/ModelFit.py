@@ -14,7 +14,6 @@ import pickle
 import numpy as np
 from ..util import get_hg_rev
 from .PriorSet import PriorSet
-from ..util.Stats import get_nu
 from ..util.MPIPool import MPIPool
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
@@ -23,9 +22,9 @@ import gc, os, sys, copy, types, time, re
 from ..analysis import Global21cm as anlG21
 from types import FunctionType, InstanceType
 from ..analysis.BlobFactory import BlobFactory
+from ..util.Stats import Gauss1D, GaussND, rebin
 from ..analysis.TurningPoints import TurningPoints
 from ..analysis.InlineAnalysis import InlineAnalysis
-from ..util.Stats import Gauss1D, GaussND, rebin, get_nu
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain

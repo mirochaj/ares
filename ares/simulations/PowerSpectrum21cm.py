@@ -140,7 +140,7 @@ class PowerSpectrum21cm(AnalyzePS):
         
         kmi, kma = self.k[self.k>0].min(), self.k[self.k>0].max()
         dlogk = self.pf['powspec_dlogk']
-        rmi, rma = self.dr.min(), self.dr.max()
+        rmi, rma = self.R.min(), self.R.max()
         dlogr = self.pf['powspec_dlogr']
 
         kfin = 10**np.arange(np.log10(kmi), np.log10(kma), dlogk)
@@ -152,7 +152,7 @@ class PowerSpectrum21cm(AnalyzePS):
         data_proc = {}
         for key in keys:
             
-            if key in ['k', 'dr', 'k_cr', 'dr_cr']:
+            if key in ['k', 'R', 'k_cr', 'R_cr']:
                 continue
 
             down_sample = False
@@ -162,7 +162,7 @@ class PowerSpectrum21cm(AnalyzePS):
 
                 if ('cf' in key) or ('jp' in key) or ('ev' in key):
                     xfin = rfin
-                    x = self.dr
+                    x = self.R
                     mask = Ellipsis
                     size = rfin.size
                     down_sample = True
@@ -176,7 +176,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 else:
                     size = all_ps[i][key].size
 
-            # Second dimension is k or dr
+            # Second dimension is k or R
             if twod:
                 tmp = np.zeros((len(self.z), size))
             else:
@@ -186,14 +186,15 @@ class PowerSpectrum21cm(AnalyzePS):
             
                 # Downsample otherwise plotting takes forever later.
                 if twod and down_sample:
-                    tmp[i] = np.interp(xfin, x[mask], all_ps[i][key].real[mask])
+                    tmp[i] = np.interp(np.log(xfin), np.log(x[mask]), 
+                        all_ps[i][key].real[mask])
                 else:
                     tmp[i] = all_ps[i][key]
                 
             data_proc[key] = tmp
         
         data_proc['k'] = kfin
-        data_proc['dr'] = rfin
+        data_proc['R'] = rfin
         
         self.history = data_proc
     
@@ -253,21 +254,21 @@ class PowerSpectrum21cm(AnalyzePS):
         
         step = np.diff(self.pf['fft_scales'])[0]
         #self.dr = dr = np.arange(1e-3, 1e2+step, step)
-        self.dr = dr = self.pf['fft_scales']
-        self.k = k = np.fft.fftfreq(dr.size, step)
+        self.R = R = self.pf['fft_scales']
+        self.k = k = np.fft.fftfreq(R.size, step)
+        logR = np.log(R)
         
         k_mi, k_ma = k.min(), k.max()
         dlogk = self.pf['powspec_dlogk']
         k_pos = 10**np.arange(np.log10(k[k>0].min()), np.log10(k_ma)+dlogk, dlogk)
         #self.k_coarse = 10**np.arange(np.log10(k_mi), np.log10(k_ma)+dlogk, dlogk)
         #self.k_coarse = np.concatenate(([0], k_pos, -1 * k_pos[-1::-1]))
-        self.k_coarse = np.concatenate((-1 * k_pos[-1::-1], [0], k_pos))
-        self.k_pos = k_pos
+        #self.k_pos = k_pos
         
-        r_mi, r_ma = dr.min(), dr.max()
-        dlogr = self.pf['powspec_dlogr']
-        self.dr_coarse = 10**np.arange(np.log10(r_mi), np.log10(r_ma)+dlogr, dlogr)
-
+        self.k_pos = self.pops[0].halos.k_cr_pos
+        self.R_cr = self.pops[0].halos.R_cr
+        self.logR_cr = np.log(self.R_cr)
+        
         for i, z in enumerate(self.z):
 
             data = {}
@@ -321,7 +322,7 @@ class PowerSpectrum21cm(AnalyzePS):
             # First: some global quantities we'll need
             ##
             avg_Tk = np.interp(z, self.mean_history['z'][-1::-1],
-                self.mean_history['igm_Tk'][-1::-1])    
+                self.mean_history['igm_Tk'][-1::-1])
             #xibar = np.interp(z, self.mean_history['z'][-1::-1],
             #    self.mean_history['cgm_h_2'][-1::-1])
             #Qi = xibar
@@ -350,49 +351,34 @@ class PowerSpectrum21cm(AnalyzePS):
             data['xibar'] = xibar
             
             data['k'] = k
-            data['dr'] = dr
-            data['dr_cr'] = self.dr_coarse
-            data['k_cr'] = self.k_coarse
+            data['dr'] = self.R
+            data['dr_cr'] = self.R_cr
+            data['k_cr'] = self.k_pos
             data['z'] = z
             
             data['zeta'] = zeta
+            
+            logr = np.log(self.R)
             
             ##
             # Density fluctuations
             ##
             if self.pf['include_density_fl'] and self.pf['include_acorr']:
-                # Halo model
-                #ps_posk = self.pops[0].halos.PowerSpectrum(z, self.k_pos)
-                #
-                ## Must interpolate to uniformly (in real space) sampled
-                ## grid points to do inverse FFT
-                #ps_fold = np.concatenate((ps_posk[-1::-1], [0], ps_posk))
-                ##ps_fold = np.concatenate(([0], ps_posk, ps_posk[-1::-1]))
-                ##ps_dd = np.interp(self.k, self.k_coarse, ps_fold)
-                #ps_dd = np.interp(np.abs(self.k), self.k_pos, ps_posk)
-                ##ps_dd = self.field.halos.PowerSpectrum(z, np.abs(self.k))
-                #data['ps_dd'] = ps_dd
-                #data['cf_dd'] = np.fft.ifft(data['ps_dd'])
-                #
-                ## Interpolate onto coarser grid
-                #data['xi_dd_c'] = np.interp(self.dr_coarse, dr, 
-                #    data['cf_dd'].real)
-                
-                #iz = np.argmin(np.abs(z - self.pops[0].halos.z))
                 ps_dd = self.pops[0].halos.PowerSpectrum(z, self.k_pos)
-                data['ps_dd'] = np.interp(np.abs(self.k), self.k_pos, ps_dd)
+                
+                # PS is positive so it's OK to log-ify it
+                data['ps_dd'] = np.exp(np.interp(np.log(np.abs(self.k)), 
+                    np.log(self.k_pos), np.log(ps_dd)))
                 
                 # If this isn't tabulated, need to send in full dr array
-                cf_c = self.pops[0].halos.CorrelationFunction(z, self.dr_coarse)
+                cf_c = self.pops[0].halos.CorrelationFunction(z, self.R_cr)
                 
-                # Need finer-grain resolution for this. Should probably
-                # interpolate in log-space
-                data['cf_dd'] = np.interp(dr, self.dr_coarse, cf_c)
-                #data['ps_dd'] =
-                #data['cf_dd'] =
-
+                # Need finer-grain resolution for this. Leave correlation
+                # function in linear units for interpolation because it will 
+                # be negative on large scales.
+                data['cf_dd'] = np.interp(logr, np.log(self.R_cr), cf_c)
             else:
-                data['cf_dd'] = data['ps_dd'] = np.zeros_like(dr)
+                data['cf_dd'] = data['ps_dd'] = np.zeros_like(R)
 
             ##    
             # Ionization fluctuations
@@ -401,24 +387,28 @@ class PowerSpectrum21cm(AnalyzePS):
                 R_b, M_b, bsd = self.field.BubbleSizeDistribution(z, zeta)
             
                 p_ii, p_ii_1, p_ii_2 = self.field.JointProbability(z, 
-                    self.dr_coarse, zeta, term='ii', Tprof=None, data=data)
+                    self.R_cr, zeta, term='ii', Tprof=None, data=data)
                 
                 # Interpolate onto fine grid
-                data['jp_ii'] = np.interp(dr, self.dr_coarse, p_ii)
-                data['jp_ii_1'] = np.interp(dr, self.dr_coarse, p_ii_1)
-                data['jp_ii_2'] = np.interp(dr, self.dr_coarse, p_ii_2)
+                data['jp_ii'] = np.interp(logR, self.logR_cr, p_ii)
+                data['jp_ii_1'] = np.interp(logR, self.logR_cr, p_ii_1)
+                data['jp_ii_2'] = np.interp(logR, self.logR_cr, p_ii_2)
 
                 data['ev_ii'] = data['jp_ii']
+                data['ev_ii_1'] = data['jp_ii_1']
+                data['ev_ii_2'] = data['jp_ii_2']
 
                 # Dimensions here are set by mass-sampling in HMF table
                 data.update({'R_b': R_b, 'M_b': M_b, 'bsd':bsd})
             else:
-                p_ii = data['jp_ii'] = data['ev_ii'] = np.zeros_like(dr)
+                p_ii = data['jp_ii'] = data['ev_ii'] = np.zeros_like(R)
 
             ##
             # Temperature fluctuations                
             ##
-            data['ev_coco'] = np.zeros_like(dr)
+            data['ev_coco'] = np.zeros_like(R)
+            data['ev_coco_1'] = np.zeros_like(R)
+            data['ev_coco_2'] = np.zeros_like(R)
             if self.pf['include_temp_fl'] and self.pf['include_acorr']:
                 Qh = self.field.BubbleShellFillingFactor(z, zeta, zeta_lya)
                 Ch = self._temp_to_contrast(z, self.pf['bubble_shell_temp'])
@@ -427,19 +417,21 @@ class PowerSpectrum21cm(AnalyzePS):
                 data['avg_Ch'] = avg_Ch = Qh * Ch
 
                 p_hh, p_hh_1, p_hh_2 = self.field.JointProbability(z, 
-                    self.dr_coarse, zeta, term='hh', Tprof=None, data=data)
+                    self.R_cr, zeta, term='hh', Tprof=None, data=data)
 
-                data['jp_hh'] = np.interp(dr, self.dr_coarse, p_hh)
+                data['jp_hh'] = np.interp(logR, self.logR_cr, p_hh)
                 #data['jp_hh'] = np.minimum(1., data['jp_hh'])
-                data['jp_hh_1'] = np.interp(dr, self.dr_coarse, p_hh_1)
-                data['jp_hh_2'] = np.interp(dr, self.dr_coarse, p_hh_2)
+                data['jp_hh_1'] = np.interp(logR, self.logR_cr, p_hh_1)
+                data['jp_hh_2'] = np.interp(logR, self.logR_cr, p_hh_2)
               
                 data['ev_coco'] += Ch**2 * data['jp_hh']
+                data['ev_coco_1'] += Ch**2 * data['jp_hh_1']
+                data['ev_coco_2'] += Ch**2 * data['jp_hh_2']
               
                 data['avg_C'] = data['avg_Ch']
 
             else:
-                p_hh = data['jp_hh'] = np.zeros_like(dr)
+                p_hh = data['jp_hh'] = np.zeros_like(R)
                 data['Ch'] = Ch = 0.0
                 data['Qh'] = Qh = 0.0
                 data['avg_Ch'] = 0.0
@@ -457,10 +449,12 @@ class PowerSpectrum21cm(AnalyzePS):
                     data['Qc'] = Qc
                     data['avg_Cc'] = avg_Cc = Qc * Cc
                     p_cc, p_cc_1, p_cc_2 = self.field.JointProbability(z, 
-                        self.dr_coarse, zeta, term='cc', Tprof=None, data=data, 
+                        self.R_cr, zeta, term='cc', Tprof=None, data=data, 
                         zeta_lya=zeta_lya)
                     
-                    data['jp_cc'] = np.interp(dr, self.dr_coarse, p_cc)
+                    data['jp_cc'] = np.interp(logR, self.logR_cr, p_cc)
+                    data['jp_cc_1'] = np.interp(logR, self.logR_cr, p_cc_1)
+                    data['jp_cc_2'] = np.interp(logR, self.logR_cr, p_cc_2)
                     
                     # Should this be necessary?
                     data['jp_cc'] = np.minimum(1., data['jp_cc'])
@@ -469,25 +463,57 @@ class PowerSpectrum21cm(AnalyzePS):
                     data['avg_C'] += data['avg_Cc']
 
                 # This should maybe be moved elsewhere.
-                if self.pf['include_temp_fl'] and self.pf['include_xcorr']:
+                if self.pf['include_temp_fl']:
                     p_hc, p_hc_1, p_hc_2 = self.field.JointProbability(z, 
-                        self.dr_coarse, zeta, term='hc', Tprof=None, data=data, 
+                        self.R_cr, zeta, term='hc', Tprof=None, data=data, 
                         zeta_lya=zeta_lya)
 
-                    data['jp_hc'] = np.interp(dr, self.dr_coarse, p_hc)
+                    data['jp_hc'] = np.interp(logR, self.logR_cr, p_hc)
+                    data['jp_hc_1'] = np.interp(logR, self.logR_cr, p_hc_1)
+                    data['jp_hc_2'] = np.interp(logR, self.logR_cr, p_hc_2)
                     data['ev_coco'] += Cc * Ch * data['jp_hc'] * min(Qh + Qc, 1.)
                     
                     if (Qh + Qc) > 1:
                         print "WARNING: Qh+Qc > 1"
                     
                 else:
-                    data['jp_hc'] = np.zeros_like(dr)
+                    data['jp_hc'] = np.zeros_like(R)
             else:
                 data['jp_cc'] = data['jp_hc'] = data['ev_cc'] = \
-                    np.zeros_like(dr)
+                    np.zeros_like(R)
                 data['Cc'] = data['Qc'] = Cc = Qc = 0.0
                 data['avg_Cc'] = 0.0
                 
+            ##
+            # Cross-terms between ionization and contrast
+            ##
+            if self.include_con_fl and self.pf['include_ion_fl']:
+                if self.pf['include_temp_fl']:
+                    p_ih, p_ih_1, p_ih_2 = self.field.JointProbability(z, 
+                        self.R_cr, zeta, term='ih', data=data)
+                    data['jp_ih'] = np.interp(logR, self.logR_cr, p_ih)
+                    data['jp_ih_1'] = np.interp(logR, self.logR_cr, p_ih_1)
+                    data['jp_ih_2'] = np.interp(logR, self.logR_cr, p_ih_2)
+                else:
+                    data['jp_ih'] = np.zeros_like(R)
+                    
+                if self.pf['include_lya_fl']:
+                    p_ic, p_ic_1, p_ic_2 = self.field.JointProbability(z, 
+                        self.R_cr, zeta, term='ic', data=data, 
+                        zeta_lya=zeta_lya)
+                    data['jp_ic'] = np.interp(logR, self.logR_cr, p_ic)
+                    data['jp_ic_1'] = np.interp(logR, self.logR_cr, p_ic_1)
+                    data['jp_ic_2'] = np.interp(logR, self.logR_cr, p_ic_2)
+                else:
+                    data['jp_ic'] = np.zeros_like(R)
+                        
+                data['ev_ico'] = data['Ch'] * data['jp_ih'] \
+                               + data['Cc'] * data['jp_ic']
+            else:
+                data['jp_ih'] = np.zeros_like(k)
+                data['jp_ic'] = np.zeros_like(k)
+                data['ev_ico'] = np.zeros_like(k)    
+            
             ##
             # Cross-correlations
             ##
@@ -509,57 +535,32 @@ class PowerSpectrum21cm(AnalyzePS):
                     # Density-ionization cross correlation
                     if (self.pf['include_density_fl'] and self.pf['include_ion_fl']):
                         p_id, p_id_1, p_id_2 = self.field.JointProbability(z, 
-                            self.dr_coarse, zeta, term='id', data=data)
-                        data['jp_id'] = np.interp(dr, self.dr_coarse, p_id)
+                            self.R_cr, zeta, term='id', data=data)
+                        data['jp_id'] = np.interp(logR, self.logR_cr, p_id)
                         data['ev_id'] = data['jp_id']
                     else:
                         data['jp_id'] = data['ev_id'] = np.zeros_like(k)
                 else:
                     data['jp_id'] = data['ev_id'] = np.zeros_like(k)        
 
-                ##
-                # Cross-terms between ionization and contrast
-                ##
-                if self.include_con_fl and self.pf['include_ion_fl']:
-                    if self.pf['include_temp_fl']:
-                        p_ih, p_ih_1, p_ih_2 = self.field.JointProbability(z, 
-                            self.dr_coarse, zeta, term='ih', data=data)
-                        data['jp_ih'] = np.interp(dr, self.dr_coarse, p_ih)
-                    else:
-                        data['jp_ih'] = np.zeros_like(dr)
-                        
-                    if self.pf['include_lya_fl']:
-                        p_ic, p_ic_1, p_ic_2 = self.field.JointProbability(z, 
-                            self.dr_coarse, zeta, term='ic', data=data, 
-                            zeta_lya=zeta_lya)
-                        data['jp_ic'] = np.interp(dr, self.dr_coarse, p_ic)
-                    else:
-                        data['jp_ic'] = np.zeros_like(dr)
-                            
-                    data['ev_ico'] = data['Ch'] * data['jp_ih'] \
-                                   + data['Cc'] * data['jp_ic']
-                else:
-                    data['jp_ih'] = np.zeros_like(k)
-                    data['jp_ic'] = np.zeros_like(k)
-                    data['ev_ico'] = np.zeros_like(k)
                    
                 ##
                 # Cross-terms between density and contrast
                 ##  
                 if self.include_con_fl and self.pf['include_density_fl']:
                     #if self.pf['include_temp_fl']:
-                    #    p_dh = self.field.JointProbability(z, self.dr_coarse, 
+                    #    p_dh = self.field.JointProbability(z, self.R_cr, 
                     #        zeta, term='dh', data=data)
-                    #    data['jp_dh'] = np.interp(dr, self.dr_coarse, p_dh)
+                    #    data['jp_dh'] = np.interp(R, self.R_cr, p_dh)
                     #else:
-                    #    data['jp_dh'] = np.zeros_like(dr)
+                    #    data['jp_dh'] = np.zeros_like(R)
                     #
                     #if self.pf['include_lya_fl']:
-                    #    p_dc = self.field.JointProbability(z, self.dr_coarse, 
+                    #    p_dc = self.field.JointProbability(z, self.R_cr, 
                     #        zeta, term='dc', data=data, zeta_lya=zeta_lya)
-                    #    data['jp_dc'] = np.interp(dr, self.dr_coarse, p_dc)
+                    #    data['jp_dc'] = np.interp(R, self.R_cr, p_dc)
                     #else:
-                    #    data['jp_dc'] = np.zeros_like(dr)
+                    #    data['jp_dc'] = np.zeros_like(R)
                     #
                     #data['ev_dco'] = data['Ch'] * data['jp_ih'] \
                     #               + data['Cc'] * data['jp_ic']
@@ -587,16 +588,17 @@ class PowerSpectrum21cm(AnalyzePS):
 
             # Correlation function of ionized fraction and neutral fraction
             # are equivalent.
-            data['cf_xx'] = data['ev_ii'] - xibar**2
+            data['cf_xx']   = data['ev_ii']   - xibar**2
+            data['cf_xx_1'] = data['ev_ii_1'] - xibar**2
+            data['cf_xx_2'] = data['ev_ii_2'] - xibar**2
             
             # Minus sign difference for cross term with density.
             data['cf_xd'] = -data['ev_id']
             
-            # Contrast terms
-            data['cf_coco'] = np.zeros_like(dr)
-            
             # Construct correlation function (just subtract off exp. value sq.)
-            data['cf_coco'] = data['ev_coco'] - data['avg_C']**2
+            data['cf_coco']   = data['ev_coco']   - data['avg_C']**2
+            data['cf_coco_1'] = data['ev_coco_1'] - data['avg_C']**2
+            data['cf_coco_2'] = data['ev_coco_2'] - data['avg_C']**2
             
             # Correlation between neutral fraction and contrast fields
             data['cf_xco'] = data['avg_C'] - data['ev_ico']
@@ -675,7 +677,34 @@ class PowerSpectrum21cm(AnalyzePS):
                 data['cf_21'] = data['cf_21_s']
 
             data['dTb0'] = Tbar
-            data['ps_21'] = np.fft.fft(data['cf_21'])
+            data['ps_21'] = np.fft.fft(data['cf_21'])   
+            
+            # Save 21-cm PS as one and two-halo terms also
+                     
+            data['ps_xx'] = np.fft.fft(data['cf_xx'])
+            data['ps_xx_1'] = np.fft.fft(data['cf_xx_1'])
+            data['ps_xx_2'] = np.fft.fft(data['cf_xx_2'])
+            data['ps_coco'] = np.fft.fft(data['cf_coco'])
+            data['ps_coco_1'] = np.fft.fft(data['cf_coco_1'])
+            data['ps_coco_2'] = np.fft.fft(data['cf_coco_2'])
+            
+            #if z == 10:
+            #    import matplotlib.pyplot as pl
+            #    
+            #    pl.figure(3)
+            #    pl.semilogx(R, data['cf_xx_1'])
+            #    pl.semilogx(R, data['cf_xx_2'], ls='--')
+            #    pl.ylim(-1e-4, 4e-4)
+            #    print data['cf_xx_2']
+            #    
+            #    pl.figure(4)
+            #    pl.semilogx(k, data['ps_xx_1'])
+            #    pl.semilogx(k, data['ps_xx_2'], ls='--')
+            #    pl.ylim(-1, 1)
+            #    raw_input('<enter>')
+            
+            
+            # These are all going to get downsampled before the end.
 
             yield z, data
 

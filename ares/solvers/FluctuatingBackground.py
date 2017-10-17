@@ -293,7 +293,7 @@ class FluctuatingBackground(object):
         bHII = self.bubble_bias(z, zeta)
         bbar = self.mean_bubble_bias(z, zeta, zeta_lya, term) / Q
 
-        xi_dd = np.interp(r, data['dr'], data['cf_dd'].real)
+        xi_dd = np.interp(np.log(r), np.log(data['dr']), data['cf_dd'].real)
 
         return bHII * bbar * np.array(xi_dd)
 
@@ -658,10 +658,10 @@ class FluctuatingBackground(object):
                 ##
                 if term == 'ii':
                     Vo = all_V[0]#self.overlap_region_sphere(sep, Ri)
-                    #Vss_ne = 
+
                     Vss_ne_1 = 4. * np.pi * Ri**3 / 3. - Vo
                     Vss_ne_2 = Vss_ne_1
-                    
+
                     limiter = 'i'
 
                 elif term == 'hh':
@@ -675,7 +675,8 @@ class FluctuatingBackground(object):
                     #Vo = Vo_sh_r1 - 2. * Vo_sh_r2 + Vo_sh_r3
                     Vo = all_V[3]
 
-                    Vss_ne_1 = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
+                    Vss_ne_1 = 4. * np.pi * (Rh - Ri)**3 / 3. \
+                             - (self.IV(sep, Ri, Rc) - self.IV(sep, Ri, Rh))
                     Vss_ne_2 = Vss_ne_1
                     
                     limiter = 'h'
@@ -683,7 +684,8 @@ class FluctuatingBackground(object):
                 elif term == 'cc':
                     
                     Vo = all_V[-1]
-                    Vss_ne_1 = 4. * np.pi * (Rc - np.maximum(Ri, Rh))**3 / 3. - Vo
+                    Vss_ne_1 = 4. * np.pi * (Rc - Rh)**3 / 3. \
+                             - (self.IV(sep, Rc, Rc) - self.IV(sep, Rh, Rc))
                     Vss_ne_2 = Vss_ne_1
                     
                     #if self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
@@ -711,8 +713,11 @@ class FluctuatingBackground(object):
                     # One point in cold shell of one bubble, another in
                     # heated shell of completely separate bubble.
                     # Need to be a little careful here!
-                    Vss_ne_1 = 4. * np.pi * (Rc - Rh)**3 / 3. - Vo
-                    Vss_ne_2 = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
+                    Vss_ne_1 = 4. * np.pi * (Rh - Ri)**3 / 3. \
+                             - self.IV(sep, Rh, Rc)
+                    Vss_ne_2 = 4. * np.pi * (Rc - Rh)**3 / 3. \
+                             - (self.IV(sep, Rc, Rc) - self.IV(sep, Rh, Rc)) \
+                             - self.IV(sep, Rh, Rc)
 
                     # Get rid of volume of cold region around second
                     # bubble, replace with excess heated volume
@@ -720,23 +725,26 @@ class FluctuatingBackground(object):
                     #corr *= _corr / (Vss_ne - Vo)
 
                     limiter = None
-                
+
                 elif term == 'ih':
                     #Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
                     #    self.overlap_region_shell(sep, Ri, Rh)
                     #Vo = 2. * Vo_sh_r2 - Vo_sh_r3
                     Vo = all_V[1]
                                         
-                    Vss_ne_1 = 4. * np.pi * Ri**3 / 3. - Vo
-                    Vss_ne_2 = 4. * np.pi * (Rh - Ri)**3 / 3. - Vo
-                    
+                    Vss_ne_1 = 4. * np.pi * Ri**3 / 3. \
+                             - self.IV(sep, Ri, Rh)
+                    Vss_ne_2 = 4. * np.pi * (Rh - Ri)**3 / 3. \
+                             - self.IV(sep, Ri, Rh)
+
                     limiter = None
-                
                     
                 elif term == 'ic':
                     Vo = all_V[2]
-                    Vss_ne_1 = 4. * np.pi * Ri**3 / 3. - Vo
-                    Vss_ne_2 = 4. * np.pi * (Rc - Ri)**3 / 3. - Vo
+                    Vss_ne_1 = 4. * np.pi * Ri**3 / 3. \
+                             - (self.IV(sep, Ri, Rc) - self.IV(sep, Ri, Rh))
+                    Vss_ne_2 = 4. * np.pi * (Rc - Rh)**3 / 3. \
+                             - (self.IV(sep, Ri, Rc) - self.IV(sep, Ri, Rh))
                     
                     limiter = None
                 
@@ -766,31 +774,39 @@ class FluctuatingBackground(object):
                 
                 P1 = (1. - exp_int1)
                 
-                B1[i] = P1
-
                 # Start chugging along on two-bubble term                    
-                integrand2_1 = dndm * Vss_ne_1
-                integrand2_2 = dndm * Vss_ne_2
+                integrand2_1 = dndm * np.maximum(Vss_ne_1, 0.0)
+                integrand2_2 = dndm * np.maximum(Vss_ne_2, 0.0)
 
                 exp_int2 = np.exp(-np.trapz(integrand2_1[iM:] * Mi[iM:], 
                     x=np.log(Mi[iM:])))
                 exp_int2_ex = np.exp(-np.trapz(integrand2_2[iM:] * Mi[iM:] \
                     * corr[iM:], x=np.log(Mi[iM:])))
+                    
+                
+                exp_int2_ex = exp_int2_ex
+                
+                #import matplotlib.pyplot as pl
+                #pl.figure(2)
+                #
+                #pl.scatter(sep, 1. - exp_int1, color='r')
+                #pl.scatter(sep, exp_int2, color='k')
+                #
+                ## Gives some numbers > 1 at large r
+                #pl.scatter(sep, exp_int2_ex, color='b')
+                
+
 
                 ##
                 # Second integral sometimes is very nearly (but just in excess)
                 # of unity. Don't allow it! Better solution pending...
                 ##
-                P2 =  exp_int1 * (1. - exp_int2) * max(1. - exp_int2_ex, 0.0)
+                P2 = exp_int1 * (1. - exp_int2) * (1. - exp_int2_ex)
 
                 B1[i] = P1
-                B2[i] = P2
+                B2[i] = max(P2, 0.0)
 
-                print z, term, sep, np.any(Vss_ne_1 < 0), np.any(Vss_ne_2 < 0)
-
-                #if term == 'cc' and z > 20:
-                    #P2 *= 1e6 * (1. + z)**3
-                    #print z, sep, P1, P2
+                #print z, term, sep, np.any(Vss_ne_1 < 0), np.any(Vss_ne_2 < 0)
 
                 #if np.isnan(P1):
                 #    print 'hey P1', term, z, i
@@ -815,8 +831,8 @@ class FluctuatingBackground(object):
                 else:
                     BT[i] = (1. - Q) * P1 + Q**2
 
-                continue
-
+            #raw_input('<enter>')
+            
             return BT, B1, B2
             
     #def CorrelationFunction(self, z, field_1, field_2, dr=None, popid=0):

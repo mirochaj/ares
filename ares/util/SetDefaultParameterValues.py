@@ -347,8 +347,8 @@ def PowerSpectrumParameters():
      'fft_scales': np.arange(1e-4, 100.+1e-4, 1e-4),
 
      # Ultimately we'll interpolate beyond these
-     'powspec_dlogk': 0.05,
-     'powspec_dlogr': 0.05,
+     'powspec_dlogk': 0.1,
+     'powspec_dlogr': 0.1,
      
      'include_acorr': True,
      'include_xcorr': True,

@@ -176,7 +176,7 @@ class HaloModel(HaloMassFunction):
             iz = np.argmin(np.abs(z - self.z))
             assert abs(z - self.z[iz]) < 1e-2, \
                 'Supplied redshift (%g) not in table!' % z
-            assert np.allclose(k, self.k_pos)
+            assert np.allclose(k, self.k_cr_pos)
             return self.ps_dd[iz]
                     
         if type(k) == np.ndarray:
@@ -194,7 +194,7 @@ class HaloModel(HaloMassFunction):
             iz = np.argmin(np.abs(z - self.z))
             assert abs(z - self.z[iz]) < 1e-2, \
                 'Supplied redshift (%g) not in table!' % z
-            assert np.allclose(dr, self.dr_coarse)
+            assert np.allclose(dr, self.R_cr)
             return self.cf_dd[iz]
                 
         raise NotImplemented('help')
@@ -223,24 +223,24 @@ class HaloModel(HaloMassFunction):
         if re.search('.hdf5', fn) or re.search('.h5', fn):
             f = h5py.File(fn, 'r')
             self.z = f['z'].value
-            self.dr_coarse = f['r'].value
-            self.k_pos = f['k'].value
+            self.R_cr = f['r'].value
+            self.k_cr_pos = f['k'].value
             self.ps_dd = f['ps'].value
             self.cf_dd = f['cf'].value
             f.close()
         elif re.search('.npz', fn):
             f = np.load(fn)
             self.z = f['z']
-            self.dr_coarse = f['r']
-            self.k_pos = f['k']
+            self.R_cr = f['r']
+            self.k_cr_pos = f['k']
             self.ps_dd = f['ps']
             self.cf_dd = f['cf']    
             f.close()                        
         elif re.search('.pkl', fn):
             f = open(fn, 'rb')
             self.z = pickle.load(f)
-            self.dr_coarse = pickle.load(f)
-            self.k_pos = pickle.load(f)
+            self.R_cr = pickle.load(f)
+            self.k_cr_pos = pickle.load(f)
             self.ps_dd = pickle.load(f)
             self.cf_dd = pickle.load(f)    
             f.close()
@@ -278,7 +278,7 @@ class HaloModel(HaloMassFunction):
             zsize = int(round(zsize, 1))
                 
             # Should probably save NFW information etc. too
-            return 'mps_%s_logM_%s_%i-%i_z_%s_%i-%i_logR_%i-%i_dlogr_%.2f_dlogk_%.2f' \
+            return 'mps_%s_logM_%s_%i-%i_z_%s_%i-%i_logR_%.1f-%.1f_dlogr_%.2f_dlogk_%.2f' \
                 % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2,
                    np.log10(min(rarr)), np.log10(max(rarr)), 
                    self.pf['powspec_dlogr'],
@@ -297,46 +297,58 @@ class HaloModel(HaloMassFunction):
         pb.start()
         
         step = np.diff(self.pf['fft_scales'])[0]
-        dr = self.pf['fft_scales']
-        k = np.fft.fftfreq(dr.size, step)
+        R = self.pf['fft_scales']
+        logR = np.log(R)
         
-        k_mi, k_ma = k.min(), k.max()
+        # Find corresponding wavenumbers
+        k = np.fft.fftfreq(R.size, step)
+        absk = np.abs(k)
+        logk = np.log(absk)
+        
+        # Zero-frequency shifted to center so values are monotonically rising
+        k_sh = np.fft.fftshift(k)
+        absk_sh = np.abs(k_sh)
+        logk_sh = np.log(absk_sh)
+        
+        # The frequency array has half the number of unique elements (plus 1)
+        # as the scales array. 
+        
+        # Set up coarse grid for evaluation of halo model
+        k_mi, k_ma = absk_sh[absk_sh>0].min(), absk_sh.max()
         dlogk = self.pf['powspec_dlogk']
-        k_pos = 10**np.arange(np.log10(k[k>0].min()), np.log10(k_ma)+dlogk, dlogk)
-        self.k_coarse = np.concatenate((-1 * k_pos[-1::-1], [0], k_pos))
-        self.k_pos = k_pos
-        
-        r_mi, r_ma = dr.min(), dr.max()
+        logk_cr_pos = np.arange(np.log(k_mi), np.log(k_ma)+dlogk, dlogk)
+        self.k_cr_pos = np.exp(logk_cr_pos)
+                
+        # Setup degraded scales array
+        r_mi, r_ma = R.min(), R.max()
         dlogr = self.pf['powspec_dlogr']
-        self.dr_coarse = 10**np.arange(np.log10(r_mi), np.log10(r_ma)+dlogr, dlogr)
+        logR_cr = np.arange(np.log(r_mi), np.log(r_ma)+dlogr, dlogr)
+        self.R_cr = R_cr = np.exp(logR_cr)
         
         # Must tabulate onto coarse grid otherwise we'll run out of memory.
-        self.ps_dd = np.zeros((len(self.z), len(self.k_pos)))
-        self.cf_dd = np.zeros((len(self.z), len(self.dr_coarse)))
+        self.ps_dd = np.zeros((len(self.z), len(self.k_cr_pos)))
+        self.cf_dd = np.zeros((len(self.z), len(self.R_cr)))
         for i, z in enumerate(self.z):
         
             if i % size != rank:
                 continue
 
-            #ps_posk = np.zeros_like(k_pos)
-            #for j, _k in enumerate(k_pos):
-            ps_posk = self.PowerSpectrum(z, k_pos, profile_ft=None)
+            ps_k_cr_pos = self.PowerSpectrum(z, self.k_cr_pos, profile_ft=None)
 
-            # Must interpolate to uniformly (in real space) sampled
-            # grid points to do inverse FFT
+            # Must interpolate back to fine grid (uniformly sampled 
+            # real-space scales) to do FFT and obtain correlation function
+            self.ps_dd[i] = ps_k_cr_pos.copy()
+            
+            # Recall that logk contains +/- frequencies so this power spectrum
+            # is (properly) mirrored about zero-frequency 
+            ps_all_k = np.exp(np.interp(logk, logk_cr_pos, 
+                np.log(ps_k_cr_pos)))
+                
+            cf_R = np.fft.ifft(ps_all_k)
 
-            #ps_fold = np.concatenate((ps_posk[-1::-1], [0], ps_posk))
-            #ps_fold = np.concatenate(([0], ps_posk, ps_posk[-1::-1]))
-            #ps_dd = np.interp(self.k, self.k_coarse, ps_fold)
-            ps_dd = np.interp(np.abs(k), self.k_pos, ps_posk)
-            #ps_dd = self.field.halos.PowerSpectrum(z, np.abs(self.k))
-            self.ps_dd[i] = ps_posk.copy()
-
-            cf_dd = np.fft.ifft(ps_dd)
-
-            # Interpolate onto coarser grid
-            self.cf_dd[i] = np.interp(self.dr_coarse, dr, cf_dd.real)
-
+            # Once we have correlation function, degrade it to coarse grid.
+            self.cf_dd[i] = np.interp(logR_cr, logR, cf_R.real)
+            
             pb.update(i)
 
         pb.finish()
@@ -360,7 +372,7 @@ class HaloModel(HaloMassFunction):
         fn : str (optional)
             Name of file to save results to. If None, will use 
             self.table_prefix and value of format parameter to make one up.
-        clobber : bool 
+        clobber : bool
             Overwrite pre-existing files of the same name?
         destination : str
             Path to directory (other than CWD) to save table.
@@ -401,8 +413,8 @@ class HaloModel(HaloMassFunction):
         if format == 'hdf5':
             f = h5py.File(fn, 'w')
             f.create_dataset('z', data=self.z)
-            f.create_dataset('r', data=self.dr_coarse)
-            f.create_dataset('k', data=self.k_pos)
+            f.create_dataset('r', data=self.R_cr)
+            f.create_dataset('k', data=self.k_cr_pos)
             f.create_dataset('ps', data=self.ps_dd)
             f.create_dataset('cf', data=self.cf_dd)
   
@@ -410,8 +422,8 @@ class HaloModel(HaloMassFunction):
     
         elif format == 'npz':
             data = {'z': self.z, 
-                    'r': self.dr_coarse,
-                    'k': self.k_pos,
+                    'r': self.R_cr,
+                    'k': self.k_cr_pos,
                     'ps': self.ps_dd,
                     'cf': self.cf_dd,
                     'hmf-version': hmf_v}
@@ -422,9 +434,9 @@ class HaloModel(HaloMassFunction):
             f = open(fn, 'wb')
             pickle.dump(self.z, f)
             pickle.dump(self.r, f)
-            pickle.dump(self.k_pos, f)
-            pickle.dump(self.ps, f)
-            pickle.dump(self.cf, f)
+            pickle.dump(self.k_cr_pos, f)
+            pickle.dump(self.ps_dd, f)
+            pickle.dump(self.cf_dd, f)
             pickle.dump(dict(('hmf-version', hmf_v)))
             f.close()
     

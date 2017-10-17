@@ -9,6 +9,24 @@ from matplotlib.ticker import ScalarFormatter
 from ..analysis.BlobFactory import BlobFactory
 from .MultiPhaseMedium import MultiPhaseMedium
 
+def split_by_sign(x, y):
+    """
+    Split apart a correlation function into its positive and negative
+    chunks.
+    """
+
+    splitter = np.diff(np.sign(y))
+        
+    if np.all(splitter == 0):
+        ych = [y]
+        xch = [x]
+    else:
+        splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
+        ych = np.split(y, splits)
+        xch = np.split(x, splits)
+        
+    return xch, ych
+
 # Distinguish between mean history and fluctuations?
 class PowerSpectrum(MultiPhaseMedium,BlobFactory):
     def __init__(self, data=None, suffix='fluctuations', **kwargs):
@@ -341,43 +359,58 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         Split apart a correlation function into its positive and negative
         chunks.
         """
-        iz = np.argmin(np.abs(z - self.redshifts))
-        # Might be multiple sign changes
-        data = self.history[key][iz]
-        splitter = np.diff(np.sign(data))
         
-        dr = self.history['dr']
-
-        if np.all(splitter == 0):
-            chunks = [data]
-            dr_ch = [dr]
+        iz = np.argmin(np.abs(z - self.redshifts))
+        data = self.history[key][iz]
+        
+        if 'cf' in key:
+            x = self.history['R']
         else:
-            splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
-            chunks = np.split(data, splits)
-            dr_ch = np.split(dr, splits)
+            x = self.history['k']
+        
+        return split_by_sign(x, data)
+        
+        # Might be multiple sign changes
+        
+        #splitter = np.diff(np.sign(data))
+        #
+        #dr = self.history['R']
+        #
+        #if np.all(splitter == 0):
+        #    chunks = [data]
+        #    dr_ch = [dr]
+        #else:
+        #    splits = np.atleast_1d(np.argwhere(splitter != 0).squeeze()) + 1
+        #    chunks = np.split(data, splits)
+        #    dr_ch = np.split(dr, splits)
+        #    
+        #return dr_ch, chunks
             
-        return dr_ch, chunks
-            
-    def CheckCorrelationFunctions(self, redshifts, include_xcorr=True,
-        mp_kwargs={}):
+    def CheckFluctuations(self, redshifts, include_xcorr=False, real_space=True,
+        split_by_scale=False, include_fields=['dd','xx','coco','21_s','21'],
+        colors=['k','b','g','r','c','m'], mp_kwargs={}):
         
         mp = MultiPanel(dims=(1+include_xcorr, len(redshifts)), 
             padding=(0.25, 0.15), **mp_kwargs)
+            
+        if real_space:
+            prefix = 'cf'
+            x = self.history['R']
+        else:
+            prefix = 'ps'  
+            x = self.history['k']
 
         for h, redshift in enumerate(redshifts):
 
             iz = np.argmin(np.abs(redshift - self.redshifts))
-            dr = self.history['dr']
-
+            
             # Auto correlations in top row, cross terms on bottom
             # z=8 on top, z=12 on bottom
             ax = mp.grid[mp.axis_number(include_xcorr, h)]
 
             # Plot auto-correlation functions
-            ls = ':', '--', '-.', '-', '-'
-            colors = ['k'] * 4 + ['b']
-            for i, cf in enumerate(['dd', 'xx', 'coco', '21_s', '21']):
-                s = 'cf_%s' % cf
+            for i, cf in enumerate(include_fields):
+                s = '%s_%s' % (prefix, cf)
 
                 if s not in self.history:
                     continue
@@ -385,26 +418,63 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                 if np.all(self.history[s][iz] == 0):
                     continue
 
-                dr_ch, chunks = self._split_cf(redshift, s)
+                x_ch, ps_ch = self._split_cf(redshift, s)
+                
+                if split_by_scale and ('%s_1' % s in self.history.keys()):
+                    x_ch_1, ps_ch_1 = self._split_cf(redshift, s+'_1')
+                    x_ch_2, ps_ch_2 = self._split_cf(redshift, s+'_2')
 
-                for j, chunk in enumerate(chunks):
+                for j, chunk in enumerate(ps_ch):
                     if np.all(chunk < 0):
                         lw = 1
                     else:
                         lw = 3
 
                     if j == 0:
-                        label = r'$\xi_{%s}$' % cf
+                        if real_space:
+                            label = r'$\xi_{%s}$' % cf
+                        else:
+                            label = r'$P_{%s}$' % cf
                     else:
                         label = None
 
-                    ax.loglog(dr_ch[j], np.abs(chunk), color=colors[i], 
-                        ls=ls[i], alpha=0.5, lw=lw, label=label)
+                    if real_space:
+                        mult = 1.
+                    else:
+                        mult = x_ch[j]**3 / 2. / np.pi**2
+                    
+                    ax.loglog(x_ch[j], np.abs(chunk) * mult, color=colors[i], 
+                        ls='-', alpha=0.5, lw=lw, label=label)
+                        
+                # Plot one- and two-halo terms separately as dashed/dotted lines        
+                if split_by_scale and ('%s_1' % s in self.history.keys()):
+
+                    ls = ['--', ':']
+                    xlist = [x_ch_1, x_ch_2]
+                    for h, term in enumerate([ps_ch_1, ps_ch_2]):
+                        for j, chunk in enumerate(term):
+                            if np.all(chunk < 0):
+                                lw = 1
+                            else:
+                                lw = 3
+                                
+                            if real_space:
+                                mult = 1.
+                            else:
+                                mult = xlist[h][j]**3 / 2. / np.pi**2
+                                
+                            ax.loglog(xlist[h][j], np.abs(chunk) * mult, 
+                                color=colors[i], ls=ls[h], alpha=0.5, lw=lw)
+
 
             if h == 0:
                 ax.legend(loc='lower left', fontsize=14, ncol=2)
 
-            ax.set_ylim(1e-7, 10)
+            if real_space:
+                ax.set_ylim(1e-7, 10)
+            else:
+                ax.set_ylim(1e-7, 1e3)
+                
             ax.annotate(r'$z=%i$' % redshift, (0.05, 0.95), xycoords='axes fraction',
                 ha='left', va='top')
             ax.annotate(r'$\bar{Q}=%.2f$' % self.history['Qi'][iz], (0.95, 0.95), 
@@ -449,24 +519,40 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                         lw = 3
 
                     if j == 0:
-                        label = r'$\xi_{%s}$' % cf
+                        if real_space:
+                            label = r'$\xi_{%s}$' % cf
+                        else:
+                            label = r'$P_{%s}$' % cf
+                            
                     else:
                         label = None
 
                     ax.loglog(dr_ch[j], np.abs(chunk), color=colors[i], 
-                        ls=ls[i], alpha=0.5, lw=lw, label=label)
+                        ls='-', alpha=0.5, lw=lw, label=label)
 
             if h == 0:
                 ax.legend(loc='lower left', fontsize=14)
 
-            ax.set_ylim(1e-7, 10)     
-
-
-        mp.grid[mp.upperleft].set_ylabel(r'$\xi_{\mathrm{auto}}$')
-        mp.grid[mp.lowerleft].set_ylabel(r'$\xi_{\mathrm{cross}}$')
+            if real_space:
+                ax.set_ylim(1e-7, 10)     
+            else:
+                ax.set_ylim(1e-7, 1e3)     
+        
+        if real_space:
+            mp.grid[mp.upperleft].set_ylabel(r'$\xi_{\mathrm{auto}}$')
+        
+            if include_xcorr:
+                mp.grid[mp.lowerleft].set_ylabel(r'$\xi_{\mathrm{cross}}$')
+        else:
+            mp.grid[mp.upperleft].set_ylabel(r'$\Delta^2(k)$')
+                
+            
 
         for i in range(len(redshifts)):
-            mp.grid[i].set_xlabel(r'$R \ [\mathrm{cMpc}]$')
+            if real_space:
+                mp.grid[i].set_xlabel(r'$R \ [\mathrm{cMpc}]$')
+            else:
+                mp.grid[i].set_xlabel(r'$k \ [\mathrm{cMpc}^{-1}]$')
 
         #mp.fix_ticks()
         pl.show()
@@ -542,4 +628,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         pl.show()
         
         return mp
+        
+    def CheckSeparateScales(self):
+        pass
             

@@ -15,7 +15,6 @@ import numpy as np
 import re, scipy, os
 from ..util import labels
 import matplotlib.pyplot as pl
-from ..util.Stats import get_nu
 from .MultiPlot import MultiPanel
 from scipy.misc import derivative
 from scipy.optimize import fsolve
@@ -517,7 +516,7 @@ class MultiPhaseMedium(object):
             mu=0.055, sig1=0.009, padding=0.02, borderpad=1, 
             ticklabels=None, fmt='%.2g', **kwargs):
 
-        sig2 = get_nu(sig1, 0.68, 0.95)
+        sig2 = 2. * sig1
 
         if inset is None:
             inset = self.add_inset(ax, inset=inset, width=width, height=height, 
@@ -561,7 +560,7 @@ class MultiPhaseMedium(object):
             inset.set_yticklabels([])
             
             if (lo is None and hi is None):
-                sig2 = get_nu(sig1, 0.68, 0.95)
+                sig2 = 2. * sig1
                 lo = mu-sig2-padding
                 hi = mu+sig2+padding
             
