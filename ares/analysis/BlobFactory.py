@@ -147,8 +147,8 @@ class BlobFactory(object):
             if hdf5_situation:
                 f = h5py.File('{!s}.hdf5'.format(self.prefix), 'r')
                 
-                _blob_ivars = []  
-                _blob_ivarn = []              
+                _blob_ivars = []
+                _blob_ivarn = []
                 _blob_names = names
                 for name in names:
                     ivar = f['blobs'][name].attrs.get('ivar')
@@ -282,8 +282,9 @@ class BlobFactory(object):
     def all_blob_names(self):
         if not hasattr(self, '_all_blob_names'):
             
+            nested = any(isinstance(i, list) for i in self.blob_names)
             
-            if self.blob_groups is not None:
+            if nested:
                 self._all_blob_names = []
                 for i in range(self.blob_groups):
                     self._all_blob_names.extend(self.blob_names[i])    
@@ -364,6 +365,10 @@ class BlobFactory(object):
         return self._blobs
         
     def get_ivars(self, name):
+        
+        if self.blob_groups is None:
+            return self.blob_ivars[self.blob_names.index(name)]
+        
         for i in range(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
                 if blob == name:

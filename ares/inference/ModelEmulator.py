@@ -14,8 +14,13 @@ import time
 import copy
 import numpy as np
 import scipy.stats as stats
+import matplotlib.pyplot as pl
 import matplotlib.pyplot as plt
+from ..physics.Constants import nu_0_mhz
+from ..analysis import Global21cm as aGS
+from ..analysis.Aesthetics import labels
 from ..analysis import ModelSet, MultiPanel
+from ..analysis.MultiPlot import add_master_legend
 
 try:
     import emupy
@@ -32,7 +37,6 @@ try:
 except ImportError:
     pass    
 
-
 class ModelEmulator(object):
     def __init__(self, tset):
         if type(tset) == str:
@@ -40,7 +44,7 @@ class ModelEmulator(object):
         else:
             assert isinstance(tset, ModelSet)
             self.tset = tset
-        
+
     @property
     def vset(self):
         if not hasattr(self, '_vset'):
@@ -216,7 +220,7 @@ class ModelEmulator(object):
         if ivars is None:
             ivars = self.ivar_arr
         else:
-            raise NotImplemented('')
+            ivars = np.array(ivars)
         
         dims = len(ivars), len(self.tset.parameters)
     
@@ -237,7 +241,7 @@ class ModelEmulator(object):
             
             # Set up range of x-values that all lie within training set
             mi = np.min(self.tset.chain[:,i])
-            ma = np.max(self.tset.chain[:,i])    
+            ma = np.max(self.tset.chain[:,i])
             par_vals = np.logspace(np.log10(mi), np.log10(ma), Nvals)
     
             # Determine which elements from validation grid to keep.
@@ -272,6 +276,7 @@ class ModelEmulator(object):
             
             # Further refine based on the indep. variable values we want
             dat = slc.ExtractData(field)[field][:,self.ivar_slc == 1]
+            raw_ivars = slc.get_ivars(field).squeeze()
 
             ###
             ## PREDICTIONS FROM TRAINING SET.
@@ -310,12 +315,19 @@ class ModelEmulator(object):
 
                  # Plot right answers from validation set
                  ii = list(self.vset.parameters).index(par)
-                 x, y = self.vset.chain[keep == 1,ii], dat[keep == 1,l]
+                 x = self.vset.chain[keep == 1,ii]
+                 
+                 # Must find index 'll' that maps to reduced ivar array
+                 ll = np.argmin(np.abs(raw_ivars[self.ivar_slc == 1] - ivar))
+                 
+                 print ivar, raw_ivars[self.ivar_slc == 1][ll], ll
+                 
+                 y = dat[keep == 1,ll]
                  s = np.argsort(x)
                  mp.grid[m].plot(x[s], y[s], color='k', ls='-')
             
                  # Plot predictions
-                 x2, y2 = cross_val[:,i], recon[:,k]
+                 x2, y2 = cross_val[:,i], recon[:,l]
                  s2 = np.argsort(x2)
                  
                  # Clean up
@@ -345,14 +357,96 @@ class ModelEmulator(object):
             if i not in mp.left:
                 mp.grid[i].set_yticklabels([])
             
-    
         mp.align_labels(0.3, 0.3)
         
         return mp
+        
+    def validate_recon(self, N=10, field='dTb', ax=None, fig=1, 
+        z_to_freq=True, **kwargs):
+            
+        if ax is None:
+            gotax = False
+            fig = pl.figure(fig)
+            ax = fig.add_subplot(111)
+        else:
+            gotax = True    
+            
+        zarr = self.vset.get_ivars('dTb')
+        dTb =  self.vset.ExtractData('dTb')['dTb']
+
+        samples = np.random.randint(0, self.vset.chain.shape[0], size=N)
+
+        colors = ['b', 'r', 'g', 'c', 'k', 'm', 'y', 'c'] * 5
+        for k, i in enumerate(samples):
+            if z_to_freq:
+                ax.plot(nu_0_mhz / (1. + zarr), dTb[i], 
+                    color=colors[k], ls='-', alpha=0.5)
+            else:    
+                ax.plot(zarr, dTb[i], color=colors[k], ls='-', alpha=0.5)
+
+            # Training set and validation set parameters in different order!
+            chain = []
+            for j, par in enumerate(self.tset.parameters):
+                l = list(self.vset.parameters).index(par)
+                chain.append(self.vset.chain[i,l])
+
+            chain = np.array(chain)
+            
+            if z_to_freq:
+                ax.plot(nu_0_mhz / (1. + self.ivar_arr), self.predict(chain)[0], 
+                    color=colors[k], ls='--')
+            else:    
+                ax.plot(self.ivar_arr, self.predict(chain)[0],
+                    color=colors[k], ls='--')
+            
+        ax.set_ylabel(labels[field])    
+
+        if z_to_freq:
+            ax.set_xlabel(labels['nu'])
+        else:    
+            ax.set_xlabel(r'$z$')
+            
+        return ax
     
+    def create_simulator(self, defaults):
+        """
+        Make an object that acts like an instance of some ares.simulations
+        class.
+        """
+        
+        # Needs to know parameter names and indices
+        sim = SimulationEmulator(self.E, self.tset.parameters, 
+            self.ivar_arr, defaults)
     
+        return sim
     
-    
-    
-    
-    
+  
+class SimulationEmulator(object):
+    def __init__(self, emulator, pars, ivars, defaults):
+        self.E = emulator
+        self.parameters = pars
+        self.ivars = ivars
+        self.defaults = np.array([defaults[par] for par in pars])
+
+    def __call__(self, **kwargs):
+        # This actually mimics the __init__ method of simulation objects
+
+        arr = self.defaults.copy()
+        for i, par in enumerate(self.parameters):
+            if par not in kwargs:
+                continue
+            arr[i] = kwargs[par]
+
+        self.arr = arr
+
+    def run(self):
+        recon = self.E.predict(self.arr)
+
+        # Create 'history' attribute.
+        hist = {'z': self.ivar_arr, 'dTb': recon.squeeze()}
+        
+        # How to make the routines accessible? Will inheriting aGS work?
+        self.history = aGS(history=hist)
+
+
+
