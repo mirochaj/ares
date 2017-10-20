@@ -27,17 +27,17 @@ from ..util.ParameterFile import ParameterFile
 from ..util.Math import central_difference, smooth
 from .Constants import g_per_msun, cm_per_mpc, s_per_yr, G, cm_per_kpc, m_H, k_B
 from scipy.interpolate import UnivariateSpline, RectBivariateSpline, interp1d
-    
+
 try:
     from scipy.special import erfc
 except ImportError:
     pass
-    
+
 try:
     import h5py
 except ImportError:
     pass
-    
+
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
@@ -441,7 +441,7 @@ class HaloMassFunction(object):
                 if type(self.pf['pop_Mmin']) is FunctionType:
                     self.logM_min[i] = np.log10(self.pf['pop_Mmin'](z))
                 else:    
-                    self.logM_min[i] = np.log10(self.pf['pop_Mmin'])
+                    self.logM_min[i] = np.log10(self.pf['pop_Mmin'][i])
                     
             if Mmax_of_z:
                 self.logM_max[i] = np.log10(self.VirialMass(self.pf['pop_Tmax'], z, mu=mu))        
