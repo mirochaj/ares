@@ -88,7 +88,7 @@ class ModelEmulator(object):
         sample_ids = np.arange(0, Ns)
         
         # Set independent variables for training
-        ivar_raw = self.tset.get_ivars(field)[0]
+        ivar_raw = np.array(self.tset.get_ivars(field)).squeeze()
         if ivars is None:
             ivar_slc = np.ones_like(ivar_raw)
         else:
