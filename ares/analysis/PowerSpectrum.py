@@ -218,12 +218,12 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         iz = np.argmin(np.abs(z - self.redshifts))
 
         R = self.history['R_b'][iz]
-        Mb = self.history['M_b'][iz]
+        M = self.history['M_b'][iz]
         bsd = self.history['bsd'][iz]
     
         rho0 = self.cosm.mean_density0
         
-        R = ((Mb / rho0) * 0.75 / np.pi)**(1./3.)
+        #R = ((M / rho0) * 0.75 / np.pi)**(1./3.)
         dvdr = 4. * np.pi * R**2        
         dmdr = rho0 * dvdr
         dmdlnr = dmdr * R
@@ -308,7 +308,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             else:
                 pow_z = self.history['ps_%s' % field][i]
             
-            p.append(np.interp(k, self.history['k'], pow_z))
+            p.append(np.interp(np.log(k), np.log(self.history['k']), pow_z))
             
         p = np.array(p)
         
@@ -388,7 +388,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             
     def CheckFluctuations(self, redshifts, include_xcorr=False, real_space=True,
         split_by_scale=False, include_fields=['dd','xx','coco','21_s','21'],
-        colors=['k','b','g','r','c','m'], mp_kwargs={}):
+        colors=['k','b','g','c','m','r'], mp_kwargs={}):
         
         mp = MultiPanel(dims=(1+include_xcorr, len(redshifts)), 
             padding=(0.25, 0.15), **mp_kwargs)
@@ -451,7 +451,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
                     ls = ['--', ':']
                     xlist = [x_ch_1, x_ch_2]
-                    for h, term in enumerate([ps_ch_1, ps_ch_2]):
+                    for hh, term in enumerate([ps_ch_1, ps_ch_2]):
                         for j, chunk in enumerate(term):
                             if np.all(chunk < 0):
                                 lw = 1
@@ -461,14 +461,18 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                             if real_space:
                                 mult = 1.
                             else:
-                                mult = xlist[h][j]**3 / 2. / np.pi**2
+                                mult = xlist[hh][j]**3 / 2. / np.pi**2
                                 
-                            ax.loglog(xlist[h][j], np.abs(chunk) * mult, 
-                                color=colors[i], ls=ls[h], alpha=0.5, lw=lw)
+                            ax.loglog(xlist[hh][j], np.abs(chunk) * mult, 
+                                color=colors[i], ls=ls[hh], alpha=0.5, lw=lw)
 
 
             if h == 0:
-                ax.legend(loc='lower left', fontsize=14, ncol=2)
+                if real_space:
+                    ax.legend(loc='lower left', fontsize=14, ncol=2)
+                else:
+                    ax.legend(loc='lower right', fontsize=14, ncol=2)
+                    
 
             if real_space:
                 ax.set_ylim(1e-7, 10)
@@ -482,7 +486,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                 ha='right', va='top')
 
             if not include_xcorr:
-                continue    
+                continue
 
             ax = mp.grid[mp.axis_number(0, h)]    
 
@@ -544,7 +548,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             if include_xcorr:
                 mp.grid[mp.lowerleft].set_ylabel(r'$\xi_{\mathrm{cross}}$')
         else:
-            mp.grid[mp.upperleft].set_ylabel(r'$\Delta^2(k)$')
+            mp.grid[mp.upperleft].set_ylabel(labels['dpow'])
                 
             
 

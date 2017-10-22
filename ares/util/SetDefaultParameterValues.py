@@ -384,7 +384,7 @@ def PowerSpectrumParameters():
      "powspec_lya_method": 0,
      "powspec_lya_approx_sfr": 'exp',
      "powspec_ion_method": None,  # unused
-     "powspec_temp_method": None, # unused
+     "powspec_temp_method": 0,
      
      "bubble_shell_size_dist": None,
      "bubble_size_dist": 'fzh04', # or FZH04, PC14

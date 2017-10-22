@@ -28,9 +28,9 @@ hmf_pars = \
  "hmf_zmin": 3.,
  "hmf_dz": 0.05,
  "hmf_zmax": 60.,
- 'fft_scales': np.arange(1e-3, 1e3+1e-3, 1e-3),
- 'powspec_dlogk': 0.1,
- 'powspec_dlogr': 0.1,
+ 'fft_scales': np.arange(1e-4, 1e2+1e-4, 1e-4),
+ 'powspec_dlogk': 0.05,
+ 'powspec_dlogr': 0.05,
 }
 ##
 
