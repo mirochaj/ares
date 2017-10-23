@@ -410,21 +410,22 @@ class PowerSpectrum21cm(AnalyzePS):
             data['ev_coco_2'] = np.zeros_like(R)
             if self.pf['include_temp_fl']:
                 
+                data['avg_C'] = 0.0
                 data['jp_hc'] = np.zeros_like(R)
                 data['jp_hc_1'] = np.zeros_like(R)
                 data['jp_hc_2'] = np.zeros_like(R)
                                 
-                Qh = self.field.BubbleShellFillingFactor(z, zeta, zeta_lya)
+                Q = self.field.BubbleShellFillingFactor(z, zeta, zeta_lya)
                 
                 suffixes = 'h', 'c'
                 for ii in range(2):
                     
-                    if self.pf['bubble_shell_zone_{}_temp'.format(ii)] is None:
+                    if self.pf['bubble_shell_ktemp_zone_{}'.format(ii)] is None:
                         continue
                         
                     s = suffixes[ii]
                     ss = suffixes[ii] + suffixes[ii]
-                    ztemp = self.pf['bubble_shell_zone_{}_temp'.format(ii)]
+                    ztemp = self.pf['bubble_shell_ktemp_zone_{}'.format(ii)]
                     
                     if ztemp == 'mean':
                         ztemp = np.interp(z, self.mean_history['z'][-1::-1], 
@@ -433,9 +434,10 @@ class PowerSpectrum21cm(AnalyzePS):
                     C = self._temp_to_contrast(z, ztemp)
                     
                     data['C{}'.format(s)] = C
-                    data['Q{}'.format(s)] = Qh
-                    data['avg_C{}'.format(s)] = avg_Ch = Qh * Ch
-
+                    data['Q{}'.format(s)] = Q[ii]
+                    data['avg_C{}'.format(s)] = Q[ii] * C
+                    data['avg_C'] += Q[ii] * C
+                    
                     p_tot, p_1h, p_2h = self.field.JointProbability(z, 
                         self.R_cr, zeta, term=ss, Tprof=None, data=data,
                         zeta_lya=zeta_lya)
@@ -464,8 +466,6 @@ class PowerSpectrum21cm(AnalyzePS):
                 data['avg_Ch'] = 0.0
                 data['avg_C'] = 0.0
                 
-            data['avg_C'] += data['avg_Ch']    
-
             ##
             # Lyman-alpha fluctuations                
             ##    
@@ -515,7 +515,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     #data['jp_hc'] = np.interp(logR, self.logR_cr, p_hc)
                     data['jp_hc_1'] = np.interp(logR, self.logR_cr, p_hc_1)
                     data['jp_hc_2'] = np.interp(logR, self.logR_cr, p_hc_2)
-                    data['ev_coco'] += Cc * Ch * data['jp_hc'] #* (1. - Qi)#min(Qh + Qc, 1.)
+                    data['ev_coco'] += data['Cc'] * data['Ch'] * data['jp_hc'] #* (1. - Qi)#min(Qh + Qc, 1.)
                     
                     if (Qh + Qc) > 1:
                         print "WARNING: Qh+Qc > 1"
@@ -532,32 +532,32 @@ class PowerSpectrum21cm(AnalyzePS):
             ##
             # Cross-terms between ionization and contrast
             ##
-            if self.include_con_fl and self.pf['include_ion_fl']:
-                if self.pf['include_temp_fl']:
-                    p_ih, p_ih_1, p_ih_2 = self.field.JointProbability(z,
-                        self.R_cr, zeta, term='ih', data=data, zeta_lya=zeta_lya)
-                    data['jp_ih'] = np.interp(logR, self.logR_cr, p_ih)
-                    data['jp_ih_1'] = np.interp(logR, self.logR_cr, p_ih_1)
-                    data['jp_ih_2'] = np.interp(logR, self.logR_cr, p_ih_2)
-                else:
-                    data['jp_ih'] = np.zeros_like(R)
-                    
-                if self.pf['include_lya_fl']:
-                    p_ic, p_ic_1, p_ic_2 = self.field.JointProbability(z, 
-                        self.R_cr, zeta, term='ic', data=data, 
-                        zeta_lya=zeta_lya)
-                    data['jp_ic'] = np.interp(logR, self.logR_cr, p_ic)
-                    data['jp_ic_1'] = np.interp(logR, self.logR_cr, p_ic_1)
-                    data['jp_ic_2'] = np.interp(logR, self.logR_cr, p_ic_2)
-                else:
-                    data['jp_ic'] = np.zeros_like(R)
-                        
-                data['ev_ico'] = data['Ch'] * data['jp_ih'] \
-                               + data['Cc'] * data['jp_ic']
-            else:
-                data['jp_ih'] = np.zeros_like(k)
-                data['jp_ic'] = np.zeros_like(k)
-                data['ev_ico'] = np.zeros_like(k)    
+            #if self.include_con_fl and self.pf['include_ion_fl']:
+            #    if self.pf['include_temp_fl']:
+            #        p_ih, p_ih_1, p_ih_2 = self.field.JointProbability(z,
+            #            self.R_cr, zeta, term='ih', data=data, zeta_lya=zeta_lya)
+            #        data['jp_ih'] = np.interp(logR, self.logR_cr, p_ih)
+            #        data['jp_ih_1'] = np.interp(logR, self.logR_cr, p_ih_1)
+            #        data['jp_ih_2'] = np.interp(logR, self.logR_cr, p_ih_2)
+            #    else:
+            #        data['jp_ih'] = np.zeros_like(R)
+            #        
+            #    if self.pf['include_lya_fl']:
+            #        p_ic, p_ic_1, p_ic_2 = self.field.JointProbability(z, 
+            #            self.R_cr, zeta, term='ic', data=data, 
+            #            zeta_lya=zeta_lya)
+            #        data['jp_ic'] = np.interp(logR, self.logR_cr, p_ic)
+            #        data['jp_ic_1'] = np.interp(logR, self.logR_cr, p_ic_1)
+            #        data['jp_ic_2'] = np.interp(logR, self.logR_cr, p_ic_2)
+            #    else:
+            #        data['jp_ic'] = np.zeros_like(R)
+            #            
+            #    data['ev_ico'] = data['Ch'] * data['jp_ih'] \
+            #                   + data['Cc'] * data['jp_ic']
+            #else:
+            data['jp_ih'] = np.zeros_like(k)
+            data['jp_ic'] = np.zeros_like(k)
+            data['ev_ico'] = np.zeros_like(k)    
             
             ##
             # Cross-correlations
@@ -707,7 +707,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 # not involving the density, <x x' C'> and <x x' C C'>.
                 # Under the binary field(s) approach, we can just write
                 # each of these terms down
-                ev_xi_cop = Ch * data['jp_ih'] + Cc * data['jp_ic']
+                ev_xi_cop = data['Ch'] * data['jp_ih'] + data['Ch'] * data['jp_ic']
                 
                 ev_cc = data['ev_coco']
                 ev_xx = 1. - 2. * xibar + data['ev_ii']

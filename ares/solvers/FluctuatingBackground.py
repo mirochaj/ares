@@ -103,18 +103,27 @@ class FluctuatingBackground(object):
         elif self.pf['bubble_size_dist'].lower() == 'fzh04':
             Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
 
-            Rs = self.BubbleShellRadius(z, Ri)
+            Rh, Rc = self.BubbleShellRadius(z, Ri)
+            
+            if np.logical_and(np.all(Rh == 0), np.all(Rc == 0)):
+                return 0., 0.
             
             Mmin = self.Mmin(z)
             iM = np.argmin(np.abs(Mmin * zeta - self.halos.M))
 
             Vi = 4. * np.pi * Ri**3 / 3.   
-            Vsh = 4. * np.pi * (Rs - Ri)**3 / 3.
+            Vsh1 = 4. * np.pi * (Rh - Ri)**3 / 3.
+            
+            if Rc == 0:
+                Vsh2 = Qc = 0.0
+            else:    
+                Vsh2 = 4. * np.pi * (Rc - Rh)**3 / 3.
+                Qc = np.trapz(dndlnm[iM:] * Vsh2[iM:], x=np.log(Mi[iM:]))
             
             dndlnm = dndm * Mi
             Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
-            Qh = np.trapz(dndlnm[iM:] * Vsh[iM:], x=np.log(Mi[iM:]))
-
+            Qh = np.trapz(dndlnm[iM:] * Vsh1[iM:], x=np.log(Mi[iM:]))
+            
             if self.pf['powspec_rescale_Qion'] and self.pf['powspec_rescale_Qhot']:
                 norm = min(zeta * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
                 
@@ -124,7 +133,7 @@ class FluctuatingBackground(object):
         else:
             raise NotImplemented('Uncrecognized option for BSD.')
          
-        return min(Qh, 1.)
+        return min(Qh, 1.), min(Qc, 1.) 
 
     def BubbleFillingFactor(self, z, zeta, zeta_lya=None, lya=False):
                                 
@@ -246,11 +255,9 @@ class FluctuatingBackground(object):
     def mean_bubble_bias(self, z, zeta, zeta_lya, term):
         Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
                 
-        if ('h' in term):
-            R = self.BubbleShellRadius(z, Ri)
-        elif 'c' in term and self.pf['powspec_lya_method'] == 0:
-            R = self.BubblePodRadius(z, Ri=Ri, zeta=zeta, 
-                    zeta_lya=zeta_lya)
+        if ('h' in term) or ('c' in term):
+            Rh, Rc = self.BubbleShellRadius(z, Ri)
+            R = Rh
         else:
             R = Ri
         
@@ -482,14 +489,14 @@ class FluctuatingBackground(object):
         to_ret = []
         for ii in range(2):
             
-            if self.pf['bubble_shell_zone_{0}_temp'.format(ii)] is None:
-                val = None
-            elif self.pf['bubble_shell_zone_{0}_rsize'.format(ii)] is not None:
-                val = Ri * self.pf['bubble_shell_zone_{0}_rsize'.format(ii)]
-            elif self.pf['bubble_shell_zone_{0}_asize'.format(ii)] is not None:
-                val = Ri + self.pf['bubble_shell_zone_{0}_zsize'.format(ii)]
+            if self.pf['bubble_shell_ktemp_zone_{}'.format(ii)] is None:
+                val = 0.0
+            elif self.pf['bubble_shell_rsize_zone_{}'.format(ii)] is not None:
+                val = Ri * self.pf['bubble_shell_rsize_zone_{}'.format(ii)]
+            elif self.pf['bubble_shell_asize_zone_{}'.format(ii)] is not None:
+                val = Ri + self.pf['bubble_shell_zsize_zone_{}'.format(ii)]
             else:
-                val = None
+                val = 0.0
                 
             to_ret.append(val)
             

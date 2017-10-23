@@ -370,12 +370,14 @@ def PowerSpectrumParameters():
      "bubble_size": None,
      "bubble_density": None,
      
-     "bubble_shell_zone_1_rsize": None,
-     "bubble_shell_zone_1_asize": None,
-     "bubble_shell_zone_1_temp": None,
-     "bubble_shell_zone_2_rsize": None,
-     "bubble_shell_zone_2_asize": None,
-     "bubble_shell_zone_2_temp": None,
+     # Important that the number is at the end! ARES will interpret
+     # numbers within underscores as population ID numbers.
+     "bubble_shell_rsize_zone_0": None,
+     "bubble_shell_asize_zone_0": None,
+     "bubble_shell_ktemp_zone_0": None,
+     "bubble_shell_rsize_zone_1": None,
+     "bubble_shell_asize_zone_1": None,
+     "bubble_shell_ktemp_zone_1": None,
      
      "bubble_shell_include_xcorr": True,
      
