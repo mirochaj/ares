@@ -408,26 +408,54 @@ class PowerSpectrum21cm(AnalyzePS):
             data['ev_coco'] = np.zeros_like(R)
             data['ev_coco_1'] = np.zeros_like(R)
             data['ev_coco_2'] = np.zeros_like(R)
-            if self.pf['include_temp_fl'] and self.pf['include_acorr']:
+            if self.pf['include_temp_fl']:
+                
+                data['jp_hc'] = np.zeros_like(R)
+                data['jp_hc_1'] = np.zeros_like(R)
+                data['jp_hc_2'] = np.zeros_like(R)
+                                
                 Qh = self.field.BubbleShellFillingFactor(z, zeta, zeta_lya)
-                Ch = self._temp_to_contrast(z, self.pf['bubble_shell_temp'])
-                data['Ch'] = Ch
-                data['Qh'] = Qh
-                data['avg_Ch'] = avg_Ch = Qh * Ch
+                
+                suffixes = 'h', 'c'
+                for ii in range(2):
+                    
+                    if self.pf['bubble_shell_zone_{}_temp'.format(ii)] is None:
+                        continue
+                        
+                    s = suffixes[ii]
+                    ss = suffixes[ii] + suffixes[ii]
+                    ztemp = self.pf['bubble_shell_zone_{}_temp'.format(ii)]
+                    
+                    if ztemp == 'mean':
+                        ztemp = np.interp(z, self.mean_history['z'][-1::-1], 
+                            self.mean_history['igm_Tk'][-1::-1])
+                    
+                    C = self._temp_to_contrast(z, ztemp)
+                    
+                    data['C{}'.format(s)] = C
+                    data['Q{}'.format(s)] = Qh
+                    data['avg_C{}'.format(s)] = avg_Ch = Qh * Ch
 
-                p_hh, p_hh_1, p_hh_2 = self.field.JointProbability(z, 
-                    self.R_cr, zeta, term='hh', Tprof=None, data=data,
-                    zeta_lya=zeta_lya)
+                    p_tot, p_1h, p_2h = self.field.JointProbability(z, 
+                        self.R_cr, zeta, term=ss, Tprof=None, data=data,
+                        zeta_lya=zeta_lya)
 
-                data['jp_hh'] = np.interp(logR, self.logR_cr, p_hh)
-                data['jp_hh_1'] = np.interp(logR, self.logR_cr, p_hh_1)
-                data['jp_hh_2'] = np.interp(logR, self.logR_cr, p_hh_2)
-
-                data['ev_coco'] += Ch**2 * data['jp_hh']
-                data['ev_coco_1'] += Ch**2 * data['jp_hh_1']
-                data['ev_coco_2'] += Ch**2 * data['jp_hh_2']
-              
-                data['avg_C'] = data['avg_Ch']
+                    data['jp_{}'.format(ss)] = \
+                        np.interp(logR, self.logR_cr, p_tot)
+                    data['jp_{}_1'.format(ss)] = \
+                        np.interp(logR, self.logR_cr, p_1h)
+                    data['jp_{}_2'.format(ss)] = \
+                        np.interp(logR, self.logR_cr, p_2h)
+                                        
+                    data['ev_coco'] += C**2 * data['jp_{}'.format(ss)]
+                    data['ev_coco_1'] += C**2 * data['jp_{}_1'.format(ss)]
+                    data['ev_coco_2'] += C**2 * data['jp_{}_2'.format(ss)]
+                    
+                    if not self.pf['bubble_shell_include_xcorr']:
+                        continue
+                
+                    #data['jp_hc']
+                
                 
             else:
                 p_hh = data['jp_hh'] = np.zeros_like(R)
@@ -435,6 +463,8 @@ class PowerSpectrum21cm(AnalyzePS):
                 data['Qh'] = Qh = 0.0
                 data['avg_Ch'] = 0.0
                 data['avg_C'] = 0.0
+                
+            data['avg_C'] += data['avg_Ch']    
 
             ##
             # Lyman-alpha fluctuations                

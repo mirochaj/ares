@@ -368,18 +368,24 @@ def PowerSpectrumParameters():
      "powspec_rescale_dTb": False,
 
      "bubble_size": None,
-     "bubble_shell_size_rel": None,
-     "bubble_shell_size_abs": None,
-     "bubble_shell_size_func": None,
-     "bubble_shell_temp": None,
      "bubble_density": None,
+     
+     "bubble_shell_zone_1_rsize": None,
+     "bubble_shell_zone_1_asize": None,
+     "bubble_shell_zone_1_temp": None,
+     "bubble_shell_zone_2_rsize": None,
+     "bubble_shell_zone_2_asize": None,
+     "bubble_shell_zone_2_temp": None,
+     
+     "bubble_shell_include_xcorr": True,
+     
 
-     "bubble_pod_size": None,
-     "bubble_pod_size_rel": None,
-     "bubble_pod_size_abs": None,
-     "bubble_pod_size_func": None,
-     "bubble_pod_temp": None,
-     "bubble_pod_Nsc": 1e3,
+     #"bubble_pod_size": None,
+     #"bubble_pod_size_rel": None,
+     #"bubble_pod_size_abs": None,
+     #"bubble_pod_size_func": None,
+     #"bubble_pod_temp": None,
+     #"bubble_pod_Nsc": 1e3,
      
      "powspec_lya_method": 0,
      "powspec_lya_approx_sfr": 'exp',

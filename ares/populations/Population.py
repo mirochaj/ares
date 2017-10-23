@@ -25,7 +25,7 @@ class Population(object):
             del kwargs['problem_type']
 
         self.pf = ParameterFile(**kwargs)
-        
+
         assert self.pf.Npops == 1, _multi_pop_error_msg
         
         self.grid = grid

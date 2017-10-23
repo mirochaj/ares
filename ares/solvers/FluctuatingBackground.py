@@ -448,42 +448,52 @@ class FluctuatingBackground(object):
         ##
         
         if not self.pf['include_temp_fl']:
-            return np.zeros_like(Ri)
+            return np.zeros_like(Ri), np.zeros_like(Ri)
 
-        if self.pf['bubble_shell_size_func'] == 'mfp':
-
-            sigma = PhotoIonizationCrossSection(self.Emin_X, species=0)
-            lmfp_p = 1. / self.cosm.nH(z) / sigma / cm_per_mpc
-            lmfp_c = lmfp_p * (1. + z)
-            
-            # Return value expected to be shell *radius*, not thickness, so
-            # add bubble size back in.
-            return Ri + lmfp_c
-            
-        elif self.pf['bubble_shell_size_func'] == 'const':
-            Nlyc = 4. * np.pi * (Ri * cm_per_mpc / (1. + z))**3 * self.cosm.nH(z) / 3.
-            NX   = 1e-4 * Nlyc
-            
-            nrg_flux = NX * self.Emin_X * erg_per_ev
-            Jx = nrg_flux * 0.2 
-            
-            #Rh = Ri \
-            #   + (3 * Jx / self.cosm.adiabatic_cooling_rate(z) / 4. / np.pi)**(1./3.) \
-            #   * (1. + z) / cm_per_mpc
-
-            return Rh
+        #if self.pf['bubble_shell_size_func'] == 'mfp':
+        #
+        #    sigma = PhotoIonizationCrossSection(self.Emin_X, species=0)
+        #    lmfp_p = 1. / self.cosm.nH(z) / sigma / cm_per_mpc
+        #    lmfp_c = lmfp_p * (1. + z)
+        #    
+        #    # Return value expected to be shell *radius*, not thickness, so
+        #    # add bubble size back in.
+        #    return Ri + lmfp_c
+        #    
+        #elif self.pf['bubble_shell_size_func'] == 'const':
+        #    Nlyc = 4. * np.pi * (Ri * cm_per_mpc / (1. + z))**3 * self.cosm.nH(z) / 3.
+        #    NX   = 1e-4 * Nlyc
+        #    
+        #    nrg_flux = NX * self.Emin_X * erg_per_ev
+        #    Jx = nrg_flux * 0.2 
+        #    
+        #    #Rh = Ri \
+        #    #   + (3 * Jx / self.cosm.adiabatic_cooling_rate(z) / 4. / np.pi)**(1./3.) \
+        #    #   * (1. + z) / cm_per_mpc
+        #
+        #    return Rh
 
         #else:
         #    raise NotImplemented('help')
 
         # Just scale the heated region relative to the ionized region
         # in an even simpler way.
-        if self.pf['bubble_shell_size_rel'] is not None:
-            return Ri * self.pf['bubble_shell_size_rel']
-        elif self.pf['bubble_shell_size_abs'] is not None:
-            return Ri + self.pf['bubble_shell_size_abs']
-        elif self.pf['bubble_shell_size_func'] is None:
-            return None
+
+        to_ret = []
+        for ii in range(2):
+            
+            if self.pf['bubble_shell_zone_{0}_temp'.format(ii)] is None:
+                val = None
+            elif self.pf['bubble_shell_zone_{0}_rsize'.format(ii)] is not None:
+                val = Ri * self.pf['bubble_shell_zone_{0}_rsize'.format(ii)]
+            elif self.pf['bubble_shell_zone_{0}_asize'.format(ii)] is not None:
+                val = Ri + self.pf['bubble_shell_zone_{0}_zsize'.format(ii)]
+            else:
+                val = None
+                
+            to_ret.append(val)
+            
+        return to_ret    
 
     def BubblePodRadius(self, z, Ri, zeta=40., zeta_lya=1.):
         """
@@ -614,18 +624,15 @@ class FluctuatingBackground(object):
         if self.pf['bubble_size_dist'].lower() == 'fzh04':
 
             #if 'c' in term:
-            if term == 'cc' and self.pf['powspec_lya_method'] > 0:                
-                Rc, Mi, dndm = self.BubblePodSizeDistribution(z, zeta)
-                Ri = Rh = np.zeros_like(Rc)
-            else:
-                Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
-
-                Rh = self.BubbleShellRadius(z, Ri)
-                Rc = self.BubblePodRadius(z, Ri=Ri, zeta=zeta, 
-                    zeta_lya=zeta_lya)
-
-            Rmax = Rc
-                
+            #if term == 'cc' and self.pf['powspec_lya_method'] > 0:                
+            #    Rc, Mi, dndm = self.BubblePodSizeDistribution(z, zeta)
+            #    Ri = Rh = np.zeros_like(Rc)
+            #else:
+            Ri, Mi, dndm = self.BubbleSizeDistribution(z, zeta)
+            Rh, Rc = self.BubbleShellRadius(z, Ri)
+            #Rc = self.BubblePodRadius(z, Ri=Ri, zeta=zeta, 
+            #    zeta_lya=zeta_lya)
+                            
             # Minimum bubble size            
             Mmin = self.Mmin(z) * zeta
             iM = np.argmin(np.abs(self.halos.M - Mmin))
@@ -683,15 +690,15 @@ class FluctuatingBackground(object):
 
                 elif term == 'cc':
                     
-                    if self.pf['powspec_lya_method'] > 0:
-                        Vo = self.IV(sep, Rc, Rc)
-                        Vss_ne_1 = 4. * np.pi * Rc**3 / 3. - Vo
-                        Vss_ne_2 = Vss_ne_1
-                    else:
-                        Vo = all_V[-1]
-                        Vss_ne_1 = 4. * np.pi * (Rc - Rh)**3 / 3. \
-                                 - (self.IV(sep, Rc, Rc) - self.IV(sep, Rh, Rc))
-                        Vss_ne_2 = Vss_ne_1
+                    #if self.pf['powspec_lya_method'] > 0:
+                    #    Vo = self.IV(sep, Rc, Rc)
+                    #    Vss_ne_1 = 4. * np.pi * Rc**3 / 3. - Vo
+                    #    Vss_ne_2 = Vss_ne_1
+                    #else:
+                    Vo = all_V[-1]
+                    Vss_ne_1 = 4. * np.pi * (Rc - Rh)**3 / 3. \
+                             - (self.IV(sep, Rc, Rc) - self.IV(sep, Rh, Rc))
+                    Vss_ne_2 = Vss_ne_1
                     
                     #if self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
                     #    Vo_sh_r1, Vo_sh_r2, Vo_sh_r3 = \
