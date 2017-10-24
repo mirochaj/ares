@@ -311,8 +311,29 @@ class PowerSpectrum21cm(AnalyzePS):
             ##
             # First: some global quantities we'll need
             ##
-            avg_Tk = np.interp(z, self.mean_history['z'][-1::-1],
+            Tk = np.interp(z, self.mean_history['z'][-1::-1],
                 self.mean_history['igm_Tk'][-1::-1])
+            Ja = np.interp(z, self.mean_history['z'][-1::-1],
+                self.mean_history['Ja'][-1::-1])
+            xHII, ne = [0] * 2
+            
+            # Assumes strong coupling. Mapping between temperature 
+            # fluctuations and contrast fluctuations.
+            Ts = Tk
+            Tcmb = self.cosm.TCMB(z)
+            
+            # Add beta factors to dictionary
+            for f1 in ['x', 'd', 'a']:
+                func = self.hydr.__getattribute__('beta_%s' % f1)
+                data['beta_%s' % f1] = func(z, Tk, xHII, ne, Ja)
+            
+            xavg = np.interp(z, self.gs.history['z'][-1::-1], 
+                self.gs.history['cgm_h_2'][-1::-1])
+            
+            # Mean brightness temperature outside bubbles    
+            Tbar = np.interp(z, self.gs.history['z'][-1::-1], 
+                self.gs.history['dTb'][-1::-1]) / (1. - xavg)
+
 
             #Qi = xibar
 
@@ -361,7 +382,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 ps_dd = self.pops[0].halos.PowerSpectrum(z, self.k_pos)
                 
                 # PS is positive so it's OK to log-ify it
-                data['ps_dd'] = np.exp(np.interp(np.log(np.abs(self.k)), 
+                data['ps_dd'] = np.exp(np.interp(np.log(np.abs(self.k)),
                     np.log(self.k_pos), np.log(ps_dd)))
                 
                 # If this isn't tabulated, need to send in full dr array
@@ -469,64 +490,36 @@ class PowerSpectrum21cm(AnalyzePS):
             ##
             # Lyman-alpha fluctuations                
             ##    
-            if self.pf['include_lya_fl'] or self.pf['powspec_temp_method'] > 0:
-                if self.pf['include_acorr']:
-                    
-                    
-                    if self.pf['powspec_temp_method'] == 0:
-                        Cc = self._temp_to_contrast(z, avg_Tk)
-                        Qc = self.field.BubbleFillingFactor(z, zeta, zeta_lya, lya=True)
-                    else:
-                        assert self.pf['powspec_lya_method'] == 1 or \
-                               self.pf['include_lya_fl'] == False
-                        Cc = self._temp_to_contrast(z, self.pf['bubble_pod_temp'])
-                        Qc = Qh #* (self.pf['bubble_pod_size_rel'] / self.pf['bubble_shell_size_rel'])**3
-                        
-                    data['Cc'] = Cc
-                    data['Qc'] = Qc
-                    data['avg_Cc'] = avg_Cc = Qc * Cc
-                                        
-                    zet = zeta if self.pf['powspec_lya_method'] == 0 \
-                               else zeta_lya
-                    
-                    p_cc, p_cc_1, p_cc_2 = self.field.JointProbability(z, 
-                        self.R_cr, zet, term='cc', Tprof=None, data=data,
-                        zeta_lya=zeta_lya)
-                    
-                    data['jp_cc'] = np.interp(logR, self.logR_cr, p_cc)
-                    data['jp_cc_1'] = np.interp(logR, self.logR_cr, p_cc_1)
-                    data['jp_cc_2'] = np.interp(logR, self.logR_cr, p_cc_2)
-                    
-                    # Should this be necessary?
-                    data['jp_cc'] = np.minimum(1., data['jp_cc'])
-                    
-                    data['ev_coco'] += Cc**2 * data['jp_cc']
-                    data['avg_C'] += data['avg_Cc']
+            if self.pf['include_lya_fl']:
+                #raise NotImplemented('help')
+                
+                # Construct the profile
+                
+                #norm = self.halos.M # some mass dependent thing
+                
+                uisl = self.pops[0].halos.u_isl
+                
+                ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, kpos, uisl) \
+                    for kpos in self.k_pos])
 
-                # This should maybe be moved elsewhere.
-                if self.pf['include_temp_fl']:
-                    p_hc, p_hc_1, p_hc_2 = self.field.JointProbability(z, 
-                        self.R_cr, zeta, term='hc', Tprof=None, data=data, 
-                        zeta_lya=zeta_lya)
-                        
-                    # This is basically a cross-term
-                    # Temporary!    
-                    data['jp_hc'] = np.zeros_like(R)
-                    #data['jp_hc'] = np.interp(logR, self.logR_cr, p_hc)
-                    data['jp_hc_1'] = np.interp(logR, self.logR_cr, p_hc_1)
-                    data['jp_hc_2'] = np.interp(logR, self.logR_cr, p_hc_2)
-                    data['ev_coco'] += data['Cc'] * data['Ch'] * data['jp_hc'] #* (1. - Qi)#min(Qh + Qc, 1.)
-                    
-                    if (Qh + Qc) > 1:
-                        print "WARNING: Qh+Qc > 1"
-                    
-                else:
-                    data['jp_hc'] = np.zeros_like(R)
-            else:
-                data['jp_cc'] = data['jp_hc'] = data['ev_cc'] = \
-                    np.zeros_like(R)
-                data['Cc'] = data['Qc'] = Cc = Qc = 0.0
-                data['avg_Cc'] = 0.0
+                data['ps_aa'] = np.exp(np.interp(np.log(np.abs(self.k)), 
+                    np.log(self.k_pos), np.log(ps_aa)))
+                                
+                #data['jp_{}'.format(ss)] = \
+                #    np.interp(logR, self.logR_cr, p_tot)
+                
+                # Interpolate back to fine grid to do FT.
+                # Or, just add in to total power spectrum later?
+                
+                
+                # Will need beta_alpha as well?
+                
+
+            #else:
+            #    data['jp_cc'] = data['jp_hc'] = data['ev_cc'] = \
+            #        np.zeros_like(R)
+            #    data['Cc'] = data['Qc'] = Cc = Qc = 0.0
+            #    data['avg_Cc'] = 0.0
                             
                 
             ##
@@ -656,32 +649,6 @@ class PowerSpectrum21cm(AnalyzePS):
             
             data['cf_dco'] = data['ev_dco']
 
-            # Here, add together the power spectra with various Beta weights
-            # to get 21-cm power spectrum
-            
-            Tk = np.interp(z, self.mean_history['z'][-1::-1],
-                self.mean_history['igm_Tk'][-1::-1])
-            Ja = np.interp(z, self.mean_history['z'][-1::-1],
-                self.mean_history['Ja'][-1::-1])
-            xHII, ne = [0] * 2
-
-            # Assumes strong coupling. Mapping between temperature 
-            # fluctuations and contrast fluctuations.
-            Ts = Tk
-            Tcmb = self.cosm.TCMB(z)
-            
-            # Add beta factors to dictionary
-            #for f1 in ['x', 'd']:
-            #    func = self.hydr.__getattribute__('beta_%s' % f1)
-            #    data['beta_%s' % f1] = func(z, Tk, xHII, ne, Ja)
-            
-            xavg = np.interp(z, self.gs.history['z'][-1::-1], 
-                self.gs.history['cgm_h_2'][-1::-1])
-
-            # Mean brightness temperature outside bubbles    
-            Tbar = np.interp(z, self.gs.history['z'][-1::-1], 
-                self.gs.history['dTb'][-1::-1]) / (1. - xavg)
-
             # Short-hand
             xi_xx = data['cf_xx']
             xi_dd = data['cf_dd']
@@ -731,6 +698,8 @@ class PowerSpectrum21cm(AnalyzePS):
             data['dTb0'] = Tbar
             data['ps_21'] = np.fft.fft(data['cf_21'])
             data['ps_21_s'] = np.fft.fft(data['cf_21_s'])
+            
+            data['ps_21'] += data['ps_aa'] * data['beta_a']
 
             # Save 21-cm PS as one and two-halo terms also
 

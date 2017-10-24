@@ -351,7 +351,7 @@ def PowerSpectrumParameters():
      'powspec_dlogr': 0.1,
      
      'include_acorr': True,
-     'include_xcorr': True,
+     'include_xcorr': False,
      
      'include_xcorr_wrt': None,
      
@@ -362,6 +362,7 @@ def PowerSpectrumParameters():
            
      'include_bias': False,
 
+     "powspec_volfix": False,
      "powspec_rescale_Qion": False,
      "powspec_rescale_Qlya": False,
      "powspec_rescale_Qhot": False,

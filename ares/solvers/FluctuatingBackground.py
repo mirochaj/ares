@@ -114,13 +114,14 @@ class FluctuatingBackground(object):
             Vi = 4. * np.pi * Ri**3 / 3.   
             Vsh1 = 4. * np.pi * (Rh - Ri)**3 / 3.
             
-            if Rc == 0:
+            dndlnm = dndm * Mi
+            
+            if np.all(Rc == 0):
                 Vsh2 = Qc = 0.0
-            else:    
+            else:
                 Vsh2 = 4. * np.pi * (Rc - Rh)**3 / 3.
                 Qc = np.trapz(dndlnm[iM:] * Vsh2[iM:], x=np.log(Mi[iM:]))
             
-            dndlnm = dndm * Mi
             Qi = np.trapz(dndlnm[iM:] * Vi[iM:], x=np.log(Mi[iM:]))
             Qh = np.trapz(dndlnm[iM:] * Vsh1[iM:], x=np.log(Mi[iM:]))
             
@@ -693,7 +694,7 @@ class FluctuatingBackground(object):
                              - (self.IV(sep, Ri, Rc) - self.IV(sep, Ri, Rh))
                     Vss_ne_2 = Vss_ne_1
                     
-                    limiter = 'h'
+                    limiter = None
 
                 elif term == 'cc':
                     
@@ -722,7 +723,7 @@ class FluctuatingBackground(object):
                     #else:
                     #    raise NotImplemented('sorry!')
 
-                    limiter = 'c'
+                    limiter = None
 
                 elif term == 'hc':
                     Vo = all_V[-2]
@@ -822,9 +823,9 @@ class FluctuatingBackground(object):
                 if term == 'id':
                     BT[i] = P1 - Pin
                     continue
-
+                        
                 # Add optional correction to ensure limiting behavior?
-                if limiter is None:
+                if (limiter is None) or (not self.pf['powspec_volfix']):
                     BT[i] = max(P1 + P2, 0.0)
                     continue
 

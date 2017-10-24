@@ -90,17 +90,22 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         iz = np.argmin(np.abs(z - self.redshifts))
         
         k = self.history['k']
-        
+
         ps_s = 'ps_%s' % field
-        if dimensionless and 'ps_21_dl' in self.history:
-            ps = self.history['ps_21_dl'][iz]
+        if dimensionless and ('%s_dl' % field in self.history):
+            ps = self.history['%s_dl' % field][iz]
             if take_sqrt:
                 ps = np.sqrt(ps)
-                
+
         elif dimensionless:
-            norm = self.history['dTb0'][iz]**2
+            if field == '21':
+                norm = self.history['dTb0'][iz]**2
+            else:
+                print "dunno norm for field=%s" % field
+                norm = 1.
+
             ps = norm * self.history[ps_s][iz] * k**3 / 2. / np.pi**2
-            
+
             if take_sqrt:
                 ps = np.sqrt(ps)
         else:
@@ -115,21 +120,21 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             ax.set_xlabel(labels['k'], fontsize='x-large')
         
         if ax.get_ylabel() == '':  
-            if dimensionless and 'ps_21_dl' in self.history:
-                ps = self.history['ps_21_dl']
+            if dimensionless and ('%s_dl' % field in self.history):
+                ps = self.history['%s_dl' % field]
             elif dimensionless:
                 if take_sqrt:
-                    ax.set_ylabel(r'$\Delta_{21}(k)$', fontsize='x-large')    
+                    ax.set_ylabel(r'$\Delta_{21}(k)$', fontsize='x-large')
                 else: 
-                    ax.set_ylabel(labels['dpow'], fontsize='x-large')    
+                    ax.set_ylabel(labels['dpow'], fontsize='x-large')
             else:
-                ax.set_ylabel(labels['pow'], fontsize='x-large')    
+                ax.set_ylabel(labels['pow'], fontsize='x-large')
                          
         ax.set_xlim(1e-2, 10)
         ax.set_ylim(1e-3, 1e4)
-                 
+
         pl.draw()
-        
+
         return ax
 
     def CorrelationFunction(self, z, field_1='x', field_2='x', ax=None, fig=1, 

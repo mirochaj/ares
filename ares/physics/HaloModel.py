@@ -80,7 +80,7 @@ class HaloModel(HaloMassFunction):
 
     def u_nfw(self, k, m, z):
         """
-        Normalized Fourier Transform of rho.
+        Normalized Fourier Transform of an NFW profile.
         
         ..note:: This is Equation 81 from Cooray & Sheth (2002).
         
@@ -103,31 +103,44 @@ class HaloModel(HaloMassFunction):
         return (np.sin(K) * (asi - bs) - np.sin(c * K) / ((1 + c) * K) \
             + np.cos(K) * (ac - bc)) / (np.log(1 + c) - c / (1 + c))
         
+    def u_isl(self, k, m, z, mdep=1.):
+        """
+        Normalized Fourier transform of an r^-2 profile.
+        """
+        
+        # Effective horizon
+        rs = 100.
+        
+        flux0 = 1.#(m / 1e11)**1.6
+        c = 1. / flux0
+        
+        kappa = k * rs
+        asi, aco = sp.sici(c * kappa)
+
+        return asi / kappa / c
+        
     def PS_OneHalo(self, z, k, profile_ft=None):
         """
         Compute the one halo term of the halo model for given input profile.
         """
-        
+
         iz = np.argmin(np.abs(z - self.z))
-                        
+
         # Can plug-in any profile, but will default to dark matter halo profile
         if profile_ft is None:
             profile_ft = self.u_nfw
 
         prof = np.abs(map(lambda M: profile_ft(k, M, z), self.M))
-                        
-        #if mass_dependence is not None:
-        #    prof *= mass_dependence(Mh=self.M, z=z)                
-                        
+
         dndlnm = self.dndm[iz,:] * self.M
         rho_bar = self.mgtm[iz,0]
-                        
+
         integrand = dndlnm * (self.M / rho_bar)**2 * prof**2
-         
+
         result = np.trapz(integrand, x=self.lnM) 
-        
+
         return result
-        
+
     def PS_TwoHalo(self, z, k, profile_ft=None):
         """
         Compute the two halo term of the halo model for given input profile.
@@ -146,17 +159,11 @@ class HaloModel(HaloMassFunction):
             profile_ft = self.u_nfw
 
         prof = np.abs(map(lambda M: profile_ft(k, M, z), self.M))
-        
-        #if mass_dependence is not None:
-        #    Mterm = mass_dependence(Mh=self.M, z=z) 
-        #    norm = np.trapz(Mterm, x=self.M)
-        #    
-        #    prof *= Mterm / norm
                 
         # Short-cuts
         dndlnm = self.dndm[iz,:] * self.M
         bias = self.bias_of_M(z)
-        rho_bar = self.mgtm[iz,0] # Should be equal to cosmic mean density * fcoll
+        rho_bar = self.mgtm[iz,0]
         
         # Small halo correction.
         # Make use of Cooray & Sheth Eq. 71
@@ -164,15 +171,15 @@ class HaloModel(HaloMassFunction):
         correction = 1. - np.trapz(_integrand, x=self.lnM)
         
         # Compute two-halo integral with profile in there
-        integrand = dndlnm * (self.M / rho_bar) * \
-            prof * bias
+        integrand = dndlnm * (self.M / rho_bar) * prof * bias
             
         return (np.trapz(integrand, x=self.lnM) + correction)**2 \
             * float(self.psCDM(z, k))
 
     def PowerSpectrum(self, z, k, profile_ft=None):
         
-        if self.pf['hmf_load_ps']:
+        # Tabulation only implemented for density PS at the moment.
+        if self.pf['hmf_load_ps'] and (profile_ft is None):
             iz = np.argmin(np.abs(z - self.z))
             assert abs(z - self.z[iz]) < 1e-2, \
                 'Supplied redshift (%g) not in table!' % z
