@@ -322,12 +322,15 @@ class Hydrogen(object):
                 
         return sum_term * T_star / A10 / self.cosm.TCMB(z)    
     
+    def Ja_c(self, z):
+        return (1. + z) / 1.81e11
+    
     def RadiativeCouplingCoefficient(self, z, Ja, Tk=None, xHII=None):
         """
         Return radiative coupling coefficient (i.e., Wouthuysen-Field effect).
         """
                 
-        return 1.81e11 * self.Sa(z=z, Tk=Tk, xHII=xHII) * Ja / (1. + z)
+        return self.Sa(z=z, Tk=Tk, xHII=xHII) * Ja / self.Ja_c(z)
 
     def tauGP(self, z, xHII=0.):
         """ Gunn-Peterson optical depth. """

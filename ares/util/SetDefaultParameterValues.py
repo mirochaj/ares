@@ -344,7 +344,7 @@ def PowerSpectrumParameters():
     tmp = \
     {     
      'powspec_redshifts': np.arange(6, 20, 1),
-     'fft_scales': np.arange(1e-4, 100.+1e-4, 1e-4),
+     'fft_scales': np.arange(1e-3, 1000.+1e-3, 1e-3),
 
      # Ultimately we'll interpolate beyond these
      'powspec_dlogk': 0.1,

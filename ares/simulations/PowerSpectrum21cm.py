@@ -2,10 +2,9 @@ import os
 import pickle
 import numpy as np
 from .Global21cm import Global21cm
-#from ..util.ReadData import _sort_history
+from ..physics.Constants import cm_per_mpc
 from ..util import ParameterFile, ProgressBar
 #from ..analysis.BlobFactory import BlobFactory
-#from ..physics.Constants import nu_0_mhz, E_LyA
 from ..solvers import FluctuatingBackground
 from ..analysis.PowerSpectrum import PowerSpectrum as AnalyzePS
 
@@ -230,6 +229,9 @@ class PowerSpectrum21cm(AnalyzePS):
             - (Tcmb / (Ts - Tcmb)) / (1. + delta_T) - 1.
 
         return delta_C
+        
+    def _flya_to_contrast(self, z, Ja):
+        pass
 
     def step(self):
         """
@@ -394,7 +396,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 # to account for the dispersal of power into negative 
                 # frequencies. We should do this inside PS-tabulation in the
                 # future.
-                data['cf_dd'] = 2 * np.interp(logr, np.log(self.R_cr), cf_c)
+                data['cf_dd'] = np.interp(logr, np.log(self.R_cr), cf_c)
             else:
                 data['cf_dd'] = data['ps_dd'] = np.zeros_like(R)
 
@@ -449,8 +451,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     ztemp = self.pf['bubble_shell_ktemp_zone_{}'.format(ii)]
                     
                     if ztemp == 'mean':
-                        ztemp = np.interp(z, self.mean_history['z'][-1::-1], 
-                            self.mean_history['igm_Tk'][-1::-1])
+                        ztemp = Tk
                     
                     C = self._temp_to_contrast(z, ztemp)
                     
@@ -486,33 +487,67 @@ class PowerSpectrum21cm(AnalyzePS):
                 data['Qh'] = Qh = 0.0
                 data['avg_Ch'] = 0.0
                 data['avg_C'] = 0.0
-                
+
             ##
             # Lyman-alpha fluctuations                
             ##    
             if self.pf['include_lya_fl']:
-                #raise NotImplemented('help')
+
+                xa = self.hydr.RadiativeCouplingCoefficient(z, Ja, Tk)
+                xc = self.hydr.CollisionalCouplingCoefficient(z, Tk)
+                xt = xa #+ xc
+                C = -1. / (1. + xt)
+
+                #C = data['beta_a']
+                #Qa = min(Ja / self.hydr.Ja_c(z), 1.)
+                Qa = 1. - np.exp(-xa)
+
+                #Qa = Qa - Qh - Qi
+
+                data['Ca'] = C
+                data['Qa'] = Qa
                 
-                # Construct the profile
+                #data['avg_C'] += C * Qa
+
+                Mmin = self.pops[0].Mmin(z)
+
+                zmax = self.hydr.zmax(z, 2)
+                rmax = self.cosm.ComovingRadialDistance(z, zmax) / cm_per_mpc
+                uisl = lambda kk, mm, zz: self.pops[0].halos.u_isl(kk, mm, zz, rmax)
                 
-                #norm = self.halos.M # some mass dependent thing
+                #uisl = self.field.halos.FluxProfileFT
                 
-                uisl = self.pops[0].halos.u_isl
-                
-                ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, kpos, uisl) \
+                #unfw = lambda kk, mm, zz: self.pops[0].halos.u_nfw(kk, mm, zz) 
+                                       
+                #ps_da_1h = self.pops[0].halos.PS_OneHalo(z, kpos, unfw, uisl)
+                #ps_da_2h = self.pops[0].halos.PS_OneHalo(z, kpos, unfw, uisl)
+                               
+                #ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, kpos, unfw, uisl, None, Mmin) \
+                #    for kpos in self.k_pos])                                                          
+
+                #ps_aa = self.pops[0].halos.PowerSpectrum(z, self.k_pos, uisl)
+                ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, kpos, uisl, Mmin) \
+                    for kpos in self.k_pos])
+                ps_aa_1 = np.array([self.pops[0].halos.PS_OneHalo(z, kpos, uisl, Mmin) \
+                    for kpos in self.k_pos])
+                ps_aa_2 = np.array([self.pops[0].halos.PS_TwoHalo(z, kpos, uisl, Mmin) \
                     for kpos in self.k_pos])
 
+                # Interpolate back to fine grid before FFTing
                 data['ps_aa'] = np.exp(np.interp(np.log(np.abs(self.k)), 
                     np.log(self.k_pos), np.log(ps_aa)))
+                data['ps_aa_1'] = np.exp(np.interp(np.log(np.abs(self.k)), 
+                    np.log(self.k_pos), np.log(ps_aa_1)))
+                data['ps_aa_2'] = np.exp(np.interp(np.log(np.abs(self.k)), 
+                    np.log(self.k_pos), np.log(ps_aa_2)))
+                    
+                data['cf_aa'] = np.fft.ifft(data['ps_aa']).real
+                data['jp_aa'] = data['cf_aa'] + C**2
+
+                data['ev_coco'] += data['jp_aa'] * C**2
                                 
                 #data['jp_{}'.format(ss)] = \
                 #    np.interp(logR, self.logR_cr, p_tot)
-                
-                # Interpolate back to fine grid to do FT.
-                # Or, just add in to total power spectrum later?
-                
-                
-                # Will need beta_alpha as well?
                 
 
             #else:
@@ -699,8 +734,6 @@ class PowerSpectrum21cm(AnalyzePS):
             data['ps_21'] = np.fft.fft(data['cf_21'])
             data['ps_21_s'] = np.fft.fft(data['cf_21_s'])
             
-            data['ps_21'] += data['ps_aa'] * data['beta_a']
-
             # Save 21-cm PS as one and two-halo terms also
 
             # These correlation functions are in order of ascending 

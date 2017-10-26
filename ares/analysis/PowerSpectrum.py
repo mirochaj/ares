@@ -125,8 +125,10 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             elif dimensionless:
                 if take_sqrt:
                     ax.set_ylabel(r'$\Delta_{21}(k)$', fontsize='x-large')
-                else: 
+                elif field == '21':
                     ax.set_ylabel(labels['dpow'], fontsize='x-large')
+                else:
+                    ax.set_ylabel(r'$\Delta^2(k)$', fontsize='x-large')
             else:
                 ax.set_ylabel(labels['pow'], fontsize='x-large')
                          
@@ -137,7 +139,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
         return ax
 
-    def CorrelationFunction(self, z, field_1='x', field_2='x', ax=None, fig=1, 
+    def CorrelationFunction(self, z, field='xx', ax=None, fig=1, 
         force_draw=False, **kwargs):
         """
         Plot correlation function of input fields.
@@ -164,14 +166,12 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
     
         iz = np.argmin(np.abs(z - self.redshifts))
     
-        cf_s = 'cf_%s%s' % (field_1, field_2)
+        cf_s = 'cf_%s' % field
         cf = self.history[cf_s][iz]
         
-        k = self.history['k']
+        R = self.history['R']
         
-        dr = 1. / k
-        
-        ax.loglog(dr, cf, **kwargs)
+        ax.loglog(R, cf, **kwargs)
     
         if gotax and (ax.get_xlabel().strip()) and (not force_draw):
             return ax
@@ -180,9 +180,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             ax.set_xlabel(r'$r \ [\mathrm{cMpc}]$', fontsize='x-large')
     
         if ax.get_ylabel() == '':    
-            s1 = field_1
-            s2 = field_2
-            s = r'$\xi_{%s%s}$' % (s1, s2)
+            s = r'$\xi_{%s}$' % field
             ax.set_ylabel(s, fontsize='x-large')    
     
         if 'label' in kwargs:

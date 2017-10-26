@@ -5,6 +5,7 @@ import numpy as np
 import scipy.special as sp
 from scipy.integrate import quad
 from ..util.ProgressBar import ProgressBar
+from .Constants import rho_cgs, c, cm_per_mpc
 from .HaloMassFunction import HaloMassFunction
 
 try:
@@ -100,26 +101,86 @@ class HaloModel(HaloMassFunction):
         # The extra factor of np.log(1 + c) - c / (1 + c)) comes in because
         # there's really a normalization factor of 4 pi rho_s r_s^3 / m, 
         # and m = 4 pi rho_s r_s^3 * the log term
-        return (np.sin(K) * (asi - bs) - np.sin(c * K) / ((1 + c) * K) \
-            + np.cos(K) * (ac - bc)) / (np.log(1 + c) - c / (1 + c))
+        norm = 1. / (np.log(1 + c) - c / (1 + c)) 
+
+        return norm * (np.sin(K) * (asi - bs) - np.sin(c * K) / ((1 + c) * K) \
+            + np.cos(K) * (ac - bc))
         
-    def u_isl(self, k, m, z, mdep=1.):
+    def u_isl(self, k, m, z, rmax):
         """
         Normalized Fourier transform of an r^-2 profile.
+        
+        rmax : int, float
+            Effective horizon. Distance a photon can travel between
+            Ly-beta and Ly-alpha.
+        
         """
-        
-        # Effective horizon
-        rs = 100.
-        
-        flux0 = 1.#(m / 1e11)**1.6
-        c = 1. / flux0
-        
-        kappa = k * rs
-        asi, aco = sp.sici(c * kappa)
+    
+        asi, aco = sp.sici(rmax * k)
 
-        return asi / kappa / c
+        #iz = np.argmin(np.abs(z - self.z))
+        #norm = self.cosm.rho_m_z0 * rho_cgs * self.fcoll_Tmin[iz]
+
+        return norm * asi / rmax / k
         
-    def PS_OneHalo(self, z, k, profile_ft=None):
+    def u_isl_exp(self, k, m, z, rmax): 
+        return np.arctan(rmax * k) / rmax / k
+    
+    def u_exp(self, k, m, z, rmax):
+        rs = 1.
+    
+        L0 = (m / 1e11)**1.
+        c = rmax / rs
+    
+        kappa = k * rs
+    
+        norm = rmax / rs**3 
+    
+        return norm / (1. + kappa**2)**2.
+
+    def FluxProfile(self, r, m, z, lc=False):
+        return m * self.ModulationFactor(z, r=r, lc=lc) / (4. * np.pi * r**2)
+    
+    #@RadialProfile.setter
+    #def RadialProfile(self, value):
+    #    pass
+    
+    def FluxProfileFT(self, k, m, z, lc=False):
+        _numerator = lambda r: 4. * np.pi * r**2 * np.sin(k * r) / (k * r) * self.FluxProfile(r, m, z, lc=lc)
+        _denominator = lambda r: 4. * np.pi * r**2 * self.FluxProfile(r, m, z, lc=lc)
+        _r_LW = 97.39 * self.ScalingFactor(z)
+        temp = quad(_numerator, 0., _r_LW)[0] / quad(_denominator, 0., _r_LW)[0]
+        return temp
+    
+    def ScalingFactor(self, z):
+        return (self.cosm.h70 / 0.7)**-1 * (self.cosm.omega_m_0 / 0.27)**-0.5 * ((1. + z) / 21.)**-0.5
+        
+    def ModulationFactor(self, z0, z=None, r=None, lc=False):
+        """
+        Return the modulation factor as a function of redshift or comoving distance
+        - Reference: Ahn et al. 2009
+        :param z0: source redshift
+        :param z: the redshift (whose LW intensity is) of interest
+        :param r: the distance from the source in cMpc
+        :lc: True or False, including the light cone effect
+        :return:
+        """
+        if z != None and r == None:
+            r_comov = self.cosm.ComovingRadialDistance(z0, z)
+        elif z == None and r != None:
+            r_comov = r
+        else:
+            raise ValueError('Must specify either "z" or "r".')
+        alpha = self.ScalingFactor(z0)
+        _a = 0.167
+        r_star = c * _a * self.cosm.HubbleTime(z0) * (1.+z0) / cm_per_mpc
+        ans = np.maximum(1.7 * np.exp(-(r_comov / 116.29 / alpha)**0.68) - 0.7, 0.0)
+        if lc == True:
+            ans *= np.exp(-r/r_star)
+        return ans
+    
+    def PS_OneHalo(self, z, k, profile_1=None, Mmin_1=None, profile_2=None,
+        Mmin_2=None):
         """
         Compute the one halo term of the halo model for given input profile.
         """
@@ -127,21 +188,47 @@ class HaloModel(HaloMassFunction):
         iz = np.argmin(np.abs(z - self.z))
 
         # Can plug-in any profile, but will default to dark matter halo profile
-        if profile_ft is None:
-            profile_ft = self.u_nfw
-
-        prof = np.abs(map(lambda M: profile_ft(k, M, z), self.M))
+        if profile_1 is None:
+            profile_1 = self.u_nfw
+        
+        prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.M))
+            
+        if profile_2 is None:
+            prof2 = prof1
+        else:
+            prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.M))
 
         dndlnm = self.dndm[iz,:] * self.M
-        rho_bar = self.mgtm[iz,0]
+        #rho_bar = self.mgtm[iz,0]
+        rho_bar = self.cosm.rho_m_z0 * rho_cgs
 
-        integrand = dndlnm * (self.M / rho_bar)**2 * prof**2
+        if Mmin_1 is None:
+            fcoll_1 = 1.#self.mgtm[iz,0] / rho_bar
+            iM_1 = 0
+        else:
+            fcoll_1 = self.fcoll_Tmin[iz]
+            iM_1 = np.argmin(np.abs(Mmin_1 - self.M))
+        
+        if Mmin_2 is None:
+            fcoll_2 = 1.#self.mgtm[iz,0] / rho_bar
+            iM_2 = 0
+        else:
+            fcoll_2 = self.fcoll_Tmin[iz]
+            iM_2 = np.argmin(np.abs(Mmin_2 - self.M))
+        
+        iM = max(iM_1, iM_2)
+        
+        
+        integrand = dndlnm * (self.M / rho_bar / fcoll_1) \
+            * (self.M / rho_bar / fcoll_2) * prof1 * prof2 
 
-        result = np.trapz(integrand, x=self.lnM) 
+        
+        result = np.trapz(integrand[iM:], x=self.lnM[iM:])
 
         return result
 
-    def PS_TwoHalo(self, z, k, profile_ft=None):
+    def PS_TwoHalo(self, z, k, profile_1=None, Mmin_1=None, profile_2=None, 
+        Mmin_2=None):
         """
         Compute the two halo term of the halo model for given input profile.
         
@@ -155,31 +242,64 @@ class HaloModel(HaloMassFunction):
         iz = np.argmin(np.abs(z - self.z))
 
         # Can plug-in any profile, but will default to dark matter halo profile
-        if profile_ft is None:
-            profile_ft = self.u_nfw
-
-        prof = np.abs(map(lambda M: profile_ft(k, M, z), self.M))
-                
+        if profile_1 is None:
+            profile_1 = self.u_nfw
+        
+        prof1 = np.abs(map(lambda M: profile_1(k, M, z), self.M))
+            
+        if profile_2 is None:
+            prof2 = prof1
+        else:
+            prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.M))
+                        
         # Short-cuts
         dndlnm = self.dndm[iz,:] * self.M
         bias = self.bias_of_M(z)
-        rho_bar = self.mgtm[iz,0]
-        
-        # Small halo correction.
-        # Make use of Cooray & Sheth Eq. 71
-        _integrand = dndlnm * (self.M / rho_bar) * bias
-        correction = 1. - np.trapz(_integrand, x=self.lnM)
-        
-        # Compute two-halo integral with profile in there
-        integrand = dndlnm * (self.M / rho_bar) * prof * bias
-            
-        return (np.trapz(integrand, x=self.lnM) + correction)**2 \
-            * float(self.psCDM(z, k))
+        #rho_bar = self.mgtm[iz,0]
+        rho_bar = self.cosm.rho_m_z0 * rho_cgs
 
-    def PowerSpectrum(self, z, k, profile_ft=None):
+        if Mmin_1 is None:
+            fcoll_1 = 1.#self.mgtm[iz,0] / rho_bar
+            iM_1 = 0
+            
+            # Small halo correction.
+            # Make use of Cooray & Sheth Eq. 71
+            _integrand = dndlnm * (self.M / rho_bar) * bias
+            correction_1 = 1. - np.trapz(_integrand, x=self.lnM)
+        else:
+            fcoll_1 = self.fcoll_Tmin[iz]
+            iM_1 = np.argmin(np.abs(Mmin_1 - self.M))
+            correction_1 = 0.0
+                    
+        if Mmin_2 is None:
+            fcoll_2 = 1.#self.mgtm[iz,0] / rho_bar
+            iM_2 = 0
+            _integrand = dndlnm * (self.M / rho_bar) * bias
+            correction_2 = 1. - np.trapz(_integrand, x=self.lnM)
+        else:
+            fcoll_2 = self.fcoll_Tmin[iz]
+            iM_2 = np.argmin(np.abs(Mmin_2 - self.M))
+            correction_2 = 0.0
+
+        # Compute two-halo integral with profile in there
+        integrand1 = dndlnm * (self.M / rho_bar / fcoll_1) * prof1 * bias
+        integral1 = np.trapz(integrand1[iM_1:], x=self.lnM[iM_1:]) \
+                  + correction_1
+
+        if profile_2 is not None:
+            integrand2 = dndlnm * (self.M / rho_bar / fcoll_2) * prof2 * bias
+            integral2 = np.trapz(integrand2[iM_2:], x=self.lnM[iM_2:]) \
+                      + correction_2
+        else:
+            integral2 = integral1
+
+        return integral1 * integral2 * float(self.psCDM(z, k))
+
+    def PowerSpectrum(self, z, k, profile_1=None, Mmin_1=None, profile_2=None, 
+        Mmin_2=None):
         
         # Tabulation only implemented for density PS at the moment.
-        if self.pf['hmf_load_ps'] and (profile_ft is None):
+        if self.pf['hmf_load_ps'] and (profile_1 is None):
             iz = np.argmin(np.abs(z - self.z))
             assert abs(z - self.z[iz]) < 1e-2, \
                 'Supplied redshift (%g) not in table!' % z
@@ -187,14 +307,16 @@ class HaloModel(HaloMassFunction):
             return self.ps_dd[iz]
                     
         if type(k) == np.ndarray:
-            f1 = lambda kk: self.PS_OneHalo(z, kk, profile_ft=profile_ft)
-            f2 = lambda kk: self.PS_TwoHalo(z, kk, profile_ft=profile_ft)
+            f1 = lambda kk: self.PS_OneHalo(z, kk, profile_1, Mmin_1, profile_2, 
+                Mmin_2)
+            f2 = lambda kk: self.PS_TwoHalo(z, kk, profile_1, Mmin_1, profile_2, 
+                Mmin_2)
             ps1 = np.array(map(f1, k))
             ps2 = np.array(map(f2, k))
             return ps1 + ps2
         else:    
-            return self.PS_OneHalo(z, k, profile_ft=profile_ft) \
-                 + self.PS_TwoHalo(z, k, profile_ft=profile_ft)
+            return self.PS_OneHalo(z, k, profile_1, Mmin_1, profile_2, Mmin_2) \
+                 + self.PS_TwoHalo(z, k, profile_1, Mmin_1, profile_2, Mmin_2)
     
     def CorrelationFunction(self, z, dr):
         if self.pf['hmf_load_ps']:
@@ -340,7 +462,7 @@ class HaloModel(HaloMassFunction):
             if i % size != rank:
                 continue
 
-            ps_k_cr_pos = self.PowerSpectrum(z, self.k_cr_pos, profile_ft=None)
+            ps_k_cr_pos = self.PowerSpectrum(z, self.k_cr_pos)
 
             # Must interpolate back to fine grid (uniformly sampled 
             # real-space scales) to do FFT and obtain correlation function
@@ -351,7 +473,7 @@ class HaloModel(HaloMassFunction):
             ps_all_k = np.exp(np.interp(logk, logk_cr_pos, 
                 np.log(ps_k_cr_pos)))
                 
-            cf_R = np.fft.ifft(ps_all_k)
+            cf_R = 2 * np.fft.ifft(ps_all_k)
 
             # Once we have correlation function, degrade it to coarse grid.
             self.cf_dd[i] = np.interp(logR_cr, logR, cf_R.real)
