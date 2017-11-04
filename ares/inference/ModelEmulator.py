@@ -83,8 +83,10 @@ class ModelEmulator(object):
         """
         
         Ns = self.tset.chain.shape[0]
-        if downsample:
-            Ns = min(Ns, downsample)
+        
+        if downsample is not None:
+            Ns = min(Ns, int(downsample))
+            
         sample_ids = np.arange(0, Ns)
         
         # Set independent variables for training
