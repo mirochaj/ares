@@ -2,10 +2,10 @@ import os
 import pickle
 import numpy as np
 from .Global21cm import Global21cm
-from ..physics.Constants import cm_per_mpc
+from ..solvers import FluctuatingBackground
 from ..util import ParameterFile, ProgressBar
 #from ..analysis.BlobFactory import BlobFactory
-from ..solvers import FluctuatingBackground
+from ..physics.Constants import cm_per_mpc, c, s_per_yr
 from ..analysis.PowerSpectrum import PowerSpectrum as AnalyzePS
 
 #
@@ -229,23 +229,14 @@ class PowerSpectrum21cm(AnalyzePS):
             - (Tcmb / (Ts - Tcmb)) / (1. + delta_T) - 1.
 
         return delta_C
-        
-    def _flya_to_contrast(self, z, Ja):
-        pass
 
     def step(self):
         """
         Generator for the power spectrum.
         """
 
-        # Setup linear grid of radii
-        #R = np.linspace(0.1, 1e2, 1e3)
-        #k = np.fft.fftfreq(R.size, np.diff(R)[0])
-        #k = self.k
-        #dr = self.dr = 1. / k
-        
         step = np.diff(self.pf['fft_scales'])[0]
-        #self.dr = dr = np.arange(1e-3, 1e2+step, step)
+
         self.R = R = self.pf['fft_scales']
         self.k = k = np.fft.fftfreq(R.size, step)
         logR = np.log(R)
@@ -253,10 +244,7 @@ class PowerSpectrum21cm(AnalyzePS):
         k_mi, k_ma = k.min(), k.max()
         dlogk = self.pf['powspec_dlogk']
         k_pos = 10**np.arange(np.log10(k[k>0].min()), np.log10(k_ma)+dlogk, dlogk)
-        #self.k_coarse = 10**np.arange(np.log10(k_mi), np.log10(k_ma)+dlogk, dlogk)
-        #self.k_coarse = np.concatenate(([0], k_pos, -1 * k_pos[-1::-1]))
-        #self.k_pos = k_pos
-        
+
         self.k_pos = self.pops[0].halos.k_cr_pos
         self.R_cr = self.pops[0].halos.R_cr
         self.logR_cr = np.log(self.R_cr)
@@ -496,11 +484,15 @@ class PowerSpectrum21cm(AnalyzePS):
                 xa = self.hydr.RadiativeCouplingCoefficient(z, Ja, Tk)
                 xc = self.hydr.CollisionalCouplingCoefficient(z, Tk)
                 xt = xa #+ xc
-                C = -1. / (1. + xt)
 
+                Jc = self.hydr.Ja_c(z)
+                
+                C = (-1. / (1. + xt))
+                #C = self._temp_to_contrast(z, Tk) * (1. - min(1., Ja / Jc))
+                
                 #C = data['beta_a']
-                #Qa = min(Ja / self.hydr.Ja_c(z), 1.)
-                Qa = 1. - np.exp(-xa)
+                Qa = min(Ja / self.hydr.Ja_c(z), 1.)
+                #Qa = 1. - np.exp(-xa)
 
                 #Qa = Qa - Qh - Qi
 
@@ -509,37 +501,60 @@ class PowerSpectrum21cm(AnalyzePS):
                 
                 #data['avg_C'] += C * Qa
 
-                Mmin = self.pops[0].Mmin(z)
+                Mmin = lambda zz: self.pops[0].Mmin(zz)
 
-                zmax = self.hydr.zmax(z, 2)
+                # Horizon set by distance photon can travel between n=3 and n=2
+                zmax = self.hydr.zmax(z, 3)
                 rmax = self.cosm.ComovingRadialDistance(z, zmax) / cm_per_mpc
-                uisl = lambda kk, mm, zz: self.pops[0].halos.u_isl(kk, mm, zz, rmax)
+                
+                if self.pf['include_lya_lc']:
+                    
+                    # Use specific mass accretion rate of Mmin halo
+                    # to get characteristic halo growth time. This is basically
+                    # independent of mass so it should be OK to just pick Mmin.
+                    
+                    if type(self.pf['include_lya_lc']) is float:
+                        a = lambda zz: self.pf['include_lya_lc']
+                    else:    
+                    
+                        #oot = lambda zz: self.pops[0].dfcolldt(z) / self.pops[0].halos.fcoll_2d(zz, np.log10(Mmin(zz)))
+                        #a = lambda zz: (1. / oot(zz)) / pop.cosm.HubbleTime(zz)                        
+                        oot = lambda zz: self.pops[0].halos.MAR_func(zz, Mmin(zz)) / Mmin(zz) / s_per_yr
+                        a = lambda zz: (1. / oot(zz)) / pop.cosm.HubbleTime(zz)
+                    
+                    tstar = lambda zz: a(zz) * self.cosm.HubbleTime(zz)
+                    rstar = c * tstar(z) * (1. + z) / cm_per_mpc
+                    uisl = lambda kk, mm, zz: self.pops[0].halos.u_isl_exp(kk, mm, zz, rmax, rstar)
+                else:
+                    uisl = lambda kk, mm, zz: self.pops[0].halos.u_isl(kk, mm, zz, rmax)
                 
                 #uisl = self.field.halos.FluxProfileFT
                 
-                #unfw = lambda kk, mm, zz: self.pops[0].halos.u_nfw(kk, mm, zz) 
-                                       
-                #ps_da_1h = self.pops[0].halos.PS_OneHalo(z, kpos, unfw, uisl)
-                #ps_da_2h = self.pops[0].halos.PS_OneHalo(z, kpos, unfw, uisl)
-                               
-                #ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, kpos, unfw, uisl, None, Mmin) \
-                #    for kpos in self.k_pos])                                                          
+                unfw = lambda kk, mm, zz: self.pops[0].halos.u_nfw(kk, mm, zz) 
 
                 #ps_aa = self.pops[0].halos.PowerSpectrum(z, self.k_pos, uisl)
-                ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, kpos, uisl, Mmin) \
+                #ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, kpos, uisl, Mmin(z), unfw, Mmin(z)) \
+                #    for kpos in self.k_pos])
+                #ps_ad_1 = np.array([self.pops[0].halos.PS_OneHalo(z, kpos, uisl, Mmin, unfw, Mmin) \
+                #    for kpos in self.k_pos])
+                #ps_ad_2 = np.array([self.pops[0].halos.PS_TwoHalo(z, kpos, uisl, Mmin, unfw, Mmin) \
+                #    for kpos in self.k_pos])
+                 
+                #ps_aa = ps_ad   
+                ps_aa = np.array([self.pops[0].halos.PowerSpectrum(z, kpos, uisl, Mmin(z)) \
                     for kpos in self.k_pos])
-                ps_aa_1 = np.array([self.pops[0].halos.PS_OneHalo(z, kpos, uisl, Mmin) \
-                    for kpos in self.k_pos])
-                ps_aa_2 = np.array([self.pops[0].halos.PS_TwoHalo(z, kpos, uisl, Mmin) \
-                    for kpos in self.k_pos])
+                #ps_aa_1 = np.array([self.pops[0].halos.PS_OneHalo(z, kpos, uisl, Mmin) \
+                #    for kpos in self.k_pos])
+                #ps_aa_2 = np.array([self.pops[0].halos.PS_TwoHalo(z, kpos, uisl, Mmin) \
+                #    for kpos in self.k_pos])    
 
                 # Interpolate back to fine grid before FFTing
                 data['ps_aa'] = np.exp(np.interp(np.log(np.abs(self.k)), 
                     np.log(self.k_pos), np.log(ps_aa)))
-                data['ps_aa_1'] = np.exp(np.interp(np.log(np.abs(self.k)), 
-                    np.log(self.k_pos), np.log(ps_aa_1)))
-                data['ps_aa_2'] = np.exp(np.interp(np.log(np.abs(self.k)), 
-                    np.log(self.k_pos), np.log(ps_aa_2)))
+                #data['ps_aa_1'] = np.exp(np.interp(np.log(np.abs(self.k)), 
+                #    np.log(self.k_pos), np.log(ps_aa_1)))
+                #data['ps_aa_2'] = np.exp(np.interp(np.log(np.abs(self.k)), 
+                #    np.log(self.k_pos), np.log(ps_aa_2)))
                     
                 data['cf_aa'] = np.fft.ifft(data['ps_aa']).real
                 data['jp_aa'] = data['cf_aa'] + C**2
@@ -723,7 +738,10 @@ class PowerSpectrum21cm(AnalyzePS):
                 data['ev_xxcc'] = ev_xxcc
                 
                 # Eq. 33 in write-up
-                phi_u = data['phi_u'] = 2. * ev_xxc + ev_xxcc
+                phi_u = 2. * ev_xxc + ev_xxcc
+                
+                # Need to make sure this doesn't get saved at native resolution!
+                # data['phi_u'] = phi_u
                     
                 data['cf_21'] = data['cf_21_s'] + phi_u \
                     - 2. * xbar * avg_xC
@@ -746,6 +764,10 @@ class PowerSpectrum21cm(AnalyzePS):
             data['ps_coco_2'] = np.fft.fft(data['cf_coco_2'])
             
             # These are all going to get downsampled before the end.
+            
+            # Might need to downsample in real-time to limit memory
+            # consumption.
+            
 
             yield z, data
 

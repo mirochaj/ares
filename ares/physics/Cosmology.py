@@ -220,7 +220,7 @@ class Cosmology(object):
         
         if self.approx_highz:
             return 2. * c * ((1. + z0)**-0.5 - (1. + z)**-0.5) \
-                / self.hubble_0 / self.sqrtomega_m_0 / 3.
+                / self.hubble_0 / np.sqrt(self.omega_m_0)
                 
         # Otherwise, do the integral - normalize to H0 for numerical reasons
         integrand = lambda z: self.hubble_0 / self.HubbleParameter(z)

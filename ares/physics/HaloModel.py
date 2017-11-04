@@ -118,13 +118,10 @@ class HaloModel(HaloMassFunction):
     
         asi, aco = sp.sici(rmax * k)
 
-        #iz = np.argmin(np.abs(z - self.z))
-        #norm = self.cosm.rho_m_z0 * rho_cgs * self.fcoll_Tmin[iz]
-
-        return norm * asi / rmax / k
+        return asi / rmax / k
         
-    def u_isl_exp(self, k, m, z, rmax): 
-        return np.arctan(rmax * k) / rmax / k
+    def u_isl_exp(self, k, m, z, rmax, rstar): 
+        return np.arctan(rstar * k) / rstar / k
     
     def u_exp(self, k, m, z, rmax):
         rs = 1.
@@ -146,8 +143,10 @@ class HaloModel(HaloMassFunction):
     #    pass
     
     def FluxProfileFT(self, k, m, z, lc=False):
-        _numerator = lambda r: 4. * np.pi * r**2 * np.sin(k * r) / (k * r) * self.FluxProfile(r, m, z, lc=lc)
-        _denominator = lambda r: 4. * np.pi * r**2 * self.FluxProfile(r, m, z, lc=lc)
+        _numerator = lambda r: 4. * np.pi * r**2 * np.sin(k * r) / (k * r) \
+            * self.FluxProfile(r, m, z, lc=lc)
+        _denominator = lambda r: 4. * np.pi * r**2 *\
+            self.FluxProfile(r, m, z, lc=lc)
         _r_LW = 97.39 * self.ScalingFactor(z)
         temp = quad(_numerator, 0., _r_LW)[0] / quad(_denominator, 0., _r_LW)[0]
         return temp
@@ -199,18 +198,17 @@ class HaloModel(HaloMassFunction):
             prof2 = np.abs(map(lambda M: profile_2(k, M, z), self.M))
 
         dndlnm = self.dndm[iz,:] * self.M
-        #rho_bar = self.mgtm[iz,0]
         rho_bar = self.cosm.rho_m_z0 * rho_cgs
 
         if Mmin_1 is None:
-            fcoll_1 = 1.#self.mgtm[iz,0] / rho_bar
+            fcoll_1 = 1.
             iM_1 = 0
         else:
             fcoll_1 = self.fcoll_Tmin[iz]
             iM_1 = np.argmin(np.abs(Mmin_1 - self.M))
         
         if Mmin_2 is None:
-            fcoll_2 = 1.#self.mgtm[iz,0] / rho_bar
+            fcoll_2 = 1.
             iM_2 = 0
         else:
             fcoll_2 = self.fcoll_Tmin[iz]
@@ -218,11 +216,9 @@ class HaloModel(HaloMassFunction):
         
         iM = max(iM_1, iM_2)
         
-        
         integrand = dndlnm * (self.M / rho_bar / fcoll_1) \
             * (self.M / rho_bar / fcoll_2) * prof1 * prof2 
 
-        
         result = np.trapz(integrand[iM:], x=self.lnM[iM:])
 
         return result

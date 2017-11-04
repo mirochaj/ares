@@ -359,6 +359,8 @@ def PowerSpectrumParameters():
      'include_ion_fl': True,
      'include_temp_fl': False,
      'include_lya_fl': False,
+     
+     'include_lya_lc': False,
            
      'include_bias': False,
 
