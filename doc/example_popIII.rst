@@ -21,6 +21,8 @@ then, for example,
          
 Parameter bundles are designed to be added together, so as to build-up more complex calculations piece by piece. The above snippet takes the default model from `Mirocha, Furlanetto, & Sun (2017) <http://adsabs.harvard.edu/abs/2017MNRAS.464.1365M>`_ and adds on the default PopIII model from `Mirocha et al., in review, <https://arxiv.org/abs/1710.02530>`_. The "high" suffix refers to the mass of the PopIII stars -- in this case, high means :math:`\sim 100 \ M_{\odot}`. There are also bundles for "low" and "med" mass PopIII stars, which just changes the mass (and resultant spectra) according to the `Schaerer (2002) <http://adsabs.harvard.edu/abs/2002A%26A...382...28S>`_ models. 
 
+.. note :: These models use some non-standard lookup tables by default. See `this page <file:///Users/mirocha/work/mods/ares/doc/_build/html/example_litdata.html#mirocha-furlanetto-sun-2016-mirocha2016>`_ for more info.
+
 You'll notice that while the 'mirocha2016:dpl' bundle contains parameters for two source populations -- one that provides the UV emission and another that produces X-rays -- the addition of the PopIII bundle adds two more populations, again one each for UV and X-ray. You can customize the properties of these sources further via the following parameters:
 
 * `pop_sfr{2}` 
