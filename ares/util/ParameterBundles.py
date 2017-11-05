@@ -374,10 +374,13 @@ class ParameterBundle(dict):
     def __add__(self, other):
         tmp = self.copy()
 
-        # Make sure to not overwrite anything here!
+        # If any keys overlap, overwrite first instance with second.
+        # Just alert the user that this is happening.
         for key in other:
             if key in tmp:
-                print("WARNING: Setting {0}->{1}".format(key, other[key]))
+                msg1 = "UPDATE: Setting {0}->{1}".format(key, other[key])
+                msg2 = "previously {0}={1}".format(key, tmp[key])
+                print('{0} [{1}]'.format(msg1, msg2))
 
             tmp[key] = other[key]
                 

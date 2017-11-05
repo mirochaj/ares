@@ -235,7 +235,7 @@ def PhysicsParameters():
     'feedback_LW_Mmin_rtol': 0.0,
     'feedback_LW_Mmin_atol': 0.0,
     'feedback_LW_sfrd_rtol': 1e-1,
-    'feedback_LW_sfrd_atol': 1e-10,
+    'feedback_LW_sfrd_atol': 0.0,
     'feedback_LW_sfrd_popid': None,
     'feedback_LW_zstart': None,
     'feedback_LW_mixup_freq': 5,
