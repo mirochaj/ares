@@ -426,8 +426,8 @@ def PopulationParameters():
     "pop_Ja": None,
     "pop_Tk": None,
     "pop_xi": None,  
-    "pop_ne": None,  
-    
+    "pop_ne": None,
+
     # 
     "pop_ion_rate_cgm": None,
     "pop_ion_rate_igm": None,
@@ -435,8 +435,7 @@ def PopulationParameters():
 
     "pop_k_ion_cgm": None,
     "pop_k_ion_igm": None,
-    "pop_k_heat_igm": None,
-    
+    "pop_k_heat_igm": None,    
 
     # Set time interval over which emission occurs
     "pop_zform": 50.,

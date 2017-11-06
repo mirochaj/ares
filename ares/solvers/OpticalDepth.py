@@ -547,7 +547,7 @@ class OpticalDepth(object):
         #        '{6:.2g}.{7!s}').format(HorHe, L, N, z1, z2, E1, E2, suffix)
         #else:
         fn = lambda z1, z2, E1, E2: \
-            'optical_depth_{0!s}_{1}x{2}_z_{3}-{4}_logE_{5:.2g}-{6:.2g}.{7!s}'.format(HorHe, L, N, z1, z2, E1, E2, suffix)
+            'optical_depth_{0!s}_{1}x{2}_z_{3:.0f}-{4:.0f}_logE_{5:.2g}-{6:.2g}.{7!s}'.format(HorHe, L, N, z1, z2, E1, E2, suffix)
         
         return fn(zf, zi, np.log10(E0), np.log10(E1)), fn
     
