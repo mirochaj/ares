@@ -687,7 +687,7 @@ class OpticalDepth(object):
         Energies and redshifts, potentially revised from Epf and zpf.
     
         """
-        
+
         # First, look in CWD or $ARES (if it exists)
         if self.pf['tau_table'] is None:
             self.tabname = self.find_tau(self.pf['tau_prefix'])

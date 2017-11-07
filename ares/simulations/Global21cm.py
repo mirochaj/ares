@@ -421,7 +421,7 @@ class Global21cm(AnalyzeGlobal21cm):
                 if fields is not None:
                     if key not in fields:
                         continue
-                print('{0:-18s}'.format(key), end='', file=f)
+                print('{0:<18s}'.format(key), end='', file=f)
             print('', file=f)
 
             # Now, the data
@@ -433,7 +433,7 @@ class Global21cm(AnalyzeGlobal21cm):
                         if key not in fields:
                             continue
                             
-                    s += '{:-20.8e}'.format(self.history[key][i])
+                    s += '{:<20.8e}'.format(self.history[key][i])
 
                 if not s.strip():
                     continue
