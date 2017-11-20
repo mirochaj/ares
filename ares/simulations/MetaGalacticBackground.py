@@ -146,7 +146,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         raise NotImplemented('sorry')
     
-    def run(self, include_pops=None):
+    def run(self, include_pops=None, xe=None):
         """
         Loop over populations, determine background intensity.
         
@@ -169,7 +169,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             self._data_ = {}
 
         for i, popid in enumerate(include_pops):
-            z, fluxes = self.run_pop(popid=popid)
+            z, fluxes = self.run_pop(popid=popid, xe=xe)
             self._data_[popid] = fluxes
                     
         # Each element of the history is series of lists.
@@ -284,7 +284,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         if not hasattr(self, '_not_lwb_sources_'):
             self._not_lwb_sources_ = []
             for i, pop in enumerate(self.pops):
-                if pop.is_lw_src:
+                if pop.is_src_lw:
                     continue
                 self._not_lwb_sources_.append(i)
         
@@ -295,12 +295,12 @@ class MetaGalacticBackground(AnalyzeMGB):
         if not hasattr(self, '_lwb_sources_'):
             self._lwb_sources_ = []
             for i, pop in enumerate(self.pops):
-                if pop.is_lw_src:
+                if pop.is_src_lw:
                     self._lwb_sources_.append(i)
         
         return self._lwb_sources_
                         
-    def run_pop(self, popid=0):
+    def run_pop(self, popid=0, xe=None):
         """
         Evolve radiation background in time.
 
@@ -993,7 +993,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         if np.any(self.solver.solve_rte[popid]):
             z, E, flux = self.get_history(popid=popid, flatten=True)
             
-            if self.pf['secondary_lya'] and self.pops[popid].is_ion_src_igm:
+            if self.pf['secondary_lya'] and self.pops[popid].is_src_ion_igm:
                 Ja = np.zeros_like(z) # placeholder
             else:
                 l = np.argmin(np.abs(E - E_LyA))     # should be 0
@@ -1026,9 +1026,10 @@ class MetaGalacticBackground(AnalyzeMGB):
                     Jlw[i] = self.solver.LymanWernerFlux(redshift, popid=popid)
 
                 continue
-            elif self.pf['secondary_lya'] and (self.pops[popid].is_ion_src_igm):
-                Ja[i] = self.solver.volume.SecondaryLymanAlphaFlux(redshift, 
-                    popid=popid, fluxes={popid:flux[i]})
+            elif self.pf['secondary_lya'] and (self.pops[popid].is_src_ion_igm):
+                for k, sp in enumerate(self.grid.absorbers):
+                    Ja[i] += self.solver.volume.SecondaryLymanAlphaFlux(redshift, 
+                        species=k, popid=popid, fluxes={popid:flux[i]})
 
             # Convert to energy units, and per eV to prep for integral
             LW_flux = flux[i,is_LW] * E[is_LW] * erg_per_ev / ev_per_hz

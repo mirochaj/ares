@@ -227,7 +227,7 @@ class Global21cm(AnalyzeGlobal21cm):
         # Need to generate radiation backgrounds first.
         self.medium.field.run()
         self._f_Ja = self.medium.field._f_Ja
-        self._f_Jlw = self.medium.field._f_Jlw   
+        self._f_Jlw = self.medium.field._f_Jlw
 
         # Start timer
         t1 = time.time()
@@ -289,6 +289,21 @@ class Global21cm(AnalyzeGlobal21cm):
 
         self.history = self.history_igm.copy()
         self.history.update(self.history_cgm)
+        
+        ##
+        # In the future, could do this better by only calculating Ja at
+        # the end, since it a passive quantity (unless we included its
+        # very small heating).
+        ##
+        #if self.pf['secondary_lya']:
+        #    xe = lambda zz: np.interp(zz, self.history['z'][-1::-1],
+        #        self.history['igm_e'][-1::-1])
+        #    self.medium.field.run(xe=xe)
+        #    self._f_Ja = self.medium.field._f_Ja
+        #    #self._f_Jlw = self.medium.field._f_Jlw
+        #
+        #    # Fix Ja in history
+        
         self.history['dTb'] = self.history['igm_dTb']
         self.history['Ts'] = self.history['igm_Ts']
         self.history['Ja'] = self.history['igm_Ja']
@@ -307,7 +322,7 @@ class Global21cm(AnalyzeGlobal21cm):
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
 
-        t2 = time.time()        
+        t2 = time.time()
                 
         self.timer = t2 - t1
         
@@ -446,7 +461,7 @@ class Global21cm(AnalyzeGlobal21cm):
             print('Wrote {0!s}.history.{1!s}'.format(prefix, suffix))
             
         # Save histories for Mmin and SFRD if we're doing iterative stuff
-        if self.count > 1:
+        if self.count > 1 and hasattr(self, '_Mmin_bank'):
             write_pickle_file((self.medium.field._zarr,\
                 self.medium.field._Mmin_bank), '{!s}.Mmin.pkl'.format(prefix),\
                 ndumps=2, open_mode='w', safe_mode=False,\
