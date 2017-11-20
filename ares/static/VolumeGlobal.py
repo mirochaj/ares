@@ -943,10 +943,10 @@ class GlobalVolume(object):
         # Re-normalize. This is essentially a photon emissivity modulo 4 pi ster
         # This is a *proper* emissivity, BTW.
         e_ax *= norm
-        
+
         # Just normalizing by electron donor species abundance
         e_ax *= self.coefficient_to_rate(z, species, **kw)
-    
+
         # At this point, we've got a diffuse Ly-a emissivity.
         # Need to convert it to a flux. Assume infinitesimally narrow line
         # profile, i.e., emissivity translates instantaneously to flux only
