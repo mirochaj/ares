@@ -229,6 +229,7 @@ class Population(object):
         
         return self._is_src_xray    
 
+    @property
     def is_src_lw(self):
         if not hasattr(self, '_is_src_lw'):
             if not self.pf['radiative_transfer']:
