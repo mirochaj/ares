@@ -3898,7 +3898,7 @@ class ModelSet(BlobFactory):
         cb = pl.colorbar(cax)
 
         return ax
-        
+
     def get_blob(self, name, ivar=None):
         """
         Extract an array of values for a given quantity.
@@ -3914,7 +3914,7 @@ class ModelSet(BlobFactory):
             Independent variables a given blob may depend on.
             
         """
-                        
+
         i, j, nd, dims = self.blob_info(name)
         
         if (i is None) and (j is None):

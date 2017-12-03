@@ -1,6 +1,8 @@
 # Thanks, Jason Sun, for most of this!
 
-import os, re
+import os
+import re
+import pickle
 import numpy as np
 import scipy.special as sp
 from scipy.integrate import quad
@@ -299,8 +301,10 @@ class HaloModel(HaloMassFunction):
             iz = np.argmin(np.abs(z - self.z))
             assert abs(z - self.z[iz]) < 1e-2, \
                 'Supplied redshift (%g) not in table!' % z
-            assert np.allclose(k, self.k_cr_pos)
-            return self.ps_dd[iz]
+            if np.allclose(k, self.k_cr_pos):
+                return self.ps_dd[iz]
+            else:
+                return np.interp(np.log(k), log(self.k_cr_pos), self.ps_dd[iz])
                     
         if type(k) == np.ndarray:
             f1 = lambda kk: self.PS_OneHalo(z, kk, profile_1, Mmin_1, profile_2, 
@@ -406,14 +410,14 @@ class HaloModel(HaloMassFunction):
             return 'mps_%s_logM_%s_%i-%i_z_%s_%i-%i_logR_%.1f-%.1f_dlogr_%.2f_dlogk_%.2f' \
                 % (self.hmf_func, logMsize, M1, M2, zsize, z1, z2,
                    np.log10(min(rarr)), np.log10(max(rarr)), 
-                   self.pf['powspec_dlogr'],
-                   self.pf['powspec_dlogk'])
+                   self.pf['mpowspec_dlogr'],
+                   self.pf['mpowspec_dlogk'])
         else:
             raise NotImplementedError('help')
             #return 'ps_%s_logM_*_%i-%i_z_*_%i-%i' \
             #    % (self.hmf_func, M1, M2, z1, z2)
     
-    def tabulate_ps(self):
+    def tabulate_ps(self, clobber=False, checkpoint=True):
         """
         Tabulate the (density) power spectrum.
         """
@@ -440,16 +444,51 @@ class HaloModel(HaloMassFunction):
         
         # Set up coarse grid for evaluation of halo model
         k_mi, k_ma = absk_sh[absk_sh>0].min(), absk_sh.max()
-        dlogk = self.pf['powspec_dlogk']
+        dlogk = self.pf['mpowspec_dlogk']
         logk_cr_pos = np.arange(np.log(k_mi), np.log(k_ma)+dlogk, dlogk)
         self.k_cr_pos = np.exp(logk_cr_pos)
                 
         # Setup degraded scales array
         r_mi, r_ma = R.min(), R.max()
-        dlogr = self.pf['powspec_dlogr']
+        dlogr = self.pf['mpowspec_dlogr']
         logR_cr = np.arange(np.log(r_mi), np.log(r_ma)+dlogr, dlogr)
         self.R_cr = R_cr = np.exp(logR_cr)
         
+        ct = 0
+        
+        _z = []
+        _ps = []
+        _cf = []
+        if checkpoint:
+            if (not os.path.exists('tmp')):
+                os.mkdir('tmp')
+
+            fn = 'tmp/{}.{}.pkl'.format(self.table_prefix_ps(True), 
+                str(rank).zfill(3))    
+                
+            if os.path.exists(fn) and (not clobber):
+                                
+                # Should delete if clobber == True?
+                
+                f = open(fn, 'rb')
+                while True:
+                    
+                    try:
+                        tmp = pickle.load(f)
+                    except EOFError:
+                        break
+                   
+                    _z.append(tmp[0])
+                    _ps.append(tmp[1])
+                    _cf.append(tmp[2])
+                
+                if _z != []:
+                    print "Processor {} loaded checkpoints for z={}-{}".format(rank, 
+                        min(_z), max(_z))
+            
+            elif os.path.exists(fn):
+                os.remove(fn)
+            
         # Must tabulate onto coarse grid otherwise we'll run out of memory.
         self.ps_dd = np.zeros((len(self.z), len(self.k_cr_pos)))
         self.cf_dd = np.zeros((len(self.z), len(self.R_cr)))
@@ -457,7 +496,23 @@ class HaloModel(HaloMassFunction):
         
             if i % size != rank:
                 continue
-
+            
+            # Load checkpoint
+            if z in _z:
+                
+                j = _z.index(z)
+                self.ps_dd[i] = _ps[j]
+                self.cf_dd[i] = _cf[j]
+                
+                #print rank, z, _z[j]
+                            
+                pb.update(i)
+                continue
+                
+            ##
+            # Calculate from scratch
+            ##                
+                            
             ps_k_cr_pos = self.PowerSpectrum(z, self.k_cr_pos)
 
             # Must interpolate back to fine grid (uniformly sampled 
@@ -475,7 +530,14 @@ class HaloModel(HaloMassFunction):
             self.cf_dd[i] = np.interp(logR_cr, logR, cf_R.real)
             
             pb.update(i)
-
+                        
+            if not checkpoint:
+                continue
+                                
+            with open(fn, 'ab') as f:
+                pickle.dump((z, self.ps_dd[i], self.cf_dd[i]), f)
+                #print "Processor {} wrote checkpoint for z={}".format(rank, z)
+            
         pb.finish()
 
         # Collect results!
@@ -488,7 +550,8 @@ class HaloModel(HaloMassFunction):
             nothing = MPI.COMM_WORLD.Allreduce(self.cf_dd, tmp2)
             self.cf_dd = tmp2
 
-    def save_ps(self, fn=None, clobber=True, destination=None, format='hdf5'):
+    def save_ps(self, fn=None, clobber=True, destination=None, format='npz',
+        checkpoint=True):
         """
         Save matter power spectrum table to HDF5 or binary (via pickle).
     
@@ -505,30 +568,40 @@ class HaloModel(HaloMassFunction):
             Format of output. Can be 'hdf5' or 'pkl'
     
         """
+        
+        if destination is None:
+            destination = '.'
+        
+        # Determine filename
+        if fn is None:
+            fn = '%s/%s.%s' % (destination, self.table_prefix_ps(True), format)
+        else:
+            if format not in fn:
+                print "Suffix of provided filename does not match chosen format."
+                print "Will go with format indicated by filename suffix."
+        
+        if os.path.exists(fn):
+            if clobber:
+                os.system('rm -f %s' % fn)
+            else:
+                raise IOError('File %s exists! Set clobber=True or remove manually.' % fn) 
     
+        # Do this first! (Otherwise parallel runs will be garbage)
+        self.tabulate_ps(clobber=clobber, checkpoint=checkpoint)
+    
+        if rank > 0:
+            return
+    
+        self._write_ps(fn, clobber, format)
+    
+    def _write_ps(self, fn, clobber, format=format):
+        
         try:
             import hmf
             hmf_v = hmf.__version__
         except AttributeError:
             hmf_v = 'unknown'
-    
-        # Do this first! (Otherwise parallel runs will be garbage)
-        self.tabulate_ps()
-    
-        if rank > 0:
-            return
-    
-        if destination is None:
-            destination = '.'
-    
-        # Determine filename
-        if fn is None:
-            fn = '%s/%s.%s' % (destination, self.table_prefix_ps(True), format)                
-        else:
-            if format not in fn:
-                print "Suffix of provided filename does not match chosen format."
-                print "Will go with format indicated by filename suffix."
-    
+            
         if os.path.exists(fn):
             if clobber:
                 os.system('rm -f %s' % fn)

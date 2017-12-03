@@ -99,15 +99,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         kw = self.src_kwargs.copy()
                         kw['pop_Z'] = Z
                         src = self._Source(**kw)
-                        
+
                         att = src.__getattribute__(name)
-                        
+
                         # Must specify band
                         if name == 'rad_yield':
                             val = att(self.pf['pop_EminNorm'], self.pf['pop_EmaxNorm'])
                         else:
                             val = att
-                            
+
                         tmp.append(val)
 
                     # Interpolant

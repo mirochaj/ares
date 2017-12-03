@@ -392,10 +392,11 @@ def PowerSpectrumParameters():
      #"bubble_pod_temp": None,
      #"bubble_pod_Nsc": 1e3,
      
-     "powspec_lya_method": 0,
-     "powspec_lya_approx_sfr": 'exp',
+     "powspec_lya_method": 'lpt',
      "powspec_ion_method": None,  # unused
-     "powspec_temp_method": 0,
+     "powspec_temp_method": 'binary',
+     
+     #"powspec_lya_approx_sfr": 'exp',
      
      "bubble_shell_size_dist": None,
      "bubble_size_dist": 'fzh04', # or FZH04, PC14
@@ -406,7 +407,6 @@ def PowerSpectrumParameters():
 
     return pf
 
-    
 def PopulationParameters():
     """
     Parameters associated with populations of objects, which give rise to
@@ -458,6 +458,8 @@ def PopulationParameters():
         
     # Set the emission interval and SED
     "pop_sed": 'pl',
+    
+    "pop_sed_sharp_at": None,
     
     # If pop_sed == 'user'
     "pop_E": None,
@@ -668,6 +670,8 @@ def SourceParameters():
     "source_sed": 'bb',
     "source_position": 0.0,
     
+    "source_sed_sharp_at": None,
+    
     # only for schaerer2002 right now        
     "source_piecewise": True,
     "source_model": 'tavg_nms', # or "zams" or None
@@ -824,6 +828,11 @@ def HaloMassFunctionParameters():
     
     "hmf_dfcolldz_smooth": False,
     "hmf_dfcolldz_trunc": False,
+    
+    # For matter power spectrum
+    'mpowspec_dlogk': 0.1,
+    'mpowspec_dlogr': 0.1,
+    
 
     # For, e.g., fcoll, etc
     "hmf_interp": 'cubic',

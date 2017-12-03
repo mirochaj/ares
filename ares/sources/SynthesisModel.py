@@ -442,6 +442,9 @@ class SynthesisModel(object):
         # Find band of interest -- should be more precise and interpolate
         i0 = np.argmin(np.abs(self.energies - Emin))
         i1 = np.argmin(np.abs(self.energies - Emax))
+        
+        if i0 == i1:
+            raise ValueError('Are EminNorm and EmaxNorm set properly?')
 
         # Count up the photons in each spectral bin for all times
         flux = np.zeros_like(self.times)

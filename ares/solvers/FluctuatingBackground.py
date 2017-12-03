@@ -180,7 +180,7 @@ class FluctuatingBackground(object):
             else:
                 Qc = np.trapz(dndlnm[iM:] * Vc[iM:], x=np.log(Mi[iM:]))
 
-            return min(Qc, 1.)    
+            return min(Qc, 1.)
 
         elif lya and self.pf['bubble_pod_size_func'] == 'fzh04':
             return self.BubbleFillingFactor(z, zeta_lya, None, lya=False)
@@ -301,8 +301,6 @@ class FluctuatingBackground(object):
         # Should there be a baryon fraction multiplier here?
         xi_dd = np.interp(np.log(r), np.log(data['dr']), data['cf_dd'])
 
-        #print 'ep', z, term, np.any(bHII < 0), np.any(bbar < 0), np.any(xi_dd < 0)
-        
         return np.maximum(bHII * bbar * xi_dd, 0.0)
 
     def _K(self, zeta):
@@ -493,7 +491,7 @@ class FluctuatingBackground(object):
             if self.pf['bubble_shell_ktemp_zone_{}'.format(ii)] is None:
                 val = 0.0
             elif self.pf['bubble_shell_rsize_zone_{}'.format(ii)] is not None:
-                val = Ri * self.pf['bubble_shell_rsize_zone_{}'.format(ii)]
+                val = Ri * (1. + self.pf['bubble_shell_rsize_zone_{}'.format(ii)])
             elif self.pf['bubble_shell_asize_zone_{}'.format(ii)] is not None:
                 val = Ri + self.pf['bubble_shell_zsize_zone_{}'.format(ii)]
             else:
@@ -501,7 +499,7 @@ class FluctuatingBackground(object):
                 
             to_ret.append(val)
             
-        return to_ret    
+        return to_ret
 
     def BubblePodRadius(self, z, Ri, zeta=40., zeta_lya=1.):
         """
@@ -768,7 +766,7 @@ class FluctuatingBackground(object):
                     _Pin_int = dndm * Vo * Mi * (1. + delta_B)
                     Pin = np.trapz(_Pin_int[iM:], x=np.log(Mi[iM:]))
                     
-                    Vss_ne = 0.0
+                    Vss_ne_1 = Vss_ne_2 = np.zeros_like(Ri)
 
                     #xi_dd = data['xi_dd_c'][i]
                     #

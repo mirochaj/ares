@@ -183,12 +183,14 @@ class UniformBackground(object):
         bands = []
         
         # Check for optical/IR
-        if Emin < E_LyA:
+        if (Emin < E_LyA) and (Emax > E_LyA):
             bands.append((Emin, E_LyA))
         
         # Check for sawtooth
-        if Emin < E_LL:
-            bands.append((E_LyA, E_LL))
+        if (Emax > E_LyA) and (Emax < E_LL):
+            bands.append((E_LyA, Emax))
+        elif (Emin < E_LL) and (Emax >= E_LL):
+            bands.append((max(E_LyA, Emin), E_LL))    
 
         if Emax <= E_LL:
             return bands
@@ -259,6 +261,7 @@ class UniformBackground(object):
                 self._redshifts = []
                 for i, pop in enumerate(self.pops):
                     bands = self._get_bands(pop)
+                                        
                     self._bands_by_pop.append(bands)   
                     
                     if (bands is None) or (not pop.pf['pop_solve_rte']):
@@ -342,7 +345,7 @@ class UniformBackground(object):
         energies_by_band = []
         emissivity_by_band = []        
         for band in bands: 
-                        
+                                    
             E0, E1 = band
             has_sawtooth = (E0 == E_LyA) and (E1 == E_LL)
             has_sawtooth |= (E0 == 4*E_LyA) or (E1 == 4*E_LL)

@@ -281,7 +281,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
     def RedshiftEvolution(self, field='21', k=0.2, ax=None, fig=1, 
         dimensionless=True, show_gs=False, mp_kwargs={}, scatter=False,
-        scatter_kwargs={}, **kwargs):
+        scatter_kwargs={}, orientation='vertical', **kwargs):
         """
         Plot the fraction of the volume composed of ionized bubbles.
         """
@@ -289,9 +289,16 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         if ax is None:
             if show_gs:
                 if mp_kwargs == {}:
-                    mp_kwargs = {'padding': (0, 0.1), 'fig': fig}
+                    mp_kwargs = {'fig': fig}
                     
-                mp = MultiPanel(dims=(2, 1), **mp_kwargs)
+                if orientation == 'vertical':
+                    dims = (2, 1)
+                    mp_kwargs['padding'] = (0, 0.1)
+                else:
+                    dims = (1, 2)
+                    mp_kwargs['padding'] = (0.3, 0.)
+                    
+                mp = MultiPanel(dims=dims, **mp_kwargs)
             else:    
                 gotax = False
                 fig = pl.figure(fig)
@@ -337,7 +344,9 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         ax1.set_yscale('log')
         ax1.set_xlim(6, 30)
         ax1.set_ylim(1e-2, 1e4)
-        ax1.set_xlabel(r'$z$')
+        
+        if (not gotax):
+            ax1.set_xlabel(r'$z$')
         
         if dimensionless:
             ax1.set_ylabel(labels['dpow'])
@@ -347,8 +356,10 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         if show_gs:
             self.gs.GlobalSignature(ax=mp.grid[1], xaxis='z', **kwargs)
             mp.grid[1].set_xlim(6, 30)
-            mp.grid[1].set_xticklabels([])
-            mp.grid[1].set_xlabel('')
+            
+            if orientation == 'vertical' and (not gotax):
+                mp.grid[1].set_xticklabels([])
+                mp.grid[1].set_xlabel('')
         
         pl.draw()
         

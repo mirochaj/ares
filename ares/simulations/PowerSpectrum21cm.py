@@ -142,8 +142,9 @@ class PowerSpectrum21cm(AnalyzePS):
         rmi, rma = self.R.min(), self.R.max()
         dlogr = self.pf['powspec_dlogr']
 
-        kfin = 10**np.arange(np.log10(kmi), np.log10(kma), dlogk)
-        rfin = 10**np.arange(np.log10(rmi), np.log10(rma), dlogr)
+        # Aren't these just self.k_cr, self.R_cr?
+        kfin = np.exp(np.arange(np.log(kmi), np.log(kma)+dlogk, dlogk))
+        rfin = np.exp(np.arange(np.log(rmi), np.log(rma)+dlogr, dlogr))
 
         # Re-organize to look like Global21cm outputs, i.e., dictionary
         # with one key per quantity of interest, and in this case a 2-D
@@ -204,7 +205,7 @@ class PowerSpectrum21cm(AnalyzePS):
                 self.pf['include_lya_fl']
         return self._include_con_fl
 
-    def _temp_to_contrast(self, z, T):
+    def _temp_to_contrast(self, z, dT, da=0.0):
         """
         Convert a temperature to a contrast.
         
@@ -213,20 +214,32 @@ class PowerSpectrum21cm(AnalyzePS):
         """
         
         # Grab mean spin temperature
-        Ts = np.interp(z, self.mean_history['z'][-1::-1], 
+        Ja = np.interp(z, self.mean_history['z'][-1::-1],
+            self.mean_history['Ja'][-1::-1])
+        Ts = np.interp(z, self.mean_history['z'][-1::-1],
             self.mean_history['igm_Ts'][-1::-1])
-        Tk = np.interp(z, self.mean_history['z'][-1::-1], 
+        Tk = np.interp(z, self.mean_history['z'][-1::-1],
             self.mean_history['igm_Tk'][-1::-1])
         Tcmb = self.cosm.TCMB(z)
+        xa = self.hydr.RadiativeCouplingCoefficient(z, Ja, Tk)
         
-        T = np.maximum(T, Tk)
+        #T = np.maximum(T, Tk)
         
-        # The actual spin temperature anywhere is the mean * (1 + delta_T)
-        delta_T = T / Ts - 1.
+        # The actual temperature anywhere is the mean * (1 + delta_T)
+        
                 
         # Convert temperature perturbation to contrast perturbation.
-        delta_C = (Ts / (Ts - Tcmb)) \
-            - (Tcmb / (Ts - Tcmb)) / (1. + delta_T) - 1.
+        #delta_C = (Ts / (Ts - Tcmb)) \
+        #    - (Tcmb / (Ts - Tcmb)) / (1. + delta_T) - 1.
+        
+        #delta_C = (Ts / (Ts - Tcmb)) * (1. - Tcmb / (Tk * (1. + delta_T))) - 1.
+        
+        #delta_C = (Ts / (Ts - Tcmb)) \
+        #    * ((1. + xa * (1. + da) * (Tcmb / Tk / (1. + dT)))) \
+        #    / (1. + xa * (1. + da)) - 1.
+        
+        delta_C = (Ts / (Ts - Tcmb)) * (1. - (Tcmb / Tk) / (1. + delta_T)) \
+            * xa * (1. + da) / (1. + xa * (1. + da)) - 1.
 
         return delta_C
 
@@ -241,9 +254,9 @@ class PowerSpectrum21cm(AnalyzePS):
         self.k = k = np.fft.fftfreq(R.size, step)
         logR = np.log(R)
         
-        k_mi, k_ma = k.min(), k.max()
+        k_mi, k_ma = k[k>0].min(), k.max()
         dlogk = self.pf['powspec_dlogk']
-        k_pos = 10**np.arange(np.log10(k[k>0].min()), np.log10(k_ma)+dlogk, dlogk)
+        k_pos = np.exp(np.arange(np.log(k_mi), np.log(k_ma)+dlogk, dlogk))
 
         self.k_pos = self.pops[0].halos.k_cr_pos
         self.R_cr = self.pops[0].halos.R_cr
@@ -301,16 +314,23 @@ class PowerSpectrum21cm(AnalyzePS):
             ##
             # First: some global quantities we'll need
             ##
+            Tcmb = self.cosm.TCMB(z)
             Tk = np.interp(z, self.mean_history['z'][-1::-1],
                 self.mean_history['igm_Tk'][-1::-1])
+            Ts = np.interp(z, self.mean_history['z'][-1::-1],
+                self.mean_history['Ts'][-1::-1])
             Ja = np.interp(z, self.mean_history['z'][-1::-1],
                 self.mean_history['Ja'][-1::-1])
             xHII, ne = [0] * 2
             
+            xa = self.hydr.RadiativeCouplingCoefficient(z, Ja, Tk)
+            xc = self.hydr.CollisionalCouplingCoefficient(z, Tk)
+            xt = xa + xc
+            
             # Assumes strong coupling. Mapping between temperature 
             # fluctuations and contrast fluctuations.
-            Ts = Tk
-            Tcmb = self.cosm.TCMB(z)
+            #Ts = Tk
+            
             
             # Add beta factors to dictionary
             for f1 in ['x', 'd', 'a']:
@@ -369,6 +389,9 @@ class PowerSpectrum21cm(AnalyzePS):
             # Density fluctuations
             ##
             if self.pf['include_density_fl'] and self.pf['include_acorr']:
+                
+                # k may be different for 21-cm and matter power spectra!
+                
                 ps_dd = self.pops[0].halos.PowerSpectrum(z, self.k_pos)
                 
                 # PS is positive so it's OK to log-ify it
@@ -385,6 +408,10 @@ class PowerSpectrum21cm(AnalyzePS):
                 # frequencies. We should do this inside PS-tabulation in the
                 # future.
                 data['cf_dd'] = np.interp(logr, np.log(self.R_cr), cf_c)
+                
+                #data['cf_dd'][0:10] = 0
+                #data['cf_dd'][-10:] = 0
+                
             else:
                 data['cf_dd'] = data['ps_dd'] = np.zeros_like(R)
 
@@ -421,6 +448,9 @@ class PowerSpectrum21cm(AnalyzePS):
             data['ev_coco_2'] = np.zeros_like(R)
             if self.pf['include_temp_fl']:
                 
+                assert self.pf['include_ion_fl'], \
+                    "Can only do temperature fluctuations if include_ion_fl=1!"
+                
                 data['avg_C'] = 0.0
                 data['jp_hc'] = np.zeros_like(R)
                 data['jp_hc_1'] = np.zeros_like(R)
@@ -428,43 +458,69 @@ class PowerSpectrum21cm(AnalyzePS):
                                 
                 Q = self.field.BubbleShellFillingFactor(z, zeta, zeta_lya)
                 
+                data['Qc'] = 0.0
+                data['Cc'] = 0.0
+                
                 suffixes = 'h', 'c'
-                for ii in range(2):
+                for ii in range(2):                    
                     
                     if self.pf['bubble_shell_ktemp_zone_{}'.format(ii)] is None:
                         continue
                         
                     s = suffixes[ii]
                     ss = suffixes[ii] + suffixes[ii]
-                    ztemp = self.pf['bubble_shell_ktemp_zone_{}'.format(ii)]
                     
-                    if ztemp == 'mean':
-                        ztemp = Tk
-                    
-                    C = self._temp_to_contrast(z, ztemp)
-                    
-                    data['C{}'.format(s)] = C
                     data['Q{}'.format(s)] = Q[ii]
-                    data['avg_C{}'.format(s)] = Q[ii] * C
-                    data['avg_C'] += Q[ii] * C
                     
+                    # Compute the joint probability.
+                    # Either hh, hc, or cc
                     p_tot, p_1h, p_2h = self.field.JointProbability(z, 
                         self.R_cr, zeta, term=ss, Tprof=None, data=data,
                         zeta_lya=zeta_lya)
-
+                    
                     data['jp_{}'.format(ss)] = \
                         np.interp(logR, self.logR_cr, p_tot)
                     data['jp_{}_1'.format(ss)] = \
                         np.interp(logR, self.logR_cr, p_1h)
                     data['jp_{}_2'.format(ss)] = \
                         np.interp(logR, self.logR_cr, p_2h)
-                                        
-                    data['ev_coco'] += C**2 * data['jp_{}'.format(ss)]
-                    data['ev_coco_1'] += C**2 * data['jp_{}_1'.format(ss)]
-                    data['ev_coco_2'] += C**2 * data['jp_{}_2'.format(ss)]
                     
-                    if not self.pf['bubble_shell_include_xcorr']:
-                        continue
+                    ztemp = self.pf['bubble_shell_ktemp_zone_{}'.format(ii)]
+                    
+                    if ztemp == 'mean':
+                        ztemp = Tk
+                    
+                    delta_T = ztemp / Tk - 1.
+                    #C = self._temp_to_contrast(z, delta_T)
+                    
+                    if self.pf['powspec_temp_method'] == 'lpt':
+                        C = (Tcmb / (Ts - Tcmb))
+                        T = ztemp
+                        
+                        data['ev_coco'] += T**2 * C**2 * data['jp_{}'.format(ss)]
+                        #data['ev_coco_1'] += C**2 * data['jp_{}_1'.format(ss)]
+                        #data['ev_coco_2'] += C**2 * data['jp_{}_2'.format(ss)]
+                        
+                        
+                        
+                    else:
+                        
+                        # Tk is really Ts, but we're assuming for now
+                        # that coupling is strong. Might overestimate 
+                        # fluctuations slightly at early times.
+                        C = Tcmb * (delta_T / (1. + delta_T)) / (Tk - Tcmb)
+
+                        data['ev_coco'] += C**2 * data['jp_{}'.format(ss)]
+                        data['ev_coco_1'] += C**2 * data['jp_{}_1'.format(ss)]
+                        data['ev_coco_2'] += C**2 * data['jp_{}_2'.format(ss)]
+                
+                    data['C{}'.format(s)] = C
+                    #data['Q{}'.format(s)] = Q[ii]
+                    data['avg_C{}'.format(s)] = Q[ii] * C
+                    data['avg_C'] += 0#Q[ii] * C
+
+                    #if not self.pf['bubble_shell_include_xcorr']:
+                    #    continue
                 
                     #data['jp_hc']
                 
@@ -479,25 +535,13 @@ class PowerSpectrum21cm(AnalyzePS):
             ##
             # Lyman-alpha fluctuations                
             ##    
-            if self.pf['include_lya_fl']:
+            if self.pf['include_lya_fl']:                
 
-                xa = self.hydr.RadiativeCouplingCoefficient(z, Ja, Tk)
-                xc = self.hydr.CollisionalCouplingCoefficient(z, Tk)
-                xt = xa #+ xc
 
                 Jc = self.hydr.Ja_c(z)
-                
-                C = (-1. / (1. + xt))
-                #C = self._temp_to_contrast(z, Tk) * (1. - min(1., Ja / Jc))
-                
-                #C = data['beta_a']
-                Qa = min(Ja / self.hydr.Ja_c(z), 1.)
-                #Qa = 1. - np.exp(-xa)
-
-                #Qa = Qa - Qh - Qi
-
-                data['Ca'] = C
-                data['Qa'] = Qa
+                                
+                #data['Ca'] = C
+                data['Qa'] = 0.
                 
                 #data['avg_C'] += C * Qa
 
@@ -515,7 +559,7 @@ class PowerSpectrum21cm(AnalyzePS):
                     
                     if type(self.pf['include_lya_lc']) is float:
                         a = lambda zz: self.pf['include_lya_lc']
-                    else:    
+                    else:
                     
                         #oot = lambda zz: self.pops[0].dfcolldt(z) / self.pops[0].halos.fcoll_2d(zz, np.log10(Mmin(zz)))
                         #a = lambda zz: (1. / oot(zz)) / pop.cosm.HubbleTime(zz)                        
@@ -557,50 +601,87 @@ class PowerSpectrum21cm(AnalyzePS):
                 #    np.log(self.k_pos), np.log(ps_aa_2)))
                     
                 data['cf_aa'] = np.fft.ifft(data['ps_aa']).real
-                data['jp_aa'] = data['cf_aa'] + C**2
+                
+                
+                data['ev_aa'] = data['cf_aa'] + xa**2
 
-                data['ev_coco'] += data['jp_aa'] * C**2
+                if self.pf['powspec_lya_method'] == 'lpt':
+                    #C = (Tcmb * (Tk - Ts)) / (Tk * (Ts - Tcmb)) #+ 1.
+                    C = (Ts / (Ts - Tcmb)) * ((Tk - Tcmb) / Tk)
+                    data['ev_coco'] += (C - 1)**2 * xa**2 * (1. + data['ev_aa'])
+                    data['ev_coco'] -= (C - 1) * xa
+                    #data['ev_coco'] += 1.
+                    
+                    
+                    
+                            
+                    data['Ca'] = C
+                    
+                    # Really average contrast perturbation
+                    data['avg_C'] = 0.0 # we don't know this
+                    
+                    print z, xa, (C - 1)**2 * xa**2, (C - 1) * xa, (C - 1)
+                    
+                else:
+                    
+                    #data['ev_coco'] += xa**2 * (Ts / (Ts - Tcmb))**2 \
+                    #    * (1. - Tcmb / Tk)**2 * (1. + data['ev_aa']) 
+                    
+                    data['ev_coco'] += data['beta_a']**2 * data['ev_aa'] + 1.
+                    
+                    #if xa < 1:
+                    #    data['ev_coco'] += xa**2 * (Ts / (Ts - Tcmb))**2 \
+                    #        * (1. - Tcmb / Tk)**2 * (1. + data['ev_aa'])
+                    #else:    
+                    #    data['ev_coco'] += (Ts / (Ts - Tcmb))**2 \
+                    #        * (1. - Tcmb / Tk)**2 #* (1. + data['ev_aa'])    
+                            
+                    #data['ev_coco'] -= (C - 1) * xa
+                    
+                    
+                    #raise NotImplemented('help')
+
+                    #data['ev_coco'] += data['jp_aa'] * C**2 + 1.
                                 
                 #data['jp_{}'.format(ss)] = \
                 #    np.interp(logR, self.logR_cr, p_tot)
                 
-
             #else:
             #    data['jp_cc'] = data['jp_hc'] = data['ev_cc'] = \
             #        np.zeros_like(R)
             #    data['Cc'] = data['Qc'] = Cc = Qc = 0.0
             #    data['avg_Cc'] = 0.0
-                            
                 
             ##
-            # Cross-terms between ionization and contrast
+            # Cross-terms between ionization and contrast.
+            # Should be under xcorr
             ##
-            #if self.include_con_fl and self.pf['include_ion_fl']:
-            #    if self.pf['include_temp_fl']:
-            #        p_ih, p_ih_1, p_ih_2 = self.field.JointProbability(z,
-            #            self.R_cr, zeta, term='ih', data=data, zeta_lya=zeta_lya)
-            #        data['jp_ih'] = np.interp(logR, self.logR_cr, p_ih)
-            #        data['jp_ih_1'] = np.interp(logR, self.logR_cr, p_ih_1)
-            #        data['jp_ih_2'] = np.interp(logR, self.logR_cr, p_ih_2)
-            #    else:
-            #        data['jp_ih'] = np.zeros_like(R)
-            #        
-            #    if self.pf['include_lya_fl']:
-            #        p_ic, p_ic_1, p_ic_2 = self.field.JointProbability(z, 
-            #            self.R_cr, zeta, term='ic', data=data, 
-            #            zeta_lya=zeta_lya)
-            #        data['jp_ic'] = np.interp(logR, self.logR_cr, p_ic)
-            #        data['jp_ic_1'] = np.interp(logR, self.logR_cr, p_ic_1)
-            #        data['jp_ic_2'] = np.interp(logR, self.logR_cr, p_ic_2)
-            #    else:
-            #        data['jp_ic'] = np.zeros_like(R)
-            #            
-            #    data['ev_ico'] = data['Ch'] * data['jp_ih'] \
-            #                   + data['Cc'] * data['jp_ic']
-            #else:
-            data['jp_ih'] = np.zeros_like(k)
-            data['jp_ic'] = np.zeros_like(k)
-            data['ev_ico'] = np.zeros_like(k)    
+            if self.include_con_fl and self.pf['include_ion_fl']:
+                if self.pf['include_temp_fl']:
+                    p_ih, p_ih_1, p_ih_2 = self.field.JointProbability(z,
+                        self.R_cr, zeta, term='ih', data=data, zeta_lya=zeta_lya)
+                    data['jp_ih'] = np.interp(logR, self.logR_cr, p_ih)
+                    data['jp_ih_1'] = np.interp(logR, self.logR_cr, p_ih_1)
+                    data['jp_ih_2'] = np.interp(logR, self.logR_cr, p_ih_2)
+                else:
+                    data['jp_ih'] = np.zeros_like(R)
+                    
+                #if self.pf['include_lya_fl']:
+                #    p_ic, p_ic_1, p_ic_2 = self.field.JointProbability(z, 
+                #        self.R_cr, zeta, term='ic', data=data, 
+                #        zeta_lya=zeta_lya)
+                #    data['jp_ic'] = np.interp(logR, self.logR_cr, p_ic)
+                #    data['jp_ic_1'] = np.interp(logR, self.logR_cr, p_ic_1)
+                #    data['jp_ic_2'] = np.interp(logR, self.logR_cr, p_ic_2)
+                #else:
+                data['jp_ic'] = np.zeros_like(R)
+                        
+                data['ev_ico'] = data['Ch'] * data['jp_ih'] \
+                               + data['Cc'] * data['jp_ic']
+            else:
+                data['jp_ih'] = np.zeros_like(k)
+                data['jp_ic'] = np.zeros_like(k)
+                data['ev_ico'] = np.zeros_like(k)    
             
             ##
             # Cross-correlations
@@ -654,7 +735,6 @@ class PowerSpectrum21cm(AnalyzePS):
                     #data['ev_dco'] = data['Ch'] * data['jp_ih'] \
                     #               + data['Cc'] * data['jp_ic']
                     
-                    
                     data['ev_dco'] = data['ev_ico'] * data['ev_id'] # times delta
                     
                 else:
@@ -686,6 +766,11 @@ class PowerSpectrum21cm(AnalyzePS):
             data['cf_xx_1'] = data['ev_ii_1'] - xibar**2
             data['cf_xx_2'] = data['ev_ii_2'] - xibar**2
             
+            #data['cf_xx'][0:10] = 0
+            #data['cf_xx'][-10:] = 0
+            
+            
+            
             # Minus sign difference for cross term with density.
             data['cf_xd'] = -data['ev_id']
             
@@ -693,6 +778,10 @@ class PowerSpectrum21cm(AnalyzePS):
             data['cf_coco']   = data['ev_coco']   - data['avg_C']**2
             data['cf_coco_1'] = data['ev_coco_1'] - data['avg_C']**2
             data['cf_coco_2'] = data['ev_coco_2'] - data['avg_C']**2
+            
+            #data['cf_coco'][0:10] = 0
+            #data['cf_coco'][-10:] = 0
+            
             
             # Correlation between neutral fraction and contrast fields
             data['cf_xco'] = data['avg_C'] - data['ev_ico']
@@ -748,6 +837,10 @@ class PowerSpectrum21cm(AnalyzePS):
             else:
                 data['cf_21'] = data['cf_21_s']
 
+            #data['cf_21'][0:10] = 0
+            #data['cf_21'][-10:] = 0
+            
+            
             data['dTb0'] = Tbar
             data['ps_21'] = np.fft.fft(data['cf_21'])
             data['ps_21_s'] = np.fft.fft(data['cf_21_s'])

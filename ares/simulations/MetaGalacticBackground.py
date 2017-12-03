@@ -139,7 +139,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         raise NotImplemented('sorry')
     
-    def run(self, include_pops=None):
+    def run(self, include_pops=None, igm_history=None):
         """
         Loop over populations, determine background intensity.
         
@@ -204,10 +204,10 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         self._count += 1
     
-    @property        
-    def today(self):
+    def today(self, zf=None, ztol=1e-2, popids=None):
         """
-        Take background intensity at final redshift and evolve to z=0.
+        Return background intensity at z=zf evolved to z=0 assuming optically
+        thin IGM.
         
         This is just the second term of Eq. 25 in Mirocha (2014).
         """
@@ -215,16 +215,37 @@ class MetaGalacticBackground(AnalyzeMGB):
         _fluxes_today = []
         _energies_today = []
         
-        for popid, pop in enumerate(self.pops):
+        if popids is None:
+            popids = range(self.pf.Npops)
+        else:
+            if type(popids) == int:
+                popids = [popids]
+        
+        for popid in popids:
+            
+            pop = self.pops[popid]
+            
             if not self.solver.solve_rte[popid]:
                 _fluxes_today.append(None)
                 _energies_today.append(None)
                 continue
                 
             z, E, flux = self.get_history(popid=popid, flatten=True)    
+            
+            if zf is None:    
+                Et = E / (1. + z[0])
+                ft = flux[0] / (1. + z[0])**2
+            else:
+                iz = np.argmin(np.abs(zf - z))
                 
-            Et = E / (1. + z[0])
-            ft = flux[0] / (1. + z[0])**2
+                if abs(z[iz] - zf) < ztol:
+                    pass
+                else:
+                    print "Don't have access to z={}.".format(zf)
+                    print "Will use z={} instead.".format(z[iz])
+                    
+                Et = E / (1. + z[iz])
+                ft = flux[iz] / (1. + z[iz])**2    
             
             _energies_today.append(Et)
             _fluxes_today.append(ft)
@@ -249,7 +270,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         """
 
         jx = 0.0
-        Ef, ff = self.today
+        Ef, ff = self.today()
         for popid, pop in enumerate(self.pops):
             if Ef[popid] is None:
                 continue
@@ -686,7 +707,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         self._Ja = Ja
         self._Jlw = Jlw
-        
+                
         if not self.pf['feedback_LW']:
             return True
         
@@ -964,7 +985,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         if np.any(self.solver.solve_rte[popid]):
             z, E, flux = self.get_history(popid=popid, flatten=True)
             
-            if self.pf['secondary_lya'] and self.pops[popid].is_ion_src_igm:
+            if self.pf['secondary_lya'] and self.pops[popid].is_src_ion_igm:
                 Ja = np.zeros_like(z) # placeholder
             else:
                 l = np.argmin(np.abs(E - E_LyA))     # should be 0
@@ -996,7 +1017,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     Jlw[i] = self.solver.LymanWernerFlux(redshift, popid=popid)
 
                 continue
-            elif self.pf['secondary_lya'] and (self.pops[popid].is_ion_src_igm):
+            elif self.pf['secondary_lya'] and (self.pops[popid].is_src_ion_igm):
                 Ja[i] = self.solver.volume.SecondaryLymanAlphaFlux(redshift, 
                     popid=popid, fluxes={popid:flux[i]})
 

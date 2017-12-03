@@ -29,14 +29,14 @@ hmf_pars = \
  "hmf_dz": 0.05,
  "hmf_zmax": 60.,
  'fft_scales': np.arange(1e-3, 1e3+1e-3, 1e-3),
- 'powspec_dlogk': 0.1,
- 'powspec_dlogr': 0.1,
+ 'mpowspec_dlogk': 0.01,
+ 'mpowspec_dlogr': 0.01,
 }
 ##
 
 hmf = ares.physics.HaloModel(hmf_load=True, hmf_load_ps=False, **hmf_pars)
 
-hmf.save_ps(format=format, clobber=True)
+hmf.save_ps(format=format, clobber=False, checkpoint=True)
 
 
 
