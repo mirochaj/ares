@@ -4167,12 +4167,12 @@ class ModelSet(BlobFactory):
         return sorter, new_kw, scores
         
     def export(self, pars, prefix=None, fn=None, ivar=None, path='.', 
-        fmt='hdf5', clobber=False):
+        fmt='hdf5', clobber=False, skip=0, stop=None):
         """
         Just a wrapper around `save' routine.
         """
         self.save(pars, prefix=prefix, fn=fn, ivar=ivar, 
-            path=path, fmt=fmt, clobber=clobber)
+            path=path, fmt=fmt, clobber=clobber, skip=skip, stop=stop)
         
     def save(self, pars, prefix=None, fn=None, ivar=None, path='.', fmt='hdf5', 
         clobber=False, include_chain=True, restructure_grid=False,
@@ -4248,7 +4248,7 @@ class ModelSet(BlobFactory):
                     grp = f['blobs']
                 
                 dat = data[par][skip:stop]#[skip:stop:skim,Ellipsis]
-                ds = grp.create_dataset(par, data=dat[self.mask == 0])
+                ds = grp.create_dataset(par, data=dat[self.mask[skip:stop] == 0])
                 
                 try:
                     i, j, nd, dims = self.blob_info(par)
