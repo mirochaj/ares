@@ -2602,3 +2602,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
         return np.interp(self.halos.z, zarr, Mmin[best])
         
+    def save(self, prefix=None, fn=None, fmt='npz'):
+        """
+        Save properties of the population.
+        """
+        pass
+        
