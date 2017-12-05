@@ -30,11 +30,11 @@ Parameter Studies and Inference
 * Fitting and Forecasting    
     * :doc:`example_mcmc_gs`
     * :doc:`example_mcmc_lf`
-    
+
 .. * Simple Fitting
 ..     * :doc:`example_ham`
 ..     * :doc:`example_sedop`
-    
+
 * Analyzing Sets of Models
     * :doc:`example_inline_analysis`
     * :doc:`example_grid_analysis`
@@ -42,9 +42,19 @@ Parameter Studies and Inference
 
 Extensions
 ----------
-* :doc:`example_adv_RT_w_He`
-* :doc:`example_galaxypop`
-* :doc:`example_litdata`
-.. * :doc:`example_embed_ares`
+
+* Advanced physics
+    * :doc:`example_adv_RT_w_He`
+    
+* Advanced source populations
+    * :doc:`example_galaxypop`
+    * :doc:`example_popIII`
+    
+* Comparing to observational data
+    * :doc:`example_litdata`
+
+* Customization
+    * :doc:`example_embed_ares`
+    
 .. * :doc:`example_customization`
 

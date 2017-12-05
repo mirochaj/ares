@@ -19,7 +19,6 @@ from ..util.ParameterFile import ParameterFile
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
     k_B
     
-
 try:
     from scipy.special import gamma
     g23 = gamma(2. / 3.)

@@ -16,6 +16,7 @@ import numpy as np
 from ..util import read_lit
 from inspect import ismethod
 from ..analysis import ModelSet
+from scipy.misc import derivative
 from scipy.optimize import fsolve, minimize
 from types import FunctionType
 from ..analysis.BlobFactory import BlobFactory
@@ -36,11 +37,6 @@ try:
 except:
     # this try/except allows for python 2/3 compatible string type checking
     basestring = str
-
-try:
-    from scipy.misc import derivative
-except ImportError:
-    pass
     
 ztol = 1e-4
 z0 = 9. # arbitrary
@@ -2605,4 +2601,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         best = np.argmin(score)
                 
         return np.interp(self.halos.z, zarr, Mmin[best])
+        
+    def save(self, prefix=None, fn=None, fmt='npz'):
+        """
+        Save properties of the population.
+        """
+        pass
         

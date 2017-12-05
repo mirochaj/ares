@@ -12,16 +12,12 @@ Description:
 
 import numpy as np
 from ..util import ParameterFile
+from scipy.misc import derivative
+from scipy.optimize import minimize
 from ..physics.Constants import nu_0_mhz
+from scipy.interpolate import splrep, splev
 from ..util.Math import central_difference, take_derivative
 from ..util.SetDefaultParameterValues import SetAllDefaults
-
-try:
-    from scipy.misc import derivative
-    from scipy.optimize import minimize
-    from scipy.interpolate import splrep, splev
-except ImportError:
-    pass
 
 class TurningPoints(object):
     def __init__(self, inline=False, **kwargs):

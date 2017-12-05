@@ -979,7 +979,7 @@ class UniformBackground(object):
         
         pop = self.pops[popid]
 
-        if (not pop.is_lya_src) or (z > pop.zform):
+        if (not pop.is_src_lya) or (z > pop.zform):
             return 0.0
 
         if pop.pf['pop_Ja'] is not None:

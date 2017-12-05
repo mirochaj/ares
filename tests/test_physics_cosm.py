@@ -12,11 +12,14 @@ Description:
 
 import numpy as np
 from ares.physics import Cosmology
-from ares.physics.Constants import s_per_gyr, m_H, m_He
+from ares.physics.Constants import s_per_gyr, m_H, m_He, cm_per_mpc
 
 def test(rtol=1e-3):
     
     cosm = Cosmology()
+    
+    # Check some high-z limits
+    cosm_appr = Cosmology(approx_highz=True)
     
     # Check critical density
     assert cosm.CriticalDensity(0.) == cosm.CriticalDensityNow
@@ -27,17 +30,18 @@ def test(rtol=1e-3):
     # Make sure the age of the Universe is OK
     assert 13.5 <= cosm.t_of_z(0.) / s_per_gyr <= 14.
     
-    # Check some high-z limits
-    cosm_hi_z = Cosmology(omega_m_0=0.99999, omega_l_0=1e-5)
-    
-    # Age of the Universe
-    assert np.allclose(cosm_hi_z.t_of_z(0.), 2. / 3. / cosm_hi_z.hubble_0)
-    
     # Check high-z limit for Hubble parameter. Better than 1%?
     H_n = cosm.HubbleParameter(30.)
-    H_a = cosm.hubble_0 * np.sqrt(cosm.omega_m_0) * (1. + 30.)**1.5
+    H_a = cosm_appr.HubbleParameter(30.)    
     assert abs(H_n - H_a) / H_a < rtol, \
         "Hubble parameter @ high-z not accurate to < {:.3g}%.".format(rtol)
+        
+    # Check high-z limit for comoving radial distance
+    R_n = cosm_appr.ComovingRadialDistance(20., 30.) / cm_per_mpc
+    R_a = cosm.ComovingRadialDistance(20., 30.) / cm_per_mpc
+    
+    assert abs(R_a - R_n) / R_a < rtol, \
+        "Comoving radial distance @ high-z not accurate to < {:.3g}%.".format(rtol)
         
 if __name__ == '__main__':
     test()    

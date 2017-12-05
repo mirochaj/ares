@@ -514,17 +514,17 @@ def print_sim(sim):
             
         tmp = [mod, 'yes' if pop.pf['pop_sed_model'] else 'no']
         
-        if pop.is_lya_src:
+        if pop.is_src_lya:
             tmp.append('x')
         else:
             tmp.append(' ')
         
-        if pop.is_uv_src:
+        if pop.is_src_uv:
             tmp.append('x')
         else:
             tmp.append(' ')
         
-        if pop.is_xray_src:
+        if pop.is_src_xray:
             tmp.append('x')
         else:
             tmp.append(' ')     

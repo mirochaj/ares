@@ -21,7 +21,7 @@ if os.path.exists('{!s}/.ares/labels.py'.format(HOME)):
 else:
     custom_labels = {}
     
-prefixes = ['igm_', 'cgm_']    
+prefixes = ['igm_', 'cgm_']
     
 #
 ## Common axis labels

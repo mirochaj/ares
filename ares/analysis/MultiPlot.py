@@ -47,6 +47,9 @@ def add_master_legend(mp, **kwargs):
 
     handles, labels = [], []
 
+    if 'bbox_to_anchor' not in kwargs:
+        kwargs['bbox_to_anchor'] = (0.5, 0.97)
+
     if isinstance(mp, MultiPanel):
         for ax in mp.grid:
             h, l = ax.get_legend_handles_labels()
@@ -58,8 +61,7 @@ def add_master_legend(mp, **kwargs):
                 handles.append(h[i])
                 labels.append(l[i])
 
-        mp.fig.legend(handles, labels, loc='upper center', 
-            bbox_to_anchor=(0.5, 0.97), **kwargs)        
+        mp.fig.legend(handles, labels, loc='upper center', **kwargs)        
 
     else:
         h, l = mp.get_legend_handles_labels()
@@ -71,8 +73,7 @@ def add_master_legend(mp, **kwargs):
             handles.append(h[i])
             labels.append(l[i])
 
-        mp.legend(handles, labels, loc='upper center', 
-            bbox_to_anchor=(0.5, 0.97), **kwargs)            
+        mp.legend(handles, labels, loc='upper center', **kwargs)            
 
     return mp    
 

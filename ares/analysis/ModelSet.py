@@ -4167,15 +4167,16 @@ class ModelSet(BlobFactory):
         return sorter, new_kw, scores
         
     def export(self, pars, prefix=None, fn=None, ivar=None, path='.', 
-        fmt='hdf5', clobber=False):
+        fmt='hdf5', clobber=False, skip=0, stop=None):
         """
         Just a wrapper around `save' routine.
         """
         self.save(pars, prefix=prefix, fn=fn, ivar=ivar, 
-            path=path, fmt=fmt, clobber=clobber)
+            path=path, fmt=fmt, clobber=clobber, skip=skip, stop=stop)
         
     def save(self, pars, prefix=None, fn=None, ivar=None, path='.', fmt='hdf5', 
-        clobber=False, include_chain=True, restructure_grid=False):
+        clobber=False, include_chain=True, restructure_grid=False,
+        skip=0, stop=None):
         """
         Extract data from chain or blobs and output to separate file(s).
         
@@ -4229,10 +4230,10 @@ class ModelSet(BlobFactory):
             f = h5py.File(fn, 'w')
             
             if include_chain:
-                ds = f.create_dataset('chain', data=self.chain)
+                ds = f.create_dataset('chain', data=self.chain[skip:stop])
                 ds.attrs.create('names', data=self.parameters)
                 ds.attrs.create('is_log', data=self.is_log)
-                f.create_dataset('mask', data=self.mask)
+                f.create_dataset('mask', data=self.mask[skip:stop])
             else:
                 # raise a warning? eh.
                 pass
@@ -4246,8 +4247,8 @@ class ModelSet(BlobFactory):
                 else:
                     grp = f['blobs']
                 
-                dat = data[par]#[skip:stop:skim,Ellipsis]
-                ds = grp.create_dataset(par, data=dat[self.mask == 0])
+                dat = data[par][skip:stop]#[skip:stop:skim,Ellipsis]
+                ds = grp.create_dataset(par, data=dat[self.mask[skip:stop] == 0])
                 
                 try:
                     i, j, nd, dims = self.blob_info(par)
