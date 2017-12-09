@@ -169,14 +169,14 @@ class SpectrumOptimization(object):
         
         return True
     
-    def run(self, steps=1, **kwargs):
+    def run(self, repeat=1, **kwargs):
         
         if rank == 0:
             print('Finding optimal {0}-bin discrete SED...'.format(self.nfreq))
         
         logL = []
         results = []
-        for i in range(steps):
+        for i in range(repeat):
             self.__call__(**kwargs)
             logL.append(self.logL)
             results.append(self.pars.copy())
@@ -264,7 +264,7 @@ class SpectrumOptimization(object):
         for i, integral in enumerate(self.integrals):
             for j, absorber in enumerate(self.grid.absorbers):
                 Eth = self.grid.ioniz_thresholds[absorber]
-                
+                                
                 tmp = np.zeros(self.tab_dims)
                 if integral == 'Phi':
                     tmp = self.DiscretePhi(E, LE, tau[:,j,:], Eth)
@@ -277,13 +277,13 @@ class SpectrumOptimization(object):
         
     def DiscretePhi(self, E, LE, tau_E, Eth):
         to_sum = LE * np.exp(-tau_E) / E
-        to_sum[E < Eth] = 0.0
-        summed = np.sum(to_sum, axis = -1)
+        to_sum[:,E < Eth] = 0.0
+        summed = np.sum(to_sum, axis=-1)
         return np.log10(summed / erg_per_ev)
 
     def DiscretePsi(self, E, LE, tau_E, Eth):
         to_sum = LE * np.exp(-tau_E)
-        to_sum[E < Eth] = 0.0
+        to_sum[:,E < Eth] = 0.0
         summed = np.sum(to_sum, axis = -1)
         return np.log10(summed)
     

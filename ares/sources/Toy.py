@@ -38,8 +38,8 @@ class Toy(Source):
         Source.__init__(self)
 
         self.Q = self.pf['source_qdot']
-        self.E = np.array(self.pf['source_E'])
-        self.LE = np.array(self.pf['source_LE'])
+        self.E = np.atleast_1d(self.pf['source_E'])
+        self.LE = np.atleast_1d(self.pf['source_LE'])
         self.Lbol = self.Q / (np.sum(self.LE / self.E / erg_per_ev))
         self.Nfreq = len(self.E)
 

@@ -15,8 +15,9 @@ from ..util import ProgressBar
 from .GasParcel import GasParcel
 from ..solvers import RadialField
 from ..util.ReadData import _sort_history
+from ..analysis.RaySegment import RaySegment as AnalyzeRay
 
-class RaySegment(object):
+class RaySegment(AnalyzeRay):
     """
     Propagate radiation along a ray!
     """
@@ -24,7 +25,7 @@ class RaySegment(object):
         """
         Initialize a RaySegment object.
         """
-                
+
         self.parcel = GasParcel(**kwargs)
         
         self.pf = self.parcel.pf
@@ -32,11 +33,11 @@ class RaySegment(object):
 
         # Initialize generator for gas parcel
         self.gen = self.parcel.step()
-        
+
         # Rate coefficients for initial conditions
         self.parcel.update_rate_coefficients(self.grid.data)
         self._set_radiation_field()
-        
+
     def save(self):
         pass
     

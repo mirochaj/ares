@@ -451,7 +451,7 @@ class LocalVolume:
         if self.pf['isothermal']:
             return 0.0
 
-        if self.esec.Method < 2:
+        if self.esec.method < 2:
             HeatingRate = self.PsiN[absorber].copy()
             HeatingRate -= self.E_th[absorber] * erg_per_ev  \
                 * self.PhiN[absorber]
@@ -482,7 +482,7 @@ class LocalVolume:
         If this routine is called, it means TabulateIntegrals = 1.
         """    
         
-        if self.esec.Method < 2:
+        if self.esec.method < 2:
             IonizationRate = self.PsiN[donor].copy()
             IonizationRate -= self.E_th[donor] \
                 * erg_per_ev * self.PhiN[donor]
