@@ -45,10 +45,8 @@ def test(rtol=1e-2):
     # Numerical solution
     sim = ares.simulations.RaySegment(**pars)
     sim.run()
-    
-    anl = ares.analysis.RaySegment(sim)
-    
-    t, xHII = anl.CellEvolution(field='h_2')
+        
+    t, xHII = sim.CellEvolution(field='h_2')
     
     fig = pl.figure(1, figsize=(8, 12))
     ax1 = fig.add_subplot(211); ax2 = fig.add_subplot(212)
