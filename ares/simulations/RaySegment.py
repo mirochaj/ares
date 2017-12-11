@@ -132,7 +132,6 @@ class RaySegment(AnalyzeRay):
         t = 0
         tf = self.pf['stop_time'] * self.pf['time_units']
         
-
         while t < tf:
             yield next(self.gen)
             

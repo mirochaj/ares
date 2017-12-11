@@ -40,7 +40,7 @@ class Toy(Source):
         self.Q = self.pf['source_qdot']
         self.E = np.atleast_1d(self.pf['source_E'])
         self.LE = np.atleast_1d(self.pf['source_LE'])
-        self.Lbol = self.Q / (np.sum(self.LE / self.E / erg_per_ev))
+        self.Lbol = lambda t: self.Q / (np.sum(self.LE / self.E / erg_per_ev))
         self.Nfreq = len(self.E)
 
     def SourceOn(self, t):

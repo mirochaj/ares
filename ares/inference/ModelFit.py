@@ -952,7 +952,7 @@ class ModelFit(BlobFactory):
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
                 
-        pos = self.prep_output_files(restart, clobber)    
+        pos = self.prep_output_files(restart, clobber)
         
         state = None #np.random.RandomState(self.seed)
                         

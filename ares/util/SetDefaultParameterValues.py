@@ -492,7 +492,7 @@ def PopulationParameters():
     "pop_limit_logic": 'and', 
     
     "pop_time_ceil": None,
-    
+
     "pop_initial_Mh": 1, # In units of Mmin. Zero means unused
 
     "pop_sfrd": None,
@@ -587,6 +587,9 @@ def SourceParameters():
     "source_type": 'star',
     "source_sed": 'bb',
     "source_position": 0.0,
+    
+    "source_sfr": 1.,
+    "source_fesc": 0.1,
     
     # only for schaerer2002 right now        
     "source_piecewise": True,

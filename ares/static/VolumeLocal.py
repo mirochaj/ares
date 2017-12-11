@@ -179,7 +179,7 @@ class LocalVolume:
             for absorber in self.grid.absorbers:          
                 
                 if self.pf['photon_conserving']:
-                    self.A[absorber] = self.src.Lbol \
+                    self.A[absorber] = self.src.Lbol(t) \
                         / self.n[absorber] / self.grid.Vsh
                 else:
                     self.A[absorber] = self.A_npc
@@ -198,10 +198,10 @@ class LocalVolume:
                                     
                     # Discrete spectrum (multi-freq approach)
                     if self.src.multi_freq:
-                        r1, r2, r3 = self.MultiFreqCoefficients(data, absorber)
+                        r1, r2, r3 = self.MultiFreqCoefficients(data, absorber, t)
                         self.k_ion[h,:,i], self.k_ion2[h,:,i,:], \
                         self.k_heat[h,:,i] = \
-                            self.MultiFreqCoefficients(data, absorber)
+                            self.MultiFreqCoefficients(data, absorber, t)
                     
                     # Discrete spectrum (multi-grp approach)
                     elif self.src.multi_group:
@@ -219,7 +219,7 @@ class LocalVolume:
                 self.Ja = None
             else:
                 self.Ja[h] = src.Spectrum(E_LyA) * ev_per_hz \
-                    * src.Lbol / 4. / np.pi / self.grid.r_mid**2 \
+                    * src.Lbol(t) / 4. / np.pi / self.grid.r_mid**2 \
                     / E_LyA / erg_per_ev 
             
             # Initialize some arrays/dicts
@@ -338,7 +338,7 @@ class LocalVolume:
             
         return self.k_ion, self.k_ion2, self.k_heat, self.Ja
         
-    def MultiFreqCoefficients(self, data, absorber):
+    def MultiFreqCoefficients(self, data, absorber, t=None):
         """
         Compute all source-dependent rates.
         
@@ -357,7 +357,9 @@ class LocalVolume:
         N = np.ones([self.src.Nfreq, self.grid.dims]) * self.N[absorber]
         
         self.tau_r = N * self.sigma[self.h]
-        self.tau_tot = np.sum(self.tau_r, axis = 1)
+        self.tau_tot = np.sum(self.tau_r, axis=1)
+        
+        Qdot = self.src.Qdot(t=t)
                         
         # Loop over energy groups
         k_ion_E = np.zeros([self.grid.dims, self.src.Nfreq])
@@ -371,7 +373,7 @@ class LocalVolume:
                                                             
             # Photo-ionization by *this* energy group
             k_ion_E[...,j] = \
-                self.PhotoIonizationRateMultiFreq(self.src.Qdot[j], n,
+                self.PhotoIonizationRateMultiFreq(Qdot[j], n,
                 self.tau_r[j], tau_c)     
                                           
             # Heating

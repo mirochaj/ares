@@ -490,6 +490,11 @@ class ModelSet(BlobFactory):
                         this_chain = read_pickled_chain(fn)
                         full_chain.extend(this_chain.copy())
                     except ValueError:
+                        #import pickle
+                        #f = open(fn, 'rb')
+                        #data = pickle.load(f)
+                        #f.close()
+                        #print data
                         print("Error loading {!s}.".format(fn))
                     
                     i += 1
@@ -612,7 +617,7 @@ class ModelSet(BlobFactory):
     def logL(self):
         if not hasattr(self, '_logL'):            
             if os.path.exists('{!s}.logL.pkl'.format(self.prefix)):
-                self._logL =\
+                self._logL = \
                     read_pickled_logL('{!s}.logL.pkl'.format(self.prefix))
                 
                 if self.mask.ndim == 2:
@@ -622,6 +627,29 @@ class ModelSet(BlobFactory):
                     mask1d = self.mask
                 self._logL = np.ma.array(self._logL, mask=mask1d)
                 
+            elif os.path.exists('{!s}.000.logL.pkl'.format(self.prefix)):
+                i = 0
+                full_logL = []
+                full_mask = []
+                fn = '{!s}.000.logL.pkl'.format(self.prefix)
+                while True:
+            
+                    if not os.path.exists(fn):
+                        break
+            
+                    try:
+                        this_logL = read_pickled_logL(fn)
+                        full_logL.extend(this_logL.copy())
+                    except ValueError:
+                        print("Error loading {!s}.".format(fn))
+            
+                    i += 1
+                    fn = '{0!s}.{1!s}.logL.pkl'.format(self.prefix,\
+                        str(i).zfill(3))  
+            
+                self._logL = np.ma.array(full_logL, 
+                    mask=np.zeros_like(full_logL))    
+            
             elif glob.glob('{!s}.dd*.logL.pkl'.format(self.prefix)):
                 if self.include_checkpoints is not None:
                     outputs_to_read = []
@@ -2236,6 +2264,11 @@ class ModelSet(BlobFactory):
                 # Take log, unless the parameter is already in log10
                 if take_log[k] and (not self.is_log[j]):
                     val = np.log10(val)
+               
+            elif par == 'logL':
+                val = self.logL
+            elif par == 'load':
+                val = self.load                        
                                         
             # Blobs are a little harder, might need new mask later.
             elif par in self.all_blob_names:
@@ -2249,9 +2282,6 @@ class ModelSet(BlobFactory):
 
                 # Blobs are never stored as log10 of their true values
                 val *= multiplier[k]
-                
-            elif par == 'load':
-                val = self.load
                 
             # Only derived blobs in this else block, yes?                        
             else:
@@ -3981,7 +4011,7 @@ class ModelSet(BlobFactory):
                 k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
                 return blob[:,k1,k2]    
     
-    def max_likelihood_parameters(self, method='median'):
+    def max_likelihood_parameters(self, method='median', min_or_max='max'):
         """
         Return parameter values at maximum likelihood point.
         """
@@ -3991,8 +4021,11 @@ class ModelSet(BlobFactory):
             psorted = np.sort(self.logL)
             iML = psorted[int(N / 2.)]
         else:
-            iML = np.argmax(self.logL)
-        
+            if min_or_max == 'max':
+                iML = np.argmax(self.logL)
+            else:
+                iML = np.argmin(self.logL)
+                        
         self._max_like_pars = {}
         for i, par in enumerate(self.parameters):
             if self.is_log[i]:
