@@ -119,7 +119,7 @@ class ModelEmulator(object):
     
         # Initialize Emulator and its variables
         # see help(E) for details on these parameters and their default values
-        E = emupy.Emu()
+        E = self.E = emupy.Emu()
 
         # Specify number of samples in training data
         E.N_samples = Ns
@@ -172,10 +172,8 @@ class ModelEmulator(object):
             'optimizer':optimizer}
         E.gp_kwargs = gp_kwargs
 
-        E.train(dat_grid, par_grid, verbose=False)
-        
-        self.E = E
-                
+        E.train(dat_grid, par_grid, verbose=verbose)
+                        
     def predict(self, vals=None, **kwargs):
         
         if vals is None:
