@@ -77,7 +77,7 @@ class ModelEmulator(object):
     
     def train(self, ivars=None, field='dTb', ivar_tol=1e-2, use_pca=False, 
         nmodes=10, method='poly', lognorm_data=False, lognorm_pars=True,
-        downsample=None):
+        downsample=None, verbose=False):
         """
         Run the emulator, obtain an object capable of new predictions.
         """
