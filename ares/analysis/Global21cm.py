@@ -326,7 +326,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         return ax
         
-    def AdiabaticFloor(self, ax):
+    def AdiabaticFloor(self, ax, **kwargs):
         z = nu_0_mhz / self.history['nu'] - 1.
         dTb = self.hydr.adiabatic_floor(z)
         
@@ -334,8 +334,13 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         ylim = ax.get_ylim()
 
         ax.plot(self.history['nu'], dTb, color='k', ls=':')
-        ax.fill_between(self.history['nu'], -500 * np.ones_like(dTb), dTb, 
-            color='none', hatch='X', edgecolor='k', linewidth=0.0)
+        
+        if kwargs == {}:
+        
+            ax.fill_between(self.history['nu'], -500 * np.ones_like(dTb), dTb, 
+                color='none', hatch='X', edgecolor='k', linewidth=0.0)
+        else:
+            ax.plot(self.history['nu'], dTb, **kwargs)
             
         ax.set_xlim(xlim)    
         ax.set_ylim(ylim)

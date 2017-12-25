@@ -202,33 +202,49 @@ def get_pq_pars(par, pf):
     """
 
     prefix, popid, phpid = par_info(par)
-
+    
     pars = {}
     for key in pf:
-        if (pf.Npqs != 1):
-            if not re.search('\[{}\]'.format(phpid), key):
-                continue
-
+        
+        # If this isn't a PQ parameter, move on
         if key[0:2] != 'pq':
             continue
 
-        p, popid, phpid_ = par_info(key)    
+        # This is to prevent unset PQ parameters from causing
+        if not re.search('\[{}\]'.format(phpid), key):
+                        
+            if (pf.Npqs == 1):
+                # In this case, the default for this parameter will
+                # be found since PQs are listed in defaults without any
+                # ID number.
+                pass
+            else:
+                # In this case, no default will be found, so an error will
+                # get thrown unless we tag an ID on?
+                continue
 
+        # Break apart parameter name, pop ID number, and PQ ID number
+        p, popid, phpid_ = par_info(key)
+        
+        # If there's only one PQ, not having an ID number is OK. We'll just 
+        # grab whatever is in the parameter file already, which will be
+        # the default if nothing else was supplied.
         if (phpid is None) and (pf.Npqs == 1):
-            pars[p] = pf['{!s}'.format(p)]          
+            pars[p] = pf['{!s}'.format(p)]
 
         # This means we probably have some parameters bracketed
         # and some not...should make it so this doesn't happen
         elif (phpid is not None) and (pf.Npqs == 1):
+            
             try:
-                pars[p] = pf['{0!s}[{1}]'.format(p, phpid)]   
+                pars[p] = pf['{0!s}[{1}]'.format(p, phpid)]
             except KeyError:
                 # This means it's just default values
-                pars[p] = pf['{!s}'.format(p)]   
-        else:    
+                pars[p] = pf['{!s}'.format(p)]
+        else:
             pars[p] = pf['{0!s}[{1}]'.format(p, phpid)]
 
-    return pars    
+    return pars
     
 # All defaults
 defaults = SetAllDefaults()
@@ -238,12 +254,11 @@ defaults = SetAllDefaults()
 defaults_pop_dep = {}
 defaults_pop_indep = {}
 for key in defaults:
-    if re.search('pop_', key) or re.search('source_', key) or \
-       re.search('pq_', key):
+    if re.search('pop_', key) or re.search('source_', key): #or re.search('pq_', key):
         defaults_pop_dep[key] = defaults[key]
         continue
     
-    defaults_pop_indep[key] = defaults[key]    
+    defaults_pop_indep[key] = defaults[key]
 
 class ParameterFile(dict):
     def __init__(self, **kwargs):
@@ -365,21 +380,36 @@ class ParameterFile(dict):
         # for each population
         else:
 
+            # First: make base parameter file that contains only parameters
+            # that are NOT population specific.
+            # Second: 
+
             # Can't add kwargs yet (all full of curly braces)
 
             # Only add non-pop-specific parameters from ProblemType defaults
             prb = ProblemType(kwargs['problem_type'])
             for par in defaults_pop_indep:
+                
+                # Just means this parameter is not default to the 
+                # problem type. 
                 if par not in prb:
                     continue
-
+                    
                 pf_base[par] = prb[par]
 
             # and kwargs
             for par in kwargs:
                 if par in defaults_pop_indep:
                     pf_base[par] = kwargs[par]
+                else:
                     
+                    # This is exclusively to handle the case where
+                    # we have a PQ that's NOT attached to a population.
+                    prefix, popid, phpid = par_info(par)
+                    
+                    if (phpid is not None) and (popid is None):
+                        pf_base[par] = kwargs[par]
+                        
             # We now have a parameter file containing all non-pop-specific
             # parameters, which we can use as a base for all pop-specific
             # parameter files.        
@@ -396,8 +426,10 @@ class ParameterFile(dict):
                     
                 # See if this parameter belongs to a particular population
                 # We DON'T care at this stage about []'s
+                #prefix, popid, phpid = par_info(par)
                 prefix, popid = pop_id_num(par)
-                if popid is None:
+                
+                if (popid is None):
                     # We already handled non-pop-specific parameters
                     continue
                     
@@ -468,8 +500,12 @@ class ParameterFile(dict):
         # Master parameter file    
         # Only tag ID number to pop or source parameters
         for i, poppf in enumerate(self.pfs):
-
+            
+            # Loop over all population parameters and add them to the
+            # master parameter file with their {ID}.
             for key in poppf:
+                
+                # Remember, `key` won't have any {}'s
                 
                 if self.Npops > 1 and key in defaults_pop_dep:
                     self['{0!s}{{{1}}}'.format(key, i)] = poppf[key]

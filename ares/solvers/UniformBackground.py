@@ -572,7 +572,7 @@ class UniformBackground(object):
             if popid is not None:
                 if i != popid:
                     continue
-
+            
             # Loop over absorbing species
             for j, species in enumerate(self.grid.absorbers):
 
@@ -1130,6 +1130,8 @@ class UniformBackground(object):
                     fix = 1. / pop._convert_band(*band)
                 
                 # Setup interpolant
+                # If there's an attribute error here, it probably means
+                # is_emissivity_scalable isn't being set correctly.
                 rho_L = pop.rho_L(Emin=b[0], Emax=b[1])
                 
                 if rho_L is None:

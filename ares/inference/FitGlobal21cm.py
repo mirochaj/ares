@@ -235,7 +235,7 @@ class FitGlobal21cm(ModelFit):
             self.ydata = value
             return
 
-        if self.turning_points:
+        if self.turning_points == True:
             z = [sim.turning_points[tp][0] for tp in self.turning_points]
             T = [sim.turning_points[tp][1] for tp in self.turning_points]
 

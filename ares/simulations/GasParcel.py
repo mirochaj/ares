@@ -23,17 +23,22 @@ class GasParcel(object):
         Initialize a GasParcel object.
         """
 
+        # This typically isn't the entire parameter file, Grid knows only
+        # about a few things.
         self.pf = ParameterFile(**kwargs)
 
-        self.grid = \
-        Grid(
-            grid_cells=self.pf['grid_cells'], 
-            length_units=self.pf['length_units'], 
-            start_radius=self.pf['start_radius'],
-            approx_Salpha=self.pf['approx_Salpha'],
-            logarithmic_grid=self.pf['logarithmic_grid'],
-            cosmological_ics=self.pf['cosmological_ics'],
-            )
+        self.grid = Grid(**self.pf)
+        #self.grid = \
+        #Grid(
+        #    grid_cells=self.pf['grid_cells'], 
+        #    length_units=self.pf['length_units'], 
+        #    start_radius=self.pf['start_radius'],
+        #    approx_Salpha=self.pf['approx_Salpha'],
+        #    logarithmic_grid=self.pf['logarithmic_grid'],
+        #    cosmological_ics=self.pf['cosmological_ics'],
+        #    exotic_heating=self.pf['exotic_heating'],
+        #    exotic_heating_func=self.pf['exotic_heating_func'],
+        #    )
 
         # Set all properties in one go
         self.grid.set_properties(**self.pf)

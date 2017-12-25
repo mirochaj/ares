@@ -314,6 +314,16 @@ class Hydrogen(object):
     def ELyn(self, n):
         """ Return energy of Lyman-n photon in eV. """
         return E_LL * (1. - 1. / n**2)
+        
+    @property
+    def Ts_floor(self):
+        if not hasattr(self, '_Ts_floor'):
+            self._Ts_floor = lambda zz: 0.0
+        return self._Ts_floor
+    
+    @Ts_floor.setter
+    def Ts_floor(self, value):
+        self._Ts_floor = value
 
     def Ts(self, z, Tk, Ja, xHII, ne):
         """
@@ -348,8 +358,10 @@ class Hydrogen(object):
         x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII)
         Tc = Tk
 
-        return (1.0 + x_c + x_a) / \
+        Ts = (1.0 + x_c + x_a) / \
             (self.cosm.TCMB(z)**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
+    
+        return np.maximum(Ts, self.Ts_floor(z=z))
     
     def dTb(self, z, xHII, Ts):
         """

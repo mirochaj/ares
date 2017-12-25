@@ -11,7 +11,8 @@ Description:
 """
 
 import numpy as np
-from scipy.integrate import quad
+from scipy.integrate import quad, ode
+from ..util.ReadData import _load_inits
 from ..util.ParameterFile import ParameterFile
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
     cm_per_mpc
@@ -90,6 +91,12 @@ class Cosmology(object):
          'omega_M':self.omega_m_0,
          'sigma_8':self.sigma8,
          'n': self.primordial_index}
+                 
+    @property
+    def inits(self):
+        if not hasattr(self, '_inits'):
+            self._inits = _load_inits()
+        return self._inits
         
     def TimeToRedshiftConverter(self, t_i, t_f, z_i):
         """
@@ -150,10 +157,59 @@ class Cosmology(object):
             
         """
         
-        if z >= self.zdec:
-            return self.TCMB(z)
-        else:
-            return self.TCMB(self.zdec) * (1. + z)**2 / (1. + self.zdec)**2
+        if self.pf['approx_thermal_history'] == 'piecewise':
+            if z >= self.zdec:
+                return self.TCMB(z)
+            else:
+                return self.TCMB(self.zdec) * (1. + z)**2 / (1. + self.zdec)**2
+        elif self.pf['approx_thermal_history']:
+            return np.interp(z, self.thermal_history['z'], 
+                self.thermal_history['Tk'])
+        elif not self.pf['approx_thermal_history']:
+            return np.interp(z, self.inits['z'], self.inits['Tk'])
+
+    @property
+    def thermal_history(self):
+        if not hasattr(self, '_thermal_history'):
+            z0 = max(self.inits['z'])
+            solver = ode(self.cooling_rate)
+            solver.set_integrator('vode', method='bdf')
+            solver.set_initial_value([np.interp(z0, self.inits['z'],
+                self.inits['Tk'])], z0)
+
+            dz = 1.
+            zf = self.pf['initial_redshift']
+            zall = []; Tall = []
+            while solver.successful() and solver.t > zf:
+                zall.append(solver.t)
+                Tall.append(solver.y[0])
+                solver.t-dz
+                solver.integrate(solver.t-dz)
+            
+            self._thermal_history = {}
+            self._thermal_history['z'] = np.array(zall)
+            self._thermal_history['Tk'] = np.array(Tall)
+            self._thermal_history['xe'] = 1e-3 * np.ones_like(zall)
+        
+        return self._thermal_history
+            
+    @property
+    def cooling_pars(self):
+        if not hasattr(self, '_cooling_pars'):
+            self._cooling_pars = ['inits_Tk_p{}'.format(i) for i in range(3)]
+        return self._cooling_pars    
+            
+    def cooling_rate(self, z):
+        if self.pf['approx_thermal_history'] == 'exp':
+            t = self.t_of_z(z)
+            dtdz = self.dtdz(z)
+            return (T / t) * log_cooling_rate_exp(z, *self._cooling_pars) \
+                * -1. * dtdz
+
+    def log_cooling_rate(self, z):
+        if self.pf['approx_thermal_history'] == 'exp':
+            pars = self._cooling_pars
+            return 2. * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. - 4./3.
 
     def EvolutionFunction(self, z):
         return self.omega_m_0 * (1.0 + z)**3  + self.omega_l_0

@@ -22,6 +22,7 @@ except:
 
 _multi_pop_error_msg = "Parameters for more than one population detected! "
 _multi_pop_error_msg += "Population objects are by definition for single populations."
+_multi_pop_error_msg += 'This population: '
 
 class Population(object):
     def __init__(self, grid=None, **kwargs):
@@ -32,7 +33,7 @@ class Population(object):
 
         self.pf = ParameterFile(**kwargs)
         
-        assert self.pf.Npops == 1, _multi_pop_error_msg
+        assert self.pf.Npops == 1, _multi_pop_error_msg + str(self.id_num)
         
         self.grid = grid
 
@@ -212,9 +213,13 @@ class Population(object):
     
             for par in self.pf.pqs:
     
-                # If this is the only Mh-dep parameter, we're still scalable.
-                if par == 'pop_fstar':
+                # Exceptions. Ideally, exotic_heating_func wouldn't make it
+                # to the population parameter files...
+                if (par == 'pop_fstar') or (not par.startswith('pop_')):
+                #if par in ['pop_fstar', 'exotic_heating_func', 'spin_temperature_floor']:
                     continue
+                    
+                # Could just skip parameters that start with pop_    
     
                 if isinstance(self.pf[par], basestring):
                     self._is_emissivity_scalable = False

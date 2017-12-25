@@ -16,8 +16,9 @@ from ..util.Stats import rebin
 from collections import Iterable
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
-from ..util.ParameterFile import ParameterFile
+from ..util.ParameterFile import ParameterFile, get_pq_pars
 from ..physics.CrossSections import PhotoIonizationCrossSection
+from ..phenom.ParameterizedQuantity import ParameterizedQuantity    
 from ..physics.Constants import k_B, cm_per_kpc, s_per_myr, m_H, mH_amu, \
     mHe_amu
 
@@ -84,7 +85,7 @@ class Grid(object):
         """
         
         self.pf = ParameterFile(**kwargs)
-        
+                
         self.dims = int(self.pf['grid_cells'])
         self.length_units = self.pf['length_units']
         self.start_radius = self.pf['start_radius']
@@ -323,6 +324,12 @@ class Grid(object):
         if not hasattr(self, '_collisional_ionization'):
             self.set_physics()
         return self._collisional_ionization   
+    
+    @property
+    def exotic_heating(self):
+        if not hasattr(self, '_exotic_heating'):
+            self.set_physics()
+        return self._exotic_heating    
         
     @property
     def clumping_factor(self):
@@ -354,16 +361,17 @@ class Grid(object):
             expansion=kwargs['expansion'],
             recombination=kwargs['recombination'],
             clumping_factor=kwargs['clumping_factor'],
-            collisional_ionization=kwargs['collisional_ionization']
+            collisional_ionization=kwargs['collisional_ionization'],
+            exotic_heating=kwargs['exotic_heating'],
         )
 
         self.set_cosmology(
             initial_redshift=kwargs['initial_redshift'], 
             omega_m_0=kwargs["omega_m_0"], 
             omega_l_0=kwargs["omega_l_0"], 
-            omega_b_0=kwargs["omega_b_0"], 
-            hubble_0=kwargs["hubble_0"], 
-            helium_by_number=kwargs['helium_by_number'], 
+            omega_b_0=kwargs["omega_b_0"],
+            hubble_0=kwargs["hubble_0"],
+            helium_by_number=kwargs['helium_by_number'],
             cmb_temp_0=kwargs["cmb_temp_0"],
             approx_highz=kwargs["approx_highz"])
 
@@ -374,13 +382,14 @@ class Grid(object):
 
     def set_physics(self, isothermal=False, compton_scattering=False,
         secondary_ionization=0, expansion=False, recombination='B',
-        clumping_factor=1.0, collisional_ionization=True):
+        clumping_factor=1.0, collisional_ionization=True, exotic_heating=False):
         self._isothermal = isothermal
         self._compton_scattering = compton_scattering
         self._secondary_ionization = secondary_ionization
         self._expansion = expansion
         self._recombination = recombination
         self._collisional_ionization = collisional_ionization
+        self._exotic_heating = exotic_heating
 
         if type(clumping_factor) is not types.FunctionType:
             self._clumping_factor = lambda z: clumping_factor
@@ -389,14 +398,24 @@ class Grid(object):
         
         if self._expansion:
             self.set_cosmology()
-        
+
+        if self._exotic_heating:
+            if type(self.pf['exotic_heating_func']) == str:
+                pars = get_pq_pars(self.pf['exotic_heating_func'], self.pf)
+                self._exotic_func = ParameterizedQuantity(deps={}, raw_pf=self.pf,
+                    **pars)
+            else:
+                self._exotic_func = self.pf['exotic_heating_func']
+                
+            # Set Jacobian element?    
+
     @property
     def is_cgm_patch(self):    
         if not hasattr(self, '_is_cgm_patch'):
             self.set_recombination_rate()
-            
+
         return self._is_cgm_patch
-        
+
     def set_recombination_rate(self, is_cgm_patch=False):
         self._is_cgm_patch = is_cgm_patch    
         

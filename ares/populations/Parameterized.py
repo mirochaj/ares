@@ -69,7 +69,7 @@ class ParametricPopulation(Population):
             
     def HeatingRate(self, z):
         return self.heat_rate(z=z)
-        
+    
     
         
         

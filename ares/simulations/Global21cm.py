@@ -9,7 +9,9 @@ Created on: Wed Sep 24 14:55:35 MDT 2014
 Description: 
 
 """
+
 from __future__ import print_function
+
 import os
 import time
 import numpy as np
@@ -21,11 +23,6 @@ from ..physics.Constants import nu_0_mhz, E_LyA
 from ..util import ParameterFile, ProgressBar, get_hg_rev
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 
-defaults = \
-{
- 'load_ics': True,
-}
-
 class _DummyClass(object):
     def __init__(self, f):
         self.f = f
@@ -36,26 +33,25 @@ class Global21cm(AnalyzeGlobal21cm):
     def __init__(self, **kwargs):
         """
         Set up a two-zone model for the global 21-cm signal.
-        
+
         ..note :: This is essentially a MultiPhaseMedium calculation, except
             the Lyman alpha background and 21-cm background are calculated, 
             and alternative (phenomenological) parameterizations such as a 
             tanh for the ionization, thermal, and LW background evolution, 
             may be used.
-            
+
         """
-        
+
         self.is_complete = False
-        
+
         # See if this is a tanh model calculation
         is_phenom = self.is_phenom = self._check_if_phenom(**kwargs)
 
-        kwargs.update(defaults)
         if 'problem_type' not in kwargs:
             kwargs['problem_type'] = 101
 
         self.kwargs = kwargs
-        
+                
         # Print info to screen
         if self.pf['verbose']:
             print_sim(self)
@@ -108,13 +104,15 @@ class Global21cm(AnalyzeGlobal21cm):
         if not hasattr(self, '_medium'):
             from .MultiPhaseMedium import MultiPhaseMedium
             self._medium = MultiPhaseMedium(**self.kwargs)
+            #self.pf = self._medium.pf
+                        
         return self._medium
         
     @property
     def field(self):
         if not hasattr(self, '_field'):
             self._field = self.medium.field
-        return self._field    
+        return self._field
 
     @property
     def pops(self):
@@ -338,6 +336,9 @@ class Global21cm(AnalyzeGlobal21cm):
             n_H = self.medium.parcel_igm.grid.cosm.nH(z)
             Ts = self.medium.parcel_igm.grid.hydr.Ts(z,
                 data_igm['Tk'], Ja, data_igm['h_2'], data_igm['e'] * n_H)
+
+            if self.pf['spin_temperature_floor'] is not None:
+                Ts = max(Ts, self.medium.parcel_igm.grid.hydr.Ts_floor(z=z))            
 
             # Compute volume-averaged ionized fraction
             xavg = data_cgm['h_2'] + (1. - data_cgm['h_2']) * data_igm['h_2']

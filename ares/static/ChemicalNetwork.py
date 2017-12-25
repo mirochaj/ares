@@ -13,9 +13,10 @@ Description: ChemicalNetwork object just needs to have methods called
 
 import copy, sys
 import numpy as np
+from scipy.misc import derivative
 from ..util.Warnings import solver_error
 from ..physics.RateCoefficients import RateCoefficients
-from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h  
+from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h          
         
 rad_const = (8. * sigma_T / 3. / m_e / c)
         
@@ -46,8 +47,10 @@ class ChemicalNetwork(object):
         self.ions = self.grid.ions
         self.neutrals = self.grid.neutrals
         self.expansion = self.grid.expansion
+        self.exotic_heating = self.grid.exotic_heating
         self.isothermal = self.grid.isothermal
         self.is_cgm_patch = self.grid.is_cgm_patch        
+        self.is_igm_patch = not self.grid.is_cgm_patch
         self.collisional_ionization = self.grid.collisional_ionization
                 
         self.Nev = len(self.grid.evolving_fields)
@@ -291,6 +294,14 @@ class ChemicalNetwork(object):
                                 
         else:
             dqdt['Tk'] = 0.0
+            
+        ##
+        # Add in exotic heating
+        ##    
+        if self.exotic_heating:
+            if z > 10 and self.is_igm_patch:
+                print z, dqdt['Tk'], self.grid._exotic_func(z=z) * to_temp, q[-1]
+            dqdt['Tk'] += self.grid._exotic_func(z=z) * to_temp
             
         # Can effectively turn off ionization equations once EoR is over.
         if self.monotonic_EoR:
@@ -602,9 +613,15 @@ class ChemicalNetwork(object):
                 J[-1,e] -= (Tcmb - q[-1]) * (1. + self.y) \
                     / (1. + self.y + xe)**2 / tcomp
 
+
+        # Add in any parametric modifications?
+        if self.exotic_heating:
+            J[-1,-1] += derivative(self.grid._exotic_func(z=z) * to_temp, z,
+                dx=0.05)
+        
         return J
 
-    def SourceIndependentCoefficients(self, T):
+    def SourceIndependentCoefficients(self, T, z=None):
         """
         Compute values of rate coefficients which depend only on 
         temperature and/or number densities of electrons/ions.

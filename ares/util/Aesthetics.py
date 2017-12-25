@@ -133,6 +133,8 @@ common = \
  'kurtosis_absorption': r'$\mu_{4, \mathrm{abs}}$',
  'skewness_emission': r'$\mu_{3, \mathrm{em}}$',
  'kurtosis_emission': r'$\mu_{4, \mathrm{em}}$',
+ 
+ 'igm_initial_temperature': r'$T_0$',
 }    
 ##
 #
@@ -374,9 +376,10 @@ class Labeler(object):
         
             if hard is not None:    
                 # If all else fails, just typset the parameter decently
-                parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
-                label = r'${0!s}\{{{1}\}}[{2}]<{3}>$'.format(hard.replace('_', '\_'),
-                    popid, phpid, parnum)    
+                label = prefix
+                #parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
+                #label = r'${0!s}\{{{1}\}}[{2}]<{3}>$'.format(hard.replace('_', '\_'),
+                #    popid, phpid, parnum)    
         # Is PQ, label found. Just need to parse []s.
         elif phpid is not None and (prefix in self.labels):
             parnum = list(map(int, re.findall(r'\d+', par.replace('[{}]'.format(phpid),''))))
@@ -400,16 +403,16 @@ class Labeler(object):
                 label = r'${!s}$'.format(par.replace('_', '\_'))
         
         if par in self.parameters: 
-            print('{0} {1} {2} {3}'.format(par, take_log, self.is_log[par],\
-                un_log))
+            #print('{0} {1} {2} {3}'.format(par, take_log, self.is_log[par],\
+            #    un_log))
             if take_log:
                 return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
             elif self.is_log[par] and (not un_log):
                 return mathify_str('\mathrm{log}_{10}' + undo_mathify(label))
             else:
-                return label    
-        
+                return label
+
         return label
-        
+
         
     

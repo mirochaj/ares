@@ -366,8 +366,10 @@ def ReionizationProblem(ptype):
         "pop_rad_yield{1}": 2.6e39, 
         "pop_rad_yield_units{1}": 'erg/s/SFR',
         "pop_solve_rte{1}": False,
+        }
         
-        }    
+    pf['load_ics'] = True
+    pf['cosmological_ics'] = True
 
     return pf  
 

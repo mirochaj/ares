@@ -54,7 +54,7 @@ class ParameterizedQuantity(object):
         self.raw_pf = raw_pf
         
         self._set_sub_pqs()
-        
+                
     def _set_sub_pqs(self):
         """
         Determine if there are any nested ParameterizedQuantity objects.
@@ -80,7 +80,7 @@ class ParameterizedQuantity(object):
             
     @property
     def idnum(self):
-        if not hasatrr(self, '_idnum'):
+        if not hasattr(self, '_idnum'):
             self._idnum = None
         return self._idnum
         

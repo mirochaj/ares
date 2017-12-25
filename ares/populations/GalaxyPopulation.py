@@ -46,7 +46,8 @@ def GalaxyPopulation(**kwargs):
                 pqs.append(kwarg)
         elif (kwarg in parametric_options) and (kwargs[kwarg]) is not None:
             Nparam += 1
-        
+                
+    # Determine what kind of model this is.    
     if Nparam > 0:
         assert Npq == 0
         model = 'rates'
@@ -62,7 +63,7 @@ def GalaxyPopulation(**kwargs):
             model = 'rates'
         else:   
             model = 'sfe-func'
-    
+        
     if model in ['sfe-func', 'sfr-func']:
         return GalaxyCohort(**kwargs)
     elif model in ['fcoll', 'sfrd-func']:

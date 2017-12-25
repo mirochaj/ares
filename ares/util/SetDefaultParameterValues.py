@@ -199,6 +199,8 @@ def PhysicsParameters():
     "collapse": 0,              # Referring to single-zone collapse
     "compton_scattering": 1,
     "recombination": 'B',
+    "exotic_heating": False,
+    'exotic_heating_func': None,
 
     "clumping_factor": 1,
 
@@ -208,6 +210,14 @@ def PhysicsParameters():
     "approx_Salpha": 1, # 1 = Salpha = 1
                         # 2 = Chuzhoy, Alvarez, & Shapiro (2005),
                         # 3 = Furlanetto & Pritchard (2006)
+
+    "approx_thermal_history": False,
+    "inits_Tk_p0": None,
+    "inits_Tk_p1": None,
+    "inits_Tk_p2": None,
+
+
+    "spin_temperature_floor": 0.0,
 
     # Lyman alpha sources
     "lya_nmax": 23,
@@ -795,6 +805,7 @@ def ControlParameters():
     "final_redshift": 5,
     "fallback_dz": 0.1, # only used when no other constraints 
     "kill_redshift": 0.0,
+    "first_light_redshift": None,
     
     "save_rate_coefficients": 1,
     
@@ -814,7 +825,7 @@ def ControlParameters():
     "extrap_Z": False,
 
     # Initialization
-    "load_ics": True,
+    "load_ics": 'cosmorec',
     "cosmological_ics": False,
     "load_sim": False,
 
