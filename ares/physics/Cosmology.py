@@ -275,11 +275,11 @@ class Cosmology(object):
         
         if self.approx_highz:
             return 2. * c * ((1. + z0)**-0.5 - (1. + z)**-0.5) \
-                / self.hubble_0 / self.sqrtomega_m_0
+                / self.hubble_0 / np.sqrt(self.omega_m_0)
                 
         # Otherwise, do the integral - normalize to H0 for numerical reasons
         integrand = lambda z: self.hubble_0 / self.HubbleParameter(z)
-        return c * quad(integrand, z0, z)[0] / self.hubble_0        
+        return c * quad(integrand, z0, z)[0] / self.hubble_0  
             
     def ProperRadialDistance(self, z0, z):
         return self.ComovingRadialDistance(z0, z) / (1. + z0)    

@@ -17,7 +17,8 @@ import matplotlib.pyplot as pl
 from ..static.Grid import Grid
 from ..physics.Constants import *
 from .MultiPlot import MultiPanel
-from ..simulations import RaySegment as simRS
+from .MultiPhaseMedium import HistoryContainer
+
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -32,8 +33,8 @@ except ImportError:
 
 linestyles = ['-', '--', ':', '-.']
 
-class RaySegment:
-    def __init__(self, data):
+class RaySegment(object):
+    def __init__(self, data=None, **kwargs):
         """
         Initialize analysis object for RaySegment calculations.
         
@@ -43,58 +44,84 @@ class RaySegment:
             Dataset to analyze.
             
         """
+        
+        if data is None:
+            return
 
-        # Read in
-        if isinstance(data, simRS):
-            self.sim = data
-            self.pf = data.pf
-            self.data = data.history
-            self.grid = data.parcel.grid
-        
-        # Load contents of hdf5 file
+        elif type(data) == dict:
+            self.pf = SetAllDefaults()
+            self.history = data.copy()
+
+        # Read output of a simulation from disk
         elif isinstance(data, basestring):
-            f = h5py.File(data, 'r')
-            
-            self.pf = {}
-            for key in f['parameters']:
-                self.pf[key] = f['parameters'][key].value
-            
-            self.data = {}
-            for key in f.keys():
-                if not f[key].attrs.get('is_data'):
-                    continue
+            self.prefix = data
+            self._load_data(data)
+
+        self.kwargs = kwargs
                 
-                if key == 'parameters':
-                    continue
-                
-                dd = key#int(key.strip('dd'))
-                self.data[dd] = {}
-                for element in f[key]:
-                    self.data[dd][element] = f[key][element].value    
-            
-            f.close()
-            
-            self.grid = Grid(dims=self.pf['grid_cells'], 
-                length_units=self.pf['length_units'], 
-                start_radius=self.pf['start_radius'],
-                approx_Salpha=self.pf['approx_Salpha'],
-                approx_lwb=self.pf['approx_lwb'])
-                            
-            self.grid.set_ics(self.data['dd0000'])
-            self.grid.set_chemistry(self.pf['include_He'])
-            self.grid.set_density(self.data['dd0000']['rho'])
+        # Read in
+        #if isinstance(data, simRS):
+        #    self.sim = data
+        #    self.pf = data.pf
+        #    self.data = data.history
+        #    self.grid = data.parcel.grid
+        #
+        ## Load contents of hdf5 file
+        #elif isinstance(data, basestring):
+        #    f = h5py.File(data, 'r')
+        #    
+        #    self.pf = {}
+        #    for key in f['parameters']:
+        #        self.pf[key] = f['parameters'][key].value
+        #    
+        #    self.data = {}
+        #    for key in f.keys():
+        #        if not f[key].attrs.get('is_data'):
+        #            continue
+        #        
+        #        if key == 'parameters':
+        #            continue
+        #        
+        #        dd = key#int(key.strip('dd'))
+        #        self.data[dd] = {}
+        #        for element in f[key]:
+        #            self.data[dd][element] = f[key][element].value    
+        #    
+        #    f.close()
+        #    
+        #    self.grid = Grid(dims=self.pf['grid_cells'], 
+        #        length_units=self.pf['length_units'], 
+        #        start_radius=self.pf['start_radius'],
+        #        approx_Salpha=self.pf['approx_Salpha'],
+        #        approx_lwb=self.pf['approx_lwb'])
+        #                    
+        #    self.grid.set_ics(self.data['dd0000'])
+        #    self.grid.set_chemistry(self.pf['include_He'])
+        #    self.grid.set_density(self.data['dd0000']['rho'])
+        #
+        ## Read contents from CheckPoints class instance            
+        #else:
+        #    self.checkpoints = checkpoints
+        #    self.grid = checkpoints.grid
+        #    self.pf = checkpoints.pf
+        #    self.data = checkpoints.data
         
-        # Read contents from CheckPoints class instance            
-        else:
-            self.checkpoints = checkpoints
-            self.grid = checkpoints.grid
-            self.pf = checkpoints.pf
-            self.data = checkpoints.data
-                
+    @property
+    def history(self):
+        return self._history
+    
+    @history.setter
+    def history(self, value):
+        if not hasattr(self, '_history'):
+            self._history = HistoryContainer(pf=self.pf)
+            self._history.add_data(value)
+    
+        return self._history
+            
     @property
     def tcode(self):
         if not hasattr(self, '_tcode'):
-            self._tcode = self.data['t'] / self.pf['time_units']  
+            self._tcode = self.history['t'] / self.pf['time_units']  
         
         return self._tcode
                     
@@ -116,11 +143,11 @@ class RaySegment:
         loc = np.argmin(np.abs(t - self.tcode))
         
         to_return = {}
-        for key in self.data:
-            if len(self.data[key].shape) == 1:
+        for key in self.history:
+            if len(self.history[key].shape) == 1:
                 continue
                 
-            to_return[key] = self.data[key][loc,:]
+            to_return[key] = self.history[key][loc,:]
         
         return to_return
 
@@ -140,11 +167,11 @@ class RaySegment:
         """                
         
         to_return = {}
-        for key in self.data:
-            if len(self.data[key].shape) == 1:
+        for key in self.history:
+            if len(self.history[key].shape) == 1:
                 continue
     
-            to_return[key] = self.data[key][:,cell]
+            to_return[key] = self.history[key][:,cell]
 
         return to_return        
                             
@@ -170,11 +197,11 @@ class RaySegment:
         
         F = np.array(list(map(self.rs.Spectrum, E)))
         
-        for dd in self.data: 
-            if self.data[dd]['time'] / s_per_myr != t:
+        for dd in self.history: 
+            if self.history[dd]['time'] / s_per_myr != t:
                 continue
                 
-            N, logN, Nc = self.grid.ColumnDensity(self.data[dd])
+            N, logN, Nc = self.grid.ColumnDensity(self.history[dd])
             
             Ntot = {}
             for absorber in self.grid.absorbers:
@@ -205,12 +232,12 @@ class RaySegment:
             if T0 is not None: 
                 T = T0
             else: 
-                T = self.data['Tk'][0,0]
+                T = self.history['Tk'][0,0]
                 
             n_H = self.grid.n_H[0]
             self.Qdot = self.pf['source_qdot']
             self.alpha_HII = 2.6e-13 * (T / 1.e4)**-0.85
-            self.trec = 1. / self.alpha_HII / self.data['h_1'][0,0] / n_H # s
+            self.trec = 1. / self.alpha_HII / self.history['h_1'][0,0] / n_H # s
             self.rstrom = (3. * self.Qdot \
                     / 4. / np.pi / self.alpha_HII / n_H**2)**(1. / 3.)  # cm
         else:
@@ -246,7 +273,7 @@ class RaySegment:
         self.rIF = []
         self.drIF, self.r1_IF, self.r2_IF = [], [], []        
         self.ranl = []
-        for i, t in enumerate(self.data['t']):
+        for i, t in enumerate(self.history['t']):
             if t == 0:
                 continue
                 
@@ -365,13 +392,13 @@ class RaySegment:
         Return time or redshift evolution of a given quantity in given cell.
         """    
         
-        if field not in self.data.keys():
+        if field not in self.history.keys():
             raise KeyError('No field {!s} in dataset.'.format(field))
         
         if redshift:
             raise NotImplemented('sorry about redshift=True!')
         
-        return self.data['t'], self.data[field][:,cell]
+        return self.history['t'], self.history[field][:,cell]
     
     def IonizationRate(self, t=1, absorber='h_1', color='k', ls='-', 
         legend=True, plot_recomb=False, total_only=False, src=0, ax=None):
@@ -394,40 +421,40 @@ class RaySegment:
             ax = pl.subplot(111)
         
         i = self.grid.absorbers.index(absorber)
-        for dd in self.data.keys():
-            if self.data[dd]['time'] / self.pf['time_units'] not in t: 
+        for dd in self.history.keys():
+            if self.history[dd]['time'] / self.pf['time_units'] not in t: 
                 continue
             
-            ne = self.data[dd]['de']
-            nabs = self.data[dd][absorber] * self.grid.x_to_n[absorber]
-            nion = self.data[dd]['h_2'] * self.grid.x_to_n[absorber]
+            ne = self.history[dd]['de']
+            nabs = self.history[dd][absorber] * self.grid.x_to_n[absorber]
+            nion = self.history[dd]['h_2'] * self.grid.x_to_n[absorber]
               
-            if 'Gamma_0' in self.data[dd].keys():
-                Gamma = self.data[dd]['Gamma_{}'.format(src)][...,i] * nabs
+            if 'Gamma_0' in self.history[dd].keys():
+                Gamma = self.history[dd]['Gamma_{}'.format(src)][...,i] * nabs
                 
                 gamma = 0.0
                 for j, donor in enumerate(self.grid.absorbers):
-                    gamma += self.data[dd]['gamma_{}'.format(src)][...,i,j] * \
-                        self.data[dd][donor] * self.grid.x_to_n[donor]
+                    gamma += self.history[dd]['gamma_{}'.format(src)][...,i,j] * \
+                        self.history[dd][donor] * self.grid.x_to_n[donor]
             
             else:
-                Gamma = self.data[dd]['Gamma'][...,i] * nabs
+                Gamma = self.history[dd]['Gamma'][...,i] * nabs
                 
                 gamma = 0.0
                 for j, donor in enumerate(self.grid.absorbers):
-                    gamma += self.data[dd]['gamma'][...,i,j] * \
-                        self.data[dd][donor] * self.grid.x_to_n[donor]
+                    gamma += self.history[dd]['gamma'][...,i,j] * \
+                        self.history[dd][donor] * self.grid.x_to_n[donor]
             
-            if 'Beta' in self.data[dd]:
-                Beta = self.data[dd]['Beta'][...,i] * nabs * ne   
+            if 'Beta' in self.history[dd]:
+                Beta = self.history[dd]['Beta'][...,i] * nabs * ne   
             else:
                 Beta = 0 
             
             ion = Gamma + Beta + gamma # Total ionization rate
             
             # Recombinations
-            alpha = self.data[dd]['alpha'][...,i] * nion * ne
-            xi = self.data[dd]['xi'][...,i] * nion * ne
+            alpha = self.history[dd]['alpha'][...,i] * nion * ne
+            xi = self.history[dd]['xi'][...,i] * nion * ne
             recomb = alpha + xi    
                 
             ax.loglog(self.grid.r_mid / cm_per_kpc, ion, 
@@ -489,36 +516,36 @@ class RaySegment:
             heat_label = label    
         
         ax = pl.subplot(111)
-        for dd in self.data.keys():
-            if self.data[dd]['time'] / self.pf['time_units'] not in t: 
+        for dd in self.history.keys():
+            if self.history[dd]['time'] / self.pf['time_units'] not in t: 
                 continue
             
-            ne = self.data[dd]['de']   
+            ne = self.history[dd]['de']   
             heat, zeta, eta, psi, omega, cool = np.zeros([6, self.grid.dims])
             for absorber in self.grid.absorbers:                
                 i = self.grid.absorbers.index(absorber)            
                             
-                nabs = self.data[dd][absorber] * self.grid.x_to_n[absorber]
-                nion = self.data[dd]['h_2'] * self.grid.x_to_n[absorber]
+                nabs = self.history[dd][absorber] * self.grid.x_to_n[absorber]
+                nion = self.history[dd]['h_2'] * self.grid.x_to_n[absorber]
                             
                 # Photo-heating
-                if 'Heat_0' in self.data[dd].keys():
+                if 'Heat_0' in self.history[dd].keys():
                     heat = heat +\
-                        self.data[dd]['Heat_{}'.format(src)][...,i] * nabs
+                        self.history[dd]['Heat_{}'.format(src)][...,i] * nabs
                 else:
-                    heat = heat + self.data[dd]['Heat'][...,i] * nabs
+                    heat = heat + self.history[dd]['Heat'][...,i] * nabs
                 
                 # Cooling
-                zeta = zeta + self.data[dd]['zeta'][...,i] * nabs * ne # collisional ionization                
-                eta = eta + self.data[dd]['eta'][...,i] * nion * ne   # recombination
-                psi = psi + self.data[dd]['psi'][...,i] * nabs * ne   # collisional excitation
+                zeta = zeta + self.history[dd]['zeta'][...,i] * nabs * ne # collisional ionization                
+                eta = eta + self.history[dd]['eta'][...,i] * nion * ne   # recombination
+                psi = psi + self.history[dd]['psi'][...,i] * nabs * ne   # collisional excitation
             
                 if absorber == 'he_2':
-                    omega = self.data[dd]['omega'] * nion * ne # dielectric
+                    omega = self.history[dd]['omega'] * nion * ne # dielectric
             
             cool = (zeta + eta + psi + omega)    
             #if self.pf['CosmologicalExpansion']:
-            #    cool += self.data[dd].hubble * 3. * self.data[dd].T * k_B * self.data[dd].n_B
+            #    cool += self.history[dd].hubble * 3. * self.history[dd].T * k_B * self.history[dd].n_B
 
             mi = min(np.min(heat), np.min(cool))    
             ma = max(np.max(heat), np.max(cool))    
@@ -541,8 +568,8 @@ class RaySegment:
                         color = 'c', ls = ':', label = r'$\omega_{\mathrm{HeII}}$')
                         
                 #if self.pf['CosmologicalExpansion']:
-                #    self.ax.loglog(self.data[dd].r / cm_per_kpc, 
-                #        self.data[dd]['hubble'] * 3. * self.data[dd].T * k_B * self.data[dd].n_B, 
+                #    self.ax.loglog(self.history[dd].r / cm_per_kpc, 
+                #        self.history[dd]['hubble'] * 3. * self.history[dd].T * k_B * self.history[dd].n_B, 
                 #        color = 'm', ls = '--', label = r'$H(z)$')
                     
             if plot_cooling:

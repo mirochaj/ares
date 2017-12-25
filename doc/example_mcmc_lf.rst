@@ -44,7 +44,7 @@ Now, let's make our master dictionary of parameters, with one important addition
         
 ::
 
-    base_pars = ares.util.ParameterBundle('mirocha2016:dpl')
+    base_pars = ares.util.ParameterBundle('mirocha2016:dpl').pars_by_pop(0, True)
     base_pars.update(blob_pars)
     
     # This is important!
@@ -95,7 +95,7 @@ Initialize the fitter object, and go!
 ::
             
     # Initialize a fitter object and give it the data to be fit
-    fitter = ares.inference.FitLuminosityFunction(**base_pars)
+    fitter = ares.inference.FitGalaxyPopulation(**base_pars)
     
     fitter.parameters = free_pars
     fitter.is_log = is_log

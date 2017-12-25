@@ -57,7 +57,7 @@ pars = \
 
 for res in Nz:
 
-    pars.update({'pop_tau_Nz': res})
+    pars.update({'tau_redshift_bins': res})
 
     # Create OpticalDepth instance
     igm = ares.solvers.OpticalDepth(**pars)

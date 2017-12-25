@@ -103,6 +103,9 @@ class Chemistry(object):
 
         self.q_grid = np.zeros_like(self.zeros_gridxq)
         self.dqdt_grid = np.zeros_like(self.zeros_gridxq)
+        
+        # For debugging
+        self.kwargs_by_cell = kwargs_by_cell
                               
         # Loop over grid and solve chemistry
         for cell in range(self.grid.dims):
@@ -123,6 +126,7 @@ class Chemistry(object):
                     data['n'][cell], t)
 
             self.solver.set_initial_value(q, 0.0).set_f_params(args).set_jac_params(args)
+                        
             self.solver.integrate(dt)
 
             self.q_grid[cell] = q.copy()

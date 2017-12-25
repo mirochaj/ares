@@ -1,7 +1,7 @@
 :orphan:
 
-More Detailed Models: The GalaxyPopulation object
-=================================================
+More Realistic Galaxy Populations
+=================================
 Most global 21-cm examples in the documentation tie the volume-averaged emissivity of galaxies to the rate at which mass collapses into dark matter halos (this is the default option in *ares*). Because of this, they are referred to as :math:`f_{\text{coll}}` models throughout, and are selected by setting ``pop_sfr_model='fcoll'``. In the code, they are represented by ``GalaxyAggregate`` objects, named as such because galaxies are only modeled in aggregate, i.e., there is no distinction in the properties of galaxies as a function of mass, luminosity, etc.
 
 However, we can also run more detailed models in which the properties of galaxies are allowed to change as a function of halo mass, redshift, and/or potentially other quantities.
@@ -198,7 +198,7 @@ By default, *ares* will assume a constant :math:`\beta=-2`. However, in general 
 
 
 Multiple Parameterized Quantities (PQs)
----------------------------------------------
+---------------------------------------
 In general, we can use the same approach outlined above to parameterize other quantities as a function of halo mass and/or redshift. For example, we can use a double power-law SFE model and set the escape fraction to be a step function in halo mass:
 
 ::
@@ -239,6 +239,12 @@ Currently, the following parameters are supported by the PQ protocol:
 * ``pop_fstar``
 * ``pop_fesc``
 * ``pop_focc``
+
+Integrating Parameterized Quantities in *ares* Simulations
+----------------------------------------------------------
+
+
+
 
 
 

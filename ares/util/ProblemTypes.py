@@ -129,10 +129,10 @@ def RaySegmentProblem(ptype):
               "initial_ionization": [1.-1.2e-3, 1.2e-3, 1.-2e-8, 1e-8, 1e-8],
               "source_type": 'star', 
               "source_temperature": 1e5,
-              "spectrum_type": 'bb',
+              "source_sed": 'bb',
               "source_qdot": 5e48,
-              "spectrum_EminNorm": 1e-1,
-              "spectrum_EmaxNorm": 5e2
+              "source_EminNorm": 1e-1,
+              "source_EmaxNorm": 5e2
              }
 
     # RT06-3: I-front trapping in a dense clump and the formation of a shadow,
@@ -155,15 +155,15 @@ def RaySegmentProblem(ptype):
               "initial_ionization": [1.-1e-4, 1e-4, 1.-2e-4, 1e-4, 1e-4],
               "source_type": 'star', 
               "source_qdot": 1e6,
-              "spectrum_type": 'bb',
+              "source_sed": 'bb',
               "source_temperature": 1e5,  
 
               "restricted_timestep": ['ions', 'electrons', 'temperature'],
 
-              "spectrum_Emin": 13.6,
-              "spectrum_Emax": 100.,
-              "spectrum_EminNorm": 1e-1,
-              "spectrum_EmaxNorm": 5e2,
+              "source_Emin": 13.6,
+              "source_Emax": 100.,
+              "source_EminNorm": 1e-1,
+              "source_EmaxNorm": 5e2,
 
               "slab": 1,
               "slab_position": 5.0 / 6.6,

@@ -245,7 +245,7 @@ def PhysicsParameters():
     'feedback_LW_Mmin_rtol': 0.0,
     'feedback_LW_Mmin_atol': 0.0,
     'feedback_LW_sfrd_rtol': 1e-1,
-    'feedback_LW_sfrd_atol': 1e-10,
+    'feedback_LW_sfrd_atol': 0.0,
     'feedback_LW_sfrd_popid': None,
     'feedback_LW_zstart': None,
     'feedback_LW_mixup_freq': 5,
@@ -436,8 +436,8 @@ def PopulationParameters():
     "pop_Ja": None,
     "pop_Tk": None,
     "pop_xi": None,  
-    "pop_ne": None,  
-    
+    "pop_ne": None,
+
     # 
     "pop_ion_rate_cgm": None,
     "pop_ion_rate_igm": None,
@@ -445,8 +445,7 @@ def PopulationParameters():
 
     "pop_k_ion_cgm": None,
     "pop_k_ion_igm": None,
-    "pop_k_heat_igm": None,
-    
+    "pop_k_heat_igm": None,    
 
     # Set time interval over which emission occurs
     "pop_zform": 50.,
@@ -503,7 +502,7 @@ def PopulationParameters():
     "pop_limit_logic": 'and', 
     
     "pop_time_ceil": None,
-    
+
     "pop_initial_Mh": 1, # In units of Mmin. Zero means unused
 
     "pop_sfrd": None,
@@ -598,6 +597,9 @@ def SourceParameters():
     "source_type": 'star',
     "source_sed": 'bb',
     "source_position": 0.0,
+    
+    "source_sfr": 1.,
+    "source_fesc": 0.1,
     
     # only for schaerer2002 right now        
     "source_piecewise": True,

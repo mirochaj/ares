@@ -56,6 +56,9 @@ def normalize_sed(pop):
         Zfactor = 1.
         
     if pop.pf['pop_rad_yield'] == 'from_sed':
+        # In this case, the *Norm parameters are irrelevant
+        E1 = pop.pf['pop_Emin']
+        E2 = pop.pf['pop_Emax']
         return pop.src.rad_yield(E1, E2)
     else:    
         # Remove whitespace and convert everything to lower-case
