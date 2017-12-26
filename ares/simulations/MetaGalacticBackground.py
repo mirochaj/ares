@@ -187,9 +187,11 @@ class MetaGalacticBackground(AnalyzeMGB):
         ##
         if self._is_Mmin_converged(self._lwb_sources):
             self._has_fluxes = True
-            self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja)
-            self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw)
-            
+            self._f_Ja = lambda z: np.interp(z, self._zarr, self._Ja, 
+                left=0.0, right=0.0)
+            self._f_Jlw = lambda z: np.interp(z, self._zarr, self._Jlw,
+                left=0.0, right=0.0)
+                        
             # Now that feedback is done, evolve all non-LW sources to get
             # final background.
             if include_pops == self._lwb_sources:
@@ -428,7 +430,10 @@ class MetaGalacticBackground(AnalyzeMGB):
                 fluxes_by_band.append(None)
             else:    
                 z, f = next(generator)
-                fluxes_by_band.append(flatten_flux(f))
+                if z > self.pf['first_light_redshift']:
+                    fluxes_by_band.append(np.zeros_like(flatten_flux(f)))
+                else:
+                    fluxes_by_band.append(flatten_flux(f))
 
         return z, fluxes_by_band
 
@@ -789,7 +794,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     tlb_p = self.grid.cosm.LookbackTime(z, z2p) / s_per_myr
                     zdt = np.interp(dt, [tlb_p, tlb], [z2p, z2])
                     
-                    J = np.interp(zdt, zarr, Jlw)
+                    J = np.interp(zdt, zarr, Jlw, left=0.0, right=0.0)
                                             
                     break
                         

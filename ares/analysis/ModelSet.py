@@ -1404,7 +1404,7 @@ class ModelSet(BlobFactory):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology()
+            self._cosm = Cosmology(**self.pf)
         
         return self._cosm
 

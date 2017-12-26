@@ -289,8 +289,12 @@ class ChemicalNetwork(object):
                     # Seager, Sasselov, & Scott (2000) Equation 54
                     compton = rad_const * ucmb * n_e * (Tcmb - q[-1]) / ntot
             
-            dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton - hubcool \
-                - q[-1] * n_H * dqdt['e'] / ntot
+            if self.grid.cosm.pf['approx_thermal_history']:
+                dqdt['Tk'] = heat * to_temp \
+                    - self.cosm.cooling_rate(z, q[-1]) / self.cosm.dtdz(z)
+            else:    
+                dqdt['Tk'] = (heat - n_e * cool) * to_temp + compton \
+                    - hubcool - q[-1] * n_H * dqdt['e'] / ntot
                                 
         else:
             dqdt['Tk'] = 0.0

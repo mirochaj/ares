@@ -346,7 +346,7 @@ class Grid(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology()
+            self._cosm = Cosmology(**self.pf)
         return self._cosm            
                 
     def set_properties(self, **kwargs):
@@ -354,26 +354,8 @@ class Grid(object):
         Initialize grid properties all in one go.
         """    
 
-        self.set_physics(
-            isothermal=kwargs['isothermal'], 
-            compton_scattering=kwargs['compton_scattering'],
-            secondary_ionization=kwargs['secondary_ionization'], 
-            expansion=kwargs['expansion'],
-            recombination=kwargs['recombination'],
-            clumping_factor=kwargs['clumping_factor'],
-            collisional_ionization=kwargs['collisional_ionization'],
-            exotic_heating=kwargs['exotic_heating'],
-        )
-
-        self.set_cosmology(
-            initial_redshift=kwargs['initial_redshift'], 
-            omega_m_0=kwargs["omega_m_0"], 
-            omega_l_0=kwargs["omega_l_0"], 
-            omega_b_0=kwargs["omega_b_0"],
-            hubble_0=kwargs["hubble_0"],
-            helium_by_number=kwargs['helium_by_number'],
-            cmb_temp_0=kwargs["cmb_temp_0"],
-            approx_highz=kwargs["approx_highz"])
+        self.set_physics(**kwargs)
+        self.set_cosmology(**kwargs)
 
         self.set_chemistry(kwargs['include_He'])
         self.set_density(kwargs['density_units'])
@@ -382,7 +364,8 @@ class Grid(object):
 
     def set_physics(self, isothermal=False, compton_scattering=False,
         secondary_ionization=0, expansion=False, recombination='B',
-        clumping_factor=1.0, collisional_ionization=True, exotic_heating=False):
+        clumping_factor=1.0, collisional_ionization=True, exotic_heating=False, 
+        **kwargs):
         self._isothermal = isothermal
         self._compton_scattering = compton_scattering
         self._secondary_ionization = secondary_ionization
@@ -419,18 +402,10 @@ class Grid(object):
     def set_recombination_rate(self, is_cgm_patch=False):
         self._is_cgm_patch = is_cgm_patch    
         
-    def set_cosmology(self, initial_redshift=1e3, omega_m_0=0.272, 
-        omega_l_0=0.728, omega_b_0=0.044, hubble_0=0.702, 
-        helium_by_number=None, helium_by_mass=0.2454, cmb_temp_0=2.725, 
-        approx_highz=False):
+    def set_cosmology(self, **kwargs):
         
-        self.zi = initial_redshift
-        self._cosm = Cosmology(omega_m_0=omega_m_0, 
-            omega_l_0=omega_l_0, omega_b_0=omega_b_0,
-            hubble_0=hubble_0, 
-            helium_by_mass=helium_by_mass,
-            cmb_temp_0=cmb_temp_0, 
-            approx_highz=approx_highz)        
+        self.zi = self.pf['initial_redshift']
+        self._cosm = Cosmology(**self.pf)        
         
     def set_chemistry(self, include_He=False):
         """
@@ -537,7 +512,7 @@ class Grid(object):
             Initial temperature in grid. Can be constant value (corresponding
             to uniform medium), or an array of values like the grid.
         """
-        
+                        
         if self.cosmological_ics:
             Tgas = self.cosm.Tgas(self.zi)
             if isinstance(T0, Iterable):
@@ -546,9 +521,12 @@ class Grid(object):
                 self.data['Tk'] = Tgas * np.ones(self.dims)
         elif isinstance(T0, Iterable):
             self.data['Tk'] = np.array(T0)
-        else:
+        elif T0 is not None:
             self.data['Tk'] = T0 * np.ones(self.dims)
-            
+        elif self.pf['approx_thermal_history']:
+            self.data['Tk'] = np.interp(self.zi, self.cosm.inits['z'],
+                self.cosm.inits['Tk']) * np.ones(self.dims)
+
     def set_ionization(self, x=None):
         """
         Set initial ionization state.  

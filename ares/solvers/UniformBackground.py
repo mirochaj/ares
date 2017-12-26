@@ -95,7 +95,7 @@ class UniformBackground(object):
             self.cosm = grid.cosm
         else:
             self.grid = None
-            self.cosm = Cosmology()
+            self.cosm = Cosmology(**self.pf)
 
         self._set_integrator()
         
@@ -333,7 +333,7 @@ class UniformBackground(object):
         """
 
         if zi is None:
-            zi = pop.pf['initial_redshift']
+            zi = pop.pf['first_light_redshift']
         if zf is None:    
             zf = pop.pf['final_redshift']
         if nz is None:
@@ -699,7 +699,7 @@ class UniformBackground(object):
         # Set limits of integration in redshift space
         zi = max(z, pop.zdead)
         if kw['zf'] is None:
-            zf = pop.zform
+            zf = min(pop.zform, self.pf['first_light_redshift'])
         else:
             zf = kw['zf']
     
@@ -1148,6 +1148,8 @@ class UniformBackground(object):
                         continue    
                     if redshift < self.pf['kill_redshift']:
                         continue    
+                    if redshift > self.pf['first_light_redshift']:
+                        continue
                                             
                     epsilon[ll,in_band] = fix \
                         * pop.Emissivity(redshift, Emin=b[0], Emax=b[1]) \

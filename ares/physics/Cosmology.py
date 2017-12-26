@@ -171,6 +171,11 @@ class Cosmology(object):
     @property
     def thermal_history(self):
         if not hasattr(self, '_thermal_history'):
+            
+            if not self.pf['approx_thermal_history']:
+                self._thermal_history = self.inits
+                return self._thermal_history
+            
             z0 = max(self.inits['z'])
             solver = ode(self.cooling_rate)
             solver.set_integrator('vode', method='bdf')
@@ -178,17 +183,20 @@ class Cosmology(object):
                 self.inits['Tk'])], z0)
 
             dz = 1.
-            zf = self.pf['initial_redshift']
+            zf = final_redshift = 1.
             zall = []; Tall = []
             while solver.successful() and solver.t > zf:
+                
+                if solver.t-dz < 0:
+                    break
+                
                 zall.append(solver.t)
                 Tall.append(solver.y[0])
-                solver.t-dz
                 solver.integrate(solver.t-dz)
             
             self._thermal_history = {}
-            self._thermal_history['z'] = np.array(zall)
-            self._thermal_history['Tk'] = np.array(Tall)
+            self._thermal_history['z'] = np.array(zall)[-1::-1]
+            self._thermal_history['Tk'] = np.array(Tall)[-1::-1]
             self._thermal_history['xe'] = 1e-3 * np.ones_like(zall)
         
         return self._thermal_history
@@ -196,19 +204,18 @@ class Cosmology(object):
     @property
     def cooling_pars(self):
         if not hasattr(self, '_cooling_pars'):
-            self._cooling_pars = ['inits_Tk_p{}'.format(i) for i in range(3)]
+            self._cooling_pars = [self.pf['inits_Tk_p{}'.format(i)] for i in range(3)]
         return self._cooling_pars    
             
-    def cooling_rate(self, z):
+    def cooling_rate(self, z, T):
         if self.pf['approx_thermal_history'] == 'exp':
             t = self.t_of_z(z)
             dtdz = self.dtdz(z)
-            return (T / t) * log_cooling_rate_exp(z, *self._cooling_pars) \
-                * -1. * dtdz
+            return (T / t) * self.log_cooling_rate(z) * -1. * dtdz
 
     def log_cooling_rate(self, z):
         if self.pf['approx_thermal_history'] == 'exp':
-            pars = self._cooling_pars
+            pars = self.cooling_pars
             return 2. * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. - 4./3.
 
     def EvolutionFunction(self, z):

@@ -51,8 +51,7 @@ class Chemistry(object):
         else:
             self.rcs = {}
             
-        self.solver = ode(self.chemnet.RateEquations, 
-            jac=self.chemnet.Jacobian).set_integrator('lsoda',
+        self.solver = ode(self.chemnet.RateEquations).set_integrator('lsoda',
             nsteps=1e4, atol=atol, rtol=rtol)
         
         self.solver._integrator.iwork[2] = -1
@@ -106,7 +105,7 @@ class Chemistry(object):
         
         # For debugging
         self.kwargs_by_cell = kwargs_by_cell
-                              
+        
         # Loop over grid and solve chemistry
         for cell in range(self.grid.dims):
 
@@ -116,7 +115,7 @@ class Chemistry(object):
                 q[i] = data[species][cell]
                                     
             kwargs_cell = kwargs_by_cell[cell]
-                                        
+                    
             if self.rtON:
                 args = (cell, kwargs_cell['k_ion'], kwargs_cell['k_ion2'],
                     kwargs_cell['k_heat'], data['n'][cell], t)

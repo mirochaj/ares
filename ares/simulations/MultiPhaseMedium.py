@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from ..static import Grid
 from types import FunctionType
 from .GasParcel import GasParcel
 from ..util.ParameterFile import get_pq_pars
@@ -54,8 +55,9 @@ class MultiPhaseMedium(object):
         if not hasattr(self, '_inits'):    
             if self.pf['load_ics']:
                 
+                # Redshifts ascending at this point
                 if self.pf['approx_thermal_history']:
-                    self._inits = inits = self.cosm.thermal_history
+                    self._inits = inits = self.grid.cosm.thermal_history
                 else:    
                     self._inits = inits = _load_inits()
                 
@@ -94,9 +96,17 @@ class MultiPhaseMedium(object):
     def pops(self):
         return self.field.pops
 
+    #@property
+    #def grid(self):
+    #    return self.field.grid        
+
     @property
     def grid(self):
-        return self.field.grid        
+        if not hasattr(self, '_grid'):
+            self._grid = Grid(**self.pf)
+            self._grid.set_properties(**self.pf)    
+                
+        return self._grid
 
     @property
     def parcels(self):
@@ -143,6 +153,8 @@ class MultiPhaseMedium(object):
         Initialize (up to two) GasParcels.
         """
         
+        inits = self.inits
+                
         # Reset stop time based on final redshift.
         z = self.pf['initial_redshift']
         zf = self.pf['final_redshift']
@@ -169,6 +181,7 @@ class MultiPhaseMedium(object):
                             
             if zone == 'igm':
                 self.kw_igm = kw.copy()
+                
                 parcel_igm = GasParcel(**self.kw_igm)
                 
                 self.gen_igm = parcel_igm.step()
@@ -292,7 +305,7 @@ class MultiPhaseMedium(object):
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
-        
+                
     def step(self):
         """
         Generator for a two-phase intergalactic medium.
@@ -308,14 +321,14 @@ class MultiPhaseMedium(object):
         z = self.pf['initial_redshift']
         dt = self.pf['time_units'] * self.pf['initial_timestep']
         zf = self.pf['final_redshift']
-        
+
         # Read initial conditions
         if self.pf['include_igm']:
             data_igm = self.parcel_igm.grid.data.copy()
-        
+
         if self.pf['include_cgm']:
             data_cgm = self.parcel_cgm.grid.data.copy()
-            
+
         # Evolve in time!
         while z > zf:
                         
@@ -430,15 +443,16 @@ class MultiPhaseMedium(object):
             Tk_inits = self.inits['Tk'][-1::-1]
             xe_inits = self.inits['xe'][-1::-1]
         else:            
-            z_inits = self.thermal_history['z'][-1::-1]
-            Tk_inits = self.thermal_history['Tk'][-1::-1]
-            xe_inits = self.thermal_history['xe'][-1::-1]
-        
+            z_inits = self.grid.cosm.thermal_history['z'][-1::-1]
+            Tk_inits = self.grid.cosm.thermal_history['Tk'][-1::-1]
+            xe_inits = self.grid.cosm.thermal_history['xe'][-1::-1]
+            
         inits_all = {'z': z_inits, 'Tk': Tk_inits, 'xe': xe_inits}
 
         # Stop pre-pending once we hit the first light redshift
-        i_trunc = np.argmin(np.abs(z_inits - self.pf['initial_redshift']))    
-        if z_inits[i_trunc] <= self.pf['initial_redshift']:
+        zi = self.pf['initial_redshift']
+        i_trunc = np.argmin(np.abs(z_inits - zi))    
+        if z_inits[i_trunc] <= zi:
             i_trunc += 1
 
         self.all_t = []
@@ -466,7 +480,7 @@ class MultiPhaseMedium(object):
 
             snapshot = {}
             for key in self.parcel_igm.grid.data.keys():
-                if key in self.inits.keys():
+                if key in inits_all.keys():
                     snapshot[key] = inits_all[key][i]
                     continue
             

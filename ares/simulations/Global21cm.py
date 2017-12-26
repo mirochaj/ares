@@ -130,7 +130,7 @@ class Global21cm(AnalyzeGlobal21cm):
 
         dTb = []
         for i, data_igm in enumerate(self.all_data_igm):
-
+            
             n_H = self.medium.parcel_igm.grid.cosm.nH(z[i])
             Ts = \
                 self.medium.parcel_igm.grid.hydr.Ts(
@@ -232,7 +232,7 @@ class Global21cm(AnalyzeGlobal21cm):
             
         tf = self.medium.tf
         self.medium._insert_inits()
-
+        
         pb = self.pb = ProgressBar(tf, use=self.pf['progress_bar'])
 
         # Lists for data in general
@@ -256,7 +256,7 @@ class Global21cm(AnalyzeGlobal21cm):
                 break
             if z < self.pf['kill_redshift']:
                 break    
-
+                
             # Delaying the initialization prevents progressbar from being
             # interrupted by, e.g., PrintInfo calls
             if not pb.has_pb:
@@ -346,7 +346,7 @@ class Global21cm(AnalyzeGlobal21cm):
 
             Ja = np.atleast_1d(self._f_Ja(z))
             Jlw = np.atleast_1d(self._f_Jlw(z))
-                                                                                
+                                                                                            
             # Compute spin temperature
             n_H = self.medium.parcel_igm.grid.cosm.nH(z)
             Ts = self.medium.parcel_igm.grid.hydr.Ts(z,

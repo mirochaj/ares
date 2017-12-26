@@ -448,7 +448,7 @@ def PopulationParameters():
     "pop_k_heat_igm": None,    
 
     # Set time interval over which emission occurs
-    "pop_zform": 50.,
+    "pop_zform": 60.,
     "pop_zdead": 0.0,
 
     # Main parameters in our typical global 21-cm models
@@ -803,11 +803,11 @@ def ControlParameters():
     'logdzDataDump': None,
     "stop_time": 500,
     
-    "initial_redshift": 50.,
+    "initial_redshift": 60.,
     "final_redshift": 5,
     "fallback_dz": 0.1, # only used when no other constraints 
     "kill_redshift": 0.0,
-    "first_light_redshift": None,
+    "first_light_redshift": 60.,
     
     "save_rate_coefficients": 1,
     
