@@ -1107,7 +1107,7 @@ class UniformBackground(object):
                 epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H[ll] \
                     / erg_per_ev
         else:
-                
+                            
             # There is only a distinction here for computational
             # convenience, really. The LWB gets solved in much more detail
             # than the LyC or X-ray backgrounds, so it makes sense 

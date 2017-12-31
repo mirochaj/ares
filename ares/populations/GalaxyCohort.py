@@ -313,7 +313,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
         # If we've already figured it out, just return    
         if (Emin, Emax) in self._rho_L:
-            return self._rho_L[(Emin, Emax)]        
+            return self._rho_L[(Emin, Emax)]     
         
         # If nothing is supplied, compute the "full" luminosity density
         if (Emin is None) and (Emax is None):
@@ -1673,11 +1673,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def LLW_tab(self):
         if not hasattr(self, '_LLW_tab'):
             M = self.halos.M
-    
+                
             dnu = (13.6 - 10.2) / ev_per_hz
             #nrg_per_phot = 25. * erg_per_ev
     
-            Nlw_per_L1600 = self.Nlw(None, M) / (1. / dnu)
+            Nlw_per_L1600 = self.Nlw(z=None, M=M) / (1. / dnu)
+            fesc_LW = self.fesc_LW(z=None, M=M)
     
             self._LLW_tab = np.zeros([self.halos.Nz, self.halos.Nm])
     

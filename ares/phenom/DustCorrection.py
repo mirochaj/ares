@@ -82,7 +82,7 @@ class DustCorrection(object):
         Return observed (i.e., uncorrected for dust) magnitude.
         """
         
-        if type(MUV) in [np.ndarray, list, tuple]:
+        if type(MUV) in [np.ndarray, np.ma.core.MaskedArray, list, tuple]:
             
             x = []
             for M in MUV:

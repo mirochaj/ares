@@ -317,7 +317,7 @@ class Hydrogen(object):
     @property
     def Ts_floor(self):
         if not hasattr(self, '_Ts_floor'):
-            self._Ts_floor = lambda zz: 0.0
+            self._Ts_floor = lambda z: 0.0
         return self._Ts_floor
     
     @Ts_floor.setter

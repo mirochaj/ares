@@ -26,6 +26,9 @@ _gs_min1d = ['z', 'dTb']
 _gs_ext.append('z_ZC')
 # CMB optical depth
 _gs_ext.append('tau_e')
+# Decoupling redshift
+_gs_ext.append('z_dec')
+_gs_ext.append('Tk_dec')
 
 _def_z = ('z', np.arange(5, 51, 0.1))
 _z_from_freq = ('z', nu_0_mhz / np.arange(25., 210, 1.)[-1::-1] - 1.)

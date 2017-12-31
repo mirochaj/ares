@@ -182,14 +182,14 @@ class Cosmology(object):
             solver.set_initial_value([np.interp(z0, self.inits['z'],
                 self.inits['Tk'])], z0)
 
-            dz = 1.
+            dz = self.pf['inits_Tk_dz']
             zf = final_redshift = 1.
             zall = []; Tall = []
             while solver.successful() and solver.t > zf:
                 
                 if solver.t-dz < 0:
                     break
-                
+                                
                 zall.append(solver.t)
                 Tall.append(solver.y[0])
                 solver.integrate(solver.t-dz)
@@ -208,7 +208,12 @@ class Cosmology(object):
         return self._cooling_pars    
             
     def cooling_rate(self, z, T):
-        if self.pf['approx_thermal_history'] == 'exp':
+        if self.pf['approx_thermal_history'] in ['exp', 'tanh']:
+            
+            # This shouldn't happen! Argh.
+            if z < 0:
+                return np.nan
+            
             t = self.t_of_z(z)
             dtdz = self.dtdz(z)
             return (T / t) * self.log_cooling_rate(z) * -1. * dtdz
@@ -217,6 +222,9 @@ class Cosmology(object):
         if self.pf['approx_thermal_history'] == 'exp':
             pars = self.cooling_pars
             return 2. * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. - 4./3.
+        elif self.pf['approx_thermal_history'] == 'tanh':
+            pars = self.cooling_pars
+            return (-2./3.) - (2./3.) * 0.5 * (np.tanh((pars[0] - z) / pars[1]) + 1.)
 
     def EvolutionFunction(self, z):
         return self.omega_m_0 * (1.0 + z)**3  + self.omega_l_0

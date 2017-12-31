@@ -923,7 +923,7 @@ class MultiPhaseMedium(object):
             
         return float(interp(z))
 
-def add_redshift_axis(ax, twin_ax=None):
+def add_redshift_axis(ax, twin_ax=None, zlim=80):
     """
     Take plot with frequency on x-axis and add top axis with corresponding 
     redshift.
@@ -935,9 +935,14 @@ def add_redshift_axis(ax, twin_ax=None):
     """    
 
     fig = ax.xaxis.get_figure()
-
-    z = np.arange(10, 110, 10)[-1::-1]
-    z_minor = np.arange(15, 80, 5)[-1::-1]
+    
+    if zlim > 100:
+        z = np.arange(20, zlim, 40)[-1::-1]
+        z_minor = np.arange(30, zlim, 20)[-1::-1]
+    else:    
+        z = np.arange(20, 110, 10)[-1::-1]
+        z_minor = np.arange(15, zlim, 5)[-1::-1]
+        
     nu = nu_0_mhz / (1. + z)
     nu_minor = nu_0_mhz / (1. + z_minor)
     
@@ -946,6 +951,7 @@ def add_redshift_axis(ax, twin_ax=None):
     # Add 25, 15 and 12, 8 to redshift labels
     z_labels.insert(-1, '15')
     z_labels.insert(-1, '12')
+    z_labels.insert(-1, '10')
     z_labels.extend(['8', '7', '6', '5'])
     #z_labels.insert(-5, '25')
 
@@ -968,7 +974,7 @@ def add_redshift_axis(ax, twin_ax=None):
         if label in ['40','50', '60', '70']:
             z_labels[i] = ''
 
-        if float(label) > 80:
+        if (float(label) > 80) and (zlim < 100):
             z_labels[i] = ''
 
     ax_z.set_xticklabels(z_labels)

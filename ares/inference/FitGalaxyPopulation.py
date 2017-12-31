@@ -260,12 +260,12 @@ class FitGalaxyPopulation(ModelFit):
         
         self._redshift_bounds = tuple(value)
 
-    @property
-    def redshifts(self):
-        if not hasattr(self, '_redshifts'):
-            raise ValueError('Set by hand or include in litdata.')
-
-        return self._redshifts
+    #@property
+    #def redshifts(self):
+    #    if not hasattr(self, '_redshifts'):
+    #        raise ValueError('Set by hand or include in litdata.')
+    #
+    #    return self._redshifts
 
     #@redshifts.setter
     #def redshifts(self, value):

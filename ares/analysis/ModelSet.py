@@ -4014,12 +4014,19 @@ class ModelSet(BlobFactory):
     def max_likelihood_parameters(self, method='median', min_or_max='max'):
         """
         Return parameter values at maximum likelihood point.
+        
+        Parameters
+        ----------
+        method : str
+            median or mode
+            
         """
                     
         if method == 'median':
             N = len(self.logL)
             psorted = np.sort(self.logL)
-            iML = psorted[int(N / 2.)]
+            logL_med = psorted[int(N / 2.)]
+            iML = np.argmin(np.abs(self.logL - logL_med))
         else:
             if min_or_max == 'max':
                 iML = np.argmax(self.logL)

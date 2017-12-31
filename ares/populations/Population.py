@@ -252,13 +252,13 @@ class Population(object):
         The answer will be "no" for any population with halo-mass-dependent
         values for photon yields (per SFR), escape fractions, or spectra.
         """
-        
+
         if not hasattr(self, '_is_emissivity_scalable'):
             self._is_emissivity_scalable = True
-    
+
             if self.pf.Npqs == 0:
                 return self._is_emissivity_scalable
-    
+
             for par in self.pf.pqs:
     
                 # Exceptions. Ideally, exotic_heating_func wouldn't make it

@@ -13,12 +13,13 @@ import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
-from scipy.interpolate import interp1d
+from scipy.optimize import minimize
 from ..physics.Constants import nu_0_mhz
 from .TurningPoints import TurningPoints
 from ..util.Math import central_difference
 from matplotlib.ticker import ScalarFormatter 
 from ..analysis.BlobFactory import BlobFactory
+from scipy.interpolate import interp1d, splrep, splev
 from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis
 
 def add_master_legend(ax, **kwargs):
@@ -199,7 +200,75 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             self._skewness_emi = np.sum((data - np.mean(data))**3) \
                 / float(data.size) / np.std(data)**3
         return self._skewness_emi    
+        
+    @property
+    def z_dec(self):
+        if not hasattr(self, '_z_dec'):
+            z_p, dTkdz = \
+                central_difference(self.history_asc['z'], self.history_asc['igm_Tk'])
+            
+            k = np.argmin(np.abs(z_p - self.pf['first_light_redshift']))
+            
+            # Do better?
+            izmax = np.argmax(dTkdz[k:])
+            zguess = z_p[k:][izmax]
+            
+            N = 10
+            
+            l1 = izmax-N
+            l2 = min(izmax+N, len(z_p[k:])-1)
+                        
+            Bspl_fit = splrep(z_p[k:][l1:l2], dTkdz[k:][l1:l2], k=3)
+                
+            Bspl_fit = interp1d(z_p[k:][l1:l2], dTkdz[k:][l1:l2], 
+                kind='quadratic', bounds_error=False) 
+            #Tk_fit = lambda zz: -Bspl_fit(zz, Bspl_fit)           
+            # Add minus sign so we can minimize
+            Tk_fit = lambda zz: -Bspl_fit(zz)         
+            
+            result = minimize(Tk_fit, zguess, tol=1e-8)
+            z = float(result.x[0])
+            T = float(Tk_fit(z))
+              
+                
+            #import matplotlib.pyplot as pl
+            #pl.figure(3)
+            #pl.scatter(z_p[k:][l1:l2], dTkdz[k:][l1:l2],
+            #    facecolors='none')
+            #    
+            #zarr = np.linspace(min(z_p[k:][l1:l2]), max(z_p[k:][l1:l2])*1.00001, 200)
+            #
+            #pl.plot(zarr, -Tk_fit(zarr))
+            #
+            #
+            #
+            #
+            #
+            #print result.success
+            #print result.status
+            #print result.message
+            #print result.nfev
+            
+            #print z, zguess
+            #pl.plot([z]*2, [0, 5], ls='-')
+            #pl.plot([z]*2, [0, 5], ls='--', lw=5)
+            #pl.ylim(min(dTkdz[k:][izmax-5:izmax+5]), max(dTkdz[k:][izmax-5:izmax+5]))
+            #
+            #raw_input('<enter>')    
+            
+            
+            
+            
+            self._z_dec = z
+            
+            
+        return self._z_dec
     
+    @property
+    def Tk_dec(self):
+        return np.interp(self.z_dec, self.history_asc['z'],
+            self.history_asc['igm_Tk'])
+        
     @property
     def track(self):
         if not hasattr(self, '_track'):     
@@ -352,7 +421,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     def GlobalSignature(self, ax=None, fig=1, freq_ax=False, 
         time_ax=False, z_ax=True, mask=None, scatter=False, xaxis='nu', 
         ymin=None, ymax=50, zmax=None, rotate_xticks=False, rotate_yticks=False,
-        force_draw=False,
+        force_draw=False, zlim=80,
         temp_unit='mK', yscale='linear', take_abs=False, **kwargs):
         """
         Plot differential brightness temperature vs. redshift (nicely).
@@ -429,7 +498,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             xticks = list(np.arange(zmin, zmax, zmin))
             xticks_minor = list(np.arange(zmin, zmax, 1))
         else:
-            xticks = np.arange(50, 250, 50)
+            xticks = np.arange(0, 250, 50)
             xticks_minor = np.arange(10, 200, 10)
 
         if ymin is None and yscale == 'linear':
@@ -437,7 +506,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                 ax.get_ylim()[0]), -500)
     
             # Set lower y-limit by increments of 50 mK
-            for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500]:
+            for val in [-50, -100, -150, -200, -250, -300, -350, -400, -450, -500, -550, -600]:
                 if val <= ymin:
                     ymin = int(val)
                     break
@@ -457,9 +526,10 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                 yticks = list(yticks)      
                 
                 # Remove major ticks from minor tick list
-                for y in np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)) * conv:
-                    if y in yticks:
-                        yticks.remove(y) 
+                if ymin >= -200:
+                    for y in np.linspace(ymin, 50, int((50 - ymin) / 50. + 1)) * conv:
+                        if y in yticks:
+                            yticks.remove(y) 
                         
                 ax.set_ylim(ymin, ymax)
                 ax.set_yticks(yticks, minor=True)
@@ -467,7 +537,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         if xaxis == 'z' and hasattr(self, 'pf'):
             ax.set_xlim(5, self.pf["initial_redshift"])
         else:
-            ax.set_xlim(10, 210)
+            ax.set_xlim(0, 210)
 
         if (not gotax) or force_draw:    
             ax.set_xticks(xticks, minor=False)
@@ -488,7 +558,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         if gotax and (ax.get_xlabel().strip()) and (not force_draw):
             pl.draw()
-            return ax
+            return ax, None
             
         if ax.get_xlabel() == '':  
             if xaxis == 'z':  
@@ -504,11 +574,11 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         # Twin axes along the top
         if freq_ax:
-            twinax = self.add_frequency_axis(ax)        
+            twinax = self.add_frequency_axis(ax)
         elif time_ax:
             twinax = self.add_time_axis(ax)
         elif z_ax:
-            twinax = add_redshift_axis(ax)
+            twinax = add_redshift_axis(ax, zlim=zmax)
         else:
             twinax = None
         
@@ -524,7 +594,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                                 
         pl.draw()
         
-        return ax
+        return ax, twinax
 
     def GlobalSignatureDerivative(self, mp=None, ax=None, fig=1, 
         show_signal=False, **kwargs):
