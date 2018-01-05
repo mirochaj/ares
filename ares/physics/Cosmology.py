@@ -11,6 +11,8 @@ Description:
 """
 
 import numpy as np
+from scipy.misc import derivative
+from scipy.optimize import fsolve
 from scipy.integrate import quad, ode
 from ..util.ReadData import _load_inits
 from ..util.ParameterFile import ParameterFile
@@ -210,7 +212,7 @@ class Cosmology(object):
             self._cooling_pars = [self.pf['inits_Tk_p{}'.format(i)] for i in range(3)]
         return self._cooling_pars    
             
-    def cooling_rate(self, z, T):
+    def cooling_rate(self, z, T=None):
         if self.pf['approx_thermal_history'] in ['exp', 'tanh']:
             
             # This shouldn't happen! Argh.
@@ -220,6 +222,8 @@ class Cosmology(object):
             t = self.t_of_z(z)
             dtdz = self.dtdz(z)
             return (T / t) * self.log_cooling_rate(z) * -1. * dtdz
+        else:
+            return derivative(self.Tgas, z)
 
     def log_cooling_rate(self, z):
         if self.pf['approx_thermal_history'] == 'exp':
@@ -228,7 +232,21 @@ class Cosmology(object):
         elif self.pf['approx_thermal_history'] == 'tanh':
             pars = self.cooling_pars
             return (-2./3.) - (2./3.) * 0.5 * (np.tanh((pars[0] - z) / pars[1]) + 1.)
-
+        else:
+            return -1. * self.cooling_rate(z, self.Tgas(z)) \
+                * (self.t_of_z(z) / self.Tgas(z)) / self.dtdz(z)
+                
+    @property
+    def z_dec(self):
+        if not hasattr(self, '_z_dec'):
+            to_min = lambda zz: np.abs(self.log_cooling_rate(zz) + 1.)
+            self._z_dec = fsolve(to_min, 150.)[0]
+        return self._z_dec    
+        
+    @property
+    def Tk_dec(self):
+        return self.Tgas(self.z_dec)
+    
     def EvolutionFunction(self, z):
         return self.omega_m_0 * (1.0 + z)**3  + self.omega_l_0
         

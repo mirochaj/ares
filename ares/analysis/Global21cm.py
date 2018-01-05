@@ -13,10 +13,10 @@ import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
-from scipy.optimize import minimize
 from ..physics.Constants import nu_0_mhz
 from .TurningPoints import TurningPoints
 from ..util.Math import central_difference
+from scipy.optimize import minimize, fsolve
 from matplotlib.ticker import ScalarFormatter 
 from ..analysis.BlobFactory import BlobFactory
 from scipy.interpolate import interp1d, splrep, splev
@@ -134,6 +134,24 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             _nu = self._nu_p
             self._nu_pp, self._dTb2dnu2 = central_difference(_nu, _dTbdnu)
         return self._dTb2dnu2        
+        
+    @property
+    def z_A(self):
+        if not hasattr(self, '_z_A'):
+            zall = self.history_asc['z']
+            Tall = self.history_asc['dTb']
+            zfl = self.pf['first_light_redshift']
+            zok = np.logical_and(zall > zfl, zall < 1e3)
+            dTb = interp1d(zall[zok], Tall[zok], kind='cubic')
+            to_min = minimize(lambda zz: dTb(zz), 80.)
+            
+            self._z_A = to_min.x[0]
+        return self._z_A
+    
+    @property
+    def dTb_A(self):
+        return np.interp(self.z_A, self.history_asc['z'], 
+            self.history_asc['dTb'])
     
     @property
     def z_p(self):
@@ -204,66 +222,9 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     @property
     def z_dec(self):
         if not hasattr(self, '_z_dec'):
-            z_p, dTkdz = \
-                central_difference(self.history_asc['z'], self.history_asc['igm_Tk'])
-            
-            k = np.argmin(np.abs(z_p - self.pf['first_light_redshift']))
-            
-            # Do better?
-            izmax = np.argmax(dTkdz[k:])
-            zguess = z_p[k:][izmax]
-            
-            N = 10
-            
-            l1 = izmax-N
-            l2 = min(izmax+N, len(z_p[k:])-1)
-                        
-            Bspl_fit = splrep(z_p[k:][l1:l2], dTkdz[k:][l1:l2], k=3)
-                
-            Bspl_fit = interp1d(z_p[k:][l1:l2], dTkdz[k:][l1:l2], 
-                kind='quadratic', bounds_error=False) 
-            #Tk_fit = lambda zz: -Bspl_fit(zz, Bspl_fit)           
-            # Add minus sign so we can minimize
-            Tk_fit = lambda zz: -Bspl_fit(zz)         
-            
-            result = minimize(Tk_fit, zguess, tol=1e-8)
-            z = float(result.x[0])
-            T = float(Tk_fit(z))
-              
-                
-            #import matplotlib.pyplot as pl
-            #pl.figure(3)
-            #pl.scatter(z_p[k:][l1:l2], dTkdz[k:][l1:l2],
-            #    facecolors='none')
-            #    
-            #zarr = np.linspace(min(z_p[k:][l1:l2]), max(z_p[k:][l1:l2])*1.00001, 200)
-            #
-            #pl.plot(zarr, -Tk_fit(zarr))
-            #
-            #
-            #
-            #
-            #
-            #print result.success
-            #print result.status
-            #print result.message
-            #print result.nfev
-            
-            #print z, zguess
-            #pl.plot([z]*2, [0, 5], ls='-')
-            #pl.plot([z]*2, [0, 5], ls='--', lw=5)
-            #pl.ylim(min(dTkdz[k:][izmax-5:izmax+5]), max(dTkdz[k:][izmax-5:izmax+5]))
-            #
-            #raw_input('<enter>')    
-            
-            
-            
-            
-            self._z_dec = z
-            
-            
+            self._z_dec = self.cosm.z_dec
         return self._z_dec
-    
+        
     @property
     def Tk_dec(self):
         return np.interp(self.z_dec, self.history_asc['z'],
@@ -322,9 +283,12 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             if 'C' in self.track.turning_points:
                 zC = self.track.turning_points['C'][0]
                 if (zC < 0) or (zC > 50):
+                    print "WARNING: absorption minimum redshift wonky."
                     i_min = np.argmin(self.history['dTb'])
                     fixes['C'] = (self.history['z'][i_min], 
                         self.history['dTb'][i_min], -99999)
+                    print "WARNING: Reset to z={}, dTb={}".format(*fixes['C'][0:2])   
+                        
             if 'D' in self.track.turning_points:
                 zD = self.track.turning_points['D'][0]
                 TD = self.track.turning_points['D'][1]

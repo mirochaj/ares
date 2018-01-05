@@ -16,7 +16,7 @@ from .ParameterBundles import ParameterBundle
 
 _gs_hist = ['z', 'cgm_h_2', 'igm_h_2', 'igm_Tk', 'Ja', 'Jlw', 'Ts', 'dTb']
 _gs_ext = []
-for tp in ['B', 'C', 'D', 'Bp', 'Cp', 'Dp']:
+for tp in ['A', 'B', 'C', 'D', 'Bp', 'Cp', 'Dp']:
     for field in _gs_hist:
         _gs_ext.append('{0!s}_{1!s}'.format(field, tp))
 
