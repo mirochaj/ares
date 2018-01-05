@@ -11,6 +11,7 @@ Description:
 """
 
 import re
+import numpy as np
 from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad

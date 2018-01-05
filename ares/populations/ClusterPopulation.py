@@ -82,7 +82,7 @@ class ClusterPopulation(Population):
         frd = np.array([self.FRD(z=z) for z in self.zarr]) * 1e6
         mdist = np.array([self._mdist(z=z, M=kwargs['M']) for z in self.zarr])
         y = frd * mdist / self._mdist_norm
-                
+
         return np.trapz(y[iz:], x=self.tarr[iz:])
 
     @property
@@ -90,6 +90,7 @@ class ClusterPopulation(Population):
         if not hasattr(self, '_tab_massfunc_'):
             self._tab_massfunc_ = np.zeros((len(self.zarr), len(self.Marr)))
             
+            # Loop over formation redshifts.
             for i, z in enumerate(self.zarr):
                 
                 frd = np.array([self.FRD(z=zz) \
@@ -156,8 +157,14 @@ class ClusterPopulation(Population):
                 hist, bin_e = np.histogram(Lnow.flatten(), bins=edges,
                     weights=mdist.flatten())
 
-                self._tab_lf_[i] = hist.copy()
-                
+                # Norm to get total number right
+                norm = np.trapz(hist, x=np.log10(self.Larr))
+                tot = np.trapz(self._tab_massfunc[i], x=self.Marr)
+
+                print i, tot / norm
+
+                self._tab_lf_[i] = hist * tot / norm
+
         return self._tab_lf_
                 
     def LuminosityFunction(self, z):
