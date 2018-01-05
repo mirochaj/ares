@@ -26,7 +26,8 @@ from scipy.integrate import quad, simps, cumtrapz, ode
 from ..util.ParameterFile import par_info, get_pq_pars
 from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import interp1d, RectBivariateSpline
-from .GalaxyAggregate import GalaxyAggregate, normalize_sed
+from .GalaxyAggregate import GalaxyAggregate
+from .Population import normalize_sed
 from ..util.Math import central_difference, interp1d_wrapper
 from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
@@ -55,7 +56,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def magsys(self):
         if not hasattr(self, '_magsys'):
             self._magsys = MagnitudeSystem(**self.pf)
-    
         return self._magsys
         
     def _update_pq_registry(self, name, obj):

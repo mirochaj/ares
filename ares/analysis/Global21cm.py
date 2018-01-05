@@ -555,11 +555,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                     yt.append(y.get_text())
             
                 ax.set_yticklabels(yt, rotation=45.)    
-        
-        if gotax and (ax.get_xlabel().strip()) and (not force_draw):
-            pl.draw()
-            return ax, None
-            
+                    
         if ax.get_xlabel() == '':  
             if xaxis == 'z':  
                 ax.set_xlabel(labels['z'], fontsize='x-large')
@@ -583,6 +579,10 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             twinax = None
         
         self.twinax = twinax
+        
+        if gotax and (ax.get_xlabel().strip()) and (not force_draw):
+            pl.draw()
+            return ax, twinax
         
         try:
             ax.ticklabel_format(style='plain', axis='both')

@@ -457,7 +457,7 @@ def PopulationParameters():
     "pop_fstar_negligible": 1e-5, # relative to maximum
 
     "pop_sfr": None,
-    
+
     "pop_facc": 0.0,
     "pop_fsmooth": 1.0,
 
@@ -470,7 +470,12 @@ def PopulationParameters():
     "pop_sfe": None,
     "pop_mlf": None,
     "pop_sfr": None,
+    "pop_frd": None,
     "pop_fshock": 1.0,
+    
+    "pop_mdist": None,
+    "pop_age_res": 1.,
+    "pop_dlogM": 0.1,
 
     "pop_fobsc": 0.0,
 

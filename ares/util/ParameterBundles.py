@@ -378,8 +378,8 @@ class ParameterBundle(dict):
         # Just alert the user that this is happening.
         for key in other:
             if key in tmp:
-                msg1 = "UPDATE: Setting {0}->{1}".format(key, other[key])
-                msg2 = "previously {0}={1}".format(key, tmp[key])
+                msg1 = "UPDATE: Setting {0} -> {1}".format(key, other[key])
+                msg2 = "previously {0} = {1}".format(key, tmp[key])
                 print('{0} [{1}]'.format(msg1, msg2))
 
             tmp[key] = other[key]

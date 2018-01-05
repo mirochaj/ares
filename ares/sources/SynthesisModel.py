@@ -299,10 +299,10 @@ class SynthesisModel(Source):
             for i in range(self.times.size):
                 self._E_per_M[:,i] = self.data[:,i] / (self.energies * erg_per_ev)    
 
-            if self.pf['source_ssp']:
-                self._E_per_M /= 1e6
-            else:
-                pass
+            #if self.pf['source_ssp']:
+            #    self._E_per_M /= 1e6
+            #else:
+            #    pass
 
         return self._E_per_M
 
@@ -342,11 +342,11 @@ class SynthesisModel(Source):
         #     erg / sec / Hz / (Msun / yr)
                     
         # to erg / s / A / Msun
-        if self.pf['source_ssp']:
-            yield_UV /= 1e6
-        # or erg / s / A / (Msun / yr)
-        else:
-            pass
+        #if self.pf['source_ssp']:
+        #    yield_UV /= 1e6
+        ## or erg / s / A / (Msun / yr)
+        #else:
+        #    pass
             
         return yield_UV
     

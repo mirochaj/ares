@@ -25,14 +25,14 @@ except:
 
 datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
     'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
-    'reddy2009', 'weisz2014')
+    'reddy2009', 'weisz2014', 'oesch2018')
 datasets_smf = ('song2016', 'tomczak2014')
 datasets_mzr = ('sanders2015',)
 
 groups_lf = \
 {
  'dropouts': ('oesch2013', 'oesch2014', 'bouwens2015', 'parsa2016', 
-    'finkelstein2015', 'vanderburg2010', 'reddy2009'),
+    'finkelstein2015', 'vanderburg2010', 'reddy2009', 'oesch2018'),
  'lensing': ('alavi2016', 'atek2015'),
  'local': ('weisz2014,'),
  'all': datasets_lf,

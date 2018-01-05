@@ -103,9 +103,9 @@ class ParameterizedQuantity(object):
                 self._var_ceil = self.pf['pq_var_ceil']
             else:
                 self._var_ceil = None
-                
+
         return self._var_ceil        
-    
+
     @property
     def var_floor(self):
         if not hasattr(self, '_var_floor'):

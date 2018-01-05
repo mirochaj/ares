@@ -145,9 +145,12 @@ class Cosmology(object):
 
         return t
         
-    #def z_of_t(self, t):
+    def z_of_t(self, t):
+        C = np.exp(1.5 * self.hubble_0 * t * np.sqrt(1. - self.omega_m_0))
         
-
+        a = self.a_eq * (C**2 - 1.)**(2./3.) / (2. * C)**(2./3.)
+        return (1. / a) - 1.
+        
     def Tgas(self, z):
         """
         Gas kinetic temperature at z assuming only adiabatic cooling after zdec.
@@ -232,7 +235,7 @@ class Cosmology(object):
     def HubbleParameter(self, z):
         if self.approx_highz:
             return self.hubble_0 * np.sqrt(self.omega_m_0) * (1. + z)**1.5
-        return self.hubble_0 * np.sqrt(self.EvolutionFunction(z)) 
+        return self.hubble_0 * np.sqrt(self.EvolutionFunction(z))
     
     def HubbleLength(self, z):
         return c / self.HubbleParameter(z)
