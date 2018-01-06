@@ -72,7 +72,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                 except ValueError:
                     raise AttributeError('No attribute {!s}.'.format(name))    
     
-            if pt not in ['B', 'C', 'D', 'ZC', 'Bp', 'Cp', 'Dp']:
+            if pt not in ['A', 'B', 'C', 'D', 'ZC', 'Bp', 'Cp', 'Dp']:
                 # This'd be where e.g., zrei, should go
                 raise NotImplementedError(('Looking for attribute ' +\
                     '\'{!s}\'.').format(name))
@@ -143,9 +143,13 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             zfl = self.pf['first_light_redshift']
             zok = np.logical_and(zall > zfl, zall < 1e3)
             dTb = interp1d(zall[zok], Tall[zok], kind='cubic')
-            to_min = minimize(lambda zz: dTb(zz), 80.)
             
-            self._z_A = to_min.x[0]
+            try:
+                to_min = minimize(lambda zz: dTb(zz), 80.)    
+                self._z_A = to_min.x[0]
+            except:
+                self._z_A = -np.inf
+            
         return self._z_A
     
     @property

@@ -165,7 +165,7 @@ tp_parameters = {}
 hist_plus_derived = history_elements
 hist_plus_derived.update(derived)
 for key in hist_plus_derived:
-    for tp in ['B', 'C', 'D', 'ZC']:        
+    for tp in ['A', 'B', 'C', 'D', 'ZC']:        
         if key in ['z', 'nu']:
             tp_parameters['{0!s}_{1!s}'.format(key, tp)] = \
                 r'{0!s}_{{\mathrm{{{1!s}}}}}$'.format(hist_plus_derived[key][0:-1], tp)
@@ -174,7 +174,7 @@ for key in hist_plus_derived:
                 r'{0!s}(\nu_{{\mathrm{{{1!s}}}}})$'.format(hist_plus_derived[key][0:-1], tp)
 
 for key in hist_plus_derived:
-    for tp in ['B', 'C', 'D']:        
+    for tp in ['A', 'B', 'C', 'D']:        
         if key in ['z', 'nu']:
             tp_parameters['{0!s}_{1!s}p'.format(key, tp)] = \
                 r'{0!s}_{{\mathrm{{{1!s}}}}}^{{\prime}}$'.format(hist_plus_derived[key][0:-1], tp)
@@ -360,13 +360,15 @@ class Labeler(object):
         units = self.units(prefix)
         
         label = None
-        
+                
         # Simplest case. Not popid, not a PQ, label found.
         if popid == phpid == None and (prefix in self.labels):
             label = self.labels[prefix]
         # Has pop ID number but is not a PQ, label found.
         elif (popid is not None) and (phpid is None) and (prefix in self.labels):
             label = self.labels[prefix]
+        elif (popid is not None) and (phpid is None) and (prefix.strip('pop_') in self.labels):
+            label = self.labels[prefix.strip('pop_')]    
         # Has Pop ID, not a PQ, no label found.      
         elif (popid is not None) and (phpid is None) and (prefix not in self.labels):
             try:

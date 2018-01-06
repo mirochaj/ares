@@ -978,8 +978,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         # MAB corresponds to self.halos.M
         MAB, phi = self.phi_of_M(z)
+        ok = MAB.mask == 0
 
-        return np.interp(MUV, MAB[-1::-1], self.halos.M[-1:1:-1])
+        return np.interp(MUV, MAB[ok][-1::-1], self.halos.M[1:-1][ok][-1::-1])
         
     @property
     def _tab_Mmax_active(self):

@@ -114,8 +114,9 @@ class loglikelihood(LogLikelihood):
         point = {}
         for i in range(len(self.parameters)):
             point[self.parameters[i]] = pars[i]
-
+            
         lp = self.priors_P.log_value(point)
+                
         if not np.isfinite(lp):
             return -np.inf, self.blank_blob
 
@@ -127,7 +128,7 @@ class loglikelihood(LogLikelihood):
         self.checkpoint(**kwargs)
 
         pop = self.pop = GalaxyPopulation(**kw)
-
+                        
         #if self.priors_B.params != []:
         #    lp += self._compute_blob_prior(sim)
 
@@ -185,7 +186,7 @@ class loglikelihood(LogLikelihood):
 
         if np.isnan(PofD) or (type(phi) == np.ma.core.MaskedConstant):
             return -np.inf, self.blank_blob
- 
+  
         try:
             blobs = pop.blobs
         except:
@@ -310,7 +311,7 @@ class FitGalaxyPopulation(ModelFit):
 
             z_by_range = hasattr(self, '_redshift_bounds')
             z_by_hand = hasattr(self, '_redshifts')
-
+ 
             self._redshifts = {quantity:[] for quantity in self.include}
 
             for src in value:
@@ -378,7 +379,11 @@ class FitGalaxyPopulation(ModelFit):
             
             for quantity in self.include:
             
-                for i, dataset in enumerate(self.redshifts[quantity]):
+                #for i, dataset in enumerate(self.redshifts[quantity]):
+                
+                # Sorted by sources
+                for i, dataset in enumerate(self.data[quantity]):
+                                            
                     for j, redshift in enumerate(self.data[quantity][i]):
                         M = self.data[quantity][i][redshift]['M']
                         
@@ -468,11 +473,13 @@ class FitGalaxyPopulation(ModelFit):
         if not hasattr(self, '_xdata'):
             if hasattr(self, '_data'):
                 self._xdata = []; self._ydata = []; self._error = []
-                for i, dataset in enumerate(self.redshifts):
-                    for j, redshift in enumerate(self.data[i]):
-                        self._xdata.append(self.data[i][redshift]['M'])
-                        self._ydata.append(self.data[i][redshift]['phi'])
-                        self._error.append(self.data[i][redshift]['err'])
+                #for i, dataset in enumerate(self.redshifts):
+                for h, quantity in enumerate(self.include):
+                    for i, dataset in enumerate(self.data[quantity]):
+                        for j, redshift in enumerate(self.data[i]):
+                            self._xdata.append(dataset[redshift]['M'])
+                            self._ydata.append(dataset[redshift]['phi'])
+                            self._error.append(dataset[redshift]['err'])
                     
         return self._xdata
         

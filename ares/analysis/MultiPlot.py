@@ -15,7 +15,7 @@ from math import ceil
 import matplotlib.pyplot as pl
 
 # Matplotlibrc defaults
-figsize = pl.rcParams['figure.figsize']
+#figsize = pl.rcParams['figure.figsize']
 wspace = pl.rcParams['figure.subplot.wspace']
 hspace = pl.rcParams['figure.subplot.hspace']
 
@@ -27,6 +27,7 @@ defs = \
  'dims':(2,2), 
  'padding':(0,0), 
  'panel_size':(1,1), 
+ 'figsize': (6,6),
  'fig':1,
  'diagonal':None,
  'left':None, 
@@ -146,7 +147,7 @@ class MultiPanel(object):
             self.padding = tuple([self.padding]* 2)
                 
         # Size of an individual panel (in inches)
-        self.pane_size = np.array(figsize) * np.array([self.right-self.left, self.top-self.bottom])
+        self.pane_size = np.array(self.figsize) * np.array([self.r-self.l, self.t-self.b])
         self.pane_size *= np.array(self.panel_size)
 
         # Now, figure out the size of the entire figure (in inches)
@@ -158,8 +159,8 @@ class MultiPanel(object):
         self.panel_size[1] = self.pane_size[1] * self.J + self.padding[1] * (self.J - 1)     
 
         # Add empty area above/below and left/right of panel-filled area
-        self.panel_size[0] += figsize[0] * (self.left + (1. - self.right))
-        self.panel_size[1] += figsize[1] * (self.bottom + (1. - self.top))
+        self.panel_size[0] += self.figsize[0] * (self.left + (1. - self.right))
+        self.panel_size[1] += self.figsize[1] * (self.bottom + (1. - self.top))
 
         self.panel_size_rel = self.pane_size / self.panel_size
 
@@ -181,11 +182,11 @@ class MultiPanel(object):
 
             # Adjust padding
             if self.preserve_margins:
-                l = self.left * figsize[0] / self.panel_size[0]
-                r = (self.left * figsize[0] + self.K * self.pane_size[0]) \
+                l = self.left * self.figsize[0] / self.panel_size[0]
+                r = (self.left * self.figsize[0] + self.K * self.pane_size[0]) \
                     / self.panel_size[0]
-                b = self.bottom * figsize[1] / self.panel_size[1]
-                t = (self.bottom * figsize[1] + self.J * self.pane_size[1]) \
+                b = self.bottom * self.figsize[1] / self.panel_size[1]
+                t = (self.bottom * self.figsize[1] + self.J * self.pane_size[1]) \
                     / self.panel_size[1]
             else:
                 l, r, b, t = self.left, self.right, self.bottom, self.top

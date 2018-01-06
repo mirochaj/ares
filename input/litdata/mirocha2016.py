@@ -174,6 +174,8 @@ _flex2 = \
  
 }
 
+dflex = _flex2
+
 #dpl_evol = _flex2
 #dpl_pl = dpl_evol
 #dpl_quad = {}
