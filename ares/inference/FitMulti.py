@@ -83,7 +83,13 @@ class FitMulti(ModelFit):
 
         t1 = time.time()
         sim = self.sim = self.simulator(**kw)
-        sim.run()
+        
+        try:
+            sim.run()
+        except ValueError:
+            print(kwargs)
+            return -np.inf, self.blank_blob
+            
         t2 = time.time()
         
         lnL = 0.0
