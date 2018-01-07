@@ -3544,8 +3544,8 @@ class ModelSet(BlobFactory):
         if nd == 1:
             
             # Read in the independent variable(s) and data itself
-            xarr = ivars[0]            
-        
+            xarr = ivars[0]     
+                    
             if len(names) == 1:
                 tmp = self.ExtractData(names[0], 
                     take_log=take_log, un_log=un_log, multiplier=multiplier)
@@ -3558,19 +3558,24 @@ class ModelSet(BlobFactory):
                 
                 # In this case, xarr is 2-D. Need to be more careful...
                 assert use_best
-                        
+                                        
             y = []
             for i, x in enumerate(xarr):
+                
+                # used to have compressed() here in a few places,
+                # but it can mess up the shape for plotting...why
+                # would certain channels get masked?
+                
                 if (samples is not None):
-                    y.append(yblob[:,i].compressed())
+                    y.append(yblob[:,i]) 
                 elif (use_best and self.is_mcmc):
                     y.append(yblob[:,i][skip:stop][loc])
                 elif percentile:
-                    lo, hi = np.percentile(yblob[:,i][skip:stop].compressed(), 
+                    lo, hi = np.percentile(yblob[:,i][skip:stop], 
                         (q1, q2))
                     y.append((lo, hi))
                 else:
-                    dat = data[:,i][skip:stop].compressed()
+                    dat = data[:,i][skip:stop]#.compressed()
                     lo, hi = dat.min(), dat.max()
                     y.append((lo, hi))
 
@@ -3617,7 +3622,7 @@ class ModelSet(BlobFactory):
             xarr = self.dust.Mobs(scalar, xarr)
 
         y = np.array(y)
-        
+                
         # At this stage, shape of y is (Nsamples, xarr)?
 
         # Convert redshifts to frequencies    
@@ -3648,6 +3653,7 @@ class ModelSet(BlobFactory):
                 for element in range(M):
                     if element not in elements:
                         continue
+                        
                     ax.plot(xarr, y.T[element], **kwargs)
   
         elif use_best and self.is_mcmc:

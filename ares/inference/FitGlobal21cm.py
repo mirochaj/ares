@@ -62,7 +62,7 @@ class loglikelihood(LogLikelihood):
                     for tp in self.turning_points]
                 T = [tps[tp][1] for tp in self.turning_points]
             except KeyError:
-                return -np.inf, self.blank_blob
+                return -np.inf
 
             yarr = np.array(nu + T)
             
@@ -73,7 +73,7 @@ class loglikelihood(LogLikelihood):
                 sim.history['igm_dTb'])                             
                 
         if np.any(np.isnan(yarr)):
-            return -np.inf, self.blank_blob
+            return -np.inf
 
         lnL = 0.5 * (np.sum((yarr - self.ydata)**2 \
             / self.error**2 + np.log(2. * np.pi * self.error**2))) 
