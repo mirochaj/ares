@@ -130,7 +130,19 @@ class ParameterizedQuantity(object):
     def floor(self):
         if not hasattr(self, '_floor'):
             if 'pq_val_floor' in self.pf:
-                self._floor = self.pf['pq_val_floor']
+                if type(self.pf['pq_val_floor']) is str:
+                    val = self.pf['pq_val_floor']
+                                                                                
+                    pq_pars = get_pq_pars(val, self.raw_pf)
+                    
+                    PQ = ParameterizedQuantity(**pq_pars)
+                    
+                    self._sub_pqs[val] = PQ
+                                        
+                    self._floor = PQ
+                
+                else:
+                    self._floor = self.pf['pq_val_floor']
             else:
                 self._floor = None
     
@@ -339,7 +351,10 @@ class ParameterizedQuantity(object):
         if self.ceil is not None:
             f = np.minimum(f, self.ceil)
         if self.floor is not None:
-            f = np.maximum(f, self.floor)
+            if type(self.floor) in [int, float]:
+                f = np.maximum(f, self.floor)
+            else:
+                f = np.maximum(f, self.floor(**kwargs))
         
         return f
               

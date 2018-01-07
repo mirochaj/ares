@@ -181,6 +181,10 @@ class loglikelihood(LogLikelihood):
 
         lnL = 0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
 
+        ##
+        # Multiply by posterior for any other (optionally-include) quantities
+        ##
+
         # Final posterior calculation
         PofD = lp + self.const_term - lnL
 

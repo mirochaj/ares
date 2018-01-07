@@ -23,6 +23,7 @@ from .BlobFactory import BlobFactory
 from matplotlib.colors import Normalize
 from matplotlib.patches import Rectangle
 from ..physics.Constants import nu_0_mhz
+from ..phenom.DustCorrection import DustCorrection
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
 from ..util import labels as default_labels
 from ..util.Pickling import read_pickle_file, write_pickle_file
@@ -169,12 +170,22 @@ class ModelSet(BlobFactory):
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
 
-        self.derived_blobs = DQ(self)
-
+    @property
+    def derived_blobs(self):
+        if not hasattr(self, '_derived_blobs'):
+            self._derived_blobs = DQ(self)
+        return self._derived_blobs
+            
         #try:
         #    self._fix_up()
         #except AttributeError:
         #    pass
+
+    @property
+    def dust(self):
+        if not hasattr(self, '_dust'):
+            self._dust = DustCorrection(**self.pf)
+        return self._dust
 
     @property
     def mask(self):
@@ -3603,7 +3614,7 @@ class ModelSet(BlobFactory):
 
         # This assumes scalar is z!
         if apply_dc:
-            xarr = self.dc.Mobs(scalar, xarr)
+            xarr = self.dust.Mobs(scalar, xarr)
 
         y = np.array(y)
         

@@ -415,7 +415,7 @@ class ParameterBundle(dict):
         """
         Find ParameterizedQuantity parameters and tag with `num`.
         """
-        
+                
         if self[par] == 'pq':
             current_tag = None
         else:

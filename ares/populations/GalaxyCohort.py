@@ -155,6 +155,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             raise TypeError('dunno how to handle: {!s}'.format(name))
         # Check to see if Z?
         setattr(self, name, result)
+                
         return result
 
     def Zgas(self, z, Mh):
@@ -689,7 +690,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._tab_eta_ = np.ones_like(self.halos.z)
     
         return self._tab_eta_
-
+        
     def SFR(self, z, Mh=None):
         """
         Star formation rate at redshift z in a halo of mass Mh.
@@ -981,6 +982,22 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         ok = MAB.mask == 0
 
         return np.interp(MUV, MAB[ok][-1::-1], self.halos.M[1:-1][ok][-1::-1])
+        
+    def MUV_at_peak_SFE(self, z):
+        """
+        Return the UV magnitude of a halo forming stars at peak efficiency.
+        """
+        
+        slope = lambda M: self.gamma_sfe(z, M)
+        
+        low = fsolve(slope, 1e11)
+        
+        Mpeak = low[0]
+        
+        MAB, phi = self.phi_of_M(z)
+        MUV_peak = np.interp(Mpeak, self.halos.M[1:-1], MAB)
+        
+        return MUV_peak
         
     @property
     def _tab_Mmax_active(self):
@@ -1743,6 +1760,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 
                 elif self.pf['pop_fstar'][0:2] == 'pq':
                     pars = get_pq_pars(self.pf['pop_fstar'], self.pf)
+                                        
                     Mmin = lambda z: np.interp(z, self.halos.z, self._tab_Mmin)
                     self._fstar_inst = ParameterizedQuantity({'pop_Mmin': Mmin}, 
                         self.pf, **pars)
