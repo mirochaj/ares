@@ -117,9 +117,7 @@ def guesses_from_priors(pars, prior_set, nwalkers):
     return np.array(guesses)    
         
 class LogLikelihood(object):
-    def __init__(self, xdata, ydata, error, parameters, is_log,
-        base_kwargs, param_prior_set=None, blob_prior_set=None,
-        prefix=None, blob_info=None, checkpoint_by_proc=True, timeout=None):
+    def __init__(self, xdata, ydata, error):
         """
         This is only to be inherited by another log-likelihood class.
 
@@ -128,22 +126,22 @@ class LogLikelihood(object):
 
         """
 
-        self.parameters = parameters # important that they are in order?
-        self.is_log = is_log
-        self.checkpoint_by_proc = checkpoint_by_proc
-
-        self.base_kwargs = base_kwargs
-        self.timeout = timeout
-
-        if blob_info is not None:
-            self.blob_names = blob_info['blob_names']
-            self.blob_ivars = blob_info['blob_ivars']
-            self.blob_funcs = blob_info['blob_funcs']
-            self.blob_nd = blob_info['blob_nd']
-            self.blob_dims = blob_info['blob_dims']
-        else:
-            self.blob_names = self.blob_ivars = self.blob_funcs = \
-                self.blob_nd = self.blob_dims = None
+        #self.parameters = parameters # important that they are in order?
+        #self.is_log = is_log
+        #self.checkpoint_by_proc = checkpoint_by_proc
+        #
+        #self.base_kwargs = base_kwargs
+        #self.timeout = timeout
+        #
+        #if blob_info is not None:
+        #    self.blob_names = blob_info['blob_names']
+        #    self.blob_ivars = blob_info['blob_ivars']
+        #    self.blob_funcs = blob_info['blob_funcs']
+        #    self.blob_nd = blob_info['blob_nd']
+        #    self.blob_dims = blob_info['blob_dims']
+        #else:
+        #    self.blob_names = self.blob_ivars = self.blob_funcs = \
+        #        self.blob_nd = self.blob_dims = None
 
         ##
         # Note: you might think using np.array is innocuous, but we have to be
@@ -168,97 +166,104 @@ class LogLikelihood(object):
         else:
             self.error = error
                     
-        self.prefix = prefix
+        #self.prefix = prefix
 
-        self.priors_P = param_prior_set
-        if len(self.priors_P.params) != len(self.parameters):
-            raise ValueError(("The number of parameters of the priors " +\
-                "given to a loglikelihood object ({0}) is not equal to the " +\
-                "number of parameters given to the object ({1}).").format(\
-                len(self.priors_P.params), len(self.parameters)))
-        
-        if blob_info is None:
-            self.priors_B = DistributionSet()
-        elif isinstance(blob_prior_set, DistributionSet):
-            self.priors_B = blob_prior_set
-        else:
-            try:
-                # perhaps the prior tuples
-                # (prior, params, transformations) were given
-                self.priors_B =\
-                    DistributionSet(distribution_tuples=blob_prior_set)
-            except:
-                raise ValueError("The value given as the blob_prior_set " +\
-                                 "argument to the initializer of a " +\
-                                 "Loglikelihood could not be cast " +\
-                                 "into a DistributionSet.")
+        #self.priors_P = param_prior_set
+        #if len(self.priors_P.params) != len(self.parameters):
+        #    raise ValueError(("The number of parameters of the priors " +\
+        #        "given to a loglikelihood object ({0}) is not equal to the " +\
+        #        "number of parameters given to the object ({1}).").format(\
+        #        len(self.priors_P.params), len(self.parameters)))
+        #
+        #if blob_info is None:
+        #    self.priors_B = DistributionSet()
+        #elif isinstance(blob_prior_set, DistributionSet):
+        #    self.priors_B = blob_prior_set
+        #else:
+        #    try:
+        #        # perhaps the prior tuples
+        #        # (prior, params, transformations) were given
+        #        self.priors_B =\
+        #            DistributionSet(distribution_tuples=blob_prior_set)
+        #    except:
+        #        raise ValueError("The value given as the blob_prior_set " +\
+        #                         "argument to the initializer of a " +\
+        #                         "Loglikelihood could not be cast " +\
+        #                         "into a DistributionSet.")
 
 
-    def _compute_blob_prior(self, sim):
-        blob_vals = {}
-        for key in self.priors_B.params:
-
-            grp, i, nd, dims = sim.blob_info(key)
-            
-            #if nd == 0:
-            #    blob_vals[key] = sim.get_blob(key)
-            #elif nd == 1:    
-            blob_vals[key] = sim.get_blob(key)
-            #else:
-            #    raise NotImplementedError('help')
-
-        try:
-            # will return 0 if there are no blobs
-            return self.priors_B.log_value(blob_vals)
-        except:
-            # some of the blobs were not retrieved (then they are Nones)!
-            return -np.inf
-    
     @property
-    def blank_blob(self):
-        if not hasattr(self, '_blank_blob'):
+    def const_term(self):
+        if not hasattr(self, '_const_term'):
+            self._const_term = -np.log(np.sqrt(2. * np.pi)) \
+                             -  np.sum(np.log(self.error))
+        return self._const_term
+
+    #def _compute_blob_prior(self, sim):
+    #    blob_vals = {}
+    #    for key in self.priors_B.params:
+    #
+    #        grp, i, nd, dims = sim.blob_info(key)
+    #        
+    #        #if nd == 0:
+    #        #    blob_vals[key] = sim.get_blob(key)
+    #        #elif nd == 1:    
+    #        blob_vals[key] = sim.get_blob(key)
+    #        #else:
+    #        #    raise NotImplementedError('help')
+    #
+    #    try:
+    #        # will return 0 if there are no blobs
+    #        return self.priors_B.log_value(blob_vals)
+    #    except:
+    #        # some of the blobs were not retrieved (then they are Nones)!
+    #        return -np.inf
+    #
+    #@property
+    #def blank_blob(self):
+    #    if not hasattr(self, '_blank_blob'):
+    #        
+    #        if self.blob_names is None:
+    #            self._blank_blob = []
+    #            return []
+    #
+    #        self._blank_blob = []
+    #        for i, group in enumerate(self.blob_names):
+    #            if self.blob_ivars[i] is None:
+    #                self._blank_blob.append([np.inf] * len(group))
+    #            else:
+    #                if self.blob_nd[i] == 0:
+    #                    self._blank_blob.append([np.inf] * len(group))
+    #                elif self.blob_nd[i] == 1:
+    #                    arr = np.ones([len(group), self.blob_dims[i][0]])
+    #                    self._blank_blob.append(arr * np.inf)
+    #                elif self.blob_nd[i] == 2:
+    #                    dims = len(group), self.blob_dims[i][0], \
+    #                        self.blob_dims[i][1]
+    #                    arr = np.ones(dims)
+    #                    self._blank_blob.append(arr * np.inf)
+    #
+    #    return self._blank_blob
+    #    
+    #def checkpoint(self, **kwargs):
+    #    if self.checkpoint_by_proc:
+    #        procid = str(rank).zfill(3)
+    #        fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix, procid)
+    #        write_pickle_file(kwargs, fn, ndumps=1, open_mode='w',\
+    #            safe_mode=False, verbose=False)
+    #        
+    #        fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
+    #        with open(fn, 'w') as f:
+    #            print("Simulation began: {!s}".format(time.ctime()), file=f)
+    #        
+    #def checkpoint_on_completion(self, **kwargs):
+    #    if self.checkpoint_by_proc:
+    #        procid = str(rank).zfill(3)
+    #        fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
+    #        with open(fn, 'a') as f:
+    #            print("Simulation finished: {!s}".format(time.ctime()), file=f)
             
-            if self.blob_names is None:
-                self._blank_blob = []
-                return []
-    
-            self._blank_blob = []
-            for i, group in enumerate(self.blob_names):
-                if self.blob_ivars[i] is None:
-                    self._blank_blob.append([np.inf] * len(group))
-                else:
-                    if self.blob_nd[i] == 0:
-                        self._blank_blob.append([np.inf] * len(group))
-                    elif self.blob_nd[i] == 1:
-                        arr = np.ones([len(group), self.blob_dims[i][0]])
-                        self._blank_blob.append(arr * np.inf)
-                    elif self.blob_nd[i] == 2:
-                        dims = len(group), self.blob_dims[i][0], \
-                            self.blob_dims[i][1]
-                        arr = np.ones(dims)
-                        self._blank_blob.append(arr * np.inf)
-    
-        return self._blank_blob
-        
-    def checkpoint(self, **kwargs):
-        if self.checkpoint_by_proc:
-            procid = str(rank).zfill(3)
-            fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix, procid)
-            write_pickle_file(kwargs, fn, ndumps=1, open_mode='w',\
-                safe_mode=False, verbose=False)
-            
-            fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
-            with open(fn, 'w') as f:
-                print("Simulation began: {!s}".format(time.ctime()), file=f)
-            
-    def checkpoint_on_completion(self, **kwargs):
-        if self.checkpoint_by_proc:
-            procid = str(rank).zfill(3)
-            fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
-            with open(fn, 'a') as f:
-                print("Simulation finished: {!s}".format(time.ctime()), file=f)
-            
-class ModelFit(BlobFactory):
+class FitBase(BlobFactory):
     def __init__(self, **kwargs):
         """
         Initialize a wrapper class for MCMC simulations.
@@ -272,8 +277,8 @@ class ModelFit(BlobFactory):
         """
 
         self.base_kwargs = def_kwargs.copy()
-        self.base_kwargs.update(kwargs)          
-          
+        self.base_kwargs.update(kwargs)
+        
     @property
     def info(self):
         print_fit(self)      
@@ -289,6 +294,31 @@ class ModelFit(BlobFactory):
         self._pf = value
         
     @property
+    def parameters(self):
+        if not hasattr(self, '_parameters'):
+            if not hasattr(self, '_parameters'):    
+                raise AttributeError("Must set parameters by hand!")
+        return self._parameters
+    
+    @parameters.setter
+    def parameters(self, value):
+        self._parameters = value
+    
+    @property
+    def is_log(self):
+        if not hasattr(self, '_is_log'):
+            self._is_log = [False] * self.Nd
+        return self._is_log
+    
+    @is_log.setter         
+    def is_log(self, value):
+        if type(value) is bool:
+            self._is_log = [value] * self.Nd
+        else:
+            assert len(value) == self.Nd
+            self._is_log = value
+        
+    @property
     def blob_info(self):
         if not hasattr(self, '_blob_info'):
             self._blob_info = \
@@ -298,6 +328,9 @@ class ModelFit(BlobFactory):
                  'blob_nd': self.blob_nd,
                  'blob_dims': self.blob_dims}
         return self._blob_info
+        
+    
+class ModelFit(FitBase):
                                                                                   
     @property
     def loglikelihood(self):
@@ -311,9 +344,9 @@ class ModelFit(BlobFactory):
         """
         Supply log-likelihood function.
         """        
-        
+
         self._loglikelihood = value
-            
+
     @property
     def seed(self):
         if not hasattr(self, '_seed'):
@@ -638,31 +671,6 @@ class ModelFit(BlobFactory):
             assert (len(value) == len(self.parameters)), jitter_shape_error 
                 
             self._jitter = np.array(value)
-            
-    @property
-    def parameters(self):
-        if not hasattr(self, '_parameters'):
-            if not hasattr(self, '_parameters'):    
-                raise AttributeError("Must set parameters by hand!")
-        return self._parameters
-        
-    @parameters.setter
-    def parameters(self, value):
-        self._parameters = value
-    
-    @property
-    def is_log(self):
-        if not hasattr(self, '_is_log'):
-            self._is_log = [False] * self.Nd
-        return self._is_log
-          
-    @is_log.setter         
-    def is_log(self, value):
-        if type(value) is bool:
-            self._is_log = [value] * self.Nd
-        else:
-            assert len(value) == self.Nd
-            self._is_log = value
             
     def prep_output_files(self, restart, clobber):
         if restart:

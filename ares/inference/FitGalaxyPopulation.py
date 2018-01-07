@@ -17,9 +17,10 @@ from ..util.Pickling import write_pickle_file
 from ..util.PrintInfo import print_fit
 import gc, os, sys, copy, types, time, re
 from ..util.ParameterFile import par_info
-from ..populations import GalaxyPopulation
 from ..util.Stats import symmetrize_errors
-from .ModelFit import LogLikelihood, ModelFit
+from ..populations import GalaxyPopulation, GalaxyCohort
+from .ModelFit import LogLikelihood, FitBase, def_kwargs
+
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -61,13 +62,6 @@ class loglikelihood(LogLikelihood):
         self._units = value     
     
     @property
-    def const_term(self):
-        if not hasattr(self, '_const_term'):
-            self._const_term = -np.log(np.sqrt(twopi)) \
-                             -  np.sum(np.log(self.error))
-        return self._const_term
-        
-    @property
     def mask(self):
         if not hasattr(self, '_mask'):
             if type(self.xdata) is np.ma.core.MaskedArray:
@@ -92,7 +86,7 @@ class loglikelihood(LogLikelihood):
                 
         return self._include
 
-    def __call__(self, pars, blobs=None):
+    def __call__(self, sim):
         """
         Compute log-likelihood for model generated via input parameters.
     
@@ -102,42 +96,19 @@ class loglikelihood(LogLikelihood):
     
         """
                 
-        kwargs = {}
-        for i, par in enumerate(self.parameters):
-        
-            if self.is_log[i]:
-                kwargs[par] = 10**pars[i]
-            else:
-                kwargs[par] = pars[i]
-
-        # Apply prior on model parameters first (dont need to generate model)
-        point = {}
-        for i in range(len(self.parameters)):
-            point[self.parameters[i]] = pars[i]
-            
-        lp = self.priors_P.log_value(point)
-                
-        if not np.isfinite(lp):
-            return -np.inf, self.blank_blob
-
-        # Update kwargs
-        kw = self.base_kwargs.copy()
-        kw.update(kwargs)
-
-        # Don't save base_kwargs for each proc! Needlessly expensive I/O-wise.
-        self.checkpoint(**kwargs)
-
-        pop = self.pop = GalaxyPopulation(**kw)
-                        
-        #if self.priors_B.params != []:
-        #    lp += self._compute_blob_prior(sim)
-
-        # emcee will crash if this returns NaN. OK if it's inf though.
-        if np.isnan(lp):
-            return -np.inf, self.blank_blob
-        
-        t1 = time.time()
-                        
+        # Figure out if `sim` is a population object or not.
+        # OK if it's a simulation, will loop over LF-bearing populations.        
+        if not isinstance(sim, GalaxyCohort.GalaxyCohort):
+            pops = []
+            for pop in sim.pops:
+                if not hasattr(pop, 'LuminosityFunction'):
+                    continue
+                    
+                pops.append(pop)
+                    
+        else:
+            pops = [sim]
+                                                                
         # Loop over all data points individually.
         #try:
         phi = np.zeros_like(self.ydata)
@@ -149,30 +120,32 @@ class loglikelihood(LogLikelihood):
             xdat = self.xdata[i]
             z = self.redshifts[i]
             
-            # Generate model LF
-            if quantity == 'lf':
-                # Dust correction for observed galaxies
-                AUV = pop.dust.AUV(z, xdat)
-        
-                # The input magnitudes are assumed to be *not* yet
-                # corrected for dust, i.e., they are the observed magnitudes.
-                # So, we need to apply a dust correction to those magnitudes
-                # before passing them to the model, which assumes the input
-                # magnitudes of interest are the intrinsic magnitudes.
+            for pop in pops:
+            
+                # Generate model LF
+                if quantity == 'lf':
+                    # Dust correction for observed galaxies
+                    AUV = pop.dust.AUV(z, xdat)
+                
+                    # The input magnitudes are assumed to be *not* yet
+                    # corrected for dust, i.e., they are the observed magnitudes.
+                    # So, we need to apply a dust correction to those magnitudes
+                    # before passing them to the model, which assumes the input
+                    # magnitudes of interest are the intrinsic magnitudes.
+                
+                    # Compare data to model at dust-corrected magnitudes
+                    M = xdat - AUV
+                                    
+                    # Compute LF
+                    p = pop.LuminosityFunction(z=z, x=M, mags=True)
+                elif quantity == 'smf':
+                    M = xdat
+                    p = pop.StellarMassFunction(z, M)                
+                else:
+                    raise ValueError('Unrecognized quantity: {!s}'.format(\
+                        quantity))
 
-                # Compare data to model at dust-corrected magnitudes
-                M = xdat - AUV
-                                
-                # Compute LF
-                p = pop.LuminosityFunction(z=z, x=M, mags=True)
-            elif quantity == 'smf':
-                M = xdat
-                p = pop.StellarMassFunction(z, M)                
-            else:
-                raise ValueError('Unrecognized quantity: {!s}'.format(\
-                    quantity))
-
-            phi[i] = p
+                phi[i] += p
                         
         #except:
         #    return -np.inf, self.blank_blob
@@ -181,27 +154,10 @@ class loglikelihood(LogLikelihood):
 
         lnL = 0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
 
-        ##
-        # Multiply by posterior for any other (optionally-include) quantities
-        ##
-
-        # Final posterior calculation
-        PofD = lp + self.const_term - lnL
-
-        if np.isnan(PofD) or (type(phi) == np.ma.core.MaskedConstant):
-            return -np.inf, self.blank_blob
-  
-        try:
-            blobs = pop.blobs
-        except:
-            blobs = self.blank_blob
-
-        del pop, kw
-        gc.collect()
-
-        return PofD, blobs
+        return lnL + self.const_term
     
-class FitGalaxyPopulation(ModelFit):
+class FitGalaxyPopulation(FitBase):
+    
     @property 
     def save_hmf(self):
         if not hasattr(self, '_save_hmf'):
@@ -226,7 +182,11 @@ class FitGalaxyPopulation(ModelFit):
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
 
-            if (self.save_hmf or self.save_psm):        
+            if (self.save_hmf or self.save_psm):   
+                
+                assert self.base_kwargs != def_kwargs, \
+                    "Must supply base_kwargs if saving tabular data!"
+                     
                 pop = GalaxyPopulation(**self.base_kwargs)
 
                 if self.save_hmf:
@@ -240,10 +200,7 @@ class FitGalaxyPopulation(ModelFit):
                     self.base_kwargs['pop_psm_instance'] = psm
 
             self._loglikelihood = loglikelihood(self.xdata_flat, 
-                self.ydata_flat, self.error_flat, 
-                self.parameters, self.is_log, self.base_kwargs, 
-                self.prior_set_P, self.prior_set_B, 
-                self.prefix, self.blob_info, self.checkpoint_by_proc)
+                self.ydata_flat, self.error_flat)
             
             self._loglikelihood.redshifts = self.redshifts_flat
             self._loglikelihood.metadata = self.metadata_flat

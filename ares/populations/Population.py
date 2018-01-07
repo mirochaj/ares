@@ -91,6 +91,10 @@ class Population(object):
         
         self._eV_per_phot = {}
         self._conversion_factors = {}
+        
+    def run(self):
+        # Avoid breaks in fitting (make it look like ares.simulation object)
+        pass    
 
     @property
     def id_num(self):
@@ -608,6 +612,5 @@ class Population(object):
         self._eV_per_phot[(Emin, Emax)] = Eavg
     
         return Eavg    
-    
     
     
