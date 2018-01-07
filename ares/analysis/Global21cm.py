@@ -138,14 +138,20 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     @property
     def z_A(self):
         if not hasattr(self, '_z_A'):
+                        
             zall = self.history_asc['z']
             Tall = self.history_asc['dTb']
             zfl = self.pf['first_light_redshift']
             zok = np.logical_and(zall > zfl, zall < 1e3)
-            dTb = interp1d(zall[zok], Tall[zok], kind='cubic')
+            
+            zguess = zall[zok][np.argmin(Tall[zok])]
+            
+            zslc = np.logical_and(zall[zok] > zguess - 2., zall[zok] < zguess + 2.)
+            
+            dTb = interp1d(zall[zok][zslc], Tall[zok][zslc], kind='cubic')
             
             try:
-                to_min = minimize(lambda zz: dTb(zz), 80.)    
+                to_min = minimize(lambda zz: dTb(zz), zguess)    
                 self._z_A = to_min.x[0]
             except:
                 self._z_A = -np.inf

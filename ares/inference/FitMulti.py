@@ -81,24 +81,26 @@ class FitMulti(ModelFit):
         # Don't save base_kwargs for each proc! Needlessly expensive I/O-wise.
         self.checkpoint(**kwargs)
 
+        t1 = time.time()
         sim = self.sim = self.simulator(**kw)
         sim.run()
+        t2 = time.time()
         
         lnL = 0.0
         for fitter in self.fitters:
             lnL += fitter.loglikelihood(sim)
-        
+                    
         # Final posterior calculation
         PofD = lp - lnL
-        
+                
         if np.isnan(PofD):
             return -np.inf, self.blank_blob
-                
+            
         try:
             blobs = sim.blobs
         except:
             blobs = self.blank_blob
-        
+                    
         del sim, kw
         gc.collect()    
 

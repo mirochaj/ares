@@ -61,7 +61,7 @@ def parse_attribute(blob_name, obj_base):
         ares.simulation class.
         
     """
-        
+            
     # Check for decimals
     decimals = []
     for i in range(1, len(blob_name) - 1):
@@ -77,11 +77,11 @@ def parse_attribute(blob_name, obj_base):
             s += marker
         else:
             s += blob_name[i]
-        
+                
     attr_split = []
     for element in s.split('.'):
         attr_split.append(element.replace(marker, '.'))
-                                
+              
     if len(attr_split) == 1: 
         s = attr_split[0]
         return eval('obj_base.{!s}'.format(s))
@@ -449,13 +449,13 @@ class BlobFactory(object):
             j = index corresponding to elements of self.blob_names
             k = index corresponding to elements of self.blob_ivars[i]
         """
-        
+                
         self._blobs = []
         for i, element in enumerate(self.blob_names):
-                                    
+                                                
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                                                                                            
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -464,6 +464,7 @@ class BlobFactory(object):
                         blob = parse_attribute(key, self)
                     else:
                         fname = self.blob_funcs[i][j]
+                                                
                         # In this case, the return of parse_attribute is
                         # a value, not a function to be applied to ivars.
                         blob = parse_attribute(fname, self)
