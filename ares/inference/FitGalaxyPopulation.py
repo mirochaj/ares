@@ -108,7 +108,7 @@ class loglikelihood(LogLikelihood):
                     
         else:
             pops = [sim]
-                                                                
+                                                                                                                  
         # Loop over all data points individually.
         #try:
         phi = np.zeros_like(self.ydata)
@@ -145,7 +145,7 @@ class loglikelihood(LogLikelihood):
                     raise ValueError('Unrecognized quantity: {!s}'.format(\
                         quantity))
 
-                phi[i] += p
+                phi[i] += p                                                      
                         
         #except:
         #    return -np.inf, self.blank_blob
@@ -222,27 +222,27 @@ class FitGalaxyPopulation(FitBase):
         
         self._redshift_bounds = tuple(value)
 
-    #@property
-    #def redshifts(self):
-    #    if not hasattr(self, '_redshifts'):
-    #        raise ValueError('Set by hand or include in litdata.')
-    #
-    #    return self._redshifts
-
-    #@redshifts.setter
-    #def redshifts(self, value):
-    #    # This can be used to override the redshifts in the dataset and only
-    #    # use some subset of them
-    #
-    #    # Need to be ready for 'lf' or 'smf' designation.
-    #    if len(self.include) > 1:
-    #        assert type(value) is dict
-    #
-    #    if type(value) in [int, float]:
-    #        value = [value]
-    #        
-    #    self._redshifts = value
-
+    @property
+    def redshifts(self):
+        if not hasattr(self, '_redshifts'):
+            raise ValueError('Set by hand or include in litdata.')
+    
+        return self._redshifts
+    
+    @redshifts.setter
+    def redshifts(self, value):
+        # This can be used to override the redshifts in the dataset and only
+        # use some subset of them
+    
+        # Need to be ready for 'lf' or 'smf' designation.
+        if len(self.include) > 1:
+            assert type(value) is dict
+    
+        if type(value) in [int, float]:
+            value = [value]                
+            
+        self._redshifts = value
+    
     @property
     def data(self):
         if not hasattr(self, '_data'):
@@ -272,12 +272,17 @@ class FitGalaxyPopulation(FitBase):
 
             z_by_range = hasattr(self, '_redshift_bounds')
             z_by_hand = hasattr(self, '_redshifts')
- 
-            self._redshifts = {quantity:[] for quantity in self.include}
+            
+            if not z_by_hand:
+                self._redshifts = {quantity:[] for quantity in self.include}
 
+            # Loop over data sources
             for src in value:
+                
+                # Grab the data
                 litdata = read_lit(src)
 
+                # Loop over LF, SMF, etc.
                 for quantity in self.include:
                     if quantity not in litdata.data.keys():
                         continue
@@ -285,7 +290,7 @@ class FitGalaxyPopulation(FitBase):
                     # Short hand
                     data = litdata.data[quantity]
                     redshifts = litdata.redshifts
-                    
+                                        
                     # This is always just a number or str, i.e.,
                     # no need to breakdown by redshift so just do it now
                     self._units[quantity].append(litdata.units[quantity])
@@ -307,14 +312,16 @@ class FitGalaxyPopulation(FitBase):
                                     continue
                             
                             # z by hand from here down.
-                            if z not in self._redshifts:
+                            if z not in self._redshifts[quantity]:
                                 continue
                                 
                             srczarr.append(z)
                             srcdata[z] = data[z]   
                                                     
                     self._data[quantity].append(srcdata)
-                    self._redshifts[quantity].append(srczarr)
+                    
+                    if not z_by_hand:
+                        self._redshifts[quantity].append(srczarr)
                             
 
         else:
@@ -339,9 +346,7 @@ class FitGalaxyPopulation(FitBase):
             self._metadata_flat = []
             
             for quantity in self.include:
-            
-                #for i, dataset in enumerate(self.redshifts[quantity]):
-                
+                            
                 # Sorted by sources
                 for i, dataset in enumerate(self.data[quantity]):
                                             
