@@ -1,14 +1,14 @@
 """
-Oesch et al., 2018, arxiv
+Oesch et al., 2017, arxiv
 
 Table 4 and volume estimate from text.
 """
 
-#info = \
-#{
-# 'reference': 'Oesch et al., 2016, ApJ, 786, 108',
-# 'data': 'Table 5', 
-#}
+info = \
+{
+ 'reference': 'Oesch et al., 2017, arXiv',
+ 'data': 'Table 4', 
+}
 
 redshifts = [10.]
 

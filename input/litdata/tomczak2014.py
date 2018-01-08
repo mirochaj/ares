@@ -34,11 +34,11 @@ tmp_data['smf'] = \
 {
  2: {'M': list(10**_x2),
      'phi': _y2,
-     'err': list(zip(*(_elo2, _ehi2))),
+     'err': list(zip(*(_ehi2, _elo2))),
     },
  3: {'M': list(10**_x3),
      'phi': _y3,
-     'err': list(zip(*(_elo3, _ehi3))),
+     'err': list(zip(*(_ehi3, _elo3))),
     },            
 }
 

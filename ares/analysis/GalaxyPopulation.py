@@ -25,7 +25,7 @@ except:
 
 datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
     'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
-    'reddy2009', 'weisz2014', 'oesch2018')
+    'reddy2009', 'weisz2014', 'bouwens2017', 'oesch2018')
 datasets_smf = ('song2016', 'tomczak2014')
 datasets_mzr = ('sanders2015',)
 
@@ -33,7 +33,7 @@ groups_lf = \
 {
  'dropouts': ('oesch2013', 'oesch2014', 'bouwens2015', 'parsa2016', 
     'finkelstein2015', 'vanderburg2010', 'reddy2009', 'oesch2018'),
- 'lensing': ('alavi2016', 'atek2015'),
+ 'lensing': ('alavi2016', 'atek2015', 'bouwens2017'),
  'local': ('weisz2014,'),
  'all': datasets_lf,
 }
@@ -159,8 +159,8 @@ class GalaxyPopulation(object):
                 for i, err in enumerate(src.data[quantity][z]['err']):
                     
                     if type(err) in [list, tuple, np.ndarray]:
-                        err_hi.append(err[1])
-                        err_lo.append(err[0])
+                        err_hi.append(err[0])
+                        err_lo.append(err[1])
                         uplims.append(False)
                     elif err is None:
                         err_lo.append(0)
@@ -263,9 +263,6 @@ class GalaxyPopulation(object):
               
             ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
                 label=source, **kw)
-                
-        if quantity in ['lf', 'smf']:
-            ax.set_yscale('log', nonposy='clip')
 
         if quantity == 'lf' and (not gotax):
             ax.set_xlim(-26.5, -10)
@@ -282,6 +279,9 @@ class GalaxyPopulation(object):
             ax.set_ylabel(r'$12+\log{\mathrm{O/H}}$')
             ax.set_xlim(1e8, 1e12)
             ax.set_ylim(7, 9.5)
+            
+        if quantity in ['lf', 'smf']:
+            ax.set_yscale('log', nonposy='clip')    
             
         pl.draw()
         
