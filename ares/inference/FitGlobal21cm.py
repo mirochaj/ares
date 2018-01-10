@@ -81,11 +81,17 @@ class loglikelihood(LogLikelihood):
                 sim.history['igm_dTb'])
 
         if np.any(np.isnan(yarr)):
+            
+            #import matplotlib.pyplot as pl
+            #pl.plot(self.xdata, yarr)
+            #print('hey! GS: lnL={}'.format(lnL))
+            #raw_input('<enter>')
+            
             return -np.inf
 
-        lnL = 0.5 * (np.sum((yarr - self.ydata)**2 \
+        lnL = -0.5 * (np.sum((yarr - self.ydata)**2 \
             / self.error**2 + np.log(2. * np.pi * self.error**2))) 
-
+            
         return lnL + self.const_term
 
 class FitGlobal21cm(FitBase):

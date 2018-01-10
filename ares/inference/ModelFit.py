@@ -1032,7 +1032,11 @@ class ModelFit(FitBase):
             iterations=steps, rstate0=state, storechain=False):
             
             # Only the rank 0 processor ever makes it here
-                        
+            
+            print(pos.shape)
+            print(pos)
+            print(prob)
+                                    
             # If we're saving each checkpoint to its own file, this is the
             # identifier to use in the filename
             dd = 'dd' + str(ct // save_freq).zfill(4)
@@ -1244,12 +1248,10 @@ class ModelFit(FitBase):
         lnL = 0.0
         for fitter in self.fitters:
             lnL += fitter.loglikelihood(sim)
-    
+                
         # Final posterior calculation
-        PofD = lp - lnL
-    
-        print(lp, lnL)
-    
+        PofD = lp + lnL
+        
         if np.isnan(PofD):
             del sim, kw, kwargs
             gc.collect()

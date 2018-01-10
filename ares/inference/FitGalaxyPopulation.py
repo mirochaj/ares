@@ -154,7 +154,7 @@ class loglikelihood(LogLikelihood):
         
         del pops
 
-        lnL = 0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
+        lnL = -0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
 
         return lnL + self.const_term
     

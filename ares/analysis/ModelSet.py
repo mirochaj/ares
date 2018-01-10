@@ -4353,7 +4353,7 @@ class ModelSet(BlobFactory):
             
         for key in value:
             if key not in self.parameters:
-                print "WARNING: custom_label for par `` no in parameters list.".format(key)
+                print("WARNING: custom_label for par `{}` no in parameters list.".format(key))
         
             self._custom_labels[key] = value[key]
     
