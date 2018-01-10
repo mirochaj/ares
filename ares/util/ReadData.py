@@ -312,7 +312,7 @@ def flatten_chain(data):
     """
 
     if len(data.shape) != 3:
-        raise ValueError('chain ain\'t the right shape.')    
+        raise ValueError("Chain shape {} incorrect. Should be 3-D".format(data.shape))    
 
     new = []
     for i in range(data.shape[1]):
@@ -328,7 +328,7 @@ def flatten_logL(data):
     """
 
     if len(data.shape) != 2:
-        raise ValueError('chain ain\'t the right shape.')    
+        raise ValueError("loglikelihood shape {} incorrect. Should be 2-D".format(data.shape))
 
     new = []
     for i in range(data.shape[1]):

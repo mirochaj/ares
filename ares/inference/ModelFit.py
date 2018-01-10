@@ -975,7 +975,7 @@ class ModelFit(FitBase):
             t2 = time.time()
 
             print("Burn-in complete in {0:.3g} seconds.".format(t2 - t1))
-
+        
             # Save burn-in
             burn_prefix = prefix + '.burn'
             name = ['chain', 'logL', 'blobs']
@@ -988,18 +988,27 @@ class ModelFit(FitBase):
                     if self.blob_names is None:
                         continue
                     self.save_blobs(data, prefix=burn_prefix)
+                    continue
                 # Other stuff
+                elif name[i] == 'chain':
+                    
+                    # Quick restructure of chain
+                    rdata = np.array([data[:,kk,:] for kk in range(burn)])
+                    dat = flatten_chain(rdata)
                 else:
-                    fn = '{0!s}.{1!s}.pkl'.format(burn_prefix, name[i])
-                    write_pickle_file(data, fn, ndumps=1, open_mode='w',\
-                        safe_mode=False, verbose=True)
+                    rdata = np.array([data[:,kk] for kk in range(burn)])
+                    dat = flatten_logL(np.array([rdata]))
+                    
+                fn = '{0!s}.{1!s}.pkl'.format(burn_prefix, name[i])
+                write_pickle_file(dat, fn, ndumps=1, open_mode='w',\
+                    safe_mode=False, verbose=True)
                         
             # Find walker at highest likelihood point at end of burn
             mlpt = pos[np.argmax(prob)]
 
             pos = sample_ball(mlpt, np.std(pos, axis=0), size=self.nwalkers)
             #pos = self._fix_guesses(pos)
-            
+
             self.sampler.reset()
             
         elif not restart:
@@ -1032,11 +1041,7 @@ class ModelFit(FitBase):
             iterations=steps, rstate0=state, storechain=False):
             
             # Only the rank 0 processor ever makes it here
-            
-            print(pos.shape)
-            print(pos)
-            print(prob)
-                                    
+                          
             # If we're saving each checkpoint to its own file, this is the
             # identifier to use in the filename
             dd = 'dd' + str(ct // save_freq).zfill(4)
@@ -1053,7 +1058,7 @@ class ModelFit(FitBase):
 
             # Remember that pos.shape = (nwalkers, ndim)
             # So, pos_all has shape = (nsteps, nwalkers, ndim)
-
+            
             data = [flatten_chain(np.array(pos_all)),
                     flatten_logL(np.array(prob_all)),
                     blobs_all]
@@ -1256,6 +1261,11 @@ class ModelFit(FitBase):
             del sim, kw, kwargs
             gc.collect()
             return -np.inf, self.blank_blob
+            
+        # Remember, -np.inf is OK (means proposal was bad, probably).
+        # +inf is NOT OK! Something is horribly wrong. Helpful in debugging.
+        if PofD == np.inf:
+            raise ValueError('+inf obtained in likelihood. Should not happen!')
     
         try:
             blobs = sim.blobs

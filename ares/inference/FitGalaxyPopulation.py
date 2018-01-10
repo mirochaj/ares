@@ -146,12 +146,12 @@ class loglikelihood(LogLikelihood):
                         quantity))
 
                 phi[i] += p                                                      
-                        
+
         #except:
         #    return -np.inf, self.blank_blob
 
         #phi = np.ma.array(_phi, mask=self.mask)
-        
+
         del pops
 
         lnL = -0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)

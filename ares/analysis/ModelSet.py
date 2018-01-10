@@ -285,9 +285,15 @@ class ModelSet(BlobFactory):
     def nwalkers(self):
         # Read parameter names and info
         if not hasattr(self, '_nwalkers'):
-            if os.path.exists('{!s}.rinfo.pkl'.format(self.prefix)):
+            burn = self.prefix.endswith('.burn')
+            if burn:
+                pre = self.prefix.replace('.burn', '')
+            else:
+                pre = self.prefix
+                
+            if os.path.exists('{!s}.rinfo.pkl'.format(pre)):
                 loaded =\
-                    read_pickle_file('{!s}.rinfo.pkl'.format(self.prefix),\
+                    read_pickle_file('{!s}.rinfo.pkl'.format(pre),\
                     nloads=1, verbose=False)
                 self._nwalkers, self._save_freq, self._steps = \
                     list(map(int, loaded))

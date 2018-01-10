@@ -128,6 +128,7 @@ common = \
  
  'tau_e': r'$\tau_e$',
  'tau_tot': r'$\tau_e$', 
+ 'z_dec': r'$z_{\mathrm{dec}}$',
  
  'skewness_absorption': r'$\mu_{3, \mathrm{abs}}$',
  'kurtosis_absorption': r'$\mu_{4, \mathrm{abs}}$',

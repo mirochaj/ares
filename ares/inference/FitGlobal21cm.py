@@ -91,7 +91,7 @@ class loglikelihood(LogLikelihood):
 
         lnL = -0.5 * (np.sum((yarr - self.ydata)**2 \
             / self.error**2 + np.log(2. * np.pi * self.error**2))) 
-            
+                        
         return lnL + self.const_term
 
 class FitGlobal21cm(FitBase):
