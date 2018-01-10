@@ -1,4 +1,4 @@
-from ares.inference.FitMulti import FitMulti
+from ares.inference.ModelFit import ModelFit
 from ares.inference.ModelGrid import ModelGrid
 from ares.inference.FitHelper import FitHelper
 from ares.inference.ModelSample import ModelSample

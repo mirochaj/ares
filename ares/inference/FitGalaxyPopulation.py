@@ -151,6 +151,8 @@ class loglikelihood(LogLikelihood):
         #    return -np.inf, self.blank_blob
 
         #phi = np.ma.array(_phi, mask=self.mask)
+        
+        del pops
 
         lnL = 0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
 
@@ -363,42 +365,42 @@ class FitGalaxyPopulation(FitBase):
                         else:
                             self._mask.extend(np.zeros_like(M))
                             self._xdata_flat.extend(M)                        
-                        
+
                         if self.units[quantity][i] == 'log10':
                             _phi = 10**phi
                         else:    
                             _phi = phi
-                            
+
                         if hasattr(M, 'mask'):
                             self._ydata_flat.extend(_phi.data)
                         else:
                             self._ydata_flat.extend(_phi)
-                
+
                         # Cludge for asymmetric errors
                         for k, _err in enumerate(err):
-                        
+
                             if self.units[quantity][i] == 'log10':
                                 _err_ = symmetrize_errors(phi[k], _err,
                                     operation='min')
                             else:
                                 _err_ = _err
-                            
+
                             if type(_err_) in [tuple, list]:
                                 self._error_flat.append(np.mean(_err_))
                             else:
                                 self._error_flat.append(_err_)
-                        
+
                         zlist = [redshift] * len(M)
                         self._redshifts_flat.extend(zlist)
                         self._metadata_flat.extend([quantity] * len(M))
-                
+
             self._mask = np.array(self._mask)
             self._xdata_flat = np.ma.array(self._xdata_flat, mask=self._mask)
             self._ydata_flat = np.ma.array(self._ydata_flat, mask=self._mask)
             self._error_flat = np.ma.array(self._error_flat, mask=self._mask)
 
         return self._xdata_flat
-    
+
     @property
     def ydata_flat(self):
         if not hasattr(self, '_ydata_flat'):

@@ -27,10 +27,10 @@ try:
 except ImportError:
     pass
 
-try:
-    import astropy.stats as astats
-except ImportError:
-    pass    
+#try:
+#    import astropy.stats as astats
+#except ImportError:
+#    pass    
 
 try:
     import sklearn.gaussian_process as gp

@@ -136,6 +136,10 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         return self._dTb2dnu2        
         
     @property
+    def nu_A(self):
+        return nu_0_mhz / (1. + self.z_A)
+        
+    @property
     def z_A(self):
         if not hasattr(self, '_z_A'):
                         
@@ -147,6 +151,14 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             zguess = zall[zok][np.argmin(Tall[zok])]
             
             zslc = np.logical_and(zall[zok] > zguess - 2., zall[zok] < zguess + 2.)
+            
+            dz = 2.
+            while zslc.sum() < 5:
+                zslc = np.logical_and(zall[zok] > zguess - dz, zall[zok] < zguess + dz)
+                dz += 1.
+                
+                if dz > 10:
+                    break
             
             dTb = interp1d(zall[zok][zslc], Tall[zok][zslc], kind='cubic')
             

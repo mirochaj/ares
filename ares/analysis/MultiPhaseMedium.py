@@ -415,49 +415,7 @@ class MultiPhaseMedium(object):
         pl.draw()
         
         return ax_freq
-        
-    def add_time_axis(self, ax):
-        """
-        Take plot with redshift on x-axis and add top axis with corresponding 
-        time since Big Bang.
-        
-        This is crude at the moment -- should self-consistently solve for
-        age of the universe.
-        
-        Parameters
-        ----------
-        ax : matplotlib.axes.AxesSubplot instance
-        """
-        
-        age = 13.7 * 1e3 # Myr
-        
-        t = np.arange(100, 1e3, 100) # in Myr
-        t_minor = np.arange(0, 1e3, 50)[1::2]
-        
-        zt = list(map(lambda tt: self.cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
-            np.inf), t))
-        zt_minor = list(map(lambda tt: self.cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
-            np.inf), t_minor))
-        
-        ax_time = ax.twiny()
-        ax_time.set_xlabel(labels['t_myr'])        
-        ax_time.set_xticks(zt)
-        ax_time.set_xticks(zt_minor, minor=True)
-        ax_time.set_xlim(ax.get_xlim())
-        
-        # A bit hack-y
-        time_labels = list(map(str, list(map(int, t))))
-        for i, label in enumerate(time_labels):
-            tnow = float(label)
-            if (tnow in [400, 600, 700]) or (tnow > 800):
-                time_labels[i] = ''    
-            
-        ax_time.set_xticklabels(time_labels)
-        
-        pl.draw()
-        
-        return ax_time
-        
+                
     def reverse_x_axis(self, ax, twinax=None):
         """
         By default, we plot quantities vs. redshift, ascending from left to 
@@ -983,3 +941,52 @@ def add_redshift_axis(ax, twin_ax=None, zlim=80):
     pl.draw()
 
     return ax_z
+    
+def add_time_axis(ax, cosm, tlim=(1, 1000), dt=10, dtm=5, tarr=None,
+    tarr_m=None):
+    """
+    Take plot with redshift on x-axis and add top axis with corresponding 
+    time since Big Bang.
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.AxesSubplot instance
+    """
+    
+    
+    if tarr is None:
+        t = np.arange(tlim[0], tlim[1]+dt, dt) # in Myr
+        t_minor = np.arange(tlim[0], tlim[1]+dt, dtm)[1::2]
+    else:
+        t = tarr
+        t_minor = None
+    
+    zt = list(map(lambda tt: cosm.z_of_t(tt * s_per_myr), t))
+        
+    ax_time = ax.twiny()
+    #if t_minor is not None:
+    #    zt_minor = list(map(lambda tt: cosm.TimeToRedshiftConverter(0., tt * s_per_myr, 
+    #        np.inf), t_minor))
+    #    ax_time.set_xticks(zt_minor, minor=True)
+            
+    ax_time.set_xlabel(r'$t / \mathrm{Myr}$')        
+    ax_time.set_xticks(zt)
+    
+    
+    print(ax.get_xlim())
+    print(ax_time.get_xlim())
+    
+    # A bit hack-y
+    time_labels = list(map(str, list(map(int, t))))
+    for i, label in enumerate(time_labels):
+        tnow = float(label)
+        if (tnow in [400, 600, 700]) or (tnow > 800):
+            time_labels[i] = ''    
+                
+    ax_time.set_xticklabels(time_labels)
+    ax_time.set_xlim(ax.get_xlim())
+    
+    pl.draw()
+    
+    return ax_time
+

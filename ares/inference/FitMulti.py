@@ -81,6 +81,9 @@ class FitMulti(ModelFit):
         # Don't save base_kwargs for each proc! Needlessly expensive I/O-wise.
         self.checkpoint(**kwargs)
 
+        for i, par in enumerate(self.parameters):
+            print(rank, par, pars[i], kwargs[par])
+
         t1 = time.time()
         sim = self.sim = self.simulator(**kw)
         
@@ -88,6 +91,8 @@ class FitMulti(ModelFit):
             sim.run()
         except ValueError:
             print(kwargs)
+            del sim, kw, kwargs
+            gc.collect()
             return -np.inf, self.blank_blob
             
         t2 = time.time()
@@ -95,11 +100,15 @@ class FitMulti(ModelFit):
         lnL = 0.0
         for fitter in self.fitters:
             lnL += fitter.loglikelihood(sim)
-                    
+
         # Final posterior calculation
         PofD = lp - lnL
+               
+        print(lp, lnL)
                 
         if np.isnan(PofD):
+            del sim, kw, kwargs
+            gc.collect()
             return -np.inf, self.blank_blob
             
         try:
@@ -107,9 +116,9 @@ class FitMulti(ModelFit):
         except:
             blobs = self.blank_blob
                     
-        del sim, kw
-        gc.collect()    
-
+        del sim, kw, kwargs
+        gc.collect()
+        
         return PofD, blobs        
 
     def _compute_blob_prior(self, sim):

@@ -23,6 +23,14 @@ from ..physics.Constants import nu_0_mhz, E_LyA
 from ..util import ParameterFile, ProgressBar, get_hg_rev
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
 
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1
+
 class _DummyClass(object):
     def __init__(self, f):
         self.f = f
@@ -55,7 +63,7 @@ class Global21cm(AnalyzeGlobal21cm):
         # Print info to screen
         if self.pf['verbose']:
             print_sim(self)
-        
+                    
     @property 
     def timer(self):
         if not hasattr(self, '_timer'):

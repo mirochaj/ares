@@ -27,6 +27,14 @@ try:
 except:
     # this try/except allows for python 2/3 compatible string type checking
     basestring = str
+    
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1    
  
 def_kwargs = {'verbose': False, 'progress_bar': False}
 
@@ -52,7 +60,7 @@ class loglikelihood(LogLikelihood):
         Tuple: (log likelihood, blobs)
 
         """
-
+                
         # Compute the likelihood if we've made it this far
         if self.turning_points:
             tps = sim.turning_points
@@ -65,13 +73,13 @@ class loglikelihood(LogLikelihood):
                 return -np.inf
 
             yarr = np.array(nu + T)
-            
+
             assert len(yarr) == len(self.ydata)
-                    
+
         else:
             yarr = np.interp(self.xdata, sim.history['nu'],            
-                sim.history['igm_dTb'])                             
-                
+                sim.history['igm_dTb'])
+
         if np.any(np.isnan(yarr)):
             return -np.inf
 

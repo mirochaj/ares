@@ -1191,7 +1191,7 @@ class ModelSet(BlobFactory):
     def plot_info(self, value):
         self._plot_info = value
         
-    def WalkerTrajectoriesMultiPlot(self, pars=None, N=50, walkers='first', 
+    def WalkerTrajectoriesMultiPlot(self, pars=None, N='all', walkers='first', 
         ax=None, fig=1, mp_kwargs={}, best_fit='mode', ncols=1, **kwargs):
         """
         Plot trajectories of `N` walkers for multiple parameters at once.
@@ -1200,9 +1200,11 @@ class ModelSet(BlobFactory):
         if pars is None:
             pars = self.parameters
 
+        if N == 'all':
+            N = self.nwalkers
+
         Npars = len(pars)
-        mp = MultiPanel(dims=(Npars//ncols, ncols), fig=fig, 
-            padding=(0.3, 0.3), **mp_kwargs)
+        mp = MultiPanel(dims=(Npars//ncols, ncols), fig=fig, **mp_kwargs)
 
         w = self._get_walker_subset(N, walkers)
 
@@ -1210,7 +1212,7 @@ class ModelSet(BlobFactory):
             loc = None
         elif best_fit == 'median':
             N = len(self.logL)
-            loc = np.sort(self.logL)[int(N / 2.)]
+            loc = np.sort(self.logL)[N // 2]
         elif best_fit == 'mode':
             loc = np.argmax(self.logL)
 
@@ -1223,9 +1225,7 @@ class ModelSet(BlobFactory):
             k = self.parameters.index(par)
             mp.grid[i].plot([0, self.chain[:,k].size / float(self.nwalkers)], 
                 [self.chain[loc,k]]*2, color='k', ls='--', lw=5)
-            
-        mp.fix_ticks()
-            
+                
         return mp           
                 
     def WalkerTrajectories(self, par, N=50, walkers='first', ax=None, fig=1,
@@ -1316,7 +1316,9 @@ class ModelSet(BlobFactory):
         return ax
         
     def _get_walker_subset(self, N=50, walkers='random'):
+
         to_plot = np.arange(self.nwalkers)
+        
         if walkers == 'random':
             np.random.shuffle(to_plot)
             slc = slice(0, N)
@@ -2648,7 +2650,7 @@ class ModelSet(BlobFactory):
         if 'labels' in kw:
             labels = kwargs['labels']
         else:
-            labels = {}
+            labels = self.custom_labels
             
         # Only make a new plot window if there isn't already one
         if ax is None:
@@ -3083,7 +3085,7 @@ class ModelSet(BlobFactory):
         bins=20,  scatter=False, polygons=False, 
         skip=0, skim=1, stop=None, oned=True, twod=True, fill=True, 
         show_errors=False, label_panels=None, 
-        fix=True, skip_panels=[], mp_kwargs={},
+        fix=True, skip_panels=[], mp_kwargs={}, 
         **kwargs):
         """
         Make an NxN panel plot showing 1-D and 2-D posterior PDFs.
@@ -3351,9 +3353,10 @@ class ModelSet(BlobFactory):
                                 
                 self.plot_info[k]['input'] = (xin, yin)
 
+                mult = np.array([0.995, 1.005])
+
                 # Plot as dotted lines
                 if xin is not None:
-                    mult = np.array([0.995, 1.005])
                     mp.grid[k].plot([xin]*2, mult * np.array(mp.grid[k].get_ylim()), 
                         color='k',ls=':', zorder=20)
                 if yin is not None:
@@ -4333,12 +4336,34 @@ class ModelSet(BlobFactory):
         #out = '{0!s}/{1!s}.{2!s}.pinfo.pkl'.format(path, self.prefix, prefix)
         #shutil.copy('{!s}.pinfo.pkl'.format(self.prefix), out)
         #print "Wrote {!s}.".format(out)
+        
+    @property
+    def custom_labels(self):
+        if not hasattr(self, '_custom_labels'):
+            self._custom_labels = {}
+        return self._custom_labels
+    
+    @custom_labels.setter
+    def custom_labels(self, value):
+    
+        assert type(value) is dict
+
+        if not hasattr(self, '_custom_labels'):
+            self._custom_labels = {}
+            
+        for key in value:
+            if key not in self.parameters:
+                print "WARNING: custom_label for par `` no in parameters list.".format(key)
+        
+            self._custom_labels[key] = value[key]
+    
     
     @property
     def labeler(self):
         if not hasattr(self, '_labeler'):
             kw = self.base_kwargs if self.base_kwargs is not None else {}
-            self._labeler = Labeler(self.parameters, self.is_log, **kw)
+            self._labeler = Labeler(self.parameters, self.is_log, 
+                extra_labels=self.custom_labels, **kw)
         return self._labeler
         
     def set_axis_labels(self, ax, pars, take_log=False, un_log=False,

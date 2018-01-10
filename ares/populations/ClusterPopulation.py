@@ -68,7 +68,7 @@ class ClusterPopulation(Population):
                 self._frd_ = ParameterizedQuantity(**pars)    
             else:
                 tmp = read_lit(self.pf['pop_frd'], verbose=self.pf['verbose'])
-                self._frd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
+                self._frd_ = lambda z: tmp.FRD(z, **self.pf['pop_kwargs'])
     
         return self._frd_
                 
