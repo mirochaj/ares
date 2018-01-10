@@ -997,7 +997,7 @@ class ModelFit(FitBase):
                     dat = flatten_chain(rdata)
                 else:
                     rdata = np.array([data[:,kk] for kk in range(burn)])
-                    dat = flatten_logL(np.array([rdata]))
+                    dat = flatten_logL(rdata)
                     
                 fn = '{0!s}.{1!s}.pkl'.format(burn_prefix, name[i])
                 write_pickle_file(dat, fn, ndumps=1, open_mode='w',\
