@@ -81,12 +81,6 @@ class loglikelihood(LogLikelihood):
                 sim.history['igm_dTb'])
 
         if np.any(np.isnan(yarr)):
-            
-            #import matplotlib.pyplot as pl
-            #pl.plot(self.xdata, yarr)
-            #print('hey! GS: lnL={}'.format(lnL))
-            #raw_input('<enter>')
-            
             return -np.inf
 
         lnL = -0.5 * (np.sum((yarr - self.ydata)**2 \
@@ -152,6 +146,7 @@ class FitGlobal21cm(FitBase):
         sequence of brightness temperatures corresponding to the
         frequencies defined in self.frequencies (self.xdata).
         """
+        
         if type(value) == dict:            
             kwargs = value.copy()
             kwargs.update(def_kwargs)
@@ -163,7 +158,9 @@ class FitGlobal21cm(FitBase):
 
         elif isinstance(value, simGlobal21cm) or \
              isinstance(value, anlGlobal21cm):
-            sim = self.sim = value                   
+            sim = self.sim = value
+        elif type(value) in [list, tuple]:
+            sim = None
         else:
             assert len(value) == len(self.frequencies)            
             assert not self.turning_points
@@ -171,13 +168,20 @@ class FitGlobal21cm(FitBase):
             self.ydata = value
             return
 
-        if self.turning_points == True:
-            z = [sim.turning_points[tp][0] for tp in self.turning_points]
-            T = [sim.turning_points[tp][1] for tp in self.turning_points]
-
-            nu = nu_0_mhz / (1. + np.array(z))
+        if self.turning_points is not None:
+            
             self.xdata = None
-            self.ydata = np.array(list(nu) + T)
+            if sim is not None:
+                z = [sim.turning_points[tp][0] for tp in self.turning_points]
+                T = [sim.turning_points[tp][1] for tp in self.turning_points]
+                
+                nu = nu_0_mhz / (1. + np.array(z))
+                
+                self.ydata = np.array(list(nu) + T)
+            else:
+                assert len(value) == 2 * len(self.turning_points)
+                self.ydata = value
+                
         else:
             
             self.xdata = self.frequencies

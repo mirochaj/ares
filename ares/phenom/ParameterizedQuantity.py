@@ -34,7 +34,7 @@ func_options = \
  'exp': 'p[0] * exp(-(x / p[1])**p[2])',
  'exp_flip': 'p[0] * exp(-(x / p[1])**p[2])', 
  'dpl': 'p[0] / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
- 'dpl_arbnorm': 'p[0](p[4]) / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
+ 'dpl_arbnorm': 'p[0] * (p[4]) / ((x / p[1])**-p[2] + (x / p[1])**-p[3])',
  'pwpl': 'p[0] * (x / p[4])**p[1] if x <= p[4] else p[2] * (x / p[4])**p[3]',
  'plexp': 'p[0] * (x / p[1])**p[2] * np.exp(-x / p[3])',
  'lognormal': 'p[0] * np.exp(-(logx - p[1])**2 / 2. / p[2]**2)',

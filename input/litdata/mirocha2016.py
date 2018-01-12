@@ -145,7 +145,7 @@ _flex2 = \
  'pq_func_par1{0}[0]': 'pq[2]',
  'pq_func_par2{0}[0]': 'pq[3]',
  'pq_func_par3{0}[0]': 'pq[4]',
- 'pq_func_par4{0}[0]': 1e8,        # Mass at which fstar,0 is defined
+ 'pq_func_par4{0}[0]': 1e10,        # Mass at which fstar,0 is defined
 
  # Evolving part
  'pq_func{0}[1]': 'pl',
@@ -171,21 +171,8 @@ _flex2 = \
  'pq_func_par0{0}[4]': -0.61,
  'pq_func_par1{0}[4]': 7.,
  'pq_func_par2{0}[4]': 0.,   # power-law index!
- 
 }
 
 dflex = _flex2
-
-#dpl_evol = _flex2
-#dpl_pl = dpl_evol
-#dpl_quad = {}
-#for j, i in enumerate(range(1, 5)):
-#    dpl_quad['pq_func_par{}{{0}}[0]'.format(j)] = 'pq[{}]'.format(i)
-#    dpl_quad['pq_func{{0}}[{}]'.format(i)] = 'quad'
-#    dpl_quad['pq_func_var{{0}}[{}]'.format(i)] = '1+z'
-#    dpl_quad['pq_func_par0{{0}}[{}]'.format(i)] = dpl['pq_func_par{}{{0}}[0]'.format(j)]
-#    dpl_quad['pq_func_par1{{0}}[{}]'.format(i)] = 0.
-#    dpl_quad['pq_func_par2{{0}}[{}]'.format(i)] = 0.
-#    dpl_quad['pq_func_par3{{0}}[{}]'.format(i)] = 4. # Normalize to z=3
 
 
