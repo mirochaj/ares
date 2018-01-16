@@ -3684,8 +3684,8 @@ class ModelSet(BlobFactory):
             if fill:
                 ax.fill_between(xarr, y.T[0], y.T[1], **kwargs)
             else:
-                ax.plot(xarr, y[0], **kwargs)
-                ax.plot(xarr, y[1], **kwargs)
+                ax.plot(xarr, y.T[0], **kwargs)
+                ax.plot(xarr, y.T[1], **kwargs)
 
         ax.set_ylabel(self.labeler.label(names[0]))
 

@@ -236,17 +236,13 @@ class GalaxyPopulation(object):
             err = np.array(data[source]['err'])
             ulim = np.array(data[source]['ulim'])
                                                 
-            if not kwargs:
-                try:
-                    kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 
-                        'mec':default_colors[source], 
-                        'fmt': default_markers[source],
-                        'color':default_colors[source], 'capthick':2}
-                except KeyError:
-                    kw = {}
-            else:
-                kw = kwargs
-            
+            kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 
+                'mec':default_colors[source], 
+                'fmt': default_markers[source],
+                'color':default_colors[source], 'capthick':2}
+                
+            kw.update(kwargs)
+                
             if AUV is not None:
                 dc = AUV(z, np.array(M))
             else:
@@ -289,7 +285,7 @@ class GalaxyPopulation(object):
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
         panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
-        quantity='lf', annotate_z='left'):
+        quantity='lf', annotate_z='left', **kwargs):
         """
         Plot the luminosity function at a bunch of different redshifts.
         
@@ -333,14 +329,14 @@ class GalaxyPopulation(object):
             self.redshifts_in_mp.append(k)
                         
             self.Plot(z, sources=sources, round_z=round_z, ax=ax, AUV=AUV,
-                quantity=quantity)
+                quantity=quantity, **kwargs)
             
             if annotate_z == 'left':
                 _xannot = 0.05
             else:
                 _xannot = 0.95
                 
-            ax.annotate(r'$z \sim {}$'.format(round(z)), (_xannot, 0.95), 
+            ax.annotate(r'$z \sim {}$'.format(round(z, 0)), (_xannot, 0.95), 
                 ha=annotate_z, va='top', xycoords='axes fraction')
         
         mp.fix_ticks(rotate_x=45)

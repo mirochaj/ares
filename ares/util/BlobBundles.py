@@ -113,7 +113,7 @@ _blob_n1 = ['galaxy_lf']
 _blob_n2 = ['fstar']
 _blob_i1 = [('z', np.array([3.8, 4.9, 5.9, 6.9, 7, 7.9, 8, 9, 10, 10.4, 11, 12, 15])),
     ('x', np.arange(-27, -4.6, 0.2))]
-_blob_i2 = [('z', np.array([3.8, 4.9, 5.9, 6.9, 7, 7.9, 8, 9, 10, 10.4, 11, 12, 15])),
+_blob_i2 = [('z', np.array([3.8, 4.9, 5.9, 6.9, 7, 7.9, 8, 9, 10, 10.4, 11, 12, 15, 20, 30])),
     ('Mh', 10**np.arange(5., 14., 0.1))]
 _blob_f1 = ['pops[0].LuminosityFunction']
 _blob_f2 = ['pops[0].fstar']

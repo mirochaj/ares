@@ -980,6 +980,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # MAB corresponds to self.halos.M
         MAB, phi = self.phi_of_M(z)
         ok = MAB.mask == 0
+        
+        if ok.sum() == 0:
+            return 0.0
 
         return np.interp(MUV, MAB[ok][-1::-1], self.halos.M[1:-1][ok][-1::-1])
         
