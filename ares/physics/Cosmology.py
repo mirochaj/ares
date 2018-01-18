@@ -213,7 +213,7 @@ class Cosmology(object):
         return self._cooling_pars    
             
     def cooling_rate(self, z, T=None):
-        if self.pf['approx_thermal_history'] in ['exp', 'tanh']:
+        if self.pf['approx_thermal_history'] in ['exp', 'tanh', 'exp+gauss']:
             
             # This shouldn't happen! Argh.
             if z < 0:
@@ -229,6 +229,10 @@ class Cosmology(object):
         if self.pf['approx_thermal_history'] == 'exp':
             pars = self.cooling_pars
             return 2. * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. - 4./3.
+        if self.pf['approx_thermal_history'] == 'exp+gauss':
+            pars = self.cooling_pars
+            return 2. * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. \
+                - (4./3.) * (1. + pars[2] * np.exp(-((z - pars[3]) / pars[4])**2))
         elif self.pf['approx_thermal_history'] == 'tanh':
             pars = self.cooling_pars
             return (-2./3.) - (2./3.) * 0.5 * (np.tanh((pars[0] - z) / pars[1]) + 1.)
