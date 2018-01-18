@@ -595,8 +595,9 @@ class HaloMassFunction(object):
             
             mask = np.zeros_like(_MAR_tab)
             mask[np.isnan(_MAR_tab)] = 1
+            mask[_MAR_tab < 0] = 1
             _MAR_tab[mask == 1] = 0.
-            
+                        
             self._MAR_tab = np.ma.array(_MAR_tab, mask=mask)
             self._MAR_mask = mask    
             

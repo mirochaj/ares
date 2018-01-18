@@ -2261,7 +2261,7 @@ class ModelSet(BlobFactory):
         pars, take_log, multiplier, un_log, ivar = \
             self._listify_common_inputs(pars, take_log, multiplier, un_log, 
             ivar)
-        
+                
         data = {}
         for k, par in enumerate(pars):
                                 
@@ -2299,7 +2299,7 @@ class ModelSet(BlobFactory):
                 else:
                     val = self.get_blob(par, ivar=ivar[k]).copy()
 
-                # Blobs are never stored as log10 of their true values
+                # Blobs are never stored as log10 of their true values         
                 val *= multiplier[k]
                 
             # Only derived blobs in this else block, yes?                        
@@ -3545,7 +3545,7 @@ class ModelSet(BlobFactory):
         ##
         # Real work starts here.
         ##
-                
+                        
         # First, read-in data from disk. Slice it up depending on if 
         # skip or stop were provided. Squeeze arrays to remove NaNs etc.
         
@@ -3598,13 +3598,16 @@ class ModelSet(BlobFactory):
                 scalar = ivar[0]
                 vector = xarr = ivars[1]
                 slc = slice(0, None, 1)
-                                   
+                            
+            if type(multiplier) not in [list, np.ndarray, tuple]:
+                multiplier = [multiplier] * len(vector)
+                                               
             y = []
             for i, value in enumerate(vector):
                 iv = [scalar, value][slc]
                 
                 tmp = self.ExtractData(names, ivar=[iv]*len(names),
-                    take_log=take_log, un_log=un_log, multiplier=multiplier)
+                    take_log=take_log, un_log=un_log, multiplier=[multiplier[i]])
                  
                 if len(names) == 1:
                     yblob = tmp[names[0]].squeeze()

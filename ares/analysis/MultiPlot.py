@@ -41,7 +41,7 @@ defs = \
  'active_panels': None,
 }
 
-def add_master_legend(mp, **kwargs):
+def add_master_legend(mp, exclude=None, loc='upper center', **kwargs):
     """
     Make a big legend!
     """
@@ -52,7 +52,12 @@ def add_master_legend(mp, **kwargs):
         kwargs['bbox_to_anchor'] = (0.5, 0.97)
 
     if isinstance(mp, MultiPanel):
-        for ax in mp.grid:
+        for k, ax in enumerate(mp.grid):
+            
+            if exclude is not None:
+                if k in exclude:
+                    continue
+            
             h, l = ax.get_legend_handles_labels()
 
             for i, lab in enumerate(l):
@@ -62,7 +67,7 @@ def add_master_legend(mp, **kwargs):
                 handles.append(h[i])
                 labels.append(l[i])
 
-        mp.fig.legend(handles, labels, loc='upper center', **kwargs)        
+        mp.fig.legend(handles, labels, loc=loc, **kwargs)        
 
     else:
         h, l = mp.get_legend_handles_labels()
@@ -74,7 +79,7 @@ def add_master_legend(mp, **kwargs):
             handles.append(h[i])
             labels.append(l[i])
 
-        mp.legend(handles, labels, loc='upper center', **kwargs)            
+        mp.legend(handles, labels, loc=loc, **kwargs)            
 
     return mp    
 

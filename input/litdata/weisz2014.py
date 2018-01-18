@@ -13,7 +13,7 @@ info = \
 }
 
 # u, g, and r dropouts, respectively
-redshifts = [0.75, 1.25, 2, 3, 4, 5]
+redshifts = [3, 4, 5]
 wavelength = 1700.
 
 ULIM = -1e10

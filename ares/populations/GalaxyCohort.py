@@ -546,7 +546,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         return self._MAR
         
     def MAR(self, z, Mh):
-        return self.MGR(z, Mh) * self.fsmooth(z=z, Mh=Mh)
+        return np.maximum(self.MGR(z, Mh) * self.fsmooth(z=z, Mh=Mh), 0.)
     
     def MDR(self, z, Mh):
         # Mass "delivery" rate
