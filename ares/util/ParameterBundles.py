@@ -507,11 +507,15 @@ class ParameterBundle(dict):
     def pars_by_pop(self, num, strip_id=False):
         """
         Return dictionary of parameters associated with population `num`.
+        
+        This will take any parameters with ID numbers, and any parameters
+        with the `hmf_` prefix, since populations need to know about that 
+        stuff. Also, dustcorr parameters.
         """
         tmp = {}
         for par in self:
             prefix, idnum = pop_id_num(par)
-            if idnum == num:
+            if (idnum == num) or prefix.startswith('hmf_') or prefix.startswith('dustcorr'):
                 if strip_id:
                     tmp[prefix] = self[par]
                 else:    

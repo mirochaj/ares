@@ -209,7 +209,7 @@ class Cosmology(object):
     @property
     def cooling_pars(self):
         if not hasattr(self, '_cooling_pars'):
-            self._cooling_pars = [self.pf['inits_Tk_p{}'.format(i)] for i in range(3)]
+            self._cooling_pars = [self.pf['inits_Tk_p{}'.format(i)] for i in range(5)]
         return self._cooling_pars    
             
     def cooling_rate(self, z, T=None):
