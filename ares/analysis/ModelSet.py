@@ -3598,7 +3598,7 @@ class ModelSet(BlobFactory):
                 scalar = ivar[0]
                 vector = xarr = ivars[1]
                 slc = slice(0, None, 1)
-                            
+            
             if type(multiplier) not in [list, np.ndarray, tuple]:
                 multiplier = [multiplier] * len(vector)
                                                

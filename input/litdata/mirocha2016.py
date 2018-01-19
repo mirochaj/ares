@@ -150,7 +150,7 @@ _flex2 = \
  # Evolving part
  'pq_func{0}[1]': 'pl',
  'pq_func_var{0}[1]': '1+z',
- 'pq_func_par0{0}[1]': 0.00205,
+ 'pq_func_par0{0}[1]': 0.019,       # DPL model at Mh=1e10
  'pq_func_par1{0}[1]': 7.,
  'pq_func_par2{0}[1]': 0.,   # power-law index!
 

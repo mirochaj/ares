@@ -214,10 +214,9 @@ def PhysicsParameters():
     "approx_thermal_history": False,
     "inits_Tk_p0": None,
     "inits_Tk_p1": None,
-    "inits_Tk_p2": None,
+    "inits_Tk_p2": 0.0,
     "inits_Tk_p3": 0.0,
-    "inits_Tk_p4": 0.0,
-    "inits_Tk_p5": 0.0,
+    "inits_Tk_p4": np.inf,
     "inits_Tk_dz": 1.,
 
     "spin_temperature_floor": 0.0,
