@@ -552,7 +552,6 @@ class BlobFactory(object):
                                                                         
                 this_group.append(np.array(blob))
 
-                print key, blob
             self._blobs.append(np.array(this_group))
             
     @property 
