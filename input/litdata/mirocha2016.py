@@ -171,6 +171,34 @@ _flex2 = \
  'pq_func_par0{0}[4]': -0.61,
  'pq_func_par1{0}[4]': 7.,
  'pq_func_par2{0}[4]': 0.,   # power-law index!
+ 
+ # Possibility of LF steepening.
+ 'pq_val_floor{0}[0]': 'pq[5]',
+ 'pq_func{0}[5]': 'pl',
+ 'pq_func_var{0}[5]': '1+z',
+ 'pq_func_par0{0}[5]': 0.001,
+ 'pq_func_par1{0}[5]': 7.,
+ 'pq_func_par2{0}[5]': 0.,
+ 
+ # Possibility of LF turn-over
+ 'pop_focc{0}': 'pq[6]',
+ 'pq_func{0}[6]': 'okamoto',
+ 'pq_func_var{0}[6]': 'Mh',
+ 'pq_func_par0{0}[6]': 'pq[7]',
+ 'pq_func_par1{0}[6]': 'pq[8]',
+ 
+ 'pq_func{0}[7]': 'pl',
+ 'pq_func_var{0}[7]': '1+z',
+ 'pq_func_par0{0}[7]': 1.,
+ 'pq_func_par1{0}[7]': 7.,
+ 'pq_func_par2{0}[7]': 0.,   # power-law index!
+  
+ 'pq_func{0}[8]': 'pl',
+ 'pq_func_var{0}[8]': '1+z',
+ 'pq_func_par0{0}[8]': 0.,  # Renders focc = 1 for all halos 
+ 'pq_func_par1{0}[8]': 7.,
+ 'pq_func_par2{0}[8]': 0.,   # power-law index!
+ 
 }
 
 dflex = _flex2
