@@ -515,7 +515,8 @@ class ParameterBundle(dict):
         tmp = {}
         for par in self:
             prefix, idnum = pop_id_num(par)
-            if (idnum == num) or prefix.startswith('hmf_') or prefix.startswith('dustcorr'):
+            if (idnum == num) or prefix.startswith('hmf_') \
+                or prefix.startswith('dustcorr') or prefix.startswith('sam_'):
                 if strip_id:
                     tmp[prefix] = self[par]
                 else:    

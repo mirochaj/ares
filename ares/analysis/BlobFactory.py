@@ -537,7 +537,7 @@ class BlobFactory(object):
                     # Didn't used to, but it speeds things up (a lot).
                     for x in xarr:
                         tmp = []
-                        
+                                                
                         kw = {xn:x, yn:yarr}  
                         result = func(**kw)
                         
