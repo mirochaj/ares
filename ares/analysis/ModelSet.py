@@ -1210,6 +1210,9 @@ class ModelSet(BlobFactory):
             N = self.nwalkers
 
         Npars = len(pars)
+        while (Npars / float(ncols)) % 1 != 0:
+            Npars += 1
+            
         mp = MultiPanel(dims=(Npars//ncols, ncols), fig=fig, **mp_kwargs)
 
         w = self._get_walker_subset(N, walkers)
@@ -3567,24 +3570,38 @@ class ModelSet(BlobFactory):
                 
                 # In this case, xarr is 2-D. Need to be more careful...
                 assert use_best
-                                        
+                                     
+            # Only keep runs where ALL elements are OK.
+            mask = np.all(yblob.mask == True, axis=1)
+            keep = np.array(np.logical_not(mask), dtype=int)
+            nans = np.any(np.isnan(yblob.data), axis=1)
+                                                                                                       
+            if skip is not None:
+                keep[0:skip] *= 0
+            if stop is not None:
+                keep[stop: ] *= 0
+                
+            # A few NaNs ruin everything
+            if np.any(nans):
+                print "WARNING: {} elements with NaNs detected in field={}. Will be discarded.".format(nans.sum(), names[0])
+                keep[nans == 1] = 0
+                
             y = []
             for i, x in enumerate(xarr):
                 
                 # used to have compressed() here in a few places,
                 # but it can mess up the shape for plotting...why
                 # would certain channels get masked?
-                
+                                
                 if (samples is not None):
-                    y.append(yblob[:,i]) 
+                    y.append(yblob[keep == 1,i]) 
                 elif (use_best and self.is_mcmc):
-                    y.append(yblob[:,i][skip:stop][loc])
+                    y.append(yblob[keep == 1,i][loc])
                 elif percentile:
-                    lo, hi = np.percentile(yblob[:,i][skip:stop], 
-                        (q1, q2))
+                    lo, hi = np.percentile(yblob[keep == 1,i], (q1, q2))
                     y.append((lo, hi))
                 else:
-                    dat = data[:,i][skip:stop]#.compressed()
+                    dat = data[keep == 1,i]
                     lo, hi = dat.min(), dat.max()
                     y.append((lo, hi))
 
@@ -3623,7 +3640,7 @@ class ModelSet(BlobFactory):
                 elif percentile:
                     lo, hi = np.percentile(yblob[skip:stop].compressed(),
                         (q1, q2))
-                    y.append((lo, hi))
+                    y.append((lo, hi))                    
                 else:
                     dat = yblob[skip:stop].compressed()
                     lo, hi = dat.min(), dat.max()

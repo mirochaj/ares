@@ -26,7 +26,7 @@ except:
 datasets_lf = ('oesch2013', 'oesch2014', 'bouwens2015', 'atek2015', 
     'parsa2016', 'finkelstein2015', 'vanderburg2010', 'alavi2016', 
     'reddy2009', 'weisz2014', 'bouwens2017', 'oesch2018')
-datasets_smf = ('song2016', 'tomczak2014')
+datasets_smf = ('song2016', 'tomczak2014', 'stefanon2017')
 datasets_mzr = ('sanders2015',)
 
 groups_lf = \
@@ -39,7 +39,9 @@ groups_lf = \
 }
 
 groups_smf = {'all': datasets_smf}
-groups = {'lf': groups_lf, 'smf': groups_smf, 'mzr': {'all': datasets_mzr}}
+groups = {'lf': groups_lf, 'smf': groups_smf, 'smf_sf': groups_smf, 
+    'smf_tot': groups_smf, 
+    'mzr': {'all': datasets_mzr}}
 
 colors = ['m', 'c', 'r', 'y', 'g', 'b'] * 3
 markers = ['o'] * 6 + ['s'] * 6    
@@ -65,7 +67,7 @@ class GalaxyPopulation(object):
         pass
 
     def compile_data(self, redshift, sources='all', round_z=False,
-        quantity='lf'):
+        quantity='lf', just_above=True):
         """
         Create a master dictionary containing the MUV points, phi points,
         and (possibly asymmetric) errorbars for all (or some) data available.
@@ -100,7 +102,7 @@ class GalaxyPopulation(object):
                     z = src.redshifts[i_close]
                 else:
                     continue
-                    
+                
             else:        
                 z = redshift
                 
@@ -195,7 +197,7 @@ class GalaxyPopulation(object):
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', 
-        take_log=False, **kwargs):
+        take_log=False, imf=None, **kwargs):
         """
         Plot the luminosity function data at a given redshift.
         
@@ -207,6 +209,9 @@ class GalaxyPopulation(object):
             Wavelength (in Angstroms) of LF. 
         sed_model : instance
             ares.sources.SynthesisModel
+        imf : str
+            Stellar initial mass function. Will be used to convert stellar
+            masses, if supplied. 
             
         """
         
@@ -285,7 +290,7 @@ class GalaxyPopulation(object):
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
         panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
-        quantity='lf', annotate_z='left', **kwargs):
+        quantity='lf', annotate_z='left', mp=None, **kwargs):
         """
         Plot the luminosity function at a bunch of different redshifts.
         
@@ -317,8 +322,13 @@ class GalaxyPopulation(object):
             redshifts = np.sort(redshifts)
             
         # Create multiplot
-        mp = MultiPanel(dims=dims, panel_size=panel_size, fig=fig, 
-            padding=[0.2]*2)
+        if mp is None:
+            gotmp = False
+            mp = MultiPanel(dims=dims, panel_size=panel_size, fig=fig, 
+                padding=[0.2]*2)
+        else:
+            gotmp = True
+            assert mp.dims == dims
         
         self.redshifts_in_mp = []
         for i, z in enumerate(redshifts):
@@ -336,8 +346,14 @@ class GalaxyPopulation(object):
             else:
                 _xannot = 0.95
                 
+            if gotmp:
+                continue
+                
             ax.annotate(r'$z \sim {}$'.format(round(z, 0)), (_xannot, 0.95), 
                 ha=annotate_z, va='top', xycoords='axes fraction')
+        
+        if gotmp:
+            return mp
         
         mp.fix_ticks(rotate_x=45)
                 

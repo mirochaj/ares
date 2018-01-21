@@ -1249,6 +1249,8 @@ class ModelFit(FitBase):
             return -np.inf, self.blank_blob
     
         t2 = time.time()
+        
+        self.checkpoint_on_completion(**kwargs)
     
         lnL = 0.0
         for fitter in self.fitters:
@@ -1271,7 +1273,7 @@ class ModelFit(FitBase):
             blobs = sim.blobs
         except:
             blobs = self.blank_blob
-    
+        
         del sim, kw, kwargs
         gc.collect()
     
