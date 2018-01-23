@@ -111,20 +111,42 @@ _cxrb = {'blob_names': ['jsxb', 'jhxb'],
 
 _blob_n1 = ['galaxy_lf']
 _blob_n2 = ['fstar']
+_blob_n3 = ['sfrd_above_MUV']
 _blob_i1 = [('z', np.array([3., 3.8, 4., 4.9, 5., 5.9, 6., 6.9, 7, 7.9, 
     8., 9., 10., 10.4, 11., 12., 15.])),
     ('x', np.arange(-27, -4.6, 0.2))]
 _blob_i2 = [('z', np.array([3., 3.8, 4., 4.9, 5., 5.9, 6., 6.9, 7, 7.9, 
     8., 9., 10., 10.4, 11., 12., 15., 20., 30.])),
     ('Mh', 10**np.arange(5., 14., 0.1))]
+_blob_i3 = [('z', _def_z), ('MUV', np.arange(-17, -9))]
+    
 _blob_f1 = ['pops[0].LuminosityFunction']
 _blob_f2 = ['pops[0].fstar']
+_blob_f3 = ['pops[0].SFRD_above_MUV']
 
 _lf = \
 { 
  'blob_names': [_blob_n1, _blob_n2],
  'blob_ivars': [_blob_i1, _blob_i2],
  'blob_funcs': [_blob_f1, _blob_f2],
+}
+
+_blob_n4 = ['galaxy_smf', 'Mstell']
+_blob_i4 = _blob_i2
+_blob_f4 = ['pops[0].StellarMassFunction', 'pops[0].StellarMass']
+
+_smf = \
+{ 
+ 'blob_names': [_blob_n4],
+ 'blob_ivars': [_blob_i4],
+ 'blob_funcs': [_blob_f4],
+}
+
+_sfrd_above = \
+{
+ 'blob_names': [_blob_n3],
+ 'blob_ivars': [_blob_i3],
+ 'blob_funcs': [_blob_f3],
 }
 
 _cooling = \
@@ -140,7 +162,7 @@ _blobs = \
         'runtime': _runtime, 'rates': _rates, 'helium': _He,
         'cooling': _cooling},
  'pop': {'sfrd': _sfrd, 'emissivities': _emiss, 'fluxes': None, 
-    'cxrb': _cxrb, 'lf': _lf}
+    'cxrb': _cxrb, 'lf': _lf, 'smf': _smf, 'sfrd_above': _sfrd_above}
 }
 
 _keys = ('blob_names', 'blob_ivars', 'blob_funcs')

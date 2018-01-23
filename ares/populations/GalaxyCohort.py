@@ -495,7 +495,28 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @SFRD.setter
     def SFRD(self, value):
         self._SFRD = value 
-    
+        
+    def SFRD_above_MUV(self, z, MUV=-17):
+        
+        #if not hasattr(self, '_Mh_above_MUV_tab'):
+        #    self._Mh_above_MUV_tab = {}
+        #    
+        #if MUV in self._Mh_above_MUV_tab:
+        #    return self.SFRD_within(z, self._Mh_above_MUV_tab[MUV], None)
+        
+        if type(MUV) == np.ndarray:
+            res = []
+            for limit in MUV:
+                Mh_lim = np.array([self.Mh_of_MUV(zz, res) for zz in self.halos.z])
+                res.append(self.SFRD_within(z, Mh_lim, None))
+                
+            return np.array(res)    
+                
+        else:
+            Mh_lim = np.array([self.Mh_of_MUV(zz, MUV) for zz in self.halos.z])
+        
+            return self.SFRD_within(z, Mh_lim, None)
+
     @property   
     def nactive(self):
         """
@@ -1642,27 +1663,37 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             integrand = self._tab_sfr[i] * self.halos.dndlnm[i] \
                 * self.focc(z=zz, Mh=self.halos.M)
-
+            
             # Crudely for now
-            if Mlo == 'Mmin':
+            if type(Mlo) is np.ndarray:
+                assert Mlo.size == self.halos.Nz
+                _Mlo = Mlo[i]
+                ilo = i
+            elif Mlo == 'Mmin':
                 _Mlo = self.Mmin(zz)
+                ilo = np.argmin(np.abs(self.halos.M - _Mlo))
             else:
                 _Mlo = Mlo
+                ilo = np.argmin(np.abs(self.halos.M - _Mlo))
                     
-            ilo = np.argmin(np.abs(self.halos.M - _Mlo))
-            ihi = np.argmin(np.abs(self.halos.M - Mhi))
+            if Mhi is None:
+                ihi = self.halos.Nm
+            else:
+                ihi = np.argmin(np.abs(self.halos.M - Mhi))
             
             _sfrd_tab[i] = np.trapz(integrand[ilo:ihi+1], 
                 x=self.halos.lnM[ilo:ihi+1])
                             
-        if self.pf['pop_sfr_cross_threshold'] and (Mlo == 'Mmin'):
-            _sfrd_tab += self._tab_sfrd_at_threshold_
+        if self.pf['pop_sfr_cross_threshold'] and type(Mlo) is str:
+            if (Mlo == 'Mmin'):
+                _sfrd_tab += self._tab_sfrd_at_threshold_
                             
         _sfrd_tab *= g_per_msun / s_per_yr / cm_per_mpc**3
 
         _sfrd_func = lambda zz: np.interp(zz, self.halos.z, _sfrd_tab)
         
-        self._sfrd_within[(Mlo, Mhi)] = _sfrd_func
+        if type(Mlo) != np.ndarray:
+            self._sfrd_within[(Mlo, Mhi)] = _sfrd_func
         
         return _sfrd_func(z)
 

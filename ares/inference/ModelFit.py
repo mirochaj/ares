@@ -1268,10 +1268,11 @@ class ModelFit(FitBase):
         # +inf is NOT OK! Something is horribly wrong. Helpful in debugging.
         if PofD == np.inf:
             raise ValueError('+inf obtained in likelihood. Should not happen!')
-        
+                
         try:
             blobs = sim.blobs
         except:
+            print("WARNING: Failure to generate blobs.")
             blobs = self.blank_blob
         
         del sim, kw, kwargs
