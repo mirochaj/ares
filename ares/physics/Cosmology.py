@@ -228,8 +228,8 @@ class Cosmology(object):
     def log_cooling_rate(self, z):
         if self.pf['approx_thermal_history'] == 'exp':
             pars = self.cooling_pars
-            return 2. * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. - 4./3.
-        if self.pf['approx_thermal_history'] == 'exp+gauss':
+            return 2. * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. - 4./3.    
+        elif self.pf['approx_thermal_history'] == 'exp+gauss':
             pars = self.cooling_pars
             return 2. * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. \
                 - (4./3.) * (1. + pars[2] * np.exp(-((z - pars[3]) / pars[4])**2))

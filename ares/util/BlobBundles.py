@@ -129,9 +129,9 @@ _lf = \
 
 _cooling = \
 {
- 'blob_names': ['dlogTk_dlogt'],
+ 'blob_names': ['dlogTk_dlogt', 'Tk_cold'],
  'blob_ivars': ('z', np.logspace(1., 3., 201)),
- 'blob_funcs': ['cosm.log_cooling_rate'],
+ 'blob_funcs': ['cosm.log_cooling_rate', 'cosm.Tgas'],
 }
 
 _blobs = \

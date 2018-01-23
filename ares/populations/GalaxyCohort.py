@@ -771,9 +771,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         zform, data = self.scaling_relations_sorted(z=z)
         return np.interp(Mh, data['Mh'], data['Mg'])
         
-    def StellarMassFunction(self, z, M):
+    def StellarMassFunction(self, z, Mh):
         Marr, phi = self.SMF(z)
-        return np.interp(M, Marr, phi)
+        return np.interp(Mh, Marr, phi)
 
     def SMF(self, z):
         if not hasattr(self, '_phi_of_Mst'):
