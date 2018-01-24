@@ -16,6 +16,14 @@ from .ProblemTypes import ProblemType
 from .ParameterFile import pop_id_num, par_info
 from .PrintInfo import header, footer, separator, line
 
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1
+
 def _add_pop_tag(par, num):
     """
     Add a population ID tag to each parameter.
@@ -376,7 +384,7 @@ class ParameterBundle(dict):
         # If any keys overlap, overwrite first instance with second.
         # Just alert the user that this is happening.
         for key in other:
-            if key in tmp:
+            if key in tmp and rank == 0:
                 msg1 = "UPDATE: Setting {0} -> {1}".format(key, other[key])
                 msg2 = "previously {0} = {1}".format(key, tmp[key])
                 print('{0} [{1}]'.format(msg1, msg2))

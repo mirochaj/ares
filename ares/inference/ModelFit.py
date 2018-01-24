@@ -1269,11 +1269,15 @@ class ModelFit(FitBase):
         if PofD == np.inf:
             raise ValueError('+inf obtained in likelihood. Should not happen!')
                 
+        self.checkpoint(blobs=True, **kwargs)        
+                
         try:
             blobs = sim.blobs
         except:
             print("WARNING: Failure to generate blobs.")
             blobs = self.blank_blob
+        
+        self.checkpoint_on_completion(blobs=True, **kwargs)
         
         del sim, kw, kwargs
         gc.collect()
@@ -1326,23 +1330,33 @@ class ModelFit(FitBase):
     
         return self._blank_blob
     
-    def checkpoint(self, **kwargs):
+    def checkpoint(self, blobs=False, **kwargs):
         if self.checkpoint_by_proc:
             procid = str(rank).zfill(3)
-            fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix, procid)
-            write_pickle_file(kwargs, fn, ndumps=1, open_mode='w',\
-                safe_mode=False, verbose=False)
-    
+
+            # Save parameters
+            if not blobs:
+                fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix, procid)
+                write_pickle_file(kwargs, fn, ndumps=1, open_mode='w',
+                    safe_mode=False, verbose=False)
+
+            # Timing info
             fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
-            with open(fn, 'w') as f:
-                print("Simulation began: {!s}".format(time.ctime()), file=f)
-    
-    def checkpoint_on_completion(self, **kwargs):
+            with open(fn, 'a' if blobs else 'w') as f:
+                if blobs:
+                    print("Generating blobs: {!s}".format(time.ctime()), file=f)
+                else:
+                    print("Simulation began: {!s}".format(time.ctime()), file=f)
+
+    def checkpoint_on_completion(self, blobs=False, **kwargs):
         if self.checkpoint_by_proc:
             procid = str(rank).zfill(3)
             fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
             with open(fn, 'a') as f:
-                print("Simulation finished: {!s}".format(time.ctime()), file=f)
+                if blobs:
+                    print("Blobs generated    : {!s}".format(time.ctime()), file=f)
+                else:
+                    print("Simulation finished: {!s}".format(time.ctime()), file=f)
     
     
     

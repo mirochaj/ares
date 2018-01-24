@@ -496,27 +496,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def SFRD(self, value):
         self._SFRD = value 
         
-    def SFRD_above_MUV(self, z, MUV=-17):
-        
-        #if not hasattr(self, '_Mh_above_MUV_tab'):
-        #    self._Mh_above_MUV_tab = {}
-        #    
-        #if MUV in self._Mh_above_MUV_tab:
-        #    return self.SFRD_within(z, self._Mh_above_MUV_tab[MUV], None)
-        
-        if type(MUV) == np.ndarray:
-            res = []
-            for limit in MUV:
-                Mh_lim = np.array([self.Mh_of_MUV(zz, res) for zz in self.halos.z])
-                res.append(self.SFRD_within(z, Mh_lim, None))
-                
-            return np.array(res)    
-                
-        else:
-            Mh_lim = np.array([self.Mh_of_MUV(zz, MUV) for zz in self.halos.z])
-        
-            return self.SFRD_within(z, Mh_lim, None)
-
     @property   
     def nactive(self):
         """
@@ -1639,15 +1618,43 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 self._tab_sfrd_total_ += self._tab_sfrd_at_threshold
 
         return self._tab_sfrd_total_
-        
-    def SFRD_within(self, z, Mlo, Mhi):
+    
+    def SFRD_above_MUV(self, z, MUV=-17):
+    
+        if not hasattr(self, '_sfrd_above_MUV_tab'):
+            self._sfrd_above_MUV_tab = {}
+            
+        if type(MUV) == np.ndarray:
+            res = []
+            for limit in MUV:
+                if (z, limit) in self._sfrd_above_MUV_tab:
+                    res.append(self._sfrd_above_MUV_tab[(z, limit)])
+                    continue
+                
+                self._sfrd_above_MUV_tab[(z, limit)] = \
+                    self.SFRD_within(z, limit, None, is_mag=True)
+                
+                res.append(self._sfrd_above_MUV_tab[(z, limit)])
+    
+            return np.array(res)    
+    
+        else:
+            if (z, MUV) in self._sfrd_above_MUV_tab:
+                return self._sfrd_above_MUV_tab[(z, MUV)]
+                
+            self._sfrd_above_MUV_tab[(z, MUV)] = \
+                self.SFRD_within(z, MUV, None, is_mag=True)
+    
+            return self._sfrd_above_MUV_tab[(z, MUV)]
+    
+    def SFRD_within(self, z, Mlo, Mhi=None, is_mag=False):
         """
         Compute SFRD within given mass range, [Mlo, Mhi].
         """
         
         if not hasattr(self, '_sfrd_within'):
             self._sfrd_within = {}
-        
+            
         if (Mlo, Mhi) in self._sfrd_within.keys():
             return self._sfrd_within[(Mlo, Mhi)](z)
         
@@ -1664,17 +1671,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             integrand = self._tab_sfr[i] * self.halos.dndlnm[i] \
                 * self.focc(z=zz, Mh=self.halos.M)
             
+            if is_mag:
+                _Mlo = self.Mh_of_MUV(zz, Mlo)
             # Crudely for now
-            if type(Mlo) is np.ndarray:
-                assert Mlo.size == self.halos.Nz
-                _Mlo = Mlo[i]
-                ilo = i
             elif Mlo == 'Mmin':
                 _Mlo = self.Mmin(zz)
-                ilo = np.argmin(np.abs(self.halos.M - _Mlo))
             else:
                 _Mlo = Mlo
-                ilo = np.argmin(np.abs(self.halos.M - _Mlo))
+            
+            ilo = np.argmin(np.abs(self.halos.M - _Mlo))
                     
             if Mhi is None:
                 ihi = self.halos.Nm
@@ -1683,7 +1688,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
             _sfrd_tab[i] = np.trapz(integrand[ilo:ihi+1], 
                 x=self.halos.lnM[ilo:ihi+1])
-                            
+                                        
         if self.pf['pop_sfr_cross_threshold'] and type(Mlo) is str:
             if (Mlo == 'Mmin'):
                 _sfrd_tab += self._tab_sfrd_at_threshold_

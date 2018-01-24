@@ -49,7 +49,7 @@ def add_master_legend(mp, exclude=None, loc='upper center', **kwargs):
     handles, labels = [], []
 
     if 'bbox_to_anchor' not in kwargs:
-        kwargs['bbox_to_anchor'] = (0.5, 0.97)
+        kwargs['bbox_to_anchor'] = (0.5, 1.0)
 
     if isinstance(mp, MultiPanel):
         for k, ax in enumerate(mp.grid):
