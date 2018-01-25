@@ -341,7 +341,7 @@ class Global21cm(AnalyzeGlobal21cm):
         .. note:: Basically just calling MultiPhaseMedium here, except we
             compute the spin temperature and brightness temperature on
             each step.
-        
+
         Returns
         -------
         Generator for MultiPhaseMedium object, with notable addition that
@@ -349,7 +349,7 @@ class Global21cm(AnalyzeGlobal21cm):
         tracked.
 
         """
-                                
+
         for t, z, data_igm, data_cgm, RC_igm, RC_cgm in self.medium.step():            
 
             Ja = np.atleast_1d(self._f_Ja(z))

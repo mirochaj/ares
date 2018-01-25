@@ -1269,7 +1269,9 @@ class ModelSet(BlobFactory):
         
         for i in to_plot:
             data, mask = self.get_walker(i)
-            ax.plot(data[:,self.parameters.index(par)], **kwargs)
+            y = data[:,self.parameters.index(par)]
+            x = np.arange(1, len(y)+1)
+            ax.plot(x, y, **kwargs)
 
         self.set_axis_labels(ax, ['step', par], take_log=False, un_log=False,
             labels={})
@@ -4378,8 +4380,8 @@ class ModelSet(BlobFactory):
             self._custom_labels = {}
             
         for key in value:
-            if key not in self.parameters:
-                print("WARNING: custom_label for par `{}` no in parameters list.".format(key))
+            #if key not in self.parameters:
+            #    print("WARNING: custom_label for par `{}` no in parameters list.".format(key))
         
             self._custom_labels[key] = value[key]
     

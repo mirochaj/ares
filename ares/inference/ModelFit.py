@@ -1271,6 +1271,8 @@ class ModelFit(FitBase):
                 
         self.checkpoint(blobs=True, **kwargs)        
                 
+        blobs = sim.blobs        
+                
         try:
             blobs = sim.blobs
         except:

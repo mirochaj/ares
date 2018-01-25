@@ -67,7 +67,7 @@ class GalaxyPopulation(object):
         pass
 
     def compile_data(self, redshift, sources='all', round_z=False,
-        quantity='lf', just_above=True):
+        quantity='lf', sources_except=[], just_above=True):
         """
         Create a master dictionary containing the MUV points, phi points,
         and (possibly asymmetric) errorbars for all (or some) data available.
@@ -83,7 +83,14 @@ class GalaxyPopulation(object):
         
         if isinstance(sources, basestring):
             if sources in groups[quantity]:
-                srcs = groups[quantity][sources]
+                if sources == 'all':
+                    srcs = []
+                    for src in groups[quantity]['all']:
+                        if src in sources_except:
+                            continue
+                        srcs.append(src)
+                else:    
+                    srcs = groups[quantity][sources]
             else:
                 srcs = [sources]
         else:
@@ -197,7 +204,7 @@ class GalaxyPopulation(object):
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', 
-        take_log=False, imf=None, **kwargs):
+        take_log=False, imf=None, sources_except=[], **kwargs):
         """
         Plot the luminosity function data at a given redshift.
         
@@ -222,11 +229,19 @@ class GalaxyPopulation(object):
         else:
             gotax = True
             
-        data = self.compile_data(z, sources, round_z=round_z, quantity=quantity)
+        data = self.compile_data(z, sources, round_z=round_z, 
+            quantity=quantity, sources_except=sources_except)
         
         if isinstance(sources, basestring):
             if sources in groups[quantity]:
-                srcs = groups[quantity][sources]
+                if sources == 'all':
+                    srcs = []
+                    for src in groups[quantity]['all']:
+                        if src in sources_except:
+                            continue
+                        srcs.append(src)
+                else:    
+                    srcs = groups[quantity][sources]
             else:
                 srcs = [sources]
         else:
@@ -240,9 +255,9 @@ class GalaxyPopulation(object):
             phi = np.array(data[source]['phi'])
             err = np.array(data[source]['err'])
             ulim = np.array(data[source]['ulim'])
-                                                
-            kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 
-                'mec':default_colors[source], 
+
+            kw = {'fmt':'o', 'ms':5, 'elinewidth':2, 'mew': 2, 
+                'mec':default_colors[source],
                 'fmt': default_markers[source],
                 'color':default_colors[source], 'capthick':2}
                 
@@ -290,7 +305,8 @@ class GalaxyPopulation(object):
             
     def MultiPlot(self, redshifts, sources='all', round_z=False, ncols=1, 
         panel_size=(0.75,0.75), fig=1, xmax=-10, ymax=10, legends=None, AUV=None,
-        quantity='lf', annotate_z='left', mp=None, **kwargs):
+        quantity='lf', annotate_z='left', mp=None, sources_except=[], 
+        mp_kwargs={}, **kwargs):
         """
         Plot the luminosity function at a bunch of different redshifts.
         
@@ -321,25 +337,32 @@ class GalaxyPopulation(object):
         if not np.all(np.diff(redshifts)) > 0:   
             redshifts = np.sort(redshifts)
             
+        if mp_kwargs == {}:
+            mp_kwargs = {'panel_size': panel_size, 'padding': [0.2]*2}
+            
         # Create multiplot
         if mp is None:
             gotmp = False
-            mp = MultiPanel(dims=dims, panel_size=panel_size, fig=fig, 
-                padding=[0.2]*2)
+            mp = MultiPanel(dims=dims, fig=fig, **mp_kwargs)
         else:
             gotmp = True
             assert mp.dims == dims
         
-        self.redshifts_in_mp = []
+        if not hasattr(self, 'redshifts_in_mp'):
+            self.redshifts_in_mp = {}
+        
+        if quantity not in self.redshifts_in_mp:
+            self.redshifts_in_mp[quantity] = []
+        
         for i, z in enumerate(redshifts):
             k = mp.elements.ravel()[i]
             ax = mp.grid[k]
             
             # Where in the MultiPlot grid are we?
-            self.redshifts_in_mp.append(k)
+            self.redshifts_in_mp[quantity].append(k)
                         
             self.Plot(z, sources=sources, round_z=round_z, ax=ax, AUV=AUV,
-                quantity=quantity, **kwargs)
+                quantity=quantity, sources_except=sources_except, **kwargs)
             
             if annotate_z == 'left':
                 _xannot = 0.05

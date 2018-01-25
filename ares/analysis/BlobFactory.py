@@ -518,6 +518,8 @@ class BlobFactory(object):
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]
                     tmp_f = parse_attribute(fname, self)
+                    
+                    print fname, self.blob_ivars[i]
 
                     xarr, yarr = list(map(np.array, self.blob_ivars[i]))
 
