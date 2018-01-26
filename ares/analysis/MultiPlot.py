@@ -314,16 +314,18 @@ class MultiPanel(object):
             if ax not in axes:
                 caxes[ax] = None
                 continue
-            
+
             l, b, r, t = np.array(self.grid[ax].get_position()).ravel()
-            
+
             if position == 'top':
-                cax = self.fig.add_axes([l, t+padding, r-l, width]) 
+                cax = self.fig.add_axes([l, t+padding, r-l, width])
+            elif position == 'right':
+                cax = self.fig.add_axes([r+padding, b, width, t-b])
             else:
                 raise NotImplementedError('sorry!')
-                
+
             caxes[ax] = cax
-        
+
         return caxes
             
     @property
@@ -433,7 +435,7 @@ class MultiPanel(object):
         else:
             return False
             
-    def align_labels(self, xpadding=0.5, ypadding=None):
+    def align_labels(self, xpadding=0.5, ypadding=None, fix_all=False):
         """
         Re-draw labels so they are a constant distance away from the *axis*,
         not the axis *labels*.
@@ -442,10 +444,11 @@ class MultiPanel(object):
         if ypadding is None:
             ypadding = xpadding
         
-        for i in self.bottom:
-            self.grid[i].xaxis.set_label_coords(0.5, -xpadding)
-        for i in self.left:
-            self.grid[i].yaxis.set_label_coords(-ypadding, 0.5)
+        for i, ax in enumerate(self.grid):
+            if i in self.bottom or fix_all:
+                ax.xaxis.set_label_coords(0.5, -xpadding)
+            if i in self.left or fix_all:
+                ax.yaxis.set_label_coords(-ypadding, 0.5)
             
         pl.draw()    
             

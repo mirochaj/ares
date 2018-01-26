@@ -157,6 +157,7 @@ history_elements = \
  'Ja': r'$J_{\alpha}$', 
  'Jlw': r'$J_{\mathrm{LW}}$', 
  'dTb': r'$\delta T_b \ (\mathrm{mK})$',
+ 'dlogTk_dlogt': r'$d\log T_K / d\log t$',
  
  'slope': r'$\delta^{\prime} T_b \ [\mathrm{mK} \ \mathrm{MHz}^{-1}]$',
  'curvature': r'$\delta^{\prime \prime} T_b \ [\mathrm{mK}^2 \ \mathrm{MHz}^{-2}]$', 

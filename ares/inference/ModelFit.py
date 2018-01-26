@@ -1238,7 +1238,7 @@ class ModelFit(FitBase):
         #    print(rank, par, pars[i], kwargs[par])
     
         t1 = time.time()
-        sim = self.sim = self.simulator(**kw)
+        sim = self.simulator(**kw)
     
         try:
             sim.run()
@@ -1268,11 +1268,9 @@ class ModelFit(FitBase):
         # +inf is NOT OK! Something is horribly wrong. Helpful in debugging.
         if PofD == np.inf:
             raise ValueError('+inf obtained in likelihood. Should not happen!')
-                
+
         self.checkpoint(blobs=True, **kwargs)        
-                
-        blobs = sim.blobs        
-                
+
         try:
             blobs = sim.blobs
         except:

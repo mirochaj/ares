@@ -519,8 +519,6 @@ class BlobFactory(object):
                     fname = self.blob_funcs[i][j]
                     tmp_f = parse_attribute(fname, self)
                     
-                    print fname, self.blob_ivars[i]
-
                     xarr, yarr = list(map(np.array, self.blob_ivars[i]))
 
                     if (type(tmp_f) is FunctionType) or ismethod(tmp_f) \
