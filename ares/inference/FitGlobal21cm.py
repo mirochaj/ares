@@ -51,7 +51,7 @@ class loglikelihood(LogLikelihood):
         LogLikelihood.__init__(self, xdata, ydata, error)
         self.turning_points = turning_points
         
-    def __call__(self, sim, blobs=None):
+    def __call__(self, sim):
         """
         Compute log-likelihood for model generated via input parameters.
 
@@ -60,7 +60,7 @@ class loglikelihood(LogLikelihood):
         Tuple: (log likelihood, blobs)
 
         """
-                
+                        
         # Compute the likelihood if we've made it this far
         if self.turning_points:
             tps = sim.turning_points

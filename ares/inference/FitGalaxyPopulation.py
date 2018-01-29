@@ -11,11 +11,11 @@ Description:
 """
 
 import time
+import gc, os
 import numpy as np
 from ..util import read_lit
 from ..util.Pickling import write_pickle_file
 from ..util.PrintInfo import print_fit
-import gc, os, sys, copy, types, time, re
 from ..util.ParameterFile import par_info
 from ..util.Stats import symmetrize_errors
 from ..populations import GalaxyPopulation, GalaxyCohort
@@ -152,7 +152,7 @@ class loglikelihood(LogLikelihood):
 
         #phi = np.ma.array(_phi, mask=self.mask)
         
-        del pops
+        del sim, pops
 
         lnL = -0.5 * np.ma.sum((phi - self.ydata)**2 / self.error**2)
 

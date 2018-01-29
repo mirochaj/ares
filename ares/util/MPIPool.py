@@ -1,5 +1,7 @@
 try:
     from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
     
     try:
         import dill
@@ -12,7 +14,9 @@ try:
         MPI.pickle.loads = dill.loads
 except ImportError:
     MPI = None
-
+    rank = 0
+    size = 1
+    
 class MPIPool(object):
 
     def __init__(self, comm=None, master=0):
@@ -35,7 +39,7 @@ class MPIPool(object):
         self.master = master
         self.workers = set(range(self.comm.size))
         self.workers.discard(self.master)
-
+        
     def is_master(self):
         return self.master == self.comm.rank
 

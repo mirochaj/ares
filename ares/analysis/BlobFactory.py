@@ -119,6 +119,9 @@ class BlobFactory(object):
         blob_funcs
         
     """
+    
+    #def __del__(self):
+    #    print("Killing blobs! Processor={}".format(rank))
 
     def _parse_blobs(self):
         

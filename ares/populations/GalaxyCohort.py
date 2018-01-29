@@ -151,8 +151,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 result = lambda **kwargs: self.pf[full_name]
             
+        elif type(self.pf[full_name]) is FunctionType:
+            result = lambda **kwargs: self.pf[full_name](**kwargs)            
         else:
             raise TypeError('dunno how to handle: {!s}'.format(name))
+            
         # Check to see if Z?
         setattr(self, name, result)
                 
@@ -267,7 +270,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 return self._tab_sfrd_at_threshold_
 
             # Model: const SFR in threshold-crossing halos.    
-            if self.pf['pop_sfr'] is not None:
+            if type(self.pf['pop_sfr']) in [int, float, np.float64]:
                 self._tab_sfrd_at_threshold_ = self.pf['pop_sfr'] \
                     * self._tab_nh_at_Mmin * self._tab_Mmin
             else:
@@ -708,6 +711,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             else:
                 Mh = self.halos.M
         else:
+            
             # Create interpolant to be self-consistent
             # with _tab_sfr. Note that this is slower than it needs to be
             # in cases where we just want to know the SFR at a few redshifts
