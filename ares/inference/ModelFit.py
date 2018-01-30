@@ -27,7 +27,7 @@ from ..util.Stats import Gauss1D, GaussND, rebin, get_nu
 from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
-    read_pickled_chain
+    read_pickled_chain, read_pickled_logL
 
 from sys import getrefcount
 
@@ -98,22 +98,8 @@ def checkpoint_on_completion(prefix, is_blobs=False, checkpoint_by_proc=True,
                 print("Simulation finished: {!s}".format(time.ctime()), file=f)
 
     
-
-from guppy import hpy
-hp = hpy() 
-
-print("proc={}, clearing heap.".format(rank))
-hp.setrelheap()
-print(hp.heap())
-    
-#def loglikelihood(pars, parameters, is_log, prior_set_P, blank_blob, 
-#    base_kwargs, checkpoint, checkpoint_on_completion, simulator, fitters): 
 def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, blank_blob, 
     base_kwargs, checkpoint_by_proc, simulator, fitters):
-
-    print("proc={}, heap status:".format(rank))
-    h1 = hp.heap()
-    print(h1)
 
     kwargs = {}
     for i, par in enumerate(parameters):
@@ -152,7 +138,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, blank_blob,
         print(kwargs)
         del sim, kw, kwargs
         gc.collect()
-        return -np.inf, self.blank_blob
+        return -np.inf, blank_blob
 
     t2 = time.time()
     
@@ -185,18 +171,9 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, blank_blob,
 
     checkpoint_on_completion(prefix, True, checkpoint_by_proc, **kwargs)
     
-    # Why is only rank == 0 getting here?
-    print('proc={}, sim refcount={}, blobs refcount={}'.format(rank, 
-        getrefcount(sim), getrefcount(blobs)))
-
     del sim, kw, kwargs
-    #gc.collect()
-    print('blobs count={}'.format(getrefcount(blobs)))
-        
-    h2 = hp.heap()
-    print('rank={} with final heap diff:'.format(rank))
-    print(h2 - h1)    
-        
+    gc.collect()
+                
     return PofD, blobs    
 
 def _str_to_val(p, par, pvals, pars):
@@ -867,9 +844,9 @@ class ModelFit(FitBase):
             print("WARNING: chain empty! Starting from last point in burn-in")
             
             chain = read_pickled_chain('{!s}.burn.chain.pkl'.format(prefix))
-            prob = read_pickled_chain('{!s}.burn.logL.pkl'.format(prefix))
-        
-            pos = chain[np.argmax(prob)]
+            prob = read_pickled_logL('{!s}.burn.logL.pkl'.format(prefix))
+            mlpt = chain[np.argmax(prob)]
+            pos = sample_ball(mlpt, np.std(chain, axis=0), size=self.nwalkers)
         
         return pos
 
@@ -1256,6 +1233,7 @@ class ModelFit(FitBase):
                         fn = '{0!s}.{1!s}.pkl'.format(prefix, suffix)
                     else:
                         fn = '{0!s}.{1!s}.{2!s}.pkl'.format(prefix, dd, suffix)
+                        
                     write_pickle_file(data[i], fn, ndumps=1,\
                         open_mode=mode[0], safe_mode=False, verbose=False)
                     
@@ -1271,17 +1249,18 @@ class ModelFit(FitBase):
             else:
                 print("Wrote {0!s}.{1!s}.*.pkl: {2!s}".format(prefix, dd,\
                     time.ctime()))
-                    
-            ####################################
+
+            ##################################################################
             write_pickle_file(state, '{!s}.rstate.pkl'.format(prefix),\
                 ndumps=1, open_mode='w', safe_mode=False, verbose=False)
-            ####################################
-            
+            ##################################################################
+
             del pos_all, prob_all, blobs_all, data
-            gc.collect()
             
             # Delete chain, logL, etc., to be conscious of memory
             self.sampler.reset()
+
+            gc.collect()
 
             pos_all = []; prob_all = []; blobs_all = []
 

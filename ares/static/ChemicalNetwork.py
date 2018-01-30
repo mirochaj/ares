@@ -303,8 +303,6 @@ class ChemicalNetwork(object):
         # Add in exotic heating
         ##    
         if self.exotic_heating:
-            if z > 10 and self.is_igm_patch:
-                print z, dqdt['Tk'], self.grid._exotic_func(z=z) * to_temp, q[-1]
             dqdt['Tk'] += self.grid._exotic_func(z=z) * to_temp
             
         # Can effectively turn off ionization equations once EoR is over.

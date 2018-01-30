@@ -463,9 +463,11 @@ class OpticalDepth(object):
             if re.search('pkl', fn):
                 data = read_pickle_file(fn, nloads=1, verbose=False)
             else:
-                f = open(fn, 'r')
-                data = dict(np.load(f))
-                f.close()
+                data = dict(np.load(fn))
+                # For some reason Python 3 doesn't like this.
+                #f = open(fn, 'r')
+                #data = dict(np.load(f))
+                #f.close()
     
             self.E0 = data['E'].min()
             self.E1 = data['E'].max()            

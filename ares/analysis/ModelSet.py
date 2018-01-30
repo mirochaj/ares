@@ -3585,7 +3585,7 @@ class ModelSet(BlobFactory):
                 
             # A few NaNs ruin everything
             if np.any(nans):
-                print "WARNING: {} elements with NaNs detected in field={}. Will be discarded.".format(nans.sum(), names[0])
+                print("WARNING: {} elements with NaNs detected in field={}. Will be discarded.".format(nans.sum(), names[0]))
                 keep[nans == 1] = 0
                 
             y = []
