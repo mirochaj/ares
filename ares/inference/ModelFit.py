@@ -98,11 +98,22 @@ def checkpoint_on_completion(prefix, is_blobs=False, checkpoint_by_proc=True,
                 print("Simulation finished: {!s}".format(time.ctime()), file=f)
 
     
+
+from guppy import hpy
+hp = hpy() 
+
+print("proc={}, clearing heap.".format(rank))
+hp.setrelheap()
+print(hp.heap())
     
 #def loglikelihood(pars, parameters, is_log, prior_set_P, blank_blob, 
 #    base_kwargs, checkpoint, checkpoint_on_completion, simulator, fitters): 
 def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, blank_blob, 
     base_kwargs, checkpoint_by_proc, simulator, fitters):
+
+    print("proc={}, heap status:".format(rank))
+    h1 = hp.heap()
+    print(h1)
 
     kwargs = {}
     for i, par in enumerate(parameters):
@@ -164,14 +175,14 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, blank_blob,
     if PofD == np.inf:
         raise ValueError('+inf obtained in likelihood. Should not happen!')
 
-    checkpoint(prefix, True, checkpoint_by_proc, **kwargs)        
+    checkpoint(prefix, True, checkpoint_by_proc, **kwargs)
 
     try:
         blobs = sim.blobs
     except:
         print("WARNING: Failure to generate blobs.")
         blobs = blank_blob
-    
+
     checkpoint_on_completion(prefix, True, checkpoint_by_proc, **kwargs)
     
     # Why is only rank == 0 getting here?
@@ -179,8 +190,12 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, blank_blob,
         getrefcount(sim), getrefcount(blobs)))
 
     del sim, kw, kwargs
-    gc.collect()
+    #gc.collect()
     print('blobs count={}'.format(getrefcount(blobs)))
+        
+    h2 = hp.heap()
+    print('rank={} with final heap diff:'.format(rank))
+    print(h2 - h1)    
         
     return PofD, blobs    
 
@@ -837,14 +852,24 @@ class ModelFit(FitBase):
         #    raise ValueError('base_kwargs from file dont match those supplied!')
                     
         # Start from last step in pre-restart calculation
-        if self.checkpoint_append:
-            chain = read_pickled_chain('{!s}.chain.pkl'.format(prefix))
-        else:
-            # lec = largest existing checkpoint
-            chain =\
-                read_pickled_chain(self._latest_checkpoint_chain_file(prefix))
         
-        pos = chain[-((self.nwalkers-1)*self.save_freq)-1::self.save_freq,:]
+        try:
+            if self.checkpoint_append:
+                chain = read_pickled_chain('{!s}.chain.pkl'.format(prefix))
+            else:
+                # lec = largest existing checkpoint
+                chain = \
+                    read_pickled_chain(self._latest_checkpoint_chain_file(prefix))
+            
+            pos = chain[-((self.nwalkers-1)*self.save_freq)-1::self.save_freq,:]        
+                    
+        except ValueError:
+            print("WARNING: chain empty! Starting from last point in burn-in")
+            
+            chain = read_pickled_chain('{!s}.burn.chain.pkl'.format(prefix))
+            prob = read_pickled_chain('{!s}.burn.logL.pkl'.format(prefix))
+        
+            pos = chain[np.argmax(prob)]
         
         return pos
 
@@ -1049,11 +1074,15 @@ class ModelFit(FitBase):
             try:
                 _chain = read_pickled_chain('{!s}.chain.pkl'.format(prefix))
             except ValueError:
-                restart = False
-                clobber = True
                 if rank == 0:
                     print("WARNING: This doesn't look like a restart, {!s}.chain.pkl is empty!".format(prefix))
-                    print("         Continuing on as if nothing was amiss...")
+                    print("         Looking use burn-in data if it exists.")
+                    
+                    if not os.path.exists('{!s}.burn.chain.pkl'.format(prefix)):
+                        restart = False
+                        clobber = True
+                        print("         No burn-in data found.")
+                        print("         Continuing on as if from scratch.")
                     
         # Initialize Pool
         if size > 1:
@@ -1089,8 +1118,11 @@ class ModelFit(FitBase):
             self.simulator, self.fitters]
         
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
-            self.Nd, loglikelihood, pool=self.pool, args=args)
+            self.Nd, loglikelihood, pool=self.pool, args=args, 
+            live_dangerously=True)
                 
+        # If restart, will use last point from previous chain, or, if one
+        # isn't found, will look for burn-in data.
         pos = self.prep_output_files(restart, clobber)
         
         state = None #np.random.RandomState(self.seed)
@@ -1245,7 +1277,7 @@ class ModelFit(FitBase):
                 ndumps=1, open_mode='w', safe_mode=False, verbose=False)
             ####################################
             
-            del pos_all, prob_all, blobs_all, blobs, data
+            del pos_all, prob_all, blobs_all, data
             gc.collect()
             
             # Delete chain, logL, etc., to be conscious of memory

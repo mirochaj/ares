@@ -35,7 +35,7 @@ try:
 except ImportError:
     rank = 0
     size = 1    
- 
+     
 def_kwargs = {'verbose': False, 'progress_bar': False}
 
 class loglikelihood(LogLikelihood):
@@ -60,7 +60,7 @@ class loglikelihood(LogLikelihood):
         Tuple: (log likelihood, blobs)
 
         """
-                        
+                            
         # Compute the likelihood if we've made it this far
         if self.turning_points:
             tps = sim.turning_points
@@ -84,8 +84,8 @@ class loglikelihood(LogLikelihood):
             return -np.inf
 
         lnL = -0.5 * (np.sum((yarr - self.ydata)**2 \
-            / self.error**2 + np.log(2. * np.pi * self.error**2))) 
-                        
+            / self.error**2 + np.log(2. * np.pi * self.error**2)))
+                                                
         return lnL + self.const_term
 
 class FitGlobal21cm(FitBase):
