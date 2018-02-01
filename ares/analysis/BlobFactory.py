@@ -140,6 +140,7 @@ class BlobFactory(object):
             self._blob_names = self._blob_ivars = None
             self._blob_dims = self._blob_nd = None
             self._blob_funcs = None
+            self._blob_kwargs = None
             return None
         else:
             # Otherwise, figure out how many different kinds (shapes) of
@@ -149,21 +150,21 @@ class BlobFactory(object):
 
             if hdf5_situation:
                 f = h5py.File('{!s}.hdf5'.format(self.prefix), 'r')
-                
+
                 _blob_ivars = []
                 _blob_ivarn = []
                 _blob_names = names
                 for name in names:
                     ivar = f['blobs'][name].attrs.get('ivar')
-                    
+
                     if ivar is None:
                         _blob_ivars.append(ivar)
                     else:
                         _blob_ivarn.append('unknown')
                         _blob_ivars.append(ivar.squeeze())
-                
+
                 f.close()
-                
+
                 # Re-organize...maybe eventually
                 self._blob_ivars = _blob_ivars
                 self._blob_ivarn = _blob_ivarn
@@ -180,7 +181,7 @@ class BlobFactory(object):
                     
                     assert type(raw) in [list, tuple], \
                         "Must supply blob_ivars as (variable, values)!"
-                                        
+
                     # k corresponds to ivar group
                     for k, element in enumerate(raw):
                         if element is None:
@@ -190,7 +191,7 @@ class BlobFactory(object):
                         else:    
                             self._blob_ivarn.append([])
                             self._blob_ivars.append([])
-                                                        
+
                         for l, pair in enumerate(element):
                             self._blob_ivarn[k].append(pair[0])
                             self._blob_ivars[k].append(pair[1])
@@ -202,6 +203,7 @@ class BlobFactory(object):
             self._blob_nd = []
             self._blob_dims = []
             self._blob_funcs = []
+            self._blob_kwargs = []
             for i, element in enumerate(self._blob_names):
                 
                 # Scalar blobs handled first
@@ -214,11 +216,14 @@ class BlobFactory(object):
                     
                     if self.pf['blob_funcs'] is None:
                         self._blob_funcs.append([None] * len(element))
+                        self._blob_kwargs.append([None] * len(element))
                     elif self.pf['blob_funcs'][i] is None:
                         self._blob_funcs.append([None] * len(element))
+                        self._blob_kwargs.append([None] * len(element))
                     else:
                         self._blob_funcs.append(self.pf['blob_funcs'][i])
-
+                        self._blob_kwargs.append(self.pf['blob_kwargs'][i])
+                        
                     continue
                 # Everything else
                 else:
@@ -249,19 +254,22 @@ class BlobFactory(object):
                 
                 if no_blob_funcs:                     
                     self._blob_funcs.append([None] * len(element))
+                    self._blob_kwargs.append([None] * len(element))
                     continue
 
                 assert len(element) == len(self.pf['blob_funcs'][i]), \
                     "blob_names must have same length as blob_funcs!"
                 self._blob_funcs.append(self.pf['blob_funcs'][i])
+                self._blob_kwargs.append(self.pf['blob_kwargs'][i])
 
-        self._blob_nd = tuple(self._blob_nd)                    
-        self._blob_dims = tuple(self._blob_dims)            
+        self._blob_nd = tuple(self._blob_nd)
+        self._blob_dims = tuple(self._blob_dims)
         self._blob_names = tuple(self._blob_names)
         self._blob_ivars = tuple(self._blob_ivars)
         self._blob_ivarn = tuple(self._blob_ivarn)
         self._blob_funcs = tuple(self._blob_funcs)
-        
+        self._blob_kwargs = tuple(self._blob_kwargs)
+
     @property
     def blob_nbytes(self):
         """
@@ -351,7 +359,13 @@ class BlobFactory(object):
         if not hasattr(self, '_blob_funcs'):
             self._parse_blobs()
         return self._blob_funcs
-
+    
+    @property
+    def blob_kwargs(self):
+        if not hasattr(self, '_blob_kwargs'):
+            self._parse_blobs()
+        return self._blob_kwargs    
+    
     @property
     def blobs(self):
         if not hasattr(self, '_blobs'):
@@ -458,7 +472,7 @@ class BlobFactory(object):
                                                 
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                                                                                                            
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
@@ -485,31 +499,41 @@ class BlobFactory(object):
                         raise KeyError('Blob {!s} not in history!'.format(key))
                     else:
                         fname = self.blob_funcs[i][j]
-                        
+
                         # Name of independent variable
                         xn = self.blob_ivarn[i][0]
-                        
+
                         if isinstance(fname, basestring):
                             func = parse_attribute(fname, self)
                         else:
-                            
+
                             print('{!s}'.format(fname))
                             raise ValueError('pretty sure this is broken!')
-                            
+
                             # fname is a slice, like ('igm_k_heat', 0)
                             # to retrieve heating rate from H ionizations
                             _xx = self.history['z'][-1::-1]
                             _yy = self.history[fname[0]][-1::-1,fname[1]]
-                                                        
+
                             func = (_xx, _yy)
-                                                        
+
                         if ismethod(func) or isinstance(func, interp1d) or \
                             (type(func) == FunctionType) \
                             or hasattr(func, '__call__'):
-                            
+
                             try:
-                                func_kw = lambda xx: func(**{xn:xx})
-                                blob = np.array(list(map(func_kw, x)))
+                                if self.blob_kwargs[i] is not None:
+                                    kw = self.blob_kwargs[i][j]
+                                else:
+                                    kw = {}
+
+                                def func_kw(xx):
+                                    _kw = kw.copy()
+                                    _kw.update({xn:xx})
+                                    return func(**_kw)
+                                    
+                                blob = np.array([func_kw(xx) for xx in x])
+                                                                
                             except TypeError:
                                 blob = np.array(list(map(func, x)))
                             
@@ -520,7 +544,7 @@ class BlobFactory(object):
                                         
                     # Must have blob_funcs for this case
                     fname = self.blob_funcs[i][j]
-                    tmp_f = parse_attribute(fname, self)
+                    tmp_f = parse_attribute(fname, self)                    
                     
                     xarr, yarr = list(map(np.array, self.blob_ivars[i]))
 
@@ -540,8 +564,13 @@ class BlobFactory(object):
                     # Didn't used to, but it speeds things up (a lot).
                     for x in xarr:
                         tmp = []
-                                                
-                        kw = {xn:x, yn:yarr}  
+                                            
+                        if self.blob_kwargs[i] is not None:
+                            kw = self.blob_kwargs[i][j]
+                        else:
+                            kw = {}
+                            
+                        kw.update({xn:x, yn:yarr})
                         result = func(**kw)
                         
                         # Happens when we save a blob that isn't actually

@@ -860,6 +860,7 @@ def ControlParameters():
     "blob_names": None,
     "blob_ivars": None,
     "blob_funcs": None,
+    "blob_kwargs": {},
 
     # Real-time optical depth calculation once EoR begins
     "EoR_xavg": 1.0,        # ionized fraction indicating start of EoR (OFF by default)

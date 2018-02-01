@@ -79,21 +79,32 @@ for _name in _rc_base:
         # Don't do secondary ionization terms yet
         #for j, spec2 in enumerate(_species):
                     
-_extrema = {'blob_names':_gs_ext, 'blob_ivars': None,  'blob_funcs': None}
-_rates = {'blob_names':_gs_rates, 'blob_ivars': _def_z,  'blob_funcs': _rc_funcs}
-_history = {'blob_names':_gs_hist,'blob_ivars': _def_z,'blob_funcs': None}
-_shape = {'blob_names':_gs_shape_n,'blob_ivars': None, 'blob_funcs': _gs_shape_f}
+_extrema = {'blob_names':_gs_ext, 'blob_ivars': None,  'blob_funcs': None,
+    'blob_kwargs': None}
+_rates = {'blob_names':_gs_rates, 'blob_ivars': _def_z, 
+    'blob_funcs': _rc_funcs, 'blob_kwargs': None}
+_history = {'blob_names':_gs_hist,'blob_ivars': _def_z,'blob_funcs': None,
+    'blob_kwargs': None}
+_shape = {'blob_names':_gs_shape_n,'blob_ivars': None, 'blob_funcs': _gs_shape_f,
+    'blob_kwargs': None}
 _runtime = {'blob_names': ['count', 'timer', 'rank'], 
-    'blob_ivars': None, 'blob_funcs': None}
+    'blob_ivars': None, 'blob_funcs': None, 'blob_kwargs': None}
 
 _He = {'blob_names':['igm_he_1', 'igm_he_2', 'igm_he_3'], 
        'blob_ivars': _def_z,  
-       'blob_funcs': None}
+       'blob_funcs': None,
+       'blob_kwargs': None}
 
 # Not a great default way of doing this, since we may have multiple populations, etc.
-_sfrd = {'blob_names': ['sfrd{0}'],
+_sfrd = {'blob_names': ['sfrd{0}', 'smd{0}'],
          'blob_ivars': _def_z,
-         'blob_funcs': ['pops[0].SFRD']}
+         'blob_funcs': ['pops[0].SFRD', 'pops[0].SMD'],
+         'blob_kwargs': [None, None]}
+
+_Nion = {'blob_names': ['Ndot'],
+         'blob_ivars': ('z', np.arange(2, 6.2, 0.1)),
+         'blob_funcs': ['pops[0].PhotonLuminosityDensity'],
+         'blob_kwargs': [[dict([('Emin', 13.6), ('Emax', 24.6)])]]}
 
 
 _emiss = {'blob_names': ['rho_LW{0}', 'rho_LyC{0}', 'rho_sXR{0}', 'rho_hXR{0}'],
@@ -101,13 +112,13 @@ _emiss = {'blob_names': ['rho_LW{0}', 'rho_LyC{0}', 'rho_sXR{0}', 'rho_hXR{0}'],
           'blob_funcs': ['pops[0]._LuminosityDensity_LW',
                          'pops[0]._LuminosityDensity_LyC',
                          'pops[0]._LuminosityDensity_sXR',
-                         'pops[0]._LuminosityDensity_hXR']}
+                         'pops[0]._LuminosityDensity_hXR'],
+          'blob_kwargs': [None] * 4}
 
-_cxrb = {'blob_names': ['jsxb', 'jhxb'], 
+_cxrb = {'blob_names': ['jsxb', 'jhxb'],
          'blob_ivars': None,
-         'blob_funcs': ['medium.field.jxrb(\'soft\')', 'medium.field.jxrb(\'hard\')']}
-
-
+         'blob_funcs': ['medium.field.jxrb(\'soft\')', 'medium.field.jxrb(\'hard\')'],
+         'blob_kwargs': [None] * 2}
 
 _blob_n1 = ['galaxy_lf']
 _blob_n2 = ['fstar']
@@ -129,6 +140,7 @@ _lf = \
  'blob_names': [_blob_n1, _blob_n2],
  'blob_ivars': [_blob_i1, _blob_i2],
  'blob_funcs': [_blob_f1, _blob_f2],
+ 'blob_kwargs': [None, None],
 }
 
 _blob_n4 = ['galaxy_smf', 'Mstell']
@@ -140,6 +152,7 @@ _smf = \
  'blob_names': [_blob_n4],
  'blob_ivars': [_blob_i4],
  'blob_funcs': [_blob_f4],
+ 'blob_kwargs': None,
 }
 
 _sfrd_above = \
@@ -147,6 +160,7 @@ _sfrd_above = \
  'blob_names': [_blob_n3],
  'blob_ivars': [_blob_i3],
  'blob_funcs': [_blob_f3],
+ 'blob_kwargs': None,
 }
 
 _cooling = \
@@ -154,6 +168,7 @@ _cooling = \
  'blob_names': ['dlogTk_dlogt', 'Tk_cold'],
  'blob_ivars': ('z', np.logspace(1., 3., 201)),
  'blob_funcs': ['cosm.log_cooling_rate', 'cosm.Tgas'],
+ 'blob_kwargs': [None]*2,
 }
 
 _blobs = \
@@ -162,10 +177,11 @@ _blobs = \
         'runtime': _runtime, 'rates': _rates, 'helium': _He,
         'cooling': _cooling},
  'pop': {'sfrd': _sfrd, 'emissivities': _emiss, 'fluxes': None, 
-    'cxrb': _cxrb, 'lf': _lf, 'smf': _smf, 'sfrd_above': _sfrd_above}
+    'cxrb': _cxrb, 'lf': _lf, 'smf': _smf, 'sfrd_above': _sfrd_above,
+    'Nion': _Nion}
 }
 
-_keys = ('blob_names', 'blob_ivars', 'blob_funcs')
+_keys = ('blob_names', 'blob_ivars', 'blob_funcs', 'blob_kwargs')
 
 class BlobBundle(ParameterBundle):
     def __init__(self, bundle=None, **kwargs):
@@ -182,7 +198,7 @@ class BlobBundle(ParameterBundle):
         for key in _keys: 
             if self[key][0] is None:
                 continue
-                
+
             if type(self[key][0]) is not list:
                 self[key] = [self[key]]
 
@@ -194,7 +210,7 @@ class BlobBundle(ParameterBundle):
                 ct += 1
                     
             self._Nb_groups = max(ct, 1)
-            
+
         return self._Nb_groups            
 
     def __add__(self, other):
@@ -213,13 +229,13 @@ class BlobBundle(ParameterBundle):
         # Don't operate on self (or copy) since some elements might be None
         # which will be a problem for append
         out = {key: [None for i in range(Nb_next)] for key in _keys}
-                
+
         # Need to add another level of nesting on the first go 'round
         for key in _keys:
             for j in range(self.Nb_groups):
                 if self[key][j] is None:
                     continue
-                                    
+
                 out[key][j] = self[key][j]
         
         for key in _keys:

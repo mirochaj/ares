@@ -34,7 +34,7 @@ try:
     size = MPI.COMM_WORLD.size
 except ImportError:
     rank = 0
-    size = 1    
+    size = 1
      
 def_kwargs = {'verbose': False, 'progress_bar': False}
 

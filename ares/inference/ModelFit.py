@@ -29,8 +29,6 @@ from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain, read_pickled_logL
 
-from sys import getrefcount
-
 try:
     from distpy import DistributionSet
 except ImportError:
@@ -162,6 +160,8 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, blank_blob,
         raise ValueError('+inf obtained in likelihood. Should not happen!')
 
     checkpoint(prefix, True, checkpoint_by_proc, **kwargs)
+
+    blobs = sim.blobs
 
     try:
         blobs = sim.blobs
@@ -1196,9 +1196,6 @@ class ModelFit(FitBase):
             prob_all.append(prob.copy())
             blobs_all.append(blobs)
             
-            print('proc={}, blobs refcount={}'.format(rank, getrefcount(blobs)))
-            
-            print('hey')
             del blobs
 
             if ct % save_freq != 0:

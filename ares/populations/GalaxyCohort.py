@@ -519,7 +519,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
         if not hasattr(self, '_SMD'):
             dtdz = np.array(list(map(self.cosm.dtdz, self.halos.z)))
-            self._smd_tab = cumtrapz(self._tab_sfrd[-1::-1] * dtdz[-1::-1], 
+            self._smd_tab = cumtrapz(self._tab_sfrd_total[-1::-1] * dtdz[-1::-1], 
                 dx=np.abs(np.diff(self.halos.z[-1::-1])), initial=0.)[-1::-1]
             self._SMD = interp1d(self.halos.z, self._smd_tab, kind='cubic')
     
