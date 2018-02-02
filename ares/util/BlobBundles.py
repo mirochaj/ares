@@ -102,7 +102,7 @@ _sfrd = {'blob_names': ['sfrd{0}', 'smd{0}'],
          'blob_kwargs': [None, None]}
 
 _Nion = {'blob_names': ['Ndot'],
-         'blob_ivars': ('z', np.arange(2, 6.2, 0.1)),
+         'blob_ivars': ('z', np.arange(1.9, 6.2, 0.1)),
          'blob_funcs': ['pops[0].PhotonLuminosityDensity'],
          'blob_kwargs': [[dict([('Emin', 13.6), ('Emax', 24.6)])]]}
 

@@ -386,13 +386,19 @@ class BlobFactory(object):
         if self.blob_groups is None:
             return self.blob_ivars[self.blob_names.index(name)]
         
+        found_blob = False
         for i in range(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
                 if blob == name:
+                    found_blob = True
                     break
             
             if blob == name:
                 break
+                
+        if not found_blob:
+            print("WARNING: ivars for blob {} not found.".format(name))        
+            return None
                 
         return self.blob_ivars[i]
                 

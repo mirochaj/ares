@@ -2227,14 +2227,14 @@ class ModelSet(BlobFactory):
         multiplier=1., remove_nas=False):
         """
         Extract data for subsequent analysis.
-        
+
         This means a few things:
          (1) Go retrieve data from native format without having to worry about
           all the indexing yourself.
          (2) [optionally] take the logarithm.
          (3) [optionally] apply multiplicative factors.
          (4) Create a mask that excludes all nans / infs.
-         
+
         Parameters
         ----------
         pars : list
@@ -2383,7 +2383,7 @@ class ModelSet(BlobFactory):
                     raise NotImplementedError('help')
                 else:
                     val = dat
-                    
+                                
             # must handle log-ifying blobs separately
             if par not in self.parameters:
                 if take_log[k]:
@@ -3469,7 +3469,8 @@ class ModelSet(BlobFactory):
     def ReconstructedFunction(self, names, ivar=None, fig=1, ax=None,
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
-        best='mode', fill=True, samples=None, apply_dc=False, **kwargs):
+        best='mode', fill=True, samples=None, apply_dc=False, ivars=None,
+        **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -3489,6 +3490,10 @@ class ModelSet(BlobFactory):
 
                 # If LF data, plot z evolution of phi(MUV=-20)
                 ivar = [None, -20]
+        
+        ivars : np.ndarray
+            If this is a derived blob, supply ivars by hand. Need to write
+            automated way of figuring this out.
         
         percentile : bool, float    
             If not False, should be the confidence interval to plot, e.g, 0.68.
@@ -3522,18 +3527,33 @@ class ModelSet(BlobFactory):
                 samples = min(max_samples, samples)
                             
         # Step 1: figure out ivars  
-        info = self.blob_info(names[0])
-        nd = info[2]
-                
-        if nd == 1:
-            # This first case happens when reading from hdf5 since the
-            # blobs there aren't nested.
-            if info[0] is None:
-                ivars = np.atleast_2d(self.blob_ivars[0])
-            else:    
-                ivars = np.atleast_2d(self.blob_ivars[info[0]])
-        else:
-            ivars = self.blob_ivars[info[0]]
+        try:
+            info = self.blob_info(names[0])
+            nd = info[2]
+        except KeyError:
+            print("WARNING: blob {} not found by `blob_info`.".format(names[0]))
+            print("       : Making some assumptions...")
+
+            if ivars is None:
+                ivars = self.get_ivars(names[0])
+            else:
+                if type(ivars) is str:
+                    ivars = np.array(self.get_ivars(ivars))
+                else:
+                    ivars = np.atleast_2d(ivars)    
+            
+            nd = len(ivars)
+                             
+        if ivars is None:    
+            if nd == 1:
+                # This first case happens when reading from hdf5 since the
+                # blobs there aren't nested.
+                if info[0] is None:
+                    ivars = np.atleast_2d(self.blob_ivars[0])
+                else:    
+                    ivars = np.atleast_2d(self.blob_ivars[info[0]])
+            else:
+                ivars = self.blob_ivars[info[0]]
                 
         if nd != 1 and (ivar is None):
             raise NotImplemented('If not 1-D blob, must supply one ivar!')
@@ -3688,20 +3708,16 @@ class ModelSet(BlobFactory):
                     ax.plot(xarr, y.T[element], **kwargs)
   
         elif use_best and self.is_mcmc:
-            if take_log:
-                y = 10**y
 
             # Don't need to transpose in this case
             ax.plot(xarr, y, **kwargs)
         else:
         
-            if take_log:
-                y = 10**y
-            else:
-                # Where y is zero, set to small number?
-                zeros = np.argwhere(y == 0)
-                for element in zeros:
-                    y[element[0],element[1]] = 1e-15
+            #if not take_log:
+            #    # Where y is zero, set to small number?
+            #    zeros = np.argwhere(y == 0)
+            #    for element in zeros:
+            #        y[element[0],element[1]] = 1e-15
             
             if fill:
                 ax.fill_between(xarr, y.T[0], y.T[1], **kwargs)
@@ -4135,10 +4151,10 @@ class ModelSet(BlobFactory):
                 # Don't need ivars if we're manipulating parameters!
                 if key in self.parameters:
                     continue
-                    
+
                 # Might be a derived blob of derived blobs!
                 # Just err on the side of no ivars for now.  
-        
+
                 try: 
                     i, j, nd, size = self.blob_info(key)
                     ivars[key] = self.blob_ivars[i]
