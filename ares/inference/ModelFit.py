@@ -96,8 +96,40 @@ def checkpoint_on_completion(prefix, is_blobs=False, checkpoint_by_proc=True,
                 print("Simulation finished: {!s}".format(time.ctime()), file=f)
 
     
-def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, blank_blob, 
-    base_kwargs, checkpoint_by_proc, simulator, fitters):
+def _compute_blob_prior(sim, priors_B):
+    
+    like = 0.0
+    
+    blob_vals = {}
+    for k, key in enumerate(priors_B.params):
+                
+        func, names, trans = priors_B._data[k]
+        
+        group_num, element, nd, dims = sim.blob_info(key)
+        
+        blob = sim.get_blob(key)
+        
+        # Need to figure out independent variable
+        if nd == 0:
+            val = float(blob)
+        elif nd == 1:
+            # Should be ('ivar', val) pair
+            md = func.metadata
+            
+            ivar = sim.get_ivars(key)[0]
+            
+            val = np.interp(md[1], ivar, blob)
+                        
+            # Should check ivarn too
+        else:
+            raise NotImplemented('sorry')
+
+        like += np.exp(func(val))
+    
+    return np.log(like)
+    
+def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
+    blank_blob, base_kwargs, checkpoint_by_proc, simulator, fitters):
 
     kwargs = {}
     for i, par in enumerate(parameters):
@@ -145,6 +177,9 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, blank_blob,
     lnL = 0.0
     for fitter in fitters:
         lnL += fitter.loglikelihood(sim)
+            
+    # Blob prior
+    lp += _compute_blob_prior(sim, prior_set_B)        
             
     # Final posterior calculation
     PofD = lp + lnL
@@ -1090,7 +1125,8 @@ class ModelFit(FitBase):
         ##
         # Initialize sampler
         ##
-        args = [self.prefix, self.parameters, self.is_log, self.prior_set_P, self.blank_blob, 
+        args = [self.prefix, self.parameters, self.is_log, self.prior_set_P, 
+            self.prior_set_B, self.blank_blob, 
             self.base_kwargs, self.checkpoint_by_proc, 
             self.simulator, self.fitters]
         
@@ -1443,26 +1479,6 @@ class ModelFit(FitBase):
     #    print('blobs count={}'.format(getrefcount(blobs)))
     #        
     #    return PofD, blobs        
-    
-    def _compute_blob_prior(self, sim):
-        blob_vals = {}
-        for key in self.priors_B.params:
-    
-            grp, i, nd, dims = sim.blob_info(key)
-    
-            #if nd == 0:
-            #    blob_vals[key] = sim.get_blob(key)
-            #elif nd == 1:    
-            blob_vals[key] = sim.get_blob(key)
-            #else:
-            #    raise NotImplementedError('help')
-    
-        try:
-            # will return 0 if there are no blobs
-            return self.priors_B.log_value(blob_vals)
-        except:
-            # some of the blobs were not retrieved (then they are Nones)!
-            return -np.inf
     
     @property
     def blank_blob(self):

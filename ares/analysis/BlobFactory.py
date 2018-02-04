@@ -222,7 +222,11 @@ class BlobFactory(object):
                         self._blob_kwargs.append([None] * len(element))
                     else:
                         self._blob_funcs.append(self.pf['blob_funcs'][i])
-                        self._blob_kwargs.append(self.pf['blob_kwargs'][i])
+                        # For backward compatibility
+                        if 'blob_kwargs' in self.pf:
+                            self._blob_kwargs.append(self.pf['blob_kwargs'][i])
+                        else:
+                            self._blob_kwargs.append([None] * len(element))
                         
                     continue
                 # Everything else
@@ -260,7 +264,11 @@ class BlobFactory(object):
                 assert len(element) == len(self.pf['blob_funcs'][i]), \
                     "blob_names must have same length as blob_funcs!"
                 self._blob_funcs.append(self.pf['blob_funcs'][i])
-                self._blob_kwargs.append(self.pf['blob_kwargs'][i])
+                
+                if 'blob_kwargs' in self.pf:
+                    self._blob_kwargs.append(self.pf['blob_kwargs'][i])
+                else:
+                    self._blob_kwargs.append(None)
 
         self._blob_nd = tuple(self._blob_nd)
         self._blob_dims = tuple(self._blob_dims)

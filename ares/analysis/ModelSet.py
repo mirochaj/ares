@@ -190,7 +190,7 @@ class ModelSet(BlobFactory):
     @property
     def mask(self):
         if not hasattr(self, '_mask'):
-            self._mask = np.zeros(self.chain.shape[0])
+            self._mask = np.zeros_like(self.chain) # chain.shape[0]?
         return self._mask
     
     @mask.setter
@@ -485,8 +485,9 @@ class ModelSet(BlobFactory):
                 if hasattr(self, '_mask'):
                     if self.mask.ndim == 1:
                         mask2d = np.array([self.mask] * self._chain.shape[1]).T
-                    else:
-                        mask2d = np.zeros_like(self._chain)
+                    elif self.mask.ndim == 2:
+                        mask2d = self.mask
+                        #mask2d = np.zeros_like(self._chain)
                 else:
                     mask2d = 0        
                     
@@ -1030,7 +1031,8 @@ class ModelSet(BlobFactory):
         ##
         model_set = ModelSet(self.prefix)
         
-        # Set the mask!
+        # Set the mask.
+        # Must this be 2-D?
         mask2d = np.array([mask] * self.chain.shape[1]).T
         model_set.mask = np.logical_or(mask2d, self.mask)
                 
