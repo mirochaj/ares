@@ -166,7 +166,7 @@ _sfrd_above = \
 _cooling = \
 {
  'blob_names': ['dlogTk_dlogt', 'Tk_cold'],
- 'blob_ivars': ('z', np.logspace(1., 3., 201)),
+ 'blob_ivars': ('z', np.logspace(1., 3.05, 206)),
  'blob_funcs': ['cosm.log_cooling_rate', 'cosm.Tgas'],
  'blob_kwargs': [None]*2,
 }

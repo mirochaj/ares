@@ -119,8 +119,10 @@ def _compute_blob_prior(sim, priors_B):
             ivar = sim.get_ivars(key)[0]
             
             val = np.interp(md[1], ivar, blob)
-                        
-            # Should check ivarn too
+            zclose = ivar[np.argmin(np.abs(ivar - md[1]))]
+                                    
+            # Should check ivarn too just to be safe
+            
         else:
             raise NotImplemented('sorry')
 
