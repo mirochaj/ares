@@ -214,11 +214,17 @@ def PhysicsParameters():
     "approx_thermal_history": False,
     "inits_Tk_p0": None,
     "inits_Tk_p1": None,
-    "inits_Tk_p2": 0.0,
+    "inits_Tk_p2": None,    # Set to -4/3 if thermal_hist = 'exp' to recover adiabatic cooling
     "inits_Tk_p3": 0.0,
     "inits_Tk_p4": np.inf,
     "inits_Tk_dz": 1.,
-
+    
+    "Tbg": None,
+    "Tbg_p0": None,
+    "Tbg_p1": None,
+    "Tbg_p2": None,
+    "Tbg_p3": None,
+            
     "spin_temperature_floor": 0.0,
 
     # Lyman alpha sources

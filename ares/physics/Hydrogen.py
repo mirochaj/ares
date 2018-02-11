@@ -247,7 +247,32 @@ class Hydrogen(object):
         else:
             raise ValueError('Only know frec for 2 <= n <= 30!')
     
-    # Look at line 905 in astrophysics.cc of Jonathan's code
+    @property    
+    def Tbg(self):
+        if not hasattr(self, '_Tbg'):
+            if self.pf['Tbg'] is not None:
+                if self.pf['Tbg'] == 'pl':
+                    p = self.Tbg_pars
+                    self._Tbg = lambda z: p[0] * ((1. + z) / (1. + p[1]))**p[2]
+                else:
+                    raise NotImplemented('help')
+            else:
+                self._Tbg = lambda z: 0.0
+                
+        return self._Tbg
+                
+    @property
+    def Tbg_pars(self):
+        if not hasattr(self, '_Tbg_pars'):
+            self._Tbg_pars = [self.pf['Tbg_p{}'.format(i)] for i in range(5)]
+        return self._Tbg_pars            
+        
+    def Tref(self, z):
+        """
+        Compute background temperature.
+        """
+        
+        return self.cosm.TCMB(z) + self.Tbg(z)
     
     def CollisionalCouplingCoefficient(self, z, Tk, xHII, ne):
         """

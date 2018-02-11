@@ -1643,6 +1643,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             return np.array(res)    
     
         else:
+            
+            raise NotImplemented('i think this is broken')
+            
             if (z, MUV) in self._sfrd_above_MUV_tab:
                 return self._sfrd_above_MUV_tab[(z, MUV)]
                 

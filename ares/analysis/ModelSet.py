@@ -3662,6 +3662,7 @@ class ModelSet(BlobFactory):
                 elif samples is not None:
                     y.append(yblob[skip:stop]) 
                 elif percentile:
+                    print yblob.shape
                     lo, hi = np.percentile(yblob[skip:stop].compressed(),
                         (q1, q2))
                     y.append((lo, hi))                    
