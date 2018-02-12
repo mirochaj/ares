@@ -385,14 +385,15 @@ class ParameterBundle(dict):
         # Just alert the user that this is happening.
         for key in other:
             if key in tmp and rank == 0:
-                msg1 = "UPDATE: Setting {0} -> {1}".format(key, other[key])
-                msg2 = "previously {0} = {1}".format(key, tmp[key])
+                msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
+                    str(other[key]).ljust(12))
+                msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
                 print('{0} [{1}]'.format(msg1, msg2))
 
             tmp[key] = other[key]
-                
+
         return ParameterBundle(**tmp)
-        
+
     def __sub__(self, other):
         tmp1 = self.copy()
     

@@ -105,6 +105,19 @@ WARNING: The contents of `pop_constraints` will override the values of
 `pop_lf_Mstar`, `pop_lf_pstar`, and `pop_lf_alpha`. 
 """
 
+def not_a_restart(prefix, has_burn):
+    print("")
+    print(line(separator))
+    print(line("WARNING: This doesn't look like a restart:"))
+    print(line("{!s}.chain.pkl is empty!".format(prefix)))
+    
+    if not has_burn:
+        print(line("No burn-in data found. Continuing on as if from scratch."))
+    else:
+        print(line("Burn-in data found. Restarting from end of burn-in."))
+        
+    print(line(separator))    
+
 def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok, ztab):    
     print("")
     print(line(separator))
@@ -133,6 +146,7 @@ def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok, ztab):
                 "comes first").format(igm.pf['EoR_xavg'])))
 
     print(line(separator))
+    print("")
 
 def tau_tab_E_mismatch(pop, tabname, Emin_ok, Emax_ok, Etab):    
     print("")

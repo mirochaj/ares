@@ -16,6 +16,7 @@ from ..util.Stats import get_nu
 from ..util.MPIPool import MPIPool
 from ..util.PrintInfo import print_fit
 from ..physics.Constants import nu_0_mhz
+from ..util.Warnings import not_a_restart
 from ..util.ParameterFile import par_info
 import gc, os, sys, copy, types, time, re, glob
 from ..analysis import Global21cm as anlG21
@@ -1089,15 +1090,14 @@ class ModelFit(FitBase):
                 _chain = read_pickled_chain('{!s}.chain.pkl'.format(prefix))
             except ValueError:
                 if rank == 0:
-                    print("WARNING: This doesn't look like a restart, {!s}.chain.pkl is empty!".format(prefix))
-                    print("         Looking use burn-in data if it exists.")
-                    
-                    if not os.path.exists('{!s}.burn.chain.pkl'.format(prefix)):
+                    has_burn = os.path.exists('{!s}.burn.chain.pkl'.format(prefix))
+                    if not has_burn:
                         restart = False
                         clobber = True
-                        print("         No burn-in data found.")
-                        print("         Continuing on as if from scratch.")
-                    
+                        
+                    # Print warning to screen    
+                    not_a_restart(prefix, has_burn)    
+                        
         # Initialize Pool
         if size > 1:
             self.pool = MPIPool()
