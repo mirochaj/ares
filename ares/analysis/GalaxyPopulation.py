@@ -277,7 +277,7 @@ class GalaxyPopulation(object):
             #else:
             shift = 0.    
               
-            ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=10, 
+            ax.errorbar(M+shift-dc, phi, yerr=err, uplims=ulim, zorder=np.inf, 
                 label=source, **kw)
 
         if quantity == 'lf' and (not gotax):

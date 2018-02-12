@@ -305,7 +305,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             if 'C' in self.track.turning_points:
                 zC = self.track.turning_points['C'][0]
                 if (zC < 0) or (zC > 50):
-                    print("WARNING: absorption minimum redshift wonky.")
+                    print("WARNING: absorption minimum redshift wonky (z={})".format(zC))
                     i_min = np.argmin(self.history['dTb'])
                     fixes['C'] = (self.history['z'][i_min], 
                         self.history['dTb'][i_min], -99999)

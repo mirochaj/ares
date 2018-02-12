@@ -214,11 +214,11 @@ class Cosmology(object):
             
     def cooling_rate(self, z, T=None):
         if self.pf['approx_thermal_history'] in ['exp', 'tanh', 'exp+gauss']:
-            
+
             # This shouldn't happen! Argh.
             if z < 0:
                 return np.nan
-            
+
             t = self.t_of_z(z)
             dtdz = self.dtdz(z)
             return (T / t) * self.log_cooling_rate(z) * -1. * dtdz
@@ -228,7 +228,9 @@ class Cosmology(object):
     def log_cooling_rate(self, z):
         if self.pf['approx_thermal_history'] == 'exp':
             pars = self.cooling_pars
-            return pars[3] * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. + pars[2] / 3.
+            norm = -(2. + pars[2]) # Must be set so high-z limit -> -2/3
+            return norm * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. \
+                   + pars[2] / 3.
         elif self.pf['approx_thermal_history'] == 'exp+gauss':
             pars = self.cooling_pars
             return 2. * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. \
@@ -239,14 +241,14 @@ class Cosmology(object):
         else:
             return -1. * self.cooling_rate(z, self.Tgas(z)) \
                 * (self.t_of_z(z) / self.Tgas(z)) / self.dtdz(z)
-                
+
     @property
     def z_dec(self):
         if not hasattr(self, '_z_dec'):
             to_min = lambda zz: np.abs(self.log_cooling_rate(zz) + 1.)
             self._z_dec = fsolve(to_min, 150.)[0]
         return self._z_dec    
-        
+
     @property
     def Tk_dec(self):
         return self.Tgas(self.z_dec)

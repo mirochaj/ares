@@ -123,7 +123,7 @@ class ModelSet(BlobFactory):
         data : instance, str
             prefix for a bunch of files ending in .chain.pkl, .pinfo.pkl, etc.,
             or a ModelSubSet instance.
-        
+
         subset : list, str
             List of parameters / blobs to recover from individual files. Can
             also set subset='all', and we'll try to automatically track down
@@ -3662,7 +3662,6 @@ class ModelSet(BlobFactory):
                 elif samples is not None:
                     y.append(yblob[skip:stop]) 
                 elif percentile:
-                    print yblob.shape
                     lo, hi = np.percentile(yblob[skip:stop].compressed(),
                         (q1, q2))
                     y.append((lo, hi))                    
@@ -3726,6 +3725,10 @@ class ModelSet(BlobFactory):
                 ax.fill_between(xarr, y.T[0], y.T[1], **kwargs)
             else:
                 ax.plot(xarr, y.T[0], **kwargs)
+                
+                if 'label' in kwargs:
+                    del kwargs['label']
+                
                 ax.plot(xarr, y.T[1], **kwargs)
 
         ax.set_ylabel(self.labeler.label(names[0]))
