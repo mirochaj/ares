@@ -298,7 +298,7 @@ def correlation_matrix(cov):
             rho[i,j] = cov[i,j] / np.sqrt(cov[i,i] * cov[j,j])
 
     return rho
-    
+
 def rebin(bins):
     """
     Take in an array of bin edges and convert them to bin centers.        

@@ -988,7 +988,7 @@ class ModelFit(FitBase):
                 safe_mode=False, verbose=False)
         
         # Priors!
-        self.prior_set.save(self.prefix + '.prior_set.hdf5')
+        #self.prior_set.save(self.prefix + '.prior_set.hdf5')
         
         # Constant parameters being passed to ares.simulations.Global21cm
         tmp = self.base_kwargs.copy()

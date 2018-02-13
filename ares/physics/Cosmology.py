@@ -14,6 +14,7 @@ import numpy as np
 from scipy.misc import derivative
 from scipy.optimize import fsolve
 from scipy.integrate import quad, ode
+from scipy.interpolate import interp1d
 from ..util.ReadData import _load_inits
 from ..util.ParameterFile import ParameterFile
 from .Constants import c, G, km_per_mpc, m_H, m_He, sigma_SB, g_per_msun, \
@@ -168,10 +169,19 @@ class Cosmology(object):
             else:
                 return self.TCMB(self.zdec) * (1. + z)**2 / (1. + self.zdec)**2
         elif self.pf['approx_thermal_history']:
-            return np.interp(z, self.thermal_history['z'], 
-                self.thermal_history['Tk'])
+            if not hasattr(self, '_Tgas'):
+                self._Tgas = interp1d(self.thermal_history['z'], 
+                    self.thermal_history['Tk'], kind='cubic',
+                    bounds_error=False)
+            
+            return self._Tgas(z)
+            
         elif not self.pf['approx_thermal_history']:
-            return np.interp(z, self.inits['z'], self.inits['Tk'])
+            if not hasattr(self, '_Tgas'):
+                self._Tgas = interp1d(self.inits['z'], self.inits['Tk'],
+                    kind='cubic', bounds_error=False)
+            
+            return self._Tgas(z)
 
     @property
     def thermal_history(self):
