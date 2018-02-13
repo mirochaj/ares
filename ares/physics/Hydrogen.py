@@ -295,7 +295,7 @@ class Hydrogen(object):
         sum_term = self.cosm.nH(z) * (1. - xHII) * self.kappa_H(Tk) \
             + ne * self.kappa_e(Tk)
                 
-        return sum_term * T_star / A10 / self.cosm.TCMB(z)    
+        return sum_term * T_star / A10 / self.Tref(z)    
     
     def RadiativeCouplingCoefficient(self, z, Ja, Tk=None, xHII=None):
         """
@@ -383,7 +383,7 @@ class Hydrogen(object):
         Tc = Tk
 
         Ts = (1.0 + x_c + x_a) / \
-            (self.cosm.TCMB(z)**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
+            (self.Tref(z)**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
     
         return np.maximum(Ts, self.Ts_floor(z=z))
     
@@ -417,7 +417,7 @@ class Hydrogen(object):
         return 27. * (1. - xavg) * \
             (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
             np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
-            (1.0 - self.cosm.TCMB(z) / Ts)
+            (1.0 - self.Tref(z) / Ts)
             
     @property
     def inits(self):

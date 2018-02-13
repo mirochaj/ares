@@ -205,6 +205,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             i1 = np.argmin(np.abs(30. - self.history['nu']))
             i2 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
             data = np.abs(self.history['dTb'][i1:i2])
+                        
             self._kurtosis_abs = np.sum((data - np.mean(data))**4) \
                 / float(data.size) / np.std(data)**4
             

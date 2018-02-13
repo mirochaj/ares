@@ -181,12 +181,14 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     for fitter in fitters:
         lnL += fitter.loglikelihood(sim)
             
-    # Blob prior
-    lp += _compute_blob_prior(sim, prior_set_B)        
+    # Blob prior: only compute if log-likelihood is finite
+    if np.isfinite(lnL):
+        lp += _compute_blob_prior(sim, prior_set_B)
             
     # Final posterior calculation
     PofD = lp + lnL
     
+    # emcee doesn't like nans, but -inf is OK (see below)
     if np.isnan(PofD):
         del sim, kw, kwargs
         gc.collect()
@@ -1394,94 +1396,6 @@ class ModelFit(FitBase):
     
         self._fitters.append(fitter)
     
-    #def loglikelihood(self, pars):
-    #
-    #    kwargs = {}
-    #    for i, par in enumerate(self.parameters):
-    #
-    #        if self.is_log[i]:
-    #            kwargs[par] = 10**pars[i]
-    #        else:
-    #            kwargs[par] = pars[i]
-    #
-    #    # Apply prior on model parameters first (dont need to generate model)
-    #    point = {}
-    #    for i in range(len(self.parameters)):
-    #        point[self.parameters[i]] = pars[i]
-    #
-    #    lp = self.prior_set_P.log_value(point)
-    #
-    #    if not np.isfinite(lp):
-    #        return -np.inf, self.blank_blob
-    #
-    #    # Update kwargs
-    #    kw = self.base_kwargs.copy()
-    #    kw.update(kwargs)
-    #
-    #    # Don't save base_kwargs for each proc! Needlessly expensive I/O-wise.
-    #    self.checkpoint(**kwargs)
-    #
-    #    #for i, par in enumerate(self.parameters):
-    #    #    print(rank, par, pars[i], kwargs[par])
-    #
-    #    t1 = time.time()
-    #    sim = self.simulator(**kw)
-    #    print("rank={}, just made simulator".format(rank))
-    #
-    #    try:
-    #        t11 = time.time()
-    #        print("rank={}, running sim...".format(rank))
-    #        sim.run()
-    #        t12 = time.time()
-    #        print("rank={}, done with sim in {} sec.".format(rank, t12-t11))
-    #    except ValueError:
-    #        print(kwargs)
-    #        del sim, kw, kwargs
-    #        gc.collect()
-    #        return -np.inf, self.blank_blob
-    #
-    #    t2 = time.time()
-    #    
-    #    self.checkpoint_on_completion(**kwargs)
-    #
-    #    lnL = 0.0
-    #    for fitter in self.fitters:
-    #        lnL += fitter.loglikelihood(sim)
-    #            
-    #    # Final posterior calculation
-    #    PofD = lp + lnL
-    #    
-    #    if np.isnan(PofD):
-    #        del sim, kw, kwargs
-    #        gc.collect()
-    #        return -np.inf, self.blank_blob
-    #        
-    #    # Remember, -np.inf is OK (means proposal was bad, probably).
-    #    # +inf is NOT OK! Something is horribly wrong. Helpful in debugging.
-    #    if PofD == np.inf:
-    #        raise ValueError('+inf obtained in likelihood. Should not happen!')
-    #
-    #    self.checkpoint(blobs=True, **kwargs)        
-    #
-    #    try:
-    #        blobs = sim.blobs
-    #    except:
-    #        print("WARNING: Failure to generate blobs.")
-    #        blobs = self.blank_blob
-    #    
-    #    self.checkpoint_on_completion(is_blobs=True, **kwargs)
-    #    
-    #    # Why is only rank == 0 getting here?
-    #    print('proc={}, sim refcount={}, blobs refcount={}'.format(rank, 
-    #        getrefcount(sim), getrefcount(blobs)))
-    #    
-    #    print('hello')
-    #    del sim, kw, kwargs
-    #    gc.collect()
-    #    print('blobs count={}'.format(getrefcount(blobs)))
-    #        
-    #    return PofD, blobs        
-    
     @property
     def blank_blob(self):
         if not hasattr(self, '_blank_blob'):
@@ -1507,34 +1421,5 @@ class ModelFit(FitBase):
                         self._blank_blob.append(arr * np.inf)
     
         return self._blank_blob
-    
-    def checkpoint(self, is_blobs=False, **kwargs):
-        if self.checkpoint_by_proc:
-            procid = str(rank).zfill(3)
-
-            # Save parameters
-            if not is_blobs:
-                fn = '{0!s}.{1!s}.checkpt.pkl'.format(self.prefix, procid)
-                write_pickle_file(kwargs, fn, ndumps=1, open_mode='w',
-                    safe_mode=False, verbose=False)
-
-            # Timing info
-            fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
-            with open(fn, 'a' if is_blobs else 'w') as f:
-                if is_blobs:
-                    print("Generating blobs: {!s}".format(time.ctime()), file=f)
-                else:
-                    print("Simulation began: {!s}".format(time.ctime()), file=f)
-
-    def checkpoint_on_completion(self, is_blobs=False, **kwargs):
-        if self.checkpoint_by_proc:
-            procid = str(rank).zfill(3)
-            fn = '{0!s}.{1!s}.checkpt.txt'.format(self.prefix, procid)
-            with open(fn, 'a') as f:
-                if is_blobs:
-                    print("Blobs generated    : {!s}".format(time.ctime()), file=f)
-                else:
-                    print("Simulation finished: {!s}".format(time.ctime()), file=f)
-    
     
     

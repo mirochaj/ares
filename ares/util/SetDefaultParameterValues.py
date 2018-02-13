@@ -224,6 +224,7 @@ def PhysicsParameters():
     "Tbg_p1": None,
     "Tbg_p2": None,
     "Tbg_p3": None,
+    "Tbg_p4": None,
             
     "spin_temperature_floor": 0.0,
 
