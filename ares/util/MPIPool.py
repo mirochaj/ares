@@ -1,3 +1,5 @@
+import gc
+
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
@@ -39,7 +41,7 @@ class MPIPool(object):
         self.master = master
         self.workers = set(range(self.comm.size))
         self.workers.discard(self.master)
-        
+                
     def is_master(self):
         return self.master == self.comm.rank
 
@@ -64,12 +66,14 @@ class MPIPool(object):
 
             if tasklist:
                 flag = comm.Iprobe(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG)
-                if not flag: continue
+                if not flag: 
+                    continue
             else:
                 comm.Probe(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG)
 
             status = MPI.Status()
-            result = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+            result = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, 
+                status=status)
             worker = status.source
             workerset.add(worker)
             taskid = status.tag
@@ -81,19 +85,22 @@ class MPIPool(object):
     def start(self):
         if not self.is_worker(): 
             return
-            
+
         comm = self.comm
         master = self.master
         status = MPI.Status()
-        
+
         while True:
             task = comm.recv(source=master, tag=MPI.ANY_TAG, status=status)
             if task is None: 
                 break
-            
+
             function, arg = task
             result = function(arg)
             comm.ssend(result, master, status.tag)
+
+            del result, arg
+            gc.collect()
 
     def stop(self):
         if not self.is_master(): 

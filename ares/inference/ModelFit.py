@@ -9,6 +9,7 @@ Created on: Fri Oct 23 19:02:38 PDT 2015
 Description: 
 
 """
+
 from __future__ import print_function
 import numpy as np
 from ..util import get_hg_rev
@@ -30,6 +31,20 @@ from ..util.SetDefaultParameterValues import _blob_names, _blob_redshifts
 from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
     read_pickled_chain, read_pickled_logL
 
+import os
+import time
+import psutil
+
+ps = psutil.Process(os.getpid())
+
+def write_memory(checkpt):
+    t = time.time()
+    #mem = psutil.virtual_memory().active / 1e9
+    mem = ps.memory_info().rss / 1e6
+    
+    with open('memory.txt', 'a') as f:
+        f.write("{} {} {} {}\n".format(t, mem, rank, checkpt))
+
 try:
     from distpy import DistributionSet
 except ImportError:
@@ -42,7 +57,7 @@ except ImportError:
     pass
 
 emcee_mpipool = False
-     
+
 try:
     from mpi4py import MPI
     rank = MPI.COMM_WORLD.rank
@@ -134,6 +149,8 @@ def _compute_blob_prior(sim, priors_B):
 def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     blank_blob, base_kwargs, checkpoint_by_proc, simulator, fitters):
 
+    write_memory('1')
+
     kwargs = {}
     for i, par in enumerate(parameters):
 
@@ -164,7 +181,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
 
     t1 = time.time()
     sim = simulator(**kw)
-
+  
     try:
         sim.run()
     except ValueError:
@@ -175,6 +192,8 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
 
     t2 = time.time()
     
+    write_memory('2')
+    
     checkpoint_on_completion(prefix, False, checkpoint_by_proc, **kwargs)
 
     lnL = 0.0
@@ -182,7 +201,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
         lnL += fitter.loglikelihood(sim)
             
     # Blob prior: only compute if log-likelihood is finite
-    if np.isfinite(lnL):
+    if np.isfinite(lnL) and (prior_set_B is not None):
         lp += _compute_blob_prior(sim, prior_set_B)
             
     # Final posterior calculation
@@ -211,8 +230,12 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
 
     checkpoint_on_completion(prefix, True, checkpoint_by_proc, **kwargs)
     
+    write_memory('3')
+    
     del sim, kw, kwargs
     gc.collect()
+    
+    write_memory('4')
                 
     return PofD, blobs    
 
@@ -553,7 +576,7 @@ class ModelFit(FitBase):
     
     @property
     def prior_set_B(self):
-        if not hasattr(self, '_prior_set_B'):
+        if not hasattr(self, '_prior_set_B'):                
             ps = self.prior_set
             subset = DistributionSet()
             for (prior, params, transforms) in ps._data:
@@ -924,7 +947,19 @@ class ModelFit(FitBase):
     
     @checkpoint_append.setter
     def checkpoint_append(self, value):
-        self._checkpoint_append = value    
+        self._checkpoint_append = value  
+    
+    @property
+    def counter(self):
+        if not hasattr(self, '_counter'):
+            self._counter = 0
+        
+        return self._counter
+    
+    @counter.setter
+    def counter(self, value):
+        assert value == self._counter +1
+        self._counter += 1
 
     def _prep_from_scratch(self, clobber, by_proc=False):
         if (rank > 0) and (not by_proc):
@@ -1033,7 +1068,7 @@ class ModelFit(FitBase):
         del tmp
         
     def run(self, prefix, steps=1e2, burn=0, clobber=False, restart=False, 
-        save_freq=500):
+        save_freq=500, reboot=False):
         """
         Run MCMC.
 
@@ -1114,7 +1149,20 @@ class ModelFit(FitBase):
                 if emcee_mpipool:
                     self.pool.wait()
                     
-                sys.exit(0)
+                if not reboot:
+                    sys.exit(0)
+                
+                del self.pool
+                gc.collect()   
+                
+                self.counter = self.counter + 1    
+                
+                print("Commence reboot #{} (proc={})".format(self.counter, 
+                    rank))
+                
+                self.run(prefix, steps=steps, burn=0, clobber=False, 
+                    restart=True, save_freq=save_freq, 
+                    reboot=self.counter < reboot)
 
         else:
             self.pool = None
@@ -1135,8 +1183,7 @@ class ModelFit(FitBase):
             self.simulator, self.fitters]
         
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
-            self.Nd, loglikelihood, pool=self.pool, args=args, 
-            live_dangerously=True)
+            self.Nd, loglikelihood, pool=self.pool, args=args)
                 
         # If restart, will use last point from previous chain, or, if one
         # isn't found, will look for burn-in data.
@@ -1155,7 +1202,7 @@ class ModelFit(FitBase):
             t2 = time.time()
 
             print("Burn-in complete in {0:.3g} seconds.".format(t2 - t1))
-        
+
             # Save burn-in
             burn_prefix = prefix + '.burn'
             name = ['chain', 'logL', 'blobs']
@@ -1224,6 +1271,7 @@ class ModelFit(FitBase):
             iterations=steps, rstate0=state, storechain=False):
             
             # Only the rank 0 processor ever makes it here
+            write_memory('5')
                           
             # If we're saving each checkpoint to its own file, this is the
             # identifier to use in the filename
@@ -1298,6 +1346,8 @@ class ModelFit(FitBase):
             self.sampler.reset()
 
             gc.collect()
+            
+            write_memory('6')
 
             pos_all = []; prob_all = []; blobs_all = []
 
@@ -1308,6 +1358,23 @@ class ModelFit(FitBase):
 
         if rank == 0:
             print("Finished on {!s}".format(time.ctime()))
+            
+        ##
+        # New option: Reboot. See if destruction of Pool affects memory.
+        ##
+        if not reboot:
+            return
+            
+        del self.pool, self.sampler
+        gc.collect()
+            
+        self.counter = self.counter + 1    
+        
+        if rank == 0:
+            print("Commence reboot #{} (proc={})".format(self.counter, rank))
+            
+        self.run(prefix, steps=steps, burn=0, clobber=False, restart=True, 
+            save_freq=save_freq, reboot=self.counter < reboot)    
     
     def save_blobs(self, blobs, uncompress=True, prefix=None, dd=None):
         """

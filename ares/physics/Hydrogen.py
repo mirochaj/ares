@@ -246,7 +246,7 @@ class Hydrogen(object):
         elif n == 30: return 0.3590
         else:
             raise ValueError('Only know frec for 2 <= n <= 30!')
-    
+
     @property    
     def Tbg(self):
         if not hasattr(self, '_Tbg'):
@@ -258,9 +258,9 @@ class Hydrogen(object):
                     raise NotImplemented('help')
             else:
                 self._Tbg = lambda z: 0.0
-                
+
         return self._Tbg
-                
+
     @property
     def Tbg_pars(self):
         if not hasattr(self, '_Tbg_pars'):
@@ -271,9 +271,9 @@ class Hydrogen(object):
         """
         Compute background temperature.
         """
-        
+
         return self.cosm.TCMB(z) + self.Tbg(z)
-    
+
     def CollisionalCouplingCoefficient(self, z, Tk, xHII, ne):
         """
         Parameters

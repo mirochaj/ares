@@ -31,6 +31,7 @@ _gs_ext.append('z_dec')
 _gs_ext.append('Tk_dec')
 
 _def_z = ('z', np.arange(5, 51, 0.1))
+_late_z = ('z', np.arange(3, 15, 0.1))
 _z_from_freq = ('z', nu_0_mhz / np.arange(25., 210, 1.)[-1::-1] - 1.)
 
 _gs_shape_n = ['hwtqm_diff_C', 'hwhm_diff_C', 'hwqm_diff_C', 
@@ -129,7 +130,7 @@ _blob_i1 = [('z', np.array([3., 3.8, 4., 4.9, 5., 5.9, 6., 6.9, 7, 7.9,
 _blob_i2 = [('z', np.array([3., 3.8, 4., 4.9, 5., 5.9, 6., 6.9, 7, 7.9, 
     8., 9., 10., 10.4, 11., 12., 15., 20., 30.])),
     ('Mh', 10**np.arange(5., 14., 0.1))]
-_blob_i3 = [_def_z, ('MUV', np.arange(-17, -9))]
+_blob_i3 = [_late_z, ('MUV', np.array([-17, -15, -12, -10]))]
     
 _blob_f1 = ['pops[0].LuminosityFunction']
 _blob_f2 = ['pops[0].fstar']

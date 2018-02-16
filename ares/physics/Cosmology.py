@@ -169,12 +169,14 @@ class Cosmology(object):
             else:
                 return self.TCMB(self.zdec) * (1. + z)**2 / (1. + self.zdec)**2
         elif self.pf['approx_thermal_history']:
-            if not hasattr(self, '_Tgas'):
-                self._Tgas = interp1d(self.thermal_history['z'], 
-                    self.thermal_history['Tk'], kind='cubic',
-                    bounds_error=False)
-            
-            return self._Tgas(z)
+            return np.interp(z, self.thermal_history['z'], 
+                        self.thermal_history['Tk'])
+            #if not hasattr(self, '_Tgas'):
+            #    self._Tgas = interp1d(self.thermal_history['z'], 
+            #        self.thermal_history['Tk'], kind='cubic',
+            #        bounds_error=False)
+            #
+            #return self._Tgas(z)
             
         elif not self.pf['approx_thermal_history']:
             if not hasattr(self, '_Tgas'):
@@ -201,7 +203,7 @@ class Cosmology(object):
             zf = final_redshift = 1.
             zall = []; Tall = []
             while solver.successful() and solver.t > zf:
-                
+                                
                 if solver.t-dz < 0:
                     break
                                 

@@ -270,7 +270,7 @@ class ModelSet(BlobFactory):
                 self._parameters = list(f['chain'].attrs.get('names'))
                 #self._is_log = list(f['chain'].attrs.get('is_log'))
                 self._is_log = [False] * len(self._parameters)
-                f.close()                
+                f.close()
             else:
                 self._is_log = [False] * self.chain.shape[-1]
                 self._parameters = ['p{}'.format(i) \

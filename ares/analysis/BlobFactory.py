@@ -301,6 +301,10 @@ class BlobFactory(object):
     def all_blob_names(self):
         if not hasattr(self, '_all_blob_names'):
             
+            if not self.blob_names:
+                self._all_blob_names = []
+                return []
+            
             nested = any(isinstance(i, list) for i in self.blob_names)
             
             if nested:

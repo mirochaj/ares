@@ -965,19 +965,17 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         return self._phi_of_M[z]
 
+    def MUV(self, z, Mh):
+        Lh = np.interp(Mh, self.halos.M, self.Lh(z))
+        MAB = self.magsys.L_to_MAB(Lh, z=z)
+        return MAB
+
     def MUV_max(self, z):
         """
         Compute the magnitude corresponding to the Tmin threshold.
         """   
 
-        i_z = np.argmin(np.abs(z - self.halos.z))
-
-        Mmin = np.interp(z, self.halos.z, self._tab_Mmin)
-        Lmin = np.interp(Mmin, self.halos.M, self.Lh(z))
-
-        MAB = self.magsys.L_to_MAB(Lmin, z=z)
-
-        return MAB
+        return self.MUV(z, Mmin)
 
     def Mh_of_MUV(self, z, MUV):
         
