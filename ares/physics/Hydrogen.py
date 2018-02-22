@@ -261,6 +261,13 @@ class Hydrogen(object):
 
         return self._Tbg
 
+    @Tbg.setter
+    def Tbg(self, value):
+        """
+        Must be a function of redshift.
+        """
+        self._Tbg = value
+
     @property
     def Tbg_pars(self):
         if not hasattr(self, '_Tbg_pars'):
@@ -417,7 +424,7 @@ class Hydrogen(object):
         return 27. * (1. - xavg) * \
             (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
             np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
-            (1.0 - self.Tref(z) / Ts)
+            (1.0 - self.cosm.TCMB(z) / Ts)
             
     @property
     def inits(self):

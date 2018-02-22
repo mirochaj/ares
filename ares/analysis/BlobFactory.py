@@ -409,7 +409,13 @@ class BlobFactory(object):
                 break
                 
         if not found_blob:
-            print("WARNING: ivars for blob {} not found.".format(name))        
+            print("WARNING: ivars for blob {} not found.".format(name))
+            
+            if name in self.derived_blob_names:
+                print("CORRECTION: found {} in derived blobs!".format(name))    
+            
+                return self.derived_blob_ivars[name]
+            
             return None
                 
         return self.blob_ivars[i]
@@ -630,6 +636,10 @@ class BlobFactory(object):
         index of blob group, index of element within group, dimensionality, 
         and exact dimensions of blob.
         """
+        
+        if name in self.derived_blob_names:
+            iv = self.derived_blob_ivars[name]
+            return None, None, len(iv), tuple([len(element) for element in iv])
         
         nested = any(isinstance(i, list) for i in self.blob_names)
         

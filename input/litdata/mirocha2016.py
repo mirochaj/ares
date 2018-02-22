@@ -176,7 +176,7 @@ _flex2 = \
  'pq_val_floor{0}[0]': 'pq[5]',
  'pq_func{0}[5]': 'pl',
  'pq_func_var{0}[5]': '1+z',
- 'pq_func_par0{0}[5]': 0.001,
+ 'pq_func_par0{0}[5]': 0.0, # unused by default
  'pq_func_par1{0}[5]': 7.,
  'pq_func_par2{0}[5]': 0.,
  
@@ -190,7 +190,7 @@ _flex2 = \
  'pq_func{0}[7]': 'pl',
  'pq_func_var{0}[7]': '1+z',
  'pq_func_par0{0}[7]': 1.,
- 'pq_func_par1{0}[7]': 7.,
+ 'pq_func_par1{0}[7]': 5.,   # effectively not in use
  'pq_func_par2{0}[7]': 0.,   # power-law index!
   
  'pq_func{0}[8]': 'pl',

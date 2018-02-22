@@ -10,6 +10,7 @@ Description: For analysis of MCMC fitting.
 
 """
 
+import pickle
 import shutil
 import numpy as np
 import matplotlib as mpl
@@ -170,11 +171,11 @@ class ModelSet(BlobFactory):
         else:
             raise TypeError('Argument must be ModelSubSet instance or filename prefix')              
 
-    @property
-    def derived_blobs(self):
-        if not hasattr(self, '_derived_blobs'):
-            self._derived_blobs = DQ(self)
-        return self._derived_blobs
+    #@property
+    #def derived_blobs(self):
+    #    if not hasattr(self, '_derived_blobs'):
+    #        self._derived_blobs = DQ(self)
+    #    return self._derived_blobs
             
         #try:
         #    self._fix_up()
@@ -203,6 +204,76 @@ class ModelSet(BlobFactory):
         
         self._mask = value
 
+    @property
+    def skip(self):
+        if not hasattr(self._skip):
+            self._skip = 0
+        return self._skip
+        
+    @skip.setter
+    def skip(self, value):
+        
+        if hasattr(self, '_skip'):
+            pass
+            #print("WARNING: Running `skip` for (at least) the second time!")
+        else:
+            # On first time, stash away a copy of the original mask
+            if not hasattr(self, '_original_mask'):
+                self._original_mask = self.mask.copy()
+                
+            if hasattr(self, '_stop'):
+                mask = self.mask.copy()
+                assert value < self._stop
+            else:    
+                mask = self._original_mask.copy()    
+        
+        self._skip = int(value)
+        
+        x = np.arange(0, self.logL.size)
+        
+        mask[x < self._skip] = True
+        print("Masked out {} elements using `skip`.".format(self._skip))
+        self.mask = mask
+        
+    @property
+    def stop(self):
+        if not hasattr(self._stop):
+            self._stop = 0
+        return self._stop
+    
+    @stop.setter
+    def stop(self, value):
+        
+        if hasattr(self, '_stop'):
+            pass
+            #print("WARNING: Running `stop` for (at least) the second time!")
+        else:
+            # On first time, stash away a copy of the original mask
+            if not hasattr(self, '_original_mask'):
+                self._original_mask = self.mask.copy()
+            
+            # If skip has already been called, operate on pre-existing mask.
+            # Otherwise, start from scratch
+            if hasattr(self, '_skip'):
+                mask = self.mask.copy()
+                assert value > self._skip
+            else:    
+                mask = self._original_mask.copy()    
+                                
+        self._stop = int(value)
+    
+        x = np.arange(0, self.logL.size)
+            
+        print("Masked out {} elements using `stop`.".format(max(x) - self._stop))    
+        self.mask = mask
+        
+    def reset_mask(self):
+        if hasattr(self, '_skip'):
+            del self._skip
+        
+        if hasattr(self, '_stop'):
+            del self._stop
+        
     @property
     def load(self):
         if not hasattr(self, '_load'):
@@ -1433,14 +1504,28 @@ class ModelSet(BlobFactory):
             self._cosm = Cosmology(**self.pf)
         
         return self._cosm
+        
+    @property
+    def derived_blob_ivars(self):
+        if not hasattr(self, '_derived_blob_ivars'):
+            junk = self.derived_blob_names
+        return self._derived_blob_ivars
 
     @property
     def derived_blob_names(self):
-        if hasattr(self, '_derived_blob_names'):
+        #if not hasattr(self, '_derived_blob_names'):
+        self._derived_blob_ivars = {}
+        self._derived_blob_names = []
+        fn = '{}.dbinfo.pkl'.format(self.prefix)
+        if not os.path.exists(fn):
             return self._derived_blob_names
             
-        #self._derived_blob_names = self.derived_blobs
-        
+        with open(fn, 'rb') as f:
+            ivars = pickle.load(f)
+            self._derived_blob_ivars.update(ivars)
+            for key in ivars:
+                self._derived_blob_names.append(key)
+                
         return self._derived_blob_names
         
     def set_constraint(self, add_constraint=False, **constraints):
@@ -2363,24 +2448,28 @@ class ModelSet(BlobFactory):
                 if (nd == 2) and (ivar[k] is not None):
                     
                     fn_md = '{!s}.dbinfo.pkl'.format(self.prefix)
-                    dbinfo = {}
-                    dbinfos =\
-                        read_pickle_file(fn_md, nloads=None, verbose=False)
-                    for info in dbinfos:
-                        dbinfo.update(info)
-                    del dbinfos
-                    
-                    # Look up the independent variables for this DB
-                    ivars = dbinfo[par]
+                    #dbinfo = {}
+                    #dbinfos =\
+                    #    read_pickle_file(fn_md, nloads=None, verbose=False)
+                    #for info in dbinfos:
+                    #    dbinfo.update(info)
+                    #del dbinfos
 
-                    for iv in ivars:                            
-                        arr = np.array(ivars[iv]).squeeze()
-                        if arr.shape == dat[0].shape:
-                            break
+                    # Look up the independent variables for this DB
+                    #ivars = dbinfo[par]
+                    ivars = self.derived_blob_ivars[par]
+
+                    i1 = np.argmin(np.abs(ivars[0] - ivar[k][0]))
+                    i2 = np.argmin(np.abs(ivars[1] - ivar[k][1]))
                     
-                    loc = np.argmin(np.abs(arr - ivar[k]))
+                    #for iv in ivars:                            
+                    #    arr = np.array(iv).squeeze()
+                    #    if arr.shape == dat[0].shape:
+                    #        break
+                    #
+                    #loc = np.argmin(np.abs(arr - ivar[k]))
                 
-                    val = dat[:,loc]
+                    val = dat[:,i1,i2]
                 elif nd > 2:
                     raise NotImplementedError('help')
                 else:
@@ -3505,9 +3594,9 @@ class ModelSet(BlobFactory):
         samples : int, str
             If 'all', will plot all realizations individually. If an integer,
             will plot only that many realizations, drawn randomly.
-            
+ 
         """
-        
+
         if ax is None:
             gotax = False
             fig = pl.figure(fig)
@@ -3543,9 +3632,9 @@ class ModelSet(BlobFactory):
                     ivars = np.array(self.get_ivars(ivars))
                 else:
                     ivars = np.atleast_2d(ivars)    
-            
+
             nd = len(ivars)
-                             
+
         if ivars is None:    
             if nd == 1:
                 # This first case happens when reading from hdf5 since the
@@ -3555,8 +3644,12 @@ class ModelSet(BlobFactory):
                 else:    
                     ivars = np.atleast_2d(self.blob_ivars[info[0]])
             else:
-                ivars = self.blob_ivars[info[0]]
-                
+                assert len(names) == 1
+                if names[0] in self.derived_blob_names:
+                    ivars = self.derived_blob_ivars[names[0]]
+                else:
+                    ivars = self.blob_ivars[info[0]]
+
         if nd != 1 and (ivar is None):
             raise NotImplemented('If not 1-D blob, must supply one ivar!')
                 
@@ -3568,7 +3661,7 @@ class ModelSet(BlobFactory):
                 loc = psorted[int(N / 2.)]
             else:
                 loc = np.argmax(self.logL[skip:stop])
-                
+
         ##
         # Real work starts here.
         ##
@@ -3642,31 +3735,47 @@ class ModelSet(BlobFactory):
             
             if type(multiplier) not in [list, np.ndarray, tuple]:
                 multiplier = [multiplier] * len(vector)
-                                               
+                                                                      
             y = []
             for i, value in enumerate(vector):
                 iv = [scalar, value][slc]
-                
+                              
+                # Would be faster to pull this outside the loop                
                 tmp = self.ExtractData(names, ivar=[iv]*len(names),
                     take_log=take_log, un_log=un_log, multiplier=[multiplier[i]])
                  
                 if len(names) == 1:
-                    yblob = tmp[names[0]].squeeze()
+                    yblob = tmp[names[0]]
                 else:    
-                    xblob = tmp[names[0]].squeeze()
-                    yblob = tmp[names[1]].squeeze() 
-                        
+                    xblob = tmp[names[0]]
+                    yblob = tmp[names[1]]
+                
+                keep = np.ones_like(yblob.shape[0])
+
+                #mask = np.all(yblob.mask == True, axis=1)
+                #keep = np.array(np.logical_not(mask), dtype=int)
+                #nans = np.any(np.isnan(yblob.data), axis=1)        
+                #
+                #if skip is not None:
+                #    keep[0:skip] *= 0
+                #if stop is not None:
+                #    keep[stop: ] *= 0    
+
+                if np.all(yblob[keep == 1].mask == 1):
+                    print("WARNING: elements all masked!")
+                    y.append(-np.inf)
+                    continue
+
                 if (use_best and self.is_mcmc):
                     #x.append(xblob[name][skip:stop][loc])        
-                    y.append(yblob[skip:stop][loc]) 
+                    y.append(yblob[loc]) 
                 elif samples is not None:
-                    y.append(yblob[skip:stop]) 
+                    y.append(yblob[keep == 1]) 
                 elif percentile:
-                    lo, hi = np.percentile(yblob[skip:stop].compressed(),
-                        (q1, q2))
+                    lo, hi = np.percentile(yblob[keep == 1], (q1, q2))
                     y.append((lo, hi))                    
                 else:
-                    dat = yblob[skip:stop].compressed()
+                    dat = yblob[keep == 1]
                     lo, hi = dat.min(), dat.max()
                     y.append((lo, hi))
 
@@ -4152,6 +4261,7 @@ class ModelSet(BlobFactory):
             data = self.ExtractData(fields)
             
             # Grab ivars
+            ivars_for_func = {}
             ivars = {}
             for key in data:
                 # Don't need ivars if we're manipulating parameters!
@@ -4163,22 +4273,29 @@ class ModelSet(BlobFactory):
 
                 try: 
                     i, j, nd, size = self.blob_info(key)
+                    
+                    n = self.blob_ivarn[i]
+                    
                     ivars[key] = self.blob_ivars[i]
+                    
+                    for k, _name in enumerate(n):
+                        ivars_for_func[_name] = self.blob_ivars[i][k]
+                        
                 except KeyError:
+                    ivars_for_func[key] = None
                     ivars[key] = None
 
-            result = func(data, ivars)
-
+            result = func(data, ivars_for_func)
         else:
-        
             blobs = list(varmap.values())
             if ivar is not None:
                 iv = [ivar[blob] for blob in blobs]
             else:
-                iv = None    
-            
+                iv = None
+
             data = self.ExtractData(blobs, ivar=iv)
             result = eval(expr, {var: data[varmap[var]] for var in varmap.keys()})
+        
         if save:
             assert name is not None, "Must supply name for new blob!"
             
@@ -4209,20 +4326,36 @@ class ModelSet(BlobFactory):
                     ivars[key] = self.blob_ivars[i]
                 except KeyError:
                     ivars[key] = None
+                    
+            ##
+            # Need to save ivars under new blob name.
+            # Require ivars of component fields to be the same?
+            ##
             
+            ivars_f = {}
+            if len(ivars.keys()) == 1:
+                ivars_f[name] = ivars[ivars.keys()[0]]
+            else:
+                keys = ivars.keys()
+                for k in range(1, len(keys)):
+                    assert ivars[keys[k]] == ivars[keys[k-1]]
+                
+                ivars_f[name] = ivars[ivars.keys()[0]]
+                         
             # Save metadata about this derived blob
             fn_md = '{!s}.dbinfo.pkl'.format(self.prefix)
+            
             if (not os.path.exists(fn_md)) or clobber:
-                write_pickle_file({name: ivars}, fn_md, open_mode='w',\
+                write_pickle_file(ivars_f, fn_md, open_mode='w',\
                     ndumps=1, safe_mode=False, verbose=False)
             else:
                 pdats = read_pickle_file(fn_md, nloads=None, verbose=False)
                 for pdat in pdats:
                     if name in pdat:
-                        if pdat[name] == ivars:
+                        if pdat[name] == ivars_f[name]:
                             break
                 if pdat is not None:
-                    write_pickle_file({name: ivars}, fn_md, open_mode='a',\
+                    write_pickle_file(ivars_f, fn_md, open_mode='a',\
                         ndumps=1, safe_mode=False, verbose=False)
         
         return result

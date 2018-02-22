@@ -430,6 +430,7 @@ def PopulationParameters():
     "pop_Emax": 3e4,
     "pop_EminNorm": 5e2,
     "pop_EmaxNorm": 8e3,
+    "pop_Enorm": None,
 
     "pop_Emin_xray": 2e2,
     

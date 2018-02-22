@@ -16,7 +16,8 @@ from ..physics import Cosmology
 from ..util import ParameterFile
 from scipy.integrate import quad
 from ..sources import Star, BlackHole, StarQS, SynthesisModel
-from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr
+from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
+    ev_per_hz
 
 _multi_pop_error_msg = "Parameters for more than one population detected! "
 _multi_pop_error_msg += "Population objects are by definition for single populations."
@@ -55,7 +56,7 @@ def normalize_sed(pop):
     else:    
         # Remove whitespace and convert everything to lower-case
         units = pop.pf['pop_rad_yield_units'].replace(' ', '').lower()
-        if units == 'erg/s/sfr':
+        if units.startswith('erg/s/sfr'):
             return Zfactor * pop.pf['pop_rad_yield'] * s_per_yr / g_per_msun
 
     erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
@@ -440,6 +441,15 @@ class Population(object):
     def yield_per_sfr(self):
         if not hasattr(self, '_yield_per_sfr'):
             self._yield_per_sfr = normalize_sed(self)
+            
+            # Correction: supplied normalization at monochromatic energy
+            if self.pf['pop_Enorm'] is not None:
+                self._yield_per_sfr = self._yield_per_sfr \
+                    / self.src.Spectrum(self.pf['pop_Enorm']) \
+                
+                if self.pf['pop_rad_yield_units'].endswith('hz'):
+                    self._yield_per_sfr /= ev_per_hz
+            
     
         return self._yield_per_sfr
     

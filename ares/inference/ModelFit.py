@@ -181,7 +181,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
 
     t1 = time.time()
     sim = simulator(**kw)
-  
+    
     try:
         sim.run()
     except ValueError:
@@ -201,18 +201,18 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
         lnL += fitter.loglikelihood(sim)
             
     # Blob prior: only compute if log-likelihood is finite
-    if np.isfinite(lnL) and (prior_set_B is not None):
+    if np.isfinite(lnL) and (prior_set_B.params != []):
         lp += _compute_blob_prior(sim, prior_set_B)
             
     # Final posterior calculation
     PofD = lp + lnL
-    
+
     # emcee doesn't like nans, but -inf is OK (see below)
     if np.isnan(PofD):
         del sim, kw, kwargs
         gc.collect()
         return -np.inf, blank_blob
-        
+
     # Remember, -np.inf is OK (means proposal was bad, probably).
     # +inf is NOT OK! Something is horribly wrong. Helpful in debugging.
     if PofD == np.inf:

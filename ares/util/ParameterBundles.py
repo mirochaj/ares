@@ -533,6 +533,16 @@ class ParameterBundle(dict):
                 
         return ParameterBundle(**tmp)
         
+    def get_base_kwargs(self):
+        tmp = {}
+        for par in self:
+            prefix, idnum = pop_id_num(par)
+            
+            if idnum is None: 
+                tmp[par] = self[par]
+                
+        return ParameterBundle(**tmp)
+        
     @property
     def pqs(self):
         if not hasattr(self, '_pqs'):

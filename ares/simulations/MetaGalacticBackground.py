@@ -223,7 +223,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         
         _fluxes_today = []
         _energies_today = []
-        
+
         for popid, pop in enumerate(self.pops):
             if not self.solver.solve_rte[popid]:
                 _fluxes_today.append(None)

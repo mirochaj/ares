@@ -147,11 +147,15 @@ class UniformBackground(object):
                        #if j == 0:
                        #    break
                     elif type(pop.pf['pop_solve_rte']) is tuple:
+                        
                         if band == pop.pf['pop_solve_rte']:
                             tmp.append(True)
-                        # Eh, close  enough (to 0.1 eV)
+                        # Round (close enough?)
                         elif np.allclose(band, pop.pf['pop_solve_rte'], 
                             atol=1e-1, rtol=0.):
+                            tmp.append(True)
+                        elif (band[0] >= pop.pf['pop_solve_rte'][0]) and \
+                             (band[1] <= pop.pf['pop_solve_rte'][1]):
                             tmp.append(True)
                         else:
                             tmp.append(False)
@@ -188,8 +192,12 @@ class UniformBackground(object):
         
         bands = []
         
+        if (Emin < E_LyA) and (Emax < E_LyA):
+            bands.append((Emin, Emax))
+            return bands
+        
         # Check for optical/IR
-        if Emin < E_LyA:
+        if (Emin < E_LyA) and (Emax >= E_LyA):
             bands.append((Emin, E_LyA))
         
         # Check for sawtooth
@@ -205,10 +213,10 @@ class UniformBackground(object):
             bands.append((4 * E_LyA, 4 * E_LL))
             bands.append((4 * E_LL, Emax))
         else:
-            bands.append((E_LL, Emax))    
-            
+            bands.append((E_LL, Emax))
+
         return bands
-        
+
     @property
     def approx_all_pops(self):
         if not hasattr(self, '_approx_all_pops'):

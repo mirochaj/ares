@@ -652,6 +652,9 @@ class HaloMassFunction(object):
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)**(-1. / 3.) \
             * ((1. + z) / 10.)**-1.
               
+    def CircularVelocity(self, M, z, mu=0.6):
+        return np.sqrt(G * M * g_per_msun / self.VirialRadius(M, z, mu) / cm_per_kpc)
+              
     def MassFromVc(self, Vc, z):
         cterm = (self.cosm.omega_m_0 * self.cosm.CriticalDensityForCollapse(z) \
             / self.cosm.OmegaMatter(z) / 18. / np.pi**2)
@@ -679,6 +682,10 @@ class HaloMassFunction(object):
         l = np.sqrt(np.pi * cs**2 / G / rho)
         return 4. * np.pi * rho * (0.5 * l)**3 / 3. / g_per_msun
         
+    def DynamicalTime(self, M, z, mu=0.6):
+        return np.sqrt(self.VirialRadius(M, z, mu)**3 * cm_per_kpc**3 \
+            / G / M / g_per_msun)
+            
     def _tegmark(self, z):
         fH2s = lambda T: 3.5e-4 * (T / 1e3)**1.52
         fH2c = lambda T: 1.6e-4 * ((1. + z) / 20.)**-1.5 \
