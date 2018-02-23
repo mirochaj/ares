@@ -4176,6 +4176,10 @@ class ModelSet(BlobFactory):
                 # Cludgey...
                 biv = np.array(self.blob_ivars[i]).squeeze()
                 k = np.argmin(np.abs(biv - ivar))
+                
+                if biv[k] != ivar:
+                    print "WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, ivar, biv[k])
+                
                 return blob[:,k]
         elif nd == 2:
             if ivar is None:
@@ -4184,10 +4188,20 @@ class ModelSet(BlobFactory):
             assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
             k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))
             
+            if self.blob_ivars[i][0][k1] != ivar[0]:
+                print "WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, 
+                    ivar[0], self.blob_ivars[i][0][k1])
+            
+            
             if ivar[1] is None:
                 return blob[:,k1,:]
             else:
                 k2 = np.argmin(np.abs(self.blob_ivars[i][1] - ivar[1]))
+                
+                if self.blob_ivars[i][1][k2] != ivar[1]:
+                    print "WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, 
+                        ivar[1], self.blob_ivars[i][1][k2])
+                
                 return blob[:,k1,k2]    
     
     def max_likelihood_parameters(self, method='median', min_or_max='max'):

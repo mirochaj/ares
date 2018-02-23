@@ -161,11 +161,14 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
 
     # Apply prior on model parameters first (dont need to generate model)
     point = {}
-    for i in range(len(parameters)):
-        point[parameters[i]] = pars[i]
+    for i, par in enumerate(parameters):
+        # This is in user-supplied units, i.e., don't correct for log10-ness
+        # because the distribution set and supplied values are
+        # consistent by construction
+        point[par] = pars[i]
 
     lp = prior_set_P.log_value(point)
-
+    
     if not np.isfinite(lp):
         return -np.inf, blank_blob
 

@@ -186,19 +186,18 @@ _flex2 = \
  'pq_func_var{0}[6]': 'Mh',
  'pq_func_par0{0}[6]': 'pq[7]',
  'pq_func_par1{0}[6]': 'pq[8]',
- 
+
  'pq_func{0}[7]': 'pl',
  'pq_func_var{0}[7]': '1+z',
  'pq_func_par0{0}[7]': 1.,
  'pq_func_par1{0}[7]': 5.,   # effectively not in use
  'pq_func_par2{0}[7]': 0.,   # power-law index!
-  
+
  'pq_func{0}[8]': 'pl',
  'pq_func_var{0}[8]': '1+z',
  'pq_func_par0{0}[8]': 0.,  # Renders focc = 1 for all halos 
  'pq_func_par1{0}[8]': 7.,
  'pq_func_par2{0}[8]': 0.,   # power-law index!
- 
 }
 
 dflex = _flex2

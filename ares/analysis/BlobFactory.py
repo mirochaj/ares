@@ -637,9 +637,12 @@ class BlobFactory(object):
         and exact dimensions of blob.
         """
         
-        if name in self.derived_blob_names:
-            iv = self.derived_blob_ivars[name]
-            return None, None, len(iv), tuple([len(element) for element in iv])
+        if hasattr(self, 'derived_blob_names'):
+            # This is bad practice since this is an attribute of ModelSet,
+            # i.e., the child class (sometimes)
+            if name in self.derived_blob_names:
+                iv = self.derived_blob_ivars[name]
+                return None, None, len(iv), tuple([len(element) for element in iv])
         
         nested = any(isinstance(i, list) for i in self.blob_names)
         
