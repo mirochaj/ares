@@ -17,7 +17,7 @@ from ..util import ParameterFile
 from scipy.integrate import quad
 from ..sources import Star, BlackHole, StarQS, SynthesisModel
 from ..physics.Constants import g_per_msun, erg_per_ev, E_LyA, E_LL, s_per_yr, \
-    ev_per_hz
+    ev_per_hz, h_p
 
 _multi_pop_error_msg = "Parameters for more than one population detected! "
 _multi_pop_error_msg += "Population objects are by definition for single populations."
@@ -56,11 +56,17 @@ def normalize_sed(pop):
     else:    
         # Remove whitespace and convert everything to lower-case
         units = pop.pf['pop_rad_yield_units'].replace(' ', '').lower()
-        if units.startswith('erg/s/sfr'):
+        if units == 'erg/s/sfr':
             return Zfactor * pop.pf['pop_rad_yield'] * s_per_yr / g_per_msun
-
-    erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
+    
     energy_per_sfr = pop.pf['pop_rad_yield']
+    
+    # RARE: monochromatic normalization
+    if units == 'erg/s/sfr/hz':
+        assert pop.pf['pop_Enorm'] is not None
+        energy_per_sfr *= s_per_yr / g_per_msun / ev_per_hz
+    else:
+        erg_per_phot = pop.src.AveragePhotonEnergy(E1, E2) * erg_per_ev
         
     if units == 'photons/baryon':
         energy_per_sfr *= erg_per_phot / pop.cosm.g_per_baryon
@@ -68,6 +74,8 @@ def normalize_sed(pop):
         energy_per_sfr *= erg_per_phot / g_per_msun
     elif units == 'photons/s/sfr':
         energy_per_sfr *= erg_per_phot * s_per_yr / g_per_msun
+    elif units == 'erg/s/sfr/hz':
+        pass
     else:
         raise ValueError('Unrecognized yield units: {!s}'.format(units))
 
@@ -124,6 +132,8 @@ class Population(object):
                 self._zone = 'cgm'
             elif self.affects_igm and (not self.affects_cgm):
                 self._zone = 'igm'
+            elif (not self.affects_cgm) and (not self.affects_igm):
+                self._zone = None
             else:
                 raise ValueError("Populations should only affect one zone!")
                 
@@ -134,12 +144,25 @@ class Population(object):
         if not hasattr(self, '_affects_cgm'):
             self._affects_cgm = self.is_src_ion_cgm 
         return self._affects_cgm
-    
+
     @property
     def affects_igm(self):
         if not hasattr(self, '_affects_igm'):
             self._affects_igm = self.is_src_ion_igm or self.is_src_heat_igm
-        return self._affects_igm    
+        return self._affects_igm 
+
+    @property
+    def is_src_radio(self):
+        if not hasattr(self, '_is_src_radio'):
+            if self.pf['pop_sed_model']:
+                E21 = 1.4e9 * (h_p / erg_per_ev)
+                self._is_src_radio = \
+                    (self.pf['pop_Emin'] <= E21 <= self.pf['pop_Emax']) \
+                    and self.pf['pop_radio_src']
+            else:
+                self._is_src_radio = self.pf['pop_radio_src']
+    
+        return self._is_src_radio   
     
     @property
     def is_src_lya(self):
@@ -434,23 +457,39 @@ class Population(object):
                     self._src = self._Source
             else:
                 self._src = None
-    
+
         return self._src
-    
+
     @property
     def yield_per_sfr(self):
         if not hasattr(self, '_yield_per_sfr'):
+
+            # erg/g
             self._yield_per_sfr = normalize_sed(self)
             
             # Correction: supplied normalization at monochromatic energy
-            if self.pf['pop_Enorm'] is not None:
-                self._yield_per_sfr = self._yield_per_sfr \
-                    / self.src.Spectrum(self.pf['pop_Enorm']) \
+            #if self.pf['pop_Enorm'] is not None:
+            #    # Need to normalize spectrum such that monochromatic
+            #    # emission matches our pop_rad_yield input.
+            #    
+            #    assert self.pf['pop_rad_yield_units'].lower().endswith('hz')
+            #    
+            #    #IE = self.src.Spectrum(E) / self.src._Intensity(self.pf['pop_Enorm'])
+            #    
+            #    # erg/g/something (probably Hz)
+            #    norm_mono = self._yield_per_sfr \
+            #        / self.src.Spectrum(self.pf['pop_Enorm'])
+            #
+            #    # This is so src.Spectrum(Enorm) * yield_per_sfr = what we want
+            #                
+            #    # New normalization factor
+            #    tot = quad(self.src._Intensity, self.src.EminNorm, 
+            #        self.src.EminNorm)[0]
+            #        
+            #    self._yield_per_sfr = norm_mono
                 
-                if self.pf['pop_rad_yield_units'].endswith('hz'):
-                    self._yield_per_sfr /= ev_per_hz
-            
-    
+                #print(tot, yield_mono, tot * norm_mono)
+                    
         return self._yield_per_sfr
     
     @property

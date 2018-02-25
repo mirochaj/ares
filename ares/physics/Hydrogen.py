@@ -12,6 +12,7 @@ Description: Container for hydrogen physics stuff.
 
 import scipy
 import numpy as np
+from types import FunctionType
 import scipy.interpolate as interpolate
 from ..util.ReadData import _load_inits
 from ..util.Math import central_difference
@@ -254,34 +255,36 @@ class Hydrogen(object):
                 if self.pf['Tbg'] == 'pl':
                     p = self.Tbg_pars
                     self._Tbg = lambda z: p[0] * ((1. + z) / (1. + p[1]))**p[2]
+                elif type(self.pf['Tbg']) is FunctionType:
+                    self._Tbg = self.pf['Tbg']
                 else:
                     raise NotImplemented('help')
             else:
-                self._Tbg = lambda z: 0.0
-
+                self._Tbg = None
+    
         return self._Tbg
-
+    
     @Tbg.setter
     def Tbg(self, value):
         """
         Must be a function of redshift.
         """
         self._Tbg = value
-
+    
     @property
     def Tbg_pars(self):
         if not hasattr(self, '_Tbg_pars'):
             self._Tbg_pars = [self.pf['Tbg_p{}'.format(i)] for i in range(5)]
         return self._Tbg_pars            
         
-    def Tref(self, z):
-        """
-        Compute background temperature.
-        """
+    #def Tref(self, z):
+    #    """
+    #    Compute background temperature.
+    #    """
+    #
+    #    return self.cosm.TCMB(z) + self.Tbg(z)
 
-        return self.cosm.TCMB(z) + self.Tbg(z)
-
-    def CollisionalCouplingCoefficient(self, z, Tk, xHII, ne):
+    def CollisionalCouplingCoefficient(self, z, Tk, xHII, ne, Tr=0.0):
         """
         Parameters
         ----------
@@ -301,8 +304,10 @@ class Hydrogen(object):
         """
         sum_term = self.cosm.nH(z) * (1. - xHII) * self.kappa_H(Tk) \
             + ne * self.kappa_e(Tk)
+              
+        Tref = self.cosm.TCMB(z) + Tr
                 
-        return sum_term * T_star / A10 / self.Tref(z)    
+        return sum_term * T_star / A10 / Tref
     
     def RadiativeCouplingCoefficient(self, z, Ja, Tk=None, xHII=None):
         """
@@ -356,13 +361,13 @@ class Hydrogen(object):
     def Ts_floor(self, value):
         self._Ts_floor = value
 
-    def Ts(self, z, Tk, Ja, xHII, ne):
+    def Ts(self, z, Tk, Ja, xHII, ne, Tr=0.0):
         """
         Short-hand for calling `SpinTemperature`.
         """
-        return self.SpinTemperature(z, Tk, Ja, xHII, ne)
+        return self.SpinTemperature(z, Tk, Ja, xHII, ne, Tr)
 
-    def SpinTemperature(self, z, Tk, Ja, xHII, ne):
+    def SpinTemperature(self, z, Tk, Ja, xHII, ne, Tr):
         """
         Returns spin temperature of intergalactic hydrogen.
 
@@ -389,21 +394,23 @@ class Hydrogen(object):
         x_a = self.RadiativeCouplingCoefficient(z, Ja, Tk, xHII)
         Tc = Tk
 
+        Tref = self.cosm.TCMB(z) + Tr
+        
         Ts = (1.0 + x_c + x_a) / \
-            (self.Tref(z)**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
-    
+            (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
+
         return np.maximum(Ts, self.Ts_floor(z=z))
-    
-    def dTb(self, z, xHII, Ts):
+
+    def dTb(self, z, xHII, Ts, Tr=0.0):
         """
         Short-hand for calling `DifferentialBrightnessTemperature`.
         """
-        return self.DifferentialBrightnessTemperature(z, xHII, Ts)
+        return self.DifferentialBrightnessTemperature(z, xHII, Ts, Tr)
         
-    def DifferentialBrightnessTemperature(self, z, xavg, Ts):
+    def DifferentialBrightnessTemperature(self, z, xavg, Ts, Tr=0.0):
         """
         Global 21-cm signature relative to cosmic microwave background in mK.
-        
+
         Parameters
         ----------
         z : float, np.ndarray
@@ -414,28 +421,29 @@ class Hydrogen(object):
             bulk IGM beyond.
         Ts : float, np.ndarray
             Spin temperature of intergalactic hydrogen.
-            
+
         Returns
         -------
         Differential brightness temperature in milli-Kelvin.
-        
+
         """
         
+        Tref = self.cosm.TCMB(z) + Tr
         return 27. * (1. - xavg) * \
             (self.cosm.omega_b_0 * self.cosm.h70**2 / 0.023) * \
             np.sqrt(0.15 * (1.0 + z) / self.cosm.omega_m_0 / self.cosm.h70**2 / 10.) * \
-            (1.0 - self.cosm.TCMB(z) / Ts)
-            
+            (1.0 - Tref / Ts)
+    
     @property
     def inits(self):
         if not hasattr(self, '_inits'):
             self._inits = _load_inits()
         return self._inits
-        
+
     def saturated_limit(self, z):
         return self.DifferentialBrightnessTemperature(z, 0.0, np.inf)
-    
-    def adiabatic_floor(self, z): 
+
+    def adiabatic_floor(self, z):
         Tk = np.interp(z, self.inits['z'], self.inits['Tk'])
         Ts = self.SpinTemperature(z, Tk, 1e50, 0.0, 0.0)        
         return self.DifferentialBrightnessTemperature(z, 0.0, Ts)

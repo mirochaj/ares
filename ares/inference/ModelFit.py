@@ -1222,7 +1222,7 @@ class ModelFit(FitBase):
                 # Other stuff
                 elif name[i] == 'chain':
                     
-                    # Quick restructure of chain
+                    # Quick restructure of chain.
                     rdata = np.array([data[:,kk,:] for kk in range(burn)])
                     dat = flatten_chain(rdata)
                 else:
@@ -1240,7 +1240,7 @@ class ModelFit(FitBase):
             #pos = self._fix_guesses(pos)
 
             self.sampler.reset()
-            
+
             del data, dat
             gc.collect()
             

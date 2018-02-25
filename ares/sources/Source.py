@@ -231,13 +231,22 @@ class Source(object):
     @property
     def _normL(self):
         if not hasattr(self, '_normL_'):
-            if self.intrinsic_hardening:
-                self._normL_ = 1. / quad(self._Intensity,
-                    self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
-            else:    
-                integrand = lambda EE: self._Intensity(EE) / self._hardening_factor(EE)
-                self._normL_ = 1. / quad(integrand,
-                    self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
+            
+            if self.pf['source_Enorm'] is not None:
+                En = self.pf['source_Enorm']
+                
+                if self.intrinsic_hardening:
+                    self._normL_ = 1. / self._Intensity(En),
+                else:    
+                    self._normL_ = 1. / (self._Intensity(En) / self._hardening_factor(En))
+            else:
+                if self.intrinsic_hardening:
+                    self._normL_ = 1. / quad(self._Intensity,
+                        self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
+                else:    
+                    integrand = lambda EE: self._Intensity(EE) / self._hardening_factor(EE)
+                    self._normL_ = 1. / quad(integrand,
+                        self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
                 
         return self._normL_          
 

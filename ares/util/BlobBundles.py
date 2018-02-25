@@ -144,6 +144,14 @@ _lf = \
  'blob_kwargs': [None, None],
 }
 
+_fobsc = \
+{
+ 'blob_names': [['fobsc']],
+ 'blob_ivars': [_blob_i2],
+ 'blob_funcs': ['pops[0].fobsc'],
+ 'blob_kwargs': [None],
+}
+
 _blob_n4 = ['galaxy_smf', 'Mstell']
 _blob_i4 = _blob_i2
 _blob_f4 = ['pops[0].StellarMassFunction', 'pops[0].StellarMass']
@@ -179,7 +187,7 @@ _blobs = \
         'cooling': _cooling},
  'pop': {'sfrd': _sfrd, 'emissivities': _emiss, 'fluxes': None, 
     'cxrb': _cxrb, 'lf': _lf, 'smf': _smf, 'sfrd_above': _sfrd_above,
-    'Nion': _Nion}
+    'Nion': _Nion, 'fobsc': _fobsc}
 }
 
 _keys = ('blob_names', 'blob_ivars', 'blob_funcs', 'blob_kwargs')

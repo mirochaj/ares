@@ -226,7 +226,7 @@ def PhysicsParameters():
     "Tbg_p3": None,
     "Tbg_p4": None,
             
-    "spin_temperature_floor": 0.0,
+    "spin_temperature_floor": None,
 
     # Lyman alpha sources
     "lya_nmax": 23,
@@ -488,6 +488,7 @@ def PopulationParameters():
     "pop_dlogM": 0.1,
 
     "pop_fobsc": 0.0,
+    "pop_fobsc_by_num": False,
 
     "pop_tab_z": None,
     "pop_tab_Mh": None,
@@ -547,9 +548,12 @@ def PopulationParameters():
     "pop_LE": None,
 
     # What radiation does this population emit?
-    # Should these be deprecated?
+    # These are passive fields
     "pop_lw_src": True,
     "pop_lya_src": True,
+    "pop_radio_src": False,
+    
+    # These are active fields (i.e., they change the IGMs properties)
     "pop_ion_src_cgm": True,
     "pop_ion_src_igm": True,
     "pop_heat_src_cgm": False,
@@ -634,6 +638,7 @@ def SourceParameters():
 
     "source_Emin": 13.6,  
     "source_Emax": 1e2,  
+    "source_Enorm": None,
     "source_EminNorm": None,
     "source_EmaxNorm": None,
     

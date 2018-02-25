@@ -895,13 +895,26 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             if z in self._phi_of_L:
                 return self._phi_of_L[z]
 
+        fobsc = (1. - self.fobsc(z=z, Mh=self.halos.M))
+        
         Lh = self.Lh(z)
+        
+        # Means obscuration refers to fractional dimming of individual 
+        # objects
+        if not self.pf['pop_fobsc_by_num']:
+            Lh *= fobsc
+        
         logL_Lh = np.log(Lh)
         
         dndm_func = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
 
-        dndm = dndm_func(z) * self.focc(z=z, Mh=self.halos.M[0:-1]) \
-             * (1. - self.fobsc(z=z, Mh=self.halos.M[0:-1]))
+        dndm = dndm_func(z) * self.focc(z=z, Mh=self.halos.M[0:-1])
+        
+        # In this case, obscuration means fraction of objects you don't see
+        # in the UV.
+        if self.pf['pop_fobsc_by_num']:
+            dndm *= fobsc[0:-1]
+            
         dMh_dLh = np.diff(self.halos.M) / np.diff(Lh)
                 
         dMh_dlogLh = dMh_dLh * Lh[0:-1]

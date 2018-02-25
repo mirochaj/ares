@@ -202,4 +202,38 @@ _flex2 = \
 
 dflex = _flex2
 
+fobsc = \
+{
+ 'pop_fobsc{0}': 'pq[10]',
+ 'pop_fobsc_by_num{0}': False,     # fraction of UV luminosity that gets out
+ 'pq_val_ceil{0}[10]': 1.0,
+ 'pq_val_floor{0}[10]': 0.0, 
+ 'pq_func{0}[10]': 'log_tanh_abs',
+ 'pq_func_var{0}[10]': 'Mh',
+ 'pq_func_par0{0}[10]': 0.0,       # minimal obscuration
+ 'pq_func_par1{0}[10]': 'pq[11]',  # peak obscuration
+ 'pq_func_par2{0}[10]': 'pq[12]',  # log transition mass
+ 'pq_func_par3{0}[10]': 'pq[13]',  # dlogM
+ 
+ 'pq_func{0}[11]': 'pl',
+ 'pq_func_var{0}[11]': '1+z',
+ 'pq_func_par0{0}[11]': 0.5,
+ 'pq_func_par1{0}[11]': 7.,   # effectively not in use
+ 'pq_func_par2{0}[11]': 0.,   # power-law index!
+ 
+ 'pq_func{0}[12]': 'pl',
+ 'pq_func_var{0}[12]': '1+z',
+ 'pq_func_par0{0}[12]': 11.,  
+ 'pq_func_par1{0}[12]': 7.,
+ 'pq_func_par2{0}[12]': 0.,   # power-law index!
+ 
+ 'pq_func{0}[13]': 'pl',
+ 'pq_func_var{0}[13]': '1+z',
+ 'pq_func_par0{0}[13]': 1.0,  
+ 'pq_func_par1{0}[13]': 7.,
+ 'pq_func_par2{0}[13]': 0.,   # power-law index!
+ 
+}
+
+
 

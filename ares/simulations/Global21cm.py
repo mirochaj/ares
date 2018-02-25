@@ -16,12 +16,13 @@ import os
 import time
 import numpy as np
 from types import FunctionType
-from ..util.Pickling import write_pickle_file
+from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
-from ..physics.Constants import nu_0_mhz, E_LyA
+from ..util.Pickling import write_pickle_file
 from ..util import ParameterFile, ProgressBar, get_hg_rev
 from ..analysis.Global21cm import Global21cm as AnalyzeGlobal21cm
+from ..physics.Constants import nu_0_mhz, E_LyA, h_p, erg_per_ev, k_B, c
 
 try:
     from mpi4py import MPI
@@ -30,12 +31,6 @@ try:
 except ImportError:
     rank = 0
     size = 1
-
-class _DummyClass(object):
-    def __init__(self, f):
-        self.f = f
-    def __call__(self, x):
-        return self.f(x)
 
 class Global21cm(AnalyzeGlobal21cm):
     def __init__(self, **kwargs):
@@ -317,7 +312,7 @@ class Global21cm(AnalyzeGlobal21cm):
         self.history['Ts'] = self.history['igm_Ts']
         self.history['Ja'] = self.history['igm_Ja']
         self.history['Jlw'] = self.history['igm_Jlw']
-        
+            
         # Save rate coefficients [optional]
         if self.pf['save_rate_coefficients']:
             self.rates_igm = \
@@ -330,11 +325,56 @@ class Global21cm(AnalyzeGlobal21cm):
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
-
-        t2 = time.time()
-                
-        self.timer = t2 - t1
         
+        ##
+        # Optional extra radio background
+        ##
+        Tr = np.zeros_like(self.history['z'])
+        for popid, pop in enumerate(self.pops):
+            if not pop.is_src_radio:
+                continue
+            
+            z, E, flux = self.field.get_history(popid, flatten=True)
+        
+            E21cm = h_p * nu_0_mhz * 1e6 / erg_per_ev
+            f21 = interp1d(E, flux, axis=1, bounds_error=False, fill_value=0.0)
+            flux_21cm = f21(E21cm)
+                                
+            Tr += np.interp(self.history['z'], z, flux_21cm) \
+                * E21cm * erg_per_ev * c**2 / k_B / 2. / (nu_0_mhz * 1e6)**2
+            
+            
+        if not np.all(Tr == 0):
+            assert self.medium.parcel_igm.grid.hydr.Tbg is None
+        elif self.medium.parcel_igm.grid.hydr.Tbg is not None:
+            Tr = self.medium.parcel_igm.grid.hydr.Tbg(self.history['z'])
+            
+        self.history['Tr'] = Tr
+        
+        # Correct the brightness temperature if there are non-CMB backgrounds
+        if not np.all(Tr == 0):            
+            zall = self.history['z']
+            n_H = self.medium.parcel_igm.grid.cosm.nH(zall)            
+            Ts = self.medium.parcel_igm.grid.hydr.Ts(zall,
+                self.history['igm_Tk'], self.history['Ja'], 
+                self.history['igm_h_2'], self.history['igm_e'] * n_H, Tr)
+
+            if self.pf['spin_temperature_floor'] is not None:
+                Ts = max(Ts, self.medium.parcel_igm.grid.hydr.Ts_floor(z=zall))            
+
+            # Compute volume-averaged ionized fraction
+            xavg = self.history['cgm_h_2'] \
+                 + (1. - self.history['cgm_h_2']) * self.history['igm_h_2']
+
+            # Derive brightness temperature
+            dTb = self.medium.parcel_igm.grid.hydr.dTb(zall, xavg, Ts, Tr)
+            
+            self.history['dTb_corr'] = dTb
+        
+        t2 = time.time()
+
+        self.timer = t2 - t1
+
         self.is_complete = True
 
     def step(self):
@@ -357,9 +397,9 @@ class Global21cm(AnalyzeGlobal21cm):
 
             Ja = np.atleast_1d(self._f_Ja(z))
             Jlw = np.atleast_1d(self._f_Jlw(z))
-                                                                                            
+
             # Compute spin temperature
-            n_H = self.medium.parcel_igm.grid.cosm.nH(z)
+            n_H = self.medium.parcel_igm.grid.cosm.nH(z)            
             Ts = self.medium.parcel_igm.grid.hydr.Ts(z,
                 data_igm['Tk'], Ja, data_igm['h_2'], data_igm['e'] * n_H)
 
