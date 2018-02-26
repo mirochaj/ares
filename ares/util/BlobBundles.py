@@ -148,8 +148,8 @@ _fobsc = \
 {
  'blob_names': [['fobsc']],
  'blob_ivars': [_blob_i2],
- 'blob_funcs': ['pops[0].fobsc'],
- 'blob_kwargs': [None],
+ 'blob_funcs': [['pops[0].fobsc']],
+ 'blob_kwargs': None,
 }
 
 _blob_n4 = ['galaxy_smf', 'Mstell']

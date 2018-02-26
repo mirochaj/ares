@@ -3750,16 +3750,16 @@ class ModelSet(BlobFactory):
                     xblob = tmp[names[0]]
                     yblob = tmp[names[1]]
                 
-                keep = np.ones_like(yblob.shape[0])
-
-                #mask = np.all(yblob.mask == True, axis=1)
-                #keep = np.array(np.logical_not(mask), dtype=int)
-                #nans = np.any(np.isnan(yblob.data), axis=1)        
-                #
-                #if skip is not None:
-                #    keep[0:skip] *= 0
-                #if stop is not None:
-                #    keep[stop: ] *= 0    
+                #keep = np.ones_like(yblob.shape[0])
+                
+                mask = yblob.mask == True
+                keep = np.array(np.logical_not(mask), dtype=int)
+                nans = np.any(np.isnan(yblob.data)) 
+                                
+                if skip is not None:
+                    keep[0:skip] *= 0
+                if stop is not None:
+                    keep[stop: ] *= 0    
 
                 if np.all(yblob[keep == 1].mask == 1):
                     print("WARNING: elements all masked!")
@@ -3784,6 +3784,8 @@ class ModelSet(BlobFactory):
             xarr = self.dust.Mobs(scalar, xarr)
 
         y = np.array(y)
+        
+        print y
                 
         # At this stage, shape of y is (Nsamples, xarr)?
 
