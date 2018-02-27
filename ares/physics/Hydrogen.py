@@ -356,7 +356,7 @@ class Hydrogen(object):
         if not hasattr(self, '_Ts_floor'):
             self._Ts_floor = lambda z: 0.0
         return self._Ts_floor
-    
+
     @Ts_floor.setter
     def Ts_floor(self, value):
         self._Ts_floor = value
@@ -367,7 +367,7 @@ class Hydrogen(object):
         """
         return self.SpinTemperature(z, Tk, Ja, xHII, ne, Tr)
 
-    def SpinTemperature(self, z, Tk, Ja, xHII, ne, Tr):
+    def SpinTemperature(self, z, Tk, Ja, xHII, ne, Tr=0.0):
         """
         Returns spin temperature of intergalactic hydrogen.
 
@@ -395,7 +395,7 @@ class Hydrogen(object):
         Tc = Tk
 
         Tref = self.cosm.TCMB(z) + Tr
-        
+
         Ts = (1.0 + x_c + x_a) / \
             (Tref**-1. + x_c * Tk**-1. + x_a * Tc**-1.)
 

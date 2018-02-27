@@ -333,16 +333,15 @@ class Global21cm(AnalyzeGlobal21cm):
         for popid, pop in enumerate(self.pops):
             if not pop.is_src_radio:
                 continue
-            
+
             z, E, flux = self.field.get_history(popid, flatten=True)
-        
+
             E21cm = h_p * nu_0_mhz * 1e6 / erg_per_ev
             f21 = interp1d(E, flux, axis=1, bounds_error=False, fill_value=0.0)
             flux_21cm = f21(E21cm)
-                                
+
             Tr += np.interp(self.history['z'], z, flux_21cm) \
                 * E21cm * erg_per_ev * c**2 / k_B / 2. / (nu_0_mhz * 1e6)**2
-            
             
         if not np.all(Tr == 0):
             assert self.medium.parcel_igm.grid.hydr.Tbg is None
@@ -352,9 +351,9 @@ class Global21cm(AnalyzeGlobal21cm):
         self.history['Tr'] = Tr
         
         # Correct the brightness temperature if there are non-CMB backgrounds
-        if not np.all(Tr == 0):            
+        if not np.all(Tr == 0):
             zall = self.history['z']
-            n_H = self.medium.parcel_igm.grid.cosm.nH(zall)            
+            n_H = self.medium.parcel_igm.grid.cosm.nH(zall)
             Ts = self.medium.parcel_igm.grid.hydr.Ts(zall,
                 self.history['igm_Tk'], self.history['Ja'], 
                 self.history['igm_h_2'], self.history['igm_e'] * n_H, Tr)
@@ -369,8 +368,9 @@ class Global21cm(AnalyzeGlobal21cm):
             # Derive brightness temperature
             dTb = self.medium.parcel_igm.grid.hydr.dTb(zall, xavg, Ts, Tr)
             
-            self.history['dTb_corr'] = dTb
-        
+            self.history['dTb_no_radio'] = self.history['dTb'].copy()
+            self.history['dTb'] = dTb
+            
         t2 = time.time()
 
         self.timer = t2 - t1

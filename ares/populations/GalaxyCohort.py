@@ -778,6 +778,19 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     def StellarMassFunction(self, z, Mh):
         Marr, phi = self.SMF(z)
         return np.interp(Mh, Marr, phi)
+        
+    def CumulativeSurfaceDensity(self, z, dz=1.):
+        """
+        Return projected surface density of galaxies in `dz` shell.
+        """
+        
+        mags, phi = self.phi_of_M(z=z)
+        
+        # Still intrinsic magnitudes, shift to apparent
+        Mobs = self.dust.Mobs(z, mags)
+        
+        
+        
 
     def SMF(self, z):
         if not hasattr(self, '_phi_of_Mst'):
@@ -850,6 +863,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             x_phi, phi = self.phi_of_M(z)
 
             ok = phi.mask == False
+            
+            if ok.sum() == 0:
+                return -np.inf
 
             # Setup interpolant
             interp = interp1d(x_phi[ok], np.log10(phi[ok]), kind='linear',
@@ -861,6 +877,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             x_phi, phi = self.phi_of_L(z)
 
             ok = phi.mask == False
+            
+            if ok.sum() == 0:
+                return -np.inf
 
             # Setup interpolant
             interp = interp1d(np.log10(x_phi[ok]), np.log10(phi[ok]), kind='linear',

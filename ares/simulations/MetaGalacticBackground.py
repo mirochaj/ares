@@ -24,7 +24,7 @@ from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
 from ..physics.Constants import E_LyA, E_LL, ev_per_hz, erg_per_ev, \
-    sqdeg_per_std, s_per_myr, rhodot_cgs, cm_per_mpc, c
+    sqdeg_per_std, s_per_myr, rhodot_cgs, cm_per_mpc, c, h_p, k_B
 from ..util.ReadData import _sort_history, flatten_energies, flatten_flux
 try:
     # this runs with no issues in python 2 but raises error in python 3
@@ -239,7 +239,32 @@ class MetaGalacticBackground(AnalyzeMGB):
             _fluxes_today.append(ft)
             
         return _energies_today, _fluxes_today
-                           
+    
+    def today_of_E(self, E):
+        """
+        Grab radiation background at a single energy at z=0.
+        """
+        nrg, fluxes = self.today
+        
+        flux = 0.0
+        for i, band in enumerate(nrg):
+            
+            if not (min(band) <= E <= max(band)):
+                continue
+                
+            flux += np.interp(E, band, fluxes[i])
+                
+        return flux   
+        
+    def temp_of_E(self, E):
+        """
+        Convert the z=0 background intensity to a temperature in K.
+        """
+        flux = self.today_of_E(E)
+        
+        freq = E * erg_per_ev / h_p
+        return flux * E * erg_per_ev * c**2 / k_B / 2. / freq**2
+                               
     @property        
     def jsxb(self):
         if not hasattr(self, '_jsxb'):

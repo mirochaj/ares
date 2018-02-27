@@ -3784,9 +3784,7 @@ class ModelSet(BlobFactory):
             xarr = self.dust.Mobs(scalar, xarr)
 
         y = np.array(y)
-        
-        print y
-                
+                        
         # At this stage, shape of y is (Nsamples, xarr)?
 
         # Convert redshifts to frequencies    
@@ -4179,7 +4177,7 @@ class ModelSet(BlobFactory):
                 biv = np.array(self.blob_ivars[i]).squeeze()
                 k = np.argmin(np.abs(biv - ivar))
                 
-                if biv[k] != ivar:
+                if not np.allclose(biv[k], ivar):
                     print "WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, ivar, biv[k])
                 
                 return blob[:,k]
@@ -4190,7 +4188,7 @@ class ModelSet(BlobFactory):
             assert len(ivar) == 2, "Must supply 2-D coordinate for blob!"
             k1 = np.argmin(np.abs(self.blob_ivars[i][0] - ivar[0]))
             
-            if self.blob_ivars[i][0][k1] != ivar[0]:
+            if not np.allclose(self.blob_ivars[i][0][k1], ivar[0]):
                 print "WARNING: Looking for `{}` at ivar={}, closest found is {}.".format(name, 
                     ivar[0], self.blob_ivars[i][0][k1])
             
