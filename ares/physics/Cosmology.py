@@ -221,11 +221,11 @@ class Cosmology(object):
     @property
     def cooling_pars(self):
         if not hasattr(self, '_cooling_pars'):
-            self._cooling_pars = [self.pf['inits_Tk_p{}'.format(i)] for i in range(5)]
+            self._cooling_pars = [self.pf['inits_Tk_p{}'.format(i)] for i in range(6)]
         return self._cooling_pars    
             
     def cooling_rate(self, z, T=None):
-        if self.pf['approx_thermal_history'] in ['exp', 'tanh', 'exp+gauss']:
+        if self.pf['approx_thermal_history'] in ['exp', 'tanh', 'exp+gauss', 'exp+pl']:
 
             # This shouldn't happen! Argh.
             if z < 0:
@@ -234,6 +234,27 @@ class Cosmology(object):
             t = self.t_of_z(z)
             dtdz = self.dtdz(z)
             return (T / t) * self.log_cooling_rate(z) * -1. * dtdz
+        elif self.pf['approx_thermal_history'] in ['propto_xe']:
+            #raise NotImplemented('help')
+            
+            # Start from CosmoRec
+            t = self.t_of_z(z)
+            dtdz = self.dtdz(z)
+
+            pars = self.cooling_pars
+
+            norm = -2. # Must be set so high-z limit -> -2/3
+            log_cosm = norm * (1. - np.exp(-(z / 189.58)**1.26)) / 3. -4 / 3.
+            cosm = (T / t) * log_cosm * -1. * dtdz
+            
+            xe = np.interp(z, self.inits['z'], self.inits['xe'])
+            
+            raise ValueError('help')
+            xe_cool = np.maximum(1. - xe, 0.0) * pars[0] * ((1. + z) / pars[1])**pars[2]
+                
+            #print cosm, xe_cool
+            #return cosm + xe_cool
+            
         else:
             return derivative(self.Tgas, z)
 
@@ -250,6 +271,25 @@ class Cosmology(object):
         elif self.pf['approx_thermal_history'] == 'tanh':
             pars = self.cooling_pars
             return (-2./3.) - (2./3.) * 0.5 * (np.tanh((pars[0] - z) / pars[1]) + 1.)
+        elif self.pf['approx_thermal_history'] == 'exp+pl':
+            pars = self.cooling_pars
+            norm = -(2. + pars[2]) # Must be set so high-z limit -> -2/3
+            exp = norm * (1. - np.exp(-(z / pars[0])**pars[1])) / 3. \
+                + pars[2] / 3.
+            pl = pars[4] * ((1. + z) / pars[0])**pars[5]
+            
+            if type(total) is np.ndarray:
+                total[z >= 1100] = -2./3.
+            elif z >= 1100:
+                total = -2. / 3.
+                
+            # FIX ME
+            raise ValueError('help')
+            xe_cool = np.maximum(1. - xe, 0.0) * pars[0] * ((1. + z) / pars[1])**pars[2]    
+            
+            total = exp + pl
+            
+            return total
         else:
             return -1. * self.cooling_rate(z, self.Tgas(z)) \
                 * (self.t_of_z(z) / self.Tgas(z)) / self.dtdz(z)

@@ -217,6 +217,7 @@ def PhysicsParameters():
     "inits_Tk_p2": None,    # Set to -4/3 if thermal_hist = 'exp' to recover adiabatic cooling
     "inits_Tk_p3": 0.0,
     "inits_Tk_p4": np.inf,
+    "inits_Tk_p5": None,
     "inits_Tk_dz": 1.,
     
     "Tbg": None,

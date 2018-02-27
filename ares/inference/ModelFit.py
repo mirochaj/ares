@@ -205,8 +205,25 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
             
     # Blob prior: only compute if log-likelihood is finite
     if np.isfinite(lnL) and (prior_set_B.params != []):
+        
+        ##    
+        # Blobs    
+        checkpoint(prefix, True, checkpoint_by_proc, **kwargs)
+
+        try:
+            blobs = sim.blobs
+        except:
+            print("WARNING: Failure to generate blobs.")
+            blobs = blank_blob
+
+        checkpoint_on_completion(prefix, True, checkpoint_by_proc, **kwargs)
+        ##
+        #
+        
         lp += _compute_blob_prior(sim, prior_set_B)
-            
+    else:
+        blobs = blank_blob
+    
     # Final posterior calculation
     PofD = lp + lnL
 
@@ -220,16 +237,6 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     # +inf is NOT OK! Something is horribly wrong. Helpful in debugging.
     if PofD == np.inf:
         raise ValueError('+inf obtained in likelihood. Should not happen!')
-
-    checkpoint(prefix, True, checkpoint_by_proc, **kwargs)
-
-    try:
-        blobs = sim.blobs
-    except:
-        print("WARNING: Failure to generate blobs.")
-        blobs = blank_blob
-
-    checkpoint_on_completion(prefix, True, checkpoint_by_proc, **kwargs)
     
     write_memory('3')
     
