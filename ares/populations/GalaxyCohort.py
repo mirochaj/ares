@@ -779,18 +779,44 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Marr, phi = self.SMF(z)
         return np.interp(Mh, Marr, phi)
         
-    def CumulativeSurfaceDensity(self, z, dz=1.):
-        """
-        Return projected surface density of galaxies in `dz` shell.
+    def SurfaceDensity(self, z, dz=1.):
         """
         
-        mags, phi = self.phi_of_M(z=z)
+        Returns
+        -------
+        Observed magnitudes, then, projected surface density of galaxies in 
+        `dz` thick shell, in units of cumulative number of galaxies per 
+        square degree.
         
-        # Still intrinsic magnitudes, shift to apparent
-        Mobs = self.dust.Mobs(z, mags)
+        """
         
+        _mags, _phi = self.phi_of_M(z=z)
         
+        mask = np.logical_or(_mags.mask, _phi.mask)
         
+        mags = _mags[mask == 0]
+        phi = _phi[mask == 0]
+        
+        Mobs = self.dust.Mobs(z, mags) + 48.6
+        
+        # Compute the volume of the shell we're looking at
+        vol = self.cosm.ProjectedVolume(z, angle=1., dz=dz)
+        
+        Ngal = phi * vol
+        
+        # At this point, magnitudes are in descending order, i.e., faint
+        # to bright.
+        
+        # Because we want the cumulative number *brighter* than m_AB, 
+        # reverse the arrays and integrate from bright end down.
+        
+        Mobs = Mobs[-1::-1]
+        Ngal = Ngal[-1::-1]
+        
+        # Cumulative surface density of galaxies *brighter than* Mobs
+        cgal = cumtrapz(Ngal, x=Mobs, initial=Ngal[0])
+        
+        return Mobs, cgal
 
     def SMF(self, z):
         if not hasattr(self, '_phi_of_Mst'):

@@ -337,21 +337,21 @@ def DustParameters():
      'dustcorr_method': None,
 
      'dustcorr_beta': -2.,
-     
+
      # Only used if method is a list
      'dustcorr_ztrans': None,
-     
+
      # Intrinsic scatter in the AUV-beta relation
      'dustcorr_scatter_A': 0.0,
      # Intrinsic scatter in the beta-mag relation (gaussian)
      'dustcorr_scatter_B': 0.34,
-          
+
      'dustcorr_Bfun_par0': -2.,
      'dustcorr_Bfun_par1': None,
      'dustcorr_Bfun_par2': None,
 
     }
-        
+
     pf.update(tmp)
     pf.update(rcParams)
 

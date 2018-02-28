@@ -204,7 +204,7 @@ class GalaxyPopulation(object):
                 
     def Plot(self, z, ax=None, fig=1, sources='all', round_z=False, 
         AUV=None, wavelength=1600., sed_model=None, quantity='lf', 
-        take_log=False, imf=None, sources_except=[], **kwargs):
+        take_log=False, imf=None, mags='intrinsic', sources_except=[], **kwargs):
         """
         Plot the luminosity function data at a given redshift.
         

@@ -13,6 +13,7 @@ Description:
 import numpy as np
 from .Source import Source
 from ares.physics import Cosmology
+from scipy.optimize import minimize
 from ..util.ReadData import read_lit
 from scipy.interpolate import interp1d
 from ..util.ParameterFile import ParameterFile
@@ -315,6 +316,29 @@ class SynthesisModel(Source):
                     / np.diff(np.log(self.wavelengths))
 
         return self._uvslope
+        
+    def fit_uvslope(self, lam=1600, dlam=200):
+        
+        slc = np.logical_and(lam-dlam <= self.wavelengths, 
+                            self.wavelengths <= lam+dlam)
+        
+        _uvslope_fit = np.zeros_like(self.times)        
+        for i in range(self.times.size):
+            
+            logL = np.log(self.data[slc,i])
+            logw = np.log(self.wavelengths[slc])
+
+            model = lambda pars: pars[0] + pars[1] * logw
+
+            to_min = lambda x, *args: np.sum((model(x) - logL)**2)
+
+            res = minimize(to_min, np.array([42., -2.]))
+
+            a, b = res.x
+
+            _uvslope_fit[i] = b
+            
+        return _uvslope_fit    
     
     def LUV_of_t(self):
         return self.L_per_SFR_of_t()

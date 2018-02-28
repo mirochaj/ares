@@ -154,6 +154,13 @@ class Cosmology(object):
         a = self.a_eq * (C**2 - 1.)**(2./3.) / (2. * C)**(2./3.)
         return (1. / a) - 1.
         
+    def _Tgas_CosmoRec(self, z):
+        if not hasattr(self, '_Tgas_CosmoRec_'):
+            self._Tgas_CosmoRec_ = interp1d(self.inits['z'], self.inits['Tk'],
+                kind='cubic', bounds_error=False)
+        
+        return self._Tgas_CosmoRec_(z)
+        
     def Tgas(self, z):
         """
         Gas kinetic temperature at z assuming only adiabatic cooling after zdec.
@@ -188,25 +195,27 @@ class Cosmology(object):
     @property
     def thermal_history(self):
         if not hasattr(self, '_thermal_history'):
-            
+
             if not self.pf['approx_thermal_history']:
                 self._thermal_history = self.inits
                 return self._thermal_history
-            
-            z0 = max(self.inits['z'])
+
+            z0 = self.inits['z'][-2]
             solver = ode(self.cooling_rate)
             solver.set_integrator('vode', method='bdf')
             solver.set_initial_value([np.interp(z0, self.inits['z'],
                 self.inits['Tk'])], z0)
-                
+
             dz = self.pf['inits_Tk_dz']
-            zf = final_redshift = 1.
+            zf = final_redshift = 2.
             zall = []; Tall = []
             while solver.successful() and solver.t > zf:
-                                
+
+                #print(solver.t, solver.y[0])                
+
                 if solver.t-dz < 0:
                     break
-                                
+
                 zall.append(solver.t)
                 Tall.append(solver.y[0])
                 solver.integrate(solver.t-dz)
@@ -214,7 +223,7 @@ class Cosmology(object):
             self._thermal_history = {}
             self._thermal_history['z'] = np.array(zall)[-1::-1]
             self._thermal_history['Tk'] = np.array(Tall)[-1::-1]
-            self._thermal_history['xe'] = 1e-3 * np.ones_like(zall)
+            self._thermal_history['xe'] = 2e-4 * np.ones_like(zall)
         
         return self._thermal_history
             
@@ -225,11 +234,22 @@ class Cosmology(object):
         return self._cooling_pars    
             
     def cooling_rate(self, z, T=None):
+        """
+        This is dTk/dz.
+        """
         if self.pf['approx_thermal_history'] in ['exp', 'tanh', 'exp+gauss', 'exp+pl']:
 
             # This shouldn't happen! Argh.
-            if z < 0:
-                return np.nan
+            if type(z) is np.ndarray:
+                assert np.all(np.isfinite(z))
+            else:
+                if z < 0:
+                    print('WARNING')
+                    return np.nan
+
+            
+            if T is None:
+                T = self.Tgas(z)
 
             t = self.t_of_z(z)
             dtdz = self.dtdz(z)
@@ -237,23 +257,39 @@ class Cosmology(object):
         elif self.pf['approx_thermal_history'] in ['propto_xe']:
             #raise NotImplemented('help')
             
+            if type(z) is np.ndarray:
+                assert np.all(np.isfinite(z))
+            else:
+                if z < 0:
+                    print('WARNING')
+                    return np.nan
+                    
             # Start from CosmoRec
-            t = self.t_of_z(z)
-            dtdz = self.dtdz(z)
-
-            pars = self.cooling_pars
-
-            norm = -2. # Must be set so high-z limit -> -2/3
-            log_cosm = norm * (1. - np.exp(-(z / 189.58)**1.26)) / 3. -4 / 3.
-            cosm = (T / t) * log_cosm * -1. * dtdz
             
+            ##
+            # Need to do this self-consistently?
+            ##s
+            #func = lambda zz: np.interp(zz, self.inits['z'], self.inits['Tk'])
+            
+            dTdz = derivative(self._Tgas_CosmoRec, z, dx=1e-2)
+                        
             xe = np.interp(z, self.inits['z'], self.inits['xe'])
             
-            raise ValueError('help')
-            xe_cool = np.maximum(1. - xe, 0.0) * pars[0] * ((1. + z) / pars[1])**pars[2]
+            #raise ValueError('help')
+            pars = self.cooling_pars
+            xe_cool = np.maximum(1. - xe, 0.0)
+            mult = pars[0] * ((1. + z) / pars[1])**pars[2]
                 
-            #print cosm, xe_cool
-            #return cosm + xe_cool
+            #print(z, T, self.dtdz(z), self.HubbleParameter(z))
+            dtdz = self.dtdz(z)
+            
+            if T is None:
+                T = self.Tgas(z)
+            
+            hubble = 2. * self.HubbleParameter(z) * T * dtdz
+                
+            print(z, dTdz, xe_cool * mult / dTdz)
+            return dTdz + xe_cool * mult
             
         else:
             return derivative(self.Tgas, z)
@@ -284,7 +320,7 @@ class Cosmology(object):
                 total = -2. / 3.
                 
             # FIX ME
-            raise ValueError('help')
+            #raise ValueError('help')
             xe_cool = np.maximum(1. - xe, 0.0) * pars[0] * ((1. + z) / pars[1])**pars[2]    
             
             total = exp + pl
@@ -404,4 +440,31 @@ class Cosmology(object):
         d = self.OmegaMatter(z) - 1.
         return 18. * np.pi**2 + 82. * d - 39. * d**2
     
+    def ProjectedVolume(self, z, angle, dz=1.):
+        """
+        Compute the co-moving volume of a spherical shell of `area` and 
+        thickness `dz`.
+        
+        Parameters
+        ----------
+        z : int, float
+            Redshift of shell center.
+        area : int, float
+            Angular scale in degrees.
+        dz : int, float
+            Shell thickness in differential redshift element.
             
+        Returns
+        -------
+        Volume in comoving Mpc^3.
+            
+        """
+        
+        d_cm = self.ComovingRadialDistance(0., 8.)
+        angle_rad = (np.pi / 180.) * angle
+        
+        dA = angle_rad * d_cm
+        
+        dldz = quad(self.ComovingLineElement, z-0.5 * dz, z + 0.5 * dz)[0]
+        
+        return dA**2 * dldz / cm_per_mpc**3
