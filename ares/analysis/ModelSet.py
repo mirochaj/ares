@@ -3653,15 +3653,6 @@ class ModelSet(BlobFactory):
         if nd != 1 and (ivar is None):
             raise NotImplemented('If not 1-D blob, must supply one ivar!')
                 
-        # Grab the maximum likelihood point
-        if use_best and self.is_mcmc:
-            if best == 'median':
-                N = len(self.logL[skip:stop])
-                psorted = np.argsort(self.logL[skip:stop])
-                loc = psorted[int(N / 2.)]
-            else:
-                loc = np.argmax(self.logL[skip:stop])
-
         ##
         # Real work starts here.
         ##
@@ -3692,11 +3683,20 @@ class ModelSet(BlobFactory):
             mask = np.all(yblob.mask == True, axis=1)
             keep = np.array(np.logical_not(mask), dtype=int)
             nans = np.any(np.isnan(yblob.data), axis=1)
-                                                                                                       
+                                         
             if skip is not None:
                 keep[0:skip] *= 0
             if stop is not None:
                 keep[stop: ] *= 0
+            
+            # Grab the maximum likelihood point
+            if use_best and self.is_mcmc:
+                if best == 'median':
+                    N = len(self.logL[keep == 1])
+                    psorted = np.argsort(self.logL[keep == 1])
+                    loc = psorted[int(N / 2.)]
+                else:
+                    loc = np.argmax(self.logL[keep == 1])
                 
             # A few NaNs ruin everything
             if np.any(nans):
@@ -3749,18 +3749,27 @@ class ModelSet(BlobFactory):
                 else:    
                     xblob = tmp[names[0]]
                     yblob = tmp[names[1]]
-                
+
                 #keep = np.ones_like(yblob.shape[0])
-                
+
                 mask = yblob.mask == True
                 keep = np.array(np.logical_not(mask), dtype=int)
                 nans = np.any(np.isnan(yblob.data)) 
-                                
+
                 if skip is not None:
                     keep[0:skip] *= 0
                 if stop is not None:
-                    keep[stop: ] *= 0    
+                    keep[stop: ] *= 0
 
+                # Grab the maximum likelihood point
+                if use_best and self.is_mcmc:
+                    if best == 'median':
+                        N = len(self.logL[keep == 1])
+                        psorted = np.argsort(self.logL[keep == 1])
+                        loc = psorted[int(N / 2.)]
+                    else:
+                        loc = np.argmax(self.logL[keep == 1])    
+                
                 if np.all(yblob[keep == 1].mask == 1):
                     print("WARNING: elements all masked!")
                     y.append(-np.inf)

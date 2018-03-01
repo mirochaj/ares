@@ -77,8 +77,7 @@ class loglikelihood(LogLikelihood):
             assert len(yarr) == len(self.ydata)
 
         else:
-            yarr = np.interp(self.xdata, sim.history['nu'],            
-                sim.history['igm_dTb'])
+            yarr = np.interp(self.xdata, sim.history['nu'], sim.history['dTb'])
 
         if np.any(np.isnan(yarr)):
             return -np.inf
