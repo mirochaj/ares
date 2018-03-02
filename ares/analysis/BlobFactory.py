@@ -496,20 +496,21 @@ class BlobFactory(object):
                                                 
             this_group = []
             for j, key in enumerate(element):
-                                                                                                                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                                                                                                                                                                                     
                 # 0-D blobs. Need to know name of attribute where stored!
                 if self.blob_nd[i] == 0:
                     if self.blob_funcs[i][j] is None:
                         # Assume blob name is the attribute
                         #blob = self.__getattribute__(key)
                         blob = parse_attribute(key, self)
+                                                
                     else:
                         fname = self.blob_funcs[i][j]
                                                 
                         # In this case, the return of parse_attribute is
                         # a value, not a function to be applied to ivars.
                         blob = parse_attribute(fname, self)
-
+                        
                 # 1-D blobs. Assume the independent variable is redshift 
                 # unless a function is provided
                 elif self.blob_nd[i] == 1:

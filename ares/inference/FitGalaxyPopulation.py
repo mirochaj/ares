@@ -159,48 +159,10 @@ class loglikelihood(LogLikelihood):
         return lnL + self.const_term
     
 class FitGalaxyPopulation(FitBase):
-    
-    @property 
-    def save_hmf(self):
-        if not hasattr(self, '_save_hmf'):
-            self._save_hmf = True
-        return self._save_hmf
-    
-    @save_hmf.setter
-    def save_hmf(self, value):
-        self._save_hmf = value
-    
-    @property 
-    def save_psm(self):
-        if not hasattr(self, '_save_psm'):
-            self._save_psm = True
-        return self._save_psm
-    
-    @save_psm.setter
-    def save_psm(self, value):
-        self._save_psm = value    
-    
+        
     @property
     def loglikelihood(self):
         if not hasattr(self, '_loglikelihood'):
-
-            if (self.save_hmf or self.save_psm):   
-                
-                assert self.base_kwargs != def_kwargs, \
-                    "Must supply base_kwargs if saving tabular data!"
-                     
-                pop = GalaxyPopulation(**self.base_kwargs)
-
-                if self.save_hmf:
-                    hmf = pop.halos
-                    assert 'hmf_instance' not in self.base_kwargs
-                    self.base_kwargs['hmf_instance'] = hmf    
-                if self.save_psm:
-                    #raise NotImplemented('help')
-                    psm = pop.src
-                    assert 'pop_psm_instance' not in self.base_kwargs
-                    self.base_kwargs['pop_psm_instance'] = psm
-
             self._loglikelihood = loglikelihood(self.xdata_flat, 
                 self.ydata_flat, self.error_flat)
             

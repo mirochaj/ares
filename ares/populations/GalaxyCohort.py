@@ -779,7 +779,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Marr, phi = self.SMF(z)
         return np.interp(Mh, Marr, phi)
         
-    def SurfaceDensity(self, z, dz=1.):
+    def SurfaceDensity(self, z, mag=None, dz=1.):
         """
         
         Returns
@@ -816,7 +816,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # Cumulative surface density of galaxies *brighter than* Mobs
         cgal = cumtrapz(Ngal, x=Mobs, initial=Ngal[0])
         
-        return Mobs, cgal
+        if mag is not None:
+            return np.interp(mag, Mobs, cgal)
+        else:
+            return Mobs, cgal
 
     def SMF(self, z):
         if not hasattr(self, '_phi_of_Mst'):

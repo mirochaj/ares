@@ -244,10 +244,8 @@ class Cosmology(object):
                 assert np.all(np.isfinite(z))
             else:
                 if z < 0:
-                    print('WARNING')
                     return np.nan
 
-            
             if T is None:
                 T = self.Tgas(z)
 
@@ -261,7 +259,6 @@ class Cosmology(object):
                 assert np.all(np.isfinite(z))
             else:
                 if z < 0:
-                    print('WARNING')
                     return np.nan
                     
             # Start from CosmoRec

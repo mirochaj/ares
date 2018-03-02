@@ -493,7 +493,9 @@ class MultiPhaseMedium(object):
             if 2 not in self.parcel_igm.grid.Z:
                 xe = min(xe, 1.0)
                 
-            xi = xe / (1. + self.parcel_igm.grid.cosm.y)
+            # Need to be careful this isn't > 1, since we're breaking 
+            # electron fraction into H and He fractions separately.    
+            xi = np.minimum(xe / (1. + self.parcel_igm.grid.cosm.y), 1.)
 
             snapshot['h_1'] = 1. - xi
             snapshot['h_2'] = xi

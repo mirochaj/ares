@@ -662,18 +662,18 @@ def SourceParameters():
     "source_aging": True,
     
     # Stellar
-    "source_temperature": 1e5,  
+    "source_temperature": 1e5,
     "source_qdot": 5e48,
-    
+
     # SFH
     "source_sfh": None,
     "source_meh": None,
-    
+
     # BH
     "source_mass": 1e5,
     "source_rmax": 1e3,
     "source_alpha": -1.5,
-    
+
     # SIMPL
     "source_fsc": 0.1,
     "source_uponly": True,

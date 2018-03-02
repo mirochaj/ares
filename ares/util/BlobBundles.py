@@ -58,11 +58,8 @@ _gs_shape_f = \
 # Add curvature of turning points too
 _gs_shape_n.extend(['curvature_{!s}'.format(tp) for tp in list('BCD')])
 _gs_shape_f.extend([None] * 3)
-_gs_shape_n.extend(['skewness_{!s}'.format(region) for region in \
-    ['absorption', 'emission']])
-_gs_shape_n.extend(['kurtosis_{!s}'.format(region) for region in \
-    ['absorption', 'emission']])
-_gs_shape_f.extend([None] * 4)
+_gs_shape_n.extend(['skewness', 'kurtosis'])
+_gs_shape_f.extend([None] * 2)
 
 # Rate coefficients
 _rc_base = ['igm_k_ion', 'igm_k_heat', 'cgm_k_ion']
@@ -164,6 +161,18 @@ _smf = \
  'blob_kwargs': None,
 }
 
+_blob_n5 = ['galaxy_sd']
+_blob_i5 = [('z', np.arange(6, 16, 1)), ('mag', np.arange(23, 35, 0.1))]
+_blob_f5 = ['pops[0].SurfaceDensity']
+
+_sd = \
+{
+ 'blob_names': [_blob_n5],
+ 'blob_ivars': [_blob_i5],
+ 'blob_funcs': [_blob_f5],
+ 'blob_kwargs': None,
+}
+
 _sfrd_above = \
 {
  'blob_names': [_blob_n3],
@@ -186,7 +195,7 @@ _blobs = \
         'runtime': _runtime, 'rates': _rates, 'helium': _He,
         'cooling': _cooling},
  'pop': {'sfrd': _sfrd, 'emissivities': _emiss, 'fluxes': None, 
-    'cxrb': _cxrb, 'lf': _lf, 'smf': _smf, 'sfrd_above': _sfrd_above,
+    'cxrb': _cxrb, 'lf': _lf, 'sd': _sd, 'smf': _smf, 'sfrd_above': _sfrd_above,
     'Nion': _Nion, 'fobsc': _fobsc}
 }
 

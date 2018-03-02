@@ -3698,6 +3698,8 @@ class ModelSet(BlobFactory):
                 else:
                     loc = np.argmax(self.logL[keep == 1])
                 
+                print('loc={}'.format(loc), keep.sum(), keep.size)
+                
             # A few NaNs ruin everything
             if np.any(nans):
                 print("WARNING: {} elements with NaNs detected in field={}. Will be discarded.".format(nans.sum(), names[0]))
@@ -4097,16 +4099,20 @@ class ModelSet(BlobFactory):
         all_kwargs = []
         for i, element in enumerate(self.chain):
             
-            if self.mask[i]:
+            if sum(self.mask[i]):
                 continue
             
             if ids is not None:
-                if (i != ids) or (i not in ids):
-                    continue
+                if type(ids) in [int, np.int64]:
+                    if (i != ids):
+                        continue
+                else:    
+                    if (i not in ids):
+                        continue
             elif N is not None:
                 if i >= N:
                     break
-                
+
             if include_bkw:
                 if ct == 0:
                     # Only print first time...could be thousands of iterations
@@ -4116,7 +4122,7 @@ class ModelSet(BlobFactory):
                 kwargs = self.base_kwargs.copy()
             else:
                 kwargs = {}
-                
+
             for j, parameter in enumerate(self.parameters):
                 if type(self.chain) == np.ma.core.MaskedArray:
                     if self.is_log[j]:
@@ -4213,7 +4219,7 @@ class ModelSet(BlobFactory):
                 
                 return blob[:,k1,k2]    
     
-    def max_likelihood_parameters(self, method='median', min_or_max='max'):
+    def max_likelihood_parameters(self, method='mode', min_or_max='max'):
         """
         Return parameter values at maximum likelihood point.
         
@@ -4234,6 +4240,8 @@ class ModelSet(BlobFactory):
                 iML = np.argmax(self.logL)
             else:
                 iML = np.argmin(self.logL)
+                
+        print('iML={}'.format(iML))
                         
         self._max_like_pars = {}
         for i, par in enumerate(self.parameters):

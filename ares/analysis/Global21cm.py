@@ -200,47 +200,24 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         return self._nu_pp    
 
     @property
-    def kurtosis_absorption(self):
+    def kurtosis(self):
         if not hasattr(self, '_kurtosis_abs'):
-            i1 = np.argmin(np.abs(30. - self.history['nu']))
-            i2 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
-            data = np.abs(self.history['dTb'][i1:i2])
-                        
+            ok = np.isfinite(self.history['dTb'])
+            data = np.abs(self.history['dTb'][ok])
             self._kurtosis_abs = np.sum((data - np.mean(data))**4) \
                 / float(data.size) / np.std(data)**4
             
         return self._kurtosis_abs
 
     @property
-    def skewness_absorption(self):
+    def skewness(self):
         if not hasattr(self, '_skewness_abs'):
-            i1 = np.argmin(np.abs(30. - self.history['nu']))
-            i2 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
-            data = np.abs(self.history['dTb'][i1:i2])
+            ok = np.isfinite(self.history['dTb'])
+            data = np.abs(self.history['dTb'][ok])
             self._skewness_abs = np.sum((data - np.mean(data))**3) \
                 / float(data.size) / np.std(data)**3
+                
         return self._skewness_abs
-
-    @property
-    def kurtosis_emission(self):
-        if not hasattr(self, '_kurtosis_emi'):
-            i1 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
-            i2 = np.argmin(np.abs(200.0 - self.history['nu']))
-            data = self.history['dTb'][i1:i2]
-            self._kurtosis_emi = np.sum((data - np.mean(data))**4) \
-                / float(data.size) / np.std(data)**4
-
-        return self._kurtosis_emi
-
-    @property
-    def skewness_emission(self):
-        if not hasattr(self, '_skewness_emi'):
-            i1 = np.argmin(np.abs(self.nu_ZC - self.history['nu']))
-            i2 = np.argmin(np.abs(200.0 - self.history['nu']))
-            data = self.history['dTb'][i1:i2]
-            self._skewness_emi = np.sum((data - np.mean(data))**3) \
-                / float(data.size) / np.std(data)**3
-        return self._skewness_emi    
         
     @property
     def z_dec(self):

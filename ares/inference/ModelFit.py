@@ -186,7 +186,10 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     sim = simulator(**kw)
     
     try:
+        t3 = time.time()
         sim.run()
+        t4 = time.time()
+        print('runtime={}'.format(t4-t3))
     except ValueError:
         print(kwargs)
         del sim, kw, kwargs
@@ -202,7 +205,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     lnL = 0.0
     for fitter in fitters:
         lnL += fitter.loglikelihood(sim)
-            
+
     # Blob prior: only compute if log-likelihood is finite
     if np.isfinite(lnL) and (prior_set_B.params != []):
         
@@ -565,7 +568,27 @@ class ModelFit(FitBase):
         Can be 1-D or 2-D.
         """
         self._error = np.array(value)
-
+        
+    @property 
+    def save_hmf(self):
+        if not hasattr(self, '_save_hmf'):
+            self._save_hmf = True
+        return self._save_hmf
+    
+    @save_hmf.setter
+    def save_hmf(self, value):
+        self._save_hmf = value
+    
+    @property 
+    def save_psm(self):
+        if not hasattr(self, '_save_psm'):
+            self._save_psm = True
+        return self._save_psm
+    
+    @save_psm.setter
+    def save_psm(self, value):
+        self._save_psm = value    
+    
     @property
     def prior_set_P(self):
         if not hasattr(self, '_prior_set_P'):
@@ -1181,6 +1204,45 @@ class ModelFit(FitBase):
             
         self.steps = steps
         self.save_freq = save_freq
+        
+        # Speed-up tricks
+        
+        if self.save_hmf or self.save_psm:
+            sim = self.simulator(**self.base_kwargs)
+            
+        if self.save_hmf:
+            assert 'hmf_instance' not in self.base_kwargs
+            
+            # Can generalize more later...
+            try:
+                hmf = sim.halos
+            except AttributeError:
+                hmf = sim.pops[0].halos
+            
+            self.base_kwargs['hmf_instance'] = hmf    
+            
+            if hmf is not None:
+                print("Saved HaloMassFunction instance to limit I/O.")
+            
+        if self.save_psm:
+            assert 'pop_psm_instance' not in self.base_kwargs
+            
+            try:
+                psm = sim.src
+            except AttributeError:
+                psm = None
+                idnum = 0
+                for idnum, pop in enumerate(sim.pops):
+                    if pop.pf['pop_sed'] in ['eldridge2009', 'leitherer1999']:
+                        psm = pop.src
+                        break
+                                    
+            self.base_kwargs['pop_psm_instance{}'.format(idnum)] = psm
+            
+            assert 'pop_Z{0}'.format(idnum) not in self.parameters, 'help'
+            
+            if psm is not None:
+                print("Saved SynthesisModel instance to limit I/O.")
         
         ##
         # Initialize sampler
