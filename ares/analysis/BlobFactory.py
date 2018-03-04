@@ -425,18 +425,26 @@ class BlobFactory(object):
         This is meant to recover a blob from a single simulation, i.e.,
         NOT a whole slew of them from an MCMC.
         """
+        
+        found = False
         for i in range(self.blob_groups):
             for j, blob in enumerate(self.blob_names[i]):
                 if blob == name:
+                    found = True
                     break
 
             if blob == name:
                 break        
 
+        if not found:
+            print("WARNING: blob={} not found. This should NOT happen!".format(name))
+            return np.inf
+
         if self.blob_nd[i] == 0:
             return float(self.blobs[i][j])
         elif self.blob_nd[i] == 1:
             if ivar is None:
+                                
                 try:
                     # When would this NOT be the case?
                     return self.blobs[i][j]
@@ -671,7 +679,7 @@ class BlobFactory(object):
         i, j, nd, dims = self.blob_info(name)
     
         fn = "{0!s}.blob_{1}d.{2!s}.pkl".format(self.prefix, nd, name)
-                
+                                
         # Might have data split up among processors or checkpoints
         by_proc = False
         by_dd = False
@@ -700,9 +708,9 @@ class BlobFactory(object):
                         tmp = "{0!s}.dd{1!s}.blob_{2}d.{3!s}.pkl".format(\
                             self.prefix, ddid, nd, name)
                         ddf.append(tmp)
-                                
+                
                 print('{!s}'.format(ddf))
-                                
+             
                 # Start with the first...
                 fn = ddf[0]        
         

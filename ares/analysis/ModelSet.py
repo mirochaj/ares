@@ -23,9 +23,9 @@ import re, os, string, time, glob
 from .BlobFactory import BlobFactory
 from matplotlib.colors import Normalize
 from matplotlib.patches import Rectangle
-from ..physics.Constants import nu_0_mhz
 from ..phenom.DustCorrection import DustCorrection
 from .MultiPhaseMedium import MultiPhaseMedium as aG21
+from ..physics.Constants import nu_0_mhz, erg_per_ev, h_p
 from ..util import labels as default_labels
 from ..util.Pickling import read_pickle_file, write_pickle_file
 import matplotlib.patches as patches
@@ -1304,9 +1304,13 @@ class ModelSet(BlobFactory):
             if loc is None:
                 continue
 
-            k = self.parameters.index(par)
-            mp.grid[i].plot([0, self.chain[:,k].size / float(self.nwalkers)], 
-                [self.chain[loc,k]]*2, color='k', ls='--', lw=5)
+            # Plot current maximum likelihood value
+            if par in self.parameters:
+                k = self.parameters.index(par)
+                mp.grid[i].plot([0, self.chain[:,k].size / float(self.nwalkers)], 
+                    [self.chain[loc,k]]*2, color='k', ls='--', lw=5)
+            else:
+                pass
                 
         return mp           
                 
@@ -1341,8 +1345,14 @@ class ModelSet(BlobFactory):
             to_plot = walkers
         
         for i in to_plot:
-            data, mask = self.get_walker(i)
-            y = data[:,self.parameters.index(par)]
+            data, elements = self.get_walker(i)
+            if par in self.parameters:
+                y = data[:,self.parameters.index(par)]        
+            else:
+                keep = elements[:,0]
+                tmp = self.ExtractData(par)[par]
+                y = tmp[keep == 1]
+                                                    
             x = np.arange(1, len(y)+1)
             ax.plot(x, y, **kwargs)
 
@@ -3561,7 +3571,7 @@ class ModelSet(BlobFactory):
         use_best=False, percentile=0.68, take_log=False, un_log=False, 
         multiplier=1, skip=0, stop=None, return_data=False, z_to_freq=False,
         best='mode', fill=True, samples=None, apply_dc=False, ivars=None,
-        **kwargs):
+        E_to_freq=False, **kwargs):
         """
         Reconstructed evolution in whatever the independent variable is.
         
@@ -3801,6 +3811,9 @@ class ModelSet(BlobFactory):
         # Convert redshifts to frequencies    
         if z_to_freq:
             xarr = nu_0_mhz / (1. + xarr)
+            
+        if E_to_freq:
+            xarr = xarr * erg_per_ev / h_p
 
         ##
         # Do the actual plotting

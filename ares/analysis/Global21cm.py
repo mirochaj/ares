@@ -13,10 +13,10 @@ import numpy as np
 from ..util import labels
 import matplotlib.pyplot as pl
 from .MultiPlot import MultiPanel
+from scipy.optimize import minimize
 from ..physics.Constants import nu_0_mhz
 from .TurningPoints import TurningPoints
 from ..util.Math import central_difference
-from scipy.optimize import minimize, fsolve
 from matplotlib.ticker import ScalarFormatter 
 from ..analysis.BlobFactory import BlobFactory
 from scipy.interpolate import interp1d, splrep, splev

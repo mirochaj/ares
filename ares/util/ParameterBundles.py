@@ -14,7 +14,7 @@ import numpy as np
 from .ReadData import read_lit
 from .ProblemTypes import ProblemType
 from .ParameterFile import pop_id_num, par_info
-from .PrintInfo import header, footer, separator, line
+from .PrintInfo import header, footer, separator, line, width, twidth
 
 try:
     from mpi4py import MPI
@@ -383,15 +383,24 @@ class ParameterBundle(dict):
 
         # If any keys overlap, overwrite first instance with second.
         # Just alert the user that this is happening.
+        first_update = True
         for key in other:
             if key in tmp and rank == 0:
+                
+                if first_update:
+                    print('#'*width)
+                    first_update = False
+                
                 msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
                     str(other[key]).ljust(12))
                 msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
-                print('{0} [{1}]'.format(msg1, msg2))
+                print(line('{0} [{1}]'.format(msg1, msg2)))
 
             tmp[key] = other[key]
 
+        if not first_update:
+            print('#'*width)
+            
         return ParameterBundle(**tmp)
 
     def __sub__(self, other):

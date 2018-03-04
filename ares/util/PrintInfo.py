@@ -48,7 +48,7 @@ class ErrorIgnore(object):
       return returnfunction 
 
 # FORMATTING   
-width = 74
+width = 120
 pre = post = '#'*4    
 twidth = width - len(pre) - len(post) - 2
 #
@@ -285,16 +285,14 @@ def print_1d_sim(sim):
             print(line("Qdot        : {0:.2e} photons / sec".format(\
                 sim.pf['source_qdot'])))
         
-        print(line('-' * twidth))      
+        print(line('-' * twidth))
         print(line('Spectrum'))
         print(line('-' * twidth))
         print(line('not yet implemented'))
 
-
         #if sim.pf['spectrum_E'] is not None:
         #    tabulate()
         
-
     print("#" * width)
     print("")
 
@@ -502,7 +500,7 @@ def print_sim(sim):
     print(line('-' * twidth))
     
     rows = []
-    cols = ['sfrd', 'sed', 'Ly-a', 'Ly-C', 'X-ray', 'RTE']
+    cols = ['sfrd', 'sed', 'radio', 'Ly-a', 'LW', 'Ly-C', 'X-ray', 'RTE']
     data = []
     for i, pop in enumerate(sim.pops):
         rows.append('pop #{}'.format(i))
@@ -514,10 +512,20 @@ def print_sim(sim):
             
         tmp = [mod, 'yes' if pop.pf['pop_sed_model'] else 'no']
         
+        if pop.is_src_radio:
+            tmp.append('x')
+        else:
+            tmp.append(' ')
+            
         if pop.is_src_lya:
             tmp.append('x')
         else:
             tmp.append(' ')
+            
+        if pop.is_src_lw:
+            tmp.append('x')
+        else:
+            tmp.append(' ')    
         
         if pop.is_src_uv:
             tmp.append('x')
@@ -532,11 +540,11 @@ def print_sim(sim):
         if pop.pf['pop_solve_rte']:
             tmp.append('x')
         else:
-            tmp.append(' ')               
+            tmp.append(' ')
             
         data.append(tmp)    
     
-    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8], fmt='{!s}')
+    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8], fmt='{!s}')
     
     print(line('-' * twidth))
     print(line('Physics'))

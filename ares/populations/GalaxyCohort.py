@@ -740,7 +740,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        if z > self.zform:
+        if (z > self.zform) or (z < self.zdead):
             return 0.0
 
         # Use GalaxyAggregate's Emissivity function
@@ -1294,7 +1294,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     
             self._tab_Mmax_ = self._apply_lim(self._tab_Mmax_, s='max')
             self._tab_Mmax_ = np.maximum(self._tab_Mmax_, self._tab_Mmin)
-    
+                
         return self._tab_Mmax_
     
     @_tab_Mmax.setter
@@ -1337,11 +1337,11 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                             * self._tab_MAR[i] * self._tab_fstar[i]
 
                     # zero-out star-formation in halos below our threshold
-                    #ok = self.halos.M >= self._tab_Mmin[i]
-                    #self._tab_sfr_[i] *= ok
-                    ## zero-out star-formation in halos above our threshold
-                    #ok = self.halos.M <= self._tab_Mmax[i]
-                    #self._tab_sfr_[i] *= ok
+                    ok = self.halos.M >= self._tab_Mmin[i]
+                    self._tab_sfr_[i] *= ok
+                    # zero-out star-formation in halos above our threshold
+                    ok = self.halos.M <= self._tab_Mmax[i]
+                    self._tab_sfr_[i] *= ok
 
         return self._tab_sfr_
 
@@ -1596,7 +1596,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 if not self.pf['pop_sfr_above_threshold']:
                     break
 
-                if z > self.zform:
+                if (z > self.zform) or (z < self.zdead):
                     continue
 
                 integrand = self._tab_sfr[i] * self.halos.dndlnm[i] \
@@ -1610,7 +1610,6 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 ok = np.logical_and(c1, c2)
                 
                 if self._tab_Mmin[i] == self._tab_Mmax[i]:
-                    self._tab_sfrd_total_[i] = 0
                     
                     # We 'break' here because once Mmax = Mmin, PopIII
                     # should be gone forever.

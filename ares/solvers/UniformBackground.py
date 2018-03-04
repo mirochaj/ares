@@ -1152,8 +1152,12 @@ class UniformBackground(object):
 
                 for ll, redshift in enumerate(z):
                     
-                    if redshift < self.pf['final_redshift']:
+                    if (redshift < self.pf['final_redshift']):
                         continue    
+                    if (redshift < pop.zdead):
+                        continue
+                    if (redshift > pop.zform):
+                        continue        
                     if redshift < self.pf['kill_redshift']:
                         continue    
                     if redshift > self.pf['first_light_redshift']:

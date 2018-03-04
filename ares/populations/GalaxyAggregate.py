@@ -149,7 +149,7 @@ class GalaxyAggregate(HaloPopulation):
 
         """
 
-        if z > self.zform:
+        if (z > self.zform) or (z < self.zdead):
             return 0.0
             
         if self.pf['pop_sed_model'] and (Emin is not None) and (Emax is not None):

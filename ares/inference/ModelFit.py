@@ -184,12 +184,9 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
 
     t1 = time.time()
     sim = simulator(**kw)
-    
+
     try:
-        t3 = time.time()
         sim.run()
-        t4 = time.time()
-        print('runtime={}'.format(t4-t3))
     except ValueError:
         print(kwargs)
         del sim, kw, kwargs
@@ -1237,9 +1234,9 @@ class ModelFit(FitBase):
                         psm = pop.src
                         break
                                     
-            self.base_kwargs['pop_psm_instance{}'.format(idnum)] = psm
+            self.base_kwargs['pop_psm_instance{{{}}}'.format(idnum)] = psm
             
-            assert 'pop_Z{0}'.format(idnum) not in self.parameters, 'help'
+            assert 'pop_Z{{{}}}'.format(idnum) not in self.parameters, 'help'
             
             if psm is not None:
                 print("Saved SynthesisModel instance to limit I/O.")
