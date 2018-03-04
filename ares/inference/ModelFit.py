@@ -202,13 +202,15 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     lnL = 0.0
     for fitter in fitters:
         lnL += fitter.loglikelihood(sim)
-
+        
     # Blob prior: only compute if log-likelihood is finite
-    if np.isfinite(lnL) and (prior_set_B.params != []):
+    if np.isfinite(lnL):
         
         ##    
         # Blobs    
         checkpoint(prefix, True, checkpoint_by_proc, **kwargs)
+
+        blobs = sim.blobs
 
         try:
             blobs = sim.blobs
@@ -220,7 +222,9 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
         ##
         #
         
-        lp += _compute_blob_prior(sim, prior_set_B)
+        if (prior_set_B.params != []):
+            lp += _compute_blob_prior(sim, prior_set_B)
+            
     else:
         blobs = blank_blob
     
