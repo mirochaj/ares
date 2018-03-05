@@ -210,8 +210,6 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
         # Blobs    
         checkpoint(prefix, True, checkpoint_by_proc, **kwargs)
 
-        blobs = sim.blobs
-
         try:
             blobs = sim.blobs
         except:
