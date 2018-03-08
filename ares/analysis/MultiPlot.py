@@ -41,7 +41,8 @@ defs = \
  'active_panels': None,
 }
 
-def add_master_legend(mp, exclude=None, loc='upper center', **kwargs):
+def add_master_legend(mp, exclude_panels=None, loc='upper center', 
+    exclude_labels=[], **kwargs):
     """
     Make a big legend!
     """
@@ -54,8 +55,8 @@ def add_master_legend(mp, exclude=None, loc='upper center', **kwargs):
     if isinstance(mp, MultiPanel):
         for k, ax in enumerate(mp.grid):
             
-            if exclude is not None:
-                if k in exclude:
+            if exclude_panels is not None:
+                if k in exclude_panels:
                     continue
             
             h, l = ax.get_legend_handles_labels()
@@ -63,6 +64,8 @@ def add_master_legend(mp, exclude=None, loc='upper center', **kwargs):
             for i, lab in enumerate(l):
                 if lab in labels:
                     continue
+                if lab in exclude_labels:
+                    continue    
 
                 handles.append(h[i])
                 labels.append(l[i])
@@ -74,6 +77,8 @@ def add_master_legend(mp, exclude=None, loc='upper center', **kwargs):
 
         for i, lab in enumerate(l):
             if lab in labels:
+                continue
+            if lab in exclude_labels:
                 continue
 
             handles.append(h[i])

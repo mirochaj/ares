@@ -790,6 +790,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         """
         
+        # These are intrinsic (i.e., not dust-corrected) absolute magnitudes 
         _mags, _phi = self.phi_of_M(z=z)
         
         mask = np.logical_or(_mags.mask, _phi.mask)
@@ -797,6 +798,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         mags = _mags[mask == 0]
         phi = _phi[mask == 0]
         
+        # Observed magnitudes will be dimmer, + AB shift from absolute to apparent mags
         Mobs = self.dust.Mobs(z, mags) + 48.6
         
         # Compute the volume of the shell we're looking at

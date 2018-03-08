@@ -1228,6 +1228,7 @@ class ModelFit(FitBase):
             
             try:
                 psm = sim.src
+                idnum = None
             except AttributeError:
                 psm = None
                 idnum = 0
@@ -1235,10 +1236,13 @@ class ModelFit(FitBase):
                     if pop.pf['pop_sed'] in ['eldridge2009', 'leitherer1999']:
                         psm = pop.src
                         break
-                                    
-            self.base_kwargs['pop_psm_instance{{{}}}'.format(idnum)] = psm
             
-            assert 'pop_Z{{{}}}'.format(idnum) not in self.parameters, 'help'
+            if idnum is None:
+                self.base_kwargs['pop_psm_instance'] = psm
+                assert 'pop_Z' not in self.parameters, 'help'
+            else:                     
+                self.base_kwargs['pop_psm_instance{{{}}}'.format(idnum)] = psm
+                assert 'pop_Z{{{}}}'.format(idnum) not in self.parameters, 'help'
             
             if psm is not None:
                 print("Saved SynthesisModel instance to limit I/O.")

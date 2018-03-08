@@ -2911,6 +2911,7 @@ class ModelSet(BlobFactory):
             if not gotax:
                 ax.set_xscale('linear')
                 ax.set_yscale('linear')
+                
             
         # Add nice labels (or try to)
         self.set_axis_labels(ax, pars, take_log, un_log, None, labels)

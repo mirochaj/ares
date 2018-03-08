@@ -20,7 +20,7 @@ from ..util.Math import central_difference
 from matplotlib.ticker import ScalarFormatter 
 from ..analysis.BlobFactory import BlobFactory
 from scipy.interpolate import interp1d, splrep, splev
-from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis
+from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis, add_time_axis
 
 def add_master_legend(ax, **kwargs):
     """
@@ -359,25 +359,31 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         
         return ax
         
-    def AdiabaticFloor(self, ax, gap=None, **kwargs):
+    def AdiabaticFloor(self, ax, gap=None, temp_units='mk', **kwargs):
         z = nu_0_mhz / self.history['nu'] - 1.
         dTb = self.hydr.adiabatic_floor(z)
+        
+        if temp_units.lower() in ['k', 'kelvin']:
+            conv = 1e-3
+        else:
+            conv = 1.
         
         xlim = ax.get_xlim()
         ylim = ax.get_ylim()
         
         if kwargs == {}:
-            ax.fill_between(self.history['nu'], -500 * np.ones_like(dTb), dTb, 
+            ax.fill_between(self.history['nu'], 
+                -500 * np.ones_like(dTb) * conv, dTb * conv, 
                 color='none', hatch='X', edgecolor='k', linewidth=0.0)
         else:
             if gap is None:
-                ax.plot(self.history['nu'], dTb, **kwargs)
+                ax.plot(self.history['nu'], dTb * conv, **kwargs)
             else:
                 i1 = np.argmin(np.abs(self.history['nu'] - gap[0]))
                 i2 = np.argmin(np.abs(self.history['nu'] - gap[1]))
                 
-                ax.plot(self.history['nu'][0:i1], dTb[0:i1], **kwargs)
-                ax.plot(self.history['nu'][i2:], dTb[i2:], **kwargs)
+                ax.plot(self.history['nu'][0:i1], dTb[0:i1] * conv, **kwargs)
+                ax.plot(self.history['nu'][i2:], dTb[i2:] * conv, **kwargs)
             
         ax.set_xlim(xlim)    
         ax.set_ylim(ylim)
@@ -486,7 +492,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         if yscale == 'linear':
             if (not gotax) or force_draw:
                 ax.set_yticks(np.arange(int(ymin / 50) * 50, 
-                    100, 50))
+                    100, 50) * conv)
                 
             else:
                 # Minor y-ticks - 10 mK increments
@@ -499,7 +505,7 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
                         if y in yticks:
                             yticks.remove(y) 
                         
-                ax.set_ylim(ymin, ymax)
+                ax.set_ylim(ymin * conv, ymax * conv)
                 ax.set_yticks(yticks, minor=True)
         
         if xaxis == 'z' and hasattr(self, 'pf'):
@@ -534,13 +540,13 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
             if temp_unit.lower() == 'mk':
                 ax.set_ylabel(labels['dTb'], fontsize='x-large')    
             else:
-                ax.set_ylabel(r'$T_b \ (\mathrm{K})$', fontsize='x-large')    
+                ax.set_ylabel(r'$\delta T_b \ (\mathrm{K})$', fontsize='x-large')    
         
         # Twin axes along the top
         if freq_ax:
             twinax = self.add_frequency_axis(ax)
         elif time_ax:
-            twinax = self.add_time_axis(ax)
+            twinax = add_time_axis(ax, self.cosm)
         elif z_ax:
             twinax = add_redshift_axis(ax, zlim=zmax)
         else:
