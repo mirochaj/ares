@@ -500,7 +500,7 @@ def print_sim(sim):
     print(line('-' * twidth))
     
     rows = []
-    cols = ['sfrd', 'sed', 'radio', 'Ly-a', 'LW', 'Ly-C', 'X-ray', 'RTE']
+    cols = ['sfrd', 'sed', 'radio', 'O/IR', 'Ly-a', 'LW', 'Ly-C', 'X-ray', 'RTE']
     data = []
     for i, pop in enumerate(sim.pops):
         rows.append('pop #{}'.format(i))
@@ -516,6 +516,11 @@ def print_sim(sim):
             tmp.append('x')
         else:
             tmp.append(' ')
+        
+        if pop.is_src_oir:
+            tmp.append('x')
+        else:
+            tmp.append(' ')    
             
         if pop.is_src_lya:
             tmp.append('x')
@@ -544,7 +549,7 @@ def print_sim(sim):
             
         data.append(tmp)    
     
-    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8], fmt='{!s}')
+    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
     
     print(line('-' * twidth))
     print(line('Physics'))

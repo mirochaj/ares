@@ -49,9 +49,9 @@ def normalize_sed(pop):
         Zfactor = 1.
         
     if pop.pf['pop_rad_yield'] == 'from_sed':
-        # In this case, the *Norm parameters are irrelevant
-        E1 = pop.pf['pop_Emin']
-        E2 = pop.pf['pop_Emax']
+        # In this case Emin, Emax, EminNorm, EmaxNorm are irrelevant
+        E1 = pop.src.Emin
+        E2 = pop.src.Emax
         return pop.src.rad_yield(E1, E2)
     else:    
         # Remove whitespace and convert everything to lower-case
@@ -150,6 +150,19 @@ class Population(object):
         if not hasattr(self, '_affects_igm'):
             self._affects_igm = self.is_src_ion_igm or self.is_src_heat_igm
         return self._affects_igm 
+
+    @property
+    def is_src_oir(self):
+        if not hasattr(self, '_is_src_oir'):
+            if self.pf['pop_sed_model']:
+                self._is_src_oir = \
+                    (1e-2 >= self.pf['pop_Emin']) and \
+                    (E_LyA <= self.pf['pop_Emax']) \
+                    and self.pf['pop_radio_src']
+            else:
+                self._is_src_radio = self.pf['pop_radio_src']
+    
+        return self._is_src_radio
 
     @property
     def is_src_radio(self):
@@ -319,7 +332,7 @@ class Population(object):
                     (self.pf['pop_Emin'] <= 11.2 <= self.pf['pop_Emax']) and \
                     (self.pf['pop_Emin'] <= E_LL <= self.pf['pop_Emax'])
             else:
-                raise NotImplementedError('help')
+                self._is_src_lw = False
     
         return self._is_src_lw    
 
@@ -466,29 +479,6 @@ class Population(object):
 
             # erg/g
             self._yield_per_sfr = normalize_sed(self)
-            
-            # Correction: supplied normalization at monochromatic energy
-            #if self.pf['pop_Enorm'] is not None:
-            #    # Need to normalize spectrum such that monochromatic
-            #    # emission matches our pop_rad_yield input.
-            #    
-            #    assert self.pf['pop_rad_yield_units'].lower().endswith('hz')
-            #    
-            #    #IE = self.src.Spectrum(E) / self.src._Intensity(self.pf['pop_Enorm'])
-            #    
-            #    # erg/g/something (probably Hz)
-            #    norm_mono = self._yield_per_sfr \
-            #        / self.src.Spectrum(self.pf['pop_Enorm'])
-            #
-            #    # This is so src.Spectrum(Enorm) * yield_per_sfr = what we want
-            #                
-            #    # New normalization factor
-            #    tot = quad(self.src._Intensity, self.src.EminNorm, 
-            #        self.src.EminNorm)[0]
-            #        
-            #    self._yield_per_sfr = norm_mono
-                
-                #print(tot, yield_mono, tot * norm_mono)
                     
         return self._yield_per_sfr
     
@@ -498,7 +488,7 @@ class Population(object):
     
     @property
     def is_user_sfrd(self):
-        return (self.pf['pop_sfr_model'].lower() == 'sfrd-func')
+        return (self.pf['pop_sfr_model'].lower() in ['sfrd-func', 'sfrd-tab'])
     
     @property
     def is_link_sfrd(self):

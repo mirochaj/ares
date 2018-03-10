@@ -524,6 +524,7 @@ def PopulationParameters():
 
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
+    "pop_sfrd_interp": 'cubic',
 
     # Scales SFRD
     "pop_Nlw": 9690.,
@@ -550,6 +551,7 @@ def PopulationParameters():
 
     # What radiation does this population emit?
     # These are passive fields
+    "pop_oir_src": False,
     "pop_lw_src": True,
     "pop_lya_src": True,
     "pop_radio_src": False,

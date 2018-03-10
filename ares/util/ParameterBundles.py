@@ -221,7 +221,7 @@ _sed_uv = \
  "pop_ion_src_cgm": True,
  "pop_ion_src_igm": False,
  "pop_heat_src_igm": False,
- 
+  
  "pop_fesc": 0.1,
  "pop_fesc_LW": 1.0,
  
@@ -644,7 +644,8 @@ _tanh_sim = {'problem_type': 100, 'tanh_model': True,
 _param_sim = {'problem_type': 100, 'parametric_model': True,
     'output_frequencies': np.arange(30., 201.)}
 
+_gs_min = {'problem_type': 100, 'load_ics': True, 'cosmological_ics': True}
 _tmp = {'2pop': _uv_pop+_xr_pop, '4par': _gs_4par,
-    'tanh': _tanh_sim, 'param': _param_sim}
+    'tanh': _tanh_sim, 'param': _param_sim, 'minimal': _gs_min}
 
 _Bundles['gs'] = _tmp

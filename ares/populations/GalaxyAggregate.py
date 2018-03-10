@@ -30,6 +30,8 @@ from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..physics.Constants import s_per_yr, g_per_msun, erg_per_ev, rhodot_cgs, \
     E_LyA, rho_cgs, s_per_myr, cm_per_mpc, h_p, c, ev_per_hz, E_LL
     
+_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr']    
+    
 class GalaxyAggregate(HaloPopulation):
     def __init__(self, **kwargs):
         """
@@ -59,10 +61,15 @@ class GalaxyAggregate(HaloPopulation):
             elif inspect.ismethod(self.pf['pop_sfrd']):
                 self._sfrd_ = self.pf['pop_sfrd']
             elif isinstance(self.pf['pop_sfrd'], interp1d):
-                self._sfrd_ = self.pf['pop_sfrd']  
+                self._sfrd_ = self.pf['pop_sfrd']
             elif self.pf['pop_sfrd'][0:2] == 'pq':
                 pars = get_pq_pars(self.pf['pop_sfrd'], self.pf)
-                self._sfrd_ = ParameterizedQuantity(**pars)    
+                self._sfrd_ = ParameterizedQuantity(**pars)
+            elif type(self.pf['pop_sfrd']) is tuple:
+                z, sfrd = self.pf['pop_sfrd']
+                interp = interp1d(z, np.log(sfrd), kind=self.pf['pop_sfrd_interp'],
+                    bounds_error=False, fill_value=0.0)
+                self._sfrd_ = lambda **kw: np.exp(interp(kw['z']))
             else:
                 tmp = read_lit(self.pf['pop_sfrd'], verbose=self.pf['verbose'])
                 self._sfrd_ = lambda z: tmp.SFRD(z, **self.pf['pop_kwargs'])
@@ -127,9 +134,7 @@ class GalaxyAggregate(HaloPopulation):
                 self.dfcolldz(z) / self.cosm.dtdz(z), sfrd)
             sys.exit(1)
     
-        return sfrd                           
-    
-    
+        return sfrd                               
     
     def Emissivity(self, z, E=None, Emin=None, Emax=None):
         """
@@ -229,6 +234,3 @@ class GalaxyAggregate(HaloPopulation):
         return rhoL / (eV_per_phot * erg_per_ev)
     
     
-    
-    
-          

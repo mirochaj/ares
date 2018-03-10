@@ -344,10 +344,15 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # Also need energy per photon in this case
             erg_per_phot = self.src.erg_per_phot(Emin, Emax)
 
+            print('hello')
+            
             # Get an array for fesc
-            if (Emin, Emax) == (13.6, 24.6):
+            #if (Emin, Emax) == (13.6, 24.6):
+            if self.is_src_uv:
+                print('hey')
                 fesc = lambda **kwargs: self.fesc(**kwargs)
-            elif (Emin, Emax) == (10.2, 13.6):
+            elif self.is_src_lw:
+            #elif (Emin, Emax) == (10.2, 13.6):
                 fesc = lambda **kwargs: self.fesc_LW(**kwargs)
             else:
                 return None

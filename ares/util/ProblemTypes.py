@@ -219,7 +219,7 @@ def ReionizationProblem(ptype):
         ptype_mod1 = round(ptype - ptype_int, 1)
                                 
     # Single-zone reionization problem
-    if ptype_int == 0:
+    if ptype_int == 5:
         pf = \
         {
          'problem_type': 100,
@@ -245,7 +245,6 @@ def ReionizationProblem(ptype):
          'cgm_collisional_ionization': False,
         }
 
-            
     # Simple global 21-cm problem            
     if ptype_int == 0:
         # Blank slate

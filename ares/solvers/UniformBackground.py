@@ -1106,10 +1106,11 @@ class UniformBackground(object):
 
         scalable = pop.is_emissivity_scalable
         separable = pop.is_emissivity_separable
-
+        
         H = np.array(list(map(self.cosm.HubbleParameter, z)))
 
         if scalable:
+                    
             for ll in range(Nz):
                 Lbol = pop.Emissivity(z[ll])
                 epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H[ll] \
