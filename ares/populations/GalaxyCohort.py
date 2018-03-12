@@ -343,16 +343,13 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             # Also need energy per photon in this case
             erg_per_phot = self.src.erg_per_phot(Emin, Emax)
-
-            print('hello')
             
             # Get an array for fesc
-            #if (Emin, Emax) == (13.6, 24.6):
-            if self.is_src_uv:
-                print('hey')
+            if (Emin, Emax) == (13.6, 24.6):
+            #if self.is_src_uv:
                 fesc = lambda **kwargs: self.fesc(**kwargs)
-            elif self.is_src_lw:
-            #elif (Emin, Emax) == (10.2, 13.6):
+            #elif (self.is_src_lw or self.is_src_lya):
+            elif (Emin, Emax) == (10.2, 13.6):
                 fesc = lambda **kwargs: self.fesc_LW(**kwargs)
             else:
                 return None
@@ -377,7 +374,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             yield_per_sfr = lambda **kwargs: self.rad_yield(**kwargs) \
                 * s_per_yr
-                
+
         self._yield_per_sfr_for_rho[(Emin, Emax)] = yield_per_sfr
 
         tab = np.zeros(self.halos.Nz)

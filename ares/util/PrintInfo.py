@@ -48,7 +48,7 @@ class ErrorIgnore(object):
       return returnfunction 
 
 # FORMATTING   
-width = 120
+width = 100
 pre = post = '#'*4    
 twidth = width - len(pre) - len(post) - 2
 #

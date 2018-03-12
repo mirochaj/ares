@@ -32,7 +32,7 @@ except ImportError:
 _scipy_ver = scipy.__version__.split('.')
 
 # This keyword didn't exist until version 0.14 
-if float(_scipy_ver[1]) >= 0.14:
+if float(_scipy_ver[1]) >= 14:
     _interp1d_kwargs = {'assume_sorted': True}
 else:
     _interp1d_kwargs = {}

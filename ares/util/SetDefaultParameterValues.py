@@ -605,7 +605,20 @@ def PopulationParameters():
     "pop_kwargs": {},
 
     "pop_test_param": None,
-
+    
+    # Utility
+    "pop_user_par0": None,
+    "pop_user_par1": None,
+    "pop_user_par2": None,
+    "pop_user_par3": None,
+    "pop_user_par4": None,
+    "pop_user_par5": None,
+    "pop_user_par6": None,
+    "pop_user_par7": None,
+    "pop_user_par8": None,
+    "pop_user_par9": None,
+    "pop_user_pmap": {},
+    
     }
 
     pf.update(tmp)
@@ -983,3 +996,5 @@ def GaussianParameters():
     
     return pf
 
+
+    

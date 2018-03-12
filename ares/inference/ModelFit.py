@@ -33,17 +33,17 @@ from ..util.ReadData import flatten_chain, flatten_logL, flatten_blobs, \
 
 import os
 import time
-import psutil
-
-ps = psutil.Process(os.getpid())
-
-def write_memory(checkpt):
-    t = time.time()
-    #mem = psutil.virtual_memory().active / 1e9
-    mem = ps.memory_info().rss / 1e6
-    
-    with open('memory.txt', 'a') as f:
-        f.write("{} {} {} {}\n".format(t, mem, rank, checkpt))
+#import psutil
+#
+#ps = psutil.Process(os.getpid())
+#
+#def write_memory(checkpt):
+#    t = time.time()
+#    #mem = psutil.virtual_memory().active / 1e9
+#    mem = ps.memory_info().rss / 1e6
+#    
+#    with open('memory.txt', 'a') as f:
+#        f.write("{} {} {} {}\n".format(t, mem, rank, checkpt))
 
 try:
     from distpy import DistributionSet
@@ -149,7 +149,7 @@ def _compute_blob_prior(sim, priors_B):
 def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     blank_blob, base_kwargs, checkpoint_by_proc, simulator, fitters):
 
-    write_memory('1')
+    #write_memory('1')
 
     kwargs = {}
     for i, par in enumerate(parameters):
@@ -195,7 +195,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
 
     t2 = time.time()
     
-    write_memory('2')
+    #write_memory('2')
     
     checkpoint_on_completion(prefix, False, checkpoint_by_proc, **kwargs)
 
@@ -240,12 +240,12 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     if PofD == np.inf:
         raise ValueError('+inf obtained in likelihood. Should not happen!')
     
-    write_memory('3')
+    #write_memory('3')
     
     del sim, kw, kwargs
     gc.collect()
     
-    write_memory('4')
+    #write_memory('4')
                 
     return PofD, blobs    
 
@@ -1344,7 +1344,7 @@ class ModelFit(FitBase):
             iterations=steps, rstate0=state, storechain=False):
             
             # Only the rank 0 processor ever makes it here
-            write_memory('5')
+            #write_memory('5')
                           
             # If we're saving each checkpoint to its own file, this is the
             # identifier to use in the filename
@@ -1420,7 +1420,7 @@ class ModelFit(FitBase):
 
             gc.collect()
             
-            write_memory('6')
+            #write_memory('6')
 
             pos_all = []; prob_all = []; blobs_all = []
 
