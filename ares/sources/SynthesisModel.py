@@ -221,7 +221,7 @@ class SynthesisModel(Source):
             if self.pf['source_sed_by_Z'] is not None:
                 self._wavelengths, junk = self.pf['source_sed_by_Z']
             else:
-                self._wavelengths, junk = self.litinst._load(**self.pf)
+                data = self.data
             
         return self._wavelengths
 
