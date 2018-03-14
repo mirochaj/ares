@@ -15,7 +15,7 @@ from .Source import Source
 from ares.physics import Cosmology
 from scipy.optimize import minimize
 from ..util.ReadData import read_lit
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, ev_per_hz

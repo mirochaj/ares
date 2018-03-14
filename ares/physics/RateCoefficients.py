@@ -13,7 +13,7 @@ Fukugita & Kawasaki (1994). Would be nice to include rates from other sources.
 
 import numpy as np
 from scipy.misc import derivative
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..util.Math import central_difference
 
 #try:

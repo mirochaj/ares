@@ -13,10 +13,9 @@ Description: Container for hydrogen physics stuff.
 import scipy
 import numpy as np
 from types import FunctionType
-import scipy.interpolate as interpolate
 from ..util.ReadData import _load_inits
-from ..util.Math import central_difference
 from ..util.ParameterFile import ParameterFile
+from ..util.Math import central_difference, interp1d
 from .Constants import A10, T_star, m_p, m_e, erg_per_ev, h, c, E_LyA, E_LL, \
     k_B
     
@@ -92,7 +91,7 @@ class Hydrogen(object):
     @property
     def kappa_H_pre(self):
         if not hasattr(self, '_kappa_H_pre'):                            
-            self._kappa_H_pre = interpolate.interp1d(T_HH, kappa_HH, 
+            self._kappa_H_pre = interp1d(T_HH, kappa_HH, 
                 kind=self.interp_method, bounds_error=False, fill_value=0.0,
                 **_interp1d_kwargs)
 
@@ -101,7 +100,7 @@ class Hydrogen(object):
     @property
     def kappa_e_pre(self):
         if not hasattr(self, '_kappa_e_pre'):     
-            self._kappa_e_pre = interpolate.interp1d(T_He, kappa_He,
+            self._kappa_e_pre = interp1d(T_He, kappa_He,
                 kind=self.interp_method, bounds_error=False, fill_value=0.0,
                 **_interp1d_kwargs)
 
@@ -145,7 +144,7 @@ class Hydrogen(object):
             Tk_p_H, dkHdT = central_difference(self.Tk_hi_H, self.kH_hi)
             dlogkH_dlogT = dkHdT * Tk_p_H / np.array(list(map(self.kappa_H, Tk_p_H)))
             
-            _kH_spline = interpolate.interp1d(Tk_p_H, dlogkH_dlogT)
+            _kH_spline = interp1d(Tk_p_H, dlogkH_dlogT)
             self._dlogkH_dlogT = lambda T: _kH_spline(T)
             
         return self._dlogkH_dlogT
@@ -156,7 +155,7 @@ class Hydrogen(object):
             Tk_p_e, dkedT = central_difference(self.Tk_hi_e, self.ke_hi)
             dlogke_dlogT = dkedT * Tk_p_e / np.array(list(map(self.kappa_e, Tk_p_e)))
             
-            _ke_spline = interpolate.interp1d(Tk_p_e, dlogke_dlogT)
+            _ke_spline = interp1d(Tk_p_e, dlogke_dlogT)
             self._dlogke_dlogT = lambda T: _ke_spline(T)
     
         return self._dlogke_dlogT

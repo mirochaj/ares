@@ -17,7 +17,7 @@ from ..util.Misc import logbx
 from ..util import ParameterFile
 from ..static import GlobalVolume
 from ..util.Misc import num_freq_bins
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from .OpticalDepth import OpticalDepth
 from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology

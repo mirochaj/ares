@@ -543,6 +543,14 @@ class HaloMassFunction(object):
         
         return np.squeeze(self.dfcolldz_spline(z))
         
+    @property
+    def _tab_MAR(self):
+        if not hasattr(self, '_tab_MAR_'):
+            pass
+            
+        return self._tab_MAR_
+            
+            
     def MAR_via_AM(self, z):
         """
         Compute mass accretion rate by abundance matching across redshift.

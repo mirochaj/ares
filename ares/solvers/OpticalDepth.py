@@ -16,7 +16,7 @@ from ..physics import Cosmology
 from scipy.integrate import quad
 from ..physics.Constants import c
 from ..util.Misc import num_freq_bins
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..util.Warnings import no_tau_table
 from ..util import ProgressBar, ParameterFile
 from ..physics.CrossSections import PhotoIonizationCrossSection, \

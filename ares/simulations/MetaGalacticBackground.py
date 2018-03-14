@@ -19,7 +19,7 @@ from ..util.Math import smooth
 from ..util.Pickling import write_pickle_file
 from types import FunctionType
 from ..util import ParameterFile
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..solvers import UniformBackground
 from ..analysis.MetaGalacticBackground import MetaGalacticBackground \
     as AnalyzeMGB
@@ -604,23 +604,26 @@ class MetaGalacticBackground(AnalyzeMGB):
                     [None for _i in range(self.grid.N_absorbers)]
             
                 self._interp[i]['Ja'] = interp1d(zarr, 
-                    self._rc_tabs[i]['Ja'], 
+                    self._rc_tabs[i]['Ja'], kind=self.pf['interp_all'],
                     bounds_error=False, fill_value=0.0)
                 self._interp[i]['Jlw'] = interp1d(zarr, 
-                    self._rc_tabs[i]['Jlw'], 
+                    self._rc_tabs[i]['Jlw'], kind=self.pf['interp_all'],
                     bounds_error=False, fill_value=0.0)    
             
                 for j in range(self.grid.N_absorbers):
                     self._interp[i]['k_ion'][j] = \
                         interp1d(zarr, self._rc_tabs[i]['k_ion'][:,j], 
+                            kind=self.pf['interp_all'], 
                             bounds_error=False, fill_value=0.0)    
                     self._interp[i]['k_heat'][j] = \
                         interp1d(zarr, self._rc_tabs[i]['k_heat'][:,j], 
+                            kind=self.pf['interp_all'],
                             bounds_error=False, fill_value=0.0)    
                     
                     for k in range(self.grid.N_absorbers):
                         self._interp[i]['k_ion2'][j][k] = \
                             interp1d(zarr, self._rc_tabs[i]['k_ion2'][:,j,k],
+                                kind=self.pf['interp_all'],
                                 bounds_error=False, fill_value=0.0)
                      
             self._has_coeff = True  

@@ -16,7 +16,7 @@ import os
 import time
 import numpy as np
 from types import FunctionType
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..util.PrintInfo import print_sim
 from ..util.ReadData import _sort_history
 from ..util.Pickling import write_pickle_file

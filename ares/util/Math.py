@@ -11,8 +11,18 @@ Description:
 """
 
 import numpy as np
-from scipy.interpolate import interp1d
 from ..physics.Constants import nu_0_mhz
+from scipy.interpolate import interp1d as interp1d_scipy
+
+def interp1d(x, y, kind='linear', fill_value=0.0, bounds_error=False,
+    **kwargs):
+    if kind == 'linear':
+        return lambda xx: np.interp(xx, x, y)
+    elif kind == 'cubic': 
+        return interp1d_scipy(x, y, kind='cubic', bounds_error=bounds_error, 
+            fill_value=fill_value, **kwargs)
+    else:
+        raise NotImplemented("Don\'t understand interpolation method={}".format(method))
 
 def forward_difference(x, y):    
     """

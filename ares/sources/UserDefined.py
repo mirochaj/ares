@@ -1,7 +1,7 @@
 from .Source import Source
 from inspect import ismethod
 from types import FunctionType
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..util.SetDefaultParameterValues import SourceParameters
 try:
     # this runs with no issues in python 2 but raises error in python 3
