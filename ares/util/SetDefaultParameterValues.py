@@ -529,7 +529,6 @@ def PopulationParameters():
 
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
-    "pop_sfrd_interp": 'cubic',
 
     # Scales SFRD
     "pop_Nlw": 9690.,

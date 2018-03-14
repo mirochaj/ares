@@ -77,7 +77,7 @@ class GalaxyAggregate(HaloPopulation):
             elif type(self.pf['pop_sfrd']) is tuple:
                 z, sfrd = self.pf['pop_sfrd']
                 sfrd[sfrd <= tiny_sfrd] = tiny_sfrd
-                interp = interp1d(z, np.log(sfrd), kind=self.pf['pop_sfrd_interp'],
+                interp = interp1d(z, np.log(sfrd), kind=self.pf['pop_interp_sfrd'],
                     bounds_error=False, fill_value=-np.inf)
                 self._sfrd_ = lambda **kw: np.exp(interp(kw['z']))
             else:
