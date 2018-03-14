@@ -17,7 +17,7 @@ def test():
 
     sim = ares.simulations.Global21cm(tanh_model=True)
     sim.run()
-    ax = sim.GlobalSignature(label='tanh')
+    ax, zax = sim.GlobalSignature(label='tanh')
         
     sim2 = ares.simulations.Global21cm(gaussian_model=True)
     sim2.run()

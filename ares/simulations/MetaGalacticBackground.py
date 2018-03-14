@@ -484,7 +484,6 @@ class MetaGalacticBackground(AnalyzeMGB):
                 if z > self.pf['first_light_redshift']:
                     fluxes_by_band.append(np.zeros_like(flatten_flux(f)))
                 else:
-                    
                     fluxes_by_band.append(flatten_flux(f))
 
         return z, fluxes_by_band

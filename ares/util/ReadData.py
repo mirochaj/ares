@@ -83,20 +83,15 @@ def flatten_energies(E):
     """
     Take fluxes sorted by band and flatten to single energy dimension.
     """
-
+    
     to_return = []
     for i, band in enumerate(E):
         if type(band) is list:
-            #for j, flux_seg in enumerate(band):
-            #    to_return.extend(flux_seg)
             to_return.extend(np.concatenate(band))
+        elif type(band) is np.ndarray:
+            to_return.extend(band)
         else:
-            to_return.extend(np.concatenate([band]))
-            #to_return.extend(band)
-            #try:
-            #    to_return.extend(band)
-            #except TypeError:
-            #    to_return.append(band)
+            to_return.append(float(band))
 
     return to_return
 

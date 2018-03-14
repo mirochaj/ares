@@ -163,14 +163,22 @@ class Cosmology(object):
         
     def Tgas(self, z):
         """
-        Gas kinetic temperature at z assuming only adiabatic cooling after zdec.
-        
-        .. note :: This is very approximate. Use RECFAST or CosmoRec for more
-            precise solutions.
-            
+        Gas kinetic temperature at z in the absence of heat sources.
         """
         
         if self.pf['approx_thermal_history'] == 'piecewise':
+            
+            if type(z) == np.ndarray:
+                T = np.zeros_like(z)
+                
+                hiz = z >= self.zdec
+                loz = z < self.zdec
+                
+                T[hiz] = self.TCMB(z[hiz])
+                T[loz] = self.TCMB(self.zdec) * (1. + z[loz])**2 \
+                    / (1. + self.zdec)**2
+                return T
+                
             if z >= self.zdec:
                 return self.TCMB(z)
             else:
