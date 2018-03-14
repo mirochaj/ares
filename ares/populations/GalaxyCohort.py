@@ -432,7 +432,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
             tab += thresh
         
-        self._rho_L[(Emin, Emax)] = interp1d(self.halos.z, tab, kind='cubic')
+        self._rho_L[(Emin, Emax)] = interp1d(self.halos.z, tab, 
+            kind=self.pf['pop_interp_sfrd'])
     
         return self._rho_L[(Emin, Emax)]
     
@@ -476,7 +477,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             
         tab *= 1. / s_per_yr / cm_per_mpc**3
         
-        self._rho_N[(Emin, Emax)] = interp1d(self.halos.z, tab, kind='cubic')
+        self._rho_N[(Emin, Emax)] = interp1d(self.halos.z, tab, 
+            kind=self.pf['pop_interp_sfrd'])
     
         return self._rho_N[(Emin, Emax)](z)
         
@@ -492,8 +494,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         
         if not hasattr(self, '_SFRD'):
-            self._SFRD = interp1d(self.halos.z, self._tab_sfrd_total, 
-                kind='cubic')
+            func = interp1d(self.halos.z, np.log(self._tab_sfrd_total), 
+                kind=self.pf['pop_interp_sfrd'])
+            self._SFRD = lambda z: np.exp(func(z))
 
         return self._SFRD
         
@@ -504,12 +507,12 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
     @property   
     def nactive(self):
         """
-        Compute star-formation rate density (SFRD).
+        Compute number of active halos.
         """
     
         if not hasattr(self, '_nactive'):
             self._nactive = interp1d(self.halos.z, self._tab_nh_active, 
-                kind='cubic')
+                kind=self.pf['pop_interp_sfrd'])
     
         return self._nactive
     
@@ -523,7 +526,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             dtdz = np.array(list(map(self.cosm.dtdz, self.halos.z)))
             self._smd_tab = cumtrapz(self._tab_sfrd_total[-1::-1] * dtdz[-1::-1], 
                 dx=np.abs(np.diff(self.halos.z[-1::-1])), initial=0.)[-1::-1]
-            self._SMD = interp1d(self.halos.z, self._smd_tab, kind='cubic')
+            self._SMD = interp1d(self.halos.z, self._smd_tab, 
+                kind=self.pf['pop_interp_sfrd'])
     
         return self._SMD
     
@@ -594,7 +598,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             p2 = simps(integ[j1+1:], x=self.halos.lnM[j1+1:])
             p3 = simps(integ[j1+2:], x=self.halos.lnM[j1+2:])
 
-            interp = interp1d(self.halos.lnM[j1-1:j1+3], [p0,p1,p2,p3])
+            interp = interp1d(self.halos.lnM[j1-1:j1+3], [p0,p1,p2,p3],
+                kind=self.pf['pop_interp_MAR'])
 
             return interp(np.log(Mmin))
         else:
@@ -682,7 +687,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                     p2 = simps(integ[j1+1:], x=self.halos.lnM[j1+1:])
                     p3 = simps(integ[j1+2:], x=self.halos.lnM[j1+2:])
                 
-                    interp = interp1d(self.halos.lnM[j1-1:j1+3], [p0,p1,p2,p3])
+                    interp = interp1d(self.halos.lnM[j1-1:j1+3], [p0,p1,p2,p3],
+                        kind=self.pf['pop_interp_MAR'])
 
                     lhs = interp(np.log(Mmin))
                     
@@ -838,7 +844,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Mh = data['Mh']
         Ms = data['Ms']
         
-        dndm_func = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
+        dndm_func = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0,
+            kind=self.pf['pop_interp_lf'])
         dndm_z = dndm_func(z)
 
         # Interpolate dndm to same Mh grid as SAM
@@ -902,7 +909,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 return -np.inf
 
             # Setup interpolant
-            interp = interp1d(x_phi[ok], np.log10(phi[ok]), kind='linear',
+            interp = interp1d(x_phi[ok], np.log10(phi[ok]), 
+                kind=self.pf['pop_interp_lf'],
                 bounds_error=False, fill_value=-np.inf)
 
             phi_of_x = 10**interp(x)
@@ -916,7 +924,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 return -np.inf
 
             # Setup interpolant
-            interp = interp1d(np.log10(x_phi[ok]), np.log10(phi[ok]), kind='linear',
+            interp = interp1d(np.log10(x_phi[ok]), np.log10(phi[ok]), 
+                kind=self.pf['pop_interp_lf'],
                 bounds_error=False, fill_value=-np.inf)
             
             phi_of_x = 10**interp(np.log10(x))
@@ -959,7 +968,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         
         logL_Lh = np.log(Lh)
         
-        dndm_func = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0)
+        dndm_func = interp1d(self.halos.z, self.halos.dndm[:,:-1], axis=0,
+            kind=self.pf['pop_interp_lf'])
 
         dndm = dndm_func(z) * self.focc(z=z, Mh=self.halos.M[0:-1])
         

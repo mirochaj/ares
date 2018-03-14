@@ -387,7 +387,12 @@ def PopulationParameters():
     # Mass accretion rate
     "pop_MAR": 'hmf',
     "pop_MAR_conserve_norm": False,
+    "pop_MAR_interp": 'linear',
 
+    "pop_interp_MAR": 'linear',
+    "pop_interp_sfrd": 'cubic',
+    "pop_interp_lf": 'linear',
+    
     "pop_tdyn": 1e7,
     "pop_sSFR": None,
 
@@ -856,8 +861,11 @@ def ControlParameters():
     "solver_atol": 1e-8,
     "interp_tab": 'cubic',
     "interp_cc": 'linear',
+    "interp_rc": 'linear',
     "interp_Z": 'linear',
     "interp_hist": 'linear',
+    "interp_sfrd": 'cubic',
+    "interp_hmf": 'cubic',
     
     # Not implemented
     "extrap_Z": False,

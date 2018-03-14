@@ -21,7 +21,8 @@ from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h
 rad_const = (8. * sigma_T / 3. / m_e / c)
         
 class ChemicalNetwork(object):
-    def __init__(self, grid, rate_src='fk94', recombination='B'):
+    def __init__(self, grid, rate_src='fk94', recombination='B', 
+        interp_rc='linear'):
         """
         Initialize chemical network.
         
@@ -33,7 +34,7 @@ class ChemicalNetwork(object):
         self.cosm = self.grid.cosm
         
         self.coeff = RateCoefficients(grid, rate_src=rate_src,
-            recombination=recombination)
+            recombination=recombination, interp_rc=interp_rc)
 
         self.isothermal = self.grid.isothermal
         self.secondary_ionization = self.grid.secondary_ionization

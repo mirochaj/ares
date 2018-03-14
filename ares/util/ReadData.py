@@ -95,7 +95,6 @@ def flatten_energies(E):
 
     return to_return
 
-
 def flatten_energies_OLD(E):
     """
     Take fluxes sorted by band and flatten to single energy dimension.

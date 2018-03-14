@@ -34,7 +34,7 @@ except ImportError:
 
 #
 ## INPUT
-zf, zi = (5, 50)
+zf, zi = (5, 60)
 Emin = 2e2
 Emax = 3e4
 Nz = [1e3]

@@ -55,6 +55,10 @@ def pop_id_num(par):
     """
     Split apart parameter prefix and ID number.
     """
+    
+    # Spare us from using re.search if we can. 
+    if not (par.startswith('pop') or par.startswith('pq') or par.startswith('source')):
+        return par, None
         
     # Look for integers within curly braces
     m = re.search(r"\{([0-9])\}", par)
@@ -82,6 +86,7 @@ def par_info(par):
     if prefix1 is not None:
         m = re.search(r"\[(\d+(\.\d*)?)\]", prefix1)
     else:
+        print('hey')
         m = None
         prefix1 = par
 

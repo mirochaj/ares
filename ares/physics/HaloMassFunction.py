@@ -498,7 +498,8 @@ class HaloMassFunction(object):
         self.dfcolldz_tab[self.dfcolldz_tab <= tiny_dfcolldz] = tiny_dfcolldz
                     
         spline = interp1d(self.ztab, np.log10(self.dfcolldz_tab), 
-            kind='cubic', bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
+            kind=self.pf['hmf_interp'], 
+            bounds_error=False, fill_value=np.log10(tiny_dfcolldz))
         dfcolldz_spline = lambda z: 10**spline.__call__(z)
         
         return fcoll_spline, dfcolldz_spline, None

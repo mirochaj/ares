@@ -25,7 +25,7 @@ tiny_ion = 1e-12
 class Chemistry(object):
     """ Class for evolving chemical reaction equations. """
     def __init__(self, grid, rt=False, atol=1e-8, rtol=1e-8, rate_src='fk94',
-        recombination='B'):
+        recombination='B', interp_rc='linear'):
         """
         Create a chemistry object.
         
@@ -42,7 +42,7 @@ class Chemistry(object):
         self.rtON = rt
         
         self.chemnet = ChemicalNetwork(grid, rate_src=rate_src,
-            recombination=recombination)
+            recombination=recombination, interp_rc=interp_rc)
         
         # Only need to compute rate coefficients once for isothermal gas
         if self.grid.isothermal:
