@@ -25,8 +25,8 @@ from ..populations.Composite import CompositePopulation
 from ..populations.GalaxyAggregate import GalaxyAggregate
 from scipy.integrate import quad, romberg, romb, trapz, simps
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu
-from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
-    flatten_emissivities
+#from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
+#    flatten_emissivities
 try:
     # this runs with no issues in python 2 but raises error in python 3
     basestring
@@ -1111,9 +1111,10 @@ class UniformBackground(object):
 
         if scalable:
                     
+            Lbol = pop.Emissivity(z)        
             for ll in range(Nz):
-                Lbol = pop.Emissivity(z[ll])
-                epsilon[ll,:] = Inu_hat * Lbol * ev_per_hz / H[ll] \
+                #Lbol = pop.Emissivity(z[ll])
+                epsilon[ll,:] = Inu_hat * Lbol[ll] * ev_per_hz / H[ll] \
                     / erg_per_ev
         else:
                             

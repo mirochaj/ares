@@ -74,7 +74,7 @@ def GalaxyPopulation(**kwargs):
         
     if model in ['sfe-func', 'sfr-func', 'sfe-tab', 'sfr-tab']:
         return GalaxyCohort(**kwargs)
-    elif model in ['fcoll', 'sfrd-func', 'sfrd-tab']:
+    elif model in ['fcoll', 'sfrd-func', 'sfrd-tab', 'sfrd-class']:
         return GalaxyAggregate(**kwargs)
     elif model in ['rates']:
         return ParametricPopulation(**kwargs)

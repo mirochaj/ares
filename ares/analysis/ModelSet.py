@@ -4636,14 +4636,14 @@ class ModelSet(BlobFactory):
             tick.set_rotation(45.)
         for tick in ax.get_yticklabels():
             tick.set_rotation(45.)
-            
+
         # colorbar
         if cb is not None and len(pars) > 2:
             cb.set_label(labeler.label(pars[2], take_log=take_log[pars[2]], 
                 un_log=un_log[2]))
-        
+
         pl.draw()
-        
+
         return ax
 
     def _alpha_shape(self, points, alpha):

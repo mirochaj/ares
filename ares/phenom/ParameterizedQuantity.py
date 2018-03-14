@@ -233,10 +233,23 @@ class ParameterizedQuantity(object):
         # 'quadratic_hi' means higher order terms vanish when x >> p3
         elif func in ['quadratic_hi', 'quad']:
             f = self.p0 * (1. +  self.p1 * (self.p3 / x) + self.p2 * (self.p3 / x)**2)
-        #elif func == 'cubic_lo':
-        #    f = self.p1 * (1. + self.p2 * (x / self.p0) + self.p3 * (x / self.p0)**2)
-        #elif func == 'cubic_hi':
-        #    f = self.p1 * (1. +  self.p2 * (self.p0 / x) + self.p3 * (self.p0 / x)**2)
+        elif func == 'cubic_lo':
+            f = self.p1 * (1. + self.p2 * (x / self.p0) + self.p3 * (x / self.p0)**2 + self.p4 * (x / self.p0)**3)
+        elif func == 'cubic_hi':
+            f = self.p1 * (1. +  self.p2 * (self.p0 / x) + self.p3 * (self.p0 / x)**2)
+        elif func == 'poly':
+            k = 0
+            f = 0.0
+            while 'p{}'.format(k) in self.__dict__:                
+                norm = getattr(self, 'p{}'.format(2*k))
+                slope = getattr(self, 'p{}'.format(2*k+1))
+                
+                if norm is None:
+                    break
+                
+                f += norm * x**slope
+                k += 1
+                                            
         elif func == 'exp':
             f = self.p0 * np.exp((x / self.p1)**self.p2)
         elif func == 'exp_flip':

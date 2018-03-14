@@ -60,7 +60,7 @@ class loglikelihood(LogLikelihood):
         Tuple: (log likelihood, blobs)
 
         """
-                            
+                                                        
         # Compute the likelihood if we've made it this far
         if self.turning_points:
             tps = sim.turning_points
@@ -145,7 +145,7 @@ class FitGlobal21cm(FitBase):
         sequence of brightness temperatures corresponding to the
         frequencies defined in self.frequencies (self.xdata).
         """
-        
+                
         if type(value) == dict:            
             kwargs = value.copy()
             kwargs.update(def_kwargs)
@@ -165,6 +165,7 @@ class FitGlobal21cm(FitBase):
             assert not self.turning_points
             self.xdata = self.frequencies
             self.ydata = value
+            
             return
 
         if self.turning_points is not None:

@@ -742,8 +742,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         """
 
-        if (z > self.zform) or (z < self.zdead):
-            return 0.0
+        on = self.on(z)
+        if not np.any(on):
+            return z * on
 
         # Use GalaxyAggregate's Emissivity function
         if self.is_emissivity_scalable:
@@ -752,7 +753,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             # by scaling the SFRD.
             rhoL = super(GalaxyCohort, self).Emissivity(z, E=E, 
                 Emin=Emin, Emax=Emax)
-                
+
         else:
             # Here, the radiation backgrounds cannot just be scaled. 
             # Note that this method can always be used, it's just less 
@@ -761,9 +762,9 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             rhoL = self.rho_L(Emin, Emax)(z)
             
         if E is not None:
-            return rhoL * self.src.Spectrum(E)
+            return rhoL * self.src.Spectrum(E) * on
         else:
-            return rhoL
+            return rhoL * on
             
     def StellarMass(self, z, Mh):
         zform, data = self.scaling_relations_sorted(z=z)
@@ -1736,6 +1737,8 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
             if zz > self.zform:
                 continue
+            elif zz < self.zdead:
+                continue    
 
             integrand = self._tab_sfr[i] * self.halos.dndlnm[i] \
                 * self.focc(z=zz, Mh=self.halos.M)

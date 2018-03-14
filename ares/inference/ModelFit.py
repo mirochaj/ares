@@ -168,7 +168,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
         point[par] = pars[i]
 
     lp = prior_set_P.log_value(point)
-    
+        
     if not np.isfinite(lp):
         return -np.inf, blank_blob
 
@@ -202,7 +202,7 @@ def loglikelihood(pars, prefix, parameters, is_log, prior_set_P, prior_set_B,
     lnL = 0.0
     for fitter in fitters:
         lnL += fitter.loglikelihood(sim)
-        
+                
     # Blob prior: only compute if log-likelihood is finite
     if np.isfinite(lnL):
         

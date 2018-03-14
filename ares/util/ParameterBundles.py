@@ -309,6 +309,17 @@ _evolve_dc = \
 'dustcorr_ztrans': [0, 4, 5],
 }
 
+_cooling = \
+{
+ 'approx_thermal_history': 'exp',
+ 'load_ics': 'parametric', 
+ 'inits_Tk_p0': 189.5850442,
+ 'inits_Tk_p1': 1.26795248,
+ 'inits_Tk_p2': -5.5,
+ 'inits_Tk_p3': 3.5,
+ 'inits_Tk_dz': 0.2,
+}
+
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe, 
@@ -320,7 +331,8 @@ _Bundles = \
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
  'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2, 
     'evolving': _evolve_dc, 'none': {},
-    }
+    },
+ 'exotic': {'cooling':_cooling},
 }
 
 class ParameterBundle(dict):

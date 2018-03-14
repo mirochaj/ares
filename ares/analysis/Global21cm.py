@@ -142,6 +142,10 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
     @property
     def z_A(self):
         if not hasattr(self, '_z_A'):
+            
+            if max(self.history_asc['z']) < 70:
+                self._z_A = -np.inf
+                return -np.inf
                         
             zall = self.history_asc['z']
             Tall = self.history_asc['dTb']

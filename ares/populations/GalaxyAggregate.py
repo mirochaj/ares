@@ -94,6 +94,17 @@ class GalaxyAggregate(HaloPopulation):
         # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
         return self.SFRD(z)
     
+    def on(self, z):
+        if type(z) in [int, float, np.float64]:
+            if (z > self.zform) or (z < self.zdead):
+                return 0
+            else:
+                on = 1
+        else:
+            on = np.logical_or(z <= self.zform, z >= self.zdead)
+            
+        return on
+    
     def SFRD(self, z):
         """
         Compute the comoving star formation rate density (SFRD).
@@ -118,25 +129,26 @@ class GalaxyAggregate(HaloPopulation):
         g s**-1 cm**-3.
     
         """
-    
-        if z > self.zform:
-            return 0.0
+        
+        on = self.on(z)
+        if not np.any(on):
+            return z * on
     
         # SFRD given by some function
         if self.is_link_sfrd:    
             # Already in the right units
-            return self._sfrd(z)  
+            return self._sfrd(z) * on
         elif self.is_user_sfrd:
             if self.pf['pop_sfrd_units'] == 'internal':
-                return self._sfrd(z=z)
+                return self._sfrd(z=z) * on
             else:
-                return self._sfrd(z=z) / rhodot_cgs
+                return self._sfrd(z=z) * on / rhodot_cgs
     
         if (not self.is_fcoll_model) and (not self.is_user_sfe):
             raise ValueError('Must be an fcoll model!')
     
         # SFRD computed via fcoll parameterization
-        sfrd = self.pf['pop_fstar'] * self.cosm.rho_b_z0 * self.dfcolldt(z)
+        sfrd = self.pf['pop_fstar'] * self.cosm.rho_b_z0 * self.dfcolldt(z) * on
     
         if sfrd < 0:
             negative_SFRD(z, self.pf['pop_Tmin'], self.pf['pop_fstar'], 
@@ -163,8 +175,9 @@ class GalaxyAggregate(HaloPopulation):
 
         """
 
-        if (z > self.zform) or (z < self.zdead):
-            return 0.0
+        on = self.on(z)
+        if not np.any(on):
+            return z * on
             
         if self.pf['pop_sed_model'] and (Emin is not None) and (Emax is not None):
             if (Emin > self.pf['pop_Emax']):
@@ -173,7 +186,7 @@ class GalaxyAggregate(HaloPopulation):
                 return 0.0    
                         
         # This assumes we're interested in the (EminNorm, EmaxNorm) band
-        rhoL = self.SFRD(z) * self.yield_per_sfr
+        rhoL = self.SFRD(z) * self.yield_per_sfr * on
                 
         if not self.pf['pop_sed_model']:
             if (Emin, Emax) == (10.2, 13.6):

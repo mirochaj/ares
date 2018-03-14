@@ -184,7 +184,7 @@ class Global21cm(AnalyzeGlobal21cm):
         if (not self.is_tanh) and (not self.is_gauss) and (not self.is_param):
             return False
                 
-        model = PhenomModel(**kwargs)                
+        model = self._model = PhenomModel(**kwargs)                
         self.pf = model.pf
             
         if self.pf['output_frequencies'] is not None:

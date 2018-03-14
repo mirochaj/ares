@@ -78,8 +78,30 @@ def read_lit(prefix, path=None, verbose=True):
     mod.path = loc
     
     return mod
-
+    
 def flatten_energies(E):
+    """
+    Take fluxes sorted by band and flatten to single energy dimension.
+    """
+
+    to_return = []
+    for i, band in enumerate(E):
+        if type(band) is list:
+            #for j, flux_seg in enumerate(band):
+            #    to_return.extend(flux_seg)
+            to_return.extend(np.concatenate(band))
+        else:
+            to_return.extend(np.concatenate([band]))
+            #to_return.extend(band)
+            #try:
+            #    to_return.extend(band)
+            #except TypeError:
+            #    to_return.append(band)
+
+    return to_return
+
+
+def flatten_energies_OLD(E):
     """
     Take fluxes sorted by band and flatten to single energy dimension.
     """

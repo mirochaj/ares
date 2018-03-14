@@ -427,6 +427,25 @@ class MetaGalacticBackground(AnalyzeMGB):
     
         return self._history
         
+    @property
+    def _subgen(self):
+        if not hasattr(self, '_subgen_'):
+            self._subgen_ = {}
+            
+            for popid, pop in enumerate(self.pops):
+                gen = self.solver.generators[popid]
+                
+                if gen is None:
+                    self._subgen_[popid] = None
+                    continue
+                
+                if len(gen) == 1:
+                    self._subgen_[popid] = False
+                else:
+                    self._subgen_[popid] = True
+                    
+        return self._subgen_
+        
     def update_fluxes(self, popid=0):
         """
         Loop over flux generators and retrieve the next values.
@@ -449,15 +468,23 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         fluxes_by_band = []
 
+        needs_flattening = self._subgen[popid]
+        
         # For each population, the band is broken up into pieces
         for j, generator in enumerate(pop_generator):
             if generator is None:
                 fluxes_by_band.append(None)
             else:    
                 z, f = next(generator)
+                
+                if not needs_flattening:
+                    fluxes_by_band.append(f)
+                    continue
+                
                 if z > self.pf['first_light_redshift']:
                     fluxes_by_band.append(np.zeros_like(flatten_flux(f)))
                 else:
+                    
                     fluxes_by_band.append(flatten_flux(f))
 
         return z, fluxes_by_band
@@ -1109,7 +1136,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         #    z = np.array(self.all_z).T[popid][-1::-1]
 
         if flatten:
-            E = flatten_energies(self.solver.energies[popid])
+            E = np.array(flatten_energies(self.solver.energies[popid]))
 
             f = np.zeros([len(z), E.size])
             for i, flux in enumerate(hist):
