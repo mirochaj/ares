@@ -2053,7 +2053,7 @@ class ModelSet(BlobFactory):
             Returns x-values corresponding to desired quartile range, i.e.,
             not really an error-bar.
         else:
-            tuple: (maximum likelihood value, negative error, positive error).
+            tuple: (maximum likelihood value, positive error, negative error).
         """
 
         to_hist = self.ExtractData(par, ivar=ivar, take_log=take_log, 
@@ -2123,9 +2123,9 @@ class ModelSet(BlobFactory):
         lo, hi = np.percentile(tohist, (q1, q2))
                                 
         if (mu is not None) and (limit is None):
-            sigma = (mu - lo, hi - mu)
+            sigma = (hi - mu, mu - lo)
         else:
-            sigma = (lo, hi)
+            sigma = (hi, lo)
 
         return mu, np.array(sigma)
         

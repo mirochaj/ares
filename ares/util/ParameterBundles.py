@@ -429,7 +429,8 @@ class ParameterBundle(dict):
             if key in tmp and rank == 0:
                 
                 if first_update:
-                    print('#'*width)
+                    header('Parameter Bundle')
+                    #print('#'*width)
                     first_update = False
                 
                 msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
