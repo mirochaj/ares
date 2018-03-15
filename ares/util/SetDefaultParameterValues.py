@@ -866,6 +866,7 @@ def ControlParameters():
     "interp_all": 'linear',  # backup
     #"interp_sfrd": 'cubic',
     #"interp_hmf": 'cubic',
+    "master_interp": None,    
     
     # Not implemented
     "extrap_Z": False,

@@ -516,6 +516,12 @@ class ParameterFile(dict):
                     self['{0!s}{{{1}}}'.format(key, i)] = poppf[key]
                 else:
                     self[key] = poppf[key]
+                    
+        # Distribute 'master' parameters.
+                    
+                    
+                    
+                    
 
     def update_pq_pars(self, pfs_by_pop, **kwargs):
         # In a given population, there may be 1+ parameterized halo
@@ -593,10 +599,6 @@ class ParameterFile(dict):
         Run through parsed parameter file looking for conflicts.
         """
         
-        if 'need_for_speed' in kwargs:
-            if kwargs['need_for_speed']:
-                return 
-
         try:
             verbose = kwargs['verbose']
         except KeyError:

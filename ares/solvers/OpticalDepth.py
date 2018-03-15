@@ -9,11 +9,14 @@ Created on: Sat Feb 21 11:26:50 MST 2015
 Description: 
 
 """
+
+import inspect
 import numpy as np
 import os, re, types, sys
 from ..util.Pickling import read_pickle_file, write_pickle_file
 from ..physics import Cosmology
 from scipy.integrate import quad
+from scipy.interpolate import interp1d as interp1d_scipy
 from ..physics.Constants import c
 from ..util.Misc import num_freq_bins
 from ..util.Math import interp1d
@@ -94,7 +97,9 @@ class OpticalDepth(object):
         
     @ionization_history.setter
     def ionization_history(self, value):
-        if isinstance(value, interp1d):
+        if inspect.ismethod(interp1d):
+            self._ionization_history = value
+        elif isinstance(value, interp1d_scipy):
             self._ionization_history = value
         elif type(value) is not types.FunctionType:
             self._ionization_history = lambda z: value

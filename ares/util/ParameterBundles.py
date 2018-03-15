@@ -320,6 +320,33 @@ _cooling = \
  'inits_Tk_dz': 0.2,
 }
 
+_careless = \
+{
+ 'epsilon_dt': 0.5,
+ 'max_timestep': 20.,
+ 'tau_redshift_bins': 200,
+}
+
+
+_insane = \
+{
+ 'epsilon_dt': 0.2,
+ 'max_timestep': 10.,
+ 'tau_redshift_bins': 400,
+}
+
+_fast = \
+{
+ 'epsilon_dt': 0.2,
+ 'max_timestep': 10.,
+}
+
+_slow = \
+{
+ 'epsilon_dt': 0.05,
+ 'max_timestep': 1.,
+}
+
 _Bundles = \
 {
  'pop': {'fcoll': _pop_fcoll, 'sfe-dpl': _pop_sfe, 'sfe-func': _pop_sfe, 
@@ -329,10 +356,12 @@ _Bundles = \
          'bpass': _uvsed_bpass, 's99': _uvsed_s99, 'xi': _sed_xi},
  'src': {'toy-lya': _src_lya, 'toy-xray': _src_xray, 'toy-ion': _src_ion},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
- 'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2, 
+ 'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
     'evolving': _evolve_dc, 'none': {},
     },
  'exotic': {'cooling':_cooling},
+ 'speed': {'fast': _fast, 'slow': _slow, 'insane': _insane,
+    'careless': _careless}
 }
 
 class ParameterBundle(dict):
@@ -546,7 +575,8 @@ class ParameterBundle(dict):
         for par in self:
             prefix, idnum = pop_id_num(par)
             if (idnum == num) or prefix.startswith('hmf_') \
-                or prefix.startswith('dustcorr') or prefix.startswith('sam_'):
+                or prefix.startswith('dustcorr') or prefix.startswith('sam_') \
+                or prefix.startswith('master'):
                 if strip_id:
                     tmp[prefix] = self[par]
                 else:    
