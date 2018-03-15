@@ -488,7 +488,7 @@ class Population(object):
     
     @property
     def is_user_sfrd(self):
-        return (self.pf['pop_sfr_model'].lower() in ['sfrd-func', 'sfrd-tab'])
+        return (self.pf['pop_sfr_model'].lower() in ['sfrd-func', 'sfrd-tab', 'sfrd-class'])
     
     @property
     def is_link_sfrd(self):

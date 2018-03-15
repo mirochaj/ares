@@ -22,7 +22,7 @@ from collections import namedtuple
 from ..util.Math import interp1d
 from scipy.integrate import quad, simps
 from ..util.Warnings import negative_SFRD
-from ..util.ParameterFile import get_pq_pars
+from ..util.ParameterFile import get_pq_pars, pop_id_num
 from scipy.optimize import fsolve, fmin, curve_fit
 from scipy.special import gamma, gammainc, gammaincc
 from ..sources import Star, BlackHole, StarQS, SynthesisModel
@@ -66,7 +66,19 @@ class GalaxyAggregate(HaloPopulation):
                 
                 # Translate to parameter names used by external class
                 pmap = self.pf['pop_user_pmap']
-                pars = {key:self.pf[pmap[key]] for key in pmap}
+                                
+                # Need to be careful with pop ID numbers here.
+                pars = {}
+                for key in pmap:
+                    
+                    val = pmap[key]
+                    
+                    prefix, popid = pop_id_num(val)
+                    
+                    if popid != self.id_num:
+                        continue
+                    
+                    pars[key] = self.pf[prefix]
                 
                 self._sfrd_ = self.pf['pop_sfrd'](**pars)
             elif isinstance(self.pf['pop_sfrd'], interp1d):
