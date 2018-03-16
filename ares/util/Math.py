@@ -15,10 +15,10 @@ from ..physics.Constants import nu_0_mhz
 from scipy.interpolate import interp1d as interp1d_scipy
 
 def interp1d(x, y, kind='linear', fill_value=0.0, bounds_error=False,
-    **kwargs):
-    if kind == 'linear':
+    force_scipy=False, **kwargs):
+    if (kind == 'linear') and (not force_scipy):
         return lambda xx: np.interp(xx, x, y)
-    elif kind == 'cubic': 
+    elif (kind == 'cubic') or force_scipy: 
         return interp1d_scipy(x, y, kind='cubic', bounds_error=bounds_error, 
             fill_value=fill_value, **kwargs)
     else:

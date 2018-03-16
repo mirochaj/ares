@@ -34,11 +34,11 @@ aux_data = \
     'optical_depth_He_1000x2158_z_5-60_logE_2.3-4.5.npz',
     None],
  'secondary_electrons': ['{!s}/downloads'.format(ares_link),
-    'elec_interp.tar.gz', 
+    'elec_interp.tar.gz',
     'read_FJS10.py'],
  'starburst99': ['http://www.stsci.edu/science/starburst99/data',
-    'data.tar.gz', 
-    None],                        
+    'data.tar.gz',
+    None],
  #'hm12': ['http://www.ucolick.org/~pmadau/CUBA/Media',
  #   'UVB.out', 
  #   'emissivity.out', 
@@ -139,8 +139,7 @@ for i, direc in enumerate(to_download):
         try:
             execfile(aux_data[direc][-1])
         except:
-            print("WARNING: Error running {!s}".format(aux_data[direc][-1])) 
-    
-    os.chdir('..')
+            print("WARNING: Error running {!s}".format(aux_data[direc][-1]))
 
+    os.chdir('..')
 

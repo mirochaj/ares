@@ -337,7 +337,8 @@ class Global21cm(AnalyzeGlobal21cm):
             z, E, flux = self.field.get_history(popid, flatten=True)
 
             E21cm = h_p * nu_0_mhz * 1e6 / erg_per_ev
-            f21 = interp1d(E, flux, axis=1, bounds_error=False, fill_value=0.0)
+            f21 = interp1d(E, flux, axis=1, bounds_error=False, 
+                fill_value=0.0, force_scipy=True)
             flux_21cm = f21(E21cm)
 
             Tr += np.interp(self.history['z'], z, flux_21cm) \
