@@ -156,13 +156,15 @@ class Population(object):
         if not hasattr(self, '_is_src_oir'):
             if self.pf['pop_sed_model']:
                 self._is_src_oir = \
-                    (1e-2 >= self.pf['pop_Emin']) and \
-                    (E_LyA <= self.pf['pop_Emax']) \
-                    and self.pf['pop_radio_src']
+                    ((self.pf['pop_Emax'] >= 1e-2) and \
+                    (self.pf['pop_Emin'] <= 4.13)) \
+                    and self.pf['pop_oir_src']
+                
+                # Emission (roughly) between 100 microns and 3000 Angstroms   
             else:
-                self._is_src_radio = self.pf['pop_radio_src']
+                self._is_src_oir = self.pf['pop_oir_src']
     
-        return self._is_src_radio
+        return self._is_src_oir
 
     @property
     def is_src_radio(self):
@@ -174,7 +176,7 @@ class Population(object):
                     and self.pf['pop_radio_src']
             else:
                 self._is_src_radio = self.pf['pop_radio_src']
-    
+
         return self._is_src_radio   
     
     @property
@@ -280,7 +282,7 @@ class Population(object):
                     (self.pf['pop_Emax'] > E_LL) \
                     and self.pf['pop_ion_src_cgm']
             else:
-                self._is_src_uv = self.pf['pop_ion_src_cgm']        
+                self._is_src_uv = self.pf['pop_ion_src_cgm']
     
         return self._is_src_uv
         
@@ -293,9 +295,9 @@ class Population(object):
                     and self.pf['pop_lya_src']
             else:
                 return self.pf['pop_lya_src']
-    
+
         return self._is_src_lya
-    
+
     @property
     def is_src_uv(self):
         if not hasattr(self, '_is_src_uv'):
