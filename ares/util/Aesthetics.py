@@ -374,7 +374,7 @@ class Labeler(object):
         
             if hard is not None:    
                 # If all else fails, just typset the parameter decently
-                parnum = int(re.findall(r'\d+', prefix)[0]) # there can only be one
+                parnum = int(re.findall(r'\d+', par)[0]) # there can only be one
                 label = r'${0!s}\{{{1}\}}[{2}]<{3}>$'.format(hard.replace('_', '\_'),
                     popid, phpid, parnum)    
         # Is PQ, label found. Just need to parse []s.
@@ -398,7 +398,7 @@ class Labeler(object):
                     label = self.labels[prefix[4:]]
             else:
                 label = r'${!s}$'.format(par.replace('_', '\_'))
-        
+
         if par in self.parameters: 
             print('{0} {1} {2} {3}'.format(par, take_log, self.is_log[par],\
                 un_log))

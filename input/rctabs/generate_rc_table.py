@@ -14,7 +14,7 @@ import ares
 
 #
 ## INPUT
-helium = 1
+helium = 0
 dlogN = 0.05
 NE = 100
 ##

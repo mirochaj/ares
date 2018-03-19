@@ -16,9 +16,9 @@ from scipy.integrate import quad
 from ..util import ParameterFile
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
-from ..physics.Constants import erg_per_ev, E_LL
 from ..static.IntegralTables import IntegralTable
 from ..static.InterpolationTables import LookupTable
+from ..physics.Constants import erg_per_ev, E_LL, s_per_myr
 from ..util.SetDefaultParameterValues import SourceParameters, \
     CosmologyParameters
 from ..physics.CrossSections import PhotoIonizationCrossSection as sigma_E
@@ -34,7 +34,7 @@ np.seterr(all='ignore')   # exp overflow occurs when integrating BB
 cosmo_pars = CosmologyParameters()
 
 class Source(object):
-    def __init__(self, grid=None, logN=None, init_tabs=True):
+    def __init__(self, grid=None, logN=None, init_tabs=True, **kwargs):
         """ 
         Initialize a radiation source object. 
         
@@ -96,7 +96,17 @@ class Source(object):
         """
         pass
         
-        
+    def SourceOn(self, t):
+        if t < self.tau:
+            return True    
+        else:
+            return False
+
+    @property
+    def tau(self):
+        if not hasattr(self, '_tau'):
+            self._tau = self.pf['source_lifetime'] * s_per_myr
+        return self._tau
     
     @property
     def cosm(self):
@@ -154,8 +164,8 @@ class Source(object):
     @property 
     def discrete(self):
         if not hasattr(self, '_discrete'):
-            self._discrete = (self.pf['source_E'] != None) #\
-                  #or self.pf['optically_thin']
+            self._discrete = (self.pf['source_E'] != None) or \
+                (self.pf['source_sed'] in ['eldridge2009', 'leitherer1999'])
         
         return self._discrete
         
@@ -327,27 +337,32 @@ class Source(object):
         
         return self._sigma_all
         
-    @property
-    def Qdot(self):
+    def Qdot(self, t=None):
         """
         Returns number of photons emitted (s^-1) at all frequencies.
         """    
-        if not hasattr(self, '_Qdot_all'):
-            self._Qdot_all = self.Lbol * self.LE / self.E / erg_per_ev
+        #if not hasattr(self, '_Qdot_all'):
+        self._Qdot_all = self.Lbol(t) * self.LE / self.E / erg_per_ev
         
         return self._Qdot_all
         
-    @property
-    def hnu_bar(self):
+    def hnu_bar(self, t=0):
         """
         Average ionizing (per absorber) photon energy in eV.
         """
         if not hasattr(self, '_hnu_bar_all'):
-            self._hnu_bar_all = np.zeros_like(self.grid.zeros_absorbers)
-            self._qdot_bar_all = np.zeros_like(self.grid.zeros_absorbers)
-            for i, absorber in enumerate(self.grid.absorbers):
-                self._hnu_bar_all[i], self._qdot_bar_all[i] = \
-                    self._FrequencyAveragedBin(absorber=absorber)
+            self._hnu_bar_all = {}
+        if not hasattr(self, '_qdot_bar_all'):
+            self._qdot_bar_all = {}    
+            
+        if t in self._hnu_bar_all:    
+            return self._hnu_bar_all[t]
+            
+        self._hnu_bar_all[t] = np.zeros_like(self.grid.zeros_absorbers)
+        self._qdot_bar_all[t] = np.zeros_like(self.grid.zeros_absorbers)
+        for i, absorber in enumerate(self.grid.absorbers):
+            self._hnu_bar_all[t][i], self._qdot_bar_all[t][i] = \
+                self._FrequencyAveragedBin(absorber=absorber, t=t)    
             
         return self._hnu_bar_all
     
@@ -417,19 +432,23 @@ class Source(object):
         
         return self._sigma_tilde_all
         
-    @property
-    def fLbol_ionizing(self):
+    def fLbol_ionizing(self, t=0):
         """
         Fraction of bolometric luminosity emitted above all ionization
         thresholds.
         """
         if not hasattr(self, '_fLbol_ioniz_all'):
-            self._fLbol_ioniz_all = np.zeros_like(self.grid.zeros_absorbers)
-            for i, absorber in enumerate(self.grid.absorbers):
-                self._fLbol_ioniz_all[i] = quad(self.Spectrum, 
-                    self.grid.ioniz_thresholds[absorber], self.Emax)[0]
+            self._fLbol_ioniz_all = {}
                     
-        return self._fLbol_ioniz_all
+        if t in self._fLbol_ioniz_all:
+            return self._fLbol_ioniz_all[t]
+
+        self._fLbol_ioniz_all[t] = np.zeros_like(self.grid.zeros_absorbers)
+        for i, absorber in enumerate(self.grid.absorbers):
+            self._fLbol_ioniz_all[t][i] = quad(lambda E: self.Spectrum(E, t), 
+                self.grid.ioniz_thresholds[absorber], self.Emax)[0]
+                    
+        return self._fLbol_ioniz_all[t]
         
     @property
     def Gamma_bar(self):
@@ -552,7 +571,7 @@ class Source(object):
             return self.Luminosity(t)
                 
     def _FrequencyAveragedBin(self, absorber='h_1', Emin=None, Emax=None,
-        energy_weighted=False):
+        energy_weighted=False, t=0):
         """
         Bolometric luminosity / number of ionizing photons in spectrum in bandpass
         spanning interval (Emin, Emax). Returns mean photon energy and number of 
@@ -569,9 +588,10 @@ class Source(object):
         else:
             f = lambda x: 1.0    
             
-        L = self.Lbol * quad(lambda x: self.Spectrum(x) * f(x), Emin, Emax)[0] 
-        Q = self.Lbol * quad(lambda x: self.Spectrum(x) * f(x) / x, Emin, 
-            Emax)[0] / erg_per_ev
+        L = self.Lbol(t) * quad(lambda x: self.Spectrum(x, t=t) \
+            * f(x), Emin, Emax)[0] 
+        Q = self.Lbol(t) * quad(lambda x: self.Spectrum(x, t=t) \
+            * f(x) / x, Emin, Emax)[0] / erg_per_ev
                         
         return L / Q / erg_per_ev, Q            
 

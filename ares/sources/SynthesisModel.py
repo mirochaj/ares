@@ -11,6 +11,7 @@ Description:
 """
 
 import numpy as np
+from .Source import Source
 from ares.physics import Cosmology
 from ..util.ReadData import read_lit
 from scipy.interpolate import interp1d
@@ -47,7 +48,7 @@ class DummyClass(object):
                 
         return wave, data
         
-class SynthesisModel(object):
+class SynthesisModel(Source):
     def __init__(self, **kwargs):
         self.pf = ParameterFile(**kwargs)
                 
@@ -94,7 +95,7 @@ class SynthesisModel(object):
     @property
     def sed_at_tsf(self):
         if not hasattr(self, '_sed_at_tsf'):
-            # erg / s / Hz      
+            # erg / s / Hz -> erg / s / eV
             if self.pf['source_rad_yield'] == 'from_sed':
                 self._sed_at_tsf = \
                     self.data[:,self.i_tsf] * self.dwdn / ev_per_hz
@@ -103,6 +104,20 @@ class SynthesisModel(object):
                     
         return self._sed_at_tsf
 
+    @property
+    def dE(self):
+        if not hasattr(self, '_dE'):
+            tmp = np.abs(np.diff(self.energies))
+            self._dE = np.concatenate((tmp, [tmp[-1]]))
+        return self._dE
+
+    @property
+    def dndE(self):
+        if not hasattr(self, '_dndE'):
+            tmp = np.abs(np.diff(self.frequencies) / np.diff(self.energies))
+            self._dndE = np.concatenate((tmp, [tmp[-1]]))
+        return self._dndE
+    
     @property
     def dwdn(self):
         if not hasattr(self, '_dwdn'):
@@ -191,6 +206,12 @@ class SynthesisModel(object):
                 # Gotta correct for that!
                 self._data[np.argwhere(np.isnan(self._data))] = 0.0
                 
+            # Normalize by SFR or cluster mass.    
+            if self.pf['source_ssp']:
+                self._data *= (self.pf['source_mass'] / 1e6)
+            else:    
+                self._data *= self.pf['source_sfr']
+                
         return self._data
     
     @property
@@ -202,6 +223,32 @@ class SynthesisModel(object):
                 self._wavelengths, junk = self.litinst._load(**self.pf)
             
         return self._wavelengths
+
+    @property
+    def Nfreq(self):
+        return len(self.energies)
+    
+    @property
+    def E(self):
+        if not hasattr(self, '_E'):
+            self._E = np.sort(self.energies)
+        return self._E
+
+    @property
+    def LE(self):
+        """
+        Should be dimensionless?
+        """
+        if not hasattr(self, '_LE'):
+            if self.pf['source_ssp']:
+                raise NotImplemented('No support for SSPs yet (due to t-dep)!')
+
+            _LE = self.sed_at_tsf * self.dE / self.Lbol_at_tsf
+            
+            s = np.argsort(self.energies)
+            self._LE = _LE[s]
+            
+        return self._LE
 
     @property
     def energies(self):
@@ -424,8 +471,25 @@ class SynthesisModel(object):
         erg_per_g = erg_per_msun_yr * s_per_yr / g_per_msun
         
         return erg_per_g
+        
+    @property
+    def Lbol_at_tsf(self):
+        if not hasattr(self, '_Lbol_at_tsf'):
+            self._Lbol_at_tsf = self.Lbol(self.pf['source_tsf'])
+        return self._Lbol_at_tsf
 
-    def IntegratedEmission(self, Emin, Emax, energy_units=False):
+    def Lbol(self, t):
+        """
+        Return bolometric luminosity at time `t`.
+        
+        Assume 1 Msun / yr SFR.
+        """
+        
+        L = self.IntegratedEmission(energy_units=True)
+        
+        return np.interp(t, self.times, L)
+
+    def IntegratedEmission(self, Emin=None, Emax=None, energy_units=False):
         """
         Compute photons emitted integrated in some band for all times.
 
@@ -437,6 +501,11 @@ class SynthesisModel(object):
         """
 
         # Find band of interest -- should be more precise and interpolate
+        if Emin is None:
+            Emin = np.min(self.energies)
+        if Emax is None:
+            Emax = np.max(self.energies)
+            
         i0 = np.argmin(np.abs(self.energies - Emin))
         i1 = np.argmin(np.abs(self.energies - Emax))
         
@@ -459,7 +528,7 @@ class SynthesisModel(object):
         # else: photons / sec / (Msun / yr)
         
         return flux
-        
+                
     @property
     def Nion(self):
         if not hasattr(self, '_Nion'):

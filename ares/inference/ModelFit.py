@@ -952,7 +952,7 @@ class ModelFit(BlobFactory):
         self.sampler = emcee.EnsembleSampler(self.nwalkers,
             self.Nd, self.loglikelihood, pool=self.pool)
                 
-        pos = self.prep_output_files(restart, clobber)    
+        pos = self.prep_output_files(restart, clobber)
         
         state = None #np.random.RandomState(self.seed)
                         
@@ -980,11 +980,20 @@ class ModelFit(BlobFactory):
                     if self.blob_names is None:
                         continue
                     self.save_blobs(data, prefix=burn_prefix)
+                    continue
+
                 # Other stuff
+                elif name[i] == 'chain':
+                    # Quick restructure of chain
+                    rdata = np.array([data[:,kk,:] for kk in range(burn)])
+                    dat = flatten_chain(rdata)                    
                 else:
-                    fn = '{0!s}.{1!s}.pkl'.format(burn_prefix, name[i])
-                    write_pickle_file(data, fn, ndumps=1, open_mode='w',\
-                        safe_mode=False, verbose=True)
+                    rdata = np.array([data[:,kk] for kk in range(burn)])
+                    dat = flatten_logL(rdata)    
+
+                fn = '{0!s}.{1!s}.pkl'.format(burn_prefix, name[i])
+                write_pickle_file(dat, fn, ndumps=1, open_mode='w',\
+                    safe_mode=False, verbose=True)
                         
             # Find walker at highest likelihood point at end of burn
             mlpt = pos[np.argmax(prob)]

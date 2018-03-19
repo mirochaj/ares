@@ -367,12 +367,12 @@ def read_pickled_logL(fn):
         raise ValueError('unrecognized logL shape')
     
 def read_pickled_chain(fn):
-    
+
     # Removes chunks dimension
     data = concatenate(read_pickle_file(fn, nloads=None, verbose=False))
     
     Nd = len(data.shape)
-
+    
     # Flattened chain
     if Nd == 2:
         return np.array(data)

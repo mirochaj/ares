@@ -50,7 +50,6 @@ pl.contour(E, LE, lnL.T, 3, colors='k', linestyles=[':', '--', '-'])
 pl.scatter(list(zip(*sedop.all_results))[0], list(zip(*sedop.all_results))[1],
     c=sedop.all_logL)
 
-
 # We should recover the mean ionizing photon energy and the 
 # fraction of the bolometric luminosity emitted above 13.6 eV
 Emono = sedop.rs.hnu_bar[0]

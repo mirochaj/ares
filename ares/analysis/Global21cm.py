@@ -662,18 +662,18 @@ class Global21cm(MultiPhaseMedium,BlobFactory):
         """    
         
         return np.interp(freq, self.nu_p, self.dTbdnu)
-    
+
     def WidthMeasure(self, max_fraction=0.5, peak_relative=False, to_freq=True,
         absorption=True):
         # This only helps with backward compatibility between two obscure
         # revisions that probably nobody is using...
         return self.Width(max_fraction, peak_relative, to_freq)
-        
+
     def Width(self, max_fraction=0.5, peak_relative=False, to_freq=True,
         absorption=True):
         """
         Return a measurement of the width of the absorption or emission signal.
-        
+
         Parameters
         ----------
         max_fraction : float
