@@ -62,13 +62,13 @@ class PowerSpectrum(analyzePS):
     def run(self, z):
         """
         Run a simulation over k and (maybe) z.
-        
+
         Returns
         -------
         Nothing: sets `history` attribute.
-        
+
         """
-        
+
         if z in self.snapshots:
             return
                 
@@ -81,7 +81,7 @@ class PowerSpectrum(analyzePS):
                           
             if not pb.has_pb:
                 pb.start()              
-                          
+
             pb.update(i)
                     
             # Do stuff

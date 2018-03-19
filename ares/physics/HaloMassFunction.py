@@ -406,11 +406,11 @@ class HaloMassFunction(object):
         self.M = self.MF.M / self.cosm.h70
         self.logM = np.log10(self.M)
         self.lnM = np.log(self.M)
-        
+
         self.Nm = self.M.size
 
         self.k = self.MF.k * self.cosm.h70
-        
+
         self.dndm = np.zeros([self.Nz, self.Nm])
         self.mgtm = np.zeros_like(self.dndm)
         self.ngtm = np.zeros_like(self.dndm)

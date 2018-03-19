@@ -192,7 +192,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         return ax
     
     def BubbleSizeDistribution(self, z, ax=None, fig=1, force_draw=False, 
-        by_volume=False, **kwargs):
+        by_volume=False, region='i', **kwargs):
         """
         Plot bubble size distribution.
     
@@ -220,22 +220,37 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
 
         iz = np.argmin(np.abs(z - self.redshifts))
 
-        R = self.history['R_b'][iz]
-        M = self.history['M_b'][iz]
-        bsd = self.history['bsd'][iz]
+        if region == 'i':
+            
+            if 'R_b' not in self.history:
+                return
+            
+            R = self.history['R_b'][iz]
+            M = self.history['M_b'][iz]
+            bsd = self.history['bsd'][iz]
+            delta_B = self.history['delta_B'][iz]
+            Q = self.history['Qi'][iz]
+        else:
+            
+            if 'R_h' not in self.history:
+                return
+            
+            R = self.history['R_h'][iz]
+            M = self.history['M_h'][iz]
+            bsd = self.history['bsd_h'][iz]
+            delta_B = self.history['delta_B_h'][iz]
+            Q = self.history['Qh'][iz]
     
         rho0 = self.cosm.mean_density0
         
         #R = ((M / rho0) * 0.75 / np.pi)**(1./3.)
         dvdr = 4. * np.pi * R**2        
-        dmdr = rho0 * dvdr
+        dmdr = rho0 * (1. + delta_B) * dvdr
         dmdlnr = dmdr * R
         dndlnR = bsd * dmdlnr
 
         V = 4. * np.pi * R**3 / 3.
 
-        Q = self.history['Qi'][iz]
-                
         if by_volume:
             dndV = bsd * dmdr / dvdr
             ax.loglog(V, V * dndV, **kwargs)
@@ -274,7 +289,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         ax.set_xlabel(r'$z$')
         ax.set_ylabel(r'$Q_{\mathrm{HII}}$')
         ax.set_ylim(0, 1)
-        
+
         pl.draw()
         
         return ax
@@ -287,6 +302,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         """
         
         if ax is None:
+            gotax = False
             if show_gs:
                 if mp_kwargs == {}:
                     mp_kwargs = {'fig': fig}
@@ -300,7 +316,6 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                     
                 mp = MultiPanel(dims=dims, **mp_kwargs)
             else:    
-                gotax = False
                 fig = pl.figure(fig)
                 ax = fig.add_subplot(111)
         else:
@@ -402,10 +417,11 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
             
     def CheckFluctuations(self, redshifts, include_xcorr=False, real_space=True,
         split_by_scale=False, include_fields=['dd','xx','coco','21_s','21'],
-        colors=['k','b','g','c','m','r'], mp_kwargs={}):
+        colors=['k','b','g','c','m','r'], mp_kwargs={}, mp=None):
         
-        mp = MultiPanel(dims=(1+include_xcorr, len(redshifts)), 
-            padding=(0.25, 0.15), **mp_kwargs)
+        if mp is None:
+            mp = MultiPanel(dims=(1+include_xcorr, len(redshifts)), 
+                padding=(0.25, 0.15), **mp_kwargs)
             
         if real_space:
             prefix = 'cf'
@@ -577,14 +593,19 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
         
         return mp
 
-    def CheckJointProbabilities(self, redshifts, weights=False, mp_kwargs={}):
+    def CheckJointProbabilities(self, redshifts, weights=False, mp=None, 
+        mp_kwargs={}):
     
-        mp = MultiPanel(dims=(1, len(redshifts)), 
-            padding=(0.25, 0.15), **mp_kwargs)
+        if mp is None:
+            mp = MultiPanel(dims=(1, len(redshifts)), 
+                padding=(0.25, 0.15), **mp_kwargs)
     
-        all_weights = [(1. - self.history['xibar'])**2, self.history['avg_Ch']**2, 
-            self.history['avg_Cc']**2,
-            self.history['avg_Ch'] * self.history['avg_Cc']]
+        if weights:
+            all_weights = [(1. - self.history['xibar'])**2, self.history['avg_Ch']**2, 
+                self.history['avg_Cc']**2,
+                self.history['avg_Ch'] * self.history['avg_Cc']]
+        else:
+            all_weights = np.ones(3)
     
         for h, redshift in enumerate(redshifts):
     
@@ -625,6 +646,7 @@ class PowerSpectrum(MultiPhaseMedium,BlobFactory):
                     else: 
                         y = np.abs(chunk)
                            
+                    print(cf, redshift, y.shape, dr_ch[j].shape)   
                     ax.loglog(dr_ch[j], y, color=colors[i],
                         ls=ls[i], alpha=0.5, lw=lw, label=label)
             

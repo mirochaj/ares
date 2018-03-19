@@ -244,7 +244,7 @@ class Source(object):
                 
                 self._normL_ = 1. / integral[0]
                 
-        return self._normL_          
+        return self._normL_
 
     #def _load_spectrum(self):
     #    """ Modify a few parameters if spectrum_file provided. """
@@ -255,7 +255,7 @@ class Source(object):
     #        return
     #        
     #    # Read spectrum - expect hdf5 with (at least) E, LE, and t datasets.    
-    #    if re.search('.hdf5', fn):    
+    #    if re.search('.hdf5', fn):
     #        f = h5py.File(fn)
     #        try:
     #            self.pf['tables_times'] = f['t'].value

@@ -296,22 +296,22 @@ class SynthesisModel(object):
         #     erg / sec / Hz / (Msun / 1e6)
         # else: 
         #     erg / sec / Hz / (Msun / yr)
-                    
+
         # to erg / s / A / Msun
         if self.pf['source_ssp']:
             yield_UV /= 1e6
         # or erg / s / A / (Msun / yr)
         else:
             pass
-            
+
         return yield_UV
-    
+
     def LUV(self):
         return self.L_per_SFR_of_t()[-1]
-        
+
     @property
     def L1600_per_sfr(self):
-        return self.L_per_sfr()   
+        return self.L_per_sfr()
         
     def L_per_sfr(self, wave=1600., avg=1):
         """

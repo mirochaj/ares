@@ -378,9 +378,15 @@ def PowerSpectrumParameters():
      "bubble_shell_rsize_zone_0": None,
      "bubble_shell_asize_zone_0": None,
      "bubble_shell_ktemp_zone_0": None,
+     "bubble_shell_tpert_zone_0": None,
      "bubble_shell_rsize_zone_1": None,
      "bubble_shell_asize_zone_1": None,
      "bubble_shell_ktemp_zone_1": None,
+     "bubble_shell_tpert_zone_1": None,
+     "bubble_shell_rsize_zone_2": None,
+     "bubble_shell_asize_zone_2": None,
+     "bubble_shell_ktemp_zone_2": None,
+     "bubble_shell_tpert_zone_2": None,
      
      "bubble_shell_include_xcorr": True,
      
@@ -394,7 +400,7 @@ def PowerSpectrumParameters():
      
      "powspec_lya_method": 'lpt',
      "powspec_ion_method": None,  # unused
-     "powspec_temp_method": 'binary',
+     "powspec_temp_method": 'xset',  # or...'shell'
      
      #"powspec_lya_approx_sfr": 'exp',
      
