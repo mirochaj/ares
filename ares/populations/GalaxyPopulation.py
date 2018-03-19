@@ -14,6 +14,7 @@ from ..util import ParameterFile
 from .GalaxyCohort import GalaxyCohort
 from .GalaxyEnsemble import GalaxyEnsemble
 from .GalaxyAggregate import GalaxyAggregate
+from .BlackHoleAggregate import BlackHoleAggregate
 from ..util.SetDefaultParameterValues import PopulationParameters
 from .Parameterized import ParametricPopulation, parametric_options
 try:
@@ -78,6 +79,8 @@ def GalaxyPopulation(**kwargs):
         return GalaxyAggregate(**kwargs)
     elif model in ['rates']:
         return ParametricPopulation(**kwargs)
+    elif model in ['bhmd']:
+        return BlackHoleAggregate(**kwargs)
     else:
         raise ValueError('Unrecognized sfrd_model {!s}'.format(model))
 

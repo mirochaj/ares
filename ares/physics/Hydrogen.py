@@ -405,7 +405,7 @@ class Hydrogen(object):
         Short-hand for calling `DifferentialBrightnessTemperature`.
         """
         return self.DifferentialBrightnessTemperature(z, xHII, Ts, Tr)
-        
+
     def DifferentialBrightnessTemperature(self, z, xavg, Ts, Tr=0.0):
         """
         Global 21-cm signature relative to cosmic microwave background in mK.

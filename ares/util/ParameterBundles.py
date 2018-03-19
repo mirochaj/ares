@@ -468,6 +468,8 @@ class ParameterBundle(dict):
         self._value = value
     
         for key in self.keys():
+            if not key.startswith('pop_'):
+                continue
             self[_add_pop_tag(key, value)] = self.pop(key)
                 
     def tag_pq_id(self, par, num):

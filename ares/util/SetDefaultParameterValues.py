@@ -530,6 +530,11 @@ def PopulationParameters():
     "pop_sfrd": None,
     "pop_sfrd_units": 'msun/yr/mpc^3',
 
+    # For BHs
+    "pop_bhmd": None,
+    "pop_bhard": None,
+    "pop_fseed": 1e-1,
+
     # Scales SFRD
     "pop_Nlw": 9690.,
     "pop_Nion": 4e3,

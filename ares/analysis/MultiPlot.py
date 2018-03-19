@@ -326,6 +326,8 @@ class MultiPanel(object):
                 cax = self.fig.add_axes([l, t+padding, r-l, width])
             elif position == 'right':
                 cax = self.fig.add_axes([r+padding, b, width, t-b])
+            elif position == 'bottom':
+                cax = self.fig.add_axes([l, b-width-padding, r-l, width])
             else:
                 raise NotImplementedError('sorry!')
 

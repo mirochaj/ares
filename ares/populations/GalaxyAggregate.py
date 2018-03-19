@@ -16,9 +16,7 @@ from ..util import read_lit
 import os, inspect, re
 from types import FunctionType
 from .Halo import HaloPopulation
-from .Population import Population
 from collections import namedtuple
-#from scipy.interpolate import interp1d
 from ..util.Math import interp1d
 from scipy.integrate import quad, simps
 from ..util.Warnings import negative_SFRD
@@ -106,18 +104,7 @@ class GalaxyAggregate(HaloPopulation):
         # This is a cheat so that the SFRD spline isn't constructed
         # until CALLED. Used only for tunneling (see `pop_tunnel` parameter). 
         return self.SFRD(z)
-    
-    def on(self, z):
-        if type(z) in [int, float, np.float64]:
-            if (z > self.zform) or (z < self.zdead):
-                return 0
-            else:
-                on = 1
-        else:
-            on = np.logical_or(z <= self.zform, z >= self.zdead)
-            
-        return on
-    
+        
     def SFRD(self, z):
         """
         Compute the comoving star formation rate density (SFRD).
@@ -222,7 +209,7 @@ class GalaxyAggregate(HaloPopulation):
             rhoL *= self.pf['pop_fesc']
         elif Emax <= 13.6:
             rhoL *= self.pf['pop_fesc_LW']    
-                                                        
+
         if E is not None:
             return rhoL * self.src.Spectrum(E)
         else:

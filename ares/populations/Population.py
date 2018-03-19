@@ -654,4 +654,13 @@ class Population(object):
     
         return Eavg    
     
+    def on(self, z):
+        if type(z) in [int, float, np.float64]:
+            if (z > self.zform) or (z < self.zdead):
+                return 0
+            else:
+                on = 1
+        else:
+            on = np.logical_or(z <= self.zform, z >= self.zdead)
     
+        return on
