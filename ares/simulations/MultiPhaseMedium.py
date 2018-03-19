@@ -11,10 +11,14 @@ Description:
 """
 
 import numpy as np
+from ..static import Grid
+from types import FunctionType
 from .GasParcel import GasParcel
+from ..util.ParameterFile import get_pq_pars
 from ..util import ParameterFile, ProgressBar
 from ..util.ReadData import _sort_history, _load_inits
 from .MetaGalacticBackground import MetaGalacticBackground
+from ..phenom.ParameterizedQuantity import ParameterizedQuantity
 from ..util.SetDefaultParameterValues import MultiPhaseParameters
 
 _mpm_defs = MultiPhaseParameters()
@@ -30,40 +34,49 @@ class MultiPhaseMedium(object):
         ``include_cgm=False`` or ``include_igm=False``.
         
         """
-
-        if 'load_ics' not in kwargs:
-            kwargs['load_ics'] = True        
+   
         self.kwargs = kwargs
         
     @property
     def pf(self):
         if not hasattr(self, '_pf'):
-            inits = self.inits
+                        
             self._pf = ParameterFile(**self.kwargs)
+            
+            # Make sure PF gets modified by initial conditions choices
+            # and ensure that these changes get passed to everything else
+            # subsequently.
+            inits = self.inits
+            
         return self._pf
         
     @property
     def inits(self):
         if not hasattr(self, '_inits'):    
-            self._inits = inits = _load_inits()
-            zi = self.pf['initial_redshift']
-            if not np.all(np.diff(inits['z']) > 0):
-                raise ValueError('Redshifts in ICs must be in ascending order!')
+            if self.pf['load_ics']:
                 
-            Ti = np.interp(zi, inits['z'], inits['Tk'])
-            xe = np.interp(zi, inits['z'], inits['xe'])
+                # Redshifts ascending at this point
+                if self.pf['approx_thermal_history']:
+                    self._inits = inits = self.grid.cosm.thermal_history
+                else:    
+                    self._inits = inits = _load_inits()
+                
+                zi = self.pf['initial_redshift']
+                if not np.all(np.diff(inits['z']) > 0):
+                    raise ValueError('Redshifts in ICs must be in ascending order!')
+                Ti = np.interp(zi, inits['z'], inits['Tk'])
+                xe = np.interp(zi, inits['z'], inits['xe'])
                                                     
-            #if self.pf['include_He']:
-            new = {'igm_initial_temperature': Ti,                                 
-                'igm_initial_ionization': [1.-xe, xe, 1.-xe-1e-10, xe, 1e-10]}
-            self.kwargs.update(new)
-
-            #else:
-            #    new_pars = {'cosmological_ics': False,
-            #                'igm_initial_temperature': Ti,
-            #                'igm_initial_ionization': [1. - xi, xi]}
-            #
-                #self.kwargs.update(new_pars)    
+                #if self.pf['include_He']:
+                new = {'igm_initial_temperature': Ti,                                 
+                    'igm_initial_ionization': [1.-xe, xe, 1.-xe-1e-10, xe, 1e-10]}
+                    
+                # Only time we ever do this?    
+                self.pf.update(new)
+                self.kwargs.update(new)
+                                
+            else:
+                self._inits = None
 
         return self._inits
         
@@ -83,9 +96,17 @@ class MultiPhaseMedium(object):
     def pops(self):
         return self.field.pops
 
+    #@property
+    #def grid(self):
+    #    return self.field.grid        
+
     @property
     def grid(self):
-        return self.field.grid        
+        if not hasattr(self, '_grid'):
+            self._grid = Grid(**self.pf)
+            self._grid.set_properties(**self.pf)    
+                
+        return self._grid
 
     @property
     def parcels(self):
@@ -132,6 +153,8 @@ class MultiPhaseMedium(object):
         Initialize (up to two) GasParcels.
         """
         
+        inits = self.inits
+                
         # Reset stop time based on final redshift.
         z = self.pf['initial_redshift']
         zf = self.pf['final_redshift']
@@ -158,6 +181,7 @@ class MultiPhaseMedium(object):
                             
             if zone == 'igm':
                 self.kw_igm = kw.copy()
+                
                 parcel_igm = GasParcel(**self.kw_igm)
                 
                 self.gen_igm = parcel_igm.step()
@@ -165,6 +189,21 @@ class MultiPhaseMedium(object):
                 # Set initial values for rate coefficients
                 parcel_igm.update_rate_coefficients(parcel_igm.grid.data, 
                     **self.rates_no_RT(parcel_igm.grid))
+                
+                if self.pf['spin_temperature_floor'] is not None:
+                    if type(self.pf['spin_temperature_floor']) == str:
+                        pars = get_pq_pars(self.pf['spin_temperature_floor'], 
+                            self.pf)
+                        parcel_igm.grid.hydr.Ts_floor = \
+                            ParameterizedQuantity(deps={}, raw_pf=self.pf,
+                                **pars)
+                                                        
+                    else:        
+                        Ts = self.pf['spin_temperature_floor']
+                        if type(Ts) is FunctionType:
+                            parcel_igm.grid.hydr.Ts_floor = lambda **kw: Ts(kw['z'])
+                        else:
+                            parcel_igm.grid.hydr.Ts_floor = lambda **kw: Ts
                     
                 self._parcels.append(parcel_igm)
                     
@@ -266,7 +305,7 @@ class MultiPhaseMedium(object):
 
         self.history['t'] = np.array(self.all_t)
         self.history['z'] = np.array(self.all_z)
-        
+                
     def step(self):
         """
         Generator for a two-phase intergalactic medium.
@@ -282,14 +321,14 @@ class MultiPhaseMedium(object):
         z = self.pf['initial_redshift']
         dt = self.pf['time_units'] * self.pf['initial_timestep']
         zf = self.pf['final_redshift']
-        
+
         # Read initial conditions
         if self.pf['include_igm']:
             data_igm = self.parcel_igm.grid.data.copy()
-        
+
         if self.pf['include_cgm']:
             data_cgm = self.parcel_cgm.grid.data.copy()
-            
+
         # Evolve in time!
         while z > zf:
                         
@@ -383,18 +422,37 @@ class MultiPhaseMedium(object):
                 self.all_RCs_igm, self.all_RCs_cgm = [], []
                 
             if not self.pf['include_cgm']:
-                del self.all_RCs_cgm, self.all_data_cgm    
+                del self.all_RCs_cgm, self.all_data_cgm   
+                
+            #self.all_z.append(self.pf['initial_redshift'])
+            #self.all_t.append(0.0)
+            #
+            #igm_inits = {'Tk': self.pf['igm_initial_temperature'],
+            #    'xe': self.pf['igm_initial_ionization']}
+            #cgm_inits = {'Tk': self.pf['cgm_initial_temperature'],
+            #    'xe': self.pf['cgm_initial_ionization']}
+            #self.all_data_igm.append(igm_inits)
+            #self.all_data_cgm.append(cgm_inits)
+                
+                 
             return
-            
+                        
         # Flip to descending order (in redshift)
-        z_inits = self.inits['z'][-1::-1]
-        Tk_inits = self.inits['Tk'][-1::-1]
-        xe_inits = self.inits['xe'][-1::-1]
+        if self.pf['load_ics'] == 'cosmorec':
+            z_inits = self.inits['z'][-1::-1]
+            Tk_inits = self.inits['Tk'][-1::-1]
+            xe_inits = self.inits['xe'][-1::-1]
+        else:            
+            z_inits = self.grid.cosm.thermal_history['z'][-1::-1]
+            Tk_inits = self.grid.cosm.thermal_history['Tk'][-1::-1]
+            xe_inits = self.grid.cosm.thermal_history['xe'][-1::-1]
+            
         inits_all = {'z': z_inits, 'Tk': Tk_inits, 'xe': xe_inits}
 
         # Stop pre-pending once we hit the first light redshift
-        i_trunc = np.argmin(np.abs(z_inits - self.pf['initial_redshift']))    
-        if z_inits[i_trunc] <= self.pf['initial_redshift']:
+        zi = self.pf['initial_redshift']
+        i_trunc = np.argmin(np.abs(z_inits - zi))    
+        if z_inits[i_trunc] <= zi:
             i_trunc += 1
 
         self.all_t = []
@@ -422,7 +480,7 @@ class MultiPhaseMedium(object):
 
             snapshot = {}
             for key in self.parcel_igm.grid.data.keys():
-                if key in self.inits.keys():
+                if key in inits_all.keys():
                     snapshot[key] = inits_all[key][i]
                     continue
             
@@ -435,7 +493,9 @@ class MultiPhaseMedium(object):
             if 2 not in self.parcel_igm.grid.Z:
                 xe = min(xe, 1.0)
                 
-            xi = xe / (1. + self.parcel_igm.grid.cosm.y)
+            # Need to be careful this isn't > 1, since we're breaking 
+            # electron fraction into H and He fractions separately.    
+            xi = np.minimum(xe / (1. + self.parcel_igm.grid.cosm.y), 1.)
 
             snapshot['h_1'] = 1. - xi
             snapshot['h_2'] = xi

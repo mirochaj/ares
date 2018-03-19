@@ -12,8 +12,9 @@ Description:
 
 import re
 import numpy as np
+from ..util.Math import interp1d
 from ..util.Math import LinearNDInterpolator
-from scipy.interpolate import interp1d, RectBivariateSpline
+from scipy.interpolate import RectBivariateSpline
         
 spline_err = "interp_tab == cubic and there are infs in our table!"
 spline_err += "\nSpline interpolation is global, so any infs will render *all*"

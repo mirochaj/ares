@@ -37,10 +37,10 @@ logbx = lambda b, x: np.log10(x) / np.log10(b)
 def get_cmd_line_kwargs(argv):
     
     cmd_line_kwargs = {}
-    
+
     for arg in argv[1:]:
         pre, post = arg.split('=')
-        
+
         # Need to do some type-casting
         if post.isdigit():
             cmd_line_kwargs[pre] = int(post)

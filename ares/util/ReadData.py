@@ -78,8 +78,24 @@ def read_lit(prefix, path=None, verbose=True):
     mod.path = loc
     
     return mod
-
+    
 def flatten_energies(E):
+    """
+    Take fluxes sorted by band and flatten to single energy dimension.
+    """
+    
+    to_return = []
+    for i, band in enumerate(E):
+        if type(band) is list:
+            to_return.extend(np.concatenate(band))
+        elif type(band) is np.ndarray:
+            to_return.extend(band)
+        else:
+            to_return.append(float(band))
+
+    return to_return
+
+def flatten_energies_OLD(E):
     """
     Take fluxes sorted by band and flatten to single energy dimension.
     """
@@ -312,7 +328,7 @@ def flatten_chain(data):
     """
 
     if len(data.shape) != 3:
-        raise ValueError('chain ain\'t the right shape.')    
+        raise ValueError("Chain shape {} incorrect. Should be 3-D".format(data.shape))    
 
     new = []
     for i in range(data.shape[1]):
@@ -328,7 +344,7 @@ def flatten_logL(data):
     """
 
     if len(data.shape) != 2:
-        raise ValueError('chain ain\'t the right shape.')    
+        raise ValueError("loglikelihood shape {} incorrect. Should be 2-D".format(data.shape))
 
     new = []
     for i in range(data.shape[1]):

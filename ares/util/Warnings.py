@@ -105,6 +105,19 @@ WARNING: The contents of `pop_constraints` will override the values of
 `pop_lf_Mstar`, `pop_lf_pstar`, and `pop_lf_alpha`. 
 """
 
+def not_a_restart(prefix, has_burn):
+    print("")
+    print(line(separator))
+    print(line("WARNING: This doesn't look like a restart:"))
+    print(line("{!s}.chain.pkl is empty!".format(prefix)))
+    
+    if not has_burn:
+        print(line("No burn-in data found. Continuing on as if from scratch."))
+    else:
+        print(line("Burn-in data found. Restarting from end of burn-in."))
+        
+    print(line(separator))    
+
 def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok, ztab):    
     print("")
     print(line(separator))
@@ -118,10 +131,12 @@ def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok, ztab):
         print(line("found       : {!s}".format(\
             igm.tabname[igm.tabname.rfind('/')+1:])))
     
+    zmax_pop = min(igm.pf['pop_zform'], igm.pf['first_light_redshift'])
+    
     print(line("zmin (pf)   : {0:g}".format(igm.pf['final_redshift'])))
-    print(line("zmin ({0!s})  : {1:g}".format(which, ztab.min())))
-    print(line("zmax (pf)   : {0:g}".format(igm.pf['pop_zform'])))
-    print(line("zmax (0!s)  : {1:g}".format(which, ztab.max())))
+    print(line("zmin ({0})  : {1:g}".format(which, ztab.min())))
+    print(line("zmax (pf)   : {0:g}".format(zmax_pop)))
+    print(line("zmax ({0})  : {1:g}".format(which, ztab.max())))
 
     if not zmin_ok:
         print(line(("this is OK  : we'll transition to an on-the-fly tau " +\
@@ -131,6 +146,7 @@ def tau_tab_z_mismatch(igm, zmin_ok, zmax_ok, ztab):
                 "comes first").format(igm.pf['EoR_xavg'])))
 
     print(line(separator))
+    print("")
 
 def tau_tab_E_mismatch(pop, tabname, Emin_ok, Emax_ok, Etab):    
     print("")
@@ -147,9 +163,9 @@ def tau_tab_E_mismatch(pop, tabname, Emin_ok, Emax_ok, Etab):
             tabname[tabname.rfind('/')+1:])))
     
     print(line("Emin (pf)   : {0:g}".format(pop.pf['pop_Emin'])))
-    print(line("Emin ({0!s})  : {1:g}".format(which, Etab.min())))
+    print(line("Emin ({0})  : {1:g}".format(which, Etab.min())))
     print(line("Emax (pf)   : {0:g}".format(pop.pf['pop_Emax'])))
-    print(line("Emax ({0!s})  : {1.g}".format(which, Etab.max())))
+    print(line("Emax ({0})  : {1.g}".format(which, Etab.max())))
 
     if Etab.min() < pop.pf['pop_Emin']:
         print(line(("this is OK  : we'll discard E < {0:.2e} eV entries in " +\

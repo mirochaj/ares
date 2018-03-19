@@ -82,13 +82,16 @@ class DustCorrection(object):
         Return observed (i.e., uncorrected for dust) magnitude.
         """
         
-        if type(MUV) in [np.ndarray, list, tuple]:
+        # Compute the absolute magnitude one measured in the first place,
+        # i.e., before correcting for dust. 
+        
+        if type(MUV) in [np.ndarray, np.ma.core.MaskedArray, list, tuple]:
             
             x = []
             for M in MUV:
                 f_AUV = lambda mag: self.AUV(z, mag)
                 
-                to_min = lambda xx: xx - f_AUV(xx) - M
+                to_min = lambda xx: np.abs(xx - f_AUV(xx) - M)
                 x.append(fsolve(to_min, M+1.)[0])
                 
             x = np.array(x)    
@@ -96,7 +99,7 @@ class DustCorrection(object):
 
             f_AUV = lambda mag: self.AUV(z, mag)
             
-            to_min = lambda xx: xx - f_AUV(xx) - MUV
+            to_min = lambda xx: np.abs(xx - f_AUV(xx) - MUV)
             x = fsolve(to_min, MUV+1.)[0]
 
         return x

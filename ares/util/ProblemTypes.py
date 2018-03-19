@@ -219,7 +219,7 @@ def ReionizationProblem(ptype):
         ptype_mod1 = round(ptype - ptype_int, 1)
                                 
     # Single-zone reionization problem
-    if ptype_int == 0:
+    if ptype_int == 5:
         pf = \
         {
          'problem_type': 100,
@@ -245,7 +245,6 @@ def ReionizationProblem(ptype):
          'cgm_collisional_ionization': False,
         }
 
-            
     # Simple global 21-cm problem            
     if ptype_int == 0:
         # Blank slate
@@ -366,8 +365,10 @@ def ReionizationProblem(ptype):
         "pop_rad_yield{1}": 2.6e39, 
         "pop_rad_yield_units{1}": 'erg/s/SFR',
         "pop_solve_rte{1}": False,
+        }
         
-        }    
+    pf['load_ics'] = True
+    pf['cosmological_ics'] = True
 
     return pf  
 

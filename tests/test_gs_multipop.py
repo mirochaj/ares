@@ -34,7 +34,7 @@ def test():
     sim1.run()
     sim2.run()
     
-    ax = sim1.GlobalSignature(color='k')
+    ax, zax = sim1.GlobalSignature(color='k')
     sim2.GlobalSignature(ax=ax, color='b')
     
     pl.draw()

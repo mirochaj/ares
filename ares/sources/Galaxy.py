@@ -13,7 +13,12 @@ Description:
 import numpy as np
 from ..util import ParameterFile
 from .SynthesisModel import SynthesisModel
-from scipy.interpolate import Akima1DInterpolator, RectBivariateSpline
+from scipy.interpolate import RectBivariateSpline
+
+try:
+    from scipy.interpolate import Akima1DInterpolator
+except ImportError:
+    pass
 
 class Galaxy(object):
     def __init__(self, **kwargs):

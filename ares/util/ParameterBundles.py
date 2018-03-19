@@ -14,7 +14,15 @@ import numpy as np
 from .ReadData import read_lit
 from .ProblemTypes import ProblemType
 from .ParameterFile import pop_id_num, par_info
-from .PrintInfo import header, footer, separator, line
+from .PrintInfo import header, footer, separator, line, width, twidth
+
+try:
+    from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+except ImportError:
+    rank = 0
+    size = 1
 
 def _add_pop_tag(par, num):
     """
@@ -213,7 +221,7 @@ _sed_uv = \
  "pop_ion_src_cgm": True,
  "pop_ion_src_igm": False,
  "pop_heat_src_igm": False,
- 
+  
  "pop_fesc": 0.1,
  "pop_fesc_LW": 1.0,
  
@@ -301,6 +309,43 @@ _evolve_dc = \
 'dustcorr_ztrans': [0, 4, 5],
 }
 
+_cooling = \
+{
+ 'approx_thermal_history': 'exp',
+ 'load_ics': 'parametric', 
+ 'inits_Tk_p0': 189.5850442,
+ 'inits_Tk_p1': 1.26795248,
+ 'inits_Tk_p2': -5.5,
+ 'inits_Tk_p3': 3.5,
+ 'inits_Tk_dz': 0.2,
+}
+
+_careless = \
+{
+ 'epsilon_dt': 0.5,
+ 'max_timestep': 20.,
+ 'tau_redshift_bins': 200,
+}
+
+
+_insane = \
+{
+ 'epsilon_dt': 0.2,
+ 'max_timestep': 10.,
+ 'tau_redshift_bins': 400,
+}
+
+_fast = \
+{
+ 'epsilon_dt': 0.2,
+ 'max_timestep': 10.,
+}
+
+_slow = \
+{
+ 'epsilon_dt': 0.05,
+ 'max_timestep': 1.,
+}
 
 _Bundles = \
 {
@@ -311,9 +356,12 @@ _Bundles = \
          'bpass': _uvsed_bpass, 's99': _uvsed_s99, 'xi': _sed_xi},
  'src': {'toy-lya': _src_lya, 'toy-xray': _src_xray, 'toy-ion': _src_ion},
  'physics': {'xrb': _crte_xrb, 'lwb': _crte_lwb},
- 'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2, 
+ 'dust': {'simple': _simple_dc1, 'var_beta': _simple_dc2,
     'evolving': _evolve_dc, 'none': {},
-    }
+    },
+ 'exotic': {'cooling':_cooling},
+ 'speed': {'fast': _fast, 'slow': _slow, 'insane': _insane,
+    'careless': _careless}
 }
 
 class ParameterBundle(dict):
@@ -376,16 +424,27 @@ class ParameterBundle(dict):
 
         # If any keys overlap, overwrite first instance with second.
         # Just alert the user that this is happening.
+        first_update = True
         for key in other:
-            if key in tmp:
-                msg1 = "UPDATE: Setting {0}->{1}".format(key, other[key])
-                msg2 = "previously {0}={1}".format(key, tmp[key])
-                print('{0} [{1}]'.format(msg1, msg2))
+            if key in tmp and rank == 0:
+                
+                if first_update:
+                    header('Parameter Bundle')
+                    #print('#'*width)
+                    first_update = False
+                
+                msg1 = "UPDATE: Setting {0} -> {1}".format(key.ljust(20), 
+                    str(other[key]).ljust(12))
+                msg2 = "previously {0} = {1}".format(str(key).ljust(20), tmp[key])
+                print(line('{0} [{1}]'.format(msg1, msg2)))
 
             tmp[key] = other[key]
-                
+
+        if not first_update:
+            print('#'*width)
+            
         return ParameterBundle(**tmp)
-        
+
     def __sub__(self, other):
         tmp1 = self.copy()
     
@@ -409,13 +468,15 @@ class ParameterBundle(dict):
         self._value = value
     
         for key in self.keys():
+            if not key.startswith('pop_'):
+                continue
             self[_add_pop_tag(key, value)] = self.pop(key)
                 
     def tag_pq_id(self, par, num):
         """
         Find ParameterizedQuantity parameters and tag with `num`.
         """
-        
+                
         if self[par] == 'pq':
             current_tag = None
         else:
@@ -508,15 +569,31 @@ class ParameterBundle(dict):
     def pars_by_pop(self, num, strip_id=False):
         """
         Return dictionary of parameters associated with population `num`.
+        
+        This will take any parameters with ID numbers, and any parameters
+        with the `hmf_` prefix, since populations need to know about that 
+        stuff. Also, dustcorr parameters.
         """
         tmp = {}
         for par in self:
             prefix, idnum = pop_id_num(par)
-            if idnum == num:
+            if (idnum == num) or prefix.startswith('hmf_') \
+                or prefix.startswith('dustcorr') or prefix.startswith('sam_') \
+                or prefix.startswith('master'):
                 if strip_id:
                     tmp[prefix] = self[par]
                 else:    
                     tmp[par] = self[par]
+                
+        return ParameterBundle(**tmp)
+        
+    def get_base_kwargs(self):
+        tmp = {}
+        for par in self:
+            prefix, idnum = pop_id_num(par)
+            
+            if idnum is None: 
+                tmp[par] = self[par]
                 
         return ParameterBundle(**tmp)
         
@@ -612,7 +689,8 @@ _tanh_sim = {'problem_type': 100, 'tanh_model': True,
 _param_sim = {'problem_type': 100, 'parametric_model': True,
     'output_frequencies': np.arange(30., 201.)}
 
+_gs_min = {'problem_type': 100, 'load_ics': True, 'cosmological_ics': True}
 _tmp = {'2pop': _uv_pop+_xr_pop, '4par': _gs_4par,
-    'tanh': _tanh_sim, 'param': _param_sim}
+    'tanh': _tanh_sim, 'param': _param_sim, 'minimal': _gs_min}
 
 _Bundles['gs'] = _tmp

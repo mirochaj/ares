@@ -13,8 +13,9 @@ Description:
 import numpy as np
 from .Source import Source
 from ares.physics import Cosmology
+from scipy.optimize import minimize
 from ..util.ReadData import read_lit
-from scipy.interpolate import interp1d
+from ..util.Math import interp1d
 from ..util.ParameterFile import ParameterFile
 from ares.physics.Constants import h_p, c, erg_per_ev, g_per_msun, s_per_yr, \
     s_per_myr, m_H, ev_per_hz
@@ -220,7 +221,7 @@ class SynthesisModel(Source):
             if self.pf['source_sed_by_Z'] is not None:
                 self._wavelengths, junk = self.pf['source_sed_by_Z']
             else:
-                self._wavelengths, junk = self.litinst._load(**self.pf)
+                data = self.data
             
         return self._wavelengths
 
@@ -299,10 +300,10 @@ class SynthesisModel(Source):
             for i in range(self.times.size):
                 self._E_per_M[:,i] = self.data[:,i] / (self.energies * erg_per_ev)    
 
-            if self.pf['source_ssp']:
-                self._E_per_M /= 1e6
-            else:
-                pass
+            #if self.pf['source_ssp']:
+            #    self._E_per_M /= 1e6
+            #else:
+            #    pass
 
         return self._E_per_M
 
@@ -315,6 +316,29 @@ class SynthesisModel(Source):
                     / np.diff(np.log(self.wavelengths))
 
         return self._uvslope
+        
+    def fit_uvslope(self, lam=1600, dlam=200):
+        
+        slc = np.logical_and(lam-dlam <= self.wavelengths, 
+                            self.wavelengths <= lam+dlam)
+        
+        _uvslope_fit = np.zeros_like(self.times)        
+        for i in range(self.times.size):
+            
+            logL = np.log(self.data[slc,i])
+            logw = np.log(self.wavelengths[slc])
+
+            model = lambda pars: pars[0] + pars[1] * logw
+
+            to_min = lambda x, *args: np.sum((model(x) - logL)**2)
+
+            res = minimize(to_min, np.array([42., -2.]))
+
+            a, b = res.x
+
+            _uvslope_fit[i] = b
+            
+        return _uvslope_fit    
     
     def LUV_of_t(self):
         return self.L_per_SFR_of_t()
@@ -342,11 +366,11 @@ class SynthesisModel(Source):
         #     erg / sec / Hz / (Msun / yr)
                     
         # to erg / s / A / Msun
-        if self.pf['source_ssp']:
-            yield_UV /= 1e6
-        # or erg / s / A / (Msun / yr)
-        else:
-            pass
+        #if self.pf['source_ssp']:
+        #    yield_UV /= 1e6
+        ## or erg / s / A / (Msun / yr)
+        #else:
+        #    pass
             
         return yield_UV
     
