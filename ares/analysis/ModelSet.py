@@ -15,7 +15,6 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as pl
 from ..util import ProgressBar
-import matplotlib._cntr as cntr
 from ..physics import Cosmology
 from .MultiPlot import MultiPanel
 import re, os, string, time, glob
