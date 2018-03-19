@@ -106,7 +106,7 @@ class PowerSpectrum(analyzePS):
                     
                 # Check to see if this pop is a source of fluctuations
                 # of the desired kind. So far, just Ly-a.
-                if not pop.is_lya_src:
+                if not pop.is_src_lya:
                     ps_by_pop.append(0.0)
                     continue
                     

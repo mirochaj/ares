@@ -207,7 +207,8 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         self._count += 1
     
-    def today(self, zf=None, ztol=1e-2, popids=None):
+    @property
+    def today(self):
         """
         Return background intensity at z=zf evolved to z=0 assuming optically
         thin IGM.
@@ -226,20 +227,9 @@ class MetaGalacticBackground(AnalyzeMGB):
                 
             z, E, flux = self.get_history(popid=popid, flatten=True)    
             
-            if zf is None:    
-                Et = E / (1. + z[0])
-                ft = flux[0] / (1. + z[0])**2
-            else:
-                iz = np.argmin(np.abs(zf - z))
-                
-                if abs(z[iz] - zf) < ztol:
-                    pass
-                else:
-                    print "Don't have access to z={}.".format(zf)
-                    print "Will use z={} instead.".format(z[iz])
-                    
-                Et = E / (1. + z[iz])
-                ft = flux[iz] / (1. + z[iz])**2    
+            
+            Et = E / (1. + z[0])
+            ft = flux[0] / (1. + z[0])**2 
             
             _energies_today.append(Et)
             _fluxes_today.append(ft)

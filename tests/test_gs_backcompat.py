@@ -30,7 +30,7 @@ def test():
         
     ax.legend(loc='lower right', fontsize=14)
     pl.draw()
-    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()
     
     # Most common problem: breaking backward compatibility means the 

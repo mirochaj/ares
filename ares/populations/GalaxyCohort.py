@@ -1734,7 +1734,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             raise NotImplementedError('No SAM with nz={}'.format(\
                 self.pf['pop_sam_nz']))
                         
-    def _SAM_1z(self, t, y):
+    def _SAM_1z(self, z, y):
         """
         Simple semi-analytic model for the components of galaxies.
 
@@ -2148,40 +2148,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         results['zmax'] = np.array(zmax)
 
         return np.array(zform), results
-        
-    def Trajectory(self, z0, M0):
-        
-        zf = max(float(self.halos.z.min()), self.pf['final_redshift'])
-        
-        #in_range = np.logical_and(self.halos.z >= zf, self.halos.z <= z0)
-        #zarr = self.halos.z[in_range][::zfreq]
-        #Nz = zarr.size
-        #
-        #dz = np.diff(self.halos.z)
-        #assert np.allclose(np.diff(dz), 0)
-        #dz = dz[0]
 
-        # Boundary conditions (pristine halo)
-        Mg0 = self.cosm.fbar_over_fcdm * M0
-        MZ0 = 0.0
-        Mst0 = 0.0
-
-        solver = self.solver = ode(self._SAM).set_integrator('lsoda', nsteps=1e4, 
-            atol=self.pf['sam_atol'], rtol=self.pf['sam_rtol'])
-
-        # Initial stellar mass -> 0, initial halo mass -> Mmin
-        t0 = self.cosm.t_of_z(z0) / s_per_yr
-        solver.set_initial_value(np.array([M0, Mg0, Mst0, MZ0, Mst0, z0]), t0)
-        
-        dt = self.pf['sam_dt'] * 1e6
-        tf = t0 + self.cosm.LookbackTime(zf, z0) / s_per_yr
-        results = []
-        while solver.successful() and solver.t < tf:
-            solver.integrate(solver.t+dt)
-            results.append(solver.y.copy())            
-        
-        return np.array(results)
-        
     def _ScalingRelationsStaticSFE(self, z0=None, M0=0):
         """
         Evolve a halo from initial mass M0 at redshift z0 forward in time.
@@ -2423,7 +2390,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             ##
             # EVOLVE
             ##
-            solver.integrate(solver.t+dt)
+            solver.integrate(solver.t-dz)
 
         if zmax is None:
             zmax = self.pf['final_redshift']
@@ -2623,10 +2590,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         best = np.argmin(score)
                 
         return np.interp(self.halos.z, zarr, Mmin[best])
-||||||| base
-                 
-=======
-                 
+   
     def _guess_Mmin(self):
         """
         Super non-general at the moment sorry.
@@ -2685,4 +2649,3 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         """
         pass
         
->>>>>>> merge rev

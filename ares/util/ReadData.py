@@ -352,25 +352,6 @@ def flatten_logL(data):
 
     return new
             
-def read_pickle_file(fn):
-    f = open(fn, 'rb')
-
-    ct = 0
-    results = []
-    while True:
-        try:
-            data = pickle.load(f)
-            results.extend(data)
-            ct +=1
-        except EOFError:
-            break
-
-    #print "Read %i chunks from %s." % (ct, fn)
-
-    f.close()
-    
-    return np.array(results)
-
 def concatenate(lists):
     return np.concatenate(lists, axis=0)
 

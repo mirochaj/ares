@@ -491,7 +491,7 @@ def _rad_type(sim, fluctuations=False):
             if fl != fluctuations:
                 continue
 
-            for band in ['lya', 'ion', 'heat']:
+            for band in ['radio', 'oir', 'lya', 'lw', 'ion', 'heat']:
                 is_src = pop.__getattribute__('is_src_%s%s' % (band, suffix[j]))
 
                 if is_src:
@@ -540,8 +540,8 @@ def print_sim(sim):
     print line('Uniform Backgrounds')
     print line('-'*twidth)
     
-    data, rows, cols = _rad_type(sim)
-    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8], fmt='%s')
+    data, rows, cols = _rad_type(sim)    
+    tabulate(data, rows, cols, cwidth=[8,12,8,8,8,8,8,8,8,8], fmt='{!s}')
     
     print line('-'*twidth)
     print line('Fluctuating Backgrounds')

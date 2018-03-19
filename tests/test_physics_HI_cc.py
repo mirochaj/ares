@@ -67,7 +67,7 @@ def test():
         # Numbers small so ignore absolute tolerance
         ok *= np.allclose(tab, interp, atol=0.0)
         
-    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')]))
     pl.close()        
         
     assert ok, "Error in computation of coupling coefficients."

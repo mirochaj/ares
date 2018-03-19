@@ -256,9 +256,7 @@ class Source(object):
                     integrand = lambda EE: self._Intensity(EE) / self._hardening_factor(EE)
                     self._normL_ = 1. / quad(integrand,
                         self.pf['source_EminNorm'], self.pf['source_EmaxNorm'])[0]
-                
-                self._normL_ = 1. / integral[0]
-                
+                                
         return self._normL_
 
     #def _load_spectrum(self):

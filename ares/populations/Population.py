@@ -167,6 +167,10 @@ class Population(object):
         return self._is_src_oir
 
     @property
+    def is_src_oir_fl(self):
+        return False
+
+    @property
     def is_src_radio(self):
         if not hasattr(self, '_is_src_radio'):
             if self.pf['pop_sed_model']:
@@ -178,6 +182,10 @@ class Population(object):
                 self._is_src_radio = self.pf['pop_radio_src']
 
         return self._is_src_radio   
+    
+    @property
+    def is_src_radio_fl(self):
+        return False
     
     @property
     def is_src_lya(self):
@@ -322,10 +330,14 @@ class Population(object):
                     (self.pf['pop_Emin'] <= 11.2 <= self.pf['pop_Emax']) and \
                     (self.pf['pop_Emin'] <= E_LL <= self.pf['pop_Emax'])
             else:
-                self.is_src_lw = False
+                self._is_src_lw = False
                 
         return self._is_src_lw    
 
+    @property
+    def is_src_lw_fl(self):
+        return False
+        
     @property
     def is_emissivity_separable(self):
         """

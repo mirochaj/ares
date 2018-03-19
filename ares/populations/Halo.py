@@ -11,11 +11,11 @@ Description:
 """
 
 import numpy as np
-from ..physics import HaloModel
 from .Population import Population
 from scipy.integrate import cumtrapz
 from ..util.PrintInfo import print_pop
 from scipy.interpolate import interp1d
+from ..physics.HaloModel import HaloModel
 from ..util.Math import central_difference, forward_difference
 from ..physics.Constants import cm_per_mpc, s_per_yr, g_per_msun
 

@@ -144,7 +144,7 @@ class Hydrogen(object):
             Tk_p_H, dkHdT = central_difference(self.Tk_hi_H, self.kH_hi)
             dlogkH_dlogT = dkHdT * Tk_p_H / np.array(list(map(self.kappa_H, Tk_p_H)))            
             _kH_spline = interp1d(Tk_p_H, dlogkH_dlogT)
-            self._dlogkH_dlogT = lambda T: _kH_spline(T)
+            self._dlogkH_dlogT_ = lambda T: _kH_spline(T)
             
         return self._dlogkH_dlogT_
         
@@ -154,7 +154,7 @@ class Hydrogen(object):
             Tk_p_e, dkedT = central_difference(self.Tk_hi_e, self.ke_hi)
             dlogke_dlogT = dkedT * Tk_p_e / np.array(list(map(self.kappa_e, Tk_p_e)))
             _ke_spline = interp1d(Tk_p_e, dlogke_dlogT)
-            self._dlogke_dlogT = lambda T: _ke_spline(T)
+            self._dlogke_dlogT_ = lambda T: _ke_spline(T)
     
         return self._dlogke_dlogT_
     

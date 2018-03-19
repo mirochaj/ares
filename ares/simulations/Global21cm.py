@@ -32,7 +32,7 @@ except ImportError:
     rank = 0
     size = 1
 
-class Global21cm(AnalyzeGS):
+class Global21cm(AnalyzeGlobal21cm):
     def __init__(self, **kwargs):
         """
         Set up a two-zone model for the global 21-cm signal.

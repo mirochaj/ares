@@ -35,8 +35,8 @@ plpars = \
  'pop_logN': -np.inf,
  #'approx_xrb': 0,
  'pop_solve_rte': True,
- 'pop_tau_Nz': 400,
  
+ 'tau_redshift_bins': 400,
  'initial_redshift': 40.,
  'final_redshift': 10.,
 }

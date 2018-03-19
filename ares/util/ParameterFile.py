@@ -29,7 +29,7 @@ try:
 except ImportError:
     rank = 0
 
-old_pars = ['fX', 'cX', 'fstar', 'fesc', 'Nion', 'Nlw', 'Tmin']
+old_pars = ['fX', 'cX', 'fstar', 'fesc', 'Nion', 'Nlw', 'Tmin', 'fXh']
 
 _cosmo_params = CosmologyParameters()
 

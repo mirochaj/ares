@@ -67,7 +67,7 @@ def test():
     
     pl.draw()
     
-    pl.savefig('{!s}.png'.format(__file__.rstrip('.py')))
+    pl.savefig('{!s}.png'.format(__file__[0:__file__.rfind('.')])
     pl.close()
     
     assert True
